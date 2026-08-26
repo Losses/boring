@@ -15,9 +15,10 @@ const F64_COUNT_PER_RECORD = 5;
 export function encodeVector(records: readonly GlyphMetricsRecord[]): Uint8Array {
   const writer = new BinaryWriter();
   writer.writeAscii(VECTOR_MAGIC);
-  writer.writeU32(records.length);
-  for (let i = 0; i < records.length; i += 1) {
-    const record = records[i];
+  const count = records.length;
+  writer.writeU32(count);
+  for (let i = 0; i < count; i += 1) {
+    const record = records[i]!;
     writer.writeU32(record.codePoint);
     writer.writeF64(record.advanceEm);
     writer.writeF64(record.bounds.xMin);
