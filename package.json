@@ -13,9 +13,10 @@
     "typecheck": "tsc -p .",
     "check:docs": "bun tools/doc-style/check.ts",
     "gen:vector": "bun tools/gen-vector.ts",
+    "check:reflaxe": "haxe -lib reflaxe -cp tools/reflaxe -main Smoke -js out/haxe/reflaxe-smoke.js",
     "commit": "bun tools/commit/commit.ts",
     "install:hooks": "bun tools/git-hooks/install.ts",
-    "verify": "bun run test && bun run test:haxe && bun run test:rust && bun run lint && bun run typecheck && bun run check:docs && bun run gen:vector"
+    "verify": "bun run test && bun run test:haxe && bun run test:rust && bun run lint && bun run typecheck && bun run check:docs && bun run gen:vector && bun run check:reflaxe"
   },
   "devDependencies": {
     "@boring/codec": "workspace:*",

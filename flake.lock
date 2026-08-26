@@ -13,9 +13,27 @@
         "type": "indirect"
       }
     },
+    "reflaxe": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1695723412,
+        "narHash": "sha256-UcBYX/5iNmI0XoMCOD8d2HRBr/B3k5wRabODT0jhaK0=",
+        "owner": "SomeRanDev",
+        "repo": "reflaxe",
+        "rev": "9fa459a0b4436d1706db6495823b81f2947ff7a0",
+        "type": "github"
+      },
+      "original": {
+        "owner": "SomeRanDev",
+        "ref": "v3.0.0",
+        "repo": "reflaxe",
+        "type": "github"
+      }
+    },
     "root": {
       "inputs": {
         "nixpkgs": "nixpkgs",
+        "reflaxe": "reflaxe",
         "rust-overlay": "rust-overlay"
       }
     },

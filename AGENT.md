@@ -72,7 +72,8 @@ All commands run inside the flake environment:
 
 `bun run verify` runs every check in order: `bun test`, the Haxe test
 binary, the Rust test suite, `eslint .`, `tsc -p .`, the documentation
-style check, and the vector regeneration check. Individual commands:
+style check, the vector regeneration check, and the reflaxe smoke
+compile. Individual commands:
 
 | Command | Effect |
 | --- | --- |
@@ -83,6 +84,7 @@ style check, and the vector regeneration check. Individual commands:
 | `bun run typecheck` | `tsc -p .` with no emit |
 | `bun run check:docs` | Documentation style check |
 | `bun run gen:vector` | Regenerate `tests/vectors/roundtrip.bin` |
+| `bun run check:reflaxe` | Compile a smoke file against the pinned reflaxe |
 | `bun run commit` | Commit through the repository commit tool |
 | `bun run install:hooks` | Install the git hooks from `tools/git-hooks/` |
 
@@ -96,7 +98,8 @@ style check, and the vector regeneration check. Individual commands:
   `compile.hxml`), `tests/rust/` (cargo tests, wired through
   `rust/Cargo.toml`), and `tests/vectors/` (the shared vectors).
 - `tools/`: the ESLint plugin, the documentation style checker, the
-  commit tool, the git hooks, and the vector generator.
+  commit tool, the git hooks, the vector generator, and the reflaxe
+  smoke check.
 
 Test tooling and language implementations are separate trees: a language
 implementation lives under `packages/`, `haxe/`, or `rust/`; everything
