@@ -10,14 +10,19 @@ compiled to JS, and Rust built with cargo. All three decode
 back to the same bytes.
 
 Implementations and test tooling live in separate trees: the languages
-implement the codec under `packages/ts/`, `haxe/`, and `rust/`; every
+implement the codec under `ts/`, `haxe/`, and `rust/`; every
 test suite and the shared vectors live under `tests/`.
+
+The root `package.json` is the bun workspace (member: `ts`); the root
+`Cargo.toml` is the cargo workspace (member: `rust`). The Rust test suite
+carries no manifest of its own: `rust/Cargo.toml` wires it in through an
+explicit `[[test]]` path into `tests/`.
 
 ## Layout
 
 | Path | Content |
 | --- | --- |
-| `packages/ts/` | `@boring/codec`, the TypeScript codec package |
+| `ts/` | `@boring/codec`, the TypeScript codec package |
 | `haxe/` | Haxe library sources |
 | `rust/` | Rust crate with the codec implementation |
 | `tests/` | Test suites per language plus the shared vectors |
