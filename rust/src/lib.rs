@@ -129,3 +129,12 @@ pub fn decode_vector(bytes: &[u8]) -> Result<Vec<GlyphMetrics>, VectorError> {
     }
     Ok(records)
 }
+
+/// Sort runtime per docs/specs/features/17-sorting.md: the platform stable
+/// sort is the known-best implementation on this tree, so the runtime adds
+/// no algorithm of its own. Sorts in place by code point, ascending, stable;
+/// returns the same slice.
+pub fn vector_sort_by_code_point(records: &mut [GlyphMetrics]) -> &mut [GlyphMetrics] {
+    records.sort_by_key(|record| record.code_point);
+    records
+}

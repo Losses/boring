@@ -2,7 +2,10 @@
 //! decode to the same records the Haxe and TypeScript suites verify, and
 //! re-encoding must reproduce the committed bytes exactly.
 
-use boring_codec::{BoundsEm, GlyphMetrics, VectorError, decode_vector, encode_vector};
+use boring_codec::{
+    BoundsEm, GlyphMetrics, VectorError, decode_vector, encode_vector,
+    vector_sort_by_code_point,
+};
 
 const VECTOR_BYTES: &[u8] = include_bytes!("../vectors/roundtrip.bin");
 
@@ -93,4 +96,63 @@ fn trailing_bytes_are_rejected() {
         decode_vector(&padded),
         Err(VectorError::TrailingBytes { remaining: 1 })
     );
+}
+
+// Sort runtime identity per docs/specs/features/17-sorting.md: the corpus
+// and oracle are inline constants shared verbatim with the Haxe and
+// TypeScript sort tests.
+
+const SHUFFLED_KEYS: [u32; 40] = [
+    0x82a1, 0x78e2, 0x76ef, 0x6371, 0x4e00, 0x0020, 0x7ad5, 0x74fc, 0x694a, 0x6f23, 0x6d30,
+    0x8a6d, 0x617e, 0x7ebb, 0x3105, 0x5ba5, 0x6b3d, 0x8687, 0x7116, 0x7cc8, 0xff01, 0x8494,
+    0x80ae, 0x59b2, 0x4ff3, 0x4e00, 0x9fff, 0x57bf, 0xff01, 0x6564, 0x53d9, 0x5d98, 0x6757,
+    0x3105, 0x5f8b, 0x7309, 0x55cc, 0x51e6, 0x4e00, 0x887a,
+];
+
+const SORTED_KEYS: [u32; 40] = [
+    0x20, 0x3105, 0x3105, 0x4e00, 0x4e00, 0x4e00, 0x4ff3, 0x51e6, 0x53d9, 0x55cc, 0x57bf,
+    0x59b2, 0x5ba5, 0x5d98, 0x5f8b, 0x617e, 0x6371, 0x6564, 0x6757, 0x694a, 0x6b3d, 0x6d30,
+    0x6f23, 0x7116, 0x7309, 0x74fc, 0x76ef, 0x78e2, 0x7ad5, 0x7cc8, 0x7ebb, 0x80ae, 0x82a1,
+    0x8494, 0x8687, 0x887a, 0x8a6d, 0x9fff, 0xff01, 0xff01,
+];
+
+fn sort_corpus_records() -> Vec<GlyphMetrics> {
+    let mut records = Vec::with_capacity(SHUFFLED_KEYS.len());
+    let mut index: u32 = 0;
+    for key in SHUFFLED_KEYS.iter() {
+        // advance_em marks the input position for the stability assertion.
+        records.push(GlyphMetrics {
+            code_point: *key,
+            advance_em: f64::from(index),
+            bounds: BoundsEm {
+                x_min: 0.0,
+                y_min: 0.0,
+                x_max: 0.0,
+                y_max: 0.0,
+            },
+        });
+        index += 1;
+    }
+    records
+}
+
+#[test]
+fn sort_by_code_point_matches_the_shared_oracle() {
+    let mut records = sort_corpus_records();
+    vector_sort_by_code_point(&mut records);
+    let sorted_keys: Vec<u32> = records.iter().map(|record| record.code_point).collect();
+    assert_eq!(sorted_keys, SORTED_KEYS.to_vec());
+}
+
+#[test]
+fn sort_by_code_point_is_stable_on_equal_keys() {
+    let mut records = sort_corpus_records();
+    vector_sort_by_code_point(&mut records);
+    // advance_em marks the input position; equal keys keep input order.
+    for pair in records.windows(2) {
+        let (left, right) = (pair[0], pair[1]);
+        if left.code_point == right.code_point {
+            assert!(left.advance_em < right.advance_em);
+        }
+    }
 }
