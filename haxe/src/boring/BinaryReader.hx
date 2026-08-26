@@ -17,13 +17,21 @@ class BinaryReader {
 		offset = 0;
 	}
 
+	function ensureRemaining(length:Int):Void {
+		if (bytes.length - offset < length) {
+			throw new VectorException(UnexpectedEof);
+		}
+	}
+
 	public function readU16():Int {
+		ensureRemaining(2);
 		final value = (bytes.get(offset) << 8) | bytes.get(offset + 1);
 		offset += 2;
 		return value;
 	}
 
 	public function readU32():Int {
+		ensureRemaining(4);
 		final value = (bytes.get(offset) << 24)
 			| (bytes.get(offset + 1) << 16)
 			| (bytes.get(offset + 2) << 8)
@@ -39,6 +47,7 @@ class BinaryReader {
 	}
 
 	public function readAscii(length:Int):String {
+		ensureRemaining(length);
 		final parts = new Array<String>();
 		for (index in 0...length) {
 			parts.push(String.fromCharCode(bytes.get(offset + index)));

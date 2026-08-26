@@ -14,7 +14,8 @@ class VectorCodec {
 		final writer = new BinaryWriter();
 		writer.writeAscii(MAGIC);
 		writer.writeU32(records.length);
-		for (record in records) {
+		for (index in 0...records.length) {
+			final record = records[index];
 			writer.writeU32(record.codePoint);
 			writer.writeF64(record.advanceEm);
 			writer.writeF64(record.bounds.xMin);
@@ -29,7 +30,7 @@ class VectorCodec {
 		final reader = new BinaryReader(bytes);
 		final magic = reader.readAscii(MAGIC.length);
 		if (magic != MAGIC) {
-			throw new haxe.Exception('bad vector magic: $magic');
+			throw new VectorException(BadMagic);
 		}
 		final count = reader.readU32();
 		final records = new Array<GlyphMetrics>();
@@ -47,7 +48,7 @@ class VectorCodec {
 			});
 		}
 		if (reader.remaining() != 0) {
-			throw new haxe.Exception('trailing bytes in vector: ${reader.remaining()}');
+			throw new VectorException(TrailingBytes(reader.remaining()));
 		}
 		return records;
 	}
