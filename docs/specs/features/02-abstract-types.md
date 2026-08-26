@@ -23,7 +23,7 @@ abstract CodePoint(Int) from Int to Int {
 
 An abstract type introduces a distinct nominal type at compile time while compiling directly to the underlying primitive type on the target platform. Explicit casts (`@:from`, `@:to`) control conversions between the abstract type and other representations.
 
-In the Haxe typed AST, an abstract type is represented by `haxe.macro.Type.TAbstract(t:Ref<AbstractType>, params:List<Type>)`. The `AbstractType` structure stores the underlying type in `t:Type`, defined conversions in `from:Array<{t:Type, field:Null<ClassField>}>` and `to:Array<{t:Type, field:Null<ClassField>}>`, and the implementation class in `impl:Null<Ref<ClassType>>`.
+In the Haxe typed AST, an abstract type is represented by `haxe.macro.Type.TAbstract(t:Ref<AbstractType>, params:Array<Type>)`. The `AbstractType` structure stores the underlying type in `t:Type`, defined conversions in `from:Array<{t:Type, field:Null<ClassField>}>` and `to:Array<{t:Type, field:Null<ClassField>}>`, and the implementation class in `impl:Null<Ref<ClassType>>`.
 
 ## Current translations
 

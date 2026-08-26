@@ -16,7 +16,7 @@ typedef GlyphMetrics = {
 }
 ```
 
-In the Haxe typed AST, types are represented by the `haxe.macro.Type` enum: `TInst(c:Ref<ClassType>, params:List<Type>)` for classes, `TEnum(t:Ref<EnumType>, params:List<Type>)` for enums, `TAbstract(a:Ref<AbstractType>, params:List<Type>)` for abstracts, `TType(t:Ref<DefType>, params:List<Type>)` for named typedefs, `TAnonymous(a:Ref<AnonType>)` for anonymous structures, `TFun(args:Array<{t:Type, opt:Bool}>, ret:Type)` for function types, and `TDynamic` for `Dynamic`.
+In the Haxe typed AST, types are represented by the `haxe.macro.Type` enum: `TInst(t:Ref<ClassType>, params:Array<Type>)` for classes, `TEnum(t:Ref<EnumType>, params:Array<Type>)` for enums, `TAbstract(t:Ref<AbstractType>, params:Array<Type>)` for abstracts, `TType(t:Ref<DefType>, params:Array<Type>)` for named typedefs, `TAnonymous(a:Ref<AnonType>)` for anonymous structures, `TFun(args:Array<{name:String, opt:Bool, t:Type}>, ret:Type)` for function types, and `TDynamic(t:Null<Type>)` for `Dynamic`.
 
 ## Current translations
 
@@ -143,7 +143,7 @@ The fixed mapping table:
 | anonymous structure | named `struct` | named `interface` |
 | typedef alias of a named type | type alias | type alias |
 | `abstract` over `T` | newtype or type alias per features/02 | brand or type alias per features/02 |
-| `Null<T>` | `Option<T>` | `T | null` or optional property per features/04 |
+| `Null<T>` | `Option<T>` | optional property (`prop?: T` or `T | undefined`) per features/04 |
 | `Dynamic` | banned | banned |
 
 Rules:
