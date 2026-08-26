@@ -82,9 +82,10 @@ pub fn encode_vector(records: &[GlyphMetrics]) -> Result<Vec<u8>, VectorError> {
 export function encodeVector(records: readonly GlyphMetricsRecord[]): Uint8Array {
   const writer = new BinaryWriter();
   writer.writeAscii(VECTOR_MAGIC);
-  writer.writeU32(records.length);
-  for (let i = 0; i < records.length; i += 1) {
-    const record = records[i];
+  const count = records.length;
+  writer.writeU32(count);
+  for (let i = 0; i < count; i += 1) {
+    const record = records[i]!;
     writer.writeU32(record.codePoint);
     writer.writeF64(record.advanceEm);
     writer.writeF64(record.bounds.xMin);
@@ -139,8 +140,9 @@ export interface WireRecord {
 
 export function totalRecordBytes<T extends WireRecord>(records: readonly T[]): number {
   let sum = 0;
-  for (let i = 0; i < records.length; i += 1) {
-    sum += records[i].byteLength;
+  const count = records.length;
+  for (let i = 0; i < count; i += 1) {
+    sum += records[i]!.byteLength;
   }
   return sum;
 }
@@ -151,8 +153,9 @@ export function totalRecordBytes<T extends WireRecord>(records: readonly T[]): n
 ```ts
 export function totalRecordBytes(records: readonly unknown[]): number {
   let sum = 0;
-  for (let i = 0; i < records.length; i += 1) {
-    const item = records[i] as { readonly byteLength: number };
+  const count = records.length;
+  for (let i = 0; i < count; i += 1) {
+    const item = records[i]! as { readonly byteLength: number };
     sum += item.byteLength;
   }
   return sum;

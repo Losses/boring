@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification rules the translation of Haxe loop constructs, iterator interfaces, range iterations, the iteration forms permitted in codec code and generated code, the ban on iterator-protocol loops on the JavaScript target, and the closure allocation rules for translated loop bodies. In the current codebase, iteration appears in Haxe in `haxe/src/boring/VectorCodec.hx` (lines 17, 36), `haxe/src/boring/BinaryReader.hx` (line 43), and `haxe/src/boring/BinaryWriter.hx` (line 39), in Rust in `rust/src/lib.rs` (lines 89, 108), and in TypeScript in `ts/src/vector-format.ts` (lines 19, 38) and `ts/src/codec.ts` (lines 48, 103). No Kotlin implementation exists yet; the Kotlin rulings bind generated code.
+This specification rules the translation of Haxe loop constructs, iterator interfaces, range iterations, the iteration forms permitted in codec code and generated code, the ban on iterator-protocol loops on the JavaScript target, and the closure allocation rules for translated loop bodies. In the current codebase, iteration appears in Haxe in `haxe/src/boring/VectorCodec.hx` (lines 17, 37), `haxe/src/boring/BinaryReader.hx` (line 52), and `haxe/src/boring/BinaryWriter.hx` (line 39), in Rust in `rust/src/lib.rs` (lines 89, 108), and in TypeScript in `ts/src/vector-format.ts` (lines 20, 40) and `ts/src/codec.ts` (lines 49, 104). No Kotlin implementation exists yet; the Kotlin rulings bind generated code.
 
 ## Haxe construct
 
@@ -110,9 +110,10 @@ pub fn decode_vector(bytes: &[u8]) -> Result<Vec<GlyphMetrics>, VectorError> {
 export function encodeVector(records: readonly GlyphMetricsRecord[]): Uint8Array {
   const writer = new BinaryWriter();
   writer.writeAscii(VECTOR_MAGIC);
-  writer.writeU32(records.length);
-  for (let i = 0; i < records.length; i += 1) {
-    const record = records[i];
+  const count = records.length;
+  writer.writeU32(count);
+  for (let i = 0; i < count; i += 1) {
+    const record = records[i]!;
     writer.writeU32(record.codePoint);
     writer.writeF64(record.advanceEm);
     writer.writeF64(record.bounds.xMin);
@@ -143,7 +144,7 @@ export function decodeVector(bytes: Uint8Array): GlyphMetricsRecord[] {
 
 ## Candidate translations
 
-### Rust Candidate 1: Direct for-in loop over slices and range expressions
+### Rust Candidate 1: Direct for-in loop over slices and range expressions (selected)
 
 ```rust
 for record in records {
@@ -163,11 +164,12 @@ let records: Result<Vec<GlyphMetrics>, VectorError> = (0..count)
     .collect();
 ```
 
-### TypeScript Candidate 1: Indexed for loop as the only array iteration form
+### TypeScript Candidate 1: Indexed for loop as the only array iteration form (selected)
 
 ```ts
-for (let i = 0; i < records.length; i += 1) {
-  writeRecord(writer, records[i]);
+const count = records.length;
+for (let i = 0; i < count; i += 1) {
+  writeRecord(writer, records[i]!);
 }
 
 for (let i = 0; i < count; i += 1) {
@@ -196,7 +198,7 @@ export function* decodeVectorLazy(
 }
 ```
 
-### Kotlin Candidate 1: Range and indices loops with indexed access
+### Kotlin Candidate 1: Range and indices loops with indexed access (selected)
 
 ```kotlin
 for (i in records.indices) {
@@ -246,11 +248,11 @@ val bytes: List<Int> = records.flatMap { record ->
 Array and collection iteration translates to indexed loops whose cost is fixed by the statement itself:
 
 - Rust keeps `for item in slice` over borrowed slices and `for i in 0..count` ranges; both lower to direct iteration with no protocol dispatch and no allocation.
-- TypeScript generated code, and all code under `ts/src`, use `for (let i = 0; i < collection.length; i += 1)` with direct indexed access, in every case. `for...of` and `for...in` are banned. `for...of` dispatches through the iterator protocol whose fast path is engine discretion; `for...in` enumerates string keys including inherited ones and is additionally incorrect for array traversal. Millisecond-level performance budgets in the consumers of this output leave no room for a loop form whose cost an engine choice can change.
+- TypeScript generated code, and all code under `ts/src`, read the iteration bound into a local before the loop and use `const count = collection.length; for (let i = 0; i < count; i += 1)` with direct indexed access, in every case. `for...of` and `for...in` are banned. `for...of` dispatches through the iterator protocol whose fast path is engine discretion; `for...in` enumerates string keys including inherited ones and is additionally incorrect for array traversal. Millisecond-level performance budgets in the consumers of this output leave no room for a loop form whose cost an engine choice can change. A `.length` read inside the loop head executes on every iteration; keeping it out of the head is the same rule applied to the bound: the loop statement itself fixes the cost. Element reads carry a non-null assertion (`records[i]!`): the loop bound establishes the invariant, `noUncheckedIndexedAccess` stays on for every other access, and the assertion is the one place the invariant is stated.
 - Kotlin generated code uses `for (i in 0 until count)` and `for (i in collection.indices)` with indexed access. Direct `for (item in collection)` is banned in generated code because its cost depends on the static subject type: index arithmetic over arrays and ranges, one iterator allocation per iteration over `Iterable`. The indices form states the same cost on every subject.
 - Haxe translatable source iterates arrays through `for (i in 0...array.length)` with `array[i]` access. A `for (item in collection)` loop whose subject is not an integer range is rejected before generation by the interception defined in `docs/specs/style/01-haxe-style-standard.md`, because its translation would require the iterator protocol on the JavaScript target. Existing occurrences in `haxe/src` are pending migration.
 
-Functional iteration is banned in codec code and generated code on every path in all four languages. Banned constructs: `map`, `filter`, `reduce`, `forEach`, `flatMap`, `find`, `some`, `every`, and comparator-closure `sort` in Haxe and TypeScript; iterator adapter chains such as `.iter().map(...).filter(...).collect()` in Rust; `map`, `filter`, `forEach`, `flatMap`, `fold`, `sortedBy`, and comparator lambdas over collections in Kotlin. Every such construct rewrites to a plain `for` or `while` loop before translation. Each functional stage allocates a closure and an intermediate collection; in a loop over records this multiplies allocations by the record count and moves runtime into garbage collection. Kotlin standard library iteration functions inline their lambdas, which lowers the runtime cost on JVM; the ban holds anyway because the generated code shape stays uniform across languages and reviewable by the structure test below.
+Functional iteration is banned in codec code and generated code on every path in all four languages. Banned constructs: `map`, `filter`, `reduce`, `forEach`, `flatMap`, `find`, `some`, `every`, and comparator-closure `sort` in Haxe and TypeScript; iterator adapter chains such as `.iter().map(...).filter(...).collect()` in Rust; `map`, `filter`, `forEach`, `flatMap`, `fold`, `sortedBy`, and comparator lambdas over collections in Kotlin. Every such construct rewrites to a plain `for` or `while` loop before translation, with one exit: sorting goes through the named strategies of the sort runtime ruled in `docs/specs/features/17-sorting.md`. Each functional stage allocates a closure and an intermediate collection; in a loop over records this multiplies allocations by the record count and moves runtime into garbage collection. Kotlin standard library iteration functions inline their lambdas, which lowers the runtime cost on JVM; the ban holds anyway because the generated code shape stays uniform across languages and reviewable by the structure test below.
 
 Generator functions are banned on the decode hot path. Decoders must eagerly validate headers, parse records, and verify the trailing byte boundary before returning complete collections.
 
@@ -266,11 +268,11 @@ These rules exist because the JavaScript target is performance sensitive: a clos
 
 Loop execution and record array round trips are verified in:
 - `tests/rust/vector.rs` (lines 54-70)
-- `tests/haxe/Main.hx` (lines 60-66, 79-88)
+- `tests/haxe/Main.hx` (lines 63-68, 87-90)
 - `tests/ts/codec.test.ts` (lines 42-53, 57-64)
 - `tests/ts/vector.test.ts` (lines 13-25)
 
 The following guards are required by this specification and do not exist yet:
 
 - An eslint rule named `boring/no-functional-iteration` bans the array iteration methods listed in the ruling on all files under `ts/src` (implemented in `tools/eslint`).
-- A structure test scans every file under `ts/src`, `haxe/src`, `rust/src`, and `kt/src` and asserts three properties: no `.map(`, `.filter(`, `.reduce(`, `.forEach(`, `.flatMap(`, `.some(`, `.every(`, `.fold(`, or `.sortedBy(` call site exists; no function expression, arrow function, or lambda appears inside a `for` or `while` body; and every `for (` loop head under `ts/src` binds an index counter, matched textually by the absence of ` of ` and ` in ` inside the loop head. This test is the guard for generated output, where the behavior tests cannot see the shape of the code.
+- A structure test scans every file under `ts/src`, `haxe/src`, `rust/src`, and `kt/src` and asserts three properties: no `.map(`, `.filter(`, `.reduce(`, `.forEach(`, `.flatMap(`, `.some(`, `.every(`, `.fold(`, or `.sortedBy(` call site exists; no function expression, arrow function, or lambda appears inside a `for` or `while` body; and every `for (` loop head under `ts/src` binds an index counter, matched textually by the absence of ` of ` and ` in ` inside the loop head; the loop head also contains no property access, so the bound is a local or module binding and never a per-iteration `.length` read. This test is the guard for generated output, where the behavior tests cannot see the shape of the code.

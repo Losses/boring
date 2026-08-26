@@ -77,7 +77,7 @@ const left = bounds.xMin;
 
 The candidates below fix the TypeScript rendering; Rust and Kotlin have one native form each, ruled without alternatives at the end.
 
-### TypeScript Candidate 1: Object literal with direct property access
+### TypeScript Candidate 1: Object literal with direct property access (selected)
 
 ```ts
 const bounds: BoundsEmRecord = { xMin, yMin, xMax, yMax };
@@ -126,7 +126,7 @@ Behavior parity rules bind all targets:
 1. Construction initializes every declared field exactly once, in declaration order. Declaration order is part of the format definition; it keeps hidden-class transitions in V8 monomorphic and keeps JSON serialization of equivalent values identical across trees.
 2. Reading a declared field yields the stored value in every language. No language produces `null`, `undefined`, or a default on a declared field of a constructed object, because construction sets every field.
 3. Writing obeys the mutability declared in Haxe: `final` fields translate to `readonly` properties in TypeScript, non-`mut` struct fields in Rust, and `val` properties in Kotlin.
-4. Nothing changes an object's shape after construction. Rust and Kotlin make this unrepresentable; TypeScript makes it a rejection: `Reflect.set`, `delete`, and assignment to an undeclared property are rejected by the interception.
+4. Nothing changes an object's shape after construction. Rust and Kotlin make this unrepresentable; TypeScript makes it a rejection: `Reflect.set`, `delete`, and assignment to an undeclared property are rejected by the structure test that scans `ts/src` for those call sites.
 5. Bracket access with a `String` key on a structure is rejected on the Haxe side before generation; bracket access with an `Int` index translates to array element access on every target.
 
 Field iteration over a static object does not translate. An algorithm that must visit every field of a structure enumerates a schema-declared constant array of the field names it processes; that array is compile-time constant data and unrolls per `docs/specs/stdlib/04-haxe-ds-vector.md`. Dynamic enumeration through `Reflect.ownKeys` or `Object.keys` on static shapes is banned, consistent with `docs/specs/features/13-metadata-and-reflection.md`.

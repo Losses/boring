@@ -115,7 +115,8 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
 ```ts
 export function serializeWithReflection(record: object): Uint8Array {
   const keys = Reflect.ownKeys(record);
-  for (let i = 0; i < keys.length; i += 1) {
+  const count = keys.length;
+  for (let i = 0; i < count; i += 1) {
     const value = Reflect.get(record, keys[i]);
   }
   return new Uint8Array(44);
