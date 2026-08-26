@@ -30,6 +30,19 @@ function formatError(error:VectorError):String {
 }
 ```
 
+Pattern forms include constructor patterns with payload binding (`TrailingBytes(remaining)`), structure patterns (`{ remaining: r }`), guards, or-patterns, and the wildcard `_`:
+
+```haxe
+switch (error) {
+	case TrailingBytes(remaining) if (remaining > 8):
+		'large trailing block: $remaining';
+	case BadMagic | CountOverflow:
+		"header rejected";
+	case _:
+		"other";
+}
+```
+
 In the Haxe typed AST, an enum type is represented by `haxe.macro.Type.TEnum(t:Ref<EnumType>, params:List<Type>)`. The `EnumType` structure stores constructors in `constructs:Map<String, EnumField>`. Pattern matching AST nodes are represented by `haxe.macro.TypedExprDef.TSwitch(e:TypedExpr, cases:Array<{values:Array<TypedExpr>, expr:TypedExpr}>, edef:Null<TypedExpr>)` and macro expression nodes `haxe.macro.Expr.ExprDef.ESwitch`.
 
 ## Current translations
@@ -251,6 +264,13 @@ This ruling ensures zero-allocation representations in Rust while providing stri
 TypeScript narrows discriminated unions on `unique symbol` discriminant properties exactly as it does on string literal discriminants, so symbol-tagged unions keep compile-time exhaustiveness checking: the `describeError` example above fails to compile when a variant is missed, because the final `never` assignment rejects any unhandled variant.
 
 String literal tags remain the default for discriminated data that crosses or mirrors the wire format: JSON serialization, error messages, and debug output keep working without conversion. Unique symbol tags are required when tag values stay internal to the process and one of the following holds: a tag is compared against values that may be dynamically constructed strings, or the type system must guarantee that no unrelated string satisfies the discriminant. Switching a union between the two tag representations is a specification edit, because consumers match on tag values.
+
+Pattern forms translate to readable branch code, and every form keeps payload access cast-free:
+
+- Constructor or structure patterns with payload binding: Rust binds the payload directly in the match arm (`VectorError::TrailingBytes { remaining }`); TypeScript branches on the discriminant and then reads the payload property (`error.remaining`), where narrowing supplies the type. TypeScript never renders payload extraction as property access on a widened type with a cast.
+- Guards: Rust appends an `if` guard to the match arm; TypeScript appends the guard to the branch condition after the discriminant comparison, and the unguarded variant still gets a branch so exhaustiveness survives.
+- Or-patterns: Rust lists alternatives in one arm (`VectorError::BadMagic | VectorError::CountOverflow`); TypeScript writes consecutive comparisons joined by `||`, or consecutive `case` labels over a shared `return` body when the `switch` form is used.
+- Wildcard `_`: permitted in Haxe and Rust (`_`) only for non-enum subjects; enum subjects are matched exhaustively variant by variant. The TypeScript final branch assigns the discriminant to `never` for enum subjects; a catch-all `else` appears only for non-enum subjects and documents which values it covers.
 
 ## Test hooks
 
