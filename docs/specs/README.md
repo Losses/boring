@@ -46,22 +46,22 @@ Every candidate translation is evaluated across four fixed axes:
 | 05 | [05-generics.md](features/05-generics.md) | Complete | Parameterized types, constraints, monomorphization, and type erasure. |
 | 06 | [06-errors-and-results.md](features/06-errors-and-results.md) | Complete | Exceptions, Result types, and error propagation. |
 | 07 | [07-numeric-tower.md](features/07-numeric-tower.md) | Complete | Integer widths, floating-point representations, and conversion rules. |
-| 08 | 08-strings-and-unicode.md | Pending (Wave 2) | String representations, UTF-8/UTF-16 encoding, and character indexing. |
-| 09 | 09-iterators.md | Pending (Wave 2) | Iterator protocols, array traversal, and loop transformations. |
-| 10 | 10-static-extension.md | Pending (Wave 2) | Static extension methods and target method dispatch. |
-| 11 | 11-inline-and-macros.md | Pending (Wave 2) | Inline functions, compile-time macros, and constant folding. |
-| 12 | 12-classes-interfaces-access.md | Pending (Wave 2) | Object-oriented constructs, visibility modifiers, and dispatch. |
-| 13 | 13-metadata-and-reflection.md | Pending (Wave 2) | Compiler metadata tags and reflection limitations. |
+| 08 | [08-strings-and-unicode.md](features/08-strings-and-unicode.md) | Complete | String representations, UTF-8/UTF-16 encoding, and character indexing. |
+| 09 | [09-iterators.md](features/09-iterators.md) | Complete | Iterator protocols, array traversal, and loop transformations. |
+| 10 | [10-static-extension.md](features/10-static-extension.md) | Complete | Static extension methods and target method dispatch. |
+| 11 | [11-inline-and-macros.md](features/11-inline-and-macros.md) | Complete | Inline functions, compile-time macros, and constant folding. |
+| 12 | [12-classes-interfaces-access.md](features/12-classes-interfaces-access.md) | Complete | Object-oriented constructs, visibility modifiers, and dispatch. |
+| 13 | [13-metadata-and-reflection.md](features/13-metadata-and-reflection.md) | Complete | Compiler metadata tags and reflection limitations. |
 
 ### Standard library specifications
 
 | Number | Specification | Status | Description |
 | --- | --- | --- | --- |
-| 01 | 01-haxe-io-bytes.md | Pending (Wave 2) | Byte buffer primitives and slice operations. |
-| 02 | 02-haxe-io-buffers-and-inputs.md | Pending (Wave 2) | Sequential buffer writers, stream inputs, and readers. |
-| 03 | 03-haxe-exception.md | Pending (Wave 2) | Standard exception hierarchy and stack trace handling. |
-| 04 | 04-haxe-ds-vector.md | Pending (Wave 2) | Fixed-length dense vector structures. |
-| 05 | 05-haxe-int64.md | Pending (Wave 2) | 64-bit integer representations and emulated arithmetic. |
+| 01 | [01-haxe-io-bytes.md](stdlib/01-haxe-io-bytes.md) | Complete | Byte buffer primitives and slice operations. |
+| 02 | [02-haxe-io-buffers-and-inputs.md](stdlib/02-haxe-io-buffers-and-inputs.md) | Complete | Sequential buffer writers, stream inputs, and readers. |
+| 03 | [03-haxe-exception.md](stdlib/03-haxe-exception.md) | Complete | Standard exception hierarchy and stack trace handling. |
+| 04 | [04-haxe-ds-vector.md](stdlib/04-haxe-ds-vector.md) | Complete | Fixed-length dense vector structures. |
+| 05 | [05-haxe-int64.md](stdlib/05-haxe-int64.md) | Complete | 64-bit integer representations and emulated arithmetic. |
 
 ## Maintenance rule
 
