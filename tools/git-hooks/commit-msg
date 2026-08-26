@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# boring commit-msg hook: the message must follow Conventional Commits
+# v1.0.0 and carry no Co-Authored-By trailer. Errors print the correct
+# format.
+set -euo pipefail
+MSG_FILE="${1:-}"
+if [ -z "$MSG_FILE" ] || [ ! -f "$MSG_FILE" ]; then
+  echo "commit-msg: missing message file argument" >&2
+  exit 1
+fi
+cd "$(git rev-parse --show-toplevel)"
+if ! command -v bun >/dev/null 2>&1; then
+  echo "commit-msg: bun not found; run git inside 'nix develop' or install bun" >&2
+  exit 1
+fi
+exec bun tools/commit/commit.ts --check "$MSG_FILE"
