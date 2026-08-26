@@ -44,11 +44,12 @@ export class BinaryWriter {
   }
 
   writeAscii(value: string): void {
-    this.ensure(value.length);
-    for (let i = 0; i < value.length; i += 1) {
+    const count = value.length;
+    this.ensure(count);
+    for (let i = 0; i < count; i += 1) {
       this.buffer[this.length + i] = value.charCodeAt(i) & 0xff;
     }
-    this.length += value.length;
+    this.length += count;
   }
 
   finish(): Uint8Array {

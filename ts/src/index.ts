@@ -9,3 +9,4 @@ export {
 } from "./vector-format.ts";
 export type { VectorFileJson } from "./vector-json.ts";
 export { toVectorFile } from "./vector-json.ts";
+export { vectorSortByCodePoint } from "./vector-sort.ts";
