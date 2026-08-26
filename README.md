@@ -26,7 +26,9 @@ test suite and the shared vectors live under `tests/`.
 ## Toolchain
 
 The flake fixes the toolchain versions: haxe, bun, nodejs, and a stable
-rust toolchain from the rust overlay. Enter the environment with:
+rust toolchain from the rust overlay. The reflaxe compilation-target
+framework is a pinned flake input (`SomeRanDev/reflaxe` v3.0.0) registered
+as a dev haxelib on shell entry. Enter the environment with:
 
     nix develop
 

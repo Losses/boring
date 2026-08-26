@@ -7,10 +7,16 @@
       url = "github:oxalica/rust-overlay";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    # Reflaxe is consumed as a dev haxelib; the pin keeps every machine
+    # on the same source of the compilation-target framework.
+    reflaxe = {
+      url = "github:SomeRanDev/reflaxe/v3.0.0";
+      flake = false;
+    };
   };
 
   outputs =
-    { self, nixpkgs, rust-overlay }:
+    { self, nixpkgs, rust-overlay, reflaxe }:
     let
       systems = [
         "x86_64-linux"
@@ -47,6 +53,11 @@
               git
               rustToolchain
             ];
+            shellHook = ''
+              export HAXELIB_PATH="$PWD/.haxelib"
+              mkdir -p "$HAXELIB_PATH"
+              haxelib dev reflaxe "${reflaxe}" >/dev/null
+            '';
           };
         }
       );
