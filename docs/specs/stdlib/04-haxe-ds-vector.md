@@ -133,6 +133,26 @@ export function createFixedRecords(count: number): GlyphMetricsRecord[] {
 }
 ```
 
+### Rust Candidate 3: Unrolled constant stores for static-length constant arrays
+
+```rust
+pub const VECTOR_MAGIC_U32: u32 = 0x42524731;
+
+pub fn encode_magic(bytes: &mut Vec<u8>) {
+    bytes.extend_from_slice(&VECTOR_MAGIC_U32.to_be_bytes());
+}
+```
+
+### TypeScript Candidate 3: Unrolled constant stores for static-length constant arrays
+
+```ts
+const MAGIC_U32 = 0x42524731;
+
+function encodeMagic(writer: BinaryWriter): void {
+  writer.writeU32(MAGIC_U32);
+}
+```
+
 ## Judgment
 
 | Candidate | performance | ambiguity | redundancy | readability |
@@ -141,10 +161,14 @@ export function createFixedRecords(count: number): GlyphMetricsRecord[] {
 | Rust Candidate 2 (Boxed slice) | Converting Vec to Box<[T]> performs an extra memory reallocation to shrink excess capacity. | Boxed slices prevent further element accumulation without converting back to Vec. | Boxing requires an extra conversion step after decoding loops finish. | Boxed slice signatures add pointer notation to straightforward dynamic collections. |
 | TS Candidate 1 (Array with push discipline) | Dynamic arrays pre-allocated with known capacity run with optimized V8 packed element transitions. | Array length discipline ensures elements populate sequentially without sparse holes. | Standard array methods integrate directly with JSON parsers and test runners. | Standard JavaScript arrays communicate collection mechanics directly. |
 | TS Candidate 2 (Array constructor) | Pre-sizing with new Array allocates array slots upfront but initializes holes until populated. | Sparse array holes introduce undefined values when index loops terminate early. | Allocation sizing requires manual index tracking without sequential push benefits. | Index assignment loops add boilerplate compared to standard push patterns. |
+| Rust Candidate 3 (Unrolled constants) | Constant writes fold into single machine stores with zero loop and bounds check overhead. | One constant states the exact bytes of the whole field. | The loop plus its length bound disappear entirely. | Readers see the wire bytes as one literal value. |
+| TS Candidate 3 (Unrolled constants) | Literal constant loads execute with no loop, no bounds check, and no closure. | One constant declares the entire field payload, so no length variable can drift from the data. | The generator derives the constant from the schema once at build time. | Readers see the exact wire bytes at the call site. |
 
 ## Ruling
 
 Compile-time fixed-length byte buffers translate to fixed-size array types (`[u8; N]`) in Rust and fixed-size `Uint8Array` views in TypeScript. Runtime collections with known lengths translate to pre-allocated vectors (`Vec::with_capacity(capacity)`) in Rust and dense `Array<T>` collections in TypeScript and Haxe.
+
+Static-length arrays whose length and contents are compile-time constants unroll at build time. When the constant width matches a primitive wire write, the whole array folds into one constant: `WireAscii(4)` over `BRG1` becomes the u32 constant `0x42524731` written through `writeU32`, replacing the per-character loop in `BinaryWriter.writeAscii` (`haxe/src/boring/BinaryWriter.hx`, lines 38-42) and `writeAscii` in `ts/src/codec.ts` (lines 46-52). When the constant width matches no primitive write, the generator emits one named constant per element and references the constants by name; no runtime array is allocated for data whose contents are already known at compile time. Generated and handwritten codec code keeps no per-element loop over compile-time constant data.
 
 Length mismatches on wire decoding fail immediately with `VectorError::UnexpectedEof` in Rust and thrown `Error` instances in Haxe and TypeScript.
 

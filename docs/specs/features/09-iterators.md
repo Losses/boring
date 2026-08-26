@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification rules the translation of Haxe loop constructs, iterator interfaces, and range iterations into Rust and TypeScript. In the current codebase, iteration appears in Haxe in `haxe/src/boring/VectorCodec.hx` (lines 17, 36), `haxe/src/boring/BinaryReader.hx` (line 43), and `haxe/src/boring/BinaryWriter.hx` (line 39), in Rust in `rust/src/lib.rs` (lines 89, 108), and in TypeScript in `ts/src/vector-format.ts` (lines 19, 38) and `ts/src/codec.ts` (lines 48, 103).
+This specification rules the translation of Haxe loop constructs, iterator interfaces, range iterations, the functional iteration forms permitted in codec code, and the closure allocation rules for translated loop bodies on the JavaScript target. In the current codebase, iteration appears in Haxe in `haxe/src/boring/VectorCodec.hx` (lines 17, 36), `haxe/src/boring/BinaryReader.hx` (line 43), and `haxe/src/boring/BinaryWriter.hx` (line 39), in Rust in `rust/src/lib.rs` (lines 89, 108), and in TypeScript in `ts/src/vector-format.ts` (lines 19, 38) and `ts/src/codec.ts` (lines 48, 103).
 
 ## Haxe construct
 
@@ -20,6 +20,8 @@ typedef Iterable<T> = {
 ```
 
 The `for (item in collection)` loop desugars to `var _it = collection.iterator(); while (_it.hasNext()) { var item = _it.next(); ... }`. Numeric range loops `for (i in 0...count)` construct an `IntIterator(min, max)` instance that increments an integer cursor on each step.
+
+Haxe also offers functional iteration forms: the `Lambda` module functions and the array methods accepting arrow functions such as `array.map(item -> item.codePoint)` and `array.filter(...)`. These forms allocate a closure per invocation and one intermediate collection per stage; this specification bans them in codec code as ruled below.
 
 In the Haxe typed AST, loops are represented by `haxe.macro.TypedExprDef.TFor(v:TVar, e1:TypedExpr, e2:TypedExpr)` and `haxe.macro.TypedExprDef.TWhile(econd:TypedExpr, e:TypedExpr, normalWhile:Bool)`. Range creation `min...max` produces `haxe.macro.TypedExprDef.TBinop(OpInterval, e1, e2)`.
 
@@ -196,7 +198,17 @@ export function* decodeVectorLazy(
 
 Haxe collection loops translate to direct `for` loops in Rust over borrowed slices (`for item in slice`) and `for (const item of array)` in TypeScript, while range loops translate to integer range loops `for _ in 0..count` in Rust and indexed `for (let i = 0; i < count; i += 1)` in TypeScript.
 
-Lazy iterator pipelines and generator functions are banned on the decode hot path. Decoders must eagerly validate headers, parse records, and verify the trailing byte boundary before returning complete collections.
+Functional iteration is banned in codec code and generated code on every path in all three languages. Banned constructs: `map`, `filter`, `reduce`, `forEach`, `flatMap`, `find`, `some`, `every`, and comparator-closure `sort` in Haxe and TypeScript; iterator adapter chains such as `.iter().map(...).filter(...).collect()` in Rust. Every such construct rewrites to a plain `for` or `while` loop before translation. Each functional stage allocates a closure and an intermediate collection; in a loop over records this multiplies allocations by the record count and moves runtime into garbage collection.
+
+Generator functions are banned on the decode hot path. Decoders must eagerly validate headers, parse records, and verify the trailing byte boundary before returning complete collections.
+
+JavaScript closure lifecycle rules for translated loop bodies:
+
+1. Loop bodies contain no function expressions, arrow functions, or bound method references. A callback that cannot be avoided is hoisted to module scope and receives all state as parameters.
+2. No closure captures a loop variable. When a closure captures a `let` binding of a `for` loop, the engine allocates a fresh context object per iteration; the translation passes the index as a function parameter instead.
+3. Loop bodies write into bindings declared once in the enclosing function scope. Per-iteration allocation is permitted only for the record values the wire format itself requires.
+
+These rules exist because the JavaScript target is performance sensitive: a closure allocated inside a loop body converts a bounded, allocation-free loop into per-iteration context allocation, and the resulting garbage collection pauses dominate the runtime of the decoded payload.
 
 ## Test hooks
 
@@ -205,3 +217,8 @@ Loop execution and record array round trips are verified in:
 - `tests/haxe/Main.hx` (lines 60-66, 79-88)
 - `tests/ts/codec.test.ts` (lines 42-53, 57-64)
 - `tests/ts/vector.test.ts` (lines 13-25)
+
+The following guards are required by this specification and do not exist yet:
+
+- An eslint rule named `boring/no-functional-iteration` bans the array iteration methods listed in the ruling on all files under `ts/src` (implemented in `tools/eslint`).
+- A structure test scans every file under `ts/src`, `haxe/src`, and `rust/src` and asserts two properties: no `.map(`, `.filter(`, `.reduce(`, `.forEach(`, `.flatMap(`, `.some(`, or `.every(` call site exists, and no function expression or arrow function appears inside a `for` or `while` body. This test is the guard for generated output, where the behavior tests cannot see the shape of the code.

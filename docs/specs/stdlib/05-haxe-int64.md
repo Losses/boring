@@ -129,7 +129,11 @@ export function writeU64Number(writer: BinaryWriter, value: number): void {
 
 ## Ruling
 
-When 64-bit integer fields enter the binary wire format, they translate to native `u64` or `i64` primitives in Rust, `bigint` primitives with explicit 8-byte big-endian `DataView` methods in TypeScript, and `haxe.Int64` in Haxe.
+This repository carries no 64-bit integer domain fields, and new format definitions must not introduce them. Code points, record counts, and em coordinates fit within 32-bit integers and 64-bit floats. The web target avoids `bigint`: bigint values allocate heap objects, exclude the values from V8 small integer optimizations, and force explicit conversions at every `DataView` boundary.
+
+`haxe.Int64` is permitted only as the return type of `haxe.io.FPHelper.doubleToI64`, where `bits.high` and `bits.low` are written as `Int` words. Arithmetic, comparison, storage, and API exposure of `Int64` values outside this float conversion path is banned.
+
+A format with 64-bit integer domain values that exceed the 53-bit `number` range is a format revision: a `WireI64Be` entry enters `docs/specs/binary/02-binary-meta-abstraction.md` only after the `bigint` cost on the web target is measured and accepted in writing. Fields bounded by 2^53 use `number` with `Number.isSafeInteger` guards. Until such a revision exists, translators reject 64-bit integer fields as unsupported.
 
 For bit-level floating-point serialization where integer semantics are unused, Haxe translates `haxe.io.FPHelper` conversions to `f64::from_bits`/`to_bits` in Rust and `DataView.getFloat64`/`setFloat64` in TypeScript.
 
