@@ -1,10 +1,12 @@
 # Translation specifications
 
-This directory defines the translation rules from Haxe into Rust and TypeScript for the boring repository.
+This directory defines the translation rules from Haxe into Rust, TypeScript, and Kotlin for the boring repository.
 
 ## Purpose
 
-The repository hosts one binary codec implemented in Haxe, Rust, and TypeScript. Haxe is the reference language. Every Haxe construct used by the codec requires an explicit, written translation rule for Rust and TypeScript.
+The repository hosts one binary codec implemented in Haxe, Rust, and TypeScript. Haxe is the reference language. Every Haxe construct used by the codec requires an explicit, written translation rule for Rust, TypeScript, and Kotlin.
+
+No Kotlin implementation exists in the repository yet. The Kotlin rulings in these specifications bind the Reflaxe generator when it emits a Kotlin target, so the target arrives with its translation decisions already written down.
 
 A later compilation and generation stage produces or verifies target code against these specifications. Without written specifications, unit tests inherit ad hoc translation choices, and disagreements in emitted bytes cannot be localized to a single design decision. Each specification document serves as the single location where a translation decision is defined and justified.
 
@@ -22,7 +24,7 @@ Every candidate translation is evaluated across four fixed axes:
 
 - `performance`: Runtime cost on the codec hot path, including allocation counts, bounds checks, pointer indirection, and compiler optimization characteristics. Evaluations cite concrete mechanisms.
 - `ambiguity`: Likelihood of misinterpretation by a human reader or compiler. Evaluations address implicit conversions, unspecified bit widths, and target-specific behaviors.
-- `redundancy`: Extent of duplicate state or duplicated logic forced across the three language implementations.
+- `redundancy`: Extent of duplicate state or duplicated logic forced across the language implementations.
 - `readability`: Directness with which the target code expresses its intent to an engineer proficient in that language.
 
 ## Specification index

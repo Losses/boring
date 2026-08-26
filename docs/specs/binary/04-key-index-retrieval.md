@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification rules the generation of per-key retrieval methods from the format definition. For every field key of a fixed-stride format, each target language receives one accessor method that reads the field value directly at a build-time computed byte offset, without materializing intermediate records and without scanning prior records.
+This specification rules the generation of per-key retrieval methods from the format definition. For every field key of a fixed-stride format, each target language receives one accessor method that reads the field value directly at a build-time computed byte offset, without materializing intermediate records and without scanning prior records. The ruled target languages are Haxe, Rust, TypeScript, and Kotlin; no Kotlin tree exists yet, and the Kotlin shape below binds generated code.
 
 This document rules the requirement and the generated shapes. The generator described in `docs/specs/binary/02-binary-meta-abstraction.md` does not exist in the repository yet, so no accessor exists yet.
 
@@ -93,7 +93,22 @@ class VectorView {
 }
 ```
 
-Out-of-range indexes follow the error ruling of `docs/specs/features/06-errors-and-results.md`: `Result` with a dedicated error variant in Rust, thrown `Error` in Haxe and TypeScript.
+### Kotlin
+
+```kotlin
+class VectorView(private val bytes: ByteArray) {
+    fun recordCodePoint(index: Int): Int {
+        checkIndex(index)
+        val base = 8 + index * 44
+        return (bytes[base].toInt() and 0xFF shl 24) or
+            (bytes[base + 1].toInt() and 0xFF shl 16) or
+            (bytes[base + 2].toInt() and 0xFF shl 8) or
+            (bytes[base + 3].toInt() and 0xFF)
+    }
+}
+```
+
+Out-of-range indexes follow the error ruling of `docs/specs/features/06-errors-and-results.md`: `Result` with a dedicated error variant in Rust, thrown `Error` in Haxe and TypeScript, and a thrown sealed `VectorException` variant in Kotlin.
 
 ## Test hooks
 

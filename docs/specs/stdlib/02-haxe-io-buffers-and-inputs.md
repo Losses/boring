@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification rules sequential byte buffer writing, stream reading, endianness configuration, and bounds checking across Haxe, Rust, and TypeScript. In the current codebase, buffer building appears in Haxe via `haxe.io.BytesBuffer` in `haxe/src/boring/BinaryWriter.hx` (lines 4, 12, 15), stream reading appears in Haxe via cursor tracking in `haxe/src/boring/BinaryReader.hx` (lines 11-57), slice extraction and big-endian conversions appear in Rust in `rust/src/lib.rs` (lines 50-82, 84-98), and growable buffer writing and `DataView` reading appear in TypeScript in `ts/src/codec.ts` (lines 10-117).
+This specification rules sequential byte buffer writing, stream reading, endianness configuration, and bounds checking across Haxe, Rust, TypeScript, and Kotlin. In the current codebase, buffer building appears in Haxe via `haxe.io.BytesBuffer` in `haxe/src/boring/BinaryWriter.hx` (lines 4, 12, 15), stream reading appears in Haxe via cursor tracking in `haxe/src/boring/BinaryReader.hx` (lines 11-57), slice extraction and big-endian conversions appear in Rust in `rust/src/lib.rs` (lines 50-82, 84-98), and growable buffer writing and `DataView` reading appear in TypeScript in `ts/src/codec.ts` (lines 10-117). No Kotlin implementation exists yet; the Kotlin rulings bind generated code.
 
 ## Haxe construct
 
@@ -166,6 +166,39 @@ export class BinaryReader {
 }
 ```
 
+### Kotlin Candidate 1: Cursor reader with shift assembly and Double.toBits
+
+```kotlin
+class BinaryReader(private val bytes: ByteArray) {
+    private var offset: Int = 0
+
+    fun readU32(): Int {
+        val value = (bytes[offset].toInt() and 0xFF shl 24) or
+            (bytes[offset + 1].toInt() and 0xFF shl 16) or
+            (bytes[offset + 2].toInt() and 0xFF shl 8) or
+            (bytes[offset + 3].toInt() and 0xFF)
+        offset += 4
+        return value
+    }
+
+    fun readF64(): Double {
+        val high = readU32().toLong()
+        val low = readU32().toLong() and 0xFFFFFFFFL
+        return Double.fromBits((high shl 32) or low)
+    }
+}
+```
+
+### Kotlin Candidate 2: java.io.DataInputStream delegation
+
+```kotlin
+import java.io.DataInputStream
+
+fun readU32(input: DataInputStream): Int {
+    return input.readInt()
+}
+```
+
 ## Judgment
 
 | Candidate | performance | ambiguity | redundancy | readability |
@@ -174,12 +207,14 @@ export class BinaryReader {
 | Rust Candidate 2 (byteorder crate) | The byteorder trait performs dynamic error mapping and cursor updates on each field. | Trait error types require custom mapping to crate domain errors. | External crate dependencies duplicate functionality provided by modern Rust core. | Trait imports add dependency weight for standard integer conversions. |
 | TS Candidate 1 (DataView explicit endian) | DataView methods compile to native host byte-swap instructions on V8. | Setting the littleEndian parameter to false guarantees big-endian decoding on every engine. | Single DataView wrapper handles integers, floats, and bounds checks. | Explicit getUint32 and getFloat64 calls state field types directly. |
 | TS Candidate 2 (Manual bitwise arithmetic) | Bitwise shifts require extra operations and scratch buffers for floating-point values. | Bitwise operators produce signed 32-bit integers requiring zero-fill shifts. | Float deserialization requires duplicating conversion logic between files. | Manual byte assembly adds arithmetic noise to straightforward field reads. |
+| Kotlin Candidate 1 (Cursor with toBits) | Shift assembly runs as primitive integer ops, and `Double.toBits()` supplies the exact bit-level path. | Masking with `and 0xFF` states the unsigned byte domain explicitly. | The reader mirrors the Haxe cursor structure without stream classes. | Index arithmetic matches the Haxe reader line for line. |
+| Kotlin Candidate 2 (DataInputStream) | Stream delegation wraps every read in checked I/O calls and exception paths. | `readInt` returns a signed value, so unsigned semantics require post-processing. | The JVM stream API ties common code to a JVM-only class. | Delegating reads hides the byte order handling inside stream internals. |
 
 ## Ruling
 
-The three language implementations share a uniform primitive set: big-endian unsigned integers (`readU16`/`writeU16`, `readU32`/`writeU32`), IEEE 754 64-bit floats (`readF64`/`writeF64`), and fixed-length ASCII strings (`readAscii`/`writeAscii`).
+The language implementations share a uniform primitive set: big-endian unsigned integers (`readU16`/`writeU16`, `readU32`/`writeU32`), IEEE 754 64-bit floats (`readF64`/`writeF64`), and fixed-length ASCII strings (`readAscii`/`writeAscii`). Kotlin implements the same primitive set over `ByteArray` with shift assembly and `Double.toBits()`/`Double.fromBits(...)`, which is the bit-level float path ruled in `docs/specs/features/07-numeric-tower.md`.
 
-Bounds checking lives in reader slice extraction (`take_n` in Rust, `DataView` range checks in TypeScript, offset checks in Haxe) and writer capacity growth (`ensure` in TypeScript, growable `BytesBuffer` in Haxe, `Vec::extend_from_slice` in Rust).
+Bounds checking lives in reader slice extraction (`take_n` in Rust, `DataView` range checks in TypeScript, offset checks in Haxe, index range checks in Kotlin) and writer capacity growth (`ensure` in TypeScript, growable `BytesBuffer` in Haxe, `Vec::extend_from_slice` in Rust, capacity-tracked `ByteArray` growth in Kotlin). JVM-only stream classes (`java.io.DataInputStream`, `java.nio.ByteBuffer`) stay out of common Kotlin code because the Kotlin target spans JVM and JavaScript backends.
 
 ## Test hooks
 

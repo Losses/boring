@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification rules the translation of Haxe loop constructs, iterator interfaces, range iterations, the functional iteration forms permitted in codec code, and the closure allocation rules for translated loop bodies on the JavaScript target. In the current codebase, iteration appears in Haxe in `haxe/src/boring/VectorCodec.hx` (lines 17, 36), `haxe/src/boring/BinaryReader.hx` (line 43), and `haxe/src/boring/BinaryWriter.hx` (line 39), in Rust in `rust/src/lib.rs` (lines 89, 108), and in TypeScript in `ts/src/vector-format.ts` (lines 19, 38) and `ts/src/codec.ts` (lines 48, 103).
+This specification rules the translation of Haxe loop constructs, iterator interfaces, range iterations, the functional iteration forms permitted in codec code, and the closure allocation rules for translated loop bodies on the JavaScript target. In the current codebase, iteration appears in Haxe in `haxe/src/boring/VectorCodec.hx` (lines 17, 36), `haxe/src/boring/BinaryReader.hx` (line 43), and `haxe/src/boring/BinaryWriter.hx` (line 39), in Rust in `rust/src/lib.rs` (lines 89, 108), and in TypeScript in `ts/src/vector-format.ts` (lines 19, 38) and `ts/src/codec.ts` (lines 48, 103). No Kotlin implementation exists yet; the Kotlin rulings bind generated code.
 
 ## Haxe construct
 
@@ -185,6 +185,26 @@ export function* decodeVectorLazy(
 }
 ```
 
+### Kotlin Candidate 1: for-in loop over collections and ranges
+
+```kotlin
+for (record in records) {
+    writeRecord(writer, record)
+}
+
+for (i in 0 until count) {
+    records.add(readRecord(reader))
+}
+```
+
+### Kotlin Candidate 2: Functional collection pipeline
+
+```kotlin
+val bytes: List<Int> = records.flatMap { record ->
+    record.toByteArray().toList()
+}
+```
+
 ## Judgment
 
 | Candidate | performance | ambiguity | redundancy | readability |
@@ -193,12 +213,14 @@ export function* decodeVectorLazy(
 | Rust Candidate 2 (Iterator collect) | Closure allocations and deferred error propagation through collect complicate inlining. | Error state handling inside iterator chains obscures the exact failure point. | Adapter chains require additional error wrapping and mapping types. | Functional iterator pipelines introduce closure layers into procedural codecs. |
 | TS Candidate 1 (for-of and index loop) | Direct loops execute on JavaScript engines without iterator allocation overhead. | Loop index bounds and collection access are stated explicitly. | Index iterations map directly across arrays without wrapper objects. | Standard loop constructs state traversal order directly. |
 | TS Candidate 2 (Generator function) | Generator state machines allocate context objects on the heap for each step. | Suspended execution defers input validation until caller consumption. | Callers must manage iterator consumption and error handling across consumer boundaries. | Generator syntax adds coroutine semantics to straightforward array decoding. |
+| Kotlin Candidate 1 (for-in and range) | Direct loops compile to index arithmetic with no iterator allocation over arrays and ranges. | Loop bounds and collection access stay explicit in source. | No wrapper objects or lambda parameters are required. | Standard loop constructs state traversal order directly. |
+| Kotlin Candidate 2 (Functional pipeline) | Each pipeline stage allocates an intermediate collection even when lambdas inline. | Error propagation points hide inside stage boundaries. | The pipeline replaces plain statements with chained calls. | Chained stages obscure the write order that the wire format fixes. |
 
 ## Ruling
 
-Haxe collection loops translate to direct `for` loops in Rust over borrowed slices (`for item in slice`) and `for (const item of array)` in TypeScript, while range loops translate to integer range loops `for _ in 0..count` in Rust and indexed `for (let i = 0; i < count; i += 1)` in TypeScript.
+Haxe collection loops translate to direct `for` loops in Rust over borrowed slices (`for item in slice`), `for (const item of array)` in TypeScript, and `for (item in array)` in Kotlin, while range loops translate to integer range loops `for _ in 0..count` in Rust, indexed `for (let i = 0; i < count; i += 1)` in TypeScript, and `for (i in 0 until count)` in Kotlin.
 
-Functional iteration is banned in codec code and generated code on every path in all three languages. Banned constructs: `map`, `filter`, `reduce`, `forEach`, `flatMap`, `find`, `some`, `every`, and comparator-closure `sort` in Haxe and TypeScript; iterator adapter chains such as `.iter().map(...).filter(...).collect()` in Rust. Every such construct rewrites to a plain `for` or `while` loop before translation. Each functional stage allocates a closure and an intermediate collection; in a loop over records this multiplies allocations by the record count and moves runtime into garbage collection.
+Functional iteration is banned in codec code and generated code on every path in all four languages. Banned constructs: `map`, `filter`, `reduce`, `forEach`, `flatMap`, `find`, `some`, `every`, and comparator-closure `sort` in Haxe and TypeScript; iterator adapter chains such as `.iter().map(...).filter(...).collect()` in Rust; `map`, `filter`, `forEach`, `flatMap`, `fold`, `sortedBy`, and comparator lambdas over collections in Kotlin. Every such construct rewrites to a plain `for` or `while` loop before translation. Each functional stage allocates a closure and an intermediate collection; in a loop over records this multiplies allocations by the record count and moves runtime into garbage collection. Kotlin standard library iteration functions inline their lambdas, which lowers the runtime cost on JVM; the ban holds anyway because the generated code shape stays uniform across languages and reviewable by the structure test below.
 
 Generator functions are banned on the decode hot path. Decoders must eagerly validate headers, parse records, and verify the trailing byte boundary before returning complete collections.
 
@@ -221,4 +243,4 @@ Loop execution and record array round trips are verified in:
 The following guards are required by this specification and do not exist yet:
 
 - An eslint rule named `boring/no-functional-iteration` bans the array iteration methods listed in the ruling on all files under `ts/src` (implemented in `tools/eslint`).
-- A structure test scans every file under `ts/src`, `haxe/src`, and `rust/src` and asserts two properties: no `.map(`, `.filter(`, `.reduce(`, `.forEach(`, `.flatMap(`, `.some(`, or `.every(` call site exists, and no function expression or arrow function appears inside a `for` or `while` body. This test is the guard for generated output, where the behavior tests cannot see the shape of the code.
+- A structure test scans every file under `ts/src`, `haxe/src`, `rust/src`, and `kt/src` and asserts two properties: no `.map(`, `.filter(`, `.reduce(`, `.forEach(`, `.flatMap(`, `.some(`, `.every(`, `.fold(`, or `.sortedBy(` call site exists, and no function expression, arrow function, or lambda appears inside a `for` or `while` body. This test is the guard for generated output, where the behavior tests cannot see the shape of the code.

@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification rules the architecture for defining binary wire formats as typed metadata. It establishes how a single canonical schema definition in Haxe generates target encoders, decoders, and structural validators for Haxe, Rust, and TypeScript.
+This specification rules the architecture for defining binary wire formats as typed metadata. It establishes how a single canonical schema definition in Haxe generates target encoders, decoders, and structural validators for Haxe, Rust, TypeScript, and Kotlin.
 
 This document rules the design approach. The compile-time macro generator described here does not exist in the repository yet.
 
@@ -91,6 +91,7 @@ Haxe compile-time macros process `FormatDef` declarations at build time. The typ
 3. The Reflaxe compiler target framework transforms the typed AST into target language AST nodes:
    - Rust code emission produces structs with `#[derive(Debug, Clone, Copy, PartialEq)]`, `VectorReader`, `encode_vector`, and `decode_vector`.
    - TypeScript code emission produces typed interfaces with `readonly` properties, `BinaryReader`, `BinaryWriter`, `encodeVector`, and `decodeVector`.
+   - Kotlin code emission produces `data class` records, a sealed exception hierarchy per `docs/specs/features/06-errors-and-results.md`, `BinaryReader` and `BinaryWriter` over `ByteArray`, and `encodeVector` and `decodeVector` functions. No Kotlin emission exists yet; the Kotlin rulings across `features/` and `stdlib/` bind this output when it arrives.
    - Haxe compilation produces typed classes with inline serialization routines.
 
 This pipeline replaces manual cross-language synchronization with deterministic code generation from the Haxe typed AST.

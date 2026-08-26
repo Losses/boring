@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification rules the translation of Haxe static extensions (`using Module;`) into Rust and TypeScript. In the current codebase, static extensions do not appear in `haxe/src/boring/`, which uses direct static method calls such as `haxe.io.FPHelper.doubleToI64(value)` in `haxe/src/boring/BinaryWriter.hx` (line 31) and `Bytes.ofHex` in `tests/haxe/Main.hx` (line 83). In Rust, methods appear as struct `impl` blocks in `rust/src/lib.rs` (lines 56-82), and in TypeScript, methods appear as class member functions in `ts/src/codec.ts` (lines 21-70) or free module functions in `ts/src/vector-format.ts` (lines 15, 30).
+This specification rules the translation of Haxe static extensions (`using Module;`) into Rust, TypeScript, and Kotlin. In the current codebase, static extensions do not appear in `haxe/src/boring/`, which uses direct static method calls such as `haxe.io.FPHelper.doubleToI64(value)` in `haxe/src/boring/BinaryWriter.hx` (line 31) and `Bytes.ofHex` in `tests/haxe/Main.hx` (line 83). In Rust, methods appear as struct `impl` blocks in `rust/src/lib.rs` (lines 56-82), and in TypeScript, methods appear as class member functions in `ts/src/codec.ts` (lines 21-70) or free module functions in `ts/src/vector-format.ts` (lines 15, 30). No Kotlin implementation exists yet; the Kotlin rulings bind generated code.
 
 ## Haxe construct
 
@@ -138,6 +138,24 @@ Uint8Array.prototype.readU32Be = function (offset: number): number {
 };
 ```
 
+### Kotlin Candidate 1: Extension functions
+
+```kotlin
+fun ByteArray.remainingBytes(offset: Int): Int {
+    return size - offset
+}
+```
+
+### Kotlin Candidate 2: Wrapper class with member methods
+
+```kotlin
+class BytesExt(val bytes: ByteArray) {
+    fun remainingBytes(offset: Int): Int {
+        return bytes.size - offset
+    }
+}
+```
+
 ## Judgment
 
 | Candidate | performance | ambiguity | redundancy | readability |
@@ -147,10 +165,12 @@ Uint8Array.prototype.readU32Be = function (offset: number): number {
 | Rust Candidate 3 (Extension trait) | Monomorphized trait dispatch incurs zero runtime overhead. | Traits must be brought into lexical scope across caller modules. | Trait definitions duplicate signatures between trait blocks and impl blocks. | Foreign trait implementations add boilerplate around simple operations. |
 | TS Candidate 1 (Exported module functions) | Standalone functions call directly with zero prototype chain traversal. | Module imports determine exact function origin without global namespace pollution. | Functions declare their implementation once in their host module. | Explicit function calls present standard idiomatic TypeScript architecture. |
 | TS Candidate 2 (Prototype augmentation) | Prototype property lookups introduce runtime dispatch penalties on every invocation. | Global interface merging creates collision risks across independent libraries. | Augmentation requires matching ambient declarations and runtime prototype mutations. | Monkey-patching prototypes obscures method definitions from readers and linters. |
+| Kotlin Candidate 1 (Extension functions) | Extension calls compile to static functions with the receiver as the first parameter, with zero indirection. | Call sites resolve the extension by import, so the defining module stays visible. | One declaration per extension serves the whole module. | Dot-call syntax preserves the reading order of the Haxe source. |
+| Kotlin Candidate 2 (Wrapper class) | Every call allocates or threads a wrapper object around the receiver. | Wrappers introduce a second type between callers and the underlying array. | Each call site constructs or reuses the wrapper explicitly. | Wrapper indirection moves the operation one step away from the data it reads. |
 
 ## Ruling
 
-Haxe `using` static extensions translate to inherent `impl` methods for crate-owned types in Rust, free functions in Rust for foreign types or multi-argument operations, and standalone exported functions in TypeScript modules taking the receiver as the first parameter.
+Haxe `using` static extensions translate to inherent `impl` methods for crate-owned types in Rust, free functions in Rust for foreign types or multi-argument operations, standalone exported functions in TypeScript modules taking the receiver as the first parameter, and extension functions in Kotlin. Kotlin extensions resolve statically at compile time and import explicitly, so they carry no dispatch cost and pollute no global scope.
 
 Global prototype augmentation and declaration merging are banned in TypeScript. All extension functionality lives in explicit module namespaces.
 

@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification rules the translation of Haxe `inline` variable declarations, `inline` member functions, and compile-time macro transformations into Rust and TypeScript. In the current codebase, inline constants appear in Haxe as `VectorCodec.MAGIC` in `haxe/src/boring/VectorCodec.hx` (line 11), in Rust as `VECTOR_MAGIC` and `RECORD_BYTE_LENGTH` in `rust/src/lib.rs` (lines 24, 25), and in TypeScript as `VECTOR_MAGIC` and `RECORD_BYTE_LENGTH` in `ts/src/vector-format.ts` (lines 10, 11). Macro architecture for binary schema generation is defined in `docs/specs/binary/02-binary-meta-abstraction.md`.
+This specification rules the translation of Haxe `inline` variable declarations, `inline` member functions, and compile-time macro transformations into Rust, TypeScript, and Kotlin. In the current codebase, inline constants appear in Haxe as `VectorCodec.MAGIC` in `haxe/src/boring/VectorCodec.hx` (line 11), in Rust as `VECTOR_MAGIC` and `RECORD_BYTE_LENGTH` in `rust/src/lib.rs` (lines 24, 25), and in TypeScript as `VECTOR_MAGIC` and `RECORD_BYTE_LENGTH` in `ts/src/vector-format.ts` (lines 10, 11). Macro architecture for binary schema generation is defined in `docs/specs/binary/02-binary-meta-abstraction.md`. No Kotlin implementation exists yet; the Kotlin rulings bind generated code.
 
 ## Haxe construct
 
@@ -86,6 +86,23 @@ export function getCodecConfig(): Record<string, unknown> {
 }
 ```
 
+### Kotlin Candidate 1: const val and inline fun
+
+```kotlin
+const val VECTOR_MAGIC = "BRG1"
+const val RECORD_BYTE_LENGTH = 44
+
+inline fun recordByteLength(): Int = RECORD_BYTE_LENGTH
+```
+
+### Kotlin Candidate 2: Runtime reflection schema lookup
+
+```kotlin
+fun getCodecConfig(): Map<String, Any> {
+    return VectorSchema::class.members.associateBy { it.name }
+}
+```
+
 ## Judgment
 
 | Candidate | performance | ambiguity | redundancy | readability |
@@ -94,12 +111,14 @@ export function getCodecConfig(): Record<string, unknown> {
 | Rust Candidate 2 (Procedural macro) | Macro expansion generates inline code during crate compilation. | Hidden code generation within macro attributes obscures wire serialization logic. | Code generation logic is duplicated between Haxe Reflaxe generators and Rust proc macros. | Attribute macros conceal field encoding mechanics from readers inspecting the file. |
 | TS Candidate 1 (Top-level const) | Top-level constants compile to direct primitive loads with zero object overhead. | Explicit primitive types prevent reassignment and mutations. | Single constant definitions serve all modules in the package. | Standard const statements express immutable module values directly. |
 | TS Candidate 2 (Runtime eval evaluation) | Dynamic evaluation forces interpreter parsing overhead during module execution. | Untyped dynamic code evaluation bypasses TypeScript static type checking. | Dynamic logic forces redundant runtime validation of fixed schema structures. | Dynamic evaluation introduces indirect reflection into straightforward codecs. |
+| Kotlin Candidate 1 (const val and inline fun) | `const val` folds into call sites at compile time, and `inline fun` bodies inline into callers. | Constant declarations state the value once with a primitive or `String` type. | One declaration serves every module through imports. | Standard constant declarations communicate compile-time values directly. |
+| Kotlin Candidate 2 (Reflection lookup) | `kotlin.reflect` member iteration allocates descriptor objects and walks metadata at runtime. | Reflection hides which schema values exist from the compiler. | Reflection logic duplicates what the generator already emits as constants. | Indirect member lookup obscures the fixed schema from readers. |
 
 ## Ruling
 
-Haxe `inline var` constants translate to top-level `pub const` items in Rust and top-level `export const` bindings in TypeScript, while Haxe `inline` accessor functions translate to `const fn` or `#[inline]` functions in Rust and direct functions in TypeScript.
+Haxe `inline var` constants translate to top-level `pub const` items in Rust, top-level `export const` bindings in TypeScript, and `const val` declarations in Kotlin, while Haxe `inline` accessor functions translate to `const fn` or `#[inline]` functions in Rust, direct functions in TypeScript, and `inline fun` declarations in Kotlin. Kotlin `const val` accepts primitive and `String` types only; constant arrays follow the unrolling ruling in `docs/specs/stdlib/04-haxe-ds-vector.md`, which folds `WireAscii(4)` over `BRG1` into the `Int` constant `0x42524731` and emits one named constant per element otherwise.
 
-Haxe compile-time macros operate exclusively at build time within the Reflaxe compiler pipeline to generate target source code. No runtime behavior in the generated Rust and TypeScript codebases may depend on macro interpreters or dynamic runtime code evaluation.
+Haxe compile-time macros operate exclusively at build time within the Reflaxe compiler pipeline to generate target source code. No runtime behavior in the generated Rust, TypeScript, and Kotlin codebases may depend on macro interpreters, dynamic runtime code evaluation, or `kotlin.reflect`. Kotlin has no macro system; all Kotlin code generation happens in the Reflaxe pipeline.
 
 ## Test hooks
 

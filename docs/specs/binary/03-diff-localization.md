@@ -51,6 +51,8 @@ Each identified field maps to a specific serialization statement in each codebas
 | `bounds.xMax` | `writer.writeF64(record.bounds.xMax)` | `bytes.extend_from_slice(&record.bounds.x_max.to_bits().to_be_bytes())` | `writer.writeF64(record.bounds.xMax)` |
 | `bounds.yMax` | `writer.writeF64(record.bounds.yMax)` | `bytes.extend_from_slice(&record.bounds.y_max.to_bits().to_be_bytes())` | `writer.writeF64(record.bounds.yMax)` |
 
+No Kotlin tree exists yet. When the pipeline emits one, its encoder statements mirror the Haxe and TypeScript column (`writer.writeU32(...)`, `writer.writeF64(...)`), with `Double.toBits()` supplying the Rust `to_bits` role; the generator adds the Kotlin column to this table in the same commit that introduces the tree.
+
 ## Worked example
 
 Consider a byte disagreement discovered at offset B = 22 against `tests/vectors/roundtrip.bin`.

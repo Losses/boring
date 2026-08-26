@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification defines the binary wire format for glyph metrics records shared across the Haxe, Rust, and TypeScript implementations. It rules byte alignment, field ordering, integer and floating-point representations, endianness, and numerical precision constraints.
+This specification defines the binary wire format for glyph metrics records shared across the Haxe, Rust, and TypeScript implementations. It rules byte alignment, field ordering, integer and floating-point representations, endianness, and numerical precision constraints. The layout is language-independent: a future Kotlin implementation, and any other target the Reflaxe pipeline emits, decodes the same bytes under the type rulings in `features/` and `stdlib/`.
 
 The wire format is implemented in:
 - `haxe/src/boring/VectorCodec.hx`

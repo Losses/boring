@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification rules the translation of Haxe `Null<T>`, optional structural fields (`?field:T`), and optional function arguments into Rust and TypeScript. In the current repository, glyph metrics records (`haxe/src/boring/GlyphMetrics.hx`, `rust/src/lib.rs`, `ts/src/records.ts`) contain non-null fields. In the glyph metrics domain, optionality governs sparse font tables, fallback glyph identifiers, and optional vertical advance metrics.
+This specification rules the translation of Haxe `Null<T>`, optional structural fields (`?field:T`), and optional function arguments into Rust, TypeScript, and Kotlin. In the current repository, glyph metrics records (`haxe/src/boring/GlyphMetrics.hx`, `rust/src/lib.rs`, `ts/src/records.ts`) contain non-null fields. In the glyph metrics domain, optionality governs sparse font tables, fallback glyph identifiers, and optional vertical advance metrics. No Kotlin implementation exists yet; the Kotlin rulings bind generated code.
 
 ## Haxe construct
 
@@ -123,6 +123,26 @@ export interface ExtendedMetricsRecord {
 }
 ```
 
+### Kotlin Candidate 1: Nullable type
+
+```kotlin
+data class ExtendedMetrics(
+    val codePoint: Int,
+    val advanceEm: Double,
+    val verticalAdvanceEm: Double?,
+)
+```
+
+### Kotlin Candidate 2: Sentinel value
+
+```kotlin
+data class ExtendedMetrics(
+    val codePoint: Int,
+    val advanceEm: Double,
+    val verticalAdvanceEm: Double, // -1.0 indicates missing
+)
+```
+
 ## Judgment
 
 | Candidate | performance | ambiguity | redundancy | readability |
@@ -132,10 +152,12 @@ export interface ExtendedMetricsRecord {
 | TS Candidate 1 (undefined / optional) | V8 and JavaScript runtimes optimize optional property access without boxing. | The TypeScript compiler enforces strict null checking under strictNullChecks mode. | Optional properties integrate directly with JavaScript destructuring defaults. | The standard question-mark property syntax communicates optionality directly. |
 | TS Candidate 2 (Union with null) | Property access performance matches optional property access. | Dual representations arise when callers mix null and undefined. | Codebases must handle both null and undefined across serialization boundaries. | Explicit null unions require repetitive null checks in client code. |
 | TS Candidate 3 (Sentinel value) | Numeric comparisons execute quickly at runtime. | Sentinel numbers like NaN or negative numbers break standard arithmetic operations. | Serialization code must duplicate sentinel checks across encoders and decoders. | Sentinel values hide optional presence from type checker validation. |
+| Kotlin Candidate 1 (Nullable type) | Null checks compile to single references or flag tests; `Double?` boxes, which the type makes visible at the signature. | The compiler forces a null check or a default before every dereference. | Nullable types integrate with `?.`, `?:`, and `let` without helper types. | The `?` suffix states optionality directly in the field type. |
+| Kotlin Candidate 2 (Sentinel value) | Numeric sentinel checks execute in a single comparison instruction. | Valid domain values can collide with the sentinel constant. | Every consumer duplicates the sentinel check. | Magic numbers conceal optionality from the type system. |
 
 ## Ruling
 
-Haxe `Null<T>` and optional fields translate to `Option<T>` in Rust, and to optional properties (`prop?: T` or `T | undefined`) in TypeScript. Sentinel values are forbidden across all targets.
+Haxe `Null<T>` and optional fields translate to `Option<T>` in Rust, to optional properties (`prop?: T` or `T | undefined`) in TypeScript, and to nullable types `T?` in Kotlin. Sentinel values are forbidden across all targets.
 
 This ruling prevents out-of-band error states and ensures that absence of a value is enforced by the compiler type checker on all platforms.
 

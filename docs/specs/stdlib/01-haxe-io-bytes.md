@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification rules the representation of contiguous byte arrays, buffer allocation, and byte slicing across Haxe, Rust, and TypeScript. In the current codebase, `haxe.io.Bytes` appears in Haxe in `haxe/src/boring/BinaryReader.hx` (lines 3, 12, 15), `haxe/src/boring/BinaryWriter.hx` (lines 3, 44-46), and `haxe/src/boring/VectorCodec.hx` (lines 3, 13, 28), in Rust as borrowed byte slices `&[u8]` and owned byte vectors `Vec<u8>` in `rust/src/lib.rs` (lines 51-54, 84, 100), and in TypeScript as `Uint8Array` in `ts/src/codec.ts` (lines 11, 54-56, 78-81) and `ts/src/vector-format.ts` (lines 15, 30).
+This specification rules the representation of contiguous byte arrays, buffer allocation, and byte slicing across Haxe, Rust, TypeScript, and Kotlin. In the current codebase, `haxe.io.Bytes` appears in Haxe in `haxe/src/boring/BinaryReader.hx` (lines 3, 12, 15), `haxe/src/boring/BinaryWriter.hx` (lines 3, 44-46), and `haxe/src/boring/VectorCodec.hx` (lines 3, 13, 28), in Rust as borrowed byte slices `&[u8]` and owned byte vectors `Vec<u8>` in `rust/src/lib.rs` (lines 51-54, 84, 100), and in TypeScript as `Uint8Array` in `ts/src/codec.ts` (lines 11, 54-56, 78-81) and `ts/src/vector-format.ts` (lines 15, 30). No Kotlin implementation exists yet; the Kotlin rulings bind generated code.
 
 ## Haxe construct
 
@@ -127,6 +127,32 @@ export function decodeVector(buffer: ArrayBuffer): GlyphMetricsRecord[] {
 }
 ```
 
+### Kotlin Candidate 1: ByteArray with index-based access
+
+```kotlin
+fun decodeVector(bytes: ByteArray): List<GlyphMetrics> {
+    val reader = BinaryReader(bytes)
+    // ...
+}
+
+fun encodeVector(records: List<GlyphMetrics>): ByteArray {
+    val writer = BinaryWriter()
+    // ...
+    return writer.finish()
+}
+```
+
+### Kotlin Candidate 2: java.nio.ByteBuffer wrapping
+
+```kotlin
+import java.nio.ByteBuffer
+
+fun decodeVector(bytes: ByteArray): List<GlyphMetrics> {
+    val buffer = ByteBuffer.wrap(bytes)
+    // ...
+}
+```
+
 ## Judgment
 
 | Candidate | performance | ambiguity | redundancy | readability |
@@ -135,10 +161,12 @@ export function decodeVector(buffer: ArrayBuffer): GlyphMetricsRecord[] {
 | Rust Candidate 2 (Boxed byte slice) | Boxing forces heap allocation and ownership transfer for every read operation. | Moving ownership into decoder functions prevents callers from reusing input buffers. | Extra boxing and unboxing calls add conversion lines around buffer operations. | Explicit Box wrappers add syntactic noise to standard byte inspection APIs. |
 | TS Candidate 1 (Uint8Array view) | TypedArray views wrap underlying ArrayBuffer storage with zero data copying. | Uint8Array encapsulates buffer references, byte offsets, and lengths in one object. | Shared view types integrate directly with DataView and web standard APIs. | Uint8Array is the standard binary primitive for modern TypeScript applications. |
 | TS Candidate 2 (Raw ArrayBuffer) | ArrayBuffer requires wrapping with typed views before reading or writing bytes. | ArrayBuffer instances cannot represent sub-slices without separate offset parameters. | Callers must allocate view wrappers manually at each API boundary. | Passing raw ArrayBuffer objects obscures offset and length handling. |
+| Kotlin Candidate 1 (ByteArray) | `ByteArray` is a flat JVM primitive array with direct indexed access and no view objects. | One type covers input and output, with length carried by the array itself. | Index arithmetic matches the Haxe reader structure line for line. | `ByteArray` is the standard Kotlin binary primitive on every target. |
+| Kotlin Candidate 2 (ByteBuffer) | ByteBuffer adds position, limit, and mark state that the codec re-implements with its own cursor. | Buffer state is mutable through flip, rewind, and clear, inviting mode confusion. | Every read path chooses between buffer methods and manual index arithmetic. | Heap buffer wrappers add machinery the codec does not use. |
 
 ## Ruling
 
-`haxe.io.Bytes` translates to borrowed byte slices (`&[u8]`) for input parameters and owned byte vectors (`Vec<u8>`) for output returns in Rust, and to `Uint8Array` in TypeScript for all inputs and outputs.
+`haxe.io.Bytes` translates to borrowed byte slices (`&[u8]`) for input parameters and owned byte vectors (`Vec<u8>`) for output returns in Rust, to `Uint8Array` in TypeScript for all inputs and outputs, and to `ByteArray` in Kotlin for all inputs and outputs. Kotlin slice operations use `copyOfRange`, which copies as `Bytes.sub` does on the Haxe side.
 
 Read operations borrow existing byte sequences without allocating intermediate buffers. Write operations accumulate data into growable structures and return compact contiguous buffers sized to the encoded payload.
 
