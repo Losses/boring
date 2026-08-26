@@ -6,6 +6,9 @@ import boring.Console;
 import boring.GlyphMetrics;
 import boring.Process;
 import boring.VectorCodec;
+import boring.VectorError;
+import boring.VectorException;
+import boring.VectorSort;
 import haxe.io.Bytes;
 
 /**
@@ -94,18 +97,78 @@ class Main {
 		expectTrue("u32 round trip", reader.readU32() == 0x56789abc);
 		expectTrue("reader fully consumed", reader.remaining() == 0);
 
-		var badMagicThrew = false;
+		var badMagicVariant:Null<VectorError> = null;
 		try {
 			VectorCodec.decode(Bytes.ofHex("5858585800000000"));
-		} catch (error:haxe.Exception) {
-			badMagicThrew = true;
+		} catch (error:VectorException) {
+			badMagicVariant = error.error;
 		}
-		expectTrue("bad magic raises an exception", badMagicThrew);
+		expectTrue("bad magic throws the BadMagic variant", badMagicVariant == BadMagic);
+
+		var truncatedVariant:Null<VectorError> = null;
+		try {
+			VectorCodec.decode(Bytes.ofHex("4252473100000001"));
+		} catch (error:VectorException) {
+			truncatedVariant = error.error;
+		}
+		expectTrue("truncated vector throws the UnexpectedEof variant", truncatedVariant == UnexpectedEof);
+
+		runSortChecks();
 
 		if (failures > 0) {
 			Console.log('$failures failure(s)');
 			Process.exit(1);
 		}
 		Console.log('all ${passes} haxe checks passed');
+	}
+
+	// Sort corpus and oracle shared verbatim with tests/ts/vector-sort.test.ts
+	// and tests/rust/vector.rs; the trees must produce identical outputs.
+	static final SORT_SHUFFLED_KEYS:Array<Int> = [
+		0x82A1, 0x78E2, 0x76EF, 0x6371, 0x4E00, 0x0020, 0x7AD5, 0x74FC, 0x694A, 0x6F23,
+		0x6D30, 0x8A6D, 0x617E, 0x7EBB, 0x3105, 0x5BA5, 0x6B3D, 0x8687, 0x7116, 0x7CC8,
+		0xFF01, 0x8494, 0x80AE, 0x59B2, 0x4FF3, 0x4E00, 0x9FFF, 0x57BF, 0xFF01, 0x6564,
+		0x53D9, 0x5D98, 0x6757, 0x3105, 0x5F8B, 0x7309, 0x55CC, 0x51E6, 0x4E00, 0x887A
+	];
+
+	static final SORT_SORTED_KEYS:Array<Int> = [
+		0x20, 0x3105, 0x3105, 0x4E00, 0x4E00, 0x4E00, 0x4FF3, 0x51E6, 0x53D9, 0x55CC,
+		0x57BF, 0x59B2, 0x5BA5, 0x5D98, 0x5F8B, 0x617E, 0x6371, 0x6564, 0x6757, 0x694A,
+		0x6B3D, 0x6D30, 0x6F23, 0x7116, 0x7309, 0x74FC, 0x76EF, 0x78E2, 0x7AD5, 0x7CC8,
+		0x7EBB, 0x80AE, 0x82A1, 0x8494, 0x8687, 0x887A, 0x8A6D, 0x9FFF, 0xFF01, 0xFF01
+	];
+
+	static function sortRecordsFromKeys(keys:Array<Int>):Array<GlyphMetrics> {
+		final records = new Array<GlyphMetrics>();
+		for (index in 0...keys.length) {
+			// advanceEm marks the input position for the stability assertion.
+			records.push({
+				codePoint: keys[index],
+				advanceEm: index,
+				bounds: { xMin: 0, yMin: 0, xMax: 0, yMax: 0 }
+			});
+		}
+		return records;
+	}
+
+	static function runSortChecks():Void {
+		final records = sortRecordsFromKeys(SORT_SHUFFLED_KEYS);
+		final result = VectorSort.byCodePoint(records);
+		expectTrue("sort returns the same array", result == records);
+		var keysMatch = true;
+		for (index in 0...SORT_SORTED_KEYS.length) {
+			if (result[index].codePoint != SORT_SORTED_KEYS[index]) {
+				keysMatch = false;
+			}
+		}
+		expectTrue("sort matches the shared oracle", keysMatch);
+		var stable = true;
+		for (index in 1...result.length) {
+			if (result[index].codePoint == result[index - 1].codePoint
+				&& result[index].advanceEm < result[index - 1].advanceEm) {
+				stable = false;
+			}
+		}
+		expectTrue("equal keys keep input order", stable);
 	}
 }
