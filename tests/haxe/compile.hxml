@@ -1,0 +1,8 @@
+# Compile the Haxe test entry to JavaScript and run it with bun
+# (`bun run test:haxe`). The library sources live in haxe/src and the
+# typed test runner in tests/haxe.
+-cp haxe/src
+-cp tests/haxe
+-main Main
+-js out/haxe/tests.js
+-D analyzer-optimize
