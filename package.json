@@ -1,0 +1,32 @@
+{
+  "name": "boring",
+  "private": true,
+  "license": "MIT",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "test": "bun test",
+    "test:haxe": "haxe tests/haxe/compile.hxml && bun out/haxe/tests.js",
+    "test:rust": "cargo test --manifest-path rust/Cargo.toml",
+    "lint": "eslint .",
+    "typecheck": "tsc -p .",
+    "check:docs": "bun tools/doc-style/check.ts",
+    "gen:vector": "bun tools/gen-vector.ts",
+    "commit": "bun tools/commit/commit.ts",
+    "install:hooks": "bun tools/git-hooks/install.ts",
+    "verify": "bun run test && bun run test:haxe && bun run test:rust && bun run lint && bun run typecheck && bun run check:docs && bun run gen:vector"
+  },
+  "devDependencies": {
+    "@boring/codec": "workspace:*",
+    "@eslint/core": "1.2.1",
+    "@eslint/js": "^10.0.1",
+    "@types/bun": "^1.4.0",
+    "@typescript-eslint/parser": "^8.68.0",
+    "@typescript-eslint/utils": "^8.68.0",
+    "eslint": "^10.9.1",
+    "jiti": "^2.7.0",
+    "typescript": "^5.9.0",
+    "typescript-eslint": "^8.68.0"
+  }
+}
