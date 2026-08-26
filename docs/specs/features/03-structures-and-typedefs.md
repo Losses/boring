@@ -25,7 +25,7 @@ typedef GlyphMetrics = {
 
 Haxe unifies anonymous structures by shape. Instantiation uses structural object literals `{ field: value }`.
 
-In the Haxe typed AST, a `typedef` is represented by `haxe.macro.Type.TType(t:Ref<DefType>, params:List<Type>)`. When aliasing an anonymous structure, the underlying type is `haxe.macro.Type.TAnonymous(a:Ref<AnonType>)`, where `AnonType` contains `fields:Array<ClassField>`. Object creation expressions are represented by `haxe.macro.TypedExprDef.TObjectDecl(fields:Array<{name:String, expr:TypedExpr}>)`.
+In the Haxe typed AST, a `typedef` is represented by `haxe.macro.Type.TType(t:Ref<DefType>, params:Array<Type>)`. When aliasing an anonymous structure, the underlying type is `haxe.macro.Type.TAnonymous(a:Ref<AnonType>)`, where `AnonType` contains `fields:Array<ClassField>`. Object creation expressions are represented by `haxe.macro.TypedExprDef.TObjectDecl(fields:Array<{name:String, expr:TypedExpr}>)`.
 
 ## Current translations
 

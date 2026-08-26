@@ -32,7 +32,7 @@ class RecordContainer<T:Serializable> {
 
 By default on JavaScript targets, Haxe erases type parameters at runtime. When decorated with `@:generic`, the Haxe compiler monomorphizes the class or method, generating specialized implementations for each concrete type argument.
 
-In the Haxe typed AST, generic types are represented by `haxe.macro.Type.TInst(c:Ref<ClassType>, params:List<Type>)` where the class defines `params:Array<TypeParameter>`. Constraints are stored in `TypeParameter.t` bounds. Function-level generics are represented in `haxe.macro.Type.TFun` with corresponding `TypeParameter` lists.
+In the Haxe typed AST, generic types are represented by `haxe.macro.Type.TInst(t:Ref<ClassType>, params:Array<Type>)` where the class defines `params:Array<TypeParameter>`. Constraints are stored in `TypeParameter.t` bounds. Function-level generics are represented in `haxe.macro.Type.TFun` with corresponding `TypeParameter` lists.
 
 ## Current translations
 
