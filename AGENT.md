@@ -90,20 +90,25 @@ compile. Individual commands:
 
 ## Layout
 
-- `packages/ts/`: the TypeScript codec package (`@boring/codec`).
+- `ts/`: the TypeScript codec package (`@boring/codec`), a member of the
+  bun workspace at the root `package.json`.
 - `haxe/`: the Haxe library sources.
-- `rust/`: the Rust crate with the codec implementation.
+- `rust/`: the Rust crate with the codec implementation, a member of the
+  cargo workspace at the root `Cargo.toml`.
 - `tests/`: every test suite and the shared evidence:
   `tests/ts/` (bun tests), `tests/haxe/` (test runner plus
-  `compile.hxml`), `tests/rust/` (cargo tests, wired through
-  `rust/Cargo.toml`), and `tests/vectors/` (the shared vectors).
+  `compile.hxml`), `tests/rust/` (cargo test targets, wired into
+  `rust/Cargo.toml` through explicit `[[test]]` paths; a suite carries
+  no manifest of its own), and `tests/vectors/` (the shared vectors).
 - `tools/`: the ESLint plugin, the documentation style checker, the
   commit tool, the git hooks, the vector generator, and the reflaxe
   smoke check.
 
 Test tooling and language implementations are separate trees: a language
-implementation lives under `packages/`, `haxe/`, or `rust/`; everything
-that verifies an implementation lives under `tests/`.
+implementation lives under `ts/`, `haxe/`, or `rust/`; everything that
+verifies an implementation lives under `tests/`. No language keeps a
+separate runtime tree: TypeScript runs under bun, Rust builds with
+cargo, and the Haxe test binary is compiled JS executed by bun.
 
 ## Test vectors
 

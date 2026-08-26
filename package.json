@@ -3,12 +3,12 @@
   "private": true,
   "license": "MIT",
   "workspaces": [
-    "packages/*"
+    "ts"
   ],
   "scripts": {
     "test": "bun test",
     "test:haxe": "haxe tests/haxe/compile.hxml && bun out/haxe/tests.js",
-    "test:rust": "cargo test --manifest-path rust/Cargo.toml",
+    "test:rust": "cargo test",
     "lint": "eslint .",
     "typecheck": "tsc -p .",
     "check:docs": "bun tools/doc-style/check.ts",
