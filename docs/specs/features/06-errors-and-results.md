@@ -2,15 +2,15 @@
 
 ## Scope
 
-This specification rules error representation and failure propagation across Haxe, Rust, TypeScript, and Kotlin. In the current repository, error handling appears in Haxe via `throw new haxe.Exception(...)` in `haxe/src/boring/VectorCodec.hx` (lines 32 and 50), in Rust via `Result<T, VectorError>` in `rust/src/lib.rs` (lines 84 and 100), and in TypeScript via `throw new Error(...)` in `ts/src/vector-format.ts` (lines 34 and 49) and `ts/src/vector-json.ts`. No Kotlin implementation exists yet; the Kotlin rulings bind generated code.
+This specification rules error representation and failure propagation across Haxe, Rust, TypeScript, and Kotlin. It defines the error taxonomy discipline: failure identity is a closed set of named variants that match one to one across all four languages, messages are display text derived from the variant, and no consumer discriminates a failure by reading a message string. In the current repository, error handling appears in Haxe via `throw new haxe.Exception(...)` in `haxe/src/boring/VectorCodec.hx` (lines 32 and 50), in Rust via `Result<T, VectorError>` in `rust/src/lib.rs` (lines 84 and 100), and in TypeScript via `throw new Error(...)` in `ts/src/vector-format.ts` (lines 34 and 49) and `ts/src/vector-json.ts`. The current Haxe and TypeScript trees carry failure identity in message strings; the ruling below supersedes that practice, and migrating those throw sites is pending work. No Kotlin implementation exists yet; the Kotlin rulings bind generated code.
 
 ## Haxe construct
 
-Haxe uses structured exceptions derived from `haxe.Exception` for error propagation:
+Haxe uses structured exceptions derived from `haxe.Exception` for error propagation. The `throw` expression accepts any value in plain Haxe; the translatable subset restricts it as ruled below.
 
 ```haxe
 if (magic != MAGIC) {
-	throw new haxe.Exception('bad vector magic: $magic');
+	throw new VectorException(BadMagic);
 }
 ```
 
@@ -19,10 +19,39 @@ Exceptions unwind the call stack until intercepted by a `try ... catch` block:
 ```haxe
 try {
 	VectorCodec.decode(bytes);
-} catch (error:haxe.Exception) {
-	Console.log(error.message);
+} catch (error:VectorException) {
+	switch (error.kind) {
+		case BadMagic:
+			Console.log("bad vector magic");
+		case TrailingBytes(remaining):
+			Console.log('trailing bytes in vector: $remaining');
+		case CountOverflow | UnexpectedEof:
+			Console.log(error.message);
+	}
 }
 ```
+
+The failure identity is a Haxe enum as ruled in `docs/specs/features/01-enums-and-pattern-matching.md`; the exception class carries the enum instance:
+
+```haxe
+enum VectorError {
+	BadMagic;
+	CountOverflow;
+	UnexpectedEof;
+	TrailingBytes(remaining:Int);
+}
+
+class VectorException extends haxe.Exception {
+	public final error:VectorError;
+
+	public function new(error:VectorError) {
+		this.error = error;
+		super(describeError(error));
+	}
+}
+```
+
+Throwing any value that is not an instance of such an enum-carrying `haxe.Exception` subclass is rejected before generation by the interception defined in `docs/specs/style/01-haxe-style-standard.md`. A bare `throw "string"`, a `throw` of a Haxe enum value without the exception wrapper, and a `throw` of `new haxe.Exception(message)` whose identity lives only in the message are all rejections.
 
 In the Haxe typed AST, exception operations are represented by `haxe.macro.TypedExprDef.TThrow(e:TypedExpr)` and `haxe.macro.TypedExprDef.TTry(e:TypedExpr, catches:Array<{v:TVar, expr:TypedExpr}>)`. In the macro expression AST, these map to `haxe.macro.Expr.ExprDef.EThrow` and `haxe.macro.Expr.ExprDef.ETry`.
 
@@ -45,6 +74,8 @@ public static function decode(bytes:Bytes):Array<GlyphMetrics> {
 	return records;
 }
 ```
+
+The identity of each failure lives in the message string; this form is the practice the ruling below replaces.
 
 ### Rust (`rust/src/lib.rs`)
 
@@ -111,6 +142,8 @@ export function decodeVector(bytes: Uint8Array): GlyphMetricsRecord[] {
 }
 ```
 
+The identity of each failure lives in the message string; this form is the practice the ruling below replaces.
+
 ## Candidate translations
 
 ### Rust Candidate 1: Result enum with structured error variants
@@ -137,7 +170,72 @@ pub fn decode_vector(bytes: &[u8]) -> Vec<GlyphMetrics> {
 }
 ```
 
-### TypeScript Candidate 1: Thrown Error instances
+### Rust Candidate 3: Boxed dynamic error trait object
+
+```rust
+pub fn decode_vector(
+    bytes: &[u8],
+) -> Result<Vec<GlyphMetrics>, Box<dyn std::error::Error>> {
+    if bytes.len() < 4 || &bytes[..4] != VECTOR_MAGIC {
+        return Err("bad vector magic".into());
+    }
+    // ...
+    Ok(records)
+}
+```
+
+### TypeScript Candidate 1: Typed exception class carrying the error union
+
+```ts
+export type VectorError =
+  | { readonly kind: "BadMagic" }
+  | { readonly kind: "CountOverflow" }
+  | { readonly kind: "UnexpectedEof" }
+  | { readonly kind: "TrailingBytes"; readonly remaining: number };
+
+export class VectorException extends Error {
+  readonly error: VectorError;
+
+  constructor(error: VectorError) {
+    super(describeError(error));
+    this.name = "VectorException";
+    this.error = error;
+  }
+}
+
+export function decodeVector(bytes: Uint8Array): GlyphMetricsRecord[] {
+  if (bytes.length < 4 || !hasVectorMagic(bytes)) {
+    throw new VectorException({ kind: "BadMagic" });
+  }
+  // ...
+  if (reader.remaining() !== 0) {
+    throw new VectorException({
+      kind: "TrailingBytes",
+      remaining: reader.remaining(),
+    });
+  }
+  return records;
+}
+```
+
+The `VectorError` union follows `docs/specs/features/01-enums-and-pattern-matching.md`; `describeError` is the same per-variant function that spec rules, so the message derives from the variant and no consumer reads it back for identity.
+
+### TypeScript Candidate 2: One Error subclass per variant
+
+```ts
+export class BadMagicError extends Error {}
+export class CountOverflowError extends Error {}
+export class UnexpectedEofError extends Error {}
+export class TrailingBytesError extends Error {
+  constructor(readonly remaining: number) {
+    super(`trailing bytes in vector: ${remaining}`);
+  }
+}
+
+throw new BadMagicError();
+```
+
+### TypeScript Candidate 3: Standard Error instances carrying identity in the message
 
 ```ts
 export function decodeVector(bytes: Uint8Array): GlyphMetricsRecord[] {
@@ -149,7 +247,7 @@ export function decodeVector(bytes: Uint8Array): GlyphMetricsRecord[] {
 }
 ```
 
-### TypeScript Candidate 2: Discriminated Result object union
+### TypeScript Candidate 4: Discriminated Result object union
 
 ```ts
 export type Result<T, E> =
@@ -158,24 +256,12 @@ export type Result<T, E> =
 
 export function decodeVector(
   bytes: Uint8Array,
-): Result<GlyphMetricsRecord[], string> {
+): Result<GlyphMetricsRecord[], VectorError> {
   if (bytes.length < 4) {
-    return { ok: false, error: "vector ended mid-record" };
+    return { ok: false, error: { kind: "UnexpectedEof" } };
   }
   // ...
   return { ok: true, value: records };
-}
-```
-
-### TypeScript Candidate 3: Sentinel null on error
-
-```ts
-export function decodeVector(bytes: Uint8Array): GlyphMetricsRecord[] | null {
-  if (bytes.length < 4) {
-    return null;
-  }
-  // ...
-  return records;
 }
 ```
 
@@ -215,17 +301,26 @@ fun decodeVector(bytes: ByteArray): Result<List<GlyphMetrics>> =
 | --- | --- | --- | --- | --- |
 | Rust Candidate 1 (Result enum) | Return values pass in CPU registers without stack unwinding overhead. | Explicit Result return types require caller handling and prevent silent error ignoring. | Error variant definitions are centralized in the crate error enum. | The question mark operator provides idiomatic error propagation to Rust engineers. |
 | Rust Candidate 2 (Panics) | Normal path executes quickly but panics incur heavy unwind table execution. | Function signatures hide failure possibilities from callers. | Error strings are duplicated across individual panic call sites. | Unhandled panics crash host processes unexpectedly. |
-| TS Candidate 1 (Thrown Error) | Successful execution paths incur zero object allocation overhead. | Exception throwing is untyped in TypeScript function signatures. | Standard Error classes integrate with host platform stack traces. | Idiomatic JavaScript exception handling communicates failures directly to TypeScript developers. |
-| TS Candidate 2 (Result object union) | Every function call allocates a wrapper object on the heap. | Return signatures state success and failure types explicitly. | Callers must unwrap result containers across every intermediate helper function. | Monadic wrapper unwrapping adds verbosity to standard procedural pipelines. |
-| TS Candidate 3 (Sentinel null) | Returning null incurs zero heap allocation. | Null provides no diagnostic context explaining why an operation failed. | Callers must write manual null guards without access to error causes. | Null returns conceal the underlying reason for decoder failures. |
+| Rust Candidate 3 (Boxed dynamic error) | Allocating a box per error creates heap pressure during error recovery. | The trait object erases the variant set, so callers match on downcast or string. | String formatting runs at every instantiation site. | Type erasure hides the domain variants from assertions. |
+| TS Candidate 1 (Typed exception with error union) | Successful paths allocate zero error objects; a failure allocates one exception whose payload is the union value. | `instanceof VectorException` followed by a discriminant check narrows to the exact variant and its payload fields; exhaustiveness follows `docs/specs/features/01-enums-and-pattern-matching.md`. | One exception class and the shared `VectorError` union serve every throw site and every catching site. | The throw states the variant in place; the catch reads as a switch over `error.kind`. |
+| TS Candidate 2 (Subclass per variant) | Successful paths allocate zero error objects; each failure invokes one subclass constructor chain. | Variant discrimination requires sequential `instanceof` checks with no compile-time exhaustiveness. | One class per variant multiplies declarations that the union states once. | Catch sites chain instanceof tests whose order a reader must follow. |
+| TS Candidate 3 (Message-string Error) | Successful paths allocate zero error objects. | The failure identity lives in a formatted string, so consumers discriminate by matching message text and the compiler checks none of it. | Every throw site states a message the variant set already defines. | Message wording becomes an API contract without a type behind it. |
+| TS Candidate 4 (Result union) | Every call allocates a wrapper object on the successful path. | Return signatures state success and failure types explicitly. | Callers unwrap result containers across every intermediate helper function. | Monadic wrapper unwrapping adds verbosity to standard procedural pipelines. |
 | Kotlin Candidate 1 (Sealed exceptions) | Successful paths execute zero error construction; failures allocate one exception with the payload inline. | The sealed hierarchy names every failure mode, and `when` over the caught type is exhaustive. | One hierarchy serves decode, encode, and accessor validation. | Throw sites read as one line per guard clause. |
 | Kotlin Candidate 2 (runCatching Result) | `Result` wrapping allocates a boxed outcome for every successful return, and `runCatching` captures every exception including programming errors. | The catch-all boundary hides which failures the type intends to model. | Every caller unwraps through `getOrElse` or `fold` chains. | Wrapper indirection separates guard clauses from their failure messages. |
 
 ## Ruling
 
-In Rust, all fallible codec operations return `Result<T, VectorError>` with structured error variants. In Haxe, errors throw `haxe.Exception`. In TypeScript, codec decoding functions throw standard `Error` instances containing descriptive messages. In Kotlin, codec functions throw a sealed exception hierarchy with one variant per failure mode, mirroring the Haxe and TypeScript idiom; the variant set matches the Rust `VectorError` variants one to one as listed in `docs/specs/stdlib/03-haxe-exception.md`.
+Failure identity is a closed variant set defined once per domain and shared by all four trees. Each domain declares its variants in one commit touching every tree: the Haxe enum and its exception wrapper, the Rust error enum, the TypeScript error union and exception class, and the Kotlin sealed exception hierarchy. The variant set of `docs/specs/binary/01-wire-format.md` is the reference example: `BadMagic`, `CountOverflow`, `UnexpectedEof`, and `TrailingBytes` with one `remaining` payload.
 
-This ruling respects `AGENT.md` requirements for zero `as` casts and explicit `Result` returns in Rust, while maintaining idiomatic exception propagation in Haxe, TypeScript, and Kotlin. Kotlin `runCatching` and catch-all `Result` returns are banned in codec code because they capture programming errors alongside domain failures.
+- Rust: all fallible operations return `Result<T, DomainError>` with structured variants. Candidate 1.
+- Haxe: throw sites construct a `haxe.Exception` subclass that carries a Haxe enum instance naming the variant. The interception rejects throw expressions of any other shape, as ruled in `docs/specs/style/01-haxe-style-standard.md`.
+- TypeScript: throw sites construct one exception class carrying the error union value of `docs/specs/features/01-enums-and-pattern-matching.md`. Candidate 1. Catch sites narrow with `instanceof VectorException` and then branch on the discriminant; payload access after narrowing requires no cast.
+- Kotlin: throw sites construct the sealed exception hierarchy with one variant per failure mode. Candidate 1.
+
+Messages are display text derived from the variant at construction time. No consumer discriminates a failure by reading or matching a message string; tests assert variant identity, never message content. Adding a failure mode adds one variant to every tree in the same commit, and the exhaustiveness checking of `docs/specs/features/01-enums-and-pattern-matching.md` fails the build of any tree whose handling was not extended.
+
+Kotlin `runCatching` and catch-all `Result` returns are banned in codec code because they capture programming errors alongside domain failures. Rust panic and `Box<dyn Error>` returns are banned for the reasons in the judgment table.
 
 ## Test hooks
 
@@ -233,3 +328,9 @@ Error handling is asserted in:
 - `tests/rust/vector.rs` (lines 72-96) asserting `VectorError::BadMagic`, `VectorError::UnexpectedEof`, and `VectorError::TrailingBytes`.
 - `tests/haxe/Main.hx` (lines 97-104) asserting that decoding bad magic raises an exception.
 - `tests/ts/codec.test.ts` (lines 66-80) asserting that bad magic and trailing bytes throw errors.
+
+Required once the typed error migration lands; none exist yet:
+
+- Haxe and TypeScript tests assert the variant: catching `VectorException` and matching `error.kind` against `TrailingBytes`, without reading `error.message`.
+- A test feeds a wrong-magic payload and a truncated payload and asserts two distinct variants, proving identity does not collapse into the message.
+- A structure test scans `ts/src` and `haxe/src` for throw sites of bare `Error` or bare `haxe.Exception` in codec code and rejects them.

@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification rules the translation of Haxe loop constructs, iterator interfaces, range iterations, the functional iteration forms permitted in codec code, and the closure allocation rules for translated loop bodies on the JavaScript target. In the current codebase, iteration appears in Haxe in `haxe/src/boring/VectorCodec.hx` (lines 17, 36), `haxe/src/boring/BinaryReader.hx` (line 43), and `haxe/src/boring/BinaryWriter.hx` (line 39), in Rust in `rust/src/lib.rs` (lines 89, 108), and in TypeScript in `ts/src/vector-format.ts` (lines 19, 38) and `ts/src/codec.ts` (lines 48, 103). No Kotlin implementation exists yet; the Kotlin rulings bind generated code.
+This specification rules the translation of Haxe loop constructs, iterator interfaces, range iterations, the iteration forms permitted in codec code and generated code, the ban on iterator-protocol loops on the JavaScript target, and the closure allocation rules for translated loop bodies. In the current codebase, iteration appears in Haxe in `haxe/src/boring/VectorCodec.hx` (lines 17, 36), `haxe/src/boring/BinaryReader.hx` (line 43), and `haxe/src/boring/BinaryWriter.hx` (line 39), in Rust in `rust/src/lib.rs` (lines 89, 108), and in TypeScript in `ts/src/vector-format.ts` (lines 19, 38) and `ts/src/codec.ts` (lines 48, 103). No Kotlin implementation exists yet; the Kotlin rulings bind generated code.
 
 ## Haxe construct
 
@@ -19,11 +19,13 @@ typedef Iterable<T> = {
 }
 ```
 
-The `for (item in collection)` loop desugars to `var _it = collection.iterator(); while (_it.hasNext()) { var item = _it.next(); ... }`. Numeric range loops `for (i in 0...count)` construct an `IntIterator(min, max)` instance that increments an integer cursor on each step.
+The `for (item in collection)` loop desugars to `var _it = collection.iterator(); while (_it.hasNext()) { var item = _it.next(); ... }`. Numeric range loops `for (i in 0...count)` construct an `IntIterator(min, max)` instance that increments an integer cursor on each step. The Haxe compiler lowers array and range loops to indexed loops on the JavaScript target when the subject is statically an `Array` or a range; a subject typed `Iterator<T>` or `Iterable<T>` lowers to the iterator protocol on every target.
+
+The translatable subset restricts loops as ruled below: array iteration is written `for (i in 0...array.length)` with `array[i]` access, and a `for (item in collection)` loop whose subject is not an integer range is rejected before generation by the interception defined in `docs/specs/style/01-haxe-style-standard.md`.
 
 Haxe also offers functional iteration forms: the `Lambda` module functions and the array methods accepting arrow functions such as `array.map(item -> item.codePoint)` and `array.filter(...)`. These forms allocate a closure per invocation and one intermediate collection per stage; this specification bans them in codec code as ruled below.
 
-In the Haxe typed AST, loops are represented by `haxe.macro.TypedExprDef.TFor(v:TVar, e1:TypedExpr, e2:TypedExpr)` and `haxe.macro.TypedExprDef.TWhile(econd:TypedExpr, e:TypedExpr, normalWhile:Bool)`. Range creation `min...max` produces `haxe.macro.TypedExprDef.TBinop(OpInterval, e1, e2)`.
+In the Haxe typed AST, loops are represented by `haxe.macro.TypedExprDef.TFor(v:TVar, e1:TypedExpr, e2:TypedExpr)` and `haxe.macro.TypedExprDef.TWhile(econd:TypedExpr, e:TypedExpr, normalWhile:Bool)`. Range creation `min...max` produces `haxe.macro.TypedExprDef.TBinop(OpInterval, e1, e2)`. The subject type of a `TFor` over anything except an `OpInterval` range is the signal the interception uses to reject iterator-protocol loops.
 
 ## Current translations
 
@@ -109,7 +111,8 @@ export function encodeVector(records: readonly GlyphMetricsRecord[]): Uint8Array
   const writer = new BinaryWriter();
   writer.writeAscii(VECTOR_MAGIC);
   writer.writeU32(records.length);
-  for (const record of records) {
+  for (let i = 0; i < records.length; i += 1) {
+    const record = records[i];
     writer.writeU32(record.codePoint);
     writer.writeF64(record.advanceEm);
     writer.writeF64(record.bounds.xMin);
@@ -160,11 +163,11 @@ let records: Result<Vec<GlyphMetrics>, VectorError> = (0..count)
     .collect();
 ```
 
-### TypeScript Candidate 1: Standard for-of loop and indexed for loop
+### TypeScript Candidate 1: Indexed for loop as the only array iteration form
 
 ```ts
-for (const record of records) {
-  writeRecord(writer, record);
+for (let i = 0; i < records.length; i += 1) {
+  writeRecord(writer, records[i]);
 }
 
 for (let i = 0; i < count; i += 1) {
@@ -172,7 +175,15 @@ for (let i = 0; i < count; i += 1) {
 }
 ```
 
-### TypeScript Candidate 2: Generator function yielding decoded items lazily
+### TypeScript Candidate 2: for-of loop over arrays
+
+```ts
+for (const record of records) {
+  writeRecord(writer, record);
+}
+```
+
+### TypeScript Candidate 3: Generator function yielding decoded items lazily
 
 ```ts
 export function* decodeVectorLazy(
@@ -185,7 +196,19 @@ export function* decodeVectorLazy(
 }
 ```
 
-### Kotlin Candidate 1: for-in loop over collections and ranges
+### Kotlin Candidate 1: Range and indices loops with indexed access
+
+```kotlin
+for (i in records.indices) {
+    writeRecord(writer, records[i])
+}
+
+for (i in 0 until count) {
+    records.add(readRecord(reader))
+}
+```
+
+### Kotlin Candidate 2: Direct for-in over collections and ranges
 
 ```kotlin
 for (record in records) {
@@ -197,7 +220,7 @@ for (i in 0 until count) {
 }
 ```
 
-### Kotlin Candidate 2: Functional collection pipeline
+### Kotlin Candidate 3: Functional collection pipeline
 
 ```kotlin
 val bytes: List<Int> = records.flatMap { record ->
@@ -211,14 +234,21 @@ val bytes: List<Int> = records.flatMap { record ->
 | --- | --- | --- | --- | --- |
 | Rust Candidate 1 (Direct loop and range) | The compiler unrolls bounded loops and optimizes slice bounds checks in place. | Control flow and error propagation points remain visible in source code. | Loop bodies execute directly without helper closures or trait machinery. | Standard Rust loop syntax communicates sequential processing directly. |
 | Rust Candidate 2 (Iterator collect) | Closure allocations and deferred error propagation through collect complicate inlining. | Error state handling inside iterator chains obscures the exact failure point. | Adapter chains require additional error wrapping and mapping types. | Functional iterator pipelines introduce closure layers into procedural codecs. |
-| TS Candidate 1 (for-of and index loop) | Direct loops execute on JavaScript engines without iterator allocation overhead. | Loop index bounds and collection access are stated explicitly. | Index iterations map directly across arrays without wrapper objects. | Standard loop constructs state traversal order directly. |
-| TS Candidate 2 (Generator function) | Generator state machines allocate context objects on the heap for each step. | Suspended execution defers input validation until caller consumption. | Callers must manage iterator consumption and error handling across consumer boundaries. | Generator syntax adds coroutine semantics to straightforward array decoding. |
-| Kotlin Candidate 1 (for-in and range) | Direct loops compile to index arithmetic with no iterator allocation over arrays and ranges. | Loop bounds and collection access stay explicit in source. | No wrapper objects or lambda parameters are required. | Standard loop constructs state traversal order directly. |
-| Kotlin Candidate 2 (Functional pipeline) | Each pipeline stage allocates an intermediate collection even when lambdas inline. | Error propagation points hide inside stage boundaries. | The pipeline replaces plain statements with chained calls. | Chained stages obscure the write order that the wire format fixes. |
+| TS Candidate 1 (Indexed loop) | Indexed loops lower to a counter, a bounds compare, and a direct element load; the cost is fixed by the statement itself on every engine. | Loop index bounds and collection access are stated explicitly. | Index iterations map directly across arrays without wrapper objects. | Standard loop constructs state traversal order directly. |
+| TS Candidate 2 (for-of) | The loop head dispatches through the iterator protocol: a `Symbol.iterator` lookup, an iterator object, and a result object per step. Engines optimize plain arrays, and the optimization covers none of typed arrays, `arguments`, DOM lists, or subclassed arrays uniformly, so the guaranteed cost is the protocol, and the fast path is engine discretion. | The loop variable hides the index, so index-dependent work needs a manual counter alongside. | The protocol path repeats at every loop. | The element-focused head reads well and hides the mechanics. |
+| TS Candidate 3 (Generator function) | Generator state machines allocate context objects on the heap for each step. | Suspended execution defers input validation until caller consumption. | Callers must manage iterator consumption and error handling across consumer boundaries. | Generator syntax adds coroutine semantics to straightforward array decoding. |
+| Kotlin Candidate 1 (Range and indices) | `0 until n` and `indices` lower to index arithmetic with no iterator allocation on JVM, Android, and JS targets. | Loop bounds and collection access stay explicit in source. | No wrapper objects or lambda parameters are required. | Standard loop constructs state traversal order directly. |
+| Kotlin Candidate 2 (Direct for-in) | Over `Array<T>` and ranges the compiler lowers to index arithmetic; over `Iterable<T>` including `List`, every iteration allocates one iterator object, and Kotlin/JS collections follow the same split. The element type of the subject decides the cost, so the guaranteed cost is not visible at the loop head. | The loop variable hides the index for index-dependent work. | The form is uniform with the range loops it duplicates. | The element-focused head reads well and hides the mechanics. |
+| Kotlin Candidate 3 (Functional pipeline) | Each pipeline stage allocates an intermediate collection even when lambdas inline. | Error propagation points hide inside stage boundaries. | The pipeline replaces plain statements with chained calls. | Chained stages obscure the write order that the wire format fixes. |
 
 ## Ruling
 
-Haxe collection loops translate to direct `for` loops in Rust over borrowed slices (`for item in slice`), `for (const item of array)` in TypeScript, and `for (item in array)` in Kotlin, while range loops translate to integer range loops `for _ in 0..count` in Rust, indexed `for (let i = 0; i < count; i += 1)` in TypeScript, and `for (i in 0 until count)` in Kotlin.
+Array and collection iteration translates to indexed loops whose cost is fixed by the statement itself:
+
+- Rust keeps `for item in slice` over borrowed slices and `for i in 0..count` ranges; both lower to direct iteration with no protocol dispatch and no allocation.
+- TypeScript generated code, and all code under `ts/src`, use `for (let i = 0; i < collection.length; i += 1)` with direct indexed access, in every case. `for...of` and `for...in` are banned. `for...of` dispatches through the iterator protocol whose fast path is engine discretion; `for...in` enumerates string keys including inherited ones and is additionally incorrect for array traversal. Millisecond-level performance budgets in the consumers of this output leave no room for a loop form whose cost an engine choice can change.
+- Kotlin generated code uses `for (i in 0 until count)` and `for (i in collection.indices)` with indexed access. Direct `for (item in collection)` is banned in generated code because its cost depends on the static subject type: index arithmetic over arrays and ranges, one iterator allocation per iteration over `Iterable`. The indices form states the same cost on every subject.
+- Haxe translatable source iterates arrays through `for (i in 0...array.length)` with `array[i]` access. A `for (item in collection)` loop whose subject is not an integer range is rejected before generation by the interception defined in `docs/specs/style/01-haxe-style-standard.md`, because its translation would require the iterator protocol on the JavaScript target. Existing occurrences in `haxe/src` are pending migration.
 
 Functional iteration is banned in codec code and generated code on every path in all four languages. Banned constructs: `map`, `filter`, `reduce`, `forEach`, `flatMap`, `find`, `some`, `every`, and comparator-closure `sort` in Haxe and TypeScript; iterator adapter chains such as `.iter().map(...).filter(...).collect()` in Rust; `map`, `filter`, `forEach`, `flatMap`, `fold`, `sortedBy`, and comparator lambdas over collections in Kotlin. Every such construct rewrites to a plain `for` or `while` loop before translation. Each functional stage allocates a closure and an intermediate collection; in a loop over records this multiplies allocations by the record count and moves runtime into garbage collection. Kotlin standard library iteration functions inline their lambdas, which lowers the runtime cost on JVM; the ban holds anyway because the generated code shape stays uniform across languages and reviewable by the structure test below.
 
@@ -243,4 +273,4 @@ Loop execution and record array round trips are verified in:
 The following guards are required by this specification and do not exist yet:
 
 - An eslint rule named `boring/no-functional-iteration` bans the array iteration methods listed in the ruling on all files under `ts/src` (implemented in `tools/eslint`).
-- A structure test scans every file under `ts/src`, `haxe/src`, `rust/src`, and `kt/src` and asserts two properties: no `.map(`, `.filter(`, `.reduce(`, `.forEach(`, `.flatMap(`, `.some(`, `.every(`, `.fold(`, or `.sortedBy(` call site exists, and no function expression, arrow function, or lambda appears inside a `for` or `while` body. This test is the guard for generated output, where the behavior tests cannot see the shape of the code.
+- A structure test scans every file under `ts/src`, `haxe/src`, `rust/src`, and `kt/src` and asserts three properties: no `.map(`, `.filter(`, `.reduce(`, `.forEach(`, `.flatMap(`, `.some(`, `.every(`, `.fold(`, or `.sortedBy(` call site exists; no function expression, arrow function, or lambda appears inside a `for` or `while` body; and every `for (` loop head under `ts/src` binds an index counter, matched textually by the absence of ` of ` and ` in ` inside the loop head. This test is the guard for generated output, where the behavior tests cannot see the shape of the code.

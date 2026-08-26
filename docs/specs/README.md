@@ -12,11 +12,12 @@ A later compilation and generation stage produces or verifies target code agains
 
 ## Classification
 
-Specifications are organized into three categories:
+Specifications are organized into four categories:
 
 1. `binary/`: Rules governing binary encapsulation and wire format mechanics. Each file rules one mechanism across the entire format.
 2. `features/`: Rules governing Haxe language constructs. Each file defines the syntax, semantics, typed-AST representation, and cross-language mappings for one construct.
 3. `stdlib/`: Rules governing Haxe standard library modules and functions. These documents define standard library substitutions for the target languages.
+4. `style/`: Rules governing the Haxe source standard itself and the interception that enforces it before generation.
 
 ## Judgment axes
 
@@ -57,6 +58,7 @@ Every candidate translation is evaluated across four fixed axes:
 | 13 | [13-metadata-and-reflection.md](features/13-metadata-and-reflection.md) | Complete | Compiler metadata tags and reflection limitations. |
 | 14 | [14-type-system-mapping.md](features/14-type-system-mapping.md) | Complete | Type identity, nominality, and the fixed cross-language type table. |
 | 15 | [15-control-flow.md](features/15-control-flow.md) | Complete | Plain control flow mapping and switch exhaustiveness rules. |
+| 16 | [16-static-object-access.md](features/16-static-object-access.md) | Complete | Static object read and write syntax, shape freezing, and behavior parity. |
 
 ### Standard library specifications
 
@@ -67,6 +69,12 @@ Every candidate translation is evaluated across four fixed axes:
 | 03 | [03-haxe-exception.md](stdlib/03-haxe-exception.md) | Complete | Standard exception hierarchy and stack trace handling. |
 | 04 | [04-haxe-ds-vector.md](stdlib/04-haxe-ds-vector.md) | Complete | Fixed-length dense vector structures. |
 | 05 | [05-haxe-int64.md](stdlib/05-haxe-int64.md) | Complete | 64-bit integer representations and emulated arithmetic. |
+
+### Style specifications
+
+| Number | Specification | Status | Description |
+| --- | --- | --- | --- |
+| 01 | [01-haxe-style-standard.md](style/01-haxe-style-standard.md) | Complete | Haxe style standard for translatable source and the named-violation interception that gates generation. |
 
 ## Maintenance rule
 

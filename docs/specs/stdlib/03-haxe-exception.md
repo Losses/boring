@@ -88,6 +88,8 @@ if (reader.remaining() !== 0) {
 
 ## Candidate translations
 
+The candidate set, judgment axes, and selection follow `docs/specs/features/06-errors-and-results.md`; this section records the mapping mechanics for `haxe.Exception` itself.
+
 ### Rust Candidate 1: Result enum implementing std::error::Error with exact error variants
 
 ```rust
@@ -116,30 +118,37 @@ pub fn decode_vector(bytes: &[u8]) -> Result<Vec<GlyphMetrics>, Box<dyn std::err
 }
 ```
 
-### TypeScript Candidate 1: Standard Error instances thrown with matching message prefixes
+### TypeScript Candidate 1: Exception class carrying the error union
+
+```ts
+export class VectorException extends Error {
+  readonly error: VectorError;
+
+  constructor(error: VectorError) {
+    super(describeError(error));
+    this.name = "VectorException";
+    this.error = error;
+  }
+}
+```
+
+### TypeScript Candidate 2: One Error subclass per variant
+
+```ts
+export class BadMagicError extends Error {}
+export class TrailingBytesError extends Error {
+  constructor(readonly remaining: number) {
+    super(`trailing bytes in vector: ${remaining}`);
+  }
+}
+```
+
+### TypeScript Candidate 3: Standard Error instances with identity in the message
 
 ```ts
 if (magic !== VECTOR_MAGIC) {
   throw new Error(`bad vector magic: ${magic}`);
 }
-
-if (reader.remaining() !== 0) {
-  throw new Error(`trailing bytes in vector: ${reader.remaining()}`);
-}
-```
-
-### TypeScript Candidate 2: Custom Exception class hierarchy extending Error
-
-```ts
-export class VectorError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "VectorError";
-  }
-}
-
-export class BadMagicError extends VectorError {}
-export class TrailingBytesError extends VectorError {}
 ```
 
 ### Kotlin Candidate 1: Sealed exception hierarchy with one variant per failure mode
@@ -162,24 +171,29 @@ throw Exception("bad vector magic")
 
 ## Judgment
 
-| Candidate | performance | ambiguity | redundancy | readability |
-| --- | --- | --- | --- | --- |
-| Rust Candidate 1 (Result enum) | Enum returns allocate zero heap memory and propagate via CPU registers. | Exhaustive variants define every failure mode explicitly for callers. | Error variants map directly to domain validation checkpoints. | The question mark operator provides idiomatic Rust error handling. |
-| Rust Candidate 2 (Boxed dynamic Error) | Allocating Box pointers on every error creates heap pressure during error recovery. | Dynamic error trait objects hide concrete error causes behind type erasure. | Dynamic errors require string formatting at every instantiation site. | Dynamic boxes obscure domain errors from unit test assertions. |
-| TS Candidate 1 (Thrown standard Error) | Standard Error throws incur zero overhead on successful execution paths. | Message prefixes provide clear failure diagnostics in test assertions. | Direct Error instantiation relies on built-in JavaScript platform types. | Standard throw expressions communicate failure directly to TypeScript developers. |
-| TS Candidate 2 (Custom class hierarchy) | Custom class construction invokes constructor inheritance and prototype lookups. | Prototype inheritance checks require instanceof matching across package boundaries. | Custom error classes add boilerplate code for four distinct error states. | Class hierarchies introduce unnecessary object-oriented complexity into error reporting. |
-| Kotlin Candidate 1 (Sealed exception hierarchy) | Failures allocate exactly one exception instance carrying its payload inline. | `when` over the sealed type is exhaustive, and each variant names its failure mode. | One hierarchy serves every throw site in the codec. | Variant names and messages stay adjacent in one declaration. |
-| Kotlin Candidate 2 (Message-only exceptions) | String construction allocates on every failure, matching the success-path cost of none. | Message strings are the only failure identity, so tests match on text. | Every throw site re-states its message literal. | Untyped messages hide the variant set from callers and the compiler. |
+The judgment table applying to these candidates lives in `docs/specs/features/06-errors-and-results.md`; the mapping mechanics specific to `haxe.Exception` are:
+
+| Aspect | Mapping |
+| --- | --- |
+| `new Exception(message, previous, native)` | The translated exception constructor takes the variant value; `previous` chains through the target's native chaining (`Error.cause`, `Exception(cause)`), and `native` has no counterpart in generated code. |
+| `e.message` | Derived from the variant at construction; display text only. |
+| `e.stack` | The target platform stack captured by `Error` or `Exception` construction; identical mechanics, no translation step. |
+| `Exception.caught(value)` | Appears only at interop boundaries outside the translatable subset; generated code never calls it. |
+| `Exception.thrown(value)` | Never appears in translatable code; the interception rejects it. |
+| `try ... catch (e:SpecificClass)` | Rust matches over the `Result` error; TypeScript narrows with `instanceof` then branches on the discriminant; Kotlin catches `VectorException` then matches `when` over the variant. |
 
 ## Ruling
 
-`haxe.Exception` translates to `Result<T, VectorError>` return types in Rust with explicit enum variants, to standard `Error` instances thrown with descriptive message strings in TypeScript, and to a sealed exception hierarchy thrown in Kotlin, adhering to `docs/specs/features/06-errors-and-results.md`.
+`haxe.Exception` translates to `Result<T, DomainError>` return types in Rust with explicit enum variants, to one exception class carrying the error union value in TypeScript, and to a sealed exception hierarchy thrown in Kotlin, following `docs/specs/features/06-errors-and-results.md`. The failure identity in every language is the variant, and the message is derived display text.
 
-The exact mapping of exception types and messages to Rust variants and Kotlin variants is:
-- `'bad vector magic'` maps to `VectorError::BadMagic` and `VectorException.BadMagic`.
-- `'record count exceeds u32'` maps to `VectorError::CountOverflow` and `VectorException.CountOverflow`.
-- `'vector ended mid-record'` maps to `VectorError::UnexpectedEof` and `VectorException.UnexpectedEof`.
-- `'trailing bytes in vector: ${remaining}'` maps to `VectorError::TrailingBytes { remaining }` and `VectorException.TrailingBytes(remaining)`.
+The exact four-language mapping for the vector format is:
+
+| Haxe variant | Rust variant | TypeScript `kind` | Kotlin variant | Message template |
+| --- | --- | --- | --- | --- |
+| `BadMagic` | `VectorError::BadMagic` | `"BadMagic"` | `VectorException.BadMagic` | `bad vector magic` |
+| `CountOverflow` | `VectorError::CountOverflow` | `"CountOverflow"` | `VectorException.CountOverflow` | `record count exceeds u32` |
+| `UnexpectedEof` | `VectorError::UnexpectedEof` | `"UnexpectedEof"` | `VectorException.UnexpectedEof` | `vector ended mid-record` |
+| `TrailingBytes(remaining)` | `VectorError::TrailingBytes { remaining }` | `"TrailingBytes"` with `remaining` | `VectorException.TrailingBytes(remaining)` | `trailing bytes in vector: ${remaining}` |
 
 ## Test hooks
 
@@ -187,3 +201,5 @@ Exact error variants and exception throws are asserted in:
 - `tests/rust/vector.rs` (lines 72-96)
 - `tests/haxe/Main.hx` (lines 97-103)
 - `tests/ts/codec.test.ts` (lines 66-80)
+
+Required once the typed error migration lands: assertions match the variant or `kind`, never the message string, per `docs/specs/features/06-errors-and-results.md`.
