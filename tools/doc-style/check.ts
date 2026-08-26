@@ -228,6 +228,7 @@ const PATTERNS: ReadonlyArray<StylePattern> = [
   { regex: /\bnot [^.]{0,60} but\b/i, tag: "contrast" },
   { regex: /,\s+not\s/i, tag: "contrast" },
   { regex: /,\s+but rather\b/i, tag: "contrast" },
+  { regex: /,\s+and not\b/i, tag: "contrast" },
   { regex: /\brather than\b/i, tag: "contrast" },
   { regex: /\binstead of\b/i, tag: "contrast" },
   { regex: /\bisn't? [^.]{0,60},?\s*(?:it's|it is)\b/i, tag: "contrast" },
@@ -320,7 +321,7 @@ export function scanText(text: string, file: string): ReadonlyArray<StyleHit> {
 async function scanMarkdownDir(cwd: string): Promise<string[]> {
   const entries: string[] = [];
   try {
-    for await (const entry of new Glob("*.md").scan({ cwd, absolute: true })) {
+    for await (const entry of new Glob("**/*.md").scan({ cwd, absolute: true })) {
       entries.push(entry);
     }
   } catch {
