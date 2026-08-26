@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification rules the translation of Haxe parameterized types, generic functions, and type parameter constraints into Rust and TypeScript. In the current codebase, generic collections appear as `Array<GlyphMetrics>` in `haxe/src/boring/VectorCodec.hx`, as `Vec<GlyphMetrics>`, `&[GlyphMetrics]`, and `take_n<const N: usize>` in `rust/src/lib.rs`, and as `readonly GlyphMetricsRecord[]` in `ts/src/vector-format.ts`.
+This specification rules the translation of Haxe parameterized types, generic functions, and type parameter constraints into Rust, TypeScript, and Kotlin. In the current codebase, generic collections appear as `Array<GlyphMetrics>` in `haxe/src/boring/VectorCodec.hx`, as `Vec<GlyphMetrics>`, `&[GlyphMetrics]`, and `take_n<const N: usize>` in `rust/src/lib.rs`, and as `readonly GlyphMetricsRecord[]` in `ts/src/vector-format.ts`. No Kotlin implementation exists yet; the Kotlin rulings bind generated code.
 
 ## Haxe construct
 
@@ -158,6 +158,36 @@ export function totalRecordBytes(records: readonly unknown[]): number {
 }
 ```
 
+### Kotlin Candidate 1: Erased generic functions with interface bounds
+
+```kotlin
+interface WireRecord {
+    val byteLength: Int
+}
+
+fun totalRecordBytes(records: List<WireRecord>): Int {
+    var sum = 0
+    for (record in records) {
+        sum += record.byteLength
+    }
+    return sum
+}
+```
+
+### Kotlin Candidate 2: Generic with reified runtime type check
+
+```kotlin
+inline fun <reified T> filterRecords(records: List<Any>): List<T> {
+    val output = ArrayList<T>()
+    for (record in records) {
+        if (record is T) {
+            output.add(record)
+        }
+    }
+    return output
+}
+```
+
 ## Judgment
 
 | Candidate | performance | ambiguity | redundancy | readability |
@@ -166,12 +196,14 @@ export function totalRecordBytes(records: readonly unknown[]): number {
 | Rust Candidate 2 (Trait objects) | Dynamic trait dispatch incurs virtual table lookups and heap pointer indirection. | Trait objects conceal underlying concrete memory layouts from compiler optimizations. | Boxing requires auxiliary heap allocation code for every item in a sequence. | Trait object syntax introduces unnecessary dynamic polymorphism into static record processing. |
 | TS Candidate 1 (Erased generics) | Generics are completely erased by the TypeScript compiler and run at native JavaScript speed. | Type constraints provide static type validation without runtime type inspection overhead. | Shared generic algorithms prevent duplicating container logic across record variants. | Generic parameter constraints document type requirements directly in function signatures. |
 | TS Candidate 2 (Unknown arrays) | Type assertions incur zero runtime cost in compiled JavaScript output. | Unchecked assertions bypass compiler validation and invite runtime type mismatches. | Every call site requires manual type narrowing and validation logic. | Untyped signatures hide parameter requirements and violate repository typing rules. |
+| Kotlin Candidate 1 (Erased generics) | Kotlin erases type parameters on JVM, so calls dispatch statically on the declared interface. | Interface bounds state the required operations in the signature. | One implementation serves every record type. | Standard generic syntax states the constraint where it applies. |
+| Kotlin Candidate 2 (reified type check) | `is T` on a reified parameter compiles to instanceof, and inlining duplicates the function body per call site. | Runtime type filtering introduces a second dispatch path beside the static bounds. | Reified filtering duplicates logic that interface bounds already guarantee. | Type-of checks shift selection from signatures into runtime branches. |
 
 ## Ruling
 
-Generic types in Haxe translate to monomorphized static generics with trait bounds in Rust, and to erased generic type parameters with interface bounds in TypeScript. Runtime type reflection on type parameters is forbidden.
+Generic types in Haxe translate to monomorphized static generics with trait bounds in Rust, to erased generic type parameters with interface bounds in TypeScript, and to erased generic declarations with interface bounds in Kotlin. Runtime type reflection on type parameters is forbidden in every language; Kotlin `reified` parameters exist for type checks the interface bounds already guarantee, and generated Kotlin code declares none.
 
-This ruling guarantees zero-cost abstractions across all three languages without incurring runtime type discovery overhead or dynamic dispatch penalties.
+This ruling guarantees zero-cost abstractions across all target languages without incurring runtime type discovery overhead or dynamic dispatch penalties.
 
 ## Test hooks
 

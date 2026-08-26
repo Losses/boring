@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification rules the translation of fixed-length contiguous arrays (`haxe.ds.Vector<T>`) into Rust and TypeScript. In the current codebase, fixed-size byte headers appear in Rust as `[u8; 4]` in `rust/src/lib.rs` (line 24) and const generic chunk arrays `[u8; N]` in `rust/src/lib.rs` (line 73), pre-allocated record lists appear in Rust as `Vec::with_capacity` in `rust/src/lib.rs` (lines 86, 107), dynamically populated record lists appear in Haxe in `haxe/src/boring/VectorCodec.hx` (lines 13, 28, 35), and pre-allocated buffers appear in TypeScript in `ts/src/codec.ts` (line 16) and `ts/src/vector-format.ts` (lines 37, 54-56).
+This specification rules the translation of fixed-length contiguous arrays (`haxe.ds.Vector<T>`) into Rust, TypeScript, and Kotlin. In the current codebase, fixed-size byte headers appear in Rust as `[u8; 4]` in `rust/src/lib.rs` (line 24) and const generic chunk arrays `[u8; N]` in `rust/src/lib.rs` (line 73), pre-allocated record lists appear in Rust as `Vec::with_capacity` in `rust/src/lib.rs` (lines 86, 107), dynamically populated record lists appear in Haxe in `haxe/src/boring/VectorCodec.hx` (lines 13, 28, 35), and pre-allocated buffers appear in TypeScript in `ts/src/codec.ts` (line 16) and `ts/src/vector-format.ts` (lines 37, 54-56). No Kotlin implementation exists yet; the Kotlin rulings bind generated code.
 
 ## Haxe construct
 
@@ -153,6 +153,36 @@ function encodeMagic(writer: BinaryWriter): void {
 }
 ```
 
+### Kotlin Candidate 1: Primitive arrays and pre-sized ArrayList for runtime counts
+
+```kotlin
+fun createRecordBuffer(count: Int): ArrayList<GlyphMetrics> {
+    return ArrayList(count)
+}
+
+fun readMagic(reader: BinaryReader): Unit {
+    reader.readAscii(4)
+}
+```
+
+### Kotlin Candidate 2: Array constructor with per-element initializer lambda
+
+```kotlin
+fun decodeRecords(reader: BinaryReader, count: Int): Array<GlyphMetrics> {
+    return Array(count) { readRecord(reader) }
+}
+```
+
+### Kotlin Candidate 3: Unrolled constant stores for static-length constant arrays
+
+```kotlin
+const val MAGIC_U32 = 0x42524731
+
+fun encodeMagic(writer: BinaryWriter): Unit {
+    writer.writeU32(MAGIC_U32)
+}
+```
+
 ## Judgment
 
 | Candidate | performance | ambiguity | redundancy | readability |
@@ -163,14 +193,17 @@ function encodeMagic(writer: BinaryWriter): void {
 | TS Candidate 2 (Array constructor) | Pre-sizing with new Array allocates array slots upfront but initializes holes until populated. | Sparse array holes introduce undefined values when index loops terminate early. | Allocation sizing requires manual index tracking without sequential push benefits. | Index assignment loops add boilerplate compared to standard push patterns. |
 | Rust Candidate 3 (Unrolled constants) | Constant writes fold into single machine stores with zero loop and bounds check overhead. | One constant states the exact bytes of the whole field. | The loop plus its length bound disappear entirely. | Readers see the wire bytes as one literal value. |
 | TS Candidate 3 (Unrolled constants) | Literal constant loads execute with no loop, no bounds check, and no closure. | One constant declares the entire field payload, so no length variable can drift from the data. | The generator derives the constant from the schema once at build time. | Readers see the exact wire bytes at the call site. |
+| Kotlin Candidate 1 (Primitive arrays and ArrayList) | Primitive arrays and `ArrayList` pre-size their backing storage, and indexed writes carry no boxing for primitives. | The declared type states whether contents are primitives or records. | One construction per collection with no wrapper layers. | Standard Kotlin collection types state the layout directly. |
+| Kotlin Candidate 2 (Array initializer lambda) | `Array(count) { ... }` passes a lambda the runtime invokes per element, conflicting with the iteration ruling in features/09. | The initializer hides the loop inside a constructor call. | The lambda breaks the structure-test ban on closures in iteration. | The constructor form reads as configuration rather than as a loop. |
+| Kotlin Candidate 3 (Unrolled constants) | `const val` folds into the call site with no loop, no bounds check, and no closure. | One constant declares the entire field payload. | The generator derives the constant from the schema once at build time. | Readers see the exact wire bytes at the call site. |
 
 ## Ruling
 
-Compile-time fixed-length byte buffers translate to fixed-size array types (`[u8; N]`) in Rust and fixed-size `Uint8Array` views in TypeScript. Runtime collections with known lengths translate to pre-allocated vectors (`Vec::with_capacity(capacity)`) in Rust and dense `Array<T>` collections in TypeScript and Haxe.
+Compile-time fixed-length byte buffers translate to fixed-size array types (`[u8; N]`) in Rust, fixed-size `Uint8Array` views in TypeScript, and `ByteArray` slices with a named length constant in Kotlin. Runtime collections with known lengths translate to pre-allocated vectors (`Vec::with_capacity(capacity)`) in Rust, dense `Array<T>` collections in TypeScript and Haxe, and pre-sized `ArrayList<T>` collections in Kotlin. Kotlin decoders that must return a fixed-size `Array<GlyphMetrics>` allocate `arrayOfNulls(count)`, fill it in an indexed `for` loop, and return through `requireNoNulls()`, which keeps the fill loop closure-free and the return type cast-free.
 
-Static-length arrays whose length and contents are compile-time constants unroll at build time. When the constant width matches a primitive wire write, the whole array folds into one constant: `WireAscii(4)` over `BRG1` becomes the u32 constant `0x42524731` written through `writeU32`, replacing the per-character loop in `BinaryWriter.writeAscii` (`haxe/src/boring/BinaryWriter.hx`, lines 38-42) and `writeAscii` in `ts/src/codec.ts` (lines 46-52). When the constant width matches no primitive write, the generator emits one named constant per element and references the constants by name; no runtime array is allocated for data whose contents are already known at compile time. Generated and handwritten codec code keeps no per-element loop over compile-time constant data.
+Static-length arrays whose length and contents are compile-time constants unroll at build time. When the constant width matches a primitive wire write, the whole array folds into one constant: `WireAscii(4)` over `BRG1` becomes the u32 constant `0x42524731` written through `writeU32`, replacing the per-character loop in `BinaryWriter.writeAscii` (`haxe/src/boring/BinaryWriter.hx`, lines 38-42) and `writeAscii` in `ts/src/codec.ts` (lines 46-52). The same fold produces the `Int` constant `0x42524731` in Kotlin, which fits the positive `Int` range. When the constant width matches no primitive write, the generator emits one named constant per element and references the constants by name; no runtime array is allocated for data whose contents are already known at compile time. Kotlin declares no `const` arrays, so per-element constants are the only constant-array form. Generated and handwritten codec code keeps no per-element loop over compile-time constant data.
 
-Length mismatches on wire decoding fail immediately with `VectorError::UnexpectedEof` in Rust and thrown `Error` instances in Haxe and TypeScript.
+Length mismatches on wire decoding fail immediately with `VectorError::UnexpectedEof` in Rust, thrown `Error` instances in Haxe and TypeScript, and thrown `VectorException.UnexpectedEof` in Kotlin.
 
 ## Test hooks
 

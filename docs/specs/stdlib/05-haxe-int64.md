@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification rules the representation and serialization of 64-bit integers (`haxe.Int64`) across Haxe, Rust, and TypeScript. In the current codebase, 64-bit integers do not appear as domain fields in glyph metrics records; `GlyphMetrics` uses 32-bit integers for `codePoint` and 64-bit floats for coordinates in `haxe/src/boring/GlyphMetrics.hx` (lines 12-16), `rust/src/lib.rs` (lines 17-22), and `ts/src/records.ts` (lines 14-18). 64-bit integer bit manipulation appears exclusively during floating-point conversion in `haxe/src/boring/BinaryWriter.hx` (lines 30-36) and `rust/src/lib.rs` (line 66).
+This specification rules the representation and serialization of 64-bit integers (`haxe.Int64`) across Haxe, Rust, TypeScript, and Kotlin. In the current codebase, 64-bit integers do not appear as domain fields in glyph metrics records; `GlyphMetrics` uses 32-bit integers for `codePoint` and 64-bit floats for coordinates in `haxe/src/boring/GlyphMetrics.hx` (lines 12-16), `rust/src/lib.rs` (lines 17-22), and `ts/src/records.ts` (lines 14-18). 64-bit integer bit manipulation appears exclusively during floating-point conversion in `haxe/src/boring/BinaryWriter.hx` (lines 30-36) and `rust/src/lib.rs` (line 66). No Kotlin implementation exists yet; the Kotlin rulings bind generated code.
 
 ## Haxe construct
 
@@ -118,6 +118,24 @@ export function writeU64Number(writer: BinaryWriter, value: number): void {
 }
 ```
 
+### Kotlin Candidate 1: Long primitives with manual byte assembly
+
+```kotlin
+fun readI64Be(bytes: ByteArray, offset: Int): Long {
+    var value = 0L
+    for (i in 0 until 8) {
+        value = (value shl 8) or (bytes[offset + i].toLong() and 0xFF)
+    }
+    return value
+}
+```
+
+### Kotlin Candidate 2: Two-word composite class
+
+```kotlin
+class Int64Parts(val high: Int, val low: Int)
+```
+
 ## Judgment
 
 | Candidate | performance | ambiguity | redundancy | readability |
@@ -126,16 +144,28 @@ export function writeU64Number(writer: BinaryWriter, value: number): void {
 | Rust Candidate 2 (Composite struct) | Multi-word structs prevent register-level arithmetic optimizations on 64-bit hardware. | Manual carry management across words introduces arithmetic edge cases. | Translators must write custom arithmetic and bitwise methods. | Composite types obscure standard numerical operations. |
 | TS Candidate 1 (BigInt with DataView) | BigInt values allocate small heap objects when exceeding inline pointer representations. | BigInt represents full 64-bit precision without silent rounding or overflow truncation. | Built-in DataView methods handle 64-bit big-endian serialization directly. | BigInt type annotations state full 64-bit integer intent explicitly. |
 | TS Candidate 2 (number with 53-bit check) | Standard number arithmetic runs directly in CPU floating-point units. | JavaScript number values lose precision silently for integers exceeding 2^53 - 1. | Runtime guard functions are required at every serialization boundary. | Number typing conceals 64-bit integer overflow limitations from callers. |
+| Kotlin Candidate 1 (Long primitive) | `Long` is a native primitive on JVM and Android targets and runs in 64-bit registers. | `Long` states the exact 64-bit width in every signature. | No composite wrappers or conversion helpers are required. | Standard integer typing communicates the width directly. |
+| Kotlin Candidate 2 (Two-word composite) | Composite classes allocate on the heap and prevent register-level arithmetic on every target. | Manual carry handling across two words introduces arithmetic edge cases. | Custom arithmetic and bitwise methods must be written by hand. | Composite types hide the standard numeric operations behind property access. |
 
 ## Ruling
 
-This repository carries no 64-bit integer domain fields, and new format definitions must not introduce them. Code points, record counts, and em coordinates fit within 32-bit integers and 64-bit floats. The web target avoids `bigint`: bigint values allocate heap objects, exclude the values from V8 small integer optimizations, and force explicit conversions at every `DataView` boundary.
+This repository currently carries no 64-bit integer domain fields. Code points, record counts, and em coordinates fit within 32-bit integers and 64-bit floats. The governing rule is a use-case standard for wide integer representations: it states when each representation is required, when it is prohibited, and how values cross between representations. On the web target, `bigint` values allocate heap objects, leave V8 small integer optimizations, and require conversion at every `DataView` boundary, so the standard keeps `bigint` away from every value that `number` carries without loss.
 
-`haxe.Int64` is permitted only as the return type of `haxe.io.FPHelper.doubleToI64`, where `bits.high` and `bits.low` are written as `Int` words. Arithmetic, comparison, storage, and API exposure of `Int64` values outside this float conversion path is banned.
+TypeScript `bigint` use-case standard:
 
-A format with 64-bit integer domain values that exceed the 53-bit `number` range is a format revision: a `WireI64Be` entry enters `docs/specs/binary/02-binary-meta-abstraction.md` only after the `bigint` cost on the web target is measured and accepted in writing. Fields bounded by 2^53 use `number` with `Number.isSafeInteger` guards. Until such a revision exists, translators reject 64-bit integer fields as unsupported.
+- Required: domain values outside the 53-bit safe integer range of `number`, which covers `i64` and `u64` wire fields and 64-bit bit manipulation.
+- Prohibited: fields of 32 bits or narrower, loop counters, indexes, lengths, and every value whose range fits `number`.
+- Every `bigint` to `number` crossing passes through a named conversion function at a wire or API boundary. Mixing `bigint` and `number` operands in one expression is banned.
 
-For bit-level floating-point serialization where integer semantics are unused, Haxe translates `haxe.io.FPHelper` conversions to `f64::from_bits`/`to_bits` in Rust and `DataView.getFloat64`/`setFloat64` in TypeScript.
+Fields bounded by 2^53 use `number` with `Number.isSafeInteger` guards.
+
+Kotlin applies the same standard through `Long`. On JVM and Android targets, `Long` is a native 64-bit primitive that runs in registers. On Kotlin/JS, `Long` is an emulated class whose values box, so the `bigint` standard above governs `Long` on that target. `Long` appears for genuine 64-bit domain values only; `Int` and `Double` carry every narrower field on every Kotlin target.
+
+`haxe.Int64` follows the matching rule on the Haxe side: it appears as the return type of `haxe.io.FPHelper.doubleToI64`, where `bits.high` and `bits.low` are written as `Int` words, and in the same 64-bit domain cases the TypeScript and Kotlin standards permit. Arithmetic, comparison, storage, and API exposure of `Int64` values outside these paths is banned.
+
+A format that declares a `WireI64Be` or `WireU64Be` field is a format revision: the entry enters `docs/specs/binary/02-binary-meta-abstraction.md` only after the `bigint` cost on the web target and the `Long` boxing cost on Kotlin/JS are measured and accepted in writing. Until such a revision exists, translators reject 64-bit integer domain fields as unsupported.
+
+For bit-level floating-point serialization where integer semantics are unused, Haxe translates `haxe.io.FPHelper` conversions to `f64::from_bits`/`to_bits` in Rust, `DataView.getFloat64`/`setFloat64` in TypeScript, and `Double.toBits()`/`Double.fromBits(...)` in Kotlin.
 
 ## Test hooks
 

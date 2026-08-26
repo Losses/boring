@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification rules the overall mapping of the Haxe type system onto Rust and TypeScript: which Haxe types are nominal, which are structural, how type identity survives translation, and where explicit conversions are permitted. It consolidates the per-construct rulings of specs 01 through 13 into one mapping table and one set of identity rules. In the current codebase, named record types appear in Haxe as typedefs over anonymous structures in `haxe/src/boring/GlyphMetrics.hx` (lines 4-16), in Rust as structs in `rust/src/lib.rs` (lines 9-22), and in TypeScript as interfaces in `ts/src/records.ts` (lines 7-18); a nominal sum type appears in Rust as `VectorError` in `rust/src/lib.rs` (lines 28-33).
+This specification rules the overall mapping of the Haxe type system onto Rust, TypeScript, and Kotlin: which Haxe types are nominal, which are structural, how type identity survives translation, and where explicit conversions are permitted. It consolidates the per-construct rulings of specs 01 through 13 into one mapping table and one set of identity rules. In the current codebase, named record types appear in Haxe as typedefs over anonymous structures in `haxe/src/boring/GlyphMetrics.hx` (lines 4-16), in Rust as structs in `rust/src/lib.rs` (lines 9-22), and in TypeScript as interfaces in `ts/src/records.ts` (lines 7-18); a nominal sum type appears in Rust as `VectorError` in `rust/src/lib.rs` (lines 28-33). No Kotlin implementation exists in the repository yet; the Kotlin column binds generated code when the Reflaxe pipeline emits a Kotlin target.
 
 ## Haxe construct
 
@@ -132,19 +132,19 @@ export function encodeRecords(
 
 The fixed mapping table:
 
-| Haxe type | Rust type | TypeScript type |
-| --- | --- | --- |
-| `Int` | `i32` or `u32` selected by wire width | `number` |
-| `Float` | `f64` | `number` |
-| `Bool` | `bool` | `boolean` |
-| `String` | `String` or `&str` | `string` |
-| `enum` | `enum` | discriminated union with `kind` tag |
-| `class` | `struct` plus `impl` block | `class` |
-| anonymous structure | named `struct` | named `interface` |
-| typedef alias of a named type | type alias | type alias |
-| `abstract` over `T` | newtype or type alias per features/02 | brand or type alias per features/02 |
-| `Null<T>` | `Option<T>` | optional property (`prop?: T` or `T | undefined`) per features/04 |
-| `Dynamic` | banned | banned |
+| Haxe type | Rust type | TypeScript type | Kotlin type |
+| --- | --- | --- | --- |
+| `Int` | `i32` or `u32` selected by wire width | `number` | `Int` (`Long` when the declared range exceeds `0x7FFFFFFF`) |
+| `Float` | `f64` | `number` | `Double` |
+| `Bool` | `bool` | `boolean` | `Boolean` |
+| `String` | `String` or `&str` | `string` | `String` |
+| `enum` | `enum` | discriminated union with `kind` tag | `sealed interface` with `data object` and `data class` variants |
+| `class` | `struct` plus `impl` block | `class` | `class` |
+| anonymous structure | named `struct` | named `interface` | `data class` with `val` properties |
+| typedef alias of a named type | type alias | type alias | `typealias` |
+| `abstract` over `T` | newtype or type alias per features/02 | brand or type alias per features/02 | `value class` or `typealias` per features/02 |
+| `Null<T>` | `Option<T>` | optional property (`prop?: T` or `T | undefined`) per features/04 | `T?` per features/04 |
+| `Dynamic` | banned | banned | banned |
 
 Rules:
 
@@ -152,6 +152,7 @@ Rules:
 - No silent widening or narrowing. Every numeric conversion is an explicit named function at an API or wire boundary; the numeric selection follows the wire type table in `docs/specs/features/07-numeric-tower.md`.
 - Every target type is named. Inline object, function, mapped, and tuple types are banned repo-wide as recorded in `ts/src/records.ts` (lines 1-5).
 - Generic parameter translation follows `docs/specs/features/05-generics.md`; this table fixes only the base types.
+- Kotlin `data class` gives record equality, copying, and destructuring; `value class` wraps its underlying representation without boxing outside nullable and generic positions.
 
 ## Test hooks
 

@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification rules the translation of Haxe abstract types into Rust and TypeScript. Abstract types do not appear in the repository today; `haxe/src/boring/GlyphMetrics.hx` defines domain records using primitive `Int` and `Float` types. In the glyph metrics domain, abstract types represent specialized scalar domains such as `CodePoint` (constrained to valid Unicode ranges) and `EmUnit` (floating-point em coordinates).
+This specification rules the translation of Haxe abstract types into Rust, TypeScript, and Kotlin. Abstract types do not appear in the repository today; `haxe/src/boring/GlyphMetrics.hx` defines domain records using primitive `Int` and `Float` types. In the glyph metrics domain, abstract types represent specialized scalar domains such as `CodePoint` (constrained to valid Unicode ranges) and `EmUnit` (floating-point em coordinates). No Kotlin implementation exists yet; the Kotlin rulings bind generated code.
 
 ## Haxe construct
 
@@ -110,6 +110,19 @@ export class CodePoint {
 }
 ```
 
+### Kotlin Candidate 1: typealias
+
+```kotlin
+typealias CodePoint = Int
+```
+
+### Kotlin Candidate 2: value class
+
+```kotlin
+@JvmInline
+value class CodePoint(val value: Int)
+```
+
 ## Judgment
 
 | Candidate | performance | ambiguity | redundancy | readability |
@@ -119,10 +132,12 @@ export class CodePoint {
 | TS Candidate 1 (Branded type) | Type branding exists entirely in the type checker and incurs zero runtime cost. | Nominal brand symbols prevent accidental assignment of raw numbers. | Creation functions must cast raw primitives at validation boundaries. | Type signatures declare domain types while preserving native number operations. |
 | TS Candidate 2 (Type alias) | Primitives execute with native JavaScript number performance. | Aliases are erased by TypeScript and provide no protection against assigning arbitrary numbers. | Zero validation wrappers or branding symbols are defined. | Simple type aliases integrate straightforwardly with existing TypeScript code. |
 | TS Candidate 3 (Wrapper class) | Class wrappers allocate heap objects for every numeric value and trigger garbage collection churn. | Class instances cannot be compared using value equality without custom methods. | Wrapper classes duplicate storage and conversion logic across modules. | Object wrapping introduces unnecessary ceremony for basic scalar values. |
+| Kotlin Candidate 1 (typealias) | Aliases are erased, so values stay plain `Int` primitives on every target. | Aliases accept any `Int`, so constraint violations surface only in guard functions. | Zero wrapper declarations or conversion functions are required. | A typealias names the domain without new syntax. |
+| Kotlin Candidate 2 (value class) | A `value class` stores the underlying primitive inline and boxes only in nullable or generic positions. | The wrapper type rejects raw `Int` assignments at compile time. | Construction goes through the class constructor instead of a bare literal. | The declaration states the domain and its representation in one line. |
 
 ## Ruling
 
-On codec hot paths and record data carriers, abstract types translate to primitive type aliases (`type CodePoint = u32` in Rust, `type CodePoint = number` in TypeScript) to maintain direct memory access and zero allocation overhead. At domain validation boundaries, abstract types with explicit constraints translate to single-field newtype structs in Rust and branded primitive types in TypeScript.
+On codec hot paths and record data carriers, abstract types translate to primitive type aliases (`type CodePoint = u32` in Rust, `type CodePoint = number` in TypeScript, `typealias CodePoint = Int` in Kotlin) to maintain direct memory access and zero allocation overhead. At domain validation boundaries, abstract types with explicit constraints translate to single-field newtype structs in Rust, branded primitive types in TypeScript, and `@JvmInline value class` wrappers in Kotlin; Kotlin `value class` values box when stored in nullable or generic positions, so boundary wrappers stay out of dense record arrays.
 
 This separation prevents validation overhead during dense array serialization while providing strong compile-time type safety at API ingestion boundaries.
 

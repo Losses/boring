@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification rules error representation and failure propagation across Haxe, Rust, and TypeScript. In the current repository, error handling appears in Haxe via `throw new haxe.Exception(...)` in `haxe/src/boring/VectorCodec.hx` (lines 32 and 50), in Rust via `Result<T, VectorError>` in `rust/src/lib.rs` (lines 84 and 100), and in TypeScript via `throw new Error(...)` in `ts/src/vector-format.ts` (lines 34 and 49) and `ts/src/vector-json.ts`.
+This specification rules error representation and failure propagation across Haxe, Rust, TypeScript, and Kotlin. In the current repository, error handling appears in Haxe via `throw new haxe.Exception(...)` in `haxe/src/boring/VectorCodec.hx` (lines 32 and 50), in Rust via `Result<T, VectorError>` in `rust/src/lib.rs` (lines 84 and 100), and in TypeScript via `throw new Error(...)` in `ts/src/vector-format.ts` (lines 34 and 49) and `ts/src/vector-json.ts`. No Kotlin implementation exists yet; the Kotlin rulings bind generated code.
 
 ## Haxe construct
 
@@ -179,6 +179,36 @@ export function decodeVector(bytes: Uint8Array): GlyphMetricsRecord[] | null {
 }
 ```
 
+### Kotlin Candidate 1: Sealed exception hierarchy thrown at failure sites
+
+```kotlin
+sealed class VectorException(message: String) : Exception(message) {
+    data object BadMagic : VectorException("bad vector magic")
+    data object CountOverflow : VectorException("record count exceeds u32")
+    data object UnexpectedEof : VectorException("vector ended mid-record")
+    data class TrailingBytes(val remaining: Int) :
+        VectorException("trailing bytes in vector: $remaining")
+}
+
+fun decodeVector(bytes: ByteArray): List<GlyphMetrics> {
+    if (bytes.size < 4) {
+        throw VectorException.UnexpectedEof
+    }
+    // ...
+    return records
+}
+```
+
+### Kotlin Candidate 2: kotlin.runCatching Result returns
+
+```kotlin
+fun decodeVector(bytes: ByteArray): Result<List<GlyphMetrics>> =
+    runCatching {
+        // ...
+        records
+    }
+```
+
 ## Judgment
 
 | Candidate | performance | ambiguity | redundancy | readability |
@@ -188,12 +218,14 @@ export function decodeVector(bytes: Uint8Array): GlyphMetricsRecord[] | null {
 | TS Candidate 1 (Thrown Error) | Successful execution paths incur zero object allocation overhead. | Exception throwing is untyped in TypeScript function signatures. | Standard Error classes integrate with host platform stack traces. | Idiomatic JavaScript exception handling communicates failures directly to TypeScript developers. |
 | TS Candidate 2 (Result object union) | Every function call allocates a wrapper object on the heap. | Return signatures state success and failure types explicitly. | Callers must unwrap result containers across every intermediate helper function. | Monadic wrapper unwrapping adds verbosity to standard procedural pipelines. |
 | TS Candidate 3 (Sentinel null) | Returning null incurs zero heap allocation. | Null provides no diagnostic context explaining why an operation failed. | Callers must write manual null guards without access to error causes. | Null returns conceal the underlying reason for decoder failures. |
+| Kotlin Candidate 1 (Sealed exceptions) | Successful paths execute zero error construction; failures allocate one exception with the payload inline. | The sealed hierarchy names every failure mode, and `when` over the caught type is exhaustive. | One hierarchy serves decode, encode, and accessor validation. | Throw sites read as one line per guard clause. |
+| Kotlin Candidate 2 (runCatching Result) | `Result` wrapping allocates a boxed outcome for every successful return, and `runCatching` captures every exception including programming errors. | The catch-all boundary hides which failures the type intends to model. | Every caller unwraps through `getOrElse` or `fold` chains. | Wrapper indirection separates guard clauses from their failure messages. |
 
 ## Ruling
 
-In Rust, all fallible codec operations return `Result<T, VectorError>` with structured error variants. In Haxe, errors throw `haxe.Exception`. In TypeScript, codec decoding functions throw standard `Error` instances containing descriptive messages.
+In Rust, all fallible codec operations return `Result<T, VectorError>` with structured error variants. In Haxe, errors throw `haxe.Exception`. In TypeScript, codec decoding functions throw standard `Error` instances containing descriptive messages. In Kotlin, codec functions throw a sealed exception hierarchy with one variant per failure mode, mirroring the Haxe and TypeScript idiom; the variant set matches the Rust `VectorError` variants one to one as listed in `docs/specs/stdlib/03-haxe-exception.md`.
 
-This ruling respects `AGENT.md` requirements for zero `as` casts and explicit `Result` returns in Rust, while maintaining idiomatic exception propagation in Haxe and TypeScript.
+This ruling respects `AGENT.md` requirements for zero `as` casts and explicit `Result` returns in Rust, while maintaining idiomatic exception propagation in Haxe, TypeScript, and Kotlin. Kotlin `runCatching` and catch-all `Result` returns are banned in codec code because they capture programming errors alongside domain failures.
 
 ## Test hooks
 

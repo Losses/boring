@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification rules the translation of Haxe anonymous structures and `typedef` declarations into Rust and TypeScript. In the current codebase, structured records appear in Haxe as `BoundsEm` and `GlyphMetrics` in `haxe/src/boring/GlyphMetrics.hx`, in Rust as `BoundsEm` and `GlyphMetrics` in `rust/src/lib.rs` (lines 9-22), and in TypeScript as `BoundsEmRecord` and `GlyphMetricsRecord` in `ts/src/records.ts`.
+This specification rules the translation of Haxe anonymous structures and `typedef` declarations into Rust, TypeScript, and Kotlin. In the current codebase, structured records appear in Haxe as `BoundsEm` and `GlyphMetrics` in `haxe/src/boring/GlyphMetrics.hx`, in Rust as `BoundsEm` and `GlyphMetrics` in `rust/src/lib.rs` (lines 9-22), and in TypeScript as `BoundsEmRecord` and `GlyphMetricsRecord` in `ts/src/records.ts`. No Kotlin implementation exists yet; the Kotlin rulings bind generated code.
 
 ## Haxe construct
 
@@ -146,6 +146,23 @@ export function encodeRecord(record: {
 }
 ```
 
+### Kotlin Candidate 1: data class with val properties
+
+```kotlin
+data class BoundsEm(
+    val xMin: Double,
+    val yMin: Double,
+    val xMax: Double,
+    val yMax: Double,
+)
+```
+
+### Kotlin Candidate 2: Pair and Triple composition
+
+```kotlin
+typealias BoundsEm = Pair<Pair<Double, Double>, Pair<Double, Double>>
+```
+
 ## Judgment
 
 | Candidate | performance | ambiguity | redundancy | readability |
@@ -155,10 +172,12 @@ export function encodeRecord(record: {
 | TS Candidate 1 (Named interface) | Interfaces incur zero runtime overhead after TypeScript compilation. | Named interfaces establish strict structural validation across all function boundaries. | The interface is declared once in records.ts and imported across the package. | Explicit interface definitions state data shapes directly without cluttering signatures. |
 | TS Candidate 2 (Named type alias) | Type aliases incur zero runtime performance cost. | Aliases produce equivalent type checking behavior to interfaces for plain data shapes. | Type declarations duplicate the naming overhead of interfaces without distinct advantages. | Object type aliases present familiar syntax for JavaScript developers. |
 | TS Candidate 3 (Inline object type) | Compiler type checking handles inline objects with zero runtime overhead. | Anonymous shapes invite field divergence between functions when signatures change independently. | Field shapes are re-declared across every function parameter and return type. | Verbose inline shapes clutter function headers and violate repository style rules. |
+| Kotlin Candidate 1 (data class) | `data class` instances store fields inline in one flat allocation. | Named `val` properties keep field identity explicit, and generated `equals` and `copy` match record semantics. | One declaration per Haxe structure with component functions for destructuring. | Named properties state the record shape once per type. |
+| Kotlin Candidate 2 (Pair composition) | Pair chains add one wrapper object per nesting level per record. | Positional access (`first`, `second`) hides which coordinate each slot holds. | Readers must reconstruct the field order from the alias definition. | Nested pairs erase the field names the Haxe source states. |
 
 ## Ruling
 
-Haxe anonymous structure typedefs translate to named `struct` declarations in Rust with public fields and derived traits (`Debug`, `Clone`, `Copy`, `PartialEq`), and to named `interface` declarations in TypeScript with `readonly` properties.
+Haxe anonymous structure typedefs translate to named `struct` declarations in Rust with public fields and derived traits (`Debug`, `Clone`, `Copy`, `PartialEq`), to named `interface` declarations in TypeScript with `readonly` properties, and to `data class` declarations in Kotlin with `val` properties.
 
 This ruling satisfies the strong typing rules in `AGENT.md`, which ban inline object types outside the direct right-hand side of type aliases (`boring/no-inline-types`) and restrict interfaces to data shape definitions without methods (`boring/no-interface-methods`).
 

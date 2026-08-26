@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification rules the representation of strings, character encodings, Unicode code points, and string conversions across Haxe, Rust, and TypeScript. In the current codebase, ASCII magic strings appear in `haxe/src/boring/VectorCodec.hx` (lines 11, 30) and `ts/src/vector-format.ts` (line 10), ASCII byte serialization appears in `haxe/src/boring/BinaryReader.hx` (lines 41-48), `haxe/src/boring/BinaryWriter.hx` (lines 38-42), and `ts/src/codec.ts` (lines 46-52, 101-108), raw magic byte arrays appear in `rust/src/lib.rs` (line 24), and Unicode scalar values appear as integer code points in `haxe/src/boring/GlyphMetrics.hx` (line 13), `rust/src/lib.rs` (line 19), and `ts/src/records.ts` (line 15).
+This specification rules the representation of strings, character encodings, Unicode code points, and string conversions across Haxe, Rust, TypeScript, and Kotlin. In the current codebase, ASCII magic strings appear in `haxe/src/boring/VectorCodec.hx` (lines 11, 30) and `ts/src/vector-format.ts` (line 10), ASCII byte serialization appears in `haxe/src/boring/BinaryReader.hx` (lines 41-48), `haxe/src/boring/BinaryWriter.hx` (lines 38-42), and `ts/src/codec.ts` (lines 46-52, 101-108), raw magic byte arrays appear in `rust/src/lib.rs` (line 24), and Unicode scalar values appear as integer code points in `haxe/src/boring/GlyphMetrics.hx` (line 13), `rust/src/lib.rs` (line 19), and `ts/src/records.ts` (line 15). No Kotlin implementation exists yet; the Kotlin rulings bind generated code.
 
 ## Haxe construct
 
@@ -131,6 +131,28 @@ export interface GlyphMetricsRecord {
 }
 ```
 
+### Kotlin Candidate 1: Int for code points and String for ASCII markers
+
+```kotlin
+const val VECTOR_MAGIC = "BRG1"
+
+data class GlyphMetrics(
+    val codePoint: Int,
+    val advanceEm: Double,
+    val bounds: BoundsEm,
+)
+```
+
+### Kotlin Candidate 2: Char for code points
+
+```kotlin
+data class GlyphMetrics(
+    val char: Char,
+    val advanceEm: Double,
+    val bounds: BoundsEm,
+)
+```
+
 ## Judgment
 
 | Candidate | performance | ambiguity | redundancy | readability |
@@ -139,10 +161,12 @@ export interface GlyphMetricsRecord {
 | Rust Candidate 2 (char code point and &str) | Converting wire u32 values to char requires runtime Unicode scalar validation on every record. | Char types reject surrogate code units that binary font tables can transport. | Decoders and encoders require intermediate conversion functions between u32 and char. | Char types express Unicode intent while adding conversion boilerplate. |
 | TS Candidate 1 (number code point and string) | Number primitives fit in V8 small integer representations with zero object allocations. | Integer bounds are validated at format boundaries before record creation. | Interface definitions share numerical typing across all modules. | Number properties state numerical code point values directly. |
 | TS Candidate 2 (Single-character string) | String instances require heap allocations and surrogate pair encoding for supplementary code points. | Multi-byte characters produce two UTF-16 code units that complicate length checks. | Translators must invoke code point conversion functions across every record boundary. | String fields conceal the underlying integer code point value. |
+| Kotlin Candidate 1 (Int and String) | `Int` is a primitive on every Kotlin target, and string constants fold into the constant pool. | `Int` states the 32-bit wire width, and the marker reads as the ASCII text it is. | No conversion between record fields and wire values is required. | Number properties state numerical code point values directly. |
+| Kotlin Candidate 2 (Char fields) | Kotlin `Char` holds one UTF-16 code unit, so supplementary code points do not fit at all. | Two `Char` values are required for code points above `0xFFFF`, splitting one logical value across fields. | Every boundary converts between `Char` pairs and the wire integer. | Char fields state text intent while the wire carries an integer. |
 
 ## Ruling
 
-Unicode code points are represented as 32-bit unsigned integers (`Int` in Haxe, `u32` in Rust, `number` in TypeScript), and fixed ASCII wire tags are represented as byte arrays in Rust and ASCII strings in Haxe and TypeScript.
+Unicode code points are represented as 32-bit unsigned integers (`Int` in Haxe, `u32` in Rust, `number` in TypeScript, `Int` in Kotlin), and fixed ASCII wire tags are represented as byte arrays in Rust, ASCII strings in Haxe and TypeScript, and `String` constants in Kotlin. Kotlin `Char` is a 16-bit UTF-16 code unit and never carries a code point field.
 
 The codec operates on glyph indices and Unicode scalar values where integer representation avoids encoding overhead and surrogate pair handling. Binary wire serialization treats code points as big-endian 32-bit integers without UTF-8 or UTF-16 transcoding.
 

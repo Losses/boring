@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification rules the translation of Haxe statement-level control flow (`if`/`else`, `switch`, `while`, `do`/`while`, `for`, `break`, `continue`, and early `return`) into Rust and TypeScript, and the constructs control flow must never translate into. In the current codebase, guard clauses with early exit appear in `haxe/src/boring/VectorCodec.hx` (lines 31-33, 49-51), `rust/src/lib.rs` (lines 101-103), and `ts/src/vector-format.ts` (lines 33-35, 48-50); loops appear in `rust/src/lib.rs` (lines 89, 108) and `ts/src/vector-format.ts` (lines 19, 38); an exhaustive `match` appears in `rust/src/lib.rs` (lines 37-47); and an early-return guard appears in `ts/src/codec.ts` (line 64).
+This specification rules the translation of Haxe statement-level control flow (`if`/`else`, `switch`, `while`, `do`/`while`, `for`, `break`, `continue`, and early `return`) into Rust, TypeScript, and Kotlin, and the constructs control flow must never translate into. In the current codebase, guard clauses with early exit appear in `haxe/src/boring/VectorCodec.hx` (lines 31-33, 49-51), `rust/src/lib.rs` (lines 101-103), and `ts/src/vector-format.ts` (lines 33-35, 48-50); loops appear in `rust/src/lib.rs` (lines 89, 108) and `ts/src/vector-format.ts` (lines 19, 38); an exhaustive `match` appears in `rust/src/lib.rs` (lines 37-47); and an early-return guard appears in `ts/src/codec.ts` (line 64). No Kotlin implementation exists yet; the Kotlin rulings bind generated code.
 
 ## Haxe construct
 
@@ -134,6 +134,33 @@ const HANDLERS: Record<string, () => string> = {
 const description = HANDLERS[kind]();
 ```
 
+### Kotlin Candidate 1: Direct statement mapping with when
+
+`if`/`while`/`do`/`while`/`for`/`break`/`continue`/`return` translate statement for statement; `switch` translates to a `when` expression that is exhaustive over sealed subjects without `else`.
+
+```kotlin
+fun describeKind(error: VectorError): String = when (error) {
+    is VectorError.BadMagic -> "bad vector magic"
+    is VectorError.TrailingBytes -> "trailing bytes in vector"
+}
+
+do {
+    records.removeAt(records.lastIndex)
+} while (records.isNotEmpty())
+```
+
+### Kotlin Candidate 2: Exceptions as control flow
+
+Branch selection becomes a thrown exception caught by an enclosing handler.
+
+```kotlin
+try {
+    if (index == 9) throw LoopExitException()
+} catch (exit: LoopExitException) {
+    // continue after the loop
+}
+```
+
 ## Judgment
 
 | Candidate | performance | ambiguity | redundancy | readability |
@@ -142,16 +169,20 @@ const description = HANDLERS[kind]();
 | Rust Candidate 2 (Iterator combinators) | Adapter chains allocate closures and intermediate collections per stage, as ruled in features/09. | Error propagation points hide inside chain stages. | Chain machinery replaces plain statements that need none. | Stacked stages obscure the write order that the wire format fixes. |
 | TS Candidate 1 (Direct mapping with never assertion) | Direct branches run as conditional jumps with no allocation. | The `never` assignment turns a missed variant into a compile error. | One construct in, one construct out. | Statement-level translation reads the same in source and target. |
 | TS Candidate 2 (Handler dictionary) | Closure values allocate at module initialization and force indirect calls through property lookups. | Closure captures and key strings decouple behavior from the type system's variant checking. | Every branch needs a closure plus a registration entry. | Indirection through string keys hides which code runs for which variant. |
+| Kotlin Candidate 1 (Direct mapping and when) | Branches compile to conditional jumps; exhaustive `when` over sealed subjects permits the compiler to omit tag re-tests. | Every branch states its variant binding, and exhaustiveness is compiler-enforced without `else`. | One construct in, one construct out. | Statement-level translation reads the same in source and target. |
+| Kotlin Candidate 2 (Exceptions as jumps) | Throw and catch allocate exception instances and unwind stack frames for non-error exits. | The happy path and the exit path separate across two syntactic blocks. | A dedicated exception type exists only to leave a loop. | Readers must scan the catch block to learn the loop exit condition. |
 
 ## Ruling
 
-`if`/`else`, `while`, `do`/`while`, `break`, `continue`, and early `return` translate statement for statement in all three languages. Rust renders `do`/`while` as `loop` with a trailing conditional `break` because it has no `do`/`while` syntax.
+`if`/`else`, `while`, `do`/`while`, `break`, `continue`, and early `return` translate statement for statement in Haxe, TypeScript, and Kotlin. Rust renders `do`/`while` as `loop` with a trailing conditional `break` because it has no `do`/`while` syntax; Kotlin has native `do`/`while` and translates it directly.
 
 Haxe `switch` translates to Rust `match`. A `match` over an enum declares no catch-all arm, so the compiler enforces exhaustiveness; a `match` over non-enum values adds a catch-all arm and documents the uncovered cases in a comment.
 
 Haxe `switch` translates to TypeScript as a `switch` statement only when every case body ends in `return` or `throw`, which makes JavaScript fallthrough unreachable. When a case body must fall through to shared logic, the translation uses an `if`/`else` chain on the discriminant instead. The final branch of either form assigns the discriminant value to `never`, so adding an enum variant without extending the branch chain fails to compile.
 
-Multi-level exit from nested loops in Haxe source is restructured before translation: the body moves into a dedicated function and exits through early `return`, or the loop conditions gain explicit guard expressions. Rust labeled `break` (`break 'outer`) and JavaScript labeled `break` are permitted renderings of the same restructure when the enclosing function cannot be split; Haxe source never contains labels, so labels appear only in generated target code.
+Haxe `switch` translates to Kotlin `when`. Kotlin `when` has no fallthrough between branch bodies. A `when` over a sealed subject declares no `else` branch, so the compiler enforces exhaustiveness; a `when` over non-sealed subjects adds an `else` branch and documents the uncovered cases in a comment.
+
+Multi-level exit from nested loops in Haxe source is restructured before translation: the body moves into a dedicated function and exits through early `return`, or the loop conditions gain explicit guard expressions. Rust labeled `break` (`break 'outer`), JavaScript labeled `break`, and Kotlin labeled `break` (`break@outer`) are permitted renderings of the same restructure when the enclosing function cannot be split; Haxe source never contains labels, so labels appear only in generated target code.
 
 Control flow never translates into exceptions used as jumps, handler-closure dictionaries, or functional combinators. Exceptions carry errors only, as ruled in `docs/specs/features/06-errors-and-results.md`; loop translation follows `docs/specs/features/09-iterators.md`.
 

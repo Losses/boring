@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification rules compiler metadata tags (`@:native`, `@:keep`, `@:build`, custom metadata) and runtime reflection (`Type`, `Reflect`) across Haxe, Rust, and TypeScript. In the current codebase, compiler metadata appears in Haxe extern declarations in `haxe/src/boring/Process.hx` (line 7) and `haxe/src/boring/Console.hx` (line 7), derive attributes appear in Rust in `rust/src/lib.rs` (lines 9, 17, 27), and typed runtime validators appear in TypeScript in `ts/src/vector-json.ts` (lines 14-65). `tests/haxe/Main.hx` explicitly notes (lines 13-16) that reflection is unused in tests.
+This specification rules compiler metadata tags (`@:native`, `@:keep`, `@:build`, custom metadata) and runtime reflection (`Type`, `Reflect`) across Haxe, Rust, TypeScript, and Kotlin. In the current codebase, compiler metadata appears in Haxe extern declarations in `haxe/src/boring/Process.hx` (line 7) and `haxe/src/boring/Console.hx` (line 7), derive attributes appear in Rust in `rust/src/lib.rs` (lines 9, 17, 27), and typed runtime validators appear in TypeScript in `ts/src/vector-json.ts` (lines 14-65). `tests/haxe/Main.hx` explicitly notes (lines 13-16) that reflection is unused in tests. No Kotlin implementation exists yet; the Kotlin rulings bind generated code.
 
 ## Haxe construct
 
@@ -122,6 +122,25 @@ export function serializeWithReflection(record: object): Uint8Array {
 }
 ```
 
+### Kotlin Candidate 1: Annotations as compile-time hints and explicit field access
+
+```kotlin
+@JvmName("GlyphMetricsRecord")
+data class GlyphMetrics(
+    val codePoint: Int,
+    val advanceEm: Double,
+    val bounds: BoundsEm,
+)
+```
+
+### Kotlin Candidate 2: kotlin.reflect member iteration
+
+```kotlin
+fun inspectFields(record: Any): List<String> {
+    return record::class.members.map { it.name }
+}
+```
+
 ## Judgment
 
 | Candidate | performance | ambiguity | redundancy | readability |
@@ -130,10 +149,12 @@ export function serializeWithReflection(record: object): Uint8Array {
 | Rust Candidate 2 (Any downcasting) | Dynamic downcasting introduces type ID comparisons and pointer indirection overhead. | Dynamic type inspection bypasses static field layout validation. | Runtime inspection logic forces manual downcast handling at each call site. | Trait object inspection obscures concrete record fields behind dynamic types. |
 | TS Candidate 1 (Interfaces and explicit guards) | Direct property access executes with high-speed monomorphic property loads. | Explicit type guards validate unknown inputs before record construction. | Type guards map incoming data directly to named interfaces. | Typed property access communicates data structure shapes directly. |
 | TS Candidate 2 (Reflect API iteration) | Reflect and dynamic key iteration incur hash map lookup and string allocation penalties. | Dynamic iteration relies on object property insertion order which can diverge from wire field order. | Dynamic reflection loops require separate schema validation layers. | Reflection helpers obscure field serialization sequence from readers. |
+| Kotlin Candidate 1 (Annotations and field access) | Annotations compile to metadata or vanish entirely; field access compiles to direct loads. | Data class properties name every field at compile time. | Generated `equals` and `copy` replace reflective comparison. | Property access states the field it reads. |
+| Kotlin Candidate 2 (kotlin.reflect) | `kotlin.reflect` builds member descriptors lazily with allocation on first touch. | Member iteration exposes declaration order details that carry no wire meaning. | Reflection replaces the generated field-wise serialization with a lookup layer. | Indirect member access hides the serialization sequence from readers. |
 
 ## Ruling
 
-Compiler metadata is consumed exclusively at build time by the Haxe compiler and Reflaxe generator to configure target code emission, while runtime reflection (`Type`, `Reflect`, `std::any::Any`, `eval`) is banned in the codec.
+Compiler metadata is consumed exclusively at build time by the Haxe compiler and Reflaxe generator to configure target code emission, while runtime reflection (`Type`, `Reflect`, `std::any::Any`, `eval`, `kotlin.reflect`) is banned in the codec. Kotlin annotations such as `@JvmName` serve as compile-time emission hints for the generator; runtime annotation retention and inspection are banned with the rest of reflection.
 
 Target codebases must use explicit static field access, derive macros, and build-time generated serializer routines. Dynamic JSON data at boundary points must be validated via explicit type guard functions.
 
