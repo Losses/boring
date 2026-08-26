@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification rules the procedure for localizing discrepancies when binary outputs differ across language implementations. It establishes the mathematical mapping from a byte offset to a specific logical field, and defines the reporting requirements for test failures.
+This specification rules the procedure for localizing discrepancies when binary outputs differ across language implementations. It establishes the mathematical mapping from a byte offset to a specific logical field, and defines the reporting requirements for test failures. The procedure covers the Haxe, Rust, and TypeScript trees in the repository and the Kotlin target the pipeline will emit; no Kotlin implementation exists yet.
 
 Implementation references:
 - `haxe/src/boring/VectorCodec.hx`

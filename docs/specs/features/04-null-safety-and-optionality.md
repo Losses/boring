@@ -25,7 +25,7 @@ typedef FontHeader = {
 }
 ```
 
-In the Haxe typed AST, `Null<T>` is represented by `haxe.macro.Type.TAbstract(t:Ref<AbstractType>, params:[T])` referencing the `Null` core abstract type. Optional record fields and function arguments are denoted by setting `ClassField.opt = true` or by `TFun` argument metadata.
+In the Haxe typed AST, `Null<T>` is represented by `haxe.macro.Type.TAbstract(t:Ref<AbstractType>, params:Array<Type>)` referencing the `Null` core abstract type with `params` holding `[T]`. Optional record fields and function arguments are denoted by setting `ClassField.opt = true` or by `TFun` argument metadata.
 
 ## Current translations
 

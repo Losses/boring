@@ -14,7 +14,7 @@ final firstCodeUnit:Int = magic.charCodeAt(0);
 final charStr:String = String.fromCharCode(65);
 ```
 
-In the Haxe typed AST, string literals are represented by `haxe.macro.TypedExprDef.TConst(TString(s:String))` and macro AST nodes `haxe.macro.Expr.Constant.CString(s:String)`. The core type is `haxe.macro.Type.TAbstract` referencing the core `String` class.
+In the Haxe typed AST, string literals are represented by `haxe.macro.TypedExprDef.TConst(TString(s:String))` and macro AST nodes `haxe.macro.Expr.Constant.CString(s:String)`. The core `String` type is an extern class, represented by `haxe.macro.Type.TInst` referencing it.
 
 ## Current translations
 
