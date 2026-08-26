@@ -119,6 +119,26 @@ export function encodeRecords(
 }
 ```
 
+### Kotlin Candidate 1: Nominal data class per named type
+
+Every Haxe named type and every anonymous structure maps to a named Kotlin `data class`. The compiler checks field compatibility at construction sites and rejects mismatches.
+
+```kotlin
+data class GlyphMetrics(
+    val codePoint: Int,
+    val advanceEm: Double,
+    val bounds: BoundsEm,
+)
+```
+
+### Kotlin Candidate 2: Structural emulation through generic aliases
+
+Anonymous structures map to generic container aliases, and records access fields positionally.
+
+```kotlin
+typealias GlyphMetricsFields = Triple<Int, Double, BoundsEmFields>
+```
+
 ## Judgment
 
 | Candidate | performance | ambiguity | redundancy | readability |
@@ -127,6 +147,8 @@ export function encodeRecords(
 | Rust Candidate 2 (Field-access traits) | Trait dispatch adds indirection and blocks field inlining unless calls monomorphize. | Any type implementing the traits satisfies a parameter, so two distinct Haxe types merge into one Rust interface. | Every record needs a trait declaration plus an implementation block. | Trait indirection hides the concrete memory layout from readers. |
 | TS Candidate 1 (Named interfaces with brands) | Named interfaces compile to plain object shapes with monomorphic property access. | Names document intent, and brands restore nominal guarantees where the API requires them. | One interface per Haxe type. | Named interfaces match the repository rule recorded in `ts/src/records.ts` (lines 1-5). |
 | TS Candidate 2 (Inline types) | The runtime shape is identical, but every use site restates the fields. | Two inline types with the same fields are interchangeable even when the Haxe types were distinct. | Field lists repeat at every use site. | Inline object types violate the repository ban recorded in `ts/src/records.ts` (lines 1-5) and AGENT.md. |
+| Kotlin Candidate 1 (Nominal data class) | Flat field layout with direct property access and generated `equals` and `copy`. | Distinct declarations stay distinct, and the compiler rejects field mismatches at construction. | One `data class` per Haxe type with no companion machinery. | Named properties state the record shape once per type. |
+| Kotlin Candidate 2 (Generic aliases) | Container access runs at full speed, with field identity lost to positional calls. | Any alias with matching component types satisfies a parameter, merging two distinct Haxe types into one shape. | Every access re-derives field meaning from the alias definition. | Positional components hide the field names the Haxe source states. |
 
 ## Ruling
 
