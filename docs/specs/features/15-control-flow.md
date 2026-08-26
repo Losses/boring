@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification rules the translation of Haxe statement-level control flow (`if`/`else`, `switch`, `while`, `do`/`while`, `for`, `break`, `continue`, and early `return`) into Rust, TypeScript, and Kotlin, and the constructs control flow must never translate into. In the current codebase, guard clauses with early exit appear in `haxe/src/boring/VectorCodec.hx` (lines 31-33, 49-51), `rust/src/lib.rs` (lines 101-103), and `ts/src/vector-format.ts` (lines 33-35, 48-50); loops appear in `rust/src/lib.rs` (lines 89, 108) and `ts/src/vector-format.ts` (lines 19, 38); an exhaustive `match` appears in `rust/src/lib.rs` (lines 37-47); and an early-return guard appears in `ts/src/codec.ts` (line 64). No Kotlin implementation exists yet; the Kotlin rulings bind generated code.
+This specification rules the translation of Haxe statement-level control flow (`if`/`else`, `switch`, `while`, `do`/`while`, `for`, `break`, `continue`, and early `return`) into Rust, TypeScript, and Kotlin, and the constructs control flow must never translate into. In the current codebase, guard clauses with early exit appear in `haxe/src/boring/VectorCodec.hx` (lines 32-34, 50-52), `rust/src/lib.rs` (lines 101-103), and `ts/src/vector-format.ts` (lines 35-37, 50-52); loops appear in `rust/src/lib.rs` (lines 89, 108) and `ts/src/vector-format.ts` (lines 20, 40); an exhaustive `match` appears in `rust/src/lib.rs` (lines 37-47); and an early-return guard appears in `ts/src/codec.ts` (line 65). No Kotlin implementation exists yet; the Kotlin rulings bind generated code.
 
 ## Haxe construct
 

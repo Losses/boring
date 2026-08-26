@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification rules the translation of `haxe.Exception`, exception propagation, and catch block mechanics into Rust, TypeScript, and Kotlin. In the current codebase, exceptions appear in Haxe in `haxe/src/boring/VectorCodec.hx` (lines 32, 50) and `tests/haxe/Main.hx` (lines 97-103), structured error variants appear in Rust in `rust/src/lib.rs` (lines 28-48, 62, 66, 79, 85, 102, 106, 128) and `tests/rust/vector.rs` (lines 72-96), and thrown errors appear in TypeScript in `ts/src/vector-format.ts` (lines 34, 49) and `tests/ts/codec.test.ts` (lines 66-80). No Kotlin implementation exists yet; the Kotlin rulings bind generated code.
+This specification rules the translation of `haxe.Exception`, exception propagation, and catch block mechanics into Rust, TypeScript, and Kotlin. In the current codebase, exceptions appear in Haxe in `haxe/src/boring/VectorCodec.hx` (lines 33, 51) and `tests/haxe/Main.hx` (lines 102-113), structured error variants appear in Rust in `rust/src/lib.rs` (lines 28-48, 62, 66, 79, 85, 102, 106, 128) and `tests/rust/vector.rs` (lines 72-96), and thrown errors appear in TypeScript in `ts/src/vector-format.ts` (lines 36, 51) and `tests/ts/codec.test.ts` (lines 66-80). No Kotlin implementation exists yet; the Kotlin rulings bind generated code.
 
 ## Haxe construct
 
@@ -35,16 +35,16 @@ if (reader.remaining() != 0) {
 }
 ```
 
-Catching exceptions in `tests/haxe/Main.hx` (lines 97-103):
+Catching exceptions in `tests/haxe/Main.hx` (lines 102-113):
 
 ```haxe
-var badMagicThrew = false;
+var badMagicVariant:Null<VectorError> = null;
 try {
 	VectorCodec.decode(Bytes.ofHex("5858585800000000"));
-} catch (error:haxe.Exception) {
-	badMagicThrew = true;
+} catch (error:VectorException) {
+	badMagicVariant = error.error;
 }
-expectTrue("bad magic raises an exception", badMagicThrew);
+expectTrue("bad magic throws the BadMagic variant", badMagicVariant == BadMagic);
 ```
 
 ### Rust (`rust/src/lib.rs`)
@@ -90,7 +90,7 @@ if (reader.remaining() !== 0) {
 
 The candidate set, judgment axes, and selection follow `docs/specs/features/06-errors-and-results.md`; this section records the mapping mechanics for `haxe.Exception` itself.
 
-### Rust Candidate 1: Result enum implementing std::error::Error with exact error variants
+### Rust Candidate 1: Result enum implementing std::error::Error with exact error variants (selected)
 
 ```rust
 #[derive(Debug, PartialEq)]
@@ -118,7 +118,7 @@ pub fn decode_vector(bytes: &[u8]) -> Result<Vec<GlyphMetrics>, Box<dyn std::err
 }
 ```
 
-### TypeScript Candidate 1: Exception class carrying the error union
+### TypeScript Candidate 1: Exception class carrying the error union (selected)
 
 ```ts
 export class VectorException extends Error {
@@ -151,7 +151,7 @@ if (magic !== VECTOR_MAGIC) {
 }
 ```
 
-### Kotlin Candidate 1: Sealed exception hierarchy with one variant per failure mode
+### Kotlin Candidate 1: Sealed exception hierarchy with one variant per failure mode (selected)
 
 ```kotlin
 sealed class VectorException(message: String) : Exception(message) {
@@ -199,7 +199,7 @@ The exact four-language mapping for the vector format is:
 
 Exact error variants and exception throws are asserted in:
 - `tests/rust/vector.rs` (lines 72-96)
-- `tests/haxe/Main.hx` (lines 97-103)
+- `tests/haxe/Main.hx` (lines 102-113)
 - `tests/ts/codec.test.ts` (lines 66-80)
 
-Required once the typed error migration lands: assertions match the variant or `kind`, never the message string, per `docs/specs/features/06-errors-and-results.md`.
+Required after the typed error migration: assertions match the variant or its `kind` field, never the message string, per `docs/specs/features/06-errors-and-results.md`.

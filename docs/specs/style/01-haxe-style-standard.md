@@ -16,7 +16,7 @@ Conforming source looks like the codec that already exists in the repository. Th
 4. **Failures are enum-carrying exceptions.** Every `throw` constructs a `haxe.Exception` subclass that carries a Haxe enum instance naming the variant, per `docs/specs/features/06-errors-and-results.md`.
 5. **Control flow stays flat.** `if`, `switch`, `while`, `do`/`while`, range `for`, `break`, `continue`, and early `return` translate statement for statement, per `docs/specs/features/15-control-flow.md`. Enum switches are exhaustive with no catch-all.
 6. **Numbers use the platform tower.** `Int` and `Float` carry all codec arithmetic; `haxe.Int64` appears only in the cases `docs/specs/stdlib/05-haxe-int64.md` permits.
-7. **Data has no inheritance.** Record types are structure typedefs or classes with fields; polymorphism goes through generics, per `docs/specs/features/05-generics.md`, and not through subclassing data carriers.
+7. **Data has no inheritance.** Record types are structure typedefs or classes with fields; polymorphism goes through generics, per `docs/specs/features/05-generics.md`.
 
 A canonical conforming function:
 
@@ -48,7 +48,7 @@ Every row names a violation, states the construct that triggers it, and gives th
 | Violation | Construct | Detection point |
 | --- | --- | --- |
 | `V01 IteratorLoop` | `for (item in subject)` where the subject is not an integer range expression | `TFor` whose iteration expression is not `TBinop(OpInterval, _, _)` |
-| `V02 FunctionalIteration` | `Lambda` module calls, array methods taking function values (`map`, `filter`, `fold`, and the rest listed in `docs/specs/features/09-iterators.md`), and comparator `sort` | `TCall` resolving to the named modules and methods |
+| `V02 FunctionalIteration` | `Lambda` module calls, array methods taking function values (`map`, `filter`, `fold`, and the rest listed in `docs/specs/features/09-iterators.md`), and comparator `sort`; sorting goes through the named strategies of `docs/specs/features/17-sorting.md` | `TCall` resolving to the named modules and methods |
 | `V03 Reflection` | `Reflect` and `Type` module calls, `Type.getClass`, `Type.enumParameters` | `TCall` resolving to `Reflect` or `Type` |
 | `V04 UntypedThrow` | `throw` of any value that is not an instance of an enum-carrying `haxe.Exception` subclass: raw strings, enum values without the wrapper, bare `haxe.Exception` constructed from a message | `TThrow` whose expression type is not a subclass of the domain exception base |
 | `V05 DynamicValue` | Any expression typed `Dynamic`, any `cast` without a target type, `untyped` blocks | `TDynamic` in the inferred type of any checked expression; `TCast` with a missing target type |

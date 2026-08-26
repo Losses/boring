@@ -65,7 +65,7 @@ The translatable subset therefore states: formats consumed by the accessor gener
 
 Field paths below the format root consist of structure segments and array segments. Structure segments contribute name parts; array segments contribute one index parameter each. The accessor surface has candidate shapes; the ruling below selects among them. All examples use a format with `layers[L]` containing `records[R]`, each record containing a `bounds` structure with scalar fields.
 
-### Candidate 1: Flat path-joined accessors with positional index parameters
+### Candidate 1: Flat path-joined accessors with positional index parameters (selected)
 
 One method per scalar leaf field on the view type. The name is the camelCase join of all path segments below the format root; the parameters are one index per array level in path order.
 
@@ -173,7 +173,7 @@ class VectorView(private val bytes: ByteArray) {
 }
 ```
 
-Out-of-range indexes follow the error ruling of `docs/specs/features/06-errors-and-results.md`: `Result` with a dedicated error variant in Rust, thrown `Error` in Haxe and TypeScript, and a thrown sealed `VectorException` variant in Kotlin.
+Out-of-range indexes follow the error ruling of `docs/specs/features/06-errors-and-results.md`: `Result` with an `IndexOutOfBounds` variant on the format error enum in Rust, and a thrown exception carrying `IndexOutOfBounds` in Haxe, TypeScript, and Kotlin.
 
 ## Test hooks
 

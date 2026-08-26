@@ -59,6 +59,7 @@ Every candidate translation is evaluated across four fixed axes:
 | 14 | [14-type-system-mapping.md](features/14-type-system-mapping.md) | Complete | Type identity, nominality, and the fixed cross-language type table. |
 | 15 | [15-control-flow.md](features/15-control-flow.md) | Complete | Plain control flow mapping and switch exhaustiveness rules. |
 | 16 | [16-static-object-access.md](features/16-static-object-access.md) | Complete | Static object read and write syntax, shape freezing, and behavior parity. |
+| 17 | [17-sorting.md](features/17-sorting.md) | Complete | The sort runtime: fixed named strategies, platform bodies, stability identity. |
 
 ### Standard library specifications
 
