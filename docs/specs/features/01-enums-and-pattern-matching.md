@@ -182,6 +182,55 @@ export interface VectorError {
 }
 ```
 
+### TypeScript Candidate 4: Unique symbol discriminants
+
+```ts
+const BAD_MAGIC = Symbol("BadMagic");
+const COUNT_OVERFLOW = Symbol("CountOverflow");
+const UNEXPECTED_EOF = Symbol("UnexpectedEof");
+const TRAILING_BYTES = Symbol("TrailingBytes");
+
+export interface BadMagicError {
+  readonly kind: typeof BAD_MAGIC;
+}
+
+export interface CountOverflowError {
+  readonly kind: typeof COUNT_OVERFLOW;
+}
+
+export interface UnexpectedEofError {
+  readonly kind: typeof UNEXPECTED_EOF;
+}
+
+export interface TrailingBytesError {
+  readonly kind: typeof TRAILING_BYTES;
+  readonly remaining: number;
+}
+
+export type VectorError =
+  | BadMagicError
+  | CountOverflowError
+  | UnexpectedEofError
+  | TrailingBytesError;
+
+export function describeError(error: VectorError): string {
+  if (error.kind === BAD_MAGIC) {
+    return "bad vector magic";
+  }
+  if (error.kind === COUNT_OVERFLOW) {
+    return "record count exceeds u32";
+  }
+  if (error.kind === UNEXPECTED_EOF) {
+    return "vector ended mid-record";
+  }
+  if (error.kind === TRAILING_BYTES) {
+    return `trailing bytes in vector: ${error.remaining}`;
+  }
+  const exhausted: never = error;
+  return exhausted;
+}
+```
+
 ## Judgment
 
 | Candidate | performance | ambiguity | redundancy | readability |
@@ -191,12 +240,17 @@ export interface VectorError {
 | TS Candidate 1 (Discriminated union) | Object allocation matches standard JavaScript object creation with zero class prototype overhead. | TypeScript narrowings on the literal kind property provide compile-time exhaustiveness verification. | Each variant maps directly to a named interface conforming to repository typing rules. | Plain object shapes with string tags communicate variant semantics directly. |
 | TS Candidate 2 (Class hierarchy) | Class instantiations invoke prototype chains and incur higher construction cost. | Type narrowing relies on sequential instanceof checks without guaranteed compile-time exhaustiveness. | Boilerplate constructor declarations multiply structural code across files. | Class inheritance boilerplate introduces unnecessary OOP mechanics into data definitions. |
 | TS Candidate 3 (Numeric enum) | Numeric comparisons execute quickly at runtime. | The payload field is weakly coupled to the kind tag, allowing mismatched variant states. | Type checkers cannot enforce presence of payload fields for specific variants. | Readers must cross-reference enum definitions with untyped property documentation. |
+| TS Candidate 4 (Unique symbol tags) | Symbol comparisons are single pointer identity checks; string comparison degrades to content inspection whenever a compared string was dynamically constructed, while symbol identity never does. | Unique symbols are nominal: no value except the declared constant satisfies the tag type, so tags cannot be spoofed or built from arbitrary strings. | Each variant needs one module-level symbol constant in addition to its interface. | JSON serialization drops symbol values, and the description string is the only debug label, so wire-facing data cannot carry them. |
 
 ## Ruling
 
 Haxe enums translate to native tagged `enum` declarations in Rust, and to discriminated unions of named interfaces with a `readonly kind: string` literal tag in TypeScript.
 
 This ruling ensures zero-allocation representations in Rust while providing strict exhaustiveness checks in TypeScript via `switch` expressions over the discriminant tag. TypeScript interfaces declare data shape only, adhering to the interface rules in `AGENT.md`.
+
+TypeScript narrows discriminated unions on `unique symbol` discriminant properties exactly as it does on string literal discriminants, so symbol-tagged unions keep compile-time exhaustiveness checking: the `describeError` example above fails to compile when a variant is missed, because the final `never` assignment rejects any unhandled variant.
+
+String literal tags remain the default for discriminated data that crosses or mirrors the wire format: JSON serialization, error messages, and debug output keep working without conversion. Unique symbol tags are required when tag values stay internal to the process and one of the following holds: a tag is compared against values that may be dynamically constructed strings, or the type system must guarantee that no unrelated string satisfies the discriminant. Switching a union between the two tag representations is a specification edit, because consumers match on tag values.
 
 ## Test hooks
 

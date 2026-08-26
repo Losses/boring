@@ -148,6 +148,12 @@ Code points are represented as `Int` in Haxe, `u32` in Rust, and `number` in Typ
 
 Unicode code points span the range `0x0000` to `0x10FFFF`, fitting within positive 32-bit signed integers and the 53-bit integer range of JavaScript numbers.
 
+Standard integer alignment is fixed by the wire type: `WireU8` maps to `Int`, `u8`, and `number`; `WireU16Be` maps to `Int`, `u16`, and `number`; `WireU32Be` maps to `Int`, `u32`, and `number`; `WireF64Be` maps to `Float`, `f64`, and `number`. Haxe `Int` is 32-bit signed on every supported target, and every `u32` wire value fits within the 53-bit integer range of JavaScript `number`, so no platform silently narrows or widens a value. TypeScript validates `Number.isInteger` plus the wire range at the API boundary before encoding (`ts/src/vector-json.ts`, lines 43-45).
+
+Float precision alignment requires bit-level paths on every target: `haxe.io.FPHelper` conversions in Haxe, `to_bits` and `from_bits` in Rust (`rust/src/lib.rs`, line 66), and `DataView` reads and writes with the littleEndian argument set to `false` in TypeScript (`ts/src/codec.ts`, lines 37-44 and 95-99). Tests compare decoded floats directly and never perform arithmetic on them before comparison; test vectors assign dyadic rationals so every target produces identical bit patterns.
+
+The following type choices are banned because they degrade hot path performance or hide bit widths: `bigint` for fields of 32 bits or fewer, Rust `char` for code points, single-precision float paths for `WireF64Be`, boxed `Number` objects, and numbers stored in strings. A translator or generator that meets a numeric type outside the fixed wire type table fails the build; it never selects a near match.
+
 ## Test hooks
 
 Numeric encoding and precision are verified by:

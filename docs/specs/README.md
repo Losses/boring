@@ -34,6 +34,7 @@ Every candidate translation is evaluated across four fixed axes:
 | 01 | [01-wire-format.md](binary/01-wire-format.md) | Complete | Byte layout, endianness, record packing, and dyadic rational precision. |
 | 02 | [02-binary-meta-abstraction.md](binary/02-binary-meta-abstraction.md) | Complete | Typed meta-level format representation and Reflaxe generator integration. |
 | 03 | [03-diff-localization.md](binary/03-diff-localization.md) | Complete | Offset calculation and mapping byte diffs to encoder functions. |
+| 04 | [04-key-index-retrieval.md](binary/04-key-index-retrieval.md) | Complete | Generated per-key accessors reading fields at build-time offsets. |
 
 ### Language feature specifications
 
@@ -52,6 +53,8 @@ Every candidate translation is evaluated across four fixed axes:
 | 11 | [11-inline-and-macros.md](features/11-inline-and-macros.md) | Complete | Inline functions, compile-time macros, and constant folding. |
 | 12 | [12-classes-interfaces-access.md](features/12-classes-interfaces-access.md) | Complete | Object-oriented constructs, visibility modifiers, and dispatch. |
 | 13 | [13-metadata-and-reflection.md](features/13-metadata-and-reflection.md) | Complete | Compiler metadata tags and reflection limitations. |
+| 14 | [14-type-system-mapping.md](features/14-type-system-mapping.md) | Complete | Type identity, nominality, and the fixed cross-language type table. |
+| 15 | [15-control-flow.md](features/15-control-flow.md) | Complete | Plain control flow mapping and switch exhaustiveness rules. |
 
 ### Standard library specifications
 
