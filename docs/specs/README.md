@@ -1,0 +1,68 @@
+# Translation specifications
+
+This directory defines the translation rules from Haxe into Rust and TypeScript for the boring repository.
+
+## Purpose
+
+The repository hosts one binary codec implemented in Haxe, Rust, and TypeScript. Haxe is the reference language. Every Haxe construct used by the codec requires an explicit, written translation rule for Rust and TypeScript.
+
+A later compilation and generation stage produces or verifies target code against these specifications. Without written specifications, unit tests inherit ad hoc translation choices, and disagreements in emitted bytes cannot be localized to a single design decision. Each specification document serves as the single location where a translation decision is defined and justified.
+
+## Classification
+
+Specifications are organized into three categories:
+
+1. `binary/`: Rules governing binary encapsulation and wire format mechanics. Each file rules one mechanism across the entire format.
+2. `features/`: Rules governing Haxe language constructs. Each file defines the syntax, semantics, typed-AST representation, and cross-language mappings for one construct.
+3. `stdlib/`: Rules governing Haxe standard library modules and functions. These documents define standard library substitutions for the target languages.
+
+## Judgment axes
+
+Every candidate translation is evaluated across four fixed axes:
+
+- `performance`: Runtime cost on the codec hot path, including allocation counts, bounds checks, pointer indirection, and compiler optimization characteristics. Evaluations cite concrete mechanisms.
+- `ambiguity`: Likelihood of misinterpretation by a human reader or compiler. Evaluations address implicit conversions, unspecified bit widths, and target-specific behaviors.
+- `redundancy`: Extent of duplicate state or duplicated logic forced across the three language implementations.
+- `readability`: Directness with which the target code expresses its intent to an engineer proficient in that language.
+
+## Specification index
+
+### Binary specifications
+
+| Number | Specification | Status | Description |
+| --- | --- | --- | --- |
+| 01 | [01-wire-format.md](binary/01-wire-format.md) | Complete | Byte layout, endianness, record packing, and dyadic rational precision. |
+| 02 | [02-binary-meta-abstraction.md](binary/02-binary-meta-abstraction.md) | Complete | Typed meta-level format representation and Reflaxe generator integration. |
+| 03 | [03-diff-localization.md](binary/03-diff-localization.md) | Complete | Offset calculation and mapping byte diffs to encoder functions. |
+
+### Language feature specifications
+
+| Number | Specification | Status | Description |
+| --- | --- | --- | --- |
+| 01 | [01-enums-and-pattern-matching.md](features/01-enums-and-pattern-matching.md) | Complete | Sum types, enum variants, and exhaustive pattern matching. |
+| 02 | [02-abstract-types.md](features/02-abstract-types.md) | Complete | Zero-cost abstractions, newtypes, and branded types. |
+| 03 | [03-structures-and-typedefs.md](features/03-structures-and-typedefs.md) | Complete | Anonymous structures, typedefs, Rust structs, and TypeScript interfaces. |
+| 04 | [04-null-safety-and-optionality.md](features/04-null-safety-and-optionality.md) | Complete | Nullable types, optional fields, and strict nullability. |
+| 05 | [05-generics.md](features/05-generics.md) | Complete | Parameterized types, constraints, monomorphization, and type erasure. |
+| 06 | [06-errors-and-results.md](features/06-errors-and-results.md) | Complete | Exceptions, Result types, and error propagation. |
+| 07 | [07-numeric-tower.md](features/07-numeric-tower.md) | Complete | Integer widths, floating-point representations, and conversion rules. |
+| 08 | 08-strings-and-unicode.md | Pending (Wave 2) | String representations, UTF-8/UTF-16 encoding, and character indexing. |
+| 09 | 09-iterators.md | Pending (Wave 2) | Iterator protocols, array traversal, and loop transformations. |
+| 10 | 10-static-extension.md | Pending (Wave 2) | Static extension methods and target method dispatch. |
+| 11 | 11-inline-and-macros.md | Pending (Wave 2) | Inline functions, compile-time macros, and constant folding. |
+| 12 | 12-classes-interfaces-access.md | Pending (Wave 2) | Object-oriented constructs, visibility modifiers, and dispatch. |
+| 13 | 13-metadata-and-reflection.md | Pending (Wave 2) | Compiler metadata tags and reflection limitations. |
+
+### Standard library specifications
+
+| Number | Specification | Status | Description |
+| --- | --- | --- | --- |
+| 01 | 01-haxe-io-bytes.md | Pending (Wave 2) | Byte buffer primitives and slice operations. |
+| 02 | 02-haxe-io-buffers-and-inputs.md | Pending (Wave 2) | Sequential buffer writers, stream inputs, and readers. |
+| 03 | 03-haxe-exception.md | Pending (Wave 2) | Standard exception hierarchy and stack trace handling. |
+| 04 | 04-haxe-ds-vector.md | Pending (Wave 2) | Fixed-length dense vector structures. |
+| 05 | 05-haxe-int64.md | Pending (Wave 2) | 64-bit integer representations and emulated arithmetic. |
+
+## Maintenance rule
+
+A translation decision changes only by editing its specification document in the same commit as the code implementing the change.
