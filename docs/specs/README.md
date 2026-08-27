@@ -60,7 +60,7 @@ Every candidate translation is evaluated across four fixed axes:
 | 15 | [15-control-flow.md](features/15-control-flow.md) | Complete | Plain control flow mapping and switch exhaustiveness rules. |
 | 16 | [16-static-object-access.md](features/16-static-object-access.md) | Complete | Static object read and write syntax, shape freezing, and behavior parity. |
 | 17 | [17-sorting.md](features/17-sorting.md) | Complete | The sort runtime: fixed named strategies, platform bodies, stability identity. |
-| 18 | [18-immutability.md](features/18-immutability.md) | Complete | Read-only data surfaces and per-platform mutation enforcement. |
+| 18 | [18-immutability.md](features/18-immutability.md) | Complete | Read-only data types and per-platform mutation enforcement. |
 
 ### Standard library specifications
 
@@ -71,6 +71,7 @@ Every candidate translation is evaluated across four fixed axes:
 | 03 | [03-haxe-exception.md](stdlib/03-haxe-exception.md) | Complete | Standard exception hierarchy and stack trace handling. |
 | 04 | [04-haxe-ds-vector.md](stdlib/04-haxe-ds-vector.md) | Complete | Fixed-length dense vector structures. |
 | 05 | [05-haxe-int64.md](stdlib/05-haxe-int64.md) | Complete | 64-bit integer representations and emulated arithmetic. |
+| 06 | [06-std-modules.md](stdlib/06-std-modules.md) | Complete | The subset's std modules, reserved namespaces, and the runtime package contract. |
 
 ### Style specifications
 
