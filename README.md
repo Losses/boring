@@ -4,13 +4,13 @@ boring is a Haxe / Rust / TypeScript mixed-language repository hosting one
 binary codec and the shared test vectors that every implementation must
 reproduce byte for byte.
 
-The three implementations are independent: TypeScript under bun, Haxe
-compiled to JS, and Rust built with cargo. All three decode
-`tests/vectors/roundtrip.bin` to the same records and encode those records
-back to the same bytes.
+The four implementations are independent: TypeScript under bun, Haxe
+compiled to JS, Kotlin executed on the JVM, and Rust built with cargo.
+All four decode `tests/vectors/roundtrip.bin` to the same records and
+encode those records back to the same bytes.
 
 Implementations and test tooling live in separate trees: the languages
-implement the codec under `ts/`, `haxe/`, and `rust/`; every
+implement the codec under `ts/`, `haxe/`, `rust/`, and `kotlin/`; every
 test suite and the shared vectors live under `tests/`.
 
 The root `package.json` is the bun workspace (member: `ts`); the root
@@ -25,20 +25,22 @@ explicit `[[test]]` path into `tests/`.
 | `ts/` | `@boring/codec`, the TypeScript codec package |
 | `haxe/` | Haxe library sources |
 | `rust/` | Rust crate with the codec implementation |
+| `kotlin/` | Kotlin codec source tree |
 | `tests/` | Test suites per language plus the shared vectors |
 | `tools/` | ESLint plugin, doc-style checker, commit tool, git hooks, vector generator |
 
 ## Toolchain
 
-The flake fixes the toolchain versions: haxe, bun, nodejs, and a stable
-rust toolchain from the rust overlay. The reflaxe compilation-target
-framework is a pinned flake input (`SomeRanDev/reflaxe` v3.0.0) registered
-as a dev haxelib on shell entry. Enter the environment with:
+The flake fixes the toolchain versions: haxe, bun, nodejs, the Kotlin/JVM
+compiler with JDK 21, and a stable rust toolchain from the rust overlay.
+The reflaxe compilation-target framework is a pinned flake input
+(`SomeRanDev/reflaxe` v3.0.0) registered as a dev haxelib on shell entry.
+Enter the environment with:
 
     nix develop
 
-The Android SDK, the JDK, browsers, and fonts from the tiqian flake are
-absent here; this repository needs none of them.
+The Android SDK, browsers, and fonts from the tiqian flake are absent
+here; this repository needs none of them.
 
 ## Build and test
 
