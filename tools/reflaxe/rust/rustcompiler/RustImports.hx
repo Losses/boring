@@ -5,7 +5,7 @@ package rustcompiler;
 	Tracks imports for one generated Rust module.
 **/
 class RustImports {
-	/** Modules of the standard surface that lower to emitted shims. */
+	/** Modules of the standard library that lower to emitted shims. */
 	static final SHIM_MODULES: Map<String, Bool> = [
 		"haxe.io.FPHelper" => true,
 		"haxe.io.BytesBuffer" => true,
