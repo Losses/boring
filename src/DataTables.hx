@@ -42,8 +42,8 @@ class DataTables {
 				continue;
 			}
 
-			// Split by whitespace
-			final parts = line.split(" ").filter(p -> p.length > 0);
+			// Split on any whitespace run (spec: whitespace-separated fields)
+			final parts = [for (seg in line.split("\t")) for (p in seg.split(" ")) if (p.length > 0) p];
 			if (parts.length == 0) {
 				continue;
 			}
