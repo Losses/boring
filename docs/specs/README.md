@@ -61,6 +61,7 @@ Every candidate translation is evaluated across four fixed axes:
 | 16 | [16-static-object-access.md](features/16-static-object-access.md) | Complete | Static object read and write syntax, shape freezing, and behavior parity. |
 | 17 | [17-sorting.md](features/17-sorting.md) | Complete | The sort runtime: fixed named strategies, platform bodies, stability identity. |
 | 18 | [18-immutability.md](features/18-immutability.md) | Complete | Read-only data types and per-platform mutation enforcement. |
+| 19 | [19-testing.md](features/19-testing.md) | Planned | In-source tests, per-target execution, and cross-target consistency. |
 
 ### Standard library specifications
 
