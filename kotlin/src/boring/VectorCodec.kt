@@ -34,7 +34,7 @@ object VectorCodec {
             throw VectorException.BadMagic
         }
         val count = reader.readU32()
-        val records = ArrayList<GlyphMetrics>()
+        val records = ArrayList<GlyphMetrics>(count)
         for (index in 0 until count) {
             val codePoint = reader.readU32()
             val advanceEm = reader.readF64()

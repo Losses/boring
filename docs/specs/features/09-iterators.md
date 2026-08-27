@@ -53,11 +53,11 @@ public static function decode(bytes:Bytes):Array<GlyphMetrics> {
 	for (index in 0...count) {
 		final codePoint = reader.readU32();
 		// ...
-		records.push({
+		records[index] = {
 			codePoint: codePoint,
 			advanceEm: advanceEm,
 			bounds: { xMin: xMin, yMin: yMin, xMax: xMax, yMax: yMax }
-		});
+		};
 	}
 	return records;
 }
@@ -127,7 +127,7 @@ export function encodeVector(records: readonly GlyphMetricsRecord[]): Uint8Array
 export function decodeVector(bytes: Uint8Array): GlyphMetricsRecord[] {
   // ...
   const count = reader.readU32();
-  const records: GlyphMetricsRecord[] = [];
+  const records: GlyphMetricsRecord[] = new Array<GlyphMetricsRecord>(count);
   for (let i = 0; i < count; i += 1) {
     const codePoint = reader.readU32();
     const advanceEm = reader.readF64();
@@ -136,7 +136,7 @@ export function decodeVector(bytes: Uint8Array): GlyphMetricsRecord[] {
     const xMax = reader.readF64();
     const yMax = reader.readF64();
     const bounds = { xMin, yMin, xMax, yMax };
-    records.push({ codePoint, advanceEm, bounds });
+    records[i] = { codePoint, advanceEm, bounds };
   }
   return records;
 }
@@ -248,7 +248,7 @@ val bytes: List<Int> = records.flatMap { record ->
 Array and collection iteration translates to indexed loops whose cost is fixed by the statement itself:
 
 - Rust keeps `for item in slice` over borrowed slices and `for i in 0..count` ranges; both lower to direct iteration with no protocol dispatch and no allocation.
-- TypeScript generated code, and all code under `ts/src`, read the iteration bound into a local before the loop and use `const count = collection.length; for (let i = 0; i < count; i += 1)` with direct indexed access, in every case. `for...of` and `for...in` are banned. `for...of` dispatches through the iterator protocol whose fast path is engine discretion; `for...in` enumerates string keys including inherited ones and is additionally incorrect for array traversal. Millisecond-level performance budgets in the consumers of this output leave no room for a loop form whose cost an engine choice can change. A `.length` read inside the loop head executes on every iteration; keeping it out of the head is the same rule applied to the bound: the loop statement itself fixes the cost. Element reads carry a non-null assertion (`records[i]!`): the loop bound establishes the invariant, `noUncheckedIndexedAccess` stays on for every other access, and the assertion is the one place the invariant is stated.
+- TypeScript generated code, and all code under `ts/src`, read the iteration bound into a local before the loop and use `const count = collection.length; for (let i = 0; i < count; i += 1)` with direct indexed access, in every case. `for...of` and `for...in` are banned. `for...of` dispatches through the iterator protocol whose fast path is engine discretion; `for...in` enumerates string keys including inherited ones and is additionally incorrect for array traversal. Millisecond-level performance budgets in the consumers of this output leave no room for a loop form whose cost an engine choice can change. A `.length` read inside the loop head executes on every iteration; keeping it out of the head is the same rule applied to the bound: the loop statement itself fixes the cost. Element reads carry a non-null assertion (`records[i]!`): the loop bound establishes the invariant, `noUncheckedIndexedAccess` stays on for every other access, and the assertion is the one place the invariant is stated. A fill whose count is known before the loop pre-allocates the destination and stores by index: `const records = new Array<T>(count); for (let i = 0; i < count; i += 1) { records[i] = readRecord(); }`, one allocation and no growth copies, per the allocation ruling in `docs/specs/stdlib/04-haxe-ds-vector.md`.
 - Kotlin generated code uses `for (i in 0 until count)` and `for (i in collection.indices)` with indexed access. Direct `for (item in collection)` is banned in generated code because its cost depends on the static subject type: index arithmetic over arrays and ranges, one iterator allocation per iteration over `Iterable`. The indices form states the same cost on every subject.
 - Haxe translatable source iterates arrays through `for (i in 0...array.length)` with `array[i]` access. A `for (item in collection)` loop whose subject is not an integer range is rejected before generation by the interception defined in `docs/specs/style/01-haxe-style-standard.md`, because its translation would require the iterator protocol on the JavaScript target.
 

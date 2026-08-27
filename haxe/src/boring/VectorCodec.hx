@@ -41,11 +41,11 @@ class VectorCodec {
 			final yMin = reader.readF64();
 			final xMax = reader.readF64();
 			final yMax = reader.readF64();
-			records.push({
+			records[index] = {
 				codePoint: codePoint,
 				advanceEm: advanceEm,
 				bounds: { xMin: xMin, yMin: yMin, xMax: xMax, yMax: yMax }
-			});
+			};
 		}
 		if (reader.remaining() != 0) {
 			throw new VectorException(TrailingBytes(reader.remaining()));

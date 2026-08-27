@@ -160,7 +160,7 @@ object Main {
     )
 
     private fun sortRecordsFromKeys(keys: List<Int>): ArrayList<GlyphMetrics> {
-        val records = ArrayList<GlyphMetrics>()
+        val records = ArrayList<GlyphMetrics>(keys.size)
         for (index in keys.indices) {
             // advanceEm marks the input position for the stability assertion.
             records.add(

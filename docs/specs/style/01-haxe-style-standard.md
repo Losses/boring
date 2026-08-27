@@ -28,11 +28,11 @@ public static function decode(bytes:Bytes):Array<GlyphMetrics> {
 	for (index in 0...count) {
 		final codePoint:Int = reader.readU32();
 		final advanceEm:Float = reader.readF64();
-		records.push({
+		records[index] = {
 			codePoint: codePoint,
 			advanceEm: advanceEm,
 			bounds: readBounds(reader),
-		});
+		};
 	}
 	if (reader.remaining() != 0) {
 		throw new VectorException(TrailingBytes(reader.remaining()));
