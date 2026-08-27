@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification rules the translation of Haxe parameterized types, generic functions, and type parameter constraints into Rust, TypeScript, and Kotlin. In the current codebase, generic collections appear as `Array<GlyphMetrics>` in `haxe/src/boring/VectorCodec.hx`, as `Vec<GlyphMetrics>`, `&[GlyphMetrics]`, and `take_n<const N: usize>` in `rust/src/lib.rs`, and as `readonly GlyphMetricsRecord[]` in `ts/src/vector-format.ts`. In Kotlin, generic collections appear as `Array<GlyphMetrics>` and the `List<GlyphMetrics>` return surface in `kotlin/src/boring/VectorCodec.kt`.
+This specification rules the translation of Haxe parameterized types, generic functions, and type parameter constraints into Rust, TypeScript, and Kotlin. In the current codebase, generic collections appear as `Array<GlyphMetrics>` in `haxe/src/boring/VectorCodec.hx`, as `Vec<GlyphMetrics>`, `&[GlyphMetrics]`, and `take_n<const N: usize>` in `rust/src/lib.rs`, and as `readonly GlyphMetricsRecord[]` in `ts/src/vector-format.ts`. In Kotlin, generic collections appear as `Array<GlyphMetrics>` and the `List<GlyphMetrics>` return type in `kotlin/src/boring/VectorCodec.kt`.
 
 ## Haxe construct
 

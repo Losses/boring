@@ -2,16 +2,25 @@
 
 ## Scope
 
-This specification defines the binary wire format for glyph metrics records shared across the Haxe, Rust, and TypeScript implementations. It rules byte alignment, field ordering, integer and floating-point representations, endianness, and numerical precision constraints. The layout is language-independent: a future Kotlin implementation, and any other target the Reflaxe pipeline emits, decodes the same bytes under the type rulings in `features/` and `stdlib/`.
+This specification defines the binary wire format for glyph metrics records shared across the Haxe, Kotlin, Rust, and TypeScript implementations. It rules byte alignment, field ordering, integer and floating-point representations, endianness, count domain, and numerical precision constraints. The layout is language-independent: any other target the Reflaxe pipeline emits decodes the same bytes under the type rulings in `features/` and `stdlib/`.
 
 The wire format is implemented in:
 - `haxe/src/boring/VectorCodec.hx`
+- `kotlin/src/boring/VectorCodec.kt`
 - `rust/src/lib.rs`
 - `ts/src/vector-format.ts`
+
+The Reflaxe-generated trees (`ts/gen`, `kotlin/gen`) decode under the same rulings as their hand-written counterparts.
 
 Fixed test vectors verifying this layout live in:
 - `tests/vectors/roundtrip.json` (human-readable vector definitions)
 - `tests/vectors/roundtrip.bin` (committed reference binary)
+
+Count-domain edge coverage lives in the per-tree suites:
+- `tests/haxe/Main.hx`
+- `tests/ts/vector.test.ts` and `tests/ts/generated-tree.test.ts`
+- `tests/kotlin/Main.kt`
+- `tests/rust/vector.rs`
 
 ## Header layout
 
@@ -41,6 +50,19 @@ Total file byte length for N records is 8 + 44 x N bytes.
 
 Trailing bytes beyond 8 + 44 x N are strictly invalid and rejected by decoders.
 
+## Record count domain
+
+The decodable record count domain is [0, 2^31). The wire field is u32, but the reference trees hold decoded counts in a signed 32-bit integer (the Kotlin `Int`), so every tree rejects counts at or above 0x80000000 with the `CountOverflow` failure identity (`features/06-errors-and-results.md`) before any allocation or record byte is read:
+
+| Input count | Result |
+| --- | --- |
+| 0x00000000 ..= 0x7fffffff | decode proceeds |
+| 0x80000000 ..= 0xffffffff | `CountOverflow`, no allocation, no record read |
+
+The reader implementations differ in the numeric domain of the guard and reject the same inputs. The hand-written TypeScript tree reads the count unsigned and compares against 0x7fffffff; the Rust tree reads u32 and compares against 2147483647; the Haxe tree and both generated trees hold the count in signed 32-bit semantics and compare against the negative half (`count < 0`).
+
+Encode never writes a count outside the domain: every tree encodes its in-memory record count, which cannot exceed 2^31 - 1 elements in the reference trees' array types. The Rust encoder maps a length above u32::MAX to the same `CountOverflow` identity for type completeness.
+
 ## Endianness ruling
 
 All multi-byte numeric fields are encoded in big-endian byte order (network byte order, most significant byte first).
@@ -63,7 +85,7 @@ Examples from `tests/vectors/roundtrip.json`:
 - -0.21875 = -7/32 (exact binary -0.00111)
 - -0.875 = -7/8 (exact binary -0.111)
 
-Because dyadic rationals terminate in finite binary fractions, IEEE 754 double-precision representation incurs zero truncation error during decimal-to-binary parsing. Haxe, Rust, and TypeScript generate identical 64-bit IEEE patterns for these values.
+Because dyadic rationals terminate in finite binary fractions, IEEE 754 double-precision representation incurs zero truncation error during decimal-to-binary parsing. Haxe, Kotlin, Rust, and TypeScript generate identical 64-bit IEEE patterns for these values.
 
 ## Canonical field order
 

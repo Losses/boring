@@ -63,7 +63,7 @@ The translatable subset therefore states: formats consumed by the accessor gener
 
 ## Nested path naming
 
-Field paths below the format root consist of structure segments and array segments. Structure segments contribute name parts; array segments contribute one index parameter each. The accessor surface has candidate shapes; the ruling below selects among them. All examples use a format with `layers[L]` containing `records[R]`, each record containing a `bounds` structure with scalar fields.
+Field paths below the format root consist of structure segments and array segments. Structure segments contribute name parts; array segments contribute one index parameter each. The accessor API has candidate shapes; the ruling below selects among them. All examples use a format with `layers[L]` containing `records[R]`, each record containing a `bounds` structure with scalar fields.
 
 ### Candidate 1: Flat path-joined accessors with positional index parameters (selected)
 
@@ -105,7 +105,7 @@ xMin(): number                            // on BoundsView
 
 ## Ruling
 
-The generated accessor surface is Candidate 1: one flat accessor per scalar leaf field on the single view type, named by the camelCase join of the path segments below the format root, taking one index parameter per array level in path order, named by the array segment with an `Index` suffix (`layerIndex`, `recordIndex`). Candidate 2 and Candidate 3 stay out of the generated surface: the motivating case is reading a small number of fields without decoding records, and that case pays zero allocation only under Candidate 1. Consumers reading many fields of one element use the full decoder.
+The generated accessor API is Candidate 1: one flat accessor per scalar leaf field on the single view type, named by the camelCase join of the path segments below the format root, taking one index parameter per array level in path order, named by the array segment with an `Index` suffix (`layerIndex`, `recordIndex`). Candidate 2 and Candidate 3 stay out of the generated API: the motivating case is reading a small number of fields without decoding records, and that case pays zero allocation only under Candidate 1. Consumers reading many fields of one element use the full decoder.
 
 ## Generated shapes
 
