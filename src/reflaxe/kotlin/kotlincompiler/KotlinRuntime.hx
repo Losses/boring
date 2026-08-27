@@ -74,16 +74,16 @@ import java.io.FileWriter
 object Test {
     private var currentTestId: String? = null
 
-    fun run(id: String, body: () -> Unit) {
+    fun run(id: String, name: String, body: () -> Unit) {
         currentTestId = id
         try {
             body()
             currentTestId = null
-            recordResult(id, \"pass\", null)
+            recordResult(id, name, \"pass\", null)
         } catch (e: Throwable) {
             currentTestId = null
             val msg = e.message ?: e.toString()
-            recordResult(id, \"fail\", msg)
+            recordResult(id, name, \"fail\", msg)
             throw e
         }
     }
@@ -199,13 +199,13 @@ object Test {
         return lines.joinToString(\"\\n\")
     }
 
-    private fun recordResult(id: String, verdict: String, message: String?) {
+    private fun recordResult(id: String, name: String, verdict: String, message: String?) {
         val envPath = System.getenv(\"BORING_TEST_RESULTS\")
         val filePath = if (envPath != null && envPath.isNotEmpty()) envPath else \"out/test-results/kotlin.jsonl\"
         val jsonLine = if (verdict == \"pass\") {
-            \"{\\\"id\\\":\\\"\" + escapeJson(id) + \"\\\",\\\"verdict\\\":\\\"pass\\\"}\\n\"
+            \"{\\\"id\\\":\\\"\" + escapeJson(id) + \"\\\",\\\"name\\\":\\\"\" + escapeJson(name) + \"\\\",\\\"verdict\\\":\\\"pass\\\"}\\n\"
         } else {
-            \"{\\\"id\\\":\\\"\" + escapeJson(id) + \"\\\",\\\"verdict\\\":\\\"fail\\\",\\\"message\\\":\\\"\" + escapeJson(message ?: \"\") + \"\\\"}\\n\"
+            \"{\\\"id\\\":\\\"\" + escapeJson(id) + \"\\\",\\\"name\\\":\\\"\" + escapeJson(name) + \"\\\",\\\"verdict\\\":\\\"fail\\\",\\\"message\\\":\\\"\" + escapeJson(message ?: \"\") + \"\\\"}\\n\"
         }
         val file = File(filePath)
         val parent = file.parentFile

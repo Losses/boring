@@ -60,14 +60,14 @@ export type TestBody = () => void;
 export class Test {
   private static currentTestId: string | null = null;
 
-  static run(id: string, body: TestBody): void {
+  static run(id: string, name: string, body: TestBody): void {
     Test.currentTestId = id;
     try {
       body();
-      Test.recordResult(id, "pass", null);
+      Test.recordResult(id, name, "pass", null);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      Test.recordResult(id, "fail", msg);
+      Test.recordResult(id, name, "fail", msg);
       throw err;
     } finally {
       Test.currentTestId = null;
@@ -242,14 +242,14 @@ export class Test {
     return false;
   }
 
-  private static recordResult(id: string, verdict: "pass" | "fail", message: string | null): void {
+  private static recordResult(id: string, name: string, verdict: "pass" | "fail", message: string | null): void {
     const envPath = typeof process !== "undefined" && process.env ? process.env["BORING_TEST_RESULTS"] : null;
     const filePath = envPath && envPath.length > 0 ? envPath : "out/test-results/ts.jsonl";
     let jsonLine: string;
     if (verdict === "pass") {
-      jsonLine = \'{"id":"\' + Test.escapeJson(id) + \'","verdict":"pass"}\' + String.fromCharCode(10);
+      jsonLine = \'{"id":"\' + Test.escapeJson(id) + \'","name":"\' + Test.escapeJson(name) + \'","verdict":"pass"}\' + String.fromCharCode(10);
     } else {
-      jsonLine = \'{"id":"\' + Test.escapeJson(id) + \'","verdict":"fail","message":"\' + Test.escapeJson(message ?? "") + \'"}\' + String.fromCharCode(10);
+      jsonLine = \'{"id":"\' + Test.escapeJson(id) + \'","name":"\' + Test.escapeJson(name) + \'","verdict":"fail","message":"\' + Test.escapeJson(message ?? "") + \'"}\' + String.fromCharCode(10);
     }
     try {
       const dir = path.dirname(filePath);

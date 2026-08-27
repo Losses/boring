@@ -98,9 +98,9 @@ class TsDecl {
 		final body = expr.functionBody(f);
 		final indented = [for(b in body) "    " + b].join("\n");
 		if(testRunner == "deno") {
-			return 'Deno.test("${escapeString(runnerName)}", () =>\n  Test.run("${id}", () => {\n$indented\n  }));';
+			return 'Deno.test("${escapeString(runnerName)}", () =>\n  Test.run("${id}", "${escapeString(runnerName)}", () => {\n$indented\n  }));';
 		} else {
-			return 'test("${escapeString(runnerName)}", () =>\n  Test.run("${id}", () => {\n$indented\n  }));';
+			return 'test("${escapeString(runnerName)}", () =>\n  Test.run("${id}", "${escapeString(runnerName)}", () => {\n$indented\n  }));';
 		}
 	}
 
@@ -110,6 +110,9 @@ class TsDecl {
 			var c = s.charAt(i);
 			if(c == '"') out.add('\\"');
 			else if(c == '\\') out.add('\\\\');
+			else if(c == '\n') out.add('\\n');
+			else if(c == '\r') out.add('\\r');
+			else if(c == '\t') out.add('\\t');
 			else out.add(c);
 		}
 		return out.toString();

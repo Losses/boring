@@ -14,6 +14,24 @@ import sys.io.File;
  * and generates the runner main under out/haxe/TestMain.hx.
  */
 class TestCollector {
+	/**
+		Escapes a runner name for embedding inside a double-quoted string
+		literal in generated source.
+	**/
+	static function escapeName(s:String):String {
+		final buf = new StringBuf();
+		for(i in 0...s.length) {
+			final c = s.charAt(i);
+			if(c == '"') buf.add('\\"');
+			else if(c == "\\") buf.add("\\\\");
+			else if(c == "\n") buf.add("\\n");
+			else if(c == "\r") buf.add("\\r");
+			else if(c == "\t") buf.add("\\t");
+			else buf.add(c);
+		}
+		return buf.toString();
+	}
+
 	public static function generate(outDir:String = "out/haxe"):Void {
 		final tests:Array<{
 			id:String,
@@ -104,7 +122,7 @@ class TestCollector {
 		final testCallLines:Array<String> = [];
 		for (t in tests) {
 			testCallLines.push('        try {');
-			testCallLines.push('            std.Test.run("' + t.id + '", function() { ' + t.moduleName + '.' + t.fieldName + '(); });');
+			testCallLines.push('            std.Test.run("' + t.id + '", "' + escapeName(t.name) + '", function() { ' + t.moduleName + '.' + t.fieldName + '(); });');
 			testCallLines.push('        } catch (e:haxe.Exception) {');
 			testCallLines.push('            failures++;');
 			testCallLines.push('            std.Console.log(e.message);');
@@ -169,14 +187,14 @@ class TestMain {
         return lines.join("\\n");
     }
 
-    static function recordResult(id:String, verdict:String, message:Null<String>):Void {
+    static function recordResult(id:String, name:String, verdict:String, message:Null<String>):Void {
         var envPath = NodeProcess.env.get("BORING_TEST_RESULTS");
         var filePath = envPath != null && envPath.length > 0 ? envPath : "out/test-results/haxe.jsonl";
         var jsonLine:String;
         if (verdict == "pass") {
-            jsonLine = \'{"id":"\' + escapeJson(id) + \'","verdict":"pass"}\\n\';
+            jsonLine = \'{"id":"\' + escapeJson(id) + \'","name":"\' + escapeJson(name) + \'","verdict":"pass"}\\n\';
         } else {
-            jsonLine = \'{"id":"\' + escapeJson(id) + \'","verdict":"fail","message":"\' + escapeJson(message != null ? message : "") + \'"}\\n\';
+            jsonLine = \'{"id":"\' + escapeJson(id) + \'","name":"\' + escapeJson(name) + \'","verdict":"fail","message":"\' + escapeJson(message != null ? message : "") + \'"}\\n\';
         }
         var dir = Path.dirname(filePath);
         if (dir != null && dir != "" && dir != ".") {
@@ -281,20 +299,20 @@ class TestMain {
 
     static function bootstrap():Void {
         var testObj = {
-            run: function(id:String, body:()->Void):Void {
+            run: function(id:String, name:String, body:()->Void):Void {
                 currentTestId = id;
                 try {
                     body();
                     currentTestId = null;
-                    recordResult(id, "pass", null);
+                    recordResult(id, name, "pass", null);
                 } catch (e:haxe.Exception) {
                     currentTestId = null;
-                    recordResult(id, "fail", e.message);
+                    recordResult(id, name, "fail", e.message);
                     throw e;
                 } catch (e:Dynamic) {
                     currentTestId = null;
                     var msg = Std.string(e);
-                    recordResult(id, "fail", msg);
+                    recordResult(id, name, "fail", msg);
                     throw new haxe.Exception(msg);
                 }
             },

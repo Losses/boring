@@ -69,7 +69,10 @@ Rulings:
   name is the identifier plus the description:
   `tests.VectorCodecTests.roundtrip: encode then decode returns the
   input records` (colon-space separator; tests without a description
-  use the identifier alone).
+  use the identifier alone). Every target's `Test.run` registration
+  carries the name beside the identifier, and every results file
+  records it; runners that display titles (the TypeScript runners)
+  show it as the test title.
 - A `@:test` function returns `Void` and takes no arguments; targets
   reject anything else at compile time with the function's identity
   in the message.
@@ -159,8 +162,11 @@ only these files.
   `rust`.
 - **Format**: JSON Lines, UTF-8, one object per completed test, keys
   in fixed order:
-  - pass: `{"id":"tests.VectorCodecTests.roundtrip","verdict":"pass"}`
-  - fail: `{"id":"…","verdict":"fail","message":"<canonical message>"}`
+  - pass: `{"id":"tests.VectorCodecTests.roundtrip","name":"tests.VectorCodecTests.roundtrip: encode then decode returns the input records","verdict":"pass"}`
+  - fail: `{"id":"…","name":"…","verdict":"fail","message":"<canonical message>"}`
+- The `name` value is the runner-visible name of the test
+  (identifier plus description), JSON-escaped, byte-equal across
+  targets; `Test.run` receives it beside the identifier.
 - The `message` value is the canonical failure message string,
   JSON-escaped, byte-equal across targets.
 - The file opens in append mode; each line is written with a single
@@ -206,7 +212,7 @@ import { VectorCodec } from "../../reference/ts/gen/boring/VectorCodec.ts";
 import { TestData } from "../../reference/ts/gen/tests/TestData.ts";
 
 test("tests.VectorCodecTests.roundtrip: encode then decode returns the input records", () =>
-    Test.run("tests.VectorCodecTests.roundtrip", () => {
+    Test.run("tests.VectorCodecTests.roundtrip", "tests.VectorCodecTests.roundtrip: encode then decode returns the input records", () => {
         const records = TestData.glyphSamples();
         const decoded = VectorCodec.decode(VectorCodec.encode(records));
         Test.equals(records, decoded, "decode(encode(records)) must equal the input");
@@ -246,7 +252,7 @@ import boring.runtime.Test
 class VectorCodecTests {
     @kotlin.test.Test
     fun roundtrip() {
-        Test.run("tests.VectorCodecTests.roundtrip") {
+        Test.run("tests.VectorCodecTests.roundtrip", "tests.VectorCodecTests.roundtrip: encode then decode returns the input records") {
             val records = TestData.glyphSamples()
             val decoded = VectorCodec.decode(VectorCodec.encode(records))
             Test.equals(records, decoded, "decode(encode(records)) must equal the input")
@@ -274,7 +280,7 @@ use crate::runtime::test as testlib;
 
 #[test]
 fn vector_codec_tests_roundtrip() {
-    testlib::run("tests.VectorCodecTests.roundtrip", || {
+    testlib::run("tests.VectorCodecTests.roundtrip", "tests.VectorCodecTests.roundtrip: encode then decode returns the input records", || {
         let records = test_data_glyph_samples();
         let decoded = VectorCodec::decode(VectorCodec::encode(&records));
         testlib::equals(&records, &decoded, "decode(encode(records)) must equal the input");
@@ -326,7 +332,9 @@ Cross-language consistency is managed from the Haxe side.
   1. The id set equals the baseline's set; a missing id or an extra
      id is a divergence.
   2. For every shared id, the verdict equals the baseline's verdict.
-  3. For every shared failing id, the `message` string equals the
+  3. For every shared id, the `name` string equals the baseline's
+     byte for byte.
+  4. For every shared failing id, the `message` string equals the
      baseline's byte for byte.
 - Output: a matrix (rows are test ids, columns are targets, cells show
   pass, fail, or the divergence kind), followed by the divergence
