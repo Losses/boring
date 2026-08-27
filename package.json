@@ -6,7 +6,7 @@
     "reference/ts"
   ],
   "scripts": {
-    "test": "bun test tests/",
+    "test": "bun test tests/ts/",
     "test:haxe": "haxe tests/haxe/compile.hxml && bun out/haxe/tests.js",
     "test:kotlin": "mkdir -p out/kotlin && kotlinc $(find reference/kotlin/gen -name '*.kt') tests/kotlin/Main.kt -include-runtime -d out/kotlin/tests.jar && java -cp out/kotlin/tests.jar MainKt",
     "test:rust": "cargo test",
