@@ -58,6 +58,10 @@ impl<'a> VectorReader<'a> {
         VectorReader { bytes, offset: 0 }
     }
 
+    pub fn read_u16(&mut self) -> Result<u16, VectorError> {
+        Ok(u16::from_be_bytes(self.take_n::<2>()?))
+    }
+
     pub fn read_u32(&mut self) -> Result<u32, VectorError> {
         Ok(u32::from_be_bytes(self.take_n::<4>()?))
     }
