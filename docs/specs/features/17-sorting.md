@@ -39,7 +39,7 @@ Two rules bind every strategy:
 
 ## Current translations
 
-No sort exists in the current codebase. `haxe/src/boring/VectorCodec.hx`, `rust/src/lib.rs`, and `ts/src/vector-format.ts` all iterate records in stored order. The Kotlin tree does not exist yet; its rulings bind generated code.
+No sort exists in the current codebase. `samples/boring/VectorCodec.hx`, `reference/rust/src/lib.rs`, and `reference/ts/src/vector-format.ts` all iterate records in stored order. The Kotlin tree does not exist yet; its rulings bind generated code.
 
 ## Candidate translations
 
@@ -108,7 +108,7 @@ export function vectorSortByCodePoint(records: GlyphMetricsRecord[]): GlyphMetri
 }
 ```
 
-Three tiers. At most 32 elements: insertion sort on the records, zero allocation. Integer keys in range: one `Float64Array`, one comparator-free numeric sort in engine-native code, one permutation pass. Keys outside the pack range, from a future strategy with unbounded integer or float keys: the decorated fallback keeps the function total without a new error variant. The bodies of `insertionSortByCodePoint` and `decoratedSortByCodePoint` live in the runtime module `ts/src/vector-sort.ts`.
+Three tiers. At most 32 elements: insertion sort on the records, zero allocation. Integer keys in range: one `Float64Array`, one comparator-free numeric sort in engine-native code, one permutation pass. Keys outside the pack range, from a future strategy with unbounded integer or float keys: the decorated fallback keeps the function total without a new error variant. The bodies of `insertionSortByCodePoint` and `decoratedSortByCodePoint` live in the runtime module `reference/ts/src/vector-sort.ts`.
 
 ### JavaScript Candidate 3: Hand-written merge sort
 
@@ -158,4 +158,4 @@ fun vectorSortByCodePoint(records: MutableList<GlyphMetrics>): MutableList<Glyph
 - `tests/haxe/Main.hx` runs the same two input arrays against `VectorSort.byCodePoint` and asserts the same expectations.
 - `tests/rust/vector.rs` runs the same two input arrays against `vector_sort_by_code_point` and asserts the same expectations.
 - An identity test runs the same shuffled input through the Haxe, TypeScript, and Rust trees and asserts the three output code point sequences are equal element for element.
-- A structure test scans `ts/src` and asserts the only `sort(` call sites with a comparator are inside `ts/src/vector-sort.ts`.
+- A structure test scans `reference/ts/src` and asserts the only `sort(` call sites with a comparator are inside `reference/ts/src/vector-sort.ts`.

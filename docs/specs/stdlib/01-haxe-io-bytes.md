@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification rules the representation of contiguous byte arrays, buffer allocation, and byte slicing across Haxe, Rust, TypeScript, and Kotlin. In the current codebase, `haxe.io.Bytes` appears in Haxe in `haxe/src/boring/BinaryReader.hx` (lines 3, 12, 15), `haxe/src/boring/BinaryWriter.hx` (lines 3, 44-46), and `haxe/src/boring/VectorCodec.hx` (lines 3, 13, 28), in Rust as borrowed byte slices `&[u8]` and owned byte vectors `Vec<u8>` in `rust/src/lib.rs` (lines 51-54, 84, 100), and in TypeScript as `Uint8Array` in `ts/src/codec.ts` (lines 11, 54-56, 78-81) and `ts/src/vector-format.ts` (lines 15, 30). In Kotlin, byte arrays appear as `ByteArray` with cursor tracking in `kotlin/src/boring/BinaryReader.kt` and `kotlin/src/boring/BinaryWriter.kt`.
+This specification rules the representation of contiguous byte arrays, buffer allocation, and byte slicing across Haxe, Rust, TypeScript, and Kotlin. In the current codebase, `haxe.io.Bytes` appears in Haxe in `samples/boring/BinaryReader.hx` (lines 3, 12, 15), `samples/boring/BinaryWriter.hx` (lines 3, 44-46), and `samples/boring/VectorCodec.hx` (lines 3, 13, 28), in Rust as borrowed byte slices `&[u8]` and owned byte vectors `Vec<u8>` in `reference/rust/src/lib.rs` (lines 51-54, 84, 100), and in TypeScript as `Uint8Array` in `reference/ts/src/codec.ts` (lines 11, 54-56, 78-81) and `reference/ts/src/vector-format.ts` (lines 15, 30). In Kotlin, byte arrays appear as `ByteArray` with cursor tracking in `reference/kotlin/src/boring/BinaryReader.kt` and `reference/kotlin/src/boring/BinaryWriter.kt`.
 
 ## Haxe construct
 
@@ -26,7 +26,7 @@ In the Haxe typed AST, `haxe.io.Bytes` is represented by `haxe.macro.Type.TClass
 
 ## Current translations
 
-### Haxe (`haxe/src/boring/BinaryReader.hx`, `haxe/src/boring/BinaryWriter.hx`, `haxe/src/boring/VectorCodec.hx`)
+### Haxe (`samples/boring/BinaryReader.hx`, `samples/boring/BinaryWriter.hx`, `samples/boring/VectorCodec.hx`)
 
 ```haxe
 public static function encode(records:Array<GlyphMetrics>):Bytes {
@@ -41,7 +41,7 @@ public static function decode(bytes:Bytes):Array<GlyphMetrics> {
 }
 ```
 
-### Rust (`rust/src/lib.rs`)
+### Rust (`reference/rust/src/lib.rs`)
 
 ```rust
 pub fn encode_vector(records: &[GlyphMetrics]) -> Result<Vec<u8>, VectorError> {
@@ -59,7 +59,7 @@ pub fn decode_vector(bytes: &[u8]) -> Result<Vec<GlyphMetrics>, VectorError> {
 }
 ```
 
-### TypeScript (`ts/src/codec.ts`, `ts/src/vector-format.ts`)
+### TypeScript (`reference/ts/src/codec.ts`, `reference/ts/src/vector-format.ts`)
 
 ```ts
 export function encodeVector(records: readonly GlyphMetricsRecord[]): Uint8Array {

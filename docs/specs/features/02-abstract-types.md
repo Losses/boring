@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification rules the translation of Haxe abstract types into Rust, TypeScript, and Kotlin. In the current codebase, one abstract appears: `ReadOnlyArray<T>` in `haxe/src/std/ReadOnlyArray.hx`, the read-only array type ruled in `docs/specs/features/18-immutability.md`. Domain records otherwise use primitive `Int` and `Float` types; specialized scalar domains such as `CodePoint` (constrained to valid Unicode ranges) and `EmUnit` (floating-point em coordinates) are future work. In Kotlin, the `ReadOnlyArray` type lowers to the read-only `List` return type of `kotlin/src/boring/VectorCodec.kt`.
+This specification rules the translation of Haxe abstract types into Rust, TypeScript, and Kotlin. In the current codebase, one abstract appears: `ReadOnlyArray<T>` in `samples/std/ReadOnlyArray.hx`, the read-only array type ruled in `docs/specs/features/18-immutability.md`. Domain records otherwise use primitive `Int` and `Float` types; specialized scalar domains such as `CodePoint` (constrained to valid Unicode ranges) and `EmUnit` (floating-point em coordinates) are future work. In Kotlin, the `ReadOnlyArray` type lowers to the read-only `List` return type of `reference/kotlin/src/boring/VectorCodec.kt`.
 
 ## Haxe construct
 
@@ -27,7 +27,7 @@ In the Haxe typed AST, an abstract type is represented by `haxe.macro.Type.TAbst
 
 ## Current translations
 
-### Haxe (`haxe/src/boring/GlyphMetrics.hx`)
+### Haxe (`samples/boring/GlyphMetrics.hx`)
 
 Absent. Primitive types are used directly:
 
@@ -39,7 +39,7 @@ typedef GlyphMetrics = {
 }
 ```
 
-### Rust (`rust/src/lib.rs`)
+### Rust (`reference/rust/src/lib.rs`)
 
 Absent. Primitive types are used directly:
 
@@ -52,7 +52,7 @@ pub struct GlyphMetrics {
 }
 ```
 
-### TypeScript (`ts/src/records.ts`)
+### TypeScript (`reference/ts/src/records.ts`)
 
 Absent. Primitive types are used directly:
 

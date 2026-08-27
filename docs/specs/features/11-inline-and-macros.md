@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification rules the translation of Haxe `inline` variable declarations, `inline` member functions, and compile-time macro transformations into Rust, TypeScript, and Kotlin. In the current codebase, inline constants appear in Haxe as `VectorCodec.MAGIC` in `haxe/src/boring/VectorCodec.hx` (line 11), in Rust as `VECTOR_MAGIC` and `RECORD_BYTE_LENGTH` in `rust/src/lib.rs` (lines 24, 25), and in TypeScript as `VECTOR_MAGIC` and `RECORD_BYTE_LENGTH` in `ts/src/vector-format.ts` (lines 10, 11). Macro architecture for binary schema generation is defined in `docs/specs/binary/02-binary-meta-abstraction.md`. In Kotlin, inline constants appear as `const val` members of the `VectorCodec` object in `kotlin/src/boring/VectorCodec.kt`.
+This specification rules the translation of Haxe `inline` variable declarations, `inline` member functions, and compile-time macro transformations into Rust, TypeScript, and Kotlin. In the current codebase, inline constants appear in Haxe as `VectorCodec.MAGIC` in `samples/boring/VectorCodec.hx` (line 11), in Rust as `VECTOR_MAGIC` and `RECORD_BYTE_LENGTH` in `reference/rust/src/lib.rs` (lines 24, 25), and in TypeScript as `VECTOR_MAGIC` and `RECORD_BYTE_LENGTH` in `reference/ts/src/vector-format.ts` (lines 10, 11). Macro architecture for binary schema generation is defined in `docs/specs/binary/02-binary-meta-abstraction.md`. In Kotlin, inline constants appear as `const val` members of the `VectorCodec` object in `reference/kotlin/src/boring/VectorCodec.kt`.
 
 ## Haxe construct
 
@@ -24,7 +24,7 @@ In the Haxe typed AST, inline member functions are marked by `FieldKind.FMethod(
 
 ## Current translations
 
-### Haxe (`haxe/src/boring/VectorCodec.hx`)
+### Haxe (`samples/boring/VectorCodec.hx`)
 
 ```haxe
 class VectorCodec {
@@ -33,14 +33,14 @@ class VectorCodec {
 }
 ```
 
-### Rust (`rust/src/lib.rs`)
+### Rust (`reference/rust/src/lib.rs`)
 
 ```rust
 pub const VECTOR_MAGIC: &[u8; 4] = b"BRG1";
 pub const RECORD_BYTE_LENGTH: usize = 44;
 ```
 
-### TypeScript (`ts/src/vector-format.ts`)
+### TypeScript (`reference/ts/src/vector-format.ts`)
 
 ```ts
 export const VECTOR_MAGIC = "BRG1";

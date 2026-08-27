@@ -5,12 +5,12 @@
 This specification defines the binary wire format for glyph metrics records shared across the Haxe, Kotlin, Rust, and TypeScript implementations. It rules byte alignment, field ordering, integer and floating-point representations, endianness, count domain, and numerical precision constraints. The layout is language-independent: any other target the Reflaxe pipeline emits decodes the same bytes under the type rulings in `features/` and `stdlib/`.
 
 The wire format is implemented in:
-- `haxe/src/boring/VectorCodec.hx`
-- `kotlin/src/boring/VectorCodec.kt`
-- `rust/src/lib.rs`
-- `ts/src/vector-format.ts`
+- `samples/boring/VectorCodec.hx`
+- `reference/kotlin/src/boring/VectorCodec.kt`
+- `reference/rust/src/lib.rs`
+- `reference/ts/src/vector-format.ts`
 
-The Reflaxe-generated trees (`ts/gen`, `kotlin/gen`) decode under the same rulings as their hand-written counterparts.
+The Reflaxe-generated trees (`reference/ts/gen`, `reference/kotlin/gen`) decode under the same rulings as their hand-written counterparts.
 
 Fixed test vectors verifying this layout live in:
 - `tests/vectors/roundtrip.json` (human-readable vector definitions)
@@ -18,7 +18,7 @@ Fixed test vectors verifying this layout live in:
 
 Count-domain edge coverage lives in the per-tree suites:
 - `tests/haxe/Main.hx`
-- `tests/ts/vector.test.ts` and `tests/ts/generated-tree.test.ts`
+- `tests/ts/vector.test.ts` and `tests/reference/ts/generated-tree.test.ts`
 - `tests/kotlin/Main.kt`
 - `tests/rust/vector.rs`
 

@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification rules the translation of `haxe.Exception`, exception propagation, and catch block mechanics into Rust, TypeScript, and Kotlin. In the current codebase, exceptions appear in Haxe in `haxe/src/boring/VectorCodec.hx` (lines 33, 51) and `tests/haxe/Main.hx` (lines 102-113), structured error variants appear in Rust in `rust/src/lib.rs` (lines 28-48, 62, 66, 79, 85, 102, 106, 128) and `tests/rust/vector.rs` (lines 72-96), and thrown errors appear in TypeScript in `ts/src/vector-format.ts` (lines 36, 51) and `tests/ts/codec.test.ts` (lines 66-80). In Kotlin, exceptions appear as the sealed `VectorException` hierarchy thrown in `kotlin/src/boring/VectorCodec.kt` and caught in `tests/kotlin/Main.kt`.
+This specification rules the translation of `haxe.Exception`, exception propagation, and catch block mechanics into Rust, TypeScript, and Kotlin. In the current codebase, exceptions appear in Haxe in `samples/boring/VectorCodec.hx` (lines 33, 51) and `tests/haxe/Main.hx` (lines 102-113), structured error variants appear in Rust in `reference/rust/src/lib.rs` (lines 28-48, 62, 66, 79, 85, 102, 106, 128) and `tests/rust/vector.rs` (lines 72-96), and thrown errors appear in TypeScript in `reference/ts/src/vector-format.ts` (lines 36, 51) and `tests/ts/codec.test.ts` (lines 66-80). In Kotlin, exceptions appear as the sealed `VectorException` hierarchy thrown in `reference/kotlin/src/boring/VectorCodec.kt` and caught in `tests/kotlin/Main.kt`.
 
 ## Haxe construct
 
@@ -23,7 +23,7 @@ In the Haxe typed AST, exceptions are constructed via `haxe.macro.TypedExprDef.T
 
 ## Current translations
 
-### Haxe (`haxe/src/boring/VectorCodec.hx`, `tests/haxe/Main.hx`)
+### Haxe (`samples/boring/VectorCodec.hx`, `tests/haxe/Main.hx`)
 
 ```haxe
 if (magic != MAGIC) {
@@ -47,7 +47,7 @@ try {
 expectTrue("bad magic throws the BadMagic variant", badMagicVariant == BadMagic);
 ```
 
-### Rust (`rust/src/lib.rs`)
+### Rust (`reference/rust/src/lib.rs`)
 
 ```rust
 #[derive(Debug, PartialEq)]
@@ -74,7 +74,7 @@ impl std::fmt::Display for VectorError {
 impl std::error::Error for VectorError {}
 ```
 
-### TypeScript (`ts/src/vector-format.ts`)
+### TypeScript (`reference/ts/src/vector-format.ts`)
 
 ```ts
 if (magic !== VECTOR_MAGIC) {

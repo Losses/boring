@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification rules the translation of Haxe algebraic data types (enums with parameters) and pattern matching constructs into Rust, TypeScript, and Kotlin. In the current codebase, algebraic sum types appear in Haxe as the `VectorError` enum carried by `VectorException` in `haxe/src/boring/`, in Rust as `VectorError` in `rust/src/lib.rs`, in TypeScript as the `VectorError` union carried by `VectorException` in `ts/src/vector-error.ts`, and in Kotlin as the sealed `VectorException` hierarchy in `kotlin/src/boring/VectorException.kt`.
+This specification rules the translation of Haxe algebraic data types (enums with parameters) and pattern matching constructs into Rust, TypeScript, and Kotlin. In the current codebase, algebraic sum types appear in Haxe as the `VectorError` enum carried by `VectorException` in `samples/boring/`, in Rust as `VectorError` in `reference/rust/src/lib.rs`, in TypeScript as the `VectorError` union carried by `VectorException` in `reference/ts/src/vector-error.ts`, and in Kotlin as the sealed `VectorException` hierarchy in `reference/kotlin/src/boring/VectorException.kt`.
 
 ## Haxe construct
 
@@ -47,7 +47,7 @@ In the Haxe typed AST, an enum type is represented by `haxe.macro.Type.TEnum(t:R
 
 ## Current translations
 
-### Rust (`rust/src/lib.rs`)
+### Rust (`reference/rust/src/lib.rs`)
 
 ```rust
 #[derive(Debug, PartialEq)]
@@ -72,7 +72,7 @@ impl std::fmt::Display for VectorError {
 }
 ```
 
-### Haxe (`haxe/src/boring/VectorCodec.hx`)
+### Haxe (`samples/boring/VectorCodec.hx`)
 
 Absent. The Haxe tree uses string exceptions:
 
@@ -82,7 +82,7 @@ if (magic != MAGIC) {
 }
 ```
 
-### TypeScript (`ts/src/vector-format.ts`)
+### TypeScript (`reference/ts/src/vector-format.ts`)
 
 Absent. The TypeScript tree uses standard `Error` objects with string messages:
 

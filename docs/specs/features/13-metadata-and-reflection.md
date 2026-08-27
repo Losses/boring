@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification rules compiler metadata tags (`@:native`, `@:keep`, `@:build`, custom metadata) and runtime reflection (`Type`, `Reflect`) across Haxe, Rust, TypeScript, and Kotlin. In the current codebase, compiler metadata appears in Haxe extern declarations in `haxe/src/std/Process.hx` (line 7) and `haxe/src/std/Console.hx` (line 7), derive attributes appear in Rust in `rust/src/lib.rs` (lines 9, 17, 27), and typed runtime validators appear in TypeScript in `ts/src/vector-json.ts` (lines 14-65). `tests/haxe/Main.hx` explicitly notes (lines 13-16) that reflection is unused in tests. In Kotlin, the codec declares no runtime reflection; failure identity is the sealed class hierarchy of `kotlin/src/boring/VectorException.kt`.
+This specification rules compiler metadata tags (`@:native`, `@:keep`, `@:build`, custom metadata) and runtime reflection (`Type`, `Reflect`) across Haxe, Rust, TypeScript, and Kotlin. In the current codebase, compiler metadata appears in Haxe extern declarations in `samples/std/Process.hx` (line 7) and `samples/std/Console.hx` (line 7), derive attributes appear in Rust in `reference/rust/src/lib.rs` (lines 9, 17, 27), and typed runtime validators appear in TypeScript in `reference/ts/src/vector-json.ts` (lines 14-65). `tests/haxe/Main.hx` explicitly notes (lines 13-16) that reflection is unused in tests. In Kotlin, the codec declares no runtime reflection; failure identity is the sealed class hierarchy of `reference/kotlin/src/boring/VectorException.kt`.
 
 ## Haxe construct
 
@@ -27,7 +27,7 @@ In the Haxe typed AST, metadata entries are represented by `haxe.macro.Expr.Meta
 
 ## Current translations
 
-### Haxe (`haxe/src/std/Process.hx`, `tests/haxe/Main.hx`)
+### Haxe (`samples/std/Process.hx`, `tests/haxe/Main.hx`)
 
 ```haxe
 @:native("process")
@@ -49,7 +49,7 @@ static function recordEquals(left:GlyphMetrics, right:GlyphMetrics):Bool {
 }
 ```
 
-### Rust (`rust/src/lib.rs`)
+### Rust (`reference/rust/src/lib.rs`)
 
 ```rust
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -61,7 +61,7 @@ pub struct BoundsEm {
 }
 ```
 
-### TypeScript (`ts/src/vector-json.ts`)
+### TypeScript (`reference/ts/src/vector-json.ts`)
 
 ```ts
 export function toGlyphMetricsRecord(value: unknown): GlyphMetricsRecord {

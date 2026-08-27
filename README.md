@@ -2,43 +2,48 @@
 
 boring is a Haxe package that exposes the transpilation toolchain to
 tiqian. tiqian provides the original Haxe sources and translates them to
-each platform through the reflaxe targets under `tools/reflaxe/`.
+each platform through the reflaxe targets under `src/reflaxe/`.
 
-Every file under `haxe/src/` demonstrates language capabilities of the
+Every file under `samples/` demonstrates language capabilities of the
 translatable subset. The sample set debugs each language feature of the
 targets; it grows as the accepted construct set grows.
 
-The trees under `ts/`, `kotlin/`, and `rust/` are hand-written reference
-translations. Every tree decodes `tests/vectors/roundtrip.bin` to the
-same records and encodes those records back to the same bytes; the
-generated trees (`ts/gen/`, `kotlin/gen/`) must reproduce that behavior
-against the same vectors. Reference translations and test tooling live in
-separate trees; every test suite and the shared vectors live under
-`tests/`.
+The trees under `reference/ts/src/`, `reference/kotlin/src/`, and
+`reference/rust/src/` are hand-written reference translations.
+Every tree decodes `tests/vectors/roundtrip.bin` to the same records and
+encodes those records back to the same bytes; the generated trees
+(`reference/ts/gen/`, `reference/kotlin/gen/`, `reference/rust-gen/src/`)
+must reproduce that behavior against the same vectors. Reference
+translations and test tooling live in separate trees; every test suite
+and the shared vectors live under `tests/`.
 
-The root `package.json` is the bun workspace (member: `ts`); the root
-`Cargo.toml` is the cargo workspace (member: `rust`). The Rust test suite
-carries no manifest of its own: `rust/Cargo.toml` wires it in through an
+The root `package.json` is the bun workspace (member:
+`reference/ts`); the root `Cargo.toml` is the cargo workspace (members:
+`reference/rust`, `reference/rust-gen`). The Rust test suite carries no
+manifest of its own: `reference/rust/Cargo.toml` wires it in through an
 explicit `[[test]]` path into `tests/`.
 
 ## Layout
 
 | Path | Content |
 | --- | --- |
-| `ts/` | hand-written TypeScript reference translation (package `@boring/codec`); `ts/gen/` is the gitignored reflaxe-generated tree |
-| `haxe/` | Haxe capability samples for the translatable subset |
-| `rust/` | hand-written Rust reference translation |
-| `kotlin/` | hand-written Kotlin reference translation; `kotlin/gen/` is the gitignored reflaxe-generated tree |
+| `src/` | the transpilation toolchain: the interception pass, the runtime-package configuration, and the reflaxe targets (`src/reflaxe/ts/`, `src/reflaxe/kotlin/`, `src/reflaxe/rust/`); exposed as the `boring` haxelib package through `haxelib.json`, `extraParams.hxml`, and `defines.json` |
+| `samples/` | Haxe capability samples for the translatable subset, including the subset standard library `samples/std/` |
+| `examples/` | generation entries (`ts.hxml`, `kotlin.hxml`, `rust.hxml`) and the reflaxe smoke file; each entry demonstrates package consumption |
+| `reference/ts/` | hand-written TypeScript reference translation (package `@boring/codec`); `reference/ts/gen/` is the gitignored reflaxe-generated tree |
+| `reference/rust/` | hand-written Rust reference translation; `reference/rust-gen/` holds the reflaxe-generated Rust crate (gitignored sources) |
+| `reference/kotlin/` | hand-written Kotlin reference translation; `reference/kotlin/gen/` is the gitignored reflaxe-generated tree |
 | `tests/` | Test suites per language plus the shared vectors |
-| `tools/` | ESLint plugin, doc-style checker, commit tool, git hooks, vector generator, reflaxe transpilation targets (TypeScript, Kotlin) |
+| `tools/` | ESLint plugin, doc-style checker, commit tool, git hooks, vector generator |
 
 ## Toolchain
 
 The flake fixes the toolchain versions: haxe, bun, nodejs, the Kotlin/JVM
 compiler with JDK 21, and a stable rust toolchain from the rust overlay.
 The reflaxe compilation-target framework is a pinned flake input
-(`SomeRanDev/reflaxe` v3.0.0) registered as a dev haxelib on shell entry.
-Enter the environment with:
+(`SomeRanDev/reflaxe` v3.0.0) registered as a dev haxelib on shell
+entry; the repository itself is registered the same way, so `-lib
+boring` resolves inside the shell. Enter the environment with:
 
     nix develop
 
@@ -50,11 +55,12 @@ here; this repository needs none of them.
     nix develop -c bash -c "bun install"
     nix develop -c bash -c "bun run verify"
 
-`verify` regenerates the gitignored `ts/gen` and `kotlin/gen` trees
-through the reflaxe targets, then runs the TypeScript tests, the Haxe checks, the
-Kotlin checks, the interception suite, the Rust tests, ESLint, `tsc`, the
-documentation style check, the vector regeneration, and the reflaxe smoke
-compile. See
+`verify` regenerates the gitignored `reference/ts/gen`,
+`reference/kotlin/gen`, and `reference/rust-gen/src` trees through the
+reflaxe targets, then runs the TypeScript tests, the Haxe checks, the
+Kotlin checks, the interception suite, the Rust tests, ESLint, `tsc`,
+the documentation style check, the vector regeneration, and the reflaxe
+smoke compile. See
 `AGENT.md` for the individual commands and the repository rules.
 
 ## Data comparison and commits

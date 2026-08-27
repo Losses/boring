@@ -9,13 +9,13 @@ This document rules the design approach. The compile-time macro generator descri
 ## Current state
 
 Today, format synchronization relies on manual coordination across three files:
-- `haxe/src/boring/VectorCodec.hx`
-- `rust/src/lib.rs`
-- `ts/src/vector-format.ts`
+- `samples/boring/VectorCodec.hx`
+- `reference/rust/src/lib.rs`
+- `reference/ts/src/vector-format.ts`
 
 Format validation and test descriptions are declared in:
 - `tests/vectors/roundtrip.json`
-- `ts/src/vector-json.ts`
+- `reference/ts/src/vector-json.ts`
 
 Any change to field width, field order, or numerical types requires manual edits to each encoder and decoder.
 

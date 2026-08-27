@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification rules the read and write syntax for static objects: fixed-shape anonymous structures and their arrays. Haxe source keeps the human-friendly syntax: dot access for fields, bracket access with an integer index for arrays, and brace literals for construction. The generated code for every target uses the performance-optimal native form, and the observable behavior is identical across languages: reading a declared field always yields the stored value, construction initializes every field exactly once, and no operation changes the shape of an object after construction. In the current codebase, static objects appear as `BoundsEm` in `haxe/src/boring/GlyphMetrics.hx`, as `BoundsEm` in `rust/src/lib.rs`, and as `BoundsEmRecord` in `ts/src/records.ts`. In Kotlin, static objects appear as `GlyphBounds` in `kotlin/src/boring/GlyphMetrics.kt`.
+This specification rules the read and write syntax for static objects: fixed-shape anonymous structures and their arrays. Haxe source keeps the human-friendly syntax: dot access for fields, bracket access with an integer index for arrays, and brace literals for construction. The generated code for every target uses the performance-optimal native form, and the observable behavior is identical across languages: reading a declared field always yields the stored value, construction initializes every field exactly once, and no operation changes the shape of an object after construction. In the current codebase, static objects appear as `BoundsEm` in `samples/boring/GlyphMetrics.hx`, as `BoundsEm` in `reference/rust/src/lib.rs`, and as `BoundsEmRecord` in `reference/ts/src/records.ts`. In Kotlin, static objects appear as `GlyphBounds` in `reference/kotlin/src/boring/GlyphMetrics.kt`.
 
 ## Haxe construct
 
@@ -36,7 +36,7 @@ In the Haxe typed AST, structure literals are `haxe.macro.TypedExprDef.TObjectDe
 
 ## Current translations
 
-### Haxe (`haxe/src/boring/GlyphMetrics.hx`)
+### Haxe (`samples/boring/GlyphMetrics.hx`)
 
 ```haxe
 typedef BoundsEm = {
@@ -47,7 +47,7 @@ typedef BoundsEm = {
 }
 ```
 
-### Rust (`rust/src/lib.rs`)
+### Rust (`reference/rust/src/lib.rs`)
 
 ```rust
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -59,7 +59,7 @@ pub struct BoundsEm {
 }
 ```
 
-### TypeScript (`ts/src/records.ts`, `ts/src/vector-format.ts`)
+### TypeScript (`reference/ts/src/records.ts`, `reference/ts/src/vector-format.ts`)
 
 ```ts
 export interface BoundsEmRecord {
@@ -126,7 +126,7 @@ Behavior parity rules bind all targets:
 1. Construction initializes every declared field exactly once, in declaration order. Declaration order is part of the format definition; it keeps hidden-class transitions in V8 monomorphic and keeps JSON serialization of equivalent values identical across trees.
 2. Reading a declared field yields the stored value in every language. No language produces `null`, `undefined`, or a default on a declared field of a constructed object, because construction sets every field.
 3. Writing obeys the mutability declared in Haxe: `final` fields translate to `readonly` properties in TypeScript, non-`mut` struct fields in Rust, and `val` properties in Kotlin.
-4. Nothing changes an object's shape after construction. Rust and Kotlin make this unrepresentable; TypeScript makes it a rejection: `Reflect.set`, `delete`, and assignment to an undeclared property are rejected by the structure test that scans `ts/src` for those call sites.
+4. Nothing changes an object's shape after construction. Rust and Kotlin make this unrepresentable; TypeScript makes it a rejection: `Reflect.set`, `delete`, and assignment to an undeclared property are rejected by the structure test that scans `reference/ts/src` for those call sites.
 5. Bracket access with a `String` key on a structure is rejected on the Haxe side before generation; bracket access with an `Int` index translates to array element access on every target.
 
 Field iteration over a static object does not translate. An algorithm that must visit every field of a structure enumerates a schema-declared constant array of the field names it processes; that array is compile-time constant data and unrolls per `docs/specs/stdlib/04-haxe-ds-vector.md`. Dynamic enumeration through `Reflect.ownKeys` or `Object.keys` on static shapes is banned, consistent with `docs/specs/features/13-metadata-and-reflection.md`.
@@ -140,5 +140,5 @@ Round trips through the bounds structure are asserted in:
 
 Required guards, none of which exist yet:
 
-- A structure test asserts that no file under `ts/src` calls `Reflect.set`, `Reflect.get`, `delete`, or `Object.keys` on a record-typed value.
+- A structure test asserts that no file under `reference/ts/src` calls `Reflect.set`, `Reflect.get`, `delete`, or `Object.keys` on a record-typed value.
 - An interception test compiles a Haxe source with a `String`-keyed bracket access and a post-construction field addition, and asserts that both abort with the named violations of `docs/specs/style/01-haxe-style-standard.md`.

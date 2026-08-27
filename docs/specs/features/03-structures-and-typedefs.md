@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification rules the translation of Haxe anonymous structures and `typedef` declarations into Rust, TypeScript, and Kotlin. In the current codebase, structured records appear in Haxe as `BoundsEm` and `GlyphMetrics` in `haxe/src/boring/GlyphMetrics.hx`, in Rust as `BoundsEm` and `GlyphMetrics` in `rust/src/lib.rs` (lines 9-22), and in TypeScript as `BoundsEmRecord` and `GlyphMetricsRecord` in `ts/src/records.ts`. In Kotlin, structured records appear as `GlyphBounds` and `GlyphMetrics` in `kotlin/src/boring/GlyphMetrics.kt`.
+This specification rules the translation of Haxe anonymous structures and `typedef` declarations into Rust, TypeScript, and Kotlin. In the current codebase, structured records appear in Haxe as `BoundsEm` and `GlyphMetrics` in `samples/boring/GlyphMetrics.hx`, in Rust as `BoundsEm` and `GlyphMetrics` in `reference/rust/src/lib.rs` (lines 9-22), and in TypeScript as `BoundsEmRecord` and `GlyphMetricsRecord` in `reference/ts/src/records.ts`. In Kotlin, structured records appear as `GlyphBounds` and `GlyphMetrics` in `reference/kotlin/src/boring/GlyphMetrics.kt`.
 
 ## Haxe construct
 
@@ -29,7 +29,7 @@ In the Haxe typed AST, a `typedef` is represented by `haxe.macro.Type.TType(t:Re
 
 ## Current translations
 
-### Haxe (`haxe/src/boring/GlyphMetrics.hx`)
+### Haxe (`samples/boring/GlyphMetrics.hx`)
 
 ```haxe
 package boring;
@@ -50,7 +50,7 @@ typedef GlyphMetrics = {
 }
 ```
 
-### Rust (`rust/src/lib.rs`)
+### Rust (`reference/rust/src/lib.rs`)
 
 ```rust
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -69,7 +69,7 @@ pub struct GlyphMetrics {
 }
 ```
 
-### TypeScript (`ts/src/records.ts`)
+### TypeScript (`reference/ts/src/records.ts`)
 
 ```ts
 export interface BoundsEmRecord {

@@ -5,9 +5,9 @@
 This specification rules the procedure for localizing discrepancies when binary outputs differ across language implementations. It establishes the mathematical mapping from a byte offset to a specific logical field, and defines the reporting requirements for test failures. The procedure covers the Haxe, Rust, and TypeScript trees in the repository and the Kotlin target the pipeline will emit; no Kotlin implementation exists yet.
 
 Implementation references:
-- `haxe/src/boring/VectorCodec.hx`
-- `rust/src/lib.rs`
-- `ts/src/vector-format.ts`
+- `samples/boring/VectorCodec.hx`
+- `reference/rust/src/lib.rs`
+- `reference/ts/src/vector-format.ts`
 - `tests/vectors/roundtrip.bin`
 
 ## Offset localization algorithm
@@ -40,7 +40,7 @@ The harness maps index B to a format field using the canonical wire layout:
 
 Each identified field maps to a specific serialization statement in each codebase:
 
-| Field | Haxe encoder (`haxe/src/boring/VectorCodec.hx`) | Rust encoder (`rust/src/lib.rs`) | TypeScript encoder (`ts/src/vector-format.ts`) |
+| Field | Haxe encoder (`samples/boring/VectorCodec.hx`) | Rust encoder (`reference/rust/src/lib.rs`) | TypeScript encoder (`reference/ts/src/vector-format.ts`) |
 | --- | --- | --- | --- |
 | `magic` | `writer.writeAscii(MAGIC)` | `bytes.extend_from_slice(VECTOR_MAGIC)` | `writer.writeAscii(VECTOR_MAGIC)` |
 | `recordCount` | `writer.writeU32(records.length)` | `bytes.extend_from_slice(&count.to_be_bytes())` | `writer.writeU32(records.length)` |
@@ -66,9 +66,9 @@ Consider a byte disagreement discovered at offset B = 22 against `tests/vectors/
 4. Field evaluation: K = 14 falls within the range 12 <= K < 20.
    The failing field is `records[0].bounds.xMin`. The disagreement is at byte 2 of the 8-byte IEEE 754 float payload.
 5. Code attribution:
-   - Haxe: `VectorCodec.encode` in `haxe/src/boring/VectorCodec.hx` (line 20) via `BinaryWriter.writeF64`.
-   - Rust: `encode_vector` in `rust/src/lib.rs` (line 92) via `record.bounds.x_min.to_bits().to_be_bytes()`.
-   - TypeScript: `encodeVector` in `ts/src/vector-format.ts` (line 22) via `BinaryWriter.writeF64`.
+   - Haxe: `VectorCodec.encode` in `samples/boring/VectorCodec.hx` (line 20) via `BinaryWriter.writeF64`.
+   - Rust: `encode_vector` in `reference/rust/src/lib.rs` (line 92) via `record.bounds.x_min.to_bits().to_be_bytes()`.
+   - TypeScript: `encodeVector` in `reference/ts/src/vector-format.ts` (line 22) via `BinaryWriter.writeF64`.
 
 ## Test reporting rule
 

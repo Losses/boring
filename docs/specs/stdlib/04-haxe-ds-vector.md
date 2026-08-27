@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification rules the translation of fixed-length contiguous arrays (`haxe.ds.Vector<T>`) into Rust, TypeScript, and Kotlin. In the current codebase, fixed-size byte headers appear in Rust as `[u8; 4]` and const generic chunk arrays `[u8; N]` in `rust/src/lib.rs`, pre-allocated record vectors appear in Rust as `Vec::with_capacity` in `rust/src/lib.rs`, dynamically populated record lists appear in Haxe in `haxe/src/boring/VectorCodec.hx`, pre-allocated buffers appear in TypeScript in `ts/src/codec.ts` and `ts/src/vector-format.ts`, and counted fills appear in Kotlin as the array initializer in `kotlin/src/boring/VectorCodec.kt`.
+This specification rules the translation of fixed-length contiguous arrays (`haxe.ds.Vector<T>`) into Rust, TypeScript, and Kotlin. In the current codebase, fixed-size byte headers appear in Rust as `[u8; 4]` and const generic chunk arrays `[u8; N]` in `reference/rust/src/lib.rs`, pre-allocated record vectors appear in Rust as `Vec::with_capacity` in `reference/rust/src/lib.rs`, dynamically populated record lists appear in Haxe in `samples/boring/VectorCodec.hx`, pre-allocated buffers appear in TypeScript in `reference/ts/src/codec.ts` and `reference/ts/src/vector-format.ts`, and counted fills appear in Kotlin as the array initializer in `reference/kotlin/src/boring/VectorCodec.kt`.
 
 ## Haxe construct
 
@@ -27,7 +27,7 @@ In the Haxe typed AST, `haxe.ds.Vector` is represented by `haxe.macro.Type.TAbst
 
 ## Current translations
 
-### Haxe (`haxe/src/boring/VectorCodec.hx`)
+### Haxe (`samples/boring/VectorCodec.hx`)
 
 Haxe currently uses `Array<GlyphMetrics>` for record collections:
 
@@ -51,7 +51,7 @@ public static function decode(bytes:Bytes):Array<GlyphMetrics> {
 }
 ```
 
-### Rust (`rust/src/lib.rs`)
+### Rust (`reference/rust/src/lib.rs`)
 
 ```rust
 pub const VECTOR_MAGIC: &[u8; 4] = b"BRG1";
@@ -75,7 +75,7 @@ pub fn decode_vector(bytes: &[u8]) -> Result<Vec<GlyphMetrics>, VectorError> {
 }
 ```
 
-### TypeScript (`ts/src/codec.ts`, `ts/src/vector-format.ts`)
+### TypeScript (`reference/ts/src/codec.ts`, `reference/ts/src/vector-format.ts`)
 
 ```ts
 export function decodeVector(bytes: Uint8Array): GlyphMetricsRecord[] {
@@ -90,7 +90,7 @@ export function decodeVector(bytes: Uint8Array): GlyphMetricsRecord[] {
 }
 ```
 
-### Kotlin (`kotlin/src/boring/VectorCodec.kt`)
+### Kotlin (`reference/kotlin/src/boring/VectorCodec.kt`)
 
 ```kotlin
 fun decode(bytes: ByteArray): List<GlyphMetrics> {
@@ -223,7 +223,7 @@ fun encodeMagic(writer: BinaryWriter): Unit {
 
 Compile-time fixed-length byte buffers translate to fixed-size array types (`[u8; N]`) in Rust, fixed-size `Uint8Array` views in TypeScript, and `ByteArray` slices with a named length constant in Kotlin. Runtime collections with known lengths translate to the platform's pre-allocated fill form: `Vec::with_capacity(capacity)` with `push` in Rust, `new Array<T>(count)` with indexed stores `records[i] = ...` in TypeScript, the array initializer `Array(count) { index -> ... }` in Kotlin when the destination is a fixed-size array, `ArrayList<T>(count)` with `add` in Kotlin only where the API requires a mutable list, and indexed stores `records[index] = ...` on a fresh Haxe array, whose JavaScript lowering allocates the exact size. The fill and the allocation share the count, one allocation covers the whole fill, and no growth copy runs. The `arrayOfNulls` plus `requireNoNulls` form is retired: it fills through a nullable view and casts at the boundary, while the array initializer states the fill directly.
 
-Static-length arrays whose length and contents are compile-time constants unroll at build time. When the constant width matches a primitive wire write, the whole array folds into one constant: `WireAscii(4)` over `BRG1` becomes the u32 constant `0x42524731` written through `writeU32`, replacing the per-character loop in `BinaryWriter.writeAscii` (`haxe/src/boring/BinaryWriter.hx`, lines 38-42) and `writeAscii` in `ts/src/codec.ts` (lines 46-52). The same fold produces the `Int` constant `0x42524731` in Kotlin, which fits the positive `Int` range. When the constant width matches no primitive write, the generator emits one named constant per element and references the constants by name; no runtime array is allocated for data whose contents are already known at compile time. Kotlin declares no `const` arrays, so per-element constants are the only constant-array form. Generated and handwritten codec code keeps no per-element loop over compile-time constant data.
+Static-length arrays whose length and contents are compile-time constants unroll at build time. When the constant width matches a primitive wire write, the whole array folds into one constant: `WireAscii(4)` over `BRG1` becomes the u32 constant `0x42524731` written through `writeU32`, replacing the per-character loop in `BinaryWriter.writeAscii` (`samples/boring/BinaryWriter.hx`, lines 38-42) and `writeAscii` in `reference/ts/src/codec.ts` (lines 46-52). The same fold produces the `Int` constant `0x42524731` in Kotlin, which fits the positive `Int` range. When the constant width matches no primitive write, the generator emits one named constant per element and references the constants by name; no runtime array is allocated for data whose contents are already known at compile time. Kotlin declares no `const` arrays, so per-element constants are the only constant-array form. Generated and handwritten codec code keeps no per-element loop over compile-time constant data.
 
 Length mismatches on wire decoding fail immediately with `VectorError::UnexpectedEof` in Rust, the thrown `VectorException` carrying `UnexpectedEof` in Haxe and TypeScript, and thrown `VectorException.UnexpectedEof` in Kotlin.
 

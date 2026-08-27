@@ -56,7 +56,7 @@ class VectorCodecTests {
 
 Rulings:
 
-- Test modules live in the `tests.*` package under `haxe/src/tests/`;
+- Test modules live in the `tests.*` package under `samples/tests/`;
   they are intercepted like every other sample module and count as
   entry modules for generation.
 - The metadata carries the declaration; a name prefix convention
@@ -83,7 +83,7 @@ Rulings:
 ## Stage 1, assertion API: `std.Test`
 
 `std.Test` joins the standard library ruled by standard library
-spec 06: declared in `haxe/src/std/Test.hx` on the compile-input side, lowered
+spec 06: declared in `samples/std/Test.hx` on the compile-input side, lowered
 through the runtime package per target, never appearing in output as
 the `std` namespace.
 
@@ -174,7 +174,7 @@ only these files.
 
 ### Haxe (reference tree)
 
-The reference tree compiles `haxe/src` and runs the same tests. A
+The reference tree compiles `samples` and runs the same tests. A
 compile-time macro collects the `@:test` statics and generates the
 runner main that calls each through `Test.run` in declaration order,
 catching each failure and printing the canonical message, exiting
@@ -202,8 +202,8 @@ selected runner:
 // <ts-test-output>/tests/VectorCodecTests.test.ts   (ts-test-runner=bun)
 import { test } from "bun:test";
 import { Test } from "@boring/runtime";
-import { VectorCodec } from "../../ts/gen/boring/VectorCodec.ts";
-import { TestData } from "../../ts/gen/tests/TestData.ts";
+import { VectorCodec } from "../../reference/ts/gen/boring/VectorCodec.ts";
+import { TestData } from "../../reference/ts/gen/tests/TestData.ts";
 
 test("tests.VectorCodecTests.roundtrip: encode then decode returns the input records", () =>
     Test.run("tests.VectorCodecTests.roundtrip", () => {

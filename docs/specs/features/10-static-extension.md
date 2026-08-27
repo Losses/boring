@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification rules the translation of Haxe static extensions (`using Module;`) into Rust, TypeScript, and Kotlin. In the current codebase, static extensions do not appear in `haxe/src/boring/`, which uses direct static method calls such as `haxe.io.FPHelper.doubleToI64(value)` in `haxe/src/boring/BinaryWriter.hx` (line 31) and `Bytes.ofHex` in `tests/haxe/Main.hx` (line 83). In Rust, methods appear as struct `impl` blocks in `rust/src/lib.rs` (lines 56-82), and in TypeScript, methods appear as class member functions in `ts/src/codec.ts` (lines 21-70) or free module functions in `ts/src/vector-format.ts` (lines 15, 30). In Kotlin, the codec uses direct calls on the `VectorCodec` object in `kotlin/src/boring/VectorCodec.kt`; no static extensions appear in `kotlin/src/boring/`.
+This specification rules the translation of Haxe static extensions (`using Module;`) into Rust, TypeScript, and Kotlin. In the current codebase, static extensions do not appear in `samples/boring/`, which uses direct static method calls such as `haxe.io.FPHelper.doubleToI64(value)` in `samples/boring/BinaryWriter.hx` (line 31) and `Bytes.ofHex` in `tests/haxe/Main.hx` (line 83). In Rust, methods appear as struct `impl` blocks in `reference/rust/src/lib.rs` (lines 56-82), and in TypeScript, methods appear as class member functions in `reference/ts/src/codec.ts` (lines 21-70) or free module functions in `reference/ts/src/vector-format.ts` (lines 15, 30). In Kotlin, the codec uses direct calls on the `VectorCodec` object in `reference/kotlin/src/boring/VectorCodec.kt`; no static extensions appear in `reference/kotlin/src/boring/`.
 
 ## Haxe construct
 
@@ -30,9 +30,9 @@ In the Haxe typed AST, static extensions resolve during typing into `haxe.macro.
 
 ## Current translations
 
-### Haxe (`haxe/src/boring/BinaryWriter.hx`, `tests/haxe/Main.hx`)
+### Haxe (`samples/boring/BinaryWriter.hx`, `tests/haxe/Main.hx`)
 
-Absent in `haxe/src/boring/`. Haxe uses direct static method calls:
+Absent in `samples/boring/`. Haxe uses direct static method calls:
 
 ```haxe
 final bits = haxe.io.FPHelper.doubleToI64(value);
@@ -44,7 +44,7 @@ In `tests/haxe/Main.hx` (line 83):
 final decoded = VectorCodec.decode(Bytes.ofHex(EXPECTED_HEX));
 ```
 
-### Rust (`rust/src/lib.rs`)
+### Rust (`reference/rust/src/lib.rs`)
 
 Absent as extension traits. Rust uses inherent `impl` blocks on structs and free functions for module-level operations:
 
@@ -64,7 +64,7 @@ pub fn encode_vector(records: &[GlyphMetrics]) -> Result<Vec<u8>, VectorError> {
 }
 ```
 
-### TypeScript (`ts/src/codec.ts`, `ts/src/vector-format.ts`)
+### TypeScript (`reference/ts/src/codec.ts`, `reference/ts/src/vector-format.ts`)
 
 Absent as declaration merging. TypeScript uses class member methods and free module functions:
 

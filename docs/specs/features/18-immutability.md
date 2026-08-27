@@ -8,9 +8,9 @@ mutation attempt reported at the earliest point each platform can state it.
 Decoded vector data is the reference case: `VectorCodec.decode` and the JSON
 boundary return records that downstream code reads and never writes. In the
 current codebase, the read-only record types appear in TypeScript as the
-`readonly` members of `ts/src/records.ts`, the Haxe source exposes decoded
-arrays through the `ReadOnlyArray` abstract in `haxe/src/boring/`, the Kotlin
-codec returns the `List` view built in `kotlin/src/boring/VectorCodec.kt`,
+`readonly` members of `reference/ts/src/records.ts`, the Haxe source exposes decoded
+arrays through the `ReadOnlyArray` abstract in `samples/boring/`, the Kotlin
+codec returns the `List` view built in `reference/kotlin/src/boring/VectorCodec.kt`,
 and Rust exposes decoded data through borrowed slices per this ruling.
 
 ## Haxe construct
@@ -46,7 +46,7 @@ for the read-only lowering below.
 
 ## Current translations
 
-### Haxe (`haxe/src/boring/VectorCodec.hx`)
+### Haxe (`samples/boring/VectorCodec.hx`)
 
 ```haxe
 public static function decode(bytes:Bytes):ReadOnlyArray<GlyphMetrics> {
@@ -65,7 +65,7 @@ public static function encode(records:ReadOnlyArray<GlyphMetrics>):Bytes {
 }
 ```
 
-### TypeScript (`ts/src/vector-format.ts`)
+### TypeScript (`reference/ts/src/vector-format.ts`)
 
 ```ts
 export function decodeVector(bytes: Uint8Array): readonly GlyphMetricsRecord[] {
@@ -80,14 +80,14 @@ export function decodeVector(bytes: Uint8Array): readonly GlyphMetricsRecord[] {
 }
 ```
 
-The type layer carries `readonly` members (`ts/src/records.ts`) and
+The type layer carries `readonly` members (`reference/ts/src/records.ts`) and
 `readonly` array types on every decode return; the runtime layer returns
 each record, its bounds object, and the array itself as frozen objects at
 the decode boundary (`DecodeBoundaryFreeze`). Assignment to a frozen object
 or array in strict mode, and method calls that change a frozen array,
 throw `TypeError`.
 
-### Kotlin (`kotlin/src/boring/VectorCodec.kt`)
+### Kotlin (`reference/kotlin/src/boring/VectorCodec.kt`)
 
 ```kotlin
 fun decode(bytes: ByteArray): List<GlyphMetrics> {
@@ -107,7 +107,7 @@ fun decode(bytes: ByteArray): List<GlyphMetrics> {
 }
 ```
 
-Record classes declare `val` properties only (`kotlin/src/boring/GlyphMetrics.kt`).
+Record classes declare `val` properties only (`reference/kotlin/src/boring/GlyphMetrics.kt`).
 The fill uses the array initializer ruled in `docs/specs/stdlib/04-haxe-ds-vector.md`;
 `asList()` returns the zero-copy fixed-size view over the backing array, so
 the decode return type is the read-only `List` interface (`ArrayInitializerFill`,
@@ -115,7 +115,7 @@ the decode return type is the read-only `List` interface (`ArrayInitializerFill`
 `UnsupportedOperationException` at runtime; element writes have no pathway
 through the `List` interface.
 
-### Rust (`rust/src/lib.rs`)
+### Rust (`reference/rust/src/lib.rs`)
 
 ```rust
 pub fn decode_vector(bytes: &[u8]) -> Result<Vec<GlyphMetrics>, VectorError> {
