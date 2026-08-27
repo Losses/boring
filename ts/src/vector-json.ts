@@ -140,5 +140,10 @@ export function toVectorFile(value: unknown): VectorFileJson {
   if (!Array.isArray(records)) {
     throw new JsonException({ kind: "RecordsNotArray" });
   }
-  return { description, records: records.map(toGlyphMetricsRecord) };
+  const parsed: GlyphMetricsRecord[] = [];
+  const count = records.length;
+  for (let i = 0; i < count; i += 1) {
+    parsed.push(toGlyphMetricsRecord(records[i]!));
+  }
+  return { description, records: parsed };
 }
