@@ -1,0 +1,19 @@
+# reflaxe TypeScript target generation (docs/specs/targets/07-reflaxe-typescript-target.md).
+# Run from the repository root: haxe tools/reflaxe/ts.hxml
+# Output lands in ts/gen via the ts-output define.
+-lib reflaxe
+-cp tools/reflaxe/ts/std-shadow
+-cp tools/reflaxe/ts
+-cp tools/haxe
+-cp haxe/src
+--macro Intercept.run(['haxe/src'])
+--macro tscompiler.Compiler.use()
+-D ts-output=ts/gen
+boring.BinaryReader
+boring.BinaryWriter
+boring.GlyphMetrics
+boring.ReadOnlyArray
+boring.VectorCodec
+boring.VectorError
+boring.VectorException
+boring.VectorSort
