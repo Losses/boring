@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification rules error representation and failure propagation across Haxe, Rust, TypeScript, and Kotlin. It defines the error taxonomy discipline: failure identity is a closed set of named variants that match one to one across all four languages, messages are display text derived from the variant, and no consumer discriminates a failure by reading a message string. In the current repository, error handling appears in Haxe via `throw new VectorException(...)` in `haxe/src/boring/VectorCodec.hx` (lines 33 and 51), in Rust via `Result<T, VectorError>` in `rust/src/lib.rs` (lines 84 and 100), in Kotlin via the sealed `VectorException` hierarchy in `kotlin/src/boring/`, and in TypeScript via `throw new VectorException({ kind: ... })` in `ts/src/vector-format.ts` (lines 37 and 52) and `ts/src/codec.ts` (line 132). Every tree carries failure identity in a variant value; the TypeScript JSON boundary (`ts/src/vector-json.ts`) validates a domain that exists only in that tree and carries its own `JsonError` variant set through the same exception shape.
+This specification rules error representation and failure propagation across Haxe, Rust, TypeScript, and Kotlin. It defines the error taxonomy discipline: failure identity is a closed set of named variants that match one to one across all four languages, messages are display text derived from the variant, and no consumer discriminates a failure by reading a message string. In the current repository, error handling appears in Haxe via `throw new VectorException(...)` in `haxe/src/boring/VectorCodec.hx`, in Rust via `Result<T, VectorError>` in `rust/src/lib.rs`, in Kotlin via the sealed `VectorException` hierarchy in `kotlin/src/boring/`, and in TypeScript via `throw new VectorException({ kind: ... })` in `ts/src/vector-format.ts` and the reader guards of `ts/src/codec.ts`. Every tree carries failure identity in a variant value; the TypeScript JSON boundary (`ts/src/vector-json.ts`) validates a domain that exists only in that tree and carries its own `JsonError` variant set through the same exception shape.
 
 ## Haxe construct
 
@@ -117,7 +117,7 @@ pub fn decode_vector(bytes: &[u8]) -> Result<Vec<GlyphMetrics>, VectorError> {
 ### TypeScript (`ts/src/vector-format.ts`)
 
 ```ts
-export function decodeVector(bytes: Uint8Array): GlyphMetricsRecord[] {
+export function decodeVector(bytes: Uint8Array): readonly GlyphMetricsRecord[] {
   const reader = new BinaryReader(bytes);
   const magic = reader.readAscii(VECTOR_MAGIC.length);
   if (magic !== VECTOR_MAGIC) {
@@ -132,13 +132,13 @@ export function decodeVector(bytes: Uint8Array): GlyphMetricsRecord[] {
     const yMin = reader.readF64();
     const xMax = reader.readF64();
     const yMax = reader.readF64();
-    const bounds = { xMin, yMin, xMax, yMax };
-    records[i] = { codePoint, advanceEm, bounds };
+    const bounds = Object.freeze({ xMin, yMin, xMax, yMax });
+    records[i] = Object.freeze({ codePoint, advanceEm, bounds });
   }
   if (reader.remaining() !== 0) {
     throw new VectorException({ kind: "TrailingBytes", remaining: reader.remaining() });
   }
-  return records;
+  return Object.freeze(records);
 }
 ```
 

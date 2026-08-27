@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification rules the translation of Haxe statement-level control flow (`if`/`else`, `switch`, `while`, `do`/`while`, `for`, `break`, `continue`, and early `return`) into Rust, TypeScript, and Kotlin, and the constructs control flow must never translate into. In the current codebase, guard clauses with early exit appear in `haxe/src/boring/VectorCodec.hx` (lines 32-34, 50-52), `rust/src/lib.rs` (lines 101-103), and `ts/src/vector-format.ts` (lines 35-37, 50-52); loops appear in `rust/src/lib.rs` (lines 89, 108) and `ts/src/vector-format.ts` (lines 20, 40); an exhaustive `match` appears in `rust/src/lib.rs` (lines 37-47); and an early-return guard appears in `ts/src/codec.ts` (line 65). No Kotlin implementation exists yet; the Kotlin rulings bind generated code.
+This specification rules the translation of Haxe statement-level control flow (`if`/`else`, `switch`, `while`, `do`/`while`, `for`, `break`, `continue`, and early `return`) into Rust, TypeScript, and Kotlin, and the constructs control flow must never translate into. In the current codebase, guard clauses with early exit appear in `haxe/src/boring/VectorCodec.hx`, `rust/src/lib.rs`, `ts/src/vector-format.ts`, and `kotlin/src/boring/VectorCodec.kt`; loops appear in `rust/src/lib.rs` and `ts/src/vector-format.ts`; a counted fill through the Kotlin array initializer appears in `kotlin/src/boring/VectorCodec.kt`; and an exhaustive `match` appears in `rust/src/lib.rs`.
 
 ## Haxe construct
 
@@ -78,7 +78,7 @@ private ensure(extra: number): void {
 
 ### Rust Candidate 1: Direct statement mapping with match
 
-`if`/`while`/`for`/`break`/`continue`/`return` translate statement for statement; `switch` translates to `match` with exhaustiveness checking; `do`/`while` translates to `loop` with a trailing `if !cond { break; }`.
+`if`, `while`, `for`, `break`, `continue`, and `return` exist on Rust directly and render unchanged; `switch` translates to `match` with exhaustiveness checking; `do`/`while` translates to `loop` with a trailing `if !cond { break; }`.
 
 ```rust
 match error {
@@ -107,7 +107,7 @@ let bytes: Vec<u8> = records
 
 ### TypeScript Candidate 1: Direct statement mapping with exhaustiveness assertion
 
-`if`/`while`/`do`/`while`/`for`/`break`/`continue`/`return` translate statement for statement; `switch` translates to a `switch` where every case body ends in `return` or `throw`, otherwise to an `if`/`else` chain on the discriminant; the final branch assigns the discriminant to `never` so the compiler rejects missing variants.
+`if`, `while`, `do`/`while`, `for`, `break`, `continue`, and `return` exist on TypeScript directly and render unchanged; `switch` translates to a `switch` where every case body ends in `return` or `throw`, otherwise to an `if`/`else` chain on the discriminant; the final branch assigns the discriminant to `never` so the compiler rejects missing variants.
 
 ```ts
 function describeKind(kind: VectorError["kind"]): string {
@@ -136,7 +136,7 @@ const description = HANDLERS[kind]();
 
 ### Kotlin Candidate 1: Direct statement mapping with when
 
-`if`/`while`/`do`/`while`/`for`/`break`/`continue`/`return` translate statement for statement; `switch` translates to a `when` expression that is exhaustive over sealed subjects without `else`.
+`if`, `while`, `do`/`while`, `for`, `break`, `continue`, and `return` exist on Kotlin directly and render unchanged; `switch` translates to a `when` expression that is exhaustive over sealed subjects without `else`.
 
 ```kotlin
 fun describeKind(error: VectorError): String = when (error) {
@@ -174,7 +174,7 @@ try {
 
 ## Ruling
 
-`if`/`else`, `while`, `do`/`while`, `break`, `continue`, and early `return` translate statement for statement in Haxe, TypeScript, and Kotlin. Rust renders `do`/`while` as `loop` with a trailing conditional `break` because it has no `do`/`while` syntax; Kotlin has native `do`/`while` and translates it directly.
+Observable behavior is identical on every platform, and each platform emits its own fastest sound construct; statement-level correspondence with the Haxe source is not a requirement. `if`/`else`, `while`, `break`, `continue`, and early `return` exist on all four targets and render unchanged; Kotlin has native `do`/`while`; Rust renders `do`/`while` as `loop` with a trailing conditional `break` because it has no `do`/`while` syntax. Constructs also merge or change shape when a platform holds a faster form with identical behavior: a counted fill loop lowers to the Kotlin array initializer and the pre-allocated constructor forms ruled in `docs/specs/stdlib/04-haxe-ds-vector.md`, and the fill stops existing as a source-level loop on that platform.
 
 Haxe `switch` translates to Rust `match`. A `match` over an enum declares no catch-all arm, so the compiler enforces exhaustiveness; a `match` over non-enum values adds a catch-all arm and documents the uncovered cases in a comment.
 
