@@ -1,16 +1,21 @@
-# Generation target for Reflaxe Kotlin
+# reflaxe Kotlin target generation
+# Run from the repository root: haxe tools/reflaxe/kotlin.hxml
+# Output lands in kotlin/gen via the kotlin-output define.
 -lib reflaxe
+-cp tools/reflaxe/kotlin/std-shadow
+-cp tools/reflaxe/kotlin
 -cp tools/haxe
 -cp haxe/src
--cp tools
 --macro Intercept.run(['haxe/src'])
---macro reflaxe.kotlin.Compiler.use()
--D kotlin-out=kotlin/src
-boring.VectorCodec
+--macro kotlincompiler.Compiler.use()
+-D kotlin-output=kotlin/gen
 boring.BinaryReader
 boring.BinaryWriter
+boring.Console
 boring.GlyphMetrics
+boring.Process
+boring.ReadOnlyArray
+boring.VectorCodec
+boring.VectorError
 boring.VectorException
 boring.VectorSort
-boring.Console
-boring.Process
