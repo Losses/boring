@@ -62,6 +62,7 @@ Every candidate translation is evaluated across four fixed axes:
 | 17 | [17-sorting.md](features/17-sorting.md) | Complete | The sort runtime: fixed named strategies, platform bodies, stability identity. |
 | 18 | [18-immutability.md](features/18-immutability.md) | Complete | Read-only data types and per-platform mutation enforcement. |
 | 19 | [19-testing.md](features/19-testing.md) | Planned | In-source tests, per-target execution, and cross-target consistency. |
+| 20 | [20-compile-time-data-tables.md](features/20-compile-time-data-tables.md) | Planned | Compile-time data expansion of large immutable lookup tables and the table emission ruling. |
 
 ### Standard library specifications
 
@@ -73,6 +74,7 @@ Every candidate translation is evaluated across four fixed axes:
 | 04 | [04-haxe-ds-vector.md](stdlib/04-haxe-ds-vector.md) | Complete | Fixed-length dense vector structures. |
 | 05 | [05-haxe-int64.md](stdlib/05-haxe-int64.md) | Complete | 64-bit integer representations and emulated arithmetic. |
 | 06 | [06-std-modules.md](stdlib/06-std-modules.md) | Complete | The subset's std modules, reserved namespaces, and the runtime package contract. |
+| 07 | [07-sorted-keyed-tables.md](stdlib/07-sorted-keyed-tables.md) | Planned | Immutable sorted keyed collections std.SortedMap and std.SortedSet: ordering contract and per-platform shapes. |
 
 ### Style specifications
 
