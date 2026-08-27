@@ -234,5 +234,128 @@ impl Process {
 		'    }',
 		'}'
 	].join("\n");
+
+	public static final SORTED_MAP_SOURCE = '
+#[derive(Debug, Clone, PartialEq)]
+pub struct SortedMap<V> {
+    keys: Vec<u32>,
+    values: Vec<V>,
+}
+
+pub struct SortedMapBuilder<V> {
+    entries: Vec<(u32, usize, V)>,
+}
+
+impl<V: Clone> SortedMap<V> {
+    pub fn builder() -> SortedMapBuilder<V> {
+        SortedMapBuilder::new()
+    }
+
+    pub fn get(&self, key: u32) -> Option<V> {
+        match self.keys.binary_search(&key) {
+            Ok(idx) => Some(self.values[idx].clone()),
+            Err(_) => None,
+        }
+    }
+
+    pub fn has(&self, key: u32) -> bool {
+        self.keys.binary_search(&key).is_ok()
+    }
+
+    pub fn size(&self) -> u32 {
+        self.keys.len() as u32
+    }
+
+    pub fn key_at(&self, index: u32) -> u32 {
+        self.keys[index as usize]
+    }
+
+    pub fn value_at(&self, index: u32) -> V {
+        self.values[index as usize].clone()
+    }
+}
+
+impl<V: Clone> SortedMapBuilder<V> {
+    pub fn new() -> Self {
+        Self { entries: Vec::new() }
+    }
+
+    pub fn put(&mut self, key: u32, value: impl Into<V>) {
+        let idx = self.entries.len();
+        self.entries.push((key, idx, value.into()));
+    }
+
+    pub fn build(mut self) -> SortedMap<V> {
+        if self.entries.is_empty() {
+            return SortedMap { keys: Vec::new(), values: Vec::new() };
+        }
+        self.entries.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.cmp(&b.1)));
+
+        let mut keys = Vec::new();
+        let mut values = Vec::new();
+
+        let mut i = 0;
+        while i < self.entries.len() {
+            let mut j = i;
+            while j + 1 < self.entries.len() && self.entries[j + 1].0 == self.entries[i].0 {
+                j += 1;
+            }
+            keys.push(self.entries[j].0);
+            values.push(self.entries[j].2.clone());
+            i = j + 1;
+        }
+
+        SortedMap { keys, values }
+    }
+}
+';
+
+	public static final SORTED_SET_SOURCE = '
+#[derive(Debug, Clone, PartialEq)]
+pub struct SortedSet {
+    keys: Vec<u32>,
+}
+
+pub struct SortedSetBuilder {
+    keys: Vec<u32>,
+}
+
+impl SortedSet {
+    pub fn builder() -> SortedSetBuilder {
+        SortedSetBuilder::new()
+    }
+
+    pub fn has(&self, key: u32) -> bool {
+        self.keys.binary_search(&key).is_ok()
+    }
+
+    pub fn size(&self) -> u32 {
+        self.keys.len() as u32
+    }
+
+    pub fn at(&self, index: u32) -> u32 {
+        self.keys[index as usize]
+    }
+}
+
+impl SortedSetBuilder {
+    pub fn new() -> Self {
+        Self { keys: Vec::new() }
+    }
+
+    pub fn put(&mut self, key: u32) {
+        self.keys.push(key);
+    }
+
+    pub fn build(mut self) -> SortedSet {
+        if self.keys.is_empty() {
+            return SortedSet { keys: Vec::new() };
+        }
+        self.keys.sort();
+        self.keys.dedup();
+        SortedSet { keys: self.keys }
+    }
+}
+';
 }
 #end

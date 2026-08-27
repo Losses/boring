@@ -62,6 +62,16 @@ class TsDecl {
 			}
 		}
 
+		final tableLines: Array<String> = [];
+		for(v in varFields) {
+			if(v.isStatic && DataTableHelper.isDataTableField(v.field)) {
+				final elems = DataTableHelper.getDataTableElements(v.field.expr());
+				if(elems != null) {
+					tableLines.push(renderDataTable(v.field.name, elems));
+				}
+			}
+		}
+
 		final lines: Array<String> = [];
 		lines.push('export class ${cls.name}' + (isException(cls) ? " extends Error" : "") + " {");
 
@@ -79,7 +89,20 @@ class TsDecl {
 		}
 
 		lines.push("}");
-		return lines.join("\n");
+		final prefix = tableLines.length > 0 ? tableLines.join("\n\n") + "\n\n" : "";
+		return prefix + lines.join("\n");
+	}
+
+	function renderDataTable(name: String, elems: Array<Int>): String {
+		final formatted = [for(x in elems) (x >= 0 && x <= 9) ? Std.string(x) : "0x" + StringTools.hex(x).toLowerCase()];
+		final chunks: Array<String> = [];
+		var i = 0;
+		while(i < formatted.length) {
+			final end = Std.int(Math.min(i + 8, formatted.length));
+			chunks.push("  " + formatted.slice(i, end).join(", "));
+			i = end;
+		}
+		return 'const $name = new Int32Array([\n' + chunks.join(",\n") + "\n]);";
 	}
 
 	public function testFuncDecl(cls: ClassType, f: ClassFuncData, testRunner: String): String {
@@ -128,6 +151,9 @@ class TsDecl {
 
 	function varDecl(v: ClassVarData): Array<String> {
 		final field = v.field;
+		if(v.isStatic && DataTableHelper.isDataTableField(field)) {
+			return [];
+		}
 		if(field.meta.has(":value")) {
 			if(v.isStatic) {
 				// Inline constants fold into their use sites as TConst.

@@ -122,7 +122,7 @@ object Test {
         }
     }
 
-    fun equals(expected: String, actual: String, message: String? = null) {
+    fun equals(expected: String?, actual: String?, message: String? = null) {
         if (expected != actual) {
             val canonical = formatCanonicalMessage(currentTestId ?: \"\", message, formatValue(expected), formatValue(actual), true)
             throw AssertionError(canonical)
@@ -137,7 +137,7 @@ object Test {
     fun formatValue(v: Boolean): String = if (v) \"true\" else \"false\"
     fun formatValue(v: Int): String = v.toString()
     fun formatValue(v: Double): String = formatFloat(v)
-    fun formatValue(v: String): String = \"\\\"\" + escapeJson(v) + \"\\\"\"
+    fun formatValue(v: String?): String = if (v == null) \"null\" else \"\\\"\" + escapeJson(v) + \"\\\"\"
     fun formatValue(v: ByteArray): String = formatBytes(v)
 
     fun formatFloat(v: Double): String {
@@ -215,6 +215,97 @@ object Test {
         FileWriter(file, true).use { writer ->
             writer.write(jsonLine)
         }
+    }
+}
+";
+
+	public static final SORTED_MAP_SOURCE = "class SortedMap<V>(private val keys: IntArray, private val values: Array<Any?>) {
+    companion object {
+        fun <V> builder(): SortedMapBuilder<V> = SortedMapBuilder()
+    }
+
+    fun get(key: Int): V? {
+        val idx = keys.binarySearch(key)
+        @Suppress(\"UNCHECKED_CAST\")
+        return if (idx >= 0) values[idx] as V else null
+    }
+
+    fun has(key: Int): Boolean = keys.binarySearch(key) >= 0
+
+    fun size(): Int = keys.size
+
+    fun keyAt(index: Int): Int = keys[index]
+
+    @Suppress(\"UNCHECKED_CAST\")
+    fun valueAt(index: Int): V = values[index] as V
+}
+
+class SortedMapBuilder<V> {
+    private val entries = ArrayList<Pair<Int, V>>()
+
+    fun put(key: Int, value: V) {
+        entries.add(Pair(key, value))
+    }
+
+    fun build(): SortedMap<V> {
+        if (entries.isEmpty()) {
+            return SortedMap(IntArray(0), emptyArray())
+        }
+        val sorted = entries.mapIndexed { idx, pair -> Triple(pair.first, idx, pair.second) }
+            .sortedWith(compareBy({ it.first }, { it.second }))
+
+        val distinctKeys = ArrayList<Int>()
+        val distinctValues = ArrayList<Any?>()
+
+        var i = 0
+        while (i < sorted.size) {
+            var j = i
+            while (j + 1 < sorted.size && sorted[j + 1].first == sorted[i].first) {
+                j++
+            }
+            distinctKeys.add(sorted[j].first)
+            distinctValues.add(sorted[j].third)
+            i = j + 1
+        }
+
+        val keyArray = IntArray(distinctKeys.size) { distinctKeys[it] }
+        val valArray = distinctValues.toArray()
+        return SortedMap(keyArray, valArray)
+    }
+}
+";
+
+	public static final SORTED_SET_SOURCE = "class SortedSet(private val keys: IntArray) {
+    companion object {
+        fun builder(): SortedSetBuilder = SortedSetBuilder()
+    }
+
+    fun has(key: Int): Boolean = keys.binarySearch(key) >= 0
+
+    fun size(): Int = keys.size
+
+    fun at(index: Int): Int = keys[index]
+}
+
+class SortedSetBuilder {
+    private val keys = ArrayList<Int>()
+
+    fun put(key: Int) {
+        keys.add(key)
+    }
+
+    fun build(): SortedSet {
+        if (keys.isEmpty()) {
+            return SortedSet(IntArray(0))
+        }
+        val sorted = keys.sorted()
+        val distinct = ArrayList<Int>()
+        for (k in sorted) {
+            if (distinct.isEmpty() || distinct[distinct.size - 1] != k) {
+                distinct.add(k)
+            }
+        }
+        return SortedSet(IntArray(distinct.size) { distinct[it] })
     }
 }
 ";

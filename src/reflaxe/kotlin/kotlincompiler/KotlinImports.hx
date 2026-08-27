@@ -17,6 +17,10 @@ class KotlinImports {
 		"std.Console" => true,
 		"std.Process" => true,
 		"std.Test" => true,
+		"std.SortedMap" => true,
+		"std.SortedMapBuilder" => true,
+		"std.SortedSet" => true,
+		"std.SortedSetBuilder" => true,
 	];
 
 	final selfPack: String;
@@ -42,6 +46,9 @@ class KotlinImports {
 		reach the output.
 	**/
 	public function requireType(module: String, name: String): Void {
+		if(module == "Std" || module == "Math" || module == "String") {
+			return;
+		}
 		if(SHIM_MODULES.exists(module)) {
 			final runtimePackage = RuntimeConfig.requireImportName("module " + module);
 			state.shimsUsed.set(module, true);

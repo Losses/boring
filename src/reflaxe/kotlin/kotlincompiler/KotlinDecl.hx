@@ -366,6 +366,22 @@ class KotlinDecl {
 
 	function objectVarDecl(v: ClassVarData): Array<String> {
 		final field = v.field;
+		if(v.isStatic && DataTableHelper.isDataTableField(field)) {
+			final elems = DataTableHelper.getDataTableElements(field.expr());
+			if(elems != null) {
+				final formatted = [for(x in elems) (x >= 0 && x <= 9) ? Std.string(x) : "0x" + StringTools.hex(x).toLowerCase()];
+				final chunks: Array<String> = [];
+				var i = 0;
+				while(i < formatted.length) {
+					final end = Std.int(Math.min(i + 8, formatted.length));
+					chunks.push("        " + formatted.slice(i, end).join(", "));
+					i = end;
+				}
+				return [
+					'    val ${field.name} = intArrayOf(\n' + chunks.join(",\n") + '\n    )'
+				];
+			}
+		}
 		if(field.meta.has(":value")) {
 			final val = field.meta.extract(":value")[0].params[0];
 			final valStr = switch(val.expr) {

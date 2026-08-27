@@ -45,7 +45,7 @@ class TsImports {
 	}
 
 	function add(into: Map<String, Map<String, Bool>>, module: String, name: String): Void {
-		if(module == selfModule || module == "Math" || module == "String" || module == "std.Test") {
+		if(module == selfModule || module == "Math" || module == "String" || module == "Std" || StringTools.startsWith(module, "std.")) {
 			return;
 		}
 		if(!into.exists(module)) {

@@ -30,6 +30,7 @@ class TsType {
 					case "Int", "Float": "number";
 					case "Bool": "boolean";
 					case "Void": "void";
+					case "Null": of(params[0]) + " | null";
 					case "std.ReadOnlyArray": "readonly " + of(params[0]) + "[]";
 					case "haxe.Int64":
 						imports.runtime("Int64Halves");
@@ -45,6 +46,22 @@ class TsType {
 					case "haxe.io.BytesBuffer":
 						imports.runtime("BytesBuffer");
 						"BytesBuffer";
+					case "std.SortedMap":
+						assertIntKey(params[0]);
+						imports.runtime("SortedMap");
+						"SortedMap<" + of(params[1]) + ">";
+					case "std.SortedMapBuilder":
+						assertIntKey(params[0]);
+						imports.runtime("SortedMapBuilder");
+						"SortedMapBuilder<" + of(params[1]) + ">";
+					case "std.SortedSet":
+						assertIntKey(params[0]);
+						imports.runtime("SortedSet");
+						"SortedSet";
+					case "std.SortedSetBuilder":
+						assertIntKey(params[0]);
+						imports.runtime("SortedSetBuilder");
+						"SortedSetBuilder";
 					case _:
 						imports.type(cls.module, cls.name);
 						cls.name;
@@ -81,6 +98,17 @@ class TsType {
 
 	function pathOf(pack: Array<String>, name: String): String {
 		return pack.length == 0 ? name : pack.join(".") + "." + name;
+	}
+
+	function assertIntKey(t: Type): Void {
+		final followed = Context.follow(t);
+		final isInt = switch(followed) {
+			case TAbstract(a, _): a.get().name == "Int";
+			case _: false;
+		};
+		if(!isInt) {
+			Context.error("sorted keyed tables support Int keys in this implementation", Context.currentPos());
+		}
 	}
 
 	function fail(t: Type): String {

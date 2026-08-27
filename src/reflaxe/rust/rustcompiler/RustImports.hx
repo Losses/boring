@@ -12,9 +12,13 @@ class RustImports {
 		"std.Console" => true,
 		"std.Process" => true,
 		"std.Test" => true,
+		"std.SortedMap" => true,
+		"std.SortedMapBuilder" => true,
+		"std.SortedSet" => true,
+		"std.SortedSetBuilder" => true,
 	];
 
-	final selfModule: String;
+	public final selfModule: String;
 	final state: RustEmissionState;
 	final imports: Map<String, Bool> = [];
 
@@ -28,10 +32,19 @@ class RustImports {
 	}
 
 	public function requireType(module: String, name: String): Void {
+		if(module == "Std" || module == "Math" || module == "String") {
+			return;
+		}
 		if(SHIM_MODULES.exists(module)) {
 			final runtimePackage = RuntimeConfig.requireImportName("module " + module);
 			state.shimsUsed.set(module, true);
-			final modName = toSnakeCase(name);
+			final modName = if(module == "std.SortedMap" || module == "std.SortedMapBuilder") {
+				"sorted_map";
+			} else if(module == "std.SortedSet" || module == "std.SortedSetBuilder") {
+				"sorted_set";
+			} else {
+				toSnakeCase(name);
+			};
 			require(runtimePackage + "::" + modName + "::" + name);
 			return;
 		}

@@ -71,6 +71,16 @@ class RustDecl {
 			return lines.join("\n");
 		}
 
+		final tableLines: Array<String> = [];
+		for(v in varFields) {
+			if(v.isStatic && DataTableHelper.isDataTableField(v.field)) {
+				final elems = DataTableHelper.getDataTableElements(v.field.expr());
+				if(elems != null) {
+					tableLines.push(renderRustDataTable(v.field, elems));
+				}
+			}
+		}
+
 		final isStaticClass = isAllStatic(varFields, funcFields);
 		final lines: Array<String> = [];
 
@@ -87,7 +97,8 @@ class RustDecl {
 				for(l in staticFuncDecl(cls, f)) lines.push(l);
 			}
 			lines.push("}");
-			return lines.join("\n");
+			final prefix = tableLines.length > 0 ? tableLines.join("\n\n") + "\n\n" : "";
+			return prefix + lines.join("\n");
 		}
 
 		// Instance class
@@ -361,8 +372,24 @@ class RustDecl {
 		return null;
 	}
 
+	function renderRustDataTable(field: ClassField, elems: Array<Int>): String {
+		final vis = field.isPublic ? "pub " : "";
+		final formatted = [for(x in elems) (x >= 0 && x <= 9) ? Std.string(x) : "0x" + StringTools.hex(x).toLowerCase()];
+		final chunks: Array<String> = [];
+		var i = 0;
+		while(i < formatted.length) {
+			final end = Std.int(Math.min(i + 8, formatted.length));
+			chunks.push("    " + formatted.slice(i, end).join(", "));
+			i = end;
+		}
+		return '${vis}static ${field.name}: [u32; ${elems.length}] = [\n' + chunks.join(",\n") + "\n];";
+	}
+
 	function staticVarDecl(v: ClassVarData): Array<String> {
 		final field = v.field;
+		if(v.isStatic && DataTableHelper.isDataTableField(field)) {
+			return [];
+		}
 		final snake = RustImports.toSnakeCase(field.name);
 		if(field.meta.has(":value")) {
 			final val = field.meta.extract(":value")[0].params[0];

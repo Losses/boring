@@ -21,5 +21,12 @@ boring.VectorCodec
 boring.VectorError
 boring.VectorException
 boring.VectorSort
+boring.ScriptEvidenceTable
+boring.WordCharacterTable
+boring.CodePointNames
+std.SortedMap
+std.SortedSet
 tests.TestData
 tests.VectorCodecTests
+tests.DataTableTests
+tests.SortedTableTests

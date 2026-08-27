@@ -51,65 +51,39 @@ class TestCollector {
 				}
 				final baseName = file.substr(0, file.length - 3);
 				final moduleName = "tests." + baseName;
-				final types = try {
-					Context.getModule(moduleName);
-				} catch (e:Dynamic) {
-					continue;
-				}
-
-				for (t in types) {
-					switch (t) {
-						case TInst(c, _):
-							final cls = c.get();
-							final statics = cls.statics.get().copy();
-							statics.sort((a, b) -> Reflect.compare(Context.getPosInfos(a.pos).min, Context.getPosInfos(b.pos).min));
-
-							for (field in statics) {
-								if (!field.meta.has(":test")) {
-									continue;
-								}
-								final id = cls.module + "." + field.name;
-
-								// Validate public static Void -> Void
-								if (!field.isPublic) {
-									Context.error("Test function " + id + " must be public", field.pos);
-								}
-
-								final followedType = Context.follow(field.type);
-								switch (followedType) {
-									case TFun(args, ret):
-										final followedRet = Context.follow(ret);
-										var isVoid = switch (followedRet) {
-											case TAbstract(a, _): a.get().name == "Void";
-											case _: false;
-										};
-										if (args.length != 0 || !isVoid) {
-											Context.error("Test function " + id + " must take no arguments and return Void", field.pos);
-										}
-									case _:
-										Context.error("Test function " + id + " must be a function", field.pos);
-								}
-
-								var desc:Null<String> = null;
-								for (entry in field.meta.extract(":test")) {
-									if (entry.params != null && entry.params.length > 0) {
-										switch (entry.params[0].expr) {
-											case EConst(CString(s)): desc = s;
-											case _:
-										}
-									}
-								}
-
-								final runnerName = desc != null ? id + ": " + desc : id;
-								tests.push({
-									id: id,
-									name: runnerName,
-									moduleName: cls.module,
-									className: cls.name,
-									fieldName: field.name
-								});
-							}
-						case _:
+				final filePath = testDir + "/" + file;
+				final content = File.getContent(filePath);
+				final lines = content.split("\n");
+				var pendingDesc:Null<String> = null;
+				var hasTestMeta = false;
+				for (line in lines) {
+					final trimmed = StringTools.trim(line);
+					if (StringTools.startsWith(trimmed, "@:test")) {
+						hasTestMeta = true;
+						final parenStart = trimmed.indexOf("(\"");
+						final parenEnd = trimmed.lastIndexOf("\")");
+						if (parenStart >= 0 && parenEnd > parenStart) {
+							pendingDesc = trimmed.substring(parenStart + 2, parenEnd);
+						} else {
+							pendingDesc = null;
+						}
+					} else if (hasTestMeta && StringTools.startsWith(trimmed, "public static function ")) {
+						final rest = trimmed.substr("public static function ".length);
+						final parenIdx = rest.indexOf("(");
+						if (parenIdx > 0) {
+							final fieldName = StringTools.trim(rest.substr(0, parenIdx));
+							final id = moduleName + "." + fieldName;
+							final runnerName = pendingDesc != null ? id + ": " + pendingDesc : id;
+							tests.push({
+								id: id,
+								name: runnerName,
+								moduleName: moduleName,
+								className: baseName,
+								fieldName: fieldName
+							});
+						}
+						hasTestMeta = false;
+						pendingDesc = null;
 					}
 				}
 			}
@@ -334,6 +308,97 @@ class TestMain {
             }
         };
         js.Syntax.code("globalThis.__test_shim = {0}", testObj);
+        js.Syntax.code("
+            class JsSortedMap {
+                constructor(keys, values) { this.keys = keys; this.values = values; }
+                static builder() { return new JsSortedMapBuilder(); }
+                get(key) {
+                    let low = 0, high = this.keys.length - 1;
+                    while (low <= high) {
+                        let mid = (low + high) >> 1;
+                        if (this.keys[mid] < key) low = mid + 1;
+                        else if (this.keys[mid] > key) high = mid - 1;
+                        else return this.values[mid] !== undefined ? this.values[mid] : null;
+                    }
+                    return null;
+                }
+                has(key) {
+                    let low = 0, high = this.keys.length - 1;
+                    while (low <= high) {
+                        let mid = (low + high) >> 1;
+                        if (this.keys[mid] < key) low = mid + 1;
+                        else if (this.keys[mid] > key) high = mid - 1;
+                        else return true;
+                    }
+                    return false;
+                }
+                size() { return this.keys.length; }
+                keyAt(i) { return this.keys[i]; }
+                valueAt(i) { return this.values[i]; }
+            }
+            class JsSortedMapBuilder {
+                constructor() { this.entries = []; }
+                put(key, value) { this.entries.push({key, idx: this.entries.length, value}); }
+                build() {
+                    if (this.entries.length === 0) return new JsSortedMap([], []);
+                    this.entries.sort((a, b) => a.key === b.key ? a.idx - b.idx : a.key - b.key);
+                    let keys = [], values = [];
+                    let i = 0;
+                    while (i < this.entries.length) {
+                        let j = i;
+                        while (j + 1 < this.entries.length && this.entries[j + 1].key === this.entries[i].key) j++;
+                        keys.push(this.entries[j].key);
+                        values.push(this.entries[j].value);
+                        i = j + 1;
+                    }
+                    return new JsSortedMap(keys, values);
+                }
+            }
+            class JsSortedSet {
+                constructor(keys) { this.keys = keys; }
+                static builder() { return new JsSortedSetBuilder(); }
+                has(key) {
+                    let low = 0, high = this.keys.length - 1;
+                    while (low <= high) {
+                        let mid = (low + high) >> 1;
+                        if (this.keys[mid] < key) low = mid + 1;
+                        else if (this.keys[mid] > key) high = mid - 1;
+                        else return true;
+                    }
+                    return false;
+                }
+                size() { return this.keys.length; }
+                at(i) { return this.keys[i]; }
+            }
+            class JsSortedSetBuilder {
+                constructor() { this.keys = []; }
+                put(key) { this.keys.push(key); }
+                build() {
+                    if (this.keys.length === 0) return new JsSortedSet([]);
+                    this.keys.sort((a, b) => a - b);
+                    let distinct = [];
+                    for (let i = 0; i < this.keys.length; i++) {
+                        if (distinct.length === 0 || distinct[distinct.length - 1] !== this.keys[i]) {
+                            distinct.push(this.keys[i]);
+                        }
+                    }
+                    return new JsSortedSet(distinct);
+                }
+            }
+            globalThis.std = globalThis.std || {};
+            globalThis.std.SortedMap = JsSortedMap;
+            globalThis.std.SortedMapBuilder = JsSortedMapBuilder;
+            globalThis.std.SortedSet = JsSortedSet;
+            globalThis.std.SortedSetBuilder = JsSortedSetBuilder;
+            globalThis.std_SortedMap = JsSortedMap;
+            globalThis.std_SortedMapBuilder = JsSortedMapBuilder;
+            globalThis.std_SortedSet = JsSortedSet;
+            globalThis.std_SortedSetBuilder = JsSortedSetBuilder;
+            globalThis.__sorted_map_shim = JsSortedMap;
+            globalThis.__sorted_map_builder_shim = JsSortedMapBuilder;
+            globalThis.__sorted_set_shim = JsSortedSet;
+            globalThis.__sorted_set_builder_shim = JsSortedSetBuilder;
+        ");
     }
 
     public static function main():Void {

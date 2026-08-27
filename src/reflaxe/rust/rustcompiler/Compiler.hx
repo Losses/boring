@@ -173,7 +173,7 @@ class Compiler extends PluginCompiler<Compiler> {
 			}
 			final modNames = packages.get(pack);
 			modNames.sort(Reflect.compare);
-			final lines = [];
+			final lines = ["#![allow(ambiguous_glob_reexports)]", ""];
 			for(m in modNames) {
 				lines.push("pub mod " + m + ";");
 			}
@@ -209,6 +209,14 @@ class Compiler extends PluginCompiler<Compiler> {
 		emitShim("std.Console", "console.rs", RustRuntime.CONSOLE_SOURCE);
 		emitShim("std.Process", "process.rs", RustRuntime.PROCESS_SOURCE);
 		emitShim("std.Test", "test.rs", RustRuntime.TEST_SOURCE);
+		if(state.shimsUsed.exists("std.SortedMap") || state.shimsUsed.exists("std.SortedMapBuilder")) {
+			state.shimsUsed.set("std.SortedMap", true);
+			emitShim("std.SortedMap", "sorted_map.rs", RustRuntime.SORTED_MAP_SOURCE);
+		}
+		if(state.shimsUsed.exists("std.SortedSet") || state.shimsUsed.exists("std.SortedSetBuilder")) {
+			state.shimsUsed.set("std.SortedSet", true);
+			emitShim("std.SortedSet", "sorted_set.rs", RustRuntime.SORTED_SET_SOURCE);
+		}
 
 		final emitDir = RuntimeConfig.emitDir();
 		if(emitDir != null && hasAnyShim()) {
@@ -218,6 +226,8 @@ class Compiler extends PluginCompiler<Compiler> {
 			if(state.shimsUsed.exists("std.Console")) runtimeMods.push("console");
 			if(state.shimsUsed.exists("std.Process")) runtimeMods.push("process");
 			if(state.shimsUsed.exists("std.Test")) runtimeMods.push("test");
+			if(state.shimsUsed.exists("std.SortedMap") || state.shimsUsed.exists("std.SortedMapBuilder")) runtimeMods.push("sorted_map");
+			if(state.shimsUsed.exists("std.SortedSet") || state.shimsUsed.exists("std.SortedSetBuilder")) runtimeMods.push("sorted_set");
 			runtimeMods.sort(Reflect.compare);
 			final rtLines = [];
 			for(m in runtimeMods) rtLines.push("pub mod " + m + ";");
@@ -321,6 +331,22 @@ class Compiler extends PluginCompiler<Compiler> {
 			"pub fn assert_equals_string(expected: &String, actual: &String, message: Option<&str>) {",
 			"    if !equals_string(expected, actual) {",
 			"        testlib::report_failure(message, &format_string(expected), &format_string(actual));",
+			"    }",
+			"}",
+			"",
+			"pub fn equals_opt_string(a: &Option<String>, b: &Option<String>) -> bool { a == b }",
+			"pub fn format_opt_string(v: &Option<String>) -> String { match v { Some(s) => testlib::format_string(s), None => \"null\".to_string() } }",
+			"pub fn assert_equals_opt_string(expected: &Option<String>, actual: &Option<String>, message: Option<&str>) {",
+			"    if !equals_opt_string(expected, actual) {",
+			"        testlib::report_failure(message, &format_opt_string(expected), &format_opt_string(actual));",
+			"    }",
+			"}",
+			"",
+			"pub fn equals_opt_u32(a: &Option<u32>, b: &Option<u32>) -> bool { a == b }",
+			"pub fn format_opt_u32(v: &Option<u32>) -> String { match v { Some(x) => x.to_string(), None => \"null\".to_string() } }",
+			"pub fn assert_equals_opt_u32(expected: &Option<u32>, actual: &Option<u32>, message: Option<&str>) {",
+			"    if !equals_opt_u32(expected, actual) {",
+			"        testlib::report_failure(message, &format_opt_u32(expected), &format_opt_u32(actual));",
 			"    }",
 			"}"
 		];

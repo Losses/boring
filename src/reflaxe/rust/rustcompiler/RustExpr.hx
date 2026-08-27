@@ -111,7 +111,12 @@ class RustExpr {
 			case TVar(v, init) if(init != null):
 				final kw = mutated.exists(v.id) ? "let mut" : "let";
 				final name = RustImports.toSnakeCase(localName(v));
-				return [indent(depth) + '$kw $name = ${expr(init)};'];
+				final explicitType = switch(v.t) {
+					case TInst(c, _) if(c.get().name == "SortedMapBuilder" || c.get().name == "SortedMap"):
+						": " + types.of(v.t, false);
+					case _: "";
+				};
+				return [indent(depth) + '$kw $name$explicitType = ${expr(init)};'];
 			case TVar(_, init) if(init == null):
 				return [fail(e, "declaration without initializer has no lowering")];
 			case TBlock(stmts):
@@ -147,9 +152,9 @@ class RustExpr {
 				return [indent(depth) + "return;"];
 			case TReturn(ret):
 				if(isFallible) {
-					return [indent(depth) + "Ok(" + expr(ret) + ")"];
+					return [indent(depth) + "return Ok(" + expr(ret) + ");"];
 				}
-				return [indent(depth) + expr(ret)];
+				return [indent(depth) + "return " + expr(ret) + ";"];
 			case TThrow(x):
 				return [indent(depth) + "return Err(" + throwVariant(x) + ");"];
 			case TBreak:
@@ -796,6 +801,7 @@ class RustExpr {
 						return s.indexOf(".") >= 0 ? s : s + ".0";
 					case TString(s): return quoteString(s);
 					case TBool(b): return b ? "true" : "false";
+					case TNull: return "None";
 					case TThis: return "self";
 					case TSuper: return "super";
 					case _: return fail(e, "constant has no Rust lowering");
@@ -806,7 +812,7 @@ class RustExpr {
 				}
 				return RustImports.toSnakeCase(localName(v));
 			case TArray(arr, idx):
-				return expr(arr) + "[" + expr(idx) + "]";
+				return expr(arr) + "[(" + expr(idx) + ") as usize]";
 			case TBinop(op, l, r):
 				return binop(e, op, l, r);
 			case TUnop(op, post, subj):
@@ -838,6 +844,14 @@ class RustExpr {
 		}
 	}
 
+	function isStringType(t: Type): Bool {
+		if(t == null) return false;
+		return switch(Context.follow(t)) {
+			case TInst(c, _): c.get().name == "String";
+			case _: false;
+		};
+	}
+
 	function binop(e: TypedExpr, op: Binop, l: TypedExpr, r: TypedExpr): String {
 		final fromBe = tryMatchFromBeBytes(e);
 		if(fromBe != null) {
@@ -848,6 +862,10 @@ class RustExpr {
 				return assignTarget(l) + " = " + expr(r);
 			case OpAssignOp(inner):
 				return assignTarget(l) + " " + symbolOf(inner) + "= " + expr(r);
+			case OpAdd if(isStringType(l.t) || isStringType(r.t)):
+				return "format!(\"{}{}\", " + expr(l) + ", " + expr(r) + ")";
+			case OpDiv if(StringTools.endsWith(operand(l, op, false), ".len()")):
+				return "((" + operand(l, op, false) + ") / (" + operand(r, op, true) + " as usize)) as i32";
 			case OpAnd:
 				final rightInner = stripWrap(r);
 				final isMask255 = switch(rightInner.expr) {
@@ -940,11 +958,35 @@ class RustExpr {
 				state.shimsUsed.set("std.Test", true);
 				imports.require("crate::runtime::test as testlib");
 				return "testlib::" + RustImports.toSnakeCase(name);
+			case "std.SortedMap":
+				imports.requireType("std.SortedMap", "SortedMap");
+				return "SortedMap::" + RustImports.toSnakeCase(name);
+			case "std.SortedSet":
+				imports.requireType("std.SortedSet", "SortedSet");
+				return "SortedSet::" + RustImports.toSnakeCase(name);
 			case _:
 				if(cls.module == "std.Test") {
 					state.shimsUsed.set("std.Test", true);
 					imports.require("crate::runtime::test as testlib");
 					return "testlib::" + RustImports.toSnakeCase(name);
+				}
+				if(cls.module == "std.SortedMap") {
+					imports.requireType("std.SortedMap", "SortedMap");
+					return "SortedMap::" + RustImports.toSnakeCase(name);
+				}
+				if(cls.module == "std.SortedSet") {
+					imports.requireType("std.SortedSet", "SortedSet");
+					return "SortedSet::" + RustImports.toSnakeCase(name);
+				}
+				for(field in cls.statics.get()) {
+					if(field.name == name && DataTableHelper.isDataTableField(field)) {
+						if(cls.module == imports.selfModule) {
+							return name;
+						} else {
+							imports.requireType(cls.module, name);
+							return name;
+						}
+					}
 				}
 				imports.requireType(cls.module, cls.name);
 				return cls.name + "::" + RustImports.toSnakeCase(name);
@@ -1027,6 +1069,9 @@ class RustExpr {
 				final cls = c.get();
 				final name = cf.get().name;
 				final path = cls.pack.length == 0 ? cls.name : cls.pack.join(".") + "." + cls.name;
+				if(cls.pack.length == 0 && cls.name == "Std" && name == "int") {
+					return "(" + expr(args[0]) + " as i32)";
+				}
 				if(cls.pack.length == 0 && cls.name == "String" && name == "fromCharCode") {
 					return "char::from(" + expr(args[0]) + ").to_string()";
 				}
@@ -1056,13 +1101,29 @@ class RustExpr {
 						final expectedArg = args[0];
 						final actualArg = args[1];
 						final msg = args.length > 2 ? "Some(" + expr(args[2]) + ")" : "None";
+						if(isNullType(expectedArg.t) || isNullType(actualArg.t)) {
+							final nullInner = getNullInnerType(expectedArg.t != null && isNullType(expectedArg.t) ? expectedArg.t : actualArg.t);
+							final innerKind = scalarTypeKind(nullInner);
+							imports.require("crate::tests::test_helper::*");
+							switch(innerKind) {
+								case "String":
+									final expStr = renderOptArg(expectedArg, "String");
+									final actStr = renderOptArg(actualArg, "String");
+									return "assert_equals_opt_string(&" + expStr + ", &" + actStr + ", " + msg + ")";
+								case "Int":
+									final expStr = renderOptArg(expectedArg, "Int");
+									final actStr = renderOptArg(actualArg, "Int");
+									return "assert_equals_opt_u32(&" + expStr + ", &" + actStr + ", " + msg + ")";
+								case _:
+							}
+						}
 						if(isScalarType(expectedArg.t)) {
 							final scalarKind = scalarTypeKind(expectedArg.t);
 							switch(scalarKind) {
 								case "Bool":
 									return "testlib::equals_bool(" + expr(expectedArg) + ", " + expr(actualArg) + ", " + msg + ")";
 								case "Int":
-									return "testlib::equals_i32(" + expr(expectedArg) + ", " + expr(actualArg) + ", " + msg + ")";
+									return "testlib::equals_u32(" + expr(expectedArg) + ", " + expr(actualArg) + ", " + msg + ")";
 								case "Float":
 									return "testlib::equals_f64(" + expr(expectedArg) + ", " + expr(actualArg) + ", " + msg + ")";
 								case "String":
@@ -1190,7 +1251,7 @@ class RustExpr {
 						final n = cf.get().name;
 						if(n == "readU16" || n == "readU32" || n == "readF64" || n == "readAscii"
 							|| n == "writeU16" || n == "writeU32" || n == "writeF64" || n == "writeAscii"
-							|| n == "addByte" || n == "push" || n == "finish") {
+							|| n == "addByte" || n == "push" || n == "finish" || n == "put") {
 							switch(stripWrap(subj).expr) {
 								case TLocal(v): mutated.set(v.id, true);
 								case _:
@@ -1689,6 +1750,30 @@ class RustExpr {
 			case TType(def, _): RustImports.toSnakeCase(def.get().name);
 			case TEnum(e, _): RustImports.toSnakeCase(e.get().name);
 			case _: "unknown";
+		};
+	}
+
+	function renderOptArg(e: TypedExpr, kind: String): String {
+		return switch(e.expr) {
+			case TConst(TNull): kind == "String" ? "None::<String>" : "None::<u32>";
+			case TConst(TString(s)) if(kind == "String"): "Some(" + quoteString(s) + ".to_string())";
+			case TConst(TInt(i)) if(kind == "Int"): "Some(" + Std.string(i) + ")";
+			case _: expr(e);
+		};
+	}
+
+	function isNullType(t: Type): Bool {
+		if(t == null) return false;
+		return switch(t) {
+			case TAbstract(a, _): a.get().name == "Null";
+			case _: false;
+		};
+	}
+
+	function getNullInnerType(t: Type): Type {
+		return switch(t) {
+			case TAbstract(a, params) if(a.get().name == "Null"): params[0];
+			case _: t;
 		};
 	}
 }
