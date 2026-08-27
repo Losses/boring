@@ -133,6 +133,15 @@ object Main {
         }
         expectTrue("truncated vector throws the UnexpectedEof variant", truncatedVariant == VectorException.UnexpectedEof)
 
+        var trailingBytesVariant: VectorException? = null
+        try {
+            val padded = hexToBytes(EXPECTED_HEX) + byteArrayOf(0)
+            VectorCodec.decode(padded)
+        } catch (error: VectorException) {
+            trailingBytesVariant = error
+        }
+        expectTrue("trailing bytes throws the TrailingBytes variant", trailingBytesVariant == VectorException.TrailingBytes(1))
+
         runSortChecks()
 
         if (failures > 0) {

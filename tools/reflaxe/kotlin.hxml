@@ -1,0 +1,16 @@
+# Generation target for Reflaxe Kotlin
+-lib reflaxe
+-cp tools/haxe
+-cp haxe/src
+-cp tools
+--macro Intercept.run(['haxe/src'])
+--macro reflaxe.kotlin.Compiler.use()
+-D kotlin-out=kotlin/src
+boring.VectorCodec
+boring.BinaryReader
+boring.BinaryWriter
+boring.GlyphMetrics
+boring.VectorException
+boring.VectorSort
+boring.Console
+boring.Process
