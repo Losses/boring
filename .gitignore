@@ -10,3 +10,4 @@ target/
 .env
 .env.*
 .DS_Store
+kotlin/gen/
