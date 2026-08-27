@@ -1,7 +1,7 @@
-package boring;
+package std;
 
 /**
- * Read-only array surface per docs/specs/features/18-immutability.md.
+ * Read-only array type per docs/specs/features/18-immutability.md.
  * Forwards length and indexed reads; no mutation member exists on the
  * abstract, so a mutation attempt fails Haxe compilation. The abstract
  * erases after typing and adds no runtime cost on any target.

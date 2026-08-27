@@ -1,6 +1,7 @@
 package tscompiler;
 
 #if (macro || reflaxe_runtime)
+import haxe.macro.Context;
 import haxe.macro.Type;
 import reflaxe.BaseCompiler.BaseCompilerFileOutputType;
 import reflaxe.PluginCompiler;
@@ -13,9 +14,11 @@ import reflaxe.data.EnumOptionData;
 	reflaxe plugin producing the TypeScript lane of the translatable
 	subset (docs/specs/targets/07-reflaxe-typescript-target.md).
 
-	Output layout is one file per Haxe module under `boring/`, plus a
-	`runtime.ts` sibling, all written through the framework's output
-	manager so `-D ts-output=<dir>` controls placement.
+	Output layout is one file per Haxe module at the module's own path,
+	plus a `runtime.ts` under the runtime-emit directory when runtime
+	symbols are referenced, all written through the framework's output
+	manager so `-D ts-output=<dir>` controls placement. Runtime files
+	and runtime imports follow RuntimeConfig.
 **/
 class Compiler extends PluginCompiler<Compiler> {
 	/** Module-base name to declaration parts, in arrival order. */
@@ -47,27 +50,27 @@ class Compiler extends PluginCompiler<Compiler> {
 	// ------------------------------------------------------------------
 
 	public function compileClassImpl(classType: ClassType, varFields: Array<ClassVarData>, funcFields: Array<ClassFuncData>): Null<String> {
-		if(!isBoringPack(classType.pack)) {
+		if(!inSourceScope(classType.pos) || isSyntheticImpl(classType.name)) {
 			return null;
 		}
 		final decl = contextFor(classType.module);
 		final result = decl.classDecl(classType, varFields, funcFields);
-		parts.get(moduleBase(classType.module)).push(result);
+		parts.get(classType.module).push(result);
 		return result;
 	}
 
 	public function compileEnumImpl(enumType: EnumType, options: Array<EnumOptionData>): Null<String> {
-		if(!isBoringPack(enumType.pack)) {
+		if(!inSourceScope(enumType.pos)) {
 			return null;
 		}
 		final decl = contextFor(enumType.module);
 		final result = decl.enumDecl(enumType, options);
-		parts.get(moduleBase(enumType.module)).push(result);
+		parts.get(enumType.module).push(result);
 		return result;
 	}
 
 	public override function compileTypedef(def: DefType): Null<String> {
-		if(!isBoringPack(def.pack)) {
+		if(!inSourceScope(def.pos)) {
 			return null;
 		}
 		switch(def.type) {
@@ -77,7 +80,7 @@ class Compiler extends PluginCompiler<Compiler> {
 		}
 		final decl = contextFor(def.module);
 		final result = decl.typedefDecl(def);
-		parts.get(moduleBase(def.module)).push(result);
+		parts.get(def.module).push(result);
 		return result;
 	}
 
@@ -108,9 +111,21 @@ class Compiler extends PluginCompiler<Compiler> {
 				+ (imports.length > 0 ? "\n" : "")
 				+ body
 				+ "\n";
-			output.saveFile('boring/$module.ts', content);
+			output.saveFile(modulePath(module), content);
 		}
-		output.saveFile("runtime.ts", StringTools.trim(TsRuntime.SOURCE) + "\n");
+		final emitDir = RuntimeConfig.emitDir();
+		if(emitDir != null && anyRuntimeUsed()) {
+			output.saveFile(RuntimeConfig.emitPath(emitDir, "runtime.ts"), StringTools.trim(TsRuntime.SOURCE) + "\n");
+		}
+	}
+
+	function anyRuntimeUsed(): Bool {
+		for(decl in contexts.iterator()) {
+			if(decl.usesRuntime()) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	// ------------------------------------------------------------------
@@ -118,23 +133,41 @@ class Compiler extends PluginCompiler<Compiler> {
 	// ------------------------------------------------------------------
 
 	function contextFor(module: String): TsDecl {
-		final base = moduleBase(module);
-		current = contexts.exists(base) ? contexts.get(base) : null;
+		current = contexts.exists(module) ? contexts.get(module) : null;
 		if(current == null) {
-			current = new TsDecl(base);
-			contexts.set(base, current);
-			parts.set(base, []);
+			current = new TsDecl(module);
+			contexts.set(module, current);
+			parts.set(module, []);
 		}
 		return current;
 	}
 
-	function moduleBase(module: String): String {
-		final segments = module.split(".");
-		return segments[segments.length - 1];
+	/**
+		The compilation scope is the intercepted source roots: a
+		declaration lowers when its position file lies under one of them,
+		whatever its package. The output path mirrors the module path:
+		`pack.Module` lands at `pack/Module.ts`.
+	**/
+	function inSourceScope(pos: haxe.macro.Expr.Position): Bool {
+		final file = Context.getPosInfos(pos).file;
+		for(root in Intercept.sourceRoots()) {
+			final prefix = root.charAt(root.length - 1) == "/" ? root : root + "/";
+			if(StringTools.startsWith(file, prefix)
+				|| StringTools.startsWith(file, "./" + prefix)
+				|| file.indexOf("/" + prefix) >= 0) {
+				return true;
+			}
+		}
+		return false;
 	}
 
-	function isBoringPack(pack: Array<String>): Bool {
-		return pack.length == 1 && pack[0] == "boring";
+	/** Haxe names synthesized abstract implementation classes `<Name>_Impl_`; they erase with the abstract. */
+	function isSyntheticImpl(name: String): Bool {
+		return StringTools.endsWith(name, "_Impl_");
+	}
+
+	function modulePath(module: String): String {
+		return module.split(".").join("/") + ".ts";
 	}
 }
 #end

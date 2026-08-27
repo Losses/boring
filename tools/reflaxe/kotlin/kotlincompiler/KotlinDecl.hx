@@ -8,17 +8,20 @@ import reflaxe.data.ClassVarData;
 import reflaxe.data.EnumOptionData;
 
 /**
-	Declaration lowering for Kotlin: classes, objects, sealed hierarchies, and data classes.
+	Declaration lowering for Kotlin: classes, objects, sealed error
+	hierarchies, and data classes. Every emission derives from the typed
+	AST; the exception fold reads the payload enum's options and the
+	message function's switch cases.
 **/
 class KotlinDecl {
 	final imports: KotlinImports;
 	final types: KotlinType;
 	final expr: KotlinExpr;
 
-	public function new(selfModule: String) {
-		this.imports = new KotlinImports(selfModule);
-		this.types = new KotlinType(imports);
-		this.expr = new KotlinExpr(imports, types);
+	public function new(selfModule: String, state: KotlinEmissionState) {
+		this.imports = new KotlinImports(selfModule, state);
+		this.types = new KotlinType(imports, state);
+		this.expr = new KotlinExpr(imports, types, state);
 	}
 
 	public function renderImports(): String {
@@ -38,12 +41,13 @@ class KotlinDecl {
 	// ------------------------------------------------------------------
 
 	public function classDecl(cls: ClassType, varFields: Array<ClassVarData>, funcFields: Array<ClassFuncData>): String {
-		if(cls.name == "VectorException") {
-			return vectorExceptionDecl(cls, funcFields);
-		}
-
-		if(cls.isExtern) {
-			return externDecl(cls, funcFields);
+		if(isExceptionSubclass(cls)) {
+			final payload = payloadEnumOf(funcFields);
+			if(payload == null) {
+				Context.error("exception subclass without a payload enum constructor has no Kotlin lowering", cls.pos);
+				return null;
+			}
+			return sealedExceptionDecl(cls, payload, funcFields);
 		}
 
 		final isObject = isAllStatic(varFields, funcFields);
@@ -93,6 +97,210 @@ class KotlinDecl {
 
 		lines.push("}");
 		return lines.join("\n");
+	}
+
+	/** A haxe.Exception subclass folds, with its payload enum, into a sealed hierarchy. */
+	public static function isExceptionSubclass(cls: ClassType): Bool {
+		if(cls.superClass == null) {
+			return false;
+		}
+		final parent = cls.superClass.t.get();
+		return parent.pack.join(".") == "haxe" && parent.name == "Exception";
+	}
+
+	/**
+		Signature identifying an anonymous structure: its field names and
+		types, sorted. Nominal lowering matches object literals against
+		typedefs through this signature.
+	**/
+	public static function structureSignature(anon: Ref<AnonType>): String {
+		final entries = [for(f in anon.get().fields) f.name + ":" + Std.string(f.type)];
+		entries.sort(Reflect.compare);
+		return entries.join(";");
+	}
+
+	function payloadEnumOf(funcFields: Array<ClassFuncData>): Null<EnumType> {
+		final ctor = findConstructor(funcFields);
+		if(ctor == null) {
+			return null;
+		}
+		for(a in ctor.args) {
+			switch(a.type) {
+				case TEnum(e, _):
+					return e.get();
+				case _:
+			}
+		}
+		return null;
+	}
+
+	/**
+		The message function is the class's static function taking the
+		payload enum and returning String; its switch supplies each
+		variant's super-call argument.
+	**/
+	function findMessageFunc(cls: ClassType, funcFields: Array<ClassFuncData>, payload: EnumType): Null<ClassFuncData> {
+		var found: Null<ClassFuncData> = null;
+		for(f in funcFields) {
+			if(!f.isStatic || f.args.length != 1) {
+				continue;
+			}
+			switch(f.args[0].type) {
+				case TEnum(e, _):
+					if(e.get().module == payload.module) {
+						if(found != null) {
+							Context.error("exception class carries more than one message function", cls.pos);
+							return null;
+						}
+						found = f;
+					}
+				case _:
+			}
+		}
+		return found;
+	}
+
+	function sealedExceptionDecl(cls: ClassType, payload: EnumType, funcFields: Array<ClassFuncData>): String {
+		final options = [for(_ => ef in payload.constructs) ef];
+		options.sort((a, b) -> Reflect.compare(a.index, b.index));
+
+		final messageFunc = findMessageFunc(cls, funcFields, payload);
+		if(messageFunc == null || messageFunc.expr == null) {
+			Context.error("exception class carries no message function for its payload enum", cls.pos);
+			return null;
+		}
+		final messages = new Map<String, String>();
+		collectMessageCases(messageFunc.expr, options, messages);
+
+		final lines = [
+			'sealed class ${cls.name}(message: String) : RuntimeException(message) {'
+		];
+		for(o in options) {
+			final message = messages.get(o.name);
+			if(message == null) {
+				Context.error("message function misses a case for " + o.name, cls.pos);
+				return null;
+			}
+			final args = enumFieldParams(o);
+			if(args.length == 0) {
+				lines.push('    data object ${o.name} : ${cls.name}(${message})');
+			} else {
+				final params = [for(arg in args) 'val ${arg.name}: ${types.of(arg.type)}'].join(", ");
+				lines.push('    data class ${o.name}($params) :');
+				lines.push('        ${cls.name}(${message})');
+			}
+		}
+		lines.push("}");
+		return lines.join("\n");
+	}
+
+	/** Constructor argument names and types, read off the enum field's function type. */
+	function enumFieldParams(ef: haxe.macro.Type.EnumField): Array<{name: String, type: Type}> {
+		return switch(ef.type) {
+			case TFun(args, _): [for(a in args) {name: a.name, type: a.t}];
+			case _: [];
+		};
+	}
+
+	/**
+		Walks the message function's switch and records, per constructor,
+		the rendered super-call argument. Plain string constants stay
+		quoted; expressions render through the expression compiler with
+		the case's pattern variables in scope.
+	**/
+	function collectMessageCases(e: TypedExpr, options: Array<haxe.macro.Type.EnumField>, out: Map<String, String>): Void {
+		switch(e.expr) {
+			case TReturn(r) if(r != null):
+				collectMessageCases(r, options, out);
+			case TBlock(stmts):
+				for(s in stmts) collectMessageCases(s, options, out);
+			case TMeta(_, inner):
+				collectMessageCases(inner, options, out);
+			case TSwitch(_, cases, _):
+				for(c in cases) {
+					if(c.values.length == 0) {
+						continue;
+					}
+					final name = caseConstructorName(c.values[0], options);
+					if(name == null) {
+						continue;
+					}
+					bindPatternLocals(c.expr);
+					final body = unwrapReturn(c.expr);
+					switch(body.expr) {
+						case TConst(TString(s)):
+							out.set(name, '"' + s + '"');
+						case _:
+							out.set(name, expr.rawExpression(body));
+					}
+				}
+			case _:
+		}
+	}
+
+	/**
+		Renames a case body's pattern captures to the payload argument
+		names of their constructors, following plain local aliases. The
+		typer hands captures over as generated temporaries; the emitted
+		variant exposes the payload as its constructor property, whose
+		name is the declaration's argument name.
+	**/
+	function bindPatternLocals(e: TypedExpr): Void {
+		switch(e.expr) {
+			case TBlock(stmts):
+				for(s in stmts) bindPatternLocals(s);
+			case TVar(v, init) if(init != null):
+				switch(stripDecorations(init).expr) {
+					case TEnumParameter(_, ef, index):
+						expr.bindLocalName(v, expr.payloadName(ef, index));
+					case TLocal(source):
+						final bound = expr.boundNameOf(source);
+						if(bound != null) {
+							expr.bindLocalName(v, bound);
+						}
+					case _:
+				}
+			case _:
+		}
+	}
+
+	function stripDecorations(e: TypedExpr): TypedExpr {
+		return switch(e.expr) {
+			case TParenthesis(inner) | TCast(inner, _) | TMeta(_, inner): stripDecorations(inner);
+			case _: e;
+		}
+	}
+
+	function caseConstructorName(value: TypedExpr, options: Array<haxe.macro.Type.EnumField>): Null<String> {
+		switch(value.expr) {
+			// Enum switches lower to a switch on the constructor index;
+			// the payload enum's own constructs carry the index mapping.
+			case TConst(TInt(index)):
+				for(o in options) {
+					if(o.index == index) {
+						return o.name;
+					}
+				}
+				return null;
+			case TField(_, FEnum(_, ef)):
+				return ef.name;
+			case TEnumParameter(_, ef, _):
+				return ef.name;
+			case _:
+				return null;
+		}
+	}
+
+	function unwrapReturn(e: TypedExpr): TypedExpr {
+		return switch(e.expr) {
+			case TReturn(r) if(r != null): unwrapReturn(r);
+			case TBlock(stmts) if(stmts.length > 0):
+				// Leading pattern-variable bindings drop out: inside the
+				// emitted variant the payload name is the constructor
+				// property, so the rendered body refers to it directly.
+				unwrapReturn(stmts[stmts.length - 1]);
+			case _: e;
+		}
 	}
 
 	function isAllStatic(varFields: Array<ClassVarData>, funcFields: Array<ClassFuncData>): Bool {
@@ -153,11 +361,23 @@ class KotlinDecl {
 		var initStr = "";
 		switch(field.kind) {
 			case FVar(_, _):
-				if(types.of(field.type) == "Int") initStr = " = 0";
-				else if(types.of(field.type) == "BytesBuffer") initStr = " = BytesBuffer()";
+				// Uninitialized fields carry the platform default: numeric
+				// types zero, buffer types a fresh empty instance.
+				switch(field.type) {
+					case TAbstract(a, _) if(a.get().name == "Int"):
+						initStr = " = 0";
+					case TInst(c, _) if(isModuleType(c.get(), "haxe.io", "BytesBuffer")):
+						imports.requireType(c.get().module, "BytesBuffer");
+						initStr = " = BytesBuffer()";
+					case _:
+				}
 			case _:
 		}
 		return ['    ${vis}${kw} ${field.name}: ${types.of(field.type)}$initStr'];
+	}
+
+	function isModuleType(cls: ClassType, packDot: String, name: String): Bool {
+		return cls.pack.join(".") == packDot && cls.name == name;
 	}
 
 	function funcDecl(cls: ClassType, f: ClassFuncData, isObject: Bool): Array<String> {
@@ -173,7 +393,7 @@ class KotlinDecl {
 		final boundary = switch(f.ret) {
 			case TAbstract(a, _):
 				final abs = a.get();
-				abs.pack.join(".") == "boring" && abs.name == "ReadOnlyArray";
+				abs.pack.join(".") == "std" && abs.name == "ReadOnlyArray";
 			case _: false;
 		};
 		expr.setDecodeBoundary(boundary);
@@ -183,106 +403,15 @@ class KotlinDecl {
 		return [head].concat(body.map(l -> "    " + l)).concat(["    }"]);
 	}
 
-	function externDecl(cls: ClassType, funcFields: Array<ClassFuncData>): String {
-		final lines: Array<String> = [];
-		lines.push("object " + cls.name + " {");
-		for(f in funcFields) {
-			final args = [for(a in f.args) '${a.name}: ${types.of(a.type)}'].join(", ");
-			if(cls.name == "Console" && f.field.name == "log") {
-				lines.push('    fun log($args) {');
-				lines.push('        println(message)');
-				lines.push('    }');
-			} else if(cls.name == "Process" && f.field.name == "exit") {
-				imports.require("kotlin.system.exitProcess");
-				lines.push('    fun exit($args) {');
-				lines.push('        exitProcess(code)');
-				lines.push('    }');
-			}
-		}
-		lines.push("}");
-		return lines.join("\n");
-	}
-
-	function vectorExceptionDecl(cls: ClassType, funcFields: Array<ClassFuncData>): String {
-		// VectorException is the sealed hierarchy for VectorError
-		final describeFunc = findFunc(funcFields, "describe");
-		final messages: Map<String, String> = [];
-		if(describeFunc != null && describeFunc.expr != null) {
-			extractDescribeMessages(describeFunc.expr, messages);
-		}
-
-		final lines = [
-			'sealed class VectorException(message: String) : RuntimeException(message) {',
-			'    data object BadMagic : VectorException(' + quote(messages.exists("BadMagic") ? messages.get("BadMagic") : "bad vector magic") + ')',
-			'    data object CountOverflow : VectorException(' + quote(messages.exists("CountOverflow") ? messages.get("CountOverflow") : "record count exceeds u32") + ')',
-			'    data object UnexpectedEof : VectorException(' + quote(messages.exists("UnexpectedEof") ? messages.get("UnexpectedEof") : "vector ended mid-record") + ')',
-			'    data class TrailingBytes(val remaining: Int) :',
-			'        VectorException("trailing bytes in vector: ' + '$' + 'remaining")',
-			'}'
-		];
-		return lines.join("\n");
-	}
-
-	function extractDescribeMessages(e: TypedExpr, out: Map<String, String>): Void {
-		switch(e.expr) {
-			case TReturn(r) if(r != null):
-				extractDescribeMessages(r, out);
-			case TSwitch(_, cases, _):
-				for(c in cases) {
-					var varName = "";
-					switch(c.values[0].expr) {
-						case TEnumIndex(idx):
-						case TField(_, FEnum(_, ef)):
-							varName = ef.name;
-						case TConst(TInt(i)):
-							if(i == 0) varName = "BadMagic";
-							else if(i == 1) varName = "CountOverflow";
-							else if(i == 2) varName = "UnexpectedEof";
-							else if(i == 3) varName = "TrailingBytes";
-						case _:
-					}
-					var msg = "";
-					switch(c.expr.expr) {
-						case TConst(TString(s)): msg = s;
-						case TReturn(ret) if(ret != null):
-							switch(ret.expr) {
-								case TConst(TString(s)): msg = s;
-								case _:
-							}
-						case _:
-					}
-					if(varName != "" && msg != "") {
-						out.set(varName, msg);
-					}
-				}
-			case TBlock(stmts):
-				for(s in stmts) extractDescribeMessages(s, out);
-			case _:
-		}
-	}
-
-	function findFunc(funcFields: Array<ClassFuncData>, name: String): Null<ClassFuncData> {
-		for(f in funcFields) {
-			if(f.field.name == name) return f;
-		}
-		return null;
-	}
-
-	function quote(s: String): String {
-		return '"' + s + '"';
-	}
-
 	// ------------------------------------------------------------------
 	// Enums (stdlib/03)
 	// ------------------------------------------------------------------
 
 	public function enumDecl(en: EnumType, options: Array<EnumOptionData>): String {
-		if(en.name == "VectorError") {
-			// Handled by VectorException sealed class
-			return "";
-		}
+		final sorted = options.copy();
+		sorted.sort((a, b) -> Reflect.compare(a.field.index, b.field.index));
 		final lines = ['sealed interface ${en.name} {'];
-		for(o in options) {
+		for(o in sorted) {
 			if(o.args.length == 0) {
 				lines.push('    data object ${o.name} : ${en.name}');
 			} else {
@@ -303,16 +432,11 @@ class KotlinDecl {
 			case TAnonymous(anonRef):
 				final fields = anonRef.get().fields;
 				final fieldLines = [for(field in fields) '    val ${field.name}: ${types.of(field.type)}'];
-				final lines = [
-					'data class ${def.name}(',
-					fieldLines.join(",\n"),
-					')'
-				];
-				if(def.name == "BoundsEm") {
-					lines.push("");
-					lines.push("typealias GlyphBounds = BoundsEm");
-				}
-				return lines.join("\n");
+				return ['data class ${def.name}(', fieldLines.join(",\n"), ')'].join("\n");
+			case TType(_, _):
+				// An alias typedef lowers to a platform alias of the
+				// underlying named type.
+				return 'typealias ${def.name} = ${types.of(def.type)}';
 			case _:
 				return null;
 		}

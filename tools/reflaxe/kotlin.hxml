@@ -6,15 +6,15 @@
 -cp tools/reflaxe/kotlin
 -cp tools/haxe
 -cp haxe/src
---macro Intercept.run(['haxe/src'])
+--macro Intercept.run(['haxe/src'], ['haxe/src/boring/BinaryReader.hx', 'haxe/src/boring/BinaryWriter.hx'])
 --macro kotlincompiler.Compiler.use()
 -D kotlin-output=kotlin/gen
+-D runtime-import=boring.runtime
+-D runtime-emit=runtime
 boring.BinaryReader
 boring.BinaryWriter
-boring.Console
 boring.GlyphMetrics
-boring.Process
-boring.ReadOnlyArray
+std.ReadOnlyArray
 boring.VectorCodec
 boring.VectorError
 boring.VectorException

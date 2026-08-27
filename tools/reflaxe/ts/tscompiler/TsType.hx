@@ -12,6 +12,7 @@ import haxe.macro.Type;
 	domain (stdlib/05), ReadOnlyArray<T> is `readonly T[]` (features/18).
 **/
 class TsType {
+
 	final imports: TsImports;
 
 	public function new(imports: TsImports) {
@@ -29,7 +30,7 @@ class TsType {
 					case "Int", "Float": "number";
 					case "Bool": "boolean";
 					case "Void": "void";
-					case "boring.ReadOnlyArray": "readonly " + of(params[0]) + "[]";
+					case "std.ReadOnlyArray": "readonly " + of(params[0]) + "[]";
 					case "haxe.Int64":
 						imports.runtime("Int64Halves");
 						"Int64Halves";
@@ -45,33 +46,23 @@ class TsType {
 						imports.runtime("BytesBuffer");
 						"BytesBuffer";
 					case _:
-						if(isBoringPack(cls.pack)) {
-							imports.type(moduleBase(cls.module), cls.name);
-							cls.name;
-						} else {
-							fail(t);
-						}
+						imports.type(cls.module, cls.name);
+						cls.name;
 				}
 			case TType(def, params):
 				final d = def.get();
-				if(isBoringPack(d.pack)) {
-					imports.type(moduleBase(d.module), d.name);
-					d.name;
-				} else if(d.pack.join(".") == "haxe.io" && d.name == "Bytes") {
+				if(d.pack.join(".") == "haxe.io" && d.name == "Bytes") {
 					"Uint8Array";
 				} else if(params.length == 0) {
-					of(d.type);
+					imports.type(d.module, d.name);
+					d.name;
 				} else {
 					fail(t);
 				}
 			case TEnum(e, _):
 				final en = e.get();
-				if(isBoringPack(en.pack)) {
-					imports.type(moduleBase(en.module), en.name);
-					en.name;
-				} else {
-					fail(t);
-				}
+				imports.type(en.module, en.name);
+				en.name;
 			case TFun(args, ret):
 				"(" + [for(arg in args) '${arg.name}: ${of(arg.t)}'].join(", ") + ") => " + of(ret);
 			case TAnonymous(_):
@@ -90,10 +81,6 @@ class TsType {
 
 	function pathOf(pack: Array<String>, name: String): String {
 		return pack.length == 0 ? name : pack.join(".") + "." + name;
-	}
-
-	function isBoringPack(pack: Array<String>): Bool {
-		return pack.length == 1 && pack[0] == "boring";
 	}
 
 	function fail(t: Type): String {

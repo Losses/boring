@@ -7,15 +7,15 @@ import { VectorSort } from "../../ts/gen/boring/VectorSort.ts";
 /**
  * Behavior guard for the reflaxe-generated tree (tools/reflaxe/ts), per
  * docs/specs/targets/07-reflaxe-typescript-target.md M2/M3. The generated
- * modules run against the same corpus as the hand-written tree:
+ * modules run against the same vectors as the hand-written tree:
  *
  *   1. decode matches the oracle field by field on the roundtrip fixture;
  *   2. encode reproduces the fixture bytes exactly (roundtrip stability);
  *   3. the reachable exception variants match the oracle;
- *   4. a count of -1 (0xFFFFFFFF read as a signed Int32, the Haxe and
- *      Kotlin Int semantics) skips the fill and surfaces TrailingBytes,
- *      the behavior of the Haxe source on the same input;
- *   5. the decoded surface is frozen per features/18.
+ *   4. counts at or above 2^31 throw the CountOverflow variant before
+ *      any record byte is read, per the count domain ruled in
+ *      docs/specs/binary/01-wire-format.md;
+ *   5. the decoded value is frozen per features/18.
  */
 
 const FIXTURE = import.meta.dir + "/../vectors/roundtrip.bin";
@@ -36,7 +36,7 @@ async function loadFixture(): Promise<Uint8Array> {
   return new Uint8Array(await Bun.file(FIXTURE).arrayBuffer());
 }
 
-function variantBytes(base: Uint8Array, kind: "bad-magic" | "truncated" | "trailing" | "huge-count"): Uint8Array {
+function variantBytes(base: Uint8Array, kind: "bad-magic" | "truncated" | "trailing" | "huge-count" | "boundary-count"): Uint8Array {
   const copy = base.slice();
   if(kind === "bad-magic") {
     copy[0] = 0;
@@ -46,11 +46,16 @@ function variantBytes(base: Uint8Array, kind: "bad-magic" | "truncated" | "trail
     const extended = new Uint8Array(copy.length + 1);
     extended.set(copy);
     return extended;
-  } else {
+  } else if(kind === "huge-count") {
     copy[4] = 0xff;
     copy[5] = 0xff;
     copy[6] = 0xff;
     copy[7] = 0xff;
+  } else {
+    copy[4] = 0x80;
+    copy[5] = 0x00;
+    copy[6] = 0x00;
+    copy[7] = 0x00;
   }
   return copy;
 }
@@ -108,24 +113,24 @@ describe("generated tree behavior", () => {
     }
   });
 
-  test("a signed count of -1 skips the fill and surfaces TrailingBytes", async () => {
+  test("counts at or above 2^31 throw CountOverflow before any record byte is read", async () => {
     const bytes = await loadFixture();
-    const input = variantBytes(bytes, "huge-count");
-    try {
-      VectorCodec.decode(input);
-      expect.unreachable();
-    } catch(error) {
-      expect(error).toBeInstanceOf(VectorException);
-      const exception = error as VectorException;
-      // The Haxe Int is signed 32-bit, so 0xFFFFFFFF reads as -1; the
-      // counted loop skips and the trailing check fires with the rest of
-      // the buffer. The hand-written tree reads the count unsigned and
-      // throws UnexpectedEof instead; that divergence is recorded with
-      // the horizontal alignment audit, not folded into this tree.
-      expect(exception.error.kind).toBe("TrailingBytes");
-      expect(exception.error.kind === "TrailingBytes" && exception.error.remaining).toBe(bytes.length - 8);
-      expect(exception.name).toBe("VectorException");
-      expect(exception.message).toBe(VectorException.describe(exception.error));
+    for(const kind of ["huge-count", "boundary-count"] as const) {
+      const input = variantBytes(bytes, kind);
+      try {
+        VectorCodec.decode(input);
+        expect.unreachable();
+      } catch(error) {
+        expect(error).toBeInstanceOf(VectorException);
+        const exception = error as VectorException;
+        // The generated reader holds the count in a signed Int32, so the
+        // guard compares against the negative half; the hand-written tree
+        // reads the count unsigned and compares against 0x7fffffff. Both
+        // reject the same domain, ruled in docs/specs/binary/01-wire-format.md.
+        expect(exception.error.kind).toBe("CountOverflow");
+        expect(exception.name).toBe("VectorException");
+        expect(exception.message).toBe(VectorException.describe(exception.error));
+      }
     }
   });
 

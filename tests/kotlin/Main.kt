@@ -1,7 +1,6 @@
 import boring.BoundsEm
 import boring.BinaryReader
 import boring.BinaryWriter
-import boring.Console
 import boring.GlyphMetrics
 import boring.VectorCodec
 import boring.VectorException
@@ -68,10 +67,10 @@ object Main {
     private fun expectTrue(label: String, condition: Boolean) {
         if (condition) {
             passes++
-            Console.log("pass $label")
+            println("pass $label")
         } else {
             failures++
-            Console.log("FAIL $label")
+            println("FAIL $label")
         }
     }
 
@@ -145,10 +144,10 @@ object Main {
         runSortChecks()
 
         if (failures > 0) {
-            Console.log("$failures failure(s)")
+            println("$failures failure(s)")
             exitProcess(1)
         }
-        Console.log("all $passes kotlin checks passed")
+        println("all $passes kotlin checks passed")
     }
 
     // Sort fixture and oracle shared verbatim with tests/ts/vector-sort.test.ts,

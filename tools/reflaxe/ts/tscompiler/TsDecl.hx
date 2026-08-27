@@ -29,6 +29,11 @@ class TsDecl {
 		return imports.render();
 	}
 
+	/** Whether this module references any runtime-package symbol. */
+	public function usesRuntime(): Bool {
+		return imports.usesRuntime();
+	}
+
 	public function topLevelStatements(e: TypedExpr): String {
 		return expr.topLevelStatements(e);
 	}
@@ -128,7 +133,7 @@ class TsDecl {
 		final boundary = switch(f.ret) {
 			case TAbstract(a, _):
 				final abs = a.get();
-				abs.pack.join(".") == "boring" && abs.name == "ReadOnlyArray";
+				abs.pack.join(".") == "std" && abs.name == "ReadOnlyArray";
 			case _: false;
 		}
 		expr.setDecodeBoundary(boundary);
@@ -144,7 +149,7 @@ class TsDecl {
 	public function enumDecl(en: EnumType, options: Array<EnumOptionData>): String {
 		final sorted = options.copy();
 		sorted.sort((a, b) -> Reflect.compare(a.field.index, b.field.index));
-		// Each variant is a named interface (boring/no-inline-types bans
+		// Each variant is a named interface (the no-inline-types rule bans
 		// object literals inside unions); the enum is the union of names.
 		final blocks: Array<String> = [];
 		final names: Array<String> = [];

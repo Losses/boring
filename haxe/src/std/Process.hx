@@ -1,4 +1,4 @@
-package boring;
+package std;
 
 /**
  * Typed extern for the process object available when the JS output runs
