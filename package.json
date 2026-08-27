@@ -3,22 +3,22 @@
   "private": true,
   "license": "MIT",
   "workspaces": [
-    "ts"
+    "reference/ts"
   ],
   "scripts": {
     "test": "bun test",
     "test:haxe": "haxe tests/haxe/compile.hxml && bun out/haxe/tests.js",
-    "test:kotlin": "mkdir -p out/kotlin && kotlinc $(find kotlin/gen -name '*.kt') tests/kotlin/Main.kt -include-runtime -d out/kotlin/tests.jar && java -cp out/kotlin/tests.jar MainKt",
+    "test:kotlin": "mkdir -p out/kotlin && kotlinc $(find reference/kotlin/gen -name '*.kt') tests/kotlin/Main.kt -include-runtime -d out/kotlin/tests.jar && java -cp out/kotlin/tests.jar MainKt",
     "test:rust": "cargo test",
     "test:intercept": "bun tests/interception/run.ts",
     "lint": "eslint .",
     "typecheck": "tsc -p .",
     "check:docs": "bun tools/doc-style/check.ts",
     "gen:vector": "bun tools/gen-vector.ts",
-    "gen:ts": "haxe tools/reflaxe/ts.hxml",
-    "gen:kotlin": "haxe tools/reflaxe/kotlin.hxml",
-    "gen:rust": "haxe tools/reflaxe/rust.hxml",
-    "check:reflaxe": "haxe -lib reflaxe -cp tools/reflaxe -main Smoke -js out/haxe/reflaxe-smoke.js",
+    "gen:ts": "haxe examples/ts.hxml",
+    "gen:kotlin": "haxe examples/kotlin.hxml",
+    "gen:rust": "haxe examples/rust.hxml",
+    "check:reflaxe": "haxe -lib reflaxe -cp examples -main Smoke -js out/haxe/reflaxe-smoke.js",
     "commit": "bun tools/commit/commit.ts",
     "install:hooks": "bun tools/git-hooks/install.ts",
     "verify": "bun run gen:ts && bun run gen:kotlin && bun run gen:rust && bun run test && bun run test:haxe && bun run test:kotlin && bun run test:intercept && bun run test:rust && bun run lint && bun run typecheck && bun run check:docs && bun run gen:vector && bun run check:reflaxe"

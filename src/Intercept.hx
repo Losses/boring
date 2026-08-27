@@ -1,7 +1,7 @@
 /**
  * Generation interception for the Haxe style standard,
  * docs/specs/style/01-haxe-style-standard.md. Registered from every compile
- * that feeds the pipeline: `--macro Intercept.run(['haxe/src', 'tests/haxe'])`.
+ * that feeds the pipeline: `--macro Intercept.run(['samples', 'tests/haxe'])`.
  *
  * Two passes, one per AST form the rules need:
  *

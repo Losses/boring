@@ -28,7 +28,7 @@ const BANNED_METHODS: ReadonlyArray<string> = [
  * fallback holds the one sanctioned comparator closure; everywhere else a
  * comparator `sort` is the banned closure form.
  */
-const SORT_RUNTIME_SUFFIX = "ts/src/vector-sort.ts";
+const SORT_RUNTIME_SUFFIX = "reference/ts/src/vector-sort.ts";
 
 /**
  * Bans array iteration methods that dispatch through a callback and comparator

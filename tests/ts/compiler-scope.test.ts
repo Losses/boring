@@ -17,9 +17,9 @@ import { join } from "node:path";
  */
 
 const COMPILER_DIRECTORIES: readonly string[] = [
-  "tools/haxe",
-  "tools/reflaxe/ts/tscompiler",
-  "tools/reflaxe/kotlin/kotlincompiler",
+  "src",
+  "src/reflaxe/ts/tscompiler",
+  "src/reflaxe/kotlin/kotlincompiler",
 ];
 
 /** Substrings that assume the compiled package or name the sample modules. */

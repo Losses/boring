@@ -1,10 +1,10 @@
 # Compile the Haxe test entry to JavaScript and run it with bun
-# (`bun run test:haxe`). The library sources live in haxe/src and the
+# (`bun run test:haxe`). The library sources live in samples and the
 # typed test runner in tests/haxe.
--cp tools/haxe
--cp haxe/src
+-cp src
+-cp samples
 -cp tests/haxe
 -main Main
 -js out/haxe/tests.js
 -D analyzer-optimize
---macro Intercept.run(['haxe/src', 'tests/haxe'], ['haxe/src/boring/BinaryReader.hx', 'haxe/src/boring/BinaryWriter.hx'])
+--macro Intercept.run(['samples', 'tests/haxe'], ['samples/boring/BinaryReader.hx', 'samples/boring/BinaryWriter.hx'])

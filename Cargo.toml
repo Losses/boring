@@ -2,5 +2,5 @@
 # Member crates hold the language implementations; test suites live in
 # tests/ and are wired into crates through explicit [[test]] paths.
 [workspace]
-members = ["rust", "rust-gen"]
+members = ["reference/rust", "reference/rust-gen"]
 resolver = "3"

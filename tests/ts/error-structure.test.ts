@@ -3,13 +3,13 @@ import { describe, expect, test } from "bun:test";
 /**
  * Structure guard for docs/specs/features/06-errors-and-results.md: codec
  * code throws typed exceptions carrying a variant, so a bare `new Error(` in
- * ts/src or a bare `new haxe.Exception(` in haxe/src is a violation whatever
+ * reference/ts/src or a bare `new haxe.Exception(` in samples/boring is a violation whatever
  * its message says. Tests may construct plain Error values; this scan binds
  * only the source trees.
  */
 
-const TS_SOURCE_DIR = import.meta.dir + "/../../ts/src";
-const HAXE_SOURCE_DIR = import.meta.dir + "/../../haxe/src/boring";
+const TS_SOURCE_DIR = import.meta.dir + "/../../reference/ts/src";
+const HAXE_SOURCE_DIR = import.meta.dir + "/../../samples/boring";
 
 async function listFiles(directory: string): Promise<string[]> {
   const names: string[] = [];
@@ -31,7 +31,7 @@ async function readAll(paths: string[]): Promise<string[]> {
 }
 
 describe("typed error structure", () => {
-  test("ts/src contains no bare Error construction", async () => {
+  test("reference/ts/src contains no bare Error construction", async () => {
     const files = await listFiles(TS_SOURCE_DIR);
     const contents = await readAll(files);
     const offenders: string[] = [];
@@ -43,7 +43,7 @@ describe("typed error structure", () => {
     expect(offenders).toEqual([]);
   });
 
-  test("haxe/src contains no bare haxe.Exception construction", async () => {
+  test("samples/boring contains no bare haxe.Exception construction", async () => {
     const files = await listFiles(HAXE_SOURCE_DIR);
     const contents = await readAll(files);
     const offenders: string[] = [];

@@ -9,7 +9,7 @@
     "types": ["bun"],
     "baseUrl": ".",
     "paths": {
-      "@boring/runtime": ["./ts/gen/runtime.ts"]
+      "@boring/runtime": ["./reference/ts/gen/runtime.ts"]
     },
     "strict": true,
     "noImplicitAny": true,
@@ -21,8 +21,8 @@
     "skipLibCheck": true
   },
   "include": [
-    "ts/src",
-    "ts/gen",
+    "reference/ts/src",
+    "reference/ts/gen",
     "tests/ts",
     "tools",
     "eslint.config.ts"

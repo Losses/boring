@@ -1,0 +1,21 @@
+# reflaxe Kotlin target generation
+# Run from the repository root: haxe examples/kotlin.hxml
+# Output lands in reference/kotlin/gen via the kotlin-output define.
+-lib reflaxe
+-lib boring
+-cp src/reflaxe/kotlin/std-shadow
+-cp src/reflaxe/kotlin
+-cp samples
+--macro Intercept.run(['samples'], ['samples/boring/BinaryReader.hx', 'samples/boring/BinaryWriter.hx'])
+--macro kotlincompiler.Compiler.use()
+-D kotlin-output=reference/kotlin/gen
+-D runtime-import=boring.runtime
+-D runtime-emit=runtime
+boring.BinaryReader
+boring.BinaryWriter
+boring.GlyphMetrics
+std.ReadOnlyArray
+boring.VectorCodec
+boring.VectorError
+boring.VectorException
+boring.VectorSort
