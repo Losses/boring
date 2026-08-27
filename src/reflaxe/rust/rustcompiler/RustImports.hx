@@ -11,6 +11,7 @@ class RustImports {
 		"haxe.io.BytesBuffer" => true,
 		"std.Console" => true,
 		"std.Process" => true,
+		"std.Test" => true,
 	];
 
 	final selfModule: String;
@@ -34,8 +35,9 @@ class RustImports {
 			require(runtimePackage + "::" + modName + "::" + name);
 			return;
 		}
-		if(module != selfModule) {
-			final rustMod = moduleToRustPath(module);
+		final targetModule = state.payloadEnumModules.exists(module) ? state.payloadEnumModules.get(module) : module;
+		if(targetModule != selfModule) {
+			final rustMod = moduleToRustPath(targetModule);
 			require("crate::" + rustMod + "::" + name);
 		}
 	}

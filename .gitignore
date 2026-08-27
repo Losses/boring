@@ -1,6 +1,7 @@
 node_modules/
 out/
 reference/ts/gen/
+reference/ts/gen-tests/
 target/
 .haxe/
 .haxelib/
@@ -11,4 +12,5 @@ target/
 .env.*
 .DS_Store
 reference/kotlin/gen/
+reference/kotlin/gen-tests/
 reference/rust-gen/src/

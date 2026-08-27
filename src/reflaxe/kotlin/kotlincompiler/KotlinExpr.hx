@@ -561,6 +561,7 @@ class KotlinExpr {
 				final en = e.get();
 				final owner = state.payloadEnumOwners.get(en.module);
 				if(owner != null) {
+					imports.requireType(en.pack.concat([owner]).join("."), owner);
 					return owner + "." + ef.name;
 				}
 				imports.requireType(en.module, en.name);
@@ -587,7 +588,23 @@ class KotlinExpr {
 		switch(path) {
 			case "String":
 				return "String." + name;
+			case "Math":
+				if(name == "NaN") return "Double.NaN";
+				if(name == "POSITIVE_INFINITY") return "Double.POSITIVE_INFINITY";
+				if(name == "NEGATIVE_INFINITY") return "Double.NEGATIVE_INFINITY";
+				return "Math." + name;
+			case "std.Test" | "std.__test_shim":
+				final runtimePackage = RuntimeConfig.requireImportName("module std.Test");
+				state.shimsUsed.set("std.Test", true);
+				imports.require(runtimePackage + ".Test");
+				return "Test." + name;
 			case _:
+				if(cls.module == "std.Test") {
+					final runtimePackage = RuntimeConfig.requireImportName("module std.Test");
+					state.shimsUsed.set("std.Test", true);
+					imports.require(runtimePackage + ".Test");
+					return "Test." + name;
+				}
 				imports.requireType(cls.module, cls.name);
 				return cls.name + "." + name;
 		}
@@ -597,6 +614,15 @@ class KotlinExpr {
 		switch(t) {
 			case TClassDecl(c):
 				final cls = c.get();
+				if(cls.pack.length == 0 && (cls.name == "String" || cls.name == "Math")) {
+					return cls.name;
+				}
+				if(cls.module == "std.Test" || (cls.pack.join(".") == "std" && (cls.name == "Test" || cls.name == "__test_shim"))) {
+					final runtimePackage = RuntimeConfig.requireImportName("module std.Test");
+					state.shimsUsed.set("std.Test", true);
+					imports.require(runtimePackage + ".Test");
+					return "Test";
+				}
 				imports.requireType(cls.module, cls.name);
 				return cls.name;
 			case TEnumDecl(e):
@@ -639,6 +665,23 @@ class KotlinExpr {
 				}
 				if(cls.pack.join(".") == "std" && cls.name == "Process" && name == "exit") {
 					imports.require("kotlin.system.exitProcess");
+				}
+				if(cls.module == "std.Test" || (cls.pack.join(".") == "std" && (cls.name == "Test" || cls.name == "__test_shim"))) {
+					if(name == "equals") {
+						final expectedArg = args[0];
+						final actualArg = args[1];
+						final msgArg = args.length > 2 ? expr(args[2]) : null;
+						if(isScalarType(expectedArg.t)) {
+							final runtimePackage = RuntimeConfig.requireImportName("module std.Test");
+							state.shimsUsed.set("std.Test", true);
+							imports.require(runtimePackage + ".Test");
+							return "Test.equals(" + expr(expectedArg) + ", " + expr(actualArg) + (msgArg != null ? ", " + msgArg : "") + ")";
+						} else {
+							recordAggregateType(expectedArg.t);
+							imports.require("tests.TestHelper");
+							return "TestHelper.assertEquals(" + expr(expectedArg) + ", " + expr(actualArg) + (msgArg != null ? ", " + msgArg : "") + ")";
+						}
+					}
 				}
 				return staticRef(cls, name) + "(" + renderedArgs + ")";
 			case TField(subj, FEnum(e, ef)):
@@ -892,6 +935,83 @@ class KotlinExpr {
 			b.add("    ");
 		}
 		return b.toString();
+	}
+
+	function isScalarType(t: Type): Bool {
+		final followed = Context.follow(t);
+		return switch(followed) {
+			case TAbstract(a, _):
+				final name = a.get().name;
+				name == "Bool" || name == "Int" || name == "Float";
+			case TInst(c, _):
+				c.get().name == "String";
+			case _: false;
+		};
+	}
+
+	function recordAggregateType(t: Type): Void {
+		switch(t) {
+			case TInst(c, params) if(c.get().name == "Array"):
+				final key = "Array_" + formatTypeKey(params[0]);
+				if(!state.testReachableTypes.exists(key)) {
+					state.testReachableTypes.set(key, t);
+					recordAggregateType(params[0]);
+				}
+			case TAbstract(a, params) if(a.get().name == "ReadOnlyArray" || (a.get().pack.join(".") == "std" && a.get().name == "ReadOnlyArray")):
+				final key = "Array_" + formatTypeKey(params[0]);
+				if(!state.testReachableTypes.exists(key)) {
+					state.testReachableTypes.set(key, t);
+					recordAggregateType(params[0]);
+				}
+			case TType(def, params):
+				final d = def.get();
+				final key = d.module + "." + d.name;
+				if(!state.testReachableTypes.exists(key)) {
+					state.testReachableTypes.set(key, t);
+					switch(d.type) {
+						case TAnonymous(anon):
+							for(f in anon.get().fields) {
+								recordAggregateType(f.type);
+							}
+						case _:
+					}
+				}
+			case TEnum(e, params):
+				final en = e.get();
+				final owner = state.payloadEnumOwners.get(en.module);
+				final typeName = owner != null ? en.pack.concat([owner]).join(".") : en.module + "." + en.name;
+				final key = typeName;
+				if(!state.testReachableTypes.exists(key)) {
+					state.testReachableTypes.set(key, t);
+					for(ef in en.constructs) {
+						switch(Context.follow(ef.type)) {
+							case TFun(args, _):
+								for(a in args) recordAggregateType(a.t);
+							case _:
+						}
+					}
+				}
+			case _:
+		}
+	}
+
+	function formatTypeKey(t: Type): String {
+		return switch(t) {
+			case TAbstract(a, params):
+				if(a.get().name == "ReadOnlyArray" || (a.get().pack.join(".") == "std" && a.get().name == "ReadOnlyArray")) "Array_" + formatTypeKey(params[0])
+				else a.get().name;
+			case TInst(c, params):
+				final cls = c.get();
+				if(cls.name == "Array") "Array_" + formatTypeKey(params[0]);
+				else if(cls.name == "Bytes" || (cls.pack.join(".") == "haxe.io" && cls.name == "Bytes")) "Bytes";
+				else cls.module + "." + cls.name;
+			case TType(def, params): def.get().module + "." + def.get().name;
+			case TEnum(e, params):
+				final en = e.get();
+				final owner = state.payloadEnumOwners.get(en.module);
+				owner != null ? en.pack.concat([owner]).join(".") : en.module + "." + en.name;
+			case _: "Unknown";
+		};
 	}
 
 	function fail(e: Null<TypedExpr>, message: String): Dynamic {

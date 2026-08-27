@@ -18,5 +18,17 @@
   {
     "define": "rust-output",
     "doc": "Output directory for Rust generation (rustcompiler)."
+  },
+  {
+    "define": "ts-test-output",
+    "doc": "Output directory for TypeScript test generation (tscompiler)."
+  },
+  {
+    "define": "ts-test-runner",
+    "doc": "Test runner environment for TypeScript test generation (node | deno | bun)."
+  },
+  {
+    "define": "kotlin-test-output",
+    "doc": "Output directory for Kotlin test generation (kotlincompiler)."
   }
 ]

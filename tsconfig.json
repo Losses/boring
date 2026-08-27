@@ -23,6 +23,7 @@
   "include": [
     "reference/ts/src",
     "reference/ts/gen",
+    "reference/ts/gen-tests",
     "tests/ts",
     "tools",
     "eslint.config.ts"

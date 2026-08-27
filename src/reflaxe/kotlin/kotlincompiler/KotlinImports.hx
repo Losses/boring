@@ -16,6 +16,7 @@ class KotlinImports {
 		"haxe.io.BytesBuffer" => true,
 		"std.Console" => true,
 		"std.Process" => true,
+		"std.Test" => true,
 	];
 
 	final selfPack: String;

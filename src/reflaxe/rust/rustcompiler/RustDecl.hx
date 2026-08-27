@@ -49,6 +49,28 @@ class RustDecl {
 			return exceptionErrorDecl(cls, payload, funcFields);
 		}
 
+		var hasTestMethods = false;
+		for(f in funcFields) {
+			if(f.field.meta.has(":test")) {
+				hasTestMethods = true;
+				break;
+			}
+		}
+
+		if(hasTestMethods) {
+			final lines: Array<String> = [];
+			var sep = false;
+			final sortedFuncs = funcFields.copy();
+			sortedFuncs.sort((a, b) -> Reflect.compare(Context.getPosInfos(a.field.pos).min, Context.getPosInfos(b.field.pos).min));
+			for(f in sortedFuncs) {
+				if(!f.field.meta.has(":test")) continue;
+				if(sep) lines.push("");
+				sep = true;
+				for(l in testFuncDecl(cls, f)) lines.push(l);
+			}
+			return lines.join("\n");
+		}
+
 		final isStaticClass = isAllStatic(varFields, funcFields);
 		final lines: Array<String> = [];
 
@@ -579,6 +601,21 @@ class RustDecl {
 		}
 		walk(f.expr);
 		return throwsOrCallsFallible;
+	}
+
+	public function testFuncDecl(cls: ClassType, f: ClassFuncData): Array<String> {
+		final id = cls.module + "." + f.field.name;
+		final snake = RustImports.toSnakeCase(f.field.name);
+		final body = expr.functionBody(f);
+		final indented = body.map(l -> "        " + l);
+		return [
+			"#[test]",
+			'fn $snake() {',
+			'    testlib::run("${id}", || {',
+		].concat(indented).concat([
+			"    });",
+			"}"
+		]);
 	}
 
 	// ------------------------------------------------------------------

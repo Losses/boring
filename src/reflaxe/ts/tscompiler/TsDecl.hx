@@ -29,6 +29,10 @@ class TsDecl {
 		return imports.render();
 	}
 
+	public function renderTestImports(testOutputDir: String, mainOutputDir: String, testRunner: String): String {
+		return imports.renderTestImports(testOutputDir, mainOutputDir, testRunner);
+	}
+
 	/** Whether this module references any runtime-package symbol. */
 	public function usesRuntime(): Bool {
 		return imports.usesRuntime();
@@ -76,6 +80,39 @@ class TsDecl {
 
 		lines.push("}");
 		return lines.join("\n");
+	}
+
+	public function testFuncDecl(cls: ClassType, f: ClassFuncData, testRunner: String): String {
+		final id = cls.module + "." + f.field.name;
+		var desc: Null<String> = null;
+		for(entry in f.field.meta.extract(":test")) {
+			if(entry.params != null && entry.params.length > 0) {
+				switch(entry.params[0].expr) {
+					case EConst(CString(s)): desc = s;
+					case _:
+				}
+			}
+		}
+		final runnerName = desc != null ? id + ": " + desc : id;
+		imports.runtime("Test");
+		final body = expr.functionBody(f);
+		final indented = [for(b in body) "    " + b].join("\n");
+		if(testRunner == "deno") {
+			return 'Deno.test("${escapeString(runnerName)}", () =>\n  Test.run("${id}", () => {\n$indented\n  }));';
+		} else {
+			return 'test("${escapeString(runnerName)}", () =>\n  Test.run("${id}", () => {\n$indented\n  }));';
+		}
+	}
+
+	static function escapeString(s: String): String {
+		var out = new StringBuf();
+		for(i in 0...s.length) {
+			var c = s.charAt(i);
+			if(c == '"') out.add('\\"');
+			else if(c == '\\') out.add('\\\\');
+			else out.add(c);
+		}
+		return out.toString();
 	}
 
 	function isException(cls: ClassType): Bool {
@@ -172,14 +209,14 @@ class TsDecl {
 	public function typedefDecl(def: DefType): String {
 		switch(def.type) {
 			case TAnonymous(anonRef):
-				final fields = anonRef.get().fields;
-				final lines = ['export interface ${def.name} {'];
-				for(field in fields) {
-					final ro = field.isFinal ? "readonly " : "";
-					lines.push('  ${ro}${field.name}: ${types.of(field.type)};');
-				}
-				lines.push("}");
-				return lines.join("\n");
+				final fields = anonRef.get().fields.copy();
+				fields.sort((a, b) -> Reflect.compare(Context.getPosInfos(a.pos).min, Context.getPosInfos(b.pos).min));
+				final fieldLines = [for(field in fields) '  readonly ${field.name}: ${types.of(field.type)};'];
+				return [
+					'export interface ${def.name} {',
+					fieldLines.join("\n"),
+					"}"
+				].join("\n");
 			case _:
 				Context.error("typedef alias has no lowering; name the structure instead", def.pos);
 				return null;
