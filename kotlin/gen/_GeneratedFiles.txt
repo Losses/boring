@@ -1,0 +1,10 @@
+boring/BinaryReader.kt
+boring/BinaryWriter.kt
+boring/GlyphMetrics.kt
+boring/VectorCodec.kt
+boring/VectorException.kt
+boring/VectorSort.kt
+boring/BytesBuffer.kt
+boring/FPHelper.kt
+boring/Console.kt
+boring/Process.kt
