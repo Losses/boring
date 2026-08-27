@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification rules the representation of strings, character encodings, Unicode code points, and string conversions across Haxe, Rust, TypeScript, and Kotlin. In the current codebase, ASCII magic strings appear in `haxe/src/boring/VectorCodec.hx` (lines 11, 30) and `ts/src/vector-format.ts` (line 10), ASCII byte serialization appears in `haxe/src/boring/BinaryReader.hx` (lines 41-48), `haxe/src/boring/BinaryWriter.hx` (lines 38-42), and `ts/src/codec.ts` (lines 46-52, 101-108), raw magic byte arrays appear in `rust/src/lib.rs` (line 24), and Unicode scalar values appear as integer code points in `haxe/src/boring/GlyphMetrics.hx` (line 13), `rust/src/lib.rs` (line 19), and `ts/src/records.ts` (line 15). In Kotlin, the ASCII magic appears in `kotlin/src/boring/VectorCodec.kt`, byte serialization in `kotlin/src/boring/BinaryReader.kt` and `kotlin/src/boring/BinaryWriter.kt`, and code points as `Int` fields in `kotlin/src/boring/GlyphMetrics.kt`.
+This specification rules the representation of strings, character encodings, Unicode code points, and string conversions across Haxe, Rust, TypeScript, and Kotlin. In the current codebase, ASCII magic strings appear in `samples/boring/VectorCodec.hx` (lines 11, 30) and `reference/ts/src/vector-format.ts` (line 10), ASCII byte serialization appears in `samples/boring/BinaryReader.hx` (lines 41-48), `samples/boring/BinaryWriter.hx` (lines 38-42), and `reference/ts/src/codec.ts` (lines 46-52, 101-108), raw magic byte arrays appear in `reference/rust/src/lib.rs` (line 24), and Unicode scalar values appear as integer code points in `samples/boring/GlyphMetrics.hx` (line 13), `reference/rust/src/lib.rs` (line 19), and `reference/ts/src/records.ts` (line 15). In Kotlin, the ASCII magic appears in `reference/kotlin/src/boring/VectorCodec.kt`, byte serialization in `reference/kotlin/src/boring/BinaryReader.kt` and `reference/kotlin/src/boring/BinaryWriter.kt`, and code points as `Int` fields in `reference/kotlin/src/boring/GlyphMetrics.kt`.
 
 ## Haxe construct
 
@@ -18,7 +18,7 @@ In the Haxe typed AST, string literals are represented by `haxe.macro.TypedExprD
 
 ## Current translations
 
-### Haxe (`haxe/src/boring/BinaryReader.hx`, `haxe/src/boring/BinaryWriter.hx`, `haxe/src/boring/VectorCodec.hx`)
+### Haxe (`samples/boring/BinaryReader.hx`, `samples/boring/BinaryWriter.hx`, `samples/boring/VectorCodec.hx`)
 
 ```haxe
 public static inline var MAGIC:String = "BRG1";
@@ -39,7 +39,7 @@ public function writeAscii(value:String):Void {
 }
 ```
 
-### Rust (`rust/src/lib.rs`)
+### Rust (`reference/rust/src/lib.rs`)
 
 ```rust
 pub const VECTOR_MAGIC: &[u8; 4] = b"BRG1";
@@ -52,7 +52,7 @@ pub struct GlyphMetrics {
 }
 ```
 
-### TypeScript (`ts/src/codec.ts`, `ts/src/records.ts`, `ts/src/vector-format.ts`)
+### TypeScript (`reference/ts/src/codec.ts`, `reference/ts/src/records.ts`, `reference/ts/src/vector-format.ts`)
 
 ```ts
 export const VECTOR_MAGIC = "BRG1";

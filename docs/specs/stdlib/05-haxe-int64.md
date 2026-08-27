@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification rules the representation and serialization of 64-bit integers (`haxe.Int64`) across Haxe, Rust, TypeScript, and Kotlin. In the current codebase, 64-bit integers do not appear as domain fields in glyph metrics records; `GlyphMetrics` uses 32-bit integers for `codePoint` and 64-bit floats for coordinates in `haxe/src/boring/GlyphMetrics.hx` (lines 12-16), `rust/src/lib.rs` (lines 17-22), and `ts/src/records.ts` (lines 14-18). 64-bit integer bit manipulation appears exclusively during floating-point conversion in `haxe/src/boring/BinaryWriter.hx` (lines 30-36) and `rust/src/lib.rs` (line 66). In Kotlin, the floating-point bit conversion appears as `Double.toRawBits` in `kotlin/src/boring/BinaryWriter.kt`.
+This specification rules the representation and serialization of 64-bit integers (`haxe.Int64`) across Haxe, Rust, TypeScript, and Kotlin. In the current codebase, 64-bit integers do not appear as domain fields in glyph metrics records; `GlyphMetrics` uses 32-bit integers for `codePoint` and 64-bit floats for coordinates in `samples/boring/GlyphMetrics.hx` (lines 12-16), `reference/rust/src/lib.rs` (lines 17-22), and `reference/ts/src/records.ts` (lines 14-18). 64-bit integer bit manipulation appears exclusively during floating-point conversion in `samples/boring/BinaryWriter.hx` (lines 30-36) and `reference/rust/src/lib.rs` (line 66). In Kotlin, the floating-point bit conversion appears as `Double.toRawBits` in `reference/kotlin/src/boring/BinaryWriter.kt`.
 
 ## Haxe construct
 
@@ -25,7 +25,7 @@ In the Haxe typed AST, `haxe.Int64` is represented by `haxe.macro.Type.TAbstract
 
 ## Current translations
 
-### Haxe (`haxe/src/boring/BinaryWriter.hx`, `haxe/src/boring/BinaryReader.hx`)
+### Haxe (`samples/boring/BinaryWriter.hx`, `samples/boring/BinaryReader.hx`)
 
 Haxe uses `haxe.Int64` high and low 32-bit words during floating-point conversion:
 
@@ -43,7 +43,7 @@ public function readF64():Float {
 }
 ```
 
-### Rust (`rust/src/lib.rs`)
+### Rust (`reference/rust/src/lib.rs`)
 
 Rust uses native `u64` bit conversions for floating-point decoding:
 
@@ -53,7 +53,7 @@ pub fn read_f64(&mut self) -> Result<f64, VectorError> {
 }
 ```
 
-### TypeScript (`ts/src/codec.ts`)
+### TypeScript (`reference/ts/src/codec.ts`)
 
 TypeScript uses `DataView` floating-point conversions without 64-bit integers:
 

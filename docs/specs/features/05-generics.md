@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification rules the translation of Haxe parameterized types, generic functions, and type parameter constraints into Rust, TypeScript, and Kotlin. In the current codebase, generic collections appear as `Array<GlyphMetrics>` in `haxe/src/boring/VectorCodec.hx`, as `Vec<GlyphMetrics>`, `&[GlyphMetrics]`, and `take_n<const N: usize>` in `rust/src/lib.rs`, and as `readonly GlyphMetricsRecord[]` in `ts/src/vector-format.ts`. In Kotlin, generic collections appear as `Array<GlyphMetrics>` and the `List<GlyphMetrics>` return type in `kotlin/src/boring/VectorCodec.kt`.
+This specification rules the translation of Haxe parameterized types, generic functions, and type parameter constraints into Rust, TypeScript, and Kotlin. In the current codebase, generic collections appear as `Array<GlyphMetrics>` in `samples/boring/VectorCodec.hx`, as `Vec<GlyphMetrics>`, `&[GlyphMetrics]`, and `take_n<const N: usize>` in `reference/rust/src/lib.rs`, and as `readonly GlyphMetricsRecord[]` in `reference/ts/src/vector-format.ts`. In Kotlin, generic collections appear as `Array<GlyphMetrics>` and the `List<GlyphMetrics>` return type in `reference/kotlin/src/boring/VectorCodec.kt`.
 
 ## Haxe construct
 
@@ -36,7 +36,7 @@ In the Haxe typed AST, generic types are represented by `haxe.macro.Type.TInst(t
 
 ## Current translations
 
-### Haxe (`haxe/src/boring/VectorCodec.hx`)
+### Haxe (`samples/boring/VectorCodec.hx`)
 
 ```haxe
 public static function encode(records:Array<GlyphMetrics>):Bytes {
@@ -55,7 +55,7 @@ public static function encode(records:Array<GlyphMetrics>):Bytes {
 }
 ```
 
-### Rust (`rust/src/lib.rs`)
+### Rust (`reference/rust/src/lib.rs`)
 
 ```rust
 fn take_n<const N: usize>(&mut self) -> Result<[u8; N], VectorError> {
@@ -76,7 +76,7 @@ pub fn encode_vector(records: &[GlyphMetrics]) -> Result<Vec<u8>, VectorError> {
 }
 ```
 
-### TypeScript (`ts/src/vector-format.ts`)
+### TypeScript (`reference/ts/src/vector-format.ts`)
 
 ```ts
 export function encodeVector(records: readonly GlyphMetricsRecord[]): Uint8Array {

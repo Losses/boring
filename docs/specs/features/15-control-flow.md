@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification rules the translation of Haxe statement-level control flow (`if`/`else`, `switch`, `while`, `do`/`while`, `for`, `break`, `continue`, and early `return`) into Rust, TypeScript, and Kotlin, and the constructs control flow must never translate into. In the current codebase, guard clauses with early exit appear in `haxe/src/boring/VectorCodec.hx`, `rust/src/lib.rs`, `ts/src/vector-format.ts`, and `kotlin/src/boring/VectorCodec.kt`; loops appear in `rust/src/lib.rs` and `ts/src/vector-format.ts`; a counted fill through the Kotlin array initializer appears in `kotlin/src/boring/VectorCodec.kt`; and an exhaustive `match` appears in `rust/src/lib.rs`.
+This specification rules the translation of Haxe statement-level control flow (`if`/`else`, `switch`, `while`, `do`/`while`, `for`, `break`, `continue`, and early `return`) into Rust, TypeScript, and Kotlin, and the constructs control flow must never translate into. In the current codebase, guard clauses with early exit appear in `samples/boring/VectorCodec.hx`, `reference/rust/src/lib.rs`, `reference/ts/src/vector-format.ts`, and `reference/kotlin/src/boring/VectorCodec.kt`; loops appear in `reference/rust/src/lib.rs` and `reference/ts/src/vector-format.ts`; a counted fill through the Kotlin array initializer appears in `reference/kotlin/src/boring/VectorCodec.kt`; and an exhaustive `match` appears in `reference/rust/src/lib.rs`.
 
 ## Haxe construct
 
@@ -40,7 +40,7 @@ Haxe `switch` has no fallthrough: each case body ends at the next case marker wi
 
 ## Current translations
 
-### Haxe (`haxe/src/boring/VectorCodec.hx`)
+### Haxe (`samples/boring/VectorCodec.hx`)
 
 ```haxe
 final magic = reader.readAscii(MAGIC.length);
@@ -49,7 +49,7 @@ if (magic != MAGIC) {
 }
 ```
 
-### Rust (`rust/src/lib.rs`)
+### Rust (`reference/rust/src/lib.rs`)
 
 ```rust
 if bytes.len() < 4 || &bytes[..4] != VECTOR_MAGIC {
@@ -61,7 +61,7 @@ for record in records {
 }
 ```
 
-### TypeScript (`ts/src/vector-format.ts`, `ts/src/codec.ts`)
+### TypeScript (`reference/ts/src/vector-format.ts`, `reference/ts/src/codec.ts`)
 
 ```ts
 if (magic !== VECTOR_MAGIC) {

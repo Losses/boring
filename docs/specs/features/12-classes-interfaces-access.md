@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification rules the translation of Haxe classes, member variables, properties, interfaces, and access modifiers (`public`, `private`, `static`, `inline`) into Rust, TypeScript, and Kotlin. In the current codebase, classes appear in Haxe in `haxe/src/boring/BinaryReader.hx` (lines 11-57), `haxe/src/boring/BinaryWriter.hx` (lines 11-47), and `haxe/src/boring/VectorCodec.hx` (lines 10-54), extern classes appear in `haxe/src/std/Process.hx` (lines 8-10) and `haxe/src/std/Console.hx` (lines 8-10), structs and `impl` blocks appear in Rust in `rust/src/lib.rs` (lines 9-22, 51-82), and classes and interfaces appear in TypeScript in `ts/src/codec.ts` (lines 10-117) and `ts/src/records.ts` (lines 7-18). In Kotlin, classes appear in `kotlin/src/boring/BinaryReader.kt`, `kotlin/src/boring/BinaryWriter.kt`, and `kotlin/src/boring/VectorException.kt`; the codec API is the `VectorCodec` object in `kotlin/src/boring/VectorCodec.kt`.
+This specification rules the translation of Haxe classes, member variables, properties, interfaces, and access modifiers (`public`, `private`, `static`, `inline`) into Rust, TypeScript, and Kotlin. In the current codebase, classes appear in Haxe in `samples/boring/BinaryReader.hx` (lines 11-57), `samples/boring/BinaryWriter.hx` (lines 11-47), and `samples/boring/VectorCodec.hx` (lines 10-54), extern classes appear in `samples/std/Process.hx` (lines 8-10) and `samples/std/Console.hx` (lines 8-10), structs and `impl` blocks appear in Rust in `reference/rust/src/lib.rs` (lines 9-22, 51-82), and classes and interfaces appear in TypeScript in `reference/ts/src/codec.ts` (lines 10-117) and `reference/ts/src/records.ts` (lines 7-18). In Kotlin, classes appear in `reference/kotlin/src/boring/BinaryReader.kt`, `reference/kotlin/src/boring/BinaryWriter.kt`, and `reference/kotlin/src/boring/VectorException.kt`; the codec API is the `VectorCodec` object in `reference/kotlin/src/boring/VectorCodec.kt`.
 
 ## Haxe construct
 
@@ -44,7 +44,7 @@ In the Haxe typed AST, class declarations are represented by `haxe.macro.Type.TC
 
 ## Current translations
 
-### Haxe (`haxe/src/boring/BinaryReader.hx`, `haxe/src/boring/BinaryWriter.hx`)
+### Haxe (`samples/boring/BinaryReader.hx`, `samples/boring/BinaryWriter.hx`)
 
 ```haxe
 class BinaryReader {
@@ -68,7 +68,7 @@ class BinaryReader {
 }
 ```
 
-### Rust (`rust/src/lib.rs`)
+### Rust (`reference/rust/src/lib.rs`)
 
 ```rust
 pub struct VectorReader<'a> {
@@ -91,7 +91,7 @@ impl<'a> VectorReader<'a> {
 }
 ```
 
-### TypeScript (`ts/src/codec.ts`, `ts/src/records.ts`)
+### TypeScript (`reference/ts/src/codec.ts`, `reference/ts/src/records.ts`)
 
 ```ts
 export class BinaryReader {

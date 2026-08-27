@@ -3,14 +3,14 @@
 ## Scope
 
 This specification rules the shape of the subset's own standard library
-(`haxe/src/std/`), the namespaces the toolchain reserves, and how every
+(`samples/std/`), the namespaces the toolchain reserves, and how every
 target references and materializes the runtime package that backs it.
-It governs `tools/haxe/RuntimeConfig.hx`, the
+It governs `src/RuntimeConfig.hx`, the
 `runtime-import` and `runtime-emit` defines read from
-`tools/reflaxe/ts.hxml` and `tools/reflaxe/kotlin.hxml`, the import
-tables `tools/reflaxe/ts/tscompiler/TsImports.hx` and
-`tools/reflaxe/kotlin/kotlincompiler/KotlinImports.hx`, and the shim
-sources in `tools/reflaxe/kotlin/kotlincompiler/KotlinRuntime.hx`.
+`examples/ts.hxml` and `examples/kotlin.hxml`, the import
+tables `src/reflaxe/ts/tscompiler/TsImports.hx` and
+`src/reflaxe/kotlin/kotlincompiler/KotlinImports.hx`, and the shim
+sources in `src/reflaxe/kotlin/kotlincompiler/KotlinRuntime.hx`.
 
 ## Reserved namespaces
 
@@ -19,13 +19,13 @@ Two namespaces are reserved on the compile-input side:
 - `haxe.*`: the modules of the Haxe standard library the subset
   translates (`haxe.io.Bytes`, `haxe.io.BytesBuffer`, `haxe.io.FPHelper`,
   `haxe.Exception`, `haxe.Int64`).
-- `std.*`: the subset's own modules declared in `haxe/src/std/`
+- `std.*`: the subset's own modules declared in `samples/std/`
   (`std.ReadOnlyArray`, `std.Console`, `std.Process`).
 
 The compiler treats both like compiler-recognized namespaces: modules in
 them may be entry points, and references to them route through the
 std import tables. Neither namespace reaches any target's output.
-`kotlin/gen/boring/BinaryWriter.kt` importing `haxe.io.BytesBuffer` and
+`reference/kotlin/gen/boring/BinaryWriter.kt` importing `haxe.io.BytesBuffer` and
 TypeScript files importing a runtime module by a path that walks out of
 their package directory were both defects of this rule and are removed.
 
@@ -104,11 +104,11 @@ package.
 ## Test hooks
 
 - `tests/ts/compiler-scope.test.ts` scans the compiler directories
-  (including `tools/haxe`) for sample-source names; the configuration
+  (including `src`) for sample-source names; the configuration
   carries the identities, so the compilers carry no sample names.
-- `tests/ts/generated-tree.test.ts` imports the generated tree through
+- `tests/reference/ts/generated-tree.test.ts` imports the generated tree through
   the `@boring/runtime` specifier resolved by `tsconfig.json` `paths`,
   which is the same wiring a bring-your-own consumer uses.
-- `package.json` `test:kotlin` compiles `kotlin/gen` together with
-  `kotlin/gen/runtime`, where the shims are written under `package
+- `package.json` `test:kotlin` compiles `reference/kotlin/gen` together with
+  `reference/kotlin/gen/runtime`, where the shims are written under `package
   boring.runtime`.

@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification rules the translation of Haxe `Null<T>`, optional structural fields (`?field:T`), and optional function arguments into Rust, TypeScript, and Kotlin. In the current repository, glyph metrics records (`haxe/src/boring/GlyphMetrics.hx`, `rust/src/lib.rs`, `ts/src/records.ts`) contain non-null fields. In the glyph metrics domain, optionality governs sparse font tables, fallback glyph identifiers, and optional vertical advance metrics. In Kotlin, record fields are non-null `val` properties in `kotlin/src/boring/GlyphMetrics.kt`.
+This specification rules the translation of Haxe `Null<T>`, optional structural fields (`?field:T`), and optional function arguments into Rust, TypeScript, and Kotlin. In the current repository, glyph metrics records (`samples/boring/GlyphMetrics.hx`, `reference/rust/src/lib.rs`, `reference/ts/src/records.ts`) contain non-null fields. In the glyph metrics domain, optionality governs sparse font tables, fallback glyph identifiers, and optional vertical advance metrics. In Kotlin, record fields are non-null `val` properties in `reference/kotlin/src/boring/GlyphMetrics.kt`.
 
 ## Haxe construct
 
@@ -29,7 +29,7 @@ In the Haxe typed AST, `Null<T>` is represented by `haxe.macro.Type.TAbstract(t:
 
 ## Current translations
 
-### Haxe (`haxe/src/boring/GlyphMetrics.hx`)
+### Haxe (`samples/boring/GlyphMetrics.hx`)
 
 Absent. All current fields are mandatory and non-null:
 
@@ -41,7 +41,7 @@ typedef GlyphMetrics = {
 }
 ```
 
-### Rust (`rust/src/lib.rs`)
+### Rust (`reference/rust/src/lib.rs`)
 
 Absent in data records. `Option<T>` is used for internal chunk slicing in `VectorReader` (lines 74-80):
 
@@ -57,7 +57,7 @@ fn take_n<const N: usize>(&mut self) -> Result<[u8; N], VectorError> {
 }
 ```
 
-### TypeScript (`ts/src/records.ts`)
+### TypeScript (`reference/ts/src/records.ts`)
 
 Absent. All interface fields are mandatory and non-null:
 

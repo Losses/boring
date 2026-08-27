@@ -6,7 +6,7 @@ This directory defines the translation rules from Haxe into Rust, TypeScript, an
 
 The repository hosts one binary codec implemented in Haxe, Rust, TypeScript, and Kotlin. Haxe is the reference language. Every Haxe construct used by the codec requires an explicit, written translation rule for Rust, TypeScript, and Kotlin.
 
-The Kotlin tree is present under `kotlin/`. The Kotlin rulings in these specifications bind the Reflaxe generator when it emits a Kotlin target, so the target arrives with its translation decisions already written down.
+The Kotlin tree is present under `reference/kotlin/`. The Kotlin rulings in these specifications bind the Reflaxe generator when it emits a Kotlin target, so the target arrives with its translation decisions already written down.
 
 A later compilation and generation stage produces or verifies target code against these specifications. Without written specifications, unit tests inherit ad hoc translation choices, and disagreements in emitted bytes cannot be localized to a single design decision. Each specification document serves as the single location where a translation decision is defined and justified.
 

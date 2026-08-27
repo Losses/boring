@@ -4,7 +4,7 @@
 
 This specification defines the Haxe-level language style standard for code accepted by the translation pipeline, and the interception that enforces it. The interception runs before generation on every pipeline entry, rejects non-conforming code and unsupported features with a named violation at the offending site, and aborts the run. Haxe source inside the pipeline keeps the friendly source syntax of the language; every restriction below exists because the corresponding construct either has no translation with identical observable behavior on Rust, TypeScript, and Kotlin, or its translated form has uncontrollable cost on the JavaScript target.
 
-The standard binds `haxe/src` and any source the generator later consumes. The Haxe test tree `tests/haxe` compiles through the same interception.
+The standard binds `samples` and any source the generator later consumes. The Haxe test tree `tests/haxe` compiles through the same interception.
 
 ## Style standard
 
@@ -69,7 +69,7 @@ The violation set grows with the specification set: adding a restriction to any 
 
 The interception is a Haxe macro in two passes:
 
-1. Every pipeline entry that compiles or generates from `haxe/src` registers the interception macro, including the test compile in `tests/haxe/compile.hxml`.
+1. Every pipeline entry that compiles or generates from `samples` registers the interception macro, including the test compile in `tests/haxe/compile.hxml`.
 2. Pass 1 runs as a `@:build` macro over the untyped field expressions of every class, injected with `Compiler.addGlobalMetadata` and guarded by the source paths. The typer rewrites `for (item in array)` into a counter loop, expands `array.map(fn)` into an inlined loop holding the function value, and inlines `Reflect.hasField` into a prototype call; the untyped tree is the only layer where those source constructs survive, so `V01` through `V03` and the source-level `V05` forms check there.
 3. Pass 2 runs after the compiler types all modules and walks every typed expression of every guarded class; the remaining rows check there.
 4. Each walk step tests the rejection table above against the current node; the first hit calls `Context.fatalError` with the violation name, the file, and the line of the offending node, which aborts compilation. The error message format is `Vnn Name: message`, so test assertions match on the violation name.
@@ -80,4 +80,4 @@ The repository owns no generator yet; until one exists, the interception is the 
 ## Test hooks
 
 - One test per rejection row: `tests/interception/cases/<name>/Case.hx` holds a minimal fragment whose first line names the expected violation (`// expect: V01 IteratorLoop`). `bun run test:intercept` compiles each case with the interception guarding that case directory and asserts the abort names the expected violation. `V07 ShapeMutation` has no fragment: the compiler rejects writes to final fields before either pass, so its row is defense in depth. Run under the flake shell, exactly like `test:haxe`.
-- One positive test: `bun run test:haxe` compiles `haxe/src` and `tests/haxe` with the interception registered and reports zero violations; the same command runs the Haxe test suite.
+- One positive test: `bun run test:haxe` compiles `samples` and `tests/haxe` with the interception registered and reports zero violations; the same command runs the Haxe test suite.

@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification rules the overall mapping of the Haxe type system onto Rust, TypeScript, and Kotlin: which Haxe types are nominal, which are structural, how type identity survives translation, and where explicit conversions are permitted. It consolidates the per-construct rulings of specs 01 through 13 into one mapping table and one set of identity rules. In the current codebase, named record types appear in Haxe as typedefs over anonymous structures in `haxe/src/boring/GlyphMetrics.hx` (lines 4-16), in Rust as structs in `rust/src/lib.rs` (lines 9-22), and in TypeScript as interfaces in `ts/src/records.ts` (lines 7-18); a nominal sum type appears in Rust as `VectorError` in `rust/src/lib.rs` (lines 28-33). In Kotlin, named record types appear as classes with `val` constructor properties in `kotlin/src/boring/GlyphMetrics.kt`, and the sum type appears as the sealed `VectorException` hierarchy in `kotlin/src/boring/VectorException.kt`.
+This specification rules the overall mapping of the Haxe type system onto Rust, TypeScript, and Kotlin: which Haxe types are nominal, which are structural, how type identity survives translation, and where explicit conversions are permitted. It consolidates the per-construct rulings of specs 01 through 13 into one mapping table and one set of identity rules. In the current codebase, named record types appear in Haxe as typedefs over anonymous structures in `samples/boring/GlyphMetrics.hx` (lines 4-16), in Rust as structs in `reference/rust/src/lib.rs` (lines 9-22), and in TypeScript as interfaces in `reference/ts/src/records.ts` (lines 7-18); a nominal sum type appears in Rust as `VectorError` in `reference/rust/src/lib.rs` (lines 28-33). In Kotlin, named record types appear as classes with `val` constructor properties in `reference/kotlin/src/boring/GlyphMetrics.kt`, and the sum type appears as the sealed `VectorException` hierarchy in `reference/kotlin/src/boring/VectorException.kt`.
 
 ## Haxe construct
 
@@ -20,7 +20,7 @@ In the Haxe typed AST, types are represented by the `haxe.macro.Type` enum: `TIn
 
 ## Current translations
 
-### Haxe (`haxe/src/boring/GlyphMetrics.hx`)
+### Haxe (`samples/boring/GlyphMetrics.hx`)
 
 ```haxe
 typedef BoundsEm = {
@@ -37,7 +37,7 @@ typedef GlyphMetrics = {
 }
 ```
 
-### Rust (`rust/src/lib.rs`)
+### Rust (`reference/rust/src/lib.rs`)
 
 ```rust
 pub struct BoundsEm {
@@ -54,7 +54,7 @@ pub struct GlyphMetrics {
 }
 ```
 
-### TypeScript (`ts/src/records.ts`)
+### TypeScript (`reference/ts/src/records.ts`)
 
 ```ts
 export interface BoundsEmRecord {
@@ -145,8 +145,8 @@ typealias GlyphMetricsFields = Triple<Int, Double, BoundsEmFields>
 | --- | --- | --- | --- | --- |
 | Rust Candidate 1 (Nominal structs) | Monomorphic named structs compile to fixed field offsets with direct access and inlining. | Distinct declarations stay distinct, and the compiler rejects field mismatches at construction. | One struct per Haxe type with no companion traits. | A named struct states the record shape once per type. |
 | Rust Candidate 2 (Field-access traits) | Trait dispatch adds indirection and blocks field inlining unless calls monomorphize. | Any type implementing the traits satisfies a parameter, so two distinct Haxe types merge into one Rust interface. | Every record needs a trait declaration plus an implementation block. | Trait indirection hides the concrete memory layout from readers. |
-| TS Candidate 1 (Named interfaces with brands) | Named interfaces compile to plain object shapes with monomorphic property access. | Names document intent, and brands restore nominal guarantees where the API requires them. | One interface per Haxe type. | Named interfaces match the repository rule recorded in `ts/src/records.ts` (lines 1-5). |
-| TS Candidate 2 (Inline types) | The runtime shape is identical, but every use site restates the fields. | Two inline types with the same fields are interchangeable even when the Haxe types were distinct. | Field lists repeat at every use site. | Inline object types violate the repository ban recorded in `ts/src/records.ts` (lines 1-5) and AGENT.md. |
+| TS Candidate 1 (Named interfaces with brands) | Named interfaces compile to plain object shapes with monomorphic property access. | Names document intent, and brands restore nominal guarantees where the API requires them. | One interface per Haxe type. | Named interfaces match the repository rule recorded in `reference/ts/src/records.ts` (lines 1-5). |
+| TS Candidate 2 (Inline types) | The runtime shape is identical, but every use site restates the fields. | Two inline types with the same fields are interchangeable even when the Haxe types were distinct. | Field lists repeat at every use site. | Inline object types violate the repository ban recorded in `reference/ts/src/records.ts` (lines 1-5) and AGENT.md. |
 | Kotlin Candidate 1 (Nominal data class) | Flat field layout with direct property access and generated `equals` and `copy`. | Distinct declarations stay distinct, and the compiler rejects field mismatches at construction. | One `data class` per Haxe type with no companion machinery. | Named properties state the record shape once per type. |
 | Kotlin Candidate 2 (Generic aliases) | Container access runs at full speed, with field identity lost to positional calls. | Any alias with matching component types satisfies a parameter, merging two distinct Haxe types into one shape. | Every access re-derives field meaning from the alias definition. | Positional components hide the field names the Haxe source states. |
 
@@ -172,7 +172,7 @@ Rules:
 
 - Type identity never merges. Two distinct named Haxe types translate to two distinct target types even when their shapes coincide, because merged types erase the distinction the Haxe compiler enforced.
 - No silent widening or narrowing. Every numeric conversion is an explicit named function at an API or wire boundary; the numeric selection follows the wire type table in `docs/specs/features/07-numeric-tower.md`.
-- Every target type is named. Inline object, function, mapped, and tuple types are banned repo-wide as recorded in `ts/src/records.ts` (lines 1-5).
+- Every target type is named. Inline object, function, mapped, and tuple types are banned repo-wide as recorded in `reference/ts/src/records.ts` (lines 1-5).
 - Generic parameter translation follows `docs/specs/features/05-generics.md`; this table fixes only the base types.
 - Kotlin `data class` gives record equality, copying, and destructuring; `value class` wraps its underlying representation without boxing outside nullable and generic positions.
 
