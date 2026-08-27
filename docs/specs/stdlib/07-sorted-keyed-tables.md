@@ -68,9 +68,20 @@ and deferred:
   emission.
 - **String keys**: ordering must be identical across targets, and
   UTF-16 code-unit order (JavaScript) differs from code-point order
-  (Rust byte order) astral to the BMP. String keys wait for an explicit
-  code-point-order ruling with its per-target comparison cost stated;
-  they are not silently mapped to either platform native.
+  (Rust byte order) astral to the BMP. Ruled 2026-08-27: the order is
+  **UTF-16 code-unit order**. Code-unit order is the native string
+  comparison of the TypeScript runtime, the Kotlin runtime, and the
+  Haxe stage-one JavaScript shims, so those sides compare with their
+  platform operators and add no emulation. The Rust runtime stores
+  keys as UTF-8 and emulates the order with one rule: compare bytes,
+  and at the first differing byte, invert the byte-order result when
+  one side starts a four-byte sequence (an astral code point) and the
+  other side holds a three-byte sequence at or above U+E000; UTF-8
+  byte order equals code-unit order everywhere else. The common case
+  is a byte comparison plus a branch. Keys must be valid Unicode
+  scalar sequences: lone surrogates are representable on UTF-16
+  targets but not in Rust strings, and no cross-target order is
+  defined for them.
 
 ## Per-platform shapes
 
