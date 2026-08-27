@@ -4,9 +4,9 @@ This directory defines the translation rules from Haxe into Rust, TypeScript, an
 
 ## Purpose
 
-The repository hosts one binary codec implemented in Haxe, Rust, and TypeScript. Haxe is the reference language. Every Haxe construct used by the codec requires an explicit, written translation rule for Rust, TypeScript, and Kotlin.
+The repository hosts one binary codec implemented in Haxe, Rust, TypeScript, and Kotlin. Haxe is the reference language. Every Haxe construct used by the codec requires an explicit, written translation rule for Rust, TypeScript, and Kotlin.
 
-No Kotlin implementation exists in the repository yet. The Kotlin rulings in these specifications bind the Reflaxe generator when it emits a Kotlin target, so the target arrives with its translation decisions already written down.
+The Kotlin tree is present under `kotlin/`. The Kotlin rulings in these specifications bind the Reflaxe generator when it emits a Kotlin target, so the target arrives with its translation decisions already written down.
 
 A later compilation and generation stage produces or verifies target code against these specifications. Without written specifications, unit tests inherit ad hoc translation choices, and disagreements in emitted bytes cannot be localized to a single design decision. Each specification document serves as the single location where a translation decision is defined and justified.
 
@@ -60,6 +60,7 @@ Every candidate translation is evaluated across four fixed axes:
 | 15 | [15-control-flow.md](features/15-control-flow.md) | Complete | Plain control flow mapping and switch exhaustiveness rules. |
 | 16 | [16-static-object-access.md](features/16-static-object-access.md) | Complete | Static object read and write syntax, shape freezing, and behavior parity. |
 | 17 | [17-sorting.md](features/17-sorting.md) | Complete | The sort runtime: fixed named strategies, platform bodies, stability identity. |
+| 18 | [18-immutability.md](features/18-immutability.md) | Complete | Read-only data surfaces and per-platform mutation enforcement. |
 
 ### Standard library specifications
 

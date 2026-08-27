@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification rules the translation of Haxe anonymous structures and `typedef` declarations into Rust, TypeScript, and Kotlin. In the current codebase, structured records appear in Haxe as `BoundsEm` and `GlyphMetrics` in `haxe/src/boring/GlyphMetrics.hx`, in Rust as `BoundsEm` and `GlyphMetrics` in `rust/src/lib.rs` (lines 9-22), and in TypeScript as `BoundsEmRecord` and `GlyphMetricsRecord` in `ts/src/records.ts`. No Kotlin implementation exists yet; the Kotlin rulings bind generated code.
+This specification rules the translation of Haxe anonymous structures and `typedef` declarations into Rust, TypeScript, and Kotlin. In the current codebase, structured records appear in Haxe as `BoundsEm` and `GlyphMetrics` in `haxe/src/boring/GlyphMetrics.hx`, in Rust as `BoundsEm` and `GlyphMetrics` in `rust/src/lib.rs` (lines 9-22), and in TypeScript as `BoundsEmRecord` and `GlyphMetricsRecord` in `ts/src/records.ts`. In Kotlin, structured records appear as `GlyphBounds` and `GlyphMetrics` in `kotlin/src/boring/GlyphMetrics.kt`.
 
 ## Haxe construct
 

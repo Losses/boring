@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification rules the translation of Haxe `Null<T>`, optional structural fields (`?field:T`), and optional function arguments into Rust, TypeScript, and Kotlin. In the current repository, glyph metrics records (`haxe/src/boring/GlyphMetrics.hx`, `rust/src/lib.rs`, `ts/src/records.ts`) contain non-null fields. In the glyph metrics domain, optionality governs sparse font tables, fallback glyph identifiers, and optional vertical advance metrics. No Kotlin implementation exists yet; the Kotlin rulings bind generated code.
+This specification rules the translation of Haxe `Null<T>`, optional structural fields (`?field:T`), and optional function arguments into Rust, TypeScript, and Kotlin. In the current repository, glyph metrics records (`haxe/src/boring/GlyphMetrics.hx`, `rust/src/lib.rs`, `ts/src/records.ts`) contain non-null fields. In the glyph metrics domain, optionality governs sparse font tables, fallback glyph identifiers, and optional vertical advance metrics. In Kotlin, record fields are non-null `val` properties in `kotlin/src/boring/GlyphMetrics.kt`.
 
 ## Haxe construct
 

@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification rules the translation of Haxe static extensions (`using Module;`) into Rust, TypeScript, and Kotlin. In the current codebase, static extensions do not appear in `haxe/src/boring/`, which uses direct static method calls such as `haxe.io.FPHelper.doubleToI64(value)` in `haxe/src/boring/BinaryWriter.hx` (line 31) and `Bytes.ofHex` in `tests/haxe/Main.hx` (line 83). In Rust, methods appear as struct `impl` blocks in `rust/src/lib.rs` (lines 56-82), and in TypeScript, methods appear as class member functions in `ts/src/codec.ts` (lines 21-70) or free module functions in `ts/src/vector-format.ts` (lines 15, 30). No Kotlin implementation exists yet; the Kotlin rulings bind generated code.
+This specification rules the translation of Haxe static extensions (`using Module;`) into Rust, TypeScript, and Kotlin. In the current codebase, static extensions do not appear in `haxe/src/boring/`, which uses direct static method calls such as `haxe.io.FPHelper.doubleToI64(value)` in `haxe/src/boring/BinaryWriter.hx` (line 31) and `Bytes.ofHex` in `tests/haxe/Main.hx` (line 83). In Rust, methods appear as struct `impl` blocks in `rust/src/lib.rs` (lines 56-82), and in TypeScript, methods appear as class member functions in `ts/src/codec.ts` (lines 21-70) or free module functions in `ts/src/vector-format.ts` (lines 15, 30). In Kotlin, the codec uses direct calls on the `VectorCodec` object in `kotlin/src/boring/VectorCodec.kt`; no static extensions appear in `kotlin/src/boring/`.
 
 ## Haxe construct
 

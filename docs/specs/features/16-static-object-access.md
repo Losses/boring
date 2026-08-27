@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification rules the read and write syntax for static objects: fixed-shape anonymous structures and their arrays. Haxe source keeps the human-friendly surface syntax: dot access for fields, bracket access with an integer index for arrays, and brace literals for construction. The generated code for every target uses the performance-optimal native form, and the observable behavior is identical across languages: reading a declared field always yields the stored value, construction initializes every field exactly once, and no operation changes the shape of an object after construction. In the current codebase, static objects appear as `BoundsEm` in `haxe/src/boring/GlyphMetrics.hx`, as `BoundsEm` in `rust/src/lib.rs`, and as `BoundsEmRecord` in `ts/src/records.ts`. No Kotlin implementation exists yet; the Kotlin rulings bind generated code.
+This specification rules the read and write syntax for static objects: fixed-shape anonymous structures and their arrays. Haxe source keeps the human-friendly surface syntax: dot access for fields, bracket access with an integer index for arrays, and brace literals for construction. The generated code for every target uses the performance-optimal native form, and the observable behavior is identical across languages: reading a declared field always yields the stored value, construction initializes every field exactly once, and no operation changes the shape of an object after construction. In the current codebase, static objects appear as `BoundsEm` in `haxe/src/boring/GlyphMetrics.hx`, as `BoundsEm` in `rust/src/lib.rs`, and as `BoundsEmRecord` in `ts/src/records.ts`. In Kotlin, static objects appear as `GlyphBounds` in `kotlin/src/boring/GlyphMetrics.kt`.
 
 ## Haxe construct
 

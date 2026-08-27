@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification rules sequential byte buffer writing, stream reading, endianness configuration, and bounds checking across Haxe, Rust, TypeScript, and Kotlin. In the current codebase, buffer building appears in Haxe via `haxe.io.BytesBuffer` in `haxe/src/boring/BinaryWriter.hx` (lines 4, 12, 15), stream reading appears in Haxe via cursor tracking in `haxe/src/boring/BinaryReader.hx` (lines 11-57), slice extraction and big-endian conversions appear in Rust in `rust/src/lib.rs` (lines 50-82, 84-98), and growable buffer writing and `DataView` reading appear in TypeScript in `ts/src/codec.ts` (lines 10-117). No Kotlin implementation exists yet; the Kotlin rulings bind generated code.
+This specification rules sequential byte buffer writing, stream reading, endianness configuration, and bounds checking across Haxe, Rust, TypeScript, and Kotlin. In the current codebase, buffer building appears in Haxe via `haxe.io.BytesBuffer` in `haxe/src/boring/BinaryWriter.hx` (lines 4, 12, 15), stream reading appears in Haxe via cursor tracking in `haxe/src/boring/BinaryReader.hx` (lines 11-57), slice extraction and big-endian conversions appear in Rust in `rust/src/lib.rs` (lines 50-82, 84-98), and growable buffer writing and `DataView` reading appear in TypeScript in `ts/src/codec.ts` (lines 10-117). In Kotlin, sequential writing appears in `kotlin/src/boring/BinaryWriter.kt` and cursor-based reading in `kotlin/src/boring/BinaryReader.kt`.
 
 ## Haxe construct
 

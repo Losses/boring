@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification rules the translation of Haxe `inline` variable declarations, `inline` member functions, and compile-time macro transformations into Rust, TypeScript, and Kotlin. In the current codebase, inline constants appear in Haxe as `VectorCodec.MAGIC` in `haxe/src/boring/VectorCodec.hx` (line 11), in Rust as `VECTOR_MAGIC` and `RECORD_BYTE_LENGTH` in `rust/src/lib.rs` (lines 24, 25), and in TypeScript as `VECTOR_MAGIC` and `RECORD_BYTE_LENGTH` in `ts/src/vector-format.ts` (lines 10, 11). Macro architecture for binary schema generation is defined in `docs/specs/binary/02-binary-meta-abstraction.md`. No Kotlin implementation exists yet; the Kotlin rulings bind generated code.
+This specification rules the translation of Haxe `inline` variable declarations, `inline` member functions, and compile-time macro transformations into Rust, TypeScript, and Kotlin. In the current codebase, inline constants appear in Haxe as `VectorCodec.MAGIC` in `haxe/src/boring/VectorCodec.hx` (line 11), in Rust as `VECTOR_MAGIC` and `RECORD_BYTE_LENGTH` in `rust/src/lib.rs` (lines 24, 25), and in TypeScript as `VECTOR_MAGIC` and `RECORD_BYTE_LENGTH` in `ts/src/vector-format.ts` (lines 10, 11). Macro architecture for binary schema generation is defined in `docs/specs/binary/02-binary-meta-abstraction.md`. In Kotlin, inline constants appear as `const val` members of the `VectorCodec` object in `kotlin/src/boring/VectorCodec.kt`.
 
 ## Haxe construct
 

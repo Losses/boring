@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification rules the translation of Haxe algebraic data types (enums with parameters) and pattern matching constructs into Rust, TypeScript, and Kotlin. In the current codebase, algebraic sum types appear in Rust as `VectorError` in `rust/src/lib.rs` (lines 28-33). The Haxe codebase (`haxe/src/boring/VectorCodec.hx`) and TypeScript codebase (`ts/src/vector-format.ts`) do not define enums today, using string-based exception messages instead. No Kotlin implementation exists yet; the Kotlin rulings bind generated code.
+This specification rules the translation of Haxe algebraic data types (enums with parameters) and pattern matching constructs into Rust, TypeScript, and Kotlin. In the current codebase, algebraic sum types appear in Haxe as the `VectorError` enum carried by `VectorException` in `haxe/src/boring/`, in Rust as `VectorError` in `rust/src/lib.rs`, in TypeScript as the `VectorError` union carried by `VectorException` in `ts/src/vector-error.ts`, and in Kotlin as the sealed `VectorException` hierarchy in `kotlin/src/boring/VectorException.kt`.
 
 ## Haxe construct
 

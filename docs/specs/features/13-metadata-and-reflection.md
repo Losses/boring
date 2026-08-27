@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification rules compiler metadata tags (`@:native`, `@:keep`, `@:build`, custom metadata) and runtime reflection (`Type`, `Reflect`) across Haxe, Rust, TypeScript, and Kotlin. In the current codebase, compiler metadata appears in Haxe extern declarations in `haxe/src/boring/Process.hx` (line 7) and `haxe/src/boring/Console.hx` (line 7), derive attributes appear in Rust in `rust/src/lib.rs` (lines 9, 17, 27), and typed runtime validators appear in TypeScript in `ts/src/vector-json.ts` (lines 14-65). `tests/haxe/Main.hx` explicitly notes (lines 13-16) that reflection is unused in tests. No Kotlin implementation exists yet; the Kotlin rulings bind generated code.
+This specification rules compiler metadata tags (`@:native`, `@:keep`, `@:build`, custom metadata) and runtime reflection (`Type`, `Reflect`) across Haxe, Rust, TypeScript, and Kotlin. In the current codebase, compiler metadata appears in Haxe extern declarations in `haxe/src/boring/Process.hx` (line 7) and `haxe/src/boring/Console.hx` (line 7), derive attributes appear in Rust in `rust/src/lib.rs` (lines 9, 17, 27), and typed runtime validators appear in TypeScript in `ts/src/vector-json.ts` (lines 14-65). `tests/haxe/Main.hx` explicitly notes (lines 13-16) that reflection is unused in tests. In Kotlin, the codec declares no runtime reflection; failure identity is the sealed class hierarchy of `kotlin/src/boring/VectorException.kt`.
 
 ## Haxe construct
 
