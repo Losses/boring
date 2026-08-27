@@ -5,6 +5,7 @@ import boring.BinaryWriter;
 import boring.Console;
 import boring.GlyphMetrics;
 import boring.Process;
+import boring.ReadOnlyArray;
 import boring.VectorCodec;
 import boring.VectorError;
 import boring.VectorException;
@@ -60,7 +61,7 @@ class Main {
 			&& left.bounds.yMax == right.bounds.yMax;
 	}
 
-	static function recordsEqual(left:Array<GlyphMetrics>, right:Array<GlyphMetrics>):Bool {
+	static function recordsEqual(left:ReadOnlyArray<GlyphMetrics>, right:ReadOnlyArray<GlyphMetrics>):Bool {
 		if (left.length != right.length) return false;
 		for (index in 0...left.length) {
 			if (!recordEquals(left[index], right[index])) return false;
