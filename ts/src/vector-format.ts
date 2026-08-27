@@ -6,6 +6,7 @@
 
 import { BinaryReader, BinaryWriter } from "./codec.ts";
 import { GlyphMetricsRecord } from "./records.ts";
+import { VectorException } from "./vector-error.ts";
 
 export const VECTOR_MAGIC = "BRG1";
 export const RECORD_BYTE_LENGTH = 44;
@@ -33,7 +34,7 @@ export function decodeVector(bytes: Uint8Array): GlyphMetricsRecord[] {
   const reader = new BinaryReader(bytes);
   const magic = reader.readAscii(VECTOR_MAGIC.length);
   if (magic !== VECTOR_MAGIC) {
-    throw new Error(`bad vector magic: ${magic}`);
+    throw new VectorException({ kind: "BadMagic" });
   }
   const count = reader.readU32();
   const records: GlyphMetricsRecord[] = [];
@@ -48,7 +49,7 @@ export function decodeVector(bytes: Uint8Array): GlyphMetricsRecord[] {
     records.push({ codePoint, advanceEm, bounds });
   }
   if (reader.remaining() !== 0) {
-    throw new Error(`trailing bytes in vector: ${reader.remaining()}`);
+    throw new VectorException({ kind: "TrailingBytes", remaining: reader.remaining() });
   }
   return records;
 }

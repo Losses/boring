@@ -4,6 +4,7 @@ import {
   BinaryWriter,
   GlyphMetricsRecord,
   VECTOR_MAGIC,
+  VectorException,
   decodeVector,
   encodeVector,
   vectorByteLength,
@@ -53,6 +54,19 @@ describe("BinaryWriter and BinaryReader", () => {
   });
 });
 
+/** An action whose failure mode is under test. */
+type ThrowingAction = () => void;
+
+/** Runs the action and returns the thrown VectorException, or undefined. */
+function catchVectorException(action: ThrowingAction): VectorException | undefined {
+  try {
+    action();
+    return undefined;
+  } catch (error) {
+    return error instanceof VectorException ? error : undefined;
+  }
+}
+
 describe("vector format", () => {
   test("round trip preserves records and length", () => {
     const records: GlyphMetricsRecord[] = [
@@ -63,18 +77,32 @@ describe("vector format", () => {
     expect(decodeVector(bytes)).toEqual(records);
   });
 
-  test("decode rejects a wrong magic", () => {
+  test("decode rejects a wrong magic with the BadMagic variant", () => {
     const writer = new BinaryWriter();
     writer.writeAscii("XXXX");
     writer.writeU32(0);
-    expect(() => decodeVector(writer.finish())).toThrow("bad vector magic");
+    const failure = catchVectorException(() => decodeVector(writer.finish()));
+    expect(failure?.error.kind).toBe("BadMagic");
   });
 
-  test("decode rejects trailing bytes", () => {
+  test("decode rejects trailing bytes with the TrailingBytes variant", () => {
     const records: GlyphMetricsRecord[] = [];
     const bytes = encodeVector(records);
     const padded = new Uint8Array(bytes.byteLength + 1);
     padded.set(bytes, 0);
-    expect(() => decodeVector(padded)).toThrow("trailing bytes");
+    const failure = catchVectorException(() => decodeVector(padded));
+    expect(failure?.error.kind).toBe("TrailingBytes");
+    const variant = failure?.error;
+    if (variant?.kind === "TrailingBytes") {
+      expect(variant.remaining).toBe(1);
+    }
+  });
+
+  test("decode rejects a truncated vector with the UnexpectedEof variant", () => {
+    const bytes = new Uint8Array([
+      0x42, 0x52, 0x47, 0x31, 0x00, 0x00, 0x00, 0x01,
+    ]);
+    const failure = catchVectorException(() => decodeVector(bytes));
+    expect(failure?.error.kind).toBe("UnexpectedEof");
   });
 });
