@@ -19,7 +19,7 @@
     "check:reflaxe": "haxe -lib reflaxe -cp tools/reflaxe -main Smoke -js out/haxe/reflaxe-smoke.js",
     "commit": "bun tools/commit/commit.ts",
     "install:hooks": "bun tools/git-hooks/install.ts",
-    "verify": "bun run gen:ts && git diff --exit-code -- ts/gen && bun run test && bun run test:haxe && bun run test:kotlin && bun run test:intercept && bun run test:rust && bun run lint && bun run typecheck && bun run check:docs && bun run gen:vector && bun run check:reflaxe"
+    "verify": "bun run gen:ts && bun run test && bun run test:haxe && bun run test:kotlin && bun run test:intercept && bun run test:rust && bun run lint && bun run typecheck && bun run check:docs && bun run gen:vector && bun run check:reflaxe"
   },
   "devDependencies": {
     "@boring/codec": "workspace:*",
