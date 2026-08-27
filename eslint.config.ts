@@ -44,9 +44,10 @@ export default tseslint.config(
     },
   },
   {
-    // The callback-iteration ban binds the package source: tests and tools
-    // may use any form, ts/src is the shape generated output must match.
-    files: ["ts/src/**/*.ts"],
+    // The callback-iteration ban binds the package source and the
+    // generated tree: tests and tools may use any form; ts/src and
+    // ts/gen carry the shape generated output must match.
+    files: ["ts/src/**/*.ts", "ts/gen/**/*.ts"],
     rules: {
       "boring/no-functional-iteration": "error",
     },

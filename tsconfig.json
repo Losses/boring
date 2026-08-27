@@ -18,6 +18,7 @@
   },
   "include": [
     "ts/src",
+    "ts/gen",
     "tests/ts",
     "tools",
     "eslint.config.ts"
