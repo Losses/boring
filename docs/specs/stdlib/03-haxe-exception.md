@@ -6,7 +6,7 @@ This specification rules the translation of `haxe.Exception`, exception propagat
 
 ## Haxe construct
 
-`haxe.Exception` is the base class for all exceptions in Haxe 4. Its module surface includes:
+`haxe.Exception` is the base class for all exceptions in Haxe 4. Its exports include:
 
 - `new Exception(message:String, ?previous:Exception, ?native:Any)`: constructs a new exception instance.
 - `e.message:String`: the diagnostic message string.

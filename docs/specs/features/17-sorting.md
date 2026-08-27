@@ -4,7 +4,7 @@
 
 This specification rules sorting. Comparator sort is banned in codec code and generated code (`docs/specs/features/09-iterators.md`, `V02 FunctionalIteration` in `docs/specs/style/01-haxe-style-standard.md`), so the library provides the exit itself: a sort runtime with a fixed set of named strategies. Codec code calls a named strategy; it never writes a comparator, a key selector, or a hand-rolled sort loop. The sorting needs of the downstream consumers are fixed and few, so the strategy set is small and each strategy is a named function with a concrete key. Adding a strategy is a specification amendment, so the set cannot grow silently.
 
-The spec defines the strategy set, the Haxe surface, the per-platform bodies, the stability contract that fixes behavior across languages, and the structure tests that keep comparator sorting out of codec code.
+The spec defines the strategy set, the Haxe API, the per-platform bodies, the stability contract that fixes behavior across languages, and the structure tests that keep comparator sorting out of codec code.
 
 ## Haxe construct
 
@@ -154,8 +154,8 @@ fun vectorSortByCodePoint(records: MutableList<GlyphMetrics>): MutableList<Glyph
 
 ## Test hooks
 
-- `tests/ts/vector-sort.test.ts` sorts a fixed shuffled corpus and a fixed equal-key corpus (both inline constants) and asserts the sorted key sequence, the stability of equal-key runs, and that the return value is the input array instance.
-- `tests/haxe/Main.hx` runs the same two corpora against `VectorSort.byCodePoint` and asserts the same expectations.
-- `tests/rust/vector.rs` runs the same two corpora against `vector_sort_by_code_point` and asserts the same expectations.
-- An identity test runs the shuffled corpus through the Haxe, TypeScript, and Rust trees and asserts the three output code point sequences are equal element for element.
+- `tests/ts/vector-sort.test.ts` sorts a fixed shuffled input array and a fixed equal-key input array (both inline constants) and asserts the sorted key sequence, the stability of equal-key runs, and that the return value is the input array instance.
+- `tests/haxe/Main.hx` runs the same two input arrays against `VectorSort.byCodePoint` and asserts the same expectations.
+- `tests/rust/vector.rs` runs the same two input arrays against `vector_sort_by_code_point` and asserts the same expectations.
+- An identity test runs the same shuffled input through the Haxe, TypeScript, and Rust trees and asserts the three output code point sequences are equal element for element.
 - A structure test scans `ts/src` and asserts the only `sort(` call sites with a comparator are inside `ts/src/vector-sort.ts`.

@@ -166,7 +166,7 @@ Each finding was re-verified against the spec text and decided centrally.
   wrapper machinery. The Rust Candidate 2 performance cell also claimed
   per-stage allocation for lazy adapters and was corrected.
 - F6 (Kotlin `asList()` view): REJECTED as a ruling change, ADOPTED as a
-  wording fix. Returning `Array<T>` removes the read-only surface that
+  wording fix. Returning `Array<T>` removes the read-only return type that
   features/18 rules for decoded data. The one view-object allocation and
   the interface reads are now stated in the judgment cell with their JIT
   inlining behavior.

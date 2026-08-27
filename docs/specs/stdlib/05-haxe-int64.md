@@ -6,7 +6,7 @@ This specification rules the representation and serialization of 64-bit integers
 
 ## Haxe construct
 
-`haxe.Int64` is an abstract type providing signed 64-bit integer arithmetic. Its module surface includes:
+`haxe.Int64` is an abstract type providing signed 64-bit integer arithmetic. Its exports include:
 
 - `Int64.make(high:Int32, low:Int32):Int64`: constructs a 64-bit integer from two 32-bit words.
 - `Int64.ofInt(x:Int):Int64`: converts a 32-bit integer into an `Int64`.

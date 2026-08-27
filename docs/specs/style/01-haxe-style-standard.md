@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification defines the Haxe-level language style standard for code accepted by the translation pipeline, and the interception that enforces it. The interception runs before generation on every pipeline entry, rejects non-conforming code and unsupported features with a named violation at the offending site, and aborts the run. Haxe source inside the pipeline keeps the friendly surface syntax of the language; every restriction below exists because the corresponding construct either has no translation with identical observable behavior on Rust, TypeScript, and Kotlin, or its translated form has uncontrollable cost on the JavaScript target.
+This specification defines the Haxe-level language style standard for code accepted by the translation pipeline, and the interception that enforces it. The interception runs before generation on every pipeline entry, rejects non-conforming code and unsupported features with a named violation at the offending site, and aborts the run. Haxe source inside the pipeline keeps the friendly source syntax of the language; every restriction below exists because the corresponding construct either has no translation with identical observable behavior on Rust, TypeScript, and Kotlin, or its translated form has uncontrollable cost on the JavaScript target.
 
 The standard binds `haxe/src` and any source the generator later consumes. The Haxe test tree `tests/haxe` compiles through the same interception.
 
@@ -12,7 +12,7 @@ Conforming source looks like the codec that already exists in the repository. Th
 
 1. **Declarations carry explicit types.** Public functions declare parameter and return types. Structure typedefs declare every field with a type and a `final` or mutable marker. Locals use `final` unless reassigned.
 2. **Arrays iterate by index range.** `for (i in 0...array.length)` with `array[i]` access is the only array iteration form, per `docs/specs/features/09-iterators.md`. Collections are arrays: `haxe.ds.Map` and its implementations have no translation with fixed cross-language behavior, and a keyed-lookup need appears as a specification amendment naming the structure and its per-platform shape.
-3. **Static objects use their surface syntax.** Dot access reads fields, bracket access with an `Int` indexes arrays, brace literals construct, per `docs/specs/features/16-static-object-access.md`.
+3. **Static objects use their source syntax.** Dot access reads fields, bracket access with an `Int` indexes arrays, brace literals construct, per `docs/specs/features/16-static-object-access.md`.
 4. **Failures are enum-carrying exceptions.** Every `throw` constructs a `haxe.Exception` subclass that carries a Haxe enum instance naming the variant, per `docs/specs/features/06-errors-and-results.md`. Catch clauses name the exception type; a `Dynamic` catch accepts every value and identifies nothing.
 5. **Control flow stays flat.** `if`, `switch`, `while`, `do`/`while`, range `for`, `break`, `continue`, and early `return` are the only control-flow forms; jumps through function values, exceptions as non-error jumps, and data-driven dispatch tables are rejected. Enum switches are exhaustive with no catch-all. Each target renders the platform construct ruled in `docs/specs/features/15-control-flow.md`; observable behavior is identical and statement-level correspondence is not a requirement.
 6. **Numbers use the platform tower.** `Int` and `Float` carry all codec arithmetic; `haxe.Int64` appears only in the cases `docs/specs/stdlib/05-haxe-int64.md` permits.

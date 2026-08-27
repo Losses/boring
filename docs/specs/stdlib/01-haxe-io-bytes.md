@@ -6,7 +6,7 @@ This specification rules the representation of contiguous byte arrays, buffer al
 
 ## Haxe construct
 
-`haxe.io.Bytes` encapsulates an immutable-length contiguous sequence of unsigned 8-bit bytes. Its module surface includes:
+`haxe.io.Bytes` encapsulates an immutable-length contiguous sequence of unsigned 8-bit bytes. Its exports include:
 
 - `Bytes.alloc(length:Int):Bytes`: allocates a zero-initialized byte buffer.
 - `Bytes.ofString(s:String):Bytes`: encodes a UTF-8 string into bytes.

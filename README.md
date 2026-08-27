@@ -5,7 +5,7 @@ tiqian. tiqian provides the original Haxe sources and translates them to
 each platform through the reflaxe targets under `tools/reflaxe/`.
 
 Every file under `haxe/src/` demonstrates language capabilities of the
-translatable subset. The corpus debugs each language feature of the
+translatable subset. The sample set debugs each language feature of the
 targets; it grows as the accepted construct set grows.
 
 The trees under `ts/`, `kotlin/`, and `rust/` are hand-written reference
@@ -26,7 +26,7 @@ explicit `[[test]]` path into `tests/`.
 | Path | Content |
 | --- | --- |
 | `ts/` | hand-written TypeScript reference translation (package `@boring/codec`); `ts/gen/` is the gitignored reflaxe-generated tree |
-| `haxe/` | Haxe capability corpus for the translatable subset |
+| `haxe/` | Haxe capability samples for the translatable subset |
 | `rust/` | hand-written Rust reference translation |
 | `kotlin/` | hand-written Kotlin reference translation; `kotlin/gen/` is the gitignored reflaxe-generated tree |
 | `tests/` | Test suites per language plus the shared vectors |

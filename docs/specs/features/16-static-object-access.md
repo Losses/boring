@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification rules the read and write syntax for static objects: fixed-shape anonymous structures and their arrays. Haxe source keeps the human-friendly surface syntax: dot access for fields, bracket access with an integer index for arrays, and brace literals for construction. The generated code for every target uses the performance-optimal native form, and the observable behavior is identical across languages: reading a declared field always yields the stored value, construction initializes every field exactly once, and no operation changes the shape of an object after construction. In the current codebase, static objects appear as `BoundsEm` in `haxe/src/boring/GlyphMetrics.hx`, as `BoundsEm` in `rust/src/lib.rs`, and as `BoundsEmRecord` in `ts/src/records.ts`. In Kotlin, static objects appear as `GlyphBounds` in `kotlin/src/boring/GlyphMetrics.kt`.
+This specification rules the read and write syntax for static objects: fixed-shape anonymous structures and their arrays. Haxe source keeps the human-friendly syntax: dot access for fields, bracket access with an integer index for arrays, and brace literals for construction. The generated code for every target uses the performance-optimal native form, and the observable behavior is identical across languages: reading a declared field always yields the stored value, construction initializes every field exactly once, and no operation changes the shape of an object after construction. In the current codebase, static objects appear as `BoundsEm` in `haxe/src/boring/GlyphMetrics.hx`, as `BoundsEm` in `rust/src/lib.rs`, and as `BoundsEmRecord` in `ts/src/records.ts`. In Kotlin, static objects appear as `GlyphBounds` in `kotlin/src/boring/GlyphMetrics.kt`.
 
 ## Haxe construct
 
@@ -27,7 +27,7 @@ final left:Float = bounds.xMin;
 final first:GlyphMetrics = records[0];
 ```
 
-The syntax surface is unrestricted Haxe: dots for fields, brackets for array indices, braces for literals. Two restrictions define the static boundary, and the interception of `docs/specs/style/01-haxe-style-standard.md` enforces both:
+The source syntax is unrestricted Haxe: dots for fields, brackets for array indices, braces for literals. Two restrictions define the static boundary, and the interception of `docs/specs/style/01-haxe-style-standard.md` enforces both:
 
 1. Bracket access on an anonymous structure with a `String` key, such as `bounds["xMin"]`, is rejected. Bracket access is reserved for integer indices on arrays; field access goes through the dot form, so the accessed field is always a declared, typed field.
 2. No operation adds, removes, or conditionally omits a field after construction. Construction sets every declared field exactly once in declaration order.
@@ -115,7 +115,7 @@ export class BoundsEm {
 | --- | --- | --- | --- | --- |
 | TS Candidate 1 (Literal and direct access) | One allocation per object; every access site with the same shape hits the same hidden class, so property reads compile to inline offset loads. | The interface declares every field, and the type checker rejects access to undeclared names. | No accessor methods, no wrapper types, no key constants. | Field reads state the field name directly. |
 | TS Candidate 2 (Keyed Map) | Every read hashes a string key and boxes the result through `get`, and numbers allocate when stored as `Map` values. | The value type widens to `number | undefined`, so every read carries a presence question the static shape already answers. | Key strings repeat at every access site. | Keyed reads replace the field name with a string literal. |
-| TS Candidate 3 (Accessor class) | Private fields plus getters add one function call per read unless the engine inlines it, and construction runs a constructor with parameter validation surface. | Accessors expose exactly the declared fields, at the cost of method syntax for data. | One getter per field duplicates what the property states. | Accessor calls read as method invocations on data carriers. |
+| TS Candidate 3 (Accessor class) | Private fields plus getters add one function call per read unless the engine inlines it, and construction runs a constructor with parameter validation. | Accessors expose exactly the declared fields, at the cost of method syntax for data. | One getter per field duplicates what the property states. | Accessor calls read as method invocations on data carriers. |
 
 ## Ruling
 

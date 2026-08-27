@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification rules the translation of Haxe abstract types into Rust, TypeScript, and Kotlin. In the current codebase, one abstract appears: `ReadOnlyArray<T>` in `haxe/src/boring/ReadOnlyArray.hx`, the read-only array surface ruled in `docs/specs/features/18-immutability.md`. Domain records otherwise use primitive `Int` and `Float` types; specialized scalar domains such as `CodePoint` (constrained to valid Unicode ranges) and `EmUnit` (floating-point em coordinates) are future work. In Kotlin, the `ReadOnlyArray` surface lowers to the read-only `List` return type of `kotlin/src/boring/VectorCodec.kt`.
+This specification rules the translation of Haxe abstract types into Rust, TypeScript, and Kotlin. In the current codebase, one abstract appears: `ReadOnlyArray<T>` in `haxe/src/std/ReadOnlyArray.hx`, the read-only array type ruled in `docs/specs/features/18-immutability.md`. Domain records otherwise use primitive `Int` and `Float` types; specialized scalar domains such as `CodePoint` (constrained to valid Unicode ranges) and `EmUnit` (floating-point em coordinates) are future work. In Kotlin, the `ReadOnlyArray` type lowers to the read-only `List` return type of `kotlin/src/boring/VectorCodec.kt`.
 
 ## Haxe construct
 
@@ -132,7 +132,7 @@ value class CodePoint(val value: Int)
 | TS Candidate 1 (Branded type) | Type branding exists entirely in the type checker and incurs zero runtime cost. | Nominal brand symbols prevent accidental assignment of raw numbers. | Creation functions must cast raw primitives at validation boundaries. | Type signatures declare domain types while preserving native number operations. |
 | TS Candidate 2 (Type alias) | Primitives execute with native JavaScript number performance. | Aliases are erased by TypeScript and provide no protection against assigning arbitrary numbers. | Zero validation wrappers or branding symbols are defined. | Simple type aliases integrate straightforwardly with existing TypeScript code. |
 | TS Candidate 3 (Wrapper class) | Class wrappers allocate heap objects for every numeric value and trigger garbage collection churn. | Class instances cannot be compared using value equality without custom methods. | Wrapper classes duplicate storage and conversion logic across modules. | Object wrapping introduces unnecessary ceremony for basic scalar values. |
-| Kotlin Candidate 1 (typealias) | Aliases are erased, so values stay plain `Int` primitives on every target. | Aliases accept any `Int`, so constraint violations surface only in guard functions. | Zero wrapper declarations or conversion functions are required. | A typealias names the domain without new syntax. |
+| Kotlin Candidate 1 (typealias) | Aliases are erased, so values stay plain `Int` primitives on every target. | Aliases accept any `Int`, so constraint violations appear only in guard functions. | Zero wrapper declarations or conversion functions are required. | A typealias names the domain without new syntax. |
 | Kotlin Candidate 2 (value class) | A `value class` stores the underlying primitive inline and boxes only in nullable or generic positions. | The wrapper type rejects raw `Int` assignments at compile time. | Construction requires invoking the class constructor with the primitive literal. | The declaration states the domain and its representation in one line. |
 
 ## Ruling

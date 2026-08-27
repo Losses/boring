@@ -6,7 +6,7 @@ This specification rules the translation of fixed-length contiguous arrays (`hax
 
 ## Haxe construct
 
-`haxe.ds.Vector<T>` represents a fixed-length indexed collection with constant-time indexed access and no dynamic resizing. Its module surface includes:
+`haxe.ds.Vector<T>` represents a fixed-length indexed collection with constant-time indexed access and no dynamic resizing. Its exports include:
 
 - `new Vector<T>(length:Int)`: allocates a vector of fixed length.
 - `v.get(index:Int):T`: retrieves the element at the specified index.
@@ -175,7 +175,7 @@ function encodeMagic(writer: BinaryWriter): void {
 }
 ```
 
-### Kotlin Candidate 1: Pre-sized ArrayList for mutable-list surfaces (selected where the API requires MutableList)
+### Kotlin Candidate 1: Pre-sized ArrayList for mutable lists (selected where the API requires MutableList)
 
 ```kotlin
 fun createRecordBuffer(count: Int): ArrayList<GlyphMetrics> {
@@ -215,13 +215,13 @@ fun encodeMagic(writer: BinaryWriter): Unit {
 | TS Candidate 2 (Array constructor) (selected) | One upfront allocation of the exact size and plain indexed stores; no growth copies, no per-iteration capacity checks. | The constructor argument states the element count at the allocation site. | The index the fill loop already carries is the store index; no extra state. | The declaration states the final length the loop establishes. |
 | Rust Candidate 3 (Unrolled constants) | Constant writes fold into single machine stores with zero loop and bounds check overhead. | One constant states the exact bytes of the whole field. | The loop plus its length bound disappear entirely. | Readers see the wire bytes as one literal value. |
 | TS Candidate 3 (Unrolled constants) | Literal constant loads execute with no loop, no bounds check, and no closure. | One constant declares the entire field payload, so no length variable can drift from the data. | The generator derives the constant from the schema once at build time. | Readers see the exact wire bytes at the call site. |
-| Kotlin Candidate 1 (Pre-sized ArrayList) | Pre-sized backing storage removes reallocation; each `add` still executes a store plus a size update, and HotSpot eliminates part of that path and never all of it. | The declared type states a mutable-list surface explicitly. | One construction per collection with no wrapper layers. | Standard Kotlin collection types state the layout directly. |
+| Kotlin Candidate 1 (Pre-sized ArrayList) | Pre-sized backing storage removes reallocation; each `add` still executes a store plus a size update, and HotSpot eliminates part of that path and never all of it. | The declared type states the mutable-list requirement explicitly. | One construction per collection with no wrapper layers. | Standard Kotlin collection types state the layout directly. |
 | Kotlin Candidate 2 (Array initializer) (selected for fixed-size fills) | One exact-size backing array allocation; the initializer lambda inlines into the construction, so no growth check and no residual `add` path executes. | The constructor argument states the element count at the allocation site. | The fill loop, its counter, and its store statement are expressed as one construction. | The declaration states the final array and how every element is computed. |
 | Kotlin Candidate 3 (Unrolled constants) | `const val` folds into the call site with no loop, no bounds check, and no closure. | One constant declares the entire field payload. | The generator derives the constant from the schema once at build time. | Readers see the exact wire bytes at the call site. |
 
 ## Ruling
 
-Compile-time fixed-length byte buffers translate to fixed-size array types (`[u8; N]`) in Rust, fixed-size `Uint8Array` views in TypeScript, and `ByteArray` slices with a named length constant in Kotlin. Runtime collections with known lengths translate to the platform's pre-allocated fill form: `Vec::with_capacity(capacity)` with `push` in Rust, `new Array<T>(count)` with indexed stores `records[i] = ...` in TypeScript, the array initializer `Array(count) { index -> ... }` in Kotlin when the surface is a fixed-size array, `ArrayList<T>(count)` with `add` in Kotlin only where the API requires a mutable list, and indexed stores `records[index] = ...` on a fresh Haxe array, whose JavaScript lowering allocates the exact size. The fill and the allocation share the count, one allocation covers the whole fill, and no growth copy runs. The `arrayOfNulls` plus `requireNoNulls` form is retired: it fills through a nullable view and casts at the boundary, while the array initializer states the fill directly.
+Compile-time fixed-length byte buffers translate to fixed-size array types (`[u8; N]`) in Rust, fixed-size `Uint8Array` views in TypeScript, and `ByteArray` slices with a named length constant in Kotlin. Runtime collections with known lengths translate to the platform's pre-allocated fill form: `Vec::with_capacity(capacity)` with `push` in Rust, `new Array<T>(count)` with indexed stores `records[i] = ...` in TypeScript, the array initializer `Array(count) { index -> ... }` in Kotlin when the destination is a fixed-size array, `ArrayList<T>(count)` with `add` in Kotlin only where the API requires a mutable list, and indexed stores `records[index] = ...` on a fresh Haxe array, whose JavaScript lowering allocates the exact size. The fill and the allocation share the count, one allocation covers the whole fill, and no growth copy runs. The `arrayOfNulls` plus `requireNoNulls` form is retired: it fills through a nullable view and casts at the boundary, while the array initializer states the fill directly.
 
 Static-length arrays whose length and contents are compile-time constants unroll at build time. When the constant width matches a primitive wire write, the whole array folds into one constant: `WireAscii(4)` over `BRG1` becomes the u32 constant `0x42524731` written through `writeU32`, replacing the per-character loop in `BinaryWriter.writeAscii` (`haxe/src/boring/BinaryWriter.hx`, lines 38-42) and `writeAscii` in `ts/src/codec.ts` (lines 46-52). The same fold produces the `Int` constant `0x42524731` in Kotlin, which fits the positive `Int` range. When the constant width matches no primitive write, the generator emits one named constant per element and references the constants by name; no runtime array is allocated for data whose contents are already known at compile time. Kotlin declares no `const` arrays, so per-element constants are the only constant-array form. Generated and handwritten codec code keeps no per-element loop over compile-time constant data.
 
