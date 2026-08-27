@@ -114,6 +114,23 @@ class Main {
 		}
 		expectTrue("truncated vector throws the UnexpectedEof variant", truncatedVariant == UnexpectedEof);
 
+		// The decodable count domain is [0, 2^31) per docs/specs/binary/01-wire-format.md.
+		var hugeCountVariant:Null<VectorError> = null;
+		try {
+			VectorCodec.decode(Bytes.ofHex("42524731ffffffff"));
+		} catch (error:VectorException) {
+			hugeCountVariant = error.error;
+		}
+		expectTrue("huge count throws the CountOverflow variant", hugeCountVariant == CountOverflow);
+
+		var boundaryCountVariant:Null<VectorError> = null;
+		try {
+			VectorCodec.decode(Bytes.ofHex("4252473180000000"));
+		} catch (error:VectorException) {
+			boundaryCountVariant = error.error;
+		}
+		expectTrue("boundary count throws the CountOverflow variant", boundaryCountVariant == CountOverflow);
+
 		runSortChecks();
 
 		if (failures > 0) {

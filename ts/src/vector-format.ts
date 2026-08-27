@@ -37,6 +37,9 @@ export function decodeVector(bytes: Uint8Array): readonly GlyphMetricsRecord[] {
     throw new VectorException({ kind: "BadMagic" });
   }
   const count = reader.readU32();
+  if (count > 0x7fffffff) {
+    throw new VectorException({ kind: "CountOverflow" });
+  }
   const records: GlyphMetricsRecord[] = new Array<GlyphMetricsRecord>(count);
   for (let i = 0; i < count; i += 1) {
     const codePoint = reader.readU32();
