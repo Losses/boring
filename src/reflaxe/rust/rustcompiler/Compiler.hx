@@ -209,13 +209,14 @@ class Compiler extends PluginCompiler<Compiler> {
 		emitShim("std.Console", "console.rs", RustRuntime.CONSOLE_SOURCE);
 		emitShim("std.Process", "process.rs", RustRuntime.PROCESS_SOURCE);
 		emitShim("std.Test", "test.rs", RustRuntime.TEST_SOURCE);
+		if(state.shimsUsed.exists("std.SortedSet") || state.shimsUsed.exists("std.SortedSetBuilder")) {
+			state.shimsUsed.set("std.SortedSet", true);
+			state.shimsUsed.set("std.SortedMap", true);
+			emitShim("std.SortedSet", "sorted_set.rs", RustRuntime.SORTED_SET_SOURCE);
+		}
 		if(state.shimsUsed.exists("std.SortedMap") || state.shimsUsed.exists("std.SortedMapBuilder")) {
 			state.shimsUsed.set("std.SortedMap", true);
 			emitShim("std.SortedMap", "sorted_map.rs", RustRuntime.SORTED_MAP_SOURCE);
-		}
-		if(state.shimsUsed.exists("std.SortedSet") || state.shimsUsed.exists("std.SortedSetBuilder")) {
-			state.shimsUsed.set("std.SortedSet", true);
-			emitShim("std.SortedSet", "sorted_set.rs", RustRuntime.SORTED_SET_SOURCE);
 		}
 
 		final emitDir = RuntimeConfig.emitDir();

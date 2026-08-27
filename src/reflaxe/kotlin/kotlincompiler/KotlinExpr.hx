@@ -720,13 +720,46 @@ class KotlinExpr {
 					return "(" + expr(args[0]) + ").toInt()";
 				}
 				if(cls.pack.join(".") == "std" && cls.name == "SortedMap" && name == "builder") {
-					final typeParam = switch(fn.t) {
-						case TFun(_, TInst(_, params)) if(params.length > 1):
-							"<" + types.of(params[1]) + ">";
-						case _: "";
+					final kType = switch(fn.t) {
+						case TFun(_, TInst(_, params)) if(params.length > 0): params[0];
+						case _: null;
 					};
-					imports.requireType("std.SortedMap", "SortedMap");
-					return "SortedMap.builder" + typeParam + "(" + renderedArgs + ")";
+					final vType = switch(fn.t) {
+						case TFun(_, TInst(_, params)) if(params.length > 1): params[1];
+						case _: null;
+					};
+					final domain = KotlinType.classifyKey(kType, fn.pos);
+					switch(domain) {
+						case IntKey:
+							imports.requireType("std.SortedMap", "SortedMap");
+							return "SortedMap.builder<" + types.of(vType) + ">()";
+						case StringKey:
+							imports.requireType("std.SortedMap", "SortedMapStr");
+							return "SortedMapStr.builder<" + types.of(vType) + ">()";
+						case StructKey(def, _):
+							imports.requireType("std.SortedMap", "SortedMapObj");
+							imports.requireType(def.module, "compare");
+							return "SortedMapObj.builder<" + types.of(kType) + ", " + types.of(vType) + ">(::compare)";
+					}
+				}
+				if(cls.pack.join(".") == "std" && cls.name == "SortedSet" && name == "builder") {
+					final kType = switch(fn.t) {
+						case TFun(_, TInst(_, params)) if(params.length > 0): params[0];
+						case _: null;
+					};
+					final domain = KotlinType.classifyKey(kType, fn.pos);
+					switch(domain) {
+						case IntKey:
+							imports.requireType("std.SortedSet", "SortedSet");
+							return "SortedSet.builder()";
+						case StringKey:
+							imports.requireType("std.SortedSet", "SortedSetStr");
+							return "SortedSetStr.builder()";
+						case StructKey(def, _):
+							imports.requireType("std.SortedSet", "SortedSetObj");
+							imports.requireType(def.module, "compare");
+							return "SortedSetObj.builder<" + types.of(kType) + ">(::compare)";
+					}
 				}
 				return staticRef(cls, name) + "(" + renderedArgs + ")";
 			case TField(subj, FEnum(e, ef)):

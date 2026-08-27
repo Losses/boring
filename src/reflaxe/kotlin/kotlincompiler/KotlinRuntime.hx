@@ -100,21 +100,21 @@ object Test {
         throw AssertionError(canonical)
     }
 
-    fun equals(expected: Boolean, actual: Boolean, message: String? = null) {
+    fun equals(expected: Boolean?, actual: Boolean?, message: String? = null) {
         if (expected != actual) {
             val canonical = formatCanonicalMessage(currentTestId ?: \"\", message, formatValue(expected), formatValue(actual), true)
             throw AssertionError(canonical)
         }
     }
 
-    fun equals(expected: Int, actual: Int, message: String? = null) {
+    fun equals(expected: Int?, actual: Int?, message: String? = null) {
         if (expected != actual) {
             val canonical = formatCanonicalMessage(currentTestId ?: \"\", message, formatValue(expected), formatValue(actual), true)
             throw AssertionError(canonical)
         }
     }
 
-    fun equals(expected: Double, actual: Double, message: String? = null) {
+    fun equals(expected: Double?, actual: Double?, message: String? = null) {
         // IEEE equality: NaN != NaN
         if (expected != actual) {
             val canonical = formatCanonicalMessage(currentTestId ?: \"\", message, formatValue(expected), formatValue(actual), true)
@@ -134,9 +134,9 @@ object Test {
         throw AssertionError(canonical)
     }
 
-    fun formatValue(v: Boolean): String = if (v) \"true\" else \"false\"
-    fun formatValue(v: Int): String = v.toString()
-    fun formatValue(v: Double): String = formatFloat(v)
+    fun formatValue(v: Boolean?): String = if (v == null) \"null\" else if (v) \"true\" else \"false\"
+    fun formatValue(v: Int?): String = if (v == null) \"null\" else v.toString()
+    fun formatValue(v: Double?): String = if (v == null) \"null\" else formatFloat(v)
     fun formatValue(v: String?): String = if (v == null) \"null\" else \"\\\"\" + escapeJson(v) + \"\\\"\"
     fun formatValue(v: ByteArray): String = formatBytes(v)
 
@@ -273,6 +273,149 @@ class SortedMapBuilder<V> {
         return SortedMap(keyArray, valArray)
     }
 }
+
+class SortedMapStr<V>(private val keys: Array<String>, private val values: Array<Any?>) {
+    companion object {
+        fun <V> builder(): SortedMapStrBuilder<V> = SortedMapStrBuilder()
+    }
+
+    fun get(key: String): V? {
+        val idx = keys.binarySearch(key)
+        @Suppress(\"UNCHECKED_CAST\")
+        return if (idx >= 0) values[idx] as V else null
+    }
+
+    fun has(key: String): Boolean = keys.binarySearch(key) >= 0
+
+    fun size(): Int = keys.size
+
+    fun keyAt(index: Int): String = keys[index]
+
+    @Suppress(\"UNCHECKED_CAST\")
+    fun valueAt(index: Int): V = values[index] as V
+}
+
+class SortedMapStrBuilder<V> {
+    private val entries = ArrayList<Pair<String, V>>()
+
+    fun put(key: String, value: V) {
+        entries.add(Pair(key, value))
+    }
+
+    fun build(): SortedMapStr<V> {
+        if (entries.isEmpty()) {
+            return SortedMapStr(emptyArray(), emptyArray())
+        }
+        val sorted = entries.mapIndexed { idx, pair -> Triple(pair.first, idx, pair.second) }
+            .sortedWith(compareBy({ it.first }, { it.second }))
+
+        val distinctKeys = ArrayList<String>()
+        val distinctValues = ArrayList<Any?>()
+
+        var i = 0
+        while (i < sorted.size) {
+            var j = i
+            while (j + 1 < sorted.size && sorted[j + 1].first == sorted[i].first) {
+                j++
+            }
+            distinctKeys.add(sorted[j].first)
+            distinctValues.add(sorted[j].third)
+            i = j + 1
+        }
+
+        val keyArray = Array(distinctKeys.size) { distinctKeys[it] }
+        val valArray = distinctValues.toArray()
+        return SortedMapStr(keyArray, valArray)
+    }
+}
+
+class SortedMapObj<K, V>(private val keys: Array<Any?>, private val values: Array<Any?>, private val comparator: (K, K) -> Int) {
+    companion object {
+        fun <K, V> builder(comparator: (K, K) -> Int): SortedMapObjBuilder<K, V> = SortedMapObjBuilder(comparator)
+    }
+
+    fun get(key: K): V? {
+        var low = 0
+        var high = keys.size - 1
+        while (low <= high) {
+            val mid = (low + high) ushr 1
+            @Suppress(\"UNCHECKED_CAST\")
+            val midVal = keys[mid] as K
+            val cmp = comparator(midVal, key)
+            if (cmp < 0) {
+                low = mid + 1
+            } else if (cmp > 0) {
+                high = mid - 1
+            } else {
+                @Suppress(\"UNCHECKED_CAST\")
+                return values[mid] as V
+            }
+        }
+        return null
+    }
+
+    fun has(key: K): Boolean {
+        var low = 0
+        var high = keys.size - 1
+        while (low <= high) {
+            val mid = (low + high) ushr 1
+            @Suppress(\"UNCHECKED_CAST\")
+            val midVal = keys[mid] as K
+            val cmp = comparator(midVal, key)
+            if (cmp < 0) {
+                low = mid + 1
+            } else if (cmp > 0) {
+                high = mid - 1
+            } else {
+                return true
+            }
+        }
+        return false
+    }
+
+    fun size(): Int = keys.size
+
+    @Suppress(\"UNCHECKED_CAST\")
+    fun keyAt(index: Int): K = keys[index] as K
+
+    @Suppress(\"UNCHECKED_CAST\")
+    fun valueAt(index: Int): V = values[index] as V
+}
+
+class SortedMapObjBuilder<K, V>(private val comparator: (K, K) -> Int) {
+    private val entries = ArrayList<Pair<K, V>>()
+
+    fun put(key: K, value: V) {
+        entries.add(Pair(key, value))
+    }
+
+    fun build(): SortedMapObj<K, V> {
+        if (entries.isEmpty()) {
+            return SortedMapObj(emptyArray(), emptyArray(), comparator)
+        }
+        val sorted = entries.mapIndexed { idx, pair -> Triple(pair.first, idx, pair.second) }
+            .sortedWith(Comparator { a, b ->
+                val cmp = comparator(a.first, b.first)
+                if (cmp != 0) cmp else a.second.compareTo(b.second)
+            })
+
+        val distinctKeys = ArrayList<Any?>()
+        val distinctValues = ArrayList<Any?>()
+
+        var i = 0
+        while (i < sorted.size) {
+            var j = i
+            while (j + 1 < sorted.size && comparator(sorted[j + 1].first, sorted[i].first) == 0) {
+                j++
+            }
+            distinctKeys.add(sorted[j].first)
+            distinctValues.add(sorted[j].third)
+            i = j + 1
+        }
+
+        return SortedMapObj(distinctKeys.toArray(), distinctValues.toArray(), comparator)
+    }
+}
 ";
 
 	public static final SORTED_SET_SOURCE = "class SortedSet(private val keys: IntArray) {
@@ -306,6 +449,93 @@ class SortedSetBuilder {
             }
         }
         return SortedSet(IntArray(distinct.size) { distinct[it] })
+    }
+}
+
+class SortedSetStr(private val keys: Array<String>) {
+    companion object {
+        fun builder(): SortedSetStrBuilder = SortedSetStrBuilder()
+    }
+
+    fun has(key: String): Boolean = keys.binarySearch(key) >= 0
+
+    fun size(): Int = keys.size
+
+    fun at(index: Int): String = keys[index]
+}
+
+class SortedSetStrBuilder {
+    private val keys = ArrayList<String>()
+
+    fun put(key: String) {
+        keys.add(key)
+    }
+
+    fun build(): SortedSetStr {
+        if (keys.isEmpty()) {
+            return SortedSetStr(emptyArray())
+        }
+        val sorted = keys.sorted()
+        val distinct = ArrayList<String>()
+        for (k in sorted) {
+            if (distinct.isEmpty() || distinct[distinct.size - 1] != k) {
+                distinct.add(k)
+            }
+        }
+        return SortedSetStr(Array(distinct.size) { distinct[it] })
+    }
+}
+
+class SortedSetObj<K>(private val keys: Array<Any?>, private val comparator: (K, K) -> Int) {
+    companion object {
+        fun <K> builder(comparator: (K, K) -> Int): SortedSetObjBuilder<K> = SortedSetObjBuilder(comparator)
+    }
+
+    fun has(key: K): Boolean {
+        var low = 0
+        var high = keys.size - 1
+        while (low <= high) {
+            val mid = (low + high) ushr 1
+            @Suppress(\"UNCHECKED_CAST\")
+            val midVal = keys[mid] as K
+            val cmp = comparator(midVal, key)
+            if (cmp < 0) {
+                low = mid + 1
+            } else if (cmp > 0) {
+                high = mid - 1
+            } else {
+                return true
+            }
+        }
+        return false
+    }
+
+    fun size(): Int = keys.size
+
+    @Suppress(\"UNCHECKED_CAST\")
+    fun at(index: Int): K = keys[index] as K
+}
+
+class SortedSetObjBuilder<K>(private val comparator: (K, K) -> Int) {
+    private val keys = ArrayList<K>()
+
+    fun put(key: K) {
+        keys.add(key)
+    }
+
+    fun build(): SortedSetObj<K> {
+        if (keys.isEmpty()) {
+            return SortedSetObj(emptyArray(), comparator)
+        }
+        val sorted = keys.sortedWith(Comparator { a, b -> comparator(a, b) })
+        val distinct = ArrayList<Any?>()
+        for (k in sorted) {
+            @Suppress(\"UNCHECKED_CAST\")
+            if (distinct.isEmpty() || comparator(distinct[distinct.size - 1] as K, k) != 0) {
+                distinct.add(k)
+            }
+        }
+        return SortedSetObj(distinct.toArray(), comparator)
     }
 }
 ";

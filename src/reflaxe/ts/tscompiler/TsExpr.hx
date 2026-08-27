@@ -820,16 +820,48 @@ class TsExpr {
 				final cls = c.get();
 				final fName = cf.get().name;
 				if((cls.module == "std.SortedMap" || cls.pack.join(".") + "." + cls.name == "std.SortedMap") && fName == "builder") {
-					final valueType = switch(fn.t) {
-						case TFun(_, ret):
-							switch(ret) {
-								case TInst(bc, params) if(params.length > 1): types.of(params[1]);
-								case _: "any";
-							}
-						case _: "any";
+					final kType = switch(fn.t) {
+						case TFun(_, TInst(_, params)) if(params.length > 0): params[0];
+						case _: null;
 					};
-					imports.runtime("SortedMap");
-					return "SortedMap.builder<" + valueType + ">()";
+					final vType = switch(fn.t) {
+						case TFun(_, TInst(_, params)) if(params.length > 1): params[1];
+						case _: null;
+					};
+					final domain = TsType.classifyKey(kType, fn.pos);
+					switch(domain) {
+						case IntKey:
+							imports.runtime("SortedMap");
+							return "SortedMap.builder<" + types.of(vType) + ">()";
+						case StringKey:
+							imports.runtime("SortedMapStr");
+							return "SortedMapStr.builder<" + types.of(vType) + ">()";
+						case StructKey(def, _):
+							imports.runtime("SortedMapByKey");
+							final cmpName = "compare" + def.name;
+							imports.value(def.module, cmpName);
+							return "SortedMapByKey.builder<" + types.of(kType) + ", " + types.of(vType) + ">(" + cmpName + ")";
+					}
+				}
+				if((cls.module == "std.SortedSet" || cls.pack.join(".") + "." + cls.name == "std.SortedSet") && fName == "builder") {
+					final kType = switch(fn.t) {
+						case TFun(_, TInst(_, params)) if(params.length > 0): params[0];
+						case _: null;
+					};
+					final domain = TsType.classifyKey(kType, fn.pos);
+					switch(domain) {
+						case IntKey:
+							imports.runtime("SortedSet");
+							return "SortedSet.builder()";
+						case StringKey:
+							imports.runtime("SortedSetStr");
+							return "SortedSetStr.builder()";
+						case StructKey(def, _):
+							imports.runtime("SortedSetByKey");
+							final cmpName = "compare" + def.name;
+							imports.value(def.module, cmpName);
+							return "SortedSetByKey.builder<" + types.of(kType) + ">(" + cmpName + ")";
+					}
 				}
 				return staticRef(c.get(), cf.get().name) + "(" + rendered + ")";
 			case TField(_, FEnum(_, ef)):

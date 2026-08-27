@@ -241,6 +241,392 @@ export class SortedSet {
   }
 }
 
+interface MapStrEntry<V> {
+  key: string;
+  idx: number;
+  value: V;
+}
+
+export class SortedMapStrBuilder<V> {
+  private entries: MapStrEntry<V>[];
+
+  constructor() {
+    this.entries = [];
+  }
+
+  put(key: string, value: V): void {
+    this.entries.push({ key, idx: this.entries.length, value });
+  }
+
+  build(): SortedMapStr<V> {
+    if (this.entries.length === 0) {
+      return new SortedMapStr<V>([], []);
+    }
+    const total = this.entries.length;
+    for (let i = 1; i < total; i += 1) {
+      const current = this.entries[i]!;
+      let j = i - 1;
+      while (j >= 0) {
+        const prev = this.entries[j]!;
+        if (prev.key > current.key || (prev.key === current.key && prev.idx > current.idx)) {
+          this.entries[j + 1] = prev;
+          j -= 1;
+        } else {
+          break;
+        }
+      }
+      this.entries[j + 1] = current;
+    }
+    const keys: string[] = [];
+    const values: V[] = [];
+    let i = 0;
+    while (i < total) {
+      let j = i;
+      while (j + 1 < total && this.entries[j + 1]!.key === this.entries[i]!.key) {
+        j += 1;
+      }
+      const entry = this.entries[j]!;
+      keys.push(entry.key);
+      values.push(entry.value);
+      i = j + 1;
+    }
+    return new SortedMapStr<V>(keys, values);
+  }
+}
+
+export class SortedMapStr<V> {
+  private keys: string[];
+  private values: V[];
+
+  constructor(keys: string[], values: V[]) {
+    this.keys = keys;
+    this.values = values;
+  }
+
+  static builder<V>(): SortedMapStrBuilder<V> {
+    return new SortedMapStrBuilder<V>();
+  }
+
+  get(key: string): V | null {
+    let low = 0;
+    let high = this.keys.length - 1;
+    while (low <= high) {
+      const mid = (low + high) >> 1;
+      const midVal = this.keys[mid]!;
+      if (midVal < key) {
+        low = mid + 1;
+      } else if (midVal > key) {
+        high = mid - 1;
+      } else {
+        return this.values[mid] !== undefined ? this.values[mid]! : null;
+      }
+    }
+    return null;
+  }
+
+  has(key: string): boolean {
+    let low = 0;
+    let high = this.keys.length - 1;
+    while (low <= high) {
+      const mid = (low + high) >> 1;
+      const midVal = this.keys[mid]!;
+      if (midVal < key) {
+        low = mid + 1;
+      } else if (midVal > key) {
+        high = mid - 1;
+      } else {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  size(): number {
+    return this.keys.length;
+  }
+
+  keyAt(index: number): string {
+    return this.keys[index]!;
+  }
+
+  valueAt(index: number): V {
+    return this.values[index]!;
+  }
+}
+
+export class SortedSetStrBuilder {
+  private keys: string[];
+
+  constructor() {
+    this.keys = [];
+  }
+
+  put(key: string): void {
+    this.keys.push(key);
+  }
+
+  build(): SortedSetStr {
+    if (this.keys.length === 0) {
+      return new SortedSetStr([]);
+    }
+    const count = this.keys.length;
+    for (let i = 1; i < count; i += 1) {
+      const current = this.keys[i]!;
+      let j = i - 1;
+      while (j >= 0 && this.keys[j]! > current) {
+        this.keys[j + 1] = this.keys[j]!;
+        j -= 1;
+      }
+      this.keys[j + 1] = current;
+    }
+    const distinct: string[] = [];
+    for (let i = 0; i < count; i += 1) {
+      const k = this.keys[i]!;
+      if (distinct.length === 0 || distinct[distinct.length - 1] !== k) {
+        distinct.push(k);
+      }
+    }
+    return new SortedSetStr(distinct);
+  }
+}
+
+export class SortedSetStr {
+  private keys: string[];
+
+  constructor(keys: string[]) {
+    this.keys = keys;
+  }
+
+  static builder(): SortedSetStrBuilder {
+    return new SortedSetStrBuilder();
+  }
+
+  has(key: string): boolean {
+    let low = 0;
+    let high = this.keys.length - 1;
+    while (low <= high) {
+      const mid = (low + high) >> 1;
+      const midVal = this.keys[mid]!;
+      if (midVal < key) {
+        low = mid + 1;
+      } else if (midVal > key) {
+        high = mid - 1;
+      } else {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  size(): number {
+    return this.keys.length;
+  }
+
+  at(index: number): string {
+    return this.keys[index]!;
+  }
+}
+
+interface MapByKeyEntry<K, V> {
+  key: K;
+  idx: number;
+  value: V;
+}
+
+export type Comparator<T> = (a: T, b: T) => number;
+
+export class SortedMapByKeyBuilder<K, V> {
+  private entries: MapByKeyEntry<K, V>[];
+  private compare: Comparator<K>;
+
+  constructor(compare: Comparator<K>) {
+    this.entries = [];
+    this.compare = compare;
+  }
+
+  put(key: K, value: V): void {
+    this.entries.push({ key, idx: this.entries.length, value });
+  }
+
+  build(): SortedMapByKey<K, V> {
+    if (this.entries.length === 0) {
+      return new SortedMapByKey<K, V>([], [], this.compare);
+    }
+    const total = this.entries.length;
+    for (let i = 1; i < total; i += 1) {
+      const current = this.entries[i]!;
+      let j = i - 1;
+      while (j >= 0) {
+        const prev = this.entries[j]!;
+        const cmp = this.compare(prev.key, current.key);
+        if (cmp > 0 || (cmp === 0 && prev.idx > current.idx)) {
+          this.entries[j + 1] = prev;
+          j -= 1;
+        } else {
+          break;
+        }
+      }
+      this.entries[j + 1] = current;
+    }
+    const keys: K[] = [];
+    const values: V[] = [];
+    let i = 0;
+    while (i < total) {
+      let j = i;
+      while (j + 1 < total && this.compare(this.entries[j + 1]!.key, this.entries[i]!.key) === 0) {
+        j += 1;
+      }
+      const entry = this.entries[j]!;
+      keys.push(entry.key);
+      values.push(entry.value);
+      i = j + 1;
+    }
+    return new SortedMapByKey<K, V>(keys, values, this.compare);
+  }
+}
+
+export class SortedMapByKey<K, V> {
+  private keys: K[];
+  private values: V[];
+  private compare: Comparator<K>;
+
+  constructor(keys: K[], values: V[], compare: Comparator<K>) {
+    this.keys = keys;
+    this.values = values;
+    this.compare = compare;
+  }
+
+  static builder<K, V>(compare: Comparator<K>): SortedMapByKeyBuilder<K, V> {
+    return new SortedMapByKeyBuilder<K, V>(compare);
+  }
+
+  get(key: K): V | null {
+    let low = 0;
+    let high = this.keys.length - 1;
+    while (low <= high) {
+      const mid = (low + high) >> 1;
+      const midVal = this.keys[mid]!;
+      const cmp = this.compare(midVal, key);
+      if (cmp < 0) {
+        low = mid + 1;
+      } else if (cmp > 0) {
+        high = mid - 1;
+      } else {
+        return this.values[mid] !== undefined ? this.values[mid]! : null;
+      }
+    }
+    return null;
+  }
+
+  has(key: K): boolean {
+    let low = 0;
+    let high = this.keys.length - 1;
+    while (low <= high) {
+      const mid = (low + high) >> 1;
+      const midVal = this.keys[mid]!;
+      const cmp = this.compare(midVal, key);
+      if (cmp < 0) {
+        low = mid + 1;
+      } else if (cmp > 0) {
+        high = mid - 1;
+      } else {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  size(): number {
+    return this.keys.length;
+  }
+
+  keyAt(index: number): K {
+    return this.keys[index]!;
+  }
+
+  valueAt(index: number): V {
+    return this.values[index]!;
+  }
+}
+
+export class SortedSetByKeyBuilder<K> {
+  private keys: K[];
+  private compare: Comparator<K>;
+
+  constructor(compare: Comparator<K>) {
+    this.keys = [];
+    this.compare = compare;
+  }
+
+  put(key: K): void {
+    this.keys.push(key);
+  }
+
+  build(): SortedSetByKey<K> {
+    if (this.keys.length === 0) {
+      return new SortedSetByKey<K>([], this.compare);
+    }
+    const count = this.keys.length;
+    for (let i = 1; i < count; i += 1) {
+      const current = this.keys[i]!;
+      let j = i - 1;
+      while (j >= 0 && this.compare(this.keys[j]!, current) > 0) {
+        this.keys[j + 1] = this.keys[j]!;
+        j -= 1;
+      }
+      this.keys[j + 1] = current;
+    }
+    const distinct: K[] = [];
+    for (let i = 0; i < count; i += 1) {
+      const k = this.keys[i]!;
+      if (distinct.length === 0 || this.compare(distinct[distinct.length - 1]!, k) !== 0) {
+        distinct.push(k);
+      }
+    }
+    return new SortedSetByKey<K>(distinct, this.compare);
+  }
+}
+
+export class SortedSetByKey<K> {
+  private keys: K[];
+  private compare: Comparator<K>;
+
+  constructor(keys: K[], compare: Comparator<K>) {
+    this.keys = keys;
+    this.compare = compare;
+  }
+
+  static builder<K>(compare: Comparator<K>): SortedSetByKeyBuilder<K> {
+    return new SortedSetByKeyBuilder<K>(compare);
+  }
+
+  has(key: K): boolean {
+    let low = 0;
+    let high = this.keys.length - 1;
+    while (low <= high) {
+      const mid = (low + high) >> 1;
+      const midVal = this.keys[mid]!;
+      const cmp = this.compare(midVal, key);
+      if (cmp < 0) {
+        low = mid + 1;
+      } else if (cmp > 0) {
+        high = mid - 1;
+      } else {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  size(): number {
+    return this.keys.length;
+  }
+
+  at(index: number): K {
+    return this.keys[index]!;
+  }
+}
+
 export type TestBody = () => void;
 
 export class Test {

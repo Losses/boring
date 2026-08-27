@@ -511,9 +511,41 @@ class KotlinDecl {
 	public function typedefDecl(def: DefType): String {
 		switch(def.type) {
 			case TAnonymous(anonRef):
-				final fields = anonRef.get().fields;
+				final fields = anonRef.get().fields.copy();
+				fields.sort((a, b) -> Reflect.compare(Context.getPosInfos(a.pos).min, Context.getPosInfos(b.pos).min));
 				final fieldLines = [for(field in fields) '    val ${field.name}: ${types.of(field.type)}'];
-				return ['data class ${def.name}(', fieldLines.join(",\n"), ')'].join("\n");
+				final dataClassStr = ['data class ${def.name}(', fieldLines.join(",\n"), ')'].join("\n");
+
+				if(isStructKeyCandidate(fields)) {
+					final cmpLines = [
+						'fun compare(a: ${def.name}, b: ${def.name}): Int {',
+						'    if (a === b) return 0',
+						'    var cmp = 0'
+					];
+					for(f in fields) {
+						switch(Context.follow(f.type)) {
+							case TAbstract(a, _) if(a.get().name == "Int" || a.get().name == "Bool"):
+								cmpLines.push('    cmp = a.${f.name}.compareTo(b.${f.name})');
+								cmpLines.push('    if (cmp != 0) return cmp');
+							case TInst(c, _) if(c.get().name == "String"):
+								cmpLines.push('    cmp = a.${f.name}.compareTo(b.${f.name})');
+								cmpLines.push('    if (cmp != 0) return cmp');
+							case _:
+								switch(f.type) {
+									case TType(innerDef, _):
+										imports.requireType(innerDef.get().module, "compare");
+										cmpLines.push('    cmp = compare(a.${f.name}, b.${f.name})');
+										cmpLines.push('    if (cmp != 0) return cmp');
+									case _:
+								}
+						}
+					}
+					cmpLines.push('    return 0');
+					cmpLines.push('}');
+					return dataClassStr + "\n\n" + cmpLines.join("\n");
+				}
+
+				return dataClassStr;
 			case TType(_, _):
 				// An alias typedef lowers to a platform alias of the
 				// underlying named type.
@@ -521,6 +553,32 @@ class KotlinDecl {
 			case _:
 				return null;
 		}
+	}
+
+	function isStructKeyCandidate(fields: Array<ClassField>): Bool {
+		for(f in fields) {
+			if(!isFieldKeyCandidate(f.type)) return false;
+		}
+		return true;
+	}
+
+	function isFieldKeyCandidate(t: Type): Bool {
+		return switch(t) {
+			case TAbstract(a, _):
+				final n = a.get().name;
+				n == "Int" || n == "Bool";
+			case TInst(c, _):
+				c.get().name == "String";
+			case TType(d, _):
+				switch(d.get().type) {
+					case TAnonymous(anon):
+						isStructKeyCandidate(anon.get().fields);
+					case _: false;
+				}
+			case TLazy(fn):
+				isFieldKeyCandidate(fn());
+			case _: false;
+		};
 	}
 }
 #end

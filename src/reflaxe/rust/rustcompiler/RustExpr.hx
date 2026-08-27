@@ -112,7 +112,7 @@ class RustExpr {
 				final kw = mutated.exists(v.id) ? "let mut" : "let";
 				final name = RustImports.toSnakeCase(localName(v));
 				final explicitType = switch(v.t) {
-					case TInst(c, _) if(c.get().name == "SortedMapBuilder" || c.get().name == "SortedMap"):
+					case TInst(c, _) if(c.get().name == "SortedMapBuilder" || c.get().name == "SortedMap" || c.get().name == "SortedSetBuilder" || c.get().name == "SortedSet"):
 						": " + types.of(v.t, false);
 					case _: "";
 				};
@@ -852,6 +852,49 @@ class RustExpr {
 		};
 	}
 
+	function isSortedBuilder(subj: TypedExpr): Bool {
+		return switch(Context.follow(subj.t)) {
+			case TInst(c, _):
+				final n = c.get().name;
+				n == "SortedMapBuilder" || n == "SortedSetBuilder";
+			case _: false;
+		};
+	}
+
+	function isSortedTable(subj: TypedExpr): Bool {
+		return switch(Context.follow(subj.t)) {
+			case TInst(c, _):
+				final n = c.get().name;
+				n == "SortedMap" || n == "SortedSet";
+			case _: false;
+		};
+	}
+
+	function isTypeCopy(t: Type): Bool {
+		if(t == null) return false;
+		return switch(Context.follow(t)) {
+			case TAbstract(a, _):
+				final n = a.get().name;
+				n == "Int" || n == "Bool" || n == "Float";
+			case TType(d, _):
+				switch(d.get().type) {
+					case TAnonymous(anon):
+						isAllCopy(anon.get().fields);
+					case _: false;
+				}
+			case TLazy(fn):
+				isTypeCopy(fn());
+			case _: false;
+		};
+	}
+
+	function isAllCopy(fields: Array<ClassField>): Bool {
+		for(f in fields) {
+			if(!isTypeCopy(f.type)) return false;
+		}
+		return true;
+	}
+
 	function binop(e: TypedExpr, op: Binop, l: TypedExpr, r: TypedExpr): String {
 		final fromBe = tryMatchFromBeBytes(e);
 		if(fromBe != null) {
@@ -1031,6 +1074,47 @@ class RustExpr {
 				if(name == "charCodeAt" && isString(stripCast(subj))) {
 					return expr(subj) + ".as_bytes()[" + expr(args[0]) + "]";
 				}
+				if(name == "put" && isSortedBuilder(subj)) {
+					final kExpr = switch(args[0].expr) {
+						case TConst(TString(_)): expr(args[0]);
+						case TLocal(_) | TField(_):
+							if(!isTypeCopy(args[0].t)) {
+								expr(args[0]) + ".clone()";
+							} else {
+								expr(args[0]);
+							}
+						case _: expr(args[0]);
+					};
+					if(args.length > 1) {
+						final vExpr = if(isStringType(args[1].t)) {
+							switch(args[1].expr) {
+								case TConst(TString(_)): expr(args[1]) + ".to_string()";
+								case _: expr(args[1]) + ".clone()";
+							}
+						} else {
+							expr(args[1]);
+						};
+						return expr(subj) + ".put(" + kExpr + ", " + vExpr + ")";
+					} else {
+						return expr(subj) + ".put(" + kExpr + ")";
+					}
+				}
+				if((name == "get" || name == "has") && isSortedTable(subj)) {
+					final kExpr = if(isStringType(args[0].t)) {
+						switch(args[0].expr) {
+							case TConst(TString(_)): expr(args[0]);
+							case TLocal(v):
+								final pt = types.of(v.t, true);
+								if(pt == "&str") expr(args[0]); else "&" + expr(args[0]);
+							case _: expr(args[0]);
+						}
+					} else if(!isTypeCopy(args[0].t)) {
+						"&" + expr(args[0]);
+					} else {
+						expr(args[0]);
+					};
+					return expr(subj) + "." + name + "(" + kExpr + ")";
+				}
 				if(name == "push") {
 					return expr(subj) + ".push(" + renderedArgs + ")";
 				}
@@ -1082,6 +1166,46 @@ class RustExpr {
 				if(cls.pack.join(".") == "std" && cls.name == "Process" && name == "exit") {
 					imports.require("std::process::exit");
 					return "exit(" + renderedArgs + ")";
+				}
+				if((path == "std.SortedMap" || cls.module == "std.SortedMap") && name == "builder") {
+					final kType = switch(fn.t) {
+						case TFun(_, TInst(_, params)) if(params.length > 0): params[0];
+						case _: null;
+					};
+					final domain = RustType.classifyKey(kType, fn.pos);
+					switch(domain) {
+						case IntKey:
+							imports.requireType("std.SortedMap", "SortedMap");
+							return "SortedMap::builder()";
+						case StringKey:
+							imports.requireType("std.SortedMap", "SortedMapStr");
+							return "SortedMapStr::builder()";
+						case StructKey(def, _):
+							imports.requireType("std.SortedMap", "SortedMapByKey");
+							final cmpName = "compare_" + RustImports.toSnakeCase(def.name);
+							imports.requireType(def.module, cmpName);
+							return "SortedMapByKey::builder(" + cmpName + ")";
+					}
+				}
+				if((path == "std.SortedSet" || cls.module == "std.SortedSet") && name == "builder") {
+					final kType = switch(fn.t) {
+						case TFun(_, TInst(_, params)) if(params.length > 0): params[0];
+						case _: null;
+					};
+					final domain = RustType.classifyKey(kType, fn.pos);
+					switch(domain) {
+						case IntKey:
+							imports.requireType("std.SortedSet", "SortedSet");
+							return "SortedSet::builder()";
+						case StringKey:
+							imports.requireType("std.SortedSet", "SortedSetStr");
+							return "SortedSetStr::builder()";
+						case StructKey(def, _):
+							imports.requireType("std.SortedSet", "SortedSetByKey");
+							final cmpName = "compare_" + RustImports.toSnakeCase(def.name);
+							imports.requireType(def.module, cmpName);
+							return "SortedSetByKey::builder(" + cmpName + ")";
+					}
 				}
 				if(cls.module == "std.Test" || (cls.pack.join(".") == "std" && (cls.name == "Test" || cls.name == "__test_shim"))) {
 					state.shimsUsed.set("std.Test", true);
@@ -1205,7 +1329,17 @@ class RustExpr {
 
 	function objectLiteral(e: TypedExpr, fields: Array<{name: String, expr: TypedExpr}>): String {
 		final typeName = resolveTypeName(e.t);
-		final parts = [for(f in fields) RustImports.toSnakeCase(f.name) + ": " + expr(f.expr)];
+		final parts = [for(f in fields) {
+			final val = if(isStringType(f.expr.t)) {
+				switch(f.expr.expr) {
+					case TConst(TString(_)): expr(f.expr) + ".to_string()";
+					case _: expr(f.expr) + ".clone()";
+				}
+			} else {
+				expr(f.expr);
+			};
+			RustImports.toSnakeCase(f.name) + ": " + val;
+		}];
 		return typeName + " { " + parts.join(", ") + " }";
 	}
 
