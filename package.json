@@ -8,6 +8,7 @@
   "scripts": {
     "test": "bun test",
     "test:haxe": "haxe tests/haxe/compile.hxml && bun out/haxe/tests.js",
+    "test:kotlin": "mkdir -p out/kotlin && kotlinc kotlin/src/boring/*.kt tests/kotlin/Main.kt -include-runtime -d out/kotlin/tests.jar && java -cp out/kotlin/tests.jar MainKt",
     "test:rust": "cargo test",
     "test:intercept": "bun tests/interception/run.ts",
     "lint": "eslint .",
@@ -17,7 +18,7 @@
     "check:reflaxe": "haxe -lib reflaxe -cp tools/reflaxe -main Smoke -js out/haxe/reflaxe-smoke.js",
     "commit": "bun tools/commit/commit.ts",
     "install:hooks": "bun tools/git-hooks/install.ts",
-    "verify": "bun run test && bun run test:haxe && bun run test:intercept && bun run test:rust && bun run lint && bun run typecheck && bun run check:docs && bun run gen:vector && bun run check:reflaxe"
+    "verify": "bun run test && bun run test:haxe && bun run test:kotlin && bun run test:intercept && bun run test:rust && bun run lint && bun run typecheck && bun run check:docs && bun run gen:vector && bun run check:reflaxe"
   },
   "devDependencies": {
     "@boring/codec": "workspace:*",

@@ -79,6 +79,7 @@ compile. Individual commands:
 | --- | --- |
 | `bun test` | TypeScript tests under bun |
 | `bun run test:haxe` | Compile Haxe and run its checks |
+| `bun run test:kotlin` | Compile Kotlin and run its checks |
 | `bun run test:rust` | Cargo tests for the Rust codec |
 | `bun run lint` | ESLint with the repository rules |
 | `bun run typecheck` | `tsc -p .` with no emit |

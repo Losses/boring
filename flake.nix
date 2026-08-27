@@ -41,7 +41,8 @@
         pkgs:
         let
           # The Rust side uses a pinned overlay toolchain, mirroring the
-          # tiqian setup; the shell carries no JDK and no Android SDK.
+          # tiqian setup; the shell carries the Kotlin/JVM compiler and JDK 21
+          # to build and execute the Kotlin codec tree, and no Android SDK.
           rustToolchain = pkgs.rust-bin.stable.latest.default;
         in
         {
@@ -52,6 +53,8 @@
               nodejs_22
               git
               rustToolchain
+              kotlin
+              jdk21
             ];
             shellHook = ''
               export HAXELIB_PATH="$PWD/.haxelib"
