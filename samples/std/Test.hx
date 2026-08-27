@@ -7,8 +7,8 @@ package std;
  */
 @:native("__test_shim")
 extern class Test {
-	public static function run(id:String, name:String, body:() -> Void):Void;
-	public static function ok(condition:Bool, message:String = null):Void;
-	public static function equals<T>(expected:T, actual:T, message:String = null):Void;
-	public static function fail(message:String):Void;
+	static function run(id:String, name:String, body:() -> Void):Void;
+	static function ok(condition:Bool, message:String = null):Void;
+	static function equals<T>(expected:T, actual:T, message:String = null):Void;
+	static function fail(message:String):Void;
 }

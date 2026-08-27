@@ -51,39 +51,81 @@ class TestCollector {
 				}
 				final baseName = file.substr(0, file.length - 3);
 				final moduleName = "tests." + baseName;
-				final filePath = testDir + "/" + file;
-				final content = File.getContent(filePath);
-				final lines = content.split("\n");
-				var pendingDesc:Null<String> = null;
-				var hasTestMeta = false;
-				for (line in lines) {
-					final trimmed = StringTools.trim(line);
-					if (StringTools.startsWith(trimmed, "@:test")) {
-						hasTestMeta = true;
-						final parenStart = trimmed.indexOf("(\"");
-						final parenEnd = trimmed.lastIndexOf("\")");
-						if (parenStart >= 0 && parenEnd > parenStart) {
-							pendingDesc = trimmed.substring(parenStart + 2, parenEnd);
-						} else {
-							pendingDesc = null;
-						}
-					} else if (hasTestMeta && StringTools.startsWith(trimmed, "public static function ")) {
-						final rest = trimmed.substr("public static function ".length);
-						final parenIdx = rest.indexOf("(");
-						if (parenIdx > 0) {
-							final fieldName = StringTools.trim(rest.substr(0, parenIdx));
-							final id = moduleName + "." + fieldName;
-							final runnerName = pendingDesc != null ? id + ": " + pendingDesc : id;
-							tests.push({
-								id: id,
-								name: runnerName,
-								moduleName: moduleName,
-								className: baseName,
-								fieldName: fieldName
-							});
-						}
-						hasTestMeta = false;
-						pendingDesc = null;
+				final types = try {
+					Context.getModule(moduleName);
+				} catch (e:Dynamic) {
+					continue;
+				}
+
+				for (t in types) {
+					switch (t) {
+						case TInst(c, _):
+							final cls = c.get();
+							final statics = cls.statics.get().copy();
+							statics.sort((a, b) -> Reflect.compare(Context.getPosInfos(a.pos).min, Context.getPosInfos(b.pos).min));
+
+							for (field in statics) {
+								if (!field.meta.has(":test")) {
+									continue;
+								}
+								final id = cls.module + "." + field.name;
+
+								// Validate public static Void -> Void.
+								// Match the declared signature directly: Context.follow during
+								// the --macro phase forces lazy completion of modules with
+								// @:build or static self-referencing initializers and corrupts
+								// the typer cache (Haxe 4.3.7), so follow is not used here.
+								if (!field.isPublic) {
+									Context.error("Test function " + id + " must be public", field.pos);
+								}
+
+								final ftype = field.type;
+								switch (ftype) {
+									case TFun(args, ret):
+										var isVoid = switch (ret) {
+											case TAbstract(a, _): a.get().name == "Void";
+											case _: false;
+										};
+										if (args.length != 0 || !isVoid) {
+											Context.error("Test function " + id + " must take no arguments and return Void", field.pos);
+										}
+									case TLazy(l):
+										switch (l()) {
+											case TFun(args, ret):
+												var isVoid = switch (ret) {
+													case TAbstract(a, _): a.get().name == "Void";
+													case _: false;
+												};
+												if (args.length != 0 || !isVoid) {
+													Context.error("Test function " + id + " must take no arguments and return Void", field.pos);
+												}
+											case _:
+												Context.error("Test function " + id + " must be a function", field.pos);
+										}
+									case _:
+										Context.error("Test function " + id + " must be a function", field.pos);
+								}
+
+								var desc:Null<String> = null;
+								for (entry in field.meta.extract(":test")) {
+									if (entry.params != null && entry.params.length > 0) {
+										switch (entry.params[0].expr) {
+											case EConst(CString(sv)): desc = sv;
+											case _:
+										}
+									}
+								}
+
+								final runnerName = desc != null ? id + ": " + desc : id;
+								tests.push({
+									id: id,
+									name: runnerName,
+									moduleName: cls.module,
+									className: cls.name,
+									fieldName: field.name
+								});
+							}
+						case _:
 					}
 				}
 			}
@@ -390,14 +432,6 @@ class TestMain {
             globalThis.std.SortedMapBuilder = JsSortedMapBuilder;
             globalThis.std.SortedSet = JsSortedSet;
             globalThis.std.SortedSetBuilder = JsSortedSetBuilder;
-            globalThis.std_SortedMap = JsSortedMap;
-            globalThis.std_SortedMapBuilder = JsSortedMapBuilder;
-            globalThis.std_SortedSet = JsSortedSet;
-            globalThis.std_SortedSetBuilder = JsSortedSetBuilder;
-            globalThis.__sorted_map_shim = JsSortedMap;
-            globalThis.__sorted_map_builder_shim = JsSortedMapBuilder;
-            globalThis.__sorted_set_shim = JsSortedSet;
-            globalThis.__sorted_set_builder_shim = JsSortedSetBuilder;
         ");
     }
 
