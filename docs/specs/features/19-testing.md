@@ -185,8 +185,9 @@ compile-time macro collects the `@:test` statics and generates the
 runner main that calls each through `Test.run` in declaration order,
 catching each failure and printing the canonical message, exiting
 nonzero when any test failed. The generated runner lives under
-`out/haxe/` as build output; `tests/haxe/compile.hxml` wires the
-macro. The reference tree writes `out/test-results/haxe.jsonl` like
+`out/haxe/` as build output; `tests/haxe/test-main.hxml` wires the
+macro and builds the generated `TestMain` entry, while
+`tests/haxe/compile.hxml` stays on the typed entry `Main.hx`. The reference tree writes `out/test-results/haxe.jsonl` like
 every other target.
 
 ### TypeScript
