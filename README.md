@@ -22,12 +22,12 @@ explicit `[[test]]` path into `tests/`.
 
 | Path | Content |
 | --- | --- |
-| `ts/` | `@boring/codec`, the TypeScript codec package |
+| `ts/` | `@boring/codec`, the TypeScript codec package; `ts/gen/` is the reflaxe-generated tree |
 | `haxe/` | Haxe library sources |
 | `rust/` | Rust crate with the codec implementation |
 | `kotlin/` | Kotlin codec source tree |
 | `tests/` | Test suites per language plus the shared vectors |
-| `tools/` | ESLint plugin, doc-style checker, commit tool, git hooks, vector generator |
+| `tools/` | ESLint plugin, doc-style checker, commit tool, git hooks, vector generator, reflaxe TypeScript target |
 
 ## Toolchain
 
@@ -47,9 +47,11 @@ here; this repository needs none of them.
     nix develop -c bash -c "bun install"
     nix develop -c bash -c "bun run verify"
 
-`verify` runs the TypeScript tests, the Haxe checks, the Kotlin checks, the
-interception suite, the Rust tests, ESLint, `tsc`, the documentation style
-check, the vector regeneration, and the reflaxe smoke compile. See
+`verify` regenerates `ts/gen` through the reflaxe TypeScript target and
+fails on drift against the committed files, then runs the TypeScript
+tests, the Haxe checks, the Kotlin checks, the interception suite, the
+Rust tests, ESLint, `tsc`, the documentation style check, the vector
+regeneration, and the reflaxe smoke compile. See
 `AGENT.md` for the individual commands and the repository rules.
 
 ## Data comparison and commits
