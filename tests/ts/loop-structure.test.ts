@@ -57,6 +57,13 @@ const SOURCE_TREES: readonly SourceTree[] = [
     checkForHeads: false,
   },
   {
+    label: "rust-gen/src",
+    directory: import.meta.dir + "/../../rust-gen/src",
+    pattern: "**/*.rs",
+    lambdaTokens: ["|"],
+    checkForHeads: false,
+  },
+  {
     label: "kotlin/src",
     directory: import.meta.dir + "/../../kotlin/src",
     pattern: "**/*.kt",

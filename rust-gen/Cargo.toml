@@ -1,0 +1,15 @@
+[package]
+name = "boring-codec-gen"
+version = "0.1.0"
+license = "MIT"
+edition = "2024"
+description = "Generated Rust side of the boring shared-language-subset codec"
+
+[lib]
+path = "src/lib.rs"
+
+# Test suites live outside the crate directory, next to the tests of the
+# other languages; cargo reaches them through explicit paths.
+[[test]]
+name = "vector_gen"
+path = "../tests/rust/vector_gen.rs"
