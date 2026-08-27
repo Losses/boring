@@ -55,6 +55,192 @@ export class BytesBuffer {
   }
 }
 
+interface MapEntry<V> {
+  key: number;
+  idx: number;
+  value: V;
+}
+
+export class SortedMapBuilder<V> {
+  private entries: MapEntry<V>[];
+
+  constructor() {
+    this.entries = [];
+  }
+
+  put(key: number, value: V): void {
+    this.entries.push({ key, idx: this.entries.length, value });
+  }
+
+  build(): SortedMap<V> {
+    if (this.entries.length === 0) {
+      return new SortedMap<V>([], []);
+    }
+    const total = this.entries.length;
+    for (let i = 1; i < total; i += 1) {
+      const current = this.entries[i]!;
+      let j = i - 1;
+      while (j >= 0) {
+        const prev = this.entries[j]!;
+        if (prev.key > current.key || (prev.key === current.key && prev.idx > current.idx)) {
+          this.entries[j + 1] = prev;
+          j -= 1;
+        } else {
+          break;
+        }
+      }
+      this.entries[j + 1] = current;
+    }
+    const keys: number[] = [];
+    const values: V[] = [];
+    let i = 0;
+    while (i < total) {
+      let j = i;
+      while (j + 1 < total && this.entries[j + 1]!.key === this.entries[i]!.key) {
+        j += 1;
+      }
+      const entry = this.entries[j]!;
+      keys.push(entry.key);
+      values.push(entry.value);
+      i = j + 1;
+    }
+    return new SortedMap<V>(keys, values);
+  }
+}
+
+export class SortedMap<V> {
+  private keys: number[];
+  private values: V[];
+
+  constructor(keys: number[], values: V[]) {
+    this.keys = keys;
+    this.values = values;
+  }
+
+  static builder<V>(): SortedMapBuilder<V> {
+    return new SortedMapBuilder<V>();
+  }
+
+  get(key: number): V | null {
+    let low = 0;
+    let high = this.keys.length - 1;
+    while (low <= high) {
+      const mid = (low + high) >> 1;
+      const midVal = this.keys[mid]!;
+      if (midVal < key) {
+        low = mid + 1;
+      } else if (midVal > key) {
+        high = mid - 1;
+      } else {
+        return this.values[mid] !== undefined ? this.values[mid]! : null;
+      }
+    }
+    return null;
+  }
+
+  has(key: number): boolean {
+    let low = 0;
+    let high = this.keys.length - 1;
+    while (low <= high) {
+      const mid = (low + high) >> 1;
+      const midVal = this.keys[mid]!;
+      if (midVal < key) {
+        low = mid + 1;
+      } else if (midVal > key) {
+        high = mid - 1;
+      } else {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  size(): number {
+    return this.keys.length;
+  }
+
+  keyAt(index: number): number {
+    return this.keys[index]!;
+  }
+
+  valueAt(index: number): V {
+    return this.values[index]!;
+  }
+}
+
+export class SortedSetBuilder {
+  private keys: number[];
+
+  constructor() {
+    this.keys = [];
+  }
+
+  put(key: number): void {
+    this.keys.push(key);
+  }
+
+  build(): SortedSet {
+    if (this.keys.length === 0) {
+      return new SortedSet([]);
+    }
+    const count = this.keys.length;
+    for (let i = 1; i < count; i += 1) {
+      const current = this.keys[i]!;
+      let j = i - 1;
+      while (j >= 0 && this.keys[j]! > current) {
+        this.keys[j + 1] = this.keys[j]!;
+        j -= 1;
+      }
+      this.keys[j + 1] = current;
+    }
+    const distinct: number[] = [];
+    for (let i = 0; i < count; i += 1) {
+      const k = this.keys[i]!;
+      if (distinct.length === 0 || distinct[distinct.length - 1] !== k) {
+        distinct.push(k);
+      }
+    }
+    return new SortedSet(distinct);
+  }
+}
+
+export class SortedSet {
+  private keys: number[];
+
+  constructor(keys: number[]) {
+    this.keys = keys;
+  }
+
+  static builder(): SortedSetBuilder {
+    return new SortedSetBuilder();
+  }
+
+  has(key: number): boolean {
+    let low = 0;
+    let high = this.keys.length - 1;
+    while (low <= high) {
+      const mid = (low + high) >> 1;
+      const midVal = this.keys[mid]!;
+      if (midVal < key) {
+        low = mid + 1;
+      } else if (midVal > key) {
+        high = mid - 1;
+      } else {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  size(): number {
+    return this.keys.length;
+  }
+
+  at(index: number): number {
+    return this.keys[index]!;
+  }
+}
+
 export type TestBody = () => void;
 
 export class Test {

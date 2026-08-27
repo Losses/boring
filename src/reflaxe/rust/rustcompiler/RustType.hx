@@ -28,6 +28,7 @@ class RustType {
 					case "Float": "f64";
 					case "Bool": "bool";
 					case "Void": "()";
+					case "Null": "Option<" + of(params[0]) + ">";
 					case "std.ReadOnlyArray":
 						isParam ? "&[" + of(params[0]) + "]" : "Vec<" + of(params[0]) + ">";
 					case "haxe.Int64":
@@ -45,6 +46,22 @@ class RustType {
 					case "haxe.io.BytesBuffer":
 						imports.requireType(cls.module, "BytesBuffer");
 						"BytesBuffer";
+					case "std.SortedMap":
+						assertIntKey(params[0]);
+						imports.requireType("std.SortedMap", "SortedMap");
+						"SortedMap<" + of(params[1]) + ">";
+					case "std.SortedMapBuilder":
+						assertIntKey(params[0]);
+						imports.requireType("std.SortedMapBuilder", "SortedMapBuilder");
+						"SortedMapBuilder<" + of(params[1]) + ">";
+					case "std.SortedSet":
+						assertIntKey(params[0]);
+						imports.requireType("std.SortedSet", "SortedSet");
+						"SortedSet";
+					case "std.SortedSetBuilder":
+						assertIntKey(params[0]);
+						imports.requireType("std.SortedSetBuilder", "SortedSetBuilder");
+						"SortedSetBuilder";
 					case _:
 						imports.requireType(cls.module, cls.name);
 						cls.name;
@@ -76,6 +93,17 @@ class RustType {
 
 	function pathOf(pack: Array<String>, name: String): String {
 		return pack.length == 0 ? name : pack.join(".") + "." + name;
+	}
+
+	function assertIntKey(t: Type): Void {
+		final followed = Context.follow(t);
+		final isInt = switch(followed) {
+			case TAbstract(a, _): a.get().name == "Int";
+			case _: false;
+		};
+		if(!isInt) {
+			Context.error("sorted keyed tables support Int keys in this implementation", Context.currentPos());
+		}
 	}
 
 	function fail(t: Type): String {

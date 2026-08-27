@@ -449,6 +449,7 @@ class KotlinExpr {
 					case TFloat(f): return Std.string(f);
 					case TString(s): return quoteString(s);
 					case TBool(b): return b ? "true" : "false";
+					case TNull: return "null";
 					case TThis: return "this";
 					case TSuper: return "super";
 					case _: return fail(e, "constant has no Kotlin lowering");
@@ -473,7 +474,12 @@ class KotlinExpr {
 			case TObjectDecl(fields):
 				return objectLiteral(e, fields);
 			case TArrayDecl(elems):
-				return "mutableListOf(" + [for(x in elems) expr(x)].join(", ") + ")";
+				final typeArg = switch(e.t) {
+					case TInst(c, params) if(c.get().name == "Array" && params.length > 0):
+						"<" + types.of(params[0]) + ">";
+					case _: "";
+				};
+				return "mutableListOf" + typeArg + "(" + [for(x in elems) expr(x)].join(", ") + ")";
 			case TCall(fn, args):
 				return call(fn, args);
 			case TNew(c, params, args):
@@ -507,8 +513,21 @@ class KotlinExpr {
 		}
 	}
 
+	function isStringType(t: Type): Bool {
+		if(t == null) return false;
+		return switch(Context.follow(t)) {
+			case TInst(c, _): c.get().name == "String";
+			case _: false;
+		};
+	}
+
 	function binopCore(op: Binop, l: TypedExpr, r: TypedExpr): String {
 		switch(op) {
+			case OpAdd if(isStringType(l.t) || isStringType(r.t)):
+				if(!isStringType(l.t)) {
+					return "(" + operand(l, op, false) + ").toString() + " + operand(r, op, true);
+				}
+				return operand(l, op, false) + " + " + operand(r, op, true);
 			case OpAdd | OpSub | OpMult | OpDiv | OpMod | OpEq | OpNotEq | OpGt | OpGte | OpLt | OpLte | OpBoolAnd | OpBoolOr:
 				return operand(l, op, false) + " " + symbolOf(op) + " " + operand(r, op, true);
 			case OpShl:
@@ -598,12 +617,26 @@ class KotlinExpr {
 				state.shimsUsed.set("std.Test", true);
 				imports.require(runtimePackage + ".Test");
 				return "Test." + name;
+			case "std.SortedMap":
+				imports.requireType("std.SortedMap", "SortedMap");
+				return "SortedMap." + name;
+			case "std.SortedSet":
+				imports.requireType("std.SortedSet", "SortedSet");
+				return "SortedSet." + name;
 			case _:
 				if(cls.module == "std.Test") {
 					final runtimePackage = RuntimeConfig.requireImportName("module std.Test");
 					state.shimsUsed.set("std.Test", true);
 					imports.require(runtimePackage + ".Test");
 					return "Test." + name;
+				}
+				if(cls.module == "std.SortedMap") {
+					imports.requireType("std.SortedMap", "SortedMap");
+					return "SortedMap." + name;
+				}
+				if(cls.module == "std.SortedSet") {
+					imports.requireType("std.SortedSet", "SortedSet");
+					return "SortedSet." + name;
 				}
 				imports.requireType(cls.module, cls.name);
 				return cls.name + "." + name;
@@ -682,6 +715,18 @@ class KotlinExpr {
 							return "TestHelper.assertEquals(" + expr(expectedArg) + ", " + expr(actualArg) + (msgArg != null ? ", " + msgArg : "") + ")";
 						}
 					}
+				}
+				if(cls.pack.length == 0 && cls.name == "Std" && name == "int") {
+					return "(" + expr(args[0]) + ").toInt()";
+				}
+				if(cls.pack.join(".") == "std" && cls.name == "SortedMap" && name == "builder") {
+					final typeParam = switch(fn.t) {
+						case TFun(_, TInst(_, params)) if(params.length > 1):
+							"<" + types.of(params[1]) + ">";
+						case _: "";
+					};
+					imports.requireType("std.SortedMap", "SortedMap");
+					return "SortedMap.builder" + typeParam + "(" + renderedArgs + ")";
 				}
 				return staticRef(cls, name) + "(" + renderedArgs + ")";
 			case TField(subj, FEnum(e, ef)):

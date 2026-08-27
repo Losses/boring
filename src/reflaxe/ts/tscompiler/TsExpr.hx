@@ -610,6 +610,7 @@ class TsExpr {
 					case TFloat(f): return Std.string(f);
 					case TString(s): return quoteString(s);
 					case TBool(b): return b ? "true" : "false";
+					case TNull: return "null";
 					case TThis: return "this";
 					case TSuper: return "super";
 					case _: return fail(e, "constant has no TypeScript lowering");
@@ -734,6 +735,10 @@ class TsExpr {
 				if(name == "POSITIVE_INFINITY") return "Infinity";
 				if(name == "NEGATIVE_INFINITY") return "-Infinity";
 				return "Math." + name;
+			case "Std":
+				if(name == "int") return "Math.trunc";
+				if(name == "string") return "String";
+				return "Std." + name;
 			case "haxe.io.FPHelper":
 				// stdlib/05: the bit conversions live in the runtime module.
 				imports.runtime(name);
@@ -741,10 +746,29 @@ class TsExpr {
 			case "std.Test" | "std.__test_shim":
 				imports.runtime("Test");
 				return "Test." + name;
+			case "std.SortedMap":
+				imports.runtime("SortedMap");
+				return "SortedMap." + name;
+			case "std.SortedSet":
+				imports.runtime("SortedSet");
+				return "SortedSet." + name;
 			case _:
 				if(cls.module == "std.Test") {
 					imports.runtime("Test");
 					return "Test." + name;
+				}
+				if(cls.module == "std.SortedMap") {
+					imports.runtime("SortedMap");
+					return "SortedMap." + name;
+				}
+				if(cls.module == "std.SortedSet") {
+					imports.runtime("SortedSet");
+					return "SortedSet." + name;
+				}
+				for(field in cls.statics.get()) {
+					if(field.name == name && DataTableHelper.isDataTableField(field)) {
+						return name;
+					}
 				}
 				imports.value(cls.module, cls.name);
 				return cls.name + "." + name;
@@ -792,7 +816,21 @@ class TsExpr {
 					return expr(subj) + "[" + expr(args[0]) + "]!";
 				}
 				return expr(subj) + "." + name + "(" + rendered + ")";
-			case TField(_, FStatic(c, cf)):
+			case TField(subj, FStatic(c, cf)):
+				final cls = c.get();
+				final fName = cf.get().name;
+				if((cls.module == "std.SortedMap" || cls.pack.join(".") + "." + cls.name == "std.SortedMap") && fName == "builder") {
+					final valueType = switch(fn.t) {
+						case TFun(_, ret):
+							switch(ret) {
+								case TInst(bc, params) if(params.length > 1): types.of(params[1]);
+								case _: "any";
+							}
+						case _: "any";
+					};
+					imports.runtime("SortedMap");
+					return "SortedMap.builder<" + valueType + ">()";
+				}
 				return staticRef(c.get(), cf.get().name) + "(" + rendered + ")";
 			case TField(_, FEnum(_, ef)):
 				return enumConstruct(ef, args);

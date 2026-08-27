@@ -31,6 +31,7 @@ class KotlinType {
 					case "Float": "Double";
 					case "Bool": "Boolean";
 					case "Void": "Unit";
+					case "Null": of(params[0]) + "?";
 					case "std.ReadOnlyArray":
 						"List<" + of(params[0]) + ">";
 					case "haxe.Int64":
@@ -47,6 +48,22 @@ class KotlinType {
 					case "haxe.io.BytesBuffer":
 						imports.requireType(cls.module, "BytesBuffer");
 						"BytesBuffer";
+					case "std.SortedMap":
+						assertIntKey(params[0]);
+						imports.requireType(cls.module, "SortedMap");
+						"SortedMap<" + of(params[1]) + ">";
+					case "std.SortedMapBuilder":
+						assertIntKey(params[0]);
+						imports.requireType(cls.module, "SortedMapBuilder");
+						"SortedMapBuilder<" + of(params[1]) + ">";
+					case "std.SortedSet":
+						assertIntKey(params[0]);
+						imports.requireType(cls.module, "SortedSet");
+						"SortedSet";
+					case "std.SortedSetBuilder":
+						assertIntKey(params[0]);
+						imports.requireType(cls.module, "SortedSetBuilder");
+						"SortedSetBuilder";
 					case _:
 						imports.requireType(cls.module, cls.name);
 						cls.name;
@@ -83,6 +100,17 @@ class KotlinType {
 
 	function pathOf(pack: Array<String>, name: String): String {
 		return pack.length == 0 ? name : pack.join(".") + "." + name;
+	}
+
+	function assertIntKey(t: Type): Void {
+		final followed = Context.follow(t);
+		final isInt = switch(followed) {
+			case TAbstract(a, _): a.get().name == "Int";
+			case _: false;
+		};
+		if(!isInt) {
+			Context.error("sorted keyed tables support Int keys in this implementation", Context.currentPos());
+		}
 	}
 
 	function fail(t: Type): String {

@@ -191,6 +191,14 @@ class Compiler extends PluginCompiler<Compiler> {
 		emitShim("std.Console", "Console.kt", KotlinRuntime.CONSOLE_SOURCE);
 		emitShim("std.Process", "Process.kt", KotlinRuntime.PROCESS_SOURCE);
 		emitShim("std.Test", "Test.kt", KotlinRuntime.TEST_SOURCE);
+		if(state.shimsUsed.exists("std.SortedMap") || state.shimsUsed.exists("std.SortedMapBuilder")) {
+			state.shimsUsed.set("std.SortedMap", true);
+			emitShim("std.SortedMap", "SortedMap.kt", KotlinRuntime.SORTED_MAP_SOURCE);
+		}
+		if(state.shimsUsed.exists("std.SortedSet") || state.shimsUsed.exists("std.SortedSetBuilder")) {
+			state.shimsUsed.set("std.SortedSet", true);
+			emitShim("std.SortedSet", "SortedSet.kt", KotlinRuntime.SORTED_SET_SOURCE);
+		}
 
 		if(hasAnyKey(state.testClasses) && kotlinTestOutput != null) {
 			generateTestHelper(kotlinTestOutput, kotlinOutput);
@@ -228,9 +236,9 @@ class Compiler extends PluginCompiler<Compiler> {
 			"        if (!equalsValue(expected, actual)) Test.reportFailure(message, formatValue(expected), formatValue(actual))",
 			"    }",
 			"",
-			"    fun equalsValue(a: String, b: String): Boolean = a == b",
-			"    fun formatValue(v: String): String = \"\\\"\" + Test.escapeJson(v) + \"\\\"\"",
-			"    fun assertEquals(expected: String, actual: String, message: String? = null) {",
+			"    fun equalsValue(a: String?, b: String?): Boolean = a == b",
+			"    fun formatValue(v: String?): String = if (v == null) \"null\" else \"\\\"\" + Test.escapeJson(v) + \"\\\"\"",
+			"    fun assertEquals(expected: String?, actual: String?, message: String? = null) {",
 			"        if (!equalsValue(expected, actual)) Test.reportFailure(message, formatValue(expected), formatValue(actual))",
 			"    }",
 			"",
