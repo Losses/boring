@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification rules the translation of fixed-length contiguous arrays (`haxe.ds.Vector<T>`) into Rust, TypeScript, and Kotlin. In the current codebase, fixed-size byte headers appear in Rust as `[u8; 4]` in `rust/src/lib.rs` (line 24) and const generic chunk arrays `[u8; N]` in `rust/src/lib.rs` (line 73), pre-allocated record lists appear in Rust as `Vec::with_capacity` in `rust/src/lib.rs` (lines 86, 107), dynamically populated record lists appear in Haxe in `haxe/src/boring/VectorCodec.hx` (lines 13, 28, 35), and pre-allocated buffers appear in TypeScript in `ts/src/codec.ts` (line 16) and `ts/src/vector-format.ts` (lines 37, 54-56). No Kotlin implementation exists yet; the Kotlin rulings bind generated code.
+This specification rules the translation of fixed-length contiguous arrays (`haxe.ds.Vector<T>`) into Rust, TypeScript, and Kotlin. In the current codebase, fixed-size byte headers appear in Rust as `[u8; 4]` in `rust/src/lib.rs` (line 24) and const generic chunk arrays `[u8; N]` in `rust/src/lib.rs` (line 73), pre-allocated record lists appear in Rust as `Vec::with_capacity` in `rust/src/lib.rs` (lines 86, 107), dynamically populated record lists appear in Haxe in `haxe/src/boring/VectorCodec.hx`, pre-allocated buffers appear in TypeScript in `ts/src/codec.ts` and `ts/src/vector-format.ts`, and pre-sized record lists appear in Kotlin as `ArrayList<GlyphMetrics>(count)` in `kotlin/src/boring/VectorCodec.kt`.
 
 ## Haxe construct
 
@@ -41,11 +41,11 @@ public static function decode(bytes:Bytes):Array<GlyphMetrics> {
 	final records = new Array<GlyphMetrics>();
 	for (index in 0...count) {
 		// ...
-		records.push({
+		records[index] = {
 			codePoint: codePoint,
 			advanceEm: advanceEm,
 			bounds: { xMin: xMin, yMin: yMin, xMax: xMax, yMax: yMax }
-		});
+		};
 	}
 	return records;
 }
@@ -81,10 +81,10 @@ pub fn decode_vector(bytes: &[u8]) -> Result<Vec<GlyphMetrics>, VectorError> {
 export function decodeVector(bytes: Uint8Array): GlyphMetricsRecord[] {
   // ...
   const count = reader.readU32();
-  const records: GlyphMetricsRecord[] = [];
+  const records: GlyphMetricsRecord[] = new Array<GlyphMetricsRecord>(count);
   for (let i = 0; i < count; i += 1) {
     // ...
-    records.push({ codePoint, advanceEm, bounds });
+    records[i] = { codePoint, advanceEm, bounds };
   }
   return records;
 }
@@ -114,7 +114,7 @@ pub fn decode_vector_boxed(bytes: &[u8]) -> Result<Box<[GlyphMetrics]>, VectorEr
 }
 ```
 
-### TypeScript Candidate 1: TypedArray for byte buffers and pre-allocated Array with push discipline
+### TypeScript Candidate 1: TypedArray for byte buffers
 
 ```ts
 export function createRecordBuffer(count: number): GlyphMetricsRecord[] {
@@ -124,7 +124,7 @@ export function createRecordBuffer(count: number): GlyphMetricsRecord[] {
 }
 ```
 
-### TypeScript Candidate 2: Pre-allocated Array constructor with index assignment
+### TypeScript Candidate 2: Pre-allocated Array constructor with index assignment (selected)
 
 ```ts
 export function createFixedRecords(count: number): GlyphMetricsRecord[] {
@@ -189,8 +189,8 @@ fun encodeMagic(writer: BinaryWriter): Unit {
 | --- | --- | --- | --- | --- |
 | Rust Candidate 1 (Fixed array and Vec with capacity) | Stack arrays incur zero allocation while Vec pre-allocation eliminates vector reallocation overhead during decoding. | Type signatures explicitly distinguish compile-time fixed buffers from runtime-sized vectors. | Direct collection construction requires no intermediate conversion layers. | Standard Rust array and Vec types communicate collection lifetimes directly. |
 | Rust Candidate 2 (Boxed slice) | Converting Vec to Box<[T]> performs an extra memory reallocation to shrink excess capacity. | Boxed slices prevent further element accumulation without converting back to Vec. | Boxing requires an extra conversion step after decoding loops finish. | Boxed slice signatures add pointer notation to straightforward dynamic collections. |
-| TS Candidate 1 (Array with push discipline) | Dynamic arrays pre-allocated with known capacity run with optimized V8 packed element transitions. | Array length discipline ensures elements populate sequentially without sparse holes. | Standard array methods integrate directly with JSON parsers and test runners. | Standard JavaScript arrays communicate collection mechanics directly. |
-| TS Candidate 2 (Array constructor) | Pre-sizing with new Array allocates array slots upfront but initializes holes until populated. | Sparse array holes introduce undefined values when index loops terminate early. | Allocation sizing requires manual index tracking without sequential push benefits. | Index assignment loops add boilerplate compared to standard push patterns. |
+| TS Candidate 1 (Array with push discipline) | A push-built array grows through geometric reallocation and copy passes; the count is known before the loop, so the growth work is pure overhead. | Array length discipline ensures elements populate sequentially without sparse holes. | Standard array methods integrate directly with JSON parsers and test runners. | Standard JavaScript arrays communicate collection mechanics directly. |
+| TS Candidate 2 (Array constructor) (selected) | One upfront allocation of the exact size and plain indexed stores; no growth copies, no per-iteration capacity checks. | The constructor argument states the element count at the allocation site. | The index the fill loop already carries is the store index; no extra state. | The declaration states the final length the loop establishes. |
 | Rust Candidate 3 (Unrolled constants) | Constant writes fold into single machine stores with zero loop and bounds check overhead. | One constant states the exact bytes of the whole field. | The loop plus its length bound disappear entirely. | Readers see the wire bytes as one literal value. |
 | TS Candidate 3 (Unrolled constants) | Literal constant loads execute with no loop, no bounds check, and no closure. | One constant declares the entire field payload, so no length variable can drift from the data. | The generator derives the constant from the schema once at build time. | Readers see the exact wire bytes at the call site. |
 | Kotlin Candidate 1 (Primitive arrays and ArrayList) | Primitive arrays and `ArrayList` pre-size their backing storage, and indexed writes carry no boxing for primitives. | The declared type states whether contents are primitives or records. | One construction per collection with no wrapper layers. | Standard Kotlin collection types state the layout directly. |
@@ -199,11 +199,11 @@ fun encodeMagic(writer: BinaryWriter): Unit {
 
 ## Ruling
 
-Compile-time fixed-length byte buffers translate to fixed-size array types (`[u8; N]`) in Rust, fixed-size `Uint8Array` views in TypeScript, and `ByteArray` slices with a named length constant in Kotlin. Runtime collections with known lengths translate to pre-allocated vectors (`Vec::with_capacity(capacity)`) in Rust, dense `Array<T>` collections in TypeScript and Haxe, and pre-sized `ArrayList<T>` collections in Kotlin. Kotlin decoders that must return a fixed-size `Array<GlyphMetrics>` allocate `arrayOfNulls(count)`, fill it in an indexed `for` loop, and return through `requireNoNulls()`, which keeps the fill loop closure-free and the return type cast-free.
+Compile-time fixed-length byte buffers translate to fixed-size array types (`[u8; N]`) in Rust, fixed-size `Uint8Array` views in TypeScript, and `ByteArray` slices with a named length constant in Kotlin. Runtime collections with known lengths translate to pre-allocated storage on every platform: `Vec::with_capacity(capacity)` with `push` in Rust, `new Array<T>(count)` with indexed stores `records[i] = ...` in TypeScript, `ArrayList<T>(count)` with `add` in Kotlin, and indexed stores `records[index] = ...` on a fresh Haxe array, whose JavaScript lowering allocates the exact size. The fill loop and the allocation share the count, one allocation covers the whole fill, and no growth copy runs. Kotlin decoders that must return a fixed-size `Array<GlyphMetrics>` allocate `arrayOfNulls(count)`, fill it in an indexed `for` loop, and return through `requireNoNulls()`, which keeps the fill loop closure-free and the return type cast-free.
 
 Static-length arrays whose length and contents are compile-time constants unroll at build time. When the constant width matches a primitive wire write, the whole array folds into one constant: `WireAscii(4)` over `BRG1` becomes the u32 constant `0x42524731` written through `writeU32`, replacing the per-character loop in `BinaryWriter.writeAscii` (`haxe/src/boring/BinaryWriter.hx`, lines 38-42) and `writeAscii` in `ts/src/codec.ts` (lines 46-52). The same fold produces the `Int` constant `0x42524731` in Kotlin, which fits the positive `Int` range. When the constant width matches no primitive write, the generator emits one named constant per element and references the constants by name; no runtime array is allocated for data whose contents are already known at compile time. Kotlin declares no `const` arrays, so per-element constants are the only constant-array form. Generated and handwritten codec code keeps no per-element loop over compile-time constant data.
 
-Length mismatches on wire decoding fail immediately with `VectorError::UnexpectedEof` in Rust, thrown `Error` instances in Haxe and TypeScript, and thrown `VectorException.UnexpectedEof` in Kotlin.
+Length mismatches on wire decoding fail immediately with `VectorError::UnexpectedEof` in Rust, the thrown `VectorException` carrying `UnexpectedEof` in Haxe and TypeScript, and thrown `VectorException.UnexpectedEof` in Kotlin.
 
 ## Test hooks
 

@@ -124,7 +124,7 @@ export function decodeVector(bytes: Uint8Array): GlyphMetricsRecord[] {
     throw new VectorException({ kind: "BadMagic" });
   }
   const count = reader.readU32();
-  const records: GlyphMetricsRecord[] = [];
+  const records: GlyphMetricsRecord[] = new Array<GlyphMetricsRecord>(count);
   for (let i = 0; i < count; i += 1) {
     const codePoint = reader.readU32();
     const advanceEm = reader.readF64();
@@ -133,7 +133,7 @@ export function decodeVector(bytes: Uint8Array): GlyphMetricsRecord[] {
     const xMax = reader.readF64();
     const yMax = reader.readF64();
     const bounds = { xMin, yMin, xMax, yMax };
-    records.push({ codePoint, advanceEm, bounds });
+    records[i] = { codePoint, advanceEm, bounds };
   }
   if (reader.remaining() !== 0) {
     throw new VectorException({ kind: "TrailingBytes", remaining: reader.remaining() });
