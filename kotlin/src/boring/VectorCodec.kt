@@ -34,6 +34,9 @@ object VectorCodec {
             throw VectorException.BadMagic
         }
         val count = reader.readU32()
+        if (count < 0) {
+            throw VectorException.CountOverflow
+        }
         val records = Array(count) {
             val codePoint = reader.readU32()
             val advanceEm = reader.readF64()

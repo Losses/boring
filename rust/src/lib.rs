@@ -107,6 +107,11 @@ pub fn decode_vector(bytes: &[u8]) -> Result<Vec<GlyphMetrics>, VectorError> {
     }
     let mut reader = VectorReader::new(&bytes[4..]);
     let count = reader.read_u32()?;
+    // The decodable count domain is [0, 2^31): counts at or above the signed
+    // 32-bit boundary are rejected before any allocation or record read.
+    if count > 2147483647 {
+        return Err(VectorError::CountOverflow);
+    }
     let capacity = usize::try_from(count).map_err(|_| VectorError::CountOverflow)?;
     let mut records = Vec::with_capacity(capacity);
     for _ in 0..count {

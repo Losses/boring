@@ -110,7 +110,25 @@ fn trailing_bytes_are_rejected() {
     );
 }
 
-// Sort runtime identity per docs/specs/features/17-sorting.md: the corpus
+// The decodable count domain is [0, 2^31) per docs/specs/binary/01-wire-format.md.
+
+#[test]
+fn huge_count_is_rejected() {
+    assert_eq!(
+        decode_vector(b"BRG1\xff\xff\xff\xff"),
+        Err(VectorError::CountOverflow)
+    );
+}
+
+#[test]
+fn boundary_count_is_rejected() {
+    assert_eq!(
+        decode_vector(b"BRG1\x80\x00\x00\x00"),
+        Err(VectorError::CountOverflow)
+    );
+}
+
+// Sort runtime identity per docs/specs/features/17-sorting.md: the input
 // and oracle are inline constants shared verbatim with the Haxe and
 // TypeScript sort tests.
 
@@ -128,7 +146,7 @@ const SORTED_KEYS: [u32; 40] = [
     0x8a6d, 0x9fff, 0xff01, 0xff01,
 ];
 
-fn sort_corpus_records() -> Vec<GlyphMetrics> {
+fn sort_fixture_records() -> Vec<GlyphMetrics> {
     let mut records = Vec::with_capacity(SHUFFLED_KEYS.len());
     let mut index: u32 = 0;
     for key in SHUFFLED_KEYS.iter() {
@@ -150,7 +168,7 @@ fn sort_corpus_records() -> Vec<GlyphMetrics> {
 
 #[test]
 fn sort_by_code_point_matches_the_shared_oracle() {
-    let mut records = sort_corpus_records();
+    let mut records = sort_fixture_records();
     vector_sort_by_code_point(&mut records);
     let sorted_keys: Vec<u32> = records.iter().map(|record| record.code_point).collect();
     assert_eq!(sorted_keys, SORTED_KEYS.to_vec());
@@ -158,7 +176,7 @@ fn sort_by_code_point_matches_the_shared_oracle() {
 
 #[test]
 fn sort_by_code_point_is_stable_on_equal_keys() {
-    let mut records = sort_corpus_records();
+    let mut records = sort_fixture_records();
     vector_sort_by_code_point(&mut records);
     // advance_em marks the input position; equal keys keep input order.
     for pair in records.windows(2) {

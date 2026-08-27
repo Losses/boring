@@ -37,6 +37,9 @@ class VectorCodec {
 			throw new VectorException(BadMagic);
 		}
 		final count = reader.readU32();
+		if (count < 0) {
+			throw new VectorException(CountOverflow);
+		}
 		final records = new Array<GlyphMetrics>();
 		for (index in 0...count) {
 			final codePoint = reader.readU32();

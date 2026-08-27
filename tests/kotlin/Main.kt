@@ -132,6 +132,23 @@ object Main {
         }
         expectTrue("truncated vector throws the UnexpectedEof variant", truncatedVariant == VectorException.UnexpectedEof)
 
+        // The decodable count domain is [0, 2^31) per docs/specs/binary/01-wire-format.md.
+        var hugeCountVariant: VectorException? = null
+        try {
+            VectorCodec.decode(hexToBytes("42524731ffffffff"))
+        } catch (error: VectorException) {
+            hugeCountVariant = error
+        }
+        expectTrue("huge count throws the CountOverflow variant", hugeCountVariant == VectorException.CountOverflow)
+
+        var boundaryCountVariant: VectorException? = null
+        try {
+            VectorCodec.decode(hexToBytes("4252473180000000"))
+        } catch (error: VectorException) {
+            boundaryCountVariant = error
+        }
+        expectTrue("boundary count throws the CountOverflow variant", boundaryCountVariant == VectorException.CountOverflow)
+
         var trailingBytesVariant: VectorException? = null
         try {
             val padded = hexToBytes(EXPECTED_HEX) + byteArrayOf(0)
