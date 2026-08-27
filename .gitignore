@@ -11,3 +11,4 @@ target/
 .env.*
 .DS_Store
 kotlin/gen/
+rust-gen/src/
