@@ -11,7 +11,7 @@
     "test:kotlin": "mkdir -p out/kotlin && kotlinc $(find reference/kotlin/gen -name '*.kt') tests/kotlin/Main.kt -include-runtime -d out/kotlin/tests.jar && java -cp out/kotlin/tests.jar MainKt",
     "test:rust": "cargo test",
     "test:intercept": "bun tests/interception/run.ts",
-    "test:stage1:haxe": "haxe tests/haxe/test-main.hxml && bun out/haxe/test-main.js",
+    "test:stage1:haxe": "haxe tests/haxe/generate-main.hxml && haxe tests/haxe/test-main.hxml && bun out/haxe/test-main.js",
     "test:stage1:ts": "bun test reference/ts/gen-tests/",
     "test:stage1:kotlin": "mkdir -p out/kotlin && kotlinc -Xallow-kotlin-package $(find reference/kotlin/gen reference/kotlin/gen-tests -name '*.kt') -include-runtime -d out/kotlin/gen-tests.jar && java -cp out/kotlin/gen-tests.jar TestMainKt",
     "test:stage1:rust": "BORING_TEST_RESULTS=$(pwd)/out/test-results/rust.jsonl cargo test",
