@@ -61,14 +61,8 @@ class RustType {
 				}
 			case TEnum(e, _):
 				final en = e.get();
-				final owner = state.payloadEnumOwners.get(en.module);
-				if(owner != null) {
-					imports.requireType(en.module, owner);
-					owner;
-				} else {
-					imports.requireType(en.module, en.name);
-					en.name;
-				}
+				imports.requireType(en.module, en.name);
+				en.name;
 			case TFun(args, ret):
 				"(" + [for(arg in args) of(arg.t, true)].join(", ") + ") -> " + of(ret, false);
 			case TAnonymous(_):

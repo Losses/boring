@@ -1,12 +1,17 @@
 package rustcompiler;
 
 #if (macro || reflaxe_runtime)
+import haxe.macro.Type;
+
 /**
 	Emission state shared across modules for the Rust target.
 **/
 class RustEmissionState {
 	/** Maps payload enum module path to its owning exception class name. */
 	public final payloadEnumOwners: Map<String, String> = [];
+
+	/** Maps payload enum module path to its owning exception class module path. */
+	public final payloadEnumModules: Map<String, String> = [];
 
 	/** Maps exception class module path to its payload enum module path. */
 	public final exceptionPayloads: Map<String, String> = [];
@@ -21,6 +26,12 @@ class RustEmissionState {
 	public var errorModule: Null<String> = null;
 	public var errorName: Null<String> = null;
 	public var overflowVariant: Null<String> = null;
+
+	/** Types reachable at test assertion call sites for type-guided helpers. */
+	public final testReachableTypes: Map<String, Type> = [];
+
+	/** Modules containing @:test methods. */
+	public final testModules: Map<String, Bool> = [];
 
 	public function new() {}
 }

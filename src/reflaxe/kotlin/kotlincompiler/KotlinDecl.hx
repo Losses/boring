@@ -50,6 +50,30 @@ class KotlinDecl {
 			return sealedExceptionDecl(cls, payload, funcFields);
 		}
 
+		var hasTestMethods = false;
+		for(f in funcFields) {
+			if(f.field.meta.has(":test")) {
+				hasTestMethods = true;
+				break;
+			}
+		}
+
+		if(hasTestMethods) {
+			final lines: Array<String> = [];
+			lines.push("class " + cls.name + " {");
+			var sep = false;
+			final sortedFuncs = funcFields.copy();
+			sortedFuncs.sort((a, b) -> Reflect.compare(Context.getPosInfos(a.field.pos).min, Context.getPosInfos(b.field.pos).min));
+			for(f in sortedFuncs) {
+				if(!f.field.meta.has(":test")) continue;
+				if(sep) lines.push("");
+				sep = true;
+				for(l in testFuncDecl(cls, f)) lines.push(l);
+			}
+			lines.push("}");
+			return lines.join("\n");
+		}
+
 		final isObject = isAllStatic(varFields, funcFields);
 		final lines: Array<String> = [];
 
@@ -401,6 +425,22 @@ class KotlinDecl {
 		expr.setDecodeBoundary(false);
 
 		return [head].concat(body.map(l -> "    " + l)).concat(["    }"]);
+	}
+
+	public function testFuncDecl(cls: ClassType, f: ClassFuncData): Array<String> {
+		final id = cls.module + "." + f.field.name;
+		final runtimePackage = RuntimeConfig.requireImportName("test module " + cls.module);
+		imports.require(runtimePackage + ".Test");
+		final body = expr.functionBody(f);
+		final indented = body.map(l -> "            " + l);
+		return [
+			"    @kotlin.test.Test",
+			'    fun ${f.field.name}() {',
+			'        Test.run("${id}") {',
+		].concat(indented).concat([
+			"        }",
+			"    }"
+		]);
 	}
 
 	// ------------------------------------------------------------------

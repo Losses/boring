@@ -9,6 +9,8 @@
 --macro Intercept.run(['samples'], ['samples/boring/BinaryReader.hx', 'samples/boring/BinaryWriter.hx'])
 --macro tscompiler.Compiler.use()
 -D ts-output=reference/ts/gen
+-D ts-test-output=reference/ts/gen-tests
+-D ts-test-runner=bun
 -D runtime-import=@boring/runtime
 -D runtime-emit=.
 boring.BinaryReader
@@ -19,3 +21,5 @@ boring.VectorCodec
 boring.VectorError
 boring.VectorException
 boring.VectorSort
+tests.TestData
+tests.VectorCodecTests

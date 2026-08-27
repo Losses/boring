@@ -174,12 +174,8 @@ class RustExpr {
 	}
 
 	function exceptionVariant(cls: ClassType, payloadArg: TypedExpr): String {
-		final owner = state.payloadEnumOwners.get(state.exceptionPayloads.get(cls.module));
-		final errType = owner != null ? owner : errorTypeName;
-		if(errType == null) {
-			Context.error("exception has no associated error enum in AST", cls.pos);
-			return "";
-		}
+		final errType = state.errorName != null ? state.errorName : "";
+		imports.requireType(cls.module, errType);
 		final arg = stripWrap(payloadArg);
 		switch(arg.expr) {
 			case TField(_, FEnum(_, ef)):
@@ -914,10 +910,8 @@ class RustExpr {
 				return staticRef(c.get(), cf.get().name);
 			case FEnum(e, ef):
 				final en = e.get();
-				final owner = state.payloadEnumOwners.get(en.module);
-				final errType = owner != null ? owner : en.name;
-				imports.requireType(en.module, errType);
-				return errType + "::" + ef.name;
+				imports.requireType(en.module, en.name);
+				return en.name + "::" + ef.name;
 			case FInstance(_, _, cf) | FAnon(cf):
 				final name = cf.get().name;
 				if(name == "length") {
@@ -937,7 +931,21 @@ class RustExpr {
 		switch(path) {
 			case "String":
 				return "String::" + RustImports.toSnakeCase(name);
+			case "Math":
+				if(name == "NaN") return "f64::NAN";
+				if(name == "POSITIVE_INFINITY") return "f64::INFINITY";
+				if(name == "NEGATIVE_INFINITY") return "f64::NEG_INFINITY";
+				return "f64::" + RustImports.toSnakeCase(name);
+			case "std.Test" | "std.__test_shim":
+				state.shimsUsed.set("std.Test", true);
+				imports.require("crate::runtime::test as testlib");
+				return "testlib::" + RustImports.toSnakeCase(name);
 			case _:
+				if(cls.module == "std.Test") {
+					state.shimsUsed.set("std.Test", true);
+					imports.require("crate::runtime::test as testlib");
+					return "testlib::" + RustImports.toSnakeCase(name);
+				}
 				imports.requireType(cls.module, cls.name);
 				return cls.name + "::" + RustImports.toSnakeCase(name);
 		}
@@ -947,6 +955,14 @@ class RustExpr {
 		switch(t) {
 			case TClassDecl(c):
 				final cls = c.get();
+				if(cls.pack.length == 0 && (cls.name == "String" || cls.name == "Math")) {
+					return cls.name;
+				}
+				if(cls.module == "std.Test" || (cls.pack.join(".") == "std" && (cls.name == "Test" || cls.name == "__test_shim"))) {
+					state.shimsUsed.set("std.Test", true);
+					imports.require("crate::runtime::test as testlib");
+					return "testlib";
+				}
 				imports.requireType(cls.module, cls.name);
 				return cls.name;
 			case TEnumDecl(e):
@@ -1005,8 +1021,8 @@ class RustExpr {
 					return expr(subj) + ".write_ascii(" + expr(args[0]) + ")";
 				}
 				final isMethodFallible = isFallibleMethod(name);
-				final q = (isFallible && isMethodFallible) ? "?" : "";
-				return expr(subj) + "." + snake + "(" + renderedArgs + ")" + q;
+				final q = isFallible ? (isMethodFallible ? "?" : "") : (isMethodFallible ? ".unwrap()" : "");
+				return expr(subj) + "." + snake + "(" + renderCallArgs(cf.get().type, args) + ")" + q;
 			case TField(_, FStatic(c, cf)):
 				final cls = c.get();
 				final name = cf.get().name;
@@ -1022,14 +1038,51 @@ class RustExpr {
 					imports.require("std::process::exit");
 					return "exit(" + renderedArgs + ")";
 				}
+				if(cls.module == "std.Test" || (cls.pack.join(".") == "std" && (cls.name == "Test" || cls.name == "__test_shim"))) {
+					state.shimsUsed.set("std.Test", true);
+					imports.require("crate::runtime::test as testlib");
+					if(name == "ok") {
+						final cond = expr(args[0]);
+						final msg = args.length > 1 ? "Some(" + expr(args[1]) + ")" : "None";
+						return "testlib::ok(" + cond + ", " + msg + ")";
+					}
+					if(name == "fail") {
+						return "testlib::fail(" + expr(args[0]) + ")";
+					}
+					if(name == "run") {
+						return "testlib::run(" + renderedArgs + ")";
+					}
+					if(name == "equals") {
+						final expectedArg = args[0];
+						final actualArg = args[1];
+						final msg = args.length > 2 ? "Some(" + expr(args[2]) + ")" : "None";
+						if(isScalarType(expectedArg.t)) {
+							final scalarKind = scalarTypeKind(expectedArg.t);
+							switch(scalarKind) {
+								case "Bool":
+									return "testlib::equals_bool(" + expr(expectedArg) + ", " + expr(actualArg) + ", " + msg + ")";
+								case "Int":
+									return "testlib::equals_i32(" + expr(expectedArg) + ", " + expr(actualArg) + ", " + msg + ")";
+								case "Float":
+									return "testlib::equals_f64(" + expr(expectedArg) + ", " + expr(actualArg) + ", " + msg + ")";
+								case "String":
+									return "testlib::equals_str(&" + expr(expectedArg) + ", &" + expr(actualArg) + ", " + msg + ")";
+								case _:
+							}
+						}
+						// Aggregate equality
+						recordAggregateType(expectedArg.t);
+						final fnName = aggregateAssertFuncName(expectedArg.t);
+						imports.require("crate::tests::test_helper::*");
+						return fnName + "(&" + expr(expectedArg) + ", &" + expr(actualArg) + ", " + msg + ")";
+					}
+				}
 				final isStaticFallible = isFallibleMethod(name);
-				final q = (isFallible && isStaticFallible) ? "?" : "";
-				return staticRef(cls, name) + "(" + renderedArgs + ")" + q;
+				final q = isFallible ? (isStaticFallible ? "?" : "") : (isStaticFallible ? ".unwrap()" : "");
+				return staticRef(cls, name) + "(" + renderCallArgs(cf.get().type, args) + ")" + q;
 			case TField(subj, FEnum(e, ef)):
 				final en = e.get();
-				final owner = state.payloadEnumOwners.get(en.module);
-				final errType = owner != null ? owner : en.name;
-				imports.requireType(en.module, errType);
+				imports.requireType(en.module, en.name);
 				final efArgs = switch(ef.type) {
 					case TFun(fargs, _): fargs;
 					case _: [];
@@ -1039,7 +1092,10 @@ class RustExpr {
 					final argName = i < efArgs.length ? RustImports.toSnakeCase(efArgs[i].name) : "arg" + i;
 					parts.push(argName + ": " + expr(args[i]));
 				}
-				return errType + "::" + ef.name + " { " + parts.join(", ") + " }";
+				if(parts.length == 0) {
+					return en.name + "::" + ef.name;
+				}
+				return en.name + "::" + ef.name + " { " + parts.join(", ") + " }";
 			case TConst(TSuper):
 				return "super(" + renderedArgs + ")";
 			case _:
@@ -1483,6 +1539,157 @@ class RustExpr {
 		}
 		final byteIndex = Std.int((bitWidth - 8 - shift) / 8);
 		return expr(target) + ".to_be_bytes()[" + byteIndex + "]";
+	}
+
+	function isPassByRef(t: Type): Bool {
+		return switch(Context.follow(t)) {
+			case TAbstract(a, _) if(a.get().name == "ReadOnlyArray" || (a.get().pack.join(".") == "std" && a.get().name == "ReadOnlyArray")): true;
+			case TInst(c, _) if(c.get().name == "Array" || c.get().name == "Bytes" || (c.get().pack.join(".") == "haxe.io" && c.get().name == "Bytes") || c.get().name == "String"): true;
+			case _: false;
+		};
+	}
+
+	function renderCallArgs(fnType: Null<Type>, args: Array<TypedExpr>): String {
+		final paramTypes = if(fnType != null) {
+			switch(Context.follow(fnType)) {
+				case TFun(pargs, _): [for(p in pargs) p.t];
+				case _: [];
+			};
+		} else [];
+		final rendered = [];
+		for(i in 0...args.length) {
+			final arg = args[i];
+			var argStr = expr(arg);
+			if(i < paramTypes.length) {
+				final pt = paramTypes[i];
+				if(isPassByRef(pt)) {
+					if(!StringTools.startsWith(argStr, "&")) {
+						argStr = "&" + argStr;
+					}
+				}
+			}
+			rendered.push(argStr);
+		}
+		return rendered.join(", ");
+	}
+
+	function isScalarType(t: Type): Bool {
+		final followed = Context.follow(t);
+		return switch(followed) {
+			case TAbstract(a, _):
+				final name = a.get().name;
+				name == "Bool" || name == "Int" || name == "Float";
+			case TInst(c, _):
+				c.get().name == "String";
+			case _: false;
+		};
+	}
+
+	function scalarTypeKind(t: Type): String {
+		final followed = Context.follow(t);
+		return switch(followed) {
+			case TAbstract(a, _): a.get().name;
+			case TInst(c, _): c.get().name;
+			case _: "Unknown";
+		};
+	}
+
+	function recordAggregateType(t: Type): Void {
+		switch(t) {
+			case TInst(c, params):
+				final cls = c.get();
+				if(cls.name == "Array") {
+					final key = "Array_" + formatTypeKey(params[0]);
+					if(!state.testReachableTypes.exists(key)) {
+						state.testReachableTypes.set(key, t);
+						recordAggregateType(params[0]);
+					}
+				} else if(cls.name == "Bytes" || (cls.pack.join(".") == "haxe.io" && cls.name == "Bytes")) {
+					if(!state.testReachableTypes.exists("Bytes")) {
+						state.testReachableTypes.set("Bytes", t);
+					}
+				}
+			case TAbstract(a, params) if(a.get().name == "ReadOnlyArray" || (a.get().pack.join(".") == "std" && a.get().name == "ReadOnlyArray")):
+				final key = "Array_" + formatTypeKey(params[0]);
+				if(!state.testReachableTypes.exists(key)) {
+					state.testReachableTypes.set(key, t);
+					recordAggregateType(params[0]);
+				}
+			case TType(def, params):
+				final d = def.get();
+				final key = d.module + "." + d.name;
+				if(!state.testReachableTypes.exists(key)) {
+					state.testReachableTypes.set(key, t);
+					switch(d.type) {
+						case TAnonymous(anon):
+							for(f in anon.get().fields) {
+								recordAggregateType(f.type);
+							}
+						case _:
+					}
+				}
+			case TEnum(e, params):
+				final en = e.get();
+				final key = en.module + "." + en.name;
+				if(!state.testReachableTypes.exists(key)) {
+					state.testReachableTypes.set(key, t);
+				}
+			case _:
+		}
+	}
+
+	function formatTypeKey(t: Type): String {
+		return switch(t) {
+			case TAbstract(a, params):
+				if(a.get().name == "ReadOnlyArray" || (a.get().pack.join(".") == "std" && a.get().name == "ReadOnlyArray")) "Array_" + formatTypeKey(params[0])
+				else a.get().name;
+			case TInst(c, params):
+				final cls = c.get();
+				if(cls.name == "Array") "Array_" + formatTypeKey(params[0]);
+				else if(cls.name == "Bytes" || (cls.pack.join(".") == "haxe.io" && cls.name == "Bytes")) "Bytes";
+				else cls.module + "." + cls.name;
+			case TType(def, params): def.get().module + "." + def.get().name;
+			case TEnum(e, params): e.get().module + "." + e.get().name;
+			case _: "Unknown";
+		};
+	}
+
+	function aggregateAssertFuncName(t: Type): String {
+		return switch(t) {
+			case TInst(c, params) if(c.get().name == "Array"):
+				"assert_equals_vec_" + typeSafeSnake(params[0]);
+			case TAbstract(a, params) if(a.get().name == "ReadOnlyArray" || (a.get().pack.join(".") == "std" && a.get().name == "ReadOnlyArray")):
+				"assert_equals_vec_" + typeSafeSnake(params[0]);
+			case TInst(c, _) if(c.get().name == "Bytes" || (c.get().pack.join(".") == "haxe.io" && c.get().name == "Bytes")):
+				"assert_equals_bytes";
+			case TType(def, _):
+				"assert_equals_" + RustImports.toSnakeCase(def.get().name);
+			case TEnum(e, _):
+				"assert_equals_" + RustImports.toSnakeCase(e.get().name);
+			case _: "assert_equals_unknown";
+		};
+	}
+
+	function typeSafeSnake(t: Type): String {
+		return switch(t) {
+			case TAbstract(a, _):
+				switch(a.get().name) {
+					case "Int": "u32";
+					case "Float": "f64";
+					case "Bool": "bool";
+					case "String": "string";
+					case _: RustImports.toSnakeCase(a.get().name);
+				}
+			case TInst(c, _):
+				switch(c.get().name) {
+					case "String": "string";
+					case "Bytes": "bytes";
+					case _: RustImports.toSnakeCase(c.get().name);
+				}
+			case TType(def, _): RustImports.toSnakeCase(def.get().name);
+			case TEnum(e, _): RustImports.toSnakeCase(e.get().name);
+			case _: "unknown";
+		};
 	}
 }
 #end

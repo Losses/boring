@@ -20,6 +20,7 @@ const COMPILER_DIRECTORIES: readonly string[] = [
   "src",
   "src/reflaxe/ts/tscompiler",
   "src/reflaxe/kotlin/kotlincompiler",
+  "src/reflaxe/rust/rustcompiler",
 ];
 
 /** Substrings that assume the compiled package or name the sample modules. */

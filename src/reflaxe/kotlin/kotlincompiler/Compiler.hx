@@ -62,6 +62,55 @@ class Compiler extends PluginCompiler<Compiler> {
 		if(classType.isExtern || isSyntheticImpl(classType.name) || !inSourceScope(classType.pos)) {
 			return null;
 		}
+
+		var hasTestMethods = false;
+		for(f in funcFields) {
+			if(f.field.meta.has(":test")) {
+				hasTestMethods = true;
+				break;
+			}
+		}
+
+		if(hasTestMethods) {
+			final testOutput = Context.definedValue("kotlin-test-output");
+			if(testOutput == null) {
+				Context.error("kotlin-test-output define is required to emit tests", classType.pos);
+			}
+
+			final sortedFuncs = funcFields.copy();
+			sortedFuncs.sort((a, b) -> Reflect.compare(Context.getPosInfos(a.field.pos).min, Context.getPosInfos(b.field.pos).min));
+
+			final testFuncNames: Array<String> = [];
+			for(f in sortedFuncs) {
+				if(!f.field.meta.has(":test")) {
+					continue;
+				}
+				final id = classType.module + "." + f.field.name;
+				if(!f.field.isPublic) {
+					Context.error("Test function " + id + " must be public", f.field.pos);
+				}
+				if(!f.isStatic) {
+					Context.error("Test function " + id + " must be static", f.field.pos);
+				}
+				if(f.args.length != 0) {
+					Context.error("Test function " + id + " must take no arguments and return Void", f.field.pos);
+				}
+				final isVoid = switch(Context.follow(f.ret)) {
+					case TAbstract(a, _): a.get().name == "Void";
+					case _: false;
+				};
+				if(!isVoid) {
+					Context.error("Test function " + id + " must take no arguments and return Void", f.field.pos);
+				}
+				testFuncNames.push(f.field.name);
+			}
+
+			state.testClasses.set(classType.module, {
+				cls: classType,
+				funcs: testFuncNames
+			});
+		}
+
 		final decl = contextFor(classType.module);
 		final result = decl.classDecl(classType, varFields, funcFields);
 		if(result != null && result.length > 0) {
@@ -111,6 +160,10 @@ class Compiler extends PluginCompiler<Compiler> {
 		final modules = [];
 		for(module in parts.keys()) modules.push(module);
 		modules.sort(Reflect.compare);
+
+		final kotlinOutput = Context.definedValue("kotlin-output");
+		final kotlinTestOutput = Context.definedValue("kotlin-test-output");
+
 		for(module in modules) {
 			if(state.payloadEnumOwners.exists(module)) {
 				// The sealed fold already carries these variants.
@@ -123,12 +176,201 @@ class Compiler extends PluginCompiler<Compiler> {
 				+ (imports.length > 0 ? "\n" : "")
 				+ body
 				+ "\n";
-			output.saveFile(modulePath(module), content);
+
+			if(state.testClasses.exists(module)) {
+				final testFileRel = kotlinTestOutput + "/" + modulePath(module);
+				final savePath = computeRelativePath(kotlinOutput, testFileRel);
+				output.saveFile(savePath, content);
+			} else {
+				output.saveFile(modulePath(module), content);
+			}
 		}
+
 		emitShim("haxe.io.FPHelper", "FPHelper.kt", KotlinRuntime.FP_HELPER_SOURCE);
 		emitShim("haxe.io.BytesBuffer", "BytesBuffer.kt", KotlinRuntime.BYTES_BUFFER_SOURCE);
 		emitShim("std.Console", "Console.kt", KotlinRuntime.CONSOLE_SOURCE);
 		emitShim("std.Process", "Process.kt", KotlinRuntime.PROCESS_SOURCE);
+		emitShim("std.Test", "Test.kt", KotlinRuntime.TEST_SOURCE);
+
+		if(hasAnyKey(state.testClasses) && kotlinTestOutput != null) {
+			generateTestHelper(kotlinTestOutput, kotlinOutput);
+			generateTestMain(kotlinTestOutput, kotlinOutput);
+			final annotContent = "package kotlin.test\n\n@Target(AnnotationTarget.FUNCTION)\nannotation class Test\n";
+			final annotRel = kotlinTestOutput + "/tests/TestAnnotations.kt";
+			final annotSave = computeRelativePath(kotlinOutput, annotRel);
+			output.saveFile(annotSave, annotContent);
+		}
+	}
+
+	function generateTestHelper(kotlinTestOutput: String, kotlinOutput: String): Void {
+		final runtimePackage = RuntimeConfig.requireImportName("TestHelper");
+		final lines = [
+			"package tests",
+			"",
+			"import " + runtimePackage + ".Test",
+			"",
+			"object TestHelper {",
+			"    fun equalsValue(a: Boolean, b: Boolean): Boolean = a == b",
+			"    fun formatValue(v: Boolean): String = if (v) \"true\" else \"false\"",
+			"    fun assertEquals(expected: Boolean, actual: Boolean, message: String? = null) {",
+			"        if (!equalsValue(expected, actual)) Test.reportFailure(message, formatValue(expected), formatValue(actual))",
+			"    }",
+			"",
+			"    fun equalsValue(a: Int, b: Int): Boolean = a == b",
+			"    fun formatValue(v: Int): String = v.toString()",
+			"    fun assertEquals(expected: Int, actual: Int, message: String? = null) {",
+			"        if (!equalsValue(expected, actual)) Test.reportFailure(message, formatValue(expected), formatValue(actual))",
+			"    }",
+			"",
+			"    fun equalsValue(a: Double, b: Double): Boolean = a == b",
+			"    fun formatValue(v: Double): String = Test.formatFloat(v)",
+			"    fun assertEquals(expected: Double, actual: Double, message: String? = null) {",
+			"        if (!equalsValue(expected, actual)) Test.reportFailure(message, formatValue(expected), formatValue(actual))",
+			"    }",
+			"",
+			"    fun equalsValue(a: String, b: String): Boolean = a == b",
+			"    fun formatValue(v: String): String = \"\\\"\" + Test.escapeJson(v) + \"\\\"\"",
+			"    fun assertEquals(expected: String, actual: String, message: String? = null) {",
+			"        if (!equalsValue(expected, actual)) Test.reportFailure(message, formatValue(expected), formatValue(actual))",
+			"    }",
+			"",
+			"    fun equalsValue(a: ByteArray, b: ByteArray): Boolean = java.util.Arrays.equals(a, b)",
+			"    fun formatValue(v: ByteArray): String = Test.formatBytes(v)",
+			"    fun assertEquals(expected: ByteArray, actual: ByteArray, message: String? = null) {",
+			"        if (!equalsValue(expected, actual)) Test.reportFailure(message, formatValue(expected), formatValue(actual))",
+			"    }"
+		];
+
+		final dummyDecl = new KotlinDecl("tests", state);
+		final dummyImports = new KotlinImports("tests", state);
+		final types = new KotlinType(dummyImports, state);
+
+		final sortedKeys = [for(k in state.testReachableTypes.keys()) k];
+		sortedKeys.sort(Reflect.compare);
+
+		for(k in sortedKeys) {
+			final t = state.testReachableTypes.get(k);
+			switch(t) {
+				case TInst(c, params) if(c.get().name == "Array"):
+					final elemType = params[0];
+					final elemTypeStr = qualifiedType(elemType);
+					final safeName = elemTypeStr.split(".").join("_").split("<").join("_").split(">").join("_");
+					lines.push("");
+					lines.push('    @JvmName("equalsValue_list_$safeName")');
+					lines.push('    fun equalsValue(a: List<$elemTypeStr>, b: List<$elemTypeStr>): Boolean = a.size == b.size && a.indices.all { equalsValue(a[it], b[it]) }');
+					lines.push('    @JvmName("formatValue_list_$safeName")');
+					lines.push('    fun formatValue(v: List<$elemTypeStr>): String = "[" + v.map { formatValue(it) }.joinToString(", ") + "]"');
+					lines.push('    @JvmName("assertEquals_list_$safeName")');
+					lines.push('    fun assertEquals(expected: List<$elemTypeStr>, actual: List<$elemTypeStr>, message: String? = null) { if (!equalsValue(expected, actual)) Test.reportFailure(message, formatValue(expected), formatValue(actual)) }');
+				case TAbstract(a, params) if(a.get().name == "ReadOnlyArray" || (a.get().pack.join(".") == "std" && a.get().name == "ReadOnlyArray")):
+					final elemType = params[0];
+					final elemTypeStr = qualifiedType(elemType);
+					final safeName = elemTypeStr.split(".").join("_").split("<").join("_").split(">").join("_");
+					lines.push("");
+					lines.push('    @JvmName("equalsValue_list_$safeName")');
+					lines.push('    fun equalsValue(a: List<$elemTypeStr>, b: List<$elemTypeStr>): Boolean = a.size == b.size && a.indices.all { equalsValue(a[it], b[it]) }');
+					lines.push('    @JvmName("formatValue_list_$safeName")');
+					lines.push('    fun formatValue(v: List<$elemTypeStr>): String = "[" + v.map { formatValue(it) }.joinToString(", ") + "]"');
+					lines.push('    @JvmName("assertEquals_list_$safeName")');
+					lines.push('    fun assertEquals(expected: List<$elemTypeStr>, actual: List<$elemTypeStr>, message: String? = null) { if (!equalsValue(expected, actual)) Test.reportFailure(message, formatValue(expected), formatValue(actual)) }');
+				case TType(def, _):
+					final d = def.get();
+					switch(d.type) {
+						case TAnonymous(anonRef):
+							final typeName = d.pack.concat([d.name]).join(".");
+							final fields = anonRef.get().fields.copy();
+							fields.sort((x, y) -> Reflect.compare(Context.getPosInfos(x.pos).min, Context.getPosInfos(y.pos).min));
+							final eqChecks = [for(f in fields) 'equalsValue(a.${f.name}, b.${f.name})'].join(" && ");
+							final fmtFields = [for(f in fields) '"' + f.name + ': " + formatValue(v.' + f.name + ')'].join(' + ", " + ');
+							lines.push("");
+							lines.push('    fun equalsValue(a: $typeName, b: $typeName): Boolean = ' + (eqChecks.length > 0 ? eqChecks : "true"));
+							lines.push('    fun formatValue(v: $typeName): String = "{" + ' + (fmtFields.length > 0 ? fmtFields : '""') + ' + "}"');
+							lines.push('    fun assertEquals(expected: $typeName, actual: $typeName, message: String? = null) { if (!equalsValue(expected, actual)) Test.reportFailure(message, formatValue(expected), formatValue(actual)) }');
+						case _:
+					}
+				case TEnum(e, _):
+					final en = e.get();
+					final owner = state.payloadEnumOwners.get(en.module);
+					final typeName = owner != null ? en.pack.concat([owner]).join(".") : en.pack.concat([en.name]).join(".");
+					lines.push("");
+					lines.push('    fun equalsValue(a: $typeName, b: $typeName): Boolean = a == b');
+					final arms = [];
+					for(opt in en.constructs) {
+						switch(Context.follow(opt.type)) {
+							case TFun(args, _):
+								final argFmts = [for(arg in args) 'formatValue(v.' + arg.name + ')'].join(' + ", " + ');
+								arms.push('            is $typeName.${opt.name} -> "${opt.name}(" + $argFmts + ")"');
+							case _:
+								arms.push('            is $typeName.${opt.name} -> "${opt.name}"');
+						}
+					}
+					lines.push('    fun formatValue(v: $typeName): String = when(v) {\n' + arms.join("\n") + '\n    }');
+					lines.push('    fun assertEquals(expected: $typeName, actual: $typeName, message: String? = null) { if (!equalsValue(expected, actual)) Test.reportFailure(message, formatValue(expected), formatValue(actual)) }');
+				case _:
+			}
+		}
+		lines.push("}");
+		lines.push("");
+
+		final helperRel = kotlinTestOutput + "/tests/TestHelper.kt";
+		final savePath = computeRelativePath(kotlinOutput, helperRel);
+		output.saveFile(savePath, lines.join("\n"));
+	}
+
+	function qualifiedType(t: Type): String {
+		return switch(t) {
+			case TAbstract(a, params):
+				final abs = a.get();
+				final path = abs.pack.concat([abs.name]).join(".");
+				switch(path) {
+					case "Int": "Int";
+					case "Float": "Double";
+					case "Bool": "Boolean";
+					case "std.ReadOnlyArray": "List<" + qualifiedType(params[0]) + ">";
+					case _: abs.name;
+				}
+			case TInst(c, params):
+				final cls = c.get();
+				if(cls.name == "String") "String";
+				else if(cls.name == "Array") "List<" + qualifiedType(params[0]) + ">";
+				else if(cls.name == "Bytes" || (cls.pack.join(".") == "haxe.io" && cls.name == "Bytes")) "ByteArray";
+				else cls.pack.concat([cls.name]).join(".");
+			case TType(def, params):
+				final d = def.get();
+				d.pack.concat([d.name]).join(".");
+			case TEnum(e, params):
+				final en = e.get();
+				final owner = state.payloadEnumOwners.get(en.module);
+				owner != null ? en.pack.concat([owner]).join(".") : en.pack.concat([en.name]).join(".");
+			case _: "Unit";
+		};
+	}
+
+	function generateTestMain(kotlinTestOutput: String, kotlinOutput: String): Void {
+		final lines = [
+			"fun main() {",
+			"    var hasFailure = false"
+		];
+		var idx = 0;
+		for(module in state.testClasses.keys()) {
+			final data = state.testClasses.get(module);
+			final varName = "t" + idx;
+			final className = data.cls.pack.concat([data.cls.name]).join(".");
+			lines.push('    val $varName = ${className}()');
+			for(func in data.funcs) {
+				lines.push('    try { $varName.$func() } catch (t: Throwable) { hasFailure = true }');
+			}
+			idx++;
+		}
+		lines.push('    if (hasFailure) {');
+		lines.push('        kotlin.system.exitProcess(1)');
+		lines.push('    }');
+		lines.push("}");
+		lines.push("");
+
+		final mainRel = kotlinTestOutput + "/TestMain.kt";
+		final savePath = computeRelativePath(kotlinOutput, mainRel);
+		output.saveFile(savePath, lines.join("\n"));
 	}
 
 	/**
@@ -149,6 +391,31 @@ class Compiler extends PluginCompiler<Compiler> {
 		output.saveFile(path, "package " + runtimePackage + "\n\n" + StringTools.trim(source) + "\n");
 	}
 
+	public static function computeRelativePath(fromDir: String, toFile: String): String {
+		final fromParts = fromDir.split("/").filter(p -> p.length > 0 && p != ".");
+		final toParts = toFile.split("/").filter(p -> p.length > 0 && p != ".");
+		var shared = 0;
+		while(shared < fromParts.length && shared < toParts.length && fromParts[shared] == toParts[shared]) {
+			shared += 1;
+		}
+		final parts: Array<String> = [];
+		for(i in 0...(fromParts.length - shared)) {
+			parts.push("..");
+		}
+		for(i in shared...toParts.length) {
+			parts.push(toParts[i]);
+		}
+		final res = parts.join("/");
+		return StringTools.startsWith(res, ".") ? res : "./" + res;
+	}
+
+	static function hasAnyKey(map: Map<String, Dynamic>): Bool {
+		for(_ in map.keys()) {
+			return true;
+		}
+		return false;
+	}
+
 	// ------------------------------------------------------------------
 	// Internals
 	// ------------------------------------------------------------------
@@ -167,26 +434,23 @@ class Compiler extends PluginCompiler<Compiler> {
 					if(cls.isExtern || isSyntheticImpl(cls.name) || !inSourceScope(cls.pos)) {
 						continue;
 					}
-					if(!KotlinDecl.isExceptionSubclass(cls)) {
-						continue;
-					}
-					// The constructor lives apart from the instance fields.
-					final ctor = cls.constructor != null ? cls.constructor.get() : null;
-					if(ctor == null) {
-						continue;
-					}
-					switch(ctor.type) {
-						case TFun(args, _):
-							for(a in args) {
-								switch(a.t) {
-									case TEnum(e, _):
-										final payload = e.get();
-										state.payloadEnumOwners.set(payload.module, cls.name);
-										state.exceptionPayloads.set(cls.module, payload.module);
-									case _:
-								}
+					if(KotlinDecl.isExceptionSubclass(cls)) {
+						final ctor = cls.constructor != null ? cls.constructor.get() : null;
+						if(ctor != null) {
+							switch(ctor.type) {
+								case TFun(args, _):
+									for(a in args) {
+										switch(a.t) {
+											case TEnum(e, _):
+												final payload = e.get();
+												state.payloadEnumOwners.set(payload.module, cls.name);
+												state.exceptionPayloads.set(cls.module, payload.module);
+											case _:
+										}
+									}
+								case _:
 							}
-						case _:
+						}
 					}
 				case TTypeDecl(def):
 					final d = def.get();
@@ -197,9 +461,8 @@ class Compiler extends PluginCompiler<Compiler> {
 						case TAnonymous(anon):
 							final sig = KotlinDecl.structureSignature(anon);
 							final existing = state.structTypedefs.get(sig);
-							if(existing != null && existing.name != d.name) {
+							if(existing != null && (existing.name != d.name || existing.module != d.module)) {
 								Context.error("typedefs " + existing.name + " and " + d.name + " share one anonymous structure shape", d.pos);
-								continue;
 							}
 							state.structTypedefs.set(sig, {module: d.module, name: d.name});
 						case _:
@@ -219,11 +482,6 @@ class Compiler extends PluginCompiler<Compiler> {
 		return current;
 	}
 
-	/**
-		The compilation scope is the intercepted source roots; a
-		declaration from any package lowers the same way. The output path
-		mirrors the module path: `pack.Module` lands at `pack/Module.kt`.
-	**/
 	function inSourceScope(pos: haxe.macro.Expr.Position): Bool {
 		final file = Context.getPosInfos(pos).file;
 		for(root in Intercept.sourceRoots()) {
@@ -237,7 +495,6 @@ class Compiler extends PluginCompiler<Compiler> {
 		return false;
 	}
 
-	/** Haxe names synthesized abstract implementation classes `<Name>_Impl_`; they erase with the abstract. */
 	function isSyntheticImpl(name: String): Bool {
 		return StringTools.endsWith(name, "_Impl_");
 	}

@@ -607,6 +607,7 @@ class TsExpr {
 			case TConst(c):
 				switch(c) {
 					case TInt(v): return Std.string(v);
+					case TFloat(f): return Std.string(f);
 					case TString(s): return quoteString(s);
 					case TBool(b): return b ? "true" : "false";
 					case TThis: return "this";
@@ -728,11 +729,23 @@ class TsExpr {
 		switch(path) {
 			case "String":
 				return "String." + name;
+			case "Math":
+				if(name == "NaN") return "Number.NaN";
+				if(name == "POSITIVE_INFINITY") return "Infinity";
+				if(name == "NEGATIVE_INFINITY") return "-Infinity";
+				return "Math." + name;
 			case "haxe.io.FPHelper":
 				// stdlib/05: the bit conversions live in the runtime module.
 				imports.runtime(name);
 				return name;
+			case "std.Test" | "std.__test_shim":
+				imports.runtime("Test");
+				return "Test." + name;
 			case _:
+				if(cls.module == "std.Test") {
+					imports.runtime("Test");
+					return "Test." + name;
+				}
 				imports.value(cls.module, cls.name);
 				return cls.name + "." + name;
 		}
@@ -742,8 +755,12 @@ class TsExpr {
 		switch(t) {
 			case TClassDecl(c):
 				final cls = c.get();
-				if(cls.pack.length == 0 && cls.name == "String") {
-					return "String";
+				if(cls.pack.length == 0 && (cls.name == "String" || cls.name == "Math")) {
+					return cls.name;
+				}
+				if(cls.module == "std.Test" || (cls.pack.join(".") == "std" && (cls.name == "Test" || cls.name == "__test_shim"))) {
+					imports.runtime("Test");
+					return "Test";
 				}
 				imports.value(cls.module, cls.name);
 				return cls.name;

@@ -1,0 +1,9 @@
+# Haxe reference in-source test runner (docs/specs/features/19-testing.md).
+-cp src
+-cp samples
+-cp out/haxe
+--macro TestCollector.generate('out/haxe')
+--macro Intercept.run(['samples'], ['samples/boring/BinaryReader.hx', 'samples/boring/BinaryWriter.hx'])
+-main TestMain
+-js out/haxe/test-main.js
+-D analyzer-optimize

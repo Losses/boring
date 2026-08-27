@@ -45,7 +45,7 @@ class TsImports {
 	}
 
 	function add(into: Map<String, Map<String, Bool>>, module: String, name: String): Void {
-		if(module == selfModule) {
+		if(module == selfModule || module == "Math" || module == "String" || module == "std.Test") {
 			return;
 		}
 		if(!into.exists(module)) {
@@ -116,6 +116,66 @@ class TsImports {
 			lines.push('import { ${names.join(", ")} } from "' + RuntimeConfig.importName() + '";');
 		}
 		return lines.length == 0 ? "" : lines.join("\n") + "\n";
+	}
+
+	public function renderTestImports(testOutputDir: String, mainOutputDir: String, testRunner: String): String {
+		final lines = [];
+		if(testRunner == "bun") {
+			lines.push('import { test } from "bun:test";');
+		} else if(testRunner == "node") {
+			lines.push('import { test } from "node:test";');
+		}
+
+		if(hasAnyKey(runtimeNames)) {
+			final names = [];
+			for(name in runtimeNames.keys()) names.push(name);
+			names.sort(Reflect.compare);
+			lines.push('import { ${names.join(", ")} } from "' + RuntimeConfig.importName() + '";');
+		}
+
+		final moduleSet: Map<String, Bool> = [];
+		for(module in valueNames.keys()) moduleSet.set(module, true);
+		for(module in typeNames.keys()) moduleSet.set(module, true);
+		final modules = [];
+		for(module in moduleSet.keys()) modules.push(module);
+		modules.sort(Reflect.compare);
+
+		final fromSegments = selfModule.split(".");
+		final fromDir = testOutputDir + "/" + fromSegments.slice(0, fromSegments.length - 1).join("/");
+
+		for(module in modules) {
+			final nameSet: Map<String, Bool> = [];
+			final values = valueNames.get(module);
+			if(values != null) for(name in values.keys()) nameSet.set(name, true);
+			final types = typeNames.get(module);
+			if(types != null) for(name in types.keys()) nameSet.set(name, true);
+			final names = [];
+			for(name in nameSet.keys()) names.push(name);
+			names.sort(Reflect.compare);
+
+			final toFile = mainOutputDir + "/" + module.split(".").join("/") + ".ts";
+			final relPath = computeRelativePath(fromDir, toFile);
+			lines.push('import { ${names.join(", ")} } from "' + relPath + '";');
+		}
+		return lines.length == 0 ? "" : lines.join("\n") + "\n";
+	}
+
+	public static function computeRelativePath(fromDir: String, toFile: String): String {
+		final fromParts = fromDir.split("/").filter(p -> p.length > 0 && p != ".");
+		final toParts = toFile.split("/").filter(p -> p.length > 0 && p != ".");
+		var shared = 0;
+		while(shared < fromParts.length && shared < toParts.length && fromParts[shared] == toParts[shared]) {
+			shared += 1;
+		}
+		final parts: Array<String> = [];
+		for(i in 0...(fromParts.length - shared)) {
+			parts.push("..");
+		}
+		for(i in shared...toParts.length) {
+			parts.push(toParts[i]);
+		}
+		final res = parts.join("/");
+		return StringTools.startsWith(res, ".") ? res : "./" + res;
 	}
 
 	static function hasAnyKey(map: Map<String, Bool>): Bool {

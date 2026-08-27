@@ -9,6 +9,7 @@
 --macro Intercept.run(['samples'], ['samples/boring/BinaryReader.hx', 'samples/boring/BinaryWriter.hx'])
 --macro kotlincompiler.Compiler.use()
 -D kotlin-output=reference/kotlin/gen
+-D kotlin-test-output=reference/kotlin/gen-tests
 -D runtime-import=boring.runtime
 -D runtime-emit=runtime
 boring.BinaryReader
@@ -19,3 +20,5 @@ boring.VectorCodec
 boring.VectorError
 boring.VectorException
 boring.VectorSort
+tests.TestData
+tests.VectorCodecTests

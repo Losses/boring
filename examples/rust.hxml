@@ -19,3 +19,5 @@ boring.VectorCodec
 boring.VectorError
 boring.VectorException
 boring.VectorSort
+tests.TestData
+tests.VectorCodecTests
