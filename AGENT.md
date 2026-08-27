@@ -1,10 +1,10 @@
 # AGENT.md
 
-boring is a Haxe / Rust / TypeScript mixed-language repository. It hosts one
-binary codec implemented in all three languages, the shared test vectors that
-every implementation must reproduce byte for byte, and the tooling that
-checks repository rules. It is a pilot environment for cross-language
-protocol work; it ships no product.
+boring is a Haxe / Rust / TypeScript / Kotlin mixed-language repository. It
+hosts one binary codec implemented in all four languages, the shared test
+vectors that every implementation must reproduce byte for byte, and the
+tooling that checks repository rules. It is a pilot environment for
+cross-language protocol work; it ships no product.
 
 ## License and working language
 
@@ -71,9 +71,9 @@ All commands run inside the flake environment:
     nix develop -c bash -c "bun run verify"
 
 `bun run verify` runs every check in order: `bun test`, the Haxe test
-binary, the Rust test suite, `eslint .`, `tsc -p .`, the documentation
-style check, the vector regeneration check, and the reflaxe smoke
-compile. Individual commands:
+binary, the Kotlin test binary, the interception suite, the Rust test
+suite, `eslint .`, `tsc -p .`, the documentation style check, the vector
+regeneration check, and the reflaxe smoke compile. Individual commands:
 
 | Command | Effect |
 | --- | --- |
@@ -96,9 +96,12 @@ compile. Individual commands:
 - `haxe/`: the Haxe library sources.
 - `rust/`: the Rust crate with the codec implementation, a member of the
   cargo workspace at the root `Cargo.toml`.
+- `kotlin/`: the Kotlin codec sources, compiled by `kotlinc` directly
+  with no build tool.
 - `tests/`: every test suite and the shared evidence:
   `tests/ts/` (bun tests), `tests/haxe/` (test runner plus
-  `compile.hxml`), `tests/rust/` (cargo test targets, wired into
+  `compile.hxml`), `tests/kotlin/` (test runner compiled with the
+  sources), `tests/rust/` (cargo test targets, wired into
   `rust/Cargo.toml` through explicit `[[test]]` paths; a suite carries
   no manifest of its own), and `tests/vectors/` (the shared vectors).
 - `tools/`: the ESLint plugin, the documentation style checker, the
@@ -106,20 +109,22 @@ compile. Individual commands:
   smoke check.
 
 Test tooling and language implementations are separate trees: a language
-implementation lives under `ts/`, `haxe/`, or `rust/`; everything that
-verifies an implementation lives under `tests/`. No language keeps a
-separate runtime tree: TypeScript runs under bun, Rust builds with
-cargo, and the Haxe test binary is compiled JS executed by bun.
+implementation lives under `ts/`, `haxe/`, `rust/`, or `kotlin/`;
+everything that verifies an implementation lives under `tests/`. No
+language keeps a separate runtime tree: TypeScript runs under bun, Rust
+builds with cargo, the Haxe test binary is compiled JS executed by bun,
+and the Kotlin test binary is a jar executed on the JVM. Build outputs
+go under the gitignored `out/`.
 
 ## Test vectors
 
 `tests/vectors/roundtrip.bin` is fixed evidence, and the tests treat it
 as read-only input. `roundtrip.json` is the editable description;
 `bun run gen:vector` rewrites the binary from it and runs only when the
-record format changes. The TypeScript, Haxe, and Rust tests decode the
-same committed bytes and encode the same records back.
+record format changes. The TypeScript, Haxe, Kotlin, and Rust tests
+decode the same committed bytes and encode the same records back.
 
-Any change to the record format updates the generator, all three
+Any change to the record format updates the generator, all four
 implementations, and the vectors in one change. A byte disagreement
 between languages is a test failure in every language.
 
@@ -131,7 +136,7 @@ through the AST (the Haxe implementation is the reference) or through
 direct comparison of the binary sequences. The binary format with its
 written spec localizes a disagreement: the first differing field
 identifies the encoder stage that failed. This boundary is a prerequisite
-for unit tests that stay useful across three languages.
+for unit tests that stay useful across four languages.
 
 ## Commits
 

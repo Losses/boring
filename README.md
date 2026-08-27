@@ -47,8 +47,9 @@ here; this repository needs none of them.
     nix develop -c bash -c "bun install"
     nix develop -c bash -c "bun run verify"
 
-`verify` runs the TypeScript tests, the Haxe checks, the Rust tests, ESLint,
-`tsc`, the documentation style check, and the vector regeneration. See
+`verify` runs the TypeScript tests, the Haxe checks, the Kotlin checks, the
+interception suite, the Rust tests, ESLint, `tsc`, the documentation style
+check, the vector regeneration, and the reflaxe smoke compile. See
 `AGENT.md` for the individual commands and the repository rules.
 
 ## Data comparison and commits

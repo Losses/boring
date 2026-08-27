@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification rules the translation of Haxe abstract types into Rust, TypeScript, and Kotlin. Abstract types do not appear in the repository today; `haxe/src/boring/GlyphMetrics.hx` defines domain records using primitive `Int` and `Float` types. In the glyph metrics domain, abstract types represent specialized scalar domains such as `CodePoint` (constrained to valid Unicode ranges) and `EmUnit` (floating-point em coordinates). No Kotlin implementation exists yet; the Kotlin rulings bind generated code.
+This specification rules the translation of Haxe abstract types into Rust, TypeScript, and Kotlin. In the current codebase, one abstract appears: `ReadOnlyArray<T>` in `haxe/src/boring/ReadOnlyArray.hx`, the read-only array surface ruled in `docs/specs/features/18-immutability.md`. Domain records otherwise use primitive `Int` and `Float` types; specialized scalar domains such as `CodePoint` (constrained to valid Unicode ranges) and `EmUnit` (floating-point em coordinates) are future work. In Kotlin, the `ReadOnlyArray` surface lowers to the read-only `List` return type of `kotlin/src/boring/VectorCodec.kt`.
 
 ## Haxe construct
 

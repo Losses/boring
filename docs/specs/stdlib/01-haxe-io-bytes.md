@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification rules the representation of contiguous byte arrays, buffer allocation, and byte slicing across Haxe, Rust, TypeScript, and Kotlin. In the current codebase, `haxe.io.Bytes` appears in Haxe in `haxe/src/boring/BinaryReader.hx` (lines 3, 12, 15), `haxe/src/boring/BinaryWriter.hx` (lines 3, 44-46), and `haxe/src/boring/VectorCodec.hx` (lines 3, 13, 28), in Rust as borrowed byte slices `&[u8]` and owned byte vectors `Vec<u8>` in `rust/src/lib.rs` (lines 51-54, 84, 100), and in TypeScript as `Uint8Array` in `ts/src/codec.ts` (lines 11, 54-56, 78-81) and `ts/src/vector-format.ts` (lines 15, 30). No Kotlin implementation exists yet; the Kotlin rulings bind generated code.
+This specification rules the representation of contiguous byte arrays, buffer allocation, and byte slicing across Haxe, Rust, TypeScript, and Kotlin. In the current codebase, `haxe.io.Bytes` appears in Haxe in `haxe/src/boring/BinaryReader.hx` (lines 3, 12, 15), `haxe/src/boring/BinaryWriter.hx` (lines 3, 44-46), and `haxe/src/boring/VectorCodec.hx` (lines 3, 13, 28), in Rust as borrowed byte slices `&[u8]` and owned byte vectors `Vec<u8>` in `rust/src/lib.rs` (lines 51-54, 84, 100), and in TypeScript as `Uint8Array` in `ts/src/codec.ts` (lines 11, 54-56, 78-81) and `ts/src/vector-format.ts` (lines 15, 30). In Kotlin, byte arrays appear as `ByteArray` with cursor tracking in `kotlin/src/boring/BinaryReader.kt` and `kotlin/src/boring/BinaryWriter.kt`.
 
 ## Haxe construct
 

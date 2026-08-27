@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification rules numeric type representations, bit widths, endian serialization, floating-point precision, and conversion restrictions across Haxe, Rust, TypeScript, and Kotlin. In the current codebase, numeric operations appear in Haxe in `haxe/src/boring/BinaryWriter.hx` and `haxe/src/boring/BinaryReader.hx`, in Rust in `rust/src/lib.rs`, and in TypeScript in `ts/src/codec.ts` and `ts/src/records.ts`. No Kotlin implementation exists yet; the Kotlin rulings bind generated code.
+This specification rules numeric type representations, bit widths, endian serialization, floating-point precision, and conversion restrictions across Haxe, Rust, TypeScript, and Kotlin. In the current codebase, numeric operations appear in Haxe in `haxe/src/boring/BinaryWriter.hx` and `haxe/src/boring/BinaryReader.hx`, in Rust in `rust/src/lib.rs`, and in TypeScript in `ts/src/codec.ts` and `ts/src/records.ts`. In Kotlin, numeric reads and writes appear in `kotlin/src/boring/BinaryReader.kt` and `kotlin/src/boring/BinaryWriter.kt`.
 
 ## Haxe construct
 
