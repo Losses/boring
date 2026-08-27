@@ -57,6 +57,12 @@ const REPO_ROOT = resolve(import.meta.dir, "..", "..");
 // not a fix. Single words match with word boundaries and common inflections;
 // multi-word entries match as phrases.
 const BANNED_TERMS: ReadonlyArray<BannedTerm> = [
+  // real-world words stretched into project vocabulary
+  { match: "corpus", tag: "coinage" },
+  { match: "corpora", tag: "coinage" },
+  { match: "surface", tag: "coinage" },
+  { match: "battery", tag: "coinage" },
+  { match: "mutation probe", tag: "coinage" },
   // gate and doorway metaphors
   { match: "gatekeep", tag: "metaphor" },
   { match: "gatekeeper", tag: "metaphor" },
