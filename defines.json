@@ -1,0 +1,22 @@
+[
+  {
+    "define": "runtime-import",
+    "doc": "Package specifier used for the runtime import emitted into generated output. TypeScript uses the specifier verbatim, Kotlin a dotted package name, Rust a crate name. No default: the consumer's package identity is only known through this define."
+  },
+  {
+    "define": "runtime-emit",
+    "doc": "Directory the runtime package is emitted into, relative to the output root. '.' emits the runtime beside the generated sources."
+  },
+  {
+    "define": "ts-output",
+    "doc": "Output directory for TypeScript generation (tscompiler)."
+  },
+  {
+    "define": "kotlin-output",
+    "doc": "Output directory for Kotlin generation (kotlincompiler)."
+  },
+  {
+    "define": "rust-output",
+    "doc": "Output directory for Rust generation (rustcompiler)."
+  }
+]

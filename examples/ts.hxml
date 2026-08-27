@@ -1,14 +1,14 @@
 # reflaxe TypeScript target generation (docs/specs/targets/07-reflaxe-typescript-target.md).
-# Run from the repository root: haxe tools/reflaxe/ts.hxml
-# Output lands in ts/gen via the ts-output define.
+# Run from the repository root: haxe examples/ts.hxml
+# Output lands in reference/ts/gen via the ts-output define.
 -lib reflaxe
--cp tools/reflaxe/ts/std-shadow
--cp tools/reflaxe/ts
--cp tools/haxe
--cp haxe/src
---macro Intercept.run(['haxe/src'], ['haxe/src/boring/BinaryReader.hx', 'haxe/src/boring/BinaryWriter.hx'])
+-lib boring
+-cp src/reflaxe/ts/std-shadow
+-cp src/reflaxe/ts
+-cp samples
+--macro Intercept.run(['samples'], ['samples/boring/BinaryReader.hx', 'samples/boring/BinaryWriter.hx'])
 --macro tscompiler.Compiler.use()
--D ts-output=ts/gen
+-D ts-output=reference/ts/gen
 -D runtime-import=@boring/runtime
 -D runtime-emit=.
 boring.BinaryReader

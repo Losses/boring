@@ -60,6 +60,7 @@
               export HAXELIB_PATH="$PWD/.haxelib"
               mkdir -p "$HAXELIB_PATH"
               haxelib dev reflaxe "${reflaxe}" >/dev/null
+              haxelib dev boring "$PWD" >/dev/null
             '';
           };
         }

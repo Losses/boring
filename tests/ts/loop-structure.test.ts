@@ -29,43 +29,43 @@ interface SourceTree {
 
 const SOURCE_TREES: readonly SourceTree[] = [
   {
-    label: "ts/src",
-    directory: import.meta.dir + "/../../ts/src",
+    label: "reference/ts/src",
+    directory: import.meta.dir + "/../../reference/ts/src",
     pattern: "**/*.ts",
     lambdaTokens: ["=>"],
     checkForHeads: true,
   },
   {
-    label: "ts/gen",
-    directory: import.meta.dir + "/../../ts/gen",
+    label: "reference/ts/gen",
+    directory: import.meta.dir + "/../../reference/ts/gen",
     pattern: "**/*.ts",
     lambdaTokens: ["=>"],
     checkForHeads: true,
   },
   {
-    label: "haxe/src",
-    directory: import.meta.dir + "/../../haxe/src",
+    label: "samples",
+    directory: import.meta.dir + "/../../samples",
     pattern: "**/*.hx",
     lambdaTokens: ["->", "function"],
     checkForHeads: false,
   },
   {
-    label: "rust/src",
-    directory: import.meta.dir + "/../../rust/src",
+    label: "reference/rust/src",
+    directory: import.meta.dir + "/../../reference/rust/src",
     pattern: "**/*.rs",
     lambdaTokens: ["|"],
     checkForHeads: false,
   },
   {
-    label: "rust-gen/src",
-    directory: import.meta.dir + "/../../rust-gen/src",
+    label: "reference/rust-gen/src",
+    directory: import.meta.dir + "/../../reference/rust-gen/src",
     pattern: "**/*.rs",
     lambdaTokens: ["|"],
     checkForHeads: false,
   },
   {
-    label: "kotlin/src",
-    directory: import.meta.dir + "/../../kotlin/src",
+    label: "reference/kotlin/src",
+    directory: import.meta.dir + "/../../reference/kotlin/src",
     pattern: "**/*.kt",
     lambdaTokens: ["->", "{ it"],
     checkForHeads: false,
@@ -100,7 +100,7 @@ function containsClosurePipe(body: string): boolean {
 }
 
 function bodyHasLambda(tree: SourceTree, body: string): boolean {
-  if (tree.label === "rust/src") {
+  if (tree.label === "reference/rust/src") {
     return containsClosurePipe(body);
   }
   for (const token of tree.lambdaTokens) {

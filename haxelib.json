@@ -1,0 +1,17 @@
+{
+  "name": "boring",
+  "url": "https://github.com/Losses/boring",
+  "description": "Haxe-to-TypeScript/Kotlin/Rust transpiler toolkit built on reflaxe",
+  "license": "MIT",
+  "version": "0.0.1",
+  "classPath": "src",
+  "releasenote": "Initial package form: Intercept entry, runtime defines, target output defines.",
+  "contributors": ["Losses"],
+  "tags": ["cross", "transpiler", "reflaxe"],
+  "dependencies": {
+    "reflaxe": ""
+  },
+  "documentation": {
+    "defines": "defines.json"
+  }
+}

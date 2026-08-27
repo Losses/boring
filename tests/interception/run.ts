@@ -35,8 +35,8 @@ for (const name of readdirSync(casesRoot).sort()) {
   writeFileSync(
     buildFile,
     [
-      "-cp tools/haxe",
-      "-cp haxe/src",
+      "-cp src",
+      "-cp samples",
       `-cp ${guardPath}`,
       "-main Case",
       "-js out/haxe/intercept-case.js",

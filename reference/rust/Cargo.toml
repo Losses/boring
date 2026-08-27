@@ -12,4 +12,4 @@ path = "src/lib.rs"
 # other languages; cargo reaches them through explicit paths.
 [[test]]
 name = "vector"
-path = "../tests/rust/vector.rs"
+path = "../../tests/rust/vector.rs"

@@ -7,7 +7,7 @@ export default tseslint.config(
     ignores: [
       "node_modules/**",
       "out/**",
-      "rust/**",
+      "reference/rust/**",
       "tests/vectors/**",
       "bun.lock",
     ],
@@ -45,9 +45,13 @@ export default tseslint.config(
   },
   {
     // The callback-iteration ban binds the package source and the
-    // generated tree: tests and tools may use any form; ts/src and
-    // ts/gen carry the shape generated output must match.
-    files: ["ts/src/**/*.ts", "ts/gen/**/*.ts"],
+    // generated tree: tests and tools may use any form;
+    // reference/ts/src and reference/ts/gen carry the shape
+    // generated output must match.
+    files: [
+      "reference/ts/src/**/*.ts",
+      "reference/ts/gen/**/*.ts",
+    ],
     rules: {
       "boring/no-functional-iteration": "error",
     },

@@ -1,11 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import { decodeVector } from "@boring/codec";
-import { VectorCodec } from "../../ts/gen/boring/VectorCodec.ts";
-import { VectorException } from "../../ts/gen/boring/VectorException.ts";
-import { VectorSort } from "../../ts/gen/boring/VectorSort.ts";
+import { VectorCodec } from "../../reference/ts/gen/boring/VectorCodec.ts";
+import { VectorException } from "../../reference/ts/gen/boring/VectorException.ts";
+import { VectorSort } from "../../reference/ts/gen/boring/VectorSort.ts";
 
 /**
- * Behavior guard for the reflaxe-generated tree (tools/reflaxe/ts), per
+ * Behavior guard for the reflaxe-generated tree (src/reflaxe/ts), per
  * docs/specs/targets/07-reflaxe-typescript-target.md M2/M3. The generated
  * modules run against the same vectors as the hand-written tree:
  *
