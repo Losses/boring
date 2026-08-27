@@ -280,9 +280,9 @@ impl<V: Clone> SortedMapBuilder<V> {
         Self { entries: Vec::new() }
     }
 
-    pub fn put(&mut self, key: u32, value: V) {
+    pub fn put(&mut self, key: u32, value: impl Into<V>) {
         let idx = self.entries.len();
-        self.entries.push((key, idx, value));
+        self.entries.push((key, idx, value.into()));
     }
 
     pub fn build(mut self) -> SortedMap<V> {
