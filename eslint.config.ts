@@ -43,4 +43,12 @@ export default tseslint.config(
       "boring/no-interface-methods": "error",
     },
   },
+  {
+    // The callback-iteration ban binds the package source: tests and tools
+    // may use any form, ts/src is the shape generated output must match.
+    files: ["ts/src/**/*.ts"],
+    rules: {
+      "boring/no-functional-iteration": "error",
+    },
+  },
 );

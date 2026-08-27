@@ -12,6 +12,7 @@ interface LintHit {
 const RULE_SET: Record<string, "error"> = {
   "boring/no-double-assertion": "error",
   "boring/no-eslint-disable": "error",
+  "boring/no-functional-iteration": "error",
   "boring/no-inline-types": "error",
   "boring/no-interface-methods": "error",
 };
@@ -144,5 +145,29 @@ describe("boring/no-eslint-disable", () => {
 
   test("leaves ordinary comments alone", () => {
     expect(lintTypescript("// reads the vector file\nconst a = 1;\n")).toEqual([]);
+  });
+});
+
+describe("boring/no-functional-iteration", () => {
+  test("flags callback iteration methods", () => {
+    expect(lintTypescript("const d = records.map(toRecord);")).toEqual([
+      { messageId: "functionalIteration", line: 1, column: 11 },
+    ]);
+    expect(lintTypescript("const f = xs.filter(ok);")).toEqual([
+      { messageId: "functionalIteration", line: 1, column: 11 },
+    ]);
+  });
+
+  test("flags comparator sort and leaves the bare call alone", () => {
+    expect(lintTypescript("xs.sort(byKey);")).toEqual([
+      { messageId: "functionalIteration", line: 1, column: 1 },
+    ]);
+    expect(lintTypescript("xs.sort();")).toEqual([]);
+  });
+
+  test("leaves plain calls and property reads alone", () => {
+    expect(lintTypescript("const n = xs.length;")).toEqual([]);
+    expect(lintTypescript("const m = xs.map;")).toEqual([]);
+    expect(lintTypescript("run(records);")).toEqual([]);
   });
 });
