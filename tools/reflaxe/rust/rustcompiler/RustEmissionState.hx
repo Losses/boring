@@ -14,7 +14,7 @@ class RustEmissionState {
 	/** Maps anonymous structure signatures to their defining typedef name and module. */
 	public final structTypedefs: Map<String, {module: String, name: String}> = [];
 
-	/** Standard-surface shims used during compilation. */
+	/** Standard-library shims used during compilation. */
 	public final shimsUsed: Map<String, Bool> = [];
 
 	/** Error enum module and name for Result<T, Error>. */

@@ -2,7 +2,7 @@ package rustcompiler;
 
 #if (macro || reflaxe_runtime)
 /**
-	Headerless runtime shim sources for the standard surface, emitted on
+	Headerless runtime shim sources for the standard library, emitted on
 	demand under the configured runtime package.
 **/
 class RustRuntime {

@@ -40,14 +40,14 @@ function buildRecords(keys: readonly number[]): GlyphMetricsRecord[] {
 }
 
 describe("vectorSortByCodePoint", () => {
-  test("sorts a 9-element corpus through the insertion tier", () => {
+  test("sorts a 9-element input array through the insertion tier", () => {
     const records = buildRecords(SHUFFLED_KEYS.slice(0, 9));
     const result = vectorSortByCodePoint(records);
     expect(result).toBe(records);
     expect(result.map((record) => record.codePoint)).toEqual(SORTED_KEYS_SMALL);
   });
 
-  test("sorts a 40-element corpus through the packed tier", () => {
+  test("sorts a 40-element input array through the packed tier", () => {
     const records = buildRecords(SHUFFLED_KEYS);
     const result = vectorSortByCodePoint(records);
     expect(result.map((record) => record.codePoint)).toEqual(SORTED_KEYS);
@@ -74,7 +74,7 @@ describe("vectorSortByCodePoint", () => {
     }
   });
 
-  test("an all-equal corpus is returned unchanged element for element", () => {
+  test("an all-equal input array is returned unchanged element for element", () => {
     const keys = new Array<number>(8).fill(0x4e00);
     const records = buildRecords(keys);
     const result = vectorSortByCodePoint(records);
