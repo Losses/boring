@@ -76,7 +76,7 @@ the index-computed storage form on each target:
 
 | Target | Form | Notes |
 | --- | --- | --- |
-| Rust | `static RANGES: [i32; N] = [...];` | Read-only memory, no runtime initialization; visibility per the field's declared access. |
+| Rust | `static RANGES: [u32; N] = [...];` | Read-only memory, no runtime initialization; visibility per the field's declared access. The element type follows the Rust target's existing `Int` mapping (`u32`, `src/reflaxe/rust/rustcompiler/RustType.hx`). |
 | TypeScript | `const RANGES = new Int32Array([...]);` | Packed 4-byte elements; indexed reads yield `number`. |
 | Kotlin | `val RANGES = intArrayOf(...)` inside the object | One allocation at class initialization; Kotlin declares no `const` arrays, recorded in `docs/specs/stdlib/04-haxe-ds-vector.md`. |
 
