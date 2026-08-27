@@ -1,8 +1,0 @@
-boring/BinaryReader.ts
-boring/BinaryWriter.ts
-boring/GlyphMetrics.ts
-boring/VectorCodec.ts
-boring/VectorError.ts
-boring/VectorException.ts
-boring/VectorSort.ts
-runtime.ts
