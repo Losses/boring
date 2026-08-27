@@ -16,6 +16,7 @@
     "check:docs": "bun tools/doc-style/check.ts",
     "gen:vector": "bun tools/gen-vector.ts",
     "gen:ts": "haxe tools/reflaxe/ts.hxml",
+    "gen:kotlin": "haxe tools/reflaxe/kotlin.hxml",
     "check:reflaxe": "haxe -lib reflaxe -cp tools/reflaxe -main Smoke -js out/haxe/reflaxe-smoke.js",
     "commit": "bun tools/commit/commit.ts",
     "install:hooks": "bun tools/git-hooks/install.ts",
