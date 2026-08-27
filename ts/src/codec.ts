@@ -4,6 +4,8 @@
  * f64 values, so a round trip is byte-stable on every platform bun runs on.
  */
 
+import { VectorException } from "./vector-error.ts";
+
 const SCRATCH_LENGTH = 8;
 
 /** Growable big-endian writer over a byte buffer. */
@@ -82,24 +84,28 @@ export class BinaryReader {
   }
 
   readU16(): number {
+    this.ensureRemaining(2);
     const value = this.view.getUint16(this.offset, false);
     this.offset += 2;
     return value;
   }
 
   readU32(): number {
+    this.ensureRemaining(4);
     const value = this.view.getUint32(this.offset, false);
     this.offset += 4;
     return value;
   }
 
   readF64(): number {
+    this.ensureRemaining(SCRATCH_LENGTH);
     const value = this.view.getFloat64(this.offset, false);
     this.offset += 8;
     return value;
   }
 
   readAscii(length: number): string {
+    this.ensureRemaining(length);
     let value = "";
     for (let i = 0; i < length; i += 1) {
       value += String.fromCharCode(this.view.getUint8(this.offset + i));
@@ -114,5 +120,16 @@ export class BinaryReader {
 
   consumed(): number {
     return this.offset;
+  }
+
+  /**
+   * Runs before every read, mirroring ensureRemaining in the Haxe, Rust, and
+   * Kotlin readers: a short buffer reports the UnexpectedEof domain variant
+   * instead of the DataView RangeError.
+   */
+  private ensureRemaining(length: number): void {
+    if (this.view.byteLength - this.offset < length) {
+      throw new VectorException({ kind: "UnexpectedEof" });
+    }
   }
 }

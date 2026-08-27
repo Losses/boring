@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification rules error representation and failure propagation across Haxe, Rust, TypeScript, and Kotlin. It defines the error taxonomy discipline: failure identity is a closed set of named variants that match one to one across all four languages, messages are display text derived from the variant, and no consumer discriminates a failure by reading a message string. In the current repository, error handling appears in Haxe via `throw new VectorException(...)` in `haxe/src/boring/VectorCodec.hx` (lines 33 and 51), in Rust via `Result<T, VectorError>` in `rust/src/lib.rs` (lines 84 and 100), and in TypeScript via `throw new Error(...)` in `ts/src/vector-format.ts` (lines 36 and 51) and `ts/src/vector-json.ts`. The Haxe tree carries failure identity in the `VectorError` variant inside `VectorException`; the TypeScript tree still carries failure identity in message strings, and migrating its throw sites is pending work. No Kotlin implementation exists yet; the Kotlin rulings bind generated code.
+This specification rules error representation and failure propagation across Haxe, Rust, TypeScript, and Kotlin. It defines the error taxonomy discipline: failure identity is a closed set of named variants that match one to one across all four languages, messages are display text derived from the variant, and no consumer discriminates a failure by reading a message string. In the current repository, error handling appears in Haxe via `throw new VectorException(...)` in `haxe/src/boring/VectorCodec.hx` (lines 33 and 51), in Rust via `Result<T, VectorError>` in `rust/src/lib.rs` (lines 84 and 100), in Kotlin via the sealed `VectorException` hierarchy in `kotlin/src/boring/`, and in TypeScript via `throw new VectorException({ kind: ... })` in `ts/src/vector-format.ts` (lines 37 and 52) and `ts/src/codec.ts` (line 132). Every tree carries failure identity in a variant value; the TypeScript JSON boundary (`ts/src/vector-json.ts`) validates a domain that exists only in that tree and carries its own `JsonError` variant set through the same exception shape.
 
 ## Haxe construct
 
@@ -64,18 +64,18 @@ public static function decode(bytes:Bytes):Array<GlyphMetrics> {
 	final reader = new BinaryReader(bytes);
 	final magic = reader.readAscii(MAGIC.length);
 	if (magic != MAGIC) {
-		throw new haxe.Exception('bad vector magic: $magic');
+		throw new VectorException(BadMagic);
 	}
 	final count = reader.readU32();
 	// ...
 	if (reader.remaining() != 0) {
-		throw new haxe.Exception('trailing bytes in vector: ${reader.remaining()}');
+		throw new VectorException(TrailingBytes(reader.remaining()));
 	}
 	return records;
 }
 ```
 
-The identity of each failure lives in the message string; this form is the practice the ruling below replaces.
+The variant value inside `VectorException` is the failure identity; the message is derived from it.
 
 ### Rust (`rust/src/lib.rs`)
 
@@ -121,7 +121,7 @@ export function decodeVector(bytes: Uint8Array): GlyphMetricsRecord[] {
   const reader = new BinaryReader(bytes);
   const magic = reader.readAscii(VECTOR_MAGIC.length);
   if (magic !== VECTOR_MAGIC) {
-    throw new Error(`bad vector magic: ${magic}`);
+    throw new VectorException({ kind: "BadMagic" });
   }
   const count = reader.readU32();
   const records: GlyphMetricsRecord[] = [];
@@ -136,13 +136,13 @@ export function decodeVector(bytes: Uint8Array): GlyphMetricsRecord[] {
     records.push({ codePoint, advanceEm, bounds });
   }
   if (reader.remaining() !== 0) {
-    throw new Error(`trailing bytes in vector: ${reader.remaining()}`);
+    throw new VectorException({ kind: "TrailingBytes", remaining: reader.remaining() });
   }
   return records;
 }
 ```
 
-The identity of each failure lives in the message string; this form is the practice the ruling below replaces.
+The variant value on `VectorException` is the failure identity; the message is derived from it. The reader guards (`ts/src/codec.ts`) throw the `UnexpectedEof` variant, mirroring the bounds checks of the other trees.
 
 ## Candidate translations
 
@@ -326,11 +326,6 @@ Kotlin `runCatching` and catch-all `Result` returns are banned in codec code bec
 
 Error handling is asserted in:
 - `tests/rust/vector.rs` (lines 72-96) asserting `VectorError::BadMagic`, `VectorError::UnexpectedEof`, and `VectorError::TrailingBytes`.
-- `tests/haxe/Main.hx` (lines 102-113) asserting that decoding bad magic and a truncated vector throw the `BadMagic` and `UnexpectedEof` variants.
-- `tests/ts/codec.test.ts` (lines 66-80) asserting that bad magic and trailing bytes throw errors.
-
-Required after the typed error migration; none exist yet:
-
-- Haxe and TypeScript tests assert the variant: catching `VectorException` and matching `error.error` in Haxe, `error.error.kind` in TypeScript, against `TrailingBytes`, without reading the message.
-- A test feeds a wrong-magic payload and a truncated payload and asserts two distinct variants, with the message read as display text only.
-- A structure test scans `ts/src` and `haxe/src` for throw sites of bare `Error` or bare `haxe.Exception` in codec code and rejects them.
+- `tests/haxe/Main.hx` (lines 102-114) asserting that decoding bad magic and a truncated vector throw the `BadMagic` and `UnexpectedEof` variants by matching `error.error`.
+- `tests/ts/codec.test.ts` (lines 67-105) asserting the variant through `error.error.kind` for wrong magic, trailing bytes (including the `remaining` payload), and a truncated vector; the wrong-magic and truncated payloads assert two distinct variants, and no assertion reads a message.
+- `tests/ts/error-structure.test.ts` scanning `ts/src` and `haxe/src` for throw sites of bare `Error` or bare `haxe.Exception` in codec code and rejecting any hit.
