@@ -702,17 +702,101 @@ class RustDecl {
 				final fields = anonRef.get().fields.copy();
 				fields.sort((a, b) -> Reflect.compare(Context.getPosInfos(a.pos).min, Context.getPosInfos(b.pos).min));
 				final fieldLines = [for(field in fields) '    pub ${RustImports.toSnakeCase(field.name)}: ${types.of(field.type)},'];
-				return [
-					"#[derive(Debug, Clone, Copy, PartialEq)]",
+				final deriveAttr = isAllCopy(fields) ? "#[derive(Debug, Clone, Copy, PartialEq)]" : "#[derive(Debug, Clone, PartialEq)]";
+				final structStr = [
+					deriveAttr,
 					'pub struct ${def.name} {',
 					fieldLines.join("\n"),
 					"}"
 				].join("\n");
+
+				if(isStructKeyCandidate(fields)) {
+					final fnName = "compare_" + RustImports.toSnakeCase(def.name);
+					final cmpLines = [
+						'pub fn $fnName(a: &${def.name}, b: &${def.name}) -> std::cmp::Ordering {'
+					];
+					for(f in fields) {
+						final fieldSnake = RustImports.toSnakeCase(f.name);
+						switch(Context.follow(f.type)) {
+							case TAbstract(a, _) if(a.get().name == "Int" || a.get().name == "Bool"):
+								cmpLines.push('    let cmp_$fieldSnake = a.$fieldSnake.cmp(&b.$fieldSnake);');
+								cmpLines.push('    if cmp_$fieldSnake != std::cmp::Ordering::Equal { return cmp_$fieldSnake; }');
+							case TInst(c, _) if(c.get().name == "String"):
+								state.shimsUsed.set("std.SortedMap", true);
+								cmpLines.push('    let cmp_$fieldSnake = crate::runtime::sorted_map::compare_utf16_code_units(a.$fieldSnake.as_str(), b.$fieldSnake.as_str());');
+								cmpLines.push('    if cmp_$fieldSnake != std::cmp::Ordering::Equal { return cmp_$fieldSnake; }');
+							case _:
+								switch(f.type) {
+									case TType(innerDef, _):
+										final innerCmp = "compare_" + RustImports.toSnakeCase(innerDef.get().name);
+										imports.requireType(innerDef.get().module, innerCmp);
+										cmpLines.push('    let cmp_$fieldSnake = $innerCmp(&a.$fieldSnake, &b.$fieldSnake);');
+										cmpLines.push('    if cmp_$fieldSnake != std::cmp::Ordering::Equal { return cmp_$fieldSnake; }');
+									case _:
+								}
+						}
+					}
+					cmpLines.push('    std::cmp::Ordering::Equal');
+					cmpLines.push('}');
+					return structStr + "\n\n" + cmpLines.join("\n");
+				}
+
+				return structStr;
 			case TType(_, _):
 				return 'pub type ${def.name} = ${types.of(def.type)};';
 			case _:
 				return null;
 		}
+	}
+
+	function isAllCopy(fields: Array<ClassField>): Bool {
+		for(f in fields) {
+			if(!isTypeCopy(f.type)) return false;
+		}
+		return true;
+	}
+
+	function isTypeCopy(t: Type): Bool {
+		return switch(t) {
+			case TAbstract(a, _):
+				final n = a.get().name;
+				n == "Int" || n == "Bool" || n == "Float";
+			case TType(d, _):
+				switch(d.get().type) {
+					case TAnonymous(anon):
+						isAllCopy(anon.get().fields);
+					case _: false;
+				}
+			case TLazy(fn):
+				isTypeCopy(fn());
+			case _: false;
+		};
+	}
+
+	function isStructKeyCandidate(fields: Array<ClassField>): Bool {
+		for(f in fields) {
+			if(!isFieldKeyCandidate(f.type)) return false;
+		}
+		return true;
+	}
+
+	function isFieldKeyCandidate(t: Type): Bool {
+		return switch(t) {
+			case TAbstract(a, _):
+				final n = a.get().name;
+				n == "Int" || n == "Bool";
+			case TInst(c, _):
+				c.get().name == "String";
+			case TType(d, _):
+				switch(d.get().type) {
+					case TAnonymous(anon):
+						isStructKeyCandidate(anon.get().fields);
+					case _: false;
+				}
+			case TLazy(fn):
+				isFieldKeyCandidate(fn());
+			case _: false;
+		};
 	}
 }
 #end

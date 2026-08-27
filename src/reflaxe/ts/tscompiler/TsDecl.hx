@@ -241,15 +241,72 @@ class TsDecl {
 				final fields = anonRef.get().fields.copy();
 				fields.sort((a, b) -> Reflect.compare(Context.getPosInfos(a.pos).min, Context.getPosInfos(b.pos).min));
 				final fieldLines = [for(field in fields) '  readonly ${field.name}: ${types.of(field.type)};'];
-				return [
+				final interfaceStr = [
 					'export interface ${def.name} {',
 					fieldLines.join("\n"),
 					"}"
 				].join("\n");
+
+				if(isStructKeyCandidate(fields)) {
+					final cmpLines = [
+						'export function compare${def.name}(a: ${def.name}, b: ${def.name}): number {',
+						'  if (a === b) return 0;'
+					];
+					for(f in fields) {
+						switch(Context.follow(f.type)) {
+							case TAbstract(a, _) if(a.get().name == "Int"):
+								cmpLines.push('  if (a.${f.name} !== b.${f.name}) return a.${f.name} - b.${f.name};');
+							case TAbstract(a, _) if(a.get().name == "Bool"):
+								cmpLines.push('  if (a.${f.name} !== b.${f.name}) return a.${f.name} ? 1 : -1;');
+							case TInst(c, _) if(c.get().name == "String"):
+								cmpLines.push('  if (a.${f.name} !== b.${f.name}) return a.${f.name} < b.${f.name} ? -1 : 1;');
+							case _:
+								switch(f.type) {
+									case TType(innerDef, _):
+										final innerName = innerDef.get().name;
+										imports.value(innerDef.get().module, "compare" + innerName);
+										cmpLines.push('  const cmp_${f.name} = compare${innerName}(a.${f.name}, b.${f.name});');
+										cmpLines.push('  if (cmp_${f.name} !== 0) return cmp_${f.name};');
+									case _:
+								}
+						}
+					}
+					cmpLines.push('  return 0;');
+					cmpLines.push('}');
+					return interfaceStr + "\n\n" + cmpLines.join("\n");
+				}
+
+				return interfaceStr;
 			case _:
 				Context.error("typedef alias has no lowering; name the structure instead", def.pos);
 				return null;
 		}
+	}
+
+	function isStructKeyCandidate(fields: Array<ClassField>): Bool {
+		for(f in fields) {
+			if(!isFieldKeyCandidate(f.type)) return false;
+		}
+		return true;
+	}
+
+	function isFieldKeyCandidate(t: Type): Bool {
+		return switch(t) {
+			case TAbstract(a, _):
+				final n = a.get().name;
+				n == "Int" || n == "Bool";
+			case TInst(c, _):
+				c.get().name == "String";
+			case TType(d, _):
+				switch(d.get().type) {
+					case TAnonymous(anon):
+						isStructKeyCandidate(anon.get().fields);
+					case _: false;
+				}
+			case TLazy(fn):
+				isFieldKeyCandidate(fn());
+			case _: false;
+		};
 	}
 }
 #end

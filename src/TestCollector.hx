@@ -351,6 +351,30 @@ class TestMain {
         };
         js.Syntax.code("globalThis.__test_shim = {0}", testObj);
         js.Syntax.code("
+            function jsCompare(a, b) {
+                if (a === b) return 0;
+                let ta = typeof a;
+                let tb = typeof b;
+                if (ta === \\\"number\\\" && tb === \\\"number\\\") {
+                    return a - b;
+                }
+                if (ta === \\\"string\\\" && tb === \\\"string\\\") {
+                    return a < b ? -1 : (a > b ? 1 : 0);
+                }
+                if (ta === \\\"boolean\\\" && tb === \\\"boolean\\\") {
+                    return a === b ? 0 : (a ? 1 : -1);
+                }
+                if (ta === \\\"object\\\" && tb === \\\"object\\\" && a !== null && b !== null) {
+                    let keysA = Object.keys(a);
+                    for (let i = 0; i < keysA.length; i++) {
+                        let k = keysA[i];
+                        let cmp = jsCompare(a[k], b[k]);
+                        if (cmp !== 0) return cmp;
+                    }
+                    return 0;
+                }
+                return 0;
+            }
             class JsSortedMap {
                 constructor(keys, values) { this.keys = keys; this.values = values; }
                 static builder() { return new JsSortedMapBuilder(); }
@@ -358,8 +382,9 @@ class TestMain {
                     let low = 0, high = this.keys.length - 1;
                     while (low <= high) {
                         let mid = (low + high) >> 1;
-                        if (this.keys[mid] < key) low = mid + 1;
-                        else if (this.keys[mid] > key) high = mid - 1;
+                        let cmp = jsCompare(this.keys[mid], key);
+                        if (cmp < 0) low = mid + 1;
+                        else if (cmp > 0) high = mid - 1;
                         else return this.values[mid] !== undefined ? this.values[mid] : null;
                     }
                     return null;
@@ -368,8 +393,9 @@ class TestMain {
                     let low = 0, high = this.keys.length - 1;
                     while (low <= high) {
                         let mid = (low + high) >> 1;
-                        if (this.keys[mid] < key) low = mid + 1;
-                        else if (this.keys[mid] > key) high = mid - 1;
+                        let cmp = jsCompare(this.keys[mid], key);
+                        if (cmp < 0) low = mid + 1;
+                        else if (cmp > 0) high = mid - 1;
                         else return true;
                     }
                     return false;
@@ -383,12 +409,15 @@ class TestMain {
                 put(key, value) { this.entries.push({key, idx: this.entries.length, value}); }
                 build() {
                     if (this.entries.length === 0) return new JsSortedMap([], []);
-                    this.entries.sort((a, b) => a.key === b.key ? a.idx - b.idx : a.key - b.key);
+                    this.entries.sort((a, b) => {
+                        let cmp = jsCompare(a.key, b.key);
+                        return cmp !== 0 ? cmp : a.idx - b.idx;
+                    });
                     let keys = [], values = [];
                     let i = 0;
                     while (i < this.entries.length) {
                         let j = i;
-                        while (j + 1 < this.entries.length && this.entries[j + 1].key === this.entries[i].key) j++;
+                        while (j + 1 < this.entries.length && jsCompare(this.entries[j + 1].key, this.entries[i].key) === 0) j++;
                         keys.push(this.entries[j].key);
                         values.push(this.entries[j].value);
                         i = j + 1;
@@ -403,8 +432,9 @@ class TestMain {
                     let low = 0, high = this.keys.length - 1;
                     while (low <= high) {
                         let mid = (low + high) >> 1;
-                        if (this.keys[mid] < key) low = mid + 1;
-                        else if (this.keys[mid] > key) high = mid - 1;
+                        let cmp = jsCompare(this.keys[mid], key);
+                        if (cmp < 0) low = mid + 1;
+                        else if (cmp > 0) high = mid - 1;
                         else return true;
                     }
                     return false;
@@ -417,10 +447,10 @@ class TestMain {
                 put(key) { this.keys.push(key); }
                 build() {
                     if (this.keys.length === 0) return new JsSortedSet([]);
-                    this.keys.sort((a, b) => a - b);
+                    this.keys.sort((a, b) => jsCompare(a, b));
                     let distinct = [];
                     for (let i = 0; i < this.keys.length; i++) {
-                        if (distinct.length === 0 || distinct[distinct.length - 1] !== this.keys[i]) {
+                        if (distinct.length === 0 || jsCompare(distinct[distinct.length - 1], this.keys[i]) !== 0) {
                             distinct.push(this.keys[i]);
                         }
                     }

@@ -30,3 +30,6 @@ tests.TestData
 tests.VectorCodecTests
 tests.DataTableTests
 tests.SortedTableTests
+boring.ScriptNames
+boring.ClusterTags
+tests.SortedKeyDomainTests

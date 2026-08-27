@@ -4,6 +4,12 @@ package rustcompiler;
 import haxe.macro.Context;
 import haxe.macro.Type;
 
+enum KeyDomain {
+	IntKey;
+	StringKey;
+	StructKey(def: DefType, fields: Array<ClassField>);
+}
+
 /**
 	Type mapping from the translatable Haxe subset to Rust.
 **/
@@ -47,21 +53,53 @@ class RustType {
 						imports.requireType(cls.module, "BytesBuffer");
 						"BytesBuffer";
 					case "std.SortedMap":
-						assertIntKey(params[0]);
-						imports.requireType("std.SortedMap", "SortedMap");
-						"SortedMap<" + of(params[1]) + ">";
+						switch(classifyKey(params[0])) {
+							case IntKey:
+								imports.requireType("std.SortedMap", "SortedMap");
+								"SortedMap<" + of(params[1]) + ">";
+							case StringKey:
+								imports.requireType("std.SortedMap", "SortedMapStr");
+								"SortedMapStr<" + of(params[1]) + ">";
+							case StructKey(def, _):
+								imports.requireType("std.SortedMap", "SortedMapByKey");
+								"SortedMapByKey<" + of(params[0]) + ", " + of(params[1]) + ">";
+						}
 					case "std.SortedMapBuilder":
-						assertIntKey(params[0]);
-						imports.requireType("std.SortedMapBuilder", "SortedMapBuilder");
-						"SortedMapBuilder<" + of(params[1]) + ">";
+						switch(classifyKey(params[0])) {
+							case IntKey:
+								imports.requireType("std.SortedMapBuilder", "SortedMapBuilder");
+								"SortedMapBuilder<" + of(params[1]) + ">";
+							case StringKey:
+								imports.requireType("std.SortedMapBuilder", "SortedMapStrBuilder");
+								"SortedMapStrBuilder<" + of(params[1]) + ">";
+							case StructKey(def, _):
+								imports.requireType("std.SortedMapBuilder", "SortedMapByKeyBuilder");
+								"SortedMapByKeyBuilder<" + of(params[0]) + ", " + of(params[1]) + ">";
+						}
 					case "std.SortedSet":
-						assertIntKey(params[0]);
-						imports.requireType("std.SortedSet", "SortedSet");
-						"SortedSet";
+						switch(classifyKey(params[0])) {
+							case IntKey:
+								imports.requireType("std.SortedSet", "SortedSet");
+								"SortedSet";
+							case StringKey:
+								imports.requireType("std.SortedSet", "SortedSetStr");
+								"SortedSetStr";
+							case StructKey(def, _):
+								imports.requireType("std.SortedSet", "SortedSetByKey");
+								"SortedSetByKey<" + of(params[0]) + ">";
+						}
 					case "std.SortedSetBuilder":
-						assertIntKey(params[0]);
-						imports.requireType("std.SortedSetBuilder", "SortedSetBuilder");
-						"SortedSetBuilder";
+						switch(classifyKey(params[0])) {
+							case IntKey:
+								imports.requireType("std.SortedSetBuilder", "SortedSetBuilder");
+								"SortedSetBuilder";
+							case StringKey:
+								imports.requireType("std.SortedSetBuilder", "SortedSetStrBuilder");
+								"SortedSetStrBuilder";
+							case StructKey(def, _):
+								imports.requireType("std.SortedSetBuilder", "SortedSetByKeyBuilder");
+								"SortedSetByKeyBuilder<" + of(params[0]) + ">";
+						}
 					case _:
 						imports.requireType(cls.module, cls.name);
 						cls.name;
@@ -95,14 +133,90 @@ class RustType {
 		return pack.length == 0 ? name : pack.join(".") + "." + name;
 	}
 
-	function assertIntKey(t: Type): Void {
-		final followed = Context.follow(t);
-		final isInt = switch(followed) {
-			case TAbstract(a, _): a.get().name == "Int";
-			case _: false;
-		};
-		if(!isInt) {
-			Context.error("sorted keyed tables support Int keys in this implementation", Context.currentPos());
+	public static function classifyKey(t: Null<Type>, ?pos: haxe.macro.Expr.Position): KeyDomain {
+		if(t == null) {
+			final p = pos != null ? pos : Context.currentPos();
+			Context.error("sorted keyed tables support Int, String, and structure keys in this implementation", p);
+			return IntKey;
+		}
+		final p = pos != null ? pos : Context.currentPos();
+		return switch(t) {
+			case TAbstract(a, _):
+				if(a.get().name == "Int") {
+					IntKey;
+				} else {
+					Context.error("sorted keyed tables support Int, String, and structure keys in this implementation", p);
+					IntKey;
+				}
+			case TInst(c, _):
+				if(c.get().name == "String") {
+					StringKey;
+				} else {
+					Context.error("sorted keyed tables support Int, String, and structure keys in this implementation", p);
+					IntKey;
+				}
+			case TType(defRef, _):
+				final def = defRef.get();
+				final fields = validateStructDef(def, p, [def.name]);
+				StructKey(def, fields);
+			case TLazy(f):
+				classifyKey(f(), p);
+			case _:
+				Context.error("sorted keyed tables support Int, String, and structure keys in this implementation", p);
+				IntKey;
+		}
+	}
+
+	static function validateStructDef(def: DefType, pos: haxe.macro.Expr.Position, visited: Array<String>): Array<ClassField> {
+		return switch(def.type) {
+			case TAnonymous(anonRef):
+				final fields = anonRef.get().fields.copy();
+				fields.sort((a, b) -> Reflect.compare(Context.getPosInfos(a.pos).min, Context.getPosInfos(b.pos).min));
+				for(f in fields) {
+					validateFieldType(f.type, f.pos, visited);
+				}
+				fields;
+			case TType(innerDefRef, _):
+				validateStructDef(innerDefRef.get(), pos, visited);
+			case _:
+				Context.error("sorted keyed tables support Int, String, and structure keys in this implementation", pos);
+				[];
+		}
+	}
+
+	static function validateFieldType(t: Type, pos: haxe.macro.Expr.Position, visited: Array<String>): Void {
+		switch(t) {
+			case TAbstract(a, _):
+				final name = a.get().name;
+				if(name == "Int" || name == "Bool") {
+					return;
+				}
+				Context.error("structure key fields must be Int, Bool, String, or a nested structure", pos);
+			case TInst(c, _):
+				if(c.get().name == "String") {
+					return;
+				}
+				Context.error("structure key fields must be Int, Bool, String, or a nested structure", pos);
+			case TType(dRef, _):
+				final def = dRef.get();
+				if(visited.indexOf(def.name) >= 0) {
+					Context.error("structure key fields must be Int, Bool, String, or a nested structure", pos);
+					return;
+				}
+				switch(def.type) {
+					case TAnonymous(_):
+						final nextVisited = visited.copy();
+						nextVisited.push(def.name);
+						validateStructDef(def, pos, nextVisited);
+					case TType(innerRef, _):
+						validateFieldType(def.type, pos, visited);
+					case _:
+						Context.error("structure key fields must be Int, Bool, String, or a nested structure", pos);
+				}
+			case TLazy(f):
+				validateFieldType(f(), pos, visited);
+			case _:
+				Context.error("structure key fields must be Int, Bool, String, or a nested structure", pos);
 		}
 	}
 
