@@ -1,7 +1,7 @@
+import boring.BoundsEm
 import boring.BinaryReader
 import boring.BinaryWriter
 import boring.Console
-import boring.GlyphBounds
 import boring.GlyphMetrics
 import boring.VectorCodec
 import boring.VectorException
@@ -23,22 +23,22 @@ object Main {
         GlyphMetrics(
             codePoint = 65,
             advanceEm = 0.5,
-            bounds = GlyphBounds(xMin = 0.03125, yMin = -0.21875, xMax = 0.46875, yMax = 0.03125)
+            bounds = BoundsEm(xMin = 0.03125, yMin = -0.21875, xMax = 0.46875, yMax = 0.03125)
         ),
         GlyphMetrics(
             codePoint = 19969,
             advanceEm = 1.0,
-            bounds = GlyphBounds(xMin = 0.03125, yMin = -0.875, xMax = 0.96875, yMax = 0.03125)
+            bounds = BoundsEm(xMin = 0.03125, yMin = -0.875, xMax = 0.96875, yMax = 0.03125)
         ),
         GlyphMetrics(
             codePoint = 65292,
             advanceEm = 0.5,
-            bounds = GlyphBounds(xMin = 0.03125, yMin = -0.21875, xMax = 0.46875, yMax = 0.03125)
+            bounds = BoundsEm(xMin = 0.03125, yMin = -0.21875, xMax = 0.46875, yMax = 0.03125)
         ),
         GlyphMetrics(
             codePoint = 65311,
             advanceEm = 0.75,
-            bounds = GlyphBounds(xMin = 0.0625, yMin = -0.15625, xMax = 0.6875, yMax = 0.0625)
+            bounds = BoundsEm(xMin = 0.0625, yMin = -0.15625, xMax = 0.6875, yMax = 0.0625)
         )
     )
 
@@ -151,7 +151,7 @@ object Main {
         Console.log("all $passes kotlin checks passed")
     }
 
-    // Sort corpus and oracle shared verbatim with tests/ts/vector-sort.test.ts,
+    // Sort fixture and oracle shared verbatim with tests/ts/vector-sort.test.ts,
     // tests/haxe/Main.hx, and tests/rust/vector.rs; the trees must produce
     // identical outputs.
     private val SORT_SHUFFLED_KEYS: List<Int> = listOf(
@@ -176,7 +176,7 @@ object Main {
                 GlyphMetrics(
                     codePoint = keys[index],
                     advanceEm = index.toDouble(),
-                    bounds = GlyphBounds(xMin = 0.0, yMin = 0.0, xMax = 0.0, yMax = 0.0)
+                    bounds = BoundsEm(xMin = 0.0, yMin = 0.0, xMax = 0.0, yMax = 0.0)
                 )
             )
         }
