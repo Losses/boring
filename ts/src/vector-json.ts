@@ -87,7 +87,7 @@ export class JsonException extends Error {
 
 export interface VectorFileJson {
   readonly description: string;
-  readonly records: GlyphMetricsRecord[];
+  readonly records: readonly GlyphMetricsRecord[];
 }
 
 function isFiniteNumber(value: unknown): value is number {
@@ -109,7 +109,8 @@ function toBoundsEm(value: unknown): BoundsEmRecord {
   if (!isFiniteNumber(xMin) || !isFiniteNumber(yMin) || !isFiniteNumber(xMax) || !isFiniteNumber(yMax)) {
     throw new JsonException({ kind: "BoundsFieldsNotFinite" });
   }
-  return { xMin, yMin, xMax, yMax };
+  // DecodeBoundaryFreeze per docs/specs/features/18-immutability.md.
+  return Object.freeze({ xMin, yMin, xMax, yMax });
 }
 
 export function toGlyphMetricsRecord(value: unknown): GlyphMetricsRecord {
@@ -125,7 +126,7 @@ export function toGlyphMetricsRecord(value: unknown): GlyphMetricsRecord {
   if (!isFiniteNumber(advanceEm)) {
     throw new JsonException({ kind: "AdvanceEmNotFinite" });
   }
-  return { codePoint, advanceEm, bounds: toBoundsEm(bounds) };
+  return Object.freeze({ codePoint, advanceEm, bounds: toBoundsEm(bounds) });
 }
 
 export function toVectorFile(value: unknown): VectorFileJson {
@@ -145,5 +146,5 @@ export function toVectorFile(value: unknown): VectorFileJson {
   for (let i = 0; i < count; i += 1) {
     parsed[i] = toGlyphMetricsRecord(records[i]!);
   }
-  return { description, records: parsed };
+  return Object.freeze({ description, records: Object.freeze(parsed) });
 }

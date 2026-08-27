@@ -6,11 +6,13 @@ import haxe.io.Bytes;
  * Shared vector format codec: 4 magic bytes, one u32 record count, then one
  * 44-byte record per glyph metric (u32 code point, five f64 values), all
  * big-endian. The TypeScript and Rust suites read and write the same bytes.
+ * Encode reads through the read-only surface and decode returns it, per
+ * docs/specs/features/18-immutability.md.
  */
 class VectorCodec {
 	public static inline var MAGIC:String = "BRG1";
 
-	public static function encode(records:Array<GlyphMetrics>):Bytes {
+	public static function encode(records:ReadOnlyArray<GlyphMetrics>):Bytes {
 		final writer = new BinaryWriter();
 		writer.writeAscii(MAGIC);
 		writer.writeU32(records.length);
@@ -26,7 +28,7 @@ class VectorCodec {
 		return writer.finish();
 	}
 
-	public static function decode(bytes:Bytes):Array<GlyphMetrics> {
+	public static function decode(bytes:Bytes):ReadOnlyArray<GlyphMetrics> {
 		final reader = new BinaryReader(bytes);
 		final magic = reader.readAscii(MAGIC.length);
 		if (magic != MAGIC) {

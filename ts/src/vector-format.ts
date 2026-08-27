@@ -30,7 +30,7 @@ export function encodeVector(records: readonly GlyphMetricsRecord[]): Uint8Array
   return writer.finish();
 }
 
-export function decodeVector(bytes: Uint8Array): GlyphMetricsRecord[] {
+export function decodeVector(bytes: Uint8Array): readonly GlyphMetricsRecord[] {
   const reader = new BinaryReader(bytes);
   const magic = reader.readAscii(VECTOR_MAGIC.length);
   if (magic !== VECTOR_MAGIC) {
@@ -45,13 +45,14 @@ export function decodeVector(bytes: Uint8Array): GlyphMetricsRecord[] {
     const yMin = reader.readF64();
     const xMax = reader.readF64();
     const yMax = reader.readF64();
-    const bounds = { xMin, yMin, xMax, yMax };
-    records[i] = { codePoint, advanceEm, bounds };
+    // DecodeBoundaryFreeze per docs/specs/features/18-immutability.md.
+    const bounds = Object.freeze({ xMin, yMin, xMax, yMax });
+    records[i] = Object.freeze({ codePoint, advanceEm, bounds });
   }
   if (reader.remaining() !== 0) {
     throw new VectorException({ kind: "TrailingBytes", remaining: reader.remaining() });
   }
-  return records;
+  return Object.freeze(records);
 }
 
 export function vectorByteLength(recordCount: number): number {
