@@ -1,17 +1,20 @@
 # boring
 
-boring is a Haxe / Rust / TypeScript mixed-language repository hosting one
-binary codec and the shared test vectors that every implementation must
-reproduce byte for byte.
+boring is a Haxe package that exposes the transpilation toolchain to
+tiqian. tiqian provides the original Haxe sources and translates them to
+each platform through the reflaxe targets under `tools/reflaxe/`.
 
-The four implementations are independent: TypeScript under bun, Haxe
-compiled to JS, Kotlin executed on the JVM, and Rust built with cargo.
-All four decode `tests/vectors/roundtrip.bin` to the same records and
-encode those records back to the same bytes.
+Every file under `haxe/src/` demonstrates language capabilities of the
+translatable subset. The corpus debugs each language feature of the
+targets; it grows as the accepted construct set grows.
 
-Implementations and test tooling live in separate trees: the languages
-implement the codec under `ts/`, `haxe/`, `rust/`, and `kotlin/`; every
-test suite and the shared vectors live under `tests/`.
+The trees under `ts/`, `kotlin/`, and `rust/` are hand-written reference
+translations. Every tree decodes `tests/vectors/roundtrip.bin` to the
+same records and encodes those records back to the same bytes; the
+generated trees (`ts/gen/`, `kotlin/gen/`) must reproduce that behavior
+against the same vectors. Reference translations and test tooling live in
+separate trees; every test suite and the shared vectors live under
+`tests/`.
 
 The root `package.json` is the bun workspace (member: `ts`); the root
 `Cargo.toml` is the cargo workspace (member: `rust`). The Rust test suite
@@ -22,12 +25,12 @@ explicit `[[test]]` path into `tests/`.
 
 | Path | Content |
 | --- | --- |
-| `ts/` | `@boring/codec`, the TypeScript codec package; `ts/gen/` is the gitignored reflaxe-generated tree |
-| `haxe/` | Haxe library sources |
-| `rust/` | Rust crate with the codec implementation |
-| `kotlin/` | Kotlin codec source tree |
+| `ts/` | hand-written TypeScript reference translation (package `@boring/codec`); `ts/gen/` is the gitignored reflaxe-generated tree |
+| `haxe/` | Haxe capability corpus for the translatable subset |
+| `rust/` | hand-written Rust reference translation |
+| `kotlin/` | hand-written Kotlin reference translation; `kotlin/gen/` is the gitignored reflaxe-generated tree |
 | `tests/` | Test suites per language plus the shared vectors |
-| `tools/` | ESLint plugin, doc-style checker, commit tool, git hooks, vector generator, reflaxe TypeScript target |
+| `tools/` | ESLint plugin, doc-style checker, commit tool, git hooks, vector generator, reflaxe transpilation targets (TypeScript, Kotlin) |
 
 ## Toolchain
 
@@ -47,8 +50,8 @@ here; this repository needs none of them.
     nix develop -c bash -c "bun install"
     nix develop -c bash -c "bun run verify"
 
-`verify` regenerates the gitignored `ts/gen` tree through the reflaxe
-TypeScript target, then runs the TypeScript tests, the Haxe checks, the
+`verify` regenerates the gitignored `ts/gen` and `kotlin/gen` trees
+through the reflaxe targets, then runs the TypeScript tests, the Haxe checks, the
 Kotlin checks, the interception suite, the Rust tests, ESLint, `tsc`, the
 documentation style check, the vector regeneration, and the reflaxe smoke
 compile. See
