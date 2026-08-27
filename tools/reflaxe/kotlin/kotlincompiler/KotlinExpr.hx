@@ -16,6 +16,7 @@ import reflaxe.data.ClassFuncData;
 class KotlinExpr {
 	final imports: KotlinImports;
 	final types: KotlinType;
+	final state: KotlinEmissionState;
 
 	/** True while emitting a function whose return type is ReadOnlyArray. */
 	var decodeBoundary: Bool = false;
@@ -35,13 +36,24 @@ class KotlinExpr {
 	final hiddenNames: Map<Int, String> = [];
 	var hiddenCounter: Int = 0;
 
-	public function new(imports: KotlinImports, types: KotlinType) {
+	public function new(imports: KotlinImports, types: KotlinType, state: KotlinEmissionState) {
 		this.imports = imports;
 		this.types = types;
+		this.state = state;
 	}
 
 	public function reserveName(name: String): Void {
 		usedNames.set(name, true);
+	}
+
+	/** Binds a local to a rendered name; pattern captures adopt the payload argument name this way. */
+	public function bindLocalName(v: TVar, name: String): Void {
+		subst.set(v.id, name);
+	}
+
+	/** The rendered name of a local, if a binding was recorded. */
+	public function boundNameOf(v: TVar): Null<String> {
+		return subst.get(v.id);
 	}
 
 	public function setDecodeBoundary(value: Bool): Void {
@@ -148,22 +160,29 @@ class KotlinExpr {
 	function throwExpr(x: TypedExpr): String {
 		final inner = stripWrap(x);
 		switch(inner.expr) {
-			case TNew(c, _, args) if(c.get().name == "VectorException" && args.length == 1):
-				final arg = stripWrap(args[0]);
-				switch(arg.expr) {
+			case TNew(c, _, args) if(args.length == 1 && state.exceptionPayloads.exists(c.get().module)):
+				return exceptionVariant(c.get(), args[0]);
+			case _:
+		}
+		return expr(x);
+	}
+
+	/** Renders `Owner.Variant` or `Owner.Variant(args)` for an exception construction over its payload enum. */
+	function exceptionVariant(cls: ClassType, payloadArg: TypedExpr): String {
+		final owner = state.payloadEnumOwners.get(state.exceptionPayloads.get(cls.module));
+		final arg = stripWrap(payloadArg);
+		switch(arg.expr) {
+			case TField(_, FEnum(_, ef)):
+				return owner + "." + ef.name;
+			case TCall(fn, callArgs):
+				switch(stripWrap(fn).expr) {
 					case TField(_, FEnum(_, ef)):
-						return "VectorException." + ef.name;
-					case TCall(fn, callArgs):
-						switch(stripWrap(fn).expr) {
-							case TField(_, FEnum(_, ef)):
-								return "VectorException." + ef.name + "(" + [for(a in callArgs) expr(a)].join(", ") + ")";
-							case _:
-						}
+						return owner + "." + ef.name + "(" + [for(a in callArgs) expr(a)].join(", ") + ")";
 					case _:
 				}
 			case _:
 		}
-		return expr(x);
+		return owner + "(" + expr(payloadArg) + ")";
 	}
 
 	function blockLines(stmts: Array<TypedExpr>, depth: Int): Array<String> {
@@ -540,9 +559,11 @@ class KotlinExpr {
 				return staticRef(c.get(), cf.get().name);
 			case FEnum(e, ef):
 				final en = e.get();
-				if(en.name == "VectorError") {
-					return "VectorException." + ef.name;
+				final owner = state.payloadEnumOwners.get(en.module);
+				if(owner != null) {
+					return owner + "." + ef.name;
 				}
+				imports.requireType(en.module, en.name);
 				return en.name + "." + ef.name;
 			case FInstance(_, _, cf) | FAnon(cf):
 				final name = cf.get().name;
@@ -566,19 +587,9 @@ class KotlinExpr {
 		switch(path) {
 			case "String":
 				return "String." + name;
-			case "haxe.io.FPHelper":
-				return "FPHelper." + name;
-			case "boring.Console":
-				return "Console." + name;
-			case "boring.Process":
-				imports.require("kotlin.system.exitProcess");
-				return "Process." + name;
 			case _:
-				if(isBoringPack(cls.pack)) {
-					return cls.name + "." + name;
-				}
-				Context.error("static has no Kotlin lowering: " + path + "." + name, Context.currentPos());
-				return null;
+				imports.requireType(cls.module, cls.name);
+				return cls.name + "." + name;
 		}
 	}
 
@@ -586,10 +597,16 @@ class KotlinExpr {
 		switch(t) {
 			case TClassDecl(c):
 				final cls = c.get();
+				imports.requireType(cls.module, cls.name);
 				return cls.name;
 			case TEnumDecl(e):
 				final en = e.get();
-				return en.name == "VectorError" ? "VectorException" : en.name;
+				final owner = state.payloadEnumOwners.get(en.module);
+				if(owner != null) {
+					return owner;
+				}
+				imports.requireType(en.module, en.name);
+				return en.name;
 			case _:
 				Context.error("type expression has no value lowering", Context.currentPos());
 				return null;
@@ -617,18 +634,20 @@ class KotlinExpr {
 			case TField(_, FStatic(c, cf)):
 				final cls = c.get();
 				final name = cf.get().name;
-				if(cls.name == "String" && name == "fromCharCode") {
+				if(cls.pack.length == 0 && cls.name == "String" && name == "fromCharCode") {
 					return "((" + expr(args[0]) + ").toChar()).toString()";
 				}
-				if(cls.name == "Process" && name == "exit") {
+				if(cls.pack.join(".") == "std" && cls.name == "Process" && name == "exit") {
 					imports.require("kotlin.system.exitProcess");
 				}
 				return staticRef(cls, name) + "(" + renderedArgs + ")";
 			case TField(subj, FEnum(e, ef)):
 				final en = e.get();
-				if(en.name == "VectorError") {
-					return "VectorException." + ef.name + "(" + renderedArgs + ")";
+				final owner = state.payloadEnumOwners.get(en.module);
+				if(owner != null) {
+					return owner + "." + ef.name + "(" + renderedArgs + ")";
 				}
+				imports.requireType(en.module, en.name);
 				return en.name + "." + ef.name + "(" + renderedArgs + ")";
 			case TConst(TSuper):
 				return "super(" + renderedArgs + ")";
@@ -643,32 +662,17 @@ class KotlinExpr {
 		final path = cls.pack.length == 0 ? cls.name : cls.pack.join(".") + "." + cls.name;
 		switch(path) {
 			case "haxe.io.BytesBuffer":
+				imports.requireType(path, "BytesBuffer");
 				return "BytesBuffer(" + renderedArgs + ")";
 			case "Array":
 				imports.require("java.util.ArrayList");
 				return "ArrayList<" + types.of(params[0]) + ">(" + renderedArgs + ")";
-			case "boring.VectorException":
-				if(args.length == 1) {
-					final arg = stripWrap(args[0]);
-					switch(arg.expr) {
-						case TField(_, FEnum(_, ef)):
-							return "VectorException." + ef.name;
-						case TCall(callFn, callArgs):
-							switch(stripWrap(callFn).expr) {
-								case TField(_, FEnum(_, ef)):
-									return "VectorException." + ef.name + "(" + [for(a in callArgs) expr(a)].join(", ") + ")";
-								case _:
-							}
-						case _:
-					}
-				}
-				return "VectorException(" + renderedArgs + ")";
 			case _:
-				if(isBoringPack(cls.pack)) {
-					return cls.name + "(" + renderedArgs + ")";
+				if(args.length == 1 && state.exceptionPayloads.exists(cls.module)) {
+					return exceptionVariant(cls, args[0]);
 				}
-				Context.error("constructor has no Kotlin lowering: " + path, Context.currentPos());
-				return null;
+				imports.requireType(cls.module, cls.name);
+				return cls.name + "(" + renderedArgs + ")";
 		}
 	}
 
@@ -690,20 +694,27 @@ class KotlinExpr {
 	function objectLiteral(e: TypedExpr, fields: Array<{name: String, expr: TypedExpr}>): String {
 		final typeName = resolveTypeName(e.t);
 		final parts = [for(f in fields) f.name + " = " + expr(f.expr)];
-		return typeName + "(\n" + parts.map(p -> "        " + p).join(",\n") + "\n    )";
+		return typeName + "(" + parts.join(", ") + ")";
 	}
 
 	function resolveTypeName(t: Type): String {
 		return switch(t) {
-			case TType(def, _): def.get().name;
+			case TType(def, _):
+				final d = def.get();
+				imports.requireType(d.module, d.name);
+				d.name;
 			case TAnonymous(anon):
-				final fnames = [for(f in anon.get().fields) f.name];
-				fnames.sort(Reflect.compare);
-				final sig = fnames.join(",");
-				if(sig == "xMax,xMin,yMax,yMin") "BoundsEm"
-				else if(sig == "advanceEm,bounds,codePoint") "GlyphMetrics"
-				else "Object";
-			case _: "Object";
+				final match = state.structTypedefs.get(KotlinDecl.structureSignature(anon));
+				if(match == null) {
+					Context.error("anonymous structure literal has no matching named typedef", Context.currentPos());
+					null;
+				} else {
+					imports.requireType(match.module, match.name);
+					match.name;
+				}
+			case _:
+				Context.error("object literal must be typed by a named typedef before translation", Context.currentPos());
+				null;
 		}
 	}
 
@@ -817,7 +828,8 @@ class KotlinExpr {
 		}
 	}
 
-	function payloadName(ef: EnumField, index: Int): String {
+	/** The declared argument name of an enum constructor's payload. */
+	public function payloadName(ef: EnumField, index: Int): String {
 		return switch(ef.type) {
 			case TFun(args, _) if(index < args.length): args[index].name;
 			case _: "v" + index;
@@ -840,10 +852,6 @@ class KotlinExpr {
 				cls.pack.join(".") == "" && cls.name == "String";
 			case _: false;
 		}
-	}
-
-	function isBoringPack(pack: Array<String>): Bool {
-		return pack.length == 1 && pack[0] == "boring";
 	}
 
 	function stripCast(e: TypedExpr): TypedExpr {

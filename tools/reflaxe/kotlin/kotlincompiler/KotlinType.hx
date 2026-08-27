@@ -7,12 +7,16 @@ import haxe.macro.Type;
 /**
 	Type mapping from the translatable Haxe subset to Kotlin, per
 	docs/specs/features/14-type-system-mapping.md and stdlib rulings.
+	Cross-package types record their imports; the payload enum of the
+	sealed error fold resolves to its exception class.
 **/
 class KotlinType {
 	final imports: KotlinImports;
+	final state: KotlinEmissionState;
 
-	public function new(imports: KotlinImports) {
+	public function new(imports: KotlinImports, state: KotlinEmissionState) {
 		this.imports = imports;
+		this.state = state;
 	}
 
 	public function of(t: Null<Type>): String {
@@ -27,7 +31,7 @@ class KotlinType {
 					case "Float": "Double";
 					case "Bool": "Boolean";
 					case "Void": "Unit";
-					case "boring.ReadOnlyArray":
+					case "std.ReadOnlyArray":
 						"List<" + of(params[0]) + ">";
 					case "haxe.Int64":
 						"Long";
@@ -40,31 +44,31 @@ class KotlinType {
 					case "Array":
 						"MutableList<" + of(params[0]) + ">";
 					case "haxe.io.Bytes": "ByteArray";
-					case "haxe.io.BytesBuffer": "BytesBuffer";
+					case "haxe.io.BytesBuffer":
+						imports.requireType(cls.module, "BytesBuffer");
+						"BytesBuffer";
 					case _:
-						if(isBoringPack(cls.pack)) {
-							cls.name;
-						} else {
-							fail(t);
-						}
+						imports.requireType(cls.module, cls.name);
+						cls.name;
 				}
 			case TType(def, params):
 				final d = def.get();
-				if(isBoringPack(d.pack)) {
-					d.name;
-				} else if(d.pack.join(".") == "haxe.io" && d.name == "Bytes") {
+				if(d.pack.join(".") == "haxe.io" && d.name == "Bytes") {
 					"ByteArray";
 				} else if(params.length == 0) {
-					of(d.type);
+					imports.requireType(d.module, d.name);
+					d.name;
 				} else {
 					fail(t);
 				}
 			case TEnum(e, _):
 				final en = e.get();
-				if(isBoringPack(en.pack)) {
-					if(en.name == "VectorError") "VectorException" else en.name;
+				final owner = state.payloadEnumOwners.get(en.module);
+				if(owner != null) {
+					owner;
 				} else {
-					fail(t);
+					imports.requireType(en.module, en.name);
+					en.name;
 				}
 			case TFun(args, ret):
 				"(" + [for(arg in args) of(arg.t)].join(", ") + ") -> " + of(ret);
@@ -77,17 +81,8 @@ class KotlinType {
 		}
 	}
 
-	public function moduleBase(module: String): String {
-		final parts = module.split(".");
-		return parts[parts.length - 1];
-	}
-
 	function pathOf(pack: Array<String>, name: String): String {
 		return pack.length == 0 ? name : pack.join(".") + "." + name;
-	}
-
-	function isBoringPack(pack: Array<String>): Bool {
-		return pack.length == 1 && pack[0] == "boring";
 	}
 
 	function fail(t: Type): String {

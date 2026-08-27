@@ -74,15 +74,22 @@ class Intercept {
 	/**
 	 * Files permitted to reference haxe.Int64 (V11): the FPHelper float
 	 * conversion paths that docs/specs/stdlib/05-haxe-int64.md sanctions.
+	 * The list is supplied by the registering compile; this file carries
+	 * no sample paths.
 	 */
-	static final INT64_MODULE_ALLOWLIST:Array<String> = [
-		"haxe/src/boring/BinaryReader.hx",
-		"haxe/src/boring/BinaryWriter.hx",
-	];
+	static var int64ModuleAllowlist:Array<String> = [];
 
-	public static function run(rootPrefixes:Array<String>):Void {
+	/** The source roots this run guards; targets scope compilation to them. */
+	public static function sourceRoots():Array<String> {
+		return roots.copy();
+	}
+
+	public static function run(rootPrefixes:Array<String>, int64Allowlist:Array<String>):Void {
 		for (index in 0...rootPrefixes.length) {
 			roots.push(rootPrefixes[index]);
+		}
+		for (index in 0...int64Allowlist.length) {
+			int64ModuleAllowlist.push(int64Allowlist[index]);
 		}
 		Compiler.addGlobalMetadata("", "@:build(Intercept.buildFields())", true, true);
 		Context.onAfterTyping(walkModules);
@@ -507,8 +514,8 @@ class Intercept {
 	}
 
 	static function int64Allowed(file:String):Bool {
-		for (index in 0...INT64_MODULE_ALLOWLIST.length) {
-			if (StringTools.startsWith(file, INT64_MODULE_ALLOWLIST[index])) {
+		for (index in 0...int64ModuleAllowlist.length) {
+			if (StringTools.startsWith(file, int64ModuleAllowlist[index])) {
 				return true;
 			}
 		}

@@ -562,7 +562,7 @@ class TsExpr {
 		}
 	}
 
-	/** `arr[idx] = value` probe, wrapper-tolerant. */
+	/** `arr[idx] = value` matcher, wrapper-tolerant. */
 	function indexedStoreOf(s: TypedExpr): Null<{arr: TVar, idx: TVar, value: TypedExpr}> {
 		switch(stripWrap(s).expr) {
 			case TBinop(OpAssign, target, value):
@@ -581,7 +581,7 @@ class TsExpr {
 		return null;
 	}
 
-	/** `arr.push(arg)` probe, wrapper-tolerant. */
+	/** `arr.push(arg)` matcher, wrapper-tolerant. */
 	function pushOf(s: TypedExpr): Null<{arr: TVar, arg: TypedExpr}> {
 		switch(stripWrap(s).expr) {
 			case TCall(fn, args) if(args.length == 1):
@@ -733,12 +733,8 @@ class TsExpr {
 				imports.runtime(name);
 				return name;
 			case _:
-				if(isBoringPack(cls.pack)) {
-					imports.value(types.moduleBase(cls.module), cls.name);
-					return cls.name + "." + name;
-				}
-				Context.error("static has no TypeScript lowering: " + path + "." + name, Context.currentPos());
-				return null;
+				imports.value(cls.module, cls.name);
+				return cls.name + "." + name;
 		}
 	}
 
@@ -749,18 +745,14 @@ class TsExpr {
 				if(cls.pack.length == 0 && cls.name == "String") {
 					return "String";
 				}
-				if(isBoringPack(cls.pack)) {
-					imports.value(types.moduleBase(cls.module), cls.name);
-					return cls.name;
-				}
+				imports.value(cls.module, cls.name);
+				return cls.name;
 				Context.error("type expression has no value lowering: " + cls.name, Context.currentPos());
 				return null;
 			case TEnumDecl(e):
 				final en = e.get();
-				if(isBoringPack(en.pack)) {
-					imports.value(types.moduleBase(en.module), en.name);
-					return en.name;
-				}
+				imports.value(en.module, en.name);
+				return en.name;
 				Context.error("enum type expression has no value lowering: " + en.name, Context.currentPos());
 				return null;
 			case _:
@@ -848,12 +840,8 @@ class TsExpr {
 			case "Array":
 				return "new Array<" + types.of(params[0]) + ">(" + rendered + ")";
 			case _:
-				if(isBoringPack(cls.pack)) {
-					imports.value(types.moduleBase(cls.module), cls.name);
-					return "new " + cls.name + "(" + rendered + ")";
-				}
-				Context.error("constructor has no TypeScript lowering: " + path, Context.currentPos());
-				return null;
+				imports.value(cls.module, cls.name);
+				return "new " + cls.name + "(" + rendered + ")";
 		}
 	}
 
@@ -1178,9 +1166,6 @@ class TsExpr {
 		}
 	}
 
-	function isBoringPack(pack: Array<String>): Bool {
-		return pack.length == 1 && pack[0] == "boring";
-	}
 
 	function stripCast(e: TypedExpr): TypedExpr {
 		return switch(e.expr) {
@@ -1191,7 +1176,7 @@ class TsExpr {
 
 	/**
 		The filter stage between typing and generation wraps nodes in
-		TParenthesis, coercive TCast, and TMeta; structural probes look
+		TParenthesis, coercive TCast, and TMeta; structural matchers look
 		through all three.
 	**/
 	function stripWrap(e: TypedExpr): TypedExpr {

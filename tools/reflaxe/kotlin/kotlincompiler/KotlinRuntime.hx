@@ -3,16 +3,17 @@ package kotlincompiler;
 #if (macro || reflaxe_runtime)
 
 /**
-	Source of runtime utilities emitted alongside generated Kotlin files:
-	- BytesBuffer: growable byte buffer sink
-	- FPHelper: IEEE-754 64-bit float bit conversions
-	- Console: logging utility mirroring Haxe Console extern
-	- Process: exit utility mirroring Haxe Process extern
+	Bodies of the standard-library shims, emitted on demand into the
+	runtime package configured through RuntimeConfig. Each source is a
+	type declaration without a package line: the emitter prefixes the
+	configured package directive, so no source namespace is baked in.
+	- haxe.io.BytesBuffer: growable byte buffer sink
+	- haxe.io.FPHelper: IEEE-754 64-bit float bit conversions
+	- std.Console: logging
+	- std.Process: process exit
 **/
 class KotlinRuntime {
-	public static final BYTES_BUFFER_SOURCE = "package boring
-
-import java.util.ArrayList
+	public static final BYTES_BUFFER_SOURCE = "import java.util.ArrayList
 
 class BytesBuffer {
     private val buffer = ArrayList<Byte>()
@@ -31,9 +32,7 @@ class BytesBuffer {
 }
 ";
 
-	public static final FP_HELPER_SOURCE = "package boring
-
-class Int64Halves(val high: Int, val low: Int)
+	public static final FP_HELPER_SOURCE = "class Int64Halves(val high: Int, val low: Int)
 
 object FPHelper {
     fun doubleToI64(value: Double): Int64Halves {
@@ -52,18 +51,14 @@ object FPHelper {
 }
 ";
 
-	public static final CONSOLE_SOURCE = "package boring
-
-object Console {
+	public static final CONSOLE_SOURCE = "object Console {
     fun log(message: String) {
         println(message)
     }
 }
 ";
 
-	public static final PROCESS_SOURCE = "package boring
-
-import kotlin.system.exitProcess
+	public static final PROCESS_SOURCE = "import kotlin.system.exitProcess
 
 object Process {
     fun exit(code: Int) {

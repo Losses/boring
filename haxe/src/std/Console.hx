@@ -1,4 +1,4 @@
-package boring;
+package std;
 
 /**
  * Typed extern for the console object available when the JS output runs

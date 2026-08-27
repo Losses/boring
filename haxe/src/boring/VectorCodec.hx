@@ -1,12 +1,14 @@
 package boring;
 
+import std.ReadOnlyArray;
+
 import haxe.io.Bytes;
 
 /**
  * Shared vector format codec: 4 magic bytes, one u32 record count, then one
  * 44-byte record per glyph metric (u32 code point, five f64 values), all
  * big-endian. The TypeScript and Rust suites read and write the same bytes.
- * Encode reads through the read-only surface and decode returns it, per
+ * Encode reads through the read-only array type and decode returns it, per
  * docs/specs/features/18-immutability.md.
  */
 class VectorCodec {

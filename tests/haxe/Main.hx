@@ -2,10 +2,10 @@ package;
 
 import boring.BinaryReader;
 import boring.BinaryWriter;
-import boring.Console;
+import std.Console;
 import boring.GlyphMetrics;
-import boring.Process;
-import boring.ReadOnlyArray;
+import std.Process;
+import std.ReadOnlyArray;
 import boring.VectorCodec;
 import boring.VectorError;
 import boring.VectorException;
@@ -123,7 +123,7 @@ class Main {
 		Console.log('all ${passes} haxe checks passed');
 	}
 
-	// Sort corpus and oracle shared verbatim with tests/ts/vector-sort.test.ts
+	// Sort fixture and oracle shared verbatim with tests/ts/vector-sort.test.ts
 	// and tests/rust/vector.rs; the trees must produce identical outputs.
 	static final SORT_SHUFFLED_KEYS:Array<Int> = [
 		0x82A1, 0x78E2, 0x76EF, 0x6371, 0x4E00, 0x0020, 0x7AD5, 0x74FC, 0x694A, 0x6F23,

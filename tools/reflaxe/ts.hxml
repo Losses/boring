@@ -6,13 +6,15 @@
 -cp tools/reflaxe/ts
 -cp tools/haxe
 -cp haxe/src
---macro Intercept.run(['haxe/src'])
+--macro Intercept.run(['haxe/src'], ['haxe/src/boring/BinaryReader.hx', 'haxe/src/boring/BinaryWriter.hx'])
 --macro tscompiler.Compiler.use()
 -D ts-output=ts/gen
+-D runtime-import=@boring/runtime
+-D runtime-emit=.
 boring.BinaryReader
 boring.BinaryWriter
 boring.GlyphMetrics
-boring.ReadOnlyArray
+std.ReadOnlyArray
 boring.VectorCodec
 boring.VectorError
 boring.VectorException

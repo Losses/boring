@@ -7,6 +7,10 @@
     "erasableSyntaxOnly": true,
     "lib": ["ESNext"],
     "types": ["bun"],
+    "baseUrl": ".",
+    "paths": {
+      "@boring/runtime": ["./ts/gen/runtime.ts"]
+    },
     "strict": true,
     "noImplicitAny": true,
     "noUncheckedIndexedAccess": true,
