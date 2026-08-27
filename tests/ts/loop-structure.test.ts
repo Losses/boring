@@ -9,9 +9,12 @@ import { describe, expect, test } from "bun:test";
  *   1. No callback-driven iteration call site exists in any tree.
  *   2. No function expression, arrow function, or lambda appears inside a
  *      `for` or `while` body (matched per language through its lambda token).
- *   3. Every `for (` head under ts/src binds an index counter: the head
- *      contains no ` of `, no ` in `, and no property access, so the bound is
- *      a local and never a per-iteration `.length` read.
+ *   3. Every `for (` head under the TypeScript trees binds an index counter:
+ *      the head contains no ` of ` and no ` in `, and its condition section
+ *      carries no property access, so the bound evaluates per iteration as a
+ *      local. The init section may declare the hoisted bound next to the
+ *      counter (`let i = 0, count = xs.length`), which reads the property
+ *      once; that is the hoist, not a per-iteration read.
  */
 
 interface SourceTree {
@@ -28,6 +31,13 @@ const SOURCE_TREES: readonly SourceTree[] = [
   {
     label: "ts/src",
     directory: import.meta.dir + "/../../ts/src",
+    pattern: "**/*.ts",
+    lambdaTokens: ["=>"],
+    checkForHeads: true,
+  },
+  {
+    label: "ts/gen",
+    directory: import.meta.dir + "/../../ts/gen",
     pattern: "**/*.ts",
     lambdaTokens: ["=>"],
     checkForHeads: true,
@@ -208,6 +218,16 @@ function loopBodies(text: string): LoopBody[] {
   return bodies;
 }
 
+/**
+ * Returns the condition (middle) section of a classic `for` head. The init
+ * section may declare a hoisted bound, so property reads there are legal;
+ * the condition is what evaluates every iteration.
+ */
+function conditionSection(head: string): string {
+  const sections = head.split(";");
+  return sections.length === 3 ? sections[1]! : head;
+}
+
 /** Returns the text between the parentheses of a `for (` head. */
 function forHeadText(text: string, headStart: number): string | undefined {
   const open = text.indexOf("(", headStart);
@@ -268,12 +288,12 @@ async function scanTree(tree: SourceTree): Promise<LoopHit[]> {
             line,
             detail: `head iterates instead of indexing: for (${head.trim()})`,
           });
-        } else if (head.includes(".")) {
+        } else if (conditionSection(head).includes(".")) {
           hits.push({
             kind: "for-head",
             file: path,
             line,
-            detail: `head reads a property; hoist the bound: for (${head.trim()})`,
+            detail: `condition reads a property; hoist the bound: for (${head.trim()})`,
           });
         }
       }
