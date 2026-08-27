@@ -3,6 +3,7 @@ import js.Syntax;
 
 typedef TestRecord = {
 	id: String,
+	?name: String,
 	verdict: String,
 	?message: String
 };
@@ -165,7 +166,14 @@ class Main {
 					} else if(baseRec != null && rec != null) {
 						if(baseRec.verdict != rec.verdict) {
 							divergences.push('[$target] Verdict mismatch on $id: baseline=${baseRec.verdict}, actual=${rec.verdict}');
-						} else if(baseRec.verdict == "fail") {
+						} else {
+							final baseName = baseRec.name != null ? baseRec.name : "";
+							final recName = rec.name != null ? rec.name : "";
+							if(baseName != recName) {
+								divergences.push('[$target] Runner name mismatch on $id:\n  baseline: $baseName\n  actual:   $recName');
+							}
+						}
+						if(baseRec.verdict == rec.verdict && baseRec.verdict == "fail") {
 							final baseMsg = baseRec.message != null ? baseRec.message : "";
 							final recMsg = rec.message != null ? rec.message : "";
 							if(baseMsg != recMsg) {

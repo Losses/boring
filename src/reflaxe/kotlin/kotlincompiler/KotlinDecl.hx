@@ -429,6 +429,16 @@ class KotlinDecl {
 
 	public function testFuncDecl(cls: ClassType, f: ClassFuncData): Array<String> {
 		final id = cls.module + "." + f.field.name;
+		var desc: Null<String> = null;
+		for(entry in f.field.meta.extract(":test")) {
+			if(entry.params != null && entry.params.length > 0) {
+				switch(entry.params[0].expr) {
+					case EConst(CString(s)): desc = s;
+					case _:
+				}
+			}
+		}
+		final runnerName = desc != null ? id + ": " + desc : id;
 		final runtimePackage = RuntimeConfig.requireImportName("test module " + cls.module);
 		imports.require(runtimePackage + ".Test");
 		final body = expr.functionBody(f);
@@ -436,11 +446,26 @@ class KotlinDecl {
 		return [
 			"    @kotlin.test.Test",
 			'    fun ${f.field.name}() {',
-			'        Test.run("${id}") {',
+			'        Test.run("${escapeKotlinString(id)}", "${escapeKotlinString(runnerName)}") {',
 		].concat(indented).concat([
 			"        }",
 			"    }"
 		]);
+	}
+
+	static function escapeKotlinString(s: String): String {
+		final out = new StringBuf();
+		for(i in 0...s.length) {
+			final c = s.charAt(i);
+			if(c == '"') out.add('\\"');
+			else if(c == "\\") out.add("\\\\");
+			else if(c == "\n") out.add("\\n");
+			else if(c == "\r") out.add("\\r");
+			else if(c == "\t") out.add("\\t");
+			else if(c == "$") out.add("\\$");
+			else out.add(c);
+		}
+		return out.toString();
 	}
 
 	// ------------------------------------------------------------------
