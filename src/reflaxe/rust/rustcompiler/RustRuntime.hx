@@ -758,5 +758,197 @@ pub fn from_code_points(codes: &mut Vec<u32>) -> String {
     out
 }
 ';
+
+	/**
+		Runtime module behind std.Graphemes
+		(docs/specs/stdlib/11-grapheme-clusters.md). Rust String storage is
+		UTF-8, so the walk iterates chars directly; the break decisions and
+		the generated table are shared with the other targets. The walk
+		state packs the GB11 link stage (bits 0-1), the GB9c link stage
+		(bits 2-3), and the regional-indicator parity (bit 4).
+	**/
+	public static final GRAPHEMES_SOURCE = '
+fn lookup(code: u32) -> u32 {
+    let mut lo: i32 = 0;
+    let mut hi: i32 = (GRAPHEME_TABLE.len() as i32 / 3) - 1;
+    while lo <= hi {
+        let mid = (lo + hi) >> 1;
+        let base = (mid * 3) as usize;
+        if code < GRAPHEME_TABLE[base] {
+            hi = mid - 1;
+        } else if code > GRAPHEME_TABLE[base + 1] {
+            lo = mid + 1;
+        } else {
+            return GRAPHEME_TABLE[base + 2];
+        }
+    }
+    0
+}
+
+fn breaks(prev: i32, cur: u32, state: u32) -> bool {
+    let pc = (prev as u32) & 15;
+    let cc = cur & 15;
+    if pc == 1 && cc == 2 {
+        return false; // GB3 CR x LF
+    }
+    if pc == 1 || pc == 2 || pc == 3 {
+        return true; // GB4
+    }
+    if cc == 1 || cc == 2 || cc == 3 {
+        return true; // GB5
+    }
+    if pc == 9 && (cc == 9 || cc == 10 || cc == 12 || cc == 13) {
+        return false; // GB6
+    }
+    if (pc == 10 || pc == 12) && (cc == 10 || cc == 11) {
+        return false; // GB7
+    }
+    if (pc == 11 || pc == 13) && cc == 11 {
+        return false; // GB8
+    }
+    if cc == 4 || cc == 5 {
+        return false; // GB9
+    }
+    if cc == 8 {
+        return false; // GB9a
+    }
+    if pc == 7 {
+        return false; // GB9b
+    }
+    if (cur & 32) != 0 && ((state >> 2) & 3) == 2 {
+        return false; // GB9c
+    }
+    if (cur & 16) != 0 && (state & 3) == 2 {
+        return false; // GB11
+    }
+    if cc == 6 && (state & 16) != 0 {
+        return false; // GB12/13
+    }
+    true // GB999
+}
+
+fn advance(cur: u32, state: u32) -> u32 {
+    let cc = cur & 15;
+    let mut pict = state & 3;
+    let mut incb = (state >> 2) & 3;
+    let mut ri_odd = (state & 16) != 0;
+    if (cur & 16) != 0 {
+        pict = 1;
+    } else if cc == 5 {
+        pict = if pict == 1 { 2 } else { 0 };
+    } else if cc == 4 {
+        if pict != 1 {
+            pict = 0;
+        }
+    } else {
+        pict = 0;
+    }
+    let incb_value = cur & 96;
+    if incb_value == 32 {
+        incb = 1;
+    } else if incb_value == 64 {
+        incb = if incb >= 1 { 2 } else { 0 };
+    } else if incb_value == 96 {
+        // Extend keeps the consonant context alive.
+    } else {
+        incb = 0;
+    }
+    ri_odd = if cc == 6 { !ri_odd } else { false };
+    (if ri_odd { 16 } else { 0 }) | (incb << 2) | pict
+}
+
+pub fn count(s: &str) -> u32 {
+    let mut total: u32 = 0;
+    let mut prev: i32 = -1;
+    let mut state: u32 = 0;
+    for c in s.chars() {
+        let packed = lookup(c as u32);
+        if prev < 0 || breaks(prev, packed, state) {
+            total += 1;
+        }
+        state = advance(packed, state);
+        prev = packed as i32;
+    }
+    total
+}
+
+pub fn at(s: &str, index: u32) -> Option<String> {
+    if index == u32::MAX {
+        return None;
+    }
+    let mut ordinal: u32 = 0;
+    let mut prev: i32 = -1;
+    let mut state: u32 = 0;
+    let mut cluster_start: usize = 0;
+    for (b, c) in s.char_indices() {
+        let packed = lookup(c as u32);
+        if prev < 0 || breaks(prev, packed, state) {
+            if ordinal == index + 1 {
+                return Some(s[cluster_start..b].to_string());
+            }
+            ordinal += 1;
+            cluster_start = b;
+        }
+        state = advance(packed, state);
+        prev = packed as i32;
+    }
+    if ordinal == index + 1 {
+        return Some(s[cluster_start..].to_string());
+    }
+    None
+}
+
+pub fn slice(s: &str, from: i32, to: i32) -> String {
+    let total = count(s) as i32;
+    let start = if from < 0 { 0 } else if from > total { total } else { from };
+    let end = if to > total { total } else if to < 0 { 0 } else { to };
+    if start >= end {
+        return String::new();
+    }
+    let mut out = String::new();
+    let mut ordinal: i32 = 0;
+    let mut prev: i32 = -1;
+    let mut state: u32 = 0;
+    let mut cluster_start: usize = 0;
+    for (b, c) in s.char_indices() {
+        let packed = lookup(c as u32);
+        if prev < 0 || breaks(prev, packed, state) {
+            if ordinal - 1 >= start && ordinal - 1 < end {
+                out.push_str(&s[cluster_start..b]);
+            }
+            ordinal += 1;
+            cluster_start = b;
+        }
+        state = advance(packed, state);
+        prev = packed as i32;
+    }
+    if ordinal - 1 >= start && ordinal - 1 < end {
+        out.push_str(&s[cluster_start..]);
+    }
+    out
+}
+
+pub fn parts(s: &str) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    let mut prev: i32 = -1;
+    let mut state: u32 = 0;
+    let mut cluster_start: usize = 0;
+    for (b, c) in s.char_indices() {
+        let packed = lookup(c as u32);
+        if prev < 0 || breaks(prev, packed, state) {
+            if prev >= 0 {
+                out.push(s[cluster_start..b].to_string());
+            }
+            cluster_start = b;
+        }
+        state = advance(packed, state);
+        prev = packed as i32;
+    }
+    if cluster_start < s.len() {
+        out.push(s[cluster_start..].to_string());
+    }
+    out
+}
+';
 }
 #end

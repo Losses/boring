@@ -719,6 +719,11 @@ class KotlinExpr {
 				state.shimsUsed.set("std.UStringRT", true);
 				imports.require(runtimePackage + ".UString");
 				return "UString." + name;
+			case "std.Graphemes":
+				final graphemesPackage = RuntimeConfig.requireImportName("module std.Graphemes");
+				state.shimsUsed.set("std.Graphemes", true);
+				imports.require(graphemesPackage + ".Graphemes");
+				return "Graphemes." + name;
 			case _:
 				if(cls.module == "std.Test") {
 					final runtimePackage = RuntimeConfig.requireImportName("module std.Test");
@@ -739,6 +744,12 @@ class KotlinExpr {
 					state.shimsUsed.set("std.UStringRT", true);
 					imports.require(runtimePackage + ".UString");
 					return "UString." + name;
+				}
+				if(cls.module == "std.Graphemes") {
+					final graphemesPackage = RuntimeConfig.requireImportName("module std.Graphemes");
+					state.shimsUsed.set("std.Graphemes", true);
+					imports.require(graphemesPackage + ".Graphemes");
+					return "Graphemes." + name;
 				}
 				imports.requireType(cls.module, cls.name);
 				return cls.name + "." + name;

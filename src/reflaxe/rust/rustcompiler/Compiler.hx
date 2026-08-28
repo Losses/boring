@@ -210,6 +210,7 @@ class Compiler extends PluginCompiler<Compiler> {
 		emitShim("std.Process", "process.rs", RustRuntime.PROCESS_SOURCE);
 		emitShim("std.Test", "test.rs", RustRuntime.TEST_SOURCE);
 		emitShim("std.UStringRT", "ustring.rs", RustRuntime.USTRING_SOURCE);
+		emitShim("std.Graphemes", "graphemes.rs", reflaxe.unicode.GraphemeTableRender.rust(reflaxe.unicode.GraphemeBreakData.TABLE) + RustRuntime.GRAPHEMES_SOURCE);
 		if(state.shimsUsed.exists("std.SortedSet") || state.shimsUsed.exists("std.SortedSetBuilder")) {
 			state.shimsUsed.set("std.SortedSet", true);
 			state.shimsUsed.set("std.SortedMap", true);
@@ -229,13 +230,16 @@ class Compiler extends PluginCompiler<Compiler> {
 			if(state.shimsUsed.exists("std.Process")) runtimeMods.push("process");
 			if(state.shimsUsed.exists("std.Test")) runtimeMods.push("test");
 			if(state.shimsUsed.exists("std.UStringRT")) runtimeMods.push("ustring");
+			if(state.shimsUsed.exists("std.Graphemes")) runtimeMods.push("graphemes");
 			if(state.shimsUsed.exists("std.SortedMap") || state.shimsUsed.exists("std.SortedMapBuilder")) runtimeMods.push("sorted_map");
 			if(state.shimsUsed.exists("std.SortedSet") || state.shimsUsed.exists("std.SortedSetBuilder")) runtimeMods.push("sorted_set");
 			runtimeMods.sort(Reflect.compare);
 			final rtLines = [];
 			for(m in runtimeMods) rtLines.push("pub mod " + m + ";");
-			rtLines.push("");
-			for(m in runtimeMods) rtLines.push("pub use " + m + "::*;");
+			// No glob re-exports: generated code references every runtime
+			// declaration by its qualified path, and re-exporting two
+			// modules that share a function name (ustring and graphemes
+			// both define count, at, slice) is an ambiguous re-export.
 			output.saveFile(RuntimeConfig.emitPath(emitDir, "mod.rs"), rtLines.join("\n") + "\n");
 		}
 

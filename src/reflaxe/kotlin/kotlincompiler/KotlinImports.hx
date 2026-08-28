@@ -22,6 +22,7 @@ class KotlinImports {
 		"std.SortedSet" => true,
 		"std.SortedSetBuilder" => true,
 		"std.UStringRT" => true,
+		"std.Graphemes" => true,
 	];
 
 	final selfPack: String;

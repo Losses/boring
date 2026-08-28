@@ -192,7 +192,10 @@ class Compiler extends PluginCompiler<Compiler> {
 		}
 		final emitDir = RuntimeConfig.emitDir();
 		if(emitDir != null && anyRuntimeUsed()) {
-			output.saveFile(RuntimeConfig.emitPath(emitDir, "runtime.ts"), StringTools.trim(TsRuntime.SOURCE) + "\n");
+			// The grapheme table is generated data; it follows the runtime
+			// source so runtime.ts stays one self-contained file.
+			final graphemeTable = reflaxe.unicode.GraphemeTableRender.ts(reflaxe.unicode.GraphemeBreakData.TABLE);
+			output.saveFile(RuntimeConfig.emitPath(emitDir, "runtime.ts"), StringTools.trim(TsRuntime.SOURCE) + "\n" + graphemeTable);
 		}
 	}
 
