@@ -55,6 +55,7 @@ export const noFunctionalIteration: BoringRule<
   },
   create(context) {
     const inSortRuntime = (context.filename ?? "").endsWith(SORT_RUNTIME_SUFFIX);
+    const inGenerated = (context.filename ?? "").includes("reference/ts/gen/");
     function check(node: TSESTree.CallExpression): void {
       const callee = node.callee;
       if (callee.type !== "MemberExpression") {
@@ -67,8 +68,9 @@ export const noFunctionalIteration: BoringRule<
       const name = property.name;
       // A comparator argument is the closure form; the bare `sort()` call
       // delegates to the platform default and stays outside this rule.
+      // Generated tree is sanctioned for sortedBy per features/17 rule 6.
       const comparatorSort = name === "sort" && node.arguments.length > 0;
-      if (comparatorSort && inSortRuntime) {
+      if (comparatorSort && (inSortRuntime || inGenerated)) {
         return;
       }
       if (comparatorSort || BANNED_METHODS.includes(name)) {
