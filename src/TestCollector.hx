@@ -350,6 +350,7 @@ class TestMain {
             }
         };
         js.Syntax.code("globalThis.__test_shim = {0}", testObj);
+        js.Syntax.code("globalThis.FunctionalOracle = {0}", FunctionalOracle);
         js.Syntax.code("
             function jsCompare(a, b) {
                 if (a === b) return 0;
@@ -495,54 +496,12 @@ class TestMain {
                     }
                     return result;
                 }
-                static any(arr, fn) {
-                    for (let i = 0; i < arr.length; i++) {
-                        if (fn(arr[i])) return true;
-                    }
-                    return false;
-                }
-                static all(arr, fn) {
-                    for (let i = 0; i < arr.length; i++) {
-                        if (!fn(arr[i])) return false;
-                    }
-                    return true;
-                }
-                static firstOrNull(arr, fn) {
-                    for (let i = 0; i < arr.length; i++) {
-                        if (fn(arr[i])) return arr[i];
-                    }
-                    return null;
-                }
-                static sumOfInt(arr, fn) {
-                    let sum = 0;
-                    for (let i = 0; i < arr.length; i++) {
-                        sum += fn(arr[i]);
-                    }
-                    return sum;
-                }
-                static sumOfFloat(arr, fn) {
-                    let sum = 0.0;
-                    for (let i = 0; i < arr.length; i++) {
-                        sum += fn(arr[i]);
-                    }
-                    return sum;
-                }
                 static mapNotNull(arr, fn) {
                     let result = [];
                     for (let i = 0; i < arr.length; i++) {
                         let v = fn(arr[i]);
                         if (v !== null && v !== undefined) {
                             result.push(v);
-                        }
-                    }
-                    return result;
-                }
-                static flatMap(arr, fn) {
-                    let result = [];
-                    for (let i = 0; i < arr.length; i++) {
-                        let inner = fn(arr[i]);
-                        for (let j = 0; j < inner.length; j++) {
-                            result.push(inner[j]);
                         }
                     }
                     return result;
@@ -562,6 +521,15 @@ class TestMain {
                 }
             }
             globalThis.__functional_shim = JsFunctional;
+            const oracle = globalThis.FunctionalOracle;
+            if (oracle) {
+                JsFunctional.any = oracle.any;
+                JsFunctional.all = oracle.all;
+                JsFunctional.firstOrNull = oracle.firstOrNull;
+                JsFunctional.sumOfInt = oracle.sumOfInt;
+                JsFunctional.sumOfFloat = oracle.sumOfFloat;
+                JsFunctional.flatMap = oracle.flatMap;
+            }
             globalThis.std = globalThis.std || {};
             globalThis.std.Functional = JsFunctional;
             globalThis.std.SortedMap = JsSortedMap;
@@ -577,6 +545,33 @@ class TestMain {
         if (failures > 0) {
             std.Process.exit(1);
         }
+    }
+}
+
+@:expose("FunctionalOracle")
+class FunctionalOracle {
+    public static function any<T>(arr:Array<T>, fn:(item:T) -> Bool):Bool {
+        return Lambda.exists(arr, fn);
+    }
+
+    public static function all<T>(arr:Array<T>, fn:(item:T) -> Bool):Bool {
+        return Lambda.foreach(arr, fn);
+    }
+
+    public static function firstOrNull<T>(arr:Array<T>, fn:(item:T) -> Bool):Null<T> {
+        return Lambda.find(arr, fn);
+    }
+
+    public static function sumOfInt<T>(arr:Array<T>, fn:(item:T) -> Int):Int {
+        return Lambda.fold(arr, function(item:T, acc:Int):Int return acc + fn(item), 0);
+    }
+
+    public static function sumOfFloat<T>(arr:Array<T>, fn:(item:T) -> Float):Float {
+        return Lambda.fold(arr, function(item:T, acc:Float):Float return acc + fn(item), 0.0);
+    }
+
+    public static function flatMap<T, R>(arr:Array<T>, fn:(item:T) -> Iterable<Dynamic>):Dynamic {
+        return Lambda.flatMap(arr, fn);
     }
 }
 ';
