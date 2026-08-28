@@ -216,8 +216,17 @@ class Compiler extends PluginCompiler<Compiler> {
 			if(anyRuntimeTestUsed()) {
 				// The test entry holds the host-file-system writer; the
 				// general entry stays free of node imports so a browser
-				// can load it (docs/plans/2026-08-28).
-				output.saveFile(RuntimeConfig.emitPath(emitDir, "runtime/test.ts"), StringTools.trim(TsRuntime.TEST_SOURCE) + "\n");
+				// can load it (docs/plans/2026-08-28). Test residents
+				// compile through the normal pipeline and append here,
+				// the same self-contained shape as the general entry.
+				final testResidentParts: Array<String> = [];
+				for(resident in RuntimeResidents.TEST_MODULES) {
+					final moduleParts = parts.get(resident);
+					if(moduleParts != null && moduleParts.length > 0) {
+						testResidentParts.push(moduleParts.join("\n\n"));
+					}
+				}
+				output.saveFile(RuntimeConfig.emitPath(emitDir, "runtime/test.ts"), StringTools.trim(TsRuntime.TEST_SOURCE) + "\n" + testResidentParts.join("\n\n") + "\n");
 			}
 		}
 	}

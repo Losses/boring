@@ -659,14 +659,21 @@ export class SortedSetByKey<K> {
 		the host file system; the general entry above stays free of node
 		imports so a browser can load it (docs/plans/2026-08-28).
 	**/
-	public static final TEST_SOURCE = '
-import * as fs from "node:fs";
+	public static final TEST_SOURCE = 'import * as fs from "node:fs";
 import * as path from "node:path";
 
 export type TestBody = () => void;
 
 export class Test {
   private static currentTestId: string | null = null;
+
+  // Host edges of the test entry (P6): the runner state, the raise of
+  // this language, the reflection-based formatting of aggregates, and
+  // the result-file edge. Assertion checks and scalar formatting live
+  // in TestCore, appended after this class in this same file.
+  static currentTestIdState(): string {
+    return Test.currentTestId ?? "";
+  }
 
   static run(id: string, name: string, body: TestBody): void {
     Test.currentTestId = id;
@@ -683,17 +690,14 @@ export class Test {
   }
 
   static ok(condition: boolean, message?: string | null): void {
-    if (!condition) {
-      const canonical = Test.formatCanonicalMessage(Test.currentTestId ?? "", message, null, null, false);
-      throw new Error(canonical);
-    }
+    TestCore.ok(condition, message ?? "");
   }
 
   static equals<T>(expected: T, actual: T, message?: string | null): void {
     if (!Test.deepEquals(expected, actual)) {
-      const canonical = Test.formatCanonicalMessage(
-        Test.currentTestId ?? "",
-        message,
+      const canonical = TestCore.formatCanonicalMessage(
+        Test.currentTestIdState(),
+        message ?? "",
         Test.formatValue(expected),
         Test.formatValue(actual),
         true
@@ -703,68 +707,18 @@ export class Test {
   }
 
   static fail(message: string): void {
-    const canonical = Test.formatCanonicalMessage(Test.currentTestId ?? "", message, null, null, false);
-    throw new Error(canonical);
-  }
-
-  private static escapeJson(s: string): string {
-    let out = "";
-    for (let i = 0, len = s.length; i < len; i += 1) {
-      const c = s.charAt(i);
-      const code = s.charCodeAt(i);
-      if (code === 0x22) out += String.fromCharCode(92, 34);
-      else if (code === 0x5C) out += String.fromCharCode(92, 92);
-      else if (code === 0x0A) out += String.fromCharCode(92, 110);
-      else if (code === 0x0D) out += String.fromCharCode(92, 114);
-      else if (code === 0x09) out += String.fromCharCode(92, 116);
-      else if (code < 0x20) {
-        out += String.fromCharCode(92, 117) + code.toString(16).padStart(4, "0");
-      } else {
-        out += c;
-      }
-    }
-    return out;
-  }
-
-  private static formatCanonicalMessage(
-    id: string,
-    message: string | null | undefined,
-    expectedStr: string | null,
-    actualStr: string | null,
-    isEquals: boolean
-  ): string {
-    const lines: string[] = ["test failed: " + id];
-    if (message != null && message.length > 0) {
-      lines.push("  message: " + message);
-    }
-    if (isEquals) {
-      lines.push("  expected: " + (expectedStr ?? ""));
-      lines.push("  actual:   " + (actualStr ?? ""));
-    }
-    return lines.join(String.fromCharCode(10));
+    TestCore.fail(message);
   }
 
   private static formatValue(v: unknown): string {
     if (v === null) return "null";
-    if (typeof v === "boolean") return v ? "true" : "false";
-    if (typeof v === "number") {
-      if (Number.isNaN(v)) return "NaN";
-      if (v === Infinity) return "Infinity";
-      if (v === -Infinity) return "-Infinity";
-      if (Object.is(v, -0)) return "0";
-      return v.toString();
-    }
+    if (typeof v === "boolean") return TestCore.formatBool(v);
+    if (typeof v === "number") return TestCore.formatFloat(v);
     if (typeof v === "string") {
-      return String.fromCharCode(34) + Test.escapeJson(v) + String.fromCharCode(34);
+      return String.fromCharCode(34) + TestCore.escapeJson(v) + String.fromCharCode(34);
     }
     if (v instanceof Uint8Array) {
-      let hex = "";
-      for (let i = 0, len = v.length; i < len; i += 1) {
-        const b = v[i];
-        const s = (b !== undefined ? b : 0).toString(16);
-        hex += s.length < 2 ? "0" + s : s;
-      }
-      return hex;
+      return TestCore.formatBytes(v);
     }
     if (Array.isArray(v)) {
       let out = "[";
@@ -853,12 +807,7 @@ export class Test {
   private static recordResult(id: string, name: string, verdict: "pass" | "fail", message: string | null): void {
     const envPath = typeof process !== "undefined" && process.env ? process.env["BORING_TEST_RESULTS"] : null;
     const filePath = envPath && envPath.length > 0 ? envPath : "out/test-results/ts.jsonl";
-    let jsonLine: string;
-    if (verdict === "pass") {
-      jsonLine = \'{"id":"\' + Test.escapeJson(id) + \'","name":"\' + Test.escapeJson(name) + \'","verdict":"pass"}\' + String.fromCharCode(10);
-    } else {
-      jsonLine = \'{"id":"\' + Test.escapeJson(id) + \'","name":"\' + Test.escapeJson(name) + \'","verdict":"fail","message":"\' + Test.escapeJson(message ?? "") + \'"}\' + String.fromCharCode(10);
-    }
+    const jsonLine = TestCore.resultLine(id, name, verdict === "fail", message ?? "");
     try {
       const dir = path.dirname(filePath);
       if (!fs.existsSync(dir)) {

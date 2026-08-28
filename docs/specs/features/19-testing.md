@@ -106,12 +106,43 @@ against everything, including itself; tests that need `NaN` use `ok`).
 A failed assertion raises the runtime's test-failure error carrying
 the canonical message below. The Haxe reference raises
 `haxe.Exception`; each target's runtime raises its platform error
-(`Error`, `RuntimeException` subclass, panic). The raised type is
+(`Error`, `AssertionError`, panic). The raised type is
 target-specific; the message string is the contract.
+
+## Stage 1, the assertion runtime
+
+The assertion checks and the canonical formatting are one compiled
+module, `runtime.TestCore` (`src/runtime/TestCore.hx`), the single
+source for every target (docs/plans/2026-08-28-runtime-unification.md
+P6). Each lane compiles it into its test entry beside the handwritten
+host: appended to `runtime/test.ts` on TypeScript, emitted as
+`test/TestCore.kt` beside the host object on Kotlin, emitted as
+`runtime/test_core.rs` beside the host module on Rust, and imported by
+the generated Haxe runner. Emission gates on `std.Test` usage, so the
+host and the resident always appear together.
+
+`runtime.TestCore` takes only non-null parameters: an absent message
+arrives as the empty string, and the canonical builder omits the
+message line for the empty string exactly as it did for null.
+
+The per-target host keeps the three edges a compiled module cannot
+own: the runner state (the id of the running test), the raise of the
+host language, and the result-file write. `std.TestPlatform`
+(`samples/std/TestPlatform.hx`) names these edges:
+
+- `raise(canonical)`: raise the platform error with the canonical text.
+- `currentTestId()`: the id of the running test, empty when none runs.
+- `intToString(v)` / `floatToString(v)`: the host's plain number text.
+
+Each lane lowers these statics inline inside the compilation of
+`runtime.TestCore` only; business code that calls them stops the
+compilation with an error, because business code calls `std.Test`.
+Stage one implements them in `tests/haxe/TestPlatform.hx`, copied
+beside the generated runner and bound as `globalThis.std.TestPlatform`.
 
 ## Stage 1, canonical failure message
 
-Assertions format their messages in the runtime package, never in the
+Assertions format their messages in `runtime.TestCore`, never in the
 native assert helpers, so the string is identical across targets. The
 native runner reports the string; it does not format it.
 
@@ -153,8 +184,9 @@ Rules:
 Every target writes its outcomes to one standard file; stage 2 reads
 only these files.
 
-- **Writer**: the runtime package of the target (part of the `std.Test`
-  lowering). `Test.run` appends one line per completed test.
+- **Writer**: the test-entry host of the target (part of the `std.Test`
+  lowering). `Test.run` appends one line per completed test;
+  `runtime.TestCore.resultLine` builds the line, the host writes it.
 - **Location**: the path in the environment variable
   `BORING_TEST_RESULTS` when set; otherwise
   `out/test-results/<target>.jsonl` relative to the working directory
@@ -212,7 +244,7 @@ selected runner:
 ```ts
 // <ts-test-output>/tests/VectorCodecTests.test.ts   (ts-test-runner=bun)
 import { test } from "bun:test";
-import { Test } from "@boring/runtime";
+import { Test } from "@boring/runtime/test";
 import { VectorCodec } from "../../reference/ts/gen/boring/VectorCodec.ts";
 import { TestData } from "../../reference/ts/gen/tests/TestData.ts";
 
@@ -252,7 +284,8 @@ source-set split of the Kotlin ecosystem:
 package tests
 
 import boring.VectorCodec
-import boring.runtime.Test
+import boring.runtime.test.Test
+import tests.TestHelper
 
 class VectorCodecTests {
     @kotlin.test.Test
@@ -260,11 +293,16 @@ class VectorCodecTests {
         Test.run("tests.VectorCodecTests.roundtrip", "tests.VectorCodecTests.roundtrip: encode then decode returns the input records") {
             val records = TestData.glyphSamples()
             val decoded = VectorCodec.decode(VectorCodec.encode(records))
-            Test.equals(records, decoded, "decode(encode(records)) must equal the input")
+            TestHelper.assertEquals(records, decoded, "decode(encode(records)) must equal the input")
         }
     }
 }
 ```
+
+Scalar assertions call the host `Test` object, whose members delegate to
+`TestCore` in the same package with the null edges resolved; aggregate
+assertions call the emitted `TestHelper`, whose failures route through
+`Test.reportFailure`.
 
 ### Rust
 
@@ -275,20 +313,23 @@ Rust keeps unit tests inside the crate; no output-tree split exists:
   module; the generated `lib.rs` declares each test module under
   `#[cfg(test)]`, derived from the module list the compiler processed.
 - Each test function becomes a `#[test] fn` whose body wraps in
-  `testlib::run`; assertions call the runtime crate
-  (`crate::runtime::test::…` under the current `runtime-import`),
-  failing through `panic!` with the canonical message.
+  `testlib::run`; scalar assertions call the resident directly
+  (`crate::runtime::test_core::TestCore::…`, messages as `&str` with
+  the empty string for an absent message), aggregate assertions call
+  the emitted `test_helper`, failing through `panic!` with the
+  canonical message.
 - `cargo test` discovers and runs them natively.
 
 ```rust
 use crate::runtime::test as testlib;
+use crate::runtime::test_core;
 
 #[test]
 fn vector_codec_tests_roundtrip() {
     testlib::run("tests.VectorCodecTests.roundtrip", "tests.VectorCodecTests.roundtrip: encode then decode returns the input records", || {
-        let records = test_data_glyph_samples();
-        let decoded = VectorCodec::decode(VectorCodec::encode(&records));
-        testlib::equals(&records, &decoded, "decode(encode(records)) must equal the input");
+        let records = TestData::glyph_samples();
+        let decoded = VectorCodec::decode(&VectorCodec::encode(&records).unwrap()).unwrap();
+        assert_equals_vec_glyph_metrics(&records, &decoded, &("decode(encode(records)) must equal the input"));
     });
 }
 ```

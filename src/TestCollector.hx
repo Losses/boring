@@ -151,6 +151,7 @@ class TestCollector {
 		final runnerSource = 'package;
 
 import runtime.Graphemes;
+import runtime.TestCore;
 import runtime.UString;
 
 @:jsRequire("node:fs")
@@ -172,49 +173,11 @@ extern class NodeProcess {
 
 class TestMain {
     static var failures:Int = 0;
-    static var currentTestId:Null<String> = null;
-
-    static function escapeJson(s:String):String {
-        var buf = new StringBuf();
-        for (i in 0...s.length) {
-            var c = s.charAt(i);
-            var code = s.charCodeAt(i);
-            if (c == \'"\') buf.add(\'\\\\"\');
-            else if (c == \'\\\\\') buf.add(\'\\\\\\\\\');
-            else if (c == \'\\n\') buf.add(\'\\\\n\');
-            else if (c == \'\\r\') buf.add(\'\\\\r\');
-            else if (c == \'\\t\') buf.add(\'\\\\t\');
-            else if (code < 0x20) {
-                var hex = StringTools.hex(code, 4).toLowerCase();
-                buf.add(\'\\\\u\' + hex);
-            } else {
-                buf.add(c);
-            }
-        }
-        return buf.toString();
-    }
-
-    static function formatCanonicalMessage(id:String, message:Null<String>, expectedStr:Null<String>, actualStr:Null<String>, isEquals:Bool):String {
-        var lines:Array<String> = ["test failed: " + id];
-        if (message != null && message.length > 0) {
-            lines.push("  message: " + message);
-        }
-        if (isEquals) {
-            lines.push("  expected: " + (expectedStr != null ? expectedStr : ""));
-            lines.push("  actual:   " + (actualStr != null ? actualStr : ""));
-        }
-        return lines.join("\\n");
-    }
 
     static function recordResult(id:String, name:String, verdict:String, message:Null<String>):Void {
         var envPath = NodeProcess.env.get("BORING_TEST_RESULTS");
         var filePath = envPath != null && envPath.length > 0 ? envPath : "out/test-results/haxe.jsonl";
-        var jsonLine:String;
-        if (verdict == "pass") {
-            jsonLine = \'{"id":"\' + escapeJson(id) + \'","name":"\' + escapeJson(name) + \'","verdict":"pass"}\\n\';
-        } else {
-            jsonLine = \'{"id":"\' + escapeJson(id) + \'","name":"\' + escapeJson(name) + \'","verdict":"fail","message":"\' + escapeJson(message != null ? message : "") + \'"}\\n\';
-        }
+        var jsonLine = TestCore.resultLine(id, name, verdict == "fail", message != null ? message : "");
         var dir = Path.dirname(filePath);
         if (dir != null && dir != "" && dir != ".") {
             try {
@@ -226,20 +189,14 @@ class TestMain {
 
     static function formatValue(v:Dynamic):String {
         if (v == null) return "null";
-        if (Std.isOfType(v, Bool)) return v ? "true" : "false";
-        if (Std.isOfType(v, Int)) return "" + v;
-        if (Std.isOfType(v, Float)) {
-            if (Math.isNaN(v)) return "NaN";
-            if (v == Math.POSITIVE_INFINITY) return "Infinity";
-            if (v == Math.NEGATIVE_INFINITY) return "-Infinity";
-            if (v == 0.0 || v == -0.0) return "0";
-            return "" + v;
-        }
+        if (Std.isOfType(v, Bool)) return TestCore.formatBool(v);
+        if (Std.isOfType(v, Int)) return TestCore.formatInt(v);
+        if (Std.isOfType(v, Float)) return TestCore.formatFloat(v);
         if (Std.isOfType(v, String)) {
-            return \'"\' + escapeJson(v) + \'"\';
+            return \'"\' + TestCore.escapeJson(v) + \'"\';
         }
         if (Std.isOfType(v, haxe.io.Bytes)) {
-            return (cast v : haxe.io.Bytes).toHex();
+            return TestCore.formatBytes(cast v);
         }
         if (Std.isOfType(v, Array)) {
             var arr:Array<Dynamic> = cast v;
@@ -319,37 +276,32 @@ class TestMain {
     static function bootstrap():Void {
         var testObj = {
             run: function(id:String, name:String, body:()->Void):Void {
-                currentTestId = id;
+                TestPlatform.currentId = id;
                 try {
                     body();
-                    currentTestId = null;
+                    TestPlatform.currentId = null;
                     recordResult(id, name, "pass", null);
                 } catch (e:haxe.Exception) {
-                    currentTestId = null;
+                    TestPlatform.currentId = null;
                     recordResult(id, name, "fail", e.message);
                     throw e;
                 } catch (e:Dynamic) {
-                    currentTestId = null;
+                    TestPlatform.currentId = null;
                     var msg = Std.string(e);
                     recordResult(id, name, "fail", msg);
                     throw new haxe.Exception(msg);
                 }
             },
             ok: function(condition:Bool, message:Null<String> = null):Void {
-                if (!condition) {
-                    var canonical = formatCanonicalMessage(currentTestId != null ? currentTestId : "", message, null, null, false);
-                    throw new haxe.Exception(canonical);
-                }
+                TestCore.ok(condition, message != null ? message : "");
             },
             equals: function(expected:Dynamic, actual:Dynamic, message:Null<String> = null):Void {
                 if (!deepEquals(expected, actual)) {
-                    var canonical = formatCanonicalMessage(currentTestId != null ? currentTestId : "", message, formatValue(expected), formatValue(actual), true);
-                    throw new haxe.Exception(canonical);
+                    TestCore.reportFailure(message != null ? message : "", formatValue(expected), formatValue(actual));
                 }
             },
             fail: function(message:String):Void {
-                var canonical = formatCanonicalMessage(currentTestId != null ? currentTestId : "", message, null, null, false);
-                throw new haxe.Exception(canonical);
+                TestCore.fail(message);
             }
         };
         js.Syntax.code("globalThis.__test_shim = {0}", testObj);
@@ -358,6 +310,7 @@ class TestMain {
         js.Syntax.code("globalThis.std.UStringRT = {0};", UString);
         js.Syntax.code("globalThis.std.UStringPlatform = {0};", UStringPlatform);
         js.Syntax.code("globalThis.std.Graphemes = {0};", Graphemes);
+        js.Syntax.code("globalThis.std.TestPlatform = {0};", TestPlatform);
         js.Syntax.code("
             function jsCompare(a, b) {
                 if (a === b) return 0;
@@ -613,6 +566,9 @@ class StringBufOracle {
 		// harness in tests/haxe; stage one compiles the copy next to TestMain
 		// and binds it under globalThis.std.UStringPlatform.
 		File.saveContent(outDir + "/UStringPlatform.hx", sys.io.File.getContent(Context.resolvePath("tests/haxe/UStringPlatform.hx")));
+		// The test host edges of runtime.TestCore: stage one binds this
+		// copy as globalThis.std.TestPlatform beside TestMain.
+		File.saveContent(outDir + "/TestPlatform.hx", sys.io.File.getContent(Context.resolvePath("tests/haxe/TestPlatform.hx")));
 	}
 }
 #end
