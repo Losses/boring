@@ -457,7 +457,40 @@ class TestMain {
                     return new JsSortedSet(distinct);
                 }
             }
+            class JsFunctional {
+                static forEach(arr, fn) {
+                    for (let i = 0; i < arr.length; i++) {
+                        fn(arr[i]);
+                    }
+                }
+                static associate(arr, fn) {
+                    let builder = new JsSortedMapBuilder();
+                    for (let i = 0; i < arr.length; i++) {
+                        let entry = fn(arr[i]);
+                        builder.put(entry.key, entry.value);
+                    }
+                    return builder.build();
+                }
+                static sortedBy(arr, keyFn) {
+                    let copy = arr.slice();
+                    let indexed = [];
+                    for (let i = 0; i < copy.length; i++) {
+                        indexed.push({item: copy[i], key: keyFn(copy[i]), idx: i});
+                    }
+                    indexed.sort((a, b) => {
+                        let cmp = jsCompare(a.key, b.key);
+                        return cmp !== 0 ? cmp : a.idx - b.idx;
+                    });
+                    let result = [];
+                    for (let i = 0; i < indexed.length; i++) {
+                        result.push(indexed[i].item);
+                    }
+                    return result;
+                }
+            }
+            globalThis.__functional_shim = JsFunctional;
             globalThis.std = globalThis.std || {};
+            globalThis.std.Functional = JsFunctional;
             globalThis.std.SortedMap = JsSortedMap;
             globalThis.std.SortedMapBuilder = JsSortedMapBuilder;
             globalThis.std.SortedSet = JsSortedSet;
