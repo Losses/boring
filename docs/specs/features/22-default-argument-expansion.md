@@ -105,6 +105,20 @@ The haxe stage-1 side runs haxe's own optional-argument semantics, so the
 consistency comparison rests on the haxe standard behavior on one side and the
 completed positional calls on the other three targets.
 
+## Name resolution rules
+
+The completion pass correlates each call site with the registration entry of
+its callee. The correlation keys are exact: class methods resolve through the
+declaring class plus the method name, and local functions resolve through the
+enclosing class, the enclosing method, and the local variable name. A bare
+name serves as a fallback only when exactly one registration under that name
+exists in the whole compilation; when several registrations share a name and
+no exact key matches, the compiler stops with
+`default argument lookup is ambiguous for <kind> <name>` and completes
+nothing. Local functions with the same name in different methods therefore keep
+their own default values; the sample tree pins this with two same-named
+local functions holding distinct defaults.
+
 ## Test hooks
 
 - A new sample module declares defaulted functions at several arities, covers
