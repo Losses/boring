@@ -110,10 +110,15 @@ parsing and conformance; any change to the pinned data re-runs the full
 gate. Ordinary compilation is network-free and reads the pinned files.
 Moving to a later Unicode release runs the compilation with
 `-D fetch-unicode=<version>`, which downloads the four files of that
-release from unicode.org with `haxe.Http` into `tools/unicode-data/`
-before parsing and enforces the same conformance gate; the refresh is
-one commit that carries the four data files, the pin constant, and
-nothing else. Builds without the define never read the network.
+release from unicode.org into `tools/unicode-data/` before parsing and
+enforces the same conformance gate; the refresh is one commit that
+carries the four data files, the pin constant, and nothing else.
+Builds without the define never read the network. The download runs
+curl as a subprocess from the macro: the chunked-transfer decoder of
+`sys.Http` in Haxe 4.3.7 discards misaligned bytes when TCP
+segmentation splits a chunk header, which corrupts these files
+nondeterministically, and the conformance gate rejects the corrupt
+downloads.
 
 ## Haxe declarations and routing
 
