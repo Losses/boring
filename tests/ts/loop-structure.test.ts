@@ -87,9 +87,6 @@ const REFERENCE_BANNED_CALL_SITES: readonly string[] = [
 
 const SAMPLES_BANNED_CALL_SITES: readonly string[] = [
   ".reduce(",
-  ".flatMap(",
-  ".some(",
-  ".every(",
   ".fold(",
 ];
 

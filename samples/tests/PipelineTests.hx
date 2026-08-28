@@ -180,4 +180,154 @@ class PipelineTests {
 		Test.equals(105, transformed[1][1], "row 1 elem 1");
 		Test.equals(106, transformed[1][2], "row 1 elem 2");
 	}
+
+	@:test("any checks predicate matches with early exit and returns false for empty")
+	public static function testAny():Void {
+		var empty = new Array<Item>();
+		Test.equals(false, PipelineOps.hasHighScore(empty, 50), "empty any is false");
+
+		var items:Array<Item> = [
+			{id: 1, name: "Alice", score: 10},
+			{id: 2, name: "Bob", score: 25},
+			{id: 3, name: "Charlie", score: 40}
+		];
+		Test.equals(false, PipelineOps.hasHighScore(items, 50), "no match any is false");
+		Test.equals(true, PipelineOps.hasHighScore(items, 25), "match any is true");
+	}
+
+	@:test("all checks predicate matches all with early exit and returns true for empty")
+	public static function testAll():Void {
+		var empty = new Array<Item>();
+		Test.equals(true, PipelineOps.allAboveScore(empty, 50), "empty all is true");
+
+		var items:Array<Item> = [
+			{id: 1, name: "Alice", score: 10},
+			{id: 2, name: "Bob", score: 25},
+			{id: 3, name: "Charlie", score: 40}
+		];
+		Test.equals(false, PipelineOps.allAboveScore(items, 20), "mixed all is false");
+		Test.equals(true, PipelineOps.allAboveScore(items, 5), "all match is true");
+	}
+
+	@:test("firstOrNull finds first matching element or returns null")
+	public static function testFirstOrNull():Void {
+		var empty = new Array<Item>();
+		var emptyResult = PipelineOps.findFirstHighScore(empty, 20);
+		Test.equals(true, emptyResult == null, "empty firstOrNull is null");
+
+		var items:Array<Item> = [
+			{id: 1, name: "Alice", score: 10},
+			{id: 2, name: "Bob", score: 25},
+			{id: 3, name: "Charlie", score: 40}
+		];
+		var noMatch = PipelineOps.findFirstHighScore(items, 50);
+		Test.equals(true, noMatch == null, "no match firstOrNull is null");
+
+		var matchedItem = PipelineOps.findFirstHighScore(items, 20);
+		Test.equals(true, matchedItem != null, "match is not null");
+		if (matchedItem != null) {
+			Test.equals(2, matchedItem.id, "first matched item id");
+			Test.equals("Bob", matchedItem.name, "first matched item name");
+		}
+	}
+
+	@:test("sumOfInt sums integer selector values and returns 0 for empty")
+	public static function testSumOfInt():Void {
+		var empty = new Array<Item>();
+		Test.equals(0, PipelineOps.totalScore(empty), "empty sumOfInt is 0");
+
+		var items:Array<Item> = [
+			{id: 1, name: "Alice", score: 10},
+			{id: 2, name: "Bob", score: 25},
+			{id: 3, name: "Charlie", score: 40}
+		];
+		Test.equals(75, PipelineOps.totalScore(items), "sumOfInt total");
+	}
+
+	@:test("sumOfFloat sums float selector values and returns 0.0 for empty")
+	public static function testSumOfFloat():Void {
+		var empty = new Array<Item>();
+		Test.equals(0.0, PipelineOps.totalWeightedScore(empty, 1.5), "empty sumOfFloat is 0.0");
+
+		var items:Array<Item> = [
+			{id: 1, name: "Alice", score: 10},
+			{id: 2, name: "Bob", score: 20}
+		];
+		Test.equals(45.0, PipelineOps.totalWeightedScore(items, 1.5), "sumOfFloat total");
+	}
+
+	@:test("mapNotNull filters out null selector results")
+	public static function testMapNotNull():Void {
+		var empty = new Array<Item>();
+		var emptyMapped = PipelineOps.extractValidNames(empty, 20);
+		Test.equals(0, emptyMapped.length, "empty mapNotNull length");
+
+		var items:Array<Item> = [
+			{id: 1, name: "Alice", score: 10},
+			{id: 2, name: "Bob", score: 25},
+			{id: 3, name: "Charlie", score: 15},
+			{id: 4, name: "Diana", score: 30}
+		];
+		var mapped = PipelineOps.extractValidNames(items, 20);
+		Test.equals(2, mapped.length, "mapNotNull length");
+		Test.equals("Bob", mapped[0], "mapNotNull item 0");
+		Test.equals("Diana", mapped[1], "mapNotNull item 1");
+	}
+
+	@:test("flatMap flattens selector array results")
+	public static function testFlatMap():Void {
+		var empty = new Array<Item>();
+		var emptyResult = PipelineOps.duplicateScores(empty);
+		Test.equals(0, emptyResult.length, "empty flatMap length");
+
+		var items:Array<Item> = [
+			{id: 1, name: "Zero", score: 0},
+			{id: 2, name: "Alice", score: 10},
+			{id: 3, name: "Bob", score: 20}
+		];
+		var result = PipelineOps.duplicateScores(items);
+		Test.equals(4, result.length, "flatMap length");
+		Test.equals(10, result[0], "flatMap 0");
+		Test.equals(20, result[1], "flatMap 1");
+		Test.equals(20, result[2], "flatMap 2");
+		Test.equals(40, result[3], "flatMap 3");
+	}
+
+	@:test("groupBy groups elements into SortedMap with ascending keys and receiver order in buckets")
+	public static function testGroupBy():Void {
+		var empty = new Array<Item>();
+		var emptyGrouped = PipelineOps.groupNamesByScore(empty);
+		Test.equals(0, emptyGrouped.size(), "empty groupBy size");
+
+		var items:Array<Item> = [
+			{id: 1, name: "Charlie", score: 40},
+			{id: 2, name: "Ten", score: 10},
+			{id: 3, name: "Bob", score: 25},
+			{id: 4, name: "Second25", score: 25}
+		];
+		var grouped = PipelineOps.groupNamesByScore(items);
+		Test.equals(3, grouped.size(), "groupBy size");
+
+		Test.equals(10, grouped.keyAt(0), "key 0 ascending");
+		Test.equals(25, grouped.keyAt(1), "key 1 ascending");
+		Test.equals(40, grouped.keyAt(2), "key 2 ascending");
+
+		var bucket10 = grouped.valueAt(0);
+		Test.equals(1, bucket10.length, "bucket 10 size");
+		Test.equals("Ten", bucket10[0], "bucket 10 item 0");
+
+		var bucket25 = grouped.valueAt(1);
+		Test.equals(2, bucket25.length, "bucket 25 size");
+		Test.equals("Bob", bucket25[0], "bucket 25 item 0 (receiver order)");
+		Test.equals("Second25", bucket25[1], "bucket 25 item 1 (receiver order)");
+
+		var bucket40 = grouped.valueAt(2);
+		Test.equals(1, bucket40.length, "bucket 40 size");
+		Test.equals("Charlie", bucket40[0], "bucket 40 item 0");
+
+		Test.equals(true, grouped.has(25), "has 25");
+		Test.equals(false, grouped.has(999), "has 999 is false");
+		Test.equals(true, grouped.get(25) != null, "lookup 25 not null");
+		Test.equals(true, grouped.get(999) == null, "lookup 999 is null");
+	}
 }
