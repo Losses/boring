@@ -36,6 +36,12 @@ instantiation in the common layer, so the targets receive the expanded
 comparisons and conditionals for the concrete type. `IntRange` holds `Int`
 fields only.
 
+Inlining a structure-backed abstract splits a local into an
+uninitialized declaration followed by a first assignment. The typed
+common layer and each target emitter fuse such a pair into one
+initialized declaration before emission, because targets reject
+declarations without initializers.
+
 ## Port notes
 
 Descending and stepped loops (`downTo`, `step`) are written as `while` loops
