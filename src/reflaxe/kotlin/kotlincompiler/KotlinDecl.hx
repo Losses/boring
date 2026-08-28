@@ -442,8 +442,13 @@ class KotlinDecl {
 					chunks.push("        " + formatted.slice(i, end).join(", "));
 					i = end;
 				}
+				// A resident table crosses into ReadOnlyArray parameters
+				// (List<T> here), so it renders as a list; business
+				// tables stay primitive arrays because business code
+				// indexes them directly and never passes them along.
+				final wrapper = imports.selfResident ? "listOf" : "intArrayOf";
 				return [
-					'    val ${field.name} = intArrayOf(\n' + chunks.join(",\n") + '\n    )'
+					'    val ${field.name} = $wrapper(\n' + chunks.join(",\n") + '\n    )'
 				];
 			}
 		}

@@ -18,10 +18,11 @@ class RustExpr {
 	// says Int. slice clamps with bounds that may be negative, so its
 	// bound parameters are signed in the Rust runtime; the compiler
 	// cannot read a Rust signature, so the signed positions are listed
-	// here and the call sites cast into them.
+	// here and the call sites cast into them. Resident runtime modules
+	// take their signed positions from the resident ABI rule at every
+	// call, so they carry no entry here.
 	static final SIGNED_SHIM_PARAMS: Map<String, Array<Int>> = [
-		"ustring.slice" => [1, 2],
-		"graphemes.slice" => [1, 2]
+		"ustring.slice" => [1, 2]
 	];
 
 	final imports: RustImports;
@@ -32,6 +33,7 @@ class RustExpr {
 	var countOverflowVariant: Null<String> = null;
 	var errorTypeName: Null<String> = null;
 	var returnUnsigned: Bool = false;
+	var returnTypeName: Null<String> = null;
 
 	final subst: Map<Int, String> = [];
 	final mutated: Map<Int, Bool> = [];
@@ -55,6 +57,17 @@ class RustExpr {
 
 	public function setReturnUnsigned(value: Bool): Void {
 		this.returnUnsigned = value;
+	}
+
+	/**
+		The rendered return type of the function whose body is being
+		lowered. String-bearing returns need it: a string literal is a
+		&str while functions own String, and a Null<String> function
+		returns Option<String>, so a plain String expression wraps in
+		Some(...) at the return boundary.
+	**/
+	public function setReturnTypeName(value: Null<String>): Void {
+		this.returnTypeName = value;
 	}
 
 	public function reserveName(name: String): Void {
@@ -147,6 +160,20 @@ class RustExpr {
 					case _: "";
 				};
 				var initStr = expr(init);
+				// A String local owns its value; a literal initializer is
+				// a &str, so the empty literal declares String::new() and
+				// any other literal converts once at the declaration. A
+				// Null<String> local additionally wraps in Some.
+				if(isStringType(v.t)) {
+					switch(stripWrap(init).expr) {
+						case TConst(TString(s)):
+							initStr = s.length == 0 ? "String::new()" : initStr + ".to_string()";
+							if(isNullType(v.t)) {
+								initStr = "Some(" + initStr + ")";
+							}
+						case _:
+					}
+				}
 				if(!isTypeCopy(v.t)) {
 					switch(stripWrap(init).expr) {
 						case TArray(_, _):
@@ -193,11 +220,25 @@ class RustExpr {
 				// expression renders usize; the return narrows once at the
 				// boundary instead of forcing every length read to carry a
 				// cast.
-				final retStr = if(returnUnsigned && isUsizeExpr(ret)) {
+				var retStr = if(returnUnsigned && isUsizeExpr(ret)) {
 					"(" + expr(ret) + ") as u32";
 				} else {
 					expr(ret);
 				};
+				// String-bearing returns adjust once at the boundary: a
+				// String function owns its value while a literal is a &str,
+				// and an Option<String> return (Null<String>) wraps a plain
+				// String expression in Some. Expressions that already carry
+				// the Null type lower to Option themselves, and TNull
+				// already renders None, so neither wraps again.
+				if(returnTypeName == "String") {
+					switch(stripWrap(ret).expr) {
+						case TConst(TString(s)): retStr = s.length == 0 ? "String::new()" : retStr + ".to_string()";
+						case _:
+					}
+				} else if(returnTypeName == "Option<String>" && isStringType(ret.t) && !isNullType(ret.t) && !isTNull(ret)) {
+					retStr = "Some(" + retStr + ")";
+				}
 				if(isFallible) {
 					return [indent(depth) + "return Ok(" + retStr + ");"];
 				}
@@ -1159,17 +1200,23 @@ class RustExpr {
 			case OpAssign:
 				final rhs = if(isNullType(l.t) && !isNullType(r.t) && !isTNull(r)) {
 					final rStr = if(!isTypeCopy(r.t)) {
-						final s = expr(r);
-						if(!StringTools.endsWith(s, ".clone()") && !StringTools.endsWith(s, ".to_vec()") && !StringTools.endsWith(s, ".to_string()")) {
-							s + ".clone()";
-						} else {
-							s;
+						switch(stripWrap(r).expr) {
+							// A literal is a &str while the Null target owns
+							// Option<String>; clone does not exist on str.
+							case TConst(TString(_)): expr(r) + ".to_string()";
+							case _:
+								final s = expr(r);
+								if(!StringTools.endsWith(s, ".clone()") && !StringTools.endsWith(s, ".to_vec()") && !StringTools.endsWith(s, ".to_string()")) {
+									s + ".clone()";
+								} else {
+									s;
+								}
 						}
 					} else {
 						expr(r);
 					};
 					"Some(" + rStr + ")";
-				} else if(types.of(l.t, true) == "String") {
+				} else if(isStringType(l.t) && !isNullType(l.t)) {
 					switch(stripWrap(r).expr) {
 						case TConst(TString(_)): expr(r) + ".to_string()";
 						default: expr(r);
@@ -1179,6 +1226,15 @@ class RustExpr {
 				};
 				return assignTarget(l) + " = " + rhs;
 			case OpAssignOp(inner):
+				// String accumulation borrows the operand: String
+				// implements AddAssign<&str>, and the += desugaring makes
+				// the right side a coercion site, so &(expr) accepts both
+				// String expressions and literals.
+				switch(inner) {
+					case OpAdd if(isStringType(l.t) && !isNullType(l.t) && isStringType(r.t) && !isNullType(r.t)):
+						return assignTarget(l) + " += &(" + expr(r) + ")";
+					case _:
+				}
 				return assignTarget(l) + " " + symbolOf(inner) + "= " + expr(r);
 			case OpAdd if(isStringType(l.t) || isStringType(r.t)):
 				final lStr = isNullType(l.t) ? expr(l) + ".as_deref().unwrap_or(\"\")" : expr(l);
@@ -1316,9 +1372,12 @@ class RustExpr {
 				imports.require("crate::runtime::ustring");
 				return "ustring::" + RustImports.toSnakeCase(name);
 			case "std.Graphemes":
+				// The extern fronts the resident runtime module
+				// runtime.Graphemes, compiled into graphemes.rs; the
+				// reference names the struct, not free functions.
 				state.shimsUsed.set("std.Graphemes", true);
-				imports.require("crate::runtime::graphemes");
-				return "graphemes::" + RustImports.toSnakeCase(name);
+				imports.requireType("runtime.Graphemes", "Graphemes");
+				return "Graphemes::" + RustImports.toSnakeCase(name);
 			case _:
 				if(cls.module == "std.Test") {
 					state.shimsUsed.set("std.Test", true);
@@ -1340,8 +1399,8 @@ class RustExpr {
 				}
 				if(cls.module == "std.Graphemes") {
 					state.shimsUsed.set("std.Graphemes", true);
-					imports.require("crate::runtime::graphemes");
-					return "graphemes::" + RustImports.toSnakeCase(name);
+					imports.requireType("runtime.Graphemes", "Graphemes");
+					return "Graphemes::" + RustImports.toSnakeCase(name);
 				}
 				for(field in cls.statics.get()) {
 					if(field.name == name && DataTableHelper.isDataTableField(field)) {
@@ -1652,13 +1711,28 @@ class RustExpr {
 				final q = isFallible ? (isStaticFallible ? "?" : "") : (isStaticFallible ? ".unwrap()" : "");
 				final shimKey = if(cls.module == "std.UStringRT") {
 					"ustring." + name;
-				} else if(cls.module == "std.Graphemes") {
-					"graphemes." + name;
 				} else {
 					null;
 				};
-				final signedPositions = shimKey != null ? SIGNED_SHIM_PARAMS.get(shimKey) : null;
-				return staticRef(cls, name) + "(" + renderCallArgs(cf.get().type, args, signedPositions) + ")" + q;
+				var signedPositions = shimKey != null ? SIGNED_SHIM_PARAMS.get(shimKey) : null;
+				final calleeResident = RuntimeResidents.isResidentAbi(cls.module);
+				final callerResident = RuntimeResidents.isResidentAbi(imports.selfModule);
+				if(calleeResident) {
+					// Resident runtime modules render haxe Int as i32
+					// (their clamping contracts carry negative values),
+					// while business expressions render u32; every Int
+					// parameter casts once at the call boundary.
+					signedPositions = intParamPositions(cf.get().type);
+				}
+				final callStr = staticRef(cls, name) + "(" + renderCallArgs(cf.get().type, args, signedPositions) + ")" + q;
+				if(calleeResident != callerResident && returnsInt(cf.get().type)) {
+					// An Int result crosses between the two conventions;
+					// containers never cross whole, only their elements
+					// through Int-typed expressions, which the argument
+					// casts above already cover.
+					return "(" + callStr + ") as " + (callerResident ? "i32" : "u32");
+				}
+				return callStr;
 			case TField(subj, FEnum(e, ef)):
 				final en = e.get();
 				imports.requireType(en.module, en.name);
@@ -2237,7 +2311,14 @@ class RustExpr {
 						case TInst(c, _) if(c.get().name == "Array"): true;
 						default: false;
 					};
-					final prefix = isArray ? "&mut " : "&";
+					// A compile-time data table is a file-level static:
+					// it borrows immutably even where the parameter
+					// accepts mutation.
+					final isTableArg = switch(stripWrap(arg).expr) {
+						case TField(_, FStatic(_, tableField)): DataTableHelper.isDataTableField(tableField.get());
+						case _: false;
+					};
+					final prefix = isArray && !isTableArg ? "&mut " : "&";
 					if(!StringTools.startsWith(argStr, "&")) {
 						argStr = prefix + argStr;
 					}
@@ -2429,6 +2510,31 @@ class RustExpr {
 		if(t == null) return false;
 		return switch(Context.follow(t)) {
 			case TAbstract(a, _): a.get().name == "Int";
+			case _: false;
+		};
+	}
+
+	/** The parameter positions of one function type that carry Int. */
+	function intParamPositions(fnType: Null<Type>): Null<Array<Int>> {
+		if(fnType == null) return null;
+		return switch(Context.follow(fnType)) {
+			case TFun(pargs, _):
+				final positions: Array<Int> = [];
+				for(i in 0...pargs.length) {
+					if(isIntType(pargs[i].t)) {
+						positions.push(i);
+					}
+				}
+				positions;
+			case _: null;
+		};
+	}
+
+	/** Whether one function type returns Int. */
+	function returnsInt(fnType: Null<Type>): Bool {
+		if(fnType == null) return false;
+		return switch(Context.follow(fnType)) {
+			case TFun(_, ret): isIntType(ret);
 			case _: false;
 		};
 	}

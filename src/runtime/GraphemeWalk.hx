@@ -1,11 +1,21 @@
-package reflaxe.unicode;
+package runtime;
+
+import std.ReadOnlyArray;
 
 /**
-	Shared UAX #29 grapheme boundary walk
-	(docs/specs/stdlib/11-grapheme-clusters.md). The walk reads the flat
-	range table produced from the pinned Unicode data files, so the
-	macro-time conformance gate, the stage-one oracle, and (through the
-	single-sourcing plan) every transpiled runtime apply one rule set.
+	Shared UAX #29 grapheme boundary walk over code points
+	(docs/specs/stdlib/11-grapheme-clusters.md,
+	docs/plans/2026-08-28-runtime-unification.md P4). This module and
+	runtime.Graphemes are the single source of the walk: the compile-time
+	conformance gate, the stage-one oracle binding, and every transpiled
+	runtime execute this code.
+
+	The walk reads the flat range table produced from the pinned Unicode
+	data files: three ints per range (start, endInclusive, packed). The
+	packed value carries the Grapheme_Cluster_Break class in bits 0-3,
+	Extended_Pictographic in bit 4, and Indic_Conjunct_Break in bits 5-6
+	(Consonant 0x20, Linker 0x40, Extend 0x60). Code points absent from
+	the table are class Other with no flags.
 
 	The carried state packs into one integer: the GB11 link stage in
 	bits 0-1 (armed only while the text ends in Extended_Pictographic,
@@ -13,16 +23,15 @@ package reflaxe.unicode;
 	a Consonant and an Extend or Linker run that contains at least one
 	Linker), and the regional-indicator parity in bit 4.
 
-	The table layout is three ints per range (start, endInclusive,
-	packed). The packed value carries the Grapheme_Cluster_Break class
-	in bits 0-3, Extended_Pictographic in bit 4, and
-	Indic_Conjunct_Break in bits 5-6 (Consonant 0x20, Linker 0x40,
-	Extend 0x60). Code points absent from the table are class Other
-	with no flags.
+	The inputs are code points, not storage units: string storage differs
+	between targets (UTF-16 on TypeScript, Kotlin, and stage one; UTF-8
+	on Rust), so this class never reads a string. Callers convert once
+	through std.UStringRT.toCodePoints and track storage width
+	themselves.
 **/
 class GraphemeWalk {
 	/** Binary search for the packed properties of one code point. */
-	public static function lookup(table: Array<Int>, code: Int): Int {
+	public static function lookup(table: ReadOnlyArray<Int>, code: Int): Int {
 		final rangeCount = Std.int(table.length / 3);
 		var lo = 0;
 		var hi = rangeCount - 1;
@@ -86,58 +95,31 @@ class GraphemeWalk {
 			incb = 1;
 		} else if(incbValue == 64) {
 			incb = incb >= 1 ? 2 : 0;
-		} else if(incbValue == 96) {
-			// Extend keeps the consonant context alive.
-		} else {
+		} else if(incbValue != 96) {
+			// Only Extend (96) keeps the consonant context alive.
 			incb = 0;
 		}
 		riOdd = cc == 6 ? !riOdd : false;
 		return (riOdd ? 16 : 0) | (incb << 2) | pict;
 	}
 
-	/** UTF-16 storage width of the code point starting at unit `i`. */
-	public static function charWidth(s: String, i: Int): Int {
-		final unit = s.charCodeAt(i);
-		if(unit >= 0xD800 && unit <= 0xDBFF && i + 1 < s.length) {
-			final next = s.charCodeAt(i + 1);
-			if(next >= 0xDC00 && next <= 0xDFFF) {
-				return 2;
-			}
-		}
-		return 1;
-	}
-
-	/** The code point starting at UTF-16 unit `i`, decoding surrogate pairs. */
-	public static function codePointAt(s: String, i: Int): Int {
-		final unit = s.charCodeAt(i);
-		if(unit >= 0xD800 && unit <= 0xDBFF && i + 1 < s.length) {
-			final next = s.charCodeAt(i + 1);
-			if(next >= 0xDC00 && next <= 0xDFFF) {
-				return 0x10000 + ((unit - 0xD800) << 10) + (next - 0xDC00);
-			}
-		}
-		return unit;
-	}
-
 	/**
-		Walks the string and reports, for every code point, whether a
-		cluster boundary sits before it. The first code point always
-		reports true (GB1). This is the conformance entry: the macro data
-		gate compares these flags against the official
-		GraphemeBreakTest vectors.
+		Walks the code points and reports, for every one of them, whether
+		a cluster boundary sits before it. The first code point always
+		reports true (GB1). This is the conformance entry: the compile
+		time data gate compares these flags against the official
+		GraphemeBreakTest vectors, so the table passes validation on the
+		same walk the transpiled runtimes execute.
 	**/
-	public static function boundaryFlags(table: Array<Int>, s: String): Array<Bool> {
+	public static function boundaryFlags(table: ReadOnlyArray<Int>, codes: ReadOnlyArray<Int>): Array<Bool> {
 		final flags: Array<Bool> = [];
 		var prev = -1;
 		var state = 0;
-		var unit = 0;
-		while(unit < s.length) {
-			final code = codePointAt(s, unit);
-			final packed = lookup(table, code);
+		for(index in 0...codes.length) {
+			final packed = lookup(table, codes[index]);
 			flags.push(prev < 0 || breaksBefore(prev, packed, state));
 			state = advanceState(packed, state);
 			prev = packed;
-			unit += charWidth(s, unit);
 		}
 		return flags;
 	}

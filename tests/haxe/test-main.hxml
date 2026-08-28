@@ -2,7 +2,6 @@
 -cp src
 -cp samples
 -cp out/haxe
---macro reflaxe.unicode.GraphemeData.ensureType()
 --macro Intercept.run(['samples'], ['samples/boring/BinaryReader.hx', 'samples/boring/BinaryWriter.hx'])
 -main TestMain
 -js out/haxe/test-main.js

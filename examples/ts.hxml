@@ -27,6 +27,8 @@ boring.CodePointNames
 std.SortedMap
 std.SortedSet
 std.Functional
+runtime.GraphemeWalk
+runtime.Graphemes
 tests.TestData
 tests.VectorCodecTests
 tests.DataTableTests

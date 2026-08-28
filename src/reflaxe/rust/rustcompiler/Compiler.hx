@@ -53,7 +53,11 @@ class Compiler extends PluginCompiler<Compiler> {
 	// ------------------------------------------------------------------
 
 	public function compileClassImpl(classType: ClassType, varFields: Array<ClassVarData>, funcFields: Array<ClassFuncData>): Null<String> {
-		if(classType.isExtern || isSyntheticImpl(classType.name) || isInlineOnly(classType, varFields, funcFields) || !inSourceScope(classType.pos)) {
+		// Resident runtime modules live under src/, outside the
+		// intercepted source roots, and still compile: each lane lists
+		// them in its hxml so typing reaches them (RuntimeResidents).
+		final isResident = RuntimeResidents.isResident(classType.module);
+		if(classType.isExtern || isSyntheticImpl(classType.name) || isInlineOnly(classType, varFields, funcFields) || (!isResident && !inSourceScope(classType.pos))) {
 			return null;
 		}
 
@@ -147,6 +151,10 @@ class Compiler extends PluginCompiler<Compiler> {
 			if(state.payloadEnumModules.exists(module)) {
 				continue;
 			}
+			if(RuntimeResidents.isResident(module)) {
+				emitResidentModule(module, contexts.get(module));
+				continue;
+			}
 			final decl = contexts.get(module);
 			final imports = decl.renderImports();
 			final body = parts.get(module).join("\n\n");
@@ -210,7 +218,6 @@ class Compiler extends PluginCompiler<Compiler> {
 		emitShim("std.Process", "process.rs", RustRuntime.PROCESS_SOURCE);
 		emitShim("std.Test", "test.rs", RustRuntime.TEST_SOURCE);
 		emitShim("std.UStringRT", "ustring.rs", RustRuntime.USTRING_SOURCE);
-		emitShim("std.Graphemes", "graphemes.rs", reflaxe.unicode.GraphemeTableRender.rust(reflaxe.unicode.GraphemeData.table()) + RustRuntime.GRAPHEMES_SOURCE);
 		if(state.shimsUsed.exists("std.SortedSet") || state.shimsUsed.exists("std.SortedSetBuilder")) {
 			state.shimsUsed.set("std.SortedSet", true);
 			state.shimsUsed.set("std.SortedMap", true);
@@ -230,7 +237,10 @@ class Compiler extends PluginCompiler<Compiler> {
 			if(state.shimsUsed.exists("std.Process")) runtimeMods.push("process");
 			if(state.shimsUsed.exists("std.Test")) runtimeMods.push("test");
 			if(state.shimsUsed.exists("std.UStringRT")) runtimeMods.push("ustring");
-			if(state.shimsUsed.exists("std.Graphemes")) runtimeMods.push("graphemes");
+			if(state.shimsUsed.exists("std.Graphemes")) {
+				runtimeMods.push("graphemes");
+				runtimeMods.push("grapheme_walk");
+			}
 			if(state.shimsUsed.exists("std.SortedMap") || state.shimsUsed.exists("std.SortedMapBuilder")) runtimeMods.push("sorted_map");
 			if(state.shimsUsed.exists("std.SortedSet") || state.shimsUsed.exists("std.SortedSetBuilder")) runtimeMods.push("sorted_set");
 			runtimeMods.sort(Reflect.compare);
@@ -544,6 +554,35 @@ class Compiler extends PluginCompiler<Compiler> {
 		}
 		final path = RuntimeConfig.emitPath(dir, fileName);
 		output.saveFile(path, StringTools.trim(source) + "\n");
+	}
+
+	/**
+		Writes one resident runtime module into the runtime-emit
+		directory (docs/plans/2026-08-28-runtime-unification.md P4). The
+		module compiled through the normal typed pipeline like a business
+		module; its output lands beside the runtime shims instead of the
+		business tree. The extern that fronts the resident set gates the
+		emission the way shim usage gates the shims, so an unreferenced
+		runtime stays out of the output.
+	**/
+	function emitResidentModule(module: String, decl: Null<RustDecl>): Void {
+		final externModule = RuntimeResidents.externOf(module);
+		if(externModule == null || !state.shimsUsed.exists(externModule)) {
+			return;
+		}
+		final dir = RuntimeConfig.emitDir();
+		if(decl == null || dir == null) {
+			return;
+		}
+		final moduleParts = parts.get(module);
+		if(moduleParts == null || moduleParts.length == 0) {
+			return;
+		}
+		final imports = decl.renderImports();
+		final body = moduleParts.join("\n\n");
+		final fileName = RustImports.toSnakeCase(moduleLeafName(module)) + ".rs";
+		final content = imports + (imports.length > 0 ? "\n" : "") + body + "\n";
+		output.saveFile(RuntimeConfig.emitPath(dir, fileName), content);
 	}
 
 	// ------------------------------------------------------------------

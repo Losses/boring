@@ -4,6 +4,7 @@ package reflaxe.unicode;
 import haxe.crypto.Md5;
 import haxe.macro.Context;
 import haxe.macro.Expr;
+import runtime.GraphemeWalk;
 
 /**
 	Compile-time pipeline for the grapheme break table
@@ -13,13 +14,10 @@ import haxe.macro.Expr;
 	At compilation start this module reads the pinned Unicode data files
 	from `tools/unicode-data/`, merges them into the flat range table,
 	and gates the merge on the official GraphemeBreakTest conformance
-	vectors run through the shared `GraphemeWalk`. Consumers:
-
-	  - the three target compilers render `table()` into their runtime
-	    packages (`GraphemeTableRender`);
-	  - `ensureType()` defines `reflaxe.unicode.GraphemeBreakData` for
-	    compilations whose sources reference the table as a Haxe class
-	    (the stage-one oracle).
+	vectors run through the shared walk in `runtime.GraphemeWalk`.
+	The one consumer is `tableField()`: the `:build` macro on
+	`runtime.Graphemes` injects the table as a static field, and that
+	resident module compiles into every target's runtime package.
 
 	Nothing generated is committed. A content-hash cache under `out/`
 	keeps ordinary compilations free of parsing and conformance: the
@@ -59,28 +57,27 @@ class GraphemeData {
 	static var cachedVersion: Null<String> = null;
 
 	/**
-		Defines `reflaxe.unicode.GraphemeBreakData` holding the merged
-		table, for compilations that reference the table as a Haxe class.
-		Call from `--macro` before the referencing modules are typed.
+		Build macro for the resident runtime module: injects the merged
+		table as one constant `Array<Int>` field, the same shape the
+		compile-time data-table mechanism renders natively on every
+		target (docs/specs/features/20-compile-time-data-tables.md).
+		Typing the class runs the full pipeline: merge, conformance
+		gate, then injection. The conformance walk lives in
+		`runtime.GraphemeWalk`, a plain class with no build macro, so
+		the gate never re-enters this pipeline.
 	**/
-	public static function ensureType(): Void {
+	public static function tableField(fieldName: String): Array<Field> {
 		final table = table();
 		final entries: Array<Expr> = [for(v in table) macro $v{v}];
-		Context.defineType({
-			pack: ["reflaxe", "unicode"],
-			name: "GraphemeBreakData",
-			pos: Context.currentPos(),
-			kind: TDClass(),
-			fields: [
-				{
-					name: "TABLE",
-					doc: "Flat grapheme break table: three ints per range (start, endInclusive, packed). Validated against the Unicode GraphemeBreakTest conformance file at compilation start.",
-					access: [APublic, AStatic, AFinal],
-					kind: FVar(macro : Array<Int>, {expr: EArrayDecl(entries), pos: Context.currentPos()}),
-					pos: Context.currentPos(),
-				}
-			],
-		});
+		return Context.getBuildFields().concat([
+			{
+				name: fieldName,
+				doc: "Flat grapheme break table: three ints per range (start, endInclusive, packed). Validated against the Unicode GraphemeBreakTest conformance file at compilation start.",
+				access: [APublic, AStatic, AFinal],
+				kind: FVar(macro : Array<Int>, {expr: EArrayDecl(entries), pos: Context.currentPos()}),
+				pos: Context.currentPos(),
+			}
+		]);
 	}
 
 	/** The merged table, gated by conformance and cached by input hash. */
@@ -412,15 +409,6 @@ class GraphemeData {
 		walk. Each line lists code points with the expected boundary mark
 		before every one of them. One failure aborts the compilation.
 	**/
-	/** Encodes one scalar as UTF-16 text, pair-encoding above the BMP. */
-	static function stringFromCodePoint(code: Int): String {
-		if(code <= 0xFFFF) {
-			return String.fromCharCode(code);
-		}
-		final v = code - 0x10000;
-		return String.fromCharCode((v >> 10) + 0xD800) + String.fromCharCode((v & 0x3FF) + 0xDC00);
-	}
-
 	static function runConformance(table: Array<Int>, testText: String): Void {
 		var failures = 0;
 		var firstFailure: Null<String> = null;
@@ -456,8 +444,7 @@ class GraphemeData {
 				Context.fatalError("malformed GraphemeBreakTest line: " + rawLine, Context.currentPos());
 			}
 			expected.pop();
-			final text = [for(code in codes) stringFromCodePoint(code)].join("");
-			final actual = GraphemeWalk.boundaryFlags(table, text);
+			final actual = GraphemeWalk.boundaryFlags(table, codes);
 			for(i in 0...codes.length) {
 				if(actual[i] != expected[i]) {
 					failures += 1;

@@ -53,7 +53,10 @@ class Compiler extends PluginCompiler<Compiler> {
 	// ------------------------------------------------------------------
 
 	public function compileClassImpl(classType: ClassType, varFields: Array<ClassVarData>, funcFields: Array<ClassFuncData>): Null<String> {
-		if(classType.isExtern || !inSourceScope(classType.pos) || isSyntheticImpl(classType.name) || isInlineOnly(classType, varFields, funcFields)) {
+		// Resident runtime modules sit under src/runtime, outside the
+		// sample source roots, but compile through this same pipeline.
+		final isResident = RuntimeResidents.isResident(classType.module);
+		if(classType.isExtern || (!isResident && !inSourceScope(classType.pos)) || isSyntheticImpl(classType.name) || isInlineOnly(classType, varFields, funcFields)) {
 			return null;
 		}
 
@@ -165,6 +168,11 @@ class Compiler extends PluginCompiler<Compiler> {
 		final testRunner = Context.definedValue("ts-test-runner");
 
 		for(module in modules) {
+			if(RuntimeResidents.isResident(module)) {
+				// Resident modules append into runtime.ts below,
+				// not into the business tree.
+				continue;
+			}
 			final decl = contexts.get(module);
 			if(testModules.exists(module)) {
 				final imports = decl.renderTestImports(testOutput, tsOutput, testRunner);
@@ -192,10 +200,19 @@ class Compiler extends PluginCompiler<Compiler> {
 		}
 		final emitDir = RuntimeConfig.emitDir();
 		if(emitDir != null && anyRuntimeUsed()) {
-			// The grapheme table is generated data; it follows the runtime
-			// source so runtime.ts stays one self-contained file.
-			final graphemeTable = reflaxe.unicode.GraphemeTableRender.ts(reflaxe.unicode.GraphemeData.table());
-			output.saveFile(RuntimeConfig.emitPath(emitDir, "runtime.ts"), StringTools.trim(TsRuntime.SOURCE) + "\n" + graphemeTable);
+			// Resident modules compile through the normal pipeline and
+			// append after the runtime source so runtime.ts stays one
+			// self-contained file (docs/plans/2026-08-28 P4). The
+			// table arrives as the compiled data-table field of
+			// runtime.Graphemes, not a hand-wired render.
+			final residentParts: Array<String> = [];
+			for(resident in RuntimeResidents.MODULES) {
+				final moduleParts = parts.get(resident);
+				if(moduleParts != null && moduleParts.length > 0) {
+					residentParts.push(moduleParts.join("\n\n"));
+				}
+			}
+			output.saveFile(RuntimeConfig.emitPath(emitDir, "runtime.ts"), StringTools.trim(TsRuntime.SOURCE) + "\n" + residentParts.join("\n\n") + "\n");
 			if(anyRuntimeTestUsed()) {
 				// The test entry holds the host-file-system writer; the
 				// general entry stays free of node imports so a browser
