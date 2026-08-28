@@ -151,6 +151,7 @@ class TestCollector {
 		final runnerSource = 'package;
 
 import runtime.Graphemes;
+import runtime.UString;
 
 @:jsRequire("node:fs")
 extern class Fs {
@@ -354,7 +355,8 @@ class TestMain {
         js.Syntax.code("globalThis.__test_shim = {0}", testObj);
         js.Syntax.code("globalThis.FunctionalOracle = {0}", FunctionalOracle);
         js.Syntax.code("globalThis.std = globalThis.std || {}; globalThis.std.StringBuf = {0};", StringBufOracle);
-        js.Syntax.code("globalThis.std.UStringRT = {0};", UStringRtOracle);
+        js.Syntax.code("globalThis.std.UStringRT = {0};", UString);
+        js.Syntax.code("globalThis.std.UStringPlatform = {0};", UStringPlatform);
         js.Syntax.code("globalThis.std.Graphemes = {0};", Graphemes);
         js.Syntax.code("
             function jsCompare(a, b) {
@@ -607,9 +609,10 @@ class StringBufOracle {
 
 ';
 		File.saveContent(outDir + "/TestMain.hx", runnerSource);
-		// The oracle is a tracked source file shared with the typed harness in
-		// tests/haxe; stage one compiles the copy next to TestMain.
-		File.saveContent(outDir + "/UStringRtOracle.hx", sys.io.File.getContent(Context.resolvePath("tests/haxe/UStringRtOracle.hx")));
+		// The cursor platform is a tracked source file shared with the typed
+		// harness in tests/haxe; stage one compiles the copy next to TestMain
+		// and binds it under globalThis.std.UStringPlatform.
+		File.saveContent(outDir + "/UStringPlatform.hx", sys.io.File.getContent(Context.resolvePath("tests/haxe/UStringPlatform.hx")));
 	}
 }
 #end

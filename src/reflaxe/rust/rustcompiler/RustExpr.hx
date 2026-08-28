@@ -22,7 +22,7 @@ class RustExpr {
 	// take their signed positions from the resident ABI rule at every
 	// call, so they carry no entry here.
 	static final SIGNED_SHIM_PARAMS: Map<String, Array<Int>> = [
-		"ustring.slice" => [1, 2]
+		"u_string.slice" => [1, 2]
 	];
 
 	final imports: RustImports;
@@ -237,6 +237,11 @@ class RustExpr {
 						case _:
 					}
 				} else if(returnTypeName == "Option<String>" && isStringType(ret.t) && !isNullType(ret.t) && !isTNull(ret)) {
+					retStr = "Some(" + retStr + ")";
+				} else if(StringTools.startsWith(returnTypeName, "Option<") && isIntType(ret.t) && !isNullType(ret.t) && !isTNull(ret)) {
+					// An Int expression returned from a Null<Int> function
+					// wraps once at the boundary; Null-typed expressions
+					// already lower to Option and TNull renders None.
 					retStr = "Some(" + retStr + ")";
 				}
 				if(isFallible) {
@@ -1374,9 +1379,7 @@ class RustExpr {
 				imports.requireType("std.SortedSet", "SortedSet");
 				return "SortedSet::" + RustImports.toSnakeCase(name);
 			case "std.UStringRT":
-				state.shimsUsed.set("std.UStringRT", true);
-				imports.require("crate::runtime::ustring");
-				return "ustring::" + RustImports.toSnakeCase(name);
+				return uStringRef(name);
 			case "std.Graphemes":
 				// The extern fronts the resident runtime module
 				// runtime.Graphemes, compiled into graphemes.rs; the
@@ -1399,9 +1402,7 @@ class RustExpr {
 					return "SortedSet::" + RustImports.toSnakeCase(name);
 				}
 				if(cls.module == "std.UStringRT") {
-					state.shimsUsed.set("std.UStringRT", true);
-					imports.require("crate::runtime::ustring");
-					return "ustring::" + RustImports.toSnakeCase(name);
+					return uStringRef(name);
 				}
 				if(cls.module == "std.Graphemes") {
 					state.shimsUsed.set("std.Graphemes", true);
@@ -1421,6 +1422,23 @@ class RustExpr {
 				imports.requireType(cls.module, cls.name);
 				return cls.name + "::" + RustImports.toSnakeCase(name);
 		}
+	}
+
+	/**
+		Reference to the UString runtime through the std.UStringRT extern.
+		A resident caller addresses the compiled class directly and shares
+		its i32 convention; a business caller goes through the u32 adapter
+		free functions emitted beside the class, because Null and Array
+		results have no call-site cast machinery (RuntimeResidents).
+	*/
+	function uStringRef(name: String): String {
+		state.shimsUsed.set("std.UStringRT", true);
+		if(RuntimeResidents.isResident(imports.selfModule)) {
+			imports.requireType("runtime.UString", "UString");
+			return "UString::" + RustImports.toSnakeCase(name);
+		}
+		imports.require("crate::runtime::u_string");
+		return "u_string::" + RustImports.toSnakeCase(name);
 	}
 
 	function typeExpr(t: ModuleType): String {
@@ -1503,24 +1521,24 @@ class RustExpr {
 					return expr(subj) + ".as_bytes()[" + expr(args[0]) + "]";
 				}
 				if(name == "substring" && isString(stripCast(subj))) {
-					// Member-call lowering into the ustring runtime: the
+					// Member-call lowering into the u_string runtime: the
 					// bounds are UTF-16 units on every target, so the call
 					// converts them to byte boundaries. The runtime keeps
 					// i32 bounds for the same clamping reason as
-					// ustring.slice (SIGNED_SHIM_PARAMS), and the subject
-					// borrows like every ustring call. An omitted
+					// u_string.slice (SIGNED_SHIM_PARAMS), and the subject
+					// borrows like every u_string call. An omitted
 					// ?endIndex reaches this arm as a null argument and
 					// routes to the one-sided form.
 					state.shimsUsed.set("std.UStringRT", true);
-					imports.require("crate::runtime::ustring");
+					imports.require("crate::runtime::u_string");
 					final endOmitted = args.length < 2 || switch(stripWrap(args[1]).expr) {
 						case TConst(TNull): true;
 						case _: false;
 					};
 					if(!endOmitted) {
-						return "ustring::substring(&" + expr(subj) + ", (" + expr(args[0]) + ") as i32, (" + expr(args[1]) + ") as i32)";
+						return "u_string::substring(&" + expr(subj) + ", (" + expr(args[0]) + ") as i32, (" + expr(args[1]) + ") as i32)";
 					}
-					return "ustring::substring_from(&" + expr(subj) + ", (" + expr(args[0]) + ") as i32)";
+					return "u_string::substring_from(&" + expr(subj) + ", (" + expr(args[0]) + ") as i32)";
 				}
 				if(name == "put" && isSortedBuilder(subj)) {
 					final kExpr = switch(args[0].expr) {
@@ -1620,6 +1638,29 @@ class RustExpr {
 				}
 				if(cls.pack.length == 0 && cls.name == "String" && name == "fromCharCode") {
 					return "char::from(" + expr(args[0]) + ").to_string()";
+				}
+				if(path == "std.UStringPlatform") {
+					// Cursor primitives of the resident UString walk, inlined
+					// per call: a cursor is a byte offset here, so end is the
+					// byte length, codeAt decodes the char at the offset, and
+					// advance adds that char's UTF-8 width. Business code
+					// never reaches them; it calls std.UString.
+					if(!RuntimeResidents.isResident(imports.selfModule)) {
+						Context.error("std.UStringPlatform is a resident runtime primitive; business code calls std.UString", fn.pos);
+					}
+					switch(name) {
+						case "end":
+							return "(" + expr(args[0]) + ").len() as i32";
+						case "codeAt":
+							return "(" + expr(args[0]) + ")[(" + expr(args[1]) + ") as usize..].chars().next().unwrap_or('\\0') as i32";
+						case "advance":
+							return "((" + expr(args[1]) + ") as usize + (" + expr(args[0]) + ")[(" + expr(args[1]) + ") as usize..].chars().next().unwrap_or('\\0').len_utf8()) as i32";
+						case "substringBetween":
+							return "(" + expr(args[0]) + ")[(" + expr(args[1]) + ") as usize..(" + expr(args[2]) + ") as usize].to_string()";
+						case "fromCodePoint":
+							return "char::from_u32((" + expr(args[0]) + ") as u32).unwrap_or('\\0').to_string()";
+						case _:
+					}
 				}
 				if(path == "haxe.io.FPHelper") {
 					imports.requireType(cls.module, "FPHelper");
@@ -1730,13 +1771,18 @@ class RustExpr {
 				final isStaticFallible = isFallibleCallee(c, cf, true);
 				final q = isFallible ? (isStaticFallible ? "?" : "") : (isStaticFallible ? ".unwrap()" : "");
 				final shimKey = if(cls.module == "std.UStringRT") {
-					"ustring." + name;
+					"u_string." + name;
 				} else {
 					null;
 				};
 				var signedPositions = shimKey != null ? SIGNED_SHIM_PARAMS.get(shimKey) : null;
-				final calleeResident = RuntimeResidents.isResidentAbi(cls.module);
 				final callerResident = RuntimeResidents.isResidentAbi(imports.selfModule);
+				// std.UStringRT resolves by caller: residents reach the
+				// i32 class, business reaches the u32 adapters, so the
+				// callee convention always matches the resolved path.
+				final calleeResident = cls.module == "std.UStringRT"
+					? callerResident
+					: RuntimeResidents.isResidentAbi(cls.module);
 				if(calleeResident) {
 					// Resident runtime modules render haxe Int as i32
 					// (their clamping contracts carry negative values),

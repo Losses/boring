@@ -686,17 +686,54 @@ impl<K: Clone> SortedSetByKeyBuilder<K> {
 ';
 
 	/**
-		Runtime module behind std.UStringRT (docs/specs/stdlib/10-unicode-string-access.md).
-		Rust String storage is UTF-8, so the code-point walks delegate to chars
-		iteration; the domain checks live in the inline wrappers of std.UString
-		and never reach these functions.
+		Business ABI adapters appended to the compiled runtime.UString class
+		in u_string.rs (docs/specs/stdlib/10-unicode-string-access.md,
+		docs/plans/2026-08-28-runtime-unification.md P5). Business modules
+		render haxe Int as u32 while the resident class renders i32, and
+		Null and Array results have no call-site cast machinery, so the
+		adapters cast once here. substring and its unit-to-byte helpers
+		keep their P3 contract: the UTF-16 unit bounds of the haxe
+		substring member lower into them directly.
 	**/
-	public static final USTRING_SOURCE = '
-// Character counts, indices, and code point values follow the shared Int
-// mapping of this target and arrive as u32; slice and substring keep i32
-// bounds because negative bounds are part of their clamping contract.
+	public static final USTRING_ABI_SOURCE = '
+// Business ABI adapters over the resident UString class: Int arguments
+// arrive as u32 and results return u32; the class works in i32. slice and
+// substring keep i32 bounds because negative bounds are part of their
+// clamping contract. The class lives in this same module, so the
+// adapters name it directly without an import.
 pub fn count(s: &str) -> u32 {
-    s.chars().count() as u32
+    UString::count(s) as u32
+}
+
+pub fn at(s: &str, index: u32) -> Option<u32> {
+    match UString::at(s, index as i32) {
+        Some(code) => Some(code as u32),
+        None => None,
+    }
+}
+
+pub fn slice(s: &str, from: i32, to: i32) -> String {
+    UString::slice(s, from, to)
+}
+
+pub fn to_code_points(s: &str) -> Vec<u32> {
+    let mut out = Vec::new();
+    for code in UString::to_code_points(s) {
+        out.push(code as u32);
+    }
+    out
+}
+
+pub fn from_code_point(code: u32) -> String {
+    UString::from_code_point(code as i32)
+}
+
+pub fn from_code_points(codes: &mut Vec<u32>) -> String {
+    let mut inner = Vec::with_capacity(codes.len());
+    for index in 0..codes.len() {
+        inner.push(codes[index] as i32);
+    }
+    UString::from_code_points(&mut inner)
 }
 
 // substring keeps i32 bounds for the same clamping reason as slice:
@@ -738,66 +775,6 @@ fn unit_index(s: &str, unit: u32, round_up: bool) -> usize {
     }
     s.len()
 }
-
-pub fn at(s: &str, index: u32) -> Option<u32> {
-    let mut i: u32 = 0;
-    for c in s.chars() {
-        if i == index {
-            return Some(c as u32);
-        }
-        i += 1;
-    }
-    None
-}
-
-pub fn slice(s: &str, from: i32, to: i32) -> String {
-    let total = count(s) as i32;
-    let start = if from < 0 { 0 } else if from > total { total } else { from };
-    let end = if to > total { total } else if to < 0 { 0 } else { to };
-    if start >= end {
-        return String::new();
-    }
-    let byte_start = byte_index(s, start);
-    let byte_end = byte_index(s, end);
-    s[byte_start..byte_end].to_string()
-}
-
-fn byte_index(s: &str, char_index: i32) -> usize {
-    let mut remaining = char_index;
-    for (b, _) in s.char_indices() {
-        if remaining == 0 {
-            return b;
-        }
-        remaining -= 1;
-    }
-    s.len()
-}
-
-pub fn to_code_points(s: &str) -> Vec<u32> {
-    let mut out = Vec::new();
-    for c in s.chars() {
-        out.push(c as u32);
-    }
-    out
-}
-
-pub fn from_code_point(code: u32) -> String {
-    if let Some(c) = char::from_u32(code) {
-        return c.to_string();
-    }
-    String::new()
-}
-
-pub fn from_code_points(codes: &mut Vec<u32>) -> String {
-    let mut out = String::with_capacity(codes.len());
-    for &code in codes.iter() {
-        if let Some(c) = char::from_u32(code) {
-            out.push(c);
-        }
-    }
-    out
-}
 ';
-
 }
 #end

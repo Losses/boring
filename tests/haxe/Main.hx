@@ -14,6 +14,8 @@ import boring.VectorError;
 import boring.VectorException;
 import boring.VectorSort;
 import runtime.Graphemes;
+import runtime.UString as RuntimeUString;
+import UStringPlatform;
 import haxe.io.Bytes;
 
 /**
@@ -84,10 +86,13 @@ class Main {
 	}
 
 	static function main():Void {
-		// The extern primitives of std.UStringRT resolve to the shared
-		// oracle; std.Graphemes resolves to the compiled resident module
-		// runtime.Graphemes, the same class stage one binds for TestMain.
-		js.Syntax.code("globalThis.std = globalThis.std || {}; globalThis.std.UStringRT = {0};", UStringRtOracle);
+		// The externs of std.UStringRT and std.Graphemes resolve to the
+		// compiled resident modules runtime.UString and runtime.Graphemes,
+		// the same classes stage one binds for TestMain. runtime.UString
+		// walks strings through std.UStringPlatform, bound to the UTF-16
+		// cursor implementation beside this harness.
+		js.Syntax.code("globalThis.std = globalThis.std || {}; globalThis.std.UStringRT = {0};", RuntimeUString);
+		js.Syntax.code("globalThis.std.UStringPlatform = {0};", UStringPlatform);
 		js.Syntax.code("globalThis.std.Graphemes = {0};", Graphemes);
 
 		final encoded = VectorCodec.encode(VECTOR_RECORDS);
