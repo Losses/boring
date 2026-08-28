@@ -72,7 +72,7 @@ const SOURCE_TREES: readonly SourceTree[] = [
   },
 ];
 
-const BANNED_CALL_SITES: readonly string[] = [
+const REFERENCE_BANNED_CALL_SITES: readonly string[] = [
   ".map(",
   ".filter(",
   ".reduce(",
@@ -82,6 +82,15 @@ const BANNED_CALL_SITES: readonly string[] = [
   ".every(",
   ".fold(",
   ".sortedBy(",
+  ".associate(",
+];
+
+const SAMPLES_BANNED_CALL_SITES: readonly string[] = [
+  ".reduce(",
+  ".flatMap(",
+  ".some(",
+  ".every(",
+  ".fold(",
 ];
 
 /** Matches `||` but not a lone Rust closure pipe. */
@@ -264,7 +273,8 @@ async function scanTree(tree: SourceTree): Promise<LoopHit[]> {
   }
   for (const path of paths) {
     const text = stripComments(await Bun.file(path).text());
-    for (const site of BANNED_CALL_SITES) {
+    const bannedSites = tree.label === "samples" ? SAMPLES_BANNED_CALL_SITES : REFERENCE_BANNED_CALL_SITES;
+    for (const site of bannedSites) {
       if (text.includes(site)) {
         hits.push({ kind: "call-site", file: path, line: 0, detail: site });
       }
