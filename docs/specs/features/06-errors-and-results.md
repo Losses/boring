@@ -318,6 +318,50 @@ Failure identity is a closed variant set defined once per domain and shared by a
 - TypeScript: throw sites construct one exception class carrying the error union value of `docs/specs/features/01-enums-and-pattern-matching.md`. Candidate 1. Catch sites narrow with `instanceof VectorException` and then branch on the discriminant; payload access after narrowing requires no cast.
 - Kotlin: throw sites construct the sealed exception hierarchy with one variant per failure mode. Candidate 1.
 
+### Catch-site lowering (`TTry`)
+
+A `try` region with typed catch clauses lowers on every target; the
+shape follows the throw rulings above.
+
+- Haxe stage 1: the native `try`/`catch`; the oracle needs no
+  adaptation.
+- TypeScript: native `try`/`catch`. Each clause narrows with
+  `instanceof` on its exception class and handles the match; the
+  non-matching arm rethrows the caught value unchanged. A region in
+  expression position hoists to a statement and a `let` binding, since
+  the TypeScript `try` statement produces no value: `let v; try { v =
+  body; } catch (error) { if (error instanceof X) { v = handler; } else
+  { throw error; } }`.
+- Kotlin: native typed `catch`. A region in expression position stays
+  an expression, since the Kotlin `try` produces a value.
+- Rust: the region body lowers into a closure returning
+  `Result<regionValue, caughtEnum>`, where each `throw` inside the body
+  is the lane's `Err` return; the outcome is matched immediately, the
+  `Ok` arm is the region value, and the `Err` arm runs the handler with
+  the payload enum bound. The catch variable's payload access
+  (`error.error` on the Haxe side) lowers to the bound enum value; the
+  message accessor lowers to the shared describe function.
+
+Two restrictions keep the region translatable, each with a named
+rejection and a sanctioned alternative:
+
+- A region whose body can throw exception classes beyond the caught
+  class is rejected (`tryRegionMixedDomains`); the mixed-domain region
+  has no single closure error type. The alternative is nested regions,
+  one per domain.
+- A region containing `return`, `break`, or `continue` is rejected
+  (`tryRegionControlFlow`); control flow crossing the closure boundary
+  cannot lower. The alternative is hoisting: evaluate the region to a
+  value and place the control-flow statement after it.
+
+Fallibility absorption: a domain fully handled by a region's clauses
+does not infect the enclosing function on the Rust lane. The
+fallibility fixpoint walks a `TTry` by absorbing the caught enum's
+edges from the body and keeping every edge of the handler expressions,
+so a wrapper that converts reader faults to its own domain lowers as
+an infallible-to-the-caller function only when no uncaught domain
+escapes it.
+
 Messages are display text derived from the variant at construction time. No consumer discriminates a failure by reading or matching a message string; tests assert variant identity, never message content. Adding a failure mode adds one variant to every tree in the same commit, and the exhaustiveness checking of `docs/specs/features/01-enums-and-pattern-matching.md` fails the build of any tree whose handling was not extended.
 
 Kotlin `runCatching` and catch-all `Result` returns are banned in codec code because they capture programming errors alongside domain failures. Rust panic and `Box<dyn Error>` returns are banned for the reasons in the judgment table.

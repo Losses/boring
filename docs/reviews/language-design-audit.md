@@ -26,13 +26,13 @@ below are what remains.
 | item | state | test failed | disposition |
 | --- | --- | --- | --- |
 | Rust lane maps every `Int` to `u32` (`RustType.hx`) | defect | T1, T2 vs `features/07`, `features/14` | redesign: signed `i32` outside wire positions, guarded named conversions at wire boundaries |
-| Typed `try`/`catch` has no lowering in any generator | defect | T1 vs `style/01` rule 4, `features/06` | implement TTry lowering on all three targets |
-| `stdlib/06` says no std module reaches target output; `std.UStringException` and `std.UStringFault` now emit as compiled files | stale ruling | none yet; latent contradiction | amend `stdlib/06` with the two std classes |
-| `StringBuf.addChar` replaces an unpaired surrogate with U+FFFD on Rust and keeps the unit on TypeScript and Kotlin | divergence written into the contract | T2 | uniform domain fault on unpaired units |
-| Kotlin `Long` promotion for declared ranges above `0x7FFFFFFF` (`features/14`) has no implementation mechanism | gap | none today (no declared field exceeds the range) | record the gap in `features/14`; implement when such a field is declared |
+| Typed `try`/`catch` has no lowering in any generator | defect | T1 vs `style/01` rule 4, `features/06` | ruling added to `features/06` (catch-site lowering, 2026-08-28); implementation queued |
+| `stdlib/06` says no std module reaches target output; `std.UStringException` and `std.UStringFault` now emit as compiled files | stale ruling | none yet; latent contradiction | amended: `stdlib/06` names both std classes (2026-08-28) |
+| `StringBuf.addChar` replaces an unpaired surrogate with U+FFFD on Rust and keeps the unit on TypeScript and Kotlin | divergence written into the contract | T2 | ruling added to `stdlib/08` (`UnpairedSurrogate` fault on every target, Rust buffer becomes `Vec<u16>`, 2026-08-28); implementation queued |
+| Kotlin `Long` promotion for declared ranges above `0x7FFFFFFF` (`features/14`) has no implementation mechanism | gap | none today (no declared field exceeds the range) | recorded in `features/14` (2026-08-28); implement when such a field is declared |
 | Three rustc warnings in generated code (`in_range` needless `mut`, `copy_multiple` unused parameter) | cosmetic | none | fix in the generator |
 | String key order is UTF-16 code-unit order (`stdlib/07`, ruled 2026-08-27) | upheld | recorded T3 trade | keep; reason already cited (three targets compare natively, Rust adds one branch) |
-| `StringBuf.length` counts UTF-16 code units (`stdlib/08`) | upheld | none | keep; meaning is uniform across targets, and Principle 1 permits storage to set the cost tier, not the meaning |
+| `StringBuf.length` counts UTF-16 code units (`stdlib/08`) | upheld | none | keep; meaning is uniform across targets, and Principle 1 lets storage set only the cost tier while the meaning stays fixed |
 | Rust global single-error-enum resolution and fallibility by name list | fixed in `aed22ca` | was T1/T4 | per-function resolution plus a preScan call-edge fixpoint |
 | ASCII-bounded string indexing with no replacement API | fixed in `ae08f65` | was T1 | `std.UString` provides code-point semantics on four targets |
 | Blanket `usize` for enum payload `Int`s; unconditional `x < 0` rewrite on unsigned operands | fixed in `aed22ca` | was T2 | payload fields are name-typed; the rewrite fires only on unsigned operands |
@@ -120,3 +120,24 @@ Three rustc warnings exist on committed `main` output: `let mut` emitted
 for parameters never reassigned (`in_range`), and an unused parameter in
 the record-copy lowering (`copy_multiple`). Both are generator output
 quality; neither affects behavior.
+
+## Disposition record
+
+Amendments recorded with this audit (2026-08-28):
+
+- F3: `docs/specs/stdlib/06-std-modules.md` names the two std classes
+  and the named-list rule.
+- F5: `docs/specs/features/14-type-system-mapping.md` records the
+  Kotlin `Long` promotion gap and the condition for implementing it.
+- F2: `docs/specs/features/06-errors-and-results.md` rules the
+  catch-site lowering per target, the two named rejections, and the
+  fallibility absorption rule.
+- F4: `docs/specs/stdlib/08-string-buffer.md` rules the uniform
+  `UnpairedSurrogate` fault, the `Vec<u16>` Rust buffer with
+  constant-time `length`, and the stage-1 wrapper checks.
+
+Implementation work queued after this audit: F2 (TTry lowering on three
+targets plus the fixpoint absorption), F4 (fault variant plus four
+buffer lanes plus fault-exercising samples), F1 (signed `i32` outside
+wire positions with named boundary conversions), F6 (mutability
+diagnosis for typer-created inline temporaries).
