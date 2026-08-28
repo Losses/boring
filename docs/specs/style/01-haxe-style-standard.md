@@ -63,6 +63,7 @@ Every row names a violation, states the construct that triggers it, and gives th
 | `V14 DynamicCatch` | `catch (error:Dynamic)` | `TTry` catch variable typed `Dynamic` |
 | `V15 EnumDefaultArm` | A `switch` over an enum with a `default` arm | `TSwitch` whose subject the compiler wrapped in `TEnumIndex` or typed as an enum, with a non-null default expression |
 | `V16 NonConstantDefault` | A default parameter value outside the sanctioned class of `docs/specs/features/22-default-argument-expansion.md`: after compile-time constant evaluation, anything beyond literals, `null`, and argument-less enum constructors | Typed declaration of a defaulted parameter whose default expression falls outside the sanctioned class |
+| `V17 AssignArgExpression` | An assignment expression as a call argument outside the recognized record `copy` of `docs/specs/macros/04-record-copy.md` | Any call argument of the form `name = expr` whose callee is not the `copy` construct |
 
 The violation set grows with the specification set: adding a restriction to any feature or binary specification adds a row here in the same change, so the interception and the rules stay in one commit.
 
