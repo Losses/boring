@@ -94,9 +94,17 @@ class RustExpr {
 		currentMethodName = f.field.name;
 		paramVarIds.clear();
 		unsignedLocals.clear();
+		mutated.clear();
 		for(a in f.args) {
 			if(a.tvar != null) paramVarIds.set(a.tvar.id, true);
 		}
+		// Fuse declaration-plus-assignment pairs before the mutation scan.
+		// The typer lowers abstract-inline receiver bindings as `TVar(v,
+		// null)` followed by an assignment; the fused initializer is the
+		// declaration's own initialization, so the scan must not read it as
+		// a reassignment.
+		final fusedRoot = fuseWithin(f.expr);
+		f.expr.expr = fusedRoot.expr;
 		scanLocals(f.expr);
 		final lines = blockLines(statementsOf(f.expr), 2);
 		return lines;
@@ -238,6 +246,16 @@ class RustExpr {
 				}
 			case _: null;
 		};
+	}
+
+	function fuseWithin(e: TypedExpr): TypedExpr {
+		return switch(e.expr) {
+			case TBlock(stmts):
+				final fused = fuseUninitializedVars([for(s in stmts) fuseWithin(s)]);
+				{expr: TBlock(fused), pos: e.pos, t: e.t};
+			case _:
+				TypedExprTools.map(e, fuseWithin);
+		}
 	}
 
 	function fuseUninitializedVars(stmts: Array<TypedExpr>): Array<TypedExpr> {
@@ -1707,7 +1725,8 @@ class RustExpr {
 				}
 			case TBinop(OpAssign, t, _) | TBinop(OpAssignOp(_), t, _):
 				switch(t.expr) {
-					case TLocal(v): mutated.set(v.id, true);
+					case TLocal(v):
+						mutated.set(v.id, true);
 					case _:
 				}
 			case TCall(fn, args):
@@ -1719,7 +1738,8 @@ class RustExpr {
 							|| n == "addByte" || n == "push" || n == "finish" || n == "put"
 							|| n == "add" || n == "addChar") {
 							switch(stripWrap(subj).expr) {
-								case TLocal(v): mutated.set(v.id, true);
+								case TLocal(v):
+									mutated.set(v.id, true);
 								case _:
 							}
 						}
@@ -1743,7 +1763,8 @@ class RustExpr {
 								};
 								if(isArray) {
 									switch(stripWrap(args[i]).expr) {
-										case TLocal(v): mutated.set(v.id, true);
+										case TLocal(v):
+											mutated.set(v.id, true);
 										default:
 									}
 								}

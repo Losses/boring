@@ -83,6 +83,13 @@ class KotlinExpr {
 		}
 		DefaultArgExpander.completeRootExpr(cls, f.field.name, f.expr);
 		PipelineExpander.expandRootExpr(f.expr);
+		// Fuse declaration-plus-assignment pairs before the mutation scan.
+		// The typer lowers abstract-inline receiver bindings as `TVar(v,
+		// null)` followed by an assignment; the fused initializer is the
+		// declaration's own initialization, so the scan must not read it as
+		// a reassignment.
+		final fusedRoot = fuseWithin(f.expr);
+		f.expr.expr = fusedRoot.expr;
 		scanLocals(f.expr);
 		return blockLines(statementsOf(f.expr), 1);
 	}
@@ -197,6 +204,16 @@ class KotlinExpr {
 			case _:
 		}
 		return owner + "(" + expr(payloadArg) + ")";
+	}
+
+	function fuseWithin(e: TypedExpr): TypedExpr {
+		return switch(e.expr) {
+			case TBlock(stmts):
+				final fused = fuseUninitializedVars([for(s in stmts) fuseWithin(s)]);
+				{expr: TBlock(fused), pos: e.pos, t: e.t};
+			case _:
+				TypedExprTools.map(e, fuseWithin);
+		}
 	}
 
 	function fuseUninitializedVars(stmts: Array<TypedExpr>): Array<TypedExpr> {
