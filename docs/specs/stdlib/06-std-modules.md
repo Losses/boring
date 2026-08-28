@@ -94,6 +94,29 @@ a runtime declaration without the define stops with
 Baking a default name in would be the compiler assuming the consumer,
 which the toolchain rejects elsewhere for the compiled sources.
 
+## Entry points
+
+The runtime package exposes two entry points
+(`docs/plans/2026-08-28-runtime-unification.md`).
+
+- **General entry**: `@boring/runtime` on TypeScript, package
+  `boring.runtime` on Kotlin, the runtime crate root on Rust. It holds
+  every runtime declaration a program in a browser can load. Contract:
+  no `node:` import specifier and no host process API anywhere in the
+  entry. `tests/ts/runtime-entry.test.ts` scans the emitted file each
+  test run.
+- **Test entry**: `@boring/runtime/test`, package
+  `boring.runtime.test`, module `crate::runtime::test`. It holds the
+  test helper's result writer, which needs the host file system.
+  Generated business code never imports it; generated test code
+  imports it for `std.Test`.
+
+The Kotlin and Rust lanes have no import-time execution, so their
+layout keeps the test entry as a separate compilation unit inside the
+one emitted tree (directory `test/` under the runtime root). The
+TypeScript lane needs the split at module resolution: a browser that
+imports the general entry must never transitively resolve `node:fs`.
+
 ## Error contract
 
 Two failure sites, each inside its own visibility:
@@ -119,7 +142,9 @@ Runtime files are emitted on demand. A compilation writes a runtime
 file only when its generated modules referenced the corresponding
 declarations, and only under `runtime-emit`'s directory; shim sources carry
 no package line, and the emitter prefixes the configured package
-directive. A consumer generating four packages runs one compilation
+directive. The test entry emits under a `test/` subdirectory of the
+runtime root when any generated test code referenced `std.Test`. A
+consumer generating four packages runs one compilation
 that contains only the std modules with `runtime-emit` pointing
 at the runtime package's root, then compiles the four business
 packages with `runtime-emit=none` against the same `runtime-import`
@@ -138,6 +163,10 @@ package.
 - `tests/reference/ts/generated-tree.test.ts` imports the generated tree through
   the `@boring/runtime` specifier resolved by `tsconfig.json` `paths`,
   which is the same wiring a bring-your-own consumer uses.
+- `tests/ts/runtime-entry.test.ts` enforces the entry-point contract:
+  the emitted general entry contains no `node:` specifier and no test
+  helper, the test entry owns both, business code imports only the
+  general entry, and test code imports `Test` only from the test entry.
 - `package.json` `test:kotlin` compiles `reference/kotlin/gen` together with
   `reference/kotlin/gen/runtime`, where the shims are written under `package
   boring.runtime`.

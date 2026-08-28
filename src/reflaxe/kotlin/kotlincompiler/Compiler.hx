@@ -190,7 +190,7 @@ class Compiler extends PluginCompiler<Compiler> {
 		emitShim("haxe.io.BytesBuffer", "BytesBuffer.kt", KotlinRuntime.BYTES_BUFFER_SOURCE);
 		emitShim("std.Console", "Console.kt", KotlinRuntime.CONSOLE_SOURCE);
 		emitShim("std.Process", "Process.kt", KotlinRuntime.PROCESS_SOURCE);
-		emitShim("std.Test", "Test.kt", KotlinRuntime.TEST_SOURCE);
+		emitShim("std.Test", "test/Test.kt", KotlinRuntime.TEST_SOURCE, "test");
 		emitShim("std.UStringRT", "UString.kt", KotlinRuntime.USTRING_SOURCE);
 		emitShim("std.Graphemes", "Graphemes.kt", reflaxe.unicode.GraphemeTableRender.kotlin(reflaxe.unicode.GraphemeBreakData.TABLE) + KotlinRuntime.GRAPHEMES_SOURCE);
 		if(state.shimsUsed.exists("std.SortedMap") || state.shimsUsed.exists("std.SortedMapBuilder")) {
@@ -217,7 +217,7 @@ class Compiler extends PluginCompiler<Compiler> {
 		final lines = [
 			"package tests",
 			"",
-			"import " + runtimePackage + ".Test",
+			"import " + runtimePackage + ".test.Test",
 			"",
 			"object TestHelper {",
 			"    fun equalsValue(a: Boolean, b: Boolean): Boolean = a == b",
@@ -388,7 +388,7 @@ class Compiler extends PluginCompiler<Compiler> {
 		configured runtime package. Bring-your-own mode writes nothing;
 		the references already point at the consumer's package.
 	**/
-	function emitShim(module: String, fileName: String, source: String): Void {
+	function emitShim(module: String, fileName: String, source: String, subPackage: String = ""): Void {
 		if(!state.shimsUsed.exists(module)) {
 			return;
 		}
@@ -397,8 +397,12 @@ class Compiler extends PluginCompiler<Compiler> {
 			return;
 		}
 		final runtimePackage = RuntimeConfig.requireImportName("module " + module);
+		// A subPackage lands the file in a nested package directory; the
+		// test entry uses this so the general entry stays browser-loadable
+		// (docs/plans/2026-08-28).
+		final pkg = subPackage.length > 0 ? runtimePackage + "." + subPackage : runtimePackage;
 		final path = RuntimeConfig.emitPath(dir, fileName);
-		output.saveFile(path, "package " + runtimePackage + "\n\n" + StringTools.trim(source) + "\n");
+		output.saveFile(path, "package " + pkg + "\n\n" + StringTools.trim(source) + "\n");
 	}
 
 	public static function computeRelativePath(fromDir: String, toFile: String): String {

@@ -9,7 +9,8 @@
     "types": ["bun"],
     "baseUrl": ".",
     "paths": {
-      "@boring/runtime": ["./reference/ts/gen/runtime.ts"]
+      "@boring/runtime": ["./reference/ts/gen/runtime.ts"],
+      "@boring/runtime/test": ["./reference/ts/gen/runtime/test.ts"]
     },
     "strict": true,
     "noImplicitAny": true,
