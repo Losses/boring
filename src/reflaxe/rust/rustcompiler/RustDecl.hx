@@ -235,7 +235,7 @@ class RustDecl {
 			if(args.length == 0) {
 				lines.push("    " + o.name + ",");
 			} else {
-				final params = [for(arg in args) RustImports.toSnakeCase(arg.name) + ": " + fieldType(arg.type)].join(", ");
+				final params = [for(arg in args) RustImports.toSnakeCase(arg.name) + ": " + fieldType(arg.type, arg.name)].join(", ");
 				lines.push("    " + o.name + " { " + params + " },");
 			}
 		}
@@ -267,9 +267,12 @@ class RustDecl {
 		return lines.join("\n");
 	}
 
-	function fieldType(t: Type): String {
+	function fieldType(t: Type, name: String): String {
 		return switch(t) {
-			case TAbstract(a, _) if(a.get().name == "Int"): "usize";
+			case TAbstract(a, _) if(a.get().name == "Int"):
+				// Byte-position payloads index Rust slices and stay usize; every
+				// other Int payload keeps the shared Int mapping.
+				(name == "remaining" || name == "consumed") ? "usize" : types.of(t);
 			case _: types.of(t);
 		}
 	}
@@ -287,6 +290,7 @@ class RustDecl {
 				collectMessageCases(r, options, out);
 			case TBlock(stmts):
 				for(s in stmts) collectMessageCases(s, options, out);
+				collectCollapsedCase(stmts, options, out);
 			case TMeta(_, inner):
 				collectMessageCases(inner, options, out);
 			case TSwitch(_, cases, _):
@@ -306,6 +310,39 @@ class RustDecl {
 						case _:
 							out.set(name, renderDisplayFormat(body));
 					}
+				}
+			case _:
+		}
+	}
+
+	/**
+		A single-case switch in statement position collapses into a two
+		statement block after typing: the payload binding and the body. Recover
+		the case so Display keeps its message.
+	**/
+	function collectCollapsedCase(stmts: Array<TypedExpr>, options: Array<haxe.macro.Type.EnumField>, out: Map<String, String>): Void {
+		if(stmts.length != 2) {
+			return;
+		}
+		switch(stmts[0].expr) {
+			case TVar(_, init) if(init != null):
+				switch(stripDecorations(init).expr) {
+					case TEnumParameter(_, ef, _):
+					for(o in options) {
+						if(o.name != ef.name) {
+							continue;
+						}
+						bindPatternLocals(stmts[0]);
+						bindPatternLocals(stmts[1]);
+						final body = unwrapReturn(stmts[1]);
+						switch(body.expr) {
+							case TConst(TString(s)):
+								out.set(o.name, '"' + s + '"');
+							case _:
+								out.set(o.name, renderDisplayFormat(body));
+						}
+						}
+				case _:
 				}
 			case _:
 		}
@@ -477,15 +514,14 @@ class RustDecl {
 		final args = [for(a in f.args) RustImports.toSnakeCase(a.name) + ": " + types.of(a.type, true)].join(", ");
 
 		final isFallible = funcIsFallible(f);
-		final errOwner = isFallible ? findErrorOwner() : null;
-		if(isFallible) {
-			final errMod = state.errorModule != null ? state.errorModule : cls.module;
-			imports.requireType(errMod, errOwner);
+		final errOwner = isFallible ? resolveErrorOwner(f, cls) : null;
+		if(isFallible && errOwner != null) {
+			imports.requireType(errOwner.module, errOwner.name);
 		}
-		expr.setFallible(isFallible, errOwner, state.overflowVariant);
+		expr.setFallible(isFallible, errOwner != null ? errOwner.name : null, errOwner != null && errOwner.hasOverflow ? state.overflowVariant : null);
 
 		final rawRetType = returnsArgArray(f) ? types.of(f.ret, true) : types.of(f.ret, false);
-		final retType = isFallible ? 'Result<$rawRetType, $errOwner>' : rawRetType;
+		final retType = isFallible ? 'Result<$rawRetType, ${errOwner.name}>' : rawRetType;
 		final ret = retType == "()" ? "" : " -> " + retType;
 		final vis = f.field.isPublic ? "pub " : "";
 		final head = '    ${vis}fn ${snakeName}($args)$ret {';
@@ -524,6 +560,84 @@ class RustDecl {
 		}
 		Context.error("no error enum exists in AST for fallible function", Context.currentPos());
 		return null;
+	}
+
+	/**
+		Resolves the error enum owning this function's Result from what the body
+		actually throws. The global names stay as the fallback for functions
+		that are fallible only through helper calls.
+	**/
+	function resolveErrorOwner(f: ClassFuncData, cls: ClassType): {name: String, module: String, hasOverflow: Bool} {
+		final key = RustEmissionState.funcKey(f.classType.module, f.field.name, f.isStatic);
+		if(state.funcEnumConflicts.exists(key)) {
+			Context.error("call paths reach two different error enums"
+				+ "; the Rust lowering supports one error enum per function", f.field.pos);
+		}
+		var unique:Null<{name: String, module: String}> = null;
+		for(thrown in collectThrownPayloadEnums(f.expr)) {
+			if(unique == null) {
+				unique = thrown;
+			} else if(unique.module != thrown.module) {
+					Context.error("function throws payloads of " + unique.module + " and " + thrown.module
+					+ "; the Rust lowering supports one error enum per function", f.field.pos);
+				}
+		}
+		if(unique == null) {
+			// No direct throw: the error enum arrived through a call edge.
+			final inherited = state.funcErrorEnums.get(key);
+			if(inherited != null) {
+				unique = inherited;
+			}
+		}
+		if(unique != null) {
+				final emittedIn = state.payloadEnumModules.exists(unique.module) ? state.payloadEnumModules.get(unique.module) : cls.module;
+				return {
+					name: unique.name,
+					module: emittedIn,
+					hasOverflow: state.countOverflowEnums.exists(unique.module)
+				};
+			}
+		return {
+				name: findErrorOwner(),
+				module: state.errorModule != null ? state.errorModule : cls.module,
+				hasOverflow: true
+			};
+	}
+
+	function collectThrownPayloadEnums(e: TypedExpr): Array<{name: String, module: String}> {
+		final out: Array<{name: String, module: String}> = [];
+		if(e == null) {
+			return out;
+		}
+		function walk(x: TypedExpr) {
+			switch(x.expr) {
+				case TThrow(t):
+					switch(stripDecorations(t).expr) {
+						case TNew(c, _, args) if(args.length > 0):
+							final en = payloadEnumOfArg(args[0]);
+							if(en != null && state.exceptionPayloads.exists(c.get().module)) {
+								out.push({name: en.get().name, module: en.get().module});
+							}
+						case _:
+					}
+				case _:
+			}
+			haxe.macro.TypedExprTools.iter(x, walk);
+		}
+		walk(e);
+		return out;
+	}
+
+	function payloadEnumOfArg(arg: TypedExpr): Null<Ref<haxe.macro.Type.EnumType>> {
+		return switch(stripDecorations(arg).expr) {
+			case TField(_, FEnum(en, _)): en;
+			case TCall(fn, _):
+				switch(stripDecorations(fn).expr) {
+					case TField(_, FEnum(en, _)): en;
+						case _: null;
+					}
+			case _: null;
+		};
 	}
 
 	function instanceFuncDecl(cls: ClassType, f: ClassFuncData, hasLifetime: Bool, isTraitImpl: Bool = false): Array<String> {
@@ -573,15 +687,14 @@ class RustDecl {
 		final allArgs = otherArgs.length > 0 ? selfParam + ", " + otherArgs : selfParam;
 
 		final isFallible = funcIsFallible(f);
-		final errOwner = isFallible ? findErrorOwner() : null;
-		if(isFallible) {
-			final errMod = state.errorModule != null ? state.errorModule : cls.module;
-			imports.requireType(errMod, errOwner);
+		final errOwner = isFallible ? resolveErrorOwner(f, cls) : null;
+		if(isFallible && errOwner != null) {
+			imports.requireType(errOwner.module, errOwner.name);
 		}
-		expr.setFallible(isFallible, errOwner, state.overflowVariant);
+		expr.setFallible(isFallible, errOwner != null ? errOwner.name : null, errOwner != null && errOwner.hasOverflow ? state.overflowVariant : null);
 
 		final rawRetType = methodReturnType(f.ret, f.field.name);
-		final retType = isFallible ? 'Result<$rawRetType, $errOwner>' : rawRetType;
+		final retType = isFallible ? 'Result<$rawRetType, ${errOwner.name}>' : rawRetType;
 		final ret = retType == "()" ? "" : " -> " + retType;
 		final vis = (f.field.isPublic && !isTraitImpl) ? "pub " : "";
 		final head = '    ${vis}fn ${snakeName}($allArgs)$ret {';
@@ -645,9 +758,16 @@ class RustDecl {
 
 	function funcIsFallible(f: ClassFuncData): Bool {
 		if(f.expr == null) return false;
+		// The preScan fixpoint owns fallibility: direct throws, runtime-shim
+		// calls, and inheritance through call edges all land in the registry.
+		if(state.funcErrorEnums.exists(RustEmissionState.funcKey(f.classType.module, f.field.name, f.isStatic))) {
+			return true;
+		}
 		if(f.field.name == "encode" && f.args.length == 1) {
 			return true;
 		}
+		// Local re-check of direct fallibility on the body as emitted; the
+		// registry cannot fall behind this without a compile error following.
 		var throwsOrCallsFallible = false;
 		function walk(e: TypedExpr) {
 			switch(e.expr) {
@@ -656,8 +776,7 @@ class RustDecl {
 				case TCall(fn, _):
 					switch(fn.expr) {
 						case TField(_, FInstance(_, _, cf)) | TField(_, FStatic(_, cf)):
-							final n = cf.get().name;
-							if(n == "readU16" || n == "readU32" || n == "readF64" || n == "readAscii" || n == "ensureRemaining" || n == "decode" || n == "encode") {
+							if(RustEmissionState.runtimeShimIsFallible(cf.get().name)) {
 								throwsOrCallsFallible = true;
 							}
 						case _:
@@ -683,6 +802,10 @@ class RustDecl {
 		}
 		final runnerName = desc != null ? id + ": " + desc : id;
 		final snake = RustImports.toSnakeCase(f.field.name);
+		// Tests are the error boundary: a fault inside one is a recorded
+		// failure, so the body lowers as infallible and fallible callees
+		// unwrap through the catch_unwind harness.
+		expr.setFallible(false);
 		final body = expr.functionBody(cls, f);
 		final indented = body.map(l -> "        " + l);
 		return [

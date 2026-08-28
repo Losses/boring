@@ -16,6 +16,7 @@ class RustImports {
 		"std.SortedMapBuilder" => true,
 		"std.SortedSet" => true,
 		"std.SortedSetBuilder" => true,
+		"std.UStringRT" => true,
 	];
 
 	public final selfModule: String;
@@ -42,6 +43,8 @@ class RustImports {
 				"sorted_map";
 			} else if(module == "std.SortedSet" || module == "std.SortedSetBuilder") {
 				"sorted_set";
+			} else if(module == "std.UStringRT") {
+				"ustring";
 			} else {
 				toSnakeCase(name);
 			};

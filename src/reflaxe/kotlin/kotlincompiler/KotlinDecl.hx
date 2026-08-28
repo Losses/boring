@@ -266,6 +266,7 @@ class KotlinDecl {
 				collectMessageCases(r, options, out);
 			case TBlock(stmts):
 				for(s in stmts) collectMessageCases(s, options, out);
+				collectCollapsedCase(stmts, options, out);
 			case TMeta(_, inner):
 				collectMessageCases(inner, options, out);
 			case TSwitch(_, cases, _):
@@ -297,6 +298,42 @@ class KotlinDecl {
 		variant exposes the payload as its constructor property, whose
 		name is the declaration's argument name.
 	**/
+	/**
+		A single-case switch never survives typing: it arrives as a block
+		holding the pattern capture and the case body, so the TSwitch walk
+		in collectMessageCases cannot see it. Recover the constructor from
+		the capture's payload extraction and the message from the trailing
+		return.
+	**/
+	function collectCollapsedCase(stmts: Array<TypedExpr>, options: Array<haxe.macro.Type.EnumField>, out: Map<String, String>): Void {
+		if(stmts.length != 2) {
+			return;
+		}
+		switch(stmts[0].expr) {
+			case TVar(_, init) if(init != null):
+				switch(stripDecorations(init).expr) {
+					case TEnumParameter(_, ef, _):
+						final name = ef.name;
+						for(o in options) {
+							if(o.name != name) {
+								continue;
+							}
+							bindPatternLocals(stmts[0]);
+							bindPatternLocals(stmts[1]);
+							final body = unwrapReturn(stmts[1]);
+							switch(body.expr) {
+								case TConst(TString(s)):
+									out.set(name, '"' + s + '"');
+								case _:
+									out.set(name, expr.rawExpression(body));
+							}
+						}
+					case _:
+				}
+			case _:
+		}
+	}
+
 	function bindPatternLocals(e: TypedExpr): Void {
 		switch(e.expr) {
 			case TBlock(stmts):
