@@ -467,7 +467,7 @@ class PipelineExpander {
 						final name = cf.get().name;
 						final cls = c.get();
 						final isFunctional = cls.name == "Functional" || cls.pack.join(".") == "std.Functional" || cls.module == "std.Functional";
-						if (isFunctional && (name == "forEach" || name == "associate" || name == "sortedBy")) {
+						if (isFunctional && isClosedListStatic(name)) {
 							if (args.length != 2) {
 								Context.fatalError("collection pipeline methods accept inline function literals only", e.pos);
 							}
@@ -487,6 +487,20 @@ class PipelineExpander {
 		}
 
 		return parseInlinedArrayMethod(e);
+	}
+
+	static function isClosedListStatic(name:String):Bool {
+		return name == "forEach"
+			|| name == "associate"
+			|| name == "sortedBy"
+			|| name == "any"
+			|| name == "all"
+			|| name == "firstOrNull"
+			|| name == "sumOfInt"
+			|| name == "sumOfFloat"
+			|| name == "mapNotNull"
+			|| name == "flatMap"
+			|| name == "groupBy";
 	}
 
 	static function fieldName(fa:FieldAccess):String {
@@ -930,6 +944,353 @@ class PipelineExpander {
 					replacement: makeLocal(resultVar, pos)
 				};
 
+			case "any":
+				final resultName = mint("pipeline_result", usedNames);
+				final boolType = Context.getType("Bool");
+				final resultVar = makeTVar(resultName, boolType, false);
+				final resultDecl = makeTVarStmt(resultVar, makeBoolConst(false, pos), pos);
+
+				final indexName = mint("pipeline_index", usedNames);
+				final counterVar = makeTVar("_g", Context.getType("Int"), false);
+				final boundVar = makeTVar("_g1", Context.getType("Int"), true);
+				final indexVar = makeTVar(indexName, Context.getType("Int"), true);
+
+				final initCounter = makeTVarStmt(counterVar, makeIntConst(0, pos), pos);
+				final initBound = makeTVarStmt(boundVar, makeArrayLength(p.receiver, pos), pos);
+
+				final itemDecl = makeTVarStmt(lambda.v, makeArrayRead(p.receiver, makeLocal(indexVar, pos), elemType, pos), pos);
+				final bodyStmts = adaptLambdaBody(lambda.expr, predVal -> {
+					final assignTrue = {
+						expr: TBinop(OpAssign, makeLocal(resultVar, pos), makeBoolConst(true, pos)),
+						pos: pos,
+						t: boolType
+					};
+					final breakStmt = makeBreak(pos);
+					final thenBlock = {
+						expr: TBlock([assignTrue, breakStmt]),
+						pos: pos,
+						t: Context.getType("Void")
+					};
+					{
+						expr: TIf(predVal, thenBlock, null),
+						pos: pos,
+						t: Context.getType("Void")
+					};
+				});
+
+				final whileLoop = makeIntervalLoop(counterVar, boundVar, indexVar, [itemDecl].concat(bodyStmts), pos);
+				return {
+					stmts: [resultDecl, initCounter, initBound, whileLoop],
+					replacement: makeLocal(resultVar, pos)
+				};
+
+			case "all":
+				final resultName = mint("pipeline_result", usedNames);
+				final boolType = Context.getType("Bool");
+				final resultVar = makeTVar(resultName, boolType, false);
+				final resultDecl = makeTVarStmt(resultVar, makeBoolConst(true, pos), pos);
+
+				final indexName = mint("pipeline_index", usedNames);
+				final counterVar = makeTVar("_g", Context.getType("Int"), false);
+				final boundVar = makeTVar("_g1", Context.getType("Int"), true);
+				final indexVar = makeTVar(indexName, Context.getType("Int"), true);
+
+				final initCounter = makeTVarStmt(counterVar, makeIntConst(0, pos), pos);
+				final initBound = makeTVarStmt(boundVar, makeArrayLength(p.receiver, pos), pos);
+
+				final itemDecl = makeTVarStmt(lambda.v, makeArrayRead(p.receiver, makeLocal(indexVar, pos), elemType, pos), pos);
+				final bodyStmts = adaptLambdaBody(lambda.expr, predVal -> {
+					final assignFalse = {
+						expr: TBinop(OpAssign, makeLocal(resultVar, pos), makeBoolConst(false, pos)),
+						pos: pos,
+						t: boolType
+					};
+					final breakStmt = makeBreak(pos);
+					final thenBlock = {
+						expr: TBlock([assignFalse, breakStmt]),
+						pos: pos,
+						t: Context.getType("Void")
+					};
+					{
+						expr: TIf(makeNot(predVal, pos), thenBlock, null),
+						pos: pos,
+						t: Context.getType("Void")
+					};
+				});
+
+				final whileLoop = makeIntervalLoop(counterVar, boundVar, indexVar, [itemDecl].concat(bodyStmts), pos);
+				return {
+					stmts: [resultDecl, initCounter, initBound, whileLoop],
+					replacement: makeLocal(resultVar, pos)
+				};
+
+			case "firstOrNull":
+				final resultName = mint("pipeline_result", usedNames);
+				final nullElemType = makeNullType(elemType);
+				final resultVar = makeTVar(resultName, nullElemType, false);
+				final resultDecl = makeTVarStmt(resultVar, makeNullConst(pos), pos);
+
+				final indexName = mint("pipeline_index", usedNames);
+				final counterVar = makeTVar("_g", Context.getType("Int"), false);
+				final boundVar = makeTVar("_g1", Context.getType("Int"), true);
+				final indexVar = makeTVar(indexName, Context.getType("Int"), true);
+
+				final initCounter = makeTVarStmt(counterVar, makeIntConst(0, pos), pos);
+				final initBound = makeTVarStmt(boundVar, makeArrayLength(p.receiver, pos), pos);
+
+				final itemDecl = makeTVarStmt(lambda.v, makeArrayRead(p.receiver, makeLocal(indexVar, pos), elemType, pos), pos);
+				final bodyStmts = adaptLambdaBody(lambda.expr, predVal -> {
+					final assignItem = {
+						expr: TBinop(OpAssign, makeLocal(resultVar, pos), makeLocal(lambda.v, pos)),
+						pos: pos,
+						t: elemType
+					};
+					final breakStmt = makeBreak(pos);
+					final thenBlock = {
+						expr: TBlock([assignItem, breakStmt]),
+						pos: pos,
+						t: Context.getType("Void")
+					};
+					{
+						expr: TIf(predVal, thenBlock, null),
+						pos: pos,
+						t: Context.getType("Void")
+					};
+				});
+
+				final whileLoop = makeIntervalLoop(counterVar, boundVar, indexVar, [itemDecl].concat(bodyStmts), pos);
+				return {
+					stmts: [resultDecl, initCounter, initBound, whileLoop],
+					replacement: makeLocal(resultVar, pos)
+				};
+
+			case "sumOfInt":
+				final resultName = mint("pipeline_result", usedNames);
+				final intType = Context.getType("Int");
+				final resultVar = makeTVar(resultName, intType, false);
+				final resultDecl = makeTVarStmt(resultVar, makeIntConst(0, pos), pos);
+
+				final indexName = mint("pipeline_index", usedNames);
+				final counterVar = makeTVar("_g", Context.getType("Int"), false);
+				final boundVar = makeTVar("_g1", Context.getType("Int"), true);
+				final indexVar = makeTVar(indexName, Context.getType("Int"), true);
+
+				final initCounter = makeTVarStmt(counterVar, makeIntConst(0, pos), pos);
+				final initBound = makeTVarStmt(boundVar, makeArrayLength(p.receiver, pos), pos);
+
+				final itemDecl = makeTVarStmt(lambda.v, makeArrayRead(p.receiver, makeLocal(indexVar, pos), elemType, pos), pos);
+				final bodyStmts = adaptLambdaBody(lambda.expr, intVal -> {
+					{
+						expr: TBinop(OpAssignOp(OpAdd), makeLocal(resultVar, pos), intVal),
+						pos: pos,
+						t: intType
+					};
+				});
+
+				final whileLoop = makeIntervalLoop(counterVar, boundVar, indexVar, [itemDecl].concat(bodyStmts), pos);
+				return {
+					stmts: [resultDecl, initCounter, initBound, whileLoop],
+					replacement: makeLocal(resultVar, pos)
+				};
+
+			case "sumOfFloat":
+				final resultName = mint("pipeline_result", usedNames);
+				final floatType = Context.getType("Float");
+				final resultVar = makeTVar(resultName, floatType, false);
+				final resultDecl = makeTVarStmt(resultVar, makeFloatConst(0.0, pos), pos);
+
+				final indexName = mint("pipeline_index", usedNames);
+				final counterVar = makeTVar("_g", Context.getType("Int"), false);
+				final boundVar = makeTVar("_g1", Context.getType("Int"), true);
+				final indexVar = makeTVar(indexName, Context.getType("Int"), true);
+
+				final initCounter = makeTVarStmt(counterVar, makeIntConst(0, pos), pos);
+				final initBound = makeTVarStmt(boundVar, makeArrayLength(p.receiver, pos), pos);
+
+				final itemDecl = makeTVarStmt(lambda.v, makeArrayRead(p.receiver, makeLocal(indexVar, pos), elemType, pos), pos);
+				final bodyStmts = adaptLambdaBody(lambda.expr, floatVal -> {
+					{
+						expr: TBinop(OpAssignOp(OpAdd), makeLocal(resultVar, pos), floatVal),
+						pos: pos,
+						t: floatType
+					};
+				});
+
+				final whileLoop = makeIntervalLoop(counterVar, boundVar, indexVar, [itemDecl].concat(bodyStmts), pos);
+				return {
+					stmts: [resultDecl, initCounter, initBound, whileLoop],
+					replacement: makeLocal(resultVar, pos)
+				};
+
+			case "mapNotNull":
+				final resultName = mint("pipeline_result", usedNames);
+				final retType = lambda.retType;
+				final innerRetType = unwrapNullType(retType);
+				final arrayType = makeArrayType(innerRetType);
+
+				final resultVar = makeTVar(resultName, arrayType, true);
+				final resultDecl = makeTVarStmt(resultVar, makeNewArray(innerRetType, pos), pos);
+
+				final indexName = mint("pipeline_index", usedNames);
+				final counterVar = makeTVar("_g", Context.getType("Int"), false);
+				final boundVar = makeTVar("_g1", Context.getType("Int"), true);
+				final indexVar = makeTVar(indexName, Context.getType("Int"), true);
+
+				final initCounter = makeTVarStmt(counterVar, makeIntConst(0, pos), pos);
+				final initBound = makeTVarStmt(boundVar, makeArrayLength(p.receiver, pos), pos);
+
+				final itemDecl = makeTVarStmt(lambda.v, makeArrayRead(p.receiver, makeLocal(indexVar, pos), elemType, pos), pos);
+
+				final bodyStmts = adaptLambdaBody(lambda.expr, mappedVal -> {
+					final mappedItemName = mint("pipeline_item", usedNames);
+					final mappedItemVar = makeTVar(mappedItemName, retType, true);
+					final mappedItemDecl = makeTVarStmt(mappedItemVar, mappedVal, pos);
+					final pushCall = makeArrayPush(makeLocal(resultVar, pos), makeLocal(mappedItemVar, pos), innerRetType, pos);
+					final ifNonNull = {
+						expr: TIf(makeNonNullCheck(makeLocal(mappedItemVar, pos), pos), pushCall, null),
+						pos: pos,
+						t: Context.getType("Void")
+					};
+					{
+						expr: TBlock([mappedItemDecl, ifNonNull]),
+						pos: pos,
+						t: Context.getType("Void")
+					};
+				});
+
+				final whileLoop = makeIntervalLoop(counterVar, boundVar, indexVar, [itemDecl].concat(bodyStmts), pos);
+				return {
+					stmts: [resultDecl, initCounter, initBound, whileLoop],
+					replacement: makeLocal(resultVar, pos)
+				};
+
+			case "flatMap":
+				if (!isArrayType(lambda.retType)) {
+					Context.fatalError("flat map selectors return arrays only", p.lambdaExpr.pos);
+				}
+				final innerElemType = getArrayElemType(lambda.retType);
+				final resultName = mint("pipeline_result", usedNames);
+				final arrayType = makeArrayType(innerElemType);
+
+				final resultVar = makeTVar(resultName, arrayType, true);
+				final resultDecl = makeTVarStmt(resultVar, makeNewArray(innerElemType, pos), pos);
+
+				final indexName = mint("pipeline_index", usedNames);
+				final counterVar = makeTVar("_g", Context.getType("Int"), false);
+				final boundVar = makeTVar("_g1", Context.getType("Int"), true);
+				final indexVar = makeTVar(indexName, Context.getType("Int"), true);
+
+				final initCounter = makeTVarStmt(counterVar, makeIntConst(0, pos), pos);
+				final initBound = makeTVarStmt(boundVar, makeArrayLength(p.receiver, pos), pos);
+
+				final itemDecl = makeTVarStmt(lambda.v, makeArrayRead(p.receiver, makeLocal(indexVar, pos), elemType, pos), pos);
+
+				final bodyStmts = adaptLambdaBody(lambda.expr, innerArrVal -> {
+					final innerArrName = mint("pipeline_inner", usedNames);
+					final innerArrVar = makeTVar(innerArrName, lambda.retType, true);
+					final innerArrDecl = makeTVarStmt(innerArrVar, innerArrVal, pos);
+
+					final innerIndexName = mint("pipeline_index", usedNames);
+					final innerCounterVar = makeTVar("_g", Context.getType("Int"), false);
+					final innerBoundVar = makeTVar("_g1", Context.getType("Int"), true);
+					final innerIndexVar = makeTVar(innerIndexName, Context.getType("Int"), true);
+
+					final innerInitCounter = makeTVarStmt(innerCounterVar, makeIntConst(0, pos), pos);
+					final innerInitBound = makeTVarStmt(innerBoundVar, makeArrayLength(makeLocal(innerArrVar, pos), pos), pos);
+
+					final innerItemRead = makeArrayRead(makeLocal(innerArrVar, pos), makeLocal(innerIndexVar, pos), innerElemType, pos);
+					final innerPush = makeArrayPush(makeLocal(resultVar, pos), innerItemRead, innerElemType, pos);
+
+					final innerLoop = makeIntervalLoop(innerCounterVar, innerBoundVar, innerIndexVar, [innerPush], pos);
+
+					{
+						expr: TBlock([innerArrDecl, innerInitCounter, innerInitBound, innerLoop]),
+						pos: pos,
+						t: Context.getType("Void")
+					};
+				});
+
+				final whileLoop = makeIntervalLoop(counterVar, boundVar, indexVar, [itemDecl].concat(bodyStmts), pos);
+				return {
+					stmts: [resultDecl, initCounter, initBound, whileLoop],
+					replacement: makeLocal(resultVar, pos)
+				};
+
+			case "groupBy":
+				final entryType = lambda.retType;
+				final keyType = extractStructFieldType(entryType, "key", pos);
+				final valType = extractStructFieldType(entryType, "value", pos);
+				final valArrayType = makeArrayType(valType);
+
+				final builderName = mint("pipeline_builder", usedNames);
+				final resultName = mint("pipeline_result", usedNames);
+				final entryName = mint("pipeline_entry", usedNames);
+				final bucketName = mint("pipeline_bucket", usedNames);
+
+				final builderType = makeSortedMapBuilderType(keyType, valArrayType);
+				final sortedMapType = makeSortedMapType(keyType, valArrayType);
+
+				final builderVar = makeTVar(builderName, builderType, true);
+				final builderDecl = makeTVarStmt(builderVar, makeSortedMapBuilderCall(keyType, valArrayType, pos), pos);
+
+				final indexName = mint("pipeline_index", usedNames);
+				final counterVar = makeTVar("_g", Context.getType("Int"), false);
+				final boundVar = makeTVar("_g1", Context.getType("Int"), true);
+				final indexVar = makeTVar(indexName, Context.getType("Int"), true);
+
+				final initCounter = makeTVarStmt(counterVar, makeIntConst(0, pos), pos);
+				final initBound = makeTVarStmt(boundVar, makeArrayLength(p.receiver, pos), pos);
+
+				final itemDecl = makeTVarStmt(lambda.v, makeArrayRead(p.receiver, makeLocal(indexVar, pos), elemType, pos), pos);
+
+				final bodyStmts = adaptLambdaBody(lambda.expr, entryVal -> {
+					final entryVar = makeTVar(entryName, entryType, true);
+					final entryDecl = makeTVarStmt(entryVar, entryVal, pos);
+
+					final keyRead = makeFieldRead(makeLocal(entryVar, pos), "key", keyType, pos);
+					final valRead = makeFieldRead(makeLocal(entryVar, pos), "value", valType, pos);
+
+					final bucketVar = makeTVar(bucketName, valArrayType, false);
+					final getBucketCall = makeSortedMapGetCall(makeLocal(builderVar, pos), keyRead, valArrayType, pos);
+					final bucketDecl = makeTVarStmt(bucketVar, getBucketCall, pos);
+
+					final cond = makeNullCheck(makeLocal(bucketVar, pos), pos);
+					final allocBucket = {
+						expr: TBinop(OpAssign, makeLocal(bucketVar, pos), makeNewArray(valType, pos)),
+						pos: pos,
+						t: valArrayType
+					};
+					final putCall = makeSortedMapPutCall(makeLocal(builderVar, pos), keyRead, makeLocal(bucketVar, pos), pos);
+					final ifNullBlock = {
+						expr: TBlock([allocBucket, putCall]),
+						pos: pos,
+						t: Context.getType("Void")
+					};
+					final ifStmt = {
+						expr: TIf(cond, ifNullBlock, null),
+						pos: pos,
+						t: Context.getType("Void")
+					};
+
+					final pushCall = makeArrayPush(makeLocal(bucketVar, pos), valRead, valType, pos);
+
+					{
+						expr: TBlock([entryDecl, bucketDecl, ifStmt, pushCall]),
+						pos: pos,
+						t: Context.getType("Void")
+					};
+				});
+
+				final whileLoop = makeIntervalLoop(counterVar, boundVar, indexVar, [itemDecl].concat(bodyStmts), pos);
+
+				final resultVar = makeTVar(resultName, sortedMapType, true);
+				final resultDecl = makeTVarStmt(resultVar, makeSortedMapBuildCall(makeLocal(builderVar, pos), sortedMapType, pos), pos);
+
+				return {
+					stmts: [builderDecl, initCounter, initBound, whileLoop, resultDecl],
+					replacement: makeLocal(resultVar, pos)
+				};
+
 			default:
 				throw "Unknown pipeline kind: " + p.kind;
 		}
@@ -975,6 +1336,117 @@ class PipelineExpander {
 				Context.fatalError("associate lambda body must be a structure literal with key and value fields", pos);
 				return Context.getType("Dynamic");
 		}
+	}
+
+	static function makeBoolConst(val:Bool, pos:Position):TypedExpr {
+		return {
+			expr: TConst(TBool(val)),
+			pos: pos,
+			t: Context.getType("Bool")
+		};
+	}
+
+	static function makeFloatConst(val:Float, pos:Position):TypedExpr {
+		final s = Std.string(val);
+		final str = s.indexOf(".") >= 0 ? s : s + ".0";
+		return {
+			expr: TConst(TFloat(str)),
+			pos: pos,
+			t: Context.getType("Float")
+		};
+	}
+
+	static function makeNullConst(pos:Position):TypedExpr {
+		return {
+			expr: TConst(TNull),
+			pos: pos,
+			t: Context.getType("Dynamic")
+		};
+	}
+
+	static function makeBreak(pos:Position):TypedExpr {
+		return {
+			expr: TBreak,
+			pos: pos,
+			t: Context.getType("Void")
+		};
+	}
+
+	static function makeNot(e:TypedExpr, pos:Position):TypedExpr {
+		return {
+			expr: TUnop(OpNot, false, {
+				expr: TParenthesis(e),
+				pos: pos,
+				t: e.t
+			}),
+			pos: pos,
+			t: Context.getType("Bool")
+		};
+	}
+
+	static function unwrapNullType(t:Type):Type {
+		if (t == null) return t;
+		return switch (t) {
+			case TAbstract(a, params) if (a.get().name == "Null"):
+				unwrapNullType(params[0]);
+			case TType(def, params):
+				unwrapNullType(Context.follow(t));
+			default:
+				switch (Context.follow(t)) {
+					case TAbstract(a, params) if (a.get().name == "Null"):
+						unwrapNullType(params[0]);
+					default: t;
+				}
+		};
+	}
+
+	static function makeNullType(elemType:Type):Type {
+		final nullAbstract = switch (Context.getType("Null")) {
+			case TAbstract(a, _): a;
+			default: throw "Null abstract type not found";
+		};
+		return TAbstract(nullAbstract, [elemType]);
+	}
+
+	static function makeNullCheck(e:TypedExpr, pos:Position):TypedExpr {
+		return {
+			expr: TBinop(OpEq, e, makeNullConst(pos)),
+			pos: pos,
+			t: Context.getType("Bool")
+		};
+	}
+
+	static function makeNonNullCheck(e:TypedExpr, pos:Position):TypedExpr {
+		return {
+			expr: TBinop(OpNotEq, e, makeNullConst(pos)),
+			pos: pos,
+			t: Context.getType("Bool")
+		};
+	}
+
+	static function makeSortedMapGetCall(builderLocal:TypedExpr, keyExpr:TypedExpr, valType:Type, pos:Position):TypedExpr {
+		final builderClassRef = getSortedMapBuilderClassRef();
+		var getField:Null<ClassField> = null;
+		for (f in builderClassRef.get().fields.get()) {
+			if (f.name == "get") {
+				getField = f;
+				break;
+			}
+		}
+		if (getField == null) {
+			throw "SortedMapBuilder.get method not found";
+		}
+		final nullValType = makeNullType(valType);
+		final getFieldExpr:TypedExpr = {
+			expr: TField(builderLocal, FInstance(builderClassRef, [keyExpr.t, valType], makeRef(getField))),
+			pos: pos,
+			t: TFun([{name: "key", opt: false, t: keyExpr.t}], nullValType)
+		};
+		return {
+			expr: TCall(getFieldExpr, [keyExpr]),
+			pos: pos,
+			t: nullValType
+		};
 	}
 
 	static function makeRef<T>(val:T):Ref<T> {
