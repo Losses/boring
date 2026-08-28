@@ -151,7 +151,7 @@ fun vectorSortByCodePoint(records: MutableList<GlyphMetrics>): MutableList<Glyph
 3. Rust and Kotlin reuse the platform stable sort, per the standing values: the platform implementations are already the fastest stable sorts available on those trees, so the runtime adds no algorithm of its own.
 4. Every strategy on every platform is ascending, in place, and stable. Stability is the identity contract: for the same input array, the four trees produce the same output array, verified by the test hooks below without shared code.
 5. A new sorting need is a new named strategy and a specification amendment to this file. The set starts with `byCodePoint` because that is the one need the downstream consumers have named.
-6. The `sortedBy` expansion of `docs/specs/features/21-functional-idiom-expansion.md` is the one exception to the named-strategy set: its comparator is generated from the key expression at expansion time and never exists as a source value, so the "no key-selector parameter" boundary of rule 1 holds at the source level while the generated code carries the platform sort with the inlined key. The sort is stable, ascending, and returns a new array on every platform, including the haxe stage-1 shim.
+6. The `sortedBy` expansion of `docs/specs/macros/01-functional-idiom-expansion.md` is the one exception to the named-strategy set: its comparator is generated from the key expression at expansion time and never exists as a source value, so the "no key-selector parameter" boundary of rule 1 holds at the source level while the generated code carries the platform sort with the inlined key. The sort is stable, ascending, and returns a new array on every platform, including the haxe stage-1 shim.
 
 ## Test hooks
 
