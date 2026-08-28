@@ -171,6 +171,37 @@ Unicode code points are represented as 32-bit unsigned integers (`Int` in Haxe, 
 
 The codec operates on glyph indices and Unicode scalar values where integer representation avoids encoding overhead and surrogate pair handling. Binary wire serialization treats code points as big-endian 32-bit integers without UTF-8 or UTF-16 transcoding.
 
+## String index access ruling
+
+Added 2026-08-28. The three runtimes expose two index spaces on `String`: the
+TypeScript, Kotlin, and stage-one JavaScript runtimes address UTF-16 code
+units, and the Rust runtime addresses UTF-8 bytes (`String::len`,
+`as_bytes()[index]`). The two spaces and the values they return coincide for
+code points U+0000..U+007F and diverge everywhere else. `String.length`,
+`String.charCodeAt`, and every operation that takes or returns a string index
+(`charAt`, `codePointAt`, `substring`, `substr`, `indexOf`, `lastIndexOf`)
+carry an ASCII-bounded contract.
+
+Source obligation: a string that may hold content above U+007F must not be
+indexed. Such strings are consumed as whole strings or as code-point integers
+under the existing code-point ruling. `String.fromCharCode` constructs from
+wire bytes; its sanctioned domain is 0..255, the range the Rust lowering
+`char::from(u8)` accepts.
+
+Enforcement: style rule `V18 NonAsciiStringIndex` reports at Haxe compile
+time, split across the two interception passes. The call forms are checked
+in the untyped pass, because the typer expands the inline std String methods
+before the typed pass runs (`charCodeAt` becomes an `HxOverrides.cca` call
+on the JavaScript std); that check fires on a literal subject and on a local
+whose final declaration initializes it from a non-ASCII literal. The
+`length` read and the call forms that survive typing are checked in the
+typed pass, where the subject may also be a field initialized from a string
+literal; a field that receives an assignment anywhere leaves the checked
+set. `String.fromCharCode` reports when an integer literal argument falls
+outside 0..255. Subjects holding runtime data stay outside the checker; the
+four-side consistency harness reports exercised divergence between the
+UTF-16 and byte index spaces.
+
 ## Test hooks
 
 Code point values and ASCII magic headers are asserted in:
