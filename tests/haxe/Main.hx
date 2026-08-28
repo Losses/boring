@@ -83,9 +83,11 @@ class Main {
 	}
 
 	static function main():Void {
-		// The extern primitives of std.UStringRT resolve to the shared
-		// oracle, the same binding stage one compiles for TestMain.
+		// The extern primitives of std.UStringRT and std.Graphemes resolve
+		// to the shared oracles, the same bindings stage one compiles for
+		// TestMain.
 		js.Syntax.code("globalThis.std = globalThis.std || {}; globalThis.std.UStringRT = {0};", UStringRtOracle);
+		js.Syntax.code("globalThis.std.Graphemes = {0};", GraphemesOracle);
 
 		final encoded = VectorCodec.encode(VECTOR_RECORDS);
 		expectTrue("encoded length matches the committed vector", encoded.length == 184);

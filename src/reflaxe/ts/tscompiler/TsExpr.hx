@@ -860,6 +860,9 @@ class TsExpr {
 			case "std.UStringRT":
 				imports.runtime("UString");
 				return "UString." + name;
+			case "std.Graphemes":
+				imports.runtime("Graphemes");
+				return "Graphemes." + name;
 			case _:
 				if(cls.module == "std.Test") {
 					imports.runtime("Test");
@@ -876,6 +879,10 @@ class TsExpr {
 				if(cls.module == "std.UStringRT") {
 					imports.runtime("UString");
 					return "UString." + name;
+				}
+				if(cls.module == "std.Graphemes") {
+					imports.runtime("Graphemes");
+					return "Graphemes." + name;
 				}
 				for(field in cls.statics.get()) {
 					if(field.name == name && DataTableHelper.isDataTableField(field)) {

@@ -680,5 +680,205 @@ object UString {
     }
 }
 ";
+
+	/**
+		Runtime module behind std.Graphemes
+		(docs/specs/stdlib/11-grapheme-clusters.md). Code-unit-addressed walk
+		over UTF-16 storage; the break decisions and the generated table are
+		shared with the other targets. The walk state packs the GB11 link
+		stage (bits 0-1), the GB9c link stage (bits 2-3), and the
+		regional-indicator parity (bit 4).
+	**/
+	public static final GRAPHEMES_SOURCE = "
+object Graphemes {
+    fun count(s: String): Int {
+        var total = 0
+        var prev = -1
+        var state = 0
+        var i = 0
+        while (i < s.length) {
+            val packed = lookup(codePointAt(s, i))
+            if (prev < 0 || breaks(prev, packed, state)) {
+                total += 1
+            }
+            state = advance(packed, state)
+            prev = packed
+            i += charWidth(s, i)
+        }
+        return total
+    }
+
+    fun at(s: String, index: Int): String? {
+        if (index < 0) {
+            return null
+        }
+        var ordinal = 0
+        var prev = -1
+        var state = 0
+        var clusterStart = 0
+        var i = 0
+        while (i < s.length) {
+            val packed = lookup(codePointAt(s, i))
+            if (prev < 0 || breaks(prev, packed, state)) {
+                if (ordinal == index + 1) {
+                    return s.substring(clusterStart, i)
+                }
+                ordinal += 1
+                clusterStart = i
+            }
+            state = advance(packed, state)
+            prev = packed
+            i += charWidth(s, i)
+        }
+        if (ordinal == index + 1) {
+            return s.substring(clusterStart)
+        }
+        return null
+    }
+
+    fun slice(s: String, from: Int, to: Int): String {
+        val total = count(s)
+        val start = if (from < 0) 0 else if (from > total) total else from
+        val end = if (to > total) total else if (to < 0) 0 else to
+        if (start >= end) {
+            return \"\"
+        }
+        var out = \"\"
+        var ordinal = 0
+        var prev = -1
+        var state = 0
+        var clusterStart = 0
+        var i = 0
+        while (i < s.length) {
+            val packed = lookup(codePointAt(s, i))
+            if (prev < 0 || breaks(prev, packed, state)) {
+                if (ordinal - 1 >= start && ordinal - 1 < end) {
+                    out += s.substring(clusterStart, i)
+                }
+                ordinal += 1
+                clusterStart = i
+            }
+            state = advance(packed, state)
+            prev = packed
+            i += charWidth(s, i)
+        }
+        if (ordinal - 1 >= start && ordinal - 1 < end) {
+            out += s.substring(clusterStart)
+        }
+        return out
+    }
+
+    fun parts(s: String): MutableList<String> {
+        val out: MutableList<String> = ArrayList()
+        var prev = -1
+        var state = 0
+        var clusterStart = 0
+        var i = 0
+        while (i < s.length) {
+            val packed = lookup(codePointAt(s, i))
+            if (prev < 0 || breaks(prev, packed, state)) {
+                if (prev >= 0) {
+                    out.add(s.substring(clusterStart, i))
+                }
+                clusterStart = i
+            }
+            state = advance(packed, state)
+            prev = packed
+            i += charWidth(s, i)
+        }
+        if (clusterStart < s.length) {
+            out.add(s.substring(clusterStart))
+        }
+        return out
+    }
+
+    private fun lookup(code: Int): Int {
+        var lo = 0
+        var hi = GRAPHEME_TABLE.size / 3 - 1
+        while (lo <= hi) {
+            val mid = (lo + hi) shr 1
+            val base = mid * 3
+            if (code < GRAPHEME_TABLE[base]) {
+                hi = mid - 1
+            } else if (code > GRAPHEME_TABLE[base + 1]) {
+                lo = mid + 1
+            } else {
+                return GRAPHEME_TABLE[base + 2]
+            }
+        }
+        return 0
+    }
+
+    private fun breaks(prev: Int, cur: Int, state: Int): Boolean {
+        val pc = prev and 15
+        val cc = cur and 15
+        if (pc == 1 && cc == 2) return false // GB3 CR x LF
+        if (pc == 1 || pc == 2 || pc == 3) return true // GB4
+        if (cc == 1 || cc == 2 || cc == 3) return true // GB5
+        if (pc == 9 && (cc == 9 || cc == 10 || cc == 12 || cc == 13)) return false // GB6
+        if ((pc == 10 || pc == 12) && (cc == 10 || cc == 11)) return false // GB7
+        if ((pc == 11 || pc == 13) && cc == 11) return false // GB8
+        if (cc == 4 || cc == 5) return false // GB9
+        if (cc == 8) return false // GB9a
+        if (pc == 7) return false // GB9b
+        if (cur and 32 != 0 && (state shr 2 and 3) == 2) return false // GB9c
+        if (cur and 16 != 0 && (state and 3) == 2) return false // GB11
+        if (cc == 6 && (state and 16) != 0) return false // GB12/13
+        return true // GB999
+    }
+
+    private fun advance(cur: Int, state: Int): Int {
+        val cc = cur and 15
+        var pict = state and 3
+        var incb = (state shr 2) and 3
+        var riOdd = (state and 16) != 0
+        if (cur and 16 != 0) {
+            pict = 1
+        } else if (cc == 5) {
+            pict = if (pict == 1) 2 else 0
+        } else if (cc == 4) {
+            if (pict != 1) {
+                pict = 0
+            }
+        } else {
+            pict = 0
+        }
+        val incbValue = cur and 96
+        if (incbValue == 32) {
+            incb = 1
+        } else if (incbValue == 64) {
+            incb = if (incb >= 1) 2 else 0
+        } else if (incbValue == 96) {
+            // Extend keeps the consonant context alive.
+        } else {
+            incb = 0
+        }
+        riOdd = if (cc == 6) !riOdd else false
+        return (if (riOdd) 16 else 0) or (incb shl 2) or pict
+    }
+
+    private fun charWidth(s: String, i: Int): Int {
+        val c = s[i].code
+        if (c in 0xD800..0xDBFF && i + 1 < s.length) {
+            val next = s[i + 1].code
+            if (next in 0xDC00..0xDFFF) {
+                return 2
+            }
+        }
+        return 1
+    }
+
+    private fun codePointAt(s: String, i: Int): Int {
+        val c = s[i].code
+        if (c in 0xD800..0xDBFF && i + 1 < s.length) {
+            val next = s[i + 1].code
+            if (next in 0xDC00..0xDFFF) {
+                return 0x10000 + ((c - 0xD800) shl 10) + (next - 0xDC00)
+            }
+        }
+        return c
+    }
+}
+";
 }
 #end

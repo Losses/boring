@@ -14,6 +14,16 @@ import reflaxe.data.ClassFuncData;
 	Statement and expression lowering from the Haxe typed AST to Rust.
 **/
 class RustExpr {
+	// Runtime shim parameters that take i32 where the haxe declaration
+	// says Int. slice clamps with bounds that may be negative, so its
+	// bound parameters are signed in the Rust runtime; the compiler
+	// cannot read a Rust signature, so the signed positions are listed
+	// here and the call sites cast into them.
+	static final SIGNED_SHIM_PARAMS: Map<String, Array<Int>> = [
+		"ustring.slice" => [1, 2],
+		"graphemes.slice" => [1, 2]
+	];
+
 	final imports: RustImports;
 	final types: RustType;
 	final state: RustEmissionState;
@@ -21,6 +31,7 @@ class RustExpr {
 	var isFallible: Bool = false;
 	var countOverflowVariant: Null<String> = null;
 	var errorTypeName: Null<String> = null;
+	var returnUnsigned: Bool = false;
 
 	final subst: Map<Int, String> = [];
 	final mutated: Map<Int, Bool> = [];
@@ -40,6 +51,10 @@ class RustExpr {
 
 	public function setArgType(name: String, typeName: String): Void {
 		argTypes.set(name, typeName);
+	}
+
+	public function setReturnUnsigned(value: Bool): Void {
+		this.returnUnsigned = value;
 	}
 
 	public function reserveName(name: String): Void {
@@ -174,10 +189,19 @@ class RustExpr {
 				}
 				return [indent(depth) + "return;"];
 			case TReturn(ret):
+				// An Int-returning function renders u32, while a length
+				// expression renders usize; the return narrows once at the
+				// boundary instead of forcing every length read to carry a
+				// cast.
+				final retStr = if(returnUnsigned && isUsizeExpr(ret)) {
+					"(" + expr(ret) + ") as u32";
+				} else {
+					expr(ret);
+				};
 				if(isFallible) {
-					return [indent(depth) + "return Ok(" + expr(ret) + ");"];
+					return [indent(depth) + "return Ok(" + retStr + ");"];
 				}
-				return [indent(depth) + "return " + expr(ret) + ";"];
+				return [indent(depth) + "return " + retStr + ";"];
 			case TThrow(x):
 				return [indent(depth) + "return Err(" + throwVariant(x) + ");"];
 			case TBreak:
@@ -1014,7 +1038,11 @@ class RustExpr {
 				}
 				return RustImports.toSnakeCase(localName(v));
 			case TArray(arr, idx):
-				return expr(arr) + "[(" + expr(idx) + ") as usize]";
+				final base = expr(arr) + "[(" + expr(idx) + ") as usize]";
+				// Reading a String element moves it out of the Vec, so a
+				// value read renders as a clone. Borrow consumers go
+				// through arrayArgBorrow and skip the copy.
+				return scalarTypeKind(e.t) == "String" ? "(" + base + ").clone()" : base;
 			case TBinop(op, l, r):
 				return binop(e, op, l, r);
 			case TUnop(op, post, subj):
@@ -1287,6 +1315,10 @@ class RustExpr {
 				state.shimsUsed.set("std.UStringRT", true);
 				imports.require("crate::runtime::ustring");
 				return "ustring::" + RustImports.toSnakeCase(name);
+			case "std.Graphemes":
+				state.shimsUsed.set("std.Graphemes", true);
+				imports.require("crate::runtime::graphemes");
+				return "graphemes::" + RustImports.toSnakeCase(name);
 			case _:
 				if(cls.module == "std.Test") {
 					state.shimsUsed.set("std.Test", true);
@@ -1305,6 +1337,11 @@ class RustExpr {
 					state.shimsUsed.set("std.UStringRT", true);
 					imports.require("crate::runtime::ustring");
 					return "ustring::" + RustImports.toSnakeCase(name);
+				}
+				if(cls.module == "std.Graphemes") {
+					state.shimsUsed.set("std.Graphemes", true);
+					imports.require("crate::runtime::graphemes");
+					return "graphemes::" + RustImports.toSnakeCase(name);
 				}
 				for(field in cls.statics.get()) {
 					if(field.name == name && DataTableHelper.isDataTableField(field)) {
@@ -1377,6 +1414,7 @@ class RustExpr {
 						final arg = args[0];
 						final argStr = switch(arg.expr) {
 							case TConst(TString(_)): expr(arg);
+							case TArray(_, _): "&" + arrayArgBorrow(arg);
 							case _:
 								final s = expr(arg);
 								if(StringTools.startsWith(s, "&")) s else "&" + s;
@@ -1592,7 +1630,15 @@ class RustExpr {
 				}
 				final isStaticFallible = isFallibleCallee(c, cf, true);
 				final q = isFallible ? (isStaticFallible ? "?" : "") : (isStaticFallible ? ".unwrap()" : "");
-				return staticRef(cls, name) + "(" + renderCallArgs(cf.get().type, args) + ")" + q;
+				final shimKey = if(cls.module == "std.UStringRT") {
+					"ustring." + name;
+				} else if(cls.module == "std.Graphemes") {
+					"graphemes." + name;
+				} else {
+					null;
+				};
+				final signedPositions = shimKey != null ? SIGNED_SHIM_PARAMS.get(shimKey) : null;
+				return staticRef(cls, name) + "(" + renderCallArgs(cf.get().type, args, signedPositions) + ")" + q;
 			case TField(subj, FEnum(e, ef)):
 				final en = e.get();
 				imports.requireType(en.module, en.name);
@@ -2143,7 +2189,7 @@ class RustExpr {
 		};
 	}
 
-	function renderCallArgs(fnType: Null<Type>, args: Array<TypedExpr>): String {
+	function renderCallArgs(fnType: Null<Type>, args: Array<TypedExpr>, signedPositions: Null<Array<Int>> = null): String {
 		final paramTypes = if(fnType != null) {
 			switch(Context.follow(fnType)) {
 				case TFun(pargs, _): [for(p in pargs) p.t];
@@ -2176,6 +2222,9 @@ class RustExpr {
 						argStr = prefix + argStr;
 					}
 				}
+			}
+			if(signedPositions != null && signedPositions.indexOf(i) >= 0) {
+				argStr = "(" + argStr + ") as i32";
 			}
 			rendered.push(argStr);
 		}
@@ -2310,10 +2359,25 @@ class RustExpr {
 	}
 
 	function renderOptArg(e: TypedExpr, kind: String): String {
+		// Both sides must reach the helper as Option. A Null-typed
+		// expression already lowers to Option; any other expression
+		// renders the inner value and is wrapped into Some. The String
+		// kind clones because the same local may be borrowed by the
+		// actual argument of the same call.
 		return switch(e.expr) {
 			case TConst(TNull): kind == "String" ? "None::<String>" : "None::<u32>";
+			case _ if(isNullType(e.t)): expr(e);
 			case TConst(TString(s)) if(kind == "String"): "Some(" + quoteString(s) + ".to_string())";
 			case TConst(TInt(i)) if(kind == "Int"): "Some(" + Std.string(i) + ")";
+			case _: kind == "String" ? "Some(" + expr(e) + ".clone())" : "Some(" + expr(e) + ")";
+		};
+	}
+
+	function arrayArgBorrow(e: TypedExpr): String {
+		// A direct array access can be borrowed without the value-read
+		// clone; the borrow consumers above do not need the copy.
+		return switch(e.expr) {
+			case TArray(arr, idx): expr(arr) + "[(" + expr(idx) + ") as usize]";
 			case _: expr(e);
 		};
 	}

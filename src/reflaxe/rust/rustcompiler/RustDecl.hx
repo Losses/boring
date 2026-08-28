@@ -526,6 +526,7 @@ class RustDecl {
 		final vis = f.field.isPublic ? "pub " : "";
 		final head = '    ${vis}fn ${snakeName}($args)$ret {';
 
+		expr.setReturnUnsigned(rawRetType == "u32");
 		final body = expr.functionBody(cls, f);
 		return [head].concat(body.map(l -> "    " + l)).concat(["    }"]);
 	}
@@ -699,6 +700,7 @@ class RustDecl {
 		final vis = (f.field.isPublic && !isTraitImpl) ? "pub " : "";
 		final head = '    ${vis}fn ${snakeName}($allArgs)$ret {';
 
+		expr.setReturnUnsigned(rawRetType == "u32");
 		final body = expr.functionBody(cls, f);
 		return [head].concat(body.map(l -> "    " + l)).concat(["    }"]);
 	}

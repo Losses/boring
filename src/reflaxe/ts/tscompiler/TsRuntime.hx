@@ -922,6 +922,162 @@ export const UString = {
     return out;
   },
 };
+
+// Grapheme cluster segmentation (docs/specs/stdlib/11-grapheme-clusters.md).
+// The table and rule numbering follow UAX #29; the walk state packs the
+// GB11 link stage (bits 0-1), the GB9c link stage (bits 2-3), and the
+// regional-indicator parity (bit 4).
+function graphemeLookup(code: number): number {
+  let lo = 0;
+  let hi = (GRAPHEME_TABLE.length / 3) - 1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    const base = mid * 3;
+    if (code < GRAPHEME_TABLE[base]!) {
+      hi = mid - 1;
+    } else if (code > GRAPHEME_TABLE[base + 1]!) {
+      lo = mid + 1;
+    } else {
+      return GRAPHEME_TABLE[base + 2]!;
+    }
+  }
+  return 0;
+}
+
+function graphemeBreaks(prev: number, cur: number, state: number): boolean {
+  const pc = prev & 15;
+  const cc = cur & 15;
+  if (pc === 1 && cc === 2) return false;                                           // GB3 CR x LF
+  if (pc === 1 || pc === 2 || pc === 3) return true;                               // GB4
+  if (cc === 1 || cc === 2 || cc === 3) return true;                               // GB5
+  if (pc === 9 && (cc === 9 || cc === 10 || cc === 12 || cc === 13)) return false; // GB6
+  if ((pc === 10 || pc === 12) && (cc === 10 || cc === 11)) return false;          // GB7
+  if ((pc === 11 || pc === 13) && cc === 11) return false;                         // GB8
+  if (cc === 4 || cc === 5) return false;                                          // GB9
+  if (cc === 8) return false;                                                      // GB9a
+  if (pc === 7) return false;                                                      // GB9b
+  if ((cur & 32) !== 0 && ((state >> 2) & 3) === 2) return false;                  // GB9c
+  if ((cur & 16) !== 0 && (state & 3) === 2) return false;                         // GB11
+  if (cc === 6 && (state & 16) !== 0) return false;                                // GB12/13
+  return true;                                                                     // GB999
+}
+
+function graphemeAdvance(cur: number, state: number): number {
+  const cc = cur & 15;
+  let pict = state & 3;
+  let incb = (state >> 2) & 3;
+  let riOdd = (state & 16) !== 0;
+  if ((cur & 16) !== 0) {
+    pict = 1;
+  } else if (cc === 5) {
+    pict = pict === 1 ? 2 : 0;
+  } else if (cc === 4) {
+    if (pict !== 1) pict = 0;
+  } else {
+    pict = 0;
+  }
+  const incbValue = cur & 96;
+  if (incbValue === 32) {
+    incb = 1;
+  } else if (incbValue === 64) {
+    incb = incb >= 1 ? 2 : 0;
+  } else if (incbValue === 96) {
+    // Extend keeps the consonant context alive.
+  } else {
+    incb = 0;
+  }
+  riOdd = cc === 6 ? !riOdd : false;
+  return (riOdd ? 16 : 0) | (incb << 2) | pict;
+}
+
+export const Graphemes = {
+  count(s: string): number {
+    let total = 0;
+    let prev = -1;
+    let state = 0;
+    let i = 0;
+    while (i < s.length) {
+      const cp = s.codePointAt(i)!;
+      const packed = graphemeLookup(cp);
+      if (prev < 0 || graphemeBreaks(prev, packed, state)) total += 1;
+      state = graphemeAdvance(packed, state);
+      prev = packed;
+      i += cp > 0xffff ? 2 : 1;
+    }
+    return total;
+  },
+  at(s: string, index: number): string | null {
+    if (index < 0) return null;
+    let ordinal = 0;
+    let prev = -1;
+    let state = 0;
+    let clusterStart = 0;
+    let i = 0;
+    while (i < s.length) {
+      const cp = s.codePointAt(i)!;
+      const packed = graphemeLookup(cp);
+      const width = cp > 0xffff ? 2 : 1;
+      if (prev < 0 || graphemeBreaks(prev, packed, state)) {
+        if (ordinal === index + 1) return s.substring(clusterStart, i);
+        ordinal += 1;
+        clusterStart = i;
+      }
+      state = graphemeAdvance(packed, state);
+      prev = packed;
+      i += width;
+    }
+    if (ordinal === index + 1) return s.substring(clusterStart);
+    return null;
+  },
+  slice(s: string, from: number, to: number): string {
+    const total = Graphemes.count(s);
+    const start = from < 0 ? 0 : from > total ? total : from;
+    const end = to > total ? total : to < 0 ? 0 : to;
+    if (start >= end) return "";
+    let out = "";
+    let ordinal = 0;
+    let prev = -1;
+    let state = 0;
+    let clusterStart = 0;
+    let i = 0;
+    while (i < s.length) {
+      const cp = s.codePointAt(i)!;
+      const packed = graphemeLookup(cp);
+      const width = cp > 0xffff ? 2 : 1;
+      if (prev < 0 || graphemeBreaks(prev, packed, state)) {
+        if (ordinal - 1 >= start && ordinal - 1 < end) out += s.substring(clusterStart, i);
+        ordinal += 1;
+        clusterStart = i;
+      }
+      state = graphemeAdvance(packed, state);
+      prev = packed;
+      i += width;
+    }
+    if (ordinal - 1 >= start && ordinal - 1 < end) out += s.substring(clusterStart);
+    return out;
+  },
+  parts(s: string): string[] {
+    const out: string[] = [];
+    let prev = -1;
+    let state = 0;
+    let clusterStart = 0;
+    let i = 0;
+    while (i < s.length) {
+      const cp = s.codePointAt(i)!;
+      const packed = graphemeLookup(cp);
+      const width = cp > 0xffff ? 2 : 1;
+      if (prev < 0 || graphemeBreaks(prev, packed, state)) {
+        if (prev >= 0) out.push(s.substring(clusterStart, i));
+        clusterStart = i;
+      }
+      state = graphemeAdvance(packed, state);
+      prev = packed;
+      i += width;
+    }
+    if (clusterStart < s.length) out.push(s.substring(clusterStart));
+    return out;
+  },
+};
 ';
 }
 #end

@@ -63,6 +63,7 @@ class TsImports {
 		"std.Test" => true,
 		"std.UString" => true,
 		"std.UStringRT" => true,
+		"std.Graphemes" => true,
 	];
 
 	function add(into: Map<String, Map<String, Bool>>, module: String, name: String): Void {
