@@ -61,6 +61,13 @@ class DefaultArgsOps {
 		return localAdd(x);
 	}
 
+	public static function computeWithLocalB(x:Int):Int {
+		final localAdd = function(a:Int, b:Int = 200):Int {
+			return a + b;
+		};
+		return localAdd(x);
+	}
+
 	public static function callGreet0():String {
 		return greet("Ada", "Greetings");
 	}
@@ -126,6 +133,10 @@ class DefaultArgsOps {
 
 	public static function callLocal():Int {
 		return computeWithLocal(7);
+	}
+
+	public static function callLocalB():Int {
+		return computeWithLocalB(7);
 	}
 
 	public static function callInterface0():String {

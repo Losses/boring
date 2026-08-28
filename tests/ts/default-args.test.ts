@@ -31,6 +31,7 @@ describe("default argument expansion generated tree", () => {
     expect(content).toContain('return DefaultArgsOps.openMode(1, { kind: "Read" });');
     expect(content).toContain("return DefaultArgsOps.adjust(20.0, -5.0);");
     expect(content).toContain("return localAdd(x, 100);");
+    expect(content).toContain("return localAdd(x, 200);");
     expect(content).toContain('return greeter.say("Sam", "User");');
   });
 
@@ -58,6 +59,7 @@ describe("default argument expansion generated tree", () => {
     expect(content).toContain("return DefaultArgsOps.openMode(1, Mode.Read)");
     expect(content).toContain("return DefaultArgsOps.adjust(20.0, -5.0)");
     expect(content).toContain("return localAdd(x, 100)");
+    expect(content).toContain("return localAdd(x, 200)");
     expect(content).toContain('return greeter.say("Sam", "User")');
   });
 
@@ -85,6 +87,7 @@ describe("default argument expansion generated tree", () => {
     expect(content).toContain("return DefaultArgsOps::open_mode(1, Mode::Read);");
     expect(content).toContain("return DefaultArgsOps::adjust(20.0, -5.0);");
     expect(content).toContain("return local_add(x, 100);");
+    expect(content).toContain("return local_add(x, 200);");
     expect(content).toContain('return greeter.say(&"Sam", &"User");');
   });
 });
