@@ -44,10 +44,17 @@ so the oracle is the haxe standard implementation.
 
 ## Samples and tests
 
-A sample module builds strings by parts, appends a supplementary character as
-its two `addChar` surrogate code units, and asserts the content and the
+A sample module builds strings by parts, appends supplementary characters
+through `add` as whole string parts, exercises `addChar` on
+basic-multilingual-plane code units, and asserts the content and the
 code-unit length. The four-side consistency run of
 `docs/specs/features/19-testing.md` compares the jsonl output. `tests/ts/`
 tree assertions pin the native forms: `push_str` on Rust, `+=` accumulation on
 TypeScript, `append` on Kotlin, with no builder call sites beyond the routed
 module.
+
+An unpaired surrogate code unit has no representation in the Rust `String`
+buffer: `addChar` lowers it to `char::REPLACEMENT_CHARACTER` on Rust only,
+while the other three targets keep the code unit. This divergence is
+representational, so the consistency contract covers the inputs the engine
+port builds and no sample feeds half of a surrogate pair.
