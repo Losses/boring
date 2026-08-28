@@ -173,34 +173,60 @@ The codec operates on glyph indices and Unicode scalar values where integer repr
 
 ## String index access ruling
 
-Added 2026-08-28. The three runtimes expose two index spaces on `String`: the
-TypeScript, Kotlin, and stage-one JavaScript runtimes address UTF-16 code
-units, and the Rust runtime addresses UTF-8 bytes (`String::len`,
-`as_bytes()[index]`). The two spaces and the values they return coincide for
-code points U+0000..U+007F and diverge everywhere else. `String.length`,
-`String.charCodeAt`, and every operation that takes or returns a string index
-(`charAt`, `codePointAt`, `substring`, `substr`, `indexOf`, `lastIndexOf`)
-carry an ASCII-bounded contract.
+Added 2026-08-28 and replaced the same day by review. The three runtimes
+expose two index spaces on `String`: the TypeScript, Kotlin, and stage-one
+JavaScript runtimes address UTF-16 code units, and the Rust runtime
+addresses UTF-8 bytes (`String::len`, `as_bytes()[index]`). The two spaces
+and the values they return coincide for code points U+0000..U+007F and
+diverge everywhere else.
 
-Source obligation: a string that may hold content above U+007F must not be
-indexed. Such strings are consumed as whole strings or as code-point integers
-under the existing code-point ruling. `String.fromCharCode` constructs from
-wire bytes; its sanctioned domain is 0..255, the range the Rust lowering
-`char::from(u8)` accepts.
+The first form of this ruling bounded the storage-dependent operations to
+ASCII and offered no replacement path: it demanded that non-ASCII strings
+be consumed as code-point integers while banning every operation that
+reads a character out of a string. That fails the provision test
+(`design-principles.md`, T1) and leaves the subset unable to express CJK
+text processing. The ruling below replaces it, and
+`docs/specs/stdlib/10-unicode-string-access.md` is part of the same change.
+
+1. **Meaning is over content.** `String.length`, `String.charCodeAt`,
+   `String.charAt`, `codePointAt`, `substring`, `substr`, `indexOf`, and
+   `lastIndexOf` are character operations: their meaning is defined over
+   the character sequence of the string. Platform storage decides the
+   cost tier of an implementation; it never decides what a result means.
+2. **ASCII tier.** These operations are permitted where the content is
+   known ASCII (U+0000..U+007F). One character occupies exactly one UTF-16
+   code unit and one UTF-8 byte there, so every target answers in constant
+   time with identical results.
+3. **General tier.** A string that may hold content above U+007F uses
+   `std.UString`: `count`, `at`, `slice`, `toCodePoints`, `fromCodePoints`,
+   and `fromCodePoint`. These functions carry character-sequence semantics
+   on every target at the cost floor of variable-width storage.
+4. **Byte construction.** `String.fromCharCode` constructs a string from a
+   wire byte; its domain is 0..255, where all targets agree. Constructing
+   from a code point goes through `std.UString.fromCodePoint`, whose
+   domain is the Unicode scalar values.
+5. **StringTools character calls are banned.** `StringTools.fastCodeAt`
+   returns a UTF-16 code unit on the JavaScript std and a byte on byte
+   targets, so its result has no content-defined meaning.
+   `StringTools.fromCharCode` constructs one UTF-16 code unit. The
+   sanctioned replacements are `std.UString.at` and
+   `std.UString.fromCodePoint`.
 
 Enforcement: style rule `V18 NonAsciiStringIndex` reports at Haxe compile
 time, split across the two interception passes. The call forms are checked
 in the untyped pass, because the typer expands the inline std String methods
 before the typed pass runs (`charCodeAt` becomes an `HxOverrides.cca` call
 on the JavaScript std); that check fires on a literal subject and on a local
-whose final declaration initializes it from a non-ASCII literal. The
-`length` read and the call forms that survive typing are checked in the
-typed pass, where the subject may also be a field initialized from a string
-literal; a field that receives an assignment anywhere leaves the checked
-set. `String.fromCharCode` reports when an integer literal argument falls
-outside 0..255. Subjects holding runtime data stay outside the checker; the
-four-side consistency harness reports exercised divergence between the
-UTF-16 and byte index spaces.
+whose final declaration initializes it from a non-ASCII literal, and on any
+`StringTools.fastCodeAt` or `StringTools.fromCharCode` call regardless of
+subject. The `length` read and the call forms that survive typing are
+checked in the typed pass, where the subject may also be a field initialized
+from a string literal; a field that receives an assignment anywhere leaves
+the checked set. `String.fromCharCode` reports when an integer literal
+argument falls outside 0..255. Violation messages name `std.UString` as the
+sanctioned path. Subjects holding runtime data stay outside the static
+checker; the four-side consistency harness reports exercised divergence
+between index spaces.
 
 ## Test hooks
 
