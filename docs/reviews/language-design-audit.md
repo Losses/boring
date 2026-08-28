@@ -30,7 +30,7 @@ below are what remains.
 | `stdlib/06` says no std module reaches target output; `std.UStringException` and `std.UStringFault` now emit as compiled files | stale ruling | none yet; latent contradiction | amended: `stdlib/06` names both std classes (2026-08-28) |
 | `StringBuf.addChar` replaces an unpaired surrogate with U+FFFD on Rust and keeps the unit on TypeScript and Kotlin | divergence written into the contract | T2 | ruling added to `stdlib/08` (`UnpairedSurrogate` fault on every target, Rust buffer becomes `Vec<u16>`, 2026-08-28); implementation queued |
 | Kotlin `Long` promotion for declared ranges above `0x7FFFFFFF` (`features/14`) has no implementation mechanism | gap | none today (no declared field exceeds the range) | recorded in `features/14` (2026-08-28); implement when such a field is declared |
-| Three rustc warnings in generated code (`in_range` needless `mut`, `copy_multiple` unused parameter) | cosmetic | none | fix in the generator |
+| Three rustc warnings in generated code (`in_range` needless `mut`, `copy_multiple` unused parameter) | fixed 2026-08-28 | none | declaration-assignment fusion runs before the mutation scans; the all-fields copy override left the receiver unread and the sample now overrides three of four fields |
 | String key order is UTF-16 code-unit order (`stdlib/07`, ruled 2026-08-27) | upheld | recorded T3 trade | keep; reason already cited (three targets compare natively, Rust adds one branch) |
 | `StringBuf.length` counts UTF-16 code units (`stdlib/08`) | upheld | none | keep; meaning is uniform across targets, and Principle 1 lets storage set only the cost tier while the meaning stays fixed |
 | Rust global single-error-enum resolution and fallibility by name list | fixed in `aed22ca` | was T1/T4 | per-function resolution plus a preScan call-edge fixpoint |
@@ -116,10 +116,21 @@ field with such a range is declared.
 
 ### F6: generated-code warnings
 
-Three rustc warnings exist on committed `main` output: `let mut` emitted
-for parameters never reassigned (`in_range`), and an unused parameter in
-the record-copy lowering (`copy_multiple`). Both are generator output
-quality; neither affects behavior.
+Three rustc warnings existed on committed `main` output: `let mut`
+emitted for locals never reassigned (`in_range`), the same false
+mutability on the Kotlin lane (`var range_start`), and an unused
+parameter in the record-copy lowering (`copy_multiple`). The first two
+traced to ordering: the haxe typer lowers an abstract-inline receiver
+binding as a declaration without initializer followed by an assignment,
+and the mutation scans read that initialization as a reassignment before
+the emission-time fusion of the pair. The generators now fuse the pair
+across the whole function body before scanning (`fuseWithin` in
+`RustExpr.hx` and `KotlinExpr.hx`); the regenerated trees differ only in
+the two dropped `mut`/`var` markers. The unused parameter was the
+sample overriding all four record fields, which leaves the copy
+receiver unread by construction; the sample now overrides three of four
+fields and keeps the fourth from the receiver. Generated output carries
+zero rustc warnings after both changes.
 
 ## Disposition record
 
@@ -135,9 +146,10 @@ Amendments recorded with this audit (2026-08-28):
 - F4: `docs/specs/stdlib/08-string-buffer.md` rules the uniform
   `UnpairedSurrogate` fault, the `Vec<u16>` Rust buffer with
   constant-time `length`, and the stage-1 wrapper checks.
+- F6: the declaration-assignment fusion and the three-field copy sample
+  are implemented; the regenerated output has zero rustc warnings.
 
 Implementation work queued after this audit: F2 (TTry lowering on three
 targets plus the fixpoint absorption), F4 (fault variant plus four
 buffer lanes plus fault-exercising samples), F1 (signed `i32` outside
-wire positions with named boundary conversions), F6 (mutability
-diagnosis for typer-created inline temporaries).
+wire positions with named boundary conversions).
