@@ -51,6 +51,13 @@ domain without a ruled comparison is rejected exactly as a direct builder
 use is. Receiver items with equal keys share one bucket, and the bucket
 keeps receiver order; no entry is dropped.
 
+The Rust emitter recognizes this exact get-or-create loop and lowers it
+to one `match` on the builder `get` with the `put` after the `push`,
+because the Rust builder `get` returns an owned clone of the stored
+bucket and the sequence as written would move the bucket out of the
+builder before the push. The other targets keep the sequence as
+written.
+
 ## Stage-one oracle
 
 The Haxe standard library holds no ordered multimap, so the stage-one side

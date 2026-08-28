@@ -47,7 +47,7 @@ forms add no named error beyond the two frozen in `macros/01`.
 ## Stage-one oracles
 
 `any`, `all`, `firstOrNull`, and `flatMap` declare as static extensions
-routing to the Haxe standard library: `Lambda.exists`, `Lambda.forall`,
+routing to the Haxe standard library: `Lambda.exists`, `Lambda.foreach`,
 `Lambda.find`, and `Lambda.flatMap`. These are real standard-library
 implementations, the same evidence tier as `map` and `filter`.
 `sumOfInt` and `sumOfFloat` route to one fold over `Lambda.fold`.
