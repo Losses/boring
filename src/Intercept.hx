@@ -56,7 +56,12 @@ class Intercept {
 	/** Field names whose call form is banned on any receiver (V02). */
 	static final FUNCTIONAL_METHODS:Array<String> = [
 		"map", "filter", "fold", "reduce", "forEach", "flatMap", "find", "some",
-		"every", "sortedBy",
+		"every", "sortedBy", "associate",
+	];
+
+	/** Closed-list pipeline methods eligible for inline function literal exemption. */
+	static final CLOSED_LIST:Array<String> = [
+		"map", "filter", "forEach", "associate", "sortedBy",
 	];
 
 	/** Map modules with no translation (V13). */
@@ -158,6 +163,26 @@ class Intercept {
 		ExprTools.iter(e, walkSource);
 	}
 
+	static function isFunctionLiteral(e:Expr):Bool {
+		if (e == null) {
+			return false;
+		}
+		return switch (e.expr) {
+			case ExprDef.EFunction(_, _): true;
+			case ExprDef.EParenthesis(inner): isFunctionLiteral(inner);
+			default: false;
+		};
+	}
+
+	static function isClosedListMethod(name:String):Bool {
+		for (index in 0...CLOSED_LIST.length) {
+			if (name == CLOSED_LIST[index]) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	static function checkSourceCall(callee:Expr, args:Array<Expr>):Void {
 		switch (callee.expr) {
 			case ExprDef.EField(receiver, name):
@@ -168,6 +193,12 @@ class Intercept {
 							callee.pos);
 					}
 					return;
+				}
+				if (isClosedListMethod(name)) {
+					if (args.length == 1 && isFunctionLiteral(args[0])) {
+						return;
+					}
+					Context.fatalError("collection pipeline methods accept inline function literals only", callee.pos);
 				}
 				for (index in 0...FUNCTIONAL_METHODS.length) {
 					if (name == FUNCTIONAL_METHODS[index]) {
