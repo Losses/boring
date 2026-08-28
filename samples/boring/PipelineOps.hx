@@ -99,4 +99,64 @@ class PipelineOps {
 		}
 		return result;
 	}
+
+	public static function hasHighScore(items:Array<Item>, threshold:Int):Bool {
+		return items.any(function(item:Item):Bool {
+			return item.score >= threshold;
+		});
+	}
+
+	public static function allAboveScore(items:Array<Item>, threshold:Int):Bool {
+		return items.all(function(item:Item):Bool {
+			return item.score >= threshold;
+		});
+	}
+
+	public static function findFirstHighScore(items:Array<Item>, threshold:Int):Null<Item> {
+		return items.firstOrNull(function(item:Item):Bool {
+			return item.score >= threshold;
+		});
+	}
+
+	public static function totalScore(items:Array<Item>):Int {
+		return items.sumOfInt(function(item:Item):Int {
+			return item.score;
+		});
+	}
+
+	public static function totalWeightedScore(items:Array<Item>, weight:Float):Float {
+		return items.sumOfFloat(function(item:Item):Float {
+			return item.score * weight;
+		});
+	}
+
+	public static function extractValidNames(items:Array<Item>, minScore:Int):Array<String> {
+		return items.mapNotNull(function(item:Item):Null<String> {
+			var validName:Null<String> = null;
+			if (item.score >= minScore) {
+				validName = item.name;
+			}
+			return validName;
+		});
+	}
+
+	public static function duplicateScores(items:Array<Item>):Array<Int> {
+		return items.flatMap(function(item:Item):Array<Int> {
+			var scores = new Array<Int>();
+			if (item.score > 0) {
+				scores.push(item.score);
+				scores.push(item.score * 2);
+			}
+			return scores;
+		});
+	}
+
+	public static function groupNamesByScore(items:Array<Item>):std.SortedMap<Int, Array<String>> {
+		return items.groupBy(function(item:Item):ItemKeyVal {
+			return {
+				key: item.score,
+				value: item.name
+			};
+		});
+	}
 }
