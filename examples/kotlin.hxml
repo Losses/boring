@@ -25,6 +25,7 @@ boring.WordCharacterTable
 boring.CodePointNames
 std.SortedMap
 std.SortedSet
+std.Functional
 tests.TestData
 tests.VectorCodecTests
 tests.DataTableTests
@@ -32,3 +33,5 @@ tests.SortedTableTests
 boring.ScriptNames
 boring.ClusterTags
 tests.SortedKeyDomainTests
+boring.PipelineOps
+tests.PipelineTests
