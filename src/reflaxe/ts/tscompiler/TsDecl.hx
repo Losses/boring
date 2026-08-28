@@ -51,6 +51,28 @@ class TsDecl {
 	// ------------------------------------------------------------------
 
 	public function classDecl(cls: ClassType, varFields: Array<ClassVarData>, funcFields: Array<ClassFuncData>): String {
+		if(cls.isInterface) {
+			final typeAliases: Array<String> = [];
+			final members: Array<String> = [];
+			for(f in funcFields) {
+				final capName = f.field.name.charAt(0).toUpperCase() + f.field.name.substr(1);
+				final aliasName = '${cls.name}${capName}Fn';
+				final args = [for(a in f.args) '${a.name}: ${types.of(a.type)}'].join(", ");
+				final ret = types.of(f.ret);
+				typeAliases.push('export type $aliasName = ($args) => $ret;');
+				members.push('  readonly ${f.field.name}: $aliasName;');
+			}
+			final lines: Array<String> = [];
+			if(typeAliases.length > 0) {
+				for(t in typeAliases) lines.push(t);
+				lines.push("");
+			}
+			lines.push('export interface ${cls.name} {');
+			for(m in members) lines.push(m);
+			lines.push("}");
+			return lines.join("\n");
+		}
+
 		if(cls.superClass != null) {
 			final parent = cls.superClass.t.get();
 			final parentPath = parent.pack.length == 0 ? parent.name : parent.pack.join(".") + "." + parent.name;
@@ -73,7 +95,8 @@ class TsDecl {
 		}
 
 		final lines: Array<String> = [];
-		lines.push('export class ${cls.name}' + (isException(cls) ? " extends Error" : "") + " {");
+		final ifaceStr = cls.interfaces.length > 0 ? " implements " + [for(i in cls.interfaces) i.t.get().name].join(", ") : "";
+		lines.push('export class ${cls.name}' + (isException(cls) ? " extends Error" : "") + ifaceStr + " {");
 
 		for(v in varFields) {
 			for(l in varDecl(v)) lines.push(l);

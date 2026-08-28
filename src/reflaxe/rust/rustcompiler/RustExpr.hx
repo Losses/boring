@@ -90,6 +90,7 @@ class RustExpr {
 		if(f.expr == null) {
 			Context.error("function field has no body to lower", f.field.pos);
 		}
+		DefaultArgExpander.completeRootExpr(f.expr);
 		PipelineExpander.expandRootExpr(f.expr);
 		currentMethodName = f.field.name;
 		paramVarIds.clear();
@@ -1003,6 +1004,9 @@ class RustExpr {
 				return expr(se) + "." + payloadName(ef, index);
 			case TEnumIndex(_):
 				return fail(e, "enum index only lowers inside a variant switch");
+			case TFunction(f):
+				final params = [for(a in f.args) RustImports.toSnakeCase(a.v.name)].join(", ");
+				return '|$params| {\n' + blockLines(statementsOf(f.expr), 2).join("\n") + '\n}';
 			case TIf(c, t, f) if(f != null):
 				final condStr = switch(stripWrap(c).expr) {
 					case _: expr(stripWrap(c));
@@ -1097,7 +1101,9 @@ class RustExpr {
 			case OpAssignOp(inner):
 				return assignTarget(l) + " " + symbolOf(inner) + "= " + expr(r);
 			case OpAdd if(isStringType(l.t) || isStringType(r.t)):
-				return "format!(\"{}{}\", " + expr(l) + ", " + expr(r) + ")";
+				final lStr = isNullType(l.t) ? expr(l) + ".as_deref().unwrap_or(\"\")" : expr(l);
+				final rStr = isNullType(r.t) ? expr(r) + ".as_deref().unwrap_or(\"\")" : expr(r);
+				return "format!(\"{}{}\", " + lStr + ", " + rStr + ")";
 			case OpDiv if(StringTools.endsWith(operand(l, op, false), ".len()")):
 				return "((" + operand(l, op, false) + ") / (" + operand(r, op, true) + " as usize)) as i32";
 			case OpMult | OpAdd | OpSub | OpDiv if(isFloatType(e.t)):
@@ -1455,7 +1461,7 @@ class RustExpr {
 					imports.require("crate::runtime::test as testlib");
 					if(name == "ok") {
 						final cond = expr(args[0]);
-						final msg = args.length > 1 ? "Some(" + expr(args[1]) + ")" : "None";
+						final msg = (args.length > 1 && !isTNull(args[1])) ? "Some(" + expr(args[1]) + ")" : "None";
 						return "testlib::ok(" + cond + ", " + msg + ")";
 					}
 					if(name == "fail") {
@@ -1467,7 +1473,7 @@ class RustExpr {
 					if(name == "equals") {
 						final expectedArg = args[0];
 						final actualArg = args[1];
-						final msg = args.length > 2 ? "Some(" + expr(args[2]) + ")" : "None";
+						final msg = (args.length > 2 && !isTNull(args[2])) ? "Some(" + expr(args[2]) + ")" : "None";
 						if(isNullType(expectedArg.t) || isNullType(actualArg.t)) {
 							final nullInner = getNullInnerType(expectedArg.t != null && isNullType(expectedArg.t) ? expectedArg.t : actualArg.t);
 							final innerKind = scalarTypeKind(nullInner);
@@ -2031,6 +2037,7 @@ class RustExpr {
 	}
 
 	function isPassByRef(t: Type): Bool {
+		if(isNullType(t)) return false;
 		return switch(Context.follow(t)) {
 			case TAbstract(a, _) if(a.get().name == "ReadOnlyArray" || (a.get().pack.join(".") == "std" && a.get().name == "ReadOnlyArray")): true;
 			case TInst(c, _) if(c.get().name == "Array" || c.get().name == "Bytes" || (c.get().pack.join(".") == "haxe.io" && c.get().name == "Bytes") || c.get().name == "String"): true;
@@ -2051,7 +2058,17 @@ class RustExpr {
 			var argStr = expr(arg);
 			if(i < paramTypes.length) {
 				final pt = paramTypes[i];
-				if(isPassByRef(pt)) {
+				if(isNullType(pt) && !isNullType(arg.t)) {
+					if(argStr == "None") {
+						// already None
+					} else {
+						final inner = switch(stripWrap(arg).expr) {
+							case TConst(TString(s)): quoteString(s) + ".to_string()";
+							case _: argStr;
+						};
+						argStr = "Some(" + inner + ")";
+					}
+				} else if(isPassByRef(pt)) {
 					final isArray = switch(Context.follow(pt)) {
 						case TInst(c, _) if(c.get().name == "Array"): true;
 						default: false;

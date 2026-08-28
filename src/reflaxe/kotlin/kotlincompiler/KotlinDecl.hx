@@ -41,6 +41,19 @@ class KotlinDecl {
 	// ------------------------------------------------------------------
 
 	public function classDecl(cls: ClassType, varFields: Array<ClassVarData>, funcFields: Array<ClassFuncData>): String {
+		if(cls.isInterface) {
+			final lines: Array<String> = [];
+			lines.push("interface " + cls.name + " {");
+			for(f in funcFields) {
+				final args = [for(a in f.args) '${a.name}: ${types.of(a.type)}'].join(", ");
+				final retType = types.of(f.ret);
+				final ret = retType == "Unit" ? "" : ": " + retType;
+				lines.push('    fun ${f.field.name}($args)$ret');
+			}
+			lines.push("}");
+			return lines.join("\n");
+		}
+
 		if(isExceptionSubclass(cls)) {
 			final payload = payloadEnumOf(funcFields);
 			if(payload == null) {
@@ -102,7 +115,8 @@ class KotlinDecl {
 		}
 
 		final ctorHeader = constructorFunc != null ? buildPrimaryConstructor(cls, constructorFunc, varFields) : "";
-		lines.push("class " + cls.name + ctorHeader + " {");
+		final ifaceStr = cls.interfaces.length > 0 ? " : " + [for(i in cls.interfaces) i.t.get().name].join(", ") : "";
+		lines.push("class " + cls.name + ctorHeader + ifaceStr + " {");
 
 		// Non-primary-ctor properties
 		for(v in varFields) {
@@ -111,12 +125,26 @@ class KotlinDecl {
 			}
 		}
 
-		var sep = varFields.length > 0 && funcFields.length > 1;
-		for(f in funcFields) {
-			if(f.field.name == "new") continue;
+		final instanceFuncs = [for(f in funcFields) if(!f.isStatic && f.field.name != "new") f];
+		final staticFuncs = [for(f in funcFields) if(f.isStatic) f];
+
+		var sep = varFields.length > 0 && instanceFuncs.length > 0;
+		for(f in instanceFuncs) {
 			if(sep) lines.push("");
 			sep = true;
 			for(l in funcDecl(cls, f, false)) lines.push(l);
+		}
+
+		if(staticFuncs.length > 0) {
+			if(instanceFuncs.length > 0 || varFields.length > 0) lines.push("");
+			lines.push("    companion object {");
+			var csep = false;
+			for(f in staticFuncs) {
+				if(csep) lines.push("");
+				csep = true;
+				for(l in funcDecl(cls, f, true)) lines.push("    " + l);
+			}
+			lines.push("    }");
 		}
 
 		lines.push("}");
@@ -420,6 +448,16 @@ class KotlinDecl {
 		return cls.pack.join(".") == packDot && cls.name == name;
 	}
 
+	function isInterfaceMethod(cls: ClassType, f: ClassFuncData): Bool {
+		for(iface in cls.interfaces) {
+			final ifaceCls = iface.t.get();
+			for(field in ifaceCls.fields.get()) {
+				if(field.name == f.field.name) return true;
+			}
+		}
+		return false;
+	}
+
 	function funcDecl(cls: ClassType, f: ClassFuncData, isObject: Bool): Array<String> {
 		for(a in f.args) {
 			expr.reserveName(a.name);
@@ -428,7 +466,8 @@ class KotlinDecl {
 		final retType = types.of(f.ret);
 		final ret = retType == "Unit" ? "" : ": " + retType;
 		final vis = f.field.isPublic ? "" : "private ";
-		final head = '    ${vis}fun ${f.field.name}($args)$ret {';
+		final overrideStr = isInterfaceMethod(cls, f) ? "override " : "";
+		final head = '    ${vis}${overrideStr}fun ${f.field.name}($args)$ret {';
 
 		final boundary = switch(f.ret) {
 			case TAbstract(a, _):
