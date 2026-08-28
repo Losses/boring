@@ -1370,8 +1370,12 @@ class RustExpr {
 				return "f64::" + RustImports.toSnakeCase(name);
 			case "std.Test" | "std.__test_shim":
 				state.shimsUsed.set("std.Test", true);
-				imports.require("crate::runtime::test as testlib");
-				return "testlib::" + RustImports.toSnakeCase(name);
+				if(name == "run") {
+					imports.require("crate::runtime::test as testlib");
+					return "testlib::run";
+				}
+				imports.require("crate::runtime::test_core");
+				return "test_core::TestCore::" + RustImports.toSnakeCase(name);
 			case "std.SortedMap":
 				imports.requireType("std.SortedMap", "SortedMap");
 				return "SortedMap::" + RustImports.toSnakeCase(name);
@@ -1390,8 +1394,12 @@ class RustExpr {
 			case _:
 				if(cls.module == "std.Test") {
 					state.shimsUsed.set("std.Test", true);
-					imports.require("crate::runtime::test as testlib");
-					return "testlib::" + RustImports.toSnakeCase(name);
+					if(name == "run") {
+						imports.require("crate::runtime::test as testlib");
+						return "testlib::run";
+					}
+					imports.require("crate::runtime::test_core");
+					return "test_core::TestCore::" + RustImports.toSnakeCase(name);
 				}
 				if(cls.module == "std.SortedMap") {
 					imports.requireType("std.SortedMap", "SortedMap");
@@ -1662,6 +1670,30 @@ class RustExpr {
 						case _:
 					}
 				}
+				if(path == "std.TestPlatform") {
+					// Host edges of the resident runtime.TestCore, inlined
+					// per call: raising is a panic, the running test id
+					// lives in the test host module of the runtime emit, and
+					// plain numbers render through to_string. Marking the
+					// std.Test shim used keeps that host module emitted
+					// beside this resident. Business code never reaches
+					// these; it calls std.Test.
+					if(!RuntimeResidents.isResident(imports.selfModule)) {
+						Context.error("std.TestPlatform is a resident runtime primitive; business code calls std.Test", fn.pos);
+					}
+					state.shimsUsed.set("std.Test", true);
+					switch(name) {
+						case "raise":
+							return "panic!(\"{}\", " + expr(args[0]) + ")";
+						case "currentTestId":
+							return "crate::runtime::test::current_test_id()";
+						case "intToString":
+							return "(" + expr(args[0]) + ").to_string()";
+						case "floatToString":
+							return "(" + expr(args[0]) + ").to_string()";
+						case _:
+					}
+				}
 				if(path == "haxe.io.FPHelper") {
 					imports.requireType(cls.module, "FPHelper");
 					return "FPHelper::" + RustImports.toSnakeCase(name) + "(" + renderedArgs + ")";
@@ -1712,15 +1744,23 @@ class RustExpr {
 				}
 
 				if(cls.module == "std.Test" || (cls.pack.join(".") == "std" && (cls.name == "Test" || cls.name == "__test_shim"))) {
+					// The assertion checks and message formatting live in the
+					// resident runtime.TestCore; this host module keeps run and
+					// its result recording. Messages are plain &str: an absent
+					// message renders as the empty string, which the canonical
+					// builder omits.
 					state.shimsUsed.set("std.Test", true);
 					imports.require("crate::runtime::test as testlib");
+					imports.require("crate::runtime::test_core");
+					final messageArg = function(idx: Int): String {
+						return (args.length > idx && !isTNull(args[idx])) ? "&(" + expr(args[idx]) + ")" : "\"\"";
+					};
 					if(name == "ok") {
 						final cond = expr(args[0]);
-						final msg = (args.length > 1 && !isTNull(args[1])) ? "Some(" + expr(args[1]) + ")" : "None";
-						return "testlib::ok(" + cond + ", " + msg + ")";
+						return "test_core::TestCore::ok(" + cond + ", " + messageArg(1) + ")";
 					}
 					if(name == "fail") {
-						return "testlib::fail(" + expr(args[0]) + ")";
+						return "test_core::TestCore::fail(&(" + expr(args[0]) + "))";
 					}
 					if(name == "run") {
 						return "testlib::run(" + renderedArgs + ")";
@@ -1728,7 +1768,7 @@ class RustExpr {
 					if(name == "equals") {
 						final expectedArg = args[0];
 						final actualArg = args[1];
-						final msg = (args.length > 2 && !isTNull(args[2])) ? "Some(" + expr(args[2]) + ")" : "None";
+						final msg = messageArg(2);
 						if(isNullType(expectedArg.t) || isNullType(actualArg.t)) {
 							final nullInner = getNullInnerType(expectedArg.t != null && isNullType(expectedArg.t) ? expectedArg.t : actualArg.t);
 							final innerKind = scalarTypeKind(nullInner);
@@ -1749,15 +1789,15 @@ class RustExpr {
 							final scalarKind = scalarTypeKind(expectedArg.t);
 							switch(scalarKind) {
 								case "Bool":
-									return "testlib::equals_bool(" + expr(expectedArg) + ", " + expr(actualArg) + ", " + msg + ")";
+									return "test_core::TestCore::equals_bool(" + expr(expectedArg) + ", " + expr(actualArg) + ", " + msg + ")";
 								case "Int":
-									final act = isUsizeExpr(actualArg) ? "(" + expr(actualArg) + ") as u32" : expr(actualArg);
-									final exp = isUsizeExpr(expectedArg) ? "(" + expr(expectedArg) + ") as u32" : expr(expectedArg);
-									return "testlib::equals_u32(" + exp + ", " + act + ", " + msg + ")";
+									// Business Int renders u32, usize in loop heads;
+									// the resident takes i32, so both sides cast once.
+									return "test_core::TestCore::equals_int((" + expr(expectedArg) + ") as i32, (" + expr(actualArg) + ") as i32, " + msg + ")";
 								case "Float":
-									return "testlib::equals_f64(" + expr(expectedArg) + ", " + expr(actualArg) + ", " + msg + ")";
+									return "test_core::TestCore::equals_float(" + expr(expectedArg) + ", " + expr(actualArg) + ", " + msg + ")";
 								case "String":
-									return "testlib::equals_str(&" + expr(expectedArg) + ", &" + expr(actualArg) + ", " + msg + ")";
+									return "test_core::TestCore::equals_string(&(" + expr(expectedArg) + "), &(" + expr(actualArg) + "), " + msg + ")";
 								case _:
 							}
 						}

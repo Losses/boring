@@ -74,6 +74,13 @@ import java.io.FileWriter
 object Test {
     private var currentTestId: String? = null
 
+    // Host edges of the test runtime (P6): the runner state, the raise of
+    // this language, and the result-file edge. The assertion checks and
+    // canonical formatting live in TestCore, compiled beside this object;
+    // every member below is a thin delegate keeping the nullable surface
+    // the generated tests call.
+    fun currentTestIdState(): String = currentTestId ?: \"\"
+
     fun run(id: String, name: String, body: () -> Unit) {
         currentTestId = id
         try {
@@ -89,124 +96,73 @@ object Test {
     }
 
     fun ok(condition: Boolean, message: String? = null) {
-        if (!condition) {
-            val canonical = formatCanonicalMessage(currentTestId ?: \"\", message, null, null, false)
-            throw AssertionError(canonical)
-        }
+        TestCore.ok(condition, message ?: \"\")
     }
 
     fun fail(message: String) {
-        val canonical = formatCanonicalMessage(currentTestId ?: \"\", message, null, null, false)
-        throw AssertionError(canonical)
+        TestCore.fail(message)
     }
 
     fun equals(expected: Boolean?, actual: Boolean?, message: String? = null) {
-        if (expected != actual) {
-            val canonical = formatCanonicalMessage(currentTestId ?: \"\", message, formatValue(expected), formatValue(actual), true)
-            throw AssertionError(canonical)
+        if (expected == null || actual == null) {
+            if (expected != actual) {
+                TestCore.reportFailure(message ?: \"\", formatValue(expected), formatValue(actual))
+            }
+        } else {
+            TestCore.equalsBool(expected, actual, message ?: \"\")
         }
     }
 
     fun equals(expected: Int?, actual: Int?, message: String? = null) {
-        if (expected != actual) {
-            val canonical = formatCanonicalMessage(currentTestId ?: \"\", message, formatValue(expected), formatValue(actual), true)
-            throw AssertionError(canonical)
+        if (expected == null || actual == null) {
+            if (expected != actual) {
+                TestCore.reportFailure(message ?: \"\", formatValue(expected), formatValue(actual))
+            }
+        } else {
+            TestCore.equalsInt(expected, actual, message ?: \"\")
         }
     }
 
     fun equals(expected: Double?, actual: Double?, message: String? = null) {
-        // IEEE equality: NaN != NaN
-        if (expected != actual) {
-            val canonical = formatCanonicalMessage(currentTestId ?: \"\", message, formatValue(expected), formatValue(actual), true)
-            throw AssertionError(canonical)
+        if (expected == null || actual == null) {
+            if (expected != actual) {
+                TestCore.reportFailure(message ?: \"\", formatValue(expected), formatValue(actual))
+            }
+        } else {
+            TestCore.equalsFloat(expected, actual, message ?: \"\")
         }
     }
 
     fun equals(expected: String?, actual: String?, message: String? = null) {
-        if (expected != actual) {
-            val canonical = formatCanonicalMessage(currentTestId ?: \"\", message, formatValue(expected), formatValue(actual), true)
-            throw AssertionError(canonical)
+        if (expected == null || actual == null) {
+            if (expected != actual) {
+                TestCore.reportFailure(message ?: \"\", formatValue(expected), formatValue(actual))
+            }
+        } else {
+            TestCore.equalsString(expected, actual, message ?: \"\")
         }
     }
 
     fun reportFailure(message: String?, expectedStr: String, actualStr: String) {
-        val canonical = formatCanonicalMessage(currentTestId ?: \"\", message, expectedStr, actualStr, true)
-        throw AssertionError(canonical)
+        TestCore.reportFailure(message ?: \"\", expectedStr, actualStr)
     }
 
-    fun formatValue(v: Boolean?): String = if (v == null) \"null\" else if (v) \"true\" else \"false\"
-    fun formatValue(v: Int?): String = if (v == null) \"null\" else v.toString()
-    fun formatValue(v: Double?): String = if (v == null) \"null\" else formatFloat(v)
-    fun formatValue(v: String?): String = if (v == null) \"null\" else \"\\\"\" + escapeJson(v) + \"\\\"\"
-    fun formatValue(v: ByteArray): String = formatBytes(v)
+    fun formatValue(v: Boolean?): String = if (v == null) \"null\" else TestCore.formatBool(v)
+    fun formatValue(v: Int?): String = if (v == null) \"null\" else TestCore.formatInt(v)
+    fun formatValue(v: Double?): String = if (v == null) \"null\" else TestCore.formatFloat(v)
+    fun formatValue(v: String?): String = if (v == null) \"null\" else \"\\\"\" + TestCore.escapeJson(v) + \"\\\"\"
+    fun formatValue(v: ByteArray): String = TestCore.formatBytes(v)
 
-    fun formatFloat(v: Double): String {
-        if (v.isNaN()) return \"NaN\"
-        if (v == Double.POSITIVE_INFINITY) return \"Infinity\"
-        if (v == Double.NEGATIVE_INFINITY) return \"-Infinity\"
-        if (v == 0.0 || v == -0.0) return \"0\"
-        var s = v.toString()
-        if (s.endsWith(\".0\")) {
-            s = s.substring(0, s.length - 2)
-        }
-        return s
-    }
+    fun formatFloat(v: Double): String = TestCore.formatFloat(v)
 
-    fun formatBytes(b: ByteArray): String {
-        val hexChars = \"0123456789abcdef\"
-        val result = StringBuilder(b.size * 2)
-        for (byte in b) {
-            val i = byte.toInt() and 0xFF
-            result.append(hexChars[i ushr 4])
-            result.append(hexChars[i and 0x0F])
-        }
-        return result.toString()
-    }
+    fun formatBytes(b: ByteArray): String = TestCore.formatBytes(b)
 
-    fun escapeJson(s: String): String {
-        val buf = StringBuilder()
-        for (i in 0 until s.length) {
-            val c = s[i]
-            val code = c.code
-            when (c) {
-                '\"' -> buf.append(\"\\\\\\\"\")
-                '\\\\' -> buf.append(\"\\\\\\\\\")
-                '\\n' -> buf.append(\"\\\\n\")
-                '\\r' -> buf.append(\"\\\\r\")
-                '\\t' -> buf.append(\"\\\\t\")
-                else -> {
-                    if (code < 0x20) {
-                        buf.append(\"\\\\u\" + String.format(\"%04x\", code))
-                    } else {
-                        buf.append(c)
-                    }
-                }
-            }
-        }
-        return buf.toString()
-    }
-
-    fun formatCanonicalMessage(id: String, message: String?, expectedStr: String?, actualStr: String?, isEquals: Boolean): String {
-        val lines = ArrayList<String>()
-        lines.add(\"test failed: $id\")
-        if (message != null && message.isNotEmpty()) {
-            lines.add(\"  message: $message\")
-        }
-        if (isEquals) {
-            lines.add(\"  expected: \" + (expectedStr ?: \"\"))
-            lines.add(\"  actual:   \" + (actualStr ?: \"\"))
-        }
-        return lines.joinToString(\"\\n\")
-    }
+    fun escapeJson(s: String): String = TestCore.escapeJson(s)
 
     private fun recordResult(id: String, name: String, verdict: String, message: String?) {
+        val jsonLine = TestCore.resultLine(id, name, verdict == \"fail\", message ?: \"\")
         val envPath = System.getenv(\"BORING_TEST_RESULTS\")
         val filePath = if (envPath != null && envPath.isNotEmpty()) envPath else \"out/test-results/kotlin.jsonl\"
-        val jsonLine = if (verdict == \"pass\") {
-            \"{\\\"id\\\":\\\"\" + escapeJson(id) + \"\\\",\\\"name\\\":\\\"\" + escapeJson(name) + \"\\\",\\\"verdict\\\":\\\"pass\\\"}\\n\"
-        } else {
-            \"{\\\"id\\\":\\\"\" + escapeJson(id) + \"\\\",\\\"name\\\":\\\"\" + escapeJson(name) + \"\\\",\\\"verdict\\\":\\\"fail\\\",\\\"message\\\":\\\"\" + escapeJson(message ?: \"\") + \"\\\"}\\n\"
-        }
         val file = File(filePath)
         val parent = file.parentFile
         if (parent != null && !parent.exists()) {

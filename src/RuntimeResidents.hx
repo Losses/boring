@@ -12,18 +12,32 @@
  * modules render Int as i32 because the runtime contracts carry signed
  * values (negative slice bounds, the -1 no-previous sentinel). Call
  * boundaries between the two conventions cast explicitly.
+ *
+ * Test residents emit beside the test host entry of each target instead
+ * of the general runtime package (P6): their emission still gates on the
+ * std.Test shim, so the host entry and the residents appear together.
  */
 class RuntimeResidents {
-	/** Resident modules, in emission order. */
+	/** Resident modules of the general runtime, in emission order. */
 	public static final MODULES: Array<String> = [
 		"runtime.UString",
 		"runtime.GraphemeWalk",
 		"runtime.Graphemes",
 	];
 
+	/** Resident modules of the test runtime, in emission order. */
+	public static final TEST_MODULES: Array<String> = [
+		"runtime.TestCore",
+	];
+
 	/** Whether a module compiles into the runtime package. */
 	public static function isResident(module: String): Bool {
-		return MODULES.indexOf(module) >= 0;
+		return MODULES.indexOf(module) >= 0 || TEST_MODULES.indexOf(module) >= 0;
+	}
+
+	/** Whether a module compiles into the test runtime package. */
+	public static function isTestResident(module: String): Bool {
+		return TEST_MODULES.indexOf(module) >= 0;
 	}
 
 	/**
@@ -37,6 +51,7 @@ class RuntimeResidents {
 		return switch(module) {
 			case "runtime.UString": "std.UStringRT";
 			case "runtime.Graphemes" | "runtime.GraphemeWalk": "std.Graphemes";
+			case "runtime.TestCore": "std.Test";
 			case _: null;
 		}
 	}
@@ -51,7 +66,7 @@ class RuntimeResidents {
 		if(isResident(module)) {
 			return true;
 		}
-		for(resident in MODULES) {
+		for(resident in MODULES.concat(TEST_MODULES)) {
 			if(externOf(resident) == module) {
 				return true;
 			}

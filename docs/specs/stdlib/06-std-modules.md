@@ -109,7 +109,10 @@ The runtime package exposes two entry points
   `boring.runtime.test`, module `crate::runtime::test`. It holds the
   test helper's result writer, which needs the host file system.
   Generated business code never imports it; generated test code
-  imports it for `std.Test`.
+  imports it for `std.Test`. The assertion resident `runtime.TestCore`
+  compiles into this entry beside the handwritten host of each target
+  (docs/plans/2026-08-28-runtime-unification.md P6); its emission gates
+  on `std.Test` usage, so the two always appear together.
 
 The Kotlin and Rust lanes have no import-time execution, so their
 layout keeps the test entry as a separate compilation unit inside the

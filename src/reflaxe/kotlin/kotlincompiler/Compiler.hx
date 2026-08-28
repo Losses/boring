@@ -434,7 +434,10 @@ class Compiler extends PluginCompiler<Compiler> {
 		final imports = decl.renderImports();
 		final body = moduleParts.join("\n\n");
 		final segments = module.split(".");
-		final fileName = segments[segments.length - 1] + ".kt";
+		// Test residents emit beside the test host entry in the test
+		// subpackage; general residents emit at the runtime root.
+		final leaf = segments[segments.length - 1] + ".kt";
+		final fileName = RuntimeResidents.isTestResident(module) ? "test/" + leaf : leaf;
 		final content = imports + (imports.length > 0 ? "\n" : "") + body + "\n";
 		final path = RuntimeConfig.emitPath(dir, fileName);
 		output.saveFile(path, content);

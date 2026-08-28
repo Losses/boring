@@ -810,6 +810,30 @@ class KotlinExpr {
 						case _:
 					}
 				}
+				if(cls.module == "std.TestPlatform") {
+					// Host edges of the resident runtime.TestCore, inlined
+					// per call: raising is an AssertionError, the running
+					// test id lives in the Test host of this same package,
+					// and plain numbers render through toString. Marking the
+					// std.Test shim used keeps that host emitted beside this
+					// resident. Business code never reaches these; it calls
+					// std.Test.
+					if(!imports.selfResident) {
+						Context.error("std.TestPlatform is a resident runtime primitive; business code calls std.Test", fn.pos);
+					}
+					state.shimsUsed.set("std.Test", true);
+					switch(name) {
+						case "raise":
+							return "throw AssertionError(" + expr(args[0]) + ")";
+						case "currentTestId":
+							return "Test.currentTestIdState()";
+						case "intToString":
+							return "(" + expr(args[0]) + ").toString()";
+						case "floatToString":
+							return "(" + expr(args[0]) + ").toString()";
+						case _:
+					}
+				}
 				if((cls.name == "Functional" || cls.name == "__functional_shim" || cls.module == "std.Functional" || cls.pack.join(".") + "." + cls.name == "std.Functional") && name == "sortedBy") {
 					final receiver = args[0];
 					final lambda = args[1];

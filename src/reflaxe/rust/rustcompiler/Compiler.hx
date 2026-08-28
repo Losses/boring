@@ -234,7 +234,10 @@ class Compiler extends PluginCompiler<Compiler> {
 			if(state.shimsUsed.exists("haxe.io.BytesBuffer")) runtimeMods.push("bytes_buffer");
 			if(state.shimsUsed.exists("std.Console")) runtimeMods.push("console");
 			if(state.shimsUsed.exists("std.Process")) runtimeMods.push("process");
-			if(state.shimsUsed.exists("std.Test")) runtimeMods.push("test");
+			if(state.shimsUsed.exists("std.Test")) {
+				runtimeMods.push("test");
+				runtimeMods.push("test_core");
+			}
 			if(state.shimsUsed.exists("std.UStringRT")) runtimeMods.push("u_string");
 			if(state.shimsUsed.exists("std.Graphemes")) {
 				runtimeMods.push("graphemes");
@@ -281,88 +284,90 @@ class Compiler extends PluginCompiler<Compiler> {
 
 	function generateTestHelper(): Void {
 		final lines = [
-			"// Generated test helper for type-guided assertions (Ruling C)",
+			"// Generated test helper for type-guided assertions (Ruling C);
+			// the canonical failure text and scalar formatting live in the
+			// resident runtime.TestCore.",
 			"#![allow(unused_imports, dead_code)]",
 			"",
-			"use crate::runtime::test as testlib;",
+			"use crate::runtime::test_core;",
 			"",
 			"pub fn equals_bytes(a: &[u8], b: &[u8]) -> bool { a == b }",
-			"pub fn format_bytes(v: &[u8]) -> String { testlib::format_bytes(v) }",
-			"pub fn assert_equals_bytes(expected: &[u8], actual: &[u8], message: Option<&str>) {",
+			"pub fn format_bytes(v: &[u8]) -> String { test_core::TestCore::format_bytes(v) }",
+			"pub fn assert_equals_bytes(expected: &[u8], actual: &[u8], message: &str) {",
 			"    if !equals_bytes(expected, actual) {",
-			"        testlib::report_failure(message, &format_bytes(expected), &format_bytes(actual));",
+			"        test_core::TestCore::report_failure(message, &format_bytes(expected), &format_bytes(actual));",
 			"    }",
 			"}",
 			"",
 			"pub fn equals_bool(a: &bool, b: &bool) -> bool { *a == *b }",
 			"pub fn format_bool(v: &bool) -> String { if *v { \"true\".to_string() } else { \"false\".to_string() } }",
-			"pub fn assert_equals_bool(expected: &bool, actual: &bool, message: Option<&str>) {",
+			"pub fn assert_equals_bool(expected: &bool, actual: &bool, message: &str) {",
 			"    if !equals_bool(expected, actual) {",
-			"        testlib::report_failure(message, &format_bool(expected), &format_bool(actual));",
+			"        test_core::TestCore::report_failure(message, &format_bool(expected), &format_bool(actual));",
 			"    }",
 			"}",
 			"",
 			"pub fn equals_i32(a: &i32, b: &i32) -> bool { *a == *b }",
 			"pub fn format_i32(v: &i32) -> String { v.to_string() }",
-			"pub fn assert_equals_i32(expected: &i32, actual: &i32, message: Option<&str>) {",
+			"pub fn assert_equals_i32(expected: &i32, actual: &i32, message: &str) {",
 			"    if !equals_i32(expected, actual) {",
-			"        testlib::report_failure(message, &format_i32(expected), &format_i32(actual));",
+			"        test_core::TestCore::report_failure(message, &format_i32(expected), &format_i32(actual));",
 			"    }",
 			"}",
 			"",
 			"pub fn equals_f64(a: &f64, b: &f64) -> bool { *a == *b }",
-			"pub fn format_f64(v: &f64) -> String { testlib::format_float(*v) }",
-			"pub fn assert_equals_f64(expected: &f64, actual: &f64, message: Option<&str>) {",
+			"pub fn format_f64(v: &f64) -> String { test_core::TestCore::format_float(*v) }",
+			"pub fn assert_equals_f64(expected: &f64, actual: &f64, message: &str) {",
 			"    if !equals_f64(expected, actual) {",
-			"        testlib::report_failure(message, &format_f64(expected), &format_f64(actual));",
+			"        test_core::TestCore::report_failure(message, &format_f64(expected), &format_f64(actual));",
 			"    }",
 			"}",
 			"",
 			"pub fn equals_u32(a: &u32, b: &u32) -> bool { *a == *b }",
 			"pub fn format_u32(v: &u32) -> String { v.to_string() }",
-			"pub fn assert_equals_u32(expected: &u32, actual: &u32, message: Option<&str>) {",
+			"pub fn assert_equals_u32(expected: &u32, actual: &u32, message: &str) {",
 			"    if !equals_u32(expected, actual) {",
-			"        testlib::report_failure(message, &format_u32(expected), &format_u32(actual));",
+			"        test_core::TestCore::report_failure(message, &format_u32(expected), &format_u32(actual));",
 			"    }",
 			"}",
 			"",
 			"pub fn equals_u16(a: &u16, b: &u16) -> bool { *a == *b }",
 			"pub fn format_u16(v: &u16) -> String { v.to_string() }",
-			"pub fn assert_equals_u16(expected: &u16, actual: &u16, message: Option<&str>) {",
+			"pub fn assert_equals_u16(expected: &u16, actual: &u16, message: &str) {",
 			"    if !equals_u16(expected, actual) {",
-			"        testlib::report_failure(message, &format_u16(expected), &format_u16(actual));",
+			"        test_core::TestCore::report_failure(message, &format_u16(expected), &format_u16(actual));",
 			"    }",
 			"}",
 			"",
 			"pub fn equals_usize(a: &usize, b: &usize) -> bool { *a == *b }",
 			"pub fn format_usize(v: &usize) -> String { v.to_string() }",
-			"pub fn assert_equals_usize(expected: &usize, actual: &usize, message: Option<&str>) {",
+			"pub fn assert_equals_usize(expected: &usize, actual: &usize, message: &str) {",
 			"    if !equals_usize(expected, actual) {",
-			"        testlib::report_failure(message, &format_usize(expected), &format_usize(actual));",
+			"        test_core::TestCore::report_failure(message, &format_usize(expected), &format_usize(actual));",
 			"    }",
 			"}",
 			"",
 			"pub fn equals_string(a: &String, b: &String) -> bool { a == b }",
-			"pub fn format_string(v: &String) -> String { testlib::format_string(v) }",
-			"pub fn assert_equals_string(expected: &String, actual: &String, message: Option<&str>) {",
+			"pub fn format_string(v: &String) -> String { test_core::TestCore::format_string(v) }",
+			"pub fn assert_equals_string(expected: &String, actual: &String, message: &str) {",
 			"    if !equals_string(expected, actual) {",
-			"        testlib::report_failure(message, &format_string(expected), &format_string(actual));",
+			"        test_core::TestCore::report_failure(message, &format_string(expected), &format_string(actual));",
 			"    }",
 			"}",
 			"",
 			"pub fn equals_opt_string(a: &Option<String>, b: &Option<String>) -> bool { a == b }",
-			"pub fn format_opt_string(v: &Option<String>) -> String { match v { Some(s) => testlib::format_string(s), None => \"null\".to_string() } }",
-			"pub fn assert_equals_opt_string(expected: &Option<String>, actual: &Option<String>, message: Option<&str>) {",
+			"pub fn format_opt_string(v: &Option<String>) -> String { match v { Some(s) => test_core::TestCore::format_string(s), None => \"null\".to_string() } }",
+			"pub fn assert_equals_opt_string(expected: &Option<String>, actual: &Option<String>, message: &str) {",
 			"    if !equals_opt_string(expected, actual) {",
-			"        testlib::report_failure(message, &format_opt_string(expected), &format_opt_string(actual));",
+			"        test_core::TestCore::report_failure(message, &format_opt_string(expected), &format_opt_string(actual));",
 			"    }",
 			"}",
 			"",
 			"pub fn equals_opt_u32(a: &Option<u32>, b: &Option<u32>) -> bool { a == b }",
 			"pub fn format_opt_u32(v: &Option<u32>) -> String { match v { Some(x) => x.to_string(), None => \"null\".to_string() } }",
-			"pub fn assert_equals_opt_u32(expected: &Option<u32>, actual: &Option<u32>, message: Option<&str>) {",
+			"pub fn assert_equals_opt_u32(expected: &Option<u32>, actual: &Option<u32>, message: &str) {",
 			"    if !equals_opt_u32(expected, actual) {",
-			"        testlib::report_failure(message, &format_opt_u32(expected), &format_opt_u32(actual));",
+			"        test_core::TestCore::report_failure(message, &format_opt_u32(expected), &format_opt_u32(actual));",
 			"    }",
 			"}"
 		];
@@ -391,9 +396,9 @@ class Compiler extends PluginCompiler<Compiler> {
 					lines.push('    for item in v { parts.push(format_$safeSnake(item)); }');
 					lines.push('    format!("[{}]", parts.join(", "))');
 					lines.push('}');
-					lines.push('pub fn assert_equals_vec_$safeSnake(expected: &[$elemTypeStr], actual: &[$elemTypeStr], message: Option<&str>) {');
+					lines.push('pub fn assert_equals_vec_$safeSnake(expected: &[$elemTypeStr], actual: &[$elemTypeStr], message: &str) {');
 					lines.push('    if !equals_vec_$safeSnake(expected, actual) {');
-					lines.push('        testlib::report_failure(message, &format_vec_$safeSnake(expected), &format_vec_$safeSnake(actual));');
+					lines.push('        test_core::TestCore::report_failure(message, &format_vec_$safeSnake(expected), &format_vec_$safeSnake(actual));');
 					lines.push('    }');
 					lines.push('}');
 				case TAbstract(a, params) if(a.get().name == "ReadOnlyArray" || (a.get().pack.join(".") == "std" && a.get().name == "ReadOnlyArray")):
@@ -411,9 +416,9 @@ class Compiler extends PluginCompiler<Compiler> {
 					lines.push('    for item in v { parts.push(format_$safeSnake(item)); }');
 					lines.push('    format!("[{}]", parts.join(", "))');
 					lines.push('}');
-					lines.push('pub fn assert_equals_vec_$safeSnake(expected: &[$elemTypeStr], actual: &[$elemTypeStr], message: Option<&str>) {');
+					lines.push('pub fn assert_equals_vec_$safeSnake(expected: &[$elemTypeStr], actual: &[$elemTypeStr], message: &str) {');
 					lines.push('    if !equals_vec_$safeSnake(expected, actual) {');
-					lines.push('        testlib::report_failure(message, &format_vec_$safeSnake(expected), &format_vec_$safeSnake(actual));');
+					lines.push('        test_core::TestCore::report_failure(message, &format_vec_$safeSnake(expected), &format_vec_$safeSnake(actual));');
 					lines.push('    }');
 					lines.push('}');
 				case TType(def, _):
@@ -433,9 +438,9 @@ class Compiler extends PluginCompiler<Compiler> {
 							lines.push('pub fn format_$safeSnake(v: &$structPath) -> String {');
 							lines.push('    format!("{{{}}}", [' + fmtParts + '].join(", "))');
 							lines.push('}');
-							lines.push('pub fn assert_equals_$safeSnake(expected: &$structPath, actual: &$structPath, message: Option<&str>) {');
+							lines.push('pub fn assert_equals_$safeSnake(expected: &$structPath, actual: &$structPath, message: &str) {');
 							lines.push('    if !equals_$safeSnake(expected, actual) {');
-							lines.push('        testlib::report_failure(message, &format_$safeSnake(expected), &format_$safeSnake(actual));');
+							lines.push('        test_core::TestCore::report_failure(message, &format_$safeSnake(expected), &format_$safeSnake(actual));');
 							lines.push('    }');
 							lines.push('}');
 						case _:
@@ -467,9 +472,9 @@ class Compiler extends PluginCompiler<Compiler> {
 					for(a in arms) lines.push(a);
 					lines.push('    }');
 					lines.push('}');
-					lines.push('pub fn assert_equals_$safeSnake(expected: &$enumPath, actual: &$enumPath, message: Option<&str>) {');
+					lines.push('pub fn assert_equals_$safeSnake(expected: &$enumPath, actual: &$enumPath, message: &str) {');
 					lines.push('    if !equals_$safeSnake(expected, actual) {');
-					lines.push('        testlib::report_failure(message, &format_$safeSnake(expected), &format_$safeSnake(actual));');
+					lines.push('        test_core::TestCore::report_failure(message, &format_$safeSnake(expected), &format_$safeSnake(actual));');
 					lines.push('    }');
 					lines.push('}');
 				case _:

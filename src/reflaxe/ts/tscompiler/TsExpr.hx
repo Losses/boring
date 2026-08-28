@@ -946,6 +946,27 @@ class TsExpr {
 						case _:
 					}
 				}
+				if(cls.module == "std.TestPlatform") {
+					// Host edges of the resident runtime.TestCore, inlined
+					// per call: raising is a throw, the running test id
+					// lives in the Test host of this same test entry, and
+					// plain numbers render through String. Business code
+					// never reaches these; it calls std.Test.
+					if(!imports.selfResident) {
+						Context.error("std.TestPlatform is a resident runtime primitive; business code calls std.Test", fn.pos);
+					}
+					switch(fName) {
+						case "raise":
+							return "throw new Error(" + expr(args[0]) + ")";
+						case "currentTestId":
+							return "Test.currentTestIdState()";
+						case "intToString":
+							return "String(" + expr(args[0]) + ")";
+						case "floatToString":
+							return "String(" + expr(args[0]) + ")";
+						case _:
+					}
+				}
 				if((cls.name == "Functional" || cls.name == "__functional_shim" || cls.module == "std.Functional" || cls.pack.join(".") + "." + cls.name == "std.Functional") && fName == "sortedBy") {
 					final receiver = args[0];
 					final lambda = args[1];
