@@ -12,12 +12,13 @@ A later compilation and generation stage produces or verifies target code agains
 
 ## Classification
 
-Specifications are organized into four categories:
+Specifications are organized into five categories:
 
 1. `binary/`: Rules governing binary encapsulation and wire format mechanics. Each file rules one mechanism across the entire format.
 2. `features/`: Rules governing Haxe language constructs. Each file defines the syntax, semantics, typed-AST representation, and cross-language mappings for one construct.
-3. `stdlib/`: Rules governing Haxe standard library modules and functions. These documents define standard library substitutions for the target languages.
-4. `style/`: Rules governing the Haxe source standard itself and the interception that enforces it before generation.
+3. `macros/`: Rules governing boring's built-in compile-time rewrites: constructs that are not Haxe language features and expand in the common layer before target emission. Collection pipeline idioms and the record copy live here, never in `features/`.
+4. `stdlib/`: Rules governing Haxe standard library modules and functions. These documents define standard library substitutions for the target languages.
+5. `style/`: Rules governing the Haxe source standard itself and the interception that enforces it before generation.
 
 ## Judgment axes
 
@@ -63,6 +64,15 @@ Every candidate translation is evaluated across four fixed axes:
 | 18 | [18-immutability.md](features/18-immutability.md) | Complete | Read-only data types and per-platform mutation enforcement. |
 | 19 | [19-testing.md](features/19-testing.md) | Planned | In-source tests, per-target execution, and cross-target consistency. |
 | 20 | [20-compile-time-data-tables.md](features/20-compile-time-data-tables.md) | Planned | Compile-time data expansion of large immutable lookup tables and the table emission ruling. |
+
+### Macro specifications
+
+| Number | Specification | Status | Description |
+| --- | --- | --- | --- |
+| 01 | [01-functional-idiom-expansion.md](macros/01-functional-idiom-expansion.md) | Complete | Closed-list collection pipeline idioms (`map`, `filter`, `forEach`, `associate`, `sortedBy`) expanded into loop forms in the typed common layer. |
+| 02 | [02-pipeline-idiom-additions.md](macros/02-pipeline-idiom-additions.md) | Planned | Second closed-list additions: `any`, `all`, `firstOrNull`, `sumOf`, `mapNotNull`, `flatMap`. |
+| 03 | [03-group-by-idiom.md](macros/03-group-by-idiom.md) | Planned | `groupBy` with the key-ascending product order. |
+| 04 | [04-record-copy.md](macros/04-record-copy.md) | Planned | Record copy with named field overrides, implemented as one Haxe macro. |
 
 ### Standard library specifications
 

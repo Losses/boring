@@ -1,4 +1,4 @@
-# Feature spec 21: Functional idiom expansion
+# Macro spec 01: Functional idiom expansion
 
 ## Scope
 

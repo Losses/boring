@@ -13,7 +13,7 @@ import haxe.macro.Type.TypedExpr;
 import haxe.macro.Type.TypedExprDef;
 
 /**
- * Functional idiom expansion pass per docs/specs/features/21-functional-idiom-expansion.md.
+ * Functional idiom expansion pass per docs/specs/macros/01-functional-idiom-expansion.md.
  * Expands map, filter, forEach, associate, sortedBy on Array<T> into loop forms
  * in the typed common layer before target emission.
  */

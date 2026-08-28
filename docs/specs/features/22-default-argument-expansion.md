@@ -5,7 +5,7 @@
 This specification rules optional function parameters with default values and
 the call sites that omit them. The mechanism is a completion pass in the typed
 common layer, the same layer as the functional idiom expansion of
-`docs/specs/features/21-functional-idiom-expansion.md`: every call that omits
+`docs/specs/macros/01-functional-idiom-expansion.md`: every call that omits
 trailing defaulted parameters receives the default values as explicit
 arguments, and the declarations lose their defaults, before any target
 compiler runs. The three target compilers receive only full positional calls
@@ -54,7 +54,7 @@ call passes three arguments.
    `Null<String>` and every omitting call site receives `null`.
 4. The pass applies to every typed declaration shape: class methods, interface
    methods, static functions, and local functions.
-5. The pass runs after typing and before the `features/21` expansion pass and
+5. The pass runs after typing and before the pipeline expansion pass of `docs/specs/macros/01-functional-idiom-expansion.md` and
    the `V08` scan, so both later stages see only completed calls.
 
 ## Per-target products
