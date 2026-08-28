@@ -43,3 +43,5 @@ boring.ArithmeticOps
 tests.ArithmeticTests
 boring.DefaultArgsOps
 tests.DefaultArgsTests
+boring.UStringOps
+tests.UStringTests

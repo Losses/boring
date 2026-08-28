@@ -23,11 +23,21 @@ class Case {
 		return String.fromCharCode(0x4E2D);
 	}
 
+	static function viaStringToolsCodeAt():Int {
+		return StringTools.fastCodeAt("中文", 0);
+	}
+
+	static function viaStringToolsFromCharCode():String {
+		return StringTools.fromCharCode(0x4E2D);
+	}
+
 	static function main():Void {
 		directLiteral();
 		lengthLiteral();
 		viaLocal();
 		viaField();
 		viaFromCharCode();
+		viaStringToolsCodeAt();
+		viaStringToolsFromCharCode();
 	}
 }

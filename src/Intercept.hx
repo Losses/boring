@@ -249,19 +249,31 @@ class Intercept {
 	static function checkStringIndexSourceCall(callee:Expr, args:Array<Expr>, scopes:Array<Map<String, String>>):Void {
 		switch (callee.expr) {
 			case ExprDef.EField(subject, field):
+				switch (subject.expr) {
+					case ExprDef.EConst(Constant.CIdent("StringTools")):
+						if (field == "fastCodeAt") {
+							violation("V18", "NonAsciiStringIndex",
+								"StringTools.fastCodeAt reads storage units with no content meaning; use std.UString.at", subject.pos);
+						}
+						if (field == "fromCharCode") {
+							violation("V18", "NonAsciiStringIndex",
+								"StringTools.fromCharCode writes one utf-16 code unit; use std.UString.fromCodePoint", subject.pos);
+						}
+					default:
+				}
 				if (isStringIndexCallee(field)) {
 					final target = parenStripped(subject);
 					switch (target.expr) {
 						case ExprDef.EConst(Constant.CString(literal)):
 							if (!isAsciiOnly(literal)) {
 								violation("V18", "NonAsciiStringIndex",
-									"string index access requires ascii content: " + field, target.pos);
+									"string index access requires ascii content; non-ascii content uses std.UString: " + field, target.pos);
 							}
 						case ExprDef.EConst(Constant.CIdent(name)):
 							final literal = scopedNonAsciiLiteral(name, scopes);
 							if (literal != null) {
 								violation("V18", "NonAsciiStringIndex",
-									"string index access requires ascii content: " + field, target.pos);
+									"string index access requires ascii content; non-ascii content uses std.UString: " + field, target.pos);
 							}
 						default:
 					}
@@ -275,7 +287,7 @@ class Intercept {
 										final code = Std.parseInt(value);
 										if (code == null || code < 0 || code > 0xFF) {
 											violation("V18", "NonAsciiStringIndex",
-												"String.fromCharCode accepts wire bytes 0..255", args[0].pos);
+												"String.fromCharCode accepts wire bytes 0..255; code points use std.UString.fromCodePoint", args[0].pos);
 										}
 									default:
 								}
@@ -845,7 +857,7 @@ class Intercept {
 		final literal = stringLiteralOf(subj);
 		if (literal != null && !isAsciiOnly(literal)) {
 			violation("V18", "NonAsciiStringIndex",
-				"string index access requires ascii content: " + op, subj.pos);
+				"string index access requires ascii content; non-ascii content uses std.UString: " + op, subj.pos);
 		}
 	}
 
@@ -878,7 +890,7 @@ class Intercept {
 			case TypedExprDef.TConst(TInt(code)):
 				if (code < 0 || code > 0xFF) {
 					violation("V18", "NonAsciiStringIndex",
-						"String.fromCharCode accepts wire bytes 0..255", arg.pos);
+						"String.fromCharCode accepts wire bytes 0..255; code points use std.UString.fromCodePoint", arg.pos);
 				}
 			default:
 		}
