@@ -102,6 +102,7 @@ class TsExpr {
 		if(f.expr == null) {
 			Context.error("function field has no body to lower", f.field.pos);
 		}
+		DefaultArgExpander.completeRootExpr(f.expr);
 		PipelineExpander.expandRootExpr(f.expr);
 
 		scanLocals(f.expr);
@@ -724,11 +725,23 @@ class TsExpr {
 				return expr(se) + "." + payloadName(ef, index);
 			case TEnumIndex(_):
 				return fail(e, "enum index only lowers inside a variant switch");
+			case TFunction(f):
+				final params = [for(a in f.args) '${a.v.name}: ${types.of(a.v.t)}'].join(", ");
+				final ret = types.of(f.t);
+				return '($params): $ret => {\n' + blockLines(statementsOf(f.expr), 2).join("\n") + '\n}';
 			case TIf(c, t, f) if(f != null):
 				return "(" + expr(c) + " ? " + expr(t) + " : " + expr(f) + ")";
 			case _:
 				return fail(e, "expression has no TypeScript lowering in the subset");
 		}
+	}
+
+	function isEnumConstruct(e: TypedExpr): Null<EnumField> {
+		if(e == null) return null;
+		return switch(stripWrap(e).expr) {
+			case TField(_, FEnum(_, ef)): ef;
+			case _: null;
+		};
 	}
 
 	function binop(e: TypedExpr, op: Binop, l: TypedExpr, r: TypedExpr): String {
@@ -742,6 +755,17 @@ class TsExpr {
 					return templateLiteral(l, r);
 				}
 				return operand(l, op, false) + " + " + operand(r, op, true);
+			case OpEq | OpNotEq:
+				final sym = op == OpEq ? "===" : "!==";
+				final leftEnum = isEnumConstruct(l);
+				final rightEnum = isEnumConstruct(r);
+				if(leftEnum != null && rightEnum == null) {
+					return expr(r) + ".kind " + sym + ' "${leftEnum.name}"';
+				}
+				if(rightEnum != null && leftEnum == null) {
+					return expr(l) + ".kind " + sym + ' "${rightEnum.name}"';
+				}
+				return operand(l, op, false) + " " + symbolOf(op) + " " + operand(r, op, true);
 			case _:
 				return operand(l, op, false) + " " + symbolOf(op) + " " + operand(r, op, true);
 		}
@@ -749,7 +773,7 @@ class TsExpr {
 
 	function operand(e: TypedExpr, parent: Binop, isRight: Bool): String {
 		final rendered = expr(e);
-		switch(e.expr) {
+		switch(stripWrap(e).expr) {
 			case TBinop(op, _, _):
 				final cp = precedenceOf(op);
 				final pp = precedenceOf(parent);

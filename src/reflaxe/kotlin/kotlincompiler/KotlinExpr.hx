@@ -81,6 +81,7 @@ class KotlinExpr {
 		if(f.expr == null) {
 			Context.error("function field has no body to lower", f.field.pos);
 		}
+		DefaultArgExpander.completeRootExpr(f.expr);
 		PipelineExpander.expandRootExpr(f.expr);
 		scanLocals(f.expr);
 		return blockLines(statementsOf(f.expr), 1);
@@ -552,6 +553,11 @@ class KotlinExpr {
 				return expr(se) + "." + payloadName(ef, index);
 			case TEnumIndex(_):
 				return fail(e, "enum index only lowers inside a variant switch");
+			case TFunction(f):
+				final params = [for(a in f.args) '${a.v.name}: ${types.of(a.v.t)}'].join(", ");
+				final ret = types.of(f.t);
+				final retStr = ret == "Unit" ? "" : ": " + ret;
+				return 'fun($params)$retStr {\n' + blockLines(statementsOf(f.expr), 1).join("\n") + '\n}';
 			case TIf(c, t, f) if(f != null):
 				return "(if (" + expr(c) + ") " + expr(t) + " else " + expr(f) + ")";
 			case _:

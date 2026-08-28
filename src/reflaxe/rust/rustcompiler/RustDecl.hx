@@ -40,6 +40,20 @@ class RustDecl {
 	// ------------------------------------------------------------------
 
 	public function classDecl(cls: ClassType, varFields: Array<ClassVarData>, funcFields: Array<ClassFuncData>): String {
+		if(cls.isInterface) {
+			final lines: Array<String> = [];
+			lines.push("pub trait " + cls.name + " {");
+			for(f in funcFields) {
+				final paramList = [for(a in f.args) RustImports.toSnakeCase(a.name) + ": " + types.of(a.type, true)].join(", ");
+				final selfPrefix = f.isStatic ? "" : "&self" + (f.args.length > 0 ? ", " : "");
+				final retType = types.of(f.ret, false);
+				final ret = retType == "()" ? "" : " -> " + retType;
+				lines.push('    fn ${RustImports.toSnakeCase(f.field.name)}($selfPrefix$paramList)$ret;');
+			}
+			lines.push("}");
+			return lines.join("\n");
+		}
+
 		if(isExceptionSubclass(cls)) {
 			final payload = payloadEnumOf(funcFields);
 			if(payload == null) {
@@ -116,9 +130,35 @@ class RustDecl {
 		for(f in funcFields) {
 			if(sep) lines.push("");
 			sep = true;
-			for(l in instanceFuncDecl(cls, f, hasLifetime)) lines.push(l);
+			if(f.isStatic) {
+				for(l in staticFuncDecl(cls, f)) lines.push(l);
+			} else {
+				for(l in instanceFuncDecl(cls, f, hasLifetime)) lines.push(l);
+			}
 		}
 		lines.push("}");
+
+		for(iface in cls.interfaces) {
+			final ifaceCls = iface.t.get();
+			lines.push("\nimpl" + ltParam + " " + ifaceCls.name + " for " + cls.name + ltParam + " {");
+			var ifaceSep = false;
+			for(f in funcFields) {
+				if(f.field.name == "new") continue;
+				var inIface = false;
+				for(ifField in ifaceCls.fields.get()) {
+					if(ifField.name == f.field.name) {
+						inIface = true;
+						break;
+					}
+				}
+				if(inIface) {
+					if(ifaceSep) lines.push("");
+					ifaceSep = true;
+					for(l in instanceFuncDecl(cls, f, hasLifetime, true)) lines.push(l);
+				}
+			}
+			lines.push("}");
+		}
 
 		return lines.join("\n");
 	}
@@ -486,7 +526,7 @@ class RustDecl {
 		return null;
 	}
 
-	function instanceFuncDecl(cls: ClassType, f: ClassFuncData, hasLifetime: Bool): Array<String> {
+	function instanceFuncDecl(cls: ClassType, f: ClassFuncData, hasLifetime: Bool, isTraitImpl: Bool = false): Array<String> {
 		final isConstructor = f.field.name == "new";
 		final snakeName = isConstructor ? "new" : RustImports.toSnakeCase(f.field.name);
 
@@ -543,7 +583,7 @@ class RustDecl {
 		final rawRetType = methodReturnType(f.ret, f.field.name);
 		final retType = isFallible ? 'Result<$rawRetType, $errOwner>' : rawRetType;
 		final ret = retType == "()" ? "" : " -> " + retType;
-		final vis = f.field.isPublic ? "pub " : "";
+		final vis = (f.field.isPublic && !isTraitImpl) ? "pub " : "";
 		final head = '    ${vis}fn ${snakeName}($allArgs)$ret {';
 
 		final body = expr.functionBody(f);

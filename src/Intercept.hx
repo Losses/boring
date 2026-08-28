@@ -117,6 +117,7 @@ class Intercept {
 		if (!isGuarded(classType.pos)) {
 			return fields;
 		}
+		DefaultArgExpander.registerClassFields(classType, fields);
 		for (index in 0...fields.length) {
 			final field = fields[index];
 			switch (field.kind) {
@@ -284,6 +285,7 @@ class Intercept {
 			if (body == null) {
 				continue;
 			}
+			DefaultArgExpander.completeRootExpr(body);
 			PipelineExpander.expandRootExpr(body);
 			walk(body, false);
 		}
