@@ -65,6 +65,40 @@ the pass completes the calls before them, so neither target emits a default.
 Rust holds no default parameter syntax; the completed call sites are the only
 form. No target-specific work exists for this feature.
 
+## Emission rulings recorded at implementation
+
+The declaration side holds: no target emits optional syntax or default
+initializers. The sample shapes introduced by this feature appear in the sample
+tree for the first time, and the general emitter gaps they exposed were
+filled as target-level rules:
+
+- A local function used as a value lowers as a typed arrow function on
+  TypeScript, a local `fun` expression on Kotlin, and a closure with
+  snake-case parameter names on Rust.
+- Enum equality against a bare constructor lowers through the runtime
+  discriminant on TypeScript (`left.kind === "Name"`), because enum values
+  are emitted as object literals carrying `kind`.
+- Rust call sites that pass into a `Null<T>` parameter wrap non-null
+  arguments in `Some(...)` (string literals gain `to_string()`), a null
+  message argument renders `None`, and `Null<String>` operands in string
+  concatenation render `as_deref().unwrap_or("")`. Rust references and
+  TypeScript and Kotlin equality follow the same null-model rules already
+  recorded for earlier features.
+- Interfaces lower as traits with `impl Trait for Struct` blocks on Rust,
+  `interface` declarations with `override` members and `companion object`
+  routing for mixed static and instance members on Kotlin, and named
+  function type aliases with `readonly` members on TypeScript, because the
+  repository lint rule rejects interface methods in emitted TypeScript.
+  Classes that hold only static members keep the existing `object` form on
+  Kotlin; the companion routing applies to mixed classes only.
+- Completion applies to every defaulted function visible to the
+  compilers, including the assertion APIs declared before this feature. The `std.Test` assertion methods carry a defaulted
+  `message` parameter, so every historical two-argument assertion call now
+  materializes an explicit `null` third argument in the TypeScript and
+  Kotlin trees; the Rust side already rendered an absent message as
+  `None`, so its trees do not change. The completion is
+  behavior-preserving on all four sides.
+
 ## Oracle standing
 
 The haxe stage-1 side runs haxe's own optional-argument semantics, so the
