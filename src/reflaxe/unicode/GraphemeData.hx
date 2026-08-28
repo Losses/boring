@@ -27,9 +27,9 @@ import haxe.macro.Expr;
 	pinned data re-runs the full gate.
 
 	`-D fetch-unicode=<version>` downloads the four files of that
-	Unicode release from unicode.org with `haxe.Http` before parsing,
-	which is the refresh path to a later release. Ordinary compilation
-	stays network-free and reads the pinned files.
+	Unicode release from unicode.org before parsing, which is the
+	refresh path to a later release. Ordinary compilation stays
+	network-free and reads the pinned files.
 **/
 typedef PropertyRange = {
 start: Int,
@@ -136,9 +136,13 @@ class GraphemeData {
 	}
 
 	/**
-		Downloads the four files of one Unicode release. `requestUrl` is
-		the synchronous entry of `haxe.Http`, available in the macro
-		interpreter.
+		Downloads the four files of one Unicode release with curl. The
+		chunked-transfer decoder of `sys.Http` in Haxe 4.3.7 discards
+		misaligned bytes when TCP segmentation splits a chunk header, so
+		`haxe.Http` corrupts these files nondeterministically; the
+		conformance gate rejects the corrupt downloads, and curl reads
+		the same URLs correctly. The subprocess stays inside this macro
+		pipeline: no script outside the compilation participates.
 	**/
 	static function fetchFiles(version: String): Void {
 		final urls: Array<{name: String, url: String}> = [
@@ -148,11 +152,16 @@ class GraphemeData {
 			{name: "GraphemeBreakTest", url: "https://unicode.org/Public/" + version + "/ucd/auxiliary/GraphemeBreakTest.txt"},
 		];
 		for(entry in urls) {
-			final content = haxe.Http.requestUrl(entry.url);
-			if(content == null || content.length == 0) {
-				Context.fatalError("download failed for " + entry.name + " " + version + ": " + entry.url, Context.currentPos());
+			final proc = new sys.io.Process("curl", ["-fsSL", entry.url]);
+			// Drain stdout to EOF before waiting: the largest file
+			// exceeds the pipe buffer, and waiting first deadlocks.
+			final output = proc.stdout.readAll().toString();
+			final code = proc.exitCode();
+			proc.close();
+			if(code != 0 || output.length == 0) {
+				Context.fatalError("download failed for " + entry.name + " " + version + " (curl exit " + code + "): " + entry.url, Context.currentPos());
 			}
-			sys.io.File.saveContent(dataDir() + "/" + entry.name + "-" + version + ".txt", content);
+			sys.io.File.saveContent(dataDir() + "/" + entry.name + "-" + version + ".txt", output);
 		}
 	}
 
