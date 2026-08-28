@@ -56,12 +56,14 @@ class Intercept {
 	/** Field names whose call form is banned on any receiver (V02). */
 	static final FUNCTIONAL_METHODS:Array<String> = [
 		"map", "filter", "fold", "reduce", "forEach", "flatMap", "find", "some",
-		"every", "sortedBy", "associate",
+		"every", "sortedBy", "associate", "any", "all", "firstOrNull", "sumOfInt",
+		"sumOfFloat", "mapNotNull", "groupBy",
 	];
 
 	/** Closed-list pipeline methods eligible for inline function literal exemption. */
 	static final CLOSED_LIST:Array<String> = [
 		"map", "filter", "forEach", "associate", "sortedBy",
+		"any", "all", "firstOrNull", "sumOfInt", "sumOfFloat", "mapNotNull", "flatMap", "groupBy",
 	];
 
 	/** Map modules with no translation (V13). */
