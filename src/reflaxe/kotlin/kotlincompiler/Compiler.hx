@@ -59,7 +59,10 @@ class Compiler extends PluginCompiler<Compiler> {
 	// ------------------------------------------------------------------
 
 	public function compileClassImpl(classType: ClassType, varFields: Array<ClassVarData>, funcFields: Array<ClassFuncData>): Null<String> {
-		if(classType.isExtern || isSyntheticImpl(classType.name) || isInlineOnly(classType, varFields, funcFields) || !inSourceScope(classType.pos)) {
+		// Resident runtime modules sit under src/runtime, outside the
+		// sample source roots, but compile through this same pipeline.
+		final isResident = RuntimeResidents.isResident(classType.module);
+		if(classType.isExtern || isSyntheticImpl(classType.name) || isInlineOnly(classType, varFields, funcFields) || (!isResident && !inSourceScope(classType.pos))) {
 			return null;
 		}
 
@@ -169,6 +172,10 @@ class Compiler extends PluginCompiler<Compiler> {
 				// The sealed fold already carries these variants.
 				continue;
 			}
+			if(RuntimeResidents.isResident(module)) {
+				emitResidentModule(module);
+				continue;
+			}
 			final decl = contexts.get(module);
 			final imports = decl.renderImports();
 			final body = parts.get(module).join("\n\n");
@@ -192,7 +199,6 @@ class Compiler extends PluginCompiler<Compiler> {
 		emitShim("std.Process", "Process.kt", KotlinRuntime.PROCESS_SOURCE);
 		emitShim("std.Test", "test/Test.kt", KotlinRuntime.TEST_SOURCE, "test");
 		emitShim("std.UStringRT", "UString.kt", KotlinRuntime.USTRING_SOURCE);
-		emitShim("std.Graphemes", "Graphemes.kt", reflaxe.unicode.GraphemeTableRender.kotlin(reflaxe.unicode.GraphemeData.table()) + KotlinRuntime.GRAPHEMES_SOURCE);
 		if(state.shimsUsed.exists("std.SortedMap") || state.shimsUsed.exists("std.SortedMapBuilder")) {
 			state.shimsUsed.set("std.SortedMap", true);
 			emitShim("std.SortedMap", "SortedMap.kt", KotlinRuntime.SORTED_MAP_SOURCE);
@@ -403,6 +409,36 @@ class Compiler extends PluginCompiler<Compiler> {
 		final pkg = subPackage.length > 0 ? runtimePackage + "." + subPackage : runtimePackage;
 		final path = RuntimeConfig.emitPath(dir, fileName);
 		output.saveFile(path, "package " + pkg + "\n\n" + StringTools.trim(source) + "\n");
+	}
+
+	/**
+		Writes one resident runtime module (RuntimeResidents) into the
+		runtime-emit directory. The module compiled through the normal
+		typed pipeline like a business module; only its destination and
+		package differ. Emission follows the extern's usage flag so
+		unreferenced residents write nothing, matching the shims.
+	**/
+	function emitResidentModule(module: String): Void {
+		final externModule = RuntimeResidents.externOf(module);
+		if(externModule == null || !state.shimsUsed.exists(externModule)) {
+			return;
+		}
+		final dir = RuntimeConfig.emitDir();
+		if(dir == null) {
+			return;
+		}
+		final decl = contexts.get(module);
+		final moduleParts = parts.get(module);
+		if(decl == null || moduleParts == null || moduleParts.length == 0) {
+			return;
+		}
+		final imports = decl.renderImports();
+		final body = moduleParts.join("\n\n");
+		final segments = module.split(".");
+		final fileName = segments[segments.length - 1] + ".kt";
+		final content = imports + (imports.length > 0 ? "\n" : "") + body + "\n";
+		final path = RuntimeConfig.emitPath(dir, fileName);
+		output.saveFile(path, content);
 	}
 
 	public static function computeRelativePath(fromDir: String, toFile: String): String {

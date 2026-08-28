@@ -130,6 +130,13 @@ class TsDecl {
 			chunks.push("  " + formatted.slice(i, end).join(", "));
 			i = end;
 		}
+		// A resident table crosses into ReadOnlyArray parameters
+		// (readonly T[] here), so it renders as a plain array; business
+		// tables stay Int32Array because business code indexes them
+		// directly and never passes them along.
+		if(imports.selfResident) {
+			return 'const $name = [\n' + chunks.join(",\n") + "\n];";
+		}
 		return 'const $name = new Int32Array([\n' + chunks.join(",\n") + "\n]);";
 	}
 

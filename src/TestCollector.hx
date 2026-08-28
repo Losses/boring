@@ -150,6 +150,8 @@ class TestCollector {
 
 		final runnerSource = 'package;
 
+import runtime.Graphemes;
+
 @:jsRequire("node:fs")
 extern class Fs {
     static function appendFileSync(path:String, data:String, encoding:String):Void;
@@ -353,7 +355,7 @@ class TestMain {
         js.Syntax.code("globalThis.FunctionalOracle = {0}", FunctionalOracle);
         js.Syntax.code("globalThis.std = globalThis.std || {}; globalThis.std.StringBuf = {0};", StringBufOracle);
         js.Syntax.code("globalThis.std.UStringRT = {0};", UStringRtOracle);
-        js.Syntax.code("globalThis.std.Graphemes = {0};", GraphemesOracle);
+        js.Syntax.code("globalThis.std.Graphemes = {0};", Graphemes);
         js.Syntax.code("
             function jsCompare(a, b) {
                 if (a === b) return 0;
@@ -608,7 +610,6 @@ class StringBufOracle {
 		// The oracle is a tracked source file shared with the typed harness in
 		// tests/haxe; stage one compiles the copy next to TestMain.
 		File.saveContent(outDir + "/UStringRtOracle.hx", sys.io.File.getContent(Context.resolvePath("tests/haxe/UStringRtOracle.hx")));
-		File.saveContent(outDir + "/GraphemesOracle.hx", sys.io.File.getContent(Context.resolvePath("tests/haxe/GraphemesOracle.hx")));
 	}
 }
 #end

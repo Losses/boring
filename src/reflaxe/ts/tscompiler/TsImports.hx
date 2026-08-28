@@ -1,6 +1,7 @@
 package tscompiler;
 
 #if (macro || reflaxe_runtime)
+import haxe.macro.Context;
 
 /**
 	Collects the module references one generated file needs, splitting
@@ -13,6 +14,7 @@ package tscompiler;
 **/
 class TsImports {
 	final selfModule: String;
+	public final selfResident: Bool;
 	final valueNames: Map<String, Map<String, Bool>> = [];
 	final typeNames: Map<String, Map<String, Bool>> = [];
 	final runtimeNames: Map<String, Bool> = [];
@@ -20,6 +22,7 @@ class TsImports {
 
 	public function new(selfModule: String) {
 		this.selfModule = selfModule;
+		this.selfResident = RuntimeResidents.isResident(selfModule);
 	}
 
 	public function value(moduleBase: String, name: String): Void {
@@ -36,6 +39,11 @@ class TsImports {
 		the import statement cannot be written without it.
 	**/
 	public function runtime(name: String): Void {
+		if(selfResident) {
+			// Resident modules append into runtime.ts itself; a
+			// runtime reference from one resolves in the same file.
+			return;
+		}
 		RuntimeConfig.requireImportName("symbol " + name);
 		runtimeNames.set(name, true);
 	}
@@ -85,6 +93,13 @@ class TsImports {
 	function add(into: Map<String, Map<String, Bool>>, module: String, name: String): Void {
 		if(module == selfModule || module == "Math" || module == "String" || module == "Std" || runtimeProvidedModules.exists(module)) {
 			return;
+		}
+		if(selfResident) {
+			if(RuntimeResidents.isResident(module)) {
+				// Fellow residents append into the same runtime.ts.
+				return;
+			}
+			Context.error("resident runtime module " + selfModule + " references " + module + "; the runtime package must not depend on generated business modules", Context.currentPos());
 		}
 		if(!into.exists(module)) {
 			into.set(module, []);

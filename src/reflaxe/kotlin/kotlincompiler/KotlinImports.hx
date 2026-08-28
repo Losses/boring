@@ -26,12 +26,18 @@ class KotlinImports {
 	];
 
 	final selfPack: String;
+	public final selfResident: Bool;
 	final state: KotlinEmissionState;
 	final imports: Map<String, Bool> = [];
 
 	public function new(selfModule: String, state: KotlinEmissionState) {
 		final segments = selfModule.split(".");
-		this.selfPack = segments.length <= 1 ? "" : segments.slice(0, segments.length - 1).join(".");
+		// Resident modules compile into the configured runtime package;
+		// their source-side "runtime" package never reaches the output.
+		this.selfResident = RuntimeResidents.isResident(selfModule);
+		this.selfPack = this.selfResident
+			? RuntimeConfig.requireImportName("module " + RuntimeResidents.externOf(selfModule))
+			: segments.length <= 1 ? "" : segments.slice(0, segments.length - 1).join(".");
 		this.state = state;
 	}
 
@@ -55,6 +61,15 @@ class KotlinImports {
 			final runtimePackage = RuntimeConfig.requireImportName("module " + module);
 			state.shimsUsed.set(module, true);
 			require(runtimePackage + "." + name);
+			return;
+		}
+		if(RuntimeResidents.isResident(module)) {
+			// Resident modules live in the runtime package. A file
+			// already inside that package needs no import; business
+			// code reaches them through externs instead.
+			if(!selfResident) {
+				require(RuntimeConfig.requireImportName("module " + RuntimeResidents.externOf(module)) + "." + name);
+			}
 			return;
 		}
 		final pack = packOf(module);

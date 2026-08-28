@@ -30,7 +30,13 @@ class RustType {
 			case TAbstract(a, params):
 				final abs = a.get();
 				switch(pathOf(abs.pack, abs.name)) {
-					case "Int": "u32";
+					// Business modules keep haxe Int unsigned: the subset
+					// domain is non-negative. Resident runtime modules
+					// render Int as i32 because their contracts carry
+					// signed values (negative slice bounds, the -1
+					// no-previous sentinel); the call boundary casts
+					// between the two conventions (RuntimeResidents).
+					case "Int": RuntimeResidents.isResident(imports.selfModule) ? "i32" : "u32";
 					case "Float": "f64";
 					case "Bool": "bool";
 					case "Void": "()";

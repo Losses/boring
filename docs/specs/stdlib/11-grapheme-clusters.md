@@ -62,9 +62,10 @@ Cost floors, recorded per the design principles:
 The table lookup is a binary search over 1965 disjoint ranges for
 Unicode 17.0.0, eleven comparisons per code point; the walk state is
 one integer. Segmentation must classify every code point at least once,
-so the one-pass shape sits at the floor. Rust iterates UTF-8 `chars()`,
-the UTF-16 platforms walk code units, and each target costs the same
-order, per the storage ruling of `stdlib/10`.
+so the one-pass shape sits at the floor. The resident module decodes
+the string to code points once through `std.UStringRT.toCodePoints`
+and tracks storage width for substring extraction, so every target
+costs the same order, per the storage ruling of `stdlib/10`.
 
 ## Data, tooling, and regeneration
 
@@ -83,21 +84,17 @@ The table is built at compilation start by the macro module
 `src/reflaxe/unicode/GraphemeData.hx`
 (`docs/plans/2026-08-28-runtime-unification.md` P2). It parses the
 three property files with `sys.io.File`, merges them into disjoint
-code-point ranges, and hands the table to the consumers in the same
-compilation: the target compilers render it into their runtime
-packages (`GraphemeTableRender`), and
-`--macro reflaxe.unicode.GraphemeData.ensureType()` defines the class
-`reflaxe.unicode.GraphemeBreakData` for sources that reference the
-table as a Haxe class. The table layout is one flat int array with
-three ints per range (start, endInclusive, packed), where the packed
-value carries the Grapheme_Cluster_Break class in bits 0-3,
-Extended_Pictographic in bit 4, and Indic_Conjunct_Break in bits 5-6.
-Code points absent from the table are class Other with no flags.
-Nothing generated is committed.
+code-point ranges, and injects the result into `runtime.Graphemes`
+through the `:build` macro `tableField("TABLE")`. The table layout is
+one flat int array with three ints per range (start, endInclusive,
+packed), where the packed value carries the Grapheme_Cluster_Break
+class in bits 0-3, Extended_Pictographic in bit 4, and
+Indic_Conjunct_Break in bits 5-6. Code points absent from the table
+are class Other with no flags. Nothing generated is committed.
 
 The merge refuses to produce a table unless every line of the pinned
 `GraphemeBreakTest.txt` passes under the table and the shared walk in
-`src/reflaxe/unicode/GraphemeWalk.hx`. The walk packs its carried state
+`src/runtime/GraphemeWalk.hx`. The walk packs its carried state
 into one integer: the GB11 link stage in bits 0-1 (armed only while the
 text ends in Extended_Pictographic, Extend run, then ZWJ), the GB9c
 link stage in bits 2-3 (armed after a Consonant and an Extend or Linker
@@ -131,28 +128,35 @@ package. `stdlib/06` lists `std.Graphemes` among the runtime-backed std
 modules, and the class lists live in `TsImports.runtimeProvidedModules`
 and `KotlinImports.SHIM_MODULES`.
 
-The stage-one oracle is `tests/haxe/GraphemesOracle.hx`, a haxe
-implementation of the cluster tier over the shared
-`reflaxe.unicode.GraphemeWalk` and the macro-defined
-`GraphemeBreakData.TABLE`. The generated test runner and the typed
-harness bind it to `globalThis.std.Graphemes`, the binding pattern of
-`stdlib/10`.
+The implementation is the resident module pair of
+`docs/plans/2026-08-28-runtime-unification.md` P4:
+`src/runtime/Graphemes.hx` (the four operations over the injected
+table) and `src/runtime/GraphemeWalk.hx` (the boundary rules over code
+points, the same walk the compile-time conformance gate runs). Every
+target compiles both through its normal pipeline into its runtime
+package; `RuntimeResidents` holds the module list, the extern mapping,
+and the resident ABI flag. Stage one binds the compiled
+`runtime.Graphemes` class to `globalThis.std.Graphemes`, the binding
+pattern of `stdlib/10`, so the haxe reference target executes the same
+code the transpiled runtimes execute.
 
 ## Per-platform shapes
 
-- Rust: `graphemes.rs` in the runtime package. The table is a
-  `static GRAPHEME_TABLE: [u32; N]`; the walk iterates `chars()` with
-  `char_indices` for slicing; `count` returns `u32`, `at` returns
-  `Option<String>`, `parts` returns `Vec<String>`.
-- TypeScript: the `Graphemes` object in `runtime.ts`, preceded by the
-  table as `export const GRAPHEME_TABLE = new Int32Array([...])`. The
-  walk reads `codePointAt` and advances one or two units per code
-  point.
-- Kotlin: `Graphemes.kt` in the runtime package, with the table as a
-  file-level `private val GRAPHEME_TABLE: IntArray`. The walk reads
-  `charAt` unit widths, the same shape as the `UString` shim.
-- Stage-one haxe: the oracle of the routing section, one implementation
-  of the same walk.
+- Rust: `graphemes.rs` and `grapheme_walk.rs` in the runtime package.
+  The table is `pub static TABLE: [i32; N]`; resident modules render
+  haxe Int as i32 because the clamping contracts carry negative values,
+  while business modules render u32. Int values cross between the two
+  conventions through explicit `as` casts at the call boundary; the
+  code-point vector never crosses whole, only its elements, so every
+  crossing is a scalar cast.
+- TypeScript: `export class Graphemes` and `export class GraphemeWalk`
+  appended to `runtime.ts`, with the table as a plain `const TABLE`
+  array so it crosses into `readonly number[]` parameters.
+- Kotlin: `Graphemes.kt` and `GraphemeWalk.kt` in the runtime package,
+  with the table as `val TABLE = listOf(...)` so it crosses into
+  `List<Int>` parameters.
+- Stage-one haxe: the compiled `runtime.Graphemes` class itself, no
+  separate oracle.
 
 Every target names the rules it applies (comments cite GB3 through
 GB999) and reads the same packed classes; the four-target consistency

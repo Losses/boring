@@ -451,6 +451,10 @@ class RustDecl {
 
 	function renderRustDataTable(field: ClassField, elems: Array<Int>): String {
 		final vis = field.isPublic ? "pub " : "";
+		// Resident runtime modules render Int as i32 (RuntimeResidents),
+		// so their tables carry the same element type as the functions
+		// that index them.
+		final elemType = RuntimeResidents.isResident(imports.selfModule) ? "i32" : "u32";
 		final formatted = [for(x in elems) (x >= 0 && x <= 9) ? Std.string(x) : "0x" + StringTools.hex(x).toLowerCase()];
 		final chunks: Array<String> = [];
 		var i = 0;
@@ -459,7 +463,7 @@ class RustDecl {
 			chunks.push("    " + formatted.slice(i, end).join(", "));
 			i = end;
 		}
-		return '${vis}static ${field.name}: [u32; ${elems.length}] = [\n' + chunks.join(",\n") + "\n];";
+		return '${vis}static ${field.name}: [${elemType}; ${elems.length}] = [\n' + chunks.join(",\n") + "\n];";
 	}
 
 	function staticVarDecl(v: ClassVarData): Array<String> {
@@ -527,6 +531,7 @@ class RustDecl {
 		final head = '    ${vis}fn ${snakeName}($args)$ret {';
 
 		expr.setReturnUnsigned(rawRetType == "u32");
+		expr.setReturnTypeName(rawRetType);
 		final body = expr.functionBody(cls, f);
 		return [head].concat(body.map(l -> "    " + l)).concat(["    }"]);
 	}
@@ -701,6 +706,7 @@ class RustDecl {
 		final head = '    ${vis}fn ${snakeName}($allArgs)$ret {';
 
 		expr.setReturnUnsigned(rawRetType == "u32");
+		expr.setReturnTypeName(rawRetType);
 		final body = expr.functionBody(cls, f);
 		return [head].concat(body.map(l -> "    " + l)).concat(["    }"]);
 	}
@@ -808,6 +814,7 @@ class RustDecl {
 		// failure, so the body lowers as infallible and fallible callees
 		// unwrap through the catch_unwind harness.
 		expr.setFallible(false);
+		expr.setReturnTypeName("()");
 		final body = expr.functionBody(cls, f);
 		final indented = body.map(l -> "        " + l);
 		return [

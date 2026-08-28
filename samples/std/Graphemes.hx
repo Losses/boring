@@ -6,8 +6,9 @@ package std;
  * user-perceived character under UAX #29: a base with its combining
  * marks, a Hangul syllable run, an emoji sequence with modifiers or
  * joiners, or a regional-indicator pair. References route through each
- * target's import table into the runtime package, which shares one
- * generated break table across targets.
+ * target's import table to the compiled resident module
+ * runtime.Graphemes, the one implementation every target and the
+ * stage-one harness execute.
  */
 extern class Graphemes {
 	public static function count(s:String):Int;
