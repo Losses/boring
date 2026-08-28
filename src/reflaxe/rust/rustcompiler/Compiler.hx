@@ -210,7 +210,7 @@ class Compiler extends PluginCompiler<Compiler> {
 		emitShim("std.Process", "process.rs", RustRuntime.PROCESS_SOURCE);
 		emitShim("std.Test", "test.rs", RustRuntime.TEST_SOURCE);
 		emitShim("std.UStringRT", "ustring.rs", RustRuntime.USTRING_SOURCE);
-		emitShim("std.Graphemes", "graphemes.rs", reflaxe.unicode.GraphemeTableRender.rust(reflaxe.unicode.GraphemeBreakData.TABLE) + RustRuntime.GRAPHEMES_SOURCE);
+		emitShim("std.Graphemes", "graphemes.rs", reflaxe.unicode.GraphemeTableRender.rust(reflaxe.unicode.GraphemeData.table()) + RustRuntime.GRAPHEMES_SOURCE);
 		if(state.shimsUsed.exists("std.SortedSet") || state.shimsUsed.exists("std.SortedSetBuilder")) {
 			state.shimsUsed.set("std.SortedSet", true);
 			state.shimsUsed.set("std.SortedMap", true);

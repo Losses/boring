@@ -7,4 +7,5 @@
 -main Main
 -js out/haxe/tests.js
 -D analyzer-optimize
+--macro reflaxe.unicode.GraphemeData.ensureType()
 --macro Intercept.run(['samples', 'tests/haxe'], ['samples/boring/BinaryReader.hx', 'samples/boring/BinaryWriter.hx', 'tests/haxe/UStringRtOracle.hx', 'tests/haxe/GraphemesOracle.hx'])

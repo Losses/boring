@@ -192,7 +192,7 @@ class Compiler extends PluginCompiler<Compiler> {
 		emitShim("std.Process", "Process.kt", KotlinRuntime.PROCESS_SOURCE);
 		emitShim("std.Test", "test/Test.kt", KotlinRuntime.TEST_SOURCE, "test");
 		emitShim("std.UStringRT", "UString.kt", KotlinRuntime.USTRING_SOURCE);
-		emitShim("std.Graphemes", "Graphemes.kt", reflaxe.unicode.GraphemeTableRender.kotlin(reflaxe.unicode.GraphemeBreakData.TABLE) + KotlinRuntime.GRAPHEMES_SOURCE);
+		emitShim("std.Graphemes", "Graphemes.kt", reflaxe.unicode.GraphemeTableRender.kotlin(reflaxe.unicode.GraphemeData.table()) + KotlinRuntime.GRAPHEMES_SOURCE);
 		if(state.shimsUsed.exists("std.SortedMap") || state.shimsUsed.exists("std.SortedMapBuilder")) {
 			state.shimsUsed.set("std.SortedMap", true);
 			emitShim("std.SortedMap", "SortedMap.kt", KotlinRuntime.SORTED_MAP_SOURCE);
