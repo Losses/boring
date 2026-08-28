@@ -15,5 +15,6 @@ extern class SortedMap<K, V> {
 
 extern class SortedMapBuilder<K, V> {
 	public function put(key:K, value:V):Void;
+	public function get(key:K):Null<V>;
 	public function build():SortedMap<K, V>;
 }
