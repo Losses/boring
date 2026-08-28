@@ -84,7 +84,10 @@ Every candidate translation is evaluated across four fixed axes:
 | 04 | [04-haxe-ds-vector.md](stdlib/04-haxe-ds-vector.md) | Complete | Fixed-length dense vector structures. |
 | 05 | [05-haxe-int64.md](stdlib/05-haxe-int64.md) | Complete | 64-bit integer representations and emulated arithmetic. |
 | 06 | [06-std-modules.md](stdlib/06-std-modules.md) | Complete | The subset's std modules, reserved namespaces, and the runtime package contract. |
-| 07 | [07-sorted-keyed-tables.md](stdlib/07-sorted-keyed-tables.md) | Planned | Immutable sorted keyed collections std.SortedMap and std.SortedSet: ordering contract and per-platform shapes. |
+| 07 | [07-sorted-keyed-tables.md](stdlib/07-sorted-keyed-tables.md) | Complete | Immutable sorted keyed collections std.SortedMap and std.SortedSet: ordering contract and per-platform shapes. |
+| 08 | [08-string-buffer.md](stdlib/08-string-buffer.md) | Complete | Buffered string construction: per-platform mutable accumulators and the code-unit length contract. |
+| 09 | [09-inline-arithmetic-helpers.md](stdlib/09-inline-arithmetic-helpers.md) | Complete | Sanctioned static inline helpers for range checks, clamping, and two-field range values. |
+| 10 | [10-unicode-string-access.md](stdlib/10-unicode-string-access.md) | Complete | std.UString: code-point-addressed access for strings beyond the ASCII tier. |
 
 ### Style specifications
 
