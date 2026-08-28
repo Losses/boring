@@ -89,6 +89,7 @@ class RustExpr {
 		if(f.expr == null) {
 			Context.error("function field has no body to lower", f.field.pos);
 		}
+		PipelineExpander.expandRootExpr(f.expr);
 		currentMethodName = f.field.name;
 		scanLocals(f.expr);
 		final lines = blockLines(statementsOf(f.expr), 2);
@@ -116,7 +117,15 @@ class RustExpr {
 						": " + types.of(v.t, false);
 					case _: "";
 				};
-				return [indent(depth) + '$kw $name$explicitType = ${expr(init)};'];
+				var initStr = expr(init);
+				if(!isTypeCopy(v.t)) {
+					switch(stripWrap(init).expr) {
+						case TArray(_, _):
+							initStr = "&" + initStr;
+						case _:
+					}
+				}
+				return [indent(depth) + '$kw $name$explicitType = $initStr;'];
 			case TVar(_, init) if(init == null):
 				return [fail(e, "declaration without initializer has no lowering")];
 			case TBlock(stmts):
@@ -551,9 +560,28 @@ class RustExpr {
 			final itemVar = sliceItemVar(loop.body, loop.index, sliceSubj);
 			if(itemVar != null) {
 				final itemName = RustImports.toSnakeCase(itemVar.name);
+				final isScalar = switch(Context.follow(itemVar.t)) {
+					case TAbstract(a, _):
+						final n = a.get().name;
+						n == "Int" || n == "Bool" || n == "Float";
+					default: false;
+				};
+				final pattern = if(isScalar) {
+					final argType = switch(stripWrap(sliceSubj).expr) {
+						case TLocal(v): argTypes.get(v.name);
+						default: null;
+					};
+					final isMut = argType != null ? StringTools.startsWith(argType, "&mut") : (switch(Context.follow(sliceSubj.t)) {
+						case TInst(c, _) if(c.get().name == "Array"): true;
+						default: false;
+					});
+					isMut ? "&mut " + itemName : "&" + itemName;
+				} else {
+					itemName;
+				};
 				final remainingBody = loop.body.slice(1);
 				final out = [
-					indent(depth) + "for " + itemName + " in " + expr(sliceSubj) + " {"
+					indent(depth) + "for " + pattern + " in " + expr(sliceSubj) + " {"
 				];
 				for(l in blockLines(remainingBody, depth + 1)) out.push(l);
 				out.push(indent(depth) + "}");
@@ -719,21 +747,48 @@ class RustExpr {
 		out.push(indent(depth) + "let capacity = " + capStr + ";");
 		out.push(indent(depth) + "let mut " + arrName + " = Vec::with_capacity(capacity);");
 		out.push(indent(depth) + "for " + loopVar + " in 0.." + boundStr + " {");
+		final nonStores: Array<TypedExpr> = [];
 		for(s in loop.body) {
 			final store = indexedStoreOf(s);
 			if(store != null && store.arr.id == alloc.arr.id && store.idx.id == loop.index.id) {
-				out.push(indent(depth + 1) + arrName + ".push(" + expr(store.value) + ");");
+				if(nonStores.length > 0) {
+					for(l in blockLines(nonStores, depth + 1)) out.push(l);
+					nonStores.resize(0);
+				}
+				out.push(indent(depth + 1) + arrName + ".push(" + renderPushArg(store.value) + ");");
 				continue;
 			}
 			final push = pushOf(s);
 			if(push != null && push.arr.id == alloc.arr.id) {
-				out.push(indent(depth + 1) + arrName + ".push(" + expr(push.arg) + ");");
+				if(nonStores.length > 0) {
+					for(l in blockLines(nonStores, depth + 1)) out.push(l);
+					nonStores.resize(0);
+				}
+				out.push(indent(depth + 1) + arrName + ".push(" + renderPushArg(push.arg) + ");");
 				continue;
 			}
-			for(l in stmtLines(s, depth + 1)) out.push(l);
+			nonStores.push(s);
+		}
+		if(nonStores.length > 0) {
+			for(l in blockLines(nonStores, depth + 1)) out.push(l);
 		}
 		out.push(indent(depth) + "}");
 		return out;
+	}
+
+	function renderPushArg(arg: TypedExpr): String {
+		var argStr = expr(arg);
+		if(!isTypeCopy(arg.t)) {
+			switch(stripWrap(arg).expr) {
+				case TConst(TString(_)) | TNew(_, _, _):
+				case TLocal(_) | TField(_):
+					if(!StringTools.endsWith(argStr, ".clone()") && !StringTools.endsWith(argStr, ".to_vec()") && !StringTools.endsWith(argStr, ".to_string()")) {
+						argStr = argStr + ".clone()";
+					}
+				default:
+			}
+		}
+		return argStr;
 	}
 
 	function capacityExpr(bound: TypedExpr): String {
@@ -876,6 +931,8 @@ class RustExpr {
 			case TAbstract(a, _):
 				final n = a.get().name;
 				n == "Int" || n == "Bool" || n == "Float";
+			case TAnonymous(anon):
+				isAllCopy(anon.get().fields);
 			case TType(d, _):
 				switch(d.get().type) {
 					case TAnonymous(anon):
@@ -1063,6 +1120,23 @@ class RustExpr {
 	}
 
 	function call(fn: TypedExpr, args: Array<TypedExpr>): String {
+		switch(fn.expr) {
+			case TField(subj, FStatic(c, cf)):
+				final cls = c.get();
+				final name = cf.get().name;
+				final path = cls.pack.join(".") + "." + cls.name;
+				if((cls.name == "Functional" || cls.name == "__functional_shim" || path == "std.Functional" || cls.module == "std.Functional") && name == "sortedBy") {
+					final receiver = args[0];
+					final lambda = args[1];
+					final func = unwrapLambda(lambda);
+					if(func != null && func.args.length == 1) {
+						final paramName = RustImports.toSnakeCase(func.args[0].v.name);
+						final keyExpr = expr(lambdaBody(func.expr));
+						return "{\n    let mut _sorted = " + expr(receiver) + ".to_vec();\n    _sorted.sort_by_key(|" + paramName + "| " + keyExpr + ");\n    _sorted\n}";
+					}
+				}
+			case _:
+		}
 		final renderedArgs = [for(a in args) expr(a)].join(", ");
 		switch(fn.expr) {
 			case TField(subj, FInstance(_, _, cf)):
@@ -1116,7 +1190,7 @@ class RustExpr {
 					return expr(subj) + "." + name + "(" + kExpr + ")";
 				}
 				if(name == "push") {
-					return expr(subj) + ".push(" + renderedArgs + ")";
+					return expr(subj) + ".push(" + renderPushArg(args[0]) + ")";
 				}
 				if(name == "join") {
 					return expr(subj) + ".join(" + renderedArgs + ")";
@@ -1207,6 +1281,7 @@ class RustExpr {
 							return "SortedSetByKey::builder(" + cmpName + ")";
 					}
 				}
+
 				if(cls.module == "std.Test" || (cls.pack.join(".") == "std" && (cls.name == "Test" || cls.name == "__test_shim"))) {
 					state.shimsUsed.set("std.Test", true);
 					imports.require("crate::runtime::test as testlib");
@@ -1247,7 +1322,9 @@ class RustExpr {
 								case "Bool":
 									return "testlib::equals_bool(" + expr(expectedArg) + ", " + expr(actualArg) + ", " + msg + ")";
 								case "Int":
-									return "testlib::equals_u32(" + expr(expectedArg) + ", " + expr(actualArg) + ", " + msg + ")";
+									final act = isUsizeExpr(actualArg) ? "(" + expr(actualArg) + ") as u32" : expr(actualArg);
+									final exp = isUsizeExpr(expectedArg) ? "(" + expr(expectedArg) + ") as u32" : expr(expectedArg);
+									return "testlib::equals_u32(" + exp + ", " + act + ", " + msg + ")";
 								case "Float":
 									return "testlib::equals_f64(" + expr(expectedArg) + ", " + expr(actualArg) + ", " + msg + ")";
 								case "String":
@@ -1379,7 +1456,7 @@ class RustExpr {
 					case TLocal(v): mutated.set(v.id, true);
 					case _:
 				}
-			case TCall(fn, _):
+			case TCall(fn, args):
 				switch(fn.expr) {
 					case TField(subj, FInstance(_, _, cf)):
 						final n = cf.get().name;
@@ -1392,6 +1469,32 @@ class RustExpr {
 							}
 						}
 					case _:
+				}
+				final isInstancePush = switch(fn.expr) {
+					case TField(_, FInstance(_, _, cf)) if(cf.get().name == "push"): true;
+					default: false;
+				};
+				if(!isInstancePush) {
+					final paramTypes = switch(Context.follow(fn.t)) {
+						case TFun(pargs, _): [for(p in pargs) p.t];
+						default: [];
+					};
+					for(i in 0...args.length) {
+						if(i < paramTypes.length) {
+							if(isPassByRef(paramTypes[i])) {
+								final isArray = switch(Context.follow(paramTypes[i])) {
+									case TInst(c, _) if(c.get().name == "Array"): true;
+									default: false;
+								};
+								if(isArray) {
+									switch(stripWrap(args[i]).expr) {
+										case TLocal(v): mutated.set(v.id, true);
+										default:
+									}
+								}
+							}
+						}
+					}
 				}
 			case _:
 		}
@@ -1499,6 +1602,25 @@ class RustExpr {
 			case TParenthesis(inner) | TMeta(_, inner) | TCast(inner, _): stripWrap(inner);
 			case _: e;
 		}
+	}
+
+			function unwrapLambda(e: TypedExpr): Null<TFunc> {
+		if(e == null) return null;
+		return switch(e.expr) {
+			case TFunction(f): f;
+			case TParenthesis(inner) | TCast(inner, _) | TMeta(_, inner): unwrapLambda(inner);
+			case _: null;
+		};
+	}
+
+	function lambdaBody(e: TypedExpr): TypedExpr {
+		if(e == null) return e;
+		return switch(e.expr) {
+			case TBlock(stmts) if(stmts.length > 0): lambdaBody(stmts[stmts.length - 1]);
+			case TReturn(ret) if(ret != null): lambdaBody(ret);
+			case TParenthesis(inner) | TCast(inner, _) | TMeta(_, inner): lambdaBody(inner);
+			case _: e;
+		};
 	}
 
 	function stripCast(e: TypedExpr): TypedExpr {
@@ -1758,14 +1880,27 @@ class RustExpr {
 			if(i < paramTypes.length) {
 				final pt = paramTypes[i];
 				if(isPassByRef(pt)) {
+					final isArray = switch(Context.follow(pt)) {
+						case TInst(c, _) if(c.get().name == "Array"): true;
+						default: false;
+					};
+					final prefix = isArray ? "&mut " : "&";
 					if(!StringTools.startsWith(argStr, "&")) {
-						argStr = "&" + argStr;
+						argStr = prefix + argStr;
 					}
 				}
 			}
 			rendered.push(argStr);
 		}
 		return rendered.join(", ");
+	}
+
+		function isUsizeExpr(e: TypedExpr): Bool {
+		if(e == null) return false;
+		return switch(stripWrap(e).expr) {
+			case TField(_, fa) if(fieldName(fa) == "length"): true;
+			default: false;
+		};
 	}
 
 	function isScalarType(t: Type): Bool {

@@ -28,7 +28,7 @@ class KotlinExpr {
 	final mutated: Map<Int, Bool> = [];
 
 	/** Fill arrays returning as asList() when decodeBoundary holds. */
-	final asListReturn: Map<Int, Bool> = [];
+	final asListReturn: Map<Int, String> = [];
 
 	/** Names used by parameters and locals; generated names avoid them. */
 	final usedNames: Map<String, Bool> = [];
@@ -81,6 +81,7 @@ class KotlinExpr {
 		if(f.expr == null) {
 			Context.error("function field has no body to lower", f.field.pos);
 		}
+		PipelineExpander.expandRootExpr(f.expr);
 		scanLocals(f.expr);
 		return blockLines(statementsOf(f.expr), 1);
 	}
@@ -106,13 +107,18 @@ class KotlinExpr {
 		return switch(e.expr) {
 			case TBlock(stmts): stmts;
 			case _: [e];
-		}
+		};
 	}
 
 	function stmtLines(e: TypedExpr, depth: Int): Array<String> {
 		switch(e.expr) {
 			case TVar(v, init) if(init != null):
 				final kw = mutated.exists(v.id) ? "var" : "val";
+				switch(stripWrap(init).expr) {
+					case TLocal(origV) if(asListReturn.exists(origV.id)):
+						asListReturn.set(v.id, asListReturn.get(origV.id));
+					default:
+				}
 				return [indent(depth) + '$kw ${localName(v)} = ${expr(init)}'];
 			case TVar(_, init) if(init == null):
 				return fail(e, "declaration without initializer has no lowering");
@@ -140,7 +146,7 @@ class KotlinExpr {
 				final inner = stripWrap(ret);
 				switch(inner.expr) {
 					case TLocal(v) if(asListReturn.exists(v.id)):
-						return [indent(depth) + "return " + localName(v) + ".asList()"];
+						return [indent(depth) + "return " + localName(v) + "." + asListReturn.get(v.id)];
 					case _:
 						return [indent(depth) + "return " + expr(ret)];
 				}
@@ -383,22 +389,36 @@ class KotlinExpr {
 		final boundStr = loopBound(loop.bound);
 		final out: Array<String> = [];
 		out.push(indent(depth) + "val " + arrName + " = Array(" + boundStr + ") { " + loop.index.name + " ->");
+		final nonStores: Array<TypedExpr> = [];
 		for(s in loop.body) {
 			final store = indexedStoreOf(s);
 			if(store != null && store.arr.id == alloc.arr.id && store.idx.id == loop.index.id) {
+				if(nonStores.length > 0) {
+					for(l in blockLines(nonStores, depth + 1)) out.push(l);
+					nonStores.resize(0);
+				}
 				out.push(indent(depth + 1) + expr(store.value));
 				continue;
 			}
 			final push = pushOf(s);
 			if(push != null && push.arr.id == alloc.arr.id) {
+				if(nonStores.length > 0) {
+					for(l in blockLines(nonStores, depth + 1)) out.push(l);
+					nonStores.resize(0);
+				}
 				out.push(indent(depth + 1) + expr(push.arg));
 				continue;
 			}
-			for(l in stmtLines(s, depth + 1)) out.push(l);
+			nonStores.push(s);
 		}
-		out.push(indent(depth) + "}");
+		if(nonStores.length > 0) {
+			for(l in blockLines(nonStores, depth + 1)) out.push(l);
+		}
 		if(decodeBoundary) {
-			asListReturn.set(alloc.arr.id, true);
+			out.push(indent(depth) + "}");
+			asListReturn.set(alloc.arr.id, "asList()");
+		} else {
+			out.push(indent(depth) + "}.toMutableList()");
 		}
 		return out;
 	}
@@ -673,6 +693,22 @@ class KotlinExpr {
 	}
 
 	function call(fn: TypedExpr, args: Array<TypedExpr>): String {
+		switch(fn.expr) {
+			case TField(subj, FStatic(c, cf)):
+				final cls = c.get();
+				final name = cf.get().name;
+				if((cls.name == "Functional" || cls.name == "__functional_shim" || cls.module == "std.Functional" || cls.pack.join(".") + "." + cls.name == "std.Functional") && name == "sortedBy") {
+					final receiver = args[0];
+					final lambda = args[1];
+					final func = unwrapLambda(lambda);
+					if(func != null && func.args.length == 1) {
+						final paramName = func.args[0].v.name;
+						final keyExpr = expr(lambdaBody(func.expr));
+						return expr(receiver) + ".toMutableList().apply { sortBy { " + paramName + " -> " + keyExpr + " } }";
+					}
+				}
+			case _:
+		}
 		final renderedArgs = [for(a in args) expr(a)].join(", ");
 		switch(fn.expr) {
 			case TField(subj, FInstance(_, _, cf)):
@@ -761,6 +797,7 @@ class KotlinExpr {
 							return "SortedSetObj.builder<" + types.of(kType) + ">(::compare)";
 					}
 				}
+
 				return staticRef(cls, name) + "(" + renderedArgs + ")";
 			case TField(subj, FEnum(e, ef)):
 				final en = e.get();
@@ -973,6 +1010,25 @@ class KotlinExpr {
 				cls.pack.join(".") == "" && cls.name == "String";
 			case _: false;
 		}
+	}
+
+			function unwrapLambda(e: TypedExpr): Null<TFunc> {
+		if(e == null) return null;
+		return switch(e.expr) {
+			case TFunction(f): f;
+			case TParenthesis(inner) | TCast(inner, _) | TMeta(_, inner): unwrapLambda(inner);
+			case _: null;
+		};
+	}
+
+	function lambdaBody(e: TypedExpr): TypedExpr {
+		if(e == null) return e;
+		return switch(e.expr) {
+			case TBlock(stmts) if(stmts.length > 0): lambdaBody(stmts[stmts.length - 1]);
+			case TReturn(ret) if(ret != null): lambdaBody(ret);
+			case TParenthesis(inner) | TCast(inner, _) | TMeta(_, inner): lambdaBody(inner);
+			case _: e;
+		};
 	}
 
 	function stripCast(e: TypedExpr): TypedExpr {

@@ -102,6 +102,8 @@ class TsExpr {
 		if(f.expr == null) {
 			Context.error("function field has no body to lower", f.field.pos);
 		}
+		PipelineExpander.expandRootExpr(f.expr);
+
 		scanLocals(f.expr);
 		return blockLines(statementsOf(f.expr), 2);
 	}
@@ -245,11 +247,8 @@ class TsExpr {
 					out.push(indent(depth) + "const " + h.name + " = " + localName(h.subject) + ".length;");
 				}
 			}
-			final fused = fillFusion(stmts, i, depth);
+			final fused = fillFusion(stmts, i, depth, hoists);
 			if(fused != null) {
-				// The fill allocation reads the bound ahead of the loop
-				// head, so a hoist on the fused loop stays a block const
-				// in front of the pair.
 				for(h in hoists) {
 					if(h.loopAt == i + 1 && h.firstUse == h.loopAt) {
 						boundSubst.set(h.subject.id, h.name);
@@ -446,7 +445,7 @@ class TsExpr {
 		element per iteration (an indexed store at the loop index, or a
 		single push) becomes `new Array<T>(bound)` with indexed stores.
 	**/
-	function fillFusion(stmts: Array<TypedExpr>, i: Int, depth: Int): Null<Array<String>> {
+	function fillFusion(stmts: Array<TypedExpr>, i: Int, depth: Int, hoists: Array<{firstUse: Int, loopAt: Int, subject: TVar, name: String}>): Null<Array<String>> {
 		if(i + 1 >= stmts.length) {
 			return null;
 		}
@@ -510,24 +509,38 @@ class TsExpr {
 
 		final elem = types.of(alloc.elem);
 		final arrName = localName(alloc.arr);
-		final allocBound = allocationBound(loop.bound);
-		final condBound = expr(loop.bound);
+		final subject = boundLengthSubject(loop.bound);
+		final hoistName = subject != null ? hoistedFor(hoists, subject) : null;
+		final allocBound = hoistName != null ? hoistName : allocationBound(loop.bound);
+		final condBound = hoistName != null ? hoistName : expr(loop.bound);
 		final name = loop.index.name;
 		final out: Array<String> = [];
 		out.push(indent(depth) + 'const $arrName: ${elem}[] = new Array<$elem>($allocBound);');
 		out.push(indent(depth) + "for (let " + name + " = " + expr(loop.start) + "; " + name + " < " + condBound + "; " + name + " += 1) {");
+		final nonStores: Array<TypedExpr> = [];
 		for(s in loop.body) {
 			final store = indexedStoreOf(s);
 			if(store != null && store.arr.id == alloc.arr.id && store.idx.id == loop.index.id) {
+				if(nonStores.length > 0) {
+					for(l in blockLines(nonStores, depth + 1)) out.push(l);
+					nonStores.resize(0);
+				}
 				out.push(indent(depth + 1) + arrName + "[" + name + "] = " + fillValue(store.value) + ";");
 				continue;
 			}
 			final push = pushOf(s);
 			if(push != null && push.arr.id == alloc.arr.id) {
+				if(nonStores.length > 0) {
+					for(l in blockLines(nonStores, depth + 1)) out.push(l);
+					nonStores.resize(0);
+				}
 				out.push(indent(depth + 1) + arrName + "[" + name + "] = " + fillValue(push.arg) + ";");
 				continue;
 			}
-			for(l in stmtLines(s, depth + 1)) out.push(l);
+			nonStores.push(s);
+		}
+		if(nonStores.length > 0) {
+			for(l in blockLines(nonStores, depth + 1)) out.push(l);
 		}
 		out.push(indent(depth) + "}");
 		if(decodeBoundary) {
@@ -803,6 +816,27 @@ class TsExpr {
 	}
 
 	function call(fn: TypedExpr, args: Array<TypedExpr>): String {
+		switch(fn.expr) {
+			case TField(subj, FStatic(c, cf)):
+				final cls = c.get();
+				final fName = cf.get().name;
+				if((cls.name == "Functional" || cls.name == "__functional_shim" || cls.module == "std.Functional" || cls.pack.join(".") + "." + cls.name == "std.Functional") && fName == "sortedBy") {
+					final receiver = args[0];
+					final lambda = args[1];
+					final func = unwrapLambda(lambda);
+					if(func != null && func.args.length == 1) {
+						final paramVar = func.args[0].v;
+						final bodyExpr = lambdaBody(func.expr);
+						subst.set(paramVar.id, "_a");
+						final keyA = expr(bodyExpr);
+						subst.set(paramVar.id, "_b");
+						final keyB = expr(bodyExpr);
+						subst.remove(paramVar.id);
+						return expr(receiver) + ".slice().sort((_a, _b) => { const _ka = " + keyA + "; const _kb = " + keyB + "; return _ka < _kb ? -1 : (_ka > _kb ? 1 : 0); })";
+					}
+				}
+			case _:
+		}
 		final rendered = [for(a in args) expr(a)].join(", ");
 		switch(fn.expr) {
 			case TField(subj, FInstance(_, _, cf)):
@@ -819,6 +853,7 @@ class TsExpr {
 			case TField(subj, FStatic(c, cf)):
 				final cls = c.get();
 				final fName = cf.get().name;
+		
 				if((cls.module == "std.SortedMap" || cls.pack.join(".") + "." + cls.name == "std.SortedMap") && fName == "builder") {
 					final kType = switch(fn.t) {
 						case TFun(_, TInst(_, params)) if(params.length > 0): params[0];
@@ -1254,6 +1289,25 @@ class TsExpr {
 	}
 
 
+			function unwrapLambda(e: TypedExpr): Null<TFunc> {
+		if(e == null) return null;
+		return switch(e.expr) {
+			case TFunction(f): f;
+			case TParenthesis(inner) | TCast(inner, _) | TMeta(_, inner): unwrapLambda(inner);
+			case _: null;
+		};
+	}
+
+	function lambdaBody(e: TypedExpr): TypedExpr {
+		if(e == null) return e;
+		return switch(e.expr) {
+			case TBlock(stmts) if(stmts.length > 0): lambdaBody(stmts[stmts.length - 1]);
+			case TReturn(ret) if(ret != null): lambdaBody(ret);
+			case TParenthesis(inner) | TCast(inner, _) | TMeta(_, inner): lambdaBody(inner);
+			case _: e;
+		};
+	}
+
 	function stripCast(e: TypedExpr): TypedExpr {
 		return switch(e.expr) {
 			case TCast(inner, _): stripCast(inner);
@@ -1319,6 +1373,7 @@ class TsExpr {
 	}
 
 	function fail(e: Null<TypedExpr>, message: String): Dynamic {
+
 		final pos = e != null ? e.pos : Context.currentPos();
 		Context.error("ts target: " + message, pos);
 		return null;
