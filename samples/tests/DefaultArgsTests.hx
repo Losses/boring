@@ -46,6 +46,7 @@ class DefaultArgsTests {
 	@:test("local function with default argument called with omission")
 	public static function testLocalFunction():Void {
 		Test.equals(107, DefaultArgsOps.callLocal());
+		Test.equals(207, DefaultArgsOps.callLocalB());
 	}
 
 	@:test("interface method with default parameter called through interface")
