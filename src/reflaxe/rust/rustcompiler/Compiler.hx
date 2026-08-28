@@ -637,11 +637,11 @@ class Compiler extends PluginCompiler<Compiler> {
 	}
 
 	function isInlineOnly(classType: ClassType, varFields: Array<ClassVarData>, funcFields: Array<ClassFuncData>): Bool {
-		if((classType.pack.join(".") == "std" && classType.name == "Arithmetic") || classType.name == "RecordCopy") return true;
+		if(varFields.length == 0 && funcFields.length == 0) return true;
 		if(varFields.length == 0 && funcFields.length > 0) {
 			for(f in funcFields) {
 				switch(f.field.kind) {
-					case FMethod(MethInline):
+					case FMethod(MethInline) | FMethod(MethMacro):
 					case _: return false;
 				}
 			}
