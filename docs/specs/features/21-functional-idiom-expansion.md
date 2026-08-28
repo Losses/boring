@@ -68,8 +68,10 @@ order and each stage reads the previous stage's temporary.
 The `V02` interception in `src/Intercept.hx` exempts the closed-list calls
 whose argument is syntactically a function literal; the exemption is
 syntactic because the check runs in the untyped pass. The typed expansion
-pass runs after typing and before the `V08` scan, so the loop-body closure
-rule sees the expanded loops and needs no wording change. A call that
+pass runs after typing, after the default-argument completion of
+`docs/specs/features/22-default-argument-expansion.md`, and before the `V08`
+scan, so the loop-body closure rule sees the expanded loops and needs no
+wording change. A call that
 passes `V02` but fails the typed shape checks is rejected with the named
 errors above; no path lowers a functional call to the targets.
 
