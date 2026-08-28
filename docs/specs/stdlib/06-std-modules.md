@@ -33,12 +33,13 @@ target's import table:
 
 - **Runtime-backed std modules** never emit a file. Their backing lives
   in the runtime package (`std.ReadOnlyArray`, `std.StringBuf`,
-  `std.UString`, `std.SortedMap` and its relatives, `std.Test`, and the
-  internal `std.Functional`, `std.UStringRT`) or in a platform-native
-  mapping where the target provides one. TypeScript names the class in
-  `TsImports.runtimeProvidedModules`; Kotlin names its shim-emitted
-  subset in `KotlinImports.SHIM_MODULES` and constructs the remaining
-  runtime-package references in the expression compilers.
+  `std.UString`, `std.Graphemes`, `std.SortedMap` and its relatives,
+  `std.Test`, and the internal `std.Functional`, `std.UStringRT`) or in
+  a platform-native mapping where the target provides one. TypeScript
+  names the class in `TsImports.runtimeProvidedModules`; Kotlin names
+  its shim-emitted subset in `KotlinImports.SHIM_MODULES` and
+  constructs the remaining runtime-package references in the expression
+  compilers.
 - **Compiled std modules** emit like any other module under the target's
   std directory. `std.UStringException` and `std.UStringFault` are this
   class (`reference/ts/gen/std/UStringException.ts`,
