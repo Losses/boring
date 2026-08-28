@@ -268,14 +268,14 @@ class Intercept {
 						continue;
 					}
 					checkDataInheritance(classType);
-					walkClassFields(classType.fields.get());
-					walkClassFields(classType.statics.get());
+					walkClassFields(classType, classType.fields.get());
+					walkClassFields(classType, classType.statics.get());
 				default:
 			}
 		}
 	}
 
-	static function walkClassFields(fields:Array<ClassField>):Void {
+	static function walkClassFields(classType:haxe.macro.Type.ClassType, fields:Array<ClassField>):Void {
 		for (index in 0...fields.length) {
 			final field = fields[index];
 			if (field.expr == null) {
@@ -285,7 +285,7 @@ class Intercept {
 			if (body == null) {
 				continue;
 			}
-			DefaultArgExpander.completeRootExpr(body);
+			DefaultArgExpander.completeRootExpr(classType, field.name, body);
 			PipelineExpander.expandRootExpr(body);
 			walk(body, false);
 		}

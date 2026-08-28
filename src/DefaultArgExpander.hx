@@ -39,6 +39,15 @@ class DefaultArgExpander {
 	static final localDefaults:Map<String, Array<Null<DefaultArgValue>>> = new Map();
 	static final localDefaultsByName:Map<String, Array<Null<DefaultArgValue>>> = new Map();
 
+	/** Registration counts per bare name; a by-name fallback may fire only when the count is exactly one. */
+	static final fieldNameCounts:Map<String, Int> = new Map();
+	static final localNameCounts:Map<String, Int> = new Map();
+
+	/** Stable identity of a class across the syntax and typed passes. */
+	public static function classKeyOf(classType:ClassType):String {
+		return getClassKey(classType);
+	}
+
 	public static function registerClassFields(classType:ClassType, fields:Array<Field>):Void {
 		final classKey = getClassKey(classType);
 		for (index in 0...fields.length) {
@@ -63,6 +72,7 @@ class DefaultArgExpander {
 					if (hasDefault) {
 						fieldDefaults.set(classKey + ":" + field.name, defaults);
 						fieldDefaultsByName.set(field.name, defaults);
+						fieldNameCounts.set(field.name, (fieldNameCounts.exists(field.name) ? fieldNameCounts.get(field.name) : 0) + 1);
 					}
 					if (fun.expr != null) {
 						walkLocalFunctions(fun.expr, classType, field.name);
@@ -138,6 +148,7 @@ class DefaultArgExpander {
 		if (hasDefault) {
 			localDefaults.set(classKey + ":" + fieldName + ":" + fnName, defaults);
 			localDefaultsByName.set(fnName, defaults);
+			localNameCounts.set(fnName, (localNameCounts.exists(fnName) ? localNameCounts.get(fnName) : 0) + 1);
 		}
 	}
 
@@ -323,29 +334,29 @@ class DefaultArgExpander {
 		return null;
 	}
 
-	public static function completeRootExpr(root:TypedExpr):Void {
+	public static function completeRootExpr(classType:ClassType, fieldName:String, root:TypedExpr):Void {
 		if (root == null) return;
-		completeExpr(root);
+		completeExpr(getClassKey(classType), fieldName, root);
 	}
 
-	static function completeExpr(e:TypedExpr):Void {
+	static function completeExpr(classKey:String, fieldName:String, e:TypedExpr):Void {
 		if (e == null) return;
 		switch (e.expr) {
 			case TypedExprDef.TFunction(f):
-				completeExpr(f.expr);
+				completeExpr(classKey, fieldName, f.expr);
 			default:
-				haxe.macro.TypedExprTools.iter(e, completeExpr);
+				haxe.macro.TypedExprTools.iter(e, child -> completeExpr(classKey, fieldName, child));
 		}
 		switch (e.expr) {
 			case TypedExprDef.TCall(callee, args):
-				completeCall(e, callee, args);
+				completeCall(classKey, fieldName, e, callee, args);
 			case TypedExprDef.TNew(c, _, args):
 				completeNew(e, c.get(), args);
 			default:
 		}
 	}
 
-	static function completeCall(callExpr:TypedExpr, callee:TypedExpr, args:Array<TypedExpr>):Void {
+	static function completeCall(classKey:String, fieldName:String, callExpr:TypedExpr, callee:TypedExpr, args:Array<TypedExpr>):Void {
 		if (callee == null) return;
 		final followed = Context.follow(callee.t);
 		final params:Array<{name:String, opt:Bool, t:Type}> = switch (followed) {
@@ -356,7 +367,7 @@ class DefaultArgExpander {
 			return;
 		}
 
-		final defaults = findDefaultsForCallee(callee);
+		final defaults = findDefaultsForCallee(classKey, fieldName, callee);
 
 		for (i in args.length...params.length) {
 			final param = params[i];
@@ -379,19 +390,35 @@ class DefaultArgExpander {
 		};
 	}
 
-	static function findDefaultsForCallee(callee:TypedExpr):Null<Array<Null<DefaultArgValue>>> {
+	static function findDefaultsForCallee(classKey:String, fieldName:String, callee:TypedExpr):Null<Array<Null<DefaultArgValue>>> {
 		final unwrapped = stripWrap(callee);
 		switch (unwrapped.expr) {
 			case TypedExprDef.TField(receiver, fa):
 				return findDefaultsForFieldAccess(receiver, fa);
 			case TypedExprDef.TLocal(v):
-				if (localDefaultsByName.exists(v.name)) {
-					return localDefaultsByName.get(v.name);
+				final precise = localDefaults.get(classKey + ":" + fieldName + ":" + v.name);
+				if (precise != null) {
+					return precise;
 				}
-				return null;
+				return uniqueByName(localNameCounts, localDefaultsByName, v.name, "local function", callee.pos);
 			default:
 				return null;
 		}
+	}
+
+	/**
+	 * A by-name fallback may serve only a name that carries exactly one
+	 * registration in the whole compilation; several registrations with no
+	 * precise hit are ambiguous and stop the build instead of guessing.
+	 */
+	static function uniqueByName(counts:Map<String, Int>, byName:Map<String, Array<Null<DefaultArgValue>>>, name:String, kind:String, pos:Position):Null<Array<Null<DefaultArgValue>>> {
+		if (!byName.exists(name)) {
+			return null;
+		}
+		if (counts.get(name) > 1) {
+			Context.fatalError("default argument lookup is ambiguous for " + kind + " " + name, pos);
+		}
+		return byName.get(name);
 	}
 
 	static function findDefaultsForFieldAccess(receiver:TypedExpr, fa:FieldAccess):Null<Array<Null<DefaultArgValue>>> {
@@ -442,10 +469,7 @@ class DefaultArgExpander {
 			final superRes = lookupFieldDefaults(superCls, fieldName);
 			if (superRes != null) return superRes;
 		}
-		if (fieldDefaultsByName.exists(fieldName)) {
-			return fieldDefaultsByName.get(fieldName);
-		}
-		return null;
+		return uniqueByName(fieldNameCounts, fieldDefaultsByName, fieldName, "method", cls.pos);
 	}
 
 	static function completeNew(newExpr:TypedExpr, cls:ClassType, args:Array<TypedExpr>):Void {

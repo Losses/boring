@@ -476,7 +476,7 @@ class KotlinDecl {
 			case _: false;
 		};
 		expr.setDecodeBoundary(boundary);
-		final body = expr.functionBody(f);
+		final body = expr.functionBody(cls, f);
 		expr.setDecodeBoundary(false);
 
 		return [head].concat(body.map(l -> "    " + l)).concat(["    }"]);
@@ -496,7 +496,7 @@ class KotlinDecl {
 		final runnerName = desc != null ? id + ": " + desc : id;
 		final runtimePackage = RuntimeConfig.requireImportName("test module " + cls.module);
 		imports.require(runtimePackage + ".Test");
-		final body = expr.functionBody(f);
+		final body = expr.functionBody(cls, f);
 		final indented = body.map(l -> "            " + l);
 		return [
 			"    @kotlin.test.Test",

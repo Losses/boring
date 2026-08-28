@@ -141,7 +141,7 @@ class TsDecl {
 		}
 		final runnerName = desc != null ? id + ": " + desc : id;
 		imports.runtime("Test");
-		final body = expr.functionBody(f);
+		final body = expr.functionBody(cls, f);
 		final indented = [for(b in body) "    " + b].join("\n");
 		if(testRunner == "deno") {
 			return 'Deno.test("${escapeString(runnerName)}", () =>\n  Test.run("${id}", "${escapeString(runnerName)}", () => {\n$indented\n  }));';
@@ -207,7 +207,7 @@ class TsDecl {
 			expr.reserveName(a.name);
 		}
 		final ret = types.of(f.ret);
-		final body = decodeBoundaryBody(f);
+		final body = decodeBoundaryBody(cls, f);
 		final vis = f.field.isPublic ? "public" : "private";
 		final stat = f.isStatic ? "static " : "";
 		final head = '  $vis ${stat}${f.field.name}($args): $ret {';
@@ -218,7 +218,7 @@ class TsDecl {
 		features/18: a function returning ReadOnlyArray is a decode
 		boundary; its fill stores and return value are frozen.
 	**/
-	function decodeBoundaryBody(f: ClassFuncData): Array<String> {
+	function decodeBoundaryBody(cls: ClassType, f: ClassFuncData): Array<String> {
 		final boundary = switch(f.ret) {
 			case TAbstract(a, _):
 				final abs = a.get();
@@ -226,7 +226,7 @@ class TsDecl {
 			case _: false;
 		}
 		expr.setDecodeBoundary(boundary);
-		final body = expr.functionBody(f);
+		final body = expr.functionBody(cls, f);
 		expr.setDecodeBoundary(false);
 		return body;
 	}

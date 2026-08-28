@@ -77,11 +77,11 @@ class KotlinExpr {
 	// Function bodies
 	// ------------------------------------------------------------------
 
-	public function functionBody(f: ClassFuncData): Array<String> {
+	public function functionBody(cls: ClassType, f: ClassFuncData): Array<String> {
 		if(f.expr == null) {
 			Context.error("function field has no body to lower", f.field.pos);
 		}
-		DefaultArgExpander.completeRootExpr(f.expr);
+		DefaultArgExpander.completeRootExpr(cls, f.field.name, f.expr);
 		PipelineExpander.expandRootExpr(f.expr);
 		scanLocals(f.expr);
 		return blockLines(statementsOf(f.expr), 1);
