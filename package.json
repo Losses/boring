@@ -20,6 +20,7 @@
     "typecheck": "tsc -p .",
     "check:docs": "bun tools/doc-style/check.ts",
     "gen:vector": "bun tools/gen-vector.ts",
+    "gen:unicode": "bun tools/gen-grapheme-tables.ts",
     "gen:ts": "haxe examples/ts.hxml",
     "gen:kotlin": "haxe examples/kotlin.hxml",
     "gen:rust": "haxe examples/rust.hxml",
