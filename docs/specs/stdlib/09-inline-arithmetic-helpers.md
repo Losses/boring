@@ -19,11 +19,14 @@ runtime module exist for anything in this specification. `Math.min` and
 | `coerceAtLeast(value, floor)` | `(T, T) -> T` | `value < floor ? floor : value` |
 | `coerceAtMost(value, ceiling)` | `(T, T) -> T` | `value > ceiling ? ceiling : value` |
 | `coerceIn(value, low, high)` | `(T, T, T) -> T` | `coerceAtMost(coerceAtLeast(value, low), high)` |
-| `IntRange` | structure typedef | `{ start:Int, end:Int }` with `inline contains(value:Int):Bool` expanding to `within(value, start, end)` |
+| `IntRange` | abstract over a structure | `abstract IntRange({ start:Int, end:Int })` carrying `inline contains(value:Int):Bool` expanding to `within(value, this.start, this.end)` |
 
 The helpers are expression-level and pure: each body is one comparison, one
 conditional, or one composition of those. The helper list is frozen; no
-helper joins this module without a specification amendment.
+helper joins this module without a specification amendment. `IntRange`
+declares as an abstract over the two-field structure following
+`docs/specs/features/02-abstract-types.md`: structure literals construct it
+directly, the abstract compiles away, and no target sees a wrapper type.
 
 ## Generic instantiation
 
@@ -39,7 +42,7 @@ Descending and stepped loops (`downTo`, `step`) are written as `while` loops
 per `docs/specs/features/09-iterators.md`; no loop-head sugar is sanctioned.
 The half-open Kotlin range `0 until count` writes as the haxe range
 `0...count` directly. Inclusive iteration over `a..b` writes `a...(b + 1)`.
-A range stored as a value uses the `IntRange` typedef above.
+A range stored as a value uses the `IntRange` abstract above.
 
 ## Test hooks
 
