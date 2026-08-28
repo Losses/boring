@@ -816,7 +816,7 @@ class RustDecl {
 		expr.setFallible(false);
 		expr.setReturnTypeName("()");
 		final body = expr.functionBody(cls, f);
-		final indented = body.map(l -> "        " + l);
+		final indented = body.map(l -> "    " + l);
 		return [
 			"#[test]",
 			'fn $snake() {',

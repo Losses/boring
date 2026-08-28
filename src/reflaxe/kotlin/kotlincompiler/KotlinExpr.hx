@@ -875,6 +875,17 @@ class KotlinExpr {
 					}
 				}
 				if(cls.pack.length == 0 && cls.name == "Std" && name == "int") {
+					// toInt on an Int expression is the identity; the
+					// Kotlin compiler reports the call as redundant.
+					// Haxe types Int/Int division as Float, but Kotlin
+					// renders it as Int division, which already
+					// truncates.
+					if(isIntType(args[0].t)) {
+						return expr(args[0]);
+					}
+					if(isIntDivision(args[0])) {
+						return "(" + expr(args[0]) + ")";
+					}
 					return "(" + expr(args[0]) + ").toInt()";
 				}
 				if(cls.pack.join(".") == "std" && cls.name == "SortedMap" && name == "builder") {
@@ -1203,6 +1214,23 @@ class KotlinExpr {
 				name == "Bool" || name == "Int" || name == "Float";
 			case TInst(c, _):
 				c.get().name == "String";
+			case _: false;
+		};
+	}
+
+	function isIntType(t: Null<Type>): Bool {
+		if(t == null) return false;
+		return switch(Context.follow(t)) {
+			case TAbstract(a, _): a.get().name == "Int";
+			case _: false;
+		};
+	}
+
+	/** Whether both operands of a division carry Int, so Kotlin
+		renders it as truncating Int division. */
+	function isIntDivision(e: TypedExpr): Bool {
+		return switch(e.expr) {
+			case TBinop(OpDiv, l, r): isIntType(l.t) && isIntType(r.t);
 			case _: false;
 		};
 	}

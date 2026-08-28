@@ -134,7 +134,7 @@ class RustExpr {
 		final fusedRoot = fuseWithin(f.expr);
 		f.expr.expr = fusedRoot.expr;
 		scanLocals(f.expr);
-		final lines = blockLines(statementsOf(f.expr), 2);
+		final lines = blockLines(statementsOf(f.expr), 1, true);
 		return lines;
 	}
 
@@ -358,7 +358,13 @@ class RustExpr {
 		return out;
 	}
 
-	function blockLines(stmts: Array<TypedExpr>, depth: Int): Array<String> {
+	/**
+		`tailScope` marks the two scopes whose fallible bodies close with a
+		synthesized result tail: the function body root and lambda bodies.
+		Nested blocks never synthesize one regardless of depth; the old
+		depth-equals-two test misfired whenever the root depth changed.
+	**/
+	function blockLines(stmts: Array<TypedExpr>, depth: Int, tailScope: Bool = false): Array<String> {
 		stmts = fuseUninitializedVars(stmts);
 		stmts = regroupLoops(stmts);
 		stmts = transformCountdownLoops(stmts);
@@ -382,7 +388,7 @@ class RustExpr {
 			i += 1;
 		}
 
-		if(depth == 2 && isFallible) {
+		if(tailScope && isFallible) {
 			var endsWithReturn = false;
 			if(stmts.length > 0) {
 				switch(stmts[stmts.length - 1].expr) {
@@ -1127,7 +1133,7 @@ class RustExpr {
 				return fail(e, "enum index only lowers inside a variant switch");
 			case TFunction(f):
 				final params = [for(a in f.args) RustImports.toSnakeCase(a.v.name)].join(", ");
-				return '|$params| {\n' + blockLines(statementsOf(f.expr), 2).join("\n") + '\n}';
+				return '|$params| {\n' + blockLines(statementsOf(f.expr), 2, true).join("\n") + '\n}';
 			case TIf(c, t, f) if(f != null):
 				final condStr = switch(stripWrap(c).expr) {
 					case _: expr(stripWrap(c));
@@ -1596,6 +1602,20 @@ class RustExpr {
 				final name = cf.get().name;
 				final path = cls.pack.length == 0 ? cls.name : cls.pack.join(".") + "." + cls.name;
 				if(cls.pack.length == 0 && cls.name == "Std" && name == "int") {
+					// An Int-typed argument converts nothing, except a
+					// bare length read, whose rendering is usize; Float
+					// arguments and those lengths still cross through
+					// the cast.
+					if(isIntType(args[0].t) && !isUsizeExpr(args[0])) {
+						return expr(args[0]);
+					}
+					// Haxe types Int/Int division as Float, but the
+					// length-division lowering renders it as
+					// truncating integer division; Std.int over it
+					// converts nothing.
+					if(isLengthDivision(args[0])) {
+						return "(" + expr(args[0]) + ")";
+					}
 					return "(" + expr(args[0]) + " as i32)";
 				}
 				if(cls.pack.length == 0 && cls.name == "String" && name == "fromCharCode") {
@@ -2510,6 +2530,16 @@ class RustExpr {
 		if(t == null) return false;
 		return switch(Context.follow(t)) {
 			case TAbstract(a, _): a.get().name == "Int";
+			case _: false;
+		};
+	}
+
+	/** Whether a division reads a length and divides by an Int, the
+		shape the OpDiv lowering renders as truncating integer
+		division; a general Int/Int division lowers through f64. */
+	function isLengthDivision(e: TypedExpr): Bool {
+		return switch(e.expr) {
+			case TBinop(OpDiv, l, r): isIntType(r.t) && StringTools.endsWith(operand(l, OpDiv, false), ".len()");
 			case _: false;
 		};
 	}
