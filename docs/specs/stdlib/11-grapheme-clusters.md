@@ -79,33 +79,41 @@ version-suffixed names:
   which rule GB9c reads.
 - `GraphemeBreakTest.txt`: the official boundary conformance vectors.
 
-`bun run gen:unicode` (`tools/gen-grapheme-tables.ts`) parses the three
-property files, merges them into disjoint code-point ranges, and writes
-`src/reflaxe/unicode/GraphemeBreakData.hx`: one flat int array with
+The table is built at compilation start by the macro module
+`src/reflaxe/unicode/GraphemeData.hx`
+(`docs/plans/2026-08-28-runtime-unification.md` P2). It parses the
+three property files with `sys.io.File`, merges them into disjoint
+code-point ranges, and hands the table to the consumers in the same
+compilation: the target compilers render it into their runtime
+packages (`GraphemeTableRender`), and
+`--macro reflaxe.unicode.GraphemeData.ensureType()` defines the class
+`reflaxe.unicode.GraphemeBreakData` for sources that reference the
+table as a Haxe class. The table layout is one flat int array with
 three ints per range (start, endInclusive, packed), where the packed
 value carries the Grapheme_Cluster_Break class in bits 0-3,
 Extended_Pictographic in bit 4, and Indic_Conjunct_Break in bits 5-6.
 Code points absent from the table are class Other with no flags.
-`src/reflaxe/unicode/GraphemeTableRender.hx` renders the array into
-each target's runtime syntax; the generated file holds data only, so
-regeneration never touches code.
+Nothing generated is committed.
 
-Generation refuses to write the file unless every line of the pinned
-`GraphemeBreakTest.txt` passes under the merged table and the reference
-walk in `tools/grapheme-table-lib.ts`. The walk packs its carried state
+The merge refuses to produce a table unless every line of the pinned
+`GraphemeBreakTest.txt` passes under the table and the shared walk in
+`src/reflaxe/unicode/GraphemeWalk.hx`. The walk packs its carried state
 into one integer: the GB11 link stage in bits 0-1 (armed only while the
 text ends in Extended_Pictographic, Extend run, then ZWJ), the GB9c
 link stage in bits 2-3 (armed after a Consonant and an Extend or Linker
 run that contains at least one Linker), and the regional-indicator
-parity in bit 4.
+parity in bit 4. A conformance failure aborts the compilation.
 
-Ordinary generation is network-free and reads the pinned files. Moving
-to a later Unicode release runs
-`bun run gen:unicode -- --fetch <version>`, which downloads the four
-files of that release from unicode.org into `tools/unicode-data/`,
-regenerates the table, and enforces the same conformance gate; the
-refresh is one commit that carries the four data files, the generated
-table, and nothing else. Builds never read the network.
+A content-hash cache under `out/unicode-cache/` keys the merged table
+on the hash of the four input files, so ordinary compilations skip
+parsing and conformance; any change to the pinned data re-runs the full
+gate. Ordinary compilation is network-free and reads the pinned files.
+Moving to a later Unicode release runs the compilation with
+`-D fetch-unicode=<version>`, which downloads the four files of that
+release from unicode.org with `haxe.Http` into `tools/unicode-data/`
+before parsing and enforces the same conformance gate; the refresh is
+one commit that carries the four data files, the pin constant, and
+nothing else. Builds without the define never read the network.
 
 ## Haxe declarations and routing
 
@@ -119,9 +127,11 @@ modules, and the class lists live in `TsImports.runtimeProvidedModules`
 and `KotlinImports.SHIM_MODULES`.
 
 The stage-one oracle is `tests/haxe/GraphemesOracle.hx`, a haxe
-implementation of the same walk reading `GraphemeBreakData.TABLE`
-directly. The generated test runner and the typed harness bind it to
-`globalThis.std.Graphemes`, the binding pattern of `stdlib/10`.
+implementation of the cluster tier over the shared
+`reflaxe.unicode.GraphemeWalk` and the macro-defined
+`GraphemeBreakData.TABLE`. The generated test runner and the typed
+harness bind it to `globalThis.std.Graphemes`, the binding pattern of
+`stdlib/10`.
 
 ## Per-platform shapes
 
@@ -157,9 +167,7 @@ the slicing and parts contracts, including clamping and the empty
 string. Assertions state both the cluster count and the code-point
 count where the two differ.
 
-`tests/ts/grapheme-data.test.ts` re-reads the committed
-`GraphemeBreakData.hx`, re-runs the reference walk from
-`tools/grapheme-table-lib.ts`, and asserts that every line of the
-pinned `GraphemeBreakTest.txt` passes, so a stale or hand-edited table
-fails the ordinary test run. The four-side consistency run compares
-jsonl output over the sample suite.
+The compile-time gate replaces the committed-table revalidation test:
+the table exists only as the output of the macro pipeline over the
+pinned files, so a stale or hand-edited table cannot be expressed. The
+four-side consistency run compares jsonl output over the sample suite.
