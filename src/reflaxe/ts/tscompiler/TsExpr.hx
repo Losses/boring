@@ -849,7 +849,7 @@ class TsExpr {
 				imports.runtime(name);
 				return name;
 			case "std.Test" | "std.__test_shim":
-				imports.runtime("Test");
+				imports.runtimeTest("Test");
 				return "Test." + name;
 			case "std.SortedMap":
 				imports.runtime("SortedMap");
@@ -865,7 +865,7 @@ class TsExpr {
 				return "Graphemes." + name;
 			case _:
 				if(cls.module == "std.Test") {
-					imports.runtime("Test");
+					imports.runtimeTest("Test");
 					return "Test." + name;
 				}
 				if(cls.module == "std.SortedMap") {
@@ -902,7 +902,7 @@ class TsExpr {
 					return cls.name;
 				}
 				if(cls.module == "std.Test" || (cls.pack.join(".") == "std" && (cls.name == "Test" || cls.name == "__test_shim"))) {
-					imports.runtime("Test");
+					imports.runtimeTest("Test");
 					return "Test";
 				}
 				imports.value(cls.module, cls.name);

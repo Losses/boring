@@ -706,7 +706,7 @@ class KotlinExpr {
 			case "std.Test" | "std.__test_shim":
 				final runtimePackage = RuntimeConfig.requireImportName("module std.Test");
 				state.shimsUsed.set("std.Test", true);
-				imports.require(runtimePackage + ".Test");
+				imports.require(runtimePackage + ".test.Test");
 				return "Test." + name;
 			case "std.SortedMap":
 				imports.requireType("std.SortedMap", "SortedMap");
@@ -728,7 +728,7 @@ class KotlinExpr {
 				if(cls.module == "std.Test") {
 					final runtimePackage = RuntimeConfig.requireImportName("module std.Test");
 					state.shimsUsed.set("std.Test", true);
-					imports.require(runtimePackage + ".Test");
+					imports.require(runtimePackage + ".test.Test");
 					return "Test." + name;
 				}
 				if(cls.module == "std.SortedMap") {
@@ -766,7 +766,7 @@ class KotlinExpr {
 				if(cls.module == "std.Test" || (cls.pack.join(".") == "std" && (cls.name == "Test" || cls.name == "__test_shim"))) {
 					final runtimePackage = RuntimeConfig.requireImportName("module std.Test");
 					state.shimsUsed.set("std.Test", true);
-					imports.require(runtimePackage + ".Test");
+					imports.require(runtimePackage + ".test.Test");
 					return "Test";
 				}
 				imports.requireType(cls.module, cls.name);
@@ -852,7 +852,7 @@ class KotlinExpr {
 						if(isScalarType(expectedArg.t)) {
 							final runtimePackage = RuntimeConfig.requireImportName("module std.Test");
 							state.shimsUsed.set("std.Test", true);
-							imports.require(runtimePackage + ".Test");
+							imports.require(runtimePackage + ".test.Test");
 							return "Test.equals(" + expr(expectedArg) + ", " + expr(actualArg) + (msgArg != null ? ", " + msgArg : "") + ")";
 						} else {
 							recordAggregateType(expectedArg.t);

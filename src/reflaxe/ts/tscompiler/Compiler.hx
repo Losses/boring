@@ -196,7 +196,22 @@ class Compiler extends PluginCompiler<Compiler> {
 			// source so runtime.ts stays one self-contained file.
 			final graphemeTable = reflaxe.unicode.GraphemeTableRender.ts(reflaxe.unicode.GraphemeBreakData.TABLE);
 			output.saveFile(RuntimeConfig.emitPath(emitDir, "runtime.ts"), StringTools.trim(TsRuntime.SOURCE) + "\n" + graphemeTable);
+			if(anyRuntimeTestUsed()) {
+				// The test entry holds the host-file-system writer; the
+				// general entry stays free of node imports so a browser
+				// can load it (docs/plans/2026-08-28).
+				output.saveFile(RuntimeConfig.emitPath(emitDir, "runtime/test.ts"), StringTools.trim(TsRuntime.TEST_SOURCE) + "\n");
+			}
 		}
+	}
+
+	function anyRuntimeTestUsed(): Bool {
+		for(decl in contexts.iterator()) {
+			if(decl.usesRuntimeTest()) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	function anyRuntimeUsed(): Bool {

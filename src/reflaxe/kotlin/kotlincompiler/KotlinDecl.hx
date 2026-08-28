@@ -532,7 +532,7 @@ class KotlinDecl {
 		}
 		final runnerName = desc != null ? id + ": " + desc : id;
 		final runtimePackage = RuntimeConfig.requireImportName("test module " + cls.module);
-		imports.require(runtimePackage + ".Test");
+		imports.require(runtimePackage + ".test.Test");
 		final body = expr.functionBody(cls, f);
 		final indented = body.map(l -> "            " + l);
 		return [

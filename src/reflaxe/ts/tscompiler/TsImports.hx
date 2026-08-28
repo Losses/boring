@@ -16,6 +16,7 @@ class TsImports {
 	final valueNames: Map<String, Map<String, Bool>> = [];
 	final typeNames: Map<String, Map<String, Bool>> = [];
 	final runtimeNames: Map<String, Bool> = [];
+	final runtimeTestNames: Map<String, Bool> = [];
 
 	public function new(selfModule: String) {
 		this.selfModule = selfModule;
@@ -39,9 +40,24 @@ class TsImports {
 		runtimeNames.set(name, true);
 	}
 
+	/**
+		Records a reference to a runtime symbol of the test entry. The
+		test entry lives at the `/test` subpath of the runtime import
+		name; the same define guards it.
+	**/
+	public function runtimeTest(name: String): Void {
+		RuntimeConfig.requireImportName("test symbol " + name);
+		runtimeTestNames.set(name, true);
+	}
+
 	/** Whether any runtime symbol was referenced from this module. */
 	public function usesRuntime(): Bool {
-		return hasAnyKey(runtimeNames);
+		return hasAnyKey(runtimeNames) || hasAnyKey(runtimeTestNames);
+	}
+
+	/** Whether any test-entry runtime symbol was referenced. */
+	public function usesRuntimeTest(): Bool {
+		return hasAnyKey(runtimeTestNames);
 	}
 
 	/**
@@ -137,6 +153,12 @@ class TsImports {
 			names.sort(Reflect.compare);
 			lines.push('import { ${names.join(", ")} } from "' + RuntimeConfig.importName() + '";');
 		}
+		if(hasAnyKey(runtimeTestNames)) {
+			final names = [];
+			for(name in runtimeTestNames.keys()) names.push(name);
+			names.sort(Reflect.compare);
+			lines.push('import { ${names.join(", ")} } from "' + RuntimeConfig.importName() + '/test";');
+		}
 		return lines.length == 0 ? "" : lines.join("\n") + "\n";
 	}
 
@@ -153,6 +175,12 @@ class TsImports {
 			for(name in runtimeNames.keys()) names.push(name);
 			names.sort(Reflect.compare);
 			lines.push('import { ${names.join(", ")} } from "' + RuntimeConfig.importName() + '";');
+		}
+		if(hasAnyKey(runtimeTestNames)) {
+			final names = [];
+			for(name in runtimeTestNames.keys()) names.push(name);
+			names.sort(Reflect.compare);
+			lines.push('import { ${names.join(", ")} } from "' + RuntimeConfig.importName() + '/test";');
 		}
 
 		final moduleSet: Map<String, Bool> = [];

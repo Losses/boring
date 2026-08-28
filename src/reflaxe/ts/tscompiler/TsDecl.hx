@@ -38,6 +38,11 @@ class TsDecl {
 		return imports.usesRuntime();
 	}
 
+	/** Whether this module references any test-entry runtime symbol. */
+	public function usesRuntimeTest(): Bool {
+		return imports.usesRuntimeTest();
+	}
+
 	public function topLevelStatements(e: TypedExpr): String {
 		return expr.topLevelStatements(e);
 	}
@@ -140,7 +145,7 @@ class TsDecl {
 			}
 		}
 		final runnerName = desc != null ? id + ": " + desc : id;
-		imports.runtime("Test");
+		imports.runtimeTest("Test");
 		final body = expr.functionBody(cls, f);
 		final indented = [for(b in body) "    " + b].join("\n");
 		if(testRunner == "deno") {
