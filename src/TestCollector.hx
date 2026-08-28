@@ -352,6 +352,16 @@ class TestMain {
         js.Syntax.code("globalThis.__test_shim = {0}", testObj);
         js.Syntax.code("globalThis.FunctionalOracle = {0}", FunctionalOracle);
         js.Syntax.code("
+            if (typeof StringBuf !== \\\"undefined\\\") {
+                StringBuf.prototype.add = function(x) { this.b = (this.b !== undefined ? this.b : \\\"\\\") + (x === null ? \\\"null\\\" : x); };
+                StringBuf.prototype.addChar = function(c) { this.b = (this.b !== undefined ? this.b : \\\"\\\") + String.fromCharCode(c); };
+                StringBuf.prototype.toString = function() { return this.b !== undefined ? this.b : \\\"\\\"; };
+                StringBuf.prototype.get_length = function() { return (this.b !== undefined ? this.b : \\\"\\\").length; };
+                Object.defineProperty(StringBuf.prototype, \\\"length\\\", { get: function() { return this.get_length(); } });
+            }
+        ");
+        js.Syntax.code("globalThis.std = globalThis.std || {}; globalThis.std.StringBuf = {0};", StringBuf);
+        js.Syntax.code("
             function jsCompare(a, b) {
                 if (a === b) return 0;
                 let ta = typeof a;

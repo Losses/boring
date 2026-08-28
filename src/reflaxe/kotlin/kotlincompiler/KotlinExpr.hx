@@ -195,7 +195,43 @@ class KotlinExpr {
 		return owner + "(" + expr(payloadArg) + ")";
 	}
 
+	function fuseUninitializedVars(stmts: Array<TypedExpr>): Array<TypedExpr> {
+		final out: Array<TypedExpr> = [];
+		var i = 0;
+		while(i < stmts.length) {
+			switch(stmts[i].expr) {
+				case TVar(v, init) if(init == null):
+					var assignIdx = -1;
+					var rhsExpr: Null<TypedExpr> = null;
+					for(j in (i + 1)...stmts.length) {
+						switch(stripCast(stmts[j]).expr) {
+							case TBinop(OpAssign, lhs, rhs):
+								switch(stripCast(lhs).expr) {
+									case TLocal(assignedVar) if(assignedVar.id == v.id):
+										assignIdx = j;
+										rhsExpr = rhs;
+									case _:
+								}
+							case _:
+						}
+						if(assignIdx != -1) break;
+					}
+					if(assignIdx != -1 && rhsExpr != null) {
+						out.push({ expr: TVar(v, rhsExpr), pos: stmts[i].pos, t: stmts[i].t });
+						stmts.splice(assignIdx, 1);
+						i++;
+						continue;
+					}
+				case _:
+			}
+			out.push(stmts[i]);
+			i++;
+		}
+		return out;
+	}
+
 	function blockLines(stmts: Array<TypedExpr>, depth: Int): Array<String> {
+		stmts = fuseUninitializedVars(stmts);
 		stmts = regroupLoops(stmts);
 		final out: Array<String> = [];
 
@@ -516,6 +552,8 @@ class KotlinExpr {
 				return expr(se) + "." + payloadName(ef, index);
 			case TEnumIndex(_):
 				return fail(e, "enum index only lowers inside a variant switch");
+			case TIf(c, t, f) if(f != null):
+				return "(if (" + expr(c) + ") " + expr(t) + " else " + expr(f) + ")";
 			case _:
 				return fail(e, "expression has no Kotlin lowering in the subset: " + Std.string(e.expr));
 		}
@@ -619,7 +657,10 @@ class KotlinExpr {
 					}
 				}
 				return expr(subj) + "." + name;
-			case FDynamic(_):
+			case FDynamic(name):
+				if((name == "length" || name == "get_length") && isStringBuf(subj)) {
+					return expr(subj) + ".length";
+				}
 				return fail(subj, "dynamic field access has no lowering");
 			case FClosure(_):
 				return fail(subj, "closure has no lowering");
@@ -715,8 +756,24 @@ class KotlinExpr {
 		}
 		final renderedArgs = [for(a in args) expr(a)].join(", ");
 		switch(fn.expr) {
+			case TField(subj, FDynamic(name)) if((name == "length" || name == "get_length") && isStringBuf(subj)):
+				return expr(subj) + ".length";
 			case TField(subj, FInstance(_, _, cf)):
 				final name = cf.get().name;
+				if(isStringBuf(subj)) {
+					if(name == "add") {
+						return expr(subj) + ".append(" + expr(args[0]) + ")";
+					}
+					if(name == "addChar") {
+						return expr(subj) + ".append((" + expr(args[0]) + ").toChar())";
+					}
+					if(name == "toString") {
+						return expr(subj) + ".toString()";
+					}
+					if(name == "get_length" || name == "length") {
+						return expr(subj) + ".length";
+					}
+				}
 				if(name == "get" && isBytes(stripCast(subj))) {
 					return "(( " + expr(subj) + "[" + expr(args[0]) + "].toInt() and 0xFF ))";
 				}
@@ -823,6 +880,8 @@ class KotlinExpr {
 		final renderedArgs = [for(a in args) expr(a)].join(", ");
 		final path = cls.pack.length == 0 ? cls.name : cls.pack.join(".") + "." + cls.name;
 		switch(path) {
+			case "std.StringBuf" | "StringBuf":
+				return "StringBuilder()";
 			case "haxe.io.BytesBuffer":
 				imports.requireType(path, "BytesBuffer");
 				return "BytesBuffer(" + renderedArgs + ")";
@@ -1083,6 +1142,16 @@ class KotlinExpr {
 				name == "Bool" || name == "Int" || name == "Float";
 			case TInst(c, _):
 				c.get().name == "String";
+			case _: false;
+		};
+	}
+
+	function isStringBuf(e: TypedExpr): Bool {
+		if(e == null) return false;
+		return switch(Context.follow(e.t)) {
+			case TInst(c, _):
+				final cls = c.get();
+				(cls.pack.join(".") == "std" && cls.name == "StringBuf") || (cls.pack.length == 0 && cls.name == "StringBuf");
 			case _: false;
 		};
 	}

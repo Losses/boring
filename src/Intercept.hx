@@ -32,6 +32,7 @@
  *   V13 HashMapCollection  haxe.ds.Map and its implementations           [pass 2]
  *   V14 DynamicCatch       catch variable typed Dynamic                  [pass 2]
  *   V15 EnumDefaultArm     switch over an enum with a default arm        [pass 2]
+ *   V17 AssignArgExpression assignment expressions in call arguments     [pass 1]
  * V09 and V10 are schema-level checks on the FormatDef, not AST checks.
  */
 // Imports spell out every referenced type: module wildcards over
@@ -154,6 +155,7 @@ class Intercept {
 				}
 			case ExprDef.ECall(callee, args):
 				checkSourceCall(callee, args);
+				checkAssignArgExpression(callee, args);
 			case ExprDef.EUntyped(_):
 				violation("V05", "DynamicValue",
 					"untyped block; the translatable subset declares types", e.pos);
@@ -163,6 +165,36 @@ class Intercept {
 			default:
 		}
 		ExprTools.iter(e, walkSource);
+	}
+
+	static function isCopyCallee(callee:Expr):Bool {
+		return switch (callee.expr) {
+			case ExprDef.EField(_, "copy"): true;
+			case ExprDef.EConst(Constant.CIdent("copy")): true;
+			default: false;
+		};
+	}
+
+	static function isAssignArg(arg:Expr):Bool {
+		return switch (arg.expr) {
+			case ExprDef.EBinop(Binop.OpAssign, _, _): true;
+			case ExprDef.EParenthesis(inner): isAssignArg(inner);
+			default: false;
+		};
+	}
+
+	static function checkAssignArgExpression(callee:Expr, args:Array<Expr>):Void {
+		if (isCopyCallee(callee)) {
+			return;
+		}
+		for (index in 0...args.length) {
+			final arg = args[index];
+			if (isAssignArg(arg)) {
+				violation("V17", "AssignArgExpression",
+					"assignment expressions in call arguments belong to the record copy construct only",
+					arg.pos);
+			}
+		}
 	}
 
 	static function isFunctionLiteral(e:Expr):Bool {

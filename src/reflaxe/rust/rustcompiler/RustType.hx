@@ -45,6 +45,7 @@ class RustType {
 				final cls = c.get();
 				switch(pathOf(cls.pack, cls.name)) {
 					case "String": isParam ? "&str" : "String";
+					case "std.StringBuf" | "StringBuf": isParam ? "&mut String" : "String";
 					case "Array":
 						isParam ? "&mut [" + of(params[0]) + "]" : "Vec<" + of(params[0]) + ">";
 					case "haxe.io.Bytes":

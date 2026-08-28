@@ -59,7 +59,7 @@ class Compiler extends PluginCompiler<Compiler> {
 	// ------------------------------------------------------------------
 
 	public function compileClassImpl(classType: ClassType, varFields: Array<ClassVarData>, funcFields: Array<ClassFuncData>): Null<String> {
-		if(classType.isExtern || isSyntheticImpl(classType.name) || !inSourceScope(classType.pos)) {
+		if(classType.isExtern || isSyntheticImpl(classType.name) || isInlineOnly(classType, varFields, funcFields) || !inSourceScope(classType.pos)) {
 			return null;
 		}
 
@@ -505,6 +505,20 @@ class Compiler extends PluginCompiler<Compiler> {
 
 	function isSyntheticImpl(name: String): Bool {
 		return StringTools.endsWith(name, "_Impl_");
+	}
+
+	function isInlineOnly(classType: ClassType, varFields: Array<ClassVarData>, funcFields: Array<ClassFuncData>): Bool {
+		if((classType.pack.join(".") == "std" && classType.name == "Arithmetic") || classType.name == "RecordCopy") return true;
+		if(varFields.length == 0 && funcFields.length > 0) {
+			for(f in funcFields) {
+				switch(f.field.kind) {
+					case FMethod(MethInline):
+					case _: return false;
+				}
+			}
+			return true;
+		}
+		return false;
 	}
 
 	function modulePath(module: String): String {

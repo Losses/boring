@@ -207,7 +207,70 @@ class TsExpr {
 		}
 	}
 
+	function isVarAssigned(e: TypedExpr, varId: Int): Bool {
+		var found = false;
+		function walk(x: TypedExpr) {
+			switch(x.expr) {
+				case TBinop(OpAssign, t, _) | TBinop(OpAssignOp(_), t, _):
+					switch(stripCast(t).expr) {
+						case TLocal(v) if(v.id == varId): found = true;
+						case _:
+					}
+				case _:
+			}
+			TypedExprTools.iter(x, walk);
+		}
+		walk(e);
+		return found;
+	}
+
+	function fuseUninitializedVars(stmts: Array<TypedExpr>): Array<TypedExpr> {
+		final out: Array<TypedExpr> = [];
+		var i = 0;
+		while(i < stmts.length) {
+			switch(stmts[i].expr) {
+				case TVar(v, init) if(init == null):
+					var assignIdx = -1;
+					var rhsExpr: Null<TypedExpr> = null;
+					for(j in (i + 1)...stmts.length) {
+						switch(stripCast(stmts[j]).expr) {
+							case TBinop(OpAssign, lhs, rhs):
+								switch(stripCast(lhs).expr) {
+									case TLocal(assignedVar) if(assignedVar.id == v.id):
+										assignIdx = j;
+										rhsExpr = rhs;
+									case _:
+								}
+							case _:
+						}
+						if(assignIdx != -1) break;
+					}
+					if(assignIdx != -1 && rhsExpr != null) {
+						out.push({ expr: TVar(v, rhsExpr), pos: stmts[i].pos, t: stmts[i].t });
+						stmts.splice(assignIdx, 1);
+						var otherAssign = false;
+						for(s in stmts) {
+							if(isVarAssigned(s, v.id)) {
+								otherAssign = true;
+								break;
+							}
+						}
+						if(!otherAssign) {
+							mutated.remove(v.id);
+						}
+						i++;
+						continue;
+					}
+				case _:
+			}
+			out.push(stmts[i]);
+			i++;
+		}
+		return out;
+	}
+
 	function blockLines(stmts: Array<TypedExpr>, depth: Int): Array<String> {
+		stmts = fuseUninitializedVars(stmts);
 		stmts = regroupLoops(stmts);
 		final out: Array<String> = [];
 
@@ -661,6 +724,8 @@ class TsExpr {
 				return expr(se) + "." + payloadName(ef, index);
 			case TEnumIndex(_):
 				return fail(e, "enum index only lowers inside a variant switch");
+			case TIf(c, t, f) if(f != null):
+				return "(" + expr(c) + " ? " + expr(t) + " : " + expr(f) + ")";
 			case _:
 				return fail(e, "expression has no TypeScript lowering in the subset");
 		}
@@ -731,8 +796,11 @@ class TsExpr {
 					case _:
 				}
 				return expr(subj) + "." + name;
-			case FDynamic(_):
-				return fail(subj, "dynamic field access has no lowering");
+			case FDynamic(name):
+				if((name == "length" || name == "get_length") && isStringBuf(subj)) {
+					return expr(subj) + ".length";
+				}
+				return fail(subj, "dynamic field access has no lowering: " + name);
 			case FClosure(_):
 				return fail(subj, "function value has no lowering (V08)");
 		}
@@ -839,8 +907,24 @@ class TsExpr {
 		}
 		final rendered = [for(a in args) expr(a)].join(", ");
 		switch(fn.expr) {
+			case TField(subj, FDynamic(name)) if((name == "length" || name == "get_length") && isStringBuf(subj)):
+				return expr(subj) + ".length";
 			case TField(subj, FInstance(_, _, cf)):
 				final name = cf.get().name;
+				if(isStringBuf(subj)) {
+					if(name == "add") {
+						return expr(subj) + " += " + expr(args[0]);
+					}
+					if(name == "addChar") {
+						return expr(subj) + " += String.fromCharCode(" + expr(args[0]) + ")";
+					}
+					if(name == "toString") {
+						return expr(subj);
+					}
+					if(name == "get_length" || name == "length") {
+						return expr(subj) + ".length";
+					}
+				}
 				final folded = constantAsciiFold(subj, name, args);
 				if(folded != null) {
 					return folded;
@@ -956,6 +1040,8 @@ class TsExpr {
 		final rendered = [for(a in args) expr(a)].join(", ");
 		final path = cls.pack.length == 0 ? cls.name : cls.pack.join(".") + "." + cls.name;
 		switch(path) {
+			case "std.StringBuf" | "StringBuf":
+				return '""';
 			case "haxe.io.BytesBuffer":
 				imports.runtime("BytesBuffer");
 				return "new BytesBuffer(" + rendered + ")";
@@ -1162,6 +1248,18 @@ class TsExpr {
 					case TLocal(v): mutated.set(v.id, true);
 					case _:
 				}
+			case TCall(fn, _):
+				switch(fn.expr) {
+					case TField(subj, FInstance(_, _, cf)):
+						final n = cf.get().name;
+						if(isStringBuf(subj) && (n == "add" || n == "addChar")) {
+							switch(stripWrap(subj).expr) {
+								case TLocal(v): mutated.set(v.id, true);
+								case _:
+							}
+						}
+					case _:
+				}
 			case _:
 		}
 		TypedExprTools.iter(e, scanLocals);
@@ -1288,6 +1386,16 @@ class TsExpr {
 		}
 	}
 
+	function isStringBuf(e: TypedExpr): Bool {
+		if(e == null) return false;
+		return switch(Context.follow(e.t)) {
+			case TInst(c, _):
+				final cls = c.get();
+				(cls.pack.join(".") == "std" && cls.name == "StringBuf") || (cls.pack.length == 0 && cls.name == "StringBuf");
+			case _: false;
+		};
+	}
+
 
 			function unwrapLambda(e: TypedExpr): Null<TFunc> {
 		if(e == null) return null;
@@ -1373,7 +1481,6 @@ class TsExpr {
 	}
 
 	function fail(e: Null<TypedExpr>, message: String): Dynamic {
-
 		final pos = e != null ? e.pos : Context.currentPos();
 		Context.error("ts target: " + message, pos);
 		return null;
