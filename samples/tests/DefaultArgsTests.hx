@@ -1,0 +1,56 @@
+package tests;
+
+import boring.DefaultArgsOps;
+import std.Test;
+
+class DefaultArgsTests {
+	@:test("greet with explicit and default prefix")
+	public static function testGreet():Void {
+		Test.equals("Greetings Ada", DefaultArgsOps.callGreet0());
+		Test.equals("Hello Ada", DefaultArgsOps.callGreet1());
+	}
+
+	@:test("configure with zero, one, two, and three omitted arguments")
+	public static function testConfigure():Void {
+		Test.equals(-180.0, DefaultArgsOps.callConfigure0());
+		Test.equals(180.0, DefaultArgsOps.callConfigure1());
+		Test.equals(300.0, DefaultArgsOps.callConfigure2());
+		Test.equals(275.0, DefaultArgsOps.callConfigure3());
+	}
+
+	@:test("formatLabel instance method with nullable and value optional parameters")
+	public static function testFormatLabel():Void {
+		Test.equals("item:formatted", DefaultArgsOps.callFormatLabel0());
+		Test.equals("item-formatted", DefaultArgsOps.callFormatLabel1());
+		Test.equals("none-default", DefaultArgsOps.callFormatLabel2());
+	}
+
+	@:test("describeTag with explicit null default")
+	public static function testDescribeTag():Void {
+		Test.equals("alpha:extra", DefaultArgsOps.callDescribeTag0());
+		Test.equals("alpha:none", DefaultArgsOps.callDescribeTag1());
+	}
+
+	@:test("openMode with zero-argument enum constructor default")
+	public static function testOpenMode():Void {
+		Test.equals("write:1", DefaultArgsOps.callOpenMode0());
+		Test.equals("read:1", DefaultArgsOps.callOpenMode1());
+	}
+
+	@:test("adjust with negative literal default")
+	public static function testAdjust():Void {
+		Test.equals(30.0, DefaultArgsOps.callAdjust0());
+		Test.equals(15.0, DefaultArgsOps.callAdjust1());
+	}
+
+	@:test("local function with default argument called with omission")
+	public static function testLocalFunction():Void {
+		Test.equals(107, DefaultArgsOps.callLocal());
+	}
+
+	@:test("interface method with default parameter called through interface")
+	public static function testInterfaceMethod():Void {
+		Test.equals("Admin:Sam", DefaultArgsOps.callInterface0());
+		Test.equals("User:Sam", DefaultArgsOps.callInterface1());
+	}
+}

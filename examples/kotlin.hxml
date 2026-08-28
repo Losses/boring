@@ -41,3 +41,5 @@ boring.StringBufOps
 tests.StringBufTests
 boring.ArithmeticOps
 tests.ArithmeticTests
+boring.DefaultArgsOps
+tests.DefaultArgsTests
