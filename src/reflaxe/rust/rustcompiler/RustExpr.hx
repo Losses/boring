@@ -580,6 +580,50 @@ class RustExpr {
 					itemName;
 				};
 				final remainingBody = loop.body.slice(1);
+				final gb = matchGroupByBody(remainingBody);
+				if(gb != null) {
+					final entryName = RustImports.toSnakeCase(gb.entryVar.name);
+					final entryExprStr = expr(gb.entryInit);
+					final builderStr = expr(gb.builderSubj);
+					final kGetExpr = if(isStringType(gb.keyArg.t)) {
+						switch(gb.keyArg.expr) {
+							case TConst(TString(_)): expr(gb.keyArg);
+							case TLocal(v):
+								final pt = types.of(v.t, true);
+								if(pt == "&str") expr(gb.keyArg); else "&" + expr(gb.keyArg);
+							case _: expr(gb.keyArg);
+						}
+					} else if(!isTypeCopy(gb.keyArg.t)) {
+						"&" + expr(gb.keyArg);
+					} else {
+						expr(gb.keyArg);
+					};
+					final kPutExpr = if(!isTypeCopy(gb.keyArg.t)) {
+						final s = expr(gb.keyArg);
+						if(!StringTools.endsWith(s, ".clone()") && !StringTools.endsWith(s, ".to_vec()") && !StringTools.endsWith(s, ".to_string()")) {
+							s + ".clone()";
+						} else {
+							s;
+						}
+					} else {
+						expr(gb.keyArg);
+					};
+					final valStr = renderPushArg(gb.valArg);
+					final out = [
+						indent(depth) + "for " + pattern + " in " + expr(sliceSubj) + " {"
+					];
+					for(l in blockLines(gb.prefix, depth + 1)) out.push(l);
+					out.push(indent(depth + 1) + "let " + entryName + " = " + entryExprStr + ";");
+					out.push(indent(depth + 1) + "let mut pipeline_bucket = match " + builderStr + ".get(" + kGetExpr + ") {");
+					out.push(indent(depth + 2) + "Some(b) => b,");
+					out.push(indent(depth + 2) + "None => Vec::new(),");
+					out.push(indent(depth + 1) + "};");
+					out.push(indent(depth + 1) + "pipeline_bucket.push(" + valStr + ");");
+					out.push(indent(depth + 1) + builderStr + ".put(" + kPutExpr + ", pipeline_bucket);");
+					out.push(indent(depth) + "}");
+					return out;
+				}
+
 				final out = [
 					indent(depth) + "for " + pattern + " in " + expr(sliceSubj) + " {"
 				];
@@ -778,10 +822,19 @@ class RustExpr {
 
 	function renderPushArg(arg: TypedExpr): String {
 		var argStr = expr(arg);
+		if(isNullType(arg.t)) {
+			argStr = argStr + ".unwrap()";
+			if(!isTypeCopy(getNullInnerType(arg.t))) {
+				if(!StringTools.endsWith(argStr, ".clone()") && !StringTools.endsWith(argStr, ".to_vec()") && !StringTools.endsWith(argStr, ".to_string()")) {
+					argStr = argStr + ".clone()";
+				}
+			}
+			return argStr;
+		}
 		if(!isTypeCopy(arg.t)) {
 			switch(stripWrap(arg).expr) {
 				case TConst(TString(_)) | TNew(_, _, _):
-				case TLocal(_) | TField(_):
+				case TLocal(_) | TField(_) | TArray(_, _):
 					if(!StringTools.endsWith(argStr, ".clone()") && !StringTools.endsWith(argStr, ".to_vec()") && !StringTools.endsWith(argStr, ".to_string()")) {
 						argStr = argStr + ".clone()";
 					}
@@ -959,13 +1012,37 @@ class RustExpr {
 		}
 		switch(op) {
 			case OpAssign:
-				return assignTarget(l) + " = " + expr(r);
+				final rhs = if(isNullType(l.t) && !isNullType(r.t) && !isTNull(r)) {
+					final rStr = if(!isTypeCopy(r.t)) {
+						final s = expr(r);
+						if(!StringTools.endsWith(s, ".clone()") && !StringTools.endsWith(s, ".to_vec()") && !StringTools.endsWith(s, ".to_string()")) {
+							s + ".clone()";
+						} else {
+							s;
+						}
+					} else {
+						expr(r);
+					};
+					"Some(" + rStr + ")";
+				} else if(types.of(l.t, true) == "String") {
+					switch(stripWrap(r).expr) {
+						case TConst(TString(_)): expr(r) + ".to_string()";
+						default: expr(r);
+					}
+				} else {
+					expr(r);
+				};
+				return assignTarget(l) + " = " + rhs;
 			case OpAssignOp(inner):
 				return assignTarget(l) + " " + symbolOf(inner) + "= " + expr(r);
 			case OpAdd if(isStringType(l.t) || isStringType(r.t)):
 				return "format!(\"{}{}\", " + expr(l) + ", " + expr(r) + ")";
 			case OpDiv if(StringTools.endsWith(operand(l, op, false), ".len()")):
 				return "((" + operand(l, op, false) + ") / (" + operand(r, op, true) + " as usize)) as i32";
+			case OpMult | OpAdd | OpSub | OpDiv if(isFloatType(e.t)):
+				final lStr = if(isIntType(l.t)) "((" + operand(l, op, false) + ") as f64)" else operand(l, op, false);
+				final rStr = if(isIntType(r.t)) "((" + operand(r, op, true) + ") as f64)" else operand(r, op, true);
+				return lStr + " " + symbolOf(op) + " " + rStr;
 			case OpAnd:
 				final rightInner = stripWrap(r);
 				final isMask255 = switch(rightInner.expr) {
@@ -1036,7 +1113,8 @@ class RustExpr {
 					return expr(subj) + ".len()";
 				}
 				final snake = RustImports.toSnakeCase(name);
-				return expr(subj) + "." + snake;
+				final subjStr = if(isNullType(subj.t)) expr(subj) + ".as_ref().unwrap()" else expr(subj);
+				return subjStr + "." + snake;
 			case FDynamic(_):
 				return fail(subj, "dynamic field access has no lowering");
 			case FClosure(_):
@@ -1173,7 +1251,7 @@ class RustExpr {
 						return expr(subj) + ".put(" + kExpr + ")";
 					}
 				}
-				if((name == "get" || name == "has") && isSortedTable(subj)) {
+				if((name == "get" || name == "has") && (isSortedTable(subj) || isSortedBuilder(subj))) {
 					final kExpr = if(isStringType(args[0].t)) {
 						switch(args[0].expr) {
 							case TConst(TString(_)): expr(args[0]);
@@ -2043,6 +2121,81 @@ class RustExpr {
 		return switch(t) {
 			case TAbstract(a, params) if(a.get().name == "Null"): params[0];
 			case _: t;
+		};
+	}
+
+	function isFloatType(t: Type): Bool {
+		if(t == null) return false;
+		return switch(Context.follow(t)) {
+			case TAbstract(a, _): a.get().name == "Float";
+			case _: false;
+		};
+	}
+
+	function isIntType(t: Type): Bool {
+		if(t == null) return false;
+		return switch(Context.follow(t)) {
+			case TAbstract(a, _): a.get().name == "Int";
+			case _: false;
+		};
+	}
+
+	function isTNull(e: TypedExpr): Bool {
+		return switch(stripWrap(e).expr) {
+			case TConst(TNull): true;
+			default: false;
+		};
+	}
+
+	function matchGroupByBody(body: Array<TypedExpr>): Null<{prefix: Array<TypedExpr>, entryVar: TVar, entryInit: TypedExpr, builderSubj: TypedExpr, keyArg: TypedExpr, valArg: TypedExpr}> {
+		if(body.length == 0) return null;
+		final last = body[body.length - 1];
+		final coreStmts: Null<Array<TypedExpr>> = switch(last.expr) {
+			case TBlock(s) if(s.length == 4): s;
+			default:
+				if(body.length == 4) body else null;
+		};
+		if(coreStmts == null) return null;
+		final prefix = if(coreStmts == body) [] else body.slice(0, body.length - 1);
+		final entry = switch(coreStmts[0].expr) {
+			case TVar(v, init) if(init != null): { v: v, init: init };
+			default: return null;
+		};
+		final builderInfo = switch(coreStmts[1].expr) {
+			case TVar(bucketV, init) if(init != null):
+				switch(stripWrap(init).expr) {
+					case TCall(fn, args) if(args.length == 1):
+						switch(fn.expr) {
+							case TField(subj, fa) if(fieldName(fa) == "get" && (isSortedTable(subj) || isSortedBuilder(subj))):
+								{ bucketVar: bucketV, builderSubj: subj, keyArg: args[0] };
+							default: return null;
+						}
+					default: return null;
+				}
+			default: return null;
+		};
+		if(builderInfo == null) return null;
+		final pushInfo = switch(coreStmts[coreStmts.length - 1].expr) {
+			case TCall(fn, args) if(args.length == 1):
+				switch(fn.expr) {
+					case TField(subj, fa) if(fieldName(fa) == "push"):
+						switch(stripWrap(subj).expr) {
+							case TLocal(v) if(v.id == builderInfo.bucketVar.id):
+								{ valArg: args[0] };
+							default: return null;
+						}
+					default: return null;
+				}
+			default: return null;
+		};
+		if(pushInfo == null) return null;
+		return {
+			prefix: prefix,
+			entryVar: entry.v,
+			entryInit: entry.init,
+			builderSubj: builderInfo.builderSubj,
+			keyArg: builderInfo.keyArg,
+			valArg: pushInfo.valArg
 		};
 	}
 }

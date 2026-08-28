@@ -119,7 +119,11 @@ class KotlinExpr {
 						asListReturn.set(v.id, asListReturn.get(origV.id));
 					default:
 				}
-				return [indent(depth) + '$kw ${localName(v)} = ${expr(init)}'];
+				final typeAnn = switch(stripWrap(init).expr) {
+					case TConst(TNull): ": " + types.of(v.t);
+					default: "";
+				};
+				return [indent(depth) + '$kw ${localName(v)}$typeAnn = ${expr(init)}'];
 			case TVar(_, init) if(init == null):
 				return fail(e, "declaration without initializer has no lowering");
 			case TBlock(stmts):

@@ -407,6 +407,14 @@ class TestMain {
             class JsSortedMapBuilder {
                 constructor() { this.entries = []; }
                 put(key, value) { this.entries.push({key, idx: this.entries.length, value}); }
+                get(key) {
+                    for (let i = this.entries.length - 1; i >= 0; i--) {
+                        if (jsCompare(this.entries[i].key, key) === 0) {
+                            return this.entries[i].value;
+                        }
+                    }
+                    return null;
+                }
                 build() {
                     if (this.entries.length === 0) return new JsSortedMap([], []);
                     this.entries.sort((a, b) => {
@@ -486,6 +494,71 @@ class TestMain {
                         result.push(indexed[i].item);
                     }
                     return result;
+                }
+                static any(arr, fn) {
+                    for (let i = 0; i < arr.length; i++) {
+                        if (fn(arr[i])) return true;
+                    }
+                    return false;
+                }
+                static all(arr, fn) {
+                    for (let i = 0; i < arr.length; i++) {
+                        if (!fn(arr[i])) return false;
+                    }
+                    return true;
+                }
+                static firstOrNull(arr, fn) {
+                    for (let i = 0; i < arr.length; i++) {
+                        if (fn(arr[i])) return arr[i];
+                    }
+                    return null;
+                }
+                static sumOfInt(arr, fn) {
+                    let sum = 0;
+                    for (let i = 0; i < arr.length; i++) {
+                        sum += fn(arr[i]);
+                    }
+                    return sum;
+                }
+                static sumOfFloat(arr, fn) {
+                    let sum = 0.0;
+                    for (let i = 0; i < arr.length; i++) {
+                        sum += fn(arr[i]);
+                    }
+                    return sum;
+                }
+                static mapNotNull(arr, fn) {
+                    let result = [];
+                    for (let i = 0; i < arr.length; i++) {
+                        let v = fn(arr[i]);
+                        if (v !== null && v !== undefined) {
+                            result.push(v);
+                        }
+                    }
+                    return result;
+                }
+                static flatMap(arr, fn) {
+                    let result = [];
+                    for (let i = 0; i < arr.length; i++) {
+                        let inner = fn(arr[i]);
+                        for (let j = 0; j < inner.length; j++) {
+                            result.push(inner[j]);
+                        }
+                    }
+                    return result;
+                }
+                static groupBy(arr, fn) {
+                    let builder = new JsSortedMapBuilder();
+                    for (let i = 0; i < arr.length; i++) {
+                        let entry = fn(arr[i]);
+                        let bucket = builder.get(entry.key);
+                        if (bucket === null) {
+                            bucket = [];
+                            builder.put(entry.key, bucket);
+                        }
+                        bucket.push(entry.value);
+                    }
+                    return builder.build();
                 }
             }
             globalThis.__functional_shim = JsFunctional;
