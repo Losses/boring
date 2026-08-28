@@ -211,6 +211,23 @@ text processing. The ruling below replaces it, and
    `StringTools.fromCharCode` constructs one UTF-16 code unit. The
    sanctioned replacements are `std.UString.at` and
    `std.UString.fromCodePoint`.
+6. **`String.substring` carries haxe positions on every target**
+   (added 2026-08-28, `docs/plans/2026-08-28-runtime-unification.md`
+   P3). `substring` is the one member of the character-operation list
+   with a lowering on all four targets, so it is permitted beyond the
+   ASCII tier. TypeScript and Kotlin call the platform method; Rust
+   lowers the call to `ustring::substring`, which converts UTF-16 unit
+   bounds to byte boundaries by walking `char_indices`. The bounds are
+   haxe string positions, UTF-16 code units, on every target. The
+   guaranteed domain is in-range bounds on code-point boundaries, where
+   every target returns the same string. Out-of-range bounds follow the
+   haxe clamping contract on TypeScript and Rust, and Kotlin keeps its
+   platform exception, so out-of-range calls sit outside the shared
+   domain. A bound inside a surrogate pair cannot return a lone unit on
+   Rust, where a String holds valid UTF-8: the start bound advances
+   past the pair and the end bound retreats before it, while the UTF-16
+   targets return the lone unit. Arbitrary content-defined slicing
+   stays with `std.UString.slice`.
 
 Enforcement: style rule `V18 NonAsciiStringIndex` reports at Haxe compile
 time, split across the two interception passes. The call forms are checked

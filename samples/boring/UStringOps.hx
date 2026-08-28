@@ -45,4 +45,22 @@ class UStringOps {
 	public static function roundTrip(text:String):String {
 		return UString.fromCodePoints(UString.toCodePoints(text));
 	}
+
+	/**
+	 * The substring tier of docs/specs/features/08-strings-and-unicode.md:
+	 * String.substring keeps haxe positions (UTF-16 code units) on every
+	 * target. The bounds below sit on code-point boundaries, the domain
+	 * where all four targets agree.
+	 */
+	public static function substringRange(text:String, from:Int, to:Int):String {
+		return text.substring(from, to);
+	}
+
+	public static function substringFrom(text:String, from:Int):String {
+		return text.substring(from);
+	}
+
+	public static function substringLiteral():String {
+		return "tiqian".substring(1, 3);
+	}
 }

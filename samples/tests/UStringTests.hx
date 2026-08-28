@@ -50,4 +50,14 @@ class UStringTests {
 		Test.equals("版排椠提", UStringOps.reversedText("提椠排版"));
 		Test.equals("𠀁一𠀀", UStringOps.reversedText("𠀀一𠀁"));
 	}
+
+	@:test("substring addresses utf-16 unit positions on every target")
+	public static function testSubstring():Void {
+		Test.equals("椠排", UStringOps.substringRange("提椠排版", 1, 3));
+		Test.equals("𠀀", UStringOps.substringRange("𠀀一𠀁", 0, 2));
+		Test.equals("一", UStringOps.substringRange("𠀀一𠀁", 2, 3));
+		Test.equals("一𠀁", UStringOps.substringRange("𠀀一𠀁", 2, 5));
+		Test.equals("𠀁", UStringOps.substringFrom("𠀀一𠀁", 3));
+		Test.equals("iq", UStringOps.substringLiteral());
+	}
 }

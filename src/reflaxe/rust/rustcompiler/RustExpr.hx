@@ -1437,6 +1437,26 @@ class RustExpr {
 				if(name == "charCodeAt" && isString(stripCast(subj))) {
 					return expr(subj) + ".as_bytes()[" + expr(args[0]) + "]";
 				}
+				if(name == "substring" && isString(stripCast(subj))) {
+					// Member-call lowering into the ustring runtime: the
+					// bounds are UTF-16 units on every target, so the call
+					// converts them to byte boundaries. The runtime keeps
+					// i32 bounds for the same clamping reason as
+					// ustring.slice (SIGNED_SHIM_PARAMS), and the subject
+					// borrows like every ustring call. An omitted
+					// ?endIndex reaches this arm as a null argument and
+					// routes to the one-sided form.
+					state.shimsUsed.set("std.UStringRT", true);
+					imports.require("crate::runtime::ustring");
+					final endOmitted = args.length < 2 || switch(stripWrap(args[1]).expr) {
+						case TConst(TNull): true;
+						case _: false;
+					};
+					if(!endOmitted) {
+						return "ustring::substring(&" + expr(subj) + ", (" + expr(args[0]) + ") as i32, (" + expr(args[1]) + ") as i32)";
+					}
+					return "ustring::substring_from(&" + expr(subj) + ", (" + expr(args[0]) + ") as i32)";
+				}
 				if(name == "put" && isSortedBuilder(subj)) {
 					final kExpr = switch(args[0].expr) {
 						case TConst(TString(_)): expr(args[0]);
