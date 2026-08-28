@@ -24,7 +24,35 @@ Two namespaces are reserved on the compile-input side:
 
 The compiler treats both like compiler-recognized namespaces: modules in
 them may be entry points, and references to them route through the
-std import tables. Neither namespace reaches any target's output.
+std import tables.
+
+`haxe.*` never reaches any target's output: every `haxe.*` module lowers
+to a runtime-package declaration or a platform-native mapping. `std.*`
+splits into two classes, decided per target by a named list in that
+target's import table:
+
+- **Runtime-backed std modules** never emit a file. Their backing lives
+  in the runtime package (`std.ReadOnlyArray`, `std.StringBuf`,
+  `std.UString`, `std.SortedMap` and its relatives, `std.Test`, and the
+  internal `std.Functional`, `std.UStringRT`) or in a platform-native
+  mapping where the target provides one. TypeScript names the class in
+  `TsImports.runtimeProvidedModules`; Kotlin names its shim-emitted
+  subset in `KotlinImports.SHIM_MODULES` and constructs the remaining
+  runtime-package references in the expression compilers.
+- **Compiled std modules** emit like any other module under the target's
+  std directory. `std.UStringException` and `std.UStringFault` are this
+  class (`reference/ts/gen/std/UStringException.ts`,
+  `reference/kotlin/gen/std/UStringException.kt`); a reference from a
+  compiled module to another compiled module is an ordinary
+  cross-package file import.
+
+Class membership is a named list, and the safe direction is explicit: a
+module absent from the list emits as a compiled module, which compiles
+and runs; the reverse shape, a runtime-backed module silently treated
+as compiled, would leave the target without its backing. Adding a
+runtime-backed module therefore means adding its name to each target's
+list, and this specification is amended together with that change.
+
 `reference/kotlin/gen/boring/BinaryWriter.kt` importing `haxe.io.BytesBuffer` and
 TypeScript files importing a runtime module by a path that walks out of
 their package directory were both defects of this rule and are removed.

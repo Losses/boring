@@ -171,6 +171,15 @@ The fixed mapping table:
 Rules:
 
 - Type identity never merges. Two distinct named Haxe types translate to two distinct target types even when their shapes coincide, because merged types erase the distinction the Haxe compiler enforced.
+- The Kotlin `Long` promotion in the table is conditional on a declared
+  range above `0x7FFFFFFF`. The generator has no schema mechanism that
+  declares a field range, so the promotion has no implementation path
+  (2026-08-28 audit, `docs/reviews/language-design-audit.md` F5). No
+  current field exceeds the range: wire counts are bounded by
+  `CountOverflow` at `2^31` and code points by `0x10FFFF`. The promotion
+  is implemented when the first field with such a range is declared; the
+  declaration mechanism and the promotion are implemented in the same
+  change.
 - No silent widening or narrowing. Every numeric conversion is an explicit named function at an API or wire boundary; the numeric selection follows the wire type table in `docs/specs/features/07-numeric-tower.md`.
 - Every target type is named. Inline object, function, mapped, and tuple types are banned repo-wide as recorded in `reference/ts/src/records.ts` (lines 1-5).
 - Generic parameter translation follows `docs/specs/features/05-generics.md`; this table fixes only the base types.

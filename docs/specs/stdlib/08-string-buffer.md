@@ -12,12 +12,27 @@ pattern as `std.SortedMap` in `docs/specs/stdlib/07-sorted-keyed-tables.md`.
 ## Contract
 
 - `new StringBuf()` creates an empty buffer.
-- `add(part:String):Void` appends a string.
-- `addChar(codeUnit:Int):Void` appends one UTF-16 code unit.
+- `add(part:String):Void` appends a string. When the current content
+  ends with an unpaired lead surrogate and the argument is nonempty and
+  does not start with the matching trail surrogate, the call throws
+  `std.UStringException` carrying `UnpairedSurrogate(unit)`.
+- `addChar(codeUnit:Int):Void` appends one UTF-16 code unit. A trail
+  surrogate is accepted only when the current content ends with an
+  unpaired lead; a lead surrogate or a non-surrogate unit is accepted
+  only when the content does not end with an unpaired lead. A rejected
+  call throws `std.UStringException` carrying `UnpairedSurrogate(unit)`.
 - `get length():Int` returns the UTF-16 code-unit count of the current
-  content.
-- `toString():String` returns the current content; later `add` calls extend
-  the buffer and a later `toString` returns the extended content.
+  content, including a lead surrogate whose trail has not arrived yet.
+- `toString():String` returns the current content as a well-formed
+  string; when the content ends with an unpaired lead surrogate, the
+  call throws the same fault. Later `add` calls extend the buffer and a
+  later `toString` returns the extended content.
+
+The fault payload names the unpaired unit: the argument when it is a
+trail surrogate with no preceding lead, and the trailing lead already
+held in every other case. The variant lives in `std.UStringFault`
+alongside `InvalidCodePoint`, because both name an ill-formed Unicode
+value crossing the string subsystem.
 
 ## Haxe declarations and routing
 
@@ -38,34 +53,59 @@ implementation stands in for the standard library.
 
 ## Per-platform shapes
 
-- Rust: the buffer renders as `String`. `add` emits `push_str`. `addChar`
-  maps the code unit through `char::from_u32` with
-  `char::REPLACEMENT_CHARACTER` for an unpaired surrogate. `length` emits
-  `encode_utf16().count()` cast to the `Int` domain, which renders as
-  `as u32`. `toString` emits `clone()`.
+- Rust: the buffer renders as `Vec<u16>` holding UTF-16 code units.
+  `new` emits `Vec::<u16>::new()`. `add` emits the boundary check and
+  `extend(part.encode_utf16())`. `addChar` emits the pairing check and
+  `push(unit as u16)`. `length` emits `len() as u32`, a constant-time
+  read of the unit vector. `toString` emits the dangling-lead check and
+  `String::from_utf16(&buf).map_err(...)` returning through the
+  enclosing function's `Result`, so a buffer operation sites its
+  fallibility in `std.UStringFault` like a `std.UString` construction
+  check. The checks read the trailing unit with `buf.last()`, so the
+  buffer content itself carries the pairing state.
 - TypeScript: the buffer renders as a `string` variable accumulated with
-  `+=`. `addChar` emits `String.fromCharCode(codeUnit)`. `length` emits the
-  `.length` property. `toString` reads the variable. JavaScript engines
+  `+=`. `addChar` emits the pairing check reading
+  `buf.charCodeAt(buf.length - 1)` and `String.fromCharCode(codeUnit)`.
+  `add` and `toString` emit the matching checks. The fault constructs
+  the compiled `std.UStringException`, imported like any compiled std
+  module. `length` emits the `.length` property. JavaScript engines
   amortize string append through rope chains, and the haxe JavaScript target
   lowers its own `StringBuf` to the same `+=` form, so the oracle and the
   generated code share the mechanism.
-- Kotlin: the buffer renders as `StringBuilder`. `add` emits `append`.
-  `addChar` emits `append(codeUnit.toChar())`. `length` emits the `.length`
-  property. `toString` emits `toString()`.
+- Kotlin: the buffer renders as `StringBuilder`. `add` emits the
+  boundary check and `append`. `addChar` emits the pairing check reading
+  the trailing unit and `append(codeUnit.toChar())`. The fault
+  constructs the compiled `std.UStringException`. `length` emits the
+  `.length` property. `toString` emits the dangling-lead check and
+  `toString()`.
+- Haxe stage 1: the wrapper that binds the standard `StringBuf` applies
+  the same three checks against the wrapped buffer's content before
+  delegating. Reading the trailing unit costs one `toString()` snapshot
+  per checked call, which is quadratic in the buffer length; the
+  stage-1 lane is the test oracle, so this cost is accepted there and
+  rules nothing about the generated targets.
 
 ## Samples and tests
 
 A sample module builds strings by parts, appends supplementary characters
 through `add` as whole string parts, exercises `addChar` on
-basic-multilingual-plane code units, and asserts the content and the
-code-unit length. The four-side consistency run of
+basic-multilingual-plane code units, asserts the content and the
+code-unit length, and exercises the unpaired-surrogate fault paths: a
+trail without a preceding lead, a lead completed by the immediately
+following `addChar`, and a dangling lead observed by `toString`. The
+four-side consistency run of
 `docs/specs/features/19-testing.md` compares the jsonl output. `tests/ts/`
-tree assertions pin the native forms: `push_str` on Rust, `+=` accumulation on
+tree assertions pin the native forms: `extend` over `encode_utf16` on
+Rust, `+=` accumulation on
 TypeScript, `append` on Kotlin, with no builder call sites beyond the routed
 module.
 
-An unpaired surrogate code unit has no representation in the Rust `String`
-buffer: `addChar` lowers it to `char::REPLACEMENT_CHARACTER` on Rust only,
-while the other three targets keep the code unit. This divergence is
-representational, so the consistency contract covers the inputs the engine
-port builds and no sample feeds half of a surrogate pair.
+An unpaired surrogate half pair has one behavior on every target: the
+call that would create or observe it throws `std.UStringException`
+carrying `UnpairedSurrogate(unit)`. The earlier ruling, which lowered an
+unpaired unit to `char::REPLACEMENT_CHARACTER` on Rust while the other
+targets kept the unit, failed the content test of
+`docs/specs/design-principles.md` (the same input produced different
+string content per target) and is superseded (2026-08-28 audit,
+`docs/reviews/language-design-audit.md` F4). Samples feed half of a
+surrogate pair and assert the fault identity, never a message.
