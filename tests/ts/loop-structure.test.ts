@@ -106,7 +106,7 @@ function containsClosurePipe(body: string): boolean {
 }
 
 function bodyHasLambda(tree: SourceTree, body: string): boolean {
-  if (tree.label === "reference/rust/src") {
+  if (tree.lambdaTokens.length === 1 && tree.lambdaTokens[0] === "|") {
     return containsClosurePipe(body);
   }
   for (const token of tree.lambdaTokens) {

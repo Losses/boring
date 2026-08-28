@@ -6,6 +6,9 @@ import std.Console;
 import boring.GlyphMetrics;
 import std.Process;
 import std.ReadOnlyArray;
+import std.UString;
+import std.UStringException;
+import std.UStringFault;
 import boring.VectorCodec;
 import boring.VectorError;
 import boring.VectorException;
@@ -80,6 +83,10 @@ class Main {
 	}
 
 	static function main():Void {
+		// The extern primitives of std.UStringRT resolve to the shared
+		// oracle, the same binding stage one compiles for TestMain.
+		js.Syntax.code("globalThis.std = globalThis.std || {}; globalThis.std.UStringRT = {0};", UStringRtOracle);
+
 		final encoded = VectorCodec.encode(VECTOR_RECORDS);
 		expectTrue("encoded length matches the committed vector", encoded.length == 184);
 		expectTrue("encoded hex matches the committed vector", encoded.toHex() == EXPECTED_HEX);
@@ -131,6 +138,29 @@ class Main {
 		}
 		expectTrue("boundary count throws the CountOverflow variant", boundaryCountVariant == CountOverflow);
 
+		// std.UString construction domain and stage-one value answers per
+		// docs/specs/stdlib/10-unicode-string-access.md. The fault paths run
+		// here because typed catch has no transpiler lowering yet; the
+		// four-side harness covers the value paths in tests.UStringTests.
+		expectTrue("bmp cjk counts by code point", UString.count("提椠排版") == 4);
+		expectTrue("supplementary cjk reads whole", UString.at("𠀀一𠀁", 2) == 0x20001);
+
+		var surrogateFault:Null<UStringFault> = null;
+		try {
+			UString.fromCodePoint(0xD800);
+		} catch (error:UStringException) {
+			surrogateFault = error.fault;
+		}
+		expectTrue("surrogate code point throws the InvalidCodePoint variant", faultEquals(surrogateFault, InvalidCodePoint(0xD800)));
+
+		var negativeFault:Null<UStringFault> = null;
+		try {
+			UString.fromCodePoints([0x4E2D, -1]);
+		} catch (error:UStringException) {
+			negativeFault = error.fault;
+		}
+		expectTrue("negative code point throws the InvalidCodePoint variant", faultEquals(negativeFault, InvalidCodePoint(-1)));
+
 		runSortChecks();
 
 		if (failures > 0) {
@@ -167,6 +197,16 @@ class Main {
 			});
 		}
 		return records;
+	}
+
+	// Enums with arguments need structural comparison; this keeps the
+	// fault checks free of reflection.
+	static function faultEquals(left:Null<UStringFault>, right:UStringFault):Bool {
+		if (left == null) return false;
+		return switch [left, right] {
+			case [InvalidCodePoint(a), InvalidCodePoint(b)]: a == b;
+			case _: false;
+		}
 	}
 
 	static function runSortChecks():Void {

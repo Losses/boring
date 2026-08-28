@@ -7,4 +7,4 @@
 -main Main
 -js out/haxe/tests.js
 -D analyzer-optimize
---macro Intercept.run(['samples', 'tests/haxe'], ['samples/boring/BinaryReader.hx', 'samples/boring/BinaryWriter.hx'])
+--macro Intercept.run(['samples', 'tests/haxe'], ['samples/boring/BinaryReader.hx', 'samples/boring/BinaryWriter.hx', 'tests/haxe/UStringRtOracle.hx'])
