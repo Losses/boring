@@ -1,0 +1,53 @@
+# Standard library spec 08: std.StringBuf
+
+## Scope
+
+This specification rules buffered string construction. The engine port audit
+carries eight string-building sites (diagnostic messages and joined labels)
+written against a mutable builder. The buffer holds mutable state, so each
+platform renders its native mutable string accumulator; the mechanism is the
+per-platform routing of `docs/specs/stdlib/06-std-modules.md`, the same
+pattern as `std.SortedMap` in `docs/specs/stdlib/07-sorted-keyed-tables.md`.
+
+## Contract
+
+- `new StringBuf()` creates an empty buffer.
+- `add(part:String):Void` appends a string.
+- `addChar(codeUnit:Int):Void` appends one UTF-16 code unit.
+- `get length():Int` returns the UTF-16 code-unit count of the current
+  content.
+- `toString():String` returns the current content; later `add` calls extend
+  the buffer and a later `toString` returns the extended content.
+
+## Haxe declarations and routing
+
+`samples/std/StringBuf.hx` declares the extern following the `SortedMap`
+pattern. The pipeline maps the module to the per-platform type below. On the
+haxe stage-1 side the extern resolves to the haxe standard library `StringBuf`,
+so the oracle is the haxe standard implementation.
+
+## Per-platform shapes
+
+- Rust: the buffer renders as `String`. `add` emits `push_str`. `addChar`
+  maps the code unit through `char::from_u32` with
+  `char::REPLACEMENT_CHARACTER` for an unpaired surrogate. `length` emits
+  `encode_utf16().count()`. `toString` emits `clone()`.
+- TypeScript: the buffer renders as a `string` variable accumulated with
+  `+=`. `addChar` emits `String.fromCharCode(codeUnit)`. `length` emits the
+  `.length` property. `toString` reads the variable. JavaScript engines
+  amortize string append through rope chains, and the haxe JavaScript target
+  lowers its own `StringBuf` to the same `+=` form, so the oracle and the
+  generated code share the mechanism.
+- Kotlin: the buffer renders as `StringBuilder`. `add` emits `append`.
+  `addChar` emits `append(codeUnit.toChar())`. `length` emits the `.length`
+  property. `toString` emits `toString()`.
+
+## Samples and tests
+
+A sample module builds strings by parts, appends a supplementary character as
+its two `addChar` surrogate code units, and asserts the content and the
+code-unit length. The four-side consistency run of
+`docs/specs/features/19-testing.md` compares the jsonl output. `tests/ts/`
+tree assertions pin the native forms: `push_str` on Rust, `+=` accumulation on
+TypeScript, `append` on Kotlin, with no builder call sites beyond the routed
+module.
