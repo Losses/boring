@@ -35,7 +35,7 @@ class RustType {
 					case "Bool": "bool";
 					case "Void": "()";
 					case "Null": "Option<" + of(params[0]) + ">";
-					case "std.ReadOnlyArray":
+					case "std.ReadOnlyArray" | "ReadOnlyArray":
 						isParam ? "&[" + of(params[0]) + "]" : "Vec<" + of(params[0]) + ">";
 					case "haxe.Int64":
 						"i64";
