@@ -490,7 +490,7 @@ class RustDecl {
 		final vis = f.field.isPublic ? "pub " : "";
 		final head = '    ${vis}fn ${snakeName}($args)$ret {';
 
-		final body = expr.functionBody(f);
+		final body = expr.functionBody(cls, f);
 		return [head].concat(body.map(l -> "    " + l)).concat(["    }"]);
 	}
 
@@ -586,7 +586,7 @@ class RustDecl {
 		final vis = (f.field.isPublic && !isTraitImpl) ? "pub " : "";
 		final head = '    ${vis}fn ${snakeName}($allArgs)$ret {';
 
-		final body = expr.functionBody(f);
+		final body = expr.functionBody(cls, f);
 		return [head].concat(body.map(l -> "    " + l)).concat(["    }"]);
 	}
 
@@ -683,7 +683,7 @@ class RustDecl {
 		}
 		final runnerName = desc != null ? id + ": " + desc : id;
 		final snake = RustImports.toSnakeCase(f.field.name);
-		final body = expr.functionBody(f);
+		final body = expr.functionBody(cls, f);
 		final indented = body.map(l -> "        " + l);
 		return [
 			"#[test]",
