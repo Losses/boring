@@ -31,7 +31,7 @@ class RecordOps {
 		return item.copy(active = newActive, name = newName);
 	}
 
-	public static function copyMultiple(item:ItemRecord, newId:Int, newName:String, newScore:Int, newActive:Bool):ItemRecord {
-		return item.copy(score = newScore, id = newId, active = newActive, name = newName);
+	public static function copyMultiple(item:ItemRecord, newId:Int, newName:String, newScore:Int):ItemRecord {
+		return item.copy(score = newScore, id = newId, name = newName);
 	}
 }

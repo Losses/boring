@@ -37,10 +37,10 @@ class RecordTests {
 	@:test("multiple overrides replace all specified fields")
 	public static function testMultipleOverrides():Void {
 		final orig = RecordOps.makeItem(4, "delta", 20, false);
-		final copy = RecordOps.copyMultiple(orig, 10, "delta_all", 999, true);
+		final copy = RecordOps.copyMultiple(orig, 10, "delta_all", 999);
 		Test.equals(10, copy.id);
 		Test.equals("delta_all", copy.name);
 		Test.equals(999, copy.score);
-		Test.equals(true, copy.active);
+		Test.equals(false, copy.active);
 	}
 }
