@@ -285,6 +285,15 @@ impl<V: Clone> SortedMapBuilder<V> {
         self.entries.push((key, idx, value.into()));
     }
 
+    pub fn get(&self, key: u32) -> Option<V> {
+        for entry in self.entries.iter().rev() {
+            if entry.0 == key {
+                return Some(entry.2.clone());
+            }
+        }
+        None
+    }
+
     pub fn build(mut self) -> SortedMap<V> {
         if self.entries.is_empty() {
             return SortedMap { keys: Vec::new(), values: Vec::new() };
@@ -382,6 +391,15 @@ impl<V: Clone> SortedMapStrBuilder<V> {
         self.entries.push((key.into(), idx, value));
     }
 
+    pub fn get(&self, key: &str) -> Option<V> {
+        for entry in self.entries.iter().rev() {
+            if compare_utf16_code_units(entry.0.as_str(), key) == std::cmp::Ordering::Equal {
+                return Some(entry.2.clone());
+            }
+        }
+        None
+    }
+
     pub fn build(mut self) -> SortedMapStr<V> {
         if self.entries.is_empty() {
             return SortedMapStr { keys: Vec::new(), values: Vec::new() };
@@ -470,6 +488,16 @@ impl<K: Clone, V: Clone> SortedMapByKeyBuilder<K, V> {
     pub fn put(&mut self, key: K, value: V) {
         let idx = self.entries.len();
         self.entries.push((key, idx, value));
+    }
+
+    pub fn get(&self, key: impl std::borrow::Borrow<K>) -> Option<V> {
+        let k = key.borrow();
+        for entry in self.entries.iter().rev() {
+            if (self.cmp)(&entry.0, k) == std::cmp::Ordering::Equal {
+                return Some(entry.2.clone());
+            }
+        }
+        None
     }
 
     pub fn build(mut self) -> SortedMapByKey<K, V> {

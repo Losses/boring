@@ -247,6 +247,15 @@ class SortedMapBuilder<V> {
         entries.add(Pair(key, value))
     }
 
+    fun get(key: Int): V? {
+        for (i in entries.indices.reversed()) {
+            if (entries[i].first == key) {
+                return entries[i].second
+            }
+        }
+        return null
+    }
+
     fun build(): SortedMap<V> {
         if (entries.isEmpty()) {
             return SortedMap(IntArray(0), emptyArray())
@@ -300,6 +309,15 @@ class SortedMapStrBuilder<V> {
 
     fun put(key: String, value: V) {
         entries.add(Pair(key, value))
+    }
+
+    fun get(key: String): V? {
+        for (i in entries.indices.reversed()) {
+            if (entries[i].first == key) {
+                return entries[i].second
+            }
+        }
+        return null
     }
 
     fun build(): SortedMapStr<V> {
@@ -387,6 +405,15 @@ class SortedMapObjBuilder<K, V>(private val comparator: (K, K) -> Int) {
 
     fun put(key: K, value: V) {
         entries.add(Pair(key, value))
+    }
+
+    fun get(key: K): V? {
+        for (i in entries.indices.reversed()) {
+            if (comparator(entries[i].first, key) == 0) {
+                return entries[i].second
+            }
+        }
+        return null
     }
 
     fun build(): SortedMapObj<K, V> {

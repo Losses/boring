@@ -72,6 +72,15 @@ export class SortedMapBuilder<V> {
     this.entries.push({ key, idx: this.entries.length, value });
   }
 
+  get(key: number): V | null {
+    for (let i = this.entries.length - 1; i >= 0; i -= 1) {
+      if (this.entries[i]!.key === key) {
+        return this.entries[i]!.value;
+      }
+    }
+    return null;
+  }
+
   build(): SortedMap<V> {
     if (this.entries.length === 0) {
       return new SortedMap<V>([], []);
@@ -256,6 +265,15 @@ export class SortedMapStrBuilder<V> {
 
   put(key: string, value: V): void {
     this.entries.push({ key, idx: this.entries.length, value });
+  }
+
+  get(key: string): V | null {
+    for (let i = this.entries.length - 1; i >= 0; i -= 1) {
+      if (this.entries[i]!.key === key) {
+        return this.entries[i]!.value;
+      }
+    }
+    return null;
   }
 
   build(): SortedMapStr<V> {
@@ -446,6 +464,15 @@ export class SortedMapByKeyBuilder<K, V> {
 
   put(key: K, value: V): void {
     this.entries.push({ key, idx: this.entries.length, value });
+  }
+
+  get(key: K): V | null {
+    for (let i = this.entries.length - 1; i >= 0; i -= 1) {
+      if (this.compare(this.entries[i]!.key, key) === 0) {
+        return this.entries[i]!.value;
+      }
+    }
+    return null;
   }
 
   build(): SortedMapByKey<K, V> {

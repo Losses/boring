@@ -702,7 +702,7 @@ class TsExpr {
 
 	function unop(e: TypedExpr, op: Unop, subj: TypedExpr): String {
 		final inner = expr(subj);
-		final wrapped = switch(subj.expr) {
+		final wrapped = switch(stripWrap(subj).expr) {
 			case TBinop(_, _, _): "(" + inner + ")";
 			case _: inner;
 		}
