@@ -181,6 +181,9 @@ class KotlinExpr {
 	/** Renders `Owner.Variant` or `Owner.Variant(args)` for an exception construction over its payload enum. */
 	function exceptionVariant(cls: ClassType, payloadArg: TypedExpr): String {
 		final owner = state.payloadEnumOwners.get(state.exceptionPayloads.get(cls.module));
+		// The variant renders as a member of the exception class, so a
+		// cross-package construction site needs the class import.
+		imports.requireType(cls.module, cls.name);
 		final arg = stripWrap(payloadArg);
 		switch(arg.expr) {
 			case TField(_, FEnum(_, ef)):
@@ -694,6 +697,11 @@ class KotlinExpr {
 			case "std.SortedSet":
 				imports.requireType("std.SortedSet", "SortedSet");
 				return "SortedSet." + name;
+			case "std.UStringRT":
+				final runtimePackage = RuntimeConfig.requireImportName("module std.UStringRT");
+				state.shimsUsed.set("std.UStringRT", true);
+				imports.require(runtimePackage + ".UString");
+				return "UString." + name;
 			case _:
 				if(cls.module == "std.Test") {
 					final runtimePackage = RuntimeConfig.requireImportName("module std.Test");
@@ -708,6 +716,12 @@ class KotlinExpr {
 				if(cls.module == "std.SortedSet") {
 					imports.requireType("std.SortedSet", "SortedSet");
 					return "SortedSet." + name;
+				}
+				if(cls.module == "std.UStringRT") {
+					final runtimePackage = RuntimeConfig.requireImportName("module std.UStringRT");
+					state.shimsUsed.set("std.UStringRT", true);
+					imports.require(runtimePackage + ".UString");
+					return "UString." + name;
 				}
 				imports.requireType(cls.module, cls.name);
 				return cls.name + "." + name;

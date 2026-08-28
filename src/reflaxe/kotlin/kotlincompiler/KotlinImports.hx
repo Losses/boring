@@ -21,6 +21,7 @@ class KotlinImports {
 		"std.SortedMapBuilder" => true,
 		"std.SortedSet" => true,
 		"std.SortedSetBuilder" => true,
+		"std.UStringRT" => true,
 	];
 
 	final selfPack: String;

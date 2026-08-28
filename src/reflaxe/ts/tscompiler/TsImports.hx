@@ -44,8 +44,29 @@ class TsImports {
 		return hasAnyKey(runtimeNames);
 	}
 
+	/**
+		Modules under `std.` that the runtime package provides. Every other
+		std module is a compiled file and imports like any other module.
+	**/
+	static final runtimeProvidedModules: Map<String, Bool> = [
+		"std.Functional" => true,
+		"std.ReadOnlyArray" => true,
+		"std.SortedMap" => true,
+		"std.SortedMapBuilder" => true,
+		"std.SortedMapByKey" => true,
+		"std.SortedMapByKeyBuilder" => true,
+		"std.SortedSet" => true,
+		"std.SortedSetBuilder" => true,
+		"std.SortedSetByKey" => true,
+		"std.SortedSetByKeyBuilder" => true,
+		"std.StringBuf" => true,
+		"std.Test" => true,
+		"std.UString" => true,
+		"std.UStringRT" => true,
+	];
+
 	function add(into: Map<String, Map<String, Bool>>, module: String, name: String): Void {
-		if(module == selfModule || module == "Math" || module == "String" || module == "Std" || StringTools.startsWith(module, "std.")) {
+		if(module == selfModule || module == "Math" || module == "String" || module == "Std" || runtimeProvidedModules.exists(module)) {
 			return;
 		}
 		if(!into.exists(module)) {

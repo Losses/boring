@@ -209,6 +209,7 @@ class Compiler extends PluginCompiler<Compiler> {
 		emitShim("std.Console", "console.rs", RustRuntime.CONSOLE_SOURCE);
 		emitShim("std.Process", "process.rs", RustRuntime.PROCESS_SOURCE);
 		emitShim("std.Test", "test.rs", RustRuntime.TEST_SOURCE);
+		emitShim("std.UStringRT", "ustring.rs", RustRuntime.USTRING_SOURCE);
 		if(state.shimsUsed.exists("std.SortedSet") || state.shimsUsed.exists("std.SortedSetBuilder")) {
 			state.shimsUsed.set("std.SortedSet", true);
 			state.shimsUsed.set("std.SortedMap", true);
@@ -227,6 +228,7 @@ class Compiler extends PluginCompiler<Compiler> {
 			if(state.shimsUsed.exists("std.Console")) runtimeMods.push("console");
 			if(state.shimsUsed.exists("std.Process")) runtimeMods.push("process");
 			if(state.shimsUsed.exists("std.Test")) runtimeMods.push("test");
+			if(state.shimsUsed.exists("std.UStringRT")) runtimeMods.push("ustring");
 			if(state.shimsUsed.exists("std.SortedMap") || state.shimsUsed.exists("std.SortedMapBuilder")) runtimeMods.push("sorted_map");
 			if(state.shimsUsed.exists("std.SortedSet") || state.shimsUsed.exists("std.SortedSetBuilder")) runtimeMods.push("sorted_set");
 			runtimeMods.sort(Reflect.compare);
@@ -586,6 +588,7 @@ class Compiler extends PluginCompiler<Compiler> {
 							case _:
 								if(o.name == "CountOverflow") {
 									state.overflowVariant = o.name;
+									state.countOverflowEnums.set(en.module, true);
 								}
 						}
 					}
@@ -606,6 +609,142 @@ class Compiler extends PluginCompiler<Compiler> {
 					}
 				case _:
 			}
+		}
+		scanFallibility(mtypes);
+	}
+
+	/**
+		Computes the fallibility of every function in source scope. Direct
+		throws and runtime-shim calls make a function fallible, and the
+		property then spreads to callers through call edges until nothing
+		changes. Each fallible function carries the error enum it can
+		produce, so Result-returning callers lower with the right error
+		type instead of a global assumption.
+	**/
+	function scanFallibility(mtypes: Array<haxe.macro.Type.ModuleType>): Void {
+		final fallible = new Map<String, Bool>();
+		final enumOf = new Map<String, {module: String, name: String}>();
+		final conflicts = new Map<String, Bool>();
+		final entries: Array<{key: String, edges: Array<String>}> = [];
+		function mergeEnum(key: String, pair: {module: String, name: String}): Bool {
+			final existing = enumOf.get(key);
+			if(existing == null) {
+				enumOf.set(key, pair);
+				return true;
+			}
+			if(existing.module != pair.module) {
+				conflicts.set(key, true);
+			}
+			return false;
+		}
+		for(mt in mtypes) {
+			switch(mt) {
+				case TClassDecl(c):
+					final cls = c.get();
+					if(cls.isExtern || isSyntheticImpl(cls.name) || !inSourceScope(cls.pos)) {
+						continue;
+					}
+					function scanField(field: haxe.macro.Type.ClassField, isStatic: Bool) {
+						switch(field.type) {
+							case TFun(_, _):
+								final body = field.expr();
+								if(body == null) return;
+								final key = RustEmissionState.funcKey(cls.module, field.name, isStatic);
+								final entry = {key: key, edges: new Array<String>()};
+								function walk(e: TypedExpr) {
+									switch(e.expr) {
+										case TThrow(t):
+											fallible.set(key, true);
+											final pair = thrownPayloadEnum(stripDecorations(t));
+											if(pair != null) {
+												mergeEnum(key, pair);
+											}
+										case TCall(fn, _):
+											switch(fn.expr) {
+												case TField(_, FInstance(cc, _, cf)):
+													final calleeName = cf.get().name;
+													if(RustEmissionState.runtimeShimIsFallible(calleeName)) {
+														fallible.set(key, true);
+														if(state.errorModule != null && state.errorName != null) {
+															mergeEnum(key, {module: state.errorModule, name: state.errorName});
+														}
+													} else {
+														entry.edges.push(RustEmissionState.funcKey(cc.get().module, calleeName, false));
+													}
+												case TField(_, FStatic(cc, cf)):
+													final calleeName = cf.get().name;
+													if(RustEmissionState.runtimeShimIsFallible(calleeName)) {
+														fallible.set(key, true);
+														if(state.errorModule != null && state.errorName != null) {
+															mergeEnum(key, {module: state.errorModule, name: state.errorName});
+														}
+													} else {
+														entry.edges.push(RustEmissionState.funcKey(cc.get().module, calleeName, true));
+													}
+												case _:
+											}
+										case _:
+									}
+									haxe.macro.TypedExprTools.iter(e, walk);
+								}
+								walk(body);
+								entries.push(entry);
+							case _:
+						}
+					}
+					for(field in cls.statics.get()) scanField(field, true);
+					for(field in cls.fields.get()) scanField(field, false);
+				case _:
+			}
+		}
+		var changed = true;
+		while(changed) {
+			changed = false;
+			for(entry in entries) {
+				for(edge in entry.edges) {
+					final edgeEnum = enumOf.get(edge);
+					if(edgeEnum == null) continue;
+					if(mergeEnum(entry.key, edgeEnum)) changed = true;
+					if(!fallible.exists(entry.key)) {
+						fallible.set(entry.key, true);
+						changed = true;
+					}
+				}
+			}
+		}
+		for(key in fallible.keys()) {
+			final pair = enumOf.get(key);
+			if(pair != null) {
+				state.funcErrorEnums.set(key, pair);
+			}
+		}
+		for(key in conflicts.keys()) {
+			state.funcEnumConflicts.set(key, true);
+		}
+	}
+
+	function stripDecorations(e: TypedExpr): TypedExpr {
+		return switch(e.expr) {
+			case TParenthesis(inner) | TCast(inner, _) | TMeta(_, inner): stripDecorations(inner);
+			case _: e;
+		}
+	}
+
+	function thrownPayloadEnum(thrown: TypedExpr): Null<{module: String, name: String}> {
+		return switch(thrown.expr) {
+			case TNew(c, _, args) if(args.length > 0 && state.exceptionPayloads.exists(c.get().module)):
+				switch(stripDecorations(args[0]).expr) {
+					case TField(_, FEnum(en, _)):
+						{module: en.get().module, name: en.get().name};
+					case TCall(fn, _):
+						switch(stripDecorations(fn).expr) {
+							case TField(_, FEnum(en, _)):
+								{module: en.get().module, name: en.get().name};
+							case _: null;
+						}
+					case _: null;
+				}
+			case _: null;
 		}
 	}
 

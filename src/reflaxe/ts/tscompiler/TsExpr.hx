@@ -857,6 +857,9 @@ class TsExpr {
 			case "std.SortedSet":
 				imports.runtime("SortedSet");
 				return "SortedSet." + name;
+			case "std.UStringRT":
+				imports.runtime("UString");
+				return "UString." + name;
 			case _:
 				if(cls.module == "std.Test") {
 					imports.runtime("Test");
@@ -869,6 +872,10 @@ class TsExpr {
 				if(cls.module == "std.SortedSet") {
 					imports.runtime("SortedSet");
 					return "SortedSet." + name;
+				}
+				if(cls.module == "std.UStringRT") {
+					imports.runtime("UString");
+					return "UString." + name;
 				}
 				for(field in cls.statics.get()) {
 					if(field.name == name && DataTableHelper.isDataTableField(field)) {

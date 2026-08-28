@@ -684,5 +684,79 @@ impl<K: Clone> SortedSetByKeyBuilder<K> {
     }
 }
 ';
+
+	/**
+		Runtime module behind std.UStringRT (docs/specs/stdlib/10-unicode-string-access.md).
+		Rust String storage is UTF-8, so the code-point walks delegate to chars
+		iteration; the domain checks live in the inline wrappers of std.UString
+		and never reach these functions.
+	**/
+	public static final USTRING_SOURCE = '
+// Character counts, indices, and code point values follow the shared Int
+// mapping of this target and arrive as u32; slice keeps i32 bounds because
+// negative bounds are part of its clamping contract.
+pub fn count(s: &str) -> u32 {
+    s.chars().count() as u32
+}
+
+pub fn at(s: &str, index: u32) -> Option<u32> {
+    let mut i: u32 = 0;
+    for c in s.chars() {
+        if i == index {
+            return Some(c as u32);
+        }
+        i += 1;
+    }
+    None
+}
+
+pub fn slice(s: &str, from: i32, to: i32) -> String {
+    let total = count(s) as i32;
+    let start = if from < 0 { 0 } else if from > total { total } else { from };
+    let end = if to > total { total } else if to < 0 { 0 } else { to };
+    if start >= end {
+        return String::new();
+    }
+    let byte_start = byte_index(s, start);
+    let byte_end = byte_index(s, end);
+    s[byte_start..byte_end].to_string()
+}
+
+fn byte_index(s: &str, char_index: i32) -> usize {
+    let mut remaining = char_index;
+    for (b, _) in s.char_indices() {
+        if remaining == 0 {
+            return b;
+        }
+        remaining -= 1;
+    }
+    s.len()
+}
+
+pub fn to_code_points(s: &str) -> Vec<u32> {
+    let mut out = Vec::new();
+    for c in s.chars() {
+        out.push(c as u32);
+    }
+    out
+}
+
+pub fn from_code_point(code: u32) -> String {
+    if let Some(c) = char::from_u32(code) {
+        return c.to_string();
+    }
+    String::new()
+}
+
+pub fn from_code_points(codes: &mut Vec<u32>) -> String {
+    let mut out = String::with_capacity(codes.len());
+    for &code in codes.iter() {
+        if let Some(c) = char::from_u32(code) {
+            out.push(c);
+        }
+    }
+    out
+}
+';
 }
 #end

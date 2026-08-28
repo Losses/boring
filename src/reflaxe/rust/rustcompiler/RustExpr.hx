@@ -29,6 +29,7 @@ class RustExpr {
 	final rangeLoopVars: Map<Int, Bool> = [];
 	final argTypes: Map<String, String> = [];
 	final paramVarIds: Map<Int, Bool> = [];
+	final unsignedLocals: Map<Int, Bool> = [];
 	var hiddenCounter: Int = 0;
 
 	public function new(imports: RustImports, types: RustType, state: RustEmissionState) {
@@ -56,14 +57,12 @@ class RustExpr {
 	public function setFallible(value: Bool, errorType: Null<String> = null, overflowVariant: Null<String> = null): Void {
 		this.isFallible = value;
 		this.errorTypeName = errorType != null ? errorType : state.errorName;
-		this.countOverflowVariant = overflowVariant != null ? overflowVariant : state.overflowVariant;
-		if(value && (this.errorTypeName == null || this.countOverflowVariant == null)) {
-			if(this.errorTypeName == null) {
-				Context.error("fallible operation requires an error enum, but none found in AST", Context.currentPos());
-			}
-			if(this.countOverflowVariant == null) {
-				Context.error("capacity expression requires a count overflow error variant, but none found in AST", Context.currentPos());
-			}
+		// The overflow variant belongs to the resolved error enum; a function
+		// owned by an enum without it reports the gap at the first capacity
+		// expression instead of borrowing a foreign variant here.
+		this.countOverflowVariant = overflowVariant;
+		if(value && this.errorTypeName == null) {
+			Context.error("fallible operation requires an error enum, but none found in AST", Context.currentPos());
 		}
 	}
 
@@ -94,6 +93,7 @@ class RustExpr {
 		PipelineExpander.expandRootExpr(f.expr);
 		currentMethodName = f.field.name;
 		paramVarIds.clear();
+		unsignedLocals.clear();
 		for(a in f.args) {
 			if(a.tvar != null) paramVarIds.set(a.tvar.id, true);
 		}
@@ -194,9 +194,17 @@ class RustExpr {
 	}
 
 	function exceptionVariant(cls: ClassType, payloadArg: TypedExpr): String {
-		final errType = state.errorName != null ? state.errorName : "";
-		imports.requireType(cls.module, errType);
+		// Name the payload enum from the thrown variant itself: each exception
+		// class pairs with exactly one payload enum, and the enum is emitted
+		// inside the exception class's module file.
 		final arg = stripWrap(payloadArg);
+		final payloadEnum = payloadEnumRef(arg);
+		final errType = payloadEnum != null ? payloadEnum.get().name : (state.errorName != null ? state.errorName : "");
+		final enumModule = payloadEnum != null ? payloadEnum.get().module : null;
+		final emittedIn = enumModule != null && state.payloadEnumModules.exists(enumModule)
+			? state.payloadEnumModules.get(enumModule)
+			: cls.module;
+		imports.requireType(emittedIn, errType);
 		switch(arg.expr) {
 			case TField(_, FEnum(_, ef)):
 				return errType + "::" + ef.name;
@@ -218,6 +226,18 @@ class RustExpr {
 			case _:
 		}
 		return errType + "::" + expr(payloadArg);
+	}
+
+	function payloadEnumRef(e: TypedExpr): Null<Ref<haxe.macro.Type.EnumType>> {
+		return switch(e.expr) {
+			case TField(_, FEnum(en, _)): en;
+			case TCall(fn, _):
+				switch(stripWrap(fn).expr) {
+					case TField(_, FEnum(en, _)): en;
+					case _: null;
+				}
+			case _: null;
+		};
 	}
 
 	function fuseUninitializedVars(stmts: Array<TypedExpr>): Array<TypedExpr> {
@@ -608,19 +628,31 @@ class RustExpr {
 						n == "Int" || n == "Bool" || n == "Float";
 					default: false;
 				};
-				final pattern = if(isScalar) {
-					final argType = switch(stripWrap(sliceSubj).expr) {
-						case TLocal(v): argTypes.get(v.name);
-						default: null;
+				final argType = switch(stripWrap(sliceSubj).expr) {
+					case TLocal(v): argTypes.get(v.name);
+					default: null;
 					};
-					final isMut = argType != null ? StringTools.startsWith(argType, "&mut") : (switch(Context.follow(sliceSubj.t)) {
-						case TInst(c, _) if(c.get().name == "Array"): true;
-						default: false;
-					});
-					isMut ? "&mut " + itemName : "&" + itemName;
+				// A scalar loop over an owned local array borrows the array: the
+				// pattern takes a reference and the array stays usable after the
+				// loop. Parameters already arrive as rendered references.
+				final ownedLocal = isScalar && argType == null;
+				final pattern = if(isScalar) {
+					if(argType != null) {
+						StringTools.startsWith(argType, "&mut") ? "&mut " + itemName : "&" + itemName;
+					} else {
+						"&" + itemName;
+					}
 				} else {
 					itemName;
 				};
+				final iterated = ownedLocal ? "&" + expr(sliceSubj) : expr(sliceSubj);
+				switch(Context.follow(itemVar.t)) {
+					case TAbstract(a, _) if(a.get().name == "Int"):
+						// Array elements reach Rust as u32; remember the loop binding
+						// so negative-domain checks lower as upper-bound checks.
+						unsignedLocals.set(itemVar.id, true);
+					case _:
+				}
 				final remainingBody = loop.body.slice(1);
 				final gb = matchGroupByBody(remainingBody);
 				if(gb != null) {
@@ -652,7 +684,7 @@ class RustExpr {
 					};
 					final valStr = renderPushArg(gb.valArg);
 					final out = [
-						indent(depth) + "for " + pattern + " in " + expr(sliceSubj) + " {"
+						indent(depth) + "for " + pattern + " in " + iterated + " {"
 					];
 					for(l in blockLines(gb.prefix, depth + 1)) out.push(l);
 					out.push(indent(depth + 1) + "let " + entryName + " = " + entryExprStr + ";");
@@ -667,7 +699,7 @@ class RustExpr {
 				}
 
 				final out = [
-					indent(depth) + "for " + pattern + " in " + expr(sliceSubj) + " {"
+					indent(depth) + "for " + pattern + " in " + iterated + " {"
 				];
 				for(l in blockLines(remainingBody, depth + 1)) out.push(l);
 				out.push(indent(depth) + "}");
@@ -887,11 +919,8 @@ class RustExpr {
 	}
 
 	function capacityExpr(bound: TypedExpr): String {
-		if(errorTypeName == null || countOverflowVariant == null) {
-			Context.error("cannot lower fallible capacity expression: missing error enum or overflow variant", bound.pos);
-			return "0";
-		}
-		final errVariant = errorTypeName + "::" + countOverflowVariant;
+		// Constant and length bounds cannot overflow; every other bound needs
+		// the overflow variant of the resolved error enum.
 		final inner = stripWrap(bound);
 		switch(inner.expr) {
 			case TConst(TInt(n)) if(n >= 0):
@@ -899,6 +928,11 @@ class RustExpr {
 			case TField(subj, fa) if(fieldName(fa) == "length"):
 				return expr(subj) + ".len()";
 			case _:
+				if(errorTypeName == null || countOverflowVariant == null) {
+					Context.error("cannot lower fallible capacity expression: missing error enum or overflow variant", bound.pos);
+					return "0";
+				}
+				final errVariant = errorTypeName + "::" + countOverflowVariant;
 				return "usize::try_from(" + expr(bound) + ").map_err(|_| " + errVariant + ")?";
 		}
 	}
@@ -1125,7 +1159,7 @@ class RustExpr {
 				return operand(l, op, false) + " & " + operand(r, op, true);
 			case OpUShr:
 				return "(" + operand(l, op, false) + " >> " + operand(r, op, true) + ")";
-			case OpLt if(isZero(r)):
+			case OpLt if(isZero(r) && isUnsignedOperand(l)):
 				return expr(l) + " > 2147483647";
 			case OpSub:
 				return operand(l, op, false) + " - " + operand(r, op, true);
@@ -1139,6 +1173,22 @@ class RustExpr {
 			case TConst(TInt(0)): true;
 			case _: false;
 		};
+	}
+
+	/**
+		Haxe Int reaches Rust as u32 for values and usize for byte positions, so
+		a negative-domain check can only be expressed as an upper-bound check on
+		those operands; signed operands keep the literal comparison.
+	**/
+	function isUnsignedOperand(e: TypedExpr): Bool {
+		return switch(stripWrap(e).expr) {
+			case TLocal(v): unsignedLocals.exists(v.id) || isUnsignedTypeName(argTypes.get(v.name));
+			case _: false;
+		};
+	}
+
+	function isUnsignedTypeName(n: Null<String>): Bool {
+		return n == "u16" || n == "u32" || n == "usize";
 	}
 
 	function operand(e: TypedExpr, parent: Binop, isRight: Bool): String {
@@ -1215,6 +1265,10 @@ class RustExpr {
 			case "std.SortedSet":
 				imports.requireType("std.SortedSet", "SortedSet");
 				return "SortedSet::" + RustImports.toSnakeCase(name);
+			case "std.UStringRT":
+				state.shimsUsed.set("std.UStringRT", true);
+				imports.require("crate::runtime::ustring");
+				return "ustring::" + RustImports.toSnakeCase(name);
 			case _:
 				if(cls.module == "std.Test") {
 					state.shimsUsed.set("std.Test", true);
@@ -1228,6 +1282,11 @@ class RustExpr {
 				if(cls.module == "std.SortedSet") {
 					imports.requireType("std.SortedSet", "SortedSet");
 					return "SortedSet::" + RustImports.toSnakeCase(name);
+				}
+				if(cls.module == "std.UStringRT") {
+					state.shimsUsed.set("std.UStringRT", true);
+					imports.require("crate::runtime::ustring");
+					return "ustring::" + RustImports.toSnakeCase(name);
 				}
 				for(field in cls.statics.get()) {
 					if(field.name == name && DataTableHelper.isDataTableField(field)) {
@@ -1292,7 +1351,7 @@ class RustExpr {
 		switch(fn.expr) {
 			case TField(subj, FDynamic(name)) if((name == "length" || name == "get_length") && isStringBuf(subj)):
 				return expr(subj) + ".encode_utf16().count() as u32";
-			case TField(subj, FInstance(_, _, cf)):
+			case TField(subj, FInstance(c, _, cf)):
 				final name = cf.get().name;
 				final snake = RustImports.toSnakeCase(name);
 				if(isStringBuf(subj)) {
@@ -1394,7 +1453,7 @@ class RustExpr {
 				if(name == "writeAscii") {
 					return expr(subj) + ".write_ascii(" + expr(args[0]) + ")";
 				}
-				final isMethodFallible = isFallibleMethod(name);
+				final isMethodFallible = isFallibleCallee(c, cf, false);
 				final q = isFallible ? (isMethodFallible ? "?" : "") : (isMethodFallible ? ".unwrap()" : "");
 				return expr(subj) + "." + snake + "(" + renderCallArgs(cf.get().type, args) + ")" + q;
 			case TField(_, FStatic(c, cf)):
@@ -1513,7 +1572,7 @@ class RustExpr {
 						return fnName + "(&" + expr(expectedArg) + ", &" + expr(actualArg) + ", " + msg + ")";
 					}
 				}
-				final isStaticFallible = isFallibleMethod(name);
+				final isStaticFallible = isFallibleCallee(c, cf, true);
 				final q = isFallible ? (isStaticFallible ? "?" : "") : (isStaticFallible ? ".unwrap()" : "");
 				return staticRef(cls, name) + "(" + renderCallArgs(cf.get().type, args) + ")" + q;
 			case TField(subj, FEnum(e, ef)):
@@ -1539,9 +1598,10 @@ class RustExpr {
 		}
 	}
 
-	function isFallibleMethod(name: String): Bool {
-		return name == "readU16" || name == "readU32" || name == "readF64" || name == "readAscii"
-			|| name == "ensureRemaining" || name == "decode" || name == "encode";
+	function isFallibleCallee(c: Ref<ClassType>, cf: Ref<ClassField>, isStatic: Bool): Bool {
+		final name = cf.get().name;
+		if(RustEmissionState.runtimeShimIsFallible(name)) return true;
+		return state.funcErrorEnums.exists(RustEmissionState.funcKey(c.get().module, name, isStatic));
 	}
 
 	function newExpr(c: Ref<ClassType>, params: Array<Type>, args: Array<TypedExpr>): String {
@@ -1624,9 +1684,26 @@ class RustExpr {
 
 	function scanLocals(e: TypedExpr): Void {
 		switch(e.expr) {
-			case TVar(v, _):
+			case TVar(v, init):
 				if(v.name != "`") {
 					usedNames.set(v.name, true);
+				}
+				if(init != null) {
+					// Wire reads and reader positions arrive as unsigned values;
+					// remember the locals so negative-domain checks lower as
+					// upper-bound checks.
+					switch(stripWrap(init).expr) {
+						case TCall(fn, _):
+							switch(fn.expr) {
+								case TField(_, FInstance(_, _, cf)) | TField(_, FStatic(_, cf)):
+									final n = cf.get().name;
+									if(n == "readU16" || n == "readU32" || n == "remaining" || n == "consumed") {
+										unsignedLocals.set(v.id, true);
+									}
+								case _:
+							}
+						case _:
+					}
 				}
 			case TBinop(OpAssign, t, _) | TBinop(OpAssignOp(_), t, _):
 				switch(t.expr) {
