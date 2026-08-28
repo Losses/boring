@@ -49,7 +49,9 @@ semantics beyond their contents.
 `samples/std/SortedMap.hx` and `samples/std/SortedSet.hx` declare the
 modules as externs in the established std pattern
 (`docs/specs/stdlib/06-std-modules.md`): builder construction, `put`,
-`build`, and the immutable read members. References route through each
+`get`, `build`, and the immutable read members. The builder's
+`get(key):Null<V>` reads its pending state and serves the group-by
+expansion of `docs/specs/macros/03-group-by-idiom.md`. References route through each
 target's import table into the runtime package, exactly as `std.Console`
 routes; neither the `std.` namespace nor a Haxe collection type appears
 in any output.
