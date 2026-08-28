@@ -46,7 +46,7 @@ class TsType {
 			case TInst(c, params):
 				final cls = c.get();
 				switch(pathOf(cls.pack, cls.name)) {
-					case "String": "string";
+					case "String" | "std.StringBuf" | "StringBuf": "string";
 					case "Array": of(params[0]) + "[]";
 					case "haxe.io.Bytes": "Uint8Array";
 					case "haxe.io.BytesBuffer":

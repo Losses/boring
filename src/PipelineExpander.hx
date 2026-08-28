@@ -28,6 +28,14 @@ class PipelineExpander {
 		}
 	}
 
+	static function stripWrap(e:TypedExpr):TypedExpr {
+		if (e == null) return null;
+		return switch (e.expr) {
+			case TParenthesis(inner) | TMeta(_, inner) | TCast(inner, _): stripWrap(inner);
+			default: e;
+		};
+	}
+
 	static function cleanSyntheticVars(e:TypedExpr, usedNames:Map<String, Bool>):Void {
 		if (e == null) return;
 		switch (e.expr) {
@@ -41,6 +49,30 @@ class PipelineExpander {
 							}
 							stmts.splice(i, 1);
 							continue;
+						case TVar(v, init) if (init == null):
+							var assignIdx = -1;
+							var rhsExpr:Null<TypedExpr> = null;
+							for (j in (i + 1)...stmts.length) {
+								switch (stripWrap(stmts[j]).expr) {
+									case TBinop(OpAssign, lhs, rhs):
+										switch (stripWrap(lhs).expr) {
+											case TLocal(assignedVar) if (assignedVar.id == v.id):
+												assignIdx = j;
+												rhsExpr = rhs;
+												break;
+											default:
+										}
+									default:
+								}
+								if (assignIdx != -1) break;
+							}
+							if (assignIdx != -1 && rhsExpr != null) {
+								stmts[i] = { expr: TVar(v, rhsExpr), pos: stmts[i].pos, t: stmts[i].t };
+								stmts.splice(assignIdx, 1);
+								cleanSyntheticVars(stmts[i], usedNames);
+								continue;
+							}
+							cleanSyntheticVars(stmts[i], usedNames);
 						default:
 							cleanSyntheticVars(stmts[i], usedNames);
 					}
@@ -511,13 +543,6 @@ class PipelineExpander {
 		};
 	}
 
-	static function stripWrap(e:TypedExpr):TypedExpr {
-		if (e == null) return null;
-		return switch (e.expr) {
-			case TParenthesis(inner) | TMeta(_, inner) | TCast(inner, _): stripWrap(inner);
-			default: e;
-		};
-	}
 
 	static function parseInlinedArrayMethod(e:TypedExpr):Null<PipelineCall> {
 		if (e == null) return null;

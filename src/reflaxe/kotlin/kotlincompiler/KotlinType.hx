@@ -48,6 +48,7 @@ class KotlinType {
 				final cls = c.get();
 				switch(pathOf(cls.pack, cls.name)) {
 					case "String": "String";
+					case "std.StringBuf" | "StringBuf": "StringBuilder";
 					case "Array":
 						"MutableList<" + of(params[0]) + ">";
 					case "haxe.io.Bytes": "ByteArray";

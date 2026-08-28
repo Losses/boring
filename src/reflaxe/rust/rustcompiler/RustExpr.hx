@@ -28,6 +28,7 @@ class RustExpr {
 	final hiddenNames: Map<Int, String> = [];
 	final rangeLoopVars: Map<Int, Bool> = [];
 	final argTypes: Map<String, String> = [];
+	final paramVarIds: Map<Int, Bool> = [];
 	var hiddenCounter: Int = 0;
 
 	public function new(imports: RustImports, types: RustType, state: RustEmissionState) {
@@ -91,6 +92,10 @@ class RustExpr {
 		}
 		PipelineExpander.expandRootExpr(f.expr);
 		currentMethodName = f.field.name;
+		paramVarIds.clear();
+		for(a in f.args) {
+			if(a.tvar != null) paramVarIds.set(a.tvar.id, true);
+		}
 		scanLocals(f.expr);
 		final lines = blockLines(statementsOf(f.expr), 2);
 		return lines;
@@ -214,7 +219,43 @@ class RustExpr {
 		return errType + "::" + expr(payloadArg);
 	}
 
+	function fuseUninitializedVars(stmts: Array<TypedExpr>): Array<TypedExpr> {
+		final out: Array<TypedExpr> = [];
+		var i = 0;
+		while(i < stmts.length) {
+			switch(stmts[i].expr) {
+				case TVar(v, init) if(init == null):
+					var assignIdx = -1;
+					var rhsExpr: Null<TypedExpr> = null;
+					for(j in (i + 1)...stmts.length) {
+						switch(stripCast(stmts[j]).expr) {
+							case TBinop(OpAssign, lhs, rhs):
+								switch(stripCast(lhs).expr) {
+									case TLocal(assignedVar) if(assignedVar.id == v.id):
+										assignIdx = j;
+										rhsExpr = rhs;
+									case _:
+								}
+							case _:
+						}
+						if(assignIdx != -1) break;
+					}
+					if(assignIdx != -1 && rhsExpr != null) {
+						out.push({ expr: TVar(v, rhsExpr), pos: stmts[i].pos, t: stmts[i].t });
+						stmts.splice(assignIdx, 1);
+						i++;
+						continue;
+					}
+				case _:
+			}
+			out.push(stmts[i]);
+			i++;
+		}
+		return out;
+	}
+
 	function blockLines(stmts: Array<TypedExpr>, depth: Int): Array<String> {
+		stmts = fuseUninitializedVars(stmts);
 		stmts = regroupLoops(stmts);
 		stmts = transformCountdownLoops(stmts);
 		final out: Array<String> = [];
@@ -934,7 +975,22 @@ class RustExpr {
 			case TObjectDecl(fields):
 				return objectLiteral(e, fields);
 			case TArrayDecl(elems):
-				return "vec![" + [for(x in elems) expr(x)].join(", ") + "]";
+				final isStringElem = switch(Context.follow(e.t)) {
+					case TInst(c, params) if(c.get().name == "Array" && params.length > 0 && isStringType(params[0])): true;
+					case _: false;
+				};
+				final rendered = [for(x in elems) {
+					if(isStringElem) {
+						switch(stripWrap(x).expr) {
+							case TConst(TString(_)): expr(x) + ".to_string()";
+							case TLocal(v) if(paramVarIds.exists(v.id)): expr(x) + ".to_string()";
+							case _: expr(x) + ".clone()";
+						}
+					} else {
+						expr(x);
+					}
+				}];
+				return "vec![" + rendered.join(", ") + "]";
 			case TCall(fn, args):
 				return call(fn, args);
 			case TNew(c, params, args):
@@ -947,6 +1003,11 @@ class RustExpr {
 				return expr(se) + "." + payloadName(ef, index);
 			case TEnumIndex(_):
 				return fail(e, "enum index only lowers inside a variant switch");
+			case TIf(c, t, f) if(f != null):
+				final condStr = switch(stripWrap(c).expr) {
+					case _: expr(stripWrap(c));
+				};
+				return "if " + condStr + " { " + expr(t) + " } else { " + expr(f) + " }";
 			case _:
 				return fail(e, "expression has no Rust lowering in the subset: " + Std.string(e.expr));
 		}
@@ -1110,12 +1171,18 @@ class RustExpr {
 			case FInstance(_, _, cf) | FAnon(cf):
 				final name = cf.get().name;
 				if(name == "length") {
+					if(isStringBuf(subj)) {
+						return expr(subj) + ".encode_utf16().count() as u32";
+					}
 					return expr(subj) + ".len()";
 				}
 				final snake = RustImports.toSnakeCase(name);
 				final subjStr = if(isNullType(subj.t)) expr(subj) + ".as_ref().unwrap()" else expr(subj);
 				return subjStr + "." + snake;
-			case FDynamic(_):
+			case FDynamic(name):
+				if((name == "length" || name == "get_length") && isStringBuf(subj)) {
+					return expr(subj) + ".encode_utf16().count() as u32";
+				}
 				return fail(subj, "dynamic field access has no lowering");
 			case FClosure(_):
 				return fail(subj, "closure has no lowering");
@@ -1217,9 +1284,32 @@ class RustExpr {
 		}
 		final renderedArgs = [for(a in args) expr(a)].join(", ");
 		switch(fn.expr) {
+			case TField(subj, FDynamic(name)) if((name == "length" || name == "get_length") && isStringBuf(subj)):
+				return expr(subj) + ".encode_utf16().count() as u32";
 			case TField(subj, FInstance(_, _, cf)):
 				final name = cf.get().name;
 				final snake = RustImports.toSnakeCase(name);
+				if(isStringBuf(subj)) {
+					if(name == "add") {
+						final arg = args[0];
+						final argStr = switch(arg.expr) {
+							case TConst(TString(_)): expr(arg);
+							case _:
+								final s = expr(arg);
+								if(StringTools.startsWith(s, "&")) s else "&" + s;
+						};
+						return expr(subj) + ".push_str(" + argStr + ")";
+					}
+					if(name == "addChar") {
+						return expr(subj) + ".push(char::from_u32(" + expr(args[0]) + ").unwrap_or(char::REPLACEMENT_CHARACTER))";
+					}
+					if(name == "toString") {
+						return expr(subj) + ".clone()";
+					}
+					if(name == "get_length" || name == "length") {
+						return expr(subj) + ".encode_utf16().count() as u32";
+					}
+				}
 				if(name == "get" && isBytes(stripCast(subj))) {
 					return expr(subj) + "[" + expr(args[0]) + "]";
 				}
@@ -1453,6 +1543,8 @@ class RustExpr {
 		final renderedArgs = [for(a in args) expr(a)].join(", ");
 		final path = cls.pack.length == 0 ? cls.name : cls.pack.join(".") + "." + cls.name;
 		switch(path) {
+			case "std.StringBuf" | "StringBuf":
+				return "String::new()";
 			case "haxe.io.BytesBuffer":
 				imports.requireType(path, "BytesBuffer");
 				return "BytesBuffer::new()";
@@ -1486,8 +1578,9 @@ class RustExpr {
 		final typeName = resolveTypeName(e.t);
 		final parts = [for(f in fields) {
 			final val = if(isStringType(f.expr.t)) {
-				switch(f.expr.expr) {
+				switch(stripWrap(f.expr).expr) {
 					case TConst(TString(_)): expr(f.expr) + ".to_string()";
+					case TLocal(v) if(paramVarIds.exists(v.id)): expr(f.expr) + ".to_string()";
 					case _: expr(f.expr) + ".clone()";
 				}
 			} else {
@@ -1540,7 +1633,8 @@ class RustExpr {
 						final n = cf.get().name;
 						if(n == "readU16" || n == "readU32" || n == "readF64" || n == "readAscii"
 							|| n == "writeU16" || n == "writeU32" || n == "writeF64" || n == "writeAscii"
-							|| n == "addByte" || n == "push" || n == "finish" || n == "put") {
+							|| n == "addByte" || n == "push" || n == "finish" || n == "put"
+							|| n == "add" || n == "addChar") {
 							switch(stripWrap(subj).expr) {
 								case TLocal(v): mutated.set(v.id, true);
 								case _:
@@ -1976,7 +2070,7 @@ class RustExpr {
 		function isUsizeExpr(e: TypedExpr): Bool {
 		if(e == null) return false;
 		return switch(stripWrap(e).expr) {
-			case TField(_, fa) if(fieldName(fa) == "length"): true;
+			case TField(subj, fa) if(fieldName(fa) == "length" || fieldName(fa) == "get_length"): !isStringBuf(subj);
 			default: false;
 		};
 	}
@@ -2136,6 +2230,16 @@ class RustExpr {
 		if(t == null) return false;
 		return switch(Context.follow(t)) {
 			case TAbstract(a, _): a.get().name == "Int";
+			case _: false;
+		};
+	}
+
+	function isStringBuf(e: TypedExpr): Bool {
+		if(e == null) return false;
+		return switch(Context.follow(e.t)) {
+			case TInst(c, _):
+				final cls = c.get();
+				(cls.pack.join(".") == "std" && cls.name == "StringBuf") || (cls.pack.length == 0 && cls.name == "StringBuf");
 			case _: false;
 		};
 	}

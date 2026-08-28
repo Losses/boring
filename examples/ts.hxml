@@ -36,3 +36,9 @@ boring.ClusterTags
 tests.SortedKeyDomainTests
 boring.PipelineOps
 tests.PipelineTests
+boring.RecordOps
+tests.RecordTests
+boring.StringBufOps
+tests.StringBufTests
+boring.ArithmeticOps
+tests.ArithmeticTests
