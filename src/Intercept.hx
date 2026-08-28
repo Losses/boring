@@ -33,6 +33,7 @@
  *   V14 DynamicCatch       catch variable typed Dynamic                  [pass 2]
  *   V15 EnumDefaultArm     switch over an enum with a default arm        [pass 2]
  *   V17 AssignArgExpression assignment expressions in call arguments     [pass 1]
+ *   V18 NonAsciiStringIndex index access to non-ascii string literals   [1+2]
  * V09 and V10 are schema-level checks on the FormatDef, not AST checks.
  */
 // Imports spell out every referenced type: module wildcards over
@@ -79,6 +80,22 @@ class Intercept {
 	/** Roots guarded by this run; only expressions under them are checked. */
 	static final roots:Array<String> = [];
 
+	/** String operations whose Rust lowering addresses bytes (V18). */
+	static final STRING_INDEX_CALLEES:Array<String> = [
+		"charCodeAt", "charAt", "codePointAt", "substring", "substr",
+		"indexOf", "lastIndexOf",
+	];
+
+	/** Fields initialized from a string literal, keyed class:field (V18). */
+	static var stringLiteralFields:Map<String, String> = new Map();
+
+	/** Fields that receive an assignment somewhere, keyed class:field (V18). */
+	static var reassignedFields:Map<String, Bool> = new Map();
+
+	/** Locals of the field body under walk initialized from a string
+	 * literal, keyed by TVar id (V18). */
+	static var localStringLiterals:Map<Int, String> = new Map();
+
 	/**
 	 * Files permitted to reference haxe.Int64 (V11): the FPHelper float
 	 * conversion paths that docs/specs/stdlib/05-haxe-int64.md sanctions.
@@ -124,18 +141,184 @@ class Intercept {
 				case FieldType.FVar(_, expression):
 					if (expression != null) {
 						walkSource(expression);
+						walkStringIndexSource(expression, [new Map<String, String>()]);
 					}
 				case FieldType.FProp(_, _, _, expression):
 					if (expression != null) {
 						walkSource(expression);
+						walkStringIndexSource(expression, [new Map<String, String>()]);
 					}
 				case FieldType.FFun(fun):
 					if (fun.expr != null) {
 						walkSource(fun.expr);
+						final parameterScope = new Map<String, String>();
+						for (argument in fun.args) {
+							parameterScope.set(argument.name, "");
+						}
+						walkStringIndexSource(fun.expr, [parameterScope]);
 					}
 			}
 		}
 		return fields;
+	}
+
+	/**
+	 * V18, call forms, pass 1. The typer expands the inline std String
+	 * methods (`charCodeAt` becomes an `HxOverrides.cca` call on the
+	 * JavaScript std), so the typed tree no longer carries these calls; the
+	 * untyped tree is the only layer where they survive every target. The
+	 * walker tracks block scopes and binds a name to its non-ascii literal
+	 * only when the declaration is final, so reassignment and shadowing by
+	 * any later declaration clear the binding. An empty string marks a
+	 * declared name with no non-ascii literal.
+	 */
+	static function walkStringIndexSource(e:Expr, scopes:Array<Map<String, String>>):Void {
+		if (e == null) {
+			return;
+		}
+		switch (e.expr) {
+			case ExprDef.EBlock(expressions):
+				scopes.push(new Map<String, String>());
+				for (child in expressions) {
+					walkStringIndexSource(child, scopes);
+				}
+				scopes.pop();
+			case ExprDef.EVars(vars):
+				final scope = scopes[scopes.length - 1];
+				for (variable in vars) {
+					final literal = variable.isFinal ? nonAsciiLiteralOf(variable.expr) : null;
+					scope.set(variable.name, literal == null ? "" : literal);
+				}
+				ExprTools.iter(e, (child:Expr) -> {
+					walkStringIndexSource(child, scopes);
+				});
+			case ExprDef.EFunction(_, func):
+				final scope = new Map<String, String>();
+				for (argument in func.args) {
+					scope.set(argument.name, "");
+				}
+				scopes.push(scope);
+				walkStringIndexSource(func.expr, scopes);
+				scopes.pop();
+			case ExprDef.EFor(iterator, body):
+				final scope = new Map<String, String>();
+				switch (iterator.expr) {
+					case ExprDef.EBinop(Binop.OpIn, element, _):
+						switch (element.expr) {
+							case ExprDef.EConst(Constant.CIdent(name)):
+								scope.set(name, "");
+							default:
+						}
+					default:
+				}
+				scopes.push(scope);
+				walkStringIndexSource(body, scopes);
+				scopes.pop();
+			case ExprDef.ETry(body, catches):
+				walkStringIndexSource(body, scopes);
+				for (catcher in catches) {
+					final scope = new Map<String, String>();
+					scope.set(catcher.name, "");
+					scopes.push(scope);
+					walkStringIndexSource(catcher.expr, scopes);
+					scopes.pop();
+				}
+			case ExprDef.ESwitch(_, cases, defaultExpression):
+				for (switchCase in cases) {
+					scopes.push(new Map<String, String>());
+					walkStringIndexSource(switchCase.expr, scopes);
+					scopes.pop();
+				}
+				if (defaultExpression != null) {
+					scopes.push(new Map<String, String>());
+					walkStringIndexSource(defaultExpression, scopes);
+					scopes.pop();
+				}
+			case ExprDef.ECall(callee, args):
+				checkStringIndexSourceCall(callee, args, scopes);
+				ExprTools.iter(e, (child:Expr) -> {
+					walkStringIndexSource(child, scopes);
+				});
+			default:
+				ExprTools.iter(e, (child:Expr) -> {
+					walkStringIndexSource(child, scopes);
+				});
+		}
+	}
+
+	static function checkStringIndexSourceCall(callee:Expr, args:Array<Expr>, scopes:Array<Map<String, String>>):Void {
+		switch (callee.expr) {
+			case ExprDef.EField(subject, field):
+				if (isStringIndexCallee(field)) {
+					final target = parenStripped(subject);
+					switch (target.expr) {
+						case ExprDef.EConst(Constant.CString(literal)):
+							if (!isAsciiOnly(literal)) {
+								violation("V18", "NonAsciiStringIndex",
+									"string index access requires ascii content: " + field, target.pos);
+							}
+						case ExprDef.EConst(Constant.CIdent(name)):
+							final literal = scopedNonAsciiLiteral(name, scopes);
+							if (literal != null) {
+								violation("V18", "NonAsciiStringIndex",
+									"string index access requires ascii content: " + field, target.pos);
+							}
+						default:
+					}
+				}
+				if (field == "fromCharCode") {
+					switch (subject.expr) {
+						case ExprDef.EConst(Constant.CIdent("String")):
+							if (args.length > 0) {
+								switch (args[0].expr) {
+									case ExprDef.EConst(Constant.CInt(value)):
+										final code = Std.parseInt(value);
+										if (code == null || code < 0 || code > 0xFF) {
+											violation("V18", "NonAsciiStringIndex",
+												"String.fromCharCode accepts wire bytes 0..255", args[0].pos);
+										}
+									default:
+								}
+							}
+						default:
+					}
+				}
+			default:
+		}
+	}
+
+	static function nonAsciiLiteralOf(init:Null<Expr>):Null<String> {
+		if (init == null) {
+			return null;
+		}
+		switch (init.expr) {
+			case ExprDef.EConst(Constant.CString(literal)):
+				return isAsciiOnly(literal) ? null : literal;
+			default:
+				return null;
+		}
+	}
+
+	static function scopedNonAsciiLiteral(name:String, scopes:Array<Map<String, String>>):Null<String> {
+		var depth = scopes.length - 1;
+		while (depth >= 0) {
+			final scope = scopes[depth];
+			if (scope.exists(name)) {
+				final literal = scope.get(name);
+				return literal.length > 0 ? literal : null;
+			}
+			depth--;
+		}
+		return null;
+	}
+
+	static function parenStripped(e:Expr):Expr {
+		switch (e.expr) {
+			case ExprDef.EParenthesis(inner):
+				return parenStripped(inner);
+			default:
+				return e;
+		}
 	}
 
 	static function walkSource(e:Expr):Void {
@@ -260,6 +443,21 @@ class Intercept {
 	 * expression of every guarded class.
 	 */
 	static function walkModules(modules:Array<haxe.macro.Type.ModuleType>):Void {
+		// Phase one records string literal field initializers and every
+		// field that receives an assignment, so the V18 subject resolution
+		// reads facts regardless of module order and skips mutable fields.
+		for (index in 0...modules.length) {
+			switch (modules[index]) {
+				case haxe.macro.Type.ModuleType.TClassDecl(classRef):
+					final classType = classRef.get();
+					if (!isGuarded(classType.pos)) {
+						continue;
+					}
+					recordFieldIndexFacts(classType, classType.fields.get());
+					recordFieldIndexFacts(classType, classType.statics.get());
+				default:
+			}
+		}
 		for (index in 0...modules.length) {
 			switch (modules[index]) {
 				case haxe.macro.Type.ModuleType.TClassDecl(classRef):
@@ -275,6 +473,27 @@ class Intercept {
 		}
 	}
 
+	static function recordFieldIndexFacts(classType:ClassType, fields:Array<ClassField>):Void {
+		for (index in 0...fields.length) {
+			final field = fields[index];
+			if (field.expr == null) {
+				continue;
+			}
+			final body = field.expr();
+			if (body == null) {
+				continue;
+			}
+			switch (body.expr) {
+				case TypedExprDef.TConst(TString(literal)):
+					if (isStringType(field.type)) {
+						stringLiteralFields.set(fieldKeyOf(classType, field.name), literal);
+					}
+				default:
+			}
+			collectIndexFacts(body, new Map<Int, String>(), new Map<Int, Bool>());
+		}
+	}
+
 	static function walkClassFields(classType:haxe.macro.Type.ClassType, fields:Array<ClassField>):Void {
 		for (index in 0...fields.length) {
 			final field = fields[index];
@@ -287,8 +506,66 @@ class Intercept {
 			}
 			DefaultArgExpander.completeRootExpr(classType, field.name, body);
 			PipelineExpander.expandRootExpr(body);
+			localStringLiterals = collectLocalStringLiterals(body);
 			walk(body, false);
 		}
+	}
+
+	/**
+	 * Collects the V18 resolution facts of one body: locals initialized from
+	 * a string literal, minus locals that receive an assignment anywhere in
+	 * the body. Field targets reached by assignment land in the shared
+	 * reassignedFields map, which phase one of walkModules seeds.
+	 */
+	static function collectIndexFacts(e:TypedExpr, literals:Map<Int, String>, reassignedLocals:Map<Int, Bool>):Void {
+		if (e == null) {
+			return;
+		}
+		switch (e.expr) {
+			case TypedExprDef.TVar(variable, init):
+				if (init != null) {
+					switch (init.expr) {
+						case TypedExprDef.TConst(TString(literal)):
+							if (isStringType(variable.t)) {
+								literals.set(variable.id, literal);
+							}
+						default:
+					}
+				}
+			case TypedExprDef.TBinop(binaryOperator, target, _):
+				switch (binaryOperator) {
+					case Binop.OpAssign | Binop.OpAssignOp(_):
+						switch (target.expr) {
+							case TypedExprDef.TLocal(variable):
+								reassignedLocals.set(variable.id, true);
+							case TypedExprDef.TField(_, FieldAccess.FStatic(classRef, fieldRef))
+								| TypedExprDef.TField(_, FieldAccess.FInstance(classRef, _, fieldRef)):
+								reassignedFields.set(fieldKeyOf(classRef.get(), fieldRef.get().name), true);
+							default:
+						}
+					default:
+				}
+			default:
+		}
+		haxe.macro.TypedExprTools.iter(e, (child:TypedExpr) -> {
+			collectIndexFacts(child, literals, reassignedLocals);
+		});
+	}
+
+	static function collectLocalStringLiterals(root:TypedExpr):Map<Int, String> {
+		final literals = new Map<Int, String>();
+		final reassignedLocals = new Map<Int, Bool>();
+		collectIndexFacts(root, literals, reassignedLocals);
+		for (key in literals.keys()) {
+			if (reassignedLocals.exists(key)) {
+				literals.remove(key);
+			}
+		}
+		return literals;
+	}
+
+	static function fieldKeyOf(classType:ClassType, fieldName:String):String {
+		return DefaultArgExpander.classKeyOf(classType) + ":" + fieldName;
 	}
 
 	static function isGuarded(position:Position):Bool {
@@ -386,6 +663,7 @@ class Intercept {
 		}
 		checkMapType(e);
 		checkInt64(e);
+		checkStringIndex(e);
 	}
 
 	static function walkChildren(e:TypedExpr, inLoop:Bool):Void {
@@ -490,6 +768,118 @@ class Intercept {
 				violation("V05", "DynamicValue",
 					"expression is typed Dynamic; the translatable subset declares types",
 					e.pos);
+			default:
+		}
+	}
+
+	/**
+	 * V18. The Rust runtime addresses String as UTF-8 bytes while the other
+	 * three sides address UTF-16 code units, so index operations carry an
+	 * ASCII-bounded contract. The check fires only on subjects that resolve
+	 * to a string literal, where non-ASCII content is a compile-time fact;
+	 * runtime-built strings stay under the consistency harness.
+	 */
+	static function checkStringIndex(e:TypedExpr):Void {
+		switch (e.expr) {
+			case TypedExprDef.TField(subj, fieldAccess):
+				if (fieldNameOf(fieldAccess) == "length" && isStringType(subj.t)) {
+					checkAsciiIndexSubject(subj, "length");
+				}
+			case TypedExprDef.TCall(callee, args):
+				switch (callee.expr) {
+					case TypedExprDef.TField(subj, fieldAccess):
+						final name = fieldNameOf(fieldAccess);
+						if (isStringIndexCallee(name) && isStringType(subj.t)) {
+							checkAsciiIndexSubject(subj, name);
+						}
+						if (isStringFromCharCode(fieldAccess) && args.length > 0) {
+							checkFromCharCodeArgument(args[0]);
+						}
+					default:
+				}
+			default:
+		}
+	}
+
+	static function fieldNameOf(fieldAccess:FieldAccess):Null<String> {
+		return switch (fieldAccess) {
+			case FieldAccess.FInstance(_, _, fieldRef) | FieldAccess.FAnon(fieldRef):
+				fieldRef.get().name;
+			case FieldAccess.FStatic(_, fieldRef) | FieldAccess.FClosure(_, fieldRef):
+				fieldRef.get().name;
+			case FieldAccess.FEnum(_, enumField):
+				enumField.name;
+			case FieldAccess.FDynamic(name):
+				name;
+		};
+	}
+
+	static function isStringIndexCallee(name:Null<String>):Bool {
+		if (name == null) {
+			return false;
+		}
+		return STRING_INDEX_CALLEES.indexOf(name) >= 0;
+	}
+
+	static function isStringType(t:Type):Bool {
+		return switch (t) {
+			case Type.TInst(classRef, _):
+				final classType = classRef.get();
+				classType.pack.length == 0 && classType.name == "String";
+			default:
+				false;
+		};
+	}
+
+	static function isStringFromCharCode(fieldAccess:FieldAccess):Bool {
+		return switch (fieldAccess) {
+			case FieldAccess.FStatic(classRef, fieldRef):
+				final classType = classRef.get();
+				classType.pack.length == 0 && classType.name == "String" && fieldRef.get().name == "fromCharCode";
+			default:
+				false;
+		};
+	}
+
+	static function checkAsciiIndexSubject(subj:TypedExpr, op:String):Void {
+		final literal = stringLiteralOf(subj);
+		if (literal != null && !isAsciiOnly(literal)) {
+			violation("V18", "NonAsciiStringIndex",
+				"string index access requires ascii content: " + op, subj.pos);
+		}
+	}
+
+	static function stringLiteralOf(subj:TypedExpr):Null<String> {
+		switch (subj.expr) {
+			case TypedExprDef.TConst(TString(literal)):
+				return literal;
+			case TypedExprDef.TLocal(variable):
+				return localStringLiterals.get(variable.id);
+			case TypedExprDef.TField(_, FieldAccess.FStatic(classRef, fieldRef))
+				| TypedExprDef.TField(_, FieldAccess.FInstance(classRef, _, fieldRef)):
+				final key = fieldKeyOf(classRef.get(), fieldRef.get().name);
+				return reassignedFields.exists(key) ? null : stringLiteralFields.get(key);
+			default:
+				return null;
+		}
+	}
+
+	static function isAsciiOnly(value:String):Bool {
+		for (index in 0...value.length) {
+			if (value.charCodeAt(index) > 0x7F) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	static function checkFromCharCodeArgument(arg:TypedExpr):Void {
+		switch (arg.expr) {
+			case TypedExprDef.TConst(TInt(code)):
+				if (code < 0 || code > 0xFF) {
+					violation("V18", "NonAsciiStringIndex",
+						"String.fromCharCode accepts wire bytes 0..255", arg.pos);
+				}
 			default:
 		}
 	}
