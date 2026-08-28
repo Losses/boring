@@ -25,7 +25,10 @@ other argument shape is rejected with the named error
 `record copy overrides assign fields by name only`. Each identifier must
 be a field of the receiver's structure type; an unknown name is rejected
 with the named error
-`record copy overrides fields of the receiver record only`.
+`record copy overrides fields of the receiver record only`. Naming one
+field twice is rejected with the named error
+`duplicate field in record copy override: <field>`; the silent
+last-wins reading is not sanctioned.
 
 Because the construct borrows the assignment-expression syntax, the style
 standard bans assignment expressions as call arguments everywhere else;
@@ -47,6 +50,11 @@ and each evaluates at most once.
 The product is an expression and composes in every expression position,
 so the position rule and mint naming of `macros/01` do not apply and the
 pipeline expansion pass holds no copy knowledge.
+
+On the Rust side the product literal constructs owned values: a
+string-typed field renders with `to_string` on literals and on
+parameters and with `clone` on other expressions, and the same rule
+applies to array literals of strings.
 
 ## Oracle standing
 

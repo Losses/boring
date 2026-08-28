@@ -26,12 +26,23 @@ pattern. The pipeline maps the module to the per-platform type below. On the
 haxe stage-1 side the extern resolves to the haxe standard library `StringBuf`,
 so the oracle is the haxe standard implementation.
 
+The haxe JavaScript `StringBuf` declares every member `inline`, so the
+compiled class carries a constructor but no prototype methods, and a
+direct class binding cannot serve dynamic extern calls. The stage-1
+runner therefore compiles a haxe wrapper class whose methods call the
+standard `StringBuf` operations; the haxe compiler inlines those
+operations into the wrapper bodies, and the bootstrap binds the wrapper
+constructor to `globalThis.std.StringBuf`. This follows the
+`FunctionalOracle` binding pattern, and no handwritten JavaScript
+implementation stands in for the standard library.
+
 ## Per-platform shapes
 
 - Rust: the buffer renders as `String`. `add` emits `push_str`. `addChar`
   maps the code unit through `char::from_u32` with
   `char::REPLACEMENT_CHARACTER` for an unpaired surrogate. `length` emits
-  `encode_utf16().count()`. `toString` emits `clone()`.
+  `encode_utf16().count()` cast to the `Int` domain, which renders as
+  `as u32`. `toString` emits `clone()`.
 - TypeScript: the buffer renders as a `string` variable accumulated with
   `+=`. `addChar` emits `String.fromCharCode(codeUnit)`. `length` emits the
   `.length` property. `toString` reads the variable. JavaScript engines
