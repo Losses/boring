@@ -651,67 +651,6 @@ export class SortedSetByKey<K> {
   }
 }
 
-export const UString = {
-  count(s: string): number {
-    let total = 0;
-    let i = 0;
-    while (i < s.length) {
-      const cp = s.codePointAt(i)!;
-      i += cp > 0xffff ? 2 : 1;
-      total += 1;
-    }
-    return total;
-  },
-  at(s: string, index: number): number | null {
-    if (index < 0) return null;
-    let remaining = index;
-    let i = 0;
-    while (i < s.length) {
-      const cp = s.codePointAt(i)!;
-      if (remaining === 0) return cp;
-      remaining -= 1;
-      i += cp > 0xffff ? 2 : 1;
-    }
-    return null;
-  },
-  slice(s: string, from: number, to: number): string {
-    const total = UString.count(s);
-    const start = from < 0 ? 0 : from > total ? total : from;
-    const end = to > total ? total : to < 0 ? 0 : to;
-    if (start >= end) return "";
-    let unitStart = 0;
-    let pos = 0;
-    let i = 0;
-    while (pos < end) {
-      if (pos === start) unitStart = i;
-      const cp = s.codePointAt(i)!;
-      i += cp > 0xffff ? 2 : 1;
-      pos += 1;
-    }
-    return s.substring(unitStart, i);
-  },
-  toCodePoints(s: string): number[] {
-    const out: number[] = [];
-    let i = 0;
-    while (i < s.length) {
-      const cp = s.codePointAt(i)!;
-      out.push(cp);
-      i += cp > 0xffff ? 2 : 1;
-    }
-    return out;
-  },
-  fromCodePoint(code: number): string {
-    return String.fromCodePoint(code);
-  },
-  fromCodePoints(codes: number[]): string {
-    let out = "";
-    for (let i = 0, len = codes.length; i < len; i += 1) {
-      out += String.fromCodePoint(codes[i]!);
-    }
-    return out;
-  },
-};
-
 ';
 
 	/**

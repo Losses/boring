@@ -16,6 +16,7 @@
 class RuntimeResidents {
 	/** Resident modules, in emission order. */
 	public static final MODULES: Array<String> = [
+		"runtime.UString",
 		"runtime.GraphemeWalk",
 		"runtime.Graphemes",
 	];
@@ -34,6 +35,7 @@ class RuntimeResidents {
 	 */
 	public static function externOf(module: String): Null<String> {
 		return switch(module) {
+			case "runtime.UString": "std.UStringRT";
 			case "runtime.Graphemes" | "runtime.GraphemeWalk": "std.Graphemes";
 			case _: null;
 		}

@@ -790,6 +790,26 @@ class KotlinExpr {
 			case TField(subj, FStatic(c, cf)):
 				final cls = c.get();
 				final name = cf.get().name;
+				if(cls.module == "std.UStringPlatform") {
+					// Cursor primitives of the resident UString walk, inlined
+					// per call: a cursor is a UTF-16 unit index here, so end
+					// is the unit length and codePointAt combines surrogate
+					// pairs. Business code never reaches these; it calls
+					// std.UString.
+					switch(name) {
+						case "end":
+							return expr(args[0]) + ".length";
+						case "codeAt":
+							return expr(args[0]) + ".codePointAt(" + expr(args[1]) + ")";
+						case "advance":
+							return "(" + expr(args[1]) + " + Character.charCount(" + expr(args[0]) + ".codePointAt(" + expr(args[1]) + ")))";
+						case "substringBetween":
+							return expr(args[0]) + ".substring(" + expr(args[1]) + ", " + expr(args[2]) + ")";
+						case "fromCodePoint":
+							return "String(Character.toChars(" + expr(args[0]) + "))";
+						case _:
+					}
+				}
 				if((cls.name == "Functional" || cls.name == "__functional_shim" || cls.module == "std.Functional" || cls.pack.join(".") + "." + cls.name == "std.Functional") && name == "sortedBy") {
 					final receiver = args[0];
 					final lambda = args[1];

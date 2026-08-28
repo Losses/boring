@@ -217,7 +217,6 @@ class Compiler extends PluginCompiler<Compiler> {
 		emitShim("std.Console", "console.rs", RustRuntime.CONSOLE_SOURCE);
 		emitShim("std.Process", "process.rs", RustRuntime.PROCESS_SOURCE);
 		emitShim("std.Test", "test.rs", RustRuntime.TEST_SOURCE);
-		emitShim("std.UStringRT", "ustring.rs", RustRuntime.USTRING_SOURCE);
 		if(state.shimsUsed.exists("std.SortedSet") || state.shimsUsed.exists("std.SortedSetBuilder")) {
 			state.shimsUsed.set("std.SortedSet", true);
 			state.shimsUsed.set("std.SortedMap", true);
@@ -236,7 +235,7 @@ class Compiler extends PluginCompiler<Compiler> {
 			if(state.shimsUsed.exists("std.Console")) runtimeMods.push("console");
 			if(state.shimsUsed.exists("std.Process")) runtimeMods.push("process");
 			if(state.shimsUsed.exists("std.Test")) runtimeMods.push("test");
-			if(state.shimsUsed.exists("std.UStringRT")) runtimeMods.push("ustring");
+			if(state.shimsUsed.exists("std.UStringRT")) runtimeMods.push("u_string");
 			if(state.shimsUsed.exists("std.Graphemes")) {
 				runtimeMods.push("graphemes");
 				runtimeMods.push("grapheme_walk");
@@ -581,7 +580,12 @@ class Compiler extends PluginCompiler<Compiler> {
 		final imports = decl.renderImports();
 		final body = moduleParts.join("\n\n");
 		final fileName = RustImports.toSnakeCase(moduleLeafName(module)) + ".rs";
-		final content = imports + (imports.length > 0 ? "\n" : "") + body + "\n";
+		// runtime.UString carries the business ABI adapters beside the
+		// compiled class: business callers reach the u32 free functions,
+		// resident callers reach the class itself, and one file holds the
+		// whole UString runtime.
+		final abiSource = module == "runtime.UString" ? "\n" + StringTools.trim(RustRuntime.USTRING_ABI_SOURCE) + "\n" : "";
+		final content = imports + (imports.length > 0 ? "\n" : "") + body + abiSource + "\n";
 		output.saveFile(RuntimeConfig.emitPath(dir, fileName), content);
 	}
 

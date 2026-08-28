@@ -926,6 +926,26 @@ class TsExpr {
 			case TField(subj, FStatic(c, cf)):
 				final cls = c.get();
 				final fName = cf.get().name;
+				if(cls.module == "std.UStringPlatform") {
+					// Cursor primitives of the resident UString walk, inlined
+					// per call: a cursor is a UTF-16 unit index here, so end
+					// is the unit length and codePointAt combines surrogate
+					// pairs. Business code never reaches these; it calls
+					// std.UString.
+					switch(fName) {
+						case "end":
+							return expr(args[0]) + ".length";
+						case "codeAt":
+							return expr(args[0]) + ".codePointAt(" + expr(args[1]) + ")!";
+						case "advance":
+							return "(" + expr(args[1]) + " + (" + expr(args[0]) + ".codePointAt(" + expr(args[1]) + ")! > 0xffff ? 2 : 1))";
+						case "substringBetween":
+							return expr(args[0]) + ".substring(" + expr(args[1]) + ", " + expr(args[2]) + ")";
+						case "fromCodePoint":
+							return "String.fromCodePoint(" + expr(args[0]) + ")";
+						case _:
+					}
+				}
 				if((cls.name == "Functional" || cls.name == "__functional_shim" || cls.module == "std.Functional" || cls.pack.join(".") + "." + cls.name == "std.Functional") && fName == "sortedBy") {
 					final receiver = args[0];
 					final lambda = args[1];

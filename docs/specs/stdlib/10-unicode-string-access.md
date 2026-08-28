@@ -76,29 +76,42 @@ pattern of `docs/specs/stdlib/06-std-modules.md`: the extern class with
 the six static functions, the fault enum, and the exception wrapper.
 References route through the target import tables into the runtime
 package exactly as `std.Console` routes; the `std.` namespace reaches no
-output. The stage-one oracle follows the wrapper binding of
-`docs/specs/stdlib/08-string-buffer.md`: the runner compiles a haxe
-implementation of the module outside the guarded paths, and the bootstrap
-binds it to `globalThis.std.UString`. The haxe implementation walks code
-units with the platform's own `charCodeAt`; the interception guards
-sample source, and the provided standard library sits outside the guard.
+output.
+
+The implementation is the resident module of
+`docs/plans/2026-08-28-runtime-unification.md` P5:
+`src/runtime/UString.hx`, the six operations as cursor loops.
+`samples/std/UStringPlatform.hx` declares the cursor primitives the walk
+uses: `end`, `codeAt`, `advance`, `substringBetween`, and
+`fromCodePoint`, each constant time in the cursor. A cursor addresses
+the storage the target iterates, UTF-16 unit indices on the script
+targets and stage one, byte offsets on Rust, so no target emulates
+another platform's storage inside the walk. Every target compiles
+`runtime.UString` through its normal pipeline into its runtime package;
+`RuntimeResidents` holds the module list and the extern mapping.
+Business code never calls `UStringPlatform`; a reference outside the
+resident module is a compile error, and business code reaches the walk
+through the `std.UString` wrappers as before.
 
 ## Per-platform shapes
 
-- Rust: `reference/rust-gen/src/runtime/ustring.rs`. `count` is
-  `chars().count()`. `at` is `chars().nth(index)` mapped through the
-  `Null<Int>` representation of features/04. `slice` walks to the
-  boundaries and collects the substring. `toCodePoints` maps `chars()` to
-  `u32`. `fromCodePoint` and `fromCodePoints` validate through
-  `char::from_u32` and raise the lowered fault on `None`.
-- TypeScript: the runtime package gains the six functions as
-  surrogate-aware unit walks reading `codePointAt` and advancing one or
-  two units per character.
-- Kotlin: the `KotlinRuntime` shims gain the same six functions in the
-  same walk shape, written over `charAt` unit reads, so the shim carries
-  no JVM-specific string API.
-- Stage-one haxe: the wrapper of the routing section, one implementation
-  of the same walk.
+- Rust: `u_string.rs` in the runtime package. The resident class renders
+  haxe Int as i32 with byte cursors, while business modules render u32,
+  so the file also carries the flat adapters the business ABI calls;
+  `Null<Int>` and `Array<Int>` results have no call-site cast machinery,
+  which is why the adapters exist. The `UStringPlatform` primitives
+  lower inline to `len`, `chars().next()`, `len_utf8`, byte slicing, and
+  `char::from_u32`.
+- TypeScript: `UString` appended to `runtime.ts` as the compiled
+  resident class. The primitives lower inline to `length`,
+  `codePointAt`, and `String.fromCodePoint`.
+- Kotlin: `UString.kt` in the runtime package. The primitives lower
+  inline to `length`, `codePointAt`, `Character.charCount`, and
+  `Character.toChars`.
+- Stage-one haxe: the compiled `runtime.UString` class bound to
+  `globalThis.std.UStringRT`, with `tests/haxe/UStringPlatform.hx`, the
+  UTF-16 cursor implementation, bound to
+  `globalThis.std.UStringPlatform`. No separate oracle remains.
 
 ## Samples and tests
 
