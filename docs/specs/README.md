@@ -94,4 +94,4 @@ Every candidate translation is evaluated across four fixed axes:
 
 ## Maintenance rule
 
-A translation decision changes only by editing its specification document in the same commit as the code implementing the change.
+A translation decision changes only by editing its specification document in the same commit as the code implementing the change. Every ruling additionally satisfies [design-principles.md](design-principles.md), which states the principles a ruling must uphold and the audit tests that review it.
