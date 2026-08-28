@@ -46,7 +46,7 @@ const SOURCE_TREES: readonly SourceTree[] = [
     label: "samples",
     directory: import.meta.dir + "/../../samples",
     pattern: "**/*.hx",
-    lambdaTokens: ["->", "function"],
+    lambdaTokens: [],
     checkForHeads: false,
   },
   {

@@ -250,9 +250,7 @@ class Intercept {
 			if (body == null) {
 				continue;
 			}
-			if (!isGuarded(body.pos)) {
-				continue;
-			}
+			PipelineExpander.expandRootExpr(body);
 			walk(body, false);
 		}
 	}
