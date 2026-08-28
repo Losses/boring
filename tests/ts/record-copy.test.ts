@@ -19,7 +19,7 @@ describe("record copy generated tree", () => {
     expect(content).toContain("return { id: item.id, name: newName, score: item.score, active: newActive };");
 
     // Multiple overrides fold into declaration order
-    expect(content).toContain("return { id: newId, name: newName, score: newScore, active: newActive };");
+    expect(content).toContain("return { id: newId, name: newName, score: newScore, active: item.active };");
   });
 
   test("Kotlin generated tree emits named constructor calls in declaration order", () => {
@@ -29,7 +29,7 @@ describe("record copy generated tree", () => {
 
     expect(content).toContain("return ItemRecord(id = item.id, name = item.name, score = newScore, active = item.active)");
     expect(content).toContain("return ItemRecord(id = item.id, name = newName, score = item.score, active = newActive)");
-    expect(content).toContain("return ItemRecord(id = newId, name = newName, score = newScore, active = newActive)");
+    expect(content).toContain("return ItemRecord(id = newId, name = newName, score = newScore, active = item.active)");
   });
 
   test("Rust generated tree emits struct instantiation in declaration order", () => {
@@ -39,6 +39,6 @@ describe("record copy generated tree", () => {
 
     expect(content).toContain("return ItemRecord { id: item.id, name: item.name.clone(), score: new_score, active: item.active };");
     expect(content).toContain("return ItemRecord { id: item.id, name: new_name.to_string(), score: item.score, active: new_active };");
-    expect(content).toContain("return ItemRecord { id: new_id, name: new_name.to_string(), score: new_score, active: new_active };");
+    expect(content).toContain("return ItemRecord { id: new_id, name: new_name.to_string(), score: new_score, active: item.active };");
   });
 });
