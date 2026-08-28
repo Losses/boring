@@ -351,16 +351,7 @@ class TestMain {
         };
         js.Syntax.code("globalThis.__test_shim = {0}", testObj);
         js.Syntax.code("globalThis.FunctionalOracle = {0}", FunctionalOracle);
-        js.Syntax.code("
-            if (typeof StringBuf !== \\\"undefined\\\") {
-                StringBuf.prototype.add = function(x) { this.b = (this.b !== undefined ? this.b : \\\"\\\") + (x === null ? \\\"null\\\" : x); };
-                StringBuf.prototype.addChar = function(c) { this.b = (this.b !== undefined ? this.b : \\\"\\\") + String.fromCharCode(c); };
-                StringBuf.prototype.toString = function() { return this.b !== undefined ? this.b : \\\"\\\"; };
-                StringBuf.prototype.get_length = function() { return (this.b !== undefined ? this.b : \\\"\\\").length; };
-                Object.defineProperty(StringBuf.prototype, \\\"length\\\", { get: function() { return this.get_length(); } });
-            }
-        ");
-        js.Syntax.code("globalThis.std = globalThis.std || {}; globalThis.std.StringBuf = {0};", StringBuf);
+        js.Syntax.code("globalThis.std = globalThis.std || {}; globalThis.std.StringBuf = {0};", StringBufOracle);
         js.Syntax.code("
             function jsCompare(a, b) {
                 if (a === b) return 0;
@@ -582,6 +573,31 @@ class FunctionalOracle {
 
     public static function flatMap<T, R>(arr:Array<T>, fn:(item:T) -> Iterable<Dynamic>):Dynamic {
         return Lambda.flatMap(arr, fn);
+    }
+}
+
+@:expose("StringBufOracle")
+class StringBufOracle {
+    var buf:StringBuf;
+
+    public function new() {
+        this.buf = new StringBuf();
+    }
+
+    public function add(part:String):Void {
+        this.buf.add(part);
+    }
+
+    public function addChar(codeUnit:Int):Void {
+        this.buf.addChar(codeUnit);
+    }
+
+    public function get_length():Int {
+        return this.buf.length;
+    }
+
+    public function toString():String {
+        return this.buf.toString();
     }
 }
 ';
