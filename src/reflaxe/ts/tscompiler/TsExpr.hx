@@ -971,6 +971,20 @@ class TsExpr {
 				if(name == "get" && isBytes(stripCast(subj))) {
 					return expr(subj) + "[" + expr(args[0]) + "]!";
 				}
+				if(name == "substring" && isStringSubject(subj)) {
+					// The haxe typer passes a synthesized null for an
+					// omitted ?endIndex; String.prototype.substring
+					// coerces that null to 0 and swaps the bounds, so
+					// the null argument is dropped and the platform
+					// one-argument overload carries the suffix call.
+					final endOmitted = args.length < 2 || switch(stripWrap(args[1]).expr) {
+						case TConst(TNull): true;
+						case _: false;
+					};
+					if(endOmitted) {
+						return expr(subj) + ".substring(" + expr(args[0]) + ")";
+					}
+				}
 				return expr(subj) + "." + name + "(" + rendered + ")";
 			case TField(subj, FStatic(c, cf)):
 				final cls = c.get();
@@ -1458,6 +1472,13 @@ class TsExpr {
 		return switch(e.expr) {
 			case TCast(inner, _): stripCast(inner);
 			case _: e;
+		}
+	}
+
+	function isStringSubject(e: TypedExpr): Bool {
+		return switch(Context.follow(stripCast(e).t)) {
+			case TInst(c, _): c.get().name == "String";
+			case _: false;
 		}
 	}
 

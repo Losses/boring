@@ -693,10 +693,50 @@ impl<K: Clone> SortedSetByKeyBuilder<K> {
 	**/
 	public static final USTRING_SOURCE = '
 // Character counts, indices, and code point values follow the shared Int
-// mapping of this target and arrive as u32; slice keeps i32 bounds because
-// negative bounds are part of its clamping contract.
+// mapping of this target and arrive as u32; slice and substring keep i32
+// bounds because negative bounds are part of their clamping contract.
 pub fn count(s: &str) -> u32 {
     s.chars().count() as u32
+}
+
+// substring keeps i32 bounds for the same clamping reason as slice:
+// negative bounds are part of the haxe substring contract.
+pub fn substring(s: &str, from: i32, to: i32) -> String {
+    let mut start = if from < 0 { 0u32 } else { from as u32 };
+    let mut end = if to < 0 { 0u32 } else { to as u32 };
+    if start > end {
+        let tmp = start;
+        start = end;
+        end = tmp;
+    }
+    let byte_start = unit_index(s, start, true);
+    let byte_end = unit_index(s, end, false);
+    s[byte_start..byte_end].to_string()
+}
+
+pub fn substring_from(s: &str, from: i32) -> String {
+    let start = if from < 0 { 0u32 } else { from as u32 };
+    s[unit_index(s, start, true)..].to_string()
+}
+
+// UTF-16 unit boundary to byte boundary, the index space of the haxe
+// substring contract. A bound that falls inside a surrogate pair moves
+// to the far side: `from` advances past the pair, `to` retreats before
+// it, so a Rust slice never splits a pair; the subset only produces
+// code-point-aligned bounds, where every target agrees.
+fn unit_index(s: &str, unit: u32, round_up: bool) -> usize {
+    let mut u: u32 = 0;
+    for (b, c) in s.char_indices() {
+        if u >= unit {
+            return b;
+        }
+        let w = c.len_utf16() as u32;
+        if u + w > unit {
+            return if round_up { b + c.len_utf8() } else { b };
+        }
+        u += w;
+    }
+    s.len()
 }
 
 pub fn at(s: &str, index: u32) -> Option<u32> {

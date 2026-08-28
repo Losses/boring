@@ -828,6 +828,19 @@ class KotlinExpr {
 				if(name == "charCodeAt" && isString(stripCast(subj))) {
 					return expr(subj) + "[" + expr(args[0]) + "].code";
 				}
+				if(name == "substring" && isString(stripCast(subj))) {
+					// The haxe typer passes a synthesized null for an
+					// omitted ?endIndex; the platform one-argument
+					// overload is the suffix call, so the null argument
+					// is dropped instead of rendered.
+					final endOmitted = args.length < 2 || switch(stripWrap(args[1]).expr) {
+						case TConst(TNull): true;
+						case _: false;
+					};
+					if(endOmitted) {
+						return expr(subj) + ".substring(" + expr(args[0]) + ")";
+					}
+				}
 				if(name == "push") {
 					return expr(subj) + ".add(" + renderedArgs + ")";
 				}
