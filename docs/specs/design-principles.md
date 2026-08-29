@@ -7,11 +7,7 @@ the principles a ruling must satisfy before it enters any specification. The
 principles exist because a ruling can pass the four judgment axes and still
 be wrong: it can solve a cross-target divergence by banning the divergent
 operation and leaving nothing in its place, and the ban reads as cheap on
-every axis. The string index ruling of 2026-08-28
-(`features/08-strings-and-unicode.md`, ASCII-bounded access with no
-replacement API) was that kind of error, found by review. These principles
-are the written form of that review, and they bind every ruling in this
-directory.
+every axis. These principles bind every ruling in this directory.
 
 ## Principles
 

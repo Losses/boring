@@ -4,8 +4,7 @@ import std.UStringPlatform;
 
 /**
 	Sorted keyed tables, the single source behind std.SortedMap and
-	std.SortedSet (docs/specs/stdlib/07-sorted-keyed-tables.md,
-	docs/plans/2026-08-28-runtime-unification.md P7). The immutable tables
+	std.SortedSet (docs/specs/stdlib/07-sorted-keyed-tables.md). The immutable tables
 	hold parallel arrays sorted by key; the builders accumulate puts and
 	apply the last-put-wins rule at build().
 

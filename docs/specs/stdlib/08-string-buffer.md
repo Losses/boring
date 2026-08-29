@@ -102,10 +102,5 @@ module.
 
 An unpaired surrogate half pair has one behavior on every target: the
 call that would create or observe it throws `std.UStringException`
-carrying `UnpairedSurrogate(unit)`. The earlier ruling, which lowered an
-unpaired unit to `char::REPLACEMENT_CHARACTER` on Rust while the other
-targets kept the unit, failed the content test of
-`docs/specs/design-principles.md` (the same input produced different
-string content per target) and is superseded (2026-08-28 audit,
-`docs/reviews/language-design-audit.md` F4). Samples feed half of a
+carrying `UnpairedSurrogate(unit)`. Samples feed half of a
 surrogate pair and assert the fault identity, never a message.

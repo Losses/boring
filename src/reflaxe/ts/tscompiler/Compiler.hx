@@ -211,7 +211,7 @@ class Compiler extends PluginCompiler<Compiler> {
 		if(emitDir != null && anyRuntimeUsed()) {
 			// Resident modules compile through the normal pipeline and
 			// append after the runtime source so runtime.ts stays one
-			// self-contained file (docs/plans/2026-08-28 P4). The
+			// self-contained file. The
 			// table arrives as the compiled data-table field of
 			// runtime.Graphemes, not a hand-wired render.
 			final residentParts: Array<String> = [];
@@ -225,7 +225,7 @@ class Compiler extends PluginCompiler<Compiler> {
 			if(anyRuntimeTestUsed()) {
 				// The test entry holds the host-file-system writer; the
 				// general entry stays free of node imports so a browser
-				// can load it (docs/plans/2026-08-28). Test residents
+				// can load it. Test residents
 				// compile through the normal pipeline and append here,
 				// the same self-contained shape as the general entry.
 				final testResidentParts: Array<String> = [];

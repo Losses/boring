@@ -5,8 +5,8 @@ import std.UStringPlatform;
 
 /**
 	Assertion checks and canonical failure formatting, the single source
-	behind the per-target test hosts (docs/specs/features/19-testing.md,
-	docs/plans/2026-08-28-runtime-unification.md P6). Each lane compiles
+	behind the per-target test hosts
+	(docs/specs/features/19-testing.md). Each lane compiles
 	this class into its test runtime package beside the host entry; the
 	hosts keep only the state the runner tracks, the raising behavior of
 	their language, and the result-file edge.

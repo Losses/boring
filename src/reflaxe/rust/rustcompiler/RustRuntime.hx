@@ -135,8 +135,8 @@ impl Process {
 
 	/**
 		Business ABI adapters appended to the compiled runtime.UString class
-		in u_string.rs (docs/specs/stdlib/10-unicode-string-access.md,
-		docs/plans/2026-08-28-runtime-unification.md P5). Business modules
+		in u_string.rs
+		(docs/specs/stdlib/10-unicode-string-access.md). Business modules
 		render haxe Int as u32 while the resident class renders i32, and
 		Null and Array results have no call-site cast machinery, so the
 		adapters cast once here. substring and its unit-to-byte helpers

@@ -173,20 +173,11 @@ The codec operates on glyph indices and Unicode scalar values where integer repr
 
 ## String index access ruling
 
-Added 2026-08-28 and replaced the same day by review. The three runtimes
-expose two index spaces on `String`: the TypeScript, Kotlin, and stage-one
-JavaScript runtimes address UTF-16 code units, and the Rust runtime
-addresses UTF-8 bytes (`String::len`, `as_bytes()[index]`). The two spaces
-and the values they return coincide for code points U+0000..U+007F and
-diverge everywhere else.
-
-The first form of this ruling bounded the storage-dependent operations to
-ASCII and offered no replacement path: it demanded that non-ASCII strings
-be consumed as code-point integers while banning every operation that
-reads a character out of a string. That fails the provision test
-(`design-principles.md`, T1) and leaves the subset unable to express CJK
-text processing. The ruling below replaces it, and
-`docs/specs/stdlib/10-unicode-string-access.md` is part of the same change.
+The three runtimes expose two index spaces on `String`: the TypeScript,
+Kotlin, and stage-one JavaScript runtimes address UTF-16 code units, and
+the Rust runtime addresses UTF-8 bytes (`String::len`,
+`as_bytes()[index]`). The two spaces and the values they return coincide
+for code points U+0000..U+007F and diverge everywhere else.
 
 1. **Meaning is over content.** `String.length`, `String.charCodeAt`,
    `String.charAt`, `codePointAt`, `substring`, `substr`, `indexOf`, and
@@ -211,9 +202,8 @@ text processing. The ruling below replaces it, and
    `StringTools.fromCharCode` constructs one UTF-16 code unit. The
    sanctioned replacements are `std.UString.at` and
    `std.UString.fromCodePoint`.
-6. **`String.substring` carries haxe positions on every target**
-   (added 2026-08-28, `docs/plans/2026-08-28-runtime-unification.md`
-   P3). `substring` is the one member of the character-operation list
+6. **`String.substring` carries haxe positions on every target.**
+   `substring` is the one member of the character-operation list
    with a lowering on all four targets, so it is permitted beyond the
    ASCII tier. TypeScript and Kotlin call the platform method; Rust
    lowers the call to `ustring::substring`, which converts UTF-16 unit

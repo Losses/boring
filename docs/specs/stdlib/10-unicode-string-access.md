@@ -78,8 +78,7 @@ References route through the target import tables into the runtime
 package exactly as `std.Console` routes; the `std.` namespace reaches no
 output.
 
-The implementation is the resident module of
-`docs/plans/2026-08-28-runtime-unification.md` P5:
+The implementation is the resident module
 `src/runtime/UString.hx`, the six operations as cursor loops.
 `samples/std/UStringPlatform.hx` declares the cursor primitives the walk
 uses: `end`, `codeAt`, `advance`, `substringBetween`, and

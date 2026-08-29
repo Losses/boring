@@ -4,8 +4,7 @@ import std.ReadOnlyArray;
 
 /**
 	Shared UAX #29 grapheme boundary walk over code points
-	(docs/specs/stdlib/11-grapheme-clusters.md,
-	docs/plans/2026-08-28-runtime-unification.md P4). This module and
+	(docs/specs/stdlib/11-grapheme-clusters.md). This module and
 	runtime.Graphemes are the single source of the walk: the compile-time
 	conformance gate, the stage-one oracle binding, and every transpiled
 	runtime execute this code.

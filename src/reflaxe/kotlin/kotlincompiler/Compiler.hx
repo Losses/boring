@@ -398,8 +398,7 @@ class Compiler extends PluginCompiler<Compiler> {
 		}
 		final runtimePackage = RuntimeConfig.requireImportName("module " + module);
 		// A subPackage lands the file in a nested package directory; the
-		// test entry uses this so the general entry stays browser-loadable
-		// (docs/plans/2026-08-28).
+		// test entry uses this so the general entry stays browser-loadable.
 		final pkg = subPackage.length > 0 ? runtimePackage + "." + subPackage : runtimePackage;
 		final path = RuntimeConfig.emitPath(dir, fileName);
 		output.saveFile(path, "package " + pkg + "\n\n" + StringTools.trim(source) + "\n");
