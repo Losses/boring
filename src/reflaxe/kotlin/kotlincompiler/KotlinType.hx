@@ -56,61 +56,36 @@ class KotlinType {
 						imports.requireType(cls.module, "BytesBuffer");
 						"BytesBuffer";
 					case "std.SortedMap":
-						switch(classifyKey(params[0])) {
-							case IntKey:
-								imports.requireType(cls.module, "SortedMap");
-								"SortedMap<" + of(params[1]) + ">";
-							case StringKey:
-								imports.requireType(cls.module, "SortedMapStr");
-								"SortedMapStr<" + of(params[1]) + ">";
-							case StructKey(def, _):
-								imports.requireType(cls.module, "SortedMapObj");
-								"SortedMapObj<" + of(params[0]) + ", " + of(params[1]) + ">";
-						}
+						imports.requireType(cls.module, "SortedMapTable");
+						"SortedMapTable<" + of(params[0]) + ", " + of(params[1]) + ">";
 					case "std.SortedMapBuilder":
-						switch(classifyKey(params[0])) {
-							case IntKey:
-								imports.requireType(cls.module, "SortedMapBuilder");
-								"SortedMapBuilder<" + of(params[1]) + ">";
-							case StringKey:
-								imports.requireType(cls.module, "SortedMapStrBuilder");
-								"SortedMapStrBuilder<" + of(params[1]) + ">";
-							case StructKey(def, _):
-								imports.requireType(cls.module, "SortedMapObjBuilder");
-								"SortedMapObjBuilder<" + of(params[0]) + ", " + of(params[1]) + ">";
-						}
+						imports.requireType(cls.module, "SortedMapTableBuilder");
+						"SortedMapTableBuilder<" + of(params[0]) + ", " + of(params[1]) + ">";
 					case "std.SortedSet":
-						switch(classifyKey(params[0])) {
-							case IntKey:
-								imports.requireType(cls.module, "SortedSet");
-								"SortedSet";
-							case StringKey:
-								imports.requireType(cls.module, "SortedSetStr");
-								"SortedSetStr";
-							case StructKey(def, _):
-								imports.requireType(cls.module, "SortedSetObj");
-								"SortedSetObj<" + of(params[0]) + ">";
-						}
+						imports.requireType(cls.module, "SortedSetTable");
+						"SortedSetTable<" + of(params[0]) + ">";
 					case "std.SortedSetBuilder":
-						switch(classifyKey(params[0])) {
-							case IntKey:
-								imports.requireType(cls.module, "SortedSetBuilder");
-								"SortedSetBuilder";
-							case StringKey:
-								imports.requireType(cls.module, "SortedSetStrBuilder");
-								"SortedSetStrBuilder";
-							case StructKey(def, _):
-								imports.requireType(cls.module, "SortedSetObjBuilder");
-								"SortedSetObjBuilder<" + of(params[0]) + ">";
-						}
+						imports.requireType(cls.module, "SortedSetTableBuilder");
+						"SortedSetTableBuilder<" + of(params[0]) + ">";
 					case _:
 						imports.requireType(cls.module, cls.name);
-						cls.name;
+						if(params.length > 0) {
+							cls.name + "<" + [for(p in params) of(p)].join(", ") + ">";
+						} else {
+							cls.name;
+						}
 				}
 			case TType(def, params):
 				final d = def.get();
 				if(d.pack.join(".") == "haxe.io" && d.name == "Bytes") {
 					"ByteArray";
+				} else if(RuntimeResidents.isResident(d.module)) {
+					// Resident typedefs name function types for the
+					// TypeScript alias; Kotlin carries no named-alias
+					// requirement, so the reference lowers to the
+					// underlying function type with the arguments
+					// applied at the reference site.
+					of(haxe.macro.TypeTools.applyTypeParameters(d.type, d.params, params));
 				} else if(params.length == 0) {
 					imports.requireType(d.module, d.name);
 					d.name;

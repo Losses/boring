@@ -130,6 +130,15 @@ class Compiler extends PluginCompiler<Compiler> {
 	}
 
 	public override function compileTypedef(def: DefType): Null<String> {
+		if(RuntimeResidents.isResident(def.module)) {
+			// Resident typedefs sit under src/runtime, outside the
+			// source scope, and lower to type aliases in the runtime
+			// file (TsDecl.functionTypeDecl).
+			final decl = contextFor(def.module);
+			final result = decl.functionTypeDecl(def);
+			parts.get(def.module).push(result);
+			return result;
+		}
 		if(!inSourceScope(def.pos)) {
 			return null;
 		}

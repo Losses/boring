@@ -26,6 +26,16 @@ class RustType {
 		if(t == null) {
 			return "()";
 		}
+		// A type parameter renders as its bare name; parameter
+		// positions borrow it, the same rule String follows. The
+		// generic runtime tables are the only source of these.
+		if(isTypeParam(t)) {
+			final name = switch(Context.follow(t)) {
+				case TInst(c, _): c.get().name;
+				case _: "";
+			};
+			return isParam ? "&" + name : name;
+		}
 		return switch(t) {
 			case TAbstract(a, params):
 				final abs = a.get();
@@ -59,62 +69,40 @@ class RustType {
 					case "haxe.io.BytesBuffer":
 						imports.requireType(cls.module, "BytesBuffer");
 						"BytesBuffer";
+					// The sorted externs lower onto the generic tables of
+					// the runtime.SortedTable resident on every key
+					// domain; the comparator bound at the builder site
+					// carries the domain (docs/specs/stdlib/07).
 					case "std.SortedMap":
-						switch(classifyKey(params[0])) {
-							case IntKey:
-								imports.requireType("std.SortedMap", "SortedMap");
-								"SortedMap<" + of(params[1]) + ">";
-							case StringKey:
-								imports.requireType("std.SortedMap", "SortedMapStr");
-								"SortedMapStr<" + of(params[1]) + ">";
-							case StructKey(def, _):
-								imports.requireType("std.SortedMap", "SortedMapByKey");
-								"SortedMapByKey<" + of(params[0]) + ", " + of(params[1]) + ">";
-						}
+						imports.requireType("std.SortedMap", "SortedMapTable");
+						"SortedMapTable<" + of(params[0]) + ", " + of(params[1]) + ">";
 					case "std.SortedMapBuilder":
-						switch(classifyKey(params[0])) {
-							case IntKey:
-								imports.requireType("std.SortedMapBuilder", "SortedMapBuilder");
-								"SortedMapBuilder<" + of(params[1]) + ">";
-							case StringKey:
-								imports.requireType("std.SortedMapBuilder", "SortedMapStrBuilder");
-								"SortedMapStrBuilder<" + of(params[1]) + ">";
-							case StructKey(def, _):
-								imports.requireType("std.SortedMapBuilder", "SortedMapByKeyBuilder");
-								"SortedMapByKeyBuilder<" + of(params[0]) + ", " + of(params[1]) + ">";
-						}
+						imports.requireType("std.SortedMapBuilder", "SortedMapTableBuilder");
+						"SortedMapTableBuilder<" + of(params[0]) + ", " + of(params[1]) + ">";
 					case "std.SortedSet":
-						switch(classifyKey(params[0])) {
-							case IntKey:
-								imports.requireType("std.SortedSet", "SortedSet");
-								"SortedSet";
-							case StringKey:
-								imports.requireType("std.SortedSet", "SortedSetStr");
-								"SortedSetStr";
-							case StructKey(def, _):
-								imports.requireType("std.SortedSet", "SortedSetByKey");
-								"SortedSetByKey<" + of(params[0]) + ">";
-						}
+						imports.requireType("std.SortedSet", "SortedSetTable");
+						"SortedSetTable<" + of(params[0]) + ">";
 					case "std.SortedSetBuilder":
-						switch(classifyKey(params[0])) {
-							case IntKey:
-								imports.requireType("std.SortedSetBuilder", "SortedSetBuilder");
-								"SortedSetBuilder";
-							case StringKey:
-								imports.requireType("std.SortedSetBuilder", "SortedSetStrBuilder");
-								"SortedSetStrBuilder";
-							case StructKey(def, _):
-								imports.requireType("std.SortedSetBuilder", "SortedSetByKeyBuilder");
-								"SortedSetByKeyBuilder<" + of(params[0]) + ">";
-						}
+						imports.requireType("std.SortedSetBuilder", "SortedSetTableBuilder");
+						"SortedSetTableBuilder<" + of(params[0]) + ">";
 					case _:
 						imports.requireType(cls.module, cls.name);
-						cls.name;
+						// Generic classes carry their type arguments; the
+						// resident runtime tables are the source of these.
+						params.length > 0
+							? cls.name + "<" + [for(p in params) of(p)].join(", ") + ">"
+							: cls.name;
 				}
 			case TType(def, params):
 				final d = def.get();
 				if(d.pack.join(".") == "haxe.io" && d.name == "Bytes") {
 					isParam ? "&[u8]" : "Vec<u8>";
+				} else if(RuntimeResidents.isResident(d.module)) {
+					// Resident typedefs name function types for the
+					// TypeScript alias; the Rust lane renders the
+					// underlying fn type with the reference-site
+					// arguments applied.
+					of(haxe.macro.TypeTools.applyTypeParameters(d.type, d.params, params));
 				} else if(params.length == 0) {
 					imports.requireType(d.module, d.name);
 					d.name;
@@ -126,7 +114,7 @@ class RustType {
 				imports.requireType(en.module, en.name);
 				en.name;
 			case TFun(args, ret):
-				"(" + [for(arg in args) of(arg.t, true)].join(", ") + ") -> " + of(ret, false);
+				"fn(" + [for(arg in args) of(arg.t, true)].join(", ") + ") -> " + of(ret, false);
 			case TAnonymous(_):
 				Context.error("anonymous structure types must be named typedefs before translation", Context.currentPos());
 				null;
@@ -172,6 +160,27 @@ class RustType {
 				Context.error("sorted keyed tables support Int, String, and structure keys in this implementation", p);
 				IntKey;
 		}
+	}
+
+	public static function isTypeParam(t: Null<Type>): Bool {
+		if(t == null) {
+			return false;
+		}
+		// Null<X> wraps X; Context.follow would strip the wrapper and
+		// misreport the wrapped type as the parameter itself.
+		switch(t) {
+			case TAbstract(a, _) if(a.get().name == "Null"):
+				return false;
+			case _:
+		}
+		return switch(Context.follow(t)) {
+			case TInst(c, _):
+				switch(c.get().kind) {
+					case KTypeParameter(_): true;
+					case _: false;
+				}
+			case _: false;
+		};
 	}
 
 	static function validateStructDef(def: DefType, pos: haxe.macro.Expr.Position, visited: Array<String>): Array<ClassField> {

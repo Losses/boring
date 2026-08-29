@@ -852,11 +852,13 @@ class TsExpr {
 				imports.runtimeTest("Test");
 				return "Test." + name;
 			case "std.SortedMap":
-				imports.runtime("SortedMap");
-				return "SortedMap." + name;
+				// The sorted resident owns the factory functions; the
+				// extern's `builder` maps onto the map flavor.
+				imports.runtime("SortedTable");
+				return "SortedTable." + (name == "builder" ? "mapBuilder" : name);
 			case "std.SortedSet":
-				imports.runtime("SortedSet");
-				return "SortedSet." + name;
+				imports.runtime("SortedTable");
+				return "SortedTable." + (name == "builder" ? "setBuilder" : name);
 			case "std.UStringRT":
 				imports.runtime("UString");
 				return "UString." + name;
@@ -869,12 +871,12 @@ class TsExpr {
 					return "Test." + name;
 				}
 				if(cls.module == "std.SortedMap") {
-					imports.runtime("SortedMap");
-					return "SortedMap." + name;
+					imports.runtime("SortedTable");
+					return "SortedTable." + (name == "builder" ? "mapBuilder" : name);
 				}
 				if(cls.module == "std.SortedSet") {
-					imports.runtime("SortedSet");
-					return "SortedSet." + name;
+					imports.runtime("SortedTable");
+					return "SortedTable." + (name == "builder" ? "setBuilder" : name);
 				}
 				if(cls.module == "std.UStringRT") {
 					imports.runtime("UString");
@@ -1032,48 +1034,12 @@ class TsExpr {
 				final fName = cf.get().name;
 		
 				if((cls.module == "std.SortedMap" || cls.pack.join(".") + "." + cls.name == "std.SortedMap") && fName == "builder") {
-					final kType = switch(fn.t) {
-						case TFun(_, TInst(_, params)) if(params.length > 0): params[0];
-						case _: null;
-					};
-					final vType = switch(fn.t) {
-						case TFun(_, TInst(_, params)) if(params.length > 1): params[1];
-						case _: null;
-					};
-					final domain = TsType.classifyKey(kType, fn.pos);
-					switch(domain) {
-						case IntKey:
-							imports.runtime("SortedMap");
-							return "SortedMap.builder<" + types.of(vType) + ">()";
-						case StringKey:
-							imports.runtime("SortedMapStr");
-							return "SortedMapStr.builder<" + types.of(vType) + ">()";
-						case StructKey(def, _):
-							imports.runtime("SortedMapByKey");
-							final cmpName = "compare" + def.name;
-							imports.value(def.module, cmpName);
-							return "SortedMapByKey.builder<" + types.of(kType) + ", " + types.of(vType) + ">(" + cmpName + ")";
-					}
+					// Explicit type arguments: the annotated Haxe local
+					// does not reach the emitted declaration.
+					return "SortedTable.mapBuilder<" + types.of(kTypeOf(fn)) + ", " + types.of(vTypeOf(fn)) + ">(" + sortedComparator(kTypeOf(fn), fn.pos) + ")";
 				}
 				if((cls.module == "std.SortedSet" || cls.pack.join(".") + "." + cls.name == "std.SortedSet") && fName == "builder") {
-					final kType = switch(fn.t) {
-						case TFun(_, TInst(_, params)) if(params.length > 0): params[0];
-						case _: null;
-					};
-					final domain = TsType.classifyKey(kType, fn.pos);
-					switch(domain) {
-						case IntKey:
-							imports.runtime("SortedSet");
-							return "SortedSet.builder()";
-						case StringKey:
-							imports.runtime("SortedSetStr");
-							return "SortedSetStr.builder()";
-						case StructKey(def, _):
-							imports.runtime("SortedSetByKey");
-							final cmpName = "compare" + def.name;
-							imports.value(def.module, cmpName);
-							return "SortedSetByKey.builder<" + types.of(kType) + ">(" + cmpName + ")";
-					}
+					return "SortedTable.setBuilder<" + types.of(kTypeOf(fn)) + ">(" + sortedComparator(kTypeOf(fn), fn.pos) + ")";
 				}
 				return staticRef(c.get(), cf.get().name) + "(" + rendered + ")";
 			case TField(_, FEnum(_, ef)):
@@ -1083,6 +1049,43 @@ class TsExpr {
 			case _:
 				return expr(fn) + "(" + rendered + ")";
 		}
+	}
+
+	/** The key type argument of a sorted builder factory call. */
+	function kTypeOf(fn: TypedExpr): Null<Type> {
+		return switch(fn.t) {
+			case TFun(_, TInst(_, params)) if(params.length > 0): params[0];
+			case _: null;
+		};
+	}
+
+	/** The value type argument of a sorted map builder factory call. */
+	function vTypeOf(fn: TypedExpr): Null<Type> {
+		return switch(fn.t) {
+			case TFun(_, TInst(_, params)) if(params.length > 1): params[1];
+			case _: null;
+		};
+	}
+
+	/**
+		The comparator a sorted builder binds at creation, per key domain
+		(stdlib/07): integers take the resident comparator, strings
+		compare with the platform operator (the ruled UTF-16 code-unit
+		order), structures take the per-type generated comparison.
+	**/
+	function sortedComparator(kType: Null<Type>, pos: haxe.macro.Expr.Position): String {
+		if(kType == null) {
+			Context.error("sorted builder requires an explicit key type", pos);
+		}
+		imports.runtime("SortedTable");
+		return switch(TsType.classifyKey(kType, pos)) {
+			case IntKey: "SortedTable.compareInts";
+			case StringKey: "SortedTable.compareStrings";
+			case StructKey(def, _):
+				final cmpName = "compare" + def.name;
+				imports.value(def.module, cmpName);
+				cmpName;
+		};
 	}
 
 	/** stdlib/04 ConstantAsciiFold: writeAscii of a width-4 or width-2 ASCII constant packs into one word write. */

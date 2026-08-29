@@ -23,6 +23,7 @@ class RuntimeResidents {
 		"runtime.UString",
 		"runtime.GraphemeWalk",
 		"runtime.Graphemes",
+		"runtime.SortedTable",
 	];
 
 	/** Resident modules of the test runtime, in emission order. */
@@ -41,33 +42,36 @@ class RuntimeResidents {
 	}
 
 	/**
-	 * The business extern that fronts one resident module. Business code
-	 * never names the resident module; it calls the extern, and the lanes
-	 * route the call into the compiled runtime module. Modules that no
+	 * The business externs that front one resident module. Business code
+	 * never names the resident module; it calls the externs, and the lanes
+	 * route the calls into the compiled runtime module. Modules that no
 	 * extern names directly still report the extern of their set: the
-	 * walk ships with the cluster tier that references it.
+	 * walk ships with the cluster tier that references it. One resident
+	 * set can serve several externs: the sorted tables back the map and
+	 * set faces together with their builder externs.
 	 */
-	public static function externOf(module: String): Null<String> {
+	public static function externsOf(module: String): Array<String> {
 		return switch(module) {
-			case "runtime.UString": "std.UStringRT";
-			case "runtime.Graphemes" | "runtime.GraphemeWalk": "std.Graphemes";
-			case "runtime.TestCore": "std.Test";
-			case _: null;
+			case "runtime.UString": ["std.UStringRT"];
+			case "runtime.Graphemes" | "runtime.GraphemeWalk": ["std.Graphemes"];
+			case "runtime.SortedTable": ["std.SortedMap", "std.SortedMapBuilder", "std.SortedSet", "std.SortedSetBuilder"];
+			case "runtime.TestCore": ["std.Test"];
+			case _: [];
 		}
 	}
 
 	/**
 	 * Whether calls into this module follow the resident ABI on Rust:
 	 * Int arguments cast to i32 and Int results cast back to u32 at
-	 * non-resident call sites. Both the resident module and its extern
-	 * module share the ABI.
+	 * non-resident call sites. The resident module and its extern
+	 * modules share the ABI.
 	 */
 	public static function isResidentAbi(module: String): Bool {
 		if(isResident(module)) {
 			return true;
 		}
 		for(resident in MODULES.concat(TEST_MODULES)) {
-			if(externOf(resident) == module) {
+			if(externsOf(resident).indexOf(module) >= 0) {
 				return true;
 			}
 		}

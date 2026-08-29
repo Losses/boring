@@ -19,6 +19,14 @@ class RustImports {
 		"std.UStringRT" => true,
 	];
 
+	/** Resident table class behind each sorted extern (runtime.SortedTable). */
+	static final SORTED_TABLE_CLASSES: Map<String, String> = [
+		"std.SortedMap" => "SortedMapTable",
+		"std.SortedMapBuilder" => "SortedMapTableBuilder",
+		"std.SortedSet" => "SortedSetTable",
+		"std.SortedSetBuilder" => "SortedSetTableBuilder",
+	];
+
 	public final selfModule: String;
 	final state: RustEmissionState;
 	final imports: Map<String, Bool> = [];
@@ -36,14 +44,19 @@ class RustImports {
 		if(module == "Std" || module == "Math" || module == "String") {
 			return;
 		}
+		// The sorted externs front the runtime.SortedTable resident: the
+		// table classes live in one module under their resident names.
+		final sortedClass = SORTED_TABLE_CLASSES.get(module);
+		if(sortedClass != null) {
+			final runtimePackage = RuntimeConfig.requireImportName("module " + module);
+			state.shimsUsed.set(module, true);
+			require(runtimePackage + "::sorted_table::" + sortedClass);
+			return;
+		}
 		if(SHIM_MODULES.exists(module)) {
 			final runtimePackage = RuntimeConfig.requireImportName("module " + module);
 			state.shimsUsed.set(module, true);
-			final modName = if(module == "std.SortedMap" || module == "std.SortedMapBuilder") {
-				"sorted_map";
-			} else if(module == "std.SortedSet" || module == "std.SortedSetBuilder") {
-				"sorted_set";
-			} else if(module == "std.UStringRT") {
+			final modName = if(module == "std.UStringRT") {
 				"ustring";
 			} else {
 				toSnakeCase(name);

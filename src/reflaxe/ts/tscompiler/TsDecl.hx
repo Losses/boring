@@ -101,7 +101,8 @@ class TsDecl {
 
 		final lines: Array<String> = [];
 		final ifaceStr = cls.interfaces.length > 0 ? " implements " + [for(i in cls.interfaces) i.t.get().name].join(", ") : "";
-		lines.push('export class ${cls.name}' + (isException(cls) ? " extends Error" : "") + ifaceStr + " {");
+		final classParams = cls.params.length > 0 ? "<" + [for(p in cls.params) p.name].join(", ") + ">" : "";
+		lines.push('export class ${cls.name}$classParams' + (isException(cls) ? " extends Error" : "") + ifaceStr + " {");
 
 		for(v in varFields) {
 			for(l in varDecl(v)) lines.push(l);
@@ -222,8 +223,58 @@ class TsDecl {
 		final body = decodeBoundaryBody(cls, f);
 		final vis = f.field.isPublic ? "public" : "private";
 		final stat = f.isStatic ? "static " : "";
-		final head = '  $vis ${stat}${f.field.name}($args): $ret {';
+		// A method's own type parameters (the resident builders'
+		// factory functions) render as method generics; the class's own
+		// parameters stay in the class header only.
+		final methodParams = collectMethodTypeParams(cls, f);
+		final genericStr = methodParams.length > 0 ? "<" + methodParams.join(", ") + ">" : "";
+		final head = '  $vis ${stat}${f.field.name}$genericStr($args): $ret {';
 		return [head].concat(body).concat(["  }"]);
+	}
+
+	/**
+		The names of a function's own type parameters, in first-use
+		order over the signature. A generic method references its
+		parameters as type-parameter classes; names owned by the
+		enclosing class belong to the class header, not the method.
+	**/
+	function collectMethodTypeParams(cls: ClassType, f: ClassFuncData): Array<String> {
+		final classParamNames = [for(p in cls.params) p.name];
+		final found: Array<String> = [];
+		collectTypeParamsInto(f.ret, classParamNames, found);
+		for(a in f.args) {
+			collectTypeParamsInto(a.type, classParamNames, found);
+		}
+		return found;
+	}
+
+	function collectTypeParamsInto(t: Null<Type>, skip: Array<String>, found: Array<String>): Void {
+		if(t == null) {
+			return;
+		}
+		switch(t) {
+			case TInst(c, params):
+				final cls = c.get();
+				if(switch(cls.kind) {
+					// Haxe 4.3 carries the parameter's constraints on
+					// the kind constructor.
+					case KTypeParameter(_): true;
+					case _: false;
+				}) {
+					if(skip.indexOf(cls.name) < 0 && found.indexOf(cls.name) < 0) {
+						found.push(cls.name);
+					}
+				}
+				for(p in params) collectTypeParamsInto(p, skip, found);
+			case TAbstract(_, params) | TType(_, params) | TEnum(_, params):
+				for(p in params) collectTypeParamsInto(p, skip, found);
+			case TFun(args, ret):
+				for(arg in args) collectTypeParamsInto(arg.t, skip, found);
+				collectTypeParamsInto(ret, skip, found);
+			case TLazy(fun):
+				collectTypeParamsInto(fun(), skip, found);
+			case _:
+		}
 	}
 
 	/**
@@ -269,6 +320,18 @@ class TsDecl {
 	// ------------------------------------------------------------------
 	// Record typedefs (features/14, features/18)
 	// ------------------------------------------------------------------
+
+	/**
+		A named function type of a resident module lowers to a generic
+		type alias beside the module's classes. The generated tree bans
+		inline function types (tools/eslint no-inline-types), so the
+		comparator ships as a name bound once per runtime file.
+	**/
+	public function functionTypeDecl(def: DefType): String {
+		final paramNames = [for(p in def.params) p.name];
+		final generics = paramNames.length > 0 ? "<" + paramNames.join(", ") + ">" : "";
+		return "export type " + def.name + generics + " = " + types.of(def.type) + ";";
+	}
 
 	public function typedefDecl(def: DefType): String {
 		switch(def.type) {

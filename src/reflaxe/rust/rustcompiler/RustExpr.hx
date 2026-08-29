@@ -59,13 +59,6 @@ class RustExpr {
 		this.returnUnsigned = value;
 	}
 
-	/**
-		The rendered return type of the function whose body is being
-		lowered. String-bearing returns need it: a string literal is a
-		&str while functions own String, and a Null<String> function
-		returns Option<String>, so a plain String expression wraps in
-		Some(...) at the return boundary.
-	**/
 	public function setReturnTypeName(value: Null<String>): Void {
 		this.returnTypeName = value;
 	}
@@ -225,6 +218,15 @@ class RustExpr {
 				} else {
 					expr(ret);
 				};
+				// A parameter-typed read clones at the boundary: the
+				// element stays owned by its array.
+				if(RustType.isTypeParam(ret.t)) {
+					switch(stripWrap(ret).expr) {
+						case TArray(_, _) | TField(_, _) | TLocal(_):
+							retStr = "(" + retStr + ").clone()";
+						case _:
+					}
+				}
 				// String-bearing returns adjust once at the boundary: a
 				// String function owns its value while a literal is a &str,
 				// and an Option<String> return (Null<String>) wraps a plain
@@ -236,7 +238,7 @@ class RustExpr {
 						case TConst(TString(s)): retStr = s.length == 0 ? "String::new()" : retStr + ".to_string()";
 						case _:
 					}
-				} else if(returnTypeName == "Option<String>" && isStringType(ret.t) && !isNullType(ret.t) && !isTNull(ret)) {
+				} else if(StringTools.startsWith(returnTypeName, "Option<") && !isNullType(ret.t) && !isTNull(ret)) {
 					retStr = "Some(" + retStr + ")";
 				} else if(StringTools.startsWith(returnTypeName, "Option<") && isIntType(ret.t) && !isNullType(ret.t) && !isTNull(ret)) {
 					// An Int expression returned from a Null<Int> function
@@ -753,29 +755,8 @@ class RustExpr {
 					final entryName = RustImports.toSnakeCase(gb.entryVar.name);
 					final entryExprStr = expr(gb.entryInit);
 					final builderStr = expr(gb.builderSubj);
-					final kGetExpr = if(isStringType(gb.keyArg.t)) {
-						switch(gb.keyArg.expr) {
-							case TConst(TString(_)): expr(gb.keyArg);
-							case TLocal(v):
-								final pt = types.of(v.t, true);
-								if(pt == "&str") expr(gb.keyArg); else "&" + expr(gb.keyArg);
-							case _: expr(gb.keyArg);
-						}
-					} else if(!isTypeCopy(gb.keyArg.t)) {
-						"&" + expr(gb.keyArg);
-					} else {
-						expr(gb.keyArg);
-					};
-					final kPutExpr = if(!isTypeCopy(gb.keyArg.t)) {
-						final s = expr(gb.keyArg);
-						if(!StringTools.endsWith(s, ".clone()") && !StringTools.endsWith(s, ".to_vec()") && !StringTools.endsWith(s, ".to_string()")) {
-							s + ".clone()";
-						} else {
-							s;
-						}
-					} else {
-						expr(gb.keyArg);
-					};
+				final kGetExpr = sortedRefArg(gb.keyArg);
+				final kPutExpr = sortedRefArg(gb.keyArg);
 					final valStr = renderPushArg(gb.valArg);
 					final out = [
 						indent(depth) + "for " + pattern + " in " + iterated + " {"
@@ -787,7 +768,7 @@ class RustExpr {
 					out.push(indent(depth + 2) + "None => Vec::new(),");
 					out.push(indent(depth + 1) + "};");
 					out.push(indent(depth + 1) + "pipeline_bucket.push(" + valStr + ");");
-					out.push(indent(depth + 1) + builderStr + ".put(" + kPutExpr + ", pipeline_bucket);");
+					out.push(indent(depth + 1) + builderStr + ".put(" + kPutExpr + ", &pipeline_bucket);");
 					out.push(indent(depth) + "}");
 					return out;
 				}
@@ -988,6 +969,64 @@ class RustExpr {
 		return out;
 	}
 
+	function sortedKeyType(fn: TypedExpr): Null<haxe.macro.Type.Type> {
+		return switch(fn.t) {
+			case TFun(_, TInst(_, params)) if(params.length > 0): params[0];
+			case _: null;
+		};
+	}
+
+	function sortedValueType(fn: TypedExpr): Null<haxe.macro.Type.Type> {
+		return switch(fn.t) {
+			case TFun(_, TInst(_, params)) if(params.length > 1): params[1];
+			case _: null;
+		};
+	}
+
+	/**
+		Comparator a builder site binds: the resident integer walk
+		adapted to the unsigned business domain, the resident string
+		walk, or the per-structure generated comparator.
+	**/
+	function sortedComparator(kType: Null<haxe.macro.Type.Type>, pos: haxe.macro.Expr.Position): String {
+		if(kType == null) {
+			Context.error("sorted builder requires an explicit key type", pos);
+		}
+		return switch(RustType.classifyKey(kType, pos)) {
+			case IntKey: "|a, b| SortedTable::compare_ints((*a) as i32, (*b) as i32)";
+			case StringKey: "|a, b| SortedTable::compare_strings(a.as_str(), b.as_str())";
+			case StructKey(def, _):
+				final cmpName = "compare_" + RustImports.toSnakeCase(def.name);
+				imports.requireType(def.module, cmpName);
+				cmpName;
+		};
+	}
+
+	/**
+		Every table parameter borrows: keys and values arrive as
+		references and the resident clones what it stores. String keys
+		construct when the expression is a literal or a borrowed &str.
+	**/
+	function sortedRefArg(arg: TypedExpr): String {
+		if(isStringType(arg.t)) {
+			switch(stripWrap(arg).expr) {
+				case TConst(TString(_)):
+					return "&(" + expr(arg) + ").to_string()";
+				case TLocal(v):
+					final pt = types.of(v.t, true);
+					return pt == "&str" ? "&(" + expr(arg) + ").to_string()" : "&" + expr(arg);
+				case _:
+					return "&" + expr(arg);
+			}
+		}
+		return "&(" + expr(arg) + ")";
+	}
+
+	function isBorrowedLocal(v: haxe.macro.Type.TVar): Bool {
+		final stored = argTypes.get(v.name);
+		return stored != null && StringTools.startsWith(stored, "&");
+	}
+
 	function renderPushArg(arg: TypedExpr): String {
 		var argStr = expr(arg);
 		if(isNullType(arg.t)) {
@@ -1002,6 +1041,10 @@ class RustExpr {
 		if(!isTypeCopy(arg.t)) {
 			switch(stripWrap(arg).expr) {
 				case TConst(TString(_)) | TNew(_, _, _):
+				case TLocal(v) if(isBorrowedLocal(v)):
+					// The local holds a reference (a borrowed parameter):
+					// clone the referent so the array owns its element.
+					argStr = "(*" + argStr + ").clone()";
 				case TLocal(_) | TField(_) | TArray(_, _):
 					if(!StringTools.endsWith(argStr, ".clone()") && !StringTools.endsWith(argStr, ".to_vec()") && !StringTools.endsWith(argStr, ".to_string()")) {
 						argStr = argStr + ".clone()";
@@ -1343,6 +1386,12 @@ class RustExpr {
 					if(isStringBuf(subj)) {
 						return expr(subj) + ".encode_utf16().count() as u32";
 					}
+					// Resident modules keep the signed Int domain: their
+					// lengths join index arithmetic, so the read narrows
+					// here the way UStringPlatform end inlines.
+					if(RuntimeResidents.isResident(imports.selfModule)) {
+						return "(" + expr(subj) + ").len() as i32";
+					}
 					return expr(subj) + ".len()";
 				}
 				final snake = RustImports.toSnakeCase(name);
@@ -1376,12 +1425,6 @@ class RustExpr {
 				}
 				imports.require("crate::runtime::test_core");
 				return "test_core::TestCore::" + RustImports.toSnakeCase(name);
-			case "std.SortedMap":
-				imports.requireType("std.SortedMap", "SortedMap");
-				return "SortedMap::" + RustImports.toSnakeCase(name);
-			case "std.SortedSet":
-				imports.requireType("std.SortedSet", "SortedSet");
-				return "SortedSet::" + RustImports.toSnakeCase(name);
 			case "std.UStringRT":
 				return uStringRef(name);
 			case "std.Graphemes":
@@ -1400,14 +1443,6 @@ class RustExpr {
 					}
 					imports.require("crate::runtime::test_core");
 					return "test_core::TestCore::" + RustImports.toSnakeCase(name);
-				}
-				if(cls.module == "std.SortedMap") {
-					imports.requireType("std.SortedMap", "SortedMap");
-					return "SortedMap::" + RustImports.toSnakeCase(name);
-				}
-				if(cls.module == "std.SortedSet") {
-					imports.requireType("std.SortedSet", "SortedSet");
-					return "SortedSet::" + RustImports.toSnakeCase(name);
 				}
 				if(cls.module == "std.UStringRT") {
 					return uStringRef(name);
@@ -1526,7 +1561,7 @@ class RustExpr {
 					return expr(subj) + "[" + expr(args[0]) + "]";
 				}
 				if(name == "charCodeAt" && isString(stripCast(subj))) {
-					return expr(subj) + ".as_bytes()[" + expr(args[0]) + "]";
+					return expr(subj) + ".as_bytes()[(" + expr(args[0]) + ") as usize]";
 				}
 				if(name == "substring" && isString(stripCast(subj))) {
 					// Member-call lowering into the u_string runtime: the
@@ -1547,6 +1582,24 @@ class RustExpr {
 						return "u_string::substring(&" + expr(subj) + ", (" + expr(args[0]) + ") as i32, (" + expr(args[1]) + ") as i32)";
 					}
 					return "u_string::substring_from(&" + expr(subj) + ", (" + expr(args[0]) + ") as i32)";
+				}
+				if(name == "put" && isSortedBuilder(subj)) {
+					// Builder puts borrow every argument; the resident
+					// clones into storage, so the call-site expressions
+					// stay alive.
+					final putArgs = [for(a in args) sortedRefArg(a)];
+					return expr(subj) + ".put(" + putArgs.join(", ") + ")";
+				}
+				if((name == "get" || name == "has") && (isSortedTable(subj) || isSortedBuilder(subj))) {
+					return expr(subj) + "." + name + "(" + sortedRefArg(args[0]) + ")";
+				}
+				if(name == "size" && isSortedTable(subj)) {
+					// The resident counts in its signed Int domain; the
+					// business domain is unsigned.
+					return "(" + expr(subj) + ".size()) as u32";
+				}
+				if((name == "keyAt" || name == "valueAt" || name == "at") && isSortedTable(subj)) {
+					return expr(subj) + "." + RustImports.toSnakeCase(name) + "((" + expr(args[0]) + ") as i32)";
 				}
 				if(name == "put" && isSortedBuilder(subj)) {
 					final kExpr = switch(args[0].expr) {
@@ -1620,6 +1673,34 @@ class RustExpr {
 				if(name == "writeAscii") {
 					return expr(subj) + ".write_ascii(" + expr(args[0]) + ")";
 				}
+				if(cf != null && cf.get().kind.match(FVar(_, _)) && Context.follow(cf.get().type).match(TFun(_, _))) {
+					// A function-typed field calls through a parenthesized
+					// receiver: the field itself names the callee, so the
+					// read renders as an explicit field access in the
+					// parenthesized position. Method fields (FMethod) take
+					// the ordinary method-call path above this branch.
+					// Parameter-typed arguments borrow unless the local
+					// already holds a reference (a borrowed parameter of
+					// the enclosing function).
+					final fnFieldParams = switch(Context.follow(cf.get().type)) {
+						case TFun(pargs, _): [for(p in pargs) p.t];
+						case _: [];
+					};
+					final callArgs = [];
+					for(argIdx in 0...args.length) {
+						final pt = argIdx < fnFieldParams.length ? fnFieldParams[argIdx] : null;
+						if(pt != null && RustType.isTypeParam(pt)) {
+							final borrowed = switch(stripWrap(args[argIdx]).expr) {
+								case TLocal(v): isBorrowedLocal(v);
+								case _: false;
+							};
+							callArgs.push(borrowed ? expr(args[argIdx]) : "&(" + expr(args[argIdx]) + ")");
+						} else {
+							callArgs.push(expr(args[argIdx]));
+						}
+					}
+					return "(" + expr(subj) + "." + snake + ")(" + callArgs.join(", ") + ")";
+				}
 				final isMethodFallible = isFallibleCallee(c, cf, false);
 				final q = isFallible ? (isMethodFallible ? "?" : "") : (isMethodFallible ? ".unwrap()" : "");
 				return expr(subj) + "." + snake + "(" + renderCallArgs(cf.get().type, args) + ")" + q;
@@ -1642,7 +1723,7 @@ class RustExpr {
 					if(isLengthDivision(args[0])) {
 						return "(" + expr(args[0]) + ")";
 					}
-					return "(" + expr(args[0]) + " as i32)";
+					return "(" + expr(args[0]) + ") as i32";
 				}
 				if(cls.pack.length == 0 && cls.name == "String" && name == "fromCharCode") {
 					return "char::from(" + expr(args[0]) + ").to_string()";
@@ -1703,46 +1784,20 @@ class RustExpr {
 					return "exit(" + renderedArgs + ")";
 				}
 				if((path == "std.SortedMap" || cls.module == "std.SortedMap") && name == "builder") {
-					final kType = switch(fn.t) {
-						case TFun(_, TInst(_, params)) if(params.length > 0): params[0];
-						case _: null;
-					};
-					final domain = RustType.classifyKey(kType, fn.pos);
-					switch(domain) {
-						case IntKey:
-							imports.requireType("std.SortedMap", "SortedMap");
-							return "SortedMap::builder()";
-						case StringKey:
-							imports.requireType("std.SortedMap", "SortedMapStr");
-							return "SortedMapStr::builder()";
-						case StructKey(def, _):
-							imports.requireType("std.SortedMap", "SortedMapByKey");
-							final cmpName = "compare_" + RustImports.toSnakeCase(def.name);
-							imports.requireType(def.module, cmpName);
-							return "SortedMapByKey::builder(" + cmpName + ")";
-					}
+					final kType = sortedKeyType(fn);
+					final vType = sortedValueType(fn);
+					state.shimsUsed.set("std.SortedMap", true);
+					imports.requireType("runtime.SortedTable", "SortedTable");
+					return "SortedTable::map_builder::<" + types.of(kType) + ", " + types.of(vType) + ">(" + sortedComparator(kType, fn.pos) + ")";
 				}
 				if((path == "std.SortedSet" || cls.module == "std.SortedSet") && name == "builder") {
-					final kType = switch(fn.t) {
-						case TFun(_, TInst(_, params)) if(params.length > 0): params[0];
-						case _: null;
-					};
-					final domain = RustType.classifyKey(kType, fn.pos);
-					switch(domain) {
-						case IntKey:
-							imports.requireType("std.SortedSet", "SortedSet");
-							return "SortedSet::builder()";
-						case StringKey:
-							imports.requireType("std.SortedSet", "SortedSetStr");
-							return "SortedSetStr::builder()";
-						case StructKey(def, _):
-							imports.requireType("std.SortedSet", "SortedSetByKey");
-							final cmpName = "compare_" + RustImports.toSnakeCase(def.name);
-							imports.requireType(def.module, cmpName);
-							return "SortedSetByKey::builder(" + cmpName + ")";
-					}
+					final kType = sortedKeyType(fn);
+					state.shimsUsed.set("std.SortedSet", true);
+					imports.requireType("runtime.SortedTable", "SortedTable");
+					return "SortedTable::set_builder::<" + types.of(kType) + ">(" + sortedComparator(kType, fn.pos) + ")";
 				}
 
+				
 				if(cls.module == "std.Test" || (cls.pack.join(".") == "std" && (cls.name == "Test" || cls.name == "__test_shim"))) {
 					// The assertion checks and message formatting live in the
 					// resident runtime.TestCore; this host module keeps run and
@@ -1885,14 +1940,18 @@ class RustExpr {
 					return exceptionVariant(cls, args[0]);
 				}
 				imports.requireType(cls.module, cls.name);
-				return cls.name + "::new(" + renderedArgs + ")";
+				// The generic resident tables construct with explicit
+				// type arguments: the empty-array arguments leave the
+				// parameters otherwise unconstrained.
+				final genericStr = params.length > 0 ? "::<" + [for(p in params) types.of(p)].join(", ") + ">" : "";
+				return cls.name + genericStr + "::new(" + renderedArgs + ")";
 		}
 	}
 
 	function assignTarget(e: TypedExpr): String {
 		switch(e.expr) {
 			case TArray(arr, idx):
-				return expr(arr) + "[" + expr(idx) + "]";
+				return expr(arr) + "[(" + expr(idx) + ") as usize]";
 			case TField(subj, FInstance(_, _, cf)) | TField(subj, FAnon(cf)):
 				return expr(subj) + "." + RustImports.toSnakeCase(cf.get().name);
 			case TLocal(v):

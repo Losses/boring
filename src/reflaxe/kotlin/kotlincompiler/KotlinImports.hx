@@ -37,8 +37,10 @@ class KotlinImports {
 		this.selfResident = RuntimeResidents.isResident(selfModule);
 		// Test residents emit beside the test host entry, which lives in
 		// the runtime package's test subpackage (emitShim subPackage).
+		// The first extern names the package; every extern of a resident
+		// shares the same runtime package.
 		this.selfPack = this.selfResident
-			? RuntimeConfig.requireImportName("module " + RuntimeResidents.externOf(selfModule))
+			? RuntimeConfig.requireImportName("module " + RuntimeResidents.externsOf(selfModule)[0])
 			+ (RuntimeResidents.isTestResident(selfModule) ? ".test" : "")
 			: segments.length <= 1 ? "" : segments.slice(0, segments.length - 1).join(".");
 		this.state = state;
@@ -71,7 +73,7 @@ class KotlinImports {
 			// its test subpackage. A file already inside the target
 			// package needs no import; business code reaches them
 			// through externs instead.
-			final targetPack = RuntimeConfig.requireImportName("module " + RuntimeResidents.externOf(module))
+			final targetPack = RuntimeConfig.requireImportName("module " + RuntimeResidents.externsOf(module)[0])
 				+ (RuntimeResidents.isTestResident(module) ? ".test" : "");
 			if(targetPack != selfPack) {
 				require(targetPack + "." + name);
