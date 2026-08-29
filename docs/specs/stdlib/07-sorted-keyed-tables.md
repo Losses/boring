@@ -8,8 +8,8 @@ stays banned (`V13 HashMapCollection`), and the sanctioned structure is
 the immutable sorted table named here with its per-platform shape. The
 behavioral baseline is ordered-collection semantics: iteration ascends by
 key, lookups are deterministic, and no hash order is observable on any
-target. The grounding is the consumer audit of the tiqian engine
-(2026-08-27): of 41 mutable Map/Set declarations in its layout core, 40
+target. The grounding is the consumer audit of the tiqian engine:
+of 41 mutable Map/Set declarations in its layout core, 40
 are function-local values built once and then read by exact key or in
 ascending index order, and the single long-lived mutable map is a
 bounded memoization cache; no unordered iteration reaches output. The
@@ -71,7 +71,7 @@ deferred:
   value; the comparison binds at the call site during emission.
 - **String keys**: ordering must be identical across targets, and
   UTF-16 code-unit order (JavaScript) differs from code-point order
-  (Rust byte order) astral to the BMP. Ruled 2026-08-27: the order is
+  (Rust byte order) astral to the BMP. The order is
   **UTF-16 code-unit order**. The resident `compareStrings` walks both
   strings by code point and applies one adjustment at the first
   differing code point: when one side is astral (at or above U+10000)
@@ -88,8 +88,7 @@ deferred:
 
 ## Single-source runtime
 
-`src/runtime/SortedTable.hx` is the one implementation
-(`docs/plans/2026-08-28-runtime-unification.md` P7). It compiles as a
+`src/runtime/SortedTable.hx` is the one implementation. It compiles as a
 resident module: the class `SortedTable` holds the domain comparators
 (`compareInts`, `compareStrings`) and the builder factories
 (`mapBuilder`, `setBuilder`); `SortedMapTable<K, V>`,

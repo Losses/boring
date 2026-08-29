@@ -173,8 +173,7 @@ Rules:
 - Type identity never merges. Two distinct named Haxe types translate to two distinct target types even when their shapes coincide, because merged types erase the distinction the Haxe compiler enforced.
 - The Kotlin `Long` promotion in the table is conditional on a declared
   range above `0x7FFFFFFF`. The generator has no schema mechanism that
-  declares a field range, so the promotion has no implementation path
-  (2026-08-28 audit, `docs/reviews/language-design-audit.md` F5). No
+  declares a field range, so the promotion has no implementation path. No
   current field exceeds the range: wire counts are bounded by
   `CountOverflow` at `2^31` and code points by `0x10FFFF`. The promotion
   is implemented when the first field with such a range is declared; the

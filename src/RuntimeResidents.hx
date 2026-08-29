@@ -1,8 +1,8 @@
 #if (macro || reflaxe_runtime)
 
 /**
- * Haxe modules that compile into every target's runtime package
- * (docs/plans/2026-08-28-runtime-unification.md P4). A resident module
+ * Haxe modules that compile into every target's runtime package.
+ * A resident module
  * lives under src/ so the published haxelib carries it, compiles through
  * the normal typed pipeline of each lane, and lands in the runtime-emit
  * directory instead of the business tree. The lanes reference these

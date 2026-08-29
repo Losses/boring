@@ -58,7 +58,7 @@ export class BytesBuffer {
 		Source of the test entry emitted beside the runtime module. It
 		holds the test result writer, the only runtime member that needs
 		the host file system; the general entry above stays free of node
-		imports so a browser can load it (docs/plans/2026-08-28).
+		imports so a browser can load it.
 	**/
 	public static final TEST_SOURCE = 'import * as fs from "node:fs";
 import * as path from "node:path";

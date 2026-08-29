@@ -105,8 +105,7 @@ which the toolchain rejects elsewhere for the compiled sources.
 
 ## Entry points
 
-The runtime package exposes two entry points
-(`docs/plans/2026-08-28-runtime-unification.md`).
+The runtime package exposes two entry points.
 
 - **General entry**: `@boring/runtime` on TypeScript, package
   `boring.runtime` on Kotlin, the runtime crate root on Rust. It holds
@@ -119,9 +118,9 @@ The runtime package exposes two entry points
   test helper's result writer, which needs the host file system.
   Generated business code never imports it; generated test code
   imports it for `std.Test`. The assertion resident `runtime.TestCore`
-  compiles into this entry beside the handwritten host of each target
-  (docs/plans/2026-08-28-runtime-unification.md P6); its emission gates
-  on `std.Test` usage, so the two always appear together.
+  compiles into this entry beside the handwritten host of each target;
+  its emission gates on `std.Test` usage, so the two always appear
+  together.
 
 The Kotlin and Rust lanes have no import-time execution, so their
 layout keeps the test entry as a separate compilation unit inside the

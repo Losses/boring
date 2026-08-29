@@ -9,7 +9,7 @@ recognition rules (one inline single-parameter function literal written at
 the call site), the same position rule, the same `pipeline_` mint naming,
 and the same chain handling. The three target compilers receive only loop
 statements and never a function value. The downstream motivation is the
-engine port audit of 2026-08-27: `firstOrNull` 38, `any` 33, `sumOf` 31,
+engine port audit: `firstOrNull` 38, `any` 33, `sumOf` 31,
 `mapNotNull` 23, `flatMap` 20, and `all` 14 uses, each with a lambda that
 never becomes a value.
 

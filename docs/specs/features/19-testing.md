@@ -113,8 +113,7 @@ target-specific; the message string is the contract.
 
 The assertion checks and the canonical formatting are one compiled
 module, `runtime.TestCore` (`src/runtime/TestCore.hx`), the single
-source for every target (docs/plans/2026-08-28-runtime-unification.md
-P6). Each lane compiles it into its test entry beside the handwritten
+source for every target. Each lane compiles it into its test entry beside the handwritten
 host: appended to `runtime/test.ts` on TypeScript, emitted as
 `test/TestCore.kt` beside the host object on Kotlin, emitted as
 `runtime/test_core.rs` beside the host module on Rust, and imported by

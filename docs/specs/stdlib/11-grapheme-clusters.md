@@ -81,8 +81,7 @@ version-suffixed names:
 - `GraphemeBreakTest.txt`: the official boundary conformance vectors.
 
 The table is built at compilation start by the macro module
-`src/reflaxe/unicode/GraphemeData.hx`
-(`docs/plans/2026-08-28-runtime-unification.md` P2). It parses the
+`src/reflaxe/unicode/GraphemeData.hx`. It parses the
 three property files with `sys.io.File`, merges them into disjoint
 code-point ranges, and injects the result into `runtime.Graphemes`
 through the `:build` macro `tableField("TABLE")`. The table layout is
@@ -128,8 +127,7 @@ package. `stdlib/06` lists `std.Graphemes` among the runtime-backed std
 modules, and the class lists live in `TsImports.runtimeProvidedModules`
 and `KotlinImports.SHIM_MODULES`.
 
-The implementation is the resident module pair of
-`docs/plans/2026-08-28-runtime-unification.md` P4:
+The implementation is the resident module pair
 `src/runtime/Graphemes.hx` (the four operations over the injected
 table) and `src/runtime/GraphemeWalk.hx` (the boundary rules over code
 points, the same walk the compile-time conformance gate runs). Every

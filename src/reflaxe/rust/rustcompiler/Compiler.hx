@@ -555,7 +555,7 @@ class Compiler extends PluginCompiler<Compiler> {
 
 	/**
 		Writes one resident runtime module into the runtime-emit
-		directory (docs/plans/2026-08-28-runtime-unification.md P4). The
+		directory. The
 		module compiled through the normal typed pipeline like a business
 		module; its output lands beside the runtime shims instead of the
 		business tree. The extern that fronts the resident set gates the

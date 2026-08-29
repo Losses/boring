@@ -8,8 +8,7 @@ import runtime.GraphemeWalk;
 
 /**
 	Compile-time pipeline for the grapheme break table
-	(docs/specs/stdlib/11-grapheme-clusters.md,
-	docs/plans/2026-08-28-runtime-unification.md P2).
+	(docs/specs/stdlib/11-grapheme-clusters.md).
 
 	At compilation start this module reads the pinned Unicode data files
 	from `tools/unicode-data/`, merges them into the flat range table,
