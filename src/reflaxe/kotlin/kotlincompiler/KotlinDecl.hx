@@ -116,7 +116,8 @@ class KotlinDecl {
 
 		final ctorHeader = constructorFunc != null ? buildPrimaryConstructor(cls, constructorFunc, varFields) : "";
 		final ifaceStr = cls.interfaces.length > 0 ? " : " + [for(i in cls.interfaces) i.t.get().name].join(", ") : "";
-		lines.push("class " + cls.name + ctorHeader + ifaceStr + " {");
+		final classParams = cls.params.length > 0 ? "<" + [for(p in cls.params) p.name].join(", ") + ">" : "";
+		lines.push("class " + cls.name + classParams + ctorHeader + ifaceStr + " {");
 
 		// Non-primary-ctor properties
 		for(v in varFields) {
@@ -410,6 +411,49 @@ class KotlinDecl {
 		return null;
 	}
 
+	/**
+		The names of a function's own type parameters, in first-use order
+		over the signature. A generic method references its parameters as
+		type-parameter classes; names owned by the enclosing class belong
+		to the class header, not the method.
+	**/
+	function collectMethodTypeParams(cls: ClassType, f: ClassFuncData): Array<String> {
+		final classParamNames = [for(p in cls.params) p.name];
+		final found: Array<String> = [];
+		collectTypeParamsInto(f.ret, classParamNames, found);
+		for(a in f.args) {
+			collectTypeParamsInto(a.type, classParamNames, found);
+		}
+		return found;
+	}
+
+	function collectTypeParamsInto(t: Null<Type>, skip: Array<String>, found: Array<String>): Void {
+		if(t == null) {
+			return;
+		}
+		switch(t) {
+			case TInst(c, params):
+				final cls = c.get();
+				if(switch(cls.kind) {
+					case KTypeParameter(_): true;
+					case _: false;
+				}) {
+					if(skip.indexOf(cls.name) < 0 && found.indexOf(cls.name) < 0) {
+						found.push(cls.name);
+					}
+				}
+				for(p in params) collectTypeParamsInto(p, skip, found);
+			case TAbstract(_, params) | TType(_, params) | TEnum(_, params):
+				for(p in params) collectTypeParamsInto(p, skip, found);
+			case TFun(args, ret):
+				for(arg in args) collectTypeParamsInto(arg.t, skip, found);
+				collectTypeParamsInto(ret, skip, found);
+			case TLazy(fun):
+				collectTypeParamsInto(fun(), skip, found);
+			case _:
+		}
+	}
+
 	function buildPrimaryConstructor(cls: ClassType, ctor: ClassFuncData, varFields: Array<ClassVarData>): String {
 		if(ctor.args.length == 0) return "";
 		final params: Array<String> = [];
@@ -509,7 +553,12 @@ class KotlinDecl {
 		final ret = retType == "Unit" ? "" : ": " + retType;
 		final vis = f.field.isPublic ? "" : "private ";
 		final overrideStr = isInterfaceMethod(cls, f) ? "override " : "";
-		final head = '    ${vis}${overrideStr}fun ${f.field.name}($args)$ret {';
+		// A method's own type parameters (the resident builders'
+		// factory functions) render as method generics; the class's own
+		// parameters stay in the class header only.
+		final methodParams = collectMethodTypeParams(cls, f);
+		final genericStr = methodParams.length > 0 ? "<" + methodParams.join(", ") + "> " : "";
+		final head = '    ${vis}${overrideStr}fun ${genericStr}${f.field.name}($args)$ret {';
 
 		final boundary = switch(f.ret) {
 			case TAbstract(a, _):

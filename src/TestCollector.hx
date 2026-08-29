@@ -151,6 +151,7 @@ class TestCollector {
 		final runnerSource = 'package;
 
 import runtime.Graphemes;
+import runtime.SortedTable;
 import runtime.TestCore;
 import runtime.UString;
 
@@ -311,6 +312,7 @@ class TestMain {
         js.Syntax.code("globalThis.std.UStringPlatform = {0};", UStringPlatform);
         js.Syntax.code("globalThis.std.Graphemes = {0};", Graphemes);
         js.Syntax.code("globalThis.std.TestPlatform = {0};", TestPlatform);
+        js.Syntax.code("globalThis.__runtime_sorted_table = {0};", SortedTable);
         js.Syntax.code("
             function jsCompare(a, b) {
                 if (a === b) return 0;
@@ -336,96 +338,6 @@ class TestMain {
                 }
                 return 0;
             }
-            class JsSortedMap {
-                constructor(keys, values) { this.keys = keys; this.values = values; }
-                static builder() { return new JsSortedMapBuilder(); }
-                get(key) {
-                    let low = 0, high = this.keys.length - 1;
-                    while (low <= high) {
-                        let mid = (low + high) >> 1;
-                        let cmp = jsCompare(this.keys[mid], key);
-                        if (cmp < 0) low = mid + 1;
-                        else if (cmp > 0) high = mid - 1;
-                        else return this.values[mid] !== undefined ? this.values[mid] : null;
-                    }
-                    return null;
-                }
-                has(key) {
-                    let low = 0, high = this.keys.length - 1;
-                    while (low <= high) {
-                        let mid = (low + high) >> 1;
-                        let cmp = jsCompare(this.keys[mid], key);
-                        if (cmp < 0) low = mid + 1;
-                        else if (cmp > 0) high = mid - 1;
-                        else return true;
-                    }
-                    return false;
-                }
-                size() { return this.keys.length; }
-                keyAt(i) { return this.keys[i]; }
-                valueAt(i) { return this.values[i]; }
-            }
-            class JsSortedMapBuilder {
-                constructor() { this.entries = []; }
-                put(key, value) { this.entries.push({key, idx: this.entries.length, value}); }
-                get(key) {
-                    for (let i = this.entries.length - 1; i >= 0; i--) {
-                        if (jsCompare(this.entries[i].key, key) === 0) {
-                            return this.entries[i].value;
-                        }
-                    }
-                    return null;
-                }
-                build() {
-                    if (this.entries.length === 0) return new JsSortedMap([], []);
-                    this.entries.sort((a, b) => {
-                        let cmp = jsCompare(a.key, b.key);
-                        return cmp !== 0 ? cmp : a.idx - b.idx;
-                    });
-                    let keys = [], values = [];
-                    let i = 0;
-                    while (i < this.entries.length) {
-                        let j = i;
-                        while (j + 1 < this.entries.length && jsCompare(this.entries[j + 1].key, this.entries[i].key) === 0) j++;
-                        keys.push(this.entries[j].key);
-                        values.push(this.entries[j].value);
-                        i = j + 1;
-                    }
-                    return new JsSortedMap(keys, values);
-                }
-            }
-            class JsSortedSet {
-                constructor(keys) { this.keys = keys; }
-                static builder() { return new JsSortedSetBuilder(); }
-                has(key) {
-                    let low = 0, high = this.keys.length - 1;
-                    while (low <= high) {
-                        let mid = (low + high) >> 1;
-                        let cmp = jsCompare(this.keys[mid], key);
-                        if (cmp < 0) low = mid + 1;
-                        else if (cmp > 0) high = mid - 1;
-                        else return true;
-                    }
-                    return false;
-                }
-                size() { return this.keys.length; }
-                at(i) { return this.keys[i]; }
-            }
-            class JsSortedSetBuilder {
-                constructor() { this.keys = []; }
-                put(key) { this.keys.push(key); }
-                build() {
-                    if (this.keys.length === 0) return new JsSortedSet([]);
-                    this.keys.sort((a, b) => jsCompare(a, b));
-                    let distinct = [];
-                    for (let i = 0; i < this.keys.length; i++) {
-                        if (distinct.length === 0 || jsCompare(distinct[distinct.length - 1], this.keys[i]) !== 0) {
-                            distinct.push(this.keys[i]);
-                        }
-                    }
-                    return new JsSortedSet(distinct);
-                }
-            }
             class JsFunctional {
                 static forEach(arr, fn) {
                     for (let i = 0; i < arr.length; i++) {
@@ -433,7 +345,7 @@ class TestMain {
                     }
                 }
                 static associate(arr, fn) {
-                    let builder = new JsSortedMapBuilder();
+                    let builder = globalThis.std.SortedMap.builder();
                     for (let i = 0; i < arr.length; i++) {
                         let entry = fn(arr[i]);
                         builder.put(entry.key, entry.value);
@@ -467,7 +379,7 @@ class TestMain {
                     return result;
                 }
                 static groupBy(arr, fn) {
-                    let builder = new JsSortedMapBuilder();
+                    let builder = globalThis.std.SortedMap.builder();
                     for (let i = 0; i < arr.length; i++) {
                         let entry = fn(arr[i]);
                         let bucket = builder.get(entry.key);
@@ -492,10 +404,8 @@ class TestMain {
             }
             globalThis.std = globalThis.std || {};
             globalThis.std.Functional = JsFunctional;
-            globalThis.std.SortedMap = JsSortedMap;
-            globalThis.std.SortedMapBuilder = JsSortedMapBuilder;
-            globalThis.std.SortedSet = JsSortedSet;
-            globalThis.std.SortedSetBuilder = JsSortedSetBuilder;
+            globalThis.std.SortedMap = { builder: () => globalThis.__runtime_sorted_table.mapBuilder(jsCompare) };
+            globalThis.std.SortedSet = { builder: () => globalThis.__runtime_sorted_table.setBuilder(jsCompare) };
         ");
     }
 

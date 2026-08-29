@@ -58,55 +58,67 @@ target's import table into the runtime package, exactly as `std.Console`
 routes; neither the `std.` namespace nor a Haxe collection type appears
 in any output.
 
-This dispatch implements `Int` keys end to end. Two key domains are ruled
-and deferred:
+Every ruled key domain lowers through the same resident; none is
+deferred:
 
 - **Structure keys**: the comparison is field-lexicographic over the
   structure's fields in declaration order, and the compiler generates
   the per-type comparison from the typed AST into the output tree,
   following the type-directed-helper ruling of
   `docs/specs/features/19-testing.md` (no name-keyed tables, no sample
-  type names in compiler source; Kotlin overloads, Rust concrete
-  functions, TypeScript the same generated module). Sample source never
-  passes a function value; the comparison binds at the call site during
-  emission.
+  type names in compiler source; Kotlin overloads, Rust and TypeScript
+  the same generated function). Sample source never passes a function
+  value; the comparison binds at the call site during emission.
 - **String keys**: ordering must be identical across targets, and
   UTF-16 code-unit order (JavaScript) differs from code-point order
   (Rust byte order) astral to the BMP. Ruled 2026-08-27: the order is
-  **UTF-16 code-unit order**. Code-unit order is the native string
-  comparison of the TypeScript runtime, the Kotlin runtime, and the
-  Haxe stage-one JavaScript shims, so those sides compare with their
-  platform operators and add no emulation. The Rust runtime stores
-  keys as UTF-8 and emulates the order with one rule: compare bytes,
-  and at the first differing byte, invert the byte-order result when
-  one side starts a four-byte sequence (an astral code point) and the
-  other side holds a three-byte sequence at or above U+E000; UTF-8
-  byte order equals code-unit order everywhere else. The common case
-  is a byte comparison plus a branch. Keys must be valid Unicode
-  scalar sequences: lone surrogates are representable on UTF-16
-  targets but not in Rust strings, and no cross-target order is
-  defined for them.
+  **UTF-16 code-unit order**. The resident `compareStrings` walks both
+  strings by code point and applies one adjustment at the first
+  differing code point: when one side is astral (at or above U+10000)
+  and the other side is a BMP code point at or above U+E000, the
+  astral side sorts first, because its leading surrogate
+  (U+D800..U+DBFF) sorts below every unit at or above U+E000. Unit
+  order and code-point order agree at every other differing pair. The
+  walk advances by code point, so every target reads the same
+  sequence: the cursor primitives come from `std.UStringPlatform`, and
+  each target compiles them to its native string representation.
+  Keys must be valid Unicode scalar sequences: lone surrogates are
+  representable on UTF-16 targets but not in Rust strings, and no
+  cross-target order is defined for them.
 
-## Per-platform shapes
+## Single-source runtime
 
-The immutable representation is parallel storage sorted by key on every
-target; the builder's internal scaffolding is the runtime's own:
+`src/runtime/SortedTable.hx` is the one implementation
+(`docs/plans/2026-08-28-runtime-unification.md` P7). It compiles as a
+resident module: the class `SortedTable` holds the domain comparators
+(`compareInts`, `compareStrings`) and the builder factories
+(`mapBuilder`, `setBuilder`); `SortedMapTable<K, V>`,
+`SortedMapTableBuilder<K, V>`, `SortedSetTable<K>`, and
+`SortedSetTableBuilder<K>` hold the storage. The extern faces
+`std.SortedMap` and `std.SortedSet` keep their names on every target;
+each lane lowers references to them onto these classes.
 
-| Target | Immutable shape | Lookup |
-| --- | --- | --- |
-| Rust | struct with `keys: Vec<i32>` and `values: Vec<V>` in the runtime crate's `sortedmap` module | `keys.binary_search` |
-| TypeScript | sorted `number[]` keys and aligned `V[]` values in the runtime package | binary search over the keys array |
-| Kotlin | `IntArray` keys and aligned values array in the runtime shim | binary search |
+Storage is generic parallel arrays on every target: `Array<K>` and
+`Array<V>`, sorted at `build()` through an index-permutation insertion
+sort that applies the last-put-wins rule per equal-key run. The sort
+permutes entry indices, so values of parameter type are only read,
+never moved. Kotlin boxes integer keys this way; the retired
+hand-written shim held an `IntArray`. The cost is one object per
+integer key inside a table, accepted for one source. The comparator is
+a function value bound when the builder is created: the resident
+integer comparator, the resident string comparator, or the per-type
+generated structure comparator. On Rust, the table members borrow their
+key and value parameters (`&K`, `&V`) and clone inside, `size` returns
+`i32`, and the call boundary converts between the resident `i32` domain
+and the business unsigned domain.
 
-Builders accumulate entries and sort at `build()`, which applies the
-last-put-wins rule and produces the aligned arrays. Build-time
-scaffolding may use platform natives; iteration order of that
-scaffolding never escapes `build()`.
-
-The runtime code lives where `docs/specs/stdlib/06-std-modules.md`
-places it: `TsRuntime.SOURCE`, the `KotlinRuntime` shims, and the Rust
-runtime module, emitted on demand behind the same `runtime-import` and
-`runtime-emit` defines, with the same missing-define error contract.
+The stage-one Haxe lane binds the same resident: `TestCollector`
+injects the compiled `runtime.SortedTable` class and builds
+`globalThis.std.SortedMap` and `globalThis.std.SortedSet` factories on
+it, so the intercepted JavaScript exercises the one implementation;
+no handwritten copy remains. The resident enters each lane behind
+the same `runtime-import` and `runtime-emit` defines as the rest of
+the runtime package, with the same missing-define error contract.
 
 ## Samples and tests
 

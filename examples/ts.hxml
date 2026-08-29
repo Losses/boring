@@ -30,6 +30,7 @@ std.Functional
 runtime.UString
 runtime.GraphemeWalk
 runtime.Graphemes
+runtime.SortedTable
 runtime.TestCore
 tests.TestData
 tests.VectorCodecTests

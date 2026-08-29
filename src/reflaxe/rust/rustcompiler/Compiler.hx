@@ -217,15 +217,6 @@ class Compiler extends PluginCompiler<Compiler> {
 		emitShim("std.Console", "console.rs", RustRuntime.CONSOLE_SOURCE);
 		emitShim("std.Process", "process.rs", RustRuntime.PROCESS_SOURCE);
 		emitShim("std.Test", "test.rs", RustRuntime.TEST_SOURCE);
-		if(state.shimsUsed.exists("std.SortedSet") || state.shimsUsed.exists("std.SortedSetBuilder")) {
-			state.shimsUsed.set("std.SortedSet", true);
-			state.shimsUsed.set("std.SortedMap", true);
-			emitShim("std.SortedSet", "sorted_set.rs", RustRuntime.SORTED_SET_SOURCE);
-		}
-		if(state.shimsUsed.exists("std.SortedMap") || state.shimsUsed.exists("std.SortedMapBuilder")) {
-			state.shimsUsed.set("std.SortedMap", true);
-			emitShim("std.SortedMap", "sorted_map.rs", RustRuntime.SORTED_MAP_SOURCE);
-		}
 
 		final emitDir = RuntimeConfig.emitDir();
 		if(emitDir != null && hasAnyShim()) {
@@ -243,8 +234,10 @@ class Compiler extends PluginCompiler<Compiler> {
 				runtimeMods.push("graphemes");
 				runtimeMods.push("grapheme_walk");
 			}
-			if(state.shimsUsed.exists("std.SortedMap") || state.shimsUsed.exists("std.SortedMapBuilder")) runtimeMods.push("sorted_map");
-			if(state.shimsUsed.exists("std.SortedSet") || state.shimsUsed.exists("std.SortedSetBuilder")) runtimeMods.push("sorted_set");
+			// The sorted externs all front runtime.SortedTable, which
+			// emitResidentModule writes as sorted_table.rs.
+			final sortedUsed = RuntimeResidents.externsOf("runtime.SortedTable").filter(m -> state.shimsUsed.exists(m));
+			if(sortedUsed.length > 0) runtimeMods.push("sorted_table");
 			runtimeMods.sort(Reflect.compare);
 			final rtLines = [];
 			for(m in runtimeMods) rtLines.push("pub mod " + m + ";");
@@ -570,8 +563,14 @@ class Compiler extends PluginCompiler<Compiler> {
 		runtime stays out of the output.
 	**/
 	function emitResidentModule(module: String, decl: Null<RustDecl>): Void {
-		final externModule = RuntimeResidents.externOf(module);
-		if(externModule == null || !state.shimsUsed.exists(externModule)) {
+		var externUsed = false;
+		for(externModule in RuntimeResidents.externsOf(module)) {
+			if(state.shimsUsed.exists(externModule)) {
+				externUsed = true;
+				break;
+			}
+		}
+		if(!externUsed) {
 			return;
 		}
 		final dir = RuntimeConfig.emitDir();

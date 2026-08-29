@@ -117,15 +117,24 @@ class RustDecl {
 
 		// Instance class
 		final hasLifetime = classHasLifetime(varFields);
-		final ltParam = hasLifetime ? "<'a>" : "";
+		// Generic classes carry their type parameters on the struct and
+		// the impl. Every parameter takes a Clone bound on the impl:
+		// reads of stored elements clone out of the arrays, and the one
+		// source of these classes is the sorted-table resident.
+		final classParams = [for(p in cls.params) p.name];
+		final genericList = hasLifetime ? ["'a"].concat(classParams) : classParams;
+		final genericStr = genericList.length > 0 ? "<" + genericList.join(", ") + ">" : "";
+		final implBoundList = hasLifetime ? ["'a"].concat([for(n in classParams) n + ": Clone"]) : [for(n in classParams) n + ": Clone"];
+		final implGenerics = implBoundList.length > 0 ? "<" + implBoundList.join(", ") + ">" : "";
+		final ltParam = genericStr;
 
-		lines.push("pub struct " + cls.name + ltParam + " {");
+		lines.push("pub struct " + cls.name + genericStr + " {");
 		for(v in varFields) {
 			for(l in instanceVarDecl(v, hasLifetime)) lines.push(l);
 		}
 		lines.push("}\n");
 
-		lines.push("impl" + ltParam + " " + cls.name + ltParam + " {");
+		lines.push("impl" + implGenerics + " " + cls.name + genericStr + " {");
 		var sep = false;
 		for(f in funcFields) {
 			if(sep) lines.push("");
@@ -140,7 +149,7 @@ class RustDecl {
 
 		for(iface in cls.interfaces) {
 			final ifaceCls = iface.t.get();
-			lines.push("\nimpl" + ltParam + " " + ifaceCls.name + " for " + cls.name + ltParam + " {");
+			lines.push("\nimpl" + implGenerics + " " + ifaceCls.name + " for " + cls.name + genericStr + " {");
 			var ifaceSep = false;
 			for(f in funcFields) {
 				if(f.field.name == "new") continue;
@@ -488,6 +497,20 @@ class RustDecl {
 		return [];
 	}
 
+	function ctorArgType(t: Type, hasLifetime: Bool, owningClass: Bool): String {
+		// A constructor moves its arguments into fields. On the generic
+		// resident classes an Array parameter becomes an owned Vec that
+		// the field initializer takes over; other classes keep the
+		// borrowed parameter forms.
+		if(owningClass) {
+			switch(Context.follow(t)) {
+				case TInst(c, _) if(c.get().name == "Array"): return types.of(t, false);
+				case _:
+			}
+		}
+		return hasLifetime && isBytesType(t) ? "&'a [u8]" : types.of(t, true);
+	}
+
 	function instanceVarDecl(v: ClassVarData, hasLifetime: Bool): Array<String> {
 		final field = v.field;
 		final snake = RustImports.toSnakeCase(field.name);
@@ -516,6 +539,8 @@ class RustDecl {
 		}
 		final snakeName = RustImports.toSnakeCase(f.field.name);
 		final args = [for(a in f.args) RustImports.toSnakeCase(a.name) + ": " + types.of(a.type, true)].join(", ");
+		final methodParams = staticParamBounds(f, collectMethodTypeParams(f, [for(p in cls.params) p.name]));
+		final methodGenericStr = methodParams.length > 0 ? "<" + methodParams.join(", ") + ">" : "";
 
 		final isFallible = funcIsFallible(f);
 		final errOwner = isFallible ? resolveErrorOwner(f, cls) : null;
@@ -528,12 +553,39 @@ class RustDecl {
 		final retType = isFallible ? 'Result<$rawRetType, ${errOwner.name}>' : rawRetType;
 		final ret = retType == "()" ? "" : " -> " + retType;
 		final vis = f.field.isPublic ? "pub " : "";
-		final head = '    ${vis}fn ${snakeName}($args)$ret {';
+		final head = '    ${vis}fn ${snakeName}${methodGenericStr}($args)$ret {';
 
 		expr.setReturnUnsigned(rawRetType == "u32");
 		expr.setReturnTypeName(rawRetType);
 		final body = expr.functionBody(cls, f);
 		return [head].concat(body.map(l -> "    " + l)).concat(["    }"]);
+	}
+
+	/**
+		A static method that returns an instantiation of a generic class
+		calls that class's impl inside its body, and the impl carries the
+		class-parameter Clone bounds. The method's own type parameters
+		take the same bound when they reach the instantiation, so the
+		body resolves against the impl.
+	 */
+	function staticParamBounds(f: ClassFuncData, methodParams: Array<String>): Array<String> {
+		if(methodParams.length == 0 || f.ret == null) return methodParams;
+		final reached: Array<String> = [];
+		switch(Context.follow(f.ret)) {
+			case TInst(c, ps) if(c.get().params.length > 0 && c.get().name != "Array"):
+				for(p in ps) {
+					switch(Context.follow(p)) {
+						case TInst(pc, _):
+							final pn = pc.get();
+							if(pn.kind.match(KTypeParameter(_)) && methodParams.indexOf(pn.name) >= 0) {
+								reached.push(pn.name);
+							}
+						case _:
+					}
+				}
+			case _:
+		}
+		return [for(n in methodParams) reached.indexOf(n) >= 0 ? n + ": Clone" : n];
 	}
 
 	function returnsArgArray(f: ClassFuncData): Bool {
@@ -655,7 +707,7 @@ class RustDecl {
 		}
 
 		if(isConstructor) {
-			final args = [for(a in f.args) RustImports.toSnakeCase(a.name) + ": " + (hasLifetime && isBytesType(a.type) ? "&'a [u8]" : types.of(a.type, true))].join(", ");
+			final args = [for(a in f.args) RustImports.toSnakeCase(a.name) + ": " + ctorArgType(a.type, hasLifetime, cls.params.length > 0)].join(", ");
 			final head = '    pub fn new($args) -> Self {';
 			final lines = [head, "        Self {"];
 			for(a in f.args) {
@@ -703,12 +755,52 @@ class RustDecl {
 		final retType = isFallible ? 'Result<$rawRetType, ${errOwner.name}>' : rawRetType;
 		final ret = retType == "()" ? "" : " -> " + retType;
 		final vis = (f.field.isPublic && !isTraitImpl) ? "pub " : "";
-		final head = '    ${vis}fn ${snakeName}($allArgs)$ret {';
+		final methodParams = collectMethodTypeParams(f, [for(p in cls.params) p.name]);
+		final methodGenericStr = methodParams.length > 0 ? "<" + methodParams.join(", ") + ">" : "";
+		final head = '    ${vis}fn ${snakeName}${methodGenericStr}($allArgs)$ret {';
 
 		expr.setReturnUnsigned(rawRetType == "u32");
 		expr.setReturnTypeName(rawRetType);
 		final body = expr.functionBody(cls, f);
 		return [head].concat(body.map(l -> "    " + l)).concat(["    }"]);
+	}
+
+	/**
+		Type parameters a method signature introduces beyond its class's
+		own: collected from the argument and return types in appearance
+		order. The generic builder statics of the sorted-table resident
+		are the source of these.
+	**/
+	function collectMethodTypeParams(f: ClassFuncData, classParamNames: Array<String>): Array<String> {
+		final found: Array<String> = [];
+		function walk(t: Null<Type>): Void {
+			if(t == null) {
+				return;
+			}
+			switch(Context.follow(t)) {
+				case TInst(c, ps):
+					final cls = c.get();
+					switch(cls.kind) {
+						case KTypeParameter(_):
+							if(classParamNames.indexOf(cls.name) < 0 && found.indexOf(cls.name) < 0) {
+								found.push(cls.name);
+							}
+						case _:
+					}
+					for(p in ps) walk(p);
+				case TAbstract(_, ps) | TEnum(_, ps) | TType(_, ps):
+					for(p in ps) walk(p);
+				case TFun(fargs, fret):
+					for(a in fargs) walk(a.t);
+					walk(fret);
+				case _:
+			}
+		}
+		for(a in f.args) {
+			walk(a.type);
+		}
+		walk(f.ret);
+		return found;
 	}
 
 	function isBytesType(t: Type): Bool {
@@ -761,7 +853,61 @@ class RustDecl {
 		if(name == "finish") {
 			return true;
 		}
-		return false;
+		return bodyMutatesSelf(f.expr);
+	}
+
+	/**
+		Whether the method body writes through the receiver: a field of
+		`this` assigned, an element of an own-field array assigned, or a
+		mutating array method called on an own-field array. The
+		name list above stays for the extern reader and writer faces;
+		this walk covers declared classes, whose storage the resident
+		runtime tables own.
+	**/
+	function bodyMutatesSelf(body: Null<TypedExpr>): Bool {
+		if(body == null) {
+			return false;
+		}
+		var mutates = false;
+		function walk(e: TypedExpr) {
+			switch(e.expr) {
+				case TBinop(OpAssign, lhs, _):
+					if(ownFieldRoot(lhs)) {
+						mutates = true;
+					}
+				case TCall(fn, _):
+					switch(fn.expr) {
+						case TField(subj, FInstance(_, _, cf) | FAnon(cf)):
+							final n = cf.get().name;
+							if(n == "push" || n == "insert" || n == "pop" || n == "shift"
+								|| n == "unshift" || n == "remove" || n == "removeAt"
+								|| n == "splice" || n == "reverse" || n == "sort") {
+								if(ownFieldRoot(subj)) {
+									mutates = true;
+								}
+							}
+						case _:
+					}
+				case _:
+			}
+			haxe.macro.TypedExprTools.iter(e, walk);
+		}
+		walk(body);
+		return mutates;
+	}
+
+	// Whether an expression reads storage rooted at `this`: the
+	// receiver itself, or a field or array read whose subject recurses
+	// back to it.
+	function ownFieldRoot(e: TypedExpr): Bool {
+		return switch(e.expr) {
+			case TConst(TThis): true;
+			case TField(subj, _): ownFieldRoot(subj);
+			case TArray(subj, _): ownFieldRoot(subj);
+			case TParenthesis(subj): ownFieldRoot(subj);
+			case TMeta(_, subj): ownFieldRoot(subj);
+			case _: false;
+		};
 	}
 
 	function funcIsFallible(f: ClassFuncData): Bool {
@@ -883,33 +1029,38 @@ class RustDecl {
 				].join("\n");
 
 				if(isStructKeyCandidate(fields)) {
+					// The comparator matches the resident table contract,
+					// fn(&K, &K) -> i32: integer and boolean fields use the
+					// trichotomy directly, string fields reuse the resident
+					// string walk, nested structures call their comparator.
 					final fnName = "compare_" + RustImports.toSnakeCase(def.name);
 					final cmpLines = [
-						'pub fn $fnName(a: &${def.name}, b: &${def.name}) -> std::cmp::Ordering {'
+						'pub fn $fnName(a: &${def.name}, b: &${def.name}) -> i32 {'
 					];
 					for(f in fields) {
 						final fieldSnake = RustImports.toSnakeCase(f.name);
 						switch(Context.follow(f.type)) {
 							case TAbstract(a, _) if(a.get().name == "Int" || a.get().name == "Bool"):
-								cmpLines.push('    let cmp_$fieldSnake = a.$fieldSnake.cmp(&b.$fieldSnake);');
-								cmpLines.push('    if cmp_$fieldSnake != std::cmp::Ordering::Equal { return cmp_$fieldSnake; }');
+								cmpLines.push('    let cmp_$fieldSnake = if a.$fieldSnake < b.$fieldSnake { -1 } else if a.$fieldSnake > b.$fieldSnake { 1 } else { 0 };');
+								cmpLines.push('    if cmp_$fieldSnake != 0 { return cmp_$fieldSnake; }');
 							case TInst(c, _) if(c.get().name == "String"):
 								state.shimsUsed.set("std.SortedMap", true);
-								cmpLines.push('    let cmp_$fieldSnake = crate::runtime::sorted_map::compare_utf16_code_units(a.$fieldSnake.as_str(), b.$fieldSnake.as_str());');
-								cmpLines.push('    if cmp_$fieldSnake != std::cmp::Ordering::Equal { return cmp_$fieldSnake; }');
+								imports.requireType("runtime.SortedTable", "SortedTable");
+								cmpLines.push('    let cmp_$fieldSnake = SortedTable::compare_strings(a.$fieldSnake.as_str(), b.$fieldSnake.as_str());');
+								cmpLines.push('    if cmp_$fieldSnake != 0 { return cmp_$fieldSnake; }');
 							case _:
 								switch(f.type) {
 									case TType(innerDef, _):
 										final innerCmp = "compare_" + RustImports.toSnakeCase(innerDef.get().name);
 										imports.requireType(innerDef.get().module, innerCmp);
 										cmpLines.push('    let cmp_$fieldSnake = $innerCmp(&a.$fieldSnake, &b.$fieldSnake);');
-										cmpLines.push('    if cmp_$fieldSnake != std::cmp::Ordering::Equal { return cmp_$fieldSnake; }');
+										cmpLines.push('    if cmp_$fieldSnake != 0 { return cmp_$fieldSnake; }');
 									case _:
 								}
+							}
 						}
-					}
-					cmpLines.push('    std::cmp::Ordering::Equal');
-					cmpLines.push('}');
+					cmpLines.push('    0');
+					cmpLines.push("}");
 					return structStr + "\n\n" + cmpLines.join("\n");
 				}
 

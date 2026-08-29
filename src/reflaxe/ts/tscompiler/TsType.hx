@@ -53,61 +53,35 @@ class TsType {
 						imports.runtime("BytesBuffer");
 						"BytesBuffer";
 					case "std.SortedMap":
-						switch(classifyKey(params[0])) {
-							case IntKey:
-								imports.runtime("SortedMap");
-								"SortedMap<" + of(params[1]) + ">";
-							case StringKey:
-								imports.runtime("SortedMapStr");
-								"SortedMapStr<" + of(params[1]) + ">";
-							case StructKey(def, _):
-								imports.runtime("SortedMapByKey");
-								"SortedMapByKey<" + of(params[0]) + ", " + of(params[1]) + ">";
-						}
+						imports.runtime("SortedMapTable");
+						"SortedMapTable<" + of(params[0]) + ", " + of(params[1]) + ">";
 					case "std.SortedMapBuilder":
-						switch(classifyKey(params[0])) {
-							case IntKey:
-								imports.runtime("SortedMapBuilder");
-								"SortedMapBuilder<" + of(params[1]) + ">";
-							case StringKey:
-								imports.runtime("SortedMapStrBuilder");
-								"SortedMapStrBuilder<" + of(params[1]) + ">";
-							case StructKey(def, _):
-								imports.runtime("SortedMapByKeyBuilder");
-								"SortedMapByKeyBuilder<" + of(params[0]) + ", " + of(params[1]) + ">";
-						}
+						imports.runtime("SortedMapTableBuilder");
+						"SortedMapTableBuilder<" + of(params[0]) + ", " + of(params[1]) + ">";
 					case "std.SortedSet":
-						switch(classifyKey(params[0])) {
-							case IntKey:
-								imports.runtime("SortedSet");
-								"SortedSet";
-							case StringKey:
-								imports.runtime("SortedSetStr");
-								"SortedSetStr";
-							case StructKey(def, _):
-								imports.runtime("SortedSetByKey");
-								"SortedSetByKey<" + of(params[0]) + ">";
-						}
+						imports.runtime("SortedSetTable");
+						"SortedSetTable<" + of(params[0]) + ">";
 					case "std.SortedSetBuilder":
-						switch(classifyKey(params[0])) {
-							case IntKey:
-								imports.runtime("SortedSetBuilder");
-								"SortedSetBuilder";
-							case StringKey:
-								imports.runtime("SortedSetStrBuilder");
-								"SortedSetStrBuilder";
-							case StructKey(def, _):
-								imports.runtime("SortedSetByKeyBuilder");
-								"SortedSetByKeyBuilder<" + of(params[0]) + ">";
-						}
+						imports.runtime("SortedSetTableBuilder");
+						"SortedSetTableBuilder<" + of(params[0]) + ">";
 					case _:
 						imports.type(cls.module, cls.name);
-						cls.name;
+						if(params.length > 0) {
+							cls.name + "<" + [for(p in params) of(p)].join(", ") + ">";
+						} else {
+							cls.name;
+						}
+
 				}
 			case TType(def, params):
 				final d = def.get();
 				if(d.pack.join(".") == "haxe.io" && d.name == "Bytes") {
 					"Uint8Array";
+				} else if(RuntimeResidents.isResident(d.module) && params.length > 0) {
+					// A resident typedef lowers to a generic type alias
+					// inside the runtime file (TsDecl.functionTypeDecl);
+					// references carry the applied arguments.
+					d.name + "<" + [for(p in params) of(p)].join(", ") + ">";
 				} else if(params.length == 0) {
 					imports.type(d.module, d.name);
 					d.name;
@@ -119,7 +93,14 @@ class TsType {
 				imports.type(en.module, en.name);
 				en.name;
 			case TFun(args, ret):
-				"(" + [for(arg in args) '${arg.name}: ${of(arg.t)}'].join(", ") + ") => " + of(ret);
+				// Function types written without argument names, like the
+				// comparator `(K, K) -> Int`, still need positional names
+				// in TypeScript.
+				"(" + [for(index in 0...args.length) {
+					final arg = args[index];
+					final argName = arg.name != "" ? arg.name : "a" + index;
+					'${argName}: ${of(arg.t)}';
+				}].join(", ") + ") => " + of(ret);
 			case TAnonymous(_):
 				Context.error("anonymous structure types must be named typedefs before translation", Context.currentPos());
 				null;

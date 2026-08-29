@@ -198,14 +198,9 @@ class Compiler extends PluginCompiler<Compiler> {
 		emitShim("std.Console", "Console.kt", KotlinRuntime.CONSOLE_SOURCE);
 		emitShim("std.Process", "Process.kt", KotlinRuntime.PROCESS_SOURCE);
 		emitShim("std.Test", "test/Test.kt", KotlinRuntime.TEST_SOURCE, "test");
-		if(state.shimsUsed.exists("std.SortedMap") || state.shimsUsed.exists("std.SortedMapBuilder")) {
-			state.shimsUsed.set("std.SortedMap", true);
-			emitShim("std.SortedMap", "SortedMap.kt", KotlinRuntime.SORTED_MAP_SOURCE);
-		}
-		if(state.shimsUsed.exists("std.SortedSet") || state.shimsUsed.exists("std.SortedSetBuilder")) {
-			state.shimsUsed.set("std.SortedSet", true);
-			emitShim("std.SortedSet", "SortedSet.kt", KotlinRuntime.SORTED_SET_SOURCE);
-		}
+		// std.SortedMap and std.SortedSet no longer emit shims: the
+		// sorted tables compile from the runtime.SortedTable resident,
+		// gated through the extern usage flags these modules still set.
 
 		if(hasAnyKey(state.testClasses) && kotlinTestOutput != null) {
 			generateTestHelper(kotlinTestOutput, kotlinOutput);
@@ -418,8 +413,14 @@ class Compiler extends PluginCompiler<Compiler> {
 		unreferenced residents write nothing, matching the shims.
 	**/
 	function emitResidentModule(module: String): Void {
-		final externModule = RuntimeResidents.externOf(module);
-		if(externModule == null || !state.shimsUsed.exists(externModule)) {
+		var externUsed = false;
+		for(externModule in RuntimeResidents.externsOf(module)) {
+			if(state.shimsUsed.exists(externModule)) {
+				externUsed = true;
+				break;
+			}
+		}
+		if(!externUsed) {
 			return;
 		}
 		final dir = RuntimeConfig.emitDir();

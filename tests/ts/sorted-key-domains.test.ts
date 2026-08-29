@@ -16,15 +16,22 @@ describe("sorted key domains generated tree", () => {
   test("Structure key builder call site injects the comparator reference", () => {
     const clusterTagsPath = path.join(genDir, "boring/ClusterTags.ts");
     const content = fs.readFileSync(clusterTagsPath, "utf8");
-    expect(content).toContain("SortedMapByKey.builder<ClusterTag, number>(compareClusterTag)");
-    expect(content).toContain("SortedSetByKey.builder<ClusterTag>(compareClusterTag)");
+    expect(content).toContain("SortedTable.mapBuilder<ClusterTag, number>(compareClusterTag)");
+    expect(content).toContain("SortedTable.setBuilder<ClusterTag>(compareClusterTag)");
   });
 
-  test("Int key builder call site has no comparator injection", () => {
+  test("Int key builder call site binds the resident comparator", () => {
     const codePointNamesPath = path.join(genDir, "boring/CodePointNames.ts");
     expect(fs.existsSync(codePointNamesPath)).toBe(true);
     const content = fs.readFileSync(codePointNamesPath, "utf8");
-    expect(content).toContain("SortedMap.builder<string>()");
-    expect(content).not.toContain("compare");
+    expect(content).toContain("SortedTable.mapBuilder<number, string>(SortedTable.compareInts)");
+    expect(content).not.toContain("function compare");
+  });
+
+  test("String key builder call site binds the resident comparator", () => {
+    const scriptNamesPath = path.join(genDir, "boring/ScriptNames.ts");
+    expect(fs.existsSync(scriptNamesPath)).toBe(true);
+    const content = fs.readFileSync(scriptNamesPath, "utf8");
+    expect(content).toContain("SortedTable.mapBuilder<string, number>(SortedTable.compareStrings)");
   });
 });

@@ -709,11 +709,13 @@ class KotlinExpr {
 				imports.require(runtimePackage + ".test.Test");
 				return "Test." + name;
 			case "std.SortedMap":
-				imports.requireType("std.SortedMap", "SortedMap");
-				return "SortedMap." + name;
+				// The sorted resident owns the factory functions; the
+				// extern's `builder` maps onto the map flavor.
+				imports.requireType("std.SortedMap", "SortedTable");
+				return "SortedTable." + (name == "builder" ? "mapBuilder" : name);
 			case "std.SortedSet":
-				imports.requireType("std.SortedSet", "SortedSet");
-				return "SortedSet." + name;
+				imports.requireType("std.SortedSet", "SortedTable");
+				return "SortedTable." + (name == "builder" ? "setBuilder" : name);
 			case "std.UStringRT":
 				final runtimePackage = RuntimeConfig.requireImportName("module std.UStringRT");
 				state.shimsUsed.set("std.UStringRT", true);
@@ -732,12 +734,12 @@ class KotlinExpr {
 					return "Test." + name;
 				}
 				if(cls.module == "std.SortedMap") {
-					imports.requireType("std.SortedMap", "SortedMap");
-					return "SortedMap." + name;
+					imports.requireType("std.SortedMap", "SortedTable");
+					return "SortedTable." + (name == "builder" ? "mapBuilder" : name);
 				}
 				if(cls.module == "std.SortedSet") {
-					imports.requireType("std.SortedSet", "SortedSet");
-					return "SortedSet." + name;
+					imports.requireType("std.SortedSet", "SortedTable");
+					return "SortedTable." + (name == "builder" ? "setBuilder" : name);
 				}
 				if(cls.module == "std.UStringRT") {
 					final runtimePackage = RuntimeConfig.requireImportName("module std.UStringRT");
@@ -941,40 +943,15 @@ class KotlinExpr {
 						case TFun(_, TInst(_, params)) if(params.length > 1): params[1];
 						case _: null;
 					};
-					final domain = KotlinType.classifyKey(kType, fn.pos);
-					switch(domain) {
-						case IntKey:
-							imports.requireType("std.SortedMap", "SortedMap");
-							return "SortedMap.builder<" + types.of(vType) + ">()";
-						case StringKey:
-							imports.requireType("std.SortedMap", "SortedMapStr");
-							return "SortedMapStr.builder<" + types.of(vType) + ">()";
-						case StructKey(def, _):
-							imports.requireType("std.SortedMap", "SortedMapObj");
-							imports.requireType(def.module, "compare");
-							return "SortedMapObj.builder<" + types.of(kType) + ", " + types.of(vType) + ">(::compare)";
-					}
+					return "SortedTable.mapBuilder<" + types.of(kType) + ", " + types.of(vType) + ">(" + sortedComparator("std.SortedMap", kType, fn.pos) + ")";
 				}
 				if(cls.pack.join(".") == "std" && cls.name == "SortedSet" && name == "builder") {
 					final kType = switch(fn.t) {
 						case TFun(_, TInst(_, params)) if(params.length > 0): params[0];
 						case _: null;
 					};
-					final domain = KotlinType.classifyKey(kType, fn.pos);
-					switch(domain) {
-						case IntKey:
-							imports.requireType("std.SortedSet", "SortedSet");
-							return "SortedSet.builder()";
-						case StringKey:
-							imports.requireType("std.SortedSet", "SortedSetStr");
-							return "SortedSetStr.builder()";
-						case StructKey(def, _):
-							imports.requireType("std.SortedSet", "SortedSetObj");
-							imports.requireType(def.module, "compare");
-							return "SortedSetObj.builder<" + types.of(kType) + ">(::compare)";
-					}
+					return "SortedTable.setBuilder<" + types.of(kType) + ">(" + sortedComparator("std.SortedSet", kType, fn.pos) + ")";
 				}
-
 				return staticRef(cls, name) + "(" + renderedArgs + ")";
 			case TField(subj, FEnum(e, ef)):
 				final en = e.get();
@@ -1351,6 +1328,28 @@ class KotlinExpr {
 				final owner = state.payloadEnumOwners.get(en.module);
 				owner != null ? en.pack.concat([owner]).join(".") : en.module + "." + en.name;
 			case _: "Unknown";
+		};
+	}
+
+	/**
+		The comparator a sorted builder binds at creation, per key domain
+		(stdlib/07): integers take the resident comparator reference,
+		strings compare with the platform operator (the ruled UTF-16
+		code-unit order), structures take the per-type generated
+		comparison. The explicit type arguments at the call site make the
+		reference and lambda parameter types resolve.
+	**/
+	function sortedComparator(externModule: String, kType: Null<Type>, pos: haxe.macro.Expr.Position): String {
+		if(kType == null) {
+			Context.error("sorted builder requires an explicit key type", pos);
+		}
+		imports.requireType(externModule, "SortedTable");
+		return switch(KotlinType.classifyKey(kType, pos)) {
+			case IntKey: "SortedTable::compareInts";
+			case StringKey: "SortedTable::compareStrings";
+			case StructKey(def, _):
+				imports.requireType(def.module, "compare");
+				"::compare";
 		};
 	}
 
