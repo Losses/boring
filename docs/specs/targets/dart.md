@@ -39,10 +39,17 @@ Each Haxe module becomes one Dart library file under the package path,
 with relative imports between them. Dart allows top-level functions and
 variables, so a Haxe class with only statics lowers to top-level
 functions in a library named after the module, without a wrapper class.
+Every import binds a prefix taken from the referenced file's stem, so
+top-level names of two modules never collide inside one file.
+
+Residents are the exception to the flattening: the runtime library and
+the test host each merge several resident modules into one file, and
+their flattened top-level names would collide (`UString.count` against
+`Graphemes.count`), so resident classes keep the class form.
 
 | Haxe | Dart |
 | --- | --- |
-| module `boring.VectorCodec` | file `lib/boring/vector_codec.dart`, `library vector_codec;` |
+| module `boring.VectorCodec` | file `lib/boring/vector_codec.dart` |
 | static function | top-level function |
 | class instance code | `final class` |
 | package path | directory path of the library |
@@ -69,7 +76,12 @@ Haxe `Int` maps to `int`; Haxe `Float` maps to `double`.
 Candidate 1. The TypeScript lane already carries a wider-than-i32
 integer and relies on the domain rulings to keep values in range; Dart
 matches that precedent. Wrapping that `features/14` never permits is
-absent on both lanes for the same reason. The `float-precision` define
+absent on both lanes for the same reason. Two operators are the
+structural exception: `<<` and `>>>` produce results outside i32 on a
+64-bit word even from in-range operands, so each lowers with the domain
+restore attached (`(... << n).toSigned(32)` and
+`(... .toUnsigned(32) >> n).toSigned(32)`), the wrap targets with a
+native 32-bit integer perform in hardware. The `float-precision` define
 of `features/23` is not implemented for this lane: Dart has one storage
 width for reals (`double`), so an f32 variant cannot change result bits.
 
@@ -128,7 +140,10 @@ TypeScript lane lowers into `codePointAt`.
 units: `end` is `s.length`, `codeAt` combines a surrogate pair when
 present, `advance` is the pair width, `substringBetween` is
 `s.substring(a, b)`, `fromCodePoint` is `String.fromCharCode` over one
-or two units. Every primitive is constant time, so the resident walks
+or two units. Dart has no `codePointAt`, so the pair-combining read is
+a private `_codePointAt(String, int)` top-level function that every
+library inlining the walk carries (the runtime prelude and the test
+host). Every primitive is constant time, so the resident walks
 stay one linear pass.
 
 ### String ordering
@@ -140,11 +155,11 @@ runs.
 
 ### String buffer (`stdlib/08`)
 
-The buffer is `StringBuffer`, whose native storage already carries the
-UTF-16 units the checks read: the dangling unit reads through
-`toString()` and `codeUnitAt`, or the lane keeps a parallel unit count.
-`add` and `addChar` emit the boundary and pairing checks of `stdlib/08`;
-`toString` emits the dangling-lead check and delegates. The fault is the
+The buffer is `List<int>` over the UTF-16 units: the dangling unit is
+`buf[buf.length - 1]`, `add` emits the pairing check of `stdlib/08` and
+appends through `addAll(part.codeUnits)`, `addChar` emits the trail
+check and appends one unit, and `toString` emits the dangling-lead
+check and builds through `String.fromCharCodes(buf)`. The fault is the
 sealed `UStringFault` hierarchy above.
 
 ## Errors and faults (`features/06`)
@@ -159,12 +174,17 @@ mechanism.
 
 ## Sorted tables (`stdlib/07`)
 
-`std.SortedMap` and `std.SortedSet` route to `SplayTreeMap` and
-`SplayTreeSet`: iteration order is key order, `firstKey`/`lastKey` are
-the endpoints, and the default comparator on `String` is the unit order
-above, which is what aligns with the BTreeMap order the other lanes
-share. The builder faces keep the insert-then-build shape of the extern.
-No hand-written table ships.
+`std.SortedMap` and `std.SortedSet` compile the resident
+`runtime.SortedTable` classes into the emitted runtime library
+(`SortedMapTable` and `SortedSetTable` with their builder faces), the
+same resident-source ruling the Swift lane carries: the splay trees of
+`dart:collection` expose no builder face over shared storage and their
+iteration order, while key-ordered, gives no structural-equality handle
+for the consistency run. The comparator tears off
+`compareUnitOrder` for the String key domain and the generated
+`compare<Record>` functions for structure keys; the endpoints and the
+insert-then-build shape of the extern are the resident classes' own.
+No hand-written table ships in the generated business tree.
 
 ## Iteration and loops (`features/09`, `features/15`)
 
@@ -200,6 +220,7 @@ under `dart run`.
 
 ## Status
 
-Rulings complete for the constructs the sample tree exercises. The generator
-implementing them is tracked separately; until it is implemented, this document
-is the decision record the implementation must match.
+Rulings complete for the constructs the sample tree exercises, and the
+generator implementing them ships in the verify chain: `gen:dart`
+regenerates the tree, `test:dart` runs it, and the consistency run
+reads the Dart jsonl alongside the other five targets.
