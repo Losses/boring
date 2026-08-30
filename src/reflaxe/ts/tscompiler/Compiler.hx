@@ -245,6 +245,48 @@ class Compiler extends PluginCompiler<Compiler> {
 				output.saveFile(RuntimeConfig.emitPath(emitDir, "runtime/test.ts"), StringTools.trim(TsRuntime.TEST_SOURCE) + "\n" + testResidentParts.join("\n\n") + "\n");
 			}
 		}
+
+		if(PackageShell.enabled()) {
+			emitPackageShell();
+		}
+	}
+
+	/**
+		Writes package.json beside the generated tree (feature spec 24).
+		The tree is TypeScript source, so the manifest carries the module
+		type and a typescript devDependency for consumers that typecheck.
+		No exports field: the tree has no single entry module, and entry
+		selection belongs to the consumer's bundler. The validity
+		condition is a relative runtime import: a by-name import names a
+		package coordinate no manifest can declare.
+	**/
+	function emitPackageShell(): Void {
+		final runtimeImport = RuntimeConfig.importName();
+		if(anyRuntimeUsed() && runtimeImport != null && !TsImports.isRelativeSpecifier(runtimeImport)) {
+			Context.error("package shell requires a relative runtime import: a by-name runtime import names a package the manifest cannot declare; pass runtime-import a relative specifier or package-shell none", Context.currentPos());
+		}
+		final license = PackageShell.license();
+		final lines = [
+			"{",
+			'  "name": ${jsonString(PackageShell.name())},',
+			'  "version": ${jsonString(PackageShell.version())},',
+		];
+		if(license != null) {
+			lines.push('  "license": ${jsonString(license)},');
+		}
+		lines.push('  "private": true,');
+		lines.push('  "type": "module",');
+		lines.push('  "devDependencies": {');
+		lines.push('    "typescript": "^5.9.0"');
+		lines.push('  }');
+		lines.push("}");
+		output.saveFile("package.json", lines.join("\n") + "\n");
+	}
+
+	/** A JSON string literal with the two escapes a manifest value needs. */
+	static function jsonString(value: String): String {
+		final escaped = StringTools.replace(value, "\\", "\\\\");
+		return '"' + StringTools.replace(escaped, '"', '\\"') + '"';
 	}
 
 	function anyRuntimeTestUsed(): Bool {
