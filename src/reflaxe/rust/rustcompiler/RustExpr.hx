@@ -268,6 +268,8 @@ class RustExpr {
 				return [indent(depth) + "break;"];
 			case TContinue:
 				return [indent(depth) + "continue;"];
+			case TCall(fn, args) if(stringBufMutationParts(fn) != null):
+				return stringBufMutationLines(fn, args, depth);
 			case TMeta(_, inner):
 				return stmtLines(inner, depth);
 			case _:
@@ -283,6 +285,81 @@ class RustExpr {
 			case _:
 		}
 		return expr(x);
+	}
+
+	/**
+		The payload enum behind std.UStringException: every buffer check
+		of stdlib/08 reports UnpairedSurrogate through it. Registers the
+		import the hand-emitted Err arms need and returns the enum name,
+		or null when the exception class is outside the module set.
+	**/
+	function stringBufFaultEnum(): Null<String> {
+		final enumModule = state.exceptionPayloads.get("std.UStringException");
+		if(enumModule == null) {
+			return null;
+		}
+		final name = enumModule.split(".").pop();
+		final emitted = state.payloadEnumModules.get(enumModule);
+		final emittedIn = emitted != null ? emitted : "std.UStringException";
+		imports.requireType(emittedIn, name);
+		return name;
+	}
+
+	/**
+		Recognizes `buf.add(part)` and `buf.addChar(unit)` on std.StringBuf;
+		the pairing checks end the fallible owner through `return Err`, so
+		these mutations lower as statements only.
+	**/
+	function stringBufMutationParts(fn: TypedExpr): Null<{name: String, subj: TypedExpr}> {
+		return switch(fn.expr) {
+			case TField(subj, FInstance(_, _, cf)) if(isStringBuf(subj)):
+				final n = cf.get().name;
+				n == "add" || n == "addChar" ? {name: n, subj: subj} : null;
+			case _: null;
+		};
+	}
+
+	/** Statement lowering of the two buffer mutations (stdlib/08). */
+	function stringBufMutationLines(fn: TypedExpr, args: Array<TypedExpr>, depth: Int): Array<String> {
+		final parts = stringBufMutationParts(fn);
+		if(parts == null) {
+			return [fail(fn, "not a string buffer mutation")];
+		}
+		if(!isFallible) {
+			return [fail(fn, "string buffer " + parts.name + " has no lowering outside a fallible function: route the mutation through a fallible helper (stdlib/08)")];
+		}
+		final fault = stringBufFaultEnum();
+		if(fault == null) {
+			return [fail(fn, "string buffer checks require std.UStringException in the module set (stdlib/08)")];
+		}
+		final buf = expr(parts.subj);
+		final out: Array<String> = [];
+		if(parts.name == "add") {
+			final part = expr(args[0]);
+			out.push(indent(depth) + "if let Some(&unit) = " + buf + ".last() {");
+			// A Rust &str is always well-formed, so no part can open with
+			// the trail surrogate the contract would pair; the trail-start
+			// clause of stdlib/08 folds away.
+			out.push(indent(depth + 1) + "if unit >= 55296 && unit <= 56319 && !" + part + ".is_empty() {");
+			out.push(indent(depth + 2) + "return Err(" + fault + "::UnpairedSurrogate { unit: unit as u32 });");
+			out.push(indent(depth + 1) + "}");
+			out.push(indent(depth) + "}");
+			out.push(indent(depth) + buf + ".extend(" + part + ".encode_utf16());");
+		} else {
+			final u = expr(args[0]);
+			out.push(indent(depth) + "if " + u + " >= 56320 && " + u + " <= 57343 {");
+			out.push(indent(depth + 1) + "match " + buf + ".last() {");
+			out.push(indent(depth + 2) + "Some(&last) if last >= 55296 && last <= 56319 => {}");
+			out.push(indent(depth + 2) + "_ => return Err(" + fault + "::UnpairedSurrogate { unit: " + u + " }),");
+			out.push(indent(depth + 1) + "}");
+			out.push(indent(depth) + "} else if let Some(&last) = " + buf + ".last() {");
+			out.push(indent(depth + 1) + "if last >= 55296 && last <= 56319 {");
+			out.push(indent(depth + 2) + "return Err(" + fault + "::UnpairedSurrogate { unit: last as u32 });");
+			out.push(indent(depth + 1) + "}");
+			out.push(indent(depth) + "}");
+			out.push(indent(depth) + buf + ".push(" + u + " as u16);");
+		}
+		return out;
 	}
 
 	function exceptionVariant(cls: ClassType, payloadArg: TypedExpr): String {
@@ -1558,6 +1635,16 @@ class RustExpr {
 											}
 										case _:
 									}
+								// The typer binds the pattern variable from
+								// the extraction temp; usage tracking follows
+								// the pattern variable, so a payload the arm
+								// value never reads stays out of the pattern.
+								case TLocal(src):
+									for(cap in captures) {
+										if(cap.vid == src.id) {
+											cap.vid = v.id;
+										}
+									}
 								case _:
 							}
 						case TBlock(bs):
@@ -1568,14 +1655,19 @@ class RustExpr {
 			}
 			collect(statementsOf(c.expr));
 			function localIsRead(vid: Int): Bool {
+				// TypedExprTools.iter visits direct children only, so the
+				// read scan must recurse through the callback (mentionsLocal
+				// pattern); payload reads sit under TVar initializers.
 				var found = false;
-				haxe.macro.TypedExprTools.iter(c.expr, function(child) {
-					switch(child.expr) {
+				function scan(x: TypedExpr) {
+					switch(x.expr) {
 						case TLocal(l) if(l.id == vid):
 							found = true;
 						case _:
 					}
-				});
+					TypedExprTools.iter(x, scan);
+				}
+				scan(c.expr);
 				return found;
 			}
 			final usedIndices = [for(cap in captures) if(localIsRead(cap.vid)) cap.idx];
@@ -1882,7 +1974,7 @@ class RustExpr {
 				}
 				if(name == "length") {
 					if(isStringBuf(subj)) {
-						return expr(subj) + ".encode_utf16().count() as u32";
+						return expr(subj) + ".len() as u32";
 					}
 					// Resident modules keep the signed Int domain: their
 					// lengths join index arithmetic, so the read narrows
@@ -1897,7 +1989,7 @@ class RustExpr {
 				return subjStr + "." + snake;
 			case FDynamic(name):
 				if((name == "length" || name == "get_length") && isStringBuf(subj)) {
-					return expr(subj) + ".encode_utf16().count() as u32";
+					return expr(subj) + ".len() as u32";
 				}
 				return fail(subj, "dynamic field access has no lowering");
 			case FClosure(_):
@@ -2041,30 +2133,34 @@ class RustExpr {
 		final renderedArgs = [for(a in args) expr(a)].join(", ");
 		switch(fn.expr) {
 			case TField(subj, FDynamic(name)) if((name == "length" || name == "get_length") && isStringBuf(subj)):
-				return expr(subj) + ".encode_utf16().count() as u32";
+				return expr(subj) + ".len() as u32";
 			case TField(subj, FInstance(c, _, cf)):
 				final name = cf.get().name;
 				final snake = RustImports.toSnakeCase(name);
 				if(isStringBuf(subj)) {
+					// stdlib/08: add and addChar lower only as statements,
+					// because the pairing check leaves through `return Err`.
 					if(name == "add") {
-						final arg = args[0];
-						final argStr = switch(arg.expr) {
-							case TConst(TString(_)): expr(arg);
-							case TArray(_, _): "&" + arrayArgBorrow(arg);
-							case _:
-								final s = expr(arg);
-								if(StringTools.startsWith(s, "&")) s else "&" + s;
-						};
-						return expr(subj) + ".push_str(" + argStr + ")";
+						return fail(subj, "string buffer add has no expression lowering: keep the mutation a statement inside a fallible function (stdlib/08)");
 					}
 					if(name == "addChar") {
-						return expr(subj) + ".push(char::from_u32(" + expr(args[0]) + ").unwrap_or(char::REPLACEMENT_CHARACTER))";
+						return fail(subj, "string buffer addChar has no expression lowering: keep the mutation a statement inside a fallible function (stdlib/08)");
 					}
 					if(name == "toString") {
-						return expr(subj) + ".clone()";
+						final fault = stringBufFaultEnum();
+						if(fault == null) {
+							return fail(subj, "string buffer checks require std.UStringException in the module set (stdlib/08)");
+						}
+						// The unit vector keeps the buffer well-formed up to
+						// a trailing lead, so from_utf16 fails exactly on
+						// that lead and the map_err names it. The `?` or
+						// `.unwrap()` rides the ordinary fallibility rules.
+						final q = isFallible ? "?" : ".unwrap()";
+						return "String::from_utf16(" + expr(subj) + ".as_slice()).map_err(|_| " + fault + "::UnpairedSurrogate { unit: "
+							+ expr(subj) + "[" + expr(subj) + ".len() - 1] as u32 })" + q;
 					}
 					if(name == "get_length" || name == "length") {
-						return expr(subj) + ".encode_utf16().count() as u32";
+						return expr(subj) + ".len() as u32";
 					}
 				}
 				if(name == "get" && isBytes(stripCast(subj))) {
@@ -2468,7 +2564,7 @@ class RustExpr {
 		final path = cls.pack.length == 0 ? cls.name : cls.pack.join(".") + "." + cls.name;
 		switch(path) {
 			case "std.StringBuf" | "StringBuf":
-				return "String::new()";
+				return "Vec::<u16>::new()";
 			case "haxe.io.BytesBuffer":
 				imports.requireType(path, "BytesBuffer");
 				return "BytesBuffer::new()";

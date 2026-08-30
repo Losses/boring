@@ -28,12 +28,12 @@ class TryOps {
 
 	/** A second domain: the payload field follows the class declaration. */
 	static function classifyCode(fault:UStringFault):Int {
-		// Statement position: a single-case switch expression collapses
-		// into a block no target lowers as a value.
-		switch (fault) {
-			case InvalidCodePoint(code):
-				return 30 + code;
-		}
+		// Return position: a multi-arm variant switch lowers as a switch
+		// expression on every target.
+		return switch (fault) {
+			case InvalidCodePoint(code): 30 + code;
+			case UnpairedSurrogate(unit): 40 + unit;
+		};
 	}
 
 	/** Statement position: both arms write the same local. */

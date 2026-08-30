@@ -154,6 +154,8 @@ import runtime.Graphemes;
 import runtime.SortedTable;
 import runtime.TestCore;
 import runtime.UString;
+import std.UStringException;
+import std.UStringFault;
 
 @:jsRequire("node:fs")
 extern class Fs {
@@ -454,10 +456,32 @@ class StringBufOracle {
     }
 
     public function add(part:String):Void {
+        // stdlib/08 boundary check: a nonempty part that strands a held
+        // lead faults; one trailing toString snapshot per checked call.
+        final content = this.buf.toString();
+        final tail = content.length > 0 ? content.charCodeAt(content.length - 1) : -1;
+        if (tail >= 55296 && tail <= 56319 && part.length > 0) {
+            final head = part.charCodeAt(0);
+            if (!(head >= 56320 && head <= 57343)) {
+                throw new UStringException(UnpairedSurrogate(tail));
+            }
+        }
         this.buf.add(part);
     }
 
     public function addChar(codeUnit:Int):Void {
+        // stdlib/08 pairing check: a trail needs a held lead, any other
+        // unit needs the absence of one.
+        final content = this.buf.toString();
+        final tail = content.length > 0 ? content.charCodeAt(content.length - 1) : -1;
+        final heldLead = tail >= 55296 && tail <= 56319;
+        if (codeUnit >= 56320 && codeUnit <= 57343) {
+            if (!heldLead) {
+                throw new UStringException(UnpairedSurrogate(codeUnit));
+            }
+        } else if (heldLead) {
+            throw new UStringException(UnpairedSurrogate(tail));
+        }
         this.buf.addChar(codeUnit);
     }
 
@@ -466,7 +490,13 @@ class StringBufOracle {
     }
 
     public function toString():String {
-        return this.buf.toString();
+        // stdlib/08 dangling-lead check: the trailing lead has no trail.
+        final content = this.buf.toString();
+        final tail = content.length > 0 ? content.charCodeAt(content.length - 1) : -1;
+        if (tail >= 55296 && tail <= 56319) {
+            throw new UStringException(UnpairedSurrogate(tail));
+        }
+        return content;
     }
 }
 

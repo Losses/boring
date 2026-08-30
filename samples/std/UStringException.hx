@@ -13,11 +13,9 @@ class UStringException extends haxe.Exception {
 	}
 
 	public static function describe(fault:UStringFault):String {
-		// Statement position: the typer collapses a single-case switch
-		// expression into a block, which no target lowers as a value.
-		switch (fault) {
-			case InvalidCodePoint(code):
-				return 'invalid code point: $code';
-		}
+		return switch (fault) {
+			case InvalidCodePoint(code): 'invalid code point: $code';
+			case UnpairedSurrogate(unit): 'unpaired surrogate: $unit';
+		};
 	}
 }

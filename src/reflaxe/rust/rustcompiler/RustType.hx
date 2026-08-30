@@ -63,7 +63,10 @@ class RustType {
 				final cls = c.get();
 				switch(pathOf(cls.pack, cls.name)) {
 					case "String": isParam ? "&str" : "String";
-					case "std.StringBuf" | "StringBuf": isParam ? "&mut String" : "String";
+					// The buffer holds UTF-16 units; the pairing checks of
+					// stdlib/08 need the raw units, and String could not
+					// store an unpaired lead.
+					case "std.StringBuf" | "StringBuf": isParam ? "&mut Vec<u16>" : "Vec<u16>";
 					case "Array":
 						isParam ? "&mut [" + of(params[0]) + "]" : "Vec<" + of(params[0]) + ">";
 					case "haxe.io.Bytes":
