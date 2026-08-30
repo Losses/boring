@@ -57,6 +57,18 @@
   },
   {
     "define": "package-artifacts",
-    "doc": "Whether the compilation packs its output tree into the ecosystem install artifact beside the tree: none (default) or emit (npm tgz, cargo crate, Swift zip, Pub tar.gz; the Kotlin target rejects it). See docs/specs/features/25-package-artifacts.md."
+    "doc": "Whether the compilation packs its output tree into the ecosystem install artifact beside the tree: none (default) or emit. The npm tarball and the Kotlin Maven directory are build output compiled through package-tsc and package-kotlinc; the cargo crate, the Swift zip, and the Pub tar.gz carry source. See docs/specs/features/25-package-artifacts.md."
+  },
+  {
+    "define": "package-tsc",
+    "doc": "Path to the TypeScript compiler executable used when package-artifacts=emit on the TypeScript target: the npm artifact ships compiled JavaScript plus declarations, so the pack step runs tsc over a staged copy of the tree."
+  },
+  {
+    "define": "package-kotlinc",
+    "doc": "Path to the kotlinc executable used when package-artifacts=emit on the Kotlin target: the artifact is a Maven repository directory carrying a jar compiled from the generated sources."
+  },
+  {
+    "define": "package-group",
+    "doc": "Maven groupId of the Kotlin artifact directory, written as the pom groupId and the directory path under maven/; defaults to the package name."
   }
 ]

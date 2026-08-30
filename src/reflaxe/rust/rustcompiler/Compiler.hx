@@ -279,7 +279,7 @@ class Compiler extends PluginCompiler<Compiler> {
 		}
 		if(PackageArtifacts.enabled()) {
 			PackageArtifacts.requireShell();
-			PackageArtifacts.emitTarGz(Context.definedValue("rust-output"), false, ".crate");
+			PackageArtifacts.emitTarGz(Context.definedValue("rust-output"), ".crate");
 		}
 	}
 

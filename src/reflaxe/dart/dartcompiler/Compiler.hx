@@ -302,7 +302,7 @@ class Compiler extends PluginCompiler<Compiler> {
 		}
 		if(PackageArtifacts.enabled()) {
 			PackageArtifacts.requireShell();
-			PackageArtifacts.emitTarGz(dartOutput, false, ".tar.gz");
+			PackageArtifacts.emitTarGz(dartOutput, ".tar.gz");
 		}
 	}
 
