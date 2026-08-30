@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -6,19 +7,28 @@ import * as path from "node:path";
 /**
  * Feature spec 25: behind `package-artifacts=emit` the compiler packs
  * the recorded main-tree writes into the install artifact of the
- * target's ecosystem and writes it beside the output tree. These
- * tests generate each lane into a temp directory and verify the entry
- * layout, the deterministic bytes, the npm install of the tarball,
- * and the three rejections. The Kotlin lane has no artifact format
- * and stops the compilation.
+ * target's ecosystem and writes it beside the output tree. The npm
+ * tarball and the Kotlin Maven directory are build output: the pack
+ * step compiles through the host tool a define names (`package-tsc`,
+ * `package-kotlinc`) and forwards a failing tool's exit code and
+ * output. The cargo crate, the Swift zip, and the Pub archive carry
+ * source, because those registries install source.
  */
 
 const REPO_ROOT = path.resolve(import.meta.dir, "../..");
+const TSC = path.join(REPO_ROOT, "node_modules/typescript/bin/tsc");
 
 interface CompilerOutcome {
   exitCode: number;
   stderr: string;
 }
+
+/** One lane of the byte-identity check: its example, artifact path, and extra defines. */
+type IdentityLane = {
+  hxml: string;
+  file: string;
+  extra: string[];
+};
 
 /**
  * Rewrites one example hxml for an artifact generation: every
@@ -70,6 +80,14 @@ async function tarList(artifact: string): Promise<string[]> {
   return stdout.split("\n").filter(line => line.length > 0);
 }
 
+/** Reads one member of a tar+gzip artifact. */
+function tarRead(artifact: string, member: string): string {
+  const proc = Bun.spawnSync(["tar", "-xzOf", artifact, member]);
+  expect(proc.stderr.toString()).toBe("");
+  expect(proc.exitCode).toBe(0);
+  return proc.stdout.toString();
+}
+
 /** Lists a zip artifact's entries in archive order. */
 function zipList(artifact: string): string[] {
   const script = [
@@ -85,10 +103,10 @@ function zipList(artifact: string): string[] {
 }
 
 describe("package artifact emission", () => {
-  test("the npm tarball carries the package/ layout and installs with the npm CLI", async () => {
+  test("the npm tarball carries compiled JavaScript plus declarations and runs under plain node", async () => {
     const root = tempRoot("npm");
     try {
-      const hxml = rewriteHxml("ts.hxml", root);
+      const hxml = rewriteHxml("ts.hxml", root, [`-D package-tsc=${TSC}`]);
       const result = await runHaxe("package-artifacts-npm.hxml", hxml);
       expect(result.stderr).toBe("");
       expect(result.exitCode).toBe(0);
@@ -102,15 +120,29 @@ describe("package artifact emission", () => {
         expect(entry.startsWith("package/")).toBe(true);
       }
       expect(entries).toContain("package/package.json");
-      expect(entries).toContain("package/runtime.ts");
+      expect(entries).toContain("package/dist/runtime.js");
+      expect(entries).toContain("package/dist/runtime.d.ts");
+      expect(entries).toContain("package/dist/boring/Fp32.js");
+      expect(entries).toContain("package/dist/boring/Fp32.d.ts");
+      // The install unit is compiled output: no TypeScript source
+      // ships, and the runtime test entry (node:fs for the test
+      // harness) stays out of the package.
+      expect(entries.filter(entry => entry.endsWith(".ts") && !entry.endsWith(".d.ts"))).toEqual([]);
+      expect(entries).not.toContain("package/dist/runtime/test.js");
       expect(entries).not.toContain("package/_GeneratedFiles.txt");
       expect(entries.some(entry => entry.includes("gen-tests"))).toBe(false);
-      expect(entries.some(entry => entry.endsWith(".test.ts"))).toBe(false);
+      const manifest = tarRead(artifact, "package/package.json");
+      expect(manifest).toContain('"./runtime"');
+      expect(manifest).toContain('"./dist/runtime.js"');
+      expect(manifest).toContain('"./dist/runtime.d.ts"');
 
       // A registry consumer installs the tarball with the native CLI
-      // and imports through the exports map of spec 24.
+      // and imports through the retargeted exports map. The consumer
+      // runs under plain node: the whole point of the compile step is
+      // that no TypeScript runtime is needed.
       const consumerRoot = path.join(root, "consumer");
       fs.mkdirSync(consumerRoot);
+      fs.writeFileSync(path.join(consumerRoot, "package.json"), '{"name":"consumer","private":true}\n');
       const install = Bun.spawn(["npm", "install", "--no-audit", "--no-fund", artifact], {
         cwd: consumerRoot,
         stdout: "pipe",
@@ -130,7 +162,7 @@ describe("package artifact emission", () => {
         'console.log("tgz-consumer-ok");',
         "",
       ].join("\n"));
-      const consumer = Bun.spawn(["bun", "consumer.mjs"], {
+      const consumer = Bun.spawn(["node", "consumer.mjs"], {
         cwd: consumerRoot,
         stdout: "pipe",
         stderr: "pipe",
@@ -146,7 +178,7 @@ describe("package artifact emission", () => {
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }
-  });
+  }, 120000);
 
   test("the cargo crate and the Pub archive keep the tree at the root", async () => {
     const rustRoot = tempRoot("rust");
@@ -203,23 +235,71 @@ describe("package artifact emission", () => {
     }
   });
 
-  // Eight generations run here, so the default five-second budget
-  // does not fit.
+  test("the Kotlin target packs a Maven repository directory with a compiled jar", async () => {
+    const root = tempRoot("kotlin");
+    try {
+      const hxml = rewriteHxml("kotlin.hxml", root, ["-D package-kotlinc=kotlinc", "-D package-group=dev.boring"]);
+      const result = await runHaxe("package-artifacts-kotlin.hxml", hxml);
+      expect(result.stderr).toBe("");
+      expect(result.exitCode).toBe(0);
+
+      const versionDir = path.join(root, "kotlin", "maven", "dev", "boring", "generated", "0.1.0");
+      const jar = path.join(versionDir, "generated-0.1.0.jar");
+      const pom = path.join(versionDir, "generated-0.1.0.pom");
+      expect(fs.existsSync(jar)).toBe(true);
+      expect(fs.existsSync(pom)).toBe(true);
+      const pomText = fs.readFileSync(pom, "utf8");
+      expect(pomText).toContain("<groupId>dev.boring</groupId>");
+      expect(pomText).toContain("<artifactId>generated</artifactId>");
+      expect(pomText).toContain("<version>0.1.0</version>");
+      expect(pomText).toContain("<artifactId>kotlin-stdlib</artifactId>");
+
+      // The checksum files carry the sha1 of exactly the saved bytes.
+      for(const file of [jar, pom]) {
+        const expected = crypto.createHash("sha1").update(fs.readFileSync(file)).digest("hex");
+        expect(fs.readFileSync(file + ".sha1", "utf8")).toBe(expected);
+      }
+
+      // The jar repacks the kotlinc classes through the fixed-date zip
+      // writer, so its entry order and metadata hold the determinism
+      // constants of the spec.
+      const script = [
+        "import sys, zipfile",
+        "with zipfile.ZipFile(sys.argv[1]) as z:",
+        "    names = z.namelist()",
+        "    print('sorted', names == sorted(names))",
+        "    print('dates', all(i.date_time == (2020, 6, 1, 12, 0, 0) for i in z.infolist()))",
+        "    print('fp32', 'boring/Fp32.class' in names)",
+      ].join("\n");
+      const proc = Bun.spawnSync(["python3", "-c", script, jar]);
+      expect(proc.stderr.toString()).toBe("");
+      expect(proc.exitCode).toBe(0);
+      expect(proc.stdout.toString()).toBe("sorted True\ndates True\nfp32 True\n");
+      // No staging tree stays behind beside the output.
+      expect(fs.existsSync(path.join(root, "kotlin", ".package-kotlinc-classes"))).toBe(false);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  }, 240000);
+
+  // Ten generations run here (one of them through kotlinc twice), so
+  // the default five-second budget does not fit.
   test("two generations of the same inputs produce byte-identical artifacts", async () => {
     const first = tempRoot("identity-a");
     const second = tempRoot("identity-b");
     try {
-      const lanes: Array<{hxml: string, file: string}> = [
-        {hxml: "ts.hxml", file: "ts/generated-0.1.0.tgz"},
-        {hxml: "rust.hxml", file: "rust-gen/boring-codec-gen-0.1.0.crate"},
-        {hxml: "swift.hxml", file: "swift/generated-0.1.0.zip"},
-        {hxml: "dart.hxml", file: "dart/generated-0.1.0.tar.gz"},
+      const lanes: IdentityLane[] = [
+        {hxml: "ts.hxml", file: "ts/generated-0.1.0.tgz", extra: [`-D package-tsc=${TSC}`]},
+        {hxml: "rust.hxml", file: "rust-gen/boring-codec-gen-0.1.0.crate", extra: []},
+        {hxml: "swift.hxml", file: "swift/generated-0.1.0.zip", extra: []},
+        {hxml: "dart.hxml", file: "dart/generated-0.1.0.tar.gz", extra: []},
+        {hxml: "kotlin.hxml", file: "kotlin/maven/generated/generated/0.1.0/generated-0.1.0.jar", extra: ["-D package-kotlinc=kotlinc"]},
       ];
       for(const lane of lanes) {
-        const a = await runHaxe(`package-artifacts-id-a.hxml`, rewriteHxml(lane.hxml, first));
+        const a = await runHaxe(`package-artifacts-id-a.hxml`, rewriteHxml(lane.hxml, first, lane.extra));
         expect(a.stderr).toBe("");
         expect(a.exitCode).toBe(0);
-        const b = await runHaxe(`package-artifacts-id-b.hxml`, rewriteHxml(lane.hxml, second));
+        const b = await runHaxe(`package-artifacts-id-b.hxml`, rewriteHxml(lane.hxml, second, lane.extra));
         expect(b.stderr).toBe("");
         expect(b.exitCode).toBe(0);
         expect(fs.readFileSync(path.join(second, lane.file))).toEqual(fs.readFileSync(path.join(first, lane.file)));
@@ -228,7 +308,7 @@ describe("package artifact emission", () => {
       fs.rmSync(first, { recursive: true, force: true });
       fs.rmSync(second, { recursive: true, force: true });
     }
-  }, 60000);
+  }, 420000);
 
   test("an invalid package-artifacts value aborts the compile", async () => {
     const root = tempRoot("invalid");
@@ -259,12 +339,49 @@ describe("package artifact emission", () => {
     }
   });
 
-  test("the Kotlin target rejects artifact emission", async () => {
-    const root = tempRoot("kotlin");
+  test("npm artifacts without package-tsc abort the compile", async () => {
+    const root = tempRoot("no-tsc");
     try {
-      const result = await runHaxe("package-artifacts-kotlin.hxml", rewriteHxml("kotlin.hxml", root));
+      const result = await runHaxe("package-artifacts-no-tsc.hxml", rewriteHxml("ts.hxml", root));
       expect(result.exitCode).not.toBe(0);
-      expect(result.stderr).toContain("package artifacts are undefined for the Kotlin target");
+      expect(result.stderr).toContain("package artifacts on the TypeScript target require the TypeScript compiler");
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test("kotlin artifacts without package-kotlinc abort the compile", async () => {
+    const root = tempRoot("no-kotlinc");
+    try {
+      const result = await runHaxe("package-artifacts-no-kotlinc.hxml", rewriteHxml("kotlin.hxml", root));
+      expect(result.exitCode).not.toBe(0);
+      expect(result.stderr).toContain("package artifacts on the Kotlin target require the Kotlin compiler");
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test("a failing package-tsc forwards the exit code and the tool output", async () => {
+    const root = tempRoot("tsc-fail");
+    try {
+      const hxml = rewriteHxml("ts.hxml", root, ["-D package-tsc=/bin/false"]);
+      const result = await runHaxe("package-artifacts-tsc-fail.hxml", hxml);
+      expect(result.exitCode).not.toBe(0);
+      expect(result.stderr).toContain("package-tsc failed with exit code 1");
+      expect(result.stderr).toContain("/bin/false");
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test("a failing package-kotlinc forwards the exit code and the tool output", async () => {
+    const root = tempRoot("kotlinc-fail");
+    try {
+      const hxml = rewriteHxml("kotlin.hxml", root, ["-D package-kotlinc=/bin/false"]);
+      const result = await runHaxe("package-artifacts-kotlinc-fail.hxml", hxml);
+      expect(result.exitCode).not.toBe(0);
+      expect(result.stderr).toContain("package-kotlinc failed with exit code 1");
+      expect(result.stderr).toContain("/bin/false");
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }
