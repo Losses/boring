@@ -12,7 +12,12 @@ compiler runs. The three target compilers receive only full positional calls
 over required parameters, so no target emits an optional parameter or a
 default. The downstream motivation is the engine port audit: 462
 default-parameter sites across 39 files, with omission at call sites
-throughout.
+throughout. The same audit additionally holds 50 default sites whose
+values are not compile-time constants: 42 empty-container defaults and 8
+floating-point infinity defaults. Haxe rejects every non-constant default
+value at typing, so this specification rules a second sanctioned form,
+the coalescing default, that expresses such values within Haxe's
+constant-only grammar.
 
 Haxe holds no named call arguments, so every call in the pipeline is
 positional and omission is trailing only. The pass fills omitted trailing
@@ -35,40 +40,96 @@ glyphName(0x4E00, "CJK", "-x");
 After completion the declaration carries three required parameters and every
 call passes three arguments.
 
+A value that Haxe cannot write as a constant takes the coalescing default
+form: a nullable-optional parameter with no declared constant, normalized by
+exactly one null-coalescing site.
+
+```haxe
+public function new(?fontFamilies:Array<String>, ?fontSize:Float) {
+    this.fontFamilies = fontFamilies == null ? [] : fontFamilies;
+    this.fontSize = fontSize == null ? 16.0 : fontSize;
+}
+```
+
+Call sites omit the parameter exactly as they omit a constant default, and the
+omission resolves to the coalescing expression.
+
 ## Completion rules
 
-1. A default value must be a compile-time constant from the sanctioned class:
-   a literal, `null`, or an enum constructor without arguments. The check runs
-   on the typed declaration after the compiler evaluates constants. Any other
-   default expression is rejected with the named error
-   `default argument values accept compile-time constants only`, which the
-   `V16 NonConstantDefault` row of `docs/specs/style/01-haxe-style-standard.md`
-   records.
-2. Copying a constant into a call site introduces no evaluation, so the
-   completion changes no observable behavior. This is why the sanctioned class
-   stops at constants.
-3. A value-optional parameter (`x:String = "?"`) keeps its declared type in
+1. A default belongs to one of two sanctioned classes.
+   - **Constant default.** A compile-time constant after the compiler
+     evaluates constants: a literal, `null`, or an enum constructor without
+     arguments. Any other expression in default position is rejected with the
+     named error `default argument values accept compile-time constants only`,
+     which the `V16 NonConstantDefault` row of
+     `docs/specs/style/01-haxe-style-standard.md` records.
+   - **Coalescing default.** A nullable-optional parameter (`?p:T`)
+     normalized by exactly one coalescing site: the assignment
+     `this.p = p == null ? E : p` for a constructor field parameter, or the
+     local binding `var v = p == null ? E : p` for a function parameter.
+2. The default expression `E` of a coalescing site accepts: primitive-type
+   literals; the empty array construction `[]`; the empty map construction
+   `new Map()`; `Math.POSITIVE_INFINITY`; `Math.NEGATIVE_INFINITY`; and
+   argument-less enum constructors. Every entry stays a constant on the Dart
+   and Swift targets, which is what constrains the class to these entries.
+   Any other expression is rejected with
+   `coalesced default expression is not sanctioned`. A parameter consumed by
+   more than one expression, or read anywhere outside its single coalescing
+   site, is rejected with `coalesced default parameter is consumed more than
+   once`.
+3. Copying a constant into a call site introduces no evaluation, so completing
+   a constant default changes no observable behavior. A coalescing default
+   evaluates `E` at every call that omits the parameter and at no other call;
+   each target lowering preserves this per-call evaluation, and two omitting
+   calls receive distinct container instances. The per-call freshness is an
+   observable the consistency run pins.
+4. A value-optional parameter (`x:String = "?"`) keeps its declared type in
    the body; after the pass it becomes a plain required parameter. A
-   nullable-optional parameter (`?suffix:String`) reads as `Null<String>` in
-   the body; after the pass it becomes a required parameter of type
-   `Null<String>` and every omitting call site receives `null`.
-4. The pass applies to every typed declaration shape: class methods, interface
+   nullable-optional parameter holding a constant default (`?suffix:String`
+   completed to `null`) reads as `Null<String>` in the body; after the pass it
+   becomes a required parameter of type `Null<String>` and every omitting call
+   site receives `null`. A coalescing default parameter keeps its omission
+   through the pass on the targets that hold native default syntax, per the
+   per-target products below.
+5. The pass applies to every typed declaration shape: class methods, interface
    methods, static functions, and local functions.
-5. The pass runs after typing and before the pipeline expansion pass of `docs/specs/macros/01-functional-idiom-expansion.md` and
+6. The pass runs after typing and before the pipeline expansion pass of `docs/specs/macros/01-functional-idiom-expansion.md` and
    the `V08` scan, so both later stages see only completed calls.
 
 ## Per-target products
 
-After completion, a defaulted function is indistinguishable from a function
-that never held defaults. TypeScript and Kotlin accept native default syntax;
-the pass completes the calls before them, so neither target emits a default.
-Rust holds no default parameter syntax; the completed call sites are the only
-form. No target-specific work exists for this feature.
+The two sanctioned classes lower differently.
+
+- **Constant defaults** complete at every omitting call site before any target
+  compiler runs. After completion, a constant-defaulted function is
+  indistinguishable from a function that never held defaults; no target emits
+  an optional parameter or a default initializer for them. This is unchanged
+  from the previous ruling of this specification.
+- **Coalescing defaults** survive omission into the targets that hold native
+  default syntax, and complete on the one target that does not:
+  - Kotlin, TypeScript, Swift: the parameter lowers with the native default
+    `p: T = E` and the coalescing site is dropped. A constructor field
+    parameter stays the primary field of
+    `docs/specs/features/27-class-members-and-records.md`, so record equality
+    and copy keep the field; the declaration is indistinguishable from a
+    hand-written defaulted field.
+  - Dart: the parameter lowers with the const default, with the sanctioned
+    class mapping `[]` to `const []` and the infinities to `double.infinity`;
+    the coalescing site is dropped.
+  - Rust: Rust holds no default parameter syntax. The parameter lowers as the
+    `Option<T>` of the existing `Null<T>` convention, omitting call sites
+    complete to `None` through the pass, and the coalescing site lowers at the
+    function entry as `let p = p.unwrap_or_else(|| E);`, whose closure
+    evaluates `E` only in the `None` arm.
+  - Haxe stage 1: the coalescing site is the semantics itself; the oracle
+    needs no adaptation.
 
 ## Emission rulings recorded at implementation
 
-The declaration side holds: no target emits optional syntax or default
-initializers. The sample shapes introduced by this feature appear in the sample
+The declaration side holds for constant defaults: no target emits optional
+syntax or default initializers. Coalescing defaults emit their native default
+on the targets that hold the syntax, per the per-target products above. The
+sample shapes introduced by this feature appear in the sample
 tree for the first time, and the general emitter gaps they exposed were
 filled as target-level rules:
 
@@ -103,7 +164,10 @@ filled as target-level rules:
 
 The haxe stage-1 side runs haxe's own optional-argument semantics, so the
 consistency comparison rests on the haxe standard behavior on one side and the
-completed positional calls on the other three targets.
+completed positional calls on the other targets. Coalescing defaults run the
+haxe coalescing site on the stage-1 side and the native defaults on the code
+targets; the comparison covers their observable results, including the
+per-call freshness of container defaults.
 
 ## Name resolution rules
 
@@ -124,6 +188,18 @@ local functions holding distinct defaults.
 - A new sample module declares defaulted functions at several arities, covers
   the value-optional and nullable-optional forms, and calls them with zero,
   one, and two omitted trailing arguments.
+- The same module covers the coalescing default at both shapes: a constructor
+  field parameter defaulting to `[]`, a function parameter defaulting to
+  `Math.POSITIVE_INFINITY`, and a map-valued parameter defaulting to
+  `new Map()`, each with omission sites.
+- Coalescing samples assert per-call freshness: two omitting calls return
+  distinct container instances, pinned by mutating one result and observing
+  the other unchanged.
+- `tests/ts/` tree assertions extend to the coalescing products: the
+  TypeScript tree carries the native default syntax on these parameters and
+  no materialized argument at their omission sites; the constant-default
+  assertions of no optional parameters and full-arity calls still hold for
+  constant-defaulted functions.
 - `samples/tests/` asserts the observable results; the four-side consistency
   run of `docs/specs/features/19-testing.md` compares the jsonl output.
 - `tests/ts/` tree assertions pin the products: the generated trees contain

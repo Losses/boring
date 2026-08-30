@@ -287,7 +287,12 @@ storage (today it contributes a wrong `Default::default()` slot).
    primary-constructor field; an assignment to a primary-constructor
    field from any other expression stops the compilation with
    `constructor assigns F from another expression; assign the constructor
-   parameter F directly`. An assignment to a field the constructor does
+   parameter F directly`. The single exception is the coalescing default of
+   `docs/specs/features/22-default-argument-expansion.md`: an assignment of
+   exactly the shape `this.f = f == null ? E : f` over a nullable-optional
+   constructor parameter is that specification's sanctioned default and
+   lowers by its per-target products, with the parameter staying the primary
+   field. An assignment to a field the constructor does
    not receive as a parameter is that field's initialization: the
    statement renders in the init block and the field declaration carries
    no initializer. Rust renders the
