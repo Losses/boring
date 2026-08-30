@@ -1,9 +1,11 @@
 # Root cargo workspace, symmetric with the bun workspace in package.json.
 # Member crates hold the language implementations; test suites live in
 # tests/ and are wired into crates through explicit [[test]] paths.
+# The generated crates carry their own emitted Cargo.toml at their src
+# root (feature spec 24); membership here stays the consumer's act.
 # The default members keep a plain `cargo test` on the f64 tree; the f32
 # twin crate (feature spec 23) runs through its own verify lane.
 [workspace]
-members = ["reference/rust", "reference/rust-gen", "reference/rust-f32-gen"]
-default-members = ["reference/rust", "reference/rust-gen"]
+members = ["reference/rust", "reference/rust-gen/src", "reference/rust-f32-gen/src"]
+default-members = ["reference/rust", "reference/rust-gen/src"]
 resolver = "3"

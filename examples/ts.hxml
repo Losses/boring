@@ -13,6 +13,9 @@
 -D ts-test-runner=bun
 -D runtime-import=@boring/runtime
 -D runtime-emit=.
+# The repository resolves the runtime by name through tsconfig.json
+# paths, so the package shell stays off (feature spec 24).
+-D package-shell=none
 boring.BinaryReader
 boring.BinaryWriter
 boring.Fp32
