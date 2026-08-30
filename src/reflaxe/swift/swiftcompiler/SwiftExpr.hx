@@ -184,7 +184,11 @@ class SwiftExpr {
 				// factory (the comparator fixes only the key), and a bare
 				// nil. The declaration names the type instead.
 				// (features/14: Int is Int32 on this lane.)
-				final annotation = isEmptyArrayDecl(init) || isIntLeafType(v.t) || isIntLiteralArrayDecl(init) || isBuilderCall(init) || isNullLeafType(v.t) ? ": " + types.of(v.t) : "";
+				// On the f32 lane a Float-typed declaration names its type
+				// too: a bare float initializer infers the default Double
+				// width (feature spec 23).
+				final annotation = isEmptyArrayDecl(init) || isIntLeafType(v.t) || isIntLiteralArrayDecl(init) || isBuilderCall(init) || isNullLeafType(v.t)
+					|| (FloatPrecision.isF32() && isFloatLeafType(v.t)) ? ": " + types.of(v.t) : "";
 				return [indent(depth) + '$kw ${localName(v)}$annotation = $tryKw${expr(init)}'];
 			case TVar(v, _):
 				// A declaration without initializer: definite
@@ -828,13 +832,14 @@ class SwiftExpr {
 				return "Int32(bitPattern: UInt32(bitPattern: " + expr(l) + ") >> UInt32(bitPattern: " + expr(r) + "))";
 			case OpDiv:
 				// Haxe `/` on two Int operands yields Float; Swift `/` on
-				// Int32 stays integral, so the operands widen first.
+				// Int32 stays integral, so the operands widen first. The
+				// widening target is the module real (feature spec 23).
 				if(isIntTyped(l) && isIntTyped(r)) {
 					final right = switch(stripWrap(r).expr) {
 						case TConst(TInt(n)): Std.string(n);
-						case _: "Double(" + expr(r) + ")";
+						case _: realType() + "(" + expr(r) + ")";
 					};
-					return "Double(" + expr(l) + ") / " + right;
+					return realType() + "(" + expr(l) + ") / " + right;
 				}
 				return floatAware(operand(l, op, false), l) + " / " + floatAware(operand(r, op, true), r);
 			case OpEq | OpNotEq:
@@ -850,6 +855,11 @@ class SwiftExpr {
 		}
 	}
 
+	/** The module real's Swift name; Int sides of Float operations widen to it. */
+	function realType(): String {
+		return FloatPrecision.isF32() ? "Float" : "Double";
+	}
+
 	/** The operand text with an Int side of a Float operation widened. */
 	function floatAware(text: String, side: TypedExpr): String {
 		if(!isIntTyped(side)) {
@@ -857,8 +867,8 @@ class SwiftExpr {
 		}
 		return switch(stripWrap(side).expr) {
 			// A bare literal converts in context once wrapped.
-			case TConst(TInt(n)): "Double(" + n + ")";
-			case _: "Double(" + text + ")";
+			case TConst(TInt(n)): realType() + "(" + n + ")";
+			case _: realType() + "(" + text + ")";
 		};
 	}
 
@@ -958,7 +968,14 @@ class SwiftExpr {
 		switch(module) {
 			case "Math":
 				// The stdlib members map onto the Swift standard library:
-				// no Foundation import runs for arithmetic.
+				// no Foundation import runs for arithmetic. The f32 lane
+				// reads every member from the Float family (feature
+				// spec 23).
+				if(FloatPrecision.isF32()) {
+					if(name == "NaN") return "Float.nan";
+					if(name == "POSITIVE_INFINITY") return "Float.infinity";
+					if(name == "NEGATIVE_INFINITY") return "-Float.infinity";
+				}
 				if(name == "NaN") return "Double.nan";
 				if(name == "POSITIVE_INFINITY") return "Double.infinity";
 				if(name == "NEGATIVE_INFINITY") return "-Double.infinity";
@@ -976,6 +993,19 @@ class SwiftExpr {
 				return "Std." + name;
 			case "haxe.io.FPHelper":
 				// stdlib/05: the bit conversions live in the runtime module.
+				// The f32 lane swaps the two value-edge calls to the
+				// binary32 variants; the 8-byte wire layout keeps its f64
+				// shape on both lanes (feature spec 23).
+				if(FloatPrecision.isF32()) {
+					if(name == "i64ToDouble") {
+						imports.runtime("i64ToF32");
+						return "i64ToF32";
+					}
+					if(name == "doubleToI64") {
+						imports.runtime("f32ToI64");
+						return "f32ToI64";
+					}
+				}
 				imports.runtime(name);
 				return name;
 			case "std.Test" | "std.__test_shim":
@@ -2477,6 +2507,13 @@ class SwiftExpr {
 	function isIntLeafType(t: Type): Bool {
 		return switch(Context.follow(t)) {
 			case TAbstract(a, _): a.get().name == "Int";
+			case _: false;
+		}
+	}
+
+	function isFloatLeafType(t: Type): Bool {
+		return switch(Context.follow(t)) {
+			case TAbstract(a, _): a.get().name == "Float";
 			case _: false;
 		}
 	}
