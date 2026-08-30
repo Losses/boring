@@ -34,6 +34,8 @@
  *   V15 EnumDefaultArm     switch over an enum with a default arm        [pass 2]
  *   V17 AssignArgExpression assignment expressions in call arguments     [pass 1]
  *   V18 NonAsciiStringIndex index access to non-ascii string literals   [1+2]
+ *   V19 TryRegionControlFlow return, break, continue in a region body   [pass 2]
+ *   V20 TryRegionMixedDomains region body throwing beyond the caught class [pass 2]
  * V09 and V10 are schema-level checks on the FormatDef, not AST checks.
  */
 // Imports spell out every referenced type: module wildcards over
@@ -53,6 +55,7 @@ import haxe.macro.Type.ClassType;
 import haxe.macro.Type.FieldAccess;
 import haxe.macro.Type.TypedExpr;
 import haxe.macro.Type.TypedExprDef;
+import haxe.macro.Type.TVar;
 
 class Intercept {
 	/** Field names whose call form is banned on any receiver (V02). */
@@ -629,18 +632,7 @@ class Intercept {
 				checkThrow(inner);
 				walk(inner, inLoop);
 			case TypedExprDef.TTry(body, catches):
-				walk(body, inLoop);
-				for (index in 0...catches.length) {
-					final catchVariable = catches[index].v;
-					switch (catchVariable.t) {
-						case Type.TDynamic(_):
-							violation("V14", "DynamicCatch",
-								"catch variable is typed Dynamic; catch clauses name the exception type",
-								e.pos);
-						default:
-					}
-					walk(catches[index].expr, inLoop);
-				}
+				checkRegion(e, body, catches, inLoop);
 			case TypedExprDef.TSwitch(subject, cases, maybeDefault):
 				checkEnumDefault(subject, maybeDefault);
 				walk(subject, inLoop);
@@ -676,6 +668,123 @@ class Intercept {
 		checkMapType(e);
 		checkInt64(e);
 		checkStringIndex(e);
+	}
+
+	/**
+	 * Region rules of features/06: one clause, one domain, and no control
+	 * flow crossing the region boundary (V19, V20).
+	 */
+	static function checkRegion(region:TypedExpr, body:TypedExpr,
+			catches:Array<{v:TVar, expr:TypedExpr}>, inLoop:Bool):Void {
+		if (catches.length != 1) {
+			violation("V20", "TryRegionMixedDomains",
+				"try region handles exactly one exception domain; nest one region per domain",
+				region.pos);
+		} else {
+			final catchVariable = catches[0].v;
+			switch (catchVariable.t) {
+				case Type.TDynamic(_):
+					violation("V14", "DynamicCatch",
+						"catch variable is typed Dynamic; catch clauses name the exception type",
+						region.pos);
+				case Type.TInst(classRef, _):
+					final cls = classRef.get();
+					if (!isEnumCarryingException(cls)) {
+						violation("V20", "TryRegionMixedDomains",
+							"try region catch type carries no payload enum",
+							region.pos);
+					} else {
+						checkRegionDomains(body, cls.module, []);
+					}
+				default:
+					violation("V20", "TryRegionMixedDomains",
+						"try region catch type carries no payload enum",
+						region.pos);
+			}
+		}
+		checkRegionControlFlow(body, false);
+		walk(body, inLoop);
+		for (index in 0...catches.length) {
+			walk(catches[index].expr, inLoop);
+		}
+	}
+
+	/**
+	 * A throw of a class the region does not catch escapes the region, so
+	 * the single closure error type of the Rust lowering breaks (V20).
+	 * Nested regions absorb their own domains inside their bodies; their
+	 * handlers throw into the enclosing region.
+	 */
+	static function checkRegionDomains(e:TypedExpr, caughtModule:String, absorbed:Array<String>):Void {
+		switch (e.expr) {
+			case TypedExprDef.TThrow(inner):
+				switch (inner.t) {
+					case Type.TInst(classRef, _):
+						final module = classRef.get().module;
+						if (module != caughtModule && absorbed.indexOf(module) < 0) {
+							violation("V20", "TryRegionMixedDomains",
+								"try region body throws " + classRef.get().name
+								+ " beyond the caught class; nest one region per domain",
+								e.pos);
+						}
+					default:
+						// V04 rejects the throw itself.
+				}
+			case TypedExprDef.TTry(nestedBody, nestedCatches):
+				final nestedAbsorbed = absorbed.slice(0, absorbed.length);
+				for (index in 0...nestedCatches.length) {
+					switch (nestedCatches[index].v.t) {
+						case Type.TInst(classRef, _):
+							nestedAbsorbed.push(classRef.get().module);
+						default:
+					}
+					checkRegionDomains(nestedCatches[index].expr, caughtModule, absorbed);
+				}
+				checkRegionDomains(nestedBody, caughtModule, nestedAbsorbed);
+			default:
+				haxe.macro.TypedExprTools.iter(e, (child:TypedExpr) -> {
+					checkRegionDomains(child, caughtModule, absorbed);
+				});
+		}
+	}
+
+	/**
+	 * return, break, and continue crossing the region boundary cannot lower
+	 * through the Rust closure (V19). Loops inside the body rebind their own
+	 * break and continue; a local function body binds its own return.
+	 */
+	static function checkRegionControlFlow(e:TypedExpr, inLoop:Bool):Void {
+		switch (e.expr) {
+			case TypedExprDef.TReturn(_):
+				violation("V19", "TryRegionControlFlow",
+					"return inside a try region body; hoist the region and return after it",
+					e.pos);
+			case TypedExprDef.TBreak if(!inLoop):
+				violation("V19", "TryRegionControlFlow",
+					"break inside a try region body; hoist the region and break after it",
+					e.pos);
+			case TypedExprDef.TContinue if(!inLoop):
+				violation("V19", "TryRegionControlFlow",
+					"continue inside a try region body; hoist the region and continue after it",
+					e.pos);
+			case TypedExprDef.TWhile(condition, body, _):
+				checkRegionControlFlow(condition, inLoop);
+				checkRegionControlFlow(body, true);
+			case TypedExprDef.TFor(_, subject, body):
+				checkRegionControlFlow(subject, inLoop);
+				checkRegionControlFlow(body, true);
+			case TypedExprDef.TFunction(_):
+				// return inside a local function binds to that function.
+			case TypedExprDef.TTry(nestedBody, nestedCatches):
+				checkRegionControlFlow(nestedBody, false);
+				for (index in 0...nestedCatches.length) {
+					checkRegionControlFlow(nestedCatches[index].expr, inLoop);
+				}
+			default:
+				haxe.macro.TypedExprTools.iter(e, (child:TypedExpr) -> {
+					checkRegionControlFlow(child, inLoop);
+				});
+		}
 	}
 
 	static function walkChildren(e:TypedExpr, inLoop:Bool):Void {

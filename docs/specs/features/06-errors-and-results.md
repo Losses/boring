@@ -349,10 +349,12 @@ rejection and a sanctioned alternative:
   class is rejected (`tryRegionMixedDomains`); the mixed-domain region
   has no single closure error type. The alternative is nested regions,
   one per domain.
-- A region containing `return`, `break`, or `continue` is rejected
+- A region body containing `return`, `break`, or `continue` is rejected
   (`tryRegionControlFlow`); control flow crossing the closure boundary
-  cannot lower. The alternative is hoisting: evaluate the region to a
-  value and place the control-flow statement after it.
+  cannot lower. The handler lowers outside the closure, so a `return`
+  inside a handler keeps its function-edge meaning on every lane. The
+  alternative for body control flow is hoisting: evaluate the region to
+  a value and place the control-flow statement after it.
 
 Fallibility absorption: a domain fully handled by a region's clauses
 does not infect the enclosing function on the Rust lane. The

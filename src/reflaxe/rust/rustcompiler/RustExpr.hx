@@ -36,6 +36,8 @@ class RustExpr {
 	var returnTypeName: Null<String> = null;
 
 	final subst: Map<Int, String> = [];
+	/** Catch variables of the region being lowered; features/06 catch-site lowering. */
+	final catchVars: Map<Int, Bool> = [];
 	final mutated: Map<Int, Bool> = [];
 	final usedNames: Map<String, Bool> = [];
 	final hiddenNames: Map<Int, String> = [];
@@ -144,6 +146,8 @@ class RustExpr {
 
 	function stmtLines(e: TypedExpr, depth: Int): Array<String> {
 		switch(e.expr) {
+			case TVar(v, init) if(isTryRegion(init)):
+				return regionInitializerLines(v, stripWrap(init), depth);
 			case TVar(v, init) if(init != null):
 				final kw = mutated.exists(v.id) ? "let mut" : "let";
 				final name = RustImports.toSnakeCase(localName(v));
@@ -208,6 +212,10 @@ class RustExpr {
 					return [indent(depth) + "return Ok(());"];
 				}
 				return [indent(depth) + "return;"];
+			case TReturn(ret) if(isTryRegion(ret)):
+				return regionReturnLines(stripWrap(ret), depth);
+			case TReturn(ret) if(isVariantSwitch(ret)):
+				return matchReturnLines(stripWrap(ret), depth);
 			case TReturn(ret):
 				// An Int-returning function renders u32, while a length
 				// expression renders usize; the return narrows once at the
@@ -252,6 +260,10 @@ class RustExpr {
 				return [indent(depth) + "return " + retStr + ";"];
 			case TThrow(x):
 				return [indent(depth) + "return Err(" + throwVariant(x) + ");"];
+			case TTry(body, catches) if(catches.length == 1):
+				return regionStatementLines(body, catches[0], depth);
+			case TTry(_, _):
+				return [fail(e, "try region handles exactly one exception domain")];
 			case TBreak:
 				return [indent(depth) + "break;"];
 			case TContinue:
@@ -1189,7 +1201,19 @@ class RustExpr {
 			case TCast(inner, _):
 				return expr(inner);
 			case TEnumParameter(se, ef, index):
-				return expr(se) + "." + payloadName(ef, index);
+				// A collapsed single-case switch reads the payload outside
+				// any match arm; a one-construct enum folds the read into an
+				// exhaustive match, and anything wider stays in arms.
+				final en = switch(Context.follow(se.t)) {
+					case TEnum(r, _): r.get();
+					case _: return fail(e, "payload read subject is not a variant value");
+				};
+				if(Lambda.count(en.constructs) != 1) {
+					return fail(e, "payload read of a multi-variant enum lowers inside a match arm only");
+				}
+				requireEnum(en.module, en.name);
+				final pname = payloadName(ef, index);
+				return "match " + expr(se) + " { " + en.name + "::" + ef.name + " { " + pname + ", .. } => " + pname + " }";
 			case TEnumIndex(_):
 				return fail(e, "enum index only lowers inside a variant switch");
 			case TFunction(f):
@@ -1200,13 +1224,455 @@ class RustExpr {
 					case _: expr(stripWrap(c));
 				};
 				return "if " + condStr + " { " + expr(t) + " } else { " + expr(f) + " }";
+			case TSwitch(_, _, _):
+				return matchExpression(e);
+			case TTry(_, catches) if(catches.length != 1):
+				return fail(e, "try region handles exactly one exception domain");
+			case TTry(_, _):
+				// Region lowering needs the statement context (features/06):
+				// statement position and initializer position render in
+				// stmtLines, return position in TReturn.
+				return fail(e, "try region lowers at statement, initializer, or return position");
 			case _:
 				return fail(e, "expression has no Rust lowering in the subset: " + Std.string(e.expr));
 		}
 	}
 
-	function isStringType(t: Type): Bool {
-		if(t == null) return false;
+	// ------------------------------------------------------------------
+	// Variant switches and try regions (features/01, features/06)
+	// ------------------------------------------------------------------
+
+	function isTryRegion(e: TypedExpr): Bool {
+		return switch(stripWrap(e).expr) {
+			case TTry(_, catches): catches.length == 1;
+			case _: false;
+		};
+	}
+
+	/** True when the expression is an enum switch over variant indices. */
+	function isVariantSwitch(e: TypedExpr): Bool {
+		return switch(stripWrap(e).expr) {
+			case TSwitch(_, _, _): true;
+			case _: false;
+		};
+	}
+
+	/** Return-position variant switch: the match value returns through the function edge. */
+	function matchReturnLines(sw: TypedExpr, depth: Int): Array<String> {
+		final lines = matchExpression(sw).split("\n");
+		final out = [indent(depth) + (isFallible ? "return Ok(" : "return ") + lines[0]];
+		for(i in 1...lines.length) {
+			out.push(indent(depth) + lines[i]);
+		}
+		out[out.length - 1] += isFallible ? ");" : ";";
+		return out;
+	}
+
+	/**
+		On a catch variable, the payload field of the exception class (the
+		enum-typed field whose enum the region catches) reads as the bound
+		enum value itself; the exception class does not exist on this lane
+		(features/06 catch-site lowering).
+	**/
+	function catchPayloadAccess(subj: TypedExpr, name: String): Null<String> {
+		switch(stripWrap(subj).expr) {
+			case TLocal(v) if(catchVars.exists(v.id)):
+				switch(Context.follow(v.t)) {
+					case TInst(c, _):
+						final cls = c.get();
+						final enumModule = state.exceptionPayloads.get(cls.module);
+						if(enumModule != null) {
+							for(f in cls.fields.get()) {
+								if(f.name == name) {
+									switch(f.type) {
+										case TEnum(en, _):
+											if(en.get().module == enumModule) {
+												return RustImports.toSnakeCase(localName(v));
+											}
+										case _:
+									}
+								}
+							}
+						}
+					case _:
+				}
+			case _:
+		}
+		return null;
+	}
+
+	/** The payload enum of the exception class a region catches, or null. */
+	function caughtPayloadEnum(c: {v: TVar, expr: TypedExpr}): Null<{name: String, module: String}> {
+		switch(Context.follow(c.v.t)) {
+			case TInst(cls, _):
+				final enumModule = state.exceptionPayloads.get(cls.get().module);
+				if(enumModule == null) {
+					return null;
+				}
+				final name = enumModule.substr(enumModule.lastIndexOf(".") + 1);
+				return {name: name, module: enumModule};
+			case _:
+				return null;
+		}
+	}
+
+	function requireEnum(enumModule: String, enumName: String): Void {
+		final emittedIn = state.payloadEnumModules.exists(enumModule) ? state.payloadEnumModules.get(enumModule) : enumModule;
+		imports.requireType(emittedIn, enumName);
+	}
+
+	function freshRegionName(prefix: String): String {
+		var index = 0;
+		var name = prefix;
+		while(usedNames.exists(name)) {
+			index += 1;
+			name = prefix + index;
+		}
+		usedNames.set(name, true);
+		return name;
+	}
+
+	/**
+		Renders the region body as an immediately invoked closure returning
+		`Result<value, enum>`. The trailing value expression is rewrapped as a
+		return so the existing fallible return edge rules (String ownership,
+		Option wrapping) apply at the `Ok` tail; the fallibility flag is set
+		for the closure body only, so `Ok` wrapping holds even when the
+		enclosing function absorbed the domain.
+	**/
+	function regionClosureLines(body: TypedExpr, regionType: Null<Type>, enumName: String, depth: Int): Array<String> {
+		var stmts = statementsOf(body);
+		// A top-level throw ends the region: the tail after it is dead in
+		// every target, so the closure stops at the throwing edge.
+		for(i in 0...stmts.length) {
+			switch(stmts[i].expr) {
+				case TThrow(_):
+					stmts = stmts.slice(0, i + 1);
+					break;
+				case _:
+			}
+		}
+		final tail = regionTailValue(stmts);
+		var bodyStmts = stmts;
+		if(tail != null) {
+			final rewrapped: TypedExpr = {expr: TypedExprDef.TReturn(tail), t: tail.t, pos: tail.pos};
+			bodyStmts = stmts.slice(0, stmts.length - 1).concat([rewrapped]);
+		}
+		final savedFallible = isFallible;
+		final savedError = errorTypeName;
+		final savedOverflow = countOverflowVariant;
+		isFallible = true;
+		errorTypeName = enumName;
+		countOverflowVariant = null;
+		final lines = blockLines(bodyStmts, depth, true);
+		isFallible = savedFallible;
+		errorTypeName = savedError;
+		countOverflowVariant = savedOverflow;
+		// A Void tail still closes with Ok(()): blockLines appends it under
+		// the forced fallible flag, and a rewrapped tail already returns it.
+		return lines;
+	}
+
+	/**
+		The trailing value of a region body: an expression statement whose
+		value leaves the region. Declarations, control flow, assignments,
+		and blocks never carry the tail value.
+	**/
+	function regionTailValue(stmts: Array<TypedExpr>): Null<TypedExpr> {
+		if(stmts.length == 0) {
+			return null;
+		}
+		final last = stmts[stmts.length - 1];
+		return switch(last.expr) {
+			case TReturn(_) | TThrow(_) | TVar(_, _) | TIf(_, _, _) | TWhile(_, _, _) | TFor(_, _, _) | TBlock(_) | TBreak | TContinue | TBinop(OpAssign, _, _) | TBinop(OpAssignOp(_), _, _):
+				null;
+			case _:
+				isVoidType(last.t) ? null : last;
+		}
+	}
+
+	function isVoidType(t: Null<Type>): Bool {
+		if(t == null) {
+			return true;
+		}
+		return switch(Context.follow(t)) {
+			case TAbstract(a, _): a.get().name == "Void";
+			case TEnum(en, _): en.get().name == "Void";
+			case _: false;
+		};
+	}
+
+	/** Return-position region: the match value returns through the function edge. */
+	function regionReturnLines(region: TypedExpr, depth: Int): Array<String> {
+		final parts = switch(stripWrap(region).expr) {
+			case TTry(body, catches): {body: body, c: catches[0]};
+			case _: return [fail(region, "not a try region")];
+		}
+		final payload = caughtPayloadEnum(parts.c);
+		if(payload == null) {
+			return [fail(parts.c.expr, "try region catch type carries no payload enum")];
+		}
+		if(regionTailValue(statementsOf(parts.body)) == null) {
+			return [fail(region, "try region body has no value")];
+		}
+		requireEnum(payload.module, payload.name);
+		final valueBinding = freshRegionName("__value");
+		// The annotated return type keeps the error enum readable at the
+		// closure head; handler arms alone cannot always infer it.
+		final valueType = types.of(regionTailValue(statementsOf(parts.body)).t);
+		final opener = "(|| -> Result<" + valueType + ", " + payload.name + "> {";
+		final prefix = isFallible ? "return Ok(match " + opener : "return match " + opener;
+		final out = [indent(depth) + prefix];
+		for(l in regionClosureLines(parts.body, region.t, payload.name, depth + 1)) out.push(l);
+		out.push(indent(depth) + (isFallible ? "})() {" : "})() {"));
+		out.push(indent(depth) + "    Ok(" + valueBinding + ") => " + valueBinding + ",");
+		catchVars.set(parts.c.v.id, true);
+		final arm = armBlock(parts.c.expr);
+		catchVars.remove(parts.c.v.id);
+		for(i in 0...arm.length) {
+			final suffix = i == arm.length - 1 ? "," : "";
+			out.push(indent(depth) + "    Err(" + RustImports.toSnakeCase(localName(parts.c.v)) + ") => " + arm[i] + suffix);
+		}
+		out.push(indent(depth) + (isFallible ? "});" : "};"));
+		return out;
+	}
+
+	/** Statement-position region: run the closure, act on the Err arm only. */
+	function regionStatementLines(body: TypedExpr, c: {v: TVar, expr: TypedExpr}, depth: Int): Array<String> {
+		final payload = caughtPayloadEnum(c);
+		if(payload == null) {
+			return [fail(c.expr, "try region catch type carries no payload enum")];
+		}
+		requireEnum(payload.module, payload.name);
+		final outcome = freshRegionName("__outcome");
+		final tail = regionTailValue(statementsOf(body));
+		final valueType = tail != null ? tail.t : null;
+		final out = [indent(depth) + 'let $outcome: Result<' + (valueType == null ? "()" : types.of(valueType)) + ', ' + payload.name + "> = (|| {"];
+		for(l in regionClosureLines(body, valueType, payload.name, depth + 1)) out.push(l);
+		out.push(indent(depth) + "})();");
+		out.push(indent(depth) + 'match $outcome {');
+		out.push(indent(depth) + "    Ok(_) => {}");
+		out.push(indent(depth) + "    Err(" + RustImports.toSnakeCase(localName(c.v)) + ") => {");
+		catchVars.set(c.v.id, true);
+		final handler = blockLines(statementsOf(c.expr), depth + 2);
+		catchVars.remove(c.v.id);
+		for(l in handler) out.push(l);
+		out.push(indent(depth) + "    }");
+		out.push(indent(depth) + "}");
+		return out;
+	}
+
+	/** Initializer-position region: the match yields the bound value. */
+	function regionInitializerLines(v: TVar, region: TypedExpr, depth: Int): Array<String> {
+		final parts = switch(stripWrap(region).expr) {
+			case TTry(body, catches): {body: body, c: catches[0]};
+			case _: return [fail(region, "not a try region")];
+		}
+		final payload = caughtPayloadEnum(parts.c);
+		if(payload == null) {
+			return [fail(parts.c.expr, "try region catch type carries no payload enum")];
+		}
+		if(regionTailValue(statementsOf(parts.body)) == null) {
+			return [fail(region, "try region body has no value")];
+		}
+		requireEnum(payload.module, payload.name);
+		final name = RustImports.toSnakeCase(localName(v));
+		final valueBinding = freshRegionName("__value");
+		final out = [indent(depth) + 'let $name: ' + types.of(v.t) + ' = match (|| -> Result<' + types.of(v.t) + ', ' + payload.name + '> {'];
+		for(l in regionClosureLines(parts.body, v.t, payload.name, depth + 1)) out.push(l);
+		out.push(indent(depth) + "})() {");
+		out.push(indent(depth) + "    Ok(" + valueBinding + ") => " + valueBinding + ",");
+		catchVars.set(parts.c.v.id, true);
+		final arm = armBlock(parts.c.expr);
+		catchVars.remove(parts.c.v.id);
+		for(i in 0...arm.length) {
+			final suffix = i == arm.length - 1 ? "," : "";
+			out.push(indent(depth) + "    Err(" + RustImports.toSnakeCase(localName(parts.c.v)) + ") => " + arm[i] + suffix);
+		}
+		out.push(indent(depth) + "};");
+		return out;
+	}
+
+	/**
+		Renders an enum switch as a `match` expression. The typer hands the
+		switch over with the subject wrapped in TEnumIndex and case values as
+		construct-index constants; payload captures arrive as TEnumParameter
+		initializations in the arm block, so each arm pattern binds the
+		captured payloads as named fields and collapses the rest into `..`.
+	**/
+	function matchExpression(sw: TypedExpr): String {
+		final parts = switch(sw.expr) {
+			case TSwitch(subj, cases, def): {subj: subj, cases: cases, def: def};
+			case _: return fail(sw, "not a switch");
+		}
+		if(parts.def != null) {
+			return fail(sw, "variant switch carries a default arm (V15)");
+		}
+		final subj = stripWrap(parts.subj);
+		final se = switch(subj.expr) {
+			case TEnumIndex(inner): inner;
+			case _: return fail(sw, "switch subject is not a variant index");
+		}
+		final subjStr = expr(se);
+		final en = switch(se.t) {
+			case TEnum(enumRef, _): enumRef.get();
+			case _: return fail(sw, "variant switch subject is not a variant value");
+		}
+		requireEnum(en.module, en.name);
+		final table = new Map<Int, EnumField>();
+		for(constructName => ef in en.constructs) {
+			table.set(ef.index, ef);
+		}
+		final out = ["match " + subjStr + " {"];
+		for(c in parts.cases) {
+			final index = switch(c.values[0].expr) {
+				case TConst(TInt(v)): v;
+				case _: return fail(sw, "variant switch case is not a constant index");
+			}
+			final ef = table.get(index);
+			if(ef == null) {
+				return fail(sw, "variant switch case index has no construct");
+			}
+			final argCount = switch(ef.type) {
+				case TFun(args, _): args.length;
+				case _: 0;
+			};
+			// Payload captures bind as named fields of the variant pattern;
+			// uncaptured payloads collapse into `..`, unused ones into a
+			// leading underscore binding.
+			final subjectLocal = switch(se.expr) {
+				case TLocal(l): l.id;
+				case _: -1;
+			};
+			final captures: Array<{vid: Int, idx: Int}> = [];
+			function collect(stmts: Array<TypedExpr>) {
+				for(s in stmts) {
+					switch(s.expr) {
+						case TVar(v, init) if(init != null):
+							switch(stripWrap(init).expr) {
+								case TEnumParameter(se2, _, idx):
+									switch(se2.expr) {
+										case TLocal(l2) if(l2.id == subjectLocal):
+											if(Lambda.find(captures, function(c) return c.idx == idx) == null) {
+												captures.push({vid: v.id, idx: idx});
+											}
+										case _:
+									}
+								case _:
+							}
+						case TBlock(bs):
+							collect(bs);
+						case _:
+					}
+				}
+			}
+			collect(statementsOf(c.expr));
+			function localIsRead(vid: Int): Bool {
+				var found = false;
+				haxe.macro.TypedExprTools.iter(c.expr, function(child) {
+					switch(child.expr) {
+						case TLocal(l) if(l.id == vid):
+							found = true;
+						case _:
+					}
+				});
+				return found;
+			}
+			final usedIndices = [for(cap in captures) if(localIsRead(cap.vid)) cap.idx];
+			var lastUsed = -1;
+			for(idx in usedIndices) {
+				if(idx > lastUsed) {
+					lastUsed = idx;
+				}
+			}
+			var pattern = en.name + "::" + ef.name;
+			if(argCount > 0) {
+				final bindings: Array<String> = [];
+				for(idx in 0...argCount) {
+					if(Lambda.has(usedIndices, idx)) {
+						bindings.push(payloadName(ef, idx));
+					} else if(idx < lastUsed) {
+						// An unused payload before a used one still binds,
+						// under the underscore name.
+						bindings.push("_" + payloadName(ef, idx));
+					} else {
+						// Everything from the first unused tail payload on
+						// collapses into the rest pattern.
+						bindings.push("..");
+						break;
+					}
+				}
+				pattern += " { " + bindings.join(", ") + " }";
+			}
+			final arm = armBlock(c.expr);
+			for(i in 0...arm.length) {
+				final suffix = i == arm.length - 1 ? "," : "";
+				out.push("    " + pattern + " => " + arm[i] + suffix);
+			}
+		}
+		out.push("}");
+		return out.join("\n");
+	}
+
+	/**
+		Renders one switch arm (or one region handler in value position).
+		Payload captures fold into field reads on the subject; other
+		declarations stay; the trailing statement is the arm value. A
+		single-expression arm renders inline, anything longer renders as a
+		block.
+	**/
+	function armBlock(e: TypedExpr): Array<String> {
+		final decls: Array<String> = [];
+		var value: Null<String> = null;
+		var sawReturn = false;
+		function walk(stmts: Array<TypedExpr>) {
+			for(s in stmts) {
+				switch(s.expr) {
+					case TVar(v, init):
+						if(init == null) {
+							Context.error("rust target: declaration without initializer has no lowering", s.pos);
+						}
+						switch(stripWrap(init).expr) {
+							case TEnumParameter(_, ef, index):
+								// The variant pattern binds the payload as a
+								// named field, so the capture reads it bare.
+								subst.set(v.id, payloadName(ef, index));
+							case TLocal(source) if(subst.exists(source.id)):
+								subst.set(v.id, subst.get(source.id));
+							case _:
+								decls.push("let " + RustImports.toSnakeCase(localName(v)) + " = " + expr(init) + ";");
+						}
+					case TBlock(bs):
+						walk(bs);
+					case TMeta(_, inner):
+						walk([inner]);
+					case TReturn(_):
+						sawReturn = true;
+					case _:
+						value = expr(s);
+				}
+			}
+		}
+		walk(statementsOf(e));
+		if(sawReturn) {
+			return [fail(e, "return inside a value arm lowers at statement position only")];
+		}
+		if(value == null) {
+			return [fail(e, "variant switch arm has no value")];
+		}
+		if(decls.length == 0) {
+			return [value];
+		}
+		final out = ["{"];
+		for(d in decls) {
+			out.push("    " + d);
+		}
+		out.push("    " + value);
+		out.push("}");
+		return out;
+	}
+
+	function isStringType(t: Type): Bool {		if(t == null) return false;
 		return switch(Context.follow(t)) {
 			case TInst(c, _): c.get().name == "String";
 			case _: false;
@@ -1399,6 +1865,21 @@ class RustExpr {
 				return en.name + "::" + ef.name;
 			case FInstance(_, _, cf) | FAnon(cf):
 				final name = cf.get().name;
+				{
+					final bound = catchPayloadAccess(subj, name);
+					if(bound != null) {
+						return bound;
+					}
+				}
+				if(name == "message" || name == "get_message") {
+					switch(stripWrap(subj).expr) {
+						case TLocal(v) if(catchVars.exists(v.id)):
+							// Display carries the message text of the variant
+							// (features/06: messages are display text).
+							return "format!(\"{}\", " + RustImports.toSnakeCase(localName(v)) + ")";
+						case _:
+					}
+				}
 				if(name == "length") {
 					if(isStringBuf(subj)) {
 						return expr(subj) + ".encode_utf16().count() as u32";
@@ -1532,6 +2013,15 @@ class RustExpr {
 
 	function call(fn: TypedExpr, args: Array<TypedExpr>): String {
 		switch(fn.expr) {
+			case TField(subj, FInstance(_, _, cf)) if(cf.get().name == "get_message" && args.length == 0):
+				final target = stripWrap(subj);
+				switch(target.expr) {
+					case TLocal(v) if(catchVars.exists(v.id)):
+						// Property getter on a caught exception: Display
+						// carries the variant text (features/06).
+						return "format!(\"{}\", " + RustImports.toSnakeCase(localName(v)) + ")";
+					case _:
+				}
 			case TField(subj, FStatic(c, cf)):
 				final cls = c.get();
 				final name = cf.get().name;
