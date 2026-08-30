@@ -680,7 +680,10 @@ class Compiler extends PluginCompiler<Compiler> {
 		final fallible = new Map<String, Bool>();
 		final enumOf = new Map<String, {module: String, name: String}>();
 		final conflicts = new Map<String, Bool>();
-		final entries: Array<{key: String, edges: Array<String>}> = [];
+		// An edge records the error enums its call site sits inside a try
+		// region for: a fully handled domain does not infect the enclosing
+		// function (features/06 catch-site lowering).
+		final entries: Array<{key: String, edges: Array<{callee: String, absorbed: Array<String>}>}> = [];
 		function mergeEnum(key: String, pair: {module: String, name: String}): Bool {
 			final existing = enumOf.get(key);
 			if(existing == null) {
@@ -713,50 +716,73 @@ class Compiler extends PluginCompiler<Compiler> {
 								final body = field.expr();
 								if(body == null) return;
 								final key = RustEmissionState.funcKey(cls.module, field.name, isStatic);
-								final entry = {key: key, edges: new Array<String>()};
-								function walk(e: TypedExpr) {
+								final entry = {key: key, edges: new Array<{callee: String, absorbed: Array<String>}>()};
+								function walk(e: TypedExpr, absorbed: Array<String>) {
+									function descend() {
+										haxe.macro.TypedExprTools.iter(e, function(child) walk(child, absorbed));
+									}
 									switch(e.expr) {
 										case TThrow(t):
-											fallible.set(key, true);
 											final pair = thrownPayloadEnum(stripDecorations(t));
-											if(pair != null) {
-												mergeEnum(key, pair);
+											if(pair != null && absorbed.indexOf(pair.module) >= 0) {
+												// The region's clauses catch this domain.
+											} else {
+												fallible.set(key, true);
+												if(pair != null) {
+													mergeEnum(key, pair);
+												}
 											}
+											descend();
 										case TCall(fn, callArgs):
 											switch(fn.expr) {
 												case TField(_, FInstance(cc, _, cf)):
 													final calleeName = cf.get().name;
 													if(RustEmissionState.runtimeShimIsFallible(calleeName)) {
-														fallible.set(key, true);
-														if(state.errorModule != null && state.errorName != null) {
-															mergeEnum(key, {module: state.errorModule, name: state.errorName});
+														if(!(state.errorModule != null && absorbed.indexOf(state.errorModule) >= 0)) {
+															fallible.set(key, true);
+															if(state.errorModule != null && state.errorName != null) {
+																mergeEnum(key, {module: state.errorModule, name: state.errorName});
+															}
 														}
 													} else {
-														if(isLengthConversion(calleeName, callArgs)) {
+														if(isLengthConversion(calleeName, callArgs) && !(state.errorModule != null && absorbed.indexOf(state.errorModule) >= 0)) {
 															markFallibleThroughLength(key);
 														}
-														entry.edges.push(RustEmissionState.funcKey(cc.get().module, calleeName, false));
+														entry.edges.push({callee: RustEmissionState.funcKey(cc.get().module, calleeName, false), absorbed: absorbed.slice(0, absorbed.length)});
 													}
 												case TField(_, FStatic(cc, cf)):
 													final calleeName = cf.get().name;
 													if(RustEmissionState.runtimeShimIsFallible(calleeName)) {
-														fallible.set(key, true);
-														if(state.errorModule != null && state.errorName != null) {
-															mergeEnum(key, {module: state.errorModule, name: state.errorName});
+														if(!(state.errorModule != null && absorbed.indexOf(state.errorModule) >= 0)) {
+															fallible.set(key, true);
+															if(state.errorModule != null && state.errorName != null) {
+																mergeEnum(key, {module: state.errorModule, name: state.errorName});
+															}
 														}
 													} else {
-														if(isLengthConversion(calleeName, callArgs)) {
+														if(isLengthConversion(calleeName, callArgs) && !(state.errorModule != null && absorbed.indexOf(state.errorModule) >= 0)) {
 															markFallibleThroughLength(key);
 														}
-														entry.edges.push(RustEmissionState.funcKey(cc.get().module, calleeName, true));
+														entry.edges.push({callee: RustEmissionState.funcKey(cc.get().module, calleeName, true), absorbed: absorbed.slice(0, absorbed.length)});
 													}
 												case _:
 											}
+											descend();
+										case TTry(regionBody, regionCatches):
+											// The caught domain vanishes inside the
+											// region body; the handler expressions
+											// keep every edge they carry.
+											final caughtModules = [for(c in regionCatches) caughtPayloadEnumModuleOf(c.v)];
+											final absorbedBody = absorbed.concat([for(m in caughtModules) if(m != null) m]);
+											walk(regionBody, absorbedBody);
+											for(c in regionCatches) {
+												walk(c.expr, absorbed);
+											}
 										case _:
+											descend();
 									}
-									haxe.macro.TypedExprTools.iter(e, walk);
 								}
-								walk(body);
+								walk(body, []);
 								entries.push(entry);
 							case _:
 						}
@@ -771,8 +797,9 @@ class Compiler extends PluginCompiler<Compiler> {
 			changed = false;
 			for(entry in entries) {
 				for(edge in entry.edges) {
-					final edgeEnum = enumOf.get(edge);
+					final edgeEnum = enumOf.get(edge.callee);
 					if(edgeEnum == null) continue;
+					if(edge.absorbed.indexOf(edgeEnum.module) >= 0) continue;
 					if(mergeEnum(entry.key, edgeEnum)) changed = true;
 					if(!fallible.exists(entry.key)) {
 						fallible.set(entry.key, true);
@@ -816,6 +843,19 @@ class Compiler extends PluginCompiler<Compiler> {
 					case FDynamic(n): n == "length";
 				}
 			case _: false;
+		}
+	}
+
+	/**
+		Returns the payload enum module a catch clause handles: the caught
+		variable's class maps through exceptionPayloads, and a class without
+		a payload enum has no absorbable domain.
+	**/
+	function caughtPayloadEnumModuleOf(v: haxe.macro.Type.TVar): Null<String> {
+		return switch(v.t) {
+			case TInst(c, _):
+				state.exceptionPayloads.exists(c.get().module) ? state.exceptionPayloads.get(c.get().module) : null;
+			case _: null;
 		}
 	}
 

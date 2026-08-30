@@ -24,6 +24,9 @@ class KotlinExpr {
 	/** Enum-capture locals mapped to the payload expression they stand for. */
 	final subst: Map<Int, String> = [];
 
+	/** Catch variables of the region being lowered; features/06 catch-site lowering. */
+	final catchVars: Map<Int, Bool> = [];
+
 	/** Locals reassigned after their declaration; emitted with var. */
 	final mutated: Map<Int, Bool> = [];
 
@@ -120,6 +123,12 @@ class KotlinExpr {
 
 	function stmtLines(e: TypedExpr, depth: Int): Array<String> {
 		switch(e.expr) {
+			case TVar(v, init) if(isTryRegion(init)):
+				final parts = tryRegionParts(init);
+				if(regionTailValue(statementsOf(parts.body)) == null) {
+					return fail(init, "try region body has no value");
+				}
+				return tryLines(parts.body, parts.c, depth, 'val ${localName(v)} = ');
 			case TVar(v, init) if(init != null):
 				final kw = mutated.exists(v.id) ? "var" : "val";
 				switch(stripWrap(init).expr) {
@@ -152,8 +161,16 @@ class KotlinExpr {
 				return out;
 			case TWhile(_, _, false):
 				return fail(e, "do-while has no lowering in the subset");
+			case TReturn(ret) if(ret != null && isTryRegion(ret)):
+				final parts = tryRegionParts(ret);
+				if(regionTailValue(statementsOf(parts.body)) == null) {
+					return fail(ret, "try region body has no value");
+				}
+				return tryLines(parts.body, parts.c, depth, "return ");
 			case TReturn(ret) if(ret == null):
 				return [indent(depth) + "return"];
+			case TReturn(ret) if(isVariantSwitch(ret)):
+				return whenReturnLines(stripWrap(ret), depth);
 			case TReturn(ret):
 				final inner = stripWrap(ret);
 				switch(inner.expr) {
@@ -164,6 +181,10 @@ class KotlinExpr {
 				}
 			case TThrow(x):
 				return [indent(depth) + "throw " + throwExpr(x)];
+			case TTry(body, catches) if(catches.length == 1):
+				return tryLines(body, catches[0], depth, "");
+			case TTry(_, _):
+				return fail(e, "try region handles exactly one exception domain");
 			case TBreak:
 				return [indent(depth) + "break"];
 			case TContinue:
@@ -575,7 +596,23 @@ class KotlinExpr {
 			case TCast(inner, _):
 				return expr(inner);
 			case TEnumParameter(se, ef, index):
-				return expr(se) + "." + payloadName(ef, index);
+				// A collapsed single-case switch reads the payload outside
+				// any `when` arm; the cast names the variant, and a
+				// single-variant domain keeps the cast total.
+				final en = switch(Context.follow(se.t)) {
+					case TEnum(r, _): r.get();
+					case _: return fail(e, "payload read subject is not a variant value");
+				};
+				if(Lambda.count(en.constructs) != 1) {
+					return fail(e, "payload read of a multi-variant enum lowers inside a when arm only");
+				}
+				final owner = state.payloadEnumOwners.get(en.module);
+				if(owner != null) {
+					imports.requireType(en.pack.concat([owner]).join("."), owner);
+					return "(" + expr(se) + " as " + owner + "." + ef.name + ")." + payloadName(ef, index);
+				}
+				imports.requireType(en.module, en.name);
+				return "(" + expr(se) + " as " + en.name + "." + ef.name + ")." + payloadName(ef, index);
 			case TEnumIndex(_):
 				return fail(e, "enum index only lowers inside a variant switch");
 			case TFunction(f):
@@ -585,9 +622,239 @@ class KotlinExpr {
 				return 'fun($params)$retStr {\n' + blockLines(statementsOf(f.expr), 1).join("\n") + '\n}';
 			case TIf(c, t, f) if(f != null):
 				return "(if (" + expr(c) + ") " + expr(t) + " else " + expr(f) + ")";
+			case TSwitch(_, _, _):
+				return switchExpression(e);
+			case TTry(body, catches) if(catches.length == 1):
+				return tryExpression(body, catches[0]);
+			case TTry(_, _):
+				return fail(e, "try region handles exactly one exception domain");
 			case _:
 				return fail(e, "expression has no Kotlin lowering in the subset: " + Std.string(e.expr));
 		}
+	}
+
+	// ------------------------------------------------------------------
+	// Variant switches and try regions (features/01, features/06)
+	// ------------------------------------------------------------------
+
+	/**
+		Renders an enum switch as a `when` expression. The typer hands the
+		switch over with the subject wrapped in TEnumIndex and case values
+		as construct-index constants; payload captures arrive as TEnumParameter
+		initializations in the arm block and bind to property reads on the
+		subject, which the `is` arm smart-casts to the variant type.
+	**/
+	function switchExpression(sw: TypedExpr): String {
+		final parts = switch(sw.expr) {
+			case TSwitch(subj, cases, def): {subj: subj, cases: cases, def: def};
+			case _: return fail(sw, "not a switch");
+		}
+		if(parts.def != null) {
+			return fail(sw, "variant switch carries a default arm (V15)");
+		}
+		final subj = stripWrap(parts.subj);
+		final se = switch(subj.expr) {
+			case TEnumIndex(inner): inner;
+			case _: return fail(sw, "switch subject is not a variant index");
+		}
+		final subjStr = expr(se);
+		final en = switch(se.t) {
+			case TEnum(enumRef, _): enumRef.get();
+			case _: return fail(sw, "variant switch subject is not a variant value");
+		}
+		final owner = state.payloadEnumOwners.get(en.module);
+		final receiver = owner != null ? owner : en.name;
+		if(owner != null) {
+			imports.requireType(en.pack.concat([owner]).join("."), owner);
+		} else {
+			imports.requireType(en.module, en.name);
+		}
+		final table = new Map<Int, EnumField>();
+		for(name => ef in en.constructs) {
+			table.set(ef.index, ef);
+		}
+		final out = ["when (" + subjStr + ") {"];
+		for(c in parts.cases) {
+			final index = switch(c.values[0].expr) {
+				case TConst(TInt(v)): v;
+				case _: return fail(sw, "variant switch case is not a constant index");
+			}
+			final ef = table.get(index);
+			if(ef == null) {
+				return fail(sw, "variant switch case index has no construct");
+			}
+			final arm = armLines(c.expr);
+			// The `is` pattern smart-casts the subject to the variant, so
+			// payload captures read as properties on it. Arms separate by
+			// newline; Kotlin `when` takes no comma between arms.
+			out.push("    is " + receiver + "." + ef.name + " -> " + arm[0]);
+			for(i in 1...arm.length) {
+				out.push("    " + arm[i]);
+			}
+		}
+		out.push("}");
+		return out.join("\n");
+	}
+
+	/**
+		Renders one switch arm. Payload captures fold into property reads on
+		the subject; other declarations stay; the trailing statement is the
+		arm value. A single-expression arm renders inline, anything longer
+		renders as a block.
+	**/
+	function armLines(e: TypedExpr): Array<String> {
+		final decls: Array<String> = [];
+		var value: Null<String> = null;
+		function walk(stmts: Array<TypedExpr>) {
+			for(s in stmts) {
+				switch(s.expr) {
+					case TVar(v, init):
+						if(init == null) {
+							Context.error("kotlin target: declaration without initializer has no lowering", s.pos);
+						}
+						switch(stripWrap(init).expr) {
+							case TEnumParameter(se, ef, index):
+								subst.set(v.id, expr(se) + "." + payloadName(ef, index));
+							case TLocal(source) if(subst.exists(source.id)):
+								subst.set(v.id, subst.get(source.id));
+							case _:
+								decls.push("val " + localName(v) + " = " + expr(init));
+						}
+					case TBlock(bs):
+						walk(bs);
+					case TMeta(_, inner):
+						walk([inner]);
+					case _:
+						value = expr(s);
+				}
+			}
+		}
+		walk(statementsOf(e));
+		if(value == null) {
+			return [fail(e, "variant switch arm has no value")];
+		}
+		if(decls.length == 0) {
+			return [value];
+		}
+		final out = ["{"];
+		for(d in decls) {
+			out.push("    " + d);
+		}
+		out.push("    " + value);
+		out.push("}");
+		return out;
+	}
+
+	/**
+		Renders a try region. Kotlin `try` is an expression, so statement and
+		expression positions share one shape; the catch variable is typed with
+		the exception class and registered so payload access on it lowers to
+		the variable itself (features/06 catch-site lowering). `prefix`
+		carries the binding or return the region produces its value for.
+	**/
+	function tryLines(body: TypedExpr, c: {v: TVar, expr: TypedExpr}, depth: Int, prefix: String): Array<String> {
+		final varName = localName(c.v);
+		final varType = types.of(c.v.t);
+		final out = [indent(depth) + prefix + "try {"];
+		for(l in blockLines(statementsOf(body), depth + 1)) {
+			out.push(l);
+		}
+		out.push(indent(depth) + "} catch (" + varName + ": " + varType + ") {");
+		catchVars.set(c.v.id, true);
+		final handler = blockLines(statementsOf(c.expr), depth + 1);
+		catchVars.remove(c.v.id);
+		for(l in handler) {
+			out.push(l);
+		}
+		out.push(indent(depth) + "}");
+		return out;
+	}
+
+	function tryExpression(body: TypedExpr, c: {v: TVar, expr: TypedExpr}): String {
+		return tryLines(body, c, 0, "").join("\n");
+	}
+
+	/** True when the expression is an enum switch over variant indices. */
+	function isVariantSwitch(e: TypedExpr): Bool {
+		return switch(stripWrap(e).expr) {
+			case TSwitch(_, _, _): true;
+			case _: false;
+		};
+	}
+
+	/** Return-position variant switch: the when value returns through the function edge. */
+	function whenReturnLines(sw: TypedExpr, depth: Int): Array<String> {
+		final lines = switchExpression(sw).split("\n");
+		final out = [indent(depth) + "return " + lines[0]];
+		for(i in 1...lines.length) {
+			out.push(indent(depth) + lines[i]);
+		}
+		return out;
+	}
+
+	function isTryRegion(e: TypedExpr): Bool {
+		return switch(stripWrap(e).expr) {
+			case TTry(_, catches): catches.length == 1;
+			case _: false;
+		};
+	}
+
+	/**
+		The trailing value of a region body: an expression statement whose
+		value leaves the region. Declarations, control flow, assignments,
+		and blocks never carry the tail value.
+	**/
+	function regionTailValue(stmts: Array<TypedExpr>): Null<TypedExpr> {
+		if(stmts.length == 0) {
+			return null;
+		}
+		final last = stmts[stmts.length - 1];
+		return switch(last.expr) {
+			case TReturn(_) | TThrow(_) | TVar(_, _) | TIf(_, _, _) | TWhile(_, _, _) | TFor(_, _, _) | TBlock(_) | TBreak | TContinue | TBinop(OpAssign, _, _) | TBinop(OpAssignOp(_), _, _):
+				null;
+			case _:
+				last;
+		};
+	}
+
+	function tryRegionParts(e: TypedExpr): {body: TypedExpr, c: {v: TVar, expr: TypedExpr}} {
+		return switch(stripWrap(e).expr) {
+			case TTry(body, catches): {body: body, c: catches[0]};
+			case _: {body: e, c: null};
+		};
+	}
+
+	/**
+		On a catch variable, the payload field of the exception class (the
+		enum-typed field whose enum the region catches) reads as the variable
+		itself: the folded tree makes the variable the variant value
+		(features/06 catch-site lowering).
+	**/
+	function catchPayloadAccess(subj: TypedExpr, name: String): Null<String> {
+		switch(stripWrap(subj).expr) {
+			case TLocal(v) if(catchVars.exists(v.id)):
+				switch(Context.follow(v.t)) {
+					case TInst(c, _):
+						final cls = c.get();
+						final enumModule = state.exceptionPayloads.get(cls.module);
+						if(enumModule != null) {
+							for(f in cls.fields.get()) {
+								if(f.name == name) {
+									switch(f.type) {
+										case TEnum(en, _):
+											if(en.get().module == enumModule) {
+												return localName(v);
+											}
+										case _:
+									}
+								}
+							}
+						}
+					case _:
+				}
+			case _:
+		}
+		return null;
 	}
 
 	function binop(e: TypedExpr, op: Binop, l: TypedExpr, r: TypedExpr): String {
@@ -680,6 +947,21 @@ class KotlinExpr {
 				return en.name + "." + ef.name;
 			case FInstance(_, _, cf) | FAnon(cf):
 				final name = cf.get().name;
+				{
+					final bound = catchPayloadAccess(subj, name);
+					if(bound != null) {
+						return bound;
+					}
+				}
+				if(name == "message" || name == "get_message") {
+					switch(stripWrap(subj).expr) {
+						case TLocal(v) if(catchVars.exists(v.id)):
+							// The folded exception tree keeps the native
+							// message property (features/06: display text).
+							return localName(v) + ".message";
+						case _:
+					}
+				}
 				if(name == "length") {
 					if(isString(subj)) {
 						return expr(subj) + ".length";
@@ -814,6 +1096,15 @@ class KotlinExpr {
 
 	function call(fn: TypedExpr, args: Array<TypedExpr>): String {
 		switch(fn.expr) {
+			case TField(subj, FInstance(_, _, cf)) if(cf.get().name == "get_message" && args.length == 0):
+				final target = stripWrap(subj);
+				switch(target.expr) {
+					case TLocal(v) if(catchVars.exists(v.id)):
+						// Property getter on a caught exception: the native
+						// message property (features/06: display text).
+						return localName(v) + ".message";
+					case _:
+				}
 			case TField(subj, FStatic(c, cf)):
 				final cls = c.get();
 				final name = cf.get().name;

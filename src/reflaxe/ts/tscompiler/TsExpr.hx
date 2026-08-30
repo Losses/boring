@@ -61,6 +61,8 @@ class TsExpr {
 
 	/** Names used by parameters and locals; generated names avoid them. */
 	final usedNames: Map<String, Bool> = [];
+	/** Catch variables in scope, keyed by TVar id (features/06). */
+	final catchVars: Map<Int, Bool> = [];
 
 	final hiddenNames: Map<Int, String> = [];
 	var hiddenCounter: Int = 0;
@@ -160,6 +162,8 @@ class TsExpr {
 
 	function stmtLines(e: TypedExpr, depth: Int): Array<String> {
 		switch(e.expr) {
+			case TVar(v, init) if(isTryRegion(init)):
+				return tryBindingLines(v, init, depth);
 			case TVar(v, init) if(init != null):
 				final kw = mutated.exists(v.id) ? "let" : "const";
 				return [indent(depth) + '$kw ${localName(v)} = ${expr(init)};'];
@@ -183,6 +187,8 @@ class TsExpr {
 				return out;
 			case TWhile(_, _, false):
 				return fail(e, "do-while has no lowering in the subset");
+			case TReturn(ret) if(ret != null && isTryRegion(ret)):
+				return tryReturnLines(ret, depth);
 			case TReturn(ret) if(ret == null):
 				return [indent(depth) + "return;"];
 			case TReturn(ret):
@@ -197,6 +203,10 @@ class TsExpr {
 				}
 			case TThrow(x):
 				return [indent(depth) + "throw " + expr(x) + ";"];
+			case TTry(body, catches) if(catches.length == 1):
+				return tryStatementLines(body, catches[0], depth);
+			case TTry(_, _):
+				return fail(e, "try region handles exactly one exception domain");
 			case TBreak:
 				return [indent(depth) + "break;"];
 			case TContinue:
@@ -681,6 +691,10 @@ class TsExpr {
 
 	function expr(e: TypedExpr): String {
 		switch(e.expr) {
+			case TTry(_, _):
+				return fail(e, "try region lowers at statement, initializer, or return position");
+			case TSwitch(_, _, _):
+				return fail(e, "variant switch lowers at return position");
 			case TConst(c):
 				switch(c) {
 					case TInt(v): return Std.string(v);
@@ -819,6 +833,9 @@ class TsExpr {
 						return boundSubst.get(v.id);
 					case _:
 				}
+				if(isCatchMessageAccess(target, name)) {
+					return expr(target) + ".message";
+				}
 				return expr(subj) + "." + name;
 			case FDynamic(name):
 				if((name == "length" || name == "get_length") && isStringBuf(subj)) {
@@ -925,6 +942,15 @@ class TsExpr {
 
 	function call(fn: TypedExpr, args: Array<TypedExpr>): String {
 		switch(fn.expr) {
+			case TField(subj, FInstance(_, _, cf)) if(cf.get().name == "get_message" && args.length == 0):
+				final target = stripCast(subj);
+				switch(target.expr) {
+					case TLocal(v) if(catchVars.exists(v.id)):
+						// Property getter on a caught exception: the native
+						// message field (features/06: display text).
+						return localName(v) + ".message";
+					case _:
+				}
 			case TField(subj, FStatic(c, cf)):
 				final cls = c.get();
 				final fName = cf.get().name;
@@ -1194,6 +1220,168 @@ class TsExpr {
 	// ------------------------------------------------------------------
 	// Variant switches (stdlib/03)
 	// ------------------------------------------------------------------
+
+	/**
+		Try regions lower as native try/catch with instanceof narrowing on
+		the exception class (features/06). The non-matching arm rethrows the
+		caught value unchanged.
+	**/
+	function isTryRegion(e: TypedExpr): Bool {
+		return switch(stripWrap(e).expr) {
+			case TTry(_, catches): catches.length == 1;
+			case _: false;
+		};
+	}
+
+	function tryRegionParts(e: TypedExpr): Null<{body: TypedExpr, c: {v: TVar, expr: TypedExpr}}> {
+		return switch(stripWrap(e).expr) {
+			case TTry(body, catches) if(catches.length == 1): {body: body, c: catches[0]};
+			case _: null;
+		};
+	}
+
+	/** The emitted class name behind `instanceof`, with its import registered. */
+	function exceptionClassOf(c: {v: TVar, expr: TypedExpr}): Null<String> {
+		return switch(Context.follow(c.v.t)) {
+			case TInst(cls, _):
+				imports.value(cls.get().module, cls.get().name);
+				cls.get().name;
+			case _: null;
+		};
+	}
+
+	/**
+		Splits a region body or handler into its leading statements and its
+		trailing value expression; control-flow tails carry no value.
+	**/
+	function blockValueLines(e: TypedExpr, depth: Int): {lines: Array<String>, value: Null<String>} {
+		final stmts = statementsOf(e);
+		var value: Null<String> = null;
+		var body = stmts;
+		if(stmts.length > 0) {
+			final last = stmts[stmts.length - 1];
+			switch(last.expr) {
+				case TReturn(_) | TThrow(_) | TVar(_, _) | TIf(_, _, _) | TWhile(_, _, _) | TBlock(_) | TBreak | TContinue | TBinop(OpAssign, _, _) | TBinop(OpAssignOp(_), _, _):
+				case _:
+					value = expr(last);
+					body = stmts.slice(0, stmts.length - 1);
+			}
+		}
+		return {lines: blockLines(body, depth), value: value};
+	}
+
+	function catchHeaderLines(c: {v: TVar, expr: TypedExpr}, clsName: String, depth: Int): Array<String> {
+		final name = localName(c.v);
+		return [
+			indent(depth) + "} catch (" + name + ") {",
+			indent(depth + 1) + "if (" + name + " instanceof " + clsName + ") {"
+		];
+	}
+
+	function catchFooterLines(c: {v: TVar, expr: TypedExpr}, depth: Int): Array<String> {
+		final name = localName(c.v);
+		return [
+			indent(depth + 1) + "} else {",
+			indent(depth + 2) + "throw " + name + ";",
+			indent(depth + 1) + "}",
+			indent(depth) + "}"
+		];
+	}
+
+	/** Statement-position region: the handler runs as a block. */
+	function tryStatementLines(body: TypedExpr, c: {v: TVar, expr: TypedExpr}, depth: Int): Array<String> {
+		final clsName = exceptionClassOf(c);
+		if(clsName == null) {
+			return fail(c.expr, "try region catch type is not an exception class");
+		}
+		final out = [indent(depth) + "try {"];
+		for(l in blockLines(statementsOf(body), depth + 1)) out.push(l);
+		for(l in catchHeaderLines(c, clsName, depth)) out.push(l);
+		catchVars.set(c.v.id, true);
+		final handler = blockLines(statementsOf(c.expr), depth + 2);
+		catchVars.remove(c.v.id);
+		for(l in handler) out.push(l);
+		for(l in catchFooterLines(c, depth)) out.push(l);
+		return out;
+	}
+
+	/**
+		Initializer-position region: the try statement produces no value, so
+		the binding hoists to a `let` and both arms assign it (features/06).
+	**/
+	function tryBindingLines(v: TVar, region: TypedExpr, depth: Int): Array<String> {
+		final parts = tryRegionParts(region);
+		if(parts == null) {
+			return fail(region, "not a try region");
+		}
+		final clsName = exceptionClassOf(parts.c);
+		if(clsName == null) {
+			return fail(parts.c.expr, "try region catch type is not an exception class");
+		}
+		final name = localName(v);
+		final out = [indent(depth) + "let " + name + ";", indent(depth) + "try {"];
+		final body = blockValueLines(parts.body, depth + 1);
+		if(body.value == null) {
+			return fail(region, "try region body has no value");
+		}
+		for(l in body.lines) out.push(l);
+		out.push(indent(depth + 1) + name + " = " + body.value + ";");
+		for(l in catchHeaderLines(parts.c, clsName, depth)) out.push(l);
+		catchVars.set(parts.c.v.id, true);
+		final handler = blockValueLines(parts.c.expr, depth + 2);
+		catchVars.remove(parts.c.v.id);
+		if(handler.value == null) {
+			return fail(parts.c.expr, "try region handler has no value");
+		}
+		for(l in handler.lines) out.push(l);
+		out.push(indent(depth + 2) + name + " = " + handler.value + ";");
+		for(l in catchFooterLines(parts.c, depth)) out.push(l);
+		return out;
+	}
+
+	/** Return-position region: both arms return inside the native statement. */
+	function tryReturnLines(region: TypedExpr, depth: Int): Array<String> {
+		final parts = tryRegionParts(region);
+		if(parts == null) {
+			return fail(region, "not a try region");
+		}
+		final clsName = exceptionClassOf(parts.c);
+		if(clsName == null) {
+			return fail(parts.c.expr, "try region catch type is not an exception class");
+		}
+		final out = [indent(depth) + "try {"];
+		final body = blockValueLines(parts.body, depth + 1);
+		if(body.value == null) {
+			return fail(region, "try region body has no value");
+		}
+		for(l in body.lines) out.push(l);
+		out.push(indent(depth + 1) + "return " + body.value + ";");
+		for(l in catchHeaderLines(parts.c, clsName, depth)) out.push(l);
+		catchVars.set(parts.c.v.id, true);
+		final handler = blockValueLines(parts.c.expr, depth + 2);
+		catchVars.remove(parts.c.v.id);
+		if(handler.value == null) {
+			return fail(parts.c.expr, "try region handler has no value");
+		}
+		for(l in handler.lines) out.push(l);
+		out.push(indent(depth + 2) + "return " + handler.value + ";");
+		for(l in catchFooterLines(parts.c, depth)) out.push(l);
+		return out;
+	}
+
+	/**
+		Message accessor on a caught exception: the property getter reads as
+		the native message field (features/06: messages are display text).
+	**/
+	function isCatchMessageAccess(subj: TypedExpr, name: String): Bool {
+		if(name != "message" && name != "get_message") {
+			return false;
+		}
+		return switch(stripWrap(subj).expr) {
+			case TLocal(v): catchVars.exists(v.id);
+			case _: false;
+		};
+	}
 
 	function switchReturn(sw: TypedExpr, depth: Int): Array<String> {
 		final switchParts = switch(sw.expr) {

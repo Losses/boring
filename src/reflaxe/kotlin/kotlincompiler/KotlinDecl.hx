@@ -225,8 +225,11 @@ class KotlinDecl {
 		final messages = new Map<String, String>();
 		collectMessageCases(messageFunc.expr, options, messages);
 
+		// The override re-exposes Throwable's nullable message at the
+		// non-null String the fold always constructs, so handlers read
+		// `error.message` without a null assertion (features/06).
 		final lines = [
-			'sealed class ${cls.name}(message: String) : RuntimeException(message) {'
+			'sealed class ${cls.name}(override val message: String) : RuntimeException(message) {'
 		];
 		for(o in options) {
 			final message = messages.get(o.name);

@@ -49,6 +49,8 @@ boring.RecordOps
 tests.RecordTests
 boring.StringBufOps
 tests.StringBufTests
+boring.TryOps
+tests.TryTests
 boring.ArithmeticOps
 tests.ArithmeticTests
 boring.DefaultArgsOps

@@ -667,23 +667,50 @@ class RustDecl {
 		if(e == null) {
 			return out;
 		}
-		function walk(x: TypedExpr) {
+		// Throws of a domain the surrounding region catches do not reach
+		// the signature, so the walk carries the absorbed modules.
+		function walk(x: TypedExpr, absorbed: Array<String>) {
+			function descend() {
+				haxe.macro.TypedExprTools.iter(x, function(child) walk(child, absorbed));
+			}
 			switch(x.expr) {
 				case TThrow(t):
 					switch(stripDecorations(t).expr) {
 						case TNew(c, _, args) if(args.length > 0):
 							final en = payloadEnumOfArg(args[0]);
 							if(en != null && state.exceptionPayloads.exists(c.get().module)) {
-								out.push({name: en.get().name, module: en.get().module});
+								if(absorbed.indexOf(en.get().module) < 0) {
+									out.push({name: en.get().name, module: en.get().module});
+								}
 							}
 						case _:
 					}
+					descend();
+				case TTry(regionBody, regionCatches):
+					final caught = [for(c in regionCatches) caughtPayloadEnumModuleOf(c.v)];
+					final absorbedBody = absorbed.concat([for(m in caught) if(m != null) m]);
+					walk(regionBody, absorbedBody);
+					for(c in regionCatches) {
+						walk(c.expr, absorbed);
+					}
 				case _:
+					descend();
 			}
-			haxe.macro.TypedExprTools.iter(x, walk);
 		}
-		walk(e);
+		walk(e, []);
 		return out;
+	}
+
+	/**
+		Returns the payload enum module a catch clause handles, or null when
+		the caught class carries no payload enum.
+	**/
+	function caughtPayloadEnumModuleOf(v: haxe.macro.Type.TVar): Null<String> {
+		return switch(v.t) {
+			case TInst(c, _):
+				state.exceptionPayloads.exists(c.get().module) ? state.exceptionPayloads.get(c.get().module) : null;
+			case _: null;
+		}
 	}
 
 	function payloadEnumOfArg(arg: TypedExpr): Null<Ref<haxe.macro.Type.EnumType>> {
@@ -922,27 +949,58 @@ class RustDecl {
 		}
 		// Local re-check of direct fallibility on the body as emitted; the
 		// registry cannot fall behind this without a compile error following.
+		// Region bodies absorb the domains their clauses catch (features/06).
 		var throwsOrCallsFallible = false;
-		function walk(e: TypedExpr) {
+		function walk(e: TypedExpr, absorbed: Array<String>) {
+			function descend() {
+				haxe.macro.TypedExprTools.iter(e, function(child) walk(child, absorbed));
+			}
 			switch(e.expr) {
-				case TThrow(_):
-					throwsOrCallsFallible = true;
+				case TThrow(t):
+					switch(stripDecorations(t).expr) {
+						case TNew(c, _, args) if(args.length > 0):
+							final en = payloadEnumOfArg(args[0]);
+							if(en != null && state.exceptionPayloads.exists(c.get().module)) {
+								if(absorbed.indexOf(en.get().module) < 0) {
+									throwsOrCallsFallible = true;
+								}
+							} else if(!state.exceptionPayloads.exists(c.get().module)) {
+								// A throw the subset cannot resolve still
+								// escapes the signature; stay fallible.
+								throwsOrCallsFallible = true;
+							}
+						case _:
+							throwsOrCallsFallible = true;
+					}
+					descend();
 				case TCall(fn, callArgs):
 					switch(fn.expr) {
 						case TField(_, FInstance(_, _, cf)) | TField(_, FStatic(_, cf)):
 							if(RustEmissionState.runtimeShimIsFallible(cf.get().name)) {
-								throwsOrCallsFallible = true;
+								if(!(state.errorModule != null && absorbed.indexOf(state.errorModule) >= 0)) {
+									throwsOrCallsFallible = true;
+								}
 							}
 							if(isLengthConversion(cf.get().name, callArgs)) {
-								throwsOrCallsFallible = true;
+								if(!(state.errorModule != null && absorbed.indexOf(state.errorModule) >= 0)) {
+									throwsOrCallsFallible = true;
+								}
 							}
 						case _:
 					}
+					descend();
+				case TTry(regionBody, regionCatches):
+					final caught = [for(c in regionCatches) caughtPayloadEnumModuleOf(c.v)];
+					final absorbedBody = absorbed.concat([for(m in caught) if(m != null) m]);
+					walk(regionBody, absorbedBody);
+					for(c in regionCatches) {
+						walk(c.expr, absorbed);
+					}
 				case _:
+					descend();
 			}
-			haxe.macro.TypedExprTools.iter(e, walk);
 		}
-		walk(f.expr);
+		walk(f.expr, []);
 		return throwsOrCallsFallible;
 	}
 
