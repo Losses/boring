@@ -156,7 +156,7 @@ The fixed mapping table:
 
 | Haxe type | Rust type | TypeScript type | Kotlin type |
 | --- | --- | --- | --- |
-| `Int` | `i32` or `u32` selected by wire width | `number` | `Int` (`Long` when the declared range exceeds `0x7FFFFFFF`) |
+| `Int` | `u32` (`i32` inside resident runtime modules) | `number` | `Int` (`Long` when the declared range exceeds `0x7FFFFFFF`) |
 | `Float` | `f64` | `number` | `Double` |
 | `Bool` | `bool` | `boolean` | `Boolean` |
 | `String` | `String` or `&str` | `string` | `String` |
@@ -180,6 +180,7 @@ Rules:
   declaration mechanism and the promotion are implemented in the same
   change.
 - No silent widening or narrowing. Every numeric conversion is an explicit named function at an API or wire boundary; the numeric selection follows the wire type table in `docs/specs/features/07-numeric-tower.md`.
+- The Rust `Int` domain follows the module kind: business modules render `u32`, resident runtime modules render `i32`, and the call boundary converts between the two domains through the named adapters of `docs/specs/stdlib/07-sorted-keyed-tables.md`, `docs/specs/stdlib/10-unicode-string-access.md`, and `docs/specs/stdlib/11-grapheme-clusters.md`.
 - Every target type is named. Inline object, function, mapped, and tuple types are banned repo-wide as recorded in `reference/ts/src/records.ts` (lines 1-5).
 - Generic parameter translation follows `docs/specs/features/05-generics.md`; this table fixes only the base types.
 - Kotlin `data class` gives record equality, copying, and destructuring; `value class` wraps its underlying representation without boxing outside nullable and generic positions.
