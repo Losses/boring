@@ -86,9 +86,21 @@ Haxe `Int` maps to `Int32`; Haxe `Float` maps to `Double`.
 Candidate 1. `Int32`/`Double`, trapping operators. The domain rulings of
 `features/07` and `features/14` keep every value inside i32, so traps are
 unreachable on conforming source and cost nothing. The `float-precision`
-define of `features/23` is not implemented for this lane; the f32 variants
-exist only where a narrower storage type changes the result bits, and this
-slice ships the f64 lane.
+define of `features/23` switches this lane through a define-gated type
+table, the same shape as the Kotlin ruling: `Float` maps to `Double` on
+the default lane and to `Float` under `f32`, in the type table and the
+test assertion tags together. Swift float literals carry no suffix; they
+are type-directed, so the f32 lane names the type on every declaration
+whose initializer would otherwise infer the default `Double` width
+(`var x = 0.0` becomes `var x: Float = 0.0`). `Math` constants read from
+the `Float` family (`Float.nan`, `Float.infinity`,
+`-Float.infinity`); the arithmetic and rounding members (`+`,
+`.rounded(.down)`, `.squareRoot()`, `.isNaN`) come from the
+`FloatingPoint` protocol both types implement, so they follow the type
+table with no separate dispatch. The `FPHelper` value-edge calls dispatch
+to the runtime wrappers `i64ToF32` and `f32ToI64` (feature spec 23,
+ruling 7). `examples/swift-f32.hxml` generates the f32 tree; the verify
+lanes are `gen:swift-f32` and `test:swift-f32`.
 
 ## Enums and pattern matching (`features/01`)
 
