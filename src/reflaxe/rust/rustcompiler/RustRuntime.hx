@@ -236,5 +236,28 @@ fn unit_index(s: &str, unit: u32, round_up: bool) -> usize {
     s.len()
 }
 ';
+
+	/**
+		Business ABI adapter appended to the compiled runtime.Graphemes
+		class in graphemes.rs
+		(docs/specs/stdlib/11-grapheme-clusters.md). The boundary vector
+		of boundaries crosses whole from the resident i32 domain into the
+		business u32 domain; Array results have no call-site cast
+		machinery, so the adapter casts each element once here, the
+		pattern of USTRING_ABI_SOURCE above.
+	**/
+	public static final GRAPHEMES_ABI_SOURCE = '
+// Business ABI adapter over the resident Graphemes class: the boundary
+// vector crosses whole from the resident i32 domain into the business
+// u32 domain, element by element. Every scalar operation keeps its
+// call-site cast and does not pass through here.
+pub fn boundaries(s: &str) -> Vec<u32> {
+    let mut out = Vec::new();
+    for unit in Graphemes::boundaries(s) {
+        out.push(unit as u32);
+    }
+    out
+}
+';
 }
 #end

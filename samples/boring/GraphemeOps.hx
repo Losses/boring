@@ -44,6 +44,10 @@ class GraphemeOps {
 		return parts[parts.length - 1];
 	}
 
+	public static function graphemeBoundaries(text:String):Array<Int> {
+		return Graphemes.boundaries(text);
+	}
+
 	public static function joinedParts(text:String):String {
 		final parts = Graphemes.parts(text);
 		final buffer = new StringBuf();

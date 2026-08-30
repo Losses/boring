@@ -105,4 +105,28 @@ class GraphemeTests {
 		Test.equals(mixed, GraphemeOps.joinedParts(mixed));
 		Test.equals(0, GraphemeOps.partCount(""));
 	}
+
+	@:test("boundary offsets list every cluster edge in string units")
+	public static function testBoundaries():Void {
+		final mixed = UString.fromCodePoint(0x1F44D) + UString.fromCodePoint(0x1F3FD) + UString.fromCodePoint(0x63D0) + UString.fromCodePoint(0x0301);
+		final mixedBoundaries = GraphemeOps.graphemeBoundaries(mixed);
+		Test.equals(3, mixedBoundaries.length);
+		Test.equals(0, mixedBoundaries[0]);
+		Test.equals(4, mixedBoundaries[1]);
+		Test.equals(6, mixedBoundaries[2]);
+		final cjkBoundaries = GraphemeOps.graphemeBoundaries("提椠排版");
+		Test.equals(5, cjkBoundaries.length);
+		Test.equals(4, cjkBoundaries[4]);
+		final prepend = UString.fromCodePoint(0x0600) + UString.fromCodePoint(0x0031) + UString.fromCodePoint(0x0032);
+		final prependBoundaries = GraphemeOps.graphemeBoundaries(prepend);
+		Test.equals(3, prependBoundaries.length);
+		Test.equals(2, prependBoundaries[1]);
+		Test.equals(3, prependBoundaries[2]);
+		final pairBoundaries = GraphemeOps.graphemeBoundaries("\r\n");
+		Test.equals(2, pairBoundaries.length);
+		Test.equals(2, pairBoundaries[1]);
+		final emptyBoundaries = GraphemeOps.graphemeBoundaries("");
+		Test.equals(1, emptyBoundaries.length);
+		Test.equals(0, emptyBoundaries[0]);
+	}
 }
