@@ -1,0 +1,61 @@
+# reflaxe Swift target generation (docs/specs/targets/swift.md).
+# Run from the repository root: haxe examples/swift.hxml
+# Output lands in reference/swift/gen via the swift-output define.
+-lib reflaxe
+-lib boring
+-cp src/reflaxe/swift/std-shadow
+-cp src/reflaxe/swift
+-cp samples
+--macro Intercept.run(['samples'], ['samples/boring/BinaryReader.hx', 'samples/boring/BinaryWriter.hx', 'samples/boring/Fp32.hx'])
+--macro swiftcompiler.Compiler.use()
+-D swift-output=reference/swift/gen
+-D swift-test-output=reference/swift/gen-tests
+-D swift-test-runner=native
+-D runtime-import=@boring/runtime
+-D runtime-emit=.
+boring.BinaryReader
+boring.BinaryWriter
+boring.Fp32
+boring.Fp16
+boring.GlyphMetrics
+std.ReadOnlyArray
+boring.VectorCodec
+boring.VectorError
+boring.VectorException
+boring.VectorSort
+boring.ScriptEvidenceTable
+boring.WordCharacterTable
+boring.CodePointNames
+std.SortedMap
+std.SortedSet
+std.Functional
+runtime.UString
+runtime.GraphemeWalk
+runtime.Graphemes
+runtime.SortedTable
+runtime.TestCore
+tests.TestData
+tests.VectorCodecTests
+tests.Fp32Tests
+tests.Fp16Tests
+tests.DataTableTests
+tests.SortedTableTests
+boring.ScriptNames
+boring.ClusterTags
+tests.SortedKeyDomainTests
+boring.PipelineOps
+tests.PipelineTests
+boring.RecordOps
+tests.RecordTests
+boring.StringBufOps
+tests.StringBufTests
+boring.TryOps
+tests.TryTests
+boring.ArithmeticOps
+tests.ArithmeticTests
+boring.DefaultArgsOps
+tests.DefaultArgsTests
+boring.UStringOps
+boring.GraphemeOps
+tests.UStringTests
+tests.GraphemeTests
