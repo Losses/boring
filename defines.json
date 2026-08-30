@@ -34,5 +34,29 @@
   {
     "define": "float-precision",
     "doc": "Module real of the Haxe Float type for the whole compilation: f64 (default) maps Float to f64/Double/number; f32 maps it to f32/Float and rounds wire reads at the decode point. The TypeScript target rejects f32 at startup. See docs/specs/features/23-float-precision-switch.md."
+  },
+  {
+    "define": "package-shell",
+    "doc": "Whether the compilation writes the package manifest of its output tree: emit (default) or none. See docs/specs/features/24-package-shell.md."
+  },
+  {
+    "define": "package-name",
+    "doc": "Package name in the emitted manifest; defaults to the neutral value generated."
+  },
+  {
+    "define": "package-version",
+    "doc": "Package version in the emitted manifest; defaults to 0.1.0."
+  },
+  {
+    "define": "package-license",
+    "doc": "Optional license string; the license field appears only under this define (Package.swift carries no license field)."
+  },
+  {
+    "define": "package-test",
+    "doc": "Rust only: name:path of one integration test, emitted as a [[test]] block for repositories that keep tests outside the crate."
+  },
+  {
+    "define": "package-artifacts",
+    "doc": "Whether the compilation packs its output tree into the ecosystem install artifact beside the tree: none (default) or emit (npm tgz, cargo crate, Swift zip, Pub tar.gz; the Kotlin target rejects it). See docs/specs/features/25-package-artifacts.md."
   }
 ]
