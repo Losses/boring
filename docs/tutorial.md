@@ -811,10 +811,13 @@ it off, and `package-name` (default `generated`, a neutral value),
 Two lane-specific notes. On TypeScript, an emitted manifest requires a
 relative `runtime-import`: a by-name import names a package coordinate
 the manifest cannot declare, and the compilation stops with that
-reason. On Rust, `package-test=name:path` appends one integration-test
-block for repositories that keep tests outside the crate, and the
-manifest sets `autotests = false` because the generated `tests/`
-directory is a `#[cfg(test)]` module tree of the library.
+reason; the manifest also carries an `exports` map with one directory
+wildcard per emitted top-level package directory plus the `./runtime`
+entry, so a consumer imports `generated/boring/Fp32` and resolves the
+emitted `.ts` file. On Rust, `package-test=name:path` appends one
+integration-test block for repositories that keep tests outside the
+crate, and the manifest sets `autotests = false` because the generated
+`tests/` directory is a `#[cfg(test)]` module tree of the library.
 
 Workspace membership, publication coordinates, repositories, and any
 dependency graph beyond the tree stay with the consumer's build; a

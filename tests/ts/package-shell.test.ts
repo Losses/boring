@@ -73,6 +73,32 @@ const DEFAULT_PACKAGE_JSON = [
   '  "version": "0.1.0",',
   '  "private": true,',
   '  "type": "module",',
+  '  "exports": {',
+  '    "./boring/*": "./boring/*.ts",',
+  '    "./runtime": "./runtime.ts",',
+  '    "./std/*": "./std/*.ts",',
+  '    "./tests/*": "./tests/*.ts"',
+  "  },",
+  '  "devDependencies": {',
+  '    "typescript": "^5.9.0"',
+  "  }",
+  "}",
+  "",
+].join("\n");
+
+const IDENTITY_PACKAGE_JSON = [
+  "{",
+  '  "name": "boring-demo",',
+  '  "version": "9.9.9",',
+  '  "license": "Apache-2.0",',
+  '  "private": true,',
+  '  "type": "module",',
+  '  "exports": {',
+  '    "./boring/*": "./boring/*.ts",',
+  '    "./runtime": "./runtime.ts",',
+  '    "./std/*": "./std/*.ts",',
+  '    "./tests/*": "./tests/*.ts"',
+  "  },",
   '  "devDependencies": {',
   '    "typescript": "^5.9.0"',
   "  }",
@@ -115,6 +141,28 @@ describe("package shell emission", () => {
       expect(consumerErr).toBe("");
       expect(consumerCode).toBe(0);
       expect(consumerOut.trim()).toBe("consumer-ok");
+
+      // The exports map resolves the package by name: a symlinked
+      // node_modules entry routes "generated/boring/Fp32" through the
+      // directory wildcard to the emitted .ts file.
+      fs.mkdirSync(path.join(tree, "node_modules"));
+      fs.symlinkSync(tree, path.join(tree, "node_modules", "generated"));
+      fs.writeFileSync(path.join(tree, "consumer-pkg.ts"), [
+        'import { Fp32 } from "generated/boring/Fp32";',
+        'import { doubleToI64 } from "generated/runtime";',
+        'if(doubleToI64(1.5).low !== 0) { throw new Error("bad runtime export"); }',
+        'console.log("consumer-pkg-ok");',
+        "",
+      ].join("\n"));
+      const pkgConsumer = Bun.spawn(["bun", "consumer-pkg.ts"], { cwd: tree, stdout: "pipe", stderr: "pipe" });
+      const [pkgCode, pkgOut, pkgErr] = await Promise.all([
+        pkgConsumer.exited,
+        new Response(pkgConsumer.stdout).text(),
+        new Response(pkgConsumer.stderr).text(),
+      ]);
+      expect(pkgErr).toBe("");
+      expect(pkgCode).toBe(0);
+      expect(pkgOut.trim()).toBe("consumer-pkg-ok");
     } finally {
       fs.rmSync(tree, { recursive: true, force: true });
       fs.rmSync(path.join(tree, "../boring-shell-default-tests"), { recursive: true, force: true });
@@ -136,19 +184,7 @@ describe("package shell emission", () => {
       const result = await runHaxe("package-shell-identity.hxml", hxml);
       expect(result.stderr).toBe("");
       expect(result.exitCode).toBe(0);
-      expect(fs.readFileSync(path.join(tree, "package.json"), "utf8")).toBe([
-        "{",
-        '  "name": "boring-demo",',
-        '  "version": "9.9.9",',
-        '  "license": "Apache-2.0",',
-        '  "private": true,',
-        '  "type": "module",',
-        '  "devDependencies": {',
-        '    "typescript": "^5.9.0"',
-        "  }",
-        "}",
-        "",
-      ].join("\n"));
+      expect(fs.readFileSync(path.join(tree, "package.json"), "utf8")).toBe(IDENTITY_PACKAGE_JSON);
     } finally {
       fs.rmSync(tree, { recursive: true, force: true });
       fs.rmSync(path.join(tree, "../boring-shell-identity-tests"), { recursive: true, force: true });
