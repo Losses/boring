@@ -99,17 +99,68 @@ class KotlinExpr {
 		return blockLines(statementsOf(f.expr), 1);
 	}
 
-	public function constructorBody(className: String, f: ClassFuncData, isException: Bool): Array<String> {
+	/**
+		The constructor body's init-block lines and the fields it
+		initializes (feature spec 27): every statement renders at
+		init-block depth, except `this.f = f` where f is a constructor
+		parameter, which the primary constructor already performs. An
+		assignment to a field the constructor does not receive as a
+		parameter is that field's initialization; its name joins
+		`assigned` so the declaration drops its synthetic initializer. An
+		assignment to a parameter field from any other expression stops
+		the compilation.
+	**/
+	public function initBlockStatements(f: ClassFuncData): {lines: Array<String>, assigned: Array<String>} {
 		if(f.expr == null) {
-			Context.error("constructor has no body to lower", f.field.pos);
+			return {lines: [], assigned: []};
+		}
+		for(a in f.args) {
+			reserveName(a.name);
 		}
 		scanLocals(f.expr);
-		final stmts = statementsOf(f.expr);
 		final out: Array<String> = [];
-		for(s in stmts) {
-			for(l in stmtLines(s, 1)) out.push(l);
+		final assigned: Array<String> = [];
+		for(s in statementsOf(f.expr)) {
+			final info = ctorStmtInfo(s, f);
+			if(info.render) {
+				for(l in stmtLines(s, 2)) out.push(l);
+			}
+			if(info.initialized != null && assigned.indexOf(info.initialized) < 0) {
+				assigned.push(info.initialized);
+			}
 		}
-		return out;
+		return {lines: out, assigned: assigned};
+	}
+
+	/**
+		Per-statement decision behind initBlockStatements: `render` says
+		whether the statement reaches the init block, `initialized` names
+		the field a non-parameter assignment initializes.
+	**/
+	function ctorStmtInfo(s: TypedExpr, f: ClassFuncData): {render: Bool, initialized: Null<String>} {
+		switch(s.expr) {
+			case TBinop(OpAssign, target, value):
+				switch(target.expr) {
+					case TField({expr: TConst(TThis)}, FInstance(_, _, cf)):
+						final name = cf.get().name;
+						if(Lambda.exists(f.args, a -> a.name == name)) {
+							final fromParam = switch(value.expr) {
+								case TLocal(v): v.name == name;
+								case _: false;
+							};
+							if(!fromParam) {
+								Context.error("constructor assigns " + name + " from another expression; assign the constructor parameter " + name + " directly", s.pos);
+							}
+							// The primary constructor performs this
+							// initialization from its parameter.
+							return {render: false, initialized: null};
+						}
+						return {render: true, initialized: name};
+					case _:
+				}
+			case _:
+		}
+		return {render: true, initialized: null};
 	}
 
 	// ------------------------------------------------------------------

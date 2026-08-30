@@ -511,8 +511,23 @@ class RustDecl {
 		return hasLifetime && isBytesType(t) ? "&'a [u8]" : types.of(t, true);
 	}
 
+	/** A `var x(get, never)` field renders no storage on this target (feature spec 27). */
+	static function isGetterOnlyProperty(field: haxe.macro.Type.ClassField): Bool {
+		switch(field.kind) {
+			case FVar(read, write):
+				return read.match(AccCall) && write.match(AccNever);
+			case _:
+				return false;
+		}
+	}
+
 	function instanceVarDecl(v: ClassVarData, hasLifetime: Bool): Array<String> {
 		final field = v.field;
+		// A `var x(get, never)` field renders no storage on this target;
+		// the get_x() method is the lowering (feature spec 27).
+		if(isGetterOnlyProperty(field)) {
+			return [];
+		}
 		final snake = RustImports.toSnakeCase(field.name);
 		final typeStr = switch(field.type) {
 			case TInst(c, _) if(c.get().module == "haxe.io.Bytes"):
@@ -735,19 +750,48 @@ class RustDecl {
 
 		if(isConstructor) {
 			final args = [for(a in f.args) RustImports.toSnakeCase(a.name) + ": " + ctorArgType(a.type, hasLifetime, cls.params.length > 0)].join(", ");
-			final head = '    pub fn new($args) -> Self {';
-			final lines = [head, "        Self {"];
+			// A throwing constructor returns Result<Self, E> through the
+			// fallibility machinery; its statements render before the
+			// struct literal, so the source construction invariants
+			// survive on this target (feature spec 27).
+			final ctorFallible = funcIsFallible(f);
+			final errOwner = ctorFallible ? resolveErrorOwner(f, cls) : null;
+			if(ctorFallible && errOwner != null) {
+				imports.requireType(errOwner.module, errOwner.name);
+			}
+			expr.setFallible(ctorFallible, errOwner != null ? errOwner.name : null, errOwner != null && errOwner.hasOverflow ? state.overflowVariant : null);
+			final ret = ctorFallible ? " -> Result<Self, " + errOwner.name + ">" : " -> Self";
+			final head = '    pub fn new($args)$ret {';
+			final parts = expr.constructorBody(cls, f);
+			final lines = [head];
+			for(l in parts.statementLines) {
+				lines.push("    " + l);
+			}
+			lines.push("        " + (ctorFallible ? "Ok(Self {" : "Self {"));
 			for(a in f.args) {
 				final sname = RustImports.toSnakeCase(a.name);
-				lines.push('            $sname,');
+				// A String parameter borrows as &str while the field owns
+				// a String; the initializer converts (feature spec 27).
+				final isStringParam = switch(Context.follow(a.type)) {
+					case TInst(c, _): c.get().name == "String";
+					case _: false;
+				};
+				if(isStringParam) {
+					lines.push('            $sname: ${sname}.to_string(),');
+				} else {
+					lines.push('            $sname,');
+				}
 			}
-			// Uninitialized instance var fields
+			// Fields the constructor initializes from their own
+			// expressions, and fields with no constructor assignment at
+			// all; a getter-only property renders no storage (feature
+			// spec 27).
 			for(field in cls.fields.get()) {
 				switch(field.kind) {
 					case FVar(_, _):
-						if(field.name != "new" && !hasArg(f.args, field.name)) {
+						if(field.name != "new" && !hasArg(f.args, field.name) && !isGetterOnlyProperty(field)) {
 							final sname = RustImports.toSnakeCase(field.name);
-							final init = switch(field.type) {
+							final init = parts.fieldInits.exists(field.name) ? parts.fieldInits.get(field.name) : switch(field.type) {
 								case TAbstract(a, _) if(a.get().name == "Int"): "0";
 								case TInst(c, _) if(c.get().name == "BytesBuffer"): "BytesBuffer::new()";
 								case _: "Default::default()";
@@ -757,7 +801,7 @@ class RustDecl {
 					case _:
 				}
 			}
-			lines.push("        }");
+			lines.push("        " + (ctorFallible ? "})" : "}"));
 			lines.push("    }");
 			return lines;
 		}

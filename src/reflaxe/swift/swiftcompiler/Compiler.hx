@@ -113,13 +113,20 @@ class Compiler extends PluginCompiler<Compiler> {
 			final sortedFuncs = funcFields.copy();
 			sortedFuncs.sort((a, b) -> Reflect.compare(Context.getPosInfos(a.field.pos).min, Context.getPosInfos(b.field.pos).min));
 
+			// Test classes carry test functions and nothing else (feature
+			// spec 27); shared logic belongs in an ordinary class, whose
+			// member lowering every target already renders.
+			for(v in varFields) {
+				Context.error("test class " + classType.name + " carries a non-test member " + v.field.name + "; shared logic belongs in an ordinary class", v.field.pos);
+			}
+
 			testModules.set(classType.module, true);
 			final decl = contextFor(classType.module);
 			final body: Array<String> = [];
 
 			for(f in sortedFuncs) {
 				if(!f.field.meta.has(":test")) {
-					continue;
+					Context.error("test class " + classType.name + " carries a non-test member " + f.field.name + "; shared logic belongs in an ordinary class", f.field.pos);
 				}
 				final id = classType.module + "." + f.field.name;
 				if(!f.field.isPublic) {

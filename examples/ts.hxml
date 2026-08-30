@@ -25,6 +25,10 @@ std.ReadOnlyArray
 boring.VectorCodec
 boring.VectorError
 boring.VectorException
+boring.ValueError
+boring.ValueException
+boring.ValueRecord
+boring.PrivateHolder
 boring.VectorSort
 boring.ScriptEvidenceTable
 boring.WordCharacterTable
@@ -50,6 +54,8 @@ boring.PipelineOps
 tests.PipelineTests
 boring.RecordOps
 tests.RecordTests
+tests.ValueRecordTests
+tests.ValueRecordProbes
 boring.StringBufOps
 tests.StringBufTests
 boring.TryOps

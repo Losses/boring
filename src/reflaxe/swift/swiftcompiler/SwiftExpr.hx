@@ -2307,6 +2307,14 @@ class SwiftExpr {
 						return;
 					}
 					TypedExprTools.iter(x, walk);
+				case TNew(c, _, _):
+					// A construction of a throwing constructor needs the try
+					// marker at its statement (feature spec 27).
+					if(SwiftFallibility.isThrowing(c.get().module, "new", false)) {
+						found = true;
+						return;
+					}
+					TypedExprTools.iter(x, walk);
 				case _:
 					TypedExprTools.iter(x, walk);
 			}

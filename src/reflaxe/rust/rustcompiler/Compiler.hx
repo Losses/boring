@@ -73,8 +73,16 @@ class Compiler extends PluginCompiler<Compiler> {
 			final sortedFuncs = funcFields.copy();
 			sortedFuncs.sort((a, b) -> Reflect.compare(Context.getPosInfos(a.field.pos).min, Context.getPosInfos(b.field.pos).min));
 
+			// Test classes carry test functions and nothing else (feature
+			// spec 27); shared logic belongs in an ordinary class, whose
+			// member lowering every target already renders.
+			for(v in varFields) {
+				Context.error("test class " + classType.name + " carries a non-test member " + v.field.name + "; shared logic belongs in an ordinary class", v.field.pos);
+			}
 			for(f in sortedFuncs) {
-				if(!f.field.meta.has(":test")) continue;
+				if(!f.field.meta.has(":test")) {
+					Context.error("test class " + classType.name + " carries a non-test member " + f.field.name + "; shared logic belongs in an ordinary class", f.field.pos);
+				}
 				final id = classType.module + "." + f.field.name;
 				if(!f.field.isPublic) {
 					Context.error("Test function " + id + " must be public", f.field.pos);
@@ -841,6 +849,13 @@ class Compiler extends PluginCompiler<Compiler> {
 											for(c in regionCatches) {
 												walk(c.expr, absorbed);
 											}
+										case TNew(c, _, _):
+											// A construction is a call edge into the
+											// class constructor: a throwing
+											// constructor infects its construction
+											// sites (feature spec 27).
+											entry.edges.push({callee: RustEmissionState.funcKey(c.get().module, "new", false), absorbed: absorbed.slice(0, absorbed.length)});
+											descend();
 										case _:
 											descend();
 									}
@@ -852,6 +867,15 @@ class Compiler extends PluginCompiler<Compiler> {
 					}
 					for(field in cls.statics.get()) scanField(field, true);
 					for(field in cls.fields.get()) scanField(field, false);
+					// The constructor sits outside `fields` on
+					// `cls.constructor`; its body joins the fallibility
+					// fixed point so a throwing constructor renders
+					// Result<Self, E> and its construction sites
+					// propagate (feature spec 27).
+					final ctor = cls.constructor;
+					if(ctor != null) {
+						scanField(ctor.get(), false);
+					}
 				case _:
 			}
 		}

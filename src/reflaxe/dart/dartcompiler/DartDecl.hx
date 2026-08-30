@@ -143,6 +143,19 @@ class DartDecl {
 			if(lines.length > 1) {
 				lines.push("");
 			}
+			// A computed property renders beside its accessor function
+			// (feature spec 27).
+			if(!f.isStatic && StringTools.startsWith(f.field.name, "get_")) {
+				final propName = f.field.name.substring("get_".length);
+				for(field in cls.fields.get()) {
+					if(field.name == propName && isGetterOnlyProperty(field)) {
+						for(l in propertyDecl(cls, field)) {
+							lines.push(l);
+						}
+						lines.push("");
+					}
+				}
+			}
 			for(l in funcDecl(module, cls, f, false)) {
 				lines.push(l);
 			}
@@ -246,15 +259,51 @@ class DartDecl {
 		if(v.isStatic) {
 			Context.error("mutable static field has no lowering in the subset", field.pos);
 		}
-		// A final Haxe field pins the reference, not the contents: an
-		// array field still grows in place (the sorted builders), and a
-		// Dart final pins exactly the reference, so the keywords agree.
-		// A mutable field names its type; Dart spells mutable without
-		// a keyword.
-		if(field.isFinal) {
-			return ["  final " + types.of(field.type) + " " + field.name + ";"];
+		// A `var x(get, never)` field renders no storage; the getter
+		// beside the accessor function is the lowering (feature spec 27).
+		if(isGetterOnlyProperty(field)) {
+			return [];
 		}
-		return ["  " + types.of(field.type) + " " + field.name + ";"];
+		// A private field renders under its `_`-prefixed Dart name
+		// (feature spec 27). A final Haxe field pins the reference, not
+		// the contents: an array field still grows in place (the sorted
+		// builders), and a Dart final pins exactly the reference, so the
+		// keywords agree. A mutable field names its type; Dart spells
+		// mutable without a keyword.
+		final name = field.isPublic ? field.name : "_" + field.name;
+		if(field.isFinal) {
+			return ["  final " + types.of(field.type) + " " + name + ";"];
+		}
+		return ["  " + types.of(field.type) + " " + name + ";"];
+	}
+
+	/** A `var x(get, never)` field renders no storage on this target (feature spec 27). */
+	static function isGetterOnlyProperty(field: ClassField): Bool {
+		switch(field.kind) {
+			case FVar(read, write):
+				return read.match(AccCall) && write.match(AccNever);
+			case _:
+				return false;
+		}
+	}
+
+	/**
+		A getter-only property renders as a Dart getter reading the
+		standard accessor (feature spec 27). The typer lowers property
+		reads to `get_x()` calls, so the getter serves consuming Dart
+		code; the accessor's own privacy gives its Dart name.
+	**/
+	function propertyDecl(cls: ClassType, field: ClassField): Array<String> {
+		final accessor = "get_" + field.name;
+		var getter = accessor;
+		for(f in cls.fields.get()) {
+			if(f.name == accessor) {
+				getter = f.isPublic ? f.name : "_" + f.name;
+				break;
+			}
+		}
+		final name = field.isPublic ? field.name : "_" + field.name;
+		return ["  " + types.of(field.type) + " get " + name + " => " + getter + "();"];
 	}
 
 	/**
@@ -333,13 +382,16 @@ class DartDecl {
 		}
 		final methodParams = collectMethodTypeParams(cls, f);
 		final genericStr = methodParams.length > 0 ? "<" + methodParams.join(", ") + ">" : "";
+		// A private function renders under its `_`-prefixed Dart name
+		// (feature spec 27), member and flattened top-level alike.
+		final name = f.field.isPublic ? f.field.name : "_" + f.field.name;
 		if(topLevel) {
-			claimTopLevel(f.field.name, f.field.pos);
-			final head = '${types.of(f.ret)} ${f.field.name}$genericStr${paramList(f)} {';
+			claimTopLevel(name, f.field.pos);
+			final head = '${types.of(f.ret)} $name$genericStr${paramList(f)} {';
 			return [head].concat(expr.functionBody(cls, f, 1)).concat(["}"]);
 		}
 		final stat = f.isStatic ? "static " : "";
-		final head = '  ${stat}${types.of(f.ret)} ${f.field.name}$genericStr${paramList(f)} {';
+		final head = '  ${stat}${types.of(f.ret)} $name$genericStr${paramList(f)} {';
 		return [head].concat(expr.functionBody(cls, f, 2)).concat(["  }"]);
 	}
 
