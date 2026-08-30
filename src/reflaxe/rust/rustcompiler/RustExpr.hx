@@ -1116,7 +1116,17 @@ class RustExpr {
 		switch(e.expr) {
 			case TConst(c):
 				switch(c) {
-					case TInt(v): return Std.string(v);
+					case TInt(v):
+						// Haxe Int is 32-bit two's-complement; the business
+						// module real is u32, so a negative literal carries
+						// the same bits as its wrapped unsigned decimal with
+						// an explicit u32 suffix: the suffix keeps boundary
+						// casts to i32 bit-preserving. Resident modules keep
+						// the signed i32 rendering.
+						if(v < 0 && !RuntimeResidents.isResident(imports.selfModule)) {
+							return Std.string(v + 4294967296) + "u32";
+						}
+						return Std.string(v);
 					case TFloat(f):
 						final s = Std.string(f);
 						final padded = s.indexOf(".") >= 0 ? s : s + ".0";
@@ -1318,7 +1328,10 @@ class RustExpr {
 				}
 				return operand(l, op, false) + " & " + operand(r, op, true);
 			case OpUShr:
-				return "(" + operand(l, op, false) + " >> " + operand(r, op, true) + ")";
+				// The u32 domain makes Rust >> the logical shift; operand()
+				// re-adds grouping parens by precedence, so a bare shift
+				// initializer carries no outer parentheses.
+				return operand(l, op, false) + " >> " + operand(r, op, true);
 			case OpLt if(isZero(r) && isUnsignedOperand(l)):
 				return expr(l) + " > 2147483647";
 			case OpSub:
@@ -1658,8 +1671,19 @@ class RustExpr {
 				if(name == "addByte") {
 					return expr(subj) + ".add_byte(" + expr(args[0]) + ")";
 				}
+				if(name == "readU16") {
+					// The wire read answers u16 while the Int domain is
+					// u32; the widening is total, so from covers every
+					// value the field can hold. The read is fallible, so
+					// the call propagates before the widening.
+					return "u32::from(" + expr(subj) + ".read_u16()?)";
+				}
 				if(name == "writeU16") {
-					return expr(subj) + ".write_u16(" + expr(args[0]) + ")";
+					// The Int domain is u32 while the wire field is u16;
+					// the Haxe writer masks to the low half, and the Rust
+					// cast truncates identically, so the narrowing matches
+					// source semantics for every value.
+					return expr(subj) + ".write_u16((" + expr(args[0]) + ") as u16)";
 				}
 				if(name == "writeU32") {
 					final innerArg = stripWrap(args[0]);
@@ -1678,7 +1702,17 @@ class RustExpr {
 					return expr(subj) + ".write_u32(" + expr(args[0]) + ")";
 				}
 				if(name == "writeAscii") {
-					return expr(subj) + ".write_ascii(" + expr(args[0]) + ")";
+					// A heap String argument borrows as &str; string literals
+					// already render as &str.
+					final argStr = if(isStringType(args[0].t)) {
+						switch(stripWrap(args[0]).expr) {
+							case TConst(TString(_)): expr(args[0]);
+							case _: expr(args[0]) + ".as_str()";
+						}
+					} else {
+						expr(args[0]);
+					};
+					return expr(subj) + ".write_ascii(" + argStr + ")";
 				}
 				if(cf != null && cf.get().kind.match(FVar(_, _)) && Context.follow(cf.get().type).match(TFun(_, _))) {
 					// A function-typed field calls through a parenthesized
@@ -2487,8 +2521,10 @@ class RustExpr {
 						argStr = "Some(" + inner + ")";
 					}
 				} else if(isPassByRef(pt)) {
+					// The mutating faces are arrays and the writer and reader
+					// fronts; every other borrowed parameter reads only.
 					final isArray = switch(Context.follow(pt)) {
-						case TInst(c, _) if(c.get().name == "Array"): true;
+						case TInst(c, _): c.get().name == "Array";
 						default: false;
 					};
 					// A compile-time data table is a file-level static:

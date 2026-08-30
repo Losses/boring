@@ -692,6 +692,14 @@ class Compiler extends PluginCompiler<Compiler> {
 			}
 			return false;
 		}
+		// A u32 length write lowers through u32::try_from(...)?, so its
+		// overflow belongs to the same error enum the runtime shims use.
+		function markFallibleThroughLength(key: String): Void {
+			fallible.set(key, true);
+			if(state.errorModule != null && state.errorName != null) {
+				mergeEnum(key, {module: state.errorModule, name: state.errorName});
+			}
+		}
 		for(mt in mtypes) {
 			switch(mt) {
 				case TClassDecl(c):
@@ -714,7 +722,7 @@ class Compiler extends PluginCompiler<Compiler> {
 											if(pair != null) {
 												mergeEnum(key, pair);
 											}
-										case TCall(fn, _):
+										case TCall(fn, callArgs):
 											switch(fn.expr) {
 												case TField(_, FInstance(cc, _, cf)):
 													final calleeName = cf.get().name;
@@ -724,6 +732,9 @@ class Compiler extends PluginCompiler<Compiler> {
 															mergeEnum(key, {module: state.errorModule, name: state.errorName});
 														}
 													} else {
+														if(isLengthConversion(calleeName, callArgs)) {
+															markFallibleThroughLength(key);
+														}
 														entry.edges.push(RustEmissionState.funcKey(cc.get().module, calleeName, false));
 													}
 												case TField(_, FStatic(cc, cf)):
@@ -734,6 +745,9 @@ class Compiler extends PluginCompiler<Compiler> {
 															mergeEnum(key, {module: state.errorModule, name: state.errorName});
 														}
 													} else {
+														if(isLengthConversion(calleeName, callArgs)) {
+															markFallibleThroughLength(key);
+														}
 														entry.edges.push(RustEmissionState.funcKey(cc.get().module, calleeName, true));
 													}
 												case _:
@@ -782,6 +796,26 @@ class Compiler extends PluginCompiler<Compiler> {
 		return switch(e.expr) {
 			case TParenthesis(inner) | TCast(inner, _) | TMeta(_, inner): stripDecorations(inner);
 			case _: e;
+		}
+	}
+
+	/**
+		Recognizes writeU32(x.length): the Rust lowering narrows the count
+		through u32::try_from(x)?, so the call makes its owner fallible
+		regardless of the Haxe signature.
+	**/
+	function isLengthConversion(calleeName: String, args: Array<TypedExpr>): Bool {
+		if(calleeName != "writeU32" || args.length != 1) {
+			return false;
+		}
+		return switch(stripDecorations(args[0]).expr) {
+			case TField(_, fa):
+				switch(fa) {
+					case FInstance(_, _, cf) | FStatic(_, cf) | FAnon(cf) | FClosure(_, cf): cf.get().name == "length";
+					case FEnum(_, ef): ef.name == "length";
+					case FDynamic(n): n == "length";
+				}
+			case _: false;
 		}
 	}
 
