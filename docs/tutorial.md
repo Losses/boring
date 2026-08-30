@@ -1,10 +1,10 @@
 # Tutorial: the translatable subset and its performance rules
 
-boring compiles a subset of Haxe to TypeScript, Kotlin, and Rust. One
-source tree produces four executable trees: the stage-one Haxe reference
-tree and the three generated trees. Every construct the subset accepts has
-a ruled translation and a ruled cost, recorded in the specifications under
-`docs/specs/`.
+boring compiles a subset of Haxe to TypeScript, Kotlin, Rust, Swift, and
+Dart. One source tree produces six executable trees: the stage-one Haxe
+reference tree and the five generated trees. Every construct the subset
+accepts has a ruled translation and a ruled cost, recorded in the
+specifications under `docs/specs/`.
 
 This tutorial lists every language feature of the subset, states when to
 use each feature, and names the construct the specifications select when
@@ -12,7 +12,10 @@ two constructs solve the same problem. The performance grounds quoted
 here (allocation, boxing, engine behavior) come from the specifications;
 this document adds no rulings. Spec references abbreviate the directory:
 `features/09` stands for `docs/specs/features/09-iterators.md`, and the
-same applies to `macros/`, `stdlib/`, `style/`, and `binary/`.
+same applies to `macros/`, `stdlib/`, `style/`, `binary/`, and `targets/`.
+The Swift and Dart lanes carry their per-target rulings in `targets/swift`
+and `targets/dart`; the feature specs name the older three targets, and
+those two files state the mapping for the newer two.
 
 ## Writing conforming source
 
@@ -103,6 +106,8 @@ sections below name the violation that guards each area.
 `u8`, `number`, `Int`; `WireU16Be` and `WireU32Be` map to `Int`, `u16` or
 `u32`, `number`, `Int`; `WireF64Be` maps to `Float`, `f64`, `number`,
 `Double`, listing Haxe, Rust, TypeScript, and Kotlin in order.
+`WireF32Be` and `WireF16Be` (`binary/05`) keep the `WireF64Be` language
+mapping and differ in byte width and in the rounding at the block edge.
 
 Use `Int` and `Float` for all arithmetic. Every numeric conversion is an
 explicit named function at an API or wire boundary; implicit narrowing
@@ -149,6 +154,12 @@ The TypeScript target rejects `f32` at compiler startup with `number is
 binary64` in the error text; wrapping arithmetic in `Math.fround` or
 storing fields in `Float32Array` are the rejected emulation paths
 (design principle 3).
+
+Rust and Kotlin are the two lanes the define switches. The Swift and
+Dart lanes do not implement it and ship the f64 lane (`targets/swift`,
+`targets/dart`): Swift joins the target set with the f64 real only, and
+Dart holds one storage width for reals, so an f32 variant cannot change
+result bits.
 
 The wire does not switch: `WireF64Be` stays f64 on both lanes. A wire
 read decodes the 8 f64 wire bytes and rounds the value to the module
@@ -203,11 +214,13 @@ Haxe range `0...count`, and inclusive iteration over `a..b` writes
 ### Enums and pattern matching (`features/01`)
 
 An enum declares a closed variant set once per domain and shares it with
-all four trees. Haxe enums translate to tagged `enum` declarations in
+all six trees. Haxe enums translate to tagged `enum` declarations in
 Rust, discriminated unions of named interfaces with a `readonly kind:
-string` literal tag in TypeScript, and a `sealed interface` in Kotlin
+string` literal tag in TypeScript, a `sealed interface` in Kotlin
 with one `data object` per payload-less constructor and one `data class`
-per constructor with parameters.
+per constructor with parameters, value enums with labeled associated
+values in Swift, and sealed class hierarchies in Dart (`targets/swift`,
+`targets/dart`).
 
 Use string literal tags when the tagged data crosses or mirrors the wire
 format, so JSON serialization, error messages, and debug output keep
@@ -438,7 +451,7 @@ Sorting goes through a named strategy of the sort runtime. The set
 starts with `byCodePoint`; a new sorting need is a new named strategy
 and a specification amendment to `features/17`. Every strategy on every
 platform is ascending, in place, and stable; stability is the identity
-contract that makes the four trees produce the same output array.
+contract that makes the six trees produce the same output array.
 
 Performance ground: the comparator-free numeric sort is the fastest sort
 primitive JavaScript exposes, so the TypeScript runtime tiers it with an
@@ -578,7 +591,7 @@ A string that may hold content above U+007F uses `std.UString`
 message names `std.UString` as the sanctioned path).
 
 `String.substring` is the one character operation with a lowering on all
-four targets, so it is permitted beyond the ASCII tier; its bounds are
+six targets, so it is permitted beyond the ASCII tier; its bounds are
 Haxe string positions, UTF-16 code units, on every target, and the
 guaranteed domain is in-range bounds on code-point boundaries.
 `String.fromCharCode` constructs a string from a wire byte, domain
@@ -619,7 +632,7 @@ no storage unit and no code-point count answers what a reader sees.
 
 `std.Graphemes.count`, `at`, `slice`, and `parts` answer over clusters,
 with the same clamping and null-miss contracts as `std.UString`. One
-generated table and one rule walk serve all four targets, built from a
+generated table and one rule walk serve all six targets, built from a
 fixed Unicode release with the official conformance file as a
 compile-time gate, so the same input segments identically on every host
 and host version. Repeated cluster access goes through `parts` once,
@@ -684,6 +697,8 @@ Encode takes the width as a parameter next to the records:
 - Kotlin: `VectorCodec.encode(records, FloatWidth.F16)`.
 - Rust: `encode_vector_with_width(&records, FloatWidth::F16)?`, with
   `encode_vector(&records)?` as the binary64 shorthand.
+- Swift: `VectorCodec.encode(records, FloatWidth.f16)`.
+- Dart: `vector_codec.encode(records, float_width.FloatWidthF16())`.
 
 Hand-written TypeScript and Kotlin callers pass the width explicitly;
 the default argument completes inside the compiled trees only, and no
@@ -782,9 +797,10 @@ Generated business code imports the general entry only.
 ### Errors and results (`features/06`, `stdlib/03`)
 
 Failure identity is a closed variant set declared once per domain and
-shared by all four trees in one commit: the Haxe enum with its exception
+shared by all six trees in one commit: the Haxe enum with its exception
 wrapper, the Rust error enum, the TypeScript error union with its
-exception class, and the Kotlin sealed exception hierarchy. Every
+exception class, the Kotlin sealed exception hierarchy, the Swift error
+enum, and the Dart sealed exception hierarchy. Every
 `throw` constructs the exception subclass carrying the enum instance
 (`V04 UntypedThrow` rejects every other throw shape); catch clauses name
 the exception type (`V14 DynamicCatch` rejects `catch (error:Dynamic)`).
@@ -810,7 +826,7 @@ consumer discriminates a failure by reading or matching a message
 string; tests assert variant identity. Kotlin `runCatching`, catch-all
 `Result` returns, Rust `panic` for domain failures, and `Box<dyn Error>`
 returns are banned: they capture programming errors alongside domain
-failures and erase the variant identity the four trees share.
+failures and erase the variant identity the six trees share.
 
 ## Tests (`features/19`)
 
