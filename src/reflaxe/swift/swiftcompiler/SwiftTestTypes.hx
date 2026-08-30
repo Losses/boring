@@ -32,7 +32,9 @@ class SwiftTestTypes {
 			case TAbstract(a, params):
 				switch(a.get().name) {
 					case "Int": "Int32";
-					case "Float": "Double";
+					// The assertion helpers follow the module real of the
+					// compilation (feature spec 23).
+					case "Float": FloatPrecision.isF32() ? "Float" : "Double";
 					case "Bool": "Bool";
 					case "Null": "Opt" + tagOf(params[0]);
 					// The read-only view formats exactly as the array it

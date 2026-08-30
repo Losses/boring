@@ -41,7 +41,9 @@ class SwiftType {
 				final abs = a.get();
 				switch(pathOf(abs.pack, abs.name)) {
 					case "Int": "Int32";
-					case "Float": "Double";
+					// The f32 lane maps the module real onto the native
+					// binary32 type (feature spec 23).
+					case "Float": FloatPrecision.isF32() ? "Float" : "Double";
 					case "Bool": "Bool";
 					case "Void": "Void";
 					case "Null": wrapOptional(of(params[0]));
@@ -128,7 +130,9 @@ class SwiftType {
 				}
 				switch(pathOf(abs.pack, abs.name)) {
 					case "Int": "Int32";
-					case "Float": "Double";
+					// The f32 lane maps the module real onto the native
+					// binary32 type (feature spec 23).
+					case "Float": FloatPrecision.isF32() ? "Float" : "Double";
 					case "Bool": "Bool";
 					case "Void": "Void";
 					case "Null": wrapOptional(ofSubstituted(params2[0], params, args));

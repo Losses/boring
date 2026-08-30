@@ -36,6 +36,18 @@ func i64ToDouble(_ low: Int32, _ high: Int32) -> Double {
     return Double(bitPattern: (highWord << 32) | lowWord)
 }
 
+/// The f32-lane value edges (feature spec 23): decode to the f64 value,
+/// then round once to the module real; the reverse widens losslessly
+/// before the bit conversion. Only the float-precision=f32 lane
+/// references them.
+func i64ToF32(_ low: Int32, _ high: Int32) -> Float {
+    return Float(i64ToDouble(low, high))
+}
+
+func f32ToI64(_ value: Float) -> Int64Halves {
+    return doubleToI64(Double(value))
+}
+
 /// The growable byte sink behind haxe.io.BytesBuffer (stdlib/02).
 /// Array value semantics make the slice returned by getBytes immune to
 /// later appends through copy-on-write, so no defensive copy runs.
