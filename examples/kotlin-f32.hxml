@@ -6,7 +6,7 @@
 -cp src/reflaxe/kotlin/std-shadow
 -cp src/reflaxe/kotlin
 -cp samples
---macro Intercept.run(['samples'], ['samples/boring/BinaryReader.hx', 'samples/boring/BinaryWriter.hx'])
+--macro Intercept.run(['samples'], ['samples/boring/BinaryReader.hx', 'samples/boring/BinaryWriter.hx', 'samples/boring/Fp32.hx'])
 --macro kotlincompiler.Compiler.use()
 -D kotlin-output=reference/kotlin-f32/gen
 -D kotlin-test-output=reference/kotlin-f32/gen-tests
@@ -15,6 +15,8 @@
 -D float-precision=f32
 boring.BinaryReader
 boring.BinaryWriter
+boring.Fp32
+boring.Fp16
 boring.GlyphMetrics
 std.ReadOnlyArray
 boring.VectorCodec
@@ -34,6 +36,8 @@ runtime.SortedTable
 runtime.TestCore
 tests.TestData
 tests.VectorCodecTests
+tests.Fp32Tests
+tests.Fp16Tests
 tests.DataTableTests
 tests.SortedTableTests
 boring.ScriptNames

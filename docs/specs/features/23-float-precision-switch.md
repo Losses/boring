@@ -26,9 +26,11 @@ properties; no published-coordinate split (the `rapier2d` /
 coordinates at all.
 
 The wire format is out of scope and unaffected: `WireF64Be` stays f64 on
-every lane (binary spec 01). The precision switch changes the language-
-level `Float` representation and the module-boundary rounding of wire
-values, nothing else.
+every lane (binary spec 01). The block float widths of binary spec 05 are
+a second, independent axis: they are chosen per encode call and recorded
+in the block magic, and no define moves them. The precision switch changes
+the language-level `Float` representation and the module-boundary rounding
+of wire values, nothing else.
 
 ## Haxe construct
 
@@ -183,7 +185,9 @@ Fields could live in `Float32Array` so storage rounds to binary32.
    keeps `WireF64Be` at `f64`: the switch selects the module's real
    number width, never the wire width, so the single-precision ban in
    feature spec 07's wire-path list is unaffected by this
-   specification.
+   specification. Narrow wire storage belongs to the block float widths
+   of binary spec 05, which any compilation encodes and decodes at any
+   module width.
 3. **TypeScript rejects the switch.** Activating the TypeScript
    compiler under `float-precision=f32` stops the compilation at
    compiler startup with `float-precision=f32 is not available on the
@@ -222,6 +226,9 @@ Fields could live in `Float32Array` so storage rounds to binary32.
    Haxe source of `BinaryReader.readF64` and `BinaryWriter.writeF64`
    changes nothing: the boundary rounding is the decode's definition
    under the switch, and the source performs no implicit narrowing.
+   The `Fp32` and `Fp16` edges of binary spec 05 compose the same
+   FPHelper calls with integer arithmetic, so on the f32 lane they
+   narrow a widened value back to its own bits exactly.
    Principle 1 applies: the meaning of `readF64` is defined over wire
    values and the module's declared real width, with no dependence on
    one platform's storage.

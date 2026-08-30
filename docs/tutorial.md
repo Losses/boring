@@ -653,7 +653,8 @@ return one contiguous buffer. `Bytes.sub` and the Kotlin
 ### Readers and writers (`stdlib/02`)
 
 Binary code shares one primitive set: `readU16`/`writeU16`,
-`readU32`/`writeU32`, `readF64`/`writeF64`, and fixed-length ASCII
+`readU32`/`writeU32`, `readF64`/`writeF64`, `readF32`/`writeF32`,
+`readF16`/`writeF16`, and fixed-length ASCII
 `readAscii`/`writeAscii`. Float conversions take the bit-level paths of
 `features/07`; TypeScript reads and writes through `DataView` with the
 little-endian argument `false`; Kotlin assembles integers with shifts
@@ -663,6 +664,56 @@ extraction and writer capacity growth. JVM-only stream classes
 (`java.io.DataInputStream`, `java.nio.ByteBuffer`) stay out of common
 Kotlin code because the Kotlin target spans JVM and JavaScript
 backends.
+
+### Block float widths (`binary/05`)
+
+A vector block carries one marker that fixes the width of every float
+field in it: `BRG1` keeps binary64 at 8 bytes per field, `BRG2` selects
+binary32 at 4 bytes, and `BRG3` selects binary16 at 2 bytes. A record
+holds one `u32` code point plus five float fields, so a block of N
+records totals 8 + 44 x N, 8 + 24 x N, or 8 + 14 x N bytes. Decode
+reads the marker and rejects a magic outside the table with `BadMagic`,
+so a block written at a width a reader never knew is refused, and the
+reader never guesses a layout.
+
+Encode takes the width as a parameter next to the records:
+
+- Haxe source: `VectorCodec.encode(records, FloatWidth.F16)`; omitting
+  the width encodes binary64.
+- TypeScript: `encodeVector(records, "F16")`.
+- Kotlin: `VectorCodec.encode(records, FloatWidth.F16)`.
+- Rust: `encode_vector_with_width(&records, FloatWidth::F16)?`, with
+  `encode_vector(&records)?` as the binary64 shorthand.
+
+Hand-written TypeScript and Kotlin callers pass the width explicitly;
+the default argument completes inside the compiled trees only, and no
+target emits a default into the generated signature.
+
+Rounding follows binary spec 05: each field rounds once with
+round-to-nearest-even at the write edge, and binary16 encodes through
+two deterministic roundings (module real to binary32, then binary32 to
+binary16). Infinity, signed zero, and quiet NaN pass through; overflow
+magnitude rounds to infinity; subnormals of a wider grid round to signed
+zero on the narrower one.
+
+The block width and the `float-precision` define are independent axes.
+The define selects the module real once per compilation and never
+changes block bytes; the width is chosen per encode call and recorded in
+the marker. Any compilation reads and writes all three widths.
+
+Runtime cost sits at three layers:
+
+- Generated code execution: every field pays one width comparison plus
+  one write or read of 8, 4, or 2 bytes; a binary16 field adds the
+  integer shift-and-round sequence over the bit pattern. The comparison
+  cost is the same at every width.
+- Data transfer: the block itself shrinks with the width, 44 to 24 to 14
+  bytes per record under the fixed header, which is the purpose of the
+  feature.
+- Compile time: none. The width is a runtime parameter of ordinary
+  calls; nothing about it branches code generation. The precision
+  define is the axis that changes compilation, and it composes freely
+  with every block width.
 
 ## Functions and modules
 

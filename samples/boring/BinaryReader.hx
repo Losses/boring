@@ -46,6 +46,14 @@ class BinaryReader {
 		return haxe.io.FPHelper.i64ToDouble(low, high);
 	}
 
+	public function readF32():Float {
+		return Fp32.fromBits(readU32());
+	}
+
+	public function readF16():Float {
+		return Fp32.fromBits(Fp16.f16ToF32Bits(readU16()));
+	}
+
 	public function readAscii(length:Int):String {
 		ensureRemaining(length);
 		final parts = new Array<String>();

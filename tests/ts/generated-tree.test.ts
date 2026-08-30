@@ -90,7 +90,9 @@ describe("generated tree behavior", () => {
 
   test("encode reproduces the fixture bytes exactly", async () => {
     const bytes = await loadFixture();
-    const encoded = VectorCodec.encode(VectorCodec.decode(bytes));
+    // The default-argument pass completes calls inside the compiled trees
+  // only; hand-written callers pass the width explicitly.
+  const encoded = VectorCodec.encode(VectorCodec.decode(bytes), { kind: "F64" });
     expect(encoded.length).toBe(bytes.length);
     for(let i = 0; i < bytes.length; i += 1) {
       expect(encoded[i]).toBe(bytes[i]);

@@ -4,6 +4,7 @@
  * f64 values, so a round trip is byte-stable on every platform bun runs on.
  */
 
+import { f16ToF32Bits, f32ToF16Bits } from "./fp16.ts";
 import { VectorException } from "./vector-error.ts";
 
 const SCRATCH_LENGTH = 8;
@@ -45,6 +46,20 @@ export class BinaryWriter {
     this.length += SCRATCH_LENGTH;
   }
 
+  writeF32(value: number): void {
+    this.scratch.setFloat32(0, value, false);
+    this.ensure(4);
+    for (let i = 0; i < 4; i += 1) {
+      this.buffer[this.length + i] = this.scratch.getUint8(i);
+    }
+    this.length += 4;
+  }
+
+  writeF16(value: number): void {
+    this.scratch.setFloat32(0, value, false);
+    this.writeU16(f32ToF16Bits(this.scratch.getUint32(0, false)));
+  }
+
   writeAscii(value: string): void {
     const count = value.length;
     this.ensure(count);
@@ -76,10 +91,12 @@ export class BinaryWriter {
 /** Cursor-based big-endian reader over an immutable byte buffer. */
 export class BinaryReader {
   private readonly view: DataView;
+  private readonly scratch: DataView;
   private offset: number;
 
   constructor(bytes: Uint8Array) {
     this.view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    this.scratch = new DataView(new ArrayBuffer(4));
     this.offset = 0;
   }
 
@@ -102,6 +119,21 @@ export class BinaryReader {
     const value = this.view.getFloat64(this.offset, false);
     this.offset += 8;
     return value;
+  }
+
+  readF32(): number {
+    this.ensureRemaining(4);
+    const value = this.view.getFloat32(this.offset, false);
+    this.offset += 4;
+    return value;
+  }
+
+  readF16(): number {
+    this.ensureRemaining(2);
+    const bits = f16ToF32Bits(this.view.getUint16(this.offset, false));
+    this.offset += 2;
+    this.scratch.setUint32(0, bits, false);
+    return this.scratch.getFloat32(0, false);
   }
 
   readAscii(length: number): string {

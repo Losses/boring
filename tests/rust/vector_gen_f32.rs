@@ -5,7 +5,7 @@
 //! the wire stays byte-identical across the precision switch.
 
 use boring_codec_f32_gen::{
-    BinaryReader, BoundsEm, GlyphMetrics, VectorCodec, VectorError, VectorSort,
+    BinaryReader, BoundsEm, FloatWidth, GlyphMetrics, VectorCodec, VectorError, VectorSort,
 };
 
 const VECTOR_BYTES: &[u8] = include_bytes!("../vectors/roundtrip.bin");
@@ -62,13 +62,13 @@ fn decoded_binary_matches_expected_records() {
 
 #[test]
 fn reencoding_reproduces_the_committed_bytes() {
-    let encoded = VectorCodec::encode(&expected_records());
+    let encoded = VectorCodec::encode(&expected_records(), FloatWidth::F64);
     assert_eq!(encoded, Ok(VECTOR_BYTES.to_vec()));
 }
 
 #[test]
 fn round_trip_preserves_every_record() {
-    let encoded = VectorCodec::encode(&expected_records());
+    let encoded = VectorCodec::encode(&expected_records(), FloatWidth::F64);
     let decoded = encoded.and_then(|bytes| VectorCodec::decode(&bytes));
     assert_eq!(decoded, Ok(expected_records()));
 }
