@@ -1,7 +1,8 @@
 # Parameters consumed via `-lib boring` (comments only; haxelib strips these lines).
 #
 # Defines (documented for `haxe --help-defines` via defines.json):
-#   runtime-import, runtime-emit, ts-output, kotlin-output, rust-output
+#   runtime-import, runtime-emit, ts-output, kotlin-output, rust-output,
+#   float-precision (f64 default, f32 per feature spec 23)
 #
 # Macro entry points (on the package class path `src`):
 #   --macro Intercept.run(<sourceDirs>, <excludedFiles>)

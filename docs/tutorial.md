@@ -89,6 +89,7 @@ sections below name the violation that guards each area.
 | Express absence of a value | `Null<T>` | `features/04` |
 | Distinguish two same-shaped types | abstract type: alias on hot paths, wrapper at boundaries | `features/02` |
 | Carry a genuine 64-bit value | `haxe.Int64`, only the cases `stdlib/05` permits | `stdlib/05` |
+| Compile the same source with binary32 floats | `-D float-precision=f32` at generation | `features/23` |
 | Constant lookup table above 64 entries | compile-time data table | `features/20` |
 | Range check or clamp | `within`, `coerceAtLeast`, `coerceAtMost`, `coerceIn` | `stdlib/09` |
 | Declare a unit test | `@:test` static function with `std.Test` assertions | `features/19` |
@@ -131,6 +132,36 @@ Performance ground:
 
 TypeScript validates `Number.isInteger` at the API boundary before
 encoding.
+
+### Precision switch (`features/23`)
+
+`-D float-precision=f32` selects the binary32 family for every `Float`
+in the compilation: `f32` fields and `2.5f32` literals in Rust, `Float`
+fields and `2.5f` literals in Kotlin, `f32::NAN` and `Float.NaN` for
+the constants, and `f32::<name>` / `kotlin.math.<name>` for the `Math`
+functions. The absent define (or `=f64`) keeps the default binary64
+mapping. The switch is whole-compilation: the Haxe source declares
+nothing about it, and the consumer passes the define like any other
+compilation flag. A consumer needing both widths in one artifact
+compiles the single-precision part as a separate compilation.
+
+The TypeScript target rejects `f32` at compiler startup with `number is
+binary64` in the error text; wrapping arithmetic in `Math.fround` or
+storing fields in `Float32Array` are the rejected emulation paths
+(design principle 3).
+
+The wire does not switch: `WireF64Be` stays f64 on both lanes. A wire
+read decodes the 8 f64 wire bytes and rounds the value to the module
+real at the decode point (`FPHelper.i64ToDouble` dispatches to the
+`i64ToF32` runtime variant); a wire write widens the module real
+losslessly before the bit conversion (`doubleToI64` dispatches to
+`f32ToI64`). Test vectors assign dyadic binary32 values, so the
+committed vector bytes are identical on both lanes and the shared test
+suites run unmodified.
+
+Generation entries: `examples/rust-f32.hxml`, `examples/kotlin-f32.hxml`;
+verify lanes `gen:rust-f32`, `gen:kotlin-f32`, `test:rust-f32`,
+`test:kotlin-f32`.
 
 ### Wide integers (`stdlib/05`)
 

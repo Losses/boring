@@ -197,7 +197,7 @@ class Compiler extends PluginCompiler<Compiler> {
 		emitShim("haxe.io.BytesBuffer", "BytesBuffer.kt", KotlinRuntime.BYTES_BUFFER_SOURCE);
 		emitShim("std.Console", "Console.kt", KotlinRuntime.CONSOLE_SOURCE);
 		emitShim("std.Process", "Process.kt", KotlinRuntime.PROCESS_SOURCE);
-		emitShim("std.Test", "test/Test.kt", KotlinRuntime.TEST_SOURCE, "test");
+		emitShim("std.Test", "test/Test.kt", KotlinRuntime.testSource(), "test");
 		// std.SortedMap and std.SortedSet no longer emit shims: the
 		// sorted tables compile from the runtime.SortedTable resident,
 		// gated through the extern usage flags these modules still set.
@@ -214,6 +214,10 @@ class Compiler extends PluginCompiler<Compiler> {
 
 	function generateTestHelper(kotlinTestOutput: String, kotlinOutput: String): Void {
 		final runtimePackage = RuntimeConfig.requireImportName("TestHelper");
+		// The floating-point overloads follow the module real of the
+		// compilation (feature spec 23); Test.formatFloat switches with
+		// the same lane.
+		final real = FloatPrecision.isF32() ? "Float" : "Double";
 		final lines = [
 			"package tests",
 			"",
@@ -232,9 +236,9 @@ class Compiler extends PluginCompiler<Compiler> {
 			"        if (!equalsValue(expected, actual)) Test.reportFailure(message, formatValue(expected), formatValue(actual))",
 			"    }",
 			"",
-			"    fun equalsValue(a: Double, b: Double): Boolean = a == b",
-			"    fun formatValue(v: Double): String = Test.formatFloat(v)",
-			"    fun assertEquals(expected: Double, actual: Double, message: String? = null) {",
+			'    fun equalsValue(a: ${real}, b: ${real}): Boolean = a == b',
+			'    fun formatValue(v: ${real}): String = Test.formatFloat(v)',
+			'    fun assertEquals(expected: ${real}, actual: ${real}, message: String? = null) {',
 			"        if (!equalsValue(expected, actual)) Test.reportFailure(message, formatValue(expected), formatValue(actual))",
 			"    }",
 			"",
@@ -334,7 +338,7 @@ class Compiler extends PluginCompiler<Compiler> {
 				final path = abs.pack.concat([abs.name]).join(".");
 				switch(path) {
 					case "Int": "Int";
-					case "Float": "Double";
+					case "Float": FloatPrecision.isF32() ? "Float" : "Double";
 					case "Bool": "Boolean";
 					case "std.ReadOnlyArray": "List<" + qualifiedType(params[0]) + ">";
 					case _: abs.name;

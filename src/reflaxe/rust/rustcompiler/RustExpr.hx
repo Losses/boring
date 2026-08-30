@@ -1119,7 +1119,10 @@ class RustExpr {
 					case TInt(v): return Std.string(v);
 					case TFloat(f):
 						final s = Std.string(f);
-						return s.indexOf(".") >= 0 ? s : s + ".0";
+						final padded = s.indexOf(".") >= 0 ? s : s + ".0";
+						// The f32 lane marks every literal so its width never
+						// depends on the inference context (feature spec 23).
+						return FloatPrecision.isF32() ? padded + "f32" : padded;
 					case TString(s): return quoteString(s);
 					case TBool(b): return b ? "true" : "false";
 					case TNull: return "None";
@@ -1297,8 +1300,9 @@ class RustExpr {
 			case OpDiv if(StringTools.endsWith(operand(l, op, false), ".len()")):
 				return "((" + operand(l, op, false) + ") / (" + operand(r, op, true) + " as usize)) as i32";
 			case OpMult | OpAdd | OpSub | OpDiv if(isFloatType(e.t)):
-				final lStr = if(isIntType(l.t)) "((" + operand(l, op, false) + ") as f64)" else operand(l, op, false);
-				final rStr = if(isIntType(r.t)) "((" + operand(r, op, true) + ") as f64)" else operand(r, op, true);
+				final real = FloatPrecision.isF32() ? "f32" : "f64";
+				final lStr = if(isIntType(l.t)) "((" + operand(l, op, false) + ") as " + real + ")" else operand(l, op, false);
+				final rStr = if(isIntType(r.t)) "((" + operand(r, op, true) + ") as " + real + ")" else operand(r, op, true);
 				return lStr + " " + symbolOf(op) + " " + rStr;
 			case OpAnd:
 				final rightInner = stripWrap(r);
@@ -1413,10 +1417,13 @@ class RustExpr {
 			case "String":
 				return "String::" + RustImports.toSnakeCase(name);
 			case "Math":
-				if(name == "NaN") return "f64::NAN";
-				if(name == "POSITIVE_INFINITY") return "f64::INFINITY";
-				if(name == "NEGATIVE_INFINITY") return "f64::NEG_INFINITY";
-				return "f64::" + RustImports.toSnakeCase(name);
+				// The f32 lane renders the whole Math family from f32, the
+				// binary32 equivalent of every static (feature spec 23).
+				final real = FloatPrecision.isF32() ? "f32" : "f64";
+				if(name == "NaN") return real + "::NAN";
+				if(name == "POSITIVE_INFINITY") return real + "::INFINITY";
+				if(name == "NEGATIVE_INFINITY") return real + "::NEG_INFINITY";
+				return real + "::" + RustImports.toSnakeCase(name);
 			case "std.Test" | "std.__test_shim":
 				state.shimsUsed.set("std.Test", true);
 				if(name == "run") {
@@ -1777,7 +1784,15 @@ class RustExpr {
 				}
 				if(path == "haxe.io.FPHelper") {
 					imports.requireType(cls.module, "FPHelper");
-					return "FPHelper::" + RustImports.toSnakeCase(name) + "(" + renderedArgs + ")";
+					// The f32 lane swaps the two 64-bit value edges for their
+					// binary32 runtime variants; the 8-byte wire bit layout
+					// is untouched (feature spec 23, ruling 7).
+					final targetName = if(FloatPrecision.isF32()) {
+						if(name == "i64ToDouble") "i64ToF32" else if(name == "doubleToI64") "f32ToI64" else name;
+					} else {
+						name;
+					}
+					return "FPHelper::" + RustImports.toSnakeCase(targetName) + "(" + renderedArgs + ")";
 				}
 				if(cls.pack.join(".") == "std" && cls.name == "Process" && name == "exit") {
 					imports.require("std::process::exit");
@@ -2607,7 +2622,7 @@ class RustExpr {
 			case TAbstract(a, _):
 				switch(a.get().name) {
 					case "Int": "u32";
-					case "Float": "f64";
+					case "Float": FloatPrecision.isF32() ? "f32" : "f64";
 					case "Bool": "bool";
 					case "String": "string";
 					case _: RustImports.toSnakeCase(a.get().name);
@@ -2681,7 +2696,8 @@ class RustExpr {
 
 	/** Whether a division reads a length and divides by an Int, the
 		shape the OpDiv lowering renders as truncating integer
-		division; a general Int/Int division lowers through f64. */
+		division; a general Int/Int division lowers through the module
+		real (f64 by default, f32 under the precision switch). */
 	function isLengthDivision(e: TypedExpr): Bool {
 		return switch(e.expr) {
 			case TBinop(OpDiv, l, r): isIntType(r.t) && StringTools.endsWith(operand(l, OpDiv, false), ".len()");

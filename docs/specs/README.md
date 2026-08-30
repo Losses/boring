@@ -64,6 +64,8 @@ Every candidate translation is evaluated across four fixed axes:
 | 18 | [18-immutability.md](features/18-immutability.md) | Complete | Read-only data types and per-platform mutation enforcement. |
 | 19 | [19-testing.md](features/19-testing.md) | Planned | In-source tests, per-target execution, and cross-target consistency. |
 | 20 | [20-compile-time-data-tables.md](features/20-compile-time-data-tables.md) | Planned | Compile-time data expansion of large immutable lookup tables and the table emission ruling. |
+| 22 | [22-default-argument-expansion.md](features/22-default-argument-expansion.md) | Complete | Optional function parameters with default values: the completion pass in the typed common layer and the call sites that omit them. |
+| 23 | [23-float-precision-switch.md](features/23-float-precision-switch.md) | Complete | The module-level `float-precision` define selecting the binary32 mapping of `Float` per compilation, with the TypeScript startup rejection and the f64 wire boundary. |
 
 ### Macro specifications
 

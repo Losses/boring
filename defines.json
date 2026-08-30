@@ -30,5 +30,9 @@
   {
     "define": "kotlin-test-output",
     "doc": "Output directory for Kotlin test generation (kotlincompiler)."
+  },
+  {
+    "define": "float-precision",
+    "doc": "Module real of the Haxe Float type for the whole compilation: f64 (default) maps Float to f64/Double/number; f32 maps it to f32/Float and rounds wire reads at the decode point. The TypeScript target rejects f32 at startup. See docs/specs/features/23-float-precision-switch.md."
   }
 ]

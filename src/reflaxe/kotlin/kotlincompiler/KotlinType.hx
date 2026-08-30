@@ -34,7 +34,9 @@ class KotlinType {
 				final abs = a.get();
 				switch(pathOf(abs.pack, abs.name)) {
 					case "Int": "Int";
-					case "Float": "Double";
+					// The module-level precision switch selects the Float
+					// width for the whole compilation (feature spec 23).
+					case "Float": FloatPrecision.isF32() ? "Float" : "Double";
 					case "Bool": "Boolean";
 					case "Void": "Unit";
 					case "Null": of(params[0]) + "?";

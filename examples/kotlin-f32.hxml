@@ -1,0 +1,55 @@
+# reflaxe Kotlin target generation under the f32 precision switch
+# (docs/specs/features/23-float-precision-switch.md).
+# Run from the repository root: haxe examples/kotlin-f32.hxml
+# Output lands in reference/kotlin-f32/gen and gen-tests.
+-lib boring
+-cp src/reflaxe/kotlin/std-shadow
+-cp src/reflaxe/kotlin
+-cp samples
+--macro Intercept.run(['samples'], ['samples/boring/BinaryReader.hx', 'samples/boring/BinaryWriter.hx'])
+--macro kotlincompiler.Compiler.use()
+-D kotlin-output=reference/kotlin-f32/gen
+-D kotlin-test-output=reference/kotlin-f32/gen-tests
+-D runtime-import=boring.runtime
+-D runtime-emit=runtime
+-D float-precision=f32
+boring.BinaryReader
+boring.BinaryWriter
+boring.GlyphMetrics
+std.ReadOnlyArray
+boring.VectorCodec
+boring.VectorError
+boring.VectorException
+boring.VectorSort
+boring.ScriptEvidenceTable
+boring.WordCharacterTable
+boring.CodePointNames
+std.SortedMap
+std.SortedSet
+std.Functional
+runtime.UString
+runtime.GraphemeWalk
+runtime.Graphemes
+runtime.SortedTable
+runtime.TestCore
+tests.TestData
+tests.VectorCodecTests
+tests.DataTableTests
+tests.SortedTableTests
+boring.ScriptNames
+boring.ClusterTags
+tests.SortedKeyDomainTests
+boring.PipelineOps
+tests.PipelineTests
+boring.RecordOps
+tests.RecordTests
+boring.StringBufOps
+tests.StringBufTests
+boring.ArithmeticOps
+tests.ArithmeticTests
+boring.DefaultArgsOps
+tests.DefaultArgsTests
+boring.UStringOps
+boring.GraphemeOps
+tests.UStringTests
+tests.GraphemeTests
