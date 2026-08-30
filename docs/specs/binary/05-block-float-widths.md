@@ -136,5 +136,8 @@ reader and writer methods (`readF32`, `readF16`, `writeF32`, `writeF16`).
   copy), `tests/rust/vector.rs`, and `tests/ts/block-width.test.ts` assert
   the committed binaries of all three widths byte for byte, the rejection
   of unknown magics, and the per-width record byte counts.
+- `tests/swift/main.swift` and `tests/dart/vector_main.dart` assert the
+  same committed binaries byte for byte and the unknown-magic rejection
+  on the Swift and Dart generated trees (`test:swift`, `test:dart`).
 - `tools/gen-vector.ts` regenerates all three committed binaries from
   `tests/vectors/roundtrip.json`.
