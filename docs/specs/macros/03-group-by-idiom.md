@@ -55,8 +55,10 @@ The Rust emitter recognizes this exact get-or-create loop and lowers it
 to one `match` on the builder `get` with the `put` after the `push`,
 because the Rust builder `get` returns an owned clone of the stored
 bucket and the sequence as written would move the bucket out of the
-builder before the push. The other targets keep the sequence as
-written.
+builder before the push. The Swift emitter recognizes the same loop for
+the same value-semantics reason: a Swift array `put` stores a copy, so
+the loop lowers to a nil-coalescing `get`, the `append`, and the `put`
+after it. The other targets keep the sequence as written.
 
 ## Stage-one oracle
 

@@ -156,8 +156,9 @@ to a resident convert once (`Array(text.utf16)`), so a walk is one
 decode pass followed by constant-time indexing, the decode-once tier of
 the design principles. `substringBetween` builds
 `String(decoding: units[a..<b], as: UTF16.self)`; `fromCodePoint`
-encodes the scalar into units or faults through the construction-domain
-checks of `std.UString`.
+encodes the scalar into units, and an argument outside the documented
+valid domain yields the NUL replacement, the same out-of-domain
+behavior the Rust lane's `char::from_u32` fallback takes.
 
 ### String buffer (`stdlib/08`)
 
