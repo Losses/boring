@@ -25,6 +25,7 @@ sequences, the same domain `stdlib/10` states.
 | `at(s:String, index:Int):Null<String>` | The cluster at position `index`, counting from 0; `null` when `index` is negative or at least `count(s)`. The null return on a miss matches `String.charCodeAt` and `stdlib/10 at`. |
 | `slice(s:String, from:Int, to:Int):String` | The clusters from position `from` inclusive to `to` exclusive. `from` clamps upward to 0, `to` clamps downward to `count(s)`, and `from >= to` yields the empty string. The clamping contract matches `stdlib/10 slice`. |
 | `parts(s:String):Array<String>` | One array element per cluster, in order. |
+| `boundaries(s:String):Array<Int>` | The UTF-16 unit offsets of every cluster boundary, in order: entry 0 is 0, the last entry is the length of `s`, and each interior entry is the unit position where one cluster ends and the next begins. A string of n clusters carries n + 1 entries; the empty string carries the single entry 0. The offsets are the unit positions of the `stdlib/10` string contract, the same positions `at` and `slice` extract substrings from. |
 
 No function throws. An out-of-range `at` is a query miss and returns
 null, the same ruling as `stdlib/10`.
@@ -58,6 +59,7 @@ Cost floors, recorded per the design principles:
 | One cluster query | `at` | one pass or less, no allocation beyond the result |
 | Cluster substring | `slice` | one pass plus the result string |
 | Repeated cluster access | `parts`, then array indexing | one pass plus the output array, then constant time |
+| Every boundary offset | `boundaries` | one pass plus the output array |
 
 The table lookup is a binary search over 1965 disjoint ranges for
 Unicode 17.0.0, eleven comparisons per code point; the walk state is
@@ -118,7 +120,7 @@ downloads.
 
 ## Haxe declarations and routing
 
-`samples/std/Graphemes.hx` declares the extern class with the four
+`samples/std/Graphemes.hx` declares the extern class with the five
 static functions, following the `SortedMap` pattern of
 `docs/specs/stdlib/06-std-modules.md`. The module has no construction
 domain and no fault enum, so it has no wrapper tier and no RT twin;
@@ -128,7 +130,7 @@ modules, and the class lists live in `TsImports.runtimeProvidedModules`
 and `KotlinImports.SHIM_MODULES`.
 
 The implementation is the resident module pair
-`src/runtime/Graphemes.hx` (the four operations over the injected
+`src/runtime/Graphemes.hx` (the five operations over the injected
 table) and `src/runtime/GraphemeWalk.hx` (the boundary rules over code
 points, the same walk the compile-time conformance gate runs). Every
 target compiles both through its normal pipeline into its runtime
@@ -145,8 +147,10 @@ code the transpiled runtimes execute.
   haxe Int as i32 because the clamping contracts carry negative values,
   while business modules render u32. Int values cross between the two
   conventions through explicit `as` casts at the call boundary; the
-  code-point vector never crosses whole, only its elements, so every
-  crossing is a scalar cast.
+  code-point vector never leaves the runtime package, and the boundary
+  vector of `boundaries` crosses whole through an adapter free function
+  in `graphemes.rs` that casts each element once, the pattern of the
+  `u_string.rs` business ABI adapters.
 - TypeScript: `export class Graphemes` and `export class GraphemeWalk`
   appended to `runtime.ts`, with the table as a plain `const TABLE`
   array so it crosses into `readonly number[]` parameters.
@@ -171,7 +175,9 @@ emoji joiner, modifier, and keycap sequences (GB9, GB9a, GB11);
 regional-indicator pairing (GB12 and GB13); Devanagari conjuncts with
 and without a second consonant (GB9c); a Prepend character (GB9b); and
 the slicing and parts contracts, including clamping and the empty
-string. Assertions state both the cluster count and the code-point
+string; and the boundary offsets of `boundaries`, covering the astral
+pair width, a Prepend cluster, the CR LF pair, and the empty string's
+single entry. Assertions state both the cluster count and the code-point
 count where the two differ.
 
 The compile-time gate replaces the committed-table revalidation test:

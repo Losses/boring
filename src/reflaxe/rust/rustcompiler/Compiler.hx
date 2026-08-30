@@ -652,8 +652,9 @@ class Compiler extends PluginCompiler<Compiler> {
 		// runtime.UString carries the business ABI adapters beside the
 		// compiled class: business callers reach the u32 free functions,
 		// resident callers reach the class itself, and one file holds the
-		// whole UString runtime.
-		final abiSource = module == "runtime.UString" ? "\n" + StringTools.trim(RustRuntime.USTRING_ABI_SOURCE) + "\n" : "";
+		// whole UString runtime. runtime.Graphemes carries the single
+		// boundaries adapter under the same pattern.
+		final abiSource = module == "runtime.UString" ? "\n" + StringTools.trim(RustRuntime.USTRING_ABI_SOURCE) + "\n" : module == "runtime.Graphemes" ? "\n" + StringTools.trim(RustRuntime.GRAPHEMES_ABI_SOURCE) + "\n" : "";
 		final content = imports + (imports.length > 0 ? "\n" : "") + body + abiSource + "\n";
 		saveTreeFile(RuntimeConfig.emitPath(dir, fileName), content);
 	}

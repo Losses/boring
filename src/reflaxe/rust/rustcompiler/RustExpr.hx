@@ -2080,6 +2080,14 @@ class RustExpr {
 				// runtime.Graphemes, compiled into graphemes.rs; the
 				// reference names the struct, not free functions.
 				state.shimsUsed.set("std.Graphemes", true);
+				if(name == "boundaries" && !RuntimeResidents.isResident(imports.selfModule)) {
+					// The boundary vector crosses whole between the two
+					// Int domains; the adapter in graphemes.rs casts each
+					// element once, because Array results have no
+					// call-site cast machinery (RuntimeResidents).
+					imports.require("crate::runtime::graphemes");
+					return "graphemes::boundaries";
+				}
 				imports.requireType("runtime.Graphemes", "Graphemes");
 				return "Graphemes::" + RustImports.toSnakeCase(name);
 			case _:
@@ -2097,6 +2105,13 @@ class RustExpr {
 				}
 				if(cls.module == "std.Graphemes") {
 					state.shimsUsed.set("std.Graphemes", true);
+					if(name == "boundaries" && !RuntimeResidents.isResident(imports.selfModule)) {
+						// Same routing as the path arm above: the boundary
+						// vector crosses whole, so the business caller
+						// reaches the element-casting adapter.
+						imports.require("crate::runtime::graphemes");
+						return "graphemes::boundaries";
+					}
 					imports.requireType("runtime.Graphemes", "Graphemes");
 					return "Graphemes::" + RustImports.toSnakeCase(name);
 				}

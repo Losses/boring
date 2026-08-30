@@ -11,7 +11,7 @@ import std.UStringRT;
 	validates it against the official test vectors before this class
 	can compile at all.
 
-	The four public operations decode the string to code points once,
+	The five public operations decode the string to code points once,
 	walk them with runtime.GraphemeWalk, and track the storage position
 	in UTF-16 units so substring extraction stays on the unit positions
 	of the haxe string contract (docs/specs/features/08-strings-and-
@@ -117,6 +117,38 @@ class Graphemes {
 		}
 		if(ordinal - 1 >= start && ordinal - 1 < end) {
 			out += s.substring(clusterStart, unit);
+		}
+		return out;
+	}
+
+	/**
+		The UTF-16 unit offsets of every cluster boundary, in order:
+		entry 0 is always 0, the last entry is the length of the string,
+		and each interior entry is the unit position where one cluster
+		ends and the next begins. A string of n clusters carries n + 1
+		entries; the empty string carries the single entry 0. The unit
+		positions are the positions of the haxe string contract, the
+		same positions `at` and `slice` extract substrings from.
+	**/
+	public static function boundaries(s: String): Array<Int> {
+		final codes = UStringRT.toCodePoints(s);
+		final out: Array<Int> = [0];
+		var prev = -1;
+		var state = 0;
+		var unit = 0;
+		for(i in 0...codes.length) {
+			final code = codes[i];
+			final packed = GraphemeWalk.lookup(TABLE, code);
+			final width = code > 0xFFFF ? 2 : 1;
+			if(prev >= 0 && GraphemeWalk.breaksBefore(prev, packed, state)) {
+				out.push(unit);
+			}
+			state = GraphemeWalk.advanceState(packed, state);
+			prev = packed;
+			unit += width;
+		}
+		if(unit > 0) {
+			out.push(unit);
 		}
 		return out;
 	}
