@@ -164,7 +164,7 @@ class Compiler extends PluginCompiler<Compiler> {
 				+ (imports.length > 0 ? "\n" : "")
 				+ body
 				+ "\n";
-			output.saveFile(modulePath(module), content);
+			saveTreeFile(modulePath(module), content);
 
 			final pack = packageOf(module);
 			if(!packages.exists(pack)) {
@@ -190,7 +190,7 @@ class Compiler extends PluginCompiler<Compiler> {
 				lines.push("pub use " + m + "::*;");
 			}
 			final modPath = pack == "" ? "mod.rs" : pack.split(".").map(RustImports.toSnakeCase).join("/") + "/mod.rs";
-			output.saveFile(modPath, lines.join("\n") + "\n");
+			saveTreeFile(modPath, lines.join("\n") + "\n");
 		}
 
 		if(packages.exists("tests")) {
@@ -208,7 +208,7 @@ class Compiler extends PluginCompiler<Compiler> {
 			for(m in modNames) {
 				lines.push("pub use " + m + "::*;");
 			}
-			output.saveFile("tests/mod.rs", lines.join("\n") + "\n");
+			saveTreeFile("tests/mod.rs", lines.join("\n") + "\n");
 		}
 
 		// Emit runtime shims
@@ -245,7 +245,7 @@ class Compiler extends PluginCompiler<Compiler> {
 			// declaration by its qualified path, and re-exporting two
 			// modules that share a function name (ustring and graphemes
 			// both define count, at, slice) is an ambiguous re-export.
-			output.saveFile(RuntimeConfig.emitPath(emitDir, "mod.rs"), rtLines.join("\n") + "\n");
+			saveTreeFile(RuntimeConfig.emitPath(emitDir, "mod.rs"), rtLines.join("\n") + "\n");
 		}
 
 		// Generate root lib.rs
@@ -272,11 +272,24 @@ class Compiler extends PluginCompiler<Compiler> {
 				libLines.push("pub use " + sname + "::*;");
 			}
 		}
-		output.saveFile("lib.rs", libLines.join("\n") + "\n");
+		saveTreeFile("lib.rs", libLines.join("\n") + "\n");
 
 		if(PackageShell.enabled()) {
-			output.saveFile("Cargo.toml", packageManifest());
+			saveTreeFile("Cargo.toml", packageManifest());
 		}
+		if(PackageArtifacts.enabled()) {
+			PackageArtifacts.requireShell();
+			PackageArtifacts.emitTarGz(Context.definedValue("rust-output"), false, ".crate");
+		}
+	}
+
+	/**
+		Saves one file through the output manager and records the write
+		for artifact packing (feature spec 25).
+	**/
+	function saveTreeFile(path: String, content: String): Void {
+		output.saveFile(path, content);
+		PackageArtifacts.record(path, content);
 	}
 
 	/**
@@ -517,7 +530,7 @@ class Compiler extends PluginCompiler<Compiler> {
 				case _:
 			}
 		}
-		output.saveFile("tests/test_helper.rs", lines.join("\n") + "\n");
+		saveTreeFile("tests/test_helper.rs", lines.join("\n") + "\n");
 	}
 
 	function rustType(t: Type): String {
@@ -594,7 +607,7 @@ class Compiler extends PluginCompiler<Compiler> {
 			return;
 		}
 		final path = RuntimeConfig.emitPath(dir, fileName);
-		output.saveFile(path, StringTools.trim(source) + "\n");
+		saveTreeFile(path, StringTools.trim(source) + "\n");
 	}
 
 	/**
@@ -634,7 +647,7 @@ class Compiler extends PluginCompiler<Compiler> {
 		// whole UString runtime.
 		final abiSource = module == "runtime.UString" ? "\n" + StringTools.trim(RustRuntime.USTRING_ABI_SOURCE) + "\n" : "";
 		final content = imports + (imports.length > 0 ? "\n" : "") + body + abiSource + "\n";
-		output.saveFile(RuntimeConfig.emitPath(dir, fileName), content);
+		saveTreeFile(RuntimeConfig.emitPath(dir, fileName), content);
 	}
 
 	// ------------------------------------------------------------------

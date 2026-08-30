@@ -9,7 +9,8 @@
   "contributors": ["Losses"],
   "tags": ["cross", "transpiler", "reflaxe"],
   "dependencies": {
-    "reflaxe": ""
+    "reflaxe": "",
+    "format": ""
   },
   "documentation": {
     "defines": "defines.json"

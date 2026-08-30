@@ -160,6 +160,9 @@ class Compiler extends PluginCompiler<Compiler> {
 	// ------------------------------------------------------------------
 
 	public override function generateFilesManually() {
+		if(PackageArtifacts.enabled()) {
+			PackageArtifacts.rejectUnsupportedTarget();
+		}
 		final modules = [];
 		for(module in parts.keys()) modules.push(module);
 		modules.sort(Reflect.compare);
