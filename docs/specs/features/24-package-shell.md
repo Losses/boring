@@ -51,7 +51,7 @@ moves that maintenance from every consumer to the generator.
 | Target | File | Content |
 | --- | --- | --- |
 | Rust | `Cargo.toml` | `[package]` name, version, license when given; `edition = "2024"`; `autotests = false`; `[lib] path = "lib.rs"`; zero dependencies; one `[[test]]` block per `package-test` define |
-| TypeScript | `package.json` | name, version, license when given; `private: true`; `type: "module"`; `devDependencies` with `typescript ^5.9.0` |
+| TypeScript | `package.json` | name, version, license when given; `private: true`; `type: "module"`; `exports` map over the emitted top-level entries plus the runtime entry; `devDependencies` with `typescript ^5.9.0` |
 | Swift | `Package.swift` | `swift-tools-version:5.9`; one library target with `path: "."` and a `sources` list of the emitted top-level entries; no license field, because PackageDescription carries none |
 | Dart | `pubspec.yaml` | name, version, license when given; `environment.sdk ^3.0.0` |
 | Kotlin | `build.gradle.kts` | `kotlin("jvm") version "2.4.10"`; `repositories { mavenCentral() }`; main source set `srcDir "."` |
@@ -130,13 +130,29 @@ the shell.
 5. **TypeScript.** The tree is TypeScript source, so the manifest
    carries `type: "module"` and a `typescript` devDependency for
    consumers that typecheck; the version follows the repository's own
-   floor (`^5.9.0`). No `exports` field is emitted: the tree has no
-   single entry module, and entry selection belongs to the consumer's
-   bundler. `private: true` is emitted because a generated source tree
-   is consumed by a build, and publishing is an explicit downstream act
-   that starts with taking over the shell. The validity condition is a
-   relative runtime import: generated files reference the runtime
-   through the `runtime-import` define, and a by-name import such as
+   floor (`^5.9.0`). The `exports` map exposes what the compilation
+   emitted into the main tree: one directory wildcard per emitted
+   top-level package directory (`"./boring/*": "./boring/*.ts"`), one
+   file entry per top-level file module, and `"./runtime"` pointing at
+   the emitted runtime entry when the compilation used the runtime.
+   The map holds no root entry: a generated tree has no single entry
+   module, so a consumer imports a module path
+   (`generated/boring/Fp32`), and the wildcard `*` matches nested
+   paths because the exports pattern substitution is a string
+   replacement. Test modules compile into the test-output tree and
+   receive no entry; a module that stays in the main tree under a
+   `tests` path (the shared test fixtures) is main-tree code and gets
+   the entry of its directory, because the emitter applies no naming
+   conventions beyond the routing the compilation already decided.
+   The runtime test entry (`runtime/test.ts`) stays unexposed for the
+   same reason: it is test-tree code emitted beside the main tree.
+   Keys sort, so the map is a pure function of the module set.
+   `private: true` is
+   emitted because a generated source tree is consumed by a build, and
+   publishing is an explicit downstream act that starts with taking
+   over the shell. The validity condition is a relative runtime
+   import: generated files reference the runtime through the
+   `runtime-import` define, and a by-name import such as
    `@boring/runtime` names a package coordinate that does not exist, so
    a compilation combining a by-name runtime import with an emitted
    manifest stops with `package shell requires a relative runtime
@@ -184,10 +200,12 @@ the shell.
 ## Test hooks
 
 - `tests/ts/package-shell.test.ts`: generates into a temp directory and
-  asserts the default emission (field values, a consumer program run
-  under bun against the temp tree), the `none` opt-out (no manifest
-  file), the invalid-value rejection, the by-name runtime-import
-  rejection, and the pinned Swift and Gradle manifest bytes.
+  asserts the default emission (field values, the `exports` map, a
+  consumer program run under bun against the temp tree, and a second
+  consumer that imports through a symlinked `node_modules` entry by
+  package name), the `none` opt-out (no manifest file), the
+  invalid-value rejection, the by-name runtime-import rejection, and
+  the pinned Swift and Gradle manifest bytes.
 - The root `Cargo.toml` workspace declares the generated crates at
   `reference/rust-gen/src` and `reference/rust-f32-gen/src`; their
   emitted `Cargo.toml` files are the crate manifests `cargo test` uses.

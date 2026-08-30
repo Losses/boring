@@ -255,10 +255,11 @@ class Compiler extends PluginCompiler<Compiler> {
 		Writes package.json beside the generated tree (feature spec 24).
 		The tree is TypeScript source, so the manifest carries the module
 		type and a typescript devDependency for consumers that typecheck.
-		No exports field: the tree has no single entry module, and entry
-		selection belongs to the consumer's bundler. The validity
-		condition is a relative runtime import: a by-name import names a
-		package coordinate no manifest can declare.
+		The exports map exposes the emitted top-level entries through
+		directory wildcards plus the runtime entry; test trees stay
+		unexposed. The validity condition is a relative runtime import:
+		a by-name import names a package coordinate no manifest can
+		declare.
 	**/
 	function emitPackageShell(): Void {
 		final runtimeImport = RuntimeConfig.importName();
@@ -276,11 +277,57 @@ class Compiler extends PluginCompiler<Compiler> {
 		}
 		lines.push('  "private": true,');
 		lines.push('  "type": "module",');
+		final exportLines = packageShellExports();
+		if(exportLines.length > 0) {
+			lines.push('  "exports": {');
+			for(index in 0...exportLines.length) {
+				final comma = index < exportLines.length - 1 ? "," : "";
+				lines.push('    ${jsonString(exportLines[index].key)}: ${jsonString(exportLines[index].target)}${comma}');
+			}
+			lines.push("  },");
+		}
 		lines.push('  "devDependencies": {');
 		lines.push('    "typescript": "^5.9.0"');
 		lines.push('  }');
 		lines.push("}");
 		output.saveFile("package.json", lines.join("\n") + "\n");
+	}
+
+	/**
+		The exports entries of the manifest: one directory wildcard per
+		emitted top-level package directory, one file entry per top-level
+		file module, and the runtime entry when the compilation emitted a
+		runtime. Test modules and residents are not business modules and
+		stay unexposed. Keys sort so identical compilations emit
+		identical bytes.
+	**/
+	function packageShellExports(): Array<{key: String, target: String}> {
+		final directories: Array<String> = [];
+		final files: Array<String> = [];
+		for(module in parts.keys()) {
+			if(RuntimeResidents.isResident(module) || testModules.exists(module)) {
+				continue;
+			}
+			final segments = module.split(".");
+			final topLevel = segments[0];
+			final bucket = segments.length > 1 ? directories : files;
+			if(bucket.indexOf(topLevel) < 0) {
+				bucket.push(topLevel);
+			}
+		}
+		final entries: Array<{key: String, target: String}> = [];
+		for(directory in directories) {
+			entries.push({key: './${directory}/*', target: './${directory}/*.ts'});
+		}
+		for(file in files) {
+			entries.push({key: './${file}', target: './${file}.ts'});
+		}
+		final emitDir = RuntimeConfig.emitDir();
+		if(anyRuntimeUsed() && emitDir != null) {
+			entries.push({key: "./runtime", target: "./" + RuntimeConfig.emitPath(emitDir, "runtime.ts")});
+		}
+		entries.sort((a, b) -> Reflect.compare(a.key, b.key));
+		return entries;
 	}
 
 	/** A JSON string literal with the two escapes a manifest value needs. */
