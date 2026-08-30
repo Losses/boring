@@ -796,6 +796,30 @@ that a browser can load, holding no `node:` specifier and no host
 process API, and a test entry holding the `std.Test` result writer.
 Generated business code imports the general entry only.
 
+### Package shells (`features/24`)
+
+Every compilation writes the package manifest of its output tree into
+the main output directory: a `Cargo.toml` for Rust, a `package.json`
+for TypeScript, a `Package.swift` for Swift, a `pubspec.yaml` for Dart,
+and a `build.gradle.kts` for Kotlin. The manifest states the identity
+of the tree (name, version, license), the entry paths the compiler
+itself wrote, the empty dependency set, and the dialect floor the
+generated code needs. It is on by default; `package-shell=none` turns
+it off, and `package-name` (default `generated`, a neutral value),
+`package-version`, and `package-license` carry the identity.
+
+Two lane-specific notes. On TypeScript, an emitted manifest requires a
+relative `runtime-import`: a by-name import names a package coordinate
+the manifest cannot declare, and the compilation stops with that
+reason. On Rust, `package-test=name:path` appends one integration-test
+block for repositories that keep tests outside the crate, and the
+manifest sets `autotests = false` because the generated `tests/`
+directory is a `#[cfg(test)]` module tree of the library.
+
+Workspace membership, publication coordinates, repositories, and any
+dependency graph beyond the tree stay with the consumer's build; a
+manifest field with no source inside the compilation does not exist.
+
 ## Failures
 
 ### Errors and results (`features/06`, `stdlib/03`)
