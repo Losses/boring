@@ -70,8 +70,8 @@ omission resolves to the coalescing expression.
 2. The default expression `E` of a coalescing site accepts: primitive-type
    literals; the empty array construction `[]`; the empty map construction
    `new Map()`; `Math.POSITIVE_INFINITY`; `Math.NEGATIVE_INFINITY`; and
-   argument-less enum constructors. Every entry stays a constant on the Dart
-   and Swift targets, which is what constrains the class to these entries.
+   argument-less enum constructors. The class is closed so recognition and
+   rejection stay mechanical and every entry evaluates purely at each call.
    Any other expression is rejected with
    `coalesced default expression is not sanctioned`. A parameter consumed by
    more than one expression, or read anywhere outside its single coalescing
@@ -89,8 +89,8 @@ omission resolves to the coalescing expression.
    completed to `null`) reads as `Null<String>` in the body; after the pass it
    becomes a required parameter of type `Null<String>` and every omitting call
    site receives `null`. A coalescing default parameter keeps its omission
-   through the pass on the targets that hold native default syntax, per the
-   per-target products below.
+   through the pass on every code target except Rust, per the per-target
+   products below.
 5. The pass applies to every typed declaration shape: class methods, interface
    methods, static functions, and local functions.
 6. The pass runs after typing and before the pipeline expansion pass of `docs/specs/macros/01-functional-idiom-expansion.md` and
@@ -105,17 +105,22 @@ The two sanctioned classes lower differently.
   indistinguishable from a function that never held defaults; no target emits
   an optional parameter or a default initializer for them. This is unchanged
   from the previous ruling of this specification.
-- **Coalescing defaults** survive omission into the targets that hold native
-  default syntax, and complete on the one target that does not:
+- **Coalescing defaults** survive omission into the targets that can lower
+  the expression as a native default, complete to `None` on Rust, and lower
+  the site itself on Dart:
   - Kotlin, TypeScript, Swift: the parameter lowers with the native default
     `p: T = E` and the coalescing site is dropped. A constructor field
     parameter stays the primary field of
     `docs/specs/features/27-class-members-and-records.md`, so record equality
     and copy keep the field; the declaration is indistinguishable from a
     hand-written defaulted field.
-  - Dart: the parameter lowers with the const default, with the sanctioned
-    class mapping `[]` to `const []` and the infinities to `double.infinity`;
-    the coalescing site is dropped.
+  - Dart: default parameters accept compile-time constants only, and a const
+    collection is immutable and canonicalized, so a native container default
+    cannot preserve the per-call freshness of rule 3. Every coalescing
+    default on Dart lowers the coalescing site itself: the parameter stays
+    nullable and the site renders as body normalization,
+    `this.p = p ?? E;` with `E` in expression position, which evaluates `E`
+    at each omitting call and yields a fresh mutable container.
   - Rust: Rust holds no default parameter syntax. The parameter lowers as the
     `Option<T>` of the existing `Null<T>` convention, omitting call sites
     complete to `None` through the pass, and the coalescing site lowers at the
