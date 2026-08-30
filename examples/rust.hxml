@@ -11,6 +11,9 @@
 -D rust-output=reference/rust-gen/src
 -D runtime-import=crate::runtime
 -D runtime-emit=runtime
+-D package-name=boring-codec-gen
+-D package-license=MIT
+-D package-test=vector_gen:../../../tests/rust/vector_gen.rs
 boring.BinaryReader
 boring.BinaryWriter
 boring.Fp32

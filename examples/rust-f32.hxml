@@ -13,6 +13,9 @@
 -D float-precision=f32
 -D runtime-import=crate::runtime
 -D runtime-emit=runtime
+-D package-name=boring-codec-f32-gen
+-D package-license=MIT
+-D package-test=vector_gen_f32:../../../tests/rust/vector_gen_f32.rs
 boring.BinaryReader
 boring.BinaryWriter
 boring.Fp32
