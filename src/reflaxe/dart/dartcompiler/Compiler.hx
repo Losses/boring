@@ -1,0 +1,457 @@
+package dartcompiler;
+
+#if (macro || reflaxe_runtime)
+import haxe.macro.Context;
+import haxe.macro.Type;
+import reflaxe.BaseCompiler.BaseCompilerFileOutputType;
+import reflaxe.PluginCompiler;
+import reflaxe.ReflectCompiler;
+import reflaxe.data.ClassFuncData;
+import reflaxe.data.ClassVarData;
+import reflaxe.data.EnumOptionData;
+
+/**
+	reflaxe plugin producing the Dart lane of the translatable subset
+	(docs/specs/targets/dart.md).
+
+	Output layout is one Dart library per Haxe module at
+	`lib/pack/module_name.dart`, plus `runtime.dart` (the hand-written
+	prelude with the resident modules appended after it) when runtime
+	symbols are referenced, and the generated test tree under `-D
+	dart-test-output`: `test_host.dart` (the host entry with TestCore
+	appended), `test_helper.dart` (the registered composite assertions),
+	`tests/*.dart` (one library per test module), and `main.dart` (the
+	runner). Every library imports what it references under the
+	referenced module's file-stem prefix, so top-level names of two
+	modules never collide in one file. Everything flows through the
+	framework's output manager so `-D dart-output=<dir>` controls
+	placement.
+**/
+class Compiler extends PluginCompiler<Compiler> {
+	/** Module name to declaration parts, in arrival order. */
+	final parts: Map<String, Array<String>> = [];
+
+	/** Module name to emission context. */
+	final contexts: Map<String, DartDecl> = [];
+
+	/** Modules that contain @:test functions and emit to the test tree. */
+	final testModules: Map<String, Bool> = [];
+
+	/** One entry per @:test function, in emission order. */
+	final testEntries: Array<{id: String, runnerName: String, module: String, fn: String}> = [];
+
+	var current: Null<DartDecl> = null;
+
+	public static function use() {
+		final compiler = new Compiler();
+		haxe.macro.Context.onAfterTyping(compiler.preScan);
+		ReflectCompiler.AddCompiler(compiler, {
+			fileOutputType: BaseCompilerFileOutputType.Manual,
+			fileOutputExtension: ".dart",
+			outputDirDefineName: "dart-output",
+			unwrapTypedefs: false,
+			normalizeEIE: false,
+			preventRepeatVars: false,
+			ignoreExterns: true,
+		});
+	}
+
+	public function new() {
+		super();
+	}
+
+	function preScan(mtypes: Array<ModuleType>): Void {
+		// Index every in-scope record typedef by shape so anonymous
+		// object literals resolve their nominal class (the typer keeps
+		// a literal's own type anonymous even after unification).
+		for(mt in mtypes) {
+			switch(mt) {
+				case TTypeDecl(def):
+					final d = def.get();
+					if(!inSourceScope(d.pos)) {
+						continue;
+					}
+					switch(d.type) {
+						case TAnonymous(_): DartDecl.registerStructTypedef(def);
+						case _:
+					}
+				case _:
+			}
+		}
+	}
+
+	// ------------------------------------------------------------------
+	// Declarations
+	// ------------------------------------------------------------------
+
+	public function compileClassImpl(classType: ClassType, varFields: Array<ClassVarData>, funcFields: Array<ClassFuncData>): Null<String> {
+		// Resident runtime modules sit under src/runtime, outside the
+		// sample source roots, but compile through this same pipeline.
+		final isResident = RuntimeResidents.isResident(classType.module);
+		if(classType.isExtern || isSyntheticImpl(classType.name) || isInlineOnly(classType, varFields, funcFields) || (!isResident && !inSourceScope(classType.pos))) {
+			return null;
+		}
+
+		var hasTestFuncs = false;
+		for(f in funcFields) {
+			if(f.field.meta.has(":test")) {
+				hasTestFuncs = true;
+				break;
+			}
+		}
+
+		if(hasTestFuncs) {
+			final testOutput = Context.definedValue("dart-test-output");
+			if(testOutput == null) {
+				Context.error("dart-test-output define is required to emit tests", classType.pos);
+			}
+			final testRunner = Context.definedValue("dart-test-runner");
+			if(testRunner != "native") {
+				Context.error("dart-test-runner define must be native for the Dart target", classType.pos);
+			}
+
+			// Validate test functions
+			final sortedFuncs = funcFields.copy();
+			sortedFuncs.sort((a, b) -> Reflect.compare(Context.getPosInfos(a.field.pos).min, Context.getPosInfos(b.field.pos).min));
+
+			testModules.set(classType.module, true);
+			final decl = contextFor(classType.module);
+			final body: Array<String> = [];
+
+			for(f in sortedFuncs) {
+				if(!f.field.meta.has(":test")) {
+					continue;
+				}
+				final id = classType.module + "." + f.field.name;
+				if(!f.field.isPublic) {
+					Context.error("Test function " + id + " must be public", f.field.pos);
+				}
+				if(!f.isStatic) {
+					Context.error("Test function " + id + " must be static", f.field.pos);
+				}
+				if(f.args.length != 0) {
+					Context.error("Test function " + id + " must take no arguments and return Void", f.field.pos);
+				}
+				final isVoid = switch(Context.follow(f.ret)) {
+					case TAbstract(a, _): a.get().name == "Void";
+					case _: false;
+				};
+				if(!isVoid) {
+					Context.error("Test function " + id + " must take no arguments and return Void", f.field.pos);
+				}
+
+				if(body.length > 0) {
+					body.push("");
+				}
+				for(l in decl.testFuncDecl(classType, f)) {
+					body.push(l);
+				}
+				// The test module lowers to top-level functions of its own
+				// library; the runner reaches them through the import
+				// prefix of the module's file stem.
+				testEntries.push({id: id, runnerName: runnerNameOf(id, f), module: classType.module, fn: f.field.name});
+			}
+			final result = body.join("\n");
+			parts.get(classType.module).push(result);
+			return result;
+		}
+
+		final decl = contextFor(classType.module);
+		final result = decl.classDecl(classType, varFields, funcFields);
+		if(result != null && result.length > 0) {
+			parts.get(classType.module).push(result);
+		}
+		return result;
+	}
+
+	public function compileEnumImpl(enumType: EnumType, options: Array<EnumOptionData>): Null<String> {
+		final isResident = RuntimeResidents.isResident(enumType.module);
+		if(!isResident && !inSourceScope(enumType.pos)) {
+			return null;
+		}
+		final decl = contextFor(enumType.module);
+		final result = decl.enumDecl(enumType, options);
+		if(result != null && result.length > 0) {
+			parts.get(enumType.module).push(result);
+		}
+		return result;
+	}
+
+	public override function compileTypedef(def: DefType): Null<String> {
+		final isResident = RuntimeResidents.isResident(def.module);
+		if(isResident) {
+			// Resident typedefs are the sorted-table comparator aliases;
+			// their references expand inline at every use
+			// (DartType.ofSubstituted), so no declaration renders.
+			return null;
+		}
+		if(!inSourceScope(def.pos)) {
+			return null;
+		}
+		switch(def.type) {
+			case TAnonymous(_):
+			case _:
+				return null;
+		}
+		final decl = contextFor(def.module);
+		final result = decl.typedefDecl(def);
+		if(result != null && result.length > 0) {
+			parts.get(def.module).push(result);
+		}
+		return result;
+	}
+
+	/**
+		Entry point for expressions the framework itself needs lowered
+		(field initializers and the like). Everything flows through the
+		same typed-AST translator as class bodies.
+	**/
+	public function compileExpressionImpl(e: TypedExpr, topLevel: Bool): Null<String> {
+		final decl = current != null ? current : new DartDecl("eval");
+		return topLevel ? decl.topLevelStatements(e) : decl.rawExpression(e);
+	}
+
+	// ------------------------------------------------------------------
+	// Output
+	// ------------------------------------------------------------------
+
+	public override function generateFilesManually() {
+		final modules = [];
+		for(module in parts.keys()) modules.push(module);
+		modules.sort(Reflect.compare);
+
+		final dartOutput = Context.definedValue("dart-output");
+		final testOutput = Context.definedValue("dart-test-output");
+		final testRel = relativeFromTo(dartOutput, testOutput);
+
+		for(module in modules) {
+			if(RuntimeResidents.isResident(module)) {
+				// Resident modules append into runtime.dart below, not
+				// into the business tree.
+				continue;
+			}
+			final isTest = testModules.exists(module);
+			// The saved path is dart-output-root relative; the import
+			// math runs on the define-based locations so the walk over
+			// to the test tree counts its parent steps correctly.
+			final savedPath = isTest ? testRel + "/" + DartImports.libraryPathOf(module) : "lib/" + DartImports.libraryPathOf(module);
+			final filePath = isTest ? testOutput + "/" + DartImports.libraryPathOf(module) : dartOutput + "/lib/" + DartImports.libraryPathOf(module);
+			final ctx = contexts.get(module);
+			final body = parts.get(module).join("\n\n");
+			final content = GENERATED_HEADER + "\n" + importBlockOf(ctx, filePath, dartOutput, testOutput) + "\n" + body + "\n";
+			output.saveFile(savedPath, content);
+		}
+
+		final emitDir = RuntimeConfig.emitDir();
+		if(emitDir != null && anyRuntimeUsed()) {
+			// Resident modules compile through the normal pipeline and
+			// append after the runtime source, so runtime.dart stays one
+			// self-contained library.
+			final residentParts: Array<String> = [];
+			for(resident in RuntimeResidents.MODULES) {
+				final moduleParts = parts.get(resident);
+				if(moduleParts != null && moduleParts.length > 0) {
+					residentParts.push(moduleParts.join("\n\n"));
+				}
+			}
+			final runtimeSource = GENERATED_HEADER + "\nimport 'dart:typed_data';\n" + StringTools.trim(DartRuntime.SOURCE) + "\n" + residentParts.join("\n\n") + "\n";
+			output.saveFile(RuntimeConfig.emitPath(emitDir, "runtime.dart"), runtimeSource);
+			if(anyRuntimeTestUsed()) {
+				// The test host holds the failure type, the runner state,
+				// and the stdout edge; TestCore compiles through the
+				// normal pipeline and appends here. The runtime import is
+				// prepended by hand because its relative path depends on
+				// the two output defines.
+				final testResidentParts: Array<String> = [];
+				for(resident in RuntimeResidents.TEST_MODULES) {
+					final moduleParts = parts.get(resident);
+					if(moduleParts != null && moduleParts.length > 0) {
+						testResidentParts.push(moduleParts.join("\n\n"));
+					}
+				}
+				final hostImports = "import 'dart:io';\nimport '" + importSpecifier(testOutput + "/test_host.dart", dartOutput + "/" + RuntimeConfig.emitPath(emitDir, "runtime.dart")) + "' as runtime;";
+				final hostSource = GENERATED_HEADER + "\n" + hostImports + "\n" + StringTools.trim(DartRuntime.TEST_SOURCE) + "\n" + testResidentParts.join("\n\n") + "\n";
+				output.saveFile(testRel + "/test_host.dart", hostSource);
+			}
+		}
+
+		if(testEntries.length > 0) {
+			output.saveFile(testRel + "/main.dart", DartTestHelper.testMainSource(testEntries));
+			if(DartTestTypes.registered.length > 0) {
+				final helperImports = new DartImports("test_helper");
+				final helperTypes = new DartType(helperImports);
+				final helperBody = DartTestHelper.testHelperSource(helperImports, helperTypes);
+				final importLines: Array<String> = [];
+				for(entry in helperImports.moduleList()) {
+					importLines.push("import '" + importSpecifier(testOutput + "/test_helper.dart", dartOutput + "/lib/" + DartImports.libraryPathOf(entry.module)) + "' as " + entry.prefix + ";");
+				}
+				final helperSource = GENERATED_HEADER + "\n" + importLines.join("\n") + (importLines.length > 0 ? "\n" : "") + helperBody;
+				output.saveFile(testRel + "/test_helper.dart", helperSource);
+			}
+		}
+	}
+
+	/**
+		The import block of one generated library: dart:math when a
+		square root lowered onto it, every referenced module's library
+		under its file-stem prefix, the runtime library, and for test
+		modules the host and helper entries of the test tree. `filePath`
+		is the file's define-based location; every specifier walks from
+		it so relative steps across the two output trees stay correct.
+	**/
+	function importBlockOf(ctx: DartDecl, filePath: String, dartOutput: String, testOutput: String): String {
+		final lines: Array<String> = [];
+		if(ctx.imports.usesDartMath()) {
+			lines.push("import 'dart:math' as math;");
+		}
+		for(entry in ctx.imports.moduleList()) {
+			lines.push("import '" + importSpecifier(filePath, dartOutput + "/lib/" + DartImports.libraryPathOf(entry.module)) + "' as " + entry.prefix + ";");
+		}
+		if(ctx.imports.usesRuntime()) {
+			final emitDir = RuntimeConfig.emitDir();
+			if(emitDir == null) {
+				// Bring-your-own mode: the import specifier is the
+				// configured runtime identity, verbatim.
+				lines.push("import '" + RuntimeConfig.requireImportName("runtime") + "' as runtime;");
+			} else {
+				lines.push("import '" + importSpecifier(filePath, dartOutput + "/" + RuntimeConfig.emitPath(emitDir, "runtime.dart")) + "' as runtime;");
+			}
+		}
+		if(ctx.imports.usesRuntimeTest()) {
+			lines.push("import '" + importSpecifier(filePath, testOutput + "/test_host.dart") + "' as test_host;");
+			if(DartTestTypes.registered.length > 0) {
+				lines.push("import '" + importSpecifier(filePath, testOutput + "/test_helper.dart") + "' as test_helper;");
+			}
+		}
+		return lines.join("\n");
+	}
+
+	static final GENERATED_HEADER = "// Generated by the reflaxe Dart target. Do not edit.";
+
+	function anyRuntimeTestUsed(): Bool {
+		for(decl in contexts.iterator()) {
+			if(decl.usesRuntimeTest()) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	function anyRuntimeUsed(): Bool {
+		for(decl in contexts.iterator()) {
+			if(decl.usesRuntime()) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	// ------------------------------------------------------------------
+	// Internals
+	// ------------------------------------------------------------------
+
+	function contextFor(module: String): DartDecl {
+		current = contexts.exists(module) ? contexts.get(module) : null;
+		if(current == null) {
+			current = new DartDecl(module);
+			contexts.set(module, current);
+			parts.set(module, []);
+		}
+		return current;
+	}
+
+	/**
+		The compilation scope is the intercepted source roots: a
+		declaration lowers when its position file lies under one of them,
+		whatever its package. The output path mirrors the module path:
+		`pack.Module` lands at `lib/pack/module.dart`.
+	**/
+	function inSourceScope(pos: haxe.macro.Expr.Position): Bool {
+		final file = Context.getPosInfos(pos).file;
+		for(root in Intercept.sourceRoots()) {
+			final prefix = root.charAt(root.length - 1) == "/" ? root : root + "/";
+			if(StringTools.startsWith(file, prefix)
+				|| StringTools.startsWith(file, "./" + prefix)
+				|| file.indexOf("/" + prefix) >= 0) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/** Haxe names synthesized abstract implementation classes `<Name>_Impl_`; they erase with the abstract. */
+	function isSyntheticImpl(name: String): Bool {
+		return StringTools.endsWith(name, "_Impl_");
+	}
+
+	function isInlineOnly(classType: ClassType, varFields: Array<ClassVarData>, funcFields: Array<ClassFuncData>): Bool {
+		if(varFields.length == 0 && funcFields.length == 0) return true;
+		if(varFields.length == 0 && funcFields.length > 0) {
+			for(f in funcFields) {
+				switch(f.field.kind) {
+					case FMethod(MethInline) | FMethod(MethMacro):
+					case _: return false;
+				}
+			}
+			return true;
+		}
+		return false;
+	}
+
+	/** The display name of a test: its id, plus the @:test description when one was given. */
+	static function runnerNameOf(id: String, f: ClassFuncData): String {
+		var desc: Null<String> = null;
+		for(entry in f.field.meta.extract(":test")) {
+			if(entry.params != null && entry.params.length > 0) {
+				switch(entry.params[0].expr) {
+					case EConst(CString(s)): desc = s;
+					case _:
+				}
+			}
+		}
+		return desc != null ? id + ": " + desc : id;
+	}
+
+	/**
+		The relative import specifier from one generated file to another,
+		both expressed relative to the dart-output root.
+	**/
+	static function importSpecifier(fromFile: String, toFile: String): String {
+		final fromParts = fromFile.split("/");
+		fromParts.pop();
+		final toParts = toFile.split("/");
+		final fileName = toParts.pop();
+		var shared = 0;
+		while(shared < fromParts.length && shared < toParts.length && fromParts[shared] == toParts[shared]) {
+			shared += 1;
+		}
+		final out: Array<String> = [];
+		for(_ in shared...fromParts.length) {
+			out.push("..");
+		}
+		for(i in shared...toParts.length) {
+			out.push(toParts[i]);
+		}
+		out.push(fileName);
+		return out.join("/");
+	}
+
+	/** The path from one directory to another location, both output-root relative. */
+	static function relativeFromTo(fromDir: String, toPath: String): String {
+		final fromParts = fromDir == "." ? [] : fromDir.split("/");
+		final toParts = toPath == "." ? [] : toPath.split("/");
+		var shared = 0;
+		while(shared < fromParts.length && shared < toParts.length && fromParts[shared] == toParts[shared]) {
+			shared += 1;
+		}
+		final out: Array<String> = [];
+		for(_ in shared...fromParts.length) {
+			out.push("..");
+		}
+		for(i in shared...toParts.length) {
+			out.push(toParts[i]);
+		}
+		return out.join("/");
+	}
+}
+#end
