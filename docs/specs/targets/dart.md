@@ -82,8 +82,13 @@ structural exception: `<<` and `>>>` produce results outside i32 on a
 restore attached (`(... << n).toSigned(32)` and
 `(... .toUnsigned(32) >> n).toSigned(32)`), the wrap targets with a
 native 32-bit integer perform in hardware. The `float-precision` define
-of `features/23` is not implemented for this lane: Dart has one storage
-width for reals (`double`), so an f32 variant cannot change result bits.
+of `features/23` is rejected at plugin registration on this lane: Dart
+has one storage width for reals (`double`), so an f32 variant cannot
+change result bits. A compile with `-D float-precision=f32` fails with
+`float-precision=f32 is not available on the Dart target: double is the
+one real storage width; compile without the define for f64 semantics`
+before any type rendering; `tests/dart/precision-switch.test.ts` pins
+the rejection.
 
 ## Enums and pattern matching (`features/01`)
 

@@ -48,15 +48,15 @@ that round the decoded f64 to the module real at the decode point.
 
 ## Current translations
 
-| Construct | Rust | TypeScript | Kotlin |
-| --- | --- | --- | --- |
-| `Float` type | `f64` | `number` | `Double` |
-| float literal | `2.5` (`.0` padded) | `2.5` | `2.5` |
-| `Math.NaN` | `f64::NAN` | `Number.NaN` | `Double.NaN` |
-| `Math.floor(x)` | `f64::floor(x)` | `Math.floor(x)` | `Math.floor(x)` (`java.lang.Math`) |
-| `FPHelper.i64ToDouble` | runtime `i64_to_double` (`f64::from_bits`) | runtime `i64ToDouble` | runtime `i64ToDouble` (`Double.fromBits`) |
-| `readF64():Float` | hardcoded `-> f64` return | `number` | `Double` |
-| test assertion | `equals_f64` / `format_f64` | `formatValue(number)` | `Double` overloads |
+| Construct | Rust | TypeScript | Kotlin | Swift | Dart |
+| --- | --- | --- | --- | --- | --- |
+| `Float` type | `f64` | `number` | `Double` | `Double` | `double` |
+| float literal | `2.5` (`.0` padded) | `2.5` | `2.5` | `2.5` | `2.5` |
+| `Math.NaN` | `f64::NAN` | `Number.NaN` | `Double.NaN` | `Double.nan` | `double.nan` |
+| `Math.floor(x)` | `f64::floor(x)` | `Math.floor(x)` | `Math.floor(x)` (`java.lang.Math`) | `(x).rounded(.down)` | `(x).floor()` |
+| `FPHelper.i64ToDouble` | runtime `i64_to_double` (`f64::from_bits`) | runtime `i64ToDouble` | runtime `i64ToDouble` (`Double.fromBits`) | runtime `i64ToDouble` | runtime `i64ToDouble` |
+| `readF64():Float` | hardcoded `-> f64` return | `number` | `Double` | `Double` | `double` |
+| test assertion | `equals_f64` / `format_f64` | `formatValue(number)` | `Double` overloads | `Double` tags | `Double` tags |
 
 ## Candidate translations
 
@@ -180,40 +180,53 @@ Fields could live in `Float32Array` so storage rounds to binary32.
    `Context.definedValue` in a shared config module beside
    `RuntimeConfig`, because every target compiler consumes it.
 2. **Type table.** With `f32`, the language-level `Float` maps to `f32`
-   on Rust and `Float` on Kotlin. `Int` mappings, wire types, and every
-   non-float construct are untouched. The wire table of feature spec 07
+   on Rust, `Float` on Kotlin, and `Float` on Swift. `Int` mappings,
+   wire types, and every non-float construct are untouched. The wire table of feature spec 07
    keeps `WireF64Be` at `f64`: the switch selects the module's real
    number width, never the wire width, so the single-precision ban in
    feature spec 07's wire-path list is unaffected by this
    specification. Narrow wire storage belongs to the block float widths
    of binary spec 05, which any compilation encodes and decodes at any
    module width.
-3. **TypeScript rejects the switch.** Activating the TypeScript
+3. **TypeScript and Dart reject the switch.** Activating the TypeScript
    compiler under `float-precision=f32` stops the compilation at
    compiler startup with `float-precision=f32 is not available on the
    TypeScript target: number is binary64; compile without the define
-   for f64 semantics`. The rejection happens before any type is
-   rendered, so no partial f64-semantics output is produced under an
-   f32 flag. Principle 3 (no cross-storage emulation) and principle 4
-   (the ruling stands even though fround wrapping is implementable)
-   select the rejection; the sanctioned path for TypeScript consumers
+   for f64 semantics`; activating the Dart compiler stops it with
+   `float-precision=f32 is not available on the Dart target: double is
+   the one real storage width; compile without the define for f64
+   semantics`. Both rejections happen before any type is rendered, so
+   no partial f64-semantics output is produced under an f32 flag.
+   Principle 3 (no cross-storage emulation) and principle 4 (the
+   ruling stands even though fround wrapping is implementable) select
+   the rejection; the sanctioned path for TypeScript and Dart consumers
    is the default f64 lane.
 4. **Literals.** With `f32`, a float literal renders with the target's
    f32 marker: `2.5f32` on Rust (the `.0` padding rule applies first:
    `5` becomes `5.0f32`), `2.5f` on Kotlin (`5` becomes `5.0f`). The
    suffix is unconditional, so the literal never relies on inference
-   context for its width.
+   context for its width. Swift literals carry no suffix in either
+   lane; they are type-directed, so the f32 lane names the type on
+   every declaration whose initializer would otherwise infer the
+   default `Double` width (`var x = 0.0` becomes `var x: Float = 0.0`),
+   which pins the width at the same inference sites the suffix pins on
+   Rust and Kotlin.
 5. **Constants.** `Math.NaN`, `Math.POSITIVE_INFINITY`, and
    `Math.NEGATIVE_INFINITY`, and the remaining `Math` statics, render
    from the f32 family: `f32::NAN` and `f32::INFINITY` on Rust,
-   `Float.NaN` and `Float.POSITIVE_INFINITY` on Kotlin.
+   `Float.NaN` and `Float.POSITIVE_INFINITY` on Kotlin, `Float.nan` and
+   `Float.infinity` on Swift.
 6. **Math functions.** With `f32`, Rust renders `Math.<name>(x)` as
    `f32::<name>(x)`; the argument is already `f32` under the type
    table. Kotlin renders `kotlin.math.<name>(x)` fully qualified; the
    `kotlin.math` free functions carry `Float` overloads, so no import
    is added and `java.lang.Math` (Double-only) is never referenced
    under `f32`. On the default lane both compilers keep their current
-   `f64::` / `java.lang.Math` renderings.
+   `f64::` / `java.lang.Math` renderings. Swift needs no separate
+   dispatch: the arithmetic and rounding members (`+`, `.rounded(.down)`,
+   `.squareRoot()`, `.isNaN`) come from the `FloatingPoint` protocol
+   `Float` and `Double` both implement, so the method renderings follow
+   the type table unchanged.
 7. **FPHelper and the wire boundary.** The FPHelper runtime keeps its
    64-bit bit-layout contract: `i64_to_double` and `double_to_i64` (and
    their Kotlin and TypeScript forms) stay f64. Under `f32` the call
@@ -222,7 +235,9 @@ Fields could live in `Float32Array` so storage rounds to binary32.
    and then converts the value to the module real with round-to-
    nearest-even; `FPHelper.doubleToI64(v)` translates to `f32_to_i64`,
    which widens the module real to f64 losslessly before the bit
-   conversion. The 8-byte wire layout is identical on both lanes. The
+   conversion. The Swift runtime carries the same pair as `i64ToF32`
+   and `f32ToI64`, emitted unconditionally and referenced only by the
+   f32 lane. The 8-byte wire layout is identical on every lane. The
    Haxe source of `BinaryReader.readF64` and `BinaryWriter.writeF64`
    changes nothing: the boundary rounding is the decode's definition
    under the switch, and the source performs no implicit narrowing.
@@ -269,12 +284,17 @@ Fields could live in `Float32Array` so storage rounds to binary32.
 
 ## Test hooks
 
-- `examples/rust-f32.hxml`, `examples/kotlin-f32.hxml`: full-library
-  generation under `-D float-precision=f32` (verify lanes
-  `gen:rust-f32`, `gen:kotlin-f32`, `test:rust-f32`, `test:kotlin-f32`).
-- `tests/ts/precision-switch.test.ts`: activates the TypeScript
-  compiler under `float-precision=f32` and asserts the startup error
-  and its text, proving the rejection fires before output.
+- `examples/rust-f32.hxml`, `examples/kotlin-f32.hxml`,
+  `examples/swift-f32.hxml`: full-library generation under `-D
+  float-precision=f32` (verify lanes `gen:rust-f32`, `gen:kotlin-f32`,
+  `gen:swift-f32`, `test:rust-f32`, `test:kotlin-f32`, `test:swift-f32`).
+- `tests/ts/precision-switch.test.ts` and
+  `tests/dart/precision-switch.test.ts`: activate the TypeScript and
+  Dart compilers under `float-precision=f32` and assert the startup
+  error and its text, proving the rejection fires before output.
+- `tests/swift-f32/main.swift` asserts the committed vector binaries
+  byte for byte on the Swift f32 tree, mirroring `tests/swift/main.swift`
+  on the default lane.
 - The shared suites (`tests.VectorCodecTests` and neighbors) run
   unmodified on the f32 lanes under ruling 11's vector discipline.
 - `docs/specs/features/07-numeric-tower.md` links here from its wire

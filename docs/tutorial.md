@@ -150,29 +150,33 @@ nothing about it, and the consumer passes the define like any other
 compilation flag. A consumer needing both widths in one artifact
 compiles the single-precision part as a separate compilation.
 
-The TypeScript target rejects `f32` at compiler startup with `number is
-binary64` in the error text; wrapping arithmetic in `Math.fround` or
+The TypeScript and Dart targets reject `f32` at compiler startup, the
+error text naming `number is binary64` and `double is the one real
+storage width` respectively; wrapping arithmetic in `Math.fround` or
 storing fields in `Float32Array` are the rejected emulation paths
 (design principle 3).
 
-Rust and Kotlin are the two lanes the define switches. The Swift and
-Dart lanes do not implement it and ship the f64 lane (`targets/swift`,
-`targets/dart`): Swift joins the target set with the f64 real only, and
-Dart holds one storage width for reals, so an f32 variant cannot change
-result bits.
+Rust, Kotlin, and Swift are the three lanes the define switches. Swift
+maps `Float` to `Float` under `f32` and `Double` on the default lane;
+its literals are type-directed and carry no suffix, so the f32 lane
+names the type on every declaration whose initializer would otherwise
+infer the default `Double` width (`var x: Float = 0.0`), and its
+arithmetic and rounding members come from the `FloatingPoint` protocol
+both types implement. Dart holds one storage width for reals, so an f32
+variant cannot change result bits (`targets/swift`, `targets/dart`).
 
-The wire does not switch: `WireF64Be` stays f64 on both lanes. A wire
+The wire does not switch: `WireF64Be` stays f64 on every lane. A wire
 read decodes the 8 f64 wire bytes and rounds the value to the module
 real at the decode point (`FPHelper.i64ToDouble` dispatches to the
 `i64ToF32` runtime variant); a wire write widens the module real
 losslessly before the bit conversion (`doubleToI64` dispatches to
 `f32ToI64`). Test vectors assign dyadic binary32 values, so the
-committed vector bytes are identical on both lanes and the shared test
+committed vector bytes are identical on every lane and the shared test
 suites run unmodified.
 
-Generation entries: `examples/rust-f32.hxml`, `examples/kotlin-f32.hxml`;
-verify lanes `gen:rust-f32`, `gen:kotlin-f32`, `test:rust-f32`,
-`test:kotlin-f32`.
+Generation entries: `examples/rust-f32.hxml`, `examples/kotlin-f32.hxml`,
+`examples/swift-f32.hxml`; verify lanes `gen:rust-f32`, `gen:kotlin-f32`,
+`gen:swift-f32`, `test:rust-f32`, `test:kotlin-f32`, `test:swift-f32`.
 
 ### Wide integers (`stdlib/05`)
 
