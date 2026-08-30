@@ -975,7 +975,16 @@ class RustDecl {
 					descend();
 				case TCall(fn, callArgs):
 					switch(fn.expr) {
-						case TField(_, FInstance(_, _, cf)) | TField(_, FStatic(_, cf)):
+						case TField(_, FInstance(cc, _, cf)) | TField(_, FStatic(cc, cf)):
+							if(isStringBufFaultOp(cc.get().module, cf.get().name)) {
+								// stdlib/08: the buffer checks end the owner
+								// in std.UStringFault unless a region absorbs it.
+								final payload = state.exceptionPayloads.get("std.UStringException");
+								final faultModule = payload != null ? payload : "std.UStringFault";
+								if(absorbed.indexOf(faultModule) < 0) {
+									throwsOrCallsFallible = true;
+								}
+							}
 							if(RustEmissionState.runtimeShimIsFallible(cf.get().name)) {
 								if(!(state.errorModule != null && absorbed.indexOf(state.errorModule) >= 0)) {
 									throwsOrCallsFallible = true;
@@ -1009,6 +1018,18 @@ class RustDecl {
 		through u32::try_from(x)?, so the call makes its owner fallible
 		regardless of the Haxe signature.
 	**/
+	/**
+		stdlib/08: add, addChar, and toString on std.StringBuf carry the
+		unpaired-surrogate check, so a call makes its owner fallible in
+		std.UStringFault like a std.UString construction check.
+	**/
+	function isStringBufFaultOp(module: String, calleeName: String): Bool {
+		if(module != "std.StringBuf" && module != "StringBuf") {
+			return false;
+		}
+		return calleeName == "add" || calleeName == "addChar" || calleeName == "toString";
+	}
+
 	function isLengthConversion(calleeName: String, args: Array<TypedExpr>): Bool {
 		if(calleeName != "writeU32" || args.length != 1) {
 			return false;

@@ -38,6 +38,8 @@ class KotlinExpr {
 
 	final hiddenNames: Map<Int, String> = [];
 	var hiddenCounter: Int = 0;
+	/** Fresh names for the trailing-unit reads of stdlib/08 checks. */
+	var stringBufTailCounter: Int = 0;
 
 	public function new(imports: KotlinImports, types: KotlinType, state: KotlinEmissionState) {
 		this.imports = imports;
@@ -129,6 +131,8 @@ class KotlinExpr {
 					return fail(init, "try region body has no value");
 				}
 				return tryLines(parts.body, parts.c, depth, 'val ${localName(v)} = ');
+			case TVar(v, init) if(isStringBufToStringCall(init)):
+				return stringBufToStringBindingLines(v, stripWrap(init), depth);
 			case TVar(v, init) if(init != null):
 				final kw = mutated.exists(v.id) ? "var" : "val";
 				switch(stripWrap(init).expr) {
@@ -169,6 +173,8 @@ class KotlinExpr {
 				return tryLines(parts.body, parts.c, depth, "return ");
 			case TReturn(ret) if(ret == null):
 				return [indent(depth) + "return"];
+			case TReturn(ret) if(isStringBufToStringCall(ret)):
+				return stringBufToStringReturnLines(stripWrap(ret), depth);
 			case TReturn(ret) if(isVariantSwitch(ret)):
 				return whenReturnLines(stripWrap(ret), depth);
 			case TReturn(ret):
@@ -189,6 +195,8 @@ class KotlinExpr {
 				return [indent(depth) + "break"];
 			case TContinue:
 				return [indent(depth) + "continue"];
+			case TCall(fn, args) if(stringBufMutationParts(fn) != null):
+				return stringBufMutationLines(fn, args, depth);
 			case TMeta(_, inner):
 				return stmtLines(inner, depth);
 			case _:
@@ -206,9 +214,137 @@ class KotlinExpr {
 		return expr(x);
 	}
 
+	/**
+		stdlib/08 string-buffer checks (Kotlin): every checked operation
+		reads the trailing UTF-16 unit, and the fault constructs the
+		sealed UnpairedSurrogate variant of std.UStringException. A throw
+		is an expression here, so the checked operations stay usable in
+		expression position; statements take the flat form below.
+	**/
+	function stringBufMutationParts(fn: TypedExpr): Null<{name: String, subj: TypedExpr}> {
+		return switch(fn.expr) {
+			case TField(subj, FInstance(_, _, cf)) if(isStringBuf(subj)):
+				final n = cf.get().name;
+				n == "add" || n == "addChar" ? {name: n, subj: subj} : null;
+			case _: null;
+		};
+	}
+
+	function stringBufTailRead(subj: TypedExpr): String {
+		return expr(subj) + ".lastOrNull()?.code ?: -1";
+	}
+
+	function isStringBufToStringCall(e: TypedExpr): Bool {
+		return switch(stripWrap(e).expr) {
+			case TCall(fn, _):
+				switch(fn.expr) {
+					case TField(subj, FInstance(_, _, cf)): cf.get().name == "toString" && isStringBuf(subj);
+					case _: false;
+				}
+			case _: false;
+		};
+	}
+
+	function stringBufToStringSubject(call: TypedExpr): TypedExpr {
+		return switch(call.expr) {
+			case TCall(fn, _):
+				switch(fn.expr) {
+					case TField(subj, _): subj;
+					case _: call;
+				}
+			case _: call;
+		};
+	}
+
+	/** Flat check for binding and return positions: one bound tail read, then the fault. */
+	function stringBufToStringCheckLines(subj: TypedExpr, depth: Int): Array<String> {
+		final tail = freshTailName();
+		final lines = [indent(depth) + "val " + tail + " = " + stringBufTailRead(subj)];
+		lines.push(indent(depth) + "if (" + stringBufLeadCond(tail) + ") {");
+		lines.push(indent(depth + 1) + "throw " + stringBufFaultConstructor(tail));
+		lines.push(indent(depth) + "}");
+		return lines;
+	}
+
+	function stringBufToStringBindingLines(v: TVar, call: TypedExpr, depth: Int): Array<String> {
+		final subj = stringBufToStringSubject(call);
+		final lines = stringBufToStringCheckLines(subj, depth);
+		final kw = mutated.exists(v.id) ? "var" : "val";
+		lines.push(indent(depth) + kw + " " + localName(v) + " = " + expr(subj) + ".toString()");
+		return lines;
+	}
+
+	function stringBufToStringReturnLines(call: TypedExpr, depth: Int): Array<String> {
+		final subj = stringBufToStringSubject(call);
+		final lines = stringBufToStringCheckLines(subj, depth);
+		lines.push(indent(depth) + "return " + expr(subj) + ".toString()");
+		return lines;
+	}
+
+	function stringBufLeadCond(x: String): String {
+		return x + " >= 55296 && " + x + " <= 56319";
+	}
+
+	function stringBufTrailCond(x: String): String {
+		return x + " >= 56320 && " + x + " <= 57343";
+	}
+
+	function stringBufAddFaultCond(subj: TypedExpr, partArg: TypedExpr): String {
+		final part = expr(partArg);
+		return stringBufLeadCond(stringBufTailRead(subj)) + " && " + part + ".length > 0"
+			+ " && !(" + part + "[0].code >= 56320 && " + part + "[0].code <= 57343)";
+	}
+
+	function stringBufAddCharFaultCond(subj: TypedExpr, unitArg: TypedExpr): String {
+		return "(" + stringBufTrailCond(expr(unitArg)) + ") != (" + stringBufLeadCond(stringBufTailRead(subj)) + ")";
+	}
+
+	function stringBufDanglingCond(subj: TypedExpr): String {
+		return stringBufLeadCond(stringBufTailRead(subj));
+	}
+
+	function stringBufFaultConstructor(unit: String): String {
+		imports.requireType("std.UStringException", "UStringException");
+		return "UStringException.UnpairedSurrogate(" + unit + ")";
+	}
+
+	function freshTailName(): String {
+		stringBufTailCounter += 1;
+		return stringBufTailCounter == 1 ? "tail" : "tail" + stringBufTailCounter;
+	}
+
+	/** Statement lowering: one bound tail read, the check, then the op. */
+	function stringBufMutationLines(fn: TypedExpr, args: Array<TypedExpr>, depth: Int): Array<String> {
+		final parts = stringBufMutationParts(fn);
+		if(parts == null) {
+			return [fail(fn, "not a string buffer mutation")];
+		}
+		final buf = expr(parts.subj);
+		final tail = freshTailName();
+		final lines = [indent(depth) + "val " + tail + " = " + stringBufTailRead(parts.subj)];
+		if(parts.name == "add") {
+			final part = expr(args[0]);
+			lines.push(indent(depth) + "if (" + stringBufLeadCond(tail) + " && " + part + ".length > 0"
+				+ " && !(" + part + "[0].code >= 56320 && " + part + "[0].code <= 57343)) {");
+			lines.push(indent(depth + 1) + "throw " + stringBufFaultConstructor(tail));
+			lines.push(indent(depth) + "}");
+			lines.push(indent(depth) + buf + ".append(" + part + ")");
+		} else {
+			final u = expr(args[0]);
+			lines.push(indent(depth) + "if (" + stringBufTrailCond(u) + ") {");
+			lines.push(indent(depth + 1) + "if (!(" + stringBufLeadCond(tail) + ")) {");
+			lines.push(indent(depth + 2) + "throw " + stringBufFaultConstructor(u));
+			lines.push(indent(depth + 1) + "}");
+			lines.push(indent(depth) + "} else if (" + stringBufLeadCond(tail) + ") {");
+			lines.push(indent(depth + 1) + "throw " + stringBufFaultConstructor(tail));
+			lines.push(indent(depth) + "}");
+			lines.push(indent(depth) + buf + ".append((" + u + ").toChar())");
+		}
+		return lines;
+	}
+
 	/** Renders `Owner.Variant` or `Owner.Variant(args)` for an exception construction over its payload enum. */
-	function exceptionVariant(cls: ClassType, payloadArg: TypedExpr): String {
-		final owner = state.payloadEnumOwners.get(state.exceptionPayloads.get(cls.module));
+	function exceptionVariant(cls: ClassType, payloadArg: TypedExpr): String {		final owner = state.payloadEnumOwners.get(state.exceptionPayloads.get(cls.module));
 		// The variant renders as a member of the exception class, so a
 		// cross-package construction site needs the class import.
 		imports.requireType(cls.module, cls.name);
@@ -1171,14 +1307,22 @@ class KotlinExpr {
 			case TField(subj, FInstance(_, _, cf)):
 				final name = cf.get().name;
 				if(isStringBuf(subj)) {
+					// stdlib/08: a Kotlin throw is an expression, so the
+					// checked operations stay expression-capable; the
+					// statement form below emits the flat check + op pair.
 					if(name == "add") {
-						return expr(subj) + ".append(" + expr(args[0]) + ")";
+						return "if (" + stringBufAddFaultCond(subj, args[0]) + ") throw " + stringBufFaultConstructor(stringBufTailRead(subj))
+							+ " else " + expr(subj) + ".append(" + expr(args[0]) + ")";
 					}
 					if(name == "addChar") {
-						return expr(subj) + ".append((" + expr(args[0]) + ").toChar())";
+						final u = expr(args[0]);
+						final unit = "if (" + stringBufTrailCond(u) + ") " + u + " else " + stringBufTailRead(subj);
+						return "if (" + stringBufAddCharFaultCond(subj, args[0]) + ") throw " + stringBufFaultConstructor(unit)
+							+ " else " + expr(subj) + ".append((" + u + ").toChar())";
 					}
 					if(name == "toString") {
-						return expr(subj) + ".toString()";
+						return "if (" + stringBufDanglingCond(subj) + ") throw " + stringBufFaultConstructor(stringBufTailRead(subj))
+							+ " else " + expr(subj) + ".toString()";
 					}
 					if(name == "get_length" || name == "length") {
 						return expr(subj) + ".length";

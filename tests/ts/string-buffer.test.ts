@@ -7,7 +7,7 @@ describe("string buffer generated tree", () => {
   const kotlinGenDir = path.resolve(__dirname, "../../reference/kotlin/gen");
   const rustGenDir = path.resolve(__dirname, "../../reference/rust-gen/src");
 
-  test("TS lowers StringBuf to primitive strings, += operator, and String.fromCharCode", () => {
+  test("TS lowers StringBuf to primitive strings with inline pairing checks", () => {
     const tsFile = path.join(tsGenDir, "boring/StringBufOps.ts");
     expect(fs.existsSync(tsFile)).toBe(true);
     const content = fs.readFileSync(tsFile, "utf8");
@@ -18,9 +18,11 @@ describe("string buffer generated tree", () => {
     expect(content).toContain("buf += a;");
     expect(content).toContain("buf += String.fromCharCode(codeA);");
     expect(content).toContain("return buf.length;");
+    expect(content).toContain("buf.charCodeAt(buf.length - 1)");
+    expect(content).toContain('throw new UStringException({ kind: "UnpairedSurrogate", unit: tail });');
   });
 
-  test("Kotlin lowers StringBuf to StringBuilder and append methods", () => {
+  test("Kotlin lowers StringBuf to StringBuilder with tail reads via lastOrNull", () => {
     const ktFile = path.join(kotlinGenDir, "boring/StringBufOps.kt");
     expect(fs.existsSync(ktFile)).toBe(true);
     const content = fs.readFileSync(ktFile, "utf8");
@@ -29,18 +31,24 @@ describe("string buffer generated tree", () => {
     expect(content).toContain("buf.append(a)");
     expect(content).toContain("buf.append((codeA).toChar())");
     expect(content).toContain("return buf.length");
-    expect(content).toContain("return buf.toString()");
+    expect(content).toContain("buf.lastOrNull()?.code ?: -1");
+    expect(content).toContain("throw UStringException.UnpairedSurrogate(tail)");
   });
 
-  test("Rust lowers StringBuf to String, push_str, push(char), and encode_utf16 count", () => {
+  test("Rust lowers StringBuf to Vec<u16> with fault arms bound in the pattern", () => {
     const rsFile = path.join(rustGenDir, "boring/string_buf_ops.rs");
     expect(fs.existsSync(rsFile)).toBe(true);
     const content = fs.readFileSync(rsFile, "utf8");
 
-    expect(content).toContain("let mut buf = String::new();");
-    expect(content).toContain("buf.push_str(&a);");
-    expect(content).toContain("buf.push(char::from_u32(code_a).unwrap_or(char::REPLACEMENT_CHARACTER));");
-    expect(content).toContain("return buf.encode_utf16().count() as u32;");
-    expect(content).toContain("return buf.clone();");
+    expect(content).toContain("let mut buf = Vec::<u16>::new();");
+    expect(content).toContain("buf.extend(a.encode_utf16());");
+    expect(content).toContain("buf.push(code_a as u16);");
+    expect(content).toContain("return Ok(buf.len() as u32);");
+    expect(content).toContain("String::from_utf16(buf.as_slice())");
+    expect(content).toContain("UStringFault::UnpairedSurrogate { unit: unit as u32 }");
+    expect(content).toContain("UStringFault::InvalidCodePoint { code } => 1000 + code,");
+    expect(content).not.toContain("String::new()");
+    expect(content).not.toContain("push_str");
+    expect(content).not.toContain("encode_utf16().count()");
   });
 });

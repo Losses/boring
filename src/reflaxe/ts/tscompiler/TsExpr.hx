@@ -67,6 +67,8 @@ class TsExpr {
 	final hiddenNames: Map<Int, String> = [];
 	var hiddenCounter: Int = 0;
 	var hoistCounter: Int = 0;
+	/** Fresh names for the trailing-unit reads of stdlib/08 checks. */
+	var stringBufTailCounter: Int = 0;
 
 	public function new(imports: TsImports, types: TsType) {
 		this.imports = imports;
@@ -164,6 +166,8 @@ class TsExpr {
 		switch(e.expr) {
 			case TVar(v, init) if(isTryRegion(init)):
 				return tryBindingLines(v, init, depth);
+			case TVar(v, init) if(isStringBufToStringCall(init)):
+				return stringBufToStringBindingLines(v, stripWrap(init), depth);
 			case TVar(v, init) if(init != null):
 				final kw = mutated.exists(v.id) ? "let" : "const";
 				return [indent(depth) + '$kw ${localName(v)} = ${expr(init)};'];
@@ -189,6 +193,8 @@ class TsExpr {
 				return fail(e, "do-while has no lowering in the subset");
 			case TReturn(ret) if(ret != null && isTryRegion(ret)):
 				return tryReturnLines(ret, depth);
+			case TReturn(ret) if(ret != null && isStringBufToStringCall(ret)):
+				return stringBufToStringReturnLines(stripWrap(ret), depth);
 			case TReturn(ret) if(ret == null):
 				return [indent(depth) + "return;"];
 			case TReturn(ret):
@@ -211,6 +217,8 @@ class TsExpr {
 				return [indent(depth) + "break;"];
 			case TContinue:
 				return [indent(depth) + "continue;"];
+			case TCall(fn, args) if(stringBufMutationParts(fn) != null):
+				return stringBufMutationLines(fn, args, depth);
 			case TMeta(_, inner):
 				return stmtLines(inner, depth);
 			case _:
@@ -1019,14 +1027,17 @@ class TsExpr {
 			case TField(subj, FInstance(_, _, cf)):
 				final name = cf.get().name;
 				if(isStringBuf(subj)) {
+					// stdlib/08: the checks throw, and a throw is a
+					// statement here, so the checked operations lower at
+					// statement, binding, or return position only.
 					if(name == "add") {
-						return expr(subj) + " += " + expr(args[0]);
+						return fail(subj, "string buffer add has no expression lowering: keep the mutation a statement (stdlib/08)");
 					}
 					if(name == "addChar") {
-						return expr(subj) + " += String.fromCharCode(" + expr(args[0]) + ")";
+						return fail(subj, "string buffer addChar has no expression lowering: keep the mutation a statement (stdlib/08)");
 					}
 					if(name == "toString") {
-						return expr(subj);
+						return fail(subj, "string buffer toString has no expression lowering: bind it to a local or return it (stdlib/08)");
 					}
 					if(name == "get_length" || name == "length") {
 						return expr(subj) + ".length";
@@ -1367,6 +1378,119 @@ class TsExpr {
 		out.push(indent(depth + 2) + "return " + handler.value + ";");
 		for(l in catchFooterLines(parts.c, depth)) out.push(l);
 		return out;
+	}
+
+	/**
+		stdlib/08 string-buffer checks (TypeScript): every checked
+		operation reads the trailing UTF-16 unit, and the fault constructs
+		the compiled std.UStringException with the UnpairedSurrogate
+		variant. A throw is a statement here, so the checked operations
+		lower at statement, binding, or return position only.
+	**/
+	function stringBufMutationParts(fn: TypedExpr): Null<{name: String, subj: TypedExpr}> {
+		return switch(fn.expr) {
+			case TField(subj, FInstance(_, _, cf)) if(isStringBuf(subj)):
+				final n = cf.get().name;
+				n == "add" || n == "addChar" ? {name: n, subj: subj} : null;
+			case _: null;
+		};
+	}
+
+	function isStringBufToStringCall(e: TypedExpr): Bool {
+		return switch(stripWrap(e).expr) {
+			case TCall(fn, _):
+				switch(fn.expr) {
+					case TField(subj, FInstance(_, _, cf)): cf.get().name == "toString" && isStringBuf(subj);
+					case _: false;
+				}
+			case _: false;
+		};
+	}
+
+	function stringBufToStringSubject(call: TypedExpr): TypedExpr {
+		return switch(call.expr) {
+			case TCall(fn, _):
+				switch(fn.expr) {
+					case TField(subj, _): subj;
+					case _: call;
+				}
+			case _: call;
+		};
+	}
+
+	function freshTailName(): String {
+		stringBufTailCounter += 1;
+		return stringBufTailCounter == 1 ? "tail" : "tail" + stringBufTailCounter;
+	}
+
+	/** The trailing-unit read every check opens with; NaN compares false on an empty buffer. */
+	function stringBufTailLines(subj: TypedExpr, depth: Int): {name: String, lines: Array<String>} {
+		imports.value("std.UStringException", "UStringException");
+		final name = freshTailName();
+		final buf = expr(subj);
+		return {
+			name: name,
+			lines: [indent(depth) + "const " + name + " = " + buf + ".charCodeAt(" + buf + ".length - 1);"]
+		};
+	}
+
+	function stringBufFaultThrow(depth: Int, unit: String): String {
+		return indent(depth) + 'throw new UStringException({ kind: "UnpairedSurrogate", unit: ' + unit + " });";
+	}
+
+	function stringBufMutationLines(fn: TypedExpr, args: Array<TypedExpr>, depth: Int): Array<String> {
+		final parts = stringBufMutationParts(fn);
+		if(parts == null) {
+			return [fail(fn, "not a string buffer mutation")];
+		}
+		final buf = expr(parts.subj);
+		final tailRead = stringBufTailLines(parts.subj, depth);
+		final lines = tailRead.lines;
+		final tail = tailRead.name;
+		if(parts.name == "add") {
+			final part = expr(args[0]);
+			lines.push(indent(depth) + "if (" + tail + " >= 55296 && " + tail + " <= 56319 && " + part + ".length > 0"
+				+ " && !(" + part + ".charCodeAt(0) >= 56320 && " + part + ".charCodeAt(0) <= 57343)) {");
+			lines.push(stringBufFaultThrow(depth + 1, tail));
+			lines.push(indent(depth) + "}");
+			lines.push(indent(depth) + buf + " += " + part + ";");
+		} else {
+			final u = expr(args[0]);
+			lines.push(indent(depth) + "if (" + u + " >= 56320 && " + u + " <= 57343) {");
+			lines.push(indent(depth + 1) + "if (!(" + tail + " >= 55296 && " + tail + " <= 56319)) {");
+			lines.push(stringBufFaultThrow(depth + 2, u));
+			lines.push(indent(depth + 1) + "}");
+			lines.push(indent(depth) + "} else if (" + tail + " >= 55296 && " + tail + " <= 56319) {");
+			lines.push(stringBufFaultThrow(depth + 1, tail));
+			lines.push(indent(depth) + "}");
+			lines.push(indent(depth) + buf + " += String.fromCharCode(" + u + ");");
+		}
+		return lines;
+	}
+
+	function stringBufToStringCheckLines(subj: TypedExpr, depth: Int): Array<String> {
+		final tailRead = stringBufTailLines(subj, depth);
+		final lines = tailRead.lines;
+		final tail = tailRead.name;
+		lines.push(indent(depth) + "if (" + tail + " >= 55296 && " + tail + " <= 56319) {");
+		lines.push(stringBufFaultThrow(depth + 1, tail));
+		lines.push(indent(depth) + "}");
+		return lines;
+	}
+
+	function stringBufToStringBindingLines(v: TVar, call: TypedExpr, depth: Int): Array<String> {
+		final subj = stringBufToStringSubject(call);
+		final lines = stringBufToStringCheckLines(subj, depth);
+		final kw = mutated.exists(v.id) ? "let" : "const";
+		lines.push(indent(depth) + kw + " " + localName(v) + " = " + expr(subj) + ";");
+		return lines;
+	}
+
+	function stringBufToStringReturnLines(call: TypedExpr, depth: Int): Array<String> {
+		final subj = stringBufToStringSubject(call);
+		final lines = stringBufToStringCheckLines(subj, depth);
+		lines.push(indent(depth) + "return " + expr(subj) + ";");
+		return lines;
 	}
 
 	/**

@@ -737,6 +737,16 @@ class Compiler extends PluginCompiler<Compiler> {
 											switch(fn.expr) {
 												case TField(_, FInstance(cc, _, cf)):
 													final calleeName = cf.get().name;
+													if(isStringBufFaultOp(cc.get().module, calleeName)) {
+														// stdlib/08: the buffer checks end the owner
+														// through Err, in std.UStringFault.
+														final payload = state.exceptionPayloads.get("std.UStringException");
+														final faultModule = payload != null ? payload : "std.UStringFault";
+														if(absorbed.indexOf(faultModule) < 0) {
+															fallible.set(key, true);
+															mergeEnum(key, {module: faultModule, name: faultModule.split(".").pop()});
+														}
+													}
 													if(RustEmissionState.runtimeShimIsFallible(calleeName)) {
 														if(!(state.errorModule != null && absorbed.indexOf(state.errorModule) >= 0)) {
 															fallible.set(key, true);
@@ -817,6 +827,18 @@ class Compiler extends PluginCompiler<Compiler> {
 		for(key in conflicts.keys()) {
 			state.funcEnumConflicts.set(key, true);
 		}
+	}
+
+	/**
+		stdlib/08: add, addChar, and toString on std.StringBuf carry the
+		unpaired-surrogate check, so a call makes its owner fallible in
+		std.UStringFault like a std.UString construction check.
+	**/
+	function isStringBufFaultOp(module: String, calleeName: String): Bool {
+		if(module != "std.StringBuf" && module != "StringBuf") {
+			return false;
+		}
+		return calleeName == "add" || calleeName == "addChar" || calleeName == "toString";
 	}
 
 	function stripDecorations(e: TypedExpr): TypedExpr {
