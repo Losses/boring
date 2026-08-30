@@ -19,5 +19,7 @@ reference/kotlin-f32/gen-tests/
 reference/rust-f32-gen/src/
 reference/swift/gen/
 reference/swift/gen-tests/
+reference/swift-f32/gen/
+reference/swift-f32/gen-tests/
 reference/dart/gen/
 reference/dart/gen-tests/
