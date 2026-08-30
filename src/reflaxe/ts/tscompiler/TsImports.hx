@@ -162,13 +162,13 @@ class TsImports {
 			final names = [];
 			for(name in runtimeNames.keys()) names.push(name);
 			names.sort(Reflect.compare);
-			lines.push('import { ${names.join(", ")} } from "' + RuntimeConfig.importName() + '";');
+			lines.push('import { ${names.join(", ")} } from "' + runtimeSpecifierFrom(moduleDirPath(selfModule), "", false) + '";');
 		}
 		if(hasAnyKey(runtimeTestNames)) {
 			final names = [];
 			for(name in runtimeTestNames.keys()) names.push(name);
 			names.sort(Reflect.compare);
-			lines.push('import { ${names.join(", ")} } from "' + RuntimeConfig.importName() + '/test";');
+			lines.push('import { ${names.join(", ")} } from "' + runtimeSpecifierFrom(moduleDirPath(selfModule), "", true) + '";');
 		}
 		return lines.length == 0 ? "" : lines.join("\n") + "\n";
 	}
@@ -181,17 +181,20 @@ class TsImports {
 			lines.push('import { test } from "node:test";');
 		}
 
+		final fromSegments = selfModule.split(".");
+		final fromDir = testOutputDir + "/" + fromSegments.slice(0, fromSegments.length - 1).join("/");
+
 		if(hasAnyKey(runtimeNames)) {
 			final names = [];
 			for(name in runtimeNames.keys()) names.push(name);
 			names.sort(Reflect.compare);
-			lines.push('import { ${names.join(", ")} } from "' + RuntimeConfig.importName() + '";');
+			lines.push('import { ${names.join(", ")} } from "' + runtimeSpecifierFrom(fromDir, mainOutputDir, false) + '";');
 		}
 		if(hasAnyKey(runtimeTestNames)) {
 			final names = [];
 			for(name in runtimeTestNames.keys()) names.push(name);
 			names.sort(Reflect.compare);
-			lines.push('import { ${names.join(", ")} } from "' + RuntimeConfig.importName() + '/test";');
+			lines.push('import { ${names.join(", ")} } from "' + runtimeSpecifierFrom(fromDir, mainOutputDir, true) + '";');
 		}
 
 		final moduleSet: Map<String, Bool> = [];
@@ -200,9 +203,6 @@ class TsImports {
 		final modules = [];
 		for(module in moduleSet.keys()) modules.push(module);
 		modules.sort(Reflect.compare);
-
-		final fromSegments = selfModule.split(".");
-		final fromDir = testOutputDir + "/" + fromSegments.slice(0, fromSegments.length - 1).join("/");
 
 		for(module in modules) {
 			final nameSet: Map<String, Bool> = [];
@@ -219,6 +219,44 @@ class TsImports {
 			lines.push('import { ${names.join(", ")} } from "' + relPath + '";');
 		}
 		return lines.length == 0 ? "" : lines.join("\n") + "\n";
+	}
+
+	/**
+		Whether a runtime-import define value selects relative mode. A
+		relative specifier makes the generated tree self-contained: the
+		import resolves against files the compilation itself wrote
+		(feature spec 24).
+	**/
+	public static function isRelativeSpecifier(name: String): Bool {
+		return StringTools.startsWith(name, "./") || StringTools.startsWith(name, "../");
+	}
+
+	/**
+		The runtime import specifier as seen from one importing
+		directory. A by-name define renders verbatim. A relative define
+		selects the mode where the entry locations come from
+		runtime-emit, and the per-file path is computed exactly as the
+		sibling-module imports compute theirs: `toRoot` anchors the
+		entry inside the main output tree (empty means the importing
+		file already sits there).
+	**/
+	static function runtimeSpecifierFrom(fromDir: String, toRoot: String, test: Bool): String {
+		final name = RuntimeConfig.importName();
+		if(!isRelativeSpecifier(name)) {
+			return test ? name + "/test" : name;
+		}
+		final emitDir = RuntimeConfig.emitDir();
+		if(emitDir == null) {
+			Context.error("relative runtime-import requires runtime-emit: the compiler must know where it wrote the runtime files", Context.currentPos());
+		}
+		final entry = test ? RuntimeConfig.emitPath(emitDir, "runtime/test.ts") : RuntimeConfig.emitPath(emitDir, "runtime.ts");
+		return computeRelativePath(fromDir, toRoot == "" ? entry : toRoot + "/" + entry);
+	}
+
+	/** The output-root-relative directory holding one module's file. */
+	static function moduleDirPath(module: String): String {
+		final segments = module.split(".");
+		return segments.slice(0, segments.length - 1).join("/");
 	}
 
 	public static function computeRelativePath(fromDir: String, toFile: String): String {
