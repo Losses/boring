@@ -37,6 +37,14 @@ Measured or compile-verified on this toolchain:
   library without Foundation.
 - `Int32` and `UInt32` arithmetic trap on overflow; the wrapping
   operators `&+`, `&-`, `&*` wrap.
+- `UInt32.init(_: Int32)` traps on a negative argument; it does not
+  reinterpret bits. Unsigned reinterpretation goes through
+  `UInt32(bitPattern:)` and `Int32(bitPattern:)`.
+- A typed catch pattern (`catch let error as C`) never makes a
+  `do`/`catch` cluster exhaustive; only a bare final `catch` arm does.
+- `try` scopes a whole expression: `total = try total + parse(s)` is the
+  legal spelling of a throwing call nested inside an operator, and `try`
+  on a subexpression to the right of an operator is rejected.
 - Appending to a uniquely referenced `String` amortizes to constant time
   per append through storage regrowth.
 
@@ -138,9 +146,9 @@ separately, and only order needs the helper.
 
 ### Resident string ABI (`stdlib/10`, `stdlib/11`)
 
-The resident walkers (`runtime.UString`, `runtime.Graphemes`,
-`runtime.GraphemeWalk`) receive strings as `Array<UInt16>` inside the
-runtime package: the cursor space is UTF-16 units, `end` is `count`,
+The resident modules (`runtime.UString`, `runtime.Graphemes`,
+`runtime.GraphemeWalk`, `runtime.TestCore`) receive strings as
+`Array<UInt16>` inside the runtime package: the cursor space is UTF-16 units, `end` is `count`,
 `codeAt` is an integer subscript, and `advance` is the surrogate-pair
 width at the cursor, each constant time. `std.UStringPlatform` calls
 lower inline against that array. Business call sites that hand a string
@@ -161,14 +169,21 @@ dangling-lead check and `String(decoding: buf, as: UTF16.self)`.
 
 ## Errors and faults (`features/06`)
 
-Fault enums conform to `Error`; exception classes are `final class`
-conforming to `Error` carrying the fault field. `throw` lowers to
-`throw`; try-regions lower to `do`/`catch` with a typed pattern
-(`catch let error as UStringException`). The statement, return,
-initializer, and handler-return positions all lower: value regions
-declare the binding and assign it in both arms, because `do`/`catch` is
-a statement cluster and not an expression. `try` marks each fallible
-callee.
+Fault enums conform to `Error`; the runtime emits one non-`final` base
+class `BoringException: Error` carrying `message`, and each exception
+class is a `final class` subclass of it carrying the fault field (a
+`final` base forbids the subclass the class ruling needs). `throw`
+lowers to `throw`; try-regions lower to `do`/`catch` with a typed
+pattern (`catch let error as UStringException`) plus a final bare
+`catch { throw error }` arm, because a typed pattern never exhausts;
+the rethrow arm makes the enclosing function throwing exactly when the
+other lanes' unmatched-error rethrow does, and a handler that never
+reads the binding emits `catch is UStringException`. The statement,
+return, initializer, and handler-return positions all lower: value
+regions declare the binding and assign it in both arms, because
+`do`/`catch` is a statement cluster and not an expression. `try` prefixes
+the whole expression of the statement once, per the fact above, not
+each callee.
 
 ### Candidates
 
@@ -198,8 +213,12 @@ hand-written Swift table ships.
 
 ## Iteration and loops (`features/09`, `features/15`)
 
-`for (i in 0...n)` lowers to `for i in 0..<n` (or `...n` for the
-inclusive form); `while` and `if` map directly. `break` and `continue`
+`for (i in 0...n)` lowers to `for i in stride(from: a, to: b, by: 1)`
+on the `Int32` operands (the inclusive form widens `to` by one):
+`stride` yields an empty range when the bound precedes the start,
+matching the `i < n` test the Haxe loop runs, while `a..<b` traps when
+`b < a` and a decoded count of `-1` reaches that path. `while` and `if`
+map directly. `break` and `continue`
 map natively. The closed-list pipeline idioms (`macros/01`, `macros/02`)
 lower to `for` loops over the array with the inline closure body inlined
 as statements, one pass, no intermediate array; `groupBy` (`macros/03`)
