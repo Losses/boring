@@ -28,14 +28,17 @@ Every valid vector binary begins with an 8-byte header:
 
 | Offset (bytes) | Length (bytes) | Type | Field | Value / Description |
 | --- | --- | --- | --- | --- |
-| 0..3 | 4 | `[u8; 4]` (ASCII) | `magic` | Exact ASCII bytes `BRG1` (`0x42`, `0x52`, `0x47`, `0x31`) |
+| 0..3 | 4 | `[u8; 4]` (ASCII) | `magic` | ASCII bytes `BRG1` (`0x42`, `0x52`, `0x47`, `0x31`), `BRG2`, or `BRG3`, declaring the block float width (binary spec 05) |
 | 4..7 | 4 | `u32` (BE) | `recordCount` | Unsigned 32-bit integer count of records following the header |
 
-Header byte length is fixed at 8 bytes.
+Header byte length is fixed at 8 bytes. `BRG1` declares the binary64 float
+fields this specification describes; `BRG2` and `BRG3` declare the
+binary32 and binary16 block widths ruled in `05-block-float-widths.md`.
+Every other magic value is invalid and decoders reject it with `BadMagic`.
 
 ## Record layout
 
-The header is followed by `recordCount` sequential, fixed-width records. Each record occupies exactly 44 bytes with zero inter-field padding:
+The header is followed by `recordCount` sequential, fixed-width records. Under `BRG1` each record occupies exactly 44 bytes with zero inter-field padding:
 
 | Offset in record (bytes) | Length (bytes) | Type | Field | Description |
 | --- | --- | --- | --- | --- |
@@ -46,9 +49,13 @@ The header is followed by `recordCount` sequential, fixed-width records. Each re
 | 28..35 | 8 | `f64` (BE) | `bounds.xMax` | Maximum bounding horizontal coordinate in em units |
 | 36..43 | 8 | `f64` (BE) | `bounds.yMax` | Maximum bounding vertical coordinate in em units |
 
-Total file byte length for N records is 8 + 44 x N bytes.
+The `BRG2` and `BRG3` widths pack the same fields at 4 and 2 bytes per
+float, giving 24-byte and 14-byte records; the offsets per width and the
+rounding at the block edges are ruled in `05-block-float-widths.md`.
 
-Trailing bytes beyond 8 + 44 x N are strictly invalid and rejected by decoders.
+Total file byte length for N records is 8 + 44 x N bytes at `BRG1`, 8 + 24 x N bytes at `BRG2`, and 8 + 14 x N bytes at `BRG3`.
+
+Trailing bytes beyond the width's total are strictly invalid and rejected by decoders.
 
 ## Record count domain
 
@@ -68,7 +75,7 @@ Encode never writes a count outside the domain: every tree encodes its in-memory
 All multi-byte numeric fields are encoded in big-endian byte order (network byte order, most significant byte first).
 
 1. `u32` integers write the highest-order 8 bits at the lowest memory offset.
-2. `f64` floating-point values follow IEEE 754 double-precision standard format (1 sign bit, 11 exponent bits, 52 mantissa bits). The 64 bits are encoded as two sequential big-endian 32-bit words (high 32 bits followed by low 32 bits), equivalent to big-endian 64-bit integer bit casting.
+2. `f64` floating-point values follow IEEE 754 double-precision standard format (1 sign bit, 11 exponent bits, 52 mantissa bits). The 64 bits are encoded as two sequential big-endian 32-bit words (high 32 bits followed by low 32 bits), equivalent to big-endian 64-bit integer bit casting. `f32` and `f16` fields follow the IEEE 754 binary32 and binary16 layouts at 4 and 2 big-endian bytes (binary spec 05).
 
 ## Dyadic-rational test-value rule
 

@@ -6,7 +6,7 @@
 -cp src/reflaxe/ts/std-shadow
 -cp src/reflaxe/ts
 -cp samples
---macro Intercept.run(['samples'], ['samples/boring/BinaryReader.hx', 'samples/boring/BinaryWriter.hx'])
+--macro Intercept.run(['samples'], ['samples/boring/BinaryReader.hx', 'samples/boring/BinaryWriter.hx', 'samples/boring/Fp32.hx'])
 --macro tscompiler.Compiler.use()
 -D ts-output=reference/ts/gen
 -D ts-test-output=reference/ts/gen-tests
@@ -15,6 +15,8 @@
 -D runtime-emit=.
 boring.BinaryReader
 boring.BinaryWriter
+boring.Fp32
+boring.Fp16
 boring.GlyphMetrics
 std.ReadOnlyArray
 boring.VectorCodec
@@ -34,6 +36,8 @@ runtime.SortedTable
 runtime.TestCore
 tests.TestData
 tests.VectorCodecTests
+tests.Fp32Tests
+tests.Fp16Tests
 tests.DataTableTests
 tests.SortedTableTests
 boring.ScriptNames

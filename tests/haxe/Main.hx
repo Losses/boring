@@ -11,6 +11,7 @@ import std.UStringException;
 import std.UStringFault;
 import boring.VectorCodec;
 import boring.VectorError;
+import boring.FloatWidth;
 import boring.VectorException;
 import boring.VectorSort;
 import runtime.Graphemes;
@@ -57,6 +58,21 @@ class Main {
 		+ "00004e013ff00000000000003fa0000000000000bfec0000000000003fef0000000000003fa0000000000000"
 		+ "0000ff0c3fe00000000000003fa0000000000000bfcc0000000000003fde0000000000003fa0000000000000"
 		+ "0000ff1f3fe80000000000003fb0000000000000bfc40000000000003fe60000000000003fb0000000000000";
+
+	// The same records at the f32 and f16 block float widths of binary
+	// spec 05; every record value is exact at binary16 precision, so the
+	// three widths carry equal values.
+	static final EXPECTED_HEX_F32:String = "4252473200000004"
+		+ "000000413f0000003d000000be6000003ef000003d000000"
+		+ "00004e013f8000003d000000bf6000003f7800003d000000"
+		+ "0000ff0c3f0000003d000000be6000003ef000003d000000"
+		+ "0000ff1f3f4000003d800000be2000003f3000003d800000";
+
+	static final EXPECTED_HEX_F16:String = "4252473300000004"
+		+ "0000004138002800b30037802800"
+		+ "00004e013c002800bb003bc02800"
+		+ "0000ff0c38002800b30037802800"
+		+ "0000ff1f3a002c00b10039802c00";
 
 	static function recordEquals(left:GlyphMetrics, right:GlyphMetrics):Bool {
 		return left.codePoint == right.codePoint
@@ -105,12 +121,38 @@ class Main {
 		final roundTripped = VectorCodec.decode(VectorCodec.encode(VECTOR_RECORDS));
 		expectTrue("round trip preserves every record", recordsEqual(roundTripped, VECTOR_RECORDS));
 
+		// Block float widths per binary spec 05: the committed f32 and f16
+		// vectors carry the same records, and re-encoding the source records
+		// reproduces their bytes.
+		final encodedF32 = VectorCodec.encode(VECTOR_RECORDS, F32);
+		expectTrue("f32 encoded length matches the committed vector", encodedF32.length == 104);
+		expectTrue("f32 encoded hex matches the committed vector", encodedF32.toHex() == EXPECTED_HEX_F32);
+		final decodedF32 = VectorCodec.decode(Bytes.ofHex(EXPECTED_HEX_F32));
+		expectTrue("f32 decoded records match the source records", recordsEqual(decodedF32, VECTOR_RECORDS));
+
+		final encodedF16 = VectorCodec.encode(VECTOR_RECORDS, F16);
+		expectTrue("f16 encoded length matches the committed vector", encodedF16.length == 64);
+		expectTrue("f16 encoded hex matches the committed vector", encodedF16.toHex() == EXPECTED_HEX_F16);
+		final decodedF16 = VectorCodec.decode(Bytes.ofHex(EXPECTED_HEX_F16));
+		expectTrue("f16 decoded records match the source records", recordsEqual(decodedF16, VECTOR_RECORDS));
+
+		final mixedWidthReader = new BinaryReader(Bytes.ofHex(EXPECTED_HEX_F16));
+		expectTrue("f16 magic reads back", mixedWidthReader.readAscii(4) == "BRG3");
+		expectTrue("BRG1 declares f64 blocks", VectorCodec.widthOfMagic("BRG1") == F64);
+		expectTrue("BRG2 declares f32 blocks", VectorCodec.widthOfMagic("BRG2") == F32);
+		expectTrue("BRG3 declares f16 blocks", VectorCodec.widthOfMagic("BRG3") == F16);
+		expectTrue("unknown magics answer null", VectorCodec.widthOfMagic("BRG4") == null);
+
 		final writer = new BinaryWriter();
 		writer.writeU16(0x1234);
 		writer.writeU32(0x56789abc);
+		writer.writeF32(0.25);
+		writer.writeF16(-0.75);
 		final reader = new BinaryReader(writer.finish());
 		expectTrue("u16 round trip", reader.readU16() == 0x1234);
 		expectTrue("u32 round trip", reader.readU32() == 0x56789abc);
+		expectTrue("f32 round trip", reader.readF32() == 0.25);
+		expectTrue("f16 round trip", reader.readF16() == -0.75);
 		expectTrue("reader fully consumed", reader.remaining() == 0);
 
 		var badMagicVariant:Null<VectorError> = null;
@@ -120,6 +162,15 @@ class Main {
 			badMagicVariant = error.error;
 		}
 		expectTrue("bad magic throws the BadMagic variant", badMagicVariant == BadMagic);
+
+		// A future width magic must be rejected explicitly, never misread.
+		var unknownWidthVariant:Null<VectorError> = null;
+		try {
+			VectorCodec.decode(Bytes.ofHex("4252473400000000"));
+		} catch (error:VectorException) {
+			unknownWidthVariant = error.error;
+		}
+		expectTrue("unknown width magic throws the BadMagic variant", unknownWidthVariant == BadMagic);
 
 		var truncatedVariant:Null<VectorError> = null;
 		try {

@@ -3,11 +3,13 @@
 //! re-encoding must reproduce the committed bytes exactly.
 
 use boring_codec::{
-    BoundsEm, GlyphMetrics, VectorError, VectorReader, decode_vector, encode_vector,
-    vector_sort_by_code_point,
+    BoundsEm, FloatWidth, GlyphMetrics, VectorError, VectorReader, decode_vector, encode_vector,
+    encode_vector_with_width, float_width_of_magic, vector_byte_length, vector_sort_by_code_point,
 };
 
 const VECTOR_BYTES: &[u8] = include_bytes!("../vectors/roundtrip.bin");
+const VECTOR_BYTES_F32: &[u8] = include_bytes!("../vectors/roundtrip-f32.bin");
+const VECTOR_BYTES_F16: &[u8] = include_bytes!("../vectors/roundtrip-f16.bin");
 
 fn expected_records() -> Vec<GlyphMetrics> {
     vec![
@@ -70,6 +72,54 @@ fn round_trip_preserves_every_record() {
     let encoded = encode_vector(&expected_records());
     let decoded = encoded.and_then(|bytes| decode_vector(&bytes));
     assert_eq!(decoded, Ok(expected_records()));
+}
+
+// Block float widths per binary spec 05: the committed f32 and f16 vectors
+// carry the same records as the f64 vector, and re-encoding the source
+// records reproduces their bytes.
+
+#[test]
+fn f32_block_decodes_and_reencodes_the_committed_bytes() {
+    assert_eq!(decode_vector(VECTOR_BYTES_F32), Ok(expected_records()));
+    let encoded = encode_vector_with_width(&expected_records(), FloatWidth::F32);
+    assert_eq!(encoded, Ok(VECTOR_BYTES_F32.to_vec()));
+}
+
+#[test]
+fn f16_block_decodes_and_reencodes_the_committed_bytes() {
+    assert_eq!(decode_vector(VECTOR_BYTES_F16), Ok(expected_records()));
+    let encoded = encode_vector_with_width(&expected_records(), FloatWidth::F16);
+    assert_eq!(encoded, Ok(VECTOR_BYTES_F16.to_vec()));
+}
+
+#[test]
+fn magic_and_width_map_to_each_other() {
+    assert_eq!(FloatWidth::F64.magic(), b"BRG1");
+    assert_eq!(FloatWidth::F32.magic(), b"BRG2");
+    assert_eq!(FloatWidth::F16.magic(), b"BRG3");
+    assert_eq!(float_width_of_magic(b"BRG1"), Some(FloatWidth::F64));
+    assert_eq!(float_width_of_magic(b"BRG2"), Some(FloatWidth::F32));
+    assert_eq!(float_width_of_magic(b"BRG3"), Some(FloatWidth::F16));
+    assert_eq!(float_width_of_magic(b"BRG4"), None);
+}
+
+#[test]
+fn block_byte_lengths_follow_the_width_marker() {
+    assert_eq!(vector_byte_length(4, FloatWidth::F64), 184);
+    assert_eq!(vector_byte_length(4, FloatWidth::F32), 104);
+    assert_eq!(vector_byte_length(4, FloatWidth::F16), 64);
+    assert_eq!(FloatWidth::F64.record_byte_length(), 44);
+    assert_eq!(FloatWidth::F32.record_byte_length(), 24);
+    assert_eq!(FloatWidth::F16.record_byte_length(), 14);
+}
+
+#[test]
+fn unknown_width_magic_is_rejected() {
+    // A future width magic must be rejected explicitly, never misread.
+    assert_eq!(
+        decode_vector(b"BRG4\x00\x00\x00\x00"),
+        Err(VectorError::BadMagic)
+    );
 }
 
 #[test]

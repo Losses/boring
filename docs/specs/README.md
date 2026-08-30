@@ -39,6 +39,7 @@ Every candidate translation is evaluated across four fixed axes:
 | 02 | [02-binary-meta-abstraction.md](binary/02-binary-meta-abstraction.md) | Complete | Typed meta-level format representation and Reflaxe generator integration. |
 | 03 | [03-diff-localization.md](binary/03-diff-localization.md) | Complete | Offset calculation and mapping byte diffs to encoder functions. |
 | 04 | [04-key-index-retrieval.md](binary/04-key-index-retrieval.md) | Complete | Generated per-key accessors reading fields at build-time offsets. |
+| 05 | [05-block-float-widths.md](binary/05-block-float-widths.md) | Complete | Block float width marker, binary32 and binary16 fields, and edge rounding. |
 
 ### Language feature specifications
 

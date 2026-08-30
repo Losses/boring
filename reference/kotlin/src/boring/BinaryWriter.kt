@@ -32,6 +32,23 @@ class BinaryWriter {
         writeU32(low)
     }
 
+    /**
+     * Rounds the module real to binary32 bits with round-to-nearest-even for
+     * WireF32Be (binary spec 05); toFloat performs the rounding and
+     * toRawBits reads the result bits.
+     */
+    fun writeF32(value: Double) {
+        writeU32(value.toFloat().toRawBits())
+    }
+
+    /**
+     * Rounds the module real to binary16 bits for WireF16Be (binary spec 05)
+     * through the binary32 edge, matching the integer rounding of Fp16.
+     */
+    fun writeF16(value: Double) {
+        writeU16(Fp16.f32ToF16Bits(value.toFloat().toRawBits()))
+    }
+
     fun writeAscii(value: String) {
         for (index in 0 until value.length) {
             buffer.add((value[index].code and 0xFF).toByte())

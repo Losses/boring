@@ -35,6 +35,14 @@ class BinaryWriter {
 		writeU32(bits.low);
 	}
 
+	public function writeF32(value:Float):Void {
+		writeU32(Fp32.toBits(value));
+	}
+
+	public function writeF16(value:Float):Void {
+		writeU16(Fp16.f32ToF16Bits(Fp32.toBits(value)));
+	}
+
 	public function writeAscii(value:String):Void {
 		for (index in 0...value.length) {
 			buffer.addByte(value.charCodeAt(index) & 0xFF);

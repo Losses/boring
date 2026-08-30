@@ -1,6 +1,7 @@
 import boring.BoundsEm
 import boring.BinaryReader
 import boring.BinaryWriter
+import boring.FloatWidth
 import boring.GlyphMetrics
 import boring.VectorCodec
 import boring.VectorException
@@ -46,6 +47,21 @@ object Main {
         "00004e013ff00000000000003fa0000000000000bfec0000000000003fef0000000000003fa0000000000000" +
         "0000ff0c3fe00000000000003fa0000000000000bfcc0000000000003fde0000000000003fa0000000000000" +
         "0000ff1f3fe80000000000003fb0000000000000bfc40000000000003fe60000000000003fb0000000000000"
+
+    // The same records at the f32 and f16 block float widths of binary
+    // spec 05; every record value is exact at binary16 precision, so the
+    // three widths carry equal values.
+    private const val EXPECTED_HEX_F32: String = "4252473200000004" +
+        "000000413f0000003d000000be6000003ef000003d000000" +
+        "00004e013f8000003d000000bf6000003f7800003d000000" +
+        "0000ff0c3f0000003d000000be6000003ef000003d000000" +
+        "0000ff1f3f4000003d800000be2000003f3000003d800000"
+
+    private const val EXPECTED_HEX_F16: String = "4252473300000004" +
+        "0000004138002800b30037802800" +
+        "00004e013c002800bb003bc02800" +
+        "0000ff0c38002800b30037802800" +
+        "0000ff1f3a002c00b10039802c00"
 
     private fun recordEquals(left: GlyphMetrics, right: GlyphMetrics): Boolean {
         return left.codePoint == right.codePoint &&
@@ -98,22 +114,49 @@ object Main {
 
     @JvmStatic
     fun main(args: Array<String>) {
-        val encoded = VectorCodec.encode(VECTOR_RECORDS)
+        val encoded = VectorCodec.encode(VECTOR_RECORDS, FloatWidth.F64)
         expectTrue("encoded length matches the committed vector", encoded.size == 184)
         expectTrue("encoded hex matches the committed vector", bytesToHex(encoded) == EXPECTED_HEX)
 
         val decoded = VectorCodec.decode(hexToBytes(EXPECTED_HEX))
         expectTrue("decoded records match the source records", recordsEqual(decoded, VECTOR_RECORDS))
 
-        val roundTripped = VectorCodec.decode(VectorCodec.encode(VECTOR_RECORDS))
+        val roundTripped = VectorCodec.decode(VectorCodec.encode(VECTOR_RECORDS, FloatWidth.F64))
         expectTrue("round trip preserves every record", recordsEqual(roundTripped, VECTOR_RECORDS))
+
+        // Block float widths per binary spec 05: the committed f32 and f16
+        // vectors carry the same records, and re-encoding the source records
+        // reproduces their bytes.
+        val encodedF32 = VectorCodec.encode(VECTOR_RECORDS, FloatWidth.F32)
+        expectTrue("f32 encoded length matches the committed vector", encodedF32.size == 104)
+        expectTrue("f32 encoded hex matches the committed vector", bytesToHex(encodedF32) == EXPECTED_HEX_F32)
+        val decodedF32 = VectorCodec.decode(hexToBytes(EXPECTED_HEX_F32))
+        expectTrue("f32 decoded records match the source records", recordsEqual(decodedF32, VECTOR_RECORDS))
+
+        val encodedF16 = VectorCodec.encode(VECTOR_RECORDS, FloatWidth.F16)
+        expectTrue("f16 encoded length matches the committed vector", encodedF16.size == 64)
+        expectTrue("f16 encoded hex matches the committed vector", bytesToHex(encodedF16) == EXPECTED_HEX_F16)
+        val decodedF16 = VectorCodec.decode(hexToBytes(EXPECTED_HEX_F16))
+        expectTrue("f16 decoded records match the source records", recordsEqual(decodedF16, VECTOR_RECORDS))
+
+        expectTrue("f64 block length follows the width marker", VectorCodec.byteLength(4, FloatWidth.F64) == 184)
+        expectTrue("f32 block length follows the width marker", VectorCodec.byteLength(4, FloatWidth.F32) == 104)
+        expectTrue("f16 block length follows the width marker", VectorCodec.byteLength(4, FloatWidth.F16) == 64)
+        expectTrue("BRG1 declares f64 blocks", VectorCodec.widthOfMagic("BRG1") == FloatWidth.F64)
+        expectTrue("BRG2 declares f32 blocks", VectorCodec.widthOfMagic("BRG2") == FloatWidth.F32)
+        expectTrue("BRG3 declares f16 blocks", VectorCodec.widthOfMagic("BRG3") == FloatWidth.F16)
+        expectTrue("unknown magics answer null", VectorCodec.widthOfMagic("BRG4") == null)
 
         val writer = BinaryWriter()
         writer.writeU16(0x1234)
         writer.writeU32(0x56789abc)
+        writer.writeF32(0.25)
+        writer.writeF16(-0.75)
         val reader = BinaryReader(writer.finish())
         expectTrue("u16 round trip", reader.readU16() == 0x1234)
         expectTrue("u32 round trip", reader.readU32() == 0x56789abc)
+        expectTrue("f32 round trip", reader.readF32() == 0.25)
+        expectTrue("f16 round trip", reader.readF16() == -0.75)
         expectTrue("reader fully consumed", reader.remaining() == 0)
 
         var badMagicVariant: VectorException? = null
@@ -123,6 +166,15 @@ object Main {
             badMagicVariant = error
         }
         expectTrue("bad magic throws the BadMagic variant", badMagicVariant == VectorException.BadMagic)
+
+        // A future width magic must be rejected explicitly, never misread.
+        var unknownWidthVariant: VectorException? = null
+        try {
+            VectorCodec.decode(hexToBytes("4252473400000000"))
+        } catch (error: VectorException) {
+            unknownWidthVariant = error
+        }
+        expectTrue("unknown width magic throws the BadMagic variant", unknownWidthVariant == VectorException.BadMagic)
 
         var truncatedVariant: VectorException? = null
         try {

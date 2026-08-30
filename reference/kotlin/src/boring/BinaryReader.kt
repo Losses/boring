@@ -40,6 +40,22 @@ class BinaryReader(private val bytes: ByteArray) {
         return Double.fromBits(bits)
     }
 
+    /**
+     * Reads a WireF32Be field and widens the binary32 value to the f64
+     * record field (binary spec 05); widening is exact.
+     */
+    fun readF32(): Double {
+        return Float.fromBits(readU32()).toDouble()
+    }
+
+    /**
+     * Reads a WireF16Be field, widens the binary16 value through binary32,
+     * and answers the f64 record field (binary spec 05).
+     */
+    fun readF16(): Double {
+        return Float.fromBits(Fp16.f16ToF32Bits(readU16())).toDouble()
+    }
+
     fun readAscii(length: Int): String {
         ensureRemaining(length)
         val chars = CharArray(length)
