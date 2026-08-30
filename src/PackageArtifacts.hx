@@ -5,10 +5,17 @@ import haxe.macro.Context;
 	Package artifact packing shared by the target compilers (feature
 	spec 25). The compiler records every main-tree write it performs;
 	the emit path packs that list into the install artifact of the
-	target's ecosystem and writes it beside the output tree. The entry
-	set is the recorded list and never a directory walk, so files the
-	compilation did not write (stale artifacts, test execution output)
-	cannot enter an archive.
+	target's ecosystem and writes it beside the output tree.
+
+	Every artifact is the install unit its registry distributes. The
+	cargo `.crate`, the Pub `.tar.gz`, and the Swift `.zip` carry
+	source, because those registries install source; the npm `.tgz`
+	carries compiled JavaScript plus declarations and the Kotlin lane
+	writes a Maven repository directory with a compiled jar, because
+	those registries install build output. The two compiled lanes run
+	the host's compiler through a define (`package-tsc`,
+	`package-kotlinc`); a missing define or a failing tool stops the
+	compilation with the tool's own output.
 
 	- `package-artifacts=emit`: write the artifact after the tree.
 	- `package-artifacts=none` (or the absent define): source only.
@@ -45,15 +52,6 @@ class PackageArtifacts {
 	}
 
 	/**
-		Stops the compilation on the Kotlin target: Gradle modules
-		publish through the consumer's build, and no artifact format
-		exists for this lane.
-	**/
-	public static function rejectUnsupportedTarget(): Void {
-		Context.error("package artifacts are undefined for the Kotlin target: Gradle publication belongs to the consumer's build; pass package-artifacts none", Context.currentPos());
-	}
-
-	/**
 		Records one write the compiler performed through its output
 		manager. Paths escaping the output root (the `../` paths of the
 		test-output trees) belong to another tree and stay unpacked.
@@ -66,26 +64,285 @@ class PackageArtifacts {
 	}
 
 	/**
-		Packs the recorded writes as a tar+gzip artifact. `npmLayout`
-		prefixes every entry with `package/` and sanitizes the scope
-		slash out of the file name; the cargo and Pub layouts keep the
-		tree at the archive root.
+		Packs the recorded writes as a tar+gzip artifact with the tree
+		at the archive root (the cargo `.crate` and the Pub `.tar.gz`).
 	**/
-	public static function emitTarGz(outputDir: String, npmLayout: Bool, extension: String): Void {
-		final name = PackageShell.name();
-		final version = PackageShell.version();
-		final stem = (npmLayout ? StringTools.replace(name, "/", "-") : name) + "-" + version;
+	public static function emitTarGz(outputDir: String, extension: String): Void {
+		final stem = PackageShell.name() + "-" + PackageShell.version();
 		final artifactPath = haxe.io.Path.join([artifactDirectory(outputDir), stem + extension]);
-		sys.io.File.saveBytes(artifactPath, gzipBytes(tarBytes(npmLayout ? "package/" : "")));
+		sys.io.File.saveBytes(artifactPath, gzipBytes(tarBytes("")));
 	}
 
 	/** Packs the recorded writes as the Swift zip artifact. */
 	public static function emitZip(outputDir: String): Void {
 		final stem = PackageShell.name() + "-" + PackageShell.version();
 		final artifactPath = haxe.io.Path.join([artifactDirectory(outputDir), stem + ".zip"]);
-		final out = new haxe.io.BytesOutput();
-		new haxe.zip.Writer(out).write(zipEntries());
-		sys.io.File.saveBytes(artifactPath, out.getBytes());
+		sys.io.File.saveBytes(artifactPath, zipFromEntries(recordedEntries()));
+	}
+
+	// ------------------------------------------------------------------
+	// npm: compiled JavaScript plus declarations
+	// ------------------------------------------------------------------
+
+	/**
+		Packs the npm artifact. The recorded `.ts` writes are staged
+		with their import specifiers rewritten from `.ts` to `.js`, the
+		host's `tsc` compiles the stage, and the tarball carries `dist/`
+		plus the artifact manifest. `excluded` names recorded files that
+		stay out of the compile set (the runtime test entry, which
+		imports node:fs for the repository's test harness and has no
+		role in an installed package). The manifest is the compiler's
+		own JSON string, so the exports map targets the compiled files.
+	**/
+	public static function emitNpmTarGz(outputDir: String, manifest: String, excluded: Array<String>): Void {
+		final tsc = requiredTool("package-tsc", "TypeScript target", "the TypeScript compiler: the npm artifact ships compiled JavaScript and declarations");
+		if(tsc == null) {
+			return;
+		}
+		final parent = artifactDirectory(outputDir);
+		final stage = haxe.io.Path.join([parent, ".package-npm-stage"]);
+		deleteTree(stage);
+		for(entry in sortedPaths()) {
+			if(!StringTools.endsWith(entry.path, ".ts") || excluded.indexOf(entry.path) >= 0) {
+				continue;
+			}
+			final path = haxe.io.Path.join([stage, entry.path]);
+			sys.FileSystem.createDirectory(haxe.io.Path.directory(path));
+			sys.io.File.saveContent(path, rewriteTsSpecifiers(entry.content));
+		}
+		// The manifest doubles as the stage's module marker: its
+		// `"type": "module"` line is what makes nodenext treat the
+		// staged sources as ES modules.
+		sys.io.File.saveContent(haxe.io.Path.join([stage, "package.json"]), manifest);
+		sys.io.File.saveContent(haxe.io.Path.join([stage, "tsconfig.json"]), TSCONFIG);
+		runTool("package-tsc", tsc, ["-p", stage]);
+		final files: Array<{name: String, data: haxe.io.Bytes}> = [
+			{name: "package.json", data: haxe.io.Bytes.ofString(manifest)},
+		];
+		for(distPath in walkFiles(haxe.io.Path.join([stage, "dist"]))) {
+			files.push({name: "dist/" + distPath, data: sys.io.File.getBytes(haxe.io.Path.join([stage, "dist", distPath]))});
+		}
+		files.sort((a, b) -> Reflect.compare(a.name, b.name));
+		final stem = StringTools.replace(PackageShell.name(), "/", "-") + "-" + PackageShell.version();
+		sys.io.File.saveBytes(haxe.io.Path.join([parent, stem + ".tgz"]), gzipBytes(tarFromEntries("package/", files)));
+		deleteTree(stage);
+	}
+
+	/**
+		The fixed compile configuration of the staging directory. The
+		module pair is `nodenext`: it resolves the rewritten `.js`
+		specifiers against the staged `.ts` sources and emits them
+		verbatim, which is the form Node's ES-module loader requires.
+	**/
+	static final TSCONFIG = "{\n"
+		+ "  \"compilerOptions\": {\n"
+		+ "    \"module\": \"nodenext\",\n"
+		+ "    \"target\": \"es2022\",\n"
+		+ "    \"declaration\": true,\n"
+		+ "    \"outDir\": \"dist\",\n"
+		+ "    \"rootDir\": \".\",\n"
+		+ "    \"skipLibCheck\": true\n"
+		+ "  },\n"
+		+ "  \"include\": [\"**/*\"]\n"
+		+ "}\n";
+
+	/**
+		Rewrites the import specifiers of one staged module from `.ts`
+		to `.js`. The TypeScript target emits every import in the
+		`import { ... } from "specifier";` shape, and artifact mode
+		holds only relative `.ts` specifiers (the shell of spec 24
+		rejects a by-name runtime import), so the anchor on `from` plus
+		the relative-path check leave every other string literal alone.
+	**/
+	static function rewriteTsSpecifiers(content: String): String {
+		return ~/from "(\.\.?\/[^"]+)\.ts"/g.replace(content, 'from "$1.js"');
+	}
+
+	// ------------------------------------------------------------------
+	// Kotlin: a Maven repository directory
+	// ------------------------------------------------------------------
+
+	/**
+		Packs the Kotlin artifact as a Maven repository directory beside
+		the output tree: `maven/<groupId path>/<name>/<version>/` holding
+		the jar, the pom, and their sha1 checksums. The host's `kotlinc`
+		compiles the recorded `.kt` writes into exploded classes, which
+		this class repacks through its fixed-date zip writer so the jar
+		metadata stays deterministic; the pom is written here from the
+		spec 24 identity plus `package-group`. `maven-metadata.xml`
+		belongs to the registry generator, which owns every
+		registry-wide field.
+	**/
+	public static function emitMaven(outputDir: String): Void {
+		final kotlinc = requiredTool("package-kotlinc", "Kotlin target", "the Kotlin compiler: the Maven artifact carries a jar compiled from the generated sources");
+		if(kotlinc == null) {
+			return;
+		}
+		final groupDefine = Context.definedValue("package-group");
+		final groupId = groupDefine == null ? PackageShell.name() : groupDefine;
+		final name = PackageShell.name();
+		final version = PackageShell.version();
+		final parent = artifactDirectory(outputDir);
+		final versionDir = haxe.io.Path.join([parent, "maven", StringTools.replace(groupId, ".", "/"), name, version]);
+		sys.FileSystem.createDirectory(versionDir);
+
+		final classes = haxe.io.Path.join([parent, ".package-kotlinc-classes"]);
+		deleteTree(classes);
+		final args: Array<String> = [];
+		for(entry in sortedPaths()) {
+			// `build.gradle.kts` (the shell manifest) ends in `.kts`
+			// and stays out of the compile set.
+			if(StringTools.endsWith(entry.path, ".kt")) {
+				args.push(haxe.io.Path.join([outputDir, entry.path]));
+			}
+		}
+		args.push("-d");
+		args.push(classes);
+		runTool("package-kotlinc", kotlinc, args);
+
+		final jarFiles: Array<{name: String, data: haxe.io.Bytes}> = [];
+		for(classPath in walkFiles(classes)) {
+			jarFiles.push({name: classPath, data: sys.io.File.getBytes(haxe.io.Path.join([classes, classPath]))});
+		}
+		jarFiles.sort((a, b) -> Reflect.compare(a.name, b.name));
+		final jarBytes = zipFromEntries(jarFiles);
+		final pomBytes = haxe.io.Bytes.ofString(pom(groupId, name, version));
+		final stem = name + "-" + version;
+		sys.io.File.saveBytes(haxe.io.Path.join([versionDir, stem + ".jar"]), jarBytes);
+		sys.io.File.saveBytes(haxe.io.Path.join([versionDir, stem + ".pom"]), pomBytes);
+		writeSha1(haxe.io.Path.join([versionDir, stem + ".jar"]), jarBytes);
+		writeSha1(haxe.io.Path.join([versionDir, stem + ".pom"]), pomBytes);
+		deleteTree(classes);
+	}
+
+	/**
+		The pom of the artifact. The jar carries the module's classes
+		only, so the pom declares the Kotlin stdlib it was compiled
+		against, pinned to the plugin version the spec 24 build
+		manifest states. Everything else is the spec 24 identity.
+	**/
+	static function pom(groupId: String, name: String, version: String): String {
+		final lines = [
+			"<?xml version=\"1.0\" encoding=\"UTF-8\"?>",
+			"<project xmlns=\"http://maven.apache.org/POM/4.0.0\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd\">",
+			"  <modelVersion>4.0.0</modelVersion>",
+			"  <groupId>" + xmlEscape(groupId) + "</groupId>",
+			"  <artifactId>" + xmlEscape(name) + "</artifactId>",
+			"  <version>" + xmlEscape(version) + "</version>",
+			"  <packaging>jar</packaging>",
+		];
+		final license = PackageShell.license();
+		if(license != null) {
+			lines.push("  <licenses>");
+			lines.push("    <license><name>" + xmlEscape(license) + "</name></license>");
+			lines.push("  </licenses>");
+		}
+		lines.push("  <dependencies>");
+		lines.push("    <dependency>");
+		lines.push("      <groupId>org.jetbrains.kotlin</groupId>");
+		lines.push("      <artifactId>kotlin-stdlib</artifactId>");
+		lines.push("      <version>2.4.10</version>");
+		lines.push("    </dependency>");
+		lines.push("  </dependencies>");
+		lines.push("</project>");
+		return lines.join("\n") + "\n";
+	}
+
+	/** An XML text node with the four escapes a pom value needs. */
+	static function xmlEscape(value: String): String {
+		var out = StringTools.replace(value, "&", "&amp;");
+		out = StringTools.replace(out, "<", "&lt;");
+		out = StringTools.replace(out, ">", "&gt;");
+		return StringTools.replace(out, "\"", "&quot;");
+	}
+
+	/**
+		Writes the Maven checksum file beside one artifact file: forty
+		lowercase hex digits under the artifact name plus `.sha1`.
+	**/
+	static function writeSha1(artifactPath: String, data: haxe.io.Bytes): Void {
+		sys.io.File.saveContent(artifactPath + ".sha1", haxe.crypto.Sha1.make(data).toHex());
+	}
+
+	// ------------------------------------------------------------------
+	// Host tools
+	// ------------------------------------------------------------------
+
+	/**
+		The executable one compiled lane needs, or null after an error.
+		The artifact of that lane is build output, so packing it without
+		the tool is impossible; the message names the define that
+		supplies the executable.
+	**/
+	static function requiredTool(define: String, lane: String, role: String): Null<String> {
+		final value = Context.definedValue(define);
+		if(value != null) {
+			return value;
+		}
+		Context.error("package artifacts on the " + lane + " require " + role + "; pass " + define + " <executable> or package-artifacts none", Context.currentPos());
+		return null;
+	}
+
+	/**
+		Runs one host compiler the artifact pipeline needs. A nonzero
+		exit stops the compilation with the command line, the exit code,
+		and the tool's complete output, so a failing compile surfaces in
+		the Haxe invocation that requested the artifact. The output is
+		read before the exit code is queried; compile output fits the
+		pipe buffer, so the streams cannot deadlock.
+	**/
+	static function runTool(label: String, command: String, args: Array<String>): Void {
+		var proc: sys.io.Process = null;
+		try {
+			proc = new sys.io.Process(command, args);
+		} catch(e: Dynamic) {
+			Context.fatalError(label + " could not start: " + command + " (" + Std.string(e) + ")", Context.currentPos());
+		}
+		final output = proc.stdout.readAll().toString() + proc.stderr.readAll().toString();
+		final code = proc.exitCode();
+		proc.close();
+		if(code != 0) {
+			Context.fatalError(label + " failed with exit code " + code + ":\n" + command + " " + args.join(" ") + "\n" + output, Context.currentPos());
+		}
+	}
+
+	/**
+		The regular files under one directory, relative to it, in no
+		particular order; callers sort for the archive ordering.
+	**/
+	static function walkFiles(dir: String): Array<String> {
+		return walkFilesInner(dir, "");
+	}
+
+	static function walkFilesInner(dir: String, prefix: String): Array<String> {
+		final out: Array<String> = [];
+		for(entry in sys.FileSystem.readDirectory(dir)) {
+			final full = haxe.io.Path.join([dir, entry]);
+			final rel = prefix.length == 0 ? entry : prefix + "/" + entry;
+			if(sys.FileSystem.isDirectory(full)) {
+				for(sub in walkFilesInner(full, rel)) {
+					out.push(sub);
+				}
+			} else {
+				out.push(rel);
+			}
+		}
+		return out;
+	}
+
+	/** Removes a staging tree of this pack step, file by file. */
+	static function deleteTree(path: String): Void {
+		if(!sys.FileSystem.exists(path)) {
+			return;
+		}
+		if(sys.FileSystem.isDirectory(path)) {
+			for(entry in sys.FileSystem.readDirectory(path)) {
+				deleteTree(haxe.io.Path.join([path, entry]));
+			}
+			sys.FileSystem.deleteDirectory(path);
+		} else {
+			sys.FileSystem.deleteFile(path);
+		}
 	}
 
 	// ------------------------------------------------------------------
@@ -94,7 +351,8 @@ class PackageArtifacts {
 
 	/**
 		The recorded writes, deduplicated by path (last write wins) and
-		sorted by name; every archive format packs this one ordering.
+		sorted by name; every source-shipping format packs this one
+		ordering.
 	**/
 	static function sortedPaths(): Array<{path: String, content: String}> {
 		final latest = new Map<String, String>();
@@ -106,24 +364,31 @@ class PackageArtifacts {
 		return [for(path in paths) {path: path, content: latest.get(path)}];
 	}
 
+	static function recordedEntries(): Array<{name: String, data: haxe.io.Bytes}> {
+		return [for(entry in sortedPaths()) {name: entry.path, data: haxe.io.Bytes.ofString(entry.content)}];
+	}
+
 	static function tarBytes(prefix: String): haxe.io.Bytes {
-		final files = new format.tar.Data();
-		for(entry in sortedPaths()) {
-			final data = haxe.io.Bytes.ofString(entry.content);
-			files.add({
-				fileName: prefix + entry.path,
-				fileSize: data.length,
+		return tarFromEntries(prefix, recordedEntries());
+	}
+
+	static function tarFromEntries(prefix: String, files: Array<{name: String, data: haxe.io.Bytes}>): haxe.io.Bytes {
+		final data = new format.tar.Data();
+		for(file in files) {
+			data.add({
+				fileName: prefix + file.name,
+				fileSize: file.data.length,
 				fileTime: Date.fromTime(0),
 				fmod: 420,
 				uid: 0,
 				gid: 0,
 				uname: "",
 				gname: "",
-				data: data,
+				data: file.data,
 			});
 		}
 		final out = new haxe.io.BytesOutput();
-		new format.tar.Writer(out).write(files);
+		new format.tar.Writer(out).write(data);
 		return out.getBytes();
 	}
 
@@ -150,20 +415,19 @@ class PackageArtifacts {
 		return out.getBytes();
 	}
 
-	static function zipEntries(): haxe.ds.List<haxe.zip.Entry> {
+	static function zipFromEntries(files: Array<{name: String, data: haxe.io.Bytes}>): haxe.io.Bytes {
 		// June 1, 2020, 12:00:00 read through local-time fields: every
 		// timezone encodes the same DOS date bytes.
 		final fixedDate = new Date(2020, 5, 1, 12, 0, 0);
 		final list = new haxe.ds.List<haxe.zip.Entry>();
-		for(entry in sortedPaths()) {
-			final data = haxe.io.Bytes.ofString(entry.content);
+		for(file in files) {
 			final zipEntry: haxe.zip.Entry = {
-				fileName: entry.path,
-				fileSize: data.length,
+				fileName: file.name,
+				fileSize: file.data.length,
 				fileTime: fixedDate,
-				crc32: haxe.crypto.Crc32.make(data),
-				data: data,
-				dataSize: data.length,
+				crc32: haxe.crypto.Crc32.make(file.data),
+				data: file.data,
+				dataSize: file.data.length,
 				compressed: false,
 			};
 			// The CRC must exist before compression; Tools.compress
@@ -171,7 +435,9 @@ class PackageArtifacts {
 			haxe.zip.Tools.compress(zipEntry, 9);
 			list.add(zipEntry);
 		}
-		return list;
+		final out = new haxe.io.BytesOutput();
+		new haxe.zip.Writer(out).write(list);
+		return out.getBytes();
 	}
 
 	/**

@@ -251,7 +251,7 @@ class Compiler extends PluginCompiler<Compiler> {
 		}
 		if(PackageArtifacts.enabled()) {
 			PackageArtifacts.requireShell();
-			PackageArtifacts.emitTarGz(tsOutput, true, ".tgz");
+			emitNpmArtifact(tsOutput);
 		}
 	}
 
@@ -342,6 +342,59 @@ class Compiler extends PluginCompiler<Compiler> {
 		}
 		entries.sort((a, b) -> Reflect.compare(a.key, b.key));
 		return entries;
+	}
+
+	/**
+		Packs the npm artifact (feature spec 25). The artifact manifest
+		retargets the exports map of spec 24 at the compiled files: the
+		source tree's manifest points consumers at `.ts`, while the
+		tarball carries the `dist/` output of `package-tsc` and its
+		manifest points at `.js` with a `types` condition. The manifest
+		drops `private` (the tarball exists to travel through a
+		registry) and the typescript devDependency (the artifact
+		carries declarations, so consumers never typecheck it). The
+		runtime test entry stays out of the compile set: it imports
+		node:fs for the repository's test harness and has no role in an
+		installed package.
+	**/
+	function emitNpmArtifact(outputDir: String): Void {
+		final excluded: Array<String> = [];
+		final emitDir = RuntimeConfig.emitDir();
+		if(emitDir != null && anyRuntimeTestUsed()) {
+			excluded.push(RuntimeConfig.emitPath(emitDir, "runtime/test.ts"));
+		}
+		PackageArtifacts.emitNpmTarGz(outputDir, npmArtifactManifest(), excluded);
+	}
+
+	/** The manifest packed into the npm tarball, aimed at `dist/`. */
+	function npmArtifactManifest(): String {
+		final license = PackageShell.license();
+		final lines = [
+			"{",
+			'  "name": ${jsonString(PackageShell.name())},',
+			'  "version": ${jsonString(PackageShell.version())},',
+		];
+		if(license != null) {
+			lines.push('  "license": ${jsonString(license)},');
+		}
+		lines.push('  "type": "module",');
+		lines.push('  "exports": {');
+		final exportEntries = packageShellExports();
+		for(index in 0...exportEntries.length) {
+			// One target of the shape "./pack/*.ts" loses its "./"
+			// prefix and ".ts" suffix and becomes the dist stem
+			// "pack/*".
+			final target = exportEntries[index].target;
+			final stem = target.substring(2, target.length - 3);
+			final comma = index < exportEntries.length - 1 ? "," : "";
+			lines.push('    ${jsonString(exportEntries[index].key)}: {');
+			lines.push('      "types": ${jsonString("./dist/" + stem + ".d.ts")},');
+			lines.push('      "default": ${jsonString("./dist/" + stem + ".js")}');
+			lines.push('    }' + comma);
+		}
+		lines.push("  }");
+		lines.push("}");
+		return lines.join("\n") + "\n";
 	}
 
 	/** A JSON string literal with the two escapes a manifest value needs. */

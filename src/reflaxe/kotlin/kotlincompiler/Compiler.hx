@@ -160,9 +160,6 @@ class Compiler extends PluginCompiler<Compiler> {
 	// ------------------------------------------------------------------
 
 	public override function generateFilesManually() {
-		if(PackageArtifacts.enabled()) {
-			PackageArtifacts.rejectUnsupportedTarget();
-		}
 		final modules = [];
 		for(module in parts.keys()) modules.push(module);
 		modules.sort(Reflect.compare);
@@ -190,9 +187,9 @@ class Compiler extends PluginCompiler<Compiler> {
 			if(state.testClasses.exists(module)) {
 				final testFileRel = kotlinTestOutput + "/" + modulePath(module);
 				final savePath = computeRelativePath(kotlinOutput, testFileRel);
-				output.saveFile(savePath, content);
+				saveTreeFile(savePath, content);
 			} else {
-				output.saveFile(modulePath(module), content);
+				saveTreeFile(modulePath(module), content);
 			}
 		}
 
@@ -211,12 +208,26 @@ class Compiler extends PluginCompiler<Compiler> {
 			final annotContent = "package kotlin.test\n\n@Target(AnnotationTarget.FUNCTION)\nannotation class Test\n";
 			final annotRel = kotlinTestOutput + "/tests/TestAnnotations.kt";
 			final annotSave = computeRelativePath(kotlinOutput, annotRel);
-			output.saveFile(annotSave, annotContent);
+			saveTreeFile(annotSave, annotContent);
 		}
 
 		if(PackageShell.enabled()) {
-			output.saveFile("build.gradle.kts", packageManifest());
+			saveTreeFile("build.gradle.kts", packageManifest());
 		}
+		if(PackageArtifacts.enabled()) {
+			PackageArtifacts.requireShell();
+			PackageArtifacts.emitMaven(kotlinOutput);
+		}
+	}
+
+	/**
+		Saves one file through the output manager and records the write
+		for artifact packing (feature spec 25). Paths that escape the
+		output root are recorded away by the filter in PackageArtifacts.
+	**/
+	function saveTreeFile(path: String, content: String): Void {
+		output.saveFile(path, content);
+		PackageArtifacts.record(path, content);
 	}
 
 	/**
@@ -361,7 +372,7 @@ class Compiler extends PluginCompiler<Compiler> {
 
 		final helperRel = kotlinTestOutput + "/tests/TestHelper.kt";
 		final savePath = computeRelativePath(kotlinOutput, helperRel);
-		output.saveFile(savePath, lines.join("\n"));
+		saveTreeFile(savePath, lines.join("\n"));
 	}
 
 	function qualifiedType(t: Type): String {
@@ -417,7 +428,7 @@ class Compiler extends PluginCompiler<Compiler> {
 
 		final mainRel = kotlinTestOutput + "/TestMain.kt";
 		final savePath = computeRelativePath(kotlinOutput, mainRel);
-		output.saveFile(savePath, lines.join("\n"));
+		saveTreeFile(savePath, lines.join("\n"));
 	}
 
 	/**
@@ -438,7 +449,7 @@ class Compiler extends PluginCompiler<Compiler> {
 		// test entry uses this so the general entry stays browser-loadable.
 		final pkg = subPackage.length > 0 ? runtimePackage + "." + subPackage : runtimePackage;
 		final path = RuntimeConfig.emitPath(dir, fileName);
-		output.saveFile(path, "package " + pkg + "\n\n" + StringTools.trim(source) + "\n");
+		saveTreeFile(path, "package " + pkg + "\n\n" + StringTools.trim(source) + "\n");
 	}
 
 	/**
@@ -477,7 +488,7 @@ class Compiler extends PluginCompiler<Compiler> {
 		final fileName = RuntimeResidents.isTestResident(module) ? "test/" + leaf : leaf;
 		final content = imports + (imports.length > 0 ? "\n" : "") + body + "\n";
 		final path = RuntimeConfig.emitPath(dir, fileName);
-		output.saveFile(path, content);
+		saveTreeFile(path, content);
 	}
 
 	public static function computeRelativePath(fromDir: String, toFile: String): String {
