@@ -232,9 +232,9 @@ class Compiler extends PluginCompiler<Compiler> {
 			final content = GENERATED_HEADER + "\n" + body + "\n";
 			if(testModules.exists(module)) {
 				final testFileRel = relativeFromTo(swiftOutput, testOutput) + "/" + modulePath(module);
-				output.saveFile(testFileRel, content);
+				saveTreeFile(testFileRel, content);
 			} else {
-				output.saveFile(modulePath(module), content);
+				saveTreeFile(modulePath(module), content);
 			}
 		}
 
@@ -250,7 +250,7 @@ class Compiler extends PluginCompiler<Compiler> {
 					residentParts.push(moduleParts.join("\n\n"));
 				}
 			}
-			output.saveFile(RuntimeConfig.emitPath(emitDir, "Runtime.swift"), StringTools.trim(SwiftRuntime.SOURCE) + "\n" + residentParts.join("\n\n") + "\n");
+			saveTreeFile(RuntimeConfig.emitPath(emitDir, "Runtime.swift"), StringTools.trim(SwiftRuntime.SOURCE) + "\n" + residentParts.join("\n\n") + "\n");
 			if(anyRuntimeTestUsed()) {
 				// The test host holds the failure type, the runner state,
 				// and the stdout edge; TestCore compiles through the
@@ -262,21 +262,35 @@ class Compiler extends PluginCompiler<Compiler> {
 						testResidentParts.push(moduleParts.join("\n\n"));
 					}
 				}
-				output.saveFile(RuntimeConfig.emitPath(emitDir, "Test.swift"), StringTools.trim(SwiftRuntime.TEST_SOURCE) + "\n" + testResidentParts.join("\n\n") + "\n");
+				saveTreeFile(RuntimeConfig.emitPath(emitDir, "Test.swift"), StringTools.trim(SwiftRuntime.TEST_SOURCE) + "\n" + testResidentParts.join("\n\n") + "\n");
 			}
 		}
 
 		if(testEntries.length > 0) {
 			final testRoot = relativeFromTo(swiftOutput, testOutput);
-			output.saveFile(testRoot + "/TestMain.swift", SwiftTestHelper.testMainSource(testEntries));
+			saveTreeFile(testRoot + "/TestMain.swift", SwiftTestHelper.testMainSource(testEntries));
 			if(SwiftTestTypes.registered.length > 0) {
-				output.saveFile(testRoot + "/TestHelper.swift", SwiftTestHelper.testHelperSource());
+				saveTreeFile(testRoot + "/TestHelper.swift", SwiftTestHelper.testHelperSource());
 			}
 		}
 
 		if(PackageShell.enabled()) {
-			output.saveFile("Package.swift", packageManifest());
+			saveTreeFile("Package.swift", packageManifest());
 		}
+		if(PackageArtifacts.enabled()) {
+			PackageArtifacts.requireShell();
+			PackageArtifacts.emitZip(swiftOutput);
+		}
+	}
+
+	/**
+		Saves one file through the output manager and records the write
+		for artifact packing (feature spec 25). Paths that escape the
+		output root belong to the test tree and stay unpacked.
+	**/
+	function saveTreeFile(path: String, content: String): Void {
+		output.saveFile(path, content);
+		PackageArtifacts.record(path, content);
 	}
 
 	/**

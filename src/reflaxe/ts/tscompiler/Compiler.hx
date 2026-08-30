@@ -202,7 +202,7 @@ class Compiler extends PluginCompiler<Compiler> {
 				final suffix = testRunner == "deno" ? "_test.ts" : ".test.ts";
 				final testFileRel = testOutput + "/" + module.split(".").join("/") + suffix;
 				final savePath = TsImports.computeRelativePath(tsOutput, testFileRel);
-				output.saveFile(savePath, content);
+				saveTreeFile(savePath, content);
 			} else {
 				final imports = decl.renderImports();
 				final body = parts.get(module).join("\n\n");
@@ -211,7 +211,7 @@ class Compiler extends PluginCompiler<Compiler> {
 					+ (imports.length > 0 ? "\n" : "")
 					+ body
 					+ "\n";
-				output.saveFile(modulePath(module), content);
+				saveTreeFile(modulePath(module), content);
 			}
 		}
 		final emitDir = RuntimeConfig.emitDir();
@@ -228,7 +228,7 @@ class Compiler extends PluginCompiler<Compiler> {
 					residentParts.push(moduleParts.join("\n\n"));
 				}
 			}
-			output.saveFile(RuntimeConfig.emitPath(emitDir, "runtime.ts"), StringTools.trim(TsRuntime.SOURCE) + "\n" + residentParts.join("\n\n") + "\n");
+			saveTreeFile(RuntimeConfig.emitPath(emitDir, "runtime.ts"), StringTools.trim(TsRuntime.SOURCE) + "\n" + residentParts.join("\n\n") + "\n");
 			if(anyRuntimeTestUsed()) {
 				// The test entry holds the host-file-system writer; the
 				// general entry stays free of node imports so a browser
@@ -242,13 +242,27 @@ class Compiler extends PluginCompiler<Compiler> {
 						testResidentParts.push(moduleParts.join("\n\n"));
 					}
 				}
-				output.saveFile(RuntimeConfig.emitPath(emitDir, "runtime/test.ts"), StringTools.trim(TsRuntime.TEST_SOURCE) + "\n" + testResidentParts.join("\n\n") + "\n");
+				saveTreeFile(RuntimeConfig.emitPath(emitDir, "runtime/test.ts"), StringTools.trim(TsRuntime.TEST_SOURCE) + "\n" + testResidentParts.join("\n\n") + "\n");
 			}
 		}
 
 		if(PackageShell.enabled()) {
 			emitPackageShell();
 		}
+		if(PackageArtifacts.enabled()) {
+			PackageArtifacts.requireShell();
+			PackageArtifacts.emitTarGz(tsOutput, true, ".tgz");
+		}
+	}
+
+	/**
+		Saves one file through the output manager and records the write
+		for artifact packing (feature spec 25). Paths that escape the
+		output root are recorded away by the filter in PackageArtifacts.
+	**/
+	function saveTreeFile(path: String, content: String): Void {
+		output.saveFile(path, content);
+		PackageArtifacts.record(path, content);
 	}
 
 	/**
@@ -290,7 +304,7 @@ class Compiler extends PluginCompiler<Compiler> {
 		lines.push('    "typescript": "^5.9.0"');
 		lines.push('  }');
 		lines.push("}");
-		output.saveFile("package.json", lines.join("\n") + "\n");
+		saveTreeFile("package.json", lines.join("\n") + "\n");
 	}
 
 	/**

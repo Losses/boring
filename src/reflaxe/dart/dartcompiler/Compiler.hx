@@ -246,7 +246,7 @@ class Compiler extends PluginCompiler<Compiler> {
 			final ctx = contexts.get(module);
 			final body = parts.get(module).join("\n\n");
 			final content = GENERATED_HEADER + "\n" + importBlockOf(ctx, filePath, dartOutput, testOutput) + "\n" + body + "\n";
-			output.saveFile(savedPath, content);
+			saveTreeFile(savedPath, content);
 		}
 
 		final emitDir = RuntimeConfig.emitDir();
@@ -262,7 +262,7 @@ class Compiler extends PluginCompiler<Compiler> {
 				}
 			}
 			final runtimeSource = GENERATED_HEADER + "\nimport 'dart:typed_data';\n" + StringTools.trim(DartRuntime.SOURCE) + "\n" + residentParts.join("\n\n") + "\n";
-			output.saveFile(RuntimeConfig.emitPath(emitDir, "runtime.dart"), runtimeSource);
+			saveTreeFile(RuntimeConfig.emitPath(emitDir, "runtime.dart"), runtimeSource);
 			if(anyRuntimeTestUsed()) {
 				// The test host holds the failure type, the runner state,
 				// and the stdout edge; TestCore compiles through the
@@ -278,12 +278,12 @@ class Compiler extends PluginCompiler<Compiler> {
 				}
 				final hostImports = "import 'dart:io';\nimport '" + importSpecifier(testOutput + "/test_host.dart", dartOutput + "/" + RuntimeConfig.emitPath(emitDir, "runtime.dart")) + "' as runtime;";
 				final hostSource = GENERATED_HEADER + "\n" + hostImports + "\n" + StringTools.trim(DartRuntime.TEST_SOURCE) + "\n" + testResidentParts.join("\n\n") + "\n";
-				output.saveFile(testRel + "/test_host.dart", hostSource);
+				saveTreeFile(testRel + "/test_host.dart", hostSource);
 			}
 		}
 
 		if(testEntries.length > 0) {
-			output.saveFile(testRel + "/main.dart", DartTestHelper.testMainSource(testEntries));
+			saveTreeFile(testRel + "/main.dart", DartTestHelper.testMainSource(testEntries));
 			if(DartTestTypes.registered.length > 0) {
 				final helperImports = new DartImports("test_helper");
 				final helperTypes = new DartType(helperImports);
@@ -293,13 +293,27 @@ class Compiler extends PluginCompiler<Compiler> {
 					importLines.push("import '" + importSpecifier(testOutput + "/test_helper.dart", dartOutput + "/lib/" + DartImports.libraryPathOf(entry.module)) + "' as " + entry.prefix + ";");
 				}
 				final helperSource = GENERATED_HEADER + "\n" + importLines.join("\n") + (importLines.length > 0 ? "\n" : "") + helperBody;
-				output.saveFile(testRel + "/test_helper.dart", helperSource);
+				saveTreeFile(testRel + "/test_helper.dart", helperSource);
 			}
 		}
 
 		if(PackageShell.enabled()) {
-			output.saveFile("pubspec.yaml", packageManifest());
+			saveTreeFile("pubspec.yaml", packageManifest());
 		}
+		if(PackageArtifacts.enabled()) {
+			PackageArtifacts.requireShell();
+			PackageArtifacts.emitTarGz(dartOutput, false, ".tar.gz");
+		}
+	}
+
+	/**
+		Saves one file through the output manager and records the write
+		for artifact packing (feature spec 25). Paths that escape the
+		output root belong to the test tree and stay unpacked.
+	**/
+	function saveTreeFile(path: String, content: String): Void {
+		output.saveFile(path, content);
+		PackageArtifacts.record(path, content);
 	}
 
 	/**
