@@ -827,21 +827,44 @@ manifest field with no source inside the compilation does not exist.
 
 `package-artifacts=emit` packs the tree the compilation wrote into
 the install artifact of its ecosystem and writes it beside the output
-directory: an npm `.tgz` (entries under `package/`), a cargo `.crate`,
-a Swift `.zip`, and a Pub `.tar.gz`, each named
-`<package-name>-<package-version>` plus its extension. The Kotlin
-target stops the compilation instead, because Gradle modules publish
-through the consumer's build. The define is off by default; it also
-requires the package shell, since the artifact wraps the manifest.
+directory. Every artifact is the install unit its registry
+distributes. The cargo `.crate`, the Swift `.zip`, and the Pub
+`.tar.gz` carry source, because those registries install source; each
+is named `<package-name>-<package-version>` plus its extension. The
+npm `.tgz` and the Kotlin lane carry build output, because npm
+installs JavaScript a plain `node` process can load and the JVM
+installs jars: a source archive would be an install that cannot run.
 
-The entry set is the recorded write list of the compilation, never a
+The npm pack compiles through the host's TypeScript compiler:
+`package-tsc=<executable>` names it, the pack step stages the recorded
+`.ts` writes with import specifiers rewritten from `.ts` to `.js`,
+runs `tsc -p` under a fixed configuration, and packs `package.json`
+plus `dist/` with the `.js` and `.d.ts` output. The artifact manifest
+retargets the `exports` map of `features/24` at the compiled files,
+so `npm install <file>` yields a package plain `node` imports.
+
+The Kotlin pack writes a Maven repository directory through the
+host's Kotlin compiler: `package-kotlinc=<executable>` names it and
+`package-group=<groupId>` states the Maven groupId (defaulting to the
+package name). The lane writes
+`maven/<groupId path>/<name>/<version>/` with the jar compiled from
+the generated sources, the pom, and their sha1 checksums; a Gradle or
+Maven build resolves the directory the way it resolves any repository.
+
+Both compiled lanes fail loudly: a missing tool define stops the
+compilation with the define named, and a tool that exits nonzero
+forwards its exit code, command line, and complete output into the
+compilation error. The define is off by default; it also requires the
+package shell, since the artifact wraps the identity the shell states.
+
+The pack input is the recorded write list of the compilation, never a
 directory walk: test-output trees, `_GeneratedFiles.txt`, and files
 the compilation did not write stay out. Entries sort by name and carry
 fixed metadata (tar mtime 0 and mode 0644, gzip MTIME 0, one fixed zip
-date), so two generations of the same inputs on the same Haxe
-toolchain produce byte-identical artifacts. The npm tarball installs
-with `npm install <file>` and imports through the `exports` map of
-`features/24`.
+date, also applied to the jar), so two generations of the same inputs
+produce byte-identical artifacts on the same Haxe toolchain, with the
+npm bytes additionally requiring the same `tsc` and the jar bytes the
+same `kotlinc` and JDK.
 
 ## Failures
 
