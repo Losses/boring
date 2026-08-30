@@ -1,5 +1,5 @@
 {
-  description = "Boring shared-subset development environment (Haxe, Rust, TypeScript)";
+  description = "Boring shared-subset development environment (Haxe, Rust, TypeScript, Kotlin, Swift, Dart)";
 
   inputs = {
     nixpkgs.url = "flake:nixpkgs";
@@ -43,6 +43,7 @@
           # The Rust side uses a pinned overlay toolchain, mirroring the
           # tiqian setup; the shell carries the Kotlin/JVM compiler and JDK 21
           # to build and execute the Kotlin codec tree, and no Android SDK.
+          # Swift and Dart compile and run their generated codec trees.
           rustToolchain = pkgs.rust-bin.stable.latest.default;
         in
         {
@@ -55,12 +56,19 @@
               rustToolchain
               kotlin
               jdk21
+              swift
+              dart
             ];
             shellHook = ''
               export HAXELIB_PATH="$PWD/.haxelib"
               mkdir -p "$HAXELIB_PATH"
               haxelib dev reflaxe "${reflaxe}" >/dev/null
               haxelib dev boring "$PWD" >/dev/null
+              # A linked Swift binary resolves libswiftCore through its
+              # RUNPATH, and libswiftCore loads libdispatch from another
+              # store path the binary RUNPATH does not cover; generated
+              # test binaries run with this directory on LD_LIBRARY_PATH.
+              export BORING_SWIFT_LIBDISPATCH="${pkgs.swift-corelibs-libdispatch}/lib"
             '';
           };
         }
