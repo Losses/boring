@@ -837,7 +837,7 @@ class RustDecl {
 	function methodReturnType(t: Type, funcName: String): String {
 		if(funcName == "readU16") return "u16";
 		if(funcName == "readU32") return "u32";
-		if(funcName == "readF64") return FloatPrecision.isF32() ? "f32" : "f64";
+		if(funcName == "readF64" || funcName == "readF32" || funcName == "readF16") return FloatPrecision.isF32() ? "f32" : "f64";
 		if(funcName == "readAscii") return "String";
 		if(funcName == "remaining" || funcName == "consumed") return "usize";
 		if(funcName == "ensureRemaining") return "()";
@@ -846,8 +846,10 @@ class RustDecl {
 
 	function isMethodMutating(f: ClassFuncData): Bool {
 		final name = f.field.name;
-		if(name == "readU16" || name == "readU32" || name == "readF64" || name == "readAscii"
-			|| name == "writeU16" || name == "writeU32" || name == "writeF64" || name == "writeAscii") {
+		if(name == "readU16" || name == "readU32" || name == "readF64" || name == "readF32" || name == "readF16"
+			|| name == "readAscii"
+			|| name == "writeU16" || name == "writeU32" || name == "writeF64" || name == "writeF32" || name == "writeF16"
+			|| name == "writeAscii") {
 			return true;
 		}
 		if(name == "finish") {
@@ -913,11 +915,9 @@ class RustDecl {
 	function funcIsFallible(f: ClassFuncData): Bool {
 		if(f.expr == null) return false;
 		// The preScan fixpoint owns fallibility: direct throws, runtime-shim
-		// calls, and inheritance through call edges all land in the registry.
+		// calls, u32 length writes, and inheritance through call edges all
+		// land in the registry.
 		if(state.funcErrorEnums.exists(RustEmissionState.funcKey(f.classType.module, f.field.name, f.isStatic))) {
-			return true;
-		}
-		if(f.field.name == "encode" && f.args.length == 1) {
 			return true;
 		}
 		// Local re-check of direct fallibility on the body as emitted; the
@@ -927,10 +927,13 @@ class RustDecl {
 			switch(e.expr) {
 				case TThrow(_):
 					throwsOrCallsFallible = true;
-				case TCall(fn, _):
+				case TCall(fn, callArgs):
 					switch(fn.expr) {
 						case TField(_, FInstance(_, _, cf)) | TField(_, FStatic(_, cf)):
 							if(RustEmissionState.runtimeShimIsFallible(cf.get().name)) {
+								throwsOrCallsFallible = true;
+							}
+							if(isLengthConversion(cf.get().name, callArgs)) {
 								throwsOrCallsFallible = true;
 							}
 						case _:
@@ -941,6 +944,26 @@ class RustDecl {
 		}
 		walk(f.expr);
 		return throwsOrCallsFallible;
+	}
+
+	/**
+		Recognizes writeU32(x.length): the Rust lowering narrows the count
+		through u32::try_from(x)?, so the call makes its owner fallible
+		regardless of the Haxe signature.
+	**/
+	function isLengthConversion(calleeName: String, args: Array<TypedExpr>): Bool {
+		if(calleeName != "writeU32" || args.length != 1) {
+			return false;
+		}
+		return switch(stripDecorations(args[0]).expr) {
+			case TField(_, fa):
+				switch(fa) {
+					case FInstance(_, _, cf) | FStatic(_, cf) | FAnon(cf) | FClosure(_, cf): cf.get().name == "length";
+					case FEnum(_, ef): ef.name == "length";
+					case FDynamic(n): n == "length";
+				}
+			case _: false;
+		}
 	}
 
 	public function testFuncDecl(cls: ClassType, f: ClassFuncData): Array<String> {
@@ -994,8 +1017,18 @@ class RustDecl {
 	public function enumDecl(en: EnumType, options: Array<EnumOptionData>): String {
 		final sorted = options.copy();
 		sorted.sort((a, b) -> Reflect.compare(a.field.index, b.field.index));
+		// A payload-free enum is a plain discriminant: every value is Copy,
+		// so branches and helper parameters pass it by value.
+		var allPlain = true;
+		for(o in sorted) {
+			if(o.args.length > 0) {
+				allPlain = false;
+				break;
+			}
+		}
+		final deriveAttr = allPlain ? "#[derive(Debug, Clone, Copy, PartialEq)]" : "#[derive(Debug, Clone, PartialEq)]";
 		final lines = [
-			"#[derive(Debug, Clone, PartialEq)]",
+			deriveAttr,
 			"pub enum " + en.name + " {"
 		];
 		for(o in sorted) {
