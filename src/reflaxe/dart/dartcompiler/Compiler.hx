@@ -43,6 +43,13 @@ class Compiler extends PluginCompiler<Compiler> {
 	var current: Null<DartDecl> = null;
 
 	public static function use() {
+		// Dart has one storage width for reals (double) with no binary32
+		// alias in the language, so the f32 lane has no faithful Dart
+		// lowering; reject at plugin registration, before any type
+		// rendering (feature spec 23).
+		if(FloatPrecision.isF32()) {
+			Context.error("float-precision=f32 is not available on the Dart target: double is the one real storage width; compile without the define for f64 semantics", Context.currentPos());
+		}
 		final compiler = new Compiler();
 		haxe.macro.Context.onAfterTyping(compiler.preScan);
 		ReflectCompiler.AddCompiler(compiler, {
