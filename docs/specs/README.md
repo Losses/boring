@@ -12,13 +12,14 @@ A later compilation and generation stage produces or verifies target code agains
 
 ## Classification
 
-Specifications are organized into five categories:
+Specifications are organized into six categories:
 
 1. `binary/`: Rules governing binary encapsulation and wire format mechanics. Each file rules one mechanism across the entire format.
 2. `features/`: Rules governing Haxe language constructs. Each file defines the syntax, semantics, typed-AST representation, and cross-language mappings for one construct.
 3. `macros/`: Rules governing boring's built-in compile-time rewrites: constructs that are not Haxe language features and expand in the common layer before target emission. Collection pipeline idioms and the record copy live here, never in `features/`.
 4. `stdlib/`: Rules governing Haxe standard library modules and functions. These documents define standard library substitutions for the target languages.
 5. `style/`: Rules governing the Haxe source standard itself and the interception that enforces it before generation.
+6. `targets/`: Rules governing one additional target language across the whole construct list. Each document holds every ruling for its target, cross-referencing the per-construct specifications for the Haxe-side semantics, and binds that target's Reflaxe generator.
 
 ## Judgment axes
 
@@ -97,6 +98,13 @@ Every candidate translation is evaluated across four fixed axes:
 | Number | Specification | Status | Description |
 | --- | --- | --- | --- |
 | 01 | [01-haxe-style-standard.md](style/01-haxe-style-standard.md) | Complete | Haxe style standard for translatable source and the named-violation interception that gates generation. |
+
+### Target specifications
+
+| Target | Specification | Status | Description |
+| --- | --- | --- | --- |
+| Swift | [swift.md](targets/swift.md) | Rulings complete | The Swift column for every construct the sample tree exercises: value enums, Int32 domain, UTF-16 resident ABI, fault throwing, and the unit-order string comparison. |
+| Dart | [dart.md](targets/dart.md) | Rulings complete | The Dart column for every construct the sample tree exercises: sealed fault hierarchies, int domain, native UTF-16 primitives, and the splay-tree sorted collections. |
 
 ## Maintenance rule
 
