@@ -17,3 +17,5 @@ reference/rust-gen/src/
 reference/kotlin-f32/gen/
 reference/kotlin-f32/gen-tests/
 reference/rust-f32-gen/src/
+reference/swift/gen/
+reference/swift/gen-tests/
