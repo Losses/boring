@@ -69,6 +69,7 @@ Every candidate translation is evaluated across four fixed axes:
 | 22 | [22-default-argument-expansion.md](features/22-default-argument-expansion.md) | Complete | Optional function parameters with default values: the completion pass in the typed common layer and the call sites that omit them. |
 | 23 | [23-float-precision-switch.md](features/23-float-precision-switch.md) | Complete | The module-level `float-precision` define selecting the binary32 mapping of `Float` per compilation, with the TypeScript startup rejection and the f64 wire boundary. |
 | 24 | [24-package-shell.md](features/24-package-shell.md) | Complete | The package manifest each target compiler writes next to the generated source, on by default with a one-define opt-out, covering the responsibility split between generator and consumer build. |
+| 25 | [25-package-artifacts.md](features/25-package-artifacts.md) | Complete | The pack step behind `package-artifacts=emit`: the compiler writes the ecosystem install artifact (npm tgz, cargo crate, Swift zip, Pub tar.gz) of the tree it emitted, from the recorded write list, with fixed determinism constants. |
 
 ### Macro specifications
 

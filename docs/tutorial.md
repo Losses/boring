@@ -823,6 +823,26 @@ Workspace membership, publication coordinates, repositories, and any
 dependency graph beyond the tree stay with the consumer's build; a
 manifest field with no source inside the compilation does not exist.
 
+### Package artifacts (`features/25`)
+
+`package-artifacts=emit` packs the tree the compilation wrote into
+the install artifact of its ecosystem and writes it beside the output
+directory: an npm `.tgz` (entries under `package/`), a cargo `.crate`,
+a Swift `.zip`, and a Pub `.tar.gz`, each named
+`<package-name>-<package-version>` plus its extension. The Kotlin
+target stops the compilation instead, because Gradle modules publish
+through the consumer's build. The define is off by default; it also
+requires the package shell, since the artifact wraps the manifest.
+
+The entry set is the recorded write list of the compilation, never a
+directory walk: test-output trees, `_GeneratedFiles.txt`, and files
+the compilation did not write stay out. Entries sort by name and carry
+fixed metadata (tar mtime 0 and mode 0644, gzip MTIME 0, one fixed zip
+date), so two generations of the same inputs on the same Haxe
+toolchain produce byte-identical artifacts. The npm tarball installs
+with `npm install <file>` and imports through the `exports` map of
+`features/24`.
+
 ## Failures
 
 ### Errors and results (`features/06`, `stdlib/03`)
