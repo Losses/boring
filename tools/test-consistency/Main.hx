@@ -40,7 +40,7 @@ class Main {
 
 	public static function main() {
 		var resultsDir = "out/test-results";
-		var targets = ["kotlin", "haxe", "ts", "rust"];
+		var targets = ["kotlin", "haxe", "ts", "rust", "swift"];
 		final baselineTarget = "kotlin";
 
 		final args = getArgs();
