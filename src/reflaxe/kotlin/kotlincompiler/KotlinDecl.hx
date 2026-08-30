@@ -72,13 +72,21 @@ class KotlinDecl {
 		}
 
 		if(hasTestMethods) {
+			// Test classes carry test functions and nothing else (feature
+			// spec 27); shared logic belongs in an ordinary class, whose
+			// member lowering every target already renders.
+			for(v in varFields) {
+				Context.error("test class " + cls.name + " carries a non-test member " + v.field.name + "; shared logic belongs in an ordinary class", v.field.pos);
+			}
 			final lines: Array<String> = [];
 			lines.push("class " + cls.name + " {");
 			var sep = false;
 			final sortedFuncs = funcFields.copy();
 			sortedFuncs.sort((a, b) -> Reflect.compare(Context.getPosInfos(a.field.pos).min, Context.getPosInfos(b.field.pos).min));
 			for(f in sortedFuncs) {
-				if(!f.field.meta.has(":test")) continue;
+				if(!f.field.meta.has(":test")) {
+					Context.error("test class " + cls.name + " carries a non-test member " + f.field.name + "; shared logic belongs in an ordinary class", f.field.pos);
+				}
 				if(sep) lines.push("");
 				sep = true;
 				for(l in testFuncDecl(cls, f)) lines.push(l);
@@ -117,12 +125,73 @@ class KotlinDecl {
 		final ctorHeader = constructorFunc != null ? buildPrimaryConstructor(cls, constructorFunc, varFields) : "";
 		final ifaceStr = cls.interfaces.length > 0 ? " : " + [for(i in cls.interfaces) i.t.get().name].join(", ") : "";
 		final classParams = cls.params.length > 0 ? "<" + [for(p in cls.params) p.name].join(", ") + ">" : "";
-		lines.push("class " + cls.name + classParams + ctorHeader + ifaceStr + " {");
+		// @:dataClass opts into the Kotlin data class prefix (feature spec 27);
+		// every constructor parameter must be a field for the synthesized
+		// copy/equals/printed form to cover the whole state.
+		final isDataClass = cls.meta.has(":dataClass");
+		if(isDataClass) {
+			if(constructorFunc == null || constructorFunc.args.length == 0) {
+				Context.error("@:dataClass requires at least one constructor parameter", cls.pos);
+			}
+			for(a in constructorFunc.args) {
+				var isField = false;
+				for(v in varFields) {
+					if(v.field.name == a.name) {
+						isField = true;
+						break;
+					}
+				}
+				if(!isField) {
+					Context.error("@:dataClass requires every constructor parameter to be a class field", cls.pos);
+				}
+			}
+		}
+		lines.push((isDataClass ? "data " : "") + "class " + cls.name + classParams + ctorHeader + ifaceStr + " {");
 
-		// Non-primary-ctor properties
+		// Constructor body renders into one init block (feature spec 27).
+		// Parameter self-assignments are implicit in the primary
+		// constructor and drop out; assignments to fields the constructor
+		// does not receive as parameters initialize those fields here, so
+		// their declarations carry no initializer. Kotlin requires the
+		// stored-property declarations to precede the init block's
+		// assignments, so the block follows the declarations.
+		final ctorInit = constructorFunc != null && constructorFunc.expr != null
+			? expr.initBlockStatements(constructorFunc)
+			: {lines: [], assigned: []};
+
+		// Stored properties without a constructor parameter; getter-only
+		// properties keep no storage (feature spec 27).
 		for(v in varFields) {
-			if(!constructorArgNames.exists(v.field.name)) {
+			if(constructorArgNames.exists(v.field.name) || isGetterOnlyProperty(v.field)) {
+				continue;
+			}
+			if(ctorInit.assigned.indexOf(v.field.name) >= 0) {
+				lines.push('    ${(v.field.isFinal ? "val" : "var")} ${v.field.name}: ${types.of(v.field.type)}');
+			} else {
 				for(l in classVarDecl(v)) lines.push(l);
+			}
+		}
+
+		for(l in ctorInitBlock(ctorInit.lines)) lines.push(l);
+
+		// Getter-only property facade (feature spec 27): var x(get, never)
+		// with the standard read accessor renders a Kotlin property beside
+		// the generated get_x function, so consumers use property syntax for
+		// computed and stored values alike.
+		for(field in cls.fields.get()) {
+			if(!isGetterOnlyProperty(field)) {
+				continue;
+			}
+			var hasInstanceGetter = false;
+			for(f in funcFields) {
+				if(!f.isStatic && f.field.name == "get_" + field.name) {
+					hasInstanceGetter = true;
+					break;
+				}
+			}
+			if(hasInstanceGetter) {
+				final vis = field.isPublic ? "" : "private ";
+				lines.push('    ${vis}val ${field.name}: ${types.of(field.type)} get() = get_${field.name}()');
 			}
 		}
 
@@ -463,17 +532,44 @@ class KotlinDecl {
 		for(a in ctor.args) {
 			var isField = false;
 			var isFinal = true;
+			var isPublic = false;
 			for(v in varFields) {
 				if(v.field.name == a.name) {
 					isField = true;
 					isFinal = v.field.isFinal;
+					isPublic = v.field.isPublic;
 					break;
 				}
 			}
-			final prefix = isField ? (isFinal ? "private val " : "private var ") : "";
+			// A constructor-parameter field keeps its declared visibility in
+			// the primary constructor (feature spec 27); a parameter without
+			// a same-named field stays a plain parameter.
+			final prefix = isField ? (isPublic ? "" : "private ") + (isFinal ? "val " : "var ") : "";
 			params.push(prefix + a.name + ": " + types.of(a.type));
 		}
 		return "(" + params.join(", ") + ")";
+	}
+
+	/**
+		The surviving init-block lines wrapped as one init block, the first
+		class member (feature spec 27). A constructor with nothing left to
+		render emits nothing.
+	**/
+	function ctorInitBlock(body: Array<String>): Array<String> {
+		if(body.length == 0) {
+			return [];
+		}
+		return ["    init {"].concat(body).concat(["    }"]);
+	}
+
+	/** A `var x(get, never)` field renders no storage on this target (feature spec 27). */
+	function isGetterOnlyProperty(field: ClassField): Bool {
+		switch(field.kind) {
+			case FVar(read, write):
+				return read.match(AccCall) && write.match(AccNever);
+			case _:
+				return false;
+		}
 	}
 
 	function objectVarDecl(v: ClassVarData): Array<String> {

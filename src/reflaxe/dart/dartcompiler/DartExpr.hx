@@ -128,8 +128,10 @@ class DartExpr {
 			switch(stmt.expr) {
 				case TBinop(OpAssign, target, value):
 					switch(stripWrap(target).expr) {
-						case TField({expr: TConst(TThis)}, FInstance(_, _, cf)):
-							final field = cf.get().name;
+						case TField({expr: TConst(TThis)}, FInstance(owner, _, cf)):
+							// A private field initializes under its
+							// `_`-prefixed Dart name (feature spec 27).
+							final field = memberName(owner.get().module, cf, stmt.pos);
 							final param = paramLocalOf(value, f);
 							if(param != null) {
 								formalFields.set(param, field);
@@ -807,14 +809,31 @@ class DartExpr {
 	function field(subj: TypedExpr, fa: FieldAccess): String {
 		switch(fa) {
 			case FStatic(c, cf):
-				return staticRef(c.get(), cf.get().name);
+				final cls = c.get();
+				// A private static lowers under its `_`-prefixed Dart
+				// name (feature spec 27); Haxe keeps private statics
+				// inside their module, so the reference stays
+				// same-library.
+				final ownerModule = cls.module != "" ? cls.module : (cls.pack.length == 0 ? cls.name : cls.pack.join(".") + "." + cls.name);
+				return staticRef(cls, memberName(ownerModule, cf, subj.pos));
 			case FEnum(en, ef):
 				// A construct without payload in value position: the
 				// generated subclass instance carries the identity.
 				final enumDef = en.get();
 				imports.type(enumDef.module, enumDef.name);
 				return qualifiedRef(enumDef.module, DartDecl.constructClassName(enumDef.name, ef.name)) + "()";
-			case FInstance(_, _, cf) | FAnon(cf):
+			case FInstance(owner, _, cf):
+				final name = cf.get().name;
+				final target = stripCast(subj);
+				if(isCatchMessageAccess(target, name)) {
+					return expr(target) + ".message";
+				}
+				// A private member renders under its `_`-prefixed Dart
+				// name (feature spec 27). String length is the UTF-16
+				// unit count natively; list length and the lowered
+				// buffer carry `.length` alike.
+				return receiverText(subj) + "." + memberName(owner.get().module, cf, subj.pos);
+			case FAnon(cf):
 				final name = cf.get().name;
 				final target = stripCast(subj);
 				if(isCatchMessageAccess(target, name)) {
@@ -1050,7 +1069,7 @@ class DartExpr {
 		switch(fn.expr) {
 			case TField(subj, FDynamic(name)) if((name == "length" || name == "get_length") && isStringBuf(subj)):
 				return expr(subj) + ".length";
-			case TField(subj, FInstance(_, _, cf)):
+			case TField(subj, FInstance(owner, _, cf)):
 				final name = cf.get().name;
 				if(isStringBuf(subj)) {
 					// stdlib/08: the checks throw, and a throw is a
@@ -1109,7 +1128,10 @@ class DartExpr {
 				if(name == "charCodeAt" && isStringSubject(subj)) {
 					return receiverText(subj) + ".codeUnitAt(" + expr(args[0]) + ")";
 				}
-				return receiverText(subj) + "." + name + "(" + rendered + ")";
+				// A private method renders under its `_`-prefixed Dart
+				// name (feature spec 27); the special cases above are
+				// public library APIs.
+				return receiverText(subj) + "." + memberName(owner.get().module, cf, subj.pos) + "(" + rendered + ")";
 			case TField(_, FEnum(en, ef)):
 				return enumConstruct(en.get(), ef, args);
 			case TConst(TSuper):
@@ -1390,7 +1412,11 @@ class DartExpr {
 		switch(e.expr) {
 			case TArray(arr, idx):
 				return expr(arr) + "[" + expr(idx) + "]";
-			case TField(subj, FInstance(_, _, cf)) | TField(subj, FAnon(cf)):
+			case TField(subj, FInstance(owner, _, cf)):
+				// A private field assigns through its `_`-prefixed Dart
+				// name (feature spec 27).
+				return expr(subj) + "." + memberName(owner.get().module, cf, e.pos);
+			case TField(subj, FAnon(cf)):
 				return expr(subj) + "." + cf.get().name;
 			case TLocal(v):
 				return localName(v);
@@ -2253,6 +2279,24 @@ class DartExpr {
 			case FClosure(_, cf): cf.get().name;
 			case FEnum(_, ef): ef.name;
 		};
+	}
+
+	/**
+		The Dart name of an instance member (feature spec 27): a private
+		member of this library renders with the `_` prefix; a private
+		member of another library has no lowering, because Dart privacy
+		is library-scoped and the generated tree holds one library per
+		module.
+	**/
+	function memberName(ownerModule: String, cf: Ref<ClassField>, pos: haxe.macro.Expr.Position): String {
+		final field = cf.get();
+		if(field.isPublic) {
+			return field.name;
+		}
+		if(ownerModule != imports.selfModule) {
+			Context.error("private member " + field.name + " of " + ownerModule + " has no Dart lowering outside its library", pos);
+		}
+		return "_" + field.name;
 	}
 
 	function isStringBuf(e: TypedExpr): Bool {

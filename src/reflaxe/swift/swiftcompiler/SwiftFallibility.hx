@@ -61,6 +61,14 @@ class SwiftFallibility {
 					for(field in cls.fields.get()) {
 						addBody(cls.module, field, false);
 					}
+					// The constructor sits outside `fields` on
+					// `cls.constructor`; its body joins the analysis so a
+					// throwing constructor infects its callers (feature
+					// spec 27).
+					final ctor = cls.constructor;
+					if(ctor != null) {
+						addBody(cls.module, ctor.get(), false);
+					}
 				case _:
 			}
 		}
@@ -131,6 +139,17 @@ class SwiftFallibility {
 				}
 			case TCall(fn, _):
 				scanCall(fn, absorbed, infections);
+				TypedExprTools.iter(e, x -> scanExpr(x, absorbed, infections));
+			case TNew(c, _, _):
+				// A construction is a call edge into the class constructor
+				// (feature spec 27); the constructor's escaping domains
+				// infect the calling function.
+				final ctor = escaping.exists(funcKey(c.get().module, "new", false)) ? escaping.get(funcKey(c.get().module, "new", false)) : null;
+				if(ctor != null) {
+					for(domain in ctor.keys()) {
+						infect(infections, absorbed, domain);
+					}
+				}
 				TypedExprTools.iter(e, x -> scanExpr(x, absorbed, infections));
 			case _:
 				TypedExprTools.iter(e, x -> scanExpr(x, absorbed, infections));

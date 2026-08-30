@@ -107,6 +107,19 @@ class SwiftDecl {
 			if(lines.length > 1) {
 				lines.push("");
 			}
+			// A computed property renders beside its accessor function
+			// (feature spec 27).
+			if(!f.isStatic && StringTools.startsWith(f.field.name, "get_")) {
+				final propName = f.field.name.substring("get_".length);
+				for(field in cls.fields.get()) {
+					if(field.name == propName && isGetterOnlyProperty(field)) {
+						for(l in propertyDecl(cls, field)) {
+							lines.push(l);
+						}
+						lines.push("");
+					}
+				}
+			}
 			for(l in funcDecl(module, cls, f)) {
 				lines.push(l);
 			}
@@ -206,7 +219,32 @@ class SwiftDecl {
 			case _: false;
 		};
 		final kw = isArrayField || !field.isFinal ? "var" : "let";
-		return ["    " + kw + " " + field.name + ": " + types.of(field.type)];
+		// Private fields render with Swift's private marker (feature
+		// spec 27); public fields keep the default internal visibility.
+		final vis = field.isPublic ? "" : "private ";
+		return ["    " + vis + kw + " " + field.name + ": " + types.of(field.type)];
+	}
+
+	/** A `var x(get, never)` field renders no storage on this target (feature spec 27). */
+	function isGetterOnlyProperty(field: ClassField): Bool {
+		switch(field.kind) {
+			case FVar(read, write):
+				return read.match(AccCall) && write.match(AccNever);
+			case _:
+				return false;
+		}
+	}
+
+	/**
+		A getter-only property renders as a computed property reading the
+		standard accessor (feature spec 27). The typer lowers property
+		reads to `get_x()` calls, so the computed property serves
+		consuming Swift code.
+	**/
+	function propertyDecl(cls: ClassType, field: ClassField): Array<String> {
+		final vis = field.isPublic ? "" : "private ";
+		final getter = "get_" + field.name;
+		return ["    " + vis + "var " + field.name + ": " + types.of(field.type) + " { " + getter + "() }"];
 	}
 
 	function renderDataTableElements(elems: Array<Int>): String {
@@ -250,7 +288,11 @@ class SwiftDecl {
 				expr.reserveName(a.name);
 			}
 			final body = expr.constructorBody(cls.name, f, isException(cls));
-			return withParamShadows(["    init" + paramList(f) + " {"], body, cast f.args).concat(["    }"]);
+			// A throwing constructor declares throws (feature spec 27);
+			// construction sites pick up the try marker from the
+			// fallibility machinery.
+			final ctorThrows = SwiftFallibility.isThrowing(module, "new", false) ? " throws" : "";
+			return withParamShadows(["    init" + paramList(f) + ctorThrows + " {"], body, cast f.args).concat(["    }"]);
 		}
 		for(a in f.args) {
 			expr.reserveName(a.name);
@@ -264,7 +306,10 @@ class SwiftDecl {
 		final methodParams = collectMethodTypeParams(cls, f);
 		final genericStr = methodParams.length > 0 ? "<" + methodParams.join(", ") + ">" : "";
 		final body = decodeBoundaryBody(cls, f);
-		final head = '    $stat' + 'func ${f.field.name}$genericStr${paramList(f)}$throws -> $ret {';
+		// Private functions render with Swift's private marker (feature
+		// spec 27); public functions keep the default internal visibility.
+		final vis = f.field.isPublic ? "" : "private ";
+		final head = '    $stat$vis' + 'func ${f.field.name}$genericStr${paramList(f)}$throws -> $ret {';
 		return withParamShadows([head], body, cast f.args).concat(["    }"]);
 	}
 

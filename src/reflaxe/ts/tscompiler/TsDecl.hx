@@ -104,16 +104,22 @@ class TsDecl {
 		final classParams = cls.params.length > 0 ? "<" + [for(p in cls.params) p.name].join(", ") + ">" : "";
 		lines.push('export class ${cls.name}$classParams' + (isException(cls) ? " extends Error" : "") + ifaceStr + " {");
 
+		var storageCount = 0;
 		for(v in varFields) {
+			if(isGetterOnlyProperty(v.field)) {
+				continue;
+			}
+			storageCount++;
 			for(l in varDecl(v)) lines.push(l);
 		}
 
-		var sep = varFields.length > 0 && funcFields.length > 0;
+		var sep = storageCount > 0 && funcFields.length > 0;
 		for(f in funcFields) {
 			if(sep) {
 				lines.push("");
 			}
 			sep = true;
+			for(l in accessorDeclFor(cls, f)) lines.push(l);
 			for(l in funcDecl(cls, f)) lines.push(l);
 		}
 
@@ -183,6 +189,41 @@ class TsDecl {
 		}
 		final parent = cls.superClass.t.get();
 		return parent.pack.join(".") == "haxe" && parent.name == "Exception";
+	}
+
+	/** A `var x(get, never)` field renders no storage on this target (feature spec 27). */
+	function isGetterOnlyProperty(field: ClassField): Bool {
+		switch(field.kind) {
+			case FVar(read, write):
+				return read.match(AccCall) && write.match(AccNever);
+			case _:
+				return false;
+		}
+	}
+
+	/**
+		The accessor for a getter-only property renders beside its `get_x`
+		function (feature spec 27); every other function renders nothing
+		extra. The typer lowers property reads to `get_x()` calls, so the
+		accessor serves consuming TypeScript code.
+	**/
+	function accessorDeclFor(cls: ClassType, f: ClassFuncData): Array<String> {
+		if(f.isStatic || !StringTools.startsWith(f.field.name, "get_")) {
+			return [];
+		}
+		final propName = f.field.name.substring("get_".length);
+		for(field in cls.fields.get()) {
+			if(field.name != propName || !isGetterOnlyProperty(field)) {
+				continue;
+			}
+			final vis = field.isPublic ? "public" : "private";
+			return [
+				'  $vis get ${propName}(): ${types.of(field.type)} {',
+				'    return this.${f.field.name}();',
+				"  }"
+			];
+		}
+		return [];
 	}
 
 	function varDecl(v: ClassVarData): Array<String> {

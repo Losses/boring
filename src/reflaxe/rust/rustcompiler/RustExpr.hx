@@ -133,6 +133,61 @@ class RustExpr {
 		return lines;
 	}
 
+	/**
+		Constructor body classification (feature spec 27): a `this.f = f`
+		assignment of a constructor parameter is the struct-literal
+		shorthand and drops out; an assignment to a field the constructor
+		does not receive as a parameter is that field's initialization in
+		the literal; every other statement keeps statement form and
+		renders before the literal, so constructor validation survives on
+		this target.
+	**/
+	public function constructorBody(cls: ClassType, f: ClassFuncData): {statementLines: Array<String>, fieldInits: Map<String, String>} {
+		if(f.expr == null) {
+			Context.error("constructor has no body to lower", f.field.pos);
+		}
+		DefaultArgExpander.completeRootExpr(cls, f.field.name, f.expr);
+		PipelineExpander.expandRootExpr(f.expr);
+		currentMethodName = f.field.name;
+		paramVarIds.clear();
+		unsignedLocals.clear();
+		mutated.clear();
+		for(a in f.args) {
+			if(a.tvar != null) paramVarIds.set(a.tvar.id, true);
+		}
+		final fusedRoot = fuseWithin(f.expr);
+		f.expr.expr = fusedRoot.expr;
+		scanLocals(f.expr);
+		final argNames = [for(a in f.args) a.name];
+		final fieldInits = new Map<String, String>();
+		final stmts: Array<TypedExpr> = [];
+		for(stmt in statementsOf(f.expr)) {
+			switch(stmt.expr) {
+				case TBinop(OpAssign, target, value):
+					switch(stripWrap(target).expr) {
+						case TField({expr: TConst(TThis)}, FInstance(_, _, cf)):
+							final fieldName = cf.get().name;
+							final isParam = switch(stripWrap(value).expr) {
+								case TLocal(v): argNames.indexOf(v.name) >= 0;
+								case _: false;
+							};
+							if(!isParam) {
+								fieldInits.set(fieldName, expr(value));
+							}
+						case _:
+							stmts.push(stmt);
+					}
+				case _:
+					stmts.push(stmt);
+			}
+		}
+		// tailScope stays off: the constructor's tail is the Ok(Self { ... })
+		// literal assembled by the caller, so blockLines must not append the
+		// fallible void closer `Ok(())` after the validation statements.
+		final lines = stmts.length > 0 ? blockLines(stmts, 1, false) : [];
+		return {statementLines: lines, fieldInits: fieldInits};
+	}
+
 	// ------------------------------------------------------------------
 	// Statements
 	// ------------------------------------------------------------------
@@ -2560,7 +2615,6 @@ class RustExpr {
 
 	function newExpr(c: Ref<ClassType>, params: Array<Type>, args: Array<TypedExpr>): String {
 		final cls = c.get();
-		final renderedArgs = [for(a in args) expr(a)].join(", ");
 		final path = cls.pack.length == 0 ? cls.name : cls.pack.join(".") + "." + cls.name;
 		switch(path) {
 			case "std.StringBuf" | "StringBuf":
@@ -2579,8 +2633,42 @@ class RustExpr {
 				// type arguments: the empty-array arguments leave the
 				// parameters otherwise unconstrained.
 				final genericStr = params.length > 0 ? "::<" + [for(p in params) types.of(p)].join(", ") + ">" : "";
-				return cls.name + genericStr + "::new(" + renderedArgs + ")";
+				// A throwing constructor lowers through the fallibility
+				// machinery: `?` propagates inside a fallible function or
+				// a try-region closure, and an infallible context
+				// unwraps (feature spec 27).
+				final ctorFallible = state.funcErrorEnums.exists(RustEmissionState.funcKey(cls.module, "new", false));
+				final q = ctorFallible ? (isFallible ? "?" : ".unwrap()") : "";
+				return cls.name + genericStr + "::new(" + ctorCallArgs(cls, args) + ")" + q;
 		}
+	}
+
+	/**
+		Constructor arguments (feature spec 27): a String parameter takes
+		&str, so a heap String argument borrows through .as_str() and a
+		literal keeps its own static borrowing; every other parameter
+		renders as the plain expression, the convention the resident
+		tables already construct under.
+	**/
+	function ctorCallArgs(cls: ClassType, args: Array<TypedExpr>): String {
+		final fnType = cls.constructor != null ? cls.constructor.get().type : null;
+		final paramTypes = fnType != null ? switch(Context.follow(fnType)) {
+			case TFun(pargs, _): [for(p in pargs) p.t];
+			case _: [];
+		} : [];
+		final out: Array<String> = [];
+		for(i in 0...args.length) {
+			final arg = args[i];
+			if(i < paramTypes.length && isStringType(paramTypes[i]) && isStringType(arg.t)) {
+				out.push(switch(stripWrap(arg).expr) {
+					case TConst(TString(_)): expr(arg);
+					case _: expr(arg) + ".as_str()";
+				});
+				continue;
+			}
+			out.push(expr(arg));
+		}
+		return out.join(", ");
 	}
 
 	function assignTarget(e: TypedExpr): String {
