@@ -1,0 +1,55 @@
+# reflaxe Rust target generation under the f32 precision switch
+# (docs/specs/features/23-float-precision-switch.md).
+# Run from the repository root: haxe examples/rust-f32.hxml
+# Output lands in reference/rust-f32-gen/src; the crate is the
+# boring-codec-f32-gen workspace member.
+-lib boring
+-cp src/reflaxe/rust/std-shadow
+-cp src/reflaxe/rust
+-cp samples
+--macro Intercept.run(['samples'], ['samples/boring/BinaryReader.hx', 'samples/boring/BinaryWriter.hx'])
+--macro rustcompiler.Compiler.use()
+-D rust-output=reference/rust-f32-gen/src
+-D float-precision=f32
+-D runtime-import=crate::runtime
+-D runtime-emit=runtime
+boring.BinaryReader
+boring.BinaryWriter
+boring.GlyphMetrics
+std.ReadOnlyArray
+boring.VectorCodec
+boring.VectorError
+boring.VectorException
+boring.VectorSort
+boring.ScriptEvidenceTable
+boring.WordCharacterTable
+boring.CodePointNames
+std.SortedMap
+std.SortedSet
+std.Functional
+runtime.UString
+runtime.GraphemeWalk
+runtime.Graphemes
+runtime.SortedTable
+runtime.TestCore
+tests.TestData
+tests.VectorCodecTests
+tests.DataTableTests
+tests.SortedTableTests
+boring.ScriptNames
+boring.ClusterTags
+tests.SortedKeyDomainTests
+boring.PipelineOps
+tests.PipelineTests
+boring.RecordOps
+tests.RecordTests
+boring.StringBufOps
+tests.StringBufTests
+boring.ArithmeticOps
+tests.ArithmeticTests
+boring.DefaultArgsOps
+tests.DefaultArgsTests
+boring.UStringOps
+boring.GraphemeOps
+tests.UStringTests
+tests.GraphemeTests

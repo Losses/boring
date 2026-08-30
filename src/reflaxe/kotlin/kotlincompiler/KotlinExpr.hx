@@ -527,7 +527,12 @@ class KotlinExpr {
 			case TConst(c):
 				switch(c) {
 					case TInt(v): return Std.string(v);
-					case TFloat(f): return Std.string(f);
+					case TFloat(f):
+						final s = Std.string(f);
+						final padded = s.indexOf(".") >= 0 ? s : s + ".0";
+						// The f32 lane marks every literal so its width never
+						// relies on the context's inference (feature spec 23).
+						return FloatPrecision.isF32() ? padded + "f" : s;
 					case TString(s): return quoteString(s);
 					case TBool(b): return b ? "true" : "false";
 					case TNull: return "null";
@@ -698,7 +703,27 @@ class KotlinExpr {
 		switch(path) {
 			case "String":
 				return "String." + name;
+			case "haxe.io.FPHelper":
+				// The f32 lane swaps the two value-edge calls to the
+				// binary32 variants; the 8-byte wire layout keeps its
+				// f64 shape on both lanes (feature spec 23).
+				imports.requireType(cls.module, cls.name);
+				if(FloatPrecision.isF32()) {
+					if(name == "i64ToDouble") return "FPHelper.i64ToF32";
+					if(name == "doubleToI64") return "FPHelper.f32ToI64";
+				}
+				return "FPHelper." + name;
 			case "Math":
+				// The f32 lane reads every Math static from the Float family;
+				// kotlin.math free functions carry Float overloads, so the
+				// java.lang.Math (Double-only) reference is never emitted
+				// under the switch (feature spec 23).
+				if(FloatPrecision.isF32()) {
+					if(name == "NaN") return "Float.NaN";
+					if(name == "POSITIVE_INFINITY") return "Float.POSITIVE_INFINITY";
+					if(name == "NEGATIVE_INFINITY") return "Float.NEGATIVE_INFINITY";
+					return "kotlin.math." + name;
+				}
 				if(name == "NaN") return "Double.NaN";
 				if(name == "POSITIVE_INFINITY") return "Double.POSITIVE_INFINITY";
 				if(name == "NEGATIVE_INFINITY") return "Double.NEGATIVE_INFINITY";

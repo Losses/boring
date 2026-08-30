@@ -47,7 +47,9 @@ class RustType {
 					// no-previous sentinel); the call boundary casts
 					// between the two conventions (RuntimeResidents).
 					case "Int": RuntimeResidents.isResident(imports.selfModule) ? "i32" : "u32";
-					case "Float": "f64";
+					// The module-level precision switch selects the Float
+					// width for the whole compilation (feature spec 23).
+					case "Float": FloatPrecision.isF32() ? "f32" : "f64";
 					case "Bool": "bool";
 					case "Void": "()";
 					case "Null": "Option<" + of(params[0]) + ">";

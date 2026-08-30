@@ -33,6 +33,13 @@ class Compiler extends PluginCompiler<Compiler> {
 	var current: Null<TsDecl> = null;
 
 	public static function use() {
+		// number is binary64 with no binary32 alias in the language, so
+		// the f32 lane has no faithful TypeScript lowering; reject at
+		// plugin registration, before any type rendering (feature
+		// spec 23).
+		if(FloatPrecision.isF32()) {
+			Context.error("float-precision=f32 is not available on the TypeScript target: number is binary64; compile without the define for f64 semantics", Context.currentPos());
+		}
 		ReflectCompiler.AddCompiler(new Compiler(), {
 			fileOutputType: BaseCompilerFileOutputType.Manual,
 			fileOutputExtension: ".ts",

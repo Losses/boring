@@ -837,7 +837,7 @@ class RustDecl {
 	function methodReturnType(t: Type, funcName: String): String {
 		if(funcName == "readU16") return "u16";
 		if(funcName == "readU32") return "u32";
-		if(funcName == "readF64") return "f64";
+		if(funcName == "readF64") return FloatPrecision.isF32() ? "f32" : "f64";
 		if(funcName == "readAscii") return "String";
 		if(funcName == "remaining" || funcName == "consumed") return "usize";
 		if(funcName == "ensureRemaining") return "()";

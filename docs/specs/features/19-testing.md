@@ -168,6 +168,10 @@ Rules:
     `Double.toString` matches on JDK 19+ (Ryukyu); toolchains older
     than that implement shortest-round-trip explicitly in the
     runtime. `Infinity`, `-Infinity`, `NaN` render as those words.
+    Under `float-precision=f32` (feature spec 23) the same clause
+    reads binary32: the shortest decimal string that parses back to
+    the same IEEE-754 binary32 value, which Rust's `Display for f32`
+    and JVM `Float.toString` implement directly.
   - `String`: double-quoted; `"` and `\` escaped; `\n`, `\r`, `\t`
     escaped; every other code point below 0x20 as `\uXXXX` with four
     lowercase hex digits.

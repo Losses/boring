@@ -48,6 +48,18 @@ impl FPHelper {
         let low = u32::from_be_bytes([bytes[4], bytes[5], bytes[6], bytes[7]]);
         Int64Halves { high, low }
     }
+
+    // Binary32 variants of the two value edges: the same 8 wire bytes
+    // decode to the f64 value, then round once to the module real; the
+    // reverse widens losslessly before the bit conversion. Only the
+    // float-precision=f32 lane references them (feature spec 23).
+    pub fn i64_to_f32(low: u32, high: u32) -> f32 {
+        Self::i64_to_double(low, high) as f32
+    }
+
+    pub fn f32_to_i64(v: f32) -> Int64Halves {
+        Self::double_to_i64(f64::from(v))
+    }
 }
 ';
 

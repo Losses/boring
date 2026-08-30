@@ -7,5 +7,9 @@ name = "boring-codec"
 version = "0.1.0"
 
 [[package]]
+name = "boring-codec-f32-gen"
+version = "0.1.0"
+
+[[package]]
 name = "boring-codec-gen"
 version = "0.1.0"

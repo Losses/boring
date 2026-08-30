@@ -276,6 +276,10 @@ class Compiler extends PluginCompiler<Compiler> {
 	}
 
 	function generateTestHelper(): Void {
+		// The float helpers follow the precision switch so the aggregate
+		// helpers (equals_vec_f32, ...) resolve against a defined symbol
+		// on both lanes (feature spec 23, ruling 10).
+		final real = FloatPrecision.isF32() ? "f32" : "f64";
 		final lines = [
 			"// Generated test helper for type-guided assertions (Ruling C);
 			// the canonical failure text and scalar formatting live in the
@@ -308,11 +312,11 @@ class Compiler extends PluginCompiler<Compiler> {
 			"    }",
 			"}",
 			"",
-			"pub fn equals_f64(a: &f64, b: &f64) -> bool { *a == *b }",
-			"pub fn format_f64(v: &f64) -> String { test_core::TestCore::format_float(*v) }",
-			"pub fn assert_equals_f64(expected: &f64, actual: &f64, message: &str) {",
-			"    if !equals_f64(expected, actual) {",
-			"        test_core::TestCore::report_failure(message, &format_f64(expected), &format_f64(actual));",
+			'pub fn equals_$real(a: &$real, b: &$real) -> bool { *a == *b }',
+			'pub fn format_$real(v: &$real) -> String { test_core::TestCore::format_float(*v) }',
+			'pub fn assert_equals_$real(expected: &$real, actual: &$real, message: &str) {',
+			'    if !equals_$real(expected, actual) {',
+			'        test_core::TestCore::report_failure(message, &format_$real(expected), &format_$real(actual));',
 			"    }",
 			"}",
 			"",
@@ -482,7 +486,7 @@ class Compiler extends PluginCompiler<Compiler> {
 				final abs = a.get();
 				switch(abs.pack.concat([abs.name]).join(".")) {
 					case "Int": "u32";
-					case "Float": "f64";
+					case "Float": FloatPrecision.isF32() ? "f32" : "f64";
 					case "Bool": "bool";
 					case "String": "String";
 					case "std.ReadOnlyArray": "Vec<" + rustType(params[0]) + ">";
@@ -509,7 +513,7 @@ class Compiler extends PluginCompiler<Compiler> {
 	function typeSafeSnake(t: Type, ?types: RustType): String {
 		if(types != null) {
 			final s = types.of(t);
-			if(s == "u32" || s == "u16" || s == "usize" || s == "i32" || s == "i64" || s == "f64" || s == "bool") {
+			if(s == "u32" || s == "u16" || s == "usize" || s == "i32" || s == "i64" || s == "f32" || s == "f64" || s == "bool") {
 				return s;
 			}
 			if(s == "String") return "string";
@@ -519,7 +523,7 @@ class Compiler extends PluginCompiler<Compiler> {
 			case TAbstract(a, _):
 				switch(a.get().name) {
 					case "Int": "i32";
-					case "Float": "f64";
+					case "Float": FloatPrecision.isF32() ? "f32" : "f64";
 					case "Bool": "bool";
 					case "String": "string";
 					case _: RustImports.toSnakeCase(a.get().name);
