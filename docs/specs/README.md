@@ -67,15 +67,15 @@ Every candidate translation is evaluated across four fixed axes:
 | 16 | [16-static-object-access.md](features/16-static-object-access.md) | Complete | Static object read and write syntax, shape freezing, and behavior parity. |
 | 17 | [17-sorting.md](features/17-sorting.md) | Complete | The sort runtime: fixed named strategies, platform bodies, stability identity. |
 | 18 | [18-immutability.md](features/18-immutability.md) | Complete | Read-only data types and per-platform mutation enforcement. |
-| 19 | [19-testing.md](features/19-testing.md) | Planned | In-source tests, per-target execution, and cross-target consistency. |
-| 20 | [20-compile-time-data-tables.md](features/20-compile-time-data-tables.md) | Planned | Compile-time data expansion of large immutable lookup tables and the table emission ruling. |
+| 19 | [19-testing.md](features/19-testing.md) | Complete | In-source tests, per-target execution, and cross-target consistency. |
+| 20 | [20-compile-time-data-tables.md](features/20-compile-time-data-tables.md) | Complete | Compile-time data expansion of large immutable lookup tables and the table emission ruling. |
 | 22 | [22-default-argument-expansion.md](features/22-default-argument-expansion.md) | Planned | Optional function parameters with default values: the completion pass in the typed common layer and the call sites that omit them; the planned coalescing-default extension reads earlier parameters and static fields. |
 | 23 | [23-float-precision-switch.md](features/23-float-precision-switch.md) | Complete | The `float-precision` define selecting the binary32 mapping of `Float` for the whole compilation, with the TypeScript startup rejection and the f64 wire boundary. |
 | 24 | [24-package-shell.md](features/24-package-shell.md) | Complete | The package manifest each target compiler writes next to the generated source, on by default with a one-define opt-out, covering the responsibility split between generator and consumer build. |
 | 25 | [25-package-artifacts.md](features/25-package-artifacts.md) | Complete | The pack step behind `package-artifacts=emit`: the compiler writes the ecosystem install artifact (npm tgz, cargo crate, Swift zip, Pub tar.gz) of the tree it emitted, from the recorded write list, with fixed determinism constants. |
 | 26 | [26-package-registry.md](features/26-package-registry.md) | Complete | The registry tool that turns a directory of install artifacts into one static, read-only registry site serving the five ecosystems. |
 | 27 | [27-class-members-and-records.md](features/27-class-members-and-records.md) | Complete | Class members and records: constructor-parameter fields, constructor bodies, getter-only properties, and the `@:dataClass` record operations. |
-| 28 | [28-enum-value-queries.md](features/28-enum-value-queries.md) | Planned | The enum value queries `Type.allEnums`, `Type.enumConstructor`, `Type.createEnum`: compile-time expansion, per-target artifacts, literal count bounds, and miss semantics. |
+| 28 | [28-enum-value-queries.md](features/28-enum-value-queries.md) | Complete | The enum value queries `Type.allEnums`, `Type.enumConstructor`, `Type.createEnum`: compile-time expansion, per-target artifacts, literal count bounds, and miss semantics. |
 | 29 | [29-first-class-function-values.md](features/29-first-class-function-values.md) | Planned | Function-typed values in every storage position: the verified renderings on all five targets, Rust boxed function storage, and static function fields with capture-free initializers. |
 | 30 | [30-static-fields.md](features/30-static-fields.md) | Planned | Static fields in every declared form: declarations with initializers on all five targets, static assignment from own and other classes, container mutation, and the Rust mutex static. |
 | 31 | [31-record-tostring-member.md](features/31-record-tostring-member.md) | Planned | The printed-form member: a `@:dataClass` class without an explicit `toString` gets one synthesized on every target and in stage 1, sharing the RecordStr assembly routine; amends 27's no-synthesized-members sentence. |
@@ -85,9 +85,9 @@ Every candidate translation is evaluated across four fixed axes:
 | Number | Specification | Status | Description |
 | --- | --- | --- | --- |
 | 01 | [01-functional-idiom-expansion.md](macros/01-functional-idiom-expansion.md) | Complete | Closed-list collection pipeline idioms (`map`, `filter`, `forEach`, `associate`, `sortedBy`) expanded into loop forms in the typed common layer. |
-| 02 | [02-pipeline-idiom-additions.md](macros/02-pipeline-idiom-additions.md) | Planned | Second closed-list additions: `any`, `all`, `firstOrNull`, `sumOf`, `mapNotNull`, `flatMap`. |
-| 03 | [03-group-by-idiom.md](macros/03-group-by-idiom.md) | Planned | `groupBy` with the key-ascending product order. |
-| 04 | [04-record-copy.md](macros/04-record-copy.md) | Planned | Record copy with named field overrides, implemented as one Haxe macro. |
+| 02 | [02-pipeline-idiom-additions.md](macros/02-pipeline-idiom-additions.md) | Complete | Second closed-list additions: `any`, `all`, `firstOrNull`, `sumOf`, `mapNotNull`, `flatMap`. |
+| 03 | [03-group-by-idiom.md](macros/03-group-by-idiom.md) | Complete | `groupBy` with the key-ascending product order. |
+| 04 | [04-record-copy.md](macros/04-record-copy.md) | Complete | Record copy with named field overrides, implemented as one Haxe macro. |
 
 ### Standard library specifications
 
