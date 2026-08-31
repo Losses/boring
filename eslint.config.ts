@@ -54,6 +54,11 @@ export default tseslint.config(
     ],
     rules: {
       "boring/no-functional-iteration": "error",
+      // Generated Haxe interfaces may intentionally be empty marker types.
+      "@typescript-eslint/no-empty-object-type": [
+        "error",
+        { allowInterfaces: "always" },
+      ],
     },
   },
 );

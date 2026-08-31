@@ -66,7 +66,7 @@ class Compiler extends PluginCompiler<Compiler> {
 			return null;
 		}
 		SealedVariantHelper.validateClass(classType);
-		if(isSyntheticImpl(classType.name) || isInlineOnly(classType, varFields, funcFields)) {
+		if(isSyntheticImpl(classType.name) || (!classType.isInterface && isInlineOnly(classType, varFields, funcFields))) {
 			return null;
 		}
 		StaticFunctionMarkers.validateAll(funcFields);

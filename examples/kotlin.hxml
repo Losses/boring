@@ -89,3 +89,5 @@ boring.StaticStateOps
 tests.StaticStateTests
 boring.FnValuesOps
 tests.FnValuesTests
+boring.SealedVariantOps
+tests.SealedVariantTests

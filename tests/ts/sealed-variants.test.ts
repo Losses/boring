@@ -203,10 +203,46 @@ test("the sanctioned self-construction static uses each target lane", async () =
     expect(trees.ts).toContain("public static readonly instance: NoneDrawKind = new NoneDrawKind();");
     expect(trees.kotlin).toContain("val instance: NoneDrawKind = NoneDrawKind()");
     expect(trees.swift).toContain("static let instance: NoneDrawKind = NoneDrawKind()");
-    expect(trees.dart).toContain("static final NoneDrawKind instance = NoneDrawKind();");
+    expect(trees.dart).toContain("static final instance = NoneDrawKind();");
     expect(trees.rust).toContain("#[allow(non_upper_case_globals)]");
     expect(trees.rust).toContain("static instance: Mutex<NoneDrawKind> = Mutex::new(NoneDrawKind::new());");
   } finally {
     fs.rmSync(mutationRoot, { recursive: true, force: true });
   }
+});
+
+test("sealed variant sample trees carry the ruled declaration and printed forms", () => {
+  const read = (file: string): string => fs.readFileSync(path.join(root, file), "utf8");
+  const ts = read("reference/ts/gen/boring/SealedVariantOps.ts");
+  const kotlin = read("reference/kotlin/gen/boring/SealedVariantOps.kt");
+  const swift = read("reference/swift/gen/boring/SealedVariantOps.swift");
+  const dart = read("reference/dart/gen/lib/boring/sealed_variant_ops.dart");
+  const rust = read("reference/rust-gen/src/boring/sealed_variant_ops.rs");
+
+  expect(kotlin).toContain("sealed interface DrawKind");
+  expect(kotlin).toContain("val instance: NoneDrawKind = NoneDrawKind()");
+  expect(kotlin).toContain("data class StripeDrawKind(val strokeWidth: Double, val gapLength: Double) : DrawKind");
+  expect(kotlin).toContain("data class DotDrawKind(val dotDiameter: Double, val gapLength: Double) : DrawKind");
+
+  expect(ts).toContain("public static readonly instance: NoneDrawKind = new NoneDrawKind();");
+  expect(ts).toContain('return "NoneDrawKind";');
+  expect(ts).toContain("StripeDrawKind(strokeWidth=");
+  expect(ts).toContain("DotDrawKind(dotDiameter=");
+
+  expect(swift).toContain("static let instance: NoneDrawKind = NoneDrawKind()");
+  expect(swift).toContain('return "NoneDrawKind"');
+  expect(swift).toContain("StripeDrawKind(strokeWidth=");
+  expect(swift).toContain("DotDrawKind(dotDiameter=");
+
+  expect(dart).toContain("abstract class DrawKind");
+  expect(dart).toContain("static final instance = NoneDrawKind();");
+  expect(dart).toContain('return "NoneDrawKind";');
+  expect(dart).toContain("StripeDrawKind(strokeWidth=");
+  expect(dart).toContain("DotDrawKind(dotDiameter=");
+
+  expect(rust).toContain("#[allow(non_upper_case_globals)]");
+  expect(rust).toContain("static instance: Mutex<NoneDrawKind> = Mutex::new(NoneDrawKind::new());");
+  expect(rust).toContain('return "NoneDrawKind".to_string();');
+  expect(rust).toContain('"StripeDrawKind("');
+  expect(rust).toContain('"DotDrawKind("');
 });

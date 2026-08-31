@@ -43,6 +43,7 @@ class RustDecl {
 		if(cls.isInterface) {
 			final lines: Array<String> = [];
 			lines.push("pub trait " + cls.name + " {");
+			lines.push("    fn __haxe_type_name(&self) -> &'static str;");
 			for(f in funcFields) {
 				final paramList = [for(a in f.args) RustImports.toSnakeCase(a.name) + ": " + types.of(a.type, true)].join(", ");
 				final selfPrefix = f.isStatic ? "" : "&self" + (f.args.length > 0 ? ", " : "");
@@ -148,9 +149,12 @@ class RustDecl {
 		final implGenerics = implBoundList.length > 0 ? "<" + implBoundList.join(", ") + ">" : "";
 		final ltParam = genericStr;
 
+		if(StaticFieldHelper.hasSelfConstructionStatic(cls)) {
+			lines.push("#[derive(Clone)]");
+		}
 		lines.push("pub struct " + cls.name + genericStr + " {");
 		for(v in varFields) {
-			if(isStaticFunctionField(v)) continue;
+			if(v.isStatic) continue;
 			for(l in instanceVarDecl(v, hasLifetime)) lines.push(l);
 		}
 		lines.push("}\n");
@@ -171,6 +175,9 @@ class RustDecl {
 		for(iface in cls.interfaces) {
 			final ifaceCls = iface.t.get();
 			lines.push("\nimpl" + implGenerics + " " + ifaceCls.name + " for " + cls.name + genericStr + " {");
+			lines.push('    fn __haxe_type_name(&self) -> &\'static str {');
+			lines.push('        "${cls.module}.${cls.name}"');
+			lines.push("    }");
 			var ifaceSep = false;
 			for(f in ordinaryFuncs) {
 				if(f.field.name == "new") continue;
@@ -951,7 +958,26 @@ class RustDecl {
 			}
 			expr.setFallible(ctorFallible, errOwner != null ? errOwner.name : null, errOwner != null && errOwner.hasOverflow ? state.overflowVariant : null);
 			final ret = ctorFallible ? " -> Result<Self, " + errOwner.name + ">" : " -> Self";
-			final head = '    pub fn new($args)$ret {';
+			var hasInstanceFields = false;
+			for(field in cls.fields.get()) {
+				switch(field.kind) {
+					case FVar(_, _):
+						var isStatic = false;
+						for(staticField in cls.statics.get()) {
+							if(staticField.name == field.name) {
+								isStatic = true;
+								break;
+							}
+						}
+						if(!isStatic) {
+							hasInstanceFields = true;
+							break;
+						}
+					case _:
+				}
+			}
+			final constCtor = !ctorFallible && !hasInstanceFields;
+			final head = '    pub ${constCtor ? "const " : ""}fn new($args)$ret {';
 			final parts = expr.constructorBody(cls, f);
 			final lines = [head];
 			for(l in parts.statementLines) {
