@@ -2381,6 +2381,31 @@ class RustExpr {
 		};
 	}
 
+	function stringToolsHex(args: Array<TypedExpr>): String {
+		final value = args[0];
+		final digits = args.length > 1 && !isTNull(args[1]) ? args[1] : null;
+		if(isNegativeIntLiteral(value) || (digits != null && isNegativeIntLiteral(digits))) {
+			Context.error("StringTools.hex accepts non-negative arguments only", value.pos);
+		}
+		final valueText = expr(value);
+		if(digits == null) {
+			return "format!(\"{:X}\", " + valueText + ")";
+		}
+		return "format!(\"{:0w$X}\", " + valueText + ", w = " + expr(digits) + " as usize)";
+	}
+
+	function isNegativeIntLiteral(e: TypedExpr): Bool {
+		return switch(stripWrap(e).expr) {
+			case TConst(TInt(value)): value < 0;
+			case TUnop(OpNeg, _, inner):
+				switch(stripWrap(inner).expr) {
+					case TConst(TInt(value)): value > 0;
+					case _: false;
+				}
+			case _: false;
+		};
+	}
+
 	function call(fn: TypedExpr, args: Array<TypedExpr>): String {
 		switch(fn.expr) {
 			case TField(_, FStatic(c, cf)) if(c.get().module == "Std" && cf.get().name == "string" && args.length == 1): return stdString(args[0], false);
@@ -2421,6 +2446,10 @@ class RustExpr {
 				return expr(subj) + ".len() as u32";
 			case TField(subj, FInstance(c, _, cf)):
 				final name = cf.get().name;
+				if(isString(subj)) {
+					if(name == "toLowerCase") return expr(subj) + ".to_lowercase()";
+					if(name == "toUpperCase") return expr(subj) + ".to_uppercase()";
+				}
 				final snake = RustImports.toSnakeCase(name);
 				if(isMapType(subj.t)) {
 					if(name == "exists" && args.length == 1) return expr(subj) + ".contains_key(&" + rustMapKey(args[0]) + ")";
@@ -2627,6 +2656,9 @@ class RustExpr {
 				final cls = c.get();
 				final name = cf.get().name;
 				final path = cls.pack.length == 0 ? cls.name : cls.pack.join(".") + "." + cls.name;
+				if(cls.pack.length == 0 && cls.name == "StringTools" && name == "hex") {
+					return stringToolsHex(args);
+				}
 				if(cls.pack.length == 0 && cls.name == "Std" && name == "int") {
 					// An Int-typed argument converts nothing, except a
 					// bare length read, whose rendering is usize; Float

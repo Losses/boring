@@ -1276,6 +1276,40 @@ class SwiftExpr {
 		};
 	}
 
+	function stringToolsHex(args: Array<TypedExpr>): String {
+		final value = args[0];
+		final digits = args.length > 1 && !isNullExpr(args[1]) ? args[1] : null;
+		if(isNegativeIntLiteral(value) || (digits != null && isNegativeIntLiteral(digits))) {
+			Context.error("StringTools.hex accepts non-negative arguments only", value.pos);
+		}
+		final valueText = expr(value);
+		final hex = "String(" + valueText + ", radix: 16, uppercase: true)";
+		if(digits == null) {
+			return hex;
+		}
+		final digitsText = "Int(" + expr(digits) + ")";
+		return "{ let s = " + hex + "; return s.count < " + digitsText + " ? String(repeating: \"0\", count: " + digitsText + " - s.count) + s : s }()";
+	}
+
+	function isNegativeIntLiteral(e: TypedExpr): Bool {
+		return switch(stripWrap(e).expr) {
+			case TConst(TInt(value)): value < 0;
+			case TUnop(OpNeg, _, inner):
+				switch(stripWrap(inner).expr) {
+					case TConst(TInt(value)): value > 0;
+					case _: false;
+				}
+			case _: false;
+		};
+	}
+
+	function isNullExpr(e: TypedExpr): Bool {
+		return switch(stripWrap(e).expr) {
+			case TConst(TNull): true;
+			case _: false;
+		};
+	}
+
 	function call(fn: TypedExpr, args: Array<TypedExpr>): String {
 		final inlineMapCall = mapHasOwnPropertyCall(fn, args);
 		if(inlineMapCall != null) {
@@ -1296,6 +1330,9 @@ class SwiftExpr {
 				final cls = c.get();
 				final fName = cf.get().name;
 				final module = cls.module != "" ? cls.module : (cls.pack.length == 0 ? cls.name : cls.pack.join(".") + "." + cls.name);
+				if(cls.pack.length == 0 && cls.name == "StringTools" && fName == "hex") {
+					return stringToolsHex(args);
+				}
 				if(module == "std.UStringPlatform") {
 					return ustringPlatformCall(fName, args, fn);
 				}
@@ -1365,6 +1402,10 @@ class SwiftExpr {
 				return "Int32(" + expr(subj) + ".count)";
 			case TField(subj, FInstance(_, _, cf)):
 				final name = cf.get().name;
+				if(isStringSubject(subj)) {
+					if(name == "toLowerCase") return expr(subj) + ".lowercased()";
+					if(name == "toUpperCase") return expr(subj) + ".uppercased()";
+				}
 				if(isMapType(subj.t)) {
 					if(name == "exists" && args.length == 1) return expr(subj) + "[" + expr(args[0]) + "] != nil";
 					if(name == "get" && args.length == 1) return expr(subj) + "[" + expr(args[0]) + "]";
