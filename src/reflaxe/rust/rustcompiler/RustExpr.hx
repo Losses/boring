@@ -2409,7 +2409,13 @@ class RustExpr {
 			case FStatic(c, cf):
 				final cls = c.get();
 				final name = cf.get().name;
+				if(isLazyStaticField(cls, name) && !StaticFieldHelper.isSelfConstruction(cf.get(), cls)) {
+					return "&*" + staticItemPath(cls, name);
+				}
 				if(isGuardStaticField(cls, name)) {
+					if(StaticFieldHelper.isConstruction(cf.get().expr())) {
+						return "&*" + staticItemPath(cls, name);
+					}
 					final guard = staticGuard(cls, name);
 					return StaticFieldHelper.isArrayType(cf.get().type) ? guard : guard + ".clone()";
 				}
@@ -2480,13 +2486,17 @@ class RustExpr {
 		return null;
 	}
 
+	function isLazyStaticField(cls: ClassType, name: String): Bool {
+		final field = staticFieldOf(cls, name);
+		return field != null && StaticFieldHelper.isConstruction(field.expr());
+	}
+
 	function isGuardStaticField(cls: ClassType, name: String): Bool {
 		final field = staticFieldOf(cls, name);
 		return field != null
 			&& ValueTypeSupport.markedAbstractOfClass(cls) == null
 			&& StaticFieldHelper.initializer(field) != null
-			&& !DataTableHelper.isDataTableField(field)
-			&& !StaticFieldHelper.isConstValue(field);
+			&& !StaticFieldHelper.isConstruction(field.expr())
 	}
 
 	function staticItemPath(cls: ClassType, name: String): String {
