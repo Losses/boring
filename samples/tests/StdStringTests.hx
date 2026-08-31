@@ -1,6 +1,7 @@
 package tests;
 
 import boring.StdStringOps;
+import boring.FloatWidth;
 import std.Test;
 
 class StdStringTests {
@@ -18,5 +19,12 @@ class StdStringTests {
 		Test.equals("42", StdStringOps.intValue(42));
 		Test.equals("2.5", StdStringOps.floatValue(2.5));
 		Test.equals("false", StdStringOps.boolValue(false));
+	}
+
+	@:test("Std.string converts value enumeration operands to constructor names")
+	public static function valueEnumerations():Void {
+		Test.equals("enum=F64", StdStringOps.concatEnum(FloatWidth.F64));
+		Test.equals("F16", StdStringOps.enumValue(FloatWidth.F16));
+		Test.equals(true, StdStringOps.enumMatchesConstructor());
 	}
 }
