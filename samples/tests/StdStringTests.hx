@@ -27,4 +27,16 @@ class StdStringTests {
 		Test.equals("F16", StdStringOps.enumValue(FloatWidth.F16));
 		Test.equals(true, StdStringOps.enumMatchesConstructor());
 	}
+
+	@:test("Std.string renders arrays with ruled separators and element forms")
+	public static function arrays():Void {
+		Test.equals("[1, 2, 3]", StdStringOps.intArray());
+		Test.equals("[alpha, beta]", StdStringOps.stringArray());
+		Test.equals("[1.5, 2.25]", StdStringOps.floatArray());
+		Test.equals("[true, false]", StdStringOps.boolArray());
+		Test.equals("[F64, F16]", StdStringOps.enumArray());
+		Test.equals("[]", StdStringOps.emptyArray());
+		Test.equals("[[1, 2], [3]]", StdStringOps.nestedArray());
+		Test.equals("[alpha, beta]", StdStringOps.readOnlyArray());
+	}
 }
