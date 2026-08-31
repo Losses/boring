@@ -11,7 +11,7 @@ class PrintedEnumTests {
 		#if boring_oracle
 		Test.equals("Ring(diameter=1.5)", PrintedEnumOps.markText(Ring(1.5)));
 		#else
-		Test.equals("mark=Ring(diameter=1.5)", PrintedEnumOps.markText(Ring(1.5)));
+		Test.equals("mark=Ring(1.5)", PrintedEnumOps.markText(Ring(1.5)));
 		#end
 		Test.equals("Tag(text=x, weight=2)", PrintedEnumOps.markValue(Tag("x".toString(), 2)));
 		Test.equals("PrintedBadge(mark=Ring(diameter=1.5), width=F64)", PrintedEnumOps.badgeText(new PrintedBadge(Ring(1.5), F64)));
