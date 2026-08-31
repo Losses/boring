@@ -9,6 +9,8 @@ import haxe.macro.Type.FieldAccess;
 import haxe.macro.Type.TypedExpr;
 import haxe.macro.TypedExprTools;
 import reflaxe.data.ClassFuncData;
+import ValueTypeSupport;
+import ValueTypeSupport.ValueTypeOperator;
 
 /**
 	Statement and expression lowering from the Haxe typed AST to Kotlin.
@@ -181,6 +183,37 @@ class KotlinExpr {
 		f.expr.expr = fusedRoot.expr;
 		scanLocals(f.expr);
 		return blockLines(statementsOf(f.expr), 1);
+	}
+
+	/** Body lowering for members declared on a value wrapper. */
+	public function valueTypeFunctionBody(cls: ClassType, f: ClassFuncData, fieldName: String): Array<String> {
+		final valueType = ValueTypeSupport.markedAbstractOfClass(cls);
+		if(valueType != null && ValueTypeSupport.operatorOf(valueType, f.field) != null) {
+			if(f.args.length > 0) bindLocalName(f.args[0].tvar, fieldName);
+			if(f.args.length > 1) bindLocalName(f.args[1].tvar, "other");
+		} else if(ValueTypeSupport.hasReceiver(f.field) && f.args.length > 0) {
+			bindLocalName(f.args[0].tvar, fieldName);
+		}
+		return functionBody(cls, f);
+	}
+
+	/** Drops the representation assignment from a validating wrapper init. */
+	public function valueTypeConstructorBody(cls: ClassType, f: ClassFuncData): Array<String> {
+		if(f.expr == null) Context.error("value type constructor has no body to lower", f.field.pos);
+		DefaultArgExpander.completeRootExpr(cls, f.field.name, f.expr);
+		PipelineExpander.expandRootExpr(f.expr);
+		EnumQueryExpander.expandRootExpr(f.expr);
+		currentClass = cls;
+		currentField = f.field.name;
+		currentLocalName = null;
+		for(a in f.args) reserveName(a.name);
+		scanLocals(f.expr);
+		final out:Array<String> = [];
+		for(stmt in statementsOf(f.expr)) {
+			if(ValueTypeSupport.isThisDeclaration(stmt) || ValueTypeSupport.isThisAssignment(stmt) || ValueTypeSupport.isThisReturn(stmt)) continue;
+			for(line in stmtLines(stmt, 2)) out.push(line);
+		}
+		return out;
 	}
 
 	/**
@@ -510,6 +543,12 @@ class KotlinExpr {
 	}
 
 	function fuseWithin(e: TypedExpr): TypedExpr {
+		if(ValueTypeSupport.markedAbstractOfType(e.t) != null) {
+			switch(e.expr) {
+				case TBlock(_): return e;
+				case _:
+			}
+		}
 		return switch(e.expr) {
 			case TBlock(stmts):
 				final fused = fuseUninitializedVars([for(s in stmts) fuseWithin(s)]);
@@ -828,6 +867,8 @@ class KotlinExpr {
 	// ------------------------------------------------------------------
 
 	function expr(e: TypedExpr): String {
+		final wrapperValue = ValueTypeSupport.syntheticValue(e);
+		if(wrapperValue != null) return valueTypeSynthetic(e, wrapperValue);
 		final query = enumQuery(e);
 		if(query != null) return query;
 		switch(e.expr) {
@@ -923,6 +964,75 @@ class KotlinExpr {
 			case _:
 				return fail(e, "expression has no Kotlin lowering in the subset: " + Std.string(e.expr));
 		}
+	}
+
+	/** Lowers an abstract implementation block to a Kotlin value wrapper. */
+	function valueTypeSynthetic(wrapper:TypedExpr, value:TypedExpr):String {
+		final abs = ValueTypeSupport.markedAbstractOfType(wrapper.t);
+		if(abs == null) return expr(value);
+		final locals = valueTypeLocalValues(wrapper);
+		final activeAbs = currentClass == null ? null : ValueTypeSupport.markedAbstractOfClass(currentClass);
+		final activeField = activeAbs != null && currentField != null ? ValueTypeSupport.memberField(activeAbs, currentField) : null;
+		final nativeOperator = activeAbs != null && activeField != null && ValueTypeSupport.sameAbstract(activeAbs, abs)
+			&& ValueTypeSupport.operatorOf(abs, activeField) != null;
+		return switch(stripWrap(value).expr) {
+			case TBinop(op, left, right):
+				final field = ValueTypeSupport.binaryOperatorField(abs, op);
+				if(field == null) expr(value) else {
+					final asRepresentation = nativeOperator && field.name == currentField;
+					final rendered = valueTypeOperand(left, locals, abs, asRepresentation) + " " + opStr(op) + " " + valueTypeOperand(right, locals, abs, asRepresentation);
+					nativeOperator && field.name == currentField ? abs.name + "(" + rendered + ")" : rendered;
+				}
+			case TUnop(op, _, subject):
+				final field = ValueTypeSupport.unaryOperatorField(abs, op);
+				if(field == null) expr(value) else {
+					final asRepresentation = nativeOperator && field.name == currentField;
+					final rendered = "-" + valueTypeOperand(subject, locals, abs, asRepresentation);
+					nativeOperator && field.name == currentField ? abs.name + "(" + rendered + ")" : rendered;
+				}
+			case _: abs.name + "(" + expr(value) + ")";
+		};
+	}
+
+	function valueTypeLocalValues(wrapper:TypedExpr):Map<Int, TypedExpr> {
+		final values:Map<Int, TypedExpr> = [];
+		switch(wrapper.expr) {
+			case TBlock(stmts):
+				for(stmt in stmts) switch(stmt.expr) {
+					case TVar(v, init) if(init != null && !StringTools.startsWith(v.name, "this")): values.set(v.id, init);
+					case _:
+				}
+			case _:
+		}
+		return values;
+	}
+
+	function valueTypeOperand(value:TypedExpr, locals:Map<Int, TypedExpr>, ?abs:AbstractType, asRepresentation:Bool = false):String {
+		var source = value;
+		var wrapperOperand = false;
+		var decorated = true;
+		while(decorated) {
+			if(abs != null) {
+				final sourceAbs = ValueTypeSupport.markedAbstractOfType(source.t);
+				if(sourceAbs != null && ValueTypeSupport.sameAbstract(sourceAbs, abs)) wrapperOperand = true;
+			}
+			switch(source.expr) {
+				case TCast(inner, _): source = inner;
+				case TMeta(_, inner): source = inner;
+				case _: decorated = false;
+			}
+		}
+		switch(stripWrap(value).expr) {
+			case TLocal(v) if(locals.exists(v.id)): return expr(locals.get(v.id));
+			case _:
+		}
+		final rendered = expr(value);
+		final fieldName = abs == null ? "" : ValueTypeSupport.representationFieldName(abs);
+		final alreadyRepresentation = switch(stripWrap(value).expr) {
+			case TLocal(v) if(subst.exists(v.id) && subst.get(v.id) == fieldName): true;
+			case _: false;
+		};
+		return asRepresentation && wrapperOperand && !alreadyRepresentation ? rendered + "." + fieldName : rendered;
 	}
 
 	function enumQuery(e:TypedExpr):Null<String> {
@@ -1306,6 +1416,11 @@ class KotlinExpr {
 	}
 
 	function staticRef(cls: ClassType, name: String): String {
+		final valueType = ValueTypeSupport.markedAbstractOfClass(cls);
+		if(valueType != null) {
+			imports.requireType(valueType.module, valueType.name);
+			return valueType.name + "." + name;
+		}
 		final markedField = findStaticField(cls, name);
 		if(markedField != null && StaticFunctionMarkers.isMarked(markedField)) {
 			return imports.functionRef(cls.module, name, markedField.isPublic);
@@ -1442,6 +1557,14 @@ class KotlinExpr {
 				final item = stdStringType(element, value + "[" + index + "]", true, origin, depth + 1);
 				'run { val sb = StringBuilder(); sb.append(\'[\'); val n = ${value}.size; var ${index} = 0; while (${index} < n) { if (${index} > 0) { sb.append(", "); }; sb.append(${item}); ${index} += 1; }; sb.append(\']\'); sb.toString() }';
 			case TInst(c, _) if(c.get().meta.has(":dataClass")): value + ".toString()";
+			case TAbstract(a, _) if(ValueTypeSupport.isMarkedAbstract(a.get())):
+				final abs = a.get();
+				if(ValueTypeSupport.memberField(abs, "toString") != null) {
+					value + ".toString()";
+				} else {
+					final representation = value + "." + ValueTypeSupport.representationFieldName(abs);
+					inConcat ? representation : "(" + representation + ").toString()";
+				}
 			case TAbstract(a, _) if(a.get().name == "Int" || a.get().name == "Float" || a.get().name == "Bool"): inConcat ? value : "(" + value + ").toString()";
 			case TAbstract(a, params) if(a.get().module == "std.ReadOnlyArray"):
 				stdStringType(haxe.macro.TypeTools.applyTypeParameters(a.get().type, a.get().params, params), value, inConcat, origin, depth);
@@ -1497,7 +1620,45 @@ class KotlinExpr {
 		};
 	}
 
+	/** Routes calls on a marked abstract implementation to value members. */
+	function valueTypeCall(fn:TypedExpr, args:Array<TypedExpr>):Null<String> {
+		switch(stripWrap(fn).expr) {
+			case TField(_, FStatic(c, cf)):
+				final abs = ValueTypeSupport.markedAbstractOfClass(c.get());
+				if(abs == null) return null;
+				final field = cf.get();
+				if(field.name == "_new") return args.length == 0 ? abs.name : abs.name + "(" + expr(args[0]) + ")";
+				final op = ValueTypeSupport.operatorOf(abs, field);
+				if(op != null) {
+					return switch(op) {
+						case Binary(_): args.length >= 2 ? expr(args[0]) + " " + opStrForValue(op) + " " + expr(args[1]) : abs.name;
+						case Unary(_): args.length > 0 ? "-" + expr(args[0]) : abs.name;
+					};
+				}
+				if(ValueTypeSupport.hasReceiver(field) && args.length > 0) {
+					final tail = [for(i in 1...args.length) expr(args[i])].join(", ");
+					return expr(args[0]) + "." + kotlinMethodName(field.name) + "(" + tail + ")";
+				}
+				return abs.name + "." + field.name + "(" + [for(a in args) expr(a)].join(", ") + ")";
+			case TField(subj, FInstance(_, _, cf)) | TField(subj, FAnon(cf)):
+				final abs = ValueTypeSupport.markedAbstractOfType(subj.t);
+				if(abs == null) return null;
+				return expr(subj) + "." + kotlinMethodName(cf.get().name) + "(" + [for(a in args) expr(a)].join(", ") + ")";
+			case _:
+		}
+		return null;
+	}
+
+	function opStrForValue(op:ValueTypeOperator):String {
+		return switch(op) {
+			case Binary(binary): opStr(binary);
+			case Unary(_): "-";
+		};
+	}
+
 	function call(fn: TypedExpr, args: Array<TypedExpr>): String {
+		final wrapperCall = valueTypeCall(fn, args);
+		if(wrapperCall != null) return wrapperCall;
 		switch(fn.expr) {
 			case TField(_, FStatic(c, cf)) if(c.get().module == "Std" && cf.get().name == "string" && args.length == 1): return stdString(args[0], false);
 			case TField(subj, FInstance(_, _, cf)) if(cf.get().name == "get_message" && args.length == 0):
@@ -1514,6 +1675,9 @@ class KotlinExpr {
 				final name = cf.get().name;
 				if(cls.pack.length == 0 && cls.name == "StringTools" && name == "hex") {
 					return stringToolsHex(args);
+				}
+				if(cls.pack.length == 0 && cls.name == "StringTools" && name == "trim" && args.length == 1) {
+					return expr(args[0]) + ".trim()";
 				}
 				final markedField = findStaticField(cls, name);
 				if(markedField != null && StaticFunctionMarkers.isMarked(markedField)) {
@@ -1751,6 +1915,8 @@ class KotlinExpr {
 
 	function newExpr(c: Ref<ClassType>, params: Array<Type>, args: Array<TypedExpr>): String {
 		final cls = c.get();
+		final valueType = ValueTypeSupport.markedAbstractOfClass(cls);
+		if(valueType != null) return args.length == 0 ? valueType.name : valueType.name + "(" + expr(args[0]) + ")";
 		final renderedArgs = [for(a in args) expr(a)].join(", ");
 		final path = cls.pack.length == 0 ? cls.name : cls.pack.join(".") + "." + cls.name;
 		switch(path) {

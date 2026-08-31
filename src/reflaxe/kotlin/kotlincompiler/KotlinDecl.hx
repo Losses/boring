@@ -6,6 +6,9 @@ import haxe.macro.Type;
 import reflaxe.data.ClassFuncData;
 import reflaxe.data.ClassVarData;
 import reflaxe.data.EnumOptionData;
+import ValueTypeSupport;
+import ValueTypeSupport.ValueTypeOperator;
+import ValueTypeSupport.ValueTypeInfo;
 
 /**
 	Declaration lowering for Kotlin: classes, objects, sealed error
@@ -247,6 +250,92 @@ class KotlinDecl {
 
 		lines.push("}");
 		return withExtracted(extractedParts, lines.join("\n"));
+	}
+
+	/** Emits a marked abstract as an inline Kotlin value class. */
+	public function valueTypeDecl(cls: ClassType, info: ValueTypeInfo, varFields: Array<ClassVarData>, funcFields: Array<ClassFuncData>): String {
+		final abs = info.abstractType;
+		final ctor = ValueTypeSupport.constructorField(abs);
+		final first = ctor == null ? null : ValueTypeSupport.firstArgument(ctor);
+		if(first == null) {
+			Context.error("value type constructor must take its representation", cls.pos);
+		}
+		final fieldName = first.name;
+		final representation = types.of(info.representation);
+		final lines: Array<String> = ["@JvmInline", "value class " + info.name + "(val " + fieldName + ": " + representation + ") {"];
+
+		if(ctor != null && ValueTypeSupport.constructorThrows(abs)) {
+			lines.push("    init {");
+			for(line in expr.valueTypeConstructorBody(cls, findFunc(funcFields, "_new"))) lines.push(line);
+			lines.push("    }");
+		}
+
+		for(f in funcFields) {
+			if(f.field.name == "_new" || (ValueTypeSupport.isInlineHelper(f.field) && ValueTypeSupport.operatorOf(abs, f.field) == null)) continue;
+			final op = ValueTypeSupport.operatorOf(abs, f.field);
+			final isOperator = op != null;
+			final receiver = ValueTypeSupport.hasReceiver(f.field);
+			final start = isOperator ? (switch(op) { case Binary(_): 1; case Unary(_): f.args.length; }) : (receiver ? 1 : 0);
+			final args: Array<String> = [];
+			for(i in start...f.args.length) {
+				final a = f.args[i];
+				final name = isOperator && i == 1 ? "other" : a.name;
+				final type = isOperator ? info.name : types.of(a.type);
+				args.push(name + (a.opt ? "?" : "") + ": " + type);
+			}
+			final ret = types.of(f.ret);
+			final vis = isOperator || f.field.isPublic ? "" : "private ";
+			final name = isOperator ? kotlinOperatorName(op) : f.field.name;
+			final overrideKw = f.field.name == "toString" ? "override " : "";
+			lines.push("");
+			lines.push("    " + vis + overrideKw + (isOperator ? "operator " : "") + "fun " + name + "(" + args.join(", ") + "): " + ret + " {");
+			for(line in expr.valueTypeFunctionBody(cls, f, fieldName)) lines.push("    " + line);
+			lines.push("    }");
+		}
+
+		final staticVars = [for(v in varFields) if(v.isStatic) v];
+		if(staticVars.length > 0) {
+			lines.push("");
+			lines.push("    companion object {");
+			for(i in 0...staticVars.length) {
+				final v = staticVars[i];
+				final initializer = v.field.expr();
+				if(initializer == null) Context.error("value type static field must have an initializer", v.field.pos);
+				lines.push("        " + (v.field.isPublic ? "" : "private ") + "val " + v.field.name + ": " + info.name + " = " + expr.rawExpression(initializer));
+			}
+			lines.push("    }");
+		}
+		lines.push("}");
+		return lines.join("\n");
+	}
+
+	function findFunc(funcFields: Array<ClassFuncData>, name: String): ClassFuncData {
+		for(f in funcFields) if(f.field.name == name) return f;
+		Context.error("value type constructor is missing", Context.currentPos());
+		return null;
+	}
+
+	function kotlinOperatorName(op: ValueTypeOperator): String {
+		return switch(op) {
+			case Binary(binary): switch(binary) {
+				case OpAdd: "plus";
+				case OpSub: "minus";
+				case OpMult: "times";
+				case OpDiv: "div";
+				case OpMod: "rem";
+				case OpEq: "equals";
+				case OpNotEq: "equals";
+				case OpLt: "compareTo";
+				case OpLte: "compareTo";
+				case OpGt: "compareTo";
+				case OpGte: "compareTo";
+				case _: "plus";
+			};
+			case Unary(unary): switch(unary) {
+				case OpNeg: "unaryMinus";
+				case _: "unaryPlus";
+			};
+		};
 	}
 
 	function withExtracted(extractedParts: Array<String>, classPart: String): String {

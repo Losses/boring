@@ -52,7 +52,7 @@ class SwiftFallibility {
 				case TClassDecl(c):
 					final cls = c.get();
 					final resident = RuntimeResidents.isResident(cls.module);
-					if(cls.isExtern || (!resident && !inScope(cls.pos)) || StringTools.endsWith(cls.name, "_Impl_")) {
+					if(cls.isExtern || (!resident && !inScope(cls.pos)) || (StringTools.endsWith(cls.name, "_Impl_") && ValueTypeSupport.markedAbstractOfClass(cls) == null)) {
 						continue;
 					}
 					for(field in cls.statics.get()) {

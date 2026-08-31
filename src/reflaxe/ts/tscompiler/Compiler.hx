@@ -40,6 +40,7 @@ class Compiler extends PluginCompiler<Compiler> {
 		if(FloatPrecision.isF32()) {
 			Context.error("float-precision=f32 is not available on the TypeScript target: number is binary64; compile without the define for f64 semantics", Context.currentPos());
 		}
+		Context.onAfterTyping(ValueTypeSupport.validateModules);
 		ReflectCompiler.AddCompiler(new Compiler(), {
 			fileOutputType: BaseCompilerFileOutputType.Manual,
 			fileOutputExtension: ".ts",
@@ -63,6 +64,17 @@ class Compiler extends PluginCompiler<Compiler> {
 		// Resident runtime modules sit under src/runtime, outside the
 		// sample source roots, but compile through this same pipeline.
 		final isResident = RuntimeResidents.isResident(classType.module);
+		final valueType = ValueTypeSupport.infoOfClass(classType);
+		if(valueType != null) {
+			if(!ValueTypeSupport.isValidAbstract(valueType.abstractType)) {
+				return null;
+			}
+			StaticFunctionMarkers.validateAll(funcFields);
+			final decl = contextFor(classType.module);
+			final result = decl.valueTypeDecl(classType, valueType, varFields, funcFields);
+			parts.get(classType.module).push(result);
+			return result;
+		}
 		if(classType.isExtern || (!isResident && !inSourceScope(classType.pos)) || isSyntheticImpl(classType.name) || isInlineOnly(classType, varFields, funcFields)) {
 			return null;
 		}

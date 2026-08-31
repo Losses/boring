@@ -31,6 +31,7 @@ class Compiler extends PluginCompiler<Compiler> {
 
 	public static function use() {
 		final compiler = new Compiler();
+		haxe.macro.Context.onAfterTyping(ValueTypeSupport.validateModules);
 		haxe.macro.Context.onAfterTyping(compiler.preScan);
 		ReflectCompiler.AddCompiler(compiler, {
 			fileOutputType: BaseCompilerFileOutputType.Manual,
@@ -57,6 +58,17 @@ class Compiler extends PluginCompiler<Compiler> {
 		// intercepted source roots, and still compile: each lane lists
 		// them in its hxml so typing reaches them (RuntimeResidents).
 		final isResident = RuntimeResidents.isResident(classType.module);
+		final valueType = ValueTypeSupport.infoOfClass(classType);
+		if(valueType != null) {
+			if(!ValueTypeSupport.isValidAbstract(valueType.abstractType)) {
+				return null;
+			}
+			StaticFunctionMarkers.validateAll(funcFields);
+			final decl = contextFor(classType.module);
+			final result = decl.valueTypeDecl(classType, valueType, varFields, funcFields);
+			parts.get(classType.module).push(result);
+			return result;
+		}
 		if(classType.isExtern || isSyntheticImpl(classType.name) || isInlineOnly(classType, varFields, funcFields) || (!isResident && !inSourceScope(classType.pos))) {
 			return null;
 		}
@@ -669,7 +681,7 @@ class Compiler extends PluginCompiler<Compiler> {
 			switch(mt) {
 				case TClassDecl(c):
 					final cls = c.get();
-					if(cls.isExtern || isSyntheticImpl(cls.name) || !inSourceScope(cls.pos)) {
+					if(cls.isExtern || (isSyntheticImpl(cls.name) && ValueTypeSupport.markedAbstractOfClass(cls) == null) || !inSourceScope(cls.pos)) {
 						continue;
 					}
 					if(RustDecl.isExceptionSubclass(cls)) {
@@ -770,7 +782,7 @@ class Compiler extends PluginCompiler<Compiler> {
 			switch(mt) {
 				case TClassDecl(c):
 					final cls = c.get();
-					if(cls.isExtern || isSyntheticImpl(cls.name) || !inSourceScope(cls.pos)) {
+					if(cls.isExtern || (isSyntheticImpl(cls.name) && ValueTypeSupport.markedAbstractOfClass(cls) == null) || !inSourceScope(cls.pos)) {
 						continue;
 					}
 					function scanField(field: haxe.macro.Type.ClassField, isStatic: Bool) {

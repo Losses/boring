@@ -6,6 +6,9 @@ import haxe.macro.Type;
 import reflaxe.data.ClassFuncData;
 import reflaxe.data.ClassVarData;
 import reflaxe.data.EnumOptionData;
+import ValueTypeSupport;
+import ValueTypeSupport.ValueTypeInfo;
+import ValueTypeSupport.ValueTypeOperator;
 
 /**
 	Declaration lowering for Rust: structs, impl blocks, and enums.
@@ -192,6 +195,148 @@ class RustDecl {
 
 		final classPart = prefixLines.length > 0 ? prefixLines.join("\n\n") + "\n\n" + lines.join("\n") : lines.join("\n");
 		return extractedParts.length > 0 ? extractedParts.join("\n\n") + "\n\n" + classPart : classPart;
+	}
+
+	/** Emits a marked abstract as a Rust tuple newtype and trait impls. */
+	public function valueTypeDecl(cls: ClassType, info: ValueTypeInfo, varFields: Array<ClassVarData>, funcFields: Array<ClassFuncData>): String {
+		final abs = info.abstractType;
+		final ctor = ValueTypeSupport.constructorField(abs);
+		final ctorData = findFunc(funcFields, "_new");
+		final representation = types.of(info.representation, false);
+		final derives = ValueTypeSupport.isFloatRepresentation(abs)
+			? "Debug, Clone, PartialEq"
+			: "Debug, Clone, PartialEq, Eq, Hash";
+		final lines: Array<String> = ["#[derive(" + derives + ")]", "pub struct " + info.name + "(pub " + representation + ");", "", "impl " + info.name + " {"];
+		final hasCtorThrow = ctor != null && ValueTypeSupport.constructorThrows(abs);
+		var ctorError: Null<{name:String, module:String, hasOverflow:Bool}> = null;
+		if(hasCtorThrow) ctorError = resolveErrorOwner(ctorData, cls);
+		if(hasCtorThrow && ctorError != null) imports.requireType(ctorError.module, ctorError.name);
+		final ctorArgType = isStringRepresentation(info.representation) ? "&str" : representation;
+		lines.push("    pub fn new(value: " + ctorArgType + ")" + (hasCtorThrow ? " -> Result<Self, " + ctorError.name + ">" : " -> Self") + " {");
+		if(hasCtorThrow) {
+			expr.setFallible(true, ctorError.name, ctorError.hasOverflow ? state.overflowVariant : null);
+			for(line in expr.valueTypeConstructorBody(cls, ctorData)) lines.push("    " + line);
+		}
+		final ctorValue = isStringRepresentation(info.representation) ? "value.to_string()" : "value";
+		lines.push("        " + (hasCtorThrow ? "return Ok(Self(" + ctorValue + "));" : "return Self(" + ctorValue + ");"));
+		lines.push("    }");
+
+		for(f in funcFields) {
+			if(f.field.name == "_new" || f.field.name == "toString" || ValueTypeSupport.operatorOf(abs, f.field) != null || ValueTypeSupport.isInlineHelper(f.field)) continue;
+			final receiver = ValueTypeSupport.hasReceiver(f.field);
+			final start = receiver ? 1 : 0;
+			final isFallible = funcIsFallible(f);
+			final errOwner = isFallible ? resolveErrorOwner(f, cls) : null;
+			if(isFallible && errOwner != null) imports.requireType(errOwner.module, errOwner.name);
+			expr.setFallible(isFallible, errOwner != null ? errOwner.name : null, errOwner != null && errOwner.hasOverflow ? state.overflowVariant : null);
+			final rawRet = types.of(f.ret, false);
+			final ret = isFallible ? " -> Result<" + rawRet + ", " + errOwner.name + ">" : (rawRet == "()" ? "" : " -> " + rawRet);
+			final args = [for(i in start...f.args.length) {
+				final a = f.args[i];
+				RustImports.toSnakeCase(a.name) + ": " + types.of(a.type, true);
+			}].join(", ");
+			final allArgs = receiver ? (args.length > 0 ? "&self, " + args : "&self") : args;
+			final vis = f.field.isPublic ? "pub " : "";
+			lines.push("");
+			lines.push("    " + vis + "fn " + RustImports.toSnakeCase(f.field.name) + "(" + allArgs + ")" + ret + " {");
+			final receiverName = isStringRepresentation(info.representation) && f.field.name == "toString" ? "self.0.clone()" : "self.0";
+			for(line in expr.valueTypeFunctionBody(cls, f, receiverName)) lines.push("    " + line);
+			lines.push("    }");
+		}
+
+		if(ValueTypeSupport.memberField(abs, "toString") != null) {
+			final f = findFunc(funcFields, "toString");
+			lines.push("");
+			lines.push("    fn to_string_value(&self) -> String {");
+			expr.setFallible(false);
+			for(line in expr.valueTypeFunctionBody(cls, f, isStringRepresentation(info.representation) ? "self.0.clone()" : "self.0")) lines.push("    " + line);
+			lines.push("    }");
+		}
+
+		for(v in varFields) {
+			if(!v.isStatic) continue;
+			final initializer = v.field.expr();
+			if(initializer == null) Context.error("value type static field must have an initializer", v.field.pos);
+			lines.push("");
+			lines.push("    pub const " + RustImports.toSnakeCase(v.field.name) + ": " + info.name + " = " + expr.rawExpression(initializer) + ";");
+		}
+		lines.push("}");
+
+		for(f in funcFields) {
+			final op = ValueTypeSupport.operatorOf(abs, f.field);
+			if(op == null) continue;
+			final trait = rustTraitName(op);
+			final method = rustTraitMethod(op);
+			lines.push("");
+			lines.push("impl std::ops::" + trait + " for " + info.name + " {");
+			lines.push("    type Output = " + info.name + ";");
+			final args = switch(op) {
+				case Binary(_): "self, rhs: " + info.name;
+				case Unary(_): "self";
+			};
+			lines.push("    fn " + method + "(" + args + ") -> " + info.name + " {");
+			expr.setFallible(false);
+			for(line in expr.valueTypeFunctionBody(cls, f, "self.0")) lines.push("    " + line);
+			lines.push("    }");
+			lines.push("}");
+		}
+
+		if(ValueTypeSupport.memberField(abs, "toString") != null) {
+			lines.push("");
+			lines.push("impl std::fmt::Display for " + info.name + " {");
+			lines.push("    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {");
+			lines.push("        write!(formatter, \"{}\", self.to_string_value())");
+			lines.push("    }");
+			lines.push("}");
+		}
+		return lines.join("\n");
+	}
+
+	function findFunc(funcFields: Array<ClassFuncData>, name: String): ClassFuncData {
+		for(f in funcFields) if(f.field.name == name) return f;
+		Context.error("value type member is missing: " + name, Context.currentPos());
+		return null;
+	}
+
+	function isStringRepresentation(t: Type): Bool {
+		return switch(Context.follow(t)) {
+			case TInst(c, _): c.get().name == "String";
+			case _: false;
+		};
+	}
+
+	function rustTraitName(op: ValueTypeOperator): String {
+		return switch(op) {
+			case Binary(binary): switch(binary) {
+				case OpAdd: "Add";
+				case OpSub: "Sub";
+				case OpMult: "Mul";
+				case OpDiv: "Div";
+				case OpMod: "Rem";
+				case _: "Add";
+			};
+			case Unary(unary): switch(unary) {
+				case OpNeg: "Neg";
+				case _: "Neg";
+			};
+		};
+	}
+
+	function rustTraitMethod(op: ValueTypeOperator): String {
+		return switch(op) {
+			case Binary(binary): switch(binary) {
+				case OpAdd: "add";
+				case OpSub: "sub";
+				case OpMult: "mul";
+				case OpDiv: "div";
+				case OpMod: "rem";
+				case _: "add";
+			};
+			case Unary(unary): switch(unary) {
+				case OpNeg: "neg";
+				case _: "neg";
+			};
+		};
 	}
 
 	public static function isExceptionSubclass(cls: ClassType): Bool {
