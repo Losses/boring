@@ -39,7 +39,9 @@ class SwiftType {
 		return switch(t) {
 			case TAbstract(a, params):
 				final abs = a.get();
-				switch(pathOf(abs.pack, abs.name)) {
+				if(ValueTypeSupport.isMarkedAbstract(abs)) {
+					abs.name;
+				} else switch(pathOf(abs.pack, abs.name)) {
 					case "Int": "Int32";
 					// The f32 lane maps the module real onto the native
 					// binary32 type (feature spec 23).

@@ -32,7 +32,10 @@ class KotlinType {
 		return switch(t) {
 			case TAbstract(a, params):
 				final abs = a.get();
-				switch(pathOf(abs.pack, abs.name)) {
+				if(ValueTypeSupport.isMarkedAbstract(abs)) {
+					imports.requireType(abs.module, abs.name);
+					abs.name;
+				} else switch(pathOf(abs.pack, abs.name)) {
 					case "Int": "Int";
 					// The module-level precision switch selects the Float
 					// width for the whole compilation (feature spec 23).

@@ -6,6 +6,9 @@ import haxe.macro.Type;
 import reflaxe.data.ClassFuncData;
 import reflaxe.data.ClassVarData;
 import reflaxe.data.EnumOptionData;
+import ValueTypeSupport;
+import ValueTypeSupport.ValueTypeInfo;
+import ValueTypeSupport.ValueTypeOperator;
 
 /**
 	Declaration lowering: classes, variant enums, and record typedefs
@@ -196,6 +199,96 @@ class DartDecl {
 		lines.push("}");
 		final classPart = lines.join("\n");
 		return extractedParts.length > 0 ? extractedParts.join("\n\n") + "\n\n" + classPart : classPart;
+	}
+
+	/** Emits a marked abstract as a Dart extension type. */
+	public function valueTypeDecl(cls: ClassType, info: ValueTypeInfo, varFields: Array<ClassVarData>, funcFields: Array<ClassFuncData>): String {
+		final abs = info.abstractType;
+		final ctor = ValueTypeSupport.constructorField(abs);
+		final first = ctor == null ? null : ValueTypeSupport.firstArgument(ctor);
+		if(first == null) Context.error("value type constructor must take its representation", cls.pos);
+		final fieldName = first.name;
+		final lines: Array<String> = ["extension type " + info.name + "(" + types.of(info.representation) + " " + fieldName + ") {"];
+		for(f in funcFields) {
+			if(f.field.name == "_new" || f.field.name == "toString" || (ValueTypeSupport.isInlineHelper(f.field) && ValueTypeSupport.operatorOf(abs, f.field) == null)) continue;
+			final op = ValueTypeSupport.operatorOf(abs, f.field);
+			final isOperator = op != null;
+			final receiver = ValueTypeSupport.hasReceiver(f.field);
+			final start = isOperator ? (switch(op) { case Binary(_): 1; case Unary(_): f.args.length; }) : (receiver ? 1 : 0);
+			final ret = types.of(f.ret);
+			final signature = if(isOperator) {
+				switch(op) {
+					case Binary(_): ret + " operator " + dartOperatorName(op) + "(" + info.name + " other)";
+					case Unary(_): ret + " operator " + dartOperatorName(op) + "()";
+				}
+			} else {
+				final args = [for(i in start...f.args.length) {
+					final a = f.args[i];
+					types.of(a.type) + " " + a.name;
+				}].join(", ");
+				ret + " " + f.field.name + "(" + args + ")";
+			};
+			lines.push("");
+			lines.push("  " + signature + " {");
+			for(line in expr.valueTypeFunctionBody(cls, f, fieldName)) lines.push(line);
+			lines.push("  }");
+		}
+		if(ValueTypeSupport.memberField(abs, "toString") != null) {
+			final f = findFunc(funcFields, "toString");
+			lines.push("");
+			// Dart extension types cannot redeclare Object.toString. The
+			// source member is routed to this equivalent value method at
+			// call sites while Object.toString remains available to Dart.
+			lines.push("  String toStringValue() {");
+			for(line in expr.valueTypeFunctionBody(cls, f, fieldName)) lines.push(line);
+			lines.push("  }");
+		}
+		for(v in varFields) {
+			if(!v.isStatic) continue;
+			final initializer = v.field.expr();
+			if(initializer == null) Context.error("value type static field must have an initializer", v.field.pos);
+			lines.push("");
+			lines.push("  static final " + info.name + " " + v.field.name + " = " + expr.rawExpression(initializer) + ";");
+		}
+		lines.push("}");
+		final result = lines.copy();
+		if(ctor != null && ValueTypeSupport.constructorThrows(abs)) {
+			result.push("");
+			result.push(info.name + " " + ValueTypeSupport.constructorName(abs) + "(" + types.of(info.representation) + " " + fieldName + ") {");
+			for(line in expr.valueTypeConstructorBody(cls, findFunc(funcFields, "_new"))) result.push(line);
+			result.push("  return " + info.name + "(" + fieldName + ");");
+			result.push("}");
+		}
+		return result.join("\n");
+	}
+
+	function findFunc(funcFields: Array<ClassFuncData>, name: String): ClassFuncData {
+		for(f in funcFields) if(f.field.name == name) return f;
+		Context.error("value type member is missing: " + name, Context.currentPos());
+		return null;
+	}
+
+	function dartOperatorName(op: ValueTypeOperator): String {
+		return switch(op) {
+			case Binary(binary): switch(binary) {
+				case OpAdd: "+";
+				case OpSub: "-";
+				case OpMult: "*";
+				case OpDiv: "/";
+				case OpMod: "%";
+				case OpEq: "==";
+				case OpNotEq: "!=";
+				case OpLt: "<";
+				case OpLte: "<=";
+				case OpGt: ">";
+				case OpGte: ">=";
+				case _: "+";
+			};
+			case Unary(unary): switch(unary) {
+				case OpNeg: "-";
+				case _: "+";
+			};
+		};
 	}
 
 	/** Whether this module's statics lower as top-level functions of their own library. */

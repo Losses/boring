@@ -9,6 +9,7 @@ import haxe.macro.Type.FieldAccess;
 import haxe.macro.Type.TypedExpr;
 import haxe.macro.TypedExprTools;
 import reflaxe.data.ClassFuncData;
+import ValueTypeSupport;
 
 /**
 	Statement and expression lowering from the Haxe typed AST to
@@ -56,6 +57,9 @@ class TsExpr {
 	/** Locals reassigned after their declaration; emitted with let. */
 	final mutated: Map<Int, Bool> = [];
 
+	/** Target-language aliases for Haxe's synthetic wrapper receivers. */
+	final localAliases: Map<Int, String> = [];
+
 	/** Fill arrays frozen at the return when decodeBoundary holds. */
 	final frozenFill: Map<Int, Bool> = [];
 
@@ -82,6 +86,14 @@ class TsExpr {
 
 	public function reserveName(name: String): Void {
 		usedNames.set(name, true);
+	}
+
+	/** Gives a synthetic wrapper receiver its target-language parameter name. */
+	public function bindLocalName(v: Null<TVar>, name: String): Void {
+		if(v != null) {
+			localAliases.set(v.id, name);
+			reserveName(name);
+		}
 	}
 
 	public function setDecodeBoundary(value: Bool): Void {
@@ -186,6 +198,39 @@ class TsExpr {
 
 		scanLocals(f.expr);
 		return blockLines(statementsOf(f.expr), 2);
+	}
+
+	/** Body lowering shared by value-wrapper member functions. */
+	public function valueTypeFunctionBody(cls: ClassType, f: ClassFuncData, receiverName: String = "value"): Array<String> {
+		if(f.args.length > 0 && ValueTypeSupport.hasReceiver(f.field)) {
+			bindLocalName(f.args[0].tvar, receiverName);
+		}
+		return functionBody(cls, f);
+	}
+
+	/**
+		A Haxe abstract constructor assigns the synthetic `this` local and
+		returns it. The representation is already the wrapper's value on this
+		target, so only validation statements survive in the factory body.
+	**/
+	public function valueTypeConstructorBody(cls: ClassType, f: ClassFuncData): Array<String> {
+		if(f.expr == null) {
+			Context.error("value type constructor has no body to lower", f.field.pos);
+		}
+		DefaultArgExpander.completeRootExpr(cls, f.field.name, f.expr);
+		PipelineExpander.expandRootExpr(f.expr);
+		EnumQueryExpander.expandRootExpr(f.expr);
+		currentClass = cls;
+		currentField = f.field.name;
+		currentLocalName = null;
+		if(f.args.length > 0) bindLocalName(f.args[0].tvar, f.args[0].name);
+		scanLocals(f.expr);
+		final out: Array<String> = [];
+		for(stmt in statementsOf(f.expr)) {
+			if(ValueTypeSupport.isThisDeclaration(stmt) || ValueTypeSupport.isThisAssignment(stmt) || ValueTypeSupport.isThisReturn(stmt)) continue;
+			for(line in stmtLines(stmt, 1)) out.push(line);
+		}
+		return out;
 	}
 
 	/**
@@ -781,6 +826,8 @@ class TsExpr {
 	// ------------------------------------------------------------------
 
 	function expr(e: TypedExpr): String {
+		final wrapperValue = ValueTypeSupport.syntheticValue(e);
+		if(wrapperValue != null) return valueTypeSynthetic(e, wrapperValue);
 		final query = enumQuery(e);
 		if(query != null) return query;
 		switch(e.expr) {
@@ -842,6 +889,61 @@ class TsExpr {
 			case _:
 				return fail(e, "expression has no TypeScript lowering in the subset");
 		}
+	}
+
+	/**
+		Value-wrapper operations are represented by blocks which assign the
+		underlying Haxe `this`. At a use site TypeScript calls the generated
+		module function; inside that function the erased representation can
+		use the native operator directly.
+	**/
+	function valueTypeSynthetic(wrapper: TypedExpr, value: TypedExpr): String {
+		final abs = ValueTypeSupport.markedAbstractOfType(wrapper.t);
+		if(abs == null) return expr(value);
+		final localValues = valueTypeLocalValues(wrapper);
+		final activeAbs = currentClass == null ? null : ValueTypeSupport.markedAbstractOfClass(currentClass);
+		final activeField = activeAbs != null && currentField != null ? ValueTypeSupport.memberField(activeAbs, currentField) : null;
+		final nativeOperator = activeAbs != null && activeField != null && ValueTypeSupport.sameAbstract(activeAbs, abs)
+			&& currentField != null && ValueTypeSupport.operatorOf(abs, activeField) != null;
+		return switch(stripWrap(value).expr) {
+			case TBinop(op, left, right):
+				final field = ValueTypeSupport.binaryOperatorField(abs, op);
+				if(field == null) expr(value) else if(nativeOperator && field.name == currentField) {
+					valueTypeOperand(left, localValues) + " " + symbolOf(op) + " " + valueTypeOperand(right, localValues);
+				} else {
+					imports.functionRef(abs.module, field.name, true) + "(" + valueTypeOperand(left, localValues) + ", " + valueTypeOperand(right, localValues) + ")";
+				}
+			case TUnop(op, _, subject):
+				final field = ValueTypeSupport.unaryOperatorField(abs, op);
+				if(field == null) expr(value) else if(nativeOperator && field.name == currentField) {
+					"-" + valueTypeOperand(subject, localValues);
+				} else {
+					imports.functionRef(abs.module, field.name, true) + "(" + valueTypeOperand(subject, localValues) + ")";
+				}
+			case _: expr(value);
+		};
+	}
+
+	function valueTypeLocalValues(wrapper:TypedExpr):Map<Int, TypedExpr> {
+		final values:Map<Int, TypedExpr> = [];
+		switch(wrapper.expr) {
+			case TBlock(stmts):
+				for(stmt in stmts) switch(stmt.expr) {
+					case TVar(v, init) if(init != null && !StringTools.startsWith(v.name, "this")): values.set(v.id, init);
+					case _:
+				}
+			case _:
+		}
+		return values;
+	}
+
+	function valueTypeOperand(value:TypedExpr, locals:Map<Int, TypedExpr>):String {
+		switch(stripWrap(value).expr) {
+			case TLocal(v) if(locals.exists(v.id)):
+				return expr(locals.get(v.id));
+			case _:
+		}
+		return expr(value);
 	}
 
 	function enumQuery(e:TypedExpr):Null<String> {
@@ -989,6 +1091,11 @@ class TsExpr {
 	}
 
 	function staticRef(cls: ClassType, name: String): String {
+		final valueType = ValueTypeSupport.markedAbstractOfClass(cls);
+		if(valueType != null) {
+			final field = ValueTypeSupport.memberField(valueType, name);
+			return field == null ? name : imports.functionRef(valueType.module, name, field.isPublic);
+		}
 		final markedField = findStaticField(cls, name);
 		if(markedField != null && StaticFunctionMarkers.isMarked(markedField)) {
 			return imports.functionRef(cls.module, name, markedField.isPublic);
@@ -1106,6 +1213,10 @@ class TsExpr {
 				final item = stdStringType(element, value + "[" + index + "]!", true, origin, depth + 1);
 				'(() => { let out = "["; const n = ${value}.length; for (let ${index} = 0; ${index} < n; ${index} += 1) { if (${index} > 0) { out += ", "; } out += ${item}; } out += "]"; return out; })()';
 			case TInst(c, _) if(c.get().meta.has(":dataClass")): value + ".toString()";
+			case TAbstract(a, _) if(ValueTypeSupport.isMarkedAbstract(a.get())):
+				final abs = a.get();
+				final toString = ValueTypeSupport.memberField(abs, "toString");
+				toString == null ? (inConcat ? value : "String(" + value + ")") : imports.functionRef(abs.module, "toString", toString.isPublic) + "(" + value + ")";
 			case TAbstract(a, _) if(a.get().name == "Int" || a.get().name == "Float" || a.get().name == "Bool"):
 				inConcat ? value : "String(" + value + ")";
 			case TAbstract(a, params) if(a.get().module == "std.ReadOnlyArray"):
@@ -1162,7 +1273,36 @@ class TsExpr {
 		};
 	}
 
+	/** Routes calls on a marked abstract implementation to its erased API. */
+	function valueTypeCall(fn: TypedExpr, args: Array<TypedExpr>): Null<String> {
+		switch(stripWrap(fn).expr) {
+			case TField(_, FStatic(c, cf)):
+				final abs = ValueTypeSupport.markedAbstractOfClass(c.get());
+				if(abs == null) return null;
+				final field = cf.get();
+				if(field.name == "_new") {
+					if(args.length == 0) return abs.name;
+					if(ValueTypeSupport.constructorThrows(abs)) {
+						final constructor = ValueTypeSupport.constructorName(abs);
+						imports.functionRef(abs.module, constructor, true);
+						return constructor + "(" + expr(args[0]) + ")";
+					}
+					return expr(args[0]);
+				}
+				return imports.functionRef(abs.module, field.name, field.isPublic) + "(" + [for(a in args) expr(a)].join(", ") + ")";
+			case TField(subj, FInstance(_, _, cf)) | TField(subj, FAnon(cf)):
+				final abs = ValueTypeSupport.markedAbstractOfType(subj.t);
+				if(abs == null) return null;
+				final field = cf.get();
+				return imports.functionRef(abs.module, field.name, field.isPublic) + "(" + ([expr(subj)].concat([for(a in args) expr(a)])).join(", ") + ")";
+			case _:
+		}
+		return null;
+	}
+
 	function call(fn: TypedExpr, args: Array<TypedExpr>): String {
+		final wrapperCall = valueTypeCall(fn, args);
+		if(wrapperCall != null) return wrapperCall;
 		switch(fn.expr) {
 			case TField(_, FStatic(c, cf)) if(c.get().module == "Std" && cf.get().name == "string" && args.length == 1):
 				return stdString(args[0], false);
@@ -1180,6 +1320,9 @@ class TsExpr {
 				final fName = cf.get().name;
 				if(cls.pack.length == 0 && cls.name == "StringTools" && fName == "hex") {
 					return stringToolsHex(args);
+				}
+				if(cls.pack.length == 0 && cls.name == "StringTools" && fName == "trim" && args.length == 1) {
+					return expr(args[0]) + ".trim()";
 				}
 				if(cls.module == "std.UStringPlatform") {
 					// Cursor primitives of the resident UString walk, inlined
@@ -1995,6 +2138,9 @@ class TsExpr {
 	}
 
 	function localName(v: TVar): String {
+		if(localAliases.exists(v.id)) {
+			return localAliases.get(v.id);
+		}
 		if(v.name != "`") {
 			return v.name;
 		}

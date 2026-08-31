@@ -39,7 +39,10 @@ class RustType {
 		return switch(t) {
 			case TAbstract(a, params):
 				final abs = a.get();
-				switch(pathOf(abs.pack, abs.name)) {
+				if(ValueTypeSupport.isMarkedAbstract(abs)) {
+					imports.requireType(abs.module, abs.name);
+					abs.name;
+				} else switch(pathOf(abs.pack, abs.name)) {
 					// Business modules keep haxe Int unsigned: the subset
 					// domain is non-negative. Resident runtime modules
 					// render Int as i32 because their contracts carry
