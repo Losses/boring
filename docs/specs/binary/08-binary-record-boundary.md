@@ -57,11 +57,13 @@ When foreign-facing declarations exist, each target gains a root entry generated
 
 The entry re-exports names sorted by name, and the entry module set is a pure function of the derived foreign-facing set, following the spec 24 determinism rule: two identical compilations produce identical entries.
 
-## Cross-library declaration files
+## Cross-library source packages
 
-One boring library consumes another through a declaration file the producer's compiler emits beside its target tree. The file lists every public declaration of the producer in source-shaped form: the record typedefs, the buffer kinds and position types with their one-line read-function bodies, so the consumer's compiler inlines them, and the remaining declarations as signature-shaped entries without bodies. The consumer's compiler threads its own functions that call the producer's read functions per binary spec 07, using the kinds the file declares.
+One boring library consumes another through the producer's package, which carries the producer's Haxe source tree beside the emitted target tree; this ruling replaces the earlier declaration-file design, which shipped signatures without general bodies. The consumer's compilation resolves its Haxe imports against the shipped source, runs every common-layer pass over the union of the producer's modules and the consumer's own, and emits only its own modules; the emitted references name the producer's package artifacts. The shipped source lets every pass see the whole program of both libraries, and no second description format restates what the source already states.
 
-`RecordBuffer` keeps one runtime identity in boring's shared support library, so the producer and the consumer link one implementation of it. The declaration file records the boring version of the compiler that emitted it; a consumer compilation running a different version refuses the file with `declaration file version mismatch: library A was emitted by boring X, this compilation runs boring Y`. Consumers outside the boring pipeline never read this file; they consume the root entry.
+Because the consumer compiles the producer's modules, the passes of binary spec 07, of `features/22-default-argument-expansion.md`, and of `macros/01-functional-idiom-expansion.md` run over that union, and the signatures the consumer derives for the producer's functions match the signatures of the producer's already-emitted tree: same boring version, same passes, same result. A producer release that changes no public declaration can still change what the consumer's passes derive from the producer's bodies; the consumer pins the producer package version, so a producer change ships as a new package version and the consumer recompiles when it adopts it. The package manifest records the boring version of the compiler that emitted the tree; a consumer compilation running a different version refuses the package with `library source version mismatch: library A was emitted by boring X, this compilation runs boring Y`. The spec 24 package shell lists the shipped source modules in its write list, so the artifact step of spec 25 packs them.
+
+`RecordBuffer` keeps one runtime identity in boring's shared support library, so the producer and the consumer link one implementation of it. Consumers outside the boring pipeline never compile the shipped source; they consume the root entry.
 
 ## Boundary selection compared
 
@@ -115,5 +117,5 @@ Required once the boundary machinery exists; none exist yet:
 - A sample tree with one annotated format compiles on the TypeScript lane; the test asserts the `index.ts` re-export list, the root-only exports map, the cross-module prefix on system declarations, the exclusion of a kind-naming declaration from the entry, and the materialization inserted at a foreign-facing return.
 - Rejection tests for the named errors of the deep check: a buffer-kind member and a position member on a foreign-facing class.
 - The pinned-output lanes for Rust, Kotlin, Swift, and Dart gain assertions for `pub(crate)`, `internal`, `public`, and the `_` prefix on the same sample tree.
-- A two-library fixture asserts the declaration file shape, the refusal on version mismatch, and the inlining of the producer's read functions in the consumer's emitted code.
+- A two-library fixture asserts the shipped source tree inside the producer package, the refusal on version mismatch, that the consumer emits only its own modules with references into the producer package, and the inlining of the producer's read functions in the consumer's emitted code.
 - A compilation with no annotated format is asserted byte-identical to the emission before this specification, guarding the activation rule.
