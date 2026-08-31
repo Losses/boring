@@ -35,6 +35,20 @@ describe("Std.string lowering", () => {
     expect(content).not.toContain('"string=" + (value).toString()');
   });
 
+  test("enum operands use each target constructor-name read", () => {
+    const ts = fs.readFileSync(path.join(root, "reference/ts/gen/boring/StdStringOps.ts"), "utf8");
+    const kotlin = fs.readFileSync(path.join(root, "reference/kotlin/gen/boring/StdStringOps.kt"), "utf8");
+    const rust = fs.readFileSync(path.join(root, "reference/rust-gen/src/boring/std_string_ops.rs"), "utf8");
+    const swift = fs.readFileSync(path.join(root, "reference/swift/gen/boring/StdStringOps.swift"), "utf8");
+    const dart = fs.readFileSync(path.join(root, "reference/dart/gen/lib/boring/std_string_ops.dart"), "utf8");
+
+    expect(ts).toContain("value.kind");
+    expect(kotlin).toContain("value.name");
+    expect(swift).toContain("value.rawValue");
+    expect(dart).toContain("value.label");
+    expect(rust).toContain("value.name()");
+  });
+
   test("unsupported operands report the named error", async () => {
     const proc = Bun.spawn(["haxe", "examples/ts.hxml", "tests.StdStringProbes"], {
       cwd: root,
