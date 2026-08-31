@@ -2496,7 +2496,8 @@ class RustExpr {
 		return field != null
 			&& ValueTypeSupport.markedAbstractOfClass(cls) == null
 			&& StaticFieldHelper.initializer(field) != null
-			&& !StaticFieldHelper.isConstruction(field.expr())
+			&& !StaticFieldHelper.isConstValue(field)
+			&& !StaticFieldHelper.isConstruction(field.expr());
 	}
 
 	function staticItemPath(cls: ClassType, name: String): String {
