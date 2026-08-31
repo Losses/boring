@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification rules the translation of Haxe abstract types into Rust, TypeScript, and Kotlin. In the current codebase, one abstract appears: `ReadOnlyArray<T>` in `samples/std/ReadOnlyArray.hx`, the read-only array type ruled in `docs/specs/features/18-immutability.md`. Domain records otherwise use primitive `Int` and `Float` types; specialized scalar domains such as `CodePoint` (constrained to valid Unicode ranges) and `EmUnit` (floating-point em coordinates) are future work. In Kotlin, the `ReadOnlyArray` type lowers to the read-only `List` return type of `reference/kotlin/src/boring/VectorCodec.kt`.
+This specification rules the translation of Haxe abstract types into Rust, TypeScript, and Kotlin. In the current codebase, one abstract appears: `ReadOnlyArray<T>` in `samples/std/ReadOnlyArray.hx`, the read-only array type ruled in `docs/specs/features/18-immutability.md`. Domain records otherwise use primitive `Int` and `Float` types; specialized scalar domains such as `CodePoint` (constrained to valid Unicode ranges) and `EmUnit` (floating-point em coordinates) are future work. In Kotlin, the `ReadOnlyArray` type lowers to the read-only `List` return type of `reference/kotlin/src/boring/VectorCodec.kt`. A planned extension below rules member-carrying abstracts that keep a runtime wrapper type on every target.
 
 ## Haxe construct
 
@@ -140,6 +140,113 @@ value class CodePoint(val value: Int)
 On codec hot paths and record data carriers, abstract types translate to primitive type aliases (`type CodePoint = u32` in Rust, `type CodePoint = number` in TypeScript, `typealias CodePoint = Int` in Kotlin) to maintain direct memory access and zero allocation overhead. At domain validation boundaries, abstract types with explicit constraints translate to single-field newtype structs in Rust, branded primitive types in TypeScript, and `@JvmInline value class` wrappers in Kotlin; Kotlin `value class` values box when stored in nullable or generic positions, so boundary wrappers stay out of dense record arrays.
 
 This separation prevents validation overhead during dense array serialization while providing strong compile-time type safety at API ingestion boundaries.
+
+## Planned extension: value wrappers with members
+
+Status: planned. The rules below amend the Ruling for abstracts marked as
+value wrappers; they are not implemented. The engine port is the consumer
+that fixes the required shape. The handwritten Kotlin engine declares
+`@JvmInline value class` wrappers with members and consumes them across
+packages: `Units.Ic` (a `Float` representation holding `toPx`, the operators
+`plus` and `unaryMinus`, and the constant `Zero` in a companion object,
+consumed as far as nullable and defaulted fields such as
+`firstLineIndent: Ic?` and `blockIndent: Ic = Ic.Zero`), and
+`FontFaceId` (a `String` representation whose constructor rejects blank
+values and whose `toString` returns the value). Erasing these abstracts to
+aliases breaks their members, their equality, their validation, and the
+Kotlin regeneration of the ported files.
+
+### Source-side contract
+
+The marker is metadata on a single-field abstract whose representation is
+one of `Int`, `Float`, `Bool`, and `String`:
+
+```haxe
+@:valueType
+abstract Ic(Float) from Float {
+    public inline function new(count:Float) this = count;
+
+    inline function count():Float return this;
+
+    public inline function toPx(emPx:Float):Float return this * emPx;
+
+    @:op(A + B) static inline function plus(a:Ic, b:Ic):Ic
+        return new Ic(a.count() + b.count());
+
+    @:op(-A) static inline function negate(a:Ic):Ic
+        return new Ic(-a.count());
+
+    public static var ZERO:Ic = new Ic(0.0);
+}
+```
+
+The declared members accept: the constructor with an optional body that
+validates and throws; instance methods; `@:op` statics over the wrapper
+type; a `toString` member; and static fields of the wrapper type whose
+initializers are constructor calls over closed constants. A marker on an
+abstract whose representation is outside the closed class, on a generic
+abstract, or on any non-abstract declaration stops the compilation with
+`value type markers accept single-field abstracts over a primitive
+representation only`. Unmarked abstracts keep the erasure ruling above.
+
+### Per-target products
+
+| Target | Declaration |
+| --- | --- |
+| Kotlin | `@JvmInline value class Name(val field: Rep)` with the declared members; `@:op` members render as `operator fun`; static fields render inside `companion object`; construction sites render `Name(rep)`. |
+| TypeScript | `export type Name = Rep;` and member functions in the module file with the value first, following the `@:extension` shape of `docs/specs/features/10-static-extension.md`; operators render as those functions and operator call sites render as direct calls to them; a validating constructor renders as a module function that validates, throws, and returns the representation. |
+| Swift | `struct Name: Equatable, Hashable` with the representation as a `let` field, the declared members, static operators as members of the struct, and `toString` as `CustomStringConvertible`; validation renders in `init`. |
+| Dart | `extension type Name(Rep field)` with the declared members and operators; `toString` renders as a declared `String toString()`; a validating constructor renders as a factory function that constructs, validates, and throws, and construction sites route through it. |
+| Rust | `#[derive(...)] pub struct Name(pub Rep);` with the declared members in an inherent `impl`, operators as the matching standard trait implementations (`Add` for `+`, `Neg` for the prefix minus), `toString` as `Display`, validation in a constructor function following the error convention of `docs/specs/features/06-errors-and-results.md`. Derives follow the representation: `PartialEq` always; `Eq` and `Hash` only when the representation holds them, so a `Float` representation derives `PartialEq` alone. |
+
+Equality, hashing, and rendering are observable: two wrappers over equal
+representations are equal; a declared `toString` overrides the rendering,
+and its absence keeps the representation's existing string conversion on
+every target. Validation that throws preserves its observable rejection on
+every target through the error model of features 06. Nullable positions
+follow each target's null convention for the shape above, including the
+boxed nullable positions of the Kotlin value class.
+
+Member calls and construction add no allocation on any target: the Kotlin
+value class stores the representation inline and boxes only in nullable or
+generic positions, the Rust newtype is layout-identical to the
+representation, the Swift struct is a stack value, and the Dart extension
+type and the TypeScript alias erase to the representation at runtime.
+
+### Ordering and composition
+
+Implementation follows `docs/specs/features/10-static-extension.md`:
+member functions of the TypeScript alias render in the extension shape of
+that specification, and a Swift operator may render as a file scope
+function. The planned extension of
+`docs/specs/features/22-default-argument-expansion.md` composes with this
+one: a coalescing default may read a static field of a value wrapper, for
+example `Ic.ZERO` as a defaulted parameter value.
+
+### Extension test hooks
+
+- `samples/boring/ValueTypeOps.hx` declares the two port shapes over the
+  closed representations: the arithmetic wrapper (`Float`, `toPx`, the two
+  operators, the static field) and the validating wrapper (`String`,
+  blank rejection, `toString` returning the value), each consumed from
+  another module in the sample tree.
+- `@:test` functions assert the arithmetic results, the equality of
+  wrappers over equal representations, the static field, the rejection of
+  a blank construction, and the rendered string of both shapes; the
+  four-side consistency run compares the rows across kotlin (baseline),
+  haxe, ts, rust, swift, and dart.
+- Tree assertions: the Kotlin tree renders `@JvmInline value class` with
+  `companion object` statics and `operator fun`; the Swift tree renders
+  the struct with synthesis and static operators; the Dart tree renders
+  `extension type`; the Rust tree renders the newtype with
+  representation-matched derives (`PartialEq` without `Eq` over `Float`);
+  the TypeScript tree renders the alias plus member functions with the
+  value first.
+- Mutation checks: the marker over a non-primitive representation, over a
+  generic abstract, and over a class declaration each trigger
+  `value type markers accept single-field abstracts over a primitive
+  representation only`.
+
 
 ## Test hooks
 
