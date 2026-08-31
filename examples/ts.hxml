@@ -102,3 +102,5 @@ boring.PrintedEnumOps
 tests.PrintedEnumTests
 boring.SealedVariantOps
 tests.SealedVariantTests
+boring.ConstructedStateOps
+tests.ConstructedStateTests
