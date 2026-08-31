@@ -14,7 +14,7 @@ describe("record collection printed members", () => {
       ["reference/dart/gen/lib/boring/printed_collection.dart", "StringBuffer(\"[\")", "sb.write(this.points[i].toString())"],
       ["reference/rust-gen/src/boring/printed_collection.rs", "String::new()", "self.points[i].to_string()"],
       ["reference/rust-f32-gen/src/boring/printed_collection.rs", "String::new()", "self.points[i].to_string()"],
-    ];
+    ] as const;
     for (const [file, builder, nested] of trees) {
       const content = read(file);
       expect(content).toContain(builder);
