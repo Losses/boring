@@ -49,6 +49,11 @@ describe("Std.string lowering", () => {
     expect(rust).toContain("value.name()");
   });
 
+  test("Rust standalone scalars use to_string", () => {
+    const content = fs.readFileSync(path.join(root, "reference/rust-gen/src/boring/std_string_ops.rs"), "utf8");
+    expect(content).toContain("return value.to_string();");
+  });
+
   test("unsupported operands report the named error", async () => {
     const proc = Bun.spawn(["haxe", "examples/ts.hxml", "tests.StdStringProbes"], {
       cwd: root,
