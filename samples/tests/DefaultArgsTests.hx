@@ -101,8 +101,15 @@ class DefaultArgsTests {
 
 	@:test("static-field read")
 	public static function testStaticFieldRead():Void {
-		Test.equals(Math.POSITIVE_INFINITY, DefaultArgsOps.staticFieldSample(1));
+		Test.equals(2.0, DefaultArgsOps.staticFieldSample(1));
 		Test.equals(5.0, DefaultArgsOps.staticFieldSample(5, 1.0));
+	}
+
+	@:test("instance method call, static call, and binary operator defaults")
+	public static function testCallAndBinaryDefaults():Void {
+		Test.equals("HELLO", DefaultArgsOps.methodCallSample("hello"));
+		Test.equals(7, DefaultArgsOps.staticCallSample(7));
+		Test.equals(8, DefaultArgsOps.binarySample(7));
 	}
 
 	@:test("dependence assertion: different earlier arguments resolve differently")

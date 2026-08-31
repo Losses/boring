@@ -267,7 +267,7 @@ class DefaultArgExpander {
 		return switch (cur.expr) {
 			case ExprDef.ETernary(condition, ifTrue, ifFalse):
 				if (isNullCheck(condition, parameterName) && isParameterExpression(ifFalse, parameterName)) {
-					final grammarValue = validateCoalescingGrammar(ifTrue, earlierNames, allParamNames, classType);
+					final grammarValue = validateCoalescingGrammar(ifTrue, parameterName, earlierNames, allParamNames, classType);
 					if (grammarValue != null) {
 						{value: grammarValue, defaultExpr: unwrapExpr(ifTrue)};
 					} else {
@@ -356,7 +356,7 @@ class DefaultArgExpander {
 		the recursive grammar. Returns the CoalescingDefaultValue tree or
 		null when the expression is not sanctioned.
 	*/
-	static function validateCoalescingGrammar(e:Expr, earlierNames:Array<String>, allParamNames:Array<String>, classType:ClassType):Null<CoalescingDefaultValue> {
+	static function validateCoalescingGrammar(e:Expr, parameterName:String, earlierNames:Array<String>, allParamNames:Array<String>, classType:ClassType):Null<CoalescingDefaultValue> {
 		final cur = unwrapExpr(e);
 		if (cur == null) return null;
 
@@ -373,7 +373,11 @@ class DefaultArgExpander {
 					}
 					// Check for later parameter references or the defaulted parameter itself
 					if (allParamNames.indexOf(name) >= 0) {
+						if (name == parameterName) {
+							Context.fatalError("coalesced default parameter is consumed more than once", cur.pos);
+						}
 						laterParameterError(cur.pos);
+						return null;
 					}
 				default:
 			}
@@ -393,7 +397,7 @@ class DefaultArgExpander {
 					if (innerClass == "type") {
 						// Static field read — handled above; fall through
 					} else if (innerClass == "parameter" || innerClass == "fieldChain") {
-						final innerValue = validateCoalescingGrammar(inner, earlierNames, allParamNames, classType);
+						final innerValue = validateCoalescingGrammar(inner, parameterName, earlierNames, allParamNames, classType);
 						if (innerValue != null) {
 							return CFieldAccess(innerValue, fieldName);
 						}
@@ -418,13 +422,13 @@ class DefaultArgExpander {
 										// Static call: Outer.Inner.method(args)
 										final fullTypePath = exprToDotted(innerClassField);
 										if (fullTypePath != null && isTypeName(fullTypePath)) {
-											final argValues = validateArgList(callArgs, earlierNames, allParamNames, classType);
+											final argValues = validateArgList(callArgs, parameterName, earlierNames, allParamNames, classType);
 											if (argValues != null) return CStaticCall(fullTypePath + "." + methodName, argValues);
 										}
 									case ExprDef.EConst(AstConstant.CIdent(typeName)):
 										// Static call: ClassName.method(args)
 										if (isTypeName(typeName)) {
-											final argValues = validateArgList(callArgs, earlierNames, allParamNames, classType);
+											final argValues = validateArgList(callArgs, parameterName, earlierNames, allParamNames, classType);
 											if (argValues != null) return CStaticCall(typeName + "." + methodName, argValues);
 										}
 									default:
@@ -433,16 +437,16 @@ class DefaultArgExpander {
 								// Instance method call: receiver.method(args)
 								final receiverClass = classifyExpr(innerClassField, earlierNames);
 								if (receiverClass == "parameter" || receiverClass == "fieldChain" || receiverClass == "methodCall") {
-									final receiverValue = validateCoalescingGrammar(innerClassField, earlierNames, allParamNames, classType);
+									final receiverValue = validateCoalescingGrammar(innerClassField, parameterName, earlierNames, allParamNames, classType);
 									if (receiverValue != null) {
-										final argValues = validateArgList(callArgs, earlierNames, allParamNames, classType);
+										final argValues = validateArgList(callArgs, parameterName, earlierNames, allParamNames, classType);
 										if (argValues != null) return CMethodCall(receiverValue, methodName, argValues);
 									}
 								}
 							case ExprDef.EConst(AstConstant.CIdent(funcName)):
 								// Possible static call: funcName(args)
 								if (earlierNames.indexOf(funcName) < 0) {
-									final argValues = validateArgList(callArgs, earlierNames, allParamNames, classType);
+									final argValues = validateArgList(callArgs, parameterName, earlierNames, allParamNames, classType);
 									if (argValues != null) return CStaticCall(funcName, argValues);
 								}
 							default:
@@ -456,9 +460,9 @@ class DefaultArgExpander {
 		if (cur.expr != null) {
 			switch (cur.expr) {
 				case ExprDef.ETernary(condition, ifTrue, ifFalse):
-					final cVal = validateCoalescingGrammar(condition, earlierNames, allParamNames, classType);
-					final tVal = validateCoalescingGrammar(ifTrue, earlierNames, allParamNames, classType);
-					final fVal = validateCoalescingGrammar(ifFalse, earlierNames, allParamNames, classType);
+					final cVal = validateCoalescingGrammar(condition, parameterName, earlierNames, allParamNames, classType);
+					final tVal = validateCoalescingGrammar(ifTrue, parameterName, earlierNames, allParamNames, classType);
+					final fVal = validateCoalescingGrammar(ifFalse, parameterName, earlierNames, allParamNames, classType);
 					if (cVal != null && tVal != null && fVal != null) {
 						return CConditional(cVal, tVal, fVal);
 					}
@@ -470,8 +474,8 @@ class DefaultArgExpander {
 		if (cur.expr != null) {
 			switch (cur.expr) {
 				case ExprDef.EBinop(op, left, right):
-					final lVal = validateCoalescingGrammar(left, earlierNames, allParamNames, classType);
-					final rVal = validateCoalescingGrammar(right, earlierNames, allParamNames, classType);
+					final lVal = validateCoalescingGrammar(left, parameterName, earlierNames, allParamNames, classType);
+					final rVal = validateCoalescingGrammar(right, parameterName, earlierNames, allParamNames, classType);
 					if (lVal != null && rVal != null) {
 						return CBinaryOp(op, lVal, rVal);
 					}
@@ -485,10 +489,10 @@ class DefaultArgExpander {
 	}
 
 	/** Validates a list of arguments against the grammar. */
-	static function validateArgList(args:Array<Expr>, earlierNames:Array<String>, allParamNames:Array<String>, classType:ClassType):Null<Array<CoalescingDefaultValue>> {
+	static function validateArgList(args:Array<Expr>, parameterName:String, earlierNames:Array<String>, allParamNames:Array<String>, classType:ClassType):Null<Array<CoalescingDefaultValue>> {
 		final values:Array<CoalescingDefaultValue> = [];
 		for (a in args) {
-			final v = validateCoalescingGrammar(a, earlierNames, allParamNames, classType);
+			final v = validateCoalescingGrammar(a, parameterName, earlierNames, allParamNames, classType);
 			if (v == null) return null;
 			values.push(v);
 		}

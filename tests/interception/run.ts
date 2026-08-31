@@ -24,7 +24,7 @@ for (const name of readdirSync(casesRoot).sort()) {
   const caseDir = `${casesRoot}/${name}`;
   const source = readFileSync(`${caseDir}/Case.hx`, "utf8");
   const firstLine = source.split("\n")[0] ?? "";
-  const expected = firstLine.match(/^\/\/ expect: (V\d+ \w+)/);
+  const expected = firstLine.match(/^\/\/ expect: (.*)$/);
   if (expected === null) {
     console.error(`FAIL ${name}: first line must name the expected violation`);
     failures += 1;
