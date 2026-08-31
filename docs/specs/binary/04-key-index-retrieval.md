@@ -2,16 +2,16 @@
 
 ## Scope
 
-This specification rules the generation of per-key retrieval methods from the format definition. For every field key of a fixed-stride format, each target language receives one accessor method that reads the field value directly at a build-time computed byte offset, without materializing intermediate records and without scanning prior records. The specification covers nested object paths and nested arrays inside a record type, and states the structural conditions a format must satisfy for accessors to exist. The ruled target languages are Haxe, Rust, TypeScript, and Kotlin; no Kotlin tree exists yet, and the Kotlin shape below binds generated code.
+This specification rules the generation of per-key retrieval methods from the record format declaration. For every field key of a fixed-stride format, each target language receives one accessor method that reads the field value directly at a build-time computed byte offset, without materializing intermediate records and without scanning prior records. The specification covers nested object paths and nested arrays inside a record type, and states the structural conditions a format must satisfy for accessors to exist. The ruled target languages are Haxe, Rust, TypeScript, and Kotlin; no Kotlin tree exists yet, and the Kotlin shape below binds generated code.
 
-This document rules the requirement and the generated shapes. The generator described in `docs/specs/binary/02-binary-meta-abstraction.md` does not exist in the repository yet, so no accessor exists yet.
+This document rules the requirement and the generated shapes. The generator described in `docs/specs/binary/02-binary-record-io.md` does not exist in the repository yet, so no accessor exists yet.
 
 ## Requirement
 
-Decoding a full record collection allocates one record object per record. Consumers that need one field of one record pay the full decode cost plus the allocation of every record. The generator therefore emits, for each scalar leaf field of each record type in the `FormatDef`, one accessor bound to a view over the raw bytes:
+Decoding a full record collection allocates one record object per record. Consumers that need one field of one record pay the full decode cost plus the allocation of every record. The generator therefore emits, for each scalar leaf field of each record type of the annotated typedef, one accessor bound to a view over the raw bytes:
 
 - The accessor takes one index parameter per array level on the path from the format root to the field, in path order, and returns the field value.
-- The accessor validates every index parameter against its own bound before reading: the outermost array against the record count decoded from the header, and each nested fixed-length array against its schema-constant length.
+- The accessor validates every index parameter against its own bound before reading: the outermost array against the record count decoded from the header, and each nested fixed-length array against its declared constant length.
 - The accessor reads through the same bit-level primitive paths as the full decoder (`features/07-numeric-tower.md`) and returns a scalar value with no intermediate allocation.
 
 ## Offset arithmetic
@@ -27,7 +27,7 @@ fieldOffset(i0, i1, ..., ik) = headerWidth
     + fieldBaseOffset
 ```
 
-Every stride and every base offset derives from field order and field widths in the `FormatDef` and folds into constants at generation time (`docs/specs/features/11-inline-and-macros.md`). Each index parameter contributes exactly one multiply and one add. For the glyph metrics format of `docs/specs/binary/01-wire-format.md`:
+Every stride and every base offset derives from field order and field widths in the annotated typedef and folds into constants at generation time (`docs/specs/features/11-inline-and-macros.md`). Each index parameter contributes exactly one multiply and one add. For the glyph metrics format of `docs/specs/binary/01-binary-record-layout.md`:
 
 | Field | Accessor offset |
 | --- | --- |
@@ -48,16 +48,16 @@ Accessor offsets depend only on the format shape: field order, field widths, and
 A format is accessor-eligible only when every scalar field on every path has a constant byte width and every stride in the offset formula is a build-time constant. Two structural conditions follow:
 
 1. **Every record field has a constant byte width.** A variable-width field such as a variable-length string breaks the stride of its enclosing record and makes the format accessor-ineligible.
-2. **A runtime-count array may appear only as the outermost array.** The outermost array varies at runtime through the count in the header; its elements are indexed by arithmetic because each element has the constant stride. An array nested inside a repeated structure must carry its length as a schema constant. A nested array whose length is read at runtime makes the stride of its enclosing record runtime-dependent, so no build-time offset formula exists.
+2. **A runtime-count array may appear only as the outermost array.** The outermost array varies at runtime through the count in the header; its elements are indexed by arithmetic because each element has the constant stride. An array nested inside a repeated structure must carry its length as a declared constant. A nested array whose length is read at runtime makes the stride of its enclosing record runtime-dependent, so no build-time offset formula exists.
 
 Formats that violate either condition fall back to full decode into records, and introducing support for one requires revising this specification first.
 
 ## Structural finiteness rule
 
-The `FormatDef` must form a finite tree. A record type that references itself, directly or through another record type, is rejected during schema validation with a named error (`RecursionInFormat`) before any generation runs. Two properties depend on this rule:
+The record typedef must form a finite tree. A record type that references itself, directly or through another record type, is rejected during annotation validation with a named error (`RecursionInFormat`) before any generation runs. Two properties depend on this rule:
 
 - No offset formula exists for a type whose depth is unbounded, so recursive formats have no accessor arithmetic.
-- Accessor generation expands one accessor per scalar leaf field. The count of generated methods equals the count of leaf fields and is independent of array cardinality, because runtime indices are parameters of one method and never expand into per-element methods. Recursive types defeat exactly this bound: expansion of a self-referential schema does not terminate.
+- Accessor generation expands one accessor per scalar leaf field. The count of generated methods equals the count of leaf fields and is independent of array cardinality, because runtime indices are parameters of one method and never expand into per-element methods. Recursive types defeat exactly this bound: expansion of a self-referential record typedef does not terminate.
 
 The translatable subset therefore states: formats consumed by the accessor generator are naive finite trees of constant-width scalar fields, fixed-length nested arrays, and nested fixed-shape structures, with at most the outermost array carrying a runtime count.
 
@@ -101,7 +101,7 @@ xMin(): number                            // on BoundsView
 | --- | --- | --- | --- | --- |
 | Candidate 1 (Flat accessors) | One call computes the whole offset with zero allocation; each parameter is validated in the callee. | The parameter list states every dimension and its order explicitly at the call site. | One method per leaf field on one view type. | The method name reads as the field path; parameters read as indices down the path. |
 | Candidate 2 (Record sub-views) | The element base offset is computed once per element, but each factory call allocates one sub-view object in TypeScript and Kotlin. | Index parameters move into factory calls; the leaf accessor carries none, so dimensions are split across two call forms. | One view class per nested element type accompanies the leaf accessors. | Reading several fields of one record groups naturally; reading one field still pays one allocation. |
-| Candidate 3 (Chained views) | Every hop allocates one view object in TypeScript and Kotlin, and structure segments allocate although they carry no runtime dimension. | Structure segments gain accessor calls that select nothing. | One view class per path segment, structure or array. | The chain mirrors the schema path one segment at a time and spreads one logical read across several calls. |
+| Candidate 3 (Chained views) | Every hop allocates one view object in TypeScript and Kotlin, and structure segments allocate although they carry no runtime dimension. | Structure segments gain accessor calls that select nothing. | One view class per path segment, structure or array. | The chain mirrors the field path one segment at a time and spreads one logical read across several calls. |
 
 ## Ruling
 
@@ -182,4 +182,4 @@ Required once the generator exists; none exist yet:
 - For every field and every language, the accessor value equals the value obtained from a full decode of `tests/vectors/roundtrip.bin` at the same record index.
 - For every language, an out-of-range index produces the documented error variant or throw.
 - A structure test asserts that generated accessors contain no loop, no closure, and no allocation call; the accessor body is one bounds comparison per index parameter, one multiply and add per array level, and one primitive read as specified above.
-- A schema validation test feeds a recursive `FormatDef` and a nested runtime-count array and asserts the named rejection errors (`RecursionInFormat`, stride violation) before any generation runs.
+- An annotation validation test feeds a recursive annotated typedef and a nested runtime-count array and asserts the named rejection errors (`RecursionInFormat`, stride violation) before any generation runs.

@@ -311,7 +311,7 @@ fun decodeVector(bytes: ByteArray): Result<List<GlyphMetrics>> =
 
 ## Ruling
 
-Failure identity is a closed variant set defined once per domain and shared by all four trees. Each domain declares its variants in one commit touching every tree: the Haxe enum and its exception wrapper, the Rust error enum, the TypeScript error union and exception class, and the Kotlin sealed exception hierarchy. The variant set of `docs/specs/binary/01-wire-format.md` is the reference example: `BadMagic`, `CountOverflow`, `UnexpectedEof`, and `TrailingBytes` with one `remaining` payload.
+Failure identity is a closed variant set defined once per domain and shared by all four trees. Each domain declares its variants in one commit touching every tree: the Haxe enum and its exception wrapper, the Rust error enum, the TypeScript error union and exception class, and the Kotlin sealed exception hierarchy. The variant set of `docs/specs/binary/01-binary-record-layout.md` is the reference example: `BadMagic`, `CountOverflow`, `UnexpectedEof`, and `TrailingBytes` with one `remaining` payload.
 
 - Rust: all fallible operations return `Result<T, DomainError>` with structured variants. Candidate 1.
 - Haxe: throw sites construct a `haxe.Exception` subclass that carries a Haxe enum instance naming the variant. The interception rejects throw expressions of any other shape, as ruled in `docs/specs/style/01-haxe-style-standard.md`.
