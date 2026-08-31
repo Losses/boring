@@ -17,11 +17,6 @@ describe("matchedTerms", () => {
     expect(hits).toEqual([]);
   });
 
-  test("flags coined compression compounds", () => {
-    const hits = matchedTerms("The decoder keeps frame-level state in a table.");
-    expect(hits.map((hit) => hit.tag)).toEqual(["coinage"]);
-  });
-
   test("flags putdown wording", () => {
     const hits = matchedTerms("You just need to call decode before reading.");
     expect(hits.map((hit) => hit.match)).toEqual(["just"]);
@@ -57,6 +52,19 @@ describe("scanText", () => {
   test("detects filler transitions", () => {
     const hits = scanText("In other words, the record is 44 bytes.\n", "fixture.md");
     expect(hits.map((hit) => hit.tag)).toEqual(["ai-filler"]);
+  });
+
+  test("flags every X-level coinage through the suffix pattern", () => {
+    const hits = scanText("The decoder keeps frame-level state in a table.\n", "fixture.md");
+    expect(hits.map((hit) => hit.tag)).toEqual(["coinage"]);
+  });
+
+  test("keeps the platform term top-level out of the hits", () => {
+    const hits = scanText(
+      "Dart emits the function as a top-level declaration, so top-level calls stay direct.\n",
+      "fixture.md",
+    );
+    expect(hits).toEqual([]);
   });
 
   test("returns no hits for compliant text", () => {

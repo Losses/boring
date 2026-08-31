@@ -19,7 +19,7 @@ import { resolve } from "node:path";
 import { Glob } from "bun";
 
 export type WordTag = "metaphor" | "jargon" | "putdown" | "coinage" | "adjective";
-export type PatternTag = "contrast" | "em-dash" | "ai-filler";
+export type PatternTag = "contrast" | "em-dash" | "ai-filler" | "coinage";
 export type StyleTag = WordTag | PatternTag;
 
 export type BannedTerm = {
@@ -155,25 +155,6 @@ const BANNED_TERMS: ReadonlyArray<BannedTerm> = [
   { match: "operationalize", tag: "jargon" },
   { match: "holistic", tag: "jargon" },
   // coined compression words: judge each line by context
-  { match: "engine-level", tag: "coinage" },
-  { match: "frame-level", tag: "coinage" },
-  { match: "byte-level", tag: "coinage" },
-  { match: "block-level", tag: "coinage" },
-  { match: "glyph-level", tag: "coinage" },
-  { match: "field-level", tag: "coinage" },
-  { match: "document-level", tag: "coinage" },
-  { match: "browser-level", tag: "coinage" },
-  { match: "site-level", tag: "coinage" },
-  { match: "session-level", tag: "coinage" },
-  { match: "process-level", tag: "coinage" },
-  { match: "content-level", tag: "coinage" },
-  { match: "symbol-level", tag: "coinage" },
-  { match: "element-level", tag: "coinage" },
-  { match: "paragraph-level", tag: "coinage" },
-  { match: "substring-level", tag: "coinage" },
-  { match: "character-level", tag: "coinage" },
-  { match: "node-level", tag: "coinage" },
-  { match: "page-level", tag: "coinage" },
   { match: "zero-drift", tag: "coinage" },
   { match: "zero-diff", tag: "coinage" },
   { match: "zero-change", tag: "coinage" },
@@ -229,8 +210,11 @@ const BANNED_TERMS: ReadonlyArray<BannedTerm> = [
 ];
 
 // Rhetorical sentence patterns: negate-first contrast, intensifiers,
-// em-dashes, AI filler transitions.
+// em-dashes, AI filler transitions. The first entry bans the whole
+// X-level suffix class in one rule instead of enumerating compounds;
+// "top-level" is platform vocabulary and stays the single exemption.
 const PATTERNS: ReadonlyArray<StylePattern> = [
+  { regex: /\b(?!top-levels?\b)[a-z]+-levels?\b/i, tag: "coinage" },
   { regex: /\bnot [^.]{0,60} but\b/i, tag: "contrast" },
   { regex: /,\s+not\s/i, tag: "contrast" },
   { regex: /,\s+but rather\b/i, tag: "contrast" },
