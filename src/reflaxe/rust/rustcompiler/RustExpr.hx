@@ -2571,7 +2571,7 @@ class RustExpr {
 				final index = depth == 0 ? "i" : "i" + depth;
 				final item = stdStringType(element, value + "[" + index + "]", true, origin, depth + 1);
 				'{ let mut out = String::new(); out.push(\'[\'); let n = ${value}.len(); let mut ${index} = 0usize; while ${index} < n { if ${index} > 0 { out.push_str(", "); } let _ = write!(out, "{}", ${item}); ${index} += 1; } out.push(\']\'); out }';
-			case TInst(c, _) if(c.get().meta.has(":dataClass")): value + ".to_string()";
+			case TInst(c, _) if(StaticFieldHelper.hasSelfConstructionStatic(c.get()) || c.get().meta.has(":dataClass")): value + ".to_string()";
 			case TAbstract(a, _) if(a.get().name == "Int" || a.get().name == "Float" || a.get().name == "Bool"): inConcat ? value : value + ".to_string()";
 			case TAbstract(a, params) if(a.get().module == "std.ReadOnlyArray"):
 				stdStringType(haxe.macro.TypeTools.applyTypeParameters(a.get().type, a.get().params, params), value, inConcat, origin, depth);

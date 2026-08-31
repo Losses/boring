@@ -1105,7 +1105,7 @@ class TsExpr {
 				final index = depth == 0 ? "i" : "i" + depth;
 				final item = stdStringType(element, value + "[" + index + "]!", true, origin, depth + 1);
 				'(() => { let out = "["; const n = ${value}.length; for (let ${index} = 0; ${index} < n; ${index} += 1) { if (${index} > 0) { out += ", "; } out += ${item}; } out += "]"; return out; })()';
-			case TInst(c, _) if(c.get().meta.has(":dataClass")): value + ".toString()";
+			case TInst(c, _) if(StaticFieldHelper.hasSelfConstructionStatic(c.get()) || c.get().meta.has(":dataClass")): value + ".toString()";
 			case TAbstract(a, _) if(a.get().name == "Int" || a.get().name == "Float" || a.get().name == "Bool"):
 				inConcat ? value : "String(" + value + ")";
 			case TAbstract(a, params) if(a.get().module == "std.ReadOnlyArray"):

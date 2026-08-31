@@ -51,6 +51,19 @@ class StaticFieldHelper {
 		};
 	}
 
+	/** Whether a class carries the sanctioned singleton static. */
+	public static function hasSelfConstructionStatic(cls: Null<ClassType>): Bool {
+		if(cls == null) {
+			return false;
+		}
+		for(field in cls.statics.get()) {
+			if(isSelfConstruction(field, cls)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	static function sameClass(a: ClassType, b: ClassType): Bool {
 		return a.module == b.module && a.name == b.name;
 	}
