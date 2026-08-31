@@ -92,6 +92,11 @@ class SwiftExpr {
 		usedNames.set(name, true);
 	}
 
+	/** Binds a declaration parameter to its native receiver name. */
+	public function bindLocalName(v: TVar, name: String): Void {
+		subst.set(v.id, name);
+	}
+
 	public function setDecodeBoundary(value: Bool): Void {
 		decodeBoundary = value;
 	}
@@ -181,7 +186,7 @@ class SwiftExpr {
 	// Function bodies
 	// ------------------------------------------------------------------
 
-	public function functionBody(cls: ClassType, f: ClassFuncData): Array<String> {
+	public function functionBody(cls: ClassType, f: ClassFuncData, depth: Int = 2): Array<String> {
 		if(f.expr == null) {
 			Context.error("function field has no body to lower", f.field.pos);
 		}
@@ -194,7 +199,7 @@ class SwiftExpr {
 
 		scanLocals(f.expr);
 		// Depth 2: one level under the member's own indentation.
-		return blockLines(statementsOf(f.expr), 2);
+		return blockLines(statementsOf(f.expr), depth);
 	}
 
 	/**
@@ -1082,6 +1087,13 @@ class SwiftExpr {
 	}
 
 	function staticRef(cls: ClassType, name: String): String {
+		final markedField = findStaticField(cls, name);
+		if(markedField != null && StaticFunctionMarkers.isMarked(markedField)) {
+			if(markedField.isPublic) {
+				imports.value(cls.module, name);
+			}
+			return name;
+		}
 		final path = cls.pack.length == 0 ? cls.name : cls.pack.join(".") + "." + cls.name;
 		final module = cls.module != "" ? cls.module : path;
 		switch(module) {
@@ -1148,6 +1160,13 @@ class SwiftExpr {
 				imports.value(module, cls.name);
 				return cls.name + "." + name;
 		}
+	}
+
+	function findStaticField(cls: ClassType, name: String): Null<ClassField> {
+		for(field in cls.statics.get()) {
+			if(field.name == name) return field;
+		}
+		return null;
 	}
 
 	function typeExpr(t: ModuleType): String {
@@ -1315,7 +1334,8 @@ class SwiftExpr {
 		if(inlineMapCall != null) {
 			return inlineMapCall;
 		}
-		final rendered = argTexts(fn, args).join(", ");
+		final renderedArgs = argTexts(fn, args);
+		final rendered = renderedArgs.join(", ");
 		switch(fn.expr) {
 			case TField(subj, FInstance(_, _, cf)) if(cf.get().name == "get_message" && args.length == 0):
 				final target = stripCast(subj);
@@ -1332,6 +1352,14 @@ class SwiftExpr {
 				final module = cls.module != "" ? cls.module : (cls.pack.length == 0 ? cls.name : cls.pack.join(".") + "." + cls.name);
 				if(cls.pack.length == 0 && cls.name == "StringTools" && fName == "hex") {
 					return stringToolsHex(args);
+				}
+				final markedField = findStaticField(cls, fName);
+				if(markedField != null && StaticFunctionMarkers.isMarked(markedField)) {
+					final nativeName = staticRef(cls, fName);
+					if(StaticFunctionMarkers.isExtension(markedField)) {
+						return renderedArgs[0] + "." + nativeName + "(" + renderedArgs.slice(1).join(", ") + ")";
+					}
+					return nativeName + "(" + rendered + ")";
 				}
 				if(module == "std.UStringPlatform") {
 					return ustringPlatformCall(fName, args, fn);
@@ -2690,7 +2718,7 @@ class SwiftExpr {
 		parameter's own TVar decides: a same-named local elsewhere in
 		the module must not shadow this one.
 	**/
-	public function shadowMutatedParams(args: Array<{name: String, ?tvar: Null<TVar>}>): Array<String> {
+	public function shadowMutatedParams(args: Array<{name: String, ?tvar: Null<TVar>}>, depth: Int = 2): Array<String> {
 		final out: Array<String> = [];
 		for(a in args) {
 			if(a.name == null || a.name.length == 0) {
@@ -2700,7 +2728,7 @@ class SwiftExpr {
 				? mutated.exists(a.tvar.id)
 				: mutatedNames.exists(a.name);
 			if(written) {
-				out.push(indent(2) + "var " + a.name + " = " + a.name);
+				out.push(indent(depth) + "var " + a.name + " = " + a.name);
 			}
 		}
 		return out;

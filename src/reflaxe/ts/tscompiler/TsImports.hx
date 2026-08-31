@@ -29,6 +29,14 @@ class TsImports {
 		add(valueNames, moduleBase, name);
 	}
 
+	/** Records a module-file function reference without importing private declarations. */
+	public function functionRef(moduleBase: String, name: String, isPublic: Bool): String {
+		if(isPublic) {
+			value(moduleBase, name);
+		}
+		return name;
+	}
+
 	public function type(moduleBase: String, name: String): Void {
 		add(typeNames, moduleBase, name);
 	}

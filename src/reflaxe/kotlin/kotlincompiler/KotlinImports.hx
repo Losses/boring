@@ -86,6 +86,14 @@ class KotlinImports {
 		}
 	}
 
+	/** Records a file-scope function import when the declaration is public. */
+	public function functionRef(module: String, name: String, isPublic: Bool): String {
+		if(isPublic) {
+			requireType(module, name);
+		}
+		return name;
+	}
+
 	public function render(): String {
 		final lines = selfPack.length == 0 ? [] : ["package " + selfPack];
 		final items = [];

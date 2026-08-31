@@ -85,6 +85,16 @@ class RustDecl {
 			return lines.join("\n");
 		}
 
+		final extractedFuncs = [for(f in funcFields) if(StaticFunctionMarkers.isMarked(f.field)) f];
+		final ordinaryFuncs = [for(f in funcFields) if(!StaticFunctionMarkers.isMarked(f.field)) f];
+		final extractedParts: Array<String> = [];
+		for(f in extractedFuncs) {
+			extractedParts.push(extractedFuncDecl(cls, f).join("\n"));
+		}
+		if(varFields.length == 0 && ordinaryFuncs.length == 0) {
+			return extractedParts.join("\n\n");
+		}
+
 		final tableLines: Array<String> = [];
 		for(v in varFields) {
 			if(v.isStatic && DataTableHelper.isDataTableField(v.field)) {
@@ -95,7 +105,7 @@ class RustDecl {
 			}
 		}
 
-		final isStaticClass = isAllStatic(varFields, funcFields);
+		final isStaticClass = isAllStatic(varFields, ordinaryFuncs);
 		final lines: Array<String> = [];
 
 		if(isStaticClass) {
@@ -104,15 +114,16 @@ class RustDecl {
 			for(v in varFields) {
 				for(l in staticVarDecl(v)) lines.push(l);
 			}
-			var sep = varFields.length > 0 && funcFields.length > 0;
-			for(f in funcFields) {
+			var sep = varFields.length > 0 && ordinaryFuncs.length > 0;
+			for(f in ordinaryFuncs) {
 				if(sep) lines.push("");
 				sep = true;
 				for(l in staticFuncDecl(cls, f)) lines.push(l);
 			}
 			lines.push("}");
 			final prefix = tableLines.length > 0 ? tableLines.join("\n\n") + "\n\n" : "";
-			return prefix + lines.join("\n");
+			final classPart = prefix + lines.join("\n");
+			return extractedParts.length > 0 ? extractedParts.join("\n\n") + "\n\n" + classPart : classPart;
 		}
 
 		// Instance class
@@ -136,7 +147,7 @@ class RustDecl {
 
 		lines.push("impl" + implGenerics + " " + cls.name + genericStr + " {");
 		var sep = false;
-		for(f in funcFields) {
+		for(f in ordinaryFuncs) {
 			if(sep) lines.push("");
 			sep = true;
 			if(f.isStatic) {
@@ -151,7 +162,7 @@ class RustDecl {
 			final ifaceCls = iface.t.get();
 			lines.push("\nimpl" + implGenerics + " " + ifaceCls.name + " for " + cls.name + genericStr + " {");
 			var ifaceSep = false;
-			for(f in funcFields) {
+			for(f in ordinaryFuncs) {
 				if(f.field.name == "new") continue;
 				var inIface = false;
 				for(ifField in ifaceCls.fields.get()) {
@@ -169,7 +180,8 @@ class RustDecl {
 			lines.push("}");
 		}
 
-		return lines.join("\n");
+		final classPart = lines.join("\n");
+		return extractedParts.length > 0 ? extractedParts.join("\n\n") + "\n\n" + classPart : classPart;
 	}
 
 	public static function isExceptionSubclass(cls: ClassType): Bool {
@@ -438,6 +450,44 @@ class RustDecl {
 		return true;
 	}
 
+	/**
+		Returns whether an extension receiver belongs to the same generated
+		Rust module family as its declaring class. Standard-library and
+		resident types stay on the free-function path.
+	**/
+	public static function isCrateOwnedReceiver(ownerModule: String, t: Null<Type>): Bool {
+		final receiverModule = receiverModuleOf(t);
+		if(receiverModule == null || isForeignReceiverModule(receiverModule)) {
+			return false;
+		}
+		return moduleFamily(ownerModule) == moduleFamily(receiverModule);
+	}
+
+	static function receiverModuleOf(t: Null<Type>): Null<String> {
+		if(t == null) {
+			return null;
+		}
+		return switch(t) {
+			case TInst(c, _): c.get().module;
+			case TEnum(e, _): e.get().module;
+			case TType(d, _): d.get().module;
+			case TLazy(f): receiverModuleOf(f());
+			case _: null;
+		};
+	}
+
+	static function isForeignReceiverModule(module: String): Bool {
+		if(module == "String" || module == "Array" || module == "Map" || module == "Std" || module == "Math") {
+			return true;
+		}
+		return StringTools.startsWith(module, "haxe.") || StringTools.startsWith(module, "std.");
+	}
+
+	static function moduleFamily(module: String): String {
+		final parts = module.split(".");
+		return parts.length <= 1 ? "" : parts.slice(0, parts.length - 1).join(".");
+	}
+
 	function classHasLifetime(varFields: Array<ClassVarData>): Bool {
 		for(v in varFields) {
 			switch(v.field.type) {
@@ -547,13 +597,21 @@ class RustDecl {
 		return ['    pub(crate) $snake: $typeStr,'];
 	}
 
-	function staticFuncDecl(cls: ClassType, f: ClassFuncData): Array<String> {
+	function staticFuncDecl(cls: ClassType, f: ClassFuncData, firstArg: Int = 0, receiverMethod: Bool = false): Array<String> {
 		for(a in f.args) {
 			expr.reserveName(a.name);
 			expr.setArgType(a.name, types.of(a.type, true));
 		}
 		final snakeName = RustImports.toSnakeCase(f.field.name);
-		final args = [for(a in f.args) RustImports.toSnakeCase(a.name) + ": " + types.of(a.type, true)].join(", ");
+		final args = [for(i in firstArg...f.args.length) {
+			final a = f.args[i];
+			RustImports.toSnakeCase(a.name) + ": " + types.of(a.type, true);
+		}].join(", ");
+		final allArgs = if(receiverMethod) {
+			args.length > 0 ? "&self, " + args : "&self";
+		} else {
+			args;
+		};
 		final methodParams = staticParamBounds(f, collectMethodTypeParams(f, [for(p in cls.params) p.name]));
 		final methodGenericStr = methodParams.length > 0 ? "<" + methodParams.join(", ") + ">" : "";
 
@@ -568,12 +626,37 @@ class RustDecl {
 		final retType = isFallible ? 'Result<$rawRetType, ${errOwner.name}>' : rawRetType;
 		final ret = retType == "()" ? "" : " -> " + retType;
 		final vis = f.field.isPublic ? "pub " : "";
-		final head = '    ${vis}fn ${snakeName}${methodGenericStr}($args)$ret {';
+		final head = '    ${vis}fn ${snakeName}${methodGenericStr}($allArgs)$ret {';
+		if(receiverMethod && f.args[0].tvar != null) {
+			expr.bindLocalName(f.args[0].tvar, receiverBodyName(f.args[0].type));
+		}
 
 		expr.setReturnUnsigned(rawRetType == "u32");
 		expr.setReturnTypeName(rawRetType);
 		final body = expr.functionBody(cls, f);
 		return [head].concat(body.map(l -> "    " + l)).concat(["    }"]);
+	}
+
+	function receiverBodyName(t: Type): String {
+		return switch(Context.follow(t)) {
+			case TEnum(_, _): "*self";
+			case _: "self";
+		};
+	}
+
+	function extractedFuncDecl(cls: ClassType, f: ClassFuncData): Array<String> {
+		if(StaticFunctionMarkers.isTopLevel(f.field)
+			|| !isCrateOwnedReceiver(cls.module, f.args[0].type)) {
+			return unindentRustFunction(staticFuncDecl(cls, f));
+		}
+		final receiverType = types.of(f.args[0].type, false);
+		return ["impl " + receiverType + " {"]
+			.concat(staticFuncDecl(cls, f, 1, true))
+			.concat(["}"]);
+	}
+
+	function unindentRustFunction(lines: Array<String>): Array<String> {
+		return [for(line in lines) StringTools.startsWith(line, "    ") ? line.substring(4) : line];
 	}
 
 	/**

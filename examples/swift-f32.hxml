@@ -82,3 +82,9 @@ boring.StdStringOps
 tests.StdStringTests
 boring.StringConvOps
 tests.StringConvTests
+boring.FileLevelOps
+boring.FileLevelConsumer
+boring.ExtensionOps
+boring.ExtensionConsumer
+tests.StaticExtensionProbes
+tests.StaticExtensionTests
