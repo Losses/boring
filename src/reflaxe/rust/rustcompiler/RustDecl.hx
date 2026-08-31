@@ -803,11 +803,10 @@ class RustDecl {
 		// resident classes an Array parameter becomes an owned Vec that
 		// the field initializer takes over; other classes keep the
 		// borrowed parameter forms.
-		if(owningClass) {
-			switch(Context.follow(t)) {
-				case TInst(c, _) if(c.get().name == "Array"): return types.of(t, false);
-				case _:
-			}
+		switch(Context.follow(t)) {
+			case TInst(c, _) if(c.get().name == "Array"): return types.of(t, false);
+			case TAbstract(a, _) if(a.get().name == "ReadOnlyArray" || (a.get().pack.join(".") == "std" && a.get().name == "ReadOnlyArray")): return types.of(t, false);
+			case _:
 		}
 		return hasLifetime && isBytesType(t) ? "&'a [u8]" : types.of(t, true);
 	}
@@ -1503,6 +1502,18 @@ class RustDecl {
 			}
 		}
 		lines.push("}");
+		if(!allPlain) {
+			lines.push("");
+			lines.push("impl " + en.name + " {");
+			lines.push("    pub fn to_string(&self) -> String {");
+			lines.push("        match self {");
+			for(o in sorted) {
+				final args = [for(arg in o.args) RustImports.toSnakeCase(arg.name)];
+				if(args.length == 0) lines.push('            ${en.name}::${o.name} => "${o.name}".to_string(),');
+				else lines.push('            ${en.name}::${o.name} { ${args.join(", ")} } => format!("${o.name}(${[for(a in args) a + "={}"].join(", ")})", ${args.join(", ")}),');
+			}
+			lines.push("        }"); lines.push("    }"); lines.push("}");
+		}
 		final use = EnumQueryExpander.usage(en);
 		if(allPlain && use != null) {
 			lines.push(""); lines.push('impl ${en.name} {');

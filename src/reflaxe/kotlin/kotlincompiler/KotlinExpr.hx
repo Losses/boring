@@ -1583,8 +1583,9 @@ class KotlinExpr {
 			case TAbstract(a, params) if(a.get().module == "std.ReadOnlyArray"):
 				stdStringType(haxe.macro.TypeTools.applyTypeParameters(a.get().type, a.get().params, params), value, inConcat, origin, depth);
 			case TEnum(en, _) if(isParameterlessEnum(en.get())): value + (inConcat ? "" : ".name");
+			case TEnum(_, _): inConcat ? value : value + ".toString()";
 			case _:
-				Context.error("Std.string accepts scalars, parameterless enum values, and arrays of them only", origin.pos);
+				Context.error("Std.string accepts scalars, enum values, records, and arrays of them only", origin.pos);
 				null;
 		};
 	}
