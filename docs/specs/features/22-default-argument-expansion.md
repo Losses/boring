@@ -130,10 +130,13 @@ The two sanctioned classes lower differently.
   - Haxe stage 1: the coalescing site is the semantics itself; the oracle
     needs no adaptation.
 
-## Planned extension: coalescing defaults that read parameters or static fields
+## Extension Stage A: coalescing defaults that read parameters
 
-Status: planned. The rules below amend rule 2 and the per-target products for
-the coalescing default; they are not implemented. The engine port sources
+Status: implemented this round. Stage A covers the parameter-reading grammar
+below; static-field reads are deferred to Stage B.
+
+The rules below amend rule 2 and the per-target products for the coalescing
+default. The engine port sources
 hold coalescing sites whose default expression reads earlier parameters or
 static fields of the compilation: a constructor parameter defaulting to an
 earlier parameter (`displayText = text`), a field of an earlier parameter
@@ -148,10 +151,9 @@ expression is not sanctioned`.
 ### Extension grammar
 
 The sanctioned class of rule 2 grows from closed constants to a closed
-recursive grammar over three roots: the existing closed value leaves of
-rule 2; a read of a static field of a class of the compilation or a
-top-level constant of the module; and a reference to a parameter of the
-same function declared strictly before the defaulted parameter. Over these
+recursive grammar over two roots: the existing closed value leaves of
+rule 2 and a reference to a parameter of the same function declared strictly
+before the defaulted parameter. Over these
 roots the grammar accepts field access chains over parameter references,
 instance method calls whose receiver and arguments are grammar
 expressions, static calls whose arguments are grammar expressions,
@@ -218,6 +220,13 @@ and the consistency run pins this.
   triggers `coalesced default expression may reference earlier parameters
   only`; inserting an unrecognized node keeps `coalesced default
   expression is not sanctioned`.
+
+## Extension Stage B (planned, requires features/30): static-field roots
+
+Status: planned. This stage adds static-field reads, the Swift delta that
+retains a native default for static-field-only expressions, and the
+`staticFieldSample` sample and tree assertions. It depends on features/30
+emitting static field declarations for every target.
 
 ## Emission rulings recorded at implementation
 
