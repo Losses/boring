@@ -8,6 +8,7 @@
 -cp src/reflaxe/rust
 -cp samples
 --macro Intercept.run(['samples'], ['samples/boring/BinaryReader.hx', 'samples/boring/BinaryWriter.hx', 'samples/boring/Fp32.hx'])
+--macro haxe.macro.Compiler.addGlobalMetadata('boring', '@:build(std.RecordMember.build())')
 --macro rustcompiler.Compiler.use()
 -D rust-output=reference/rust-f32-gen/src
 -D float-precision=f32
@@ -57,6 +58,9 @@ boring.RecordOps
 tests.RecordTests
 tests.ValueRecordTests
 tests.ValueRecordProbes
+boring.PrintedRecord
+tests.PrintedRecordTests
+boring.PrintedCustom
 boring.StringBufOps
 tests.StringBufTests
 boring.TryOps

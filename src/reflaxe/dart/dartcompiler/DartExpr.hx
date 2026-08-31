@@ -1170,6 +1170,7 @@ class DartExpr {
 				final index = depth == 0 ? "i" : "i" + depth;
 				final item = stdStringType(element, value + "[" + index + "]", true, origin, depth + 1);
 				'(() { final sb = StringBuffer("["); final n = ${value}.length; var ${index} = 0; while (${index} < n) { if (${index} > 0) { sb.write(", "); } sb.write(${item}); ${index} += 1; } sb.write("]"); return sb.toString(); })()';
+			case TInst(c, _) if(c.get().meta.has(":dataClass")): value + ".toString()";
 			case TAbstract(a, _) if(a.get().name == "Int" || a.get().name == "Float" || a.get().name == "Bool"): inConcat && depth == 0 ? value : "'${" + value + "}'";
 			case TAbstract(a, params) if(a.get().module == "std.ReadOnlyArray"):
 				stdStringType(haxe.macro.TypeTools.applyTypeParameters(a.get().type, a.get().params, params), value, inConcat, origin, depth);
