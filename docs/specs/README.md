@@ -43,7 +43,7 @@ Every candidate translation is evaluated across four fixed axes:
 | 05 | [05-block-float-widths.md](binary/05-block-float-widths.md) | Complete | Block float width marker, binary32 and binary16 fields, and edge rounding. |
 | 06 | [06-binary-record-views.md](binary/06-binary-record-views.md) | Planned | Reading records by position: one buffer read per field, iteration as position arithmetic, no per-record allocation. |
 | 07 | [07-binary-record-optimization.md](binary/07-binary-record-optimization.md) | Planned | The compiler rewrite threading one implicit record buffer parameter per buffer kind through position-reading functions. |
-| 08 | [08-binary-record-boundary.md](binary/08-binary-record-boundary.md) | Planned | The published-versus-internal declaration split, materialization at returns, and cross-library declaration files. |
+| 08 | [08-binary-record-boundary.md](binary/08-binary-record-boundary.md) | Planned | The published-versus-internal declaration split, materialization at returns, and cross-library consumption through shipped producer source. |
 
 ### Language feature specifications
 
