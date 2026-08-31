@@ -893,10 +893,51 @@ class SwiftExpr {
 					}
 					return expr(coalescing.valueExpr);
 				}
+				final optional = optionalIf(c, t, f);
+				if(optional != null) return optional;
 				return "(" + expr(c) + " ? " + expr(t) + " : " + expr(f) + ")";
 			case _:
 				return fail(e, "expression has no Swift lowering in the subset");
 		}
+	}
+
+	function optionalIf(c: TypedExpr, ifTrue: TypedExpr, ifFalse: TypedExpr): Null<String> {
+		var value: Null<TVar> = null;
+		switch(stripWrap(c).expr) {
+			case TBinop(OpEq, left, right) | TBinop(OpNotEq, left, right):
+				if(isNullExpr(right)) {
+					switch(stripWrap(left).expr) {
+						case TLocal(v): value = v;
+						case _:
+					}
+				} else if(isNullExpr(left)) {
+					switch(stripWrap(right).expr) {
+						case TLocal(v): value = v;
+						case _:
+					}
+				}
+			case _:
+		}
+		if(value == null) {
+			return null;
+		}
+		final trueLocal = switch(stripWrap(ifTrue).expr) {
+			case TLocal(v) if(v.id == value.id): true;
+			case _: false;
+		};
+		final falseLocal = switch(stripWrap(ifFalse).expr) {
+			case TLocal(v) if(v.id == value.id): true;
+			case _: false;
+		};
+		if(trueLocal == falseLocal) {
+			return null;
+		}
+		final fallback = trueLocal ? ifFalse : ifTrue;
+		return expr(valueExpr(value)) + " ?? " + expr(fallback);
+	}
+
+	function valueExpr(v: TVar): TypedExpr {
+		return {t: v.t, pos: Context.currentPos(), expr: TLocal(v)};
 	}
 
 	function enumQuery(e:TypedExpr):Null<String> {
