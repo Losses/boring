@@ -138,6 +138,39 @@ class DartExpr {
 			case CEnum(enumRef, enumField):
 				final en = enumRef.get();
 				isValueEnum(en) ? en.name + "." + DartDecl.lowerFirst(enumField.name) : en.name + enumField.name + "()";
+			case CParameterRead(name): name;
+			case CFieldAccess(CParameterRead(staticPath), ""): staticPath;
+			case CFieldAccess(receiver, fieldName): coalescingDefaultText(receiver, targetType) + "." + fieldName;
+			case CMethodCall(receiver, methodName, args):
+				coalescingDefaultText(receiver, targetType) + "." + methodName + "(" + [for(a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
+			case CStaticCall(fullPath, args):
+				fullPath + "(" + [for(a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
+			case CConditional(c, t, f):
+				"(" + coalescingDefaultText(c, targetType) + " ? " + coalescingDefaultText(t, targetType) + " : " + coalescingDefaultText(f, targetType) + ")";
+			case CBinaryOp(op, left, right):
+				coalescingDefaultText(left, targetType) + " " + opStr(op) + " " + coalescingDefaultText(right, targetType);
+		};
+	}
+
+	static function opStr(op:Binop):String {
+		return switch(op) {
+			case OpAdd: "+";
+			case OpSub: "-";
+			case OpMult: "*";
+			case OpDiv: "/";
+			case OpMod: "%";
+			case OpEq: "==";
+			case OpNotEq: "!=";
+			case OpLt: "<";
+			case OpLte: "<=";
+			case OpGt: ">";
+			case OpGte: ">=";
+			case OpBoolAnd: "&&";
+			case OpBoolOr: "||";
+			case OpShl: "<<";
+			case OpShr: ">>";
+			case OpXor: "^";
+			case _: "?";
 		};
 	}
 

@@ -78,4 +78,36 @@ class DefaultArgsTests {
 		Test.equals("Admin:Sam", DefaultArgsOps.callInterface0());
 		Test.equals("User:Sam", DefaultArgsOps.callInterface1());
 	}
+
+	// --- Extension grammar roots: coalescing defaults that read parameters or static fields ---
+
+	@:test("bare earlier-parameter read")
+	public static function testParameterRead():Void {
+		Test.equals("hello", DefaultArgsOps.greetWithPrefix("hello"));
+		Test.equals("hi", DefaultArgsOps.greetWithPrefix("hello", "hi"));
+	}
+
+	@:test("field access over a parameter")
+	public static function testFieldAccess():Void {
+		Test.equals("size:2", DefaultArgsOps.sizeLabel(["a", "b"]));
+		Test.equals("size:0", DefaultArgsOps.sizeLabel());
+	}
+
+	@:test("conditional over a parameter")
+	public static function testConditional():Void {
+		Test.equals("English", DefaultArgsOps.localeSample("en"));
+		Test.equals("french", DefaultArgsOps.localeSample("fr", "french"));
+	}
+
+	@:test("static-field read")
+	public static function testStaticFieldRead():Void {
+		Test.equals(Math.POSITIVE_INFINITY, DefaultArgsOps.staticFieldSample(1));
+		Test.equals(5.0, DefaultArgsOps.staticFieldSample(5, 1.0));
+	}
+
+	@:test("dependence assertion: different earlier arguments resolve differently")
+	public static function testDependence():Void {
+		Test.equals("alpha", DefaultArgsOps.callDependenceA());
+		Test.equals("beta", DefaultArgsOps.callDependenceB());
+	}
 }

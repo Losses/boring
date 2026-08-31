@@ -142,6 +142,40 @@ class RustExpr {
 				final en = enumRef.get();
 				requireEnum(en.module, en.name);
 				en.name + "::" + enumField.name;
+			case CParameterRead(name): RustImports.toSnakeCase(name);
+			case CFieldAccess(CParameterRead(staticPath), ""): staticPath;
+			case CFieldAccess(receiver, fieldName): coalescingDefaultText(receiver, targetType) + "." + RustImports.toSnakeCase(fieldName);
+			case CMethodCall(receiver, methodName, args):
+				coalescingDefaultText(receiver, targetType) + "." + RustImports.toSnakeCase(methodName) + "(" + [for(a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
+			case CStaticCall(fullPath, args):
+				fullPath + "(" + [for(a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
+			case CConditional(c, t, f):
+				"if " + coalescingDefaultText(c, targetType) + " { " + coalescingDefaultText(t, targetType) + " } else { " + coalescingDefaultText(f, targetType) + " }";
+			case CBinaryOp(op, left, right):
+				coalescingDefaultText(left, targetType) + " " + opStr(op) + " " + coalescingDefaultText(right, targetType);
+		};
+	}
+
+	static function opStr(op:Binop):String {
+		return switch(op) {
+			case OpAdd: "+";
+			case OpSub: "-";
+			case OpMult: "*";
+			case OpDiv: "/";
+			case OpMod: "%";
+			case OpEq: "==";
+			case OpNotEq: "!=";
+			case OpLt: "<";
+			case OpLte: "<=";
+			case OpGt: ">";
+			case OpGte: ">=";
+			case OpBoolAnd: "&&";
+			case OpBoolOr: "||";
+			case OpShl: "<<";
+			case OpShr: ">>";
+			case OpUShr: ">>";
+			case OpXor: "^";
+			case _: "?";
 		};
 	}
 
@@ -248,7 +282,14 @@ class RustExpr {
 				continue;
 			}
 			seen.set(site.parameter, true);
-			final defaultText = coalescingDefaultText(value, DefaultArgExpander.withoutNull(site.valueExpr.t));
+			final rawDefaultText = coalescingDefaultText(value, DefaultArgExpander.withoutNull(site.valueExpr.t));
+			// When a string parameter read appears inside unwrap_or_else, Rust needs
+			// the owned form (&str → String).
+			final isStringDefault = switch(value) {
+				case CParameterRead(_): isStringType(DefaultArgExpander.withoutNull(site.valueExpr.t));
+				default: false;
+			};
+			final defaultText = isStringDefault ? rawDefaultText + ".to_string()" : rawDefaultText;
 			out.push(indent(depth) + "let " + RustImports.toSnakeCase(site.parameter) + " = " + RustImports.toSnakeCase(site.parameter) + ".unwrap_or_else(|| " + defaultText + ");");
 		}
 		return out;

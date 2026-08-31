@@ -45,6 +45,12 @@ enum CoalescingDefaultValue {
 	CPositiveInfinity;
 	CNegativeInfinity;
 	CEnum(enumRef:Ref<EnumType>, enumField:EnumField);
+	CParameterRead(parameterName:String);
+	CFieldAccess(receiver:CoalescingDefaultValue, fieldName:String);
+	CMethodCall(receiver:CoalescingDefaultValue, methodName:String, args:Array<CoalescingDefaultValue>);
+	CStaticCall(fullPath:String, args:Array<CoalescingDefaultValue>);
+	CConditional(condition:CoalescingDefaultValue, ifTrue:CoalescingDefaultValue, ifFalse:CoalescingDefaultValue);
+	CBinaryOp(op:Binop, left:CoalescingDefaultValue, right:CoalescingDefaultValue);
 }
 
 /**
@@ -55,11 +61,13 @@ class DefaultArgExpander {
 	static final fieldDefaults:Map<String, Array<Null<DefaultArgValue>>> = new Map();
 	static final fieldDefaultsByName:Map<String, Array<Null<DefaultArgValue>>> = new Map();
 	static final fieldCoalescing:Map<String, CoalescingDefaultValue> = new Map();
+	static final fieldCoalescingReadsParam:Map<String, Bool> = new Map();
 	static final coalescingSourceRanges:Array<{file:String, min:Int, max:Int}> = [];
 
 	static final localDefaults:Map<String, Array<Null<DefaultArgValue>>> = new Map();
 	static final localDefaultsByName:Map<String, Array<Null<DefaultArgValue>>> = new Map();
 	static final localCoalescing:Map<String, CoalescingDefaultValue> = new Map();
+	static final localCoalescingReadsParam:Map<String, Bool> = new Map();
 
 	/** Registration counts per bare name; a by-name fallback may fire only when the count is exactly one. */
 	static final fieldNameCounts:Map<String, Int> = new Map();
@@ -85,6 +93,7 @@ class DefaultArgExpander {
 							final value = coalescing[argIdx];
 							defaults.push(VCoalescing(value));
 							fieldCoalescing.set(classKey + ":" + field.name + ":" + arg.name, value);
+							fieldCoalescingReadsParam.set(classKey + ":" + field.name + ":" + arg.name, readsParameter(value));
 							hasDefault = true;
 						} else if (arg.value != null) {
 							final v = evalConstantExpr(arg.value, classType);
@@ -167,6 +176,7 @@ class DefaultArgExpander {
 				final value = coalescing[argIdx];
 				defaults.push(VCoalescing(value));
 				localCoalescing.set(classKey + ":" + fieldName + ":" + fnName + ":" + arg.name, value);
+				localCoalescingReadsParam.set(classKey + ":" + fieldName + ":" + fnName + ":" + arg.name, readsParameter(value));
 				hasDefault = true;
 			} else if (arg.value != null) {
 				final v = evalConstantExpr(arg.value, classType);
@@ -189,11 +199,13 @@ class DefaultArgExpander {
 	static function discoverCoalescingDefaults(args:Array<FunctionArg>, body:Null<Expr>, classType:ClassType):Array<Null<CoalescingDefaultValue>> {
 		final result:Array<Null<CoalescingDefaultValue>> = [for (_ in args) null];
 		if (body == null) return result;
+		final allParamNames:Array<String> = [for (a in args) a.name];
 		for (argIdx in 0...args.length) {
 			final arg = args[argIdx];
 			if (arg.opt != true || arg.value != null) continue;
+			final earlierNames:Array<String> = allParamNames.slice(0, argIdx);
 			final candidates:Array<{value:CoalescingDefaultValue, excluded:Expr, defaultExpr:Expr}> = [];
-			collectCoalescingCandidates(body, arg.name, classType, candidates);
+			collectCoalescingCandidates(body, arg.name, classType, earlierNames, allParamNames, candidates);
 			if (candidates.length > 1) {
 				Context.fatalError("coalesced default parameter is consumed more than once", body.pos);
 			}
@@ -208,12 +220,12 @@ class DefaultArgExpander {
 		return result;
 	}
 
-	static function collectCoalescingCandidates(e:Expr, parameterName:String, classType:ClassType, result:Array<{value:CoalescingDefaultValue, excluded:Expr, defaultExpr:Expr}>):Void {
+	static function collectCoalescingCandidates(e:Expr, parameterName:String, classType:ClassType, earlierNames:Array<String>, allParamNames:Array<String>, result:Array<{value:CoalescingDefaultValue, excluded:Expr, defaultExpr:Expr}>):Void {
 		if (e == null) return;
 		switch (e.expr) {
 			case ExprDef.EBinop(Binop.OpAssign, lhs, rhs):
 				if (isThisField(lhs, parameterName)) {
-					final match = matchCoalescingExpression(rhs, parameterName, classType);
+					final match = matchCoalescingExpression(rhs, parameterName, classType, earlierNames, allParamNames);
 					if (match != null) {
 						result.push({value: match.value, excluded: e, defaultExpr: match.defaultExpr});
 					}
@@ -221,14 +233,14 @@ class DefaultArgExpander {
 			case ExprDef.EVars(vars):
 				for (v in vars) {
 					if (v.isFinal == true || v.expr == null) continue;
-					final match = matchCoalescingExpression(v.expr, parameterName, classType);
+					final match = matchCoalescingExpression(v.expr, parameterName, classType, earlierNames, allParamNames);
 					if (match != null) {
 						result.push({value: match.value, excluded: v.expr, defaultExpr: match.defaultExpr});
 					}
 				}
 			default:
 		}
-		haxe.macro.ExprTools.iter(e, child -> collectCoalescingCandidates(child, parameterName, classType, result));
+		haxe.macro.ExprTools.iter(e, child -> collectCoalescingCandidates(child, parameterName, classType, earlierNames, allParamNames, result));
 	}
 
 	static function isThisField(e:Expr, fieldName:String):Bool {
@@ -249,16 +261,287 @@ class DefaultArgExpander {
 		};
 	}
 
-	static function matchCoalescingExpression(e:Expr, parameterName:String, classType:ClassType):Null<{value:CoalescingDefaultValue, defaultExpr:Expr}> {
+	static function matchCoalescingExpression(e:Expr, parameterName:String, classType:ClassType, earlierNames:Array<String>, allParamNames:Array<String>):Null<{value:CoalescingDefaultValue, defaultExpr:Expr}> {
 		final cur = unwrapExpr(e);
 		if (cur == null) return null;
 		return switch (cur.expr) {
 			case ExprDef.ETernary(condition, ifTrue, ifFalse):
 				if (isNullCheck(condition, parameterName) && isParameterExpression(ifFalse, parameterName)) {
-					{value: coalescingValue(ifTrue, classType), defaultExpr: unwrapExpr(ifTrue)};
+					final grammarValue = validateCoalescingGrammar(ifTrue, earlierNames, allParamNames, classType);
+					if (grammarValue != null) {
+						{value: grammarValue, defaultExpr: unwrapExpr(ifTrue)};
+					} else {
+						null;
+					}
 				} else {
 					null;
 				}
+			default: null;
+		};
+	}
+
+	/** Classifies an identifier as a parameter, static field, module constant, or type. */
+	static function classifyExpr(e:Expr, earlierNames:Array<String>):String {
+		final cur = unwrapExpr(e);
+		if (cur == null) return "other";
+		return switch (cur.expr) {
+			case ExprDef.EConst(AstConstant.CIdent(name)):
+				if (earlierNames.indexOf(name) >= 0) "parameter" else {
+					if (isTypeName(name)) "type" else "other";
+				}
+			case ExprDef.EField(inner, fieldName):
+				final innerClass = classifyExpr(inner, earlierNames);
+				if (innerClass == "type") "staticField" else if (innerClass == "parameter") "fieldChain" else "other";
+			default: "other";
+		};
+	}
+
+	/** Checks whether a name resolves to a type in the compilation (class, enum, typedef, abstract). */
+	static function isTypeName(name:String):Bool {
+		try {
+			final t = Context.getType(name);
+			return switch (t) {
+				case Type.TType(_, _): true;
+				case Type.TEnum(_, _): true;
+				case Type.TInst(_, _): true;
+				case Type.TAbstract(_, _): true;
+				default: false;
+			};
+		} catch (_:Dynamic) {}
+		return false;
+	}
+
+	/** Resolves a dotted path to a static field or module-level constant, returning the full path or null. */
+	static function resolveStaticFieldOrConstant(e:Expr, earlierNames:Array<String>):Null<String> {
+		final cur = unwrapExpr(e);
+		if (cur == null) return null;
+		return switch (cur.expr) {
+			case ExprDef.EField(inner, fieldName):
+				final innerStr = resolveStaticFieldOrConstant(inner, earlierNames);
+				if (innerStr != null) innerStr + "." + fieldName else {
+					// Check if inner is a type → static field read
+					final innerClass = classifyExpr(inner, earlierNames);
+					if (innerClass == "type") {
+						final fullPath = exprToDotted(inner);
+						if (fullPath != null) fullPath + "." + fieldName else null;
+					} else null;
+				}
+			case ExprDef.EConst(AstConstant.CIdent(name)):
+				// Check if this is a module-level constant (not a parameter or type)
+				final c = classifyExpr(cur, earlierNames);
+				if (c == "other") {
+					// Verify it resolves to a module-level static field
+					try {
+						final mod = Context.getLocalModule();
+						final moduleTypes = Context.getModule(mod);
+						for (mt in moduleTypes) {
+							switch (mt) {
+								case TInst(clsRef, _):
+									final cls = clsRef.get();
+									for (f in cls.statics.get()) {
+										if (f.name == name) return name;
+									}
+								default:
+							}
+						}
+					} catch (_:Dynamic) {}
+					null;
+				} else null;
+			default: null;
+		};
+	}
+
+	/**
+		Validates the default expression E of `p == null ? E : p` against
+		the recursive grammar. Returns the CoalescingDefaultValue tree or
+		null when the expression is not sanctioned.
+	*/
+	static function validateCoalescingGrammar(e:Expr, earlierNames:Array<String>, allParamNames:Array<String>, classType:ClassType):Null<CoalescingDefaultValue> {
+		final cur = unwrapExpr(e);
+		if (cur == null) return null;
+
+		// 1. Closed value leaves (literals, null, empty containers, infinity, enum constructors)
+		final closedResult = coalescingValueTry(cur, classType);
+		if (closedResult != null) return closedResult;
+
+		// 2. Parameter reference root (earlier parameters only)
+		if (cur.expr != null) {
+			switch (cur.expr) {
+				case ExprDef.EConst(AstConstant.CIdent(name)):
+					if (earlierNames.indexOf(name) >= 0) {
+						return CParameterRead(name);
+					}
+					// Check for later parameter references or the defaulted parameter itself
+					if (allParamNames.indexOf(name) >= 0) {
+						laterParameterError(cur.pos);
+					}
+				default:
+			}
+		}
+
+		// 3. Static field / top-level constant root (skip parameter names)
+		final staticPath = resolveStaticFieldOrConstant(cur, earlierNames);
+		if (staticPath != null) {
+			return CFieldAccess(CParameterRead(staticPath), "");
+		}
+
+		// 4. Field access chain over parameter references
+		if (cur.expr != null) {
+			switch (cur.expr) {
+				case ExprDef.EField(inner, fieldName):
+					final innerClass = classifyExpr(inner, earlierNames);
+					if (innerClass == "type") {
+						// Static field read — handled above; fall through
+					} else if (innerClass == "parameter" || innerClass == "fieldChain") {
+						final innerValue = validateCoalescingGrammar(inner, earlierNames, allParamNames, classType);
+						if (innerValue != null) {
+							return CFieldAccess(innerValue, fieldName);
+						}
+					}
+				default:
+			}
+		}
+
+		// 5. Instance method call: receiver and args are grammar expressions
+		//    Static call: receiver is a type, args are grammar expressions
+		if (cur.expr != null) {
+			switch (cur.expr) {
+				case ExprDef.ECall(callee, callArgs):
+					final calleeExpr = unwrapExpr(callee);
+					if (calleeExpr != null) {
+						switch (calleeExpr.expr) {
+							case ExprDef.EField(innerClassField, methodName):
+								final innerClassExpr = unwrapExpr(innerClassField);
+								if (innerClassExpr != null) {
+								switch (innerClassExpr.expr) {
+									case ExprDef.EField(innerReceiver, typeName):
+										// Static call: Outer.Inner.method(args)
+										final fullTypePath = exprToDotted(innerClassField);
+										if (fullTypePath != null && isTypeName(fullTypePath)) {
+											final argValues = validateArgList(callArgs, earlierNames, allParamNames, classType);
+											if (argValues != null) return CStaticCall(fullTypePath + "." + methodName, argValues);
+										}
+									case ExprDef.EConst(AstConstant.CIdent(typeName)):
+										// Static call: ClassName.method(args)
+										if (isTypeName(typeName)) {
+											final argValues = validateArgList(callArgs, earlierNames, allParamNames, classType);
+											if (argValues != null) return CStaticCall(typeName + "." + methodName, argValues);
+										}
+									default:
+								}
+								}
+								// Instance method call: receiver.method(args)
+								final receiverClass = classifyExpr(innerClassField, earlierNames);
+								if (receiverClass == "parameter" || receiverClass == "fieldChain" || receiverClass == "methodCall") {
+									final receiverValue = validateCoalescingGrammar(innerClassField, earlierNames, allParamNames, classType);
+									if (receiverValue != null) {
+										final argValues = validateArgList(callArgs, earlierNames, allParamNames, classType);
+										if (argValues != null) return CMethodCall(receiverValue, methodName, argValues);
+									}
+								}
+							case ExprDef.EConst(AstConstant.CIdent(funcName)):
+								// Possible static call: funcName(args)
+								if (earlierNames.indexOf(funcName) < 0) {
+									final argValues = validateArgList(callArgs, earlierNames, allParamNames, classType);
+									if (argValues != null) return CStaticCall(funcName, argValues);
+								}
+							default:
+						}
+					}
+				default:
+			}
+		}
+
+		// 6. Conditional: cond ? t : f
+		if (cur.expr != null) {
+			switch (cur.expr) {
+				case ExprDef.ETernary(condition, ifTrue, ifFalse):
+					final cVal = validateCoalescingGrammar(condition, earlierNames, allParamNames, classType);
+					final tVal = validateCoalescingGrammar(ifTrue, earlierNames, allParamNames, classType);
+					final fVal = validateCoalescingGrammar(ifFalse, earlierNames, allParamNames, classType);
+					if (cVal != null && tVal != null && fVal != null) {
+						return CConditional(cVal, tVal, fVal);
+					}
+				default:
+			}
+		}
+
+		// 7. Binary operator: left op right
+		if (cur.expr != null) {
+			switch (cur.expr) {
+				case ExprDef.EBinop(op, left, right):
+					final lVal = validateCoalescingGrammar(left, earlierNames, allParamNames, classType);
+					final rVal = validateCoalescingGrammar(right, earlierNames, allParamNames, classType);
+					if (lVal != null && rVal != null) {
+						return CBinaryOp(op, lVal, rVal);
+					}
+				default:
+			}
+		}
+
+		// Unrecognized node
+		coalescingError(cur.pos);
+		return null;
+	}
+
+	/** Validates a list of arguments against the grammar. */
+	static function validateArgList(args:Array<Expr>, earlierNames:Array<String>, allParamNames:Array<String>, classType:ClassType):Null<Array<CoalescingDefaultValue>> {
+		final values:Array<CoalescingDefaultValue> = [];
+		for (a in args) {
+			final v = validateCoalescingGrammar(a, earlierNames, allParamNames, classType);
+			if (v == null) return null;
+			values.push(v);
+		}
+		return values;
+	}
+
+	/** Tries to recognize a closed value; returns null for non-closed expressions. */
+	static function coalescingValueTry(e:Expr, classType:ClassType):Null<CoalescingDefaultValue> {
+		final cur = unwrapExpr(e);
+		if (cur == null) return null;
+		return switch (cur.expr) {
+			case ExprDef.EConst(AstConstant.CInt(s)): CInt(Std.parseInt(s));
+			case ExprDef.EConst(AstConstant.CFloat(s)): CFloat(s);
+			case ExprDef.EConst(AstConstant.CString(s, _)): CString(s);
+			case ExprDef.EConst(AstConstant.CIdent("true")): CBool(true);
+			case ExprDef.EConst(AstConstant.CIdent("false")): CBool(false);
+			case ExprDef.EConst(AstConstant.CIdent("null")): CNull;
+			case ExprDef.EUnop(Unop.OpNeg, _, inner):
+				final value = unwrapExpr(inner);
+				if (value != null) {
+					switch (value.expr) {
+						case ExprDef.EConst(AstConstant.CInt(s)): CInt(-Std.parseInt(s));
+						case ExprDef.EConst(AstConstant.CFloat(s)): CFloat("-" + s);
+						default: null;
+					}
+				} else null;
+			case ExprDef.EArrayDecl(values): values.length == 0 ? CEmptyArray : null;
+			case ExprDef.ENew(typePath, params):
+				typePath.pack.length == 0 && typePath.name == "Map" && params.length == 0 ? CEmptyMap : null;
+			case ExprDef.EField(receiver, fieldName):
+				if (exprToDotted(receiver) == "Math") {
+					if (fieldName == "POSITIVE_INFINITY") return CPositiveInfinity;
+					if (fieldName == "NEGATIVE_INFINITY") return CNegativeInfinity;
+				}
+				final enumRef = resolveEnum(receiver);
+				if (enumRef != null) {
+					final en = enumRef.get();
+					if (en.constructs.exists(fieldName)) {
+						final enumField = en.constructs.get(fieldName);
+						switch (enumField.type) {
+							case Type.TEnum(_, _): CEnum(enumRef, enumField);
+							default: null;
+						}
+					} else null;
+				} else null;
+			case ExprDef.EConst(AstConstant.CIdent(ident)):
+				final enumValue = resolveUnqualifiedEnumConstructor(ident, classType);
+				if (enumValue != null) {
+					switch (enumValue) {
+						case VEnum(enumRef, enumField): CEnum(enumRef, enumField);
+						default: null;
+					}
+				} else null;
 			default: null;
 		};
 	}
@@ -355,6 +638,31 @@ class DefaultArgExpander {
 
 	static function coalescingError(pos:Position):Void {
 		Context.fatalError("coalesced default expression is not sanctioned", pos);
+	}
+
+	static function laterParameterError(pos:Position):Void {
+		Context.fatalError("coalesced default expression may reference earlier parameters only", pos);
+	}
+
+	/** True when the coalescing value tree reads any parameter reference. */
+	public static function readsParameter(value:CoalescingDefaultValue):Bool {
+		return switch (value) {
+			case CParameterRead(_): true;
+			case CFieldAccess(receiver, _): readsParameter(receiver);
+			case CMethodCall(receiver, _, args):
+				readsParameter(receiver) || argsHaveParameter(args);
+			case CStaticCall(_, args): argsHaveParameter(args);
+			case CConditional(c, t, f): readsParameter(c) || readsParameter(t) || readsParameter(f);
+			case CBinaryOp(_, l, r): readsParameter(l) || readsParameter(r);
+			default: false;
+		};
+	}
+
+	static function argsHaveParameter(args:Array<CoalescingDefaultValue>):Bool {
+		for (a in args) {
+			if (readsParameter(a)) return true;
+		}
+		return false;
 	}
 
 	static function recordCoalescingSource(pos:Position):Void {
@@ -742,6 +1050,19 @@ class DefaultArgExpander {
 			case VCoalescing(value): value;
 			default: null;
 		};
+	}
+
+	/** True when the coalescing default for a specific parameter reads an earlier parameter. */
+	public static function coalescingReadsParamForParam(classType:ClassType, fieldName:String, parameterName:String):Bool {
+		final key = getClassKey(classType) + ":" + fieldName + ":" + parameterName;
+		return fieldCoalescingReadsParam.exists(key) && fieldCoalescingReadsParam.get(key);
+	}
+
+	/** True when the local coalescing default reads an earlier parameter. */
+	public static function coalescingReadsParamForLocalParam(classType:ClassType, fieldName:String, localName:String, parameterName:String):Bool {
+		if (classType == null) return false;
+		final key = getClassKey(classType) + ":" + fieldName + ":" + localName + ":" + parameterName;
+		return localCoalescingReadsParam.exists(key) && localCoalescingReadsParam.get(key);
 	}
 
 	/** Returns a sanctioned default by the exact class/field/parameter identity. */
