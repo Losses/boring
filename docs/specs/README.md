@@ -76,6 +76,7 @@ Every candidate translation is evaluated across four fixed axes:
 | 26 | [26-package-registry.md](features/26-package-registry.md) | Complete | The registry tool that turns a directory of install artifacts into one static, read-only registry site serving the five ecosystems. |
 | 27 | [27-class-members-and-records.md](features/27-class-members-and-records.md) | Complete | Class members and records: constructor-parameter fields, constructor bodies, getter-only properties, and the `@:dataClass` record operations. |
 | 28 | [28-enum-value-queries.md](features/28-enum-value-queries.md) | Planned | The enum value queries `Type.allEnums`, `Type.enumConstructor`, `Type.createEnum`: compile-time expansion, per-target artifacts, literal count bounds, and miss semantics. |
+| 29 | [29-first-class-function-values.md](features/29-first-class-function-values.md) | Planned | Function-typed values in every storage position: the verified renderings on all five targets, Rust boxed function storage, and static function fields with capture-free initializers. |
 
 ### Macro specifications
 
