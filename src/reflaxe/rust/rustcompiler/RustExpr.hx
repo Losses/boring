@@ -2451,6 +2451,7 @@ class RustExpr {
 	function isGuardStaticField(cls: ClassType, name: String): Bool {
 		final field = staticFieldOf(cls, name);
 		return field != null
+			&& ValueTypeSupport.markedAbstractOfClass(cls) == null
 			&& StaticFieldHelper.initializer(field) != null
 			&& !DataTableHelper.isDataTableField(field)
 			&& !StaticFieldHelper.isConstValue(field);
