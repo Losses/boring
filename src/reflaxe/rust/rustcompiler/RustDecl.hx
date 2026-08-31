@@ -92,7 +92,11 @@ class RustDecl {
 				if(elems != null) {
 					tableLines.push(renderRustDataTable(v.field, elems));
 				}
-			}
+				}
+		}
+		final moduleStaticLines: Array<String> = [];
+		for(v in varFields) {
+			for(l in moduleStaticVarDecl(v)) moduleStaticLines.push(l);
 		}
 
 		final isStaticClass = isAllStatic(varFields, funcFields);
@@ -111,7 +115,8 @@ class RustDecl {
 				for(l in staticFuncDecl(cls, f)) lines.push(l);
 			}
 			lines.push("}");
-			final prefix = tableLines.length > 0 ? tableLines.join("\n\n") + "\n\n" : "";
+			final prefixLines = tableLines.concat(moduleStaticLines);
+			final prefix = prefixLines.length > 0 ? prefixLines.join("\n") + "\n\n" : "";
 			return prefix + lines.join("\n");
 		}
 
@@ -480,21 +485,33 @@ class RustDecl {
 		if(v.isStatic && DataTableHelper.isDataTableField(field)) {
 			return [];
 		}
-		final snake = RustImports.toSnakeCase(field.name);
-		if(field.meta.has(":value")) {
-			final val = field.meta.extract(":value")[0].params[0];
-			final valStr = switch(val.expr) {
-				case EConst(CString(s)): '"' + s + '"';
-				case EConst(CInt(i)): i;
-				case _: "";
-			};
+		if(v.isStatic && StaticFieldHelper.isConstValue(field)) {
+			final init = StaticFieldHelper.validatedInitializer(field);
+			final valStr = expr.rawExpression(init);
 			final typeStr = switch(field.type) {
 				case TInst(c, _) if(c.get().name == "String"): "&str";
 				case _: types.of(field.type);
 			};
-			return ['    pub const ${field.name}: ${typeStr} = $valStr;'];
+			final vis = field.isPublic ? "pub " : "";
+			return ['    ${vis}const ${field.name}: ${typeStr} = $valStr;'];
 		}
 		return [];
+	}
+
+	/** A mutable or container static lives outside the associated impl. */
+	function moduleStaticVarDecl(v: ClassVarData): Array<String> {
+		final field = v.field;
+		if(!v.isStatic || DataTableHelper.isDataTableField(field) || StaticFieldHelper.isConstValue(field)) {
+			return [];
+		}
+		final init = StaticFieldHelper.validatedInitializer(field);
+		imports.require("std::sync::Mutex");
+		final vis = field.isPublic ? "pub " : "";
+		final typeStr = types.of(field.type);
+		return [
+			"#[allow(non_upper_case_globals)]",
+			'${vis}static ${field.name}: Mutex<${typeStr}> = Mutex::new(${expr.rawExpression(init)});'
+		];
 	}
 
 	function ctorArgType(t: Type, hasLifetime: Bool, owningClass: Bool): String {
