@@ -26,6 +26,25 @@ enum DefaultArgValue {
 	VBool(b:Bool);
 	VNull;
 	VEnum(enumRef:Ref<EnumType>, enumField:EnumField);
+	VCoalescing(value:CoalescingDefaultValue);
+}
+
+/**
+	The deliberately small expression language accepted by a coalescing
+	default.  Keeping this separate from DefaultArgValue prevents a
+	coalescing expression from being materialized at a call site.
+*/
+enum CoalescingDefaultValue {
+	CInt(v:Int);
+	CFloat(s:String);
+	CString(s:String);
+	CBool(b:Bool);
+	CNull;
+	CEmptyArray;
+	CEmptyMap;
+	CPositiveInfinity;
+	CNegativeInfinity;
+	CEnum(enumRef:Ref<EnumType>, enumField:EnumField);
 }
 
 /**
@@ -35,9 +54,12 @@ enum DefaultArgValue {
 class DefaultArgExpander {
 	static final fieldDefaults:Map<String, Array<Null<DefaultArgValue>>> = new Map();
 	static final fieldDefaultsByName:Map<String, Array<Null<DefaultArgValue>>> = new Map();
+	static final fieldCoalescing:Map<String, CoalescingDefaultValue> = new Map();
+	static final coalescingSourceRanges:Array<{file:String, min:Int, max:Int}> = [];
 
 	static final localDefaults:Map<String, Array<Null<DefaultArgValue>>> = new Map();
 	static final localDefaultsByName:Map<String, Array<Null<DefaultArgValue>>> = new Map();
+	static final localCoalescing:Map<String, CoalescingDefaultValue> = new Map();
 
 	/** Registration counts per bare name; a by-name fallback may fire only when the count is exactly one. */
 	static final fieldNameCounts:Map<String, Int> = new Map();
@@ -54,11 +76,17 @@ class DefaultArgExpander {
 			final field = fields[index];
 			switch (field.kind) {
 				case FieldType.FFun(fun):
+					final coalescing = discoverCoalescingDefaults(fun.args, fun.expr, classType);
 					final defaults:Array<Null<DefaultArgValue>> = [];
 					var hasDefault = false;
 					for (argIdx in 0...fun.args.length) {
 						final arg = fun.args[argIdx];
-						if (arg.value != null) {
+						if (coalescing[argIdx] != null) {
+							final value = coalescing[argIdx];
+							defaults.push(VCoalescing(value));
+							fieldCoalescing.set(classKey + ":" + field.name + ":" + arg.name, value);
+							hasDefault = true;
+						} else if (arg.value != null) {
 							final v = evalConstantExpr(arg.value, classType);
 							defaults.push(v);
 							hasDefault = true;
@@ -130,11 +158,17 @@ class DefaultArgExpander {
 
 	static function registerLocalFunction(classType:ClassType, fieldName:String, fnName:String, func:AstFunction):Void {
 		final classKey = getClassKey(classType);
+		final coalescing = discoverCoalescingDefaults(func.args, func.expr, classType);
 		final defaults:Array<Null<DefaultArgValue>> = [];
 		var hasDefault = false;
 		for (argIdx in 0...func.args.length) {
 			final arg = func.args[argIdx];
-			if (arg.value != null) {
+			if (coalescing[argIdx] != null) {
+				final value = coalescing[argIdx];
+				defaults.push(VCoalescing(value));
+				localCoalescing.set(classKey + ":" + fieldName + ":" + fnName + ":" + arg.name, value);
+				hasDefault = true;
+			} else if (arg.value != null) {
 				final v = evalConstantExpr(arg.value, classType);
 				defaults.push(v);
 				hasDefault = true;
@@ -150,6 +184,205 @@ class DefaultArgExpander {
 			localDefaultsByName.set(fnName, defaults);
 			localNameCounts.set(fnName, (localNameCounts.exists(fnName) ? localNameCounts.get(fnName) : 0) + 1);
 		}
+	}
+
+	static function discoverCoalescingDefaults(args:Array<FunctionArg>, body:Null<Expr>, classType:ClassType):Array<Null<CoalescingDefaultValue>> {
+		final result:Array<Null<CoalescingDefaultValue>> = [for (_ in args) null];
+		if (body == null) return result;
+		for (argIdx in 0...args.length) {
+			final arg = args[argIdx];
+			if (arg.opt != true || arg.value != null) continue;
+			final candidates:Array<{value:CoalescingDefaultValue, excluded:Expr, defaultExpr:Expr}> = [];
+			collectCoalescingCandidates(body, arg.name, classType, candidates);
+			if (candidates.length > 1) {
+				Context.fatalError("coalesced default parameter is consumed more than once", body.pos);
+			}
+			if (candidates.length == 1) {
+				if (countParameterReads(body, arg.name, candidates[0].excluded) > 0) {
+					Context.fatalError("coalesced default parameter is consumed more than once", body.pos);
+				}
+				recordCoalescingSource(candidates[0].defaultExpr.pos);
+				result[argIdx] = candidates[0].value;
+			}
+		}
+		return result;
+	}
+
+	static function collectCoalescingCandidates(e:Expr, parameterName:String, classType:ClassType, result:Array<{value:CoalescingDefaultValue, excluded:Expr, defaultExpr:Expr}>):Void {
+		if (e == null) return;
+		switch (e.expr) {
+			case ExprDef.EBinop(Binop.OpAssign, lhs, rhs):
+				if (isThisField(lhs, parameterName)) {
+					final match = matchCoalescingExpression(rhs, parameterName, classType);
+					if (match != null) {
+						result.push({value: match.value, excluded: e, defaultExpr: match.defaultExpr});
+					}
+				}
+			case ExprDef.EVars(vars):
+				for (v in vars) {
+					if (v.isFinal == true || v.expr == null) continue;
+					final match = matchCoalescingExpression(v.expr, parameterName, classType);
+					if (match != null) {
+						result.push({value: match.value, excluded: v.expr, defaultExpr: match.defaultExpr});
+					}
+				}
+			default:
+		}
+		haxe.macro.ExprTools.iter(e, child -> collectCoalescingCandidates(child, parameterName, classType, result));
+	}
+
+	static function isThisField(e:Expr, fieldName:String):Bool {
+		final cur = unwrapExpr(e);
+		if (cur == null) return false;
+		return switch (cur.expr) {
+			case ExprDef.EField(receiver, name):
+				name == fieldName && isThisExpression(receiver);
+			default: false;
+		};
+	}
+
+	static function isThisExpression(e:Expr):Bool {
+		final cur = unwrapExpr(e);
+		return cur != null && switch (cur.expr) {
+			case ExprDef.EConst(AstConstant.CIdent("this")): true;
+			default: false;
+		};
+	}
+
+	static function matchCoalescingExpression(e:Expr, parameterName:String, classType:ClassType):Null<{value:CoalescingDefaultValue, defaultExpr:Expr}> {
+		final cur = unwrapExpr(e);
+		if (cur == null) return null;
+		return switch (cur.expr) {
+			case ExprDef.ETernary(condition, ifTrue, ifFalse):
+				if (isNullCheck(condition, parameterName) && isParameterExpression(ifFalse, parameterName)) {
+					{value: coalescingValue(ifTrue, classType), defaultExpr: unwrapExpr(ifTrue)};
+				} else {
+					null;
+				}
+			default: null;
+		};
+	}
+
+	static function isNullCheck(e:Expr, parameterName:String):Bool {
+		final cur = unwrapExpr(e);
+		if (cur == null) return false;
+		return switch (cur.expr) {
+			case ExprDef.EBinop(Binop.OpEq, left, right):
+				isParameterExpression(left, parameterName) && isNullExpression(right);
+			default: false;
+		};
+	}
+
+	static function isParameterExpression(e:Expr, parameterName:String):Bool {
+		final cur = unwrapExpr(e);
+		return cur != null && switch (cur.expr) {
+			case ExprDef.EConst(AstConstant.CIdent(name)): name == parameterName;
+			default: false;
+		};
+	}
+
+	static function isNullExpression(e:Expr):Bool {
+		final cur = unwrapExpr(e);
+		return cur != null && switch (cur.expr) {
+			case ExprDef.EConst(AstConstant.CIdent("null")): true;
+			default: false;
+		};
+	}
+
+	static function coalescingValue(e:Expr, classType:ClassType):CoalescingDefaultValue {
+		final cur = unwrapExpr(e);
+		if (cur == null) coalescingError(e.pos);
+		switch (cur.expr) {
+			case ExprDef.EConst(AstConstant.CInt(s)):
+				return CInt(Std.parseInt(s));
+			case ExprDef.EConst(AstConstant.CFloat(s)):
+				return CFloat(s);
+			case ExprDef.EConst(AstConstant.CString(s, _)):
+				return CString(s);
+			case ExprDef.EConst(AstConstant.CIdent("true")):
+				return CBool(true);
+			case ExprDef.EConst(AstConstant.CIdent("false")):
+				return CBool(false);
+			case ExprDef.EConst(AstConstant.CIdent("null")):
+				return CNull;
+			case ExprDef.EUnop(Unop.OpNeg, _, inner):
+				final value = unwrapExpr(inner);
+				if (value != null) {
+					switch (value.expr) {
+						case ExprDef.EConst(AstConstant.CInt(s)): return CInt(-Std.parseInt(s));
+						case ExprDef.EConst(AstConstant.CFloat(s)): return CFloat("-" + s);
+						default:
+					}
+				}
+				coalescingError(cur.pos);
+			case ExprDef.EArrayDecl(values):
+				if (values.length == 0) return CEmptyArray;
+				coalescingError(cur.pos);
+			case ExprDef.ENew(typePath, params):
+				if (typePath.pack.length == 0 && typePath.name == "Map" && params.length == 0) return CEmptyMap;
+				coalescingError(cur.pos);
+			case ExprDef.EField(receiver, fieldName):
+				if (exprToDotted(receiver) == "Math") {
+					if (fieldName == "POSITIVE_INFINITY") return CPositiveInfinity;
+					if (fieldName == "NEGATIVE_INFINITY") return CNegativeInfinity;
+				}
+				final enumRef = resolveEnum(receiver);
+				if (enumRef != null) {
+					final en = enumRef.get();
+					if (en.constructs.exists(fieldName)) {
+						final enumField = en.constructs.get(fieldName);
+						switch (enumField.type) {
+							case Type.TEnum(_, _): return CEnum(enumRef, enumField);
+							default:
+						}
+					}
+				}
+				coalescingError(cur.pos);
+			case ExprDef.EConst(AstConstant.CIdent(ident)):
+				final enumValue = resolveUnqualifiedEnumConstructor(ident, classType);
+				if (enumValue != null) {
+					switch (enumValue) {
+						case VEnum(enumRef, enumField): return CEnum(enumRef, enumField);
+						default:
+					}
+				}
+				coalescingError(cur.pos);
+			default:
+				coalescingError(cur.pos);
+		}
+		return CNull;
+	}
+
+	static function coalescingError(pos:Position):Void {
+		Context.fatalError("coalesced default expression is not sanctioned", pos);
+	}
+
+	static function recordCoalescingSource(pos:Position):Void {
+		final infos = Context.getPosInfos(pos);
+		coalescingSourceRanges.push({file: infos.file, min: infos.min, max: infos.max});
+	}
+
+	/** True only for a source expression accepted during registration. */
+	public static function isRegisteredCoalescingSource(pos:Position):Bool {
+		final infos = Context.getPosInfos(pos);
+		for (range in coalescingSourceRanges) {
+			if (range.file == infos.file && infos.min >= range.min && infos.max <= range.max) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	static function countParameterReads(e:Expr, parameterName:String, excluded:Expr):Int {
+		if (e == null || e == excluded) return 0;
+		var count = 0;
+		switch (e.expr) {
+			case ExprDef.EConst(AstConstant.CIdent(name)):
+				if (name == parameterName) count++;
+			default:
+		}
+		haxe.macro.ExprTools.iter(e, child -> count += countParameterReads(child, parameterName, excluded));
+		return count;
 	}
 
 	static function evalConstantExpr(e:Expr, classType:ClassType):DefaultArgValue {
@@ -336,27 +569,33 @@ class DefaultArgExpander {
 
 	public static function completeRootExpr(classType:ClassType, fieldName:String, root:TypedExpr):Void {
 		if (root == null) return;
-		completeExpr(getClassKey(classType), fieldName, root);
+		completeExpr(getClassKey(classType), fieldName, root, false);
 	}
 
-	static function completeExpr(classKey:String, fieldName:String, e:TypedExpr):Void {
+	/** Rust has no parameter-default syntax, so coalescing omissions become None. */
+	public static function completeRootExprForRust(classType:ClassType, fieldName:String, root:TypedExpr):Void {
+		if (root == null) return;
+		completeExpr(getClassKey(classType), fieldName, root, true);
+	}
+
+	static function completeExpr(classKey:String, fieldName:String, e:TypedExpr, rustTarget:Bool):Void {
 		if (e == null) return;
 		switch (e.expr) {
 			case TypedExprDef.TFunction(f):
-				completeExpr(classKey, fieldName, f.expr);
+				completeExpr(classKey, fieldName, f.expr, rustTarget);
 			default:
-				haxe.macro.TypedExprTools.iter(e, child -> completeExpr(classKey, fieldName, child));
+				haxe.macro.TypedExprTools.iter(e, child -> completeExpr(classKey, fieldName, child, rustTarget));
 		}
 		switch (e.expr) {
 			case TypedExprDef.TCall(callee, args):
-				completeCall(classKey, fieldName, e, callee, args);
+				completeCall(classKey, fieldName, e, callee, args, rustTarget);
 			case TypedExprDef.TNew(c, _, args):
-				completeNew(e, c.get(), args);
+				completeNew(e, c.get(), args, rustTarget);
 			default:
 		}
 	}
 
-	static function completeCall(classKey:String, fieldName:String, callExpr:TypedExpr, callee:TypedExpr, args:Array<TypedExpr>):Void {
+	static function completeCall(classKey:String, fieldName:String, callExpr:TypedExpr, callee:TypedExpr, args:Array<TypedExpr>, rustTarget:Bool):Void {
 		if (callee == null) return;
 		final followed = Context.follow(callee.t);
 		final params:Array<{name:String, opt:Bool, t:Type}> = switch (followed) {
@@ -374,7 +613,12 @@ class DefaultArgExpander {
 			final defVal:Null<DefaultArgValue> = (defaults != null && i < defaults.length) ? defaults[i] : null;
 
 			if (defVal != null) {
-				args.push(makeTypedConst(defVal, param.t, callExpr.pos));
+				switch (defVal) {
+					case VCoalescing(_):
+						if (rustTarget) args.push(makeTypedConst(VNull, param.t, callExpr.pos));
+					default:
+						args.push(makeTypedConst(defVal, param.t, callExpr.pos));
+				}
 			} else if (param.opt) {
 				args.push(makeTypedConst(VNull, param.t, callExpr.pos));
 			}
@@ -472,10 +716,179 @@ class DefaultArgExpander {
 		return uniqueByName(fieldNameCounts, fieldDefaultsByName, fieldName, "method", cls.pos);
 	}
 
-	static function completeNew(newExpr:TypedExpr, cls:ClassType, args:Array<TypedExpr>):Void {
-		final defaults = lookupFieldDefaults(cls, "new");
-		if (defaults == null) return;
+	static function lookupFieldDefaultsExact(cls:ClassType, fieldName:String):Null<Array<Null<DefaultArgValue>>> {
+		if (cls == null) return null;
+		final classKey = getClassKey(cls);
+		final key = classKey + ":" + fieldName;
+		if (fieldDefaults.exists(key)) {
+			return fieldDefaults.get(key);
+		}
+		for (iface in cls.interfaces) {
+			final ifaceRes = lookupFieldDefaultsExact(iface.t.get(), fieldName);
+			if (ifaceRes != null) return ifaceRes;
+		}
+		if (cls.superClass != null) {
+			final superRes = lookupFieldDefaultsExact(cls.superClass.t.get(), fieldName);
+			if (superRes != null) return superRes;
+		}
+		return null;
+	}
 
+	/** Returns the sanctioned default for one declared parameter, if any. */
+	public static function coalescingDefaultAt(classType:ClassType, fieldName:String, index:Int):Null<CoalescingDefaultValue> {
+		final defaults = lookupFieldDefaultsExact(classType, fieldName);
+		if (defaults == null || index < 0 || index >= defaults.length) return null;
+		return switch (defaults[index]) {
+			case VCoalescing(value): value;
+			default: null;
+		};
+	}
+
+	/** Returns a sanctioned default by the exact class/field/parameter identity. */
+	public static function coalescingDefaultForParam(classType:ClassType, fieldName:String, parameterName:String):Null<CoalescingDefaultValue> {
+		return lookupFieldCoalescing(classType, fieldName, parameterName);
+	}
+
+	public static function coalescingDefaultForLocalParam(classType:ClassType, fieldName:String, localName:String, parameterName:String):Null<CoalescingDefaultValue> {
+		if (classType == null) return null;
+		return localCoalescing.get(getClassKey(classType) + ":" + fieldName + ":" + localName + ":" + parameterName);
+	}
+
+	static function lookupFieldCoalescing(cls:ClassType, fieldName:String, parameterName:String):Null<CoalescingDefaultValue> {
+		if (cls == null) return null;
+		final key = getClassKey(cls) + ":" + fieldName + ":" + parameterName;
+		if (fieldCoalescing.exists(key)) return fieldCoalescing.get(key);
+		for (iface in cls.interfaces) {
+			final value = lookupFieldCoalescing(iface.t.get(), fieldName, parameterName);
+			if (value != null) return value;
+		}
+		if (cls.superClass != null) {
+			final value = lookupFieldCoalescing(cls.superClass.t.get(), fieldName, parameterName);
+			if (value != null) return value;
+		}
+		return null;
+	}
+
+	/**
+		Recognizes the typed shape of the one sanctioned coalescing site. The
+		caller still checks the class/field registry so an arbitrary ternary is
+		never treated as a default.
+	*/
+	public static function coalescingSite(e:TypedExpr):Null<{parameter:String, defaultExpr:TypedExpr, valueExpr:TypedExpr}> {
+		final cur = unwrapTypedExpr(e);
+		if (cur == null) return null;
+		return switch (cur.expr) {
+			case TypedExprDef.TIf(condition, ifTrue, ifFalse):
+				final parameter = typedNullCheckParameter(condition);
+				if (parameter != null && isTypedParameter(ifFalse, parameter)) {
+					{parameter: parameter, defaultExpr: unwrapTypedExpr(ifTrue), valueExpr: unwrapTypedExpr(ifFalse)};
+				} else {
+					null;
+				}
+			default: null;
+		};
+	}
+
+	public static function coalescingSites(root:TypedExpr):Array<{parameter:String, defaultExpr:TypedExpr, valueExpr:TypedExpr}> {
+		final result:Array<{parameter:String, defaultExpr:TypedExpr, valueExpr:TypedExpr}> = [];
+		if (root == null) return result;
+		collectTypedCoalescingSites(root, result);
+		return result;
+	}
+
+	static function collectTypedCoalescingSites(e:TypedExpr, result:Array<{parameter:String, defaultExpr:TypedExpr, valueExpr:TypedExpr}>):Void {
+		if (e == null) return;
+		final site = coalescingSite(e);
+		if (site != null) result.push(site);
+		haxe.macro.TypedExprTools.iter(e, child -> collectTypedCoalescingSites(child, result));
+	}
+
+	static function unwrapTypedExpr(e:TypedExpr):Null<TypedExpr> {
+		var cur = e;
+		while (cur != null) {
+			switch (cur.expr) {
+				case TypedExprDef.TParenthesis(inner) | TypedExprDef.TMeta(_, inner) | TypedExprDef.TCast(inner, _):
+					cur = inner;
+				case TypedExprDef.TBlock(expressions) if (expressions.length == 1):
+					cur = expressions[0];
+				default:
+					return cur;
+			}
+		}
+		return cur;
+	}
+
+	static function typedNullCheckParameter(e:TypedExpr):Null<String> {
+		final cur = unwrapTypedExpr(e);
+		if (cur == null) return null;
+		return switch (cur.expr) {
+			case TypedExprDef.TBinop(Binop.OpEq, left, right):
+				final leftValue = unwrapTypedExpr(left);
+				final rightValue = unwrapTypedExpr(right);
+				if (leftValue != null && rightValue != null) {
+					switch (leftValue.expr) {
+						case TypedExprDef.TLocal(v):
+							switch (rightValue.expr) {
+								case TypedExprDef.TConst(TConstant.TNull): return v.name;
+								default:
+							}
+						default:
+					}
+				}
+				null;
+			default: null;
+		};
+	}
+
+	static function isTypedParameter(e:TypedExpr, parameterName:String):Bool {
+		final cur = unwrapTypedExpr(e);
+		return cur != null && switch (cur.expr) {
+			case TypedExprDef.TLocal(v): v.name == parameterName;
+			default: false;
+		};
+	}
+
+	/** Removes the Null<T> wrapper for native-default target parameters. */
+	public static function withoutNull(t:Type):Type {
+		if (t == null) return t;
+		return switch (t) {
+			case Type.TAbstract(abstractRef, params) if (abstractRef.get().name == "Null" && params.length == 1): params[0];
+			case Type.TLazy(fun): withoutNull(fun());
+			default: t;
+		};
+	}
+
+	/** Keeps a nullable target parameter when its sanctioned default is null. */
+	public static function coalescingParameterType(value:CoalescingDefaultValue, t:Type):Type {
+		return switch (value) {
+			case CNull: t;
+			default: withoutNull(t);
+		};
+	}
+
+	/**
+		A local ternary whose sanctioned value is null can be typed by Haxe
+		as Null<Null<T>>. Targets need the inner nullable type for that local,
+		while a directly declared nullable parameter must keep its one Null<T>
+		wrapper for a native null default.
+	*/
+	public static function coalescingLocalType(value:CoalescingDefaultValue, t:Type):Type {
+		return switch (value) {
+			case CNull:
+				switch (t) {
+					case Type.TAbstract(outer, params) if (outer.get().name == "Null" && params.length == 1):
+						switch (params[0]) {
+							case Type.TAbstract(inner, _) if (inner.get().name == "Null"): params[0];
+							default: t;
+						}
+					case Type.TLazy(resolve): coalescingLocalType(value, resolve());
+					default: t;
+				}
+			default: withoutNull(t);
+		};
+	}
+
+	static function completeNew(newExpr:TypedExpr, cls:ClassType, args:Array<TypedExpr>, rustTarget:Bool):Void {
 		var params:Null<Array<{name:String, opt:Bool, t:Type}>> = null;
 		if (cls.constructor != null) {
 			final ctorField = cls.constructor.get();
@@ -486,12 +899,19 @@ class DefaultArgExpander {
 		}
 		if (params == null) return;
 		if (args.length >= params.length) return;
+		final defaults = lookupFieldDefaults(cls, "new");
+		if (defaults == null) return;
 
 		for (i in args.length...params.length) {
 			final param = params[i];
 			final defVal:Null<DefaultArgValue> = (i < defaults.length) ? defaults[i] : null;
 			if (defVal != null) {
-				args.push(makeTypedConst(defVal, param.t, newExpr.pos));
+				switch (defVal) {
+					case VCoalescing(_):
+						if (rustTarget) args.push(makeTypedConst(VNull, param.t, newExpr.pos));
+					default:
+						args.push(makeTypedConst(defVal, param.t, newExpr.pos));
+				}
 			} else if (param.opt) {
 				args.push(makeTypedConst(VNull, param.t, newExpr.pos));
 			}
@@ -540,6 +960,12 @@ class DefaultArgExpander {
 					expr: TypedExprDef.TField(typeExpr, FieldAccess.FEnum(enumRef, enumField)),
 					pos: pos,
 					t: targetType != null ? targetType : Type.TEnum(enumRef, [])
+				};
+			case VCoalescing(_):
+				{
+					expr: TypedExprDef.TConst(TConstant.TNull),
+					pos: pos,
+					t: targetType != null ? targetType : Context.getType("Dynamic")
 				};
 		};
 	}

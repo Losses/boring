@@ -70,6 +70,11 @@ class TsExpr {
 	/** Fresh names for the trailing-unit reads of stdlib/08 checks. */
 	var stringBufTailCounter: Int = 0;
 
+	/** Function context used to distinguish a sanctioned coalescing site. */
+	var currentClass: Null<ClassType> = null;
+	var currentField: Null<String> = null;
+	var currentLocalName: Null<String> = null;
+
 	public function new(imports: TsImports, types: TsType) {
 		this.imports = imports;
 		this.types = types;
@@ -98,6 +103,34 @@ class TsExpr {
 		return expr(e);
 	}
 
+	function coalescingSiteFor(e: TypedExpr): Null<{parameter: String, defaultExpr: TypedExpr, valueExpr: TypedExpr}> {
+		if(currentClass == null || currentField == null) return null;
+		final site = DefaultArgExpander.coalescingSite(e);
+		final value = currentLocalName != null
+			? DefaultArgExpander.coalescingDefaultForLocalParam(currentClass, currentField, currentLocalName, site == null ? "" : site.parameter)
+			: DefaultArgExpander.coalescingDefaultForParam(currentClass, currentField, site == null ? "" : site.parameter);
+		if(site == null || value == null) {
+			return null;
+		}
+		return site;
+	}
+
+	/** Renders a sanctioned default in the TypeScript parameter type context. */
+	public function coalescingDefaultText(value: DefaultArgExpander.CoalescingDefaultValue, targetType: Type): String {
+		return switch(value) {
+			case CInt(v): Std.string(v);
+			case CFloat(s): s;
+			case CString(s): quoteString(s);
+			case CBool(b): b ? "true" : "false";
+			case CNull: "null";
+			case CEmptyArray: "[]";
+			case CEmptyMap: "new Map()";
+			case CPositiveInfinity: "Infinity";
+			case CNegativeInfinity: "-Infinity";
+			case CEnum(_, enumField): "{ kind: \"" + enumField.name + "\" }";
+		};
+	}
+
 	// ------------------------------------------------------------------
 	// Function bodies
 	// ------------------------------------------------------------------
@@ -108,6 +141,9 @@ class TsExpr {
 		}
 		DefaultArgExpander.completeRootExpr(cls, f.field.name, f.expr);
 		PipelineExpander.expandRootExpr(f.expr);
+		currentClass = cls;
+		currentField = f.field.name;
+		currentLocalName = null;
 
 		scanLocals(f.expr);
 		return blockLines(statementsOf(f.expr), 2);
@@ -119,11 +155,14 @@ class TsExpr {
 		the super call moves first. Subclasses of haxe.Exception also
 		stamp this.name with the class name (stdlib/03).
 	**/
-	public function constructorBody(className: String, f: ClassFuncData, isException: Bool): Array<String> {
+	public function constructorBody(cls: ClassType, className: String, f: ClassFuncData, isException: Bool): Array<String> {
 		if(f.expr == null) {
 			Context.error("constructor has no body to lower", f.field.pos);
 		}
 		scanLocals(f.expr);
+		currentClass = cls;
+		currentField = f.field.name;
+		currentLocalName = null;
 		final stmts = statementsOf(f.expr);
 		final out: Array<String> = [];
 		var superIdx = -1;
@@ -170,7 +209,11 @@ class TsExpr {
 				return stringBufToStringBindingLines(v, stripWrap(init), depth);
 			case TVar(v, init) if(init != null):
 				final kw = mutated.exists(v.id) ? "let" : "const";
-				return [indent(depth) + '$kw ${localName(v)} = ${expr(init)};'];
+				final initText = switch(init.expr) {
+					case TFunction(fn): functionLiteralNamed(v.name, fn);
+					default: expr(init);
+				};
+				return [indent(depth) + '$kw ${localName(v)} = $initText;'];
 			case TVar(_, init) if(init == null):
 				return fail(e, "declaration without initializer has no lowering");
 			case TBlock(stmts):
@@ -720,7 +763,8 @@ class TsExpr {
 				}
 				return localName(v);
 			case TArray(arr, idx):
-				return expr(arr) + "[" + expr(idx) + "]!";
+				final mapReceiver = mapBackingReceiver(arr);
+				return mapReceiver == null ? expr(arr) + "[" + expr(idx) + "]!" : expr(mapReceiver) + ".get(" + expr(idx) + ")!";
 			case TBinop(op, l, r):
 				return binop(e, op, l, r);
 			case TUnop(op, post, subj):
@@ -748,14 +792,35 @@ class TsExpr {
 			case TEnumIndex(_):
 				return fail(e, "enum index only lowers inside a variant switch");
 			case TFunction(f):
-				final params = [for(a in f.args) '${a.v.name}: ${types.of(a.v.t)}'].join(", ");
-				final ret = types.of(f.t);
-				return '($params): $ret => {\n' + blockLines(statementsOf(f.expr), 2).join("\n") + '\n}';
+				return functionLiteral(f);
 			case TIf(c, t, f) if(f != null):
+				final coalescing = coalescingSiteFor(e);
+				if(coalescing != null) return expr(coalescing.valueExpr);
 				return "(" + expr(c) + " ? " + expr(t) + " : " + expr(f) + ")";
 			case _:
 				return fail(e, "expression has no TypeScript lowering in the subset");
 		}
+	}
+
+	function functionLiteral(f: TFunc): String {
+		final params = [for(a in f.args) {
+			final value = currentLocalName != null && currentClass != null && currentField != null
+				? DefaultArgExpander.coalescingDefaultForLocalParam(currentClass, currentField, currentLocalName, a.v.name)
+				: null;
+			final parameterType = value != null ? DefaultArgExpander.coalescingParameterType(value, a.v.t) : a.v.t;
+			final defaultText = value != null ? " = " + coalescingDefaultText(value, a.v.t) : "";
+			'${a.v.name}: ${types.of(parameterType)}$defaultText';
+		}].join(", ");
+		final ret = types.of(f.t);
+		return '($params): $ret => {\n' + blockLines(statementsOf(f.expr), 2).join("\n") + '\n}';
+	}
+
+	function functionLiteralNamed(name: String, f: TFunc): String {
+		final previous = currentLocalName;
+		currentLocalName = name;
+		final result = functionLiteral(f);
+		currentLocalName = previous;
+		return result;
 	}
 
 	function isEnumConstruct(e: TypedExpr): Null<EnumField> {
@@ -769,7 +834,8 @@ class TsExpr {
 	function binop(e: TypedExpr, op: Binop, l: TypedExpr, r: TypedExpr): String {
 		switch(op) {
 			case OpAssign:
-				return assignTarget(l) + " = " + expr(r);
+				final map = mapAssignment(l);
+				return map == null ? assignTarget(l) + " = " + expr(r) : expr(map.receiver) + ".set(" + expr(map.key) + ", " + expr(r) + ")";
 			case OpAssignOp(inner):
 				return assignTarget(l) + " " + symbolOf(inner) + "= " + expr(r);
 			case OpAdd:
@@ -1021,11 +1087,22 @@ class TsExpr {
 			case _:
 		}
 		final rendered = [for(a in args) expr(a)].join(", ");
+		final inlineMapCall = mapHasOwnPropertyCall(fn, args);
+		if(inlineMapCall != null) {
+			return inlineMapCall;
+		}
 		switch(fn.expr) {
+			case TCast(inner, _):
+				return call(inner, args);
 			case TField(subj, FDynamic(name)) if((name == "length" || name == "get_length") && isStringBuf(subj)):
 				return expr(subj) + ".length";
 			case TField(subj, FInstance(_, _, cf)):
 				final name = cf.get().name;
+				if(isMapType(subj.t)) {
+					if(name == "exists" && args.length == 1) return expr(subj) + ".has(" + expr(args[0]) + ")";
+					if(name == "get" && args.length == 1) return expr(subj) + ".get(" + expr(args[0]) + ")";
+					if(name == "set" && args.length == 2) return expr(subj) + ".set(" + expr(args[0]) + ", " + expr(args[1]) + ")";
+				}
 				if(isStringBuf(subj)) {
 					// stdlib/08: the checks throw, and a throw is a
 					// statement here, so the checked operations lower at
@@ -1175,6 +1252,8 @@ class TsExpr {
 		switch(path) {
 			case "std.StringBuf" | "StringBuf":
 				return '""';
+			case "haxe.ds._Map.Map_Impl_":
+				return "new Map()";
 			case "haxe.io.BytesBuffer":
 				imports.runtime("BytesBuffer");
 				return "new BytesBuffer(" + rendered + ")";
@@ -1184,6 +1263,64 @@ class TsExpr {
 				imports.value(cls.module, cls.name);
 				return "new " + cls.name + "(" + rendered + ")";
 		}
+	}
+
+	function isMapType(t: Type): Bool {
+		return switch(Context.follow(t)) {
+			case TInst(def, params) if(def.get().pack.join(".") == "haxe" && def.get().name == "IMap" && params.length == 2): true;
+			case TInst(def, _): isMapImplementation(def.get());
+			case TType(def, params): def.get().pack.length == 0 && def.get().name == "Map" && params.length == 2;
+			case TAbstract(def, params) if(def.get().pack.join(".") == "haxe.ds" && def.get().name == "Map" && params.length == 2): true;
+			case TAbstract(a, params) if(a.get().name == "Null" && params.length == 1): isMapType(params[0]);
+			case _: false;
+		};
+	}
+
+	function isMapImplementation(cls:ClassType): Bool {
+		return cls.pack.join(".") == "haxe.ds" && ["StringMap", "IntMap", "ObjectMap", "HashMap"].indexOf(cls.name) >= 0;
+	}
+
+	function mapBackingReceiver(e: TypedExpr): Null<TypedExpr> {
+		return switch(stripWrap(e).expr) {
+			case TField(receiver, FInstance(_, _, cf)) if(cf.get().name == "h" && isMapBackingType(receiver.t)): receiver;
+			case TField(receiver, FAnon(cf)) if(cf.get().name == "h" && isMapBackingType(receiver.t)): receiver;
+			case _: null;
+		};
+	}
+
+	function isMapBackingType(t: Type): Bool {
+		return switch(Context.follow(t)) {
+			case TInst(def, _):
+				final cls = def.get();
+				isMapImplementation(cls);
+			case _: false;
+		};
+	}
+
+	function mapAssignment(e: TypedExpr): Null<{receiver: TypedExpr, key: TypedExpr}> {
+		return switch(stripWrap(e).expr) {
+			case TArray(arr, key):
+				final receiver = mapBackingReceiver(arr);
+				receiver == null ? null : {receiver: receiver, key: key};
+			case _: null;
+		};
+	}
+
+	function isHasOwnPropertyValue(e: TypedExpr): Bool {
+		return switch(stripWrap(e).expr) {
+			case TField(_, FInstance(_, _, cf)) | TField(_, FAnon(cf)) if(cf.get().name == "hasOwnProperty"): true;
+			case _: false;
+		};
+	}
+
+	function mapHasOwnPropertyCall(fn: TypedExpr, args: Array<TypedExpr>): Null<String> {
+		if(args.length != 2) return null;
+		return switch(stripWrap(fn).expr) {
+			case TField(subject, FInstance(_, _, cf)) if(cf.get().name == "call" && isHasOwnPropertyValue(subject)):
+				final receiver = mapBackingReceiver(args[0]);
+				receiver == null ? null : expr(receiver) + ".has(" + expr(args[1]) + ")";
+			case _: null;
+		};
 	}
 
 	function assignTarget(e: TypedExpr): String {

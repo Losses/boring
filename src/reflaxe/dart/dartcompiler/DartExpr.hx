@@ -70,6 +70,11 @@ class DartExpr {
 	/** Fresh names for the trailing-unit reads of stdlib/08 checks. */
 	var stringBufTailCounter: Int = 0;
 
+	/** Function context used to distinguish a sanctioned coalescing site. */
+	var currentClass: Null<ClassType> = null;
+	var currentField: Null<String> = null;
+	var currentLocalName: Null<String> = null;
+
 	public function new(imports: DartImports, types: DartType) {
 		this.imports = imports;
 		this.types = types;
@@ -91,6 +96,61 @@ class DartExpr {
 		return expr(e);
 	}
 
+	function coalescingSiteFor(e: TypedExpr): Null<{parameter: String, defaultExpr: TypedExpr, valueExpr: TypedExpr}> {
+		if(currentClass == null || currentField == null) return null;
+		final site = DefaultArgExpander.coalescingSite(e);
+		final value = currentLocalName != null
+			? DefaultArgExpander.coalescingDefaultForLocalParam(currentClass, currentField, currentLocalName, site == null ? "" : site.parameter)
+			: DefaultArgExpander.coalescingDefaultForParam(currentClass, currentField, site == null ? "" : site.parameter);
+		if(site == null || value == null) {
+			return null;
+		}
+		return site;
+	}
+
+	/** Renders the sanctioned expression in Dart expression position. */
+	function coalescingDefaultText(value: DefaultArgExpander.CoalescingDefaultValue, targetType: Type): String {
+		return switch(value) {
+			case CInt(v): Std.string(v);
+			case CFloat(s): s;
+			case CString(s): quoteString(s);
+			case CBool(b): b ? "true" : "false";
+			case CNull: "null";
+			case CEmptyArray:
+				final element = switch(DefaultArgExpander.withoutNull(targetType)) {
+					case TInst(c, params) if(c.get().name == "Array" && params.length > 0): types.of(params[0]);
+					case TAbstract(a, params) if(a.get().name == "ReadOnlyArray" && params.length > 0): types.of(params[0]);
+					case TType(_, params) if(params.length > 0): types.of(params[0]);
+					case _: "dynamic";
+				};
+				"<" + element + ">[]";
+			case CEmptyMap:
+				final mapParams = switch(DefaultArgExpander.withoutNull(targetType)) {
+					case TType(def, params) if(def.get().name == "Map" && params.length == 2): params;
+					case TAbstract(def, params) if(def.get().pack.join(".") == "haxe.ds" && def.get().name == "Map" && params.length == 2): params;
+					case _: [];
+				};
+				mapParams.length == 2
+					? "<" + types.of(mapParams[0]) + ", " + types.of(mapParams[1]) + ">{}"
+					: "<dynamic, dynamic>{}";
+			case CPositiveInfinity: "double.infinity";
+			case CNegativeInfinity: "-double.infinity";
+			case CEnum(enumRef, enumField): enumRef.get().name + enumField.name + "()";
+		};
+	}
+
+	function coalescingDefaultTextFor(site: {parameter: String, defaultExpr: TypedExpr, valueExpr: TypedExpr}): String {
+		if(currentClass != null && currentField != null) {
+			final value = currentLocalName != null
+				? DefaultArgExpander.coalescingDefaultForLocalParam(currentClass, currentField, currentLocalName, site.parameter)
+				: DefaultArgExpander.coalescingDefaultForParam(currentClass, currentField, site.parameter);
+			if(value != null) {
+				return coalescingDefaultText(value, DefaultArgExpander.withoutNull(site.valueExpr.t));
+			}
+		}
+		return expr(site.defaultExpr);
+	}
+
 	// ------------------------------------------------------------------
 	// Function bodies
 	// ------------------------------------------------------------------
@@ -101,6 +161,9 @@ class DartExpr {
 		}
 		DefaultArgExpander.completeRootExpr(cls, f.field.name, f.expr);
 		PipelineExpander.expandRootExpr(f.expr);
+		currentClass = cls;
+		currentField = f.field.name;
+		currentLocalName = null;
 
 		scanLocals(f.expr);
 		return blockLines(statementsOf(f.expr), depth);
@@ -115,10 +178,13 @@ class DartExpr {
 		keeps statement form (Dart forbids assigning a final field in the
 		constructor body).
 	**/
-	public function constructorParts(f: ClassFuncData): {formalFields: Map<String, String>, fieldInits: Array<String>, superCall: Null<String>, body: Array<String>} {
+	public function constructorParts(cls: ClassType, f: ClassFuncData): {formalFields: Map<String, String>, fieldInits: Array<String>, superCall: Null<String>, body: Array<String>} {
 		if(f.expr == null) {
 			Context.error("constructor has no body to lower", f.field.pos);
 		}
+		currentClass = cls;
+		currentField = f.field.name;
+		currentLocalName = null;
 		scanLocals(f.expr);
 		final formalFields = new Map<String, String>();
 		final fieldInits: Array<String> = [];
@@ -129,6 +195,11 @@ class DartExpr {
 				case TBinop(OpAssign, target, value):
 					switch(stripWrap(target).expr) {
 						case TField({expr: TConst(TThis)}, FInstance(owner, _, cf)):
+							final coalescing = coalescingSiteFor(value);
+							if(coalescing != null) {
+								for(l in stmtLines(stmt, 2)) body.push(l);
+								continue;
+							}
 							// A private field initializes under its
 							// `_`-prefixed Dart name (feature spec 27).
 							final field = memberName(owner.get().module, cf, stmt.pos);
@@ -148,6 +219,44 @@ class DartExpr {
 			}
 		}
 		return {formalFields: formalFields, fieldInits: fieldInits, superCall: superCall, body: body};
+	}
+
+	/**
+		Instance fields a constructor initializes through a coalescing
+		site in the body. Dart's definite-assignment analysis credits
+		field formals and initializer-list entries only, so those
+		fields declare `late` (feature spec 22).
+	**/
+	public function coalescedBodyFields(cls: ClassType, funcFields: Array<ClassFuncData>): Map<String, Bool> {
+		final out = new Map<String, Bool>();
+		final savedClass = currentClass;
+		final savedField = currentField;
+		final savedLocal = currentLocalName;
+		currentClass = cls;
+		currentField = "new";
+		currentLocalName = null;
+		for(f in funcFields) {
+			if(f.field.name != "new" || f.expr == null) {
+				continue;
+			}
+			for(stmt in statementsOf(f.expr)) {
+				switch(stmt.expr) {
+					case TBinop(OpAssign, target, value):
+						switch(stripWrap(target).expr) {
+							case TField({expr: TConst(TThis)}, FInstance(_, _, cf)):
+								if(coalescingSiteFor(value) != null) {
+									out.set(cf.get().name, true);
+								}
+							case _:
+						}
+					case _:
+				}
+			}
+		}
+		currentClass = savedClass;
+		currentField = savedField;
+		currentLocalName = savedLocal;
+		return out;
 	}
 
 	/** The constructor parameter a bare local reads, or null when the value is not one. */
@@ -192,7 +301,7 @@ class DartExpr {
 				continue;
 			}
 			final c = t.charAt(t.length - 1);
-			if(c == "{" || c == "}" || c == ";" || c == ":" || c == ",") {
+			if(c == "{" || StringTools.ltrim(t) == "}" || c == ";" || c == ":" || c == ",") {
 				continue;
 			}
 			lines[i] = t + ";";
@@ -208,16 +317,29 @@ class DartExpr {
 				return stringBufToStringBindingLines(v, stripWrap(init), depth);
 			case TVar(v, init) if(init != null):
 				final kw = mutated.exists(v.id) ? "var" : "final";
+				final coalescing = coalescingSiteFor(init);
 				// One initializer cannot carry its type to Dart's
 				// inference: a bare null infers Null and rejects the
 				// later value assignment. The declaration names the
 				// nullable type instead; a named type carries no
 				// keyword when the binding reassigns.
-				if(isNullLeafType(v.t)) {
+				if(coalescing != null || isNullLeafType(v.t)) {
 					final head = kw == "final" ? "final " : "";
-					return [indent(depth) + head + types.of(v.t) + " " + localName(v) + " = " + expr(init)];
+					final coalescingValue = coalescing == null ? null : (currentLocalName != null
+						? DefaultArgExpander.coalescingDefaultForLocalParam(currentClass, currentField, currentLocalName, coalescing.parameter)
+						: DefaultArgExpander.coalescingDefaultForParam(currentClass, currentField, coalescing.parameter));
+					final localType = coalescingValue != null ? DefaultArgExpander.coalescingLocalType(coalescingValue, v.t) : v.t;
+					final initText = switch(init.expr) {
+						case TFunction(fn): functionLiteralNamed(v.name, fn);
+						default: expr(init);
+					};
+					return [indent(depth) + head + types.of(localType) + " " + localName(v) + " = " + initText];
 				}
-				return [indent(depth) + kw + " " + localName(v) + " = " + expr(init)];
+				final initText = switch(init.expr) {
+					case TFunction(fn): functionLiteralNamed(v.name, fn);
+					default: expr(init);
+				};
+				return [indent(depth) + kw + " " + localName(v) + " = " + initText];
 			case TVar(v, _):
 				// A declaration without initializer: definite
 				// initialization assigns it on every path before use.
@@ -262,7 +384,9 @@ class DartExpr {
 			case TMeta(_, inner):
 				return stmtLines(inner, depth);
 			case TBinop(OpAssign, l, r):
-				return [indent(depth) + assignTarget(l) + " = " + expr(r)];
+				final map = mapAssignment(l);
+				final target = map == null ? assignTarget(l) + " = " : expr(map.receiver) + "[" + expr(map.key) + "] = ";
+				return [indent(depth) + target + expr(r)];
 			case TBinop(OpAssignOp(inner), l, r):
 				return [indent(depth) + assignTarget(l) + " " + symbolOf(inner) + "= " + expr(r)];
 			case _:
@@ -671,7 +795,8 @@ class DartExpr {
 				}
 				return localName(v);
 			case TArray(arr, idx):
-				return expr(arr) + "[" + expr(idx) + "]";
+				final mapReceiver = mapBackingReceiver(arr);
+				return mapReceiver == null ? expr(arr) + "[" + expr(idx) + "]" : expr(mapReceiver) + "[" + expr(idx) + "]";
 			case TBinop(op, l, r):
 				return binop(e, op, l, r);
 			case TUnop(op, post, subj):
@@ -701,6 +826,8 @@ class DartExpr {
 			case TFunction(f):
 				return functionLiteral(f);
 			case TIf(c, t, f) if(f != null):
+				final coalescing = coalescingSiteFor(e);
+				if(coalescing != null) return expr(coalescing.valueExpr) + " ?? " + coalescingDefaultTextFor(coalescing);
 				return "(" + expr(c) + " ? " + expr(t) + " : " + expr(f) + ")";
 			case _:
 				return fail(e, "expression has no Dart lowering in the subset");
@@ -724,7 +851,19 @@ class DartExpr {
 	}
 
 	function functionLiteral(f: TFunc): String {
-		final params = [for(a in f.args) types.of(a.v.t) + " " + a.v.name].join(", ");
+		final required: Array<String> = [];
+		final optional: Array<String> = [];
+		var optionalStarted = false;
+		for(a in f.args) {
+			final coalescing = currentLocalName != null && currentClass != null && currentField != null
+				&& DefaultArgExpander.coalescingDefaultForLocalParam(currentClass, currentField, currentLocalName, a.v.name) != null;
+			if(coalescing) optionalStarted = true;
+			final part = types.of(a.v.t) + " " + a.v.name;
+			if(optionalStarted) optional.push(part) else required.push(part);
+		}
+		final paramGroups = required.copy();
+		if(optional.length > 0) paramGroups.push("[" + optional.join(", ") + "]");
+		final params = paramGroups.join(", ");
 		final bodyStmts = statementsOf(f.expr);
 		if(bodyStmts.length == 1) {
 			switch(bodyStmts[0].expr) {
@@ -736,10 +875,19 @@ class DartExpr {
 		return "(" + params + ") {\n" + blockLines(bodyStmts, 1).join("\n") + "\n}";
 	}
 
+	function functionLiteralNamed(name: String, f: TFunc): String {
+		final previous = currentLocalName;
+		currentLocalName = name;
+		final result = functionLiteral(f);
+		currentLocalName = previous;
+		return result;
+	}
+
 	function binop(e: TypedExpr, op: Binop, l: TypedExpr, r: TypedExpr): String {
 		switch(op) {
 			case OpAssign:
-				return assignTarget(l) + " = " + expr(r);
+				final map = mapAssignment(l);
+				return map == null ? assignTarget(l) + " = " + expr(r) : expr(map.receiver) + "[" + expr(map.key) + "] = " + expr(r);
 			case OpAssignOp(inner):
 				return assignTarget(l) + " " + symbolOf(inner) + "= " + expr(r);
 			case OpAdd:
@@ -995,6 +1143,10 @@ class DartExpr {
 	}
 
 	function call(fn: TypedExpr, args: Array<TypedExpr>): String {
+		final inlineMapCall = mapHasOwnPropertyCall(fn, args);
+		if(inlineMapCall != null) {
+			return inlineMapCall;
+		}
 		final rendered = argTexts(fn, args).join(", ");
 		switch(fn.expr) {
 			case TField(subj, FInstance(_, _, cf)) if(cf.get().name == "get_message" && args.length == 0):
@@ -1067,10 +1219,17 @@ class DartExpr {
 			case _:
 		}
 		switch(fn.expr) {
+			case TCast(inner, _):
+				return call(inner, args);
 			case TField(subj, FDynamic(name)) if((name == "length" || name == "get_length") && isStringBuf(subj)):
 				return expr(subj) + ".length";
 			case TField(subj, FInstance(owner, _, cf)):
 				final name = cf.get().name;
+				if(isMapType(subj.t)) {
+					if(name == "exists" && args.length == 1) return expr(subj) + ".containsKey(" + expr(args[0]) + ")";
+					if(name == "get" && args.length == 1) return expr(subj) + "[" + expr(args[0]) + "]";
+					if(name == "set" && args.length == 2) return expr(subj) + "[" + expr(args[0]) + "] = " + expr(args[1]);
+				}
 				if(isStringBuf(subj)) {
 					// stdlib/08: the checks throw, and a throw is a
 					// statement here, so the checked operations lower at
@@ -1395,6 +1554,8 @@ class DartExpr {
 		switch(path) {
 			case "std.StringBuf" | "StringBuf":
 				return "<int>[]";
+			case "haxe.ds._Map.Map_Impl_":
+				return "Map()";
 			case "haxe.io.BytesBuffer":
 				// The growable byte sink is the plain int list.
 				return "<int>[]";
@@ -1406,6 +1567,64 @@ class DartExpr {
 				final head = qualifiedRef(cls.module, cls.name);
 				return (params.length > 0 ? head + "<" + [for(p in params) types.of(p)].join(", ") + ">" : head) + "(" + rendered + ")";
 		}
+	}
+
+	function isMapType(t: Type): Bool {
+		return switch(Context.follow(t)) {
+			case TInst(def, params) if(def.get().pack.join(".") == "haxe" && def.get().name == "IMap" && params.length == 2): true;
+			case TInst(def, _): isMapImplementation(def.get());
+			case TType(def, params): def.get().pack.length == 0 && def.get().name == "Map" && params.length == 2;
+			case TAbstract(def, params) if(def.get().pack.join(".") == "haxe.ds" && def.get().name == "Map" && params.length == 2): true;
+			case TAbstract(a, params) if(a.get().name == "Null" && params.length == 1): isMapType(params[0]);
+			case _: false;
+		};
+	}
+
+	function isMapImplementation(cls: ClassType): Bool {
+		return cls.pack.join(".") == "haxe.ds" && ["StringMap", "IntMap", "ObjectMap", "HashMap"].indexOf(cls.name) >= 0;
+	}
+
+	function mapBackingReceiver(e: TypedExpr): Null<TypedExpr> {
+		return switch(stripWrap(e).expr) {
+			case TField(receiver, FInstance(_, _, cf)) if(cf.get().name == "h" && isMapBackingType(receiver.t)): receiver;
+			case TField(receiver, FAnon(cf)) if(cf.get().name == "h" && isMapBackingType(receiver.t)): receiver;
+			case _: null;
+		};
+	}
+
+	function isMapBackingType(t: Type): Bool {
+		return switch(Context.follow(t)) {
+			case TInst(def, _):
+				final cls = def.get();
+				isMapImplementation(cls);
+			case _: false;
+		};
+	}
+
+	function mapAssignment(e: TypedExpr): Null<{receiver: TypedExpr, key: TypedExpr}> {
+		return switch(stripWrap(e).expr) {
+			case TArray(arr, key):
+				final receiver = mapBackingReceiver(arr);
+				receiver == null ? null : {receiver: receiver, key: key};
+			case _: null;
+		};
+	}
+
+	function isHasOwnPropertyValue(e: TypedExpr): Bool {
+		return switch(stripWrap(e).expr) {
+			case TField(_, FInstance(_, _, cf)) | TField(_, FAnon(cf)) if(cf.get().name == "hasOwnProperty"): true;
+			case _: false;
+		};
+	}
+
+	function mapHasOwnPropertyCall(fn: TypedExpr, args: Array<TypedExpr>): Null<String> {
+		if(args.length != 2) return null;
+		return switch(stripWrap(fn).expr) {
+			case TField(subject, FInstance(_, _, cf)) if(cf.get().name == "call" && isHasOwnPropertyValue(subject)):
+				final receiver = mapBackingReceiver(args[0]);
+				receiver == null ? null : expr(receiver) + ".containsKey(" + expr(args[1]) + ")";
+			case _: null;
+		};
 	}
 
 	function assignTarget(e: TypedExpr): String {

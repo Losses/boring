@@ -37,6 +37,7 @@ class TsType {
 					case "Bool": "boolean";
 					case "Void": "void";
 					case "Null": of(params[0]) + " | null";
+					case "haxe.ds.Map" if(params.length == 2): "Map<" + of(params[0]) + ", " + of(params[1]) + ">";
 					case "std.ReadOnlyArray": "readonly " + of(params[0]) + "[]";
 					case "haxe.Int64":
 						imports.runtime("Int64Halves");
@@ -77,6 +78,8 @@ class TsType {
 				final d = def.get();
 				if(d.pack.join(".") == "haxe.io" && d.name == "Bytes") {
 					"Uint8Array";
+				} else if(d.pack.length == 0 && d.name == "Map" && params.length == 2) {
+					"Map<" + of(params[0]) + ", " + of(params[1]) + ">";
 				} else if(RuntimeResidents.isResident(d.module) && params.length > 0) {
 					// A resident typedef lowers to a generic type alias
 					// inside the runtime file (TsDecl.functionTypeDecl);

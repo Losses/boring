@@ -66,7 +66,7 @@ class DartDecl {
 			// class names it in its implements clause.
 			final lines: Array<String> = ["abstract class " + cls.name + classParamsOf(cls) + " {"];
 			for(f in funcFields) {
-				lines.push("  " + methodSignature(f) + ";");
+				lines.push("  " + methodSignature(cls, f) + ";");
 			}
 			lines.push("}");
 			return lines.join("\n");
@@ -127,8 +127,11 @@ class DartDecl {
 		lines.push("final class " + cls.name + classParamsOf(cls) + extendsClause + implementsClause + " {");
 
 		// One blank line between members; none inside a member's body.
+		// A coalescing constructor default assigns the field in the
+		// body, which Dart accepts only under a late declaration.
+		final lateFields = expr.coalescedBodyFields(cls, funcFields);
 		for(v in varFields) {
-			final decl = varDecl(module, v);
+			final decl = varDecl(module, v, lateFields);
 			if(decl.length == 0) {
 				continue;
 			}
@@ -241,7 +244,7 @@ class DartDecl {
 		}
 	}
 
-	function varDecl(module: String, v: ClassVarData): Array<String> {
+	function varDecl(module: String, v: ClassVarData, lateFields: Map<String, Bool>): Array<String> {
 		final field = v.field;
 		if(v.isStatic && DataTableHelper.isDataTableField(field)) {
 			final elems = DataTableHelper.getDataTableElements(field.expr());
@@ -271,10 +274,15 @@ class DartDecl {
 		// keywords agree. A mutable field names its type; Dart spells
 		// mutable without a keyword.
 		final name = field.isPublic ? field.name : "_" + field.name;
+		// A field the constructor initializes through a coalescing
+		// body site declares late (late final on final fields);
+		// definite-assignment analysis accepts no other body shape
+		// (feature spec 22).
+		final late = lateFields.exists(field.name) ? "late " : "";
 		if(field.isFinal) {
-			return ["  final " + types.of(field.type) + " " + name + ";"];
+			return ["  " + late + "final " + types.of(field.type) + " " + name + ";"];
 		}
-		return ["  " + types.of(field.type) + " " + name + ";"];
+		return ["  " + late + types.of(field.type) + " " + name + ";"];
 	}
 
 	/** A `var x(get, never)` field renders no storage on this target (feature spec 27). */
@@ -366,10 +374,8 @@ class DartDecl {
 			for(a in f.args) {
 				expr.reserveName(a.name);
 			}
-			final parts = expr.constructorParts(f);
-			final params = [for(a in f.args) {
-				parts.formalFields.exists(a.name) ? "this." + parts.formalFields.get(a.name) : types.of(a.type) + " " + a.name;
-			}].join(", ");
+			final parts = expr.constructorParts(cls, f);
+			final params = constructorParamList(cls, f, parts.formalFields);
 			final initializers: Array<String> = parts.fieldInits.copy();
 			if(parts.superCall != null) {
 				initializers.push(parts.superCall);
@@ -387,23 +393,69 @@ class DartDecl {
 		final name = f.field.isPublic ? f.field.name : "_" + f.field.name;
 		if(topLevel) {
 			claimTopLevel(name, f.field.pos);
-			final head = '${types.of(f.ret)} $name$genericStr${paramList(f)} {';
+			final head = '${types.of(f.ret)} $name$genericStr${paramList(cls, f)} {';
 			return [head].concat(expr.functionBody(cls, f, 1)).concat(["}"]);
 		}
 		final stat = f.isStatic ? "static " : "";
-		final head = '  ${stat}${types.of(f.ret)} $name$genericStr${paramList(f)} {';
+		final head = '  ${stat}${types.of(f.ret)} $name$genericStr${paramList(cls, f)} {';
 		return [head].concat(expr.functionBody(cls, f, 2)).concat(["  }"]);
 	}
 
 	/** The signature of one method without body or leading indent. */
-	function methodSignature(f: ClassFuncData): String {
+	function methodSignature(cls: ClassType, f: ClassFuncData): String {
 		final ret = types.of(f.ret);
-		return '$ret ${f.field.name}${paramList(f)}';
+		return '$ret ${f.field.name}${paramList(cls, f)}';
 	}
 
-	/** Parameter rendering: positional plain parameters with their types. */
-	function paramList(f: ClassFuncData): String {
-		return "(" + [for(a in f.args) types.of(a.type) + " " + a.name].join(", ") + ")";
+	/**
+		Parameter rendering. Dart's optional positional group is reserved for
+		coalescing defaults; constant defaults have already been materialized
+		at every call site and remain required parameters.
+	**/
+	function paramList(cls: ClassType, f: ClassFuncData): String {
+		final required: Array<String> = [];
+		final optional: Array<String> = [];
+		var optionalStarted = false;
+		for(a in f.args) {
+			final part = types.of(a.type) + " " + a.name;
+			if(DefaultArgExpander.coalescingDefaultAt(cls, f.field.name, a.index) != null) {
+				optionalStarted = true;
+			}
+			if(optionalStarted) {
+				optional.push(part);
+			} else {
+				required.push(part);
+			}
+		}
+		final groups = required.copy();
+		if(optional.length > 0) {
+			groups.push("[" + optional.join(", ") + "]");
+		}
+		return "(" + groups.join(", ") + ")";
+	}
+
+	/** Constructor parameters use the same optional positional group, while
+		retaining Dart's initializing-formal spelling for direct assignments. */
+	function constructorParamList(cls: ClassType, f: ClassFuncData, formalFields: Map<String, String>): String {
+		final required: Array<String> = [];
+		final optional: Array<String> = [];
+		var optionalStarted = false;
+		for(a in f.args) {
+			final part = formalFields.exists(a.name) ? "this." + formalFields.get(a.name) : types.of(a.type) + " " + a.name;
+			if(DefaultArgExpander.coalescingDefaultAt(cls, f.field.name, a.index) != null) {
+				optionalStarted = true;
+			}
+			if(optionalStarted) {
+				optional.push(part);
+			} else {
+				required.push(part);
+			}
+		}
+		final groups = required.copy();
+		if(optional.length > 0) {
+			groups.push("[" + optional.join(", ") + "]");
+		}
+		return groups.join(", ");
 	}
 
 	/**

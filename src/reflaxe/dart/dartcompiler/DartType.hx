@@ -43,6 +43,7 @@ class DartType {
 					case "Bool": "bool";
 					case "Void": "void";
 					case "Null": wrapOptional(of(params[0]));
+					case "haxe.ds.Map" if(params.length == 2): "Map<" + of(params[0]) + ", " + of(params[1]) + ">";
 					case "std.ReadOnlyArray": "List<" + of(params[0]) + ">";
 					case _: of(abs.type);
 				}
@@ -67,6 +68,8 @@ class DartType {
 				final d = def.get();
 				if(d.pack.join(".") == "haxe.io" && d.name == "Bytes") {
 					"List<int>";
+				} else if(d.pack.length == 0 && d.name == "Map" && params.length == 2) {
+					"Map<" + of(params[0]) + ", " + of(params[1]) + ">";
 				} else if(RuntimeResidents.isResident(d.module) && params.length > 0) {
 					// A resident named function type expands inline with its
 					// arguments applied; the comparator alias of the sorted

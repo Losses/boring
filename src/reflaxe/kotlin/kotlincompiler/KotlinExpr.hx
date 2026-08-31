@@ -41,6 +41,11 @@ class KotlinExpr {
 	/** Fresh names for the trailing-unit reads of stdlib/08 checks. */
 	var stringBufTailCounter: Int = 0;
 
+	/** Function context used to distinguish a sanctioned coalescing site. */
+	var currentClass: Null<ClassType> = null;
+	var currentField: Null<String> = null;
+	var currentLocalName: Null<String> = null;
+
 	public function new(imports: KotlinImports, types: KotlinType, state: KotlinEmissionState) {
 		this.imports = imports;
 		this.types = types;
@@ -78,6 +83,40 @@ class KotlinExpr {
 		return expr(e);
 	}
 
+	function coalescingSiteFor(e: TypedExpr): Null<{parameter: String, defaultExpr: TypedExpr, valueExpr: TypedExpr}> {
+		if(currentClass == null || currentField == null) return null;
+		final site = DefaultArgExpander.coalescingSite(e);
+		final value = currentLocalName != null
+			? DefaultArgExpander.coalescingDefaultForLocalParam(currentClass, currentField, currentLocalName, site == null ? "" : site.parameter)
+			: DefaultArgExpander.coalescingDefaultForParam(currentClass, currentField, site == null ? "" : site.parameter);
+		if(site == null || value == null) {
+			return null;
+		}
+		return site;
+	}
+
+	/** Renders a sanctioned default in Kotlin's native parameter context. */
+	public function coalescingDefaultText(value: DefaultArgExpander.CoalescingDefaultValue, targetType: Type): String {
+		return switch(value) {
+			case CInt(v): Std.string(v);
+			case CFloat(s): FloatPrecision.isF32() ? (s.indexOf(".") >= 0 ? s : s + ".0") + "f" : s;
+			case CString(s): quoteString(s);
+			case CBool(b): b ? "true" : "false";
+			case CNull: "null";
+			case CEmptyArray:
+				final element = switch(Context.follow(DefaultArgExpander.withoutNull(targetType))) {
+					case TInst(_, params) if(params.length > 0): types.of(params[0]);
+					case TAbstract(a, params) if(a.get().name == "ReadOnlyArray" && params.length > 0): types.of(params[0]);
+					case _: "Nothing";
+				};
+				"mutableListOf<" + element + ">()";
+			case CEmptyMap: "mutableMapOf()";
+			case CPositiveInfinity: FloatPrecision.isF32() ? "Float.POSITIVE_INFINITY" : "Double.POSITIVE_INFINITY";
+			case CNegativeInfinity: FloatPrecision.isF32() ? "Float.NEGATIVE_INFINITY" : "Double.NEGATIVE_INFINITY";
+			case CEnum(enumRef, enumField): types.of(Type.TEnum(enumRef, [])) + "." + enumField.name;
+		};
+	}
+
 	// ------------------------------------------------------------------
 	// Function bodies
 	// ------------------------------------------------------------------
@@ -88,6 +127,9 @@ class KotlinExpr {
 		}
 		DefaultArgExpander.completeRootExpr(cls, f.field.name, f.expr);
 		PipelineExpander.expandRootExpr(f.expr);
+		currentClass = cls;
+		currentField = f.field.name;
+		currentLocalName = null;
 		// Fuse declaration-plus-assignment pairs before the mutation scan.
 		// The typer lowers abstract-inline receiver bindings as `TVar(v,
 		// null)` followed by an assignment; the fused initializer is the
@@ -110,13 +152,16 @@ class KotlinExpr {
 		assignment to a parameter field from any other expression stops
 		the compilation.
 	**/
-	public function initBlockStatements(f: ClassFuncData): {lines: Array<String>, assigned: Array<String>} {
+	public function initBlockStatements(cls: ClassType, f: ClassFuncData): {lines: Array<String>, assigned: Array<String>} {
 		if(f.expr == null) {
 			return {lines: [], assigned: []};
 		}
 		for(a in f.args) {
 			reserveName(a.name);
 		}
+		currentClass = cls;
+		currentField = f.field.name;
+		currentLocalName = null;
 		scanLocals(f.expr);
 		final out: Array<String> = [];
 		final assigned: Array<String> = [];
@@ -144,6 +189,10 @@ class KotlinExpr {
 					case TField({expr: TConst(TThis)}, FInstance(_, _, cf)):
 						final name = cf.get().name;
 						if(Lambda.exists(f.args, a -> a.name == name)) {
+							final coalescing = coalescingSiteFor(value);
+							if(coalescing != null && coalescing.parameter == name) {
+								return {render: false, initialized: null};
+							}
 							final fromParam = switch(value.expr) {
 								case TLocal(v): v.name == name;
 								case _: false;
@@ -195,7 +244,11 @@ class KotlinExpr {
 					case TConst(TNull): ": " + types.of(v.t);
 					default: "";
 				};
-				return [indent(depth) + '$kw ${localName(v)}$typeAnn = ${expr(init)}'];
+				final initText = switch(init.expr) {
+					case TFunction(fn): functionLiteralNamed(v.name, fn);
+					default: expr(init);
+				};
+				return [indent(depth) + '$kw ${localName(v)}$typeAnn = $initText'];
 			case TVar(_, init) if(init == null):
 				return fail(e, "declaration without initializer has no lowering");
 			case TBlock(stmts):
@@ -695,7 +748,7 @@ class KotlinExpr {
 	function indexedStoreOf(s: TypedExpr): Null<{arr: TVar, idx: TVar, value: TypedExpr}> {
 		switch(stripWrap(s).expr) {
 			case TBinop(OpAssign, target, value):
-				switch(stripWrap(target).expr) {
+					switch(stripWrap(target).expr) {
 					case TArray(arr, idx):
 						final arrLocal = stripWrap(arr);
 						final idxLocal = stripWrap(idx);
@@ -754,7 +807,8 @@ class KotlinExpr {
 				}
 				return localName(v);
 			case TArray(arr, idx):
-				return expr(arr) + "[" + expr(idx) + "]";
+				final mapReceiver = mapBackingReceiver(arr);
+				return mapReceiver == null ? expr(arr) + "[" + expr(idx) + "]" : expr(mapReceiver) + "[" + expr(idx) + "]";
 			case TBinop(op, l, r):
 				return binop(e, op, l, r);
 			case TUnop(op, post, subj):
@@ -803,11 +857,16 @@ class KotlinExpr {
 			case TEnumIndex(_):
 				return fail(e, "enum index only lowers inside a variant switch");
 			case TFunction(f):
-				final params = [for(a in f.args) '${a.v.name}: ${types.of(a.v.t)}'].join(", ");
-				final ret = types.of(f.t);
-				final retStr = ret == "Unit" ? "" : ": " + ret;
-				return 'fun($params)$retStr {\n' + blockLines(statementsOf(f.expr), 1).join("\n") + '\n}';
+				return functionLiteral(f);
 			case TIf(c, t, f) if(f != null):
+				final coalescing = coalescingSiteFor(e);
+				if(coalescing != null) {
+					if(currentLocalName != null && currentClass != null && currentField != null) {
+						final value = DefaultArgExpander.coalescingDefaultForLocalParam(currentClass, currentField, currentLocalName, coalescing.parameter);
+						if(value != null) return expr(coalescing.valueExpr) + " ?: " + coalescingDefaultText(value, coalescing.valueExpr.t);
+					}
+					return expr(coalescing.valueExpr);
+				}
 				return "(if (" + expr(c) + ") " + expr(t) + " else " + expr(f) + ")";
 			case TSwitch(_, _, _):
 				return switchExpression(e);
@@ -818,6 +877,13 @@ class KotlinExpr {
 			case _:
 				return fail(e, "expression has no Kotlin lowering in the subset: " + Std.string(e.expr));
 		}
+	}
+
+	function functionLiteral(f: TFunc): String {
+		final params = [for(a in f.args) '${a.v.name}: ${types.of(a.v.t)}'].join(", ");
+		final ret = types.of(f.t);
+		final retStr = ret == "Unit" ? "" : ": " + ret;
+		return 'fun($params)$retStr {\n' + blockLines(statementsOf(f.expr), 1).join("\n") + '\n}';
 	}
 
 	// ------------------------------------------------------------------
@@ -1047,7 +1113,8 @@ class KotlinExpr {
 	function binop(e: TypedExpr, op: Binop, l: TypedExpr, r: TypedExpr): String {
 		switch(op) {
 			case OpAssign:
-				return assignTarget(l) + " = " + expr(r);
+				final map = mapAssignment(l);
+				return map == null ? assignTarget(l) + " = " + expr(r) : expr(map.receiver) + ".put(" + expr(map.key) + ", " + expr(r) + ")";
 			case OpAssignOp(inner):
 				switch(inner) {
 					case OpAdd | OpSub | OpMult | OpDiv | OpMod:
@@ -1351,12 +1418,23 @@ class KotlinExpr {
 				}
 			case _:
 		}
-		final renderedArgs = [for(a in args) expr(a)].join(", ");
+		final inlineMapCall = mapHasOwnPropertyCall(fn, args);
+		if(inlineMapCall != null) {
+			return inlineMapCall;
+		}
+		final renderedArgs = localCallArgs(fn, args);
 		switch(fn.expr) {
+			case TCast(inner, _):
+				return call(inner, args);
 			case TField(subj, FDynamic(name)) if((name == "length" || name == "get_length") && isStringBuf(subj)):
 				return expr(subj) + ".length";
 			case TField(subj, FInstance(_, _, cf)):
 				final name = cf.get().name;
+				if(isMapType(subj.t)) {
+					if(name == "exists" && args.length == 1) return expr(subj) + ".containsKey(" + expr(args[0]) + ")";
+					if(name == "get" && args.length == 1) return expr(subj) + "[" + expr(args[0]) + "]";
+					if(name == "set" && args.length == 2) return expr(subj) + ".put(" + expr(args[0]) + ", " + expr(args[1]) + ")";
+				}
 				if(isStringBuf(subj)) {
 					// stdlib/08: a Kotlin throw is an expression, so the
 					// checked operations stay expression-capable; the
@@ -1479,6 +1557,32 @@ class KotlinExpr {
 		}
 	}
 
+	function localCallArgs(fn: TypedExpr, args: Array<TypedExpr>): String {
+		final rendered = [for(a in args) expr(a)];
+		switch(fn.expr) {
+			case TLocal(v) if(currentClass != null && currentField != null):
+				final params = switch(Context.follow(fn.t)) {
+					case TFun(values, _): values;
+					case _: [];
+				};
+				for(i in args.length...params.length) {
+					if(DefaultArgExpander.coalescingDefaultForLocalParam(currentClass, currentField, v.name, params[i].name) != null) {
+						rendered.push("null");
+					}
+				}
+			default:
+		}
+		return rendered.join(", ");
+	}
+
+	function functionLiteralNamed(name: String, f: TFunc): String {
+		final previous = currentLocalName;
+		currentLocalName = name;
+		final result = functionLiteral(f);
+		currentLocalName = previous;
+		return result;
+	}
+
 	function newExpr(c: Ref<ClassType>, params: Array<Type>, args: Array<TypedExpr>): String {
 		final cls = c.get();
 		final renderedArgs = [for(a in args) expr(a)].join(", ");
@@ -1486,6 +1590,8 @@ class KotlinExpr {
 		switch(path) {
 			case "std.StringBuf" | "StringBuf":
 				return "StringBuilder()";
+			case "haxe.ds._Map.Map_Impl_":
+				return "mutableMapOf()";
 			case "haxe.io.BytesBuffer":
 				imports.requireType(path, "BytesBuffer");
 				return "BytesBuffer(" + renderedArgs + ")";
@@ -1499,6 +1605,64 @@ class KotlinExpr {
 				imports.requireType(cls.module, cls.name);
 				return cls.name + "(" + renderedArgs + ")";
 		}
+	}
+
+	function isMapType(t: Type): Bool {
+		return switch(Context.follow(t)) {
+			case TInst(def, params) if(def.get().pack.join(".") == "haxe" && def.get().name == "IMap" && params.length == 2): true;
+			case TInst(def, _): isMapImplementation(def.get());
+			case TType(def, params): def.get().pack.length == 0 && def.get().name == "Map" && params.length == 2;
+			case TAbstract(def, params) if(def.get().pack.join(".") == "haxe.ds" && def.get().name == "Map" && params.length == 2): true;
+			case TAbstract(a, params) if(a.get().name == "Null" && params.length == 1): isMapType(params[0]);
+			case _: false;
+		};
+	}
+
+	function isMapImplementation(cls: ClassType): Bool {
+		return cls.pack.join(".") == "haxe.ds" && ["StringMap", "IntMap", "ObjectMap", "HashMap"].indexOf(cls.name) >= 0;
+	}
+
+	function mapBackingReceiver(e: TypedExpr): Null<TypedExpr> {
+		return switch(stripWrap(e).expr) {
+			case TField(receiver, FInstance(_, _, cf)) if(cf.get().name == "h" && isMapBackingType(receiver.t)): receiver;
+			case TField(receiver, FAnon(cf)) if(cf.get().name == "h" && isMapBackingType(receiver.t)): receiver;
+			case _: null;
+		};
+	}
+
+	function isMapBackingType(t: Type): Bool {
+		return switch(Context.follow(t)) {
+			case TInst(def, _):
+				final cls = def.get();
+				isMapImplementation(cls);
+			case _: false;
+		};
+	}
+
+	function mapAssignment(e: TypedExpr): Null<{receiver: TypedExpr, key: TypedExpr}> {
+		return switch(stripWrap(e).expr) {
+			case TArray(arr, key):
+				final receiver = mapBackingReceiver(arr);
+				receiver == null ? null : {receiver: receiver, key: key};
+			case _: null;
+		};
+	}
+
+	function isHasOwnPropertyValue(e: TypedExpr): Bool {
+		return switch(stripWrap(e).expr) {
+			case TField(_, FInstance(_, _, cf)) | TField(_, FAnon(cf)) if(cf.get().name == "hasOwnProperty"): true;
+			case _: false;
+		};
+	}
+
+	function mapHasOwnPropertyCall(fn: TypedExpr, args: Array<TypedExpr>): Null<String> {
+		if(args.length != 2) return null;
+		return switch(stripWrap(fn).expr) {
+			case TField(subject, FInstance(_, _, cf)) if(cf.get().name == "call" && isHasOwnPropertyValue(subject)):
+				final receiver = mapBackingReceiver(args[0]);
+				receiver == null ? null : expr(receiver) + ".containsKey(" + expr(args[1]) + ")";
+			case _: null;
+		};
 	}
 
 	function assignTarget(e: TypedExpr): String {

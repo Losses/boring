@@ -53,6 +53,9 @@ class RustType {
 					case "Bool": "bool";
 					case "Void": "()";
 					case "Null": "Option<" + of(params[0]) + ">";
+					case "haxe.ds.Map" if(params.length == 2):
+						imports.require("std::collections::HashMap");
+						"HashMap<" + of(params[0]) + ", " + of(params[1]) + ">";
 					case "std.ReadOnlyArray" | "ReadOnlyArray":
 						isParam ? "&[" + of(params[0]) + "]" : "Vec<" + of(params[0]) + ">";
 					case "haxe.Int64":
@@ -102,6 +105,9 @@ class RustType {
 				final d = def.get();
 				if(d.pack.join(".") == "haxe.io" && d.name == "Bytes") {
 					isParam ? "&[u8]" : "Vec<u8>";
+				} else if(d.pack.length == 0 && d.name == "Map" && params.length == 2) {
+					imports.require("std::collections::HashMap");
+					"HashMap<" + of(params[0]) + ", " + of(params[1]) + ">";
 				} else if(RuntimeResidents.isResident(d.module)) {
 					// Resident typedefs name function types for the
 					// TypeScript alias; the Rust lane renders the

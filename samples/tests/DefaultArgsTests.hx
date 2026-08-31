@@ -43,6 +43,30 @@ class DefaultArgsTests {
 		Test.equals(15.0, DefaultArgsOps.callAdjust1());
 	}
 
+	@:test("coalescing infinity default preserves explicit values")
+	public static function testCoalescingInfinity():Void {
+		Test.equals(Math.POSITIVE_INFINITY, DefaultArgsOps.callInfinity0());
+		Test.equals(1.25, DefaultArgsOps.callInfinity1());
+	}
+
+	@:test("coalescing array defaults are fresh per constructor call")
+	public static function testCoalescingArrayFreshness():Void {
+		final first = new DefaultArgsOps().familyNames;
+		final second = new DefaultArgsOps().familyNames;
+		first.push("serif");
+		Test.equals(1, first.length);
+		Test.equals(0, second.length);
+	}
+
+	@:test("coalescing map defaults are fresh per function call")
+	public static function testCoalescingMapFreshness():Void {
+		final first = DefaultArgsOps.callMapDefault();
+		final second = DefaultArgsOps.callMapDefault();
+		first.set("serif", 1);
+		Test.equals(true, first.exists("serif"));
+		Test.equals(false, second.exists("serif"));
+	}
+
 	@:test("local function with default argument called with omission")
 	public static function testLocalFunction():Void {
 		Test.equals(107, DefaultArgsOps.callLocal());

@@ -78,6 +78,11 @@ class SwiftExpr {
 	/** Fresh names for the trailing-unit reads of stdlib/08 checks. */
 	var stringBufTailCounter: Int = 0;
 
+	/** Function context used to distinguish a sanctioned coalescing site. */
+	var currentClass: Null<ClassType> = null;
+	var currentField: Null<String> = null;
+	var currentLocalName: Null<String> = null;
+
 	public function new(imports: SwiftImports, types: SwiftType) {
 		this.imports = imports;
 		this.types = types;
@@ -106,6 +111,34 @@ class SwiftExpr {
 		return expr(e);
 	}
 
+	function coalescingSiteFor(e: TypedExpr): Null<{parameter: String, defaultExpr: TypedExpr, valueExpr: TypedExpr}> {
+		if(currentClass == null || currentField == null) return null;
+		final site = DefaultArgExpander.coalescingSite(e);
+		final value = currentLocalName != null
+			? DefaultArgExpander.coalescingDefaultForLocalParam(currentClass, currentField, currentLocalName, site == null ? "" : site.parameter)
+			: DefaultArgExpander.coalescingDefaultForParam(currentClass, currentField, site == null ? "" : site.parameter);
+		if(site == null || value == null) {
+			return null;
+		}
+		return site;
+	}
+
+	/** Renders a sanctioned default in Swift's native parameter context. */
+	public function coalescingDefaultText(value: DefaultArgExpander.CoalescingDefaultValue, targetType: Type): String {
+		return switch(value) {
+			case CInt(v): Std.string(v);
+			case CFloat(s): s;
+			case CString(s): quoteString(s);
+			case CBool(b): b ? "true" : "false";
+			case CNull: "nil";
+			case CEmptyArray: "[]";
+			case CEmptyMap: "[:]";
+			case CPositiveInfinity: FloatPrecision.isF32() ? "Float.infinity" : "Double.infinity";
+			case CNegativeInfinity: FloatPrecision.isF32() ? "-Float.infinity" : "-Double.infinity";
+			case CEnum(enumRef, enumField): types.of(Type.TEnum(enumRef, [])) + "." + SwiftDecl.lowerFirst(enumField.name);
+		};
+	}
+
 	// ------------------------------------------------------------------
 	// Function bodies
 	// ------------------------------------------------------------------
@@ -116,6 +149,9 @@ class SwiftExpr {
 		}
 		DefaultArgExpander.completeRootExpr(cls, f.field.name, f.expr);
 		PipelineExpander.expandRootExpr(f.expr);
+		currentClass = cls;
+		currentField = f.field.name;
+		currentLocalName = null;
 
 		scanLocals(f.expr);
 		// Depth 2: one level under the member's own indentation.
@@ -128,10 +164,13 @@ class SwiftExpr {
 		assignments move ahead of it. A missing super call on an
 		exception class initializes the base with the empty message.
 	**/
-	public function constructorBody(className: String, f: ClassFuncData, isException: Bool): Array<String> {
+	public function constructorBody(cls: ClassType, className: String, f: ClassFuncData, isException: Bool): Array<String> {
 		if(f.expr == null) {
 			Context.error("constructor has no body to lower", f.field.pos);
 		}
+		currentClass = cls;
+		currentField = f.field.name;
+		currentLocalName = null;
 		scanLocals(f.expr);
 		final stmts = statementsOf(f.expr);
 		final out: Array<String> = [];
@@ -175,6 +214,7 @@ class SwiftExpr {
 				return stringBufToStringBindingLines(v, stripWrap(init), depth);
 			case TVar(v, init) if(init != null):
 				final kw = mutated.exists(v.id) ? "var" : "let";
+				final coalescing = coalescingSiteFor(init);
 				final tryKw = containsThrowingCall(init) ? "try " : "";
 				// Five initializers cannot carry their type to Swift's
 				// inference: an empty array literal, an integer
@@ -187,9 +227,17 @@ class SwiftExpr {
 				// On the f32 lane a Float-typed declaration names its type
 				// too: a bare float initializer infers the default Double
 				// width (feature spec 23).
+				final coalescingValue = coalescing == null ? null : (currentLocalName != null
+					? DefaultArgExpander.coalescingDefaultForLocalParam(currentClass, currentField, currentLocalName, coalescing.parameter)
+					: DefaultArgExpander.coalescingDefaultForParam(currentClass, currentField, coalescing.parameter));
+				final localType = coalescingValue != null ? DefaultArgExpander.coalescingLocalType(coalescingValue, v.t) : v.t;
 				final annotation = isEmptyArrayDecl(init) || isIntLeafType(v.t) || isIntLiteralArrayDecl(init) || isBuilderCall(init) || isNullLeafType(v.t)
-					|| (FloatPrecision.isF32() && isFloatLeafType(v.t)) ? ": " + types.of(v.t) : "";
-				return [indent(depth) + '$kw ${localName(v)}$annotation = $tryKw${expr(init)}'];
+					|| coalescing != null || (FloatPrecision.isF32() && isFloatLeafType(v.t)) ? ": " + types.of(localType) : "";
+				final initText = switch(init.expr) {
+					case TFunction(fn): functionLiteralNamed(v.name, fn);
+					default: expr(init);
+				};
+				return [indent(depth) + '$kw ${localName(v)}$annotation = $tryKw$initText'];
 			case TVar(v, _):
 				// A declaration without initializer: definite
 				// initialization assigns it on every path before use.
@@ -236,7 +284,9 @@ class SwiftExpr {
 				return stmtLines(inner, depth);
 			case TBinop(OpAssign, l, r):
 				final tryKw = containsThrowingCall(r) ? "try " : "";
-				return [indent(depth) + assignTarget(l) + " = " + tryKw + expr(r)];
+				final map = mapAssignment(l);
+				final target = map == null ? assignTarget(l) + " = " : expr(map.receiver) + "[" + expr(map.key) + "] = ";
+				return [indent(depth) + target + tryKw + expr(r)];
 			case TBinop(OpAssignOp(inner), l, r):
 				final tryKw = containsThrowingCall(r) ? "try " : "";
 				return [indent(depth) + assignTarget(l) + " " + symbolOf(inner) + "= " + tryKw + expr(r)];
@@ -760,10 +810,11 @@ class SwiftExpr {
 				}
 				return localName(v);
 			case TArray(arr, idx):
-				final read = expr(arr) + "[Int(" + expr(idx) + ")]";
+				final mapReceiver = mapBackingReceiver(arr);
+				final read = mapReceiver == null ? expr(arr) + "[Int(" + expr(idx) + ")]" : expr(mapReceiver) + "[" + expr(idx) + "]";
 				// haxe.io.Bytes reads carry UInt8 elements; the Haxe
 				// access widens to Int.
-				return isBytesType(arr) ? "Int32(" + read + ")" : read;
+				return mapReceiver == null && isBytesType(arr) ? "Int32(" + read + ")" : read;
 			case TBinop(op, l, r):
 				return binop(e, op, l, r);
 			case TUnop(op, post, subj):
@@ -793,6 +844,14 @@ class SwiftExpr {
 			case TFunction(f):
 				return functionLiteral(f);
 			case TIf(c, t, f) if(f != null):
+				final coalescing = coalescingSiteFor(e);
+				if(coalescing != null) {
+					if(currentLocalName != null && currentClass != null && currentField != null) {
+						final value = DefaultArgExpander.coalescingDefaultForLocalParam(currentClass, currentField, currentLocalName, coalescing.parameter);
+						if(value != null) return expr(coalescing.valueExpr) + " ?? " + coalescingDefaultText(value, coalescing.valueExpr.t);
+					}
+					return expr(coalescing.valueExpr);
+				}
 				return "(" + expr(c) + " ? " + expr(t) + " : " + expr(f) + ")";
 			case _:
 				return fail(e, "expression has no Swift lowering in the subset");
@@ -814,10 +873,19 @@ class SwiftExpr {
 		return "{ (" + params + ") -> " + ret + " in\n" + blockLines(bodyStmts, 1).join("\n") + "\n}";
 	}
 
+	function functionLiteralNamed(name: String, f: TFunc): String {
+		final previous = currentLocalName;
+		currentLocalName = name;
+		final result = functionLiteral(f);
+		currentLocalName = previous;
+		return result;
+	}
+
 	function binop(e: TypedExpr, op: Binop, l: TypedExpr, r: TypedExpr): String {
 		switch(op) {
 			case OpAssign:
-				return assignTarget(l) + " = " + expr(r);
+				final map = mapAssignment(l);
+			return map == null ? assignTarget(l) + " = " + expr(r) : expr(map.receiver) + "[" + expr(map.key) + "] = " + expr(r);
 			case OpAssignOp(inner):
 				return assignTarget(l) + " " + symbolOf(inner) + "= " + expr(r);
 			case OpAdd:
@@ -1065,10 +1133,15 @@ class SwiftExpr {
 					case TFun(fargs, _): [for(a in fargs) a.t];
 					case _: [for(_ in args) null];
 				}
+			case TLocal(_):
+				switch(Context.follow(fn.t)) {
+					case TFun(fargs, _): [for(a in fargs) a.t];
+					case _: [for(_ in args) null];
+				}
 			case _:
 				[for(_ in args) null];
 		};
-		return [
+		final rendered = [
 			for(i in 0...args.length) {
 				final a = args[i];
 				final pt = i < paramTypes.length ? paramTypes[i] : null;
@@ -1076,6 +1149,19 @@ class SwiftExpr {
 				demandsValue && optionalValued(a) ? expr(a) + "!" : expr(a);
 			}
 		];
+		switch(fn.expr) {
+			case TLocal(v) if(currentClass != null && currentField != null):
+				for(i in args.length...paramTypes.length) {
+					if(DefaultArgExpander.coalescingDefaultForLocalParam(currentClass, currentField, v.name, switch(Context.follow(fn.t)) {
+						case TFun(values, _): values[i].name;
+						case _: "";
+					}) != null) {
+						rendered.push("nil");
+					}
+				}
+			default:
+		}
+		return rendered;
 	}
 
 	/** A method receiver unwraps when the receiver expression is optional. */
@@ -1103,6 +1189,10 @@ class SwiftExpr {
 	}
 
 	function call(fn: TypedExpr, args: Array<TypedExpr>): String {
+		final inlineMapCall = mapHasOwnPropertyCall(fn, args);
+		if(inlineMapCall != null) {
+			return inlineMapCall;
+		}
 		final rendered = argTexts(fn, args).join(", ");
 		switch(fn.expr) {
 			case TField(subj, FInstance(_, _, cf)) if(cf.get().name == "get_message" && args.length == 0):
@@ -1181,10 +1271,17 @@ class SwiftExpr {
 			case _:
 		}
 		switch(fn.expr) {
+			case TCast(inner, _):
+				return call(inner, args);
 			case TField(subj, FDynamic(name)) if((name == "length" || name == "get_length") && isStringBuf(subj)):
 				return "Int32(" + expr(subj) + ".count)";
 			case TField(subj, FInstance(_, _, cf)):
 				final name = cf.get().name;
+				if(isMapType(subj.t)) {
+					if(name == "exists" && args.length == 1) return expr(subj) + "[" + expr(args[0]) + "] != nil";
+					if(name == "get" && args.length == 1) return expr(subj) + "[" + expr(args[0]) + "]";
+					if(name == "set" && args.length == 2) return expr(subj) + "[" + expr(args[0]) + "] = " + expr(args[1]);
+				}
 				if(isStringBuf(subj)) {
 					// stdlib/08: the checks throw, and a throw is a
 					// statement here, so the checked operations lower at
@@ -1563,6 +1660,8 @@ class SwiftExpr {
 		switch(path) {
 			case "std.StringBuf" | "StringBuf":
 				return "[UInt16]()";
+			case "haxe.ds._Map.Map_Impl_":
+				return "[:]";
 			case "haxe.io.BytesBuffer":
 				imports.runtime("BytesBuffer");
 				return "BytesBuffer()";
@@ -1572,6 +1671,64 @@ class SwiftExpr {
 				imports.value(cls.module, cls.name);
 				return cls.name + "(" + rendered + ")";
 		}
+	}
+
+	function isMapType(t: Type): Bool {
+		return switch(Context.follow(t)) {
+			case TInst(def, params) if(def.get().pack.join(".") == "haxe" && def.get().name == "IMap" && params.length == 2): true;
+			case TInst(def, _): isMapImplementation(def.get());
+			case TType(def, params): def.get().pack.length == 0 && def.get().name == "Map" && params.length == 2;
+			case TAbstract(def, params) if(def.get().pack.join(".") == "haxe.ds" && def.get().name == "Map" && params.length == 2): true;
+			case TAbstract(a, params) if(a.get().name == "Null" && params.length == 1): isMapType(params[0]);
+			case _: false;
+		};
+	}
+
+	function isMapImplementation(cls: ClassType): Bool {
+		return cls.pack.join(".") == "haxe.ds" && ["StringMap", "IntMap", "ObjectMap", "HashMap"].indexOf(cls.name) >= 0;
+	}
+
+	function mapBackingReceiver(e: TypedExpr): Null<TypedExpr> {
+		return switch(stripWrap(e).expr) {
+			case TField(receiver, FInstance(_, _, cf)) if(cf.get().name == "h" && isMapBackingType(receiver.t)): receiver;
+			case TField(receiver, FAnon(cf)) if(cf.get().name == "h" && isMapBackingType(receiver.t)): receiver;
+			case _: null;
+		};
+	}
+
+	function isMapBackingType(t: Type): Bool {
+		return switch(Context.follow(t)) {
+			case TInst(def, _):
+				final cls = def.get();
+				isMapImplementation(cls);
+			case _: false;
+		};
+	}
+
+	function mapAssignment(e: TypedExpr): Null<{receiver: TypedExpr, key: TypedExpr}> {
+		return switch(stripWrap(e).expr) {
+			case TArray(arr, key):
+				final receiver = mapBackingReceiver(arr);
+				receiver == null ? null : {receiver: receiver, key: key};
+			case _: null;
+		};
+	}
+
+	function isHasOwnPropertyValue(e: TypedExpr): Bool {
+		return switch(stripWrap(e).expr) {
+			case TField(_, FInstance(_, _, cf)) | TField(_, FAnon(cf)) if(cf.get().name == "hasOwnProperty"): true;
+			case _: false;
+		};
+	}
+
+	function mapHasOwnPropertyCall(fn: TypedExpr, args: Array<TypedExpr>): Null<String> {
+		if(args.length != 2) return null;
+		return switch(stripWrap(fn).expr) {
+			case TField(subject, FInstance(_, _, cf)) if(cf.get().name == "call" && isHasOwnPropertyValue(subject)):
+				final receiver = mapBackingReceiver(args[0]);
+				receiver == null ? null : expr(receiver) + "[" + expr(args[1]) + "] != nil";
+			case _: null;
+		};
 	}
 
 	function assignTarget(e: TypedExpr): String {
@@ -2353,16 +2510,17 @@ class SwiftExpr {
 				if(init != null && isNullLeafType(init.t)) {
 					optionalInferred.set(v.id, true);
 				}
-			case TBinop(OpAssign, t, _) | TBinop(OpAssignOp(_), t, _):
-				switch(t.expr) {
-					case TLocal(v):
-						markMutated(v);
-					case TArray(arr, _):
-						// Storing through a subscript mutates the array
-						// value itself.
-						switch(stripWrap(arr).expr) {
-							case TLocal(v): markMutated(v);
-							case _:
+				case TBinop(OpAssign, t, _) | TBinop(OpAssignOp(_), t, _):
+					switch(t.expr) {
+						case TLocal(v):
+							markMutated(v);
+						case TArray(arr, _):
+							// Storing through a subscript mutates the array
+							// value itself.
+							final receiver = mapBackingReceiver(arr);
+							switch(stripWrap(receiver == null ? arr : receiver).expr) {
+								case TLocal(v): markMutated(v);
+								case _:
 						}
 					case _:
 				}
@@ -2370,7 +2528,7 @@ class SwiftExpr {
 				switch(fn.expr) {
 					case TField(subj, FInstance(_, _, cf)):
 						final n = cf.get().name;
-						final mutates = (isStringBuf(subj) && (n == "add" || n == "addChar")) || n == "push";
+							final mutates = (isStringBuf(subj) && (n == "add" || n == "addChar")) || n == "push" || n == "set";
 						if(mutates) {
 							switch(stripWrap(subj).expr) {
 								case TLocal(v): markMutated(v);

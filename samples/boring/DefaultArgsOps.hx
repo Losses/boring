@@ -18,7 +18,11 @@ class GreeterImpl implements IGreeter {
 }
 
 class DefaultArgsOps {
-	public function new() {}
+	public var familyNames:Array<String>;
+
+	public function new(?familyNames:Array<String>) {
+		this.familyNames = familyNames == null ? [] : familyNames;
+	}
 
 	public static function greet(name:String, prefix:String = "Hello"):String {
 		return prefix + " " + name;
@@ -52,6 +56,16 @@ class DefaultArgsOps {
 
 	public static function adjust(value:Float, step:Float = -5.0):Float {
 		return value + step;
+	}
+
+	public static function infinityDefault(?value:Float):Float {
+		var normalized = value == null ? Math.POSITIVE_INFINITY : value;
+		return normalized;
+	}
+
+	public static function mapDefault(?value:Map<String,Int>):Map<String,Int> {
+		var normalized = value == null ? new Map() : value;
+		return normalized;
 	}
 
 	public static function computeWithLocal(x:Int):Int {
@@ -129,6 +143,18 @@ class DefaultArgsOps {
 
 	public static function callAdjust1():Float {
 		return adjust(20.0);
+	}
+
+	public static function callInfinity0():Float {
+		return infinityDefault();
+	}
+
+	public static function callInfinity1():Float {
+		return infinityDefault(1.25);
+	}
+
+	public static function callMapDefault():Map<String,Int> {
+		return mapDefault();
 	}
 
 	public static function callLocal():Int {
