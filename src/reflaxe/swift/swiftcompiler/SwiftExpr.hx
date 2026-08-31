@@ -144,8 +144,10 @@ class SwiftExpr {
 			case CNegativeInfinity: FloatPrecision.isF32() ? "-Float.infinity" : "-Double.infinity";
 			case CEnum(enumRef, enumField): types.of(Type.TEnum(enumRef, [])) + "." + SwiftDecl.lowerFirst(enumField.name);
 			case CParameterRead(name): name;
-			case CFieldAccess(CParameterRead(staticPath), ""): staticPath;
-			case CFieldAccess(receiver, fieldName): coalescingDefaultText(receiver, targetType) + "." + fieldName;
+			case CFieldAccess(CParameterRead(staticPath), ""): coalescingStaticFieldText(staticPath);
+			case CFieldAccess(receiver, fieldName): fieldName == "length"
+				? "Int32(" + coalescingDefaultText(receiver, targetType) + ".count)"
+				: coalescingDefaultText(receiver, targetType) + "." + fieldName;
 			case CMethodCall(receiver, methodName, args):
 				coalescingDefaultText(receiver, targetType) + "." + swiftMethodName(methodName) + "(" + [for(a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
 			case CStaticCall(fullPath, args):
@@ -155,6 +157,20 @@ class SwiftExpr {
 			case CBinaryOp(op, left, right):
 				coalescingDefaultText(left, targetType) + " " + opStr(op) + " " + coalescingDefaultText(right, targetType);
 		};
+	}
+
+	function coalescingStaticFieldText(path:String):String {
+		final parts = path.split(".");
+		if(parts.length < 2) return path;
+		final fieldName = parts[parts.length - 1];
+		final typePath = parts.slice(0, parts.length - 1).join(".");
+		try {
+			switch(Context.getType(typePath)) {
+				case TInst(clsRef, _): return staticRef(clsRef.get(), fieldName);
+				default:
+			}
+		} catch (_:Dynamic) {}
+		return path;
 	}
 
 	static function swiftMethodName(name:String):String {

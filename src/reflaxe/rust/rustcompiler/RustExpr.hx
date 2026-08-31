@@ -158,10 +158,10 @@ class RustExpr {
 				requireEnum(en.module, en.name);
 				en.name + "::" + enumField.name;
 			case CParameterRead(name): RustImports.toSnakeCase(name);
-			case CFieldAccess(CParameterRead(staticPath), ""): staticPath;
+			case CFieldAccess(CParameterRead(staticPath), ""): coalescingStaticFieldText(staticPath, targetType);
 			case CFieldAccess(receiver, fieldName):
 				fieldName == "length"
-					? "(" + coalescingDefaultText(receiver, targetType) + ").as_ref().map_or(0, |v| v.len())"
+					? rustU32Length("(" + coalescingDefaultText(receiver, targetType) + ").len()")
 					: coalescingDefaultText(receiver, targetType) + "." + RustImports.toSnakeCase(fieldName);
 			case CMethodCall(receiver, methodName, args):
 				coalescingDefaultText(receiver, targetType) + "." + rustMethodName(methodName) + "(" + [for(a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
@@ -173,6 +173,22 @@ class RustExpr {
 			case CBinaryOp(op, left, right):
 				coalescingDefaultText(left, targetType) + " " + opStr(op) + " " + coalescingDefaultText(right, targetType);
 		};
+	}
+
+	function coalescingStaticFieldText(path:String, targetType:Type):String {
+		final parts = path.split(".");
+		if(parts.length < 2) return path;
+		final fieldName = parts[parts.length - 1];
+		final typePath = parts.slice(0, parts.length - 1).join(".");
+		try {
+			switch(Context.getType(typePath)) {
+				case TInst(clsRef, _):
+					final rendered = staticRef(clsRef.get(), fieldName);
+					return isStringType(targetType) && !StringTools.endsWith(rendered, ".to_string()") ? rendered + ".to_string()" : rendered;
+				default:
+			}
+		} catch (_:Dynamic) {}
+		return path;
 	}
 
 	static function rustMethodName(name:String):String {
@@ -226,7 +242,7 @@ class RustExpr {
 		f.expr.expr = fusedRoot.expr;
 		scanLocals(f.expr);
 		final lines = blockLines(statementsOf(f.expr), 1, true);
-		return coalescingNormalizationLines(f.expr, 1).concat(lines);
+		return coalescingNormalizationLines(f.expr, 1, [for(a in f.args) a.name]).concat(lines);
 	}
 
 	/** Body lowering for a member declared on a value wrapper. */
@@ -331,15 +347,31 @@ class RustExpr {
 		// literal assembled by the caller, so blockLines must not append the
 		// fallible void closer `Ok(())` after the validation statements.
 		final lines = stmts.length > 0 ? blockLines(stmts, 1, false) : [];
-		final normalized = coalescingNormalizationLines(f.expr, 1);
+		final normalized = coalescingNormalizationLines(f.expr, 1, [for(a in f.args) a.name]);
 		return {statementLines: normalized.concat(lines), fieldInits: fieldInits};
 	}
 
-	function coalescingNormalizationLines(root: TypedExpr, depth: Int): Array<String> {
+	function coalescingNormalizationLines(root: TypedExpr, depth: Int, parameterOrder: Null<Array<String>> = null): Array<String> {
 		final out: Array<String> = [];
 		if(currentClass == null || currentMethodName == null) return out;
+		final sites = DefaultArgExpander.coalescingSitesForFunction(root);
+		if(parameterOrder != null) {
+			var next = 0;
+			for(parameterName in parameterOrder) {
+				var found = next;
+				while(found < sites.length && sites[found].parameter != parameterName) {
+					found++;
+				}
+				if(found < sites.length) {
+					final site = sites[found];
+					sites[found] = sites[next];
+					sites[next] = site;
+					next++;
+				}
+			}
+		}
 		final seen: Map<String, Bool> = [];
-		for(site in DefaultArgExpander.coalescingSites(root)) {
+		for(site in sites) {
 			final value = currentLocalName != null
 				? DefaultArgExpander.coalescingDefaultForLocalParam(currentClass, currentMethodName, currentLocalName, site.parameter)
 				: DefaultArgExpander.coalescingDefaultForParam(currentClass, currentMethodName, site.parameter);
@@ -3299,7 +3331,7 @@ class RustExpr {
 		};
 		returnTypeName = functionReturn == null ? null : types.of(functionReturn, false);
 		currentReturnType = functionReturn;
-		final body = coalescingNormalizationLines(f.expr, 2).concat(blockLines(statementsOf(f.expr), 2, true));
+		final body = coalescingNormalizationLines(f.expr, 2, [for(a in f.args) a.v.name]).concat(blockLines(statementsOf(f.expr), 2, true));
 		returnUnsigned = previousReturnUnsigned;
 		returnTypeName = previousReturnTypeName;
 		currentReturnType = previousReturnType;
