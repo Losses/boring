@@ -78,6 +78,7 @@ Every candidate translation is evaluated across four fixed axes:
 | 28 | [28-enum-value-queries.md](features/28-enum-value-queries.md) | Planned | The enum value queries `Type.allEnums`, `Type.enumConstructor`, `Type.createEnum`: compile-time expansion, per-target artifacts, literal count bounds, and miss semantics. |
 | 29 | [29-first-class-function-values.md](features/29-first-class-function-values.md) | Planned | Function-typed values in every storage position: the verified renderings on all five targets, Rust boxed function storage, and static function fields with capture-free initializers. |
 | 30 | [30-static-fields.md](features/30-static-fields.md) | Planned | Static fields in every declared form: declarations with initializers on all five targets, static assignment from own and other classes, container mutation, and the Rust mutex static. |
+| 31 | [31-record-tostring-member.md](features/31-record-tostring-member.md) | Planned | The printed-form member: a `@:dataClass` class without an explicit `toString` gets one synthesized on every target and in stage 1, sharing the RecordStr assembly routine; amends 27's no-synthesized-members sentence. |
 
 ### Macro specifications
 
