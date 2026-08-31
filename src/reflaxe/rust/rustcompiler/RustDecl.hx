@@ -795,10 +795,17 @@ class RustDecl {
 			return [];
 		}
 		final init = StaticFieldHelper.validatedInitializer(field, cls);
-		imports.require("std::sync::Mutex");
 		final vis = field.isPublic ? "pub " : "";
 		final typeStr = types.of(field.type);
 		final name = RustImports.toSnakeCase(field.name);
+		if(StaticFieldHelper.isConstruction(init) && !StaticFieldHelper.isSelfConstruction(field, cls, init)) {
+			imports.require("std::sync::LazyLock");
+			return [
+				"#[allow(non_upper_case_globals)]",
+				'${vis}static ${name}: LazyLock<${typeStr}> = LazyLock::new(|| ${expr.rawExpression(init)});'
+			];
+		}
+		imports.require("std::sync::Mutex");
 		return [
 			"#[allow(non_upper_case_globals)]",
 			'${vis}static ${name}: Mutex<${typeStr}> = Mutex::new(${expr.rawExpression(init)});'
