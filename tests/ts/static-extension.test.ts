@@ -87,8 +87,8 @@ describe("top-level and extension function lowering", () => {
     expect(fileConsumer).toContain("return file_level_ops.publicValue(7);");
     expect(fileConsumer).not.toContain("FileLevelOps.");
 
-    expect(extensions).toContain("extension on ExtensionMode {");
-    expect(extensions).toContain("extension on String {");
+    expect(extensions).toContain("extension ExtensionModeExtension on ExtensionMode {");
+    expect(extensions).toContain("extension StringExtension on String {");
     expect(extensions).toContain("String modeLabel(String suffix)");
     expect(extensions).toContain("String stringLabel(String prefix)");
     expect(extensions).not.toContain("class ExtensionOps");
