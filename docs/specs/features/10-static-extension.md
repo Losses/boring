@@ -80,7 +80,7 @@ with the target's module-file-private visibility and no import.
    | TypeScript | `export function f(a: A): R` in the module file | `export function f(r: Receiver, a: A): R` in the module file |
    | Kotlin | `fun f(a: A): R` in the file facade named after the module, package from the module path | `fun Receiver.f(a: A): R` in the same facade |
    | Swift | `func f(a: A) -> R` at file scope | `extension Receiver { func f(a: A) -> R }` at file scope |
-   | Dart | top-level library function | `extension on Receiver { ... }` (unnamed extension) in the library |
+   | Dart | top-level library function | `extension <Receiver>Extension on Receiver { ... }` (named extension) in the library |
    | Rust | `pub fn f(a: A) -> R` in the module | crate-owned receiver type: `impl Receiver { pub fn f(&self, a: A) -> R }`; foreign receiver type (a standard-library type or a type from another module family): the `@:topLevel` free-function form with the receiver first |
 
 3. Call-site emission: the port's call sites are plain static calls
@@ -95,6 +95,15 @@ with the target's module-file-private visibility and no import.
    | Swift | `f(x, a)` | `x.f(a)` |
    | Dart | `f(x, a)` | `x.f(a)` |
    | Rust | `f(&x, a)` or the borrow the parameter rules already render | crate-owned receiver: `x.f(a)`; foreign receiver: `f(&x, a)` |
+
+   Dart extensions carry a name derived from the receiver type (the
+   rendered type with characters outside identifiers dropped, then
+   `Extension` appended). Unnamed Dart extensions resolve only inside
+   their declaring library, so the cross-library consumer calls of the
+   call-site table cannot resolve an unnamed extension; a name keeps the
+   declaration usable from every importer. The import stays unprefixed:
+   a library import brings named extensions into scope for member
+   resolution.
 
 4. The Kotlin facade file for a module named `m` in package `p` is the
    generated file for the module's path, spelled so that cross-package

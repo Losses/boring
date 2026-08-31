@@ -427,7 +427,7 @@ class DartDecl {
 		if(f.args[0].tvar != null) {
 			expr.bindLocalName(f.args[0].tvar, "this");
 		}
-		return ["extension on " + receiverType + " {"]
+		return ["extension " + dartExtensionName(receiverType) + " on " + receiverType + " {"]
 			.concat([head])
 			.concat(expr.functionBody(cls, f, 2))
 			.concat(["  }"])
@@ -438,6 +438,17 @@ class DartDecl {
 	function methodSignature(cls: ClassType, f: ClassFuncData): String {
 		final ret = types.of(f.ret);
 		return '$ret ${f.field.name}${paramList(cls, f)}';
+	}
+
+	/**
+		The Dart extension name for one receiver type. Unnamed extensions
+		resolve only inside their declaring library, so cross-library
+		consumers need a named extension (spec 10). Characters outside
+		identifiers drop from the rendered receiver type.
+	**/
+	function dartExtensionName(receiverType: String): String {
+		final safe = new EReg("[^A-Za-z0-9_]", "g").replace(receiverType, "");
+		return safe + "Extension";
 	}
 
 	/**
