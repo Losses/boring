@@ -50,7 +50,7 @@ Every candidate translation is evaluated across four fixed axes:
 | Number | Specification | Status | Description |
 | --- | --- | --- | --- |
 | 01 | [01-enums-and-pattern-matching.md](features/01-enums-and-pattern-matching.md) | Complete | Sum types, enum variants, and exhaustive pattern matching. |
-| 02 | [02-abstract-types.md](features/02-abstract-types.md) | Complete | Zero-cost abstractions, newtypes, and branded types. |
+| 02 | [02-abstract-types.md](features/02-abstract-types.md) | Planned | Zero-cost abstractions, newtypes, and branded types; the planned value-wrapper extension rules member-carrying abstracts on every target. |
 | 03 | [03-structures-and-typedefs.md](features/03-structures-and-typedefs.md) | Complete | Anonymous structures, typedefs, Rust structs, and TypeScript interfaces. |
 | 04 | [04-null-safety-and-optionality.md](features/04-null-safety-and-optionality.md) | Complete | Nullable types, optional fields, and strict nullability. |
 | 05 | [05-generics.md](features/05-generics.md) | Complete | Parameterized types, constraints, monomorphization, and type erasure. |
