@@ -14,8 +14,8 @@ class PrintedCollectionTests {
 		Test.equals(expected, v.toString());
 		Test.equals(expected, RecordStr.str(v));
 		#else
-		Test.equals("PrintedCollection(names=[alpha,beta], counts=[1,2], points=[PrintedPoint(x=1, y=2)], matrix=[[1,2],[3]], none=[])", v.toString());
-		Test.equals("PrintedCollection(names=[alpha,beta], counts=[1,2], points=[PrintedPoint(x=1, y=2)], matrix=[[1,2],[3]], none=[])", RecordStr.str(v));
+		Test.equals(expected, v.toString());
+		Test.equals(expected, RecordStr.str(v));
 		#end
 	}
 }
