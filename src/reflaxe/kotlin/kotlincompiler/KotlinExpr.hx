@@ -1379,12 +1379,22 @@ class KotlinExpr {
 	}
 
 	function stdString(arg: TypedExpr, inConcat: Bool): String {
-		return switch(Context.follow(arg.t)) {
-			case TInst(c, _) if(c.get().name == "String"): expr(arg);
-			case TAbstract(a, _) if(a.get().name == "Int" || a.get().name == "Float" || a.get().name == "Bool"): inConcat ? expr(arg) : "(" + expr(arg) + ").toString()";
-			case TEnum(en, _) if(isParameterlessEnum(en.get())): expr(arg) + (inConcat ? "" : ".name");
+		return stdStringType(arg.t, expr(arg), inConcat, arg);
+	}
+
+	function stdStringType(t: Type, value: String, inConcat: Bool, origin: TypedExpr, depth: Int = 0): String {
+		return switch(Context.follow(t)) {
+			case TInst(c, _) if(c.get().name == "String"): value;
+			case TInst(c, [element]) if(c.get().name == "Array"):
+				final index = depth == 0 ? "i" : "i" + depth;
+				final item = stdStringType(element, value + "[" + index + "]", true, origin, depth + 1);
+				'run { val sb = StringBuilder(); sb.append(\'[\'); val n = ${value}.size; var ${index} = 0; while (${index} < n) { if (${index} > 0) { sb.append(", "); }; sb.append(${item}); ${index} += 1; }; sb.append(\']\'); sb.toString() }';
+			case TAbstract(a, _) if(a.get().name == "Int" || a.get().name == "Float" || a.get().name == "Bool"): inConcat ? value : "(" + value + ").toString()";
+			case TAbstract(a, params) if(a.get().module == "std.ReadOnlyArray"):
+				stdStringType(haxe.macro.TypeTools.applyTypeParameters(a.get().type, a.get().params, params), value, inConcat, origin, depth);
+			case TEnum(en, _) if(isParameterlessEnum(en.get())): value + (inConcat ? "" : ".name");
 			case _:
-				Context.error("Std.string accepts scalars and parameterless enum values only", arg.pos);
+				Context.error("Std.string accepts scalars, parameterless enum values, and arrays of them only", origin.pos);
 				null;
 		};
 	}

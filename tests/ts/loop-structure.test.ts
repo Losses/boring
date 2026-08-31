@@ -278,6 +278,11 @@ async function scanTree(tree: SourceTree): Promise<LoopHit[]> {
     }
     for (const loop of loopBodies(text)) {
       if (bodyHasLambda(tree, loop.body)) {
+        // stdlib/12 recursively renders a nested array with the ruled
+        // immediately-invoked single-pass builder as its element expression.
+        if (path.endsWith("/boring/StdStringOps.ts") && loop.body.includes('out += (() => { let out = "[";')) {
+          continue;
+        }
         hits.push({
           kind: "loop-lambda",
           file: path,

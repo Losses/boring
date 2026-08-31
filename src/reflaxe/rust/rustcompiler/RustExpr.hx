@@ -2292,13 +2292,24 @@ class RustExpr {
 	}
 
 	function stdString(arg: TypedExpr, inConcat: Bool): String {
-		return switch(Context.follow(arg.t)) {
+		return stdStringType(arg.t, expr(arg), inConcat, arg);
+	}
+
+	function stdStringType(t: Type, value: String, inConcat: Bool, origin: TypedExpr, depth: Int = 0): String {
+		return switch(Context.follow(t)) {
 			case TInst(c, _) if(c.get().name == "String"):
-				inConcat ? expr(arg) : expr(arg) + ".to_string()";
-			case TAbstract(a, _) if(a.get().name == "Int" || a.get().name == "Float" || a.get().name == "Bool"): inConcat ? expr(arg) : expr(arg) + ".to_string()";
-			case TEnum(en, _) if(isParameterlessEnum(en.get())): expr(arg) + ".name()" + (inConcat ? "" : ".to_string()");
+				inConcat ? value : value + ".to_string()";
+			case TInst(c, [element]) if(c.get().name == "Array"):
+				imports.require("std::fmt::Write");
+				final index = depth == 0 ? "i" : "i" + depth;
+				final item = stdStringType(element, value + "[" + index + "]", true, origin, depth + 1);
+				'{ let mut out = String::new(); out.push(\'[\'); let n = ${value}.len(); let mut ${index} = 0usize; while ${index} < n { if ${index} > 0 { out.push_str(", "); } let _ = write!(out, "{}", ${item}); ${index} += 1; } out.push(\']\'); out }';
+			case TAbstract(a, _) if(a.get().name == "Int" || a.get().name == "Float" || a.get().name == "Bool"): inConcat ? value : value + ".to_string()";
+			case TAbstract(a, params) if(a.get().module == "std.ReadOnlyArray"):
+				stdStringType(haxe.macro.TypeTools.applyTypeParameters(a.get().type, a.get().params, params), value, inConcat, origin, depth);
+			case TEnum(en, _) if(isParameterlessEnum(en.get())): value + ".name()" + (inConcat ? "" : ".to_string()");
 			case _:
-				Context.error("Std.string accepts scalars and parameterless enum values only", arg.pos);
+				Context.error("Std.string accepts scalars, parameterless enum values, and arrays of them only", origin.pos);
 				null;
 		};
 	}

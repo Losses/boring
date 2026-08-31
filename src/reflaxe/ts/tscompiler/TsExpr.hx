@@ -1047,13 +1047,23 @@ class TsExpr {
 	}
 
 	function stdString(arg: TypedExpr, inConcat: Bool): String {
-		return switch(Context.follow(arg.t)) {
-			case TInst(c, _) if(c.get().name == "String"): expr(arg);
+		return stdStringType(arg.t, expr(arg), inConcat, arg);
+	}
+
+	function stdStringType(t: Type, value: String, inConcat: Bool, origin: TypedExpr, depth: Int = 0): String {
+		return switch(Context.follow(t)) {
+			case TInst(c, _) if(c.get().name == "String"): value;
+			case TInst(c, [element]) if(c.get().name == "Array"):
+				final index = depth == 0 ? "i" : "i" + depth;
+				final item = stdStringType(element, value + "[" + index + "]!", true, origin, depth + 1);
+				'(() => { let out = "["; const n = ${value}.length; for (let ${index} = 0; ${index} < n; ${index} += 1) { if (${index} > 0) { out += ", "; } out += ${item}; } out += "]"; return out; })()';
 			case TAbstract(a, _) if(a.get().name == "Int" || a.get().name == "Float" || a.get().name == "Bool"):
-				inConcat ? expr(arg) : "String(" + expr(arg) + ")";
-			case TEnum(en, _) if(isParameterlessEnum(en.get())): expr(arg) + ".kind";
+				inConcat ? value : "String(" + value + ")";
+			case TAbstract(a, params) if(a.get().module == "std.ReadOnlyArray"):
+				stdStringType(haxe.macro.TypeTools.applyTypeParameters(a.get().type, a.get().params, params), value, inConcat, origin, depth);
+			case TEnum(en, _) if(isParameterlessEnum(en.get())): value + ".kind";
 			case _:
-				Context.error("Std.string accepts scalars and parameterless enum values only", arg.pos);
+				Context.error("Std.string accepts scalars, parameterless enum values, and arrays of them only", origin.pos);
 				null;
 		};
 	}

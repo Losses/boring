@@ -54,6 +54,23 @@ describe("Std.string lowering", () => {
     expect(content).toContain("pub fn int_value(value: u32) -> String {\n        return value.to_string();");
   });
 
+  test("array operands use one single-pass builder in every target", () => {
+    const rows = [
+      ["reference/ts/gen/boring/StdStringOps.ts", 'let out = "["', "const n =", "for (let i = 0; i < n; i += 1)"],
+      ["reference/kotlin/gen/boring/StdStringOps.kt", "StringBuilder()", "val n =", "while (i < n)"],
+      ["reference/rust-gen/src/boring/std_string_ops.rs", "String::new()", "let n =", 'write!(out, "{}"'],
+      ["reference/swift/gen/boring/StdStringOps.swift", 'var out = "["', "let n =", "while i < n"],
+      ["reference/dart/gen/lib/boring/std_string_ops.dart", 'StringBuffer("[")', "final n =", "while (i < n)"],
+    ] as const;
+    for (const [file, accumulator, length, loop] of rows) {
+      const content = fs.readFileSync(path.join(root, file), "utf8");
+      expect(content).toContain(accumulator);
+      expect(content).toContain(length);
+      expect(content).toContain(loop);
+      expect(content).not.toMatch(/\.map\(|join|joinToString|joined/u);
+    }
+  });
+
   test("unsupported operands report the named error", async () => {
     const proc = Bun.spawn(["haxe", "examples/ts.hxml", "tests.StdStringProbes"], {
       cwd: root,
@@ -62,6 +79,6 @@ describe("Std.string lowering", () => {
     });
     const stderr = await new Response(proc.stderr).text();
     expect(await proc.exited).not.toBe(0);
-    expect(stderr).toContain("Std.string accepts scalars and parameterless enum values only");
+    expect(stderr).toContain("Std.string accepts scalars, parameterless enum values, and arrays of them only");
   });
 });
