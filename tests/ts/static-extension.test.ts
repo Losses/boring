@@ -75,7 +75,7 @@ describe("top-level and extension function lowering", () => {
     expect(extensionConsumer).not.toContain("ExtensionOps.");
   });
 
-  test("Dart emits an unnamed extension and library top-level functions", () => {
+  test("Dart emits named grouped extensions and library top-level functions", () => {
     const fileLevel = read("reference/dart/gen/lib/boring/file_level_ops.dart");
     const fileConsumer = read("reference/dart/gen/lib/boring/file_level_consumer.dart");
     const extensions = read("reference/dart/gen/lib/boring/extension_ops.dart");
@@ -89,6 +89,7 @@ describe("top-level and extension function lowering", () => {
 
     expect(extensions).toContain("extension ExtensionModeExtension on ExtensionMode {");
     expect(extensions).toContain("extension StringExtension on String {");
+    expect(extensions.match(/extension ExtensionModeExtension on ExtensionMode \{/g)?.length).toBe(1);
     expect(extensions).toContain("String modeLabel(String suffix)");
     expect(extensions).toContain("String stringLabel(String prefix)");
     expect(extensions).not.toContain("class ExtensionOps");
