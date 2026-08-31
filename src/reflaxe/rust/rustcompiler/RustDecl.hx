@@ -106,7 +106,7 @@ class RustDecl {
 		}
 		final moduleStaticLines: Array<String> = [];
 		for(v in varFields) {
-			for(l in moduleStaticVarDecl(v)) moduleStaticLines.push(l);
+			for(l in moduleStaticVarDecl(cls, v)) moduleStaticLines.push(l);
 		}
 		final staticFunctionLines: Array<String> = [];
 		for(v in varFields) {
@@ -121,7 +121,7 @@ class RustDecl {
 			lines.push("pub struct " + cls.name + ";\n");
 			lines.push("impl " + cls.name + " {");
 			for(v in varFields) {
-				for(l in staticVarDecl(v)) lines.push(l);
+			for(l in staticVarDecl(cls, v)) lines.push(l);
 			}
 			var sep = varFields.length > 0 && ordinaryFuncs.length > 0;
 			for(f in ordinaryFuncs) {
@@ -611,7 +611,7 @@ class RustDecl {
 		};
 	}
 
-	function staticVarDecl(v: ClassVarData): Array<String> {
+	function staticVarDecl(cls: ClassType, v: ClassVarData): Array<String> {
 		final field = v.field;
 		if(isStaticFunctionField(v)) {
 			return [];
@@ -620,7 +620,7 @@ class RustDecl {
 			return [];
 		}
 		if(v.isStatic && StaticFieldHelper.isConstValue(field)) {
-			final init = StaticFieldHelper.validatedInitializer(field);
+			final init = StaticFieldHelper.validatedInitializer(field, cls);
 			final valStr = expr.rawExpression(init);
 			final typeStr = switch(field.type) {
 				case TInst(c, _) if(c.get().name == "String"): "&str";
@@ -634,7 +634,7 @@ class RustDecl {
 	}
 
 	/** A mutable or container static lives outside the associated impl. */
-	function moduleStaticVarDecl(v: ClassVarData): Array<String> {
+	function moduleStaticVarDecl(cls: ClassType, v: ClassVarData): Array<String> {
 		final field = v.field;
 		if(isStaticFunctionField(v)) {
 			return [];
@@ -642,7 +642,7 @@ class RustDecl {
 		if(!v.isStatic || DataTableHelper.isDataTableField(field) || StaticFieldHelper.isConstValue(field)) {
 			return [];
 		}
-		final init = StaticFieldHelper.validatedInitializer(field);
+		final init = StaticFieldHelper.validatedInitializer(field, cls);
 		imports.require("std::sync::Mutex");
 		final vis = field.isPublic ? "pub " : "";
 		final typeStr = types.of(field.type);
