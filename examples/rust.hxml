@@ -91,3 +91,6 @@ boring.StaticStateOps
 tests.StaticStateTests
 boring.FnValuesOps
 tests.FnValuesTests
+boring.ValueTypeOps
+boring.ValueTypeConsumer
+tests.ValueTypeTests

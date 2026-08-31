@@ -11,6 +11,7 @@ import haxe.macro.Type.Ref;
 import haxe.macro.Type.TVar;
 import haxe.macro.Type.TypedExpr;
 import haxe.macro.Type.TypedExprDef;
+import ValueTypeSupport;
 
 /**
  * Functional idiom expansion pass per docs/specs/macros/01-functional-idiom-expansion.md.
@@ -207,6 +208,18 @@ class PipelineExpander {
 		while (i < stmts.length) {
 			final stmt = stmts[i];
 			if (stmt == null) {
+				i++;
+				continue;
+			}
+			// Keep value-wrapper construction blocks intact. Their final
+			// synthetic `this` assignment is the representation boundary
+			// consumed by each target's value-wrapper lowering.
+			final keepValueWrapper = switch(stmt.expr) {
+				case TReturn(value) if(value != null): ValueTypeSupport.markedAbstractOfType(value.t) != null;
+				case TVar(_, value) if(value != null): ValueTypeSupport.markedAbstractOfType(value.t) != null;
+				case _: false;
+			};
+			if(keepValueWrapper) {
 				i++;
 				continue;
 			}

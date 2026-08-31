@@ -9,4 +9,5 @@ package boring;
 enum ValueError {
 	StartAfterEnd;
 	NegativeStart;
+	BlankValue;
 }

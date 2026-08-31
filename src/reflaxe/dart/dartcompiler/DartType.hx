@@ -37,7 +37,10 @@ class DartType {
 		return switch(t) {
 			case TAbstract(a, params):
 				final abs = a.get();
-				switch(pathOf(abs.pack, abs.name)) {
+				if(ValueTypeSupport.isMarkedAbstract(abs)) {
+					final prefix = imports.type(abs.module, abs.name);
+					prefix.length > 0 ? prefix + "." + abs.name : abs.name;
+				} else switch(pathOf(abs.pack, abs.name)) {
 					case "Int": "int";
 					case "Float": "double";
 					case "Bool": "bool";

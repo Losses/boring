@@ -9,6 +9,8 @@ import haxe.macro.Type.FieldAccess;
 import haxe.macro.Type.TypedExpr;
 import haxe.macro.TypedExprTools;
 import reflaxe.data.ClassFuncData;
+import ValueTypeSupport;
+import ValueTypeSupport.ValueTypeOperator;
 
 /**
 	Statement and expression lowering from the Haxe typed AST to Rust.
@@ -225,6 +227,49 @@ class RustExpr {
 		scanLocals(f.expr);
 		final lines = blockLines(statementsOf(f.expr), 1, true);
 		return coalescingNormalizationLines(f.expr, 1).concat(lines);
+	}
+
+	/** Body lowering for a member declared on a value wrapper. */
+	public function valueTypeFunctionBody(cls: ClassType, f: ClassFuncData, receiverName: String): Array<String> {
+		final abs = ValueTypeSupport.markedAbstractOfClass(cls);
+		final op = abs == null ? null : ValueTypeSupport.operatorOf(abs, f.field);
+		if(op != null) {
+			switch(op) {
+				case Binary(_):
+					if(f.args.length > 0) bindLocalName(f.args[0].tvar, "self.0");
+					if(f.args.length > 1) bindLocalName(f.args[1].tvar, "rhs.0");
+				case Unary(_):
+					if(f.args.length > 0) bindLocalName(f.args[0].tvar, "self.0");
+			}
+		} else if(ValueTypeSupport.hasReceiver(f.field) && f.args.length > 0) {
+			bindLocalName(f.args[0].tvar, receiverName);
+		}
+		final rawReturn = types.of(f.ret, false);
+		setReturnUnsigned(rawReturn == "u32");
+		setReturnTypeName(rawReturn);
+		return functionBody(cls, f);
+	}
+
+	/** Drops Haxe's synthetic representation assignment from a validating constructor. */
+	public function valueTypeConstructorBody(cls: ClassType, f: ClassFuncData): Array<String> {
+		if(f.expr == null) Context.error("value type constructor has no body to lower", f.field.pos);
+		DefaultArgExpander.completeRootExprForRust(cls, f.field.name, f.expr);
+		PipelineExpander.expandRootExpr(f.expr);
+		EnumQueryExpander.expandRootExpr(f.expr);
+		currentClass = cls;
+		currentMethodName = f.field.name;
+		currentLocalName = null;
+		paramVarIds.clear();
+		unsignedLocals.clear();
+		mutated.clear();
+		for(a in f.args) if(a.tvar != null) paramVarIds.set(a.tvar.id, true);
+		scanLocals(f.expr);
+		final out:Array<String> = [];
+		for(stmt in statementsOf(f.expr)) {
+			if(ValueTypeSupport.isThisDeclaration(stmt) || ValueTypeSupport.isThisAssignment(stmt) || ValueTypeSupport.isThisReturn(stmt)) continue;
+			for(line in stmtLines(stmt, 1)) out.push(line);
+		}
+		return out;
 	}
 
 	/**
@@ -1397,6 +1442,8 @@ class RustExpr {
 	// ------------------------------------------------------------------
 
 	function expr(e: TypedExpr): String {
+		final wrapperValue = ValueTypeSupport.syntheticValue(e);
+		if(wrapperValue != null) return valueTypeSynthetic(e, wrapperValue);
 		final query = enumQuery(e);
 		if(query != null) return query;
 		switch(e.expr) {
@@ -1568,6 +1615,76 @@ class RustExpr {
 			case _:
 		}
 		return null;
+	}
+
+	/** Lowers an abstract implementation block to a Rust newtype value. */
+	function valueTypeSynthetic(wrapper:TypedExpr, value:TypedExpr):String {
+		final abs = ValueTypeSupport.markedAbstractOfType(wrapper.t);
+		if(abs == null) return expr(value);
+		imports.requireType(abs.module, abs.name);
+		final wrapperName = abs.name;
+		final locals = valueTypeLocalValues(wrapper);
+		final activeAbs = currentClass == null ? null : ValueTypeSupport.markedAbstractOfClass(currentClass);
+		final activeField = activeAbs != null && currentMethodName != null ? ValueTypeSupport.memberField(activeAbs, currentMethodName) : null;
+		final nativeOperator = activeAbs != null && activeField != null && ValueTypeSupport.sameAbstract(activeAbs, abs)
+			&& ValueTypeSupport.operatorOf(abs, activeField) != null;
+		return switch(stripWrap(value).expr) {
+			case TBinop(op, left, right):
+				final field = ValueTypeSupport.binaryOperatorField(abs, op);
+				if(field == null) expr(value) else {
+					final asRepresentation = nativeOperator && field.name == currentMethodName;
+					final rendered = valueTypeOperand(left, locals, abs, asRepresentation) + " " + opStr(op) + " " + valueTypeOperand(right, locals, abs, asRepresentation);
+					nativeOperator && field.name == currentMethodName ? wrapperName + "(" + rendered + ")" : rendered;
+				}
+			case TUnop(op, _, subject):
+				final field = ValueTypeSupport.unaryOperatorField(abs, op);
+				if(field == null) expr(value) else {
+					final asRepresentation = nativeOperator && field.name == currentMethodName;
+					final rendered = "-" + valueTypeOperand(subject, locals, abs, asRepresentation);
+					nativeOperator && field.name == currentMethodName ? wrapperName + "(" + rendered + ")" : rendered;
+				}
+			case _: wrapperName + "(" + expr(value) + ")";
+		};
+	}
+
+	function valueTypeLocalValues(wrapper:TypedExpr):Map<Int, TypedExpr> {
+		final values:Map<Int, TypedExpr> = [];
+		switch(wrapper.expr) {
+			case TBlock(stmts):
+				for(stmt in stmts) switch(stmt.expr) {
+					case TVar(v, init) if(init != null && !StringTools.startsWith(v.name, "this")): values.set(v.id, init);
+					case _:
+				}
+			case _:
+		}
+		return values;
+	}
+
+	function valueTypeOperand(value:TypedExpr, locals:Map<Int, TypedExpr>, ?abs:AbstractType, asRepresentation:Bool = false):String {
+		var source = value;
+		var wrapperOperand = false;
+		var decorated = true;
+		while(decorated) {
+			if(abs != null) {
+				final sourceAbs = ValueTypeSupport.markedAbstractOfType(source.t);
+				if(sourceAbs != null && ValueTypeSupport.sameAbstract(sourceAbs, abs)) wrapperOperand = true;
+			}
+			switch(source.expr) {
+				case TCast(inner, _): source = inner;
+				case TMeta(_, inner): source = inner;
+				case _: decorated = false;
+			}
+		}
+		switch(stripWrap(value).expr) {
+			case TLocal(v) if(locals.exists(v.id)): return expr(locals.get(v.id));
+			case _:
+		}
+		final rendered = expr(value);
+		final alreadyRepresentation = switch(stripWrap(value).expr) {
+			case TLocal(v) if(subst.exists(v.id) && StringTools.endsWith(subst.get(v.id), ".0")): true;
+			case _: false;
+		};
+		return asRepresentation && wrapperOperand && !alreadyRepresentation ? rendered + ".0" : rendered;
 	}
 
 	function enumQuery(e:TypedExpr):Null<String> {
@@ -2414,6 +2531,11 @@ class RustExpr {
 	}
 
 	function staticRef(cls: ClassType, name: String): String {
+		final valueType = ValueTypeSupport.markedAbstractOfClass(cls);
+		if(valueType != null) {
+			imports.requireType(valueType.module, valueType.name);
+			return valueType.name + "::" + RustImports.toSnakeCase(name);
+		}
 		final markedField = findStaticField(cls, name);
 		if(markedField != null && StaticFunctionMarkers.isMarked(markedField)) {
 			final nativeName = RustImports.toSnakeCase(name);
@@ -2572,6 +2694,10 @@ class RustExpr {
 				final item = stdStringType(element, value + "[" + index + "]", true, origin, depth + 1);
 				'{ let mut out = String::new(); out.push(\'[\'); let n = ${value}.len(); let mut ${index} = 0usize; while ${index} < n { if ${index} > 0 { out.push_str(", "); } let _ = write!(out, "{}", ${item}); ${index} += 1; } out.push(\']\'); out }';
 			case TInst(c, _) if(c.get().meta.has(":dataClass")): value + ".to_string()";
+			case TAbstract(a, _) if(ValueTypeSupport.isMarkedAbstract(a.get())):
+				ValueTypeSupport.memberField(a.get(), "toString") != null
+					? value + ".to_string()"
+					: value + ".0.to_string()";
 			case TAbstract(a, _) if(a.get().name == "Int" || a.get().name == "Float" || a.get().name == "Bool"): inConcat ? value : value + ".to_string()";
 			case TAbstract(a, params) if(a.get().module == "std.ReadOnlyArray"):
 				stdStringType(haxe.macro.TypeTools.applyTypeParameters(a.get().type, a.get().params, params), value, inConcat, origin, depth);
@@ -2622,7 +2748,54 @@ class RustExpr {
 		};
 	}
 
+	/** Routes calls on a marked abstract implementation to Rust members. */
+	function valueTypeCall(fn:TypedExpr, args:Array<TypedExpr>):Null<String> {
+		switch(stripWrap(fn).expr) {
+			case TField(_, FStatic(c, cf)):
+				final abs = ValueTypeSupport.markedAbstractOfClass(c.get());
+				if(abs == null) return null;
+				final field = cf.get();
+				if(field.name == "_new") {
+					imports.requireType(abs.module, abs.name);
+					final rendered = ctorCallArgs(c.get(), args);
+					if(ValueTypeSupport.constructorThrows(abs)) {
+						final call = abs.name + "::new(" + rendered + ")";
+						return call + (isFallible ? "?" : ".unwrap()");
+					}
+					return abs.name + "(" + rendered + ")";
+				}
+				if(field.name == "toString" && args.length > 0) return expr(args[0]) + ".to_string()";
+				final op = ValueTypeSupport.operatorOf(abs, field);
+				if(op != null) {
+					return switch(op) {
+						case Binary(_): args.length >= 2 ? expr(args[0]) + " " + opStrForValue(op) + " " + expr(args[1]) : abs.name;
+						case Unary(_): args.length > 0 ? "-" + expr(args[0]) : abs.name;
+					};
+				}
+				if(ValueTypeSupport.hasReceiver(field) && args.length > 0) {
+					return expr(args[0]) + "." + RustImports.toSnakeCase(field.name) + "(" + [for(i in 1...args.length) expr(args[i])].join(", ") + ")";
+				}
+				return abs.name + "::" + RustImports.toSnakeCase(field.name) + "(" + [for(a in args) expr(a)].join(", ") + ")";
+			case TField(subj, FInstance(_, _, cf)) | TField(subj, FAnon(cf)):
+				final abs = ValueTypeSupport.markedAbstractOfType(subj.t);
+				if(abs == null) return null;
+				final name = cf.get().name;
+				return name == "toString" ? expr(subj) + ".to_string()" : expr(subj) + "." + RustImports.toSnakeCase(name) + "(" + [for(a in args) expr(a)].join(", ") + ")";
+			case _:
+		}
+		return null;
+	}
+
+	function opStrForValue(op:ValueTypeOperator):String {
+		return switch(op) {
+			case Binary(binary): opStr(binary);
+			case Unary(_): "-";
+		};
+	}
+
 	function call(fn: TypedExpr, args: Array<TypedExpr>): String {
+		final wrapperCall = valueTypeCall(fn, args);
+		if(wrapperCall != null) return wrapperCall;
 		switch(fn.expr) {
 			case TField(_, FStatic(c, cf)) if(c.get().module == "Std" && cf.get().name == "string" && args.length == 1): return stdString(args[0], false);
 			case TField(subj, FInstance(_, _, cf)) if(cf.get().name == "get_message" && args.length == 0):
@@ -2884,6 +3057,9 @@ class RustExpr {
 				final path = cls.pack.length == 0 ? cls.name : cls.pack.join(".") + "." + cls.name;
 				if(cls.pack.length == 0 && cls.name == "StringTools" && name == "hex") {
 					return stringToolsHex(args);
+				}
+				if(cls.pack.length == 0 && cls.name == "StringTools" && name == "trim" && args.length == 1) {
+					return expr(args[0]) + ".trim()";
 				}
 				if(cls.pack.length == 0 && cls.name == "Std" && name == "int") {
 					// An Int-typed argument converts nothing, except a
@@ -3157,6 +3333,15 @@ class RustExpr {
 
 	function newExpr(c: Ref<ClassType>, params: Array<Type>, args: Array<TypedExpr>): String {
 		final cls = c.get();
+		final valueType = ValueTypeSupport.markedAbstractOfClass(cls);
+		if(valueType != null) {
+			imports.requireType(valueType.module, valueType.name);
+			final rendered = ctorCallArgs(cls, args);
+			if(ValueTypeSupport.constructorThrows(valueType)) {
+				return valueType.name + "::new(" + rendered + ")" + (isFallible ? "?" : ".unwrap()");
+			}
+			return valueType.name + "(" + rendered + ")";
+		}
 		final path = cls.pack.length == 0 ? cls.name : cls.pack.join(".") + "." + cls.name;
 		switch(path) {
 			case "std.StringBuf" | "StringBuf":

@@ -18,6 +18,7 @@ class ValueException extends haxe.Exception {
 		return switch (error) {
 			case StartAfterEnd: "start exceeds end";
 			case NegativeStart: "start is negative";
+			case BlankValue: "value is blank";
 		};
 	}
 }

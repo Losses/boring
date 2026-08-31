@@ -51,6 +51,7 @@ class Compiler extends PluginCompiler<Compiler> {
 			Context.error("float-precision=f32 is not available on the Dart target: double is the one real storage width; compile without the define for f64 semantics", Context.currentPos());
 		}
 		final compiler = new Compiler();
+		haxe.macro.Context.onAfterTyping(ValueTypeSupport.validateModules);
 		haxe.macro.Context.onAfterTyping(compiler.preScan);
 		ReflectCompiler.AddCompiler(compiler, {
 			fileOutputType: BaseCompilerFileOutputType.Manual,
@@ -95,6 +96,17 @@ class Compiler extends PluginCompiler<Compiler> {
 		// Resident runtime modules sit under src/runtime, outside the
 		// sample source roots, but compile through this same pipeline.
 		final isResident = RuntimeResidents.isResident(classType.module);
+		final valueType = ValueTypeSupport.infoOfClass(classType);
+		if(valueType != null) {
+			if(!ValueTypeSupport.isValidAbstract(valueType.abstractType)) {
+				return null;
+			}
+			StaticFunctionMarkers.validateAll(funcFields);
+			final decl = contextFor(classType.module);
+			final result = decl.valueTypeDecl(classType, valueType, varFields, funcFields);
+			parts.get(classType.module).push(result);
+			return result;
+		}
 		if(classType.isExtern || isSyntheticImpl(classType.name) || isInlineOnly(classType, varFields, funcFields) || (!isResident && !inSourceScope(classType.pos))) {
 			return null;
 		}

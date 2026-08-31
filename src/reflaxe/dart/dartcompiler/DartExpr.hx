@@ -9,6 +9,8 @@ import haxe.macro.Type.FieldAccess;
 import haxe.macro.Type.TypedExpr;
 import haxe.macro.TypedExprTools;
 import reflaxe.data.ClassFuncData;
+import ValueTypeSupport;
+import ValueTypeSupport.ValueTypeOperator;
 
 /**
 	Statement and expression lowering from the Haxe typed AST to Dart.
@@ -208,6 +210,37 @@ class DartExpr {
 
 		scanLocals(f.expr);
 		return blockLines(statementsOf(f.expr), depth);
+	}
+
+	/** Body lowering for a member declared on a value wrapper. */
+	public function valueTypeFunctionBody(cls: ClassType, f: ClassFuncData, fieldName: String): Array<String> {
+		final abs = ValueTypeSupport.markedAbstractOfClass(cls);
+		final op = abs == null ? null : ValueTypeSupport.operatorOf(abs, f.field);
+		if(op != null) {
+			if(f.args.length > 0) bindLocalName(f.args[0].tvar, fieldName);
+			if(f.args.length > 1) bindLocalName(f.args[1].tvar, "other");
+		} else if(ValueTypeSupport.hasReceiver(f.field) && f.args.length > 0) {
+			bindLocalName(f.args[0].tvar, fieldName);
+		}
+		return functionBody(cls, f, 2);
+	}
+
+	/** Drops Haxe's synthetic representation assignment from a validating factory. */
+	public function valueTypeConstructorBody(cls: ClassType, f: ClassFuncData): Array<String> {
+		if(f.expr == null) Context.error("value type constructor has no body to lower", f.field.pos);
+		DefaultArgExpander.completeRootExpr(cls, f.field.name, f.expr);
+		PipelineExpander.expandRootExpr(f.expr);
+		EnumQueryExpander.expandRootExpr(f.expr);
+		currentClass = cls;
+		currentField = f.field.name;
+		currentLocalName = null;
+		scanLocals(f.expr);
+		final out:Array<String> = [];
+		for(stmt in statementsOf(f.expr)) {
+			if(ValueTypeSupport.isThisDeclaration(stmt) || ValueTypeSupport.isThisAssignment(stmt) || ValueTypeSupport.isThisReturn(stmt)) continue;
+			for(line in stmtLines(stmt, 1)) out.push(line);
+		}
+		return out;
 	}
 
 	/**
@@ -814,6 +847,8 @@ class DartExpr {
 	// ------------------------------------------------------------------
 
 	function expr(e: TypedExpr): String {
+		final wrapperValue = ValueTypeSupport.syntheticValue(e);
+		if(wrapperValue != null) return valueTypeSynthetic(e, wrapperValue);
 		final query = enumQuery(e);
 		if(query != null) return query;
 		switch(e.expr) {
@@ -875,6 +910,76 @@ class DartExpr {
 			case _:
 				return fail(e, "expression has no Dart lowering in the subset");
 		}
+	}
+
+	/** Lowers an abstract implementation block to a Dart extension value. */
+	function valueTypeSynthetic(wrapper:TypedExpr, value:TypedExpr):String {
+		final abs = ValueTypeSupport.markedAbstractOfType(wrapper.t);
+		if(abs == null) return expr(value);
+		final wrapperName = qualifiedRef(abs.module, abs.name);
+		final locals = valueTypeLocalValues(wrapper);
+		final activeAbs = currentClass == null ? null : ValueTypeSupport.markedAbstractOfClass(currentClass);
+		final activeField = activeAbs != null && currentField != null ? ValueTypeSupport.memberField(activeAbs, currentField) : null;
+		final nativeOperator = activeAbs != null && activeField != null && ValueTypeSupport.sameAbstract(activeAbs, abs)
+			&& ValueTypeSupport.operatorOf(abs, activeField) != null;
+		return switch(stripWrap(value).expr) {
+			case TBinop(op, left, right):
+				final field = ValueTypeSupport.binaryOperatorField(abs, op);
+				if(field == null) expr(value) else {
+					final asRepresentation = nativeOperator && field.name == currentField;
+					final rendered = valueTypeOperand(left, locals, abs, asRepresentation) + " " + opStr(op) + " " + valueTypeOperand(right, locals, abs, asRepresentation);
+					nativeOperator && field.name == currentField ? wrapperName + "(" + rendered + ")" : rendered;
+				}
+			case TUnop(op, _, subject):
+				final field = ValueTypeSupport.unaryOperatorField(abs, op);
+				if(field == null) expr(value) else {
+					final asRepresentation = nativeOperator && field.name == currentField;
+					final rendered = "-" + valueTypeOperand(subject, locals, abs, asRepresentation);
+					nativeOperator && field.name == currentField ? wrapperName + "(" + rendered + ")" : rendered;
+				}
+			case _: wrapperName + "(" + expr(value) + ")";
+		};
+	}
+
+	function valueTypeLocalValues(wrapper:TypedExpr):Map<Int, TypedExpr> {
+		final values:Map<Int, TypedExpr> = [];
+		switch(wrapper.expr) {
+			case TBlock(stmts):
+				for(stmt in stmts) switch(stmt.expr) {
+					case TVar(v, init) if(init != null && !StringTools.startsWith(v.name, "this")): values.set(v.id, init);
+					case _:
+				}
+			case _:
+		}
+		return values;
+	}
+
+	function valueTypeOperand(value:TypedExpr, locals:Map<Int, TypedExpr>, ?abs:AbstractType, asRepresentation:Bool = false):String {
+		var source = value;
+		var wrapperOperand = false;
+		var decorated = true;
+		while(decorated) {
+			if(abs != null) {
+				final sourceAbs = ValueTypeSupport.markedAbstractOfType(source.t);
+				if(sourceAbs != null && ValueTypeSupport.sameAbstract(sourceAbs, abs)) wrapperOperand = true;
+			}
+			switch(source.expr) {
+				case TCast(inner, _): source = inner;
+				case TMeta(_, inner): source = inner;
+				case _: decorated = false;
+			}
+		}
+		switch(stripWrap(value).expr) {
+			case TLocal(v) if(locals.exists(v.id)): return expr(locals.get(v.id));
+			case _:
+		}
+		final rendered = expr(value);
+		final fieldName = abs == null ? "" : ValueTypeSupport.representationFieldName(abs);
+		final alreadyRepresentation = switch(stripWrap(value).expr) {
+			case TLocal(v) if(subst.exists(v.id) && subst.get(v.id) == fieldName): true;
+			case _: false;
+		};
+		return asRepresentation && wrapperOperand && !alreadyRepresentation ? rendered + "." + fieldName : rendered;
 	}
 
 	function enumQuery(e:TypedExpr):Null<String> {
@@ -1066,6 +1171,10 @@ class DartExpr {
 	}
 
 	function staticRef(cls: ClassType, name: String): String {
+		final valueType = ValueTypeSupport.markedAbstractOfClass(cls);
+		if(valueType != null) {
+			return qualifiedRef(cls.module, valueType.name) + "." + name;
+		}
 		final markedField = findStaticField(cls, name);
 		if(markedField != null && StaticFunctionMarkers.isMarked(markedField)) {
 			final nativeName = markedField.isPublic ? name : "_" + name;
@@ -1224,6 +1333,10 @@ class DartExpr {
 				final item = stdStringType(element, value + "[" + index + "]", true, origin, depth + 1);
 				'(() { final sb = StringBuffer("["); final n = ${value}.length; var ${index} = 0; while (${index} < n) { if (${index} > 0) { sb.write(", "); } sb.write(${item}); ${index} += 1; } sb.write("]"); return sb.toString(); })()';
 			case TInst(c, _) if(c.get().meta.has(":dataClass")): value + ".toString()";
+			case TAbstract(a, _) if(ValueTypeSupport.isMarkedAbstract(a.get())):
+			ValueTypeSupport.memberField(a.get(), "toString") != null
+				? value + ".toStringValue()"
+				: value + "." + ValueTypeSupport.representationFieldName(a.get()) + ".toString()";
 			case TAbstract(a, _) if(a.get().name == "Int" || a.get().name == "Float" || a.get().name == "Bool"): inConcat && depth == 0 ? value : "'${" + value + "}'";
 			case TAbstract(a, params) if(a.get().module == "std.ReadOnlyArray"):
 				stdStringType(haxe.macro.TypeTools.applyTypeParameters(a.get().type, a.get().params, params), value, inConcat, origin, depth);
@@ -1279,7 +1392,51 @@ class DartExpr {
 		};
 	}
 
+	/** Routes calls on a marked abstract implementation to extension members. */
+	function valueTypeCall(fn:TypedExpr, args:Array<TypedExpr>):Null<String> {
+		switch(stripWrap(fn).expr) {
+			case TField(_, FStatic(c, cf)):
+				final abs = ValueTypeSupport.markedAbstractOfClass(c.get());
+				if(abs == null) return null;
+				final field = cf.get();
+				if(field.name == "_new") {
+					if(args.length == 0) return qualifiedRef(c.get().module, abs.name) + "()";
+					return ValueTypeSupport.constructorThrows(abs)
+						? qualifiedRef(c.get().module, ValueTypeSupport.constructorName(abs)) + "(" + expr(args[0]) + ")"
+						: qualifiedRef(c.get().module, abs.name) + "(" + expr(args[0]) + ")";
+				}
+				if(field.name == "toString" && args.length > 0) return expr(args[0]) + ".toStringValue()";
+				final op = ValueTypeSupport.operatorOf(abs, field);
+				if(op != null) {
+					return switch(op) {
+						case Binary(_): args.length >= 2 ? expr(args[0]) + " " + opStrForValue(op) + " " + expr(args[1]) : qualifiedRef(c.get().module, abs.name);
+						case Unary(_): args.length > 0 ? "-" + expr(args[0]) : qualifiedRef(c.get().module, abs.name);
+					};
+				}
+				if(ValueTypeSupport.hasReceiver(field) && args.length > 0) {
+					return expr(args[0]) + "." + field.name + "(" + [for(i in 1...args.length) expr(args[i])].join(", ") + ")";
+				}
+				return qualifiedRef(c.get().module, abs.name) + "." + field.name + "(" + [for(a in args) expr(a)].join(", ") + ")";
+			case TField(subj, FInstance(_, _, cf)) | TField(subj, FAnon(cf)):
+				final abs = ValueTypeSupport.markedAbstractOfType(subj.t);
+				if(abs == null) return null;
+				final name = cf.get().name == "toString" ? "toStringValue" : cf.get().name;
+				return expr(subj) + "." + name + "(" + [for(a in args) expr(a)].join(", ") + ")";
+			case _:
+		}
+		return null;
+	}
+
+	function opStrForValue(op:ValueTypeOperator):String {
+		return switch(op) {
+			case Binary(binary): opStr(binary);
+			case Unary(_): "-";
+		};
+	}
+
 	function call(fn: TypedExpr, args: Array<TypedExpr>): String {
+		final wrapperCall = valueTypeCall(fn, args);
+		if(wrapperCall != null) return wrapperCall;
 		final inlineMapCall = mapHasOwnPropertyCall(fn, args);
 		if(inlineMapCall != null) {
 			return inlineMapCall;
@@ -1297,6 +1454,9 @@ class DartExpr {
 				final module = cls.module != "" ? cls.module : (cls.pack.length == 0 ? cls.name : cls.pack.join(".") + "." + cls.name);
 				if(cls.pack.length == 0 && cls.name == "StringTools" && fName == "hex") {
 					return stringToolsHex(args);
+				}
+				if(cls.pack.length == 0 && cls.name == "StringTools" && fName == "trim") {
+					return expr(args[0]) + ".trim()";
 				}
 				final markedField = findStaticField(cls, fName);
 				if(markedField != null && StaticFunctionMarkers.isMarked(markedField)) {
@@ -1715,6 +1875,12 @@ class DartExpr {
 	function newExpr(c: Ref<ClassType>, params: Array<Type>, args: Array<TypedExpr>): String {
 		final cls = c.get();
 		final rendered = [for(a in args) expr(a)].join(", ");
+		final valueType = ValueTypeSupport.markedAbstractOfClass(cls);
+		if(valueType != null) {
+			return ValueTypeSupport.constructorThrows(valueType)
+				? qualifiedRef(cls.module, ValueTypeSupport.constructorName(valueType)) + "(" + rendered + ")"
+				: qualifiedRef(cls.module, valueType.name) + "(" + rendered + ")";
+		}
 		final path = cls.pack.length == 0 ? cls.name : cls.pack.join(".") + "." + cls.name;
 		switch(path) {
 			case "std.StringBuf" | "StringBuf":

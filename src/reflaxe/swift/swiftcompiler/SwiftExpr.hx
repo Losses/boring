@@ -9,6 +9,8 @@ import haxe.macro.Type.FieldAccess;
 import haxe.macro.Type.TypedExpr;
 import haxe.macro.TypedExprTools;
 import reflaxe.data.ClassFuncData;
+import ValueTypeSupport;
+import ValueTypeSupport.ValueTypeOperator;
 
 /**
 	Statement and expression lowering from the Haxe typed AST to Swift.
@@ -200,6 +202,42 @@ class SwiftExpr {
 		scanLocals(f.expr);
 		// Depth 2: one level under the member's own indentation.
 		return blockLines(statementsOf(f.expr), depth);
+	}
+
+	/** Body lowering for a member declared on a value wrapper. */
+	public function valueTypeFunctionBody(cls: ClassType, f: ClassFuncData, fieldName: String): Array<String> {
+		final abs = ValueTypeSupport.markedAbstractOfClass(cls);
+		final op = abs == null ? null : ValueTypeSupport.operatorOf(abs, f.field);
+		if(op != null) {
+			switch(op) {
+				case Binary(_):
+					if(f.args.length > 0) bindLocalName(f.args[0].tvar, "lhs." + fieldName);
+					if(f.args.length > 1) bindLocalName(f.args[1].tvar, "rhs");
+				case Unary(_):
+					if(f.args.length > 0) bindLocalName(f.args[0].tvar, "value." + fieldName);
+			}
+		} else if(ValueTypeSupport.hasReceiver(f.field) && f.args.length > 0) {
+			bindLocalName(f.args[0].tvar, fieldName);
+		}
+		return functionBody(cls, f, 1);
+	}
+
+	/** Drops Haxe's synthetic representation assignment from a wrapper init. */
+	public function valueTypeConstructorBody(cls: ClassType, f: ClassFuncData): Array<String> {
+		if(f.expr == null) Context.error("value type constructor has no body to lower", f.field.pos);
+		DefaultArgExpander.completeRootExpr(cls, f.field.name, f.expr);
+		PipelineExpander.expandRootExpr(f.expr);
+		EnumQueryExpander.expandRootExpr(f.expr);
+		currentClass = cls;
+		currentField = f.field.name;
+		currentLocalName = null;
+		scanLocals(f.expr);
+		final out:Array<String> = [];
+		for(stmt in statementsOf(f.expr)) {
+			if(ValueTypeSupport.isThisDeclaration(stmt) || ValueTypeSupport.isThisAssignment(stmt) || ValueTypeSupport.isThisReturn(stmt)) continue;
+			for(line in stmtLines(stmt, 1)) out.push(line);
+		}
+		return out;
 	}
 
 	/**
@@ -828,6 +866,8 @@ class SwiftExpr {
 	// ------------------------------------------------------------------
 
 	function expr(e: TypedExpr): String {
+		final wrapperValue = ValueTypeSupport.syntheticValue(e);
+		if(wrapperValue != null) return valueTypeSynthetic(e, wrapperValue);
 		final query = enumQuery(e);
 		if(query != null) return query;
 		switch(e.expr) {
@@ -943,6 +983,75 @@ class SwiftExpr {
 
 	function valueExpr(v: TVar): TypedExpr {
 		return {t: v.t, pos: Context.currentPos(), expr: TLocal(v)};
+	}
+
+	/** Lowers an abstract implementation block to a Swift value wrapper. */
+	function valueTypeSynthetic(wrapper:TypedExpr, value:TypedExpr):String {
+		final abs = ValueTypeSupport.markedAbstractOfType(wrapper.t);
+		if(abs == null) return expr(value);
+		final locals = valueTypeLocalValues(wrapper);
+		final activeAbs = currentClass == null ? null : ValueTypeSupport.markedAbstractOfClass(currentClass);
+		final activeField = activeAbs != null && currentField != null ? ValueTypeSupport.memberField(activeAbs, currentField) : null;
+		final nativeOperator = activeAbs != null && activeField != null && ValueTypeSupport.sameAbstract(activeAbs, abs)
+			&& ValueTypeSupport.operatorOf(abs, activeField) != null;
+		return switch(stripWrap(value).expr) {
+			case TBinop(op, left, right):
+				final field = ValueTypeSupport.binaryOperatorField(abs, op);
+				if(field == null) expr(value) else {
+					final asRepresentation = nativeOperator && field.name == currentField;
+					final rendered = valueTypeOperand(left, locals, abs, asRepresentation) + " " + opStr(op) + " " + valueTypeOperand(right, locals, abs, asRepresentation);
+					nativeOperator && field.name == currentField ? abs.name + "(" + rendered + ")" : rendered;
+				}
+			case TUnop(op, _, subject):
+				final field = ValueTypeSupport.unaryOperatorField(abs, op);
+				if(field == null) expr(value) else {
+					final asRepresentation = nativeOperator && field.name == currentField;
+					final rendered = "-" + valueTypeOperand(subject, locals, abs, asRepresentation);
+					nativeOperator && field.name == currentField ? abs.name + "(" + rendered + ")" : rendered;
+				}
+			case _: abs.name + "(" + expr(value) + ")";
+		};
+	}
+
+	function valueTypeLocalValues(wrapper:TypedExpr):Map<Int, TypedExpr> {
+		final values:Map<Int, TypedExpr> = [];
+		switch(wrapper.expr) {
+			case TBlock(stmts):
+				for(stmt in stmts) switch(stmt.expr) {
+					case TVar(v, init) if(init != null && !StringTools.startsWith(v.name, "this")): values.set(v.id, init);
+					case _:
+				}
+			case _:
+		}
+		return values;
+	}
+
+	function valueTypeOperand(value:TypedExpr, locals:Map<Int, TypedExpr>, ?abs:AbstractType, asRepresentation:Bool = false):String {
+		var source = value;
+		var wrapperOperand = false;
+		var decorated = true;
+		while(decorated) {
+			if(abs != null) {
+				final sourceAbs = ValueTypeSupport.markedAbstractOfType(source.t);
+				if(sourceAbs != null && ValueTypeSupport.sameAbstract(sourceAbs, abs)) wrapperOperand = true;
+			}
+			switch(source.expr) {
+				case TCast(inner, _): source = inner;
+				case TMeta(_, inner): source = inner;
+				case _: decorated = false;
+			}
+		}
+		switch(stripWrap(value).expr) {
+			case TLocal(v) if(locals.exists(v.id)): return expr(locals.get(v.id));
+			case _:
+		}
+		final rendered = expr(value);
+		final fieldName = abs == null ? "" : ValueTypeSupport.representationFieldName(abs);
+		final alreadyRepresentation = switch(stripWrap(value).expr) {
+			case TLocal(v) if(subst.exists(v.id) && (subst.get(v.id) == fieldName || StringTools.endsWith(subst.get(v.id), "." + fieldName))): true;
+			case _: false;
+		};
+		return asRepresentation && wrapperOperand && !alreadyRepresentation ? rendered + "." + fieldName : rendered;
 	}
 
 	function enumQuery(e:TypedExpr):Null<String> {
@@ -1128,6 +1237,10 @@ class SwiftExpr {
 	}
 
 	function staticRef(cls: ClassType, name: String): String {
+		final valueType = ValueTypeSupport.markedAbstractOfClass(cls);
+		if(valueType != null) {
+			return valueType.name + "." + name;
+		}
 		final markedField = findStaticField(cls, name);
 		if(markedField != null && StaticFunctionMarkers.isMarked(markedField)) {
 			if(markedField.isPublic) {
@@ -1311,6 +1424,11 @@ class SwiftExpr {
 				final item = stdStringType(element, value + "[" + index + "]", true, origin, depth + 1);
 				'{ () -> String in var out = "["; let n = ${value}.count; var ${index} = 0; while ${index} < n { if ${index} > 0 { out += ", "; }; out += ${item}; ${index} += 1; }; out += "]"; return out }()';
 			case TInst(c, _) if(c.get().meta.has(":dataClass")): value + ".toString()";
+			case TAbstract(a, _) if(ValueTypeSupport.isMarkedAbstract(a.get())):
+				final abs = a.get();
+				ValueTypeSupport.memberField(abs, "toString") != null
+					? value + ".description"
+					: "String(describing: " + value + "." + ValueTypeSupport.representationFieldName(abs) + ")";
 			case TAbstract(a, _) if(a.get().name == "Int" || a.get().name == "Float" || a.get().name == "Bool"): depth > 0 ? "\"\\(" + value + ")\"" : (inConcat ? value : "String(" + value + ")");
 			case TAbstract(a, params) if(a.get().module == "std.ReadOnlyArray"):
 				stdStringType(haxe.macro.TypeTools.applyTypeParameters(a.get().type, a.get().params, params), value, inConcat, origin, depth);
@@ -1370,7 +1488,47 @@ class SwiftExpr {
 		};
 	}
 
+	/** Routes calls on a marked abstract implementation to Swift members. */
+	function valueTypeCall(fn:TypedExpr, args:Array<TypedExpr>):Null<String> {
+		switch(stripWrap(fn).expr) {
+			case TField(_, FStatic(c, cf)):
+				final abs = ValueTypeSupport.markedAbstractOfClass(c.get());
+				if(abs == null) return null;
+				final field = cf.get();
+				if(field.name == "_new") return args.length == 0 ? abs.name + "()" : abs.name + "(" + expr(args[0]) + ")";
+				if(field.name == "toString" && args.length > 0) return expr(args[0]) + ".description";
+				final op = ValueTypeSupport.operatorOf(abs, field);
+				if(op != null) {
+					return switch(op) {
+						case Binary(_): args.length >= 2 ? expr(args[0]) + " " + opStrForValue(op) + " " + expr(args[1]) : abs.name;
+						case Unary(_): args.length > 0 ? "-" + expr(args[0]) : abs.name;
+					};
+				}
+				if(ValueTypeSupport.hasReceiver(field) && args.length > 0) {
+					return expr(args[0]) + "." + field.name + "(" + [for(i in 1...args.length) expr(args[i])].join(", ") + ")";
+				}
+				return abs.name + "." + field.name + "(" + [for(a in args) expr(a)].join(", ") + ")";
+			case TField(subj, FInstance(_, _, cf)) | TField(subj, FAnon(cf)):
+				final abs = ValueTypeSupport.markedAbstractOfType(subj.t);
+				if(abs == null) return null;
+				final field = cf.get();
+				if(field.name == "toString") return expr(subj) + ".description";
+				return expr(subj) + "." + field.name + "(" + [for(a in args) expr(a)].join(", ") + ")";
+			case _:
+		}
+		return null;
+	}
+
+	function opStrForValue(op:ValueTypeOperator):String {
+		return switch(op) {
+			case Binary(binary): opStr(binary);
+			case Unary(_): "-";
+		};
+	}
+
 	function call(fn: TypedExpr, args: Array<TypedExpr>): String {
+		final wrapperCall = valueTypeCall(fn, args);
+		if(wrapperCall != null) return wrapperCall;
 		final inlineMapCall = mapHasOwnPropertyCall(fn, args);
 		if(inlineMapCall != null) {
 			return inlineMapCall;
@@ -1393,6 +1551,10 @@ class SwiftExpr {
 				final module = cls.module != "" ? cls.module : (cls.pack.length == 0 ? cls.name : cls.pack.join(".") + "." + cls.name);
 				if(cls.pack.length == 0 && cls.name == "StringTools" && fName == "hex") {
 					return stringToolsHex(args);
+				}
+				if(cls.pack.length == 0 && cls.name == "StringTools" && fName == "trim") {
+					final source = expr(args[0]);
+					return "({ () -> String in var start = " + source + ".startIndex; var end = " + source + ".endIndex; while start < end && " + source + "[start].isWhitespace { start = " + source + ".index(after: start) }; while start < end && " + source + "[" + source + ".index(before: end)].isWhitespace { end = " + source + ".index(before: end) }; return String(" + source + "[start..<end]) }())";
 				}
 				final markedField = findStaticField(cls, fName);
 				if(markedField != null && StaticFunctionMarkers.isMarked(markedField)) {
@@ -1854,6 +2016,8 @@ class SwiftExpr {
 	function newExpr(c: Ref<ClassType>, params: Array<Type>, args: Array<TypedExpr>): String {
 		final cls = c.get();
 		final rendered = [for(a in args) expr(a)].join(", ");
+		final valueType = ValueTypeSupport.markedAbstractOfClass(cls);
+		if(valueType != null) return valueType.name + "(" + rendered + ")";
 		final path = cls.pack.length == 0 ? cls.name : cls.pack.join(".") + "." + cls.name;
 		switch(path) {
 			case "std.StringBuf" | "StringBuf":
@@ -2670,7 +2834,9 @@ class SwiftExpr {
 				case TNew(c, _, _):
 					// A construction of a throwing constructor needs the try
 					// marker at its statement (feature spec 27).
-					if(SwiftFallibility.isThrowing(c.get().module, "new", false)) {
+					final valueType = ValueTypeSupport.markedAbstractOfClass(c.get());
+					if((valueType != null && ValueTypeSupport.constructorThrows(valueType))
+						|| SwiftFallibility.isThrowing(c.get().module, "new", false)) {
 						found = true;
 						return;
 					}
@@ -2686,6 +2852,8 @@ class SwiftExpr {
 	function callTargetThrows(fn: TypedExpr): Bool {
 		switch(fn.expr) {
 			case TField(subj, FStatic(c, cf)):
+				final valueType = ValueTypeSupport.markedAbstractOfClass(c.get());
+				if(valueType != null && cf.get().name == "_new") return ValueTypeSupport.constructorThrows(valueType);
 				return SwiftFallibility.staticCallThrows(c.get(), cf.get().name);
 			case TField(subj, FInstance(c, _, cf)):
 				final name = cf.get().name;
