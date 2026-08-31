@@ -107,14 +107,53 @@ class RustExpr {
 	// ------------------------------------------------------------------
 
 	var currentMethodName: Null<String> = null;
+	var currentClass: Null<ClassType> = null;
+	var currentLocalName: Null<String> = null;
+
+	function coalescingSiteFor(e: TypedExpr): Null<{parameter: String, defaultExpr: TypedExpr, valueExpr: TypedExpr}> {
+		if(currentClass == null || currentMethodName == null) return null;
+		final site = DefaultArgExpander.coalescingSite(e);
+		final value = currentLocalName != null
+			? DefaultArgExpander.coalescingDefaultForLocalParam(currentClass, currentMethodName, currentLocalName, site == null ? "" : site.parameter)
+			: DefaultArgExpander.coalescingDefaultForParam(currentClass, currentMethodName, site == null ? "" : site.parameter);
+		if(site == null || value == null) {
+			return null;
+		}
+		return site;
+	}
+
+	/** Renders the sanctioned expression in Rust's normalization closure. */
+	function coalescingDefaultText(value: DefaultArgExpander.CoalescingDefaultValue, targetType: Type): String {
+		return switch(value) {
+			case CInt(v): Std.string(v);
+			case CFloat(s):
+				final padded = s.indexOf(".") >= 0 ? s : s + ".0";
+				FloatPrecision.isF32() ? padded + "f32" : padded;
+			case CString(s): quoteString(s) + ".to_string()";
+			case CBool(b): b ? "true" : "false";
+			case CNull: "None";
+			case CEmptyArray: "vec![]";
+			case CEmptyMap:
+				imports.require("std::collections::HashMap");
+				"HashMap::new()";
+			case CPositiveInfinity: FloatPrecision.isF32() ? "f32::INFINITY" : "f64::INFINITY";
+			case CNegativeInfinity: FloatPrecision.isF32() ? "f32::NEG_INFINITY" : "f64::NEG_INFINITY";
+			case CEnum(enumRef, enumField):
+				final en = enumRef.get();
+				requireEnum(en.module, en.name);
+				en.name + "::" + enumField.name;
+		};
+	}
 
 	public function functionBody(cls: ClassType, f: ClassFuncData): Array<String> {
 		if(f.expr == null) {
 			Context.error("function field has no body to lower", f.field.pos);
 		}
-		DefaultArgExpander.completeRootExpr(cls, f.field.name, f.expr);
+		DefaultArgExpander.completeRootExprForRust(cls, f.field.name, f.expr);
 		PipelineExpander.expandRootExpr(f.expr);
+		currentClass = cls;
 		currentMethodName = f.field.name;
+		currentLocalName = null;
 		paramVarIds.clear();
 		unsignedLocals.clear();
 		mutated.clear();
@@ -130,7 +169,7 @@ class RustExpr {
 		f.expr.expr = fusedRoot.expr;
 		scanLocals(f.expr);
 		final lines = blockLines(statementsOf(f.expr), 1, true);
-		return lines;
+		return coalescingNormalizationLines(f.expr, 1).concat(lines);
 	}
 
 	/**
@@ -146,9 +185,11 @@ class RustExpr {
 		if(f.expr == null) {
 			Context.error("constructor has no body to lower", f.field.pos);
 		}
-		DefaultArgExpander.completeRootExpr(cls, f.field.name, f.expr);
+		DefaultArgExpander.completeRootExprForRust(cls, f.field.name, f.expr);
 		PipelineExpander.expandRootExpr(f.expr);
+		currentClass = cls;
 		currentMethodName = f.field.name;
+		currentLocalName = null;
 		paramVarIds.clear();
 		unsignedLocals.clear();
 		mutated.clear();
@@ -167,6 +208,10 @@ class RustExpr {
 					switch(stripWrap(target).expr) {
 						case TField({expr: TConst(TThis)}, FInstance(_, _, cf)):
 							final fieldName = cf.get().name;
+							final coalescing = coalescingSiteFor(value);
+							if(coalescing != null) {
+								continue;
+							}
 							final isParam = switch(stripWrap(value).expr) {
 								case TLocal(v): argNames.indexOf(v.name) >= 0;
 								case _: false;
@@ -185,7 +230,26 @@ class RustExpr {
 		// literal assembled by the caller, so blockLines must not append the
 		// fallible void closer `Ok(())` after the validation statements.
 		final lines = stmts.length > 0 ? blockLines(stmts, 1, false) : [];
-		return {statementLines: lines, fieldInits: fieldInits};
+		final normalized = coalescingNormalizationLines(f.expr, 1);
+		return {statementLines: normalized.concat(lines), fieldInits: fieldInits};
+	}
+
+	function coalescingNormalizationLines(root: TypedExpr, depth: Int): Array<String> {
+		final out: Array<String> = [];
+		if(currentClass == null || currentMethodName == null) return out;
+		final seen: Map<String, Bool> = [];
+		for(site in DefaultArgExpander.coalescingSites(root)) {
+			final value = currentLocalName != null
+				? DefaultArgExpander.coalescingDefaultForLocalParam(currentClass, currentMethodName, currentLocalName, site.parameter)
+				: DefaultArgExpander.coalescingDefaultForParam(currentClass, currentMethodName, site.parameter);
+			if(seen.exists(site.parameter) || value == null) {
+				continue;
+			}
+			seen.set(site.parameter, true);
+			final defaultText = coalescingDefaultText(value, DefaultArgExpander.withoutNull(site.valueExpr.t));
+			out.push(indent(depth) + "let " + RustImports.toSnakeCase(site.parameter) + " = " + RustImports.toSnakeCase(site.parameter) + ".unwrap_or_else(|| " + defaultText + ");");
+		}
+		return out;
 	}
 
 	// ------------------------------------------------------------------
@@ -211,7 +275,10 @@ class RustExpr {
 						": " + types.of(v.t, false);
 					case _: "";
 				};
-				var initStr = expr(init);
+				var initStr = switch(init.expr) {
+					case TFunction(fn): functionLiteralNamed(v.name, fn);
+					default: expr(init);
+				};
 				// A String local owns its value; a literal initializer is
 				// a &str, so the empty literal declares String::new() and
 				// any other literal converts once at the declaration. A
@@ -1184,7 +1251,11 @@ class RustExpr {
 		}
 		if(!isTypeCopy(arg.t)) {
 			switch(stripWrap(arg).expr) {
-				case TConst(TString(_)) | TNew(_, _, _):
+				// The base constant renderer emits a bare &str literal, so
+				// pushing one into a String array needs an owned conversion.
+				case TConst(TString(_)):
+					argStr = argStr + ".to_string()";
+				case TNew(_, _, _):
 				case TLocal(v) if(isBorrowedLocal(v)):
 					// The local holds a reference (a borrowed parameter):
 					// clone the referent so the array owns its element.
@@ -1290,6 +1361,10 @@ class RustExpr {
 				}
 				return RustImports.toSnakeCase(localName(v));
 			case TArray(arr, idx):
+				final mapReceiver = mapBackingReceiver(arr);
+				if(mapReceiver != null) {
+					return expr(mapReceiver) + ".get(&" + rustMapKey(idx) + ").cloned()";
+				}
 				final base = expr(arr) + "[(" + expr(idx) + ") as usize]";
 				// Reading a String element moves it out of the Vec, so a
 				// value read renders as a clone. Borrow consumers go
@@ -1349,9 +1424,10 @@ class RustExpr {
 			case TEnumIndex(_):
 				return fail(e, "enum index only lowers inside a variant switch");
 			case TFunction(f):
-				final params = [for(a in f.args) RustImports.toSnakeCase(a.v.name)].join(", ");
-				return '|$params| {\n' + blockLines(statementsOf(f.expr), 2, true).join("\n") + '\n}';
+				return functionLiteral(f);
 			case TIf(c, t, f) if(f != null):
+				final coalescing = coalescingSiteFor(e);
+				if(coalescing != null) return expr(coalescing.valueExpr);
 				final condStr = switch(stripWrap(c).expr) {
 					case _: expr(stripWrap(c));
 				};
@@ -1878,6 +1954,10 @@ class RustExpr {
 		}
 		switch(op) {
 			case OpAssign:
+				final map = mapAssignment(l);
+				if(map != null) {
+					return expr(map.receiver) + ".insert(" + rustMapKey(map.key) + ", " + rustMapValue(r) + ")";
+				}
 				final rhs = if(isNullType(l.t) && !isNullType(r.t) && !isTNull(r)) {
 					final rStr = if(!isTypeCopy(r.t)) {
 						switch(stripWrap(r).expr) {
@@ -2200,13 +2280,24 @@ class RustExpr {
 				}
 			case _:
 		}
+		final inlineMapCall = mapHasOwnPropertyCall(fn, args);
+		if(inlineMapCall != null) {
+			return inlineMapCall;
+		}
 		final renderedArgs = [for(a in args) expr(a)].join(", ");
 		switch(fn.expr) {
+			case TCast(inner, _):
+				return call(inner, args);
 			case TField(subj, FDynamic(name)) if((name == "length" || name == "get_length") && isStringBuf(subj)):
 				return expr(subj) + ".len() as u32";
 			case TField(subj, FInstance(c, _, cf)):
 				final name = cf.get().name;
 				final snake = RustImports.toSnakeCase(name);
+				if(isMapType(subj.t)) {
+					if(name == "exists" && args.length == 1) return expr(subj) + ".contains_key(&" + rustMapKey(args[0]) + ")";
+					if(name == "get" && args.length == 1) return expr(subj) + ".get(&" + rustMapKey(args[0]) + ").cloned()";
+					if(name == "set" && args.length == 2) return expr(subj) + ".insert(" + rustMapKey(args[0]) + ", " + rustMapValue(args[1]) + ")";
+				}
 				if(isStringBuf(subj)) {
 					// stdlib/08: add and addChar lower only as statements,
 					// because the pairing check leaves through `return Err`.
@@ -2617,9 +2708,25 @@ class RustExpr {
 				return en.name + "::" + ef.name + " { " + parts.join(", ") + " }";
 			case TConst(TSuper):
 				return "super(" + renderedArgs + ")";
+			case TLocal(_):
+				return expr(fn) + "(" + renderCallArgs(fn.t, args) + ")";
 			case _:
 				return expr(fn) + "(" + renderedArgs + ")";
 		}
+	}
+
+	function functionLiteral(f: TFunc): String {
+		final params = [for(a in f.args) RustImports.toSnakeCase(a.v.name)].join(", ");
+		final body = coalescingNormalizationLines(f.expr, 2).concat(blockLines(statementsOf(f.expr), 2, true));
+		return '|$params| {\n' + body.join("\n") + '\n}';
+	}
+
+	function functionLiteralNamed(name: String, f: TFunc): String {
+		final previous = currentLocalName;
+		currentLocalName = name;
+		final result = functionLiteral(f);
+		currentLocalName = previous;
+		return result;
 	}
 
 	function isFallibleCallee(c: Ref<ClassType>, cf: Ref<ClassField>, isStatic: Bool): Bool {
@@ -2634,6 +2741,9 @@ class RustExpr {
 		switch(path) {
 			case "std.StringBuf" | "StringBuf":
 				return "Vec::<u16>::new()";
+			case "haxe.ds._Map.Map_Impl_":
+				imports.require("std::collections::HashMap");
+				return "HashMap::new()";
 			case "haxe.io.BytesBuffer":
 				imports.requireType(path, "BytesBuffer");
 				return "BytesBuffer::new()";
@@ -2656,6 +2766,84 @@ class RustExpr {
 				final q = ctorFallible ? (isFallible ? "?" : ".unwrap()") : "";
 				return cls.name + genericStr + "::new(" + ctorCallArgs(cls, args) + ")" + q;
 		}
+	}
+
+	function isMapType(t: Type): Bool {
+		return switch(Context.follow(t)) {
+			case TInst(def, params) if(def.get().pack.join(".") == "haxe" && def.get().name == "IMap" && params.length == 2): true;
+			case TInst(def, _): isMapImplementation(def.get());
+			case TType(def, params): def.get().pack.length == 0 && def.get().name == "Map" && params.length == 2;
+			case TAbstract(def, params) if(def.get().pack.join(".") == "haxe.ds" && def.get().name == "Map" && params.length == 2): true;
+			case TAbstract(a, params) if(a.get().name == "Null" && params.length == 1): isMapType(params[0]);
+			case _: false;
+		};
+	}
+
+	function isMapImplementation(cls: ClassType): Bool {
+		return cls.pack.join(".") == "haxe.ds" && ["StringMap", "IntMap", "ObjectMap", "HashMap"].indexOf(cls.name) >= 0;
+	}
+
+	function mapBackingReceiver(e: TypedExpr): Null<TypedExpr> {
+		return switch(stripWrap(e).expr) {
+			case TField(receiver, FInstance(_, _, cf)) if(cf.get().name == "h" && isMapBackingType(receiver.t)): receiver;
+			case TField(receiver, FAnon(cf)) if(cf.get().name == "h" && isMapBackingType(receiver.t)): receiver;
+			case _: null;
+		};
+	}
+
+	function isMapBackingType(t: Type): Bool {
+		return switch(Context.follow(t)) {
+			case TInst(def, _):
+				final cls = def.get();
+				isMapImplementation(cls);
+			case _: false;
+		};
+	}
+
+	function mapAssignment(e: TypedExpr): Null<{receiver: TypedExpr, key: TypedExpr}> {
+		return switch(stripWrap(e).expr) {
+			case TArray(arr, key):
+				final receiver = mapBackingReceiver(arr);
+				receiver == null ? null : {receiver: receiver, key: key};
+			case _: null;
+		};
+	}
+
+	function isHasOwnPropertyValue(e: TypedExpr): Bool {
+		return switch(stripWrap(e).expr) {
+			case TField(_, FInstance(_, _, cf)) | TField(_, FAnon(cf)) if(cf.get().name == "hasOwnProperty"): true;
+			case _: false;
+		};
+	}
+
+	function mapHasOwnPropertyCall(fn: TypedExpr, args: Array<TypedExpr>): Null<String> {
+		if(args.length != 2) return null;
+		return switch(stripWrap(fn).expr) {
+			case TField(subject, FInstance(_, _, cf)) if(cf.get().name == "call" && isHasOwnPropertyValue(subject)):
+				final receiver = mapBackingReceiver(args[0]);
+				receiver == null ? null : expr(receiver) + ".contains_key(&" + rustMapKey(args[1]) + ")";
+			case _: null;
+		};
+	}
+
+	function rustMapKey(e: TypedExpr): String {
+		final rendered = expr(e);
+		return isStringType(e.t) || isStringLiteral(e) ? rendered + ".to_string()" : rendered;
+	}
+
+	function isStringLiteral(e: TypedExpr): Bool {
+		return switch(stripWrap(e).expr) {
+			case TConst(TString(_)): true;
+			case _: false;
+		};
+	}
+
+	function rustMapValue(e: TypedExpr): String {
+		final rendered = expr(e);
+		return isStringType(e.t) ? switch(stripWrap(e).expr) {
+			case TConst(TString(_)): rendered + ".to_string()";
+			case _: rendered;
+		} : rendered;
 	}
 
 	/**
@@ -2770,6 +2958,13 @@ class RustExpr {
 				switch(t.expr) {
 					case TLocal(v):
 						mutated.set(v.id, true);
+					case TArray(arr, _):
+						final receiver = mapBackingReceiver(arr);
+						switch(stripWrap(receiver == null ? arr : receiver).expr) {
+							case TLocal(v):
+								mutated.set(v.id, true);
+							case _:
+						}
 					case _:
 				}
 			case TCall(fn, args):
@@ -2778,7 +2973,7 @@ class RustExpr {
 						final n = cf.get().name;
 						if(n == "readU16" || n == "readU32" || n == "readF64" || n == "readAscii"
 							|| n == "writeU16" || n == "writeU32" || n == "writeF64" || n == "writeAscii"
-							|| n == "addByte" || n == "push" || n == "finish" || n == "put"
+								|| n == "addByte" || n == "push" || n == "finish" || n == "put" || n == "set"
 							|| n == "add" || n == "addChar") {
 							switch(stripWrap(subj).expr) {
 								case TLocal(v):

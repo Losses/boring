@@ -47,6 +47,7 @@ class SwiftType {
 					case "Bool": "Bool";
 					case "Void": "Void";
 					case "Null": wrapOptional(of(params[0]));
+					case "haxe.ds.Map" if(params.length == 2): "[" + of(params[0]) + ": " + of(params[1]) + "]";
 					case "std.ReadOnlyArray": "[" + of(params[0]) + "]";
 					case "haxe.Int64":
 						imports.runtime("Int64Halves");
@@ -88,6 +89,8 @@ class SwiftType {
 				final d = def.get();
 				if(d.pack.join(".") == "haxe.io" && d.name == "Bytes") {
 					"[UInt8]";
+				} else if(d.pack.length == 0 && d.name == "Map" && params.length == 2) {
+					"[" + of(params[0]) + ": " + of(params[1]) + "]";
 				} else if(RuntimeResidents.isResident(d.module) && params.length > 0) {
 					// A resident named function type expands inline with its
 					// arguments applied; Swift typealiases carry no generic

@@ -40,6 +40,7 @@ class KotlinType {
 					case "Bool": "Boolean";
 					case "Void": "Unit";
 					case "Null": of(params[0]) + "?";
+					case "haxe.ds.Map" if(params.length == 2): "MutableMap<" + of(params[0]) + ", " + of(params[1]) + ">";
 					case "std.ReadOnlyArray":
 						"List<" + of(params[0]) + ">";
 					case "haxe.Int64":
@@ -81,6 +82,8 @@ class KotlinType {
 				final d = def.get();
 				if(d.pack.join(".") == "haxe.io" && d.name == "Bytes") {
 					"ByteArray";
+				} else if(d.pack.length == 0 && d.name == "Map" && params.length == 2) {
+					"MutableMap<" + of(params[0]) + ", " + of(params[1]) + ">";
 				} else if(RuntimeResidents.isResident(d.module)) {
 					// Resident typedefs name function types for the
 					// TypeScript alias; Kotlin carries no named-alias

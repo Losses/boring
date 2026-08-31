@@ -99,6 +99,9 @@ class Intercept {
 	 * literal, keyed by TVar id (V18). */
 	static var localStringLiterals:Map<Int, String> = new Map();
 
+	/** Source ranges where spec 22 explicitly sanctions `new Map()`. */
+	static var coalescingMapRanges:Array<{file:String, min:Int, max:Int}> = [];
+
 	/**
 	 * Files permitted to reference haxe.Int64 (V11): the FPHelper float
 	 * conversion paths that docs/specs/stdlib/05-haxe-int64.md sanctions.
@@ -522,7 +525,16 @@ class Intercept {
 			DefaultArgExpander.completeRootExpr(classType, field.name, body);
 			PipelineExpander.expandRootExpr(body);
 			localStringLiterals = collectLocalStringLiterals(body);
+			coalescingMapRanges = [];
+			for (site in DefaultArgExpander.coalescingSites(body)) {
+				if (!DefaultArgExpander.isRegisteredCoalescingSource(site.defaultExpr.pos)) {
+					continue;
+				}
+				final pos = Context.getPosInfos(site.defaultExpr.pos);
+				coalescingMapRanges.push({file: pos.file, min: pos.min, max: pos.max});
+			}
 			walk(body, false);
+			coalescingMapRanges = [];
 		}
 	}
 
@@ -1006,6 +1018,9 @@ class Intercept {
 	}
 
 	static function checkMapType(e:TypedExpr):Void {
+		if (isInCoalescingMapRange(e.pos)) {
+			return;
+		}
 		switch (e.t) {
 			case Type.TAbstract(abstractRef, _):
 				if (moduleBanned(abstractRef.get().module)) {
@@ -1019,6 +1034,16 @@ class Intercept {
 				}
 			default:
 		}
+	}
+
+	static function isInCoalescingMapRange(pos:Position):Bool {
+		final infos = Context.getPosInfos(pos);
+		for (range in coalescingMapRanges) {
+			if (range.file == infos.file && infos.min >= range.min && infos.max <= range.max) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	static function moduleBanned(module:String):Bool {

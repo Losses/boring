@@ -164,6 +164,12 @@ filled as target-level rules:
   Kotlin trees; the Rust side already rendered an absent message as
   `None`, so its trees do not change. The completion is
   behavior-preserving on all four sides.
+- A Dart instance field that a constructor initializes through a
+  coalescing body site declares `late` (`late final` on final fields).
+  Dart's definite-assignment analysis credits field formals and
+  initializer-list entries only, so a body assignment is the one shape
+  that needs the modifier; direct assignments still lower through the
+  initializer list and their fields stay unmodified.
 
 ## Oracle standing
 

@@ -45,7 +45,12 @@ class KotlinDecl {
 			final lines: Array<String> = [];
 			lines.push("interface " + cls.name + " {");
 			for(f in funcFields) {
-				final args = [for(a in f.args) '${a.name}: ${types.of(a.type)}'].join(", ");
+				final args = [for(a in f.args) {
+					final coalescing = DefaultArgExpander.coalescingDefaultAt(cls, f.field.name, a.index);
+					final parameterType = coalescing != null ? DefaultArgExpander.coalescingParameterType(coalescing, a.type) : a.type;
+					final defaultText = coalescing != null ? " = " + expr.coalescingDefaultText(coalescing, a.type) : "";
+					'${a.name}: ${types.of(parameterType)}$defaultText';
+				}].join(", ");
 				final retType = types.of(f.ret);
 				final ret = retType == "Unit" ? "" : ": " + retType;
 				lines.push('    fun ${f.field.name}($args)$ret');
@@ -156,7 +161,7 @@ class KotlinDecl {
 		// stored-property declarations to precede the init block's
 		// assignments, so the block follows the declarations.
 		final ctorInit = constructorFunc != null && constructorFunc.expr != null
-			? expr.initBlockStatements(constructorFunc)
+			? expr.initBlockStatements(cls, constructorFunc)
 			: {lines: [], assigned: []};
 
 		// Stored properties without a constructor parameter; getter-only
@@ -545,7 +550,10 @@ class KotlinDecl {
 			// the primary constructor (feature spec 27); a parameter without
 			// a same-named field stays a plain parameter.
 			final prefix = isField ? (isPublic ? "" : "private ") + (isFinal ? "val " : "var ") : "";
-			params.push(prefix + a.name + ": " + types.of(a.type));
+			final coalescing = DefaultArgExpander.coalescingDefaultAt(cls, ctor.field.name, a.index);
+			final parameterType = coalescing != null ? DefaultArgExpander.coalescingParameterType(coalescing, a.type) : a.type;
+			final defaultText = coalescing != null ? " = " + expr.coalescingDefaultText(coalescing, a.type) : "";
+			params.push(prefix + a.name + ": " + types.of(parameterType) + defaultText);
 		}
 		return "(" + params.join(", ") + ")";
 	}
@@ -647,7 +655,12 @@ class KotlinDecl {
 		for(a in f.args) {
 			expr.reserveName(a.name);
 		}
-		final args = [for(a in f.args) '${a.name}: ${types.of(a.type)}'].join(", ");
+		final args = [for(a in f.args) {
+			final coalescing = DefaultArgExpander.coalescingDefaultAt(cls, f.field.name, a.index);
+			final parameterType = coalescing != null ? DefaultArgExpander.coalescingParameterType(coalescing, a.type) : a.type;
+			final defaultText = coalescing != null ? " = " + expr.coalescingDefaultText(coalescing, a.type) : "";
+			'${a.name}: ${types.of(parameterType)}$defaultText';
+		}].join(", ");
 		final retType = types.of(f.ret);
 		final ret = retType == "Unit" ? "" : ": " + retType;
 		final vis = f.field.isPublic ? "" : "private ";

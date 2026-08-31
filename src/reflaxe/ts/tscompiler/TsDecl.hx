@@ -62,7 +62,12 @@ class TsDecl {
 			for(f in funcFields) {
 				final capName = f.field.name.charAt(0).toUpperCase() + f.field.name.substr(1);
 				final aliasName = '${cls.name}${capName}Fn';
-				final args = [for(a in f.args) '${a.name}: ${types.of(a.type)}'].join(", ");
+				final args = [for(a in f.args) {
+					final coalescing = DefaultArgExpander.coalescingDefaultAt(cls, f.field.name, a.index);
+					coalescing != null
+						? '${a.name}?: ${types.of(DefaultArgExpander.coalescingParameterType(coalescing, a.type))}'
+						: '${a.name}: ${types.of(a.type)}';
+				}].join(", ");
 				final ret = types.of(f.ret);
 				typeAliases.push('export type $aliasName = ($args) => $ret;');
 				members.push('  readonly ${f.field.name}: $aliasName;');
@@ -247,14 +252,19 @@ class TsDecl {
 	}
 
 	function funcDecl(cls: ClassType, f: ClassFuncData): Array<String> {
-		final args = [for(a in f.args) '${a.name}: ${types.of(a.type)}'].join(", ");
+		final args = [for(a in f.args) {
+			final coalescing = DefaultArgExpander.coalescingDefaultAt(cls, f.field.name, a.index);
+			final argType = coalescing != null ? types.of(DefaultArgExpander.coalescingParameterType(coalescing, a.type)) : types.of(a.type);
+			final defaultText = coalescing != null ? " = " + expr.coalescingDefaultText(coalescing, a.type) : "";
+			'${a.name}: $argType$defaultText';
+		}].join(", ");
 		// Haxe types constructors as FMethod(MethNormal) with field name
 		// "new"; the name is the constructor marker.
 		if(f.field.name == "new") {
 			for(a in f.args) {
 				expr.reserveName(a.name);
 			}
-			final body = expr.constructorBody(cls.name, f, isException(cls));
+			final body = expr.constructorBody(cls, cls.name, f, isException(cls));
 			return ['  constructor($args) {'].concat(body).concat(["  }"]);
 		}
 		for(a in f.args) {

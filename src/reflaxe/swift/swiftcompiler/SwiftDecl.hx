@@ -54,7 +54,7 @@ class SwiftDecl {
 			// names it in its conformance clause.
 			final lines: Array<String> = ["protocol " + cls.name + " {"];
 			for(f in funcFields) {
-				lines.push("    func " + f.field.name + paramList(f) + " -> " + types.of(f.ret));
+				lines.push("    func " + f.field.name + paramList(cls, f) + " -> " + types.of(f.ret));
 			}
 			lines.push("}");
 			return lines.join("\n");
@@ -287,12 +287,12 @@ class SwiftDecl {
 			for(a in f.args) {
 				expr.reserveName(a.name);
 			}
-			final body = expr.constructorBody(cls.name, f, isException(cls));
+			final body = expr.constructorBody(cls, cls.name, f, isException(cls));
 			// A throwing constructor declares throws (feature spec 27);
 			// construction sites pick up the try marker from the
 			// fallibility machinery.
 			final ctorThrows = SwiftFallibility.isThrowing(module, "new", false) ? " throws" : "";
-			return withParamShadows(["    init" + paramList(f) + ctorThrows + " {"], body, cast f.args).concat(["    }"]);
+			return withParamShadows(["    init" + paramList(cls, f) + ctorThrows + " {"], body, cast f.args).concat(["    }"]);
 		}
 		for(a in f.args) {
 			expr.reserveName(a.name);
@@ -309,7 +309,7 @@ class SwiftDecl {
 		// Private functions render with Swift's private marker (feature
 		// spec 27); public functions keep the default internal visibility.
 		final vis = f.field.isPublic ? "" : "private ";
-		final head = '    $stat$vis' + 'func ${f.field.name}$genericStr${paramList(f)}$throws -> $ret {';
+		final head = '    $stat$vis' + 'func ${f.field.name}$genericStr${paramList(cls, f)}$throws -> $ret {';
 		return withParamShadows([head], body, cast f.args).concat(["    }"]);
 	}
 
@@ -319,13 +319,16 @@ class SwiftDecl {
 		carry @escaping because the resident tables store their
 		comparator.
 	**/
-	function paramList(f: ClassFuncData): String {
+	function paramList(cls: ClassType, f: ClassFuncData): String {
 		return "(" + [for(a in f.args) {
+			final coalescing = DefaultArgExpander.coalescingDefaultAt(cls, f.field.name, a.index);
+			final parameterType = coalescing != null ? DefaultArgExpander.coalescingParameterType(coalescing, a.type) : a.type;
 			final escaping = switch(Context.follow(a.type)) {
 				case TFun(_, _): "@escaping ";
 				case _: "";
 			};
-			"_ " + a.name + ": " + escaping + types.of(a.type);
+			final defaultText = coalescing != null ? " = " + expr.coalescingDefaultText(coalescing, a.type) : "";
+			"_ " + a.name + ": " + escaping + types.of(parameterType) + defaultText;
 		}].join(", ") + ")";
 	}
 
