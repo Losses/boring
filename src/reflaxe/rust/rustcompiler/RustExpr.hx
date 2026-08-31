@@ -2497,6 +2497,7 @@ class RustExpr {
 			&& ValueTypeSupport.markedAbstractOfClass(cls) == null
 			&& StaticFieldHelper.initializer(field) != null
 			&& !StaticFieldHelper.isConstValue(field)
+			&& !DataTableHelper.isDataTableField(field)
 			&& (!StaticFieldHelper.isConstruction(field.expr()) || StaticFieldHelper.isSelfConstruction(field, cls));
 	}
 
