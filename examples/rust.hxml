@@ -66,3 +66,6 @@ boring.UStringOps
 boring.GraphemeOps
 tests.UStringTests
 tests.GraphemeTests
+boring.PlainLabel
+boring.ToStringOps
+tests.ToStringTests

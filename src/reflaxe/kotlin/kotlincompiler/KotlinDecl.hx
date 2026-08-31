@@ -664,7 +664,11 @@ class KotlinDecl {
 		final retType = types.of(f.ret);
 		final ret = retType == "Unit" ? "" : ": " + retType;
 		final vis = f.field.isPublic ? "" : "private ";
-		final overrideStr = isInterfaceMethod(cls, f) ? "override " : "";
+		// A zero-argument toString overrides kotlin.Any's member; the
+		// modifier is required even though Haxe models no Any root, so
+		// no superclass link exists to derive it from (feature spec 27).
+		final overridesAny = f.field.name == "toString" && f.args.length == 0;
+		final overrideStr = (isInterfaceMethod(cls, f) || overridesAny) ? "override " : "";
 		// A method's own type parameters (the resident builders'
 		// factory functions) render as method generics; the class's own
 		// parameters stay in the class header only.

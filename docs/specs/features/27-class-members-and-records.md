@@ -315,6 +315,11 @@ storage (today it contributes a wrong `Default::default()` slot).
    compilation with `test class T carries a non-test member F; shared
    logic belongs in an ordinary class`, whose member lowering every
    target already renders.
+7. **A zero-argument `toString` method overrides `Any` on Kotlin.** Haxe
+   models no root type, so nothing in the typed tree marks the method as
+   an override; the Kotlin rendering of a zero-argument `toString`
+   carries the `override` modifier. The other targets render the method
+   unchanged, and no other method name receives the modifier.
 
 ## Test hooks
 
