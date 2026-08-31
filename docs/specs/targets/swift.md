@@ -113,6 +113,21 @@ enum UStringFault: Equatable {
 }
 ```
 
+A value enumeration (every constructor declares zero parameters, the
+parameterless amendment of `features/01`) maps to a `String`-raw-value
+enum with `CaseIterable`: case identifiers keep the target naming
+conversion, raw values preserve the constructor names spelled in Haxe
+source, and `allCases` and `rawValue` are the enumeration and
+constructor-name reads of `features/28-enum-value-queries.md`.
+
+```swift
+enum FloatWidth: String, CaseIterable, Equatable {
+    case f64 = "F64"
+    case f32 = "F32"
+    case f16 = "F16"
+}
+```
+
 Payload captures lower to `case .invalidCodePoint(let code)`; a
 multi-arm switch over the enum is exhaustive without a default arm;
 unused payloads bind `case .unpairedSurrogate(_)`. Guards lower to
