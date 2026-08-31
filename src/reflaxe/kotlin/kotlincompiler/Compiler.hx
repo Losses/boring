@@ -35,6 +35,7 @@ class Compiler extends PluginCompiler<Compiler> {
 
 	public static function use() {
 		final compiler = new Compiler();
+		haxe.macro.Context.onAfterTyping(ValueTypeSupport.validateModules);
 		// Registered before the framework's own callback so the linkage
 		// scan completes before any per-declaration lowering runs.
 		haxe.macro.Context.onAfterTyping(compiler.preScan);
@@ -62,6 +63,17 @@ class Compiler extends PluginCompiler<Compiler> {
 		// Resident runtime modules sit under src/runtime, outside the
 		// sample source roots, but compile through this same pipeline.
 		final isResident = RuntimeResidents.isResident(classType.module);
+		final valueType = ValueTypeSupport.infoOfClass(classType);
+		if(valueType != null) {
+			if(!ValueTypeSupport.isValidAbstract(valueType.abstractType)) {
+				return null;
+			}
+			StaticFunctionMarkers.validateAll(funcFields);
+			final decl = contextFor(classType.module);
+			final result = decl.valueTypeDecl(classType, valueType, varFields, funcFields);
+			parts.get(classType.module).push(result);
+			return result;
+		}
 		if(classType.isExtern || isSyntheticImpl(classType.name) || isInlineOnly(classType, varFields, funcFields) || (!isResident && !inSourceScope(classType.pos))) {
 			return null;
 		}

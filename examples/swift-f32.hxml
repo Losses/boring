@@ -88,3 +88,6 @@ boring.ExtensionOps
 boring.ExtensionConsumer
 tests.StaticExtensionProbes
 tests.StaticExtensionTests
+boring.ValueTypeOps
+boring.ValueTypeConsumer
+tests.ValueTypeTests

@@ -56,6 +56,7 @@ import haxe.macro.Type.FieldAccess;
 import haxe.macro.Type.TypedExpr;
 import haxe.macro.Type.TypedExprDef;
 import haxe.macro.Type.TVar;
+import ValueTypeSupport;
 
 class Intercept {
 	/** Field names whose call form is banned on any receiver (V02). */
@@ -141,6 +142,14 @@ class Intercept {
 			return fields;
 		}
 		DefaultArgExpander.registerClassFields(classType, fields);
+		// The Haxe typer represents a marked abstract's constructor as an
+		// implementation class whose synthetic `this` assignments contain
+		// target-less casts. Those casts are the wrapper representation, not
+		// an untyped source escape (the value-type extension validates the
+		// resulting typed members after typing).
+		if (ValueTypeSupport.markedAbstractOfClass(classType) != null) {
+			return fields;
+		}
 		for (index in 0...fields.length) {
 			final field = fields[index];
 			switch (field.kind) {

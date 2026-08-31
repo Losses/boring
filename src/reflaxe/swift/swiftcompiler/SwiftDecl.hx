@@ -6,6 +6,9 @@ import haxe.macro.Type;
 import reflaxe.data.ClassFuncData;
 import reflaxe.data.ClassVarData;
 import reflaxe.data.EnumOptionData;
+import ValueTypeSupport;
+import ValueTypeSupport.ValueTypeInfo;
+import ValueTypeSupport.ValueTypeOperator;
 
 /**
 	Declaration lowering: classes, variant enums, and record typedefs
@@ -138,6 +141,103 @@ class SwiftDecl {
 		lines.push("}");
 		final classPart = lines.join("\n");
 		return extractedParts.length > 0 ? extractedParts.join("\n\n") + "\n\n" + classPart : classPart;
+	}
+
+	/** Emits a marked abstract as a value-semantic Swift struct. */
+	public function valueTypeDecl(cls: ClassType, info: ValueTypeInfo, varFields: Array<ClassVarData>, funcFields: Array<ClassFuncData>): String {
+		final abs = info.abstractType;
+		final ctor = ValueTypeSupport.constructorField(abs);
+		final first = ctor == null ? null : ValueTypeSupport.firstArgument(ctor);
+		if(first == null) {
+			Context.error("value type constructor must take its representation", cls.pos);
+		}
+		final fieldName = first.name;
+		final representation = types.of(info.representation);
+		final hasToString = ValueTypeSupport.memberField(abs, "toString") != null;
+		final conformances = ["Equatable", "Hashable"];
+		if(hasToString) conformances.push("CustomStringConvertible");
+		final lines: Array<String> = ["struct " + info.name + ": " + conformances.join(", ") + " {"];
+		final ctorThrows = ctor != null && ValueTypeSupport.constructorThrows(abs);
+		lines.push("    let " + fieldName + ": " + representation);
+		lines.push("    init(_ " + fieldName + ": " + representation + ")" + (ctorThrows ? " throws" : "") + " {");
+		if(ctorThrows) {
+			for(line in expr.valueTypeConstructorBody(cls, findFunc(funcFields, "_new"))) lines.push("    " + line);
+		}
+		lines.push("        self." + fieldName + " = " + fieldName);
+		lines.push("    }");
+
+		for(f in funcFields) {
+			if(f.field.name == "_new" || f.field.name == "toString" || (ValueTypeSupport.isInlineHelper(f.field) && ValueTypeSupport.operatorOf(abs, f.field) == null)) continue;
+			final op = ValueTypeSupport.operatorOf(abs, f.field);
+			final isOperator = op != null;
+			final receiver = ValueTypeSupport.hasReceiver(f.field);
+			final start = isOperator ? 0 : (receiver ? 1 : 0);
+			final name = isOperator ? swiftOperatorName(op) : f.field.name;
+			final ret = types.of(f.ret);
+			final head = if(isOperator) {
+				switch(op) {
+					case Binary(_): "    static func " + name + "(lhs: " + info.name + ", rhs: " + info.name + ") -> " + ret + " {";
+					case Unary(_): "    static prefix func " + name + "(value: " + info.name + ") -> " + ret + " {";
+				}
+			} else {
+				final args = [for(i in start...f.args.length) {
+					final a = f.args[i];
+					"_ " + a.name + ": " + types.of(a.type);
+				}].join(", ");
+				"    " + (f.field.isPublic ? "" : "private ") + "func " + name + "(" + args + ") -> " + ret + " {";
+			};
+			lines.push("");
+			lines.push(head);
+			for(line in expr.valueTypeFunctionBody(cls, f, fieldName)) lines.push("    " + line);
+			lines.push("    }");
+		}
+
+		if(hasToString) {
+			final f = findFunc(funcFields, "toString");
+			lines.push("");
+			lines.push("    var description: String {");
+			for(line in expr.valueTypeFunctionBody(cls, f, fieldName)) lines.push("    " + line);
+			lines.push("    }");
+		}
+
+		for(v in varFields) {
+			if(!v.isStatic) continue;
+			final initializer = v.field.expr();
+			if(initializer == null) Context.error("value type static field must have an initializer", v.field.pos);
+			lines.push("");
+			lines.push("    static let " + v.field.name + ": " + info.name + " = " + expr.rawExpression(initializer));
+		}
+		lines.push("}");
+		return lines.join("\n");
+	}
+
+	function findFunc(funcFields: Array<ClassFuncData>, name: String): ClassFuncData {
+		for(f in funcFields) if(f.field.name == name) return f;
+		Context.error("value type member is missing: " + name, Context.currentPos());
+		return null;
+	}
+
+	function swiftOperatorName(op: ValueTypeOperator): String {
+		return switch(op) {
+			case Binary(binary): switch(binary) {
+				case OpAdd: "+";
+				case OpSub: "-";
+				case OpMult: "*";
+				case OpDiv: "/";
+				case OpMod: "%";
+				case OpEq: "==";
+				case OpNotEq: "!=";
+				case OpLt: "<";
+				case OpLte: "<=";
+				case OpGt: ">";
+				case OpGte: ">=";
+				case _: "+";
+			};
+			case Unary(unary): switch(unary) {
+				case OpNeg: "-";
+				case _: "+";
+			};
+		};
 	}
 
 	static function isStaticsOnly(varFields: Array<ClassVarData>, funcFields: Array<ClassFuncData>): Bool {		for(v in varFields) {

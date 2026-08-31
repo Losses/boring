@@ -32,7 +32,10 @@ class TsType {
 		return switch(t) {
 			case TAbstract(a, params):
 				final abs = a.get();
-				switch(pathOf(abs.pack, abs.name)) {
+				if(ValueTypeSupport.isMarkedAbstract(abs)) {
+					imports.type(abs.module, abs.name);
+					abs.name;
+				} else switch(pathOf(abs.pack, abs.name)) {
 					case "Int", "Float": "number";
 					case "Bool": "boolean";
 					case "Void": "void";
@@ -43,7 +46,7 @@ class TsType {
 						imports.runtime("Int64Halves");
 						"Int64Halves";
 					case _: of(abs.type);
-				}
+				};
 			case TInst(c, params):
 				final cls = c.get();
 				switch(pathOf(cls.pack, cls.name)) {

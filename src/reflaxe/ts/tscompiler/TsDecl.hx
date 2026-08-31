@@ -6,6 +6,8 @@ import haxe.macro.Type;
 import reflaxe.data.ClassFuncData;
 import reflaxe.data.ClassVarData;
 import reflaxe.data.EnumOptionData;
+import ValueTypeSupport;
+import ValueTypeSupport.ValueTypeInfo;
 
 /**
 	Declaration lowering: classes, variant enums, and record typedefs
@@ -142,6 +144,51 @@ class TsDecl {
 		final prefix = tableLines.length > 0 ? tableLines.join("\n\n") + "\n\n" : "";
 		final classPart = prefix + lines.join("\n");
 		return extractedParts.length > 0 ? extractedParts.join("\n\n") + "\n\n" + classPart : classPart;
+	}
+
+	/** The erased TypeScript representation of a marked value wrapper. */
+	public function valueTypeDecl(cls: ClassType, info: ValueTypeInfo, varFields: Array<ClassVarData>, funcFields: Array<ClassFuncData>): String {
+		final abs = info.abstractType;
+		final lines: Array<String> = ["export type " + info.name + " = " + types.of(info.representation) + ";"];
+		var ctor: Null<ClassFuncData> = null;
+		for(f in funcFields) if(f.field.name == "_new") ctor = f;
+		if(ctor != null && ValueTypeSupport.constructorThrows(abs)) {
+			final arg = ValueTypeSupport.firstArgument(ctor.field);
+			if(arg == null) {
+				Context.error("value type constructor must take its representation", ctor.field.pos);
+			}
+			lines.push("");
+			lines.push("export function " + ValueTypeSupport.constructorName(abs) + "(value: " + types.of(arg.type) + "): " + info.name + " {");
+			for(line in expr.valueTypeConstructorBody(cls, ctor)) lines.push(line);
+			lines.push("  return value;");
+			lines.push("}");
+		}
+
+		for(f in funcFields) {
+			if(f.field.name == "_new" || (ValueTypeSupport.isInlineHelper(f.field) && ValueTypeSupport.operatorOf(abs, f.field) == null)) continue;
+			final receiver = ValueTypeSupport.hasReceiver(f.field);
+			final args = [for(i in 0...f.args.length) {
+				final a = f.args[i];
+				final name = receiver && i == 0 ? "value" : a.name;
+				final type = receiver && i == 0 ? info.name : types.of(a.type);
+				name + (a.opt ? "?" : "") + ": " + type;
+			}].join(", ");
+			final ret = types.of(f.ret);
+			final vis = f.field.isPublic || ValueTypeSupport.operatorOf(abs, f.field) != null ? "export " : "";
+			lines.push("");
+			lines.push(vis + "function " + f.field.name + "(" + args + "): " + ret + " {");
+			for(line in expr.valueTypeFunctionBody(cls, f, "value")) lines.push(line);
+			lines.push("}");
+		}
+
+		for(v in varFields) {
+			if(!v.isStatic) continue;
+			final initializer = v.field.expr();
+			if(initializer == null) Context.error("value type static field must have an initializer", v.field.pos);
+			lines.push("");
+			lines.push((v.field.isPublic ? "export " : "") + "const " + v.field.name + ": " + info.name + " = " + expr.rawExpression(initializer) + ";");
+		}
+		return lines.join("\n");
 	}
 
 	function renderDataTable(name: String, elems: Array<Int>): String {
