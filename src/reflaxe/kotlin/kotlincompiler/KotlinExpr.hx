@@ -127,6 +127,7 @@ class KotlinExpr {
 		}
 		DefaultArgExpander.completeRootExpr(cls, f.field.name, f.expr);
 		PipelineExpander.expandRootExpr(f.expr);
+		EnumQueryExpander.expandRootExpr(f.expr);
 		currentClass = cls;
 		currentField = f.field.name;
 		currentLocalName = null;
@@ -631,6 +632,8 @@ class KotlinExpr {
 		final inner = stripWrap(bound);
 		switch(inner.expr) {
 			case TField(subj, fa) if(fieldName(fa) == "length"):
+				final enumCollection = EnumQueryExpander.collectionEnum(subj);
+				if(enumCollection != null) return Std.string(EnumQueryExpander.constructorCount(enumCollection));
 				if(isString(subj)) {
 					return expr(subj) + ".length";
 				} else {
@@ -784,6 +787,8 @@ class KotlinExpr {
 	// ------------------------------------------------------------------
 
 	function expr(e: TypedExpr): String {
+		final query = enumQuery(e);
+		if(query != null) return query;
 		switch(e.expr) {
 			case TConst(c):
 				switch(c) {
@@ -877,6 +882,19 @@ class KotlinExpr {
 			case _:
 				return fail(e, "expression has no Kotlin lowering in the subset: " + Std.string(e.expr));
 		}
+	}
+
+	function enumQuery(e:TypedExpr):Null<String> {
+		switch(e.expr) {
+			case TField(subj, fa):
+				final name = switch(fa) { case FInstance(_, _, cf) | FAnon(cf): cf.get().name; case FDynamic(n): n; case _: ""; };
+				final en = EnumQueryExpander.collectionEnum(subj); if(name == "length" && en != null) return Std.string(EnumQueryExpander.constructorCount(en));
+			case TArray(subj, index): final en = EnumQueryExpander.collectionEnum(subj); if(en != null) { imports.requireType(en.module, en.name); return en.name + ".entries[" + expr(index) + "]"; }
+			case _:
+		}
+		final kind = EnumQueryExpander.markerKind(e); if(kind == null) return null;
+		final en = EnumQueryExpander.enumOf(e); final args = EnumQueryExpander.callArgs(e); imports.requireType(en.module, en.name);
+		return switch(kind) { case QCollection: en.name + ".entries"; case QName: expr(args[0]) + ".name"; case QLookup: en.name + ".entries.firstOrNull { it.name == " + expr(args[1]) + " }"; };
 	}
 
 	function functionLiteral(f: TFunc): String {

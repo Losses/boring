@@ -1163,6 +1163,22 @@ class RustDecl {
 			}
 		}
 		lines.push("}");
+		final use = EnumQueryExpander.usage(en);
+		if(allPlain && use != null) {
+			lines.push(""); lines.push('impl ${en.name} {');
+			if(use.collection) lines.push('    pub const ALL: [${en.name}; ${sorted.length}] = [' + [for(o in sorted) '${en.name}::${o.name}'].join(", ") + '];');
+			if(use.name) {
+				lines.push("    pub fn name(&self) -> &'static str {"); lines.push("        match self {");
+				for(o in sorted) lines.push('            ${en.name}::${o.name} => "${o.name}",');
+				lines.push("        }"); lines.push("    }");
+			}
+			if(use.lookup) {
+				lines.push('    pub fn from_name(name: &str) -> Option<${en.name}> {'); lines.push("        match name {");
+				for(o in sorted) lines.push('            "${o.name}" => Some(${en.name}::${o.name}),');
+				lines.push("            _ => None,"); lines.push("        }"); lines.push("    }");
+			}
+			lines.push("}");
+		}
 		return lines.join("\n");
 	}
 

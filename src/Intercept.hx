@@ -422,6 +422,16 @@ class Intercept {
 	static function checkSourceCall(callee:Expr, args:Array<Expr>):Void {
 		switch (callee.expr) {
 			case ExprDef.EField(receiver, name):
+				if(name == "allEnums" || name == "enumConstructor" || name == "createEnum") {
+					switch(receiver.expr) {
+						case ExprDef.EConst(Constant.CIdent("Type")):
+							if(name == "createEnum" && args.length != 2) Context.fatalError("Type.createEnum accepts the two-argument form only", callee.pos);
+							if(name == "allEnums" && (args.length != 1 || switch(args[0].expr) { case ExprDef.EConst(Constant.CIdent(_)): false; case _: true; })) Context.fatalError("Type.allEnums accepts an enum type reference only", callee.pos);
+							if(name == "createEnum" && switch(args[0].expr) { case ExprDef.EConst(Constant.CIdent(_)): false; case _: true; }) Context.fatalError("Type.createEnum accepts the two-argument form only", callee.pos);
+							return;
+						default:
+					}
+				}
 				if (name == "sort") {
 					if (args.length > 0) {
 						violation("V02", "FunctionalIteration",
@@ -524,6 +534,7 @@ class Intercept {
 			}
 			DefaultArgExpander.completeRootExpr(classType, field.name, body);
 			PipelineExpander.expandRootExpr(body);
+			EnumQueryExpander.expandRootExpr(body);
 			localStringLiterals = collectLocalStringLiterals(body);
 			coalescingMapRanges = [];
 			for (site in DefaultArgExpander.coalescingSites(body)) {

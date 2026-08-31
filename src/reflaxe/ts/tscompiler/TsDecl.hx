@@ -370,6 +370,17 @@ class TsDecl {
 		if(valueEnum) {
 			final members = [for(o in sorted) '  ${o.name}: Object.freeze({ kind: "${o.name}" } as ${o.name})'];
 			blocks.push('export const ${en.name} = Object.freeze({\n' + members.join(",\n") + '\n});');
+			final use = EnumQueryExpander.usage(en);
+			if(use != null && use.collection) {
+				final allName = EnumQueryExpander.upperSnake(en.name) + "_ALL";
+				blocks.push('export const $allName = Object.freeze([' + [for(o in sorted) '${en.name}.${o.name}'].join(", ") + ']);');
+			}
+			if(use != null && use.lookup) {
+				final fn = EnumQueryExpander.lowerFirst(en.name) + "OfName";
+				final lines = ['export function $fn(name: string): ${en.name} | null {'];
+				for(o in sorted) lines.push('  if (name === "${o.name}") return ${en.name}.${o.name};');
+				lines.push("  return null;"); lines.push("}"); blocks.push(lines.join("\n"));
+			}
 		}
 		return blocks.join("\n\n");
 	}

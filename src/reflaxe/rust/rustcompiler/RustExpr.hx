@@ -151,6 +151,7 @@ class RustExpr {
 		}
 		DefaultArgExpander.completeRootExprForRust(cls, f.field.name, f.expr);
 		PipelineExpander.expandRootExpr(f.expr);
+		EnumQueryExpander.expandRootExpr(f.expr);
 		currentClass = cls;
 		currentMethodName = f.field.name;
 		currentLocalName = null;
@@ -187,6 +188,7 @@ class RustExpr {
 		}
 		DefaultArgExpander.completeRootExprForRust(cls, f.field.name, f.expr);
 		PipelineExpander.expandRootExpr(f.expr);
+		EnumQueryExpander.expandRootExpr(f.expr);
 		currentClass = cls;
 		currentMethodName = f.field.name;
 		currentLocalName = null;
@@ -1013,6 +1015,7 @@ class RustExpr {
 		final innerBound = stripWrap(loop.bound);
 		return switch(innerBound.expr) {
 			case TField(subj, fa) if(fieldName(fa) == "length"):
+				if(EnumQueryExpander.collectionEnum(subj) != null) return null;
 				switch(stripWrap(subj).expr) {
 					case TLocal(_): subj;
 					case _: null;
@@ -1046,6 +1049,8 @@ class RustExpr {
 		final inner = stripWrap(bound);
 		switch(inner.expr) {
 			case TField(subj, fa) if(fieldName(fa) == "length"):
+				final enumCollection = EnumQueryExpander.collectionEnum(subj);
+				if(enumCollection != null) return Std.string(EnumQueryExpander.constructorCount(enumCollection));
 				return expr(subj) + ".len()";
 			case _:
 				return expr(bound);
@@ -1328,6 +1333,8 @@ class RustExpr {
 	// ------------------------------------------------------------------
 
 	function expr(e: TypedExpr): String {
+		final query = enumQuery(e);
+		if(query != null) return query;
 		switch(e.expr) {
 			case TConst(c):
 				switch(c) {
@@ -1444,6 +1451,16 @@ class RustExpr {
 			case _:
 				return fail(e, "expression has no Rust lowering in the subset: " + Std.string(e.expr));
 		}
+	}
+
+	function enumQuery(e:TypedExpr):Null<String> {
+		switch(e.expr) {
+			case TField(subj, fa): final name = switch(fa) { case FInstance(_, _, cf) | FAnon(cf): cf.get().name; case FDynamic(n): n; case _: ""; }; final en = EnumQueryExpander.collectionEnum(subj); if(name == "length" && en != null) return Std.string(EnumQueryExpander.constructorCount(en));
+			case TArray(subj, index): final en = EnumQueryExpander.collectionEnum(subj); if(en != null) { requireEnum(en.module, en.name); return en.name + "::ALL[" + expr(index) + "]"; }
+			case _:
+		}
+		final kind = EnumQueryExpander.markerKind(e); if(kind == null) return null; final en = EnumQueryExpander.enumOf(e); final args = EnumQueryExpander.callArgs(e); requireEnum(en.module, en.name);
+		return switch(kind) { case QCollection: en.name + "::ALL"; case QName: expr(args[0]) + ".name()"; case QLookup: en.name + "::from_name(&(" + expr(args[1]) + "))"; };
 	}
 
 	// ------------------------------------------------------------------
@@ -1936,6 +1953,13 @@ class RustExpr {
 				}
 			case TLazy(fn):
 				isTypeCopy(fn());
+			case TEnum(en, _):
+				var copy = true;
+				for(ef in en.get().constructs) switch(Context.follow(ef.type)) {
+					case TFun(args, _) if(args.length > 0): copy = false;
+					case _:
+				}
+				copy;
 			case _: false;
 		};
 	}
@@ -1952,7 +1976,11 @@ class RustExpr {
 		if(fromBe != null) {
 			return fromBe;
 		}
-		switch(op) {
+			switch(op) {
+			case OpEq | OpNotEq if(nullableEnumComparedWithEnum(l.t, r.t) || nullableEnumComparedWithEnum(r.t, l.t)):
+				final left = isNullType(l.t) ? expr(l) : "Some(" + expr(l) + ")";
+				final right = isNullType(r.t) ? expr(r) : "Some(" + expr(r) + ")";
+				return left + " " + symbolOf(op) + " " + right;
 			case OpAssign:
 				final map = mapAssignment(l);
 				if(map != null) {
@@ -2032,6 +2060,14 @@ class RustExpr {
 			case _:
 				return operand(l, op, false) + " " + symbolOf(op) + " " + operand(r, op, true);
 		}
+	}
+
+	function nullableEnumComparedWithEnum(nullable:Type, value:Type):Bool {
+		if(!isNullType(nullable)) return false;
+		return switch(Context.follow(getNullInnerType(nullable))) {
+			case TEnum(_, _): switch(Context.follow(value)) { case TEnum(_, _): true; case _: false; };
+			case _: false;
+		};
 	}
 
 	function isZero(e: TypedExpr): Bool {
