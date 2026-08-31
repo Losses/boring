@@ -1486,7 +1486,7 @@ class RustExpr {
 				final condStr = switch(stripWrap(c).expr) {
 					case _: expr(stripWrap(c));
 				};
-				return "if " + condStr + " { " + expr(t) + " } else { " + expr(f) + " }";
+				return "if " + condStr + " { " + conditionalBranchText(t, f) + " } else { " + conditionalBranchText(f, t) + " }";
 			case TSwitch(_, _, _):
 				return matchExpression(e);
 			case TTry(_, catches) if(catches.length != 1):
@@ -2029,6 +2029,13 @@ class RustExpr {
 				final left = isNullType(l.t) ? expr(l) : "Some(" + expr(l) + ")";
 				final right = isNullType(r.t) ? expr(r) : "Some(" + expr(r) + ")";
 				return left + " " + symbolOf(op) + " " + right;
+			// A nullable operand compared against the null literal lowers
+			// to a predicate call: Option equality against None would
+			// require PartialEq on the inner type, which the emitted
+			// structs do not carry.
+			case OpEq | OpNotEq if((isNullType(l.t) && isTNull(r)) || (isNullType(r.t) && isTNull(l))):
+				final nullable = isNullType(l.t) ? l : r;
+				return expr(nullable) + (op == OpEq ? ".is_none()" : ".is_some()");
 			case OpAssign:
 				final map = mapAssignment(l);
 				if(map != null) {
@@ -2651,7 +2658,11 @@ class RustExpr {
 				}
 				final isMethodFallible = isFallibleCallee(c, cf, false);
 				final q = isFallible ? (isMethodFallible ? "?" : "") : (isMethodFallible ? ".unwrap()" : "");
-				return expr(subj) + "." + snake + "(" + renderCallArgs(cf.get().type, args) + ")" + q;
+				// A nullable receiver renders through the same optional
+				// unwrap as a plain field read: the field lowers to an
+				// Option while the method resolves on the inner type.
+				final subjStr = isNullType(subj.t) ? expr(subj) + ".as_ref().unwrap()" : expr(subj);
+				return subjStr + "." + snake + "(" + renderCallArgs(cf.get().type, args) + ")" + q;
 			case TField(_, FStatic(c, cf)):
 				final cls = c.get();
 				final name = cf.get().name;
@@ -3026,15 +3037,34 @@ class RustExpr {
 		final out: Array<String> = [];
 		for(i in 0...args.length) {
 			final arg = args[i];
-			if(i < paramTypes.length && isStringType(paramTypes[i]) && isStringType(arg.t)) {
-				out.push(switch(stripWrap(arg).expr) {
-					case TConst(TString(_)): expr(arg);
-					case TLocal(v) if(paramVarIds.get(v.id) == true): expr(arg);
-					case _: expr(arg) + ".as_str()";
-				});
-				continue;
+			final argStr = expr(arg);
+			if(i < paramTypes.length) {
+				final pt = paramTypes[i];
+				if(isNullType(pt) && !isNullType(arg.t)) {
+					// A nullable constructor parameter takes an Option; a
+					// null literal already renders None, any other
+					// argument wraps.
+					if(argStr != "None") {
+						final inner = switch(stripWrap(arg).expr) {
+							case TConst(TString(s)): quoteString(s) + ".to_string()";
+							case _: argStr;
+						};
+						out.push("Some(" + inner + ")");
+						continue;
+					}
+					out.push(argStr);
+					continue;
+				}
+				if(isStringType(pt) && isStringType(arg.t)) {
+					out.push(switch(stripWrap(arg).expr) {
+						case TConst(TString(_)): argStr;
+						case TLocal(v) if(paramVarIds.get(v.id) == true): argStr;
+						case _: argStr + ".as_str()";
+					});
+					continue;
+				}
 			}
-			out.push(expr(arg));
+			out.push(argStr);
 		}
 		return out.join(", ");
 	}
@@ -3830,6 +3860,29 @@ class RustExpr {
 			case TConst(TNull): true;
 			default: false;
 		};
+	}
+
+	/**
+		One branch of a two-arm conditional. A string literal renders as
+		&str while a sibling member call that returns an owned String
+		renders as String; Rust rejects the mismatched pair as one
+		expression, so the lone literal branch converts. Two literals stay
+		&str on both arms, and a sibling that renders as a borrow keeps
+		the literal as &str too.
+	**/
+	function conditionalBranchText(branch: TypedExpr, sibling: TypedExpr): String {
+		final text = expr(branch);
+		if(!isStringType(branch.t) || !isStringType(sibling.t)) {
+			return text;
+		}
+		if(!isStringLiteral(branch) || isStringLiteral(sibling)) {
+			return text;
+		}
+		final siblingText = expr(sibling);
+		final ownedStringCall = StringTools.endsWith(siblingText, ".to_string()")
+			|| StringTools.endsWith(siblingText, ".to_string()?")
+			|| StringTools.endsWith(siblingText, ".to_string().unwrap()");
+		return ownedStringCall ? text + ".to_string()" : text;
 	}
 
 	function matchGroupByBody(body: Array<TypedExpr>): Null<{prefix: Array<TypedExpr>, entryVar: TVar, entryInit: TypedExpr, builderSubj: TypedExpr, keyArg: TypedExpr, valArg: TypedExpr}> {
