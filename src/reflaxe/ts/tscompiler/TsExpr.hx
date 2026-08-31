@@ -1483,6 +1483,8 @@ class TsExpr {
 		switch(e.expr) {
 			case TArray(arr, idx):
 				return expr(arr) + "[" + expr(idx) + "]";
+			case TField(_, FStatic(c, cf)):
+				return staticRef(c.get(), cf.get().name);
 			case TField(subj, FInstance(_, _, cf)) | TField(subj, FAnon(cf)):
 				return expr(subj) + "." + cf.get().name;
 			case TLocal(v):

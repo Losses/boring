@@ -1420,6 +1420,11 @@ class RustExpr {
 				if(mapReceiver != null) {
 					return expr(mapReceiver) + ".get(&" + rustMapKey(idx) + ").cloned()";
 				}
+				final staticGuard = staticGuardOf(arr);
+				if(staticGuard != null) {
+					final base = staticGuard + "[" + staticIndex(idx) + "]";
+					return scalarTypeKind(e.t) == "String" ? "(" + base + ").clone()" : base;
+				}
 				final base = expr(arr) + "[(" + expr(idx) + ") as usize]";
 				// Reading a String element moves it out of the Vec, so a
 				// value read renders as a clone. Borrow consumers go
@@ -1483,6 +1488,8 @@ class RustExpr {
 			case TIf(c, t, f) if(f != null):
 				final coalescing = coalescingSiteFor(e);
 				if(coalescing != null) return expr(coalescing.valueExpr);
+				final optional = optionalIf(c, t, f, e.t);
+				if(optional != null) return optional;
 				final condStr = switch(stripWrap(c).expr) {
 					case _: expr(stripWrap(c));
 				};
@@ -1498,7 +1505,53 @@ class RustExpr {
 				return fail(e, "try region lowers at statement, initializer, or return position");
 			case _:
 				return fail(e, "expression has no Rust lowering in the subset: " + Std.string(e.expr));
+			}
+	}
+
+	function optionalIf(c: TypedExpr, ifTrue: TypedExpr, ifFalse: TypedExpr, resultType: Type): Null<String> {
+		var value: Null<TVar> = null;
+		var trueIsNone = false;
+		switch(stripWrap(c).expr) {
+			case TBinop(OpEq, left, right):
+				if(isTNull(right)) {
+					switch(stripWrap(left).expr) {
+						case TLocal(v): value = v; trueIsNone = true;
+						case _:
+					}
+				} else if(isTNull(left)) {
+					switch(stripWrap(right).expr) {
+						case TLocal(v): value = v; trueIsNone = true;
+						case _:
+					}
+				}
+			case TBinop(OpNotEq, left, right):
+				if(isTNull(right)) {
+					switch(stripWrap(left).expr) {
+						case TLocal(v): value = v; trueIsNone = false;
+						case _:
+					}
+				} else if(isTNull(left)) {
+					switch(stripWrap(right).expr) {
+						case TLocal(v): value = v; trueIsNone = false;
+						case _:
+					}
+				}
+			case _:
 		}
+		if(value == null) {
+			return null;
+		}
+		final selected = trueIsNone ? ifFalse : ifTrue;
+		switch(stripWrap(selected).expr) {
+			case TLocal(v) if(v.id == value.id):
+				final noneExpr = trueIsNone ? ifTrue : ifFalse;
+				final noneText = expr(noneExpr);
+				final typedNoneText = isStringType(resultType) ? noneText + ".to_string()" : noneText;
+				final localName = RustImports.toSnakeCase(value.name);
+				return "match " + localName + " { None => " + typedNoneText + ", Some(" + localName + ") => " + localName + " }";
+			case _:
+		}
+		return null;
 	}
 
 	function enumQuery(e:TypedExpr):Null<String> {
@@ -2034,6 +2087,17 @@ class RustExpr {
 				if(map != null) {
 					return expr(map.receiver) + ".insert(" + rustMapKey(map.key) + ", " + rustMapValue(r) + ")";
 				}
+				final staticTarget = staticAssignmentTarget(l);
+				if(staticTarget != null) {
+					final staticValue = if(StaticFieldHelper.isNullableType(l.t)) {
+						isTNull(r) ? "None" : "Some(" + staticOwnedValue(r) + ")";
+					} else if(StaticFieldHelper.isStringType(l.t)) {
+						staticOwnedValue(r);
+					} else {
+						expr(r);
+					};
+					return staticTarget + " = " + staticValue;
+				}
 				final rhs = if(isNullType(l.t) && !isNullType(r.t) && !isTNull(r)) {
 					final rStr = if(!isTypeCopy(r.t)) {
 						switch(stripWrap(r).expr) {
@@ -2171,7 +2235,14 @@ class RustExpr {
 	function field(subj: TypedExpr, fa: FieldAccess): String {
 		switch(fa) {
 			case FStatic(c, cf):
-				return staticRef(c.get(), cf.get().name);
+				final cls = c.get();
+				final name = cf.get().name;
+				if(isGuardStaticField(cls, name)) {
+					final guard = staticGuard(cls, name);
+					return StaticFieldHelper.isArrayType(cf.get().type) ? guard : guard + ".clone()";
+				}
+				final rendered = staticRef(cls, name);
+				return StaticFieldHelper.isStringType(cf.get().type) ? rendered + ".to_string()" : rendered;
 			case FEnum(e, ef):
 				final en = e.get();
 				imports.requireType(en.module, en.name);
@@ -2192,6 +2263,13 @@ class RustExpr {
 							return "format!(\"{}\", " + RustImports.toSnakeCase(localName(v)) + ")";
 						case _:
 					}
+				}
+				final staticGuard = staticGuardOf(subj);
+				if(staticGuard != null) {
+					if(name == "length") {
+						return rustU32Length(staticGuard + ".len()");
+					}
+					return staticGuard + "." + RustImports.toSnakeCase(name);
 				}
 				if(name == "length") {
 					if(isNullType(subj.t)) {
@@ -2219,6 +2297,82 @@ class RustExpr {
 			case FClosure(_):
 				return fail(subj, "closure has no lowering");
 		}
+	}
+
+	function staticFieldOf(cls: ClassType, name: String): Null<ClassField> {
+		for(field in cls.statics.get()) {
+			if(field.name == name) {
+				return field;
+			}
+		}
+		return null;
+	}
+
+	function isGuardStaticField(cls: ClassType, name: String): Bool {
+		final field = staticFieldOf(cls, name);
+		return field != null && !DataTableHelper.isDataTableField(field) && !StaticFieldHelper.isConstValue(field);
+	}
+
+	function staticItemPath(cls: ClassType, name: String): String {
+		final itemName = RustImports.toSnakeCase(name);
+		return cls.module == imports.selfModule
+			? itemName
+			: "crate::" + RustImports.moduleToRustPath(cls.module) + "::" + itemName;
+	}
+
+	function staticGuard(cls: ClassType, name: String): String {
+		return staticItemPath(cls, name) + ".lock().unwrap_or_else(|e| e.into_inner())";
+	}
+
+	function staticGuardOf(e: TypedExpr): Null<String> {
+		return switch(stripWrap(e).expr) {
+			case TField(_, FStatic(c, cf)) if(isGuardStaticField(c.get(), cf.get().name)):
+				staticGuard(c.get(), cf.get().name);
+			case _: null;
+		};
+	}
+
+	function staticIndex(e: TypedExpr): String {
+		return switch(stripWrap(e).expr) {
+			case TConst(TInt(value)): Std.string(value) + "usize";
+			case _:
+				"match usize::try_from(" + expr(e) + ") { Ok(value) => value, Err(_) => 0usize }";
+		};
+	}
+
+	function rustU32Length(length: String): String {
+		return "match u32::try_from(" + length + ") { Ok(value) => value, Err(_) => u32::MAX }";
+	}
+
+	function staticAssignmentTarget(e: TypedExpr): Null<String> {
+		return switch(stripWrap(e).expr) {
+			case TField(_, FStatic(c, cf)) if(isGuardStaticField(c.get(), cf.get().name)):
+				"*" + staticGuard(c.get(), cf.get().name);
+			case _: null;
+		};
+	}
+
+	function staticOwnedValue(e: TypedExpr): String {
+		final rendered = expr(e);
+		if(StaticFieldHelper.isStringType(e.t)) {
+			return StringTools.endsWith(rendered, ".to_string()") || StringTools.endsWith(rendered, ".clone()")
+				? rendered
+				: rendered + ".to_string()";
+		}
+		if(!isTypeCopy(e.t) && !StringTools.endsWith(rendered, ".clone()") && !StringTools.endsWith(rendered, ".to_vec()")) {
+			return rendered + ".clone()";
+		}
+		return rendered;
+	}
+
+	function staticContainerArg(e: TypedExpr): String {
+		final rendered = expr(e);
+		if(StaticFieldHelper.isStringType(e.t)
+			&& !StringTools.endsWith(rendered, ".to_string()")
+			&& !StringTools.endsWith(rendered, ".clone()")) {
+			return rendered + ".to_string()";
+		}
+		return rendered;
 	}
 
 	function staticRef(cls: ClassType, name: String): String {
@@ -2446,6 +2600,15 @@ class RustExpr {
 				return expr(subj) + ".len() as u32";
 			case TField(subj, FInstance(c, _, cf)):
 				final name = cf.get().name;
+				final staticGuard = staticGuardOf(subj);
+				if(staticGuard != null) {
+					if(name == "push" && args.length == 1) {
+						return staticGuard + ".push(" + staticContainerArg(args[0]) + ")";
+					}
+					if(name == "length" || name == "get_length") {
+						return rustU32Length(staticGuard + ".len()");
+					}
+				}
 				if(isString(subj)) {
 					if(name == "toLowerCase") return expr(subj) + ".to_lowercase()";
 					if(name == "toUpperCase") return expr(subj) + ".to_uppercase()";
@@ -3043,6 +3206,9 @@ class RustExpr {
 		switch(e.expr) {
 			case TArray(arr, idx):
 				return expr(arr) + "[(" + expr(idx) + ") as usize]";
+			case TField(_, FStatic(c, cf)):
+				final target = staticAssignmentTarget(e);
+				return target != null ? target : staticRef(c.get(), cf.get().name);
 			case TField(subj, FInstance(_, _, cf)) | TField(subj, FAnon(cf)):
 				return expr(subj) + "." + RustImports.toSnakeCase(cf.get().name);
 			case TLocal(v):
@@ -3597,10 +3763,10 @@ class RustExpr {
 		return rendered.join(", ");
 	}
 
-		function isUsizeExpr(e: TypedExpr): Bool {
+	function isUsizeExpr(e: TypedExpr): Bool {
 		if(e == null) return false;
 		return switch(stripWrap(e).expr) {
-			case TField(subj, fa) if(fieldName(fa) == "length" || fieldName(fa) == "get_length"): !isStringBuf(subj);
+			case TField(subj, fa) if(fieldName(fa) == "length" || fieldName(fa) == "get_length"): staticGuardOf(subj) == null && !isStringBuf(subj);
 			default: false;
 		};
 	}
