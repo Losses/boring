@@ -842,7 +842,7 @@ class DartExpr {
 	function enumQuery(e:TypedExpr):Null<String> {
 		switch(e.expr) {
 			case TField(subj, fa): final name = switch(fa) { case FInstance(_, _, cf) | FAnon(cf): cf.get().name; case FDynamic(n): n; case _: ""; }; final en = EnumQueryExpander.collectionEnum(subj); if(name == "length" && en != null) return Std.string(EnumQueryExpander.constructorCount(en));
-			case TArray(subj, index): final en = EnumQueryExpander.collectionEnum(subj); if(en != null) return qualifiedRef(en.module, en.name) + ".values[" + expr(index) + "]";
+			case TArray(subj, index): final en = EnumQueryExpander.collectionEnum(subj); if(en != null) return (EnumQueryExpander.aliasEnum(subj) != null ? expr(subj) : qualifiedRef(en.module, en.name) + ".values") + "[" + expr(index) + "]";
 			case _:
 		}
 		final kind = EnumQueryExpander.markerKind(e); if(kind == null) return null; final en = EnumQueryExpander.enumOf(e); final args = EnumQueryExpander.callArgs(e);

@@ -10,7 +10,7 @@ class EnumQueriesOps {
 
 	public static function aliasCount():Int {
 		final widths = Type.allEnums(FloatWidth);
-		return widths.length;
+		return widths.length + (widths[0] == F64 ? 0 : 1);
 	}
 
 	public static function names():String {
