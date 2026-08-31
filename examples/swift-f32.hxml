@@ -73,3 +73,5 @@ tests.ToStringTests
 boring.EnumQueriesOps
 tests.EnumQueriesTests
 tests.EnumQueriesProbes
+boring.StdStringOps
+tests.StdStringTests
