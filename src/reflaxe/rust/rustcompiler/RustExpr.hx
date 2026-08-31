@@ -144,11 +144,15 @@ class RustExpr {
 				en.name + "::" + enumField.name;
 			case CParameterRead(name): RustImports.toSnakeCase(name);
 			case CFieldAccess(CParameterRead(staticPath), ""): staticPath;
-			case CFieldAccess(receiver, fieldName): coalescingDefaultText(receiver, targetType) + "." + RustImports.toSnakeCase(fieldName);
+			case CFieldAccess(receiver, fieldName):
+				fieldName == "length"
+					? "(" + coalescingDefaultText(receiver, targetType) + ").as_ref().map_or(0, |v| v.len())"
+					: coalescingDefaultText(receiver, targetType) + "." + RustImports.toSnakeCase(fieldName);
 			case CMethodCall(receiver, methodName, args):
-				coalescingDefaultText(receiver, targetType) + "." + RustImports.toSnakeCase(methodName) + "(" + [for(a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
+				coalescingDefaultText(receiver, targetType) + "." + rustMethodName(methodName) + "(" + [for(a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
 			case CStaticCall(fullPath, args):
-				fullPath + "(" + [for(a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
+				final parts = fullPath.split(".");
+				parts.length > 1 ? parts[0] + "::" + RustImports.toSnakeCase(parts[1]) + "(" + [for(a in args) coalescingDefaultText(a, targetType)].join(", ") + ")" : RustImports.toSnakeCase(fullPath) + "(" + [for(a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
 			case CConditional(c, t, f):
 				"if " + coalescingDefaultText(c, targetType) + " { " + coalescingDefaultText(t, targetType) + " } else { " + coalescingDefaultText(f, targetType) + " }";
 			case CBinaryOp(op, left, right):
@@ -156,10 +160,13 @@ class RustExpr {
 		};
 	}
 
+	static function rustMethodName(name:String):String {
+		return name == "toUpperCase" ? "to_uppercase" : RustImports.toSnakeCase(name);
+	}
+
 	static function opStr(op:Binop):String {
 		return switch(op) {
 			case OpAdd: "+";
-			case OpSub: "-";
 			case OpMult: "*";
 			case OpDiv: "/";
 			case OpMod: "%";
@@ -2187,6 +2194,9 @@ class RustExpr {
 					}
 				}
 				if(name == "length") {
+					if(isNullType(subj.t)) {
+						return "(" + expr(subj) + ").as_ref().map_or(0, |v| v.len())";
+					}
 					if(isStringBuf(subj)) {
 						return expr(subj) + ".len() as u32";
 					}

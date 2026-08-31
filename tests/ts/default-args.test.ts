@@ -22,10 +22,10 @@ describe("default argument expansion generated tree", () => {
     expect(content).toContain("public static openMode(id: number, mode: Mode): string");
     expect(content).toContain("public static adjust(value: number, step: number): number");
     expect(content).toContain("public static greetWithPrefix(name: string, prefix: string = name): string");
-    expect(content).toContain("public static sizeLabel(items: string[] = []): string");
+    expect(content).toContain("public static sizeLabel(items: string[] | null): string");
     expect(content).toContain("public static localeSample(lang: string, fallback: string = (lang === \"en\" ? \"English\" : \"Other\")): string");
     expect(content).toContain("public static methodCallSample(text: string, normalized: string = text.toUpperCase()): string");
-    expect(content).toContain("public static staticCallSample(value: number, clamped: number = Math.max(value, 0)): number");
+    expect(content).toContain("public static staticCallSample(value: number, clamped: number = DefaultArgsOps.clampBase(value)): number");
     expect(content).toContain("public static binarySample(value: number, offset: number = value + 1): number");
 
     // Coalescing defaults stay native on TypeScript and are omitted at their

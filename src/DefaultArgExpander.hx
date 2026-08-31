@@ -383,11 +383,7 @@ class DefaultArgExpander {
 			}
 		}
 
-		// 3. Static field / top-level constant root (skip parameter names)
-		final staticPath = resolveStaticFieldOrConstant(cur, earlierNames);
-		if (staticPath != null) {
-			return CFieldAccess(CParameterRead(staticPath), "");
-		}
+		// Static-field roots are reserved for extension Stage B (features/30).
 
 		// 4. Field access chain over parameter references
 		if (cur.expr != null) {
@@ -427,7 +423,7 @@ class DefaultArgExpander {
 										}
 									case ExprDef.EConst(AstConstant.CIdent(typeName)):
 										// Static call: ClassName.method(args)
-										if (isTypeName(typeName)) {
+										if (isTypeName(typeName) && isCompiledStaticType(typeName)) {
 											final argValues = validateArgList(callArgs, parameterName, earlierNames, allParamNames, classType);
 											if (argValues != null) return CStaticCall(typeName + "." + methodName, argValues);
 										}
@@ -447,7 +443,7 @@ class DefaultArgExpander {
 								// Possible static call: funcName(args)
 								if (earlierNames.indexOf(funcName) < 0) {
 									final argValues = validateArgList(callArgs, parameterName, earlierNames, allParamNames, classType);
-									if (argValues != null) return CStaticCall(funcName, argValues);
+									if (argValues != null) return CStaticCall(classType.name + "." + funcName, argValues);
 								}
 							default:
 						}
@@ -488,7 +484,17 @@ class DefaultArgExpander {
 		return null;
 	}
 
-	/** Validates a list of arguments against the grammar. */
+	static function isCompiledStaticType(path:String):Bool {
+		try {
+			switch (Context.getType(path)) {
+				case Type.TInst(ref, _): return !ref.get().isExtern;
+				default:
+			}
+		} catch (_:Dynamic) {}
+		return false;
+	}
+
+
 	static function validateArgList(args:Array<Expr>, parameterName:String, earlierNames:Array<String>, allParamNames:Array<String>, classType:ClassType):Null<Array<CoalescingDefaultValue>> {
 		final values:Array<CoalescingDefaultValue> = [];
 		for (a in args) {
