@@ -95,3 +95,6 @@ boring.ValueTypeConsumer
 tests.ValueTypeTests
 boring.PrintedCollection
 tests.PrintedCollectionTests
+
+boring.PrintedEnumOps
+tests.PrintedEnumTests

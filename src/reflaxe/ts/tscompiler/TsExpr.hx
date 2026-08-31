@@ -1222,27 +1222,30 @@ class TsExpr {
 			case TAbstract(a, params) if(a.get().module == "std.ReadOnlyArray"):
 				stdStringType(haxe.macro.TypeTools.applyTypeParameters(a.get().type, a.get().params, params), value, inConcat, origin, depth);
 			case TEnum(en, _) if(isParameterlessEnum(en.get())): value + ".kind";
-			case TEnum(en, _) if(!isParameterlessEnum(en.get())): payloadEnumString(en.get(), value, inConcat);
+			case TEnum(en, _) : payloadEnumString(en.get(), value, inConcat, origin);
 			case _:
-				Context.error("Std.string accepts scalars, parameterless enum values, records, and arrays of them only", origin.pos);
+				Context.error("Std.string accepts scalars, enum values, records, and arrays of them only", origin.pos);
 				null;
 		};
 	}
 
-	function payloadEnumString(en: EnumType, value: String, inConcat: Bool): String {
+	function payloadEnumString(en: EnumType, value: String, inConcat: Bool, origin: TypedExpr): String {
 		final fields = [for(ef in en.constructs) ef];
-		final arms = [for(ef in fields) {
+		var out = "";
+		for(i in 0...fields.length) {
+			final ef = fields[i];
 			final args = switch(ef.type) { case TFun(a, _): a; case _: []; };
-			if(args.length == 0) '"${ef.name}"' else {
-				var text = '"${ef.name}(';
-				for(i in 0...args.length) text += (i > 0 ? ', ' : '') + args[i].name + '=" + ' + value + '.' + args[i].name;
-				text + ' + ")"';
+			var arm = '"${ef.name}"';
+			if(args.length > 0) {
+				var body = '"${ef.name}(';
+				for(j in 0...args.length) body += (j == 0 ? "" : ' + ", " + ') + args[j].name + '=" + ' + stdStringType(args[j].t, value + "." + args[j].name, true, origin, 0);
+				arm = "(" + body + ' + ")")';
 			}
-		}];
-		var out = arms[arms.length - 1];
-		for(i in 0...fields.length - 1) out = value + '.kind === "' + fields[i].name + '" ? ' + arms[i] + ' : ' + out;
+			out = i == 0 ? arm : value + '.kind === "${ef.name}" ? ${arm} : ${out}';
+		}
 		return out;
 	}
+
 	function isParameterlessEnum(en: EnumType): Bool {
 		for(ef in en.constructs) switch(ef.type) {
 			case TFun(args, _) if(args.length > 0): return false;
