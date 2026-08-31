@@ -6,3 +6,4 @@
 -main TestMain
 -js out/haxe/test-main.js
 -D analyzer-optimize
+-D boring_oracle
