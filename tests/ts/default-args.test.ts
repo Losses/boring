@@ -23,9 +23,11 @@ describe("default argument expansion generated tree", () => {
     expect(content).toContain("public static adjust(value: number, step: number): number");
     expect(content).toContain("public static greetWithPrefix(name: string, prefix: string = name): string");
     expect(content).toContain("public static sizeLabel(items: string[] | null): string");
+    expect(content).toContain("public static fieldAccessSample(items: string[], count: number = items.length): number");
     expect(content).toContain("public static localeSample(lang: string, fallback: string = (lang === \"en\" ? \"English\" : \"Other\")): string");
     expect(content).toContain("public static methodCallSample(text: string, normalized: string = text.toUpperCase()): string");
     expect(content).toContain("public static staticCallSample(value: number, clamped: number = DefaultArgsOps.clampBase(value)): number");
+    expect(content).toContain("public static staticFieldSample(value: number, bound: number = StaticStateOps.limit): number");
     expect(content).toContain("public static binarySample(value: number, offset: number = value + 1): number");
 
     // Coalescing defaults stay native on TypeScript and are omitted at their
@@ -68,9 +70,11 @@ describe("default argument expansion generated tree", () => {
 
     // Parameter-reading coalescing defaults stay native on Kotlin.
     expect(content).toContain("fun greetWithPrefix(name: String, prefix: String = name): String");
+    expect(content).toContain("fun fieldAccessSample(items: MutableList<String>, count: Int = items.size): Int");
     expect(content).toContain("fun localeSample(lang: String, fallback: String = if (lang == \"en\") \"English\" else \"Other\"): String");
     expect(content).toContain("fun methodCallSample(text: String, normalized: String = text.uppercase()): String");
     expect(content).toContain("fun staticCallSample(value: Int, clamped: Int = DefaultArgsOps.clampBase(value)): Int");
+    expect(content).toContain("fun staticFieldSample(value: Int, bound: Int = StaticStateOps.limit): Int");
     expect(content).toContain("fun binarySample(value: Int, offset: Int = value + 1): Int");
     expect(content).toContain("fun dependenceEarlier(a: String, b: String = a): String");
 
@@ -112,9 +116,13 @@ describe("default argument expansion generated tree", () => {
     // Rust normalizes parameter-reading defaults at entry in declaration order.
     expect(content).toContain("pub fn greet_with_prefix(name: &str, prefix: Option<String>) -> String");
     expect(content).toContain("let prefix = prefix.unwrap_or_else(|| name.to_string());");
+    expect(content).toContain("pub fn field_access_sample(items: &mut [String], count: Option<u32>) -> u32");
+    expect(content).toContain("let count = count.unwrap_or_else(|| match u32::try_from((items).len())");
     expect(content).toContain("let fallback = fallback.unwrap_or_else(|| if lang == \"en\".to_string() { \"English\".to_string() } else { \"Other\".to_string() });");
     expect(content).toContain("let normalized = normalized.unwrap_or_else(|| text.to_uppercase());");
     expect(content).toContain("let clamped = clamped.unwrap_or_else(|| DefaultArgsOps::clamp_base(value));");
+    expect(content).toContain("pub fn static_field_sample(value: u32, bound: Option<u32>) -> u32");
+    expect(content).toContain("let bound = bound.unwrap_or_else(|| StaticStateOps::limit);");
     expect(content).toContain("let offset = offset.unwrap_or_else(|| value + 1);");
     expect(content).toContain("let b = b.unwrap_or_else(|| a.to_string());");
 
@@ -156,10 +164,13 @@ describe("default argument expansion generated tree", () => {
     expect(content).toContain("return DefaultArgsOps.mapDefault()");
     expect(content).toContain("static func greetWithPrefix(_ name: String, _ prefix: String? = nil) -> String");
     expect(content).toContain("var prefix = prefix ?? name;");
+    expect(content).toContain("static func fieldAccessSample(_ items: [String], _ count: Int32? = nil) -> Int32");
+    expect(content).toContain("var count = count ?? Int32(items.count);");
     expect(content).toContain("static func localeSample(_ lang: String, _ fallback: String? = nil) -> String");
     expect(content).toContain("var fallback = fallback ?? (lang == \"en\" ? \"English\" : \"Other\");");
     expect(content).toContain("var normalized = normalized ?? text.uppercased();");
     expect(content).toContain("var clamped = clamped ?? DefaultArgsOps.clampBase(value);");
+    expect(content).toContain("static func staticFieldSample(_ value: Int32, _ bound: Int32 = StaticStateOps.limit) -> Int32");
     expect(content).toContain("var offset = offset ?? value + 1;");
     expect(content).toContain("var b = b ?? a;");
   });
@@ -179,10 +190,14 @@ describe("default argument expansion generated tree", () => {
     expect(content).toContain("return DefaultArgsOps.mapDefault()");
     expect(content).toContain("static String greetWithPrefix(String name, [String? prefix])");
     expect(content).toContain("final String normalized = prefix ?? name;");
+    expect(content).toContain("static int fieldAccessSample(List<String> items, [int? count])");
+    expect(content).toContain("final int normalized = count ?? items.length;");
     expect(content).toContain("static String localeSample(String lang, [String? fallback])");
     expect(content).toContain("final String normalized = fallback ?? (lang == \"en\" ? \"English\" : \"Other\");");
     expect(content).toContain("final String value = normalized ?? text.toUpperCase();");
     expect(content).toContain("final int result = clamped ?? DefaultArgsOps.clampBase(value);");
+    expect(content).toContain("static int staticFieldSample(int value, [int? bound])");
+    expect(content).toContain("final int normalized = bound ?? static_state_ops.limit;");
     expect(content).toContain("final int result = offset ?? value + 1;");
     expect(content).toContain("final String normalized = b ?? a;");
   });
