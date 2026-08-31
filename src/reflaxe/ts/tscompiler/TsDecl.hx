@@ -365,6 +365,12 @@ class TsDecl {
 			blocks.push('export interface ${o.name} {\n' + members.join("\n") + "\n}");
 		}
 		blocks.push('export type ${en.name} =\n  | ' + names.join("\n  | ") + ";");
+		var valueEnum = true;
+		for(o in sorted) if(o.args.length > 0) valueEnum = false;
+		if(valueEnum) {
+			final members = [for(o in sorted) '  ${o.name}: Object.freeze({ kind: "${o.name}" } as ${o.name})'];
+			blocks.push('export const ${en.name} = Object.freeze({\n' + members.join(",\n") + '\n});');
+		}
 		return blocks.join("\n\n");
 	}
 

@@ -135,7 +135,9 @@ class DartExpr {
 					: "<dynamic, dynamic>{}";
 			case CPositiveInfinity: "double.infinity";
 			case CNegativeInfinity: "-double.infinity";
-			case CEnum(enumRef, enumField): enumRef.get().name + enumField.name + "()";
+			case CEnum(enumRef, enumField):
+				final en = enumRef.get();
+				isValueEnum(en) ? en.name + "." + DartDecl.lowerFirst(enumField.name) : en.name + enumField.name + "()";
 		};
 	}
 
@@ -969,7 +971,9 @@ class DartExpr {
 				// generated subclass instance carries the identity.
 				final enumDef = en.get();
 				imports.type(enumDef.module, enumDef.name);
-				return qualifiedRef(enumDef.module, DartDecl.constructClassName(enumDef.name, ef.name)) + "()";
+				return isValueEnum(enumDef)
+					? qualifiedRef(enumDef.module, enumDef.name) + "." + DartDecl.lowerFirst(ef.name)
+					: qualifiedRef(enumDef.module, DartDecl.constructClassName(enumDef.name, ef.name)) + "()";
 			case FInstance(owner, _, cf):
 				final name = cf.get().name;
 				final target = stripCast(subj);
@@ -1542,9 +1546,18 @@ class DartExpr {
 
 	/** A variant construct renders as its generated subclass constructor, arguments positional. */
 	function enumConstruct(enumDef: EnumType, ef: EnumField, args: Array<TypedExpr>): String {
+		if(isValueEnum(enumDef)) return qualifiedRef(enumDef.module, enumDef.name) + "." + DartDecl.lowerFirst(ef.name);
 		final parts = [for(a in args) expr(a)];
 		final cls = DartDecl.constructClassName(enumDef.name, ef.name);
 		return qualifiedRef(enumDef.module, cls) + "(" + parts.join(", ") + ")";
+	}
+
+	static function isValueEnum(en: EnumType): Bool {
+		for(ef in en.constructs) switch(Context.follow(ef.type)) {
+			case TFun(args, _) if(args.length > 0): return false;
+			case _:
+		}
+		return true;
 	}
 
 	function newExpr(c: Ref<ClassType>, params: Array<Type>, args: Array<TypedExpr>): String {
@@ -2057,7 +2070,10 @@ class DartExpr {
 			final used = usedPayloadIndices(c.expr, info.field);
 			final bindings = [for(i in 0...names.length) if(used.indexOf(i) >= 0) names[i] + ": var " + names[i]];
 			final cls = DartDecl.constructClassName(info.enumName, info.name);
-			out.push(indent(depth + 1) + "case " + qualifiedRef(info.module, cls) + (bindings.length > 0 ? "(" + bindings.join(", ") + ")" : "()") + ":");
+			final pattern = bindings.length == 0 && info.valueEnum
+				? qualifiedRef(info.module, info.enumName) + "." + DartDecl.lowerFirst(info.name)
+				: qualifiedRef(info.module, cls) + (bindings.length > 0 ? "(" + bindings.join(", ") + ")" : "()");
+			out.push(indent(depth + 1) + "case " + pattern + ":");
 			for(l in armLines(c.expr, depth + 2)) out.push(l);
 		}
 		if(switchParts.def != null) {
@@ -2107,13 +2123,13 @@ class DartExpr {
 		return out;
 	}
 
-	function enumTable(se: TypedExpr): Map<Int, {name: String, field: EnumField, enumName: String, module: String}> {
-		final table = new Map<Int, {name: String, field: EnumField, enumName: String, module: String}>();
+	function enumTable(se: TypedExpr): Map<Int, {name: String, field: EnumField, enumName: String, module: String, valueEnum: Bool}> {
+		final table = new Map<Int, {name: String, field: EnumField, enumName: String, module: String, valueEnum: Bool}>();
 		switch(se.t) {
 			case TEnum(e, _):
 				final en = e.get();
 				for(name => ef in en.constructs) {
-					table.set(ef.index, {name: name, field: ef, enumName: en.name, module: en.module});
+					table.set(ef.index, {name: name, field: ef, enumName: en.name, module: en.module, valueEnum: isValueEnum(en)});
 				}
 			case _:
 				return fail(se, "variant switch subject is not a variant value");

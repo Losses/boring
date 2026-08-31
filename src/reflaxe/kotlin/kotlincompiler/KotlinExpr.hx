@@ -940,13 +940,21 @@ class KotlinExpr {
 			// The `is` pattern smart-casts the subject to the variant, so
 			// payload captures read as properties on it. Arms separate by
 			// newline; Kotlin `when` takes no comma between arms.
-			out.push("    is " + receiver + "." + ef.name + " -> " + arm[0]);
+			out.push("    " + (isValueEnum(en) ? "" : "is ") + receiver + "." + ef.name + " -> " + arm[0]);
 			for(i in 1...arm.length) {
 				out.push("    " + arm[i]);
 			}
 		}
 		out.push("}");
 		return out.join("\n");
+	}
+
+	static function isValueEnum(en: EnumType): Bool {
+		for(ef in en.constructs) switch(Context.follow(ef.type)) {
+			case TFun(args, _) if(args.length > 0): return false;
+			case _:
+		}
+		return true;
 	}
 
 	/**
@@ -1549,7 +1557,7 @@ class KotlinExpr {
 					return owner + "." + ef.name + "(" + renderedArgs + ")";
 				}
 				imports.requireType(en.module, en.name);
-				return en.name + "." + ef.name + "(" + renderedArgs + ")";
+				return isValueEnum(en) ? en.name + "." + ef.name : en.name + "." + ef.name + "(" + renderedArgs + ")";
 			case TConst(TSuper):
 				return "super(" + renderedArgs + ")";
 			case _:

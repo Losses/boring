@@ -60,9 +60,9 @@ List<glyph_metrics.GlyphMetrics> expectedRecords() {
 void main() {
   final records = expectedRecords();
   final widths = <float_width.FloatWidth>[
-    float_width.FloatWidthF64(),
-    float_width.FloatWidthF32(),
-    float_width.FloatWidthF16(),
+    float_width.FloatWidth.f64,
+    float_width.FloatWidth.f32,
+    float_width.FloatWidth.f16,
   ];
   final paths = <String>[
     'tests/vectors/roundtrip.bin',

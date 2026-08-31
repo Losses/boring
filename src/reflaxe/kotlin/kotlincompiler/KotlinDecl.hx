@@ -737,6 +737,11 @@ class KotlinDecl {
 	public function enumDecl(en: EnumType, options: Array<EnumOptionData>): String {
 		final sorted = options.copy();
 		sorted.sort((a, b) -> Reflect.compare(a.field.index, b.field.index));
+		var valueEnum = true;
+		for(o in sorted) if(o.args.length > 0) valueEnum = false;
+		if(valueEnum) {
+			return 'enum class ${en.name} {\n    ' + [for(o in sorted) o.name].join(",\n    ") + '\n}';
+		}
 		final lines = ['sealed interface ${en.name} {'];
 		for(o in sorted) {
 			if(o.args.length == 0) {
