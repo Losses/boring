@@ -120,7 +120,20 @@ nothing keeps equal.
    function over `RecordShape`; per-target text knowledge stays confined
    to the existing `+` and member lowerings. The synthesized AST differs
    from a hand-written member's compiled form in nothing a lane can
-   observe.
+   observe. A nullable record-typed field prints through an explicit
+   null comparison around the member call: `null` prints `"null"` and a
+   present value prints the field's member text, the same two states the
+   Kotlin `data class` synthesis prints. A non-nullable record-typed
+   field carries no comparison; Swift and Rust have no valid nil or
+   None comparison for a non-optional operand. The Rust lane lowers the
+   comparison on a nullable operand to `is_none()` / `is_some()`
+   because Option equality against `None` would require `PartialEq` on
+   the inner type; a member call on a nullable receiver lowers through
+   the optional unwrap the field read already uses; a nullable
+   constructor parameter wraps every non-null argument in `Some`; and a
+   lone string literal beside an owned-String member-call branch of a
+   conditional converts to `.to_string()`, because Rust rejects the
+   `&str` and `String` pair as one expression.
 5. **Stage 1 wires the member through one global-metadata line.** The
    consumer's hxml adds
    `--macro haxe.macro.Compiler.addGlobalMetadata('<package>', '@:build(std.RecordMember.build())')`;
@@ -140,8 +153,10 @@ nothing keeps equal.
 ## Test hooks
 
 - `samples/boring/PrintedRecord.hx`: a `@:dataClass` class with no
-  explicit member and an int field, a float field, and a field of another
-  record type. `samples/boring/PrintedCustom.hx`: a `@:dataClass` class
+  explicit member and an int field, a float field, a field of another
+  record type, and a nullable field of that record type; the tests
+  assert the null and present states of the nullable field.
+  `samples/boring/PrintedCustom.hx`: a `@:dataClass` class
   that declares an explicit `toString` printing custom text. Both are
   entered in the entry lists of all eight generation hxml files.
 - `samples/std/RecordMember.hx`: the stage-1 build macro beside
