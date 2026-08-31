@@ -1303,6 +1303,16 @@ class SwiftExpr {
 		return stdStringType(arg.t, expr(arg), inConcat, arg);
 	}
 
+	function stdIsOfType(args: Array<TypedExpr>): String {
+		final target = TypeCheckHelper.classOfTypeExpr(args[1]);
+		if(target == null) {
+			Context.error("Std.isOfType requires a class type expression", args[1].pos);
+			return "false";
+		}
+		final known = TypeCheckHelper.knownIsOfType(args[0], target);
+		return known != null ? (known ? "true" : "false") : expr(args[0]) + " is " + expr(args[1]);
+	}
+
 	function stdStringType(t: Type, value: String, inConcat: Bool, origin: TypedExpr, depth: Int = 0): String {
 		return switch(Context.follow(t)) {
 			case TInst(c, _) if(c.get().name == "String"): value;
@@ -1378,6 +1388,8 @@ class SwiftExpr {
 		final renderedArgs = argTexts(fn, args);
 		final rendered = renderedArgs.join(", ");
 		switch(fn.expr) {
+			case TField(_, FStatic(c, cf)) if(c.get().module == "Std" && cf.get().name == "isOfType" && args.length == 2):
+				return stdIsOfType(args);
 			case TField(subj, FInstance(_, _, cf)) if(cf.get().name == "get_message" && args.length == 0):
 				final target = stripCast(subj);
 				switch(target.expr) {

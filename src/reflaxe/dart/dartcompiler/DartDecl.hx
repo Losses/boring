@@ -295,7 +295,8 @@ class DartDecl {
 			final init = StaticFieldHelper.validatedInitializer(field, cls);
 			final name = field.isPublic ? field.name : "_" + field.name;
 			final kw = field.isFinal ? "final " : "";
-			return ["  static " + kw + types.of(field.type) + " " + name + " = " + expr.rawExpression(init) + ";"];
+			final type = StaticFieldHelper.isSelfConstruction(field, cls, init) ? "" : types.of(field.type) + " ";
+			return ["  static " + kw + type + name + " = " + expr.rawExpression(init) + ";"];
 		}
 		if(field.meta.has(":value")) {
 			Context.error("instance field default has no lowering; assign it in the constructor", field.pos);
@@ -388,7 +389,8 @@ class DartDecl {
 			final init = StaticFieldHelper.validatedInitializer(field, cls);
 			final name = field.isPublic ? field.name : "_" + field.name;
 			final kw = field.isFinal ? "final " : "";
-			return [kw + types.of(field.type) + " " + name + " = " + expr.rawExpression(init) + ";"];
+			final type = StaticFieldHelper.isSelfConstruction(field, cls, init) ? "" : types.of(field.type) + " ";
+			return [kw + type + name + " = " + expr.rawExpression(init) + ";"];
 		}
 		Context.error("a statics-only class carries data tables and inline constants only", field.pos);
 		return [];
