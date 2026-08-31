@@ -12,6 +12,8 @@ import haxe.macro.Type;
 **/
 class StaticFieldHelper {
 	public static inline final INVALID_INITIALIZER = "static field initializers accept null, literal, and empty array forms only";
+	public static inline final INVALID_FINAL_INITIALIZER = "static field initializers accept null, literal, empty array, and construction forms only";
+	public static inline final INVALID_ARGUMENT = "constructed static field arguments accept literal, enum, array, construction, static field, and static function forms only";
 
 	public static function initializer(field: ClassField): Null<TypedExpr> {
 		if(field == null || field.expr == null) {
@@ -22,11 +24,22 @@ class StaticFieldHelper {
 
 	public static function validatedInitializer(field: ClassField, declaringClass: Null<ClassType> = null): Null<TypedExpr> {
 		final init = initializer(field);
-		if(init == null || (!isSanctioned(init) && !isSelfConstruction(field, declaringClass, init))) {
-			Context.error(INVALID_INITIALIZER, field.pos);
-			return null;
+		if(init == null || isSanctioned(init) || isSelfConstruction(field, declaringClass, init)) {
+			return init;
 		}
-		return init;
+		if(field.isFinal && isConstruction(init)) {
+			if(isPrivateSelfConstruction(field, declaringClass, init)) {
+				Context.error(INVALID_INITIALIZER, field.pos);
+				return null;
+			}
+			if(!constructionArgumentsAdmitted(init)) {
+				Context.error(INVALID_ARGUMENT, field.pos);
+				return null;
+			}
+			return init;
+		}
+		Context.error(field.isFinal ? INVALID_FINAL_INITIALIZER : INVALID_INITIALIZER, field.pos);
+		return null;
 	}
 
 	/** Whether a static final field is the sanctioned singleton spelling. */
@@ -68,6 +81,50 @@ class StaticFieldHelper {
 		return a.module == b.module && a.name == b.name;
 	}
 
+	public static function isConstruction(e: Null<TypedExpr>): Bool {
+		if(e == null) return false;
+		return switch(stripDecorations(e).expr) {
+			case TNew(_, _, _): true;
+			case _: false;
+		};
+	}
+
+	static function isPrivateSelfConstruction(field: ClassField, declaringClass: Null<ClassType>, init: TypedExpr): Bool {
+		if(declaringClass == null) return false;
+		return switch(stripDecorations(init).expr) {
+			case TNew(c, _, _):
+				final constructed = c.get();
+				if(!sameClass(constructed, declaringClass)) return false;
+				final ctor = constructed.constructor;
+				ctor != null && !ctor.get().isPublic;
+			case _: false;
+		};
+	}
+
+	static function constructionArgumentsAdmitted(e: Null<TypedExpr>): Bool {
+		if(e == null) return false;
+		return switch(stripDecorations(e).expr) {
+			case TNew(_, _, args): [for(a in args) if(!argumentAdmitted(a)) false].length == 0;
+			case _: false;
+		};
+	}
+
+	static function argumentAdmitted(e: Null<TypedExpr>): Bool {
+		if(e == null) return false;
+		return switch(stripDecorations(e).expr) {
+			case TConst(TNull) | TConst(TBool(_)) | TConst(TInt(_)) | TConst(TFloat(_)) | TConst(TString(_)): true;
+			case TArrayDecl(elements): [for(x in elements) if(!argumentAdmitted(x)) false].length == 0;
+			case TNew(_, _, _): constructionArgumentsAdmitted(e);
+			case TField(_, FStatic(_, _)): true;
+			case TField(_, FEnum(_, _)): true;
+			case TField(subject, FInstance(_, _, _)) | TField(subject, FAnon(_)):
+				argumentAdmitted(subject);
+			case TCall(fn, args):
+				[for(a in args) if(!argumentAdmitted(a)) false].length == 0;
+
+			case _: false;
+		};
+	}
 	public static function isSanctioned(e: TypedExpr): Bool {
 		return switch(stripDecorations(e).expr) {
 			case TConst(TNull): true;
@@ -79,6 +136,7 @@ class StaticFieldHelper {
 			case _: false;
 		};
 	}
+
 
 	public static function isConstValue(field: ClassField): Bool {
 		if(field == null || !field.isFinal || !isScalarOrString(field.type)) {

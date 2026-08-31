@@ -2409,7 +2409,13 @@ class RustExpr {
 			case FStatic(c, cf):
 				final cls = c.get();
 				final name = cf.get().name;
+				if(isLazyStaticField(cls, name) && !StaticFieldHelper.isSelfConstruction(cf.get(), cls)) {
+					return "&*" + staticItemPath(cls, name);
+				}
 				if(isGuardStaticField(cls, name)) {
+					if(StaticFieldHelper.isConstruction(cf.get().expr()) && !StaticFieldHelper.isSelfConstruction(cf.get(), cls)) {
+						return "&*" + staticItemPath(cls, name);
+					}
 					final guard = staticGuard(cls, name);
 					return StaticFieldHelper.isArrayType(cf.get().type) ? guard : guard + ".clone()";
 				}
@@ -2460,7 +2466,9 @@ class RustExpr {
 				}
 				final snake = RustImports.toSnakeCase(name);
 				final subjStr = if(isNullType(subj.t)) expr(subj) + ".as_ref().unwrap()" else expr(subj);
-				return subjStr + "." + snake;
+				final access = subjStr + "." + snake;
+				if(name != "length" && isConstructedStaticRead(subj) && StaticFieldHelper.isStringType(cf.get().type)) return "(" + access + ").to_string()";
+				return name != "length" && isConstructedStaticRead(subj) && !isTypeCopy(cf.get().type) ? "(" + access + ").clone()" : access;
 			case FDynamic(name):
 				if((name == "length" || name == "get_length") && isStringBuf(subj)) {
 					return expr(subj) + ".len() as u32";
@@ -2480,13 +2488,19 @@ class RustExpr {
 		return null;
 	}
 
+	function isLazyStaticField(cls: ClassType, name: String): Bool {
+		final field = staticFieldOf(cls, name);
+		return field != null && StaticFieldHelper.isConstruction(field.expr());
+	}
+
 	function isGuardStaticField(cls: ClassType, name: String): Bool {
 		final field = staticFieldOf(cls, name);
 		return field != null
 			&& ValueTypeSupport.markedAbstractOfClass(cls) == null
 			&& StaticFieldHelper.initializer(field) != null
+			&& !StaticFieldHelper.isConstValue(field)
 			&& !DataTableHelper.isDataTableField(field)
-			&& !StaticFieldHelper.isConstValue(field);
+			&& (!StaticFieldHelper.isConstruction(field.expr()) || StaticFieldHelper.isSelfConstruction(field, cls));
 	}
 
 	function staticItemPath(cls: ClassType, name: String): String {
@@ -2528,9 +2542,17 @@ class RustExpr {
 		};
 	}
 
-	function staticOwnedValue(e: TypedExpr): String {
-		final rendered = expr(e);
+	function isConstructedStaticRead(e: TypedExpr): Bool {
+		return switch(stripWrap(e).expr) {
+			case TField(_, FStatic(c, cf)) if(StaticFieldHelper.isConstruction(cf.get().expr()) && !StaticFieldHelper.isSelfConstruction(cf.get(), c.get())): true;
+			case _: false;
+		};
+	}
+
+	function staticOwnedValue(e: TypedExpr): String {		final rendered = expr(e);
+		if(StaticFieldHelper.isConstruction(e)) return rendered;
 		if(StaticFieldHelper.isStringType(e.t)) {
+			if(rendered.indexOf("&*") >= 0) return rendered + ".to_string()";
 			return StringTools.endsWith(rendered, ".to_string()") || StringTools.endsWith(rendered, ".clone()")
 				? rendered
 				: rendered + ".to_string()";
@@ -2543,8 +2565,8 @@ class RustExpr {
 
 	function staticContainerArg(e: TypedExpr): String {
 		final rendered = expr(e);
+		if(StaticFieldHelper.isConstruction(e)) return rendered;
 		if(StaticFieldHelper.isStringType(e.t)
-			&& !StringTools.endsWith(rendered, ".to_string()")
 			&& !StringTools.endsWith(rendered, ".clone()")) {
 			return rendered + ".to_string()";
 		}
