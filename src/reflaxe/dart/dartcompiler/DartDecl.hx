@@ -530,6 +530,13 @@ class DartDecl {
 			lines.push("  final String label;");
 			lines.push('  const ${en.name}(this.label);');
 			lines.push("}");
+			final use = EnumQueryExpander.usage(en);
+			if(use != null && use.lookup) {
+				final fn = EnumQueryExpander.lowerFirst(en.name) + "OfName";
+				lines.push(""); lines.push('${en.name}? $fn(String name) {');
+				for(o in sorted) lines.push('  if (name == "${o.name}") return ${en.name}.${lowerFirst(o.name)};');
+				lines.push("  return null;"); lines.push("}");
+			}
 			return lines.join("\n");
 		}
 		final lines: Array<String> = ["sealed class " + claimTopLevel(en.name, en.pos) + " {"];

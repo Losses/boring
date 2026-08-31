@@ -71,3 +71,6 @@ tests.GraphemeTests
 boring.PlainLabel
 boring.ToStringOps
 tests.ToStringTests
+boring.EnumQueriesOps
+tests.EnumQueriesTests
+tests.EnumQueriesProbes

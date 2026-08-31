@@ -163,6 +163,7 @@ class DartExpr {
 		}
 		DefaultArgExpander.completeRootExpr(cls, f.field.name, f.expr);
 		PipelineExpander.expandRootExpr(f.expr);
+		EnumQueryExpander.expandRootExpr(f.expr);
 		currentClass = cls;
 		currentField = f.field.name;
 		currentLocalName = null;
@@ -775,6 +776,8 @@ class DartExpr {
 	// ------------------------------------------------------------------
 
 	function expr(e: TypedExpr): String {
+		final query = enumQuery(e);
+		if(query != null) return query;
 		switch(e.expr) {
 			case TTry(_, _):
 				return fail(e, "try region lowers at statement, initializer, or return position");
@@ -834,6 +837,16 @@ class DartExpr {
 			case _:
 				return fail(e, "expression has no Dart lowering in the subset");
 		}
+	}
+
+	function enumQuery(e:TypedExpr):Null<String> {
+		switch(e.expr) {
+			case TField(subj, fa): final name = switch(fa) { case FInstance(_, _, cf) | FAnon(cf): cf.get().name; case FDynamic(n): n; case _: ""; }; final en = EnumQueryExpander.collectionEnum(subj); if(name == "length" && en != null) return Std.string(EnumQueryExpander.constructorCount(en));
+			case TArray(subj, index): final en = EnumQueryExpander.collectionEnum(subj); if(en != null) return qualifiedRef(en.module, en.name) + ".values[" + expr(index) + "]";
+			case _:
+		}
+		final kind = EnumQueryExpander.markerKind(e); if(kind == null) return null; final en = EnumQueryExpander.enumOf(e); final args = EnumQueryExpander.callArgs(e);
+		return switch(kind) { case QCollection: qualifiedRef(en.module, en.name) + ".values"; case QName: expr(args[0]) + ".label"; case QLookup: qualifiedRef(en.module, EnumQueryExpander.lowerFirst(en.name) + "OfName") + "(" + expr(args[1]) + ")"; };
 	}
 
 	/**

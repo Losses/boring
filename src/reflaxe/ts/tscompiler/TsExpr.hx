@@ -144,6 +144,7 @@ class TsExpr {
 		}
 		DefaultArgExpander.completeRootExpr(cls, f.field.name, f.expr);
 		PipelineExpander.expandRootExpr(f.expr);
+		EnumQueryExpander.expandRootExpr(f.expr);
 		currentClass = cls;
 		currentField = f.field.name;
 		currentLocalName = null;
@@ -355,6 +356,7 @@ class TsExpr {
 			if(subject == null || hoistedFor(hoists, subject) != null) {
 				continue;
 			}
+			if(EnumQueryExpander.aliasById(subject.id) != null) continue;
 			var firstUse = i;
 			for(j in 0...i) {
 				if(usesLengthOf(stmts[j], subject)) {
@@ -744,6 +746,8 @@ class TsExpr {
 	// ------------------------------------------------------------------
 
 	function expr(e: TypedExpr): String {
+		final query = enumQuery(e);
+		if(query != null) return query;
 		switch(e.expr) {
 			case TTry(_, _):
 				return fail(e, "try region lowers at statement, initializer, or return position");
@@ -803,6 +807,29 @@ class TsExpr {
 			case _:
 				return fail(e, "expression has no TypeScript lowering in the subset");
 		}
+	}
+
+	function enumQuery(e:TypedExpr):Null<String> {
+		switch(e.expr) {
+			case TField(subj, fa):
+				final name = switch(fa) { case FInstance(_, _, cf) | FAnon(cf): cf.get().name; case FDynamic(n): n; case _: ""; };
+				final en = EnumQueryExpander.collectionEnum(subj);
+				if(name == "length" && en != null) return Std.string(EnumQueryExpander.constructorCount(en));
+			case TArray(subj, index):
+				final en = EnumQueryExpander.collectionEnum(subj);
+				if(en != null) { imports.value(en.module, EnumQueryExpander.upperSnake(en.name) + "_ALL"); return EnumQueryExpander.upperSnake(en.name) + "_ALL[" + expr(index) + "]!"; }
+			case _:
+		}
+		final kind = EnumQueryExpander.markerKind(e);
+		if(kind == null) return null;
+		final en = EnumQueryExpander.enumOf(e);
+		final args = EnumQueryExpander.callArgs(e);
+		return switch(kind) {
+			case QCollection: imports.value(en.module, EnumQueryExpander.upperSnake(en.name) + "_ALL"); EnumQueryExpander.upperSnake(en.name) + "_ALL";
+			case QName: expr(args[0]) + ".kind";
+			case QLookup:
+				final fn = EnumQueryExpander.lowerFirst(en.name) + "OfName"; imports.value(en.module, fn); fn + "(" + expr(args[1]) + ")";
+		};
 	}
 
 	function functionLiteral(f: TFunc): String {
