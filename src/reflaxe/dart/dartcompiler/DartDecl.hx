@@ -83,9 +83,28 @@ class DartDecl {
 		final module = cls.module;
 		final extractedFuncs = [for(f in funcFields) if(StaticFunctionMarkers.isMarked(f.field)) f];
 		final ordinaryFuncs = [for(f in funcFields) if(!StaticFunctionMarkers.isMarked(f.field)) f];
+		// One extension name covers every function over the same receiver:
+		// Dart rejects a second extension of the same name in a library,
+		// so same-receiver functions share one declaration (spec 10).
+		// The receiver order is the first-encounter order, keeping the
+		// output independent of map iteration order.
 		final extractedParts: Array<String> = [];
+		final extensionOrder: Array<String> = [];
+		final extensionGroups = new Map<String, Array<ClassFuncData>>();
 		for(f in extractedFuncs) {
-			extractedParts.push(extractedFuncDecl(module, cls, f).join("\n"));
+			if(StaticFunctionMarkers.isTopLevel(f.field)) {
+				extractedParts.push(topLevelFuncDecl(module, cls, f).join("\n"));
+				continue;
+			}
+			final receiverType = types.of(f.args[0].type);
+			if(!extensionGroups.exists(receiverType)) {
+				extensionGroups.set(receiverType, []);
+				extensionOrder.push(receiverType);
+			}
+			extensionGroups.get(receiverType).push(f);
+		}
+		for(receiverType in extensionOrder) {
+			extractedParts.push(extensionDeclGroup(cls, receiverType, extensionGroups.get(receiverType)).join("\n"));
 		}
 		if(varFields.length == 0 && ordinaryFuncs.length == 0) {
 			return extractedParts.join("\n\n");
@@ -412,26 +431,37 @@ class DartDecl {
 		return [head].concat(expr.functionBody(cls, f, 2)).concat(["  }"]);
 	}
 
-	function extractedFuncDecl(module: String, cls: ClassType, f: ClassFuncData): Array<String> {
-		if(StaticFunctionMarkers.isTopLevel(f.field)) {
-			return funcDecl(module, cls, f, true);
+	function topLevelFuncDecl(module: String, cls: ClassType, f: ClassFuncData): Array<String> {
+		return funcDecl(module, cls, f, true);
+	}
+
+	/**
+		One extension declaration holding every marked extension function
+		over the same receiver type. Dart rejects a second extension of
+		the same name inside one library, so the grouping is mandatory
+		(spec 10).
+	**/
+	function extensionDeclGroup(cls: ClassType, receiverType: String, funcs: Array<ClassFuncData>): Array<String> {
+		final lines: Array<String> = ["extension " + dartExtensionName(receiverType) + " on " + receiverType + " {"];
+		for(f in funcs) {
+			for(a in f.args) {
+				expr.reserveName(a.name);
+			}
+			final methodParams = collectMethodTypeParams(cls, f);
+			final genericStr = methodParams.length > 0 ? "<" + methodParams.join(", ") + ">" : "";
+			final name = f.field.isPublic ? f.field.name : "_" + f.field.name;
+			final head = '  ${types.of(f.ret)} $name$genericStr${paramList(cls, f, 1)} {';
+			if(f.args[0].tvar != null) {
+				expr.bindLocalName(f.args[0].tvar, "this");
+			}
+			lines.push(head);
+			for(l in expr.functionBody(cls, f, 2)) {
+				lines.push(l);
+			}
+			lines.push("  }");
 		}
-		for(a in f.args) {
-			expr.reserveName(a.name);
-		}
-		final receiverType = types.of(f.args[0].type);
-		final methodParams = collectMethodTypeParams(cls, f);
-		final genericStr = methodParams.length > 0 ? "<" + methodParams.join(", ") + ">" : "";
-		final name = f.field.isPublic ? f.field.name : "_" + f.field.name;
-		final head = '  ${types.of(f.ret)} $name$genericStr${paramList(cls, f, 1)} {';
-		if(f.args[0].tvar != null) {
-			expr.bindLocalName(f.args[0].tvar, "this");
-		}
-		return ["extension " + dartExtensionName(receiverType) + " on " + receiverType + " {"]
-			.concat([head])
-			.concat(expr.functionBody(cls, f, 2))
-			.concat(["  }"])
-			.concat(["}"]);
+		lines.push("}");
+		return lines;
 	}
 
 	/** The signature of one method without body or leading indent. */

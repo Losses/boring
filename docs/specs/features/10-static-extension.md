@@ -103,7 +103,11 @@ with the target's module-file-private visibility and no import.
    call-site table cannot resolve an unnamed extension; a name keeps the
    declaration usable from every importer. The import stays unprefixed:
    a library import brings named extensions into scope for member
-   resolution.
+   resolution. Dart rejects a second extension declaration of the same
+   name inside one library, so every marked extension function over the
+   same receiver type shares one extension declaration; the functions
+   appear in declaration order inside the shared block, and the blocks
+   appear in first-receiver order.
 
 4. The Kotlin facade file for a module named `m` in package `p` is the
    generated file for the module's path, spelled so that cross-package
