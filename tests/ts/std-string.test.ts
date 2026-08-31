@@ -79,6 +79,6 @@ describe("Std.string lowering", () => {
     });
     const stderr = await new Response(proc.stderr).text();
     expect(await proc.exited).not.toBe(0);
-    expect(stderr).toContain("Std.string accepts scalars, parameterless enum values, and arrays of them only");
+    expect(stderr).toContain("Std.string accepts scalars, parameterless enum values, records, and arrays of them only");
   });
 });

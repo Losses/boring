@@ -1434,7 +1434,7 @@ class SwiftExpr {
 				stdStringType(haxe.macro.TypeTools.applyTypeParameters(a.get().type, a.get().params, params), value, inConcat, origin, depth);
 			case TEnum(en, _) if(isParameterlessEnum(en.get())): value + ".rawValue";
 			case _:
-				Context.error("Std.string accepts scalars, parameterless enum values, and arrays of them only", origin.pos);
+				Context.error("Std.string accepts scalars, parameterless enum values, records, and arrays of them only", origin.pos);
 				null;
 		};
 	}
