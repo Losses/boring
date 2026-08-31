@@ -1764,6 +1764,8 @@ class DartExpr {
 		switch(e.expr) {
 			case TArray(arr, idx):
 				return expr(arr) + "[" + expr(idx) + "]";
+			case TField(_, FStatic(c, cf)):
+				return staticRef(c.get(), cf.get().name);
 			case TField(subj, FInstance(owner, _, cf)):
 				// A private field assigns through its `_`-prefixed Dart
 				// name (feature spec 27).

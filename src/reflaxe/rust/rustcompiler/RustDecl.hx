@@ -493,7 +493,8 @@ class RustDecl {
 				case _: types.of(field.type);
 			};
 			final vis = field.isPublic ? "pub " : "";
-			return ['    ${vis}const ${field.name}: ${typeStr} = $valStr;'];
+			final name = RustImports.toSnakeCase(field.name);
+			return ['    ${vis}const ${name}: ${typeStr} = $valStr;'];
 		}
 		return [];
 	}
@@ -508,9 +509,10 @@ class RustDecl {
 		imports.require("std::sync::Mutex");
 		final vis = field.isPublic ? "pub " : "";
 		final typeStr = types.of(field.type);
+		final name = RustImports.toSnakeCase(field.name);
 		return [
 			"#[allow(non_upper_case_globals)]",
-			'${vis}static ${field.name}: Mutex<${typeStr}> = Mutex::new(${expr.rawExpression(init)});'
+			'${vis}static ${name}: Mutex<${typeStr}> = Mutex::new(${expr.rawExpression(init)});'
 		];
 	}
 

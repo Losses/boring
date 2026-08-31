@@ -62,7 +62,7 @@ class StaticFieldHelper {
 		if(t == null) {
 			return false;
 		}
-		return switch(Context.follow(t)) {
+		return switch(t) {
 			case TInst(c, _): c.get().name == "Array";
 			case _: false;
 		};
@@ -72,7 +72,7 @@ class StaticFieldHelper {
 		if(t == null) {
 			return false;
 		}
-		return switch(Context.follow(t)) {
+		return switch(t) {
 			case TAbstract(a, _): a.get().name == "Null";
 			case _: false;
 		};
@@ -82,7 +82,7 @@ class StaticFieldHelper {
 		if(t == null) {
 			return false;
 		}
-		return switch(Context.follow(t)) {
+		return switch(t) {
 			case TInst(c, _): c.get().name == "String";
 			case _: false;
 		};
@@ -92,7 +92,7 @@ class StaticFieldHelper {
 		if(t == null) {
 			return false;
 		}
-		return switch(Context.follow(t)) {
+		return switch(t) {
 			case TAbstract(a, _):
 				switch(a.get().name) {
 					case "Int" | "Float" | "Bool": true;
