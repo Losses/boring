@@ -82,14 +82,18 @@ defect went unobserved before the probe.
    sanctioned initializer translated to its Rust value. Each class owns one
    module, so the field name is unique at module scope, and cross-class
    access qualifies through the module path. A read renders the
-   lock-protected access `current.lock().unwrap()`, borrowing or cloning
+   lock-protected access `current.lock().unwrap_or_else(|e| e.into_inner())`, borrowing or cloning
    the value per the emitter's existing move adaptation; an assignment
-   renders `*current.lock().unwrap() = Some(value);` for a nullable
-   declaration and `*current.lock().unwrap() = value;` otherwise; a
+   renders `*current.lock().unwrap_or_else(|e| e.into_inner()) = Some(value);` for a nullable
+   declaration and `*current.lock().unwrap_or_else(|e| e.into_inner()) = value;` otherwise; a
    container mutation renders through the same guard, for example
-   `classes.lock().unwrap().push(...)`. The item carries
+   `classes.lock().unwrap_or_else(|e| e.into_inner()).push(...)`. The item carries
    `#[allow(non_upper_case_globals)]` so the field-name spelling matches
    the const lane the target already emits.
+   The lock recovery follows the Rust paradigm ruling:
+   `unwrap_or_else(|e| e.into_inner())` returns the guarded value when
+   the mutex reports poisoning, and the emission contains no `unwrap`
+   call.
 
 4. Swift holds a `static final` array as `static var`. Swift arrays carry
    value semantics, so a `static let` binding rejects `append` at the Swift
@@ -133,7 +137,7 @@ defect went unobserved before the probe.
   `static var current: String? = nil` and `static var sections`; the Dart
   tree carries the flattened variable declarations with the underscore
   rename; the Rust tree carries `Mutex<Option<String>>`, `Mutex::new`,
-  `lock().unwrap()` at the read and assignment positions, and `Some(` at
+  `lock().unwrap_or_else(|e| e.into_inner())` at the read and assignment positions, and `Some(` at
   the nullable assignment.
 - Mutation checks: a static initializer outside the sanctioned set, for
   example `static var seed:Int = computeBase();`, stops generation with
