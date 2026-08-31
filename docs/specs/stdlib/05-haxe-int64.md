@@ -163,7 +163,7 @@ Kotlin applies the same standard through `Long`. On JVM and Android targets, `Lo
 
 `haxe.Int64` follows the matching rule on the Haxe side: it appears as the return type of `haxe.io.FPHelper.doubleToI64`, where `bits.high` and `bits.low` are written as `Int` words, and in the same 64-bit domain cases the TypeScript and Kotlin standards permit. Arithmetic, comparison, storage, and API exposure of `Int64` values outside these paths is banned.
 
-A format that declares a `WireI64Be` or `WireU64Be` field is a format revision: the entry enters `docs/specs/binary/02-binary-meta-abstraction.md` only after the `bigint` cost on the web target and the `Long` boxing cost on Kotlin/JS are measured and accepted in writing. Until such a revision exists, translators reject 64-bit integer domain fields as unsupported.
+A record field of a 64-bit integer type is a format revision: the field type enters `docs/specs/binary/02-binary-record-io.md` only after the `bigint` cost on the web target and the `Long` boxing cost on Kotlin/JS are measured and accepted in writing. Until such a revision exists, translators reject 64-bit integer domain fields as unsupported.
 
 For bit-level floating-point serialization where integer semantics are unused, Haxe translates `haxe.io.FPHelper` conversions to `f64::from_bits`/`to_bits` in Rust, `DataView.getFloat64`/`setFloat64` in TypeScript, and `Double.toBits()`/`Double.fromBits(...)` in Kotlin.
 

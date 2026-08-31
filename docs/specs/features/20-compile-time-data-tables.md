@@ -18,7 +18,7 @@ ruling in `docs/specs/stdlib/04-haxe-ds-vector.md`.
 The mechanism uses native Haxe macros only. Compile-time macros that
 consume data and construct AST before target emission are the established
 architecture (`docs/specs/features/11-inline-and-macros.md`, the
-`FormatDef` path in `docs/specs/binary/02-binary-meta-abstraction.md`);
+`@:binaryRecord` path in `docs/specs/binary/02-binary-record-io.md`);
 this specification adds no interpreter, no code generator outside the
 pipeline, and no runtime dependency.
 

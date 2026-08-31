@@ -184,7 +184,7 @@ object Main {
         }
         expectTrue("truncated vector throws the UnexpectedEof variant", truncatedVariant == VectorException.UnexpectedEof)
 
-        // The decodable count domain is [0, 2^31) per docs/specs/binary/01-wire-format.md.
+        // The decodable count domain is [0, 2^31) per docs/specs/binary/01-binary-record-layout.md.
         var hugeCountVariant: VectorException? = null
         try {
             VectorCodec.decode(hexToBytes("42524731ffffffff"))

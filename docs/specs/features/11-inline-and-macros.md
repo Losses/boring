@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification rules the translation of Haxe `inline` variable declarations, `inline` member functions, and compile-time macro transformations into Rust, TypeScript, and Kotlin. In the current codebase, inline constants appear in Haxe as `VectorCodec.MAGIC` in `samples/boring/VectorCodec.hx` (line 11), in Rust as `VECTOR_MAGIC` and `RECORD_BYTE_LENGTH` in `reference/rust/src/lib.rs` (lines 24, 25), and in TypeScript as `VECTOR_MAGIC` and `RECORD_BYTE_LENGTH` in `reference/ts/src/vector-format.ts` (lines 10, 11). Macro architecture for binary schema generation is defined in `docs/specs/binary/02-binary-meta-abstraction.md`. In Kotlin, inline constants appear as `const val` members of the `VectorCodec` object in `reference/kotlin/src/boring/VectorCodec.kt`.
+This specification rules the translation of Haxe `inline` variable declarations, `inline` member functions, and compile-time macro transformations into Rust, TypeScript, and Kotlin. In the current codebase, inline constants appear in Haxe as `VectorCodec.MAGIC` in `samples/boring/VectorCodec.hx` (line 11), in Rust as `VECTOR_MAGIC` and `RECORD_BYTE_LENGTH` in `reference/rust/src/lib.rs` (lines 24, 25), and in TypeScript as `VECTOR_MAGIC` and `RECORD_BYTE_LENGTH` in `reference/ts/src/vector-format.ts` (lines 10, 11). Macro architecture for binary record generation is defined in `docs/specs/binary/02-binary-record-io.md`. In Kotlin, inline constants appear as `const val` members of the `VectorCodec` object in `reference/kotlin/src/boring/VectorCodec.kt`.
 
 ## Haxe construct
 
@@ -18,7 +18,7 @@ public static inline function recordByteLength():Int {
 
 The Haxe compiler replaces inline variables and inline function calls with their literal values or inlined expression bodies during typing.
 
-Haxe macros execute during compilation within an embedded Neko or eval interpreter. Macros read, analyze, and construct typed AST nodes (`haxe.macro.Expr`, `haxe.macro.Type`, `haxe.macro.Context`). As defined in `docs/specs/binary/02-binary-meta-abstraction.md`, build-time macros consume strongly typed `FormatDef` schema instances and construct AST definitions for encoders and decoders before target code emission via Reflaxe.
+Haxe macros execute during compilation within an embedded Neko or eval interpreter. Macros read, analyze, and construct typed AST nodes (`haxe.macro.Expr`, `haxe.macro.Type`, `haxe.macro.Context`). As defined in `docs/specs/binary/02-binary-record-io.md`, build-time macros read `@:binaryRecord` typedef declarations and construct AST definitions for buffer kinds, position types, read functions, encoders, and decoders before target code emission via Reflaxe.
 
 In the Haxe typed AST, inline member functions are marked by `FieldKind.FMethod(MethodKind.MethInline)` on `haxe.macro.Type.ClassField`; inline variables are substituted during typing, and call sites expand directly to the inlined expression `TypedExpr`. Macro expressions are represented in the macro AST by `haxe.macro.Expr.ExprDef.EMeta` and macro execution contexts.
 
@@ -116,7 +116,7 @@ fun getCodecConfig(): Map<String, Any> {
 
 ## Ruling
 
-Haxe `inline var` constants translate to top-level `pub const` items in Rust, top-level `export const` bindings in TypeScript, and `const val` declarations in Kotlin, while Haxe `inline` accessor functions translate to `const fn` or `#[inline]` functions in Rust, direct functions in TypeScript, and `inline fun` declarations in Kotlin. Kotlin `const val` accepts primitive and `String` types only; constant arrays follow the unrolling ruling in `docs/specs/stdlib/04-haxe-ds-vector.md`, which folds `WireAscii(4)` over `BRG1` into the `Int` constant `0x42524731` and emits one named constant per element otherwise.
+Haxe `inline var` constants translate to top-level `pub const` items in Rust, top-level `export const` bindings in TypeScript, and `const val` declarations in Kotlin, while Haxe `inline` accessor functions translate to `const fn` or `#[inline]` functions in Rust, direct functions in TypeScript, and `inline fun` declarations in Kotlin. Kotlin `const val` accepts primitive and `String` types only; constant arrays follow the unrolling ruling in `docs/specs/stdlib/04-haxe-ds-vector.md`, which folds `writeAscii("BRG1")` into the `Int` constant `0x42524731` and emits one named constant per element otherwise.
 
 Haxe compile-time macros operate exclusively at build time within the Reflaxe compiler pipeline to generate target source code. No runtime behavior in the generated Rust, TypeScript, and Kotlin codebases may depend on macro interpreters, dynamic runtime code evaluation, or `kotlin.reflect`. Kotlin has no macro system; all Kotlin code generation happens in the Reflaxe pipeline.
 

@@ -129,7 +129,7 @@ Behavior parity rules bind all targets:
 4. Nothing changes an object's shape after construction. Rust and Kotlin make this unrepresentable; TypeScript makes it a rejection: `Reflect.set`, `delete`, and assignment to an undeclared property are rejected by the structure test that scans `reference/ts/src` for those call sites.
 5. Bracket access with a `String` key on a structure is rejected on the Haxe side before generation; bracket access with an `Int` index translates to array element access on every target.
 
-Field iteration over a static object does not translate. An algorithm that must visit every field of a structure enumerates a schema-declared constant array of the field names it processes; that array is compile-time constant data and unrolls per `docs/specs/stdlib/04-haxe-ds-vector.md`. Dynamic enumeration through `Reflect.ownKeys` or `Object.keys` on static shapes is banned, consistent with `docs/specs/features/13-metadata-and-reflection.md`.
+Field iteration over a static object does not translate. An algorithm that must visit every field of a structure enumerates an explicitly declared constant array of the field names it processes; that array is compile-time constant data and unrolls per `docs/specs/stdlib/04-haxe-ds-vector.md`. Dynamic enumeration through `Reflect.ownKeys` or `Object.keys` on static shapes is banned, consistent with `docs/specs/features/13-metadata-and-reflection.md`.
 
 ## Test hooks
 

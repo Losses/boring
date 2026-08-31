@@ -180,7 +180,7 @@ class Main {
 		}
 		expectTrue("truncated vector throws the UnexpectedEof variant", truncatedVariant == UnexpectedEof);
 
-		// The decodable count domain is [0, 2^31) per docs/specs/binary/01-wire-format.md.
+		// The decodable count domain is [0, 2^31) per docs/specs/binary/01-binary-record-layout.md.
 		var hugeCountVariant:Null<VectorError> = null;
 		try {
 			VectorCodec.decode(Bytes.ofHex("42524731ffffffff"));

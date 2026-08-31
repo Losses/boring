@@ -14,7 +14,7 @@ A later compilation and generation stage produces or verifies target code agains
 
 Specifications are organized into six categories:
 
-1. `binary/`: Rules governing binary encapsulation and wire format mechanics. Each file rules one mechanism across the entire format.
+1. `binary/`: Rules governing the binary record family: byte layout, code generation from annotated record typedefs, reading, compiler optimization, and the consumer boundary. Each file rules one mechanism across the entire family.
 2. `features/`: Rules governing Haxe language constructs. Each file defines the syntax, semantics, typed-AST representation, and cross-language mappings for one construct.
 3. `macros/`: Rules governing boring's built-in compile-time rewrites: constructs that are not Haxe language features and expand in the common layer before target emission. Collection pipeline idioms and the record copy live here, never in `features/`.
 4. `stdlib/`: Rules governing Haxe standard library modules and functions. These documents define standard library substitutions for the target languages.
@@ -36,11 +36,14 @@ Every candidate translation is evaluated across four fixed axes:
 
 | Number | Specification | Status | Description |
 | --- | --- | --- | --- |
-| 01 | [01-wire-format.md](binary/01-wire-format.md) | Complete | Byte layout, endianness, record packing, and dyadic rational precision. |
-| 02 | [02-binary-meta-abstraction.md](binary/02-binary-meta-abstraction.md) | Complete | Typed meta-level format representation and Reflaxe generator integration. |
+| 01 | [01-binary-record-layout.md](binary/01-binary-record-layout.md) | Complete | Byte layout, endianness, field packing, count domain, and dyadic test-value precision. |
+| 02 | [02-binary-record-io.md](binary/02-binary-record-io.md) | Planned | The `@:binaryRecord` annotation and the code the compiler derives from it: offsets, buffer kinds, position types, read functions, encode, decode, and the record copy. |
 | 03 | [03-diff-localization.md](binary/03-diff-localization.md) | Complete | Offset calculation and mapping byte diffs to encoder functions. |
 | 04 | [04-key-index-retrieval.md](binary/04-key-index-retrieval.md) | Complete | Generated per-key accessors reading fields at build-time offsets. |
 | 05 | [05-block-float-widths.md](binary/05-block-float-widths.md) | Complete | Block float width marker, binary32 and binary16 fields, and edge rounding. |
+| 06 | [06-binary-record-views.md](binary/06-binary-record-views.md) | Planned | Reading records by position: one buffer read per field, iteration as position arithmetic, no per-record allocation. |
+| 07 | [07-binary-record-optimization.md](binary/07-binary-record-optimization.md) | Planned | The compiler rewrite threading one implicit record buffer parameter per buffer kind through position-reading functions. |
+| 08 | [08-binary-record-boundary.md](binary/08-binary-record-boundary.md) | Planned | The published-versus-internal declaration split, materialization at returns, and cross-library declaration files. |
 
 ### Language feature specifications
 

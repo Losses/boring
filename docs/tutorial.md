@@ -192,9 +192,9 @@ operands in one expression is banned. Kotlin carries the same standard
 through `Long`, which is a native primitive on the JVM and an emulated,
 boxed class on Kotlin/JS.
 
-A wire format that declares `WireI64Be` or `WireU64Be` is a format
-revision: the web-target `bigint` cost and the Kotlin/JS `Long` boxing
-cost are measured and accepted in writing before the field enters the
+A record field of a 64-bit integer type is a format revision: the
+web-target `bigint` cost and the Kotlin/JS `Long` boxing cost are
+measured and accepted in writing before the field type enters the
 binary specifications.
 
 ### Inline arithmetic helpers (`stdlib/09`)
@@ -403,7 +403,7 @@ where a negative count skips the fill.
 Static-length arrays whose length and contents are compile-time
 constants unroll at build time, up to 64 elements. When the constant
 width matches a primitive wire write, the whole array folds into one
-constant: `WireAscii(4)` over `BRG1` becomes the u32 constant
+constant: `writeAscii("BRG1")` becomes the u32 constant
 `0x42524731` written through `writeU32`, with the per-character loop
 gone. When the width matches no primitive write, the generator emits one
 named constant per element; no runtime array is allocated for data whose

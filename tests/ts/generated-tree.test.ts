@@ -14,7 +14,7 @@ import { VectorSort } from "../../reference/ts/gen/boring/VectorSort.ts";
  *   3. the reachable exception variants match the oracle;
  *   4. counts at or above 2^31 throw the CountOverflow variant before
  *      any record byte is read, per the count domain ruled in
- *      docs/specs/binary/01-wire-format.md;
+ *      docs/specs/binary/01-binary-record-layout.md;
  *   5. the decoded value is frozen per features/18.
  */
 
@@ -128,7 +128,7 @@ describe("generated tree behavior", () => {
         // The generated reader holds the count in a signed Int32, so the
         // guard compares against the negative half; the hand-written tree
         // reads the count unsigned and compares against 0x7fffffff. Both
-        // reject the same domain, ruled in docs/specs/binary/01-wire-format.md.
+        // reject the same domain, ruled in docs/specs/binary/01-binary-record-layout.md.
         expect(exception.error.kind).toBe("CountOverflow");
         expect(exception.name).toBe("VectorException");
         expect(exception.message).toBe(VectorException.describe(exception.error));

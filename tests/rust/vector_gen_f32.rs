@@ -111,7 +111,7 @@ fn trailing_bytes_are_rejected() {
     );
 }
 
-// The decodable count domain is [0, 2^31) per docs/specs/binary/01-wire-format.md.
+// The decodable count domain is [0, 2^31) per docs/specs/binary/01-binary-record-layout.md.
 
 #[test]
 fn huge_count_is_rejected() {

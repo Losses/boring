@@ -25,7 +25,7 @@ describe("committed cross-language vector", () => {
 });
 
 describe("record count domain", () => {
-  // The decodable count domain is [0, 2^31) per docs/specs/binary/01-wire-format.md.
+  // The decodable count domain is [0, 2^31) per docs/specs/binary/01-binary-record-layout.md.
   type CountCase = [label: string, countBytes: readonly number[]];
   const countCases: ReadonlyArray<CountCase> = [
     ["0xFFFFFFFF", [0xff, 0xff, 0xff, 0xff]],
