@@ -47,7 +47,8 @@ class KotlinDecl {
 		funcFields = [for(f in funcFields) if(!isSynthesizedRecordToString(f)) f];
 		if(cls.isInterface) {
 			final lines: Array<String> = [];
-			lines.push("interface " + cls.name + " {");
+			final sealed = SealedVariantHelper.isSealedInterface(cls) ? "sealed " : "";
+			lines.push(sealed + "interface " + cls.name + " {");
 			for(f in funcFields) {
 				final args = [for(a in f.args) {
 					final coalescing = DefaultArgExpander.coalescingDefaultAt(cls, f.field.name, a.index);

@@ -63,7 +63,11 @@ class Compiler extends PluginCompiler<Compiler> {
 		// Resident runtime modules sit under src/runtime, outside the
 		// sample source roots, but compile through this same pipeline.
 		final isResident = RuntimeResidents.isResident(classType.module);
-		if(classType.isExtern || (!isResident && !inSourceScope(classType.pos)) || isSyntheticImpl(classType.name) || isInlineOnly(classType, varFields, funcFields)) {
+		if(classType.isExtern || (!isResident && !inSourceScope(classType.pos))) {
+			return null;
+		}
+		SealedVariantHelper.validateClass(classType);
+		if(isSyntheticImpl(classType.name) || isInlineOnly(classType, varFields, funcFields)) {
 			return null;
 		}
 		StaticFunctionMarkers.validateAll(funcFields);
@@ -142,6 +146,7 @@ class Compiler extends PluginCompiler<Compiler> {
 		if(!inSourceScope(enumType.pos)) {
 			return null;
 		}
+		SealedVariantHelper.validateEnum(enumType);
 		final decl = contextFor(enumType.module);
 		final result = decl.enumDecl(enumType, options);
 		parts.get(enumType.module).push(result);
@@ -161,6 +166,7 @@ class Compiler extends PluginCompiler<Compiler> {
 		if(!inSourceScope(def.pos)) {
 			return null;
 		}
+		SealedVariantHelper.validateTypedef(def);
 		switch(def.type) {
 			case TAnonymous(_):
 			case _:
