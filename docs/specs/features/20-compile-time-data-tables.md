@@ -67,6 +67,28 @@ class ScriptEvidenceTable { ... }
 - The macro is product: it sits in `src/` beside `Intercept.hx` and is
   available to every consumer of the package.
 
+## Raw payload tables
+
+`DataTables.codeUnitsField(path, fieldName)` serves text payloads: a
+hyphenation pattern file, a bundled word list. It reads the file and adds
+one static final `Array<Int>` field
+holding the file's UTF-16 code units in order, the whole content
+including newlines and comment-looking lines; a raw payload file has no
+comment stripping and no record structure, because every byte is data.
+Decoding the field with `String.fromCharCode` in a loop reconstructs the
+file content exactly on every target.
+
+Riding the integer table form is deliberate. Constant-folded `String`
+static fields have no ruled emission today: the probes recorded in the
+tiqian port gap ledger show the Kotlin printer emits the raw unescaped
+literal, TypeScript and Swift drop the declaration, and Dart crashes on
+the field. String payloads therefore encode as code units until constant
+string field emission is ruled and implemented.
+
+The validation is the file-exists check and the non-empty check; the
+emitted field follows the data-table emission below like any other
+constant `Array<Int>` over the threshold.
+
 ## Table emission and the unrolling amendment
 
 A constant array whose element count is 64 or fewer follows the unrolling
@@ -109,16 +131,21 @@ typecheck and emit.
 
 ## Sample
 
-`samples/boring/` gains two table classes, one per layout:
+`samples/boring/` gains three table classes:
 
 - `ScriptEvidenceTable.hx`: a triples table; `classify(codePoint:Int)`
   returns the flag of the covering record or `0` on miss, by binary
   search.
 - `WordCharacterTable.hx`: a pairs table; `contains(codePoint:Int)`
   returns whether a record covers the code point, by binary search.
+- `PayloadTextTable.hx`: a raw payload table; `text()` decodes the code
+  units back to the file content and `unitAt(index)` exposes one unit.
 
-Both data files are synthetic, carry provenance comments stating so, and
-cross the 64-element threshold so the sample exercises table emission.
+All data files are synthetic, carry provenance comments stating so, and
+cross the 64-element threshold so the samples exercise table emission.
+For the raw payload file the bytes are the payload, so the synthetic
+label lives in the payload text itself and in this specification rather
+than in a stripped comment header.
 
 ## Tests
 

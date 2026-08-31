@@ -1,0 +1,4 @@
+synthetic payload for boring spec 20 raw payload tables
+second line with "quotes" and \ backslash
+third line plain digits 0123456789
+final line with latin small letter e with acute café

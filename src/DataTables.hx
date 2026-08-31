@@ -5,7 +5,9 @@ import sys.io.File;
 
 /**
  * Macro entry for compile-time data tables per docs/specs/features/20-compile-time-data-tables.md.
- * Reads sorted range data files and expands them into a constant Array<Int> field.
+ * Reads sorted range data files and expands them into a constant Array<Int> field;
+ * codeUnitsField reads a raw payload file and expands it into a constant
+ * Array<Int> field of UTF-16 code units.
  */
 class DataTables {
 	macro public static function rangesField(path:String, fieldName:String):Array<Field> {
@@ -88,6 +90,51 @@ class DataTables {
 		}
 
 		final exprs:Array<Expr> = [for (v in values) { expr: EConst(CInt(Std.string(v))), pos: pos }];
+		final arrayExpr:Expr = { expr: EArrayDecl(exprs), pos: pos };
+
+		fields.push({
+			name: fieldName,
+			doc: null,
+			meta: [],
+			access: [APublic, AStatic, AFinal],
+			kind: FVar(macro : Array<Int>, arrayExpr),
+			pos: pos
+		});
+
+		return fields;
+	}
+
+	/**
+	 * Raw payload variant for string-backed data (spec 20, "Raw payload
+	 * tables"): reads the file and adds one static final Array<Int> field
+	 * holding its UTF-16 code units in order. Decoding the field with
+	 * String.fromCharCode at runtime reconstructs the content exactly, so
+	 * string payloads ride the integer data-table emission this
+	 * specification already rules.
+	 */
+	macro public static function codeUnitsField(path:String, fieldName:String):Array<Field> {
+		final fields = Context.getBuildFields();
+		final pos = Context.currentPos();
+
+		if (!sys.FileSystem.exists(path)) {
+			Context.fatalError('Data file not found: $path', pos);
+		}
+
+		final content = try {
+			File.getContent(path);
+		} catch (e:Dynamic) {
+			Context.fatalError('Failed to read data file $path: $e', pos);
+		}
+
+		if (content.length == 0) {
+			Context.fatalError('$path: data file is empty', pos);
+		}
+
+		final exprs:Array<Expr> = [
+			for (i in 0...content.length) {
+				{ expr: EConst(CInt(Std.string(content.charCodeAt(i)))), pos: pos };
+			}
+		];
 		final arrayExpr:Expr = { expr: EArrayDecl(exprs), pos: pos };
 
 		fields.push({

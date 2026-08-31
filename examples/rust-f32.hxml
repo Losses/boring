@@ -32,6 +32,7 @@ boring.PrivateHolder
 boring.VectorSort
 boring.ScriptEvidenceTable
 boring.WordCharacterTable
+boring.PayloadTextTable
 boring.CodePointNames
 std.SortedMap
 std.SortedSet
