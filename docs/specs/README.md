@@ -42,7 +42,7 @@ Every candidate translation is evaluated across four fixed axes:
 | 04 | [04-key-index-retrieval.md](binary/04-key-index-retrieval.md) | Complete | Generated per-key accessors reading fields at build-time offsets. |
 | 05 | [05-block-float-widths.md](binary/05-block-float-widths.md) | Complete | Block float width marker, binary32 and binary16 fields, and edge rounding. |
 | 06 | [06-binary-record-views.md](binary/06-binary-record-views.md) | Planned | Reading records by position: one buffer read per field, iteration as position arithmetic, no per-record allocation. |
-| 07 | [07-binary-record-optimization.md](binary/07-binary-record-optimization.md) | Planned | The compiler rewrite threading one implicit record buffer parameter per position stream through position-reading functions, and inserting the derived buffer-and-position pair where a runtime condition chooses the buffer. |
+| 07 | [07-binary-record-optimization.md](binary/07-binary-record-optimization.md) | Planned | The compiler rewrite threading one implicit record buffer parameter per position stream through position-reading functions, and inserting the derived buffer-and-position pair where a runtime condition chooses the buffer, lowered per storage so merged values allocate only at true heap storage. |
 | 08 | [08-binary-record-boundary.md](binary/08-binary-record-boundary.md) | Planned | The published-versus-internal declaration split, materialization at returns, and cross-library consumption through shipped producer source. |
 
 ### Language feature specifications
