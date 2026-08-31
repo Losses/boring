@@ -247,15 +247,14 @@ class TsDecl {
 		if(v.isStatic && DataTableHelper.isDataTableField(field)) {
 			return [];
 		}
-		if(field.meta.has(":value")) {
-			if(v.isStatic) {
-				// Inline constants fold into their use sites as TConst.
-				return [];
-			}
-			Context.error("instance field default has no lowering; assign it in the constructor", field.pos);
-		}
 		if(v.isStatic) {
-			Context.error("mutable static field has no lowering in the subset", field.pos);
+			final init = StaticFieldHelper.validatedInitializer(field);
+			final vis = field.isPublic ? "public" : "private";
+			final ro = field.isFinal ? "readonly " : "";
+			return ['  $vis static ${ro}${field.name}: ${types.of(field.type)} = ${expr.rawExpression(init)};'];
+		}
+		if(field.meta.has(":value")) {
+			Context.error("instance field default has no lowering; assign it in the constructor", field.pos);
 		}
 		final vis = field.isPublic ? "public" : "private";
 		final ro = field.isFinal ? "readonly " : "";
