@@ -53,7 +53,7 @@ Measured or compile-verified on this toolchain:
 One Swift module holds the generated business tree, so cross-module
 references need no imports. Haxe modules become one Swift file each.
 Top-level statics attach to a case-less `enum` namespace named after the
-Haxe class, because Swift has no file-level static members.
+Haxe class, because Swift holds no static members outside a type.
 
 | Haxe | Swift |
 | --- | --- |

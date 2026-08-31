@@ -15,7 +15,7 @@ The width marker is implemented in:
 
 - `samples/boring/FloatWidth.hx` (the width enum)
 - `samples/boring/VectorCodec.hx` (magic dispatch, encode, decode)
-- `samples/boring/Fp32.hx` and `samples/boring/Fp16.hx` (bit-level edges)
+- `samples/boring/Fp32.hx` and `samples/boring/Fp16.hx` (bit-pattern edge cases)
 - `samples/boring/BinaryReader.hx` and `samples/boring/BinaryWriter.hx`
   (`readF32`, `readF16`, `writeF32`, `writeF16`)
 - `reference/kotlin/src/boring/VectorCodec.kt`, `reference/rust/src/lib.rs`,
@@ -70,7 +70,7 @@ Field order follows the canonical order of binary spec 01 at every width.
 2. **Binary16 encode goes through binary32.** The binary16 edge is defined
    as two successive roundings: the module real rounds to binary32, then
    the binary32 value rounds to binary16. The composition is deterministic
-   and identical on every tree; defining it this way keeps one bit-level
+   and identical on every tree; defining it this way keeps one bit-conversion
    implementation per target and needs no second direct 52-bit narrowing
    path.
 3. **Special values.** Infinity passes through at every width. NaN stays a

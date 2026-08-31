@@ -136,7 +136,7 @@ syntax or default initializers. Coalescing defaults emit their native default
 on the targets that hold the syntax, per the per-target products above. The
 sample shapes introduced by this feature appear in the sample
 tree for the first time, and the general emitter gaps they exposed were
-filled as target-level rules:
+filled as rules for each target:
 
 - A local function used as a value lowers as a typed arrow function on
   TypeScript, a local `fun` expression on Kotlin, and a closure with

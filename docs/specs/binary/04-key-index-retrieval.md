@@ -12,7 +12,7 @@ Decoding a full record collection allocates one record object per record. Consum
 
 - The accessor takes one index parameter per array level on the path from the format root to the field, in path order, and returns the field value.
 - The accessor validates every index parameter against its own bound before reading: the outermost array against the record count decoded from the header, and each nested fixed-length array against its declared constant length.
-- The accessor reads through the same bit-level primitive paths as the full decoder (`features/07-numeric-tower.md`) and returns a scalar value with no intermediate allocation.
+- The accessor reads through the same bit-exact primitive paths as the full decoder (`features/07-numeric-tower.md`) and returns a scalar value with no intermediate allocation.
 
 ## Offset arithmetic
 
@@ -84,7 +84,7 @@ record(recordIndex: number): RecordView   // on LayerView
 boundsXMin(): number                      // on RecordView
 ```
 
-### Candidate 3: Chained per-level views
+### Candidate 3: Chained views, one per path level
 
 Every path segment, structure or array, becomes a view-returning accessor; scalar reads sit at the end of the chain.
 

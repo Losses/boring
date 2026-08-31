@@ -92,8 +92,8 @@ specification. The unrolling paragraph's consumer is the wire payload,
 whose elements a fixed-order loop consumes; a table's elements are
 reached by computed index, which per-element constants cannot express.
 The 64-element threshold separates the two populations with margin on
-both sides; a wire payload that grows past it is a specification-level
-event and returns here.
+both sides; a wire payload that grows past it is a specification concern
+and returns here.
 
 Runtime-built arrays of any size are unaffected: unrolling and table
 emission apply to compile-time constant arrays only.

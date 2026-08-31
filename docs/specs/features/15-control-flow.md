@@ -2,11 +2,11 @@
 
 ## Scope
 
-This specification rules the translation of Haxe statement-level control flow (`if`/`else`, `switch`, `while`, `do`/`while`, `for`, `break`, `continue`, and early `return`) into Rust, TypeScript, and Kotlin, and the constructs control flow must never translate into. In the current codebase, guard clauses with early exit appear in `samples/boring/VectorCodec.hx`, `reference/rust/src/lib.rs`, `reference/ts/src/vector-format.ts`, and `reference/kotlin/src/boring/VectorCodec.kt`; loops appear in `reference/rust/src/lib.rs` and `reference/ts/src/vector-format.ts`; a counted fill through the Kotlin array initializer appears in `reference/kotlin/src/boring/VectorCodec.kt`; and an exhaustive `match` appears in `reference/rust/src/lib.rs`.
+This specification rules the translation of Haxe control-flow statements (`if`/`else`, `switch`, `while`, `do`/`while`, `for`, `break`, `continue`, and early `return`) into Rust, TypeScript, and Kotlin, and the constructs control flow must never translate into. In the current codebase, guard clauses with early exit appear in `samples/boring/VectorCodec.hx`, `reference/rust/src/lib.rs`, `reference/ts/src/vector-format.ts`, and `reference/kotlin/src/boring/VectorCodec.kt`; loops appear in `reference/rust/src/lib.rs` and `reference/ts/src/vector-format.ts`; a counted fill through the Kotlin array initializer appears in `reference/kotlin/src/boring/VectorCodec.kt`; and an exhaustive `match` appears in `reference/rust/src/lib.rs`.
 
 ## Haxe construct
 
-Haxe provides the following statement-level control flow:
+Haxe provides the following control-flow statements:
 
 ```haxe
 if (reader.remaining() != 0) {
@@ -36,7 +36,7 @@ for (index in 0...count) {
 }
 ```
 
-Haxe `switch` has no fallthrough: each case body ends at the next case marker without an explicit `break`. Haxe has no labeled `break` or `continue`; multi-level loop exit uses guard conditions, flag variables, or early `return` from a dedicated function. In the Haxe typed AST, control flow maps to `haxe.macro.TypedExprDef.TIf(econd, eif, eelse)`, `TSwitch(e, cases, edef)`, `TWhile(econd, e, normalWhile)` where `normalWhile` set to false encodes `do`/`while`, `TFor(v, e1, e2)`, `TBreak`, `TContinue`, and `TReturn(e)`.
+Haxe `switch` has no fallthrough: each case body ends at the next case marker without an explicit `break`. Haxe has no labeled `break` or `continue`; leaving an outer loop from inside a nested one uses guard conditions, flag variables, or early `return` from a dedicated function. In the Haxe typed AST, control flow maps to `haxe.macro.TypedExprDef.TIf(econd, eif, eelse)`, `TSwitch(e, cases, edef)`, `TWhile(econd, e, normalWhile)` where `normalWhile` set to false encodes `do`/`while`, `TFor(v, e1, e2)`, `TBreak`, `TContinue`, and `TReturn(e)`.
 
 ## Current translations
 
@@ -174,7 +174,7 @@ try {
 
 ## Ruling
 
-Observable behavior is identical on every platform, and each platform emits its own fastest sound construct; statement-level correspondence with the Haxe source is not a requirement. `if`/`else`, `while`, `break`, `continue`, and early `return` exist on all four targets and render unchanged; Kotlin has native `do`/`while`; Rust renders `do`/`while` as `loop` with a trailing conditional `break` because it has no `do`/`while` syntax. Constructs also merge or change shape when a platform holds a faster form with identical behavior: a counted fill loop lowers to the Kotlin array initializer and the pre-allocated constructor forms ruled in `docs/specs/stdlib/04-haxe-ds-vector.md`, and the fill stops existing as a source-level loop on that platform.
+Observable behavior is identical on every platform, and each platform emits its own fastest sound construct; statement-by-statement correspondence with the Haxe source is not a requirement. `if`/`else`, `while`, `break`, `continue`, and early `return` exist on all four targets and render unchanged; Kotlin has native `do`/`while`; Rust renders `do`/`while` as `loop` with a trailing conditional `break` because it has no `do`/`while` syntax. Constructs also merge or change shape when a platform holds a faster form with identical behavior: a counted fill loop lowers to the Kotlin array initializer and the pre-allocated constructor forms ruled in `docs/specs/stdlib/04-haxe-ds-vector.md`, and the fill stops existing as a loop on that platform.
 
 Haxe `switch` translates to Rust `match`. A `match` over an enum declares no catch-all arm, so the compiler enforces exhaustiveness; a `match` over non-enum values adds a catch-all arm and documents the uncovered cases in a comment.
 
@@ -182,7 +182,7 @@ Haxe `switch` translates to TypeScript as a `switch` statement only when every c
 
 Haxe `switch` translates to Kotlin `when`. Kotlin `when` has no fallthrough between branch bodies. A `when` over a sealed subject declares no `else` branch, so the compiler enforces exhaustiveness; a `when` over non-sealed subjects adds an `else` branch and documents the uncovered cases in a comment.
 
-Multi-level exit from nested loops in Haxe source is restructured before translation: the body moves into a dedicated function and exits through early `return`, or the loop conditions gain explicit guard expressions. Rust labeled `break` (`break 'outer`), JavaScript labeled `break`, and Kotlin labeled `break` (`break@outer`) are permitted renderings of the same restructure when the enclosing function cannot be split; Haxe source never contains labels, so labels appear only in generated target code.
+Exit from nested loops in Haxe source is restructured before translation: the body moves into a dedicated function and exits through early `return`, or the loop conditions gain explicit guard expressions. Rust labeled `break` (`break 'outer`), JavaScript labeled `break`, and Kotlin labeled `break` (`break@outer`) are permitted renderings of the same restructure when the enclosing function cannot be split; Haxe source never contains labels, so labels appear only in generated target code.
 
 Control flow never translates into exceptions used as jumps, handler-closure dictionaries, or functional combinators. Exceptions carry errors only, as ruled in `docs/specs/features/06-errors-and-results.md`; loop translation follows `docs/specs/features/09-iterators.md`.
 

@@ -141,11 +141,11 @@ class Int64Parts(val high: Int, val low: Int)
 | Candidate | performance | ambiguity | redundancy | readability |
 | --- | --- | --- | --- | --- |
 | Rust Candidate 1 (Native u64/i64) | Native 64-bit integers compile directly to 64-bit machine registers and arithmetic. | Type names specify exact bit widths and signedness. | Zero composite wrappers or conversion helpers are needed. | Standard Rust integer types communicate numeric bounds directly. |
-| Rust Candidate 2 (Composite struct) | Multi-word structs prevent register-level arithmetic optimizations on 64-bit hardware. | Manual carry management across words introduces arithmetic edge cases. | Translators must write custom arithmetic and bitwise methods. | Composite types obscure standard numerical operations. |
+| Rust Candidate 2 (Composite struct) | Multi-word structs prevent arithmetic optimizations in registers on 64-bit hardware. | Manual carry management across words introduces arithmetic edge cases. | Translators must write custom arithmetic and bitwise methods. | Composite types obscure standard numerical operations. |
 | TS Candidate 1 (BigInt with DataView) | BigInt values allocate small heap objects when exceeding inline pointer representations. | BigInt represents full 64-bit precision without silent rounding or overflow truncation. | Built-in DataView methods handle 64-bit big-endian serialization directly. | BigInt type annotations state full 64-bit integer intent explicitly. |
 | TS Candidate 2 (number with 53-bit check) | Standard number arithmetic runs directly in CPU floating-point units. | JavaScript number values lose precision silently for integers exceeding 2^53 - 1. | Runtime guard functions are required at every serialization boundary. | Number typing conceals 64-bit integer overflow limitations from callers. |
 | Kotlin Candidate 1 (Long primitive) | `Long` is a native primitive on JVM and Android targets and runs in 64-bit registers. | `Long` states the exact 64-bit width in every signature. | No composite wrappers or conversion helpers are required. | Standard integer typing communicates the width directly. |
-| Kotlin Candidate 2 (Two-word composite) | Composite classes allocate on the heap and prevent register-level arithmetic on every target. | Manual carry handling across two words introduces arithmetic edge cases. | Custom arithmetic and bitwise methods must be written by hand. | Composite types hide the standard numeric operations behind property access. |
+| Kotlin Candidate 2 (Two-word composite) | Composite classes allocate on the heap and prevent arithmetic in registers on every target. | Manual carry handling across two words introduces arithmetic edge cases. | Custom arithmetic and bitwise methods must be written by hand. | Composite types hide the standard numeric operations behind property access. |
 
 ## Ruling
 
@@ -165,7 +165,7 @@ Kotlin applies the same standard through `Long`. On JVM and Android targets, `Lo
 
 A record field of a 64-bit integer type is a format revision: the field type enters `docs/specs/binary/02-binary-record-io.md` only after the `bigint` cost on the web target and the `Long` boxing cost on Kotlin/JS are measured and accepted in writing. Until such a revision exists, translators reject 64-bit integer domain fields as unsupported.
 
-For bit-level floating-point serialization where integer semantics are unused, Haxe translates `haxe.io.FPHelper` conversions to `f64::from_bits`/`to_bits` in Rust, `DataView.getFloat64`/`setFloat64` in TypeScript, and `Double.toBits()`/`Double.fromBits(...)` in Kotlin.
+For bit-exact floating-point serialization where integer semantics are unused, Haxe translates `haxe.io.FPHelper` conversions to `f64::from_bits`/`to_bits` in Rust, `DataView.getFloat64`/`setFloat64` in TypeScript, and `Double.toBits()`/`Double.fromBits(...)` in Kotlin.
 
 ## Test hooks
 

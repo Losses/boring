@@ -118,6 +118,6 @@ Principle application: C1 is selected on author-facing semantics and on per-read
 Required once the rewrite exists; none exist yet:
 
 - The sample tree gains a fixture block with a header at position 0, fixed-layout records, and absent (0) stored links, shared by every lane.
-- One lane asserts the folded read emission, one buffer read at a constant offset; the threaded signatures and call sites of a four-level chain; the constructor field and its construction sites; the override family; the recursive function; and the explicit-binding stop.
+- One lane asserts the folded read emission, one buffer read at a constant offset; the threaded signatures and call sites of a chain four records deep; the constructor field and its construction sites; the override family; the recursive function; and the explicit-binding stop.
 - Rejection tests for the named errors of rulings 3, 6, 10, and 11.
 - A compilation with no position types emits byte-identical output to the emission before this specification, guarding the opt-in nature of the rewrite.
