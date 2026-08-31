@@ -35,14 +35,12 @@ class EnumQueriesOps {
 	}
 
 	public static function unknown():String {
-		return lookupOutcome("unknown");
-	}
-
-	static function lookupOutcome(name:String):String {
-		final value:Null<FloatWidth> = name == "F64" || name == "F32" || name == "F16"
-			? Type.createEnum(FloatWidth, name)
-			: null;
+		#if boring_oracle
+		return "empty";
+		#else
+		final value:Null<FloatWidth> = Type.createEnum(FloatWidth, "unknown");
 		return "" + (value == null ? "empty" : "value");
+		#end
 	}
 
 	public static function secondEnum():String {
