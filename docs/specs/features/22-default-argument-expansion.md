@@ -17,7 +17,8 @@ values are not compile-time constants: 42 empty-container defaults and 8
 floating-point infinity defaults. Haxe rejects every non-constant default
 value at typing, so this specification rules a second sanctioned form,
 the coalescing default, that expresses such values within Haxe's
-constant-only grammar.
+constant-only grammar. A planned extension below widens the sanctioned
+expression class of the coalescing default.
 
 Haxe holds no named call arguments, so every call in the pipeline is
 positional and omission is trailing only. The pass fills omitted trailing
@@ -128,6 +129,95 @@ The two sanctioned classes lower differently.
     evaluates `E` only in the `None` arm.
   - Haxe stage 1: the coalescing site is the semantics itself; the oracle
     needs no adaptation.
+
+## Planned extension: coalescing defaults that read parameters or static fields
+
+Status: planned. The rules below amend rule 2 and the per-target products for
+the coalescing default; they are not implemented. The engine port sources
+hold coalescing sites whose default expression reads earlier parameters or
+static fields of the compilation: a constructor parameter defaulting to an
+earlier parameter (`displayText = text`), a field of an earlier parameter
+(`adjustedClusters.size`), a method call on an earlier parameter
+(`text.substring(range.start, range.end)`), a static call over an earlier
+parameter (`PunctuationGluePlacement.forRegion(region)`), a conditional over
+an earlier parameter (the locale normalization of `RubySpan`), and static
+field reads (`Ic.Zero`, `DefaultCoalesceRepeatablePunctuation`). Rule 2 as
+implemented rejects every such expression with `coalesced default
+expression is not sanctioned`.
+
+### Extension grammar
+
+The sanctioned class of rule 2 grows from closed constants to a closed
+recursive grammar over three roots: the existing closed value leaves of
+rule 2; a read of a static field of a class of the compilation or a
+top-level constant of the module; and a reference to a parameter of the
+same function declared strictly before the defaulted parameter. Over these
+roots the grammar accepts field access chains over parameter references,
+instance method calls whose receiver and arguments are grammar
+expressions, static calls whose arguments are grammar expressions,
+conditionals whose condition and both arms are grammar expressions, and
+binary operators over grammar expressions. Every other node rejects as
+today with `coalesced default expression is not sanctioned`, except a
+reference to the defaulted parameter itself, which keeps the existing
+`coalesced default parameter is consumed more than once`, and a reference
+to a later parameter, which rejects with the new named error `coalesced
+default expression may reference earlier parameters only`.
+
+### Evaluation ordering
+
+A default expression that reads an earlier parameter reads its normalized
+value, the value after that parameter's own constant completion or
+coalescing site. The coalescing sites of one function emit in parameter
+order, so a later site observes the earlier site's result and never the
+raw nullable binding of an earlier coalescing parameter. A read of an
+earlier parameter inside the default expression of a later parameter is a
+sanctioned use; the consumed-more-than-once rejection keeps governing the
+defaulted parameter of each site alone. Kotlin and TypeScript native
+defaults provide the same ordering from the language semantics of default
+expressions. The dependence is observable: two omitting calls whose
+earlier arguments differ resolve their defaulted parameter differently,
+and the consistency run pins this.
+
+### Per-target deltas
+
+- Kotlin, TypeScript: the native default `p: T = E` carries the
+  expression. Both languages let a default expression read earlier
+  parameters, and the Kotlin regeneration reproduces the ported engine
+  source unchanged.
+- Swift: a default argument expression cannot reference other parameters
+  of the same function. When `E` reads a parameter through the grammar,
+  the parameter lowers as body normalization: `p: T? = nil` in the
+  signature and `p = p ?? E;` at the entry, with constructor field
+  parameters keeping the feature 27 primary field and the entry
+  assignment writing the field. When `E` reads static fields and closed
+  constants only, the native default stays, because those expressions are
+  valid Swift default arguments.
+- Dart: unchanged. Every coalescing default already lowers the site as
+  body normalization, and an `E` in expression position over earlier
+  parameters evaluates at each omitting call.
+- Rust: unchanged. The entry binding `let p = p.unwrap_or_else(|| E);`
+  holds; the closure reads earlier parameters, which the
+  parameter-ordered entries have already unwrapped.
+- Haxe stage 1: the site is the semantics itself; no adaptation.
+
+### Extension test hooks
+
+- A new sample section covers each grammar root over one shape drawn from
+  the engine port: the bare earlier-parameter read, the field access, the
+  method call, the static call with a parameter argument, the conditional
+  over a parameter, and the static-field read.
+- A dependence assertion calls the same function twice with the same
+  omission and different earlier arguments and observes different
+  resolved values.
+- Tree assertions: the TypeScript and Kotlin trees carry the native
+  default with the expression; the Swift tree carries the
+  body-normalization form for parameter-reading expressions and the
+  native default for static-field-only expressions; the Rust tree
+  carries the entry closure reading the earlier unwrapped parameter.
+- Mutation checks: rewriting an expression to read a later parameter
+  triggers `coalesced default expression may reference earlier parameters
+  only`; inserting an unrecognized node keeps `coalesced default
+  expression is not sanctioned`.
 
 ## Emission rulings recorded at implementation
 
