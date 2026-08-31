@@ -192,10 +192,18 @@ for code points U+0000..U+007F and diverge everywhere else.
    `std.UString`: `count`, `at`, `slice`, `toCodePoints`, `fromCodePoints`,
    and `fromCodePoint`. These functions carry character-sequence semantics
    on every target at the cost floor of variable-width storage.
-4. **Byte construction.** `String.fromCharCode` constructs a string from a
-   wire byte; its domain is 0..255, where all targets agree. Constructing
-   from a code point goes through `std.UString.fromCodePoint`, whose
-   domain is the Unicode scalar values.
+4. **Unit construction.** `String.fromCharCode` constructs a string from
+   one UTF-16 code unit; its agreed domain is the valid units 0..0xFFFF
+   excluding the surrogate code points U+D800..U+DFFF, where all targets
+   agree. A surrogate code point is outside the domain: Rust lowers the
+   call through `u16::try_from` and `String::from_utf16`, each failing
+   over through `unwrap_or_default()`, which yields the empty string for
+   a surrogate unit and the NUL character for an argument outside
+   0..=0xFFFF; the other targets keep their native calls. Rust emission
+   uses no truncating `as` cast and no panicking `unwrap`. Raw payload tables (feature 20) decode their unit fields inside
+   this domain. Constructing from a code point goes through
+   `std.UString.fromCodePoint`, whose domain is the Unicode scalar
+   values.
 5. **StringTools character calls are banned.** `StringTools.fastCodeAt`
    returns a UTF-16 code unit on the JavaScript std and a byte on byte
    targets, so its result has no content-defined meaning.
