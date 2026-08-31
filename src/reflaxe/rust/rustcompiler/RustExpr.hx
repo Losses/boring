@@ -2467,8 +2467,8 @@ class RustExpr {
 				final snake = RustImports.toSnakeCase(name);
 				final subjStr = if(isNullType(subj.t)) expr(subj) + ".as_ref().unwrap()" else expr(subj);
 				final access = subjStr + "." + snake;
-				if(isConstructedStaticRead(subj) && StaticFieldHelper.isStringType(cf.get().type)) return "(" + access + ").to_string()";
-				return isConstructedStaticRead(subj) && !isTypeCopy(cf.get().type) ? "(" + access + ").clone()" : access;
+				if(name != "length" && isConstructedStaticRead(subj) && StaticFieldHelper.isStringType(cf.get().type)) return "(" + access + ").to_string()";
+				return name != "length" && isConstructedStaticRead(subj) && !isTypeCopy(cf.get().type) ? "(" + access + ").clone()" : access;
 			case FDynamic(name):
 				if((name == "length" || name == "get_length") && isStringBuf(subj)) {
 					return expr(subj) + ".len() as u32";
