@@ -2462,7 +2462,7 @@ class RustExpr {
 					if(RuntimeResidents.isResident(imports.selfModule)) {
 						return "(" + expr(subj) + ").len() as i32";
 					}
-					return "(" + expr(subj) + ").len()";
+					return expr(subj) + ".len()";
 				}
 				final snake = RustImports.toSnakeCase(name);
 				final subjStr = if(isNullType(subj.t)) expr(subj) + ".as_ref().unwrap()" else expr(subj);
