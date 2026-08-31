@@ -128,7 +128,14 @@ nothing keeps equal.
    unmarked classes unchanged.
 6. **Regeneration stays byte-identical for classes outside the
    feature.** Classes without the marker, and marked classes that keep an
-   explicit member, regenerate exactly as before.
+   explicit member, regenerate exactly as before. A marked class without
+   an explicit member is inside the feature: its TS, Swift, Dart, Rust,
+   and stage-1 trees gain the member on regeneration, and its Kotlin
+   tree stays byte-identical because Kotlin emits no member either way.
+   Pre-existing sample classes in that state, `ValueRecord` today,
+   change their TS, Swift, Dart, and Rust trees once this feature is
+   implemented; that change is how the feature takes effect on those
+   classes.
 
 ## Test hooks
 
@@ -150,8 +157,9 @@ nothing keeps equal.
   `PrintedCustom`.
 - Mutations: removing the marker from `PrintedRecord` drops the member
   from the four trees; adding an explicit member to `PrintedRecord`
-  suppresses the synthesis on the four trees and leaves the Kotlin tree
-  unchanged.
+  suppresses the synthesis on the four trees; the Kotlin tree gains
+  exactly that explicit member (`override fun toString`, occurring once)
+  and nothing else, because the explicit member wins on Kotlin too.
 - The samples hxml gains the global-metadata line of ruling 5;
   `bun run test:haxe` covers stage 1.
 - Lanes: the eight generation lanes and the full `bun run verify` of
