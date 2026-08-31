@@ -254,10 +254,14 @@ builds through the sorted-table builder.
 
 ## Static extension and dispatch (`features/10`, `features/12`)
 
-Static extension calls lower to direct calls on the namespace enum of
-the resolving module: no protocol requirement, no dynamic dispatch.
-Classes keep their virtual methods as Swift `class` methods; the sample set
-has no subclassing, so `final class` throughout costs nothing.
+Unmarked static extensions lower to direct calls on the namespace enum
+of the resolving module: no protocol requirement, no dynamic dispatch.
+A static marked `@:extension` emits as a Swift `extension` on the
+receiver type and marked call sites render `x.f(a)`; a static marked
+`@:topLevel` emits as a file-scope global function (`features/10`
+rules the markers and the call-site table). Classes keep their virtual
+methods as Swift `class` methods; the sample set has no subclassing,
+so `final class` throughout costs nothing.
 
 ## Generics (`features/05`)
 

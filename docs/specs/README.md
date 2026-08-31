@@ -58,7 +58,7 @@ Every candidate translation is evaluated across four fixed axes:
 | 07 | [07-numeric-tower.md](features/07-numeric-tower.md) | Complete | Integer widths, floating-point representations, and conversion rules. |
 | 08 | [08-strings-and-unicode.md](features/08-strings-and-unicode.md) | Complete | String representations, UTF-8/UTF-16 encoding, and character indexing. |
 | 09 | [09-iterators.md](features/09-iterators.md) | Complete | Iterator protocols, array traversal, and loop transformations. |
-| 10 | [10-static-extension.md](features/10-static-extension.md) | Complete | Static extension methods and target method dispatch. |
+| 10 | [10-static-extension.md](features/10-static-extension.md) | Planned | File-level and extension functions: declaration markers and per-target emission. |
 | 11 | [11-inline-and-macros.md](features/11-inline-and-macros.md) | Complete | Inline functions, compile-time macros, and constant folding. |
 | 12 | [12-classes-interfaces-access.md](features/12-classes-interfaces-access.md) | Complete | Object-oriented constructs, visibility modifiers, and dispatch. |
 | 13 | [13-metadata-and-reflection.md](features/13-metadata-and-reflection.md) | Complete | Compiler metadata tags and reflection limitations. |
@@ -101,7 +101,7 @@ Every candidate translation is evaluated across four fixed axes:
 | 09 | [09-inline-arithmetic-helpers.md](stdlib/09-inline-arithmetic-helpers.md) | Complete | Sanctioned static inline helpers for range checks, clamping, and two-field range values. |
 | 10 | [10-unicode-string-access.md](stdlib/10-unicode-string-access.md) | Complete | std.UString: code-point-addressed access for strings beyond the ASCII tier. |
 | 11 | [11-grapheme-clusters.md](stdlib/11-grapheme-clusters.md) | Complete | std.Graphemes: extended grapheme cluster iteration over code-point content. |
-| 12 | [12-std-string.md](stdlib/12-std-string.md) | Planned | Std.string: call-site conversion of scalars, value enumerations, and arrays of them on the five targets, inside concatenation and standalone. |
+| 12 | [12-std-string.md](stdlib/12-std-string.md) | Complete | Std.string: call-site conversion of scalars, value enumerations, and arrays of them on the five targets, inside concatenation and standalone. |
 
 ### Style specifications
 

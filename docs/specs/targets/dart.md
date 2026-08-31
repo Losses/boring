@@ -222,9 +222,13 @@ the splay-tree map.
 
 ## Static extension and dispatch (`features/10`, `features/12`)
 
-Static extension calls lower to direct top-level calls in the library of
-the resolving module. Classes keep their methods; the samples contain no
-subclassing, so `final class` throughout costs nothing.
+Unmarked static extensions lower to direct top-level calls in the
+library of the resolving module. A static marked `@:extension` emits
+as an unnamed `extension` on the receiver type and marked call sites
+render `x.f(a)`; a static marked `@:topLevel` emits as a top-level
+library function (`features/10` rules the markers and the call-site
+table). Classes keep their methods; the samples contain no subclassing,
+so `final class` throughout costs nothing.
 
 ## Generics (`features/05`)
 
