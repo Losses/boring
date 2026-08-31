@@ -35,7 +35,10 @@ class EnumQueriesOps {
 	}
 
 	public static function unknown():String {
-		final value:Null<FloatWidth> = Type.createEnum(FloatWidth, "unknown");
+		final name = "unknown";
+		final value:Null<FloatWidth> = name == "F64" || name == "F32" || name == "F16"
+			? Type.createEnum(FloatWidth, name)
+			: null;
 		return "" + (value == null ? "empty" : "value");
 	}
 
