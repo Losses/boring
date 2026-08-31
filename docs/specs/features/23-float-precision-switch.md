@@ -2,8 +2,9 @@
 
 ## Scope
 
-This specification rules a module-level precision switch for the target
-representation of the Haxe `Float` type. One compile-time define,
+This specification rules a precision switch for the target
+representation of the Haxe `Float` type; the switch applies to the whole
+module. One compile-time define,
 `-D float-precision=f32`, moves the generated representation of every
 `Float` in the compilation from the binary64 family (`f64`, `Double`,
 `number`) to the binary32 family (`f32`, `Float`); the absent define (or
@@ -29,8 +30,8 @@ The wire format is out of scope and unaffected: `WireF64Be` stays f64 on
 every lane (binary spec 01). The block float widths of binary spec 05 are
 a second, independent axis: they are chosen per encode call and recorded
 in the block magic, and no define moves them. The precision switch changes
-the language-level `Float` representation and the module-boundary rounding
-of wire values, nothing else.
+the representation of the language's `Float` type and the module-boundary
+rounding of wire values, nothing else.
 
 ## Haxe construct
 
@@ -179,7 +180,7 @@ Fields could live in `Float32Array` so storage rounds to binary32.
    with `float-precision accepts f64 or f32`. The define is read through
    `Context.definedValue` in a shared config module beside
    `RuntimeConfig`, because every target compiler consumes it.
-2. **Type table.** With `f32`, the language-level `Float` maps to `f32`
+2. **Type table.** With `f32`, the `Float` type of the language maps to `f32`
    on Rust, `Float` on Kotlin, and `Float` on Swift. `Int` mappings,
    wire types, and every non-float construct are untouched. The wire table of feature spec 07
    keeps `WireF64Be` at `f64`: the switch selects the module's real
@@ -275,7 +276,7 @@ Fields could live in `Float32Array` so storage rounds to binary32.
     principle 2) for the restriction the switch introduces: a test
     whose expectation depends on binary64 intermediate precision
     belongs on the default lane.
-12. **Module-level only.** The define selects one width for the whole
+12. **One width per module.** The define selects one width for the whole
     compilation. Per-module or per-field mixing has no sanctioned path
     in this specification; a consumer needing both widths in one
     artifact compiles the single-precision part as a separate

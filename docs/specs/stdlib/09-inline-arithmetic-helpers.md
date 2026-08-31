@@ -21,8 +21,8 @@ runtime module exist for anything in this specification. `Math.min` and
 | `coerceIn(value, low, high)` | `(T, T, T) -> T` | `coerceAtMost(coerceAtLeast(value, low), high)` |
 | `IntRange` | abstract over a structure | `abstract IntRange({ start:Int, end:Int })` carrying `inline contains(value:Int):Bool` expanding to `within(value, this.start, this.end)` |
 
-The helpers are expression-level and pure: each body is one comparison, one
-conditional, or one composition of those. The helper list is frozen; no
+Each helper is pure and its whole body is one expression: one comparison,
+one conditional, or one composition of those. The helper list is frozen; no
 helper joins this module without a specification amendment. `IntRange`
 declares as an abstract over the two-field structure following
 `docs/specs/features/02-abstract-types.md`: structure literals construct it

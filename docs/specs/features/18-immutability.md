@@ -210,8 +210,8 @@ read-only-typed value.
 
 ## Ruling
 
-Read-only data crosses the pipeline as a type-level contract on every
-platform, and each platform enforces it at the earliest point it can state:
+Read-only data crosses the pipeline as a contract carried by the types
+on every platform, and each platform enforces it at the earliest point it can state:
 
 - Haxe source exposes decoded collections as the `ReadOnlyArray<T>` abstract
   and decoded records as all-`final` typedefs. The abstract provides the

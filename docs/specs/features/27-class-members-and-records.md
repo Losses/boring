@@ -2,8 +2,8 @@
 
 ## Scope
 
-A Haxe class declaration carries four member-level facts that the five
-source targets do not lower uniformly:
+A Haxe class declaration carries four facts about its members that the
+five source targets do not lower uniformly:
 
 1. **Visibility of constructor-parameter fields.** The constructor
    parameter that holds a field states the field's visibility through the

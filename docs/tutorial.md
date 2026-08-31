@@ -128,7 +128,7 @@ Performance ground:
   raw binary codecs.
 - Single-precision float paths for `WireF64Be` are banned, as are boxed
   `Number` objects and numbers stored in strings.
-- Float bit identity goes through the bit-level paths on every target:
+- Float bit identity goes through the bit-exact paths on every target:
   `haxe.io.FPHelper` in Haxe, `to_bits`/`from_bits` in Rust, `DataView`
   reads and writes with the little-endian argument `false` in
   TypeScript, `Double.toBits()`/`Double.fromBits(...)` in Kotlin. Test
@@ -471,8 +471,8 @@ expression and never exists as a source value.
 ### Statements (`features/15`)
 
 Observable behavior is identical on every platform, and each platform
-emits its own fastest sound construct; statement-level correspondence
-with the Haxe source is not required. `if`/`else`, `while`, `break`,
+emits its own fastest sound construct; statement-by-statement
+correspondence with the Haxe source is not required. `if`/`else`, `while`, `break`,
 `continue`, and early `return` render unchanged everywhere. Rust renders
 `do`/`while` as `loop` with a trailing conditional `break`. Constructs
 merge when a platform holds a faster form with identical behavior: a
@@ -486,7 +486,7 @@ a `switch` statement only when every case body ends in `return` or
 discriminant. The final branch of either TypeScript form assigns the
 discriminant to `never`, so an added variant fails that tree's compile.
 
-Multi-level exit from nested loops is restructured in Haxe source: the
+Exit from nested loops is restructured in Haxe source: the
 body moves into a function and exits through early `return`, or the loop
 conditions gain guard expressions. Haxe source declares no labels;
 labels appear only in generated target code. Exceptions never serve as
@@ -672,7 +672,7 @@ return one contiguous buffer. `Bytes.sub` and the Kotlin
 Binary code shares one primitive set: `readU16`/`writeU16`,
 `readU32`/`writeU32`, `readF64`/`writeF64`, `readF32`/`writeF32`,
 `readF16`/`writeF16`, and fixed-length ASCII
-`readAscii`/`writeAscii`. Float conversions take the bit-level paths of
+`readAscii`/`writeAscii`. Float conversions take the bit-exact paths of
 `features/07`; TypeScript reads and writes through `DataView` with the
 little-endian argument `false`; Kotlin assembles integers with shifts
 and `Double.toBits()`/`Double.fromBits(...)`; Rust reads

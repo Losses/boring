@@ -112,7 +112,7 @@ Three tiers. At most 32 elements: insertion sort on the records, zero allocation
 
 ### JavaScript Candidate 3: Hand-written merge sort
 
-A bottom-up merge sort over the records with a scratch array, no engine `sort` at any size. Full algorithmic control and identical code on every engine, at the cost of JavaScript-level merge loops competing with the engine's native sort implementation.
+A bottom-up merge sort over the records with a scratch array, no engine `sort` at any size. Full algorithmic control and identical code on every engine, at the cost of merge loops running in JavaScript against the engine's native sort implementation.
 
 ### Rust candidate: Platform stable sort
 
@@ -140,7 +140,7 @@ fun vectorSortByCodePoint(records: MutableList<GlyphMetrics>): MutableList<Glyph
 |---|---|---|---|---|
 | JavaScript C1 (Decorate + comparator) | One code path for every size; the comparator closure executes twice per comparison through generic call machinery, and the engine takes its generic sort path. | None; a single deterministic algorithm. | The comparator is the one sanctioned closure in the runtime, a standing exception to audit. | The decorate and undecorate passes state the mechanism plainly. |
 | JavaScript C2 (Size tiers, packed numeric) | Insertion sort at 32 elements and below allocates nothing; the packed tier runs the engine's native numeric sort with no comparator calls and one `Float64Array`; only the out-of-range fallback pays the comparator cost. | Three tiers means three behaviors to verify; the identity test below fixes the observable behavior to one output array. | The packing arithmetic and the 2^21 domain check exist only for speed. | The packing comment states the domain and the stability argument in place. |
-| JavaScript C3 (Hand-written merge sort) | JavaScript-level merge loops against the engine's native sort implementation; the extra scratch array allocates on every call. | None; a single deterministic algorithm. | A second sort implementation to maintain beside the engine's. | Merge structure reads plainly but adds a page of code the engine already provides. |
+| JavaScript C3 (Hand-written merge sort) | Merge loops running in JavaScript against the engine's native sort implementation; the extra scratch array allocates on every call. | None; a single deterministic algorithm. | A second sort implementation to maintain beside the engine's. | Merge structure reads plainly but adds a page of code the engine already provides. |
 | Rust (Platform stable sort) | `sort_by_key` is the standard library stable sort; no allocation, no protocol dispatch. | None. | None; one line. | Standard library call, self-describing. |
 | Kotlin (Platform stable sort) | `MutableList.sortBy` lowers to TimSort on JVM and to the stable array sort on the JS target; one selector invocation per comparison. | None. | None; one line. | Standard library call, self-describing. |
 

@@ -1,8 +1,8 @@
-# Feature spec 10: File-level and extension functions
+# Feature spec 10: Top-level and extension functions
 
 ## Scope
 
-This specification rules how a static function marked as a file-level
+This specification rules how a static function marked as a top-level
 function or an extension function translates to the five targets. The
 engine port is the consumer that fixes the required shape: the
 handwritten Kotlin engine declares top-level functions and top-level extension functions
@@ -13,7 +13,7 @@ String.coerceToInteractionBoundary(...)`), platform consumers call
 them (`platforms/compose/.../CjkTextLayoutNode.kt` calls
 `positionedClusters`), and the swap program generates Kotlin that must
 compose with unswapped callers, so the generated Kotlin must spell the
-same file-level declarations. The port keeps every such function as a
+same top-level declarations. The port keeps every such function as a
 static function of a class named after the Kotlin file, receiver as
 the first parameter, and marks the declaration; the port's call sites
 stay plain static calls.
@@ -31,7 +31,7 @@ be inferred from shape.
 
 The markers are metadata on static function declarations:
 
-- `@:topLevel`: the static function emits as a file-level function on
+- `@:topLevel`: the static function emits as a top-level function on
   every target; its class contributes nothing to its emission.
 - `@:extension`: the static function emits as an extension of its
   first parameter's type; the first parameter is the receiver. The
@@ -45,7 +45,8 @@ parameter is a type parameter, and an `@:extension` on a function
 without parameters stop the compilation with `top-level markers accept
 static functions with a concrete receiver only`.
 
-Private marked statics keep file-level privacy: the declaration emits
+Private marked statics keep the privacy of a top-level
+declaration: the declaration emits
 with the target's module-file-private visibility and no import.
 
 ## Current translations
@@ -53,7 +54,7 @@ with the target's module-file-private visibility and no import.
 | Target | State |
 | --- | --- |
 | TypeScript | Every static renders as a class static (`TsDecl.hx:110`, `export class X { static ... }`); marked functions do not extract. |
-| Kotlin | Statics-only classes render as `object X { fun ... }` (`KotlinDecl.hx:100-115`); mixed classes put statics in a `companion object` (`KotlinDecl.hx:213-224`). No file-level emission exists. |
+| Kotlin | Statics-only classes render as `object X { fun ... }` (`KotlinDecl.hx:100-115`); mixed classes put statics in a `companion object` (`KotlinDecl.hx:213-224`). No top-level emission exists. |
 | Swift | Statics-only classes render as case-less `enum X { static ... }` namespaces (`SwiftDecl.hx:72-84`); `targets/swift.md` rules the call form. No global-function or extension emission exists. |
 | Dart | Statics-only classes already flatten to top-level library functions (`DartDecl.hx:86-114`), unconditionally and including classes that mean objects on other targets. No extension emission exists. |
 | Rust | Statics-only classes render as `pub struct X;` + `impl X { pub fn ... }` associated functions (`RustDecl.hx:99-115`). No free-function extraction driven by a marker exists. |
@@ -62,7 +63,7 @@ with the target's module-file-private visibility and no import.
 
 | Candidate | performance | ambiguity | redundancy | readability |
 | --- | --- | --- | --- | --- |
-| Marked extraction to each target's native file-level and extension forms | Extensions resolve statically on every target: a Kotlin extension compiles to a static function with the receiver first, a Swift extension dispatches statically, a Dart extension resolves at compile time, a TypeScript function and an inherent Rust method are direct calls. Zero indirection, zero allocation, no boxing. | The marker states the intent at the declaration; the receiver is the declared first parameter, stated at the declaration. | One declaration serves every target; no wrapper objects or companion indirection. | Every target reads the construct in its own native spelling, which is what the handwritten Kotlin already spells. |
+| Marked extraction to each target's native top-level and extension forms | Extensions resolve statically on every target: a Kotlin extension compiles to a static function with the receiver first, a Swift extension dispatches statically, a Dart extension resolves at compile time, a TypeScript function and an inherent Rust method are direct calls. Zero indirection, zero allocation, no boxing. | The marker states the intent at the declaration; the receiver is the declared first parameter, stated at the declaration. | One declaration serves every target; no wrapper objects or companion indirection. | Every target reads the construct in its own native spelling, which is what the handwritten Kotlin already spells. |
 | Flatten every statics-only class | Dart already does this; the other four targets would follow. | A statics-only class is ambiguous between an object and a file facade (`UnicodeNumber` versus `SourceInteractionBoundaries`), so shape cannot decide. | The same flattening rule re-decided per target. | Kotlin consumers import either an object or a file function; only the marker keeps the two apart. |
 | Keep the namespace shapes on all targets | No compiler work. | Cross-file callers in the port resolve the emitted object members as extensions and fail; public platform consumers call extensions. | Every ported file facade drifts from the handwritten Kotlin shape. | Platform consumers see a different API than the handwritten engine. |
 | Call-site detection of extension syntax (`using`) | No declaration marker needed. | Haxe typing erases the syntax into a plain static call before the generator runs, so the information does not reach the generator. | Would need pre-typing interception, a second compilation stage. | No candidate exists to read. |
