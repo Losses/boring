@@ -2391,7 +2391,7 @@ class RustExpr {
 		if(digits == null) {
 			return "format!(\"{:X}\", " + valueText + ")";
 		}
-		return "format!(\"{:0w$X}\", " + valueText + ", w = " + expr(digits) + " as usize)";
+		return "format!(\"{:0w$X}\", " + valueText + ", w = usize::try_from(" + expr(digits) + ").unwrap_or_default())";
 	}
 
 	function isNegativeIntLiteral(e: TypedExpr): Bool {
