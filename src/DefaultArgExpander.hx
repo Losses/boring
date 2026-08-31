@@ -383,7 +383,11 @@ class DefaultArgExpander {
 			}
 		}
 
-		// Static-field roots are reserved for extension Stage B (features/30).
+		// 3. Static-field / top-level constant root (skip parameter names)
+		final staticPath = resolveStaticFieldOrConstant(cur, earlierNames);
+		if (staticPath != null) {
+			return CFieldAccess(CParameterRead(staticPath), "");
+		}
 
 		// 4. Field access chain over parameter references
 		if (cur.expr != null) {
