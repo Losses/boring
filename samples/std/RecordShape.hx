@@ -118,12 +118,43 @@ class RecordShape {
 			}
 			out = {expr: EBinop(OpAdd, out, {expr: EConst(CString(name + "=")), pos: receiver.pos}), pos: receiver.pos};
 			final read:Expr = {expr: EField(receiver, name), pos: receiver.pos};
-			final value = isRecordType(shape.fieldTypes[i])
-				? {expr: ECall({expr: EField(read, "toString"), pos: receiver.pos}, []), pos: receiver.pos}
+			final fieldType = shape.fieldTypes[i];
+			final value = isRecordType(fieldType)
+				? (isNullableType(fieldType) ? nullableRecordFieldValue(read, receiver.pos) : memberCallValue(read, receiver.pos))
 				: read;
 			out = {expr: EBinop(OpAdd, out, value), pos: receiver.pos};
 		}
 		return {expr: EBinop(OpAdd, out, {expr: EConst(CString(close)), pos: receiver.pos}), pos: receiver.pos};
+	}
+
+	/**
+	 * The printed operand for one record-typed field. The field's own
+	 * member supplies the text (feature spec 31); a nullable field wraps
+	 * the call in an explicit null comparison.
+	 */
+	static function memberCallValue(read:Expr, pos:Position):Expr {
+		return {expr: ECall({expr: EField(read, "toString"), pos: pos}, []), pos: pos};
+	}
+
+	/**
+	 * The printed operand for one nullable record-typed field. A null
+	 * field prints "null" and a present field prints the field's own
+	 * member text, the same two states the Kotlin data class synthesis
+	 * prints. Non-nullable record fields read through the plain member
+	 * call; Swift and Rust have no valid nil or None comparison for a
+	 * non-optional operand.
+	 */
+	static function nullableRecordFieldValue(read:Expr, pos:Position):Expr {
+		final nullLiteral = {expr: EConst(CIdent("null")), pos: pos};
+		final isNull = {expr: EBinop(OpEq, read, nullLiteral), pos: pos};
+		return {expr: ETernary(isNull, {expr: EConst(CString("null")), pos: pos}, memberCallValue(read, pos)), pos: pos};
+	}
+
+	static function isNullableType(type:Type):Bool {
+		return switch(type) {
+			case TAbstract(a, _): a.get().name == "Null";
+			case _: false;
+		};
 	}
 
 	static function anonymousShape(anon:AnonType):RecordShapeData {

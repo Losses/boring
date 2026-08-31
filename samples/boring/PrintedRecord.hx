@@ -9,11 +9,13 @@ class PrintedRecord {
 	public final count:Int;
 	public final ratio:Float;
 	public final inner:PrintedRecord.PrintedInner;
+	public final note:Null<PrintedRecord.PrintedInner>;
 
-	public function new(count:Int, ratio:Float, inner:PrintedRecord.PrintedInner) {
+	public function new(count:Int, ratio:Float, inner:PrintedRecord.PrintedInner, note:Null<PrintedRecord.PrintedInner>) {
 		this.count = count;
 		this.ratio = ratio;
 		this.inner = inner;
+		this.note = note;
 	}
 }
 
