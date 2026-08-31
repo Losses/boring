@@ -26,6 +26,14 @@ Swift zip to object storage with `Content-Type: application/zip`. The
 publish manager only reads: it calls the GitHub release listing API,
 reads the manifests, and writes the site.
 
+The tool itself is written in Haxe within boring's translatable subset
+and compiled by boring: `tools/registry/src/` holds the source,
+`tools/registry/compile.hxml` compiles it through boring's TypeScript
+target, and the generated `generate.js` runs under bun. Ruling 11 binds
+the shape. The repository ships no TypeScript implementation of the
+generator; the TypeScript that remains is the tests under `tests/ts/`,
+which spawn the compiled tool.
+
 The registry is public and read-only. No ecosystem's publish or upload
 endpoint exists on the site. The reference host is Cloudflare Pages:
 the `_redirects` rules this specification relies on use the
@@ -43,7 +51,8 @@ design ceiling.
 ## Command line
 
 ```
-bun tools/registry/generate.ts --repos <file> --output <site> --base-url <url> [--swift-scope <scope>] [--archive-base <url>] [--api-base <url>] [--token <token>] [--cache <dir>]
+haxe tools/registry/compile.hxml
+bun tools/registry/gen/generate.js --repos <file> --output <site> --base-url <url> [--swift-scope <scope>] [--archive-base <url>] [--api-base <url>] [--token <token>] [--cache <dir>]
 ```
 
 - `--repos`: the repository list, a text file with one `owner/name`
@@ -57,7 +66,7 @@ bun tools/registry/generate.ts --repos <file> --output <site> --base-url <url> [
 - `--swift-scope`: required when any scanned release ships a Swift
   lane. Validated against the registry specification's scope pattern
   `\A[a-zA-Z0-9](?:[a-zA-Z0-9]|-(?=[a-zA-Z0-9])){0,38}\z`. The scope is
-  a property of the registry, not of a release.
+  defined once for the whole registry.
 - `--archive-base`: required when any scanned release ships a Swift
   lane. The public origin of the object storage holding the Swift
   zips.
@@ -341,9 +350,35 @@ consumer.
     generation naming it. Byte identity holds for the same inputs
     across runs and machines: release asset URLs are recorded verbatim
     from the listings and contain no volatile query strings.
+11. **Written in boring, compiled by boring.** The generator source is
+    Haxe in the translatable subset, under `tools/registry/src/`, and
+    `tools/registry/compile.hxml` compiles it through boring's
+    TypeScript target the way `examples/ts.hxml` compiles the codec:
+    the same reflaxe libraries, the same interception gate, an output
+    define placing the result at `tools/registry/gen/generate.js`, and
+    a runtime resolution that leaves `generate.js` runnable under bun
+    from the repository root with no build step. The tool reaches the
+    platform
+    only through typed extern modules over the bun runtime, following
+    the `std.Process` and `std.Console` precedent in `samples/std/`:
+    one fetch call returning status, headers, and body; text file
+    read; file write; directory creation; directory listing;
+    environment variable lookup; command-line arguments; and process
+    exit. Compiling the tool through the other four targets is out of
+    scope. JSON parsing and serialization, the sha1 of the Maven
+    metadata, and the semver comparison are pure Haxe modules of the
+    tool: the JSON reader builds an ordered value tree (objects keep
+    their field order), the JSON writer takes the field order
+    explicitly, and no module uses reflection. The tests stay
+    TypeScript under `bun test` and spawn the compiled tool, so the
+    tests exercise exactly the artifact a deployment runs.
 
 ## Test hooks
 
+- The tests run `haxe tools/registry/compile.hxml` first, so every
+  test spawns `tools/registry/gen/generate.js`, the artifact a
+  deployment runs, and a stale compiled tool fails the run at its
+  first command.
 - `tests/ts/package-registry.test.ts` starts a fixture GitHub API and
   a fixture archive server with `Bun.serve`: the API serves
   `/repos/<owner>/<name>/releases` pages whose release bodies carry
