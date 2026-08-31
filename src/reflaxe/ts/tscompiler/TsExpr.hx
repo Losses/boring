@@ -1238,7 +1238,7 @@ class TsExpr {
 			var arm = '"${ef.name}"';
 			if(args.length > 0) {
 				var body = '"${ef.name}(';
-				for(j in 0...args.length) body += (j == 0 ? "" : ' + ", " + ') + args[j].name + '=" + ' + stdStringType(args[j].t, value + "." + args[j].name, true, origin, 0);
+				for(j in 0...args.length) body += (j == 0 ? "" : ' + ", ') + args[j].name + '=" + ' + stdStringType(args[j].t, "(" + value + " as any)." + args[j].name, true, origin, 0);
 				arm = "(" + body + ' + ")")';
 			}
 			out = i == 0 ? arm : value + '.kind === "${ef.name}" ? ${arm} : ${out}';
