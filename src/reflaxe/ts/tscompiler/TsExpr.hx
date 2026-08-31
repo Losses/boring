@@ -989,6 +989,10 @@ class TsExpr {
 	}
 
 	function staticRef(cls: ClassType, name: String): String {
+		final markedField = findStaticField(cls, name);
+		if(markedField != null && StaticFunctionMarkers.isMarked(markedField)) {
+			return imports.functionRef(cls.module, name, markedField.isPublic);
+		}
 		final path = cls.pack.length == 0 ? cls.name : cls.pack.join(".") + "." + cls.name;
 		switch(path) {
 			case "String":
@@ -1052,6 +1056,15 @@ class TsExpr {
 				imports.value(cls.module, cls.name);
 				return cls.name + "." + name;
 		}
+	}
+
+	function findStaticField(cls: ClassType, name: String): Null<ClassField> {
+		for(field in cls.statics.get()) {
+			if(field.name == name) {
+				return field;
+			}
+		}
+		return null;
 	}
 
 	function typeExpr(t: ModuleType): String {

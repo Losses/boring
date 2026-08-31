@@ -69,7 +69,17 @@ class SwiftDecl {
 		}
 
 		final module = cls.module;
-		final staticsOnly = isStaticsOnly(varFields, funcFields);
+		final extractedFuncs = [for(f in funcFields) if(StaticFunctionMarkers.isMarked(f.field)) f];
+		final ordinaryFuncs = [for(f in funcFields) if(!StaticFunctionMarkers.isMarked(f.field)) f];
+		final extractedParts: Array<String> = [];
+		for(f in extractedFuncs) {
+			extractedParts.push(extractedFuncDecl(module, cls, f).join("\n"));
+		}
+		if(varFields.length == 0 && ordinaryFuncs.length == 0) {
+			return extractedParts.join("\n\n");
+		}
+
+		final staticsOnly = isStaticsOnly(varFields, ordinaryFuncs);
 		final lines: Array<String> = [];
 
 		// A statics-only class lowers to a case-less enum namespace
@@ -103,7 +113,7 @@ class SwiftDecl {
 				lines.push(l);
 			}
 		}
-		for(f in funcFields) {
+		for(f in ordinaryFuncs) {
 			if(lines.length > 1) {
 				lines.push("");
 			}
@@ -126,7 +136,8 @@ class SwiftDecl {
 		}
 
 		lines.push("}");
-		return lines.join("\n");
+		final classPart = lines.join("\n");
+		return extractedParts.length > 0 ? extractedParts.join("\n\n") + "\n\n" + classPart : classPart;
 	}
 
 	static function isStaticsOnly(varFields: Array<ClassVarData>, funcFields: Array<ClassFuncData>): Bool {		for(v in varFields) {
@@ -274,8 +285,8 @@ class SwiftDecl {
 	}
 
 	/** Function declarations append the parameter shadows after the body scan. */
-	function withParamShadows(head: Array<String>, body: Array<String>, args: Array<{name: String, ?tvar: Null<TVar>}>): Array<String> {
-		return head.concat(expr.shadowMutatedParams(args)).concat(body);
+	function withParamShadows(head: Array<String>, body: Array<String>, args: Array<{name: String, ?tvar: Null<TVar>}>, depth: Int = 2): Array<String> {
+		return head.concat(expr.shadowMutatedParams(args, depth)).concat(body);
 	}
 
 	function funcDecl(module: String, cls: ClassType, f: ClassFuncData): Array<String> {
@@ -314,14 +325,37 @@ class SwiftDecl {
 		return withParamShadows([head], normLines.concat(body), cast f.args).concat(["    }"]);
 	}
 
+	function extractedFuncDecl(module: String, cls: ClassType, f: ClassFuncData): Array<String> {
+		for(a in f.args) {
+			expr.reserveName(a.name);
+		}
+		final isExtension = StaticFunctionMarkers.isExtension(f.field);
+		final firstArg = isExtension ? 1 : 0;
+		final ret = types.of(f.ret);
+		final throws = SwiftFallibility.isThrowing(module, f.field.name, true) ? " throws" : "";
+		final methodParams = collectMethodTypeParams(cls, f);
+		final genericStr = methodParams.length > 0 ? "<" + methodParams.join(", ") + ">" : "";
+		final vis = f.field.isPublic ? "" : "private ";
+		final receiverType = isExtension ? types.of(f.args[0].type) : "";
+		final methodIndent = isExtension ? "    " : "";
+		final head = methodIndent + vis + "func " + f.field.name + genericStr + paramList(cls, f, firstArg) + throws + " -> " + ret + " {";
+		if(isExtension && f.args[0].tvar != null) {
+			expr.bindLocalName(f.args[0].tvar, "self");
+		}
+		final body = decodeBoundaryBody(cls, f, isExtension ? 2 : 1);
+		final method = withParamShadows([head], body, cast f.args, isExtension ? 2 : 1).concat([methodIndent + "}"]);
+		return isExtension ? (["extension " + receiverType + " {"]).concat(method).concat(["}"]) : method;
+	}
+
 	/**
 		Parameter rendering: positional calls throughout, so every
 		parameter takes the wildcard label. Function-typed parameters
 		carry @escaping because the resident tables store their
 		comparator.
 	**/
-	function paramList(cls: ClassType, f: ClassFuncData): String {
-		return "(" + [for(a in f.args) {
+	function paramList(cls: ClassType, f: ClassFuncData, start: Int = 0): String {
+		return "(" + [for(i in start...f.args.length) {
+			final a = f.args[i];
 			final coalescing = DefaultArgExpander.coalescingDefaultAt(cls, f.field.name, a.index);
 			final readsParam = coalescing != null && DefaultArgExpander.coalescingReadsParamForParam(cls, f.field.name, a.name);
 			final baseType = coalescing != null ? DefaultArgExpander.coalescingParameterType(coalescing, a.type) : a.type;
@@ -419,7 +453,7 @@ class SwiftDecl {
 		freezes it structurally, so no freeze wrappers render; the flag
 		only keeps the boundary visible to the expression layer.
 	**/
-	function decodeBoundaryBody(cls: ClassType, f: ClassFuncData): Array<String> {
+	function decodeBoundaryBody(cls: ClassType, f: ClassFuncData, depth: Int = 2): Array<String> {
 		final boundary = switch(f.ret) {
 			case TAbstract(a, _):
 				final abs = a.get();
@@ -427,7 +461,7 @@ class SwiftDecl {
 			case _: false;
 		}
 		expr.setDecodeBoundary(boundary);
-		final body = expr.functionBody(cls, f);
+		final body = expr.functionBody(cls, f, depth);
 		expr.setDecodeBoundary(false);
 		return body;
 	}

@@ -98,6 +98,7 @@ class Compiler extends PluginCompiler<Compiler> {
 		if(classType.isExtern || isSyntheticImpl(classType.name) || isInlineOnly(classType, varFields, funcFields) || (!isResident && !inSourceScope(classType.pos))) {
 			return null;
 		}
+		StaticFunctionMarkers.validateAll(funcFields);
 
 		var hasTestFuncs = false;
 		for(f in funcFields) {
@@ -360,6 +361,9 @@ class Compiler extends PluginCompiler<Compiler> {
 		}
 		for(entry in ctx.imports.moduleList()) {
 			lines.push("import '" + importSpecifier(filePath, dartOutput + "/lib/" + DartImports.libraryPathOf(entry.module)) + "' as " + entry.prefix + ";");
+		}
+		for(module in ctx.imports.extensionModuleList()) {
+			lines.push("import '" + importSpecifier(filePath, dartOutput + "/lib/" + DartImports.libraryPathOf(module)) + "';");
 		}
 		if(ctx.imports.usesRuntime()) {
 			final emitDir = RuntimeConfig.emitDir();

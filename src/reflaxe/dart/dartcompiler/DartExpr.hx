@@ -84,6 +84,11 @@ class DartExpr {
 		usedNames.set(name, true);
 	}
 
+	/** Binds a declaration parameter to its native extension receiver name. */
+	public function bindLocalName(v: TVar, name: String): Void {
+		subst.set(v.id, name);
+	}
+
 	/** Statements at library top level (the framework's expression entry). */
 	public function topLevelStatements(e: TypedExpr): String {
 		scanLocals(e);
@@ -1061,6 +1066,11 @@ class DartExpr {
 	}
 
 	function staticRef(cls: ClassType, name: String): String {
+		final markedField = findStaticField(cls, name);
+		if(markedField != null && StaticFunctionMarkers.isMarked(markedField)) {
+			final nativeName = markedField.isPublic ? name : "_" + name;
+			return qualifiedRef(cls.module, nativeName);
+		}
 		final path = cls.pack.length == 0 ? cls.name : cls.pack.join(".") + "." + cls.name;
 		final module = cls.module != "" ? cls.module : path;
 		switch(module) {
@@ -1106,6 +1116,13 @@ class DartExpr {
 				final head = prefix.length > 0 ? prefix + "." + cls.name : cls.name;
 				return head + "." + name;
 		}
+	}
+
+	function findStaticField(cls: ClassType, name: String): Null<ClassField> {
+		for(field in cls.statics.get()) {
+			if(field.name == name) return field;
+		}
+		return null;
 	}
 
 	/**
@@ -1264,7 +1281,8 @@ class DartExpr {
 		if(inlineMapCall != null) {
 			return inlineMapCall;
 		}
-		final rendered = argTexts(fn, args).join(", ");
+		final renderedArgs = argTexts(fn, args);
+		final rendered = renderedArgs.join(", ");
 		switch(fn.expr) {
 			case TField(subj, FInstance(_, _, cf)) if(cf.get().name == "get_message" && args.length == 0):
 				// Property getter on an exception: the native message
@@ -1276,6 +1294,17 @@ class DartExpr {
 				final module = cls.module != "" ? cls.module : (cls.pack.length == 0 ? cls.name : cls.pack.join(".") + "." + cls.name);
 				if(cls.pack.length == 0 && cls.name == "StringTools" && fName == "hex") {
 					return stringToolsHex(args);
+				}
+				final markedField = findStaticField(cls, fName);
+				if(markedField != null && StaticFunctionMarkers.isMarked(markedField)) {
+					final nativeName = markedField.isPublic ? fName : "_" + fName;
+					if(StaticFunctionMarkers.isExtension(markedField)) {
+						if(markedField.isPublic) {
+							imports.useExtension(module);
+						}
+						return renderedArgs[0] + "." + nativeName + "(" + renderedArgs.slice(1).join(", ") + ")";
+					}
+					return qualifiedRef(module, nativeName) + "(" + rendered + ")";
 				}
 				if(module == "std.UStringPlatform") {
 					return ustringPlatformCall(fName, args, fn);
