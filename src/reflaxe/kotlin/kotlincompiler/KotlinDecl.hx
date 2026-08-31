@@ -44,7 +44,7 @@ class KotlinDecl {
 		// Kotlin's data class already supplies the same printed form. The
 		// stage 1 build macro marks its synthetic member so this target can
 		// leave the native synthesis as the only declaration.
-		funcFields = [for(f in funcFields) if(!isSynthesizedRecordToString(f)) f];
+		funcFields = [for(f in funcFields) if(!isSynthesizedRecordToString(cls, f)) f];
 		if(cls.isInterface) {
 			final lines: Array<String> = [];
 			final sealed = SealedVariantHelper.isSealedInterface(cls) ? "sealed " : "";
@@ -614,8 +614,8 @@ class KotlinDecl {
 		}
 	}
 
-	static function isSynthesizedRecordToString(f: ClassFuncData): Bool {
-		return f.field.name == "toString" && f.field.meta.has(":recordMember");
+	static function isSynthesizedRecordToString(cls: ClassType, f: ClassFuncData): Bool {
+		return cls.meta.has(":dataClass") && f.field.name == "toString" && f.field.meta.has(":recordMember");
 	}
 
 	function objectVarDecl(v: ClassVarData, cls: ClassType): Array<String> {
