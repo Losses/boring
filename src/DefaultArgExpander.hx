@@ -323,7 +323,16 @@ class DefaultArgExpander {
 					final innerClass = classifyExpr(inner, earlierNames);
 					if (innerClass == "type") {
 						final fullPath = exprToDotted(inner);
-						if (fullPath != null) fullPath + "." + fieldName else null;
+						if (fullPath != null) {
+							try {
+								switch (Context.getType(fullPath)) {
+									case TInst(clsRef, _):
+										return getClassKey(clsRef.get()) + "." + fieldName;
+									default:
+								}
+							} catch (_:Dynamic) {}
+							fullPath + "." + fieldName;
+						} else null;
 					} else null;
 				}
 			case ExprDef.EConst(AstConstant.CIdent(name)):
@@ -339,7 +348,7 @@ class DefaultArgExpander {
 								case TInst(clsRef, _):
 									final cls = clsRef.get();
 									for (f in cls.statics.get()) {
-										if (f.name == name) return name;
+										if (f.name == name) return getClassKey(cls) + "." + name;
 									}
 								default:
 							}
@@ -383,7 +392,11 @@ class DefaultArgExpander {
 			}
 		}
 
-		// Static-field roots are reserved for extension Stage B (features/30).
+		// 3. Static-field / top-level constant root (skip parameter names)
+		final staticPath = resolveStaticFieldOrConstant(cur, earlierNames);
+		if (staticPath != null) {
+			return CFieldAccess(CParameterRead(staticPath), "");
+		}
 
 		// 4. Field access chain over parameter references
 		if (cur.expr != null) {
@@ -432,7 +445,7 @@ class DefaultArgExpander {
 								}
 								// Instance method call: receiver.method(args)
 								final receiverClass = classifyExpr(innerClassField, earlierNames);
-								if (receiverClass == "parameter" || receiverClass == "fieldChain" || receiverClass == "methodCall") {
+								if (receiverClass != "type") {
 									final receiverValue = validateCoalescingGrammar(innerClassField, parameterName, earlierNames, allParamNames, classType);
 									if (receiverValue != null) {
 										final argValues = validateArgList(callArgs, parameterName, earlierNames, allParamNames, classType);
@@ -658,6 +671,7 @@ class DefaultArgExpander {
 	public static function readsParameter(value:CoalescingDefaultValue):Bool {
 		return switch (value) {
 			case CParameterRead(_): true;
+			case CFieldAccess(CParameterRead(_), ""): false;
 			case CFieldAccess(receiver, _): readsParameter(receiver);
 			case CMethodCall(receiver, _, args):
 				readsParameter(receiver) || argsHaveParameter(args);
@@ -1123,15 +1137,29 @@ class DefaultArgExpander {
 	public static function coalescingSites(root:TypedExpr):Array<{parameter:String, defaultExpr:TypedExpr, valueExpr:TypedExpr}> {
 		final result:Array<{parameter:String, defaultExpr:TypedExpr, valueExpr:TypedExpr}> = [];
 		if (root == null) return result;
-		collectTypedCoalescingSites(root, result);
+		collectTypedCoalescingSites(root, result, true);
 		return result;
 	}
 
-	static function collectTypedCoalescingSites(e:TypedExpr, result:Array<{parameter:String, defaultExpr:TypedExpr, valueExpr:TypedExpr}>):Void {
+	/** Collects sites in one function body, leaving nested function bodies to their own pass. */
+	public static function coalescingSitesForFunction(root:TypedExpr):Array<{parameter:String, defaultExpr:TypedExpr, valueExpr:TypedExpr}> {
+		final result:Array<{parameter:String, defaultExpr:TypedExpr, valueExpr:TypedExpr}> = [];
+		if (root == null) return result;
+		collectTypedCoalescingSites(root, result, false);
+		return result;
+	}
+
+	static function collectTypedCoalescingSites(e:TypedExpr, result:Array<{parameter:String, defaultExpr:TypedExpr, valueExpr:TypedExpr}>, includeNestedFunctions:Bool):Void {
 		if (e == null) return;
 		final site = coalescingSite(e);
 		if (site != null) result.push(site);
-		haxe.macro.TypedExprTools.iter(e, child -> collectTypedCoalescingSites(child, result));
+		if (!includeNestedFunctions) {
+			switch (e.expr) {
+				case TypedExprDef.TFunction(_): return;
+				default:
+			}
+		}
+		haxe.macro.TypedExprTools.iter(e, child -> collectTypedCoalescingSites(child, result, includeNestedFunctions));
 	}
 
 	static function unwrapTypedExpr(e:TypedExpr):Null<TypedExpr> {

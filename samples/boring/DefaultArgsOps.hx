@@ -189,6 +189,11 @@ class DefaultArgsOps {
 		return 'size:$count';
 	}
 
+	public static function fieldAccessSample(items:Array<String>, ?count:Int):Int {
+		var normalized = count == null ? items.length : count;
+		return normalized;
+	}
+
 	/** Conditional over a parameter. */
 	public static function localeSample(lang:String, ?fallback:String):String {
 		var normalized = fallback == null ? (lang == "en" ? "English" : "Other") : fallback;
@@ -209,6 +214,12 @@ class DefaultArgsOps {
 	public static function staticCallSample(value:Int, ?clamped:Int):Int {
 		var result = clamped == null ? clampBase(value) : clamped;
 		return result;
+	}
+
+	/** Static-field read. */
+	public static function staticFieldSample(value:Int, ?bound:Int):Int {
+		var normalized = bound == null ? StaticStateOps.limit : bound;
+		return value + normalized;
 	}
 
 	/** Binary operator over a grammar expression. */
