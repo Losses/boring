@@ -611,14 +611,15 @@ class KotlinDecl {
 				];
 			}
 		}
+		if(v.isStatic) {
+			final init = StaticFieldHelper.validatedInitializer(field);
+			final initStr = expr.rawExpression(init);
+			final kw = field.isFinal && StaticFieldHelper.isConstValue(field) ? "const val" : (field.isFinal ? "val" : "var");
+			final vis = field.isPublic ? "" : "private ";
+			return ['    $vis$kw ${field.name}: ${types.of(field.type)} = $initStr'];
+		}
 		if(field.meta.has(":value")) {
-			final val = field.meta.extract(":value")[0].params[0];
-			final valStr = switch(val.expr) {
-				case EConst(CString(s)): '"' + s + '"';
-				case EConst(CInt(i)): i;
-				case _: "";
-			};
-			return ['    const val ${field.name}: ${types.of(field.type)} = $valStr'];
+			Context.error("instance field default has no lowering; assign it in the constructor", field.pos);
 		}
 		return ['    val ${field.name}: ${types.of(field.type)}'];
 	}

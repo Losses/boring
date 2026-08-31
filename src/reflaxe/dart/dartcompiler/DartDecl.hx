@@ -252,15 +252,14 @@ class DartDecl {
 				return ["  static final List<int> " + claimTopLevel(field.name, field.pos) + " = [" + renderDataTableElements(elems) + "];"];
 			}
 		}
-		if(field.meta.has(":value")) {
-			if(v.isStatic) {
-				// Inline constants fold into their use sites as TConst.
-				return [];
-			}
-			Context.error("instance field default has no lowering; assign it in the constructor", field.pos);
-		}
 		if(v.isStatic) {
-			Context.error("mutable static field has no lowering in the subset", field.pos);
+			final init = StaticFieldHelper.validatedInitializer(field);
+			final name = field.isPublic ? field.name : "_" + field.name;
+			final kw = field.isFinal ? "final " : "";
+			return ["  static " + kw + types.of(field.type) + " " + name + " = " + expr.rawExpression(init) + ";"];
+		}
+		if(field.meta.has(":value")) {
+			Context.error("instance field default has no lowering; assign it in the constructor", field.pos);
 		}
 		// A `var x(get, never)` field renders no storage; the getter
 		// beside the accessor function is the lowering (feature spec 27).
@@ -327,8 +326,11 @@ class DartDecl {
 				return ["final List<int> " + claimTopLevel(field.name, field.pos) + " = [" + renderDataTableElements(elems) + "];"];
 			}
 		}
-		if(field.meta.has(":value") && v.isStatic) {
-			return [];
+		if(v.isStatic) {
+			final init = StaticFieldHelper.validatedInitializer(field);
+			final name = field.isPublic ? field.name : "_" + field.name;
+			final kw = field.isFinal ? "final " : "";
+			return [kw + types.of(field.type) + " " + name + " = " + expr.rawExpression(init) + ";"];
 		}
 		Context.error("a statics-only class carries data tables and inline constants only", field.pos);
 		return [];
