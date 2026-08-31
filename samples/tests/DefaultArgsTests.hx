@@ -91,6 +91,8 @@ class DefaultArgsTests {
 	public static function testFieldAccess():Void {
 		Test.equals("size:2", DefaultArgsOps.sizeLabel(["a", "b"]));
 		Test.equals("size:0", DefaultArgsOps.sizeLabel());
+		Test.equals(2, DefaultArgsOps.fieldAccessSample(["a", "b"]));
+		Test.equals(7, DefaultArgsOps.fieldAccessSample(["a", "b"], 7));
 	}
 
 	@:test("conditional over a parameter")
@@ -104,6 +106,12 @@ class DefaultArgsTests {
 		Test.equals("HELLO", DefaultArgsOps.methodCallSample("hello"));
 		Test.equals(7, DefaultArgsOps.staticCallSample(7));
 		Test.equals(8, DefaultArgsOps.binarySample(7));
+	}
+
+	@:test("static-field read")
+	public static function testStaticFieldRead():Void {
+		Test.equals(4097, DefaultArgsOps.staticFieldSample(1));
+		Test.equals(6, DefaultArgsOps.staticFieldSample(5, 1));
 	}
 
 	@:test("dependence assertion: different earlier arguments resolve differently")
