@@ -91,3 +91,5 @@ tests.StaticExtensionProbes
 tests.StaticExtensionTests
 boring.StaticStateOps
 tests.StaticStateTests
+boring.FnValuesOps
+tests.FnValuesTests

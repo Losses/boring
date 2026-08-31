@@ -64,7 +64,10 @@ class RustType {
 				}
 			case TInst(c, params):
 				final cls = c.get();
-				switch(pathOf(cls.pack, cls.name)) {
+				if(cls.isInterface) {
+					imports.requireType(cls.module, cls.name);
+					"Box<dyn " + cls.name + ">";
+				} else switch(pathOf(cls.pack, cls.name)) {
 					case "String": isParam ? "&str" : "String";
 					// The buffer holds UTF-16 units; the pairing checks of
 					// stdlib/08 need the raw units, and String could not
@@ -125,13 +128,52 @@ class RustType {
 				imports.requireType(en.module, en.name);
 				en.name;
 			case TFun(args, ret):
-				"fn(" + [for(arg in args) of(arg.t, true)].join(", ") + ") -> " + of(ret, false);
+				"Box<dyn Fn(" + [for(arg in args) of(arg.t, true)].join(", ") + ") -> " + of(ret, false) + ">";
 			case TAnonymous(_):
 				Context.error("anonymous structure types must be named typedefs before translation", Context.currentPos());
 				null;
 			case TDynamic(_) | TMono(_):
 				fail(t);
 			case TLazy(f): of(f(), isParam);
+		}
+	}
+
+	/**
+		A returned function value carries the lifetime of the inputs it may
+			capture. Rust's elided trait-object lifetime defaults to `static` in
+			an owned return, so the return position spells the inferred lifetime
+			explicitly while all other function values keep the ruled Box form.
+	*/
+	public function functionReturnOf(t: Null<Type>): String {
+		return switch(Context.follow(t)) {
+			case TFun(args, ret):
+				"Box<dyn Fn(" + [for(arg in args) of(arg.t, true)].join(", ") + ") -> " + of(ret, false) + " + '_>";
+			case _:
+				of(t, false);
+		}
+	}
+
+	/** Rust static function fields use capture-free function pointers. */
+	public function staticFunctionOf(t: Null<Type>): String {
+		return switch(Context.follow(t)) {
+			case TFun(args, ret):
+				"fn(" + [for(arg in args) staticFunctionArgOf(arg.t)].join(", ") + ") -> " + staticFunctionReturnOf(ret);
+			case _:
+				of(t, false);
+		}
+	}
+
+	function staticFunctionArgOf(t: Type): String {
+		return switch(Context.follow(t)) {
+			case TAbstract(a, _) if(a.get().name == "Int"): "i32";
+			case _: of(t, true);
+		}
+	}
+
+	function staticFunctionReturnOf(t: Type): String {
+		return switch(Context.follow(t)) {
+			case TAbstract(a, _) if(a.get().name == "Int"): "i32";
+			case _: of(t, false);
 		}
 	}
 
