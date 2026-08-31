@@ -817,7 +817,7 @@ class TsExpr {
 				if(name == "length" && en != null) return Std.string(EnumQueryExpander.constructorCount(en));
 			case TArray(subj, index):
 				final en = EnumQueryExpander.collectionEnum(subj);
-				if(en != null) { imports.value(en.module, EnumQueryExpander.upperSnake(en.name) + "_ALL"); return EnumQueryExpander.upperSnake(en.name) + "_ALL[" + expr(index) + "]!"; }
+				if(en != null) { if(EnumQueryExpander.aliasEnum(subj) != null) return expr(subj) + "[" + expr(index) + "]!"; imports.value(en.module, EnumQueryExpander.upperSnake(en.name) + "_ALL"); return EnumQueryExpander.upperSnake(en.name) + "_ALL[" + expr(index) + "]!"; }
 			case _:
 		}
 		final kind = EnumQueryExpander.markerKind(e);

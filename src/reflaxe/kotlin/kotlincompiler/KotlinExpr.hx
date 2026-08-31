@@ -889,7 +889,7 @@ class KotlinExpr {
 			case TField(subj, fa):
 				final name = switch(fa) { case FInstance(_, _, cf) | FAnon(cf): cf.get().name; case FDynamic(n): n; case _: ""; };
 				final en = EnumQueryExpander.collectionEnum(subj); if(name == "length" && en != null) return Std.string(EnumQueryExpander.constructorCount(en));
-			case TArray(subj, index): final en = EnumQueryExpander.collectionEnum(subj); if(en != null) { imports.requireType(en.module, en.name); return en.name + ".entries[" + expr(index) + "]"; }
+			case TArray(subj, index): final en = EnumQueryExpander.collectionEnum(subj); if(en != null) { if(EnumQueryExpander.aliasEnum(subj) != null) return expr(subj) + "[" + expr(index) + "]"; imports.requireType(en.module, en.name); return en.name + ".entries[" + expr(index) + "]"; }
 			case _:
 		}
 		final kind = EnumQueryExpander.markerKind(e); if(kind == null) return null;
