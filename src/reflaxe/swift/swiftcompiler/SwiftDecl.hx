@@ -105,7 +105,7 @@ class SwiftDecl {
 
 		// One blank line between members; none inside a member's body.
 		for(v in varFields) {
-			final decl = varDecl(module, v);
+			final decl = varDecl(cls, module, v);
 			if(decl.length == 0) {
 				continue;
 			}
@@ -300,7 +300,7 @@ class SwiftDecl {
 		}
 	}
 
-	function varDecl(module: String, v: ClassVarData): Array<String> {
+	function varDecl(cls: ClassType, module: String, v: ClassVarData): Array<String> {
 		final field = v.field;
 		if(v.isStatic && DataTableHelper.isDataTableField(field)) {
 			final elems = DataTableHelper.getDataTableElements(field.expr());
@@ -317,7 +317,7 @@ class SwiftDecl {
 			return ["    static let " + field.name + ": " + types.of(field.type) + " = " + expr.rawExpression(initializer)];
 		}
 		if(v.isStatic) {
-			final init = StaticFieldHelper.validatedInitializer(field);
+			final init = StaticFieldHelper.validatedInitializer(field, cls);
 			final array = StaticFieldHelper.isArrayType(field.type);
 			final kw = array || !field.isFinal ? "var" : "let";
 			final vis = field.isPublic ? "" : "private ";

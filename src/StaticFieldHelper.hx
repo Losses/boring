@@ -20,13 +20,52 @@ class StaticFieldHelper {
 		return field.expr();
 	}
 
-	public static function validatedInitializer(field: ClassField): Null<TypedExpr> {
+	public static function validatedInitializer(field: ClassField, declaringClass: Null<ClassType> = null): Null<TypedExpr> {
 		final init = initializer(field);
-		if(init == null || !isSanctioned(init)) {
+		if(init == null || (!isSanctioned(init) && !isSelfConstruction(field, declaringClass, init))) {
 			Context.error(INVALID_INITIALIZER, field.pos);
 			return null;
 		}
 		return init;
+	}
+
+	/** Whether a static final field is the sanctioned singleton spelling. */
+	public static function isSelfConstruction(field: ClassField, declaringClass: Null<ClassType>, init: Null<TypedExpr> = null): Bool {
+		if(field == null || declaringClass == null || !field.isFinal) {
+			return false;
+		}
+		final actual = init == null ? initializer(field) : init;
+		if(actual == null) {
+			return false;
+		}
+		return switch(stripDecorations(actual).expr) {
+			case TNew(constructedRef, _, args) if(args.length == 0):
+				final constructed = constructedRef.get();
+				final declared = switch(Context.follow(field.type)) {
+					case TInst(declaredRef, _): declaredRef.get();
+					case _: null;
+				};
+				declared != null && sameClass(declared, declaringClass) && sameClass(constructed, declaringClass);
+			case _:
+				false;
+		};
+	}
+
+	/** Whether a class carries the sanctioned singleton static. */
+	public static function hasSelfConstructionStatic(cls: Null<ClassType>): Bool {
+		if(cls == null) {
+			return false;
+		}
+		for(field in cls.statics.get()) {
+			if(isSelfConstruction(field, cls)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	static function sameClass(a: ClassType, b: ClassType): Bool {
+		return a.module == b.module && a.name == b.name;
 	}
 
 	public static function isSanctioned(e: TypedExpr): Bool {

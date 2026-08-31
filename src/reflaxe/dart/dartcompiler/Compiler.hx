@@ -107,7 +107,11 @@ class Compiler extends PluginCompiler<Compiler> {
 			parts.get(classType.module).push(result);
 			return result;
 		}
-		if(classType.isExtern || isSyntheticImpl(classType.name) || isInlineOnly(classType, varFields, funcFields) || (!isResident && !inSourceScope(classType.pos))) {
+		if(classType.isExtern || (!isResident && !inSourceScope(classType.pos))) {
+			return null;
+		}
+		SealedVariantHelper.validateClass(classType);
+		if(isSyntheticImpl(classType.name) || (!classType.isInterface && isInlineOnly(classType, varFields, funcFields))) {
 			return null;
 		}
 		StaticFunctionMarkers.validateAll(funcFields);
@@ -196,6 +200,7 @@ class Compiler extends PluginCompiler<Compiler> {
 		if(!isResident && !inSourceScope(enumType.pos)) {
 			return null;
 		}
+		SealedVariantHelper.validateEnum(enumType);
 		final decl = contextFor(enumType.module);
 		final result = decl.enumDecl(enumType, options);
 		if(result != null && result.length > 0) {
@@ -215,6 +220,7 @@ class Compiler extends PluginCompiler<Compiler> {
 		if(!inSourceScope(def.pos)) {
 			return null;
 		}
+		SealedVariantHelper.validateTypedef(def);
 		switch(def.type) {
 			case TAnonymous(_):
 			case _:

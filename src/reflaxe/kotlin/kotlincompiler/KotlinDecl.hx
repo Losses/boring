@@ -47,10 +47,11 @@ class KotlinDecl {
 		// Kotlin's data class already supplies the same printed form. The
 		// stage 1 build macro marks its synthetic member so this target can
 		// leave the native synthesis as the only declaration.
-		funcFields = [for(f in funcFields) if(!isSynthesizedRecordToString(f)) f];
+		funcFields = [for(f in funcFields) if(!isSynthesizedRecordToString(cls, f)) f];
 		if(cls.isInterface) {
 			final lines: Array<String> = [];
-			lines.push("interface " + cls.name + " {");
+			final sealed = SealedVariantHelper.isSealedInterface(cls) ? "sealed " : "";
+			lines.push(sealed + "interface " + cls.name + " {");
 			for(f in funcFields) {
 				final args = [for(a in f.args) {
 					final coalescing = DefaultArgExpander.coalescingDefaultAt(cls, f.field.name, a.index);
@@ -123,7 +124,7 @@ class KotlinDecl {
 		if(isObject) {
 			lines.push("object " + cls.name + " {");
 			for(v in varFields) {
-				for(l in objectVarDecl(v)) lines.push(l);
+				for(l in objectVarDecl(v, cls)) lines.push(l);
 			}
 			var sep = varFields.length > 0 && ordinaryFuncs.length > 0;
 			for(f in ordinaryFuncs) {
@@ -184,7 +185,7 @@ class KotlinDecl {
 		// Stored properties without a constructor parameter; getter-only
 		// properties keep no storage (feature spec 27).
 		for(v in varFields) {
-			if(v.isStatic && isFunctionType(v.field.type)) {
+			if(v.isStatic) {
 				continue;
 			}
 			if(constructorArgNames.exists(v.field.name) || isGetterOnlyProperty(v.field)) {
@@ -222,6 +223,7 @@ class KotlinDecl {
 
 		final instanceFuncs = [for(f in ordinaryFuncs) if(!f.isStatic && f.field.name != "new") f];
 		final staticFuncs = [for(f in ordinaryFuncs) if(f.isStatic) f];
+		final staticVars = [for(v in varFields) if(v.isStatic && !isFunctionType(v.field.type)) v];
 		final staticFunctionVars = [for(v in varFields) if(v.isStatic && isFunctionType(v.field.type)) v];
 
 		var sep = varFields.length > 0 && instanceFuncs.length > 0;
@@ -231,10 +233,15 @@ class KotlinDecl {
 			for(l in funcDecl(cls, f, false)) lines.push(l);
 		}
 
-		if(staticFuncs.length > 0 || staticFunctionVars.length > 0) {
+		if(staticVars.length > 0 || staticFuncs.length > 0 || staticFunctionVars.length > 0) {
 			if(instanceFuncs.length > 0 || varFields.length > 0) lines.push("");
 			lines.push("    companion object {");
 			var csep = false;
+			for(v in staticVars) {
+				if(csep) lines.push("");
+				csep = true;
+				for(l in objectVarDecl(v, cls)) lines.push("    " + l);
+			}
 			for(v in staticFunctionVars) {
 				if(csep) lines.push("");
 				csep = true;
@@ -696,11 +703,11 @@ class KotlinDecl {
 		}
 	}
 
-	static function isSynthesizedRecordToString(f: ClassFuncData): Bool {
-		return f.field.name == "toString" && f.field.meta.has(":recordMember");
+	static function isSynthesizedRecordToString(cls: ClassType, f: ClassFuncData): Bool {
+		return cls.meta.has(":dataClass") && f.field.name == "toString" && f.field.meta.has(":recordMember");
 	}
 
-	function objectVarDecl(v: ClassVarData): Array<String> {
+	function objectVarDecl(v: ClassVarData, cls: ClassType): Array<String> {
 		final field = v.field;
 		if(v.isStatic && isFunctionType(field.type)) {
 			return staticFunctionVarDecl(v);
@@ -727,7 +734,7 @@ class KotlinDecl {
 			}
 		}
 		if(v.isStatic) {
-			final init = StaticFieldHelper.validatedInitializer(field);
+			final init = StaticFieldHelper.validatedInitializer(field, cls);
 			final initStr = expr.rawExpression(init);
 			final kw = field.isFinal && StaticFieldHelper.isConstValue(field) ? "const val" : (field.isFinal ? "val" : "var");
 			final vis = field.isPublic ? "" : "private ";
