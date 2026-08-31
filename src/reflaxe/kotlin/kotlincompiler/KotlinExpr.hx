@@ -1164,10 +1164,14 @@ class KotlinExpr {
 	function binopCore(op: Binop, l: TypedExpr, r: TypedExpr): String {
 		switch(op) {
 			case OpAdd if(isStringType(l.t) || isStringType(r.t)):
+				final leftStd = stdStringArg(l);
+				final rightStd = stdStringArg(r);
+				final leftText = leftStd == null ? operand(l, op, false) : stdString(leftStd, true);
+				final rightText = rightStd == null ? operand(r, op, true) : stdString(rightStd, true);
 				if(!isStringType(l.t)) {
-					return "(" + operand(l, op, false) + ").toString() + " + operand(r, op, true);
+					return "(" + leftText + ").toString() + " + rightText;
 				}
-				return operand(l, op, false) + " + " + operand(r, op, true);
+				return leftText + " + " + rightText;
 			case OpAdd | OpSub | OpMult | OpDiv | OpMod | OpEq | OpNotEq | OpGt | OpGte | OpLt | OpLte | OpBoolAnd | OpBoolOr:
 				return operand(l, op, false) + " " + symbolOf(op) + " " + operand(r, op, true);
 			case OpShl:
@@ -1374,8 +1378,35 @@ class KotlinExpr {
 		}
 	}
 
+	function stdString(arg: TypedExpr, inConcat: Bool): String {
+		return switch(Context.follow(arg.t)) {
+			case TInst(c, _) if(c.get().name == "String"): expr(arg);
+			case TAbstract(a, _) if(a.get().name == "Int" || a.get().name == "Float" || a.get().name == "Bool"): inConcat ? expr(arg) : "(" + expr(arg) + ").toString()";
+			case TEnum(en, _) if(isParameterlessEnum(en.get())): expr(arg) + (inConcat ? "" : ".name");
+			case _:
+				Context.error("Std.string accepts scalars and parameterless enum values only", arg.pos);
+				null;
+		};
+	}
+
+	function isParameterlessEnum(en: EnumType): Bool {
+		for(ef in en.constructs) switch(ef.type) {
+			case TFun(args, _) if(args.length > 0): return false;
+			case _:
+		}
+		return true;
+	}
+
+	function stdStringArg(e: TypedExpr): Null<TypedExpr> {
+		return switch(stripWrap(e).expr) {
+			case TCall({expr: TField(_, FStatic(c, cf))}, args) if(c.get().module == "Std" && cf.get().name == "string" && args.length == 1): args[0];
+			case _: null;
+		};
+	}
+
 	function call(fn: TypedExpr, args: Array<TypedExpr>): String {
 		switch(fn.expr) {
+			case TField(_, FStatic(c, cf)) if(c.get().module == "Std" && cf.get().name == "string" && args.length == 1): return stdString(args[0], false);
 			case TField(subj, FInstance(_, _, cf)) if(cf.get().name == "get_message" && args.length == 0):
 				final target = stripWrap(subj);
 				switch(target.expr) {

@@ -1159,6 +1159,32 @@ class DartExpr {
 		};
 	}
 
+	function stdString(arg: TypedExpr, inConcat: Bool): String {
+		return switch(Context.follow(arg.t)) {
+			case TInst(c, _) if(c.get().name == "String"): expr(arg);
+			case TAbstract(a, _) if(a.get().name == "Int" || a.get().name == "Float" || a.get().name == "Bool"): inConcat ? expr(arg) : "'${" + expr(arg) + "}'";
+			case TEnum(en, _) if(isParameterlessEnum(en.get())): expr(arg) + ".label";
+			case _:
+				Context.error("Std.string accepts scalars and parameterless enum values only", arg.pos);
+				null;
+		};
+	}
+
+	function isParameterlessEnum(en: EnumType): Bool {
+		for(ef in en.constructs) switch(ef.type) {
+			case TFun(args, _) if(args.length > 0): return false;
+			case _:
+		}
+		return true;
+	}
+
+	function stdStringArg(e: TypedExpr): Null<TypedExpr> {
+		return switch(stripWrap(e).expr) {
+			case TCall({expr: TField(_, FStatic(c, cf))}, args) if(c.get().module == "Std" && cf.get().name == "string" && args.length == 1): args[0];
+			case _: null;
+		};
+	}
+
 	function call(fn: TypedExpr, args: Array<TypedExpr>): String {
 		final inlineMapCall = mapHasOwnPropertyCall(fn, args);
 		if(inlineMapCall != null) {
@@ -1216,7 +1242,7 @@ class DartExpr {
 						return "(" + expr(args[0]) + ").truncate()";
 					}
 					if(fName == "string") {
-						return "'${" + expr(args[0]) + "}'";
+						return stdString(args[0], false);
 					}
 				}
 				if(module == "std.Test") {
@@ -2252,7 +2278,8 @@ class DartExpr {
 			switch(leaf.expr) {
 				case TConst(TString(_)):
 				case _:
-					if(!isStringLeafType(leaf.t)) {
+					final stdArg = stdStringArg(leaf);
+					if(stdArg != null ? !isStringLeafType(stdArg.t) : !isStringLeafType(leaf.t)) {
 						allStrings = false;
 					}
 			}
@@ -2271,7 +2298,9 @@ class DartExpr {
 				case TConst(TString(s)): b.add(escapeInterpolation(s));
 				// Dart interpolation carries no escape: the braces alone
 				// delimit the hole.
-				case _: b.add("${" + expr(leaf) + "}");
+				case _:
+					final stdArg = stdStringArg(leaf);
+					b.add("${" + (stdArg == null ? expr(leaf) : stdString(stdArg, true)) + "}");
 			}
 		}
 		b.addChar('"'.code);

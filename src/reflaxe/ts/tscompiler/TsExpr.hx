@@ -1046,8 +1046,37 @@ class TsExpr {
 		}
 	}
 
+	function stdString(arg: TypedExpr, inConcat: Bool): String {
+		return switch(Context.follow(arg.t)) {
+			case TInst(c, _) if(c.get().name == "String"): expr(arg);
+			case TAbstract(a, _) if(a.get().name == "Int" || a.get().name == "Float" || a.get().name == "Bool"):
+				inConcat ? expr(arg) : "String(" + expr(arg) + ")";
+			case TEnum(en, _) if(isParameterlessEnum(en.get())): expr(arg) + ".kind";
+			case _:
+				Context.error("Std.string accepts scalars and parameterless enum values only", arg.pos);
+				null;
+		};
+	}
+
+	function isParameterlessEnum(en: EnumType): Bool {
+		for(ef in en.constructs) switch(ef.type) {
+			case TFun(args, _) if(args.length > 0): return false;
+			case _:
+		}
+		return true;
+	}
+
+	function stdStringArg(e: TypedExpr): Null<TypedExpr> {
+		return switch(stripWrap(e).expr) {
+			case TCall({expr: TField(_, FStatic(c, cf))}, args) if(c.get().module == "Std" && cf.get().name == "string" && args.length == 1): args[0];
+			case _: null;
+		};
+	}
+
 	function call(fn: TypedExpr, args: Array<TypedExpr>): String {
 		switch(fn.expr) {
+			case TField(_, FStatic(c, cf)) if(c.get().module == "Std" && cf.get().name == "string" && args.length == 1):
+				return stdString(args[0], false);
 			case TField(subj, FInstance(_, _, cf)) if(cf.get().name == "get_message" && args.length == 0):
 				final target = stripCast(subj);
 				switch(target.expr) {
@@ -1119,7 +1148,7 @@ class TsExpr {
 			case _:
 		}
 		final rendered = [for(a in args) expr(a)].join(", ");
-		final inlineMapCall = mapHasOwnPropertyCall(fn, args);
+	final inlineMapCall = mapHasOwnPropertyCall(fn, args);
 		if(inlineMapCall != null) {
 			return inlineMapCall;
 		}
@@ -1805,7 +1834,9 @@ class TsExpr {
 		for(leaf in leaves) {
 			switch(leaf.expr) {
 				case TConst(TString(s)): b.add(escapeTemplate(s));
-				case _: b.add("${" + expr(leaf) + "}");
+				case _:
+					final stdArg = stdStringArg(leaf);
+					b.add("${" + (stdArg == null ? expr(leaf) : stdString(stdArg, true)) + "}");
 			}
 		}
 		b.addChar("`".code);
