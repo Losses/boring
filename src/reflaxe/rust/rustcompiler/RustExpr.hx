@@ -2449,11 +2449,13 @@ class RustExpr {
 					return expr(subj) + ".write_u32(" + expr(args[0]) + ")";
 				}
 				if(name == "writeAscii") {
-					// A heap String argument borrows as &str; string literals
+					// A heap String argument borrows as &str; string
+					// literals and parameters of the enclosing function
 					// already render as &str.
 					final argStr = if(isStringType(args[0].t)) {
 						switch(stripWrap(args[0]).expr) {
 							case TConst(TString(_)): expr(args[0]);
+							case TLocal(v) if(paramVarIds.get(v.id) == true): expr(args[0]);
 							case _: expr(args[0]) + ".as_str()";
 						}
 					} else {
@@ -2848,10 +2850,11 @@ class RustExpr {
 
 	/**
 		Constructor arguments (feature spec 27): a String parameter takes
-		&str, so a heap String argument borrows through .as_str() and a
-		literal keeps its own static borrowing; every other parameter
-		renders as the plain expression, the convention the resident
-		tables already construct under.
+		&str, so a heap String argument borrows through .as_str() while a
+		literal keeps its own static borrowing and a parameter of the
+		enclosing function is already &str (`.as_str()` on &str is
+		unstable); every other parameter renders as the plain expression,
+		the convention the resident tables already construct under.
 	**/
 	function ctorCallArgs(cls: ClassType, args: Array<TypedExpr>): String {
 		final fnType = cls.constructor != null ? cls.constructor.get().type : null;
@@ -2865,6 +2868,7 @@ class RustExpr {
 			if(i < paramTypes.length && isStringType(paramTypes[i]) && isStringType(arg.t)) {
 				out.push(switch(stripWrap(arg).expr) {
 					case TConst(TString(_)): expr(arg);
+					case TLocal(v) if(paramVarIds.get(v.id) == true): expr(arg);
 					case _: expr(arg) + ".as_str()";
 				});
 				continue;
