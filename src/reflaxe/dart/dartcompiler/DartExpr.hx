@@ -1117,6 +1117,9 @@ class DartExpr {
 		if(cls.isInterface || cls.superClass != null || cls.interfaces.length > 0) {
 			return false;
 		}
+		if(cls.constructor != null) {
+			return false;
+		}
 		if(cls.fields.get().length > 0) {
 			return false;
 		}
