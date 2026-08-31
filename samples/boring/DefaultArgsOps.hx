@@ -18,6 +18,7 @@ class GreeterImpl implements IGreeter {
 }
 
 class DefaultArgsOps {
+	public static inline var DefaultFactor:Float = 2.0;
 	public var familyNames:Array<String>;
 
 	public function new(?familyNames:Array<String>) {
@@ -197,8 +198,26 @@ class DefaultArgsOps {
 
 	/** Static-field read (class constant). */
 	public static function staticFieldSample(value:Int, ?factor:Float):Float {
-		var normalized = factor == null ? Math.POSITIVE_INFINITY : factor;
+		var normalized = factor == null ? DefaultArgsOps.DefaultFactor : factor;
 		return value * normalized;
+	}
+
+	/** Instance method call over an earlier parameter. */
+	public static function methodCallSample(text:String, ?normalized:String):String {
+		var value = normalized == null ? text.toUpperCase() : normalized;
+		return value;
+	}
+
+	/** Static call with an earlier parameter argument. */
+	public static function staticCallSample(value:Int, ?clamped:Int):Int {
+		var result = clamped == null ? Math.max(value, 0) : clamped;
+		return result;
+	}
+
+	/** Binary operator over a grammar expression. */
+	public static function binarySample(value:Int, ?offset:Int):Int {
+		var result = offset == null ? value + 1 : offset;
+		return result;
 	}
 
 	/** Dependence assertion: same function called with different earlier arguments. */
