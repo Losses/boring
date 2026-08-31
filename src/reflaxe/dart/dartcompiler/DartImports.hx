@@ -19,6 +19,9 @@ class DartImports {
 	/** Module path to its import prefix, in first-reference order. */
 	final modules: Map<String, String> = [];
 
+	/** Modules whose unnamed extensions must be imported without a prefix. */
+	final extensionModules: Map<String, Bool> = [];
+
 	final runtimeNames: Map<String, Bool> = [];
 	final runtimeTestNames: Map<String, Bool> = [];
 
@@ -108,6 +111,29 @@ class DartImports {
 	**/
 	public function value(module: String, name: String): String {
 		return prefixOf(module);
+	}
+
+	/** Records an extension library import, which must remain unprefixed. */
+	public function useExtension(module: String): Void {
+		checkPurity(module);
+		if(module == selfModule) {
+			return;
+		}
+		if(RuntimeResidents.isResident(module) && RuntimeResidents.isResident(selfModule)
+			&& RuntimeResidents.isTestResident(module) == RuntimeResidents.isTestResident(selfModule)) {
+			return;
+		}
+		extensionModules.set(module, true);
+	}
+
+	/** Extension libraries in stable module order for the import block. */
+	public function extensionModuleList(): Array<String> {
+		final out: Array<String> = [];
+		for(module in extensionModules.keys()) {
+			out.push(module);
+		}
+		out.sort(Reflect.compare);
+		return out;
 	}
 
 	public function type(module: String, name: String): String {
