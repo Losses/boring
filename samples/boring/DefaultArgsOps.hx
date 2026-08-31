@@ -18,7 +18,6 @@ class GreeterImpl implements IGreeter {
 }
 
 class DefaultArgsOps {
-	public static inline var DefaultFactor:Float = 2.0;
 	public var familyNames:Array<String>;
 
 	public function new(?familyNames:Array<String>) {
@@ -176,7 +175,7 @@ class DefaultArgsOps {
 		return greeter.say("Sam");
 	}
 
-	// --- Extension grammar roots: coalescing defaults that read parameters or static fields ---
+	// --- Extension grammar roots: coalescing defaults that read parameters ---
 
 	/** Bare earlier-parameter read. */
 	public static function greetWithPrefix(name:String, ?prefix:String):String {
@@ -196,12 +195,6 @@ class DefaultArgsOps {
 		return normalized;
 	}
 
-	/** Static-field read (class constant). */
-	public static function staticFieldSample(value:Int, ?factor:Float):Float {
-		var normalized = factor == null ? DefaultArgsOps.DefaultFactor : factor;
-		return value * normalized;
-	}
-
 	/** Instance method call over an earlier parameter. */
 	public static function methodCallSample(text:String, ?normalized:String):String {
 		var value = normalized == null ? text.toUpperCase() : normalized;
@@ -209,8 +202,12 @@ class DefaultArgsOps {
 	}
 
 	/** Static call with an earlier parameter argument. */
+	public static function clampBase(value:Int):Int {
+		return value > 0 ? value : 0;
+	}
+
 	public static function staticCallSample(value:Int, ?clamped:Int):Int {
-		var result = clamped == null ? Math.max(value, 0) : clamped;
+		var result = clamped == null ? clampBase(value) : clamped;
 		return result;
 	}
 

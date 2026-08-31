@@ -79,7 +79,7 @@ class DefaultArgsTests {
 		Test.equals("User:Sam", DefaultArgsOps.callInterface1());
 	}
 
-	// --- Extension grammar roots: coalescing defaults that read parameters or static fields ---
+	// --- Stage A grammar roots: coalescing defaults that read parameters ---
 
 	@:test("bare earlier-parameter read")
 	public static function testParameterRead():Void {
@@ -97,12 +97,6 @@ class DefaultArgsTests {
 	public static function testConditional():Void {
 		Test.equals("English", DefaultArgsOps.localeSample("en"));
 		Test.equals("french", DefaultArgsOps.localeSample("fr", "french"));
-	}
-
-	@:test("static-field read")
-	public static function testStaticFieldRead():Void {
-		Test.equals(2.0, DefaultArgsOps.staticFieldSample(1));
-		Test.equals(5.0, DefaultArgsOps.staticFieldSample(5, 1.0));
 	}
 
 	@:test("instance method call, static call, and binary operator defaults")

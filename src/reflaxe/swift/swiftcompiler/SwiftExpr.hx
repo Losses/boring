@@ -140,7 +140,7 @@ class SwiftExpr {
 			case CFieldAccess(CParameterRead(staticPath), ""): staticPath;
 			case CFieldAccess(receiver, fieldName): coalescingDefaultText(receiver, targetType) + "." + fieldName;
 			case CMethodCall(receiver, methodName, args):
-				coalescingDefaultText(receiver, targetType) + "." + methodName + "(" + [for(a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
+				coalescingDefaultText(receiver, targetType) + "." + swiftMethodName(methodName) + "(" + [for(a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
 			case CStaticCall(fullPath, args):
 				fullPath + "(" + [for(a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
 			case CConditional(c, t, f):
@@ -148,6 +148,10 @@ class SwiftExpr {
 			case CBinaryOp(op, left, right):
 				coalescingDefaultText(left, targetType) + " " + opStr(op) + " " + coalescingDefaultText(right, targetType);
 		};
+	}
+
+	static function swiftMethodName(name:String):String {
+		return name == "toUpperCase" ? "uppercased" : name;
 	}
 
 	static function opStr(op:Binop):String {

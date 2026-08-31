@@ -118,7 +118,7 @@ class KotlinExpr {
 			case CFieldAccess(CParameterRead(staticPath), ""): staticPath;
 			case CFieldAccess(receiver, fieldName): coalescingDefaultText(receiver, targetType) + "." + fieldName;
 			case CMethodCall(receiver, methodName, args):
-				coalescingDefaultText(receiver, targetType) + "." + methodName + "(" + [for(a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
+				coalescingDefaultText(receiver, targetType) + "." + kotlinMethodName(methodName) + "(" + [for(a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
 			case CStaticCall(fullPath, args):
 				fullPath + "(" + [for(a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
 			case CConditional(c, t, f):
@@ -128,10 +128,17 @@ class KotlinExpr {
 		};
 	}
 
+	static function kotlinMethodName(name:String):String {
+		return switch (name) {
+			case "toUpperCase": "uppercase";
+			case "toLowerCase": "lowercase";
+			default: name;
+		};
+	}
+
 	static function opStr(op:Binop):String {
 		return switch(op) {
 			case OpAdd: "+";
-			case OpSub: "-";
 			case OpMult: "*";
 			case OpDiv: "/";
 			case OpMod: "%";
