@@ -3,6 +3,7 @@
 -cp samples
 -cp out/haxe
 --macro Intercept.run(['samples'], ['samples/boring/BinaryReader.hx', 'samples/boring/BinaryWriter.hx', 'samples/boring/Fp32.hx'])
+--macro haxe.macro.Compiler.addGlobalMetadata('boring', '@:build(std.RecordMember.build())')
 -main TestMain
 -js out/haxe/test-main.js
 -D analyzer-optimize

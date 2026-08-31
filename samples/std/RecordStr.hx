@@ -18,19 +18,6 @@ import haxe.macro.Type;
 class RecordStr {
 	public static macro function str(r:Expr):Expr {
 		final shape = RecordShape.of(r, "record str accepts record receivers only");
-		final names = shape.names;
-		final open = shape.isClass ? shape.name + "(" : "{ ";
-		final close = shape.isClass ? ")" : " }";
-		var out: Expr = { expr: EConst(CString(open)), pos: r.pos };
-		for(i in 0...names.length) {
-			final name = names[i];
-			if(i > 0) {
-				out = { expr: EBinop(OpAdd, out, { expr: EConst(CString(", ")), pos: r.pos }), pos: r.pos };
-			}
-			out = { expr: EBinop(OpAdd, out, { expr: EConst(CString(name + "=")), pos: r.pos }), pos: r.pos };
-			out = { expr: EBinop(OpAdd, out, { expr: EField(r, name), pos: r.pos }), pos: r.pos };
-		}
-		out = { expr: EBinop(OpAdd, out, { expr: EConst(CString(close)), pos: r.pos }), pos: r.pos };
-		return out;
+		return RecordShape.assemble(r, shape);
 	}
 }

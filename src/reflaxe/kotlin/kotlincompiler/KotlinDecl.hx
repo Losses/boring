@@ -41,6 +41,10 @@ class KotlinDecl {
 	// ------------------------------------------------------------------
 
 	public function classDecl(cls: ClassType, varFields: Array<ClassVarData>, funcFields: Array<ClassFuncData>): String {
+		// Kotlin's data class already supplies the same printed form. The
+		// stage 1 build macro marks its synthetic member so this target can
+		// leave the native synthesis as the only declaration.
+		funcFields = [for(f in funcFields) if(!isSynthesizedRecordToString(f)) f];
 		if(cls.isInterface) {
 			final lines: Array<String> = [];
 			lines.push("interface " + cls.name + " {");
@@ -578,6 +582,10 @@ class KotlinDecl {
 			case _:
 				return false;
 		}
+	}
+
+	static function isSynthesizedRecordToString(f: ClassFuncData): Bool {
+		return f.field.name == "toString" && f.field.meta.has(":recordMember");
 	}
 
 	function objectVarDecl(v: ClassVarData): Array<String> {

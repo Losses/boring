@@ -7,6 +7,7 @@
 -cp src/reflaxe/kotlin
 -cp samples
 --macro Intercept.run(['samples'], ['samples/boring/BinaryReader.hx', 'samples/boring/BinaryWriter.hx', 'samples/boring/Fp32.hx'])
+--macro haxe.macro.Compiler.addGlobalMetadata('boring', '@:build(std.RecordMember.build())')
 --macro kotlincompiler.Compiler.use()
 -D kotlin-output=reference/kotlin-f32/gen
 -D kotlin-test-output=reference/kotlin-f32/gen-tests
@@ -54,6 +55,9 @@ boring.RecordOps
 tests.RecordTests
 tests.ValueRecordTests
 tests.ValueRecordProbes
+boring.PrintedRecord
+tests.PrintedRecordTests
+boring.PrintedCustom
 boring.StringBufOps
 tests.StringBufTests
 boring.TryOps
