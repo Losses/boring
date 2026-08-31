@@ -2413,7 +2413,7 @@ class RustExpr {
 					return "&*" + staticItemPath(cls, name);
 				}
 				if(isGuardStaticField(cls, name)) {
-					if(StaticFieldHelper.isConstruction(cf.get().expr())) {
+					if(StaticFieldHelper.isConstruction(cf.get().expr()) && !StaticFieldHelper.isSelfConstruction(cf.get(), cls)) {
 						return "&*" + staticItemPath(cls, name);
 					}
 					final guard = staticGuard(cls, name);
@@ -2497,7 +2497,7 @@ class RustExpr {
 			&& ValueTypeSupport.markedAbstractOfClass(cls) == null
 			&& StaticFieldHelper.initializer(field) != null
 			&& !StaticFieldHelper.isConstValue(field)
-			&& !StaticFieldHelper.isConstruction(field.expr());
+			&& (!StaticFieldHelper.isConstruction(field.expr()) || StaticFieldHelper.isSelfConstruction(field, cls));
 	}
 
 	function staticItemPath(cls: ClassType, name: String): String {
@@ -2509,6 +2509,7 @@ class RustExpr {
 
 	function staticGuard(cls: ClassType, name: String): String {
 		return staticItemPath(cls, name) + ".lock().unwrap_or_else(|e| e.into_inner())";
+	}
 	}
 
 	function staticGuardOf(e: TypedExpr): Null<String> {
