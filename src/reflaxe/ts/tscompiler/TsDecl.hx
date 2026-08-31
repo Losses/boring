@@ -236,6 +236,15 @@ class TsDecl {
 		if(v.isStatic && DataTableHelper.isDataTableField(field)) {
 			return [];
 		}
+		if(v.isStatic && isFunctionType(field.type)) {
+			final initializer = field.expr();
+			if(initializer == null) {
+				Context.error("static function fields require initializers", field.pos);
+				return [];
+			}
+			final vis = field.isPublic ? "public " : "private ";
+			return ["  " + vis + "static " + field.name + ": " + types.of(field.type) + " = " + expr.rawExpression(initializer) + ";"];
+		}
 		if(field.meta.has(":value")) {
 			if(v.isStatic) {
 				// Inline constants fold into their use sites as TConst.
@@ -249,6 +258,16 @@ class TsDecl {
 		final vis = field.isPublic ? "public" : "private";
 		final ro = field.isFinal ? "readonly " : "";
 		return ['  $vis ${ro}${field.name}: ${types.of(field.type)};'];
+	}
+
+	static function isFunctionType(t: Null<Type>): Bool {
+		if(t == null) {
+			return false;
+		}
+		return switch(Context.follow(t)) {
+			case TFun(_, _): true;
+			case _: false;
+		};
 	}
 
 	function funcDecl(cls: ClassType, f: ClassFuncData): Array<String> {

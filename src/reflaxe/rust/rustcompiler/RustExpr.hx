@@ -34,6 +34,7 @@ class RustExpr {
 	var errorTypeName: Null<String> = null;
 	var returnUnsigned: Bool = false;
 	var returnTypeName: Null<String> = null;
+	var currentReturnType: Null<Type> = null;
 
 	final subst: Map<Int, String> = [];
 	/** Catch variables of the region being lowered; features/06 catch-site lowering. */
@@ -63,6 +64,10 @@ class RustExpr {
 
 	public function setReturnTypeName(value: Null<String>): Void {
 		this.returnTypeName = value;
+	}
+
+	public function setReturnType(value: Null<Type>): Void {
+		this.currentReturnType = value;
 	}
 
 	public function reserveName(name: String): Void {
@@ -100,6 +105,14 @@ class RustExpr {
 
 	public function rawExpression(e: TypedExpr): String {
 		return expr(e);
+	}
+
+	/** Renders the literal itself for a Rust static function pointer initializer. */
+	public function rawFunctionInitializer(e: TypedExpr): String {
+		return switch(stripWrap(e).expr) {
+			case TFunction(f): functionLiteral(f, e.t);
+			case _: fail(e, "static function fields accept capture-free initializers only");
+		}
 	}
 
 	// ------------------------------------------------------------------
@@ -260,7 +273,7 @@ class RustExpr {
 								case _: false;
 							};
 							if(!isParam) {
-								fieldInits.set(fieldName, expr(value));
+								fieldInits.set(fieldName, renderValueForType(cf.get().type, value, expr(value)));
 							}
 						case _:
 							stmts.push(stmt);
@@ -320,15 +333,18 @@ class RustExpr {
 			case TVar(v, init) if(init != null):
 				final kw = mutated.exists(v.id) ? "let mut" : "let";
 				final name = RustImports.toSnakeCase(localName(v));
-				final explicitType = switch(v.t) {
+				final explicitType = if(isFunctionType(v.t)) {
+					": " + types.functionReturnOf(v.t);
+				} else switch(v.t) {
 					case TInst(c, _) if(c.get().name == "SortedMapBuilder" || c.get().name == "SortedMap" || c.get().name == "SortedSetBuilder" || c.get().name == "SortedSet"):
 						": " + types.of(v.t, false);
 					case _: "";
 				};
 				var initStr = switch(init.expr) {
-					case TFunction(fn): functionLiteralNamed(v.name, fn);
+					case TFunction(fn): functionValueLiteralNamed(v.name, fn, init.t);
 					default: expr(init);
 				};
+				initStr = renderValueForType(v.t, init, initStr);
 				// A String local owns its value; a literal initializer is
 				// a &str, so the empty literal declares String::new() and
 				// any other literal converts once at the declaration. A
@@ -396,7 +412,7 @@ class RustExpr {
 				var retStr = if(returnUnsigned && isUsizeExpr(ret)) {
 					"(" + expr(ret) + ") as u32";
 				} else {
-					expr(ret);
+					renderValueForType(currentReturnType, ret, expr(ret));
 				};
 				// A parameter-typed read clones at the boundary: the
 				// element stays owned by its array.
@@ -1257,12 +1273,12 @@ class RustExpr {
 			Context.error("sorted builder requires an explicit key type", pos);
 		}
 		return switch(RustType.classifyKey(kType, pos)) {
-			case IntKey: "|a, b| SortedTable::compare_ints((*a) as i32, (*b) as i32)";
-			case StringKey: "|a, b| SortedTable::compare_strings(a.as_str(), b.as_str())";
+			case IntKey: "Box::new(|a, b| SortedTable::compare_ints((*a) as i32, (*b) as i32))";
+			case StringKey: "Box::new(|a, b| SortedTable::compare_strings(a.as_str(), b.as_str()))";
 			case StructKey(def, _):
 				final cmpName = "compare_" + RustImports.toSnakeCase(def.name);
 				imports.requireType(def.module, cmpName);
-				cmpName;
+				"Box::new(" + cmpName + ")";
 		};
 	}
 
@@ -1479,7 +1495,7 @@ class RustExpr {
 			case TEnumIndex(_):
 				return fail(e, "enum index only lowers inside a variant switch");
 			case TFunction(f):
-				return functionLiteral(f);
+				return functionValueLiteral(f, e.t);
 			case TIf(c, t, f) if(f != null):
 				final coalescing = coalescingSiteFor(e);
 				if(coalescing != null) return expr(coalescing.valueExpr);
@@ -2058,7 +2074,7 @@ class RustExpr {
 						default: expr(r);
 					}
 				} else {
-					expr(r);
+					renderValueForType(l.t, r, expr(r));
 				};
 				return assignTarget(l) + " = " + rhs;
 			case OpAssignOp(inner):
@@ -2221,6 +2237,18 @@ class RustExpr {
 		}
 	}
 
+	function isFunctionType(t: Null<Type>): Bool {
+		if(t == null) return false;
+		return switch(Context.follow(t)) {
+			case TFun(_, _): true;
+			case _: false;
+		};
+	}
+
+	function staticFunctionName(name: String): String {
+		return RustImports.toSnakeCase(name).toUpperCase();
+	}
+
 	function staticRef(cls: ClassType, name: String): String {
 		final path = cls.pack.length == 0 ? cls.name : cls.pack.join(".") + "." + cls.name;
 		switch(path) {
@@ -2283,6 +2311,15 @@ class RustExpr {
 					}
 					imports.requireType("runtime.Graphemes", "Graphemes");
 					return "Graphemes::" + RustImports.toSnakeCase(name);
+				}
+				for(field in cls.statics.get()) {
+					if(field.name == name && field.kind.match(FVar(_, _)) && isFunctionType(field.type)) {
+						final targetName = staticFunctionName(name);
+						if(cls.module != imports.selfModule) {
+							imports.requireType(cls.module, targetName);
+						}
+						return targetName;
+					}
 				}
 				for(field in cls.statics.get()) {
 					if(field.name == name && DataTableHelper.isDataTableField(field)) {
@@ -2601,24 +2638,7 @@ class RustExpr {
 					// Parameter-typed arguments borrow unless the local
 					// already holds a reference (a borrowed parameter of
 					// the enclosing function).
-					final fnFieldParams = switch(Context.follow(cf.get().type)) {
-						case TFun(pargs, _): [for(p in pargs) p.t];
-						case _: [];
-					};
-					final callArgs = [];
-					for(argIdx in 0...args.length) {
-						final pt = argIdx < fnFieldParams.length ? fnFieldParams[argIdx] : null;
-						if(pt != null && RustType.isTypeParam(pt)) {
-							final borrowed = switch(stripWrap(args[argIdx]).expr) {
-								case TLocal(v): isBorrowedLocal(v);
-								case _: false;
-							};
-							callArgs.push(borrowed ? expr(args[argIdx]) : "&(" + expr(args[argIdx]) + ")");
-						} else {
-							callArgs.push(expr(args[argIdx]));
-						}
-					}
-					return "(" + expr(subj) + "." + snake + ")(" + callArgs.join(", ") + ")";
+					return "(" + expr(subj) + "." + snake + ")(" + renderCallArgs(cf.get().type, args) + ")";
 				}
 				final isMethodFallible = isFallibleCallee(c, cf, false);
 				final q = isFallible ? (isMethodFallible ? "?" : "") : (isMethodFallible ? ".unwrap()" : "");
@@ -2846,16 +2866,47 @@ class RustExpr {
 		}
 	}
 
-	function functionLiteral(f: TFunc): String {
+	function functionLiteral(f: TFunc, functionType: Null<Type>): String {
 		final params = [for(a in f.args) RustImports.toSnakeCase(a.v.name)].join(", ");
+		final previousReturnUnsigned = returnUnsigned;
+		final previousReturnTypeName = returnTypeName;
+		final previousReturnType = currentReturnType;
+		final functionReturn = switch(functionType) {
+			case null: null;
+			case _: switch(Context.follow(functionType)) {
+				case TFun(_, ret): ret;
+				case _: null;
+			}
+		};
+		returnUnsigned = functionReturn == null ? false : switch(Context.follow(functionReturn)) {
+			case TAbstract(a, _) if(a.get().name == "Int"): !RuntimeResidents.isResident(imports.selfModule);
+			case _: false;
+		};
+		returnTypeName = functionReturn == null ? null : types.of(functionReturn, false);
+		currentReturnType = functionReturn;
 		final body = coalescingNormalizationLines(f.expr, 2).concat(blockLines(statementsOf(f.expr), 2, true));
-		return '|$params| {\n' + body.join("\n") + '\n}';
+		returnUnsigned = previousReturnUnsigned;
+		returnTypeName = previousReturnTypeName;
+		currentReturnType = previousReturnType;
+		return 'move |$params| {\n' + body.join("\n") + '\n}';
 	}
 
-	function functionLiteralNamed(name: String, f: TFunc): String {
+	function functionValueLiteral(f: TFunc, functionType: Null<Type>): String {
+		return "Box::new(" + functionLiteral(f, functionType) + ")";
+	}
+
+	function functionLiteralNamed(name: String, f: TFunc, functionType: Null<Type>): String {
 		final previous = currentLocalName;
 		currentLocalName = name;
-		final result = functionLiteral(f);
+		final result = functionLiteral(f, functionType);
+		currentLocalName = previous;
+		return result;
+	}
+
+	function functionValueLiteralNamed(name: String, f: TFunc, functionType: Null<Type>): String {
+		final previous = currentLocalName;
+		currentLocalName = name;
+		final result = functionValueLiteral(f, functionType);
 		currentLocalName = previous;
 		return result;
 	}
@@ -2994,6 +3045,10 @@ class RustExpr {
 		final out: Array<String> = [];
 		for(i in 0...args.length) {
 			final arg = args[i];
+			if(i < paramTypes.length && isInterfaceType(paramTypes[i])) {
+				out.push(renderValueForType(paramTypes[i], arg, expr(arg)));
+				continue;
+			}
 			if(i < paramTypes.length && isStringType(paramTypes[i]) && isStringType(arg.t)) {
 				out.push(switch(stripWrap(arg).expr) {
 					case TConst(TString(_)): expr(arg);
@@ -3514,6 +3569,44 @@ class RustExpr {
 		};
 	}
 
+	function isInterfaceType(t: Null<Type>): Bool {
+		if(t == null) return false;
+		return switch(Context.follow(t)) {
+			case TInst(c, _): c.get().isInterface;
+			case _: false;
+		};
+	}
+
+	function renderValueForType(expected: Null<Type>, actual: TypedExpr, rendered: String): String {
+		if(expected == null || actual == null) return rendered;
+		// Rust represents an interface value as an owned trait object. A
+		// concrete implementor therefore enters an interface slot through
+		// the one sanctioned Box::new construction; an expression already
+		// typed as the interface is already boxed by its declaration site.
+		if(isInterfaceType(expected) && !isInterfaceType(actual.t)) {
+			return "Box::new(" + rendered + ")";
+		}
+		// Static methods and static function fields are emitted as callable
+		// items/pointers, while every non-static function value is already a
+		// Box at its declaration site. Adapt the former only when a ruled
+		// boxed function slot receives it.
+		if(isFunctionType(expected) && isFunctionType(actual.t) && !isBoxedFunctionExpr(actual)) {
+			return "Box::new(" + rendered + ")";
+		}
+		return rendered;
+	}
+
+	function isBoxedFunctionExpr(e: TypedExpr): Bool {
+		return switch(stripWrap(e).expr) {
+			case TFunction(_): true;
+			case TLocal(_): true;
+			case TCall(_, _): true;
+			case TField(_, FInstance(_, _, cf)) if(isFunctionType(cf.get().type)): true;
+			case TField(_, FStatic(_, _)): false;
+			case _: false;
+		};
+	}
+
 	function renderCallArgs(fnType: Null<Type>, args: Array<TypedExpr>, signedPositions: Null<Array<Int>> = null): String {
 		final paramTypes = if(fnType != null) {
 			switch(Context.follow(fnType)) {
@@ -3524,9 +3617,9 @@ class RustExpr {
 		final rendered = [];
 		for(i in 0...args.length) {
 			final arg = args[i];
-			var argStr = expr(arg);
+			final pt = i < paramTypes.length ? paramTypes[i] : null;
+			var argStr = renderValueForType(pt, arg, expr(arg));
 			if(i < paramTypes.length) {
-				final pt = paramTypes[i];
 				if(isNullType(pt) && !isNullType(arg.t)) {
 					if(argStr == "None") {
 						// already None
@@ -3536,6 +3629,20 @@ class RustExpr {
 							case _: argStr;
 						};
 						argStr = "Some(" + inner + ")";
+					}
+				} else if(RustType.isTypeParam(pt)) {
+					final borrowed = switch(stripWrap(arg).expr) {
+						case TLocal(v): isBorrowedLocal(v);
+						case _: false;
+					};
+					if(isStringType(arg.t)) {
+						// A generic T is owned in its return position. A Haxe
+						// String argument therefore specializes T as String,
+						// even when the source expression itself is a borrowed
+						// string parameter or a literal.
+						argStr = "&(" + argStr + ").to_string()";
+					} else if(!borrowed && !StringTools.startsWith(argStr, "&")) {
+						argStr = "&(" + argStr + ")";
 					}
 				} else if(isPassByRef(pt)) {
 					// The mutating faces are arrays and the writer and reader
@@ -3556,6 +3663,18 @@ class RustExpr {
 						argStr = prefix + argStr;
 					}
 				}
+				// A collection length is usize in Rust while a Haxe Int
+				// function parameter is u32 in business modules. The
+				// declared function type is the call boundary, so narrow
+				// exactly there (the same convention as buf.len() as u32)
+				// instead of changing the stored function type.
+				if(isIntType(pt) && isUsizeExpr(arg)
+					&& (signedPositions == null || signedPositions.indexOf(i) < 0)) {
+					final targetType = types.of(pt, false);
+					if(targetType == "u32" || targetType == "i32") {
+						argStr = "(" + argStr + ") as " + targetType;
+					}
+				}
 			}
 			if(signedPositions != null && signedPositions.indexOf(i) >= 0) {
 				argStr = "(" + argStr + ") as i32";
@@ -3565,10 +3684,11 @@ class RustExpr {
 		return rendered.join(", ");
 	}
 
-		function isUsizeExpr(e: TypedExpr): Bool {
+	function isUsizeExpr(e: TypedExpr): Bool {
 		if(e == null) return false;
 		return switch(stripWrap(e).expr) {
 			case TField(subj, fa) if(fieldName(fa) == "length" || fieldName(fa) == "get_length"): !isStringBuf(subj);
+			case TBinop(OpAdd | OpSub | OpMult | OpDiv, l, r): isUsizeExpr(l) || isUsizeExpr(r);
 			default: false;
 		};
 	}

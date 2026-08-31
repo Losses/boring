@@ -197,6 +197,14 @@ class SwiftDecl {
 				return ["    static let " + field.name + ": [Int32] = [" + renderDataTableElements(elems) + "]"];
 			}
 		}
+		if(v.isStatic && isFunctionType(field.type)) {
+			final initializer = field.expr();
+			if(initializer == null) {
+				Context.error("static function fields require initializers", field.pos);
+				return [];
+			}
+			return ["    static let " + field.name + ": " + types.of(field.type) + " = " + expr.rawExpression(initializer)];
+		}
 		if(field.meta.has(":value")) {
 			if(v.isStatic) {
 				// Inline constants fold into their use sites as TConst.
@@ -223,6 +231,16 @@ class SwiftDecl {
 		// spec 27); public fields keep the default internal visibility.
 		final vis = field.isPublic ? "" : "private ";
 		return ["    " + vis + kw + " " + field.name + ": " + types.of(field.type)];
+	}
+
+	static function isFunctionType(t: Null<Type>): Bool {
+		if(t == null) {
+			return false;
+		}
+		return switch(Context.follow(t)) {
+			case TFun(_, _): true;
+			case _: false;
+		};
 	}
 
 	/** A `var x(get, never)` field renders no storage on this target (feature spec 27). */

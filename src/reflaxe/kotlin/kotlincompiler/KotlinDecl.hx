@@ -171,6 +171,9 @@ class KotlinDecl {
 		// Stored properties without a constructor parameter; getter-only
 		// properties keep no storage (feature spec 27).
 		for(v in varFields) {
+			if(v.isStatic && isFunctionType(v.field.type)) {
+				continue;
+			}
 			if(constructorArgNames.exists(v.field.name) || isGetterOnlyProperty(v.field)) {
 				continue;
 			}
@@ -206,6 +209,7 @@ class KotlinDecl {
 
 		final instanceFuncs = [for(f in funcFields) if(!f.isStatic && f.field.name != "new") f];
 		final staticFuncs = [for(f in funcFields) if(f.isStatic) f];
+		final staticFunctionVars = [for(v in varFields) if(v.isStatic && isFunctionType(v.field.type)) v];
 
 		var sep = varFields.length > 0 && instanceFuncs.length > 0;
 		for(f in instanceFuncs) {
@@ -214,10 +218,15 @@ class KotlinDecl {
 			for(l in funcDecl(cls, f, false)) lines.push(l);
 		}
 
-		if(staticFuncs.length > 0) {
+		if(staticFuncs.length > 0 || staticFunctionVars.length > 0) {
 			if(instanceFuncs.length > 0 || varFields.length > 0) lines.push("");
 			lines.push("    companion object {");
 			var csep = false;
+			for(v in staticFunctionVars) {
+				if(csep) lines.push("");
+				csep = true;
+				for(l in staticFunctionVarDecl(v)) lines.push("    " + l);
+			}
 			for(f in staticFuncs) {
 				if(csep) lines.push("");
 				csep = true;
@@ -590,6 +599,9 @@ class KotlinDecl {
 
 	function objectVarDecl(v: ClassVarData): Array<String> {
 		final field = v.field;
+		if(v.isStatic && isFunctionType(field.type)) {
+			return staticFunctionVarDecl(v);
+		}
 		if(v.isStatic && DataTableHelper.isDataTableField(field)) {
 			final elems = DataTableHelper.getDataTableElements(field.expr());
 			if(elems != null) {
@@ -621,6 +633,26 @@ class KotlinDecl {
 			return ['    const val ${field.name}: ${types.of(field.type)} = $valStr'];
 		}
 		return ['    val ${field.name}: ${types.of(field.type)}'];
+	}
+
+	function staticFunctionVarDecl(v: ClassVarData): Array<String> {
+		final field = v.field;
+		final initializer = field.expr();
+		if(initializer == null) {
+			Context.error("static function fields require initializers", field.pos);
+			return [];
+		}
+		return ['    val ${field.name}: ${types.of(field.type)} = ${expr.rawExpression(initializer)}'];
+	}
+
+	static function isFunctionType(t: Null<Type>): Bool {
+		if(t == null) {
+			return false;
+		}
+		return switch(Context.follow(t)) {
+			case TFun(_, _): true;
+			case _: false;
+		};
 	}
 
 	function classVarDecl(v: ClassVarData): Array<String> {
