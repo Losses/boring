@@ -306,11 +306,12 @@ class SwiftDecl {
 		final methodParams = collectMethodTypeParams(cls, f);
 		final genericStr = methodParams.length > 0 ? "<" + methodParams.join(", ") + ">" : "";
 		final body = decodeBoundaryBody(cls, f);
+		final normLines = coalescingBodyNormalizationLines(cls, f);
 		// Private functions render with Swift's private marker (feature
 		// spec 27); public functions keep the default internal visibility.
 		final vis = f.field.isPublic ? "" : "private ";
 		final head = '    $stat$vis' + 'func ${f.field.name}$genericStr${paramList(cls, f)}$throws -> $ret {';
-		return withParamShadows([head], body, cast f.args).concat(["    }"]);
+		return withParamShadows([head], normLines.concat(body), cast f.args).concat(["    }"]);
 	}
 
 	/**
@@ -322,14 +323,29 @@ class SwiftDecl {
 	function paramList(cls: ClassType, f: ClassFuncData): String {
 		return "(" + [for(a in f.args) {
 			final coalescing = DefaultArgExpander.coalescingDefaultAt(cls, f.field.name, a.index);
-			final parameterType = coalescing != null ? DefaultArgExpander.coalescingParameterType(coalescing, a.type) : a.type;
+			final readsParam = coalescing != null && DefaultArgExpander.coalescingReadsParamForParam(cls, f.field.name, a.name);
+			final baseType = coalescing != null ? DefaultArgExpander.coalescingParameterType(coalescing, a.type) : a.type;
+			// When the default reads an earlier parameter, Swift needs
+			// an Optional type so the default value can be nil.
+			final parameterType = readsParam ? makeOptional(baseType) : baseType;
 			final escaping = switch(Context.follow(a.type)) {
 				case TFun(_, _): "@escaping ";
 				case _: "";
 			};
-			final defaultText = coalescing != null ? " = " + expr.coalescingDefaultText(coalescing, a.type) : "";
+			final defaultText = if (coalescing != null) {
+				if (readsParam) " = nil" else " = " + expr.coalescingDefaultText(coalescing, a.type);
+			} else "";
 			"_ " + a.name + ": " + escaping + types.of(parameterType) + defaultText;
 		}].join(", ") + ")";
+	}
+
+	/** Wraps a Haxe type in Null<T> to produce a Swift optional. */
+	function makeOptional(t:Type):Type {
+		final nullAbst = switch(Context.getType("Null")) {
+			case TAbstract(a, _): a;
+			case _: return t;
+		};
+		return TAbstract(nullAbst, [t]);
 	}
 
 	/**
@@ -375,6 +391,26 @@ class SwiftDecl {
 				collectTypeParamsInto(fun(), skip, found);
 			case _:
 		}
+	}
+
+	/**
+		Body normalization lines for coalescing defaults that read
+		earlier parameters. Swift cannot use a default argument
+		expression that references other parameters, so the parameter
+		takes `T? = nil` in the signature and the body assigns
+		`p = p ?? E;` at entry.
+	**/
+	function coalescingBodyNormalizationLines(cls: ClassType, f: ClassFuncData): Array<String> {
+		final out: Array<String> = [];
+		for(a in f.args) {
+			final coalescing = DefaultArgExpander.coalescingDefaultAt(cls, f.field.name, a.index);
+			if(coalescing == null) continue;
+			if(!DefaultArgExpander.coalescingReadsParamForParam(cls, f.field.name, a.name)) continue;
+			final defaultText = expr.coalescingDefaultText(coalescing, a.type);
+			// Swift function parameters are let constants; shadow as var.
+			out.push("        var " + a.name + " = " + a.name + " ?? " + defaultText + ";");
+		}
+		return out;
 	}
 
 	/**

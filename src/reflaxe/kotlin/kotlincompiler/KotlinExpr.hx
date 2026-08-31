@@ -114,6 +114,40 @@ class KotlinExpr {
 			case CPositiveInfinity: FloatPrecision.isF32() ? "Float.POSITIVE_INFINITY" : "Double.POSITIVE_INFINITY";
 			case CNegativeInfinity: FloatPrecision.isF32() ? "Float.NEGATIVE_INFINITY" : "Double.NEGATIVE_INFINITY";
 			case CEnum(enumRef, enumField): types.of(Type.TEnum(enumRef, [])) + "." + enumField.name;
+			case CParameterRead(name): name;
+			case CFieldAccess(CParameterRead(staticPath), ""): staticPath;
+			case CFieldAccess(receiver, fieldName): coalescingDefaultText(receiver, targetType) + "." + fieldName;
+			case CMethodCall(receiver, methodName, args):
+				coalescingDefaultText(receiver, targetType) + "." + methodName + "(" + [for(a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
+			case CStaticCall(fullPath, args):
+				fullPath + "(" + [for(a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
+			case CConditional(c, t, f):
+				"if (" + coalescingDefaultText(c, targetType) + ") " + coalescingDefaultText(t, targetType) + " else " + coalescingDefaultText(f, targetType);
+			case CBinaryOp(op, left, right):
+				coalescingDefaultText(left, targetType) + " " + opStr(op) + " " + coalescingDefaultText(right, targetType);
+		};
+	}
+
+	static function opStr(op:Binop):String {
+		return switch(op) {
+			case OpAdd: "+";
+			case OpSub: "-";
+			case OpMult: "*";
+			case OpDiv: "/";
+			case OpMod: "%";
+			case OpEq: "==";
+			case OpNotEq: "!=";
+			case OpLt: "<";
+			case OpLte: "<=";
+			case OpGt: ">";
+			case OpGte: ">=";
+			case OpBoolAnd: "&&";
+			case OpBoolOr: "||";
+			case OpShl: "shl";
+			case OpShr: "shr";
+			case OpXor: "xor";
+			case OpAssign: "=";
+			case _: "?";
 		};
 	}
 

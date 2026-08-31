@@ -174,4 +174,44 @@ class DefaultArgsOps {
 		final greeter:IGreeter = new GreeterImpl();
 		return greeter.say("Sam");
 	}
+
+	// --- Extension grammar roots: coalescing defaults that read parameters or static fields ---
+
+	/** Bare earlier-parameter read. */
+	public static function greetWithPrefix(name:String, ?prefix:String):String {
+		var normalized = prefix == null ? name : prefix;
+		return normalized;
+	}
+
+	/** Field access over a parameter. */
+	public static function sizeLabel(?items:Array<String>):String {
+		final count = items == null ? 0 : items.length;
+		return 'size:$count';
+	}
+
+	/** Conditional over a parameter. */
+	public static function localeSample(lang:String, ?fallback:String):String {
+		var normalized = fallback == null ? (lang == "en" ? "English" : "Other") : fallback;
+		return normalized;
+	}
+
+	/** Static-field read (class constant). */
+	public static function staticFieldSample(value:Int, ?factor:Float):Float {
+		var normalized = factor == null ? Math.POSITIVE_INFINITY : factor;
+		return value * normalized;
+	}
+
+	/** Dependence assertion: same function called with different earlier arguments. */
+	public static function dependenceEarlier(a:String, ?b:String):String {
+		var normalized = b == null ? a : b;
+		return normalized;
+	}
+
+	public static function callDependenceA():String {
+		return dependenceEarlier("alpha");
+	}
+
+	public static function callDependenceB():String {
+		return dependenceEarlier("beta");
+	}
 }
