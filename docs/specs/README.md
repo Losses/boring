@@ -101,7 +101,7 @@ Every candidate translation is evaluated across four fixed axes:
 | 09 | [09-inline-arithmetic-helpers.md](stdlib/09-inline-arithmetic-helpers.md) | Complete | Sanctioned static inline helpers for range checks, clamping, and two-field range values. |
 | 10 | [10-unicode-string-access.md](stdlib/10-unicode-string-access.md) | Complete | std.UString: code-point-addressed access for strings beyond the ASCII tier. |
 | 11 | [11-grapheme-clusters.md](stdlib/11-grapheme-clusters.md) | Complete | std.Graphemes: extended grapheme cluster iteration over code-point content. |
-| 12 | [12-std-string.md](stdlib/12-std-string.md) | Planned | Std.string: call-site conversion of scalars and value enumerations on the five targets, inside concatenation and standalone. |
+| 12 | [12-std-string.md](stdlib/12-std-string.md) | Planned | Std.string: call-site conversion of scalars, value enumerations, and arrays of them on the five targets, inside concatenation and standalone. |
 
 ### Style specifications
 
