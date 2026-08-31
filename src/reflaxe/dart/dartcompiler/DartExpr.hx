@@ -1355,8 +1355,9 @@ class DartExpr {
 			case TAbstract(a, params) if(a.get().module == "std.ReadOnlyArray"):
 				stdStringType(haxe.macro.TypeTools.applyTypeParameters(a.get().type, a.get().params, params), value, inConcat, origin, depth);
 			case TEnum(en, _) if(isParameterlessEnum(en.get())): value + ".label";
+			case TEnum(en, _): enumLabeledText(en.get(), value, origin);
 			case _:
-				Context.error("Std.string accepts scalars, parameterless enum values, and arrays of them only", origin.pos);
+				Context.error("Std.string accepts scalars, enum values, records, and arrays of them only", origin.pos);
 				null;
 		};
 	}
@@ -1367,6 +1368,40 @@ class DartExpr {
 			case _:
 		}
 		return true;
+	}
+
+	/**
+		A payload enum operand renders the labeled constructor form of
+		features/34 ruling 2: an immediately-invoked closure switching
+		over the generated subclasses, the exhaustive enum subject form
+		of features/01 with no default arm. A payload arm binds the
+		parameter names and interpolates each argument through its
+		operand form; a parameterless arm returns the constructor name.
+	**/
+	function enumLabeledText(en: EnumType, value: String, origin: TypedExpr): String {
+		final constructs = [for(ef in en.constructs) ef];
+		constructs.sort((a, b) -> Reflect.compare(a.index, b.index));
+		final arms: Array<String> = [];
+		for(ef in constructs) {
+			final args = switch(ef.type) {
+				case TFun(args, _): args;
+				case _: [];
+			};
+			final cls = DartDecl.constructClassName(en.name, ef.name);
+			final pattern = qualifiedRef(en.module, cls) + (args.length > 0
+				? "(" + [for(arg in args) arg.name + ": var " + arg.name].join(", ") + ")"
+				: "()");
+			if(args.length == 0) {
+				arms.push("case " + pattern + ": return \"" + ef.name + "\";");
+				continue;
+			}
+			final parts = [];
+			for(i in 0...args.length) {
+				parts.push(args[i].name + "=${" + stdStringType(args[i].t, args[i].name, true, origin) + "}");
+			}
+			arms.push("case " + pattern + ": return \"" + ef.name + "(" + parts.join(", ") + ")\";");
+		}
+		return '(() { switch (${value}) { ${arms.join(" ")} } })()';
 	}
 
 	function stdStringArg(e: TypedExpr): Null<TypedExpr> {
