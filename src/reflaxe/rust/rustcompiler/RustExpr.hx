@@ -2510,7 +2510,6 @@ class RustExpr {
 	function staticGuard(cls: ClassType, name: String): String {
 		return staticItemPath(cls, name) + ".lock().unwrap_or_else(|e| e.into_inner())";
 	}
-	}
 
 	function staticGuardOf(e: TypedExpr): Null<String> {
 		return switch(stripWrap(e).expr) {
