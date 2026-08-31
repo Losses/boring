@@ -1,4 +1,4 @@
-# 31 — Record `toString` member synthesis
+# Feature spec 31: record `toString` member synthesis
 
 Status: Planned. This specification amends one sentence of ruling 1 in
 [27-class-members-and-records.md](27-class-members-and-records.md)
@@ -97,8 +97,8 @@ emits the explicit member call for that operand. Float operands go
 through the same conversion the `String + Float` lowering uses; no
 target-default interpolation is introduced.
 
-**T2: each emitter formats independently.** Rejected: five texts kept
-equal by discipline instead of by construction.
+**T2: each emitter formats independently.** Rejected: five texts that
+nothing keeps equal.
 
 ## Ruling
 
@@ -111,7 +111,7 @@ equal by discipline instead of by construction.
 2. **An explicit zero-argument `toString` suppresses the synthesis on
    every target and in stage 1.** The explicit member wins, as in Kotlin.
 3. **The field set is the constructor parameters held by fields, in
-   constructor parameter order** — the class-record set of 27 ruling 1.
+   constructor parameter order**, the class-record set of 27 ruling 1.
    A class whose constructor parameters are not all held by fields stops
    the compilation with the existing macro error; a class with no
    constructor parameters stops it with the existing marker validation.
@@ -159,8 +159,8 @@ equal by discipline instead of by construction.
 
 ## Port follow-through
 
-After this lands and the vendored pointer advances, the port deletes the
-mechanical `toString` members in a dedicated mechanical lane: golden
-zero-diff is the acceptance, and any class whose hand-written field order
-or field set differs from the constructor parameters keeps its explicit
-member, named by the golden diff.
+Once this feature is implemented and the vendored pointer advances, the
+port deletes the mechanical `toString` members in a dedicated mechanical
+lane: an unchanged golden output is the acceptance, and any class whose
+hand-written field order or field set differs from the constructor
+parameters keeps its explicit member, named by the golden diff.
