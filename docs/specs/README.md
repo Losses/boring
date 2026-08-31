@@ -102,6 +102,7 @@ Every candidate translation is evaluated across four fixed axes:
 | 10 | [10-unicode-string-access.md](stdlib/10-unicode-string-access.md) | Complete | std.UString: code-point-addressed access for strings beyond the ASCII tier. |
 | 11 | [11-grapheme-clusters.md](stdlib/11-grapheme-clusters.md) | Complete | std.Graphemes: extended grapheme cluster iteration over code-point content. |
 | 12 | [12-std-string.md](stdlib/12-std-string.md) | Complete | Std.string: call-site conversion of scalars, value enumerations, and arrays of them on the five targets, inside concatenation and standalone. |
+| 13 | [13-stringtools-conversions.md](stdlib/13-stringtools-conversions.md) | Planned | `StringTools.hex` and the String case conversions on the five targets: call-site native expressions, padding, and the non-negative domain error. |
 
 ### Style specifications
 
