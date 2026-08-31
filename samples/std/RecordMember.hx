@@ -3,6 +3,7 @@ package std;
 #if macro
 import haxe.macro.Context;
 import haxe.macro.Expr;
+import haxe.macro.Type;
 
 /**
  * Stage 1 build macro for the printed member of class records
@@ -13,7 +14,12 @@ class RecordMember {
 	macro public static function build():Array<Field> {
 		final fields = Context.getBuildFields();
 		final localClass = Context.getLocalClass();
-		if(localClass == null || !localClass.get().meta.has(":dataClass")) {
+		if(localClass == null) {
+			return fields;
+		}
+		final cls = localClass.get();
+		final singleton = hasSelfConstructionStatic(fields, cls);
+		if(!singleton && !cls.meta.has(":dataClass")) {
 			return fields;
 		}
 
@@ -26,6 +32,26 @@ class RecordMember {
 					return fields;
 				case _:
 			}
+		}
+
+		if(singleton) {
+			final pos = Context.currentPos();
+			final body:Expr = {
+				expr: EBlock([{
+					expr: EReturn({expr: EConst(CString(cls.name)), pos: pos}),
+					pos: pos
+				}]),
+				pos: pos
+			};
+			fields.push({
+				name: "toString",
+				doc: "Synthesized singleton printed form.",
+				meta: [{name: ":recordMember", params: [], pos: pos}],
+				access: [APublic],
+				kind: FFun({args: [], ret: macro :String, expr: body}),
+				pos: pos
+			});
+			return fields;
 		}
 
 		final shape = RecordShape.local(fields);
@@ -45,6 +71,53 @@ class RecordMember {
 			pos: pos
 		});
 		return fields;
+	}
+
+	static function hasSelfConstructionStatic(fields:Array<Field>, cls:ClassType):Bool {
+		for(field in fields) {
+			if(field.access.indexOf(AStatic) < 0 || field.access.indexOf(AFinal) < 0) {
+				continue;
+			}
+			final declared:Null<ComplexType> = switch(field.kind) {
+				case FVar(type, _): type;
+				case _: null;
+			};
+			final initializer:Null<Expr> = switch(field.kind) {
+				case FVar(_, expr): expr;
+				case _: null;
+			};
+			if(declared == null || initializer == null) {
+				continue;
+			}
+			final declaredType = Context.follow(Context.resolveType(declared, field.pos));
+			final unwrapped = stripDecorations(initializer);
+			switch(unwrapped.expr) {
+			case ENew(path, args) if(args.length == 0):
+					final constructedType = Context.follow(Context.resolveType(TPath(path), unwrapped.pos));
+					if(isLocalClass(declaredType, cls) && isLocalClass(constructedType, cls)) {
+						return true;
+					}
+				case _:
+			}
+		}
+		return false;
+	}
+
+	static function isLocalClass(type:Type, cls:ClassType):Bool {
+		return switch(type) {
+			case TInst(ref, _):
+				final other = ref.get();
+				other.module == cls.module && other.name == cls.name;
+			case _:
+				false;
+		};
+	}
+
+	static function stripDecorations(expr:Expr):Expr {
+		return switch(expr.expr) {
+			case EMeta(_, inner) | EParenthesis(inner): stripDecorations(inner);
+			case _: expr;
+		};
 	}
 }
 #end

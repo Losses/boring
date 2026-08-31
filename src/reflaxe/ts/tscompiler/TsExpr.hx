@@ -1219,6 +1219,23 @@ class TsExpr {
 		return stdStringType(arg.t, expr(arg), inConcat, arg);
 	}
 
+	function stdIsOfType(args: Array<TypedExpr>): String {
+		final target = TypeCheckHelper.classOfTypeExpr(args[1]);
+		if(target == null) {
+			Context.error("Std.isOfType requires a class type expression", args[1].pos);
+			return "false";
+		}
+		final known = TypeCheckHelper.knownIsOfType(args[0], target);
+		if(known != null) {
+			return known ? "true" : "false";
+		}
+		if(target.isInterface) {
+			Context.error("Std.isOfType interface checks require a statically typed implementor on the TypeScript target", args[1].pos);
+			return "false";
+		}
+		return expr(args[0]) + " instanceof " + expr(args[1]);
+	}
+
 	function stdStringType(t: Type, value: String, inConcat: Bool, origin: TypedExpr, depth: Int = 0): String {
 		return switch(Context.follow(t)) {
 			case TInst(c, _) if(c.get().name == "String"): value;
@@ -1226,7 +1243,7 @@ class TsExpr {
 				final index = depth == 0 ? "i" : "i" + depth;
 				final item = stdStringType(element, value + "[" + index + "]!", true, origin, depth + 1);
 				'(() => { let out = "["; const n = ${value}.length; for (let ${index} = 0; ${index} < n; ${index} += 1) { if (${index} > 0) { out += ", "; } out += ${item}; } out += "]"; return out; })()';
-			case TInst(c, _) if(c.get().meta.has(":dataClass")): value + ".toString()";
+			case TInst(c, _) if(StaticFieldHelper.hasSelfConstructionStatic(c.get()) || c.get().meta.has(":dataClass")): value + ".toString()";
 			case TAbstract(a, _) if(ValueTypeSupport.isMarkedAbstract(a.get())):
 				final abs = a.get();
 				final toString = ValueTypeSupport.memberField(abs, "toString");
@@ -1339,6 +1356,8 @@ class TsExpr {
 		switch(fn.expr) {
 			case TField(_, FStatic(c, cf)) if(c.get().module == "Std" && cf.get().name == "string" && args.length == 1):
 				return stdString(args[0], false);
+			case TField(_, FStatic(c, cf)) if(c.get().module == "Std" && cf.get().name == "isOfType" && args.length == 2):
+				return stdIsOfType(args);
 			case TField(subj, FInstance(_, _, cf)) if(cf.get().name == "get_message" && args.length == 0):
 				final target = stripCast(subj);
 				switch(target.expr) {

@@ -2717,6 +2717,19 @@ class RustExpr {
 		return stdStringType(arg.t, expr(arg), inConcat, arg);
 	}
 
+	function stdIsOfType(args: Array<TypedExpr>): String {
+		final target = TypeCheckHelper.classOfTypeExpr(args[1]);
+		if(target == null) {
+			Context.error("Std.isOfType requires a class type expression", args[1].pos);
+			return "false";
+		}
+		final known = TypeCheckHelper.knownIsOfType(args[0], target);
+		if(known != null) {
+			return known ? "true" : "false";
+		}
+		return expr(args[0]) + ".__haxe_type_name() == \"" + target.module + "." + target.name + "\"";
+	}
+
 	function stdStringType(t: Type, value: String, inConcat: Bool, origin: TypedExpr, depth: Int = 0): String {
 		return switch(Context.follow(t)) {
 			case TInst(c, _) if(c.get().name == "String"):
@@ -2726,7 +2739,7 @@ class RustExpr {
 				final index = depth == 0 ? "i" : "i" + depth;
 				final item = stdStringType(element, value + "[" + index + "]", true, origin, depth + 1);
 				'{ let mut out = String::new(); out.push(\'[\'); let n = ${value}.len(); let mut ${index} = 0usize; while ${index} < n { if ${index} > 0 { out.push_str(", "); } let _ = write!(out, "{}", ${item}); ${index} += 1; } out.push(\']\'); out }';
-			case TInst(c, _) if(c.get().meta.has(":dataClass")): value + ".to_string()";
+			case TInst(c, _) if(StaticFieldHelper.hasSelfConstructionStatic(c.get()) || c.get().meta.has(":dataClass")): value + ".to_string()";
 			case TAbstract(a, _) if(ValueTypeSupport.isMarkedAbstract(a.get())):
 				ValueTypeSupport.memberField(a.get(), "toString") != null
 					? value + ".to_string()"
@@ -2832,6 +2845,7 @@ class RustExpr {
 		if(wrapperCall != null) return wrapperCall;
 		switch(fn.expr) {
 			case TField(_, FStatic(c, cf)) if(c.get().module == "Std" && cf.get().name == "string" && args.length == 1): return stdString(args[0], false);
+			case TField(_, FStatic(c, cf)) if(c.get().module == "Std" && cf.get().name == "isOfType" && args.length == 2): return stdIsOfType(args);
 			case TField(subj, FInstance(_, _, cf)) if(cf.get().name == "get_message" && args.length == 0):
 				final target = stripWrap(subj);
 				switch(target.expr) {
