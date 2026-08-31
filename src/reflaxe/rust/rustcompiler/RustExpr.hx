@@ -2462,11 +2462,13 @@ class RustExpr {
 					if(RuntimeResidents.isResident(imports.selfModule)) {
 						return "(" + expr(subj) + ").len() as i32";
 					}
-					return expr(subj) + ".len()";
+					return "(" + expr(subj) + ").len()";
 				}
 				final snake = RustImports.toSnakeCase(name);
 				final subjStr = if(isNullType(subj.t)) expr(subj) + ".as_ref().unwrap()" else expr(subj);
-				return subjStr + "." + snake;
+				final access = subjStr + "." + snake;
+				if(isConstructedStaticRead(subj) && StaticFieldHelper.isStringType(cf.get().type)) return "(" + access + ").to_string()";
+				return isConstructedStaticRead(subj) && !isTypeCopy(cf.get().type) ? "(" + access + ").clone()" : access;
 			case FDynamic(name):
 				if((name == "length" || name == "get_length") && isStringBuf(subj)) {
 					return expr(subj) + ".len() as u32";
@@ -2540,9 +2542,17 @@ class RustExpr {
 		};
 	}
 
-	function staticOwnedValue(e: TypedExpr): String {
-		final rendered = expr(e);
+	function isConstructedStaticRead(e: TypedExpr): Bool {
+		return switch(stripWrap(e).expr) {
+			case TField(_, FStatic(c, cf)) if(StaticFieldHelper.isConstruction(cf.get().expr()) && !StaticFieldHelper.isSelfConstruction(cf.get(), c.get())): true;
+			case _: false;
+		};
+	}
+
+	function staticOwnedValue(e: TypedExpr): String {		final rendered = expr(e);
+		if(StaticFieldHelper.isConstruction(e)) return rendered;
 		if(StaticFieldHelper.isStringType(e.t)) {
+			if(rendered.indexOf("&*") >= 0) return rendered + ".to_string()";
 			return StringTools.endsWith(rendered, ".to_string()") || StringTools.endsWith(rendered, ".clone()")
 				? rendered
 				: rendered + ".to_string()";
@@ -2555,8 +2565,8 @@ class RustExpr {
 
 	function staticContainerArg(e: TypedExpr): String {
 		final rendered = expr(e);
+		if(StaticFieldHelper.isConstruction(e)) return rendered;
 		if(StaticFieldHelper.isStringType(e.t)
-			&& !StringTools.endsWith(rendered, ".to_string()")
 			&& !StringTools.endsWith(rendered, ".clone()")) {
 			return rendered + ".to_string()";
 		}
