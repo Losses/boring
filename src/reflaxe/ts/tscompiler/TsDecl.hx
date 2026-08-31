@@ -125,7 +125,7 @@ class TsDecl {
 				continue;
 			}
 			storageCount++;
-			for(l in varDecl(v)) lines.push(l);
+			for(l in varDecl(cls, v)) lines.push(l);
 		}
 
 		var sep = storageCount > 0 && ordinaryFuncs.length > 0;
@@ -242,7 +242,7 @@ class TsDecl {
 		return [];
 	}
 
-	function varDecl(v: ClassVarData): Array<String> {
+	function varDecl(cls: ClassType, v: ClassVarData): Array<String> {
 		final field = v.field;
 		if(v.isStatic && DataTableHelper.isDataTableField(field)) {
 			return [];
@@ -257,7 +257,7 @@ class TsDecl {
 			return ["  " + vis + "static " + field.name + ": " + types.of(field.type) + " = " + expr.rawExpression(initializer) + ";"];
 		}
 		if(v.isStatic) {
-			final init = StaticFieldHelper.validatedInitializer(field);
+			final init = StaticFieldHelper.validatedInitializer(field, cls);
 			final vis = field.isPublic ? "public" : "private";
 			final ro = field.isFinal ? "readonly " : "";
 			return ['  $vis static ${ro}${field.name}: ${types.of(field.type)} = ${expr.rawExpression(init)};'];

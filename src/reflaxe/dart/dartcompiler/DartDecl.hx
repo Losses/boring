@@ -122,7 +122,7 @@ class DartDecl {
 			// constants of its library (a top-level variable needs no
 			// static keyword).
 			for(v in varFields) {
-				final decl = varDeclTopLevel(module, v);
+				final decl = varDeclTopLevel(cls, module, v);
 				if(decl.length == 0) {
 					continue;
 				}
@@ -160,7 +160,7 @@ class DartDecl {
 		// body, which Dart accepts only under a late declaration.
 		final lateFields = expr.coalescedBodyFields(cls, ordinaryFuncs);
 		for(v in varFields) {
-			final decl = varDecl(module, v, lateFields);
+			final decl = varDecl(cls, module, v, lateFields);
 			if(decl.length == 0) {
 				continue;
 			}
@@ -274,7 +274,7 @@ class DartDecl {
 		}
 	}
 
-	function varDecl(module: String, v: ClassVarData, lateFields: Map<String, Bool>): Array<String> {
+	function varDecl(cls: ClassType, module: String, v: ClassVarData, lateFields: Map<String, Bool>): Array<String> {
 		final field = v.field;
 		if(v.isStatic && DataTableHelper.isDataTableField(field)) {
 			final elems = DataTableHelper.getDataTableElements(field.expr());
@@ -292,7 +292,7 @@ class DartDecl {
 			return ["  static final " + types.of(field.type) + " " + name + " = " + expr.rawExpression(initializer) + ";"];
 		}
 		if(v.isStatic) {
-			final init = StaticFieldHelper.validatedInitializer(field);
+			final init = StaticFieldHelper.validatedInitializer(field, cls);
 			final name = field.isPublic ? field.name : "_" + field.name;
 			final kw = field.isFinal ? "final " : "";
 			return ["  static " + kw + types.of(field.type) + " " + name + " = " + expr.rawExpression(init) + ";"];
@@ -367,7 +367,7 @@ class DartDecl {
 		top-level constant of the library, otherwise the member shape of
 		`varDecl`.
 	**/
-	function varDeclTopLevel(module: String, v: ClassVarData): Array<String> {
+	function varDeclTopLevel(cls: ClassType, module: String, v: ClassVarData): Array<String> {
 		final field = v.field;
 		if(v.isStatic && DataTableHelper.isDataTableField(field)) {
 			final elems = DataTableHelper.getDataTableElements(field.expr());
@@ -385,7 +385,7 @@ class DartDecl {
 			return ["final " + types.of(field.type) + " " + name + " = " + expr.rawExpression(initializer) + ";"];
 		}
 		if(v.isStatic) {
-			final init = StaticFieldHelper.validatedInitializer(field);
+			final init = StaticFieldHelper.validatedInitializer(field, cls);
 			final name = field.isPublic ? field.name : "_" + field.name;
 			final kw = field.isFinal ? "final " : "";
 			return [kw + types.of(field.type) + " " + name + " = " + expr.rawExpression(init) + ";"];
