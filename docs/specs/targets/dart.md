@@ -113,6 +113,26 @@ final class UnpairedSurrogate extends UStringFault {
 }
 ```
 
+A value enumeration (every constructor declares zero parameters, the
+parameterless amendment of `features/01`) maps to an enhanced enum: one
+constant per constructor, a `final String label` field holding the
+constructor name spelled in Haxe source, a `const` constructor assigning
+it, and the built-in `values` list. Construction sites reference the
+constants (`FloatWidth.f64`), the constants compare by canonical
+instance, and the `label` field is the constructor-name read of
+`features/28-enum-value-queries.md`.
+
+```dart
+enum FloatWidth {
+  f64("F64"),
+  f32("F32"),
+  f16("F16");
+
+  final String label;
+  const FloatWidth(this.label);
+}
+```
+
 Payload captures lower to `InvalidCodePoint(code: var code)`; unused
 payloads capture an underscore name; guards lower to `if` guards;
 or-patterns expand to comma-joined cases.

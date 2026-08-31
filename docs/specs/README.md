@@ -73,6 +73,9 @@ Every candidate translation is evaluated across four fixed axes:
 | 23 | [23-float-precision-switch.md](features/23-float-precision-switch.md) | Complete | The module-level `float-precision` define selecting the binary32 mapping of `Float` per compilation, with the TypeScript startup rejection and the f64 wire boundary. |
 | 24 | [24-package-shell.md](features/24-package-shell.md) | Complete | The package manifest each target compiler writes next to the generated source, on by default with a one-define opt-out, covering the responsibility split between generator and consumer build. |
 | 25 | [25-package-artifacts.md](features/25-package-artifacts.md) | Complete | The pack step behind `package-artifacts=emit`: the compiler writes the ecosystem install artifact (npm tgz, cargo crate, Swift zip, Pub tar.gz) of the tree it emitted, from the recorded write list, with fixed determinism constants. |
+| 26 | [26-package-registry.md](features/26-package-registry.md) | Complete | The registry tool that turns a directory of install artifacts into one static, read-only registry site serving the five ecosystems. |
+| 27 | [27-class-members-and-records.md](features/27-class-members-and-records.md) | Complete | Class members and records: constructor-parameter fields, constructor bodies, getter-only properties, and the `@:dataClass` record operations. |
+| 28 | [28-enum-value-queries.md](features/28-enum-value-queries.md) | Planned | The enum value queries `Type.allEnums`, `Type.enumConstructor`, `Type.createEnum`: compile-time expansion, per-target artifacts, literal count bounds, and miss semantics. |
 
 ### Macro specifications
 
@@ -97,6 +100,7 @@ Every candidate translation is evaluated across four fixed axes:
 | 08 | [08-string-buffer.md](stdlib/08-string-buffer.md) | Complete | Buffered string construction: per-platform mutable accumulators and the code-unit length contract. |
 | 09 | [09-inline-arithmetic-helpers.md](stdlib/09-inline-arithmetic-helpers.md) | Complete | Sanctioned static inline helpers for range checks, clamping, and two-field range values. |
 | 10 | [10-unicode-string-access.md](stdlib/10-unicode-string-access.md) | Complete | std.UString: code-point-addressed access for strings beyond the ASCII tier. |
+| 11 | [11-grapheme-clusters.md](stdlib/11-grapheme-clusters.md) | Complete | std.Graphemes: extended grapheme cluster iteration over code-point content. |
 
 ### Style specifications
 
