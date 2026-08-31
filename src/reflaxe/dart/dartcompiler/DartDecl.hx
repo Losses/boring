@@ -252,6 +252,15 @@ class DartDecl {
 				return ["  static final List<int> " + claimTopLevel(field.name, field.pos) + " = [" + renderDataTableElements(elems) + "];"];
 			}
 		}
+		if(v.isStatic && isFunctionType(field.type)) {
+			final initializer = field.expr();
+			if(initializer == null) {
+				Context.error("static function fields require initializers", field.pos);
+				return [];
+			}
+			final name = field.isPublic ? field.name : "_" + field.name;
+			return ["  static final " + types.of(field.type) + " " + name + " = " + expr.rawExpression(initializer) + ";"];
+		}
 		if(field.meta.has(":value")) {
 			if(v.isStatic) {
 				// Inline constants fold into their use sites as TConst.
@@ -283,6 +292,16 @@ class DartDecl {
 			return ["  " + late + "final " + types.of(field.type) + " " + name + ";"];
 		}
 		return ["  " + late + types.of(field.type) + " " + name + ";"];
+	}
+
+	static function isFunctionType(t: Null<Type>): Bool {
+		if(t == null) {
+			return false;
+		}
+		return switch(Context.follow(t)) {
+			case TFun(_, _): true;
+			case _: false;
+		};
 	}
 
 	/** A `var x(get, never)` field renders no storage on this target (feature spec 27). */
@@ -326,6 +345,15 @@ class DartDecl {
 			if(elems != null) {
 				return ["final List<int> " + claimTopLevel(field.name, field.pos) + " = [" + renderDataTableElements(elems) + "];"];
 			}
+		}
+		if(v.isStatic && isFunctionType(field.type)) {
+			final initializer = field.expr();
+			if(initializer == null) {
+				Context.error("static function fields require initializers", field.pos);
+				return [];
+			}
+			final name = claimTopLevel(field.isPublic ? field.name : "_" + field.name, field.pos);
+			return ["final " + types.of(field.type) + " " + name + " = " + expr.rawExpression(initializer) + ";"];
 		}
 		if(field.meta.has(":value") && v.isStatic) {
 			return [];

@@ -79,3 +79,5 @@ tests.EnumQueriesTests
 tests.EnumQueriesProbes
 boring.StdStringOps
 tests.StdStringTests
+boring.FnValuesOps
+tests.FnValuesTests

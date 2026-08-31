@@ -94,6 +94,11 @@ class RustDecl {
 				}
 			}
 		}
+		final staticFunctionLines: Array<String> = [];
+		for(v in varFields) {
+			for(l in staticFunctionDecl(v)) staticFunctionLines.push(l);
+		}
+		final prefixLines = tableLines.concat(staticFunctionLines);
 
 		final isStaticClass = isAllStatic(varFields, funcFields);
 		final lines: Array<String> = [];
@@ -111,7 +116,7 @@ class RustDecl {
 				for(l in staticFuncDecl(cls, f)) lines.push(l);
 			}
 			lines.push("}");
-			final prefix = tableLines.length > 0 ? tableLines.join("\n\n") + "\n\n" : "";
+			final prefix = prefixLines.length > 0 ? prefixLines.join("\n\n") + "\n\n" : "";
 			return prefix + lines.join("\n");
 		}
 
@@ -130,6 +135,7 @@ class RustDecl {
 
 		lines.push("pub struct " + cls.name + genericStr + " {");
 		for(v in varFields) {
+			if(isStaticFunctionField(v)) continue;
 			for(l in instanceVarDecl(v, hasLifetime)) lines.push(l);
 		}
 		lines.push("}\n");
@@ -169,7 +175,8 @@ class RustDecl {
 			lines.push("}");
 		}
 
-		return lines.join("\n");
+		final prefix = prefixLines.length > 0 ? prefixLines.join("\n\n") + "\n\n" : "";
+		return prefix + lines.join("\n");
 	}
 
 	public static function isExceptionSubclass(cls: ClassType): Bool {
@@ -475,8 +482,87 @@ class RustDecl {
 		return '${vis}static ${field.name}: [${elemType}; ${elems.length}] = [\n' + chunks.join(",\n") + "\n];";
 	}
 
+	function isFunctionType(t: Null<Type>): Bool {
+		if(t == null) return false;
+		return switch(Context.follow(t)) {
+			case TFun(_, _): true;
+			case _: false;
+		};
+	}
+
+	function isStaticFunctionField(v: ClassVarData): Bool {
+		return v.isStatic && isFunctionType(v.field.type);
+	}
+
+	function staticFunctionDecl(v: ClassVarData): Array<String> {
+		if(!isStaticFunctionField(v)) {
+			return [];
+		}
+		final field = v.field;
+		final initializer = field.expr();
+		if(initializer == null || !isCaptureFreeStaticInitializer(initializer)) {
+			Context.error("static function fields accept capture-free initializers only", field.pos);
+			return [];
+		}
+		switch(stripDecorations(initializer).expr) {
+			case TFunction(_):
+			case _:
+				Context.error("static function fields accept capture-free initializers only", field.pos);
+				return [];
+		}
+		final vis = field.isPublic ? "pub " : "";
+		final name = RustImports.toSnakeCase(field.name).toUpperCase();
+		final initializerText = expr.rawFunctionInitializer(initializer);
+		return [vis + "static " + name + ": " + types.staticFunctionOf(field.type) + " = " + initializerText + ";"];
+	}
+
+	/**
+		Checks the outer function body for locals that are not its own
+		arguments or declarations. Nested literals may capture the outer
+		function's arguments; that is still a capture-free static
+		initializer because the static value itself has no environment.
+	**/
+	function isCaptureFreeStaticInitializer(e: TypedExpr): Bool {
+		return switch(stripDecorations(e).expr) {
+			case TFunction(f):
+				final locals: Map<Int, Bool> = [];
+				for(arg in f.args) locals.set(arg.v.id, true);
+				var captures = false;
+				function walk(x: TypedExpr): Void {
+					if(captures) return;
+					switch(x.expr) {
+						case TLocal(v):
+							if(!locals.exists(v.id)) captures = true;
+						case TField(_, FInstance(_, _, _)) | TField(_, FAnon(_)):
+							captures = true;
+						case TField(_, FStatic(_, cf)) if(cf.get().kind.match(FVar(_, _))):
+							captures = true;
+						case TVar(v, init):
+							if(init != null) haxe.macro.TypedExprTools.iter(init, walk);
+							locals.set(v.id, true);
+						case TFor(v, source, body):
+							walk(source);
+							locals.set(v.id, true);
+							walk(body);
+						case TFunction(_):
+							// A nested closure's capture of this function's
+							// arguments does not capture the static value.
+						case _:
+							haxe.macro.TypedExprTools.iter(x, walk);
+					}
+				}
+				walk(f.expr);
+				!captures;
+			case _:
+				false;
+		};
+	}
+
 	function staticVarDecl(v: ClassVarData): Array<String> {
 		final field = v.field;
+		if(isStaticFunctionField(v)) {
+			return [];
+		}
 		if(v.isStatic && DataTableHelper.isDataTableField(field)) {
 			return [];
 		}
@@ -564,7 +650,7 @@ class RustDecl {
 		}
 		expr.setFallible(isFallible, errOwner != null ? errOwner.name : null, errOwner != null && errOwner.hasOverflow ? state.overflowVariant : null);
 
-		final rawRetType = returnsArgArray(f) ? types.of(f.ret, true) : types.of(f.ret, false);
+		final rawRetType = returnsArgArray(f) ? types.of(f.ret, true) : types.functionReturnOf(f.ret);
 		final retType = isFallible ? 'Result<$rawRetType, ${errOwner.name}>' : rawRetType;
 		final ret = retType == "()" ? "" : " -> " + retType;
 		final vis = f.field.isPublic ? "pub " : "";
@@ -572,6 +658,7 @@ class RustDecl {
 
 		expr.setReturnUnsigned(rawRetType == "u32");
 		expr.setReturnTypeName(rawRetType);
+		expr.setReturnType(f.ret);
 		final body = expr.functionBody(cls, f);
 		return [head].concat(body.map(l -> "    " + l)).concat(["    }"]);
 	}
@@ -807,7 +894,11 @@ class RustDecl {
 		}
 
 		final isMutating = isMethodMutating(f);
-		final selfParam = isMutating ? "&mut self" : "&self";
+		// The sorted-table builder transfers its boxed comparator into the
+		// immutable table, so its build method consumes the builder instead
+		// of moving that box out of a shared borrow.
+		final consumesSelf = cls.module == "runtime.SortedTable" && f.field.name == "build";
+		final selfParam = consumesSelf ? "self" : (isMutating ? "&mut self" : "&self");
 		final otherArgs = [for(a in f.args) {
 			final pType = paramType(a.type, f.field.name, a.name);
 			expr.setArgType(a.name, pType);
@@ -832,6 +923,7 @@ class RustDecl {
 
 		expr.setReturnUnsigned(rawRetType == "u32");
 		expr.setReturnTypeName(rawRetType);
+		expr.setReturnType(f.ret);
 		final body = expr.functionBody(cls, f);
 		return [head].concat(body.map(l -> "    " + l)).concat(["    }"]);
 	}
@@ -912,7 +1004,7 @@ class RustDecl {
 		if(funcName == "readAscii") return "String";
 		if(funcName == "remaining" || funcName == "consumed") return "usize";
 		if(funcName == "ensureRemaining") return "()";
-		return types.of(t, false);
+		return types.functionReturnOf(t);
 	}
 
 	function isMethodMutating(f: ClassFuncData): Bool {
