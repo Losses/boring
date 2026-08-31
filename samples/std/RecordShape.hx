@@ -121,7 +121,7 @@ class RecordShape {
 			final fieldType = shape.fieldTypes[i];
 			final value = isRecordType(fieldType)
 				? (isNullableType(fieldType) ? nullableRecordFieldValue(read, receiver.pos) : memberCallValue(read, receiver.pos))
-				: isCollectionType(fieldType) ? stdStringValue(read, receiver.pos) : read;
+				: (isCollectionType(fieldType) || isEnumType(fieldType)) ? stdStringValue(read, receiver.pos) : read;
 			out = {expr: EBinop(OpAdd, out, value), pos: receiver.pos};
 		}
 		return {expr: EBinop(OpAdd, out, {expr: EConst(CString(close)), pos: receiver.pos}), pos: receiver.pos};
@@ -216,6 +216,13 @@ class RecordShape {
 		return switch(Context.follow(type)) {
 			case TInst(c, _): c.get().name == "Array";
 			case TAbstract(a, _): a.get().module == "std.ReadOnlyArray";
+			case _: false;
+		};
+	}
+
+	static function isEnumType(type:Type):Bool {
+		return switch(Context.follow(type)) {
+			case TEnum(_, _): true;
 			case _: false;
 		};
 	}
