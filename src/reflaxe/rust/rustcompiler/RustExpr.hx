@@ -2310,7 +2310,10 @@ class RustExpr {
 
 	function isGuardStaticField(cls: ClassType, name: String): Bool {
 		final field = staticFieldOf(cls, name);
-		return field != null && !DataTableHelper.isDataTableField(field) && !StaticFieldHelper.isConstValue(field);
+		return field != null
+			&& StaticFieldHelper.initializer(field) != null
+			&& !DataTableHelper.isDataTableField(field)
+			&& !StaticFieldHelper.isConstValue(field);
 	}
 
 	function staticItemPath(cls: ClassType, name: String): String {
