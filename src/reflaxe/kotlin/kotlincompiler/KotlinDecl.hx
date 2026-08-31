@@ -616,7 +616,8 @@ class KotlinDecl {
 			final initStr = expr.rawExpression(init);
 			final kw = field.isFinal && StaticFieldHelper.isConstValue(field) ? "const val" : (field.isFinal ? "val" : "var");
 			final vis = field.isPublic ? "" : "private ";
-			return ['    $vis$kw ${field.name}: ${types.of(field.type)} = $initStr'];
+			final jvmField = !field.isFinal ? ["    @JvmField"] : [];
+			return jvmField.concat(['    $vis$kw ${field.name}: ${types.of(field.type)} = $initStr']);
 		}
 		if(field.meta.has(":value")) {
 			Context.error("instance field default has no lowering; assign it in the constructor", field.pos);
