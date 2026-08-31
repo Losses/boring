@@ -2,11 +2,13 @@ package tests;
 
 import boring.ScriptEvidenceTable;
 import boring.WordCharacterTable;
+import boring.PayloadTextTable;
 import std.Test;
 
 /**
  * Tests for compile-time data tables (docs/specs/features/20-compile-time-data-tables.md).
- * Covers boundary values, gaps, and flag lookups for synthetic script and word tables.
+ * Covers boundary values, gaps, and flag lookups for synthetic script and word tables,
+ * plus the raw payload table roundtrip.
  */
 class DataTableTests {
 	@:test("script table first record hits")
@@ -73,5 +75,23 @@ class DataTableTests {
 		Test.equals(true, WordCharacterTable.contains(0x005F), "underscore singleton hit");
 		Test.equals(false, WordCharacterTable.contains(0x005E), "before underscore miss");
 		Test.equals(false, WordCharacterTable.contains(0x0060), "after underscore miss");
+	}
+
+	@:test("payload table unit count and edge units")
+	public static function testPayloadUnits():Void {
+		Test.equals(186, PayloadTextTable.unitCount(), "payload unit count");
+		Test.equals(0x73, PayloadTextTable.unitAt(0), "first unit is s");
+		Test.equals(0x0A, PayloadTextTable.unitAt(185), "last unit is line feed");
+		Test.equals(0xE9, PayloadTextTable.unitAt(184), "latin small letter e with acute unit");
+	}
+
+	@:test("payload table decodes back to the file content")
+	public static function testPayloadRoundtrip():Void {
+		final expected = "synthetic payload for boring spec 20 raw payload tables"
+			+ "\n" + "second line with \"quotes\" and \\ backslash"
+			+ "\n" + "third line plain digits 0123456789"
+			+ "\n" + "final line with latin small letter e with acute café"
+			+ "\n";
+		Test.equals(expected, PayloadTextTable.text(), "decoded payload equals file content");
 	}
 }
