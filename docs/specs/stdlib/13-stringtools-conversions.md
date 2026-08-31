@@ -66,16 +66,22 @@ forms.
 
    | Form | TypeScript | Kotlin | Swift | Dart | Rust |
    | --- | --- | --- | --- | --- | --- |
-   | `hex(v)` | `v.toString(16).toUpperCase()` | `v.toString(16).uppercase()` | `String(v, radix: 16)` | `v.toRadixString(16).toUpperCase()` | `format!("{:X}", v)` |
-   | `hex(v, d)` | `v.toString(16).toUpperCase().padStart(d, "0")` | `v.toString(16).uppercase().padStart(d, '0')` | the padding expression below | `v.toRadixString(16).toUpperCase().padLeft(d, "0")` | `format!("{:0w$X}", v, w = d)` |
+   | `hex(v)` | `v.toString(16).toUpperCase()` | `v.toString(16).uppercase()` | `String(v, radix: 16, uppercase: true)` | `v.toRadixString(16).toUpperCase()` | `format!("{:X}", v)` |
+   | `hex(v, d)` | `v.toString(16).toUpperCase().padStart(d, "0")` | `v.toString(16).uppercase().padStart(d, '0')` | the padding expression below | `v.toRadixString(16).toUpperCase().padLeft(d, "0")` | `format!("{:0w$X}", v, w = usize::try_from(d).unwrap_or_default())` |
 
    Swift holds no pad member; `hex(v, d)` renders one immediately-invoked
    closure carrying the statement sequence, the shape of the Swift array
    builder of `docs/specs/stdlib/12-std-string.md`:
-   `{ let s = String(v, radix: 16); return s.count < d ? String(repeating: "0", count: d - s.count) + s : s }()`,
-   which converts once and allocates one padding string at most. The Rust
-   padded form renders the width inline as
-   `format!("{:0w$X}", v, w = d)`.
+   `{ let s = String(v, radix: 16, uppercase: true); return s.count < Int(d) ? String(repeating: "0", count: Int(d) - s.count) + s : s }()`,
+   which converts once and allocates one padding string at most. The Swift
+   initializer takes `uppercase: true` because its radix form without the
+   flag yields lowercase digits, which the uppercase return contract of the
+   Contract section rules out; the digits argument renders through `Int`
+   because Swift's count members hold `Int` while the argument carries the
+   Haxe `Int` width. The Rust padded form renders the width inline as
+   `format!("{:0w$X}", v, w = usize::try_from(d).unwrap_or_default())`;
+   the width converts without a truncating cast, and a width that fails
+   `usize::try_from` (negative or wider than `usize`) lowers to no padding.
 
 2. The domain check runs where the arguments are typed, in every target's
    `StringTools.hex` arm, with the named error of the Contract section. The
