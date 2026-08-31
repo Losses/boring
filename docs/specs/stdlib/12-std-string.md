@@ -72,7 +72,7 @@ and a uniform rejection costs less than five spellings of a nullable render
 | Per-target conversion calls (`String`, `.toString()`, interpolation, `to_string`) at the call site | One conversion call, or none inside concatenation where the target coerces. | The operand domain is checked at compile time with one named error on every target. | No runtime helper exists to keep in sync. | Sites read as the target's own conversion. |
 | A runtime stringify resident | Every call pays a helper dispatch for a conversion every target performs natively. | The helper invents its own rendering rules per target. | Five helpers for one conversion. | Sites read as a library call the target already spells shorter. |
 | Source-side `Std.string` avoidance in the port | No compiler work; the port re-spells every conversion by hand. | Haxe typing rules require `Std.string` for some operands, so the port cannot avoid it everywhere. | Every consumer re-decides the rendering. | Port source stops using the standard library function. |
-| Array operand lowered at the call site (one map plus one join per target) | One map and one join per render; the Rust rendering collects one `Vec` of element strings. This is the diagnostic tier of the engine. | The element domain is checked with the same named error; the separator and brackets are ruled, so no target renders its own native array form. | The element conversion reuses the scalar and enumeration lowerings of rules 2 and 3; the compiler holds no second element renderer. | Sites keep writing `Std.string(xs)`. |
+| Array operand lowered at the call site (one single-pass builder per target) | One growable accumulator and one index loop; zero per-element closure calls and zero intermediate collections; Kotlin and Rust format scalars into the buffer without building an element string. | The element domain is checked with the same named error; the separator and brackets are ruled, so no target renders its own native array form. | The element rendering reuses the scalar and enumeration lowerings of rules 2 and 3; the compiler holds no second element renderer. | Sites keep writing `Std.string(xs)`. |
 | Port-side hand loops for every collection render | No compiler work. | Every consumer re-decides the separator and the brackets. | The loop shape repeats at every call site of the ported engine. | Port source drifts from the shape of the Kotlin original. |
 
 ## Ruling
@@ -113,24 +113,40 @@ and a uniform rejection costs less than five spellings of a nullable render
    object or helper call exists on any target. The name reads of enumeration
    operands return a constant string on every target.
 
-6. An array operand renders on every target as `[` + the elements converted
-   per rules 2 and 3 and joined with `", "` + `]`, with the same rendering in
-   the concatenation and the standalone position (no target coerces an array
-   to the ruled form natively):
+6. An array operand renders on every target with one single-pass builder: a
+   hoisted length, an index loop, and one growable string accumulator. The
+   rendering is the same expression in the concatenation and the standalone
+   position:
 
    | Target | rendering of `Std.string(xs)` |
    | --- | --- |
-   | TypeScript | `"[" + xs.map(<element>).join(", ") + "]"` |
-   | Kotlin | `"[" + xs.joinToString(", ") { <element> } + "]"` |
-   | Swift | `"[" + xs.map { <element> }.joined(separator: ", ") + "]"` |
-   | Dart | `"[" + xs.map(<element>).join(", ") + "]"` |
-   | Rust | `format!("[{}]", xs.iter().map(\|x\| <element>).collect::<Vec<_>>().join(", "))` |
+   | TypeScript | `(() => { let out = "["; const n = xs.length; for (let i = 0; i < n; i += 1) { if (i > 0) { out += ", "; } out += <element>; } out += "]"; return out; })()` |
+   | Kotlin | `run { val sb = StringBuilder(); sb.append('['); val n = xs.size; var i = 0; while (i < n) { if (i > 0) { sb.append(", "); } sb.append(<element>); i += 1; }; sb.append(']'); sb.toString() }` |
+   | Swift | `{ () -> String in var out = "["; let n = xs.count; var i = 0; while i < n { if i > 0 { out += ", "; } out += <element>; i += 1; }; out += "]"; return out }()` |
+   | Dart | `(() { final sb = StringBuffer("["); final n = xs.length; var i = 0; while (i < n) { if (i > 0) { sb.write(", "); } sb.write(<element>); i += 1; } sb.write("]"); return sb.toString(); })()` |
+   | Rust | `{ let mut out = String::new(); out.push('['); let n = xs.len(); let mut i = 0usize; while i < n { if i > 0 { out.push_str(", "); } let _ = write!(out, "{}", <element>); i += 1; } out.push(']'); out }` |
 
-   `<element>` is the rule 3 rendering of one element at its own type, so a
-   `Float` element formats per the precision domain and an enumeration
-   element renders its constructor-name read. The array conversion allocates
-   the element strings and the joined string and no resident exists; the
-   Rust rendering collects one `Vec` of element strings before the join.
+   `<element>` is the operand form rule 2 renders for one element at its own
+   type: bare where the accumulator formats it in place (a scalar on Kotlin
+   through the `StringBuilder` append overloads, a scalar on TypeScript
+   through the `+=` coercion, a value enumeration on Kotlin through its
+   `toString` returning the name constant), the interpolation form on Swift,
+   the interpolation form on Dart, and the constructor-name read where the
+   target renders a bare operand with its own spelling (`w.kind` on
+   TypeScript, `w.rawValue` on Swift, `w.label` on Dart, `w.name()` on Rust
+   through the same `write!`). A nested array element is the recursive
+   rendering of this rule, appended as the produced string.
+
+   The accumulator is one growable buffer. A two-pass exact pre-sizing would
+   convert every element twice, so the single pass with amortized growth is
+   the optimal shape (principle 1). No closure runs per element and no
+   intermediate collection exists on any target; Kotlin and Rust format
+   scalars into the buffer without building an element string (the `append`
+   overloads on Kotlin, `write!` on Rust). One immediately-invoked closure
+   carries the statement sequence on TypeScript, Swift, and Dart: it is
+   allocated once per rendering and zero times per element, and Kotlin `run`
+   and the Rust block carry the same sequence without any allocation. No
+   resident exists.
 
 ## Samples and tests
 
@@ -154,9 +170,11 @@ and a uniform rejection costs less than five spellings of a nullable render
 - Tree assertions in `tests/ts/std-string.test.ts`: no generated tree
   contains a `Std.` reference; the Kotlin tree renders the bare operands
   inside concatenation; the enum operands render `kind`, `name`, `rawValue`,
-  `label`, and `name()` per lane; the array operands render `joinToString`
-  on Kotlin, `map` and `join` on TypeScript and Dart, `map` and `joined` on
-  Swift, and `iter`, `map`, `collect`, and `join` on Rust.
+  `label`, and `name()` per lane; the array operands render a `StringBuilder`
+  loop on Kotlin, a `StringBuffer` loop on Dart, a `let` accumulator loop on
+  TypeScript, a `var` accumulator loop on Swift, and `String::new` with
+  `write!` on Rust; no array row renders `.map(`, `join`, `joinToString`, or
+  `joined`.
 - Lanes: `bun run gen:ts && bun run gen:kotlin && bun run gen:kotlin-f32 &&
   bun run gen:rust && bun run gen:rust-f32 && bun run gen:swift && bun run
   gen:swift-f32 && bun run gen:dart`, then `bun run test && bun run test:haxe
