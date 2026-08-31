@@ -208,15 +208,15 @@ class SwiftDecl {
 				return ["    static let " + field.name + ": [Int32] = [" + renderDataTableElements(elems) + "]"];
 			}
 		}
-		if(field.meta.has(":value")) {
-			if(v.isStatic) {
-				// Inline constants fold into their use sites as TConst.
-				return [];
-			}
-			Context.error("instance field default has no lowering; assign it in the constructor", field.pos);
-		}
 		if(v.isStatic) {
-			Context.error("mutable static field has no lowering in the subset", field.pos);
+			final init = StaticFieldHelper.validatedInitializer(field);
+			final array = StaticFieldHelper.isArrayType(field.type);
+			final kw = array || !field.isFinal ? "var" : "let";
+			final vis = field.isPublic ? "" : "private ";
+			return ["    " + vis + "static " + kw + " " + field.name + ": " + types.of(field.type) + " = " + expr.rawExpression(init)];
+		}
+		if(field.meta.has(":value")) {
+			Context.error("instance field default has no lowering; assign it in the constructor", field.pos);
 		}
 		// A final Haxe field pins the reference, not the contents: an
 		// array field still grows in place (the sorted builders), and a
