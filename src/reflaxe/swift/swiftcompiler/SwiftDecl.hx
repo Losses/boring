@@ -403,6 +403,14 @@ class SwiftDecl {
 	public function enumDecl(en: EnumType, options: Array<EnumOptionData>): String {
 		final sorted = options.copy();
 		sorted.sort((a, b) -> Reflect.compare(a.field.index, b.field.index));
+		var valueEnum = true;
+		for(o in sorted) if(o.args.length > 0) valueEnum = false;
+		if(valueEnum) {
+			final lines = ['enum ${en.name}: String, CaseIterable, Equatable {'];
+			for(o in sorted) lines.push('    case ${lowerFirst(o.name)} = "${o.name}"');
+			lines.push("}");
+			return lines.join("\n");
+		}
 		final lines: Array<String> = [
 			// Equatable backs the construct comparisons the samples run
 			// (`width == F64`); payload types of the subset (Int32,

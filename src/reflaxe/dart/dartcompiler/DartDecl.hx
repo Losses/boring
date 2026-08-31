@@ -518,6 +518,20 @@ class DartDecl {
 	public function enumDecl(en: EnumType, options: Array<EnumOptionData>): String {
 		final sorted = options.copy();
 		sorted.sort((a, b) -> Reflect.compare(a.field.index, b.field.index));
+		var valueEnum = true;
+		for(o in sorted) if(o.args.length > 0) valueEnum = false;
+		if(valueEnum) {
+			final lines = ['enum ${claimTopLevel(en.name, en.pos)} {'];
+			for(i in 0...sorted.length) {
+				final o = sorted[i];
+				lines.push('  ${lowerFirst(o.name)}("${o.name}")' + (i == sorted.length - 1 ? ";" : ","));
+			}
+			lines.push("");
+			lines.push("  final String label;");
+			lines.push('  const ${en.name}(this.label);');
+			lines.push("}");
+			return lines.join("\n");
+		}
 		final lines: Array<String> = ["sealed class " + claimTopLevel(en.name, en.pos) + " {"];
 		lines.push("}");
 		for(o in sorted) {
@@ -572,6 +586,10 @@ class DartDecl {
 	/** The generated subclass name of one variant construct. */
 	public static function constructClassName(enumName: String, constructName: String): String {
 		return enumName + upperFirst(constructName);
+	}
+
+	public static function lowerFirst(s: String): String {
+		return s.charAt(0).toLowerCase() + s.substr(1);
 	}
 
 	// ------------------------------------------------------------------

@@ -127,7 +127,10 @@ class TsExpr {
 			case CEmptyMap: "new Map()";
 			case CPositiveInfinity: "Infinity";
 			case CNegativeInfinity: "-Infinity";
-			case CEnum(_, enumField): "{ kind: \"" + enumField.name + "\" }";
+			case CEnum(enumRef, enumField):
+				final en = enumRef.get();
+				if(isValueEnum(en)) imports.value(en.module, en.name);
+				isValueEnum(en) ? en.name + "." + enumField.name : "{ kind: \"" + enumField.name + "\" }";
 		};
 	}
 
@@ -897,8 +900,10 @@ class TsExpr {
 		switch(fa) {
 			case FStatic(c, cf):
 				return staticRef(c.get(), cf.get().name);
-			case FEnum(_, ef):
-				return "{ kind: \"" + ef.name + "\" }";
+			case FEnum(en, ef):
+				final enumDef = en.get();
+				if(isValueEnum(enumDef)) imports.value(enumDef.module, enumDef.name);
+				return isValueEnum(enumDef) ? enumDef.name + "." + ef.name : "{ kind: \"" + ef.name + "\" }";
 			case FInstance(_, _, cf) | FAnon(cf):
 				final name = cf.get().name;
 				final target = stripCast(subj);
@@ -1156,8 +1161,8 @@ class TsExpr {
 					return "SortedTable.setBuilder<" + types.of(kTypeOf(fn)) + ">(" + sortedComparator(kTypeOf(fn), fn.pos) + ")";
 				}
 				return staticRef(c.get(), cf.get().name) + "(" + rendered + ")";
-			case TField(_, FEnum(_, ef)):
-				return enumConstruct(ef, args);
+			case TField(_, FEnum(en, ef)):
+				return enumConstruct(en.get(), ef, args);
 			case TConst(TSuper):
 				return "super(" + rendered + ")";
 			case _:
@@ -1227,7 +1232,11 @@ class TsExpr {
 		return expr(subj) + "." + method + "(0x" + StringTools.hex(word, digits) + ")";
 	}
 
-	function enumConstruct(ef: EnumField, args: Array<TypedExpr>): String {
+	function enumConstruct(en: EnumType, ef: EnumField, args: Array<TypedExpr>): String {
+		if(isValueEnum(en)) {
+			imports.value(en.module, en.name);
+			return en.name + "." + ef.name;
+		}
 		final parts = ['kind: "${ef.name}"'];
 		final names = payloadNames(ef);
 		for(i in 0...args.length) {
@@ -1243,6 +1252,14 @@ class TsExpr {
 			}
 		}
 		return "{ " + parts.join(", ") + " }";
+	}
+
+	static function isValueEnum(en: EnumType): Bool {
+		for(ef in en.constructs) switch(Context.follow(ef.type)) {
+			case TFun(args, _) if(args.length > 0): return false;
+			case _:
+		}
+		return true;
 	}
 
 	function newExpr(c: Ref<ClassType>, params: Array<Type>, args: Array<TypedExpr>): String {
