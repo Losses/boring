@@ -94,3 +94,5 @@ tests.FnValuesTests
 boring.ValueTypeOps
 boring.ValueTypeConsumer
 tests.ValueTypeTests
+boring.PrintedCollection
+tests.PrintedCollectionTests

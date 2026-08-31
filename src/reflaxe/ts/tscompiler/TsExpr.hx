@@ -1222,12 +1222,27 @@ class TsExpr {
 			case TAbstract(a, params) if(a.get().module == "std.ReadOnlyArray"):
 				stdStringType(haxe.macro.TypeTools.applyTypeParameters(a.get().type, a.get().params, params), value, inConcat, origin, depth);
 			case TEnum(en, _) if(isParameterlessEnum(en.get())): value + ".kind";
+			case TEnum(en, _) if(!isParameterlessEnum(en.get())): payloadEnumString(en.get(), value, inConcat);
 			case _:
-				Context.error("Std.string accepts scalars, parameterless enum values, and arrays of them only", origin.pos);
+				Context.error("Std.string accepts scalars, parameterless enum values, records, and arrays of them only", origin.pos);
 				null;
 		};
 	}
 
+	function payloadEnumString(en: EnumType, value: String, inConcat: Bool): String {
+		final fields = [for(ef in en.constructs) ef];
+		final arms = [for(ef in fields) {
+			final args = switch(ef.type) { case TFun(a, _): a; case _: []; };
+			if(args.length == 0) '"${ef.name}"' else {
+				var text = '"${ef.name}(';
+				for(i in 0...args.length) text += (i > 0 ? ', ' : '') + args[i].name + '=" + ' + value + '.' + args[i].name;
+				text + ' + ")"';
+			}
+		}];
+		var out = arms[arms.length - 1];
+		for(i in 0...fields.length - 1) out = value + '.kind === "' + fields[i].name + '" ? ' + arms[i] + ' : ' + out;
+		return out;
+	}
 	function isParameterlessEnum(en: EnumType): Bool {
 		for(ef in en.constructs) switch(ef.type) {
 			case TFun(args, _) if(args.length > 0): return false;

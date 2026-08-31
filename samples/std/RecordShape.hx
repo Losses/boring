@@ -121,7 +121,7 @@ class RecordShape {
 			final fieldType = shape.fieldTypes[i];
 			final value = isRecordType(fieldType)
 				? (isNullableType(fieldType) ? nullableRecordFieldValue(read, receiver.pos) : memberCallValue(read, receiver.pos))
-				: read;
+				: isCollectionType(fieldType) ? stdStringValue(read, receiver.pos) : read;
 			out = {expr: EBinop(OpAdd, out, value), pos: receiver.pos};
 		}
 		return {expr: EBinop(OpAdd, out, {expr: EConst(CString(close)), pos: receiver.pos}), pos: receiver.pos};
@@ -206,6 +206,18 @@ class RecordShape {
 			fieldTypes.push(field.type);
 		}
 		return {names: names, fieldTypes: fieldTypes, isClass: true, name: cls.name};
+	}
+
+	static function stdStringValue(read:Expr, pos:Position):Expr {
+		return {expr: ECall({expr: EField({expr: EConst(CIdent("Std")), pos: pos}, "string"), pos: pos}, [read]), pos: pos};
+	}
+
+	static function isCollectionType(type:Type):Bool {
+		return switch(Context.follow(type)) {
+			case TInst(c, _): c.get().name == "Array";
+			case TAbstract(a, _): a.get().module == "std.ReadOnlyArray";
+			case _: false;
+		};
 	}
 
 	static function isRecordType(type:Type):Bool {

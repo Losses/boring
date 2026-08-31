@@ -806,6 +806,7 @@ class RustDecl {
 		if(owningClass) {
 			switch(Context.follow(t)) {
 				case TInst(c, _) if(c.get().name == "Array"): return types.of(t, false);
+				case TAbstract(a, _) if(a.get().name == "ReadOnlyArray" || (a.get().pack.join(".") == "std" && a.get().name == "ReadOnlyArray")): return types.of(t, false);
 				case _:
 			}
 		}
