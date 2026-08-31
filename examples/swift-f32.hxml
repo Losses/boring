@@ -82,3 +82,5 @@ boring.StdStringOps
 tests.StdStringTests
 boring.StringConvOps
 tests.StringConvTests
+boring.StaticStateOps
+tests.StaticStateTests
