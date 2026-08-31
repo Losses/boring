@@ -2229,6 +2229,14 @@ class RustExpr {
 	}
 
 	function staticRef(cls: ClassType, name: String): String {
+		final markedField = findStaticField(cls, name);
+		if(markedField != null && StaticFunctionMarkers.isMarked(markedField)) {
+			final nativeName = RustImports.toSnakeCase(name);
+			if(markedField.isPublic) {
+				imports.requireType(cls.module, nativeName);
+			}
+			return nativeName;
+		}
 		final path = cls.pack.length == 0 ? cls.name : cls.pack.join(".") + "." + cls.name;
 		switch(path) {
 			case "String":
@@ -2304,6 +2312,13 @@ class RustExpr {
 				imports.requireType(cls.module, cls.name);
 				return cls.name + "::" + RustImports.toSnakeCase(name);
 		}
+	}
+
+	function findStaticField(cls: ClassType, name: String): Null<ClassField> {
+		for(field in cls.statics.get()) {
+			if(field.name == name) return field;
+		}
+		return null;
 	}
 
 	/**
@@ -2429,6 +2444,20 @@ class RustExpr {
 				final cls = c.get();
 				final name = cf.get().name;
 				final path = cls.pack.join(".") + "." + cls.name;
+				final markedField = findStaticField(cls, name);
+				if(markedField != null && StaticFunctionMarkers.isMarked(markedField)) {
+					final isOwnedExtension = StaticFunctionMarkers.isExtension(markedField)
+						&& RustDecl.isCrateOwnedReceiver(cls.module, args[0].t);
+					final isStaticFallible = isFallibleCallee(c, cf, true);
+					final q = isFallible ? (isStaticFallible ? "?" : "") : (isStaticFallible ? ".unwrap()" : "");
+					if(isOwnedExtension) {
+						final receiver = expr(args[0]);
+						final receiverText = StringTools.startsWith(receiver, "*") ? "(" + receiver + ")" : receiver;
+						return receiverText + "." + RustImports.toSnakeCase(name) + "("
+							+ renderCallArgs(cf.get().type, args.slice(1), null, 1) + ")" + q;
+					}
+					return staticRef(cls, name) + "(" + renderCallArgs(cf.get().type, args) + ")" + q;
+				}
 				if((cls.name == "Functional" || cls.name == "__functional_shim" || path == "std.Functional" || cls.module == "std.Functional") && name == "sortedBy") {
 					final receiver = args[0];
 					final lambda = args[1];
@@ -3576,7 +3605,7 @@ class RustExpr {
 		};
 	}
 
-	function renderCallArgs(fnType: Null<Type>, args: Array<TypedExpr>, signedPositions: Null<Array<Int>> = null): String {
+	function renderCallArgs(fnType: Null<Type>, args: Array<TypedExpr>, signedPositions: Null<Array<Int>> = null, paramOffset: Int = 0): String {
 		final paramTypes = if(fnType != null) {
 			switch(Context.follow(fnType)) {
 				case TFun(pargs, _): [for(p in pargs) p.t];
@@ -3587,8 +3616,9 @@ class RustExpr {
 		for(i in 0...args.length) {
 			final arg = args[i];
 			var argStr = expr(arg);
-			if(i < paramTypes.length) {
-				final pt = paramTypes[i];
+			final paramIndex = i + paramOffset;
+			if(paramIndex < paramTypes.length) {
+				final pt = paramTypes[paramIndex];
 				if(isNullType(pt) && !isNullType(arg.t)) {
 					if(argStr == "None") {
 						// already None

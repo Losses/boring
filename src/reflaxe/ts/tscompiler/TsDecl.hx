@@ -94,6 +94,16 @@ class TsDecl {
 			}
 		}
 
+		final extractedFuncs = [for(f in funcFields) if(StaticFunctionMarkers.isMarked(f.field)) f];
+		final ordinaryFuncs = [for(f in funcFields) if(!StaticFunctionMarkers.isMarked(f.field)) f];
+		final extractedParts: Array<String> = [];
+		for(f in extractedFuncs) {
+			extractedParts.push(extractedFuncDecl(cls, f).join("\n"));
+		}
+		if(varFields.length == 0 && ordinaryFuncs.length == 0) {
+			return extractedParts.join("\n\n");
+		}
+
 		final tableLines: Array<String> = [];
 		for(v in varFields) {
 			if(v.isStatic && DataTableHelper.isDataTableField(v.field)) {
@@ -118,8 +128,8 @@ class TsDecl {
 			for(l in varDecl(v)) lines.push(l);
 		}
 
-		var sep = storageCount > 0 && funcFields.length > 0;
-		for(f in funcFields) {
+		var sep = storageCount > 0 && ordinaryFuncs.length > 0;
+		for(f in ordinaryFuncs) {
 			if(sep) {
 				lines.push("");
 			}
@@ -130,7 +140,8 @@ class TsDecl {
 
 		lines.push("}");
 		final prefix = tableLines.length > 0 ? tableLines.join("\n\n") + "\n\n" : "";
-		return prefix + lines.join("\n");
+		final classPart = prefix + lines.join("\n");
+		return extractedParts.length > 0 ? extractedParts.join("\n\n") + "\n\n" + classPart : classPart;
 	}
 
 	function renderDataTable(name: String, elems: Array<Int>): String {
@@ -281,6 +292,25 @@ class TsDecl {
 		final genericStr = methodParams.length > 0 ? "<" + methodParams.join(", ") + ">" : "";
 		final head = '  $vis ${stat}${f.field.name}$genericStr($args): $ret {';
 		return [head].concat(body).concat(["  }"]);
+	}
+
+	function extractedFuncDecl(cls: ClassType, f: ClassFuncData): Array<String> {
+		for(a in f.args) {
+			expr.reserveName(a.name);
+		}
+		final args = [for(a in f.args) {
+			final coalescing = DefaultArgExpander.coalescingDefaultAt(cls, f.field.name, a.index);
+			final argType = coalescing != null ? types.of(DefaultArgExpander.coalescingParameterType(coalescing, a.type)) : types.of(a.type);
+			final defaultText = coalescing != null ? " = " + expr.coalescingDefaultText(coalescing, a.type) : "";
+			'${a.name}: $argType$defaultText';
+		}].join(", ");
+		final ret = types.of(f.ret);
+		final methodParams = collectMethodTypeParams(cls, f);
+		final genericStr = methodParams.length > 0 ? "<" + methodParams.join(", ") + ">" : "";
+		final vis = f.field.isPublic ? "export " : "";
+		final head = '${vis}function ${f.field.name}$genericStr($args): $ret {';
+		final body = decodeBoundaryBody(cls, f);
+		return [head].concat(body).concat(["}"]);
 	}
 
 	/**

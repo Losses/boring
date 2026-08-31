@@ -65,6 +65,7 @@ class Compiler extends PluginCompiler<Compiler> {
 		if(classType.isExtern || isSyntheticImpl(classType.name) || isInlineOnly(classType, varFields, funcFields) || (!isResident && !inSourceScope(classType.pos))) {
 			return null;
 		}
+		StaticFunctionMarkers.validateAll(funcFields);
 
 		var hasTestMethods = false;
 		for(f in funcFields) {

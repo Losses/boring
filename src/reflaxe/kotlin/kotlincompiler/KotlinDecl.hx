@@ -104,7 +104,17 @@ class KotlinDecl {
 			return lines.join("\n");
 		}
 
-		final isObject = isAllStatic(varFields, funcFields);
+		final extractedFuncs = [for(f in funcFields) if(StaticFunctionMarkers.isMarked(f.field)) f];
+		final ordinaryFuncs = [for(f in funcFields) if(!StaticFunctionMarkers.isMarked(f.field)) f];
+		final extractedParts: Array<String> = [];
+		for(f in extractedFuncs) {
+			extractedParts.push(extractedFuncDecl(cls, f).join("\n"));
+		}
+		if(varFields.length == 0 && ordinaryFuncs.length == 0) {
+			return extractedParts.join("\n\n");
+		}
+
+		final isObject = isAllStatic(varFields, ordinaryFuncs);
 		final lines: Array<String> = [];
 
 		if(isObject) {
@@ -112,14 +122,14 @@ class KotlinDecl {
 			for(v in varFields) {
 				for(l in objectVarDecl(v)) lines.push(l);
 			}
-			var sep = varFields.length > 0 && funcFields.length > 0;
-			for(f in funcFields) {
+			var sep = varFields.length > 0 && ordinaryFuncs.length > 0;
+			for(f in ordinaryFuncs) {
 				if(sep) lines.push("");
 				sep = true;
 				for(l in funcDecl(cls, f, true)) lines.push(l);
 			}
 			lines.push("}");
-			return lines.join("\n");
+			return withExtracted(extractedParts, lines.join("\n"));
 		}
 
 		// Instance class
@@ -204,8 +214,8 @@ class KotlinDecl {
 			}
 		}
 
-		final instanceFuncs = [for(f in funcFields) if(!f.isStatic && f.field.name != "new") f];
-		final staticFuncs = [for(f in funcFields) if(f.isStatic) f];
+		final instanceFuncs = [for(f in ordinaryFuncs) if(!f.isStatic && f.field.name != "new") f];
+		final staticFuncs = [for(f in ordinaryFuncs) if(f.isStatic) f];
 
 		var sep = varFields.length > 0 && instanceFuncs.length > 0;
 		for(f in instanceFuncs) {
@@ -227,7 +237,11 @@ class KotlinDecl {
 		}
 
 		lines.push("}");
-		return lines.join("\n");
+		return withExtracted(extractedParts, lines.join("\n"));
+	}
+
+	function withExtracted(extractedParts: Array<String>, classPart: String): String {
+		return extractedParts.length > 0 ? extractedParts.join("\n\n") + "\n\n" + classPart : classPart;
 	}
 
 	/** A haxe.Exception subclass folds, with its payload enum, into a sealed hierarchy. */
@@ -695,6 +709,41 @@ class KotlinDecl {
 		expr.setDecodeBoundary(false);
 
 		return [head].concat(body.map(l -> "    " + l)).concat(["    }"]);
+	}
+
+	function extractedFuncDecl(cls: ClassType, f: ClassFuncData): Array<String> {
+		for(a in f.args) {
+			expr.reserveName(a.name);
+		}
+		final isExtension = StaticFunctionMarkers.isExtension(f.field);
+		final firstArg = isExtension ? 1 : 0;
+		final args = [for(i in firstArg...f.args.length) {
+			final a = f.args[i];
+			final coalescing = DefaultArgExpander.coalescingDefaultAt(cls, f.field.name, a.index);
+			final parameterType = coalescing != null ? DefaultArgExpander.coalescingParameterType(coalescing, a.type) : a.type;
+			final defaultText = coalescing != null ? " = " + expr.coalescingDefaultText(coalescing, a.type) : "";
+			'${a.name}: ${types.of(parameterType)}$defaultText';
+		}].join(", ");
+		final retType = types.of(f.ret);
+		final ret = retType == "Unit" ? "" : ": " + retType;
+		final vis = f.field.isPublic ? "" : "private ";
+		final methodParams = collectMethodTypeParams(cls, f);
+		final genericStr = methodParams.length > 0 ? "<" + methodParams.join(", ") + "> " : "";
+		final receiver = isExtension ? types.of(f.args[0].type) + "." : "";
+		final head = '${vis}fun ${genericStr}${receiver}${f.field.name}($args)$ret {';
+		if(isExtension && f.args[0].tvar != null) {
+			expr.bindLocalName(f.args[0].tvar, "this");
+		}
+		final boundary = switch(f.ret) {
+			case TAbstract(a, _):
+				final abs = a.get();
+				abs.pack.join(".") == "std" && abs.name == "ReadOnlyArray";
+			case _: false;
+		};
+		expr.setDecodeBoundary(boundary);
+		final body = expr.functionBody(cls, f);
+		expr.setDecodeBoundary(false);
+		return [head].concat(body).concat(["}"]);
 	}
 
 	public function testFuncDecl(cls: ClassType, f: ClassFuncData): Array<String> {
