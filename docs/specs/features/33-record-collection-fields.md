@@ -1,6 +1,6 @@
 # Feature spec 33: Record collection fields
 
-Status: Planned. This specification amends the Contract element sentence
+Status: Implemented. This specification amends the Contract element sentence
 and the rejection sentence of
 [12-std-string.md](../stdlib/12-std-string.md), and adds one sentence to
 ruling 4 of [31-record-tostring-member.md](31-record-tostring-member.md).
