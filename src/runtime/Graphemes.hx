@@ -5,7 +5,7 @@ import std.UStringRT;
 /**
 	Grapheme cluster segmentation over the shared UAX #29 walk
 	(docs/specs/stdlib/11-grapheme-clusters.md). This class is the
-	single source of the cluster tier: each lane compiles it into its
+	single source of the cluster tier: each target compiles it into its
 	runtime package, stage one binds it as std.Graphemes, and the
 	break table arrives through the compile-time data pipeline that
 	validates it against the official test vectors before this class
