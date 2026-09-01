@@ -1657,8 +1657,8 @@ class SwiftExpr {
 					return "String(UnicodeScalar(UInt32(bitPattern: " + expr(args[0]) + "))!)";
 				}
 				if(module == "Std") {
-					if(fName == "parseFloat") return "Double(" + expr(args[0]) + ") ?? .nan";
-					if(fName == "parseInt") return "Int32(" + expr(args[0]) + ")";
+					if(fName == "parseFloat") { imports.runtime("NumberParsing"); return "NumberParsing.parseFloat(" + expr(args[0]) + ")"; }
+					if(fName == "parseInt") { imports.runtime("NumberParsing"); return "NumberParsing.parseInt(" + expr(args[0]) + ")"; }
 					if(fName == "int") {
 						final arg = stripWrap(args[0]);
 						switch(arg.expr) {
@@ -3283,6 +3283,9 @@ class SwiftExpr {
 				case 10: b.add('\\n');
 				case 13: b.add('\\r');
 				case 9: b.add('\\t');
+				case 11: b.add('\\u{000B}');
+				case 12: b.add('\\u{000C}');
+				case 1: b.add('\\u{0001}');
 				case c: b.addChar(c);
 			}
 		}
@@ -3299,6 +3302,9 @@ class SwiftExpr {
 				case 10: b.add('\\n');
 				case 13: b.add('\\r');
 				case 9: b.add('\\t');
+				case 11: b.add('\\u{000B}');
+				case 12: b.add('\\u{000C}');
+				case 1: b.add('\\u{0001}');
 				case c: b.addChar(c);
 			}
 		}

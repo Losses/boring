@@ -16,7 +16,13 @@ class NumberParsingTests {
 		Test.equals(true, NumberParsingOps.failedFloat(""));
 		Test.equals(true, NumberParsingOps.failedFloat("12x"));
 		Test.equals(true, NumberParsingOps.failedFloat("1e"));
+		Test.equals(true, NumberParsingOps.failedFloat("inf"));
+		Test.equals(true, NumberParsingOps.failedFloat("Infinity"));
+		Test.equals(true, NumberParsingOps.failedFloat("1f"));
 		Test.equals(true, NumberParsingOps.failedFloat("0x10"));
+		Test.equals(true, NumberParsingOps.failedFloat("\u0001 1.5"));
+		Test.equals(true, NumberParsingOps.failedFloat("\u2028 1.5"));
+		Test.equals(0.5, NumberParsingOps.parseFloat("\u000B.5"));
 	}
 
 	@:test("parseInt accepts decimal and hexadecimal tokens")
@@ -24,6 +30,10 @@ class NumberParsingTests {
 		Test.equals(-42, NumberParsingOps.parseInt(" -42 "));
 		Test.equals(16, NumberParsingOps.parseInt("0x10"));
 		Test.equals(26, NumberParsingOps.parseInt("+0X1a"));
+		Test.equals(-42, NumberParsingOps.parseInt("\u000B-42"));
+		Test.equals(-2147483648, NumberParsingOps.parseInt("-0x80000000"));
+		Test.equals(-2147483648, NumberParsingOps.parseInt("-2147483648"));
+		Test.equals(2147483647, NumberParsingOps.parseInt("2147483647"));
 	}
 
 	@:test("parseInt rejects partial and overflowing tokens as null")
