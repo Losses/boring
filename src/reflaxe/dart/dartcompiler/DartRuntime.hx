@@ -9,9 +9,9 @@ package dartcompiler;
 	(stdlib/05), the exception base class of features/06, and the
 	unit-order comparator tear-off the sorted builders bind
 	(stdlib/07). The byte sink and the string-view helpers of the Swift
-	lane have no Dart counterparts: haxe.io.BytesBuffer lowers to the
-	list itself (stdlib/02) and native String is the UTF-16 view
-	natively. Resident modules compile through the normal pipeline and
+	lane has no Dart equivalent. Dart uses the list itself for
+	haxe.io.BytesBuffer (stdlib/02), and native String provides the
+	UTF-16 view. Resident modules compile through the normal pipeline and
 	append after this prelude.
 **/
 class DartRuntime {
