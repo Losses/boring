@@ -59,7 +59,7 @@ class KotlinImports {
 		reach the output.
 	**/
 	public function requireType(module: String, name: String): Void {
-		if(module == "Std" || module == "Math" || module == "String") {
+		if(module == "Std" || module == "Math" || module == "String" || module == "haxe.Int64") {
 			return;
 		}
 		if(SHIM_MODULES.exists(module)) {
