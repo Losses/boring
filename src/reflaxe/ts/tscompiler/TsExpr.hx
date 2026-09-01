@@ -311,7 +311,7 @@ class TsExpr {
 					case TFunction(fn): functionLiteralNamed(v.name, fn);
 					default: expr(init);
 				};
-				return [indent(depth) + '$kw ${localName(v)} = $initText;'];
+				return [indent(depth) + '$kw ${localName(v)}${localTypeAnnotation(v, cast init)} = $initText;'];
 			case TVar(_, init) if(init == null):
 				return fail(e, "declaration without initializer has no lowering");
 			case TBlock(stmts):
@@ -1504,12 +1504,28 @@ class TsExpr {
 						return expr(subj) + ".substring(" + expr(args[0]) + ")";
 					}
 				}
-				if(name == "indexOf" && isStringSubject(subj) && args.length == 2) {
+				if(name == "substr" && isStringSubject(subj)) {
 					// The same synthesized null arrives for an omitted
-					// ?pos; String.prototype.indexOf types its second
+					// ?len; String.prototype.substr types its length
 					// parameter as number, and a null argument fails
 					// strict typechecking, so the null is dropped and
-					// the one-argument overload searches from the start.
+					// the one-argument overload carries the suffix call
+					// (features/08 ruling 8).
+					final lenOmitted = args.length < 2 || switch(stripWrap(args[1]).expr) {
+						case TConst(TNull): true;
+						case _: false;
+					};
+					if(lenOmitted) {
+						return expr(subj) + ".substr(" + expr(args[0]) + ")";
+					}
+				}
+				if(name == "indexOf" && (isStringSubject(subj) || isArraySubject(subj)) && args.length == 2) {
+					// The same synthesized null arrives for an omitted
+					// ?pos, on String and on Array; both prototype
+					// methods type the position parameter as number,
+					// and a null argument fails strict typechecking, so
+					// the null is dropped and the one-argument overload
+					// searches from the start (features/08 ruling 8).
 					switch(stripWrap(args[1]).expr) {
 						case TConst(TNull):
 							return expr(subj) + ".indexOf(" + expr(args[0]) + ")";
@@ -1762,7 +1778,8 @@ class TsExpr {
 		the exception class (features/06). The non-matching arm rethrows the
 		caught value unchanged.
 	**/
-	function isTryRegion(e: TypedExpr): Bool {
+	function isTryRegion(e: Null<TypedExpr>): Bool {
+		if(e == null) return false;
 		return switch(stripWrap(e).expr) {
 			case TTry(_, catches): catches.length == 1;
 			case _: false;
@@ -1921,7 +1938,8 @@ class TsExpr {
 		};
 	}
 
-	function isStringBufToStringCall(e: TypedExpr): Bool {
+	function isStringBufToStringCall(e: Null<TypedExpr>): Bool {
+		if(e == null) return false;
 		return switch(stripWrap(e).expr) {
 			case TCall(fn, _):
 				switch(fn.expr) {
@@ -2068,7 +2086,8 @@ class TsExpr {
 		final out: Array<String> = [];
 		var value: Null<String> = null;
 		function walk(stmts: Array<TypedExpr>) {
-			for(s in stmts) {
+			for(idx in 0...stmts.length) {
+				final s = stmts[idx];
 				switch(s.expr) {
 					case TVar(v, init):
 						if(init == null) {
@@ -2090,7 +2109,15 @@ class TsExpr {
 					case TMeta(_, inner):
 						walk([inner]);
 					case _:
-						value = expr(s);
+						// A case body may carry statements before its value
+						// expression (an argument check that throws, a
+						// mutation); each renders before the branch value's
+						// return, and the final expression is the value.
+						if(idx == stmts.length - 1) {
+							value = expr(s);
+						} else {
+							for(l in stmtLines(s, depth)) out.push(l);
+						}
 				}
 			}
 		}
@@ -2364,6 +2391,32 @@ class TsExpr {
 	function isStringSubject(e: TypedExpr): Bool {
 		return switch(Context.follow(stripCast(e).t)) {
 			case TInst(c, _): c.get().name == "String";
+			case _: false;
+		}
+	}
+
+	/**
+		Three initializer forms cannot carry their declared type through
+		TypeScript inference: a bare null widens to the evolving any and
+		loses the null-model typing of features/04, an empty array
+		literal stays an implicit any[] whenever the local is read
+		through a path the evolving-array analysis rejects, and an enum
+		constructor literal widens its kind tag to string, so a later
+		discriminated-union use rejects the local. Those declarations
+		name the declared type instead, mirroring the declaration-naming
+		rule the Swift target already carries (features/14).
+	**/
+	function localTypeAnnotation(v: TVar, init: TypedExpr): String {
+		return switch(stripWrap(init).expr) {
+			case TConst(TNull) | TField(_, FEnum(_, _)): ": " + types.of(v.t);
+			case TArrayDecl(elements) if(elements.length == 0): ": " + types.of(v.t);
+			case _: "";
+		};
+	}
+
+	function isArraySubject(e: TypedExpr): Bool {
+		return switch(Context.follow(stripCast(e).t)) {
+			case TInst(c, _): c.get().name == "Array";
 			case _: false;
 		}
 	}
