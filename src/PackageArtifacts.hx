@@ -269,8 +269,8 @@ class PackageArtifacts {
 	// ------------------------------------------------------------------
 
 	/**
-		The executable one compiled lane needs, or null after an error.
-		The artifact of that lane is build output, so packing it without
+		The executable one compiled target needs, or null after an error.
+		The artifact of that target is build output, so packing it without
 		the tool is impossible; the message names the define that
 		supplies the executable.
 	**/
@@ -286,7 +286,7 @@ class PackageArtifacts {
 	/**
 		Runs one host compiler the artifact pipeline needs. A nonzero
 		exit stops the compilation with the command line, the exit code,
-		and the tool's complete output, so a failing compile surfaces in
+		and the tool's complete output, so a failing compile is reported in
 		the Haxe invocation that requested the artifact. The output is
 		read before the exit code is queried; compile output fits the
 		pipe buffer, so the streams cannot deadlock.
