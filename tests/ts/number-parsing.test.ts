@@ -5,8 +5,15 @@ const root = path.resolve(__dirname, "../..");
 const read = (file: string): string => fs.readFileSync(path.join(root, file), "utf8");
 describe("number parsing renderings", () => {
   test("all target trees use the validated implementation", () => {
-    expect(read("reference/ts/gen/boring/NumberParsingOps.ts")).toContain("Number.parseFloat");
-    expect(read("reference/ts/gen/boring/NumberParsingOps.ts")).toContain("Number.parseInt");
+    const ts = read("reference/ts/gen/boring/NumberParsingOps.ts");
+    expect(ts).toContain("Number.parseFloat");
+    expect(ts).toContain("Number.parseInt");
+    expect(ts).toContain("charCodeAt");
+    expect(ts).toContain("Number.NaN");
+    expect(ts).toContain("-2147483648");
+    expect(ts).not.toContain("RegExp");
+    expect(ts).not.toContain(".replace(");
+    expect(ts).not.toContain(".test(");
     const kotlin = read("reference/kotlin/gen/boring/NumberParsingOps.kt");
     expect(fs.existsSync(path.join(root, "reference/kotlin/gen/runtime/NumberParsing.kt"))).toBe(false);
     expect(kotlin).toContain("toDoubleOrNull"); expect(kotlin).toContain("toIntOrNull"); expect(kotlin).toContain("2147483647");
