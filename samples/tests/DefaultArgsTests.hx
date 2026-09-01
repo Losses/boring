@@ -136,4 +136,11 @@ class DefaultArgsTests {
 		Test.equals(4.5, given.radius);
 		Test.equals(4.5, given.followRadius);
 	}
+
+	@:test("zero-argument self-construction on a field-carrying class keeps the labeled printed form")
+	public static function testCoalescingPreset():Void {
+		Test.equals("CoalescingPreset(base=0.125, ceiling=0.5)", Std.string(CoalescingPreset.Default));
+		Test.equals("CoalescingPreset(base=0.125, ceiling=0.5)", CoalescingPreset.Default.toString());
+		Test.equals("CoalescingPreset(base=0.25, ceiling=0.75)", Std.string(new CoalescingPreset(0.25, 0.75)));
+	}
 }

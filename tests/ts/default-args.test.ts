@@ -37,6 +37,13 @@ describe("default argument expansion generated tree", () => {
     expect(content).toContain("constructor(radius: number = 0.0, followRadius: number = radius)");
     expect(content).toContain("return DefaultArgsOps.chainedCoalescing();");
 
+    // A zero-argument self-construction on a field-carrying class is a
+    // constructed static initializer (spec 35), never the spec 32
+    // singleton: the printed form stays the labeled record text.
+    expect(content).toContain("public static readonly Default: CoalescingPreset = new CoalescingPreset();");
+    expect(content).toContain("constructor(base: number = 0.125, ceiling: number = 0.5)");
+    expect(content).toContain("CoalescingPreset(base=${this.base}, ceiling=${this.ceiling})");
+
     // Coalescing defaults stay native on TypeScript and are omitted at their
     // call sites; their empty containers remain expression-valued.
     expect(content).toContain("constructor(familyNames: string[] = [])");
@@ -89,6 +96,12 @@ describe("default argument expansion generated tree", () => {
     // native defaults on the function and the primary constructor field.
     expect(content).toContain("fun chainedCoalescing(fallback: Double = 2.5, value: Double = fallback): Double");
     expect(content).toContain("class ChainedPaint(var radius: Double = 0.0, var followRadius: Double = radius)");
+
+    // The field-carrying zero-argument self-construction static lowers as
+    // a companion construction initializer; the data class keeps the
+    // native labeled printed form and emits no explicit member.
+    expect(content).toContain("data class CoalescingPreset(val base: Double = 0.125, val ceiling: Double = 0.5)");
+    expect(content).toContain("val Default: CoalescingPreset = CoalescingPreset()");
 
     // Kotlin receives native defaults for the sanctioned coalescing class.
     expect(content).toContain("class DefaultArgsOps(var familyNames: MutableList<String> = mutableListOf<String>())");
@@ -169,6 +182,12 @@ describe("default argument expansion generated tree", () => {
     expect(content).toContain("let fallback = fallback.unwrap_or_else(|| 2.5);");
     expect(content).toContain("let value = value.unwrap_or_else(|| fallback);");
     expect(content).toContain("let follow_radius = follow_radius.unwrap_or_else(|| radius);");
+
+    // The static initializer completes omitted coalescing arguments to
+    // None exactly as function-body call sites do, because the per-
+    // function pass never visits initializers.
+    expect(content).toContain("pub static default: LazyLock<CoalescingPreset> = LazyLock::new(|| CoalescingPreset::new(None, None));");
+    expect(content).not.toContain('return "CoalescingPreset".to_string();');
   });
 
   test("Swift generated tree lowers parameter-reading coalescing defaults in the body", () => {
@@ -196,6 +215,12 @@ describe("default argument expansion generated tree", () => {
     expect(content).toContain("var value = value ?? fallback;");
     expect(content).toContain("init(_ radius: Double = 0.0, _ followRadius: Double? = nil)");
     expect(content).toContain("var followRadius = followRadius ?? radius;");
+
+    // The field-carrying preset keeps constant coalescing defaults as
+    // native Swift defaults and prints the labeled record text.
+    expect(content).toContain("static let Default: CoalescingPreset = CoalescingPreset()");
+    expect(content).toContain('return "CoalescingPreset(base=\\(self.base), ceiling=\\(self.ceiling))"');
+    expect(content).not.toContain('return "CoalescingPreset"');
   });
 
   test("Dart generated tree normalizes coalescing defaults in the body", () => {
@@ -225,5 +250,11 @@ describe("default argument expansion generated tree", () => {
     expect(content).toContain("final String normalized = b ?? a;");
     expect(content).toContain("final double resolvedValue = value ?? (fallback ?? 2.5);");
     expect(content).toContain("this.followRadius = followRadius ?? (radius ?? 0.0);");
+
+    // The field-carrying preset constructs with omitted nullable
+    // parameters and prints the labeled record text, never the bare name.
+    expect(content).toContain("static final CoalescingPreset Default = CoalescingPreset();");
+    expect(content).toContain("CoalescingPreset([double? base, double? ceiling])");
+    expect(content).not.toContain('return "CoalescingPreset"');
   });
 });

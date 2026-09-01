@@ -54,6 +54,15 @@ class StaticFieldHelper {
 		if(field == null || declaringClass == null || !field.isFinal) {
 			return false;
 		}
+		// Spec 32 rule 2: the singleton form belongs to a declaring class
+		// with no instance fields. A zero-argument construction of a
+		// field-carrying class is legal whenever every constructor
+		// parameter holds a default (spec 22 completion), so the argument
+		// count alone cannot carry the singleton meaning; such a static
+		// is a constructed initializer of spec 35 instead.
+		if(hasInstanceFields(declaringClass)) {
+			return false;
+		}
 		final actual = init == null ? initializer(field) : init;
 		if(actual == null) {
 			return false;
@@ -69,6 +78,21 @@ class StaticFieldHelper {
 			case _:
 				false;
 		};
+	}
+
+	/** Whether a class declares any instance field (variable or property). */
+	public static function hasInstanceFields(cls: Null<ClassType>): Bool {
+		if(cls == null) {
+			return false;
+		}
+		for(field in cls.fields.get()) {
+			switch(field.kind) {
+				case FVar(_, _):
+					return true;
+				case _:
+			}
+		}
+		return false;
 	}
 
 	/** Whether a class carries the sanctioned singleton static. */

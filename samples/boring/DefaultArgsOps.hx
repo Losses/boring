@@ -279,3 +279,24 @@ class ChainedPaint {
 		this.followRadius = followRadius == null ? radius : followRadius;
 	}
 }
+
+/**
+	The AutoSpacePolicy shape of the engine port: a @:dataClass whose
+	constructor parameters all hold coalescing defaults, so the default
+	preset constructs with zero arguments. Spec 32 rule 2 keys the
+	singleton form on a declaring class with no instance fields, so this
+	static is a constructed initializer of spec 35 and the printed form
+	stays the spec 31 labeled text.
+*/
+@:dataClass
+class CoalescingPreset {
+	public final base:Float;
+	public final ceiling:Float;
+
+	public function new(?base:Null<Float>, ?ceiling:Null<Float>) {
+		this.base = base == null ? 0.125 : base;
+		this.ceiling = ceiling == null ? 0.5 : ceiling;
+	}
+
+	public static final Default:CoalescingPreset = new CoalescingPreset();
+}

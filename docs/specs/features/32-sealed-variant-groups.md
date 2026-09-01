@@ -54,30 +54,42 @@ abstract class. Three pieces are missing:
    unchanged. Placing `@:sealed` on a class, an enum, or a typedef stops
    generation with `@:sealed applies to interfaces only`.
 
-2. A `static final` field whose declared type is the declaring class and
-   whose initializer is a zero-argument construction of that class joins
-   the sanctioned initializers of feature spec 30 and lowers through the
+2. A `static final` field whose declared type is the declaring class,
+   whose initializer is a zero-argument construction of that class, and
+   whose declaring class declares no instance fields joins the
+   sanctioned initializers of feature spec 30 and lowers through the
    reference-value form of spec 30 rule 1. TypeScript renders
    `public static readonly instance: NoneDrawKind = new NoneDrawKind();`.
    Kotlin renders the companion-object
    `val instance: NoneDrawKind = NoneDrawKind()`. Swift renders
    `static let instance: NoneDrawKind = NoneDrawKind()`. Dart renders
-   `static final instance = NoneDrawKind();`. On Rust, for a declaring
-   class with no instance fields, the field renders as a module static
-   carrying `#[allow(non_upper_case_globals)]` and initialized by the
-   empty-struct construction the target already emits for such a class,
-   read as a direct reference. Any other construction form in a static
+   `static final instance = NoneDrawKind();`. On Rust the field renders
+   as a module static carrying `#[allow(non_upper_case_globals)]` and
+   initialized by the empty-struct construction the target already emits
+   for such a class, read as a direct reference. A zero-argument
+   construction of a class that declares instance fields is a constructed
+   static initializer of feature spec 35: the
+   default-argument completion of feature spec 22 makes the zero-argument
+   call legal whenever every constructor parameter holds a default, so
+   the argument count alone cannot carry the singleton meaning. Such a
+   field lowers per spec 35 rule 4 and its class keeps the printed form
+   its marker rules give it. Any other construction form in a static
    initializer keeps the spec 30 error
    `static field initializers accept null, literal, and empty array forms only`.
 
 3. A class carrying the sanctioned self-construction static of rule 2
    gains a synthesized zero-argument `toString` that returns the bare
    simple class name with no parentheses, on every target, in the record
-   toString synthesis of feature spec 31. The synthesis keys on the static of
-   rule 2; the `@:dataClass` marker does not apply, because the singleton
-   form declares no instance fields. Field-carrying variant classes keep the
+   toString synthesis of feature spec 31. The synthesis keys on the
+   static of rule 2, and rule 2 admits that static on a declaring class
+   with no instance fields only; the `@:dataClass` marker does not apply
+   to the singleton form. Field-carrying variant classes keep the
    spec 31 synthesis unchanged: the labeled `Name(field=value, ...)`
-   text in parameter order.
+   text in parameter order. A field-carrying class whose constructor
+   parameters all hold defaults therefore never takes the bare-name
+   form, whatever static it declares; its zero-argument self-construction
+   static is a spec 35 initializer and its printed form is the spec 31
+   labeled text when it carries `@:dataClass`.
 
 4. An interface without `@:sealed`, an implementing class outside the
    interface package, and variant classes with instance methods or shared
@@ -115,3 +127,12 @@ abstract class. Three pieces are missing:
   `@:sealed applies to interfaces only`; a self-construction with
   arguments, `static final bad:NoneDrawKind = new NoneDrawKind(1);`,
   keeps the spec 30 initializer error text.
+- A field-carrying `@:dataClass` sample with all-default coalescing
+  constructor parameters and a zero-argument self-construction static,
+  the `AutoSpacePolicy` shape of the port, appears beside the sealed
+  samples: its tests assert the spec 31 labeled printed form for the
+  constructed default and for a read of the static, and its tree
+  assertions pin the spec 35 lowering (the Rust `LazyLock` static, the
+  Kotlin companion `val Default = ...`) with no bare-name toString
+  anywhere; the field-less singleton of this specification keeps its
+  bare-name form in the same trees.
