@@ -1428,7 +1428,7 @@ class RustDecl {
 		if(f.expr == null) return false;
 		// The preScan fixpoint owns fallibility: direct throws, runtime-shim
 		// calls, u32 length writes, and inheritance through call edges all
-		// land in the registry.
+		// appear in the registry.
 		if(state.funcErrorEnums.exists(RustEmissionState.funcKey(f.classType.module, f.field.name, f.isStatic))) {
 			return true;
 		}
