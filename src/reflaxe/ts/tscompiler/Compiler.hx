@@ -11,7 +11,7 @@ import reflaxe.data.ClassVarData;
 import reflaxe.data.EnumOptionData;
 
 /**
-	reflaxe plugin producing the TypeScript lane of the translatable
+	reflaxe plugin producing the TypeScript target of the translatable
 	subset (docs/specs/features/14-type-system-mapping.md).
 
 	Output layout is one file per Haxe module at the module's own path,
@@ -484,7 +484,7 @@ class Compiler extends PluginCompiler<Compiler> {
 		The compilation scope is the intercepted source roots: a
 		declaration lowers when its position file lies under one of them,
 		whatever its package. The output path mirrors the module path:
-		`pack.Module` lands at `pack/Module.ts`.
+		`pack.Module` maps to `pack/Module.ts`.
 	**/
 	function inSourceScope(pos: haxe.macro.Expr.Position): Bool {
 		final file = Context.getPosInfos(pos).file;

@@ -4210,7 +4210,7 @@ class RustExpr {
 						case TInst(c, _): c.get().name == "Array";
 						default: false;
 					};
-					// A compile-time data table is a file-level static:
+					// A compile-time data table is a static declared at file scope:
 					// it borrows immutably even where the parameter
 					// accepts mutation.
 					final isTableArg = switch(stripWrap(arg).expr) {

@@ -108,7 +108,7 @@ class SwiftExpr {
 		return expr(e);
 	}
 
-	/** Statement-level entry for framework-initiated compiles. */
+	/** Entry at statement scope for framework-initiated compiles. */
 	public function topLevelStatements(e: TypedExpr): String {
 		scanLocals(e);
 		return blockLines(statementsOf(e), 0).join("\n");
@@ -1294,9 +1294,9 @@ class SwiftExpr {
 				return "Std." + name;
 			case "haxe.io.FPHelper":
 				// stdlib/05: the bit conversions live in the runtime module.
-				// The f32 lane swaps the two value-edge calls to the
+				// The f32 configuration swaps the two value-edge calls to the
 				// binary32 variants; the 8-byte wire layout keeps its f64
-				// shape on both lanes (feature spec 23).
+				// shape for both target configurations (feature spec 23).
 				if(FloatPrecision.isF32()) {
 					if(name == "i64ToDouble") {
 						imports.runtime("i64ToF32");
