@@ -5,16 +5,17 @@ import haxe.macro.Context;
 import haxe.macro.Type;
 
 /**
-	Binding modules for extern declarations (docs/specs/targets/
-	typescript.md). Generated business modules reference extern names
-	through the extern's own module path, so one file per referenced
-	extern module must hold the runtime bindings; without it every such
-	import statement dangles. TsImports records each cross-module value
-	reference here while expressions compile, and the file writer emits
-	one binding line per referenced extern class: a class annotated
-	@:jsRequire("m") binds the module namespace (or the named export
-	when a second metadata parameter is present), a class annotated
-	@:native("x") binds the global `x`.
+	Binding modules for extern declarations (docs/specs/features/
+	13-metadata-and-reflection.md; docs/specs/stdlib/). Generated
+	business modules reference extern names through the extern's own
+	module path, so one file per referenced extern module must hold the
+	runtime bindings; without it every such import statement dangles.
+	TsImports records each cross-module value reference here while
+	expressions compile, and the file writer emits one binding line per
+	referenced extern class: a class annotated @:jsRequire("m") binds
+	the module namespace (or the named export when a second metadata
+	parameter is present), and a class annotated @:native("x") binds
+	the global `x`.
 **/
 class ExternBindings {
 	/** Referenced export names per extern module path, keyed by name. */
@@ -51,7 +52,9 @@ class ExternBindings {
 			return "";
 		}
 		final lines: Array<String> = [];
-		for(t in Context.getModule(module)) {
+		final types = Context.getModule(module).copy();
+		types.sort((a, b) -> Reflect.compare(moduleTypeName(a), moduleTypeName(b)));
+		for(t in types) {
 			switch(t) {
 				case TInst(clsRef, _):
 					final cls = clsRef.get();
@@ -76,12 +79,23 @@ class ExternBindings {
 	}
 
 	/**
-		The name other modules import: the @:native name when the class
-		carries one, the class name otherwise.
+		The name other modules import: the ClassType name. For a class
+		with @:native the typer presents the native value as the class
+		name, so the export carries the native value; a @:jsRequire
+		class keeps its declared class name (spec 13).
 	**/
 	static function referenceName(cls: ClassType): String {
-		final native = metaString(cls, ":native", 0);
-		return native != null ? native : cls.name;
+		return cls.name;
+	}
+
+	static function moduleTypeName(t: Type): String {
+		return switch(t) {
+			case TInst(cls, _): cls.get().name;
+			case TEnum(en, _): en.get().name;
+			case TType(def, _): def.get().name;
+			case TAbstract(a, _): a.get().name;
+			case _: Std.string(t);
+		};
 	}
 
 	static function binding(cls: ClassType, name: String): String {
