@@ -44,9 +44,11 @@ class KotlinDecl {
 	// ------------------------------------------------------------------
 
 	public function classDecl(cls: ClassType, varFields: Array<ClassVarData>, funcFields: Array<ClassFuncData>): String {
-		// Kotlin's data class already supplies the same printed form. The
+		// Kotlin's data class already supplies the same printed form while
+		// its parameter order matches the field declaration order. The
 		// stage 1 build macro marks its synthetic member so this target can
-		// leave the native synthesis as the only declaration.
+		// drop it; a reordered class keeps the member as an explicit
+		// override (feature spec 37 rule 3).
 		funcFields = [for(f in funcFields) if(!isSynthesizedRecordToString(cls, f)) f];
 		if(cls.isInterface) {
 			final lines: Array<String> = [];
@@ -703,8 +705,52 @@ class KotlinDecl {
 		}
 	}
 
+	/**
+		The synthesized record print is dropped only while the Kotlin data
+		class native print produces the same text. The native print follows
+		the primary constructor's parameter order, and the synthesized print
+		follows field declaration order (feature spec 37 rule 3); a class
+		whose two orders differ keeps the member as an explicit override.
+	**/
 	static function isSynthesizedRecordToString(cls: ClassType, f: ClassFuncData): Bool {
-		return cls.meta.has(":dataClass") && f.field.name == "toString" && f.field.meta.has(":recordMember");
+		if(!(cls.meta.has(":dataClass") && f.field.name == "toString" && f.field.meta.has(":recordMember"))) {
+			return false;
+		}
+		return constructorOrderMatchesFieldOrder(cls);
+	}
+
+	/**
+		Compares the constructor parameter order with the declaration order
+		of the fields holding the parameters, the same position comparison
+		the stage 1 shape applies. A parameter without a field fails the
+		dataClass validation in classDecl; the native print stays until
+		that error fires.
+	**/
+	static function constructorOrderMatchesFieldOrder(cls: ClassType): Bool {
+		final ctor = cls.constructor;
+		if(ctor == null) {
+			return true;
+		}
+		final args = switch(ctor.get().type) {
+			case TFun(args, _): args;
+			case _: return true;
+		};
+		final positions = new Map<String, Int>();
+		for(field in cls.fields.get()) {
+			positions.set(field.name, Context.getPosInfos(field.pos).min);
+		}
+		var last = -1;
+		for(arg in args) {
+			final position = positions.get(arg.name);
+			if(position == null) {
+				return true;
+			}
+			if(position < last) {
+				return false;
+			}
+			last = position;
+		}
+		return true;
 	}
 
 	function objectVarDecl(v: ClassVarData, cls: ClassType): Array<String> {
