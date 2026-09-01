@@ -26,7 +26,7 @@ declare module "@eslint/core" {
 
 /**
  * A visitor callback for one syntax kind. Declared once so every rule names
- * its visitor entries instead of writing inline function types.
+ * its visitor entries with the named function type.
  */
 export type VisitNode<Node> = (node: Node) => void;
 

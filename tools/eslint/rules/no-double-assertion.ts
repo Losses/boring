@@ -8,8 +8,8 @@ type DoubleAssertionVisitor = {
 
 /**
  * Bans chained type assertions: `value as unknown as T`, `value as A as B`,
- * and the angle-bracket form. A double assertion silences the type system
- * instead of convincing it, so the fix belongs in the declarations.
+ * and the angle-bracket form. A double assertion hides the type mismatch.
+ * The declarations should express the required conversion.
  */
 export const noDoubleAssertion: BoringRule<DoubleAssertionVisitor, "doubleAssertion"> = {
   meta: {
