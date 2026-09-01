@@ -32,8 +32,8 @@ class VectorCodec {
 
 	/**
 		Unknown magics answer null, which decode reports as BadMagic; a
-		reader built before a width existed rejects the block explicitly
-		instead of misreading its records.
+		reader built before a width existed rejects the block when the magic
+		is unknown.
 	**/
 	public static function widthOfMagic(magic:String):Null<FloatWidth> {
 		if (!isKnownMagic(magic)) {

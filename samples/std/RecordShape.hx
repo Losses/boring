@@ -100,8 +100,8 @@ class RecordShape {
 			}
 		}
 		// Feature spec 37 rule 1: each parameter sorts by the source
-		// position of the field holding it, so the member follows field
-		// declaration order instead of constructor parameter order.
+		// position of the field holding it; member ordering follows field
+		// declaration order.
 		final entries:Array<{name:String, type:Type, pos:Position}> = [];
 		for(arg in constructorArgs) {
 			if(!typedFieldTypes.exists(arg.name) && !classFields.exists(arg.name)) {

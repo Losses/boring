@@ -2,7 +2,7 @@ package boring
 
 /**
  * Cursor-based big-endian reader over an immutable byte buffer. Assembled u32
- * values keep their two's-complement bits: f64 halves feed Double.fromBits as
+ * values keep their two's-complement bits: f64 bit parts feed Double.fromBits as
  * raw bits, and code points (at most 0x10FFFF) are always positive under this
  * representation.
  */
