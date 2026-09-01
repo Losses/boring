@@ -101,7 +101,7 @@ exact Haxe results above.
    | --- | --- |
    | TypeScript | `Number.parseFloat(s)` with the complete-token validation result guarding the call; failure is `Number.NaN`. |
    | Kotlin | Calls the emitted `std.NumberParsing` shim (validation patterns are constructed once at program startup). |
-   | Swift | Calls the emitted `std.NumberParsing` shim (a single-pass UTF-8 byte scan validates the token before standard-library conversion). |
+   | Swift | Calls the emitted `std.NumberParsing` shim (a single-pass scan over the Unicode scalars validates the token before standard-library conversion). |
    | Dart | Calls the emitted `std.NumberParsing` shim (validation patterns are constructed once at program startup). |
    | Rust | the six-character trim, a single-pass whole-token grammar scan over the bytes, then `t.parse::<f64>().unwrap_or(f64::NAN)` (`f32` in the f32 configuration). |
 
@@ -116,7 +116,7 @@ exact Haxe results above.
    | --- | --- |
    | TypeScript | validated decimal or hex form through `Number.parseInt(s, 10)` or the explicitly validated hex form; failure is `null`. |
    | Kotlin | Calls the emitted `std.NumberParsing` shim (validation patterns are constructed once at program startup). |
-   | Swift | Calls the emitted `std.NumberParsing` shim (a single-pass UTF-8 byte scan validates the token before `Int64` conversion and bounds checking). |
+   | Swift | Calls the emitted `std.NumberParsing` shim (a single-pass scan over the Unicode scalars validates the token before `Int64` conversion and bounds checking). |
    | Dart | Calls the emitted `std.NumberParsing` shim (validation patterns are constructed once at program startup). |
    | Rust | the six-character trim, a sign split, and a `0x`/`0X` prefix test, then decimal or radix-16 parsing through `i64` with the Haxe `Int` bounds checked before `as i32`; failure is `None` in `Option<i32>` |
 
