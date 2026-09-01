@@ -35,44 +35,32 @@ function sha512(text: string): string {
   return crypto.createHash("sha512").update(text).digest("base64");
 }
 
-function metadata(name: string, version: string, owner: string, repo: string, options: FixtureOptions = {}): Metadata {
+function metadata(platform: string, name: string, version: string, owner: string, repo: string, options: FixtureOptions = {}): Metadata {
   const suffix = `${owner}/${repo}/${version}`;
-  const npmBytes = `npm-${suffix}`;
-  const cargoBytes = `cargo-${suffix}`;
-  const pubBytes = `pub-${suffix}`;
-  const swiftBytes = `swift-${suffix}`;
-  const cargoName = options.uppercaseCargo === true ? "Acme-Core" : "acme-core";
-  const result: Metadata = {
-    name: options.uppercaseCargo === true ? "Acme-Core" : name,
-    version,
-    license: "MIT",
-    npm: {
-      url: `${fixtureBase}/${suffix}/package.tgz`,
-      sha512: options.missingDigest === true ? "" : sha512(npmBytes),
-    },
-    cargo: { name: cargoName, url: `${fixtureBase}/${suffix}/package.crate`, sha256: sha256(cargoBytes) },
-    pub: {
-      url: `${fixtureBase}/${suffix}/package.tar.gz`,
-      sha256: sha256(pubBytes),
-      pubspec: { name, version, license: "MIT", environment: { sdk: ">=3.0.0 <4.0.0" } },
-    },
-    swift: {
-      archive: `swift/${SCOPE}/${name}/${version}.zip`,
-      sha256: sha256(swiftBytes),
-      packageSwift: `// Package ${name} ${version}\n`,
-    },
-    maven: {
-      groupId: "dev.acme",
-      artifacts: [
-        { file: `acme-core-${version}.jar`, url: `${fixtureBase}/${suffix}/core.jar` },
-        { file: `acme-core-${version}.pom`, url: `${fixtureBase}/${suffix}/core.pom` },
-        { file: `acme-core-${version}.jar.sha1`, url: `${fixtureBase}/${suffix}/core.jar.sha1` },
-        { file: `acme-core-${version}.pom.sha1`, url: `${fixtureBase}/${suffix}/core.pom.sha1` },
-      ],
-    },
-  };
-  if(options.disagreement === true) {
-    result.cargo = { name: cargoName, url: `https://other.example.test/${suffix}`, sha256: "different" };
+  const packageName = options.uppercaseCargo === true ? "Acme-Core" : name;
+  const result: Metadata = { name: packageName, version, license: "MIT" };
+  if(platform === "npm") {
+    result.url = `${fixtureBase}/${suffix}/package.tgz`;
+    result.sha512 = options.missingDigest === true ? "" : sha512(`npm-${suffix}`);
+  } else if(platform === "cargo") {
+    result.url = `${fixtureBase}/${suffix}/package.crate`;
+    result.sha256 = sha256(`cargo-${suffix}`);
+  } else if(platform === "pub") {
+    result.url = `${fixtureBase}/${suffix}/package.tar.gz`;
+    result.sha256 = sha256(`pub-${suffix}`);
+    result.pubspec = { name: packageName, version, license: "MIT", environment: { sdk: ">=3.0.0 <4.0.0" } };
+  } else if(platform === "swift") {
+    result.archive = `swift/${SCOPE}/${packageName}/${version}.zip`;
+    result.sha256 = sha256(`swift-${suffix}`);
+    result.packageSwift = `// Package ${packageName} ${version}\n`;
+  } else {
+    result.groupId = "dev.acme";
+    result.artifacts = [
+      { file: `acme-core-${version}.jar`, url: `${fixtureBase}/${suffix}/core.jar` },
+      { file: `acme-core-${version}.pom`, url: `${fixtureBase}/${suffix}/core.pom` },
+      { file: `acme-core-${version}.jar.sha1`, url: `${fixtureBase}/${suffix}/core.jar.sha1` },
+      { file: `acme-core-${version}.pom.sha1`, url: `${fixtureBase}/${suffix}/core.pom.sha1` },
+    ];
   }
   return result;
 }
@@ -92,11 +80,8 @@ function createFixture(label: string, options: FixtureOptions = {}): string {
   if(options.omitVersion !== true) {
     for(const version of ["1.0.0", "1.1.0"]) {
       for(const platform of ["npm", "cargo", "pub", "swift", "maven"]) {
-        const value = metadata("acme-core", version, "acme", "core", options);
-        if(options.disagreement === true && platform !== "cargo") {
-          const scalar = value as Metadata;
-          scalar.name = "different-name";
-        }
+        const value = metadata(platform, "acme-core", version, "acme", "core", options);
+        if(options.disagreement === true && platform !== "cargo") value.name = "different-name";
         const file = path.join(repo, version, platform, "metadata.json");
         if(options.malformed !== undefined && platform === options.malformed) {
           fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -112,7 +97,7 @@ function createFixture(label: string, options: FixtureOptions = {}): string {
   fs.writeFileSync(path.join(second, "README.md"), "# Tools\n");
   writeJson(path.join(second, "2.0.0", "npm", "metadata.json"), {
     name: "@acme/tools", version: "2.0.0", license: "Apache-2.0",
-    npm: { url: `${fixtureBase}/tools.tgz`, sha512: sha512("tools") },
+    url: `${fixtureBase}/tools.tgz`, sha512: sha512("tools"),
   });
   if(options.digestConflict === true) {
     const conflicting = path.join(tree, "acme", "other");
@@ -120,7 +105,7 @@ function createFixture(label: string, options: FixtureOptions = {}): string {
     fs.writeFileSync(path.join(conflicting, "README.md"), "# Other\n");
     writeJson(path.join(conflicting, "1.0.0", "npm", "metadata.json"), {
       name: "acme-core", version: "1.0.0", license: "MIT",
-      npm: { url: "https://assets.example.test/conflict.tgz", sha512: "different-digest" },
+      url: "https://assets.example.test/conflict.tgz", sha512: "different-digest",
     });
   }
   if(options.stray === true) fs.writeFileSync(path.join(repo, "notes.txt"), "not metadata");
