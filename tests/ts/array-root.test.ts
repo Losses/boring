@@ -43,7 +43,7 @@ async function compileMutation(source: string): Promise<string> {
       `-cp ${path.join(root, "src/reflaxe/ts/std-shadow")}`,
       `-cp ${path.join(root, "src/reflaxe/ts")}`,
       `-cp ${path.join(root, "samples")}`, `-cp ${sourceRoot}`,
-      `--macro Intercept.run(["${sourceRoot}"], [])`,
+      `--macro Intercept.run(["${sourceRoot}"])`,
       "--macro haxe.macro.Compiler.addGlobalMetadata('boring', '@:build(std.RecordMember.build())')",
       "--macro tscompiler.Compiler.use()", `-D ts-output=${path.join(dir, "out")}`,
       "boring.Probe", "",

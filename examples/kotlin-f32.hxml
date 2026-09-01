@@ -6,7 +6,7 @@
 -cp src/reflaxe/kotlin/std-shadow
 -cp src/reflaxe/kotlin
 -cp samples
---macro Intercept.run(['samples'], ['samples/boring/BinaryReader.hx', 'samples/boring/BinaryWriter.hx', 'samples/boring/Fp32.hx'])
+--macro Intercept.run(['samples'])
 --macro haxe.macro.Compiler.addGlobalMetadata('boring', '@:build(std.RecordMember.build())')
 --macro kotlincompiler.Compiler.use()
 -D kotlin-output=reference/kotlin-f32/gen

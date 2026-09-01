@@ -6,7 +6,7 @@
 -cp src/reflaxe/dart/std-shadow
 -cp src/reflaxe/dart
 -cp samples
---macro Intercept.run(['samples'], ['samples/boring/BinaryReader.hx', 'samples/boring/BinaryWriter.hx', 'samples/boring/Fp32.hx'])
+--macro Intercept.run(['samples'])
 --macro haxe.macro.Compiler.addGlobalMetadata('boring', '@:build(std.RecordMember.build())')
 --macro dartcompiler.Compiler.use()
 -D dart-output=reference/dart/gen

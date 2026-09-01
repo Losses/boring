@@ -6,7 +6,7 @@
 -cp src/reflaxe/rust/std-shadow
 -cp src/reflaxe/rust
 -cp samples
---macro Intercept.run(['samples'], ['samples/boring/BinaryReader.hx', 'samples/boring/BinaryWriter.hx', 'samples/boring/Fp32.hx'])
+--macro Intercept.run(['samples'])
 --macro haxe.macro.Compiler.addGlobalMetadata('boring', '@:build(std.RecordMember.build())')
 --macro rustcompiler.Compiler.use()
 -D rust-output=reference/rust-gen/src
