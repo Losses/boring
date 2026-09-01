@@ -1,7 +1,7 @@
 # reflaxe Swift target generation under the f32 precision switch
 # (docs/specs/features/23-float-precision-switch.md).
 # Run from the repository root: haxe examples/swift-f32.hxml
-# Output lands in reference/swift-f32/gen and gen-tests.
+# The output goes to reference/swift-f32/gen and gen-tests.
 -lib reflaxe
 -lib boring
 -cp src/reflaxe/swift/std-shadow

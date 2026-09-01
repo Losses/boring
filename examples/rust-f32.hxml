@@ -1,7 +1,7 @@
 # reflaxe Rust target generation under the f32 precision switch
 # (docs/specs/features/23-float-precision-switch.md).
 # Run from the repository root: haxe examples/rust-f32.hxml
-# Output lands in reference/rust-f32-gen/src; the crate is the
+# The output is written to reference/rust-f32-gen/src; the crate is the
 # boring-codec-f32-gen workspace member.
 -lib boring
 -cp src/reflaxe/rust/std-shadow
