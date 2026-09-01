@@ -82,7 +82,7 @@ object FPHelper {
         if (intText.matches(t)) return t.toIntOrNull()
         if (hexText.matches(t)) {
             val negative = t.startsWith("-")
-            val d = t.drop(1).drop(2)
+            val d = if (negative || t.startsWith("+")) t.drop(3) else t.drop(2)
             val n = d.toLongOrNull(16) ?: return null
             val signed = if (negative) -n else n
             return if (signed >= -2147483648L && signed <= 2147483647L) signed.toInt() else null
