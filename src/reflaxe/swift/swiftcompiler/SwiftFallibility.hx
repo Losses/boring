@@ -199,7 +199,7 @@ class SwiftFallibility {
 	}
 
 	/**
-		The extern face a static call lands on, mapped to the module the
+		The extern face receives a static call and maps it to the module the
 		emission actually calls: the resident extern fronts route into
 		the runtime package, everything else keeps its own module.
 	**/

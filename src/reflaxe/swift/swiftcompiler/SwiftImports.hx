@@ -5,7 +5,7 @@ import haxe.macro.Context;
 
 /**
 	Tracks the runtime-package references of one generated file. The
-	Swift lane emits every module into one Swift module, so cross-module
+	Swift target emits every module into one Swift module, so cross-module
 	references need no import statements; what remains of the import
 	table is the runtime-usage flag that gates Runtime.swift emission
 	and the resident-purity rule of RuntimeResidents.
@@ -23,7 +23,7 @@ class SwiftImports {
 
 	/**
 		Records a runtime-symbol reference. The runtime-import define is
-		only consulted on lanes that import the runtime package; Swift
+		only consulted for targets that import the runtime package; Swift
 		links it as one module with the business tree.
 	**/
 	public function runtime(name: String): Void {
