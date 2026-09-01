@@ -5,7 +5,9 @@ import * as path from "node:path";
 
 const root = path.resolve(import.meta.dir, "../..");
 
-async function compileFixture(source: string): Promise<{ code: number; output: string; dir: string }> {
+type CompileFixtureResult = { code: number; output: string; dir: string };
+
+async function compileFixture(source: string): Promise<CompileFixtureResult> {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ts-extern-bindings-"));
   const sourceRoot = path.join(dir, "src");
   fs.mkdirSync(path.join(sourceRoot, "fixtures"), { recursive: true });
