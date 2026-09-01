@@ -4,7 +4,7 @@
 # The generated crates carry their own emitted Cargo.toml at their src
 # root (feature spec 24); membership here stays the consumer's act.
 # The default members keep a plain `cargo test` on the f64 tree; the f32
-# twin crate (feature spec 23) runs through its own verify lane.
+# twin crate (feature spec 23) runs through its own verification command.
 [workspace]
 members = ["reference/rust", "reference/rust-gen/src", "reference/rust-f32-gen/src"]
 default-members = ["reference/rust", "reference/rust-gen/src"]

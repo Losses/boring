@@ -1,6 +1,6 @@
 # reflaxe Kotlin target generation
 # Run from the repository root: haxe examples/kotlin.hxml
-# Output lands in reference/kotlin/gen via the kotlin-output define.
+# The kotlin-output define writes output to reference/kotlin/gen.
 -lib reflaxe
 -lib boring
 -cp src/reflaxe/kotlin/std-shadow

@@ -1,6 +1,6 @@
 # reflaxe Dart target generation (docs/specs/stdlib/06-std-modules.md).
 # Run from the repository root: haxe examples/dart.hxml
-# Output lands in reference/dart/gen via the dart-output define.
+# The dart-output define writes output to reference/dart/gen.
 -lib reflaxe
 -lib boring
 -cp src/reflaxe/dart/std-shadow
