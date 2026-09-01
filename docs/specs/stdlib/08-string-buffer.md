@@ -104,3 +104,24 @@ An unpaired surrogate half pair has one behavior on every target: the
 call that would create or observe it throws `std.UStringException`
 carrying `UnpairedSurrogate(unit)`. Samples feed half of a
 surrogate pair and assert the fault identity, never a message.
+
+### Swift target rulings
+
+#### String buffer (`stdlib/08`)
+
+The buffer is `Array<UInt16>`, the same ruling as the Rust `Vec<u16>`:
+a native `String` cannot store the unpaired lead the fault paths must
+observe. `add` and `addChar` emit the boundary and pairing checks
+reading the last unit by integer subscript; `toString` emits the
+dangling-lead check and `String(decoding: buf, as: UTF16.self)`.
+
+### Dart target rulings
+
+#### String buffer (`stdlib/08`)
+
+The buffer is `List<int>` over the UTF-16 units: the dangling unit is
+`buf[buf.length - 1]`, `add` emits the pairing check of `stdlib/08` and
+appends through `addAll(part.codeUnits)`, `addChar` emits the trail
+check and appends one unit, and `toString` emits the dangling-lead
+check and builds through `String.fromCharCodes(buf)`. The fault is the
+sealed `UStringFault` hierarchy above.

@@ -294,7 +294,7 @@ Haxe enums translate to native tagged `enum` declarations in Rust, to discrimina
 
 ### Parameterless enums
 
-An enum where every constructor declares zero parameters is a value enumeration: its constructors name a fixed set of constants, and no constructor carries data. Value enumerations translate to constant forms on every target, so constructing a constructor value allocates nothing and every construction site of one constructor yields the same value where the target has object identity. Enums with at least one parameterized constructor keep the payload translation above on every target, including their payload-less constructors. This amendment rules all five source targets (ts, kotlin, swift, dart, rust) together; the Swift and Dart forms extend the original three-target ruling to the targets added later, recorded in `docs/specs/targets/swift.md` and `docs/specs/targets/dart.md`.
+An enum where every constructor declares zero parameters is a value enumeration: its constructors name a fixed set of constants, and no constructor carries data. Value enumerations translate to constant forms on every target, so constructing a constructor value allocates nothing and every construction site of one constructor yields the same value where the target has object identity. Enums with at least one parameterized constructor keep the payload translation above on every target, including their payload-less constructors. This amendment rules all five source targets (ts, kotlin, swift, dart, rust) together; the Swift and Dart forms extend the original three-target ruling to the targets added later, recorded in the Swift and Dart target-rulings subsections below.
 
 The amendment exists because two targets allocate at every construction site today: TypeScript renders `{ kind: "F64" }` as a fresh object per evaluation (`reference/ts/gen/boring/VectorCodec.ts`, `knownWidthOf`), and Dart renders `FloatWidthF64()` as a fresh instance per evaluation (`reference/dart/gen/lib/boring/vector_codec.dart`). Principle 3 (cost tiers reach their floor) rejects both: constructing a constant is a constant-time, allocation-free operation on every target. The downstream motivation is the engine port: the swapped engine emits parameterless enums on every target, and the handwritten engine tests consume Kotlin `entries`, `valueOf`, and `name` (`engine/src/commonTest/kotlin/org/tiqian/core/EastAsianSpacingCoverageTest.kt`), which the sealed-interface form cannot satisfy.
 
@@ -345,3 +345,85 @@ Rust unit tests in `tests/rust/vector.rs` (lines 73-96) assert exact `VectorErro
 - `VectorError::TrailingBytes { remaining: 1 }`
 
 TypeScript and Haxe tests for structured enum errors are none yet.
+
+### Swift target rulings
+
+#### Enums and pattern matching (`features/01`)
+
+Haxe enums map to Swift value enums with labeled associated values.
+
+```swift
+enum UStringFault: Equatable {
+    case invalidCodePoint(code: Int32)
+    case unpairedSurrogate(unit: Int32)
+}
+```
+
+A value enumeration (every constructor declares zero parameters, the
+parameterless amendment of `features/01`) maps to a `String`-raw-value
+enum with `CaseIterable`: case identifiers keep the target naming
+conversion, raw values preserve the constructor names spelled in Haxe
+source, and `allCases` and `rawValue` are the enumeration and
+constructor-name reads of `features/28-enum-value-queries.md`.
+
+```swift
+enum FloatWidth: String, CaseIterable, Equatable {
+    case f64 = "F64"
+    case f32 = "F32"
+    case f16 = "F16"
+}
+```
+
+Payload captures lower to `case .invalidCodePoint(let code)`; a
+multi-arm switch over the enum is exhaustive without a default arm;
+unused payloads bind `case .unpairedSurrogate(_)`. Guards lower to
+`where` clauses. Or-patterns expand to comma-joined case labels.
+
+### Dart target rulings
+
+#### Enums and pattern matching (`features/01`)
+
+Haxe enums map to a `sealed class` hierarchy: one subclass per
+constructor, payload fields on the subclass, a private base constructor.
+Pattern matching lowers to `switch` expressions with object patterns and
+is exhaustive without a default arm.
+
+```dart
+sealed class UStringFault {
+  const UStringFault();
+}
+
+final class InvalidCodePoint extends UStringFault {
+  final int code;
+  const InvalidCodePoint(this.code);
+}
+
+final class UnpairedSurrogate extends UStringFault {
+  final int unit;
+  const UnpairedSurrogate(this.unit);
+}
+```
+
+A value enumeration (every constructor declares zero parameters, the
+parameterless amendment of `features/01`) maps to an enhanced enum: one
+constant per constructor, a `final String label` field holding the
+constructor name spelled in Haxe source, a `const` constructor assigning
+it, and the built-in `values` list. Construction sites reference the
+constants (`FloatWidth.f64`), the constants compare by canonical
+instance, and the `label` field is the constructor-name read of
+`features/28-enum-value-queries.md`.
+
+```dart
+enum FloatWidth {
+  f64("F64"),
+  f32("F32"),
+  f16("F16");
+
+  final String label;
+  const FloatWidth(this.label);
+}
+```
+
+Payload captures lower to `InvalidCodePoint(code: var code)`; unused
+payloads capture an underscore name; guards lower to `if` guards;
+or-patterns expand to comma-joined cases.
