@@ -51,9 +51,7 @@ class SwiftType {
 					case "Null": wrapOptional(of(params[0]));
 					case "haxe.ds.Map" if(params.length == 2): "[" + of(params[0]) + ": " + of(params[1]) + "]";
 					case "std.ReadOnlyArray": "[" + of(params[0]) + "]";
-					case "haxe.Int64":
-						imports.runtime("Int64Halves");
-						"Int64Halves";
+					case "haxe.Int64": "Int64";
 					case _: of(abs.type);
 				}
 			case TInst(c, params):
