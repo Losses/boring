@@ -113,10 +113,10 @@ boring.NumberParsingOps
 tests.NumberParsingTests
 tests.ArrayRootTests
 
-registry.Core.Core
-registry.Json.Json
-registry.Semver.Semver
-registry.Sha1.Sha1
+registry.Core
+registry.Json
+registry.Semver
+registry.Sha1
 registry.Release
 tests.RegistrySha1Tests
 tests.RegistryJsonTests
