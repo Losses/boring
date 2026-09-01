@@ -24,7 +24,7 @@ class BinaryWriter {
 
     fun writeF64(value: Double) {
         val bits = value.toRawBits()
-        // The Long halves carry raw two's-complement bits; writing them as
+        // The Long parts carry raw two's-complement bits; writing them as
         // two u32 words keeps the byte order identical on every target.
         val high = (bits ushr 32).toInt()
         val low = bits.toInt()
