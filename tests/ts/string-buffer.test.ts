@@ -51,4 +51,26 @@ describe("string buffer generated tree", () => {
     expect(content).not.toContain("push_str");
     expect(content).not.toContain("encode_utf16().count()");
   });
+
+  test("Swift lowers StringBuf to UTF-16 arrays", () => {
+    const content = fs.readFileSync(
+      path.join(path.resolve(__dirname, "../../reference/swift/gen"), "boring/StringBufOps.swift"),
+      "utf8",
+    );
+    expect(content).toContain("var buf = [UInt16]()");
+    expect(content).toContain("buf += Array(a.utf16)");
+    expect(content).toContain("String(decoding: buf, as: UTF16.self)");
+    expect(content).toContain("UStringFault.unpairedSurrogate");
+  });
+
+  test("Dart lowers StringBuf to UTF-16 unit lists", () => {
+    const content = fs.readFileSync(
+      path.join(path.resolve(__dirname, "../../reference/dart/gen/lib"), "boring/string_buf_ops.dart"),
+      "utf8",
+    );
+    expect(content).toContain("var buf = <int>[]");
+    expect(content).toContain("buf.addAll(a.codeUnits)");
+    expect(content).toContain("String.fromCharCodes(buf)");
+    expect(content).toContain("UStringFaultUnpairedSurrogate");
+  });
 });
