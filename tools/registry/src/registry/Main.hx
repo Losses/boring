@@ -17,7 +17,7 @@ class Main {
    final known=["repos","output","baseUrl","swiftScope","archiveBase","apiBase","token","cache"];
    var recognized=false; for(k in 0...known.length) if(known[k]==name) recognized=true;
    if(!recognized) { stop("unknown flag "+raw+"\n"+USAGE,false); return; }
-   flags.push({k:name,v:val(args,i)}); i=i+2;
+   flags.push(new Flag(name,val(args,i))); i=i+2;
   }
   function get(name:String):Null<String> { for(j in 0...flags.length) if(flags[j].k==name) return flags[j].v; return null; }
   function req(name:String,label:String):String { final x=get(name); if(x==null||x.length==0) { stop(label+" is required\n"+USAGE,false); return ""; } return x; }
