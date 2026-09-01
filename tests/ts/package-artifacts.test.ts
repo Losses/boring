@@ -23,8 +23,8 @@ interface CompilerOutcome {
   stderr: string;
 }
 
-/** One lane of the byte-identity check: its example, artifact path, and extra defines. */
-type IdentityLane = {
+/** One package of the byte-identity check: its example, artifact path, and extra defines. */
+type PackageIdentity = {
   hxml: string;
   file: string;
   extra: string[];
@@ -291,14 +291,14 @@ describe("package artifact emission", () => {
     const first = tempRoot("identity-a");
     const second = tempRoot("identity-b");
     try {
-      const lanes: IdentityLane[] = [
+      const packages: PackageIdentity[] = [
         {hxml: "ts.hxml", file: "ts/generated-0.1.0.tgz", extra: [`-D package-tsc=${TSC}`]},
         {hxml: "rust.hxml", file: "rust-gen/boring-codec-gen-0.1.0.crate", extra: []},
         {hxml: "swift.hxml", file: "swift/generated-0.1.0.zip", extra: []},
         {hxml: "dart.hxml", file: "dart/generated-0.1.0.tar.gz", extra: []},
         {hxml: "kotlin.hxml", file: "kotlin/maven/generated/generated/0.1.0/generated-0.1.0.jar", extra: ["-D package-kotlinc=kotlinc"]},
       ];
-      for(const lane of lanes) {
+      for(const lane of packages) {
         const a = await runHaxe(`package-artifacts-id-a.hxml`, rewriteHxml(lane.hxml, first, lane.extra));
         expect(a.stderr).toBe("");
         expect(a.exitCode).toBe(0);
