@@ -21,15 +21,15 @@ import ValueTypeSupport.ValueTypeOperator;
 
 	- features/09 IntervalLoopRecognition: the counted loop re-emits as
 	  `for i in stride(from: a, to: b, by: 1)`. Stride reads both bounds
-	  once and yields an empty range when the bound precedes the start,
-	  so neither the length hoist nor the allocation clamp of the TS lane
-	  has a Swift counterpart: `a..<b` would trap on a negative decoded
-	  count, stride never does.
+	  once and yields an empty range when the bound precedes the start.
+	  The length hoist and allocation clamp used by the TS target have no
+	  Swift equivalent: `a..<b` would trap on a negative decoded count,
+	  while stride handles it.
 	- features/09 CountedFillLowering: a fresh `[T]()` filled by a
 	  counted loop whose body only stores elements (indexed store or one
 	  append) reserves the bound once and appends. Array value semantics
-	  freeze a let-bound array structurally, so the decode freeze of the
-	  TS lane has no Swift counterpart.
+	  make a let-bound array structurally read-only, so the decode read-only
+	  handling used by the TS target has no Swift equivalent.
 	- stdlib/03 enum lowering: variants become cases of an Equatable
 	  enum; construct comparisons read as `==`; variant switches lower as
 	  a switch statement over the cases.
@@ -59,7 +59,7 @@ class SwiftExpr {
 	/** Locals reassigned after their declaration; emitted with var. */
 	final mutated: Map<Int, Bool> = [];
 
-	/** Names written in the scanned body; parameters surface by name only. */
+	/** Names written in the scanned body; parameter names are recorded directly. */
 	final mutatedNames: Map<String, Bool> = [];
 
 	/**
