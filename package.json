@@ -36,7 +36,7 @@
     "check:reflaxe": "haxe -lib reflaxe -cp examples -main Smoke -js out/haxe/reflaxe-smoke.js",
     "commit": "bun tools/commit/commit.ts",
     "install:hooks": "bun tools/git-hooks/install.ts",
-    "verify": "bun run gen:ts && bun run gen:kotlin && bun run gen:rust && bun run gen:rust-f32 && bun run gen:swift && bun run gen:swift-f32 && bun run gen:dart && bun run gen:kotlin-f32 && bun run test && bun run test:haxe && bun run test:kotlin && bun run test:intercept && bun run test:rust && bun run test:stage1:haxe && bun run test:stage1:ts && bun run test:stage1:kotlin && bun run test:stage1:rust && bun run test:swift && bun run test:swift-f32 && bun run test:dart && bun run test:rust-f32 && bun run test:kotlin-f32 && bun run test:consistency && bun run lint && bun run typecheck && bun run check:docs && bun run gen:vector && bun run check:reflaxe"
+    "verify": "bun run gen:ts && bun run gen:kotlin && bun run gen:rust && bun run gen:rust-f32 && bun run gen:swift && bun run gen:swift-f32 && bun run gen:dart && bun run gen:kotlin-f32 && bun run test && bun run test:haxe && bun run test:kotlin && bun run test:intercept && bun run test:rust && bun run test:stage1:haxe && bun run test:stage1:ts && bun run test:stage1:kotlin && bun run test:stage1:rust && bun run test:swift && bun run test:swift-f32 && bun run test:dart && bun run test:rust-f32 && bun run test:kotlin-f32 && bun run test:consistency && haxe tools/registry/compile.hxml && bun run lint && bun run typecheck && bun run check:docs && bun run gen:vector && bun run check:reflaxe"
   },
   "devDependencies": {
     "@boring/codec": "workspace:*",
