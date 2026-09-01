@@ -106,7 +106,7 @@ function zipList(artifact: string): string[] {
 // wall time scales with machine load; the explicit timeout raises only the
 // harness patience for those subprocesses, never the asserted behavior.
 describe("package artifact emission", () => {
-  test("the npm tarball carries compiled JavaScript plus declarations and runs under plain node", { timeout: 60_000 }, async () => {
+  test("the npm tarball carries compiled JavaScript plus declarations and runs under plain node", async () => {
     const root = tempRoot("npm");
     try {
       const hxml = rewriteHxml("ts.hxml", root, [`-D package-tsc=${TSC}`]);
@@ -183,7 +183,7 @@ describe("package artifact emission", () => {
     }
   }, 120000);
 
-  test("the cargo crate and the Pub archive keep the tree at the root", { timeout: 60_000 }, async () => {
+  test("the cargo crate and the Pub archive keep the tree at the root", async () => {
     const rustRoot = tempRoot("rust");
     const dartRoot = tempRoot("dart");
     try {
@@ -216,9 +216,9 @@ describe("package artifact emission", () => {
       fs.rmSync(rustRoot, { recursive: true, force: true });
       fs.rmSync(dartRoot, { recursive: true, force: true });
     }
-  });
+  }, 60_000);
 
-  test("the Swift zip carries the tree at the root", { timeout: 60_000 }, async () => {
+  test("the Swift zip carries the tree at the root", async () => {
     const root = tempRoot("swift");
     try {
       const result = await runHaxe("package-artifacts-swift.hxml", rewriteHxml("swift.hxml", root));
@@ -236,9 +236,9 @@ describe("package artifact emission", () => {
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }
-  });
+  }, 60_000);
 
-  test("the Kotlin target packs a Maven repository directory with a compiled jar", { timeout: 60_000 }, async () => {
+  test("the Kotlin target packs a Maven repository directory with a compiled jar", async () => {
     const root = tempRoot("kotlin");
     try {
       const hxml = rewriteHxml("kotlin.hxml", root, ["-D package-kotlinc=kotlinc", "-D package-group=dev.boring"]);
@@ -287,7 +287,7 @@ describe("package artifact emission", () => {
 
   // Ten generations run here (one of them through kotlinc twice), so
   // the default five-second budget does not fit.
-  test("two generations of the same inputs produce byte-identical artifacts", { timeout: 60_000 }, async () => {
+  test("two generations of the same inputs produce byte-identical artifacts", async () => {
     const first = tempRoot("identity-a");
     const second = tempRoot("identity-b");
     try {
@@ -313,7 +313,7 @@ describe("package artifact emission", () => {
     }
   }, 420000);
 
-  test("an invalid package-artifacts value aborts the compile", { timeout: 60_000 }, async () => {
+  test("an invalid package-artifacts value aborts the compile", async () => {
     const root = tempRoot("invalid");
     try {
       const hxml = rewriteHxml("ts.hxml", root).replace("-D package-artifacts=emit\n", "-D package-artifacts=bogus\n");
@@ -323,9 +323,9 @@ describe("package artifact emission", () => {
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }
-  });
+  }, 60_000);
 
-  test("artifacts without the package shell abort the compile", { timeout: 60_000 }, async () => {
+  test("artifacts without the package shell abort the compile", async () => {
     const root = tempRoot("conflict");
     try {
       // The repository's own ts.hxml carries the shell opt-out, so
@@ -340,9 +340,9 @@ describe("package artifact emission", () => {
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }
-  });
+  }, 60_000);
 
-  test("npm artifacts without package-tsc abort the compile", { timeout: 60_000 }, async () => {
+  test("npm artifacts without package-tsc abort the compile", async () => {
     const root = tempRoot("no-tsc");
     try {
       const result = await runHaxe("package-artifacts-no-tsc.hxml", rewriteHxml("ts.hxml", root));
@@ -351,9 +351,9 @@ describe("package artifact emission", () => {
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }
-  });
+  }, 60_000);
 
-  test("kotlin artifacts without package-kotlinc abort the compile", { timeout: 60_000 }, async () => {
+  test("kotlin artifacts without package-kotlinc abort the compile", async () => {
     const root = tempRoot("no-kotlinc");
     try {
       const result = await runHaxe("package-artifacts-no-kotlinc.hxml", rewriteHxml("kotlin.hxml", root));
@@ -362,9 +362,9 @@ describe("package artifact emission", () => {
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }
-  });
+  }, 60_000);
 
-  test("a failing package-tsc forwards the exit code and the tool output", { timeout: 60_000 }, async () => {
+  test("a failing package-tsc forwards the exit code and the tool output", async () => {
     const root = tempRoot("tsc-fail");
     try {
       const hxml = rewriteHxml("ts.hxml", root, ["-D package-tsc=/bin/false"]);
@@ -375,9 +375,9 @@ describe("package artifact emission", () => {
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }
-  });
+  }, 60_000);
 
-  test("a failing package-kotlinc forwards the exit code and the tool output", { timeout: 60_000 }, async () => {
+  test("a failing package-kotlinc forwards the exit code and the tool output", async () => {
     const root = tempRoot("kotlinc-fail");
     try {
       const hxml = rewriteHxml("kotlin.hxml", root, ["-D package-kotlinc=/bin/false"]);
@@ -388,5 +388,5 @@ describe("package artifact emission", () => {
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }
-  });
+  }, 60_000);
 });
