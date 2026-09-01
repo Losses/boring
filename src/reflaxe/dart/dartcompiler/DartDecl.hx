@@ -661,8 +661,8 @@ class DartDecl {
 	/**
 		The names of a function's own type parameters, in first-use
 		order over the signature. A generic method references its
-		parameters as type-parameter classes; names owned by the
-		enclosing class belong to the class header, not the method.
+		parameters as type-parameter classes; the enclosing class owns its
+		parameters in the class header.
 	**/
 	function collectMethodTypeParams(cls: ClassType, f: ClassFuncData): Array<String> {
 		final classParamNames = [for(p in cls.params) p.name];
@@ -993,8 +993,8 @@ class DartDecl {
 	/**
 		Claims one top-level name for this library. The flattened
 		functions, the generated record and construct classes, and the
-		comparators share one namespace per file; a collision is a naming
-		bug the compiler reports instead of emitting broken Dart.
+		comparators share one namespace per file; the compiler reports a
+		collision as a naming error.
 	**/
 	function claimTopLevel(name: String, pos: haxe.macro.Expr.Position): String {
 		if(topLevelNames.exists(name)) {
