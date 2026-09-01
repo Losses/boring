@@ -17,6 +17,16 @@ cannot serve (the Swift zip, whose asset responses carry
 to object storage by the release pipeline and reached through a
 redirect rule. No artifact byte is ever copied into the site.
 
+The registry tool's numeric reader, where it reads numeric fields or applies
+numeric validation, is governed first by
+[`stdlib/14-number-parsing.md`](../stdlib/14-number-parsing.md). That
+specification is the authority for all five target renderings and failure
+values. This tool-specific reader retains the complete-token restriction:
+whitespace is trimmed only as that specification permits, and a partial or
+otherwise invalid token is rejected; a permissive native parser must not
+accept it. The registry's semver parser remains separately governed by
+the version rules below.
+
 The tool is separate from the compiler because a registry aggregates
 releases across compilations and across repositories: one compilation
 holds one package at one version and cannot know which other releases
