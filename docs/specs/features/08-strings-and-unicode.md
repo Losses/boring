@@ -226,6 +226,24 @@ for code points U+0000..U+007F and diverge everywhere else.
    past the pair and the end bound retreats before it, while the UTF-16
    targets return the lone unit. Arbitrary content-defined slicing
    stays with `std.UString.slice`.
+7. **Search calls remain in the same tier as substring.** `indexOf` and
+   `lastIndexOf` carry character-sequence semantics, but they are permitted
+   in the shared subset only for ASCII subjects and search strings. The
+   target source confirms a direct member lowering for `substring` on every
+   target; it does not confirm a cross-target lowering for either search call.
+   Therefore non-ASCII `indexOf` and `lastIndexOf` remain outside the shared
+   subset and use the character-defined `std.UString` path instead:
+
+   | Call | TypeScript | Kotlin | Swift | Dart | Rust |
+   | --- | --- | --- | --- | --- | --- |
+   | `substring` | lowered to `.substring` | lowered to `.substring` | lowered through `substringUnits` | lowered to `.substring` | lowered through `u_string::substring` |
+   | `indexOf` | ASCII tier only; no evidenced cross-target lowering | ASCII tier only; no evidenced cross-target lowering | ASCII tier only; no evidenced cross-target lowering | ASCII tier only; no evidenced cross-target lowering | ASCII tier only; no evidenced cross-target lowering |
+   | `lastIndexOf` | ASCII tier only; no evidenced cross-target lowering | ASCII tier only; no evidenced cross-target lowering | ASCII tier only; no evidenced cross-target lowering | ASCII tier only; no evidenced cross-target lowering | ASCII tier only; no evidenced cross-target lowering |
+
+   This makes the three calls consistent: `substring` is the lowered
+   character operation with its haxe UTF-16 position contract, while the two
+   search calls are not admitted for non-ASCII content until a corresponding
+   `std.UString` lowering is specified.
 
 Enforcement: style rule `V18 NonAsciiStringIndex` reports at Haxe compile
 time, split across the two interception passes. The call forms are checked
