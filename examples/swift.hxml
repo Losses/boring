@@ -1,6 +1,6 @@
 # reflaxe Swift target generation (docs/specs/features/07-numeric-tower.md).
 # Run from the repository root: haxe examples/swift.hxml
-# Output lands in reference/swift/gen via the swift-output define.
+# The swift-output define writes output to reference/swift/gen.
 -lib reflaxe
 -lib boring
 -cp src/reflaxe/swift/std-shadow

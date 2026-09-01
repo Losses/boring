@@ -16,7 +16,7 @@ written in English.
 
 ## Language style constraints
 
-Prose in this repository follows the style rules below. The automated check
+Text in this repository follows the style rules below. The automated check
 is `bun tools/doc-style/check.ts`; it scans Markdown documents and comments in
 supported Haxe, TypeScript, Rust, Kotlin, Swift, Dart, Nix, shell, HXML, and
 TOML files. Generated trees, build output, dependencies, and imported Unicode

@@ -1,6 +1,6 @@
 # reflaxe Rust target generation
 # Run from the repository root: haxe examples/rust.hxml
-# Output lands in reference/rust-gen/src via the rust-output define.
+# The rust-output define writes output to reference/rust-gen/src.
 -lib reflaxe
 -lib boring
 -cp src/reflaxe/rust/std-shadow
