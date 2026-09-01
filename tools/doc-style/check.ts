@@ -1,21 +1,21 @@
 #!/usr/bin/env bun
 /**
- * English documentation style self-check for boring docs.
+ * English wording self-check for boring documents and source comments.
  *
- * Scans English text files (README, AGENT.md, docs) for vocabulary and
- * rhetorical patterns that the repository style rules ban: metaphor verbs
- * used as technical terms, internet jargon, coined compression words,
- * contrast constructions, and decorative adjectives.
+ * Scans Markdown and comments in supported source files for vocabulary and
+ * rhetorical patterns that the repository style rules ban: metaphor verbs,
+ * internet jargon, coined compression words, contrast constructions, and
+ * decorative adjectives.
  *
  * Usage:
- *     bun tools/doc-style/check.ts            # scan README.md, AGENT.md, docs/
+ *     bun tools/doc-style/check.ts            # scan documents and comments
  *     bun tools/doc-style/check.ts FILE ...   # scan specific files or dirs
  *
  * Exit status: 0 when no hits remain, 1 when hits remain after the allowlist.
- * Each hit is a candidate for manual judgment, not an automatic violation.
+ * Each hit is a candidate that requires manual judgment and may be accepted.
  */
 
-import { resolve } from "node:path";
+import { extname, relative, resolve } from "node:path";
 import { Glob } from "bun";
 
 export type WordTag = "metaphor" | "jargon" | "putdown" | "coinage" | "adjective";
@@ -45,11 +45,89 @@ export type TargetFile = {
   readonly text: string;
 };
 
+type CommentSyntax = {
+  readonly block: boolean;
+  readonly hash: boolean;
+  readonly line: boolean;
+  readonly nestedBlock: boolean;
+  readonly nixMultiline: boolean;
+  readonly rawRust: boolean;
+  readonly rawSwift: boolean;
+  readonly template: boolean;
+  readonly triple: boolean;
+};
+
 type WithRegex = { readonly regex: RegExp };
 
 type CompiledTerm = BannedTerm & WithRegex;
 
 const REPO_ROOT = resolve(import.meta.dir, "..", "..");
+
+const MARKDOWN_EXTENSION = ".md";
+const SOURCE_EXTENSIONS: ReadonlySet<string> = new Set([
+  ".dart",
+  ".hxml",
+  ".hx",
+  ".kt",
+  ".nix",
+  ".rs",
+  ".sh",
+  ".swift",
+  ".toml",
+  ".ts",
+]);
+const TARGET_GLOB = "**/*.{dart,hxml,hx,kt,md,nix,rs,sh,swift,toml,ts}";
+const EXCLUDED_PARTS: ReadonlySet<string> = new Set([
+  ".git",
+  "gen",
+  "gen-tests",
+  "node_modules",
+  "out",
+  "target",
+]);
+
+function commentSyntax(extension: string): CommentSyntax | undefined {
+  if ([".hx", ".ts", ".rs", ".kt", ".swift", ".dart"].includes(extension)) {
+    return {
+      block: true,
+      hash: false,
+      line: true,
+      nestedBlock: extension !== ".ts",
+      nixMultiline: false,
+      rawRust: extension === ".rs",
+      rawSwift: extension === ".swift",
+      template: extension === ".ts",
+      triple: [".kt", ".swift", ".dart"].includes(extension),
+    };
+  }
+  if (extension === ".nix") {
+    return {
+      block: true,
+      hash: true,
+      line: false,
+      nestedBlock: true,
+      nixMultiline: true,
+      rawRust: false,
+      rawSwift: false,
+      template: false,
+      triple: true,
+    };
+  }
+  if ([".hxml", ".sh", ".toml"].includes(extension)) {
+    return {
+      block: false,
+      hash: true,
+      line: false,
+      nestedBlock: false,
+      nixMultiline: false,
+      rawRust: false,
+      rawSwift: false,
+      template: false,
+      triple: false,
+    };
+  }
+  return undefined;
+}
 
 // Metaphor verbs, internet jargon, coined compression words, and decorative
 // adjectives named in style corrections. In writing, replace each with a
@@ -63,7 +141,8 @@ const BANNED_TERMS: ReadonlyArray<BannedTerm> = [
   { match: "surface", tag: "coinage" },
   { match: "battery", tag: "coinage" },
   { match: "mutation probe", tag: "coinage" },
-  // gate and doorway metaphors
+  { match: "prose style", tag: "coinage" },
+  // access-control metaphors
   { match: "gatekeep", tag: "metaphor" },
   { match: "gatekeeper", tag: "metaphor" },
   { match: "doorway", tag: "metaphor" },
@@ -88,16 +167,17 @@ const BANNED_TERMS: ReadonlyArray<BannedTerm> = [
   { match: "hard-wire", tag: "metaphor" },
   { match: "hardwired", tag: "metaphor" },
   { match: "hard-coded", tag: "metaphor" },
-  // stuffing and cramming
+  // forced-containment metaphors
   { match: "shoehorn", tag: "metaphor" },
   { match: "cram", tag: "metaphor" },
   { match: "lane", tag: "metaphor" },
+  { match: "prose", tag: "metaphor" },
   { match: "stuff", tag: "metaphor" },
   { match: "tuck", tag: "metaphor" },
   { match: "cobble", tag: "metaphor" },
   { match: "duct-tape", tag: "metaphor" },
   { match: "band-aid", tag: "metaphor" },
-  // eating
+  // consumption metaphors
   { match: "eat", tag: "metaphor" },
   { match: "devour", tag: "metaphor" },
   { match: "swallow", tag: "metaphor" },
@@ -211,9 +291,9 @@ const BANNED_TERMS: ReadonlyArray<BannedTerm> = [
 ];
 
 // Rhetorical sentence patterns: negate-first contrast, intensifiers,
-// em-dashes, AI filler transitions. The first entry bans the whole
-// X-level suffix class in one rule instead of enumerating compounds;
-// "top-level" is platform vocabulary and stays the single exemption.
+// em-dashes and AI filler transitions. The first entry bans the complete
+// hyphenated scope suffix class with one pattern; listing every compound is
+// unnecessary. "top-level" is platform vocabulary and stays the single exemption.
 const PATTERNS: ReadonlyArray<StylePattern> = [
   { regex: /\b(?!top-levels?\b)[a-z]+-levels?\b/i, tag: "coinage" },
   { regex: /\bnot [^.]{0,60} but\b/i, tag: "contrast" },
@@ -279,6 +359,153 @@ export function matchedTerms(line: string): ReadonlyArray<BannedTerm> {
   );
 }
 
+function blankText(text: string): string[] {
+  return Array.from(text, (character) => (character === "\n" ? "\n" : " "));
+}
+
+function rawRustEnd(text: string, index: number): string | undefined {
+  const match = /^(?:br|r)(#+)?"/.exec(text.slice(index));
+  if (match === null) return undefined;
+  return `"${match[1] ?? ""}`;
+}
+
+function rawSwiftEnd(text: string, index: number): string | undefined {
+  const match = /^(#+)("{1,3})/.exec(text.slice(index));
+  if (match === null) return undefined;
+  const hashes = match[1];
+  const quotes = match[2];
+  if (hashes === undefined || quotes === undefined) return undefined;
+  return `${quotes}${hashes}`;
+}
+
+/**
+ * Returns only source comments while preserving every character position and
+ * newline. This is a lexer rather than a parser: it recognizes the literal
+ * forms that can contain comment markers in the repository's source languages.
+ */
+export function extractComments(text: string, extension: string): string {
+  const syntax = commentSyntax(extension);
+  if (syntax === undefined) return blankText(text).join("");
+
+  const output = blankText(text);
+  let blockDepth = 0;
+  let index = 0;
+  let stringEnd: string | undefined;
+  let escaped = false;
+
+  while (index < text.length) {
+    if (blockDepth > 0) {
+      if (syntax.nestedBlock && text.startsWith("/*", index)) {
+        output[index] = "/";
+        output[index + 1] = "*";
+        blockDepth += 1;
+        index += 2;
+        continue;
+      }
+      if (text.startsWith("*/", index)) {
+        output[index] = "*";
+        output[index + 1] = "/";
+        blockDepth -= 1;
+        index += 2;
+        continue;
+      }
+      output[index] = text[index] ?? " ";
+      index += 1;
+      continue;
+    }
+
+    if (stringEnd !== undefined) {
+      if (!escaped && text.startsWith(stringEnd, index)) {
+        index += stringEnd.length;
+        stringEnd = undefined;
+        continue;
+      }
+      const character = text[index];
+      if (stringEnd.length === 1 && character === "\\" && !escaped) {
+        escaped = true;
+      } else {
+        escaped = false;
+      }
+      index += 1;
+      continue;
+    }
+
+    if (syntax.line && text.startsWith("//", index)) {
+      const end = text.indexOf("\n", index);
+      const limit = end < 0 ? text.length : end;
+      for (let commentIndex = index; commentIndex < limit; commentIndex += 1) {
+        output[commentIndex] = text[commentIndex] ?? " ";
+      }
+      index = limit;
+      continue;
+    }
+    if (syntax.block && text.startsWith("/*", index)) {
+      output[index] = "/";
+      output[index + 1] = "*";
+      blockDepth = 1;
+      index += 2;
+      continue;
+    }
+    if (syntax.hash && text[index] === "#") {
+      const previous = index === 0 ? "\n" : text[index - 1];
+      const shellComment = extension !== ".sh" || previous === "\n" || /\s/.test(previous ?? "");
+      if (!shellComment) {
+        index += 1;
+        continue;
+      }
+      const end = text.indexOf("\n", index);
+      const limit = end < 0 ? text.length : end;
+      for (let commentIndex = index; commentIndex < limit; commentIndex += 1) {
+        output[commentIndex] = text[commentIndex] ?? " ";
+      }
+      index = limit;
+      continue;
+    }
+
+    const rustEnd = syntax.rawRust ? rawRustEnd(text, index) : undefined;
+    if (rustEnd !== undefined) {
+      stringEnd = rustEnd;
+      index += text[index] === "b" ? rustEnd.length + 2 : rustEnd.length + 1;
+      continue;
+    }
+    const swiftEnd = syntax.rawSwift ? rawSwiftEnd(text, index) : undefined;
+    if (swiftEnd !== undefined) {
+      stringEnd = swiftEnd;
+      index += swiftEnd.length;
+      continue;
+    }
+    if (syntax.nixMultiline && text.startsWith("''", index)) {
+      stringEnd = "''";
+      index += 2;
+      continue;
+    }
+    if (syntax.triple && (text.startsWith("\"\"\"", index) || text.startsWith("'''", index))) {
+      stringEnd = text.slice(index, index + 3);
+      index += 3;
+      continue;
+    }
+    const character = text[index];
+    const rustLifetime = extension === ".rs"
+      && character === "'"
+      && /^[A-Za-z_][A-Za-z0-9_]*/.test(text.slice(index + 1));
+    if ((character === "\"" || character === "'") && !rustLifetime) {
+      stringEnd = character;
+      escaped = false;
+      index += 1;
+      continue;
+    }
+    if (syntax.template && character === "`") {
+      stringEnd = "`";
+      escaped = false;
+      index += 1;
+      continue;
+    }
+    index += 1;
+  }
+
+  return output.join("");
+}
+
 export function scanText(text: string, file: string): ReadonlyArray<StyleHit> {
   const hits: StyleHit[] = [];
   const lines = text.split("\n");
@@ -311,11 +538,18 @@ export function scanText(text: string, file: string): ReadonlyArray<StyleHit> {
   return hits;
 }
 
-async function scanMarkdownDir(cwd: string): Promise<string[]> {
+function excludedTarget(path: string): boolean {
+  const parts = relative(REPO_ROOT, path).split(/[\\/]/);
+  if (parts.some((part) => EXCLUDED_PARTS.has(part))) return true;
+  if (parts[0] === "tools" && parts[1] === "unicode-data") return true;
+  return parts.some((part) => part.endsWith("-gen"));
+}
+
+async function scanTargetDir(cwd: string): Promise<string[]> {
   const entries: string[] = [];
   try {
-    for await (const entry of new Glob("**/*.md").scan({ cwd, absolute: true })) {
-      entries.push(entry);
+    for await (const entry of new Glob(TARGET_GLOB).scan({ cwd, absolute: true })) {
+      if (!excludedTarget(entry)) entries.push(entry);
     }
   } catch {
     console.error(`skip ${cwd}: directory not readable`);
@@ -323,32 +557,31 @@ async function scanMarkdownDir(cwd: string): Promise<string[]> {
   return entries;
 }
 
-async function readTargets(args: ReadonlyArray<string>): Promise<ReadonlyArray<TargetFile>> {
+export async function readTargets(args: ReadonlyArray<string>): Promise<ReadonlyArray<TargetFile>> {
   const targets: string[] = [];
   if (args.length > 0) {
     for (const arg of args) {
       const path = resolve(arg);
-      const stat = await Bun.file(path).stat();
-      if (stat.isDirectory()) {
-        targets.push(...(await scanMarkdownDir(path)));
-      } else {
-        targets.push(path);
+      const file = Bun.file(path);
+      try {
+        const stat = await file.stat();
+        if (stat.isDirectory()) {
+          targets.push(...(await scanTargetDir(path)));
+        } else {
+          targets.push(path);
+        }
+      } catch {
+        console.error(`skip ${path}: file not found`);
       }
     }
   } else {
-    targets.push(resolve(REPO_ROOT, "README.md"));
-    targets.push(resolve(REPO_ROOT, "AGENT.md"));
-    targets.push(...(await scanMarkdownDir(resolve(REPO_ROOT, "docs"))));
+    targets.push(...(await scanTargetDir(REPO_ROOT)));
   }
-  targets.sort();
   const readable: TargetFile[] = [];
-  for (const path of targets) {
-    const file = Bun.file(path);
-    if (!(await file.exists())) {
-      console.error(`skip ${path}: file not found`);
-      continue;
-    }
-    readable.push({ path, text: await file.text() });
+  for (const path of [...new Set(targets)].sort()) {
+    const extension = extname(path);
+    if (extension !== MARKDOWN_EXTENSION && !SOURCE_EXTENSIONS.has(extension)) continue;
+    readable.push({ path, text: await Bun.file(path).text() });
   }
   return readable;
 }
@@ -361,7 +594,11 @@ function shownPath(path: string): string {
 export async function main(args: ReadonlyArray<string>): Promise<number> {
   const hits: StyleHit[] = [];
   for (const target of await readTargets(args)) {
-    for (const hit of scanText(target.text, shownPath(target.path))) {
+    const extension = extname(target.path);
+    const text = extension === MARKDOWN_EXTENSION
+      ? target.text
+      : extractComments(target.text, extension);
+    for (const hit of scanText(text, shownPath(target.path))) {
       hits.push(hit);
     }
   }
