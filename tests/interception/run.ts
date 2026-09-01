@@ -40,7 +40,7 @@ for (const name of readdirSync(casesRoot).sort()) {
       `-cp ${guardPath}`,
       "-main Case",
       "-js out/haxe/intercept-case.js",
-      `--macro Intercept.run(['${guardPath}'], [])`,
+      `--macro Intercept.run(['${guardPath}'])`,
       "",
     ].join("\n"),
   );

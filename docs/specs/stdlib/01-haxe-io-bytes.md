@@ -20,7 +20,7 @@ This specification rules the representation of contiguous byte arrays, buffer al
 - `b.getString(pos:Int, len:Int):String`: decodes a UTF-8 string from a sub-range.
 - `b.toHex():String`: encodes bytes into a hexadecimal string.
 
-On the JavaScript target, `haxe.io.Bytes` wraps a `Uint8Array` over an `ArrayBuffer`. On C++ and HashLink, it wraps native memory allocations.
+On the TypeScript target, `haxe.io.Bytes` wraps a `Uint8Array` over an `ArrayBuffer`. Other targets use their native byte sequence representation. The target ABI must preserve read-only input borrowing where the target supports it and must avoid input copies that serve only the Haxe type name.
 
 In the Haxe typed AST, `haxe.io.Bytes` is represented by `haxe.macro.Type.TClassDecl` referencing class `haxe.io.Bytes`.
 
@@ -166,7 +166,7 @@ fun decodeVector(bytes: ByteArray): List<GlyphMetrics> {
 
 ## Ruling
 
-`haxe.io.Bytes` translates to borrowed byte slices (`&[u8]`) for input parameters and owned byte vectors (`Vec<u8>`) for output returns in Rust, to `Uint8Array` in TypeScript for all inputs and outputs, and to `ByteArray` in Kotlin for all inputs and outputs. Kotlin slice operations use `copyOfRange`, which copies as `Bytes.sub` does on the Haxe side.
+`haxe.io.Bytes` remains the Haxe source type. Its target representation is selected by operation context. Rust input parameters lower to borrowed slices (`&[u8]`), mutable internal values lower to local mutable byte storage, and output returns lower to owned byte vectors (`Vec<u8>`). TypeScript uses `Uint8Array`, Kotlin uses `ByteArray`, Swift uses `[UInt8]`, and Dart uses its native byte-list representation. No public Haxe type is required to express Rust lifetimes. `BytesBuffer` remains the growable sink; fixed-size hash blocks and digest outputs use fixed-size storage where the target can express it directly. Kotlin slice operations use `copyOfRange`, which copies as `Bytes.sub` does on the Haxe side.
 
 Read operations borrow existing byte sequences without allocating intermediate buffers. Write operations accumulate data into growable structures and return compact contiguous buffers sized to the encoded payload.
 

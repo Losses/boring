@@ -65,6 +65,9 @@ class TsExpr {
 
 	/** Names used by parameters and locals; generated names avoid them. */
 	final usedNames: Map<String, Bool> = [];
+	/** Locals backed by the FPHelper high/low boundary object. */
+	final fpInt64Halves: Map<Int, Bool> = [];
+
 	/** Catch variables in scope, keyed by TVar id (features/06). */
 	final catchVars: Map<Int, Bool> = [];
 
@@ -542,6 +545,19 @@ class TsExpr {
 					continue;
 				}
 			}
+			if(i + 1 < stmts.length) {
+				final shortLoop = intervalShort(stmts[i], stmts[i + 1]);
+				if(shortLoop != null) {
+					final grouped: TypedExpr = {
+						expr: TBlock([stmts[i], stmts[i + 1]]),
+						pos: stmts[i].pos,
+						t: stmts[i + 1].t
+					};
+					out.push(grouped);
+					i += 2;
+					continue;
+				}
+			}
 			out.push(stmts[i]);
 			i += 1;
 		}
@@ -594,9 +610,46 @@ class TsExpr {
 		switch(e.expr) {
 			case TBlock(stmts) if(stmts.length == 3):
 				return intervalCore(stmts[0], stmts[1], stmts[2]);
+			case TBlock(stmts) if(stmts.length == 2):
+				return intervalShort(stmts[0], stmts[1]);
 			case _:
 				return null;
 		}
+	}
+
+	function intervalShort(counterDecl: TypedExpr, whileExpr: TypedExpr): Null<{index: TVar, start: TypedExpr, bound: TypedExpr, body: Array<TypedExpr>}> {
+		final counter = switch(counterDecl.expr) {
+			case TVar(v, start): {v: v, start: start};
+			case _: return null;
+		};
+		final loop = switch(whileExpr.expr) {
+			case TWhile(condition, body, _): {condition: condition, body: body};
+			case _: return null;
+		};
+		final condition = stripWrap(loop.condition);
+		final bound = switch(condition.expr) {
+			case TBinop(OpLt, left, right):
+				switch(stripWrap(left).expr) {
+					case TLocal(value) if(value.id == counter.v.id): right;
+					case _: return null;
+				}
+			case _: return null;
+		};
+		final bodyStmts = statementsOf(loop.body);
+		if(bodyStmts.length == 0) return null;
+		final capture = switch(bodyStmts[0].expr) {
+			case TVar(value, init) if(init != null): {value: value, init: init};
+			case _: return null;
+		};
+		return switch(stripWrap(capture.init).expr) {
+			case TUnop(OpIncrement, true, subject):
+				switch(stripWrap(subject).expr) {
+					case TLocal(value) if(value.id == counter.v.id):
+						{index: capture.value, start: counter.start, bound: bound, body: bodyStmts.slice(1)};
+					case _: null;
+				}
+			case _: null;
+		};
 	}
 
 	function boundLengthSubject(bound: TypedExpr): Null<TVar> {
@@ -840,6 +893,8 @@ class TsExpr {
 	// ------------------------------------------------------------------
 
 	function expr(e: TypedExpr): String {
+		final int64Expr = int64Expression(e);
+		if(int64Expr != null) return int64Expr;
 		final wrapperValue = ValueTypeSupport.syntheticValue(e);
 		if(wrapperValue != null) return valueTypeSynthetic(e, wrapperValue);
 		final query = enumQuery(e);
@@ -1066,12 +1121,64 @@ class TsExpr {
 		}
 		switch(op) {
 			case OpNot: return "!" + wrapped;
+			case OpNegBits: return "~" + wrapped;
 			case OpNeg: return "-" + wrapped;
 			case _: {
 				final infos = Context.getPosInfos(e.pos);
 				return fail(e, "unary operator has no lowering in the subset: " + Std.string(op) + " at " + infos.file + ":" + infos.min);
 			}
 		}
+	}
+
+	function int64Expression(e:TypedExpr):Null<String> {
+		return switch(e.expr) {
+			case TCall(fn, args): int64Call(fn, args);
+			case _: null;
+		};
+	}
+
+	function int64Call(fn:TypedExpr, args:Array<TypedExpr>):Null<String> {
+		return switch(stripWrap(fn).expr) {
+			case TField(_, FStatic(classRef, fieldRef)) if(classRef.get().module == "haxe.Int64" && classRef.get().name == "Int64_Impl_"):
+				switch(fieldRef.get().name) {
+					case "make" if(args.length == 2):
+						"BigInt.asIntN(64, (BigInt(" + expr(args[0]) + ") << 32n) | BigInt.asUintN(32, BigInt(" + expr(args[1]) + ")))";
+					case "ofInt" if(args.length == 1): "BigInt.asIntN(64, BigInt(" + expr(args[0]) + "))";
+					case "getHigh" | "get_high" if(args.length == 1):
+						if(isFpHelperInt64Halves(args[0])) expr(args[0]) + ".high" else "Number(BigInt.asIntN(32, " + expr(args[0]) + " >> 32n))";
+					case "getLow" | "get_low" if(args.length == 1):
+						if(isFpHelperInt64Halves(args[0])) expr(args[0]) + ".low" else "Number(BigInt.asIntN(32, " + expr(args[0]) + "))";
+					case "add" if(args.length == 2): "BigInt.asIntN(64, " + expr(args[0]) + " + " + expr(args[1]) + ")";
+					case "sub" if(args.length == 2): "BigInt.asIntN(64, " + expr(args[0]) + " - " + expr(args[1]) + ")";
+					case "and" if(args.length == 2): "BigInt.asIntN(64, " + expr(args[0]) + " & " + expr(args[1]) + ")";
+					case "or" if(args.length == 2): "BigInt.asIntN(64, " + expr(args[0]) + " | " + expr(args[1]) + ")";
+					case "xor" if(args.length == 2): "BigInt.asIntN(64, " + expr(args[0]) + " ^ " + expr(args[1]) + ")";
+					case "complement" if(args.length == 1): "BigInt.asIntN(64, ~" + expr(args[0]) + ")";
+					case "shl" if(args.length == 2): "BigInt.asIntN(64, " + expr(args[0]) + " << BigInt(" + expr(args[1]) + "))";
+					case "shr" if(args.length == 2): "BigInt.asIntN(64, " + expr(args[0]) + " >> BigInt(" + expr(args[1]) + "))";
+					case "ushr" if(args.length == 2): "BigInt.asIntN(64, BigInt.asUintN(64, " + expr(args[0]) + ") >> BigInt(" + expr(args[1]) + "))";
+					case "eq" if(args.length == 2): expr(args[0]) + " === " + expr(args[1]);
+					case "neq" if(args.length == 2): expr(args[0]) + " !== " + expr(args[1]);
+					default: null;
+				}
+			default: null;
+		};
+	}
+
+	function isFpHelperInt64Halves(e:TypedExpr):Bool {
+		return switch(stripWrap(e).expr) {
+			case TCall(fn, _): isFpHelperInt64Call(fn);
+			case TLocal(v): fpInt64Halves.exists(v.id);
+			case _: false;
+		};
+	}
+
+	function isFpHelperInt64Call(fn:TypedExpr):Bool {
+		return switch(stripWrap(fn).expr) {
+			case TField(_, FStatic(classRef, fieldRef)):
+				classRef.get().module == "haxe.io.FPHelper" && (fieldRef.get().name == "doubleToI64" || fieldRef.get().name == "f32ToI64");
+			case _: false;
+		};
 	}
 
 	function field(subj: TypedExpr, fa: FieldAccess): String {
@@ -1085,6 +1192,9 @@ class TsExpr {
 			case FInstance(_, _, cf) | FAnon(cf):
 				final name = cf.get().name;
 				final target = stripCast(subj);
+				if((name == "high" || name == "low") && isFpHelperInt64Halves(target)) {
+					return expr(target) + "." + name;
+				}
 				switch(target.expr) {
 					case TLocal(v) if(name == "length" && boundSubst.exists(v.id)):
 						return boundSubst.get(v.id);
@@ -1354,9 +1464,13 @@ class TsExpr {
 	}
 
 	function call(fn: TypedExpr, args: Array<TypedExpr>): String {
+		final int64CallText = int64Call(fn, args);
+		if(int64CallText != null) return int64CallText;
 		final wrapperCall = valueTypeCall(fn, args);
 		if(wrapperCall != null) return wrapperCall;
 		switch(fn.expr) {
+			case TField(_, FStatic(c, cf)) if(c.get().module == "haxe.io.Bytes" && cf.get().name == "alloc" && args.length == 1):
+				return "new Uint8Array(" + expr(args[0]) + ")";
 			case TField(_, FStatic(c, cf)) if(c.get().module == "Std" && cf.get().name == "string" && args.length == 1):
 				return stdString(args[0], false);
 			case TField(_, FStatic(c, cf)) if(c.get().module == "Std" && cf.get().name == "isOfType" && args.length == 2):
@@ -1489,6 +1603,18 @@ class TsExpr {
 				// stdlib/01: Bytes.get(i) is a Uint8Array index read.
 				if(name == "get" && isBytes(stripCast(subj))) {
 					return expr(subj) + "[" + expr(args[0]) + "]!";
+				}
+				if(name == "set" && args.length == 2 && isBytes(stripCast(subj))) {
+					return expr(subj) + "[" + expr(args[0]) + "] = " + expr(args[1]);
+				}
+				if(name == "blit" && args.length == 4 && isBytes(stripCast(subj))) {
+					return expr(subj) + ".set(" + expr(args[1]) + ".subarray(" + expr(args[2]) + ", " + expr(args[2]) + " + " + expr(args[3]) + "), " + expr(args[0]) + ")";
+				}
+				if(name == "fill" && args.length == 3 && isBytes(stripCast(subj))) {
+					return expr(subj) + ".fill(" + expr(args[2]) + ", " + expr(args[0]) + ", " + expr(args[0]) + " + " + expr(args[1]) + ")";
+				}
+				if(name == "sub" && args.length == 2 && isBytes(stripCast(subj))) {
+					return expr(subj) + ".slice(" + expr(args[0]) + ", " + expr(args[0]) + " + " + expr(args[1]) + ")";
 				}
 				if(name == "substring" && isStringSubject(subj)) {
 					// The haxe typer passes a synthesized null for an
@@ -2201,9 +2327,15 @@ class TsExpr {
 
 	function scanLocals(e: TypedExpr): Void {
 		switch(e.expr) {
-			case TVar(v, _):
+			case TVar(v, init):
 				if(v.name != "`") {
 					usedNames.set(v.name, true);
+				}
+				if(init != null) {
+					switch(stripWrap(init).expr) {
+						case TCall(fn, _) if(isFpHelperInt64Call(fn)): fpInt64Halves.set(v.id, true);
+						case _:
+					}
 				}
 			case TBinop(OpAssign, t, _) | TBinop(OpAssignOp(_), t, _):
 				switch(t.expr) {

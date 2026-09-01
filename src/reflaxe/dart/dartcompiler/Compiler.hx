@@ -302,7 +302,7 @@ class Compiler extends PluginCompiler<Compiler> {
 						testResidentParts.push(moduleParts.join("\n\n"));
 					}
 				}
-				final hostImports = "import 'dart:io';\nimport '" + importSpecifier(testOutput + "/test_host.dart", dartOutput + "/" + RuntimeConfig.emitPath(emitDir, "runtime.dart")) + "' as runtime;";
+				final hostImports = "import 'dart:io';\nimport 'dart:typed_data';\nimport '" + importSpecifier(testOutput + "/test_host.dart", dartOutput + "/" + RuntimeConfig.emitPath(emitDir, "runtime.dart")) + "' as runtime;";
 				final hostSource = GENERATED_HEADER + "\n" + hostImports + "\n" + StringTools.trim(DartRuntime.TEST_SOURCE) + "\n" + testResidentParts.join("\n\n") + "\n";
 				saveTreeFile(testRel + "/test_host.dart", hostSource);
 			}
@@ -374,6 +374,9 @@ class Compiler extends PluginCompiler<Compiler> {
 	**/
 	function importBlockOf(ctx: DartDecl, filePath: String, dartOutput: String, testOutput: String): String {
 		final lines: Array<String> = [];
+		if(ctx.imports.usesTypedData()) {
+			lines.push("import 'dart:typed_data';");
+		}
 		if(ctx.imports.usesDartMath()) {
 			lines.push("import 'dart:math' as math;");
 		}

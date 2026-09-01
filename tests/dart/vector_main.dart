@@ -4,6 +4,7 @@
 // exactly (binary spec 05).
 
 import 'dart:io';
+import 'dart:typed_data';
 
 import '../../reference/dart/gen/lib/boring/float_width.dart' as float_width;
 import '../../reference/dart/gen/lib/boring/glyph_metrics.dart' as glyph_metrics;
@@ -20,7 +21,7 @@ void check(bool condition, String name) {
   }
 }
 
-List<int> readBytes(String path) {
+Uint8List readBytes(String path) {
   return File(path).readAsBytesSync();
 }
 
@@ -90,7 +91,7 @@ void main() {
 
   // A magic outside the table refuses the block; the reader never guesses
   // a layout (binary spec 05).
-  final badMagic = readBytes('tests/vectors/roundtrip.bin').toList();
+  final badMagic = readBytes('tests/vectors/roundtrip.bin');
   badMagic[3] = 0x34;
   var badMagicRejected = false;
   try {

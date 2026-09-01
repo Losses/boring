@@ -8,7 +8,7 @@
 -cp src/reflaxe/rust
 -cp samples
 -cp tools/registry/src
---macro Intercept.run(['samples', 'tools/registry/src'], ['samples/boring/BinaryReader.hx', 'samples/boring/BinaryWriter.hx', 'samples/boring/Fp32.hx'])
+--macro Intercept.run(['samples', 'tools/registry/src'])
 --macro haxe.macro.Compiler.addGlobalMetadata('boring', '@:build(std.RecordMember.build())')
 --macro rustcompiler.Compiler.use()
 -D rust-output=reference/rust-f32-gen/src
@@ -20,6 +20,7 @@
 -D package-test=vector_gen_f32:../../../tests/rust/vector_gen_f32.rs
 boring.BinaryReader
 boring.BinaryWriter
+boring.Int64Ops
 boring.Fp32
 boring.Fp16
 boring.GlyphMetrics
@@ -45,6 +46,7 @@ runtime.Graphemes
 runtime.SortedTable
 runtime.TestCore
 tests.TestData
+tests.Int64Tests
 tests.VectorCodecTests
 tests.Fp32Tests
 tests.Fp16Tests

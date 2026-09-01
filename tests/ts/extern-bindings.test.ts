@@ -26,7 +26,7 @@ async function compileFixture(source: string): Promise<CompileFixtureResult> {
     `-cp ${path.join(root, "src/reflaxe/ts")}`,
     `-cp ${path.join(root, "src/reflaxe/ts/std-shadow")}`,
     `-cp ${path.join(root, "samples")}`, `-cp ${sourceRoot}`,
-    `--macro Intercept.run(["${sourceRoot}"], [])`,
+    `--macro Intercept.run(["${sourceRoot}"])`,
     "--macro tscompiler.Compiler.use()", `-D ts-output=${path.join(dir, "out")}`,
     "fixtures.Probe", "",
   ].join("\n"));

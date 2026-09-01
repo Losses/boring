@@ -97,7 +97,7 @@ describe("static function field capture validation", () => {
         "-cp " + path.join(root, "src/reflaxe/rust"),
         "-cp " + path.join(root, "samples"),
         "-cp " + sourceRoot,
-        "--macro Intercept.run([\"" + sourceRoot + "\"], [])",
+        "--macro Intercept.run([\"" + sourceRoot + "\"])",
         "--macro haxe.macro.Compiler.addGlobalMetadata('boring', '@:build(std.RecordMember.build())')",
         "--macro rustcompiler.Compiler.use()",
         "-D rust-output=" + output,

@@ -98,7 +98,7 @@ the `std` namespace.
 - `fail(message:String):Void`
 
 `equals` accepts the value domain of the subset: `Bool`, `Int`,
-`Float`, `String`, `Bytes`, `Array<T>`, structures (feature spec 03),
+`haxe.Int64`, `Float`, `String`, `Bytes`, `Array<T>`, structures (feature spec 03),
 and enum values (feature spec 01). Equality is structural for
 aggregates and IEEE equality for `Float` (so `NaN` fails `equals`
 against everything, including itself; tests that need `NaN` use `ok`).
@@ -162,6 +162,7 @@ Rules:
 - Value representations:
   - `Bool`: `true` / `false`.
   - `Int`: decimal with `-` for negatives, no separators.
+  - `haxe.Int64`: two lowercase eight-digit hexadecimal words, high word first, with no separator. This form compares every bit without decimal conversion differences.
   - `Float`: the shortest decimal string that parses back to the same
     IEEE-754 binary64 value. JavaScript's `Number.prototype.toString`
     and Rust's `Display for f64` implement this directly; JVM
