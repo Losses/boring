@@ -157,6 +157,10 @@ exact Haxe results above.
   with an explicit null check.
 - `samples/boring/NumberClassifyOps.hx` exercises both predicates over
   finite values, `Math.NaN`, and both infinities.
+- The stage-1 reference run compiles `samples/boring/NumberParsingOps.hx`
+  with the `boring_oracle` define, where `NumberParsingOracle` in the same
+  file applies the Contract grammar and the Int range check before plain
+  haxe parsing so the in-source tests observe the ruled failure results.
 - `samples/tests/NumberClassifyTests.hx` enters those cases for ts, kotlin,
   swift, dart, and rust, including f32 configurations where applicable.
 - `samples/tests/NumberParsingTests.hx` enters the same cases for ts, kotlin,
