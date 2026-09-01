@@ -12,7 +12,8 @@ import haxe.macro.Type;
  * at the call site into a field-wise `==` comparison joined with `&&`,
  * so stage 1 and every language tree run the same lowered code. Class
  * records (a class carrying `@:dataClass`) compare the fields held by
- * constructor parameters, in constructor parameter order; anonymous
+ * constructor parameters, in the declaration order of those fields
+ * (docs/specs/features/37-record-print-field-order.md); anonymous
  * records compare all fields in declaration order.
  */
 class RecordEq {

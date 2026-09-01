@@ -11,9 +11,10 @@ import haxe.macro.Type;
  * docs/specs/features/27-class-members-and-records.md. The macro expands
  * at the call site into a string concatenation producing
  * `Name(field=value, ...)` for class records and `{ field=value, ... }`
- * for anonymous records, with `, ` between fields. The text matches what
- * the Kotlin `data class` synthesis prints, so stage 1, every language
- * tree, and hand-written Kotlin consumers read the same string.
+ * for anonymous records, with `, ` between fields. Class record fields
+ * print in field declaration order
+ * (docs/specs/features/37-record-print-field-order.md); stage 1, every
+ * language tree, and hand-written Kotlin consumers read the same string.
  */
 class RecordStr {
 	public static macro function str(r:Expr):Expr {
