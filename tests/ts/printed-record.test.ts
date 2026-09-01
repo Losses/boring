@@ -146,7 +146,7 @@ async function generateMutation(
     `-cp ${path.join(root, target.shadow.replace("/std-shadow", ""))}`,
     `-cp ${path.join(root, "samples")}`,
     `-cp ${sourceRoot}`,
-    `--macro Intercept.run(["${sourceRoot}"], [])`,
+    `--macro Intercept.run(["${sourceRoot}"])`,
     "--macro haxe.macro.Compiler.addGlobalMetadata('boring', '@:build(std.RecordMember.build())')",
     `--macro ${target.compilerClass}`,
     `-D ${target.define}=${output}`,

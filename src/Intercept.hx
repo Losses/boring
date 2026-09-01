@@ -27,7 +27,7 @@
  *   V06 StringKeyedAccess  bracket access with a String key on a structure [pass 2]
  *   V07 ShapeMutation      assignment to a final field                   [compiler]
  *   V08 LoopBodyClosure    function value inside a loop body             [pass 2]
- *   V11 Int64Misuse        haxe.Int64 outside the permitted modules      [pass 2]
+ *   V11 Int64Misuse        haxe.Int64 operation outside stdlib/05        [pass 2]
  *   V12 DataInheritance    guarded class extends outside the exception chain [pass 2]
  *   V13 HashMapCollection  haxe.ds.Map and its implementations           [pass 2]
  *   V14 DynamicCatch       catch variable typed Dynamic                  [pass 2]
@@ -103,25 +103,14 @@ class Intercept {
 	/** Source ranges where spec 22 explicitly sanctions `new Map()`. */
 	static var coalescingMapRanges:Array<{file:String, min:Int, max:Int}> = [];
 
-	/**
-	 * Files permitted to reference haxe.Int64 (V11): the FPHelper float
-	 * conversion paths that docs/specs/stdlib/05-haxe-int64.md sanctions.
-	 * The list is supplied by the registering compile; this file carries
-	 * no sample paths.
-	 */
-	static var int64ModuleAllowlist:Array<String> = [];
-
 	/** The source roots this run guards; targets scope compilation to them. */
 	public static function sourceRoots():Array<String> {
 		return roots.copy();
 	}
 
-	public static function run(rootPrefixes:Array<String>, int64Allowlist:Array<String>):Void {
+	public static function run(rootPrefixes:Array<String>):Void {
 		for (index in 0...rootPrefixes.length) {
 			roots.push(rootPrefixes[index]);
-		}
-		for (index in 0...int64Allowlist.length) {
-			int64ModuleAllowlist.push(int64Allowlist[index]);
 		}
 		Compiler.addGlobalMetadata("", "@:build(Intercept.buildFields())", true, true);
 		Context.onAfterTyping(walkModules);
@@ -1147,28 +1136,40 @@ class Intercept {
 	}
 
 	static function checkInt64(e:TypedExpr):Void {
-		switch (e.t) {
-			case Type.TAbstract(abstractRef, _):
-				final definition = abstractRef.get();
-				if (definition.module == "haxe.Int64") {
-					final infos = Context.getPosInfos(e.pos);
-					if (!int64Allowed(infos.file)) {
-						violation("V11", "Int64Misuse",
-							"haxe.Int64 appears outside the modules stdlib/05 permits",
-							e.pos);
-					}
+		// Int64 values are legal data. Reject only a typed operation whose
+		// target has no capability rule; the first unsupported public edge is
+		// generic Std.string conversion, which has no stable cross-target form.
+		switch (e.expr) {
+			case TypedExprDef.TCall(callee, args):
+				if (isStdStringCall(callee) && hasInt64Argument(args)) {
+					violation("V11", "Int64Misuse",
+						"Std.string has no Int64 lowering in the translatable subset",
+						e.pos);
 				}
 			default:
 		}
 	}
 
-	static function int64Allowed(file:String):Bool {
-		for (index in 0...int64ModuleAllowlist.length) {
-			if (StringTools.startsWith(file, int64ModuleAllowlist[index])) {
-				return true;
-			}
+	static function hasInt64Argument(args:Array<TypedExpr>):Bool {
+		for (index in 0...args.length) {
+			if (isInt64Type(args[index].t)) return true;
 		}
 		return false;
+	}
+
+	static function isInt64Type(t:Type):Bool {
+		return switch (t) {
+			case Type.TAbstract(abstractRef, _): abstractRef.get().module == "haxe.Int64";
+			default: false;
+		};
+	}
+
+	static function isStdStringCall(callee:TypedExpr):Bool {
+		return switch (callee.expr) {
+			case TypedExprDef.TField(_, FieldAccess.FStatic(classRef, fieldRef)):
+				classRef.get().module == "Std" && fieldRef.get().name == "string";
+			default: false;
+		};
 	}
 
 	static function violation(code:String, name:String, detail:String, position:Position):Void {

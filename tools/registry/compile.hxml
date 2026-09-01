@@ -4,7 +4,7 @@
 -cp src/reflaxe/ts
 -cp samples
 -cp tools/registry/src
---macro Intercept.run(['tools/registry/src'], [])
+--macro Intercept.run(['tools/registry/src'])
 --macro tscompiler.Compiler.use()
 -D ts-output=tools/registry/gen
 -D package-shell=none
