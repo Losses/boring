@@ -85,6 +85,13 @@ class KotlinExpr {
 		return expr(e);
 	}
 
+	public function rawArrayExpression(e: TypedExpr, wrapper: String): String {
+		return switch(stripWrap(e).expr) {
+			case TArrayDecl(elements): wrapper + "(" + [for(x in elements) expr(x)].join(", ") + ")";
+			case _: rawExpression(e);
+		};
+	}
+
 	function coalescingSiteFor(e: TypedExpr): Null<{parameter: String, defaultExpr: TypedExpr, valueExpr: TypedExpr}> {
 		if(currentClass == null || currentField == null) return null;
 		final site = DefaultArgExpander.coalescingSite(e);

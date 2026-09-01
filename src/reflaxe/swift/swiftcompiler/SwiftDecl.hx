@@ -319,7 +319,8 @@ class SwiftDecl {
 		if(v.isStatic) {
 			final init = StaticFieldHelper.validatedInitializer(field, cls);
 			final array = StaticFieldHelper.isArrayType(field.type);
-			final kw = array || !field.isFinal ? "var" : "let";
+			final smallArray = field.isFinal && StaticFieldHelper.isNonEmptyArrayLiteral(init);
+			final kw = smallArray ? "let" : (array || !field.isFinal ? "var" : "let");
 			final vis = field.isPublic ? "" : "private ";
 			return ["    " + vis + "static " + kw + " " + field.name + ": " + types.of(field.type) + " = " + expr.rawExpression(init)];
 		}
