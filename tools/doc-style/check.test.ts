@@ -1,5 +1,18 @@
-import { describe, expect, test } from "bun:test";
-import { matchedTerms, scanText } from "./check.ts";
+import { afterEach, describe, expect, test } from "bun:test";
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { resolve } from "node:path";
+import {
+  extractComments,
+  matchedTerms,
+  readTargets,
+  scanText,
+} from "./check.ts";
+
+const temporaryPaths: string[] = [];
+
+afterEach(() => {
+  for (const path of temporaryPaths.splice(0)) rmSync(path, { force: true, recursive: true });
+});
 
 describe("matchedTerms", () => {
   test("detects metaphor verbs with word boundaries and inflections", () => {
@@ -20,6 +33,11 @@ describe("matchedTerms", () => {
   test("flags putdown wording", () => {
     const hits = matchedTerms("You just need to call decode before reading.");
     expect(hits.map((hit) => hit.match)).toEqual(["just"]);
+  });
+
+  test("flags prose style as coined wording", () => {
+    const hits = matchedTerms("The prose style checker reads this sentence.");
+    expect(hits.map((hit) => hit.match)).toEqual(["prose style"]);
   });
 });
 
@@ -73,5 +91,101 @@ describe("scanText", () => {
       "fixture.md",
     );
     expect(hits).toEqual([]);
+  });
+});
+
+describe("extractComments", () => {
+  test("keeps C-style comments and their original line numbers", () => {
+    const source = [
+      'const message = "The codec crams fields.";',
+      "// The decoder reads fields.",
+      "/* The codec crams",
+      " * fields into the tail. */",
+    ].join("\n");
+    const hits = scanText(extractComments(source, ".ts"), "fixture.ts");
+    expect(hits.map((hit) => [hit.line, hit.token])).toEqual([[3, "cram"]]);
+  });
+
+  test("keeps nested block comments", () => {
+    const source = "/* Outer text. /* The codec crams fields. */ End. */";
+    const hits = scanText(extractComments(source, ".rs"), "fixture.rs");
+    expect(hits.map((hit) => hit.token)).toEqual(["cram"]);
+  });
+
+  test("does not nest TypeScript block comments", () => {
+    const source = "/* Marker text: /*. */\n// The codec crams fields.";
+    const hits = scanText(extractComments(source, ".ts"), "fixture.ts");
+    expect(hits.map((hit) => [hit.line, hit.token])).toEqual([[2, "cram"]]);
+  });
+
+  test("keeps comments after Rust lifetimes", () => {
+    const source = "fn read<'a>(value: &'a str) {}\n// The codec crams fields.";
+    const hits = scanText(extractComments(source, ".rs"), "fixture.rs");
+    expect(hits.map((hit) => [hit.line, hit.token])).toEqual([[2, "cram"]]);
+  });
+
+  test("skips TypeScript templates and escaped strings", () => {
+    const source = [
+      "const template = `// The codec crams fields.`;",
+      'const quoted = "/* The codec crams fields. */";',
+      "// The decoder returns fields.",
+    ].join("\n");
+    expect(scanText(extractComments(source, ".ts"), "fixture.ts")).toEqual([]);
+  });
+
+  test("skips Rust raw strings", () => {
+    const source = [
+      'let text = r#"// The codec crams fields."#;',
+      'let bytes = br##"/* The codec crams fields. */"##;',
+      "//! The decoder returns fields.",
+    ].join("\n");
+    expect(scanText(extractComments(source, ".rs"), "fixture.rs")).toEqual([]);
+  });
+
+  test("skips Kotlin, Swift, and Dart multiline strings", () => {
+    const source = '"""\n// The codec crams fields.\n"""\n// The decoder returns fields.';
+    for (const extension of [".kt", ".swift", ".dart"]) {
+      expect(scanText(extractComments(source, extension), `fixture${extension}`)).toEqual([]);
+    }
+  });
+
+  test("skips Swift extended strings", () => {
+    const source = '#"// The codec crams fields."#\n// The decoder returns fields.';
+    expect(scanText(extractComments(source, ".swift"), "fixture.swift")).toEqual([]);
+  });
+
+  test("handles Nix strings and hash comments", () => {
+    const source = [
+      'value = "# The codec crams fields.";',
+      "other = ''# The codec crams fields.'';",
+      "# The codec crams fields.",
+    ].join("\n");
+    const hits = scanText(extractComments(source, ".nix"), "fixture.nix");
+    expect(hits.map((hit) => [hit.line, hit.token])).toEqual([[3, "cram"]]);
+  });
+
+  test("does not treat a shell parameter operator as a comment", () => {
+    const source = 'value=${name#prefix}\n# The codec crams fields.';
+    const hits = scanText(extractComments(source, ".sh"), "fixture.sh");
+    expect(hits.map((hit) => [hit.line, hit.token])).toEqual([[2, "cram"]]);
+  });
+});
+
+describe("readTargets", () => {
+  test("finds documents and source files while excluding generated trees", async () => {
+    const root = mkdtempSync(resolve(import.meta.dir, ".check-fixture-"));
+    temporaryPaths.push(root);
+    mkdirSync(resolve(root, "src"));
+    mkdirSync(resolve(root, "gen"));
+    writeFileSync(resolve(root, "guide.md"), "Plain text.\n");
+    writeFileSync(resolve(root, "src", "main.hx"), "// Plain comment.\n");
+    writeFileSync(resolve(root, "src", "data.json"), "{}\n");
+    writeFileSync(resolve(root, "gen", "output.ts"), "// Generated.\n");
+
+    const targets = await readTargets([root]);
+    expect(targets.map((target) => target.path.slice(root.length + 1))).toEqual([
+      "guide.md",
+      "src/main.hx",
+    ]);
   });
 });
