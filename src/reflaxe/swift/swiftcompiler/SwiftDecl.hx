@@ -14,7 +14,7 @@ import ValueTypeSupport.ValueTypeOperator;
 	Declaration lowering: classes, variant enums, and record typedefs
 	(docs/specs/features/07-numeric-tower.md). One SwiftDecl instance owns the
 	per-module emission context (imports, types, expression state) so
-	every declaration in the same Haxe module lands in one Swift file.
+	every declaration in the same Haxe module is written to one Swift file.
 	The whole tree shares one Swift module, so no import block renders;
 	what the context tracks is runtime usage and the resident ABI mode.
 **/
@@ -86,7 +86,7 @@ class SwiftDecl {
 		final lines: Array<String> = [];
 
 		// A statics-only class lowers to a case-less enum namespace
-		// because Swift has no file-level static members; an instance
+		// because Swift has no static members at file scope; an instance
 		// class lowers to a final class (the samples carry no
 		// subclassing outside haxe.Exception).
 		final classParams = cls.params.length > 0 ? "<" + [for(p in cls.params) p.name].join(", ") + ">" : "";
@@ -391,7 +391,7 @@ class SwiftDecl {
 
 	/**
 		One @:test function (features/19): a static throwing function on
-		the module's test namespace. The runner entry that calls it lands
+		the module's test namespace. The runner entry that calls it is written
 		in TestMain.swift.
 	**/
 	public function testFuncDecl(cls: ClassType, f: ClassFuncData): Array<String> {
@@ -575,7 +575,7 @@ class SwiftDecl {
 	/**
 		features/18: a function returning ReadOnlyArray is a decode
 		boundary. Array is a value type in Swift and a let binding
-		freezes it structurally, so no freeze wrappers render; the flag
+		freezes it structurally, so no read-only wrappers render; the flag
 		only keeps the boundary visible to the expression layer.
 	**/
 	function decodeBoundaryBody(cls: ClassType, f: ClassFuncData, depth: Int = 2): Array<String> {
