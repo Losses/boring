@@ -51,10 +51,10 @@ describe("TypeScript extern binding modules", () => {
       expect(bindings).toContain("export const Namespace = ns_Namespace;");
       expect(bindings).toContain('import { named } from "pkg";');
       expect(bindings).toContain("export const Named = named;");
-      expect(bindings).toContain("export const GlobalThing = globalThis.globalThing;");
+      expect(bindings).toContain("export const globalThing = globalThis.globalThing;");
       expect(bindings.match(/export const Namespace =/g)?.length).toBe(1);
       const probe = fs.readFileSync(path.join(result.dir, "out/fixtures/Probe.ts"), "utf8");
-      expect(probe).toContain('import { GlobalThing, Named, Namespace } from "./Externs.ts";');
+      expect(probe).toContain('import { Named, Namespace, globalThing } from "./Externs.ts";');
     } finally {
       fs.rmSync(result.dir, { recursive: true, force: true });
     }
