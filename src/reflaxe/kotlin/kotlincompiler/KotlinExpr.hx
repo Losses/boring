@@ -1715,7 +1715,7 @@ class KotlinExpr {
 				if(cls.module == "Math" && name == "isNaN") return "(" + expr(args[0]) + ").isNaN()";
 				if(cls.module == "Std" && (name == "parseFloat" || name == "parseInt") && args.length == 1) {
 					imports.requireType("std.NumberParsing", "NumberParsing");
-					return "NumberParsing." + name;
+					return "NumberParsing." + name + "(" + expr(args[0]) + ")";
 				}
 				final markedField = findStaticField(cls, name);
 				if(markedField != null && StaticFunctionMarkers.isMarked(markedField)) {
