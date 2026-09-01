@@ -1,15 +1,15 @@
-# Standard library spec 14: numeric parsing and NaN
+# Standard library spec 14: numeric parsing and float predicates
 
 ## Scope
 
-This specification rules `Std.parseFloat`, `Std.parseInt`, and
-`Math.isNaN` on all five source targets (ts, kotlin, swift, dart, rust).
+This specification rules `Std.parseFloat`, `Std.parseInt`, `Math.isNaN`, and
+`Math.isFinite` on all five source targets (ts, kotlin, swift, dart, rust).
 The shared domain includes callers that pass a `String` to either parser and
-callers that test the resulting `Float` with `Math.isNaN`. A caller may
-observe a parser's failure result and may branch on it; parsing is not
-restricted to literals or to strings known to be valid. `Math.isNaN` is in the
-shared domain only for a `Float` operand. An `Int` or a nullable integer
-result from `Std.parseInt` is not a valid operand for it.
+callers that test the resulting `Float` with `Math.isNaN` or `Math.isFinite`.
+A caller may observe a parser's failure result and may branch on it; parsing
+is not restricted to literals or to strings known to be valid. Both
+predicates are in the shared domain only for a `Float` operand. An `Int` or a
+nullable integer result from `Std.parseInt` is not a valid operand for them.
 
 ## Contract
 
@@ -55,8 +55,10 @@ failure the Haxe return value is `Null<Int>` and is `null`.
 
 `Std.parseFloat` returns a `Float`, using `Math.NaN` as its exact failure
 result. `Math.isNaN(x)` returns true exactly when the `Float` is an IEEE NaN,
-and false for finite values and infinities. It does not perform conversion and
-it does not treat a failed integer parse as a NaN. These failure results are
+and false for finite values and infinities. `Math.isFinite(x)` returns true
+exactly when the `Float` is neither an IEEE NaN nor an infinity. Neither
+predicate performs conversion, and neither treats a failed integer parse as a
+NaN. These failure results are
 part of the shared contract; target-specific exception behavior does not
 alter them. Parser callers inside the domain must be able to distinguish
 failure without a thrown exception.
@@ -130,9 +132,20 @@ exact Haxe results above.
    | Dart | `x.isNaN` |
    | Rust | `x.is_nan()` |
 
-5. No parser throws for an invalid token in the shared domain. The only
+5. `Math.isFinite(x)` is a predicate over a `Float` with the same operand
+   restriction and renders as follows:
+
+   | Target | Rendering |
+   | --- | --- |
+   | TypeScript | `Number.isFinite(x)` |
+   | Kotlin | `x.isFinite()` for `Double`, or `kotlin.math.isFinite(x)` where the generated numeric type requires the function form |
+   | Swift | `x.isFinite` |
+   | Dart | `x.isFinite` |
+   | Rust | `x.is_finite()` |
+
+6. No parser throws for an invalid token in the shared domain. The only
    failure values are `NaN` for `Std.parseFloat` and `null`/`Option.none`
-   for `Std.parseInt`; `Math.isNaN` never changes either value. Tests must
+   for `Std.parseInt`; neither predicate ever changes either value. Tests must
    include successful, failed, and partial tokens on every target.
 
 ## Samples and tests
@@ -142,6 +155,10 @@ exact Haxe results above.
   and `0X` integer forms, overflow, empty input, invalid input, and partial
   tokens. It checks float failures with `Math.isNaN` and integer failures
   with an explicit null check.
+- `samples/boring/NumberClassifyOps.hx` exercises both predicates over
+  finite values, `Math.NaN`, and both infinities.
+- `samples/tests/NumberClassifyTests.hx` enters those cases for ts, kotlin,
+  swift, dart, and rust, including f32 configurations where applicable.
 - `samples/tests/NumberParsingTests.hx` enters the same cases for ts, kotlin,
   swift, dart, and rust, including f32 configurations where applicable.
 - Tree assertions verify the five renderings in this ruling, nullable integer

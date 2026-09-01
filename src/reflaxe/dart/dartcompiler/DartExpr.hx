@@ -1561,6 +1561,7 @@ class DartExpr {
 							imports.useDartMath();
 							return "math.sqrt(" + expr(args[0]) + ")";
 						case "isNaN": return "(" + expr(args[0]) + ").isNaN";
+						case "isFinite": return "(" + expr(args[0]) + ").isFinite";
 						case _:
 					}
 				}

@@ -1639,6 +1639,7 @@ class SwiftExpr {
 				}
 				if(module == "Math") {
 					if(fName == "isNaN") return "(" + expr(args[0]) + ").isNaN";
+					if(fName == "isFinite") return "(" + expr(args[0]) + ").isFinite";
 					// Members with no bare-function form lower onto the
 					// stdlib method or property of the argument.
 					switch(fName) {
@@ -1646,6 +1647,7 @@ class SwiftExpr {
 						case "ceil": return "(" + expr(args[0]) + ").rounded(.up)";
 						case "sqrt": return "(" + expr(args[0]) + ").squareRoot()";
 						case "isNaN": return "(" + expr(args[0]) + ").isNaN";
+						case "isFinite": return "(" + expr(args[0]) + ").isFinite";
 						case _:
 					}
 				}
