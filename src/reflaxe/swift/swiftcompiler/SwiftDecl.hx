@@ -327,8 +327,8 @@ class SwiftDecl {
 		if(field.meta.has(":value")) {
 			Context.error("instance field default has no lowering; assign it in the constructor", field.pos);
 		}
-		// A final Haxe field pins the reference, not the contents: an
-		// array field still grows in place (the sorted builders), and a
+		// A final Haxe field keeps the reference binding while the array
+		// contents remain mutable. Array fields therefore use var.
 		// Swift let array forbids that, so array fields stay var.
 		final isArrayField = switch(field.type) {
 			case TInst(c, _): c.get().name == "Array";
@@ -510,8 +510,8 @@ class SwiftDecl {
 	/**
 		The names of a function's own type parameters, in first-use
 		order over the signature. A generic method references its
-		parameters as type-parameter classes; names owned by the
-		enclosing class belong to the class header, not the method.
+		parameters as type-parameter classes; the enclosing class owns its
+		parameters in the class header.
 	**/
 	function collectMethodTypeParams(cls: ClassType, f: ClassFuncData): Array<String> {
 		final classParamNames = [for(p in cls.params) p.name];
