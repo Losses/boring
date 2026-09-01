@@ -22,9 +22,9 @@ import std.ReadOnlyArray;
 	a Consonant and an Extend or Linker run that contains at least one
 	Linker), and the regional-indicator parity in bit 4.
 
-	The inputs are code points, not storage units: string storage differs
-	between targets (UTF-16 on TypeScript, Kotlin, and stage one; UTF-8
-	on Rust), so this class never reads a string. Callers convert once
+	The inputs are code points. String storage differs between targets:
+	UTF-16 on TypeScript, Kotlin, and stage one; UTF-8 on Rust. This class
+	never reads a string. Callers convert once
 	through std.UStringRT.toCodePoints and track storage width
 	themselves.
 **/
