@@ -57,11 +57,11 @@ class Sha1 {
 		return out;
 	}
 	static function rol(x:Int, n:Int):Int return (x << n) | (x >>> (32 - n));
+	static function digit(x:Int):String return switch(x) { case 0: "0"; case 1: "1"; case 2: "2"; case 3: "3"; case 4: "4"; case 5: "5"; case 6: "6"; case 7: "7"; case 8: "8"; case 9: "9"; case 10: "a"; case 11: "b"; case 12: "c"; case 13: "d"; case 14: "e"; case 15: "f"; }
 	static function word(x:Int):String {
-		var digits = "0123456789abcdef";
 		var out = "";
 		var s = 28;
-		while(s >= 0) { out += digits.charAt((x >>> s) & 15); s = s - 4; }
+		while(s >= 0) { out += digit((x >>> s) & 15); s = s - 4; }
 		return out;
 	}
 }
