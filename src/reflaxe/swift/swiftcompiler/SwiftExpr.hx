@@ -321,8 +321,8 @@ class SwiftExpr {
 				// to the 64-bit Int, nesting included), a sorted-builder
 				// factory (the comparator fixes only the key), and a bare
 				// nil. The declaration names the type instead.
-				// (features/14: Int is Int32 on this lane.)
-				// On the f32 lane a Float-typed declaration names its type
+				// (features/14: Int is Int32 for this target.)
+				// On the f32 configuration a Float-typed declaration names its type
 				// too: a bare float initializer infers the default Double
 				// width (feature spec 23).
 				final coalescingValue = coalescing == null ? null : (currentLocalName != null
@@ -519,7 +519,7 @@ class SwiftExpr {
 	/**
 		The typer flattens a counted for-loop when it sits directly in a
 		statement list: the counter declaration, bound declaration, and
-		while land as three sibling statements with no wrapping block.
+		while are three sibling statements with no wrapping block.
 		Regrouping restores the block form the loop lowerings match on.
 	**/
 	function regroupLoops(stmts: Array<TypedExpr>): Array<TypedExpr> {
@@ -648,7 +648,7 @@ class SwiftExpr {
 		if(body.length < 2) {
 			return null;
 		}
-		// The lambda body lands as one trailing TBlock of the four core
+		// The lambda body is one trailing TBlock containing the four core
 		// statements, or as the four statements themselves.
 		final core: Array<TypedExpr> = switch(body[body.length - 1].expr) {
 			case TBlock(s) if(s.length == 4): s;
@@ -1269,7 +1269,7 @@ class SwiftExpr {
 		switch(module) {
 			case "Math":
 				// The stdlib members map onto the Swift standard library:
-				// no Foundation import runs for arithmetic. The f32 lane
+				// no Foundation import runs for arithmetic. The f32 configuration
 				// reads every member from the Float family (feature
 				// spec 23).
 				if(FloatPrecision.isF32()) {
