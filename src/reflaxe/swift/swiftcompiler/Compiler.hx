@@ -12,7 +12,7 @@ import reflaxe.data.EnumOptionData;
 
 /**
 	reflaxe plugin producing the Swift lane of the translatable subset
-	(docs/specs/targets/swift.md).
+	(docs/specs/features/07-numeric-tower.md).
 
 	Output layout is one Swift file per Haxe module at the module's own
 	path, all inside one Swift module, plus `Runtime.swift` (the

@@ -135,3 +135,35 @@ sides.
 `V18` remains the enforcement point that features/08 names. This module
 is the provided general path. `StringTools.fastCodeAt` and
 `StringTools.fromCharCode` stay banned, with their replacements here.
+
+### Swift target rulings
+
+#### Resident string ABI (`stdlib/10`, `stdlib/11`)
+
+The resident modules (`runtime.UString`, `runtime.Graphemes`,
+`runtime.GraphemeWalk`, `runtime.TestCore`) receive strings as
+`Array<UInt16>` inside the runtime package: the cursor space is UTF-16 units, `end` is `count`,
+`codeAt` is an integer subscript, and `advance` is the surrogate-pair
+width at the cursor, each constant time. `std.UStringPlatform` calls
+lower inline against that array. Business call sites that hand a string
+to a resident convert once (`Array(text.utf16)`), so a walk is one
+decode pass followed by constant-time indexing, the decode-once tier of
+the design principles. `substringBetween` builds
+`String(decoding: units[a..<b], as: UTF16.self)`; `fromCodePoint`
+encodes the scalar into units, and an argument outside the documented
+valid domain yields the NUL replacement, the same out-of-domain
+behavior the Rust target's `char::from_u32` fallback takes.
+
+### Dart target rulings
+
+#### Resident string ABI (`stdlib/10`, `stdlib/11`)
+
+`std.UStringPlatform` lowers inline with the cursor space of UTF-16
+units: `end` is `s.length`, `codeAt` combines a surrogate pair when
+present, `advance` is the pair width, `substringBetween` is
+`s.substring(a, b)`, `fromCodePoint` is `String.fromCharCode` over one
+or two units. Dart has no `codePointAt`, so the pair-combining read is
+a private `_codePointAt(String, int)` top-level function that every
+library inlining the walk carries (the runtime prelude and the test
+host). Every primitive is constant time, so the resident walks
+stay one linear pass.

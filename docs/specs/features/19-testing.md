@@ -424,3 +424,27 @@ keep error-variant coverage until then.
 Fixture-driven tests (reading `tests/vectors/roundtrip.bin`)
 wait on file input in the standard library; per-language suites keep
 that coverage.
+
+### Swift target rulings
+
+#### Testing (`features/19`)
+
+`@:test` statics collect into a test `main.swift` that runs each test in
+order, catching thrown values, recording the pass or fail line to the
+jsonl results file the consistency run reads, and exiting nonzero on any
+failure. `std.TestPlatform` lowers inline: `raise` is `throw`,
+`currentTestId` reads a file-scope variable the harness sets around each
+test, and number-to-text rendering uses string interpolation. The binary
+runs under `LD_LIBRARY_PATH=$BORING_SWIFT_LIBDISPATCH`.
+
+### Dart target rulings
+
+#### Testing (`features/19`)
+
+`@:test` statics collect into a test entry `main()` that runs each test
+in order, catches thrown values, records the pass or fail line to the
+jsonl results file the consistency run reads, and exits nonzero on any
+failure. `std.TestPlatform` lowers inline: `raise` is `throw`,
+`currentTestId` reads a top-level variable the harness sets around each
+test, and number-to-text rendering uses interpolation. The entry runs
+under `dart run`.

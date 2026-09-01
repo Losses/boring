@@ -19,7 +19,6 @@ Specifications are organized into six categories:
 3. `macros/`: Rules governing boring's built-in compile-time rewrites: constructs that are not Haxe language features and expand in the common layer before target emission. Collection pipeline idioms and the record copy live here, never in `features/`.
 4. `stdlib/`: Rules governing Haxe standard library modules and functions. These documents define standard library substitutions for the target languages.
 5. `style/`: Rules governing the Haxe source standard itself and the interception that enforces it before generation.
-6. `targets/`: Rules governing one additional target language across the whole construct list. Each document holds every ruling for its target, cross-referencing the per-construct specifications for the Haxe-side semantics, and binds that target's Reflaxe generator.
 
 ## Judgment axes
 
@@ -115,10 +114,6 @@ Every candidate translation is evaluated across four fixed axes:
 
 ### Target specifications
 
-| Target | Specification | Status | Description |
-| --- | --- | --- | --- |
-| Swift | [swift.md](targets/swift.md) | Rulings complete | The Swift column for every construct the sample tree exercises: value enums, Int32 domain, UTF-16 resident ABI, fault throwing, and the unit-order string comparison. |
-| Dart | [dart.md](targets/dart.md) | Rulings complete | The Dart column for every construct the sample tree exercises: sealed fault hierarchies, int domain, native UTF-16 primitives, and the splay-tree sorted collections. |
 
 ## Maintenance rule
 

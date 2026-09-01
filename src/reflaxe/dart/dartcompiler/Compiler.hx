@@ -12,7 +12,7 @@ import reflaxe.data.EnumOptionData;
 
 /**
 	reflaxe plugin producing the Dart lane of the translatable subset
-	(docs/specs/targets/dart.md).
+	(docs/specs/stdlib/06-std-modules.md).
 
 	Output layout is one Dart library per Haxe module at
 	`lib/pack/module_name.dart`, plus `runtime.dart` (the hand-written
