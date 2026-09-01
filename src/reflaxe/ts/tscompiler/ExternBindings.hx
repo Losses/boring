@@ -79,14 +79,12 @@ class ExternBindings {
 	}
 
 	/**
-		The name other modules import: the Haxe class name. The native
-		metadata value identifies the global expression, but TsExpr imports
-		the class name for both native and jsRequire externs.
+		The name other modules import: the ClassType name. For a class
+		with @:native the typer presents the native value as the class
+		name, so the export carries the native value; a @:jsRequire
+		class keeps its declared class name (spec 13).
 	**/
 	static function referenceName(cls: ClassType): String {
-		// TsExpr imports extern classes by their Haxe class name for both
-		// jsRequire and native bindings. The @:native value identifies the
-		// global expression, not the generated export name.
 		return cls.name;
 	}
 
