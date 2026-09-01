@@ -42,9 +42,7 @@ class TsType {
 					case "Null": of(params[0]) + " | null";
 					case "haxe.ds.Map" if(params.length == 2): "Map<" + of(params[0]) + ", " + of(params[1]) + ">";
 					case "std.ReadOnlyArray": "readonly " + of(params[0]) + "[]";
-					case "haxe.Int64":
-						imports.runtime("Int64Halves");
-						"Int64Halves";
+					case "haxe.Int64": "bigint";
 					case _: of(abs.type);
 				};
 			case TInst(c, params):

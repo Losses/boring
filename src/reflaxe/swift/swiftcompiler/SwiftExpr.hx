@@ -62,6 +62,9 @@ class SwiftExpr {
 	/** Names written in the scanned body; parameter names are recorded directly. */
 	final mutatedNames: Map<String, Bool> = [];
 
+	/** Locals backed by the FPHelper high/low boundary object. */
+	final fpInt64Halves: Map<Int, Bool> = [];
+
 	/**
 		Locals whose initializer is optional while the declared type is
 		plain: the pipeline expander types a get()-initialized bucket as
@@ -591,9 +594,34 @@ class SwiftExpr {
 		switch(e.expr) {
 			case TBlock(stmts) if(stmts.length == 3):
 				return intervalCore(stmts[0], stmts[1], stmts[2]);
+			case TBlock(stmts) if(stmts.length == 2):
+				return intervalShort(stmts[0], stmts[1]);
 			case _:
 				return null;
 		}
+	}
+
+	function intervalShort(counterDecl: TypedExpr, whileExpr: TypedExpr): Null<{index: TVar, start: TypedExpr, bound: TypedExpr, body: Array<TypedExpr>}> {
+		switch[counterDecl.expr, whileExpr.expr] {
+			case [TVar(counter, start), TWhile(cond, body, true)]:
+				final bound = switch(stripWrap(cond).expr) {
+					case TBinop(OpLt, {expr: TLocal(c)}, right) if(c.id == counter.id): right;
+					case _: return null;
+				};
+			final bodyStmts = statementsOf(body);
+			if(bodyStmts.length == 0) return null;
+			switch(bodyStmts[0].expr) {
+				case TVar(captured, inc) if(inc != null):
+					switch(stripWrap(inc).expr) {
+						case TUnop(OpIncrement, true, {expr: TLocal(c)}) if(c.id == counter.id):
+							return {index: captured, start: start, bound: bound, body: bodyStmts.slice(1)};
+						case _:
+					}
+				case _:
+			}
+			case _:
+		}
+		return null;
 	}
 
 	function loopLines(loop: {index: TVar, start: TypedExpr, bound: TypedExpr, body: Array<TypedExpr>}, depth: Int): Array<String> {
@@ -882,6 +910,8 @@ class SwiftExpr {
 	// ------------------------------------------------------------------
 
 	function expr(e: TypedExpr): String {
+		final int64Expr = int64Expression(e);
+		if(int64Expr != null) return int64Expr;
 		final wrapperValue = ValueTypeSupport.syntheticValue(e);
 		if(wrapperValue != null) return valueTypeSynthetic(e, wrapperValue);
 		final query = enumQuery(e);
@@ -1204,6 +1234,7 @@ class SwiftExpr {
 		}
 		switch(op) {
 			case OpNot: return "!" + wrapped;
+			case OpNegBits: return "~" + wrapped;
 			case OpNeg: return "-" + wrapped;
 			case _:
 				{
@@ -1211,6 +1242,54 @@ class SwiftExpr {
 					return fail(e, "unary operator has no lowering in the subset: " + Std.string(op) + " at " + infos.file + ":" + infos.min);
 				}
 		}
+	}
+
+	function int64Expression(e:TypedExpr):Null<String> {
+		return switch(e.expr) {
+			case TCall(fn, args): int64Call(fn, args);
+			case _: null;
+		};
+	}
+
+	function int64Call(fn:TypedExpr, args:Array<TypedExpr>):Null<String> {
+		return switch(stripWrap(fn).expr) {
+			case TField(_, FStatic(classRef, fieldRef)) if(classRef.get().module == "haxe.Int64" && classRef.get().name == "Int64_Impl_"):
+				switch(fieldRef.get().name) {
+					case "make" if(args.length == 2): "Int64(bitPattern: (UInt64(UInt32(bitPattern: " + expr(args[0]) + ")) << 32) | UInt64(UInt32(bitPattern: " + expr(args[1]) + ")))";
+					case "ofInt" if(args.length == 1): "Int64(" + expr(args[0]) + ")";
+					case "getHigh" | "get_high" if(args.length == 1): if(isFpHelperInt64Halves(args[0])) expr(args[0]) + ".high" else "Int32(truncatingIfNeeded: " + expr(args[0]) + " >> 32)";
+					case "getLow" | "get_low" if(args.length == 1): if(isFpHelperInt64Halves(args[0])) expr(args[0]) + ".low" else "Int32(truncatingIfNeeded: " + expr(args[0]) + ")";
+					case "add" if(args.length == 2): expr(args[0]) + " &+ " + expr(args[1]);
+					case "sub" if(args.length == 2): expr(args[0]) + " &- " + expr(args[1]);
+					case "and" if(args.length == 2): expr(args[0]) + " & " + expr(args[1]);
+					case "or" if(args.length == 2): expr(args[0]) + " | " + expr(args[1]);
+					case "xor" if(args.length == 2): expr(args[0]) + " ^ " + expr(args[1]);
+					case "complement" if(args.length == 1): "~" + expr(args[0]);
+					case "shl" if(args.length == 2): expr(args[0]) + " &<< Int64(" + expr(args[1]) + " & 63)";
+					case "shr" if(args.length == 2): expr(args[0]) + " &>> Int64(" + expr(args[1]) + " & 63)";
+					case "ushr" if(args.length == 2): "Int64(bitPattern: UInt64(bitPattern: " + expr(args[0]) + ") >> UInt64(" + expr(args[1]) + " & 63))";
+					case "eq" if(args.length == 2): expr(args[0]) + " == " + expr(args[1]);
+					case "neq" if(args.length == 2): expr(args[0]) + " != " + expr(args[1]);
+					default: null;
+				}
+			default: null;
+		};
+	}
+
+	function isFpHelperInt64Halves(e:TypedExpr):Bool {
+		return switch(stripWrap(e).expr) {
+			case TCall(fn, _): isFpHelperInt64Call(fn);
+			case TLocal(v): fpInt64Halves.exists(v.id);
+			case _: false;
+		};
+	}
+
+	function isFpHelperInt64Call(fn:TypedExpr):Bool {
+		return switch(stripWrap(fn).expr) {
+			case TField(_, FStatic(classRef, fieldRef)):
+				classRef.get().module == "haxe.io.FPHelper" && (fieldRef.get().name == "doubleToI64" || fieldRef.get().name == "f32ToI64");
+			case _: false;
+		};
 	}
 
 	function field(subj: TypedExpr, fa: FieldAccess): String {
@@ -1586,6 +1665,8 @@ class SwiftExpr {
 	}
 
 	function call(fn: TypedExpr, args: Array<TypedExpr>): String {
+		final int64CallText = int64Call(fn, args);
+		if(int64CallText != null) return int64CallText;
 		final wrapperCall = valueTypeCall(fn, args);
 		if(wrapperCall != null) return wrapperCall;
 		final inlineMapCall = mapHasOwnPropertyCall(fn, args);
@@ -1694,6 +1775,8 @@ class SwiftExpr {
 			case _:
 		}
 		switch(fn.expr) {
+			case TField(_, FStatic(c, cf)) if(c.get().module == "haxe.io.Bytes" && cf.get().name == "alloc" && args.length == 1):
+				return "[UInt8](repeating: 0, count: Int(" + expr(args[0]) + "))";
 			case TCast(inner, _):
 				return call(inner, args);
 			case TField(subj, FDynamic(name)) if((name == "length" || name == "get_length") && isStringBuf(subj)):
@@ -1731,6 +1814,18 @@ class SwiftExpr {
 				// to Int32.
 				if(name == "get" && isBytes(stripCast(subj))) {
 					return "Int32(" + receiverText(subj) + "[Int(" + expr(args[0]) + ")])";
+				}
+				if(name == "set" && args.length == 2 && isBytes(stripCast(subj))) {
+					return receiverText(subj) + "[Int(" + expr(args[0]) + ")] = UInt8(truncatingIfNeeded: " + expr(args[1]) + ")";
+				}
+				if(name == "blit" && args.length == 4 && isBytes(stripCast(subj))) {
+					return receiverText(subj) + ".replaceSubrange(Int(" + expr(args[0]) + ")..<Int(" + expr(args[0]) + " + " + expr(args[3]) + "), with: " + receiverText(args[1]) + "[Int(" + expr(args[2]) + ")..<Int(" + expr(args[2]) + " + " + expr(args[3]) + ")])";
+				}
+				if(name == "fill" && args.length == 3 && isBytes(stripCast(subj))) {
+					return receiverText(subj) + ".replaceSubrange(Int(" + expr(args[0]) + ")..<Int(" + expr(args[0]) + " + " + expr(args[1]) + "), with: repeatElement(UInt8(truncatingIfNeeded: " + expr(args[2]) + "), count: Int(" + expr(args[1]) + ")))";
+				}
+				if(name == "sub" && args.length == 2 && isBytes(stripCast(subj))) {
+					return "Array(" + receiverText(subj) + "[Int(" + expr(args[0]) + ")..<Int(" + expr(args[0]) + " + " + expr(args[1]) + ")])";
 				}
 				if(name == "push") {
 					return receiverText(subj) + ".append(" + rendered + ")";
@@ -2946,6 +3041,12 @@ class SwiftExpr {
 				}
 				if(init != null && isNullLeafType(init.t)) {
 					optionalInferred.set(v.id, true);
+				}
+				if(init != null) {
+					switch(stripWrap(init).expr) {
+						case TCall(fn, _) if(isFpHelperInt64Call(fn)): fpInt64Halves.set(v.id, true);
+						case _:
+					}
 				}
 				case TBinop(OpAssign, t, _) | TBinop(OpAssignOp(_), t, _):
 					switch(t.expr) {

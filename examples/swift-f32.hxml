@@ -8,7 +8,7 @@
 -cp src/reflaxe/swift
 -cp samples
 -cp tools/registry/src
---macro Intercept.run(['samples', 'tools/registry/src'], ['samples/boring/BinaryReader.hx', 'samples/boring/BinaryWriter.hx', 'samples/boring/Fp32.hx'])
+--macro Intercept.run(['samples', 'tools/registry/src'])
 --macro haxe.macro.Compiler.addGlobalMetadata('boring', '@:build(std.RecordMember.build())')
 --macro swiftcompiler.Compiler.use()
 -D swift-output=reference/swift-f32/gen
@@ -19,6 +19,7 @@
 -D float-precision=f32
 boring.BinaryReader
 boring.BinaryWriter
+boring.Int64Ops
 boring.Fp32
 boring.Fp16
 boring.GlyphMetrics
@@ -44,6 +45,7 @@ runtime.Graphemes
 runtime.SortedTable
 runtime.TestCore
 tests.TestData
+tests.Int64Tests
 tests.VectorCodecTests
 tests.Fp32Tests
 tests.Fp16Tests

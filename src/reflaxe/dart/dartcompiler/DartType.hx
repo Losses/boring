@@ -48,6 +48,7 @@ class DartType {
 					case "Null": wrapOptional(of(params[0]));
 					case "haxe.ds.Map" if(params.length == 2): "Map<" + of(params[0]) + ", " + of(params[1]) + ">";
 					case "std.ReadOnlyArray": "List<" + of(params[0]) + ">";
+					case "haxe.Int64": "int";
 					case _: of(abs.type);
 				}
 			case TInst(c, params):
@@ -56,7 +57,9 @@ class DartType {
 					case "String": "String";
 					case "std.StringBuf" | "StringBuf": "List<int>";
 					case "Array": "List<" + of(params[0]) + ">";
-					case "haxe.io.Bytes": "List<int>";
+					case "haxe.io.Bytes":
+						imports.useTypedData();
+						"Uint8List";
 					case "haxe.io.BytesBuffer": "List<int>";
 					case "std.SortedMap": runtimeTypeRef("SortedMapTable", params);
 					case "std.SortedMapBuilder": runtimeTypeRef("SortedMapTableBuilder", params);
@@ -70,7 +73,8 @@ class DartType {
 			case TType(def, params):
 				final d = def.get();
 				if(d.pack.join(".") == "haxe.io" && d.name == "Bytes") {
-					"List<int>";
+					imports.useTypedData();
+					"Uint8List";
 				} else if(d.pack.length == 0 && d.name == "Map" && params.length == 2) {
 					"Map<" + of(params[0]) + ", " + of(params[1]) + ">";
 				} else if(RuntimeResidents.isResident(d.module) && params.length > 0) {
@@ -142,7 +146,9 @@ class DartType {
 					case "String": "String";
 					case "std.StringBuf" | "StringBuf": "List<int>";
 					case "Array": "List<" + ofSubstituted(params2[0], params, args) + ">";
-					case "haxe.io.Bytes": "List<int>";
+					case "haxe.io.Bytes":
+						imports.useTypedData();
+						"Uint8List";
 					case _:
 						for(i in 0...params.length) {
 							if(params[i].name == cls.name) {
