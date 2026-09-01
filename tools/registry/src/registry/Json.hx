@@ -145,7 +145,9 @@ private class Reader {
 				else if(e=='t') { out+='\t'; }
 				else if(e=='u') {
 					var h=text.substr(p,4); if(h.length<4) fail();
-					out+=String.fromCharCode(Std.parseInt("0x"+h));
+					var code:Null<Int>=Std.parseInt("0x"+h);
+					if(code==null) code=0;
+					out+=String.fromCharCode(code);
 					p = p + 4;
 				}
 				else fail();
