@@ -112,6 +112,12 @@ class TsImports {
 		if(names != null) {
 			names.set(name, true);
 		}
+		if(into == valueNames) {
+			// Value imports are the ones needing a runtime binding when
+			// the target module holds only externs; the writer consults
+			// the registry (ExternBindings).
+			ExternBindings.note(module, name);
+		}
 	}
 
 	/**

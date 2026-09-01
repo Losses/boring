@@ -1120,12 +1120,15 @@ class TsExpr {
 				return "String." + name;
 			case "Math":
 				if(name == "NaN") return "Number.NaN";
+				if(name == "isNaN") return "Number.isNaN";
 				if(name == "POSITIVE_INFINITY") return "Infinity";
 				if(name == "NEGATIVE_INFINITY") return "-Infinity";
 				return "Math." + name;
 			case "Std":
 				if(name == "int") return "Math.trunc";
 				if(name == "string") return "String";
+				if(name == "parseFloat") return "Number.parseFloat";
+				if(name == "parseInt") return "Number.parseInt";
 				return "Std." + name;
 			case "haxe.io.FPHelper":
 				// stdlib/05: the bit conversions live in the runtime module.
@@ -1499,6 +1502,18 @@ class TsExpr {
 					};
 					if(endOmitted) {
 						return expr(subj) + ".substring(" + expr(args[0]) + ")";
+					}
+				}
+				if(name == "indexOf" && isStringSubject(subj) && args.length == 2) {
+					// The same synthesized null arrives for an omitted
+					// ?pos; String.prototype.indexOf types its second
+					// parameter as number, and a null argument fails
+					// strict typechecking, so the null is dropped and
+					// the one-argument overload searches from the start.
+					switch(stripWrap(args[1]).expr) {
+						case TConst(TNull):
+							return expr(subj) + ".indexOf(" + expr(args[0]) + ")";
+						case _:
 					}
 				}
 				return expr(subj) + "." + name + "(" + rendered + ")";
