@@ -4,7 +4,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 
-const ROOT = path.resolve(import.meta.dir, "../..");
+const ROOT = path.resolve(import.meta.dir, "../../..");
 const BASE = "https://registry.example.test/root";
 const SCOPE = "acme";
 let fixtureBase = "https://assets.example.test";

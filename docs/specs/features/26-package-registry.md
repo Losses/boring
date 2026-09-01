@@ -48,7 +48,7 @@ target, and the tool runs under bun through a two-line launcher that
 imports the generated entry module and calls its `main`. Ruling 11
 binds the shape. The repository ships no TypeScript implementation of
 the generator; the TypeScript that remains is the launcher and the
-tests under `tests/ts/`, which spawn the compiled tool.
+tests under `tools/registry/tests/`, which spawn the compiled tool.
 
 The registry is public and read-only. No ecosystem's publish or upload
 endpoint exists on the site. The reference host is Cloudflare Pages:
@@ -442,7 +442,7 @@ consumer.
 - The tests run `haxe tools/registry/compile.hxml` first, so every
   test spawns `bun tools/registry/run.ts`, the artifact a deployment
   runs, and a stale compiled tool fails the run at its first command.
-- `tests/ts/package-registry.test.ts` builds a fixture metadata tree
+- `tools/registry/tests/package-registry.test.ts` builds a fixture metadata tree
   in a temp directory: one owner holding two repositories, a
   five-platform repository at two versions and a single-platform
   repository at one version, each repository with a `README.md`, the
