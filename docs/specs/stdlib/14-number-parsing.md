@@ -103,7 +103,7 @@ exact Haxe results above.
    | Kotlin | Calls the emitted `std.NumberParsing` shim (validation patterns are constructed once at program startup). |
    | Swift | Calls the emitted `std.NumberParsing` shim (validation patterns are constructed once at program startup). |
    | Dart | Calls the emitted `std.NumberParsing` shim (validation patterns are constructed once at program startup). |
-   | Rust | `s.parse::<f64>().unwrap_or(f64::NAN)` |
+   | Rust | the six-character trim, a single-pass whole-token grammar scan over the bytes, then `t.parse::<f64>().unwrap_or(f64::NAN)` (`f32` in the f32 configuration). |
 
    The fallback is observable as the required NaN only for a failed parse;
    valid calls do not use it. The f32 configurations retain the Haxe Float
@@ -118,13 +118,19 @@ exact Haxe results above.
    | Kotlin | Calls the emitted `std.NumberParsing` shim (validation patterns are constructed once at program startup). |
    | Swift | Calls the emitted `std.NumberParsing` shim (validation patterns are constructed once at program startup). |
    | Dart | Calls the emitted `std.NumberParsing` shim (validation patterns are constructed once at program startup). |
-   | Rust | validated decimal form through `s.parse::<i32>()`, or validated hex digits through `i32::from_str_radix(digits, 16)`; failure is `None` in `Option<i32>` |
+   | Rust | the six-character trim, a sign split, and a `0x`/`0X` prefix test, then decimal or radix-16 parsing through `i64` with the Haxe `Int` bounds checked before `as i32`; failure is `None` in `Option<i32>` |
 
    The nullable forms are the complete-domain rule: no caller in the shared
    domain observes a fabricated zero, a wrapped integer, or a thrown parse
    exception. Rust uses `Option<i32>` because `Null<Int>` has no integer
    sentinel representation. Hex input is passed to a radix-16 conversion
    only after the validator has established the exact prefix and digits.
+   The signed `Option<i32>` result is exempt from the module-kind Int
+   domain of `docs/specs/features/14-type-system-mapping.md`: every other
+   business `Null<Int>` renders `Option<u32>`, and a function whose body
+   directly returns this lowering is the one business form that carries
+   the signed result type; storing a parse result into any other business
+   `Int` position is outside the translatable subset.
 
 4. `Math.isNaN(x)` is a predicate over a `Float` and renders as follows:
 
