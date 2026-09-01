@@ -649,8 +649,8 @@ class Compiler extends PluginCompiler<Compiler> {
 		Writes one resident runtime module into the runtime-emit
 		directory. The
 		module compiled through the normal typed pipeline like a business
-		module; its output lands beside the runtime shims instead of the
-		business tree. The extern that fronts the resident set gates the
+		module; its output is written beside the runtime shims in the
+		runtime tree. The resident module is separate from the business tree. The extern that fronts the resident set gates the
 		emission the way shim usage gates the shims, so an unreferenced
 		runtime stays out of the output.
 	**/
@@ -763,7 +763,7 @@ class Compiler extends PluginCompiler<Compiler> {
 		property then spreads to callers through call edges until nothing
 		changes. Each fallible function carries the error enum it can
 		produce, so Result-returning callers lower with the right error
-		type instead of a global assumption.
+		type.
 	**/
 	function scanFallibility(mtypes: Array<haxe.macro.Type.ModuleType>): Void {
 		final fallible = new Map<String, Bool>();

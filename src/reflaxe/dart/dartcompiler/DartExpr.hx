@@ -2542,7 +2542,7 @@ class DartExpr {
 		The payload positions one arm reads. The typer binds every pattern
 		variable through a hidden extraction local and, when the pattern
 		names it, a forwarding declaration whose initializer is that local
-		alone; a bare chain reference is the binding, not a use. A position
+		alone; a bare chain reference binds the name. A position
 		counts as read only when the arm references the name it binds.
 		Unread positions drop their subpatterns entirely.
 	**/
@@ -2744,8 +2744,8 @@ class DartExpr {
 
 	function markMutated(v: TVar): Void {
 		mutated.set(v.id, true);
-		// Parameter writes surface by name only: the declaration site
-		// holds the argument list, not the body's TVar objects.
+		// Parameter writes are recorded by name; the declaration site
+		// holds the argument list and the body's TVar objects are separate.
 		if(v.name != "`") {
 			mutatedNames.set(v.name, true);
 		}

@@ -1839,7 +1839,7 @@ class KotlinExpr {
 					// The haxe typer passes a synthesized null for an
 					// omitted ?endIndex; the platform one-argument
 					// overload is the suffix call, so the null argument
-					// is dropped instead of rendered.
+					// is omitted from the rendered call.
 					final endOmitted = args.length < 2 || switch(stripWrap(args[1]).expr) {
 						case TConst(TNull): true;
 						case _: false;
