@@ -115,10 +115,10 @@ boring.NumberClassifyOps
 tests.NumberClassifyTests
 tests.ArrayRootTests
 
-registry.Core
-registry.Json
-registry.Semver
-registry.Sha1
+registry.Core.Core
+registry.Json.Json
+registry.Semver.Semver
+registry.Sha1.Sha1
 registry.Release
 tests.RegistrySha1Tests
 tests.RegistryJsonTests

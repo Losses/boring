@@ -1,6 +1,10 @@
 package tests;
 
 import registry.Core;
+import registry.Core.CoreException;
+import registry.Core.InputRecord;
+import registry.Core.OutputFile;
+import registry.Core.RegistryConfig;
 import std.Test;
 
 class RegistryPipelineTests {
@@ -26,7 +30,3 @@ class RegistryPipelineTests {
   for(i in 0...expected.length) { Test.equals(expected[i].path, files[i].path); Test.equals(expected[i].content, files[i].content); }
  }
 }
-
-typedef InputRecord = registry.Core.InputRecord;
-typedef RegistryConfig = registry.Core.RegistryConfig;
-typedef OutputFile = registry.Core.OutputFile;
