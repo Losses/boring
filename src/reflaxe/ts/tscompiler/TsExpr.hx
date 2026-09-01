@@ -1120,12 +1120,15 @@ class TsExpr {
 				return "String." + name;
 			case "Math":
 				if(name == "NaN") return "Number.NaN";
+				if(name == "isNaN") return "Number.isNaN";
 				if(name == "POSITIVE_INFINITY") return "Infinity";
 				if(name == "NEGATIVE_INFINITY") return "-Infinity";
 				return "Math." + name;
 			case "Std":
 				if(name == "int") return "Math.trunc";
 				if(name == "string") return "String";
+				if(name == "parseFloat") return "Number.parseFloat";
+				if(name == "parseInt") return "Number.parseInt";
 				return "Std." + name;
 			case "haxe.io.FPHelper":
 				// stdlib/05: the bit conversions live in the runtime module.
