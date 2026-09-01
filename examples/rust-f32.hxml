@@ -7,7 +7,8 @@
 -cp src/reflaxe/rust/std-shadow
 -cp src/reflaxe/rust
 -cp samples
---macro Intercept.run(['samples'], ['samples/boring/BinaryReader.hx', 'samples/boring/BinaryWriter.hx', 'samples/boring/Fp32.hx'])
+-cp tools/registry/src
+--macro Intercept.run(['samples', 'tools/registry/src'], ['samples/boring/BinaryReader.hx', 'samples/boring/BinaryWriter.hx', 'samples/boring/Fp32.hx'])
 --macro haxe.macro.Compiler.addGlobalMetadata('boring', '@:build(std.RecordMember.build())')
 --macro rustcompiler.Compiler.use()
 -D rust-output=reference/rust-f32-gen/src
@@ -110,3 +111,12 @@ boring.ArrayRootStateOps
 boring.NumberParsingOps
 tests.NumberParsingTests
 tests.ArrayRootTests
+
+registry.Core
+registry.Json
+registry.Semver
+registry.Sha1
+registry.Release
+tests.RegistrySha1Tests
+tests.RegistryJsonTests
+tests.RegistrySemverTests
