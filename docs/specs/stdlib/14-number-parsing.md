@@ -13,8 +13,10 @@ result from `Std.parseInt` is not a valid operand for it.
 
 ## Contract
 
-`Std.parseFloat(s)` trims leading and trailing ASCII whitespace and parses the
-whole remaining token. The accepted grammar is:
+`Std.parseFloat(s)` trims leading and trailing exactly these six characters: space,
+`\t`, `\n`, `\v` (U+000B), `\f` (U+000C), and `\r`, and parses the whole
+remaining token. No other character is trimmed, including non-ASCII whitespace
+and the other control characters. The accepted grammar is:
 
 ```
 float  := sign? (digits ("." digits?)? | "." digits) exponent?
@@ -25,14 +27,14 @@ digits := [0-9]+
 
 The token must contain at least one digit, and an exponent must contain at
 least one digit. Thus `1`, `-1.25`, `+1.`, `.5`, `1e3`, and `-1.25E+2`
-are valid. Hexadecimal prefixes, `Infinity`, `NaN`, and non-ASCII whitespace
-are not part of this grammar. Empty, whitespace-only, malformed, and partial
+are valid. Hexadecimal prefixes, `Infinity`, `NaN`, and whitespace outside the
+six-character set above are not part of this grammar. Empty, whitespace-only, malformed, and partial
 tokens such as `12x`, `0x10`, `1e`, and `+.` fail. A valid token whose
 magnitude exceeds the target floating-point range follows the target's IEEE
 conversion, including infinity; it is not a syntax failure.
 
-`Std.parseInt(s)` trims the same ASCII whitespace and parses the whole
-remaining token as a signed base-10 integer. Its decimal grammar is:
+`Std.parseInt(s)` trims the same six characters and parses the whole remaining
+token as a signed base-10 integer. Its decimal grammar is:
 
 ```
 integer := sign? digits
@@ -50,7 +52,10 @@ hexDigits := [0-9a-fA-F]+
 The prefix is part of the token; it does not request decimal-prefix parsing.
 `12x`, `0x10z`, `0x`, `--1`, a decimal point, an exponent, and an empty or
 whitespace-only token fail. A value outside the Haxe `Int` range also fails;
-there is no truncation or wrapping. On success the result is an `Int`; on
+decimal and hexadecimal values are uniformly converted through a 64-bit integer
+before the Haxe `Int` bounds are checked. In particular, `-0x80000000` is valid
+and produces `-2147483648`; there is no truncation or wrapping. On success the
+result is an `Int`; on
 failure the Haxe return value is `Null<Int>` and is `null`.
 
 `Std.parseFloat` returns a `Float`, using `Math.NaN` as its exact failure
@@ -77,6 +82,7 @@ failure without a thrown exception.
 | --- | --- | --- | --- | --- |
 | Validate the complete token, then use one native numeric conversion | One scan plus the target conversion; no exception is used for an expected miss. | The grammar and failure result are explicit and identical on every target. | The validator is the one shared-domain boundary; native arithmetic remains native. | The call site shows parsing while the contract explains the guard. |
 | Call each target's permissive parser directly | Often one call. | Partial tokens, prefixes, whitespace, and overflow differ by target. | Every caller would need its own post-checks. | A short expression hides incompatible failure behavior. |
+| Construct a regular expression inline at each call site | Rejected: Kotlin's `Pattern.compile` has no process-wide cache, so every call recompiles the pattern. | No ambiguity benefit. | Duplicates validation work. | Hides the performance cost. |
 | Throw on invalid input | No nullable result allocation on some targets. | Expected invalid input becomes exception control flow. | Callers duplicate recovery logic and lose the Haxe result type. | It contradicts `Null<Int>` and the NaN failure contract. |
 
 ## Ruling
@@ -94,9 +100,9 @@ exact Haxe results above.
    | Target | Rendering |
    | --- | --- |
    | TypeScript | `Number.parseFloat(s)` with the complete-token validation result guarding the call; failure is `Number.NaN`. |
-   | Kotlin | `s.toDoubleOrNull() ?: Double.NaN` |
-   | Swift | `Double(s) ?? .nan` |
-   | Dart | `double.tryParse(s) ?? double.nan` |
+   | Kotlin | Calls the emitted `std.NumberParsing` shim (validation patterns are constructed once at program startup). |
+   | Swift | Calls the emitted `std.NumberParsing` shim (validation patterns are constructed once at program startup). |
+   | Dart | Calls the emitted `std.NumberParsing` shim (validation patterns are constructed once at program startup). |
    | Rust | `s.parse::<f64>().unwrap_or(f64::NAN)` |
 
    The fallback is observable as the required NaN only for a failed parse;
@@ -109,9 +115,9 @@ exact Haxe results above.
    | Target | Rendering |
    | --- | --- |
    | TypeScript | validated decimal or hex form through `Number.parseInt(s, 10)` or the explicitly validated hex form; failure is `null`. |
-   | Kotlin | validated decimal form through `s.toIntOrNull()`, or validated hex digits through `s.removePrefix("0x").removePrefix("0X").toIntOrNull(16)`; failure is `null` in `Int?` |
-   | Swift | validated decimal form through `Int(s)`, or validated hex digits through `Int(digits, radix: 16)`; failure is `nil` in `Int?` |
-   | Dart | validated decimal form through `int.tryParse(s)`, or validated hex digits through `int.tryParse(digits, radix: 16)`; failure is `null` |
+   | Kotlin | Calls the emitted `std.NumberParsing` shim (validation patterns are constructed once at program startup). |
+   | Swift | Calls the emitted `std.NumberParsing` shim (validation patterns are constructed once at program startup). |
+   | Dart | Calls the emitted `std.NumberParsing` shim (validation patterns are constructed once at program startup). |
    | Rust | validated decimal form through `s.parse::<i32>()`, or validated hex digits through `i32::from_str_radix(digits, 16)`; failure is `None` in `Option<i32>` |
 
    The nullable forms are the complete-domain rule: no caller in the shared
