@@ -190,7 +190,7 @@ class DartType {
 		Type parameter substitution, the structure-preserving counterpart
 		of `ofSubstituted`: rebuilds a type with its parameters replaced
 		by applied arguments so a nested alias application carries real
-		types, not rendered text.
+		types, with no rendered-text substitution.
 	**/
 	static function substituteType(t: Type, params: Array<TypeParameter>, args: Array<Type>): Type {
 		return switch(t) {
