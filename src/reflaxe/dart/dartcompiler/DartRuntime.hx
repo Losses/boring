@@ -17,7 +17,17 @@ package dartcompiler;
 class DartRuntime {
 	public static final SOURCE = "
 
-/// The two 32-bit halves of a binary64 value (stdlib/05). The halves
+class NumberParsing {
+  static final RegExp _floatText = RegExp(r'^[+-]?(?:[0-9]+(?:\\.[0-9]*)?|\\.[0-9]+)(?:[eE][+-]?[0-9]+)?$');
+  static final RegExp _intText = RegExp(r'^[+-]?[0-9]+$');
+  static final RegExp _hexText = RegExp(r'^[+-]?0[xX][0-9a-fA-F]+$');
+  static bool _space(String c) => c == ' ' || c == '\\t' || c == '\\n' || c == '\\v' || c == '\\f' || c == '\\r';
+  static String _trim(String s) { var a = 0, b = s.length; while (a < b && _space(s[a])) a++; while (b > a && _space(s[b - 1])) b--; return s.substring(a, b); }
+  static double parseFloat(String s) { final t = _trim(s); return _floatText.hasMatch(t) ? (double.tryParse(t) ?? double.nan) : double.nan; }
+  static int? parseInt(String s) { final t = _trim(s); if (_intText.hasMatch(t)) { final n = int.tryParse(t); return n == null || n < -2147483648 || n > 2147483647 ? null : n; } if (_hexText.hasMatch(t)) { final neg = t.startsWith('-'); final d = t.substring(neg || t.startsWith('+') ? 3 : 2); final n = int.tryParse(d, radix: 16); if (n == null) return null; final v = neg ? -n : n; return v >= -2147483648 && v <= 2147483647 ? v : null; } return null; }
+}
+
+
 /// carry the bit patterns as the signed halves the codec boundaries
 /// read, recombined through a typed view at the float edge.
 class Int64Halves {

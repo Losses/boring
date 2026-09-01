@@ -212,6 +212,7 @@ class Compiler extends PluginCompiler<Compiler> {
 			}
 		}
 
+		emitShim("std.NumberParsing", "NumberParsing.kt", KotlinRuntime.numberParsingSource());
 		emitShim("haxe.io.FPHelper", "FPHelper.kt", KotlinRuntime.FP_HELPER_SOURCE);
 		emitShim("haxe.io.BytesBuffer", "BytesBuffer.kt", KotlinRuntime.BYTES_BUFFER_SOURCE);
 		emitShim("std.Console", "Console.kt", KotlinRuntime.CONSOLE_SOURCE);

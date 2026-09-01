@@ -65,6 +65,33 @@ object FPHelper {
 }
 ";
 
+	public static function numberParsingSource(): String {
+		final real = FloatPrecision.isF32() ? "Float" : "Double";
+		final nan = FloatPrecision.isF32() ? "Float.NaN" : "Double.NaN";
+		final parse = FloatPrecision.isF32() ? "toFloatOrNull" : "toDoubleOrNull";
+		return 'object NumberParsing {
+    private val floatText = Regex("^[+-]?(?:[0-9]+(?:\\\\.[0-9]*)?|\\\\.[0-9]+)(?:[eE][+-]?[0-9]+)?$")
+    private val intText = Regex("^[+-]?[0-9]+$")
+    private val hexText = Regex("^[+-]?0[xX][0-9a-fA-F]+$")
+    fun parseFloat(s: String): ${real} {
+        val t = s.trim(\' \', \'\\t\', \'\\n\', \'\\r\', \'\\u000B\', \'\\u000C\')
+        return if (floatText.matches(t)) t.${parse}() ?: ${nan} else ${nan}
+    }
+    fun parseInt(s: String): Int? {
+        val t = s.trim(\' \', \'\\t\', \'\\n\', \'\\r\', \'\\u000B\', \'\\u000C\')
+        if (intText.matches(t)) return t.toIntOrNull()
+        if (hexText.matches(t)) {
+            val negative = t.startsWith("-")
+            val d = if (negative || t.startsWith("+")) t.drop(3) else t.drop(2)
+            val n = d.toLongOrNull(16) ?: return null
+            val signed = if (negative) -n else n
+            return if (signed >= -2147483648L && signed <= 2147483647L) signed.toInt() else null
+        }
+        return null
+    }
+}
+';
+	}
 	public static final CONSOLE_SOURCE = "object Console {
     fun log(message: String) {
         println(message)
