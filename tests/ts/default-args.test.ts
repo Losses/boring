@@ -30,6 +30,13 @@ describe("default argument expansion generated tree", () => {
     expect(content).toContain("public static staticFieldSample(value: number, bound: number = StaticStateOps.limit): number");
     expect(content).toContain("public static binarySample(value: number, offset: number = value + 1): number");
 
+    // A coalescing default reading an earlier coalescing parameter keeps
+    // native defaults; omitting call sites stay omitted.
+    expect(content).toContain("public static chainedCoalescing(fallback: number = 2.5, value: number = fallback): number");
+    expect(content).toContain("export class ChainedPaint");
+    expect(content).toContain("constructor(radius: number = 0.0, followRadius: number = radius)");
+    expect(content).toContain("return DefaultArgsOps.chainedCoalescing();");
+
     // Coalescing defaults stay native on TypeScript and are omitted at their
     // call sites; their empty containers remain expression-valued.
     expect(content).toContain("constructor(familyNames: string[] = [])");
@@ -77,6 +84,11 @@ describe("default argument expansion generated tree", () => {
     expect(content).toContain("fun staticFieldSample(value: Int, bound: Int = StaticStateOps.limit): Int");
     expect(content).toContain("fun binarySample(value: Int, offset: Int = value + 1): Int");
     expect(content).toContain("fun dependenceEarlier(a: String, b: String = a): String");
+
+    // A coalescing default reading an earlier coalescing parameter keeps
+    // native defaults on the function and the primary constructor field.
+    expect(content).toContain("fun chainedCoalescing(fallback: Double = 2.5, value: Double = fallback): Double");
+    expect(content).toContain("class ChainedPaint(var radius: Double = 0.0, var followRadius: Double = radius)");
 
     // Kotlin receives native defaults for the sanctioned coalescing class.
     expect(content).toContain("class DefaultArgsOps(var familyNames: MutableList<String> = mutableListOf<String>())");
@@ -150,6 +162,13 @@ describe("default argument expansion generated tree", () => {
     expect(content).toContain("return local_add(x, 100);");
     expect(content).toContain("return local_add(x, 200);");
     expect(content).toContain('return greeter.say(&"Sam", &"User");');
+
+    // A coalescing default reading an earlier coalescing parameter enters
+    // after the earlier parameter's entry binding.
+    expect(content).toContain("pub fn chained_coalescing(fallback: Option<f64>, value: Option<f64>) -> f64");
+    expect(content).toContain("let fallback = fallback.unwrap_or_else(|| 2.5);");
+    expect(content).toContain("let value = value.unwrap_or_else(|| fallback);");
+    expect(content).toContain("let follow_radius = follow_radius.unwrap_or_else(|| radius);");
   });
 
   test("Swift generated tree lowers parameter-reading coalescing defaults in the body", () => {
@@ -173,6 +192,10 @@ describe("default argument expansion generated tree", () => {
     expect(content).toContain("static func staticFieldSample(_ value: Int32, _ bound: Int32 = StaticStateOps.limit) -> Int32");
     expect(content).toContain("var offset = offset ?? value + 1;");
     expect(content).toContain("var b = b ?? a;");
+    expect(content).toContain("static func chainedCoalescing(_ fallback: Double = 2.5, _ value: Double? = nil) -> Double");
+    expect(content).toContain("var value = value ?? fallback;");
+    expect(content).toContain("init(_ radius: Double = 0.0, _ followRadius: Double? = nil)");
+    expect(content).toContain("var followRadius = followRadius ?? radius;");
   });
 
   test("Dart generated tree normalizes coalescing defaults in the body", () => {
@@ -200,5 +223,7 @@ describe("default argument expansion generated tree", () => {
     expect(content).toContain("final int normalized = bound ?? static_state_ops.limit;");
     expect(content).toContain("final int result = offset ?? value + 1;");
     expect(content).toContain("final String normalized = b ?? a;");
+    expect(content).toContain("final double resolvedValue = value ?? (fallback ?? 2.5);");
+    expect(content).toContain("this.followRadius = followRadius ?? (radius ?? 0.0);");
   });
 });

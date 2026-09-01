@@ -145,7 +145,16 @@ class DartExpr {
 			case CEnum(enumRef, enumField):
 				final en = enumRef.get();
 				isValueEnum(en) ? en.name + "." + DartDecl.lowerFirst(enumField.name) : en.name + enumField.name + "()";
-			case CParameterRead(name): name;
+			case CParameterRead(name):
+				// Spec 22, Evaluation ordering: a read of an earlier coalescing
+				// parameter resolves through that parameter's own default, so
+				// the raw nullable binding wraps in its default here.
+				final earlier = currentClass != null && currentField != null
+					? (currentLocalName != null
+						? DefaultArgExpander.coalescingDefaultForLocalParam(currentClass, currentField, currentLocalName, name)
+						: DefaultArgExpander.coalescingDefaultForParam(currentClass, currentField, name))
+					: null;
+				earlier != null ? "(" + name + " ?? " + coalescingDefaultText(earlier, targetType) + ")" : name;
 			case CFieldAccess(CParameterRead(staticPath), ""): coalescingStaticFieldText(staticPath);
 			case CFieldAccess(receiver, fieldName): coalescingDefaultText(receiver, targetType) + "." + fieldName;
 			case CMethodCall(receiver, methodName, args):

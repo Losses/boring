@@ -422,7 +422,13 @@ class SwiftDecl {
 			// construction sites pick up the try marker from the
 			// fallibility machinery.
 			final ctorThrows = SwiftFallibility.isThrowing(module, "new", false) ? " throws" : "";
-			return withParamShadows(["    init" + paramList(cls, f) + ctorThrows + " {"], body, cast f.args).concat(["    }"]);
+			// A constructor parameter whose coalescing default reads an
+			// earlier parameter carries `T? = nil` in the parameter list
+			// (paramList), so the body needs the same entry shadow the
+			// method form emits; the field assignment then reads the
+			// normalized value.
+			final normLines = coalescingBodyNormalizationLines(cls, f);
+			return withParamShadows(["    init" + paramList(cls, f) + ctorThrows + " {"], normLines.concat(body), cast f.args).concat(["    }"]);
 		}
 		for(a in f.args) {
 			expr.reserveName(a.name);

@@ -171,14 +171,26 @@ A default expression that reads an earlier parameter reads its normalized
 value, the value after that parameter's own constant completion or
 coalescing site. The coalescing sites of one function emit in parameter
 order, so a later site observes the earlier site's result and never the
-raw nullable binding of an earlier coalescing parameter. A read of an
+raw nullable binding of an earlier coalesced parameter. A read of an
 earlier parameter inside the default expression of a later parameter is a
 sanctioned use; the consumed-more-than-once rejection keeps governing the
-defaulted parameter of each site alone. Kotlin and TypeScript native
+defaulted parameter of each site alone, and a read located inside the
+default expression of another registered site of the same function does
+not count toward that rejection. Kotlin and TypeScript native
 defaults provide the same ordering from the language semantics of default
 expressions. The dependence is observable: two omitting calls whose
 earlier arguments differ resolve their defaulted parameter differently,
-and the consistency run pins this.
+and the consistency run pins this. When every parameter of such a chain
+is omitted at one call, the later parameter resolves through the earlier
+parameter's own default; the consistency run pins this corner too.
+
+On Haxe stage 1 the body reads the raw nullable binding of the earlier
+parameter, so the registration pass rewrites each read of an earlier
+coalesced parameter inside a later site's default expression into the
+inline normalization `p == null ? E : p`, with `E` a copy of the earlier
+site's default expression. The rewrite touches only the
+default-expression subtrees inside the sites, leaves the registered
+values unchanged, and therefore changes no generated target output.
 
 ### Per-target deltas
 
@@ -194,13 +206,20 @@ and the consistency run pins this.
   assignment writing the field. When `E` reads static fields and closed
   constants only, the native default stays, because those expressions are
   valid Swift default arguments.
-- Dart: unchanged. Every coalescing default already lowers the site as
-  body normalization, and an `E` in expression position over earlier
-  parameters evaluates at each omitting call.
+- Dart: the site stays the body normalization `p ?? E;` from the base
+  ruling. When `E` reads an earlier parameter that itself holds a
+  coalescing default, the parameter binding in the body is still the raw
+  nullable one, so the read renders as `(q ?? Eq)`, the earlier
+  parameter's name wrapped in its own default; the wrap applies
+  recursively when the earlier default reads a coalesced parameter in
+  turn.
 - Rust: unchanged. The entry binding `let p = p.unwrap_or_else(|| E);`
   holds; the closure reads earlier parameters, which the
   parameter-ordered entries have already unwrapped.
-- Haxe stage 1: the site is the semantics itself; no adaptation.
+- Haxe stage 1: the site is the semantics itself. A site whose default
+  reads an earlier coalesced parameter additionally receives the inline
+  normalization rewrite of the Evaluation ordering section, because plain
+  Haxe execution would otherwise read the raw nullable binding.
 
 ### Extension test hooks
 
@@ -211,11 +230,19 @@ and the consistency run pins this.
 - A dependence assertion calls the same function twice with the same
   omission and different earlier arguments and observes different
   resolved values.
+- A chain sample holds two coalescing parameters whose later default
+  reads the earlier one, and call helpers omit both arguments, omit only
+  the later argument, and pass both; the observable values pin the
+  both-omitted corner, where the later parameter resolves through the
+  earlier parameter's default. A constructor sample holds the same chain
+  over two field parameters of one class.
 - Tree assertions: the TypeScript and Kotlin trees carry the native
   default with the expression; the Swift tree carries the
   body-normalization form for parameter-reading expressions and the
   native default for static-field-only expressions; the Rust tree
-  carries the entry closure reading the earlier unwrapped parameter.
+  carries the entry closure reading the earlier unwrapped parameter; the
+  Dart tree of the chain sample carries the `(q ?? Eq)` wrap at the read
+  of the earlier coalescing parameter.
 - Mutation checks: rewriting an expression to read a later parameter
   triggers `coalesced default expression may reference earlier parameters
   only`; inserting an unrecognized node keeps `coalesced default

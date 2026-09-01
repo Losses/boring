@@ -241,4 +241,41 @@ class DefaultArgsOps {
 	public static function callDependenceB():String {
 		return dependenceEarlier("beta");
 	}
+
+	/**
+		Chain over two coalescing parameters: the later default reads the
+		earlier parameter, and both parameters may be omitted at one call.
+	*/
+	public static function chainedCoalescing(?fallback:Float, ?value:Float):Float {
+		var resolvedFallback = fallback == null ? 2.5 : fallback;
+		var resolvedValue = value == null ? fallback : value;
+		return resolvedFallback + resolvedValue;
+	}
+
+	public static function callChainedBothOmitted():Float {
+		return chainedCoalescing();
+	}
+
+	public static function callChainedLaterOmitted():Float {
+		return chainedCoalescing(3.5);
+	}
+
+	public static function callChainedBothGiven():Float {
+		return chainedCoalescing(1.5, 8.0);
+	}
+}
+
+/**
+	Constructor chain over two coalescing field parameters, the
+	RichTextBackgroundPaint shape of the engine port: the later parameter
+	defaults to the earlier one.
+*/
+class ChainedPaint {
+	public var radius:Float;
+	public var followRadius:Float;
+
+	public function new(?radius:Float, ?followRadius:Float) {
+		this.radius = radius == null ? 0.0 : radius;
+		this.followRadius = followRadius == null ? radius : followRadius;
+	}
 }
