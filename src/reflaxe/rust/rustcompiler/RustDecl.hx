@@ -916,7 +916,7 @@ class RustDecl {
 		}
 		expr.setFallible(isFallible, errOwner != null ? errOwner.name : null, errOwner != null && errOwner.hasOverflow ? state.overflowVariant : null);
 
-		final rawRetType = (cls.name == "NumberParsingOps" && f.field.name == "parseInt") ? "Option<i32>" : (returnsArgArray(f) ? types.of(f.ret, true) : types.functionReturnOf(f.ret));
+		final rawRetType = returnsArgArray(f) ? types.of(f.ret, true) : types.functionReturnOf(f.ret);
 		final retType = isFallible ? 'Result<$rawRetType, ${errOwner.name}>' : rawRetType;
 		final ret = retType == "()" ? "" : " -> " + retType;
 		final vis = f.field.isPublic ? "pub " : "";
