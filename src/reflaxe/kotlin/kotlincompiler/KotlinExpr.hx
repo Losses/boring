@@ -1714,8 +1714,11 @@ class KotlinExpr {
 				}
 				if(cls.module == "Math" && name == "isNaN") return "(" + expr(args[0]) + ").isNaN()";
 				if(cls.module == "Std" && (name == "parseFloat" || name == "parseInt") && args.length == 1) {
-					imports.requireType("std.NumberParsing", "NumberParsing");
-					return "NumberParsing." + name + "(" + expr(args[0]) + ")";
+					final s = expr(args[0]);
+					final real = FloatPrecision.isF32() ? "Float" : "Double";
+					final nan = FloatPrecision.isF32() ? "Float.NaN" : "Double.NaN";
+					if(name == "parseFloat") return "run { val s = " + s + "; val t = s.trim(' ', '\\t', '\\n', '\\r', '\\u000B', '\\u000C'); var i = 0; if (i < t.length && (t[i] == '+' || t[i] == '-')) i++; val before = i; while (i < t.length && t[i] in '0'..'9') i++; val hasBefore = i > before; var hasAfter = false; if (i < t.length && t[i] == '.') { i++; val start = i; while (i < t.length && t[i] in '0'..'9') i++; hasAfter = i > start } else if (!hasBefore) return@run " + nan + "; if (!hasBefore && !hasAfter) return@run " + nan + "; if (i < t.length && (t[i] == 'e' || t[i] == 'E')) { i++; if (i < t.length && (t[i] == '+' || t[i] == '-')) i++; val start = i; while (i < t.length && t[i] in '0'..'9') i++; if (i == start) return@run " + nan + " }; if (i != t.length) " + nan + " else t." + (FloatPrecision.isF32() ? "toFloatOrNull() ?: Float.NaN" : "toDoubleOrNull() ?: Double.NaN") + " }";
+					return "run { val s = " + s + "; val t = s.trim(' ', '\\t', '\\n', '\\r', '\\u000B', '\\u000C'); val neg = t.startsWith(\"-\"); val sign = if (neg || t.startsWith(\"+\")) 1 else 0; val d = if (t.drop(sign).startsWith(\"0x\") || t.drop(sign).startsWith(\"0X\")) t.drop(sign + 2) else t.drop(sign); val hex = t.drop(sign).startsWith(\"0x\") || t.drop(sign).startsWith(\"0X\"); if (!hex) { var i = sign; val start = i; while (i < t.length && t[i] in '0'..'9') i++; if (i != t.length || i == start) null else t.toIntOrNull() } else { var i = 0; while (i < d.length && d[i] in '0'..'9' || i < d.length && d[i] in 'a'..'f' || i < d.length && d[i] in 'A'..'F') i++; if (i != d.length || d.isEmpty()) null else { val n = d.toLongOrNull(16); if (n == null) null else { val v = if (neg) -n else n; if (v >= -2147483648L && v <= 2147483647L) v.toInt() else null } } } }";
 				}
 				final markedField = findStaticField(cls, name);
 				if(markedField != null && StaticFunctionMarkers.isMarked(markedField)) {
