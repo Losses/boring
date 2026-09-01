@@ -298,14 +298,14 @@ describe("package artifact emission", () => {
         {hxml: "dart.hxml", file: "dart/generated-0.1.0.tar.gz", extra: []},
         {hxml: "kotlin.hxml", file: "kotlin/maven/generated/generated/0.1.0/generated-0.1.0.jar", extra: ["-D package-kotlinc=kotlinc"]},
       ];
-      for(const lane of packages) {
-        const a = await runHaxe(`package-artifacts-id-a.hxml`, rewriteHxml(lane.hxml, first, lane.extra));
+      for(const pkg of packages) {
+        const a = await runHaxe(`package-artifacts-id-a.hxml`, rewriteHxml(pkg.hxml, first, pkg.extra));
         expect(a.stderr).toBe("");
         expect(a.exitCode).toBe(0);
-        const b = await runHaxe(`package-artifacts-id-b.hxml`, rewriteHxml(lane.hxml, second, lane.extra));
+        const b = await runHaxe(`package-artifacts-id-b.hxml`, rewriteHxml(pkg.hxml, second, pkg.extra));
         expect(b.stderr).toBe("");
         expect(b.exitCode).toBe(0);
-        expect(fs.readFileSync(path.join(second, lane.file))).toEqual(fs.readFileSync(path.join(first, lane.file)));
+        expect(fs.readFileSync(path.join(second, pkg.file))).toEqual(fs.readFileSync(path.join(first, pkg.file)));
       }
     } finally {
       fs.rmSync(first, { recursive: true, force: true });
