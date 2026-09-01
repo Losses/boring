@@ -318,10 +318,10 @@ class GraphemeData {
 		0 Grapheme_Cluster_Break class, 1 Extended_Pictographic,
 		2 Indic_Conjunct_Break. Ranges within one field never overlap, so
 		the sweep keeps one active value per field and ORs the slots
-		together. The property files group ranges by property, not by code
-		point, so a range end and an adjacent range start of the same
-		field can arrive in either order; clearing before setting at a
-		shared position keeps the active value correct.
+		together. The property files group ranges by property and code
+		point. A range end and an adjacent range start of the same field
+		can arrive in either order; clearing before setting at a shared
+		position keeps the active value correct.
 	**/
 	static function mergeTable(gcb: Array<PropertyRange>, emoji: Array<PropertyRange>, incb: Array<PropertyRange>): Array<Int> {
 		final events: Array<FieldEvent> = [];
