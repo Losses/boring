@@ -329,7 +329,7 @@ class DefaultArgExpander {
 		return false;
 	}
 
-	/** Resolves a dotted path to a static field or module-level constant, returning the full path or null. */
+	/** Resolves a dotted path to a static field or module constant, returning the full path or null. */
 	static function resolveStaticFieldOrConstant(e:Expr, earlierNames:Array<String>):Null<String> {
 		final cur = unwrapExpr(e);
 		if (cur == null) return null;
