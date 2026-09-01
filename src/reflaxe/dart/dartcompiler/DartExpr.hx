@@ -1570,8 +1570,8 @@ class DartExpr {
 					return "String.fromCharCode(" + expr(args[0]) + ")";
 				}
 				if(module == "Std") {
-					if(fName == "parseFloat") return "double.tryParse(" + expr(args[0]) + ") ?? double.nan";
-					if(fName == "parseInt") return "int.tryParse(" + expr(args[0]) + ")";
+					if(fName == "parseFloat") return "{ final t = " + expr(args[0]) + ".replaceAll(RegExp(r'^[\\t\\n\\v\\f\\r ]+|[\\t\\n\\v\\f\\r ]+$'), ''); return RegExp(r'^[+-]?(?:[0-9]+(?:\\.[0-9]*)?|\\.[0-9]+)(?:[eE][+-]?[0-9]+)?$').hasMatch(t) ? (double.tryParse(t) ?? double.nan) : double.nan; }";
+					if(fName == "parseInt") return "{ final t = " + expr(args[0]) + ".replaceAll(RegExp(r'^[\\t\\n\\v\\f\\r ]+|[\\t\\n\\v\\f\\r ]+$'), ''); if (RegExp(r'^[+-]?[0-9]+$').hasMatch(t)) return int.tryParse(t); if (RegExp(r'^[+-]?0[xX][0-9a-fA-F]+$').hasMatch(t)) { final negative = t.startsWith('-'); final d = t.replaceFirst(RegExp(r'^[+-]?0[xX]'), ''); final n = int.tryParse(d, radix: 16); return n == null ? null : (negative ? -n : n); } return null; }";
 					if(fName == "int") {
 						final arg = stripWrap(args[0]);
 						switch(arg.expr) {
