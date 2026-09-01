@@ -55,7 +55,7 @@ class RustType {
 					case "Float": FloatPrecision.isF32() ? "f32" : "f64";
 					case "Bool": "bool";
 					case "Void": "()";
-					case "Null": "Option<" + (params.length == 1 && switch(Context.follow(params[0])) { case TAbstract(a, _): a.get().name == "Int"; case _: false; } ? "i32" : of(params[0])) + ">";
+					case "Null": "Option<" + of(params[0]) + ">";
 					case "haxe.ds.Map" if(params.length == 2):
 						imports.require("std::collections::HashMap");
 						"HashMap<" + of(params[0]) + ", " + of(params[1]) + ">";
