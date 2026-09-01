@@ -916,7 +916,14 @@ class RustDecl {
 		}
 		expr.setFallible(isFallible, errOwner != null ? errOwner.name : null, errOwner != null && errOwner.hasOverflow ? state.overflowVariant : null);
 
-		final rawRetType = returnsArgArray(f) ? types.of(f.ret, true) : types.functionReturnOf(f.ret);
+		var rawRetType = returnsArgArray(f) ? types.of(f.ret, true) : types.functionReturnOf(f.ret);
+		// Std.parseInt lowers to a signed Option<i32> expansion (stdlib/14).
+		// A business function that directly returns that lowering keeps the
+		// signed result type instead of the module's u32 Int domain; every
+		// other Null<Int> follows the module-kind rule of features/14.
+		if(directParseReturn(f) && rawRetType == "Option<u32>") {
+			rawRetType = "Option<i32>";
+		}
 		final retType = isFallible ? 'Result<$rawRetType, ${errOwner.name}>' : rawRetType;
 		final ret = retType == "()" ? "" : " -> " + retType;
 		final vis = f.field.isPublic ? "pub " : "";
@@ -937,6 +944,38 @@ class RustDecl {
 			case TEnum(_, _): "*self";
 			case _: "self";
 		};
+	}
+
+	/**
+		True when the function body is exactly a return of one `Std.parseInt`
+		call: the emitted rust signature must carry the lowering's signed
+		`Option<i32>` result instead of the module's unsigned domain.
+	**/
+	function directParseReturn(f: ClassFuncData): Bool {
+		if(f.expr == null) {
+			return false;
+		}
+		final last = switch(f.expr.expr) {
+			case TBlock(stmts): stmts.length > 0 ? stmts[stmts.length - 1] : null;
+			case _: f.expr;
+		};
+		if(last == null) {
+			return false;
+		}
+		switch(last.expr) {
+			case TReturn(ret) if(ret != null):
+				switch(ret.expr) {
+					case TCall(callee, args):
+						switch(callee.expr) {
+							case TField(_, FStatic(c, cf)):
+								return c.get().module == "Std" && cf.get().name == "parseInt" && args.length == 1;
+							case _:
+						}
+					case _:
+				}
+			case _:
+		}
+		return false;
 	}
 
 	function extractedFuncDecl(cls: ClassType, f: ClassFuncData): Array<String> {
