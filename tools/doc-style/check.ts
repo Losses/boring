@@ -91,6 +91,7 @@ const BANNED_TERMS: ReadonlyArray<BannedTerm> = [
   // stuffing and cramming
   { match: "shoehorn", tag: "metaphor" },
   { match: "cram", tag: "metaphor" },
+  { match: "lane", tag: "metaphor" },
   { match: "stuff", tag: "metaphor" },
   { match: "tuck", tag: "metaphor" },
   { match: "cobble", tag: "metaphor" },
