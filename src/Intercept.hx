@@ -910,6 +910,12 @@ class Intercept {
 		switch (callee.expr) {
 			case TypedExprDef.TField(_, FieldAccess.FStatic(classRef, _)):
 				return classRef.get().module == "js.Syntax";
+			case TypedExprDef.TCall(innerCallee, _):
+				// js/_std/Math.hx inlines members such as isNaN as a curried
+				// application: code("isNaN")(f). The outer call node is typed
+				// Dynamic by the same js.Syntax machinery as the direct form,
+				// so the skip follows the callee chain one level down.
+				return isSyntaxPlumbingCall(innerCallee);
 			default:
 				return false;
 		}
