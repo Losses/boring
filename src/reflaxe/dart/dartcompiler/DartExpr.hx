@@ -680,9 +680,34 @@ class DartExpr {
 		switch(e.expr) {
 			case TBlock(stmts) if(stmts.length == 3):
 				return intervalCore(stmts[0], stmts[1], stmts[2]);
+			case TBlock(stmts) if(stmts.length == 2):
+				return intervalShort(stmts[0], stmts[1]);
 			case _:
 				return null;
 		}
+	}
+
+	function intervalShort(counterDecl: TypedExpr, whileExpr: TypedExpr): Null<{index: TVar, start: TypedExpr, bound: TypedExpr, body: Array<TypedExpr>}> {
+		switch[counterDecl.expr, whileExpr.expr] {
+			case [TVar(counter, start), TWhile(cond, body, true)]:
+				final bound = switch(stripWrap(cond).expr) {
+					case TBinop(OpLt, {expr: TLocal(c)}, right) if(c.id == counter.id): right;
+					case _: return null;
+				};
+			final bodyStmts = statementsOf(body);
+			if(bodyStmts.length == 0) return null;
+			switch(bodyStmts[0].expr) {
+				case TVar(captured, inc) if(inc != null):
+					switch(stripWrap(inc).expr) {
+						case TUnop(OpIncrement, true, {expr: TLocal(c)}) if(c.id == counter.id):
+							return {index: captured, start: start, bound: bound, body: bodyStmts.slice(1)};
+						case _:
+					}
+				case _:
+			}
+			case _:
+		}
+		return null;
 	}
 
 	function loopLines(loop: {index: TVar, start: TypedExpr, bound: TypedExpr, body: Array<TypedExpr>}, depth: Int): Array<String> {
@@ -1127,6 +1152,7 @@ class DartExpr {
 		}
 		switch(op) {
 			case OpNot: return "!" + wrapped;
+			case OpNegBits: return "~" + wrapped;
 			case OpNeg: return "-" + wrapped;
 			case OpIncrement: return post ? wrapped + "++" : "++" + wrapped;
 			case OpDecrement: return post ? wrapped + "--" : "--" + wrapped;
@@ -1706,6 +1732,9 @@ class DartExpr {
 				}
 				if(name == "fill" && args.length == 3 && isBytes(stripCast(subj).t)) {
 					return receiverText(subj) + ".fillRange(" + expr(args[0]) + ", " + expr(args[0]) + " + " + expr(args[1]) + ", " + expr(args[2]) + ")";
+				}
+				if(name == "sub" && args.length == 2 && isBytes(stripCast(subj).t)) {
+					return "Uint8List.fromList(" + receiverText(subj) + ".sublist(" + expr(args[0]) + ", " + expr(args[0]) + " + " + expr(args[1]) + "))";
 				}
 				// stdlib/02: the growable byte sink is the plain int
 				// list; addByte appends one element.

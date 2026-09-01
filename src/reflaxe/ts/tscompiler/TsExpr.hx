@@ -545,6 +545,19 @@ class TsExpr {
 					continue;
 				}
 			}
+			if(i + 1 < stmts.length) {
+				final shortLoop = intervalShort(stmts[i], stmts[i + 1]);
+				if(shortLoop != null) {
+					final grouped: TypedExpr = {
+						expr: TBlock([stmts[i], stmts[i + 1]]),
+						pos: stmts[i].pos,
+						t: stmts[i + 1].t
+					};
+					out.push(grouped);
+					i += 2;
+					continue;
+				}
+			}
 			out.push(stmts[i]);
 			i += 1;
 		}
@@ -597,9 +610,46 @@ class TsExpr {
 		switch(e.expr) {
 			case TBlock(stmts) if(stmts.length == 3):
 				return intervalCore(stmts[0], stmts[1], stmts[2]);
+			case TBlock(stmts) if(stmts.length == 2):
+				return intervalShort(stmts[0], stmts[1]);
 			case _:
 				return null;
 		}
+	}
+
+	function intervalShort(counterDecl: TypedExpr, whileExpr: TypedExpr): Null<{index: TVar, start: TypedExpr, bound: TypedExpr, body: Array<TypedExpr>}> {
+		final counter = switch(counterDecl.expr) {
+			case TVar(v, start): {v: v, start: start};
+			case _: return null;
+		};
+		final loop = switch(whileExpr.expr) {
+			case TWhile(condition, body, _): {condition: condition, body: body};
+			case _: return null;
+		};
+		final condition = stripWrap(loop.condition);
+		final bound = switch(condition.expr) {
+			case TBinop(OpLt, left, right):
+				switch(stripWrap(left).expr) {
+					case TLocal(value) if(value.id == counter.v.id): right;
+					case _: return null;
+				}
+			case _: return null;
+		};
+		final bodyStmts = statementsOf(loop.body);
+		if(bodyStmts.length == 0) return null;
+		final capture = switch(bodyStmts[0].expr) {
+			case TVar(value, init) if(init != null): {value: value, init: init};
+			case _: return null;
+		};
+		return switch(stripWrap(capture.init).expr) {
+			case TUnop(OpIncrement, true, subject):
+				switch(stripWrap(subject).expr) {
+					case TLocal(value) if(value.id == counter.v.id):
+						{index: capture.value, start: counter.start, bound: bound, body: bodyStmts.slice(1)};
+					case _: null;
+				}
+			case _: null;
+		};
 	}
 
 	function boundLengthSubject(bound: TypedExpr): Null<TVar> {
@@ -1071,6 +1121,7 @@ class TsExpr {
 		}
 		switch(op) {
 			case OpNot: return "!" + wrapped;
+			case OpNegBits: return "~" + wrapped;
 			case OpNeg: return "-" + wrapped;
 			case _: {
 				final infos = Context.getPosInfos(e.pos);
@@ -1561,6 +1612,9 @@ class TsExpr {
 				}
 				if(name == "fill" && args.length == 3 && isBytes(stripCast(subj))) {
 					return expr(subj) + ".fill(" + expr(args[2]) + ", " + expr(args[0]) + ", " + expr(args[0]) + " + " + expr(args[1]) + ")";
+				}
+				if(name == "sub" && args.length == 2 && isBytes(stripCast(subj))) {
+					return expr(subj) + ".slice(" + expr(args[0]) + ", " + expr(args[0]) + " + " + expr(args[1]) + ")";
 				}
 				if(name == "substring" && isStringSubject(subj)) {
 					// The haxe typer passes a synthesized null for an
