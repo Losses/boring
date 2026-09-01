@@ -1,6 +1,6 @@
 # Style guide
 
-This guide states the prose rules for `README.md`, `AGENT.md`, and every
+This guide states the writing rules for `README.md`, `AGENT.md`, and every
 file under `docs/`. The automated check is `bun tools/doc-style/check.ts`;
 run it before submitting document changes.
 
