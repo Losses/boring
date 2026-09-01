@@ -47,6 +47,25 @@ class Json {
 		return JNull;
 	}
 public static function write(value:JsonValue):String { return render(value, 0) + "\n"; }
+	public static function writeCompact(value:JsonValue):String { return renderCompact(value); }
+	static function renderCompact(v:JsonValue):String return switch(v) {
+		case JNull: "null";
+		case JBool(b): if(b) "true" else "false";
+		case JNumber(n): Std.string(n);
+		case JString(s): quote(s);
+		case JArray(a): compactArray(a);
+		case JObject(fs): compactObject(fs);
+	};
+	static function compactArray(a:Array<JsonValue>):String {
+		final parts = new Array<String>();
+		for(i in 0...a.length) parts.push(renderCompact(a[i]));
+		return "[" + parts.join(",") + "]";
+	}
+	static function compactObject(fs:Array<JsonField>):String {
+		final parts = new Array<String>();
+		for(i in 0...fs.length) parts.push(quote(fs[i].name) + ":" + renderCompact(fs[i].value));
+		return "{" + parts.join(",") + "}";
+	}
 static function indent(n:Int):String { var s = ""; for(i in 0...n) s += "  "; return s; }
 	static function hex4(v:Int):String {
 		final digits = "0123456789abcdef";
