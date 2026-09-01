@@ -1,6 +1,6 @@
 // Cross-language vector verification for the generated Dart tree: the
 // committed roundtrip binaries must decode to the same records the other
-// lanes verify, and re-encoding must reproduce the committed bytes
+// targets verify, and re-encoding must reproduce the committed bytes
 // exactly (binary spec 05).
 
 import 'dart:io';

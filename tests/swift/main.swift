@@ -1,6 +1,6 @@
 // Cross-language vector verification for the generated Swift tree: the
 // committed roundtrip binaries must decode to the same records the other
-// lanes verify, and re-encoding must reproduce the committed bytes
+// targets verify, and re-encoding must reproduce the committed bytes
 // exactly (binary spec 05). This toolchain carries no Foundation module,
 // so file reading goes through the POSIX calls of Glibc.
 

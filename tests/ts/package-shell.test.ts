@@ -6,7 +6,7 @@ import * as path from "node:path";
 /**
  * Feature spec 24: every target compiler writes the package manifest of
  * its generated tree, on by default with a one-define opt-out. The
- * TypeScript lane is exercised end to end here: a temp generation with a
+ * TypeScript target is exercised end to end here: a temp generation with a
  * relative runtime import produces a package.json whose tree a consumer
  * program runs under bun without any repository assistance. The Swift,
  * Kotlin, and Rust manifests carry no runnable toolchain in this

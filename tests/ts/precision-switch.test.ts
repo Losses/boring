@@ -4,7 +4,7 @@ import * as path from "node:path";
 /**
  * Feature spec 23: the TypeScript target rejects float-precision=f32 at
  * plugin registration. number is binary64 with no binary32 alias in the
- * language, so the f32 lane has no faithful lowering; the rejection must
+ * language, so the f32 configuration has no faithful lowering; the rejection must
  * fire before any type rendering, so a compile with the define fails and
  * names the reason.
  */

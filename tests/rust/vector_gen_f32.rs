@@ -1,6 +1,6 @@
 //! Cross-language vector verification for the f32 generated Rust tree
 //! (feature spec 23): the committed roundtrip.bin must decode to the same
-//! records the f64 lanes verify, and re-encoding must reproduce the
+//! records the f64 targets verify, and re-encoding must reproduce the
 //! committed bytes exactly: every vector value is a dyadic binary32, so
 //! the wire stays byte-identical across the precision switch.
 
