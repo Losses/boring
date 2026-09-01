@@ -575,7 +575,7 @@ class SwiftDecl {
 	/**
 		features/18: a function returning ReadOnlyArray is a decode
 		boundary. Array is a value type in Swift and a let binding
-		freezes it structurally, so no read-only wrappers render; the flag
+		binding is structurally immutable, so no read-only wrappers render; the flag
 		only keeps the boundary visible to the expression layer.
 	**/
 	function decodeBoundaryBody(cls: ClassType, f: ClassFuncData, depth: Int = 2): Array<String> {
