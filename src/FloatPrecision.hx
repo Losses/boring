@@ -2,19 +2,19 @@
 import haxe.macro.Context;
 
 /**
-	Module-level target precision of the Haxe Float type, shared by every
+	Target precision of the Haxe Float type, shared by every
 	reflaxe target (feature spec 23). The switch selects the generated
 	representation of every Float in one compilation; the wire format is
 	unaffected.
 
 	- `float-precision=f64` (or the absent define): `f64`, `Double`,
-	  `number` — the default lane.
+	  `number` is the default representation.
 	- `float-precision=f32`: `f32` on Rust and `Float` on Kotlin; the
 	  TypeScript compiler rejects the compilation at startup because
 	  `number` is binary64.
 **/
 class FloatPrecision {
-	/** True when the compilation runs the binary32 lane. Errors on any value outside f64/f32. */
+	/** True when the compilation uses binary32. Errors on any value outside f64/f32. */
 	public static function isF32(): Bool {
 		final value = Context.definedValue("float-precision");
 		if(value == null || value == "f64") {

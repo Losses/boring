@@ -36,7 +36,7 @@
  *   V18 NonAsciiStringIndex index access to non-ascii string literals   [1+2]
  *   V19 TryRegionControlFlow return, break, continue in a region body   [pass 2]
  *   V20 TryRegionMixedDomains region body throwing beyond the caught class [pass 2]
- * V09 and V10 are schema-level checks on the FormatDef, not AST checks.
+ * V09 and V10 are schema checks on the FormatDef. AST checks handle other data.
  */
 // Imports spell out every referenced type: module wildcards over
 // haxe.macro.Type resolve as constructor imports here, and the compiler
@@ -78,7 +78,7 @@ class Intercept {
 		"haxe.ds.HashMap",
 	];
 
-	/** Root-level modules whose static calls are reflection (V03). */
+	/** Modules at the root whose static calls are reflection (V03). */
 	static final REFLECTION_ROOTS:Array<String> = ["Reflect", "Type"];
 
 	/** Roots guarded by this run; only expressions under them are checked. */
@@ -189,9 +189,8 @@ class Intercept {
 	 */
 	static function walkStringIndexSource(e:Expr, scopes:Array<Map<String, String>>):Void {
 		// The Haxe parser represents an empty `switch` default arm as a
-		// placeholder object whose expr and pos are both null instead of a
-		// null reference; the std ExprTools.iter skips that placeholder with
-		// the same `edef.expr != null` check. Source never writes this shape,
+		// placeholder object whose expr and pos are both null; the std ExprTools.iter skips it
+		// using the same `edef.expr != null` check. Source never writes this shape,
 		// so any node carrying it holds no names to track.
 		if (e == null || e.expr == null) {
 			return;
@@ -566,7 +565,7 @@ class Intercept {
 	/**
 	 * Collects the V18 resolution facts of one body: locals initialized from
 	 * a string literal, minus locals that receive an assignment anywhere in
-	 * the body. Field targets reached by assignment land in the shared
+	 * the body. Field targets reached by assignment are recorded in the shared
 	 * reassignedFields map, which phase one of walkModules seeds.
 	 */
 	static function collectIndexFacts(e:TypedExpr, literals:Map<Int, String>, reassignedLocals:Map<Int, Bool>):Void {

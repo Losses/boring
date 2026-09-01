@@ -10,9 +10,9 @@ import haxe.macro.Context;
 	Every artifact is the install unit its registry distributes. The
 	cargo `.crate`, the Pub `.tar.gz`, and the Swift `.zip` carry
 	source, because those registries install source; the npm `.tgz`
-	carries compiled JavaScript plus declarations and the Kotlin lane
+		carries compiled JavaScript plus declarations and the Kotlin target
 	writes a Maven repository directory with a compiled jar, because
-	those registries install build output. The two compiled lanes run
+	those registries install build output. The two compiled targets run
 	the host's compiler through a define (`package-tsc`,
 	`package-kotlinc`); a missing define or a failing tool stops the
 	compilation with the tool's own output.
@@ -441,7 +441,7 @@ class PackageArtifacts {
 	}
 
 	/**
-		The artifact lands in the parent of the output directory: the
+		The artifact is written to the parent of the output directory: the
 		tree keeps exactly the files the compilation wrote, and an
 		artifact inside the tree would enter later directory-based
 		packing as a stale member.
