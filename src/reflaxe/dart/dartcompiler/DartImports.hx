@@ -26,6 +26,7 @@ class DartImports {
 	final runtimeTestNames: Map<String, Bool> = [];
 
 	var dartMathUsed = false;
+	var typedDataUsed = false;
 
 	public function new(selfModule: String) {
 		this.selfModule = selfModule;
@@ -40,6 +41,14 @@ class DartImports {
 	/** Whether this module needs the dart:math import. */
 	public function usesDartMath(): Bool {
 		return dartMathUsed;
+	}
+
+	public function useTypedData(): Void {
+		typedDataUsed = true;
+	}
+
+	public function usesTypedData(): Bool {
+		return typedDataUsed;
 	}
 
 	/** The cross-module imports recorded so far, in first-reference order. */

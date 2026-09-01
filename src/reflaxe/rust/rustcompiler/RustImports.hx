@@ -41,7 +41,7 @@ class RustImports {
 	}
 
 	public function requireType(module: String, name: String): Void {
-		if(module == "Std" || module == "Math" || module == "String" || module == "haxe.Int64") {
+		if(module == "Std" || module == "Math" || module == "String" || module == "haxe.Int64" || module == "haxe.io.Bytes") {
 			return;
 		}
 		// The sorted externs front the runtime.SortedTable resident: the

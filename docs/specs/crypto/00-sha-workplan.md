@@ -45,10 +45,10 @@ typed information, and every capability has cross-target evidence.
 
 ### Stage 2: Bytes capability
 
-- [ ] Complete fixed-length `Bytes` declarations and target lowerings for allocation, read, write, copy, fill, and output conversion.
-- [ ] Define read-only input, mutable internal storage, and owned output in the target ABI.
-- [ ] Add byte capability tests for aliasing, copying, bounds, and ownership-sensitive Rust signatures.
-- [ ] Keep runtime additions limited to operations that cannot be emitted directly.
+- [x] Complete fixed-length `Bytes` declarations and target lowerings for allocation, read, write, copy, fill, and output conversion.
+- [x] Define read-only input, mutable internal storage, and owned output in the target ABI.
+- [x] Add byte capability tests for aliasing, copying, bounds, and ownership-sensitive Rust signatures.
+- [x] Keep runtime additions limited to operations that cannot be emitted directly.
 
 ### Stage 3: Portable SHA implementations
 
@@ -94,9 +94,7 @@ architecture and do not replace a pending item with a narrower shortcut.
 
 ## Current status
 
-Stage 1 is complete. Int64 lowers to native target operations on TypeScript,
-Rust, Kotlin, Swift, and Dart; the same source tests pass on all default
-configurations and on the Rust, Kotlin, and Swift f32 configurations. Stage 2
-starts with fixed-length Bytes allocation, mutation, copy, fill, and ownership
-rules. No SHA implementation work begins until the Bytes stage passes its
-cross-target tests.
+Stage 2 is complete. Fixed-length Bytes operations lower to native byte
+storage on all five targets, with Rust borrowed input and owned output
+boundaries. Stage 3 starts with the portable SHA-256 source and its Bytes-only
+API.

@@ -1847,6 +1847,8 @@ class KotlinExpr {
 		}
 		final renderedArgs = localCallArgs(fn, args);
 		switch(fn.expr) {
+			case TField(_, FStatic(c, cf)) if(c.get().module == "haxe.io.Bytes" && cf.get().name == "alloc" && args.length == 1):
+				return "ByteArray(" + expr(args[0]) + ")";
 			case TCast(inner, _):
 				return call(inner, args);
 			case TField(subj, FDynamic(name)) if((name == "length" || name == "get_length") && isStringBuf(subj)):
@@ -1886,6 +1888,15 @@ class KotlinExpr {
 				}
 				if(name == "get" && isBytes(stripCast(subj))) {
 					return "(( " + expr(subj) + "[" + expr(args[0]) + "].toInt() and 0xFF ))";
+				}
+				if(name == "set" && args.length == 2 && isBytes(stripCast(subj))) {
+					return expr(subj) + "[" + expr(args[0]) + "] = " + expr(args[1]) + ".toByte()";
+				}
+				if(name == "blit" && args.length == 4 && isBytes(stripCast(subj))) {
+					return "(" + expr(args[1]) + ").copyInto(" + expr(subj) + ", " + expr(args[0]) + ", " + expr(args[2]) + ", " + expr(args[2]) + " + " + expr(args[3]) + ")";
+				}
+				if(name == "fill" && args.length == 3 && isBytes(stripCast(subj))) {
+					return expr(subj) + ".fill(" + expr(args[2]) + ".toByte(), " + expr(args[0]) + ", " + expr(args[0]) + " + " + expr(args[1]) + ")";
 				}
 				if(name == "charCodeAt" && isString(stripCast(subj))) {
 					return expr(subj) + "[" + expr(args[0]) + "].code";

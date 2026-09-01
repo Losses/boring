@@ -1418,6 +1418,8 @@ class TsExpr {
 		final wrapperCall = valueTypeCall(fn, args);
 		if(wrapperCall != null) return wrapperCall;
 		switch(fn.expr) {
+			case TField(_, FStatic(c, cf)) if(c.get().module == "haxe.io.Bytes" && cf.get().name == "alloc" && args.length == 1):
+				return "new Uint8Array(" + expr(args[0]) + ")";
 			case TField(_, FStatic(c, cf)) if(c.get().module == "Std" && cf.get().name == "string" && args.length == 1):
 				return stdString(args[0], false);
 			case TField(_, FStatic(c, cf)) if(c.get().module == "Std" && cf.get().name == "isOfType" && args.length == 2):
@@ -1550,6 +1552,15 @@ class TsExpr {
 				// stdlib/01: Bytes.get(i) is a Uint8Array index read.
 				if(name == "get" && isBytes(stripCast(subj))) {
 					return expr(subj) + "[" + expr(args[0]) + "]!";
+				}
+				if(name == "set" && args.length == 2 && isBytes(stripCast(subj))) {
+					return expr(subj) + "[" + expr(args[0]) + "] = " + expr(args[1]);
+				}
+				if(name == "blit" && args.length == 4 && isBytes(stripCast(subj))) {
+					return expr(subj) + ".set(" + expr(args[1]) + ".subarray(" + expr(args[2]) + ", " + expr(args[2]) + " + " + expr(args[3]) + "), " + expr(args[0]) + ")";
+				}
+				if(name == "fill" && args.length == 3 && isBytes(stripCast(subj))) {
+					return expr(subj) + ".fill(" + expr(args[2]) + ", " + expr(args[0]) + ", " + expr(args[0]) + " + " + expr(args[1]) + ")";
 				}
 				if(name == "substring" && isStringSubject(subj)) {
 					// The haxe typer passes a synthesized null for an

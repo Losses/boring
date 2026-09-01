@@ -1658,6 +1658,8 @@ class DartExpr {
 			case _:
 		}
 		switch(fn.expr) {
+			case TField(_, FStatic(c, cf)) if(c.get().module == "haxe.io.Bytes" && cf.get().name == "alloc" && args.length == 1):
+				return "Uint8List(" + expr(args[0]) + ")";
 			case TCast(inner, _):
 				return call(inner, args);
 			case TField(subj, FDynamic(name)) if((name == "length" || name == "get_length") && isStringBuf(subj)):
@@ -1696,15 +1698,22 @@ class DartExpr {
 				if(name == "get" && isBytes(stripCast(subj).t)) {
 					return receiverText(subj) + "[" + expr(args[0]) + "]";
 				}
+				if(name == "set" && args.length == 2 && isBytes(stripCast(subj).t)) {
+					return receiverText(subj) + "[" + expr(args[0]) + "] = " + expr(args[1]);
+				}
+				if(name == "blit" && args.length == 4 && isBytes(stripCast(subj).t)) {
+					return receiverText(subj) + ".setRange(" + expr(args[0]) + ", " + expr(args[0]) + " + " + expr(args[3]) + ", " + expr(args[1]) + ".sublist(" + expr(args[2]) + ", " + expr(args[2]) + " + " + expr(args[3]) + "))";
+				}
+				if(name == "fill" && args.length == 3 && isBytes(stripCast(subj).t)) {
+					return receiverText(subj) + ".fillRange(" + expr(args[0]) + ", " + expr(args[0]) + " + " + expr(args[1]) + ", " + expr(args[2]) + ")";
+				}
 				// stdlib/02: the growable byte sink is the plain int
 				// list; addByte appends one element.
 				if(name == "addByte" && isBytesBuffer(stripCast(subj).t)) {
 					return receiverText(subj) + ".add(" + expr(args[0]) + ")";
 				}
 				if(name == "getBytes" && isBytesBuffer(stripCast(subj).t)) {
-					// The buffer lowers to the list itself; the view of
-					// getBytes is the identical reference.
-					return receiverText(subj);
+					return "Uint8List.fromList(" + receiverText(subj) + ")";
 				}
 				if(name == "push") {
 					return receiverText(subj) + ".add(" + rendered + ")";

@@ -3001,6 +3001,8 @@ class RustExpr {
 		}
 		final renderedArgs = [for(a in args) expr(a)].join(", ");
 		switch(fn.expr) {
+			case TField(_, FStatic(c, cf)) if(c.get().module == "haxe.io.Bytes" && cf.get().name == "alloc" && args.length == 1):
+				return "vec![0u8; " + expr(args[0]) + " as usize]";
 			case TCast(inner, _):
 				return call(inner, args);
 			case TField(subj, FDynamic(name)) if((name == "length" || name == "get_length") && isStringBuf(subj)):
@@ -3053,7 +3055,16 @@ class RustExpr {
 					}
 				}
 				if(name == "get" && isBytes(stripCast(subj))) {
-					return expr(subj) + "[" + expr(args[0]) + "]";
+					return expr(subj) + "[" + expr(args[0]) + " as usize]";
+				}
+				if(name == "set" && args.length == 2 && isBytes(stripCast(subj))) {
+					return expr(subj) + "[" + expr(args[0]) + " as usize] = " + expr(args[1]) + " as u8";
+				}
+				if(name == "blit" && args.length == 4 && isBytes(stripCast(subj))) {
+					return expr(subj) + "[" + expr(args[0]) + " as usize..(" + expr(args[0]) + " + " + expr(args[3]) + ") as usize].copy_from_slice(&" + expr(args[1]) + "[" + expr(args[2]) + " as usize..(" + expr(args[2]) + " + " + expr(args[3]) + ") as usize])";
+				}
+				if(name == "fill" && args.length == 3 && isBytes(stripCast(subj))) {
+					return expr(subj) + "[" + expr(args[0]) + " as usize..(" + expr(args[0]) + " + " + expr(args[1]) + ") as usize].fill(" + expr(args[2]) + " as u8)";
 				}
 				if(name == "charCodeAt" && isString(stripCast(subj))) {
 					return expr(subj) + ".as_bytes()[(" + expr(args[0]) + ") as usize]";
