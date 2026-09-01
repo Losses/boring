@@ -11,7 +11,7 @@ class Main {
   final args=NodeProcess.argv; var flags:Array<Flag> = []; var i=2;
   while(i<args.length) {
    final raw=args[i]; if(!StringTools.startsWith(raw,"--")) { stop(USAGE,false); return; }
-   var name = raw == "--base-url" ? "baseUrl" : raw == "--swift-scope" ? "swiftScope" : raw == "--archive-base" ? "archiveBase" : raw == "--api-base" ? "apiBase" : parts[0];
+   var name = raw == "--repos" ? "repos" : raw == "--output" ? "output" : raw == "--token" ? "token" : raw == "--cache" ? "cache" : raw == "--base-url" ? "baseUrl" : raw == "--swift-scope" ? "swiftScope" : raw == "--archive-base" ? "archiveBase" : raw == "--api-base" ? "apiBase" : "";
    final known=["repos","output","baseUrl","swiftScope","archiveBase","apiBase","token","cache"];
    var recognized=false; for(k in 0...known.length) if(known[k]==name) recognized=true;
    if(!recognized) { stop("unknown flag "+raw+"\n"+USAGE,false); return; }
