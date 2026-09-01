@@ -6,7 +6,7 @@ package std;
  * formatting are pure logic that lives in the Haxe source; these four
  * primitives are the parts each target provides natively: raising the
  * canonical failure message, reading the test id the host runner tracks,
- * and rendering a plain number without the special values. Each lane
+ * and rendering a plain number without the special values. Each target
  * lowers these statics inline; no runtime module implements them, and the
  * stage-one harness binds this extern to tests/haxe/TestPlatform.hx.
  * Business code never calls them; a reference outside the resident module

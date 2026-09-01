@@ -16,7 +16,7 @@ class TryOps {
 		return count * 2;
 	}
 
-	/** Variant identity to number: the return-position switch every lane shares. */
+	/** Variant identity to number: the return-position switch shared by every target. */
 	public static function classifyFault(error:VectorError):Int {
 		return switch (error) {
 			case BadMagic: 11;

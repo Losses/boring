@@ -7,7 +7,7 @@ import std.Test;
  * Bit-exact binary32 edge checks per binary spec 05. The half inputs and
  * every expected pattern were verified against the native setFloat32 edge;
  * the float literals are exact at binary16 precision, so the checks hold on
- * the f32 module-real lane of feature spec 23 as well.
+ * the f32 module-real configuration of feature spec 23 as well.
  */
 class Fp32Tests {
 	@:test("binary64 halves round to binary32 bits with ties to even")
@@ -16,9 +16,9 @@ class Fp32Tests {
 		// remainder under an odd significand rounds up.
 		Test.equals(0x3F800002, Fp32.f64HalvesToF32Bits(0x30000000, 0x3FF00000), "odd significand rounds up at the half");
 		Test.equals(0x3F800000, Fp32.f64HalvesToF32Bits(0x10000000, 0x3FF00000), "even significand stays at the half");
-		// A subnormal target that rounds past the largest subnormal lands on
+		// A subnormal target that rounds past the largest subnormal produces
 		// the smallest normal, exponent one with a zero mantissa.
-		Test.equals(0x00800000, Fp32.f64HalvesToF32Bits(0xE0000000, 0x380FFFFF), "rounding past the largest subnormal lands on the smallest normal");
+		Test.equals(0x00800000, Fp32.f64HalvesToF32Bits(0xE0000000, 0x380FFFFF), "rounding past the largest subnormal produces the smallest normal");
 	}
 
 	@:test("binary32 bits widen exactly and round back")

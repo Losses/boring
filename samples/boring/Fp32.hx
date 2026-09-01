@@ -1,8 +1,8 @@
 /**
  * IEEE 754 binary32 bit edges for the wire float widths of binary spec 05.
- * The conversions are plain Int arithmetic over the binary64 halves that
+ * The conversions are plain Int arithmetic over the binary64 bit parts that
  * haxe.io.FPHelper already exposes, so every target runs identical rounding
- * code. On the f32 module-real lane of feature spec 23 the FPHelper calls
+ * code. On the f32 module-real configuration of feature spec 23 the FPHelper calls
  * widen losslessly before the integer math, so the same source narrows the
  * module real to binary32 bits there as well.
  */
@@ -56,7 +56,7 @@ class Fp32 {
 	}
 
 	/**
-		Converts raw binary64 halves to binary32 bits with round-to-nearest-
+		Converts raw binary64 bit parts to binary32 bits with round-to-nearest-
 		even. Exposed so tests can drive exact bit patterns; VectorCodec
 		reaches it through toBits.
 	**/
@@ -128,7 +128,7 @@ class Fp32 {
 				h += 1;
 			}
 		}
-		// Rounding past the largest subnormal lands on the smallest normal,
+		// Rounding past the largest subnormal produces the smallest normal,
 		// whose bit pattern is an exponent of one with a zero mantissa.
 		if (h == 0x800000) {
 			return 0x00800000;

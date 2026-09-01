@@ -4,7 +4,7 @@ import haxe.macro.Type.ClassField;
 import haxe.macro.Type.TypedExprDef;
 
 /**
- * Shared compiler-level detection for compile-time data tables
+ * Shared compiler-scope detection for compile-time data tables
  * per docs/specs/features/20-compile-time-data-tables.md.
  *
  * A constant Array<Int> with > 64 elements follows the table emission form;
