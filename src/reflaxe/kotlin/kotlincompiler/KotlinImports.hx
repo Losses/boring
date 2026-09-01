@@ -13,6 +13,7 @@ class KotlinImports {
 	/** Modules of the standard library that lower to emitted shims. */
 	static final SHIM_MODULES: Map<String, Bool> = [
 		"haxe.io.FPHelper" => true,
+		"std.NumberParsing" => true,
 		"haxe.io.BytesBuffer" => true,
 		"std.Console" => true,
 		"std.Process" => true,
