@@ -12,7 +12,7 @@ import haxe.macro.Type;
 **/
 class StaticFieldHelper {
 	public static inline final INVALID_INITIALIZER = "static field initializers accept null, literal, and empty array forms only";
-	public static inline final INVALID_FINAL_INITIALIZER = "static field initializers accept null, literal, empty array, and construction forms only";
+	public static inline final INVALID_FINAL_INITIALIZER = "static field initializers accept null, literal, array, and construction forms only";
 	public static inline final INVALID_ARGUMENT = "constructed static field arguments accept literal, enum, array, construction, static field, and static function forms only";
 
 	public static function initializer(field: ClassField): Null<TypedExpr> {

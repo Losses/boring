@@ -164,6 +164,14 @@ class RustDecl {
 
 		lines.push("impl" + implGenerics + " " + cls.name + genericStr + " {");
 		var sep = false;
+		for(v in varFields) {
+			if(!v.isStatic) continue;
+			final declarations = staticVarDecl(cls, v);
+			if(declarations.length == 0) continue;
+			if(sep) lines.push("");
+			sep = true;
+			for(l in declarations) lines.push(l);
+		}
 		for(f in ordinaryFuncs) {
 			if(sep) lines.push("");
 			sep = true;

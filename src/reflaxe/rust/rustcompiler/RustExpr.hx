@@ -445,7 +445,7 @@ class RustExpr {
 				}
 				if(!isTypeCopy(v.t)) {
 					switch(stripWrap(init).expr) {
-						case TArray(_, _):
+						case TArray(arr, _) if(!isLazyArrayReceiver(arr)):
 							initStr = "&" + initStr;
 						case _:
 					}
@@ -1527,11 +1527,13 @@ class RustExpr {
 					final base = staticGuard + "[" + staticIndex(idx) + "]";
 					return scalarTypeKind(e.t) == "String" ? "(" + base + ").clone()" : base;
 				}
-				final base = expr(arr) + "[(" + expr(idx) + ") as usize]";
+				final receiver = expr(arr);
+				final receiverText = StringTools.startsWith(receiver, "&*") ? "(" + receiver + ")" : receiver;
+				final base = receiverText + "[(" + expr(idx) + ") as usize]";
 				// Reading a String element moves it out of the Vec, so a
 				// value read renders as a clone. Borrow consumers go
 				// through arrayArgBorrow and skip the copy.
-				return scalarTypeKind(e.t) == "String" ? "(" + base + ").clone()" : base;
+				return isLazyArrayReceiver(arr) && !isTypeCopy(e.t) || scalarTypeKind(e.t) == "String" ? "(" + base + ").clone()" : base;
 			case TBinop(op, l, r):
 				return binop(e, op, l, r);
 			case TUnop(op, post, subj):
@@ -2469,7 +2471,9 @@ class RustExpr {
 					if(RuntimeResidents.isResident(imports.selfModule)) {
 						return "(" + expr(subj) + ").len() as i32";
 					}
-					return expr(subj) + ".len()";
+					final receiver = expr(subj);
+					final receiverText = StringTools.startsWith(receiver, "&*") ? "(" + receiver + ")" : receiver;
+					return receiverText + ".len()";
 				}
 				final snake = RustImports.toSnakeCase(name);
 				final subjStr = if(isNullType(subj.t)) expr(subj) + ".as_ref().unwrap()" else expr(subj);
@@ -2508,6 +2512,13 @@ class RustExpr {
 	function isDirectArrayStaticField(field: ClassField): Bool {
 		final init = StaticFieldHelper.initializer(field);
 		return field.isFinal && StaticFieldHelper.isNonEmptyArrayLiteral(init) && StaticFieldHelper.isIntLiteralArray(init);
+	}
+
+	function isLazyArrayReceiver(e: TypedExpr): Bool {
+		return switch(stripWrap(e).expr) {
+			case TField(_, FStatic(c, cf)): isLazyArrayStaticField(cf.get());
+			case _: false;
+		};
 	}
 
 	function isGuardStaticField(cls: ClassType, name: String): Bool {
@@ -2698,6 +2709,9 @@ class RustExpr {
 							return name;
 						}
 					}
+				}
+				if(markedField != null && (isDirectArrayStaticField(markedField) || isLazyArrayStaticField(markedField))) {
+					return staticItemPath(cls, name);
 				}
 				imports.requireType(cls.module, cls.name);
 				return cls.name + "::" + RustImports.toSnakeCase(name);
