@@ -1749,6 +1749,8 @@ class SwiftExpr {
 			case _:
 		}
 		switch(fn.expr) {
+			case TField(_, FStatic(c, cf)) if(c.get().module == "haxe.io.Bytes" && cf.get().name == "alloc" && args.length == 1):
+				return "[UInt8](repeating: 0, count: Int(" + expr(args[0]) + "))";
 			case TCast(inner, _):
 				return call(inner, args);
 			case TField(subj, FDynamic(name)) if((name == "length" || name == "get_length") && isStringBuf(subj)):
@@ -1786,6 +1788,15 @@ class SwiftExpr {
 				// to Int32.
 				if(name == "get" && isBytes(stripCast(subj))) {
 					return "Int32(" + receiverText(subj) + "[Int(" + expr(args[0]) + ")])";
+				}
+				if(name == "set" && args.length == 2 && isBytes(stripCast(subj))) {
+					return receiverText(subj) + "[Int(" + expr(args[0]) + ")] = UInt8(truncatingIfNeeded: " + expr(args[1]) + ")";
+				}
+				if(name == "blit" && args.length == 4 && isBytes(stripCast(subj))) {
+					return receiverText(subj) + ".replaceSubrange(Int(" + expr(args[0]) + ")..<Int(" + expr(args[0]) + " + " + expr(args[3]) + "), with: " + receiverText(args[1]) + "[Int(" + expr(args[2]) + ")..<Int(" + expr(args[2]) + " + " + expr(args[3]) + ")])";
+				}
+				if(name == "fill" && args.length == 3 && isBytes(stripCast(subj))) {
+					return receiverText(subj) + ".replaceSubrange(Int(" + expr(args[0]) + ")..<Int(" + expr(args[0]) + " + " + expr(args[1]) + "), with: repeatElement(UInt8(truncatingIfNeeded: " + expr(args[2]) + "), count: Int(" + expr(args[1]) + ")))";
 				}
 				if(name == "push") {
 					return receiverText(subj) + ".append(" + rendered + ")";

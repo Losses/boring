@@ -18,6 +18,7 @@
 boring.BinaryReader
 boring.BinaryWriter
 boring.Int64Ops
+boring.BytesOps
 boring.Fp32
 boring.Fp16
 boring.GlyphMetrics
@@ -44,6 +45,7 @@ runtime.SortedTable
 runtime.TestCore
 tests.TestData
 tests.Int64Tests
+tests.BytesTests
 tests.VectorCodecTests
 tests.Fp32Tests
 tests.Fp16Tests
