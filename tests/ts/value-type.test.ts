@@ -61,7 +61,7 @@ function mutationHxml(sourceRoot: string, output: string, target: MutationTarget
     `-cp ${path.join(root, target.shadow.replace("/std-shadow", ""))}`,
     `-cp ${path.join(root, "samples")}`,
     `-cp ${sourceRoot}`,
-    `--macro Intercept.run(["${sourceRoot}"], [])`,
+    `--macro Intercept.run(["${sourceRoot}"])`,
     `--macro ${target.compiler}`,
     `-D ${target.define}=${output}`,
     "mutation.Invalid",
