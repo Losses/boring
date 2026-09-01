@@ -43,7 +43,7 @@ class SwiftType {
 					abs.name;
 				} else switch(pathOf(abs.pack, abs.name)) {
 					case "Int": "Int32";
-					// The f32 lane maps the module real onto the native
+					// The f32 configuration maps the module real onto the native
 					// binary32 type (feature spec 23).
 					case "Float": FloatPrecision.isF32() ? "Float" : "Double";
 					case "Bool": "Bool";
@@ -135,7 +135,7 @@ class SwiftType {
 				}
 				switch(pathOf(abs.pack, abs.name)) {
 					case "Int": "Int32";
-					// The f32 lane maps the module real onto the native
+					// The f32 configuration maps the module real onto the native
 					// binary32 type (feature spec 23).
 					case "Float": FloatPrecision.isF32() ? "Float" : "Double";
 					case "Bool": "Bool";
@@ -193,7 +193,7 @@ class SwiftType {
 	}
 
 	/**
-		Type-level parameter substitution, the structure-preserving twin
+		Type parameter substitution, the structure-preserving counterpart
 		of `ofSubstituted`: rebuilds a type with its parameters replaced
 		by applied arguments so a nested alias application carries real
 		types, with no rendered-text substitution.

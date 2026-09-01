@@ -1,7 +1,7 @@
 package registry;
 
 /** The type of the process environment object. No field of it is read
-directly: an absent environment entry surfaces as `undefined` on the
+directly: an absent environment entry appears as `undefined` on the
 JavaScript side, which no typed extern can carry across boring's
 null-only optionality, so the whole object crosses as JSON text. */
 extern class EnvBlock {}

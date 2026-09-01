@@ -13,7 +13,7 @@ import ValueTypeSupport.ValueTypeInfo;
 	Declaration lowering: classes, variant enums, and record typedefs
 	(features/14). One TsDecl instance owns the per-module emission
 	context (imports, types, expression state) so every declaration in
-	the same Haxe module lands in one TypeScript file with one import
+	the same Haxe module is written to one TypeScript file with one import
 	block.
 **/
 class TsDecl {
