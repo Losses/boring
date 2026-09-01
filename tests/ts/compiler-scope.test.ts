@@ -5,9 +5,8 @@ import { join } from "node:path";
 /**
  * Boundary guard for the transpilation targets: a compiler must not
  * assume which package or sources it is compiling. Output is derived
- * from the typed AST or it does not ship; name-keyed emission tables
- * and hard-coded package directives are how the first Kotlin run
- * fabricated its output, so this scan holds both landed targets to
+ * from the typed AST or it is omitted; name-keyed emission tables
+ * and fixed package directives caused the first Kotlin run to produce its
  * zero occurrences of the compiled sources' identifiers inside the
  * compiler sources.
  *
