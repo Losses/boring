@@ -5,7 +5,7 @@ import std.UStringPlatform;
 /**
 	Code-point-addressed string access, the single source of the unchecked
 	primitives behind std.UStringRT
-	(docs/specs/stdlib/10-unicode-string-access.md). Each lane compiles this
+	(docs/specs/stdlib/10-unicode-string-access.md). Each target compiles this
 	class into its runtime package and routes the extern through it; stage
 	one binds it as std.UStringRT. The construction-domain checks live in
 	the inline wrappers of std.UString and never reach these functions.
