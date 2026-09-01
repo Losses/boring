@@ -90,12 +90,13 @@ class ExternBindings {
 		return cls.name;
 	}
 
-	static function moduleTypeName(t: ModuleType): String {
+	static function moduleTypeName(t: Type): String {
 		return switch(t) {
 			case TInst(cls, _): cls.get().name;
-			case TEnumDecl(en): en.get().name;
-			case TTypeDecl(def): def.get().name;
+			case TEnum(en, _): en.get().name;
+			case TType(def, _): def.get().name;
 			case TAbstract(a, _): a.get().name;
+			case _: Std.string(t);
 		};
 	}
 
