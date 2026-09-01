@@ -21,7 +21,7 @@ enum NumberParsing {
     private static let intText = try! NSRegularExpression(pattern: "^[+-]?[0-9]+$")
     private static let hexText = try! NSRegularExpression(pattern: "^[+-]?0[xX][0-9a-fA-F]+$")
     private static func match(_ re: NSRegularExpression, _ s: String) -> Bool { re.firstMatch(in: s, range: NSRange(s.startIndex..., in: s)) != nil }
-    static func trim(_ s: String) -> String { String(s.drop(while: { $0 == " " || $0 == "\t" || $0 == "\n" || $0 == "\u{0B}" || $0 == "\u{0C}" || $0 == "\r" }).reversed().drop(while: { $0 == " " || $0 == "\t" || $0 == "\n" || $0 == "\u{0B}" || $0 == "\u{0C}" || $0 == "\r" }).reversed()) }
+    static func trim(_ s: String) -> String { String(s.drop(while: { $0 == " " || $0 == "\\t" || $0 == "\\n" || $0 == "\\u{0B}" || $0 == "\\u{0C}" || $0 == "\\r" }).reversed().drop(while: { $0 == " " || $0 == "\\t" || $0 == "\\n" || $0 == "\\u{0B}" || $0 == "\\u{0C}" || $0 == "\\r" }).reversed()) }
     static func parseFloat(_ s: String) -> ${FloatPrecision.isF32() ? "Float" : "Double"} { let t = trim(s); return match(floatText, t) ? (${FloatPrecision.isF32() ? "Float" : "Double"}(t) ?? .nan) : .nan }
     static func parseInt(_ s: String) -> Int32? { let t = trim(s); if match(intText, t), let n = Int64(t), n >= -2147483648 && n <= 2147483647 { return Int32(n) }; if match(hexText, t) { let neg = t.hasPrefix("-"); let p = (neg || t.hasPrefix("+")) ? 3 : 2; let d = String(t.dropFirst(p)); if let n = Int64(d, radix: 16) { let v = neg ? -n : n; return v >= -2147483648 && v <= 2147483647 ? Int32(v) : nil } }; return nil }
 }

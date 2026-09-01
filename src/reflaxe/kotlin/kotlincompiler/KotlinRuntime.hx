@@ -74,11 +74,11 @@ object FPHelper {
     private val intText = Regex("^[+-]?[0-9]+$")
     private val hexText = Regex("^[+-]?0[xX][0-9a-fA-F]+$")
     fun parseFloat(s: String): ${real} {
-        val t = s.trim(\' \', \'\\\\t\', \'\\\\n\', \'\\\\r\', \'\\\\u000B\', \'\\\\u000C\')
+        val t = s.trim(\' \', \'\\t\', \'\\n\', \'\\r\', \'\\u000B\', \'\\u000C\')
         return if (floatText.matches(t)) t.${parse}() ?: ${nan} else ${nan}
     }
     fun parseInt(s: String): Int? {
-        val t = s.trim(\' \', \'\\\\t\', \'\\\\n\', \'\\\\r\', \'\\\\u000B\', \'\\\\u000C\')
+        val t = s.trim(\' \', \'\\t\', \'\\n\', \'\\r\', \'\\u000B\', \'\\u000C\')
         if (intText.matches(t)) return t.toIntOrNull()
         if (hexText.matches(t)) {
             val negative = t.startsWith("-")
