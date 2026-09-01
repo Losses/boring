@@ -80,7 +80,9 @@ and their builders) lower onto `runtime.SortedTable` (spec 07).
 ## Identity from defines
 
 The runtime package's identity enters through configuration; the
-compilers hold none of it:
+compilers hold none of it. Runtime additions are limited to missing target
+capabilities and host boundaries; direct target types and operations stay
+compiler emissions:
 
 - `runtime-import=<name>`: how generated code references the package.
   TypeScript renders the name verbatim as a module specifier

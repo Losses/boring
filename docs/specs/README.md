@@ -31,6 +31,13 @@ Every candidate translation is evaluated across four fixed axes:
 
 ## Specification index
 
+### Crypto specifications
+
+| Number | Specification | Status | Description |
+| --- | --- | --- | --- |
+| 00 | [00-sha-workplan.md](crypto/00-sha-workplan.md) | In progress | Authoritative workplan for Int64, Bytes, SHA-256, and SHA-512. |
+| 01 | [01-sha256-sha512.md](crypto/01-sha256-sha512.md) | Planned | Bytes-only portable SHA APIs, padding, host selection, and cross-platform evidence. |
+
 ### Binary specifications
 
 | Number | Specification | Status | Description |

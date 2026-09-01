@@ -166,6 +166,7 @@ The fixed mapping table:
 | typedef alias of a named type | type alias | type alias | `typealias` |
 | `abstract` over `T` | newtype or type alias per features/02 | brand or type alias per features/02 | `value class` or `typealias` per features/02 |
 | `Null<T>` | `Option<T>` | optional property (`prop?: T` or `T | undefined`) per features/04 | `T?` per features/04 |
+| `haxe.Int64` | `i64` with bitwise unsigned reinterpretation | `bigint` restricted to 64 bits | `Long` |
 | `Dynamic` | banned | banned | banned |
 
 Rules:
@@ -180,7 +181,7 @@ Rules:
   is implemented when the first field with such a range is declared; the
   declaration mechanism and the promotion are implemented in the same
   change.
-- No silent widening or narrowing. Every numeric conversion is an explicit named function at an API or wire boundary; the numeric selection follows the wire type table in `docs/specs/features/07-numeric-tower.md`.
+- No silent widening or narrowing. Every numeric conversion is an explicit named function at an API or wire boundary; the numeric selection follows the wire type table in `docs/specs/features/07-numeric-tower.md`. Int64 arithmetic remains fixed at 64 bits on every target and does not participate in `Float` promotion.
 - The Rust `Int` domain follows the module kind: business modules render `u32`, resident runtime modules render `i32`, and the call boundary converts between the two domains through the named adapters of `docs/specs/stdlib/07-sorted-keyed-tables.md`, `docs/specs/stdlib/10-unicode-string-access.md`, and `docs/specs/stdlib/11-grapheme-clusters.md`.
 - Every target type is named. Inline object, function, mapped, and tuple types are banned repo-wide as recorded in `reference/ts/src/records.ts` (lines 1-5).
 - Generic parameter translation follows `docs/specs/features/05-generics.md`; this table fixes only the base types.

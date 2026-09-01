@@ -57,7 +57,7 @@ Every row names a violation, states the construct that triggers it, and gives th
 | `V08 LoopBodyClosure` | Function value or arrow function appearing inside a loop body | `TFunction` nested within a `TFor` or `TWhile` body |
 | `V09 RecursiveFormatType` | Record format whose record typedefs form a cycle | Annotation validation on the record typedef, per `docs/specs/binary/04-key-index-retrieval.md` |
 | `V10 StrideViolation` | Variable-width field, or nested runtime-count array, in an accessor-eligible format | Annotation validation on the record typedef, per `docs/specs/binary/04-key-index-retrieval.md` |
-| `V11 Int64Misuse` | `haxe.Int64` outside the permitted cases of the bigint use-case standard | Type reference to `haxe.Int64` outside the modules `docs/specs/stdlib/05-haxe-int64.md` lists |
+| `V11 Int64Misuse` | An `haxe.Int64` operation or crossing outside the supported constructors, fixed-width arithmetic, bitwise operations, shifts, high/low extraction, and named boundary conversions of standard library spec 05 | Typed expression whose Int64 operation or conversion is absent from the capability table in `docs/specs/stdlib/05-haxe-int64.md` |
 | `V12 DataInheritance` | A guarded class extends a class other than through the `haxe.Exception` chain that rule 4 sanctions | Class declaration with a superclass outside the exception chain |
 | `V13 HashMapCollection` | `haxe.ds.Map` and its implementations (`StringMap`, `IntMap`, `ObjectMap`, `HashMap`) | Type reference resolving to the named modules |
 | `V14 DynamicCatch` | `catch (error:Dynamic)` | `TTry` catch variable typed `Dynamic` |
