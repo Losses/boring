@@ -35,6 +35,9 @@ class KotlinExpr {
 	/** Fill arrays returning as asList() when decodeBoundary holds. */
 	final asListReturn: Map<Int, String> = [];
 
+	/** Locals backed by the FPHelper high/low boundary object. */
+	final fpInt64Halves: Map<Int, Bool> = [];
+
 	/** Names used by parameters and locals; generated names avoid them. */
 	final usedNames: Map<String, Bool> = [];
 
@@ -888,6 +891,8 @@ class KotlinExpr {
 	// ------------------------------------------------------------------
 
 	function expr(e: TypedExpr): String {
+		final int64Expr = int64Expression(e);
+		if(int64Expr != null) return int64Expr;
 		final wrapperValue = ValueTypeSupport.syntheticValue(e);
 		if(wrapperValue != null) return valueTypeSynthetic(e, wrapperValue);
 		final query = enumQuery(e);
@@ -1388,6 +1393,54 @@ class KotlinExpr {
 		}
 	}
 
+	function int64Expression(e:TypedExpr):Null<String> {
+		return switch(e.expr) {
+			case TCall(fn, args): int64Call(fn, args);
+			case _: null;
+		};
+	}
+
+	function int64Call(fn:TypedExpr, args:Array<TypedExpr>):Null<String> {
+		return switch(stripWrap(fn).expr) {
+			case TField(_, FStatic(classRef, fieldRef)) if(classRef.get().module == "haxe.Int64" && classRef.get().name == "Int64_Impl_"):
+				switch(fieldRef.get().name) {
+					case "make" if(args.length == 2): "((" + expr(args[0]) + ".toLong() shl 32) or (" + expr(args[1]) + ".toLong() and 0xFFFFFFFFL))";
+					case "ofInt" if(args.length == 1): expr(args[0]) + ".toLong()";
+					case "getHigh" | "get_high" if(args.length == 1): if(isFpHelperInt64Halves(args[0])) expr(args[0]) + ".high" else "(" + expr(args[0]) + " shr 32).toInt()";
+					case "getLow" | "get_low" if(args.length == 1): if(isFpHelperInt64Halves(args[0])) expr(args[0]) + ".low" else expr(args[0]) + ".toInt()";
+					case "add" if(args.length == 2): expr(args[0]) + " + " + expr(args[1]);
+					case "sub" if(args.length == 2): expr(args[0]) + " - " + expr(args[1]);
+					case "and" if(args.length == 2): "((" + expr(args[0]) + ") and (" + expr(args[1]) + "))";
+					case "or" if(args.length == 2): "((" + expr(args[0]) + ") or (" + expr(args[1]) + "))";
+					case "xor" if(args.length == 2): "((" + expr(args[0]) + ") xor (" + expr(args[1]) + "))";
+					case "complement" if(args.length == 1): "(" + expr(args[0]) + ").inv()";
+					case "shl" if(args.length == 2): "((" + expr(args[0]) + ") shl ((" + expr(args[1]) + ") and 63))";
+					case "shr" if(args.length == 2): "((" + expr(args[0]) + ") shr ((" + expr(args[1]) + ") and 63))";
+					case "ushr" if(args.length == 2): "((" + expr(args[0]) + ") ushr ((" + expr(args[1]) + ") and 63))";
+					case "eq" if(args.length == 2): expr(args[0]) + " == " + expr(args[1]);
+					case "neq" if(args.length == 2): expr(args[0]) + " != " + expr(args[1]);
+					default: null;
+				}
+			default: null;
+		};
+	}
+
+	function isFpHelperInt64Halves(e:TypedExpr):Bool {
+		return switch(stripWrap(e).expr) {
+			case TCall(fn, _): isFpHelperInt64Call(fn);
+			case TLocal(v): fpInt64Halves.exists(v.id);
+			case _: false;
+		};
+	}
+
+	function isFpHelperInt64Call(fn:TypedExpr):Bool {
+		return switch(stripWrap(fn).expr) {
+			case TField(_, FStatic(classRef, fieldRef)):
+				classRef.get().module == "haxe.io.FPHelper" && (fieldRef.get().name == "doubleToI64" || fieldRef.get().name == "f32ToI64");
+			case _: false;
+		};
+	}
+
 	function field(subj: TypedExpr, fa: FieldAccess): String {
 		switch(fa) {
 			case FStatic(c, cf):
@@ -1689,6 +1742,8 @@ class KotlinExpr {
 	}
 
 	function call(fn: TypedExpr, args: Array<TypedExpr>): String {
+		final int64CallText = int64Call(fn, args);
+		if(int64CallText != null) return int64CallText;
 		final wrapperCall = valueTypeCall(fn, args);
 		if(wrapperCall != null) return wrapperCall;
 		switch(fn.expr) {
@@ -2095,9 +2150,15 @@ class KotlinExpr {
 
 	function scanLocals(e: TypedExpr): Void {
 		switch(e.expr) {
-			case TVar(v, _):
+			case TVar(v, init):
 				if(v.name != "`") {
 					usedNames.set(v.name, true);
+				}
+				if(init != null) {
+					switch(stripWrap(init).expr) {
+						case TCall(fn, _) if(isFpHelperInt64Call(fn)): fpInt64Halves.set(v.id, true);
+						case _:
+					}
 				}
 			case TBinop(OpAssign, t, _) | TBinop(OpAssignOp(_), t, _):
 				switch(t.expr) {
