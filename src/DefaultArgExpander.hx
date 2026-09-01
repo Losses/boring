@@ -29,6 +29,9 @@ enum DefaultArgValue {
 	VCoalescing(value:CoalescingDefaultValue);
 }
 
+/** One registered coalescing site of a function, used by the stage-1 rewrite. */
+typedef CoalescingSiteInfo = {name:String, argIdx:Int, value:CoalescingDefaultValue, excluded:Expr, defaultExpr:Expr};
+
 /**
 	The deliberately small expression language accepted by a coalescing
 	default.  Keeping this separate from DefaultArgValue prevents a
@@ -84,7 +87,8 @@ class DefaultArgExpander {
 			final field = fields[index];
 			switch (field.kind) {
 				case FieldType.FFun(fun):
-					final coalescing = discoverCoalescingDefaults(fun.args, fun.expr, classType);
+					final sites:Array<CoalescingSiteInfo> = [];
+					final coalescing = discoverCoalescingDefaults(fun.args, fun.expr, classType, sites);
 					final defaults:Array<Null<DefaultArgValue>> = [];
 					var hasDefault = false;
 					for (argIdx in 0...fun.args.length) {
@@ -112,6 +116,7 @@ class DefaultArgExpander {
 						fieldNameCounts.set(field.name, (fieldNameCounts.exists(field.name) ? fieldNameCounts.get(field.name) : 0) + 1);
 					}
 					if (fun.expr != null) {
+						rewriteCrossSiteReads(fun.expr, sites);
 						walkLocalFunctions(fun.expr, classType, field.name);
 					}
 				default:
@@ -167,7 +172,8 @@ class DefaultArgExpander {
 
 	static function registerLocalFunction(classType:ClassType, fieldName:String, fnName:String, func:AstFunction):Void {
 		final classKey = getClassKey(classType);
-		final coalescing = discoverCoalescingDefaults(func.args, func.expr, classType);
+		final sites:Array<CoalescingSiteInfo> = [];
+		final coalescing = discoverCoalescingDefaults(func.args, func.expr, classType, sites);
 		final defaults:Array<Null<DefaultArgValue>> = [];
 		var hasDefault = false;
 		for (argIdx in 0...func.args.length) {
@@ -194,12 +200,14 @@ class DefaultArgExpander {
 			localDefaultsByName.set(fnName, defaults);
 			localNameCounts.set(fnName, (localNameCounts.exists(fnName) ? localNameCounts.get(fnName) : 0) + 1);
 		}
+		rewriteCrossSiteReads(func.expr, sites);
 	}
 
-	static function discoverCoalescingDefaults(args:Array<FunctionArg>, body:Null<Expr>, classType:ClassType):Array<Null<CoalescingDefaultValue>> {
+	static function discoverCoalescingDefaults(args:Array<FunctionArg>, body:Null<Expr>, classType:ClassType, ?outSites:Array<CoalescingSiteInfo>):Array<Null<CoalescingDefaultValue>> {
 		final result:Array<Null<CoalescingDefaultValue>> = [for (_ in args) null];
 		if (body == null) return result;
 		final allParamNames:Array<String> = [for (a in args) a.name];
+		final registered:Array<Null<CoalescingSiteInfo>> = [for (_ in args) null];
 		for (argIdx in 0...args.length) {
 			final arg = args[argIdx];
 			if (arg.opt != true || arg.value != null) continue;
@@ -210,12 +218,22 @@ class DefaultArgExpander {
 				Context.fatalError("coalesced default parameter is consumed more than once", body.pos);
 			}
 			if (candidates.length == 1) {
-				if (countParameterReads(body, arg.name, candidates[0].excluded) > 0) {
-					Context.fatalError("coalesced default parameter is consumed more than once", body.pos);
-				}
-				recordCoalescingSource(candidates[0].defaultExpr.pos);
+				registered[argIdx] = {name: arg.name, argIdx: argIdx, value: candidates[0].value, excluded: candidates[0].excluded, defaultExpr: candidates[0].defaultExpr};
 				result[argIdx] = candidates[0].value;
 			}
+		}
+		// Spec 22, Evaluation ordering: a read of a parameter inside the
+		// default expression of another registered site is a sanctioned use
+		// and does not count toward the consumed-more-than-once rejection.
+		final otherDefaults:Array<Expr> = [for (site in registered) if (site != null) site.defaultExpr];
+		for (argIdx in 0...args.length) {
+			final site = registered[argIdx];
+			if (site == null) continue;
+			if (countParameterReads(body, site.name, [site.excluded].concat(otherDefaults)) > 0) {
+				Context.fatalError("coalesced default parameter is consumed more than once", body.pos);
+			}
+			recordCoalescingSource(site.defaultExpr.pos);
+			if (outSites != null) outSites.push(site);
 		}
 		return result;
 	}
@@ -705,8 +723,11 @@ class DefaultArgExpander {
 		return false;
 	}
 
-	static function countParameterReads(e:Expr, parameterName:String, excluded:Expr):Int {
-		if (e == null || e == excluded) return 0;
+	static function countParameterReads(e:Expr, parameterName:String, excluded:Array<Expr>):Int {
+		if (e == null) return 0;
+		for (skip in excluded) {
+			if (e == skip) return 0;
+		}
 		var count = 0;
 		switch (e.expr) {
 			case ExprDef.EConst(AstConstant.CIdent(name)):
@@ -715,6 +736,82 @@ class DefaultArgExpander {
 		}
 		haxe.macro.ExprTools.iter(e, child -> count += countParameterReads(child, parameterName, excluded));
 		return count;
+	}
+
+	/**
+	 * Spec 22, Evaluation ordering: a later site reads the normalized value
+	 * of an earlier coalesced parameter, while plain Haxe execution reads
+	 * the raw nullable binding. This pass rewrites each read of an earlier
+	 * coalesced parameter inside a later site's default expression into the
+	 * inline normalization `p == null ? E : p`, with `E` a deep copy of the
+	 * earlier site's default expression. Targets render defaults from the
+	 * registered values, so the rewrite changes no target output.
+	 */
+	public static function rewriteCrossSiteReads(body:Null<Expr>, sites:Array<CoalescingSiteInfo>):Void {
+		if (body == null || sites.length == 0) return;
+		final coalescedByName:Map<String, CoalescingSiteInfo> = new Map();
+		for (site in sites) {
+			coalescedByName.set(site.name, site);
+		}
+		for (site in sites) {
+			final readNames:Array<String> = [];
+			collectParameterReadNames(site.value, readNames);
+			final replacements:Map<String, Expr> = new Map();
+			for (name in readNames) {
+				final earlier = coalescedByName.get(name);
+				if (earlier == null || earlier.argIdx >= site.argIdx) continue;
+				replacements.set(name, makeNormalizationTernary(name, cloneExpr(earlier.defaultExpr), earlier.defaultExpr.pos));
+			}
+			if (Lambda.count(replacements) == 0) continue;
+			site.defaultExpr.expr = replaceParameterReads(site.defaultExpr, replacements).expr;
+		}
+	}
+
+	/** Names of every parameter referenced anywhere in a coalescing value tree. */
+	static function collectParameterReadNames(value:CoalescingDefaultValue, out:Array<String>):Void {
+		switch (value) {
+			case CParameterRead(name):
+				out.push(name);
+			case CFieldAccess(receiver, _):
+				collectParameterReadNames(receiver, out);
+			case CMethodCall(receiver, _, args):
+				collectParameterReadNames(receiver, out);
+				for (arg in args) collectParameterReadNames(arg, out);
+			case CStaticCall(_, args):
+				for (arg in args) collectParameterReadNames(arg, out);
+			case CConditional(condition, ifTrue, ifFalse):
+				collectParameterReadNames(condition, out);
+				collectParameterReadNames(ifTrue, out);
+				collectParameterReadNames(ifFalse, out);
+			case CBinaryOp(_, left, right):
+				collectParameterReadNames(left, out);
+				collectParameterReadNames(right, out);
+			default:
+		}
+	}
+
+	/** Replaces bare reads of the named parameters with the given expressions. */
+	static function replaceParameterReads(e:Expr, replacements:Map<String, Expr>):Expr {
+		switch (e.expr) {
+			case ExprDef.EConst(AstConstant.CIdent(name)):
+				final replacement = replacements.get(name);
+				if (replacement != null) return replacement;
+			default:
+		}
+		return haxe.macro.ExprTools.map(e, child -> replaceParameterReads(child, replacements));
+	}
+
+	static function makeNormalizationTernary(parameterName:String, defaultExprCopy:Expr, pos:Position):Expr {
+		final paramRead = {pos: pos, expr: ExprDef.EConst(AstConstant.CIdent(parameterName))};
+		final nullLiteral = {pos: pos, expr: ExprDef.EConst(AstConstant.CIdent("null"))};
+		final condition = {pos: pos, expr: ExprDef.EBinop(Binop.OpEq, paramRead, nullLiteral)};
+		final fallbackRead = {pos: pos, expr: ExprDef.EConst(AstConstant.CIdent(parameterName))};
+		return {pos: pos, expr: ExprDef.ETernary(condition, defaultExprCopy, fallbackRead)};
+	}
+
+	/** Deep copy of an expression tree; the mapper returning null rebuilds every node. */
+	static function cloneExpr(e:Expr):Expr {
+		return haxe.macro.ExprTools.map(e, _ -> null);
 	}
 
 	static function evalConstantExpr(e:Expr, classType:ClassType):DefaultArgValue {

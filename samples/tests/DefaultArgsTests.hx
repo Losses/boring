@@ -119,4 +119,21 @@ class DefaultArgsTests {
 		Test.equals("alpha", DefaultArgsOps.callDependenceA());
 		Test.equals("beta", DefaultArgsOps.callDependenceB());
 	}
+
+	@:test("chain with both parameters omitted resolves through the earlier default")
+	public static function testChainedCoalescing():Void {
+		Test.equals(5.0, DefaultArgsOps.callChainedBothOmitted());
+		Test.equals(7.0, DefaultArgsOps.callChainedLaterOmitted());
+		Test.equals(9.5, DefaultArgsOps.callChainedBothGiven());
+	}
+
+	@:test("constructor chain defaults the later field to the earlier parameter")
+	public static function testChainedPaint():Void {
+		final both = new ChainedPaint();
+		Test.equals(0.0, both.radius);
+		Test.equals(0.0, both.followRadius);
+		final given = new ChainedPaint(4.5);
+		Test.equals(4.5, given.radius);
+		Test.equals(4.5, given.followRadius);
+	}
 }
