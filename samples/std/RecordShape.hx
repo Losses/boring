@@ -16,9 +16,11 @@ typedef RecordShapeData = {
 /**
  * The field list of a record receiver, shared by the record macros
  * (docs/specs/features/27-class-members-and-records.md). Class records
- * yield the fields held by constructor parameters, in constructor
- * parameter order; anonymous records yield all fields in declaration
- * order. A receiver that is neither stops the compilation.
+ * yield the fields held by constructor parameters, in the declaration
+ * order of those fields
+ * (docs/specs/features/37-record-print-field-order.md); anonymous
+ * records yield all fields in declaration order. A receiver that is
+ * neither stops the compilation.
  */
 class RecordShape {
 	#if macro
@@ -89,17 +91,46 @@ class RecordShape {
 		for(field in cls.fields.get()) {
 			classFields.set(field.name, field);
 		}
-		final names:Array<String> = [];
-		final fieldTypes:Array<Type> = [];
+		final fieldPositions = new Map<String, Position>();
+		for(field in fields) {
+			switch(field.kind) {
+				case FVar(_, _) | FProp(_, _, _, _):
+					fieldPositions.set(field.name, field.pos);
+				case _:
+			}
+		}
+		// Feature spec 37 rule 1: each parameter sorts by the source
+		// position of the field holding it, so the member follows field
+		// declaration order instead of constructor parameter order.
+		final entries:Array<{name:String, type:Type, pos:Position}> = [];
 		for(arg in constructorArgs) {
 			if(!typedFieldTypes.exists(arg.name) && !classFields.exists(arg.name)) {
 				return Context.fatalError("@:dataClass requires every constructor parameter to be a class field", cls.pos);
 			}
-			names.push(arg.name);
 			final fieldType = typedFieldTypes.get(arg.name);
-			fieldTypes.push(fieldType != null ? fieldType : classFields.get(arg.name).type);
+			final heldBy = classFields.get(arg.name);
+			final declared = fieldPositions.get(arg.name);
+			entries.push({
+				name: arg.name,
+				type: fieldType != null ? fieldType : heldBy.type,
+				pos: declared != null ? declared : heldBy.pos
+			});
 		}
-		return {names: names, fieldTypes: fieldTypes, isClass: true, name: cls.name};
+		for(i in 0...entries.length) {
+			for(j in (i + 1)...entries.length) {
+				if(Context.getPosInfos(entries[i].pos).min > Context.getPosInfos(entries[j].pos).min) {
+					final tmp = entries[i];
+					entries[i] = entries[j];
+					entries[j] = tmp;
+				}
+			}
+		}
+		return {
+			names: [for(entry in entries) entry.name],
+			fieldTypes: [for(entry in entries) entry.type],
+			isClass: true,
+			name: cls.name
+		};
 	}
 
 	/**
@@ -195,17 +226,32 @@ class RecordShape {
 			fields.set(field.name, field);
 		}
 
-		final names:Array<String> = [];
-		final fieldTypes:Array<Type> = [];
+		// Feature spec 37 rule 1: the call-site shape uses the same
+		// field declaration order as the member macro, so every consumer
+		// of the shape reads one order.
+		final entries:Array<{name:String, type:Type, pos:Position}> = [];
 		for(arg in args) {
 			final field = fields.get(arg.name);
 			if(field == null) {
 				Context.fatalError(nonFieldMessage, pos);
 			}
-			names.push(arg.name);
-			fieldTypes.push(field.type);
+			entries.push({name: arg.name, type: field.type, pos: field.pos});
 		}
-		return {names: names, fieldTypes: fieldTypes, isClass: true, name: cls.name};
+		for(i in 0...entries.length) {
+			for(j in (i + 1)...entries.length) {
+				if(Context.getPosInfos(entries[i].pos).min > Context.getPosInfos(entries[j].pos).min) {
+					final tmp = entries[i];
+					entries[i] = entries[j];
+					entries[j] = tmp;
+				}
+			}
+		}
+		return {
+			names: [for(entry in entries) entry.name],
+			fieldTypes: [for(entry in entries) entry.type],
+			isClass: true,
+			name: cls.name
+		};
 	}
 
 	static function stdStringValue(read:Expr, pos:Position):Expr {
