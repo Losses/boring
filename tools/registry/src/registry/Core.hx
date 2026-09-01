@@ -17,6 +17,7 @@ class CoreException extends haxe.Exception {
 }
 typedef JsonBox = { value:JsonValue };
 
+@:keep
 class Core {
  static final USAGE="usage: generate --tree <dir> --output <site> --base-url <url> [--swift-scope <scope>] [--archive-base <url>]";
  static function fail(x:String):Void throw new CoreException(Tree(x));

@@ -12,6 +12,7 @@ class SemverException extends haxe.Exception {
   };
  }
 }
+@:keep
 class Semver {
  static function intOf(x:String):Int { final v=Std.parseInt(x); return v==null?0:v; }
  static function validNumeric(x:String):Bool { if(x.length==0)return false;if(x.length>1&&x.charAt(0)=="0")return false;for(i in 0...x.length){var c=x.charCodeAt(i);if(c<48||c>57)return false;}return true; }

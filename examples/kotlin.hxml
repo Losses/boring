@@ -8,6 +8,7 @@
 -cp samples
 -cp tools/registry/src
 --macro Intercept.run(['samples', 'tools/registry/src'])
+
 --macro haxe.macro.Compiler.addGlobalMetadata('boring', '@:build(std.RecordMember.build())')
 --macro kotlincompiler.Compiler.use()
 -D kotlin-output=reference/kotlin/gen

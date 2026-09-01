@@ -8,6 +8,10 @@
 -cp samples
 -cp tools/registry/src
 --macro Intercept.run(['samples', 'tools/registry/src'])
+--macro haxe.macro.Compiler.keep('registry.Core')
+--macro haxe.macro.Compiler.keep('registry.Json')
+--macro haxe.macro.Compiler.keep('registry.Semver')
+
 --macro haxe.macro.Compiler.addGlobalMetadata('boring', '@:build(std.RecordMember.build())')
 --macro tscompiler.Compiler.use()
 -D ts-output=reference/ts/gen
