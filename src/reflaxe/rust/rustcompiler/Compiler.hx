@@ -11,7 +11,7 @@ import reflaxe.data.ClassVarData;
 import reflaxe.data.EnumOptionData;
 
 /**
-	reflaxe plugin producing the Rust lane of the translatable subset.
+	reflaxe plugin producing the Rust target of the translatable subset.
 
 	Output layout is one file per Haxe module inside the package's
 	directory, plus a `mod.rs` per package, plus a root `lib.rs` and
@@ -55,7 +55,7 @@ class Compiler extends PluginCompiler<Compiler> {
 
 	public function compileClassImpl(classType: ClassType, varFields: Array<ClassVarData>, funcFields: Array<ClassFuncData>): Null<String> {
 		// Resident runtime modules live under src/, outside the
-		// intercepted source roots, and still compile: each lane lists
+		// intercepted source roots, and still compile: each target lists
 		// them in its hxml so typing reaches them (RuntimeResidents).
 		final isResident = RuntimeResidents.isResident(classType.module);
 		final valueType = ValueTypeSupport.infoOfClass(classType);

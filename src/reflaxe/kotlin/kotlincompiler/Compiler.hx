@@ -11,7 +11,7 @@ import reflaxe.data.ClassVarData;
 import reflaxe.data.EnumOptionData;
 
 /**
-	reflaxe plugin producing the Kotlin lane of the translatable subset.
+	reflaxe plugin producing the Kotlin target of the translatable subset.
 
 	Output layout is one file per Haxe module at the module's own path,
 	plus runtime shims for the standard library on demand, all written
@@ -279,7 +279,7 @@ class Compiler extends PluginCompiler<Compiler> {
 		final runtimePackage = RuntimeConfig.requireImportName("TestHelper");
 		// The floating-point overloads follow the module real of the
 		// compilation (feature spec 23); Test.formatFloat switches with
-		// the same lane.
+		// the same target.
 		final real = FloatPrecision.isF32() ? "Float" : "Double";
 		final lines = [
 			"package tests",
@@ -464,7 +464,7 @@ class Compiler extends PluginCompiler<Compiler> {
 			return;
 		}
 		final runtimePackage = RuntimeConfig.requireImportName("module " + module);
-		// A subPackage lands the file in a nested package directory; the
+		// A subPackage writes the file in a nested package directory; the
 		// test entry uses this so the general entry stays browser-loadable.
 		final pkg = subPackage.length > 0 ? runtimePackage + "." + subPackage : runtimePackage;
 		final path = RuntimeConfig.emitPath(dir, fileName);

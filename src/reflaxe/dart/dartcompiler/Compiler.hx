@@ -11,7 +11,7 @@ import reflaxe.data.ClassVarData;
 import reflaxe.data.EnumOptionData;
 
 /**
-	reflaxe plugin producing the Dart lane of the translatable subset
+	reflaxe plugin producing the Dart target of the translatable subset
 	(docs/specs/stdlib/06-std-modules.md).
 
 	Output layout is one Dart library per Haxe module at
@@ -44,7 +44,7 @@ class Compiler extends PluginCompiler<Compiler> {
 
 	public static function use() {
 		// Dart has one storage width for reals (double) with no binary32
-		// alias in the language, so the f32 lane has no faithful Dart
+		// alias in the language, so the f32 configuration has no faithful Dart
 		// lowering; reject at plugin registration, before any type
 		// rendering (feature spec 23).
 		if(FloatPrecision.isF32()) {
@@ -440,7 +440,7 @@ class Compiler extends PluginCompiler<Compiler> {
 		The compilation scope is the intercepted source roots: a
 		declaration lowers when its position file lies under one of them,
 		whatever its package. The output path mirrors the module path:
-		`pack.Module` lands at `lib/pack/module.dart`.
+		`pack.Module` is written to `lib/pack/module.dart`.
 	**/
 	function inSourceScope(pos: haxe.macro.Expr.Position): Bool {
 		final file = Context.getPosInfos(pos).file;

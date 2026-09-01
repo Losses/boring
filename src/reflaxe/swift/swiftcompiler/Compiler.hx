@@ -11,7 +11,7 @@ import reflaxe.data.ClassVarData;
 import reflaxe.data.EnumOptionData;
 
 /**
-	reflaxe plugin producing the Swift lane of the translatable subset
+	reflaxe plugin producing the Swift target of the translatable subset
 	(docs/specs/features/07-numeric-tower.md).
 
 	Output layout is one Swift file per Haxe module at the module's own
@@ -401,7 +401,7 @@ class Compiler extends PluginCompiler<Compiler> {
 		The compilation scope is the intercepted source roots: a
 		declaration lowers when its position file lies under one of them,
 		whatever its package. The output path mirrors the module path:
-		`pack.Module` lands at `pack/Module.swift`.
+		`pack.Module` is written to `pack/Module.swift`.
 	**/
 	function inSourceScope(pos: haxe.macro.Expr.Position): Bool {
 		final file = Context.getPosInfos(pos).file;
