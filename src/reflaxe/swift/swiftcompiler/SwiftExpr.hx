@@ -2455,7 +2455,7 @@ class SwiftExpr {
 
 	/**
 		The trailing value expression of a region arm, wrapper-tolerant:
-		the try marker resolution scans the value expression, not the
+		the try marker resolution scans the value expression. It ignores
 		statements around it.
 	**/
 	function stripToValue(e: TypedExpr): TypedExpr {
@@ -2715,7 +2715,7 @@ class SwiftExpr {
 		The payload positions one arm reads. The typer binds every pattern
 		variable through a hidden extraction local and, when the pattern
 		names it, a forwarding declaration whose initializer is that local
-		alone; a bare chain reference is the binding, not a use. A position
+		alone; a bare chain reference binds the name. A position
 		counts as read only when the arm references the name it binds.
 		Unread positions bind `_`; Swift warns on an unused `let` binding.
 	**/
@@ -2981,8 +2981,8 @@ class SwiftExpr {
 
 	function markMutated(v: TVar): Void {
 		mutated.set(v.id, true);
-		// Parameter writes surface by name only: the declaration site
-		// holds the argument list, not the body's TVar objects.
+		// Parameter writes are recorded by name; the declaration site
+		// holds the argument list and the body's TVar objects are separate.
 		if(v.name != "`") {
 			mutatedNames.set(v.name, true);
 		}
