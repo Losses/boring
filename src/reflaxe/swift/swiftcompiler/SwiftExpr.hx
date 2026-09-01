@@ -3281,6 +3281,9 @@ class SwiftExpr {
 				case 10: b.add('\\n');
 				case 13: b.add('\\r');
 				case 9: b.add('\\t');
+				case 11: b.add('\\u{000B}');
+				case 12: b.add('\\u{000C}');
+				case 1: b.add('\\u{0001}');
 				case c: b.addChar(c);
 			}
 		}
@@ -3297,6 +3300,9 @@ class SwiftExpr {
 				case 10: b.add('\\n');
 				case 13: b.add('\\r');
 				case 9: b.add('\\t');
+				case 11: b.add('\\u{000B}');
+				case 12: b.add('\\u{000C}');
+				case 1: b.add('\\u{0001}');
 				case c: b.addChar(c);
 			}
 		}
