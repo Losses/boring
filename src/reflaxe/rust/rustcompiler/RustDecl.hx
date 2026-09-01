@@ -917,10 +917,9 @@ class RustDecl {
 		expr.setFallible(isFallible, errOwner != null ? errOwner.name : null, errOwner != null && errOwner.hasOverflow ? state.overflowVariant : null);
 
 		var rawRetType = returnsArgArray(f) ? types.of(f.ret, true) : types.functionReturnOf(f.ret);
-		// Std.parseInt lowers to a signed Option<i32> expansion (stdlib/14).
-		// A business function that directly returns that lowering keeps the
-		// signed result type instead of the module's u32 Int domain; every
-		// other Null<Int> follows the module-kind rule of features/14.
+		// A business function that directly returns that lowering uses the
+		// signed result type; other Null<Int> results use the module's u32
+		// domain.
 		if(directParseReturn(f) && rawRetType == "Option<u32>") {
 			rawRetType = "Option<i32>";
 		}
@@ -949,7 +948,8 @@ class RustDecl {
 	/**
 		True when the function body is exactly a return of one `Std.parseInt`
 		call: the emitted rust signature must carry the lowering's signed
-		`Option<i32>` result instead of the module's unsigned domain.
+		`Option<i32>` result for the lowering; other Null<Int> results use
+		the module's unsigned domain.
 	**/
 	function directParseReturn(f: ClassFuncData): Bool {
 		if(f.expr == null) {
