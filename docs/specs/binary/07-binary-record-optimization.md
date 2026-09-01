@@ -154,10 +154,10 @@ Principle application: C1 is selected on author-facing semantics and on per-read
 
 Required once the rewrite exists; none exist yet:
 
-- The sample tree gains a fixture block with a header at position 0, fixed-layout records, and absent (0) stored links, shared by every lane.
-- One lane asserts the folded read emission, one buffer read at a constant offset; the threaded signatures and call sites of a chain four records deep; the constructor field and its construction sites; the override family; the recursive function; and the explicit-binding stop.
-- One lane asserts the stream expansion: a function reading two position parameters of one kind carries two implicit buffer parameters, its call sites append both, and one buffer serves two streams at a call site holding one buffer.
-- One lane asserts the merged pair: a function returning the position a runtime condition chooses between two buffers of one kind returns the derived `<Name>Ref` with one construction per branch, the caller reads through both members, and an array receiving positions of two streams changes its element type to the pair type.
-- One lane asserts the pair lowering: a locally consumed merge emits no pair construction; a merged field emits two fields and no member object; a merged array emits two parallel arrays; a non-inlined call boundary on the TypeScript lane emits the reused holder hoisted out of the loop; the Rust lane emits the value struct and the array of structs.
+- The sample tree gains a fixture block with a header at position 0, fixed-layout records, and absent (0) stored links, shared by every target.
+- One target asserts the folded read emission, one buffer read at a constant offset; the threaded signatures and call sites of a chain four records deep; the constructor field and its construction sites; the override family; the recursive function; and the explicit-binding stop.
+- One target asserts the stream expansion: a function reading two position parameters of one kind carries two implicit buffer parameters, its call sites append both, and one buffer serves two streams at a call site holding one buffer.
+- One target asserts the merged pair: a function returning the position a runtime condition chooses between two buffers of one kind returns the derived `<Name>Ref` with one construction per branch, the caller reads through both members, and an array receiving positions of two streams changes its element type to the pair type.
+- One target asserts the pair lowering: a locally consumed merge emits no pair construction; a merged field emits two fields and no member object; a merged array emits two parallel arrays; a non-inlined call boundary on the TypeScript target emits the reused holder hoisted out of the loop; the Rust target emits the value struct and the array of structs.
 - Rejection tests for the named errors of rulings 3, 6, and 11.
 - A compilation with no position types emits byte-identical output to the emission before this specification, guarding the opt-in nature of the rewrite.

@@ -26,7 +26,7 @@ enum forms this specification rules. Every ported record with an enum
 field joins the same shape.
 
 This specification rules all five source targets (ts, kotlin, swift, dart,
-rust) together; the f32 lanes inherit the rules and differ only in float
+rust) together; the f32 configurations inherit the rules and differ only in float
 width.
 
 ## Current state
@@ -115,7 +115,7 @@ port works around both with explicit members.
    parameter order; the parameterless enum field prints the
    constructor-name read; the array row prints
    `[Plain, Ring(diameter=1.5)]`; the payload rows assert through the
-   `boring_oracle` conditional on the Haxe lane, with the divergence
+   `boring_oracle` conditional on the Haxe target, with the divergence
    recorded in the sample header.
 - Both modules are entered in all eight generation hxml files.
 - Tree assertions in `tests/ts/printed-enum.test.ts`: the TypeScript tree

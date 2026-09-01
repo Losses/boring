@@ -78,19 +78,19 @@ Haxe `Int` maps to `Int32`; Haxe `Float` maps to `Double`.
 | Candidate | performance | ambiguity | redundancy | readability |
 | --- | --- | --- | --- | --- |
 | 1 (`Int32`/`Double`) | Register-width on every ABI Apple and Linux expose for `Int32`; no conversion at codec boundaries that already carry 32-bit fields. | The 32-bit domain of `features/14` is visible in the type; widening or narrowing is explicit. | One mapping, no call-site conversions. | Readers see the wire width in the type name. |
-| 2 (`Int`) | Word arithmetic avoids sign-extension on array indexing. | The 64-bit range silently admits out-of-domain values; overflow traps differ from every other lane. | Boundary code must mask to keep the domain, duplicating the check per site. | The wire width disappears from the type. |
-| 3 (wrapping operators) | Same as 1. | Conforming source never leaves the i32 domain, so the wrapping behavior is dead code that contradicts `features/14`. | Every arithmetic site carries a marker no lane needs. | `&+` reads as a deliberate wrap, which the samples never perform. |
+| 2 (`Int`) | Word arithmetic avoids sign-extension on array indexing. | The 64-bit range silently admits out-of-domain values; overflow traps differ from every other target. | Boundary code must mask to keep the domain, duplicating the check per site. | The wire width disappears from the type. |
+| 3 (wrapping operators) | Same as 1. | Conforming source never leaves the i32 domain, so the wrapping behavior is dead code that contradicts `features/14`. | Every arithmetic site carries a marker no target needs. | `&+` reads as a deliberate wrap, which the samples never perform. |
 
 ### Ruling
 
 Candidate 1. `Int32`/`Double`, trapping operators. The domain rulings of
 `features/07` and `features/14` keep every value inside i32, so traps are
 unreachable on conforming source and cost nothing. The `float-precision`
-define of `features/23` switches this lane through a define-gated type
+define of `features/23` switches this target through a define-gated type
 table, the same shape as the Kotlin ruling: `Float` maps to `Double` on
-the default lane and to `Float` under `f32`, in the type table and the
+the default configuration and to `Float` under `f32`, in the type table and the
 test assertion tags together. Swift float literals carry no suffix; they
-are type-directed, so the f32 lane names the type on every declaration
+are type-directed, so the f32 configuration names the type on every declaration
 whose initializer would otherwise infer the default `Double` width
 (`var x = 0.0` becomes `var x: Float = 0.0`). `Math` constants read from
 the `Float` family (`Float.nan`, `Float.infinity`,
@@ -100,7 +100,7 @@ the `Float` family (`Float.nan`, `Float.infinity`,
 table with no separate dispatch. The `FPHelper` value-edge calls dispatch
 to the runtime wrappers `i64ToF32` and `f32ToI64` (feature spec 23,
 ruling 7). `examples/swift-f32.hxml` generates the f32 tree; the verify
-lanes are `gen:swift-f32` and `test:swift-f32`.
+steps are `gen:swift-f32` and `test:swift-f32`.
 
 ## Enums and pattern matching (`features/01`)
 
@@ -139,7 +139,7 @@ unused payloads bind `case .unpairedSurrogate(_)`. Guards lower to
 register plus a tag bit with no heap box. Sentinel returns that the
 residents define (negative cursor bounds, the `-1` no-previous marker)
 stay plain `Int32` and never become optionals, matching the resident ABI
-of the other lanes.
+of the other targets.
 
 ## Arrays (`stdlib/04`)
 
@@ -185,7 +185,7 @@ the design principles. `substringBetween` builds
 `String(decoding: units[a..<b], as: UTF16.self)`; `fromCodePoint`
 encodes the scalar into units, and an argument outside the documented
 valid domain yields the NUL replacement, the same out-of-domain
-behavior the Rust lane's `char::from_u32` fallback takes.
+behavior the Rust target's `char::from_u32` fallback takes.
 
 ### String buffer (`stdlib/08`)
 
@@ -205,7 +205,7 @@ lowers to `throw`; try-regions lower to `do`/`catch` with a typed
 pattern (`catch let error as UStringException`) plus a final bare
 `catch { throw error }` arm, because a typed pattern never exhausts;
 the rethrow arm makes the enclosing function throwing exactly when the
-other lanes' unmatched-error rethrow does, and a handler that never
+other targets' unmatched-error rethrow does, and a handler that never
 reads the binding emits `catch is UStringException`. The statement,
 return, initializer, and handler-return positions all lower: value
 regions declare the binding and assign it in both arms, because
@@ -222,8 +222,8 @@ each callee.
 
 | Candidate | performance | ambiguity | redundancy | readability |
 | --- | --- | --- | --- | --- |
-| 1 (throw) | An unwritten `throw` path costs nothing at call sites; the thrown value crosses as an error register and is boxed only on the cold fault path. | The fault type at the catch site is a cast pattern the compiler checks. | One mechanism, matching the TS and Kotlin lanes. | `do`/`catch` with a typed pattern reads as the language's own error shape. |
-| 2 (Result) | `Result` is a value enum with no box, but every caller unpacks through `switch` or `try!`, adding a match at each call. | Unhandled results type-check until read. | Every signature and call site carries the type, diverging from two of three existing lanes. | Chains of `Result` plumbing read as bureaucracy next to `throw`. |
+| 1 (throw) | An unwritten `throw` path costs nothing at call sites; the thrown value crosses as an error register and is boxed only on the cold fault path. | The fault type at the catch site is a cast pattern the compiler checks. | One mechanism, matching the TS and Kotlin targets. | `do`/`catch` with a typed pattern reads as the language's own error shape. |
+| 2 (Result) | `Result` is a value enum with no box, but every caller unpacks through `switch` or `try!`, adding a match at each call. | Unhandled results type-check until read. | Every signature and call site carries the type, diverging from two of three existing targets. | Chains of `Result` plumbing read as bureaucracy next to `throw`. |
 
 ### Ruling
 
@@ -232,11 +232,11 @@ fault identity (never the message) crosses exactly as in `features/06`.
 
 ## Sorted tables (`stdlib/07`)
 
-The resident `runtime.SortedTable` compiles through this lane like any
+The resident `runtime.SortedTable` compiles through this target like any
 other module: it stores alternating key and value arrays and binary
 searches with the comparator passed in. The comparator for `String` keys
 is the unit-order helper of the ordering ruling, which is what aligns
-iteration order with the BTreeMap order the other lanes share. No
+iteration order with the BTreeMap order the other targets share. No
 hand-written Swift table ships.
 
 ## Iteration and loops (`features/09`, `features/15`)

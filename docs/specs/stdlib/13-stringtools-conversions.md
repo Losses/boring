@@ -120,11 +120,11 @@ forms.
   `.toRadixString(16)` and `.padLeft`; the Rust tree renders `{:X}` and
   `{:0w$X}` and `.to_lowercase()`; the TypeScript tree renders
   `.toString(16)`, `.toUpperCase()`, and `.padStart`.
-- Lanes: `bun run gen:ts && bun run gen:kotlin && bun run gen:kotlin-f32 &&
+- Coverage: `bun run gen:ts && bun run gen:kotlin && bun run gen:kotlin-f32 &&
   bun run gen:rust && bun run gen:rust-f32 && bun run gen:swift && bun run
   gen:swift-f32 && bun run gen:dart`, then `bun run test && bun run test:haxe
   && bun run test:kotlin && bun run test:rust && bun run test:swift && bun
-  run test:dart` and the remaining lanes of `bun run verify`; the consistency
+  run test:dart` and the remaining steps of `bun run verify`; the consistency
   manager must report identical identifiers and verdicts across kotlin
   (baseline), haxe, ts, rust, swift, and dart.
 - The mutation checks for this feature live in the dispatch task file and are

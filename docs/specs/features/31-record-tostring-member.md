@@ -119,13 +119,13 @@ nothing keeps equal.
    member synthesis construct the concatenation through the same
    function over `RecordShape`; per-target text knowledge stays confined
    to the existing `+` and member lowerings. The synthesized AST differs
-   from a hand-written member's compiled form in nothing a lane can
+   from a hand-written member's compiled form in nothing a target can
    observe. A nullable record-typed field prints through an explicit
    null comparison around the member call: `null` prints `"null"` and a
    present value prints the field's member text, the same two states the
    Kotlin `data class` synthesis prints. A non-nullable record-typed
    field carries no comparison; Swift and Rust have no valid nil or
-   None comparison for a non-optional operand. The Rust lane lowers the
+   None comparison for a non-optional operand. The Rust target lowers the
    comparison on a nullable operand to `is_none()` / `is_some()`
    because Option equality against `None` would require `PartialEq` on
    the inner type; a member call on a nullable receiver lowers through
@@ -177,13 +177,13 @@ nothing keeps equal.
   and nothing else, because the explicit member wins on Kotlin too.
 - The samples hxml gains the global-metadata line of ruling 5;
   `bun run test:haxe` covers stage 1.
-- Lanes: the eight generation lanes and the full `bun run verify` of
+- Coverage: the eight generation steps and the full `bun run verify` of
   feature 27's hooks.
 
 ## Port follow-through
 
 Once this feature is implemented and the vendored pointer advances, the
 port deletes the mechanical `toString` members in a dedicated mechanical
-lane: an unchanged golden output is the acceptance, and any class whose
+pass: an unchanged golden output is the acceptance, and any class whose
 hand-written field order or field set differs from the constructor
 parameters keeps its explicit member, named by the golden diff.

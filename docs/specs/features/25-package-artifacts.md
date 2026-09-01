@@ -9,10 +9,10 @@ compilation emitted. Every artifact is the install unit its registry
 distributes. The cargo `.crate`, the Pub `.tar.gz`, and the Swift
 `.zip` carry source, because those registries install source and their
 client tools compile on the consumer side. The npm `.tgz` and the
-Kotlin lane carry build output, because npm installs JavaScript a
+Kotlin target carry build output, because npm installs JavaScript a
 plain `node` process can load and the JVM installs jars: for those two
 ecosystems a source archive would be an install that cannot run. The
-two compiled lanes therefore run the host's compiler at pack time,
+two compiled targets therefore run the host's compiler at pack time,
 through a define that names the executable.
 
 | Target | Format | File name | Entry layout |
@@ -25,17 +25,17 @@ through a define that names the executable.
 
 The npm file name replaces `/` with `-` (`@scope/name` becomes
 `scope-name`), because a file name cannot carry a path separator; the
-member prefix stays `package/`. The other lanes pass the package name
+member prefix stays `package/`. The other targets pass the package name
 through unchanged.
 
 Packing runs inside the compiler process. At the end of generation the
 compiler holds every emitted file in memory, so the artifact is a pure
-function of one compilation plus, on the compiled lanes, one host tool
-invocation. The source lanes spawn nothing: no toolchain beyond Haxe
-runs. The compiled lanes spawn exactly the compiler of their
+function of one compilation plus, on the compiled targets, one host tool
+invocation. The source targets spawn nothing: no toolchain beyond Haxe
+runs. The compiled targets spawn exactly the compiler of their
 ecosystem (`package-tsc`, `package-kotlinc`); a missing define or a
 failing tool stops the compilation with the tool's own exit code and
-output. In every lane the entry set derives from the recorded write
+output. In every target the entry set derives from the recorded write
 list and from no directory walk of the output tree: a generated tree
 can carry files the compilation never wrote (test execution output,
 stale artifacts of earlier versions), and a walk would pack them.
@@ -74,11 +74,11 @@ stale artifacts of earlier versions), and a walk would pack them.
 ### Candidate 1: Pack inside the compiler (recorded writes only)
 
 The compiler records every main-tree write it performs, and the emit
-path packs that list; the compiled lanes additionally run the host
+path packs that list; the compiled targets additionally run the host
 compiler the defines name.
 
-- performance: the source lanes pack in-memory bytes; the compiled
-  lanes add one host compiler invocation to the compile, and nothing
+- performance: the source targets pack in-memory bytes; the compiled
+  targets add one host compiler invocation to the compile, and nothing
   to any generated program.
 - ambiguity: the artifact derives from exactly the set of files one
   compilation wrote; stale or foreign files cannot appear.
@@ -115,7 +115,7 @@ The registry generator packs from release checkouts.
 
 | Candidate | performance | ambiguity | redundancy | readability |
 | --- | --- | --- | --- | --- |
-| C1 in-compiler pack | in-memory bytes; one host tool on the compiled lanes | one compilation, one artifact set | one implementation | archive equals the tree or its compile |
+| C1 in-compiler pack | in-memory bytes; one host tool on the compiled targets | one compilation, one artifact set | one implementation | archive equals the tree or its compile |
 | C2 pack scripts | one process per pack | directory walks pick up foreign files | per consumer | producer is a second tool |
 | C3 generator packs | as C2 | layout drift between generator and tree | second codebase | n/a |
 
@@ -131,8 +131,8 @@ The registry generator packs from release checkouts.
    input; every path that escapes the output directory (the `../`
    paths of the test-output trees) does not. `_GeneratedFiles.txt` is
    written by reflaxe after the compiler returns, so it never enters
-   an artifact. On the source lanes (cargo, Pub, Swift) the recorded
-   writes are also the archive entries. On the compiled lanes the
+   an artifact. On the source targets (cargo, Pub, Swift) the recorded
+   writes are also the archive entries. On the compiled targets the
    entry set is the output of the host compiler over that input: the
    npm tarball carries `dist/` plus the artifact manifest, and the
    Kotlin jar carries the kotlinc classes. Two recorded files stay out
@@ -146,17 +146,17 @@ The registry generator packs from release checkouts.
    the tree at the root (`pubspec.yaml` at the root is Pub's
    requirement); the Swift zip keeps the tree at the root because the
    registry serves it as a source archive; Gradle and Maven resolve
-   files from a repository directory, so the Kotlin lane writes
+   files from a repository directory, so the Kotlin target writes
    `maven/<groupId path>/<name>/<version>/` with the jar, the pom, and
    their sha1 checksums. Entries sort by name in every format.
-4. **Determinism constants, scoped per lane.** Tar entries carry mtime
+4. **Determinism constants, scoped per target.** Tar entries carry mtime
    0, mode 0644, uid 0, gid 0, and empty owner names; the archive
    holds regular files only, no directory entries. The gzip stream
    carries MTIME 0, XFL 0, and OS 3 (Unix), at compression level 9.
    Zip entries carry the fixed date June 1, 2020, 12:00:00 read
    through local-time fields, so every timezone encodes the same DOS
    date; the jar holds the same constant, which normalizes the
-   timestamps kotlinc bakes into its own archives. On the source lanes
+   timestamps kotlinc bakes into its own archives. On the source targets
    two compilations of the same inputs on the same Haxe toolchain
    produce byte-identical artifacts. On npm the byte identity of the
    `.js` and `.d.ts` members additionally requires the same `tsc`; on
@@ -171,7 +171,7 @@ The registry generator packs from release checkouts.
    pack-time staging trees (`.package-npm-stage`, removed after the
    pack) sit beside the tree for the same reason.
 6. **Kotlin packs a Maven repository directory.** The JVM ecosystem
-   resolves artifacts from Maven-layout directories, so this lane
+   resolves artifacts from Maven-layout directories, so this target
    writes the repository layout itself: the
    groupId comes from `package-group` (defaulting to the package
    name), the artifactId and version from the spec 24 identity, and
@@ -199,7 +199,7 @@ The registry generator packs from release checkouts.
    never typecheck it). The tree's own manifest keeps serving the
    source consumers of spec 24; the two manifests state different
    truths for different readers.
-8. **Host tools fail loudly.** The compiled lanes run their tool with
+8. **Host tools fail loudly.** The compiled targets run their tool with
    the full command line, read the complete output, and on a nonzero
    exit stop the compilation through an error that carries the exit
    code, the command line, and the output. A pack step never guesses
@@ -224,18 +224,18 @@ The registry generator packs from release checkouts.
 
 ## Test hooks
 
-- `tests/ts/package-artifacts.test.ts` generates each lane into a
+- `tests/ts/package-artifacts.test.ts` generates each target into a
   temp directory and checks: the npm tarball lists `package/dist/`
   with `.js` and `.d.ts` members in sorted order, no TypeScript
   source, and no `_GeneratedFiles.txt` or test-tree entries, installs
   with the npm CLI from the `.tgz`, and runs a consumer under plain
   `node` through the retargeted `exports` map; the cargo `.crate` and
   the Pub `.tar.gz` list their trees at the root with the manifest
-  present; the Swift `.zip` lists the same entry set; the Kotlin lane
+  present; the Swift `.zip` lists the same entry set; the Kotlin target
   writes the Maven directory with the pom fields, sha1 checksums that
   match the saved bytes, and a jar whose entries sort and carry the
   fixed zip date; two generations of the same inputs produce
-  byte-identical artifacts on every lane; the invalid-value rejection
+  byte-identical artifacts on every target; the invalid-value rejection
   and the shell-conflict rejection stop the compilation with their
   messages; the missing `package-tsc` and `package-kotlinc` rejections
   stop the compilation with their messages; a `package-tsc` and a

@@ -11,7 +11,7 @@ functions spell `"EastAsianSpacingEdges(leading=" + Std.string(leading) +
 ...)`), and renders whole collections the same way
 (`TextStyle.hx` and `RubySpan.hx` stringify a `ReadOnlyArray<String>` of
 font families, `CoreLayoutQueriesGapsTest.hx` stringifies an `Array<Rect>`).
-The f32 lanes inherit the same rules; they differ only in float width.
+The f32 configurations inherit the same rules; they differ only in float width.
 
 The value enumeration forms the conversion relies on are ruled by the
 parameterless amendment of `docs/specs/features/01-enums-and-pattern-matching.md`;
@@ -27,7 +27,7 @@ specification defines the conversion over the operand's content (principle 1):
 - An `Int` operand returns the decimal form.
 - A `Float` operand returns the shortest form that reads back as the same
   value; the precision domain follows `docs/specs/features/23-float-precision-switch.md`,
-  and the f32 lanes format the f32 value.
+  and the f32 configurations format the f32 value.
 - A `Bool` operand returns `true` or `false`.
 - A value enumeration operand returns the constructor name spelled in Haxe
   source (`Std.string(FloatWidth.F64)` is `"F64"` on every target).
@@ -38,7 +38,7 @@ specification defines the conversion over the operand's content (principle 1):
   element recurses through this rule (`[[1, 2], [3]]`). The separator is the
   form the Kotlin baseline renders for a list, which the ported engine
   compares its traces against; the native Haxe renderer joins with `","`, so
-  the array rows of the Haxe lane assert through the `boring_oracle`
+  the array rows of the Haxe target assert through the `boring_oracle`
   conditional, the pattern the unknown-name probe of
   `features/28-enum-value-queries.md` established, and the divergence is
   recorded in the sample header.
@@ -158,7 +158,7 @@ and a uniform rejection costs less than five spellings of a nullable render
   values), an `Array<Bool>`, an `Array<FloatWidth>`, an empty array, a
   nested `Array<Array<Int>>`, and a `ReadOnlyArray<String>` operand, each
   compared against its ruled literal; the array rows assert through the
-  `boring_oracle` conditional on the Haxe lane.
+  `boring_oracle` conditional on the Haxe target.
 - `samples/tests/StdStringTests.hx` with `@:test` functions; both modules are
   entered in all eight generation hxml files (ts, kotlin, kotlin-f32, rust,
   rust-f32, swift, swift-f32, dart).
@@ -170,16 +170,16 @@ and a uniform rejection costs less than five spellings of a nullable render
 - Tree assertions in `tests/ts/std-string.test.ts`: no generated tree
   contains a `Std.` reference; the Kotlin tree renders the bare operands
   inside concatenation; the enum operands render `kind`, `name`, `rawValue`,
-  `label`, and `name()` per lane; the array operands render a `StringBuilder`
+  `label`, and `name()` per target; the array operands render a `StringBuilder`
   loop on Kotlin, a `StringBuffer` loop on Dart, a `let` accumulator loop on
   TypeScript, a `var` accumulator loop on Swift, and `String::new` with
   `write!` on Rust; no array row renders `.map(`, `join`, `joinToString`, or
   `joined`.
-- Lanes: `bun run gen:ts && bun run gen:kotlin && bun run gen:kotlin-f32 &&
+- Coverage: `bun run gen:ts && bun run gen:kotlin && bun run gen:kotlin-f32 &&
   bun run gen:rust && bun run gen:rust-f32 && bun run gen:swift && bun run
   gen:swift-f32 && bun run gen:dart`, then `bun run test && bun run test:haxe
   && bun run test:kotlin && bun run test:rust && bun run test:swift && bun
-  run test:dart` and the remaining lanes of `bun run verify`; the consistency
+  run test:dart` and the remaining steps of `bun run verify`; the consistency
   manager must report identical identifiers and verdicts across kotlin
   (baseline), haxe, ts, rust, swift, and dart.
 - The mutation checks for this feature live in the dispatch task file and are

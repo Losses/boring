@@ -82,7 +82,7 @@ implementation stands in for the standard library.
   the same three checks against the wrapped buffer's content before
   delegating. Reading the trailing unit costs one `toString()` snapshot
   per checked call, which is quadratic in the buffer length; the
-  stage-1 lane is the test oracle, so this cost is accepted there and
+  stage-1 Haxe run is the test oracle, so this cost is accepted there and
   rules nothing about the generated targets.
 
 ## Samples and tests

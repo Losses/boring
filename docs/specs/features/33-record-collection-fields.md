@@ -24,7 +24,7 @@ domain must include records. Every shaping and layout record with a
 collection field would add another explicit member by hand.
 
 This specification rules all five source targets (ts, kotlin, swift, dart,
-rust) together; the f32 lanes inherit the rules and differ only in float
+rust) together; the f32 configurations inherit the rules and differ only in float
 width.
 
 ## Current state
@@ -107,7 +107,7 @@ collection field through that lowering.
   points=[PrintedPoint(x=1, y=2)], matrix=[[1, 2], [3]], none=[])` in
   constructor parameter order; one `RecordStr.str` equality row; the
   collection rows assert through the `boring_oracle` conditional on the
-  Haxe lane, with the divergence recorded in the sample header.
+  Haxe target, with the divergence recorded in the sample header.
 - Both modules are entered in all eight generation hxml files.
 - Tree assertions in `tests/ts/printed-collection.test.ts`: the
   TypeScript, Swift, Dart, and Rust trees carry the synthesized member

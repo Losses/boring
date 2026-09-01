@@ -27,7 +27,7 @@ properties; no published-coordinate split (the `rapier2d` /
 coordinates at all.
 
 The wire format is out of scope and unaffected: `WireF64Be` stays f64 on
-every lane (binary spec 01). The block float widths of binary spec 05 are
+every target (binary spec 01). The block float widths of binary spec 05 are
 a second, independent axis: they are chosen per encode call and recorded
 in the block magic, and no define moves them. The precision switch changes
 the representation of the language's `Float` type and the module-boundary
@@ -165,7 +165,7 @@ Fields could live in `Float32Array` so storage rounds to binary32.
 | Candidate | performance | ambiguity | redundancy | readability |
 | --- | --- | --- | --- | --- |
 | Rust C1 define table | native f32, no layer | width stated once per build | one dispatch per family | plain f32 code |
-| Rust C2 real trait | native after monomorphization; boxed on JVM lanes | width becomes a parameter | bound at every site | algorithm stops stating Float |
+| Rust C2 real trait | native after monomorphization; boxed on the JVM target | width becomes a parameter | bound at every site | algorithm stops stating Float |
 | Kotlin C1 define table | JVM primitive, no boxing | as Rust C1 | as Rust C1 | plain Float code |
 | Kotlin C2 expect/actual | not applicable: no multiplatform build boundary exists | n/a | n/a | n/a |
 | Kotlin C3 generic interface | boxes at every call | as Rust C2 | as Rust C2 | as Rust C2 |
@@ -201,13 +201,13 @@ Fields could live in `Float32Array` so storage rounds to binary32.
    Principle 3 (no cross-storage emulation) and principle 4 (the
    ruling stands even though fround wrapping is implementable) select
    the rejection; the sanctioned path for TypeScript and Dart consumers
-   is the default f64 lane.
+   is the default f64 configuration.
 4. **Literals.** With `f32`, a float literal renders with the target's
    f32 marker: `2.5f32` on Rust (the `.0` padding rule applies first:
    `5` becomes `5.0f32`), `2.5f` on Kotlin (`5` becomes `5.0f`). The
    suffix is unconditional, so the literal never relies on inference
    context for its width. Swift literals carry no suffix in either
-   lane; they are type-directed, so the f32 lane names the type on
+   configuration; they are type-directed, so the f32 configuration names the type on
    every declaration whose initializer would otherwise infer the
    default `Double` width (`var x = 0.0` becomes `var x: Float = 0.0`),
    which pins the width at the same inference sites the suffix pins on
@@ -222,7 +222,7 @@ Fields could live in `Float32Array` so storage rounds to binary32.
    table. Kotlin renders `kotlin.math.<name>(x)` fully qualified; the
    `kotlin.math` free functions carry `Float` overloads, so no import
    is added and `java.lang.Math` (Double-only) is never referenced
-   under `f32`. On the default lane both compilers keep their current
+   under `f32`. On the default configuration both compilers keep their current
    `f64::` / `java.lang.Math` renderings. Swift needs no separate
    dispatch: the arithmetic and rounding members (`+`, `.rounded(.down)`,
    `.squareRoot()`, `.isNaN`) come from the `FloatingPoint` protocol
@@ -238,12 +238,12 @@ Fields could live in `Float32Array` so storage rounds to binary32.
    which widens the module real to f64 losslessly before the bit
    conversion. The Swift runtime carries the same pair as `i64ToF32`
    and `f32ToI64`, emitted unconditionally and referenced only by the
-   f32 lane. The 8-byte wire layout is identical on every lane. The
+   f32 configuration. The 8-byte wire layout is identical on every target. The
    Haxe source of `BinaryReader.readF64` and `BinaryWriter.writeF64`
    changes nothing: the boundary rounding is the decode's definition
    under the switch, and the source performs no implicit narrowing.
    The `Fp32` and `Fp16` edges of binary spec 05 compose the same
-   FPHelper calls with integer arithmetic, so on the f32 lane they
+   FPHelper calls with integer arithmetic, so on the f32 configuration they
    narrow a widened value back to its own bits exactly.
    Principle 1 applies: the meaning of `readF64` is defined over wire
    values and the module's declared real width, with no dependence on
@@ -263,19 +263,19 @@ Fields could live in `Float32Array` so storage rounds to binary32.
     `f32`, the shortest decimal string that parses back to the same
     binary32 value (`Display for f32`, `Float.toString`); the special
     values keep their words. The committed wire vector
-    `roundtrip.bin` and its expected records are shared by both lanes:
-    every vector value is an f32-exact dyadic rational, the f32 lane
-    widens each losslessly on encode, and both lanes produce identical
+    `roundtrip.bin` and its expected records are shared by both configurations:
+    every vector value is an f32-exact dyadic rational, the f32 configuration
+    widens each losslessly on encode, and both configurations produce identical
     wire bytes.
-11. **Test-vector discipline on the f32 lane.** Float test values on
-    the f32 lane are f32-exact dyadic rationals (the binary spec 01
+11. **Test-vector discipline on the f32 configuration.** Float test values on
+    the f32 configuration are f32-exact dyadic rationals (the binary spec 01
     dyadic rule restricted to the binary32 grid), or non-dyadic
     literals used only in comparison position or passed through
     unchanged, where the comparison direction and the round-trip text
     are width-independent. This is the sanctioned path (design
     principle 2) for the restriction the switch introduces: a test
     whose expectation depends on binary64 intermediate precision
-    belongs on the default lane.
+    belongs on the default configuration.
 12. **One width per module.** The define selects one width for the whole
     compilation. Per-module or per-field mixing has no sanctioned path
     in this specification; a consumer needing both widths in one
@@ -287,7 +287,7 @@ Fields could live in `Float32Array` so storage rounds to binary32.
 
 - `examples/rust-f32.hxml`, `examples/kotlin-f32.hxml`,
   `examples/swift-f32.hxml`: full-library generation under `-D
-  float-precision=f32` (verify lanes `gen:rust-f32`, `gen:kotlin-f32`,
+  float-precision=f32` (verify steps `gen:rust-f32`, `gen:kotlin-f32`,
   `gen:swift-f32`, `test:rust-f32`, `test:kotlin-f32`, `test:swift-f32`).
 - `tests/ts/precision-switch.test.ts` and
   `tests/dart/precision-switch.test.ts`: activate the TypeScript and
@@ -295,9 +295,9 @@ Fields could live in `Float32Array` so storage rounds to binary32.
   error and its text, proving the rejection fires before output.
 - `tests/swift-f32/main.swift` asserts the committed vector binaries
   byte for byte on the Swift f32 tree, mirroring `tests/swift/main.swift`
-  on the default lane.
+  on the default configuration.
 - The shared suites (`tests.VectorCodecTests` and neighbors) run
-  unmodified on the f32 lanes under ruling 11's vector discipline.
+  unmodified on the f32 configurations under ruling 11's vector discipline.
 - `docs/specs/features/07-numeric-tower.md` links here from its wire
   ban; `docs/specs/features/19-testing.md` carries the binary32 text
   clause of ruling 10.

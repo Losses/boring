@@ -89,7 +89,7 @@ defect went unobserved before the probe.
    container mutation renders through the same guard, for example
    `classes.lock().unwrap_or_else(|e| e.into_inner()).push(...)`. The item carries
    `#[allow(non_upper_case_globals)]` so the field-name spelling matches
-   the const lane the target already emits.
+   the const form the target already emits.
    The lock recovery follows the Rust paradigm ruling:
    `unwrap_or_else(|e| e.into_inner())` returns the guarded value when
    the mutex reports poisoning, and the emission contains no `unwrap`
@@ -116,7 +116,7 @@ defect went unobserved before the probe.
    render on Kotlin and Rust and gain their declarations on TypeScript,
    Swift, and Dart through rule 1's table. Reads of constants stay direct
    references on all five targets; no lock or wrapper applies to the const
-   lane.
+   form.
 
 ## Samples and tests
 
@@ -124,7 +124,7 @@ defect went unobserved before the probe.
   restored: `StaticStateClient.install` assigns
   `StaticStateOps.current = value;` from another class, `setCurrent`
   assigns `current = value;` inside the declaring class, the array carries
-  `push` mutation, and a scalar and a string constant cover the const lane.
+  `push` mutation, and a scalar and a string constant cover the const form.
   The read functions expose observable results for every form.
 - `samples/tests/StaticStateTests.hx` asserts the assignment round trip
   through both forms, the container growth through `record`,

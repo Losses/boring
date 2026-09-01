@@ -68,10 +68,10 @@ Kotlin shim declarations (`BytesBuffer`, `Int64Halves`, `FPHelper`,
 `RuntimeException`, `std.Process.exit` to `kotlin.system.exitProcess`)
 are not runtime-package declarations; the target toolchain provides them.
 
-Resident modules are Haxe sources under `src/runtime/` that every lane
+Resident modules are Haxe sources under `src/runtime/` that every target
 compiles into the runtime package (`runtime.UString`,
 `runtime.Graphemes`, `runtime.SortedTable`, `runtime.TestCore`). A
-resident is the single implementation of its std face: each lane
+resident is the single implementation of its std face: each target
 lowers references to the face onto the resident's output, no
 per-target copy exists, and the resident's emission gates on the
 faces being used. The sorted faces (`std.SortedMap`, `std.SortedSet`,
@@ -122,10 +122,10 @@ The runtime package exposes two entry points.
   its emission gates on `std.Test` usage, so the two always appear
   together.
 
-The Kotlin and Rust lanes have no import-time execution, so their
+The Kotlin and Rust targets have no import-time execution, so their
 layout keeps the test entry as a separate compilation unit inside the
 one emitted tree (directory `test/` under the runtime root). The
-TypeScript lane needs the split at module resolution: a browser that
+TypeScript target needs the split at module resolution: a browser that
 imports the general entry must never transitively resolve `node:fs`.
 
 ## Error contract

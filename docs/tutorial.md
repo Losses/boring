@@ -13,7 +13,7 @@ here (allocation, boxing, engine behavior) come from the specifications;
 this document adds no rulings. Spec references abbreviate the directory:
 `features/09` stands for `docs/specs/features/09-iterators.md`, and the
 same applies to `macros/`, `stdlib/`, `style/`, `binary/`, and `targets/`.
-The Swift and Dart lanes carry their per-target rulings in `targets/swift`
+Swift and Dart carry their per-target rulings in `targets/swift`
 and `targets/dart`; the feature specs name the older three targets, and
 those two files state the mapping for the newer two.
 
@@ -156,26 +156,26 @@ storage width` respectively; wrapping arithmetic in `Math.fround` or
 storing fields in `Float32Array` are the rejected emulation paths
 (design principle 3).
 
-Rust, Kotlin, and Swift are the three lanes the define switches. Swift
-maps `Float` to `Float` under `f32` and `Double` on the default lane;
-its literals are type-directed and carry no suffix, so the f32 lane
+Rust, Kotlin, and Swift are the three targets the define switches. Swift
+maps `Float` to `Float` under `f32` and `Double` on the default configuration;
+its literals are type-directed and carry no suffix, so the f32 configuration
 names the type on every declaration whose initializer would otherwise
 infer the default `Double` width (`var x: Float = 0.0`), and its
 arithmetic and rounding members come from the `FloatingPoint` protocol
 both types implement. Dart holds one storage width for reals, so an f32
 variant cannot change result bits (`targets/swift`, `targets/dart`).
 
-The wire does not switch: `WireF64Be` stays f64 on every lane. A wire
+The wire does not switch: `WireF64Be` stays f64 on every target. A wire
 read decodes the 8 f64 wire bytes and rounds the value to the module
 real at the decode point (`FPHelper.i64ToDouble` dispatches to the
 `i64ToF32` runtime variant); a wire write widens the module real
 losslessly before the bit conversion (`doubleToI64` dispatches to
 `f32ToI64`). Test vectors assign dyadic binary32 values, so the
-committed vector bytes are identical on every lane and the shared test
+committed vector bytes are identical on every target and the shared test
 suites run unmodified.
 
 Generation entries: `examples/rust-f32.hxml`, `examples/kotlin-f32.hxml`,
-`examples/swift-f32.hxml`; verify lanes `gen:rust-f32`, `gen:kotlin-f32`,
+`examples/swift-f32.hxml`; verify steps `gen:rust-f32`, `gen:kotlin-f32`,
 `gen:swift-f32`, `test:rust-f32`, `test:kotlin-f32`, `test:swift-f32`.
 
 ### Wide integers (`stdlib/05`)
@@ -808,7 +808,7 @@ generated code needs. It is on by default; `package-shell=none` turns
 it off, and `package-name` (default `generated`, a neutral value),
 `package-version`, and `package-license` carry the identity.
 
-Two lane-specific notes. On TypeScript, an emitted manifest requires a
+Two target-specific notes. On TypeScript, an emitted manifest requires a
 relative `runtime-import`: a by-name import names a package coordinate
 the manifest cannot declare, and the compilation stops with that
 reason; the manifest also carries an `exports` map with one directory
@@ -831,7 +831,7 @@ directory. Every artifact is the install unit its registry
 distributes. The cargo `.crate`, the Swift `.zip`, and the Pub
 `.tar.gz` carry source, because those registries install source; each
 is named `<package-name>-<package-version>` plus its extension. The
-npm `.tgz` and the Kotlin lane carry build output, because npm
+npm `.tgz` and the Kotlin target carry build output, because npm
 installs JavaScript a plain `node` process can load and the JVM
 installs jars: a source archive would be an install that cannot run.
 
@@ -846,12 +846,12 @@ so `npm install <file>` yields a package plain `node` imports.
 The Kotlin pack writes a Maven repository directory through the
 host's Kotlin compiler: `package-kotlinc=<executable>` names it and
 `package-group=<groupId>` states the Maven groupId (defaulting to the
-package name). The lane writes
+package name). The target writes
 `maven/<groupId path>/<name>/<version>/` with the jar compiled from
 the generated sources, the pom, and their sha1 checksums; a Gradle or
 Maven build resolves the directory the way it resolves any repository.
 
-Both compiled lanes fail loudly: a missing tool define stops the
+Both compiled targets fail loudly: a missing tool define stops the
 compilation with the define named, and a tool that exits nonzero
 forwards its exit code, command line, and complete output into the
 compilation error. The define is off by default; it also requires the

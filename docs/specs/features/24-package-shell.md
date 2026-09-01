@@ -67,7 +67,7 @@ once.
 - performance: no runtime cost; the manifest is build-time text.
 - ambiguity: the tree and the manifest cannot disagree, because one
   compilation produces both.
-- redundancy: the hand-maintained copies retire; the f32 lanes stop
+- redundancy: the hand-maintained copies retire; the f32 configurations stop
   duplicating shells.
 - readability: the manifest reads as an ordinary file of its ecosystem.
 
@@ -166,7 +166,7 @@ the shell.
    (every directory and file except the manifest and
    `_GeneratedFiles.txt`), computed from the module set of the
    compilation, so the list tracks the tree by construction.
-   `package-license` has no field to fill on this lane: PackageDescription
+   `package-license` has no field to fill on this target: PackageDescription
    carries no license declaration, so the define is not read.
 7. **Dart.** The generated tree already sits under `lib/`, the layout
    the Dart toolchain requires; the manifest names the package and the
