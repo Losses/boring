@@ -37,6 +37,9 @@ describe("TypeScript extern binding modules", () => {
   test("emits jsRequire namespace/named and native global bindings once", async () => {
     const result = await compileFixture([
       "package fixtures;",
+      "import fixtures.Externs.GlobalThing;",
+      "import fixtures.Externs.Named;",
+      "import fixtures.Externs.Namespace;",
       "class Probe {",
       "  public static function read():Int return Namespace.value() + Named.value() + GlobalThing.value() + Namespace.value();",
       "}", "",
@@ -60,6 +63,7 @@ describe("TypeScript extern binding modules", () => {
   test("rejects a value reference to an empty module", async () => {
     const result = await compileFixture([
       "package fixtures;",
+      "import fixtures.Externs.Empty;",
       "class Probe { public static function read():Int return Empty.value(); }", "",
     ].join("\n"));
     try {
