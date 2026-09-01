@@ -12,7 +12,7 @@ import ValueTypeSupport.ValueTypeOperator;
 
 /**
 	Declaration lowering: classes, variant enums, and record typedefs
-	(docs/specs/targets/swift.md). One SwiftDecl instance owns the
+	(docs/specs/features/07-numeric-tower.md). One SwiftDecl instance owns the
 	per-module emission context (imports, types, expression state) so
 	every declaration in the same Haxe module lands in one Swift file.
 	The whole tree shares one Swift module, so no import block renders;

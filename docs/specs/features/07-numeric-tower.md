@@ -181,3 +181,81 @@ Numeric encoding and precision are verified by:
 - `tests/ts/codec.test.ts` (lines 13-34)
 - `tests/haxe/Main.hx` (lines 89-96)
 - `tests/rust/vector.rs` (lines 54-70)
+
+### Swift target rulings
+
+#### Numbers (`features/07`, `features/14`)
+
+Haxe `Int` maps to `Int32`; Haxe `Float` maps to `Double`.
+
+#### Candidates
+
+1. `Int32` and `Double` for the two Haxe types.
+2. `Int` (the word-sized signed integer) and `Double`.
+3. `Int32` with wrapping operators everywhere arithmetic occurs.
+
+#### Judgment
+
+| Candidate | performance | ambiguity | redundancy | readability |
+| --- | --- | --- | --- | --- |
+| 1 (`Int32`/`Double`) | Register-width on every ABI Apple and Linux expose for `Int32`; no conversion at codec boundaries that already carry 32-bit fields. | The 32-bit domain of `features/14` is visible in the type; widening or narrowing is explicit. | One mapping, no call-site conversions. | Readers see the wire width in the type name. |
+| 2 (`Int`) | Word arithmetic avoids sign-extension on array indexing. | The 64-bit range silently admits out-of-domain values; overflow traps differ from every other target. | Boundary code must mask to keep the domain, duplicating the check per site. | The wire width disappears from the type. |
+| 3 (wrapping operators) | Same as 1. | Conforming source never leaves the i32 domain, so the wrapping behavior is dead code that contradicts `features/14`. | Every arithmetic site carries a marker no target needs. | `&+` reads as a deliberate wrap, which the samples never perform. |
+
+#### Ruling
+
+Candidate 1. `Int32`/`Double`, trapping operators. The domain rulings of
+`features/07` and `features/14` keep every value inside i32, so traps are
+unreachable on conforming source and cost nothing. The `float-precision`
+define of `features/23` switches this target through a define-gated type
+table, the same shape as the Kotlin ruling: `Float` maps to `Double` on
+the default configuration and to `Float` under `f32`, in the type table and the
+test assertion tags together. Swift float literals carry no suffix; they
+are type-directed, so the f32 configuration names the type on every declaration
+whose initializer would otherwise infer the default `Double` width
+(`var x = 0.0` becomes `var x: Float = 0.0`). `Math` constants read from
+the `Float` family (`Float.nan`, `Float.infinity`,
+`-Float.infinity`); the arithmetic and rounding members (`+`,
+`.rounded(.down)`, `.squareRoot()`, `.isNaN`) come from the
+`FloatingPoint` protocol both types implement, so they follow the type
+table with no separate dispatch. The `FPHelper` value-edge calls dispatch
+to the runtime wrappers `i64ToF32` and `f32ToI64` (feature spec 23,
+ruling 7). `examples/swift-f32.hxml` generates the f32 tree; the verify
+steps are `gen:swift-f32` and `test:swift-f32`.
+
+### Dart target rulings
+
+#### Numbers (`features/07`, `features/14`)
+
+Haxe `Int` maps to `int`; Haxe `Float` maps to `double`.
+
+#### Candidates
+
+1. `int` and `double` as the two Haxe types.
+2. `int` with 32-bit masking at every arithmetic site.
+
+#### Judgment
+
+| Candidate | performance | ambiguity | redundancy | readability |
+| --- | --- | --- | --- | --- |
+| 1 (`int`) | VM integers are unboxed machine words in locals and fields; no masking arithmetic runs. | `int` is 64-bit, wider than the i32 domain, exactly as `number` is wider on the TypeScript target; the `features/14` rulings enforce the domain and the type adds none. | One mapping with no call-site conversions. | Readers see the language's own integer. |
+| 2 (masked) | Every arithmetic site executes an extra `& 0xFFFFFFFF`. | Same width question, now hidden behind masks. | The mask repeats across every expression. | Masked arithmetic reads as a wrapping semantics the samples never use. |
+
+#### Ruling
+
+Candidate 1. The TypeScript target already carries a wider-than-i32
+integer and relies on the domain rulings to keep values in range; Dart
+matches that precedent. Wrapping that `features/14` never permits is
+absent on both targets for the same reason. Two operators are the
+structural exception: `<<` and `>>>` produce results outside i32 on a
+64-bit word even from in-range operands, so each lowers with the domain
+restore attached (`(... << n).toSigned(32)` and
+`(... .toUnsigned(32) >> n).toSigned(32)`), the wrap targets with a
+native 32-bit integer perform in hardware. The `float-precision` define
+of `features/23` is rejected at plugin registration on this target: Dart
+has one storage width for reals (`double`), so an f32 variant cannot
+change result bits. A compile with `-D float-precision=f32` fails with
+`float-precision=f32 is not available on the Dart target: double is the
+one real storage width; compile without the define for f64 semantics`
+before any type rendering; `tests/dart/precision-switch.test.ts` pins
+the rejection.

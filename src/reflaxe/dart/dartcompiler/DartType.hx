@@ -12,7 +12,7 @@ enum DartKeyDomain {
 
 /**
 	Type mapping from the translatable Haxe subset to Dart, per
-	docs/specs/targets/dart.md and the stdlib rulings: Int is `int` and
+	docs/specs/stdlib/06-std-modules.md and the stdlib rulings: Int is `int` and
 	Float is `double` (numbers ruling; the VM integer is a 64-bit machine
 	word, wider than the i32 domain exactly as `number` is on the
 	TypeScript lane), haxe.io.Bytes is `List<int>` (stdlib/01),

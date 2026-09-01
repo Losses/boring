@@ -181,3 +181,138 @@ package.
 - `package.json` `test:kotlin` compiles `reference/kotlin/gen` together with
   `reference/kotlin/gen/runtime`, where the shims are written under `package
   boring.runtime`.
+
+### Swift target rulings
+
+#### Scope
+
+This specification rules the translation of the translatable subset into
+Swift for the boring repository. It binds the Reflaxe generator that emits
+the Swift target the same way the in-document Kotlin rulings bind the
+Kotlin generator: every construct the translatable subset exercises arrives with its
+translation decision written down before the generator implements it.
+Construct semantics, typed-AST shapes, and the Haxe-side restrictions live
+in the `features/`, `macros/`, and `stdlib/` specifications; this document
+adds the Swift column and cross-references them by number.
+
+The toolchain is `swiftc` 5.10 without Foundation: the dev shell carries no
+Foundation for the Linux target, so every ruling below uses the Swift
+standard library only. A linked Swift binary resolves `libswiftCore`
+through its `RUNPATH`, which loads `libdispatch`; the test entry runs with
+`LD_LIBRARY_PATH` set to `BORING_SWIFT_LIBDISPATCH` from the dev shell.
+
+#### Facts the rulings cite
+
+Measured or compile-verified on this toolchain:
+
+- `String` comparison operators implement Unicode canonical ordering, not
+  UTF-16 code unit order: `"\u{212B}" < "A\u{030A}1"` is `true` natively
+  and `false` unit-wise.
+- `String.UTF8View` and `String.UTF16View` are bidirectional collections
+  with opaque indices: `index(_:offsetBy:)` walks from its argument,
+  integer-indexed subscripts do not exist, and `index(after:)` costs one
+  step. `utf16.count` and `utf8.count` are stored, constant-time.
+- A native `String` cannot hold an unpaired surrogate: scalar construction
+  rejects the surrogate range.
+- Value enums carry associated values with no heap allocation, and a
+  `switch` over a resident enum without a default arm enforces
+  exhaustiveness at compile time.
+- `Result`, `Optional`, and `String(decoding:as:)` exist in the standard
+  library without Foundation.
+- `Int32` and `UInt32` arithmetic trap on overflow; the wrapping
+  operators `&+`, `&-`, `&*` wrap.
+- `UInt32.init(_: Int32)` traps on a negative argument; it does not
+  reinterpret bits. Unsigned reinterpretation goes through
+  `UInt32(bitPattern:)` and `Int32(bitPattern:)`.
+- A typed catch pattern (`catch let error as C`) never makes a
+  `do`/`catch` cluster exhaustive; only a bare final `catch` arm does.
+- `try` scopes a whole expression: `total = try total + parse(s)` is the
+  legal spelling of a throwing call nested inside an operator, and `try`
+  on a subexpression to the right of an operator is rejected.
+- Appending to a uniquely referenced `String` amortizes to constant time
+  per append through storage regrowth.
+
+#### Module and name mapping
+
+One Swift module holds the generated business tree, so cross-module
+references need no imports. Haxe modules become one Swift file each.
+Top-level statics attach to a case-less `enum` namespace named after the
+Haxe class, because Swift holds no static members outside a type.
+
+| Haxe | Swift |
+| --- | --- |
+| module `boring.VectorCodec` | file `boring/VectorCodec.swift`, `enum VectorCodec` namespace |
+| class instance code | `final class` |
+| static function | `static func` on the namespace enum |
+| package path | directory path of the file |
+| visibility | `public` for used-elsewhere declarations, `internal` otherwise |
+
+#### Status
+
+Rulings complete for the constructs the sample tree exercises. The generator
+implementing them is tracked separately; until it is implemented, this document
+is the decision record the implementation must match.
+
+### Dart target rulings
+
+#### Scope
+
+This specification rules the translation of the translatable subset into
+Dart for the boring repository. It binds the Reflaxe generator that emits
+the Dart target the same way the in-document Kotlin rulings bind the
+Kotlin generator. Construct semantics, typed-AST shapes, and the
+Haxe-side restrictions live in the `features/`, `macros/`, and `stdlib/`
+specifications; this document adds the Dart column and cross-references
+them by number.
+
+The toolchain is the Dart SDK 3.13 (`dart run` for the test entry). The
+language features used come from the core libraries only: `dart:collection` for the
+splay trees and `dart:typed_data` where a fixed-width view is needed.
+
+#### Facts the rulings cite
+
+Verified on this toolchain:
+
+- `String.compareTo` compares UTF-16 code units with no
+  canonicalization: `"\u{00E9}".compareTo("e\u{0301}")` is `1`, matching
+  the unit sequence `[233]` against `[101, 769]`.
+- `String.length` and `codeUnitAt` are constant-time UTF-16 unit access;
+  `runes` iterates code points.
+- `SplayTreeMap` and `SplayTreeSet` of `dart:collection` iterate in key
+  order and expose `firstKey` and `lastKey`.
+- A sealed class hierarchy plus a `switch` expression with object
+  patterns is exhaustive at compile time.
+- `int` is 64-bit signed on the VM: `4000000000 + 4000000000` is
+  `8000000000`, with no 32-bit wrap.
+- `List.filled` allocates a fixed-length list in one step;
+  `StringBuffer` appends amortized.
+- String interpolation and `print` need no imports.
+
+#### Module and name mapping
+
+Each Haxe module becomes one Dart library file under the package path,
+with relative imports between them. Dart allows top-level functions and
+variables, so a Haxe class with only statics lowers to top-level
+functions in a library named after the module, without a wrapper class.
+Every import binds a prefix taken from the referenced file's stem, so
+top-level names of two modules never collide inside one file.
+
+Residents are the exception to the flattening: the runtime library and
+the test host each merge several resident modules into one file, and
+their flattened top-level names would collide (`UString.count` against
+`Graphemes.count`), so resident classes keep the class form.
+
+| Haxe | Dart |
+| --- | --- |
+| module `boring.VectorCodec` | file `lib/boring/vector_codec.dart` |
+| static function | top-level function |
+| class instance code | `final class` |
+| package path | directory path of the library |
+| visibility | public by default; underscore prefix for internal |
+
+#### Status
+
+Rulings complete for the constructs the sample tree exercises, and the
+generator implementing them ships in the verify chain: `gen:dart`
+regenerates the tree, `test:dart` runs it, and the consistency run
+reads the Dart jsonl alongside the other five targets.

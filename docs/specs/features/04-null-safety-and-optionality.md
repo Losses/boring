@@ -164,3 +164,21 @@ This ruling prevents out-of-band error states and ensures that absence of a valu
 ## Test hooks
 
 Null safety is enforced by TypeScript `strictNullChecks` in `tsconfig.json` and Rust type checking. Specific vector tests for optional metrics are none yet.
+
+### Swift target rulings
+
+#### Null and optionality (`features/04`)
+
+`Null<T>` maps to `Optional<T>`; optionals of value types occupy a
+register plus a tag bit with no heap box. Sentinel returns that the
+residents define (negative cursor bounds, the `-1` no-previous marker)
+stay plain `Int32` and never become optionals, matching the resident ABI
+of the other targets.
+
+### Dart target rulings
+
+#### Null and optionality (`features/04`)
+
+`Null<T>` maps to `T?` with the sound null-safety the language enforces.
+Sentinel returns that the residents define stay plain `int`, never
+optionals, matching the resident ABI of the other targets.
