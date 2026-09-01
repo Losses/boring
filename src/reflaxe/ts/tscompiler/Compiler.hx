@@ -265,7 +265,7 @@ class Compiler extends PluginCompiler<Compiler> {
 			// append after the runtime source so runtime.ts stays one
 			// self-contained file. The
 			// table arrives as the compiled data-table field of
-			// runtime.Graphemes, not a hand-wired render.
+			// runtime.Graphemes. The generated runtime uses that field.
 			final residentParts: Array<String> = [];
 			for(resident in RuntimeResidents.MODULES) {
 				final moduleParts = parts.get(resident);

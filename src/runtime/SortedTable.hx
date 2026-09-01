@@ -185,9 +185,8 @@ class SortedMapTableBuilder<K, V> {
 
 	/**
 		The value of the latest put under `key`, or null when absent.
-		The walk counts down from the length instead of the length minus
-		one: an empty builder would push the unsigned Rust index type
-		below zero before the first comparison.
+		The walk counts down from the length. For an empty builder, this
+		avoids an unsigned Rust index below zero before the first comparison.
 	**/
 	public function get(key:K):Null<V> {
 		var index = keys.length;
