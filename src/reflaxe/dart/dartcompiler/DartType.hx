@@ -15,7 +15,7 @@ enum DartKeyDomain {
 	docs/specs/stdlib/06-std-modules.md and the stdlib rulings: Int is `int` and
 	Float is `double` (numbers ruling; the VM integer is a 64-bit machine
 	word, wider than the i32 domain exactly as `number` is on the
-	TypeScript lane), haxe.io.Bytes is `List<int>` (stdlib/01),
+	TypeScript target), haxe.io.Bytes is `List<int>` (stdlib/01),
 	haxe.io.BytesBuffer erases to the same list (stdlib/02), String is
 	native `String` on business modules and residents alike because the
 	language stores UTF-16 natively, and ReadOnlyArray erases to the
