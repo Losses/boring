@@ -3244,6 +3244,7 @@ class RustExpr {
 					return "FPHelper::" + RustImports.toSnakeCase(targetName) + "(" + renderedArgs + ")";
 				}
 				if(cls.module == "Math" && name == "isNaN") return "(" + expr(args[0]) + ").is_nan()";
+				if(cls.module == "Math" && name == "isFinite") return "(" + expr(args[0]) + ").is_finite()";
 				if(cls.module == "Std" && name == "parseFloat") {
 					return "{ let t = (" + expr(args[0]) + ").trim_matches(|c: char| c.is_ascii_whitespace()); let b = t.as_bytes(); let valid = { let mut i = 0; if i < b.len() && (b[i] == b'+' || b[i] == b'-') { i += 1; } let start = i; while i < b.len() && b[i].is_ascii_digit() { i += 1; } let before = i > start; if i < b.len() && b[i] == b'.' { i += 1; while i < b.len() && b[i].is_ascii_digit() { i += 1; } } let after = i > start && (b[i.saturating_sub(1)] != b'.' || before) || (i > 0 && b[i - 1] == b'.' && i > start + 1); if !before && !after { false } else if i < b.len() && (b[i] == b'e' || b[i] == b'E') { i += 1; if i < b.len() && (b[i] == b'+' || b[i] == b'-') { i += 1; } let exponent_start = i; while i < b.len() && b[i].is_ascii_digit() { i += 1; } i > exponent_start && i == b.len() } else { i == b.len() } }; if valid { t.parse::<f64>().unwrap_or(f64::NAN) } else { f64::NAN } }";
 				}

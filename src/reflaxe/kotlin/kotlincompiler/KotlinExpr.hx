@@ -1713,6 +1713,7 @@ class KotlinExpr {
 					return expr(args[0]) + ".trim()";
 				}
 				if(cls.module == "Math" && name == "isNaN") return "(" + expr(args[0]) + ").isNaN()";
+				if(cls.module == "Math" && name == "isFinite") return "(" + expr(args[0]) + ").isFinite()";
 				if(cls.module == "Std" && (name == "parseFloat" || name == "parseInt") && args.length == 1) {
 					final s = expr(args[0]) + ".trim { it <= ' ' }";
 					if(name == "parseFloat") return "run { val t = " + s + "; if (Regex(\"^[+-]?(?:[0-9]+(?:\\\\.[0-9]*)?|\\\\.[0-9]+)(?:[eE][+-]?[0-9]+)?$\").matches(t)) t.toDoubleOrNull() ?: Double.NaN else Double.NaN }";
@@ -1880,6 +1881,9 @@ class KotlinExpr {
 				}
 				if(cls.pack.length == 0 && cls.name == "Math" && name == "isNaN") {
 					return "(" + expr(args[0]) + ").isNaN()";
+				}
+				if(cls.pack.length == 0 && cls.name == "Math" && name == "isFinite") {
+					return "(" + expr(args[0]) + ").isFinite()";
 				}
 				if(cls.pack.length == 0 && cls.name == "Std" && name == "int") {
 					// toInt on an Int expression is the identity; the

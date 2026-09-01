@@ -680,7 +680,10 @@ class Intercept {
 		}
 		// js.Syntax code-feature calls are how extern inlines such as
 		// String.fromCharCode expand on the js target; the call node is
-		// typed Dynamic by that machinery, not by the source.
+		// typed Dynamic by that machinery, not by the source. The expanded
+		// form nests one call below the js.Syntax field, as in
+		// code("isFinite")(f) from js/_std/Math.hx, so a callee that is
+		// itself a js.Syntax call is plumbing too.
 		final skipDynamicCheck = switch (e.expr) {
 			case TypedExprDef.TThrow(_)
 				| TypedExprDef.TReturn(_)
@@ -690,7 +693,7 @@ class Intercept {
 				| TypedExprDef.TCast(_, _):
 				true;
 			case TypedExprDef.TCall(callee, _):
-				isSyntaxPlumbingCall(callee);
+				isSyntaxPlumbingCall(callee) || isNestedSyntaxPlumbingCall(callee);
 			default:
 				false;
 		};
@@ -910,6 +913,21 @@ class Intercept {
 		switch (callee.expr) {
 			case TypedExprDef.TField(_, FieldAccess.FStatic(classRef, _)):
 				return classRef.get().module == "js.Syntax";
+			default:
+				return false;
+		}
+	}
+
+	/**
+	 * Outer call of the two-layer expansion code("...")(arg): the callee is
+	 * the inner call whose callee is the js.Syntax static field. Extern
+	 * inlines such as Math.isFinite and Math.isNaN on the js target expand
+	 * to this shape.
+	 */
+	static function isNestedSyntaxPlumbingCall(callee:TypedExpr):Bool {
+		switch (callee.expr) {
+			case TypedExprDef.TCall(inner, _):
+				return isSyntaxPlumbingCall(inner);
 			default:
 				return false;
 		}

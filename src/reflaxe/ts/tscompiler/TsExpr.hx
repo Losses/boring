@@ -1383,6 +1383,7 @@ class TsExpr {
 					return "((t) => { if (/^[+-]?0[xX][0-9a-fA-F]+$/.test(t)) { const n = Number.parseInt(t, 16); return n >= -2147483648 && n <= 2147483647 ? n : null; } if (!/^[+-]?[0-9]+$/.test(t)) return null; const n = Number.parseInt(t, 10); return n >= -2147483648 && n <= 2147483647 ? n : null; })(" + t + ")";
 				}
 				if(cls.module == "Math" && fName == "isNaN" && args.length == 1) return "Number.isNaN(" + expr(args[0]) + ")";
+				if(cls.module == "Math" && fName == "isFinite" && args.length == 1) return "Number.isFinite(" + expr(args[0]) + ")";
 				if(cls.module == "std.UStringPlatform") {
 					// Cursor primitives of the resident UString walk, inlined
 					// per call: a cursor is a UTF-16 unit index here, so end

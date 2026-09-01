@@ -105,4 +105,6 @@ tests.ConstructedStateTests
 boring.ArrayRootStateOps
 boring.NumberParsingOps
 tests.NumberParsingTests
+boring.NumberClassifyOps
+tests.NumberClassifyTests
 tests.ArrayRootTests
