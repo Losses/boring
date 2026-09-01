@@ -13,7 +13,50 @@ package swiftcompiler;
 	normal pipeline and append after this prelude.
 **/
 class SwiftRuntime {
-	public static final SOURCE = '
+	public static final SOURCE = '/// Validated, shared-domain numeric parsing (stdlib/14).
+enum NumberParsing {
+    private static func isDigit(_ scalar: Unicode.Scalar) -> Bool { scalar.value >= 48 && scalar.value <= 57 }
+    private static func isHexDigit(_ scalar: Unicode.Scalar) -> Bool { isDigit(scalar) || (scalar.value >= 65 && scalar.value <= 70) || (scalar.value >= 97 && scalar.value <= 102) }
+    private static func matchFloat(_ s: String) -> Bool {
+        let a = Array(s.unicodeScalars); var i = 0
+        if i < a.count && (a[i].value == 43 || a[i].value == 45) { i += 1 }
+        var before = 0
+        while i < a.count && isDigit(a[i]) { i += 1; before += 1 }
+        var after = 0
+        if i < a.count && a[i].value == 46 {
+            i += 1
+            while i < a.count && isDigit(a[i]) { i += 1; after += 1 }
+            if before == 0 && after == 0 { return false }
+        } else if before == 0 { return false }
+        if i < a.count && (a[i].value == 101 || a[i].value == 69) {
+            i += 1
+            if i < a.count && (a[i].value == 43 || a[i].value == 45) { i += 1 }
+            let start = i
+            while i < a.count && isDigit(a[i]) { i += 1 }
+            if i == start { return false }
+        }
+        return i == a.count
+    }
+    private static func matchInt(_ s: String) -> Bool {
+        let a = Array(s.unicodeScalars); var i = 0
+        if i < a.count && (a[i].value == 43 || a[i].value == 45) { i += 1 }
+        let start = i
+        while i < a.count && isDigit(a[i]) { i += 1 }
+        return i > start && i == a.count
+    }
+    private static func matchHex(_ s: String) -> Bool {
+        let a = Array(s.unicodeScalars); var i = 0
+        if i < a.count && (a[i].value == 43 || a[i].value == 45) { i += 1 }
+        if i + 1 >= a.count || a[i].value != 48 || (a[i + 1].value != 120 && a[i + 1].value != 88) { return false }
+        i += 2; let start = i
+        while i < a.count && isHexDigit(a[i]) { i += 1 }
+        return i > start && i == a.count
+    }
+    static func trim(_ s: String) -> String { String(s.drop(while: { $0 == " " || $0 == "\\t" || $0 == "\\n" || $0 == "\\u{0B}" || $0 == "\\u{0C}" || $0 == "\\r" }).reversed().drop(while: { $0 == " " || $0 == "\\t" || $0 == "\\n" || $0 == "\\u{0B}" || $0 == "\\u{0C}" || $0 == "\\r" }).reversed()) }
+    static func parseFloat(_ s: String) -> ${FloatPrecision.isF32() ? "Float" : "Double"} { let t = trim(s); return matchFloat(t) ? (${FloatPrecision.isF32() ? "Float" : "Double"}(t) ?? .nan) : .nan }
+    static func parseInt(_ s: String) -> Int32? { let t = trim(s); if matchInt(t), let n = Int64(t), n >= -2147483648 && n <= 2147483647 { return Int32(n) }; if matchHex(t) { let neg = t.hasPrefix("-"); let p = (neg || t.hasPrefix("+")) ? 3 : 2; let d = String(t.dropFirst(p)); if let n = Int64(d, radix: 16) { let v = neg ? -n : n; return v >= -2147483648 && v <= 2147483647 ? Int32(v) : nil } }; return nil }
+}
+
 
 /// The two 32-bit halves of a binary64 value (stdlib/05). The halves
 /// carry the bit patterns as Int32 so they flow into Int32 arithmetic
