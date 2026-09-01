@@ -1836,7 +1836,7 @@ class SwiftExpr {
 		against the unit array: end is the unit count, codeAt is an
 		integer subscript, advance adds the surrogate-pair width, and
 		fromCodePoint encodes the scalar (an out-of-domain argument
-		yields the NUL replacement, matching the Rust lane). Business
+		yields the NUL replacement, matching the Rust implementation. Business
 		code never reaches these; it calls std.UString.
 	**/
 	function ustringPlatformCall(fName: String, args: Array<TypedExpr>, fn: TypedExpr): String {
@@ -2481,7 +2481,7 @@ class SwiftExpr {
 		UnpairedSurrogate variant. A throw is a statement here, so the
 		checked operations lower at statement, binding, or return
 		position only. An empty buffer holds no trailing unit; -1 fails
-		every range check the way the NaN tail read of the TS lane does.
+		every range check, as in the TS implementation's NaN tail read.
 	**/
 	function stringBufMutationParts(fn: TypedExpr): Null<{name: String, subj: TypedExpr}> {
 		return switch(fn.expr) {
@@ -2773,8 +2773,8 @@ class SwiftExpr {
 	/**
 		Whether a `+` expression produces a string: Swift has no string
 		concatenation with numbers, so a non-string leaf renders through
-		interpolation instead (the TS lane relies on implicit coercion
-		here).
+		interpolation; the TS implementation relies on implicit coercion
+		here.
 	**/
 	function isStringTyped(e: TypedExpr): Bool {
 		return isStringLeafType(e.t);
