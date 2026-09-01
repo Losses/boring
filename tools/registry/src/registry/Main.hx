@@ -11,7 +11,7 @@ import registry.Json.JsonField;
 enum RegistryFault { Message(text:String); }
 typedef JsonBox = { value:JsonValue };
 
-class RegistryException extends haxe.Exception { public final error:RegistryFault; public function new(error:RegistryFault) { this.error=error; var message=""; switch(error) { case Message(text): message=text; } super(message); } }
+class RegistryException extends haxe.Exception { public final error:RegistryFault; public function new(error:RegistryFault) { this.error=error; super(RegistryException.describeError(error)); } static function describeError(error:RegistryFault):String { var result=""; switch(error) { case Message(text): result=text; } return result; } }
 class Main {
  static final USAGE="usage: generate --tree <dir> --output <site> --base-url <url> [--swift-scope <scope>] [--archive-base <url>]";
  static function fail(x:String):Void throw new RegistryException(Message(x));
