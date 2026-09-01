@@ -408,9 +408,20 @@ consumer.
     comparison are pure Haxe modules of the tool: the JSON reader
     builds an ordered value tree (objects keep their field order), the
     JSON writer takes the field order explicitly, and no module uses
-    reflection. The tests stay TypeScript under `bun test` and spawn
-    the compiled tool, so the tests exercise exactly the artifact a
-    deployment runs.
+    reflection. The reader's numeric scans use `Std.parseFloat`,
+    `Std.parseInt` (hex-prefixed literals), and `Math.isNaN`, and the
+    TypeScript target lowers them onto `Number.parseFloat`,
+    `Number.parseInt`, and `Number.isNaN`. The reader only ever passes
+    complete numeric tokens, bounded by delimiters it scans to itself,
+    and the hex parse takes four verified hex digits, so the
+    parse-failure returns of the Haxe functions (`NaN` and a null
+    `Int`) never occur. The tool is the first consumer of the two
+    parse functions: no other target holds a lowering for them, and
+    promoting either into the business subset requires a five-target
+    standard-library specification first, ruling the failure domain
+    before any lane emits them. The tests stay TypeScript under
+    `bun test` and spawn the compiled tool, so the tests exercise
+    exactly the artifact a deployment runs.
 
 ## Test hooks
 
