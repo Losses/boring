@@ -250,3 +250,44 @@ Code point values and ASCII magic headers are asserted in:
 - `tests/haxe/Main.hx` (lines 24, 29, 34, 39, 45, 99)
 - `tests/ts/codec.test.ts` (lines 36-40, 68)
 - `tests/ts/vector.test.ts` (lines 14, 18, 22)
+
+### Swift target rulings
+
+#### Strings
+
+#### Business strings
+
+Haxe `String` maps to `String`. Concatenation and interpolation are
+native. The `length` property is UTF-16 code unit count
+(`utf16.count`, constant time). `charCodeAt` lowers to a unit read
+through the UTF-16 view at an advanced index; business code uses it only
+on the ASCII tier where the index walked in already, and the residents
+never use it.
+
+#### Ordering
+
+Native `<` on `String` implements canonical ordering and disagrees with
+the UTF-16 code unit order the sorted tables rule (`stdlib/07`). Haxe
+`<`, `>`, `<=`, `>=` on `String` therefore lower to a comparison
+helper emitted once in the runtime text that walks both UTF-16 views in
+lockstep and compares units. Equality stays native `==`, which is
+canonicalization-preserving and agrees with unit order on equal-length
+unit sequences; the samples compare keys for order and content
+separately, and only order needs the helper.
+
+### Dart target rulings
+
+#### Strings
+
+Haxe `String` maps to `String`. UTF-16 is the native storage: `length`
+is the unit count, `codeUnitAt` is the unit read, `substring` is the
+unit-range cut. Code point access goes through `String.fromCharCode`
+with surrogate combination where a pair is present, the same shape the
+TypeScript target lowers into `codePointAt`.
+
+#### String ordering
+
+`<` and friends on `String` lower to native `compareTo`-based
+comparisons: Dart compares code units with no canonicalization, which is
+the UTF-16 unit order the sorted tables rule (`stdlib/07`), so no helper
+runs.

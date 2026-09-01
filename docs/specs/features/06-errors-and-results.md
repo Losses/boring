@@ -375,3 +375,52 @@ Error handling is asserted in:
 - `tests/haxe/Main.hx` (lines 102-114) asserting that decoding bad magic and a truncated vector throw the `BadMagic` and `UnexpectedEof` variants by matching `error.error`.
 - `tests/ts/codec.test.ts` (lines 67-105) asserting the variant through `error.error.kind` for wrong magic, trailing bytes (including the `remaining` payload), and a truncated vector; the wrong-magic and truncated payloads assert two distinct variants, and no assertion reads a message.
 - `tests/ts/error-structure.test.ts` scanning `reference/ts/src` and `samples` for throw sites of bare `Error` or bare `haxe.Exception` in codec code and rejecting any hit.
+
+### Swift target rulings
+
+#### Errors and faults (`features/06`)
+
+Fault enums conform to `Error`; the runtime emits one non-`final` base
+class `BoringException: Error` carrying `message`, and each exception
+class is a `final class` subclass of it carrying the fault field (a
+`final` base forbids the subclass the class ruling needs). `throw`
+lowers to `throw`; try-regions lower to `do`/`catch` with a typed
+pattern (`catch let error as UStringException`) plus a final bare
+`catch { throw error }` arm, because a typed pattern never exhausts;
+the rethrow arm makes the enclosing function throwing exactly when the
+other targets' unmatched-error rethrow does, and a handler that never
+reads the binding emits `catch is UStringException`. The statement,
+return, initializer, and handler-return positions all lower: value
+regions declare the binding and assign it in both arms, because
+`do`/`catch` is a statement cluster and not an expression. `try` prefixes
+the whole expression of the statement once, per the fact above, not
+each callee.
+
+#### Candidates
+
+1. `throw` with typed catch, as above.
+2. `Result<Value, Fault>` return types with `try`-free propagation.
+
+#### Judgment
+
+| Candidate | performance | ambiguity | redundancy | readability |
+| --- | --- | --- | --- | --- |
+| 1 (throw) | An unwritten `throw` path costs nothing at call sites; the thrown value crosses as an error register and is boxed only on the cold fault path. | The fault type at the catch site is a cast pattern the compiler checks. | One mechanism, matching the TS and Kotlin targets. | `do`/`catch` with a typed pattern reads as the language's own error shape. |
+| 2 (Result) | `Result` is a value enum with no box, but every caller unpacks through `switch` or `try!`, adding a match at each call. | Unhandled results type-check until read. | Every signature and call site carries the type, diverging from two of three existing targets. | Chains of `Result` plumbing read as bureaucracy next to `throw`. |
+
+#### Ruling
+
+Candidate 1. Faults are cold paths; the hot path pays nothing, and the
+fault identity (never the message) crosses exactly as in `features/06`.
+
+### Dart target rulings
+
+#### Errors and faults (`features/06`)
+
+Fault hierarchies and exception classes are plain Dart classes; `throw`
+lowers to `throw`; try-regions lower to `try`/`on`/`catch` with the
+typed `on UStringException catch (error)` form. The statement, return,
+initializer, and handler-return positions all lower; value regions bind
+a late-assigned local through both arms, because `try`/`catch` is a
+statement cluster. This matches the TS and Kotlin target mechanism for
+mechanism.

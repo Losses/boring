@@ -286,3 +286,29 @@ The ruling is guarded by:
 
 - `tools/eslint/rules/no-functional-iteration.ts`, the `boring/no-functional-iteration` rule, banning the callback iteration methods and comparator `sort` on all files under `reference/ts/src` (scoped in `eslint.config.ts`; tests and tools may use any form). The comparator inside the sort runtime module `reference/ts/src/vector-sort.ts` is the features/17 exit and stays sanctioned there.
 - `tests/ts/loop-structure.test.ts`, a structure test scanning every file under `reference/ts/src`, `reference/ts/gen`, `samples`, `reference/rust/src`, and `reference/kotlin/src` and asserting three properties: no `.map(`, `.filter(`, `.reduce(`, `.forEach(`, `.flatMap(`, `.some(`, `.every(`, `.fold(`, or `.sortedBy(` call site exists; no function expression, arrow function, or lambda appears inside a `for` or `while` body; and every `for (` loop head under the TypeScript trees binds an index counter, matched textually by the absence of ` of ` and ` in ` inside the loop head; the head's condition section also contains no property access, so the bound evaluates per iteration as a local. The init section is exempt so it can declare the hoisted bound next to the counter; the declaration executes once, at loop entry. Comments are blanked before the scan and the loop-body check matches each language through its closure token, so doc text never reads as code. This test is the guard for generated output, where the behavior tests cannot see the shape of the code.
+
+### Swift target rulings
+
+#### Iteration and loops (`features/09`, `features/15`)
+
+`for (i in 0...n)` lowers to `for i in stride(from: a, to: b, by: 1)`
+on the `Int32` operands (the inclusive form widens `to` by one):
+`stride` yields an empty range when the bound precedes the start,
+matching the `i < n` test the Haxe loop runs, while `a..<b` traps when
+`b < a` and a decoded count of `-1` reaches that path. `while` and `if`
+map directly. `break` and `continue`
+map natively. The closed-list pipeline idioms (`macros/01`, `macros/02`)
+lower to `for` loops over the array with the inline closure body inlined
+as statements, one pass, no intermediate array; `groupBy` (`macros/03`)
+builds through the sorted-table builder.
+
+### Dart target rulings
+
+#### Iteration and loops (`features/09`, `features/15`)
+
+`for (i in 0...n)` lowers to `for (var i = 0; i < n; i++)` (inclusive
+form with `<=`); `while` and `if` map directly; `break` and `continue`
+map natively. The closed-list pipeline idioms (`macros/01`, `macros/02`)
+lower to `for` loops with the inline closure body inlined as statements,
+one pass, no intermediate list; `groupBy` (`macros/03`) builds through
+the splay-tree map.

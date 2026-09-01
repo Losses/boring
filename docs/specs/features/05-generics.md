@@ -215,3 +215,23 @@ Generic collections are verified by:
 - `tests/rust/vector.rs` (lines 54-70)
 - `tests/ts/codec.test.ts` (lines 56-64)
 - `tests/haxe/Main.hx` (lines 78-88)
+
+### Swift target rulings
+
+#### Generics (`features/05`)
+
+Swift generics specialize under optimization for monomorphic call sites
+and fall back to witness-table dispatch otherwise; generic values of
+value type stay unboxed through both paths. The generic use in the sample
+tree is the sorted tables and the pipeline idioms, both monomorphic at their
+call sites, so the specialized code is what runs. Type arguments pass
+through unchanged.
+
+### Dart target rulings
+
+#### Generics (`features/05`)
+
+Dart generics reify type arguments and specialize in the VM's optimizing
+compiler for monomorphic call sites; the sorted tables pass through
+their type arguments unchanged. The generic use in the sample tree is the
+tables and the pipeline idioms, both covered.

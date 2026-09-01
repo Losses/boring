@@ -234,3 +234,23 @@ Fixed-size chunk reading and collection allocations are verified in:
 - `tests/haxe/Main.hx` (lines 60-66, 79-88)
 - `tests/ts/codec.test.ts` (lines 42-53)
 - `tests/ts/vector.test.ts` (lines 13-25)
+
+### Swift target rulings
+
+#### Arrays (`stdlib/04`)
+
+`Array<T>` with `reserveCapacity` before counted fills; a pre-allocated
+fill lowers to `[T](repeating:count:)` followed by indexed stores, one
+allocation. Read-only arrays (`features/18`) map to `let` bindings of
+`Array<T>`; `let` enforces the element-mutation ban with no wrapper
+type.
+
+### Dart target rulings
+
+#### Arrays (`stdlib/04`)
+
+`List<T>`; a pre-allocated fill lowers to `List<T>.filled(n, filler)`
+with indexed stores, one allocation. Read-only arrays (`features/18`)
+map to a `List` bound through `List.unmodifiable` when the samples hand
+it across a boundary, and to a plain `final` reference when it stays
+inside one module.

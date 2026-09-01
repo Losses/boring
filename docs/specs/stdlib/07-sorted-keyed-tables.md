@@ -143,3 +143,30 @@ output on every target.
 needs keyed lookup uses them, and a sample that needs a mutable
 long-lived keyed cache has no structure yet and stops at this
 specification until one is ruled.
+
+### Swift target rulings
+
+#### Sorted tables (`stdlib/07`)
+
+The resident `runtime.SortedTable` compiles through this target like any
+other module: it stores alternating key and value arrays and binary
+searches with the comparator passed in. The comparator for `String` keys
+is the unit-order helper of the ordering ruling, which is what aligns
+iteration order with the BTreeMap order the other targets share. No
+hand-written Swift table ships.
+
+### Dart target rulings
+
+#### Sorted tables (`stdlib/07`)
+
+`std.SortedMap` and `std.SortedSet` compile the resident
+`runtime.SortedTable` classes into the emitted runtime library
+(`SortedMapTable` and `SortedSetTable` with their builder faces), the
+same resident-source ruling the Swift target carries: the splay trees of
+`dart:collection` expose no builder face over shared storage and their
+iteration order, while key-ordered, gives no structural-equality handle
+for the consistency run. The comparator tears off
+`compareUnitOrder` for the String key domain and the generated
+`compare<Record>` functions for structure keys; the endpoints and the
+insert-then-build shape of the extern are the resident classes' own.
+No hand-written table ships in the generated business tree.

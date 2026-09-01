@@ -55,7 +55,7 @@ with the target's module-file-private visibility and no import.
 | --- | --- |
 | TypeScript | Every static renders as a class static (`TsDecl.hx:110`, `export class X { static ... }`); marked functions do not extract. |
 | Kotlin | Statics-only classes render as `object X { fun ... }` (`KotlinDecl.hx:100-115`); mixed classes put statics in a `companion object` (`KotlinDecl.hx:213-224`). No top-level emission exists. |
-| Swift | Statics-only classes render as case-less `enum X { static ... }` namespaces (`SwiftDecl.hx:72-84`); `targets/swift.md` rules the call form. No global-function or extension emission exists. |
+| Swift | Statics-only classes render as case-less `enum X { static ... }` namespaces (`SwiftDecl.hx:72-84`); the Swift target-rulings subsection below rules the call form. No global-function or extension emission exists. |
 | Dart | Statics-only classes already flatten to top-level library functions (`DartDecl.hx:86-114`), unconditionally and including classes that mean objects on other targets. No extension emission exists. |
 | Rust | Statics-only classes render as `pub struct X;` + `impl X { pub fn ... }` associated functions (`RustDecl.hx:99-115`). No free-function extraction driven by a marker exists. |
 
@@ -161,3 +161,28 @@ with the target's module-file-private visibility and no import.
   haxe, ts, rust, swift, and dart.
 - The mutation checks for this feature live in the dispatch task file
   and are part of the completion criteria.
+
+### Swift target rulings
+
+#### Static extension and dispatch (`features/10`, `features/12`)
+
+Unmarked static extensions lower to direct calls on the namespace enum
+of the resolving module: no protocol requirement, no dynamic dispatch.
+A static marked `@:extension` emits as a Swift `extension` on the
+receiver type and marked call sites render `x.f(a)`; a static marked
+`@:topLevel` emits as a file-scope global function (`features/10`
+rules the markers and the call-site table). Classes keep their virtual
+methods as Swift `class` methods; the sample set has no subclassing,
+so `final class` throughout costs nothing.
+
+### Dart target rulings
+
+#### Static extension and dispatch (`features/10`, `features/12`)
+
+Unmarked static extensions lower to direct top-level calls in the
+library of the resolving module. A static marked `@:extension` emits
+as an unnamed `extension` on the receiver type and marked call sites
+render `x.f(a)`; a static marked `@:topLevel` emits as a top-level
+library function (`features/10` rules the markers and the call-site
+table). Classes keep their methods; the samples contain no subclassing,
+so `final class` throughout costs nothing.
