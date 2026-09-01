@@ -7,8 +7,8 @@ package std;
  * targets and stage one, byte offsets on Rust. Every primitive is O(1) in
  * the cursor, so a full walk costs one pass whatever the storage is.
  *
- * Each lane lowers these statics inline; no runtime module of any target
- * implements them. Business code never calls them: it calls std.UString,
+ * Each target lowers these statics inline; no runtime module implements
+ * them. Business code never calls them: it calls std.UString,
  * whose inline wrappers route into runtime.UString.
  */
 extern class UStringPlatform {

@@ -19,8 +19,8 @@ class StdStringOps {
 		return Std.string(FloatWidth.F32) == "F32";
 	}
 
-	// Native Haxe omits the ruled space after commas; the oracle lane uses
-	// the ruled literal while every generated lane exercises Std.string.
+	// Native Haxe omits the ruled space after commas; the oracle uses
+	// the ruled literal while every generated target exercises Std.string.
 	public static function intArray():String {
 		final values:Array<Int> = [1, 2, 3];
 		#if boring_oracle return "[1, 2, 3]"; #else return Std.string(values); #end
