@@ -56,7 +56,7 @@ class SwiftTestHelper {
 
 	/**
 		The generated assertion of one registered type: equality is the
-		native operator (the lane's structures, variants, arrays, and
+		native operator (the target's structures, variants, arrays, and
 		optionals conform to Equatable), and a mismatch raises the host
 		failure with both canonical texts.
 	**/

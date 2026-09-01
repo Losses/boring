@@ -18,7 +18,7 @@ describe("data tables TypeScript generation and behavior", () => {
     const source = readFileSync(join(GEN_DIR, "ScriptEvidenceTable.ts"), "utf8");
     expect(source.includes("new Int32Array(")).toBe(true);
     expect(source.includes("const RANGES = new Int32Array([")).toBe(true);
-    // Must not contain class-level static array property declaration
+    // Must not contain a static array property declared inside a class
     expect(source.includes("static RANGES")).toBe(false);
   });
 

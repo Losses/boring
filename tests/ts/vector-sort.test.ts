@@ -2,9 +2,8 @@ import { describe, expect, test } from "bun:test";
 import { vectorSortByCodePoint } from "@boring/codec";
 import type { GlyphMetricsRecord } from "@boring/codec";
 
-// Corpora and oracles are inline constants shared verbatim with the Haxe
-// and Rust sort tests (tests/haxe/Main.hx, tests/rust/vector.rs); the three
-// trees must produce identical outputs.
+// The generated Rust and Haxe tests share these constants and oracles.
+// The test data uses the same constants as the Haxe and TypeScript tests.
 
 const SORTED_KEYS_SMALL: number[] = [
   0x20, 0x4e00, 0x6371, 0x694a, 0x74fc, 0x76ef, 0x78e2, 0x7ad5, 0x82a1,

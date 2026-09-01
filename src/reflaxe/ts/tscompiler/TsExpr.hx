@@ -30,7 +30,7 @@ import ValueTypeSupport;
 	  or one push) is emitted as `new Array<T>(bound)` plus indexed
 	  stores.
 	- features/18 DecodeBoundaryFreeze: functions returning
-	  ReadOnlyArray freeze the records they build, per stored record
+	  ReadOnlyArray returns records with read-only properties.
 	  (including nested records) and at the return.
 	- stdlib/03 enum lowering: variants become `{ kind: "Name", ... }`
 	  objects; variant switches dispatch on `kind`.
@@ -105,7 +105,7 @@ class TsExpr {
 		return expr(e);
 	}
 
-	/** Statement-level entry for framework-initiated compiles. */
+	/** Entry at statement scope for framework-initiated compiles. */
 	public function topLevelStatements(e: TypedExpr): String {
 		scanLocals(e);
 		return blockLines(statementsOf(e), 0).join("\n");
@@ -439,7 +439,7 @@ class TsExpr {
 		// before its first use. A bound with an earlier reader becomes
 		// a block const ahead of that reader; a bound read only by the
 		// loop folds into the for-init as a comma declaration, so it
-		// never occupies a block-level name.
+		// never occupies a name in the current block.
 		final hoists: Array<{firstUse: Int, loopAt: Int, subject: TVar, name: String}> = [];
 		for(i in 0...stmts.length) {
 			final loop = matchInterval(stmts[i]);
@@ -487,7 +487,7 @@ class TsExpr {
 			final loop = matchInterval(stmts[i]);
 			if(loop != null) {
 				// A bound with no earlier reader folds into the for-init
-		// as a comma declaration; the block-level const form is not used.
+		// as a comma declaration; the block const form is not used.
 				var fold: Null<String> = null;
 				for(h in hoists) {
 					if(h.loopAt == i && h.firstUse == i) {
@@ -522,7 +522,7 @@ class TsExpr {
 	/**
 		The typer flattens a counted for-loop when it sits directly in a
 		statement list: the counter declaration, bound declaration, and
-		while land as three sibling statements with no wrapping block.
+		while are three sibling statements with no wrapping block.
 		Regrouping restores the block form the loop lowerings match on.
 	**/
 	function regroupLoops(stmts: Array<TypedExpr>): Array<TypedExpr> {
@@ -660,7 +660,7 @@ class TsExpr {
 	}
 
 	// ------------------------------------------------------------------
-	// Counted fill (features/09) and decode freeze (features/18)
+	// Counted fill (features/09) and read-only decode handling (features/18)
 	// ------------------------------------------------------------------
 
 	/**

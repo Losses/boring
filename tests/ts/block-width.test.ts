@@ -73,7 +73,7 @@ describe("block float widths", () => {
 });
 
 // Bit-exact binary16 edge constants shared with the Haxe, Kotlin, and Rust
-// lanes; every value was verified against the double-arithmetic oracle.
+// targets; every value was verified against the double-arithmetic oracle.
 describe("binary16 edge constants", () => {
   test("binary16 patterns widen to exact binary32 bits", () => {
     // >>> 0 normalizes the signed 32-bit pattern of negative results.
