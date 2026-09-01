@@ -34,7 +34,7 @@ class Compiler extends PluginCompiler<Compiler> {
 
 	public static function use() {
 		// number is binary64 with no binary32 alias in the language, so
-		// the f32 lane has no faithful TypeScript lowering; reject at
+		// the f32 configuration has no faithful TypeScript lowering; reject at
 		// plugin registration, before any type rendering (feature
 		// spec 23).
 		if(FloatPrecision.isF32()) {
