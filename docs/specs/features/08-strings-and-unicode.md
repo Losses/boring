@@ -226,6 +226,18 @@ for code points U+0000..U+007F and diverge everywhere else.
    past the pair and the end bound retreats before it, while the UTF-16
    targets return the lone unit. Arbitrary content-defined slicing
    stays with `std.UString.slice`.
+7. **An omitted optional position lowers to the one-argument call.**
+   `indexOf`, `lastIndexOf`, and `substring` declare their position
+   parameters optional in Haxe source, and the typer synthesizes an
+   explicit `null` for an omitted position; a hand-written `null`
+   position coerces to the same search-from-the-start result on the
+   UTF-16 runtimes. The emitters drop the null position argument and
+   render the one-argument overload: TypeScript does so for
+   `substring` and `indexOf`, Kotlin for `substring`. The platform
+   methods type their position parameter as a number, so keeping the
+   null would fail the generated tree's own typechecking; the
+   one-argument overload carries the same meaning, the search from
+   the start.
 
 Enforcement: style rule `V18 NonAsciiStringIndex` reports at Haxe compile
 time, split across the two interception passes. The call forms are checked

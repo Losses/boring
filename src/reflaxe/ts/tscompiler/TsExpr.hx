@@ -1497,6 +1497,18 @@ class TsExpr {
 						return expr(subj) + ".substring(" + expr(args[0]) + ")";
 					}
 				}
+				if(name == "indexOf" && isStringSubject(subj) && args.length == 2) {
+					// The same synthesized null arrives for an omitted
+					// ?pos; String.prototype.indexOf types its second
+					// parameter as number, and a null argument fails
+					// strict typechecking, so the null is dropped and
+					// the one-argument overload searches from the start.
+					switch(stripWrap(args[1]).expr) {
+						case TConst(TNull):
+							return expr(subj) + ".indexOf(" + expr(args[0]) + ")";
+						case _:
+					}
+				}
 				return expr(subj) + "." + name + "(" + rendered + ")";
 			case TField(subj, FStatic(c, cf)):
 				final cls = c.get();
