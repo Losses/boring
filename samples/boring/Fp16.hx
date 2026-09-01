@@ -88,7 +88,7 @@ class Fp16 {
 			return sign << 15;
 		}
 		final h = roundShift(mant23 | 0x800000, shift);
-		// Rounding past the largest subnormal lands on the smallest normal
+		// Rounding past the largest subnormal produces the smallest normal
 		// binary16, 2^-14, whose bit pattern is an exponent of one.
 		if (h == 0x400) {
 			return (sign << 15) | 0x0400;

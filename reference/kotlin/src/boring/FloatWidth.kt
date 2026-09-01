@@ -14,7 +14,7 @@ enum class FloatWidth(val magic: String, val recordByteLength: Int) {
         /**
          * Unknown magics answer null, which VectorCodec.decode reports as
          * BadMagic; a reader built before a width existed rejects the block
-         * explicitly instead of misreading its records.
+         * when the magic is unknown.
          */
         fun ofMagic(magic: String): FloatWidth? {
             for (width in entries) {

@@ -82,7 +82,7 @@ object Fp16 {
             return sign shl 15
         }
         val h = roundShift(mant23 or 0x800000, shift)
-        // Rounding past the largest subnormal lands on the smallest normal
+        // Rounding past the largest subnormal produces the smallest normal
         // binary16, 2^-14, whose bit pattern is an exponent of one.
         if (h == 0x400) {
             return (sign shl 15) or 0x0400

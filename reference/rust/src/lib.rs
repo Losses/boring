@@ -151,7 +151,7 @@ mod fp16 {
             return sign;
         }
         let h = round_shift(mant23 | 0x80_0000, shift);
-        // Rounding past the largest subnormal lands on the smallest normal
+        // Rounding past the largest subnormal produces the smallest normal
         // binary16, 2^-14, whose bit pattern is an exponent of one.
         if h == 0x400 {
             return sign | 0x0400;
