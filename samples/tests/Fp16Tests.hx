@@ -6,7 +6,7 @@ import std.Test;
 /**
  * Bit-exact binary16 conversion checks per binary spec 05. Every constant
  * below was verified against the double-arithmetic oracle over the
- * exhaustive binary16 sweep, so all four generated lanes assert the same
+ * exhaustive binary16 sweep. All four generated targets assert the same
  * bit patterns.
  */
 class Fp16Tests {
