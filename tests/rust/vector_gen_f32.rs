@@ -129,8 +129,8 @@ fn boundary_count_is_rejected() {
     );
 }
 
-//! Sort runtime identity per docs/specs/features/17-sorting.md: the test data
-//! and oracle are inline constants shared with the Haxe and TypeScript tests.
+/// Sort runtime identity per docs/specs/features/17-sorting.md: the test data
+/// and oracle are inline constants shared with the Haxe and TypeScript tests.
 
 const SHUFFLED_KEYS: [u32; 40] = [
     0x82a1, 0x78e2, 0x76ef, 0x6371, 0x4e00, 0x0020, 0x7ad5, 0x74fc, 0x694a, 0x6f23, 0x6d30, 0x8a6d,
