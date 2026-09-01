@@ -12,7 +12,6 @@ class Main {
   while(i<args.length) {
    final raw=args[i]; if(!StringTools.startsWith(raw,"--")) { stop(USAGE,false); return; }
    final parts=raw.substring(2).split("-"); var name=parts[0];
-   if(parts.length>1) name="baseUrl";
    for(j in 1...parts.length) name += parts[j].charAt(0).toUpperCase()+parts[j].substr(1);
    final known=["repos","output","baseUrl","swiftScope","archiveBase","apiBase","token","cache"];
    var recognized=false; for(k in 0...known.length) if(known[k]==name) recognized=true;

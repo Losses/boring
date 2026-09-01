@@ -16,9 +16,10 @@ extern class Path {
 }
 extern class Stats { function isDirectory():Bool; }
 extern class MkdirOptions { var recursive:Bool; }
+extern class Env { public function get(name:String):Null<String>; }
 @:native("process") extern class NodeProcess {
 	static var argv:Array<String>;
-	static var env:Map<String, String>;
+	static var env:Env;
 	static function exit(code:Int):Void;
 }
 @:native("console") extern class Console { static function error(message:String):Void; }
