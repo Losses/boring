@@ -1657,22 +1657,23 @@ class SwiftExpr {
 					return "String(UnicodeScalar(UInt32(bitPattern: " + expr(args[0]) + "))!)";
 				}
 				if(module == "Std") {
-					if(fName == "parseFloat") { imports.runtime("NumberParsing"); return "NumberParsing.parseFloat(" + expr(args[0]) + ")"; }
-					if(fName == "parseInt") { imports.runtime("NumberParsing"); return "NumberParsing.parseInt(" + expr(args[0]) + ")"; }
+					final s = expr(args[0]);
+					if(fName == "parseFloat") {
+						final real = FloatPrecision.isF32() ? "Float" : "Double";
+						return '({ () -> ' + real + ' in let t = String(' + s + '.drop(while: { $0 == " " || $0 == "\\t" || $0 == "\\n" || $0 == "\\u{0B}" || $0 == "\\u{0C}" || $0 == "\\r" }).reversed().drop(while: { $0 == " " || $0 == "\\t" || $0 == "\\n" || $0 == "\\u{0B}" || $0 == "\\u{0C}" || $0 == "\\r" }).reversed()); var i = t.unicodeScalars.makeIterator(); var state = 0; var digits = false; var ok = true; while let c = i.next() { let v = c.value; if v >= 48 && v <= 57 { digits = true } else if (v == 43 || v == 45) && state == 0 { state = 1 } else if v == 46 && state <= 1 { state = 2 } else if (v == 101 || v == 69) && digits && state <= 2 { state = 3 } else if (v == 43 || v == 45) && state == 3 { state = 4 } else { ok = false } }; return ok && digits ? ' + real + '(t) ?? .nan : .nan }())';
+					}
+					if(fName == "parseInt") { return '({ () -> Int32? in let t = String(' + s + '.drop(while: { $0 == " " || $0 == "\\t" || $0 == "\\n" || $0 == "\\u{0B}" || $0 == "\\u{0C}" || $0 == "\\r" }).reversed().drop(while: { $0 == " " || $0 == "\\t" || $0 == "\\n" || $0 == "\\u{0B}" || $0 == "\\u{0C}" || $0 == "\\r" }).reversed()); let neg = t.hasPrefix("-"); let p = (neg || t.hasPrefix("+")) ? 1 : 0; let d = String(t.dropFirst(p)); let hex = d.hasPrefix("0x") || d.hasPrefix("0X"); let digits = hex ? String(d.dropFirst(2)) : d; var i = digits.unicodeScalars.makeIterator(); var count = 0; var ok = true; while let c = i.next() { let v = c.value; if (v >= 48 && v <= 57) || (hex && ((v >= 65 && v <= 70) || (v >= 97 && v <= 102))) { count += 1 } else { ok = false } }; if !ok || count == 0 { return nil }; if hex { guard let n = Int64(digits, radix: 16) else { return nil }; let v = neg ? -n : n; return v >= -2147483648 && v <= 2147483647 ? Int32(v) : nil }; guard let n = Int64(t), n >= -2147483648 && n <= 2147483647 else { return nil }; return Int32(n) }())'; }
 					if(fName == "int") {
 						final arg = stripWrap(args[0]);
 						switch(arg.expr) {
 							case TBinop(OpDiv, l, r) if(isIntTyped(l) && isIntTyped(r)):
-								// Truncating division of two Ints: the
-								// operands are already integral.
+								// Truncating division of two Ints: the operands are already integral.
 								return expr(l) + " / " + expr(r);
 							case _:
 						}
 						return "Int32(" + expr(args[0]) + ")";
 					}
-					if(fName == "string") {
-						return stdString(args[0], false);
-					}
+					if(fName == "string") return stdString(args[0], false);
 				}
 				if(module == "std.Test") {
 					return testCall(fName, args, fn);

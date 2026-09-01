@@ -101,10 +101,10 @@ exact Haxe results above.
 
    | Target | Rendering |
    | --- | --- |
-   | TypeScript | `Number.parseFloat(s)` with the complete-token validation result guarding the call; failure is `Number.NaN`. |
-   | Kotlin | Calls the emitted `std.NumberParsing` shim (validation patterns are constructed once at program startup). |
-   | Swift | Calls the emitted `std.NumberParsing` shim (a single-pass UTF-8 byte scan validates the token before standard-library conversion). |
-   | Dart | Calls the emitted `std.NumberParsing` shim (validation patterns are constructed once at program startup). |
+   | TypeScript | Inlines the six-code-point trim and a single-pass UTF-16 code-unit grammar scan before `Number.parseFloat` conversion; failure is `Number.NaN`. |
+   | Kotlin | Inlines the six-code-point trim, a UTF-16 single-pass grammar scan, and `toDoubleOrNull`/`toIntOrNull` conversion; hexadecimal values are range-checked before `toInt()`. |
+   | Swift | Inlines the six-code-point trim and a single-pass `unicodeScalars` grammar scan before standard-library conversion and `Int64`/`Int32` bounds checking. |
+   | Dart | Inlines the six-code-point trim and a single-pass code-unit grammar scan before `tryParse` conversion and explicit Int32 bounds checking. |
    | Rust | the six-character trim, a single-pass whole-token grammar scan over the bytes, then `t.parse::<f64>().unwrap_or(f64::NAN)` (`f32` in the f32 configuration). |
 
    The fallback is observable as the required NaN only for a failed parse;
@@ -116,10 +116,10 @@ exact Haxe results above.
 
    | Target | Rendering |
    | --- | --- |
-   | TypeScript | validated decimal or hex form through `Number.parseInt(s, 10)` or the explicitly validated hex form; failure is `null`. |
-   | Kotlin | Calls the emitted `std.NumberParsing` shim (validation patterns are constructed once at program startup). |
-   | Swift | Calls the emitted `std.NumberParsing` shim (a single-pass UTF-8 byte scan validates the token before `Int64` conversion and bounds checking). |
-   | Dart | Calls the emitted `std.NumberParsing` shim (validation patterns are constructed once at program startup). |
+   | TypeScript | Inlines the six-code-point trim and a single-pass UTF-16 code-unit grammar scan before `Number.parseInt` conversion with explicit Int32 bounds checking; failure is `null`. |
+   | Kotlin | Inlines the six-code-point trim, a UTF-16 single-pass grammar scan, and `toIntOrNull` conversion; hexadecimal values use `toLongOrNull(16)` with Int32 bounds checking. |
+   | Swift | Inlines the six-code-point trim and a single-pass `unicodeScalars` grammar scan before `Int64` conversion, hexadecimal `Int64(_:radix:)`, and bounds checking. |
+   | Dart | Inlines the six-code-point trim and a single-pass code-unit grammar scan before `tryParse` conversion and explicit Int32 bounds checking. |
    | Rust | the six-character trim, a sign split, and a `0x`/`0X` prefix test, then decimal or radix-16 parsing through `i64` with the Haxe `Int` bounds checked before `as i32`; failure is `None` in `Option<i32>` |
 
    The nullable forms are the complete-domain rule: no caller in the shared
