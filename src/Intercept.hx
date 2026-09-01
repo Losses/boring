@@ -640,7 +640,7 @@ class Intercept {
 		// return, break, continue, and blocks ending in them); their
 		// children are still walked. Compiler-inserted coercion casts
 		// (TCast without a module type) are skipped for the same reason:
-		// the source-level cast check runs in pass 1 on the untyped tree.
+		// the source cast check runs in pass 1 on the untyped tree.
 		switch (e.expr) {
 			case TypedExprDef.TFor(_, subject, body):
 				walk(subject, inLoop);

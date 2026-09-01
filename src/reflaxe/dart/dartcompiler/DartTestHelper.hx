@@ -67,7 +67,7 @@ class DartTestHelper {
 		entries.sort((a, b) -> Reflect.compare(a.tag, b.tag));
 		// Register the defining module of every named type the generated
 		// bodies reach, including ones nested inside records and variant
-		// payloads that never surface in a signature.
+		// payloads that never appear in a signature.
 		for(entry in entries) {
 			registerTypeModules(imports, entry.type, new Map<String, Bool>());
 		}

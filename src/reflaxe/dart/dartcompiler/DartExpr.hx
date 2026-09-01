@@ -37,7 +37,7 @@ import ValueTypeSupport.ValueTypeOperator;
 	  haxe.io.FPHelper bit conversions lower to the runtime helpers
 	  (stdlib/05).
 	- numbers ruling: Int is the 64-bit `int` of the VM exactly as
-	  `number` carries the domain on the TypeScript lane; `/` on two
+	  `number` has the domain on the TypeScript target; `/` on two
 	  Int operands yields `double` natively (the Haxe semantics), and
 	  Std.int of that division folds to `~/`.
 **/
@@ -607,7 +607,7 @@ class DartExpr {
 	/**
 		The typer flattens a counted for-loop when it sits directly in a
 		statement list: the counter declaration, bound declaration, and
-		while land as three sibling statements with no wrapping block.
+		while are three sibling statements with no wrapping block.
 		Regrouping restores the block form the loop lowerings match on.
 	**/
 	function regroupLoops(stmts: Array<TypedExpr>): Array<TypedExpr> {
@@ -1704,7 +1704,7 @@ class DartExpr {
 		pair-combining codePointAt, advance adds the surrogate-pair
 		width, and fromCodePoint guards the valid domain (an
 		out-of-domain argument yields the NUL replacement, matching the
-		other lanes). Business code never reaches these; it calls
+		other target implementations). Business code calls
 		std.UString.
 	**/
 	function ustringPlatformCall(fName: String, args: Array<TypedExpr>, fn: TypedExpr): String {
@@ -2118,8 +2118,8 @@ class DartExpr {
 	/**
 		Try regions lower as native try/on with typed catch arms. An
 		`on` clause only catches its own domain, so unmatched
-		exceptions propagate with no rethrow footer, and no call-site
-		marking exists on this lane. The arm binds the error only when
+		exceptions propagate with no rethrow footer. This target has no
+		call-site marking. The arm binds the error when
 		the handler reads it.
 	**/
 	function isTryRegion(e: TypedExpr): Bool {
@@ -2303,7 +2303,7 @@ class DartExpr {
 		is a statement here, so the checked operations lower at
 		statement, binding, or return position only. An empty buffer
 		holds no trailing unit; -1 fails every range check the way the
-		NaN tail read of the TS lane does.
+		NaN tail read in the TS implementation.
 	**/
 	function stringBufMutationParts(fn: TypedExpr): Null<{name: String, subj: TypedExpr}> {
 		return switch(fn.expr) {
