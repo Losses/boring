@@ -188,7 +188,12 @@ class Intercept {
 	 * declared name with no non-ascii literal.
 	 */
 	static function walkStringIndexSource(e:Expr, scopes:Array<Map<String, String>>):Void {
-		if (e == null) {
+		// The Haxe parser represents an empty `switch` default arm as a
+		// placeholder object whose expr and pos are both null instead of a
+		// null reference; the std ExprTools.iter skips that placeholder with
+		// the same `edef.expr != null` check. Source never writes this shape,
+		// so any node carrying it holds no names to track.
+		if (e == null || e.expr == null) {
 			return;
 		}
 		switch (e.expr) {
