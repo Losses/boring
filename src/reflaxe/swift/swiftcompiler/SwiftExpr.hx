@@ -1655,8 +1655,8 @@ class SwiftExpr {
 					return "String(UnicodeScalar(UInt32(bitPattern: " + expr(args[0]) + "))!)";
 				}
 				if(module == "Std") {
-					if(fName == "parseFloat") return "Double(" + expr(args[0]) + ") ?? .nan";
-					if(fName == "parseInt") return "Int(" + expr(args[0]) + ")";
+					if(fName == "parseFloat") return "{ () -> Double in let t = String(String(" + expr(args[0]) + ".drop(while: { $0 == \" \" || $0 == \"\\t\" || $0 == \"\\n\" || $0 == \"\\r\" }).reversed().drop(while: { $0 == \" \" || $0 == \"\\t\" || $0 == \"\\n\" || $0 == \"\\r\" }).reversed())); return (!t.isEmpty && t.range(of: \"^[+-]?(?:[0-9]+(?:\\\\.[0-9]*)?|\\\\.[0-9]+)(?:[eE][+-]?[0-9]+)?$\", options: .regularExpression) != nil) ? (Double(t) ?? .nan) : .nan }()";
+					if(fName == "parseInt") return "{ () -> Int32? in let t = String(String(String(" + expr(args[0]) + ".drop(while: { $0 == \" \" || $0 == \"\\t\" || $0 == \"\\n\" || $0 == \"\\r\" }).reversed().drop(while: { $0 == \" \" || $0 == \"\\t\" || $0 == \"\\n\" || $0 == \"\\r\" }).reversed())); if t.range(of: \"^[+-]?[0-9]+$\", options: .regularExpression) != nil { return Int32(t) }; if t.range(of: \"^[+-]?0[xX][0-9a-fA-F]+$\", options: .regularExpression) != nil { let negative = t.hasPrefix(\"-\"); let d = t.dropFirst(negative || t.hasPrefix(\"+\") ? 1 : 0).dropFirst(2); if let n = Int64(d, radix: 16) { let signed = negative ? -n : n; return signed >= Int64(Int32.min) && signed <= Int64(Int32.max) ? Int32(signed) : nil }; return nil }; return nil }()";
 					if(fName == "int") {
 						final arg = stripWrap(args[0]);
 						switch(arg.expr) {

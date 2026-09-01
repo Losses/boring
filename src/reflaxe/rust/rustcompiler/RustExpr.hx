@@ -3244,8 +3244,12 @@ class RustExpr {
 					return "FPHelper::" + RustImports.toSnakeCase(targetName) + "(" + renderedArgs + ")";
 				}
 				if(cls.module == "Math" && name == "isNaN") return "(" + expr(args[0]) + ").is_nan()";
-				if(cls.module == "Std" && name == "parseFloat") return "(" + expr(args[0]) + ").parse::<f64>().unwrap_or(f64::NAN)";
-				if(cls.module == "Std" && name == "parseInt") return "None";
+				if(cls.module == "Std" && name == "parseFloat") {
+					return "{ let t = (" + expr(args[0]) + ").trim(); if t.is_empty() || !t.bytes().all(|c| c.is_ascii_digit() || matches!(c, b'+' | b'-' | b'.' | b'e' | b'E')) { f64::NAN } else { t.parse::<f64>().unwrap_or(f64::NAN) } }";
+				}
+				if(cls.module == "Std" && name == "parseInt") {
+					return "{ let t = (" + expr(args[0]) + ").trim(); if let Some(d) = t.strip_prefix(\"-\").or_else(|| t.strip_prefix(\"+\")).filter(|x| x.starts_with(\"0x\") || x.starts_with(\"0X\")) { i32::from_str_radix(&d[2..], 16).ok().map(|n| if t.starts_with('-') { -n } else { n }) } else if t.starts_with(\"0x\") || t.starts_with(\"0X\") || t.starts_with(\"+0x\") || t.starts_with(\"+0X\") || t.starts_with(\"-0x\") || t.starts_with(\"-0X\") { None } else { t.parse::<i32>().ok() } }";
+				}
 				if(cls.pack.join(".") == "std" && cls.name == "Process" && name == "exit") {
 					imports.require("std::process::exit");
 					return "exit(" + renderedArgs + ")";
