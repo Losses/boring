@@ -99,7 +99,7 @@ exact Haxe results above.
 
    | Target | Rendering |
    | --- | --- |
-   | TypeScript | `Number.parseFloat(s)` with the complete-token validation result guarding the call; failure is `Number.NaN`. |
+   | TypeScript | Inlines the six-code-point trim and a single-pass UTF-16 code-unit grammar scan before `Number.parseFloat` conversion; failure is `Number.NaN`. |
    | Kotlin | Inlines the six-code-point trim, a UTF-16 single-pass grammar scan, and `toDoubleOrNull`/`toIntOrNull` conversion; hexadecimal values are range-checked before `toInt()`. |
    | Swift | Inlines the six-code-point trim and a single-pass `unicodeScalars` grammar scan before standard-library conversion and `Int64`/`Int32` bounds checking. |
    | Dart | Inlines the six-code-point trim and a single-pass code-unit grammar scan before `tryParse` conversion and explicit Int32 bounds checking. |
@@ -114,7 +114,7 @@ exact Haxe results above.
 
    | Target | Rendering |
    | --- | --- |
-   | TypeScript | validated decimal or hex form through `Number.parseInt(s, 10)` or the explicitly validated hex form; failure is `null`. |
+   | TypeScript | Inlines the six-code-point trim and a single-pass UTF-16 code-unit grammar scan before `Number.parseInt` conversion with explicit Int32 bounds checking; failure is `null`. |
    | Kotlin | Inlines the six-code-point trim, a UTF-16 single-pass grammar scan, and `toIntOrNull` conversion; hexadecimal values use `toLongOrNull(16)` with Int32 bounds checking. |
    | Swift | Inlines the six-code-point trim and a single-pass `unicodeScalars` grammar scan before `Int64` conversion, hexadecimal `Int64(_:radix:)`, and bounds checking. |
    | Dart | Inlines the six-code-point trim and a single-pass code-unit grammar scan before `tryParse` conversion and explicit Int32 bounds checking. |
