@@ -156,8 +156,8 @@ export class BinaryReader {
 
   /**
    * Runs before every read, mirroring ensureRemaining in the Haxe, Rust, and
-   * Kotlin readers: a short buffer reports the UnexpectedEof domain variant
-   * instead of the DataView RangeError.
+   * Kotlin readers: a short buffer reports the UnexpectedEof domain variant.
+   * DataView raises RangeError for the same condition.
    */
   private ensureRemaining(length: number): void {
     if (this.view.byteLength - this.offset < length) {
