@@ -14,7 +14,7 @@ import ValueTypeSupport.ValueTypeOperator;
 	Declaration lowering: classes, variant enums, and record typedefs
 	(docs/specs/stdlib/06-std-modules.md). One DartDecl instance owns the
 	per-module emission context (imports, types, expression state) so
-	every declaration in the same Haxe module lands in one Dart library
+	every declaration in the same Haxe module is written to one Dart library
 	at `pack/module.dart`. Top-level names of the library are claimed
 	through this instance so the flattened, nominal, and generated
 	forms never collide.
@@ -943,7 +943,7 @@ class DartDecl {
 		return s.charAt(0).toUpperCase() + s.substr(1);
 	}
 
-	/** The Dart file stem of a module: `pack.ModuleName` lands at `pack/module_name.dart`. */
+	/** The Dart file stem of a module: `pack.ModuleName` maps to `pack/module_name.dart`. */
 	public static function snakeCase(s: String): String {
 		final b = new StringBuf();
 		for(i in 0...s.length) {
