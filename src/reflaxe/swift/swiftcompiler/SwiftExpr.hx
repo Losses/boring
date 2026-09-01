@@ -1638,6 +1638,7 @@ class SwiftExpr {
 					return residentCall("Graphemes", args, fn);
 				}
 				if(module == "Math") {
+					if(fName == "isNaN") return "(" + expr(args[0]) + ").isNaN";
 					// Members with no bare-function form lower onto the
 					// stdlib method or property of the argument.
 					switch(fName) {
@@ -1654,6 +1655,8 @@ class SwiftExpr {
 					return "String(UnicodeScalar(UInt32(bitPattern: " + expr(args[0]) + "))!)";
 				}
 				if(module == "Std") {
+					if(fName == "parseFloat") return "Double(" + expr(args[0]) + ") ?? .nan";
+					if(fName == "parseInt") return "Int32(" + expr(args[0]) + ")";
 					if(fName == "int") {
 						final arg = stripWrap(args[0]);
 						switch(arg.expr) {

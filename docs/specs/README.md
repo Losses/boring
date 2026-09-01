@@ -105,6 +105,7 @@ Every candidate translation is evaluated across four fixed axes:
 | 11 | [11-grapheme-clusters.md](stdlib/11-grapheme-clusters.md) | Complete | std.Graphemes: extended grapheme cluster iteration over code-point content. |
 | 12 | [12-std-string.md](stdlib/12-std-string.md) | Complete | Std.string: call-site conversion of scalars, value enumerations, and arrays of them on the five targets, inside concatenation and standalone. |
 | 13 | [13-stringtools-conversions.md](stdlib/13-stringtools-conversions.md) | Planned | `StringTools.hex` and the String case conversions on the five targets: call-site native expressions, padding, and the non-negative domain error. |
+| 14 | [14-number-parsing.md](stdlib/14-number-parsing.md) | Planned | Complete-token `Std.parseFloat`, `Std.parseInt`, and `Math.isNaN` across ts, kotlin, swift, dart, and rust. |
 
 ### Style specifications
 

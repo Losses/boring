@@ -1712,6 +1712,12 @@ class KotlinExpr {
 				if(cls.pack.length == 0 && cls.name == "StringTools" && name == "trim" && args.length == 1) {
 					return expr(args[0]) + ".trim()";
 				}
+				if(cls.module == "Math" && name == "isNaN") return "(" + expr(args[0]) + ").isNaN()";
+				if(cls.module == "Std" && (name == "parseFloat" || name == "parseInt") && args.length == 1) {
+					final s = expr(args[0]) + ".trim { it <= ' ' }";
+					if(name == "parseFloat") return "run { val t = " + s + "; if (Regex(\"^[+-]?(?:[0-9]+(?:\\\\.[0-9]*)?|\\\\.[0-9]+)(?:[eE][+-]?[0-9]+)?$\").matches(t)) t.toDoubleOrNull() ?: Double.NaN else Double.NaN }";
+					return "run { val t = " + s + "; if (Regex(\"^[+-]?[0-9]+$\").matches(t)) t.toIntOrNull() else if (Regex(\"^[+-]?0[xX][0-9a-fA-F]+$\").matches(t)) t.removePrefix(\"+\").removePrefix(\"-\").removePrefix(\"0x\").removePrefix(\"0X\").toIntOrNull(16)?.let { if (t.startsWith(\"-\")) -it else it } else null }";
+				}
 				final markedField = findStaticField(cls, name);
 				if(markedField != null && StaticFunctionMarkers.isMarked(markedField)) {
 					final nativeName = staticRef(cls, name);
@@ -1871,6 +1877,9 @@ class KotlinExpr {
 							return "TestHelper.assertEquals(" + expr(expectedArg) + ", " + expr(actualArg) + (msgArg != null ? ", " + msgArg : "") + ")";
 						}
 					}
+				}
+				if(cls.pack.length == 0 && cls.name == "Math" && name == "isNaN") {
+					return "(" + expr(args[0]) + ").isNaN()";
 				}
 				if(cls.pack.length == 0 && cls.name == "Std" && name == "int") {
 					// toInt on an Int expression is the identity; the
