@@ -29,7 +29,7 @@ class BinaryWriter {
 
 	public function writeF64(value:Float):Void {
 		final bits = haxe.io.FPHelper.doubleToI64(value);
-		// The Int64 halves carry raw two's-complement bits; writing them as
+		// The Int64 parts carry raw two's-complement bits; writing them as
 		// two u32 words keeps the byte order identical on every target.
 		writeU32(bits.high);
 		writeU32(bits.low);

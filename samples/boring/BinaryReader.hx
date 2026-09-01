@@ -4,7 +4,7 @@ import haxe.io.Bytes;
 
 /**
  * Cursor-based big-endian reader over an immutable byte buffer. Assembled u32
- * values keep their two's-complement bits: f64 halves feed FPHelper as raw
+ * values keep their two's-complement bits: f64 bit parts feed FPHelper as raw
  * bits, and code points (at most 0x10FFFF) are always positive under this
  * representation.
  */
