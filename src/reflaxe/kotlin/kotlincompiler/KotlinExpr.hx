@@ -715,9 +715,34 @@ class KotlinExpr {
 		switch(e.expr) {
 			case TBlock(stmts) if(stmts.length == 3):
 				return intervalCore(stmts[0], stmts[1], stmts[2]);
+			case TBlock(stmts) if(stmts.length == 2):
+				return intervalShort(stmts[0], stmts[1]);
 			case _:
 				return null;
 		}
+	}
+
+	function intervalShort(counterDecl: TypedExpr, whileExpr: TypedExpr): Null<{index: TVar, start: TypedExpr, bound: TypedExpr, body: Array<TypedExpr>}> {
+		switch[counterDecl.expr, whileExpr.expr] {
+			case [TVar(counter, start), TWhile(cond, body, true)]:
+				final bound = switch(stripWrap(cond).expr) {
+					case TBinop(OpLt, {expr: TLocal(c)}, right) if(c.id == counter.id): right;
+					case _: return null;
+				};
+			final bodyStmts = statementsOf(body);
+			if(bodyStmts.length == 0) return null;
+			switch(bodyStmts[0].expr) {
+				case TVar(captured, inc) if(inc != null):
+					switch(stripWrap(inc).expr) {
+						case TUnop(OpIncrement, true, {expr: TLocal(c)}) if(c.id == counter.id):
+							return {index: captured, start: start, bound: bound, body: bodyStmts.slice(1)};
+						case _:
+					}
+				case _:
+			}
+			case _:
+		}
+		return null;
 	}
 
 	function loopLines(loop, depth: Int): Array<String> {
@@ -1385,6 +1410,7 @@ class KotlinExpr {
 		final inner = expr(subj);
 		switch(op) {
 			case OpNot: return "!" + inner;
+			case OpNegBits: return inner + ".inv()";
 			case OpNeg: return "-" + inner;
 			case OpIncrement: return post ? inner + "++" : "++" + inner;
 			case OpDecrement: return post ? inner + "--" : "--" + inner;
@@ -1897,6 +1923,9 @@ class KotlinExpr {
 				}
 				if(name == "fill" && args.length == 3 && isBytes(stripCast(subj))) {
 					return expr(subj) + ".fill(" + expr(args[2]) + ".toByte(), " + expr(args[0]) + ", " + expr(args[0]) + " + " + expr(args[1]) + ")";
+				}
+				if(name == "sub" && args.length == 2 && isBytes(stripCast(subj))) {
+					return expr(subj) + ".copyOfRange(" + expr(args[0]) + ", " + expr(args[0]) + " + " + expr(args[1]) + ")";
 				}
 				if(name == "charCodeAt" && isString(stripCast(subj))) {
 					return expr(subj) + "[" + expr(args[0]) + "].code";
