@@ -487,7 +487,7 @@ class TsExpr {
 			final loop = matchInterval(stmts[i]);
 			if(loop != null) {
 				// A bound with no earlier reader folds into the for-init
-				// as a comma declaration instead of a block-level const.
+		// as a comma declaration; the block-level const form is not used.
 				var fold: Null<String> = null;
 				for(h in hoists) {
 					if(h.loopAt == i && h.firstUse == i) {
