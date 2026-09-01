@@ -1570,6 +1570,8 @@ class DartExpr {
 					return "String.fromCharCode(" + expr(args[0]) + ")";
 				}
 				if(module == "Std") {
+					if(fName == "parseFloat") return "double.tryParse(" + expr(args[0]) + ") ?? double.nan";
+					if(fName == "parseInt") return "int.tryParse(" + expr(args[0]) + ")";
 					if(fName == "int") {
 						final arg = stripWrap(args[0]);
 						switch(arg.expr) {

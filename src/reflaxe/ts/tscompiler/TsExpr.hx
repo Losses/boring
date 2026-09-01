@@ -1376,6 +1376,13 @@ class TsExpr {
 				if(cls.pack.length == 0 && cls.name == "StringTools" && fName == "trim" && args.length == 1) {
 					return expr(args[0]) + ".trim()";
 				}
+				if(cls.module == "Std" && (fName == "parseFloat" || fName == "parseInt") && args.length == 1) {
+					final s = expr(args[0]);
+					final t = "" + s + ".replace(/^[\\t\\n\\v\\f\\r ]+|[\\t\\n\\v\\f\\r ]+$/g, '')";
+					if(fName == "parseFloat") return "((t) => /^[+-]?(?:[0-9]+(?:\\.[0-9]*)?|\\.[0-9]+)(?:[eE][+-]?[0-9]+)?$/.test(t) ? Number.parseFloat(t) : Number.NaN)(" + t + ")";
+					return "((t) => { if (/^[+-]?0[xX][0-9a-fA-F]+$/.test(t)) { const n = Number.parseInt(t, 16); return n >= -2147483648 && n <= 2147483647 ? n : null; } if (!/^[+-]?[0-9]+$/.test(t)) return null; const n = Number.parseInt(t, 10); return n >= -2147483648 && n <= 2147483647 ? n : null; })(" + t + ")";
+				}
+				if(cls.module == "Math" && fName == "isNaN" && args.length == 1) return "Number.isNaN(" + expr(args[0]) + ")";
 				if(cls.module == "std.UStringPlatform") {
 					// Cursor primitives of the resident UString walk, inlined
 					// per call: a cursor is a UTF-16 unit index here, so end

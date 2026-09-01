@@ -3243,6 +3243,9 @@ class RustExpr {
 					}
 					return "FPHelper::" + RustImports.toSnakeCase(targetName) + "(" + renderedArgs + ")";
 				}
+				if(cls.module == "Math" && name == "isNaN") return "(" + expr(args[0]) + ").is_nan()";
+				if(cls.module == "Std" && name == "parseFloat") return "(" + expr(args[0]) + ").parse::<f64>().unwrap_or(f64::NAN)";
+				if(cls.module == "Std" && name == "parseInt") return "None";
 				if(cls.pack.join(".") == "std" && cls.name == "Process" && name == "exit") {
 					imports.require("std::process::exit");
 					return "exit(" + renderedArgs + ")";
