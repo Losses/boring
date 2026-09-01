@@ -72,5 +72,6 @@ describe("string buffer generated tree", () => {
     expect(content).toContain("buf.addAll(a.codeUnits)");
     expect(content).toContain("String.fromCharCodes(buf)");
     expect(content).toContain("UStringFaultUnpairedSurrogate");
+    expect(content).toContain("return String.fromCharCodes(buf);");
   });
 });
