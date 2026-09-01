@@ -19,6 +19,7 @@ class NumberParsingTests {
 		Test.equals(true, NumberParsingOps.failedFloat("inf"));
 		Test.equals(true, NumberParsingOps.failedFloat("Infinity"));
 		Test.equals(true, NumberParsingOps.failedFloat("1f"));
+		Test.equals(true, NumberParsingOps.failedFloat("0x10"));
 		Test.equals(true, NumberParsingOps.failedFloat("\u0001 1.5"));
 		Test.equals(true, NumberParsingOps.failedFloat("\u2028 1.5"));
 		Test.equals(0.5, NumberParsingOps.parseFloat("\u000B.5"));
