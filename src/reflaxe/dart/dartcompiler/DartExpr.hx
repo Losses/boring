@@ -25,7 +25,7 @@ import ValueTypeSupport.ValueTypeOperator;
 	- features/09 CountedFillLowering: a fresh `<T>[]` filled by a
 	  counted loop whose body only stores elements (indexed store or one
 	  append) appends per iteration. Dart lists grow amortized, so the
-	  capacity reservation of the Swift lane has no Dart counterpart.
+	  capacity reservation used by the Swift target has no Dart counterpart.
 	- stdlib/03 enum lowering: variants become subclasses of a sealed
 	  class; construct comparisons read as `==` through the generated
 	  equality; variant switches lower as exhaustive switch statements
@@ -51,7 +51,7 @@ class DartExpr {
 	/** Locals reassigned after their declaration; emitted with var. */
 	final mutated: Map<Int, Bool> = [];
 
-	/** Names written in the scanned body; parameters surface by name only. */
+	/** Names written in the scanned body; parameter names are recorded directly. */
 	final mutatedNames: Map<String, Bool> = [];
 
 	/**
@@ -714,7 +714,7 @@ class DartExpr {
 		element per iteration (an indexed store at the loop index, or a
 		single push) appends per iteration. Dart lists are reference
 		values and grow amortized, so no capacity reservation and no
-		freeze discipline apply.
+		read-only wrapper are required.
 	**/
 	function fillFusion(stmts: Array<TypedExpr>, i: Int, depth: Int): Null<Array<String>> {
 		if(i + 1 >= stmts.length) {

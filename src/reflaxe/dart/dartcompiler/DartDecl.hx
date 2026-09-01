@@ -898,8 +898,8 @@ class DartDecl {
 	/**
 		The per-type key comparator stdlib/07 binds into sorted builders
 		with structure keys. Integer fields subtract; Bool fields branch;
-		String fields compare through native compareTo, which on this
-		lane already orders by UTF-16 code units; nested structures
+		String fields compare through native compareTo, which uses
+		UTF-16 code-unit order on this target; nested structures
 		delegate to their comparator.
 	**/
 	function comparatorDecl(def: DefType, fields: Array<ClassField>): Array<String> {
