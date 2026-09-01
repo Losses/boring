@@ -4,11 +4,11 @@
  * Haxe modules that compile into every target's runtime package.
  * A resident module
  * lives under src/ so the published haxelib carries it, compiles through
- * the normal typed pipeline of each lane, and lands in the runtime-emit
- * directory instead of the business tree. The lanes reference these
+ * the normal typed pipeline for each target, and writes to the runtime-emit
+ * directory. The targets reference these
  * modules through the import tables whether or not they emit them.
  *
- * The Rust lane renders haxe Int as u32 in business modules; resident
+ * The Rust target renders haxe Int as u32 in business modules; resident
  * modules render Int as i32 because the runtime contracts carry signed
  * values (negative slice bounds, the -1 no-previous sentinel). Call
  * boundaries between the two conventions cast explicitly.
@@ -43,7 +43,7 @@ class RuntimeResidents {
 
 	/**
 	 * The business externs that front one resident module. Business code
-	 * never names the resident module; it calls the externs, and the lanes
+	 * never names the resident module; it calls the externs, and the targets
 	 * route the calls into the compiled runtime module. Modules that no
 	 * extern names directly still report the extern of their set: the
 	 * walk ships with the cluster tier that references it. One resident
