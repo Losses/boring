@@ -248,12 +248,13 @@ values unchanged, and therefore changes no generated target output.
   only`; inserting an unrecognized node keeps `coalesced default
   expression is not sanctioned`.
 
-## Extension Stage B (planned, requires features/30): static-field roots
+## Extension Stage B: static-field roots
 
-Status: planned. This stage adds static-field reads, the Swift delta that
-retains a native default for static-field-only expressions, and the
-`staticFieldSample` sample and tree assertions. It depends on features/30
-emitting static field declarations for every target.
+Status: implemented. This stage adds static-field reads, the Swift delta
+that retains a native default for static-field-only expressions, and the
+`staticFieldSample` sample and tree assertions. It depended on features/30
+emitting static field declarations for every target, which features/30 and
+its construction-initializer extension (spec 35) now provide.
 
 ## Emission rulings recorded at implementation
 
