@@ -4,7 +4,7 @@ package dartcompiler;
 
 /**
 	Source of the runtime library emitted next to the generated files
-	(docs/specs/targets/dart.md). It only hosts what the translatable
+	(docs/specs/stdlib/06-std-modules.md). It only hosts what the translatable
 	subset cannot express inline: the Int64 bit representation
 	(stdlib/05), the exception base class of features/06, and the
 	unit-order comparator tear-off the sorted builders bind

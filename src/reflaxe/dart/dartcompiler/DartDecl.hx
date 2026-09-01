@@ -12,7 +12,7 @@ import ValueTypeSupport.ValueTypeOperator;
 
 /**
 	Declaration lowering: classes, variant enums, and record typedefs
-	(docs/specs/targets/dart.md). One DartDecl instance owns the
+	(docs/specs/stdlib/06-std-modules.md). One DartDecl instance owns the
 	per-module emission context (imports, types, expression state) so
 	every declaration in the same Haxe module lands in one Dart library
 	at `pack/module.dart`. Top-level names of the library are claimed
@@ -709,7 +709,7 @@ class DartDecl {
 
 	/**
 		A variant enum lowers to a sealed class with one final subclass
-		per construct (docs/specs/targets/dart.md). The subclasses carry
+		per construct (docs/specs/stdlib/06-std-modules.md). The subclasses carry
 		their payloads as public final fields, and the generated equality
 		and hashCode back the construct comparisons the samples run
 		(`mode == Mode.Write`) and the pattern switches exhaust over the

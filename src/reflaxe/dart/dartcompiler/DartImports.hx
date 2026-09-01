@@ -8,7 +8,7 @@ import haxe.macro.Context;
 	reference resolves through a relative import of the referenced
 	library, prefixed by the referenced module's file stem so top-level
 	functions of two statics-only modules never collide in one file
-	(targets/dart.md, module and name mapping). The runtime package and
+	(docs/specs/stdlib/06-std-modules.md, module and name mapping). The runtime package and
 	the test host import the same way; a resident module compiles into
 	the runtime library itself, so its references stay same-library.
 **/

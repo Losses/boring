@@ -12,7 +12,7 @@ import reflaxe.data.EnumOptionData;
 
 /**
 	reflaxe plugin producing the TypeScript lane of the translatable
-	subset (docs/specs/targets/07-reflaxe-typescript-target.md).
+	subset (docs/specs/features/14-type-system-mapping.md).
 
 	Output layout is one file per Haxe module at the module's own path,
 	plus a `runtime.ts` under the runtime-emit directory when runtime
