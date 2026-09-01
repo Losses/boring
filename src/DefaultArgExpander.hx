@@ -354,10 +354,10 @@ class DefaultArgExpander {
 					} else null;
 				}
 			case ExprDef.EConst(AstConstant.CIdent(name)):
-				// Check if this is a module-level constant (not a parameter or type)
+				// Check if this is a module constant (not a parameter or type)
 				final c = classifyExpr(cur, earlierNames);
 				if (c == "other") {
-					// Verify it resolves to a module-level static field
+					// Verify it resolves to a module static field
 					try {
 						final mod = Context.getLocalModule();
 						final moduleTypes = Context.getModule(mod);
@@ -422,7 +422,7 @@ class DefaultArgExpander {
 				case ExprDef.EField(inner, fieldName):
 					final innerClass = classifyExpr(inner, earlierNames);
 					if (innerClass == "type") {
-						// Static field read — handled above; fall through
+						// Static field read; handled above; fall through
 					} else if (innerClass == "parameter" || innerClass == "fieldChain") {
 						final innerValue = validateCoalescingGrammar(inner, parameterName, earlierNames, allParamNames, classType);
 						if (innerValue != null) {
@@ -1094,7 +1094,7 @@ class DefaultArgExpander {
 	/**
 	 * A by-name fallback may serve only a name that carries exactly one
 	 * registration in the whole compilation; several registrations with no
-	 * precise hit are ambiguous and stop the build instead of guessing.
+	 * precise hit are ambiguous. The build stops without a unique registration.
 	 */
 	static function uniqueByName(counts:Map<String, Int>, byName:Map<String, Array<Null<DefaultArgValue>>>, name:String, kind:String, pos:Position):Null<Array<Null<DefaultArgValue>>> {
 		if (!byName.exists(name)) {
