@@ -187,7 +187,7 @@ class DartType {
 	}
 
 	/**
-		Type-level parameter substitution, the structure-preserving twin
+		Type parameter substitution, the structure-preserving counterpart
 		of `ofSubstituted`: rebuilds a type with its parameters replaced
 		by applied arguments so a nested alias application carries real
 		types, not rendered text.

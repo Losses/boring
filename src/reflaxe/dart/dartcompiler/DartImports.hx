@@ -54,7 +54,7 @@ class DartImports {
 
 	/**
 		Records a runtime-package reference. With an emit directory the
-		runtime lands inside the output tree and every referencing file
+		runtime is written inside the output tree and every referencing file
 		imports it relatively; without one the compilation is in
 		bring-your-own mode and the import specifier comes from the
 		runtime-import define verbatim, the URI the consumer controls.
@@ -174,7 +174,7 @@ class DartImports {
 		return DartDecl.snakeCase(parts[parts.length - 1]);
 	}
 
-	/** The emitted library path of a module: `pack.Module` lands at `pack/module.dart`. */
+	/** The emitted library path of a module: `pack.Module` maps to `pack/module.dart`. */
 	public static function libraryPathOf(module: String): String {
 		final parts = module.split(".");
 		final pack = parts.slice(0, parts.length - 1);
