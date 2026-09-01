@@ -1,7 +1,7 @@
 package tests;
 
-import registry.Core;
 import registry.Core.CoreException;
+import registry.Core.Core;
 import std.Test;
 
 class RegistryParseArgsSupport {
@@ -21,7 +21,7 @@ class RegistryParseArgsTests {
  @:test("parseArgs reports missing required flags")
  public static function missingRequired():Void {
   var text = RegistryParseArgsSupport.message(["--tree", "tree", "--output", "site"]);
-  Test.ok(text.indexOf("required flags missing") >= 0);
+  Test.equals(true, registry.StringTools.startsWith(text, "required flags missing"));
  }
 
  @:test("parseArgs reports help usage")
@@ -33,6 +33,6 @@ class RegistryParseArgsTests {
  @:test("parseArgs reports unknown flags")
  public static function unknown():Void {
   var text = RegistryParseArgsSupport.message(["--wat", "value"]);
-  Test.ok(text.indexOf("unknown flag") >= 0);
+  Test.equals(true, registry.StringTools.startsWith(text, "unknown flag"));
  }
 }
