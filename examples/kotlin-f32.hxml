@@ -119,3 +119,5 @@ registry.Release
 tests.RegistrySha1Tests
 tests.RegistryJsonTests
 tests.RegistrySemverTests
+tests.RegistryPipelineTests
+tests.RegistryParseArgsTests
