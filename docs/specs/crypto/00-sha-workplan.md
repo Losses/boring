@@ -30,18 +30,18 @@ typed information, and every capability has cross-target evidence.
 ### Stage 0: Specification and baseline
 
 - [x] Record this workplan in the repository.
-- [ ] Rewrite the Int64, byte capability, numeric, runtime, style, testing, and SHA specifications for the single Int64 architecture.
-- [ ] Update the specification index.
+- [x] Rewrite the Int64, byte capability, numeric, runtime, style, testing, and SHA specifications for the single Int64 architecture.
+- [x] Update the specification index.
 - [x] Run the existing verification baseline and record failures without changing unrelated code.
 
 ### Stage 1: haxe.Int64 platform capability
 
-- [ ] Replace the V11 file-path allowlist with typed capability validation.
-- [ ] Define the supported Int64 constructors, operators, high/low extraction, constants, and boundary conversions.
-- [ ] Add direct target mappings for TypeScript, Rust, Kotlin, Swift, and Dart.
-- [ ] Implement 64-bit wrapping, logical shift, and rotate semantics through structured target lowering.
-- [ ] Add Int64 capability samples and cross-target tests independent of SHA.
-- [ ] Verify both `float-precision=f64` and `float-precision=f32` where the target supports both.
+- [x] Replace the V11 file-path allowlist with typed capability validation.
+- [x] Define the supported Int64 constructors, operators, high/low extraction, constants, and boundary conversions.
+- [x] Add direct target mappings for TypeScript, Rust, Kotlin, Swift, and Dart.
+- [x] Implement 64-bit wrapping, logical shift, and rotate semantics through structured target lowering.
+- [x] Add Int64 capability samples and cross-target tests independent of SHA.
+- [x] Verify both `float-precision=f64` and `float-precision=f32` where the target supports both.
 
 ### Stage 2: Bytes capability
 
@@ -94,9 +94,9 @@ architecture and do not replace a pending item with a narrower shortcut.
 
 ## Current status
 
-Stage 0 is complete. The baseline passed generation and the default target
-suites through Dart, then stopped in the existing Rust f32 vector test because
-`tests/rust/vector_gen_f32.rs` contains inner documentation comments after
-items. That unrelated file remains unchanged. Stage 1 starts with typed Int64
-capability validation and target-native lowering. No implementation stage is
-complete until generated code is compiled and the cross-target tests pass.
+Stage 1 is complete. Int64 lowers to native target operations on TypeScript,
+Rust, Kotlin, Swift, and Dart; the same source tests pass on all default
+configurations and on the Rust, Kotlin, and Swift f32 configurations. Stage 2
+starts with fixed-length Bytes allocation, mutation, copy, fill, and ownership
+rules. No SHA implementation work begins until the Bytes stage passes its
+cross-target tests.

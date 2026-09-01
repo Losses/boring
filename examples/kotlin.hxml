@@ -15,6 +15,7 @@
 -D runtime-emit=runtime
 boring.BinaryReader
 boring.BinaryWriter
+boring.Int64Ops
 boring.Fp32
 boring.Fp16
 boring.GlyphMetrics
@@ -40,6 +41,7 @@ runtime.Graphemes
 runtime.SortedTable
 runtime.TestCore
 tests.TestData
+tests.Int64Tests
 tests.VectorCodecTests
 tests.Fp32Tests
 tests.Fp16Tests

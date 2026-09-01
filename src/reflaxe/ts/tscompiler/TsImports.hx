@@ -95,7 +95,7 @@ class TsImports {
 	];
 
 	function add(into: Map<String, Map<String, Bool>>, module: String, name: String): Void {
-		if(module == selfModule || module == "Math" || module == "String" || module == "Std" || runtimeProvidedModules.exists(module)) {
+		if(module == selfModule || module == "Math" || module == "String" || module == "Std" || module == "haxe.Int64" || runtimeProvidedModules.exists(module)) {
 			return;
 		}
 		if(selfResident) {
