@@ -37,7 +37,7 @@ class KotlinType {
 					abs.name;
 				} else switch(pathOf(abs.pack, abs.name)) {
 					case "Int": "Int";
-					// The module-level precision switch selects the Float
+					// The module precision switch selects the Float
 					// width for the whole compilation (feature spec 23).
 					case "Float": FloatPrecision.isF32() ? "Float" : "Double";
 					case "Bool": "Boolean";

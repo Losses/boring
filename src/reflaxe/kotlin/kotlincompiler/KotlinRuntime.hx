@@ -6,7 +6,7 @@ package kotlincompiler;
 	Bodies of the standard-library shims, emitted on demand into the
 	runtime package configured through RuntimeConfig. Each source is a
 	type declaration without a package line: the emitter prefixes the
-	configured package directive, so the source contains no namespace line.
+	// the configured package directive, so the source contains no namespace.
 	- haxe.io.BytesBuffer: growable byte buffer sink
 	- haxe.io.FPHelper: IEEE-754 64-bit float bit conversions, plus the
 	  binary32 value edges of feature spec 23

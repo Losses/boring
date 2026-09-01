@@ -503,7 +503,7 @@ class DartDecl {
 
 	/**
 		One @:test function (features/19): a top-level function of the
-		test module's library. The runner entry that calls it lands in
+		test module's library. The runner entry that calls it is written in
 		main.dart.
 	**/
 	public function testFuncDecl(cls: ClassType, f: ClassFuncData): Array<String> {
