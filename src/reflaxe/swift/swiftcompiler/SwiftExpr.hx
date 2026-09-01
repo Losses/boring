@@ -1757,8 +1757,8 @@ class SwiftExpr {
 							: "Array(" + s + "[Int(" + expr(args[0]) + ")..<Int(" + expr(args[1]) + ")])";
 					}
 					if(endOmitted) {
-						// dropFirst would count Characters, not UTF-16
-						// units; the suffix cut walks the unit view.
+						// dropFirst counts Characters. The suffix cut uses UTF-16
+						// units through the unit view.
 						return "String(decoding: " + s + ".utf16.dropFirst(Int(" + expr(args[0]) + ")), as: UTF16.self)";
 					}
 					return "substringUnits(" + s + ", " + expr(args[0]) + ", " + expr(args[1]) + ")";
@@ -1847,8 +1847,7 @@ class SwiftExpr {
 			case "end":
 				return "Int32(" + expr(args[0]) + ".count)";
 			case "codeAt":
-				// The pair-combining read: a supplementary scalar returns
-				// combined, not its high unit.
+				// A supplementary scalar is returned as one combined code point.
 				return "unitCodePoint(" + expr(args[0]) + ", " + expr(args[1]) + ")";
 			case "advance":
 				final s = expr(args[0]);

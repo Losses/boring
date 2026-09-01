@@ -89,7 +89,7 @@ class RustExpr {
 		this.errorTypeName = errorType != null ? errorType : state.errorName;
 		// The overflow variant belongs to the resolved error enum; a function
 		// owned by an enum without it reports the gap at the first capacity
-		// expression instead of borrowing a foreign variant here.
+		// expression that copies the foreign variant here.
 		this.countOverflowVariant = overflowVariant;
 		if(value && this.errorTypeName == null) {
 			Context.error("fallible operation requires an error enum, but none found in AST", Context.currentPos());
@@ -491,8 +491,8 @@ class RustExpr {
 			case TReturn(ret):
 				// An Int-returning function renders u32, while a length
 				// expression renders usize; the return narrows once at the
-				// boundary instead of forcing every length read to carry a
-				// cast.
+				// boundary. Each length read keeps its native type; the conversion
+				// occurs at the call boundary.
 				var retStr = if(returnUnsigned && isUsizeExpr(ret)) {
 					"(" + expr(ret) + ") as u32";
 				} else {
@@ -2654,7 +2654,7 @@ class RustExpr {
 			case "std.Graphemes":
 				// The extern fronts the resident runtime module
 				// runtime.Graphemes, compiled into graphemes.rs; the
-				// reference names the struct, not free functions.
+				// reference names the struct and calls its methods.
 				state.shimsUsed.set("std.Graphemes", true);
 				if(name == "boundaries" && !RuntimeResidents.isResident(imports.selfModule)) {
 					// The boundary vector crosses whole between the two
@@ -4225,8 +4225,8 @@ class RustExpr {
 				// A collection length is usize in Rust while a Haxe Int
 				// function parameter is u32 in business modules. The
 				// declared function type is the call boundary, so narrow
-				// exactly there (the same convention as buf.len() as u32)
-				// instead of changing the stored function type.
+				// exactly there (the same convention as buf.len() as u32); the
+				// stored function type remains unchanged.
 				if(isIntType(pt) && isUsizeExpr(arg)
 					&& (signedPositions == null || signedPositions.indexOf(i) < 0)) {
 					final targetType = types.of(pt, false);
