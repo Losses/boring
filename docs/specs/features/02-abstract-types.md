@@ -143,9 +143,10 @@ This separation prevents validation overhead during dense array serialization wh
 
 ## Planned extension: value wrappers with members
 
-Status: planned. The rules below amend the Ruling for abstracts marked as
-value wrappers; they are not implemented. The engine port is the consumer
-that fixes the required shape. The handwritten Kotlin engine declares
+Status: implemented. The rules below amend the Ruling for abstracts marked as
+value wrappers. The engine port is the consumer that fixes the required
+shape. The sample set and the tree and mutation assertions below render on
+every target. The handwritten Kotlin engine declares
 `@JvmInline value class` wrappers with members and consumes them across
 packages: `Units.Ic` (a `Float` representation holding `toPx`, the operators
 `plus` and `unaryMinus`, and the constant `Zero` in a companion object,
