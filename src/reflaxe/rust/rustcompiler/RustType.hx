@@ -50,7 +50,7 @@ class RustType {
 					// no-previous sentinel); the call boundary casts
 					// between the two conventions (RuntimeResidents).
 					case "Int": RuntimeResidents.isResident(imports.selfModule) ? "i32" : "u32";
-					// The module-level precision switch selects the Float
+					// The module precision switch selects the Float
 					// width for the whole compilation (feature spec 23).
 					case "Float": FloatPrecision.isF32() ? "f32" : "f64";
 					case "Bool": "bool";
@@ -116,7 +116,7 @@ class RustType {
 					"HashMap<" + of(params[0]) + ", " + of(params[1]) + ">";
 				} else if(RuntimeResidents.isResident(d.module)) {
 					// Resident typedefs name function types for the
-					// TypeScript alias; the Rust lane renders the
+					// TypeScript alias; the Rust target renders the
 					// underlying fn type with the reference-site
 					// arguments applied.
 					of(haxe.macro.TypeTools.applyTypeParameters(d.type, d.params, params));
