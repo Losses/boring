@@ -48,6 +48,7 @@ class DartType {
 					case "Null": wrapOptional(of(params[0]));
 					case "haxe.ds.Map" if(params.length == 2): "Map<" + of(params[0]) + ", " + of(params[1]) + ">";
 					case "std.ReadOnlyArray": "List<" + of(params[0]) + ">";
+					case "haxe.Int64": "int";
 					case _: of(abs.type);
 				}
 			case TInst(c, params):

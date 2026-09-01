@@ -48,6 +48,7 @@ class RustExpr {
 	final argTypes: Map<String, String> = [];
 	final paramVarIds: Map<Int, Bool> = [];
 	final unsignedLocals: Map<Int, Bool> = [];
+	final fpInt64Halves: Map<Int, Bool> = [];
 	var hiddenCounter: Int = 0;
 
 	public function new(imports: RustImports, types: RustType, state: RustEmissionState) {
@@ -1481,6 +1482,8 @@ class RustExpr {
 	// ------------------------------------------------------------------
 
 	function expr(e: TypedExpr): String {
+		final int64Expr = int64Expression(e);
+		if(int64Expr != null) return int64Expr;
 		final wrapperValue = ValueTypeSupport.syntheticValue(e);
 		if(wrapperValue != null) return valueTypeSynthetic(e, wrapperValue);
 		final query = enumQuery(e);
@@ -2413,6 +2416,56 @@ class RustExpr {
 		}
 	}
 
+	function int64Expression(e:TypedExpr):Null<String> {
+		return switch(e.expr) {
+			case TCall(fn, args): int64Call(fn, args);
+			case _: null;
+		};
+	}
+
+	function int64Call(fn:TypedExpr, args:Array<TypedExpr>):Null<String> {
+		return switch(stripWrap(fn).expr) {
+			case TField(_, FStatic(classRef, fieldRef)) if(classRef.get().module == "haxe.Int64" && classRef.get().name == "Int64_Impl_"):
+				switch(fieldRef.get().name) {
+					case "make" if(args.length == 2): "(((" + expr(args[0]) + " as i64) << 32) | ((" + expr(args[1]) + " as u32) as i64))";
+					case "ofInt" if(args.length == 1): "(" + expr(args[0]) + " as i32) as i64";
+					case "getHigh" | "get_high" if(args.length == 1):
+						if(isFpHelperInt64Halves(args[0])) expr(args[0]) + ".high" else "(" + expr(args[0]) + " >> 32) as u32";
+					case "getLow" | "get_low" if(args.length == 1):
+						if(isFpHelperInt64Halves(args[0])) expr(args[0]) + ".low" else expr(args[0]) + " as u32";
+					case "add" if(args.length == 2): expr(args[0]) + ".wrapping_add(" + expr(args[1]) + ")";
+					case "sub" if(args.length == 2): expr(args[0]) + ".wrapping_sub(" + expr(args[1]) + ")";
+					case "and" if(args.length == 2): expr(args[0]) + " & " + expr(args[1]);
+					case "or" if(args.length == 2): expr(args[0]) + " | " + expr(args[1]);
+					case "xor" if(args.length == 2): expr(args[0]) + " ^ " + expr(args[1]);
+					case "complement" if(args.length == 1): "!" + expr(args[0]);
+					case "shl" if(args.length == 2): expr(args[0]) + ".wrapping_shl(" + expr(args[1]) + " as u32)";
+					case "shr" if(args.length == 2): expr(args[0]) + ".wrapping_shr(" + expr(args[1]) + " as u32)";
+					case "ushr" if(args.length == 2): "((" + expr(args[0]) + " as u64).wrapping_shr(" + expr(args[1]) + " as u32)) as i64";
+					case "eq" if(args.length == 2): expr(args[0]) + " == " + expr(args[1]);
+					case "neq" if(args.length == 2): expr(args[0]) + " != " + expr(args[1]);
+					default: null;
+				}
+			default: null;
+		};
+	}
+
+	function isFpHelperInt64Halves(e:TypedExpr):Bool {
+		return switch(stripWrap(e).expr) {
+			case TCall(fn, _): isFpHelperInt64Call(fn);
+			case TLocal(v): fpInt64Halves.exists(v.id);
+			case _: false;
+		};
+	}
+
+	function isFpHelperInt64Call(fn:TypedExpr):Bool {
+		return switch(stripWrap(fn).expr) {
+			case TField(_, FStatic(classRef, fieldRef)):
+				classRef.get().module == "haxe.io.FPHelper" && (fieldRef.get().name == "doubleToI64" || fieldRef.get().name == "f32ToI64");
+			case _: false;
+		};
+	}
+
 	function field(subj: TypedExpr, fa: FieldAccess): String {
 		switch(fa) {
 			case FStatic(c, cf):
@@ -2896,6 +2949,8 @@ class RustExpr {
 	}
 
 	function call(fn: TypedExpr, args: Array<TypedExpr>): String {
+		final int64CallText = int64Call(fn, args);
+		if(int64CallText != null) return int64CallText;
 		final wrapperCall = valueTypeCall(fn, args);
 		if(wrapperCall != null) return wrapperCall;
 		switch(fn.expr) {
@@ -3689,6 +3744,7 @@ class RustExpr {
 					// upper-bound checks.
 					switch(stripWrap(init).expr) {
 						case TCall(fn, _):
+							if(isFpHelperInt64Call(fn)) fpInt64Halves.set(v.id, true);
 							switch(fn.expr) {
 								case TField(_, FInstance(_, _, cf)) | TField(_, FStatic(_, cf)):
 									final n = cf.get().name;
