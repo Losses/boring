@@ -494,3 +494,28 @@ consumer.
 - The tag fallback has one test: a fixture version whose committed
   artifact URLs deviate from the `v<version>` tag shape makes its
   package's rules per-version exact rules.
+
+## Core and shell boundary
+
+The registry core is the pure `registry.Core` module. It accepts literal
+argument arrays and relative-path/text input records, and returns either a
+configuration, a fault message, or a list of relative output files. It owns
+argument parsing, validation, JSON, semver, SHA-1, scanning, and all five
+writers including headers and redirects; it performs zero IO and never reads
+environment state. The TypeScript shell (`registry.Main` and
+`registry.Platform`) has exactly six responsibilities: read process argv,
+walk `--tree`, read files as text, invoke the core, create/write the returned
+files under `--output`, and report faults/set the process exit code.
+
+The cross-target `@:test` suite is in package `tests`: registry SHA-1 boundary
+vectors (`RegistrySha1Tests`), JSON round trips (`RegistryJsonTests`), semver
+ordering (`RegistrySemverTests`), and the core pipeline and argument-parser
+fixtures. Test inputs and expected values are literals and assertions use
+`std.Test`.
+
+`registry/Platform.hx` is a TS-only tool-local extern module: platform access
+uses `@:jsRequire` and `@:native` declarations. The eight
+`examples/{ts,kotlin,kotlin-f32,rust,rust-f32,swift,swift-f32,dart}.hxml`
+entries include the core and `tests.*` suite, but not `registry.Main` or
+`registry.Platform`; browser-consumable runtime entry points do not import
+this module.
