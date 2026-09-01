@@ -1,0 +1,12 @@
+{
+  "name": "generated",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./registry/*": "./registry/*.ts"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.0"
+  }
+}

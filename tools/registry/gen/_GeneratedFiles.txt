@@ -1,0 +1,2 @@
+registry/Main.ts
+package.json
