@@ -684,7 +684,7 @@ class Intercept {
 		}
 		// js.Syntax code-feature calls are how extern inlines such as
 		// String.fromCharCode expand on the js target; the call node is
-		// typed Dynamic by that machinery, not by the source. The expanded
+		// typed Dynamic through that machinery. The expanded
 		// form nests one call below the js.Syntax field, as in
 		// code("isFinite")(f) from js/_std/Math.hx, so a callee that is
 		// itself a js.Syntax call is plumbing too.

@@ -8,7 +8,7 @@ import haxe.macro.Context;
 	value references (constructors, static calls) from type-only
 	references so every emitted file imports exactly what it uses.
 
-	References resolve per Haxe MODULE, not per type: a module holding
+	References resolve per Haxe MODULE. A module holding
 	several types is one sibling file, and references from inside that
 	module to itself are skipped.
 **/
