@@ -14,7 +14,7 @@ import { describe, expect, test } from "bun:test";
  *      carries no property access, so the bound evaluates per iteration as a
  *      local. The init section may declare the hoisted bound next to the
  *      counter (`let i = 0, count = xs.length`), which reads the property
- *      once; that is the hoist, not a per-iteration read.
+ *      once; the hoist reads the property once.
  */
 
 interface SourceTree {
