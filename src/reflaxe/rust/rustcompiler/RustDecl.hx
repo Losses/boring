@@ -164,6 +164,14 @@ class RustDecl {
 
 		lines.push("impl" + implGenerics + " " + cls.name + genericStr + " {");
 		var sep = false;
+		for(v in varFields) {
+			if(!v.isStatic) continue;
+			final declarations = staticVarDecl(cls, v);
+			if(declarations.length == 0) continue;
+			if(sep) lines.push("");
+			sep = true;
+			for(l in declarations) lines.push(l);
+		}
 		for(f in ordinaryFuncs) {
 			if(sep) lines.push("");
 			sep = true;
@@ -798,6 +806,24 @@ class RustDecl {
 		final vis = field.isPublic ? "pub " : "";
 		final typeStr = types.of(field.type);
 		final name = RustImports.toSnakeCase(field.name);
+		if(field.isFinal && StaticFieldHelper.isNonEmptyArrayLiteral(init)) {
+			if(StaticFieldHelper.isIntLiteralArray(init)) {
+				final elementType = types.of(StaticFieldHelper.arrayElementType(field.type));
+				final elements = switch(StaticFieldHelper.stripDecorations(init).expr) {
+					case TArrayDecl(values): values.length;
+					case _: 0;
+				};
+				return [
+					"#[allow(non_upper_case_globals)]",
+					'${vis}static ${name}: [${elementType}; ${elements}] = ${expr.rawArrayLiteral(init)};'
+				];
+			}
+			imports.require("std::sync::LazyLock");
+			return [
+				"#[allow(non_upper_case_globals)]",
+				'${vis}static ${name}: LazyLock<${typeStr}> = LazyLock::new(|| ${expr.rawExpression(init)});'
+			];
+		}
 		if(StaticFieldHelper.isConstruction(init) && !StaticFieldHelper.isSelfConstruction(field, cls, init)) {
 			imports.require("std::sync::LazyLock");
 			return [

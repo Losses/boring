@@ -104,3 +104,5 @@ boring.SealedVariantOps
 tests.SealedVariantTests
 boring.ConstructedStateOps
 tests.ConstructedStateTests
+boring.ArrayRootStateOps
+tests.ArrayRootTests

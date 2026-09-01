@@ -56,8 +56,8 @@ bun tools/registry/generate.ts --repos <file> --output <site> --base-url <url> [
   embeds it.
 - `--swift-scope`: required when any scanned release ships a Swift
   lane. Validated against the registry specification's scope pattern
-  `\A[a-zA-Z0-9](?:[a-zA-Z0-9]|-(?=[a-zA-Z0-9])){0,38}\z`. The scope is
-  a property of the registry, not of a release.
+  `\A[a-zA-Z0-9](?:[a-zA-Z0-9]|-(?=[a-zA-Z0-9])){0,38}\z`. The scope
+  belongs to the registry; a release has no scope of its own.
 - `--archive-base`: required when any scanned release ships a Swift
   lane. The public origin of the object storage holding the Swift
   zips.

@@ -62,7 +62,7 @@ test("constructed static mutation rules retain all three diagnostics", async () 
   const finalError = await compileMutation([
     "package boring;", "class Probe {", "  public static final bad:Int = make();", "  public static function make():Int return 1;", "}", "",
   ].join("\n"));
-  expect(finalError).toContain("static field initializers accept null, literal, empty array, and construction forms only");
+  expect(finalError).toContain("static field initializers accept null, literal, array, and construction forms only");
 
   const argumentError = await compileMutation([
     "package boring;", "class Probe {", "  public static final bad:Probe = new Probe((function() { var local = 1; return local; })());", "  public function new(value:Int) {}", "}", "",

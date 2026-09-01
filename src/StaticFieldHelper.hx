@@ -12,7 +12,7 @@ import haxe.macro.Type;
 **/
 class StaticFieldHelper {
 	public static inline final INVALID_INITIALIZER = "static field initializers accept null, literal, and empty array forms only";
-	public static inline final INVALID_FINAL_INITIALIZER = "static field initializers accept null, literal, empty array, and construction forms only";
+	public static inline final INVALID_FINAL_INITIALIZER = "static field initializers accept null, literal, array, and construction forms only";
 	public static inline final INVALID_ARGUMENT = "constructed static field arguments accept literal, enum, array, construction, static field, and static function forms only";
 
 	public static function initializer(field: ClassField): Null<TypedExpr> {
@@ -26,6 +26,13 @@ class StaticFieldHelper {
 		final init = initializer(field);
 		if(init == null || isSanctioned(init) || isSelfConstruction(field, declaringClass, init)) {
 			return init;
+		}
+		if(field.isFinal && isNonEmptyArrayLiteral(init)) {
+			if(arrayElementsAdmitted(init)) {
+				return init;
+			}
+			Context.error(INVALID_ARGUMENT, field.pos);
+			return null;
 		}
 		if(field.isFinal && isConstruction(init)) {
 			if(isPrivateSelfConstruction(field, declaringClass, init)) {
@@ -123,6 +130,62 @@ class StaticFieldHelper {
 				[for(a in args) if(!argumentAdmitted(a)) false].length == 0;
 
 			case _: false;
+		};
+	}
+
+	public static function isNonEmptyArrayLiteral(e: Null<TypedExpr>): Bool {
+		if(e == null) return false;
+		return switch(stripDecorations(e).expr) {
+			case TArrayDecl(elements): elements.length > 0;
+			case _: false;
+		};
+	}
+
+	static function arrayElementsAdmitted(e: TypedExpr): Bool {
+		return switch(stripDecorations(e).expr) {
+			case TArrayDecl(elements): [for(x in elements) if(!argumentAdmitted(x)) false].length == 0;
+			case _: false;
+		};
+	}
+
+	public static function isIntLiteralArray(e: Null<TypedExpr>): Bool {
+		if(e == null) return false;
+		return switch(stripDecorations(e).expr) {
+			case TArrayDecl(elements) if(elements.length > 0):
+				[for(x in elements) if(!isIntLiteralElement(x)) false].length == 0;
+			case _: false;
+		};
+	}
+
+	static function isIntLiteralElement(e: TypedExpr): Bool {
+		return switch(stripDecorations(e).expr) {
+			case TConst(TInt(_)): true;
+			case _: false;
+		};
+	}
+
+	public static function isReadOnlyArrayType(t: Null<Type>): Bool {
+		if(t == null) return false;
+		return switch(t) {
+			case TAbstract(a, _):
+				final abs = a.get();
+				abs.name == "ReadOnlyArray" && (abs.pack.join(".") == "std" || abs.module == "std.ReadOnlyArray");
+			case TType(d, _):
+				final def = d.get();
+				def.name == "ReadOnlyArray" && (def.pack.join(".") == "std" || def.module == "std.ReadOnlyArray");
+			case TLazy(f): isReadOnlyArrayType(f());
+			case _: false;
+		};
+	}
+
+	public static function arrayElementType(t: Null<Type>): Null<Type> {
+		if(t == null) return null;
+		return switch(t) {
+			case TInst(c, params) if(c.get().name == "Array" && params.length > 0): params[0];
+			case TAbstract(a, params) if(a.get().name == "ReadOnlyArray" && params.length > 0): params[0];
+			case TType(d, params) if(d.get().name == "ReadOnlyArray" && params.length > 0): params[0];
+			case TLazy(f): arrayElementType(f());
+			case _: null;
 		};
 	}
 	public static function isSanctioned(e: TypedExpr): Bool {
