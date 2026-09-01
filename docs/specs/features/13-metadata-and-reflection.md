@@ -159,6 +159,23 @@ Compiler metadata is consumed exclusively at build time by the Haxe compiler and
 
 Target codebases must use explicit static field access, derive macros, and build-time generated serializer routines. Dynamic JSON data at boundary points must be validated via explicit type guard functions.
 
+On the TypeScript target, a value reference to an extern declaration
+imports the extern's own module path, so a module whose declarations
+are all externs emits a binding file at that path beside the business
+tree: one `export const` per referenced extern class, holding the
+runtime binding. A class annotated `@:jsRequire("m")` binds the module
+namespace (`import * as ns_X from "m"; export const X = ns_X;`); a
+second metadata parameter binds the named export
+(`import { g } from "m"; export const X = g;`); a class annotated
+`@:native("x")` binds the global (`export const X = globalThis.x;`).
+The reference name is the `@:native` value when the class carries one
+and the class name otherwise, and a `@:jsRequire` class is referenced
+by its class name. A referenced module that emits no declarations and
+holds no extern classes stops generation with a named error, because
+its import would dangle; an extern class carrying neither annotation
+stops generation the same way, because the referenced name has no
+runtime binding.
+
 ## Test hooks
 
 Field access integrity and non-reflective equality are asserted in:
