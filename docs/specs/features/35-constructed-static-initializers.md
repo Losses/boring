@@ -13,7 +13,9 @@ constructs its own class from null, Float, and enum arguments. A
 generation run of the port stops at the first of these fields with the
 feature 30 initializer error, so none of the forms below render on any
 target today. Feature 32's self-construction static covers the separate
-zero-argument same-class singleton form and stays untouched.
+zero-argument same-class singleton form on a declaring class with no
+instance fields and stays untouched; a zero-argument construction of a
+field-carrying class is one more form of this specification.
 
 ## Current state
 

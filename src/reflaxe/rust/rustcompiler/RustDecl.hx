@@ -825,6 +825,10 @@ class RustDecl {
 			];
 		}
 		if(StaticFieldHelper.isConstruction(init) && !StaticFieldHelper.isSelfConstruction(field, cls, init)) {
+			// The per-function default completion never visits static
+			// initializers, so a construction over coalescing-default
+			// parameters completes its omitted arguments to None here.
+			DefaultArgExpander.completeStaticInitializerForRust(cls, field.name, init);
 			imports.require("std::sync::LazyLock");
 			return [
 				"#[allow(non_upper_case_globals)]",

@@ -18,7 +18,11 @@ class RecordMember {
 			return fields;
 		}
 		final cls = localClass.get();
-		final singleton = hasSelfConstructionStatic(fields, cls);
+		// Spec 32 rule 2: the bare-name singleton form belongs to a class
+		// with no instance fields. A field-carrying class whose constructor
+		// parameters all hold defaults constructs with zero arguments too,
+		// and keeps the spec 31 labeled form through @:dataClass instead.
+		final singleton = !declaresInstanceFields(fields) && hasSelfConstructionStatic(fields, cls);
 		if(!singleton && !cls.meta.has(":dataClass")) {
 			return fields;
 		}
@@ -97,6 +101,20 @@ class RecordMember {
 					if(isLocalClass(declaredType, cls) && isLocalClass(constructedType, cls)) {
 						return true;
 					}
+				case _:
+			}
+		}
+		return false;
+	}
+
+	static function declaresInstanceFields(fields:Array<Field>):Bool {
+		for(field in fields) {
+			if(field.access.indexOf(AStatic) >= 0) {
+				continue;
+			}
+			switch(field.kind) {
+				case FVar(_, _) | FProp(_, _, _, _):
+					return true;
 				case _:
 			}
 		}

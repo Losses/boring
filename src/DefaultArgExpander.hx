@@ -1007,6 +1007,18 @@ class DefaultArgExpander {
 		completeExpr(getClassKey(classType), fieldName, root, true);
 	}
 
+	/**
+		Rust static-field initializers need the same None completion as
+		function bodies. The per-function pass visits method and function
+		bodies only, so a construction inside a static initializer keeps
+		its omitted coalescing arguments unless this entry runs over the
+		initializer expression.
+	*/
+	public static function completeStaticInitializerForRust(classType:ClassType, fieldName:String, init:Null<TypedExpr>):Void {
+		if (init == null) return;
+		completeExpr(getClassKey(classType), fieldName, init, true);
+	}
+
 	static function completeExpr(classKey:String, fieldName:String, e:TypedExpr, rustTarget:Bool):Void {
 		if (e == null) return;
 		switch (e.expr) {
