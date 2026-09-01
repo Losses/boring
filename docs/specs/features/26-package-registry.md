@@ -100,7 +100,7 @@ redirect rule count over the host cap.
 | `/npm/` | one packument per package at its request path | `npm --registry=<base>/npm/` |
 | `/cargo/index/` | `config.json` and the prefix-tier entry files | a named registry in `.cargo/config.toml`: `index = "sparse+<base>/cargo/index/"` |
 | `/cargo/dl/` | no files; one redirect rule per crate maps the request to the release asset | part of the `dl` template |
-| `/swift/` | releases and metadata JSON, `Package.swift`, `identifiers`; the zip paths exist only as one universal redirect rule to the archive base | `swift package-registry set <base>/swift/` |
+| `/swift/` | releases and metadata JSON stored with a `.json` extension and served at their extensionless protocol paths through exact rewrites, `Package.swift`, `identifiers`; the zip paths exist only as the universal redirect rule to the archive base | `swift package-registry set <base>/swift/` |
 | `/pub/api/` | one hosted-repository document per package | `PUB_HOSTED_URL=<base>/pub/` |
 | `/maven/` | `maven-metadata.xml` per artifact plus its `.sha1`; the version files exist only as redirect rules to the release assets | Gradle `maven { url("<base>/maven/") }` |
 
@@ -231,13 +231,19 @@ consumer.
    carries no file, so every crate gets one redirect rule (ruling 9);
    the cargo client follows it and verifies `cksum` (verified: cargo
    1.98 follows two cross-origin 302 hops and accepts the bytes).
-5. **Swift.** Per package: a releases JSON at `<scope>/<name>`. Per
-   version: a metadata JSON at `<scope>/<name>/<version>` and the
-   `Package.swift` text from the manifest at
-   `<scope>/<name>/<version>/Package.swift`. The releases document
-   lists every version with an empty object value: the client expands
-   the URI template on the originating host, so the document needs no
-   base URL. The metadata document is
+5. **Swift.** Per package: a releases JSON served at `<scope>/<name>`
+   and stored at `<scope>/<name>.json`; per version: a metadata JSON
+   served at `<scope>/<name>/<version>` and stored at
+   `<scope>/<name>/<version>.json` (ruling 9 explains the exact
+   rewrites that bridge the two path pairs). The
+   `Package.swift` text from the manifest is a stored file at
+   `<scope>/<name>/<version>/Package.swift`; its path conflicts with
+   no other document. The releases document is
+   `{"releases": {"<version>": {}, ...}}` with every version carrying
+   an empty object value: the service specification requires the
+   top-level `releases` key and makes the per-version `url` optional,
+   and the client expands the URI template on the originating host,
+   so the document needs no base URL. The metadata document is
    `{"id": "<scope>.<name>", "version", "resources", "metadata": {}}`
    with one resource
    `{"name": "source-archive", "type": "application/zip", "checksum"}`
@@ -303,13 +309,38 @@ consumer.
    and the four-segment placeholder rule cannot match the
    five-segment `Package.swift` path.
 9. **`_redirects` is a generated artifact with a rule-count guard.**
-   Three rule forms exist:
+   Four rule forms exist:
 
    - One universal Swift rule for the whole registry:
 
      ```
      /swift/:scope/:name/*.zip  <archive-base>/swift/:scope/:name/:splat.zip  303
      ```
+
+   - One exact rewrite per Swift package and one per version:
+
+     ```
+     /swift/<scope>/<name>  /swift/<scope>/<name>.json  200
+     /swift/<scope>/<name>/<version>  /swift/<scope>/<name>/<version>.json  200
+     ```
+
+     The service specification serves the releases document at
+     `<scope>/<name>`, the version documents at
+     `<scope>/<name>/<version>`, and the manifests under
+     `<scope>/<name>/<version>/Package.swift`; a static site cannot
+     hold a file and a directory at one path, so the two JSON
+     documents are stored with the `.json` extension and the rewrites
+     serve them at the protocol paths. Each rewrite is an exact rule;
+     a placeholder rule would be wrong here, for a reason the host
+     documents: redirect
+     rules apply regardless of whether an asset matches, and a
+     placeholder rule would also match the `.json` request the
+     service specification lets clients send, rewriting it to a
+     nonexistent `.json.json`; as an exact rule it leaves that
+     request alone, and the request reaches the stored file directly.
+     The rewrites are `200` (proxying): the URL stays the protocol
+     path and the target is relative, which the host requires of
+     rewrites.
 
    - One dynamic rule per crate:
 
@@ -390,7 +421,9 @@ consumer.
   that matches a sha512 recomputed from the artifact bytes; the scoped
   packument file name equals the request path npm sends; the cargo
   `config.json` template, the prefix-tier placement, and an entry
-  `cksum` that matches the crate bytes; the Swift metadata `checksum`
+  `cksum` that matches the crate bytes; the Swift releases document
+  nesting under the `releases` key, the metadata document, and their
+  exact rewrite rules in `_redirects`; the Swift metadata `checksum`
   that matches the zip bytes and the `Package.swift` file that equals
   the manifest text; the Pub document's `pubspec` and
   `archive_sha256`; the Maven metadata version list; the `_headers`
@@ -400,13 +433,19 @@ consumer.
 - Consumer checks run against a localhost server that serves the site
   with the `_headers` rules applied and a `_redirects` matcher
   implementing the generated forms (exact, whole-segment placeholder,
-  placeholder with literal suffix, suffixed splat), first-match-wins
-  in file order: `npm install` through `--registry` installs the
+  placeholder with literal suffix, suffixed splat, exact `200`
+  rewrite), first-match-wins in file order, rules applied regardless
+  of matching assets: `npm install` through `--registry` installs the
   package through the asset URL and a plain `node` process imports it;
   cargo resolves through a temporary `CARGO_HOME` whose
   `.cargo/config.toml` names
   `sparse+http://127.0.0.1:<port>/cargo/index/`, and `cargo fetch`
-  follows the `dl` redirect to the asset. The Swift, Pub, and Gradle
+  follows the `dl` redirect to the asset. The Swift rewrites are
+  checked at the matcher level, which needs no Swift toolchain: the
+  requests `<base>/swift/<scope>/<name>` and
+  `<base>/swift/<scope>/<name>/<version>` return their documents'
+  bytes, and the `.json` requests return the same bytes. The Swift,
+  Pub, and Gradle
   consumers need toolchains absent from this repository's CI, so
   their invocations are documented commands verified per release: a
   consumer `Package.swift` with `.package(id:)`, `PUB_HOSTED_URL`
