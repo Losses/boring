@@ -1,4 +1,4 @@
-# reflaxe TypeScript target generation (docs/specs/targets/07-reflaxe-typescript-target.md).
+# reflaxe TypeScript target generation (docs/specs/features/14-type-system-mapping.md).
 # Run from the repository root: haxe examples/ts.hxml
 # Output lands in reference/ts/gen via the ts-output define.
 -lib reflaxe

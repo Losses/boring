@@ -8,7 +8,7 @@ package swiftcompiler;
 	the Int64 bit representation (stdlib/05), the growable byte sink
 	behind haxe.io.BytesBuffer (stdlib/02), the exception base class of
 	features/06, and the unit-order string comparison the ordering
-	ruling of docs/specs/targets/swift.md requires (native operators
+	ruling of docs/specs/features/07-numeric-tower.md requires (native operators
 	compare canonical order). Resident modules compile through the
 	normal pipeline and append after this prelude.
 **/

@@ -897,7 +897,7 @@ class SwiftExpr {
 					case TFloat(f): return Std.string(f);
 					case TString(s):
 						// The resident ABI carries strings as unit arrays
-						// (targets/swift.md); business modules keep the
+						// (docs/specs/features/08-strings-and-unicode.md); business modules keep the
 						// native literal.
 						return types.resident ? "Array(" + quoteString(s) + ".utf16)" : quoteString(s);
 					case TBool(b): return b ? "true" : "false";
@@ -1779,7 +1779,7 @@ class SwiftExpr {
 	/**
 		std.UStringRT and std.Graphemes call sites: string arguments
 		convert once into the resident unit array and string results
-		decode back, the resident ABI of docs/specs/targets/swift.md.
+		decode back, the resident ABI of docs/specs/features/07-numeric-tower.md.
 	**/
 	function residentCall(resident: String, args: Array<TypedExpr>, fn: TypedExpr): String {
 		imports.runtime(resident);

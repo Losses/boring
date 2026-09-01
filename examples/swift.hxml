@@ -1,4 +1,4 @@
-# reflaxe Swift target generation (docs/specs/targets/swift.md).
+# reflaxe Swift target generation (docs/specs/features/07-numeric-tower.md).
 # Run from the repository root: haxe examples/swift.hxml
 # Output lands in reference/swift/gen via the swift-output define.
 -lib reflaxe
