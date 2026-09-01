@@ -7,7 +7,7 @@ extern class Fs {
 	static function readdirSync(path:String):Array<String>;
 	static function readFileSync(path:String, encoding:String):String;
 	static function writeFileSync(path:String, data:String, encoding:String):Void;
-	static function mkdirSync(path:String, options:MkdirOptions):Void;
+	static function mkdirSync(path:String, options:{recursive:Bool}):Void;
 }
 @:jsRequire("node:path")
 extern class Path {
@@ -15,7 +15,7 @@ extern class Path {
 	static function dirname(path:String):String;
 }
 extern class Stats { function isDirectory():Bool; }
-extern class MkdirOptions { var recursive:Bool; }
+extern class MkdirOptions { var recursive:Bool; function new(recursive:Bool); }
 @:native("process") extern class NodeProcess {
 	static var argv:Array<String>;
 	static function exit(code:Int):Void;

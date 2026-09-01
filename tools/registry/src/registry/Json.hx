@@ -32,10 +32,22 @@ class Json {
 	public static function read(text:String):JsonValue {
 		return new Reader(text).parse();
 	}
-	public static function write(value:JsonValue):String {
-		return render(value, 0) + "\n";
+	public static function getField(value:JsonValue, name:String):JsonValue {
+		return switch(value) {
+			case JObject(fields): findField(fields, name);
+			case JArray(_): JNull;
+			case JString(_): JNull;
+			case JNumber(_): JNull;
+			case JBool(_): JNull;
+			case JNull: JNull;
+		};
 	}
-	static function indent(n:Int):String { var s = ""; for(i in 0...n) s += "  "; return s; }
+	static function findField(fields:Array<JsonField>, name:String):JsonValue {
+		for(i in 0...fields.length) if(fields[i].name == name) return fields[i].value;
+		return JNull;
+	}
+public static function write(value:JsonValue):String { return render(value, 0) + "\n"; }
+static function indent(n:Int):String { var s = ""; for(i in 0...n) s += "  "; return s; }
 	static function hex4(v:Int):String {
 		final digits = "0123456789abcdef";
 		return digits.charAt((v >> 12) & 15) + digits.charAt((v >> 8) & 15) + digits.charAt((v >> 4) & 15) + digits.charAt(v & 15);
@@ -59,7 +71,9 @@ class Json {
 		return s.charAt(i);
 	}
 	static function render(v:JsonValue, level:Int):String return switch(v) {
-		case JNull: "null"; case JBool(b): b ? "true" : "false"; case JNumber(n): Std.string(n);
+		case JNull: "null";
+		case JBool(b): if(b) "true" else "false";
+		case JNumber(n): Std.string(n);
 		case JString(s): quote(s);
 		case JArray(a): renderArray(a, level);
 		case JObject(fs): renderObject(fs, level);
