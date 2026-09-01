@@ -56,6 +56,8 @@ tests.ValueRecordTests
 tests.ValueRecordProbes
 boring.PrintedRecord
 tests.PrintedRecordTests
+boring.RecordOrderOps
+tests.RecordOrderTests
 boring.PrintedCustom
 boring.StringBufOps
 tests.StringBufTests
