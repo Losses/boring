@@ -109,6 +109,13 @@ class RustExpr {
 		return expr(e);
 	}
 
+	public function rawArrayLiteral(e: TypedExpr): String {
+		return switch(stripWrap(e).expr) {
+			case TArrayDecl(elements): "[" + [for(x in elements) expr(x)].join(", ") + "]";
+			case _: rawExpression(e);
+		};
+	}
+
 	/** Renders the literal itself for a Rust static function pointer initializer. */
 	public function rawFunctionInitializer(e: TypedExpr): String {
 		return switch(stripWrap(e).expr) {
@@ -2490,7 +2497,17 @@ class RustExpr {
 
 	function isLazyStaticField(cls: ClassType, name: String): Bool {
 		final field = staticFieldOf(cls, name);
-		return field != null && StaticFieldHelper.isConstruction(field.expr());
+		return field != null && (StaticFieldHelper.isConstruction(field.expr()) || isLazyArrayStaticField(field));
+	}
+
+	function isLazyArrayStaticField(field: ClassField): Bool {
+		final init = StaticFieldHelper.initializer(field);
+		return field.isFinal && StaticFieldHelper.isNonEmptyArrayLiteral(init) && !StaticFieldHelper.isIntLiteralArray(init);
+	}
+
+	function isDirectArrayStaticField(field: ClassField): Bool {
+		final init = StaticFieldHelper.initializer(field);
+		return field.isFinal && StaticFieldHelper.isNonEmptyArrayLiteral(init) && StaticFieldHelper.isIntLiteralArray(init);
 	}
 
 	function isGuardStaticField(cls: ClassType, name: String): Bool {
@@ -2500,6 +2517,8 @@ class RustExpr {
 			&& StaticFieldHelper.initializer(field) != null
 			&& !StaticFieldHelper.isConstValue(field)
 			&& !DataTableHelper.isDataTableField(field)
+			&& !isDirectArrayStaticField(field)
+			&& !isLazyArrayStaticField(field)
 			&& (!StaticFieldHelper.isConstruction(field.expr()) || StaticFieldHelper.isSelfConstruction(field, cls));
 	}
 

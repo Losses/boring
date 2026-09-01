@@ -735,7 +735,9 @@ class KotlinDecl {
 		}
 		if(v.isStatic) {
 			final init = StaticFieldHelper.validatedInitializer(field, cls);
-			final initStr = expr.rawExpression(init);
+			final initStr = StaticFieldHelper.isNonEmptyArrayLiteral(init) && StaticFieldHelper.isReadOnlyArrayType(field.type)
+				? expr.rawArrayExpression(init, "listOf")
+				: expr.rawExpression(init);
 			final kw = field.isFinal && StaticFieldHelper.isConstValue(field) ? "const val" : (field.isFinal ? "val" : "var");
 			final vis = field.isPublic ? "" : "private ";
 			final jvmField = !field.isFinal ? ["    @JvmField"] : [];
