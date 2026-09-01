@@ -114,8 +114,8 @@ The interaction with spec 25: the package artifacts step compiles the recorded w
 
 Required once the boundary machinery exists; none exist yet:
 
-- A sample tree with one annotated format compiles on the TypeScript lane; the test asserts the `index.ts` re-export list, the root-only exports map, the cross-module prefix on system declarations, the exclusion of a kind-naming declaration from the entry, and the materialization inserted at a foreign-facing return.
+- A sample tree with one annotated format compiles on the TypeScript target; the test asserts the `index.ts` re-export list, the root-only exports map, the cross-module prefix on system declarations, the exclusion of a kind-naming declaration from the entry, and the materialization inserted at a foreign-facing return.
 - Rejection tests for the named errors of the deep check: a buffer-kind member and a position member on a foreign-facing class.
-- The pinned-output lanes for Rust, Kotlin, Swift, and Dart gain assertions for `pub(crate)`, `internal`, `public`, and the `_` prefix on the same sample tree.
+- The pinned-output targets for Rust, Kotlin, Swift, and Dart gain assertions for `pub(crate)`, `internal`, `public`, and the `_` prefix on the same sample tree.
 - A two-library fixture asserts the shipped source tree inside the producer package, the refusal on version mismatch, that the consumer emits only its own modules with references into the producer package, and the inlining of the producer's read functions in the consumer's emitted code.
 - A compilation with no annotated format is asserted byte-identical to the emission before this specification, guarding the activation rule.

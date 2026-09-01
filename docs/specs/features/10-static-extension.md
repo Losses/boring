@@ -121,7 +121,7 @@ with the target's module-file-private visibility and no import.
    Private declarations never render an import.
 
 6. The Rust receiver borrow follows the existing parameter borrow rules
-   of the Rust lane; extension extraction introduces no new borrow
+   of the Rust target; extension extraction introduces no new borrow
    policy.
 
 7. A marked function never also emits in its class's namespace; when
@@ -154,9 +154,9 @@ with the target's module-file-private visibility and no import.
   for `@:topLevel`; the Dart tree renders `extension on Receiver {`
   and a top-level function; the Rust tree renders `impl Receiver {`
   for the owned receiver and a free `pub fn` for the `String`
-  receiver. No lane renders the declaring class name at any marked
+  receiver. No target renders the declaring class name at any marked
   call site.
-- Lanes: the full `bun run verify` chain; the consistency manager must
+- Coverage: the full `bun run verify` chain; the consistency manager must
   report identical identifiers and verdicts across kotlin (baseline),
   haxe, ts, rust, swift, and dart.
 - The mutation checks for this feature live in the dispatch task file

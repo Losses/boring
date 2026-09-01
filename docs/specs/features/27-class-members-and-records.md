@@ -41,7 +41,7 @@ files. The printed form belongs to the behavior contract.
 
 This specification rules all five source targets (ts, kotlin, swift,
 dart, rust) together: one feature, five lowerings, no target left with a
-silent divergence. The f32 lanes inherit the same rules; they differ only
+silent divergence. The f32 configurations inherit the same rules; they differ only
 in float width.
 
 ## Haxe construct
@@ -95,7 +95,7 @@ record kinds and expand to a field-wise comparison and a concatenation of
 `Name(field=value, ...)`.
 
 - performance: the expansion is plain construction, comparison, and
-  concatenation; stage 1 and every lane run the same lowered code.
+  concatenation; stage 1 and every target run the same lowered code.
 - ambiguity: one expansion exists; the macro reads the field list of the
   receiver type, so the record's shape lives in one place.
 - redundancy: three macros total, shared by anonymous and class records.
@@ -339,15 +339,15 @@ storage (today it contributes a wrong `Default::default()` slot).
   equality both ways, the printed form `ValueRecord(start=..., end=...)`,
   and that construction throws on each violated invariant. The existing
   `BinaryReader` and `BinaryWriter` constructors exercise the
-  field-initialization arm of ruling 4 on every lane.
-- Regeneration diffs show per lane: the Kotlin `data class` prefix, the
+  field-initialization arm of ruling 4 on every target.
+- Regeneration diffs show per target: the Kotlin `data class` prefix, the
   Kotlin `init` block and property facade, the Swift `private` stored
   property and computed property, the Dart `_`-prefixed private field and
   getter, the TS accessor, and the Rust constructor body with
   `Result<Self, E>`.
-- Lanes: `bun run gen:ts && bun run gen:kotlin && bun run gen:kotlin-f32
+- Coverage: `bun run gen:ts && bun run gen:kotlin && bun run gen:kotlin-f32
   && bun run gen:rust && bun run gen:rust-f32 && bun run gen:swift &&
   bun run gen:swift-f32 && bun run gen:dart`, then
   `bun run test && bun run test:haxe && bun run test:kotlin &&
   bun run test:rust && bun run test:swift && bun run test:dart` and the
-  remaining lanes of `bun run verify`.
+  remaining steps of `bun run verify`.

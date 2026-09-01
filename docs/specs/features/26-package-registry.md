@@ -34,7 +34,7 @@ Cloudflare router implements, verified against `wrangler pages dev`.
 Netlify documents state that an asterisk cannot appear in the middle
 of a path segment and its `_redirects` supports no 303, so the cargo
 and Swift rules of ruling 9 are not portable to it; a Netlify
-deployment would need one exact rule per version for those two lanes.
+deployment would need one exact rule per version for those two targets.
 Porting to other hosts is out of scope. The tool makes no assumption
 about the number of repositories, packages, versions, or consumers:
 growth limits appear as the redirect rule-count guard, never as a
@@ -55,11 +55,11 @@ bun tools/registry/generate.ts --repos <file> --output <site> --base-url <url> [
   the clients use. A trailing slash is removed. The cargo `dl` template
   embeds it.
 - `--swift-scope`: required when any scanned release ships a Swift
-  lane. Validated against the registry specification's scope pattern
+  target. Validated against the registry specification's scope pattern
   `\A[a-zA-Z0-9](?:[a-zA-Z0-9]|-(?=[a-zA-Z0-9])){0,38}\z`. The scope
   belongs to the registry; a release has no scope of its own.
 - `--archive-base`: required when any scanned release ships a Swift
-  lane. The public origin of the object storage holding the Swift
+  target. The public origin of the object storage holding the Swift
   zips.
 - `--api-base`: the GitHub REST origin, `https://api.github.com` by
   default. Tests point it at a fixture server.
@@ -183,8 +183,8 @@ consumer.
    }
    ```
 
-   `name` and `version` are the spec 24 identity. Each lane key is
-   present if and only if that release ships the lane; `license` is
+   `name` and `version` are the spec 24 identity. Each target key is
+   present if and only if that release ships the target; `license` is
    optional. `swift.archive` is the object key under the archive base
    and must equal `swift/<scope>/<name>/<version>.zip`, the one shape
    the universal rule of ruling 9 addresses; the generator validates
@@ -239,8 +239,8 @@ consumer.
    release pipeline uploaded the zip with `Content-Type:
    application/zip`. GitHub release assets answer
    `application/octet-stream` with the content type pinned in the
-   signed asset URL, which the Swift client rejects, so the Swift lane
-   is the one lane that cannot be served from a release asset.
+   signed asset URL, which the Swift client rejects, so the Swift target
+   is the one target that cannot be served from a release asset.
    `/swift/identifiers` holds `[]`: this registry
    assigns identifiers itself and maps no repository URLs.
 6. **Pub.** `pub/api/packages/<name>` holds the hosted repository

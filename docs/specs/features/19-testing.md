@@ -113,7 +113,7 @@ target-specific; the message string is the contract.
 
 The assertion checks and the canonical formatting are one compiled
 module, `runtime.TestCore` (`src/runtime/TestCore.hx`), the single
-source for every target. Each lane compiles it into its test entry beside the handwritten
+source for every target. Each target compiles it into its test entry beside the handwritten
 host: appended to `runtime/test.ts` on TypeScript, emitted as
 `test/TestCore.kt` beside the host object on Kotlin, emitted as
 `runtime/test_core.rs` beside the host module on Rust, and imported by
@@ -133,7 +133,7 @@ host language, and the result-file write. `std.TestPlatform`
 - `currentTestId()`: the id of the running test, empty when none runs.
 - `intToString(v)` / `floatToString(v)`: the host's plain number text.
 
-Each lane lowers these statics inline inside the compilation of
+Each target lowers these statics inline inside the compilation of
 `runtime.TestCore` only; business code that calls them stops the
 compilation with an error, because business code calls `std.Test`.
 Stage one implements them in `tests/haxe/TestPlatform.hx`, copied

@@ -13,7 +13,7 @@ parameterless amendment of `docs/specs/features/01-enums-and-pattern-matching.md
 
 This specification rules all five source targets (ts, kotlin, swift, dart,
 rust) together: one feature, five lowerings, no target left with a silent
-divergence. The f32 lanes inherit the same rules; they differ only in float
+divergence. The f32 configurations inherit the same rules; they differ only in float
 width.
 
 The downstream motivation is the engine port. The handwritten engine tests
@@ -242,7 +242,7 @@ port carries its own query macros and expands them before boring runs.
     into marker expressions, following the registry pattern of
     `src/DefaultArgExpander.hx`; the pass runs from the shared hookup in
     `src/Intercept.hx` (`walkClassFields`) and from every target expression
-    entry, because every lane re-runs the passes on its own view. Each target
+    entry, because every target re-runs the passes on its own view. Each target
     renders the markers in its `*Expr` compiler and each `enumDecl` emits the
     artifacts its target needs from the registry. The `V03` rejection in
     `src/Intercept.hx` (`REFLECTION_ROOTS`) admits the three members by name
@@ -269,7 +269,7 @@ literal bounds, once-only initialization).
   kotlin, kotlin-f32, rust, rust-f32, swift, swift-f32, dart).
 - `samples/tests/EnumQueriesProbes.hx`: the named errors of ruling 2 and
   ruling 5 as ordinary statics, following the `ValueRecordProbes` pattern.
-- Tree assertions in `tests/ts/enum-queries.test.ts`: per lane, the generated
+- Tree assertions in `tests/ts/enum-queries.test.ts`: per target, the generated
   module contains the artifacts of ruling 7 (TypeScript: the
   `Object.freeze(`-wrapped record of the parameterless amendment plus
   `FLOAT_WIDTH_ALL` and the comparison chain of `floatWidthOfName`; Kotlin:
@@ -277,11 +277,11 @@ literal bounds, once-only initialization).
   values; Dart: the enhanced enum with `label` and the lookup function; Rust:
   the `impl` block with `ALL`, `name`, and `from_name`), the loop bound is
   the literal count, and no generated tree contains a `Type.` static call.
-- Lanes: `bun run gen:ts && bun run gen:kotlin && bun run gen:kotlin-f32 &&
+- Coverage: `bun run gen:ts && bun run gen:kotlin && bun run gen:kotlin-f32 &&
   bun run gen:rust && bun run gen:rust-f32 && bun run gen:swift && bun run
   gen:swift-f32 && bun run gen:dart`, then `bun run test && bun run test:haxe
   && bun run test:kotlin && bun run test:rust && bun run test:swift && bun
-  run test:dart` and the remaining lanes of `bun run verify`. The consistency
+  run test:dart` and the remaining steps of `bun run verify`. The consistency
   manager (`docs/specs/features/19-testing.md`) must report the same test
   count, identifiers, verdicts, and failure bytes across kotlin (baseline),
   haxe, ts, rust, swift, and dart.

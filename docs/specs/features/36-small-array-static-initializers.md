@@ -10,9 +10,9 @@ ported engine source is the consumer: `ClreqProfile` declares
 unit tables of two to twelve Int literals each. A generation run of the
 port stops at the first of these fields with the feature 30 initializer
 error, so none of the forms below render on any target today. Feature 20
-keeps the compile-time table lane for `Array<Int>` literals above the
+keeps the compile-time table classification for `Array<Int>` literals above the
 threshold with Int-only elements and stays untouched; feature 35 keeps the
-construction lane and its argument grammar, which this ruling reuses at
+construction grammar and its argument forms, which this ruling reuses at
 the top level.
 
 ## Current state
@@ -21,7 +21,7 @@ the top level.
 no elements, so all five targets share one defect: a non-empty array
 literal at the root of a `static final` initializer stops generation with
 `static field initializers accept null, literal, and empty array forms
-only` (the final-field variant names construction as the extra lane).
+only` (the final-field variant names construction as the extra form).
 Every target expression emitter already renders a non-empty array literal
 in expression position, because feature 35 rule 2 admits array literals
 as construction arguments: TypeScript and Swift render
@@ -38,10 +38,10 @@ Kotlin renders `mutableListOf<T>(e1, e2)`.
 | --- | --- | --- | --- | --- |
 | Kotlin: `listOf` for read-only element residence, existing `mutableListOf<T>` expression rendering for mutable arrays | One allocation per program; the read-only spelling documents that no consumer mutates the value. | The wrapper follows the declared field type, so two array spellings never compete for one field. | Reuses the expression emitter for the mutable case; the read-only wrapper is one name. | The declaration matches a Kotlin `listOf` source. |
 | Kotlin: `mutableListOf` for every array literal | Same runtime shape. | A mutable backing for a field whose type promises read-only residence. | None. | The declaration claims mutability the source type does not have. |
-| Rust: `#[allow(non_upper_case_globals)] static NAME: LazyLock<Vec<T>> = LazyLock::new(\|\| vec![...])` for general elements | One construction per program; every read borrows without locking. | One representation per array static; matches the feature 35 construction lane. | `LazyLock` is standard-library. | The declaration reads as a lazily built constant. |
-| Rust: `static NAME: [T; N] = [...]` for Int-literal elements | Read-only memory, no runtime initialization; the feature 20 table form already rules this shape. | Same spelling as the table lane while the element count is below the threshold, so both sizes read alike. | None; the table lane's element type mapping is reused. | The declaration reads as a constant table. |
+| Rust: `#[allow(non_upper_case_globals)] static NAME: LazyLock<Vec<T>> = LazyLock::new(\|\| vec![...])` for general elements | One construction per program; every read borrows without locking. | One representation per array static; matches the feature 35 construction grammar. | `LazyLock` is standard-library. | The declaration reads as a lazily built constant. |
+| Rust: `static NAME: [T; N] = [...]` for Int-literal elements | Read-only memory, no runtime initialization; the feature 20 table form already rules this shape. | Same spelling as the table form while the element count is below the threshold, so both sizes read alike. | None; the table form's element type mapping is reused. | The declaration reads as a constant table. |
 | Element grammar: reuse feature 35 rule 2 recursively | Compile-time classification only. | One enumerated grammar for construction arguments and array elements; a rejected element names its category in the feature 35 argument error. | No second expression system. | Each accepted element form is one the emitters already render. |
-| Element grammar: Int literals only | Compile-time classification only. | A narrower lane than the argument grammar for no consumer. | Two array grammars to read. | The rejection of a String or enum element names no rule the port violates. |
+| Element grammar: Int literals only | Compile-time classification only. | Narrower than the argument grammar, with no consumer. | Two array grammars to read. | The rejection of a String or enum element names no rule the port violates. |
 
 ## Ruling
 
@@ -58,11 +58,11 @@ Kotlin renders `mutableListOf<T>(e1, e2)`.
    initializers accept null, literal, array, and construction forms
    only`, and every test that pins the previous text updates with it.
 
-2. Classification order per field: the feature 20 table lane applies
+2. Classification order per field: the feature 20 table classification applies
    first (an `Array<Int>` literal with more than `DataTableHelper`
    threshold elements and Int-only elements stays a table); this
-   specification's array lane applies next; the feature 35 construction
-   lane and the feature 30 lanes follow unchanged.
+   specification's array grammar applies next; the feature 35 construction
+   grammar and the feature 30 initializer rules follow unchanged.
 
 3. Lowering per target:
 

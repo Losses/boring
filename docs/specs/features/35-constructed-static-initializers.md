@@ -35,16 +35,16 @@ reach every expression category the ruling below admits.
 | --- | --- | --- | --- | --- |
 | Rust: `LazyLock` static over the construction closure | One construction per program; the lock checks an atomic the target runtime already provides; every read borrows or clones without locking. | One representation per constructed static; the declared field maps to one Rust item. | No new dependency; `LazyLock` is standard-library. | The declaration reads as a lazily built constant. |
 | Rust: `Mutex` static as in feature 30 rule 3 | One construction plus one lock acquisition per access; the source field is final, so the lock guards a value that never changes. | Shares the mutable-static representation, so two different shapes of static read alike. | The lock is state the source never mutates. | Readers weigh locking the emitter did not need. |
-| Rust: `pub const` with the construction inline | No runtime cost; the construction arguments include function calls and cross-class reads, which const evaluation rejects at the Rust compile. | Same spelling as the const lane while the value is not a const expression. | None. | The declaration claims a guarantee the target rejects. |
+| Rust: `pub const` with the construction inline | No runtime cost; the construction arguments include function calls and cross-class reads, which const evaluation rejects at the Rust compile. | Same spelling as the const form while the value is not a const expression. | None. | The declaration claims a guarantee the target rejects. |
 | Argument grammar: closed recursive language over literals, enums, arrays, constructions, static field reads, static function calls | Compile-time classification only. | One enumerated grammar; a rejected argument names its category in the error. | No second expression system; the categories reuse the coalescing grammar's shape. | Each accepted argument form is one the emitters already render at call sites. |
 | Argument grammar: any expression the emitters render | Compile-time delegation to five renderers. | Acceptance depends on five renderer implementations agreeing; a partial renderer agreement produces a per-target generation failure, and the failure names no rule. | No classifier to maintain. | No enumerated language to read; the error for a rejected form is the renderer's own. |
-| Sanction the construction form for `static var` too | Same runtime shape on four targets. | Rust needs `LazyLock<Mutex<T>>` for re-assignment after construction, a shape no port field uses. | A compound wrapper for zero consumers. | The mutable lane keeps the simpler feature 30 language. |
+| Sanction the construction form for `static var` too | Same runtime shape on four targets. | Rust needs `LazyLock<Mutex<T>>` for re-assignment after construction, a shape no port field uses. | A compound wrapper for zero consumers. | The mutable grammar keeps the simpler feature 30 language. |
 
 ## Ruling
 
 1. A `static final` field initializer may be a construction
    `new C(args...)` where `C` is a compiled class of the compilation unit
-   set. Abstract statics keep their existing lanes and do not enter this
+   set. Abstract statics keep their existing classifications and do not enter this
    ruling.
 
 2. Each construction argument is one of the following, recursively:
@@ -54,7 +54,7 @@ reach every expression category the ruling below admits.
      admitted argument;
    - an array literal whose elements are admitted arguments;
    - a nested construction `new D(args...)` under rule 1;
-   - a read of a `static final` field of any admitted initializer lane,
+   - a read of a `static final` field of any admitted initializer form,
      qualified by the declaring class when it differs from the field's
      own class;
    - a call of a static function of a compiled class whose arguments are
@@ -64,7 +64,7 @@ reach every expression category the ruling below admits.
    with a construction initializer stops generation with the feature 30
    text `static field initializers accept null, literal, and empty array
    forms only`. A final field with an initializer outside rule 1 of this
-   specification and outside the feature 30 lanes stops generation with
+   specification and outside the feature 30 initializer rules stops generation with
    `static field initializers accept null, literal, empty array, and
    construction forms only`. A construction argument outside rule 2 stops
    generation with `constructed static field arguments accept literal,

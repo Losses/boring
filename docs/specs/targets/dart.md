@@ -68,21 +68,21 @@ Haxe `Int` maps to `int`; Haxe `Float` maps to `double`.
 
 | Candidate | performance | ambiguity | redundancy | readability |
 | --- | --- | --- | --- | --- |
-| 1 (`int`) | VM integers are unboxed machine words in locals and fields; no masking arithmetic runs. | `int` is 64-bit, wider than the i32 domain, exactly as `number` is wider on the TypeScript lane; the `features/14` rulings enforce the domain and the type adds none. | One mapping with no call-site conversions. | Readers see the language's own integer. |
+| 1 (`int`) | VM integers are unboxed machine words in locals and fields; no masking arithmetic runs. | `int` is 64-bit, wider than the i32 domain, exactly as `number` is wider on the TypeScript target; the `features/14` rulings enforce the domain and the type adds none. | One mapping with no call-site conversions. | Readers see the language's own integer. |
 | 2 (masked) | Every arithmetic site executes an extra `& 0xFFFFFFFF`. | Same width question, now hidden behind masks. | The mask repeats across every expression. | Masked arithmetic reads as a wrapping semantics the samples never use. |
 
 ### Ruling
 
-Candidate 1. The TypeScript lane already carries a wider-than-i32
+Candidate 1. The TypeScript target already carries a wider-than-i32
 integer and relies on the domain rulings to keep values in range; Dart
 matches that precedent. Wrapping that `features/14` never permits is
-absent on both lanes for the same reason. Two operators are the
+absent on both targets for the same reason. Two operators are the
 structural exception: `<<` and `>>>` produce results outside i32 on a
 64-bit word even from in-range operands, so each lowers with the domain
 restore attached (`(... << n).toSigned(32)` and
 `(... .toUnsigned(32) >> n).toSigned(32)`), the wrap targets with a
 native 32-bit integer perform in hardware. The `float-precision` define
-of `features/23` is rejected at plugin registration on this lane: Dart
+of `features/23` is rejected at plugin registration on this target: Dart
 has one storage width for reals (`double`), so an f32 variant cannot
 change result bits. A compile with `-D float-precision=f32` fails with
 `float-precision=f32 is not available on the Dart target: double is the
@@ -141,7 +141,7 @@ or-patterns expand to comma-joined cases.
 
 `Null<T>` maps to `T?` with the sound null-safety the language enforces.
 Sentinel returns that the residents define stay plain `int`, never
-optionals, matching the resident ABI of the other lanes.
+optionals, matching the resident ABI of the other targets.
 
 ## Arrays (`stdlib/04`)
 
@@ -157,7 +157,7 @@ Haxe `String` maps to `String`. UTF-16 is the native storage: `length`
 is the unit count, `codeUnitAt` is the unit read, `substring` is the
 unit-range cut. Code point access goes through `String.fromCharCode`
 with surrogate combination where a pair is present, the same shape the
-TypeScript lane lowers into `codePointAt`.
+TypeScript target lowers into `codePointAt`.
 
 ### Resident string ABI (`stdlib/10`, `stdlib/11`)
 
@@ -194,7 +194,7 @@ lowers to `throw`; try-regions lower to `try`/`on`/`catch` with the
 typed `on UStringException catch (error)` form. The statement, return,
 initializer, and handler-return positions all lower; value regions bind
 a late-assigned local through both arms, because `try`/`catch` is a
-statement cluster. This matches the TS and Kotlin lanes mechanism for
+statement cluster. This matches the TS and Kotlin target mechanism for
 mechanism.
 
 ## Sorted tables (`stdlib/07`)
@@ -202,7 +202,7 @@ mechanism.
 `std.SortedMap` and `std.SortedSet` compile the resident
 `runtime.SortedTable` classes into the emitted runtime library
 (`SortedMapTable` and `SortedSetTable` with their builder faces), the
-same resident-source ruling the Swift lane carries: the splay trees of
+same resident-source ruling the Swift target carries: the splay trees of
 `dart:collection` expose no builder face over shared storage and their
 iteration order, while key-ordered, gives no structural-equality handle
 for the consistency run. The comparator tears off

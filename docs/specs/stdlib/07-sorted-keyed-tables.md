@@ -95,7 +95,7 @@ resident module: the class `SortedTable` holds the domain comparators
 `SortedMapTableBuilder<K, V>`, `SortedSetTable<K>`, and
 `SortedSetTableBuilder<K>` hold the storage. The extern faces
 `std.SortedMap` and `std.SortedSet` keep their names on every target;
-each lane lowers references to them onto these classes.
+each target lowers references to them onto these classes.
 
 Storage is generic parallel arrays on every target: `Array<K>` and
 `Array<V>`, sorted at `build()` through an index-permutation insertion
@@ -111,11 +111,11 @@ key and value parameters (`&K`, `&V`) and clone inside, `size` returns
 `i32`, and the call boundary converts between the resident `i32` domain
 and the business unsigned domain.
 
-The stage-one Haxe lane binds the same resident: `TestCollector`
+The stage-one Haxe run binds the same resident: `TestCollector`
 injects the compiled `runtime.SortedTable` class and builds
 `globalThis.std.SortedMap` and `globalThis.std.SortedSet` factories on
 it, so the intercepted JavaScript exercises the one implementation;
-no handwritten copy remains. The resident enters each lane behind
+no handwritten copy remains. The resident enters each target behind
 the same `runtime-import` and `runtime-emit` defines as the rest of
 the runtime package, with the same missing-define error contract.
 

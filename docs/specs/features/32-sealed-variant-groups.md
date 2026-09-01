@@ -57,7 +57,7 @@ abstract class. Three pieces are missing:
 2. A `static final` field whose declared type is the declaring class and
    whose initializer is a zero-argument construction of that class joins
    the sanctioned initializers of feature spec 30 and lowers through the
-   reference-value lane of spec 30 rule 1. TypeScript renders
+   reference-value form of spec 30 rule 1. TypeScript renders
    `public static readonly instance: NoneDrawKind = new NoneDrawKind();`.
    Kotlin renders the companion-object
    `val instance: NoneDrawKind = NoneDrawKind()`. Swift renders
@@ -73,7 +73,7 @@ abstract class. Three pieces are missing:
 3. A class carrying the sanctioned self-construction static of rule 2
    gains a synthesized zero-argument `toString` that returns the bare
    simple class name with no parentheses, on every target, in the record
-   toString lane of feature spec 31. The synthesis keys on the static of
+   toString synthesis of feature spec 31. The synthesis keys on the static of
    rule 2; the `@:dataClass` marker does not apply, because the singleton
    form declares no instance fields. Field-carrying variant classes keep the
    spec 31 synthesis unchanged: the labeled `Name(field=value, ...)`
@@ -110,7 +110,7 @@ abstract class. Three pieces are missing:
   `static final instance` on an abstract class whose kind is unchanged;
   the Rust tree carries the module static with
   `#[allow(non_upper_case_globals)]` and the bare-name string in the
-  toString lane.
+  toString synthesis.
 - Mutation checks: `@:sealed` on a class stops generation with
   `@:sealed applies to interfaces only`; a self-construction with
   arguments, `static final bad:NoneDrawKind = new NoneDrawKind(1);`,

@@ -102,9 +102,9 @@ independent axes:
 - The block width is chosen per encode call and recorded in the magic; any
   compilation can encode and decode all three widths.
 
-On the f32 module lane a `BRG2` block performs no rounding at all: the
+On the f32 module configuration a `BRG2` block performs no rounding at all: the
 encoded binary32 values are the module reals themselves. On the default
-lane the same block widens each decoded value exactly and rounds each
+configuration the same block widens each decoded value exactly and rounds each
 encoded value once. The four combinations of module width and block width
 are all valid and produce identical bytes for the same records whenever
 the values are exact on the narrower grid.
@@ -128,7 +128,7 @@ reader and writer methods (`readF32`, `readF16`, `writeF32`, `writeF16`).
 ## Test hooks
 
 - `samples/tests/VectorCodecTests.hx` round-trips every width through
-  encode and decode on all generated lanes.
+  encode and decode on all generated targets.
 - `samples/tests/Fp32Tests.hx` and `samples/tests/Fp16Tests.hx` pin
   bit-exact edge behavior on integer bit inputs, including ties, overflow,
   subnormals, signed zero, infinity, and NaN.

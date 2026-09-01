@@ -149,7 +149,7 @@ The body reads through the implicit `buffer` binding that binary spec 07 threads
 
 Required once the generator exists; none exist yet:
 
-- Round trip: generated encode and decode pass the committed vectors of binary specs 01 and 05 on every lane, byte-identically.
+- Round trip: generated encode and decode pass the committed vectors of binary specs 01 and 05 on every target, byte-identically.
 - Field agreement: for every field, record index, and width family, the generated read function returns the value a full decode returns at the same index, the hook binary spec 04 states for accessors.
 - Rejections: each named error of the field domain, the magic derivation, and the marker position stops a compilation that triggers it.
 - Decode identities: crafted inputs with an unknown magic, a count at or above 0x80000000, and trailing bytes produce `BadMagic`, `CountOverflow`, and `TrailingBytes`.

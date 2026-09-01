@@ -336,7 +336,7 @@ shape follows the throw rulings above.
   an expression, since the Kotlin `try` produces a value.
 - Rust: the region body lowers into a closure returning
   `Result<regionValue, caughtEnum>`, where each `throw` inside the body
-  is the lane's `Err` return; the outcome is matched immediately, the
+  is the Rust target's `Err` return; the outcome is matched immediately, the
   `Ok` arm is the region value, and the `Err` arm runs the handler with
   the payload enum bound. The catch variable's payload access
   (`error.error` on the Haxe side) lowers to the bound enum value; the
@@ -352,12 +352,12 @@ rejection and a sanctioned alternative:
 - A region body containing `return`, `break`, or `continue` is rejected
   (`tryRegionControlFlow`); control flow crossing the closure boundary
   cannot lower. The handler lowers outside the closure, so a `return`
-  inside a handler keeps its function-edge meaning on every lane. The
+  inside a handler keeps its function-edge meaning on every target. The
   alternative for body control flow is hoisting: evaluate the region to
   a value and place the control-flow statement after it.
 
 Fallibility absorption: a domain fully handled by a region's clauses
-does not infect the enclosing function on the Rust lane. The
+does not infect the enclosing function on the Rust target. The
 fallibility fixpoint walks a `TTry` by absorbing the caught enum's
 edges from the body and keeping every edge of the handler expressions,
 so a wrapper that converts reader faults to its own domain lowers as
