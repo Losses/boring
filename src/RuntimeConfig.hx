@@ -11,8 +11,8 @@ import haxe.macro.Context;
 	  package (`@scope/runtime` verbatim for TypeScript, a dotted package
 	  for Kotlin, a crate name for Rust). No default exists: the name has
 	  no source inside the compilation, so a compilation that references
-	  a runtime symbol without the define stops with an error instead of
-	  inventing a consumer identity.
+	  a runtime symbol without the define stops with an error. The compiler
+	  cannot determine the consumer identity from the compilation.
 	- `runtime-emit=<dir>`: `none` (or absent) writes references only,
 	  which is the bring-your-own mode; any other value writes the
 	  runtime files under that directory, relative to the target's
