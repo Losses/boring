@@ -12,9 +12,11 @@ enum JsonValue {
 
 typedef JsonField = { name:String, value:JsonValue };
 
-/** Failure identity for the reader: malformed JSON text. */
+/** Failure identity for the reader: malformed JSON text, split by
+the two branches parse() actually distinguishes. */
 enum JsonFault {
 	InvalidJson;
+	TrailingInput(position:Int);
 }
 
 /** The only exception shape the reader throws, per the error taxonomy
@@ -24,7 +26,13 @@ class JsonException extends haxe.Exception {
 
 	public function new(fault:JsonFault) {
 		this.fault = fault;
-		super("invalid JSON");
+		super(JsonException.describe(fault));
+	}
+	public static function describe(fault:JsonFault):String {
+		return switch (fault) {
+			case InvalidJson: "invalid JSON";
+			case TrailingInput(position): "trailing characters at offset " + position;
+		};
 	}
 }
 
@@ -114,7 +122,7 @@ static function indent(n:Int):String { var s = ""; for(i in 0...n) s += "  "; re
 private class Reader {
 	final text:String; var p:Int;
 	public function new(text:String) { this.text = text; this.p = 0; }
-	public function parse():JsonValue { skip(); final v = value(); skip(); if(p != text.length) fail(); return v; }
+	public function parse():JsonValue { skip(); final v = value(); skip(); if(p != text.length) throw new JsonException(TrailingInput(p)); return v; }
 	function value():JsonValue {
 		skip();
 		if(p >= text.length) fail();
