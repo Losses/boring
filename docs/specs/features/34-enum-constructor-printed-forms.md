@@ -1,6 +1,6 @@
 # Feature spec 34: Enum constructor printed forms
 
-Status: Planned. This specification amends the Contract domain and the
+Status: Implemented. This specification amends the Contract domain and the
 rejection sentence of [12-std-string.md](../stdlib/12-std-string.md) as
 restated by [33-record-collection-fields.md](33-record-collection-fields.md),
 and adds one sentence to ruling 4 of

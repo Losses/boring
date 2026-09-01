@@ -1,6 +1,6 @@
 # Feature spec 31: record `toString` member synthesis
 
-Status: Planned. This specification amends one sentence of ruling 1 in
+Status: Implemented. This specification amends one sentence of ruling 1 in
 [27-class-members-and-records.md](27-class-members-and-records.md)
 ("No target synthesizes record members"); everything else in 27 stands.
 
