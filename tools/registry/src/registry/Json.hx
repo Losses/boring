@@ -36,6 +36,7 @@ class JsonException extends haxe.Exception {
 	}
 }
 
+@:keep
 class Json {
 	public static function read(text:String):JsonValue {
 		return new Reader(text).parse();
