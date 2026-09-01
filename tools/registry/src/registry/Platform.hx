@@ -16,10 +16,8 @@ extern class Path {
 }
 extern class Stats { function isDirectory():Bool; }
 extern class MkdirOptions { var recursive:Bool; }
-extern class Env { @:native("GITHUB_TOKEN") var githubToken:Null<String>; }
 @:native("process") extern class NodeProcess {
 	static var argv:Array<String>;
-	@:native("process.env") static var env:Env;
 	static function exit(code:Int):Void;
 }
 @:native("console") extern class Console { static function error(message:String):Void; }
