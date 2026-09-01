@@ -1502,7 +1502,7 @@ class RustExpr {
 					case TFloat(f):
 						final s = Std.string(f);
 						final padded = s.indexOf(".") >= 0 ? s : s + ".0";
-						// The f32 lane marks every literal so its width never
+						// The f32 configuration marks every literal so its width never
 						// depends on the inference context (feature spec 23).
 						return FloatPrecision.isF32() ? padded + "f32" : padded;
 					case TString(s): return quoteString(s);
@@ -1771,7 +1771,7 @@ class RustExpr {
 	/**
 		On a catch variable, the payload field of the exception class (the
 		enum-typed field whose enum the region catches) reads as the bound
-		enum value itself; the exception class does not exist on this lane
+		enum value itself; the exception class is unavailable for this target
 		(features/06 catch-site lowering).
 	**/
 	function catchPayloadAccess(subj: TypedExpr, name: String): Null<String> {
@@ -1998,7 +1998,7 @@ class RustExpr {
 		switch over with the subject wrapped in TEnumIndex and case values as
 		construct-index constants; payload captures arrive as TEnumParameter
 		initializations in the arm block, so each arm pattern binds the
-		captured payloads as named fields and collapses the rest into `..`.
+		captured payloads as named fields and represents the remaining fields with `..`.
 	**/
 	function matchExpression(sw: TypedExpr): String {
 		final parts = switch(sw.expr) {
@@ -2038,7 +2038,7 @@ class RustExpr {
 				case _: 0;
 			};
 			// Payload captures bind as named fields of the variant pattern;
-			// uncaptured payloads collapse into `..`, unused ones into a
+			// uncaptured payloads use `..`; unused ones use a
 			// leading underscore binding.
 			final subjectLocal = switch(se.expr) {
 				case TLocal(l): l.id;
@@ -2112,7 +2112,7 @@ class RustExpr {
 						bindings.push("_" + payloadName(ef, idx));
 					} else {
 						// Everything from the first unused tail payload on
-						// collapses into the rest pattern.
+						// represents the remaining fields with the rest pattern.
 						bindings.push("..");
 						break;
 					}
@@ -2634,7 +2634,7 @@ class RustExpr {
 			case "String":
 				return "String::" + RustImports.toSnakeCase(name);
 			case "Math":
-				// The f32 lane renders the whole Math family from f32, the
+				// The f32 configuration renders the whole Math family from f32, the
 				// binary32 equivalent of every static (feature spec 23).
 				final real = FloatPrecision.isF32() ? "f32" : "f64";
 				if(name == "NaN") return real + "::NAN";
@@ -3233,7 +3233,7 @@ class RustExpr {
 				}
 				if(path == "haxe.io.FPHelper") {
 					imports.requireType(cls.module, "FPHelper");
-					// The f32 lane swaps the two 64-bit value edges for their
+					// The f32 configuration converts the two 64-bit value edges to their
 					// binary32 runtime variants; the 8-byte wire bit layout
 					// is untouched (feature spec 23, ruling 7).
 					final targetName = if(FloatPrecision.isF32()) {
