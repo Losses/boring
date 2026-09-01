@@ -11,7 +11,7 @@ extern class Fs {
 }
 @:jsRequire("node:path")
 extern class Path {
-	static function join(a:String, b:String, ?c:String, ?d:String, ?e:String):String;
+	static function join(a:String, b:String):String;
 	static function dirname(path:String):String;
 }
 extern class Stats { function isDirectory():Bool; }
