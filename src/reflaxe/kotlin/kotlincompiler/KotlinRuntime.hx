@@ -6,7 +6,7 @@ package kotlincompiler;
 	Bodies of the standard-library shims, emitted on demand into the
 	runtime package configured through RuntimeConfig. Each source is a
 	type declaration without a package line: the emitter prefixes the
-	configured package directive, so no source namespace is baked in.
+	configured package directive, so the source contains no namespace line.
 	- haxe.io.BytesBuffer: growable byte buffer sink
 	- haxe.io.FPHelper: IEEE-754 64-bit float bit conversions, plus the
 	  binary32 value edges of feature spec 23
@@ -85,7 +85,7 @@ object Process {
 		// The floating-point members follow the module real of the
 		// compilation (feature spec 23): TestCore is Haxe source compiled
 		// through the same pipeline, so its formatFloat signature switches
-		// with the lane and the delegate overloads must switch with it.
+		// with the compilation's real type and the delegate overloads must switch with it.
 		final real = FloatPrecision.isF32() ? "Float" : "Double";
 		return 'import java.io.File
 import java.io.FileWriter
