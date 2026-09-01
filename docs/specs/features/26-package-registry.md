@@ -29,10 +29,11 @@ reads the manifests, and writes the site.
 The tool itself is written in Haxe within boring's translatable subset
 and compiled by boring: `tools/registry/src/` holds the source,
 `tools/registry/compile.hxml` compiles it through boring's TypeScript
-target, and the generated `generate.js` runs under bun. Ruling 11 binds
-the shape. The repository ships no TypeScript implementation of the
-generator; the TypeScript that remains is the tests under `tests/ts/`,
-which spawn the compiled tool.
+target, and the tool runs under bun through a two-line launcher that
+imports the generated entry module and calls its `main`. Ruling 11
+binds the shape. The repository ships no TypeScript implementation of
+the generator; the TypeScript that remains is the launcher and the
+tests under `tests/ts/`, which spawn the compiled tool.
 
 The registry is public and read-only. No ecosystem's publish or upload
 endpoint exists on the site. The reference host is Cloudflare Pages:
@@ -52,7 +53,7 @@ design ceiling.
 
 ```
 haxe tools/registry/compile.hxml
-bun tools/registry/gen/generate.js --repos <file> --output <site> --base-url <url> [--swift-scope <scope>] [--archive-base <url>] [--api-base <url>] [--token <token>] [--cache <dir>]
+bun tools/registry/run.ts --repos <file> --output <site> --base-url <url> [--swift-scope <scope>] [--archive-base <url>] [--api-base <url>] [--token <token>] [--cache <dir>]
 ```
 
 - `--repos`: the repository list, a text file with one `owner/name`
@@ -386,30 +387,36 @@ consumer.
     `tools/registry/compile.hxml` compiles it through boring's
     TypeScript target the way `examples/ts.hxml` compiles the codec:
     the same reflaxe libraries, the same interception gate, an output
-    define placing the result at `tools/registry/gen/generate.js`, and
-    a runtime resolution that leaves `generate.js` runnable under bun
-    from the repository root with no build step. The tool reaches the
-    platform
-    only through typed extern modules over the bun runtime, following
-    the `std.Process` and `std.Console` precedent in `samples/std/`:
-    one fetch call returning status, headers, and body; text file
-    read; file write; directory creation; directory listing;
-    environment variable lookup; command-line arguments; and process
-    exit. Compiling the tool through the other four targets is out of
-    scope. JSON parsing and serialization, the sha1 of the Maven
-    metadata, and the semver comparison are pure Haxe modules of the
-    tool: the JSON reader builds an ordered value tree (objects keep
-    their field order), the JSON writer takes the field order
-    explicitly, and no module uses reflection. The tests stay
-    TypeScript under `bun test` and spawn the compiled tool, so the
-    tests exercise exactly the artifact a deployment runs.
+    define placing the generated tree under `tools/registry/gen/`
+    (a gitignored generated tree, like `reference/ts/gen`), no plain
+    Haxe `-js` output anywhere, and a relative `runtime-import` with
+    `runtime-emit`, which leaves the tree self-contained: it runs
+    under bun from the repository root with no build step and without
+    resolving anything through `tsconfig.json` paths. The generated
+    entry module exposes a public static `main`; the committed
+    launcher `tools/registry/run.ts` is two lines, importing that
+    module and calling `main`, and holds no generator logic. The tool
+    reaches the platform only through typed extern modules over the
+    bun runtime, following the `std.Process` and `std.Console`
+    precedent in `samples/std/`: one fetch call returning status,
+    headers, and body; text file read; file write; directory creation;
+    directory listing; environment variable lookup; command-line
+    arguments; and process exit. Every extern declares real types; no
+    extern parameter or return carries `Dynamic`. Compiling the tool
+    through the other four targets is out of scope. JSON parsing and
+    serialization, the sha1 of the Maven metadata, and the semver
+    comparison are pure Haxe modules of the tool: the JSON reader
+    builds an ordered value tree (objects keep their field order), the
+    JSON writer takes the field order explicitly, and no module uses
+    reflection. The tests stay TypeScript under `bun test` and spawn
+    the compiled tool, so the tests exercise exactly the artifact a
+    deployment runs.
 
 ## Test hooks
 
 - The tests run `haxe tools/registry/compile.hxml` first, so every
-  test spawns `tools/registry/gen/generate.js`, the artifact a
-  deployment runs, and a stale compiled tool fails the run at its
-  first command.
+  test spawns `bun tools/registry/run.ts`, the artifact a deployment
+  runs, and a stale compiled tool fails the run at its first command.
 - `tests/ts/package-registry.test.ts` starts a fixture GitHub API and
   a fixture archive server with `Bun.serve`: the API serves
   `/repos/<owner>/<name>/releases` pages whose release bodies carry
