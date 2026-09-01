@@ -10,7 +10,7 @@ import haxe.macro.Type;
 	TestCore directly; every other argument type registers here, and the
 	output stage generates the canonical formatter and the assertion
 	function for it. Equality itself needs no generated function: the
-	lane's structs, enums, arrays, and optionals all conform to
+	target's structs, enums, arrays, and optionals all conform to
 	Equatable, so the assertion compares with the native operator.
 **/
 class SwiftTestTypes {

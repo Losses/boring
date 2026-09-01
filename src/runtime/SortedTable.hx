@@ -8,7 +8,7 @@ import std.UStringPlatform;
 	hold parallel arrays sorted by key; the builders accumulate puts and
 	apply the last-put-wins rule at build().
 
-	One generic source replaces the three per-domain families the lanes
+	One generic source replaces the three per-domain families used by the targets
 	hand-wrote before. The comparator is a function value bound when the
 	builder is created: the compiler passes the resident integer
 	comparator, the resident string comparator, or a per-type generated

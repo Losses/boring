@@ -1,8 +1,8 @@
 // Cross-language vector verification for the generated Swift f32 tree
 // (feature spec 23): the committed roundtrip binaries must decode to the
-// same records every other lane verifies, and re-encoding must reproduce
+// same records every other target verifies, and re-encoding must reproduce
 // the committed bytes exactly (binary spec 05). Every vector value is an
-// f32-exact dyadic rational, so the f32 module real and the default lane
+// f32-exact dyadic rational, so both configurations
 // agree byte for byte. This toolchain carries no Foundation module, so
 // file reading goes through the POSIX calls of Glibc.
 
