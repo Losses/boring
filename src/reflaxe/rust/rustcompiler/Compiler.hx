@@ -358,7 +358,7 @@ class Compiler extends PluginCompiler<Compiler> {
 	function generateTestHelper(): Void {
 		// The float helpers follow the precision switch so the aggregate
 		// helpers (equals_vec_f32, ...) resolve against a defined symbol
-		// on both lanes (feature spec 23, ruling 10).
+		// on both target configurations (feature spec 23, ruling 10).
 		final real = FloatPrecision.isF32() ? "f32" : "f64";
 		final lines = [
 			"// Generated test helper for type-guided assertions (Ruling C);

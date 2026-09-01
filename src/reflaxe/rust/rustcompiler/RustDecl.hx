@@ -507,7 +507,7 @@ class RustDecl {
 	}
 
 	/**
-		A single-case switch in statement position collapses into a two
+		A single-case switch in statement position becomes a two
 		statement block after typing: the payload binding and the body. Recover
 		the case so Display keeps its message.
 	**/

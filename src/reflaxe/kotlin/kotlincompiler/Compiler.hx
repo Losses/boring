@@ -253,7 +253,7 @@ class Compiler extends PluginCompiler<Compiler> {
 		The build manifest of the generated tree (feature spec 24). A
 		plain JVM module: the main source set points at the output
 		directory and the stdlib arrives with the plugin. Including the
-		module in a build stays a settings-level act on the consumer
+		module in a build is a settings configuration for the consumer
 		side; this file compiles inside any Gradle build that includes
 		it. `package-license` has no field to fill in a build script, so
 		the define is not read.
