@@ -1810,7 +1810,10 @@ class DartExpr {
 						: receiverText(subj) + ".substring(" + expr(args[0]) + ", " + expr(args[1]) + ")";
 				}
 				if(name == "charCodeAt" && isStringSubject(subj)) {
-					return receiverText(subj) + ".codeUnitAt(" + expr(args[0]) + ")";
+					// stdlib/15: evaluate receiver and index once and return
+					// null rather than allowing codeUnitAt to throw RangeError.
+					return "(() { final _s = " + receiverText(subj) + "; final _i = " + expr(args[0])
+						+ "; return _i >= 0 && _i < _s.length ? _s.codeUnitAt(_i) : null; })()";
 				}
 				// A private method renders under its `_`-prefixed Dart
 				// name (feature spec 27); the special cases above are
