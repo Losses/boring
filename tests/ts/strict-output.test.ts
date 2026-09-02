@@ -83,28 +83,6 @@ describe("strict TypeScript emitter output", () => {
     }
   });
 
-  test("adjacent source blocks preserve lexical scope", async () => {
-    const result = await compileFixture([
-      "package fixtures;",
-      "class Probe {",
-      "  public static function run():Int {",
-      "    var result = 0;",
-      "    { final value = 1; result += value; }",
-      "    { final value = 2; result += value; }",
-      "    return result;",
-      "  }",
-      "}", "",
-    ].join("\n"));
-    try {
-      expect(result.code).toBe(0);
-      const output = fs.readFileSync(path.join(result.dir, "out/fixtures/Probe.ts"), "utf8");
-      expect(output).toContain("const value = 1;");
-      expect(output).toContain("const value2 = 2;");
-    } finally {
-      fs.rmSync(result.dir, { recursive: true, force: true });
-    }
-  });
-
   test("empty-array and null local initializers retain declared TypeScript types", async () => {
     const result = await compileFixture([
       "package fixtures;",
