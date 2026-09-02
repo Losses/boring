@@ -49,11 +49,14 @@ enum CoalescingDefaultValue {
 	CNegativeInfinity;
 	CEnum(enumRef:Ref<EnumType>, enumField:EnumField);
 	CParameterRead(parameterName:String);
+	CInstanceFieldRead(fieldName:String);
+	CLocalRead(localName:String);
 	CFieldAccess(receiver:CoalescingDefaultValue, fieldName:String);
 	CMethodCall(receiver:CoalescingDefaultValue, methodName:String, args:Array<CoalescingDefaultValue>);
 	CStaticCall(fullPath:String, args:Array<CoalescingDefaultValue>);
 	CConditional(condition:CoalescingDefaultValue, ifTrue:CoalescingDefaultValue, ifFalse:CoalescingDefaultValue);
 	CBinaryOp(op:Binop, left:CoalescingDefaultValue, right:CoalescingDefaultValue);
+	CConstructorCall(classPath:String, args:Array<CoalescingDefaultValue>);
 }
 
 /**
@@ -66,6 +69,17 @@ class DefaultArgExpander {
 	static final fieldCoalescing:Map<String, CoalescingDefaultValue> = new Map();
 	static final fieldCoalescingReadsParam:Map<String, Bool> = new Map();
 	static final coalescingSourceRanges:Array<{file:String, min:Int, max:Int}> = [];
+	static final normalizationSourceRanges:Array<{file:String, min:Int, max:Int}> = [];
+	static final fieldNormalization:Map<String, CoalescingDefaultValue> = new Map();
+	static final localNormalization:Map<String, CoalescingDefaultValue> = new Map();
+	// Local bindings are only candidates for the Stage-A default-site form
+	// when their value is sanctioned.  An ordinary local ternary must remain
+	// ordinary Haxe (the target compiler, not this registry, lowers it).
+	static var suppressGrammarErrors:Bool = false;
+	// These are enabled only while validating a normalization binding. They
+	// must not enlarge the closed default-argument leaf set.
+	static var allowNormalizationBindingLeaves:Bool = false;
+	static var normalizationEarlierLocals:Array<String> = [];
 
 	static final localDefaults:Map<String, Array<Null<DefaultArgValue>>> = new Map();
 	static final localDefaultsByName:Map<String, Array<Null<DefaultArgValue>>> = new Map();
@@ -89,6 +103,7 @@ class DefaultArgExpander {
 				case FieldType.FFun(fun):
 					final sites:Array<CoalescingSiteInfo> = [];
 					final coalescing = discoverCoalescingDefaults(fun.args, fun.expr, classType, sites);
+					discoverNormalizationBindings(fun.args, fun.expr, classType, coalescing);
 					final defaults:Array<Null<DefaultArgValue>> = [];
 					var hasDefault = false;
 					for (argIdx in 0...fun.args.length) {
@@ -100,8 +115,15 @@ class DefaultArgExpander {
 							fieldCoalescingReadsParam.set(classKey + ":" + field.name + ":" + arg.name, readsParameter(value));
 							hasDefault = true;
 						} else if (arg.value != null) {
-							final v = evalConstantExpr(arg.value, classType);
-							defaults.push(v);
+							final constructor = constructorDefaultValue(arg.value, classType);
+							if (constructor != null) {
+								defaults.push(VCoalescing(constructor));
+								fieldCoalescing.set(classKey + ":" + field.name + ":" + arg.name, constructor);
+								fieldCoalescingReadsParam.set(classKey + ":" + field.name + ":" + arg.name, readsParameter(constructor));
+							} else {
+								final v = evalConstantExpr(arg.value, classType);
+								defaults.push(v);
+							}
 							hasDefault = true;
 						} else if (arg.opt == true) {
 							defaults.push(VNull);
@@ -174,6 +196,7 @@ class DefaultArgExpander {
 		final classKey = getClassKey(classType);
 		final sites:Array<CoalescingSiteInfo> = [];
 		final coalescing = discoverCoalescingDefaults(func.args, func.expr, classType, sites);
+		discoverNormalizationBindings(func.args, func.expr, classType, coalescing);
 		final defaults:Array<Null<DefaultArgValue>> = [];
 		var hasDefault = false;
 		for (argIdx in 0...func.args.length) {
@@ -184,10 +207,17 @@ class DefaultArgExpander {
 				localCoalescing.set(classKey + ":" + fieldName + ":" + fnName + ":" + arg.name, value);
 				localCoalescingReadsParam.set(classKey + ":" + fieldName + ":" + fnName + ":" + arg.name, readsParameter(value));
 				hasDefault = true;
-			} else if (arg.value != null) {
-				final v = evalConstantExpr(arg.value, classType);
-				defaults.push(v);
-				hasDefault = true;
+				} else if (arg.value != null) {
+					final constructor = constructorDefaultValue(arg.value, classType);
+					if (constructor != null) {
+						defaults.push(VCoalescing(constructor));
+						localCoalescing.set(classKey + ":" + fieldName + ":" + fnName + ":" + arg.name, constructor);
+						localCoalescingReadsParam.set(classKey + ":" + fieldName + ":" + fnName + ":" + arg.name, readsParameter(constructor));
+					} else {
+						final v = evalConstantExpr(arg.value, classType);
+						defaults.push(v);
+					} 
+					hasDefault = true;
 			} else if (arg.opt == true) {
 				defaults.push(VNull);
 				hasDefault = true;
@@ -202,6 +232,89 @@ class DefaultArgExpander {
 		}
 		rewriteCrossSiteReads(func.expr, sites);
 	}
+	static function constructorDefaultValue(e:Expr, classType:ClassType):Null<CoalescingDefaultValue> {
+		final cur = unwrapExpr(e);
+		return switch (cur == null ? null : cur.expr) {
+			case ExprDef.ENew(typePath, args):
+				final path = typePath.pack.length == 0 ? typePath.name : typePath.pack.join(".") + "." + typePath.name;
+				if (!isCompiledStaticType(path)) null else validateArgList(args, "", [], [], classType) == null ? null : CConstructorCall(path, validateArgList(args, "", [], [], classType));
+			default: null;
+		};
+	}
+	static function discoverNormalizationBindings(args:Array<FunctionArg>, body:Null<Expr>, classType:ClassType, registered:Array<Null<CoalescingDefaultValue>>):Void {
+		if (body == null) return;
+		final names = [for (a in args) a.name];
+		final oldAllow = allowNormalizationBindingLeaves;
+		final oldLocals = normalizationEarlierLocals;
+		allowNormalizationBindingLeaves = true;
+		normalizationEarlierLocals = [];
+		function visit(e:Expr):Void {
+			if (e == null) return;
+			switch (e.expr) {
+				case ExprDef.EVars(vars):
+					for (v in vars) {
+						if (v.expr == null) continue;
+						final parameter = normalizationParameter(v.expr);
+						final index = parameter == null ? -1 : names.indexOf(parameter);
+						if (index < 0 || !isNullableParameter(args[index]) || registered[index] != null) {
+							normalizationEarlierLocals.push(v.name);
+							continue;
+						}
+						if (args[index].value != null) {
+							// A registered parameter default does not turn body
+							// normalization into an additional sanctioned leaf.
+							final oldAllow = allowNormalizationBindingLeaves;
+							allowNormalizationBindingLeaves = false;
+							matchCoalescingExpression(v.expr, parameter, classType, names.slice(0, index), names);
+							allowNormalizationBindingLeaves = oldAllow;
+							continue;
+						}
+						final m = matchCoalescingExpression(v.expr, parameter, classType, names.slice(0, index), names);
+						if (m != null && parameter != null) {
+							final p = Context.getPosInfos(m.defaultExpr.pos);
+							normalizationSourceRanges.push({file: p.file, min: p.min, max: p.max});
+							}
+						normalizationEarlierLocals.push(v.name);
+					}
+				default:
+			}
+			haxe.macro.ExprTools.iter(e, visit);
+		}
+		visit(body);
+		allowNormalizationBindingLeaves = oldAllow;
+		normalizationEarlierLocals = oldLocals;
+	}
+
+	static function isNullableParameter(arg:FunctionArg):Bool {
+		// Optional arguments are represented by `?p:T`; explicit Null<T>
+		// annotations are nullable as well.
+		if (arg == null) return false;
+		if (arg.opt == true) return true;
+		return switch (arg.type) {
+			case ComplexType.TPath({name: "Null"}): true;
+			default: false;
+		};
+	}
+
+	static function normalizationParameter(e:Expr):Null<String> {
+			final cur = unwrapExpr(e);
+			if (cur == null) return null;
+			return switch (cur.expr) {
+				case ExprDef.ETernary(condition, _, _):
+					final c = unwrapExpr(condition);
+					switch (c == null ? null : c.expr) {
+						case ExprDef.EBinop(Binop.OpEq, left, _):
+							switch (unwrapExpr(left).expr) { case ExprDef.EConst(AstConstant.CIdent(n)): n; default: null; }
+						default: null;
+					}
+				default: null;
+			};
+	}
+	public static function isNormalizationSource(pos:Position):Bool {
+		final infos = Context.getPosInfos(pos);
+		for (range in normalizationSourceRanges) if (range.file == infos.file && infos.min == range.min && infos.max == range.max) return true;
+		return false;
+	}
 
 	static function discoverCoalescingDefaults(args:Array<FunctionArg>, body:Null<Expr>, classType:ClassType, ?outSites:Array<CoalescingSiteInfo>):Array<Null<CoalescingDefaultValue>> {
 		final result:Array<Null<CoalescingDefaultValue>> = [for (_ in args) null];
@@ -213,7 +326,10 @@ class DefaultArgExpander {
 			if (arg.opt != true || arg.value != null) continue;
 			final earlierNames:Array<String> = allParamNames.slice(0, argIdx);
 			final candidates:Array<{value:CoalescingDefaultValue, excluded:Expr, defaultExpr:Expr}> = [];
+			final oldSuppress = suppressGrammarErrors;
+			suppressGrammarErrors = true;
 			collectCoalescingCandidates(body, arg.name, classType, earlierNames, allParamNames, candidates);
+			suppressGrammarErrors = oldSuppress;
 			if (candidates.length > 1) {
 				Context.fatalError("coalesced default parameter is consumed more than once", body.pos);
 			}
@@ -251,7 +367,10 @@ class DefaultArgExpander {
 			case ExprDef.EVars(vars):
 				for (v in vars) {
 					if (v.isFinal == true || v.expr == null) continue;
+					final oldSuppress = suppressGrammarErrors;
+					suppressGrammarErrors = true;
 					final match = matchCoalescingExpression(v.expr, parameterName, classType, earlierNames, allParamNames);
+					suppressGrammarErrors = oldSuppress;
 					if (match != null) {
 						result.push({value: match.value, excluded: v.expr, defaultExpr: match.defaultExpr});
 					}
@@ -312,6 +431,13 @@ class DefaultArgExpander {
 				if (innerClass == "type") "staticField" else if (innerClass == "parameter") "fieldChain" else "other";
 			default: "other";
 		};
+	}
+
+	static function isInstanceField(classType:ClassType, name:String):Bool {
+		for (field in classType.fields.get()) if (field.name == name) return true;
+		final local = Context.getLocalClass();
+		if (local != null) for (field in local.get().fields.get()) if (field.name == name) return true;
+		return false;
 	}
 
 	/** Checks whether a name resolves to a type in the compilation (class, enum, typedef, abstract). */
@@ -394,10 +520,12 @@ class DefaultArgExpander {
 		// 2. Parameter reference root (earlier parameters only)
 		if (cur.expr != null) {
 			switch (cur.expr) {
-				case ExprDef.EConst(AstConstant.CIdent(name)):
+					case ExprDef.EConst(AstConstant.CIdent(name)):
 					if (earlierNames.indexOf(name) >= 0) {
 						return CParameterRead(name);
 					}
+					if (allowNormalizationBindingLeaves && normalizationEarlierLocals.indexOf(name) >= 0) return CLocalRead(name);
+					if (isInstanceField(classType, name) && allowNormalizationBindingLeaves) return CInstanceFieldRead(name);
 					// Check for later parameter references or the defaulted parameter itself
 					if (allParamNames.indexOf(name) >= 0) {
 						if (name == parameterName) {
@@ -410,7 +538,14 @@ class DefaultArgExpander {
 			}
 		}
 
-		// 3. Static-field / top-level constant root (skip parameter names)
+		// 3. Normalization-only roots: instance fields and earlier locals.
+		if (allowNormalizationBindingLeaves) switch (cur.expr) {
+			case ExprDef.EConst(AstConstant.CIdent(name)) if (isInstanceField(classType, name)): return CInstanceFieldRead(name);
+			case ExprDef.EField(inner, name) if (allowNormalizationBindingLeaves && isThisExpression(inner)): return CInstanceFieldRead(name);
+			default:
+		}
+
+		// 4. Static-field / top-level constant root (skip parameter names)
 		final staticPath = resolveStaticFieldOrConstant(cur, earlierNames);
 		if (staticPath != null) {
 			return CFieldAccess(CParameterRead(staticPath), "");
@@ -420,6 +555,7 @@ class DefaultArgExpander {
 		if (cur.expr != null) {
 			switch (cur.expr) {
 				case ExprDef.EField(inner, fieldName):
+					if (allowNormalizationBindingLeaves && isThisExpression(inner)) return CInstanceFieldRead(fieldName);
 					final innerClass = classifyExpr(inner, earlierNames);
 					if (innerClass == "type") {
 						// Static field read; handled above; fall through
@@ -433,7 +569,17 @@ class DefaultArgExpander {
 			}
 		}
 
-		// 5. Instance method call: receiver and args are grammar expressions
+		// 5. Constructor invocation: its arguments recurse through the grammar.
+		if (cur.expr != null) {
+			switch (cur.expr) {
+				case ExprDef.ENew(typePath, callArgs):
+					final argValues = validateArgList(callArgs, parameterName, earlierNames, allParamNames, classType);
+					if (argValues != null) return CConstructorCall(typePath.pack.length == 0 ? typePath.name : typePath.pack.join(".") + "." + typePath.name, argValues);
+				default:
+			}
+		}
+
+		// 6. Instance method call: receiver and args are grammar expressions
 		//    Static call: receiver is a type, args are grammar expressions
 		if (cur.expr != null) {
 			switch (cur.expr) {
@@ -483,7 +629,7 @@ class DefaultArgExpander {
 			}
 		}
 
-		// 6. Conditional: cond ? t : f
+		// 7. Conditional: cond ? t : f
 		if (cur.expr != null) {
 			switch (cur.expr) {
 				case ExprDef.ETernary(condition, ifTrue, ifFalse):
@@ -497,7 +643,7 @@ class DefaultArgExpander {
 			}
 		}
 
-		// 7. Binary operator: left op right
+		// 8. Binary operator: left op right
 		if (cur.expr != null) {
 			switch (cur.expr) {
 				case ExprDef.EBinop(op, left, right):
@@ -518,7 +664,7 @@ class DefaultArgExpander {
 	static function isCompiledStaticType(path:String):Bool {
 		try {
 			switch (Context.getType(path)) {
-				case Type.TInst(ref, _): return !ref.get().isExtern;
+				case Type.TInst(ref, _): return true;
 				default:
 			}
 		} catch (_:Dynamic) {}
@@ -558,7 +704,7 @@ class DefaultArgExpander {
 				} else null;
 			case ExprDef.EArrayDecl(values): values.length == 0 ? CEmptyArray : null;
 			case ExprDef.ENew(typePath, params):
-				typePath.pack.length == 0 && typePath.name == "Map" && params.length == 0 ? CEmptyMap : null;
+				(typePath.pack.length == 0 && (typePath.name == "Map" || typePath.name == "StringMap") && params.length == 0) ? CEmptyMap : null;
 			case ExprDef.EField(receiver, fieldName):
 				if (exprToDotted(receiver) == "Math") {
 					if (fieldName == "POSITIVE_INFINITY") return CPositiveInfinity;
@@ -586,6 +732,7 @@ class DefaultArgExpander {
 			default: null;
 		};
 	}
+
 
 	static function isNullCheck(e:Expr, parameterName:String):Bool {
 		final cur = unwrapExpr(e);
@@ -678,7 +825,7 @@ class DefaultArgExpander {
 	}
 
 	static function coalescingError(pos:Position):Void {
-		Context.fatalError("coalesced default expression is not sanctioned", pos);
+		if (!suppressGrammarErrors) Context.fatalError("coalesced default expression is not sanctioned", pos);
 	}
 
 	static function laterParameterError(pos:Position):Void {
@@ -696,6 +843,7 @@ class DefaultArgExpander {
 			case CStaticCall(_, args): argsHaveParameter(args);
 			case CConditional(c, t, f): readsParameter(c) || readsParameter(t) || readsParameter(f);
 			case CBinaryOp(_, l, r): readsParameter(l) || readsParameter(r);
+			case CConstructorCall(_, args): argsHaveParameter(args);
 			default: false;
 		};
 	}
@@ -786,6 +934,8 @@ class DefaultArgExpander {
 			case CBinaryOp(_, left, right):
 				collectParameterReadNames(left, out);
 				collectParameterReadNames(right, out);
+			case CConstructorCall(_, args):
+				for (arg in args) collectParameterReadNames(arg, out);
 			default:
 		}
 	}
@@ -1243,6 +1393,28 @@ class DefaultArgExpander {
 		};
 	}
 
+	public static function hasNestedConditional(e:TypedExpr):Bool {
+		var found = false;
+		function visit(x:TypedExpr):Void {
+			if (x == null || found) return;
+			switch (x.expr) {
+				case TypedExprDef.TIf(_, _, _): found = true;
+				default: haxe.macro.TypedExprTools.iter(x, visit);
+			}
+		}
+		haxe.macro.TypedExprTools.iter(e, visit);
+		return found;
+	}
+	public static function isCoalescingShape(e:TypedExpr):Bool {
+		final cur = unwrapTypedExpr(e);
+		if (cur == null) return false;
+		return switch (cur.expr) {
+			case TypedExprDef.TIf(condition, _, ifFalse):
+				final parameter = typedNullCheckParameter(condition);
+				parameter != null && isTypedParameter(ifFalse, parameter);
+			default: false;
+		};
+	}
 	public static function coalescingSites(root:TypedExpr):Array<{parameter:String, defaultExpr:TypedExpr, valueExpr:TypedExpr}> {
 		final result:Array<{parameter:String, defaultExpr:TypedExpr, valueExpr:TypedExpr}> = [];
 		if (root == null) return result;

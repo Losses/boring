@@ -1,5 +1,7 @@
 package boring;
 
+import std.SortedSet;
+
 enum Mode {
 	Read;
 	Write;
@@ -19,8 +21,10 @@ class GreeterImpl implements IGreeter {
 
 class DefaultArgsOps {
 	public var familyNames:Array<String>;
+	public var normalizationField:String;
 
 	public function new(?familyNames:Array<String>) {
+		this.normalizationField = "field";
 		this.familyNames = familyNames == null ? [] : familyNames;
 	}
 
@@ -175,7 +179,18 @@ class DefaultArgsOps {
 		return greeter.say("Sam");
 	}
 
-	// --- Extension grammar roots: coalescing defaults that read parameters ---
+	/** Instance field and earlier-local normalization leaves. */
+	public function instanceFieldNormalization(?p:Null<String>):String {
+		final v = p == null ? this.normalizationField : p;
+		return v;
+	}
+
+	public function earlierLocalNormalization(seed:String, ?q:Null<String>):String {
+		final loc = seed;
+		final w = q == null ? loc : q;
+		return w;
+	}
+
 
 	/** Bare earlier-parameter read. */
 	public static function greetWithPrefix(name:String, ?prefix:String):String {
@@ -183,7 +198,7 @@ class DefaultArgsOps {
 		return normalized;
 	}
 
-	/** Field access over a parameter. */
+
 	public static function sizeLabel(?items:Array<String>):String {
 		final count = items == null ? 0 : items.length;
 		return 'size:$count';
@@ -204,6 +219,12 @@ class DefaultArgsOps {
 	public static function methodCallSample(text:String, ?normalized:String):String {
 		var value = normalized == null ? text.toUpperCase() : normalized;
 		return value;
+	}
+
+	/** Extern static call in a normalization binding. */
+	public static function sortedSetNormalization(?fallback:Null<SortedSet<Int>>):SortedSet<Int> {
+		final normalized = fallback == null ? SortedSet.builder().build() : fallback;
+		return normalized;
 	}
 
 	/** Static call with an earlier parameter argument. */

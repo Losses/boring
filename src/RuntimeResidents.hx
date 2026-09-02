@@ -66,6 +66,20 @@ class RuntimeResidents {
 	 * non-resident call sites. The resident module and its extern
 	 * modules share the ABI.
 	 */
+	/** Native faces exposed by test externs at typed pipeline stages. */
+	public static function testExternNativeFaces(): Array<String> {
+		return ["__test_shim"];
+	}
+
+	/** Resident-side platform extern ownership. */
+	public static function residentOfPlatformExtern(module: String): Null<String> {
+		return switch(module) {
+			case "std.TestPlatform": "runtime.TestCore";
+			case "std.UStringPlatform": "runtime.UString";
+			case _: null;
+		};
+	}
+
 	public static function isResidentAbi(module: String): Bool {
 		if(isResident(module)) {
 			return true;

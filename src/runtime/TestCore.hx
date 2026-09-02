@@ -99,12 +99,58 @@ class TestCore {
 		if(v == 0.0) {
 			return "0";
 		}
-		final s = TestPlatform.floatToString(v);
-		final len = s.length;
-		if(len >= 2 && s.charCodeAt(len - 1) == 48 && s.charCodeAt(len - 2) == 46) {
-			return s.substring(0, len - 2);
+		final raw = TestPlatform.floatToString(v);
+		var s = raw;
+		var negative = false;
+		if(s.charCodeAt(0) == 45) {
+			negative = true;
+			s = s.substring(1);
 		}
-		return s;
+		final exponentParts = s.split("e");
+		var exponent = 0;
+		if(exponentParts.length == 2) {
+			final exponentText = exponentParts[1];
+			final exponentValue = Std.parseInt(exponentText);
+			exponent = exponentValue == null ? 0 : exponentValue;
+			s = exponentParts[0];
+		}
+		final decimalParts = s.split(".");
+		final hasDot = decimalParts.length == 2;
+		var fraction = "";
+		if(hasDot) fraction = decimalParts[1];
+		var digits = decimalParts[0] + fraction;
+		var decimalPosition = decimalParts[0].length + exponent;
+		while(digits.length > 1 && digits.charCodeAt(0) == 48) {
+			digits = digits.substring(1);
+			decimalPosition--;
+		}
+		if(digits == "0") return "0";
+		if(decimalPosition >= -5 && decimalPosition <= 21) {
+			var plain = decimalPosition <= 0 ? plainLeading(digits, decimalPosition)
+				: decimalPosition >= digits.length ? plainTrailing(digits, decimalPosition)
+				: digits.substring(0, decimalPosition) + "." + digits.substring(decimalPosition);
+			while(plain.length > 0 && plain.charCodeAt(plain.length - 1) == 48 && plain.split(".").length > 1) plain = plain.substring(0, plain.length - 1);
+			if(plain.length > 0 && plain.charCodeAt(plain.length - 1) == 46) plain = plain.substring(0, plain.length - 1);
+			return (negative ? "-" : "") + plain;
+		}
+		while(digits.length > 1 && digits.charCodeAt(digits.length - 1) == 48) digits = digits.substring(0, digits.length - 1);
+		final sciExponent = decimalPosition - 1;
+		final mantissa = digits.length == 1 ? digits : digits.substring(0, 1) + "." + digits.substring(1);
+		return (negative ? "-" : "") + mantissa + "e" + (sciExponent >= 0 ? "+" : "") + sciExponent;
+	}
+
+	/** The plain spelling below one: zeros between the point and the digits. */
+	static function plainLeading(digits:String, decimalPosition:Int):String {
+		var head = "0.";
+		for(_ in 0...-decimalPosition) head += "0";
+		return head + digits;
+	}
+
+	/** The plain spelling past the last digit: zeros after the digits. */
+	static function plainTrailing(digits:String, decimalPosition:Int):String {
+		var tail = "";
+		for(_ in 0...decimalPosition - digits.length) tail += "0";
+		return digits + tail;
 	}
 
 	/** The canonical text of a string: quoted, with JSON escaping inside. */
