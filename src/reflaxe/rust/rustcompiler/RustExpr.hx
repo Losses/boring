@@ -1197,7 +1197,7 @@ class RustExpr {
 						"&" + itemName;
 					}
 				} else {
-					itemName;
+					ownedLocal ? "&" + itemName : itemName;
 				};
 				final iterated = ownedLocal ? "&" + expr(sliceSubj) : expr(sliceSubj);
 				switch(Context.follow(itemVar.t)) {
@@ -4569,7 +4569,9 @@ class RustExpr {
 			final pt = paramIndex < paramTypes.length ? paramTypes[paramIndex] : null;
 			var argStr = renderValueForType(pt, arg, expr(arg));
 			if(paramIndex < paramTypes.length) {
-				if(isNullType(pt) && isStringType(getNullInnerType(pt)) && isNullType(arg.t)) {
+				if(isNullType(arg.t) && isStringType(getNullInnerType(arg.t)) && isPassByRef(pt)) {
+					argStr = argStr + ".as_deref().unwrap_or(\"\")";
+				} else if(isNullType(pt) && isStringType(getNullInnerType(pt)) && isNullType(arg.t)) {
 					argStr = argStr + ".clone()";
 				} else if(isNullType(pt) && !isNullType(arg.t)) {
 					if(argStr == "None") {
