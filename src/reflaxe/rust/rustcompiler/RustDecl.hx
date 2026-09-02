@@ -140,7 +140,8 @@ class RustDecl {
 		}
 
 		// Instance class
-		final hasLifetime = classHasLifetime(varFields);
+		final borrowedBytes = borrowedByteFields(funcFields);
+		final hasLifetime = classHasLifetime(varFields, borrowedBytes);
 		// Generic classes carry their type parameters on the struct and
 		// the impl. Every parameter takes a Clone bound on the impl:
 		// reads of stored elements clone out of the arrays, and the one
@@ -158,7 +159,7 @@ class RustDecl {
 		lines.push("pub struct " + cls.name + genericStr + " {");
 		for(v in varFields) {
 			if(v.isStatic) continue;
-			for(l in instanceVarDecl(v, hasLifetime)) lines.push(l);
+			for(l in instanceVarDecl(v, hasLifetime, borrowedBytes)) lines.push(l);
 		}
 		lines.push("}\n");
 
@@ -658,17 +659,25 @@ class RustDecl {
 		return parts.length <= 1 ? "" : parts.slice(0, parts.length - 1).join(".");
 	}
 
-	function classHasLifetime(varFields: Array<ClassVarData>): Bool {
+	function classHasLifetime(varFields: Array<ClassVarData>, borrowedBytes: Map<String, Bool>): Bool {
 		for(v in varFields) {
 			switch(v.field.type) {
 				case TInst(c, _) if(c.get().module == "haxe.io.Bytes"):
-					return true;
+					if(borrowedBytes.exists(v.field.name)) return true;
 				case TType(d, _) if(d.get().module == "haxe.io.Bytes"):
-					return true;
+					if(borrowedBytes.exists(v.field.name)) return true;
 				case _:
 			}
 		}
 		return false;
+	}
+
+	function borrowedByteFields(funcFields: Array<ClassFuncData>): Map<String, Bool> {
+		final names: Map<String, Bool> = [];
+		for(f in funcFields) if(f.field.name == "new") {
+			for(arg in f.args) if(isBytesType(arg.type)) names.set(arg.name, true);
+		}
+		return names;
 	}
 
 	function findConstructor(funcFields: Array<ClassFuncData>): Null<ClassFuncData> {
@@ -865,7 +874,7 @@ class RustDecl {
 		}
 	}
 
-	function instanceVarDecl(v: ClassVarData, hasLifetime: Bool): Array<String> {
+	function instanceVarDecl(v: ClassVarData, hasLifetime: Bool, borrowedBytes: Map<String, Bool>): Array<String> {
 		final field = v.field;
 		// A `var x(get, never)` field renders no storage on this target;
 		// the get_x() method is the lowering (feature spec 27).
@@ -875,9 +884,9 @@ class RustDecl {
 		final snake = RustImports.toSnakeCase(field.name);
 		final typeStr = switch(field.type) {
 			case TInst(c, _) if(c.get().module == "haxe.io.Bytes"):
-				hasLifetime ? "&'a [u8]" : "&[u8]";
+				borrowedBytes.exists(field.name) ? "&'a [u8]" : "Vec<u8>";
 			case TType(d, _) if(d.get().module == "haxe.io.Bytes"):
-				hasLifetime ? "&'a [u8]" : "&[u8]";
+				borrowedBytes.exists(field.name) ? "&'a [u8]" : "Vec<u8>";
 			case TAbstract(a, _) if(a.get().name == "Int" && (field.name == "offset" || field.name == "length")):
 				// Stream cursor position (`offset`) and buffer boundary (`length`) fields represent
 				// non-negative memory offsets and slice indices within byte buffers. In Haxe, they
