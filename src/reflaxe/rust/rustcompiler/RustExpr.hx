@@ -2258,7 +2258,7 @@ class RustExpr {
 		return switch(Context.follow(t)) {
 			case TAbstract(a, _):
 				final n = a.get().name;
-				n == "Int" || n == "Bool" || n == "Float";
+				n == "Int" || n == "Bool" || n == "Float" || n == "Int64";
 			case TAnonymous(anon):
 				isAllCopy(anon.get().fields);
 			case TType(d, _):
@@ -3094,7 +3094,7 @@ class RustExpr {
 					}
 				}
 				if(name == "get" && isBytes(stripCast(subj))) {
-					return expr(subj) + "[" + expr(args[0]) + " as usize]";
+					return "(" + expr(subj) + "[" + expr(args[0]) + " as usize] as u32)";
 				}
 				if(name == "set" && args.length == 2 && isBytes(stripCast(subj))) {
 					return expr(subj) + "[" + expr(args[0]) + " as usize] = (" + expr(args[1]) + ") as u8";
