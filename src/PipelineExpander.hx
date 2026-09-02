@@ -136,6 +136,39 @@ class PipelineExpander {
 		transformExpr(root, usedNames);
 	}
 
+	/** Expand Array/ReadOnlyArray element iteration before target lowering.
+	 * This deliberately runs from the typed pass: Intercept has already
+	 * validated the original TFor subject, and therefore Iterator subjects
+	 * remain visible to that check and are not rewritten here.
+	 */
+	static function expandArrayIteration(stmt:TypedExpr, usedNames:Map<String, Bool>):Null<Array<TypedExpr>> {
+		switch (stmt.expr) {
+			case TFor(item, subject, body) if (StaticFieldHelper.isArrayType(subject.t) || StaticFieldHelper.isReadOnlyArrayType(subject.t)):
+				final pos = stmt.pos;
+				final arraySubject = stripWrap(subject);
+				final elemType = StaticFieldHelper.arrayElementType(subject.t);
+				var arrayExpr = arraySubject;
+				final prefix:Array<TypedExpr> = [];
+				switch (arraySubject.expr) {
+					case TLocal(_):
+					default:
+						final holder = makeTVar(mint("_g_array", usedNames), subject.t, true);
+						prefix.push(makeTVarStmt(holder, arraySubject, pos));
+						arrayExpr = makeLocal(holder, pos);
+				}
+				final counter = makeTVar(mint("_g", usedNames), Context.getType("Int"), false);
+				final bound = makeTVar(mint("_g1", usedNames), Context.getType("Int"), true);
+				final index = makeTVar(mint("_g_index", usedNames), Context.getType("Int"), true);
+				prefix.push(makeTVarStmt(counter, makeIntConst(0, pos), pos));
+				prefix.push(makeTVarStmt(bound, makeArrayLength(arrayExpr, pos), pos));
+				final itemDecl = makeTVarStmt(item, makeArrayRead(arrayExpr, makeLocal(index, pos), elemType, pos), pos);
+				prefix.push(makeIntervalLoop(counter, bound, index, [itemDecl, body], pos));
+				return prefix;
+			default:
+		}
+		return null;
+	}
+
 	/** Hoist enum switch subjects that are evaluated expressions exactly once. */
 	static function hoistSwitchSubjects(e:TypedExpr, usedNames:Map<String, Bool>):Void {
 		if (e == null) return;
@@ -325,6 +358,13 @@ class PipelineExpander {
 			final stmt = stmts[i];
 			if (stmt == null) {
 				i++;
+				continue;
+			}
+			final iteration = expandArrayIteration(stmt, usedNames);
+			if (iteration != null) {
+				stmts.splice(i, 1);
+				for (j in 0...iteration.length) stmts.insert(i + j, iteration[j]);
+				i += iteration.length;
 				continue;
 			}
 			transformInnerBlocks(stmt, usedNames);
