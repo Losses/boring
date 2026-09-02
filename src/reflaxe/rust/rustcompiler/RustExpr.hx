@@ -531,8 +531,11 @@ class RustExpr {
 				while(StringTools.startsWith(condStr, "(") && StringTools.endsWith(condStr, ")") && matchingParens(condStr)) {
 					condStr = condStr.substr(1, condStr.length - 2);
 				}
+				final proven = provenNonNullLocal(c);
+				if(proven != null) provenNonNullVarIds.set(proven.id, true);
 				final out = [indent(depth) + "if " + condStr + " {"];
 				for(l in blockLines(statementsOf(t), depth + 1)) out.push(l);
+				if(proven != null) provenNonNullVarIds.remove(proven.id);
 				if(f != null) {
 					out.push(indent(depth) + "} else {");
 					for(l in blockLines(statementsOf(f), depth + 1)) out.push(l);
@@ -2431,6 +2434,15 @@ class RustExpr {
 			case OpEq | OpNotEq if((isNullType(l.t) && isTNull(r)) || (isNullType(r.t) && isTNull(l))):
 				final nullable = isNullType(l.t) ? l : r;
 				return expr(nullable) + (op == OpEq ? ".is_none()" : ".is_some()");
+			case OpBoolAnd:
+				final proven = provenNonNullLocal(l);
+				if(proven != null) {
+					provenNonNullVarIds.set(proven.id, true);
+					final right = expr(r);
+					provenNonNullVarIds.remove(proven.id);
+					return expr(l) + " && " + right;
+				}
+				return expr(l) + " && " + expr(r);
 			case OpBoolAnd:
 				final proven = provenNonNullLocal(l);
 				if(proven != null) {
@@ -4706,12 +4718,7 @@ class RustExpr {
 						case _: false;
 					};
 					if(provenEnum) argStr = expr(arg) + ".unwrap()";
-					else {
-					// Haxe call arguments are value semantics. Clone an owned
-					// Rust value when the callee's parameter is not borrowed;
-					// otherwise a later expression can no longer use it.
-					argStr = "(" + argStr + ").clone()";
-					}
+					else argStr = "(" + argStr + ").clone()";
 				}
 				// A collection length is usize in Rust while a Haxe Int
 				// function parameter is u32 in business modules. The
