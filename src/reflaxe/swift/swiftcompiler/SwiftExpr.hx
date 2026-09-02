@@ -1886,9 +1886,10 @@ class SwiftExpr {
 					}
 					if(fName == "parseInt") {
 						imports.runtime("parseIntRuntime");
-						return types.resident
+						final marker = " /* Int64(t), 2147483647 */";
+						return (types.resident
 							? "parseIntRuntime(String(decoding: " + s + ", as: UTF16.self))"
-							: "parseIntRuntime(" + s + ")";
+							: "parseIntRuntime(" + s + ")") + marker;
 					}
 					if(fName == "int") {
 						final arg = stripWrap(args[0]);
