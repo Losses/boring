@@ -345,3 +345,75 @@ local functions holding distinct defaults.
   every generated call passes the full arity.
 - The mutation checks for this feature live in the dispatch task file and are
   part of the completion criteria.
+
+## Extension Stage C: normalization bindings and constructor defaults
+
+Status: filed 2026-09-01, not implemented.
+
+Two shapes from the engine port sources stay rejected by rule 2 as
+implemented:
+
+1. A statement-level coalescing over a parameter that holds no default at
+   all: `var f = fs == null ? em : fs;`. The engine sources hold 56 elvis
+   statement bindings; the port inlines each expression into a call
+   argument to fit the argument-position grammar (314 inline
+   `== null ?` sites in the current port tree).
+2. A default expression that constructs a class: the engine source declares
+   a constructor default `AdjustmentStylePolicy()` (Kotlin
+   `ClreqProfile.kt`), and the port forces every call site to pass the
+   arguments explicitly (`ClreqProfile.hx:90`, `:103`, `:116`).
+
+### Grammar additions
+
+- Rule 2's recursive grammar grows one leaf: a constructor invocation
+  `new C(a1 ... an)` over a class `C` visible at the site, whose arguments
+  are rule-2 grammar expressions. The Stage-A parameter-reference rules
+  govern the arguments unchanged.
+- One new sanctioned position: the normalization binding
+  `var v = p == null ? E : p;` where `p` is a nullable-typed parameter of
+  the enclosing function and `E` is a rule-2 grammar expression, the
+  constructor leaf included. The parameter holds no default registration
+  and may be read elsewhere in the body; the binding is recognized by its
+  shape, and `E` obeys the closed grammar. Every other statement-level
+  coalescing expression keeps the named rejection
+  `coalesced default expression is not sanctioned`.
+
+### Evaluation and per-target deltas
+
+- A normalization binding evaluates `E` exactly when `p` is null. A
+  constructor leaf in default position evaluates at every omitting call;
+  two omitting calls receive distinct instances, and the consistency run
+  pins this freshness.
+- Kotlin, TypeScript: a normalization binding renders through the native
+  null-coalescing operator (`val f = fs ?: em`; `const f = fs ?? em`). A
+  constructor leaf in default position lowers as the native default
+  `p: T = C(...)`; both languages evaluate default expressions at each
+  omitting call.
+- Swift: a constructor leaf in default position takes the Stage-A body
+  normalization (`p: T? = nil` with `p = p ?? C(...)` at entry). A
+  normalization binding renders `let v = p ?? E`.
+- Dart: body normalization for both shapes, per the base ruling
+  (`p ?? E` with `E` in expression position).
+- Rust: a normalization binding lowers as the existing conditional
+  lowering over `Null<T>`; a constructor leaf lowers inside the
+  `unwrap_or_else` closure of the base ruling.
+- Haxe stage 1: the source ternary is the semantics. The registration pass
+  performs no rewrite for a normalization binding, because `p` is read
+  elsewhere in the body by design.
+
+The `V16 NonConstantDefault` row of the style standard updates in the same
+commit: the sanctioned classes grow by the constructor leaf and the
+normalization-binding position, and the rejection keeps governing every
+other coalescing shape.
+
+### Test hooks
+
+- Samples: a normalization binding over a required nullable parameter that
+  the body also reads elsewhere; a constructor default omitted at two
+  calls with a distinct-instance assertion; a chain holding both shapes.
+- Tree assertions: the Kotlin and TypeScript native operator and default
+  forms; the Swift body normalization for the constructor default; the
+  Dart `??` sites; the Rust conditional and closure forms.
+- Mutation: a normalization binding whose `E` falls outside the grammar
+  keeps the named rejection; a later-parameter reference inside `E` keeps
+  `coalesced default expression may reference earlier parameters only`.
