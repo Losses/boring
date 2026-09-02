@@ -171,7 +171,9 @@ class RustDecl {
 		final implGenerics = implBoundList.length > 0 ? "<" + implBoundList.join(", ") + ">" : "";
 		final ltParam = genericStr;
 
-		lines.push("#[derive(Clone)]");
+		if(StaticFieldHelper.hasSelfConstructionStatic(cls)) {
+			lines.push("#[derive(Clone)]");
+		}
 		lines.push("pub struct " + cls.name + genericStr + " {");
 		for(v in varFields) {
 			if(v.isStatic) continue;
