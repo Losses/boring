@@ -114,3 +114,4 @@ boring.ArrayRootStateOps
 boring.NumberParsingOps
 tests.NumberParsingTests
 tests.ArrayRootTests
+boring.ArrayIterationOps
