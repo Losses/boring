@@ -1478,6 +1478,13 @@ class RustExpr {
 		return "&(" + expr(arg) + ")";
 	}
 
+	function isNullableCollapsedLocal(e: TypedExpr): Bool {
+		return switch(stripWrap(e).expr) {
+			case TLocal(v): nullableCollapsedLocals.exists(v.id);
+			case _: false;
+		};
+	}
+
 	function isBorrowedLocal(v: haxe.macro.Type.TVar): Bool {
 		final stored = argTypes.get(v.name);
 		return stored != null && StringTools.startsWith(stored, "&");
@@ -1746,6 +1753,11 @@ class RustExpr {
 			return null;
 		}
 		final selected = trueIsNone ? ifFalse : ifTrue;
+		if(nullableCollapsedLocals.exists(value.id)) {
+			final noneExpr = trueIsNone ? ifTrue : ifFalse;
+			final localName = RustImports.toSnakeCase(value.name);
+			return "if " + localName + " == 0 { " + expr(noneExpr) + " } else { " + localName + " }";
+		}
 		switch(stripWrap(selected).expr) {
 			case TLocal(v) if(v.id == value.id):
 				final noneExpr = trueIsNone ? ifTrue : ifFalse;
@@ -2273,7 +2285,7 @@ class RustExpr {
 			return [fail(e, "return inside a value arm lowers at statement position only")];
 		}
 		var valueText = value;
-		if(value != null && isStringType(e.t) && isStringLiteral(e)) {
+		if(value != null && isStringType(e.t)) {
 			valueText = value + ".to_string()";
 		}
 		if(decls.length == 0) {
@@ -2362,6 +2374,8 @@ class RustExpr {
 			return fromBe;
 		}
 			switch(op) {
+			case OpEq | OpNotEq if(isNullableCollapsedLocal(l) || isNullableCollapsedLocal(r)):
+				return expr(l) + " " + symbolOf(op) + " " + expr(r);
 			case OpEq | OpNotEq if(nullableEnumComparedWithEnum(l.t, r.t) || nullableEnumComparedWithEnum(r.t, l.t)):
 				final left = isNullType(l.t) ? expr(l) : "Some(" + expr(l) + ")";
 				final right = isNullType(r.t) ? expr(r) : "Some(" + expr(r) + ")";
