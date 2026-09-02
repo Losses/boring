@@ -32,7 +32,7 @@ describe("sorted dataClass key generated trees", () => {
   if (v.kind === "Plain") return 0;
   return 0;
 }`);
-    expect(read("ts/gen/boring/PrintedEnumOps.ts")).toContain(`if (a.mark !== b.mark) return PrintedBadgemarkOrder(a.mark) - PrintedBadgemarkOrder(b.mark);`);
+    expect(read("ts/gen/boring/PrintedEnumOps.ts")).toContain(`if (PrintedBadgemarkOrder(a.mark) !== PrintedBadgemarkOrder(b.mark)) return PrintedBadgemarkOrder(a.mark) - PrintedBadgemarkOrder(b.mark);`);
     expect(read("kotlin/gen/boring/PrintedEnumOps.kt")).toContain(`fun PrintedBadgemarkOrder(v: PrintedMark): Int = when (v) {
         is PrintedMark.Tag -> 2
         is PrintedMark.Ring -> 1
