@@ -122,7 +122,7 @@ class TestCore {
 		var decimalPosition = decimalParts[0].length + exponent;
 		while(digits.length > 1 && digits.charCodeAt(0) == 48) {
 			digits = digits.substring(1);
-			decimalPosition -= 1;
+			decimalPosition--;
 		}
 		if(digits == "0") return "0";
 		if(decimalPosition >= -5 && decimalPosition <= 21) {

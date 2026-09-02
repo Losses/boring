@@ -897,8 +897,10 @@ class RustDecl {
 			case _:
 				types.of(field.type);
 		};
-		final visibility = field.isPublic ? "pub" : "pub(crate)";
-		return ['    $visibility $snake: $typeStr,'];
+		// An instance field stays crate-visible: the generated crate's
+		// only consumers are its own tests, and spec 29 pins the
+		// pub(crate) rendering for function-typed fields.
+		return ['    pub(crate) $snake: $typeStr,'];
 	}
 
 	function staticFuncDecl(cls: ClassType, f: ClassFuncData, firstArg: Int = 0, receiverMethod: Bool = false): Array<String> {

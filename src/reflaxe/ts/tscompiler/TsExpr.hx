@@ -394,6 +394,13 @@ class TsExpr {
 						case TLocal(v) if(v.id == varId): found = true;
 						case _:
 					}
+				// An increment or decrement reassigns the local, so the
+				// declaration needs let even without a plain assignment.
+				case TUnop(OpIncrement, _, t) | TUnop(OpDecrement, _, t):
+					switch(stripCast(t).expr) {
+						case TLocal(v) if(v.id == varId): found = true;
+						case _:
+					}
 				case _:
 			}
 			TypedExprTools.iter(x, walk);
@@ -681,9 +688,19 @@ class TsExpr {
 
 	function loopLines(loop, depth: Int, fold: Null<String>): Array<String> {
 		final name = loop.index.name;
-		final init = "let " + name + " = " + expr(loop.start) + (fold != null ? ", " + fold : "");
+		final boundText = expr(loop.bound);
+		// The string-length pass already hoists reads like x.length into
+		// a plain local, and a constant bound folds to a literal; a bound
+		// whose rendered form carries no member access needs no second
+		// hoist. Hoisting those anyway shadows the existing local with
+		// count = count and trips the temporal dead zone at runtime.
+		final boundNeedsHoist = fold == null && boundText.indexOf(".") >= 0;
+		final init = "let " + name + " = " + expr(loop.start)
+			+ (fold != null ? ", " + fold : "")
+			+ (boundNeedsHoist ? ", count = " + boundText : "");
+		final conditionBound = boundNeedsHoist ? "count" : boundText;
 		final out = [
-			indent(depth) + "for (" + init + "; " + name + " < " + expr(loop.bound) + "; " + name + " += 1) {"
+			indent(depth) + "for (" + init + "; " + name + " < " + conditionBound + "; " + name + " += 1) {"
 		];
 		for(l in blockLines(loop.body, depth + 1)) out.push(l);
 		out.push(indent(depth) + "}");
@@ -1147,6 +1164,8 @@ class TsExpr {
 			case OpNot: return "!" + wrapped;
 			case OpNegBits: return "~" + wrapped;
 			case OpNeg: return "-" + wrapped;
+			case OpIncrement: return wrapped + "++";
+			case OpDecrement: return wrapped + "--";
 			case _: {
 				final infos = Context.getPosInfos(e.pos);
 				return fail(e, "unary operator has no lowering in the subset: " + Std.string(op) + " at " + infos.file + ":" + infos.min);
@@ -1643,6 +1662,15 @@ class TsExpr {
 				}
 				if(name == "sub" && args.length == 2 && isBytes(stripCast(subj))) {
 					return expr(subj) + ".slice(" + expr(args[0]) + ", " + expr(args[0]) + " + " + expr(args[1]) + ")";
+				}
+				if(name == "charCodeAt" && isStringSubject(subj) && args.length == 1) {
+					// stdlib/15: the contract returns null outside the
+					// index range and the null test lowers to a strict
+					// comparison, while JavaScript charCodeAt yields NaN
+					// there. The runtime helper converts the read once,
+					// so no closure lands inside a loop body (features/09).
+					imports.runtime("readUnit");
+					return "readUnit(" + expr(subj) + ", " + expr(args[0]) + ")";
 				}
 				if(name == "substring" && isStringSubject(subj)) {
 					// The haxe typer passes a synthesized null for an
@@ -2366,6 +2394,13 @@ class TsExpr {
 					}
 				}
 			case TBinop(OpAssign, t, _) | TBinop(OpAssignOp(_), t, _):
+				switch(t.expr) {
+					case TLocal(v): mutated.set(v.id, true);
+					case _:
+				}
+			// An increment or decrement reassigns the local, so the
+			// declaration needs let even without a plain assignment.
+			case TUnop(OpIncrement, _, t) | TUnop(OpDecrement, _, t):
 				switch(t.expr) {
 					case TLocal(v): mutated.set(v.id, true);
 					case _:
