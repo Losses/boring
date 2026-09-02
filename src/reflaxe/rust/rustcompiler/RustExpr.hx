@@ -2354,6 +2354,13 @@ class RustExpr {
 		};
 	}
 
+	function borrowedStringLoopItem(e: TypedExpr): Null<TVar> {
+		return switch(stripWrap(e).expr) {
+			case TLocal(v): borrowedLoopVarIds.exists(v.id) && isStringType(v.t) ? v : null;
+			default: null;
+		};
+	}
+
 	function isSortedBuilder(subj: TypedExpr): Bool {
 		return switch(Context.follow(subj.t)) {
 			case TInst(c, _):
@@ -2438,6 +2445,11 @@ class RustExpr {
 			case OpEq | OpNotEq if((isNullType(l.t) && isTNull(r)) || (isNullType(r.t) && isTNull(l))):
 				final nullable = isNullType(l.t) ? l : r;
 				return expr(nullable) + (op == OpEq ? ".is_none()" : ".is_some()");
+			// Borrowed loop items render as references in Rust.
+			case OpEq | OpNotEq if(borrowedStringLoopItem(l) != null || borrowedStringLoopItem(r) != null):
+				final left = borrowedStringLoopItem(l) != null ? "*" + expr(l) : expr(l);
+				final right = borrowedStringLoopItem(r) != null ? "*" + expr(r) : expr(r);
+				return left + " " + symbolOf(op) + " " + right;
 			case OpBoolAnd:
 				final proven = provenNonNullLocal(l);
 				if(proven != null) {
