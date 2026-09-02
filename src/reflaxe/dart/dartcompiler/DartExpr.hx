@@ -533,6 +533,13 @@ class DartExpr {
 						case TLocal(v) if(v.id == varId): found = true;
 						case _:
 					}
+				// An increment or decrement reassigns the local, so the
+				// declaration needs var even without a plain assignment.
+				case TUnop(OpIncrement, _, t) | TUnop(OpDecrement, _, t):
+					switch(stripCast(t).expr) {
+						case TLocal(v) if(v.id == varId): found = true;
+						case _:
+					}
 				case _:
 			}
 			TypedExprTools.iter(x, walk);
@@ -2857,6 +2864,14 @@ class DartExpr {
 							case TLocal(_):
 							case _:
 						}
+					case _:
+				}
+			// An increment or decrement reassigns the local, so the
+			// declaration needs var even without a plain assignment.
+			case TUnop(OpIncrement, _, t) | TUnop(OpDecrement, _, t):
+				switch(t.expr) {
+					case TLocal(v):
+						markMutated(v);
 					case _:
 				}
 			case TCall(fn, _):
