@@ -51,6 +51,8 @@ class RustExpr {
 	final unsignedLocals: Map<Int, Bool> = [];
 	// Locals initialized from charCodeAt are collapsed from Option<u32> to a scalar.
 	final nullableCollapsedLocals: Map<Int, Bool> = [];
+	// Keep Option when Haxe code observes null separately from code point zero.
+	final nullableSensitiveLocals: Map<Int, Bool> = [];
 	final fpInt64Halves: Map<Int, Bool> = [];
 	var hiddenCounter: Int = 0;
 
@@ -255,6 +257,7 @@ class RustExpr {
 		paramVarIds.clear();
 		unsignedLocals.clear();
 		nullableCollapsedLocals.clear();
+		nullableSensitiveLocals.clear();
 		mutated.clear();
 		deferredLocals.clear();
 		for(a in f.args) {
@@ -457,8 +460,10 @@ class RustExpr {
 				initStr = renderValueForType(v.t, init, initStr);
 				switch(stripWrap(init).expr) {
 					case TCall(fn, _) if(isStringCharCodeAt(fn)):
-						initStr += ".unwrap_or(0)";
-						nullableCollapsedLocals.set(v.id, true);
+						if(!nullableSensitiveLocals.exists(v.id)) {
+							initStr += ".unwrap_or(0)";
+							nullableCollapsedLocals.set(v.id, true);
+						}
 					case _:
 				}
 				// A String local owns its value; a literal initializer is
@@ -4006,6 +4011,13 @@ class RustExpr {
 						case _:
 					}
 				}
+			case TBinop(OpEq | OpNotEq, left, right):
+				final local = switch([stripWrap(left).expr, stripWrap(right).expr]) {
+					case [TLocal(v), _] if(isTNull(right) || isZero(right)): v;
+					case [_, TLocal(v)] if(isTNull(left) || isZero(left)): v;
+					case _: null;
+				};
+				if(local != null) nullableSensitiveLocals.set(local.id, true);
 			case TBinop(OpAssign, t, _) | TBinop(OpAssignOp(_), t, _):
 				switch(stripWrap(t).expr) {
 					case TLocal(v):
