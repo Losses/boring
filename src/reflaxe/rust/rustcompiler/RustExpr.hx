@@ -4487,7 +4487,13 @@ class RustExpr {
 						}
 					} else "&";
 					if(isArray && !isTableArg && mutablePositions != null && mutablePositions.indexOf(paramIndex) >= 0) {
-						if(StringTools.startsWith(argStr, "&")) argStr = "&mut " + (StringTools.startsWith(argStr, "&mut ") ? argStr.substr(5) : argStr.substr(1));
+						final borrowedArg = switch(stripWrap(arg).expr) { case TLocal(v): isBorrowedLocal(v); case _: false; };
+						if(borrowedArg) {
+							// An enclosing &mut parameter is already the mutable
+							// reference required by the callee; adding &mut creates
+							// &&mut and attempts to mutate the binding itself.
+							argStr = argStr;
+						} else if(StringTools.startsWith(argStr, "&")) argStr = "&mut " + (StringTools.startsWith(argStr, "&mut ") ? argStr.substr(5) : argStr.substr(1));
 						else argStr = "&mut " + argStr;
 					} else if(!StringTools.startsWith(argStr, "&")) {
 						argStr = prefix + argStr;
