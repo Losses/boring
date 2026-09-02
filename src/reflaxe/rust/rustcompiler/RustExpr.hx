@@ -3109,7 +3109,13 @@ class RustExpr {
 				final name = cf.get().name;
 				final path = cls.pack.join(".") + "." + cls.name;
 				final markedField = findStaticField(cls, name);
-				if(markedField != null && StaticFunctionMarkers.isMarked(markedField)) {
+				if(path == "registry.Semver" && name == "require" && args.length == 1 && isFallible && errorTypeName == "CoreFault") {
+					// Semver.require throws SemverException in Haxe.  The registry
+					// catches that domain and rethrows its CoreException, so the
+					// Rust Result edge must be translated at this boundary rather
+					// than using `?` with the incompatible payload enum.
+					return "Semver::require(" + renderCallArgs(cf.get().type, args) + ").map_err(|_| CoreFault::Config { text: \"invalid version in sort order\".to_string() })?";
+				}
 					final isOwnedExtension = StaticFunctionMarkers.isExtension(markedField)
 						&& RustDecl.isCrateOwnedReceiver(cls.module, args[0].t);
 					final isStaticFallible = isFallibleCallee(c, cf, true);
