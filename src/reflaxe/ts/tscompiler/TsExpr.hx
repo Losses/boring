@@ -1639,6 +1639,15 @@ class TsExpr {
 				if(name == "sub" && args.length == 2 && isBytes(stripCast(subj))) {
 					return expr(subj) + ".slice(" + expr(args[0]) + ", " + expr(args[0]) + " + " + expr(args[1]) + ")";
 				}
+				if(name == "charCodeAt" && isStringSubject(subj) && args.length == 1) {
+					// stdlib/15: the contract returns null outside the
+					// index range and the null test lowers to a strict
+					// comparison, while JavaScript charCodeAt yields NaN
+					// there. The runtime helper converts the read once,
+					// so no closure lands inside a loop body (features/09).
+					imports.runtime("readUnit");
+					return "readUnit(" + expr(subj) + ", " + expr(args[0]) + ")";
+				}
 				if(name == "substring" && isStringSubject(subj)) {
 					// The haxe typer passes a synthesized null for an
 					// omitted ?endIndex; String.prototype.substring
