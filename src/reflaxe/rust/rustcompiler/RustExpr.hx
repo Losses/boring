@@ -4572,9 +4572,7 @@ class RustExpr {
 			final pt = paramIndex < paramTypes.length ? paramTypes[paramIndex] : null;
 			var argStr = renderValueForType(pt, arg, expr(arg));
 			if(paramIndex < paramTypes.length) {
-				if(isNullType(arg.t) && isStringType(getNullInnerType(arg.t)) && isPassByRef(pt)) {
-					argStr = argStr + ".as_deref().unwrap_or(\"\")";
-				} else if(isNullType(pt) && isStringType(getNullInnerType(pt)) && isNullType(arg.t)) {
+				if(isNullType(pt) && isStringType(getNullInnerType(pt)) && isNullType(arg.t)) {
 					argStr = argStr + ".clone()";
 				} else if(isNullType(arg.t) && !isNullType(pt)) {
 					argStr = argStr + ".unwrap()";
