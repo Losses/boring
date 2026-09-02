@@ -3852,7 +3852,7 @@ class RustExpr {
 			if(i < paramTypes.length) {
 				final pt = paramTypes[i];
 				if(isNullType(pt) && isStringType(getNullInnerType(pt)) && isNullType(arg.t)) {
-					out.push(argStr + ".as_deref()");
+					out.push(argStr + ".clone()");
 					continue;
 				}
 				if(isNullType(pt) && !isNullType(arg.t)) {
