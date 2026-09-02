@@ -222,6 +222,79 @@ class PipelineExpander {
 		return [makeTVarStmt(counter, makeIntConst(0, pos), pos), makeTVarStmt(bound, makeArrayLength(arrayExpr, pos), pos), makeIntervalLoop(counter, bound, index, [makeTVarStmt(item, makeArrayRead(arrayExpr, makeLocal(index, pos), elemType, pos), pos)].concat(tail), pos)];
 	}
 
+	/** Rewrite the typer's indexed lowering of an Array `for` loop into the
+	 * counted form with a hoisted bound declaration, so every target renders
+	 * the ruled traversal form and the array length is read once per the
+	 * single-read rule.  The typer lowers `for (item in subject)` over an
+	 * Array subject before the typed pass; a local subject arrives as the
+	 * pair (counter, while) with the length read inline, a non-local subject
+	 * as the triple (counter, subject local, while) with the subject already
+	 * hoisted.  Both shapes are matched here.
+	 */
+	static function expandLoweredArrayIteration(counterStmt:TypedExpr, whileStmt:TypedExpr, subjectStmt:Null<TypedExpr>, usedNames:Map<String, Bool>):Null<Array<TypedExpr>> {
+		var subject:TVar = null;
+		if (subjectStmt != null) {
+			switch (subjectStmt.expr) {
+				case TVar(v, init) if(init != null && StaticFieldHelper.isArrayType(v.t)):
+					subject = v;
+				default: return null;
+			}
+		}
+		var item:TVar = null;
+		var tail:Array<TypedExpr> = null;
+		switch [counterStmt.expr, whileStmt.expr] {
+			case [TVar(counterVar, init), TWhile(cond, loopBody, true)]:
+				if (init == null) return null;
+				switch (init.expr) {
+					case TConst(TInt(0)):
+					default: return null;
+				}
+				switch (stripWrap(cond).expr) {
+					case TBinop(OpLt, {expr: TLocal(c)}, {expr: TField(recv, FInstance(_, _, fl))}):
+						if (c.id != counterVar.id || fl.get().name != "length") return null;
+						switch (recv.expr) {
+							case TLocal(r):
+								if (!StaticFieldHelper.isArrayType(r.t)) return null;
+								if (subject != null && r.id != subject.id) return null;
+								if (subject == null) subject = r;
+							default: return null;
+						}
+					default: return null;
+				}
+				final bodyStmts = switch loopBody.expr { case TBlock(s): s; case _: []; };
+				if (bodyStmts.length < 2) return null;
+				switch(bodyStmts[0].expr) {
+					case TVar(captured, captureInit) if(captureInit != null):
+						switch(stripWrap(captureInit).expr) {
+							case TArray({expr: TLocal(r)}, {expr: TLocal(idx)}) if(r.id == subject.id && idx.id == counterVar.id):
+								item = captured;
+							default: return null;
+						}
+					default: return null;
+				}
+				switch(bodyStmts[1].expr) {
+					case TUnop(OpIncrement, _, {expr: TLocal(c)}) if(c.id == counterVar.id):
+					default: return null;
+				}
+				tail = bodyStmts.slice(2);
+			default: return null;
+		}
+		final pos = whileStmt.pos;
+		final elemType = StaticFieldHelper.arrayElementType(subject.t);
+		if (elemType == null) return null;
+		final subjectRef = makeLocal(subject, pos);
+		final counter = makeTVar(mint("_g", usedNames), Context.getType("Int"), false);
+		final bound = makeTVar(mint("_g1", usedNames), Context.getType("Int"), true);
+		final index = makeTVar(mint("_g_index", usedNames), Context.getType("Int"), true);
+		final itemDecl = makeTVarStmt(item, makeArrayRead(subjectRef, makeLocal(index, pos), elemType, pos), pos);
+		final result:Array<TypedExpr> = [];
+		if (subjectStmt != null) result.push(subjectStmt);
+		result.push(makeTVarStmt(counter, makeIntConst(0, pos), pos));
+		result.push(makeTVarStmt(bound, makeArrayLength(subjectRef, pos), pos));
+		result.push(makeIntervalLoop(counter, bound, index, [itemDecl].concat(tail), pos));
+		return result;
+	}
+
 	static function hoistSwitchSubjects(e:TypedExpr, usedNames:Map<String, Bool>):Void {
 		if (e == null) return;
 		switch (e.expr) {
@@ -413,9 +486,18 @@ class PipelineExpander {
 				continue;
 			}
 			if (i + 1 < stmts.length) {
-				final lowered = expandLoweredReadOnlyIteration(stmts[i], stmts[i + 1], usedNames);
+				var lowered = expandLoweredReadOnlyIteration(stmts[i], stmts[i + 1], usedNames);
+				var consumed = 2;
+				if (lowered == null && i + 2 < stmts.length) {
+					lowered = expandLoweredArrayIteration(stmts[i], stmts[i + 2], stmts[i + 1], usedNames);
+					if (lowered != null) consumed = 3;
+				}
+				if (lowered == null) {
+					lowered = expandLoweredArrayIteration(stmts[i], stmts[i + 1], null, usedNames);
+					consumed = 2;
+				}
 				if (lowered != null) {
-					stmts.splice(i, 2);
+					stmts.splice(i, consumed);
 					for (j in 0...lowered.length) stmts.insert(i + j, lowered[j]);
 					i += lowered.length;
 					continue;
