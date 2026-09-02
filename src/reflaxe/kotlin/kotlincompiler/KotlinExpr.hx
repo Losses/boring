@@ -774,7 +774,9 @@ class KotlinExpr {
 	}
 
 	function loopLines(loop, depth: Int): Array<String> {
-		final name = loop.index.name;
+		// The loop head goes through localName so a Haxe `_` index
+		// keeps the generated name its body references use.
+		final name = localName(loop.index);
 		final startStr = expr(loop.start);
 		final boundStr = loopBound(loop.bound);
 		final out = [
@@ -870,7 +872,7 @@ class KotlinExpr {
 		final arrName = localName(alloc.arr);
 		final boundStr = loopBound(loop.bound);
 		final out: Array<String> = [];
-		out.push(indent(depth) + "val " + arrName + " = Array(" + boundStr + ") { " + loop.index.name + " ->");
+		out.push(indent(depth) + "val " + arrName + " = Array(" + boundStr + ") { " + localName(loop.index) + " ->");
 		final nonStores: Array<TypedExpr> = [];
 		for(s in loop.body) {
 			final store = indexedStoreOf(s);
@@ -1717,6 +1719,8 @@ class KotlinExpr {
 				}
 			case TAbstract(a, _) if(a.get().name == "Float"):
 				inConcat ? value : "(" + value + ").toString().replace(\".0\", \"\")";
+			case TAbstract(a, _) if(a.get().name == "Int" || a.get().name == "Bool"):
+				inConcat ? value : "(" + value + ").toString()";
 			case TAbstract(a, params) if(a.get().module == "std.ReadOnlyArray"):
 				stdStringType(haxe.macro.TypeTools.applyTypeParameters(a.get().type, a.get().params, params), value, inConcat, origin, depth);
 			case TEnum(en, _) if(isParameterlessEnum(en.get())): value + (inConcat ? "" : ".name");
@@ -2232,7 +2236,9 @@ class KotlinExpr {
 	function scanLocals(e: TypedExpr): Void {
 		switch(e.expr) {
 			case TVar(v, init):
-				if(v.name != "`") {
+				// A `_` local lowers to a generated name, so reserving
+				// the raw `_` in usedNames has no emitted name to guard.
+				if(v.name != "`" && v.name != "_") {
 					usedNames.set(v.name, true);
 				}
 				if(init != null) {
@@ -2242,6 +2248,13 @@ class KotlinExpr {
 					}
 				}
 			case TBinop(OpAssign, t, _) | TBinop(OpAssignOp(_), t, _):
+				switch(t.expr) {
+					case TLocal(v): mutated.set(v.id, true);
+					case _:
+				}
+			// An increment or decrement reassigns the local, so the
+			// declaration needs var even without a plain assignment.
+			case TUnop(OpIncrement, _, t) | TUnop(OpDecrement, _, t):
 				switch(t.expr) {
 					case TLocal(v): mutated.set(v.id, true);
 					case _:
@@ -2265,7 +2278,11 @@ class KotlinExpr {
 	}
 
 	function localName(v: TVar): String {
-		if(v.name != "`") {
+		// Kotlin gates a `_` local behind the experimental
+		// UnnamedLocalVariables flag. Haxe treats `_` as a readable
+		// identifier, so it goes through the same generated-name path
+		// as the compiler's ` temporaries.
+		if(v.name != "`" && v.name != "_") {
 			return v.name;
 		}
 		if(hiddenNames.exists(v.id)) {
