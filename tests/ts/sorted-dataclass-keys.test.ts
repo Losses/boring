@@ -39,11 +39,11 @@ describe("sorted dataClass key generated trees", () => {
         PrintedMark.Plain -> 0
     }`);
     expect(read("dart/gen/lib/boring/printed_enum_ops.dart")).toContain(`int PrintedBadgemarkOrder(PrintedMark v) {
-    if (v is PrintedMarkTag) return 2;
-    if (v is PrintedMarkRing) return 1;
-    if (v is PrintedMarkPlain) return 0;
-    return 0;
-  }`);
+  if (v is PrintedMarkTag) return 2;
+  if (v is PrintedMarkRing) return 1;
+  if (v is PrintedMarkPlain) return 0;
+  return 0;
+}`);
     expect(read("rust-gen/src/boring/printed_enum_ops.rs")).toContain(`fn printed_badge_mark_order(v: &PrintedMark) -> i32 {
     match v {
         PrintedMark::Tag { .. } => 2,
