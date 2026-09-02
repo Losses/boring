@@ -810,7 +810,7 @@ class RustExpr {
 				}
 			}
 			if(!endsWithReturn) {
-				out.push(indent(depth) + "Ok(())");
+				out.push(indent(depth) + (currentReturnType != null && !isVoidType(currentReturnType) ? "unreachable!();" : "Ok(())"));
 			}
 		}
 
