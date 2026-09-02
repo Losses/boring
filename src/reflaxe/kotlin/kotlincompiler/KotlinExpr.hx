@@ -1386,6 +1386,15 @@ class KotlinExpr {
 		}
 	}
 
+	function isNullType(t: Null<Type>): Bool {
+		if(t == null) return false;
+		return switch(t) {
+			case TAbstract(a, _): a.get().name == "Null";
+			case TLazy(f): isNullType(f());
+			case _: false;
+		};
+	}
+
 	function isStringType(t: Type): Bool {
 		if(t == null) return false;
 		return switch(Context.follow(t)) {
@@ -1425,7 +1434,11 @@ class KotlinExpr {
 	}
 
 	function operand(e: TypedExpr, parent: Binop, isRight: Bool): String {
-		final rendered = expr(e);
+		var rendered = expr(e);
+		// Nullable Ints are legal operands of equality (including null
+		// tests), but Kotlin's numeric operators require an explicit
+		// extraction after charCodeAt's Null<Int> lowering.
+		if(isNullType(e.t) && parent != OpEq && parent != OpNotEq) rendered += "!!";
 		switch(e.expr) {
 			case TBinop(op, _, _):
 				final cp = precedenceOf(op);

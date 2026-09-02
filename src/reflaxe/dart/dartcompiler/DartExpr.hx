@@ -1158,7 +1158,10 @@ class DartExpr {
 		unless the same associative operator chains.
 	**/
 	function operand(e: TypedExpr, parent: Binop, isRight: Bool): String {
-		final rendered = expr(e);
+		var rendered = expr(e);
+		// Null<Int> is nullable in Dart; numeric operators use the value
+		// only after the explicit bounds result has been accepted.
+		if(isNullLeafType(e.t) && parent != OpEq && parent != OpNotEq) rendered += "!";
 		switch(stripWrap(e).expr) {
 			case TBinop(op, _, _):
 				final cp = precedenceOf(op);
