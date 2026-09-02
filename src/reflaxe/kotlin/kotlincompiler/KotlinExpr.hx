@@ -2061,8 +2061,13 @@ class KotlinExpr {
 						case _: false;
 					};
 					if(endOmitted) {
-						return expr(subj) + ".substring(" + expr(args[0]) + ")";
+						return "run { val _s = " + expr(subj) + "; val _from = " + expr(args[0])
+							+ "; val _start = if (_from < 0) 0 else if (_from > _s.length) _s.length else _from; _s.substring(_start) }";
 					}
+					return "run { val _s = " + expr(subj) + "; val _from = " + expr(args[0]) + "; val _to = " + expr(args[1])
+						+ "; val _start = if (_from < 0) 0 else if (_from > _s.length) _s.length else _from"
+						+ "; val _end = if (_to < 0) 0 else if (_to > _s.length) _s.length else _to"
+						+ "; if (_start > _end) _s.substring(_end, _start) else _s.substring(_start, _end) }";
 				}
 				if(name == "push") {
 					return expr(subj) + ".add(" + renderedArgs + ")";

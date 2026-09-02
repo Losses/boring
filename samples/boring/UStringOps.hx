@@ -63,4 +63,20 @@ class UStringOps {
 	public static function substringLiteral():String {
 		return "tiqian".substring(1, 3);
 	}
+
+	public static function substringNegativeStart():String {
+		return "abcdef".substring(-2, 3);
+	}
+
+	public static function substringLongEnd():String {
+		return "abcdef".substring(2, 20);
+	}
+
+	public static function substringSwappedBounds():String {
+		return "abcdef".substring(5, 2);
+	}
+
+	public static function substringOmittedEnd():String {
+		return "abcdef".substring(-3);
+	}
 }
