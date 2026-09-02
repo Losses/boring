@@ -3366,11 +3366,8 @@ class RustExpr {
 				}
 				final isMethodFallible = isFallibleCallee(c, cf, false);
 				final q = isFallible ? (isMethodFallible ? "?" : "") : (isMethodFallible ? ".unwrap()" : "");
-				// A nullable receiver renders through the same optional
-				// unwrap as a plain field read: the field lowers to an
-				// Option while the method resolves on the inner type.
 				final subjStr = isNullType(subj.t) ? expr(subj) + ".as_ref().unwrap()" : expr(subj);
-				renderCallArgs(cf.get().type, args, null, 0, mutableParamPositions(cf.get()))
+				return subjStr + "." + snake + "(" + renderCallArgs(cf.get().type, args, null, 0, mutableParamPositions(cf.get())) + ")" + q;
 			case TField(_, FStatic(c, cf)):
 				final cls = c.get();
 				final name = cf.get().name;
@@ -4489,7 +4486,10 @@ class RustExpr {
 							case _: "&mut ";
 						}
 					} else "&";
-					if(!StringTools.startsWith(argStr, "&")) {
+					if(isArray && !isTableArg && mutablePositions != null && mutablePositions.indexOf(paramIndex) >= 0) {
+						if(StringTools.startsWith(argStr, "&")) argStr = "&mut " + (StringTools.startsWith(argStr, "&mut ") ? argStr.substr(5) : argStr.substr(1));
+						else argStr = "&mut " + argStr;
+					} else if(!StringTools.startsWith(argStr, "&")) {
 						argStr = prefix + argStr;
 					}
 				} else if(isRecordValueType(arg.t) && switch(stripWrap(arg).expr) { case TLocal(_): true; case _: false; }) {
