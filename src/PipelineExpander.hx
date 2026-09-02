@@ -136,7 +136,165 @@ class PipelineExpander {
 		transformExpr(root, usedNames);
 	}
 
-	/** Hoist enum switch subjects that are evaluated expressions exactly once. */
+	/** Expand Array/ReadOnlyArray element iteration before target lowering.
+	 * This deliberately runs from the typed pass: Intercept has already
+	 * validated the original TFor subject, and therefore Iterator subjects
+	 * remain visible to that check and are not rewritten here.
+	 */
+	static function expandArrayIteration(stmt:TypedExpr, usedNames:Map<String, Bool>):Null<Array<TypedExpr>> {
+		switch (stmt.expr) {
+			case TFor(item, subject, body):
+				// ReadOnlyArray element iteration is typed as the extern
+				// `ReadOnlyArray_Impl_.iterator(array)` call.  Match that
+				// desugared form as well as the direct Array form, and erase
+				// the extern call before target lowering.
+				var arraySubject:Null<TypedExpr> = null;
+				var subjectType:Null<Type> = null;
+				switch (subject.expr) {
+					case TCall({expr: TField(_, FStatic(c, f))}, args) if(args.length == 1 && f.get().name == "iterator"):
+						if (c.get().name == "ReadOnlyArray_Impl_" && StaticFieldHelper.isReadOnlyArrayType(args[0].t)) {
+						arraySubject = stripWrap(args[0]);
+						subjectType = args[0].t;
+						} else return null;
+					case _ if(StaticFieldHelper.isArrayType(subject.t) || StaticFieldHelper.isReadOnlyArrayType(subject.t)):
+						arraySubject = stripWrap(subject);
+						subjectType = subject.t;
+					case _:
+						return null;
+				}
+				final pos = stmt.pos;
+				final elemType = StaticFieldHelper.arrayElementType(subjectType);
+				if (arraySubject == null || elemType == null) return null;
+				var arrayExpr = arraySubject;
+				final prefix:Array<TypedExpr> = [];
+				switch (arraySubject.expr) {
+					case TLocal(_):
+					default:
+						final holder = makeTVar(mint("_g_array", usedNames), subject.t, true);
+						prefix.push(makeTVarStmt(holder, arraySubject, pos));
+						arrayExpr = makeLocal(holder, pos);
+				}
+				final counter = makeTVar(mint("_g", usedNames), Context.getType("Int"), false);
+				final bound = makeTVar(mint("_g1", usedNames), Context.getType("Int"), true);
+				final index = makeTVar(mint("_g_index", usedNames), Context.getType("Int"), true);
+				prefix.push(makeTVarStmt(counter, makeIntConst(0, pos), pos));
+				prefix.push(makeTVarStmt(bound, makeArrayLength(arrayExpr, pos), pos));
+				final itemDecl = makeTVarStmt(item, makeArrayRead(arrayExpr, makeLocal(index, pos), elemType, pos), pos);
+				prefix.push(makeIntervalLoop(counter, bound, index, [itemDecl, body], pos));
+				return prefix;
+			default:
+		}
+		return null;
+	}
+
+	static function expandLoweredReadOnlyIteration(counterStmt:TypedExpr, whileStmt:TypedExpr, usedNames:Map<String, Bool>):Null<Array<TypedExpr>> {
+		var arrayExpr:Null<TypedExpr> = null;
+		var item:TVar = null;
+		var tail:Array<TypedExpr> = null;
+		switch [counterStmt.expr, whileStmt.expr] {
+			case [TVar(iteratorVar, init), TWhile(_, loopBody, true)]:
+				switch (init.expr) {
+					case TCall({expr: TField(_, FStatic(c, f))}, args) if(args.length == 1 && c.get().name == "ReadOnlyArray_Impl_" && f.get().name == "iterator" && StaticFieldHelper.isReadOnlyArrayType(args[0].t)):
+						arrayExpr = stripWrap(args[0]);
+					default: return null;
+				}
+				final bodyStmts = switch loopBody.expr { case TBlock(s): s; case _: []; };
+				if(bodyStmts.length < 2) return null;
+				switch(bodyStmts[0].expr) {
+					case TVar(captured, next) if(next != null):
+						switch(next.expr) {
+							case TCall({expr: TField(_, FInstance(_, _, fa))}, _ ) if(fa.get().name == "next"): item = captured;
+							case TCall({expr: TField(_, FAnon(fa))}, _ ) if(fa.get().name == "next"): item = captured;
+							default: return null;
+						}
+					default: return null;
+				}
+				tail = bodyStmts.slice(1);
+			default: return null;
+		}
+		if (arrayExpr == null || item == null) return null;
+		final pos = counterStmt.pos;
+		final elemType = StaticFieldHelper.arrayElementType(arrayExpr.t);
+		if (elemType == null) return null;
+		final counter = makeTVar(mint("_g", usedNames), Context.getType("Int"), false);
+		final bound = makeTVar(mint("_g1", usedNames), Context.getType("Int"), true);
+		final index = makeTVar(mint("_g_index", usedNames), Context.getType("Int"), true);
+		return [makeTVarStmt(counter, makeIntConst(0, pos), pos), makeTVarStmt(bound, makeArrayLength(arrayExpr, pos), pos), makeIntervalLoop(counter, bound, index, [makeTVarStmt(item, makeArrayRead(arrayExpr, makeLocal(index, pos), elemType, pos), pos)].concat(tail), pos)];
+	}
+
+	/** Rewrite the typer's indexed lowering of an Array `for` loop into the
+	 * counted form with a hoisted bound declaration, so every target renders
+	 * the ruled traversal form and the array length is read once per the
+	 * single-read rule.  The typer lowers `for (item in subject)` over an
+	 * Array subject before the typed pass; a local subject arrives as the
+	 * pair (counter, while) with the length read inline, a non-local subject
+	 * as the triple (counter, subject local, while) with the subject already
+	 * hoisted.  Both shapes are matched here.
+	 */
+	static function expandLoweredArrayIteration(counterStmt:TypedExpr, whileStmt:TypedExpr, subjectStmt:Null<TypedExpr>, usedNames:Map<String, Bool>):Null<Array<TypedExpr>> {
+		var subject:TVar = null;
+		if (subjectStmt != null) {
+			switch (subjectStmt.expr) {
+				case TVar(v, init) if(init != null && StaticFieldHelper.isArrayType(v.t)):
+					subject = v;
+				default: return null;
+			}
+		}
+		var item:TVar = null;
+		var tail:Array<TypedExpr> = null;
+		switch [counterStmt.expr, whileStmt.expr] {
+			case [TVar(counterVar, init), TWhile(cond, loopBody, true)]:
+				if (init == null) return null;
+				switch (init.expr) {
+					case TConst(TInt(0)):
+					default: return null;
+				}
+				switch (stripWrap(cond).expr) {
+					case TBinop(OpLt, {expr: TLocal(c)}, {expr: TField(recv, FInstance(_, _, fl))}):
+						if (c.id != counterVar.id || fl.get().name != "length") return null;
+						switch (recv.expr) {
+							case TLocal(r):
+								if (!StaticFieldHelper.isArrayType(r.t)) return null;
+								if (subject != null && r.id != subject.id) return null;
+								if (subject == null) subject = r;
+							default: return null;
+						}
+					default: return null;
+				}
+				final bodyStmts = switch loopBody.expr { case TBlock(s): s; case _: []; };
+				if (bodyStmts.length < 2) return null;
+				switch(bodyStmts[0].expr) {
+					case TVar(captured, captureInit) if(captureInit != null):
+						switch(stripWrap(captureInit).expr) {
+							case TArray({expr: TLocal(r)}, {expr: TLocal(idx)}) if(r.id == subject.id && idx.id == counterVar.id):
+								item = captured;
+							default: return null;
+						}
+					default: return null;
+				}
+				switch(bodyStmts[1].expr) {
+					case TUnop(OpIncrement, _, {expr: TLocal(c)}) if(c.id == counterVar.id):
+					default: return null;
+				}
+				tail = bodyStmts.slice(2);
+			default: return null;
+		}
+		final pos = whileStmt.pos;
+		final elemType = StaticFieldHelper.arrayElementType(subject.t);
+		if (elemType == null) return null;
+		final subjectRef = makeLocal(subject, pos);
+		final counter = makeTVar(mint("_g", usedNames), Context.getType("Int"), false);
+		final bound = makeTVar(mint("_g1", usedNames), Context.getType("Int"), true);
+		final index = makeTVar(mint("_g_index", usedNames), Context.getType("Int"), true);
+		final itemDecl = makeTVarStmt(item, makeArrayRead(subjectRef, makeLocal(index, pos), elemType, pos), pos);
+		final result:Array<TypedExpr> = [];
+		if (subjectStmt != null) result.push(subjectStmt);
+		result.push(makeTVarStmt(counter, makeIntConst(0, pos), pos));
+		result.push(makeTVarStmt(bound, makeArrayLength(subjectRef, pos), pos));
+		result.push(makeIntervalLoop(counter, bound, index, [itemDecl].concat(tail), pos));
+		return result;
+	}
+
 	static function hoistSwitchSubjects(e:TypedExpr, usedNames:Map<String, Bool>):Void {
 		if (e == null) return;
 		switch (e.expr) {
@@ -325,6 +483,31 @@ class PipelineExpander {
 			final stmt = stmts[i];
 			if (stmt == null) {
 				i++;
+				continue;
+			}
+			if (i + 1 < stmts.length) {
+				var lowered = expandLoweredReadOnlyIteration(stmts[i], stmts[i + 1], usedNames);
+				var consumed = 2;
+				if (lowered == null && i + 2 < stmts.length) {
+					lowered = expandLoweredArrayIteration(stmts[i], stmts[i + 2], stmts[i + 1], usedNames);
+					if (lowered != null) consumed = 3;
+				}
+				if (lowered == null) {
+					lowered = expandLoweredArrayIteration(stmts[i], stmts[i + 1], null, usedNames);
+					consumed = 2;
+				}
+				if (lowered != null) {
+					stmts.splice(i, consumed);
+					for (j in 0...lowered.length) stmts.insert(i + j, lowered[j]);
+					i += lowered.length;
+					continue;
+				}
+			}
+			final iteration = expandArrayIteration(stmt, usedNames);
+			if (iteration != null) {
+				stmts.splice(i, 1);
+				for (j in 0...iteration.length) stmts.insert(i + j, iteration[j]);
+				i += iteration.length;
 				continue;
 			}
 			transformInnerBlocks(stmt, usedNames);

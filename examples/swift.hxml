@@ -121,3 +121,4 @@ tests.NumberParsingTests
 boring.NumberClassifyOps
 tests.NumberClassifyTests
 tests.ArrayRootTests
+boring.ArrayIterationOps
