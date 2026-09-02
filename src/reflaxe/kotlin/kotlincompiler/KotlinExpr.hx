@@ -2650,6 +2650,9 @@ class KotlinExpr {
 			case StructKey(def, _):
 				imports.requireType(def.module, "compare");
 				"::compare";
+			case DataClassKey(cls, _):
+				imports.requireType(cls.module, "compare" + cls.name);
+				"::compare" + cls.name;
 		};
 	}
 
