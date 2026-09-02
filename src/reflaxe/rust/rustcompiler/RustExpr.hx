@@ -3184,7 +3184,7 @@ class RustExpr {
 					return expr(subj) + ".join(" + renderedArgs + ")";
 				}
 				if(name == "addByte") {
-					return expr(subj) + ".add_byte(" + expr(args[0]) + ")";
+					return expr(subj) + ".add_byte((" + expr(args[0]) + ") as u8)";
 				}
 				if(name == "readU16") {
 					// The wire read answers u16 while the Int domain is
