@@ -2431,6 +2431,15 @@ class RustExpr {
 			case OpEq | OpNotEq if((isNullType(l.t) && isTNull(r)) || (isNullType(r.t) && isTNull(l))):
 				final nullable = isNullType(l.t) ? l : r;
 				return expr(nullable) + (op == OpEq ? ".is_none()" : ".is_some()");
+			case OpBoolAnd:
+				final proven = provenNonNullLocal(l);
+				if(proven != null) {
+					provenNonNullVarIds.set(proven.id, true);
+					final right = expr(r);
+					provenNonNullVarIds.remove(proven.id);
+					return expr(l) + " && " + right;
+				}
+				return expr(l) + " && " + expr(r);
 			case OpAssign:
 				final map = mapAssignment(l);
 				if(map != null) {
@@ -4651,6 +4660,13 @@ class RustExpr {
 						argStr = "&(" + argStr + ")";
 					}
 				} else if(isPassByRef(pt)) {
+					final provenString = switch(stripWrap(arg).expr) {
+						case TLocal(v) if(provenNonNullVarIds.exists(v.id) && isNullType(arg.t) && isStringType(pt)): true;
+						case _: false;
+					};
+					if(provenString) {
+						argStr = expr(arg) + ".as_deref().unwrap_or(\"\")";
+					} else {
 					// The mutating faces are arrays and the writer and reader
 					// fronts; every other borrowed parameter reads only.
 					final isArray = switch(Context.follow(pt)) {
@@ -4679,15 +4695,23 @@ class RustExpr {
 					} else if(!StringTools.startsWith(argStr, "&")) {
 						argStr = prefix + argStr;
 					}
+					}
 				} else if(isRecordValueType(arg.t) && switch(stripWrap(arg).expr) { case TLocal(_): true; case _: false; }) {
 					argStr = "(" + argStr + ").clone()";
 				} else if(!isPassByRef(pt) && !isTypeCopy(arg.t) && !StringTools.startsWith(argStr, "&")
 					&& !StringTools.endsWith(argStr, ".clone()") && !StringTools.endsWith(argStr, ".to_vec()")
 					&& !StringTools.endsWith(argStr, ".to_string()")) {
+					final provenEnum = switch(stripWrap(arg).expr) {
+						case TLocal(v) if(provenNonNullVarIds.exists(v.id) && isNullType(arg.t)): true;
+						case _: false;
+					};
+					if(provenEnum) argStr = expr(arg) + ".unwrap()";
+					else {
 					// Haxe call arguments are value semantics. Clone an owned
 					// Rust value when the callee's parameter is not borrowed;
 					// otherwise a later expression can no longer use it.
 					argStr = "(" + argStr + ").clone()";
+					}
 				}
 				// A collection length is usize in Rust while a Haxe Int
 				// function parameter is u32 in business modules. The
