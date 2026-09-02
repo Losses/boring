@@ -1998,10 +1998,8 @@ class RustExpr {
 		}
 		final last = stmts[stmts.length - 1];
 		return switch(last.expr) {
-			case TReturn(_) | TThrow(_) | TVar(_, _) | TIf(_, _, _) | TWhile(_, _, _) | TFor(_, _, _) | TBlock(_) | TBreak | TContinue | TBinop(OpAssignOp(_), _, _):
+			case TReturn(_) | TThrow(_) | TVar(_, _) | TIf(_, _, _) | TWhile(_, _, _) | TFor(_, _, _) | TBlock(_) | TBreak | TContinue | TBinop(OpAssign, _, _) | TBinop(OpAssignOp(_), _, _):
 				null;
-			case TBinop(OpAssign, _, rhs):
-				rhs;
 			case _:
 				isVoidType(last.t) ? null : last;
 		}
@@ -2064,7 +2062,6 @@ class RustExpr {
 		final tail = regionTailValue(statementsOf(body));
 		final valueType = tail != null ? tail.t : null;
 		final out = [indent(depth) + 'let $outcome: Result<' + (valueType == null ? "()" : types.of(valueType)) + ', ' + payload.name + "> = (|| {"];
-
 		for(l in regionClosureLines(body, valueType, payload.name, depth + 1)) out.push(l);
 		out.push(indent(depth) + "})();");
 		out.push(indent(depth) + 'match $outcome {');
