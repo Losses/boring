@@ -97,7 +97,7 @@ class DefaultArgExpander {
 				case FieldType.FFun(fun):
 					final sites:Array<CoalescingSiteInfo> = [];
 					final coalescing = discoverCoalescingDefaults(fun.args, fun.expr, classType, sites);
-					discoverNormalizationBindings(fun.args, fun.expr, classType);
+					discoverNormalizationBindings(fun.args, fun.expr, classType, coalescing);
 					final defaults:Array<Null<DefaultArgValue>> = [];
 					var hasDefault = false;
 					for (argIdx in 0...fun.args.length) {
@@ -183,7 +183,7 @@ class DefaultArgExpander {
 		final classKey = getClassKey(classType);
 		final sites:Array<CoalescingSiteInfo> = [];
 		final coalescing = discoverCoalescingDefaults(func.args, func.expr, classType, sites);
-		discoverNormalizationBindings(func.args, func.expr, classType);
+		discoverNormalizationBindings(func.args, func.expr, classType, coalescing);
 		final defaults:Array<Null<DefaultArgValue>> = [];
 		var hasDefault = false;
 		for (argIdx in 0...func.args.length) {
@@ -212,7 +212,7 @@ class DefaultArgExpander {
 		}
 		rewriteCrossSiteReads(func.expr, sites);
 	}
-	static function discoverNormalizationBindings(args:Array<FunctionArg>, body:Null<Expr>, classType:ClassType):Void {
+	static function discoverNormalizationBindings(args:Array<FunctionArg>, body:Null<Expr>, classType:ClassType, registered:Array<Null<CoalescingDefaultValue>>):Void {
 		if (body == null) return;
 		final names = [for (a in args) a.name];
 		function visit(e:Expr):Void {
@@ -223,7 +223,7 @@ class DefaultArgExpander {
 						if (v.expr == null) continue;
 						final parameter = normalizationParameter(v.expr);
 						final index = parameter == null ? -1 : names.indexOf(parameter);
-						if (index < 0 || !isNullableParameter(args[index])) continue;
+						if (index < 0 || !isNullableParameter(args[index]) || args[index].value != null || registered[index] != null) continue;
 						final m = matchCoalescingExpression(v.expr, parameter, classType, names.slice(0, index), names);
 						if (m != null && parameter != null) {
 							final p = Context.getPosInfos(m.defaultExpr.pos);
@@ -511,17 +511,6 @@ class DefaultArgExpander {
 			}
 		}
 
-		// 5. Constructor invocation: its arguments recurse through the grammar
-		if (cur.expr != null) switch (cur.expr) {
-			case ExprDef.ENew(typePath, callArgs):
-				final classPath = typePath.pack.length == 0 ? typePath.name : typePath.pack.join(".") + "." + typePath.name;
-				if (isCompiledStaticType(classPath)) {
-					final argValues = validateArgList(callArgs, parameterName, earlierNames, allParamNames, classType);
-					if (argValues != null) return CConstructorCall(classPath, argValues);
-				}
-			default:
-		}
-
 		// 6. Instance method call: receiver and args are grammar expressions
 		//    Static call: receiver is a type, args are grammar expressions
 		if (cur.expr != null) {
@@ -647,7 +636,7 @@ class DefaultArgExpander {
 				} else null;
 			case ExprDef.EArrayDecl(values): values.length == 0 ? CEmptyArray : null;
 			case ExprDef.ENew(typePath, params):
-				typePath.pack.length == 0 && typePath.name == "Map" && params.length == 0 ? CEmptyMap : null;
+				(typePath.pack.length == 0 && (typePath.name == "Map" || typePath.name == "StringMap") && params.length == 0) ? CEmptyMap : null;
 			case ExprDef.EField(receiver, fieldName):
 				if (exprToDotted(receiver) == "Math") {
 					if (fieldName == "POSITIVE_INFINITY") return CPositiveInfinity;
