@@ -110,7 +110,7 @@ class KotlinExpr {
 	public function coalescingDefaultText(value: DefaultArgExpander.CoalescingDefaultValue, targetType: Type): String {
 		return switch(value) {
 			case CInt(v): Std.string(v);
-			case CFloat(s): FloatPrecision.isF32() ? (s.indexOf(".") >= 0 ? s : s + ".0") + "f" : s;
+			case CFloat(s): FloatPrecision.isF32() ? ((s.indexOf(".") >= 0 || s.indexOf("e") >= 0 || s.indexOf("E") >= 0) ? s : s + ".0") + "f" : s;
 			case CString(s): quoteString(s);
 			case CBool(b): b ? "true" : "false";
 			case CNull: "null";
@@ -958,7 +958,7 @@ class KotlinExpr {
 					case TInt(v): return Std.string(v);
 					case TFloat(f):
 						final s = Std.string(f);
-						final padded = s.indexOf(".") >= 0 ? s : s + ".0";
+						final padded = (s.indexOf(".") >= 0 || s.indexOf("e") >= 0 || s.indexOf("E") >= 0) ? s : s + ".0";
 						// The f32 configuration marks every literal so its width never
 						// relies on the context's inference (feature spec 23).
 						return FloatPrecision.isF32() ? padded + "f" : s;
@@ -1386,6 +1386,15 @@ class KotlinExpr {
 		}
 	}
 
+	function isNullType(t: Null<Type>): Bool {
+		if(t == null) return false;
+		return switch(t) {
+			case TAbstract(a, _): a.get().name == "Null";
+			case TLazy(f): isNullType(f());
+			case _: false;
+		};
+	}
+
 	function isStringType(t: Type): Bool {
 		if(t == null) return false;
 		return switch(Context.follow(t)) {
@@ -1425,7 +1434,11 @@ class KotlinExpr {
 	}
 
 	function operand(e: TypedExpr, parent: Binop, isRight: Bool): String {
-		final rendered = expr(e);
+		var rendered = expr(e);
+		// Nullable Ints are legal operands of equality (including null
+		// tests), but Kotlin's numeric operators require an explicit
+		// extraction after charCodeAt's Null<Int> lowering.
+		if(isNullType(e.t) && parent != OpEq && parent != OpNotEq) rendered += "!!";
 		switch(e.expr) {
 			case TBinop(op, _, _):
 				final cp = precedenceOf(op);
@@ -1718,7 +1731,11 @@ class KotlinExpr {
 					inConcat ? representation : "(" + representation + ").toString()";
 				}
 			case TAbstract(a, _) if(a.get().name == "Float"):
-				inConcat ? value : "(" + value + ").toString().replace(\".0\", \"\")";
+				if(inConcat) value else {
+					final runtimePackage = RuntimeConfig.requireImportName("module test extern");
+					imports.require(runtimePackage + ".test.TestCore");
+					runtimePackage + ".test.TestCore.formatFloat(" + value + ")";
+				}
 			case TAbstract(a, _) if(a.get().name == "Int" || a.get().name == "Bool"):
 				inConcat ? value : "(" + value + ").toString()";
 			case TAbstract(a, params) if(a.get().module == "std.ReadOnlyArray"):
@@ -1896,7 +1913,7 @@ class KotlinExpr {
 						case "intToString":
 							return "(" + expr(args[0]) + ").toString()";
 						case "floatToString":
-							return "(" + expr(args[0]) + ").toString()";
+							return "(" + expr(args[0]) + ").toString().replace(\"E\", \"e\").replace(\".0e\", \"e\")";
 						case _:
 					}
 				}
@@ -1973,7 +1990,10 @@ class KotlinExpr {
 					return expr(subj) + ".copyOfRange(" + expr(args[0]) + ", " + expr(args[0]) + " + " + expr(args[1]) + ")";
 				}
 				if(name == "charCodeAt" && isString(stripCast(subj))) {
-					return expr(subj) + "[" + expr(args[0]) + "].code";
+					// stdlib/15: capture both operands once, then make the
+					// platform bounds check explicit so the result is Null<Int>.
+					return "run { val _s = " + expr(subj) + "; val _i = " + expr(args[0])
+						+ "; if (_i >= 0 && _i < _s.length) _s[_i].code else null }";
 				}
 				if(name == "substring" && isString(stripCast(subj))) {
 					// The haxe typer passes a synthesized null for an
