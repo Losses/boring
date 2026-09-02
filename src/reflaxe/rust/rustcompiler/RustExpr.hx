@@ -4853,7 +4853,8 @@ class RustExpr {
 	**/
 	function conditionalBranchText(branch: TypedExpr, sibling: TypedExpr, resultType: Null<Type> = null): String {
 		final text = expr(branch);
-		if(resultType != null && isStringType(resultType) && isStringLiteral(branch)) {
+		if(resultType != null && isStringType(resultType)) {
+			if(StringTools.endsWith(text, ".to_string()") || StringTools.endsWith(text, ".clone()")) return text;
 			return text + ".to_string()";
 		}
 		if(!isStringType(branch.t) || !isStringType(sibling.t)) {
