@@ -34,6 +34,11 @@ class SwiftDecl {
 		return imports.usesRuntime();
 	}
 
+	/** Whether this module uses Foundation APIs. */
+	public function usesFoundation(): Bool {
+		return imports.usesFoundation();
+	}
+
 	/** Whether this module references any test-host symbol. */
 	public function usesRuntimeTest(): Bool {
 		return imports.usesRuntimeTest();

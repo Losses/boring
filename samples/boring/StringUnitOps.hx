@@ -18,6 +18,11 @@ class StringUnitOps {
 		return c == 32;
 	}
 
+	public static function codeAtOrFallback(text:String, index:Int):Int {
+		var c:Null<Int> = text.charCodeAt(index);
+		return c == null ? -1 : c;
+	}
+
 	public static function splitCount(text:String):Int {
 		return text.split(".").length;
 	}

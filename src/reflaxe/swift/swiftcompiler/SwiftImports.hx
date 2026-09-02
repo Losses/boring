@@ -13,6 +13,7 @@ import haxe.macro.Context;
 class SwiftImports {
 	public final selfModule: String;
 	public final selfResident: Bool;
+	var needsFoundation: Bool = false;
 	final runtimeNames: Map<String, Bool> = [];
 	final runtimeTestNames: Map<String, Bool> = [];
 
@@ -33,6 +34,15 @@ class SwiftImports {
 			return;
 		}
 		runtimeNames.set(name, true);
+	}
+
+	/** Records use of APIs supplied by Foundation. */
+	public function foundation(): Void {
+		needsFoundation = true;
+	}
+
+	public function usesFoundation(): Bool {
+		return needsFoundation;
 	}
 
 	/** Records a reference to a symbol of the test host entry. */

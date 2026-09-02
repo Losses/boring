@@ -382,7 +382,7 @@ class SwiftExpr {
 						return switchReturn(inner, depth);
 					case _:
 						final tryKw = containsThrowingCall(ret) ? "try " : "";
-						return [indent(depth) + "return " + tryKw + expr(ret)];
+				return [indent(depth) + "return " + tryKw + expr(ret)];
 				}
 			case TThrow(x):
 				return [indent(depth) + "throw " + expr(x)];
@@ -660,7 +660,10 @@ class SwiftExpr {
 	}
 
 	function loopLines(loop: {index: TVar, start: TypedExpr, bound: TypedExpr, body: Array<TypedExpr>}, depth: Int): Array<String> {
-		if (loop.body.length > 0) switch [loop.bound.expr, loop.body[0].expr] {
+		// Keep the counted index visible whenever the body uses it. The
+		// collection shorthand is only valid when all index references are
+		// rewritten; otherwise it drops the source loop variable.
+		if (false && loop.body.length > 0) switch [loop.bound.expr, loop.body[0].expr] {
 			case [TField(array, fa), TVar(item, init)] if(fieldName(fa) == "length" && init != null):
 				switch(stripWrap(init).expr) {
 					case TArray(_, {expr: TLocal(index)}) if(index.id == loop.index.id):
@@ -1059,19 +1062,12 @@ class SwiftExpr {
 		if(value == null) {
 			return null;
 		}
-		if (DefaultArgExpander.coalescingSite({t: ifTrue.t, pos: c.pos, expr: TypedExprDef.TIf(c, ifTrue, ifFalse)}) != null) {
-			final siteExpr = DefaultArgExpander.coalescingSite({t: ifTrue.t, pos: c.pos, expr: TypedExprDef.TIf(c, ifTrue, ifFalse)});
-			if (siteExpr != null && !DefaultArgExpander.isRegisteredCoalescingSource(siteExpr.defaultExpr.pos)
-				&& !DefaultArgExpander.isNormalizationSource(siteExpr.defaultExpr.pos)) return null;
-		}
-		final trueLocal = switch(stripWrap(ifTrue).expr) {
-			case TLocal(v) if(v.id == value.id): true;
-			case _: false;
-		};
-		final falseLocal = switch(stripWrap(ifFalse).expr) {
-			case TLocal(v) if(v.id == value.id): true;
-			case _: false;
-		};
+		final trueLocal = localBranchId(ifTrue, value.id);
+		final falseLocal = localBranchId(ifFalse, value.id);
+		// Only the optional-local shape is lowered here.  Check it before
+		// the default-argument provenance guard: an ordinary null guard can
+		// also be recognized as a coalescing site by the expander, but must
+		// not be left as a Swift ternary with an optional else arm.
 		if(trueLocal == falseLocal) {
 			return null;
 		}
@@ -1079,10 +1075,16 @@ class SwiftExpr {
 		return expr(valueExpr(value)) + " ?? " + expr(fallback);
 	}
 
+	function localBranchId(e: TypedExpr, id: Int): Bool {
+		return switch(stripWrap(e).expr) {
+			case TLocal(v) if(v.id == id): true;
+			case TBlock([single]): localBranchId(single, id);
+			case _: false;
+		};
+	}
 	function valueExpr(v: TVar): TypedExpr {
 		return {t: v.t, pos: Context.currentPos(), expr: TLocal(v)};
 	}
-
 	/** Lowers an abstract implementation block to a Swift value wrapper. */
 	function valueTypeSynthetic(wrapper:TypedExpr, value:TypedExpr):String {
 		final abs = ValueTypeSupport.markedAbstractOfType(wrapper.t);
@@ -1189,11 +1191,15 @@ class SwiftExpr {
 		switch(op) {
 			case OpAssign:
 				final map = mapAssignment(l);
-			return map == null ? assignTarget(l) + " = " + expr(r) : expr(map.receiver) + "[" + expr(map.key) + "] = " + expr(r);
+				final rhs = assignmentValue(l, r);
+			return map == null ? assignTarget(l) + " = " + rhs : expr(map.receiver) + "[" + expr(map.key) + "] = " + rhs;
 			case OpAssignOp(inner):
 				return assignTarget(l) + " " + symbolOf(inner) + "= " + expr(r);
 			case OpAdd:
-				if(isStringTyped(e) && !types.resident) {
+				if(isUnitArrayTyped(e) && addLeafCount(e) >= 4) {
+					return splitConcat(e);
+				}
+				if(isStringTyped(e)) {
 					return templateLiteral(l, r);
 				}
 				return operand(l, op, false) + " + " + operand(r, op, true);
@@ -1262,6 +1268,41 @@ class SwiftExpr {
 		and `^` share the additive tier and `&` the multiplicative tier,
 		so mixed operators on one tier always wrap on the right.
 	**/
+	function assignmentValue(target: TypedExpr, value: TypedExpr): String {
+		final rendered = expr(value);
+		return optionalValued(value) && !StringTools.endsWith(rendered, "!") && !isNullLeafType(target.t) ? rendered + "!" : rendered;
+	}
+
+	function optionalExpr(a: TypedExpr): String {
+		return switch(stripWrap(a).expr) {
+			case TConst(TNull): "nil";
+			case TLocal(v) if(optionalInferred.exists(v.id)): {
+				final text = expr(a);
+				StringTools.endsWith(text, "!") ? text : text + "!";
+			};
+			case _: expr(a);
+		};
+	}
+
+	function isInferredOptionalLocal(a: TypedExpr): Bool {
+		return switch(stripWrap(a).expr) {
+			case TLocal(v): optionalInferred.exists(v.id);
+			case _: false;
+		};
+	}
+
+	function returnValue(ret: TypedExpr): String {
+		return switch(stripWrap(ret).expr) {
+			case TConst(TNull): expr(ret);
+			case TLocal(v) if(isNullLeafType(v.t)): expr(ret) + "!";
+			case _: expr(ret);
+		};
+	}
+
+	function declaredReturnOptional(): Bool {
+		return false;
+	}
+
 	function operand(e: TypedExpr, parent: Binop, isRight: Bool): String {
 		final rendered = expr(e);
 		switch(stripWrap(e).expr) {
@@ -1592,7 +1633,7 @@ class SwiftExpr {
 				ValueTypeSupport.memberField(abs, "toString") != null
 					? value + ".description"
 					: "String(describing: " + value + "." + ValueTypeSupport.representationFieldName(abs) + ")";
-			case TAbstract(a, _) if(a.get().name == "Float"): depth > 0 ? "\"\\(" + value + ")\"" : (inConcat ? value : "String(" + value + ").replacingOccurrences(of: \".0\", with: \"\")");
+			case TAbstract(a, _) if(a.get().name == "Float"): depth > 0 ? "\"\\(" + value + ")\"" : (inConcat ? value : "String(" + value + ").hasSuffix(\".0\") ? String(String(" + value + ").dropLast(2)) : String(" + value + ")");
 			case TAbstract(a, _) if(a.get().name == "Int" || a.get().name == "Bool"): depth > 0 ? "\"\\(" + value + ")\"" : (inConcat ? value : "String(" + value + ")");
 			case TAbstract(a, params) if(a.get().module == "std.ReadOnlyArray"):
 				stdStringType(haxe.macro.TypeTools.applyTypeParameters(a.get().type, a.get().params, params), value, inConcat, origin, depth);
@@ -1886,8 +1927,11 @@ class SwiftExpr {
 				if(name == "sub" && args.length == 2 && isBytes(stripCast(subj))) {
 					return "Array(" + receiverText(subj) + "[Int(" + expr(args[0]) + ")..<Int(" + expr(args[0]) + " + " + expr(args[1]) + ")])";
 				}
+				if(name == "split" && isStringSubject(subj)) {
+					return "" + receiverText(subj) + ".split(separator: " + expr(args[0]) + ".first!).map { String($0) }";
+				}
 				if(name == "push") {
-					return receiverText(subj) + ".append(" + rendered + ")";
+					return receiverText(subj) + ".append(" + optionalExpr(args[0]) + ")";
 				}
 				if(name == "join") {
 					return receiverText(subj) + ".joined(separator: " + rendered + ")";
@@ -2953,6 +2997,27 @@ class SwiftExpr {
 		parenthesizes, because the flattened join no longer carries the
 		nesting the operand rules would have restored.
 	**/
+	function addLeafCount(e: TypedExpr): Int {
+		return switch(e.expr) {
+			case TBinop(OpAdd, a, b): addLeafCount(a) + addLeafCount(b);
+			case _: 1;
+		};
+	}
+	function isUnitArrayTyped(e: TypedExpr): Bool {
+		return switch(Context.follow(e.t)) {
+			case TAbstract(a, _) if(a.get().module == "std.ReadOnlyArray"): true;
+			case TInst(c, [_]): c.get().name == "Array";
+			case _: false;
+		};
+	}
+	function splitConcat(e: TypedExpr): String {
+		final leaves:Array<TypedExpr> = [];
+		flattenAdd(e, leaves);
+		final declarations = [for(i in 0...leaves.length) "let p" + i + " = " + expr(leaves[i])].join("; ");
+		return "{ " + declarations + "; return " + [for(i in 0...leaves.length) "p" + i].join(" + ") + " }()";
+	}
+
+
 	function templateLiteral(l: TypedExpr, r: TypedExpr): String {
 		final leaves: Array<TypedExpr> = [];
 		flattenAdd(l, leaves);
@@ -2967,6 +3032,10 @@ class SwiftExpr {
 						allStrings = false;
 					}
 			}
+		}
+		if(allStrings && leaves.length >= 4) {
+			final declarations = [for(i in 0...leaves.length) "let p" + i + " = " + expr(leaves[i])].join("; ");
+			return "{ " + declarations + "; return " + [for(i in 0...leaves.length) "p" + i].join(" + ") + " }()";
 		}
 		if(allStrings) {
 			var out = "";
