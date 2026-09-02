@@ -67,7 +67,17 @@ class RustType {
 				}
 			case TInst(c, params):
 				final cls = c.get();
-				if(cls.isInterface) {
+				// Exception classes are represented by their payload enum in
+				// Rust.  Keeping the Haxe wrapper name here creates imports for
+				// a type that is intentionally not emitted (and leaves callers
+				// trying to return `SemverException` instead of `SemverFault`).
+				if(RustDecl.isExceptionSubclass(cls) && state.exceptionPayloads.exists(cls.module)) {
+					final payloadModule = state.exceptionPayloads.get(cls.module);
+					final payloadName = payloadModule.split(".").pop();
+					final emittedIn = state.payloadEnumModules.exists(payloadModule) ? state.payloadEnumModules.get(payloadModule) : cls.module;
+					imports.requireType(emittedIn, payloadName);
+					payloadName;
+				} else if(cls.isInterface) {
 					imports.requireType(cls.module, cls.name);
 					"Box<dyn " + cls.name + ">";
 				} else switch(pathOf(cls.pack, cls.name)) {
