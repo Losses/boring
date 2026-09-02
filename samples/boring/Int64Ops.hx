@@ -9,11 +9,13 @@ class Int64Ops {
 	}
 
 	public static function rotate(value:Int64, distance:Int):Int64 {
-		return (value >>> distance) | (value << (64 - distance));
+		return Int64.or(Int64.ushr(value, distance), Int64.shl(value, 64 - distance));
 	}
 
 	public static function bitMix(value:Int64):Int64 {
-		return (value ^ Int64.make(0xAAAAAAAA, 0x55555555)) | (value & Int64.make(0x55555555, 0xAAAAAAAA));
+		final upperMask = Int64.make(0xAAAAAAAA, 0x55555555);
+		final lowerMask = Int64.make(0x55555555, 0xAAAAAAAA);
+		return Int64.or(Int64.xor(value, upperMask), Int64.and(value, lowerMask));
 	}
 
 	public static function high(value:Int64):Int {

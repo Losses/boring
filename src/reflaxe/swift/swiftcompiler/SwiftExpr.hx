@@ -660,7 +660,18 @@ class SwiftExpr {
 	}
 
 	function loopLines(loop: {index: TVar, start: TypedExpr, bound: TypedExpr, body: Array<TypedExpr>}, depth: Int): Array<String> {
-		rangeLoopVars.set(loop.index.id, true);
+		if (loop.body.length > 0) switch [loop.bound.expr, loop.body[0].expr] {
+			case [TField(array, fa), TVar(item, init)] if(fieldName(fa) == "length" && init != null):
+				switch(stripWrap(init).expr) {
+					case TArray(_, {expr: TLocal(index)}) if(index.id == loop.index.id):
+						final out = [indent(depth) + "for " + localName(item) + " in " + expr(array) + " {"];
+						for(l in blockLines(loop.body.slice(1), depth + 1)) out.push(l);
+						out.push(indent(depth) + "}"); return out;
+					default:
+				}
+			default:
+		}
+
 		// A body that never reads the loop variable discards the binding.
 		var readsIndex = false;
 		for(s in loop.body) {
