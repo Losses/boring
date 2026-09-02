@@ -567,7 +567,11 @@ class SwiftDecl {
 			if(!DefaultArgExpander.coalescingReadsParamForParam(cls, f.field.name, a.name)) continue;
 			final defaultText = expr.coalescingDefaultText(coalescing, a.type);
 			// The normalized shadow is assigned once, so keep it immutable.
-			out.push("        let " + a.name + " = " + a.name + " ?? " + defaultText + ";");
+			final keyword = switch(coalescing) {
+				case CParameterRead(_): "var";
+				default: "let";
+			};
+			out.push("        " + keyword + " " + a.name + " = " + a.name + " ?? " + defaultText + ";");
 		}
 		return out;
 	}
