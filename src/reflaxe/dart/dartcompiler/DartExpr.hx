@@ -628,6 +628,19 @@ class DartExpr {
 					continue;
 				}
 			}
+			if(i + 1 < stmts.length) {
+				final loop = intervalShort(stmts[i], stmts[i + 1]);
+				if(loop != null) {
+					final grouped: TypedExpr = {
+						expr: TBlock([stmts[i], stmts[i + 1]]),
+						pos: stmts[i].pos,
+						t: stmts[i + 1].t
+					};
+					out.push(grouped);
+					i += 2;
+					continue;
+				}
+			}
 			out.push(stmts[i]);
 			i += 1;
 		}
