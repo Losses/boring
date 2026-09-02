@@ -8,6 +8,7 @@ enum KeyDomain {
 	IntKey;
 	StringKey;
 	StructKey(def: DefType, fields: Array<ClassField>);
+	DataClassKey(cls: ClassType, fields: Array<ClassField>);
 }
 
 /**
@@ -126,7 +127,7 @@ class TsType {
 	public static function classifyKey(t: Null<Type>, ?pos: haxe.macro.Expr.Position): KeyDomain {
 		if(t == null) {
 			final p = pos != null ? pos : Context.currentPos();
-			Context.error("sorted keyed tables support Int, String, and structure keys in this implementation", p);
+			Context.error("sorted keyed tables support Int, String, structure, and dataClass keys in this implementation", p);
 			return IntKey;
 		}
 		final p = pos != null ? pos : Context.currentPos();
@@ -135,14 +136,19 @@ class TsType {
 				if(a.get().name == "Int") {
 					IntKey;
 				} else {
-					Context.error("sorted keyed tables support Int, String, and structure keys in this implementation", p);
+					Context.error("sorted keyed tables support Int, String, structure, and dataClass keys in this implementation", p);
 					IntKey;
 				}
 			case TInst(c, _):
-				if(c.get().name == "String") {
+				final cls = c.get();
+				if(cls.name == "String") {
 					StringKey;
+				} else if(cls.meta.has(":dataClass")) {
+					final fields = [for(f in cls.fields.get()) if(switch(f.kind) { case FVar(_, _): true; case _: false; }) f];
+					for(f in fields) validateDataClassField(cls, f);
+					DataClassKey(cls, fields);
 				} else {
-					Context.error("sorted keyed tables support Int, String, and structure keys in this implementation", p);
+					Context.error("sorted keyed tables support Int, String, structure, and dataClass keys in this implementation", p);
 					IntKey;
 				}
 			case TType(defRef, _):
@@ -152,7 +158,7 @@ class TsType {
 			case TLazy(f):
 				classifyKey(f(), p);
 			case _:
-				Context.error("sorted keyed tables support Int, String, and structure keys in this implementation", p);
+				Context.error("sorted keyed tables support Int, String, structure, and dataClass keys in this implementation", p);
 				IntKey;
 		}
 	}
@@ -169,9 +175,22 @@ class TsType {
 			case TType(innerDefRef, _):
 				validateStructDef(innerDefRef.get(), pos, visited);
 			case _:
-				Context.error("sorted keyed tables support Int, String, and structure keys in this implementation", pos);
+				Context.error("sorted keyed tables support Int, String, structure, and dataClass keys in this implementation", pos);
 				[];
 		}
+	}
+
+	static function validateDataClassField(cls: ClassType, field: ClassField): Void {
+		if(!isDataClassFieldKey(field.type)) Context.error("dataClass key " + cls.name + " field " + field.name + " has unsupported type " + field.type, field.pos);
+	}
+
+	static function isDataClassFieldKey(t: Type): Bool {
+		return switch(Context.follow(t)) {
+			case TAbstract(a, _): a.get().name == "Int";
+			case TInst(c, _): c.get().name == "String" || c.get().meta.has(":dataClass");
+			case TEnum(_, _): true;
+			case _: false;
+		};
 	}
 
 	static function validateFieldType(t: Type, pos: haxe.macro.Expr.Position, visited: Array<String>): Void {

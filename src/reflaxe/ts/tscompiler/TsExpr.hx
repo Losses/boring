@@ -1785,6 +1785,10 @@ class TsExpr {
 				final cmpName = "compare" + def.name;
 				imports.value(def.module, cmpName);
 				cmpName;
+			case DataClassKey(cls, _):
+				final cmpName = "compare" + cls.name;
+				imports.value(cls.module, cmpName);
+				cmpName;
 		};
 	}
 

@@ -243,7 +243,7 @@ class SwiftType {
 	public static function classifyKey(t: Null<Type>, ?pos: haxe.macro.Expr.Position): SwiftKeyDomain {
 		if(t == null) {
 			final p = pos != null ? pos : Context.currentPos();
-			Context.error("sorted keyed tables support Int, String, and structure keys in this implementation", p);
+			Context.error("sorted keyed tables support Int, String, structure, and dataClass keys in this implementation", p);
 			return SwiftIntKey;
 		}
 		final p = pos != null ? pos : Context.currentPos();
@@ -252,14 +252,17 @@ class SwiftType {
 				if(a.get().name == "Int") {
 					SwiftIntKey;
 				} else {
-					Context.error("sorted keyed tables support Int, String, and structure keys in this implementation", p);
+					Context.error("sorted keyed tables support Int, String, structure, and dataClass keys in this implementation", p);
 					SwiftIntKey;
 				}
 			case TInst(c, _):
-				if(c.get().name == "String") {
+				final cls = c.get();
+				if(cls.name == "String") {
 					SwiftStringKey;
+				} else if(cls.meta.has(":dataClass")) {
+					SwiftIntKey;
 				} else {
-					Context.error("sorted keyed tables support Int, String, and structure keys in this implementation", p);
+					Context.error("sorted keyed tables support Int, String, structure, and dataClass keys in this implementation", p);
 					SwiftIntKey;
 				}
 			case TType(defRef, _):
@@ -269,7 +272,7 @@ class SwiftType {
 			case TLazy(f):
 				classifyKey(f(), p);
 			case _:
-				Context.error("sorted keyed tables support Int, String, and structure keys in this implementation", p);
+				Context.error("sorted keyed tables support Int, String, structure, and dataClass keys in this implementation", p);
 				SwiftIntKey;
 		}
 	}
@@ -286,7 +289,7 @@ class SwiftType {
 			case TType(innerDefRef, _):
 				validateStructDef(innerDefRef.get(), pos, visited);
 			case _:
-				Context.error("sorted keyed tables support Int, String, and structure keys in this implementation", pos);
+				Context.error("sorted keyed tables support Int, String, structure, and dataClass keys in this implementation", pos);
 				[];
 		}
 	}

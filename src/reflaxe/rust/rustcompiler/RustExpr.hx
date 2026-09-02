@@ -1439,6 +1439,10 @@ class RustExpr {
 				final cmpName = "compare_" + RustImports.toSnakeCase(def.name);
 				imports.requireType(def.module, cmpName);
 				"Box::new(" + cmpName + ")";
+			case DataClassKey(cls, _):
+				final cmpName = "compare_" + RustImports.toSnakeCase(cls.name);
+				imports.requireType(cls.module, cmpName);
+				"Box::new(" + cmpName + ")";
 		};
 	}
 
