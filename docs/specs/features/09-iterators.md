@@ -312,3 +312,46 @@ map natively. The closed-list pipeline idioms (`macros/01`, `macros/02`)
 lower to `for` loops with the inline closure body inlined as statements,
 one pass, no intermediate list; `groupBy` (`macros/03`) builds through
 the splay-tree map.
+
+## Amendment filed 2026-09-01: element iteration over statically-Array subjects (status: Planned)
+
+The base ruling rejects every `for (item in subject)` whose subject is not
+an integer range, with the stated reason that its translation would
+require the iterator protocol on the JavaScript target. The
+Haxe-construct section of this same specification records that the Haxe
+compiler lowers a loop whose subject is statically an `Array` to an
+indexed loop on the JavaScript target, so the stated reason does not cover
+that subject class, and the Kotlin ruling above already requires
+`for (item in array)` as the emitted form over arrays. This amendment
+narrows the rejection to the subjects the reason actually covers.
+
+- A `for (item in subject)` loop is sanctioned when the subject's static
+  type is `Array<T>` or `ReadOnlyArray<T>` (`samples/std/ReadOnlyArray.hx`).
+  The loop lowers to the traversal form each target ruling above already
+  selects for arrays: Kotlin `for (item in array)` and Rust
+  `for item in array` as their required forms; TypeScript the indexed loop
+  with the bound read once per the single-read rule; Swift and Dart their
+  ruled element forms.
+- Subjects typed `Iterator<T>`, `Iterable<T>`, or any other non-Array type
+  keep the `V01 IteratorLoop` rejection unchanged: their translation would
+  require the iterator protocol on the JavaScript target.
+- Deciding the subject class needs static types, so the `V01` detection
+  moves to the typed pass (pass 2 of the style standard's interception
+  mechanics): a typed `TFor` whose iteration subject's static type is
+  neither an integer range nor `Array<T>`/`ReadOnlyArray<T>` names `V01`.
+  The untyped pass no longer rejects array-shaped iteration subjects
+  before typing. The mechanics paragraph of the style standard is
+  corrected in the same commit, including its claim that the typer rewrites
+  array loops before typing.
+- The loop body obeys `V08 LoopBodyClosure` and the closure lifecycle rules
+  of this specification unchanged. The pipeline idioms of
+  `docs/specs/macros/01-functional-idiom-expansion.md` keep their own
+  closed list; element iteration is the statement-level form and the two
+  coexist.
+
+Test hooks: sample loops over `Array<T>` and `ReadOnlyArray<T>` subjects
+whose bodies read the item; tree assertions pin each target's emitted form
+of this ruling; the structure test over the TypeScript trees still finds
+index-counter heads, because the TypeScript product stays the indexed
+loop; a mutation iterating a subject typed `Iterable<T>` keeps naming
+`V01`.
