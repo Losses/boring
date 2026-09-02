@@ -304,9 +304,9 @@ class TsExpr {
 
 	function stmtLines(e: TypedExpr, depth: Int): Array<String> {
 		switch(e.expr) {
-			case TVar(v, init) if(isTryRegion(init)):
+			case TVar(v, init) if(init != null && isTryRegion(init)):
 				return tryBindingLines(v, init, depth);
-			case TVar(v, init) if(isStringBufToStringCall(init)):
+			case TVar(v, init) if(init != null && isStringBufToStringCall(init)):
 				return stringBufToStringBindingLines(v, stripWrap(init), depth);
 			case TVar(v, init) if(init != null):
 				final kw = mutated.exists(v.id) ? "let" : "const";
@@ -315,8 +315,8 @@ class TsExpr {
 					default: expr(init);
 				};
 				return [indent(depth) + '$kw ${localName(v)}${localTypeAnnotation(v, cast init)} = $initText;'];
-			case TVar(_, init) if(init == null):
-				return fail(e, "declaration without initializer has no lowering");
+			case TVar(v, init) if(init == null):
+				return [indent(depth) + "let " + localName(v) + ": " + types.of(v.t) + ";"];
 			case TBlock(stmts):
 				return blockLines(stmts, depth);
 			case TIf(c, t, f):
@@ -433,7 +433,7 @@ class TsExpr {
 	}
 
 	function blockLines(stmts: Array<TypedExpr>, depth: Int): Array<String> {
-		stmts = fuseUninitializedVars(stmts);
+		// Preserve deferred declarations; later assignments must remain assignments.
 		stmts = regroupLoops(stmts);
 		final out: Array<String> = [];
 
