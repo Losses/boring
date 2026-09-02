@@ -1664,13 +1664,21 @@ class TsExpr {
 					return expr(subj) + ".slice(" + expr(args[0]) + ", " + expr(args[0]) + " + " + expr(args[1]) + ")";
 				}
 				if(name == "charCodeAt" && isStringSubject(subj) && args.length == 1) {
-					// stdlib/15: the contract returns null outside the
-					// index range and the null test lowers to a strict
-					// comparison, while JavaScript charCodeAt yields NaN
-					// there. The runtime helper converts the read once,
-					// so no closure lands inside a loop body (features/09).
+					// stdlib/15: charCodeAt's NaN sentinel must become null.
+					// A pure subject and index may be rendered twice: both
+					// evaluations have the same value and no observable effect,
+					// so this remains an expression and introduces no closure.
+					// Anything less restricted is evaluated once by readUnit;
+					// an expression-only lowering has no let binding with which
+					// to preserve that guarantee.
+					final subjectText = expr(subj);
+					final indexText = expr(args[0]);
+					if(isPureReadUnitOperand(subj) && isPureReadUnitOperand(args[0])) {
+						return "(Number.isNaN(" + subjectText + ".charCodeAt(" + indexText + ")) ? null : "
+							+ subjectText + ".charCodeAt(" + indexText + "))!";
+					}
 					imports.runtime("readUnit");
-					return "readUnit(" + expr(subj) + ", " + expr(args[0]) + ")";
+					return "readUnit(" + subjectText + ", " + indexText + ")!";
 				}
 				if(name == "substring" && isStringSubject(subj)) {
 					// The haxe typer passes a synthesized null for an
@@ -2586,6 +2594,22 @@ class TsExpr {
 	function isStringSubject(e: TypedExpr): Bool {
 		return switch(Context.follow(stripCast(e).t)) {
 			case TInst(c, _): c.get().name == "String";
+			case _: false;
+		}
+	}
+
+	/**
+		The expression form below reads its operands twice. These are the
+		only operand shapes for which that is semantics-preserving: locals,
+		constants, and a chain of non-mutating field reads. Calls, indexing,
+		constructors, and operators are deliberately not included.
+	**/
+	function isPureReadUnitOperand(e: TypedExpr): Bool {
+		return switch(e.expr) {
+			case TLocal(_): true;
+			case TConst(_): true;
+			case TParenthesis(inner) | TCast(inner, _) | TMeta(_, inner): isPureReadUnitOperand(inner);
+			case TField(subject, _): isPureReadUnitOperand(subject);
 			case _: false;
 		}
 	}
