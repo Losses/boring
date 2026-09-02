@@ -61,7 +61,7 @@ class Core {
  static function compareVersions(a:String,b:String):Int {
   var out:Int=0;
   try { out=Semver.compare(a,b); }
-  catch(e:SemverException) { fail("invalid version in sort order"); return 0; }
+  catch(e:SemverException) { throw new CoreException(Config("invalid version in sort order")); }
   return out;
  }
  static function sortReleases(a:Array<Release>):Void {for(i in 1...a.length){var x=a[i],j=i-1;while(j>=0&&compareVersions(a[j].version,x.version)>0){a[j+1]=a[j];j=j-1;}a[j+1]=x;}}
@@ -86,7 +86,8 @@ class Core {
  }
  static function writeNpm(root:String,a:Array<Release>):Void {var ns=names(a,"npm");for(ni in 0...ns.length){var n=ns[ni],g=group(a,"npm",n),vs:Array<JsonField>=[];for(i in 0...g.length){var r=g[i],f=fields(r),ru=r.url,u:String=ru==null?"":ru;f.push({name:"dist",value:O([{name:"tarball",value:S(u)},{name:"integrity",value:S("sha512-"+r.digest)}])});vs.push({name:r.version,value:O(f)});}emit(root,"npm/"+n.split("/").join("%2f"),Json.write(O([{name:"name",value:S(n)},{name:"dist-tags",value:O([{name:"latest",value:S(latest(g))}])},{name:"versions",value:O(vs)},{name:"readme",value:S(g[0].readme)}])));}}
  static function writePub(root:String,a:Array<Release>):Void {var ns=names(a,"pub");for(ni in 0...ns.length){var n=ns[ni],g=group(a,"pub",n),vs:Array<JsonValue>=[];for(i in 0...g.length){var r=g[i],ru=r.url,u:String=ru==null?"":ru,rpp=r.pubspec;vs.push(O([{name:"version",value:S(r.version)},{name:"archive_url",value:S(u)},{name:"archive_sha256",value:S(r.digest)},{name:"pubspec",value:rpp==null?JNull:rpp}]));}var rev:Array<JsonValue>=[];var vi2=g.length-1;while(vi2>=0){rev.push(vs[vi2]);vi2=vi2-1;}emit(root,"pub/api/packages/"+n,Json.write(O([{name:"name",value:S(n)},{name:"latest",value:S(latest(g))},{name:"versions",value:A(rev)}])));}}
- static function writeCargo(root:String,base:String,a:Array<Release>):Void {emit(root,"cargo/index/config.json",Json.write(O([{name:"dl",value:S(base+"/cargo/dl/{crate}-{version}.crate")}])));var ns=names(a,"cargo");for(ni in 0...ns.length){var n=ns[ni];var g=group(a,"cargo",n),lines:Array<String>=[];for(ri in 0...g.length){var r=g[ri];lines.push(Json.writeCompact(O([{name:"name",value:S(n)},{name:"vers",value:S(r.version)},{name:"deps",value:A([])},{name:"cksum",value:S(r.digest)},{name:"features",value:O([])},{name:"yanked",value:JBool(false)},{name:"v",value:JNumber(2.0)}])));}var path:String=""; if(n.length==1) path="1/"; else if(n.length==2) path="2/"; else if(n.length==3) path="3/"+n.substring(0,1)+"/"; else path=n.substring(0,2)+"/"+n.substring(2,4)+"/";emit(root,"cargo/index/"+path+n,lines.join("\n")+"\n");}}
+ static function cargoPath(n:String):String { if(n.length==1) return "1/"; if(n.length==2) return "2/"; if(n.length==3) return "3/"+n.substring(0,1)+"/"; return n.substring(0,2)+"/"+n.substring(2,4)+"/"; }
+ static function writeCargo(root:String,base:String,a:Array<Release>):Void { emit(root,"cargo/index/config.json",Json.write(O([{name:"dl",value:S(base+"/cargo/dl/{crate}-{version}.crate")}])));var ns=names(a,"cargo");for(ni in 0...ns.length){var n=ns[ni];var g=group(a,"cargo",n),lines:Array<String>=[];for(ri in 0...g.length){var r=g[ri];lines.push(Json.writeCompact(O([{name:"name",value:S(n)},{name:"vers",value:S(r.version)},{name:"deps",value:A([])},{name:"cksum",value:S(r.digest)},{name:"features",value:O([])},{name:"yanked",value:JBool(false)},{name:"v",value:JNumber(2.0)}])));}emit(root,"cargo/index/"+cargoPath(n)+n,lines.join("\n")+"\n");}}
  static function writeSwift(root:String,scope:String,a:Array<Release>):Void {
   var ns=names(a,"swift");
   for(ni in 0...ns.length) { var n=ns[ni],g=group(a,"swift",n),rs:Array<JsonField>=[];
