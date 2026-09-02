@@ -198,10 +198,38 @@ class DartDecl {
 
 		lines.push("}");
 		final classPart = lines.join("\n");
-		return extractedParts.length > 0 ? extractedParts.join("\n\n") + "\n\n" + classPart : classPart;
+		final result = extractedParts.length > 0 ? extractedParts.join("\n\n") + "\n\n" + classPart : classPart;
+		return cls.meta.has(":dataClass") && DartType.canEmitDataClassComparator(cls) ? result + "\n\n" + dataClassComparator(cls) : result;
 	}
 
-	/** Emits a marked abstract as a Dart extension type. */
+	function dataClassComparator(cls: ClassType): String {
+		final lines = ["int compare" + cls.name + "(" + cls.name + " a, " + cls.name + " b) {"];
+		for(f in [for(x in cls.fields.get()) if(switch(x.kind) { case FVar(read, write): !(read.match(AccCall) && write.match(AccNever)); case _: false; }) x]) {
+			switch(Context.follow(f.type)) {
+				case TAbstract(a, _) if(a.get().name == "Int"): lines.push("  if (a." + f.name + " != b." + f.name + ") return a." + f.name + " - b." + f.name + ";");
+				case TInst(c, _) if(c.get().name == "String"): lines.push("  final cmp" + f.name + " = a." + f.name + ".compareTo(b." + f.name + "); if (cmp" + f.name + " != 0) return cmp" + f.name + ";");
+				case TInst(c, _) if(c.get().meta.has(":dataClass")): lines.push("  final cmp" + f.name + " = compare" + c.get().name + "(a." + f.name + ", b." + f.name + "); if (cmp" + f.name + " != 0) return cmp" + f.name + ";");
+				case TEnum(e, _):
+					final en = e.get();
+					final hasPayload = enumHasPayload(en);
+					if(hasPayload) {
+						lines.unshift("int " + cls.name + f.name + "Order(" + en.name + " v) {\n" + [for(ef in en.constructs) "  if (v is " + en.name + ef.name + ") return " + ef.index + ";"].join("\n") + "\n  return 0;\n}");
+						lines.push("  if (" + cls.name + f.name + "Order(a." + f.name + ") != " + cls.name + f.name + "Order(b." + f.name + ")) return " + cls.name + f.name + "Order(a." + f.name + ") - " + cls.name + f.name + "Order(b." + f.name + ");");
+					} else {
+						lines.push("  if (a." + f.name + ".index != b." + f.name + ".index) return a." + f.name + ".index - b." + f.name + ".index;");
+					}
+				case _:
+			}
+		}
+		lines.push("  return 0;"); lines.push("}"); return lines.join("\n");
+	}
+
+	function enumHasPayload(en: EnumType): Bool {
+		for(ef in en.constructs) switch(ef.type) { case TFun(args, _): if(args.length > 0) return true; case _: }
+		return false;
+	}
+
+
 	public function valueTypeDecl(cls: ClassType, info: ValueTypeInfo, varFields: Array<ClassVarData>, funcFields: Array<ClassFuncData>): String {
 		final abs = info.abstractType;
 		final ctor = ValueTypeSupport.constructorField(abs);
