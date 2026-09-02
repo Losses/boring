@@ -3958,16 +3958,6 @@ class RustExpr {
 						}
 					case _:
 				}
-				for(arg in args) {
-					switch(stripWrap(arg).expr) {
-						case TField(subj, FInstance(_, _, _)):
-							switch(stripWrap(subj).expr) {
-							case TLocal(v): mutated.set(v.id, true);
-							case _:
-						}
-						case _:
-					}
-				}
 				final isInstancePush = switch(fn.expr) {
 					case TField(_, FInstance(_, _, cf)) if(cf.get().name == "push"): true;
 					default: false;
