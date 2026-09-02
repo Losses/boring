@@ -1230,6 +1230,7 @@ class RustDecl {
 			}
 			lines.push("        " + (ctorFallible ? "Ok(Self {" : "Self {"));
 			for(a in f.args) {
+				if(!hasInstanceField(cls, a.name)) continue;
 				final sname = RustImports.toSnakeCase(a.name);
 				// A String parameter borrows as &str while the field owns
 				// a String; the initializer converts (feature spec 27).
@@ -1350,6 +1351,16 @@ class RustDecl {
 			case TType(d, _) if(d.get().module == "haxe.io.Bytes"): true;
 			case _: false;
 		};
+	}
+
+	function hasInstanceField(cls: ClassType, name: String): Bool {
+		for(field in cls.fields.get()) {
+			switch(field.kind) {
+				case FVar(_, _) if(field.name == name): return true;
+				case _:
+			}
+		}
+		return false;
 	}
 
 	function hasArg(args: Array<reflaxe.data.ClassFuncArg>, name: String): Bool {
