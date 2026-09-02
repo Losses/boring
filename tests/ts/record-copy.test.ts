@@ -37,7 +37,7 @@ describe("record copy generated tree", () => {
     expect(fs.existsSync(rsFile)).toBe(true);
     const content = fs.readFileSync(rsFile, "utf8");
 
-    expect(content).toContain("return ItemRecord { id: item.id, name: item.name.clone(), score: new_score, active: item.active };");
+    expect(content).toContain("return ItemRecord { id: item.id, name: (item.name).to_string().clone(), score: new_score, active: item.active };");
     expect(content).toContain("return ItemRecord { id: item.id, name: new_name.to_string(), score: item.score, active: new_active };");
     expect(content).toContain("return ItemRecord { id: new_id, name: new_name.to_string(), score: new_score, active: item.active };");
   });

@@ -42,6 +42,7 @@ class RustExpr {
 	/** Catch variables of the region being lowered; features/06 catch-site lowering. */
 	final catchVars: Map<Int, Bool> = [];
 	final mutated: Map<Int, Bool> = [];
+	final deferredLocals: Map<Int, Bool> = [];
 	final usedNames: Map<String, Bool> = [];
 	final hiddenNames: Map<Int, String> = [];
 	final rangeLoopVars: Map<Int, Bool> = [];
@@ -140,7 +141,7 @@ class RustExpr {
 			? DefaultArgExpander.coalescingDefaultForLocalParam(currentClass, currentMethodName, currentLocalName, site == null ? "" : site.parameter)
 			: DefaultArgExpander.coalescingDefaultForParam(currentClass, currentMethodName, site == null ? "" : site.parameter);
 		if(site == null) return null;
-		if(value == null && !DefaultArgExpander.isNormalizationSource(site.defaultExpr.pos)) return null;
+		if(value == null) return null;
 		return site;
 	}
 
@@ -165,7 +166,9 @@ class RustExpr {
 				requireEnum(en.module, en.name);
 				en.name + "::" + enumField.name;
 			case CParameterRead(name): RustImports.toSnakeCase(name);
-			case CInstanceFieldRead(name): "self." + RustImports.toSnakeCase(name);
+			case CInstanceFieldRead(name):
+				final fieldText = "self." + RustImports.toSnakeCase(name);
+				isTypeCopy(targetType) ? fieldText : "(" + fieldText + ").clone()";
 			case CLocalRead(name): RustImports.toSnakeCase(name);
 			case CFieldAccess(CParameterRead(staticPath), ""): coalescingStaticFieldText(staticPath, targetType);
 			case CFieldAccess(receiver, fieldName):
@@ -250,6 +253,7 @@ class RustExpr {
 		paramVarIds.clear();
 		unsignedLocals.clear();
 		mutated.clear();
+		deferredLocals.clear();
 		for(a in f.args) {
 			if(a.tvar != null) paramVarIds.set(a.tvar.id, true);
 		}
@@ -392,9 +396,11 @@ class RustExpr {
 		}
 		final seen: Map<String, Bool> = [];
 		for(site in sites) {
+			if(parameterOrder != null && parameterOrder.indexOf(site.parameter) < 0) continue;
 			final value = currentLocalName != null
 				? DefaultArgExpander.coalescingDefaultForLocalParam(currentClass, currentMethodName, currentLocalName, site.parameter)
 				: DefaultArgExpander.coalescingDefaultForParam(currentClass, currentMethodName, site.parameter);
+			if(value == null) continue;
 			if(seen.exists(site.parameter)) {
 				continue;
 			}
@@ -474,7 +480,8 @@ class RustExpr {
 				return [indent(depth) + '$kw $name$explicitType = $initStr;'];
 			case TVar(v, init) if(init == null):
 				final name = RustImports.toSnakeCase(localName(v));
-				return [indent(depth) + "let mut " + name + ": " + types.of(v.t, false) + ";"];
+				final kw = "let ";
+				return [indent(depth) + kw + name + ": " + types.of(v.t, false) + ";"];
 			case TBlock(stmts):
 				return blockLines(stmts, depth);
 			case TIf(c, t, f):
@@ -520,6 +527,9 @@ class RustExpr {
 				} else {
 					renderValueForType(currentReturnType, ret, expr(ret));
 				};
+				while(StringTools.startsWith(retStr, "(") && StringTools.endsWith(retStr, ")") && matchingParens(retStr)) {
+					retStr = retStr.substr(1, retStr.length - 2);
+				}
 				// A parameter-typed read clones at the boundary: the
 				// element stays owned by its array.
 				if(RustType.isTypeParam(ret.t)) {
@@ -1265,7 +1275,7 @@ class RustExpr {
 			case TField(subj, fa) if(fieldName(fa) == "length"):
 				final enumCollection = EnumQueryExpander.collectionEnum(subj);
 				if(enumCollection != null) return Std.string(EnumQueryExpander.constructorCount(enumCollection));
-				return expr(subj) + ".len()";
+				return rustU32Length(expr(subj) + ".len()");
 			case _:
 				return expr(bound);
 		}
@@ -2280,6 +2290,15 @@ class RustExpr {
 		};
 	}
 
+	function isRecordValueType(t: Type): Bool {
+		return switch(Context.follow(t)) {
+			case TAnonymous(_): true;
+			case TType(d, _): switch(d.get().type) { case TAnonymous(_): true; case _: false; };
+			case TInst(c, _): c.get().meta.has(":dataClass");
+			case _: false;
+			}
+	}
+
 	function isTypeCopy(t: Type): Bool {
 		if(t == null) return false;
 		return switch(Context.follow(t)) {
@@ -2396,7 +2415,7 @@ class RustExpr {
 				final rStr = rightStd != null ? stdString(rightStd, true) : (isNullType(r.t) ? expr(r) + ".as_deref().unwrap_or(\"\")" : expr(r));
 				return "format!(\"{}{}\", " + lStr + ", " + rStr + ")";
 			case OpDiv if(StringTools.endsWith(operand(l, op, false), ".len()")):
-				return "((" + operand(l, op, false) + ") / (" + operand(r, op, true) + " as usize)) as i32";
+				return "((" + operand(l, op, false) + ") / (" + operand(r, op, true) + " as usize)) as u32";
 			case OpMult | OpAdd | OpSub | OpDiv if(isFloatType(e.t)):
 				final real = FloatPrecision.isF32() ? "f32" : "f64";
 				final lStr = if(isIntType(l.t)) "((" + operand(l, op, false) + ") as " + real + ")" else operand(l, op, false);
@@ -2414,7 +2433,9 @@ class RustExpr {
 						return byteExt;
 					}
 				}
-				return operand(l, op, false) + " & " + operand(r, op, true);
+				return (isInt64Type(l.t) || isInt64Type(r.t) ? "(" + expr(l) + ") & (" + expr(r) + ")" : operand(l, op, false) + " & " + operand(r, op, true));
+			case OpOr | OpXor if(isInt64Type(l.t) || isInt64Type(r.t)):
+				return "(" + expr(l) + ") " + symbolOf(op) + " (" + expr(r) + ")";
 			case OpUShr:
 				// The u32 domain makes Rust >> the logical shift; operand()
 				// re-adds grouping parens by precedence, so a bare shift
@@ -2425,7 +2446,9 @@ class RustExpr {
 			case OpSub:
 				return operand(l, op, false) + " - " + operand(r, op, true);
 			case _:
-				return operand(l, op, false) + " " + symbolOf(op) + " " + operand(r, op, true);
+				final left = isInt64Type(l.t) ? "(" + expr(l) + ")" : operand(l, op, false);
+				final right = isInt64Type(r.t) ? "(" + expr(r) + ")" : operand(r, op, true);
+				return left + " " + symbolOf(op) + " " + right;
 		}
 	}
 
@@ -2466,7 +2489,7 @@ class RustExpr {
 			case TBinop(op, _, _):
 				final cp = precedenceOf(op);
 				final pp = precedenceOf(parent);
-				var parens = cp < pp || (cp == pp && isRight && !associative(op));
+				var parens = cp < pp || (cp == pp && (!associative(op) || isRight));
 				return parens ? "(" + rendered + ")" : rendered;
 			case _:
 				return rendered;
@@ -2505,9 +2528,9 @@ class RustExpr {
 						if(isFpHelperInt64Halves(args[0])) expr(args[0]) + ".low" else expr(args[0]) + " as u32";
 					case "add" if(args.length == 2): expr(args[0]) + ".wrapping_add(" + expr(args[1]) + ")";
 					case "sub" if(args.length == 2): expr(args[0]) + ".wrapping_sub(" + expr(args[1]) + ")";
-					case "and" if(args.length == 2): expr(args[0]) + " & " + expr(args[1]);
-					case "or" if(args.length == 2): expr(args[0]) + " | " + expr(args[1]);
-					case "xor" if(args.length == 2): expr(args[0]) + " ^ " + expr(args[1]);
+					case "and" if(args.length == 2): "(" + expr(args[0]) + " & " + expr(args[1]) + ")";
+					case "or" if(args.length == 2): "(" + expr(args[0]) + " | " + expr(args[1]) + ")";
+					case "xor" if(args.length == 2): "(" + expr(args[0]) + " ^ " + expr(args[1]) + ")";
 					case "complement" if(args.length == 1): "!" + expr(args[0]);
 					case "shl" if(args.length == 2): expr(args[0]) + ".wrapping_shl(" + expr(args[1]) + " as u32)";
 					case "shr" if(args.length == 2): expr(args[0]) + ".wrapping_shr(" + expr(args[1]) + " as u32)";
@@ -2598,15 +2621,24 @@ class RustExpr {
 					if(RuntimeResidents.isResident(imports.selfModule)) {
 						return "(" + expr(subj) + ").len() as i32";
 					}
+					if(isString(subj)) {
+						state.shimsUsed.set("std.UStringRT", true);
+						imports.require("crate::runtime::u_string");
+						return "u_string::count(&(" + expr(subj) + "))";
+					}
 					final receiver = expr(subj);
 					final receiverText = StringTools.startsWith(receiver, "&*") ? "(" + receiver + ")" : receiver;
-					return receiverText + ".len()";
+					return receiverText + ".len() as u32";
 				}
 				final snake = RustImports.toSnakeCase(name);
 				final subjStr = if(isNullType(subj.t)) expr(subj) + ".as_ref().unwrap()" else expr(subj);
 				final access = subjStr + "." + snake;
 				if(name != "length" && isConstructedStaticRead(subj) && StaticFieldHelper.isStringType(cf.get().type)) return "(" + access + ").to_string()";
-				return name != "length" && isConstructedStaticRead(subj) && !isTypeCopy(cf.get().type) ? "(" + access + ").clone()" : access;
+				if(name != "length" && isConstructedStaticRead(subj) && !isTypeCopy(cf.get().type)) return "(" + access + ").clone()";
+				if(name != "length" && (isStringType(cf.get().type) || isRecordValueType(cf.get().type))) {
+					return isStringType(cf.get().type) ? "(" + access + ").to_string()" : "(" + access + ").clone()";
+				}
+				return access;
 			case FDynamic(name):
 				if((name == "length" || name == "get_length") && isStringBuf(subj)) {
 					return expr(subj) + ".len() as u32";
@@ -2661,7 +2693,7 @@ class RustExpr {
 	}
 
 	function staticItemPath(cls: ClassType, name: String): String {
-		final itemName = RustImports.toSnakeCase(name);
+		final itemName = RustImports.toScreamingSnakeCase(name);
 		return cls.module == imports.selfModule
 			? itemName
 			: "crate::" + RustImports.moduleToRustPath(cls.module) + "::" + itemName;
@@ -2739,7 +2771,7 @@ class RustExpr {
 	}
 
 	function staticFunctionName(name: String): String {
-		return RustImports.toSnakeCase(name).toUpperCase();
+		return RustImports.toScreamingSnakeCase(name);
 	}
 
 	function staticRef(cls: ClassType, name: String): String {
@@ -2832,10 +2864,7 @@ class RustExpr {
 				for(field in cls.statics.get()) {
 					if(field.name == name && DataTableHelper.isDataTableField(field)) {
 						if(cls.module == imports.selfModule) {
-							return name;
-						} else {
-							imports.requireType(cls.module, name);
-							return name;
+							return RustImports.toScreamingSnakeCase(name);
 						}
 					}
 				}
@@ -2928,8 +2957,9 @@ class RustExpr {
 				ValueTypeSupport.memberField(a.get(), "toString") != null
 					? value + ".to_string()"
 					: value + ".0.to_string()";
-			case TAbstract(a, _) if(a.get().name == "Float"): inConcat ? value : "(" + value + ").to_string()";
-			case TAbstract(a, _) if(a.get().name == "Int" || a.get().name == "Bool"): inConcat ? value : value + ".to_string()";
+			case TAbstract(a, _) if(a.get().name == "Float"):
+				inConcat ? value : "crate::runtime::test_core::TestCore::format_float(" + value + ")";
+			case TAbstract(a, _) if(a.get().name == "Int" || a.get().name == "Bool"): inConcat ? value : "(" + value + ").to_string()";
 			case TAbstract(a, params) if(a.get().module == "std.ReadOnlyArray"):
 				stdStringType(haxe.macro.TypeTools.applyTypeParameters(a.get().type, a.get().params, params), value, inConcat, origin, depth);
 			case TEnum(en, _) if(isParameterlessEnum(en.get())): value + ".name()" + (inConcat ? "" : ".to_string()");
@@ -3132,7 +3162,7 @@ class RustExpr {
 					}
 				}
 				if(name == "get" && isBytes(stripCast(subj))) {
-					return "(" + expr(subj) + "[" + expr(args[0]) + " as usize] as u32)";
+					return "(" + expr(subj) + "[(" + expr(args[0]) + ") as usize] as u32)";
 				}
 				if(name == "set" && args.length == 2 && isBytes(stripCast(subj))) {
 					return expr(subj) + "[" + expr(args[0]) + " as usize] = (" + expr(args[1]) + ") as u8";
@@ -3348,7 +3378,7 @@ class RustExpr {
 					if(isLengthDivision(args[0])) {
 						return "(" + expr(args[0]) + ") as " + (RuntimeResidents.isResident(imports.selfModule) ? "i32" : "u32");
 					}
-					return "(" + expr(args[0]) + ") as i32";
+					return RuntimeResidents.isResident(imports.selfModule) ? "(" + expr(args[0]) + ") as i32" : "(" + expr(args[0]) + ") as u32";
 				}
 				if(cls.pack.length == 0 && cls.name == "String" && name == "fromCharCode") {
 					final value = expr(args[0]);
@@ -3790,8 +3820,14 @@ class RustExpr {
 	}
 
 	function numericAssignmentValue(expected: Type, actual: TypedExpr, rendered: String): String {
-		if(!isIntType(expected) || !isIntType(actual.t)) return rendered;
+		if(!isIntType(expected)) return rendered;
 		final target = types.of(expected, false);
+		if(isNullType(actual.t)) {
+			final castAt = rendered.indexOf(" as ");
+			final base = castAt >= 0 ? rendered.substr(0, castAt) : rendered;
+			return "(" + base + ".unwrap_or(0)) as " + target;
+		}
+		if(!isIntType(actual.t)) return rendered;
 		return target == "u32" || target == "i32" || target == "u8" ? "(" + rendered + ") as " + target : rendered;
 	}
 
@@ -3858,7 +3894,12 @@ class RustExpr {
 	function scanLocals(e: TypedExpr): Void {
 		switch(e.expr) {
 			case TVar(v, init):
-				if(v.name != "`") {
+				if(v.name != "`" && init == null) {
+					// Deferred locals are assigned by control flow below; only
+					// mark them mutable when scanLocals observes such an assignment.
+					usedNames.set(v.name, true);
+					deferredLocals.set(v.id, true);
+				} else if(v.name != "`") {
 					usedNames.set(v.name, true);
 				}
 				if(init != null) {
@@ -3880,7 +3921,7 @@ class RustExpr {
 					}
 				}
 			case TBinop(OpAssign, t, _) | TBinop(OpAssignOp(_), t, _):
-				switch(t.expr) {
+				switch(stripWrap(t).expr) {
 					case TLocal(v):
 						mutated.set(v.id, true);
 					case TArray(arr, _):
@@ -3937,22 +3978,14 @@ class RustExpr {
 						case TFun(pargs, _): [for(p in pargs) p.t];
 						default: [];
 					};
-					for(i in 0...args.length) {
-						if(i < paramTypes.length) {
-							if(isPassByRef(paramTypes[i])) {
-								final isArray = switch(Context.follow(paramTypes[i])) {
-									case TInst(c, _) if(c.get().name == "Array"): true;
-									default: false;
-								};
-								if(isArray) {
-									switch(stripWrap(args[i]).expr) {
-										case TLocal(v):
-											mutated.set(v.id, true);
-										default:
-									}
-								}
+					for(i in 0...args.length) if(i < paramTypes.length && isPassByRef(paramTypes[i])) switch(Context.follow(paramTypes[i])) {
+						case TInst(c, _) if(c.get().name == "Array"):
+							switch(stripWrap(args[i]).expr) {
+								case TField(subj, _): switch(stripWrap(subj).expr) { case TLocal(v): mutated.set(v.id, true); case _: }
+								case TLocal(v): mutated.set(v.id, true);
+								default:
 							}
-						}
+						default:
 					}
 				}
 			case _:
@@ -4254,9 +4287,9 @@ class RustExpr {
 		final elems = [];
 		for(i in 0...n) {
 			if(i == 0) {
-				elems.push(bufStr + "[" + baseStr + "]");
+				elems.push(bufStr + "[" + baseStr + " as usize]");
 			} else {
-				elems.push(bufStr + "[" + baseStr + " + " + i + "]");
+				elems.push(bufStr + "[(" + baseStr + " + " + i + ") as usize]");
 			}
 		}
 		return typeName + "::from_be_bytes([" + elems.join(", ") + "])";
@@ -4340,7 +4373,7 @@ class RustExpr {
 
 	function renderValueForType(expected: Null<Type>, actual: TypedExpr, rendered: String): String {
 		if(expected == null || actual == null) return rendered;
-		// Rust represents an interface value as an owned trait object. A
+		// Rust represents
 		// concrete implementor therefore enters an interface slot through
 		// the one sanctioned Box::new construction; an expression already
 		// typed as the interface is already boxed by its declaration site.
@@ -4420,10 +4453,17 @@ class RustExpr {
 						case TField(_, FStatic(_, tableField)): DataTableHelper.isDataTableField(tableField.get());
 						case _: false;
 					};
-					final prefix = isArray && !isTableArg ? "&mut " : "&";
+					final prefix = if(isArray && !isTableArg) {
+						switch(stripWrap(arg).expr) {
+							case TLocal(v) if(isBorrowedLocal(v)): "&mut *";
+							case _: "&mut ";
+						}
+					} else "&";
 					if(!StringTools.startsWith(argStr, "&")) {
 						argStr = prefix + argStr;
 					}
+				} else if(isRecordValueType(arg.t) && switch(stripWrap(arg).expr) { case TLocal(_): true; case _: false; }) {
+					argStr = "(" + argStr + ").clone()";
 				}
 				// A collection length is usize in Rust while a Haxe Int
 				// function parameter is u32 in business modules. The
@@ -4449,7 +4489,8 @@ class RustExpr {
 	function isUsizeExpr(e: TypedExpr): Bool {
 		if(e == null) return false;
 		return switch(stripWrap(e).expr) {
-			case TField(subj, fa) if(fieldName(fa) == "length" || fieldName(fa) == "get_length"): staticGuardOf(subj) == null && !isStringBuf(subj);
+			case TField(subj, fa) if(fieldName(fa) == "length" || fieldName(fa) == "get_length"):
+				return false;
 			case TBinop(OpAdd | OpSub | OpMult | OpDiv, l, r): isUsizeExpr(l) || isUsizeExpr(r);
 			default: false;
 		};
@@ -4611,6 +4652,11 @@ class RustExpr {
 			case TAbstract(a, params) if(a.get().name == "Null"): params[0];
 			case _: t;
 		};
+	}
+
+	function isInt64Type(t: Type): Bool {
+		if(t == null) return false;
+		return StringTools.contains(Std.string(Context.follow(t)), "Int64");
 	}
 
 	function isFloatType(t: Type): Bool {

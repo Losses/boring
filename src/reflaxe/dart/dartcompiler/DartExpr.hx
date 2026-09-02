@@ -741,7 +741,33 @@ class DartExpr {
 	}
 
 	function loopLines(loop: {index: TVar, start: TypedExpr, bound: TypedExpr, body: Array<TypedExpr>}, depth: Int): Array<String> {
-		// A body that never reads the loop variable discards the binding.
+		if (loop.body.length > 0) switch [loop.bound.expr, loop.body[0].expr] {
+			case [TField(array, fa), TVar(item, init)] if(fieldName(fa) == "length" && init != null):
+				switch(stripWrap(init).expr) {
+					case TArray(_, {expr: TLocal(index)}) if(index.id == loop.index.id):
+						// The element loop iterates from index 0 and drops the
+						// index binding, so it is valid only when the counter
+						// starts at zero and the remaining body never reads
+						// the counter.
+						if (switch(loop.start.expr) { case TConst(TInt(0)): true; case _: false; }) {
+							var readsIndex = false;
+							for(s in loop.body.slice(1)) {
+								if(mentionsLocal(s, loop.index)) {
+									readsIndex = true;
+									break;
+								}
+							}
+							if(!readsIndex) {
+								final out = [indent(depth) + "for (var " + localName(item) + " in " + expr(array) + ") {"];
+								for(l in blockLines(loop.body.slice(1), depth + 1)) out.push(l);
+								out.push(indent(depth) + "}"); return out;
+							}
+						}
+					default:
+				}
+			default:
+		}
+
 		var readsIndex = false;
 		for(s in loop.body) {
 			if(mentionsLocal(s, loop.index)) {
