@@ -2269,17 +2269,18 @@ class RustExpr {
 		if(sawReturn) {
 			return [fail(e, "return inside a value arm lowers at statement position only")];
 		}
-		if(value == null) {
-			return [fail(e, "variant switch arm has no value")];
+		var valueText = value;
+		if(value != null && isStringType(e.t) && isStringLiteral(e)) {
+			valueText = value + ".to_string()";
 		}
 		if(decls.length == 0) {
-			return [value];
+			return [valueText];
 		}
 		final out = ["{"];
 		for(d in decls) {
 			out.push("    " + d);
 		}
-		out.push("    " + value);
+		out.push("    " + valueText);
 		out.push("}");
 		return out;
 	}
@@ -3235,7 +3236,7 @@ class RustExpr {
 						case _:
 					}
 					final nullableResult = callRet != null && isNullType(callRet);
-					return "u_string::at(&" + expr(subj) + ", (" + expr(args[0]) + ") as u32)";
+					return nullableResult ? "u_string::at(&" + expr(subj) + ", (" + expr(args[0]) + ") as u32)" : "u_string::at(&" + expr(subj) + ", (" + expr(args[0]) + ") as u32).unwrap_or(0)";
 				}
 				if(name == "split" && isString(stripCast(subj)) && args.length == 1) {
 					state.shimsUsed.set("std.UStringRT", true);
@@ -4355,9 +4356,9 @@ class RustExpr {
 		final elems = [];
 		for(i in 0...n) {
 			if(i == 0) {
-				elems.push(bufStr + "[" + baseStr + " as usize]");
+				elems.push("(" + bufStr + "[" + baseStr + " as usize] as u8)");
 			} else {
-				elems.push(bufStr + "[(" + baseStr + " + " + i + ") as usize]");
+				elems.push("(" + bufStr + "[(" + baseStr + " + " + i + ") as usize] as u8)");
 			}
 		}
 		return typeName + "::from_be_bytes([" + elems.join(", ") + "])";
@@ -4498,7 +4499,7 @@ class RustExpr {
 			var argStr = renderValueForType(pt, arg, expr(arg));
 			if(paramIndex < paramTypes.length) {
 				if(isNullType(pt) && isStringType(getNullInnerType(pt)) && isNullType(arg.t)) {
-					argStr = argStr + ".as_deref()";
+					argStr = argStr + ".clone()";
 				} else if(isNullType(pt) && !isNullType(arg.t)) {
 					if(argStr == "None") {
 						// already None
