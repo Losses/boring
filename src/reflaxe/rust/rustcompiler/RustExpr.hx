@@ -1207,8 +1207,9 @@ class RustExpr {
 						n == "Int" || n == "Bool" || n == "Float";
 					default: false;
 				};
+				// A name-keyed lookup is valid only for current-function parameters because argTypes accumulates across functions.
 				final argType = switch(stripWrap(sliceSubj).expr) {
-					case TLocal(v): argTypes.get(v.name);
+					case TLocal(v): paramVarIds.exists(v.id) ? argTypes.get(v.name) : null;
 					default: null;
 					};
 				// A scalar loop over an owned local array borrows the array: the
