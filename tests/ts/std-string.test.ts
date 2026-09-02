@@ -51,7 +51,7 @@ describe("Std.string lowering", () => {
 
   test("Rust standalone scalars use to_string", () => {
     const content = fs.readFileSync(path.join(root, "reference/rust-gen/src/boring/std_string_ops.rs"), "utf8");
-    expect(content).toContain("pub fn int_value(value: u32) -> String {\n        return value.to_string();");
+    expect(content).toContain("pub fn int_value(value: u32) -> String {\n        return (value).to_string();");
   });
 
   test("array operands use one single-pass builder in every target", () => {
