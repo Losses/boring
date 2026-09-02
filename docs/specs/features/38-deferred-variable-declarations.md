@@ -45,13 +45,13 @@ subset performs no dominance analysis of its own.
    fields follow features/27.
 2. The declaration lowers to each target's deferred-declaration form, and
    the later assignments render as plain assignments to the declared name:
-   - Kotlin: `var x: T` — kotlinc definite-assignment analysis rejects a
+   - Kotlin: `var x: T`. Kotlinc definite-assignment analysis rejects a
      use before assignment. The declaration emits `var` in every case,
      because the later assignment marks the binding mutated.
-   - TypeScript: `let x: T;` — strict mode rejects a use before assignment.
-   - Swift: `var x: T` — definite initialization enforced by swiftc.
-   - Dart: `T x;` — flow analysis enforced by the analyzer.
-   - Rust: `let mut x: T;` — deferred initialization enforced by rustc.
+   - TypeScript: `let x: T;`. Strict mode rejects a use before assignment.
+   - Swift: `var x: T`. Swiftc enforces definite initialization.
+   - Dart: `T x;`. The analyzer enforces flow analysis.
+   - Rust: `let mut x: T;`. Rustc enforces deferred initialization.
    - Haxe stage 1: the plain Haxe statement; sanctioned bodies assign
      before every read, so the stage-1 compiler observes no uninitialized
      read.
@@ -62,7 +62,7 @@ subset performs no dominance analysis of its own.
    Swift, Dart, and Rust expression lowerers are audited in the same
    change, and any guard with the same shape gains the same null check.
 4. The construct adds no rejection row: it moves from a crash to a
-   sanctioned form. A read not dominated by an assignment surfaces as the
+   sanctioned form. A read not dominated by an assignment appears as the
    target compiler's own error during the tree build of the verification
    run; the mutation hook pins this for Kotlin.
 

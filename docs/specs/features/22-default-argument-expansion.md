@@ -422,8 +422,8 @@ other coalescing shape.
 ## Amendment filed 2026-09-02: instance fields and earlier locals as normalization-binding leaves
 
 The Stage C leaf set is Stage A's closed-value leaves plus earlier
-parameters, and the engine port corpus holds Kotlin originals this set
-does not cover. `PunctuationModel.kt` line 283 registers
+parameters, and the set of Kotlin source files read by the engine port
+includes cases that the Stage C leaf set does not cover. `PunctuationModel.kt` line 283 registers
 `gluePlacement: PunctuationGluePlacement = this.gluePlacement`, a default
 argument reading an instance field, whose Haxe side is the normalization
 binding `PunctuationModel.hx` line 258 with `E` reading the corresponding

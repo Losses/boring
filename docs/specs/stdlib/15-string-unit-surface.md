@@ -57,10 +57,10 @@ targets already lower.
    once the sample suite proves the Contract on that target; a
    divergence found by the suite is a defect this specification rules
    against and the target fixes its rendering in the same change.
-3. The Rust length rendering and its sample rows land in the value
-   semantics lane (feature spec 38); this specification rules the
-   behavior and the rendering, and the samples of this lane cover
-   `charCodeAt` and `split`.
+3. The Rust length rendering and its sample rows appear in the value
+   semantics specification (feature spec 38); this specification rules the
+   behavior and the rendering, and its samples cover `charCodeAt` and
+   `split`.
 
 ## Samples and tests
 
