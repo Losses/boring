@@ -19,6 +19,7 @@
 boring.BinaryReader
 boring.BinaryWriter
 boring.Int64Ops
+boring.ValuePassingOps
 boring.BytesOps
 haxe.crypto.Sha256
 boring.Fp32
@@ -47,6 +48,7 @@ runtime.SortedTable
 runtime.TestCore
 tests.TestData
 tests.Int64Tests
+tests.ValuePassingTests
 tests.BytesTests
 tests.Sha256Tests
 tests.VectorCodecTests
