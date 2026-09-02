@@ -87,6 +87,7 @@ tests.EnumQueriesTests
 tests.EnumQueriesProbes
 boring.StdStringOps
 tests.StdStringTests
+tests.StdStringTests
 boring.StringConvOps
 tests.StringConvTests
 boring.FileLevelOps
