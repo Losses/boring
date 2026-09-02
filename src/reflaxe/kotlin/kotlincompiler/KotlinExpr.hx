@@ -1439,11 +1439,18 @@ class KotlinExpr {
 		};
 	}
 
+	function int64LongOperand(e: TypedExpr): String {
+		return switch(stripWrap(e).expr) {
+			case TConst(TInt(value)): Std.string(value) + "L";
+			case _: "(" + expr(e) + ").toLong()";
+		};
+	}
+
 	function int64Call(fn:TypedExpr, args:Array<TypedExpr>):Null<String> {
 		return switch(stripWrap(fn).expr) {
 			case TField(_, FStatic(classRef, fieldRef)) if(classRef.get().module == "haxe.Int64" && classRef.get().name == "Int64_Impl_"):
 				switch(fieldRef.get().name) {
-					case "make" if(args.length == 2): "((" + expr(args[0]) + ".toLong() shl 32) or (" + expr(args[1]) + ".toLong() and 0xFFFFFFFFL))";
+					case "make" if(args.length == 2): "((" + int64LongOperand(args[0]) + " shl 32) or (" + int64LongOperand(args[1]) + " and 0xFFFFFFFFL))";
 					case "ofInt" if(args.length == 1): expr(args[0]) + ".toLong()";
 					case "getHigh" | "get_high" if(args.length == 1): if(isFpHelperInt64Halves(args[0])) expr(args[0]) + ".high" else "(" + expr(args[0]) + " shr 32).toInt()";
 					case "getLow" | "get_low" if(args.length == 1): if(isFpHelperInt64Halves(args[0])) expr(args[0]) + ".low" else expr(args[0]) + ".toInt()";
