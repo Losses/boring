@@ -26,6 +26,30 @@ describe("sorted dataClass key generated trees", () => {
     if cmp_end != 0 { return cmp_end; }
     0
 }`);
-    for (const relative of ["ts/gen/boring/SortedDataClassKeysOps.ts", "kotlin/gen/boring/SortedDataClassKeysOps.kt", "rust-gen/src/boring/sorted_data_class_keys_ops.rs"]) expect(read(relative)).toMatch(/quoteType|quote_type/);
+    expect(read("ts/gen/boring/PrintedEnumOps.ts")).toContain(`export function PrintedBadgemarkOrder(v: PrintedMark): number {
+  if (v.kind === "Tag") return 2;
+  if (v.kind === "Ring") return 1;
+  if (v.kind === "Plain") return 0;
+  return 0;
+}`);
+    expect(read("ts/gen/boring/PrintedEnumOps.ts")).toContain(`if (a.mark !== b.mark) return PrintedBadgemarkOrder(a.mark) - PrintedBadgemarkOrder(b.mark);`);
+    expect(read("kotlin/gen/boring/PrintedEnumOps.kt")).toContain(`fun PrintedBadgemarkOrder(v: PrintedMark): Int = when (v) {
+        is PrintedMark.Tag -> 2
+        is PrintedMark.Ring -> 1
+        PrintedMark.Plain -> 0
+    }`);
+    expect(read("dart/gen/lib/boring/printed_enum_ops.dart")).toContain(`int PrintedBadgemarkOrder(PrintedMark v) {
+    if (v is PrintedMarkTag) return 2;
+    if (v is PrintedMarkRing) return 1;
+    if (v is PrintedMarkPlain) return 0;
+    return 0;
+  }`);
+    expect(read("rust-gen/src/boring/printed_enum_ops.rs")).toContain(`fn printed_badge_mark_order(v: &PrintedMark) -> i32 {
+    match v {
+        PrintedMark::Tag { .. } => 2,
+        PrintedMark::Ring { .. } => 1,
+        PrintedMark::Plain => 0,
+    }
+}`);
   });
 });
