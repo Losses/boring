@@ -494,8 +494,7 @@ class SwiftExpr {
 	}
 
 	function blockLines(stmts: Array<TypedExpr>, depth: Int): Array<String> {
-		// Preserve deferred declarations; later assignments must remain assignments.
-		stmts = regroupLoops(stmts);
+		stmts = fuseUninitializedVars(stmts);
 		final out: Array<String> = [];
 		var i = 0;
 		while(i < stmts.length) {

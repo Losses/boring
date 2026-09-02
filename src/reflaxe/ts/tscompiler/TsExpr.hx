@@ -433,8 +433,7 @@ class TsExpr {
 	}
 
 	function blockLines(stmts: Array<TypedExpr>, depth: Int): Array<String> {
-		// Preserve deferred declarations; later assignments must remain assignments.
-		stmts = regroupLoops(stmts);
+		stmts = fuseUninitializedVars(stmts);
 		final out: Array<String> = [];
 
 		// features/09 LengthHoist: counted loops whose bound reads
