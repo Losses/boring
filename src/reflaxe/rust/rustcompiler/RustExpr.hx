@@ -1191,8 +1191,6 @@ class RustExpr {
 				// A scalar loop over an owned local array borrows the array: the
 				// pattern takes a reference and the array stays usable after the
 				// loop. Parameters already arrive as rendered references.
-				final itemMutated = mutated.exists(itemVar.id) || localAssigned(loop.body, itemVar);
-				if(itemMutated) mutated.set(itemVar.id, true);
 				final ownedLocal = isScalar && argType == null;
 				final pattern = if(isScalar) {
 					if(argType != null) {
@@ -1201,10 +1199,10 @@ class RustExpr {
 						"&" + itemName;
 					}
 				} else {
-					(itemMutated ? "mut " : "") + itemName;
+					itemName;
 				};
 				final subjectText = expr(sliceSubj);
-				final iterated = if(ownedLocal) (itemMutated ? "&mut " : "&") + (StringTools.startsWith(subjectText, "&") ? subjectText.substr(1) : subjectText) else subjectText;
+				final iterated = ownedLocal && !StringTools.startsWith(subjectText, "&") ? "&" + subjectText : subjectText;
 				switch(Context.follow(itemVar.t)) {
 					case TAbstract(a, _) if(a.get().name == "Int"):
 						// Array elements reach Rust as u32; remember the loop binding
@@ -4111,19 +4109,6 @@ class RustExpr {
 		TypedExprTools.iter(e, scanLocals);
 	}
 
-	function localAssigned(body: Array<TypedExpr>, v: TVar): Bool {
-		var found = false;
-		function walk(e: TypedExpr): Void {
-			switch(e.expr) {
-				case TBinop(OpAssign, target, _) | TBinop(OpAssignOp(_), target, _):
-					switch(stripWrap(target).expr) { case TLocal(x) if(x.id == v.id): found = true; case _: }
-				case _: 
-			}
-			TypedExprTools.iter(e, walk);
-		}
-		for(e in body) walk(e);
-		return found;
-	}
 	function collectTryAssignments(e: TypedExpr): Void {
 		function walk(x: TypedExpr): Void {
 			switch(x.expr) {
