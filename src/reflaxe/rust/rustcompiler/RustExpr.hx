@@ -585,6 +585,8 @@ class RustExpr {
 					retStr = "Some(" + retStr + ")";
 				}
 				if(isFallible) {
+					final guard = staticGuardOf(ret);
+					if(guard != null) retStr = "(" + guard + ").clone()";
 					return [indent(depth) + "return Ok(" + retStr + ");"];
 				}
 				return [indent(depth) + "return " + retStr + ";"];
