@@ -1973,7 +1973,10 @@ class KotlinExpr {
 					return expr(subj) + ".copyOfRange(" + expr(args[0]) + ", " + expr(args[0]) + " + " + expr(args[1]) + ")";
 				}
 				if(name == "charCodeAt" && isString(stripCast(subj))) {
-					return expr(subj) + "[" + expr(args[0]) + "].code";
+					// stdlib/15: capture both operands once, then make the
+					// platform bounds check explicit so the result is Null<Int>.
+					return "run { val _s = " + expr(subj) + "; val _i = " + expr(args[0])
+						+ "; if (_i >= 0 && _i < _s.length) _s[_i].code else null }";
 				}
 				if(name == "substring" && isString(stripCast(subj))) {
 					// The haxe typer passes a synthesized null for an
