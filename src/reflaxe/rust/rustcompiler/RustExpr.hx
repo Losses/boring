@@ -495,7 +495,6 @@ class RustExpr {
 			case TVar(v, init) if(init == null):
 				final name = RustImports.toSnakeCase(localName(v));
 				final kw = "let ";
-				if(isNullType(v.t)) return [indent(depth) + "let mut " + name + ": " + types.of(v.t, false) + " = None;"];
 				return [indent(depth) + kw + name + ": " + types.of(v.t, false) + ";"];
 			case TBlock(stmts):
 				return blockLines(stmts, depth);
@@ -2069,12 +2068,7 @@ class RustExpr {
 		for(l in regionClosureLines(body, valueType, payload.name, depth + 1)) out.push(l);
 		out.push(indent(depth) + "})();");
 		out.push(indent(depth) + 'match $outcome {');
-				final assignmentTarget = switch(statementsOf(body)[statementsOf(body).length - 1].expr) {
-					case TBinop(OpAssign, {expr: TLocal(v)}, _): RustImports.toSnakeCase(localName(v));
-					case _: null;
-				};
-		final okArm = assignmentTarget != null ? "Ok(v) => { " + assignmentTarget + " = Some(v); }" : "Ok(_) => {}";
-		out.push(indent(depth) + "    " + okArm);
+		out.push(indent(depth) + "    Ok(_) => {}");
 		out.push(indent(depth) + "    Err(" + RustImports.toSnakeCase(localName(c.v)) + ") => {");
 		catchVars.set(c.v.id, true);
 		final handler = blockLines(statementsOf(c.expr), depth + 2);
