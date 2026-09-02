@@ -4,7 +4,6 @@ import registry.Platform.NodeProcess;
 import registry.Platform.Console;
 import registry.Platform.Path;
 import registry.Core.InputRecord;
-import registry.Core.CoreException;
 
 class Main {
  static final USAGE="usage: generate --tree <dir> --output <site> --base-url <url> [--swift-scope <scope>] [--archive-base <url>]";
