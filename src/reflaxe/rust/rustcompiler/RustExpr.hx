@@ -451,8 +451,6 @@ class RustExpr {
 				} else switch(v.t) {
 					case TInst(c, _) if(c.get().name == "SortedMapBuilder" || c.get().name == "SortedMap" || c.get().name == "SortedSetBuilder" || c.get().name == "SortedSet"):
 						": " + types.of(v.t, false);
-					case _ if(isNullType(v.t)):
-						": " + types.of(v.t, false);
 					case _: "";
 				};
 				var initStr = switch(init.expr) {
