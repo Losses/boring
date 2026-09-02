@@ -42,6 +42,7 @@ class RustExpr {
 	/** Catch variables of the region being lowered; features/06 catch-site lowering. */
 	final catchVars: Map<Int, Bool> = [];
 	final mutated: Map<Int, Bool> = [];
+	final deferredLocals: Map<Int, Bool> = [];
 	final usedNames: Map<String, Bool> = [];
 	final hiddenNames: Map<Int, String> = [];
 	final rangeLoopVars: Map<Int, Bool> = [];
@@ -252,6 +253,7 @@ class RustExpr {
 		paramVarIds.clear();
 		unsignedLocals.clear();
 		mutated.clear();
+		deferredLocals.clear();
 		for(a in f.args) {
 			if(a.tvar != null) paramVarIds.set(a.tvar.id, true);
 		}
@@ -478,7 +480,7 @@ class RustExpr {
 				return [indent(depth) + '$kw $name$explicitType = $initStr;'];
 			case TVar(v, init) if(init == null):
 				final name = RustImports.toSnakeCase(localName(v));
-				final kw = mutated.exists(v.id) ? "let mut " : "let ";
+				final kw = "let ";
 				return [indent(depth) + kw + name + ": " + types.of(v.t, false) + ";"];
 			case TBlock(stmts):
 				return blockLines(stmts, depth);
@@ -525,6 +527,9 @@ class RustExpr {
 				} else {
 					renderValueForType(currentReturnType, ret, expr(ret));
 				};
+				while(StringTools.startsWith(retStr, "(") && StringTools.endsWith(retStr, ")") && matchingParens(retStr)) {
+					retStr = retStr.substr(1, retStr.length - 2);
+				}
 				// A parameter-typed read clones at the boundary: the
 				// element stays owned by its array.
 				if(RustType.isTypeParam(ret.t)) {
@@ -2428,7 +2433,9 @@ class RustExpr {
 						return byteExt;
 					}
 				}
-				return operand(l, op, false) + " & " + operand(r, op, true);
+				return (isInt64Type(l.t) || isInt64Type(r.t) ? "(" + expr(l) + ") & (" + expr(r) + ")" : operand(l, op, false) + " & " + operand(r, op, true));
+			case OpOr | OpXor if(isInt64Type(l.t) || isInt64Type(r.t)):
+				return "(" + expr(l) + ") " + symbolOf(op) + " (" + expr(r) + ")";
 			case OpUShr:
 				// The u32 domain makes Rust >> the logical shift; operand()
 				// re-adds grouping parens by precedence, so a bare shift
@@ -2439,7 +2446,9 @@ class RustExpr {
 			case OpSub:
 				return operand(l, op, false) + " - " + operand(r, op, true);
 			case _:
-				return operand(l, op, false) + " " + symbolOf(op) + " " + operand(r, op, true);
+				final left = isInt64Type(l.t) ? "(" + expr(l) + ")" : operand(l, op, false);
+				final right = isInt64Type(r.t) ? "(" + expr(r) + ")" : operand(r, op, true);
+				return left + " " + symbolOf(op) + " " + right;
 		}
 	}
 
@@ -2480,7 +2489,7 @@ class RustExpr {
 			case TBinop(op, _, _):
 				final cp = precedenceOf(op);
 				final pp = precedenceOf(parent);
-				var parens = cp < pp || (cp == pp && isRight && !associative(op));
+				var parens = cp < pp || (cp == pp && (!associative(op) || isRight));
 				return parens ? "(" + rendered + ")" : rendered;
 			case _:
 				return rendered;
@@ -2519,9 +2528,9 @@ class RustExpr {
 						if(isFpHelperInt64Halves(args[0])) expr(args[0]) + ".low" else expr(args[0]) + " as u32";
 					case "add" if(args.length == 2): expr(args[0]) + ".wrapping_add(" + expr(args[1]) + ")";
 					case "sub" if(args.length == 2): expr(args[0]) + ".wrapping_sub(" + expr(args[1]) + ")";
-					case "and" if(args.length == 2): expr(args[0]) + " & " + expr(args[1]);
-					case "or" if(args.length == 2): expr(args[0]) + " | " + expr(args[1]);
-					case "xor" if(args.length == 2): expr(args[0]) + " ^ " + expr(args[1]);
+					case "and" if(args.length == 2): "(" + expr(args[0]) + " & " + expr(args[1]) + ")";
+					case "or" if(args.length == 2): "(" + expr(args[0]) + " | " + expr(args[1]) + ")";
+					case "xor" if(args.length == 2): "(" + expr(args[0]) + " ^ " + expr(args[1]) + ")";
 					case "complement" if(args.length == 1): "!" + expr(args[0]);
 					case "shl" if(args.length == 2): expr(args[0]) + ".wrapping_shl(" + expr(args[1]) + " as u32)";
 					case "shr" if(args.length == 2): expr(args[0]) + ".wrapping_shr(" + expr(args[1]) + " as u32)";
@@ -2948,7 +2957,8 @@ class RustExpr {
 				ValueTypeSupport.memberField(a.get(), "toString") != null
 					? value + ".to_string()"
 					: value + ".0.to_string()";
-			case TAbstract(a, _) if(a.get().name == "Float"): inConcat ? value : "(" + value + ").to_string()";
+			case TAbstract(a, _) if(a.get().name == "Float"):
+				inConcat ? value : "crate::runtime::test_core::TestCore::format_float(" + value + ")";
 			case TAbstract(a, _) if(a.get().name == "Int" || a.get().name == "Bool"): inConcat ? value : "(" + value + ").to_string()";
 			case TAbstract(a, params) if(a.get().module == "std.ReadOnlyArray"):
 				stdStringType(haxe.macro.TypeTools.applyTypeParameters(a.get().type, a.get().params, params), value, inConcat, origin, depth);
@@ -3888,6 +3898,7 @@ class RustExpr {
 					// Deferred locals are assigned by control flow below; only
 					// mark them mutable when scanLocals observes such an assignment.
 					usedNames.set(v.name, true);
+					deferredLocals.set(v.id, true);
 				} else if(v.name != "`") {
 					usedNames.set(v.name, true);
 				}
@@ -3910,7 +3921,7 @@ class RustExpr {
 					}
 				}
 			case TBinop(OpAssign, t, _) | TBinop(OpAssignOp(_), t, _):
-				switch(t.expr) {
+				switch(stripWrap(t).expr) {
 					case TLocal(v):
 						mutated.set(v.id, true);
 					case TArray(arr, _):
@@ -3977,24 +3988,14 @@ class RustExpr {
 						case TFun(pargs, _): [for(p in pargs) p.t];
 						default: [];
 					};
-					for(i in 0...args.length) {
-						if(i < paramTypes.length) {
-							if(isPassByRef(paramTypes[i])) {
-								final isArray = switch(Context.follow(paramTypes[i])) {
-									case TInst(c, _) if(c.get().name == "Array"): true;
-									default: false;
-								};
-								if(isArray) {
-									switch(stripWrap(args[i]).expr) {
-										case TField(subj, _) :
-											switch(stripWrap(subj).expr) { case TLocal(v): mutated.set(v.id, true); case _: }
-										case TLocal(v):
-											mutated.set(v.id, true);
-										default:
-									}
-								}
+					for(i in 0...args.length) if(i < paramTypes.length && isPassByRef(paramTypes[i])) switch(Context.follow(paramTypes[i])) {
+						case TInst(c, _) if(c.get().name == "Array"):
+							switch(stripWrap(args[i]).expr) {
+								case TField(subj, _): switch(stripWrap(subj).expr) { case TLocal(v): mutated.set(v.id, true); case _: }
+								case TLocal(v): mutated.set(v.id, true);
+								default:
 							}
-						}
+						default:
 					}
 				}
 			case _:
@@ -4661,6 +4662,11 @@ class RustExpr {
 			case TAbstract(a, params) if(a.get().name == "Null"): params[0];
 			case _: t;
 		};
+	}
+
+	function isInt64Type(t: Type): Bool {
+		if(t == null) return false;
+		return StringTools.contains(Std.string(Context.follow(t)), "Int64");
 	}
 
 	function isFloatType(t: Type): Bool {
