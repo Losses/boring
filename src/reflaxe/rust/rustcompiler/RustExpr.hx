@@ -452,6 +452,10 @@ class RustExpr {
 					default: expr(init);
 				};
 				initStr = renderValueForType(v.t, init, initStr);
+				switch(stripWrap(init).expr) {
+					case TCall(fn, _) if(isStringCharCodeAt(fn)): initStr += ".unwrap_or(0)";
+					case _:
+				}
 				// A String local owns its value; a literal initializer is
 				// a &str, so the empty literal declares String::new() and
 				// any other literal converts once at the declaration. A
@@ -2449,7 +2453,7 @@ class RustExpr {
 				// initializer carries no outer parentheses.
 				return operand(l, op, false) + " >> " + operand(r, op, true);
 			case OpLt if(isZero(r) && isUnsignedOperand(l)):
-				return expr(l) + " > 2147483647";
+				return "(" + operand(l, op, false) + ") > 2147483647";
 			case OpSub:
 				return operand(l, op, false) + " - " + operand(r, op, true);
 			case OpLt | OpLte | OpGt | OpGte:
@@ -2500,7 +2504,7 @@ class RustExpr {
 		// Null<Int> is represented as Option<u32>. Haxe permits it to enter
 		// numeric expressions; the target contract uses zero for the absent
 		// value, consistently at every arithmetic operand boundary.
-		if(isNullType(e.t) || isStringCharCodeAt(e)) {
+		if(isNullType(e.t) || isStringCharCodeAtCall(e)) {
 			switch(stripWrap(e).expr) {
 			case TCall(fn, _) if(isStringCharCodeAt(fn)): rendered += ".unwrap_or(0)";
 			case _:
@@ -4354,6 +4358,20 @@ class RustExpr {
 		};
 	}
 
+	function isStringCharCodeAtCall(e: TypedExpr): Bool {
+		return switch(stripWrap(e).expr) {
+			case TCall(fn, _) if(isStringCharCodeAt(fn)): true;
+			case _: false;
+		};
+	}
+
+	function isNullableCharCodeExpr(e: TypedExpr): Bool {
+		return switch(stripWrap(e).expr) {
+			case TCall(fn, _) if(isStringCharCodeAt(fn)): true;
+			case _: false;
+		};
+	}
+
 	function resolveExprType(e: TypedExpr): String {
 		final inner = stripWrap(e);
 		switch(inner.expr) {
@@ -4385,7 +4403,7 @@ class RustExpr {
 				// extract rewrite replaces a `& 0xFF` binop whose Haxe
 				// semantics unbox null to 0, so collapse the Option the
 				// same way before the value feeds a u8 context.
-				return expr(target) + (isNullType(target.t) ? ".unwrap_or(0)" : "");
+				return expr(target) + (isNullType(target.t) || isStringCharCodeAtCall(target) ? ".unwrap_or(0)" : "");
 			case _:
 		}
 		final targetType = resolveExprType(target);
