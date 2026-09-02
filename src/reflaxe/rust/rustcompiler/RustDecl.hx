@@ -462,15 +462,17 @@ class RustDecl {
 			final message = messages.get(o.name);
 			final args = enumFieldParams(o);
 			if(args.length == 0) {
-				final formatted = switch(StringTools.trim(message)) {
-					case s if(StringTools.startsWith(s, '"') && StringTools.endsWith(s, '"')): 'write!(formatter, ${message})';
-					case _: 'write!(formatter, "{}", ${message})';
-				};
+				final formatted = 'write!(formatter, "{}", ${message})';
 				lines.push('            ${enumName}::${o.name} => ${formatted},');
 			} else {
 				final params = [for(arg in args) RustImports.toSnakeCase(arg.name)].join(", ");
 				lines.push('            ${enumName}::${o.name} { ${params} } => {');
-				lines.push('                write!(formatter, ${message}, ${params})');
+				final isLiteral = message != null && StringTools.startsWith(StringTools.trim(message), '"');
+				if(isLiteral) {
+					lines.push('                write!(formatter, ${message}, ${params})');
+				} else {
+					lines.push('                write!(formatter, "{}", ${message})');
+				}
 				lines.push("            }");
 			}
 		}
@@ -927,7 +929,10 @@ class RustDecl {
 		final snakeName = RustImports.toSnakeCase(f.field.name);
 		final args = [for(i in firstArg...f.args.length) {
 			final a = f.args[i];
-			RustImports.toSnakeCase(a.name) + ": " + types.of(a.type, true);
+			var pType = types.of(a.type, true);
+			if(argMutated(f.expr, a.name) && StringTools.startsWith(pType, "&Vec<")) pType = "&mut " + pType.substr(1);
+			final mut = argMutated(f.expr, a.name) && !StringTools.startsWith(pType, "&mut") ? "mut " : "";
+			mut + RustImports.toSnakeCase(a.name) + ": " + pType;
 		}].join(", ");
 		final allArgs = if(receiverMethod) {
 			args.length > 0 ? "&self, " + args : "&self";
@@ -964,6 +969,32 @@ class RustDecl {
 		expr.setReturnType(f.ret);
 		final body = expr.functionBody(cls, f);
 		return [head].concat(body.map(l -> "    " + l)).concat(["    }"]);
+	}
+
+	function argMutated(body: Null<TypedExpr>, name: String): Bool {
+		if(body == null) return false;
+		var found = false;
+		function root(e: TypedExpr): Bool return switch(e.expr) {
+			case TLocal(v): v.name == name;
+			case TField(s, _): root(s);
+			case TArray(s, _): root(s);
+			case TParenthesis(s): root(s);
+			case TMeta(_, s): root(s);
+			case _: false;
+		};
+		function walk(e: TypedExpr) {
+			switch(e.expr) {
+				case TBinop(OpAssign, l, _): if(root(l)) found = true;
+				case TCall(fn, _): switch(fn.expr) {
+					case TField(s, FInstance(_, _, cf) | FAnon(cf)) if(root(s)):
+						if(["push","insert","pop","shift","unshift","remove","removeAt","splice","reverse","sort","set","add","addChar"].indexOf(cf.get().name) >= 0) found = true;
+					case _: }
+				case _:
+			}
+			haxe.macro.TypedExprTools.iter(e, walk);
+		}
+		walk(body);
+		return found;
 	}
 
 	function receiverBodyName(t: Type): String {
@@ -1282,7 +1313,8 @@ class RustDecl {
 		final consumesSelf = cls.module == "runtime.SortedTable" && f.field.name == "build";
 		final selfParam = consumesSelf ? "self" : (isMutating ? "&mut self" : "&self");
 		final otherArgs = [for(a in f.args) {
-			final pType = paramType(a.type, f.field.name, a.name);
+			var pType = paramType(a.type, f.field.name, a.name);
+			if(argMutated(f.expr, a.name) && StringTools.startsWith(pType, "&Vec<")) pType = "&mut " + pType.substr(1);
 			expr.setArgType(a.name, pType);
 			RustImports.toSnakeCase(a.name) + ": " + pType;
 		}].join(", ");
