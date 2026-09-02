@@ -161,11 +161,11 @@ class SwiftFallibility {
 			case TField(subj, FStatic(c, cf)):
 				final cls = c.get();
 				final name = cf.get().name;
-				if(cls.module == "std.TestPlatform" && name == "raise") {
+				if(SwiftTestBinding.isTestPlatformExtern(cls.module) && name == "raise") {
 					infect(infections, absorbed, TEST_FAILURE);
 					return;
 				}
-				if(cls.module == "std.Test" && isTestAssertion(name)) {
+				if(SwiftTestBinding.isTestExternModule(cls.module, name)) {
 					infect(infections, absorbed, TEST_FAILURE);
 					return;
 				}
@@ -227,10 +227,10 @@ class SwiftFallibility {
 		that no try covers.
 	**/
 	public static function staticCallThrows(cls: ClassType, name: String): Bool {
-		if(cls.module == "std.Test") {
+		if(SwiftTestBinding.isTestExternModule(cls.module, name)) {
 			return isTestAssertion(name);
 		}
-		if(cls.module == "std.UStringPlatform" || cls.module == "std.TestPlatform") {
+		if(cls.module == "std.UStringPlatform" || SwiftTestBinding.isTestPlatformExtern(cls.module)) {
 			return false;
 		}
 		return isThrowing(routedModule(cls.module, name), name, true);

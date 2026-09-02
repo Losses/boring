@@ -246,7 +246,7 @@ class Compiler extends PluginCompiler<Compiler> {
 		emitShim("haxe.io.BytesBuffer", "bytes_buffer.rs", RustRuntime.BYTES_BUFFER_SOURCE);
 		emitShim("std.Console", "console.rs", RustRuntime.CONSOLE_SOURCE);
 		emitShim("std.Process", "process.rs", RustRuntime.PROCESS_SOURCE);
-		emitShim("std.Test", "test.rs", RustRuntime.TEST_SOURCE);
+		emitShim(RustTestBinding.externModule(), RustTestBinding.shimPath(), RustRuntime.TEST_SOURCE);
 
 		final emitDir = RuntimeConfig.emitDir();
 		if(emitDir != null && hasAnyShim()) {
@@ -255,7 +255,7 @@ class Compiler extends PluginCompiler<Compiler> {
 			if(state.shimsUsed.exists("haxe.io.BytesBuffer")) runtimeMods.push("bytes_buffer");
 			if(state.shimsUsed.exists("std.Console")) runtimeMods.push("console");
 			if(state.shimsUsed.exists("std.Process")) runtimeMods.push("process");
-			if(state.shimsUsed.exists("std.Test")) {
+			if(RuntimeResidents.externsOf("runtime.TestCore").exists(m -> state.shimsUsed.exists(m))) {
 				runtimeMods.push("test");
 				runtimeMods.push("test_core");
 			}
