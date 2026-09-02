@@ -242,7 +242,7 @@ class RustDecl {
 				case TInst(c, _) if(c.get().name == "String"): lines.push('    let cmp_$fn = SortedTable::compare_strings(a.$fn.as_str(), b.$fn.as_str());');
 				case TInst(c, _) if(c.get().meta.has(":dataClass")): lines.push('    let cmp_$fn = compare_${RustImports.toSnakeCase(c.get().name)}(&a.$fn, &b.$fn);');
 				case TEnum(_, _): lines.push('    let cmp_$fn = (a.$fn as i32).cmp(&(b.$fn as i32)) as i32;');
-				case _: lines.push('    let cmp_$fn = 0;');
+				case _: Context.error("unusable dataClass comparator field " + cls.name + "." + f.name + " has type " + f.type, f.pos);
 			}
 			lines.push('    if cmp_$fn != 0 { return cmp_$fn; }');
 		}

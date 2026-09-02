@@ -149,25 +149,17 @@ class TsDecl {
 	}
 
 	function dataClassComparator(cls: ClassType): String {
-		final fields = [for(f in cls.fields.get()) if(f.kind.match(FVar(_, _))) f];
 		final lines = ['export function compare${cls.name}(a: ${cls.name}, b: ${cls.name}): number {', '  if (a === b) return 0;'];
-		for(f in fields) {
+		for(f in [for(x in cls.fields.get()) if(x.kind.match(FVar(_, _))) x]) {
 			switch(Context.follow(f.type)) {
-				case TAbstract(a, _) if(a.get().name == "Int"):
-					lines.push('  if (a.${f.name} !== b.${f.name}) return a.${f.name} - b.${f.name};');
-				case TInst(c, _) if(c.get().name == "String"):
-					lines.push('  if (a.${f.name} !== b.${f.name}) return a.${f.name} < b.${f.name} ? -1 : 1;');
-				case TInst(c, _) if(c.get().meta.has(":dataClass")):
-					imports.value(c.get().module, "compare" + c.get().name);
-					lines.push('  { const cmp = compare${c.get().name}(a.${f.name}, b.${f.name}); if (cmp !== 0) return cmp; }');
-				case TEnum(_, _):
-					lines.push('  if (a.${f.name} !== b.${f.name}) return String(a.${f.name}) < String(b.${f.name}) ? -1 : 1;');
-				case _:
+				case TAbstract(a, _) if(a.get().name == "Int"): lines.push('  if (a.${f.name} !== b.${f.name}) return a.${f.name} - b.${f.name};');
+				case TInst(c, _) if(c.get().name == "String"): lines.push('  if (a.${f.name} !== b.${f.name}) return a.${f.name} < b.${f.name} ? -1 : 1;');
+				case TInst(c, _) if(c.get().meta.has(":dataClass")): imports.value(c.get().module, "compare" + c.get().name); lines.push('  { const cmp = compare${c.get().name}(a.${f.name}, b.${f.name}); if (cmp !== 0) return cmp; }');
+				case TEnum(_, _): lines.push('  if (a.${f.name} !== b.${f.name}) return String(a.${f.name}) < String(b.${f.name}) ? -1 : 1;');
+				case _: Context.error("unusable dataClass comparator field " + cls.name + "." + f.name + " has type " + f.type, f.pos);
 			}
 		}
-		lines.push('  return 0;');
-		lines.push('}');
-		return lines.join("\n");
+		lines.push('  return 0;'); lines.push('}'); return lines.join("\n");
 	}
 
 	/** The erased TypeScript representation of a marked value wrapper. */

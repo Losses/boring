@@ -263,13 +263,22 @@ class KotlinDecl {
 	}
 
 	function dataClassComparator(cls: ClassType): String {
-		final lines = ['fun compare${cls.name}(a: ${cls.name}, b: ${cls.name}): Int {', '    var cmp = 0'];
+		final lines: Array<String> = [];
+		for(f in [for(x in cls.fields.get()) if(x.kind.match(FVar(_, _))) x]) {
+			switch(Context.follow(f.type)) {
+				case TEnum(e, _):
+					final en = e.get();
+					final order = '    fun ${cls.name}${f.name}Order(v: ${en.name}): Int = when (v) {\n' + [for(ef in en.constructs) '        ${en.name}.${ef.name} -> ${ef.index}'].join("\n") + '\n    }';
+					lines.push(order);
+				case _:
+			}${cls.name}(a: ${cls.name}, b: ${cls.name}): Int {');
+		lines.push('    var cmp = 0');
 		for(f in [for(x in cls.fields.get()) if(x.kind.match(FVar(_, _))) x]) {
 			switch(Context.follow(f.type)) {
 				case TAbstract(a, _) if(a.get().name == "Int"): lines.push('    cmp = a.${f.name}.compareTo(b.${f.name})');
 				case TInst(c, _) if(c.get().name == "String"): lines.push('    cmp = a.${f.name}.compareTo(b.${f.name})');
 				case TInst(c, _) if(c.get().meta.has(":dataClass")): imports.requireType(c.get().module, "compare" + c.get().name); lines.push('    cmp = compare${c.get().name}(a.${f.name}, b.${f.name})');
-				case TEnum(e, _): lines.push('    cmp = a.${f.name}.ordinal.compareTo(b.${f.name}.ordinal)');
+				case TEnum(_, _): lines.push('    cmp = ${cls.name}${f.name}Order(a.${f.name}).compareTo(${cls.name}${f.name}Order(b.${f.name}))');
 				case _:
 			}
 			lines.push('    if (cmp != 0) return cmp');

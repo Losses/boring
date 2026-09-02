@@ -289,11 +289,17 @@ class SwiftType {
 	}
 
 	static function isDataClassFieldKey(t: Type): Bool {
-		return switch(Context.follow(t)) {
+		return switch(t) {
 			case TAbstract(a, _): a.get().name == "Int";
-			case TInst(c, _): c.get().name == "String" || c.get().meta.has(":dataClass");
 			case TEnum(_, _): true;
-			case _: false;
+			case TInst(c, _): c.get().name == "String" || c.get().meta.has(":dataClass");
+			case TLazy(f): isDataClassFieldKey(f());
+			case _: switch(Context.follow(t)) {
+				case TAbstract(a, _): a.get().name == "Int";
+				case TEnum(_, _): true;
+				case TInst(c, _): c.get().name == "String" || c.get().meta.has(":dataClass");
+				case _: false;
+			};
 		};
 	}
 

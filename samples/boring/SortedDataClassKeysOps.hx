@@ -31,6 +31,12 @@ class SortedDataClassKeysOps {
 		final b:SortedMapBuilder<TextRange, String> = SortedMap.builder();
 		b.put(new TextRange(4, 8), "b"); b.put(new TextRange(1, 2), "a");
 		final m = b.build();
-		return m.valueAt(0) + "," + m.valueAt(1);
+		final q = SortedMap.builder();
+		q.put(new QuotePair(2, 4, QuoteType.Close), "close"); q.put(new QuotePair(2, 4, QuoteType.Open), "open");
+		final qm = q.build();
+		final r = SortedMap.builder();
+		r.put(new RubySpan(new TextRange(3, 4), "z"), "nested"); r.put(new RubySpan(new TextRange(1, 2), "a"), "nested-first");
+		final rm = r.build();
+		return m.valueAt(0) + "," + m.valueAt(1) + ";" + qm.valueAt(0) + "," + qm.valueAt(1) + ";" + rm.valueAt(0) + "," + rm.valueAt(1);
 	}
 }

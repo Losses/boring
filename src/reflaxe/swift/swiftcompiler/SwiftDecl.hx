@@ -219,14 +219,16 @@ class SwiftDecl {
 
 	function dataClassComparator(cls: ClassType): String {
 		final lines = ["func compare" + cls.name + "(_ a: " + cls.name + ", _ b: " + cls.name + ") -> Int32 {"];
-		for(f in [for(x in cls.fields.get()) if(x.kind.match(FVar(_, _))) x]) {
-			switch(Context.follow(f.type)) {
-				case TAbstract(a, _) if(a.get().name == "Int"): lines.push("    if a." + f.name + " != b." + f.name + " { return a." + f.name + " - b." + f.name + " }");
-				case TInst(c, _) if(c.get().name == "String"): lines.push("    let cmp" + f.name + " = compareUnitOrder(a." + f.name + ", b." + f.name + "); if cmp" + f.name + " != 0 { return cmp" + f.name + " }");
-				case TInst(c, _) if(c.get().meta.has(":dataClass")): lines.push("    let cmp" + f.name + " = compare" + c.get().name + "(a." + f.name + ", b." + f.name + "); if cmp" + f.name + " != 0 { return cmp" + f.name + " }");
-				case TEnum(_, _): lines.push("    if a." + f.name + " != b." + f.name + " { return a." + f.name + ".ordinal - b." + f.name + ".ordinal }");
+				case TEnum(e, _):
+					final en = e.get();
+					final order = "    func " + cls.name + f.name + "Order(_ v: " + en.name + ") -> Int32 {\n        switch v {\n" + [for(ef in en.constructs) "        case ." + lowerFirst(ef.name) + ": return " + ef.index].join("\n") + "\n        }\n    }";
+					lines.unshift(order);
 				case _:
 			}
+				case TInst(c, _) if(c.get().name == "String"): lines.push("    let cmp" + f.name + " = compareUnitOrder(a." + f.name + ", b." + f.name + "); if cmp" + f.name + " != 0 { return cmp" + f.name + " }");
+				case TInst(c, _) if(c.get().meta.has(":dataClass")): lines.push("    let cmp" + f.name + " = compare" + c.get().name + "(a." + f.name + ", b." + f.name + "); if cmp" + f.name + " != 0 { return cmp" + f.name + " }");
+				case TEnum(_, _): lines.push("    if a." + f.name + " != b." + f.name + " { return " + cls.name + f.name + "Order(a." + f.name + ") - " + cls.name + f.name + "Order(b." + f.name + ") }");
+				case _: Context.error("unusable dataClass comparator field " + cls.name + "." + f.name + " has type " + f.type, f.pos);			}
 		}
 		lines.push("    return 0");
 		lines.push("}");
