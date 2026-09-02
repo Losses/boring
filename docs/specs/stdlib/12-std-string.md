@@ -60,10 +60,10 @@ and a uniform rejection costs less than five spellings of a nullable render
 | Target | State |
 | --- | --- |
 | TypeScript | `Std.string` renders `String(x)` through the static reference router (`TsExpr.hx`, `case "Std"`). Scalars convert; an enum operand renders the object form and prints `[object Object]`. |
-| Kotlin | No lowering exists; the call passes through as an unresolved `Std.string(...)` reference (the engine gap). String concatenation wraps a non-string left operand with `.toString()` (`KotlinExpr.hx`, the `OpAdd` arm). |
-| Swift | The call site renders `String(x)` (`SwiftExpr.hx`, the `Std` call arm). Scalars convert; an enum operand prints the target's lower-cased case name. |
-| Dart | The call site renders `'${x}'` (`DartExpr.hx`, the `Std` call arm). Scalars convert; an enum operand prints the instance form of the sealed class. |
-| Rust | No lowering exists for the call. |
+| Kotlin | No lowering exists; the call passes through as an unresolved `Std.string(...)` reference (the engine gap). String concatenation wraps a non-string left operand with `.toString()` (`KotlinExpr.hx`, the `OpAdd` arm). The native form carries `.0` on whole values and uses scientific spelling inside the plain zone. |
+| Swift | The call site renders `String(x)` (`SwiftExpr.hx`, the `Std` call arm). Scalars convert; an enum operand prints the target's lower-cased case name. Native float spellings differ in suffix and exponent form. |
+| Dart | The call site renders `'${x}'` (`DartExpr.hx`, the `Std` call arm). Scalars convert; an enum operand prints the instance form of the sealed class. Native float spellings differ in suffix and exponent form. |
+| Rust | No lowering exists for the call. Rust `Display` matches the plain zone but does not use the required exponent spelling. |
 
 ## Judgment
 
@@ -102,6 +102,18 @@ and a uniform rejection costs less than five spellings of a nullable render
    | String | `x` | `x` | `x` | `x` | `x.clone()` or the borrow the concat already renders |
    | Int, Float, Bool | `String(x)` | `x.toString()` | `String(x)` | `'${x}'` | `x.to_string()` |
    | value enumeration | `w.kind` | `w.name` | `w.rawValue` | `w.label` | `w.name().to_string()` |
+
+The Float form of rulings 2 and 3 is the ECMAScript `Number::toString`
+form on every target: the shortest decimal digit string that reads back
+as the same value, the plain decimal spelling inside `[1e-6, 1e21)`, and
+the exponent spelling `de±x` with one leading digit outside that range.
+TypeScript renders it natively (`String(x)`). Every other target
+reformats the shortest digits its native float formatter already
+produces into this spelling: Kotlin, Swift, Dart, and Rust keep their
+native shortest-digit output as the digit source and rewrite the
+separator, the trailing `.0`, and the exponent spelling; negative zero
+renders as `0`. The reformat is one string operation on the native
+result; no target reimplements shortest-digit generation.
 
 4. The operand domain check runs where the operand type is known, in every
    target's `Std.string` arm, with the one named error of the Contract

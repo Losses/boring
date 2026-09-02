@@ -343,20 +343,6 @@ class Intercept {
 
 	static function walkSource(e:Expr):Void {
 		switch (e.expr) {
-			case ExprDef.EFor(iterator, _):
-				// The parser wraps the whole head as EBinop(OpIn, variable,
-				// subject); the range check looks at the subject operand.
-				final subject = switch (iterator.expr) {
-					case ExprDef.EBinop(Binop.OpIn, _, range): range;
-					default: iterator;
-				};
-				switch (subject.expr) {
-					case ExprDef.EBinop(Binop.OpInterval, _, _):
-					default:
-						violation("V01", "IteratorLoop",
-							"for subject is not an integer range; arrays iterate as for (i in 0...array.length)",
-							iterator.pos);
-				}
 			case ExprDef.ECall(callee, args):
 				checkSourceCall(callee, args);
 				checkAssignArgExpression(callee, args);
@@ -618,6 +604,33 @@ class Intercept {
 		return false;
 	}
 
+	static function checkIterationSubject(subject:TypedExpr):Void {
+		var sanctioned = false;
+		function isIntegerRange(t:Type):Bool {
+			return switch(Context.follow(t)) {
+				case Type.TInst(c, _): c.get().name == "IntIterator";
+				default: false;
+			};
+		}
+		function isArray(t:Type):Bool {
+			return StaticFieldHelper.isArrayType(t) || StaticFieldHelper.isReadOnlyArrayType(t);
+		}
+		sanctioned = isIntegerRange(subject.t) || isArray(subject.t);
+		if (!sanctioned) {
+			switch (subject.expr) {
+				case TypedExprDef.TCall(callee, _):
+					switch (callee.expr) {
+						case TypedExprDef.TField(receiver, _): sanctioned = isIntegerRange(receiver.t) || isArray(receiver.t);
+						case _: 
+					}
+				case _:
+			}
+		}
+		if (!sanctioned) {
+			violation("V01", "IteratorLoop",
+				"for subject is not an integer range; arrays iterate as for (i in 0...array.length)", subject.pos);
+		}
+	}
 	static function walk(e:TypedExpr, inLoop:Bool):Void {
 		if (e == null) {
 			return;
@@ -632,6 +645,7 @@ class Intercept {
 		// the source cast check runs in pass 1 on the untyped tree.
 		switch (e.expr) {
 			case TypedExprDef.TFor(_, subject, body):
+				checkIterationSubject(subject);
 				walk(subject, inLoop);
 				walk(body, true);
 			case TypedExprDef.TWhile(condition, body, _):
@@ -1140,6 +1154,15 @@ class Intercept {
 		// target has no capability rule; the first unsupported public edge is
 		// generic Std.string conversion, which has no stable cross-target form.
 		switch (e.expr) {
+			case TypedExprDef.TBinop(op, left, right):
+				if (isInt64Type(left.t) || isInt64Type(right.t)) switch (op) {
+					case OpAssign | OpAssignOp(_) | OpAdd | OpSub | OpAnd | OpOr | OpXor
+						| OpShl | OpShr | OpUShr | OpEq | OpNotEq
+						| OpLt | OpGt | OpLte | OpGte:
+					default:
+						violation("V11", "Int64Misuse",
+							"Int64 operation has no lowering in the translatable subset", e.pos);
+				}
 			case TypedExprDef.TCall(callee, args):
 				if (isStdStringCall(callee) && hasInt64Argument(args)) {
 					violation("V11", "Int64Misuse",

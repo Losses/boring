@@ -11,7 +11,6 @@ class RustImports {
 		"haxe.io.BytesBuffer" => true,
 		"std.Console" => true,
 		"std.Process" => true,
-		"std.Test" => true,
 		"std.SortedMap" => true,
 		"std.SortedMapBuilder" => true,
 		"std.SortedSet" => true,

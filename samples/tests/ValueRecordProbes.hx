@@ -14,7 +14,7 @@ class ValueRecordProbes {
 		var rejected = false;
 		try {
 			new ValueRecord(start, end, "probe");
-		} catch (error:ValueException) {
+		} catch (_:ValueException) {
 			rejected = true;
 		}
 		return rejected;

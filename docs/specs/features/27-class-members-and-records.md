@@ -2,17 +2,21 @@
 
 ## Scope
 
-A Haxe class declaration carries four facts about its members that the
+A Haxe class declaration carries five facts about its members that the
 five source targets do not lower uniformly:
 
-1. **Visibility of constructor-parameter fields.** The constructor
+1. **Visibility of instance fields.** Every Rust stored instance field follows
+   the Haxe field declaration: `public` becomes `pub`, while a non-public
+   declaration becomes `pub(crate)`. This exposes public data to downstream
+   users while retaining crate-local access for private lowering and tests.
+2. **Visibility of constructor-parameter fields.** The constructor
    parameter that holds a field states the field's visibility through the
    field declaration. TS and Rust follow `field.isPublic`; Kotlin renders
    every parameter-held field `private`; Swift renders every stored
    property without an access modifier; Dart renders every field without
    the underscore prefix, so a private field becomes public on three
    targets and a public field becomes private on one.
-2. **Constructor bodies.** The statements of `new` run once per
+3. **Constructor bodies.** The statements of `new` run once per
    construction; validation lives there. TS renders them into the
    `constructor`, Swift into `init`, Dart into the constructor body after
    the initializer list. Kotlin and Rust drop them: Kotlin renders the
@@ -79,6 +83,7 @@ final printed = RecordStr.str(range); // TextRange(start=0, end=1)
 
 | Feature | TS | Kotlin | Swift | Dart | Rust |
 | --- | --- | --- | --- | --- | --- |
+| instance-field visibility | n/a | n/a | n/a | n/a | `pub` if `isPublic`, otherwise `pub(crate)` |
 | ctor-param field visibility | follows `isPublic` | always `private` | never `private` | never `_`-prefixed | follows `isPublic` |
 | constructor body | rendered | dropped | rendered | rendered | dropped |
 | `var x(get, never)` | stored field, never assigned | stored field `= 0` | stored property | stored field | struct field, `Default::default()` |
