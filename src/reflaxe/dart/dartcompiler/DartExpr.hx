@@ -110,9 +110,8 @@ class DartExpr {
 		final value = currentLocalName != null
 			? DefaultArgExpander.coalescingDefaultForLocalParam(currentClass, currentField, currentLocalName, site == null ? "" : site.parameter)
 			: DefaultArgExpander.coalescingDefaultForParam(currentClass, currentField, site == null ? "" : site.parameter);
-		if(site == null || value == null) {
-			return null;
-		}
+		if(site == null) return null;
+		if(value == null && !DefaultArgExpander.isNormalizationSource(site.defaultExpr.pos)) return null;
 		return site;
 	}
 
@@ -166,6 +165,8 @@ class DartExpr {
 				"(" + coalescingDefaultText(c, targetType) + " ? " + coalescingDefaultText(t, targetType) + " : " + coalescingDefaultText(f, targetType) + ")";
 			case CBinaryOp(op, left, right):
 				coalescingDefaultText(left, targetType) + " " + opStr(op) + " " + coalescingDefaultText(right, targetType);
+			case CConstructorCall(classPath, args):
+				classPath.split(".").pop() + "(" + [for(a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
 		};
 	}
 
