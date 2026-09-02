@@ -593,7 +593,11 @@ class RustExpr {
 						case _:
 					}
 				} else if(StringTools.startsWith(returnTypeName, "Option<") && !isNullType(ret.t) && !isTNull(ret)) {
-					retStr = "Some(" + retStr + ")";
+					final payload = switch(stripWrap(ret).expr) {
+						case TLocal(v) if(borrowedLoopVarIds.exists(v.id)): "(" + retStr + ").clone()";
+						case _: retStr;
+					};
+					retStr = "Some(" + payload + ")";
 				} else if(StringTools.startsWith(returnTypeName, "Option<") && isIntType(ret.t) && !isNullType(ret.t) && !isTNull(ret)) {
 					// An Int expression returned from a Null<Int> function
 					// wraps once at the boundary; Null-typed expressions
