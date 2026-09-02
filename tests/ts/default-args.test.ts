@@ -216,7 +216,7 @@ describe("default argument expansion generated tree", () => {
     expect(content).toContain("return DefaultArgsOps.infinityDefault()");
     expect(content).toContain("return DefaultArgsOps.mapDefault()");
     expect(content).toContain("static func greetWithPrefix(_ name: String, _ prefix: String? = nil) -> String");
-    expect(content).toContain("var prefix = prefix ?? name;");
+    expect(content).toContain("let prefix = prefix ?? name;");
     expect(content).toContain("static func fieldAccessSample(_ items: [String], _ count: Int32? = nil) -> Int32");
     expect(content).toContain("let count = count ?? Int32(items.count);");
     expect(content).toContain("static func localeSample(_ lang: String, _ fallback: String? = nil) -> String");
@@ -232,9 +232,9 @@ describe("default argument expansion generated tree", () => {
     expect(content).toContain("let w: Int32? = q ?? self.fallbackCount");
 
     expect(content).toContain("static func chainedCoalescing(_ fallback: Double = 2.5, _ value: Double? = nil) -> Double");
-    expect(content).toContain("var value = value ?? fallback;");
+    expect(content).toContain("let value = value ?? fallback;");
     expect(content).toContain("init(_ radius: Double = 0.0, _ followRadius: Double? = nil)");
-    expect(content).toContain("var followRadius = followRadius ?? radius;");
+    expect(content).toContain("let followRadius = followRadius ?? radius;");
 
     // The field-carrying preset keeps constant coalescing defaults as
     // native Swift defaults and prints the labeled record text.
