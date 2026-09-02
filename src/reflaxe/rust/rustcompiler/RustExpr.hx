@@ -832,7 +832,7 @@ class RustExpr {
 			}
 			final loop = matchInterval(stmts[i]);
 			if(loop != null) {
-				for(l in loopLines(loop, depth)) out.push(l);
+				for(l in loopLines(loop, depth, stmts.slice(i + 1))) out.push(l);
 				i += 1;
 				continue;
 			}
@@ -1193,7 +1193,7 @@ class RustExpr {
 		return null;
 	}
 
-	function loopLines(loop, depth: Int): Array<String> {
+	function loopLines(loop, depth: Int, rest: Array<TypedExpr>): Array<String> {
 		rangeLoopVars.set(loop.index.id, true);
 		final name = RustImports.toSnakeCase(loop.index.name);
 		final sliceSubj = sliceIterationSubject(loop);
@@ -1226,8 +1226,11 @@ class RustExpr {
 					itemName;
 				};
 				if(argType != null) borrowedLoopVarIds.set(itemVar.id, true);
-				final subjectLocalId = switch(stripWrap(sliceSubj).expr) { case TLocal(v): v.id; case _: -1; };
-				final nonScalarOwnedLocal = !isScalar && argType == null && !paramVarIds.exists(subjectLocalId);
+				// The scan sees only statements after the loop in this block; later enclosing-block reads are not detected.
+				final subjectLocal = switch(stripWrap(sliceSubj).expr) { case TLocal(v): v; case _: null; };
+				final nonScalarOwnedLocal = subjectLocal != null && !isScalar && argType == null
+					&& !paramVarIds.exists(subjectLocal.id)
+					&& rest.exists(s -> mentionsLocal(s, subjectLocal));
 				if(argType != null || nonScalarOwnedLocal) borrowedLoopVarIds.set(itemVar.id, true);
 				final iterated = (ownedLocal || nonScalarOwnedLocal) ? "&" + expr(sliceSubj) : expr(sliceSubj);
 				switch(Context.follow(itemVar.t)) {
