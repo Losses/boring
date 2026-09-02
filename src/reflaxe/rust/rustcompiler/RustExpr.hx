@@ -2755,8 +2755,8 @@ class RustExpr {
 				if(name == "POSITIVE_INFINITY") return real + "::INFINITY";
 				if(name == "NEGATIVE_INFINITY") return real + "::NEG_INFINITY";
 				return real + "::" + RustImports.toSnakeCase(name);
-			case "std.Test" | "std.__test_shim":
-				state.shimsUsed.set("std.Test", true);
+			case _ if(RustTestBinding.isTestExtern(cls)):
+				state.shimsUsed.set(RuntimeResidents.externsOf("runtime.TestCore")[0], true);
 				if(name == "run") {
 					imports.require("crate::runtime::test as testlib");
 					return "testlib::run";
@@ -2781,8 +2781,8 @@ class RustExpr {
 				imports.requireType("runtime.Graphemes", "Graphemes");
 				return "Graphemes::" + RustImports.toSnakeCase(name);
 			case _:
-				if(cls.module == "std.Test") {
-					state.shimsUsed.set("std.Test", true);
+				if(RustTestBinding.isTestExtern(cls)) {
+					state.shimsUsed.set(RuntimeResidents.externsOf("runtime.TestCore")[0], true);
 					if(name == "run") {
 						imports.require("crate::runtime::test as testlib");
 						return "testlib::run";
@@ -2863,8 +2863,8 @@ class RustExpr {
 				if(cls.pack.length == 0 && (cls.name == "String" || cls.name == "Math")) {
 					return cls.name;
 				}
-				if(cls.module == "std.Test" || (cls.pack.join(".") == "std" && (cls.name == "Test" || cls.name == "__test_shim"))) {
-					state.shimsUsed.set("std.Test", true);
+				if(RustTestBinding.isTestExtern(cls)) {
+					state.shimsUsed.set(RuntimeResidents.externsOf("runtime.TestCore")[0], true);
 					imports.require("crate::runtime::test as testlib");
 					return "testlib";
 				}
@@ -3363,18 +3363,18 @@ class RustExpr {
 						case _:
 					}
 				}
-				if(path == "std.TestPlatform") {
+				if(RustTestBinding.isTestPlatformExtern(path)) {
 					// Host edges of the resident runtime.TestCore, inlined
 					// per call: raising is a panic, the running test id
 					// lives in the test host module of the runtime emit, and
 					// plain numbers render through to_string. Marking the
-					// std.Test shim used keeps that host module emitted
+					// test extern shim used keeps that host module emitted
 					// beside this resident. Business code never reaches
-					// these; it calls std.Test.
+					// these; it calls test extern.
 					if(!RuntimeResidents.isResident(imports.selfModule)) {
-						Context.error("std.TestPlatform is a resident runtime primitive; business code calls std.Test", fn.pos);
+						Context.error("test platform extern is a resident runtime primitive; business code calls test extern", fn.pos);
 					}
-					state.shimsUsed.set("std.Test", true);
+					state.shimsUsed.set(RuntimeResidents.externsOf("runtime.TestCore")[0], true);
 					switch(name) {
 						case "raise":
 							return "panic!(\"{}\", " + expr(args[0]) + ")";
@@ -3429,13 +3429,13 @@ class RustExpr {
 
 
 
-				if(cls.module == "std.Test" || (cls.pack.join(".") == "std" && (cls.name == "Test" || cls.name == "__test_shim"))) {
+				if(RustTestBinding.isTestExtern(cls)) {
 					// The assertion checks and message formatting live in the
 					// resident runtime.TestCore; this host module keeps run and
 					// its result recording. Messages are plain &str: an absent
 					// message renders as the empty string, which the canonical
 					// builder omits.
-					state.shimsUsed.set("std.Test", true);
+					state.shimsUsed.set(RuntimeResidents.externsOf("runtime.TestCore")[0], true);
 					imports.require("crate::runtime::test as testlib");
 					imports.require("crate::runtime::test_core");
 					final messageArg = function(idx: Int): String {

@@ -12,7 +12,7 @@ package kotlincompiler;
 	  binary32 value edges of feature spec 23
 	- std.Console: logging
 	- std.Process: process exit
-	- std.Test: test assertions and runner
+	- test extern: test assertions and runner
 **/
 class KotlinRuntime {
 	public static final BYTES_BUFFER_SOURCE = "import java.util.ArrayList
