@@ -1199,7 +1199,7 @@ class RustExpr {
 						"&" + itemName;
 					}
 				} else {
-					ownedLocal ? "&" + itemName : itemName;
+					itemName;
 				};
 				final iterated = ownedLocal ? "&" + expr(sliceSubj) : expr(sliceSubj);
 				switch(Context.follow(itemVar.t)) {
