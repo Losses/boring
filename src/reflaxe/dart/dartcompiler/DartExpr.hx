@@ -110,9 +110,8 @@ class DartExpr {
 		final value = currentLocalName != null
 			? DefaultArgExpander.coalescingDefaultForLocalParam(currentClass, currentField, currentLocalName, site == null ? "" : site.parameter)
 			: DefaultArgExpander.coalescingDefaultForParam(currentClass, currentField, site == null ? "" : site.parameter);
-		if(site == null || value == null) {
-			return null;
-		}
+		if(site == null) return null;
+		if(value == null && !DefaultArgExpander.isNormalizationSource(site.defaultExpr.pos)) return null;
 		return site;
 	}
 
@@ -156,17 +155,27 @@ class DartExpr {
 						: DefaultArgExpander.coalescingDefaultForParam(currentClass, currentField, name))
 					: null;
 				earlier != null ? "(" + name + " ?? " + coalescingDefaultText(earlier, targetType) + ")" : name;
+			case CInstanceFieldRead(name): "this." + name;
+			case CLocalRead(name): name;
 			case CFieldAccess(CParameterRead(staticPath), ""): coalescingStaticFieldText(staticPath);
 			case CFieldAccess(receiver, fieldName): coalescingDefaultText(receiver, targetType) + "." + fieldName;
 			case CMethodCall(receiver, methodName, args):
 				coalescingDefaultText(receiver, targetType) + "." + methodName + "(" + [for(a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
 			case CStaticCall(fullPath, args):
-				fullPath + "(" + [for(a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
+				coalescingStaticCallText(fullPath, args, targetType);
 			case CConditional(c, t, f):
 				"(" + coalescingDefaultText(c, targetType) + " ? " + coalescingDefaultText(t, targetType) + " : " + coalescingDefaultText(f, targetType) + ")";
 			case CBinaryOp(op, left, right):
 				coalescingDefaultText(left, targetType) + " " + opStr(op) + " " + coalescingDefaultText(right, targetType);
+			case CConstructorCall(classPath, args):
+				classPath.split(".").pop() + "(" + [for(a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
 		};
+	}
+
+	function coalescingStaticCallText(path:String, args:Array<DefaultArgExpander.CoalescingDefaultValue>, targetType:Type):String {
+		final rendered = [for(a in args) coalescingDefaultText(a, targetType)].join(", ");
+		if(path == "std.SortedSet.builder") return runtimeQualified("SortedTable.setBuilder") + "(" + rendered + ")";
+		return path + "(" + rendered + ")";
 	}
 
 	function coalescingStaticFieldText(path:String):String {
@@ -524,6 +533,13 @@ class DartExpr {
 						case TLocal(v) if(v.id == varId): found = true;
 						case _:
 					}
+				// An increment or decrement reassigns the local, so the
+				// declaration needs var even without a plain assignment.
+				case TUnop(OpIncrement, _, t) | TUnop(OpDecrement, _, t):
+					switch(stripCast(t).expr) {
+						case TLocal(v) if(v.id == varId): found = true;
+						case _:
+					}
 				case _:
 			}
 			TypedExprTools.iter(x, walk);
@@ -625,6 +641,19 @@ class DartExpr {
 					};
 					out.push(grouped);
 					i += 3;
+					continue;
+				}
+			}
+			if(i + 1 < stmts.length) {
+				final loop = intervalShort(stmts[i], stmts[i + 1]);
+				if(loop != null) {
+					final grouped: TypedExpr = {
+						expr: TBlock([stmts[i], stmts[i + 1]]),
+						pos: stmts[i].pos,
+						t: stmts[i + 1].t
+					};
+					out.push(grouped);
+					i += 2;
 					continue;
 				}
 			}
@@ -1175,7 +1204,7 @@ class DartExpr {
 		return switch(stripWrap(fn).expr) {
 			case TField(_, FStatic(classRef, fieldRef)) if(classRef.get().module == "haxe.Int64" && classRef.get().name == "Int64_Impl_"):
 				switch(fieldRef.get().name) {
-					case "make" if(args.length == 2): "((" + expr(args[0]) + " << 32) | (" + expr(args[1]) + ").toUnsigned(32)).toSigned(64)";
+					case "make" if(args.length == 2): "(((" + expr(args[0]) + ").toSigned(32) << 32) | ((" + expr(args[1]) + ").toUnsigned(32))).toSigned(64)";
 					case "ofInt" if(args.length == 1): "(" + expr(args[0]) + ").toSigned(64)";
 					case "getHigh" | "get_high" if(args.length == 1): if(isFpHelperInt64Halves(args[0])) expr(args[0]) + ".high" else "((" + expr(args[0]) + " >> 32).toSigned(32))";
 					case "getLow" | "get_low" if(args.length == 1): if(isFpHelperInt64Halves(args[0])) expr(args[0]) + ".low" else "(" + expr(args[0]) + ").toSigned(32)";
@@ -1187,9 +1216,13 @@ class DartExpr {
 					case "complement" if(args.length == 1): "(~" + expr(args[0]) + ").toSigned(64)";
 					case "shl" if(args.length == 2): "(" + expr(args[0]) + " << (" + expr(args[1]) + " & 63)).toSigned(64)";
 					case "shr" if(args.length == 2): "(" + expr(args[0]) + " >> (" + expr(args[1]) + " & 63)).toSigned(64)";
-					case "ushr" if(args.length == 2): "(" + expr(args[0]) + ".toUnsigned(64) >> (" + expr(args[1]) + " & 63)).toSigned(64)";
+					case "ushr" if(args.length == 2): "(" + expr(args[0]) + " >>> (" + expr(args[1]) + " & 63)).toSigned(64)";
 					case "eq" if(args.length == 2): expr(args[0]) + " == " + expr(args[1]);
 					case "neq" if(args.length == 2): expr(args[0]) + " != " + expr(args[1]);
+					case "lt" if(args.length == 2): expr(args[0]) + " < " + expr(args[1]);
+					case "gt" if(args.length == 2): expr(args[0]) + " > " + expr(args[1]);
+					case "lte" if(args.length == 2): expr(args[0]) + " <= " + expr(args[1]);
+					case "gte" if(args.length == 2): expr(args[0]) + " >= " + expr(args[1]);
 					default: null;
 				}
 			default: null;
@@ -1300,8 +1333,8 @@ class DartExpr {
 			case "haxe.io.FPHelper":
 				// stdlib/05: the bit conversions live in the runtime library.
 				return runtimeQualified(name);
-			case "std.Test" | "std.__test_shim":
-				return fail(null, "std.Test." + name + " lowers at its call site");
+			case _ if(DartTestBinding.isTestExtern(cls)):
+				return fail(null, "test extern." + name + " lowers at its call site");
 			case "std.UStringRT":
 				return runtimeQualified("UString." + name);
 			case "std.Graphemes":
@@ -1393,7 +1426,7 @@ class DartExpr {
 				final a = args[i];
 				final pt = i < paramTypes.length ? paramTypes[i] : null;
 				final demandsValue = pt != null && !isNullLeafType(pt);
-				demandsValue && optionalValued(a) ? expr(a) + "!" : expr(a);
+				demandsValue && optionalValued(a) && !isLocalExpr(a) ? expr(a) + "!" : expr(a);
 			}
 		];
 	}
@@ -1405,12 +1438,19 @@ class DartExpr {
 		}
 		final base = expr(subj);
 		return switch(stripWrap(subj).expr) {
-			case TLocal(_): base + "!";
+			case TLocal(_): base;
 			case _: "(" + base + ")!";
 		};
 	}
 
 	/** Whether a value-position expression carries an optional at runtime. */
+	function isLocalExpr(e: TypedExpr): Bool {
+		return switch(stripWrap(e).expr) {
+			case TLocal(_): true;
+			case _: false;
+		};
+	}
+
 	function optionalValued(e: TypedExpr): Bool {
 		if(isNullLeafType(e.t)) {
 			return true;
@@ -1447,7 +1487,8 @@ class DartExpr {
 			ValueTypeSupport.memberField(a.get(), "toString") != null
 				? value + ".toStringValue()"
 				: value + "." + ValueTypeSupport.representationFieldName(a.get()) + ".toString()";
-			case TAbstract(a, _) if(a.get().name == "Int" || a.get().name == "Float" || a.get().name == "Bool"): inConcat && depth == 0 ? value : "'${" + value + "}'";
+			case TAbstract(a, _) if(a.get().name == "Float"): inConcat && depth == 0 ? value : "'${" + value + "}'.replaceFirst(\".0'\", \"'\")";
+			case TAbstract(a, _) if(a.get().name == "Int" || a.get().name == "Bool"): inConcat && depth == 0 ? value : "'${" + value + "}'";
 			case TAbstract(a, params) if(a.get().module == "std.ReadOnlyArray"):
 				stdStringType(haxe.macro.TypeTools.applyTypeParameters(a.get().type, a.get().params, params), value, inConcat, origin, depth);
 			case TEnum(en, _) if(isParameterlessEnum(en.get())): value + ".label";
@@ -1621,7 +1662,7 @@ class DartExpr {
 				if(module == "std.UStringPlatform") {
 					return ustringPlatformCall(fName, args, fn);
 				}
-				if(module == "std.TestPlatform") {
+				if(DartTestBinding.isTestPlatformExtern(module)) {
 					return testPlatformCall(fName, args, fn);
 				}
 				if(module == "std.UStringRT") {
@@ -1667,7 +1708,7 @@ class DartExpr {
 						return stdString(args[0], false);
 					}
 				}
-				if(module == "std.Test") {
+				if(DartTestBinding.isTestExtern(cls)) {
 					return testCall(fName, args, fn);
 				}
 				if((cls.name == "Functional" || cls.name == "__functional_shim" || module == "std.Functional") && fName == "sortedBy") {
@@ -1685,6 +1726,7 @@ class DartExpr {
 		}
 		switch(fn.expr) {
 			case TField(_, FStatic(c, cf)) if(c.get().module == "haxe.io.Bytes" && cf.get().name == "alloc" && args.length == 1):
+				imports.useTypedData();
 				return "Uint8List(" + expr(args[0]) + ")";
 			case TCast(inner, _):
 				return call(inner, args);
@@ -1734,6 +1776,7 @@ class DartExpr {
 					return receiverText(subj) + ".fillRange(" + expr(args[0]) + ", " + expr(args[0]) + " + " + expr(args[1]) + ", " + expr(args[2]) + ")";
 				}
 				if(name == "sub" && args.length == 2 && isBytes(stripCast(subj).t)) {
+					imports.useTypedData();
 					return "Uint8List.fromList(" + receiverText(subj) + ".sublist(" + expr(args[0]) + ", " + expr(args[0]) + " + " + expr(args[1]) + "))";
 				}
 				// stdlib/02: the growable byte sink is the plain int
@@ -1742,6 +1785,7 @@ class DartExpr {
 					return receiverText(subj) + ".add(" + expr(args[0]) + ")";
 				}
 				if(name == "getBytes" && isBytesBuffer(stripCast(subj).t)) {
+					imports.useTypedData();
 					return "Uint8List.fromList(" + receiverText(subj) + ")";
 				}
 				if(name == "push") {
@@ -1830,11 +1874,11 @@ class DartExpr {
 		lives in the private top-level state of the test host library
 		(this same library TestCore appends into), and plain numbers
 		render through toString. Business code never reaches these; it
-		calls std.Test.
+		calls test extern.
 	**/
 	function testPlatformCall(fName: String, args: Array<TypedExpr>, fn: TypedExpr): String {
 		if(!RuntimeResidents.isTestResident(imports.selfModule)) {
-			Context.error("std.TestPlatform is a resident runtime primitive; business code calls std.Test", fn.pos);
+			Context.error("test platform extern is a resident runtime primitive; business code calls test extern", fn.pos);
 		}
 		switch(fName) {
 			case "raise":
@@ -1851,7 +1895,7 @@ class DartExpr {
 	}
 
 	/**
-		std.Test assertions: scalars route to the TestCore checks with
+		test extern assertions: scalars route to the TestCore checks with
 		the message passed natively; composite values route to the
 		generated assertion of their tag (features/19).
 	**/
@@ -1883,7 +1927,7 @@ class DartExpr {
 				final tag = DartTestTypes.register(t);
 				return "test_helper.assertEquals" + tag + "(" + expr(args[0]) + ", " + expr(args[1]) + ", " + message + ")";
 			case _:
-				return fail(fn, "std.Test." + fName + " has no Dart lowering");
+				return fail(fn, "test extern." + fName + " has no Dart lowering");
 		}
 	}
 
@@ -2764,6 +2808,7 @@ class DartExpr {
 		return switch(stripWrap(leaf).expr) {
 			case TBinop(OpAdd, _, _): expr(leaf);
 			case TBinop(_, _, _): "(" + expr(leaf) + ")";
+			case TLocal(_) if(optionalStringLeaf(leaf)): expr(leaf);
 			case _: optionalStringLeaf(leaf) ? expr(leaf) + "!" : expr(leaf);
 		};
 	}
@@ -2819,6 +2864,14 @@ class DartExpr {
 							case TLocal(_):
 							case _:
 						}
+					case _:
+				}
+			// An increment or decrement reassigns the local, so the
+			// declaration needs var even without a plain assignment.
+			case TUnop(OpIncrement, _, t) | TUnop(OpDecrement, _, t):
+				switch(t.expr) {
+					case TLocal(v):
+						markMutated(v);
 					case _:
 				}
 			case TCall(fn, _):
