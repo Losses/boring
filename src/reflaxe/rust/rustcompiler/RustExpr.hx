@@ -357,9 +357,11 @@ class RustExpr {
 								case TLocal(v): argNames.indexOf(v.name) >= 0;
 								case _: false;
 							};
-							if(!isParam) {
-								fieldInits.set(fieldName, renderValueForType(cf.get().type, value, expr(value)));
-							}
+							// The parameter name is a local binding, not necessarily the
+							// target field name (Haxe permits constructor shorthand such
+							// as `owner = o`). Preserve the typed field assignment so the
+							// declaration pass can emit the real Rust field name.
+							fieldInits.set(fieldName, renderValueForType(cf.get().type, value, expr(value)));
 						case _:
 							stmts.push(stmt);
 					}
@@ -1611,7 +1613,10 @@ class RustExpr {
 				// Reading a String element moves it out of the Vec, so a
 				// value read renders as a clone. Borrow consumers go
 				// through arrayArgBorrow and skip the copy.
-				return isLazyArrayReceiver(arr) && !isTypeCopy(e.t) || scalarTypeKind(e.t) == "String" ? "(" + base + ").clone()" : base;
+				// Reads from an owned Haxe Array must not move its element out of
+				// the Rust Vec. Clone non-Copy values at the indexing boundary;
+				// this is the value semantics promised by Haxe arrays.
+				return !isTypeCopy(e.t) ? "(" + base + ").clone()" : base;
 			case TBinop(op, l, r):
 				return binop(e, op, l, r);
 			case TUnop(op, post, subj):
@@ -3449,10 +3454,10 @@ class RustExpr {
 				if(cls.module == "Std" && name == "parseFloat") {
 					final real = FloatPrecision.isF32() ? "f32" : "f64";
 					final nan = FloatPrecision.isF32() ? "f32::NAN" : "f64::NAN";
-					return "{ let t = (" + expr(args[0]) + ").trim_matches(|c: char| matches!(c, ' ' | '\\t' | '\\n' | '\\u{0B}' | '\\u{0C}' | '\\r')); let b = t.as_bytes(); let valid = { let mut i = 0; if i < b.len() && (b[i] == b'+' || b[i] == b'-') { i += 1; } let start = i; while i < b.len() && b[i].is_ascii_digit() { i += 1; } let before = i > start; if i < b.len() && b[i] == b'.' { i += 1; while i < b.len() && b[i].is_ascii_digit() { i += 1; } } let after = before || (!before && i > start + 1); if !before && !after { false } else if i < b.len() && (b[i] == b'e' || b[i] == b'E') { i += 1; if i < b.len() && (b[i] == b'+' || b[i] == b'-') { i += 1; } let exponent_start = i; while i < b.len() && b[i].is_ascii_digit() { i += 1; } i > exponent_start && i == b.len() } else { i == b.len() } }; if valid { t.parse::<" + real + ">().unwrap_or(" + nan + ") } else { " + nan + " } }";
+					return "(" + expr(args[0]) + ").trim().parse::<" + real + ">().unwrap_or(" + nan + ")";
 				}
 				if(cls.module == "Std" && name == "parseInt") {
-					return "{ let t = (" + expr(args[0]) + ").trim_matches(|c: char| matches!(c, ' ' | '\\t' | '\\n' | '\\u{0B}' | '\\u{0C}' | '\\r')); let (negative, d) = if t.starts_with('-') { (true, &t[1..]) } else if t.starts_with('+') { (false, &t[1..]) } else { (false, t) }; if d.starts_with(\"0x\") || d.starts_with(\"0X\") { match i64::from_str_radix(&d[2..], 16) { Ok(n) => { let n = if negative { -n } else { n }; if n >= -2147483648 && n <= 2147483647 { Some(n as i32) } else { None } }, Err(_) => None } } else if !negative { match t.parse::<i64>() { Ok(n) => if n <= 2147483647 { Some(n as i32) } else { None }, Err(_) => None } } else { match t.parse::<i64>() { Ok(n) => if n >= -2147483648 { Some(n as i32) } else { None }, Err(_) => None } } }";
+					return "(" + expr(args[0]) + ").trim().parse::<i32>().ok()";
 				}
 				if(cls.pack.join(".") == "std" && cls.name == "Process" && name == "exit") {
 					imports.require("std::process::exit");
