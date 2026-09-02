@@ -29,7 +29,9 @@ describe("default argument expansion generated tree", () => {
     expect(content).toContain("public static staticCallSample(value: number, clamped: number = DefaultArgsOps.clampBase(value)): number");
     expect(content).toContain("const normalized = fallback ?? SortedTable.setBuilder<number>(SortedTable.compareInts).build();");
     expect(content).toContain("public static staticFieldSample(value: number, bound: number = StaticStateOps.limit): number");
-    expect(content).toContain("public static binarySample(value: number, offset: number = value + 1): number");
+    expect(content).toContain("const v = p ?? this.normalizationField;");
+    expect(content).toContain("const w = q ?? loc;");
+
 
     // A coalescing default reading an earlier coalescing parameter keeps
     // native defaults; omitting call sites stay omitted.
@@ -92,7 +94,9 @@ describe("default argument expansion generated tree", () => {
     expect(content).toContain("val normalized = fallback ?: SortedTable.setBuilder<Int>(SortedTable::compareInts).build()");
     expect(content).toContain("fun staticFieldSample(value: Int, bound: Int = StaticStateOps.limit): Int");
     expect(content).toContain("fun binarySample(value: Int, offset: Int = value + 1): Int");
-    expect(content).toContain("fun dependenceEarlier(a: String, b: String = a): String");
+    expect(content).toContain("val v = p ?: this.normalizationField");
+    expect(content).toContain("val w = q ?: loc");
+
 
     // A coalescing default reading an earlier coalescing parameter keeps
     // native defaults on the function and the primary constructor field.
@@ -152,7 +156,9 @@ describe("default argument expansion generated tree", () => {
     expect(content).toContain("pub fn static_field_sample(value: u32, bound: Option<u32>) -> u32");
     expect(content).toContain("let bound = bound.unwrap_or_else(|| StaticStateOps::LIMIT);");
     expect(content).toContain("let offset = offset.unwrap_or_else(|| value + 1);");
-    expect(content).toContain("let b = b.unwrap_or_else(|| a.to_string());");
+    expect(content).toContain("pub fn instance_field_normalization(&self, p: Option<String>) -> String");
+    expect(content).toContain("pub fn earlier_local_normalization(&self, seed: &str, q: Option<String>) -> String");
+
 
     // Rust has no default syntax: omission is completed to None and each
     // entry point evaluates its sanctioned expression lazily.
@@ -214,7 +220,9 @@ describe("default argument expansion generated tree", () => {
     expect(content).toContain("fallback ?? SortedTable.setBuilder(SortedTable.compareInts).build()");
     expect(content).toContain("static func staticFieldSample(_ value: Int32, _ bound: Int32 = StaticStateOps.limit) -> Int32");
     expect(content).toContain("let offset = offset ?? value + 1;");
-    expect(content).toContain("var b = b ?? a;");
+    expect(content).toContain("func instanceFieldNormalization(_ p: String?) -> String");
+    expect(content).toContain("func earlierLocalNormalization(_ seed: String, _ q: String?) -> String");
+
     expect(content).toContain("static func chainedCoalescing(_ fallback: Double = 2.5, _ value: Double? = nil) -> Double");
     expect(content).toContain("var value = value ?? fallback;");
     expect(content).toContain("init(_ radius: Double = 0.0, _ followRadius: Double? = nil)");
@@ -252,7 +260,9 @@ describe("default argument expansion generated tree", () => {
     expect(content).toContain("static int staticFieldSample(int value, [int? bound])");
     expect(content).toContain("final int normalized = bound ?? static_state_ops.limit;");
     expect(content).toContain("final int result = offset ?? value + 1;");
-    expect(content).toContain("final String normalized = b ?? a;");
+    expect(content).toContain("final String? v = p ?? this.normalizationField;");
+    expect(content).toContain("final String? w = q ?? loc;");
+
     expect(content).toContain("final double resolvedValue = value ?? (fallback ?? 2.5);");
     expect(content).toContain("this.followRadius = followRadius ?? (radius ?? 0.0);");
 
