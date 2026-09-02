@@ -120,8 +120,14 @@ tests.NumberClassifyTests
 tests.ArrayRootTests
 
 registry.Core
+registry.CoreFault
 registry.Json
+registry.JsonFault
 registry.Semver
+registry.SemverFault
+registry.CoreException
+registry.JsonException
+registry.SemverException
 registry.Sha1
 registry.Release
 tests.RegistrySha1Tests
