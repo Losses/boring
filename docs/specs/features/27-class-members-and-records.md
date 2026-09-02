@@ -19,10 +19,11 @@ five source targets do not lower uniformly:
 3. **Constructor bodies.** The statements of `new` run once per
    construction; validation lives there. TS renders them into the
    `constructor`, Swift into `init`, Dart into the constructor body after
-   the initializer list. Kotlin and Rust drop them: Kotlin renders the
-   primary constructor and nothing else, Rust renders `Self { field, ... }`
-   and nothing else. A source invariant such as `start <= end` silently
-   disappears from the generated class on those two targets.
+   the initializer list. Kotlin renders them in an `init` block after
+   property declarations, including lowered comprehension and pipeline
+   statements. Rust lowers constructor statements before its `Self` literal;
+   that lowering is part of this parity change, while the broader Rust
+   constructor proposal remains separate.
 3. **Getter-only properties.** A field declared `var x(get, never)` with a
    `get_x` accessor function states a computed read with no storage. No
    target handles the declaration: today the field flows into the field
