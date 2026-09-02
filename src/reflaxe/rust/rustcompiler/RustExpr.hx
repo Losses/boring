@@ -2433,7 +2433,7 @@ class RustExpr {
 		final inner = expr(subj);
 		switch(op) {
 			case OpNot: return "!" + inner;
-			case OpNegBits: return "~" + inner;
+			case OpNegBits: return "!" + inner;
 			case OpNeg: return "-" + inner;
 			case OpIncrement: return inner + " += 1";
 			case OpDecrement: return inner + " -= 1";
