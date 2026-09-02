@@ -126,6 +126,8 @@ class KotlinExpr {
 			case CNegativeInfinity: FloatPrecision.isF32() ? "Float.NEGATIVE_INFINITY" : "Double.NEGATIVE_INFINITY";
 			case CEnum(enumRef, enumField): types.of(Type.TEnum(enumRef, [])) + "." + enumField.name;
 			case CParameterRead(name): name;
+			case CInstanceFieldRead(name): "this." + name;
+			case CLocalRead(name): name;
 			case CFieldAccess(CParameterRead(staticPath), ""): coalescingStaticFieldText(staticPath);
 			case CFieldAccess(receiver, fieldName): coalescingDefaultText(receiver, targetType) + "." + (fieldName == "length" ? "size" : fieldName);
 			case CMethodCall(receiver, methodName, args):

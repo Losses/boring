@@ -155,6 +155,8 @@ class DartExpr {
 						: DefaultArgExpander.coalescingDefaultForParam(currentClass, currentField, name))
 					: null;
 				earlier != null ? "(" + name + " ?? " + coalescingDefaultText(earlier, targetType) + ")" : name;
+			case CInstanceFieldRead(name): "this." + name;
+			case CLocalRead(name): name;
 			case CFieldAccess(CParameterRead(staticPath), ""): coalescingStaticFieldText(staticPath);
 			case CFieldAccess(receiver, fieldName): coalescingDefaultText(receiver, targetType) + "." + fieldName;
 			case CMethodCall(receiver, methodName, args):
