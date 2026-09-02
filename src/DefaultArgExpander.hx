@@ -72,7 +72,8 @@ class DefaultArgExpander {
 	static final normalizationSourceRanges:Array<{file:String, min:Int, max:Int}> = [];
 	static final fieldNormalization:Map<String, CoalescingDefaultValue> = new Map();
 	static final localNormalization:Map<String, CoalescingDefaultValue> = new Map();
-	static final instanceFieldNames:Map<String, Map<String, Bool>> = new Map();
+	/** Instance fields registered during the build macro, before typed field tables exist. */
+	static final registeredInstanceFields:Map<String, Map<String, Bool>> = new Map();
 	// Local bindings are only candidates for the Stage-A default-site form
 	// when their value is sanctioned.  An ordinary local ternary must remain
 	// ordinary Haxe (the target compiler, not this registry, lowers it).
@@ -98,16 +99,11 @@ class DefaultArgExpander {
 
 	public static function registerClassFields(classType:ClassType, fields:Array<Field>):Void {
 		final classKey = getClassKey(classType);
-		final instanceNames:Map<String, Bool> = new Map();
+		final instanceFields:Map<String, Bool> = new Map();
 		for (field in fields) {
-			var isStatic = false;
-			for (access in field.access) switch (access) {
-				case Access.AStatic: isStatic = true;
-				default:
-			}
-			if (!isStatic) instanceNames.set(field.name, true);
+			if (field.access.indexOf(Access.AStatic) < 0) instanceFields.set(field.name, true);
 		}
-		instanceFieldNames.set(classKey, instanceNames);
+		registeredInstanceFields.set(classKey, instanceFields);
 		for (index in 0...fields.length) {
 			final field = fields[index];
 			switch (field.kind) {
@@ -445,7 +441,7 @@ class DefaultArgExpander {
 	}
 
 	static function isInstanceField(classType:ClassType, name:String):Bool {
-		final registered = instanceFieldNames.get(getClassKey(classType));
+		final registered = registeredInstanceFields.get(getClassKey(classType));
 		if (registered != null && registered.exists(name)) return true;
 		for (field in classType.fields.get()) if (field.name == name) return true;
 		final local = Context.getLocalClass();
@@ -554,7 +550,7 @@ class DefaultArgExpander {
 		// 3. Normalization-only roots: instance fields and earlier locals.
 		if (allowNormalizationBindingLeaves) switch (cur.expr) {
 			case ExprDef.EConst(AstConstant.CIdent(name)) if (isInstanceField(classType, name)): return CInstanceFieldRead(name);
-			case ExprDef.EField(inner, name) if (allowNormalizationBindingLeaves && isThisExpression(inner)): return CInstanceFieldRead(name);
+			case ExprDef.EField(inner, name) if (allowNormalizationBindingLeaves && isThisExpression(inner) && isInstanceField(classType, name)): return CInstanceFieldRead(name);
 			default:
 		}
 
@@ -568,7 +564,7 @@ class DefaultArgExpander {
 		if (cur.expr != null) {
 			switch (cur.expr) {
 				case ExprDef.EField(inner, fieldName):
-					if (allowNormalizationBindingLeaves && isThisExpression(inner)) return CInstanceFieldRead(fieldName);
+					if (allowNormalizationBindingLeaves && isThisExpression(inner) && isInstanceField(classType, fieldName)) return CInstanceFieldRead(fieldName);
 					final innerClass = classifyExpr(inner, earlierNames);
 					if (innerClass == "type") {
 						// Static field read; handled above; fall through
