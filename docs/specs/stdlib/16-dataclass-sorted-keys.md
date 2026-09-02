@@ -47,6 +47,8 @@ generates for `@:dataClass`: two records compare equal exactly when their
 generated `equals` returns true. The comparator reads only the declared fields;
 generated members such as `toString` take no part in comparison.
 
+A comparator is generated only for records whose fields are all comparable; a record with an unsupported field has no comparator, and using it as a sorted key is rejected at the key type gate.
+
 ## Gate
 
 The key domain gate lives in `classifyKey` in every target type module. The
