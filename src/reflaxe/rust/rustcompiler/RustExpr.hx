@@ -4460,6 +4460,20 @@ class RustExpr {
 		// concrete implementor therefore enters an interface slot through
 		// the one sanctioned Box::new construction; an expression already
 		// typed as the interface is already boxed by its declaration site.
+		if(isStringType(expected) && isStringType(actual.t)) {
+			final borrowedParam = switch(stripWrap(actual).expr) {
+				case TLocal(v): paramVarIds.get(v.id) == true;
+				case _: false;
+			};
+			if(borrowedParam) return rendered + ".to_string()";
+		}
+		if(isNullType(expected) && isNullType(actual.t) && isStringType(getNullInnerType(expected))) {
+			final borrowedParam = switch(stripWrap(actual).expr) {
+				case TLocal(v): paramVarIds.get(v.id) == true;
+				case _: false;
+			};
+			if(borrowedParam) return rendered + ".map(|v| v.to_string())";
+		}
 		if(isInterfaceType(expected) && !isInterfaceType(actual.t)) {
 			return "Box::new(" + rendered + ")";
 		}
