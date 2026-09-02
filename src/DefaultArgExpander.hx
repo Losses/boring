@@ -619,7 +619,7 @@ class DefaultArgExpander {
 	static function isCompiledStaticType(path:String):Bool {
 		try {
 			switch (Context.getType(path)) {
-				case Type.TInst(ref, _): return !ref.get().isExtern;
+				case Type.TInst(ref, _): return true;
 				default:
 			}
 		} catch (_:Dynamic) {}

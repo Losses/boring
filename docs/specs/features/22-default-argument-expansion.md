@@ -400,6 +400,7 @@ implemented:
 - Haxe stage 1: the source ternary is the semantics. The registration pass
   performs no rewrite for a normalization binding, because `p` is read
   elsewhere in the body by design.
+- Static calls do not distinguish extern from non-extern classes: detection and rendering use each target's existing static mapping.
 
 The `V16 NonConstantDefault` row of the style standard updates in the same
 commit: the sanctioned classes grow by the constructor leaf and the

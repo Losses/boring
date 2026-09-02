@@ -131,7 +131,7 @@ class KotlinExpr {
 			case CMethodCall(receiver, methodName, args):
 				coalescingDefaultText(receiver, targetType) + "." + kotlinMethodName(methodName) + "(" + [for(a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
 			case CStaticCall(fullPath, args):
-				fullPath + "(" + [for(a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
+				coalescingStaticCallText(fullPath, args, targetType);
 			case CConditional(c, t, f):
 				"if (" + coalescingDefaultText(c, targetType) + ") " + coalescingDefaultText(t, targetType) + " else " + coalescingDefaultText(f, targetType);
 			case CBinaryOp(op, left, right):
@@ -139,6 +139,16 @@ class KotlinExpr {
 			case CConstructorCall(classPath, args):
 				"new " + classPath.split(".").pop() + "(" + [for(a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
 		};
+	}
+
+	function coalescingStaticCallText(path:String, args:Array<DefaultArgExpander.CoalescingDefaultValue>, targetType:Type):String {
+		final rendered = [for(a in args) coalescingDefaultText(a, targetType)].join(", ");
+		if(path == "std.SortedSet.builder") {
+			final key = switch(Context.follow(DefaultArgExpander.withoutNull(targetType))) { case TInst(_, params) if(params.length > 0): params[0]; case _: null; };
+			imports.requireType("std.SortedSet", "SortedTable");
+			return "SortedTable.setBuilder<" + types.of(key) + ">(" + sortedComparator("std.SortedSet", key, Context.currentPos()) + ")";
+		}
+		return path + "(" + rendered + ")";
 	}
 
 	function coalescingStaticFieldText(path:String):String {
