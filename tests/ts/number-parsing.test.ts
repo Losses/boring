@@ -20,7 +20,10 @@ describe("number parsing renderings", () => {
     const swift = read("reference/swift/gen/boring/NumberParsingOps.swift");
     const swiftRuntime = read("reference/swift/gen/Runtime.swift");
     expect(swiftRuntime).not.toContain("NumberParsing");
-    expect(swift).toContain("Int64(t)"); expect(swift).toContain("2147483647"); expect(swiftRuntime).not.toContain("NSRegularExpression"); expect(swiftRuntime).not.toContain("import Foundation");
+    expect(swiftRuntime).toContain("guard let n = Int64(digits, radix: hex ? 16 : 10) else { return nil }");
+    expect(swiftRuntime).toContain("return value >= -2147483648 && value <= 2147483647 ? Int32(value) : nil");
+    expect(swift).toContain("return parseIntRuntime(value)");
+    expect(swiftRuntime).not.toContain("NSRegularExpression"); expect(swiftRuntime).not.toContain("import Foundation");
     const dart = read("reference/dart/gen/lib/boring/number_parsing_ops.dart");
     expect(read("reference/dart/gen/runtime.dart")).not.toContain("NumberParsing");
     expect(dart).toContain("tryParse"); expect(dart).toContain("2147483647");
@@ -30,6 +33,9 @@ describe("number parsing renderings", () => {
     expect(read("reference/kotlin-f32/gen/boring/NumberParsingOps.kt")).toContain("toFloatOrNull");
     const swiftF32 = read("reference/swift-f32/gen/boring/NumberParsingOps.swift");
     const swiftF32Runtime = read("reference/swift-f32/gen/Runtime.swift");
-    expect(swiftF32).toContain("Int64(t)"); expect(swiftF32Runtime).not.toContain("import Foundation"); expect(swiftF32Runtime).not.toContain("NSRegularExpression");
+    expect(swiftF32Runtime).toContain("guard let n = Int64(digits, radix: hex ? 16 : 10) else { return nil }");
+    expect(swiftF32Runtime).toContain("return value >= -2147483648 && value <= 2147483647 ? Int32(value) : nil");
+    expect(swiftF32).toContain("return parseIntRuntime(value)");
+    expect(swiftF32Runtime).not.toContain("import Foundation"); expect(swiftF32Runtime).not.toContain("NSRegularExpression");
   });
 });
