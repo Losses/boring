@@ -518,8 +518,12 @@ errors. All five registry test modules are listed in each of the eight target
 HXML module manifests; the generated result streams are consumed by the
 cross-target consistency manager.
 
-`registry/Platform.hx` is a TS-only tool-local extern module: platform access
-uses `@:jsRequire` and `@:native` declarations. The eight
+The two additional `@:test` modules are `RegistryParseArgsTests` and
+`RegistryPipelineTests`; they exercise the core's literal argument failures and
+end-to-end five-ecosystem record-to-output pipeline without shell IO. The
+cross-target result streams are compared by `test:consistency`, which requires
+identical pass/fail identities across Haxe, TypeScript, Kotlin, Rust, Swift,
+and Dart.
 `examples/{ts,kotlin,kotlin-f32,rust,rust-f32,swift,swift-f32,dart}.hxml`
 entries include the core and `tests.*` suite, but not `registry.Main` or
 `registry.Platform`; browser-consumable runtime entry points do not import
