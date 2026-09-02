@@ -1410,7 +1410,7 @@ class DartExpr {
 				final a = args[i];
 				final pt = i < paramTypes.length ? paramTypes[i] : null;
 				final demandsValue = pt != null && !isNullLeafType(pt);
-				demandsValue && optionalValued(a) ? expr(a) + "!" : expr(a);
+				demandsValue && optionalValued(a) && !isLocalExpr(a) ? expr(a) + "!" : expr(a);
 			}
 		];
 	}
@@ -1422,12 +1422,19 @@ class DartExpr {
 		}
 		final base = expr(subj);
 		return switch(stripWrap(subj).expr) {
-			case TLocal(_): base + "!";
+			case TLocal(_): base;
 			case _: "(" + base + ")!";
 		};
 	}
 
 	/** Whether a value-position expression carries an optional at runtime. */
+	function isLocalExpr(e: TypedExpr): Bool {
+		return switch(stripWrap(e).expr) {
+			case TLocal(_): true;
+			case _: false;
+		};
+	}
+
 	function optionalValued(e: TypedExpr): Bool {
 		if(isNullLeafType(e.t)) {
 			return true;
@@ -2784,6 +2791,7 @@ class DartExpr {
 		return switch(stripWrap(leaf).expr) {
 			case TBinop(OpAdd, _, _): expr(leaf);
 			case TBinop(_, _, _): "(" + expr(leaf) + ")";
+			case TLocal(_) if(optionalStringLeaf(leaf)): expr(leaf);
 			case _: optionalStringLeaf(leaf) ? expr(leaf) + "!" : expr(leaf);
 		};
 	}
