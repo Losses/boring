@@ -255,7 +255,8 @@ class Compiler extends PluginCompiler<Compiler> {
 			if(state.shimsUsed.exists("haxe.io.BytesBuffer")) runtimeMods.push("bytes_buffer");
 			if(state.shimsUsed.exists("std.Console")) runtimeMods.push("console");
 			if(state.shimsUsed.exists("std.Process")) runtimeMods.push("process");
-			if(RuntimeResidents.externsOf("runtime.TestCore").exists(m -> state.shimsUsed.exists(m))) {
+			final testUsed = RuntimeResidents.externsOf("runtime.TestCore").filter(m -> state.shimsUsed.exists(m));
+			if(testUsed.length > 0) {
 				runtimeMods.push("test");
 				runtimeMods.push("test_core");
 			}
