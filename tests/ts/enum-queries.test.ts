@@ -20,30 +20,30 @@ describe("enum value queries generated trees", () => {
     expect(ops).not.toContain("widths.length");
   });
 
-  test("Kotlin uses enum class, entries and a literal bound", () => {
+  test("Kotlin uses enum class, entries and element iteration", () => {
     const decl = read("../../reference/kotlin/gen/boring/FloatWidth.kt");
     const ops = read("../../reference/kotlin/gen/boring/EnumQueriesOps.kt");
     expect(decl).toContain("enum class FloatWidth");
     expect(ops).toContain("FloatWidth.entries");
-    expect(ops).toContain("for (index in 0 until 3)");
+    expect(ops).toContain("for (width in widths)");
   });
 
-  test("Swift uses raw value cases, CaseIterable and a literal bound", () => {
+  test("Swift uses raw value cases, CaseIterable and element iteration", () => {
     const decl = read("../../reference/swift/gen/boring/FloatWidth.swift");
     const ops = read("../../reference/swift/gen/boring/EnumQueriesOps.swift");
     expect(decl).toContain("enum FloatWidth: String, CaseIterable, Equatable");
     expect(decl).toContain('case f64 = "F64"');
     expect(ops).toContain("FloatWidth.allCases");
-    expect(ops).toContain("stride(from: 0, to: 3, by: 1)");
+    expect(ops).toContain("for width in widths");
   });
 
-  test("Dart uses enhanced enum labels, lookup and a literal bound", () => {
+  test("Dart uses enhanced enum labels, lookup and element iteration", () => {
     const decl = read("../../reference/dart/gen/lib/boring/float_width.dart");
     const ops = read("../../reference/dart/gen/lib/boring/enum_queries_ops.dart");
     expect(decl).toContain("enum FloatWidth {");
     expect(decl).toContain("final String label;");
     expect(decl).toContain("FloatWidth? floatWidthOfName(String name)");
-    expect(ops).toContain("index < 3");
+    expect(ops).toContain("for (var width in widths)");
   });
 
   test("Rust emits ALL, name, from_name and a literal range", () => {
