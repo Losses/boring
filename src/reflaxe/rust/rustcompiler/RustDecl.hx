@@ -874,6 +874,15 @@ class RustDecl {
 	}
 
 	function ctorArgType(t: Type, hasLifetime: Bool, owningClass: Bool): String {
+		// Nullable strings are borrowed optional values at constructor boundaries.
+		switch(Context.follow(t)) {
+			case TAbstract(a, params) if(a.get().name == "Null" && params.length == 1):
+				switch(Context.follow(params[0])) {
+					case TInst(c, _) if(c.get().name == "String"): return "Option<&str>";
+					case _:
+				}
+			case _:
+		}
 		// A constructor moves its arguments into fields. On the generic
 		// resident classes an Array parameter becomes an owned Vec that
 		// the field initializer takes over; other classes keep the
@@ -1288,8 +1297,18 @@ class RustDecl {
 					case TInst(c, _): c.get().name == "String";
 					case _: false;
 				};
+				final isNullableStringParam = switch(Context.follow(a.type)) {
+					case TAbstract(abs, params) if(abs.get().name == "Null" && params.length == 1):
+						switch(Context.follow(params[0])) {
+							case TInst(c, _): c.get().name == "String";
+							case _: false;
+						};
+					case _: false;
+				};
 				if(isStringParam) {
 					lines.push('            $sname: ${sname}.to_string(),');
+				} else if(isNullableStringParam) {
+					lines.push('            $sname: ${sname}.map(|v| v.to_string()),');
 				} else {
 					lines.push('            $sname,');
 				}

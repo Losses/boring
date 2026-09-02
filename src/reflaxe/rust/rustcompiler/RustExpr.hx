@@ -49,6 +49,8 @@ class RustExpr {
 	final argTypes: Map<String, String> = [];
 	final paramVarIds: Map<Int, Bool> = [];
 	final unsignedLocals: Map<Int, Bool> = [];
+	// Locals initialized from charCodeAt are collapsed from Option<u32> to a scalar.
+	final nullableCollapsedLocals: Map<Int, Bool> = [];
 	final fpInt64Halves: Map<Int, Bool> = [];
 	var hiddenCounter: Int = 0;
 
@@ -252,6 +254,7 @@ class RustExpr {
 		currentLocalName = null;
 		paramVarIds.clear();
 		unsignedLocals.clear();
+		nullableCollapsedLocals.clear();
 		mutated.clear();
 		deferredLocals.clear();
 		for(a in f.args) {
@@ -453,7 +456,9 @@ class RustExpr {
 				};
 				initStr = renderValueForType(v.t, init, initStr);
 				switch(stripWrap(init).expr) {
-					case TCall(fn, _) if(isStringCharCodeAt(fn)): initStr += ".unwrap_or(0)";
+					case TCall(fn, _) if(isStringCharCodeAt(fn)):
+						initStr += ".unwrap_or(0)";
+						nullableCollapsedLocals.set(v.id, true);
 					case _:
 				}
 				// A String local owns its value; a literal initializer is
@@ -1477,7 +1482,10 @@ class RustExpr {
 
 	function renderPushArg(arg: TypedExpr): String {
 		var argStr = expr(arg);
-		if(isNullType(arg.t)) {
+		if(isNullType(arg.t) && !(switch(stripWrap(arg).expr) {
+			case TLocal(v): nullableCollapsedLocals.exists(v.id);
+			case _: false;
+		})) {
 			argStr = argStr + ".unwrap()";
 			if(!isTypeCopy(getNullInnerType(arg.t))) {
 				if(!StringTools.endsWith(argStr, ".clone()") && !StringTools.endsWith(argStr, ".to_vec()") && !StringTools.endsWith(argStr, ".to_string()")) {
@@ -3412,7 +3420,7 @@ class RustExpr {
 				if(cls.pack.length == 0 && cls.name == "String" && name == "fromCharCode") {
 					final value = expr(args[0]);
 					final argument = StringTools.startsWith(value, "(") ? value : "(" + value + ")";
-					final unwrapped = isNullType(args[0].t) ? argument + ".unwrap_or_default()" : argument;
+					final unwrapped = isNullType(args[0].t) ? "(" + value + ".unwrap_or_default())" : argument;
 					return "String::from_utf16(&[u16::try_from" + unwrapped + ".unwrap_or_default()]).unwrap_or_default()";
 				}
 				if(path == "std.UStringPlatform") {
@@ -3842,6 +3850,10 @@ class RustExpr {
 			final argStr = expr(arg);
 			if(i < paramTypes.length) {
 				final pt = paramTypes[i];
+				if(isNullType(pt) && isStringType(getNullInnerType(pt)) && isNullType(arg.t)) {
+					out.push(argStr + ".as_deref()");
+					continue;
+				}
 				if(isNullType(pt) && !isNullType(arg.t)) {
 					// A nullable constructor parameter takes an Option; a
 					// null literal already renders None, any other
@@ -4485,7 +4497,9 @@ class RustExpr {
 			final pt = paramIndex < paramTypes.length ? paramTypes[paramIndex] : null;
 			var argStr = renderValueForType(pt, arg, expr(arg));
 			if(paramIndex < paramTypes.length) {
-				if(isNullType(pt) && !isNullType(arg.t)) {
+				if(isNullType(pt) && isStringType(getNullInnerType(pt)) && isNullType(arg.t)) {
+					argStr = argStr + ".as_deref()";
+				} else if(isNullType(pt) && !isNullType(arg.t)) {
 					if(argStr == "None") {
 						// already None
 					} else {
