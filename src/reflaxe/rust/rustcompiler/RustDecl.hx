@@ -796,7 +796,7 @@ class RustDecl {
 				case _: types.of(field.type);
 			};
 			final vis = field.isPublic ? "pub " : "";
-			final name = RustImports.toSnakeCase(field.name);
+			final name = RustImports.toSnakeCase(field.name).toUpperCase();
 			return ['    ${vis}const ${name}: ${typeStr} = $valStr;'];
 		}
 		return [];
@@ -897,7 +897,8 @@ class RustDecl {
 			case _:
 				types.of(field.type);
 		};
-		return ['    pub(crate) $snake: $typeStr,'];
+		final visibility = field.isPublic ? "pub" : "pub(crate)";
+		return ['    $visibility $snake: $typeStr,'];
 	}
 
 	function staticFuncDecl(cls: ClassType, f: ClassFuncData, firstArg: Int = 0, receiverMethod: Bool = false): Array<String> {

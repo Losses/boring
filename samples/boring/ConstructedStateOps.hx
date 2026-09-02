@@ -34,10 +34,6 @@ class FramePolicy {
 	public static final plain:FramePolicy = new FramePolicy("plain", FrameMode.Plain, []);
 	public static final imported:FramePolicy = new FramePolicy("imported", FrameMode.Plain, ["cross-class"]);
 	public static final generated:FramePolicy = new FramePolicy("generated", FrameMode.Plain, []);
-
-	static function makeLabel():String {
-		return "generated";
-	}
 }
 
 class ConstructedStateOps {
