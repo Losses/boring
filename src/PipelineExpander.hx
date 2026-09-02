@@ -151,9 +151,11 @@ class PipelineExpander {
 				var arraySubject:Null<TypedExpr> = null;
 				var subjectType:Null<Type> = null;
 				switch (subject.expr) {
-					case TCall({expr: TField(_, FStatic(c, f))}, args) if(args.length == 1 && c.get().name == "ReadOnlyArray_Impl_" && f.get().name == "iterator" && StaticFieldHelper.isReadOnlyArrayType(args[0].t)):
+					case TCall({expr: TField(_, FStatic(c, f))}, args) if(args.length == 1 && f.get().name == "iterator"):
+						if (c.get().name == "ReadOnlyArray_Impl_" && StaticFieldHelper.isReadOnlyArrayType(args[0].t)) {
 						arraySubject = stripWrap(args[0]);
 						subjectType = args[0].t;
+						} else return null;
 					case _ if(StaticFieldHelper.isArrayType(subject.t) || StaticFieldHelper.isReadOnlyArrayType(subject.t)):
 						arraySubject = stripWrap(subject);
 						subjectType = subject.t;
@@ -185,7 +187,41 @@ class PipelineExpander {
 		return null;
 	}
 
-	/** Hoist enum switch subjects that are evaluated expressions exactly once. */
+	static function expandLoweredReadOnlyIteration(counterStmt:TypedExpr, whileStmt:TypedExpr, usedNames:Map<String, Bool>):Null<Array<TypedExpr>> {
+		var arrayExpr:Null<TypedExpr> = null;
+		var item:TVar = null;
+		var tail:Array<TypedExpr> = null;
+		switch [counterStmt.expr, whileStmt.expr] {
+			case [TVar(iteratorVar, init), TWhile(_, loopBody, true)]:
+				switch (init.expr) {
+					case TCall({expr: TField(_, FStatic(c, f))}, args) if(args.length == 1 && c.get().name == "ReadOnlyArray_Impl_" && f.get().name == "iterator" && StaticFieldHelper.isReadOnlyArrayType(args[0].t)):
+						arrayExpr = stripWrap(args[0]);
+					default: return null;
+				}
+				final bodyStmts = switch loopBody.expr { case TBlock(s): s; case _: []; };
+				if(bodyStmts.length < 2) return null;
+				switch(bodyStmts[0].expr) {
+					case TVar(captured, next) if(next != null):
+						switch(next.expr) {
+							case TCall({expr: TField(_, FInstance(_, _, fa))}, _ ) if(fa.get().name == "next"): item = captured;
+							case TCall({expr: TField(_, FAnon(fa))}, _ ) if(fa.get().name == "next"): item = captured;
+							default: return null;
+						}
+					default: return null;
+				}
+				tail = bodyStmts.slice(1);
+			default: return null;
+		}
+		if (arrayExpr == null || item == null) return null;
+		final pos = counterStmt.pos;
+		final elemType = StaticFieldHelper.arrayElementType(arrayExpr.t);
+		if (elemType == null) return null;
+		final counter = makeTVar(mint("_g", usedNames), Context.getType("Int"), false);
+		final bound = makeTVar(mint("_g1", usedNames), Context.getType("Int"), true);
+		final index = makeTVar(mint("_g_index", usedNames), Context.getType("Int"), true);
+		return [makeTVarStmt(counter, makeIntConst(0, pos), pos), makeTVarStmt(bound, makeArrayLength(arrayExpr, pos), pos), makeIntervalLoop(counter, bound, index, [makeTVarStmt(item, makeArrayRead(arrayExpr, makeLocal(index, pos), elemType, pos), pos)].concat(tail), pos)];
+	}
+
 	static function hoistSwitchSubjects(e:TypedExpr, usedNames:Map<String, Bool>):Void {
 		if (e == null) return;
 		switch (e.expr) {
@@ -375,6 +411,15 @@ class PipelineExpander {
 			if (stmt == null) {
 				i++;
 				continue;
+			}
+			if (i + 1 < stmts.length) {
+				final lowered = expandLoweredReadOnlyIteration(stmts[i], stmts[i + 1], usedNames);
+				if (lowered != null) {
+					stmts.splice(i, 2);
+					for (j in 0...lowered.length) stmts.insert(i + j, lowered[j]);
+					i += lowered.length;
+					continue;
+				}
 			}
 			final iteration = expandArrayIteration(stmt, usedNames);
 			if (iteration != null) {
