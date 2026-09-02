@@ -930,8 +930,8 @@ class RustDecl {
 		final args = [for(i in firstArg...f.args.length) {
 			final a = f.args[i];
 			var pType = types.of(a.type, true);
-			if(argMutated(f.expr, a.name) && StringTools.startsWith(pType, "&Vec<")) pType = "&mut " + pType.substr(1);
-			final mut = argMutated(f.expr, a.name) && !StringTools.startsWith(pType, "&mut") ? "mut " : "";
+			if(argIsMutated(f.expr, a.name) && StringTools.startsWith(pType, "&Vec<")) pType = "&mut " + pType.substr(1);
+			final mut = argIsMutated(f.expr, a.name) && !StringTools.startsWith(pType, "&mut") ? "mut " : "";
 			mut + RustImports.toSnakeCase(a.name) + ": " + pType;
 		}].join(", ");
 		final allArgs = if(receiverMethod) {
@@ -971,7 +971,7 @@ class RustDecl {
 		return [head].concat(body.map(l -> "    " + l)).concat(["    }"]);
 	}
 
-	function argMutated(body: Null<TypedExpr>, name: String): Bool {
+	public static function argIsMutated(body: Null<TypedExpr>, name: String): Bool {
 		if(body == null) return false;
 		var found = false;
 		function root(e: TypedExpr): Bool return switch(e.expr) {
@@ -985,7 +985,23 @@ class RustDecl {
 		function walk(e: TypedExpr) {
 			switch(e.expr) {
 				case TBinop(OpAssign, l, _): if(root(l)) found = true;
-				case TCall(fn, _): switch(fn.expr) {
+				case TCall(fn, args):
+					// A call to a helper that mutates an Array argument mutates
+					// the corresponding caller argument as well; otherwise the
+					// declaration is emitted as &Vec while the call requires &mut.
+					switch(fn.expr) {
+						case TField(_, FStatic(_, cf)) | TField(_, FInstance(_, _, cf)) | TField(_, FAnon(cf)):
+							final calleeArgs = switch(Context.follow(cf.get().type)) { case TFun(ps, _): ps; case _: []; };
+							for(i in 0...args.length) if(i < calleeArgs.length && root(args[i])) {
+								final p = calleeArgs[i];
+								if(switch(Context.follow(p.t)) { case TInst(c, _): c.get().name == "Array"; case _: false; }) {
+									final calleeBody = cf.get().expr();
+									if(calleeBody != null && argIsMutated(calleeBody, p.name)) found = true;
+								}
+							}
+						case _:
+					}
+					switch(fn.expr) {
 					case TField(s, FInstance(_, _, cf) | FAnon(cf)) if(root(s)):
 						if(["push","insert","pop","shift","unshift","remove","removeAt","splice","reverse","sort","set","add","addChar"].indexOf(cf.get().name) >= 0) found = true;
 					case _: }
@@ -1314,7 +1330,7 @@ class RustDecl {
 		final selfParam = consumesSelf ? "self" : (isMutating ? "&mut self" : "&self");
 		final otherArgs = [for(a in f.args) {
 			var pType = paramType(a.type, f.field.name, a.name);
-			if(argMutated(f.expr, a.name) && StringTools.startsWith(pType, "&Vec<")) pType = "&mut " + pType.substr(1);
+			if(argIsMutated(f.expr, a.name) && StringTools.startsWith(pType, "&Vec<")) pType = "&mut " + pType.substr(1);
 			expr.setArgType(a.name, pType);
 			RustImports.toSnakeCase(a.name) + ": " + pType;
 		}].join(", ");
