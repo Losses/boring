@@ -1201,8 +1201,7 @@ class RustExpr {
 				} else {
 					itemName;
 				};
-				final subjectText = expr(sliceSubj);
-				final iterated = ownedLocal && !StringTools.startsWith(subjectText, "&") ? "&" + subjectText : subjectText;
+				final iterated = "&" + expr(sliceSubj);
 				switch(Context.follow(itemVar.t)) {
 					case TAbstract(a, _) if(a.get().name == "Int"):
 						// Array elements reach Rust as u32; remember the loop binding
