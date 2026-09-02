@@ -8,6 +8,7 @@ enum KeyDomain {
 	IntKey;
 	StringKey;
 	StructKey(def: DefType, fields: Array<ClassField>);
+	DataClassKey(cls: ClassType, fields: Array<ClassField>);
 }
 
 /**
@@ -127,7 +128,7 @@ class KotlinType {
 	public static function classifyKey(t: Null<Type>, ?pos: haxe.macro.Expr.Position): KeyDomain {
 		if(t == null) {
 			final p = pos != null ? pos : Context.currentPos();
-			Context.error("sorted keyed tables support Int, String, and structure keys in this implementation", p);
+			Context.error("sorted keyed tables support Int, String, structure, and dataClass keys in this implementation", p);
 			return IntKey;
 		}
 		final p = pos != null ? pos : Context.currentPos();
@@ -136,14 +137,18 @@ class KotlinType {
 				if(a.get().name == "Int") {
 					IntKey;
 				} else {
-					Context.error("sorted keyed tables support Int, String, and structure keys in this implementation", p);
+					Context.error("sorted keyed tables support Int, String, structure, and dataClass keys in this implementation", p);
 					IntKey;
 				}
 			case TInst(c, _):
-				if(c.get().name == "String") {
+				final cls = c.get();
+				if(cls.name == "String") {
 					StringKey;
+				} else if(cls.meta.has(":dataClass")) {
+					final fields = [for(f in cls.fields.get()) if(switch(f.kind) { case FVar(_, _): true; case _: false; }) f];
+					DataClassKey(cls, fields);
 				} else {
-					Context.error("sorted keyed tables support Int, String, and structure keys in this implementation", p);
+					Context.error("sorted keyed tables support Int, String, structure, and dataClass keys in this implementation", p);
 					IntKey;
 				}
 			case TType(defRef, _):
@@ -153,7 +158,7 @@ class KotlinType {
 			case TLazy(f):
 				classifyKey(f(), p);
 			case _:
-				Context.error("sorted keyed tables support Int, String, and structure keys in this implementation", p);
+				Context.error("sorted keyed tables support Int, String, structure, and dataClass keys in this implementation", p);
 				IntKey;
 		}
 	}
@@ -170,7 +175,7 @@ class KotlinType {
 			case TType(innerDefRef, _):
 				validateStructDef(innerDefRef.get(), pos, visited);
 			case _:
-				Context.error("sorted keyed tables support Int, String, and structure keys in this implementation", pos);
+				Context.error("sorted keyed tables support Int, String, structure, and dataClass keys in this implementation", pos);
 				[];
 		}
 	}
