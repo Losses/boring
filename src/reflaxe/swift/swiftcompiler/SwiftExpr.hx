@@ -1252,6 +1252,8 @@ class SwiftExpr {
 			case OpNot: return "!" + wrapped;
 			case OpNegBits: return "~" + wrapped;
 			case OpNeg: return "-" + wrapped;
+			case OpIncrement: return inner + " += 1";
+			case OpDecrement: return inner + " -= 1";
 			case _:
 				{
 					final infos = Context.getPosInfos(e.pos);
