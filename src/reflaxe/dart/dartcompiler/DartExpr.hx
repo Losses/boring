@@ -1188,7 +1188,7 @@ class DartExpr {
 		return switch(stripWrap(fn).expr) {
 			case TField(_, FStatic(classRef, fieldRef)) if(classRef.get().module == "haxe.Int64" && classRef.get().name == "Int64_Impl_"):
 				switch(fieldRef.get().name) {
-					case "make" if(args.length == 2): "((" + expr(args[0]) + " << 32) | (" + expr(args[1]) + ").toUnsigned(32)).toSigned(64)";
+					case "make" if(args.length == 2): "(((" + expr(args[0]) + ").toSigned(32) << 32) | ((" + expr(args[1]) + ").toUnsigned(32))).toSigned(64)";
 					case "ofInt" if(args.length == 1): "(" + expr(args[0]) + ").toSigned(64)";
 					case "getHigh" | "get_high" if(args.length == 1): if(isFpHelperInt64Halves(args[0])) expr(args[0]) + ".high" else "((" + expr(args[0]) + " >> 32).toSigned(32))";
 					case "getLow" | "get_low" if(args.length == 1): if(isFpHelperInt64Halves(args[0])) expr(args[0]) + ".low" else "(" + expr(args[0]) + ").toSigned(32)";
@@ -1200,7 +1200,7 @@ class DartExpr {
 					case "complement" if(args.length == 1): "(~" + expr(args[0]) + ").toSigned(64)";
 					case "shl" if(args.length == 2): "(" + expr(args[0]) + " << (" + expr(args[1]) + " & 63)).toSigned(64)";
 					case "shr" if(args.length == 2): "(" + expr(args[0]) + " >> (" + expr(args[1]) + " & 63)).toSigned(64)";
-					case "ushr" if(args.length == 2): "(" + expr(args[0]) + ".toUnsigned(64) >> (" + expr(args[1]) + " & 63)).toSigned(64)";
+					case "ushr" if(args.length == 2): "(" + expr(args[0]) + " >>> (" + expr(args[1]) + " & 63)).toSigned(64)";
 					case "eq" if(args.length == 2): expr(args[0]) + " == " + expr(args[1]);
 					case "neq" if(args.length == 2): expr(args[0]) + " != " + expr(args[1]);
 					default: null;
@@ -1698,6 +1698,7 @@ class DartExpr {
 		}
 		switch(fn.expr) {
 			case TField(_, FStatic(c, cf)) if(c.get().module == "haxe.io.Bytes" && cf.get().name == "alloc" && args.length == 1):
+				imports.useTypedData();
 				return "Uint8List(" + expr(args[0]) + ")";
 			case TCast(inner, _):
 				return call(inner, args);
@@ -1747,6 +1748,7 @@ class DartExpr {
 					return receiverText(subj) + ".fillRange(" + expr(args[0]) + ", " + expr(args[0]) + " + " + expr(args[1]) + ", " + expr(args[2]) + ")";
 				}
 				if(name == "sub" && args.length == 2 && isBytes(stripCast(subj).t)) {
+					imports.useTypedData();
 					return "Uint8List.fromList(" + receiverText(subj) + ".sublist(" + expr(args[0]) + ", " + expr(args[0]) + " + " + expr(args[1]) + "))";
 				}
 				// stdlib/02: the growable byte sink is the plain int
@@ -1755,6 +1757,7 @@ class DartExpr {
 					return receiverText(subj) + ".add(" + expr(args[0]) + ")";
 				}
 				if(name == "getBytes" && isBytesBuffer(stripCast(subj).t)) {
+					imports.useTypedData();
 					return "Uint8List.fromList(" + receiverText(subj) + ")";
 				}
 				if(name == "push") {
