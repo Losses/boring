@@ -666,9 +666,26 @@ class TsExpr {
 
 	function loopLines(loop, depth: Int, fold: Null<String>): Array<String> {
 		final name = loop.index.name;
-		final init = "let " + name + " = " + expr(loop.start) + (fold != null ? ", " + fold : "");
+		function hasPropertyRead(e: TypedExpr): Bool {
+			var found = false;
+			function walk(x: TypedExpr) {
+				switch(x.expr) {
+					case TField(_, _): found = true;
+					case _:
+				}
+				if(!found) TypedExprTools.iter(x, walk);
+			}
+			walk(e);
+			return found;
+		}
+		final boundIsProperty = hasPropertyRead(stripWrap(loop.bound));
+		final boundText = expr(loop.bound);
+		final init = "let " + name + " = " + expr(loop.start)
+			+ (fold != null ? ", " + fold : "")
+			+ (boundIsProperty && fold == null ? ", count = " + boundText : "");
+		final conditionBound = boundIsProperty && fold == null ? "count" : boundText;
 		final out = [
-			indent(depth) + "for (" + init + "; " + name + " < " + expr(loop.bound) + "; " + name + " += 1) {"
+			indent(depth) + "for (" + init + "; " + name + " < " + conditionBound + "; " + name + " += 1) {"
 		];
 		for(l in blockLines(loop.body, depth + 1)) out.push(l);
 		out.push(indent(depth) + "}");
@@ -1123,6 +1140,8 @@ class TsExpr {
 			case OpNot: return "!" + wrapped;
 			case OpNegBits: return "~" + wrapped;
 			case OpNeg: return "-" + wrapped;
+			case OpIncrement: return wrapped + "++";
+			case OpDecrement: return wrapped + "--";
 			case _: {
 				final infos = Context.getPosInfos(e.pos);
 				return fail(e, "unary operator has no lowering in the subset: " + Std.string(op) + " at " + infos.file + ":" + infos.min);
