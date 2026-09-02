@@ -275,7 +275,6 @@ class TsExpr {
 		if(f.expr == null) {
 			Context.error("constructor has no body to lower", f.field.pos);
 		}
-		scanLocals(f.expr);
 		currentClass = cls;
 		currentField = f.field.name;
 		currentLocalName = null;

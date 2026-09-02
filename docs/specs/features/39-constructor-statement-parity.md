@@ -106,5 +106,18 @@ rest.
 
 ## Test hooks
 
-The implementation change fills this section with the exact test files
-and line ranges.
+- `samples/boring/ConstructorStatementOps.hx:1-18` adds a constructor array
+  comprehension fill and a constructor pipeline call with a block-bodied
+  lambda. `samples/tests/ConstructorStatementTests.hx:1-22` exercises both
+  cases through the shared test collector.
+- The modules are listed in `examples/ts.hxml:66-68`,
+  `examples/kotlin.hxml:62-64`, `examples/kotlin-f32.hxml:56-58`,
+  `examples/rust.hxml:64-66`, `examples/rust-f32.hxml:60-62`,
+  `examples/swift.hxml:63-65`, `examples/swift-f32.hxml:58-60`, and
+  `examples/dart.hxml:63-65`. These entries feed the Haxe stage-1,
+  TypeScript, Kotlin, Rust, Swift, and Dart generated trees. The interception
+  walk reaches the same constructor through `tests/haxe/test-main.hxml:1-10`
+  and its guarded `samples` root.
+- Rust constructor statement lowering was already implemented and is retained
+  here; the spec 27 proposal is limited to remaining Rust constructor
+  features, and this parity pass covers the current lowering.

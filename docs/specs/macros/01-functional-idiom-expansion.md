@@ -55,6 +55,8 @@ order and each stage reads the previous stage's temporary.
 1. The argument must be a function literal written at the call site. Any
    other argument shape is rejected with
    `collection pipeline methods accept inline function literals only`.
+   The literal may use an expression body or a block body; block statements
+   lower inside the generated target loop body.
 2. The body may reference its parameter, the names visible at the expansion
    point, and may make ordinary calls and field reads. The body must not
    declare a nested function literal and must not be recursive.
