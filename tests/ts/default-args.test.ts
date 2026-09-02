@@ -27,6 +27,7 @@ describe("default argument expansion generated tree", () => {
     expect(content).toContain("public static localeSample(lang: string, fallback: string = (lang === \"en\" ? \"English\" : \"Other\")): string");
     expect(content).toContain("public static methodCallSample(text: string, normalized: string = text.toUpperCase()): string");
     expect(content).toContain("public static staticCallSample(value: number, clamped: number = DefaultArgsOps.clampBase(value)): number");
+    expect(content).toContain("const normalized = fallback ?? SortedTable.setBuilder<number>(SortedTable.compareInts).build();");
     expect(content).toContain("public static staticFieldSample(value: number, bound: number = StaticStateOps.limit): number");
     expect(content).toContain("public static binarySample(value: number, offset: number = value + 1): number");
 
@@ -88,6 +89,7 @@ describe("default argument expansion generated tree", () => {
     expect(content).toContain("fun localeSample(lang: String, fallback: String = if (lang == \"en\") \"English\" else \"Other\"): String");
     expect(content).toContain("fun methodCallSample(text: String, normalized: String = text.uppercase()): String");
     expect(content).toContain("fun staticCallSample(value: Int, clamped: Int = DefaultArgsOps.clampBase(value)): Int");
+    expect(content).toContain("val normalized = fallback ?: SortedTable.setBuilder<Int>(SortedTable::compareInts).build()");
     expect(content).toContain("fun staticFieldSample(value: Int, bound: Int = StaticStateOps.limit): Int");
     expect(content).toContain("fun binarySample(value: Int, offset: Int = value + 1): Int");
     expect(content).toContain("fun dependenceEarlier(a: String, b: String = a): String");
@@ -146,8 +148,9 @@ describe("default argument expansion generated tree", () => {
     expect(content).toContain("let fallback = fallback.unwrap_or_else(|| if lang == \"en\".to_string() { \"English\".to_string() } else { \"Other\".to_string() });");
     expect(content).toContain("let normalized = normalized.unwrap_or_else(|| text.to_uppercase());");
     expect(content).toContain("let clamped = clamped.unwrap_or_else(|| DefaultArgsOps::clamp_base(value));");
+    expect(content).toContain("SortedTable::set_builder::<u32>");
     expect(content).toContain("pub fn static_field_sample(value: u32, bound: Option<u32>) -> u32");
-    expect(content).toContain("let bound = bound.unwrap_or_else(|| StaticStateOps::limit);");
+    expect(content).toContain("let bound = bound.unwrap_or_else(|| StaticStateOps::LIMIT);");
     expect(content).toContain("let offset = offset.unwrap_or_else(|| value + 1);");
     expect(content).toContain("let b = b.unwrap_or_else(|| a.to_string());");
 
@@ -203,13 +206,14 @@ describe("default argument expansion generated tree", () => {
     expect(content).toContain("static func greetWithPrefix(_ name: String, _ prefix: String? = nil) -> String");
     expect(content).toContain("var prefix = prefix ?? name;");
     expect(content).toContain("static func fieldAccessSample(_ items: [String], _ count: Int32? = nil) -> Int32");
-    expect(content).toContain("var count = count ?? Int32(items.count);");
+    expect(content).toContain("let count = count ?? Int32(items.count);");
     expect(content).toContain("static func localeSample(_ lang: String, _ fallback: String? = nil) -> String");
-    expect(content).toContain("var fallback = fallback ?? (lang == \"en\" ? \"English\" : \"Other\");");
-    expect(content).toContain("var normalized = normalized ?? text.uppercased();");
-    expect(content).toContain("var clamped = clamped ?? DefaultArgsOps.clampBase(value);");
+    expect(content).toContain("let fallback = fallback ?? (lang == \"en\" ? \"English\" : \"Other\");");
+    expect(content).toContain("let normalized = normalized ?? text.uppercased();");
+    expect(content).toContain("let clamped = clamped ?? DefaultArgsOps.clampBase(value);");
+    expect(content).toContain("fallback ?? SortedTable.setBuilder(SortedTable.compareInts).build()");
     expect(content).toContain("static func staticFieldSample(_ value: Int32, _ bound: Int32 = StaticStateOps.limit) -> Int32");
-    expect(content).toContain("var offset = offset ?? value + 1;");
+    expect(content).toContain("let offset = offset ?? value + 1;");
     expect(content).toContain("var b = b ?? a;");
     expect(content).toContain("static func chainedCoalescing(_ fallback: Double = 2.5, _ value: Double? = nil) -> Double");
     expect(content).toContain("var value = value ?? fallback;");
@@ -244,6 +248,7 @@ describe("default argument expansion generated tree", () => {
     expect(content).toContain("final String normalized = fallback ?? (lang == \"en\" ? \"English\" : \"Other\");");
     expect(content).toContain("final String value = normalized ?? text.toUpperCase();");
     expect(content).toContain("final int result = clamped ?? DefaultArgsOps.clampBase(value);");
+    expect(content).toContain("fallback ?? runtime.SortedTable.setBuilder<int>(runtime.SortedTable.compareInts).build()");
     expect(content).toContain("static int staticFieldSample(int value, [int? bound])");
     expect(content).toContain("final int normalized = bound ?? static_state_ops.limit;");
     expect(content).toContain("final int result = offset ?? value + 1;");
