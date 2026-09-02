@@ -49,7 +49,7 @@ class RustDecl {
 			case TAbstract(a, _) if(a.get().name == "Int" || a.get().name == "Float" || a.get().name == "Bool"):
 				"(" + value + ").to_string()";
 			case TInst(c, _) if(c.get().name == "String"):
-				value;
+				"(" + value + ").clone()";
 			case _:
 				"(" + value + ").to_string()";
 		};
@@ -1550,6 +1550,9 @@ class RustDecl {
 				case TCall(fn, callArgs):
 					switch(fn.expr) {
 						case TField(_, FInstance(cc, _, cf)) | TField(_, FStatic(cc, cf)):
+							if(state.funcErrorEnums.exists(RustEmissionState.funcKey(cc.get().module, cf.get().name, switch(fn.expr) { case TField(_, FStatic(_, _)): true; case _: false; }))) {
+								throwsOrCallsFallible = true;
+							}
 							if(isStringBufFaultOp(cc.get().module, cf.get().name)) {
 								// stdlib/08: the buffer checks end the owner
 								// in std.UStringFault unless a region absorbs it.
