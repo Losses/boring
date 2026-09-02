@@ -313,7 +313,7 @@ lower to `for` loops with the inline closure body inlined as statements,
 one pass, no intermediate list; `groupBy` (`macros/03`) builds through
 the splay-tree map.
 
-## Amendment filed 2026-09-01: element iteration over statically-Array subjects (status: Planned)
+## Amendment implemented 2026-09-01: element iteration over statically-Array subjects
 
 The base ruling rejects every `for (item in subject)` whose subject is not
 an integer range, with the stated reason that its translation would
