@@ -741,8 +741,7 @@ class RustExpr {
 		depth-equals-two test misfired whenever the root depth changed.
 	**/
 	function blockLines(stmts: Array<TypedExpr>, depth: Int, tailScope: Bool = false): Array<String> {
-		// Preserve deferred declarations; later assignments must remain assignments.
-		stmts = regroupLoops(stmts);
+		stmts = fuseUninitializedVars(stmts);
 		stmts = transformCountdownLoops(stmts);
 		final out: Array<String> = [];
 
