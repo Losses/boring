@@ -2466,7 +2466,7 @@ class RustExpr {
 		return switch(stripWrap(fn).expr) {
 			case TField(_, FStatic(classRef, fieldRef)) if(classRef.get().module == "haxe.Int64" && classRef.get().name == "Int64_Impl_"):
 				switch(fieldRef.get().name) {
-					case "make" if(args.length == 2): "(((" + expr(args[0]) + " as i64) << 32) | ((" + expr(args[1]) + " as u32) as i64))";
+					case "make" if(args.length == 2): "((" + expr(args[0]) + " as i64) << 32) | ((" + expr(args[1]) + " as u32) as i64)";
 					case "ofInt" if(args.length == 1): "(" + expr(args[0]) + " as i32) as i64";
 					case "getHigh" | "get_high" if(args.length == 1):
 						if(isFpHelperInt64Halves(args[0])) expr(args[0]) + ".high" else "(" + expr(args[0]) + " >> 32) as u32";
