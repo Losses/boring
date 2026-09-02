@@ -413,7 +413,7 @@ class RustExpr {
 
 	function stmtLines(e: TypedExpr, depth: Int): Array<String> {
 		switch(e.expr) {
-			case TVar(v, init) if(isTryRegion(init)):
+			case TVar(v, init) if(init != null && isTryRegion(init)):
 				return regionInitializerLines(v, stripWrap(init), depth);
 			case TVar(v, init) if(init != null):
 				final kw = mutated.exists(v.id) ? "let mut" : "let";
@@ -458,8 +458,9 @@ class RustExpr {
 					initStr = initStr.substr(1, initStr.length - 2);
 				}
 				return [indent(depth) + '$kw $name$explicitType = $initStr;'];
-			case TVar(_, init) if(init == null):
-				return [fail(e, "declaration without initializer has no lowering")];
+			case TVar(v, init) if(init == null):
+				final name = RustImports.toSnakeCase(localName(v));
+				return [indent(depth) + "let mut " + name + ": " + types.of(v.t, false) + ";"]
 			case TBlock(stmts):
 				return blockLines(stmts, depth);
 			case TIf(c, t, f):
@@ -740,7 +741,7 @@ class RustExpr {
 		depth-equals-two test misfired whenever the root depth changed.
 	**/
 	function blockLines(stmts: Array<TypedExpr>, depth: Int, tailScope: Bool = false): Array<String> {
-		stmts = fuseUninitializedVars(stmts);
+		// Preserve deferred declarations; later assignments must remain assignments.
 		stmts = regroupLoops(stmts);
 		stmts = transformCountdownLoops(stmts);
 		final out: Array<String> = [];

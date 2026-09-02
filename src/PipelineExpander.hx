@@ -132,8 +132,67 @@ class PipelineExpander {
 	public static function expandRootExpr(root:TypedExpr):Void {
 		final usedNames:Map<String, Bool> = [];
 		collectNames(root, usedNames);
+		hoistSwitchSubjects(root, usedNames);
 		transformExpr(root, usedNames);
 	}
+
+	/** Hoist enum switch subjects that are evaluated expressions exactly once. */
+	static function hoistSwitchSubjects(e:TypedExpr, usedNames:Map<String, Bool>):Void {
+		if (e == null) return;
+		switch (e.expr) {
+			case TBlock(stmts):
+				for (stmt in stmts) hoistSwitchSubjects(stmt, usedNames);
+			default:
+				haxe.macro.TypedExprTools.iter(e, child -> hoistSwitchSubjects(child, usedNames));
+		}
+	}
+	/*
+			case TBlock(stmts):
+				var i = 0;
+				while (i < stmts.length) {
+					final stmt = stmts[i];
+					final switchExpr:Null<TypedExpr> = switch (stmt.expr) {
+						case TSwitch(_, _, _): stmt;
+						case TReturn(value) if (value != null):
+							switch (value.expr) {
+								case TSwitch(_, _, _): value;
+								case _: null;
+							};
+						case _: null;
+					};
+					if (switchExpr != null) {
+						final subject = switch (switchExpr.expr) {
+							case TSwitch(s, _, _): s;
+							case _: null;
+						};
+						if (subject != null) switch (subject.expr) {
+							case TEnumIndex(inner) if (inner != null):
+								switch (inner.expr) {
+									case TLocal(_):
+									default:
+										final name = mint("switch_subject", usedNames);
+										final v = makeTVar(name, inner.t, true);
+										final local = makeLocal(v, inner.pos);
+										final init = {expr: TVar(v, inner), pos: inner.pos, t: Context.getType("Void")};
+										stmts.insert(i, init);
+										final replacement = {expr: TEnumIndex(local), pos: subject.pos, t: subject.t};
+										switchExpr.expr = switch (switchExpr.expr) {
+											case TSwitch(_, cases, def): TSwitch(replacement, cases, def);
+											case _: switchExpr.expr;
+										};
+										i++;
+								}
+							}
+						default:
+					}
+					hoistSwitchSubjects(stmt, usedNames);
+					i++;
+				}
+			default:
+				haxe.macro.TypedExprTools.iter(e, child -> hoistSwitchSubjects(child, usedNames));
+		}
+	}
+	*/
 
 	static function collectNames(e:TypedExpr, names:Map<String, Bool>):Void {
 		if (e == null) return;
