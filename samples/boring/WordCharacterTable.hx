@@ -8,13 +8,13 @@ package boring;
 class WordCharacterTable {
 	public static function contains(codePoint:Int):Bool {
 		var low = 0;
-		var high = Std.int(RANGES.length / 2) - 1;
-		while (low <= high) {
+		var high = Std.int(RANGES.length / 2);
+		while (low < high) {
 			final mid = (low + high) >> 1;
 			final start = RANGES[mid * 2];
 			final end = RANGES[mid * 2 + 1];
 			if (codePoint < start) {
-				high = mid - 1;
+				high = mid;
 			} else if (codePoint > end) {
 				low = mid + 1;
 			} else {

@@ -88,7 +88,6 @@ class TsImports {
 		"std.SortedSet" => true,
 		"std.SortedSetBuilder" => true,
 		"std.StringBuf" => true,
-		"std.Test" => true,
 		"std.UString" => true,
 		"std.UStringRT" => true,
 		"std.Graphemes" => true,

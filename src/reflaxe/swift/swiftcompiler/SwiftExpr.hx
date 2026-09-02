@@ -77,6 +77,8 @@ class SwiftExpr {
 	final usedNames: Map<String, Bool> = [];
 	/** Catch variables in scope, keyed by TVar id (features/06). */
 	final catchVars: Map<Int, Bool> = [];
+	/** Counted-loop variables use Swift's native Int stride index type. */
+	final rangeLoopVars: Map<Int, Bool> = [];
 
 	final hiddenNames: Map<Int, String> = [];
 	var hiddenCounter: Int = 0;
@@ -147,6 +149,8 @@ class SwiftExpr {
 			case CNegativeInfinity: FloatPrecision.isF32() ? "-Float.infinity" : "-Double.infinity";
 			case CEnum(enumRef, enumField): types.of(Type.TEnum(enumRef, [])) + "." + SwiftDecl.lowerFirst(enumField.name);
 			case CParameterRead(name): name;
+			case CInstanceFieldRead(name): "self." + name;
+			case CLocalRead(name): name;
 			case CFieldAccess(CParameterRead(staticPath), ""): coalescingStaticFieldText(staticPath);
 			case CFieldAccess(receiver, fieldName): fieldName == "length"
 				? "Int32(" + coalescingDefaultText(receiver, targetType) + ".count)"
@@ -154,12 +158,23 @@ class SwiftExpr {
 			case CMethodCall(receiver, methodName, args):
 				coalescingDefaultText(receiver, targetType) + "." + swiftMethodName(methodName) + "(" + [for(a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
 			case CStaticCall(fullPath, args):
-				fullPath + "(" + [for(a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
+				coalescingStaticCallText(fullPath, args, targetType);
 			case CConditional(c, t, f):
 				"(" + coalescingDefaultText(c, targetType) + " ? " + coalescingDefaultText(t, targetType) + " : " + coalescingDefaultText(f, targetType) + ")";
 			case CBinaryOp(op, left, right):
 				coalescingDefaultText(left, targetType) + " " + opStr(op) + " " + coalescingDefaultText(right, targetType);
+			case CConstructorCall(classPath, args):
+				classPath.split(".").pop() + "(" + [for(a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
 		};
+	}
+
+	function coalescingStaticCallText(path:String, args:Array<DefaultArgExpander.CoalescingDefaultValue>, targetType:Type):String {
+		final rendered = [for(a in args) coalescingDefaultText(a, targetType)].join(", ");
+		if(path == "std.SortedSet.builder") {
+			imports.runtime("SortedTable");
+			return "SortedTable.setBuilder(" + sortedComparator(switch(Context.follow(DefaultArgExpander.withoutNull(targetType))) { case TInst(_, params) if(params.length > 0): params[0]; case _: null; }, Context.currentPos()) + ")";
+		}
+		return path + "(" + rendered + ")";
 	}
 
 	function coalescingStaticFieldText(path:String):String {
@@ -314,8 +329,8 @@ class SwiftExpr {
 			case TVar(v, init) if(init != null && isStringBufToStringCall(init)):
 				return stringBufToStringBindingLines(v, stripWrap(init), depth);
 			case TVar(v, init) if(init != null):
-				final kw = mutated.exists(v.id) ? "var" : "let";
 				final coalescing = coalescingSiteFor(init);
+				final kw = mutated.exists(v.id) ? "var" : "let";
 				final tryKw = containsThrowingCall(init) ? "try " : "";
 				// Five initializers cannot carry their type to Swift's
 				// inference: an empty array literal, an integer
@@ -332,7 +347,7 @@ class SwiftExpr {
 					? DefaultArgExpander.coalescingDefaultForLocalParam(currentClass, currentField, currentLocalName, coalescing.parameter)
 					: DefaultArgExpander.coalescingDefaultForParam(currentClass, currentField, coalescing.parameter));
 				final localType = coalescingValue != null ? DefaultArgExpander.coalescingLocalType(coalescingValue, v.t) : v.t;
-				final annotation = isEmptyArrayDecl(init) || isIntLeafType(v.t) || isIntLiteralArrayDecl(init) || isBuilderCall(init) || isNullLeafType(v.t)
+				final annotation = isEmptyArrayDecl(init) || (isIntLeafType(v.t) && !mentionsRangeLoopVar(init)) || isIntLiteralArrayDecl(init) || isBuilderCall(init) || isNullLeafType(v.t)
 					|| coalescing != null || (FloatPrecision.isF32() && isFloatLeafType(v.t)) ? ": " + types.of(localType) : "";
 				final initText = switch(init.expr) {
 					case TFunction(fn): functionLiteralNamed(v.name, fn);
@@ -434,6 +449,13 @@ class SwiftExpr {
 		function walk(x: TypedExpr) {
 			switch(x.expr) {
 				case TBinop(OpAssign, t, _) | TBinop(OpAssignOp(_), t, _):
+					switch(stripCast(t).expr) {
+						case TLocal(v) if(v.id == varId): found = true;
+						case _:
+					}
+				// An increment or decrement reassigns the local, so the
+				// declaration needs var even without a plain assignment.
+				case TUnop(OpIncrement, _, t) | TUnop(OpDecrement, _, t):
 					switch(stripCast(t).expr) {
 						case TLocal(v) if(v.id == varId): found = true;
 						case _:
@@ -542,6 +564,19 @@ class SwiftExpr {
 					continue;
 				}
 			}
+			if(i + 1 < stmts.length) {
+				final loop = intervalShort(stmts[i], stmts[i + 1]);
+				if(loop != null) {
+					final grouped: TypedExpr = {
+						expr: TBlock([stmts[i], stmts[i + 1]]),
+						pos: stmts[i].pos,
+						t: stmts[i + 1].t
+					};
+					out.push(grouped);
+					i += 2;
+					continue;
+				}
+			}
 			out.push(stmts[i]);
 			i += 1;
 		}
@@ -625,6 +660,7 @@ class SwiftExpr {
 	}
 
 	function loopLines(loop: {index: TVar, start: TypedExpr, bound: TypedExpr, body: Array<TypedExpr>}, depth: Int): Array<String> {
+		rangeLoopVars.set(loop.index.id, true);
 		// A body that never reads the loop variable discards the binding.
 		var readsIndex = false;
 		for(s in loop.body) {
@@ -1012,6 +1048,11 @@ class SwiftExpr {
 		if(value == null) {
 			return null;
 		}
+		if (DefaultArgExpander.coalescingSite({t: ifTrue.t, pos: c.pos, expr: TypedExprDef.TIf(c, ifTrue, ifFalse)}) != null) {
+			final siteExpr = DefaultArgExpander.coalescingSite({t: ifTrue.t, pos: c.pos, expr: TypedExprDef.TIf(c, ifTrue, ifFalse)});
+			if (siteExpr != null && !DefaultArgExpander.isRegisteredCoalescingSource(siteExpr.defaultExpr.pos)
+				&& !DefaultArgExpander.isNormalizationSource(siteExpr.defaultExpr.pos)) return null;
+		}
 		final trueLocal = switch(stripWrap(ifTrue).expr) {
 			case TLocal(v) if(v.id == value.id): true;
 			case _: false;
@@ -1236,6 +1277,8 @@ class SwiftExpr {
 			case OpNot: return "!" + wrapped;
 			case OpNegBits: return "~" + wrapped;
 			case OpNeg: return "-" + wrapped;
+			case OpIncrement: return inner + " += 1";
+			case OpDecrement: return inner + " -= 1";
 			case _:
 				{
 					final infos = Context.getPosInfos(e.pos);
@@ -1270,6 +1313,10 @@ class SwiftExpr {
 					case "ushr" if(args.length == 2): "Int64(bitPattern: UInt64(bitPattern: " + expr(args[0]) + ") >> UInt64(" + expr(args[1]) + " & 63))";
 					case "eq" if(args.length == 2): expr(args[0]) + " == " + expr(args[1]);
 					case "neq" if(args.length == 2): expr(args[0]) + " != " + expr(args[1]);
+					case "lt" if(args.length == 2): expr(args[0]) + " < " + expr(args[1]);
+					case "gt" if(args.length == 2): expr(args[0]) + " > " + expr(args[1]);
+					case "lte" if(args.length == 2): expr(args[0]) + " <= " + expr(args[1]);
+					case "gte" if(args.length == 2): expr(args[0]) + " >= " + expr(args[1]);
 					default: null;
 				}
 			default: null;
@@ -1388,7 +1435,7 @@ class SwiftExpr {
 				}
 				imports.runtime(name);
 				return name;
-			case "std.Test" | "std.__test_shim":
+			case _ if(SwiftTestBinding.isTestExtern(cls)):
 				imports.runtimeTest("Test");
 				return "Test." + name;
 			case "std.UStringRT":
@@ -1422,7 +1469,7 @@ class SwiftExpr {
 		switch(t) {
 			case TClassDecl(c):
 				final cls = c.get();
-				if(cls.module == "std.Test" || (cls.pack.join(".") == "std" && (cls.name == "Test" || cls.name == "__test_shim"))) {
+				if(SwiftTestBinding.isTestExtern(cls)) {
 					imports.runtimeTest("Test");
 					return "Test";
 				}
@@ -1534,7 +1581,8 @@ class SwiftExpr {
 				ValueTypeSupport.memberField(abs, "toString") != null
 					? value + ".description"
 					: "String(describing: " + value + "." + ValueTypeSupport.representationFieldName(abs) + ")";
-			case TAbstract(a, _) if(a.get().name == "Int" || a.get().name == "Float" || a.get().name == "Bool"): depth > 0 ? "\"\\(" + value + ")\"" : (inConcat ? value : "String(" + value + ")");
+			case TAbstract(a, _) if(a.get().name == "Float"): depth > 0 ? "\"\\(" + value + ")\"" : (inConcat ? value : "String(" + value + ").replacingOccurrences(of: \".0\", with: \"\")");
+			case TAbstract(a, _) if(a.get().name == "Int" || a.get().name == "Bool"): depth > 0 ? "\"\\(" + value + ")\"" : (inConcat ? value : "String(" + value + ")");
 			case TAbstract(a, params) if(a.get().module == "std.ReadOnlyArray"):
 				stdStringType(haxe.macro.TypeTools.applyTypeParameters(a.get().type, a.get().params, params), value, inConcat, origin, depth);
 			case TEnum(en, _) if(isParameterlessEnum(en.get())): value + ".rawValue";
@@ -1709,7 +1757,7 @@ class SwiftExpr {
 				if(module == "std.UStringPlatform") {
 					return ustringPlatformCall(fName, args, fn);
 				}
-				if(module == "std.TestPlatform") {
+				if(SwiftTestBinding.isTestPlatformExtern(module)) {
 					return testPlatformCall(fName, args, fn);
 				}
 				if(module == "std.UStringRT") {
@@ -1756,7 +1804,7 @@ class SwiftExpr {
 					}
 					if(fName == "string") return stdString(args[0], false);
 				}
-				if(module == "std.Test") {
+				if(SwiftTestBinding.isTestExtern(cls)) {
 					return testCall(fName, args, fn);
 				}
 				if((cls.name == "Functional" || cls.name == "__functional_shim" || module == "std.Functional") && fName == "sortedBy") {
@@ -1967,11 +2015,11 @@ class SwiftExpr {
 		raising is a throw of the host failure type, the running test id
 		lives in the Test host of this same test entry, and plain numbers
 		render through String. Business code never reaches these; it
-		calls std.Test.
+		calls test extern.
 	**/
 	function testPlatformCall(fName: String, args: Array<TypedExpr>, fn: TypedExpr): String {
 		if(!imports.selfResident) {
-			Context.error("std.TestPlatform is a resident runtime primitive; business code calls std.Test", fn.pos);
+			Context.error("test platform extern is a resident runtime primitive; business code calls test extern", fn.pos);
 		}
 		switch(fName) {
 			case "raise":
@@ -1990,7 +2038,7 @@ class SwiftExpr {
 	}
 
 	/**
-		std.Test assertions: scalars route to the TestCore checks with
+		test extern assertions: scalars route to the TestCore checks with
 		the message converted once; composite values route to the
 		generated assertion of their tag (features/19).
 	**/
@@ -2021,7 +2069,7 @@ class SwiftExpr {
 				final tag = SwiftTestTypes.register(t);
 				return "assertEquals" + tag + "(" + expr(args[0]) + ", " + expr(args[1]) + ", " + message + ")";
 			case _:
-				return fail(fn, "std.Test." + fName + " has no Swift lowering");
+				return fail(fn, "test extern." + fName + " has no Swift lowering");
 		}
 	}
 
@@ -2382,6 +2430,7 @@ class SwiftExpr {
 	**/
 	function isDiscardedCall(e: TypedExpr): Bool {
 		return switch(stripWrap(e).expr) {
+			case TNew(_, _, _): true;
 			case TCall(fn, _):
 				switch(stripWrap(fn).expr) {
 					case TField(_, fa) if(fieldName(fa) == "push"): false;
@@ -3062,6 +3111,14 @@ class SwiftExpr {
 						}
 					case _:
 				}
+			// An increment or decrement reassigns the local, so the
+			// declaration needs var even without a plain assignment.
+			case TUnop(OpIncrement, _, t) | TUnop(OpDecrement, _, t):
+				switch(t.expr) {
+					case TLocal(v):
+						markMutated(v);
+					case _:
+				}
 			case TCall(fn, _):
 				switch(fn.expr) {
 					case TField(subj, FInstance(_, _, cf)):
@@ -3110,6 +3167,20 @@ class SwiftExpr {
 			}
 		}
 		return out;
+	}
+
+
+	function mentionsRangeLoopVar(e: TypedExpr): Bool {
+		var found = false;
+		function walk(x: TypedExpr) {
+			switch(x.expr) {
+				case TLocal(v) if(rangeLoopVars.exists(v.id)): found = true;
+				case _:
+			}
+			TypedExprTools.iter(x, walk);
+		}
+		walk(e);
+		return found;
 	}
 
 	function mentionsLocal(e: TypedExpr, v: TVar): Bool {

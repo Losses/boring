@@ -345,3 +345,114 @@ local functions holding distinct defaults.
   every generated call passes the full arity.
 - The mutation checks for this feature live in the dispatch task file and are
   part of the completion criteria.
+
+## Extension Stage C: normalization bindings and constructor defaults
+
+Status: implemented 2026-09-01.
+
+Two shapes from the engine port sources stay rejected by rule 2 as
+implemented:
+
+1. A statement-level coalescing over a parameter that holds no default at
+   all: `var f = fs == null ? em : fs;`. The engine sources hold 56 elvis
+   statement bindings; the port inlines each expression into a call
+   argument to fit the argument-position grammar (314 inline
+   `== null ?` sites in the current port tree).
+2. A default expression that constructs a class: the engine source declares
+   a constructor default `AdjustmentStylePolicy()` (Kotlin
+   `ClreqProfile.kt`), and the port forces every call site to pass the
+   arguments explicitly (`ClreqProfile.hx:90`, `:103`, `:116`).
+
+### Grammar additions
+
+- Rule 2's recursive grammar grows one leaf: a constructor invocation
+  `new C(a1 ... an)` over a class `C` visible at the site, whose arguments
+  are rule-2 grammar expressions. The Stage-A parameter-reference rules
+  govern the arguments unchanged.
+- One new sanctioned position: the normalization binding
+  `var v = p == null ? E : p;` where `p` is a nullable-typed parameter of
+  the enclosing function and `E` is a rule-2 grammar expression, the
+  constructor leaf included. The parameter holds no default registration
+  and may be read elsewhere in the body; the binding is recognized by its
+  shape, and `E` obeys the closed grammar. Every other statement-level
+  coalescing expression keeps the named rejection
+  `coalesced default expression is not sanctioned`.
+
+### Evaluation and per-target deltas
+
+- A normalization binding evaluates `E` exactly when `p` is null. A
+  constructor leaf in default position evaluates at every omitting call;
+  two omitting calls receive distinct instances, and the consistency run
+  pins this freshness.
+- Kotlin, TypeScript: a normalization binding renders through the native
+  null-coalescing operator (`val f = fs ?: em`; `const f = fs ?? em`). A
+  constructor leaf in default position lowers as the native default
+  `p: T = C(...)`; both languages evaluate default expressions at each
+  omitting call.
+- Swift: a constructor leaf in default position takes the Stage-A body
+  normalization (`p: T? = nil` with `p = p ?? C(...)` at entry). A
+  normalization binding renders `let v = p ?? E`.
+- Dart: body normalization for both shapes, per the base ruling
+  (`p ?? E` with `E` in expression position).
+- Rust: a normalization binding lowers as the existing conditional
+  lowering over `Null<T>`; a constructor leaf lowers inside the
+  `unwrap_or_else` closure of the base ruling.
+- Haxe stage 1: the source ternary is the semantics. The registration pass
+  performs no rewrite for a normalization binding, because `p` is read
+  elsewhere in the body by design.
+- Static calls do not distinguish extern from non-extern classes: detection and rendering use each target's existing static mapping.
+
+The `V16 NonConstantDefault` row of the style standard updates in the same
+commit: the sanctioned classes grow by the constructor leaf and the
+normalization-binding position, and the rejection keeps governing every
+other coalescing shape.
+
+### Test hooks
+
+- Samples: a normalization binding over a required nullable parameter that
+  the body also reads elsewhere; a constructor default omitted at two
+  calls with a distinct-instance assertion; a chain holding both shapes.
+- Tree assertions: the Kotlin and TypeScript native operator and default
+  forms; the Swift body normalization for the constructor default; the
+  Dart `??` sites; the Rust conditional and closure forms.
+- Mutation: a normalization binding whose `E` falls outside the grammar
+  keeps the named rejection; a later-parameter reference inside `E` keeps
+  `coalesced default expression may reference earlier parameters only`.
+
+## Amendment filed 2026-09-02: instance fields and earlier locals as normalization-binding leaves
+
+The Stage C leaf set is Stage A's closed-value leaves plus earlier
+parameters, and the engine port corpus holds Kotlin originals this set
+does not cover. `PunctuationModel.kt` line 283 registers
+`gluePlacement: PunctuationGluePlacement = this.gluePlacement`, a default
+argument reading an instance field, whose Haxe side is the normalization
+binding `PunctuationModel.hx` line 258 with `E` reading the corresponding
+instance field; `PunctuationModel.kt` line 291 writes
+`val rawGlyphAdvance = shapedAdvance ?: policyAdvance`, an elvis over a
+local declared strictly earlier in the same function, whose Haxe side is
+`PunctuationModel.hx` line 265. Faithful translations of these statements
+need both reads as `E`, so the grammar grows to cover them.
+
+- In the normalization-binding position only, `E` additionally accepts a
+  read of an instance field of the enclosing class (bare name or
+  `this.name`) and a reference to a local declared strictly earlier in
+  the same function body. Both evaluate at the binding statement, so no
+  evaluation-model change arises.
+- The rendering of each new leaf equals what the target's normal
+  expression lowering emits for the same read: an earlier local renders
+  as the bare local name on every target, and an instance-field read
+  keeps each target's normal qualifier convention for field reads.
+- Registered default arguments (the default positions of the base
+  ruling) keep the Stage A closed leaf set unchanged; the extension is
+  scoped to the statement-level binding whose product is body code on
+  every target.
+- Every other leaf, position, and rejection stays as ruled; the named
+  rejection `coalesced default expression is not sanctioned` keeps
+  governing identifiers that are no parameter, no earlier local, and no
+  instance field of the enclosing class.
+
+Test hooks: samples cover a normalization binding whose `E` reads an
+instance field of the enclosing class and one whose `E` reads an earlier
+local; tree assertions pin each target's field-read qualifier and the
+bare local form in the binding product; the existing unsanctioned-E
+mutation stays authoritative for identifiers outside the grammar.

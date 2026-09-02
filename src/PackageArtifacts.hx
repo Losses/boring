@@ -372,24 +372,71 @@ class PackageArtifacts {
 		return tarFromEntries(prefix, recordedEntries());
 	}
 
+	/**
+		The tar member writer keeps the `format.tar.Writer` 3.8.0 header
+		layout byte for byte with the spec 25 determinism constants
+		(mtime 0, mode 0644, uid/gid 0, empty owner names). The local
+		copy replaces the library call because its data padding writes a
+		full zero block for a member sized a multiple of 512: that block
+		sits mid-archive, `tar -t` reads it as the end-of-archive marker,
+		and the listing stops at the next member. Member data pads to a
+		512-byte boundary and a member already on the boundary takes no
+		padding block.
+	**/
 	static function tarFromEntries(prefix: String, files: Array<{name: String, data: haxe.io.Bytes}>): haxe.io.Bytes {
-		final data = new format.tar.Data();
-		for(file in files) {
-			data.add({
-				fileName: prefix + file.name,
-				fileSize: file.data.length,
-				fileTime: Date.fromTime(0),
-				fmod: 420,
-				uid: 0,
-				gid: 0,
-				uname: "",
-				gname: "",
-				data: file.data,
-			});
-		}
 		final out = new haxe.io.BytesOutput();
-		new format.tar.Writer(out).write(data);
+		for(file in files) {
+			writeTarMember(out, prefix + file.name, file.data);
+		}
+		for(i in 0...2 * 512) out.writeByte(0);
 		return out.getBytes();
+	}
+
+	static function writeTarMember(out: haxe.io.BytesOutput, name: String, data: haxe.io.Bytes): Void {
+		final mode = tarOctal(420 & 0x1FF, 7);
+		final uid = tarOctal(0, 7);
+		final gid = tarOctal(0, 7);
+		final size = tarOctal(data.length, 11);
+		final date = tarOctal(0, 6) + tarOctal(0, 5);
+		// 879 is the checksum of the eight spaces and the "ustar  "
+		// magic the fixed header fields contribute.
+		var chsum = 879 + tarCharSum(name) + tarCharSum(mode) + tarCharSum(uid) + tarCharSum(gid)
+			+ tarCharSum(size) + tarCharSum(date) + tarCharSum("0");
+		out.writeString(name);
+		for(i in 0...100 - name.length) out.writeByte(0);
+		out.writeString(mode); out.writeByte(0);
+		out.writeString(uid); out.writeByte(0);
+		out.writeString(gid); out.writeByte(0);
+		out.writeString(size); out.writeByte(0);
+		out.writeString(date); out.writeByte(0);
+		out.writeString(tarOctal(chsum, 6)); out.writeByte(0);
+		out.writeString(" 0");
+		for(i in 0...100) out.writeByte(0);
+		out.writeString("ustar  "); out.writeByte(0);
+		for(i in 0...32) out.writeByte(0);
+		for(i in 0...32) out.writeByte(0);
+		for(i in 0...8 + 8 + 155 + 12) out.writeByte(0);
+		out.writeFullBytes(data, 0, data.length);
+		for(i in 0...(512 - data.length % 512) % 512) out.writeByte(0);
+	}
+
+	/** One number as `len` zero-padded octal digits, the field form the tar header carries. */
+	static function tarOctal(num: Int, len: Int): String {
+		var octal = 0;
+		var scale = 1;
+		var rest = num;
+		while(rest != 0) {
+			octal += scale * (rest & 7);
+			rest >>= 3;
+			scale *= 10;
+		}
+		return StringTools.lpad(Std.string(octal), "0", len);
+	}
+
+	static function tarCharSum(s: String): Int {
+		var sum = 0;
+		for(i in 0...s.length) sum += s.charCodeAt(i);
+		return sum;
 	}
 
 	/**

@@ -194,3 +194,42 @@ Branch outcomes and loop exits are asserted in:
 - `tests/haxe/Main.hx` (lines 97-103): the bad magic guard.
 
 Exhaustiveness itself is compile-time behavior; a missed variant fails the build of the affected tree, and no runtime test needs to cover it.
+
+## Switch subject positions (amendment filed 2026-09-01; status: Planned)
+
+The base ruling maps Haxe `switch` onto each target's branch construct and
+restricts only the exhaustiveness shape, never the subject's expression
+form. The implementation is narrower than the recorded rule: the Kotlin
+target renders an enum switch only when the Haxe typer hands the subject
+over wrapped in `TEnumIndex` (comment at
+`src/reflaxe/kotlin/kotlincompiler/KotlinExpr.hx` line 1110, rejection
+`variant switch subject is not a variant value`), and when the typer
+promotes a field-access or call subject to `TBlock([TVar _g, TSwitch ...])`
+the expression lowering holds no `TBlock` case and the build fails
+(reproduction: engine-port walk-through at `BopomofoReading.hx:63`, a
+return-position enum switch over a call subject; the port hoists every
+non-local switch subject into a named local before switching). The
+rejection row `V15 EnumDefaultArm` of the style standard already detects a
+subject "wrapped in `TEnumIndex` **or typed as an enum**". This amendment
+records the sanctioned form and the lowering rule.
+
+- A `switch` subject may be any expression — a local, a field access, or a
+  call — whose static type is the enum (features/01) or the sealed
+  interface (features/32) being switched.
+- The common layer hoists a non-local subject into a synthetic local
+  exactly once, before target emission, so every target receives the
+  already-supported local-subject shape and no target holds
+  subject-specific code. The synthetic name follows the minting rules of
+  `src/PipelineExpander.hx` (function `mint`, line 154).
+- A subject of type `Null<E>` keeps the existing guard-then-switch form:
+  the source checks null explicitly, binds `final v:E = o;`, and switches
+  `v`. Switching a `Null<E>` subject directly stays outside the
+  translatable subset.
+- Non-enum subjects keep the base ruling unchanged: exhaustive over sealed
+  subjects with no else arm, and an else arm carrying the uncovered-cases
+  comment over anything else.
+
+Test hooks: a sample switches over one enum through a field subject and
+through a call result; the tree assertions show the synthetic hoisted local
+in every target tree; a mutation switching a `Null<E>` subject directly
+keeps the existing rejection.
