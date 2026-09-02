@@ -59,10 +59,7 @@ class Core {
  /** Semver comparison wrapped for the Rust lowering: catching the Semver
  fault keeps every Core function on the single CoreFault error enum. */
  static function compareVersions(a:String,b:String):Int {
-  var out:Null<Int>=null;
-  try { out=Semver.compare(a,b); }
-  catch(e:SemverException) { throw new CoreException(Config("invalid version in sort order")); }
-  return out==null?0:out;
+  return Semver.compare(a,b);
  }
  static function sortReleases(a:Array<Release>):Void {for(i in 1...a.length){var x=a[i],j=i-1;while(j>=0&&compareVersions(a[j].version,x.version)>0){a[j+1]=a[j];j=j-1;}a[j+1]=x;}}
  static function names(a:Array<Release>,p:String):Array<String>{var o:Array<String>=[];for(i in 0...a.length){var r=a[i];if(r.platform==p&&!registry.StringTools.has(o,r.name))o.push(r.name);}sortStrings(o);return o;}
