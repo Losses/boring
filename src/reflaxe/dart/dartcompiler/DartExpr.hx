@@ -301,6 +301,7 @@ class DartExpr {
 		PipelineExpander.expandRootExpr(f.expr);
 		EnumQueryExpander.expandRootExpr(f.expr);
 		scanLocals(f.expr);
+		final constructorLocals = constructorLocalNames(f.expr, f);
 		final formalFields = new Map<String, String>();
 		final fieldInits: Array<String> = [];
 		var superCall: Null<String> = null;
@@ -319,10 +320,13 @@ class DartExpr {
 							// `_`-prefixed Dart name (feature spec 27).
 							final field = memberName(owner.get().module, cf, stmt.pos);
 							final param = paramLocalOf(value, f);
+							final valueText = expr(value);
 							if(param != null) {
 								formalFields.set(param, field);
+						} else if(mentionsConstructorLocalExpr(value, constructorLocals)) {
+								for(l in stmtLines(stmt, 2)) body.push(l);
 							} else {
-								fieldInits.push(field + " = " + expr(value));
+								fieldInits.push(field + " = " + valueText);
 							}
 						case _:
 							for(l in stmtLines(stmt, 2)) body.push(l);
@@ -354,12 +358,13 @@ class DartExpr {
 			if(f.field.name != "new" || f.expr == null) {
 				continue;
 			}
+			final constructorLocals = constructorLocalNames(f.expr, f);
 			for(stmt in statementsOf(f.expr)) {
 				switch(stmt.expr) {
 					case TBinop(OpAssign, target, value):
 						switch(stripWrap(target).expr) {
 							case TField({expr: TConst(TThis)}, FInstance(_, _, cf)):
-								if(coalescingSiteFor(value) != null) {
+								if(coalescingSiteFor(value) != null || (paramLocalOf(value, f) == null && mentionsConstructorLocalExpr(value, constructorLocals))) {
 									out.set(cf.get().name, true);
 								}
 							case _:
@@ -372,6 +377,38 @@ class DartExpr {
 		currentField = savedField;
 		currentLocalName = savedLocal;
 		return out;
+	}
+
+	/** Collect names declared in the constructor, including pipeline temporaries. */
+	function constructorLocalNames(e: TypedExpr, f: ClassFuncData): Map<String, Bool> {
+		final out:Map<String, Bool> = [];
+		function walk(x:TypedExpr):Void {
+			switch(x.expr) {
+				case TVar(v, _):
+					if(v.name != "`") {
+						out.set(v.name, true);
+						if(v.name == "_") out.set("_i", true);
+					}
+				case _:
+			}
+			TypedExprTools.iter(x, walk);
+		}
+		walk(e);
+		return out;
+	}
+
+	/** Whether a typed value reads a name introduced in the constructor body. */
+	function mentionsConstructorLocalExpr(e: TypedExpr, locals:Map<String, Bool>):Bool {
+		var found = false;
+		function walk(x:TypedExpr):Void {
+			switch(x.expr) {
+				case TLocal(v) if(locals.exists(v.name)): found = true;
+				case _:
+			}
+			if(!found) TypedExprTools.iter(x, walk);
+		}
+		walk(e);
+		return found;
 	}
 
 	/** The constructor parameter a bare local reads, or null when the value is not one. */
