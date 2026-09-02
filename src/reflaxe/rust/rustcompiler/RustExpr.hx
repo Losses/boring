@@ -140,7 +140,7 @@ class RustExpr {
 			? DefaultArgExpander.coalescingDefaultForLocalParam(currentClass, currentMethodName, currentLocalName, site == null ? "" : site.parameter)
 			: DefaultArgExpander.coalescingDefaultForParam(currentClass, currentMethodName, site == null ? "" : site.parameter);
 		if(site == null) return null;
-		if(value == null && !DefaultArgExpander.isNormalizationSource(site.defaultExpr.pos)) return null;
+		if(value == null) return null;
 		return site;
 	}
 
@@ -165,7 +165,9 @@ class RustExpr {
 				requireEnum(en.module, en.name);
 				en.name + "::" + enumField.name;
 			case CParameterRead(name): RustImports.toSnakeCase(name);
-			case CInstanceFieldRead(name): "self." + RustImports.toSnakeCase(name);
+			case CInstanceFieldRead(name):
+				final fieldText = "self." + RustImports.toSnakeCase(name);
+				isTypeCopy(targetType) ? fieldText : "(" + fieldText + ").clone()";
 			case CLocalRead(name): RustImports.toSnakeCase(name);
 			case CFieldAccess(CParameterRead(staticPath), ""): coalescingStaticFieldText(staticPath, targetType);
 			case CFieldAccess(receiver, fieldName):
@@ -392,9 +394,11 @@ class RustExpr {
 		}
 		final seen: Map<String, Bool> = [];
 		for(site in sites) {
+			if(parameterOrder != null && parameterOrder.indexOf(site.parameter) < 0) continue;
 			final value = currentLocalName != null
 				? DefaultArgExpander.coalescingDefaultForLocalParam(currentClass, currentMethodName, currentLocalName, site.parameter)
 				: DefaultArgExpander.coalescingDefaultForParam(currentClass, currentMethodName, site.parameter);
+			if(value == null) continue;
 			if(seen.exists(site.parameter)) {
 				continue;
 			}
@@ -402,13 +406,15 @@ class RustExpr {
 			final rawDefaultText = value != null
 				? coalescingDefaultText(value, DefaultArgExpander.withoutNull(site.valueExpr.t))
 				: expr(site.defaultExpr);
+			final ownedDefaultText = value == null && isStringType(DefaultArgExpander.withoutNull(site.valueExpr.t))
+				&& !StringTools.endsWith(rawDefaultText, ".to_string()") ? "(" + rawDefaultText + ").to_string()" : rawDefaultText;
 			// When a string parameter read appears inside unwrap_or_else, Rust needs
 			// the owned form (&str → String).
 			final isStringDefault = switch(value) {
 				case CParameterRead(_): isStringType(DefaultArgExpander.withoutNull(site.valueExpr.t));
 				default: false;
 			};
-			final defaultText = isStringDefault ? rawDefaultText + ".to_string()" : rawDefaultText;
+			final defaultText = isStringDefault ? ownedDefaultText + ".to_string()" : ownedDefaultText;
 			out.push(indent(depth) + "let " + RustImports.toSnakeCase(site.parameter) + " = " + RustImports.toSnakeCase(site.parameter) + ".unwrap_or_else(|| " + defaultText + ");");
 		}
 		return out;
@@ -474,7 +480,8 @@ class RustExpr {
 				return [indent(depth) + '$kw $name$explicitType = $initStr;'];
 			case TVar(v, init) if(init == null):
 				final name = RustImports.toSnakeCase(localName(v));
-				return [indent(depth) + "let mut " + name + ": " + types.of(v.t, false) + ";"];
+				final kw = mutated.exists(v.id) ? "let mut " : "let ";
+				return [indent(depth) + kw + name + ": " + types.of(v.t, false) + ";"];
 			case TBlock(stmts):
 				return blockLines(stmts, depth);
 			case TIf(c, t, f):
@@ -2944,7 +2951,7 @@ class RustExpr {
 					? value + ".to_string()"
 					: value + ".0.to_string()";
 			case TAbstract(a, _) if(a.get().name == "Float"): inConcat ? value : "(" + value + ").to_string()";
-			case TAbstract(a, _) if(a.get().name == "Int" || a.get().name == "Bool"): inConcat ? value : value + ".to_string()";
+			case TAbstract(a, _) if(a.get().name == "Int" || a.get().name == "Bool"): inConcat ? value : "(" + value + ").to_string()";
 			case TAbstract(a, params) if(a.get().module == "std.ReadOnlyArray"):
 				stdStringType(haxe.macro.TypeTools.applyTypeParameters(a.get().type, a.get().params, params), value, inConcat, origin, depth);
 			case TEnum(en, _) if(isParameterlessEnum(en.get())): value + ".name()" + (inConcat ? "" : ".to_string()");
@@ -3147,7 +3154,7 @@ class RustExpr {
 					}
 				}
 				if(name == "get" && isBytes(stripCast(subj))) {
-					return "(" + expr(subj) + "[" + expr(args[0]) + " as usize] as u32)";
+					return "(" + expr(subj) + "[(" + expr(args[0]) + ") as usize] as u32)";
 				}
 				if(name == "set" && args.length == 2 && isBytes(stripCast(subj))) {
 					return expr(subj) + "[" + expr(args[0]) + " as usize] = (" + expr(args[1]) + ") as u8";
@@ -3805,8 +3812,14 @@ class RustExpr {
 	}
 
 	function numericAssignmentValue(expected: Type, actual: TypedExpr, rendered: String): String {
-		if(!isIntType(expected) || !isIntType(actual.t)) return rendered;
+		if(!isIntType(expected)) return rendered;
 		final target = types.of(expected, false);
+		if(isNullType(actual.t)) {
+			final castAt = rendered.indexOf(" as ");
+			final base = castAt >= 0 ? rendered.substr(0, castAt) : rendered;
+			return "(" + base + ".unwrap_or(0)) as " + target;
+		}
+		if(!isIntType(actual.t)) return rendered;
 		return target == "u32" || target == "i32" || target == "u8" ? "(" + rendered + ") as " + target : rendered;
 	}
 
@@ -3873,7 +3886,11 @@ class RustExpr {
 	function scanLocals(e: TypedExpr): Void {
 		switch(e.expr) {
 			case TVar(v, init):
-				if(v.name != "`") {
+				if(v.name != "`" && init == null) {
+					// Deferred locals are assigned by control flow below; only
+					// mark them mutable when scanLocals observes such an assignment.
+					usedNames.set(v.name, true);
+				} else if(v.name != "`") {
 					usedNames.set(v.name, true);
 				}
 				if(init != null) {
@@ -4283,7 +4300,7 @@ class RustExpr {
 			if(i == 0) {
 				elems.push(bufStr + "[" + baseStr + " as usize]");
 			} else {
-				elems.push(bufStr + "[" + baseStr + " as usize + " + i + "]");
+				elems.push(bufStr + "[(" + baseStr + " + " + i + ") as usize]");
 			}
 		}
 		return typeName + "::from_be_bytes([" + elems.join(", ") + "])";
@@ -4367,7 +4384,7 @@ class RustExpr {
 
 	function renderValueForType(expected: Null<Type>, actual: TypedExpr, rendered: String): String {
 		if(expected == null || actual == null) return rendered;
-		// Rust represents an interface value as an owned trait object. A
+		// Rust represents
 		// concrete implementor therefore enters an interface slot through
 		// the one sanctioned Box::new construction; an expression already
 		// typed as the interface is already boxed by its declaration site.
