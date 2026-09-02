@@ -739,7 +739,7 @@ class KotlinExpr {
 
 	function intervalShort(counterDecl: TypedExpr, whileExpr: TypedExpr): Null<{index: TVar, start: TypedExpr, bound: TypedExpr, body: Array<TypedExpr>}> {
 		switch[counterDecl.expr, whileExpr.expr] {
-			case [TVar(counter, start), TWhile(cond, body, true)]:
+			case [TVar(counter, start), TWhile(cond, body, true)] if(start != null):
 				final bound = switch(stripWrap(cond).expr) {
 					case TBinop(OpLt, {expr: TLocal(c)}, right) if(c.id == counter.id): right;
 					case _: return null;
