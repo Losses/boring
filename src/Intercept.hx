@@ -1142,7 +1142,7 @@ class Intercept {
 		switch (e.expr) {
 			case TypedExprDef.TBinop(op, left, right):
 				if (isInt64Type(left.t) || isInt64Type(right.t)) switch (op) {
-					case OpAdd | OpSub | OpAnd | OpOr | OpXor
+					case OpAssign | OpAssignOp(_) | OpAdd | OpSub | OpAnd | OpOr | OpXor
 						| OpShl | OpShr | OpUShr | OpEq | OpNotEq
 						| OpLt | OpGt | OpLte | OpGte:
 					default:
