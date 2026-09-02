@@ -3192,7 +3192,7 @@ class RustExpr {
 					state.shimsUsed.set("std.UStringRT", true);
 					imports.require("crate::runtime::u_string");
 					// The call site's own expression decides: a Null<Int>
-					// context keeps the Option, an Int context collapses.
+					// context keeps the Option and an Int context unwraps it.
 					var callRet: Null<Type> = null;
 					switch(Context.follow(fn.t)) {
 						case TFun(_, r): callRet = r;
@@ -3938,9 +3938,9 @@ class RustExpr {
 					case _:
 				}
 			case TUnop(OpIncrement | OpDecrement, _, subj):
-				// Statement-level `x++` / `x--` arrive as unary ops that
-				// render as `+= 1` / `-= 1`; they mutate the local just
-				// like a compound assignment.
+				// An `x++` / `x--` statement arrives as a unary op that
+				// renders as `+= 1` / `-= 1`; the mutation goes through
+				// the same path as a compound assignment.
 				switch(stripWrap(subj).expr) {
 					case TLocal(v):
 						mutated.set(v.id, true);
@@ -4335,8 +4335,8 @@ class RustExpr {
 			case TCall(fn, _) if(isStringCharCodeAt(fn)):
 				// A nullable code unit lowers to Option<u32>; the byte
 				// extract rewrite replaces a `& 0xFF` binop whose Haxe
-				// semantics unbox null to 0, so collapse the Option the
-				// same way before the value feeds a u8 context.
+				// semantics unbox null to 0, so unwrap the Option to 0
+				// the same way before the value feeds a u8 context.
 				return expr(target) + (isNullType(target.t) ? ".unwrap_or(0)" : "");
 			case _:
 		}
