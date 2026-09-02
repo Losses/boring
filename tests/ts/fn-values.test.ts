@@ -44,8 +44,8 @@ describe("first-class function value generated trees", () => {
 
   test("Rust uses one boxed representation and adapts indirect lengths", () => {
     const rust = read("reference/rust-gen/src/boring/fn_values_ops.rs");
-    expect(rust).toContain("pub(crate) style_at: Box<dyn Fn(u32) -> String>");
-    expect(rust).toContain("pub(crate) resolver: Box<dyn NameResolver>");
+    expect(rust).toContain("pub style_at: Box<dyn Fn(u32) -> String>");
+    expect(rust).toContain("pub resolver: Box<dyn NameResolver>");
     expect(rust).toContain("pub fn new(style_at: Box<dyn Fn(u32) -> String>, resolver: Box<dyn NameResolver>)");
     expect(rust).toContain("pub fn apply_picker(values: &mut [String], pick: Box<dyn Fn(u32) -> String>)");
     expect(rust).toContain("return pick((values.len() - 1) as u32);");
