@@ -225,7 +225,7 @@ class SwiftDecl {
 				case TEnum(e, _):
 					final en = e.get();
 					lines.push("    if a." + f.name + " != b." + f.name + " { return Int32(" + cls.name + f.name + "Order(a." + f.name + ") - " + cls.name + f.name + "Order(b." + f.name + ")) }");
-					lines.unshift("    func " + cls.name + f.name + "Order(_ v: " + en.name + ") -> Int32 {\n        switch v {\n" + [for(ef in en.constructs) "        case ." + lowerFirst(ef.name) + ": return " + ef.index].join("\n") + "\n        }\n    }");
+					lines.unshift("    func " + cls.name + f.name + "Order(_ v: " + en.name + ") -> Int32 {\n        switch v {\n" + [for(ef in en.constructs) "        case ." + lowerFirst(ef.name) + (switch(ef.type) { case TFun(args, _): args.length > 0 ? "(" + [for(_ in args) "_"].join(", ") + ")" : ""; case _: ""; }) + ": return " + ef.index].join("\n") + "\n        }\n    }");
 				case TInst(c, _) if(c.get().name == "String"): lines.push("    let cmp" + f.name + " = compareUnitOrder(a." + f.name + ", b." + f.name + "); if cmp" + f.name + " != 0 { return cmp" + f.name + " }");
 				case TInst(c, _) if(c.get().meta.has(":dataClass")): lines.push("    let cmp" + f.name + " = compare" + c.get().name + "(a." + f.name + ", b." + f.name + "); if cmp" + f.name + " != 0 { return cmp" + f.name + " }");
 				case _:
