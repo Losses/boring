@@ -52,6 +52,9 @@ class RustExpr {
 	final rangeLoopVars: Map<Int, Bool> = [];
 	final argTypes: Map<String, String> = [];
 	final paramVarIds: Map<Int, Bool> = [];
+	final borrowedLoopVarIds: Map<Int, Bool> = [];
+	final provenNonNullVarIds: Map<Int, Bool> = [];
+	final readsAfterDeclaration: Map<Int, Bool> = [];
 	final unsignedLocals: Map<Int, Bool> = [];
 	// Locals initialized from charCodeAt are collapsed from Option<u32> to a scalar.
 	final nullableCollapsedLocals: Map<Int, Bool> = [];
@@ -259,6 +262,7 @@ class RustExpr {
 		currentMethodName = f.field.name;
 		currentLocalName = null;
 		paramVarIds.clear();
+		borrowedLoopVarIds.clear();
 		unsignedLocals.clear();
 		nullableCollapsedLocals.clear();
 		nullableSensitiveLocals.clear();
@@ -275,6 +279,7 @@ class RustExpr {
 		final fusedRoot = fuseWithin(f.expr);
 		f.expr.expr = fusedRoot.expr;
 		scanLocals(f.expr);
+		scanReadsAfter(f.expr);
 		final lines = blockLines(statementsOf(f.expr), 1, true);
 		return coalescingNormalizationLines(f.expr, 1, [for(a in f.args) a.name]).concat(lines);
 	}
@@ -468,6 +473,17 @@ class RustExpr {
 				var nullableType = explicitType;
 				if(explicitNullableNone && explicitType == "") nullableType = ": " + types.of(v.t, false);
 				initStr = renderValueForType(v.t, init, initStr);
+				switch(stripWrap(init).expr) {
+					case TField(subj, FInstance(_, _, cf)) | TField(subj, FAnon(cf)):
+						switch(stripWrap(subj).expr) {
+							case TLocal(item) if(borrowedLoopVarIds.exists(item.id) && !isTypeCopy(cf.get().type)):
+								initStr += ".clone()";
+							case _:
+						}
+					case TLocal(source) if(!isTypeCopy(v.t) && readsAfterDeclaration.exists(source.id)):
+						initStr = "(" + initStr + ").clone()";
+					case _:
+				}
 				switch(stripWrap(init).expr) {
 					case TCall(fn, _) if(isStringCharCodeAt(fn)):
 						if(!nullableSensitiveLocals.exists(v.id)) {
@@ -1201,6 +1217,7 @@ class RustExpr {
 				} else {
 					itemName;
 				};
+				if(argType != null) borrowedLoopVarIds.set(itemVar.id, true);
 				final iterated = ownedLocal ? "&" + expr(sliceSubj) : expr(sliceSubj);
 				switch(Context.follow(itemVar.t)) {
 					case TAbstract(a, _) if(a.get().name == "Int"):
@@ -2518,6 +2535,19 @@ class RustExpr {
 		return switch(Context.follow(getNullInnerType(nullable))) {
 			case TEnum(_, _): switch(Context.follow(value)) { case TEnum(_, _): true; case _: false; };
 			case _: false;
+		};
+	}
+
+	function provenNonNullLocal(e: TypedExpr): Null<TVar> {
+		final inner = stripWrap(e);
+		return switch(inner.expr) {
+			case TBinop(OpNotEq, left, right):
+				switch[stripWrap(left).expr, stripWrap(right).expr] {
+					case [TLocal(v), _] if(isTNull(right)): v;
+					case [_, TLocal(v)] if(isTNull(left)): v;
+					case _: null;
+				};
+			case _: null;
 		};
 	}
 
@@ -4105,6 +4135,25 @@ class RustExpr {
 			case _:
 		}
 		TypedExprTools.iter(e, scanLocals);
+	}
+
+	function scanReadsAfter(e: TypedExpr): Void {
+		switch(e.expr) {
+			case TBlock(stmts):
+				for(i in 0...stmts.length) {
+					switch(stmts[i].expr) {
+						case TVar(_, init) if(init != null):
+							switch(stripWrap(init).expr) {
+								case TLocal(source):
+									for(j in (i + 1)...stmts.length) if(mentionsLocal(stmts[j], source)) { readsAfterDeclaration.set(source.id, true); break; }
+								case _:
+							}
+						case _:
+					}
+					scanReadsAfter(stmts[i]);
+				}
+			case _:
+		}
 	}
 
 	function collectTryAssignments(e: TypedExpr): Void {
