@@ -565,12 +565,6 @@ class RustExpr {
 						case _:
 					}
 				} else if(StringTools.startsWith(returnTypeName, "Option<") && !isNullType(ret.t) && !isTNull(ret)) {
-					if(!isTypeCopy(ret.t)) {
-						switch(stripWrap(ret).expr) {
-							case TLocal(_): retStr = "(" + retStr + ").clone()";
-							case _:
-						}
-					}
 					retStr = "Some(" + retStr + ")";
 				} else if(StringTools.startsWith(returnTypeName, "Option<") && isIntType(ret.t) && !isNullType(ret.t) && !isTNull(ret)) {
 					// An Int expression returned from a Null<Int> function
@@ -4574,9 +4568,6 @@ class RustExpr {
 					} else if(!borrowed && !StringTools.startsWith(argStr, "&")) {
 						argStr = "&(" + argStr + ")";
 					}
-				} else if(isStringType(pt) && isNullType(arg.t)) {
-					// Haxe null-to-String coercion is the empty string.
-					argStr = argStr + ".as_deref().unwrap_or(\"\")";
 				} else if(isPassByRef(pt)) {
 					// The mutating faces are arrays and the writer and reader
 					// fronts; every other borrowed parameter reads only.
