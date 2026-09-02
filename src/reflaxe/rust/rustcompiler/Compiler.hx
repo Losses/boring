@@ -173,6 +173,7 @@ class Compiler extends PluginCompiler<Compiler> {
 		modules.sort(Reflect.compare);
 
 		final packages: Map<String, Array<String>> = [];
+		final packageChildren: Map<String, Array<String>> = [];
 
 		for(module in modules) {
 			if(state.payloadEnumModules.exists(module)) {
@@ -199,24 +200,26 @@ class Compiler extends PluginCompiler<Compiler> {
 			}
 			final modName = moduleLeafName(module);
 			packages.get(pack).push(modName);
+			registerPackagePath(pack, packageChildren);
 		}
 
-		// Generate package mod.rs files
-		for(pack in packages.keys()) {
-			if(pack == "tests") {
-				continue;
-			}
-			final modNames = packages.get(pack);
+		// Generate one Rust module layer per Haxe package segment.
+		final allPackages: Map<String, Bool> = [];
+		for(pack in packages.keys()) allPackages.set(pack, true);
+		for(pack in packageChildren.keys()) allPackages.set(pack, true);
+		for(pack in allPackages.keys()) {
+			if(pack == "" || pack == "tests") continue;
+			final modNames: Array<String> = packages.get(pack) == null ? [] : packages.get(pack).copy();
+			final childNames: Array<String> = packageChildren.get(pack) == null ? [] : packageChildren.get(pack).copy();
 			modNames.sort(Reflect.compare);
+			childNames.sort(Reflect.compare);
 			final lines = ["#![allow(ambiguous_glob_reexports)]", ""];
-			for(m in modNames) {
-				lines.push("pub mod " + m + ";");
-			}
+			for(child in childNames) lines.push("pub mod " + child + ";");
+			for(m in modNames) lines.push("pub mod " + m + ";");
 			lines.push("");
-			for(m in modNames) {
-				lines.push("pub use " + m + "::*;");
-			}
-			final modPath = pack == "" ? "mod.rs" : pack.split(".").map(RustImports.toSnakeCase).join("/") + "/mod.rs";
+			for(child in childNames) lines.push("pub use " + child + "::*;");
+			for(m in modNames) lines.push("pub use " + m + "::*;");
+			final modPath = pack.split(".").map(RustImports.toSnakeCase).join("/") + "/mod.rs";
 			saveTreeFile(modPath, lines.join("\n") + "\n");
 		}
 
@@ -277,14 +280,9 @@ class Compiler extends PluginCompiler<Compiler> {
 
 		// Generate root lib.rs
 		final libLines = [];
-		final sortedPacks = [for(p in packages.keys()) p];
-		sortedPacks.sort(Reflect.compare);
-		for(p in sortedPacks) {
-			if(p != "" && p != "tests") {
-				final sname = RustImports.toSnakeCase(p);
-				libLines.push("pub mod " + sname + ";");
-			}
-		}
+		final rootPackages: Array<String> = packageChildren.get("") == null ? [] : packageChildren.get("").copy();
+		rootPackages.sort(Reflect.compare);
+		for(p in rootPackages) if(p != "tests") libLines.push("pub mod " + p + ";");
 		if(emitDir != null && hasAnyShim()) {
 			libLines.push("pub mod " + emitDir + ";");
 		}
@@ -293,12 +291,7 @@ class Compiler extends PluginCompiler<Compiler> {
 			libLines.push("pub mod tests;");
 		}
 		libLines.push("");
-		for(p in sortedPacks) {
-			if(p != "" && p != "tests") {
-				final sname = RustImports.toSnakeCase(p);
-				libLines.push("pub use " + sname + "::*;");
-			}
-		}
+		for(p in rootPackages) if(p != "tests") libLines.push("pub use " + p + "::*;");
 		saveTreeFile("lib.rs", libLines.join("\n") + "\n");
 
 		if(PackageShell.enabled()) {
@@ -1043,6 +1036,20 @@ class Compiler extends PluginCompiler<Compiler> {
 			return true;
 		}
 		return false;
+	}
+
+	function registerPackagePath(pack: String, children: Map<String, Array<String>>): Void {
+		final parts = pack == "" ? [] : pack.split(".");
+		var parent = "";
+		for(part in parts) {
+			final existing = children.get(parent);
+			if(existing == null) {
+				children.set(parent, [part]);
+			} else if(existing.indexOf(part) < 0) {
+				existing.push(part);
+			}
+			parent = parent == "" ? part : parent + "." + part;
+		}
 	}
 
 	function packageOf(module: String): String {
