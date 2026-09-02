@@ -1845,9 +1845,12 @@ class DartExpr {
 						case TConst(TNull): true;
 						case _: false;
 					};
-					return endOmitted
-						? receiverText(subj) + ".substring(" + expr(args[0]) + ")"
-						: receiverText(subj) + ".substring(" + expr(args[0]) + ", " + expr(args[1]) + ")";
+					if(endOmitted) {
+						return "(() { final _s = " + receiverText(subj) + "; final _from = " + expr(args[0])
+							+ "; final _start = _from < 0 ? 0 : (_from > _s.length ? _s.length : _from); return _s.substring(_start); })()";
+					}
+					return "(() { final _s = " + receiverText(subj) + "; final _from = " + expr(args[0]) + "; final _to = " + expr(args[1])
+						+ "; final _start = _from < 0 ? 0 : (_from > _s.length ? _s.length : _from); final _end = _to < 0 ? 0 : (_to > _s.length ? _s.length : _to); return _start > _end ? _s.substring(_end, _start) : _s.substring(_start, _end); })()";
 				}
 				if(name == "charCodeAt" && isStringSubject(subj)) {
 					// stdlib/15: evaluate receiver and index once and return
