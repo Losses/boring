@@ -57,6 +57,10 @@ class RustExpr {
 	final nullableCollapsedLocals: Map<Int, Bool> = [];
 	// Keep Option when Haxe code observes null separately from code point zero.
 	final nullableSensitiveLocals: Map<Int, Bool> = [];
+	// Locals proven non-null by a dominating Haxe null guard.
+	final provenNonNullLocals: Map<Int, Bool> = [];
+	// Owned local initializers that copy a non-Copy local still used later.
+	final cloneLocalInitializers: Map<Int, Bool> = [];
 	final fpInt64Halves: Map<Int, Bool> = [];
 	var hiddenCounter: Int = 0;
 
@@ -467,6 +471,7 @@ class RustExpr {
 				};
 				var nullableType = explicitType;
 				if(explicitNullableNone && explicitType == "") nullableType = ": " + types.of(v.t, false);
+				if(cloneLocalInitializers.exists(v.id)) initStr = "(" + initStr + ").clone()";
 				initStr = renderValueForType(v.t, init, initStr);
 				switch(stripWrap(init).expr) {
 					case TCall(fn, _) if(isStringCharCodeAt(fn)):
@@ -474,6 +479,10 @@ class RustExpr {
 							initStr += ".unwrap_or(0)";
 							nullableCollapsedLocals.set(v.id, true);
 						}
+					case _:
+				}
+				if(stripWrap(init).expr != null) switch(stripWrap(init).expr) {
+					case TLocal(source) if(!isTypeCopy(v.t)): initStr = "(" + initStr + ").clone()";
 					case _:
 				}
 				// A String local owns its value; a literal initializer is
@@ -516,7 +525,10 @@ class RustExpr {
 					condStr = condStr.substr(1, condStr.length - 2);
 				}
 				final out = [indent(depth) + "if " + condStr + " {"];
+				final guard = nonNullGuard(c);
+				if(guard != null) provenNonNullLocals.set(guard.id, true);
 				for(l in blockLines(statementsOf(t), depth + 1)) out.push(l);
+				if(guard != null) provenNonNullLocals.remove(guard.id);
 				if(f != null) {
 					out.push(indent(depth) + "} else {");
 					for(l in blockLines(statementsOf(f), depth + 1)) out.push(l);
@@ -544,7 +556,14 @@ class RustExpr {
 			case TReturn(ret) if(isVariantSwitch(ret)):
 				return matchReturnLines(stripWrap(ret), depth);
 			case TReturn(ret):
-				// An Int-returning function renders u32, while a length
+				// A borrowed local returned from a Haxe array is an owned value in Rust.
+				if(ret != null) switch(stripWrap(ret).expr) {
+					case TLocal(_) if(!isTypeCopy(ret.t) && !isNullType(ret.t)):
+						// Clone only at the ownership boundary; this preserves Haxe array
+						// element semantics without consuming the borrowed binding.
+					case _:
+				}
+			// An Int-returning function renders u32, while a length
 				// expression renders usize; the return narrows once at the
 				// boundary. Each length read keeps its native type; the conversion
 				// occurs at the call boundary.
@@ -562,6 +581,11 @@ class RustExpr {
 					switch(stripWrap(ret).expr) {
 						case TArray(_, _) | TField(_, _) | TLocal(_):
 							retStr = "(" + retStr + ").clone()";
+						case _:
+					}
+				} else if(ret != null && !isTypeCopy(ret.t) && !isNullType(ret.t)) {
+					switch(stripWrap(ret).expr) {
+						case TLocal(_): retStr = "(" + retStr + ").clone()";
 						case _:
 					}
 				}
@@ -1201,7 +1225,11 @@ class RustExpr {
 				} else {
 					itemName;
 				};
-				final iterated = ownedLocal ? "&" + expr(sliceSubj) : expr(sliceSubj);
+				final ownedNonScalarLocal = switch(stripWrap(sliceSubj).expr) {
+					case TLocal(v): !paramVarIds.exists(v.id) && !isScalar;
+					case _: false;
+				};
+				final iterated = (ownedLocal || ownedNonScalarLocal) ? "&" + expr(sliceSubj) : expr(sliceSubj);
 				switch(Context.follow(itemVar.t)) {
 					case TAbstract(a, _) if(a.get().name == "Int"):
 						// Array elements reach Rust as u32; remember the loop binding
@@ -1733,6 +1761,34 @@ class RustExpr {
 			case _:
 				return fail(e, "expression has no Rust lowering in the subset: " + Std.string(e.expr));
 			}
+	}
+
+	function sameLocalReadAfter(init: TypedExpr, id: Int): Bool {
+		var found = false;
+		function walk(x: TypedExpr): Void {
+			if(found) return;
+			switch(x.expr) { case TLocal(v) if(v.id == id): found = true; case _: }
+			TypedExprTools.iter(x, walk);
+		}
+		walk(init);
+		return found;
+	}
+
+	function nonNullGuard(e: TypedExpr): Null<TVar> {
+		return switch(stripWrap(e).expr) {
+			case TBinop(OpNotEq, left, right) if(isTNull(right)):
+				switch(stripWrap(left).expr) { case TLocal(v): v; case _: null; }
+			case TBinop(OpNotEq, left, right) if(isTNull(left)):
+				switch(stripWrap(right).expr) { case TLocal(v): v; case _: null; }
+			case _: null;
+		};
+	}
+
+	function provenNullableLocal(e: TypedExpr): Null<TVar> {
+		return switch(stripWrap(e).expr) {
+			case TLocal(v) if(provenNonNullLocals.exists(v.id)): v;
+			case _: null;
+		};
 	}
 
 	function optionalIf(c: TypedExpr, ifTrue: TypedExpr, ifFalse: TypedExpr, resultType: Type): Null<String> {
@@ -2393,6 +2449,13 @@ class RustExpr {
 			return fromBe;
 		}
 			switch(op) {
+			case OpBoolAnd:
+				final leftStr = expr(l);
+				final guard = nonNullGuard(l);
+				if(guard != null) provenNonNullLocals.set(guard.id, true);
+				final rightStr = expr(r);
+				if(guard != null) provenNonNullLocals.remove(guard.id);
+				return leftStr + " && " + rightStr;
 			case OpEq | OpNotEq if(isNullableCollapsedLocal(l) || isNullableCollapsedLocal(r)):
 				return expr(l) + " " + symbolOf(op) + " " + expr(r);
 			case OpEq | OpNotEq if(nullableEnumComparedWithEnum(l.t, r.t) || nullableEnumComparedWithEnum(r.t, l.t)):
@@ -2704,6 +2767,9 @@ class RustExpr {
 				final subjStr = if(isNullType(subj.t)) expr(subj) + ".as_ref().unwrap()" else expr(subj);
 				final access = subjStr + "." + snake;
 				if(name != "length" && isConstructedStaticRead(subj) && StaticFieldHelper.isStringType(cf.get().type)) return "(" + access + ").to_string()";
+				if(isNullType(cf.get().type)) {
+					return "(" + access + ").clone()";
+				}
 				if(name != "length" && isConstructedStaticRead(subj) && !isTypeCopy(cf.get().type)) return "(" + access + ").clone()";
 				if(name != "length" && isNullType(cf.get().type)) {
 					// `Std.string` and string comparisons observe nullable values;
@@ -2713,6 +2779,7 @@ class RustExpr {
 				if(name != "length" && (isStringType(cf.get().type) || isRecordValueType(cf.get().type))) {
 					return isStringType(cf.get().type) ? "(" + access + ").to_string()" : "(" + access + ").clone()";
 				}
+				if(!isTypeCopy(cf.get().type)) return "(" + access + ").clone()";
 				return access;
 			case FDynamic(name):
 				if((name == "length" || name == "get_length") && isStringBuf(subj)) {
@@ -4572,7 +4639,11 @@ class RustExpr {
 			var argStr = renderValueForType(pt, arg, expr(arg));
 			if(paramIndex < paramTypes.length) {
 				if(isNullType(pt) && isStringType(getNullInnerType(pt)) && isNullType(arg.t)) {
-					argStr = argStr + ".clone()";
+					final proven = provenNullableLocal(arg);
+					argStr = proven != null ? expr(arg) + ".as_deref().unwrap_or(\"\")" : argStr + ".clone()";
+				} else if(isNullType(pt) && isNullType(arg.t) && provenNullableLocal(arg) != null) {
+					final inner = getNullInnerType(arg.t);
+					argStr = isStringType(inner) ? expr(arg) + ".as_deref().unwrap_or(\"\")" : expr(arg) + ".unwrap()";
 				} else if(isNullType(pt) && !isNullType(arg.t)) {
 					if(argStr == "None") {
 						// already None
