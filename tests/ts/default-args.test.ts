@@ -30,7 +30,8 @@ describe("default argument expansion generated tree", () => {
     expect(content).toContain("const normalized = fallback ?? SortedTable.setBuilder<number>(SortedTable.compareInts).build();");
     expect(content).toContain("public static staticFieldSample(value: number, bound: number = StaticStateOps.limit): number");
     expect(content).toContain("const v = p ?? this.normalizationField;");
-    expect(content).toContain("const w = q ?? loc;");
+    expect(content).toContain("const w = q ?? this.fallbackCount;");
+    expect(content).toContain("const v = p ?? this.fallbackCount;");
 
 
     // A coalescing default reading an earlier coalescing parameter keeps
@@ -95,7 +96,8 @@ describe("default argument expansion generated tree", () => {
     expect(content).toContain("fun staticFieldSample(value: Int, bound: Int = StaticStateOps.limit): Int");
     expect(content).toContain("fun binarySample(value: Int, offset: Int = value + 1): Int");
     expect(content).toContain("val v = p ?: this.normalizationField");
-    expect(content).toContain("val w = q ?: loc");
+    expect(content).toContain("val w = q ?: this.fallbackCount");
+    expect(content).toContain("val v = p ?: this.fallbackCount");
 
 
     // A coalescing default reading an earlier coalescing parameter keeps
@@ -157,7 +159,8 @@ describe("default argument expansion generated tree", () => {
     expect(content).toContain("let bound = bound.unwrap_or_else(|| StaticStateOps::LIMIT);");
     expect(content).toContain("let offset = offset.unwrap_or_else(|| value + 1);");
     expect(content).toContain("pub fn instance_field_normalization(&self, p: Option<String>) -> String");
-    expect(content).toContain("pub fn earlier_local_normalization(&self, seed: &str, q: Option<String>) -> String");
+    expect(content).toContain("let p = p.unwrap_or_else(|| self.fallback_count);");
+    expect(content).toContain("let q = q.unwrap_or_else(|| self.fallback_count);");
 
 
     // Rust has no default syntax: omission is completed to None and each
@@ -221,7 +224,8 @@ describe("default argument expansion generated tree", () => {
     expect(content).toContain("static func staticFieldSample(_ value: Int32, _ bound: Int32 = StaticStateOps.limit) -> Int32");
     expect(content).toContain("let offset = offset ?? value + 1;");
     expect(content).toContain("func instanceFieldNormalization(_ p: String?) -> String");
-    expect(content).toContain("func earlierLocalNormalization(_ seed: String, _ q: String?) -> String");
+    expect(content).toContain("let v: Int32? = p ?? self.fallbackCount");
+    expect(content).toContain("let w: Int32? = q ?? self.fallbackCount");
 
     expect(content).toContain("static func chainedCoalescing(_ fallback: Double = 2.5, _ value: Double? = nil) -> Double");
     expect(content).toContain("var value = value ?? fallback;");
@@ -261,7 +265,8 @@ describe("default argument expansion generated tree", () => {
     expect(content).toContain("final int normalized = bound ?? static_state_ops.limit;");
     expect(content).toContain("final int result = offset ?? value + 1;");
     expect(content).toContain("final String? v = p ?? this.normalizationField;");
-    expect(content).toContain("final String? w = q ?? loc;");
+    expect(content).toContain("final int? v = p ?? this._fallbackCount;");
+    expect(content).toContain("final int? w = q ?? this._fallbackCount;");
 
     expect(content).toContain("final double resolvedValue = value ?? (fallback ?? 2.5);");
     expect(content).toContain("this.followRadius = followRadius ?? (radius ?? 0.0);");

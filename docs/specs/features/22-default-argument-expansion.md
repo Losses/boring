@@ -446,7 +446,9 @@ need both reads as `E`, so the grammar grows to cover them.
   ruling) keep the Stage A closed leaf set unchanged; the extension is
   scoped to the statement-level binding whose product is body code on
   every target.
-- Every other leaf, position, and rejection stays as ruled; the named
+- The bare identifier and `this.`-qualified forms are equally sanctioned; their
+  instance-field names are checked against the instance-field name table
+  registered during the build macro phase.
   rejection `coalesced default expression is not sanctioned` keeps
   governing identifiers that are no parameter, no earlier local, and no
   instance field of the enclosing class.
