@@ -77,7 +77,7 @@ class RustType {
 					// store an unpaired lead.
 					case "std.StringBuf" | "StringBuf": isParam ? "&mut Vec<u16>" : "Vec<u16>";
 					case "Array":
-						isParam ? "&mut Vec<" + of(params[0]) + ">" : "Vec<" + of(params[0]) + ">";
+						isParam ? "&Vec<" + of(params[0]) + ">" : "Vec<" + of(params[0]) + ">";
 					case "haxe.io.Bytes":
 						isParam ? "&[u8]" : "Vec<u8>";
 					case "haxe.io.BytesBuffer":
