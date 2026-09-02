@@ -3109,7 +3109,14 @@ class RustExpr {
 					return expr(subj) + "[" + expr(args[0]) + " as usize..(" + expr(args[0]) + " + " + expr(args[1]) + ") as usize].to_vec()";
 				}
 				if(name == "charCodeAt" && isString(stripCast(subj))) {
-					return expr(subj) + ".as_bytes()[(" + expr(args[0]) + ") as usize]";
+					state.shimsUsed.set("std.UStringRT", true);
+					imports.require("crate::runtime::u_string");
+					return "u_string::at(&" + expr(subj) + ", (" + expr(args[0]) + ") as u32)";
+				}
+				if(name == "split" && isString(stripCast(subj)) && args.length == 1) {
+					state.shimsUsed.set("std.UStringRT", true);
+					imports.require("crate::runtime::u_string");
+					return "u_string::split(&" + expr(subj) + ", &" + expr(args[0]) + ")";
 				}
 				if(name == "substring" && isString(stripCast(subj))) {
 					// Member-call lowering into the u_string runtime: the
