@@ -1199,9 +1199,9 @@ class RustExpr {
 						"&" + itemName;
 					}
 				} else {
-					itemName;
+					ownedLocal ? "&" + itemName : itemName;
 				};
-				final iterated = "&" + expr(sliceSubj);
+				final iterated = ownedLocal ? "&" + expr(sliceSubj) : expr(sliceSubj);
 				switch(Context.follow(itemVar.t)) {
 					case TAbstract(a, _) if(a.get().name == "Int"):
 						// Array elements reach Rust as u32; remember the loop binding
@@ -1210,7 +1210,6 @@ class RustExpr {
 					case _:
 				}
 				final remainingBody = loop.body.slice(1);
-				final cloneLoopItem = !isScalar && argType == null;
 				final gb = matchGroupByBody(remainingBody);
 				if(gb != null) {
 					final entryName = RustImports.toSnakeCase(gb.entryVar.name);
@@ -4574,8 +4573,6 @@ class RustExpr {
 			if(paramIndex < paramTypes.length) {
 				if(isNullType(pt) && isStringType(getNullInnerType(pt)) && isNullType(arg.t)) {
 					argStr = argStr + ".clone()";
-				} else if(isNullType(arg.t) && !isNullType(pt)) {
-					argStr = argStr + ".unwrap()";
 				} else if(isNullType(pt) && !isNullType(arg.t)) {
 					if(argStr == "None") {
 						// already None
