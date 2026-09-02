@@ -22,8 +22,8 @@ describe("constructed static initializer trees", () => {
     const rust = read("reference/rust-gen/src/boring/constructed_state_ops.rs");
     expect(rust).toContain("LazyLock<FramePolicy>");
     expect(rust).toContain("LazyLock::new");
-    expect(rust).toContain("#[allow(non_upper_case_globals)]");
-    expect(rust).toContain("&*weighted");
+    expect(rust).not.toContain("#[allow(non_upper_case_globals)]");
+    expect(rust).toContain("&*WEIGHTED");
   });
 });
 

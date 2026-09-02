@@ -92,6 +92,10 @@ class RustImports {
 		return out.join("::");
 	}
 
+	public static function toScreamingSnakeCase(s: String): String {
+		return toSnakeCase(s).toUpperCase();
+	}
+
 	public static function toSnakeCase(s: String): String {
 		if(s == null || s.length == 0) {
 			return s;

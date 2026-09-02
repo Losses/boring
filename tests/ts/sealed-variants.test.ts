@@ -204,8 +204,8 @@ test("the sanctioned self-construction static uses each target lane", async () =
     expect(trees.kotlin).toContain("val instance: NoneDrawKind = NoneDrawKind()");
     expect(trees.swift).toContain("static let instance: NoneDrawKind = NoneDrawKind()");
     expect(trees.dart).toContain("static final instance = NoneDrawKind();");
-    expect(trees.rust).toContain("#[allow(non_upper_case_globals)]");
-    expect(trees.rust).toContain("static instance: Mutex<NoneDrawKind> = Mutex::new(NoneDrawKind::new());");
+    expect(trees.rust).not.toContain("#[allow(non_upper_case_globals)]");
+    expect(trees.rust).toContain("pub static INSTANCE: Mutex<NoneDrawKind> = Mutex::new(NoneDrawKind::new());");;
   } finally {
     fs.rmSync(mutationRoot, { recursive: true, force: true });
   }
@@ -240,8 +240,8 @@ test("sealed variant sample trees carry the ruled declaration and printed forms"
   expect(dart).toContain("StripeDrawKind(strokeWidth=");
   expect(dart).toContain("DotDrawKind(dotDiameter=");
 
-  expect(rust).toContain("#[allow(non_upper_case_globals)]");
-  expect(rust).toContain("static instance: Mutex<NoneDrawKind> = Mutex::new(NoneDrawKind::new());");
+  expect(rust).not.toContain("#[allow(non_upper_case_globals)]");
+  expect(rust).toContain("pub static INSTANCE: Mutex<NoneDrawKind> = Mutex::new(NoneDrawKind::new());");;
   expect(rust).toContain('return "NoneDrawKind".to_string();');
   expect(rust).toContain('"StripeDrawKind("');
   expect(rust).toContain('"DotDrawKind("');

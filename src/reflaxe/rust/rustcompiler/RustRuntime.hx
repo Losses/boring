@@ -166,12 +166,14 @@ pub fn count(s: &str) -> u32 {
 }
 
 pub fn at(s: &str, index: u32) -> Option<u32> {
-    let units: Vec<u16> = s.encode_utf16().collect();
-    if (index as usize) < units.len() {
-        Some(units[index as usize] as u32)
-    } else {
-        None
+    let mut remaining = index;
+    for c in s.chars() {
+        if remaining == 0 {
+            return Some(c as u32);
+        }
+        remaining -= 1;
     }
+    None
 }
 
 pub fn split(s: &str, separator: &str) -> Vec<String> {
