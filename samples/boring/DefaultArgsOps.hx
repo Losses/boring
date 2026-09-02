@@ -321,3 +321,18 @@ class CoalescingPreset {
 
 	public static final Default:CoalescingPreset = new CoalescingPreset();
 }
+
+/** Paired bare and `this.` instance-field normalization bindings. */
+class BareFieldProbe {
+	final fallbackCount:Int;
+
+	public function new(fallbackCount:Int) {
+		this.fallbackCount = fallbackCount;
+	}
+
+	public function make(?p:Null<Int>, ?q:Null<Int>):Int {
+		final v = p == null ? fallbackCount : p;
+		final w = q == null ? this.fallbackCount : q;
+		return v + w;
+	}
+}
