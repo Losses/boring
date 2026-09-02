@@ -145,7 +145,8 @@ class SwiftDecl {
 
 		lines.push("}");
 		final classPart = lines.join("\n");
-		return extractedParts.length > 0 ? extractedParts.join("\n\n") + "\n\n" + classPart : classPart;
+		final result = extractedParts.length > 0 ? extractedParts.join("\n\n") + "\n\n" + classPart : classPart;
+		return cls.meta.has(":dataClass") ? result + "\n\n" + dataClassComparator(cls) : result;
 	}
 
 	/** Emits a marked abstract as a value-semantic Swift struct. */
@@ -212,6 +213,22 @@ class SwiftDecl {
 			lines.push("");
 			lines.push("    static let " + v.field.name + ": " + info.name + " = " + expr.rawExpression(initializer));
 		}
+		lines.push("}");
+		return lines.join("\n");
+	}
+
+	function dataClassComparator(cls: ClassType): String {
+		final lines = ["func compare" + cls.name + "(_ a: " + cls.name + ", _ b: " + cls.name + ") -> Int32 {"];
+		for(f in [for(x in cls.fields.get()) if(x.kind.match(FVar(_, _))) x]) {
+			switch(Context.follow(f.type)) {
+				case TAbstract(a, _) if(a.get().name == "Int"): lines.push("    if a." + f.name + " != b." + f.name + " { return a." + f.name + " - b." + f.name + " }");
+				case TInst(c, _) if(c.get().name == "String"): lines.push("    let cmp" + f.name + " = compareUnitOrder(a." + f.name + ", b." + f.name + "); if cmp" + f.name + " != 0 { return cmp" + f.name + " }");
+				case TInst(c, _) if(c.get().meta.has(":dataClass")): lines.push("    let cmp" + f.name + " = compare" + c.get().name + "(a." + f.name + ", b." + f.name + "); if cmp" + f.name + " != 0 { return cmp" + f.name + " }");
+				case TEnum(_, _): lines.push("    if a." + f.name + " != b." + f.name + " { return a." + f.name + ".ordinal - b." + f.name + ".ordinal }");
+				case _:
+			}
+		}
+		lines.push("    return 0");
 		lines.push("}");
 		return lines.join("\n");
 	}
