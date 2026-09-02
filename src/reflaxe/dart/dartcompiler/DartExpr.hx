@@ -297,6 +297,9 @@ class DartExpr {
 		currentClass = cls;
 		currentField = f.field.name;
 		currentLocalName = null;
+		DefaultArgExpander.completeRootExpr(cls, f.field.name, f.expr);
+		PipelineExpander.expandRootExpr(f.expr);
+		EnumQueryExpander.expandRootExpr(f.expr);
 		scanLocals(f.expr);
 		final formalFields = new Map<String, String>();
 		final fieldInits: Array<String> = [];
