@@ -149,7 +149,7 @@ class RustExpr {
 		return switch(value) {
 			case CInt(v): Std.string(v);
 			case CFloat(s):
-				final padded = s.indexOf(".") >= 0 ? s : s + ".0";
+				final padded = s.indexOf(".") >= 0 || s.indexOf("e") >= 0 || s.indexOf("E") >= 0 ? s : s + ".0";
 				FloatPrecision.isF32() ? padded + "f32" : padded;
 			case CString(s): quoteString(s) + ".to_string()";
 			case CBool(b): b ? "true" : "false";
@@ -1569,7 +1569,7 @@ class RustExpr {
 						return Std.string(v);
 					case TFloat(f):
 						final s = Std.string(f);
-						final padded = s.indexOf(".") >= 0 ? s : s + ".0";
+						final padded = s.indexOf(".") >= 0 || s.indexOf("e") >= 0 || s.indexOf("E") >= 0 ? s : s + ".0";
 						// The f32 configuration marks every literal so its width never
 						// depends on the inference context (feature spec 23).
 						return FloatPrecision.isF32() ? padded + "f32" : padded;
@@ -2328,6 +2328,10 @@ class RustExpr {
 			// to a predicate call: Option equality against None would
 			// require PartialEq on the inner type, which the emitted
 			// structs do not carry.
+			case OpEq | OpNotEq if(isNullType(l.t) && !isNullType(r.t) && !isTNull(r)):
+				return expr(l) + " " + symbolOf(op) + " Some(" + expr(r) + ")";
+			case OpEq | OpNotEq if(isNullType(r.t) && !isNullType(l.t) && !isTNull(l)):
+				return expr(r) + " " + symbolOf(op) + " Some(" + expr(l) + ")";
 			case OpEq | OpNotEq if((isNullType(l.t) && isTNull(r)) || (isNullType(r.t) && isTNull(l))):
 				final nullable = isNullType(l.t) ? l : r;
 				return expr(nullable) + (op == OpEq ? ".is_none()" : ".is_some()");
@@ -2766,8 +2770,8 @@ class RustExpr {
 				if(name == "POSITIVE_INFINITY") return real + "::INFINITY";
 				if(name == "NEGATIVE_INFINITY") return real + "::NEG_INFINITY";
 				return real + "::" + RustImports.toSnakeCase(name);
-			case "std.Test" | "std.__test_shim":
-				state.shimsUsed.set("std.Test", true);
+			case _ if(RustTestBinding.isTestExtern(cls)):
+				state.shimsUsed.set(RuntimeResidents.externsOf("runtime.TestCore")[0], true);
 				if(name == "run") {
 					imports.require("crate::runtime::test as testlib");
 					return "testlib::run";
@@ -2792,8 +2796,8 @@ class RustExpr {
 				imports.requireType("runtime.Graphemes", "Graphemes");
 				return "Graphemes::" + RustImports.toSnakeCase(name);
 			case _:
-				if(cls.module == "std.Test") {
-					state.shimsUsed.set("std.Test", true);
+				if(RustTestBinding.isTestExtern(cls)) {
+					state.shimsUsed.set(RuntimeResidents.externsOf("runtime.TestCore")[0], true);
 					if(name == "run") {
 						imports.require("crate::runtime::test as testlib");
 						return "testlib::run";
@@ -2874,8 +2878,8 @@ class RustExpr {
 				if(cls.pack.length == 0 && (cls.name == "String" || cls.name == "Math")) {
 					return cls.name;
 				}
-				if(cls.module == "std.Test" || (cls.pack.join(".") == "std" && (cls.name == "Test" || cls.name == "__test_shim"))) {
-					state.shimsUsed.set("std.Test", true);
+				if(RustTestBinding.isTestExtern(cls)) {
+					state.shimsUsed.set(RuntimeResidents.externsOf("runtime.TestCore")[0], true);
 					imports.require("crate::runtime::test as testlib");
 					return "testlib";
 				}
@@ -2924,7 +2928,8 @@ class RustExpr {
 				ValueTypeSupport.memberField(a.get(), "toString") != null
 					? value + ".to_string()"
 					: value + ".0.to_string()";
-			case TAbstract(a, _) if(a.get().name == "Int" || a.get().name == "Float" || a.get().name == "Bool"): inConcat ? value : value + ".to_string()";
+			case TAbstract(a, _) if(a.get().name == "Float"): inConcat ? value : "(" + value + ").to_string()";
+			case TAbstract(a, _) if(a.get().name == "Int" || a.get().name == "Bool"): inConcat ? value : value + ".to_string()";
 			case TAbstract(a, params) if(a.get().module == "std.ReadOnlyArray"):
 				stdStringType(haxe.macro.TypeTools.applyTypeParameters(a.get().type, a.get().params, params), value, inConcat, origin, depth);
 			case TEnum(en, _) if(isParameterlessEnum(en.get())): value + ".name()" + (inConcat ? "" : ".to_string()");
@@ -3141,8 +3146,31 @@ class RustExpr {
 				if(name == "sub" && args.length == 2 && isBytes(stripCast(subj))) {
 					return expr(subj) + "[" + expr(args[0]) + " as usize..(" + expr(args[0]) + " + " + expr(args[1]) + ") as usize].to_vec()";
 				}
+				if(name == "charAt" && isString(stripCast(subj))) {
+					state.shimsUsed.set("std.UStringRT", true);
+					imports.require("crate::runtime::u_string");
+					return "u_string::substring(&" + expr(subj) + ", (" + expr(args[0]) + ") as i32, (" + expr(args[0]) + " + 1) as i32)";
+				}
+				if(name == "indexOf" && isString(stripCast(subj)) && args.length >= 1) {
+					return "(" + expr(subj) + ").find(" + expr(args[0]) + ").map(|v| v as i32).unwrap_or(-1)";
+				}
 				if(name == "charCodeAt" && isString(stripCast(subj))) {
-					return expr(subj) + ".as_bytes()[(" + expr(args[0]) + ") as usize]";
+					state.shimsUsed.set("std.UStringRT", true);
+					imports.require("crate::runtime::u_string");
+					// The call site's own expression decides: a Null<Int>
+					// context keeps the Option, an Int context collapses.
+					var callRet: Null<Type> = null;
+					switch(Context.follow(fn.t)) {
+						case TFun(_, r): callRet = r;
+						case _:
+					}
+					final nullableResult = callRet != null && isNullType(callRet);
+					return "u_string::at(&" + expr(subj) + ", (" + expr(args[0]) + ") as u32)" + (nullableResult ? "" : ".unwrap_or(0)");
+				}
+				if(name == "split" && isString(stripCast(subj)) && args.length == 1) {
+					state.shimsUsed.set("std.UStringRT", true);
+					imports.require("crate::runtime::u_string");
+					return "u_string::split(&" + expr(subj) + ", &" + expr(args[0]) + ")";
 				}
 				if(name == "substring" && isString(stripCast(subj))) {
 					// Member-call lowering into the u_string runtime: the
@@ -3350,18 +3378,18 @@ class RustExpr {
 						case _:
 					}
 				}
-				if(path == "std.TestPlatform") {
+				if(RustTestBinding.isTestPlatformExtern(path)) {
 					// Host edges of the resident runtime.TestCore, inlined
 					// per call: raising is a panic, the running test id
 					// lives in the test host module of the runtime emit, and
 					// plain numbers render through to_string. Marking the
-					// std.Test shim used keeps that host module emitted
+					// test extern shim used keeps that host module emitted
 					// beside this resident. Business code never reaches
-					// these; it calls std.Test.
+					// these; it calls test extern.
 					if(!RuntimeResidents.isResident(imports.selfModule)) {
-						Context.error("std.TestPlatform is a resident runtime primitive; business code calls std.Test", fn.pos);
+						Context.error("test platform extern is a resident runtime primitive; business code calls test extern", fn.pos);
 					}
-					state.shimsUsed.set("std.Test", true);
+					state.shimsUsed.set(RuntimeResidents.externsOf("runtime.TestCore")[0], true);
 					switch(name) {
 						case "raise":
 							return "panic!(\"{}\", " + expr(args[0]) + ")";
@@ -3414,14 +3442,15 @@ class RustExpr {
 					return "SortedTable::set_builder::<" + types.of(kType) + ">(" + sortedComparator(kType, fn.pos) + ")";
 				}
 
-				
-				if(cls.module == "std.Test" || (cls.pack.join(".") == "std" && (cls.name == "Test" || cls.name == "__test_shim"))) {
+
+
+				if(RustTestBinding.isTestExtern(cls)) {
 					// The assertion checks and message formatting live in the
 					// resident runtime.TestCore; this host module keeps run and
 					// its result recording. Messages are plain &str: an absent
 					// message renders as the empty string, which the canonical
 					// builder omits.
-					state.shimsUsed.set("std.Test", true);
+					state.shimsUsed.set(RuntimeResidents.externsOf("runtime.TestCore")[0], true);
 					imports.require("crate::runtime::test as testlib");
 					imports.require("crate::runtime::test_core");
 					final messageArg = function(idx: Int): String {
@@ -3863,6 +3892,15 @@ class RustExpr {
 						}
 					case _:
 				}
+			case TUnop(OpIncrement | OpDecrement, _, subj):
+				// Statement-level `x++` / `x--` arrive as unary ops that
+				// render as `+= 1` / `-= 1`; they mutate the local just
+				// like a compound assignment.
+				switch(stripWrap(subj).expr) {
+					case TLocal(v):
+						mutated.set(v.id, true);
+					case _:
+				}
 			case TCall(fn, args):
 				switch(fn.expr) {
 					case TField(subj, FInstance(_, _, cf)):
@@ -3883,8 +3921,19 @@ class RustExpr {
 					case TField(_, FInstance(_, _, cf)) if(cf.get().name == "push"): true;
 					default: false;
 				};
+				// renderCallArgs reads the callee's declared parameter
+				// types through cf.get().type, so the declaration decides
+				// the borrow: a parameter declared as Array lowers to a
+				// mutating borrow that drains the vector, while a param
+				// left as an unbound type parameter borrows shared. The
+				// call-site type fn.t binds that parameter to Array and
+				// would mark a local the shared borrow never mutates.
+				final declaredFnType = switch(fn.expr) {
+					case TField(_, FInstance(_, _, cf)) | TField(_, FStatic(_, cf)): cf.get().type;
+					default: fn.t;
+				};
 				if(!isInstancePush) {
-					final paramTypes = switch(Context.follow(fn.t)) {
+					final paramTypes = switch(Context.follow(declaredFnType)) {
 						case TFun(pargs, _): [for(p in pargs) p.t];
 						default: [];
 					};
@@ -4247,7 +4296,11 @@ class RustExpr {
 		final strippedTarget = stripWrap(target);
 		switch(strippedTarget.expr) {
 			case TCall(fn, _) if(isStringCharCodeAt(fn)):
-				return expr(target);
+				// A nullable code unit lowers to Option<u32>; the byte
+				// extract rewrite replaces a `& 0xFF` binop whose Haxe
+				// semantics unbox null to 0, so collapse the Option the
+				// same way before the value feeds a u8 context.
+				return expr(target) + (isNullType(target.t) ? ".unwrap_or(0)" : "");
 			case _:
 		}
 		final targetType = resolveExprType(target);
