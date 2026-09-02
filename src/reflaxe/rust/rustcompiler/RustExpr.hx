@@ -165,6 +165,8 @@ class RustExpr {
 				requireEnum(en.module, en.name);
 				en.name + "::" + enumField.name;
 			case CParameterRead(name): RustImports.toSnakeCase(name);
+			case CInstanceFieldRead(name): "self." + RustImports.toSnakeCase(name);
+			case CLocalRead(name): RustImports.toSnakeCase(name);
 			case CFieldAccess(CParameterRead(staticPath), ""): coalescingStaticFieldText(staticPath, targetType);
 			case CFieldAccess(receiver, fieldName):
 				fieldName == "length"
