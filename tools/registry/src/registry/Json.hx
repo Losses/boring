@@ -65,7 +65,7 @@ class Json {
 		return out + '"';
 	}
 	static function escapeOf(s:String, c:Int, i:Int):String {
-		if(c == 8) return "\\b";
+		if(c == 8) return "\\u0008";
 		if(c == 9) return "\\t";
 		if(c == 10) return "\\n";
 		if(c == 12) return "\\f";
@@ -73,7 +73,7 @@ class Json {
 		if(c == 34) return '\\"';
 		if(c == 92) return "\\\\";
 		if(c < 32) return "\\u" + hex4(c);
-		return s.charAt(i);
+		return s.substring(i,i+1);
 	}
 	static function render(v:JsonValue, level:Int):String return switch(v) {
 		case JNull: "null";
