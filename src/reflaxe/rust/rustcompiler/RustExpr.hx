@@ -37,10 +37,14 @@ class RustExpr {
 	var returnUnsigned: Bool = false;
 	var returnTypeName: Null<String> = null;
 	var currentReturnType: Null<Type> = null;
+	var inTryClosure: Bool = false;
 
 	final subst: Map<Int, String> = [];
 	/** Catch variables of the region being lowered; features/06 catch-site lowering. */
 	final catchVars: Map<Int, Bool> = [];
+	// Locals declared outside a try closure need mutable, initialized storage
+	// when the closure assigns them.
+	final tryCapturedAssignments: Map<Int, Bool> = [];
 	final mutated: Map<Int, Bool> = [];
 	final deferredLocals: Map<Int, Bool> = [];
 	final usedNames: Map<String, Bool> = [];
@@ -444,7 +448,7 @@ class RustExpr {
 			case TVar(v, init) if(init != null && isTryRegion(init)):
 				return regionInitializerLines(v, stripWrap(init), depth);
 			case TVar(v, init) if(init != null):
-				final kw = mutated.exists(v.id) ? "let mut" : "let";
+				final kw = mutated.exists(v.id) || tryCapturedAssignments.exists(v.id) ? "let mut" : "let";
 				final name = RustImports.toSnakeCase(localName(v));
 				final explicitType = if(isFunctionType(v.t)) {
 					": " + types.functionReturnOf(v.t);
@@ -453,10 +457,16 @@ class RustExpr {
 						": " + types.of(v.t, false);
 					case _: "";
 				};
+				var explicitNullableNone = false;
 				var initStr = switch(init.expr) {
 					case TFunction(fn): functionValueLiteralNamed(v.name, fn, init.t);
+					case TConst(TNull) if(isNullType(v.t)):
+						explicitNullableNone = true;
+						"None";
 					default: expr(init);
 				};
+				var nullableType = explicitType;
+				if(explicitNullableNone && explicitType == "") nullableType = ": " + types.of(v.t, false);
 				initStr = renderValueForType(v.t, init, initStr);
 				switch(stripWrap(init).expr) {
 					case TCall(fn, _) if(isStringCharCodeAt(fn)):
@@ -491,9 +501,11 @@ class RustExpr {
 				if(StringTools.startsWith(initStr, "(") && StringTools.endsWith(initStr, ")") && matchingParens(initStr)) {
 					initStr = initStr.substr(1, initStr.length - 2);
 				}
-				return [indent(depth) + '$kw $name$explicitType = $initStr;'];
+				return [indent(depth) + '$kw $name$nullableType = $initStr;'];
 			case TVar(v, init) if(init == null):
 				final name = RustImports.toSnakeCase(localName(v));
+				if(tryCapturedAssignments.exists(v.id) && isNullType(v.t))
+					return [indent(depth) + "let mut " + name + ": " + types.of(v.t, false) + " = None;"];
 				final kw = "let ";
 				return [indent(depth) + kw + name + ": " + types.of(v.t, false) + ";"];
 			case TBlock(stmts):
@@ -812,7 +824,7 @@ class RustExpr {
 				}
 			}
 			if(!endsWithReturn) {
-				out.push(indent(depth) + (currentReturnType != null && !isVoidType(currentReturnType) ? "unreachable!();" : "Ok(())"));
+				out.push(indent(depth) + (inTryClosure || currentReturnType == null || isVoidType(currentReturnType) ? "Ok(())" : "unreachable!();"));
 			}
 		}
 
@@ -1975,14 +1987,16 @@ class RustExpr {
 		final savedFallible = isFallible;
 		final savedError = errorTypeName;
 		final savedOverflow = countOverflowVariant;
+		final savedTryClosure = inTryClosure;
 		isFallible = true;
+		inTryClosure = true;
 		errorTypeName = enumName;
 		countOverflowVariant = null;
 		final lines = blockLines(bodyStmts, depth, true);
 		isFallible = savedFallible;
 		errorTypeName = savedError;
 		countOverflowVariant = savedOverflow;
-		// A Void tail still closes with Ok(()): blockLines appends it under
+		inTryClosure = savedTryClosure;
 		// the forced fallible flag, and a rewrapped tail already returns it.
 		return lines;
 	}
@@ -4009,6 +4023,8 @@ class RustExpr {
 						case _:
 					}
 				}
+			case TTry(body, _):
+				collectTryAssignments(body);
 			case TBinop(OpEq | OpNotEq, left, right):
 				final local = switch([stripWrap(left).expr, stripWrap(right).expr]) {
 					case [TLocal(v), _] if(isTNull(right) || isZero(right)): v;
@@ -4089,6 +4105,20 @@ class RustExpr {
 		TypedExprTools.iter(e, scanLocals);
 	}
 
+	function collectTryAssignments(e: TypedExpr): Void {
+		function walk(x: TypedExpr): Void {
+			switch(x.expr) {
+				case TBinop(OpAssign, target, _) | TBinop(OpAssignOp(_), target, _):
+					switch(stripWrap(target).expr) {
+						case TLocal(v): tryCapturedAssignments.set(v.id, true);
+						case _:
+					}
+				case _:
+			}
+			TypedExprTools.iter(x, walk);
+		}
+		walk(e);
+	}
 	function mentionsLocal(e: TypedExpr, v: TVar): Bool {
 		var found = false;
 		function walk(x: TypedExpr) {
