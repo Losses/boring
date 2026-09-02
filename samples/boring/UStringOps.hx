@@ -34,7 +34,7 @@ class UStringOps {
 	}
 
 	public static function reversedText(text:String):String {
-		final codes = UString.toCodePoints(text);
+		var codes = UString.toCodePoints(text);
 		final reversed = new Array<Int>();
 		for (index in 0...codes.length) {
 			reversed.push(codes[codes.length - 1 - index]);
