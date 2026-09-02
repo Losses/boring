@@ -1731,7 +1731,11 @@ class KotlinExpr {
 					inConcat ? representation : "(" + representation + ").toString()";
 				}
 			case TAbstract(a, _) if(a.get().name == "Float"):
-				inConcat ? value : "boring.runtime.test.TestCore.formatFloat(" + value + ")";
+				if(inConcat) value else {
+					final runtimePackage = RuntimeConfig.requireImportName("module test extern");
+					imports.require(runtimePackage + ".test.TestCore");
+					runtimePackage + ".test.TestCore.formatFloat(" + value + ")";
+				}
 			case TAbstract(a, _) if(a.get().name == "Int" || a.get().name == "Bool"):
 				inConcat ? value : "(" + value + ").toString()";
 			case TAbstract(a, params) if(a.get().module == "std.ReadOnlyArray"):
