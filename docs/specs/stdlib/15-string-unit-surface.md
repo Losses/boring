@@ -31,7 +31,7 @@ targets already lower.
 | Member | TypeScript | Kotlin | Swift | Dart | Rust |
 | --- | --- | --- | --- | --- | --- |
 | `length` | `.length` (code units) | `.length` (code units) | current lowering | current lowering | `.len()` over the byte storage, `usize` type, wrong count for non-ASCII input |
-| `charCodeAt` | `.charCodeAt(i)` (code units, `undefined` out of range) | current lowering | current lowering | current lowering | `.as_bytes()[i]`, one byte, panics at the end of the string |
+| `charCodeAt` | `Number.isNaN(s.charCodeAt(i)) ? null : s.charCodeAt(i)` for pure operands; `readUnit(s, i)` when either operand may have effects | current lowering | current lowering | current lowering | `.as_bytes()[i]`, one byte, panics at the end of the string |
 | `split` | `.split(sep)` | current lowering | current lowering | current lowering | no lowering; the native `str::split` iterator passes through with no array type |
 
 ## Judgment
@@ -50,7 +50,7 @@ targets already lower.
    | Member | TypeScript | Kotlin | Swift | Dart | Rust |
    | --- | --- | --- | --- | --- | --- |
    | `s.length` | `s.length` | `s.length` | current lowering, verified against the Contract | current lowering, verified against the Contract | the `u_string` unit count cast to the `u32` domain of `Int` |
-   | `s.charCodeAt(i)` | `s.charCodeAt(i)` | current lowering, verified | current lowering, verified | current lowering, verified | the `u_string` unit read in the nullable form; an out-of-range index yields the null value, never a panic |
+   | `s.charCodeAt(i)` | the nullable NaN conversion in the pure-operand expression form, or `readUnit(s, i)` for effectful operands | current lowering, verified | current lowering, verified | current lowering, verified | the `u_string` unit read in the nullable form; an out-of-range index yields the null value, never a panic |
    | `s.split(sep)` | `s.split(sep)` | current lowering, verified | current lowering, verified | current lowering, verified | one scan collecting a `Vec<String>`; empty parts are kept; the empty separator yields one part per code unit |
 
 2. A row marked "current lowering, verified" keeps its native rendering
