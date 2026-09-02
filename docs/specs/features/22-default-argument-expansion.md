@@ -348,7 +348,7 @@ local functions holding distinct defaults.
 
 ## Extension Stage C: normalization bindings and constructor defaults
 
-Status: filed 2026-09-01, not implemented.
+Status: implemented 2026-09-01.
 
 Two shapes from the engine port sources stay rejected by rule 2 as
 implemented:
