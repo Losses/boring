@@ -64,7 +64,7 @@ describe("first-class function value generated trees", () => {
     expect(rust).toContain("Box<dyn NameResolver>");
     expect(rust).toContain("Box::new(move |suffix|");
     expect(rust).toContain("pub static DEFAULT_TAG: fn(i32) -> String =");
-    expect(rust).toContain("(values.len() - 1) as u32");
+    expect(rust).toContain("(values.len() as u32 - 1)");
   });
 });
 
