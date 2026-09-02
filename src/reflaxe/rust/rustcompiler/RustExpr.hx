@@ -2301,6 +2301,10 @@ class RustExpr {
 			// to a predicate call: Option equality against None would
 			// require PartialEq on the inner type, which the emitted
 			// structs do not carry.
+			case OpEq | OpNotEq if(isNullType(l.t) && !isNullType(r.t) && !isTNull(r)):
+				return "(" + expr(l) + ").map(|v| v == " + expr(r) + ").unwrap_or(false)" + (op == OpEq ? "" : ".not()");
+			case OpEq | OpNotEq if(isNullType(r.t) && !isNullType(l.t) && !isTNull(l)):
+				return "(" + expr(r) + ").map(|v| v == " + expr(l) + ").unwrap_or(false)" + (op == OpEq ? "" : ".not()");
 			case OpEq | OpNotEq if((isNullType(l.t) && isTNull(r)) || (isNullType(r.t) && isTNull(l))):
 				final nullable = isNullType(l.t) ? l : r;
 				return expr(nullable) + (op == OpEq ? ".is_none()" : ".is_some()");
@@ -3111,7 +3115,7 @@ class RustExpr {
 				if(name == "charCodeAt" && isString(stripCast(subj))) {
 					state.shimsUsed.set("std.UStringRT", true);
 					imports.require("crate::runtime::u_string");
-					return "u_string::at(&" + expr(subj) + ", (" + expr(args[0]) + ") as u32)";
+					return "u_string::at(&" + expr(subj) + ", (" + expr(args[0]) + ") as u32).unwrap_or(0)";
 				}
 				if(name == "split" && isString(stripCast(subj)) && args.length == 1) {
 					state.shimsUsed.set("std.UStringRT", true);
