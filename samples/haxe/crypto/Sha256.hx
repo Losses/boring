@@ -9,14 +9,13 @@ class Sha256 {
 	static inline var DIGEST_LENGTH:Int = 32;
 
 	var state:Array<Int>;
-	var block:Array<Int>;
+	var block:Bytes;
 	var blockPos:Int;
 	var totalLength:Int;
 
 	public function new() {
 		state = [0x6A09E667, 0xBB67AE85, 0x3C6EF372, 0xA54FF53A, 0x510E527F, 0x9B05688C, 0x1F83D9AB, 0x5BE0CD19];
-		block = [];
-		for (i in 0...BLOCK_LENGTH) block.push(0);
+		block = Bytes.alloc(BLOCK_LENGTH);
 		blockPos = 0;
 		totalLength = 0;
 	}
@@ -24,7 +23,7 @@ class Sha256 {
 	public function update(data:Bytes):Void {
 		var sourcePos = 0;
 		while (sourcePos < data.length) {
-			block[blockPos] = data.get(sourcePos);
+			block.set(blockPos, data.get(sourcePos));
 			blockPos += 1;
 			sourcePos += 1;
 			totalLength += 1;
@@ -38,25 +37,25 @@ class Sha256 {
 	public function digest():Bytes {
 		var finalState:Array<Int> = [];
 		for (i in 0...8) finalState.push(state[i]);
-		var finalBlock:Array<Int> = [];
-		for (i in 0...BLOCK_LENGTH) finalBlock.push(0);
-		for (i in 0...blockPos) finalBlock[i] = block[i];
-		finalBlock[blockPos] = 0x80;
+		var finalBlock = Bytes.alloc(BLOCK_LENGTH);
+		for (i in 0...BLOCK_LENGTH) finalBlock.set(i, 0);
+		for (i in 0...blockPos) finalBlock.set(i, block.get(i));
+		finalBlock.set(blockPos, 0x80);
 		var position = blockPos + 1;
 		if (position > 56) {
 			processBlock(finalState, finalBlock);
-			for (i in 0...56) finalBlock[i] = 0;
+			for (i in 0...56) finalBlock.set(i, 0);
 		} else {
-			for (i in position...56) finalBlock[i] = 0;
+			for (i in position...56) finalBlock.set(i, 0);
 		}
-		finalBlock[56] = 0;
-		finalBlock[57] = 0;
-		finalBlock[58] = 0;
-		finalBlock[59] = 0;
-		finalBlock[60] = (totalLength >>> 21) & 0xFF;
-		finalBlock[61] = (totalLength >>> 13) & 0xFF;
-		finalBlock[62] = (totalLength >>> 5) & 0xFF;
-		finalBlock[63] = totalLength << 3;
+		finalBlock.set(56, 0);
+		finalBlock.set(57, 0);
+		finalBlock.set(58, 0);
+		finalBlock.set(59, 0);
+		finalBlock.set(60, (totalLength >>> 21) & 0xFF);
+		finalBlock.set(61, (totalLength >>> 13) & 0xFF);
+		finalBlock.set(62, (totalLength >>> 5) & 0xFF);
+		finalBlock.set(63, totalLength << 3);
 		processBlock(finalState, finalBlock);
 
 		var output = new BytesBuffer();
@@ -75,12 +74,12 @@ class Sha256 {
 		return hash.digest();
 	}
 
-	static function processBlock(hash:Array<Int>, input:Array<Int>):Void {
+	static function processBlock(hash:Array<Int>, input:Bytes):Void {
 		var words:Array<Int> = [];
 		for (i in 0...64) words.push(0);
 		for (i in 0...16) {
 			var offset = i * 4;
-			words[i] = (input[offset] << 24) | (input[offset + 1] << 16) | (input[offset + 2] << 8) | input[offset + 3];
+			words[i] = (input.get(offset) << 24) | (input.get(offset + 1) << 16) | (input.get(offset + 2) << 8) | input.get(offset + 3);
 		}
 		for (i in 16...64) words[i] = safeAdd(safeAdd(safeAdd(gamma1(words[i - 2]), words[i - 7]), gamma0(words[i - 15])), words[i - 16]);
 		var a = hash[0]; var b = hash[1]; var c = hash[2]; var d = hash[3];
