@@ -1,6 +1,6 @@
 package registry;
 class StringTools {
- public static function startsWith(s:String,p:String):Bool return s.substring(0,p.length)==p;
+ public static function startsWith(s:String,p:String):Bool return p.length<=s.length && s.substring(0,p.length)==p;
  public static function endsWith(s:String,p:String):Bool return p.length<=s.length && s.substring(s.length-p.length)==p;
  public static function has(a:Array<String>,x:String):Bool { for(i in 0...a.length) if(a[i]==x) return true; return false; }
  public static function split(s:String, sep:String):Array<String> { var out:Array<String>=[]; var start=0; for(i in 0...s.length) if(s.substring(i,i+1)==sep) { out.push(s.substring(start,i)); start=i+1; } out.push(s.substring(start)); return out; }
