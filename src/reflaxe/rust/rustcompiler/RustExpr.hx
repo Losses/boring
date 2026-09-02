@@ -3104,9 +3104,9 @@ class RustExpr {
 						final receiver = expr(args[0]);
 						final receiverText = StringTools.startsWith(receiver, "*") ? "(" + receiver + ")" : receiver;
 						return receiverText + "." + RustImports.toSnakeCase(name) + "("
-							+ renderCallArgs(cf.get().type, args.slice(1), null, 1) + ")" + q;
+							+ renderCallArgs(cf.get().type, args.slice(1), null, 1, mutableParamPositions(cf.get())) + ")" + q;
 					}
-					return staticRef(cls, name) + "(" + renderCallArgs(cf.get().type, args) + ")" + q;
+					return staticRef(cls, name) + "(" + renderCallArgs(cf.get().type, args, null, 0, mutableParamPositions(cf.get())) + ")" + q;
 				}
 				if((cls.name == "Functional" || cls.name == "__functional_shim" || path == "std.Functional" || cls.module == "std.Functional") && name == "sortedBy") {
 					final receiver = args[0];
@@ -3370,7 +3370,7 @@ class RustExpr {
 				// unwrap as a plain field read: the field lowers to an
 				// Option while the method resolves on the inner type.
 				final subjStr = isNullType(subj.t) ? expr(subj) + ".as_ref().unwrap()" : expr(subj);
-				return subjStr + "." + snake + "(" + renderCallArgs(cf.get().type, args) + ")" + q;
+				renderCallArgs(cf.get().type, args, null, 0, mutableParamPositions(cf.get()))
 			case TField(_, FStatic(c, cf)):
 				final cls = c.get();
 				final name = cf.get().name;
@@ -3580,7 +3580,7 @@ class RustExpr {
 					// parameter casts once at the call boundary.
 					signedPositions = intParamPositions(cf.get().type);
 				}
-				final callStr = staticRef(cls, name) + "(" + renderCallArgs(cf.get().type, args, signedPositions) + ")" + q;
+				final callStr = staticRef(cls, name) + "(" + renderCallArgs(cf.get().type, args, signedPositions, 0, mutableParamPositions(cf.get())) + ")" + q;
 				if(calleeResident != callerResident && returnsInt(cf.get().type)) {
 					// An Int result crosses between the two conventions;
 					// containers never cross whole, only their elements
@@ -3612,6 +3612,17 @@ class RustExpr {
 			case _:
 				return expr(fn) + "(" + renderedArgs + ")";
 		}
+	}
+
+	function mutableParamPositions(cf: ClassField): Array<Int> {
+		final out: Array<Int> = [];
+		switch(Context.follow(cf.type)) {
+			case TFun(ps, _):
+				final body = cf.expr();
+				if(body != null) for(i in 0...ps.length) if(RustDecl.argIsMutated(body, ps[i].name)) out.push(i);
+			case _:
+		}
+		return out;
 	}
 
 	function functionLiteral(f: TFunc, functionType: Null<Type>): String {
@@ -4420,7 +4431,7 @@ class RustExpr {
 		};
 	}
 
-	function renderCallArgs(fnType: Null<Type>, args: Array<TypedExpr>, signedPositions: Null<Array<Int>> = null, paramOffset: Int = 0): String {
+	function renderCallArgs(fnType: Null<Type>, args: Array<TypedExpr>, signedPositions: Null<Array<Int>> = null, paramOffset: Int = 0, mutablePositions: Null<Array<Int>> = null): String {
 		final paramTypes = if(fnType != null) {
 			switch(Context.follow(fnType)) {
 				case TFun(pargs, _): [for(p in pargs) p.t];
@@ -4472,7 +4483,7 @@ class RustExpr {
 						case TField(_, FStatic(_, tableField)): DataTableHelper.isDataTableField(tableField.get());
 						case _: false;
 					};
-					final prefix = if(isArray && !isTableArg && StringTools.startsWith(types.of(pt, true), "&mut")) {
+					final prefix = if(isArray && !isTableArg && (mutablePositions != null && mutablePositions.indexOf(paramIndex) >= 0)) {
 						switch(stripWrap(arg).expr) {
 							case TLocal(v) if(isBorrowedLocal(v)): "&mut *";
 							case _: "&mut ";
