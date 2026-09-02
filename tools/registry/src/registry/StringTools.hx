@@ -49,4 +49,9 @@ class StringTools {
 		for(i in 0...cs.length) { if(cs[i]==sep) return n; n=n+1; }
 		return n;
 	}
+	public static function indexOfCode(s:String, sep:Int):Int {
+		var cs:Array<Int>=codes(s);
+		for(i in 0...cs.length) if(cs[i]==sep) return i;
+		return -1;
+	}
 }
