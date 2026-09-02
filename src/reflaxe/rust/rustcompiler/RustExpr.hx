@@ -4328,14 +4328,6 @@ class RustExpr {
 						argStr = "&(" + argStr + ")";
 					}
 				} else if(isPassByRef(pt)) {
-					// Reborrow an array parameter so the original binding remains
-					// usable after the call.
-					if(switch(Context.follow(pt)) { case TInst(c, _): c.get().name == "Array"; default: false; }) {
-						switch(stripWrap(arg).expr) {
-							case TLocal(v) if(isBorrowedLocal(v)): argStr = "&mut *" + argStr;
-							case _: 
-						}
-					}
 					// The mutating faces are arrays and the writer and reader
 					// fronts; every other borrowed parameter reads only.
 					final isArray = switch(Context.follow(pt)) {
@@ -4349,8 +4341,13 @@ class RustExpr {
 						case TField(_, FStatic(_, tableField)): DataTableHelper.isDataTableField(tableField.get());
 						case _: false;
 					};
-					final prefix = isArray && !isTableArg ? "&mut " : "&";
-					if(!StringTools.startsWith(argStr, "&") && !StringTools.startsWith(argStr, "&mut *")) {
+					final prefix = if(isArray && !isTableArg) {
+						switch(stripWrap(arg).expr) {
+							case TLocal(v) if(isBorrowedLocal(v)): "&mut *";
+							case _: "&mut ";
+						}
+					} else "&";
+					if(!StringTools.startsWith(argStr, "&")) {
 						argStr = prefix + argStr;
 					}
 				} else if(!isTypeCopy(arg.t)) {
