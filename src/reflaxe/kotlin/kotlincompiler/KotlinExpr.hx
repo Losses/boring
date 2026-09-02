@@ -1386,6 +1386,15 @@ class KotlinExpr {
 		}
 	}
 
+	function isNullType(t: Null<Type>): Bool {
+		if(t == null) return false;
+		return switch(t) {
+			case TAbstract(a, _): a.get().name == "Null";
+			case TLazy(f): isNullType(f());
+			case _: false;
+		};
+	}
+
 	function isStringType(t: Type): Bool {
 		if(t == null) return false;
 		return switch(Context.follow(t)) {
@@ -1425,7 +1434,11 @@ class KotlinExpr {
 	}
 
 	function operand(e: TypedExpr, parent: Binop, isRight: Bool): String {
-		final rendered = expr(e);
+		var rendered = expr(e);
+		// Nullable Ints are legal operands of equality (including null
+		// tests), but Kotlin's numeric operators require an explicit
+		// extraction after charCodeAt's Null<Int> lowering.
+		if(isNullType(e.t) && parent != OpEq && parent != OpNotEq) rendered += "!!";
 		switch(e.expr) {
 			case TBinop(op, _, _):
 				final cp = precedenceOf(op);
@@ -1973,7 +1986,10 @@ class KotlinExpr {
 					return expr(subj) + ".copyOfRange(" + expr(args[0]) + ", " + expr(args[0]) + " + " + expr(args[1]) + ")";
 				}
 				if(name == "charCodeAt" && isString(stripCast(subj))) {
-					return expr(subj) + "[" + expr(args[0]) + "].code";
+					// stdlib/15: capture both operands once, then make the
+					// platform bounds check explicit so the result is Null<Int>.
+					return "run { val _s = " + expr(subj) + "; val _i = " + expr(args[0])
+						+ "; if (_i >= 0 && _i < _s.length) _s[_i].code else null }";
 				}
 				if(name == "substring" && isString(stripCast(subj))) {
 					// The haxe typer passes a synthesized null for an
