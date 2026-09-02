@@ -8,6 +8,7 @@ enum DartKeyDomain {
 	DartIntKey;
 	DartStringKey;
 	DartStructKey(def: DefType, fields: Array<ClassField>);
+	DartDataClassKey(cls: ClassType, fields: Array<ClassField>);
 }
 
 /**
@@ -241,7 +242,7 @@ class DartType {
 	public static function classifyKey(t: Null<Type>, ?pos: haxe.macro.Expr.Position): DartKeyDomain {
 		if(t == null) {
 			final p = pos != null ? pos : Context.currentPos();
-			Context.error("sorted keyed tables support Int, String, and structure keys in this implementation", p);
+			Context.error("sorted keyed tables support Int, String, structure, and dataClass keys in this implementation", p);
 			return DartIntKey;
 		}
 		final p = pos != null ? pos : Context.currentPos();
@@ -250,14 +251,19 @@ class DartType {
 				if(a.get().name == "Int") {
 					DartIntKey;
 				} else {
-					Context.error("sorted keyed tables support Int, String, and structure keys in this implementation", p);
+					Context.error("sorted keyed tables support Int, String, structure, and dataClass keys in this implementation", p);
 					DartIntKey;
 				}
 			case TInst(c, _):
-				if(c.get().name == "String") {
+				final cls = c.get();
+				if(cls.name == "String") {
 					DartStringKey;
+				} else if(cls.meta.has(":dataClass")) {
+					final fields = [for(f in cls.fields.get()) if(switch(f.kind) { case FVar(read, write): !(read.match(AccCall) && write.match(AccNever)); case _: false; }) f];
+					for(f in fields) validateDataClassField(cls, f);
+					DartDataClassKey(cls, fields);
 				} else {
-					Context.error("sorted keyed tables support Int, String, and structure keys in this implementation", p);
+					Context.error("sorted keyed tables support Int, String, structure, and dataClass keys in this implementation", p);
 					DartStringKey;
 				}
 			case TType(defRef, _):
@@ -267,9 +273,33 @@ class DartType {
 			case TLazy(f):
 				classifyKey(f(), p);
 			case _:
-				Context.error("sorted keyed tables support Int, String, and structure keys in this implementation", p);
+				Context.error("sorted keyed tables support Int, String, structure, and dataClass keys in this implementation", p);
 				DartIntKey;
 		}
+	}
+
+	static function validateDataClassField(cls: ClassType, field: ClassField): Void {
+		if(!isDataClassFieldKey(field.type)) Context.error("dataClass key " + cls.name + " field " + field.name + " has unsupported type " + field.type, field.pos);
+	}
+
+	public static function canEmitDataClassComparator(cls: ClassType): Bool {
+		for(f in cls.fields.get()) if(switch(f.kind) { case FVar(read, write): !(read.match(AccCall) && write.match(AccNever)) && !isDataClassFieldKey(f.type); case _: false; }) return false;
+		return true;
+	}
+
+	static function isDataClassFieldKey(t: Type): Bool {
+		return switch(t) {
+			case TAbstract(a, _): a.get().name == "Int";
+			case TEnum(_, _): true;
+			case TInst(c, _): c.get().name == "String" || c.get().meta.has(":dataClass");
+			case TLazy(f): isDataClassFieldKey(f());
+			case _: switch(Context.follow(t)) {
+				case TAbstract(a, _): a.get().name == "Int";
+				case TEnum(_, _): true;
+				case TInst(c, _): c.get().name == "String" || c.get().meta.has(":dataClass");
+				case _: false;
+			};
+		};
 	}
 
 	static function validateStructDef(def: DefType, pos: haxe.macro.Expr.Position, visited: Array<String>): Array<ClassField> {
@@ -284,7 +314,7 @@ class DartType {
 			case TType(innerDefRef, _):
 				validateStructDef(innerDefRef.get(), pos, visited);
 			case _:
-				Context.error("sorted keyed tables support Int, String, and structure keys in this implementation", pos);
+				Context.error("sorted keyed tables support Int, String, structure, and dataClass keys in this implementation", pos);
 				[];
 		}
 	}

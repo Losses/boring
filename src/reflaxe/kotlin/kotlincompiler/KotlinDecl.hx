@@ -258,7 +258,36 @@ class KotlinDecl {
 		}
 
 		lines.push("}");
-		return withExtracted(extractedParts, lines.join("\n"));
+		final result = withExtracted(extractedParts, lines.join("\n"));
+		return cls.meta.has(":dataClass") && KotlinType.canEmitDataClassComparator(cls) ? result + "\n\n" + dataClassComparator(cls) : result;
+	}
+
+	function dataClassComparator(cls: ClassType): String {
+		final lines: Array<String> = [];
+		final fields = [for(x in cls.fields.get()) if(switch(x.kind) { case FVar(read, write): !(read.match(AccCall) && write.match(AccNever)); case _: false; }) x];
+		for(f in fields) switch(Context.follow(f.type)) {
+			case TEnum(e, _):
+				final en = e.get();
+				lines.push('    fun ${cls.name}${f.name}Order(v: ${en.name}): Int = when (v) {');
+				for(ef in en.constructs) lines.push(enumFieldParams(ef).length > 0 ? '        is ${en.name}.${ef.name} -> ${ef.index}' : '        ${en.name}.${ef.name} -> ${ef.index}');
+				lines.push('    }');
+			case _:
+		}
+		lines.push('    fun compare${cls.name}(a: ${cls.name}, b: ${cls.name}): Int {');
+		lines.push('    var cmp = 0');
+		for(f in fields) {
+			switch(Context.follow(f.type)) {
+				case TAbstract(a, _) if(a.get().name == "Int"): lines.push('    cmp = a.${f.name}.compareTo(b.${f.name})');
+				case TInst(c, _) if(c.get().name == "String"): lines.push('    cmp = a.${f.name}.compareTo(b.${f.name})');
+				case TInst(c, _) if(c.get().meta.has(":dataClass")): imports.requireType(c.get().module, "compare" + c.get().name); lines.push('    cmp = compare${c.get().name}(a.${f.name}, b.${f.name})');
+				case TEnum(_, _): lines.push('    cmp = ${cls.name}${f.name}Order(a.${f.name}).compareTo(${cls.name}${f.name}Order(b.${f.name}))');
+				case _:
+			}
+			lines.push('    if (cmp != 0) return cmp');
+		}
+		lines.push('    return 0');
+		lines.push('}');
+		return lines.join("\n");
 	}
 
 	/** Emits a marked abstract as an inline Kotlin value class. */

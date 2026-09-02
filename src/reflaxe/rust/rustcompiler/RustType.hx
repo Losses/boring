@@ -8,6 +8,7 @@ enum KeyDomain {
 	IntKey;
 	StringKey;
 	StructKey(def: DefType, fields: Array<ClassField>);
+	DataClassKey(cls: ClassType, fields: Array<ClassField>);
 }
 
 /**
@@ -187,7 +188,7 @@ class RustType {
 	public static function classifyKey(t: Null<Type>, ?pos: haxe.macro.Expr.Position): KeyDomain {
 		if(t == null) {
 			final p = pos != null ? pos : Context.currentPos();
-			Context.error("sorted keyed tables support Int, String, and structure keys in this implementation", p);
+			Context.error("sorted keyed tables support Int, String, structure, and dataClass keys in this implementation", p);
 			return IntKey;
 		}
 		final p = pos != null ? pos : Context.currentPos();
@@ -196,14 +197,19 @@ class RustType {
 				if(a.get().name == "Int") {
 					IntKey;
 				} else {
-					Context.error("sorted keyed tables support Int, String, and structure keys in this implementation", p);
+					Context.error("sorted keyed tables support Int, String, structure, and dataClass keys in this implementation", p);
 					IntKey;
 				}
 			case TInst(c, _):
-				if(c.get().name == "String") {
+				final cls = c.get();
+				if(cls.name == "String") {
 					StringKey;
+				} else if(cls.meta.has(":dataClass")) {
+					final fields = [for(f in cls.fields.get()) if(switch(f.kind) { case FVar(read, write): !(read.match(AccCall) && write.match(AccNever)); case _: false; }) f];
+					for(f in fields) validateDataClassField(cls, f);
+					DataClassKey(cls, fields);
 				} else {
-					Context.error("sorted keyed tables support Int, String, and structure keys in this implementation", p);
+					Context.error("sorted keyed tables support Int, String, structure, and dataClass keys in this implementation", p);
 					IntKey;
 				}
 			case TType(defRef, _):
@@ -213,7 +219,7 @@ class RustType {
 			case TLazy(f):
 				classifyKey(f(), p);
 			case _:
-				Context.error("sorted keyed tables support Int, String, and structure keys in this implementation", p);
+				Context.error("sorted keyed tables support Int, String, structure, and dataClass keys in this implementation", p);
 				IntKey;
 		}
 	}
@@ -239,6 +245,31 @@ class RustType {
 		};
 	}
 
+	static function validateDataClassField(cls: ClassType, field: ClassField): Void {
+		if(switch(field.kind) { case FVar(read, write): read.match(AccCall) && write.match(AccNever); case _: false; }) return;
+		if(!isDataClassFieldKey(field.type)) Context.error("dataClass key " + cls.name + " field " + field.name + " has unsupported type " + field.type, field.pos);
+	}
+
+	public static function canEmitDataClassComparator(cls: ClassType): Bool {
+		for(f in cls.fields.get()) if(switch(f.kind) { case FVar(read, write): !(read.match(AccCall) && write.match(AccNever)) && !isDataClassFieldKey(f.type); case _: false; }) return false;
+		return true;
+	}
+
+	static function isDataClassFieldKey(t: Type): Bool {
+		return switch(t) {
+			case TAbstract(a, _): a.get().name == "Int";
+			case TEnum(_, _): true;
+			case TInst(c, _): c.get().name == "String" || c.get().meta.has(":dataClass");
+			case TLazy(f): isDataClassFieldKey(f());
+			case _: switch(Context.follow(t)) {
+				case TAbstract(a, _): a.get().name == "Int";
+				case TEnum(_, _): true;
+				case TInst(c, _): c.get().name == "String" || c.get().meta.has(":dataClass");
+				case _: false;
+			};
+		};
+	}
+
 	static function validateStructDef(def: DefType, pos: haxe.macro.Expr.Position, visited: Array<String>): Array<ClassField> {
 		return switch(def.type) {
 			case TAnonymous(anonRef):
@@ -251,7 +282,7 @@ class RustType {
 			case TType(innerDefRef, _):
 				validateStructDef(innerDefRef.get(), pos, visited);
 			case _:
-				Context.error("sorted keyed tables support Int, String, and structure keys in this implementation", pos);
+				Context.error("sorted keyed tables support Int, String, structure, and dataClass keys in this implementation", pos);
 				[];
 		}
 	}

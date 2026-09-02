@@ -145,7 +145,8 @@ class SwiftDecl {
 
 		lines.push("}");
 		final classPart = lines.join("\n");
-		return extractedParts.length > 0 ? extractedParts.join("\n\n") + "\n\n" + classPart : classPart;
+		final result = extractedParts.length > 0 ? extractedParts.join("\n\n") + "\n\n" + classPart : classPart;
+		return cls.meta.has(":dataClass") && SwiftType.canEmitDataClassComparator(cls) ? result + "\n\n" + dataClassComparator(cls) : result;
 	}
 
 	/** Emits a marked abstract as a value-semantic Swift struct. */
@@ -214,6 +215,23 @@ class SwiftDecl {
 		}
 		lines.push("}");
 		return lines.join("\n");
+	}
+
+	function dataClassComparator(cls: ClassType): String {
+		final lines = ["func compare" + cls.name + "(_ a: " + cls.name + ", _ b: " + cls.name + ") -> Int32 {"];
+		for(f in [for(x in cls.fields.get()) if(switch(x.kind) { case FVar(read, write): !(read.match(AccCall) && write.match(AccNever)); case _: false; }) x]) {
+			switch(Context.follow(f.type)) {
+				case TAbstract(a, _) if(a.get().name == "Int"): lines.push("    if a." + f.name + " != b." + f.name + " { return a." + f.name + " - b." + f.name + " }");
+				case TEnum(e, _):
+					final en = e.get();
+					lines.push("    if a." + f.name + " != b." + f.name + " { return Int32(" + cls.name + f.name + "Order(a." + f.name + ") - " + cls.name + f.name + "Order(b." + f.name + ")) }");
+					lines.unshift("    func " + cls.name + f.name + "Order(_ v: " + en.name + ") -> Int32 {\n        switch v {\n" + [for(ef in en.constructs) "        case ." + lowerFirst(ef.name) + (switch(ef.type) { case TFun(args, _): args.length > 0 ? "(" + [for(_ in args) "_"].join(", ") + ")" : ""; case _: ""; }) + ": return " + ef.index].join("\n") + "\n        }\n    }");
+				case TInst(c, _) if(c.get().name == "String"): lines.push("    let cmp" + f.name + " = compareUnitOrder(a." + f.name + ", b." + f.name + "); if cmp" + f.name + " != 0 { return cmp" + f.name + " }");
+				case TInst(c, _) if(c.get().meta.has(":dataClass")): lines.push("    let cmp" + f.name + " = compare" + c.get().name + "(a." + f.name + ", b." + f.name + "); if cmp" + f.name + " != 0 { return cmp" + f.name + " }");
+				case _:
+			}
+		}
+		lines.push("    return 0"); lines.push("}"); return lines.join("\n");
 	}
 
 	function findFunc(funcFields: Array<ClassFuncData>, name: String): ClassFuncData {

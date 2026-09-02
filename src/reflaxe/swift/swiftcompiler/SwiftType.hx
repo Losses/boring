@@ -8,6 +8,7 @@ enum SwiftKeyDomain {
 	SwiftIntKey;
 	SwiftStringKey;
 	SwiftStructKey(def: DefType, fields: Array<ClassField>);
+	SwiftDataClassKey(cls: ClassType, fields: Array<ClassField>);
 }
 
 /**
@@ -243,7 +244,7 @@ class SwiftType {
 	public static function classifyKey(t: Null<Type>, ?pos: haxe.macro.Expr.Position): SwiftKeyDomain {
 		if(t == null) {
 			final p = pos != null ? pos : Context.currentPos();
-			Context.error("sorted keyed tables support Int, String, and structure keys in this implementation", p);
+			Context.error("sorted keyed tables support Int, String, structure, and dataClass keys in this implementation", p);
 			return SwiftIntKey;
 		}
 		final p = pos != null ? pos : Context.currentPos();
@@ -252,14 +253,19 @@ class SwiftType {
 				if(a.get().name == "Int") {
 					SwiftIntKey;
 				} else {
-					Context.error("sorted keyed tables support Int, String, and structure keys in this implementation", p);
+					Context.error("sorted keyed tables support Int, String, structure, and dataClass keys in this implementation", p);
 					SwiftIntKey;
 				}
 			case TInst(c, _):
-				if(c.get().name == "String") {
+				final cls = c.get();
+				if(cls.name == "String") {
 					SwiftStringKey;
+				} else if(cls.meta.has(":dataClass")) {
+					final fields = [for(f in cls.fields.get()) if(switch(f.kind) { case FVar(read, write): !(read.match(AccCall) && write.match(AccNever)); case _: false; }) f];
+					for(f in fields) validateDataClassField(cls, f, f.name);
+					SwiftDataClassKey(cls, fields);
 				} else {
-					Context.error("sorted keyed tables support Int, String, and structure keys in this implementation", p);
+					Context.error("sorted keyed tables support Int, String, structure, and dataClass keys in this implementation", p);
 					SwiftIntKey;
 				}
 			case TType(defRef, _):
@@ -269,9 +275,37 @@ class SwiftType {
 			case TLazy(f):
 				classifyKey(f(), p);
 			case _:
-				Context.error("sorted keyed tables support Int, String, and structure keys in this implementation", p);
+				Context.error("sorted keyed tables support Int, String, structure, and dataClass keys in this implementation", p);
 				SwiftIntKey;
 		}
+	}
+
+	static function validateDataClassField(cls: ClassType, field: ClassField, path: String): Void {
+		if(!isDataClassFieldKey(field.type)) Context.error("dataClass key " + cls.name + " field " + path + " has unsupported type " + field.type, field.pos);
+		if(switch(Context.follow(field.type)) { case TInst(c, _) if(c.get().meta.has(":dataClass")): true; case _: false; }) {
+			final inner = switch(Context.follow(field.type)) { case TInst(c, _): c.get(); case _: null; };
+			if(inner != null) for(f in inner.fields.get()) if(switch(f.kind) { case FVar(_, _): true; case _: false; }) validateDataClassField(inner, f, path + "." + f.name);
+		}
+	}
+
+	public static function canEmitDataClassComparator(cls: ClassType): Bool {
+		for(f in cls.fields.get()) if(switch(f.kind) { case FVar(read, write): !(read.match(AccCall) && write.match(AccNever)) && !isDataClassFieldKey(f.type); case _: false; }) return false;
+		return true;
+	}
+
+	static function isDataClassFieldKey(t: Type): Bool {
+		return switch(t) {
+			case TAbstract(a, _): a.get().name == "Int";
+			case TEnum(_, _): true;
+			case TInst(c, _): c.get().name == "String" || c.get().meta.has(":dataClass");
+			case TLazy(f): isDataClassFieldKey(f());
+			case _: switch(Context.follow(t)) {
+				case TAbstract(a, _): a.get().name == "Int";
+				case TEnum(_, _): true;
+				case TInst(c, _): c.get().name == "String" || c.get().meta.has(":dataClass");
+				case _: false;
+			};
+		};
 	}
 
 	static function validateStructDef(def: DefType, pos: haxe.macro.Expr.Position, visited: Array<String>): Array<ClassField> {
@@ -286,7 +320,7 @@ class SwiftType {
 			case TType(innerDefRef, _):
 				validateStructDef(innerDefRef.get(), pos, visited);
 			case _:
-				Context.error("sorted keyed tables support Int, String, and structure keys in this implementation", pos);
+				Context.error("sorted keyed tables support Int, String, structure, and dataClass keys in this implementation", pos);
 				[];
 		}
 	}
