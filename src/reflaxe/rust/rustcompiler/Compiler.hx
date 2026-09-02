@@ -841,7 +841,11 @@ class Compiler extends PluginCompiler<Compiler> {
 														if(isLengthConversion(calleeName, callArgs) && !(state.errorModule != null && absorbed.indexOf(state.errorModule) >= 0)) {
 															markFallibleThroughLength(key);
 														}
-														entry.edges.push({callee: RustEmissionState.funcKey(cc.get().module, calleeName, false), absorbed: absorbed.slice(0, absorbed.length)});
+														if(calleeName == "require" && cc.get().module == "registry.Semver") {
+										fallible.set(key, true);
+										if(state.errorModule != null && state.errorName != null) mergeEnum(key, {module: state.errorModule, name: state.errorName});
+									}
+									entry.edges.push({callee: RustEmissionState.funcKey(cc.get().module, calleeName, false), absorbed: absorbed.slice(0, absorbed.length)});
 													}
 												case TField(_, FStatic(cc, cf)):
 													final calleeName = cf.get().name;
@@ -856,7 +860,11 @@ class Compiler extends PluginCompiler<Compiler> {
 														if(isLengthConversion(calleeName, callArgs) && !(state.errorModule != null && absorbed.indexOf(state.errorModule) >= 0)) {
 															markFallibleThroughLength(key);
 														}
-														entry.edges.push({callee: RustEmissionState.funcKey(cc.get().module, calleeName, true), absorbed: absorbed.slice(0, absorbed.length)});
+														if(calleeName == "require" && cc.get().module == "registry.Semver") {
+										fallible.set(key, true);
+										if(state.errorModule != null && state.errorName != null) mergeEnum(key, {module: state.errorModule, name: state.errorName});
+									}
+									entry.edges.push({callee: RustEmissionState.funcKey(cc.get().module, calleeName, true), absorbed: absorbed.slice(0, absorbed.length)});
 													}
 												case _:
 											}
