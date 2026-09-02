@@ -96,6 +96,9 @@ class PipelineExpander {
 					}
 					expandClassFields(classType.fields.get());
 					expandClassFields(classType.statics.get());
+					if (classType.constructor != null) {
+						expandClassFields([classType.constructor.get()]);
+					}
 				default:
 			}
 		}
