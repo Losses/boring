@@ -271,6 +271,9 @@ class KotlinExpr {
 		if(f.expr == null) {
 			return {lines: [], assigned: []};
 		}
+		DefaultArgExpander.completeRootExpr(cls, f.field.name, f.expr);
+		PipelineExpander.expandRootExpr(f.expr);
+		EnumQueryExpander.expandRootExpr(f.expr);
 		for(a in f.args) {
 			reserveName(a.name);
 		}
@@ -281,15 +284,15 @@ class KotlinExpr {
 		scanLocals(f.expr);
 		final out: Array<String> = [];
 		final assigned: Array<String> = [];
+		final renderable: Array<TypedExpr> = [];
 		for(s in statementsOf(f.expr)) {
 			final info = ctorStmtInfo(s, f);
-			if(info.render) {
-				for(l in stmtLines(s, 2)) out.push(l);
-			}
+			if(info.render) renderable.push(s);
 			if(info.initialized != null && assigned.indexOf(info.initialized) < 0) {
 				assigned.push(info.initialized);
 			}
 		}
+		for(l in blockLines(renderable, 1)) out.push(l);
 		return {lines: out, assigned: assigned};
 	}
 

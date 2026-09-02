@@ -61,6 +61,8 @@ boring.ScriptNames
 boring.ClusterTags
 tests.SortedKeyDomainTests
 boring.PipelineOps
+boring.ConstructorStatementOps
+tests.ConstructorStatementTests
 boring.DeferredLocalsOps
 tests.DeferredLocalsTests
 boring.RecordOps
