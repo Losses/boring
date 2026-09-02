@@ -1,5 +1,7 @@
 package boring;
 
+import std.SortedSet;
+
 enum Mode {
 	Read;
 	Write;
@@ -204,6 +206,12 @@ class DefaultArgsOps {
 	public static function methodCallSample(text:String, ?normalized:String):String {
 		var value = normalized == null ? text.toUpperCase() : normalized;
 		return value;
+	}
+
+	/** Extern static call in a normalization binding. */
+	public static function sortedSetNormalization(?fallback:Null<SortedSet<Int>>):SortedSet<Int> {
+		final normalized = fallback == null ? SortedSet.builder().build() : fallback;
+		return normalized;
 	}
 
 	/** Static call with an earlier parameter argument. */
