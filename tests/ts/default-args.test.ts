@@ -151,7 +151,7 @@ describe("default argument expansion generated tree", () => {
     // Rust normalizes parameter-reading defaults at entry in declaration order.
     expect(content).toContain("pub fn greet_with_prefix(name: &str, prefix: Option<String>) -> String");
     expect(content).toContain("let prefix = prefix.unwrap_or_else(|| name.to_string());");
-    expect(content).toContain("pub fn field_access_sample(items: &mut [String], count: Option<u32>) -> u32");
+    expect(content).toContain("pub fn field_access_sample(items: &mut Vec<String>, count: Option<u32>) -> u32");
     expect(content).toContain("let count = count.unwrap_or_else(|| match u32::try_from((items).len())");
     expect(content).toContain("let fallback = fallback.unwrap_or_else(|| if lang == \"en\".to_string() { \"English\".to_string() } else { \"Other\".to_string() });");
     expect(content).toContain("let normalized = normalized.unwrap_or_else(|| text.to_uppercase());");
@@ -162,8 +162,8 @@ describe("default argument expansion generated tree", () => {
     expect(content).toContain("let offset = offset.unwrap_or_else(|| value + 1);");
     expect(content).toContain("pub fn instance_field_normalization(&self, p: Option<String>) -> String");
     expect(content).toContain("pub fn earlier_local_normalization(&self, seed: &str, q: Option<String>) -> String");
-    expect(content).toContain("let p = p.unwrap_or_else(|| self.fallback_count);");
-    expect(content).toContain("let q = q.unwrap_or_else(|| self.fallback_count);");
+    expect(content).toContain("let v = match p { None => self.fallback_count, Some(p) => p };");
+    expect(content).toContain("let w = match q { None => self.fallback_count, Some(q) => q };");
 
 
     // Rust has no default syntax: omission is completed to None and each
