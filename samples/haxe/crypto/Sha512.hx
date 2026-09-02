@@ -55,7 +55,7 @@ class Sha512 {
 	}
 	public static function make(data:Bytes):Bytes { var hash = new Sha512(); hash.update(data); return hash.digest(); }
 	static function processBlock(hash:Array<Int64>, input:Bytes):Void {
-		var words:Array<Int64> = []; for (i in 0...80) words.push(Int64.ofInt(0));
+		var words:Array<Int64> = []; for (_ in 0...80) words.push(Int64.ofInt(0));
 		for (i in 0...16) { var offset = i * 8; words[i] = Int64.make((input.get(offset) << 24) | (input.get(offset + 1) << 16) | (input.get(offset + 2) << 8) | input.get(offset + 3), (input.get(offset + 4) << 24) | (input.get(offset + 5) << 16) | (input.get(offset + 6) << 8) | input.get(offset + 7)); }
 		for (i in 16...80) {
 			final s1 = gamma1(words[i - 2]);
