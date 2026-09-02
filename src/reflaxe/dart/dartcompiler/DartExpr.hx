@@ -1447,7 +1447,8 @@ class DartExpr {
 			ValueTypeSupport.memberField(a.get(), "toString") != null
 				? value + ".toStringValue()"
 				: value + "." + ValueTypeSupport.representationFieldName(a.get()) + ".toString()";
-			case TAbstract(a, _) if(a.get().name == "Int" || a.get().name == "Float" || a.get().name == "Bool"): inConcat && depth == 0 ? value : "'${" + value + "}'";
+			case TAbstract(a, _) if(a.get().name == "Float"): inConcat && depth == 0 ? value : "'${" + value + "}'.replaceFirst(\".0'\", \"'\")";
+			case TAbstract(a, _) if(a.get().name == "Int" || a.get().name == "Bool"): inConcat && depth == 0 ? value : "'${" + value + "}'";
 			case TAbstract(a, params) if(a.get().module == "std.ReadOnlyArray"):
 				stdStringType(haxe.macro.TypeTools.applyTypeParameters(a.get().type, a.get().params, params), value, inConcat, origin, depth);
 			case TEnum(en, _) if(isParameterlessEnum(en.get())): value + ".label";
