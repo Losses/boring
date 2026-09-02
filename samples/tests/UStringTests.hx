@@ -60,4 +60,12 @@ class UStringTests {
 		Test.equals("𠀁", UStringOps.substringFrom("𠀀一𠀁", 3));
 		Test.equals("iq", UStringOps.substringLiteral());
 	}
+
+	@:test("substring clamps negative, long, reversed, and omitted bounds")
+	public static function testSubstringBounds():Void {
+		Test.equals("abc", UStringOps.substringNegativeStart());
+		Test.equals("cdef", UStringOps.substringLongEnd());
+		Test.equals("cde", UStringOps.substringSwappedBounds());
+		Test.equals("abcdef", UStringOps.substringOmittedEnd());
+	}
 }
