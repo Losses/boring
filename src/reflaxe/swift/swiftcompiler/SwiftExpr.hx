@@ -300,12 +300,11 @@ class SwiftExpr {
 				case _:
 			}
 		}
+		final bodyStmts:Array<TypedExpr> = [];
 		for(i in 0...stmts.length) {
-			if(i == superIdx) {
-				continue;
-			}
-			for(l in stmtLines(stmts[i], 2)) out.push(l);
+			if(i != superIdx) bodyStmts.push(stmts[i]);
 		}
+		for(l in blockLines(bodyStmts, 2)) out.push(l);
 		if(superIdx >= 0) {
 			for(l in stmtLines(stmts[superIdx], 2)) out.push(l);
 		} else if(isException) {
