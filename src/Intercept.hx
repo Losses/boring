@@ -95,6 +95,7 @@ class Intercept {
 
 	/** Fields that receive an assignment somewhere, keyed class:field (V18). */
 	static var reassignedFields:Map<String, Bool> = new Map();
+	static var inConstructorBody:Bool = false;
 
 	/** Locals of the field body under walk initialized from a string
 	 * literal, keyed by TVar id (V18). */
@@ -482,8 +483,11 @@ class Intercept {
 						continue;
 					}
 					checkDataInheritance(classType);
-					walkClassFields(classType, classType.fields.get());
-					walkClassFields(classType, classType.statics.get());
+					walkClassFields(classType, classType.fields.get(), false);
+					walkClassFields(classType, classType.statics.get(), false);
+					if (classType.constructor != null) {
+						walkClassFields(classType, [classType.constructor.get()], true);
+					}
 				default:
 			}
 		}
@@ -510,7 +514,7 @@ class Intercept {
 		}
 	}
 
-	static function walkClassFields(classType:haxe.macro.Type.ClassType, fields:Array<ClassField>):Void {
+	static function walkClassFields(classType:haxe.macro.Type.ClassType, fields:Array<ClassField>, constructorBody:Bool):Void {
 		for (index in 0...fields.length) {
 			final field = fields[index];
 			if (field.expr == null) {
@@ -532,7 +536,10 @@ class Intercept {
 				final pos = Context.getPosInfos(site.defaultExpr.pos);
 				coalescingMapRanges.push({file: pos.file, min: pos.min, max: pos.max});
 			}
+			final previousConstructor = inConstructorBody;
+			inConstructorBody = constructorBody;
 			walk(body, false);
+			inConstructorBody = previousConstructor;
 			coalescingMapRanges = [];
 		}
 	}
@@ -908,7 +915,7 @@ class Intercept {
 		switch (target.expr) {
 			case TypedExprDef.TField(_, FieldAccess.FAnon(fieldRef))
 				| TypedExprDef.TField(_, FieldAccess.FInstance(_, _, fieldRef)):
-				if (fieldRef.get().isFinal) {
+				if (fieldRef.get().isFinal && !inConstructorBody) {
 					violation("V07", "ShapeMutation",
 						"assignment targets a final field", target.pos);
 				}
