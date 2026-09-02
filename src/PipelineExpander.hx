@@ -96,6 +96,9 @@ class PipelineExpander {
 					}
 					expandClassFields(classType.fields.get());
 					expandClassFields(classType.statics.get());
+					if (classType.constructor != null) {
+						expandClassFields([classType.constructor.get()]);
+					}
 				default:
 			}
 		}
@@ -471,6 +474,16 @@ class PipelineExpander {
 							i += hoisted.length;
 						default:
 					}
+				case TBinop(op, lhs, rhs) if (rhs != null):
+					switch (rhs.expr) {
+						case TBlock(innerStmts) if (innerStmts.length > 0):
+							final last = innerStmts[innerStmts.length - 1];
+							final hoisted = innerStmts.slice(0, innerStmts.length - 1);
+							stmt.expr = TBinop(op, lhs, last);
+							for (j in 0...hoisted.length) stmts.insert(i + j, hoisted[j]);
+							i += hoisted.length;
+						default:
+					}
 				default:
 			}
 			i++;
@@ -484,6 +497,21 @@ class PipelineExpander {
 			if (stmt == null) {
 				i++;
 				continue;
+			}
+			if (stmt.expr.match(TBinop(_, _, _))) {
+				switch (stmt.expr) {
+					case TBinop(op, lhs, rhs):
+						switch (rhs.expr) {
+							case TBlock(inner) if (inner.length > 0):
+								final last = inner[inner.length - 1];
+								final prefix = inner.slice(0, inner.length - 1);
+								stmt.expr = TBinop(op, lhs, last);
+								for (j in 0...prefix.length) stmts.insert(i + j, prefix[j]);
+								i += prefix.length;
+							default:
+						}
+					default:
+				}
 			}
 			if (i + 1 < stmts.length) {
 				var lowered = expandLoweredReadOnlyIteration(stmts[i], stmts[i + 1], usedNames);
@@ -1076,8 +1104,8 @@ class PipelineExpander {
 				final resultDecl = makeTVarStmt(resultVar, makeNewArray(retType, pos), pos);
 
 				final indexName = mint("pipeline_index", usedNames);
-				final counterVar = makeTVar("_g", Context.getType("Int"), false);
-				final boundVar = makeTVar("_g1", Context.getType("Int"), true);
+				final counterVar = makeTVar(mint("_g", usedNames), Context.getType("Int"), false);
+				final boundVar = makeTVar(mint("_g1", usedNames), Context.getType("Int"), true);
 				final indexVar = makeTVar(indexName, Context.getType("Int"), true);
 
 				final initCounter = makeTVarStmt(counterVar, makeIntConst(0, pos), pos);
@@ -1102,8 +1130,8 @@ class PipelineExpander {
 				final resultDecl = makeTVarStmt(resultVar, makeNewArray(elemType, pos), pos);
 
 				final indexName = mint("pipeline_index", usedNames);
-				final counterVar = makeTVar("_g", Context.getType("Int"), false);
-				final boundVar = makeTVar("_g1", Context.getType("Int"), true);
+				final counterVar = makeTVar(mint("_g", usedNames), Context.getType("Int"), false);
+				final boundVar = makeTVar(mint("_g1", usedNames), Context.getType("Int"), true);
 				final indexVar = makeTVar(indexName, Context.getType("Int"), true);
 
 				final initCounter = makeTVarStmt(counterVar, makeIntConst(0, pos), pos);
@@ -1127,8 +1155,8 @@ class PipelineExpander {
 
 			case "forEach":
 				final indexName = mint("pipeline_index", usedNames);
-				final counterVar = makeTVar("_g", Context.getType("Int"), false);
-				final boundVar = makeTVar("_g1", Context.getType("Int"), true);
+				final counterVar = makeTVar(mint("_g", usedNames), Context.getType("Int"), false);
+				final boundVar = makeTVar(mint("_g1", usedNames), Context.getType("Int"), true);
 				final indexVar = makeTVar(indexName, Context.getType("Int"), true);
 
 				final initCounter = makeTVarStmt(counterVar, makeIntConst(0, pos), pos);
@@ -1159,8 +1187,8 @@ class PipelineExpander {
 				final builderDecl = makeTVarStmt(builderVar, makeSortedMapBuilderCall(keyType, valType, pos), pos);
 
 				final indexName = mint("pipeline_index", usedNames);
-				final counterVar = makeTVar("_g", Context.getType("Int"), false);
-				final boundVar = makeTVar("_g1", Context.getType("Int"), true);
+				final counterVar = makeTVar(mint("_g", usedNames), Context.getType("Int"), false);
+				final boundVar = makeTVar(mint("_g1", usedNames), Context.getType("Int"), true);
 				final indexVar = makeTVar(indexName, Context.getType("Int"), true);
 
 				final initCounter = makeTVarStmt(counterVar, makeIntConst(0, pos), pos);
@@ -1231,8 +1259,8 @@ class PipelineExpander {
 				final resultDecl = makeTVarStmt(resultVar, makeBoolConst(false, pos), pos);
 
 				final indexName = mint("pipeline_index", usedNames);
-				final counterVar = makeTVar("_g", Context.getType("Int"), false);
-				final boundVar = makeTVar("_g1", Context.getType("Int"), true);
+				final counterVar = makeTVar(mint("_g", usedNames), Context.getType("Int"), false);
+				final boundVar = makeTVar(mint("_g1", usedNames), Context.getType("Int"), true);
 				final indexVar = makeTVar(indexName, Context.getType("Int"), true);
 
 				final initCounter = makeTVarStmt(counterVar, makeIntConst(0, pos), pos);
@@ -1271,8 +1299,8 @@ class PipelineExpander {
 				final resultDecl = makeTVarStmt(resultVar, makeBoolConst(true, pos), pos);
 
 				final indexName = mint("pipeline_index", usedNames);
-				final counterVar = makeTVar("_g", Context.getType("Int"), false);
-				final boundVar = makeTVar("_g1", Context.getType("Int"), true);
+				final counterVar = makeTVar(mint("_g", usedNames), Context.getType("Int"), false);
+				final boundVar = makeTVar(mint("_g1", usedNames), Context.getType("Int"), true);
 				final indexVar = makeTVar(indexName, Context.getType("Int"), true);
 
 				final initCounter = makeTVarStmt(counterVar, makeIntConst(0, pos), pos);
@@ -1311,8 +1339,8 @@ class PipelineExpander {
 				final resultDecl = makeTVarStmt(resultVar, makeNullConst(pos), pos);
 
 				final indexName = mint("pipeline_index", usedNames);
-				final counterVar = makeTVar("_g", Context.getType("Int"), false);
-				final boundVar = makeTVar("_g1", Context.getType("Int"), true);
+				final counterVar = makeTVar(mint("_g", usedNames), Context.getType("Int"), false);
+				final boundVar = makeTVar(mint("_g1", usedNames), Context.getType("Int"), true);
 				final indexVar = makeTVar(indexName, Context.getType("Int"), true);
 
 				final initCounter = makeTVarStmt(counterVar, makeIntConst(0, pos), pos);
@@ -1351,8 +1379,8 @@ class PipelineExpander {
 				final resultDecl = makeTVarStmt(resultVar, makeIntConst(0, pos), pos);
 
 				final indexName = mint("pipeline_index", usedNames);
-				final counterVar = makeTVar("_g", Context.getType("Int"), false);
-				final boundVar = makeTVar("_g1", Context.getType("Int"), true);
+				final counterVar = makeTVar(mint("_g", usedNames), Context.getType("Int"), false);
+				final boundVar = makeTVar(mint("_g1", usedNames), Context.getType("Int"), true);
 				final indexVar = makeTVar(indexName, Context.getType("Int"), true);
 
 				final initCounter = makeTVarStmt(counterVar, makeIntConst(0, pos), pos);
@@ -1380,8 +1408,8 @@ class PipelineExpander {
 				final resultDecl = makeTVarStmt(resultVar, makeFloatConst(0.0, pos), pos);
 
 				final indexName = mint("pipeline_index", usedNames);
-				final counterVar = makeTVar("_g", Context.getType("Int"), false);
-				final boundVar = makeTVar("_g1", Context.getType("Int"), true);
+				final counterVar = makeTVar(mint("_g", usedNames), Context.getType("Int"), false);
+				final boundVar = makeTVar(mint("_g1", usedNames), Context.getType("Int"), true);
 				final indexVar = makeTVar(indexName, Context.getType("Int"), true);
 
 				final initCounter = makeTVarStmt(counterVar, makeIntConst(0, pos), pos);
@@ -1412,8 +1440,8 @@ class PipelineExpander {
 				final resultDecl = makeTVarStmt(resultVar, makeNewArray(innerRetType, pos), pos);
 
 				final indexName = mint("pipeline_index", usedNames);
-				final counterVar = makeTVar("_g", Context.getType("Int"), false);
-				final boundVar = makeTVar("_g1", Context.getType("Int"), true);
+				final counterVar = makeTVar(mint("_g", usedNames), Context.getType("Int"), false);
+				final boundVar = makeTVar(mint("_g1", usedNames), Context.getType("Int"), true);
 				final indexVar = makeTVar(indexName, Context.getType("Int"), true);
 
 				final initCounter = makeTVarStmt(counterVar, makeIntConst(0, pos), pos);
@@ -1456,8 +1484,8 @@ class PipelineExpander {
 				final resultDecl = makeTVarStmt(resultVar, makeNewArray(innerElemType, pos), pos);
 
 				final indexName = mint("pipeline_index", usedNames);
-				final counterVar = makeTVar("_g", Context.getType("Int"), false);
-				final boundVar = makeTVar("_g1", Context.getType("Int"), true);
+				final counterVar = makeTVar(mint("_g", usedNames), Context.getType("Int"), false);
+				final boundVar = makeTVar(mint("_g1", usedNames), Context.getType("Int"), true);
 				final indexVar = makeTVar(indexName, Context.getType("Int"), true);
 
 				final initCounter = makeTVarStmt(counterVar, makeIntConst(0, pos), pos);
@@ -1471,8 +1499,8 @@ class PipelineExpander {
 					final innerArrDecl = makeTVarStmt(innerArrVar, innerArrVal, pos);
 
 					final innerIndexName = mint("pipeline_index", usedNames);
-					final innerCounterVar = makeTVar("_g", Context.getType("Int"), false);
-					final innerBoundVar = makeTVar("_g1", Context.getType("Int"), true);
+					final innerCounterVar = makeTVar(mint("_g", usedNames), Context.getType("Int"), false);
+					final innerBoundVar = makeTVar(mint("_g1", usedNames), Context.getType("Int"), true);
 					final innerIndexVar = makeTVar(innerIndexName, Context.getType("Int"), true);
 
 					final innerInitCounter = makeTVarStmt(innerCounterVar, makeIntConst(0, pos), pos);
@@ -1514,8 +1542,8 @@ class PipelineExpander {
 				final builderDecl = makeTVarStmt(builderVar, makeSortedMapBuilderCall(keyType, valArrayType, pos), pos);
 
 				final indexName = mint("pipeline_index", usedNames);
-				final counterVar = makeTVar("_g", Context.getType("Int"), false);
-				final boundVar = makeTVar("_g1", Context.getType("Int"), true);
+				final counterVar = makeTVar(mint("_g", usedNames), Context.getType("Int"), false);
+				final boundVar = makeTVar(mint("_g1", usedNames), Context.getType("Int"), true);
 				final indexVar = makeTVar(indexName, Context.getType("Int"), true);
 
 				final initCounter = makeTVarStmt(counterVar, makeIntConst(0, pos), pos);
