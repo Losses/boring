@@ -1140,11 +1140,11 @@ class Intercept {
 		// target has no capability rule; the first unsupported public edge is
 		// generic Std.string conversion, which has no stable cross-target form.
 		switch (e.expr) {
-			case TypedExprDef.TBinop(op, left, right) if (isInt64Type(left.t) || isInt64Type(right.t)):
-				switch (op) {
-					case Binop.OpAdd | Binop.OpSub | Binop.OpBitAnd | Binop.OpBitOr | Binop.OpXor
-						| Binop.OpShl | Binop.OpShr | Binop.OpUShr | Binop.OpEq | Binop.OpNotEq
-						| Binop.OpLt | Binop.OpGt | Binop.OpLte | Binop.OpGte:
+			case TypedExprDef.TBinop(op, left, right):
+				if (isInt64Type(left.t) || isInt64Type(right.t)) switch (op) {
+					case OpAdd | OpSub | OpAnd | OpOr | OpXor
+						| OpShl | OpShr | OpUShr | OpEq | OpNotEq
+						| OpLt | OpGt | OpLte | OpGte:
 					default:
 						violation("V11", "Int64Misuse",
 							"Int64 operation has no lowering in the translatable subset", e.pos);
