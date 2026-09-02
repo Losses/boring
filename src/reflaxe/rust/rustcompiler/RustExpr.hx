@@ -460,7 +460,7 @@ class RustExpr {
 				return [indent(depth) + '$kw $name$explicitType = $initStr;'];
 			case TVar(v, init) if(init == null):
 				final name = RustImports.toSnakeCase(localName(v));
-				return [indent(depth) + "let mut " + name + ": " + types.of(v.t, false) + ";"]
+				return [indent(depth) + "let mut " + name + ": " + types.of(v.t, false) + ";"];
 			case TBlock(stmts):
 				return blockLines(stmts, depth);
 			case TIf(c, t, f):
