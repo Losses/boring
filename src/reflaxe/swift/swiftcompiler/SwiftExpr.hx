@@ -161,6 +161,8 @@ class SwiftExpr {
 				"(" + coalescingDefaultText(c, targetType) + " ? " + coalescingDefaultText(t, targetType) + " : " + coalescingDefaultText(f, targetType) + ")";
 			case CBinaryOp(op, left, right):
 				coalescingDefaultText(left, targetType) + " " + opStr(op) + " " + coalescingDefaultText(right, targetType);
+			case CConstructorCall(classPath, args):
+				classPath.split(".").pop() + "(" + [for(a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
 		};
 	}
 
@@ -1027,6 +1029,11 @@ class SwiftExpr {
 		}
 		if(value == null) {
 			return null;
+		}
+		if (DefaultArgExpander.coalescingSite({t: ifTrue.t, pos: c.pos, expr: TypedExprDef.TIf(c, ifTrue, ifFalse)}) != null) {
+			final siteExpr = DefaultArgExpander.coalescingSite({t: ifTrue.t, pos: c.pos, expr: TypedExprDef.TIf(c, ifTrue, ifFalse)});
+			if (siteExpr != null && !DefaultArgExpander.isRegisteredCoalescingSource(siteExpr.defaultExpr.pos)
+				&& !DefaultArgExpander.isNormalizationSource(siteExpr.defaultExpr.pos)) return null;
 		}
 		final trueLocal = switch(stripWrap(ifTrue).expr) {
 			case TLocal(v) if(v.id == value.id): true;
