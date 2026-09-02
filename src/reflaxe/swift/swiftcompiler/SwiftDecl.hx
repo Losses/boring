@@ -219,7 +219,7 @@ class SwiftDecl {
 
 	function dataClassComparator(cls: ClassType): String {
 		final lines = ["func compare" + cls.name + "(_ a: " + cls.name + ", _ b: " + cls.name + ") -> Int32 {"];
-		for(f in [for(x in cls.fields.get()) if(x.kind.match(FVar(_, _))) x]) {
+		for(f in [for(x in cls.fields.get()) if(switch(x.kind) { case FVar(read, write): !(read.match(AccCall) && write.match(AccNever)); case _: false; }) x]) {
 			switch(Context.follow(f.type)) {
 				case TAbstract(a, _) if(a.get().name == "Int"): lines.push("    if a." + f.name + " != b." + f.name + " { return a." + f.name + " - b." + f.name + " }");
 				case TEnum(e, _):

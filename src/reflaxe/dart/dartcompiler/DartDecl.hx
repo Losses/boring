@@ -204,7 +204,7 @@ class DartDecl {
 
 	function dataClassComparator(cls: ClassType): String {
 		final lines = ["int compare" + cls.name + "(" + cls.name + " a, " + cls.name + " b) {"];
-		for(f in [for(x in cls.fields.get()) if(x.kind.match(FVar(_, _))) x]) {
+		for(f in [for(x in cls.fields.get()) if(switch(x.kind) { case FVar(read, write): !(read.match(AccCall) && write.match(AccNever)); case _: false; }) x]) {
 			switch(Context.follow(f.type)) {
 				case TAbstract(a, _) if(a.get().name == "Int"): lines.push("  if (a." + f.name + " != b." + f.name + ") return a." + f.name + " - b." + f.name + ";");
 				case TInst(c, _) if(c.get().name == "String"): lines.push("  final cmp" + f.name + " = a." + f.name + ".compareTo(b." + f.name + "); if (cmp" + f.name + " != 0) return cmp" + f.name + ";");
