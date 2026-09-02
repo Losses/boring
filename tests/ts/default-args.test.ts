@@ -147,7 +147,7 @@ describe("default argument expansion generated tree", () => {
     expect(content).toContain("let normalized = normalized.unwrap_or_else(|| text.to_uppercase());");
     expect(content).toContain("let clamped = clamped.unwrap_or_else(|| DefaultArgsOps::clamp_base(value));");
     expect(content).toContain("pub fn static_field_sample(value: u32, bound: Option<u32>) -> u32");
-    expect(content).toContain("let bound = bound.unwrap_or_else(|| StaticStateOps::limit);");
+    expect(content).toContain("let bound = bound.unwrap_or_else(|| StaticStateOps::LIMIT);");
     expect(content).toContain("let offset = offset.unwrap_or_else(|| value + 1);");
     expect(content).toContain("let b = b.unwrap_or_else(|| a.to_string());");
 
