@@ -1675,7 +1675,8 @@ class KotlinExpr {
 					final representation = value + "." + ValueTypeSupport.representationFieldName(abs);
 					inConcat ? representation : "(" + representation + ").toString()";
 				}
-			case TAbstract(a, _) if(a.get().name == "Int" || a.get().name == "Float" || a.get().name == "Bool"): inConcat ? value : "(" + value + ").toString()";
+			case TAbstract(a, _) if(a.get().name == "Float"):
+				inConcat ? value : "(" + value + ").toString().replace(\".0\", \"\")";
 			case TAbstract(a, params) if(a.get().module == "std.ReadOnlyArray"):
 				stdStringType(haxe.macro.TypeTools.applyTypeParameters(a.get().type, a.get().params, params), value, inConcat, origin, depth);
 			case TEnum(en, _) if(isParameterlessEnum(en.get())): value + (inConcat ? "" : ".name");
