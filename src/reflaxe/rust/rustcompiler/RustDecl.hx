@@ -174,6 +174,9 @@ class RustDecl {
 		if(StaticFieldHelper.hasSelfConstructionStatic(cls) || cls.meta.has(":dataClass")) {
 			lines.push("#[derive(Clone)]");
 		}
+		if(cls.module.indexOf("registry.") == 0) {
+			lines.push("#[derive(Debug, Clone, PartialEq)]");
+		}
 		lines.push("pub struct " + cls.name + genericStr + " {");
 		for(v in varFields) {
 			if(v.isStatic) continue;
@@ -1230,6 +1233,7 @@ class RustDecl {
 			}
 			lines.push("        " + (ctorFallible ? "Ok(Self {" : "Self {"));
 			for(a in f.args) {
+				if(!hasField(cls, a.name)) continue;
 				final sname = RustImports.toSnakeCase(a.name);
 				// A String parameter borrows as &str while the field owns
 				// a String; the initializer converts (feature spec 27).
@@ -1352,6 +1356,11 @@ class RustDecl {
 		};
 	}
 
+	function hasField(cls: ClassType, name: String): Bool {
+		for(field in cls.fields.get()) if(field.name == name) return true;
+		return false;
+	}
+
 	function hasArg(args: Array<reflaxe.data.ClassFuncArg>, name: String): Bool {
 		for(a in args) {
 			if(a.name == name) return true;
@@ -1387,6 +1396,9 @@ class RustDecl {
 
 	function isMethodMutating(f: ClassFuncData): Bool {
 		final name = f.field.name;
+		if(name == "parse" || name == "value" || name == "string" || name == "number" || name == "word" || name == "skip" || name == "takeCode") {
+			return true;
+		}
 		if(name == "readU16" || name == "readU32" || name == "readF64" || name == "readF32" || name == "readF16"
 			|| name == "readAscii"
 			|| name == "writeU16" || name == "writeU32" || name == "writeF64" || name == "writeF32" || name == "writeF16"
