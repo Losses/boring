@@ -1190,8 +1190,14 @@ class RustExpr {
 
 		final startStr = expr(loop.start);
 		final boundStr = loopBound(loop.bound);
+		var readsIndex = false;
+		for(statement in loop.body) if(mentionsLocal(statement, loop.index)) {
+			readsIndex = true;
+			break;
+		}
+		final loopName = readsIndex ? name : "_";
 		final out = [
-			indent(depth) + "for " + name + " in " + startStr + ".." + boundStr + " {"
+			indent(depth) + "for " + loopName + " in " + startStr + ".." + boundStr + " {"
 		];
 		for(l in blockLines(loop.body, depth + 1)) out.push(l);
 		out.push(indent(depth) + "}");
