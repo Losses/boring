@@ -72,8 +72,10 @@ tests.ArithmeticTests
 boring.DefaultArgsOps
 tests.DefaultArgsTests
 boring.UStringOps
+boring.StringUnitOps
 boring.GraphemeOps
 tests.UStringTests
+tests.StringUnitTests
 tests.GraphemeTests
 boring.PlainLabel
 boring.ToStringOps
