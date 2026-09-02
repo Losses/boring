@@ -145,7 +145,7 @@ class KotlinType {
 				if(cls.name == "String") {
 					StringKey;
 				} else if(cls.meta.has(":dataClass")) {
-					final fields = [for(f in cls.fields.get()) if(switch(f.kind) { case FVar(_, _): true; case _: false; }) f];
+					final fields = [for(f in cls.fields.get()) if(switch(f.kind) { case FVar(read, write): !(read.match(AccCall) && write.match(AccNever)); case _: false; }) f];
 					for(f in fields) validateDataClassField(cls, f);
 					DataClassKey(cls, fields);
 				} else {
@@ -177,7 +177,7 @@ class KotlinType {
 	}
 
 	public static function canEmitDataClassComparator(cls: ClassType): Bool {
-		for(f in cls.fields.get()) if(f.kind.match(FVar(_, _)) && !isDataClassFieldKey(f.type)) return false;
+		for(f in cls.fields.get()) if(switch(f.kind) { case FVar(read, write): !(read.match(AccCall) && write.match(AccNever)) && !isDataClassFieldKey(f.type); case _: false; }) return false;
 		return true;
 	}
 
