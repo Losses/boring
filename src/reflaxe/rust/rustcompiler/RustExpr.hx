@@ -3285,7 +3285,7 @@ class RustExpr {
 					// truncating integer division; Std.int over it
 					// converts nothing.
 					if(isLengthDivision(args[0])) {
-						return "(" + expr(args[0]) + ")";
+						return "(" + expr(args[0]) + ") as " + (RuntimeResidents.isResident(imports.selfModule) ? "i32" : "u32");
 					}
 					return "(" + expr(args[0]) + ") as i32";
 				}
