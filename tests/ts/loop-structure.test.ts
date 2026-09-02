@@ -90,19 +90,14 @@ const SAMPLES_BANNED_CALL_SITES: readonly string[] = [
   ".fold(",
 ];
 
-/** Matches `||` but not a lone Rust closure pipe. */
+/**
+ * A Rust closure opens a pipe-delimited parameter list directly after a
+ * structural delimiter, as in call arguments or after a let binding. A
+ * bitwise or sits between two expressions, so an expression character
+ * precedes the pipe, as in `(... << 32) | ((input[...`.
+ */
 function containsClosurePipe(body: string): boolean {
-  for (let i = 0; i < body.length; i += 1) {
-    if (body[i] !== "|") {
-      continue;
-    }
-    const before = body[i - 1];
-    const after = body[i + 1];
-    if (before !== "|" && after !== "|") {
-      return true;
-    }
-  }
-  return false;
+  return /[(,{;=]\s*\|[^|\n]{0,48}\|/.test(body);
 }
 
 function bodyHasLambda(tree: SourceTree, body: string): boolean {

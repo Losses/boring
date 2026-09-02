@@ -28,6 +28,11 @@ export function i64ToDouble(low: number, high: number): number {
   return DOUBLE_SCRATCH.getFloat64(0);
 }
 
+export function readUnit(text: string, index: number): number | null {
+  const c = text.charCodeAt(index);
+  return Number.isNaN(c) ? null : c;
+}
+
 export class BytesBuffer {
   private bytes: Uint8Array;
   private length: number;
@@ -64,6 +69,11 @@ export class BytesBuffer {
 import * as path from "node:path";
 
 export type TestBody = () => void;
+
+export function readUnit(text: string, index: number): number | null {
+  const c = text.charCodeAt(index);
+  return Number.isNaN(c) ? null : c;
+}
 
 export class Test {
   private static currentTestId: string | null = null;

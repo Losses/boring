@@ -149,6 +149,8 @@ class SwiftExpr {
 			case CNegativeInfinity: FloatPrecision.isF32() ? "-Float.infinity" : "-Double.infinity";
 			case CEnum(enumRef, enumField): types.of(Type.TEnum(enumRef, [])) + "." + SwiftDecl.lowerFirst(enumField.name);
 			case CParameterRead(name): name;
+			case CInstanceFieldRead(name): "self." + name;
+			case CLocalRead(name): name;
 			case CFieldAccess(CParameterRead(staticPath), ""): coalescingStaticFieldText(staticPath);
 			case CFieldAccess(receiver, fieldName): fieldName == "length"
 				? "Int32(" + coalescingDefaultText(receiver, targetType) + ".count)"
@@ -156,12 +158,23 @@ class SwiftExpr {
 			case CMethodCall(receiver, methodName, args):
 				coalescingDefaultText(receiver, targetType) + "." + swiftMethodName(methodName) + "(" + [for(a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
 			case CStaticCall(fullPath, args):
-				fullPath + "(" + [for(a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
+				coalescingStaticCallText(fullPath, args, targetType);
 			case CConditional(c, t, f):
 				"(" + coalescingDefaultText(c, targetType) + " ? " + coalescingDefaultText(t, targetType) + " : " + coalescingDefaultText(f, targetType) + ")";
 			case CBinaryOp(op, left, right):
 				coalescingDefaultText(left, targetType) + " " + opStr(op) + " " + coalescingDefaultText(right, targetType);
+			case CConstructorCall(classPath, args):
+				classPath.split(".").pop() + "(" + [for(a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
 		};
+	}
+
+	function coalescingStaticCallText(path:String, args:Array<DefaultArgExpander.CoalescingDefaultValue>, targetType:Type):String {
+		final rendered = [for(a in args) coalescingDefaultText(a, targetType)].join(", ");
+		if(path == "std.SortedSet.builder") {
+			imports.runtime("SortedTable");
+			return "SortedTable.setBuilder(" + sortedComparator(switch(Context.follow(DefaultArgExpander.withoutNull(targetType))) { case TInst(_, params) if(params.length > 0): params[0]; case _: null; }, Context.currentPos()) + ")";
+		}
+		return path + "(" + rendered + ")";
 	}
 
 	function coalescingStaticFieldText(path:String):String {
@@ -436,6 +449,13 @@ class SwiftExpr {
 		function walk(x: TypedExpr) {
 			switch(x.expr) {
 				case TBinop(OpAssign, t, _) | TBinop(OpAssignOp(_), t, _):
+					switch(stripCast(t).expr) {
+						case TLocal(v) if(v.id == varId): found = true;
+						case _:
+					}
+				// An increment or decrement reassigns the local, so the
+				// declaration needs var even without a plain assignment.
+				case TUnop(OpIncrement, _, t) | TUnop(OpDecrement, _, t):
 					switch(stripCast(t).expr) {
 						case TLocal(v) if(v.id == varId): found = true;
 						case _:
@@ -1028,6 +1048,11 @@ class SwiftExpr {
 		if(value == null) {
 			return null;
 		}
+		if (DefaultArgExpander.coalescingSite({t: ifTrue.t, pos: c.pos, expr: TypedExprDef.TIf(c, ifTrue, ifFalse)}) != null) {
+			final siteExpr = DefaultArgExpander.coalescingSite({t: ifTrue.t, pos: c.pos, expr: TypedExprDef.TIf(c, ifTrue, ifFalse)});
+			if (siteExpr != null && !DefaultArgExpander.isRegisteredCoalescingSource(siteExpr.defaultExpr.pos)
+				&& !DefaultArgExpander.isNormalizationSource(siteExpr.defaultExpr.pos)) return null;
+		}
 		final trueLocal = switch(stripWrap(ifTrue).expr) {
 			case TLocal(v) if(v.id == value.id): true;
 			case _: false;
@@ -1252,6 +1277,8 @@ class SwiftExpr {
 			case OpNot: return "!" + wrapped;
 			case OpNegBits: return "~" + wrapped;
 			case OpNeg: return "-" + wrapped;
+			case OpIncrement: return inner + " += 1";
+			case OpDecrement: return inner + " -= 1";
 			case _:
 				{
 					final infos = Context.getPosInfos(e.pos);
@@ -1408,7 +1435,7 @@ class SwiftExpr {
 				}
 				imports.runtime(name);
 				return name;
-			case "std.Test" | "std.__test_shim":
+			case _ if(SwiftTestBinding.isTestExtern(cls)):
 				imports.runtimeTest("Test");
 				return "Test." + name;
 			case "std.UStringRT":
@@ -1442,7 +1469,7 @@ class SwiftExpr {
 		switch(t) {
 			case TClassDecl(c):
 				final cls = c.get();
-				if(cls.module == "std.Test" || (cls.pack.join(".") == "std" && (cls.name == "Test" || cls.name == "__test_shim"))) {
+				if(SwiftTestBinding.isTestExtern(cls)) {
 					imports.runtimeTest("Test");
 					return "Test";
 				}
@@ -1554,7 +1581,8 @@ class SwiftExpr {
 				ValueTypeSupport.memberField(abs, "toString") != null
 					? value + ".description"
 					: "String(describing: " + value + "." + ValueTypeSupport.representationFieldName(abs) + ")";
-			case TAbstract(a, _) if(a.get().name == "Int" || a.get().name == "Float" || a.get().name == "Bool"): depth > 0 ? "\"\\(" + value + ")\"" : (inConcat ? value : "String(" + value + ")");
+			case TAbstract(a, _) if(a.get().name == "Float"): depth > 0 ? "\"\\(" + value + ")\"" : (inConcat ? value : "String(" + value + ").replacingOccurrences(of: \".0\", with: \"\")");
+			case TAbstract(a, _) if(a.get().name == "Int" || a.get().name == "Bool"): depth > 0 ? "\"\\(" + value + ")\"" : (inConcat ? value : "String(" + value + ")");
 			case TAbstract(a, params) if(a.get().module == "std.ReadOnlyArray"):
 				stdStringType(haxe.macro.TypeTools.applyTypeParameters(a.get().type, a.get().params, params), value, inConcat, origin, depth);
 			case TEnum(en, _) if(isParameterlessEnum(en.get())): value + ".rawValue";
@@ -1729,7 +1757,7 @@ class SwiftExpr {
 				if(module == "std.UStringPlatform") {
 					return ustringPlatformCall(fName, args, fn);
 				}
-				if(module == "std.TestPlatform") {
+				if(SwiftTestBinding.isTestPlatformExtern(module)) {
 					return testPlatformCall(fName, args, fn);
 				}
 				if(module == "std.UStringRT") {
@@ -1776,7 +1804,7 @@ class SwiftExpr {
 					}
 					if(fName == "string") return stdString(args[0], false);
 				}
-				if(module == "std.Test") {
+				if(SwiftTestBinding.isTestExtern(cls)) {
 					return testCall(fName, args, fn);
 				}
 				if((cls.name == "Functional" || cls.name == "__functional_shim" || module == "std.Functional") && fName == "sortedBy") {
@@ -1987,11 +2015,11 @@ class SwiftExpr {
 		raising is a throw of the host failure type, the running test id
 		lives in the Test host of this same test entry, and plain numbers
 		render through String. Business code never reaches these; it
-		calls std.Test.
+		calls test extern.
 	**/
 	function testPlatformCall(fName: String, args: Array<TypedExpr>, fn: TypedExpr): String {
 		if(!imports.selfResident) {
-			Context.error("std.TestPlatform is a resident runtime primitive; business code calls std.Test", fn.pos);
+			Context.error("test platform extern is a resident runtime primitive; business code calls test extern", fn.pos);
 		}
 		switch(fName) {
 			case "raise":
@@ -2010,7 +2038,7 @@ class SwiftExpr {
 	}
 
 	/**
-		std.Test assertions: scalars route to the TestCore checks with
+		test extern assertions: scalars route to the TestCore checks with
 		the message converted once; composite values route to the
 		generated assertion of their tag (features/19).
 	**/
@@ -2041,7 +2069,7 @@ class SwiftExpr {
 				final tag = SwiftTestTypes.register(t);
 				return "assertEquals" + tag + "(" + expr(args[0]) + ", " + expr(args[1]) + ", " + message + ")";
 			case _:
-				return fail(fn, "std.Test." + fName + " has no Swift lowering");
+				return fail(fn, "test extern." + fName + " has no Swift lowering");
 		}
 	}
 
@@ -3081,6 +3109,14 @@ class SwiftExpr {
 								case TLocal(v): markMutated(v);
 								case _:
 						}
+					case _:
+				}
+			// An increment or decrement reassigns the local, so the
+			// declaration needs var even without a plain assignment.
+			case TUnop(OpIncrement, _, t) | TUnop(OpDecrement, _, t):
+				switch(t.expr) {
+					case TLocal(v):
+						markMutated(v);
 					case _:
 				}
 			case TCall(fn, _):

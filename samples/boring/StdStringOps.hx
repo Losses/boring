@@ -12,6 +12,10 @@ class StdStringOps {
 	public static function stringValue(value:String):String return Std.string(value);
 	public static function intValue(value:Int):String return Std.string(value);
 	public static function floatValue(value:Float):String return Std.string(value);
+
+	public static function floatForms():Array<String> {
+		return [Std.string(2.0), Std.string(0.0), Std.string(-0.0), Std.string(2.5), Std.string(-1.25), Std.string(1e20), Std.string(1e21), Std.string(1e-6), Std.string(1e-7)];
+	}
 	public static function boolValue(value:Bool):String return Std.string(value);
 	public static function enumValue(value:FloatWidth):String return Std.string(value);
 

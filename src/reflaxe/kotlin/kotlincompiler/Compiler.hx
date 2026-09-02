@@ -216,7 +216,7 @@ class Compiler extends PluginCompiler<Compiler> {
 		emitShim("haxe.io.BytesBuffer", "BytesBuffer.kt", KotlinRuntime.BYTES_BUFFER_SOURCE);
 		emitShim("std.Console", "Console.kt", KotlinRuntime.CONSOLE_SOURCE);
 		emitShim("std.Process", "Process.kt", KotlinRuntime.PROCESS_SOURCE);
-		emitShim("std.Test", "test/Test.kt", KotlinRuntime.testSource(), "test");
+		emitShim(RuntimeResidents.externsOf("runtime.TestCore")[0], "test/Test.kt", KotlinRuntime.testSource(), "test");
 		// std.SortedMap and std.SortedSet no longer emit shims: the
 		// sorted tables compile from the runtime.SortedTable resident,
 		// gated through the extern usage flags these modules still set.
