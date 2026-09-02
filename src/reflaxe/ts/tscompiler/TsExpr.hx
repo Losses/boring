@@ -379,6 +379,13 @@ class TsExpr {
 						case TLocal(v) if(v.id == varId): found = true;
 						case _:
 					}
+				// An increment or decrement reassigns the local, so the
+				// declaration needs let even without a plain assignment.
+				case TUnop(OpIncrement, _, t) | TUnop(OpDecrement, _, t):
+					switch(stripCast(t).expr) {
+						case TLocal(v) if(v.id == varId): found = true;
+						case _:
+					}
 				case _:
 			}
 			TypedExprTools.iter(x, walk);
@@ -666,24 +673,17 @@ class TsExpr {
 
 	function loopLines(loop, depth: Int, fold: Null<String>): Array<String> {
 		final name = loop.index.name;
-		function hasPropertyRead(e: TypedExpr): Bool {
-			var found = false;
-			function walk(x: TypedExpr) {
-				switch(x.expr) {
-					case TField(_, _): found = true;
-					case _:
-				}
-				if(!found) TypedExprTools.iter(x, walk);
-			}
-			walk(e);
-			return found;
-		}
-		final boundIsProperty = hasPropertyRead(stripWrap(loop.bound));
 		final boundText = expr(loop.bound);
+		// The string-length pass already hoists reads like x.length into
+		// a plain local, and a constant bound folds to a literal; a bound
+		// whose rendered form carries no member access needs no second
+		// hoist. Hoisting those anyway shadows the existing local with
+		// count = count and trips the temporal dead zone at runtime.
+		final boundNeedsHoist = fold == null && boundText.indexOf(".") >= 0;
 		final init = "let " + name + " = " + expr(loop.start)
 			+ (fold != null ? ", " + fold : "")
-			+ (boundIsProperty && fold == null ? ", count = " + boundText : "");
-		final conditionBound = boundIsProperty && fold == null ? "count" : boundText;
+			+ (boundNeedsHoist ? ", count = " + boundText : "");
+		final conditionBound = boundNeedsHoist ? "count" : boundText;
 		final out = [
 			indent(depth) + "for (" + init + "; " + name + " < " + conditionBound + "; " + name + " += 1) {"
 		];
@@ -2361,6 +2361,13 @@ class TsExpr {
 					}
 				}
 			case TBinop(OpAssign, t, _) | TBinop(OpAssignOp(_), t, _):
+				switch(t.expr) {
+					case TLocal(v): mutated.set(v.id, true);
+					case _:
+				}
+			// An increment or decrement reassigns the local, so the
+			// declaration needs let even without a plain assignment.
+			case TUnop(OpIncrement, _, t) | TUnop(OpDecrement, _, t):
 				switch(t.expr) {
 					case TLocal(v): mutated.set(v.id, true);
 					case _:
