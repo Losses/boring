@@ -70,6 +70,11 @@ import * as path from "node:path";
 
 export type TestBody = () => void;
 
+export function readUnit(text: string, index: number): number | null {
+  const c = text.charCodeAt(index);
+  return Number.isNaN(c) ? null : c;
+}
+
 export class Test {
   private static currentTestId: string | null = null;
 
