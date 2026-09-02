@@ -213,8 +213,8 @@ rejection row `V15 EnumDefaultArm` of the style standard already detects a
 subject "wrapped in `TEnumIndex` **or typed as an enum**". This amendment
 records the sanctioned form and the lowering rule.
 
-- A `switch` subject may be any expression — a local, a field access, or a
-  call — whose static type is the enum (features/01) or the sealed
+- A `switch` subject may be any expression (a local, a field access, or a
+  call) whose static type is the enum (features/01) or the sealed
   interface (features/32) being switched.
 - The common layer hoists a non-local subject into a synthetic local
   exactly once, before target emission, so every target receives the
