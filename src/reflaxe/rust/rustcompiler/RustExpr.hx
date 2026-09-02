@@ -2420,7 +2420,7 @@ class RustExpr {
 	**/
 	function isUnsignedOperand(e: TypedExpr): Bool {
 		return switch(stripWrap(e).expr) {
-			case TLocal(v): unsignedLocals.exists(v.id) || isUnsignedTypeName(argTypes.get(v.name));
+			case TLocal(v): unsignedLocals.exists(v.id) || isUnsignedTypeName(argTypes.get(v.name)) || (isIntType(v.t) && !RuntimeResidents.isResident(imports.selfModule));
 			case _: false;
 		};
 	}
