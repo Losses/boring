@@ -229,7 +229,7 @@ class RustDecl {
 
 		final classPart = prefixLines.length > 0 ? prefixLines.join("\n\n") + "\n\n" + lines.join("\n") : lines.join("\n");
 		final result = extractedParts.length > 0 ? extractedParts.join("\n\n") + "\n\n" + classPart : classPart;
-		return cls.meta.has(":dataClass") ? result + "\n\n" + dataClassComparator(cls) : result;
+		return cls.meta.has(":dataClass") && RustType.canEmitDataClassComparator(cls) ? result + "\n\n" + dataClassComparator(cls) : result;
 	}
 
 	function dataClassComparator(cls: ClassType): String {
@@ -242,7 +242,7 @@ class RustDecl {
 				case TInst(c, _) if(c.get().name == "String"): lines.push('    let cmp_$fn = SortedTable::compare_strings(a.$fn.as_str(), b.$fn.as_str());');
 				case TInst(c, _) if(c.get().meta.has(":dataClass")): lines.push('    let cmp_$fn = compare_${RustImports.toSnakeCase(c.get().name)}(&a.$fn, &b.$fn);');
 				case TEnum(_, _): lines.push('    let cmp_$fn = (a.$fn as i32).cmp(&(b.$fn as i32)) as i32;');
-				case _: Context.error("unusable dataClass comparator field " + cls.name + "." + f.name + " has type " + f.type, f.pos);
+				case _: // validated before emission
 			}
 			lines.push('    if cmp_$fn != 0 { return cmp_$fn; }');
 		}

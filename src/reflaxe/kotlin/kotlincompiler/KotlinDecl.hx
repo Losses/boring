@@ -259,21 +259,21 @@ class KotlinDecl {
 
 		lines.push("}");
 		final result = withExtracted(extractedParts, lines.join("\n"));
-		return cls.meta.has(":dataClass") ? result + "\n\n" + dataClassComparator(cls) : result;
+		return cls.meta.has(":dataClass") && KotlinType.canEmitDataClassComparator(cls) ? result + "\n\n" + dataClassComparator(cls) : result;
 	}
 
 	function dataClassComparator(cls: ClassType): String {
 		final lines: Array<String> = [];
-		for(f in [for(x in cls.fields.get()) if(x.kind.match(FVar(_, _))) x]) {
-			switch(Context.follow(f.type)) {
-				case TEnum(e, _):
-					final en = e.get();
-					final order = '    fun ${cls.name}${f.name}Order(v: ${en.name}): Int = when (v) {\n' + [for(ef in en.constructs) '        ${en.name}.${ef.name} -> ${ef.index}'].join("\n") + '\n    }';
-					lines.push(order);
-				case _:
-			}${cls.name}(a: ${cls.name}, b: ${cls.name}): Int {');
+		final fields = [for(x in cls.fields.get()) if(x.kind.match(FVar(_, _))) x];
+		for(f in fields) switch(Context.follow(f.type)) {
+			case TEnum(e, _):
+				final en = e.get();
+				lines.push('    fun ${cls.name}${f.name}Order(v: ${en.name}): Int = when (v) {\n' + [for(ef in en.constructs) '        ${en.name}.${ef.name} -> ${ef.index}'].join("\n") + '\n    }');
+			case _:
+		}
+		lines.push('    fun compare${cls.name}(a: ${cls.name}, b: ${cls.name}): Int {');
 		lines.push('    var cmp = 0');
-		for(f in [for(x in cls.fields.get()) if(x.kind.match(FVar(_, _))) x]) {
+		for(f in fields) {
 			switch(Context.follow(f.type)) {
 				case TAbstract(a, _) if(a.get().name == "Int"): lines.push('    cmp = a.${f.name}.compareTo(b.${f.name})');
 				case TInst(c, _) if(c.get().name == "String"): lines.push('    cmp = a.${f.name}.compareTo(b.${f.name})');

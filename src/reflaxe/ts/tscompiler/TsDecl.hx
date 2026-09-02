@@ -143,7 +143,7 @@ class TsDecl {
 		lines.push("}");
 		final prefix = tableLines.length > 0 ? tableLines.join("\n\n") + "\n\n" : "";
 		final classPart = prefix + lines.join("\n");
-		final comparator = cls.meta.has(":dataClass") ? dataClassComparator(cls) : "";
+		final comparator = cls.meta.has(":dataClass") && TsType.canEmitDataClassComparator(cls) ? dataClassComparator(cls) : "";
 		final fullPart = comparator == "" ? classPart : classPart + "\n\n" + comparator;
 		return extractedParts.length > 0 ? extractedParts.join("\n\n") + "\n\n" + fullPart : fullPart;
 	}
@@ -156,7 +156,7 @@ class TsDecl {
 				case TInst(c, _) if(c.get().name == "String"): lines.push('  if (a.${f.name} !== b.${f.name}) return a.${f.name} < b.${f.name} ? -1 : 1;');
 				case TInst(c, _) if(c.get().meta.has(":dataClass")): imports.value(c.get().module, "compare" + c.get().name); lines.push('  { const cmp = compare${c.get().name}(a.${f.name}, b.${f.name}); if (cmp !== 0) return cmp; }');
 				case TEnum(_, _): lines.push('  if (a.${f.name} !== b.${f.name}) return String(a.${f.name}) < String(b.${f.name}) ? -1 : 1;');
-				case _: Context.error("unusable dataClass comparator field " + cls.name + "." + f.name + " has type " + f.type, f.pos);
+				case _: // validated before emission
 			}
 		}
 		lines.push('  return 0;'); lines.push('}'); return lines.join("\n");
