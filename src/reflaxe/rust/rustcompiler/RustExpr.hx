@@ -173,8 +173,7 @@ class RustExpr {
 			case CMethodCall(receiver, methodName, args):
 				coalescingDefaultText(receiver, targetType) + "." + rustMethodName(methodName) + "(" + [for(a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
 			case CStaticCall(fullPath, args):
-				final parts = fullPath.split(".");
-				parts.length > 1 ? parts[0] + "::" + RustImports.toSnakeCase(parts[1]) + "(" + [for(a in args) coalescingDefaultText(a, targetType)].join(", ") + ")" : RustImports.toSnakeCase(fullPath) + "(" + [for(a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
+				coalescingStaticCallText(fullPath, args, targetType);
 			case CConditional(c, t, f):
 				"if " + coalescingDefaultText(c, targetType) + " { " + coalescingDefaultText(t, targetType) + " } else { " + coalescingDefaultText(f, targetType) + " }";
 			case CBinaryOp(op, left, right):
@@ -182,6 +181,16 @@ class RustExpr {
 			case CConstructorCall(classPath, args):
 				classPath.split(".").pop() + "::new(" + [for(a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
 		};
+	}
+
+	function coalescingStaticCallText(path:String, args:Array<DefaultArgExpander.CoalescingDefaultValue>, targetType:Type):String {
+		final rendered = [for(a in args) coalescingDefaultText(a, targetType)].join(", ");
+		if(path == "std.SortedSet.builder") {
+			imports.requireType("runtime.SortedTable", "SortedTable");
+			return "SortedTable::set_builder(" + rendered + ")";
+		}
+		final parts = path.split(".");
+		return parts.length > 1 ? parts[0] + "::" + RustImports.toSnakeCase(parts[1]) + "(" + rendered + ")" : RustImports.toSnakeCase(path) + "(" + rendered + ")";
 	}
 
 	function coalescingStaticFieldText(path:String, targetType:Type):String {
@@ -384,11 +393,13 @@ class RustExpr {
 			final value = currentLocalName != null
 				? DefaultArgExpander.coalescingDefaultForLocalParam(currentClass, currentMethodName, currentLocalName, site.parameter)
 				: DefaultArgExpander.coalescingDefaultForParam(currentClass, currentMethodName, site.parameter);
-			if(seen.exists(site.parameter) || value == null) {
+			if(seen.exists(site.parameter)) {
 				continue;
 			}
 			seen.set(site.parameter, true);
-			final rawDefaultText = coalescingDefaultText(value, DefaultArgExpander.withoutNull(site.valueExpr.t));
+			final rawDefaultText = value != null
+				? coalescingDefaultText(value, DefaultArgExpander.withoutNull(site.valueExpr.t))
+				: expr(site.defaultExpr);
 			// When a string parameter read appears inside unwrap_or_else, Rust needs
 			// the owned form (&str → String).
 			final isStringDefault = switch(value) {
