@@ -1,5 +1,5 @@
 package tests;
-import registry.Semver.Semver;
+import registry.Semver;
 import std.Test;
 class RegistrySemverTests {
  @:test("semver orders prereleases before releases")

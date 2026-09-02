@@ -1,5 +1,5 @@
 package tests;
-import registry.Json.Json;
+import registry.Json;
 import registry.Json.JsonValue;
 import std.Test;
 class RegistryJsonTests {

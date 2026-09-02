@@ -1,7 +1,7 @@
 package tests;
 
-import registry.Core.CoreException;
-import registry.Core.Core;
+import registry.CoreException;
+import registry.Core;
 import std.Test;
 
 class RegistryParseArgsSupport {
