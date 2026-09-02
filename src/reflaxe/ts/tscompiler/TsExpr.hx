@@ -434,6 +434,7 @@ class TsExpr {
 
 	function blockLines(stmts: Array<TypedExpr>, depth: Int): Array<String> {
 		stmts = fuseUninitializedVars(stmts);
+		stmts = regroupLoops(stmts);
 		final out: Array<String> = [];
 
 		// features/09 LengthHoist: counted loops whose bound reads

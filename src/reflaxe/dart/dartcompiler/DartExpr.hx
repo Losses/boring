@@ -579,6 +579,7 @@ class DartExpr {
 
 	function blockLines(stmts: Array<TypedExpr>, depth: Int): Array<String> {
 		stmts = fuseUninitializedVars(stmts);
+		stmts = regroupLoops(stmts);
 		final out: Array<String> = [];
 		var i = 0;
 		while(i < stmts.length) {
