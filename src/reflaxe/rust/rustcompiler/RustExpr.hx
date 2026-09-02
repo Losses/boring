@@ -1694,7 +1694,7 @@ class RustExpr {
 				final condStr = switch(stripWrap(c).expr) {
 					case _: expr(stripWrap(c));
 				};
-				return "if " + condStr + " { " + conditionalBranchText(t, f) + " } else { " + conditionalBranchText(f, t) + " }";
+				return "if " + condStr + " { " + conditionalBranchText(t, f, e.t) + " } else { " + conditionalBranchText(f, t, e.t) + " }";
 			case TSwitch(_, _, _):
 				return matchExpression(e);
 			case TTry(_, catches) if(catches.length != 1):
@@ -4848,8 +4848,11 @@ class RustExpr {
 		&str on both arms, and a sibling that renders as a borrow keeps
 		the literal as &str too.
 	**/
-	function conditionalBranchText(branch: TypedExpr, sibling: TypedExpr): String {
+	function conditionalBranchText(branch: TypedExpr, sibling: TypedExpr, resultType: Null<Type> = null): String {
 		final text = expr(branch);
+		if(resultType != null && isStringType(resultType) && isStringLiteral(branch)) {
+			return text + ".to_string()";
+		}
 		if(!isStringType(branch.t) || !isStringType(sibling.t)) {
 			return text;
 		}
