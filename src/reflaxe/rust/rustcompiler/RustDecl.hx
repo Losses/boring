@@ -1689,6 +1689,14 @@ class RustDecl {
 			}
 			lines.push("        }"); lines.push("    }"); lines.push("}");
 		}
+		if(allPlain) {
+			lines.push("");
+			lines.push("impl " + en.name + " {");
+			lines.push("    pub fn to_string(&self) -> String {");
+			lines.push("        match self {");
+			for(o in sorted) lines.push('            ${en.name}::${o.name} => "${o.name}".to_string(),');
+			lines.push("        }"); lines.push("    }"); lines.push("}");
+		}
 		final use = EnumQueryExpander.usage(en);
 		if(allPlain && use != null) {
 			lines.push(""); lines.push('impl ${en.name} {');
