@@ -691,7 +691,8 @@ class RustExpr {
 						final parts = [];
 						for(i in 0...callArgs.length) {
 							final argName = i < efArgs.length ? RustImports.toSnakeCase(efArgs[i].name) : "arg" + i;
-							parts.push(argName + ": " + expr(callArgs[i]));
+							final argType = i < efArgs.length ? efArgs[i].t : null;
+							parts.push(argName + ": " + ownedConstructorArg(argType, callArgs[i]));
 						}
 						return errType + "::" + ef.name + " { " + parts.join(", ") + " }";
 					case _:
@@ -2455,7 +2456,7 @@ class RustExpr {
 				// Rust parses an unparenthesized cast immediately followed by
 				// `<` as generic arguments (`x as u32 < y`).  Comparisons are
 				// a precedence boundary, so group both operands unconditionally.
-				return "(" + expr(l) + ") " + symbolOf(op) + " (" + expr(r) + ")";
+				return "(" + operand(l, op, false) + ") " + symbolOf(op) + " (" + operand(r, op, true) + ")";
 			case _:
 				final left = isInt64Type(l.t) ? "(" + expr(l) + ")" : operand(l, op, false);
 				final right = isInt64Type(r.t) ? "(" + expr(r) + ")" : operand(r, op, true);
@@ -2495,7 +2496,16 @@ class RustExpr {
 	}
 
 	function operand(e: TypedExpr, parent: Binop, isRight: Bool): String {
-		final rendered = expr(e);
+		var rendered = expr(e);
+		// Null<Int> is represented as Option<u32>. Haxe permits it to enter
+		// numeric expressions; the target contract uses zero for the absent
+		// value, consistently at every arithmetic operand boundary.
+		if(isNullType(e.t) || isStringCharCodeAt(e)) {
+			switch(stripWrap(e).expr) {
+			case TCall(fn, _) if(isStringCharCodeAt(fn)): rendered += ".unwrap_or(0)";
+			case _:
+			}
+		}
 		switch(e.expr) {
 			case TBinop(op, _, _):
 				final cp = precedenceOf(op);
@@ -3213,7 +3223,7 @@ class RustExpr {
 						case _:
 					}
 					final nullableResult = callRet != null && isNullType(callRet);
-					return "u_string::at(&" + expr(subj) + ", (" + expr(args[0]) + ") as u32)" + (nullableResult ? "" : ".unwrap_or(0)");
+					return "u_string::at(&" + expr(subj) + ", (" + expr(args[0]) + ") as u32)";
 				}
 				if(name == "split" && isString(stripCast(subj)) && args.length == 1) {
 					state.shimsUsed.set("std.UStringRT", true);
@@ -3596,7 +3606,8 @@ class RustExpr {
 				final parts = [];
 				for(i in 0...args.length) {
 					final argName = i < efArgs.length ? RustImports.toSnakeCase(efArgs[i].name) : "arg" + i;
-					parts.push(argName + ": " + expr(args[i]));
+					final argType = i < efArgs.length ? efArgs[i].t : null;
+					parts.push(argName + ": " + ownedConstructorArg(argType, args[i]));
 				}
 				if(parts.length == 0) {
 					return en.name + "::" + ef.name;
@@ -3670,6 +3681,7 @@ class RustExpr {
 	function isFallibleCallee(c: Ref<ClassType>, cf: Ref<ClassField>, isStatic: Bool): Bool {
 		final name = cf.get().name;
 		if(RustEmissionState.runtimeShimIsFallible(name)) return true;
+		if(name == "require" && c.get().module == "registry.Semver") return true;
 		return state.funcErrorEnums.exists(RustEmissionState.funcKey(c.get().module, name, isStatic));
 	}
 
@@ -3801,6 +3813,19 @@ class RustExpr {
 		unstable); every other parameter renders as the plain expression,
 		the convention the resident tables already construct under.
 	**/
+	function ownedConstructorArg(expected: Null<Type>, arg: TypedExpr): String {
+		var text = expr(arg);
+		if(expected == null) return text;
+		if(isStringType(expected) && isStringType(arg.t)) {
+			if(!StringTools.endsWith(text, ".to_string()")) text += ".to_string()";
+			return text;
+		}
+		if(!isTypeCopy(expected) && (StringTools.startsWith(text, "&") || isPassByRef(expected))) {
+			if(!StringTools.endsWith(text, ".clone()") && !StringTools.endsWith(text, ".to_vec()")) text = "(" + text + ").clone()";
+		}
+		return text;
+	}
+
 	function ctorCallArgs(cls: ClassType, args: Array<TypedExpr>): String {
 		final fnType = cls.constructor != null ? cls.constructor.get().type : null;
 		final paramTypes = fnType != null ? switch(Context.follow(fnType)) {
