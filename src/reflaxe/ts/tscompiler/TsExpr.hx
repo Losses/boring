@@ -275,9 +275,17 @@ class TsExpr {
 		if(f.expr == null) {
 			Context.error("constructor has no body to lower", f.field.pos);
 		}
+		// Constructors use the same common expansions and statement pipeline
+		// as ordinary functions. In particular, comprehensions and pipeline
+		// calls become statement sequences before TypeScript expression
+		// lowering sees their assignment RHS or lambda bodies.
+		DefaultArgExpander.completeRootExpr(cls, f.field.name, f.expr);
+		PipelineExpander.expandRootExpr(f.expr);
+		EnumQueryExpander.expandRootExpr(f.expr);
 		currentClass = cls;
 		currentField = f.field.name;
 		currentLocalName = null;
+		scanLocals(f.expr);
 		final stmts = statementsOf(f.expr);
 		final out: Array<String> = [];
 		var superIdx = -1;
@@ -296,12 +304,11 @@ class TsExpr {
 		if(isException) {
 			out.push(indent(2) + 'this.name = "$className";');
 		}
+		final bodyStmts:Array<TypedExpr> = [];
 		for(i in 0...stmts.length) {
-			if(i == superIdx) {
-				continue;
-			}
-			for(l in stmtLines(stmts[i], 2)) out.push(l);
+			if(i != superIdx) bodyStmts.push(stmts[i]);
 		}
+		for(l in blockLines(bodyStmts, 2)) out.push(l);
 		return out;
 	}
 
