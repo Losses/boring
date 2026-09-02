@@ -162,8 +162,8 @@ describe("default argument expansion generated tree", () => {
     expect(content).toContain("let offset = offset.unwrap_or_else(|| value + 1);");
     expect(content).toContain("pub fn instance_field_normalization(&self, p: Option<String>) -> String");
     expect(content).toContain("pub fn earlier_local_normalization(&self, seed: &str, q: Option<String>) -> String");
-    expect(content).toContain("let p = p.unwrap_or_else(|| self.fallback_count);");
-    expect(content).toContain("let q = q.unwrap_or_else(|| self.fallback_count);");
+    expect(content).toContain("let v = match p { None => self.fallback_count, Some(p) => p };");
+    expect(content).toContain("let w = match q { None => self.fallback_count, Some(q) => q };");
 
 
     // Rust has no default syntax: omission is completed to None and each
