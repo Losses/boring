@@ -324,13 +324,13 @@ class KotlinExpr {
 
 	function stmtLines(e: TypedExpr, depth: Int): Array<String> {
 		switch(e.expr) {
-			case TVar(v, init) if(isTryRegion(init)):
+			case TVar(v, init) if(init != null && isTryRegion(init)):
 				final parts = tryRegionParts(init);
 				if(regionTailValue(statementsOf(parts.body)) == null) {
 					return fail(init, "try region body has no value");
 				}
 				return tryLines(parts.body, parts.c, depth, 'val ${localName(v)} = ');
-			case TVar(v, init) if(isStringBufToStringCall(init)):
+			case TVar(v, init) if(init != null && isStringBufToStringCall(init)):
 				return stringBufToStringBindingLines(v, stripWrap(init), depth);
 			case TVar(v, init) if(init != null):
 				final kw = mutated.exists(v.id) ? "var" : "val";
@@ -348,8 +348,10 @@ class KotlinExpr {
 					default: expr(init);
 				};
 				return [indent(depth) + '$kw ${localName(v)}$typeAnn = $initText'];
-			case TVar(_, init) if(init == null):
-				return fail(e, "declaration without initializer has no lowering");
+			case TVar(v, init) if(init == null):
+				// Deferred local declarations are initialized by later assignments;
+				// Kotlin's definite-assignment analysis checks every read.
+				return [indent(depth) + "var " + localName(v) + ": " + types.of(v.t)];
 			case TBlock(stmts):
 				return blockLines(stmts, depth);
 			case TIf(c, t, f):
@@ -663,6 +665,19 @@ class KotlinExpr {
 					continue;
 				}
 			}
+			if(i + 1 < stmts.length) {
+				final loop = intervalShort(stmts[i], stmts[i + 1]);
+				if(loop != null) {
+					final grouped: TypedExpr = {
+						expr: TBlock([stmts[i], stmts[i + 1]]),
+						pos: stmts[i].pos,
+						t: stmts[i + 1].t
+					};
+					out.push(grouped);
+					i += 2;
+					continue;
+				}
+			}
 			out.push(stmts[i]);
 			i += 1;
 		}
@@ -724,7 +739,7 @@ class KotlinExpr {
 
 	function intervalShort(counterDecl: TypedExpr, whileExpr: TypedExpr): Null<{index: TVar, start: TypedExpr, bound: TypedExpr, body: Array<TypedExpr>}> {
 		switch[counterDecl.expr, whileExpr.expr] {
-			case [TVar(counter, start), TWhile(cond, body, true)]:
+			case [TVar(counter, start), TWhile(cond, body, true)] if(start != null):
 				final bound = switch(stripWrap(cond).expr) {
 					case TBinop(OpLt, {expr: TLocal(c)}, right) if(c.id == counter.id): right;
 					case _: return null;
@@ -1426,11 +1441,18 @@ class KotlinExpr {
 		};
 	}
 
+	function int64LongOperand(e: TypedExpr): String {
+		return switch(stripWrap(e).expr) {
+			case TConst(TInt(value)): Std.string(value) + "L";
+			case _: "(" + expr(e) + ").toLong()";
+		};
+	}
+
 	function int64Call(fn:TypedExpr, args:Array<TypedExpr>):Null<String> {
 		return switch(stripWrap(fn).expr) {
 			case TField(_, FStatic(classRef, fieldRef)) if(classRef.get().module == "haxe.Int64" && classRef.get().name == "Int64_Impl_"):
 				switch(fieldRef.get().name) {
-					case "make" if(args.length == 2): "((" + expr(args[0]) + ".toLong() shl 32) or (" + expr(args[1]) + ".toLong() and 0xFFFFFFFFL))";
+					case "make" if(args.length == 2): "((" + int64LongOperand(args[0]) + " shl 32) or (" + int64LongOperand(args[1]) + " and 0xFFFFFFFFL))";
 					case "ofInt" if(args.length == 1): expr(args[0]) + ".toLong()";
 					case "getHigh" | "get_high" if(args.length == 1): if(isFpHelperInt64Halves(args[0])) expr(args[0]) + ".high" else "(" + expr(args[0]) + " shr 32).toInt()";
 					case "getLow" | "get_low" if(args.length == 1): if(isFpHelperInt64Halves(args[0])) expr(args[0]) + ".low" else expr(args[0]) + ".toInt()";
@@ -1445,6 +1467,10 @@ class KotlinExpr {
 					case "ushr" if(args.length == 2): "((" + expr(args[0]) + ") ushr ((" + expr(args[1]) + ") and 63))";
 					case "eq" if(args.length == 2): expr(args[0]) + " == " + expr(args[1]);
 					case "neq" if(args.length == 2): expr(args[0]) + " != " + expr(args[1]);
+					case "lt" if(args.length == 2): expr(args[0]) + " < " + expr(args[1]);
+					case "gt" if(args.length == 2): expr(args[0]) + " > " + expr(args[1]);
+					case "lte" if(args.length == 2): expr(args[0]) + " <= " + expr(args[1]);
+					case "gte" if(args.length == 2): expr(args[0]) + " >= " + expr(args[1]);
 					default: null;
 				}
 			default: null;
