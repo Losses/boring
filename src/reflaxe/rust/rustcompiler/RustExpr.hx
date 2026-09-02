@@ -406,15 +406,13 @@ class RustExpr {
 			final rawDefaultText = value != null
 				? coalescingDefaultText(value, DefaultArgExpander.withoutNull(site.valueExpr.t))
 				: expr(site.defaultExpr);
-			final ownedDefaultText = value == null && isStringType(DefaultArgExpander.withoutNull(site.valueExpr.t))
-				&& !StringTools.endsWith(rawDefaultText, ".to_string()") ? "(" + rawDefaultText + ").to_string()" : rawDefaultText;
 			// When a string parameter read appears inside unwrap_or_else, Rust needs
 			// the owned form (&str → String).
 			final isStringDefault = switch(value) {
 				case CParameterRead(_): isStringType(DefaultArgExpander.withoutNull(site.valueExpr.t));
 				default: false;
 			};
-			final defaultText = isStringDefault ? ownedDefaultText + ".to_string()" : ownedDefaultText;
+			final defaultText = isStringDefault ? rawDefaultText + ".to_string()" : rawDefaultText;
 			out.push(indent(depth) + "let " + RustImports.toSnakeCase(site.parameter) + " = " + RustImports.toSnakeCase(site.parameter) + ".unwrap_or_else(|| " + defaultText + ");");
 		}
 		return out;
