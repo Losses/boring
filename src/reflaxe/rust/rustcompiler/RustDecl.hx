@@ -228,10 +228,39 @@ class RustDecl {
 		}
 
 		final classPart = prefixLines.length > 0 ? prefixLines.join("\n\n") + "\n\n" + lines.join("\n") : lines.join("\n");
-		return extractedParts.length > 0 ? extractedParts.join("\n\n") + "\n\n" + classPart : classPart;
+		final result = extractedParts.length > 0 ? extractedParts.join("\n\n") + "\n\n" + classPart : classPart;
+		return cls.meta.has(":dataClass") && RustType.canEmitDataClassComparator(cls) ? result + "\n\n" + dataClassComparator(cls) : result;
 	}
 
-	/** Emits a marked abstract as a Rust tuple newtype and trait impls. */
+	function dataClassComparator(cls: ClassType): String {
+		imports.requireType("runtime.SortedTable", "SortedTable");
+		final n = RustImports.toSnakeCase(cls.name);
+		final lines = ['pub fn compare_$n(a: &${cls.name}, b: &${cls.name}) -> i32 {'];
+		for(f in [for(x in cls.fields.get()) if(switch(x.kind) { case FVar(read, write): !(read.match(AccCall) && write.match(AccNever)); case _: false; }) x]) {
+			final fn = RustImports.toSnakeCase(f.name);
+			switch(Context.follow(f.type)) {
+				case TAbstract(a, _) if(a.get().name == "Int"): lines.push('    let cmp_$fn = a.$fn.cmp(&b.$fn) as i32;');
+				case TInst(c, _) if(c.get().name == "String"): lines.push('    let cmp_$fn = SortedTable::compare_strings(a.$fn.as_str(), b.$fn.as_str());');
+				case TInst(c, _) if(c.get().meta.has(":dataClass")): lines.push('    let cmp_$fn = compare_${RustImports.toSnakeCase(c.get().name)}(&a.$fn, &b.$fn);');
+				case TEnum(e, _):
+					final en = e.get();
+					final orderName = RustImports.toSnakeCase(cls.name) + "_" + RustImports.toSnakeCase(f.name) + "_order";
+					lines.unshift('fn $orderName(v: &${en.name}) -> i32 {\n    match v {\n' + [for(ef in en.constructs) '        ${en.name}::${ef.name}' + (enumHasPayload(ef) ? ' { .. }' : '') + ' => ${ef.index},'].join("\n") + '\n    }\n}');
+					lines.push('    let cmp_$fn = $orderName(&a.$fn).cmp(&$orderName(&b.$fn)) as i32;');
+				case _: // validated before emission
+			}
+			lines.push('    if cmp_$fn != 0 { return cmp_$fn; }');
+		}
+		lines.push('    0');
+		lines.push('}');
+		return lines.join("\n");
+	}
+
+	function enumHasPayload(ef: haxe.macro.Type.EnumField): Bool {
+		return switch(ef.type) { case TFun(args, _): args.length > 0; case _: false; };
+	}
+
+
 	public function valueTypeDecl(cls: ClassType, info: ValueTypeInfo, varFields: Array<ClassVarData>, funcFields: Array<ClassFuncData>): String {
 		final abs = info.abstractType;
 		final ctor = ValueTypeSupport.constructorField(abs);
@@ -1658,6 +1687,14 @@ class RustDecl {
 					lines.push('            ${en.name}::${o.name} { ${params.join(", ")} } => format!("${o.name}(${[for(a in params) a + "={}"].join(", ")})", ${values.join(", ")}),');
 				}
 			}
+			lines.push("        }"); lines.push("    }"); lines.push("}");
+		}
+		if(allPlain) {
+			lines.push("");
+			lines.push("impl " + en.name + " {");
+			lines.push("    pub fn to_string(&self) -> String {");
+			lines.push("        match self {");
+			for(o in sorted) lines.push('            ${en.name}::${o.name} => "${o.name}".to_string(),');
 			lines.push("        }"); lines.push("    }"); lines.push("}");
 		}
 		final use = EnumQueryExpander.usage(en);
