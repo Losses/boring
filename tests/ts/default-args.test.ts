@@ -201,7 +201,7 @@ describe("default argument expansion generated tree", () => {
     // The static initializer completes omitted coalescing arguments to
     // None exactly as function-body call sites do, because the per-
     // function pass never visits initializers.
-    expect(content).toContain("pub static default: LazyLock<CoalescingPreset> = LazyLock::new(|| CoalescingPreset::new(None, None));");
+    expect(content).toContain("pub static DEFAULT: LazyLock<CoalescingPreset> = LazyLock::new(|| CoalescingPreset::new(None, None));");
     expect(content).not.toContain('return "CoalescingPreset".to_string();');
   });
 
