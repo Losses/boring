@@ -313,7 +313,7 @@ lower to `for` loops with the inline closure body inlined as statements,
 one pass, no intermediate list; `groupBy` (`macros/03`) builds through
 the splay-tree map.
 
-## Amendment filed 2026-09-01: element iteration over statically-Array subjects (status: Planned)
+## Amendment implemented 2026-09-01: element iteration over statically-Array subjects
 
 The base ruling rejects every `for (item in subject)` whose subject is not
 an integer range, with the stated reason that its translation would
@@ -339,10 +339,7 @@ narrows the rejection to the subjects the reason actually covers.
   moves to the typed pass (pass 2 of the style standard's interception
   mechanics): a typed `TFor` whose iteration subject's static type is
   neither an integer range nor `Array<T>`/`ReadOnlyArray<T>` names `V01`.
-  The untyped pass no longer rejects array-shaped iteration subjects
-  before typing. The mechanics paragraph of the style standard is
-  corrected in the same commit, including its claim that the typer rewrites
-  array loops before typing.
+  The common pipeline recognizes the typer's lowered `Array<T>` statement shape (the counter declaration, indexed `while`, and captured element read), rewrites it to the counted form with a hoisted bound, and preserves the typer-hoisted local for non-local subjects. This makes the static-array ruling effective even though no `TFor` remains at that pass.
 - The loop body obeys `V08 LoopBodyClosure` and the closure lifecycle rules
   of this specification unchanged. The pipeline idioms of
   `docs/specs/macros/01-functional-idiom-expansion.md` keep their own

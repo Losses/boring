@@ -42,6 +42,8 @@ class KotlinExpr {
 	final usedNames: Map<String, Bool> = [];
 
 	final hiddenNames: Map<Int, String> = [];
+	/** Locals whose control-flow or normalization initializer proves non-null. */
+	final nonNullLocals: Map<Int, Bool> = [];
 	var hiddenCounter: Int = 0;
 	/** Fresh names for the trailing-unit reads of stdlib/08 checks. */
 	var stringBufTailCounter: Int = 0;
@@ -211,6 +213,7 @@ class KotlinExpr {
 		currentClass = cls;
 		currentField = f.field.name;
 		currentLocalName = null;
+		nonNullLocals.clear();
 		// Fuse declaration-plus-assignment pairs before the mutation scan.
 		// The typer lowers abstract-inline receiver bindings as `TVar(v,
 		// null)` followed by an assignment; the fused initializer is the
@@ -274,6 +277,7 @@ class KotlinExpr {
 		currentClass = cls;
 		currentField = f.field.name;
 		currentLocalName = null;
+		nonNullLocals.clear();
 		scanLocals(f.expr);
 		final out: Array<String> = [];
 		final assigned: Array<String> = [];
@@ -346,6 +350,7 @@ class KotlinExpr {
 			case TVar(v, init) if(init != null && isStringBufToStringCall(init)):
 				return stringBufToStringBindingLines(v, stripWrap(init), depth);
 			case TVar(v, init) if(init != null):
+				if(isNonNullNormalization(init)) nonNullLocals.set(v.id, true);
 				final kw = mutated.exists(v.id) ? "var" : "val";
 				switch(stripWrap(init).expr) {
 					case TLocal(origV) if(asListReturn.exists(origV.id)):
@@ -368,7 +373,9 @@ class KotlinExpr {
 			case TBlock(stmts):
 				return blockLines(stmts, depth);
 			case TIf(c, t, f):
-				final out = [indent(depth) + "if (" + expr(c) + ") {"];
+				final guarded = nullGuardLocal(c);
+				if(guarded != null && f == null) nonNullLocals.set(guarded.id, true);
+				final out = [indent(depth) + "if (" + expr(c) + ") {"]; 
 				for(l in blockLines(statementsOf(t), depth + 1)) out.push(l);
 				if(f != null) {
 					out.push(indent(depth) + "} else {");
@@ -774,8 +781,34 @@ class KotlinExpr {
 	}
 
 	function loopLines(loop, depth: Int): Array<String> {
-		// The loop head goes through localName so a Haxe `_` index
-		// keeps the generated name its body references use.
+		// Counted ArrayIteration lowering: recover the original element loop.
+		if (loop.body.length > 0) switch [loop.bound.expr, loop.body[0].expr] {
+			case [TField(array, fa), TVar(item, init)] if(fieldName(fa) == "length" && init != null):
+				switch(stripWrap(init).expr) {
+					case TArray(_, {expr: TLocal(index)}) if(index.id == loop.index.id):
+						// The element loop drops the index binding, so it is
+						// valid only when the counter starts at zero and the
+						// remaining body never reads the counter.
+						if (switch(loop.start.expr) { case TConst(TInt(0)): true; case _: false; }) {
+							var readsIndex = false;
+							for(s in loop.body.slice(1)) {
+								if(mentionsLocal(s, loop.index)) {
+									readsIndex = true;
+									break;
+								}
+							}
+							if(!readsIndex) {
+								final out = [indent(depth) + "for (" + localName(item) + " in " + expr(array) + ") {"];
+								for(l in blockLines(loop.body.slice(1), depth + 1)) out.push(l);
+								out.push(indent(depth) + "}");
+								return out;
+							}
+						}
+					default:
+				}
+			default:
+		}
+
 		final name = localName(loop.index);
 		final startStr = expr(loop.start);
 		final boundStr = loopBound(loop.bound);
@@ -1395,6 +1428,25 @@ class KotlinExpr {
 		};
 	}
 
+	function isNonNullNormalization(e:TypedExpr):Bool {
+		return switch(stripWrap(e).expr) {
+			case TIf(c, _, f) if(f != null): nullGuardLocal(c) != null;
+			case _: false;
+		};
+	}
+
+	function nullGuardLocal(e:Null<TypedExpr>):Null<TVar> {
+		if(e == null) return null;
+		return switch(stripWrap(e).expr) {
+			case TBinop(OpEq, l, r):
+				switch(stripWrap(r).expr) {
+					case TConst(TNull): switch(stripWrap(l).expr) { case TLocal(v): v; case _: null; }
+					case _: switch(stripWrap(l).expr) { case TConst(TNull): switch(stripWrap(r).expr) { case TLocal(v): v; case _: null; }; case _: null; }
+				}
+			case _: null;
+		};
+	}
+
 	function isStringType(t: Type): Bool {
 		if(t == null) return false;
 		return switch(Context.follow(t)) {
@@ -1435,10 +1487,14 @@ class KotlinExpr {
 
 	function operand(e: TypedExpr, parent: Binop, isRight: Bool): String {
 		var rendered = expr(e);
-		// Nullable Ints are legal operands of equality (including null
-		// tests), but Kotlin's numeric operators require an explicit
-		// extraction after charCodeAt's Null<Int> lowering.
-		if(isNullType(e.t) && parent != OpEq && parent != OpNotEq) rendered += "!!";
+		// Nullable values still need extraction unless the Haxe expression
+		// has already been normalized, or control flow proved the local is
+		// non-null. Kotlin's smart casts then make `!!` redundant.
+		final proven = switch(stripWrap(e).expr) {
+			case TLocal(v): nonNullLocals.exists(v.id);
+			case _: false;
+		};
+		if(isNullType(e.t) && !proven && parent != OpEq && parent != OpNotEq) rendered += "!!";
 		switch(e.expr) {
 			case TBinop(op, _, _):
 				final cp = precedenceOf(op);

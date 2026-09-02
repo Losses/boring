@@ -180,7 +180,7 @@ describe("record printed-member generated trees", () => {
         expect(position).toBeGreaterThan(previous);
         previous = position;
       }
-      expect(body).toContain(tree.fields[2] + (tree.file.includes("rust") ? ".to_string()" : ".toString()"));
+      expect(body).toContain(tree.fields[2] + (tree.file.includes("rust") ? ").clone().to_string()" : ".toString()"));
     }
   });
 
