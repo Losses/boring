@@ -63,6 +63,9 @@ class DartExpr {
 	**/
 	final optionalInferred: Map<Int, Bool> = [];
 
+	/** Locals proven non-null by normalization or a null guard. */
+	final nonNullLocals: Map<Int, Bool> = [];
+
 	/** Names used by parameters and locals; generated names avoid them. */
 	final usedNames: Map<String, Bool> = [];
 	/** Catch variables in scope, keyed by TVar id (features/06). */
@@ -240,6 +243,7 @@ class DartExpr {
 		currentClass = cls;
 		currentField = f.field.name;
 		currentLocalName = null;
+		nonNullLocals.clear();
 
 		scanLocals(f.expr);
 		return blockLines(statementsOf(f.expr), depth);
@@ -267,6 +271,7 @@ class DartExpr {
 		currentClass = cls;
 		currentField = f.field.name;
 		currentLocalName = null;
+		nonNullLocals.clear();
 		scanLocals(f.expr);
 		final out:Array<String> = [];
 		for(stmt in statementsOf(f.expr)) {
@@ -423,6 +428,7 @@ class DartExpr {
 			case TVar(v, init) if(init != null && isStringBufToStringCall(init)):
 				return stringBufToStringBindingLines(v, stripWrap(init), depth);
 			case TVar(v, init) if(init != null):
+				if(isNonNullNormalization(init) && !isNullLeafType(v.t)) nonNullLocals.set(v.id, true);
 				final kw = mutated.exists(v.id) ? "var" : "final";
 				final coalescing = coalescingSiteFor(init);
 				// One initializer cannot carry its type to Dart's
@@ -436,6 +442,7 @@ class DartExpr {
 						? DefaultArgExpander.coalescingDefaultForLocalParam(currentClass, currentField, currentLocalName, coalescing.parameter)
 						: DefaultArgExpander.coalescingDefaultForParam(currentClass, currentField, coalescing.parameter));
 					final localType = coalescingValue != null ? DefaultArgExpander.coalescingLocalType(coalescingValue, v.t) : v.t;
+					if(coalescing != null && !isNullLeafType(localType)) nonNullLocals.set(v.id, true);
 					final initText = switch(init.expr) {
 						case TFunction(fn): functionLiteralNamed(v.name, fn);
 						default: expr(init);
@@ -454,6 +461,8 @@ class DartExpr {
 			case TBlock(stmts):
 				return blockLines(stmts, depth);
 			case TIf(c, t, f):
+				final guarded = nullGuardLocal(c);
+				if(guarded != null && f == null) nonNullLocals.set(guarded.id, true);
 				return ifLines(c, t, f, depth);
 			case TWhile(c, b, true):
 				final out = [indent(depth) + "while (" + expr(c) + ") {"];
@@ -475,7 +484,11 @@ class DartExpr {
 						return switchReturn(inner, depth);
 					case _:
 						final rendered = expr(ret);
-						return [indent(depth) + "return " + (optionalValued(ret) ? rendered + "!" : rendered)];
+						final nonNullReturn = switch(inner.expr) {
+							case TLocal(v): nonNullLocals.exists(v.id);
+							case _: false;
+						};
+						return [indent(depth) + "return " + (optionalValued(ret) && !nonNullReturn ? rendered + "!" : rendered)];
 				}
 			case TThrow(x):
 				return [indent(depth) + "throw " + expr(x)];
@@ -1186,9 +1199,9 @@ class DartExpr {
 	**/
 	function operand(e: TypedExpr, parent: Binop, isRight: Bool): String {
 		var rendered = expr(e);
-		// Null<Int> is nullable in Dart; numeric operators use the value
-		// only after the explicit bounds result has been accepted.
-		if(isNullLeafType(e.t) && parent != OpEq && parent != OpNotEq) rendered += "!";
+		// A normalized local, or one cleared by a null guard, is already
+		// non-null in the generated Dart flow.
+		if(isNullLeafType(e.t) && !provenNonNull(e) && parent != OpEq && parent != OpNotEq) rendered += "!";
 		switch(stripWrap(e).expr) {
 			case TBinop(op, _, _):
 				final cp = precedenceOf(op);
@@ -2864,9 +2877,31 @@ class DartExpr {
 		}
 	}
 
-	// ------------------------------------------------------------------
-	// Local analysis
-	// ------------------------------------------------------------------
+	function provenNonNull(e: TypedExpr): Bool {
+		return switch(stripWrap(e).expr) {
+			case TLocal(v): nonNullLocals.exists(v.id);
+			case _: false;
+		};
+	}
+
+	function isNonNullNormalization(e:TypedExpr):Bool {
+		return switch(stripWrap(e).expr) {
+			case TIf(c, _, f) if(f != null): nullGuardLocal(c) != null;
+			case _: false;
+		};
+	}
+
+	function nullGuardLocal(e:Null<TypedExpr>):Null<TVar> {
+		if(e == null) return null;
+		return switch(stripWrap(e).expr) {
+			case TBinop(OpEq, l, r):
+				switch(stripWrap(r).expr) {
+					case TConst(TNull): switch(stripWrap(l).expr) { case TLocal(v): v; case _: null; }
+					case _: switch(stripWrap(l).expr) { case TConst(TNull): switch(stripWrap(r).expr) { case TLocal(v): v; case _: null; }; case _: null; }
+				}
+			case _: null;
+		};
+	}
 
 	function scanLocals(e: TypedExpr): Void {
 		switch(e.expr) {
@@ -2924,6 +2959,7 @@ class DartExpr {
 
 	function markMutated(v: TVar): Void {
 		mutated.set(v.id, true);
+		nonNullLocals.remove(v.id);
 		// Parameter writes are recorded by name; the declaration site
 		// holds the argument list and the body's TVar objects are separate.
 		if(v.name != "`") {
