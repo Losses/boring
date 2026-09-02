@@ -34,6 +34,10 @@ class RustDecl {
 		return expr.topLevelStatements(e);
 	}
 
+	public function rawExpression(e: TypedExpr): String {
+		return expr.rawExpression(e);
+	}
+
 	public function enumOperand(t: Type, value: String, depth: Int = 0): String {
 		return switch(Context.follow(t)) {
 			case TInst(c, [element]) if(c.get().name == "Array"):
