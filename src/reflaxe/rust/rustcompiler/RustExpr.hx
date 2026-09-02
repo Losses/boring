@@ -139,9 +139,8 @@ class RustExpr {
 		final value = currentLocalName != null
 			? DefaultArgExpander.coalescingDefaultForLocalParam(currentClass, currentMethodName, currentLocalName, site == null ? "" : site.parameter)
 			: DefaultArgExpander.coalescingDefaultForParam(currentClass, currentMethodName, site == null ? "" : site.parameter);
-		if(site == null || value == null) {
-			return null;
-		}
+		if(site == null) return null;
+		if(value == null && !DefaultArgExpander.isNormalizationSource(site.defaultExpr.pos)) return null;
 		return site;
 	}
 
@@ -180,6 +179,8 @@ class RustExpr {
 				"if " + coalescingDefaultText(c, targetType) + " { " + coalescingDefaultText(t, targetType) + " } else { " + coalescingDefaultText(f, targetType) + " }";
 			case CBinaryOp(op, left, right):
 				coalescingDefaultText(left, targetType) + " " + opStr(op) + " " + coalescingDefaultText(right, targetType);
+			case CConstructorCall(classPath, args):
+				classPath.split(".").pop() + "::new(" + [for(a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
 		};
 	}
 
