@@ -1,4 +1,4 @@
-# Standard library spec 15: String code-unit surface
+# Standard library spec 15: String code-unit operations
 
 ## Scope
 

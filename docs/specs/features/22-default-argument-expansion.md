@@ -353,7 +353,7 @@ Status: implemented 2026-09-01.
 Two shapes from the engine port sources stay rejected by rule 2 as
 implemented:
 
-1. A statement-level coalescing over a parameter that holds no default at
+1. A coalescing statement over a parameter that holds no default at
    all: `var f = fs == null ? em : fs;`. The engine sources hold 56 elvis
    statement bindings; the port inlines each expression into a call
    argument to fit the argument-position grammar (314 inline
@@ -374,8 +374,8 @@ implemented:
   the enclosing function and `E` is a rule-2 grammar expression, the
   constructor leaf included. The parameter holds no default registration
   and may be read elsewhere in the body; the binding is recognized by its
-  shape, and `E` obeys the closed grammar. Every other statement-level
-  coalescing expression keeps the named rejection
+  shape, and `E` obeys the closed grammar. Every other coalescing
+  statement keeps the named rejection
   `coalesced default expression is not sanctioned`.
 
 ### Evaluation and per-target deltas
@@ -444,7 +444,7 @@ need both reads as `E`, so the grammar grows to cover them.
   keeps each target's normal qualifier convention for field reads.
 - Registered default arguments (the default positions of the base
   ruling) keep the Stage A closed leaf set unchanged; the extension is
-  scoped to the statement-level binding whose product is body code on
+  scoped to the statement binding whose product is body code on
   every target.
 - The bare identifier and `this.`-qualified forms are equally sanctioned; their
   instance-field names are checked against the instance-field name table
