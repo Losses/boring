@@ -42,6 +42,8 @@ class KotlinExpr {
 	final usedNames: Map<String, Bool> = [];
 
 	final hiddenNames: Map<Int, String> = [];
+	/** Locals whose control-flow or normalization initializer proves non-null. */
+	final nonNullLocals: Map<Int, Bool> = [];
 	var hiddenCounter: Int = 0;
 	/** Fresh names for the trailing-unit reads of stdlib/08 checks. */
 	var stringBufTailCounter: Int = 0;
@@ -211,6 +213,7 @@ class KotlinExpr {
 		currentClass = cls;
 		currentField = f.field.name;
 		currentLocalName = null;
+		nonNullLocals.clear();
 		// Fuse declaration-plus-assignment pairs before the mutation scan.
 		// The typer lowers abstract-inline receiver bindings as `TVar(v,
 		// null)` followed by an assignment; the fused initializer is the
@@ -274,6 +277,7 @@ class KotlinExpr {
 		currentClass = cls;
 		currentField = f.field.name;
 		currentLocalName = null;
+		nonNullLocals.clear();
 		scanLocals(f.expr);
 		final out: Array<String> = [];
 		final assigned: Array<String> = [];
@@ -346,6 +350,7 @@ class KotlinExpr {
 			case TVar(v, init) if(init != null && isStringBufToStringCall(init)):
 				return stringBufToStringBindingLines(v, stripWrap(init), depth);
 			case TVar(v, init) if(init != null):
+				if(isNonNullNormalization(init)) nonNullLocals.set(v.id, true);
 				final kw = mutated.exists(v.id) ? "var" : "val";
 				switch(stripWrap(init).expr) {
 					case TLocal(origV) if(asListReturn.exists(origV.id)):
@@ -368,7 +373,9 @@ class KotlinExpr {
 			case TBlock(stmts):
 				return blockLines(stmts, depth);
 			case TIf(c, t, f):
-				final out = [indent(depth) + "if (" + expr(c) + ") {"];
+				final guarded = nullGuardLocal(c);
+				if(guarded != null && f == null) nonNullLocals.set(guarded.id, true);
+				final out = [indent(depth) + "if (" + expr(c) + ") {"]; 
 				for(l in blockLines(statementsOf(t), depth + 1)) out.push(l);
 				if(f != null) {
 					out.push(indent(depth) + "} else {");
@@ -1409,6 +1416,25 @@ class KotlinExpr {
 		};
 	}
 
+	function isNonNullNormalization(e:TypedExpr):Bool {
+		return switch(stripWrap(e).expr) {
+			case TIf(c, _, f) if(f != null): nullGuardLocal(c) != null;
+			case _: false;
+		};
+	}
+
+	function nullGuardLocal(e:Null<TypedExpr>):Null<TVar> {
+		if(e == null) return null;
+		return switch(stripWrap(e).expr) {
+			case TBinop(OpEq, l, r):
+				switch(stripWrap(r).expr) {
+					case TConst(TNull): switch(stripWrap(l).expr) { case TLocal(v): v; case _: null; }
+					case _: switch(stripWrap(l).expr) { case TConst(TNull): switch(stripWrap(r).expr) { case TLocal(v): v; case _: null; }; case _: null; }
+				}
+			case _: null;
+		};
+	}
+
 	function isStringType(t: Type): Bool {
 		if(t == null) return false;
 		return switch(Context.follow(t)) {
@@ -1449,10 +1475,14 @@ class KotlinExpr {
 
 	function operand(e: TypedExpr, parent: Binop, isRight: Bool): String {
 		var rendered = expr(e);
-		// Nullable Ints are legal operands of equality (including null
-		// tests), but Kotlin's numeric operators require an explicit
-		// extraction after charCodeAt's Null<Int> lowering.
-		if(isNullType(e.t) && parent != OpEq && parent != OpNotEq) rendered += "!!";
+		// Nullable values still need extraction unless the Haxe expression
+		// has already been normalized, or control flow proved the local is
+		// non-null. Kotlin's smart casts then make `!!` redundant.
+		final proven = switch(stripWrap(e).expr) {
+			case TLocal(v): nonNullLocals.exists(v.id);
+			case _: false;
+		};
+		if(isNullType(e.t) && !proven && parent != OpEq && parent != OpNotEq) rendered += "!!";
 		switch(e.expr) {
 			case TBinop(op, _, _):
 				final cp = precedenceOf(op);
