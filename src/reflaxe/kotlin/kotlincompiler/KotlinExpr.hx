@@ -101,9 +101,8 @@ class KotlinExpr {
 		final value = currentLocalName != null
 			? DefaultArgExpander.coalescingDefaultForLocalParam(currentClass, currentField, currentLocalName, site == null ? "" : site.parameter)
 			: DefaultArgExpander.coalescingDefaultForParam(currentClass, currentField, site == null ? "" : site.parameter);
-		if(site == null || value == null) {
-			return null;
-		}
+		if(site == null) return null;
+		if(value == null && !DefaultArgExpander.isNormalizationSource(site.defaultExpr.pos)) return null;
 		return site;
 	}
 
@@ -137,6 +136,8 @@ class KotlinExpr {
 				"if (" + coalescingDefaultText(c, targetType) + ") " + coalescingDefaultText(t, targetType) + " else " + coalescingDefaultText(f, targetType);
 			case CBinaryOp(op, left, right):
 				coalescingDefaultText(left, targetType) + " " + opStr(op) + " " + coalescingDefaultText(right, targetType);
+			case CConstructorCall(classPath, args):
+				"new " + classPath.split(".").pop() + "(" + [for(a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
 		};
 	}
 
@@ -1018,6 +1019,7 @@ class KotlinExpr {
 						final value = DefaultArgExpander.coalescingDefaultForLocalParam(currentClass, currentField, currentLocalName, coalescing.parameter);
 						if(value != null) return expr(coalescing.valueExpr) + " ?: " + coalescingDefaultText(value, coalescing.valueExpr.t);
 					}
+					if(DefaultArgExpander.isNormalizationSource(coalescing.defaultExpr.pos)) return expr(coalescing.valueExpr) + " ?: " + expr(coalescing.defaultExpr);
 					return expr(coalescing.valueExpr);
 				}
 				return "(if (" + expr(c) + ") " + expr(t) + " else " + expr(f) + ")";
