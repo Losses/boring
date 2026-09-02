@@ -12,6 +12,8 @@ class StringUnitTests {
 		Test.equals(true, StringUnitOps.codeOutOfRange("ab") == null);
 		Test.equals(true, StringUnitOps.isSpaceAt("a b", 1));
 		Test.equals(false, StringUnitOps.isSpaceAt("a b", 99));
+		Test.equals(-1, StringUnitOps.codeAtOrFallback("ab", 99));
+		Test.equals(97, StringUnitOps.codeAtOrFallback("abc", 0));
 		Test.equals(3, StringUnitOps.splitCount("1.0.0"));
 		Test.equals("1", StringUnitOps.splitFirst("1.0.0"));
 		Test.equals(3, StringUnitOps.splitEmptyParts("a....b"));
