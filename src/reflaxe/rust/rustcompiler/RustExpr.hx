@@ -2500,11 +2500,11 @@ class RustExpr {
 		// Null<Int> is represented as Option<u32>. Haxe permits it to enter
 		// numeric expressions; the target contract uses zero for the absent
 		// value, consistently at every arithmetic operand boundary.
-		if(isNullType(e.t) || isStringCharCodeAt(e)) {
-			switch(stripWrap(e).expr) {
-			case TCall(fn, _) if(isStringCharCodeAt(fn)): rendered += ".unwrap_or(0)";
-			case _:
-			}
+		if(isNullableNumeric(e.t) || isStringCharCodeAt(e)) {
+			// Null<Int> is Option<u32>, including when the charCodeAt call
+			// has first been assigned to a local.  Collapse it at the
+			// arithmetic boundary, not only for a syntactically direct call.
+			if(!StringTools.endsWith(rendered, ".unwrap_or(0)")) rendered += ".unwrap_or(0)";
 		}
 		switch(e.expr) {
 			case TBinop(op, _, _):
@@ -4345,6 +4345,14 @@ class RustExpr {
 			}
 		}
 		return typeName + "::from_be_bytes([" + elems.join(", ") + "])";
+	}
+
+	function isNullableNumeric(t: Null<Type>): Bool {
+		if(!isNullType(t)) return false;
+		return switch(Context.follow(getNullInnerType(t))) {
+			case TAbstract(a, _) if(a.get().name == "Int" || a.get().name == "Float"): true;
+			case _: false;
+		};
 	}
 
 	function isStringCharCodeAt(fn: TypedExpr): Bool {
