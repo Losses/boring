@@ -3292,7 +3292,9 @@ class RustExpr {
 					return "(" + expr(args[0]) + ") as i32";
 				}
 				if(cls.pack.length == 0 && cls.name == "String" && name == "fromCharCode") {
-					return "String::from_utf16(&[u16::try_from(" + expr(args[0]) + ").unwrap_or_default()]).unwrap_or_default()";
+					final value = expr(args[0]);
+					final argument = StringTools.startsWith(value, "(") ? value : "(" + value + ")";
+					return "String::from_utf16(&[u16::try_from" + argument + ".unwrap_or_default()]).unwrap_or_default()";
 				}
 				if(path == "std.UStringPlatform") {
 					// Cursor primitives of the resident UString walk, inlined
