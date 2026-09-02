@@ -2282,6 +2282,7 @@ class RustExpr {
 						sawReturn = true;
 					case _:
 						value = expr(s);
+						if(isStringType(e.t) && isStringLiteral(s)) value = value + ".to_string()";
 				}
 			}
 		}
@@ -4553,6 +4554,10 @@ class RustExpr {
 						};
 						argStr = "Some(" + inner + ")";
 					}
+				} else if(isStringType(pt) && isNullType(arg.t)) {
+					// A nullable String passed to a borrowed string parameter is
+					// unboxed at the call boundary, rather than borrowing Option.
+					argStr = argStr + ".as_deref().unwrap()";
 				} else if(RustType.isTypeParam(pt)) {
 					final borrowed = switch(stripWrap(arg).expr) {
 						case TLocal(v): isBorrowedLocal(v);
