@@ -72,6 +72,7 @@ class SwiftExpr {
 		initializer. Value uses of such locals unwrap.
 	**/
 	final optionalInferred: Map<Int, Bool> = [];
+	final coalescingLocals: Map<Int, Bool> = [];
 
 	/** Names used by parameters and locals; generated names avoid them. */
 	final usedNames: Map<String, Bool> = [];
@@ -232,9 +233,8 @@ class SwiftExpr {
 		currentClass = cls;
 		currentField = f.field.name;
 		currentLocalName = null;
-
-		scanLocals(f.expr);
 		// Depth 2: one level under the member's own indentation.
+		scanLocals(f.expr);
 		return blockLines(statementsOf(f.expr), depth);
 	}
 
@@ -330,6 +330,7 @@ class SwiftExpr {
 				return stringBufToStringBindingLines(v, stripWrap(init), depth);
 			case TVar(v, init) if(init != null):
 				final coalescing = coalescingSiteFor(init);
+				if(coalescing != null) coalescingLocals.set(v.id, true);
 				final kw = mutated.exists(v.id) ? "var" : "let";
 				final tryKw = containsThrowingCall(init) ? "try " : "";
 				// Five initializers cannot carry their type to Swift's
@@ -382,7 +383,7 @@ class SwiftExpr {
 						return switchReturn(inner, depth);
 					case _:
 						final tryKw = containsThrowingCall(ret) ? "try " : "";
-				return [indent(depth) + "return " + tryKw + expr(ret)];
+				return [indent(depth) + "return " + tryKw + returnValue(ret)];
 				}
 			case TThrow(x):
 				return [indent(depth) + "throw " + expr(x)];
@@ -402,7 +403,7 @@ class SwiftExpr {
 				final tryKw = containsThrowingCall(r) ? "try " : "";
 				final map = mapAssignment(l);
 				final target = map == null ? assignTarget(l) + " = " : expr(map.receiver) + "[" + expr(map.key) + "] = ";
-				return [indent(depth) + target + tryKw + expr(r)];
+				return [indent(depth) + target + tryKw + assignmentValue(l, r)];
 			case TBinop(OpAssignOp(inner), l, r):
 				final tryKw = containsThrowingCall(r) ? "try " : "";
 				return [indent(depth) + assignTarget(l) + " " + symbolOf(inner) + "= " + tryKw + expr(r)];
@@ -659,22 +660,34 @@ class SwiftExpr {
 		return null;
 	}
 
-	function loopLines(loop: {index: TVar, start: TypedExpr, bound: TypedExpr, body: Array<TypedExpr>}, depth: Int): Array<String> {
-		// Keep the counted index visible whenever the body uses it. The
-		// collection shorthand is only valid when all index references are
-		// rewritten; otherwise it drops the source loop variable.
-		if (false && loop.body.length > 0) switch [loop.bound.expr, loop.body[0].expr] {
-			case [TField(array, fa), TVar(item, init)] if(fieldName(fa) == "length" && init != null):
-				switch(stripWrap(init).expr) {
-					case TArray(_, {expr: TLocal(index)}) if(index.id == loop.index.id):
-						final out = [indent(depth) + "for " + localName(item) + " in " + expr(array) + " {"];
-						for(l in blockLines(loop.body.slice(1), depth + 1)) out.push(l);
-						out.push(indent(depth) + "}"); return out;
-					default:
-				}
-			default:
-		}
+	function strideValue(e: TypedExpr): String {
+		return switch(stripWrap(e).expr) {
+			case TConst(TInt(_)): "Int32(" + expr(e) + ")";
+			case TField(subj, fa) if(fieldName(fa) == "length"): "Int32(" + expr(subj) + ".count)";
+			case _: expr(e);
+		};
+	}
 
+	function loopLines(loop: {index: TVar, start: TypedExpr, bound: TypedExpr, body: Array<TypedExpr>}, depth: Int): Array<String> {
+		// The element loop drops the index binding only when it starts at
+		// zero and the remaining body never reads that index.
+		if (loop.body.length > 0 && switch(loop.start.expr) { case TConst(TInt(0)): true; case _: false; }) {
+			var readsIndex = false;
+			for(s in loop.body.slice(1)) {
+				if(mentionsLocal(s, loop.index)) { readsIndex = true; break; }
+			}
+			if(!readsIndex) switch [loop.bound.expr, loop.body[0].expr] {
+				case [TField(array, fa), TVar(item, init)] if(fieldName(fa) == "length" && init != null):
+					switch(stripWrap(init).expr) {
+						case TArray(_, {expr: TLocal(index)}) if(index.id == loop.index.id):
+							final out = [indent(depth) + "for " + localName(item) + " in " + expr(array) + " {"];
+							for(l in blockLines(loop.body.slice(1), depth + 1)) out.push(l);
+							out.push(indent(depth) + "}"); return out;
+						default:
+					}
+				default:
+			}
+		}
 		// A body that never reads the loop variable discards the binding.
 		var readsIndex = false;
 		for(s in loop.body) {
@@ -685,7 +698,7 @@ class SwiftExpr {
 		}
 		final name = readsIndex ? localName(loop.index) : "_";
 		final out = [
-			indent(depth) + "for " + name + " in stride(from: " + expr(loop.start) + ", to: " + expr(loop.bound) + ", by: 1) {"
+			indent(depth) + "for " + name + " in stride(from: " + strideValue(loop.start) + ", to: " + strideValue(loop.bound) + ", by: 1) {"
 		];
 		final gb = matchGroupByBody(loop.body);
 		if(gb != null) {
@@ -889,7 +902,7 @@ class SwiftExpr {
 		final out: Array<String> = [];
 		out.push(indent(depth) + "var " + arrName + " = [" + types.of(alloc.elem) + "]()");
 		out.push(indent(depth) + arrName + ".reserveCapacity(Int(max(" + expr(loop.bound) + ", 0)))");
-		out.push(indent(depth) + "for " + (readsIndex ? localName(loop.index) : "_") + " in stride(from: " + expr(loop.start) + ", to: " + expr(loop.bound) + ", by: 1) {");
+		out.push(indent(depth) + "for " + (readsIndex ? localName(loop.index) : "_") + " in stride(from: " + strideValue(loop.start) + ", to: " + strideValue(loop.bound) + ", by: 1) {");
 		final nonStores: Array<TypedExpr> = [];
 		for(s in loop.body) {
 			final store = indexedStoreOf(s);
@@ -1202,7 +1215,7 @@ class SwiftExpr {
 				if(isStringTyped(e)) {
 					return templateLiteral(l, r);
 				}
-				return operand(l, op, false) + " + " + operand(r, op, true);
+				return optionalOperand(l, op, false) + " + " + optionalOperand(r, op, true);
 			case OpUShr:
 				// `>>>` reinterprets the bits: UInt32(Int32) traps on a
 				// negative argument, so both sides cross through the
@@ -1294,8 +1307,8 @@ class SwiftExpr {
 	function returnValue(ret: TypedExpr): String {
 		return switch(stripWrap(ret).expr) {
 			case TConst(TNull): expr(ret);
-			case TLocal(v) if(isNullLeafType(v.t)): expr(ret) + "!";
-			case _: expr(ret);
+			case TLocal(v) if(isNullLeafType(v.t) && !coalescingLocals.exists(v.id)): expr(ret) + "!";
+			case _: optionalValued(ret) ? expr(ret) + "!" : expr(ret);
 		};
 	}
 
@@ -1303,8 +1316,38 @@ class SwiftExpr {
 		return false;
 	}
 
+	function isStringCharCodeAt(e: TypedExpr): Bool {
+		return switch(stripWrap(e).expr) {
+			case TCall(fn, _) if(isStringCharCodeAtFunction(fn)): true;
+			case _: false;
+		};
+	}
+
+	function isStringCharCodeAtFunction(fn: TypedExpr): Bool {
+		return switch(fn.expr) {
+			case TField(subj, FInstance(_, _, cf)) if(cf.get().name == "charCodeAt" && isStringSubject(subj)): true;
+			case _: false;
+		};
+	}
+
+	function optionalOperand(e: TypedExpr, parent: Binop, isRight: Bool): String {
+		final rendered = switch(stripWrap(e).expr) {
+			case TConst(TNull): expr(e);
+			case _: optionalValued(e) || isStringCharCodeAt(e) ? "(" + expr(e) + ")!" : expr(e);
+		};
+		return switch(stripWrap(e).expr) {
+			case TBinop(op, _, _):
+				final cp = precedenceOf(op);
+				final pp = precedenceOf(parent);
+				var parens = cp < pp;
+				if(cp == pp && isRight) parens = !(op == parent && associative(op));
+				parens ? "(" + rendered + ")" : rendered;
+			case _: rendered;
+		};
+	}
+
 	function operand(e: TypedExpr, parent: Binop, isRight: Bool): String {
-		final rendered = expr(e);
+		final rendered = isStringCharCodeAt(e) ? "(" + expr(e) + ")!" : expr(e);
 		switch(stripWrap(e).expr) {
 			case TBinop(op, _, _):
 				final cp = precedenceOf(op);
@@ -1597,9 +1640,7 @@ class SwiftExpr {
 
 	/** Whether a value-position expression carries an optional at runtime. */
 	function optionalValued(e: TypedExpr): Bool {
-		if(isNullLeafType(e.t)) {
-			return true;
-		}
+		if(isNullLeafType(e.t) && !switch(stripWrap(e).expr) { case TLocal(v): coalescingLocals.exists(v.id); case _: false; }) return true;
 		return switch(stripWrap(e).expr) {
 			case TLocal(v): optionalInferred.exists(v.id);
 			case _: false;
@@ -1951,20 +1992,20 @@ class SwiftExpr {
 					if(types.resident) {
 						// The resident subject is already the unit array.
 						return endOmitted
-							? "Array(" + s + "[Int(" + expr(args[0]) + ")...])"
+							? "Array(" + s + "[max(0, Int(" + expr(args[0]) + "))...])"
 							: "Array(" + s + "[Int(" + expr(args[0]) + ")..<Int(" + expr(args[1]) + ")])";
 					}
 					if(endOmitted) {
 						// dropFirst counts Characters. The suffix cut uses UTF-16
 						// units through the unit view.
-						return "String(decoding: " + s + ".utf16.dropFirst(Int(" + expr(args[0]) + ")), as: UTF16.self)";
+						return "String(decoding: " + s + ".utf16.dropFirst(Int(max(0, " + expr(args[0]) + "))), as: UTF16.self)";
 					}
 					return "substringUnits(" + s + ", " + expr(args[0]) + ", " + expr(args[1]) + ")";
 				}
 				if(name == "charCodeAt" && isStringSubject(subj)) {
 					return types.resident
 						? "Int32(" + receiverText(subj) + "[Int(" + expr(args[0]) + ")])"
-						: "unitAt(" + receiverText(subj) + ", " + expr(args[0]) + ")";
+						: "unitAtOptional(" + receiverText(subj) + ", " + expr(args[0]) + ")";
 				}
 				return receiverText(subj) + "." + name + "(" + rendered + ")";
 			case TField(_, FEnum(en, ef)):
@@ -3168,7 +3209,7 @@ class SwiftExpr {
 				if(v.name != "`") {
 					usedNames.set(v.name, true);
 				}
-				if(init != null && isNullLeafType(init.t)) {
+				if(init != null && isNullLeafType(init.t) && coalescingSiteFor(init) == null) {
 					optionalInferred.set(v.id, true);
 				}
 				if(init != null) {
@@ -3233,6 +3274,10 @@ class SwiftExpr {
 		parameter's own TVar decides: a same-named local elsewhere in
 		the module must not shadow this one.
 	**/
+	public function parameterIsMutated(name: String): Bool {
+		return mutatedNames.exists(name);
+	}
+
 	public function shadowMutatedParams(args: Array<{name: String, ?tvar: Null<TVar>}>, depth: Int = 2): Array<String> {
 		final out: Array<String> = [];
 		for(a in args) {

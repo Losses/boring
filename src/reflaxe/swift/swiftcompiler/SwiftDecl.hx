@@ -573,7 +573,7 @@ class SwiftDecl {
 			final defaultText = expr.coalescingDefaultText(coalescing, a.type);
 			// The normalized shadow is assigned once, so keep it immutable.
 			final keyword = switch(coalescing) {
-				case CParameterRead(_): "var";
+				case CParameterRead(_): expr.parameterIsMutated(a.name) ? "var" : "let";
 				default: "let";
 			};
 			out.push("        " + keyword + " " + a.name + " = " + a.name + " ?? " + defaultText + ";");
