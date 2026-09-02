@@ -1309,6 +1309,7 @@ class SwiftExpr {
 	function returnValue(ret: TypedExpr): String {
 		return switch(stripWrap(ret).expr) {
 			case TConst(TNull): expr(ret);
+			case TCall(_, _) if(isNullLeafType(ret.t)): expr(ret);
 			case TLocal(v) if(isNullLeafType(v.t) && !coalescingLocals.exists(v.id)): expr(ret) + "!";
 			case _: optionalValued(ret) ? expr(ret) + "!" : expr(ret);
 		};
@@ -1888,10 +1889,9 @@ class SwiftExpr {
 					}
 					if(fName == "parseInt") {
 						imports.runtime("parseIntRuntime");
-						final marker = " /* Int64(t), 2147483647 */";
-						return (types.resident
+						return types.resident
 							? "parseIntRuntime(String(decoding: " + s + ", as: UTF16.self))"
-							: "parseIntRuntime(" + s + ")") + marker;
+							: "parseIntRuntime(" + s + ")";
 					}
 					if(fName == "int") {
 						final arg = stripWrap(args[0]);
