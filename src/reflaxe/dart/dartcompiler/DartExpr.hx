@@ -1934,8 +1934,8 @@ class DartExpr {
 						+ "; final _start = _from < 0 ? 0 : (_from > _s.length ? _s.length : _from); final _end = _to < 0 ? 0 : (_to > _s.length ? _s.length : _to); return _start > _end ? _s.substring(_end, _start) : _s.substring(_start, _end); })()";
 				}
 				if(name == "charCodeAt" && isStringSubject(subj)) {
-					// stdlib/15: evaluate receiver and index once and return
-					// null rather than allowing codeUnitAt to throw RangeError.
+					// stdlib/15: evaluate receiver and index once; an out-of-range
+					// index returns null and codeUnitAt never throws RangeError.
 					return "(() { final _s = " + receiverText(subj) + "; final _i = " + expr(args[0])
 						+ "; return _i >= 0 && _i < _s.length ? _s.codeUnitAt(_i) : null; })()";
 				}

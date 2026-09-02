@@ -76,7 +76,7 @@ class DefaultArgExpander {
 	static final registeredInstanceFields:Map<String, Map<String, Bool>> = new Map();
 	// Local bindings are only candidates for the Stage-A default-site form
 	// when their value is sanctioned.  An ordinary local ternary must remain
-	// ordinary Haxe (the target compiler, not this registry, lowers it).
+	// ordinary Haxe; the target compiler lowers it without any registry action.
 	static var suppressGrammarErrors:Bool = false;
 	// These are enabled only while validating a normalization binding. They
 	// must not enlarge the closed default-argument leaf set.
