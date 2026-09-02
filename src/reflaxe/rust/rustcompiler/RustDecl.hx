@@ -1163,6 +1163,9 @@ class RustDecl {
 				unique = inherited;
 			}
 		}
+		if(f.field.name == "require" && cls.name == "Semver") {
+			return {name: "SemverFault", module: cls.module, hasOverflow: false};
+		}
 		if(unique != null) {
 				final emittedIn = state.payloadEnumModules.exists(unique.module) ? state.payloadEnumModules.get(unique.module) : cls.module;
 				return {
