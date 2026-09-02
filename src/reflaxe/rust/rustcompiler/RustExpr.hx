@@ -417,7 +417,7 @@ class RustExpr {
 				default: false;
 			};
 			final defaultText = isStringDefault ? rawDefaultText + ".to_string()" : rawDefaultText;
-			out.push(indent(depth) + "let " + RustImports.toSnakeCase(site.parameter) + " = " + RustImports.toSnakeCase(site.parameter) + ".unwrap_or_else(|| " + defaultText + ");");
+			out.push(indent(depth) + "let mut " + RustImports.toSnakeCase(site.parameter) + " = " + RustImports.toSnakeCase(site.parameter) + ".unwrap_or_else(|| " + defaultText + ");");
 		}
 		return out;
 	}
@@ -3388,7 +3388,8 @@ class RustExpr {
 				if(cls.pack.length == 0 && cls.name == "String" && name == "fromCharCode") {
 					final value = expr(args[0]);
 					final argument = StringTools.startsWith(value, "(") ? value : "(" + value + ")";
-					return "String::from_utf16(&[u16::try_from" + argument + ".unwrap_or_default()]).unwrap_or_default()";
+					final unwrapped = isNullType(args[0].t) ? argument + ".unwrap_or_default()" : argument;
+					return "String::from_utf16(&[u16::try_from" + unwrapped + ".unwrap_or_default()]).unwrap_or_default()";
 				}
 				if(path == "std.UStringPlatform") {
 					// Cursor primitives of the resident UString walk, inlined
@@ -4458,7 +4459,7 @@ class RustExpr {
 						case TField(_, FStatic(_, tableField)): DataTableHelper.isDataTableField(tableField.get());
 						case _: false;
 					};
-					final prefix = if(isArray && !isTableArg) {
+					final prefix = if(isArray && !isTableArg && StringTools.startsWith(types.of(pt, true), "&mut")) {
 						switch(stripWrap(arg).expr) {
 							case TLocal(v) if(isBorrowedLocal(v)): "&mut *";
 							case _: "&mut ";
@@ -4468,6 +4469,13 @@ class RustExpr {
 						argStr = prefix + argStr;
 					}
 				} else if(isRecordValueType(arg.t) && switch(stripWrap(arg).expr) { case TLocal(_): true; case _: false; }) {
+					argStr = "(" + argStr + ").clone()";
+				} else if(!isPassByRef(pt) && !isTypeCopy(arg.t) && !StringTools.startsWith(argStr, "&")
+					&& !StringTools.endsWith(argStr, ".clone()") && !StringTools.endsWith(argStr, ".to_vec()")
+					&& !StringTools.endsWith(argStr, ".to_string()")) {
+					// Haxe call arguments are value semantics. Clone an owned
+					// Rust value when the callee's parameter is not borrowed;
+					// otherwise a later expression can no longer use it.
 					argStr = "(" + argStr + ").clone()";
 				}
 				// A collection length is usize in Rust while a Haxe Int
