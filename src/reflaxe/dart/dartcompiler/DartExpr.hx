@@ -1158,7 +1158,10 @@ class DartExpr {
 		unless the same associative operator chains.
 	**/
 	function operand(e: TypedExpr, parent: Binop, isRight: Bool): String {
-		final rendered = expr(e);
+		var rendered = expr(e);
+		// Null<Int> is nullable in Dart; numeric operators use the value
+		// only after the explicit bounds result has been accepted.
+		if(isNullLeafType(e.t) && parent != OpEq && parent != OpNotEq) rendered += "!";
 		switch(stripWrap(e).expr) {
 			case TBinop(op, _, _):
 				final cp = precedenceOf(op);
@@ -1810,7 +1813,10 @@ class DartExpr {
 						: receiverText(subj) + ".substring(" + expr(args[0]) + ", " + expr(args[1]) + ")";
 				}
 				if(name == "charCodeAt" && isStringSubject(subj)) {
-					return receiverText(subj) + ".codeUnitAt(" + expr(args[0]) + ")";
+					// stdlib/15: evaluate receiver and index once and return
+					// null rather than allowing codeUnitAt to throw RangeError.
+					return "(() { final _s = " + receiverText(subj) + "; final _i = " + expr(args[0])
+						+ "; return _i >= 0 && _i < _s.length ? _s.codeUnitAt(_i) : null; })()";
 				}
 				// A private method renders under its `_`-prefixed Dart
 				// name (feature spec 27); the special cases above are
