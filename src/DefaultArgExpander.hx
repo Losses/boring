@@ -49,6 +49,8 @@ enum CoalescingDefaultValue {
 	CNegativeInfinity;
 	CEnum(enumRef:Ref<EnumType>, enumField:EnumField);
 	CParameterRead(parameterName:String);
+	CInstanceFieldRead(fieldName:String);
+	CLocalRead(localName:String);
 	CFieldAccess(receiver:CoalescingDefaultValue, fieldName:String);
 	CMethodCall(receiver:CoalescingDefaultValue, methodName:String, args:Array<CoalescingDefaultValue>);
 	CStaticCall(fullPath:String, args:Array<CoalescingDefaultValue>);
@@ -74,6 +76,10 @@ class DefaultArgExpander {
 	// when their value is sanctioned.  An ordinary local ternary must remain
 	// ordinary Haxe (the target compiler, not this registry, lowers it).
 	static var suppressGrammarErrors:Bool = false;
+	// These are enabled only while validating a normalization binding. They
+	// must not enlarge the closed default-argument leaf set.
+	static var allowNormalizationBindingLeaves:Bool = false;
+	static var normalizationEarlierLocals:Array<String> = [];
 
 	static final localDefaults:Map<String, Array<Null<DefaultArgValue>>> = new Map();
 	static final localDefaultsByName:Map<String, Array<Null<DefaultArgValue>>> = new Map();
@@ -238,6 +244,10 @@ class DefaultArgExpander {
 	static function discoverNormalizationBindings(args:Array<FunctionArg>, body:Null<Expr>, classType:ClassType, registered:Array<Null<CoalescingDefaultValue>>):Void {
 		if (body == null) return;
 		final names = [for (a in args) a.name];
+		final oldAllow = allowNormalizationBindingLeaves;
+		final oldLocals = normalizationEarlierLocals;
+		allowNormalizationBindingLeaves = true;
+		normalizationEarlierLocals = [];
 		function visit(e:Expr):Void {
 			if (e == null) return;
 			switch (e.expr) {
@@ -246,18 +256,33 @@ class DefaultArgExpander {
 						if (v.expr == null) continue;
 						final parameter = normalizationParameter(v.expr);
 						final index = parameter == null ? -1 : names.indexOf(parameter);
-						if (index < 0 || !isNullableParameter(args[index]) || args[index].value != null || registered[index] != null) continue;
+						if (index < 0 || !isNullableParameter(args[index]) || registered[index] != null) {
+							normalizationEarlierLocals.push(v.name);
+							continue;
+						}
+						if (args[index].value != null) {
+							// A registered parameter default does not turn body
+							// normalization into an additional sanctioned leaf.
+							final oldAllow = allowNormalizationBindingLeaves;
+							allowNormalizationBindingLeaves = false;
+							matchCoalescingExpression(v.expr, parameter, classType, names.slice(0, index), names);
+							allowNormalizationBindingLeaves = oldAllow;
+							continue;
+						}
 						final m = matchCoalescingExpression(v.expr, parameter, classType, names.slice(0, index), names);
 						if (m != null && parameter != null) {
 							final p = Context.getPosInfos(m.defaultExpr.pos);
 							normalizationSourceRanges.push({file: p.file, min: p.min, max: p.max});
-						}
+							}
+						normalizationEarlierLocals.push(v.name);
 					}
 				default:
 			}
 			haxe.macro.ExprTools.iter(e, visit);
 		}
 		visit(body);
+		allowNormalizationBindingLeaves = oldAllow;
+		normalizationEarlierLocals = oldLocals;
 	}
 
 	static function isNullableParameter(arg:FunctionArg):Bool {
@@ -301,7 +326,10 @@ class DefaultArgExpander {
 			if (arg.opt != true || arg.value != null) continue;
 			final earlierNames:Array<String> = allParamNames.slice(0, argIdx);
 			final candidates:Array<{value:CoalescingDefaultValue, excluded:Expr, defaultExpr:Expr}> = [];
+			final oldSuppress = suppressGrammarErrors;
+			suppressGrammarErrors = true;
 			collectCoalescingCandidates(body, arg.name, classType, earlierNames, allParamNames, candidates);
+			suppressGrammarErrors = oldSuppress;
 			if (candidates.length > 1) {
 				Context.fatalError("coalesced default parameter is consumed more than once", body.pos);
 			}
@@ -405,6 +433,13 @@ class DefaultArgExpander {
 		};
 	}
 
+	static function isInstanceField(classType:ClassType, name:String):Bool {
+		for (field in classType.fields.get()) if (field.name == name) return true;
+		final local = Context.getLocalClass();
+		if (local != null) for (field in local.get().fields.get()) if (field.name == name) return true;
+		return false;
+	}
+
 	/** Checks whether a name resolves to a type in the compilation (class, enum, typedef, abstract). */
 	static function isTypeName(name:String):Bool {
 		try {
@@ -485,10 +520,12 @@ class DefaultArgExpander {
 		// 2. Parameter reference root (earlier parameters only)
 		if (cur.expr != null) {
 			switch (cur.expr) {
-				case ExprDef.EConst(AstConstant.CIdent(name)):
+					case ExprDef.EConst(AstConstant.CIdent(name)):
 					if (earlierNames.indexOf(name) >= 0) {
 						return CParameterRead(name);
 					}
+					if (allowNormalizationBindingLeaves && normalizationEarlierLocals.indexOf(name) >= 0) return CLocalRead(name);
+					if (isInstanceField(classType, name) && allowNormalizationBindingLeaves) return CInstanceFieldRead(name);
 					// Check for later parameter references or the defaulted parameter itself
 					if (allParamNames.indexOf(name) >= 0) {
 						if (name == parameterName) {
@@ -501,7 +538,14 @@ class DefaultArgExpander {
 			}
 		}
 
-		// 3. Static-field / top-level constant root (skip parameter names)
+		// 3. Normalization-only roots: instance fields and earlier locals.
+		if (allowNormalizationBindingLeaves) switch (cur.expr) {
+			case ExprDef.EConst(AstConstant.CIdent(name)) if (isInstanceField(classType, name)): return CInstanceFieldRead(name);
+			case ExprDef.EField(inner, name) if (allowNormalizationBindingLeaves && isThisExpression(inner)): return CInstanceFieldRead(name);
+			default:
+		}
+
+		// 4. Static-field / top-level constant root (skip parameter names)
 		final staticPath = resolveStaticFieldOrConstant(cur, earlierNames);
 		if (staticPath != null) {
 			return CFieldAccess(CParameterRead(staticPath), "");
@@ -511,6 +555,7 @@ class DefaultArgExpander {
 		if (cur.expr != null) {
 			switch (cur.expr) {
 				case ExprDef.EField(inner, fieldName):
+					if (allowNormalizationBindingLeaves && isThisExpression(inner)) return CInstanceFieldRead(fieldName);
 					final innerClass = classifyExpr(inner, earlierNames);
 					if (innerClass == "type") {
 						// Static field read; handled above; fall through

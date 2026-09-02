@@ -21,8 +21,10 @@ class GreeterImpl implements IGreeter {
 
 class DefaultArgsOps {
 	public var familyNames:Array<String>;
+	public var normalizationField:String;
 
 	public function new(?familyNames:Array<String>) {
+		this.normalizationField = "field";
 		this.familyNames = familyNames == null ? [] : familyNames;
 	}
 
@@ -177,7 +179,18 @@ class DefaultArgsOps {
 		return greeter.say("Sam");
 	}
 
-	// --- Extension grammar roots: coalescing defaults that read parameters ---
+	/** Instance field and earlier-local normalization leaves. */
+	public function instanceFieldNormalization(?p:Null<String>):String {
+		final v = p == null ? this.normalizationField : p;
+		return v;
+	}
+
+	public function earlierLocalNormalization(seed:String, ?q:Null<String>):String {
+		final loc = seed;
+		final w = q == null ? loc : q;
+		return w;
+	}
+
 
 	/** Bare earlier-parameter read. */
 	public static function greetWithPrefix(name:String, ?prefix:String):String {
