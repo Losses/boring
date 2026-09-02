@@ -30,14 +30,12 @@ class FramePolicy {
 		this.values = values;
 	}
 
+	public function valueCountText():String return Std.string(values.length);
+
 	public static final weighted:FramePolicy = new FramePolicy("weighted", FrameMode.Weighted(FrameBase.factor), ["a", "b"]);
 	public static final plain:FramePolicy = new FramePolicy("plain", FrameMode.Plain, []);
 	public static final imported:FramePolicy = new FramePolicy("imported", FrameMode.Plain, ["cross-class"]);
 	public static final generated:FramePolicy = new FramePolicy("generated", FrameMode.Plain, []);
-
-	static function makeLabel():String {
-		return "generated";
-	}
 }
 
 class ConstructedStateOps {
@@ -48,7 +46,7 @@ class ConstructedStateOps {
 		return FrameBase.factor;
 	}
 	public static function firstLengths():String {
-		return FramePolicy.weighted.values.length + "," + FramePolicy.plain.values.length;
+		return FramePolicy.weighted.valueCountText() + "," + FramePolicy.plain.valueCountText();
 	}
 	public static function crossClassText():String return BuiltInFrame.frame.label;
 	public static function generatedLabel():String return FramePolicy.generated.label;
