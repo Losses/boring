@@ -149,6 +149,8 @@ class SwiftExpr {
 			case CNegativeInfinity: FloatPrecision.isF32() ? "-Float.infinity" : "-Double.infinity";
 			case CEnum(enumRef, enumField): types.of(Type.TEnum(enumRef, [])) + "." + SwiftDecl.lowerFirst(enumField.name);
 			case CParameterRead(name): name;
+			case CInstanceFieldRead(name): "self." + name;
+			case CLocalRead(name): name;
 			case CFieldAccess(CParameterRead(staticPath), ""): coalescingStaticFieldText(staticPath);
 			case CFieldAccess(receiver, fieldName): fieldName == "length"
 				? "Int32(" + coalescingDefaultText(receiver, targetType) + ".count)"
