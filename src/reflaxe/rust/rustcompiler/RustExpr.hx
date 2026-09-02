@@ -2966,7 +2966,7 @@ class RustExpr {
 			case TAbstract(a, _) if(a.get().name == "Int" || a.get().name == "Bool"): inConcat ? value : "(" + value + ").to_string()";
 			case TAbstract(a, params) if(a.get().module == "std.ReadOnlyArray"):
 				stdStringType(haxe.macro.TypeTools.applyTypeParameters(a.get().type, a.get().params, params), value, inConcat, origin, depth);
-			case TEnum(en, _) if(isParameterlessEnum(en.get())): value + ".name()" + (inConcat ? "" : ".to_string()");
+			case TEnum(en, _) if(isParameterlessEnum(en.get())): value + ".to_string()";
 			case TEnum(_, _): value + ".to_string()";
 			case _:
 				Context.error("Std.string accepts scalars, enum values, records, and arrays of them only", origin.pos);

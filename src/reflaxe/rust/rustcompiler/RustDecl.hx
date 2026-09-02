@@ -233,9 +233,10 @@ class RustDecl {
 	}
 
 	function dataClassComparator(cls: ClassType): String {
+		imports.requireType("runtime.SortedTable", "SortedTable");
 		final n = RustImports.toSnakeCase(cls.name);
 		final lines = ['pub fn compare_$n(a: &${cls.name}, b: &${cls.name}) -> i32 {'];
-		for(f in [for(x in cls.fields.get()) if(x.kind.match(FVar(_, _))) x]) {
+		for(f in [for(x in cls.fields.get()) if(switch(x.kind) { case FVar(read, write): !(read.match(AccCall) && write.match(AccNever)); case _: false; }) x]) {
 			final fn = RustImports.toSnakeCase(f.name);
 			switch(Context.follow(f.type)) {
 				case TAbstract(a, _) if(a.get().name == "Int"): lines.push('    let cmp_$fn = a.$fn.cmp(&b.$fn) as i32;');
