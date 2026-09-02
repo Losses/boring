@@ -316,8 +316,8 @@ class SwiftExpr {
 			case TVar(v, init) if(init != null && isStringBufToStringCall(init)):
 				return stringBufToStringBindingLines(v, stripWrap(init), depth);
 			case TVar(v, init) if(init != null):
-				final kw = mutated.exists(v.id) ? "var" : "let";
 				final coalescing = coalescingSiteFor(init);
+				final kw = mutated.exists(v.id) ? "var" : "let";
 				final tryKw = containsThrowingCall(init) ? "try " : "";
 				// Five initializers cannot carry their type to Swift's
 				// inference: an empty array literal, an integer
@@ -2398,6 +2398,7 @@ class SwiftExpr {
 	**/
 	function isDiscardedCall(e: TypedExpr): Bool {
 		return switch(stripWrap(e).expr) {
+			case TNew(_, _, _): true;
 			case TCall(fn, _):
 				switch(stripWrap(fn).expr) {
 					case TField(_, fa) if(fieldName(fa) == "push"): false;
@@ -3127,6 +3128,7 @@ class SwiftExpr {
 		}
 		return out;
 	}
+
 
 	function mentionsRangeLoopVar(e: TypedExpr): Bool {
 		var found = false;
