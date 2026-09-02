@@ -34,9 +34,23 @@ class RustDecl {
 		return expr.topLevelStatements(e);
 	}
 
-	public function rawExpression(e: TypedExpr): String {
-		return expr.rawExpression(e);
+	public function enumOperand(t: Type, value: String, depth: Int = 0): String {
+		return switch(Context.follow(t)) {
+			case TInst(c, [element]) if(c.get().name == "Array"):
+				imports.require("std::fmt::Write");
+				final index = "j" + depth;
+				'{ let mut out = String::new(); out.push(\'[\'); let mut ${index} = 0usize; while ${index} < ${value}.len() { if ${index} > 0 { out.push_str(", "); } let _ = write!(out, "{}", ${enumOperand(element, value + "[" + index + "]", depth + 1)}); ${index} += 1; } out.push(\']\'); out }';
+			case TAbstract(a, params) if(a.get().module == "std.ReadOnlyArray"):
+				enumOperand(haxe.macro.TypeTools.applyTypeParameters(a.get().type, a.get().params, params), value, depth);
+			case TAbstract(a, _) if(a.get().name == "Int" || a.get().name == "Float" || a.get().name == "Bool"):
+				"(" + value + ").to_string()";
+			case TInst(c, _) if(c.get().name == "String"):
+				value;
+			case _:
+				"(" + value + ").to_string()";
+		};
 	}
+
 
 	// ------------------------------------------------------------------
 	// Classes & Structs
@@ -441,11 +455,15 @@ class RustDecl {
 			final message = messages.get(o.name);
 			final args = enumFieldParams(o);
 			if(args.length == 0) {
-				lines.push('            ${enumName}::${o.name} => write!(formatter, ${message}),');
+				final formatted = switch(StringTools.trim(message)) {
+					case s if(StringTools.startsWith(s, '"') && StringTools.endsWith(s, '"')): 'write!(formatter, ${message})';
+					case _: 'write!(formatter, "{}", ${message})';
+				};
+				lines.push('            ${enumName}::${o.name} => ${formatted},');
 			} else {
 				final params = [for(arg in args) RustImports.toSnakeCase(arg.name)].join(", ");
 				lines.push('            ${enumName}::${o.name} { ${params} } => {');
-				lines.push('                write!(formatter, ${message})');
+				lines.push('                write!(formatter, "{}", ${message})');
 				lines.push("            }");
 			}
 		}
@@ -1621,7 +1639,11 @@ class RustDecl {
 			for(o in sorted) {
 				final args = [for(arg in o.args) RustImports.toSnakeCase(arg.name)];
 				if(args.length == 0) lines.push('            ${en.name}::${o.name} => "${o.name}".to_string(),');
-				else lines.push('            ${en.name}::${o.name} { ${args.join(", ")} } => format!("${o.name}(${[for(a in args) a + "={}"].join(", ")})", ${args.join(", ")}),');
+				else {
+					final params = [for(arg in o.args) RustImports.toSnakeCase(arg.name)];
+					final values = [for(i in 0...o.args.length) enumOperand(o.args[i].type, params[i])];
+					lines.push('            ${en.name}::${o.name} { ${params.join(", ")} } => format!("${o.name}(${[for(a in params) a + "={}"].join(", ")})", ${values.join(", ")}),');
+				}
 			}
 			lines.push("        }"); lines.push("    }"); lines.push("}");
 		}
