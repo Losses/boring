@@ -166,10 +166,30 @@ pub fn count(s: &str) -> u32 {
 }
 
 pub fn at(s: &str, index: u32) -> Option<u32> {
-    match UString::at(s, index as i32) {
-        Some(code) => Some(code as u32),
-        None => None,
+    let units: Vec<u16> = s.encode_utf16().collect();
+    units.get(index as usize).map(|unit| *unit as u32)
+}
+
+pub fn split(s: &str, separator: &str) -> Vec<String> {
+    let source: Vec<u16> = s.encode_utf16().collect();
+    let needle: Vec<u16> = separator.encode_utf16().collect();
+    if needle.is_empty() {
+        return source.iter().map(|unit| String::from_utf16_lossy(&[*unit])).collect();
     }
+    let mut out = Vec::new();
+    let mut start = 0usize;
+    let mut cursor = 0usize;
+    while cursor + needle.len() <= source.len() {
+        if source[cursor..cursor + needle.len()] == needle[..] {
+            out.push(String::from_utf16_lossy(&source[start..cursor]));
+            cursor += needle.len();
+            start = cursor;
+        } else {
+            cursor += 1;
+        }
+    }
+    out.push(String::from_utf16_lossy(&source[start..]));
+    out
 }
 
 pub fn slice(s: &str, from: i32, to: i32) -> String {
