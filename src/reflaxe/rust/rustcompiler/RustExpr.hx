@@ -1238,7 +1238,7 @@ class RustExpr {
 			case TField(subj, fa) if(fieldName(fa) == "length"):
 				final enumCollection = EnumQueryExpander.collectionEnum(subj);
 				if(enumCollection != null) return Std.string(EnumQueryExpander.constructorCount(enumCollection));
-				return expr(subj) + ".len()";
+				return rustU32Length(expr(subj) + ".len()");
 			case _:
 				return expr(bound);
 		}
@@ -2374,7 +2374,7 @@ class RustExpr {
 				final rStr = rightStd != null ? stdString(rightStd, true) : (isNullType(r.t) ? expr(r) + ".as_deref().unwrap_or(\"\")" : expr(r));
 				return "format!(\"{}{}\", " + lStr + ", " + rStr + ")";
 			case OpDiv if(StringTools.endsWith(operand(l, op, false), ".len()")):
-				return "((" + operand(l, op, false) + ") / (" + operand(r, op, true) + " as usize)) as i32";
+				return "((" + operand(l, op, false) + ") / (" + operand(r, op, true) + " as usize)) as u32";
 			case OpMult | OpAdd | OpSub | OpDiv if(isFloatType(e.t)):
 				final real = FloatPrecision.isF32() ? "f32" : "f64";
 				final lStr = if(isIntType(l.t)) "((" + operand(l, op, false) + ") as " + real + ")" else operand(l, op, false);
@@ -2644,7 +2644,7 @@ class RustExpr {
 	}
 
 	function staticItemPath(cls: ClassType, name: String): String {
-		final itemName = RustImports.toSnakeCase(name);
+		final itemName = RustImports.toScreamingSnakeCase(name);
 		return cls.module == imports.selfModule
 			? itemName
 			: "crate::" + RustImports.moduleToRustPath(cls.module) + "::" + itemName;
@@ -2722,7 +2722,7 @@ class RustExpr {
 	}
 
 	function staticFunctionName(name: String): String {
-		return RustImports.toSnakeCase(name).toUpperCase();
+		return RustImports.toScreamingSnakeCase(name);
 	}
 
 	function staticRef(cls: ClassType, name: String): String {
@@ -2813,10 +2813,7 @@ class RustExpr {
 				for(field in cls.statics.get()) {
 					if(field.name == name && DataTableHelper.isDataTableField(field)) {
 						if(cls.module == imports.selfModule) {
-							return name;
-						} else {
-							imports.requireType(cls.module, name);
-							return name;
+							return RustImports.toScreamingSnakeCase(name);
 						}
 					}
 				}
@@ -3112,7 +3109,7 @@ class RustExpr {
 					}
 				}
 				if(name == "get" && isBytes(stripCast(subj))) {
-					return expr(subj) + "[" + expr(args[0]) + " as usize]";
+					return expr(subj) + "[(" + expr(args[0]) + ") as usize]";
 				}
 				if(name == "set" && args.length == 2 && isBytes(stripCast(subj))) {
 					return expr(subj) + "[" + expr(args[0]) + " as usize] = (" + expr(args[1]) + ") as u8";
@@ -3305,7 +3302,7 @@ class RustExpr {
 					if(isLengthDivision(args[0])) {
 						return "(" + expr(args[0]) + ")";
 					}
-					return "(" + expr(args[0]) + ") as i32";
+					return RuntimeResidents.isResident(imports.selfModule) ? "(" + expr(args[0]) + ") as i32" : "(" + expr(args[0]) + ") as u32";
 				}
 				if(cls.pack.length == 0 && cls.name == "String" && name == "fromCharCode") {
 					return "String::from_utf16(&[u16::try_from(" + expr(args[0]) + ").unwrap_or_default()]).unwrap_or_default()";
@@ -3862,6 +3859,16 @@ class RustExpr {
 						}
 					case _:
 				}
+				for(arg in args) {
+					switch(stripWrap(arg).expr) {
+						case TField(subj, FInstance(_, _, _)):
+							switch(stripWrap(subj).expr) {
+							case TLocal(v): mutated.set(v.id, true);
+							case _:
+						}
+						case _:
+					}
+				}
 				final isInstancePush = switch(fn.expr) {
 					case TField(_, FInstance(_, _, cf)) if(cf.get().name == "push"): true;
 					default: false;
@@ -3880,6 +3887,8 @@ class RustExpr {
 								};
 								if(isArray) {
 									switch(stripWrap(args[i]).expr) {
+										case TField(subj, _) :
+											switch(stripWrap(subj).expr) { case TLocal(v): mutated.set(v.id, true); case _: }
 										case TLocal(v):
 											mutated.set(v.id, true);
 										default:
@@ -4188,9 +4197,9 @@ class RustExpr {
 		final elems = [];
 		for(i in 0...n) {
 			if(i == 0) {
-				elems.push(bufStr + "[" + baseStr + "]");
+				elems.push(bufStr + "[" + baseStr + " as usize]");
 			} else {
-				elems.push(bufStr + "[" + baseStr + " + " + i + "]");
+				elems.push(bufStr + "[" + baseStr + " as usize + " + i + "]");
 			}
 		}
 		return typeName + "::from_be_bytes([" + elems.join(", ") + "])";
@@ -4386,7 +4395,8 @@ class RustExpr {
 	function isUsizeExpr(e: TypedExpr): Bool {
 		if(e == null) return false;
 		return switch(stripWrap(e).expr) {
-			case TField(subj, fa) if(fieldName(fa) == "length" || fieldName(fa) == "get_length"): staticGuardOf(subj) == null && !isStringBuf(subj);
+			case TField(subj, fa) if(fieldName(fa) == "length" || fieldName(fa) == "get_length"):
+				return false;
 			case TBinop(OpAdd | OpSub | OpMult | OpDiv, l, r): isUsizeExpr(l) || isUsizeExpr(r);
 			default: false;
 		};

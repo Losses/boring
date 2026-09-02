@@ -171,7 +171,7 @@ class RustDecl {
 		final implGenerics = implBoundList.length > 0 ? "<" + implBoundList.join(", ") + ">" : "";
 		final ltParam = genericStr;
 
-		if(StaticFieldHelper.hasSelfConstructionStatic(cls)) {
+		if(StaticFieldHelper.hasSelfConstructionStatic(cls) || cls.meta.has(":dataClass")) {
 			lines.push("#[derive(Clone)]");
 		}
 		lines.push("pub struct " + cls.name + genericStr + " {");
@@ -467,7 +467,7 @@ class RustDecl {
 			} else {
 				final params = [for(arg in args) RustImports.toSnakeCase(arg.name)].join(", ");
 				lines.push('            ${enumName}::${o.name} { ${params} } => {');
-				lines.push('                write!(formatter, "{}", ${message})');
+				lines.push('                write!(formatter, ${message}, ${params})');
 				lines.push("            }");
 			}
 		}
@@ -484,9 +484,7 @@ class RustDecl {
 	function fieldType(t: Type, name: String): String {
 		return switch(t) {
 			case TAbstract(a, _) if(a.get().name == "Int"):
-				// Byte-position payloads index Rust slices and stay usize; every
-				// other Int payload keeps the shared Int mapping.
-				(name == "remaining" || name == "consumed") ? "usize" : types.of(t);
+					types.of(t);
 			case _: types.of(t);
 		}
 	}
@@ -566,11 +564,12 @@ class RustDecl {
 		switch(e.expr) {
 			case TBinop(OpAdd, l, r):
 				final lStr = switch(l.expr) {
-					case TConst(TString(s)): s;
-					case _: "{}";
+					case TConst(TString(s)): StringTools.replace(StringTools.replace(s, "{", "{{"), "}", "}}");
+					case _: "";
 				};
 				final rStr = switch(r.expr) {
-					case TLocal(v): "{" + RustImports.toSnakeCase(v.name) + "}";
+					case TLocal(_): "{}";
+					case TConst(TString(s)): StringTools.replace(StringTools.replace(s, "{", "{{"), "}", "}}");
 					case _: "{}";
 				};
 				return '"' + lStr + rStr + '"';
@@ -755,7 +754,7 @@ class RustDecl {
 				return [];
 		}
 		final vis = field.isPublic ? "pub " : "";
-		final name = RustImports.toSnakeCase(field.name).toUpperCase();
+		final name = RustImports.toScreamingSnakeCase(field.name);
 		final initializerText = expr.rawFunctionInitializer(initializer);
 		return [vis + "static " + name + ": " + types.staticFunctionOf(field.type) + " = " + initializerText + ";"];
 	}
@@ -836,7 +835,7 @@ class RustDecl {
 		final init = StaticFieldHelper.validatedInitializer(field, cls);
 		final vis = field.isPublic ? "pub " : "";
 		final typeStr = types.of(field.type);
-		final name = RustImports.toSnakeCase(field.name);
+		final name = RustImports.toScreamingSnakeCase(field.name);
 		if(field.isFinal && StaticFieldHelper.isNonEmptyArrayLiteral(init)) {
 			if(StaticFieldHelper.isIntLiteralArray(init)) {
 				final elementType = types.of(StaticFieldHelper.arrayElementType(field.type));
@@ -845,14 +844,12 @@ class RustDecl {
 					case _: 0;
 				};
 				return [
-					"#[allow(non_upper_case_globals)]",
 					'${vis}static ${name}: [${elementType}; ${elements}] = ${expr.rawArrayLiteral(init)};'
 				];
 			}
 			imports.require("std::sync::LazyLock");
 			return [
-				"#[allow(non_upper_case_globals)]",
-				'${vis}static ${name}: LazyLock<${typeStr}> = LazyLock::new(|| ${expr.rawExpression(init)});'
+								'${vis}static ${name}: LazyLock<${typeStr}> = LazyLock::new(|| ${expr.rawExpression(init)});'
 			];
 		}
 		if(StaticFieldHelper.isConstruction(init) && !StaticFieldHelper.isSelfConstruction(field, cls, init)) {
@@ -862,14 +859,12 @@ class RustDecl {
 			DefaultArgExpander.completeStaticInitializerForRust(cls, field.name, init);
 			imports.require("std::sync::LazyLock");
 			return [
-				"#[allow(non_upper_case_globals)]",
-				'${vis}static ${name}: LazyLock<${typeStr}> = LazyLock::new(|| ${expr.rawExpression(init)});'
+								'${vis}static ${name}: LazyLock<${typeStr}> = LazyLock::new(|| ${expr.rawExpression(init)});'
 			];
 		}
 		imports.require("std::sync::Mutex");
 		return [
-			"#[allow(non_upper_case_globals)]",
-			'${vis}static ${name}: Mutex<${typeStr}> = Mutex::new(${expr.rawExpression(init)});'
+						'${vis}static ${name}: Mutex<${typeStr}> = Mutex::new(${expr.rawExpression(init)});'
 		];
 	}
 
@@ -910,12 +905,7 @@ class RustDecl {
 			case TType(d, _) if(d.get().module == "haxe.io.Bytes"):
 				borrowedBytes.exists(field.name) ? "&'a [u8]" : "Vec<u8>";
 			case TAbstract(a, _) if(a.get().name == "Int" && (field.name == "offset" || field.name == "length")):
-				// Stream cursor position (`offset`) and buffer boundary (`length`) fields represent
-				// non-negative memory offsets and slice indices within byte buffers. In Haxe, they
-				// are typed as signed 32-bit Int, but in Rust slice indexing requires usize.
-				// Mapping these field names to usize eliminates runtime indexing casts and ensures
-				// sound, zero-cost buffer indexing over &[u8] slices without risking arithmetic truncation.
-				"usize";
+				"u32";
 			case _:
 				types.of(field.type);
 		};
@@ -1363,7 +1353,7 @@ class RustDecl {
 
 	function paramType(t: Type, funcName: String, paramName: String): String {
 		if(funcName == "readAscii" || funcName == "ensureRemaining") {
-			return "usize";
+			return "u32";
 		}
 		if(funcName == "writeU16") {
 			return "u16";
@@ -1382,7 +1372,7 @@ class RustDecl {
 		if(funcName == "readU32") return "u32";
 		if(funcName == "readF64" || funcName == "readF32" || funcName == "readF16") return FloatPrecision.isF32() ? "f32" : "f64";
 		if(funcName == "readAscii") return "String";
-		if(funcName == "remaining" || funcName == "consumed") return "usize";
+		if(funcName == "remaining" || funcName == "consumed") return "u32";
 		if(funcName == "ensureRemaining") return "()";
 		return types.functionReturnOf(t);
 	}
