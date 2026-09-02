@@ -1333,7 +1333,7 @@ class SwiftExpr {
 	function optionalOperand(e: TypedExpr, parent: Binop, isRight: Bool): String {
 		final rendered = switch(stripWrap(e).expr) {
 			case TConst(TNull): expr(e);
-			case _: optionalValued(e) || isStringCharCodeAt(e) ? "(" + expr(e) + ")!" : expr(e);
+			case _: optionalValued(e) || (isStringCharCodeAt(e) && !types.resident) ? "(" + expr(e) + ")!" : expr(e);
 		};
 		return switch(stripWrap(e).expr) {
 			case TBinop(op, _, _):
@@ -1347,7 +1347,7 @@ class SwiftExpr {
 	}
 
 	function operand(e: TypedExpr, parent: Binop, isRight: Bool): String {
-		final rendered = isStringCharCodeAt(e) ? "(" + expr(e) + ")!" : expr(e);
+		final rendered = isStringCharCodeAt(e) && !types.resident ? "(" + expr(e) + ")!" : expr(e);
 		switch(stripWrap(e).expr) {
 			case TBinop(op, _, _):
 				final cp = precedenceOf(op);
@@ -1970,7 +1970,7 @@ class SwiftExpr {
 				}
 				if(name == "split" && isStringSubject(subj)) {
 					return types.resident
-						? receiverText(subj) + ".split(separator: " + expr(args[0]) + ".first!).map { String(decoding: $0, as: UTF16.self) }"
+						? receiverText(subj) + ".split(separator: " + expr(args[0]) + ".first!).map { Array($0) }"
 						: receiverText(subj) + ".split(separator: " + expr(args[0]) + ").map { String($0) }";
 				}
 				if(name == "push") {
