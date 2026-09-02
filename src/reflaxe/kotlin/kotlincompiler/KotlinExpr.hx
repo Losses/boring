@@ -324,13 +324,13 @@ class KotlinExpr {
 
 	function stmtLines(e: TypedExpr, depth: Int): Array<String> {
 		switch(e.expr) {
-			case TVar(v, init) if(isTryRegion(init)):
+			case TVar(v, init) if(init != null && isTryRegion(init)):
 				final parts = tryRegionParts(init);
 				if(regionTailValue(statementsOf(parts.body)) == null) {
 					return fail(init, "try region body has no value");
 				}
 				return tryLines(parts.body, parts.c, depth, 'val ${localName(v)} = ');
-			case TVar(v, init) if(isStringBufToStringCall(init)):
+			case TVar(v, init) if(init != null && isStringBufToStringCall(init)):
 				return stringBufToStringBindingLines(v, stripWrap(init), depth);
 			case TVar(v, init) if(init != null):
 				final kw = mutated.exists(v.id) ? "var" : "val";
@@ -348,8 +348,10 @@ class KotlinExpr {
 					default: expr(init);
 				};
 				return [indent(depth) + '$kw ${localName(v)}$typeAnn = $initText'];
-			case TVar(_, init) if(init == null):
-				return fail(e, "declaration without initializer has no lowering");
+			case TVar(v, init) if(init == null):
+				// Deferred local declarations are initialized by later assignments;
+				// Kotlin's definite-assignment analysis checks every read.
+				return [indent(depth) + "var " + localName(v) + ": " + types.of(v.t)];
 			case TBlock(stmts):
 				return blockLines(stmts, depth);
 			case TIf(c, t, f):
@@ -618,7 +620,7 @@ class KotlinExpr {
 	}
 
 	function blockLines(stmts: Array<TypedExpr>, depth: Int): Array<String> {
-		stmts = fuseUninitializedVars(stmts);
+		// Preserve deferred declarations; later assignments must remain assignments.
 		stmts = regroupLoops(stmts);
 		final out: Array<String> = [];
 

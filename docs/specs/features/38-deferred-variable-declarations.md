@@ -1,6 +1,6 @@
 # Feature spec 38: Deferred variable declarations
 
-Status: Planned.
+Status: Implemented.
 
 ## Scope
 
