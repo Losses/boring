@@ -47,8 +47,8 @@ describe("first-class function value generated trees", () => {
     expect(rust).toContain("pub style_at: Box<dyn Fn(u32) -> String>");
     expect(rust).toContain("pub resolver: Box<dyn NameResolver>");
     expect(rust).toContain("pub fn new(style_at: Box<dyn Fn(u32) -> String>, resolver: Box<dyn NameResolver>)");
-    expect(rust).toContain("pub fn apply_picker(values: &mut [String], pick: Box<dyn Fn(u32) -> String>)");
-    expect(rust).toContain("return pick((values.len() - 1) as u32);");
+    expect(rust).toContain("pub fn apply_picker(values: &mut Vec<String>, pick: Box<dyn Fn(u32) -> String>)");
+    expect(rust).toContain("return pick(values.len() as u32 - 1);");
     expect(rust).toContain("pub fn make_prefixer(prefix: &str) -> Box<dyn");
     expect(rust).toContain("Box::new(move |suffix|");
     expect(rust).toContain("pub static DEFAULT_TAG: fn(i32) -> String =");
