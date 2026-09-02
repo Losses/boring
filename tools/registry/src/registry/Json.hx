@@ -60,7 +60,7 @@ class Json {
 	static function quote(s:String):String {
 		var out = '"';
 		for(i in 0...s.length) {
-			out += escapeOf(s, s.charCodeAt(i), i);
+			out += escapeOf(s, StringTools.codeAt(s, i), i);
 		}
 		return out + '"';
 	}
@@ -109,7 +109,7 @@ private class Reader {
 	function value():JsonValue {
 		skip();
 		if(p >= text.length) fail();
-		final k = text.charCodeAt(p);
+		final k = StringTools.codeAt(text, p);
 		if(k == 123) return parseObject();
 		if(k == 91) return parseArray();
 		if(k == 34) return JString(string());
@@ -118,18 +118,18 @@ private class Reader {
 		if(k == 110) { word("null"); return JNull; }
 		return number();
 	}
-	function parseObject():JsonValue { p = p + 1; var fs = new Array<JsonField>(); skip(); if(takeCode(125)) return JObject(fs); while(true) { skip(); if(text.charCodeAt(p) != 34) fail(); final n=string(); skip(); if(!takeCode(58)) fail(); fs.push({name:n,value:value()}); skip(); if(takeCode(125)) return JObject(fs); if(!takeCode(44)) fail(); } }
+	function parseObject():JsonValue { p = p + 1; var fs = new Array<JsonField>(); skip(); if(takeCode(125)) return JObject(fs); while(true) { skip(); if(StringTools.codeAt(text, p) != 34) fail(); final n=string(); skip(); if(!takeCode(58)) fail(); fs.push({name:n,value:value()}); skip(); if(takeCode(125)) return JObject(fs); if(!takeCode(44)) fail(); } }
 	function parseArray():JsonValue { p = p + 1; var a = new Array<JsonValue>(); skip(); if(takeCode(93)) return JArray(a); while(true) { a.push(value()); skip(); if(takeCode(93)) return JArray(a); if(!takeCode(44)) fail(); } }
 	function string():String {
 		p = p + 1; var out="";
 		while(p<text.length) {
-			var c=text.charCodeAt(p); p = p + 1;
+			var c=StringTools.codeAt(text, p); p = p + 1;
 			if(c==34) return out;
 			if(c==92) {
 				if(p>=text.length) fail();
-				final e=text.charCodeAt(p); p = p + 1;
+				final e=StringTools.codeAt(text, p); p = p + 1;
 				if(e==34||e==92||e==47) { out+=String.fromCharCode(e); }
-				else if(e==98) { out+=String.fromCharCode(8); }
+				else if(e==98) { out+="\\u0008"; }
 				else if(e==102) { out+=String.fromCharCode(12); }
 				else if(e==110) { out+='\n'; }
 				else if(e==114) { out+='\r'; }
@@ -146,11 +146,11 @@ private class Reader {
 		}
 		fail(); return "";
 	}
-	function number():JsonValue { var start=p; while(p<text.length && isTerm(text.charCodeAt(p))==false) p = p + 1; final n=Std.parseFloat(text.substring(start,p)); if(Math.isNaN(n)) fail(); return JNumber(n); }
+	function number():JsonValue { var start=p; while(p<text.length && isTerm(StringTools.codeAt(text, p))==false) p = p + 1; final n=Std.parseFloat(text.substring(start,p)); if(Math.isNaN(n)) fail(); return JNumber(n); }
 	static function isTerm(k:Int):Bool return k==44 || k==93 || k==125 || k==32 || k==9 || k==10 || k==13;
 	function word(w:String):Void { if(text.substring(p,p+w.length)!=w) fail(); p = p + w.length; }
-	function skip():Void while(p<text.length && isSpace(text.charCodeAt(p))) p = p + 1;
+	function skip():Void while(p<text.length && isSpace(StringTools.codeAt(text, p))) p = p + 1;
 	static function isSpace(k:Int):Bool return k==32 || k==9 || k==10 || k==13;
-	function takeCode(k:Int):Bool { if(text.charCodeAt(p)==k) {p = p + 1; return true;} return false; }
+	function takeCode(k:Int):Bool { if(StringTools.codeAt(text, p)==k) {p = p + 1; return true;} return false; }
 	function fail():Void throw new JsonException(InvalidJson);
 }

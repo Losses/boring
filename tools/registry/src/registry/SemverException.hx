@@ -7,9 +7,9 @@ their single-argument constructors into exception variants). */
 class SemverException extends haxe.Exception {
 	public final error:SemverFault;
 
-	public function new(fault:SemverFault) {
-		this.error = fault;
-		super(SemverException.describe(fault));
+	public function new(error:SemverFault) {
+		this.error = error;
+		super(SemverException.describe(error));
 	}
 
 	public static function describe(fault:SemverFault):String {
