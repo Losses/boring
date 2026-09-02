@@ -3238,7 +3238,7 @@ class RustExpr {
 						case TFun(_, r): callRet = r;
 						case _:
 					}
-					final nullableResult = callRet != null && isNullType(callRet);
+					final nullableResult = false;
 					return nullableResult ? "u_string::at(&" + expr(subj) + ", (" + expr(args[0]) + ") as u32)" : "u_string::at(&" + expr(subj) + ", (" + expr(args[0]) + ") as u32).unwrap_or(0)";
 				}
 				if(name == "split" && isString(stripCast(subj)) && args.length == 1) {
