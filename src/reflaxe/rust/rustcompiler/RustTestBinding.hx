@@ -1,4 +1,4 @@
-package reflaxe.rust.rustcompiler;
+package rustcompiler;
 
 #if (macro || reflaxe_runtime)
 import haxe.macro.Type.ClassType;
