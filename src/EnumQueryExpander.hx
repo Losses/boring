@@ -27,6 +27,10 @@ class EnumQueryExpander {
 		return uses.get(en.module);
 	}
 
+	public static function requireNameRead(en:EnumType):Void {
+		register(en, QName);
+	}
+
 	public static function markerKind(e:TypedExpr):Null<EnumQueryKind> {
 		return switch(e.expr) {
 			case TMeta(meta, _) if(meta.name == MARKER && meta.params.length == 1):
