@@ -143,10 +143,26 @@ class PipelineExpander {
 	 */
 	static function expandArrayIteration(stmt:TypedExpr, usedNames:Map<String, Bool>):Null<Array<TypedExpr>> {
 		switch (stmt.expr) {
-			case TFor(item, subject, body) if (StaticFieldHelper.isArrayType(subject.t) || StaticFieldHelper.isReadOnlyArrayType(subject.t)):
+			case TFor(item, subject, body):
+				// ReadOnlyArray element iteration is typed as the extern
+				// `ReadOnlyArray_Impl_.iterator(array)` call.  Match that
+				// desugared form as well as the direct Array form, and erase
+				// the extern call before target lowering.
+				var arraySubject:Null<TypedExpr> = null;
+				var subjectType:Null<Type> = null;
+				switch (subject.expr) {
+					case TCall({expr: TField(_, FStatic(c, f))}, args) if(args.length == 1 && c.get().name == "ReadOnlyArray_Impl_" && f.get().name == "iterator" && StaticFieldHelper.isReadOnlyArrayType(args[0].t)):
+						arraySubject = stripWrap(args[0]);
+						subjectType = args[0].t;
+					case _ if(StaticFieldHelper.isArrayType(subject.t) || StaticFieldHelper.isReadOnlyArrayType(subject.t)):
+						arraySubject = stripWrap(subject);
+						subjectType = subject.t;
+					case _:
+						return null;
+				}
 				final pos = stmt.pos;
-				final arraySubject = stripWrap(subject);
-				final elemType = StaticFieldHelper.arrayElementType(subject.t);
+				final elemType = StaticFieldHelper.arrayElementType(subjectType);
+				if (arraySubject == null || elemType == null) return null;
 				var arrayExpr = arraySubject;
 				final prefix:Array<TypedExpr> = [];
 				switch (arraySubject.expr) {
