@@ -568,6 +568,9 @@ class RustExpr {
 					retStr = "Some(" + retStr + ")";
 				}
 				if(isFallible) {
+					if(currentReturnType != null && !isVoidType(currentReturnType)) {
+						return [indent(depth) + "unreachable!();"];
+					}
 					return [indent(depth) + "return Ok(" + retStr + ");"];
 				}
 				return [indent(depth) + "return " + retStr + ";"];
