@@ -34,7 +34,7 @@ A field is comparable when its type is one of:
 
 1. `Int`, compared as integer values.
 2. `String`, compared in UTF-16 code unit order, matching spec 07.
-3. An enum type, compared by constructor declaration order, matching features/28.
+3. An enum type, compared by constructor declaration order, matching features/28. This order applies equally to parameterized constructors after target-specific lowering.
 4. A nested `@:dataClass` record, compared by this rule recursively.
 
 A field of any other type (`Float`, `Bool`, collections, plain class references)
