@@ -113,14 +113,26 @@ func compareUnitOrder(_ a: [UInt16], _ b: [UInt16]) -> Int32 {
 /// indices are opaque. Both specialize away at compile time.
 func unitAt(_ s: String, _ index: Int32) -> Int32 {
     let u = s.utf16
+    if index < 0 || index >= Int32(u.count) { return 0 }
+    return Int32(u[u.index(u.startIndex, offsetBy: Int(index))])
+}
+
+func unitAtOptional(_ s: String, _ index: Int32) -> Int32? {
+    let u = s.utf16
+    if index < 0 || index >= Int32(u.count) { return nil }
     return Int32(u[u.index(u.startIndex, offsetBy: Int(index))])
 }
 
 func substringUnits(_ s: String, _ start: Int32, _ end: Int32) -> String {
     let u = s.utf16
-    let from = u.index(u.startIndex, offsetBy: Int(start))
-    let to = u.index(u.startIndex, offsetBy: Int(end))
-    return String(decoding: u[from..<to], as: UTF16.self)
+    var from = start < 0 ? 0 : start
+    var to = end < 0 ? 0 : end
+    if from > to { let tmp = from; from = to; to = tmp }
+    if from >= Int32(u.count) { return "" }
+    if to > Int32(u.count) { to = Int32(u.count) }
+    let f = u.index(u.startIndex, offsetBy: Int(from))
+    let t = u.index(u.startIndex, offsetBy: Int(to))
+    return String(decoding: u[f..<t], as: UTF16.self)
 }
 
 /// The code point at a unit cursor of the resident unit array: a
