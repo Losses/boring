@@ -3906,8 +3906,19 @@ class RustExpr {
 					case TField(_, FInstance(_, _, cf)) if(cf.get().name == "push"): true;
 					default: false;
 				};
+				// renderCallArgs reads the callee's declared parameter
+				// types through cf.get().type, so the declaration decides
+				// the borrow: a parameter declared as Array lowers to a
+				// mutating borrow that drains the vector, while a param
+				// left as an unbound type parameter borrows shared. The
+				// call-site type fn.t binds that parameter to Array and
+				// would mark a local the shared borrow never mutates.
+				final declaredFnType = switch(fn.expr) {
+					case TField(_, FInstance(_, _, cf)) | TField(_, FStatic(_, cf)): cf.get().type;
+					default: fn.t;
+				};
 				if(!isInstancePush) {
-					final paramTypes = switch(Context.follow(fn.t)) {
+					final paramTypes = switch(Context.follow(declaredFnType)) {
 						case TFun(pargs, _): [for(p in pargs) p.t];
 						default: [];
 					};
