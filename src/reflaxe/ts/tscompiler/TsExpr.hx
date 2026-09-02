@@ -304,9 +304,9 @@ class TsExpr {
 
 	function stmtLines(e: TypedExpr, depth: Int): Array<String> {
 		switch(e.expr) {
-			case TVar(v, init) if(isTryRegion(init)):
+			case TVar(v, init) if(init != null && isTryRegion(init)):
 				return tryBindingLines(v, init, depth);
-			case TVar(v, init) if(isStringBufToStringCall(init)):
+			case TVar(v, init) if(init != null && isStringBufToStringCall(init)):
 				return stringBufToStringBindingLines(v, stripWrap(init), depth);
 			case TVar(v, init) if(init != null):
 				final kw = mutated.exists(v.id) ? "let" : "const";
@@ -315,8 +315,8 @@ class TsExpr {
 					default: expr(init);
 				};
 				return [indent(depth) + '$kw ${localName(v)}${localTypeAnnotation(v, cast init)} = $initText;'];
-			case TVar(_, init) if(init == null):
-				return fail(e, "declaration without initializer has no lowering");
+			case TVar(v, init) if(init == null):
+				return [indent(depth) + "let " + localName(v) + ": " + types.of(v.t) + ";"];
 			case TBlock(stmts):
 				return blockLines(stmts, depth);
 			case TIf(c, t, f):
@@ -1159,6 +1159,10 @@ class TsExpr {
 					case "ushr" if(args.length == 2): "BigInt.asIntN(64, BigInt.asUintN(64, " + expr(args[0]) + ") >> BigInt(" + expr(args[1]) + "))";
 					case "eq" if(args.length == 2): expr(args[0]) + " === " + expr(args[1]);
 					case "neq" if(args.length == 2): expr(args[0]) + " !== " + expr(args[1]);
+					case "lt" if(args.length == 2): expr(args[0]) + " < " + expr(args[1]);
+					case "gt" if(args.length == 2): expr(args[0]) + " > " + expr(args[1]);
+					case "lte" if(args.length == 2): expr(args[0]) + " <= " + expr(args[1]);
+					case "gte" if(args.length == 2): expr(args[0]) + " >= " + expr(args[1]);
 					default: null;
 				}
 			default: null;
