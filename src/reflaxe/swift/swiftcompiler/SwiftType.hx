@@ -288,6 +288,11 @@ class SwiftType {
 		}
 	}
 
+	public static function canEmitDataClassComparator(cls: ClassType): Bool {
+		for(f in cls.fields.get()) if(f.kind.match(FVar(_, _)) && !isDataClassFieldKey(f.type)) return false;
+		return true;
+	}
+
 	static function isDataClassFieldKey(t: Type): Bool {
 		return switch(t) {
 			case TAbstract(a, _): a.get().name == "Int";
