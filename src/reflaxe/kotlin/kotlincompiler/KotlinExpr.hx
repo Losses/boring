@@ -774,8 +774,22 @@ class KotlinExpr {
 	}
 
 	function loopLines(loop, depth: Int): Array<String> {
-		// The loop head goes through localName so a Haxe `_` index
-		// keeps the generated name its body references use.
+		// Counted ArrayIteration lowering: recover the original element loop.
+		if (loop.body.length > 0) switch [loop.bound.expr, loop.body[0].expr] {
+			case [TField(array, fa), TVar(item, init)] if(fieldName(fa) == "length" && init != null):
+				switch(stripWrap(init).expr) {
+					case TArray(_, {expr: TLocal(index)}) if(index.id == loop.index.id):
+						if (switch(loop.start.expr) { case TConst(TInt(0)): true; case _: false; }) {
+							final out = [indent(depth) + "for (" + localName(item) + " in " + expr(array) + ") {"];
+							for(l in blockLines(loop.body.slice(1), depth + 1)) out.push(l);
+							out.push(indent(depth) + "}");
+							return out;
+						}
+					default:
+				}
+			default:
+		}
+
 		final name = localName(loop.index);
 		final startStr = expr(loop.start);
 		final boundStr = loopBound(loop.bound);
