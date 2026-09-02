@@ -2208,7 +2208,7 @@ class RustExpr {
 				}
 				pattern += " { " + bindings.join(", ") + " }";
 			}
-			final arm = armBlock(c.expr);
+			final arm = armBlock(c.expr, sw.t);
 			for(i in 0...arm.length) {
 				final suffix = i == arm.length - 1 ? "," : "";
 				out.push("    " + pattern + " => " + arm[i] + suffix);
@@ -2225,7 +2225,7 @@ class RustExpr {
 		single-expression arm renders inline, anything longer renders as a
 		block.
 	**/
-	function armBlock(e: TypedExpr): Array<String> {
+	function armBlock(e: TypedExpr, expected: Null<Type> = null): Array<String> {
 		final decls: Array<String> = [];
 		var value: Null<String> = null;
 		var sawReturn = false;
@@ -2253,7 +2253,7 @@ class RustExpr {
 					case TReturn(_):
 						sawReturn = true;
 					case _:
-						value = expr(s);
+						value = expected != null ? renderValueForType(expected, s, expr(s)) : expr(s);
 				}
 			}
 		}
