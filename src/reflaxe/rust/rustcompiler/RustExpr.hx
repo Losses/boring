@@ -49,6 +49,7 @@ class RustExpr {
 	final argTypes: Map<String, String> = [];
 	final paramVarIds: Map<Int, Bool> = [];
 	final unsignedLocals: Map<Int, Bool> = [];
+	final nullableNumericLocals: Map<Int, Bool> = [];
 	final fpInt64Halves: Map<Int, Bool> = [];
 	var hiddenCounter: Int = 0;
 
@@ -252,6 +253,7 @@ class RustExpr {
 		currentLocalName = null;
 		paramVarIds.clear();
 		unsignedLocals.clear();
+		nullableNumericLocals.clear();
 		mutated.clear();
 		deferredLocals.clear();
 		for(a in f.args) {
@@ -301,6 +303,7 @@ class RustExpr {
 		currentLocalName = null;
 		paramVarIds.clear();
 		unsignedLocals.clear();
+		nullableNumericLocals.clear();
 		mutated.clear();
 		for(a in f.args) if(a.tvar != null) paramVarIds.set(a.tvar.id, true);
 		scanLocals(f.expr);
@@ -333,6 +336,7 @@ class RustExpr {
 		currentLocalName = null;
 		paramVarIds.clear();
 		unsignedLocals.clear();
+		nullableNumericLocals.clear();
 		mutated.clear();
 		for(a in f.args) {
 			if(a.tvar != null) paramVarIds.set(a.tvar.id, true);
@@ -2500,7 +2504,7 @@ class RustExpr {
 		// Null<Int> is represented as Option<u32>. Haxe permits it to enter
 		// numeric expressions; the target contract uses zero for the absent
 		// value, consistently at every arithmetic operand boundary.
-		if(isNullableNumeric(e.t) || isStringCharCodeAt(e)) {
+		if(isNullableNumeric(e.t) || isStringCharCodeAt(e) || (switch(stripWrap(e).expr) { case TLocal(v): nullableNumericLocals.exists(v.id); case _: false; })) {
 			// Null<Int> is Option<u32>, including when the charCodeAt call
 			// has first been assigned to a local.  Collapse it at the
 			// arithmetic boundary, not only for a syntactically direct call.
@@ -3955,6 +3959,7 @@ class RustExpr {
 					usedNames.set(v.name, true);
 				}
 				if(init != null) {
+					if(isNullableNumeric(init.t) || isStringCharCodeAt(init)) nullableNumericLocals.set(v.id, true);
 					// Wire reads and reader positions arrive as unsigned values;
 					// remember the locals so negative-domain checks lower as
 					// upper-bound checks.
