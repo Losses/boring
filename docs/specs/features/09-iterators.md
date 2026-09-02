@@ -339,10 +339,7 @@ narrows the rejection to the subjects the reason actually covers.
   moves to the typed pass (pass 2 of the style standard's interception
   mechanics): a typed `TFor` whose iteration subject's static type is
   neither an integer range nor `Array<T>`/`ReadOnlyArray<T>` names `V01`.
-  The untyped pass no longer rejects array-shaped iteration subjects
-  before typing. The mechanics paragraph of the style standard is
-  corrected in the same commit, including its claim that the typer rewrites
-  array loops before typing.
+  The common pipeline recognizes the typer's lowered `Array<T>` statement shape (the counter declaration, indexed `while`, and captured element read), rewrites it to the counted form with a hoisted bound, and preserves the typer-hoisted local for non-local subjects. This makes the static-array ruling effective even though no `TFor` remains at that pass.
 - The loop body obeys `V08 LoopBodyClosure` and the closure lifecycle rules
   of this specification unchanged. The pipeline idioms of
   `docs/specs/macros/01-functional-idiom-expansion.md` keep their own
