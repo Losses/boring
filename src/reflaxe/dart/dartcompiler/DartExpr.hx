@@ -306,7 +306,32 @@ class DartExpr {
 		final fieldInits: Array<String> = [];
 		var superCall: Null<String> = null;
 		final body: Array<String> = [];
-		for(stmt in statementsOf(f.expr)) {
+		// Pipeline expansion emits counted-map allocation and loop as a pair;
+		// run the same Dart fill fusion here as in ordinary statement blocks.
+		final statements = statementsOf(f.expr);
+		var statementIndex = 0;
+		while(statementIndex < statements.length) {
+			// The expander's counted loop is flat in a constructor body. Pack
+			// its counter, bound, and while siblings only for fillFusion.
+			var fillStatements = statements;
+			var fillIndex = statementIndex;
+			var packedLoop = false;
+			if(statementIndex + 3 < statements.length) {
+				final loop = intervalCore(statements[statementIndex + 1], statements[statementIndex + 2], statements[statementIndex + 3]);
+				if(loop != null) {
+					final grouped: TypedExpr = {expr: TBlock([statements[statementIndex + 1], statements[statementIndex + 2], statements[statementIndex + 3]]), pos: statements[statementIndex + 1].pos, t: statements[statementIndex + 3].t};
+					fillStatements = [statements[statementIndex], grouped];
+					fillIndex = 0;
+					packedLoop = true;
+				}
+			}
+			final fused = fillFusion(fillStatements, fillIndex, 2, packedLoop ? [statements[statementIndex + 1], statements[statementIndex + 2], statements[statementIndex + 3]] : null);
+			if(fused != null) {
+				for(line in terminated(fused)) body.push(line);
+				statementIndex += packedLoop ? 4 : 2;
+				continue;
+			}
+			final stmt = statements[statementIndex];
 			switch(stmt.expr) {
 				case TBinop(OpAssign, target, value):
 					switch(stripWrap(target).expr) {
@@ -314,6 +339,7 @@ class DartExpr {
 							final coalescing = coalescingSiteFor(value);
 							if(coalescing != null) {
 								for(l in stmtLines(stmt, 2)) body.push(l);
+								statementIndex++;
 								continue;
 							}
 							// A private field initializes under its
@@ -323,8 +349,10 @@ class DartExpr {
 							final valueText = expr(value);
 							if(param != null) {
 								formalFields.set(param, field);
-						} else if(mentionsConstructorLocalExpr(value, constructorLocals)) {
+							} else if(mentionsConstructorLocalExpr(value, constructorLocals)) {
 								for(l in stmtLines(stmt, 2)) body.push(l);
+								statementIndex++;
+								continue;
 							} else {
 								fieldInits.push(field + " = " + valueText);
 							}
@@ -336,6 +364,7 @@ class DartExpr {
 				case _:
 					for(l in stmtLines(stmt, 2)) body.push(l);
 			}
+			statementIndex++;
 		}
 		return {formalFields: formalFields, fieldInits: fieldInits, superCall: superCall, body: body};
 	}
@@ -851,7 +880,7 @@ class DartExpr {
 		values and grow amortized, so no capacity reservation and no
 		read-only wrapper are required.
 	**/
-	function fillFusion(stmts: Array<TypedExpr>, i: Int, depth: Int): Null<Array<String>> {
+	function fillFusion(stmts: Array<TypedExpr>, i: Int, depth: Int, flatLoop: Null<Array<TypedExpr>> = null): Null<Array<String>> {
 		if(i + 1 >= stmts.length) {
 			return null;
 		}
@@ -934,7 +963,19 @@ class DartExpr {
 		}
 		final out: Array<String> = [];
 		out.push(indent(depth) + "final " + arrName + " = <" + types.of(alloc.elem) + ">[]");
-		out.push(indent(depth) + "for (var " + (readsIndex ? localName(loop.index) : "_i") + " = " + expr(loop.start) + "; " + (readsIndex ? localName(loop.index) : "_i") + " < " + expr(loop.bound) + "; " + (readsIndex ? localName(loop.index) : "_i") + "++) {");
+		if(flatLoop != null) {
+			final counter = switch(flatLoop[0].expr) { case TVar(v, _): v; case _: return null; };
+			final boundVar = switch(flatLoop[1].expr) { case TVar(v, _): v; case _: return null; };
+			final start = switch(flatLoop[0].expr) { case TVar(_, value): value; case _: return null; };
+			final bound = switch(flatLoop[1].expr) { case TVar(_, value): value; case _: return null; };
+			if(start == null || bound == null) return null;
+			out.push(indent(depth) + "var " + localName(counter) + " = " + expr(start));
+			out.push(indent(depth) + "final " + localName(boundVar) + " = " + expr(bound));
+			out.push(indent(depth) + "while (" + localName(counter) + " < " + localName(boundVar) + ") {");
+			out.push(indent(depth + 1) + "final " + localName(loop.index) + " = " + localName(counter) + "++");
+		} else {
+			out.push(indent(depth) + "for (var " + (readsIndex ? localName(loop.index) : "_i") + " = " + expr(loop.start) + "; " + (readsIndex ? localName(loop.index) : "_i") + " < " + expr(loop.bound) + "; " + (readsIndex ? localName(loop.index) : "_i") + "++) {");
+		}
 		final nonStores: Array<TypedExpr> = [];
 		for(s in loop.body) {
 			final store = indexedStoreOf(s);
