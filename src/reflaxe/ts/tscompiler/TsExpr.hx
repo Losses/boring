@@ -65,6 +65,7 @@ class TsExpr {
 
 	/** Names used by parameters and locals; generated names avoid them. */
 	final usedNames: Map<String, Bool> = [];
+	final emittedLocalNames: Map<Int, String> = [];
 	/** Locals backed by the FPHelper high/low boundary object. */
 	final fpInt64Halves: Map<Int, Bool> = [];
 
@@ -2329,7 +2330,18 @@ class TsExpr {
 		switch(e.expr) {
 			case TVar(v, init):
 				if(v.name != "`") {
-					usedNames.set(v.name, true);
+					if(usedNames.exists(v.name)) {
+						var suffix = 2;
+						var candidate = v.name + suffix;
+						while(usedNames.exists(candidate)) {
+							suffix += 1;
+							candidate = v.name + suffix;
+						}
+						emittedLocalNames.set(v.id, candidate);
+						usedNames.set(candidate, true);
+					} else {
+						usedNames.set(v.name, true);
+					}
 				}
 				if(init != null) {
 					switch(stripWrap(init).expr) {
@@ -2373,6 +2385,9 @@ class TsExpr {
 	}
 
 	function localName(v: TVar): String {
+		if(emittedLocalNames.exists(v.id)) {
+			return emittedLocalNames.get(v.id);
+		}
 		if(localAliases.exists(v.id)) {
 			return localAliases.get(v.id);
 		}
