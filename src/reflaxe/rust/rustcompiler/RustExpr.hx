@@ -413,7 +413,7 @@ class RustExpr {
 
 	function stmtLines(e: TypedExpr, depth: Int): Array<String> {
 		switch(e.expr) {
-			case TVar(v, init) if(isTryRegion(init)):
+			case TVar(v, init) if(init != null && isTryRegion(init)):
 				return regionInitializerLines(v, stripWrap(init), depth);
 			case TVar(v, init) if(init != null):
 				final kw = mutated.exists(v.id) ? "let mut" : "let";
@@ -451,9 +451,16 @@ class RustExpr {
 						case _:
 					}
 				}
+				// A let initializer needs no outer parentheses; fully
+				// wrapped lowerings such as Int64.make would otherwise
+				// trip rustc's unused_parens lint at this position.
+				if(StringTools.startsWith(initStr, "(") && StringTools.endsWith(initStr, ")") && matchingParens(initStr)) {
+					initStr = initStr.substr(1, initStr.length - 2);
+				}
 				return [indent(depth) + '$kw $name$explicitType = $initStr;'];
-			case TVar(_, init) if(init == null):
-				return [fail(e, "declaration without initializer has no lowering")];
+			case TVar(v, init) if(init == null):
+				final name = RustImports.toSnakeCase(localName(v));
+				return [indent(depth) + "let mut " + name + ": " + types.of(v.t, false) + ";"];
 			case TBlock(stmts):
 				return blockLines(stmts, depth);
 			case TIf(c, t, f):
@@ -1184,8 +1191,14 @@ class RustExpr {
 
 		final startStr = expr(loop.start);
 		final boundStr = loopBound(loop.bound);
+		var readsIndex = false;
+		for(statement in loop.body) if(mentionsLocal(statement, loop.index)) {
+			readsIndex = true;
+			break;
+		}
+		final loopName = readsIndex ? name : "_";
 		final out = [
-			indent(depth) + "for " + name + " in " + startStr + ".." + boundStr + " {"
+			indent(depth) + "for " + loopName + " in " + startStr + ".." + boundStr + " {"
 		];
 		for(l in blockLines(loop.body, depth + 1)) out.push(l);
 		out.push(indent(depth) + "}");
@@ -2267,7 +2280,7 @@ class RustExpr {
 		return switch(Context.follow(t)) {
 			case TAbstract(a, _):
 				final n = a.get().name;
-				n == "Int" || n == "Bool" || n == "Float";
+				n == "Int" || n == "Bool" || n == "Float" || n == "Int64";
 			case TAnonymous(anon):
 				isAllCopy(anon.get().fields);
 			case TType(d, _):
@@ -2429,7 +2442,7 @@ class RustExpr {
 	**/
 	function isUnsignedOperand(e: TypedExpr): Bool {
 		return switch(stripWrap(e).expr) {
-			case TLocal(v): unsignedLocals.exists(v.id) || isUnsignedTypeName(argTypes.get(v.name));
+			case TLocal(v): unsignedLocals.exists(v.id) || isUnsignedTypeName(argTypes.get(v.name)) || (isIntType(v.t) && !RuntimeResidents.isResident(imports.selfModule));
 			case _: false;
 		};
 	}
@@ -2475,7 +2488,7 @@ class RustExpr {
 		return switch(stripWrap(fn).expr) {
 			case TField(_, FStatic(classRef, fieldRef)) if(classRef.get().module == "haxe.Int64" && classRef.get().name == "Int64_Impl_"):
 				switch(fieldRef.get().name) {
-					case "make" if(args.length == 2): "(((" + expr(args[0]) + " as i64) << 32) | ((" + expr(args[1]) + " as u32) as i64))";
+					case "make" if(args.length == 2): "((" + expr(args[0]) + " as i64) << 32) | ((" + expr(args[1]) + " as u32) as i64)";
 					case "ofInt" if(args.length == 1): "(" + expr(args[0]) + " as i32) as i64";
 					case "getHigh" | "get_high" if(args.length == 1):
 						if(isFpHelperInt64Halves(args[0])) expr(args[0]) + ".high" else "(" + expr(args[0]) + " >> 32) as u32";
@@ -2492,6 +2505,10 @@ class RustExpr {
 					case "ushr" if(args.length == 2): "((" + expr(args[0]) + " as u64).wrapping_shr(" + expr(args[1]) + " as u32)) as i64";
 					case "eq" if(args.length == 2): expr(args[0]) + " == " + expr(args[1]);
 					case "neq" if(args.length == 2): expr(args[0]) + " != " + expr(args[1]);
+					case "lt" if(args.length == 2): expr(args[0]) + " < " + expr(args[1]);
+					case "gt" if(args.length == 2): expr(args[0]) + " > " + expr(args[1]);
+					case "lte" if(args.length == 2): expr(args[0]) + " <= " + expr(args[1]);
+					case "gte" if(args.length == 2): expr(args[0]) + " >= " + expr(args[1]);
 					default: null;
 				}
 			default: null;
@@ -2726,6 +2743,8 @@ class RustExpr {
 	}
 
 	function staticRef(cls: ClassType, name: String): String {
+		final staticField = findStaticField(cls, name);
+		final staticName = staticField != null && staticField.isFinal ? RustImports.toSnakeCase(name).toUpperCase() : RustImports.toSnakeCase(name);
 		final valueType = ValueTypeSupport.markedAbstractOfClass(cls);
 		if(valueType != null) {
 			imports.requireType(valueType.module, valueType.name);
@@ -2821,7 +2840,7 @@ class RustExpr {
 					return staticItemPath(cls, name);
 				}
 				imports.requireType(cls.module, cls.name);
-				return cls.name + "::" + RustImports.toSnakeCase(name);
+				return cls.name + "::" + staticName;
 		}
 	}
 
@@ -3109,7 +3128,7 @@ class RustExpr {
 					}
 				}
 				if(name == "get" && isBytes(stripCast(subj))) {
-					return expr(subj) + "[(" + expr(args[0]) + ") as usize]";
+					return "(" + expr(subj) + "[" + expr(args[0]) + " as usize] as u32)";
 				}
 				if(name == "set" && args.length == 2 && isBytes(stripCast(subj))) {
 					return expr(subj) + "[" + expr(args[0]) + " as usize] = (" + expr(args[1]) + ") as u8";
@@ -3300,12 +3319,14 @@ class RustExpr {
 					// truncating integer division; Std.int over it
 					// converts nothing.
 					if(isLengthDivision(args[0])) {
-						return "(" + expr(args[0]) + ")";
+						return "(" + expr(args[0]) + ") as " + (RuntimeResidents.isResident(imports.selfModule) ? "i32" : "u32");
 					}
 					return RuntimeResidents.isResident(imports.selfModule) ? "(" + expr(args[0]) + ") as i32" : "(" + expr(args[0]) + ") as u32";
 				}
 				if(cls.pack.length == 0 && cls.name == "String" && name == "fromCharCode") {
-					return "String::from_utf16(&[u16::try_from(" + expr(args[0]) + ").unwrap_or_default()]).unwrap_or_default()";
+					final value = expr(args[0]);
+					final argument = StringTools.startsWith(value, "(") ? value : "(" + value + ")";
+					return "String::from_utf16(&[u16::try_from" + argument + ".unwrap_or_default()]).unwrap_or_default()";
 				}
 				if(path == "std.UStringPlatform") {
 					// Cursor primitives of the resident UString walk, inlined

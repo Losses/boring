@@ -63,19 +63,19 @@ Every candidate translation is evaluated across four fixed axes:
 | 06 | [06-errors-and-results.md](features/06-errors-and-results.md) | Complete | Exceptions, Result types, and error propagation. |
 | 07 | [07-numeric-tower.md](features/07-numeric-tower.md) | Complete | Integer widths, floating-point representations, and conversion rules. |
 | 08 | [08-strings-and-unicode.md](features/08-strings-and-unicode.md) | Complete | String representations, UTF-8/UTF-16 encoding, and character indexing. |
-| 09 | [09-iterators.md](features/09-iterators.md) | Complete | Iterator protocols, array traversal, and loop transformations. |
+| 09 | [09-iterators.md](features/09-iterators.md) | Complete | Iterator protocols, array traversal, and loop transformations; the 2026-09-01 amendment (Planned) sanctions element iteration over statically-Array subjects. |
 | 10 | [10-static-extension.md](features/10-static-extension.md) | Planned | Top-level and extension functions: declaration markers and per-target emission. |
 | 11 | [11-inline-and-macros.md](features/11-inline-and-macros.md) | Complete | Inline functions, compile-time macros, and constant folding. |
 | 12 | [12-classes-interfaces-access.md](features/12-classes-interfaces-access.md) | Complete | Object-oriented constructs, visibility modifiers, and dispatch. |
 | 13 | [13-metadata-and-reflection.md](features/13-metadata-and-reflection.md) | Complete | Compiler metadata tags and reflection limitations. |
 | 14 | [14-type-system-mapping.md](features/14-type-system-mapping.md) | Complete | Type identity, nominality, and the fixed cross-language type table. |
-| 15 | [15-control-flow.md](features/15-control-flow.md) | Complete | Plain control flow mapping and switch exhaustiveness rules. |
+| 15 | [15-control-flow.md](features/15-control-flow.md) | Complete | Plain control flow mapping and switch exhaustiveness rules; the 2026-09-01 amendment (Planned) rules arbitrary expression switch subjects hoisted in the common layer. |
 | 16 | [16-static-object-access.md](features/16-static-object-access.md) | Complete | Static object read and write syntax, shape freezing, and behavior parity. |
 | 17 | [17-sorting.md](features/17-sorting.md) | Complete | The sort runtime: fixed named strategies, platform bodies, stability identity. |
 | 18 | [18-immutability.md](features/18-immutability.md) | Complete | Read-only data types and per-platform mutation enforcement. |
 | 19 | [19-testing.md](features/19-testing.md) | Complete | In-source tests, per-target execution, and cross-target consistency. |
 | 20 | [20-compile-time-data-tables.md](features/20-compile-time-data-tables.md) | Complete | Compile-time data expansion of large immutable lookup tables and the table emission ruling. |
-| 22 | [22-default-argument-expansion.md](features/22-default-argument-expansion.md) | Planned | Optional function parameters with default values: the completion pass in the typed common layer and the call sites that omit them; the planned coalescing-default extension reads earlier parameters and static fields. |
+| 22 | [22-default-argument-expansion.md](features/22-default-argument-expansion.md) | Complete | Optional function parameters with default values: the completion pass in the typed common layer, the call sites that omit them, Stages A and B implemented; Stage C (filed 2026-09-01, Planned) adds normalization bindings and constructor defaults. |
 | 23 | [23-float-precision-switch.md](features/23-float-precision-switch.md) | Complete | The `float-precision` define selecting the binary32 mapping of `Float` for the whole compilation, with the TypeScript startup rejection and the f64 wire boundary. |
 | 24 | [24-package-shell.md](features/24-package-shell.md) | Complete | The package manifest each target compiler writes next to the generated source, on by default with a one-define opt-out, covering the responsibility split between generator and consumer build. |
 | 25 | [25-package-artifacts.md](features/25-package-artifacts.md) | Complete | The pack step behind `package-artifacts=emit`: the compiler writes the ecosystem install artifact (npm tgz, cargo crate, Swift zip, Pub tar.gz) of the tree it emitted, from the recorded write list, with fixed determinism constants. |
@@ -85,6 +85,7 @@ Every candidate translation is evaluated across four fixed axes:
 | 29 | [29-first-class-function-values.md](features/29-first-class-function-values.md) | Planned | Function-typed values in every storage position: the verified renderings on all five targets, Rust boxed function storage, and static function fields with capture-free initializers. |
 | 30 | [30-static-fields.md](features/30-static-fields.md) | Planned | Static fields in every declared form: declarations with initializers on all five targets, static assignment from own and other classes, container mutation, and the Rust mutex static. |
 | 31 | [31-record-tostring-member.md](features/31-record-tostring-member.md) | Planned | The printed-form member: a `@:dataClass` class without an explicit `toString` gets one synthesized on every target and in stage 1, sharing the RecordStr assembly routine; amends 27's no-synthesized-members sentence. |
+| 38 | [38-deferred-variable-declarations.md](features/38-deferred-variable-declarations.md) | Complete | Local declarations without initializer and the assignments that initialize them; statement-lowering guards must null-check the initializer. |
 
 ### Macro specifications
 

@@ -23,7 +23,7 @@ class ValueTypeConsumer {
 		var rejected = false;
 		try {
 			new FontFaceId(" ");
-		} catch (error:ValueException) {
+		} catch (_:ValueException) {
 			rejected = true;
 		}
 		return rejected;

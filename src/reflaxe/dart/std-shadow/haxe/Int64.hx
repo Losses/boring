@@ -29,6 +29,10 @@ abstract Int64(Int64Repr) {
 	@:op(A >>> B) public static function ushr(a:Int64, b:Int):Int64 return make(0, 0);
 	@:op(A == B) public static function eq(a:Int64, b:Int64):Bool return false;
 	@:op(A != B) public static function neq(a:Int64, b:Int64):Bool return false;
+	@:op(A < B) public static function lt(a:Int64, b:Int64):Bool return false;
+	@:op(A > B) public static function gt(a:Int64, b:Int64):Bool return false;
+	@:op(A <= B) public static function lte(a:Int64, b:Int64):Bool return false;
+	@:op(A >= B) public static function gte(a:Int64, b:Int64):Bool return false;
 
 	public var high(get, never):Int;
 	private function get_high():Int return this.high;
