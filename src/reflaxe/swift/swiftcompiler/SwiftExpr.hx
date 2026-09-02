@@ -77,6 +77,8 @@ class SwiftExpr {
 	final usedNames: Map<String, Bool> = [];
 	/** Catch variables in scope, keyed by TVar id (features/06). */
 	final catchVars: Map<Int, Bool> = [];
+	/** Counted-loop variables use Swift's native Int stride index type. */
+	final rangeLoopVars: Map<Int, Bool> = [];
 
 	final hiddenNames: Map<Int, String> = [];
 	var hiddenCounter: Int = 0;
@@ -332,7 +334,7 @@ class SwiftExpr {
 					? DefaultArgExpander.coalescingDefaultForLocalParam(currentClass, currentField, currentLocalName, coalescing.parameter)
 					: DefaultArgExpander.coalescingDefaultForParam(currentClass, currentField, coalescing.parameter));
 				final localType = coalescingValue != null ? DefaultArgExpander.coalescingLocalType(coalescingValue, v.t) : v.t;
-				final annotation = isEmptyArrayDecl(init) || isIntLeafType(v.t) || isIntLiteralArrayDecl(init) || isBuilderCall(init) || isNullLeafType(v.t)
+				final annotation = isEmptyArrayDecl(init) || (isIntLeafType(v.t) && !mentionsRangeLoopVar(init)) || isIntLiteralArrayDecl(init) || isBuilderCall(init) || isNullLeafType(v.t)
 					|| coalescing != null || (FloatPrecision.isF32() && isFloatLeafType(v.t)) ? ": " + types.of(localType) : "";
 				final initText = switch(init.expr) {
 					case TFunction(fn): functionLiteralNamed(v.name, fn);
@@ -542,6 +544,19 @@ class SwiftExpr {
 					continue;
 				}
 			}
+			if(i + 1 < stmts.length) {
+				final loop = intervalShort(stmts[i], stmts[i + 1]);
+				if(loop != null) {
+					final grouped: TypedExpr = {
+						expr: TBlock([stmts[i], stmts[i + 1]]),
+						pos: stmts[i].pos,
+						t: stmts[i + 1].t
+					};
+					out.push(grouped);
+					i += 2;
+					continue;
+				}
+			}
 			out.push(stmts[i]);
 			i += 1;
 		}
@@ -625,6 +640,7 @@ class SwiftExpr {
 	}
 
 	function loopLines(loop: {index: TVar, start: TypedExpr, bound: TypedExpr, body: Array<TypedExpr>}, depth: Int): Array<String> {
+		rangeLoopVars.set(loop.index.id, true);
 		// A body that never reads the loop variable discards the binding.
 		var readsIndex = false;
 		for(s in loop.body) {
@@ -3110,6 +3126,19 @@ class SwiftExpr {
 			}
 		}
 		return out;
+	}
+
+	function mentionsRangeLoopVar(e: TypedExpr): Bool {
+		var found = false;
+		function walk(x: TypedExpr) {
+			switch(x.expr) {
+				case TLocal(v) if(rangeLoopVars.exists(v.id)): found = true;
+				case _:
+			}
+			TypedExprTools.iter(x, walk);
+		}
+		walk(e);
+		return found;
 	}
 
 	function mentionsLocal(e: TypedExpr, v: TVar): Bool {
