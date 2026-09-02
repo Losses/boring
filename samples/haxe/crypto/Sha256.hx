@@ -76,7 +76,7 @@ class Sha256 {
 
 	static function processBlock(hash:Array<Int>, input:Bytes):Void {
 		var words:Array<Int> = [];
-		for (_ in 0...64) words.push(0);
+		for (i in 0...64) words.push(0);
 		for (i in 0...16) {
 			var offset = i * 4;
 			words[i] = (input.get(offset) << 24) | (input.get(offset + 1) << 16) | (input.get(offset + 2) << 8) | input.get(offset + 3);
