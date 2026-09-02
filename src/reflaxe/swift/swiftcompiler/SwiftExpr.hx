@@ -1884,7 +1884,12 @@ class SwiftExpr {
 						final real = FloatPrecision.isF32() ? "Float" : "Double";
 						return '({ () -> ' + real + ' in let t = String(' + s + '.drop(while: { $0 == " " || $0 == "\\t" || $0 == "\\n" || $0 == "\\u{0B}" || $0 == "\\u{0C}" || $0 == "\\r" }).reversed().drop(while: { $0 == " " || $0 == "\\t" || $0 == "\\n" || $0 == "\\u{0B}" || $0 == "\\u{0C}" || $0 == "\\r" }).reversed()); var i = t.unicodeScalars.makeIterator(); var state = 0; var digits = false; var ok = true; while let c = i.next() { let v = c.value; if v >= 48 && v <= 57 { digits = true } else if (v == 43 || v == 45) && state == 0 { state = 1 } else if v == 46 && state <= 1 { state = 2 } else if (v == 101 || v == 69) && digits && state <= 2 { state = 3 } else if (v == 43 || v == 45) && state == 3 { state = 4 } else { ok = false } }; return ok && digits ? ' + real + '(t) ?? .nan : .nan }())';
 					}
-					if(fName == "parseInt") { return '({ () -> Int32? in let t = String(' + s + '.drop(while: { $0 == " " || $0 == "\\t" || $0 == "\\n" || $0 == "\\u{0B}" || $0 == "\\u{0C}" || $0 == "\\r" }).reversed().drop(while: { $0 == " " || $0 == "\\t" || $0 == "\\n" || $0 == "\\u{0B}" || $0 == "\\u{0C}" || $0 == "\\r" }).reversed()); let neg = t.hasPrefix("-"); let p = (neg || t.hasPrefix("+")) ? 1 : 0; let d = String(t.dropFirst(p)); let hex = d.hasPrefix("0x") || d.hasPrefix("0X"); let digits = hex ? String(d.dropFirst(2)) : d; var i = digits.unicodeScalars.makeIterator(); var count = 0; var ok = true; while let c = i.next() { let v = c.value; if (v >= 48 && v <= 57) || (hex && ((v >= 65 && v <= 70) || (v >= 97 && v <= 102))) { count += 1 } else { ok = false } }; if !ok || count == 0 { return nil }; if hex { guard let n = Int64(digits, radix: 16) else { return nil }; let v = neg ? -n : n; return v >= -2147483648 && v <= 2147483647 ? Int32(v) : nil }; guard let n = Int64(t), n >= -2147483648 && n <= 2147483647 else { return nil }; return Int32(n) }())'; }
+					if(fName == "parseInt") {
+						imports.runtime("parseIntRuntime");
+						return types.resident
+							? "parseIntRuntime(String(decoding: " + s + ", as: UTF16.self))"
+							: "parseIntRuntime(" + s + ")";
+					}
 					if(fName == "int") {
 						final arg = stripWrap(args[0]);
 						switch(arg.expr) {
@@ -3065,6 +3070,12 @@ class SwiftExpr {
 		final leaves: Array<TypedExpr> = [];
 		flattenAdd(l, leaves);
 		leaves.push(r);
+		if(types.resident) {
+			imports.runtimeTest("TestCore");
+			return "{ let p0 = " + residentConcatLeaf(leaves[0]) + "; "
+				+ [for(i in 1...leaves.length) "let p" + i + " = " + residentConcatLeaf(leaves[i]) + "; "].join("")
+				+ "return " + [for(i in 0...leaves.length) "p" + i].join(" + ") + " }()";
+		}
 		var allStrings = true;
 		for(leaf in leaves) {
 			switch(leaf.expr) {
@@ -3114,6 +3125,16 @@ class SwiftExpr {
 			case TBinop(_, _, _): "(" + expr(leaf) + ")";
 			case _: optionalStringLeaf(leaf) ? expr(leaf) + "!" : expr(leaf);
 		};
+	}
+
+	function residentConcatLeaf(leaf: TypedExpr): String {
+		if(isStringLeafType(leaf.t) || isUnitArrayTyped(leaf)) {
+			return expr(leaf);
+		}
+		if(isIntTyped(leaf)) {
+			return "TestCore.formatInt(" + expr(leaf) + ")";
+		}
+		return "Array(String(" + expr(leaf) + ").utf16)";
 	}
 
 	/** Whether a concat leaf is an optional string a guard has cleared. */

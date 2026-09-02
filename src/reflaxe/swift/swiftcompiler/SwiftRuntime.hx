@@ -108,6 +108,37 @@ func compareUnitOrder(_ a: [UInt16], _ b: [UInt16]) -> Int32 {
     return unitOrderCompare(a, b)
 }
 
+/// Std.parseInt checked Haxe semantics, kept named so the Swift type
+/// checker does not have to solve the complete parser at every call site.
+func parseIntRuntime(_ s: String) -> Int32? {
+    let all = Array(s.unicodeScalars)
+    func isSpace(_ v: UInt32) -> Bool { return v == 32 || (v >= 9 && v <= 13) }
+    var left = 0
+    var right = all.count
+    while left < right && isSpace(all[left].value) { left += 1 }
+    while right > left && isSpace(all[right - 1].value) { right -= 1 }
+    let scalars = Array(all[left..<right])
+    var start = 0
+    var negative = false
+    if start < scalars.count && (scalars[start].value == 45 || scalars[start].value == 43) {
+        negative = scalars[start].value == 45
+        start += 1
+    }
+    let hex = start + 1 < scalars.count && scalars[start].value == 48
+        && (scalars[start + 1].value == 120 || scalars[start + 1].value == 88)
+    if hex { start += 2 }
+    if start == scalars.count { return nil }
+    for i in start..<scalars.count {
+        let v = scalars[i].value
+        let valid = (v >= 48 && v <= 57) || (hex && ((v >= 65 && v <= 70) || (v >= 97 && v <= 102)))
+        if !valid { return nil }
+    }
+    let digits = String(String.UnicodeScalarView(scalars[start..<scalars.count]))
+    guard let n = Int64(digits, radix: hex ? 16 : 10) else { return nil }
+    let value = negative ? -n : n
+    return value >= -2147483648 && value <= 2147483647 ? Int32(value) : nil
+}
+
 /// Unit-indexed reads and cuts over native String, the business face
 /// of the UTF-16 view: an index advances through the view because the
 /// indices are opaque. Both specialize away at compile time.
