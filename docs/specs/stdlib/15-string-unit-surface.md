@@ -24,7 +24,7 @@ width.
 
 A comparison of a `charCodeAt` result against an `Int` literal and a
 null test on the result follow the nullable `Null<Int>` forms the
- targets already lower.
+targets already lower.
 
 ## Current state
 
