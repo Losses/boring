@@ -23,6 +23,11 @@ describe("StringTools conversions lowering", () => {
     ];
     for (const tree of trees) {
       for (const file of walk(path.join(root, tree))) {
+        // The registry package ships its own StringTools class as its
+        // portability layer, so registry files reference that class by
+        // name on every target. The unresolved-reference invariant
+        // governs the std StringTools lowering of the codec trees.
+        if (file.includes(`${path.sep}registry${path.sep}`)) continue;
         expect(fs.readFileSync(file, "utf8")).not.toMatch(/\bStringTools\.[A-Za-z_]\w*\s*\(/u);
       }
     }
