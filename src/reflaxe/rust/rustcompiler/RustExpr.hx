@@ -2285,7 +2285,7 @@ class RustExpr {
 			return [fail(e, "return inside a value arm lowers at statement position only")];
 		}
 		var valueText = value;
-		if(value != null && isStringType(e.t)) {
+		if(value != null && isStringType(e.t) && isStringLiteral(e)) {
 			valueText = value + ".to_string()";
 		}
 		if(decls.length == 0) {
