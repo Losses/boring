@@ -510,7 +510,13 @@ The cross-target `@:test` suite is in package `tests`: registry SHA-1 boundary
 vectors (`RegistrySha1Tests`), JSON round trips (`RegistryJsonTests`), semver
 ordering (`RegistrySemverTests`), and the core pipeline and argument-parser
 fixtures. Test inputs and expected values are literals and assertions use
-`std.Test`.
+`std.Test`. The pipeline fixture exercises `Core.parseArgs` and `Core.generate`
+with two owners and npm/cargo records, comparing every returned path and body,
+including the npm index, `_headers`, and `_redirects`. The argument fixture
+checks missing required flags, the exact help usage text, and unknown-flag
+errors. All five registry test modules are listed in each of the eight target
+HXML module manifests; the generated result streams are consumed by the
+cross-target consistency manager.
 
 `registry/Platform.hx` is a TS-only tool-local extern module: platform access
 uses `@:jsRequire` and `@:native` declarations. The eight
