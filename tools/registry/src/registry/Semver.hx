@@ -22,7 +22,7 @@ class Semver {
  /** Which validation rule a version violates, or null when the version is
  valid; the single authority both parse() and require() derive from. */
  static function parseFault(version:String):Null<SemverFault> {
-  var core=version, dash=registry.StringTools.indexOfCode(version,45), plus=registry.StringTools.indexOfCode(version,43);
+  var core=version, dash=version.indexOf("-"), plus=version.indexOf("+");
   if(plus>=0){ if(dash>=0&&plus<dash) return InvalidExtension(version); if(!validIdentifiers(version.substring(plus+1))) return InvalidExtension(version); core=version.substring(0,plus); }
   if(dash>=0){ var end=plus>=0?plus:version.length; if(!validIdentifiers(version.substring(dash+1,end))) return InvalidExtension(version); core=version.substring(0,dash); }
   var parts=core.split("."); if(parts.length!=3||!validNumeric(parts[0])||!validNumeric(parts[1])||!validNumeric(parts[2])) return InvalidCore(version);
@@ -31,7 +31,7 @@ class Semver {
  /** Splits an already-validated version; parseFault() is the authority for
  validity, so no checks repeat here. */
  static function parseUnvalidated(version:String):Version {
-  var dash=registry.StringTools.indexOfCode(version,45), plus=registry.StringTools.indexOfCode(version,43);
+  var dash=version.indexOf("-"), plus=version.indexOf("+");
   var end:Int = plus>=0?plus:version.length;
   var pre:Array<String>=[];
 		if(dash>=0) pre=splitParts(version.substring(dash+1,end));

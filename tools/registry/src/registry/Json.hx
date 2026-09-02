@@ -60,11 +60,11 @@ class Json {
 	static function quote(s:String):String {
 		var out = '"';
 		for(i in 0...s.length) {
-			out += escapeOf(s.charCodeAt(i));
+			out += escapeOf(s, s.charCodeAt(i), i);
 		}
 		return out + '"';
 	}
-	static function escapeOf(c:Int):String {
+	static function escapeOf(s:String, c:Int, i:Int):String {
 		if(c == 8) return "\\b";
 		if(c == 9) return "\\t";
 		if(c == 10) return "\\n";
@@ -73,7 +73,7 @@ class Json {
 		if(c == 34) return '\\"';
 		if(c == 92) return "\\\\";
 		if(c < 32) return "\\u" + hex4(c);
-		return String.fromCharCode(c);
+		return s.charAt(i);
 	}
 	static function render(v:JsonValue, level:Int):String return switch(v) {
 		case JNull: "null";
