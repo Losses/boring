@@ -786,11 +786,23 @@ class KotlinExpr {
 			case [TField(array, fa), TVar(item, init)] if(fieldName(fa) == "length" && init != null):
 				switch(stripWrap(init).expr) {
 					case TArray(_, {expr: TLocal(index)}) if(index.id == loop.index.id):
+						// The element loop drops the index binding, so it is
+						// valid only when the counter starts at zero and the
+						// remaining body never reads the counter.
 						if (switch(loop.start.expr) { case TConst(TInt(0)): true; case _: false; }) {
-							final out = [indent(depth) + "for (" + localName(item) + " in " + expr(array) + ") {"];
-							for(l in blockLines(loop.body.slice(1), depth + 1)) out.push(l);
-							out.push(indent(depth) + "}");
-							return out;
+							var readsIndex = false;
+							for(s in loop.body.slice(1)) {
+								if(mentionsLocal(s, loop.index)) {
+									readsIndex = true;
+									break;
+								}
+							}
+							if(!readsIndex) {
+								final out = [indent(depth) + "for (" + localName(item) + " in " + expr(array) + ") {"];
+								for(l in blockLines(loop.body.slice(1), depth + 1)) out.push(l);
+								out.push(indent(depth) + "}");
+								return out;
+							}
 						}
 					default:
 				}
