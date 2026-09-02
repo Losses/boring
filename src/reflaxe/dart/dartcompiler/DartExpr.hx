@@ -1326,8 +1326,8 @@ class DartExpr {
 			case "haxe.io.FPHelper":
 				// stdlib/05: the bit conversions live in the runtime library.
 				return runtimeQualified(name);
-			case "std.Test" | "std.__test_shim":
-				return fail(null, "std.Test." + name + " lowers at its call site");
+			case _ if(DartTestBinding.isTestExtern(cls)):
+				return fail(null, "test extern." + name + " lowers at its call site");
 			case "std.UStringRT":
 				return runtimeQualified("UString." + name);
 			case "std.Graphemes":
@@ -1480,7 +1480,8 @@ class DartExpr {
 			ValueTypeSupport.memberField(a.get(), "toString") != null
 				? value + ".toStringValue()"
 				: value + "." + ValueTypeSupport.representationFieldName(a.get()) + ".toString()";
-			case TAbstract(a, _) if(a.get().name == "Int" || a.get().name == "Float" || a.get().name == "Bool"): inConcat && depth == 0 ? value : "'${" + value + "}'";
+			case TAbstract(a, _) if(a.get().name == "Float"): inConcat && depth == 0 ? value : "'${" + value + "}'.replaceFirst(\".0'\", \"'\")";
+			case TAbstract(a, _) if(a.get().name == "Int" || a.get().name == "Bool"): inConcat && depth == 0 ? value : "'${" + value + "}'";
 			case TAbstract(a, params) if(a.get().module == "std.ReadOnlyArray"):
 				stdStringType(haxe.macro.TypeTools.applyTypeParameters(a.get().type, a.get().params, params), value, inConcat, origin, depth);
 			case TEnum(en, _) if(isParameterlessEnum(en.get())): value + ".label";
@@ -1654,7 +1655,7 @@ class DartExpr {
 				if(module == "std.UStringPlatform") {
 					return ustringPlatformCall(fName, args, fn);
 				}
-				if(module == "std.TestPlatform") {
+				if(DartTestBinding.isTestPlatformExtern(module)) {
 					return testPlatformCall(fName, args, fn);
 				}
 				if(module == "std.UStringRT") {
@@ -1700,7 +1701,7 @@ class DartExpr {
 						return stdString(args[0], false);
 					}
 				}
-				if(module == "std.Test") {
+				if(DartTestBinding.isTestExtern(cls)) {
 					return testCall(fName, args, fn);
 				}
 				if((cls.name == "Functional" || cls.name == "__functional_shim" || module == "std.Functional") && fName == "sortedBy") {
@@ -1866,11 +1867,11 @@ class DartExpr {
 		lives in the private top-level state of the test host library
 		(this same library TestCore appends into), and plain numbers
 		render through toString. Business code never reaches these; it
-		calls std.Test.
+		calls test extern.
 	**/
 	function testPlatformCall(fName: String, args: Array<TypedExpr>, fn: TypedExpr): String {
 		if(!RuntimeResidents.isTestResident(imports.selfModule)) {
-			Context.error("std.TestPlatform is a resident runtime primitive; business code calls std.Test", fn.pos);
+			Context.error("test platform extern is a resident runtime primitive; business code calls test extern", fn.pos);
 		}
 		switch(fName) {
 			case "raise":
@@ -1887,7 +1888,7 @@ class DartExpr {
 	}
 
 	/**
-		std.Test assertions: scalars route to the TestCore checks with
+		test extern assertions: scalars route to the TestCore checks with
 		the message passed natively; composite values route to the
 		generated assertion of their tag (features/19).
 	**/
@@ -1919,7 +1920,7 @@ class DartExpr {
 				final tag = DartTestTypes.register(t);
 				return "test_helper.assertEquals" + tag + "(" + expr(args[0]) + ", " + expr(args[1]) + ", " + message + ")";
 			case _:
-				return fail(fn, "std.Test." + fName + " has no Dart lowering");
+				return fail(fn, "test extern." + fName + " has no Dart lowering");
 		}
 	}
 

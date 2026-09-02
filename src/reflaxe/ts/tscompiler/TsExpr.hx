@@ -1272,7 +1272,7 @@ class TsExpr {
 				// stdlib/05: the bit conversions live in the runtime module.
 				imports.runtime(name);
 				return name;
-			case "std.Test" | "std.__test_shim":
+			case _ if(TsTestBinding.isTestExtern(cls)):
 				imports.runtimeTest("Test");
 				return "Test." + name;
 			case "std.SortedMap":
@@ -1290,7 +1290,7 @@ class TsExpr {
 				imports.runtime("Graphemes");
 				return "Graphemes." + name;
 			case _:
-				if(cls.module == "std.Test") {
+				if(TsTestBinding.isTestExtern(cls)) {
 					imports.runtimeTest("Test");
 					return "Test." + name;
 				}
@@ -1336,7 +1336,7 @@ class TsExpr {
 				if(cls.pack.length == 0 && (cls.name == "String" || cls.name == "Math")) {
 					return cls.name;
 				}
-				if(cls.module == "std.Test" || (cls.pack.join(".") == "std" && (cls.name == "Test" || cls.name == "__test_shim"))) {
+				if(TsTestBinding.isTestExtern(cls)) {
 					imports.runtimeTest("Test");
 					return "Test";
 				}
@@ -1548,14 +1548,14 @@ class TsExpr {
 						case _:
 					}
 				}
-				if(cls.module == "std.TestPlatform") {
+				if(TsTestBinding.isTestPlatformExtern(cls.module)) {
 					// Host edges of the resident runtime.TestCore, inlined
 					// per call: raising is a throw, the running test id
 					// lives in the Test host of this same test entry, and
 					// plain numbers render through String. Business code
-					// never reaches these; it calls std.Test.
+					// never reaches these; it calls test extern.
 					if(!imports.selfResident) {
-						Context.error("std.TestPlatform is a resident runtime primitive; business code calls std.Test", fn.pos);
+						Context.error("test platform extern is a resident runtime primitive; business code calls test extern", fn.pos);
 					}
 					switch(fName) {
 						case "raise":
