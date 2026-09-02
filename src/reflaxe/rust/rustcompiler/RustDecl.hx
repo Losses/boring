@@ -873,16 +873,26 @@ class RustDecl {
 		];
 	}
 
+	function isStringType(t: Type): Bool {
+		return switch(Context.follow(t)) {
+			case TInst(c, _): c.get().name == "String";
+			case TType(d, params): isStringType(d.get().type);
+			case _: false;
+		};
+	}
+
+	function isNullableStringType(t: Type): Bool {
+		return switch(Context.follow(t)) {
+			case TAbstract(a, params) if(a.get().name == "Null" && params.length == 1):
+				isStringType(params[0]);
+			case _: false;
+		};
+	}
+
+
 	function ctorArgType(t: Type, hasLifetime: Bool, owningClass: Bool): String {
 		// Nullable strings are borrowed optional values at constructor boundaries.
-		switch(Context.follow(t)) {
-			case TAbstract(a, params) if(a.get().name == "Null" && params.length == 1):
-				switch(Context.follow(params[0])) {
-					case TInst(c, _) if(c.get().name == "String"): return "Option<&str>";
-					case _:
-				}
-			case _:
-		}
+		if(isNullableStringType(t)) return "Option<&str>";
 		// A constructor moves its arguments into fields. On the generic
 		// resident classes an Array parameter becomes an owned Vec that
 		// the field initializer takes over; other classes keep the
@@ -1293,18 +1303,8 @@ class RustDecl {
 				final sname = RustImports.toSnakeCase(a.name);
 				// A String parameter borrows as &str while the field owns
 				// a String; the initializer converts (feature spec 27).
-				final isStringParam = switch(Context.follow(a.type)) {
-					case TInst(c, _): c.get().name == "String";
-					case _: false;
-				};
-				final isNullableStringParam = switch(Context.follow(a.type)) {
-					case TAbstract(abs, params) if(abs.get().name == "Null" && params.length == 1):
-						switch(Context.follow(params[0])) {
-							case TInst(c, _): c.get().name == "String";
-							case _: false;
-						};
-					case _: false;
-				};
+				final isStringParam = types.of(a.type, true) == "&str";
+				final isNullableStringParam = types.of(a.type, false) == "Option<String>";
 				if(isStringParam) {
 					lines.push('            $sname: ${sname}.to_string(),');
 				} else if(isNullableStringParam) {
