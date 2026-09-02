@@ -451,6 +451,12 @@ class RustExpr {
 						case _:
 					}
 				}
+				// A let initializer needs no outer parentheses; fully
+				// wrapped lowerings such as Int64.make would otherwise
+				// trip rustc's unused_parens lint at this position.
+				if(StringTools.startsWith(initStr, "(") && StringTools.endsWith(initStr, ")") && matchingParens(initStr)) {
+					initStr = initStr.substr(1, initStr.length - 2);
+				}
 				return [indent(depth) + '$kw $name$explicitType = $initStr;'];
 			case TVar(_, init) if(init == null):
 				return [fail(e, "declaration without initializer has no lowering")];
