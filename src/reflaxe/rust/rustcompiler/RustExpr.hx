@@ -2253,6 +2253,15 @@ class RustExpr {
 		};
 	}
 
+	function isRecordValueType(t: Type): Bool {
+		return switch(Context.follow(t)) {
+			case TAnonymous(_): true;
+			case TType(d, _): switch(d.get().type) { case TAnonymous(_): true; case _: false; };
+			case TInst(c, _): c.get().meta.has(":dataClass");
+			case _: false;
+			}
+	}
+
 	function isTypeCopy(t: Type): Bool {
 		if(t == null) return false;
 		return switch(Context.follow(t)) {
@@ -2577,8 +2586,8 @@ class RustExpr {
 				final access = subjStr + "." + snake;
 				if(name != "length" && isConstructedStaticRead(subj) && StaticFieldHelper.isStringType(cf.get().type)) return "(" + access + ").to_string()";
 				if(name != "length" && isConstructedStaticRead(subj) && !isTypeCopy(cf.get().type)) return "(" + access + ").clone()";
-				if(name != "length" && !isTypeCopy(cf.get().type)) {
-					return StaticFieldHelper.isStringType(cf.get().type) ? "(" + access + ").to_string()" : "(" + access + ").clone()";
+				if(name != "length" && (isStringType(cf.get().type) || isRecordValueType(cf.get().type))) {
+					return isStringType(cf.get().type) ? "(" + access + ").to_string()" : "(" + access + ").clone()";
 				}
 				return access;
 			case FDynamic(name):
@@ -4350,11 +4359,8 @@ class RustExpr {
 					if(!StringTools.startsWith(argStr, "&")) {
 						argStr = prefix + argStr;
 					}
-				} else if(!isTypeCopy(arg.t)) {
-					switch(stripWrap(arg).expr) {
-						case TLocal(_): argStr = "(" + argStr + ").clone()";
-						case _:
-					}
+				} else if(isRecordValueType(arg.t) && switch(stripWrap(arg).expr) { case TLocal(_): true; case _: false; }) {
+					argStr = "(" + argStr + ").clone()";
 				}
 				// A collection length is usize in Rust while a Haxe Int
 				// function parameter is u32 in business modules. The
