@@ -416,8 +416,7 @@ consumer.
     precedent in `samples/std/`: text file read; file write; directory
     creation; directory listing; command-line arguments; and process
     exit. Every extern declares real types; no
-    extern parameter or return carries `Dynamic`. Compiling the tool
-    through the other four targets is out of scope. JSON parsing and
+    extern parameter or return carries `Dynamic`. JSON parsing and
     serialization, the sha1 of the Maven metadata, and the semver
     comparison are pure Haxe modules of the tool: the JSON reader
     builds an ordered value tree (objects keep their field order), the
