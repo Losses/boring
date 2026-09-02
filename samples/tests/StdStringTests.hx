@@ -28,6 +28,12 @@ class StdStringTests {
 		Test.equals(true, StdStringOps.enumMatchesConstructor());
 	}
 
+	@:test("Std.string uses the ECMAScript float spelling")
+	public static function floatForms():Void {
+		final forms = ["2", "0", "0", "2.5", "-1.25", "100000000000000000000", "1e+21", "0.000001", "1e-7"];
+		Test.equals(forms, StdStringOps.floatForms());
+	}
+
 	@:test("Std.string renders arrays with ruled separators and element forms")
 	public static function arrays():Void {
 		Test.equals("[1, 2, 3]", StdStringOps.intArray());

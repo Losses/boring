@@ -124,9 +124,10 @@ class TsExpr {
 		final value = currentLocalName != null
 			? DefaultArgExpander.coalescingDefaultForLocalParam(currentClass, currentField, currentLocalName, site == null ? "" : site.parameter)
 			: DefaultArgExpander.coalescingDefaultForParam(currentClass, currentField, site == null ? "" : site.parameter);
-		if(site == null || value == null) {
+		if(site == null) {
 			return null;
 		}
+		if(value == null && !DefaultArgExpander.isNormalizationSource(site.defaultExpr.pos)) return null;
 		return site;
 	}
 
@@ -147,17 +148,31 @@ class TsExpr {
 				if(isValueEnum(en)) imports.value(en.module, en.name);
 				isValueEnum(en) ? en.name + "." + enumField.name : "{ kind: \"" + enumField.name + "\" }";
 			case CParameterRead(name): name;
+			case CInstanceFieldRead(name): "this." + name;
+			case CLocalRead(name): name;
 			case CFieldAccess(CParameterRead(staticPath), ""): coalescingStaticFieldText(staticPath);
 			case CFieldAccess(receiver, fieldName): coalescingDefaultText(receiver, targetType) + "." + fieldName;
 			case CMethodCall(receiver, methodName, args):
 				coalescingDefaultText(receiver, targetType) + "." + methodName + "(" + [for(a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
 			case CStaticCall(fullPath, args):
-				fullPath + "(" + [for(a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
+				coalescingStaticCallText(fullPath, args, targetType);
 			case CConditional(c, t, f):
 				"(" + coalescingDefaultText(c, targetType) + " ? " + coalescingDefaultText(t, targetType) + " : " + coalescingDefaultText(f, targetType) + ")";
 			case CBinaryOp(op, left, right):
 				coalescingDefaultText(left, targetType) + " " + opStr(op) + " " + coalescingDefaultText(right, targetType);
+			case CConstructorCall(classPath, args):
+				"new " + classPath.split(".").pop() + "(" + [for(a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
 		};
+	}
+
+	function coalescingStaticCallText(path:String, args:Array<DefaultArgExpander.CoalescingDefaultValue>, targetType:Type):String {
+		final rendered = [for(a in args) coalescingDefaultText(a, targetType)].join(", ");
+		if(path == "std.SortedSet.builder") {
+			final key = switch(Context.follow(DefaultArgExpander.withoutNull(targetType))) { case TInst(_, params) if(params.length > 0): params[0]; case _: null; };
+			imports.runtime("SortedTable");
+			return "SortedTable.setBuilder<" + types.of(key) + ">(" + sortedComparator(key, Context.currentPos()) + ")";
+		}
+		return path + "(" + rendered + ")";
 	}
 
 	function coalescingStaticFieldText(path:String):String {
@@ -375,6 +390,13 @@ class TsExpr {
 		function walk(x: TypedExpr) {
 			switch(x.expr) {
 				case TBinop(OpAssign, t, _) | TBinop(OpAssignOp(_), t, _):
+					switch(stripCast(t).expr) {
+						case TLocal(v) if(v.id == varId): found = true;
+						case _:
+					}
+				// An increment or decrement reassigns the local, so the
+				// declaration needs let even without a plain assignment.
+				case TUnop(OpIncrement, _, t) | TUnop(OpDecrement, _, t):
 					switch(stripCast(t).expr) {
 						case TLocal(v) if(v.id == varId): found = true;
 						case _:
@@ -666,9 +688,19 @@ class TsExpr {
 
 	function loopLines(loop, depth: Int, fold: Null<String>): Array<String> {
 		final name = loop.index.name;
-		final init = "let " + name + " = " + expr(loop.start) + (fold != null ? ", " + fold : "");
+		final boundText = expr(loop.bound);
+		// The string-length pass already hoists reads like x.length into
+		// a plain local, and a constant bound folds to a literal; a bound
+		// whose rendered form carries no member access needs no second
+		// hoist. Hoisting those anyway shadows the existing local with
+		// count = count and trips the temporal dead zone at runtime.
+		final boundNeedsHoist = fold == null && boundText.indexOf(".") >= 0;
+		final init = "let " + name + " = " + expr(loop.start)
+			+ (fold != null ? ", " + fold : "")
+			+ (boundNeedsHoist ? ", count = " + boundText : "");
+		final conditionBound = boundNeedsHoist ? "count" : boundText;
 		final out = [
-			indent(depth) + "for (" + init + "; " + name + " < " + expr(loop.bound) + "; " + name + " += 1) {"
+			indent(depth) + "for (" + init + "; " + name + " < " + conditionBound + "; " + name + " += 1) {"
 		];
 		for(l in blockLines(loop.body, depth + 1)) out.push(l);
 		out.push(indent(depth) + "}");
@@ -953,13 +985,22 @@ class TsExpr {
 				return functionLiteral(f);
 			case TIf(c, t, f) if(f != null):
 				final coalescing = coalescingSiteFor(e);
-				if(coalescing != null) return expr(coalescing.valueExpr);
+				if(coalescing != null) {
+					return DefaultArgExpander.isNormalizationSource(coalescing.defaultExpr.pos)
+						? expr(coalescing.valueExpr) + " ?? " + expr(coalescing.defaultExpr)
+						: expr(coalescing.valueExpr);
+				}
 				return "(" + expr(c) + " ? " + expr(t) + " : " + expr(f) + ")";
 			case _:
 				return fail(e, "expression has no TypeScript lowering in the subset");
 		}
 	}
 
+	function conditionalText(c:TypedExpr, t:TypedExpr, f:TypedExpr):String {
+		final a = switch (t.expr) { case TIf(ic, it, iff): conditionalText(ic, it, iff); default: expr(t); };
+		final b = switch (f.expr) { case TIf(ic, it, iff): conditionalText(ic, it, iff); default: expr(f); };
+		return "(" + expr(c) + " ? " + a + " : " + b + ")";
+	}
 	/**
 		Value-wrapper operations are represented by blocks which assign the
 		underlying Haxe `this`. At a use site TypeScript calls the generated
@@ -1123,6 +1164,8 @@ class TsExpr {
 			case OpNot: return "!" + wrapped;
 			case OpNegBits: return "~" + wrapped;
 			case OpNeg: return "-" + wrapped;
+			case OpIncrement: return wrapped + "++";
+			case OpDecrement: return wrapped + "--";
 			case _: {
 				final infos = Context.getPosInfos(e.pos);
 				return fail(e, "unary operator has no lowering in the subset: " + Std.string(op) + " at " + infos.file + ":" + infos.min);
@@ -1248,7 +1291,7 @@ class TsExpr {
 				// stdlib/05: the bit conversions live in the runtime module.
 				imports.runtime(name);
 				return name;
-			case "std.Test" | "std.__test_shim":
+			case _ if(TsTestBinding.isTestExtern(cls)):
 				imports.runtimeTest("Test");
 				return "Test." + name;
 			case "std.SortedMap":
@@ -1266,7 +1309,7 @@ class TsExpr {
 				imports.runtime("Graphemes");
 				return "Graphemes." + name;
 			case _:
-				if(cls.module == "std.Test") {
+				if(TsTestBinding.isTestExtern(cls)) {
 					imports.runtimeTest("Test");
 					return "Test." + name;
 				}
@@ -1312,7 +1355,7 @@ class TsExpr {
 				if(cls.pack.length == 0 && (cls.name == "String" || cls.name == "Math")) {
 					return cls.name;
 				}
-				if(cls.module == "std.Test" || (cls.pack.join(".") == "std" && (cls.name == "Test" || cls.name == "__test_shim"))) {
+				if(TsTestBinding.isTestExtern(cls)) {
 					imports.runtimeTest("Test");
 					return "Test";
 				}
@@ -1524,14 +1567,14 @@ class TsExpr {
 						case _:
 					}
 				}
-				if(cls.module == "std.TestPlatform") {
+				if(TsTestBinding.isTestPlatformExtern(cls.module)) {
 					// Host edges of the resident runtime.TestCore, inlined
 					// per call: raising is a throw, the running test id
 					// lives in the Test host of this same test entry, and
 					// plain numbers render through String. Business code
-					// never reaches these; it calls std.Test.
+					// never reaches these; it calls test extern.
 					if(!imports.selfResident) {
-						Context.error("std.TestPlatform is a resident runtime primitive; business code calls std.Test", fn.pos);
+						Context.error("test platform extern is a resident runtime primitive; business code calls test extern", fn.pos);
 					}
 					switch(fName) {
 						case "raise":
@@ -1619,6 +1662,23 @@ class TsExpr {
 				}
 				if(name == "sub" && args.length == 2 && isBytes(stripCast(subj))) {
 					return expr(subj) + ".slice(" + expr(args[0]) + ", " + expr(args[0]) + " + " + expr(args[1]) + ")";
+				}
+				if(name == "charCodeAt" && isStringSubject(subj) && args.length == 1) {
+					// stdlib/15: charCodeAt's NaN sentinel must become null.
+					// A pure subject and index may be rendered twice: both
+					// evaluations have the same value and no observable effect,
+					// so this remains an expression and introduces no closure.
+					// Anything less restricted is evaluated once by readUnit;
+					// an expression-only lowering has no let binding with which
+					// to preserve that guarantee.
+					final subjectText = expr(subj);
+					final indexText = expr(args[0]);
+					if(isPureReadUnitOperand(subj) && isPureReadUnitOperand(args[0])) {
+						return "(Number.isNaN(" + subjectText + ".charCodeAt(" + indexText + ")) ? null : "
+							+ subjectText + ".charCodeAt(" + indexText + "))!";
+					}
+					imports.runtime("readUnit");
+					return "readUnit(" + subjectText + ", " + indexText + ")!";
 				}
 				if(name == "substring" && isStringSubject(subj)) {
 					// The haxe typer passes a synthesized null for an
@@ -2346,6 +2406,13 @@ class TsExpr {
 					case TLocal(v): mutated.set(v.id, true);
 					case _:
 				}
+			// An increment or decrement reassigns the local, so the
+			// declaration needs let even without a plain assignment.
+			case TUnop(OpIncrement, _, t) | TUnop(OpDecrement, _, t):
+				switch(t.expr) {
+					case TLocal(v): mutated.set(v.id, true);
+					case _:
+				}
 			case TCall(fn, _):
 				switch(fn.expr) {
 					case TField(subj, FInstance(_, _, cf)):
@@ -2527,6 +2594,22 @@ class TsExpr {
 	function isStringSubject(e: TypedExpr): Bool {
 		return switch(Context.follow(stripCast(e).t)) {
 			case TInst(c, _): c.get().name == "String";
+			case _: false;
+		}
+	}
+
+	/**
+		The expression form below reads its operands twice. These are the
+		only operand shapes for which that is semantics-preserving: locals,
+		constants, and a chain of non-mutating field reads. Calls, indexing,
+		constructors, and operators are deliberately not included.
+	**/
+	function isPureReadUnitOperand(e: TypedExpr): Bool {
+		return switch(e.expr) {
+			case TLocal(_): true;
+			case TConst(_): true;
+			case TParenthesis(inner) | TCast(inner, _) | TMeta(_, inner): isPureReadUnitOperand(inner);
+			case TField(subject, _): isPureReadUnitOperand(subject);
 			case _: false;
 		}
 	}
