@@ -228,7 +228,27 @@ class RustDecl {
 		}
 
 		final classPart = prefixLines.length > 0 ? prefixLines.join("\n\n") + "\n\n" + lines.join("\n") : lines.join("\n");
-		return extractedParts.length > 0 ? extractedParts.join("\n\n") + "\n\n" + classPart : classPart;
+		final result = extractedParts.length > 0 ? extractedParts.join("\n\n") + "\n\n" + classPart : classPart;
+		return cls.meta.has(":dataClass") ? result + "\n\n" + dataClassComparator(cls) : result;
+	}
+
+	function dataClassComparator(cls: ClassType): String {
+		final n = RustImports.toSnakeCase(cls.name);
+		final lines = ['pub fn compare_$n(a: &${cls.name}, b: &${cls.name}) -> i32 {'];
+		for(f in [for(x in cls.fields.get()) if(x.kind.match(FVar(_, _))) x]) {
+			final fn = RustImports.toSnakeCase(f.name);
+			switch(Context.follow(f.type)) {
+				case TAbstract(a, _) if(a.get().name == "Int"): lines.push('    let cmp_$fn = a.$fn.cmp(&b.$fn) as i32;');
+				case TInst(c, _) if(c.get().name == "String"): lines.push('    let cmp_$fn = SortedTable::compare_strings(a.$fn.as_str(), b.$fn.as_str());');
+				case TInst(c, _) if(c.get().meta.has(":dataClass")): lines.push('    let cmp_$fn = compare_${RustImports.toSnakeCase(c.get().name)}(&a.$fn, &b.$fn);');
+				case TEnum(_, _): lines.push('    let cmp_$fn = (a.$fn as i32).cmp(&(b.$fn as i32)) as i32;');
+				case _: lines.push('    let cmp_$fn = 0;');
+			}
+			lines.push('    if cmp_$fn != 0 { return cmp_$fn; }');
+		}
+		lines.push('    0');
+		lines.push('}');
+		return lines.join("\n");
 	}
 
 	/** Emits a marked abstract as a Rust tuple newtype and trait impls. */
