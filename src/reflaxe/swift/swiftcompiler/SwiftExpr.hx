@@ -1009,7 +1009,7 @@ class SwiftExpr {
 				final read = mapReceiver == null ? expr(arr) + "[Int(" + expr(idx) + ")]" : expr(mapReceiver) + "[" + expr(idx) + "]";
 				// haxe.io.Bytes reads carry UInt8 elements; the Haxe
 				// access widens to Int.
-				return mapReceiver == null && isBytesType(arr) ? "Int32(truncatingIfNeeded: " + read + ")" : read;
+				return mapReceiver == null && isBytesType(arr) ? "Int32(" + read + ")" : read;
 			case TBinop(op, l, r):
 				return binop(e, op, l, r);
 			case TUnop(op, post, subj):
