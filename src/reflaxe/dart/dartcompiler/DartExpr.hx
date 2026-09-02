@@ -474,7 +474,8 @@ class DartExpr {
 					case TSwitch(_, _, _):
 						return switchReturn(inner, depth);
 					case _:
-						return [indent(depth) + "return " + expr(ret)];
+						final rendered = expr(ret);
+						return [indent(depth) + "return " + (optionalValued(ret) ? rendered + "!" : rendered)];
 				}
 			case TThrow(x):
 				return [indent(depth) + "throw " + expr(x)];
@@ -1158,7 +1159,10 @@ class DartExpr {
 		unless the same associative operator chains.
 	**/
 	function operand(e: TypedExpr, parent: Binop, isRight: Bool): String {
-		final rendered = expr(e);
+		var rendered = expr(e);
+		// Null<Int> is nullable in Dart; numeric operators use the value
+		// only after the explicit bounds result has been accepted.
+		if(isNullLeafType(e.t) && parent != OpEq && parent != OpNotEq) rendered += "!";
 		switch(stripWrap(e).expr) {
 			case TBinop(op, _, _):
 				final cp = precedenceOf(op);
@@ -1452,9 +1456,6 @@ class DartExpr {
 	}
 
 	function optionalValued(e: TypedExpr): Bool {
-		if(isNullLeafType(e.t)) {
-			return true;
-		}
 		return switch(stripWrap(e).expr) {
 			case TLocal(v): optionalInferred.exists(v.id);
 			case _: false;
@@ -1487,7 +1488,7 @@ class DartExpr {
 			ValueTypeSupport.memberField(a.get(), "toString") != null
 				? value + ".toStringValue()"
 				: value + "." + ValueTypeSupport.representationFieldName(a.get()) + ".toString()";
-			case TAbstract(a, _) if(a.get().name == "Float"): inConcat && depth == 0 ? value : "'${" + value + "}'.replaceFirst(\".0'\", \"'\")";
+			case TAbstract(a, _) if(a.get().name == "Float"): inConcat && depth == 0 ? value : runtimeQualified("formatFloat") + "(" + value + ")";
 			case TAbstract(a, _) if(a.get().name == "Int" || a.get().name == "Bool"): inConcat && depth == 0 ? value : "'${" + value + "}'";
 			case TAbstract(a, params) if(a.get().module == "std.ReadOnlyArray"):
 				stdStringType(haxe.macro.TypeTools.applyTypeParameters(a.get().type, a.get().params, params), value, inConcat, origin, depth);
@@ -1810,7 +1811,10 @@ class DartExpr {
 						: receiverText(subj) + ".substring(" + expr(args[0]) + ", " + expr(args[1]) + ")";
 				}
 				if(name == "charCodeAt" && isStringSubject(subj)) {
-					return receiverText(subj) + ".codeUnitAt(" + expr(args[0]) + ")";
+					// stdlib/15: evaluate receiver and index once and return
+					// null rather than allowing codeUnitAt to throw RangeError.
+					return "(() { final _s = " + receiverText(subj) + "; final _i = " + expr(args[0])
+						+ "; return _i >= 0 && _i < _s.length ? _s.codeUnitAt(_i) : null; })()";
 				}
 				// A private method renders under its `_`-prefixed Dart
 				// name (feature spec 27); the special cases above are
