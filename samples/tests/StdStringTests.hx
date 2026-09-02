@@ -34,6 +34,7 @@ class StdStringTests {
 		Test.equals(forms, StdStringOps.floatForms());
 	}
 
+	@:test("Std.string renders arrays with ruled separators and element forms")
 	public static function arrays():Void {
 		Test.equals("[1, 2, 3]", StdStringOps.intArray());
 		Test.equals("[alpha, beta]", StdStringOps.stringArray());
