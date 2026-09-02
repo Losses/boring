@@ -29,6 +29,10 @@ lines 215-226, five prefix arrays) and earlier port guidance banned array
 comprehensions everywhere. This specification removes the need for both
 the hand rewrite and the ban.
 
+The matrix above covers the Kotlin target. The rulings below bind every
+target the repository verifies: the Haxe stage-1 tree, the TypeScript
+tree, the Kotlin tree, the Rust tree, and the interception suite.
+
 ## Rulings
 
 1. **Array comprehension is in the translatable subset.**
@@ -42,7 +46,7 @@ the hand rewrite and the ban.
    the pipeline idiom expansion of
    `docs/specs/macros/01-functional-idiom-expansion.md` and
    `docs/specs/macros/02-pipeline-idiom-additions.md`, and the statement
-   pipeline the Kotlin renderer applies to method bodies all apply to
+   pipeline each renderer applies to method bodies all apply to
    constructor statements as well. `src/DefaultArgExpander.hx` line 1542
    already reads `cls.constructor`; the expansion and rendering paths must
    reach the same coverage.
@@ -52,6 +56,36 @@ the hand rewrite and the ban.
    probe 6 shows the block statements inside the generated target lambda.
    This ruling quotes that clarification into `macros/01` in the same
    change that implements this spec.
+
+## Cross-target consistency (amended 2026-09-02)
+
+The probe matrix covers the Kotlin target alone; this section binds the
+rest.
+
+1. The fix follows the principle of the switch-subject amendment in
+   `docs/specs/features/15-control-flow.md`: the common layer produces
+   the already-supported statement shape once, before target emission,
+   and no renderer holds target-specific code for this construct. A
+   change that widens one renderer only carries a survey that states,
+   per renderer, whether the constructor asymmetry reproduces there and
+   why the common layer cannot carry the fix. Repository history shows
+   both accepted shapes: renderer defects go per renderer with a shared
+   test (`fix(kotlin): clamp String.substring bounds` and
+   `fix(dart): clamp String.substring bounds` share one test commit),
+   and common-pass defects go once in the common layer.
+2. The implementation change adds the two constructor cases to every
+   tree the repository verifies (Haxe stage-1, TypeScript, Kotlin, Rust,
+   interception), following each tree's existing case conventions. The
+   Dart and Swift trees follow their own suite conventions where those
+   suites cover the construct.
+3. `docs/specs/features/27-class-members-and-records.md` records in its
+   constructor-body row that Kotlin and Rust drop the statements. The
+   Kotlin implementation renders them today (the probe failures of this
+   spec are lowering errors inside rendered constructor statements). The
+   implementation change reconciles that row with the observed behavior
+   in the same commit, and states for Rust whether constructor-statement
+   lowering belongs to this change or to the constructor-body proposal
+   recorded in that spec.
 
 ## Implementation notes
 
