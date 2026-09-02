@@ -1408,7 +1408,7 @@ class SwiftExpr {
 				}
 				imports.runtime(name);
 				return name;
-			case "std.Test" | "std.__test_shim":
+			case _ if(SwiftTestBinding.isTestExtern(cls)):
 				imports.runtimeTest("Test");
 				return "Test." + name;
 			case "std.UStringRT":
@@ -1442,7 +1442,7 @@ class SwiftExpr {
 		switch(t) {
 			case TClassDecl(c):
 				final cls = c.get();
-				if(cls.module == "std.Test" || (cls.pack.join(".") == "std" && (cls.name == "Test" || cls.name == "__test_shim"))) {
+				if(SwiftTestBinding.isTestExtern(cls)) {
 					imports.runtimeTest("Test");
 					return "Test";
 				}
@@ -1730,7 +1730,7 @@ class SwiftExpr {
 				if(module == "std.UStringPlatform") {
 					return ustringPlatformCall(fName, args, fn);
 				}
-				if(module == "std.TestPlatform") {
+				if(SwiftTestBinding.isTestPlatformExtern(module)) {
 					return testPlatformCall(fName, args, fn);
 				}
 				if(module == "std.UStringRT") {
@@ -1777,7 +1777,7 @@ class SwiftExpr {
 					}
 					if(fName == "string") return stdString(args[0], false);
 				}
-				if(module == "std.Test") {
+				if(SwiftTestBinding.isTestExtern(cls)) {
 					return testCall(fName, args, fn);
 				}
 				if((cls.name == "Functional" || cls.name == "__functional_shim" || module == "std.Functional") && fName == "sortedBy") {
@@ -1988,11 +1988,11 @@ class SwiftExpr {
 		raising is a throw of the host failure type, the running test id
 		lives in the Test host of this same test entry, and plain numbers
 		render through String. Business code never reaches these; it
-		calls std.Test.
+		calls test extern.
 	**/
 	function testPlatformCall(fName: String, args: Array<TypedExpr>, fn: TypedExpr): String {
 		if(!imports.selfResident) {
-			Context.error("std.TestPlatform is a resident runtime primitive; business code calls std.Test", fn.pos);
+			Context.error("test platform extern is a resident runtime primitive; business code calls test extern", fn.pos);
 		}
 		switch(fName) {
 			case "raise":
@@ -2011,7 +2011,7 @@ class SwiftExpr {
 	}
 
 	/**
-		std.Test assertions: scalars route to the TestCore checks with
+		test extern assertions: scalars route to the TestCore checks with
 		the message converted once; composite values route to the
 		generated assertion of their tag (features/19).
 	**/
@@ -2042,7 +2042,7 @@ class SwiftExpr {
 				final tag = SwiftTestTypes.register(t);
 				return "assertEquals" + tag + "(" + expr(args[0]) + ", " + expr(args[1]) + ", " + message + ")";
 			case _:
-				return fail(fn, "std.Test." + fName + " has no Swift lowering");
+				return fail(fn, "test extern." + fName + " has no Swift lowering");
 		}
 	}
 
