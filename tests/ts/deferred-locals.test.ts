@@ -42,7 +42,7 @@ test("a missing deferred assignment is rejected by the Kotlin tree build", async
       `-cp ${path.join(root, "src/reflaxe/kotlin/std-shadow")}`,
       `-cp ${path.join(root, "src/reflaxe/kotlin")}`,
       `-cp ${path.join(root, "samples")}`, `-cp ${sourceRoot}`,
-      `--macro Intercept.run([\"${sourceRoot}\"])`,
+      `--macro Intercept.run(["${sourceRoot}"])`,
       "--macro kotlincompiler.Compiler.use()",
       `-D kotlin-output=${output}`,
       "boring.InvalidDeferredLocals", "",
