@@ -36,7 +36,7 @@ class NumberParsingTests {
 		Test.equals(-2147483648, NumberParsingOps.parseInt("-0x80000000"));
 		Test.equals(-2147483648, NumberParsingOps.parseInt("-2147483648"));
 		Test.equals(2147483647, NumberParsingOps.parseInt("0x7FFFFFFF"));
-
+		Test.equals(2147483647, NumberParsingOps.parseInt("2147483647"));
 	}
 
 	@:test("parseInt rejects partial and overflowing tokens as null")

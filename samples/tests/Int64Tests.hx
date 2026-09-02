@@ -31,6 +31,7 @@ class Int64Tests {
 		Test.equals(true, equal >= equal);
 		Test.equals(true, Int64Ops.below(minimum, maximum));
 		Test.equals(true, maximum >= minimum);
+		Test.equals(true, maximum > minimum);
 		Test.equals(true, Int64Ops.below(negative, zero));
 		Test.equals(true, zero <= zero);
 	}
