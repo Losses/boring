@@ -1224,10 +1224,8 @@ class RustExpr {
 				} else {
 					itemName;
 				};
-				final subjectLocalId = switch(stripWrap(sliceSubj).expr) { case TLocal(v): v.id; case _: -1; };
-				final nonScalarOwnedLocal = !isScalar && argType == null && !paramVarIds.exists(subjectLocalId) && !mutated.exists(subjectLocalId);
-				if(argType != null || nonScalarOwnedLocal) borrowedLoopVarIds.set(itemVar.id, true);
-				final iterated = (ownedLocal || nonScalarOwnedLocal) ? "&" + expr(sliceSubj) : expr(sliceSubj);
+				if(argType != null) borrowedLoopVarIds.set(itemVar.id, true);
+				final iterated = ownedLocal ? "&" + expr(sliceSubj) : expr(sliceSubj);
 				switch(Context.follow(itemVar.t)) {
 					case TAbstract(a, _) if(a.get().name == "Int"):
 						// Array elements reach Rust as u32; remember the loop binding
