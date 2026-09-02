@@ -149,15 +149,24 @@ class TsDecl {
 	}
 
 	function dataClassComparator(cls: ClassType): String {
-		final lines = ['export function compare${cls.name}(a: ${cls.name}, b: ${cls.name}): number {', '  if (a === b) return 0;'];
-		for(f in [for(x in cls.fields.get()) if(x.kind.match(FVar(_, _))) x]) {
-			switch(Context.follow(f.type)) {
-				case TAbstract(a, _) if(a.get().name == "Int"): lines.push('  if (a.${f.name} !== b.${f.name}) return a.${f.name} - b.${f.name};');
-				case TInst(c, _) if(c.get().name == "String"): lines.push('  if (a.${f.name} !== b.${f.name}) return a.${f.name} < b.${f.name} ? -1 : 1;');
-				case TInst(c, _) if(c.get().meta.has(":dataClass")): imports.value(c.get().module, "compare" + c.get().name); lines.push('  { const cmp = compare${c.get().name}(a.${f.name}, b.${f.name}); if (cmp !== 0) return cmp; }');
-				case TEnum(_, _): lines.push('  if (a.${f.name} !== b.${f.name}) return String(a.${f.name}) < String(b.${f.name}) ? -1 : 1;');
-				case _: // validated before emission
-			}
+		final lines: Array<String> = [];
+		final fields = [for(x in cls.fields.get()) if(x.kind.match(FVar(_, _))) x];
+		for(f in fields) switch(Context.follow(f.type)) {
+			case TEnum(e, _):
+				final en = e.get();
+				lines.push('export function ${cls.name}${f.name}Order(v: ${en.name}): number {');
+				for(ef in en.constructs) lines.push('  if (v.kind === "${ef.name}") return ${ef.index};');
+				lines.push('  return 0;'); lines.push('}'); lines.push("");
+			case _: 
+		}
+		lines.push('export function compare${cls.name}(a: ${cls.name}, b: ${cls.name}): number {');
+		lines.push('  if (a === b) return 0;');
+		for(f in fields) switch(Context.follow(f.type)) {
+			case TAbstract(a, _) if(a.get().name == "Int"): lines.push('  if (a.${f.name} !== b.${f.name}) return a.${f.name} - b.${f.name};');
+			case TInst(c, _) if(c.get().name == "String"): lines.push('  if (a.${f.name} !== b.${f.name}) return a.${f.name} < b.${f.name} ? -1 : 1;');
+			case TInst(c, _) if(c.get().meta.has(":dataClass")): imports.value(c.get().module, "compare" + c.get().name); lines.push('  { const cmp = compare${c.get().name}(a.${f.name}, b.${f.name}); if (cmp !== 0) return cmp; }');
+			case TEnum(_, _): lines.push('  if (a.${f.name} !== b.${f.name}) return ${cls.name}${f.name}Order(a.${f.name}) - ${cls.name}${f.name}Order(b.${f.name});');
+			case _: // validated before emission
 		}
 		lines.push('  return 0;'); lines.push('}'); return lines.join("\n");
 	}

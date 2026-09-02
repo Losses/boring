@@ -268,7 +268,9 @@ class KotlinDecl {
 		for(f in fields) switch(Context.follow(f.type)) {
 			case TEnum(e, _):
 				final en = e.get();
-				lines.push('    fun ${cls.name}${f.name}Order(v: ${en.name}): Int = when (v) {\n' + [for(ef in en.constructs) '        ${en.name}.${ef.name} -> ${ef.index}'].join("\n") + '\n    }');
+				lines.push('    fun ${cls.name}${f.name}Order(v: ${en.name}): Int = when (v) {');
+				for(ef in en.constructs) lines.push(enumFieldParams(ef).length > 0 ? '        is ${en.name}.${ef.name} -> ${ef.index}' : '        ${en.name}.${ef.name} -> ${ef.index}');
+				lines.push('    }');
 			case _:
 		}
 		lines.push('    fun compare${cls.name}(a: ${cls.name}, b: ${cls.name}): Int {');

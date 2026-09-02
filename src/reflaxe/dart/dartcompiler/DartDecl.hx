@@ -209,7 +209,12 @@ class DartDecl {
 				case TAbstract(a, _) if(a.get().name == "Int"): lines.push("  if (a." + f.name + " != b." + f.name + ") return a." + f.name + " - b." + f.name + ";");
 				case TInst(c, _) if(c.get().name == "String"): lines.push("  final cmp" + f.name + " = a." + f.name + ".compareTo(b." + f.name + "); if (cmp" + f.name + " != 0) return cmp" + f.name + ";");
 				case TInst(c, _) if(c.get().meta.has(":dataClass")): lines.push("  final cmp" + f.name + " = compare" + c.get().name + "(a." + f.name + ", b." + f.name + "); if (cmp" + f.name + " != 0) return cmp" + f.name + ";");
-				case TEnum(_, _): lines.push("  if (a." + f.name + ".index != b." + f.name + ".index) return a." + f.name + ".index - b." + f.name + ".index;");
+				case TEnum(e, _):
+					final en = e.get();
+					lines.push("  int " + cls.name + f.name + "Order(" + en.name + " v) {");
+					for(ef in en.constructs) lines.push("    if (v is " + en.name + ef.name + ") return " + ef.index + ";");
+					lines.push("    return 0;"); lines.push("  }");
+					lines.push("  if (" + cls.name + f.name + "Order(a." + f.name + ") != " + cls.name + f.name + "Order(b." + f.name + ")) return " + cls.name + f.name + "Order(a." + f.name + ") - " + cls.name + f.name + "Order(b." + f.name + ");");
 				case _:
 			}
 		}
