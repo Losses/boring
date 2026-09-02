@@ -2563,15 +2563,24 @@ class RustExpr {
 					if(RuntimeResidents.isResident(imports.selfModule)) {
 						return "(" + expr(subj) + ").len() as i32";
 					}
+					if(isString(subj)) {
+						state.shimsUsed.set("std.UStringRT", true);
+						imports.require("crate::runtime::u_string");
+						return "u_string::count(&(" + expr(subj) + "))";
+					}
 					final receiver = expr(subj);
 					final receiverText = StringTools.startsWith(receiver, "&*") ? "(" + receiver + ")" : receiver;
-					return receiverText + ".len()";
+					return receiverText + ".len() as u32";
 				}
 				final snake = RustImports.toSnakeCase(name);
 				final subjStr = if(isNullType(subj.t)) expr(subj) + ".as_ref().unwrap()" else expr(subj);
 				final access = subjStr + "." + snake;
 				if(name != "length" && isConstructedStaticRead(subj) && StaticFieldHelper.isStringType(cf.get().type)) return "(" + access + ").to_string()";
-				return name != "length" && isConstructedStaticRead(subj) && !isTypeCopy(cf.get().type) ? "(" + access + ").clone()" : access;
+				if(name != "length" && isConstructedStaticRead(subj) && !isTypeCopy(cf.get().type)) return "(" + access + ").clone()";
+				if(name != "length" && !isTypeCopy(cf.get().type)) {
+					return StaticFieldHelper.isStringType(cf.get().type) ? "(" + access + ").to_string()" : "(" + access + ").clone()";
+				}
+				return access;
 			case FDynamic(name):
 				if((name == "length" || name == "get_length") && isStringBuf(subj)) {
 					return expr(subj) + ".len() as u32";
@@ -4319,6 +4328,14 @@ class RustExpr {
 						argStr = "&(" + argStr + ")";
 					}
 				} else if(isPassByRef(pt)) {
+					// Reborrow an array parameter so the original binding remains
+					// usable after the call.
+					if(switch(Context.follow(pt)) { case TInst(c, _): c.get().name == "Array"; default: false; }) {
+						switch(stripWrap(arg).expr) {
+							case TLocal(v) if(isBorrowedLocal(v)): argStr = "&mut *" + argStr;
+							case _: 
+						}
+					}
 					// The mutating faces are arrays and the writer and reader
 					// fronts; every other borrowed parameter reads only.
 					final isArray = switch(Context.follow(pt)) {
@@ -4333,8 +4350,13 @@ class RustExpr {
 						case _: false;
 					};
 					final prefix = isArray && !isTableArg ? "&mut " : "&";
-					if(!StringTools.startsWith(argStr, "&")) {
+					if(!StringTools.startsWith(argStr, "&") && !StringTools.startsWith(argStr, "&mut *")) {
 						argStr = prefix + argStr;
+					}
+				} else if(!isTypeCopy(arg.t)) {
+					switch(stripWrap(arg).expr) {
+						case TLocal(_): argStr = "(" + argStr + ").clone()";
+						case _:
 					}
 				}
 				// A collection length is usize in Rust while a Haxe Int
