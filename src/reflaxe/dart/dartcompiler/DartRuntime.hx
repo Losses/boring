@@ -57,7 +57,24 @@ int compareUnitOrder(String a, String b) {
   return a.compareTo(b);
 }
 
-/// The code point at a unit index, combining a surrogate pair when one
+/// Canonical float spelling shared by generated business modules.
+String formatFloat(double v) {
+  if (v.isNaN) return 'NaN';
+  if (v == double.infinity) return 'Infinity';
+  if (v == double.negativeInfinity) return '-Infinity';
+  if (v == 0.0) return '0';
+  final a = v.abs();
+  if (a >= 0.000001 && a < 1000000000000000000000.0) {
+    var s = v.toStringAsFixed(6);
+    while (s.contains('.') && s.endsWith('0')) s = s.substring(0, s.length - 1);
+    if (s.endsWith('.')) s = s.substring(0, s.length - 1);
+    return s;
+  }
+  var s = v.toString().replaceFirst('E', 'e');
+  s = s.replaceFirst('.0e', 'e');
+  return s;
+}
+
 /// starts there. The resident cursor walk (stdlib/03) reads code points
 /// through this; the same helper lives privately in every library that
 /// inlines the walk.
