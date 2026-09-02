@@ -279,12 +279,7 @@ class Compiler extends PluginCompiler<Compiler> {
 		}
 
 		// Generate root lib.rs
-		// Generated Rust preserves Haxe source names and typed-AST lowering
-		// shapes. These lints describe intentional output properties rather
-		// than defects; type errors and borrow errors remain enabled.
-		final libLines = [
-			"#![allow(dead_code, non_upper_case_globals, noop_method_call, unused_comparisons, unused_imports, unused_parens, unused_variables)]"
-		];
+		final libLines = [];
 		final rootPackages: Array<String> = packageChildren.get("") == null ? [] : packageChildren.get("").copy();
 		rootPackages.sort(Reflect.compare);
 		for(p in rootPackages) if(p != "tests") libLines.push("pub mod " + p + ";");
