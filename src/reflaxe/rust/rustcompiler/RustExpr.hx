@@ -447,8 +447,6 @@ class RustExpr {
 				final explicitType = if(isFunctionType(v.t)) {
 					": " + types.functionReturnOf(v.t);
 				} else switch(v.t) {
-					case TInst(c, _) if(c.get().name == "String"):
-						": String";
 					case TInst(c, _) if(c.get().name == "SortedMapBuilder" || c.get().name == "SortedMap" || c.get().name == "SortedSetBuilder" || c.get().name == "SortedSet"):
 						": " + types.of(v.t, false);
 					case _: "";
@@ -3420,8 +3418,7 @@ class RustExpr {
 				if(cls.pack.length == 0 && cls.name == "String" && name == "fromCharCode") {
 					final value = expr(args[0]);
 					final argument = StringTools.startsWith(value, "(") ? value : "(" + value + ")";
-					final nullableCode = isNullType(args[0].t) || (switch(stripWrap(args[0]).expr) { case TLocal(v): nullableNumericLocals.exists(v.id); case _: false; });
-					final unwrapped = nullableCode ? argument + ".unwrap_or_default()" : argument;
+					final unwrapped = isNullType(args[0].t) ? argument + ".unwrap_or_default()" : argument;
 					return "String::from_utf16(&[u16::try_from" + unwrapped + ".unwrap_or_default()]).unwrap_or_default()";
 				}
 				if(path == "std.UStringPlatform") {
@@ -4361,15 +4358,6 @@ class RustExpr {
 		return typeName + "::from_be_bytes([" + elems.join(", ") + "])";
 	}
 
-	function containsStringCharCodeAt(e: TypedExpr): Bool {
-		var found = false;
-		function walk(x: TypedExpr) {
-			if(isStringCharCodeAt(x)) found = true;
-			TypedExprTools.iter(x, walk);
-		}
-		walk(e);
-		return found;
-	}
 	function isNullableNumeric(t: Null<Type>): Bool {
 		if(!isNullType(t)) return false;
 		return switch(Context.follow(getNullInnerType(t))) {
@@ -4834,10 +4822,6 @@ class RustExpr {
 	**/
 	function conditionalBranchText(branch: TypedExpr, sibling: TypedExpr): String {
 		final text = expr(branch);
-		if(isStringType(branch.t)) {
-			if(isStringLiteral(branch)) return text + ".to_string()";
-			return text;
-		}
 		if(!isStringType(branch.t) || !isStringType(sibling.t)) {
 			return text;
 		}
