@@ -1159,6 +1159,10 @@ class TsExpr {
 					case "ushr" if(args.length == 2): "BigInt.asIntN(64, BigInt.asUintN(64, " + expr(args[0]) + ") >> BigInt(" + expr(args[1]) + "))";
 					case "eq" if(args.length == 2): expr(args[0]) + " === " + expr(args[1]);
 					case "neq" if(args.length == 2): expr(args[0]) + " !== " + expr(args[1]);
+					case "lt" if(args.length == 2): expr(args[0]) + " < " + expr(args[1]);
+					case "gt" if(args.length == 2): expr(args[0]) + " > " + expr(args[1]);
+					case "lte" if(args.length == 2): expr(args[0]) + " <= " + expr(args[1]);
+					case "gte" if(args.length == 2): expr(args[0]) + " >= " + expr(args[1]);
 					default: null;
 				}
 			default: null;

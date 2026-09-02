@@ -77,6 +77,8 @@ class SwiftExpr {
 	final usedNames: Map<String, Bool> = [];
 	/** Catch variables in scope, keyed by TVar id (features/06). */
 	final catchVars: Map<Int, Bool> = [];
+	/** Counted-loop variables use Swift's native Int stride index type. */
+	final rangeLoopVars: Map<Int, Bool> = [];
 
 	final hiddenNames: Map<Int, String> = [];
 	var hiddenCounter: Int = 0;
@@ -314,8 +316,8 @@ class SwiftExpr {
 			case TVar(v, init) if(init != null && isStringBufToStringCall(init)):
 				return stringBufToStringBindingLines(v, stripWrap(init), depth);
 			case TVar(v, init) if(init != null):
-				final kw = mutated.exists(v.id) ? "var" : "let";
 				final coalescing = coalescingSiteFor(init);
+				final kw = mutated.exists(v.id) ? "var" : "let";
 				final tryKw = containsThrowingCall(init) ? "try " : "";
 				// Five initializers cannot carry their type to Swift's
 				// inference: an empty array literal, an integer
@@ -332,7 +334,7 @@ class SwiftExpr {
 					? DefaultArgExpander.coalescingDefaultForLocalParam(currentClass, currentField, currentLocalName, coalescing.parameter)
 					: DefaultArgExpander.coalescingDefaultForParam(currentClass, currentField, coalescing.parameter));
 				final localType = coalescingValue != null ? DefaultArgExpander.coalescingLocalType(coalescingValue, v.t) : v.t;
-				final annotation = isEmptyArrayDecl(init) || isIntLeafType(v.t) || isIntLiteralArrayDecl(init) || isBuilderCall(init) || isNullLeafType(v.t)
+				final annotation = isEmptyArrayDecl(init) || (isIntLeafType(v.t) && !mentionsRangeLoopVar(init)) || isIntLiteralArrayDecl(init) || isBuilderCall(init) || isNullLeafType(v.t)
 					|| coalescing != null || (FloatPrecision.isF32() && isFloatLeafType(v.t)) ? ": " + types.of(localType) : "";
 				final initText = switch(init.expr) {
 					case TFunction(fn): functionLiteralNamed(v.name, fn);
@@ -542,6 +544,19 @@ class SwiftExpr {
 					continue;
 				}
 			}
+			if(i + 1 < stmts.length) {
+				final loop = intervalShort(stmts[i], stmts[i + 1]);
+				if(loop != null) {
+					final grouped: TypedExpr = {
+						expr: TBlock([stmts[i], stmts[i + 1]]),
+						pos: stmts[i].pos,
+						t: stmts[i + 1].t
+					};
+					out.push(grouped);
+					i += 2;
+					continue;
+				}
+			}
 			out.push(stmts[i]);
 			i += 1;
 		}
@@ -625,6 +640,7 @@ class SwiftExpr {
 	}
 
 	function loopLines(loop: {index: TVar, start: TypedExpr, bound: TypedExpr, body: Array<TypedExpr>}, depth: Int): Array<String> {
+		rangeLoopVars.set(loop.index.id, true);
 		// A body that never reads the loop variable discards the binding.
 		var readsIndex = false;
 		for(s in loop.body) {
@@ -1270,6 +1286,10 @@ class SwiftExpr {
 					case "ushr" if(args.length == 2): "Int64(bitPattern: UInt64(bitPattern: " + expr(args[0]) + ") >> UInt64(" + expr(args[1]) + " & 63))";
 					case "eq" if(args.length == 2): expr(args[0]) + " == " + expr(args[1]);
 					case "neq" if(args.length == 2): expr(args[0]) + " != " + expr(args[1]);
+					case "lt" if(args.length == 2): expr(args[0]) + " < " + expr(args[1]);
+					case "gt" if(args.length == 2): expr(args[0]) + " > " + expr(args[1]);
+					case "lte" if(args.length == 2): expr(args[0]) + " <= " + expr(args[1]);
+					case "gte" if(args.length == 2): expr(args[0]) + " >= " + expr(args[1]);
 					default: null;
 				}
 			default: null;
@@ -2383,6 +2403,7 @@ class SwiftExpr {
 	**/
 	function isDiscardedCall(e: TypedExpr): Bool {
 		return switch(stripWrap(e).expr) {
+			case TNew(_, _, _): true;
 			case TCall(fn, _):
 				switch(stripWrap(fn).expr) {
 					case TField(_, fa) if(fieldName(fa) == "push"): false;
@@ -3111,6 +3132,20 @@ class SwiftExpr {
 			}
 		}
 		return out;
+	}
+
+
+	function mentionsRangeLoopVar(e: TypedExpr): Bool {
+		var found = false;
+		function walk(x: TypedExpr) {
+			switch(x.expr) {
+				case TLocal(v) if(rangeLoopVars.exists(v.id)): found = true;
+				case _:
+			}
+			TypedExprTools.iter(x, walk);
+		}
+		walk(e);
+		return found;
 	}
 
 	function mentionsLocal(e: TypedExpr, v: TVar): Bool {
