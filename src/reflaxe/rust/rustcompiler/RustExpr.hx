@@ -742,6 +742,7 @@ class RustExpr {
 	**/
 	function blockLines(stmts: Array<TypedExpr>, depth: Int, tailScope: Bool = false): Array<String> {
 		stmts = fuseUninitializedVars(stmts);
+		stmts = regroupLoops(stmts);
 		stmts = transformCountdownLoops(stmts);
 		final out: Array<String> = [];
 
