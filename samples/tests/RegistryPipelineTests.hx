@@ -1,7 +1,7 @@
 package tests;
 
 import registry.Core;
-import registry.Core.CoreException;
+import registry.CoreException;
 import registry.Core.InputRecord;
 import registry.Core.OutputFile;
 import registry.Core.RegistryConfig;
