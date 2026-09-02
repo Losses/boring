@@ -3097,7 +3097,7 @@ class RustExpr {
 					return expr(subj) + "[" + expr(args[0]) + " as usize]";
 				}
 				if(name == "set" && args.length == 2 && isBytes(stripCast(subj))) {
-					return expr(subj) + "[" + expr(args[0]) + " as usize] = " + expr(args[1]) + " as u8";
+					return expr(subj) + "[" + expr(args[0]) + " as usize] = (" + expr(args[1]) + ") as u8";
 				}
 				if(name == "blit" && args.length == 4 && isBytes(stripCast(subj))) {
 					return expr(subj) + "[" + expr(args[0]) + " as usize..(" + expr(args[0]) + " + " + expr(args[3]) + ") as usize].copy_from_slice(&" + expr(args[1]) + "[" + expr(args[2]) + " as usize..(" + expr(args[2]) + " + " + expr(args[3]) + ") as usize])";
