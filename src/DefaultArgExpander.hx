@@ -72,6 +72,7 @@ class DefaultArgExpander {
 	static final normalizationSourceRanges:Array<{file:String, min:Int, max:Int}> = [];
 	static final fieldNormalization:Map<String, CoalescingDefaultValue> = new Map();
 	static final localNormalization:Map<String, CoalescingDefaultValue> = new Map();
+	static final instanceFieldNames:Map<String, Map<String, Bool>> = new Map();
 	// Local bindings are only candidates for the Stage-A default-site form
 	// when their value is sanctioned.  An ordinary local ternary must remain
 	// ordinary Haxe (the target compiler, not this registry, lowers it).
@@ -97,6 +98,16 @@ class DefaultArgExpander {
 
 	public static function registerClassFields(classType:ClassType, fields:Array<Field>):Void {
 		final classKey = getClassKey(classType);
+		final instanceNames:Map<String, Bool> = new Map();
+		for (field in fields) {
+			var isStatic = false;
+			for (access in field.access) switch (access) {
+				case Access.AStatic: isStatic = true;
+				default:
+			}
+			if (!isStatic) instanceNames.set(field.name, true);
+		}
+		instanceFieldNames.set(classKey, instanceNames);
 		for (index in 0...fields.length) {
 			final field = fields[index];
 			switch (field.kind) {
@@ -434,6 +445,8 @@ class DefaultArgExpander {
 	}
 
 	static function isInstanceField(classType:ClassType, name:String):Bool {
+		final registered = instanceFieldNames.get(getClassKey(classType));
+		if (registered != null && registered.exists(name)) return true;
 		for (field in classType.fields.get()) if (field.name == name) return true;
 		final local = Context.getLocalClass();
 		if (local != null) for (field in local.get().fields.get()) if (field.name == name) return true;

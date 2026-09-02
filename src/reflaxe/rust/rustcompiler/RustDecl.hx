@@ -1257,7 +1257,11 @@ class RustDecl {
 								case TInst(c, _) if(c.get().name == "BytesBuffer"): "BytesBuffer::new()";
 								case _: "Default::default()";
 							};
-							lines.push('            $sname: $init,');
+							final ownedInit = switch(Context.follow(field.type)) {
+								case TInst(c, _) if(c.get().name == "String" && StringTools.startsWith(init, "\"")): init + ".to_string()";
+								case _: init;
+							};
+							lines.push('            $sname: $ownedInit,');
 						}
 					case _:
 				}
