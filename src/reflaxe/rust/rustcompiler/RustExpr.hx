@@ -451,6 +451,12 @@ class RustExpr {
 						case _:
 					}
 				}
+				// A let initializer needs no outer parentheses; fully
+				// wrapped lowerings such as Int64.make would otherwise
+				// trip rustc's unused_parens lint at this position.
+				if(StringTools.startsWith(initStr, "(") && StringTools.endsWith(initStr, ")") && matchingParens(initStr)) {
+					initStr = initStr.substr(1, initStr.length - 2);
+				}
 				return [indent(depth) + '$kw $name$explicitType = $initStr;'];
 			case TVar(_, init) if(init == null):
 				return [fail(e, "declaration without initializer has no lowering")];
@@ -2483,6 +2489,10 @@ class RustExpr {
 					case "ushr" if(args.length == 2): "((" + expr(args[0]) + " as u64).wrapping_shr(" + expr(args[1]) + " as u32)) as i64";
 					case "eq" if(args.length == 2): expr(args[0]) + " == " + expr(args[1]);
 					case "neq" if(args.length == 2): expr(args[0]) + " != " + expr(args[1]);
+					case "lt" if(args.length == 2): expr(args[0]) + " < " + expr(args[1]);
+					case "gt" if(args.length == 2): expr(args[0]) + " > " + expr(args[1]);
+					case "lte" if(args.length == 2): expr(args[0]) + " <= " + expr(args[1]);
+					case "gte" if(args.length == 2): expr(args[0]) + " >= " + expr(args[1]);
 					default: null;
 				}
 			default: null;
