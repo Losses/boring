@@ -198,7 +198,24 @@ class DartDecl {
 
 		lines.push("}");
 		final classPart = lines.join("\n");
-		return extractedParts.length > 0 ? extractedParts.join("\n\n") + "\n\n" + classPart : classPart;
+		final result = extractedParts.length > 0 ? extractedParts.join("\n\n") + "\n\n" + classPart : classPart;
+		return cls.meta.has(":dataClass") ? result + "\n\n" + dataClassComparator(cls) : result;
+	}
+
+	function dataClassComparator(cls: ClassType): String {
+		final lines = ["int compare" + cls.name + "(" + cls.name + " a, " + cls.name + " b) {"];
+		for(f in [for(x in cls.fields.get()) if(x.kind.match(FVar(_, _))) x]) {
+			switch(Context.follow(f.type)) {
+				case TAbstract(a, _) if(a.get().name == "Int"): lines.push("  if (a." + f.name + " != b." + f.name + ") return a." + f.name + " - b." + f.name + ";");
+				case TInst(c, _) if(c.get().name == "String"): lines.push("  final cmp" + f.name + " = a." + f.name + ".compareTo(b." + f.name + "); if (cmp" + f.name + " != 0) return cmp" + f.name + ";");
+				case TInst(c, _) if(c.get().meta.has(":dataClass")): lines.push("  final cmp" + f.name + " = compare" + c.get().name + "(a." + f.name + ", b." + f.name + "); if (cmp" + f.name + " != 0) return cmp" + f.name + ";");
+				case TEnum(_, _): lines.push("  if (a." + f.name + ".index != b." + f.name + ".index) return a." + f.name + ".index - b." + f.name + ".index;");
+				case _:
+			}
+		}
+		lines.push("  return 0;");
+		lines.push("}");
+		return lines.join("\n");
 	}
 
 	/** Emits a marked abstract as a Dart extension type. */

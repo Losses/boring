@@ -8,6 +8,7 @@ enum SwiftKeyDomain {
 	SwiftIntKey;
 	SwiftStringKey;
 	SwiftStructKey(def: DefType, fields: Array<ClassField>);
+	SwiftDataClassKey(cls: ClassType, fields: Array<ClassField>);
 }
 
 /**
@@ -260,7 +261,9 @@ class SwiftType {
 				if(cls.name == "String") {
 					SwiftStringKey;
 				} else if(cls.meta.has(":dataClass")) {
-					SwiftIntKey;
+					final fields = [for(f in cls.fields.get()) if(switch(f.kind) { case FVar(_, _): true; case _: false; }) f];
+					for(f in fields) validateDataClassField(cls, f, f.name);
+					SwiftDataClassKey(cls, fields);
 				} else {
 					Context.error("sorted keyed tables support Int, String, structure, and dataClass keys in this implementation", p);
 					SwiftIntKey;
@@ -275,6 +278,23 @@ class SwiftType {
 				Context.error("sorted keyed tables support Int, String, structure, and dataClass keys in this implementation", p);
 				SwiftIntKey;
 		}
+	}
+
+	static function validateDataClassField(cls: ClassType, field: ClassField, path: String): Void {
+		if(!isDataClassFieldKey(field.type)) Context.error("dataClass key " + cls.name + " field " + path + " has unsupported type " + field.type, field.pos);
+		if(switch(Context.follow(field.type)) { case TInst(c, _) if(c.get().meta.has(":dataClass")): true; case _: false; }) {
+			final inner = switch(Context.follow(field.type)) { case TInst(c, _): c.get(); case _: null; };
+			if(inner != null) for(f in inner.fields.get()) if(switch(f.kind) { case FVar(_, _): true; case _: false; }) validateDataClassField(inner, f, path + "." + f.name);
+		}
+	}
+
+	static function isDataClassFieldKey(t: Type): Bool {
+		return switch(Context.follow(t)) {
+			case TAbstract(a, _): a.get().name == "Int";
+			case TInst(c, _): c.get().name == "String" || c.get().meta.has(":dataClass");
+			case TEnum(_, _): true;
+			case _: false;
+		};
 	}
 
 	static function validateStructDef(def: DefType, pos: haxe.macro.Expr.Position, visited: Array<String>): Array<ClassField> {
