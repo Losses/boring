@@ -2282,6 +2282,7 @@ class RustExpr {
 						sawReturn = true;
 					case _:
 						value = expr(s);
+						if(isStringType(e.t) && isStringLiteral(s)) value = value + ".to_string()";
 				}
 			}
 		}
