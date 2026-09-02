@@ -20,6 +20,10 @@ class Int64Ops {
 		return Int64.getHigh(value);
 	}
 
+	public static function low(value:Int64):Int {
+		return Int64.getLow(value);
+	}
+
 	public static function below(a:Int64, b:Int64):Bool {
 		return a < b;
 	}
