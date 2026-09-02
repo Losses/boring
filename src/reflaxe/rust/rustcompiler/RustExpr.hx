@@ -2331,7 +2331,7 @@ class RustExpr {
 						default: expr(r);
 					}
 				} else {
-					renderValueForType(l.t, r, expr(r));
+					numericAssignmentValue(l.t, r, renderValueForType(l.t, r, expr(r)));
 				};
 				return assignTarget(l) + " = " + rhs;
 			case OpAssignOp(inner):
@@ -3710,6 +3710,12 @@ class RustExpr {
 			out.push(argStr);
 		}
 		return out.join(", ");
+	}
+
+	function numericAssignmentValue(expected: Type, actual: TypedExpr, rendered: String): String {
+		if(!isIntType(expected) || !isIntType(actual.t)) return rendered;
+		final target = types.of(expected, false);
+		return target == "u32" || target == "i32" || target == "u8" ? "(" + rendered + ") as " + target : rendered;
 	}
 
 	function assignTarget(e: TypedExpr): String {
