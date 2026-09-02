@@ -29,7 +29,7 @@ multi-parameter lambdas are rejected.
 
 | Idiom | Accepted source | Product |
 | --- | --- | --- |
-| `map` | `arr.map(item -> body)` | Pre-allocated fill per `stdlib/04`: `new Array<T>(count)` with indexed stores on TypeScript, `Array(count) { index -> ... }` on Kotlin, `Vec::with_capacity` with `push` on Rust. |
+| `map` | `arr.map(item -> body)` | Pre-allocated fill per `stdlib/04`: `new Array<T>(count)` with indexed stores on TypeScript, `Array(count) { index -> ... }` on Kotlin, `Vec::with_capacity` with `push` on Rust, and a growable `List<T>` with `.add` in the counted loop on Dart. |
 | `filter` | `arr.filter(item -> pred)` | Compact loop with push: fresh `[]` on TypeScript, `ArrayList` with `add` on Kotlin, `Vec` with `push` on Rust. |
 | `forEach` | `arr.forEach(item -> body)` | The `features/09` loop form of each target. Statement position only; the call has no value. |
 | `associate` | `arr.associate(entry -> { key: ..., value: ... })` | Loop over the receiver plus `SortedMapBuilder` `put` and `build()` per `stdlib/07`. The lambda body must be a structure literal with exactly the fields `key` and `value`, declared through a named typedef. The key obeys the `stdlib/07` key domain gate; duplicate keys follow last-wins. |

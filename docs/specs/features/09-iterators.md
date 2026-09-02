@@ -343,7 +343,7 @@ narrows the rejection to the subjects the reason actually covers.
 - The loop body obeys `V08 LoopBodyClosure` and the closure lifecycle rules
   of this specification unchanged. The pipeline idioms of
   `docs/specs/macros/01-functional-idiom-expansion.md` keep their own
-  closed list; element iteration is the statement-level form and the two
+  closed list; element iteration is the statement form and the two
   coexist.
 
 Test hooks: sample loops over `Array<T>` and `ReadOnlyArray<T>` subjects
