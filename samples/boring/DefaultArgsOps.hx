@@ -183,7 +183,7 @@ class DefaultArgsOps {
 		return normalized;
 	}
 
-	/** Field access over a parameter. */
+
 	public static function sizeLabel(?items:Array<String>):String {
 		final count = items == null ? 0 : items.length;
 		return 'size:$count';

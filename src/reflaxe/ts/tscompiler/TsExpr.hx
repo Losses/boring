@@ -124,9 +124,10 @@ class TsExpr {
 		final value = currentLocalName != null
 			? DefaultArgExpander.coalescingDefaultForLocalParam(currentClass, currentField, currentLocalName, site == null ? "" : site.parameter)
 			: DefaultArgExpander.coalescingDefaultForParam(currentClass, currentField, site == null ? "" : site.parameter);
-		if(site == null || value == null) {
+		if(site == null) {
 			return null;
 		}
+		if(value == null && !DefaultArgExpander.isNormalizationSource(site.defaultExpr.pos)) return null;
 		return site;
 	}
 
@@ -157,6 +158,8 @@ class TsExpr {
 				"(" + coalescingDefaultText(c, targetType) + " ? " + coalescingDefaultText(t, targetType) + " : " + coalescingDefaultText(f, targetType) + ")";
 			case CBinaryOp(op, left, right):
 				coalescingDefaultText(left, targetType) + " " + opStr(op) + " " + coalescingDefaultText(right, targetType);
+			case CConstructorCall(classPath, args):
+				"new " + classPath.split(".").pop() + "(" + [for(a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
 		};
 	}
 
@@ -953,13 +956,22 @@ class TsExpr {
 				return functionLiteral(f);
 			case TIf(c, t, f) if(f != null):
 				final coalescing = coalescingSiteFor(e);
-				if(coalescing != null) return expr(coalescing.valueExpr);
+				if(coalescing != null) {
+					return DefaultArgExpander.isNormalizationSource(coalescing.defaultExpr.pos)
+						? expr(coalescing.valueExpr) + " ?? " + expr(coalescing.defaultExpr)
+						: expr(coalescing.valueExpr);
+				}
 				return "(" + expr(c) + " ? " + expr(t) + " : " + expr(f) + ")";
 			case _:
 				return fail(e, "expression has no TypeScript lowering in the subset");
 		}
 	}
 
+	function conditionalText(c:TypedExpr, t:TypedExpr, f:TypedExpr):String {
+		final a = switch (t.expr) { case TIf(ic, it, iff): conditionalText(ic, it, iff); default: expr(t); };
+		final b = switch (f.expr) { case TIf(ic, it, iff): conditionalText(ic, it, iff); default: expr(f); };
+		return "(" + expr(c) + " ? " + a + " : " + b + ")";
+	}
 	/**
 		Value-wrapper operations are represented by blocks which assign the
 		underlying Haxe `this`. At a use site TypeScript calls the generated
