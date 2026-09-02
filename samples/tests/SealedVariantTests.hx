@@ -32,14 +32,11 @@ class SealedVariantTests {
 
 	@:test("variant type checks include the interface and reject siblings")
 	public static function testTypeChecks():Void {
-		final _none = NoneDrawKind.instance;
-		final _stripe = new StripeDrawKind(1.5, 0.5);
-		final _dot = new DotDrawKind(2.25, 0.75);
-		Test.equals(true, Std.isOfType(_none, DrawKind));
-		Test.equals(true, Std.isOfType(_stripe, DrawKind));
-		Test.equals(true, Std.isOfType(_dot, DrawKind));
-		Test.equals(false, Std.isOfType(_none, StripeDrawKind));
-		Test.equals(false, Std.isOfType(_stripe, DotDrawKind));
-		Test.equals(false, Std.isOfType(_dot, NoneDrawKind));
+		Test.equals(true, Std.isOfType(NoneDrawKind.instance, DrawKind));
+		Test.equals(true, Std.isOfType(new StripeDrawKind(1.5, 0.5), DrawKind));
+		Test.equals(true, Std.isOfType(new DotDrawKind(2.25, 0.75), DrawKind));
+		Test.equals(false, Std.isOfType(NoneDrawKind.instance, StripeDrawKind));
+		Test.equals(false, Std.isOfType(new StripeDrawKind(1.5, 0.5), DotDrawKind));
+		Test.equals(false, Std.isOfType(new DotDrawKind(2.25, 0.75), NoneDrawKind));
 	}
 }
