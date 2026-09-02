@@ -101,9 +101,8 @@ class KotlinExpr {
 		final value = currentLocalName != null
 			? DefaultArgExpander.coalescingDefaultForLocalParam(currentClass, currentField, currentLocalName, site == null ? "" : site.parameter)
 			: DefaultArgExpander.coalescingDefaultForParam(currentClass, currentField, site == null ? "" : site.parameter);
-		if(site == null || value == null) {
-			return null;
-		}
+		if(site == null) return null;
+		if(value == null && !DefaultArgExpander.isNormalizationSource(site.defaultExpr.pos)) return null;
 		return site;
 	}
 
@@ -127,17 +126,31 @@ class KotlinExpr {
 			case CNegativeInfinity: FloatPrecision.isF32() ? "Float.NEGATIVE_INFINITY" : "Double.NEGATIVE_INFINITY";
 			case CEnum(enumRef, enumField): types.of(Type.TEnum(enumRef, [])) + "." + enumField.name;
 			case CParameterRead(name): name;
+			case CInstanceFieldRead(name): "this." + name;
+			case CLocalRead(name): name;
 			case CFieldAccess(CParameterRead(staticPath), ""): coalescingStaticFieldText(staticPath);
 			case CFieldAccess(receiver, fieldName): coalescingDefaultText(receiver, targetType) + "." + (fieldName == "length" ? "size" : fieldName);
 			case CMethodCall(receiver, methodName, args):
 				coalescingDefaultText(receiver, targetType) + "." + kotlinMethodName(methodName) + "(" + [for(a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
 			case CStaticCall(fullPath, args):
-				fullPath + "(" + [for(a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
+				coalescingStaticCallText(fullPath, args, targetType);
 			case CConditional(c, t, f):
 				"if (" + coalescingDefaultText(c, targetType) + ") " + coalescingDefaultText(t, targetType) + " else " + coalescingDefaultText(f, targetType);
 			case CBinaryOp(op, left, right):
 				coalescingDefaultText(left, targetType) + " " + opStr(op) + " " + coalescingDefaultText(right, targetType);
+			case CConstructorCall(classPath, args):
+				"new " + classPath.split(".").pop() + "(" + [for(a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
 		};
+	}
+
+	function coalescingStaticCallText(path:String, args:Array<DefaultArgExpander.CoalescingDefaultValue>, targetType:Type):String {
+		final rendered = [for(a in args) coalescingDefaultText(a, targetType)].join(", ");
+		if(path == "std.SortedSet.builder") {
+			final key = switch(Context.follow(DefaultArgExpander.withoutNull(targetType))) { case TInst(_, params) if(params.length > 0): params[0]; case _: null; };
+			imports.requireType("std.SortedSet", "SortedTable");
+			return "SortedTable.setBuilder<" + types.of(key) + ">(" + sortedComparator("std.SortedSet", key, Context.currentPos()) + ")";
+		}
+		return path + "(" + rendered + ")";
 	}
 
 	function coalescingStaticFieldText(path:String):String {
@@ -761,7 +774,9 @@ class KotlinExpr {
 	}
 
 	function loopLines(loop, depth: Int): Array<String> {
-		final name = loop.index.name;
+		// The loop head goes through localName so a Haxe `_` index
+		// keeps the generated name its body references use.
+		final name = localName(loop.index);
 		final startStr = expr(loop.start);
 		final boundStr = loopBound(loop.bound);
 		final out = [
@@ -857,7 +872,7 @@ class KotlinExpr {
 		final arrName = localName(alloc.arr);
 		final boundStr = loopBound(loop.bound);
 		final out: Array<String> = [];
-		out.push(indent(depth) + "val " + arrName + " = Array(" + boundStr + ") { " + loop.index.name + " ->");
+		out.push(indent(depth) + "val " + arrName + " = Array(" + boundStr + ") { " + localName(loop.index) + " ->");
 		final nonStores: Array<TypedExpr> = [];
 		for(s in loop.body) {
 			final store = indexedStoreOf(s);
@@ -1018,6 +1033,7 @@ class KotlinExpr {
 						final value = DefaultArgExpander.coalescingDefaultForLocalParam(currentClass, currentField, currentLocalName, coalescing.parameter);
 						if(value != null) return expr(coalescing.valueExpr) + " ?: " + coalescingDefaultText(value, coalescing.valueExpr.t);
 					}
+					if(DefaultArgExpander.isNormalizationSource(coalescing.defaultExpr.pos)) return expr(coalescing.valueExpr) + " ?: " + expr(coalescing.defaultExpr);
 					return expr(coalescing.valueExpr);
 				}
 				return "(if (" + expr(c) + ") " + expr(t) + " else " + expr(f) + ")";
@@ -1580,9 +1596,9 @@ class KotlinExpr {
 				if(name == "POSITIVE_INFINITY") return "Double.POSITIVE_INFINITY";
 				if(name == "NEGATIVE_INFINITY") return "Double.NEGATIVE_INFINITY";
 				return "Math." + name;
-			case "std.Test" | "std.__test_shim":
-				final runtimePackage = RuntimeConfig.requireImportName("module std.Test");
-				state.shimsUsed.set("std.Test", true);
+			case _ if(KotlinTestBinding.isTestExtern(cls)):
+				final runtimePackage = RuntimeConfig.requireImportName("module test extern");
+				state.shimsUsed.set(RuntimeResidents.externsOf("runtime.TestCore")[0], true);
 				imports.require(runtimePackage + ".test.Test");
 				return "Test." + name;
 			case "std.SortedMap":
@@ -1604,9 +1620,9 @@ class KotlinExpr {
 				imports.require(graphemesPackage + ".Graphemes");
 				return "Graphemes." + name;
 			case _:
-				if(cls.module == "std.Test") {
-					final runtimePackage = RuntimeConfig.requireImportName("module std.Test");
-					state.shimsUsed.set("std.Test", true);
+				if(KotlinTestBinding.isTestExtern(cls)) {
+					final runtimePackage = RuntimeConfig.requireImportName("module test extern");
+					state.shimsUsed.set(RuntimeResidents.externsOf("runtime.TestCore")[0], true);
 					imports.require(runtimePackage + ".test.Test");
 					return "Test." + name;
 				}
@@ -1649,9 +1665,9 @@ class KotlinExpr {
 				if(cls.pack.length == 0 && (cls.name == "String" || cls.name == "Math")) {
 					return cls.name;
 				}
-				if(cls.module == "std.Test" || (cls.pack.join(".") == "std" && (cls.name == "Test" || cls.name == "__test_shim"))) {
-					final runtimePackage = RuntimeConfig.requireImportName("module std.Test");
-					state.shimsUsed.set("std.Test", true);
+				if(KotlinTestBinding.isTestExtern(cls)) {
+					final runtimePackage = RuntimeConfig.requireImportName("module test extern");
+					state.shimsUsed.set(RuntimeResidents.externsOf("runtime.TestCore")[0], true);
 					imports.require(runtimePackage + ".test.Test");
 					return "Test";
 				}
@@ -1701,7 +1717,10 @@ class KotlinExpr {
 					final representation = value + "." + ValueTypeSupport.representationFieldName(abs);
 					inConcat ? representation : "(" + representation + ").toString()";
 				}
-			case TAbstract(a, _) if(a.get().name == "Int" || a.get().name == "Float" || a.get().name == "Bool"): inConcat ? value : "(" + value + ").toString()";
+			case TAbstract(a, _) if(a.get().name == "Float"):
+				inConcat ? value : "(" + value + ").toString().replace(\".0\", \"\")";
+			case TAbstract(a, _) if(a.get().name == "Int" || a.get().name == "Bool"):
+				inConcat ? value : "(" + value + ").toString()";
 			case TAbstract(a, params) if(a.get().module == "std.ReadOnlyArray"):
 				stdStringType(haxe.macro.TypeTools.applyTypeParameters(a.get().type, a.get().params, params), value, inConcat, origin, depth);
 			case TEnum(en, _) if(isParameterlessEnum(en.get())): value + (inConcat ? "" : ".name");
@@ -1857,18 +1876,18 @@ class KotlinExpr {
 						case _:
 					}
 				}
-				if(cls.module == "std.TestPlatform") {
+				if(KotlinTestBinding.isTestPlatformExtern(cls.module)) {
 					// Host edges of the resident runtime.TestCore, inlined
 					// per call: raising is an AssertionError, the running
 					// test id lives in the Test host of this same package,
 					// and plain numbers render through toString. Marking the
-					// std.Test shim used keeps that host emitted beside this
+					// test extern shim used keeps that host emitted beside this
 					// resident. Business code never reaches these; it calls
-					// std.Test.
+					// test extern.
 					if(!imports.selfResident) {
-						Context.error("std.TestPlatform is a resident runtime primitive; business code calls std.Test", fn.pos);
+						Context.error("test platform extern is a resident runtime primitive; business code calls test extern", fn.pos);
 					}
-					state.shimsUsed.set("std.Test", true);
+					state.shimsUsed.set(RuntimeResidents.externsOf("runtime.TestCore")[0], true);
 					switch(name) {
 						case "raise":
 							return "throw AssertionError(" + expr(args[0]) + ")";
@@ -1985,14 +2004,14 @@ class KotlinExpr {
 				if(cls.pack.join(".") == "std" && cls.name == "Process" && name == "exit") {
 					imports.require("kotlin.system.exitProcess");
 				}
-				if(cls.module == "std.Test" || (cls.pack.join(".") == "std" && (cls.name == "Test" || cls.name == "__test_shim"))) {
+				if(KotlinTestBinding.isTestExtern(cls)) {
 					if(name == "equals") {
 						final expectedArg = args[0];
 						final actualArg = args[1];
 						final msgArg = args.length > 2 ? expr(args[2]) : null;
 						if(isScalarType(expectedArg.t)) {
-							final runtimePackage = RuntimeConfig.requireImportName("module std.Test");
-							state.shimsUsed.set("std.Test", true);
+							final runtimePackage = RuntimeConfig.requireImportName("module test extern");
+							state.shimsUsed.set(RuntimeResidents.externsOf("runtime.TestCore")[0], true);
 							imports.require(runtimePackage + ".test.Test");
 							return "Test.equals(" + expr(expectedArg) + ", " + expr(actualArg) + (msgArg != null ? ", " + msgArg : "") + ")";
 						} else {
@@ -2217,7 +2236,9 @@ class KotlinExpr {
 	function scanLocals(e: TypedExpr): Void {
 		switch(e.expr) {
 			case TVar(v, init):
-				if(v.name != "`") {
+				// A `_` local lowers to a generated name, so reserving
+				// the raw `_` in usedNames has no emitted name to guard.
+				if(v.name != "`" && v.name != "_") {
 					usedNames.set(v.name, true);
 				}
 				if(init != null) {
@@ -2227,6 +2248,13 @@ class KotlinExpr {
 					}
 				}
 			case TBinop(OpAssign, t, _) | TBinop(OpAssignOp(_), t, _):
+				switch(t.expr) {
+					case TLocal(v): mutated.set(v.id, true);
+					case _:
+				}
+			// An increment or decrement reassigns the local, so the
+			// declaration needs var even without a plain assignment.
+			case TUnop(OpIncrement, _, t) | TUnop(OpDecrement, _, t):
 				switch(t.expr) {
 					case TLocal(v): mutated.set(v.id, true);
 					case _:
@@ -2250,7 +2278,11 @@ class KotlinExpr {
 	}
 
 	function localName(v: TVar): String {
-		if(v.name != "`") {
+		// Kotlin gates a `_` local behind the experimental
+		// UnnamedLocalVariables flag. Haxe treats `_` as a readable
+		// identifier, so it goes through the same generated-name path
+		// as the compiler's ` temporaries.
+		if(v.name != "`" && v.name != "_") {
 			return v.name;
 		}
 		if(hiddenNames.exists(v.id)) {

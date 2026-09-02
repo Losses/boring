@@ -348,7 +348,7 @@ local functions holding distinct defaults.
 
 ## Extension Stage C: normalization bindings and constructor defaults
 
-Status: filed 2026-09-01, not implemented.
+Status: implemented 2026-09-01.
 
 Two shapes from the engine port sources stay rejected by rule 2 as
 implemented:
@@ -400,6 +400,7 @@ implemented:
 - Haxe stage 1: the source ternary is the semantics. The registration pass
   performs no rewrite for a normalization binding, because `p` is read
   elsewhere in the body by design.
+- Static calls do not distinguish extern from non-extern classes: detection and rendering use each target's existing static mapping.
 
 The `V16 NonConstantDefault` row of the style standard updates in the same
 commit: the sanctioned classes grow by the constructor leaf and the
@@ -417,3 +418,41 @@ other coalescing shape.
 - Mutation: a normalization binding whose `E` falls outside the grammar
   keeps the named rejection; a later-parameter reference inside `E` keeps
   `coalesced default expression may reference earlier parameters only`.
+
+## Amendment filed 2026-09-02: instance fields and earlier locals as normalization-binding leaves
+
+The Stage C leaf set is Stage A's closed-value leaves plus earlier
+parameters, and the engine port corpus holds Kotlin originals this set
+does not cover. `PunctuationModel.kt` line 283 registers
+`gluePlacement: PunctuationGluePlacement = this.gluePlacement`, a default
+argument reading an instance field, whose Haxe side is the normalization
+binding `PunctuationModel.hx` line 258 with `E` reading the corresponding
+instance field; `PunctuationModel.kt` line 291 writes
+`val rawGlyphAdvance = shapedAdvance ?: policyAdvance`, an elvis over a
+local declared strictly earlier in the same function, whose Haxe side is
+`PunctuationModel.hx` line 265. Faithful translations of these statements
+need both reads as `E`, so the grammar grows to cover them.
+
+- In the normalization-binding position only, `E` additionally accepts a
+  read of an instance field of the enclosing class (bare name or
+  `this.name`) and a reference to a local declared strictly earlier in
+  the same function body. Both evaluate at the binding statement, so no
+  evaluation-model change arises.
+- The rendering of each new leaf equals what the target's normal
+  expression lowering emits for the same read: an earlier local renders
+  as the bare local name on every target, and an instance-field read
+  keeps each target's normal qualifier convention for field reads.
+- Registered default arguments (the default positions of the base
+  ruling) keep the Stage A closed leaf set unchanged; the extension is
+  scoped to the statement-level binding whose product is body code on
+  every target.
+- Every other leaf, position, and rejection stays as ruled; the named
+  rejection `coalesced default expression is not sanctioned` keeps
+  governing identifiers that are no parameter, no earlier local, and no
+  instance field of the enclosing class.
+
+Test hooks: samples cover a normalization binding whose `E` reads an
+instance field of the enclosing class and one whose `E` reads an earlier
+local; tree assertions pin each target's field-read qualifier and the
+bare local form in the binding product; the existing unsanctioned-E
+mutation stays authoritative for identifiers outside the grammar.

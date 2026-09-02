@@ -909,6 +909,9 @@ class RustDecl {
 			case _:
 				types.of(field.type);
 		};
+		// Instance-field visibility follows the Haxe declaration. Public
+		// fields are part of the generated crate's API; private fields stay
+		// available to the crate's own lowering and tests only.
 		final visibility = field.isPublic ? "pub" : "pub(crate)";
 		return ['    $visibility $snake: $typeStr,'];
 	}
