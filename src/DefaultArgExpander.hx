@@ -109,8 +109,15 @@ class DefaultArgExpander {
 							fieldCoalescingReadsParam.set(classKey + ":" + field.name + ":" + arg.name, readsParameter(value));
 							hasDefault = true;
 						} else if (arg.value != null) {
-							final v = evalConstantExpr(arg.value, classType);
-							defaults.push(v);
+							final constructor = constructorDefaultValue(arg.value, classType);
+							if (constructor != null) {
+								defaults.push(VCoalescing(constructor));
+								fieldCoalescing.set(classKey + ":" + field.name + ":" + arg.name, constructor);
+								fieldCoalescingReadsParam.set(classKey + ":" + field.name + ":" + arg.name, readsParameter(constructor));
+							} else {
+								final v = evalConstantExpr(arg.value, classType);
+								defaults.push(v);
+							}
 							hasDefault = true;
 						} else if (arg.opt == true) {
 							defaults.push(VNull);
@@ -194,10 +201,17 @@ class DefaultArgExpander {
 				localCoalescing.set(classKey + ":" + fieldName + ":" + fnName + ":" + arg.name, value);
 				localCoalescingReadsParam.set(classKey + ":" + fieldName + ":" + fnName + ":" + arg.name, readsParameter(value));
 				hasDefault = true;
-			} else if (arg.value != null) {
-				final v = evalConstantExpr(arg.value, classType);
-				defaults.push(v);
-				hasDefault = true;
+				} else if (arg.value != null) {
+					final constructor = constructorDefaultValue(arg.value, classType);
+					if (constructor != null) {
+						defaults.push(VCoalescing(constructor));
+						localCoalescing.set(classKey + ":" + fieldName + ":" + fnName + ":" + arg.name, constructor);
+						localCoalescingReadsParam.set(classKey + ":" + fieldName + ":" + fnName + ":" + arg.name, readsParameter(constructor));
+					} else {
+						final v = evalConstantExpr(arg.value, classType);
+						defaults.push(v);
+					} 
+					hasDefault = true;
 			} else if (arg.opt == true) {
 				defaults.push(VNull);
 				hasDefault = true;
@@ -211,6 +225,15 @@ class DefaultArgExpander {
 			localNameCounts.set(fnName, (localNameCounts.exists(fnName) ? localNameCounts.get(fnName) : 0) + 1);
 		}
 		rewriteCrossSiteReads(func.expr, sites);
+	}
+	static function constructorDefaultValue(e:Expr, classType:ClassType):Null<CoalescingDefaultValue> {
+		final cur = unwrapExpr(e);
+		return switch (cur == null ? null : cur.expr) {
+			case ExprDef.ENew(typePath, args):
+				final path = typePath.pack.length == 0 ? typePath.name : typePath.pack.join(".") + "." + typePath.name;
+				if (!isCompiledStaticType(path)) null else validateArgList(args, "", [], [], classType) == null ? null : CConstructorCall(path, validateArgList(args, "", [], [], classType));
+			default: null;
+		};
 	}
 	static function discoverNormalizationBindings(args:Array<FunctionArg>, body:Null<Expr>, classType:ClassType, registered:Array<Null<CoalescingDefaultValue>>):Void {
 		if (body == null) return;
