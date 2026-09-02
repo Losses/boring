@@ -19,14 +19,14 @@ The supported operations and conversions are:
 - `Int64.getLow(value:Int64):Int`
 - the `high` and `low` read properties
 - `+`, `-`, `&`, `|`, `^`, `~`, `<<`, `>>`, and `>>>`
-- `==` and `!=`
+- `==`, `!=`, `<`, `>`, `<=`, and `>=`
 
 Addition and subtraction wrap modulo `2^64`. `>>` is arithmetic right shift.
 `>>>` is logical right shift. Shift distances are `Int` values from 0 through
 63. Construction joins the two input words by their 32-bit patterns. Word
 extraction returns the corresponding signed 32-bit pattern.
 
-Multiplication, division, remainder, ordering, decimal parsing, decimal
+Multiplication, division, remainder, decimal parsing, decimal
 formatting, dynamic type tests, and implicit conversion to `Float` are outside
 the initial capability. A later extension adds one of these operations with
 its target lowering and cross-target tests in the same change.
@@ -61,6 +61,9 @@ Dart output runs on the Dart VM target. Every Int64 result is normalized with
 `toSigned(64)`. Logical right shift reads the left value through
 `toUnsigned(64)` before shifting and normalizes the result.
 
+The four ordering operators compare the signed 64-bit pattern directly on
+every target representation; no normalization precedes the comparison.
+
 ## Emission
 
 Simple operations emit target-native expressions at the call site. Constant
@@ -93,6 +96,6 @@ arithmetic share the same 64-bit observable patterns.
 One Haxe capability suite runs on every target. It covers construction,
 high/low extraction, positive and negative values, carries across the low
 word, wrapping at both limits, bitwise operations, arithmetic and logical
-shifts at 0, 1, 31, 32, and 63, and equality. The suite runs under each
-supported float configuration to prove independence from `float-precision`.
+shifts at 0, 1, 31, 32, and 63, ordering at both limits and across zero, and
+equality. The suite runs under each supported float configuration to prove independence from `float-precision`.
 Generated source is compiled and executed by each target toolchain.
