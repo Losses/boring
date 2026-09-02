@@ -63,7 +63,7 @@ Every candidate translation is evaluated across four fixed axes:
 | 06 | [06-errors-and-results.md](features/06-errors-and-results.md) | Complete | Exceptions, Result types, and error propagation. |
 | 07 | [07-numeric-tower.md](features/07-numeric-tower.md) | Complete | Integer widths, floating-point representations, and conversion rules. |
 | 08 | [08-strings-and-unicode.md](features/08-strings-and-unicode.md) | Complete | String representations, UTF-8/UTF-16 encoding, and character indexing. |
-| 09 | [09-iterators.md](features/09-iterators.md) | Complete | Iterator protocols, array traversal, and loop transformations; the 2026-09-01 amendment (Planned) sanctions element iteration over statically-Array subjects. |
+| 09 | [09-iterators.md](features/09-iterators.md) | Complete | Iterator protocols, array traversal, and loop transformations; the 2026-09-01 amendment implements element iteration over statically-Array subjects, including recognition of the typer's lowered Array form. |
 | 10 | [10-static-extension.md](features/10-static-extension.md) | Planned | Top-level and extension functions: declaration markers and per-target emission. |
 | 11 | [11-inline-and-macros.md](features/11-inline-and-macros.md) | Complete | Inline functions, compile-time macros, and constant folding. |
 | 12 | [12-classes-interfaces-access.md](features/12-classes-interfaces-access.md) | Complete | Object-oriented constructs, visibility modifiers, and dispatch. |
