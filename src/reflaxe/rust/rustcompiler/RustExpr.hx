@@ -466,13 +466,11 @@ class RustExpr {
 						case _:
 					}
 				}
-				if(!isTypeCopy(v.t)) {
-					switch(stripWrap(init).expr) {
-						case TArray(arr, _) if(!isLazyArrayReceiver(arr)):
-							initStr = "&" + initStr;
-						case _:
-					}
-				}
+				// Array values are owned Vecs.  Borrowing an array literal here
+				// made every local initialized from an array a reference, even
+				// though its Haxe type is Array<T>; that leaked into later calls
+				// and produced &&Vec / immutable-borrow mismatches.  Borrow only
+				// at the call sites whose declared parameter requires it.
 				// A let initializer needs no outer parentheses; fully
 				// wrapped lowerings such as Int64.make would otherwise
 				// trip rustc's unused_parens lint at this position.
@@ -1238,6 +1236,9 @@ class RustExpr {
 			case _: false;
 		};
 		if(!isStartZero) return null;
+		// The element-loop rewrite drops the counter binding.  Keep the
+		// explicit range loop whenever the remaining body reads that counter.
+		for(statement in loop.body.slice(1)) if(mentionsLocal(statement, loop.index)) return null;
 		final innerBound = stripWrap(loop.bound);
 		return switch(innerBound.expr) {
 			case TField(subj, fa) if(fieldName(fa) == "length"):
@@ -2450,6 +2451,11 @@ class RustExpr {
 				return expr(l) + " > 2147483647";
 			case OpSub:
 				return operand(l, op, false) + " - " + operand(r, op, true);
+			case OpLt | OpLte | OpGt | OpGte:
+				// Rust parses an unparenthesized cast immediately followed by
+				// `<` as generic arguments (`x as u32 < y`).  Comparisons are
+				// a precedence boundary, so group both operands unconditionally.
+				return "(" + expr(l) + ") " + symbolOf(op) + " (" + expr(r) + ")";
 			case _:
 				final left = isInt64Type(l.t) ? "(" + expr(l) + ")" : operand(l, op, false);
 				final right = isInt64Type(r.t) ? "(" + expr(r) + ")" : operand(r, op, true);
@@ -2640,6 +2646,11 @@ class RustExpr {
 				final access = subjStr + "." + snake;
 				if(name != "length" && isConstructedStaticRead(subj) && StaticFieldHelper.isStringType(cf.get().type)) return "(" + access + ").to_string()";
 				if(name != "length" && isConstructedStaticRead(subj) && !isTypeCopy(cf.get().type)) return "(" + access + ").clone()";
+				if(name != "length" && isNullType(cf.get().type)) {
+					// `Std.string` and string comparisons observe nullable values;
+					// preserve Option instead of treating it as Display.
+					return access;
+				}
 				if(name != "length" && (isStringType(cf.get().type) || isRecordValueType(cf.get().type))) {
 					return isStringType(cf.get().type) ? "(" + access + ").to_string()" : "(" + access + ").clone()";
 				}
@@ -2962,6 +2973,8 @@ class RustExpr {
 				ValueTypeSupport.memberField(a.get(), "toString") != null
 					? value + ".to_string()"
 					: value + ".0.to_string()";
+			case TAbstract(a, _) if(a.get().name == "Null"):
+				inConcat ? value + ".as_deref().unwrap_or(\"\")" : "match " + value + " { Some(v) => v.to_string(), None => \"null\".to_string() }";
 			case TAbstract(a, _) if(a.get().name == "Float"):
 				inConcat ? value : "crate::runtime::test_core::TestCore::format_float(" + value + ")";
 			case TAbstract(a, _) if(a.get().name == "Int" || a.get().name == "Bool"): inConcat ? value : "(" + value + ").to_string()";
