@@ -9,7 +9,6 @@ package std;
 extern class Test {
 	static function run(id:String, name:String, body:() -> Void):Void;
 	static function ok(condition:Bool, message:String = null):Void;
-	static function equals<T>(expected:ReadOnlyArray<T>, actual:ReadOnlyArray<T>, message:String = null):Void;
 	static function equals<T>(expected:T, actual:T, message:String = null):Void;
 	static function fail(message:String):Void;
 }
