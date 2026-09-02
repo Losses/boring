@@ -3834,7 +3834,7 @@ class RustExpr {
 						final n = cf.get().name;
 						if(n == "readU16" || n == "readU32" || n == "readF64" || n == "readAscii"
 							|| n == "writeU16" || n == "writeU32" || n == "writeF64" || n == "writeAscii"
-								|| n == "addByte" || n == "push" || n == "finish" || n == "put" || n == "set"
+								|| n == "addByte" || n == "push" || n == "finish" || n == "put" || n == "set" || n == "update"
 							|| n == "add" || n == "addChar") {
 							switch(stripWrap(subj).expr) {
 								case TLocal(v):
