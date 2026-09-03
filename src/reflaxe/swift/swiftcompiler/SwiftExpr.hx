@@ -1693,12 +1693,12 @@ class SwiftExpr {
 			case TInst(c, [element]) if(c.get().module == "std.SortedSet"):
 				final index = depth == 0 ? "i" : "i" + depth;
 				final item = stdStringType(element, value + ".at(" + index + ")", true, origin, depth + 1);
-				'{ () -> String in var out = "["; let n = ${value}.size(); var ${index} = 0; while ${index} < n { if ${index} > 0 { out += ", "; }; out += ${item}; ${index} += 1; }; out += "]"; return out }()';
+				'{ () -> String in var out = "["; let n = ${value}.size(); var ${index}: Int32 = 0; while ${index} < n { if ${index} > 0 { out += ", "; }; out += ${item}; ${index} += 1; }; out += "]"; return out }()';
 			case TInst(c, [key, val]) if(c.get().module == "std.SortedMap"):
 				final index = depth == 0 ? "i" : "i" + depth;
 				final itemKey = stdStringType(key, value + ".keyAt(" + index + ")", true, origin, depth + 1);
 				final itemVal = stdStringType(val, value + ".valueAt(" + index + ")", true, origin, depth + 1);
-				'{ () -> String in var out = "{"; let n = ${value}.size(); var ${index} = 0; while ${index} < n { if ${index} > 0 { out += ", "; }; out += ${itemKey}; out += "="; out += ${itemVal}; ${index} += 1; }; out += "}"; return out }()';
+				'{ () -> String in var out = "{"; let n = ${value}.size(); var ${index}: Int32 = 0; while ${index} < n { if ${index} > 0 { out += ", "; }; out += ${itemKey}; out += "="; out += ${itemVal}; ${index} += 1; }; out += "}"; return out }()';
 			case TInst(c, _) if(StaticFieldHelper.hasSelfConstructionStatic(c.get()) || c.get().meta.has(":dataClass")): value + ".toString()";
 			case TAbstract(a, _) if(ValueTypeSupport.isMarkedAbstract(a.get())):
 				final abs = a.get();
@@ -1708,7 +1708,7 @@ class SwiftExpr {
 			case TAbstract(a, _) if(a.get().name == "Float"): depth > 0 ? "\"\\(" + value + ")\"" : (inConcat ? value : "String(decoding: TestCore.formatFloat(" + value + "), as: UTF16.self)");
 			case TAbstract(a, _) if(a.get().name == "Int" || a.get().name == "Bool"): depth > 0 ? "\"\\(" + value + ")\"" : (inConcat ? value : "String(" + value + ")");
 			case TInst(c, _) if(c.get().kind.match(KTypeParameter(_))):
-				inConcat ? value : "String(describing: " + value + ")";
+				types.resident ? "Array(String(describing: " + value + ").utf16)" : (inConcat ? value : "String(describing: " + value + ")");
 			case TAbstract(a, params) if(a.get().module == "std.ReadOnlyArray"):
 				stdStringType(haxe.macro.TypeTools.applyTypeParameters(a.get().type, a.get().params, params), value, inConcat, origin, depth);
 			case TEnum(en, _) if(isParameterlessEnum(en.get())): value + ".rawValue";
@@ -1739,6 +1739,7 @@ class SwiftExpr {
 		final constructs = [for(ef in en.constructs) ef];
 		constructs.sort((a, b) -> Reflect.compare(a.index, b.index));
 		final arms: Array<String> = [];
+		if(isNullLeafType(origin.t)) arms.push("case .none: return \"null\";");
 		for(ef in constructs) {
 			final args = switch(ef.type) {
 				case TFun(args, _): args;
