@@ -30,6 +30,10 @@ class RustDecl {
 		return imports.render();
 	}
 
+	public function renderImportsFiltered(body: String): String {
+		return imports.renderFiltered(body);
+	}
+
 	public function topLevelStatements(e: TypedExpr): String {
 		return expr.topLevelStatements(e);
 	}
@@ -1037,13 +1041,21 @@ class RustDecl {
 			expr.reserveName(a.name);
 			expr.setArgType(a.name, types.of(a.type, true));
 		}
+		// A parameter the body never mentions and no default-argument
+		// prologue rebinds takes the underscore prefix; the lowering leaves
+		// it otherwise unused.
+		final coalescedParams: Map<String, Bool> = [];
+		for(site in DefaultArgExpander.coalescingSitesForFunction(f.expr)) {
+			coalescedParams.set(site.parameter, true);
+		}
 		final snakeName = RustImports.toSnakeCase(f.field.name);
 		final args = [for(i in firstArg...f.args.length) {
 			final a = f.args[i];
 			var pType = types.of(a.type, true);
 			if(argIsMutated(f.expr, a.name) && StringTools.startsWith(pType, "&Vec<")) pType = "&mut " + pType.substr(1);
 			final mut = argIsMutated(f.expr, a.name) && !StringTools.startsWith(pType, "&mut") ? "mut " : "";
-			mut + RustImports.toSnakeCase(a.name) + ": " + pType;
+			final mentioned = argIsMentioned(f.expr, a.name) || coalescedParams.exists(a.name);
+			mut + (mentioned ? "" : "_") + RustImports.toSnakeCase(a.name) + ": " + pType;
 		}].join(", ");
 		final allArgs = if(receiverMethod) {
 			args.length > 0 ? "&self, " + args : "&self";
@@ -1080,6 +1092,24 @@ class RustDecl {
 		expr.setReturnType(f.ret);
 		final body = expr.functionBody(cls, f);
 		return [head].concat(body.map(l -> "    " + l)).concat(["    }"]);
+	}
+
+	/** True when the body names the local anywhere, read or assignment target. */
+	public static function argIsMentioned(body: Null<TypedExpr>, name: String): Bool {
+		if(body == null) return false;
+		var found = false;
+		function walk(e: TypedExpr) {
+			if(found) return;
+			switch(e.expr) {
+				case TLocal(v):
+					if(v.name == name) found = true;
+					return;
+				case _:
+			}
+			haxe.macro.TypedExprTools.iter(e, walk);
+		}
+		walk(body);
+		return found;
 	}
 
 	public static function argIsMutated(body: Null<TypedExpr>, name: String): Bool {
