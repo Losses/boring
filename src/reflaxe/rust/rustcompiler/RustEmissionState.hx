@@ -10,6 +10,14 @@ class RustEmissionState {
 	/** Maps payload enum module path to its owning exception class name. */
 	public final payloadEnumOwners: Map<String, String> = [];
 
+	/**
+		Set while emitting one instance member, true when that member's
+		body formats a class type parameter for printing. RustDecl resets
+		this before each member and routes a member that set it into the
+		impl block whose parameters also carry the Debug bound.
+	**/
+	public var memberPrintsTypeParam: Bool = false;
+
 	/** Maps payload enum module path to its owning exception class module path. */
 	public final payloadEnumModules: Map<String, String> = [];
 

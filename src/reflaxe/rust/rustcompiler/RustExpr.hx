@@ -1493,16 +1493,22 @@ class RustExpr {
 			Context.error("sorted builder requires an explicit key type", pos);
 		}
 		return switch(RustType.classifyKey(kType, pos)) {
-			case IntKey: "Box::new(|a, b| SortedTable::compare_ints((*a) as i32, (*b) as i32))";
-			case StringKey: "Box::new(|a, b| SortedTable::compare_strings(a.as_str(), b.as_str()))";
+			case IntKey:
+				imports.require("std::rc::Rc");
+				"Rc::new(|a, b| SortedTable::compare_ints((*a) as i32, (*b) as i32))";
+			case StringKey:
+				imports.require("std::rc::Rc");
+				"Rc::new(|a, b| SortedTable::compare_strings(a.as_str(), b.as_str()))";
 			case StructKey(def, _):
 				final cmpName = "compare_" + RustImports.toSnakeCase(def.name);
 				imports.requireType(def.module, cmpName);
-				"Box::new(" + cmpName + ")";
+				imports.require("std::rc::Rc");
+				"Rc::new(" + cmpName + ")";
 			case DataClassKey(cls, _):
 				final cmpName = "compare_" + RustImports.toSnakeCase(cls.name);
 				imports.requireType(cls.module, cmpName);
-				"Box::new(" + cmpName + ")";
+				imports.require("std::rc::Rc");
+				"Rc::new(" + cmpName + ")";
 		};
 	}
 
@@ -3085,6 +3091,14 @@ class RustExpr {
 	}
 
 	function stdStringType(t: Type, value: String, inConcat: Bool, origin: TypedExpr, depth: Int = 0): String {
+		// Context.follow unwraps Null<T> into T, so the switch below never
+		// sees the wrapper; a nullable operand takes the match form here,
+		// before the follow.
+		switch(t) {
+			case TAbstract(a, [inner]) if(a.get().name == "Null"):
+				return "match " + value + " { Some(ref v) => " + stdStringType(inner, "v", false, origin, depth + 1) + ", None => \"null\".to_string() }";
+			case _:
+		}
 		return switch(Context.follow(t)) {
 			case TInst(c, _) if(c.get().name == "String"):
 				inConcat ? value : value + ".to_string()";
@@ -3093,13 +3107,27 @@ class RustExpr {
 				final index = depth == 0 ? "i" : "i" + depth;
 				final item = stdStringType(element, value + "[" + index + "]", true, origin, depth + 1);
 				'{ let mut out = String::new(); out.push(\'[\'); let n = ${value}.len(); let mut ${index} = 0usize; while ${index} < n { if ${index} > 0 { out.push_str(", "); } let _ = write!(out, "{}", ${item}); ${index} += 1; } out.push(\']\'); out }';
+			case TInst(c, [element]) if(c.get().module == "std.SortedSet"):
+				imports.require("std::fmt::Write");
+				final index = depth == 0 ? "i" : "i" + depth;
+				final item = stdStringType(element, value + ".at(" + index + ")", true, origin, depth + 1);
+				'{ let mut out = String::new(); out.push(\'[\'); let n = ${value}.size(); let mut ${index} = 0; while ${index} < n { if ${index} > 0 { out.push_str(", "); } let _ = write!(out, "{}", ${item}); ${index} += 1; } out.push(\']\'); out }';
+			case TInst(c, [key, val]) if(c.get().module == "std.SortedMap"):
+				imports.require("std::fmt::Write");
+				final index = depth == 0 ? "i" : "i" + depth;
+				final itemKey = stdStringType(key, value + ".key_at(" + index + ")", true, origin, depth + 1);
+				final itemVal = stdStringType(val, value + ".value_at(" + index + ")", true, origin, depth + 1);
+				'{ let mut out = String::new(); out.push(\'{\'); let n = ${value}.size(); let mut ${index} = 0; while ${index} < n { if ${index} > 0 { out.push_str(", "); } let _ = write!(out, "{}={}", ${itemKey}, ${itemVal}); ${index} += 1; } out.push(\'}\'); out }';
+			case TInst(c, _) if(c.get().kind.match(KTypeParameter(_))):
+				state.memberPrintsTypeParam = true;
+				"format!(\"{:?}\", " + value + ")";
 			case TInst(c, _) if(StaticFieldHelper.hasSelfConstructionStatic(c.get()) || c.get().meta.has(":dataClass")): value + ".to_string()";
 			case TAbstract(a, _) if(ValueTypeSupport.isMarkedAbstract(a.get())):
 				ValueTypeSupport.memberField(a.get(), "toString") != null
 					? value + ".to_string()"
 					: value + ".0.to_string()";
 			case TAbstract(a, _) if(a.get().name == "Null"):
-				inConcat ? value + ".as_deref().unwrap_or(\"\")" : "match " + value + " { Some(v) => v.to_string(), None => \"null\".to_string() }";
+				"match " + value + " { Some(v) => v.to_string(), None => \"null\".to_string() }";
 			case TAbstract(a, _) if(a.get().name == "Float"):
 				inConcat ? value : "crate::runtime::test_core::TestCore::format_float(" + value + ")";
 			case TAbstract(a, _) if(a.get().name == "Int" || a.get().name == "Bool"): inConcat ? value : "(" + value + ").to_string()";
@@ -3776,7 +3804,8 @@ class RustExpr {
 	}
 
 	function functionValueLiteral(f: TFunc, functionType: Null<Type>): String {
-		return "Box::new(" + functionLiteral(f, functionType) + ")";
+		imports.require("std::rc::Rc");
+		return "Rc::new(" + functionLiteral(f, functionType) + ")";
 	}
 
 	function functionLiteralNamed(name: String, f: TFunc, functionType: Null<Type>): String {
@@ -4639,11 +4668,12 @@ class RustExpr {
 			return "Box::new(" + rendered + ")";
 		}
 		// Static methods and static function fields are emitted as callable
-		// items/pointers, while every non-static function value is already a
-		// Box at its declaration site. Adapt the former only when a ruled
-		// boxed function slot receives it.
+		// items/pointers, while every non-static function value is already an
+		// Rc at its declaration site. Adapt the former only when a ruled
+		// Rc-held function slot receives it.
 		if(isFunctionType(expected) && isFunctionType(actual.t) && !isBoxedFunctionExpr(actual)) {
-			return "Box::new(" + rendered + ")";
+			imports.require("std::rc::Rc");
+			return "Rc::new(" + rendered + ")";
 		}
 		return rendered;
 	}
