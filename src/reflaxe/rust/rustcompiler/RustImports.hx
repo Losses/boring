@@ -135,7 +135,12 @@ class RustImports {
 			}
 		}
 		if(isAllUpper) {
-			return s.length == 1 ? s.toLowerCase() : s;
+			var hasLetter = false;
+			for(i in 0...s.length) {
+				final c = s.charCodeAt(i);
+				if(c >= 65 && c <= 90) hasLetter = true;
+			}
+			return hasLetter ? s.toLowerCase() : s;
 		}
 
 		final buf = new StringBuf();

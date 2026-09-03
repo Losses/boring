@@ -342,7 +342,11 @@ class TsExpr {
 			case TVar(v, init) if(init == null):
 				return [indent(depth) + "let " + localName(v) + ": " + types.of(v.t) + ";"];
 			case TBlock(stmts):
-				return blockLines(stmts, depth);
+				// Preserve the lexical scope of typer-unrolled statement blocks.
+				final out = [indent(depth) + "{"];
+				for(l in blockLines(stmts, depth + 1)) out.push(l);
+				out.push(indent(depth) + "}");
+				return out;
 			case TIf(c, t, f):
 				final out = [indent(depth) + "if (" + expr(c) + ") {"];
 				for(l in blockLines(statementsOf(t), depth + 1)) out.push(l);
@@ -1575,7 +1579,7 @@ class TsExpr {
 			Context.error("StringTools.hex accepts non-negative arguments only", value.pos);
 		}
 		final valueText = "(" + expr(value) + ")";
-		final hex = valueText + ".toString(16).toUpperCase()";
+		final hex = "((" + valueText + ") >>> 0).toString(16).toUpperCase()";
 		return digits == null ? hex : hex + ".padStart(" + expr(digits) + ", \"0\")";
 	}
 
