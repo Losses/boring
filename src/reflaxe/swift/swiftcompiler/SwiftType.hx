@@ -284,7 +284,7 @@ class SwiftType {
 		if(!isDataClassFieldKey(field.type)) Context.error("dataClass key " + cls.name + " field " + path + " has unsupported type " + field.type, field.pos);
 		if(switch(Context.follow(field.type)) { case TInst(c, _) if(c.get().meta.has(":dataClass")): true; case _: false; }) {
 			final inner = switch(Context.follow(field.type)) { case TInst(c, _): c.get(); case _: null; };
-			if(inner != null) for(f in inner.fields.get()) if(switch(f.kind) { case FVar(_, _): true; case _: false; }) validateDataClassField(inner, f, path + "." + f.name);
+			if(inner != null) for(f in inner.fields.get()) if(switch(f.kind) { case FVar(read, write): !(read.match(AccCall) && write.match(AccNever)); case _: false; }) validateDataClassField(inner, f, path + "." + f.name);
 		}
 	}
 
