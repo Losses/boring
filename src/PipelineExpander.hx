@@ -444,12 +444,6 @@ class PipelineExpander {
 				continue;
 			}
 			switch (stmt.expr) {
-				case TBlock(nestedStmts) if (nestedStmts.length > 0):
-					stmts.splice(i, 1);
-					for (j in 0...nestedStmts.length) {
-						stmts.insert(i + j, nestedStmts[j]);
-					}
-					i += nestedStmts.length - 1;
 				case TReturn(ret) if (ret != null):
 					switch (ret.expr) {
 						case TBlock(innerStmts) if (innerStmts.length > 0):
