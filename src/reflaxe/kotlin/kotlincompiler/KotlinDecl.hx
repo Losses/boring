@@ -265,13 +265,20 @@ class KotlinDecl {
 	function dataClassComparator(cls: ClassType): String {
 		final lines: Array<String> = [];
 		final fields = [for(x in cls.fields.get()) if(switch(x.kind) { case FVar(read, write): !(read.match(AccCall) && write.match(AccNever)); case _: false; }) x];
-		for(f in fields) switch(Context.follow(f.type)) {
-			case TEnum(e, _):
-				final en = e.get();
-				lines.push('    fun ${cls.name}${f.name}Order(v: ${en.name}): Int = when (v) {');
-				for(ef in en.constructs) lines.push(enumFieldParams(ef).length > 0 ? '        is ${en.name}.${ef.name} -> ${ef.index}' : '        ${en.name}.${ef.name} -> ${ef.index}');
-				lines.push('    }');
-			case _:
+		for(f in fields) {
+			switch(f.type) {
+				case TAbstract(a, params) if(a.get().name == "ReadOnlyArray" && params.length == 1):
+					switch(Context.follow(params[0])) { case TEnum(e, _): final en = e.get(); lines.push('    fun ${cls.name}${f.name}Order(v: ${en.name}): Int = when (v) {'); for(ef in en.constructs) lines.push(enumFieldParams(ef).length > 0 ? '        is ${en.name}.${ef.name} -> ${ef.index}' : '        ${en.name}.${ef.name} -> ${ef.index}'); lines.push('    }'); case _: }
+				default:
+			}
+			switch(Context.follow(f.type)) {
+				case TEnum(e, _):
+					final en = e.get();
+					lines.push('    fun ${cls.name}${f.name}Order(v: ${en.name}): Int = when (v) {');
+					for(ef in en.constructs) lines.push(enumFieldParams(ef).length > 0 ? '        is ${en.name}.${ef.name} -> ${ef.index}' : '        ${en.name}.${ef.name} -> ${ef.index}');
+					lines.push('    }');
+				case _:
+			}
 		}
 		lines.push('    fun compare${cls.name}(a: ${cls.name}, b: ${cls.name}): Int {');
 		lines.push('    var cmp = 0');
@@ -290,7 +297,11 @@ class KotlinDecl {
 						case TInst(c, _) if(c.get().meta.has(":dataClass")): imports.requireType(c.get().module, "compare" + c.get().name); lines.push('        cmp = compare${c.get().name}(a.${f.name}[idx${f.name}], b.${f.name}[idx${f.name}])');
 						case TEnum(e, _):
 							final en = e.get();
-							lines.push('        cmp = ${cls.name}${f.name}Order(a.${f.name}[idx${f.name}]).compareTo(${cls.name}${f.name}Order(b.${f.name}[idx${f.name}]))');
+							final orderName = cls.name + f.name + "Order";
+							lines.push('    fun ${cls.name}${f.name}Order(v: ${en.name}): Int = when (v) {');
+							for(ef in en.constructs) lines.push(enumFieldParams(ef).length > 0 ? '        is ${en.name}.${ef.name} -> ${ef.index}' : '        ${en.name}.${ef.name} -> ${ef.index}');
+							lines.push('    }');
+							lines.push('        cmp = ${orderName}(a.${f.name}[idx${f.name}]).compareTo(${orderName}(b.${f.name}[idx${f.name}]))');
 						case _: lines.push('        cmp = a.${f.name}[idx${f.name}].compareTo(b.${f.name}[idx${f.name}])');
 					}
 					lines.push('        if (cmp != 0) return cmp');

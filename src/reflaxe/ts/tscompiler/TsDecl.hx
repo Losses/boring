@@ -175,8 +175,9 @@ class TsDecl {
 					lines.push('  if (a.${f.name} !== null && b.${f.name} !== null) { const cmp = ' + tsCompareExpr(cls, f.name, params[0]) + '; if (cmp !== 0) return cmp; }');
 					continue;
 				case TAbstract(a, params) if(a.get().name == "ReadOnlyArray" && params.length == 1):
-					lines.push('  for (let i = 0; i < a.${f.name}.length && i < b.${f.name}.length; i++) { const cmp = ' + tsCompareExpr(cls, f.name + '[i]', params[0]) + '; if (cmp !== 0) return cmp; }');
-					lines.push('  if (a.${f.name}.length !== b.${f.name}.length) return a.${f.name}.length - b.${f.name}.length;');
+					lines.push('  const a${f.name}Length = a.${f.name}.length; const b${f.name}Length = b.${f.name}.length;');
+					lines.push('  for (let i = 0; i < a${f.name}Length && i < b${f.name}Length; i++) { const cmp = ' + tsCompareExpr(cls, f.name + '[i]', params[0]) + '; if (cmp !== 0) return cmp; }');
+					lines.push('  if (a${f.name}Length !== b${f.name}Length) return a${f.name}Length - b${f.name}Length;');
 					continue;
 				default:
 			}
