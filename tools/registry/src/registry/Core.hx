@@ -1,5 +1,6 @@
 package registry;
 using Lambda;
+using StringTools;
 import registry.Json.JsonValue;
 import registry.Json.JsonField;
 
@@ -54,7 +55,7 @@ class Core {
   r.artifactUrls.push(str(O(fs),"url"));
   return true;
  }
- static function urlOk(u:String):Bool return StringTools.startsWith(u,"http://") || StringTools.startsWith(u,"https://");
+ static function urlOk(u:String):Bool return u.startsWith("http://") || u.startsWith("https://");
  static function sortStrings(a:Array<String>):Void {for(i in 1...a.length){var x=a[i],j=i-1;while(j>=0&&a[j]>x){a[j+1]=a[j];j=j-1;}a[j+1]=x;}}
  /** Semver comparison wrapped for the Rust lowering: catching the Semver
  fault keeps every Core function on the single CoreFault error enum. */
@@ -65,19 +66,19 @@ class Core {
   return out;
  }
  static function sortReleases(a:Array<Release>):Void {for(i in 1...a.length){var x=a[i],j=i-1;while(j>=0&&compareVersions(a[j].version,x.version)>0){a[j+1]=a[j];j=j-1;}a[j+1]=x;}}
- static function names(a:Array<Release>,p:String):Array<String>{var o:Array<String>=[];for(i in 0...a.length){var r=a[i];if(r.platform==p&&!Lambda.has(o,r.name))o.push(r.name);}sortStrings(o);return o;}
+ static function names(a:Array<Release>,p:String):Array<String>{var o:Array<String>=[];for(i in 0...a.length){var r=a[i];if(r.platform==p&&!o.has(r.name))o.push(r.name);}sortStrings(o);return o;}
  static function group(a:Array<Release>,p:String,n:String):Array<Release>{var o:Array<Release>=[];for(i in 0...a.length){var r=a[i];if(r.platform==p&&r.name==n)o.push(r);}sortReleases(o);return o;}
  static function latest(g:Array<Release>):String{var b:Null<Release>=null;for(i in 0...g.length){var r=g[i];if(!Semver.isPrerelease(r.version)&&(b==null||compareVersions(r.version,b.version)>0))b=r;}if(b==null)b=g[g.length-1];return b.version;}
  static function fields(r:Release):Array<JsonField>{var a:Array<JsonField>=[{name:"name",value:S(r.name)},{name:"version",value:S(r.version)}];var lic=r.license; if(lic!=null)a.push({name:"license",value:S(lic)});return a;}
  static function contentOf(records:Array<InputRecord>, path:String):String { var r=record(records,path); if(r!=null) return r.content; fail(path+": missing record"); return ""; }
  static function record(records:Array<InputRecord>, path:String):Null<InputRecord> { for (ri in 0...records.length) { var r=records[ri]; if (r.path==path) return r; } return null; }
- static function children(records:Array<InputRecord>, path:String):Array<String> { var out:Array<String>=[]; var prefix=path==""?"":path+"/"; for(ri in 0...records.length) { var r=records[ri]; if(!StringTools.startsWith(r.path,prefix)) continue; var rest=r.path.substring(prefix.length), part=rest.split("/")[0]; if(!Lambda.has(out,part)) out.push(part); } sortStrings(out); return out; }
+ static function children(records:Array<InputRecord>, path:String):Array<String> { var out:Array<String>=[]; var prefix=path==""?"":path+"/"; for(ri in 0...records.length) { var r=records[ri]; if(!r.path.startsWith(prefix)) continue; var rest=r.path.substring(prefix.length), part=rest.split("/")[0]; if(!out.has(part)) out.push(part); } sortStrings(out); return out; }
  static function scan(tree:String, records:Array<InputRecord>):Array<Release> {
   var out:Array<Release>=[]; if(records.length==0) fail(tree+": missing tree");
   var owners=children(records,""); for(oi in 0...owners.length) { var owner=owners[oi]; var op=owner; if(record(records,op)!=null) fail(tree+"/"+op+": stray file");
    var repos=children(records,op); for(repi in 0...repos.length) { var repo=repos[repi]; var rp=op+"/"+repo; if(record(records,rp)!=null || record(records,rp+"/README.md")==null) fail(tree+"/"+rp+": missing README.md"); var count=0;
     var versions=children(records,rp); for(vi in 0...versions.length) { var v=versions[vi]; if(v=="README.md") continue; count=count+1; var vp=rp+"/"+v; if(record(records,vp)!=null) fail(tree+"/"+vp+": stray file");
-     var platforms=children(records,vp); for(pi in 0...platforms.length) { var p=platforms[pi]; var pp=vp+"/"+p; if(!Lambda.has(["npm","cargo","pub","swift","maven"],p)) fail(tree+"/"+pp+": unknown platform"); var files=children(records,pp); if(record(records,pp)!=null || files.length!=1 || files[0]!="metadata.json") fail(tree+"/"+pp+": expected metadata.json"); var j:JsonValue=readMetadata(contentOf(records,pp+"/metadata.json"),tree+"/"+pp); var r=new Release(owner,repo,v,p,str(j,"name"),opt(j,"license"),contentOf(records,rp+"/README.md")); if(str(j,"version")!=v) fail(tree+"/"+pp+": version disagreement"); if(Semver.parse(v)==null) fail(tree+"/"+pp+": invalid version");
+     var platforms=children(records,vp); for(pi in 0...platforms.length) { var p=platforms[pi]; var pp=vp+"/"+p; if(!["npm","cargo","pub","swift","maven"].has(p)) fail(tree+"/"+pp+": unknown platform"); var files=children(records,pp); if(record(records,pp)!=null || files.length!=1 || files[0]!="metadata.json") fail(tree+"/"+pp+": expected metadata.json"); var j:JsonValue=readMetadata(contentOf(records,pp+"/metadata.json"),tree+"/"+pp); var r=new Release(owner,repo,v,p,str(j,"name"),opt(j,"license"),contentOf(records,rp+"/README.md")); if(str(j,"version")!=v) fail(tree+"/"+pp+": version disagreement"); if(Semver.parse(v)==null) fail(tree+"/"+pp+": invalid version");
       if(p=="npm"){r.url=str(j,"url");r.digest=str(j,"sha512");} else if(p=="cargo"||p=="pub"){r.url=str(j,"url");r.digest=str(j,"sha256");if(p=="pub")r.pubspec=get(j,"pubspec");} else if(p=="swift"){r.archive=str(j,"archive");r.digest=str(j,"sha256");r.packageSwift=str(j,"packageSwift");} else {r.groupId=str(j,"groupId");readArtifacts(get(j,"artifacts"),r,tree+"/"+pp);} var ru2=r.url; if(ru2!=null&&!urlOk(ru2)) fail(tree+"/"+pp+": invalid URL"); out.push(r);
      }
     } if(count==0) fail(tree+"/"+rp+": repository has no versions");
@@ -99,7 +100,7 @@ class Core {
  static function writeMaven(root:String,a:Array<Release>):Void {
   var ns=names(a,"maven");
   for(ni in 0...ns.length) { var n=ns[ni],g=group(a,"maven",n),first=g[0],fg=first.groupId,groupId:String=fg==null?"":fg, versions:Array<String>=[];
-   for(ri in 0...g.length) { var r=g[ri]; if(!Lambda.has(versions,r.version)) versions.push(r.version); } sortStrings(versions);
+   for(ri in 0...g.length) { var r=g[ri]; if(!versions.has(r.version)) versions.push(r.version); } sortStrings(versions);
    var path=groupId.split(".").join("/")+"/"+n, xml="<metadata>\n  <groupId>"+groupId+"</groupId>\n  <artifactId>"+n+"</artifactId>\n  <versioning>\n    <latest>"+latest(g)+"</latest>\n    <release>"+latest(g)+"</release>\n    <versions>\n";
    for(vi in 0...versions.length) { var v=versions[vi]; xml += "      <version>"+v+"</version>\n"; }
    xml += "    </versions>\n  </versioning>\n</metadata>\n"; emit(root,"maven/"+path+"/maven-metadata.xml",xml); emit(root,"maven/"+path+"/maven-metadata.xml.sha1",Sha1.hex(xml)+"\n");
@@ -111,7 +112,7 @@ class Core {
   var cn=names(a,"cargo"); for(ni in 0...cn.length) { var n=cn[ni]; var r=group(a,"cargo",n)[0]; lines.push("/cargo/dl/"+n+"-:version.crate  https://github.com/"+r.owner+"/"+r.repo+"/releases/download/v:version/"+n+"-:version.crate  302"); }
   for(ai in 0...a.length) { var r=a[ai]; if(r.platform=="maven") for(fi in 0...r.artifacts.length) { var file=r.artifacts[fi],rg=r.groupId,gid:String=rg==null?"":rg; lines.push("/maven/"+gid.split(".").join("/")+"/"+r.name+"/:version/"+file+"  https://github.com/"+r.owner+"/"+r.repo+"/releases/download/v:version/"+file+"  302"); } }
   var moving=0; var fixed=0;
-  for(li in 0...lines.length) { if(StringTools.endsWith(lines[li],"303")||StringTools.endsWith(lines[li],"302")) moving=moving+1; else fixed=fixed+1; }
+  for(li in 0...lines.length) { if(lines[li].endsWith("303")||lines[li].endsWith("302")) moving=moving+1; else fixed=fixed+1; }
   if(moving>100) fail("too many dynamic redirects (Cloudflare allows 100)");
   if(fixed>2000) fail("too many static redirects (Cloudflare allows 2000)");
   return lines.join("\n")+"\n";
