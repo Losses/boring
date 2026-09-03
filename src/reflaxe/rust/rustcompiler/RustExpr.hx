@@ -4199,8 +4199,6 @@ class RustExpr {
 				}
 			case _:
 		}
-		// Loop and branch bodies are blocks too; the sibling scan must reach them.
-		TypedExprTools.iter(e, scanReadsAfter);
 	}
 
 	function collectTryAssignments(e: TypedExpr): Void {
