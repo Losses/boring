@@ -61,6 +61,7 @@ class Compiler extends PluginCompiler<Compiler> {
 
 	function preScan(mtypes: Array<ModuleType>): Void {
 		SwiftFallibility.collect(mtypes);
+		SwiftInoutParams.collect(mtypes);
 		// Index every in-scope record typedef by shape so anonymous
 		// object literals resolve their nominal struct (the typer keeps
 		// a literal's own type anonymous even after unification).
