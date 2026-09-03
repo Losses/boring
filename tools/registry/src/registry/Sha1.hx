@@ -57,11 +57,14 @@ class Sha1 {
 		return out;
 	}
 	static function rol(x:Int, n:Int):Int return (x << n) | (x >>> (32 - n));
+	static function digit(x:Int):String {
+		var digits:Array<String> = ["0","1","2","3","4","5","6","7","8","9","a","b","c","d","e","f"];
+		return digits[x];
+	}
 	static function word(x:Int):String {
-		var digits = "0123456789abcdef";
 		var out = "";
 		var s = 28;
-		while(s >= 0) { out += digits.charAt((x >>> s) & 15); s = s - 4; }
+		while(s >= 0) { out += digit((x >>> s) & 15); s = s - 4; }
 		return out;
 	}
 }
