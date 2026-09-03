@@ -168,15 +168,19 @@ class RustDecl {
 		// Generic classes carry their type parameters on the struct and
 		// the impl. Every parameter takes a Clone bound on the impl:
 		// reads of stored elements clone out of the arrays, and the one
-		// source of these classes is the sorted-table resident.
+		// source of these classes is the sorted-table resident. A member
+		// that formats a parameter for printing lands in a second impl
+		// whose parameters also carry Debug, so callers that never print
+		// keep the Clone-only bound set.
 		final classParams = [for(p in cls.params) p.name];
 		final genericList = hasLifetime ? ["'a"].concat(classParams) : classParams;
 		final genericStr = genericList.length > 0 ? "<" + genericList.join(", ") + ">" : "";
 		final implBoundList = hasLifetime ? ["'a"].concat([for(n in classParams) n + ": Clone"]) : [for(n in classParams) n + ": Clone"];
+		final debugBoundList = hasLifetime ? ["'a"].concat([for(n in classParams) n + ": Clone + std::fmt::Debug"]) : [for(n in classParams) n + ": Clone + std::fmt::Debug"];
 		final implGenerics = implBoundList.length > 0 ? "<" + implBoundList.join(", ") + ">" : "";
 		final ltParam = genericStr;
 
-		if(StaticFieldHelper.hasSelfConstructionStatic(cls) || cls.meta.has(":dataClass")) {
+		if(StaticFieldHelper.hasSelfConstructionStatic(cls) || cls.meta.has(":dataClass") || classParams.length > 0) {
 			lines.push("#[derive(Clone)]");
 		}
 		if(cls.module.indexOf("registry.") == 0) {
@@ -199,16 +203,37 @@ class RustDecl {
 			sep = true;
 			for(l in declarations) lines.push(l);
 		}
+		final printingMembers: Array<Array<String>> = [];
 		for(f in ordinaryFuncs) {
-			if(sep) lines.push("");
-			sep = true;
 			if(f.isStatic) {
+				if(sep) lines.push("");
+				sep = true;
 				for(l in staticFuncDecl(cls, f)) lines.push(l);
 			} else {
-				for(l in instanceFuncDecl(cls, f, hasLifetime)) lines.push(l);
+				state.memberPrintsTypeParam = false;
+				final memberLines = instanceFuncDecl(cls, f, hasLifetime);
+				if(state.memberPrintsTypeParam) {
+					printingMembers.push(memberLines);
+				} else {
+					if(sep) lines.push("");
+					sep = true;
+					for(l in memberLines) lines.push(l);
+				}
 			}
 		}
 		lines.push("}");
+
+		if(printingMembers.length > 0) {
+			final debugGenerics = debugBoundList.length > 0 ? "<" + debugBoundList.join(", ") + ">" : "";
+			lines.push("\nimpl" + debugGenerics + " " + cls.name + genericStr + " {");
+			var debugSep = false;
+			for(memberLines in printingMembers) {
+				if(debugSep) lines.push("");
+				debugSep = true;
+				for(l in memberLines) lines.push(l);
+			}
+			lines.push("}");
+		}
 
 		for(iface in cls.interfaces) {
 			final ifaceCls = iface.t.get();

@@ -142,7 +142,8 @@ class RustType {
 				imports.requireType(en.module, en.name);
 				en.name;
 			case TFun(args, ret):
-				"Box<dyn Fn(" + [for(arg in args) of(arg.t, true)].join(", ") + ") -> " + of(ret, false) + ">";
+				imports.require("std::rc::Rc");
+				"Rc<dyn Fn(" + [for(arg in args) of(arg.t, true)].join(", ") + ") -> " + of(ret, false) + ">";
 			case TAnonymous(_):
 				Context.error("anonymous structure types must be named typedefs before translation", Context.currentPos());
 				null;
@@ -161,7 +162,8 @@ class RustType {
 	public function functionReturnOf(t: Null<Type>): String {
 		return switch(Context.follow(t)) {
 			case TFun(args, ret):
-				"Box<dyn Fn(" + [for(arg in args) of(arg.t, true)].join(", ") + ") -> " + of(ret, false) + " + '_>";
+				imports.require("std::rc::Rc");
+				"Rc<dyn Fn(" + [for(arg in args) of(arg.t, true)].join(", ") + ") -> " + of(ret, false) + " + '_>";
 			case _:
 				of(t, false);
 		}
