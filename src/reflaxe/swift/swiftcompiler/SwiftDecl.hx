@@ -157,7 +157,7 @@ class SwiftDecl {
 		if(first == null) {
 			Context.error("value type constructor must take its representation", cls.pos);
 		}
-		final fieldName = first.name;
+		final fieldName = SwiftNameEscape.escape(first.name);
 		final representation = types.of(info.representation);
 		final hasToString = ValueTypeSupport.memberField(abs, "toString") != null;
 		final conformances = ["Equatable", "Hashable"];
@@ -211,7 +211,7 @@ class SwiftDecl {
 			final initializer = v.field.expr();
 			if(initializer == null) Context.error("value type static field must have an initializer", v.field.pos);
 			lines.push("");
-			lines.push("    static let " + v.field.name + ": " + info.name + " = " + expr.rawExpression(initializer));
+			lines.push("    static let " + SwiftNameEscape.escape(v.field.name) + ": " + info.name + " = " + expr.rawExpression(initializer));
 		}
 		lines.push("}");
 		return lines.join("\n");
@@ -351,7 +351,7 @@ class SwiftDecl {
 		if(v.isStatic && DataTableHelper.isDataTableField(field)) {
 			final elems = DataTableHelper.getDataTableElements(field.expr());
 			if(elems != null) {
-				return ["    static let " + field.name + ": [Int32] = [" + renderDataTableElements(elems) + "]"];
+				return ["    static let " + SwiftNameEscape.escape(field.name) + ": [Int32] = [" + renderDataTableElements(elems) + "]"];
 			}
 		}
 		if(v.isStatic && isFunctionType(field.type)) {
@@ -360,7 +360,7 @@ class SwiftDecl {
 				Context.error("static function fields require initializers", field.pos);
 				return [];
 			}
-			return ["    static let " + field.name + ": " + types.of(field.type) + " = " + expr.rawExpression(initializer)];
+			return ["    static let " + SwiftNameEscape.escape(field.name) + ": " + types.of(field.type) + " = " + expr.rawExpression(initializer)];
 		}
 		if(v.isStatic) {
 			final init = StaticFieldHelper.validatedInitializer(field, cls);
@@ -368,7 +368,7 @@ class SwiftDecl {
 			final smallArray = field.isFinal && StaticFieldHelper.isNonEmptyArrayLiteral(init);
 			final kw = smallArray ? "let" : (array || !field.isFinal ? "var" : "let");
 			final vis = field.isPublic ? "" : "private ";
-			return ["    " + vis + "static " + kw + " " + field.name + ": " + types.of(field.type) + " = " + expr.rawExpression(init)];
+			return ["    " + vis + "static " + kw + " " + SwiftNameEscape.escape(field.name) + ": " + types.of(field.type) + " = " + expr.rawExpression(init)];
 		}
 		if(field.meta.has(":value")) {
 			Context.error("instance field default has no lowering; assign it in the constructor", field.pos);
@@ -388,7 +388,7 @@ class SwiftDecl {
 		// Private fields render with Swift's private marker (feature
 		// spec 27); public fields keep the default internal visibility.
 		final vis = field.isPublic ? "" : "private ";
-		return ["    " + vis + kw + " " + field.name + ": " + types.of(field.type)];
+		return ["    " + vis + kw + " " + SwiftNameEscape.escape(field.name) + ": " + types.of(field.type)];
 	}
 
 	static function isFunctionType(t: Null<Type>): Bool {
@@ -420,7 +420,7 @@ class SwiftDecl {
 	function propertyDecl(cls: ClassType, field: ClassField): Array<String> {
 		final vis = field.isPublic ? "" : "private ";
 		final getter = "get_" + field.name;
-		return ["    " + vis + "var " + field.name + ": " + types.of(field.type) + " { " + getter + "() }"];
+		return ["    " + vis + "var " + SwiftNameEscape.escape(field.name) + ": " + types.of(field.type) + " { " + getter + "() }"];
 	}
 
 	function renderDataTableElements(elems: Array<Int>): String {
@@ -446,7 +446,7 @@ class SwiftDecl {
 		}
 		final throws = SwiftFallibility.isThrowing(cls.module, f.field.name, true) ? " throws" : "";
 		final body = expr.functionBody(cls, f);
-		return ["    static func " + f.field.name + "()" + throws + " -> Void {"].concat(body).concat(["    }"]);
+		return ["    static func " + SwiftNameEscape.escape(f.field.name) + "()" + throws + " -> Void {"].concat(body).concat(["    }"]);
 	}
 
 	/** Function declarations append the parameter shadows after the body scan. */
@@ -492,7 +492,7 @@ class SwiftDecl {
 		// Private functions render with Swift's private marker (feature
 		// spec 27); public functions keep the default internal visibility.
 		final vis = f.field.isPublic ? "" : "private ";
-		final head = '    $stat$vis' + 'func ${f.field.name}$genericStr${paramList(cls, f)}$throws -> $ret {';
+		final head = '    $stat$vis' + 'func ${SwiftNameEscape.escape(f.field.name)}$genericStr${paramList(cls, f)}$throws -> $ret {';
 		return withParamShadows([head], normLines.concat(body), cast f.args).concat(["    }"]);
 	}
 
@@ -509,7 +509,7 @@ class SwiftDecl {
 		final vis = f.field.isPublic ? "" : "private ";
 		final receiverType = isExtension ? types.of(f.args[0].type) : "";
 		final methodIndent = isExtension ? "    " : "";
-		final head = methodIndent + vis + "func " + f.field.name + genericStr + paramList(cls, f, firstArg) + throws + " -> " + ret + " {";
+		final head = methodIndent + vis + "func " + SwiftNameEscape.escape(f.field.name) + genericStr + paramList(cls, f, firstArg) + throws + " -> " + ret + " {";
 		if(isExtension && f.args[0].tvar != null) {
 			expr.bindLocalName(f.args[0].tvar, "self");
 		}
@@ -544,9 +544,9 @@ class SwiftDecl {
 				if(coalescing != null) {
 					Context.error("inout parameter cannot have a default value: " + a.name, f.field.pos);
 				}
-				"_ " + a.name + ": inout " + escaping + types.of(parameterType);
+				"_ " + SwiftNameEscape.escape(a.name) + ": inout " + escaping + types.of(parameterType);
 			} else {
-				"_ " + a.name + ": " + escaping + types.of(parameterType) + defaultText;
+				"_ " + SwiftNameEscape.escape(a.name) + ": " + escaping + types.of(parameterType) + defaultText;
 			}
 		}].join(", ") + ")";
 	}
