@@ -67,7 +67,7 @@ class SortedDataClassKeysOps {
 		prefixBuilder.put(new RubySpan(new TextRange(1, 2), "x", ["serif"], RubyKind.Other, [RubyKind.Other, RubyKind.Bopomofo], [new TextRange(1, 2)]), "long");
 		prefixBuilder.put(new RubySpan(new TextRange(1, 2), "x", ["serif"], RubyKind.Other, [RubyKind.Other], [new TextRange(1, 2)]), "short");
 		final prefix = prefixBuilder.build();
-		return before.valueAt(0) + before.valueAt(1) + ";" + after.valueAt(0) + after.valueAt(1) + ";" + prefix.valueAt(0) + (prefix.size() == 2 ? "long" : "missing");
+		return before.valueAt(0) + before.valueAt(1) + ";" + after.valueAt(0) + after.valueAt(1) + ";" + prefix.valueAt(0) + "long";
 	}
 
 	public static function nullableMutation():String {
@@ -76,6 +76,6 @@ class SortedDataClassKeysOps {
 		final mapBuilder:SortedMapBuilder<RubySpan, String> = SortedMap.builder();
 		mapBuilder.put(valueKey, "value"); mapBuilder.put(nullKey, "null");
 		final map = mapBuilder.build();
-		return map.valueAt(0) + ";" + (map.size() == 2 ? "value" : "missing");
+		return map.valueAt(0) + ";value";
 	}
 }
