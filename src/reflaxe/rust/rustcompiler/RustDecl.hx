@@ -272,6 +272,11 @@ class RustDecl {
 				default:
 			}
 			if(!rawHandled) switch(Context.follow(f.type)) {
+				case TAbstract(a, _) if(a.get().name == "Int"):
+					// Scalar int fields pass isDataClassFieldKey but
+					// reached no arm here before, emitting the trailing
+					// use without its let binding (E0425).
+					lines.push('    let cmp_$fn = if a.$fn < b.$fn { -1 } else if a.$fn > b.$fn { 1 } else { 0 };');
 				case TInst(c, _) if(c.get().name == "String"): lines.push('    let cmp_$fn = SortedTable::compare_strings(a.$fn.as_str(), b.$fn.as_str());');
 				case TInst(c, _) if(c.get().meta.has(":dataClass")): lines.push('    let cmp_$fn = compare_${RustImports.toSnakeCase(c.get().name)}(&a.$fn, &b.$fn);');
 				case TEnum(e, _):
