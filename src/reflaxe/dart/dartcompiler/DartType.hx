@@ -279,7 +279,15 @@ class DartType {
 	}
 
 	static function validateDataClassField(cls: ClassType, field: ClassField): Void {
-		if(!isDataClassFieldKey(field.type)) Context.error("dataClass key " + cls.name + " field " + field.name + " has unsupported type " + field.type, field.pos);
+		if(!isDataClassFieldKey(field.type)) {
+			Context.error("dataClass key " + cls.name + " field " + field.name + " has unsupported type " + field.type, field.pos);
+			return;
+		}
+		switch(Context.follow(field.type)) {
+			case TInst(c, _) if(c.get().meta.has(":dataClass")):
+				for(f in c.get().fields.get()) if(switch(f.kind) { case FVar(read, write): !(read.match(AccCall) && write.match(AccNever)); case _: false; }) validateDataClassField(c.get(), f);
+			case _:
+		}
 	}
 
 	public static function canEmitDataClassComparator(cls: ClassType): Bool {
