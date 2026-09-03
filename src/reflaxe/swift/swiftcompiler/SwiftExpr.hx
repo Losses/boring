@@ -1796,7 +1796,9 @@ class SwiftExpr {
 			Context.error("StringTools.hex accepts non-negative arguments only", value.pos);
 		}
 		final valueText = expr(value);
-		final hex = "String(" + valueText + ", radix: 16, uppercase: true)";
+		// `hex` reads its argument as u32; a negative Int32 must cross
+		// through the bit-pattern initializer instead of printing a sign.
+		final hex = "String(UInt32(bitPattern: " + valueText + "), radix: 16, uppercase: true)";
 		if(digits == null) {
 			return hex;
 		}

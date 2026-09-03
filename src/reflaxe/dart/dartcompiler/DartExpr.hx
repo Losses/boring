@@ -1746,7 +1746,9 @@ class DartExpr {
 			Context.error("StringTools.hex accepts non-negative arguments only", value.pos);
 		}
 		final valueText = "(" + expr(value) + ")";
-		final hex = valueText + ".toRadixString(16).toUpperCase()";
+		// `hex` reads its argument as u32; a negative int must pass the
+		// unsigned view or toRadixString prints a sign (numbers ruling).
+		final hex = valueText + ".toUnsigned(32).toRadixString(16).toUpperCase()";
 		return digits == null ? hex : hex + ".padLeft(" + expr(digits) + ", \"0\")";
 	}
 
