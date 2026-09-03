@@ -28,8 +28,9 @@ describe("number parsing renderings", () => {
     expect(read("reference/dart/gen/runtime.dart")).not.toContain("NumberParsing");
     expect(dart).toContain("tryParse"); expect(dart).toContain("2147483647");
     const rust = read("reference/rust-gen/src/boring/number_parsing_ops.rs");
-    expect(rust).toContain("parse::<f64>"); expect(rust).toContain("-> Option<i32>");
-    expect(read("reference/rust-f32-gen/src/boring/number_parsing_ops.rs")).toContain("parse::<f32>");
+    expect(rust).toContain("u_string::parse_f64(&(value))"); expect(rust).toContain("u_string::parse_i32(&(value))");
+    expect(rust).toContain("-> Option<i32>"); expect(rust).not.toContain("parse::<");
+    expect(read("reference/rust-f32-gen/src/boring/number_parsing_ops.rs")).toContain("u_string::parse_f32(&(value))");
     expect(read("reference/kotlin-f32/gen/boring/NumberParsingOps.kt")).toContain("toFloatOrNull");
     const swiftF32 = read("reference/swift-f32/gen/boring/NumberParsingOps.swift");
     const swiftF32Runtime = read("reference/swift-f32/gen/Runtime.swift");
