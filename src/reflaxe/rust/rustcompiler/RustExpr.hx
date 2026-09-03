@@ -68,6 +68,7 @@ class RustExpr {
 	// wrapping arithmetic in it picks the i32 domain and the binding infers
 	// i32; wrapping arithmetic is bit-identical on both domains, so the
 	// choice is safe anywhere inside the initializer.
+	var i32ComparisonTarget = false;
 	var i32InitializerTarget = false;
 	// Downward loops the renderer shifts to an unsigned guard
 	// (transformCountdownLoops): their variable keeps the u32 domain.
@@ -2629,8 +2630,8 @@ class RustExpr {
 			case OpDiv if(StringTools.endsWith(operand(l, op, false), ".len()")):
 				return "((" + operand(l, op, false) + ") / (" + operand(r, op, true) + " as usize)) as u32";
 			case OpMult | OpAdd | OpSub if(isIntType(e.t) && !inGenericFunction && !isGenericLocal(l) && !isClosureParam(l) && !RustType.isTypeParam(currentReturnType) && !RustType.isTypeParam(e.t) && !RustType.isTypeParam(l.t) && !RustType.isTypeParam(r.t)):
-				final wrapDomain = (i32LocalDomain(l) || i32LocalDomain(r) || i32InitializerTarget) ? "i32" : types.of(e.t);
-				return wrapDomain + "::" + wrappingMethod(op) + "(" + wrappingArg(l, op, false) + " as " + wrapDomain + ", " + wrappingArg(r, op, true) + ")";
+				final wrapDomain = (i32LocalDomain(l) || i32LocalDomain(r) || i32InitializerTarget || i32ComparisonTarget) ? "i32" : types.of(e.t);
+				return wrapDomain + "::" + wrappingMethod(op) + "(" + wrappingArg(l, op, false) + wrappingCastSuffix(l, wrapDomain, true) + ", " + wrappingArg(r, op, true) + wrappingCastSuffix(r, wrapDomain, false) + ")";
 			case OpMult | OpAdd | OpSub | OpDiv if(isFloatType(e.t)):
 				final real = FloatPrecision.isF32() ? "f32" : "f64";
 				final lStr = if(isIntType(l.t)) "((" + operand(l, op, false) + ") as " + real + ")" else operand(l, op, false);
@@ -2672,7 +2673,14 @@ class RustExpr {
 				// Rust parses an unparenthesized cast immediately followed by
 				// `<` as generic arguments (`x as u32 < y`).  Comparisons are
 				// a precedence boundary, so group both operands unconditionally.
-				return "(" + operand(l, op, false) + ") " + symbolOf(op) + " (" + operand(r, op, true) + ")";
+				// Signed-domain locals make arithmetic on the other side signed.
+				final signedComparison = i32LocalDomain(l) || i32LocalDomain(r);
+				if(signedComparison) i32ComparisonTarget = true;
+				final leftText = operand(l, op, false);
+				final rightText = operand(r, op, true);
+				if(signedComparison) i32ComparisonTarget = false;
+				return "(" + leftText + ") " + symbolOf(op) + " (" + rightText + ")";
+
 			case _:
 				final left = isInt64Type(l.t) ? "(" + expr(l) + ")" : operand(l, op, false);
 				final right = isInt64Type(r.t) ? "(" + expr(r) + ")" : operand(r, op, true);
@@ -2704,6 +2712,17 @@ class RustExpr {
 	function isZero(e: TypedExpr): Bool {
 		return switch(stripWrap(e).expr) {
 			case TConst(TInt(0)): true;
+			case _: false;
+		};
+	}
+
+	function isUnderflowProneIntExpr(e: TypedExpr): Bool {
+		return switch(stripWrap(e).expr) {
+			case TBinop(OpSub, value, amount):
+				switch([stripWrap(value).expr, stripWrap(amount).expr]) {
+					case [TField(_, FInstance(_, _, field)), TConst(TInt(k))] if(field.get().name == "length" && k > 0): true;
+					case _: false;
+				}
 			case _: false;
 		};
 	}
@@ -2878,6 +2897,7 @@ class RustExpr {
 						imports.require("crate::runtime::u_string");
 						return "u_string::count(&(" + expr(subj) + "))";
 					}
+					if(i32ComparisonTarget) return "((" + expr(subj) + ").len() as i32)";
 					final receiver = expr(subj);
 					final receiverText = StringTools.startsWith(receiver, "&*") ? "(" + receiver + ")" : receiver;
 					return receiverText + ".len() as u32";
@@ -4181,6 +4201,19 @@ class RustExpr {
 		};
 	}
 
+	// Unsigned wrapping keeps the historical form: the left operand carries
+	// the boundary cast, the right operand stays bare. Signed wrapping casts
+	// an operand only when it crosses domains; i32-domain locals and integer
+	// literals assign to i32 without a cast.
+	function wrappingCastSuffix(e: TypedExpr, wrapDomain: String, isLeft: Bool): String {
+		if(wrapDomain != "i32") return isLeft ? " as " + wrapDomain : "";
+		if(i32ComparisonTarget || i32LocalDomain(e)) return "";
+		switch(stripWrap(e).expr) {
+			case TConst(TInt(_)): return "";
+			case _:
+		}
+		return " as i32";
+	}
 	function wrappingArg(e: TypedExpr, parent: Binop, isRight: Bool): String {
 		final value = operand(e, parent, isRight);
 		return StringTools.startsWith(value, "(") && StringTools.endsWith(value, ")") ? value.substr(1, value.length - 2) : value;
@@ -4200,6 +4233,7 @@ class RustExpr {
 	function i32LocalDomain(e: TypedExpr): Bool {
 		return switch(stripWrap(e).expr) {
 			case TLocal(v): i32Locals.exists(v.id);
+			case TBinop(OpAdd | OpSub | OpMult, left, right): i32LocalDomain(left) || i32LocalDomain(right);
 			case _: false;
 		};
 	}
@@ -4329,11 +4363,14 @@ class RustExpr {
 					case _: null;
 				};
 				if(local != null) nullableSensitiveLocals.set(local.id, true);
-			case TBinop(OpGte | OpLt, left, right):
-				// A comparison against literal zero contemplates negative
-				// values; the local keeps the signed i32 Int domain.
+			case TBinop(OpLte | OpLt | OpGt | OpGte, left, right):
+				// A comparison against literal zero, or against an expression
+				// which can underflow below zero, contemplates negative values;
+				// the local keeps the signed i32 Int domain.
 				switch([stripWrap(left).expr, stripWrap(right).expr]) {
-					case [TLocal(v), TConst(TInt(0))] | [TConst(TInt(0)), TLocal(v)]:
+					case [TLocal(v), _] if(isZero(right) || isUnderflowProneIntExpr(right)):
+						if(isIntType(v.t) && !isNullType(v.t) && !unsignedLocals.exists(v.id) && !countdownShiftedVars.exists(v.id)) i32Locals.set(v.id, true);
+					case [_, TLocal(v)] if(isZero(left) || isUnderflowProneIntExpr(left)):
 						if(isIntType(v.t) && !isNullType(v.t) && !unsignedLocals.exists(v.id) && !countdownShiftedVars.exists(v.id)) i32Locals.set(v.id, true);
 					case _:
 				}
@@ -4929,6 +4966,7 @@ class RustExpr {
 			final paramIndex = i + paramOffset;
 			final pt = paramIndex < paramTypes.length ? paramTypes[paramIndex] : null;
 			var argStr = renderValueForType(pt, arg, expr(arg));
+			if(pt != null && isIntType(pt) && i32LocalDomain(arg)) argStr = "(" + argStr + ") as " + types.of(pt, false);
 			if(paramIndex < paramTypes.length) {
 				if(isNullType(pt) && isStringType(getNullInnerType(pt)) && isNullType(arg.t)) {
 					argStr = argStr + ".clone()";
