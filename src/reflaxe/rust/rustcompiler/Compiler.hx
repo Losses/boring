@@ -77,6 +77,9 @@ class Compiler extends PluginCompiler<Compiler> {
 			return null;
 		}
 		StaticFunctionMarkers.validateAll(funcFields);
+		// A private static no emitted code reaches stays out of the module:
+		// @:keep on whole classes would otherwise emit it as dead text.
+		funcFields = [for(f in funcFields) if(includeStaticFunc(classType, f)) f];
 
 		var hasTestMethods = false;
 		for(f in funcFields) {
@@ -127,6 +130,26 @@ class Compiler extends PluginCompiler<Compiler> {
 			parts.get(classType.module).push(result);
 		}
 		return result;
+	}
+
+	/**
+		Every member passes except an unreferenced private static function:
+		public members, tests, @:keep fields, and instance members emit
+		regardless, and a private static referenced anywhere in the corpus
+		(state.referencedStatics) emits as well.
+	**/
+	function includeStaticFunc(cls: ClassType, f: ClassFuncData): Bool {
+		// @:keep arrives here injected wholesale by haxe.macro.Compiler.keep
+		// on every field of the kept class; the class-level retention already
+		// carried the public members, and an unreferenced private static
+		// would emit as dead text, so the reference scan decides alone.
+		if(!f.isStatic || f.field.isPublic || f.field.meta.has(":test")) {
+			return true;
+		}
+		if(RustDecl.isExceptionSubclass(cls)) {
+			return true;
+		}
+		return state.referencedStatics.exists(cls.module + "." + f.field.name);
 	}
 
 	public function compileEnumImpl(enumType: EnumType, options: Array<EnumOptionData>): Null<String> {
@@ -184,8 +207,8 @@ class Compiler extends PluginCompiler<Compiler> {
 				continue;
 			}
 			final decl = contexts.get(module);
-			final imports = decl.renderImports();
 			final body = parts.get(module).join("\n\n");
+			final imports = decl.renderImportsFiltered(body);
 			final isTest = state.testModules.exists(module);
 			final content = (isTest ? "#![cfg(test)]\n\n" : "")
 				+ imports
@@ -749,6 +772,85 @@ class Compiler extends PluginCompiler<Compiler> {
 			}
 		}
 		scanFallibility(mtypes);
+		scanStaticReferences(mtypes);
+	}
+
+	/**
+		Collects the private static functions reachable from emitted code
+		and records them in state.referencedStatics. References from any
+		field body of an in-scope class seed the set; a reached candidate's
+		own body then contributes its references, iterated to a fixpoint so
+		a chain of private statics reachable only from dead code dies with
+		it. Public members, tests, and @:keep fields are never candidates;
+		their emission does not depend on references.
+	**/
+	function scanStaticReferences(mtypes: Array<haxe.macro.Type.ModuleType>): Void {
+		final candidates: Map<String, TypedExpr> = [];
+		final bodies: Array<{e: TypedExpr, candidateKey: Null<String>}> = [];
+		function classBodies(c: Ref<ClassType>) {
+			final cls = c.get();
+			// Mirror the emission scope of compileClassImpl: resident
+			// runtime classes bypass the source-root check there, so their
+			// bodies seed references here too.
+			if(cls.isExtern || (!RuntimeResidents.isResident(cls.module) && !inSourceScope(cls.pos))) return;
+			for(f in cls.statics.get()) {
+				final e = f.expr();
+				if(e == null) continue;
+				final prunable = !f.isPublic && !f.meta.has(":test")
+					&& !RustDecl.isExceptionSubclass(cls) && f.kind.match(FMethod(_));
+				final key = prunable ? cls.module + "." + f.name : null;
+				if(key != null) candidates.set(key, e);
+				bodies.push({e: e, candidateKey: key});
+			}
+			for(f in cls.fields.get()) {
+				final e = f.expr();
+				if(e != null) bodies.push({e: e, candidateKey: null});
+			}
+			final ctor = cls.constructor != null ? cls.constructor.get() : null;
+			if(ctor != null) {
+				final e = ctor.expr();
+				if(e != null) bodies.push({e: e, candidateKey: null});
+			}
+		}
+		for(mt in mtypes) {
+			switch(mt) {
+				case TClassDecl(c): classBodies(c);
+				case _:
+			}
+		}
+		final referenced: Map<String, Bool> = [];
+		function collectInto(e: TypedExpr) {
+			switch(e.expr) {
+				case TField(_, FStatic(c, cf)):
+					referenced.set(c.get().module + "." + cf.get().name, true);
+				case _:
+			}
+			haxe.macro.TypedExprTools.iter(e, collectInto);
+		}
+		// Seed from bodies that are not themselves candidates: their
+		// references stand regardless of reachability pruning.
+		for(entry in bodies) {
+			if(entry.candidateKey != null) continue;
+			collectInto(entry.e);
+		}
+		// Propagate through reached candidates until the set is stable.
+		var frontier = [for(k in referenced.keys()) k];
+		final propagated: Map<String, Bool> = [];
+		while(frontier.length > 0) {
+			final next: Array<String> = [];
+			for(k in frontier) {
+				if(!candidates.exists(k) || propagated.exists(k)) continue;
+				propagated.set(k, true);
+				collectInto(candidates.get(k));
+				for(k2 in referenced.keys()) {
+					if(!propagated.exists(k2) && candidates.exists(k2)) next.push(k2);
+				}
+			}
+			frontier = next;
+		}
+		for(key in candidates.keys()) {
+			if(referenced.exists(key)) state.referencedStatics.set(key, true);
+		}
 	}
 
 	/**

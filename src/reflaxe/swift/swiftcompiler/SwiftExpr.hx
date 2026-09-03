@@ -1883,6 +1883,12 @@ class SwiftExpr {
 					final source = expr(args[0]);
 					return "({ () -> String in var start = " + source + ".startIndex; var end = " + source + ".endIndex; while start < end && " + source + "[start].isWhitespace { start = " + source + ".index(after: start) }; while start < end && " + source + "[" + source + ".index(before: end)].isWhitespace { end = " + source + ".index(before: end) }; return String(" + source + "[start..<end]) }())";
 				}
+				if(cls.pack.length == 0 && cls.name == "StringTools" && (fName == "startsWith" || fName == "endsWith") && args.length == 2) {
+					return expr(args[0]) + ".has" + (fName == "startsWith" ? "Prefix" : "Suffix") + "(" + expr(args[1]) + ")";
+				}
+				if(cls.pack.length == 0 && cls.name == "Lambda" && fName == "has" && args.length == 2) {
+					return expr(args[0]) + ".contains(" + expr(args[1]) + ")";
+				}
 				final markedField = findStaticField(cls, fName);
 				if(markedField != null && StaticFunctionMarkers.isMarked(markedField)) {
 					final nativeName = staticRef(cls, fName);
@@ -2017,6 +2023,10 @@ class SwiftExpr {
 				if(name == "sub" && args.length == 2 && isBytes(stripCast(subj))) {
 					return "Array(" + receiverText(subj) + "[Int(" + expr(args[0]) + ")..<Int(" + expr(args[0]) + " + " + expr(args[1]) + ")])";
 				}
+				if(name == "indexOf" && isStringSubject(subj) && args.length >= 1) {
+					final s = receiverText(subj);
+					return "Int32({ () -> Int in if let i = " + s + ".firstIndex(of: " + expr(args[0]) + ".first!) { return " + s + ".distance(from: " + s + ".startIndex, to: i) }; return -1 }())";
+				}
 				if(name == "split" && isStringSubject(subj)) {
 					return types.resident
 						? receiverText(subj) + ".split(separator: " + expr(args[0]) + ".first!, omittingEmptySubsequences: false).map { Array($0) }"
@@ -2052,6 +2062,10 @@ class SwiftExpr {
 						return "String(decoding: " + s + ".utf16.dropFirst(Int(max(0, " + expr(args[0]) + "))), as: UTF16.self)";
 					}
 					return "substringUnits(" + s + ", " + expr(args[0]) + ", " + expr(args[1]) + ")";
+				}
+				if(name == "charAt" && isStringSubject(subj)) {
+					final s = receiverText(subj);
+					return "String(" + s + "[" + s + ".index(" + s + ".startIndex, offsetBy: Int(" + expr(args[0]) + "))])";
 				}
 				if(name == "charCodeAt" && isStringSubject(subj)) {
 					return types.resident

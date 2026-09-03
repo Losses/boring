@@ -246,6 +246,107 @@ pub fn substring_from(s: &str, from: i32) -> String {
     s[unit_index(s, start, true)..].to_string()
 }
 
+// Haxe Std.parseFloat lowers here. The token must match the full decimal
+// grammar after trimming the fixed whitespace set; any partial or
+// nonfinite spelling yields NaN.
+pub fn parse_f64(s: &str) -> f64 {
+    let t = trim_fixed(s);
+    if !valid_decimal_token(t.as_bytes()) {
+        return f64::NAN;
+    }
+    t.parse::<f64>().unwrap_or(f64::NAN)
+}
+
+// Binary32 edge of the same lowering for the float-precision=f32 lane.
+pub fn parse_f32(s: &str) -> f32 {
+    let t = trim_fixed(s);
+    if !valid_decimal_token(t.as_bytes()) {
+        return f32::NAN;
+    }
+    t.parse::<f32>().unwrap_or(f32::NAN)
+}
+
+// Haxe Std.parseInt lowers here: an optional sign, an optional 0x or 0X
+// prefix, digits of the implied radix, and the i32 range gate; every
+// other shape yields None.
+pub fn parse_i32(s: &str) -> Option<i32> {
+    let t = trim_fixed(s);
+    let b = t.as_bytes();
+    let mut i = 0;
+    let negative = i < b.len() && b[i] == 0x2D;
+    if i < b.len() && (b[i] == 0x2B || b[i] == 0x2D) {
+        i += 1;
+    }
+    let hexadecimal = i + 1 < b.len() && b[i] == 0x30 && (b[i + 1] == 0x78 || b[i + 1] == 0x58);
+    if hexadecimal {
+        i += 2;
+    }
+    let start = i;
+    while i < b.len() {
+        let matched = if hexadecimal { b[i].is_ascii_hexdigit() } else { b[i].is_ascii_digit() };
+        if !matched {
+            break;
+        }
+        i += 1;
+    }
+    if i == start || i != b.len() {
+        return None;
+    }
+    let radix = if hexadecimal { 16u32 } else { 10u32 };
+    let magnitude = match u32::from_str_radix(&t[start..], radix) {
+        Ok(value) => value,
+        Err(_) => return None,
+    };
+    let signed = if negative { -i64::from(magnitude) } else { i64::from(magnitude) };
+    i32::try_from(signed).ok()
+}
+
+// The whitespace set of the Haxe scanners: space plus the ASCII control
+// range 9 through 13. Unicode whitespace beyond it stays in the token and
+// fails validation.
+fn trim_fixed(s: &str) -> &str {
+    s.trim_matches(|c: char| c == \' \' || matches!(c, \'\\t\'..=\'\\r\'))
+}
+
+fn valid_decimal_token(b: &[u8]) -> bool {
+    let mut i = 0;
+    if i < b.len() && (b[i] == 0x2B || b[i] == 0x2D) {
+        i += 1;
+    }
+    let mut digits = 0;
+    while i < b.len() && b[i].is_ascii_digit() {
+        i += 1;
+        digits += 1;
+    }
+    if i < b.len() && b[i] == 0x2E {
+        i += 1;
+        while i < b.len() && b[i].is_ascii_digit() {
+            i += 1;
+            digits += 1;
+        }
+    } else if digits == 0 {
+        return false;
+    }
+    if digits == 0 {
+        return false;
+    }
+    if i < b.len() && (b[i] == 0x65 || b[i] == 0x45) {
+        i += 1;
+        if i < b.len() && (b[i] == 0x2B || b[i] == 0x2D) {
+            i += 1;
+        }
+        let mut exponent_digits = 0;
+        while i < b.len() && b[i].is_ascii_digit() {
+            i += 1;
+            exponent_digits += 1;
+        }
+        if exponent_digits == 0 {
+            return false;
+        }
+    }
+    i == b.len()
+}
+
 // UTF-16 unit boundary to byte boundary, the index space of the haxe
 // substring contract. A bound that falls inside a surrogate pair moves
 // to the far side: `from` advances past the pair, `to` retreats before

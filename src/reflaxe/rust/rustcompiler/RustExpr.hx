@@ -61,6 +61,17 @@ class RustExpr {
 	final unsignedLocals: Map<Int, Bool> = [];
 	// Locals initialized from charCodeAt are collapsed from Option<u32> to a scalar.
 	final nullableCollapsedLocals: Map<Int, Bool> = [];
+	// String.indexOf lowers to an expression that always yields i32; a local
+	// initialized from it keeps that domain even where Int maps to u32.
+	final i32Locals: Map<Int, Bool> = [];
+	// True while rendering the initializer of an i32-domain local, so the
+	// wrapping arithmetic in it picks the i32 domain and the binding infers
+	// i32; wrapping arithmetic is bit-identical on both domains, so the
+	// choice is safe anywhere inside the initializer.
+	var i32InitializerTarget = false;
+	// Downward loops the renderer shifts to an unsigned guard
+	// (transformCountdownLoops): their variable keeps the u32 domain.
+	final countdownShiftedVars: Map<Int, Bool> = [];
 	// Keep Option when Haxe code observes null separately from code point zero.
 	final nullableSensitiveLocals: Map<Int, Bool> = [];
 	final fpInt64Halves: Map<Int, Bool> = [];
@@ -279,6 +290,8 @@ class RustExpr {
 		unsignedLocals.clear();
 		nullableCollapsedLocals.clear();
 		nullableSensitiveLocals.clear();
+		i32Locals.clear();
+		countdownShiftedVars.clear();
 		mutated.clear();
 		deferredLocals.clear();
 		for(a in f.args) {
@@ -447,7 +460,15 @@ class RustExpr {
 			};
 			final defaultText = isStringDefault ? rawDefaultText + ".to_string()" : rawDefaultText;
 			final combinator = defaultIsNull ? ".or_else(|| " : ".unwrap_or_else(|| ";
-			out.push(indent(depth) + "let mut " + RustImports.toSnakeCase(site.parameter) + " = " + RustImports.toSnakeCase(site.parameter) + combinator + defaultText + ");");
+			// The rebound parameter only needs mutability when the body
+			// assigns it again or a try block captures an assignment; the
+			// same condition as plain local declarations.
+			final paramVar = switch(stripWrap(site.valueExpr).expr) {
+				case TLocal(v): v;
+				case _: null;
+			};
+			final bindingKw = paramVar != null && (mutated.exists(paramVar.id) || tryCapturedAssignments.exists(paramVar.id)) ? "let mut " : "let ";
+			out.push(indent(depth) + bindingKw + RustImports.toSnakeCase(site.parameter) + " = " + RustImports.toSnakeCase(site.parameter) + combinator + defaultText + ");");
 		}
 		return out;
 	}
@@ -483,7 +504,21 @@ class RustExpr {
 					case TConst(TNull) if(isNullType(v.t)):
 						explicitNullableNone = true;
 						"None";
-					default: expr(init);
+					default:
+						// The initializer of an i32-domain local renders its
+						// wrapping arithmetic in i32 so the binding infers i32.
+						final wrapInit = i32Locals.exists(v.id) && switch(init.expr) {
+							case TBinop(OpAdd | OpSub | OpMult, _, _): isIntType(init.t) && !isNullType(init.t);
+							case _: false;
+						};
+						if(wrapInit) {
+							i32InitializerTarget = true;
+							final text = expr(init);
+							i32InitializerTarget = false;
+							text;
+						} else {
+							expr(init);
+						}
 				};
 				var nullableType = explicitType;
 				if(explicitNullableNone && explicitType == "") nullableType = ": " + types.of(v.t, false);
@@ -505,6 +540,8 @@ class RustExpr {
 							initStr += ".unwrap_or(0)";
 							nullableCollapsedLocals.set(v.id, true);
 						}
+					case TCall(ifn, iargs) if(isStringIndexOf(ifn) && iargs.length >= 1 && isIntType(v.t) && !isNullType(v.t)):
+						i32Locals.set(v.id, true);
 					case _:
 				}
 				// A String local owns its value; a literal initializer is
@@ -562,7 +599,9 @@ class RustExpr {
 				while(StringTools.startsWith(condStr, "(") && StringTools.endsWith(condStr, ")") && matchingParens(condStr)) {
 					condStr = condStr.substr(1, condStr.length - 2);
 				}
-				final out = [indent(depth) + "while " + condStr + " {"];
+				// A literal true condition lowers to Rust's dedicated loop.
+				final header = condStr == "true" ? "loop" : "while " + condStr;
+				final out = [indent(depth) + header + " {"];
 				for(l in blockLines(statementsOf(b), depth + 1)) out.push(l);
 				out.push(indent(depth) + "}");
 				return out;
@@ -860,6 +899,10 @@ class RustExpr {
 			if(stmts.length > 0) {
 				switch(stmts[stmts.length - 1].expr) {
 					case TReturn(_) | TThrow(_): endsWithReturn = true;
+					// A break-free while(true) never falls through; a trailing
+					// epilogue would be dead text.
+					case TWhile(c, b, true) if(isLiteralTrue(c) && !loopBodyBreaks(b)):
+						endsWithReturn = true;
 					case _:
 				}
 			}
@@ -935,6 +978,28 @@ class RustExpr {
 				return {readVar: readVar, base: base, cond: cond, body: body};
 			case _:
 				return null;
+		}
+	}
+
+	function isLiteralTrue(e: TypedExpr): Bool {
+		return switch(stripWrap(e).expr) {
+			case TConst(TBool(true)): true;
+			case _: false;
+		};
+	}
+
+	// A break lexically inside a nested loop or closure binds to that
+	// construct; only direct breaks of this loop end it.
+	function loopBodyBreaks(e: TypedExpr): Bool {
+		switch(e.expr) {
+			case TBreak: return true;
+			case TWhile(_, _, _) | TFor(_, _, _) | TFunction(_): return false;
+			case _:
+				var found = false;
+				TypedExprTools.iter(e, child -> {
+					if(!found && loopBodyBreaks(child)) found = true;
+				});
+				return found;
 		}
 	}
 
@@ -1833,7 +1898,7 @@ class RustExpr {
 				final noneText = expr(noneExpr);
 				final typedNoneText = isStringType(resultType) ? noneText + ".to_string()" : noneText;
 				final localName = RustImports.toSnakeCase(value.name);
-				return "match " + localName + " { None => " + typedNoneText + ", Some(" + localName + ") => " + localName + " }";
+				return "match " + localName + " { None => " + typedNoneText + ", Some(ref " + localName + ") => " + localName + ".clone() }";
 			case _:
 		}
 		return null;
@@ -2135,7 +2200,9 @@ class RustExpr {
 		out.push(indent(depth) + "})();");
 		out.push(indent(depth) + 'match $outcome {');
 		out.push(indent(depth) + "    Ok(_) => {}");
-		out.push(indent(depth) + "    Err(" + RustImports.toSnakeCase(localName(c.v)) + ") => {");
+		// A handler that never reads the caught value binds the wildcard.
+		final catchBinding = mentionsLocal(c.expr, c.v) ? RustImports.toSnakeCase(localName(c.v)) : "_";
+		out.push(indent(depth) + "    Err(" + catchBinding + ") => {");
 		catchVars.set(c.v.id, true);
 		final handler = blockLines(statementsOf(c.expr), depth + 2);
 		catchVars.remove(c.v.id);
@@ -2524,14 +2591,15 @@ class RustExpr {
 						default: expr(r);
 					}
 				} else {
-					numericAssignmentValue(l.t, r, renderValueForType(l.t, r, expr(r)));
+					numericAssignmentValue(l.t, r, renderValueForType(l.t, r, expr(r)), i32LocalDomain(l) ? "i32" : null);
 				};
 				return assignTarget(l) + " = " + rhs;
 			case OpAssignOp(inner):
 				// Int compound assignments must preserve Haxe's 32-bit wrapping.
 				final intCompound = switch(inner) {
 					case OpMult | OpAdd | OpSub if(isIntType(l.t) && isLocalOrFieldTarget(l) && !isGenericLocal(l) && !isClosureParam(l) && !RustType.isTypeParam(l.t)):
-						assignTarget(l) + " = " + types.of(l.t) + "::" + wrappingMethod(inner) + "(" + assignTarget(l) + ", " + expr(r) + ")";
+						final domain = i32LocalDomain(l) ? "i32" : types.of(l.t);
+						assignTarget(l) + " = " + domain + "::" + wrappingMethod(inner) + "(" + assignTarget(l) + ", " + expr(r) + ")";
 					case _: null;
 				};
 				if(intCompound != null) return intCompound;
@@ -2554,7 +2622,8 @@ class RustExpr {
 			case OpDiv if(StringTools.endsWith(operand(l, op, false), ".len()")):
 				return "((" + operand(l, op, false) + ") / (" + operand(r, op, true) + " as usize)) as u32";
 			case OpMult | OpAdd | OpSub if(isIntType(e.t) && !inGenericFunction && !isGenericLocal(l) && !isClosureParam(l) && !RustType.isTypeParam(currentReturnType) && !RustType.isTypeParam(e.t) && !RustType.isTypeParam(l.t) && !RustType.isTypeParam(r.t)):
-				return types.of(e.t) + "::" + wrappingMethod(op) + "(" + wrappingArg(l, op, false) + " as " + types.of(e.t) + ", " + wrappingArg(r, op, true) + ")";
+				final wrapDomain = (i32LocalDomain(l) || i32LocalDomain(r) || i32InitializerTarget) ? "i32" : types.of(e.t);
+				return wrapDomain + "::" + wrappingMethod(op) + "(" + wrappingArg(l, op, false) + " as " + wrapDomain + ", " + wrappingArg(r, op, true) + ")";
 			case OpMult | OpAdd | OpSub | OpDiv if(isFloatType(e.t)):
 				final real = FloatPrecision.isF32() ? "f32" : "f64";
 				final lStr = if(isIntType(l.t)) "((" + operand(l, op, false) + ") as " + real + ")" else operand(l, op, false);
@@ -3371,12 +3440,12 @@ class RustExpr {
 					return expr(subj) + "[" + expr(args[0]) + " as usize..(" + expr(args[0]) + " + " + expr(args[1]) + ") as usize].fill(" + expr(args[2]) + " as u8)";
 				}
 				if(name == "sub" && args.length == 2 && isBytes(stripCast(subj))) {
-					return expr(subj) + "[" + expr(args[0]) + " as usize..(" + expr(args[0]) + " + " + expr(args[1]) + ") as usize].to_vec()";
+					return expr(subj) + "[(" + expr(args[0]) + ") as usize..((" + expr(args[0]) + ") + " + expr(args[1]) + ") as usize].to_vec()";
 				}
 				if(name == "charAt" && isString(stripCast(subj))) {
 					state.shimsUsed.set("std.UStringRT", true);
 					imports.require("crate::runtime::u_string");
-					return "u_string::substring(&" + expr(subj) + ", (" + expr(args[0]) + ") as i32, (" + expr(args[0]) + " + 1) as i32)";
+					return "u_string::substring(&" + expr(subj) + ", (" + expr(args[0]) + ") as i32, ((" + expr(args[0]) + ") + 1) as i32)";
 				}
 				if(name == "indexOf" && isString(stripCast(subj)) && args.length >= 1) {
 					return "(" + expr(subj) + ").find(" + expr(args[0]) + ").map(|v| v as i32).unwrap_or(-1)";
@@ -3388,6 +3457,12 @@ class RustExpr {
 					// context keeps the Option and an Int context unwraps it.
 					var callRet: Null<Type> = null;
 					switch(Context.follow(fn.t)) {
+						case TFun(_, r): callRet = r;
+						case _:
+					}
+					final nullableResult = callRet != null && isNullType(callRet);
+					var callRet: Null<Type> = null;
+					 switch(Context.follow(fn.t)) {
 						case TFun(_, r): callRet = r;
 						case _:
 					}
@@ -3557,6 +3632,12 @@ class RustExpr {
 				if(cls.pack.length == 0 && cls.name == "StringTools" && name == "trim" && args.length == 1) {
 					return expr(args[0]) + ".trim()";
 				}
+				if(cls.pack.length == 0 && cls.name == "StringTools" && (name == "startsWith" || name == "endsWith") && args.length == 2) {
+					return "(" + expr(args[0]) + ")." + RustImports.toSnakeCase(name) + "(&" + expr(args[1]) + ")";
+				}
+				if(cls.pack.length == 0 && cls.name == "Lambda" && name == "has" && args.length == 2) {
+					return "(" + expr(args[0]) + ").contains(&" + expr(args[1]) + ")";
+				}
 				if(cls.pack.length == 0 && cls.name == "Std" && name == "int") {
 					// An Int-typed argument converts nothing, except a
 					// bare length read, whose rendering is usize; Float
@@ -3576,8 +3657,14 @@ class RustExpr {
 				}
 				if(cls.pack.length == 0 && cls.name == "String" && name == "fromCharCode") {
 					final value = expr(args[0]);
-					final argument = StringTools.startsWith(value, "(") ? value : "(" + value + ")";
-					final unwrapped = isNullType(args[0].t) ? "(" + value + ".unwrap_or_default())" : argument;
+					// A collapsed local already rendered as a plain integer;
+					// unwrap applies only to an argument that still carries Option.
+					final collapsedArg = switch(stripWrap(args[0]).expr) {
+						case TLocal(v): nullableCollapsedLocals.exists(v.id);
+						case _: false;
+					};
+					final argument = (isNullType(args[0].t) && !collapsedArg) ? "(" + value + ".unwrap_or_default())" : (StringTools.startsWith(value, "(") ? value : "(" + value + ")");
+					final unwrapped = argument;
 					return "String::from_utf16(&[u16::try_from" + unwrapped + ".unwrap_or_default()]).unwrap_or_default()";
 				}
 				if(path == "std.UStringPlatform") {
@@ -3643,11 +3730,12 @@ class RustExpr {
 				if(cls.module == "Math" && name == "isFinite") return "(" + expr(args[0]) + ").is_finite()";
 				if(cls.module == "Std" && name == "parseFloat") {
 					final real = FloatPrecision.isF32() ? "f32" : "f64";
-					final nan = FloatPrecision.isF32() ? "f32::NAN" : "f64::NAN";
-					return "(" + expr(args[0]) + ").trim().parse::<" + real + ">().unwrap_or(" + nan + ")";
+					imports.require("crate::runtime::u_string");
+					return "u_string::parse_" + real + "(&(" + expr(args[0]) + "))";
 				}
 				if(cls.module == "Std" && name == "parseInt") {
-					return "(" + expr(args[0]) + ").trim().parse::<i32>().ok()";
+					imports.require("crate::runtime::u_string");
+					return "u_string::parse_i32(&(" + expr(args[0]) + "))";
 				}
 				if(cls.pack.join(".") == "std" && cls.name == "Process" && name == "exit") {
 					imports.require("std::process::exit");
@@ -4054,9 +4142,9 @@ class RustExpr {
 		return out.join(", ");
 	}
 
-	function numericAssignmentValue(expected: Type, actual: TypedExpr, rendered: String): String {
+	function numericAssignmentValue(expected: Type, actual: TypedExpr, rendered: String, targetOverride: Null<String> = null): String {
 		if(!isIntType(expected)) return rendered;
-		final target = types.of(expected, false);
+		final target = targetOverride != null ? targetOverride : types.of(expected, false);
 		if(isNullType(actual.t)) {
 			final castAt = rendered.indexOf(" as ");
 			final base = castAt >= 0 ? rendered.substr(0, castAt) : rendered;
@@ -4092,6 +4180,13 @@ class RustExpr {
 			case _: false;
 		};
 	}
+	function i32LocalDomain(e: TypedExpr): Bool {
+		return switch(stripWrap(e).expr) {
+			case TLocal(v): i32Locals.exists(v.id);
+			case _: false;
+		};
+	}
+
 	function wrappingMethod(op:Binop):String {
 		return switch(op) {
 			case OpAdd: "wrapping_add";
@@ -4200,6 +4295,16 @@ class RustExpr {
 				}
 			case TTry(body, _):
 				collectTryAssignments(body);
+			case TBlock(stmts):
+				// A countdown loop the renderer will shift to an unsigned
+				// guard keeps the u32 domain; collect its variable here so
+				// the zero-comparison rule below can exclude it.
+				for(i in 0...stmts.length) {
+					if(i + 1 < stmts.length) {
+						final cd = matchCountdownLoop(stmts[i], stmts[i + 1]);
+						if(cd != null) countdownShiftedVars.set(cd.readVar.id, true);
+					}
+				}
 			case TBinop(OpEq | OpNotEq, left, right):
 				final local = switch([stripWrap(left).expr, stripWrap(right).expr]) {
 					case [TLocal(v), _] if(isTNull(right) || isZero(right)): v;
@@ -4207,6 +4312,14 @@ class RustExpr {
 					case _: null;
 				};
 				if(local != null) nullableSensitiveLocals.set(local.id, true);
+			case TBinop(OpGte | OpLt, left, right):
+				// A comparison against literal zero contemplates negative
+				// values; the local keeps the signed i32 Int domain.
+				switch([stripWrap(left).expr, stripWrap(right).expr]) {
+					case [TLocal(v), TConst(TInt(0))] | [TConst(TInt(0)), TLocal(v)]:
+						if(isIntType(v.t) && !isNullType(v.t) && !unsignedLocals.exists(v.id) && !countdownShiftedVars.exists(v.id)) i32Locals.set(v.id, true);
+					case _:
+				}
 			case TBinop(OpAssign, t, _) | TBinop(OpAssignOp(_), t, _):
 				switch(stripWrap(t).expr) {
 					case TLocal(v):
@@ -4272,9 +4385,17 @@ class RustExpr {
 						case TFun(pargs, _): [for(p in pargs) p.t];
 						default: [];
 					};
+					// When the callee is a class field its body decides which
+					// positions mutate: renderCallArgs borrows &mut exactly
+					// the positions mutableParamPositions reports, so a
+					// shared-borrow position must not mark the local mutated.
+					final mutableAt = switch(fn.expr) {
+						case TField(_, FInstance(_, _, cf)) | TField(_, FStatic(_, cf)): mutableParamPositions(cf.get());
+						default: null;
+					};
 					for(i in 0...args.length) if(i < paramTypes.length && isPassByRef(paramTypes[i])) switch(Context.follow(paramTypes[i])) {
 						case TInst(c, _) if(c.get().name == "Array"):
-							switch(stripWrap(args[i]).expr) {
+							if(mutableAt == null || mutableAt.indexOf(i) >= 0) switch(stripWrap(args[i]).expr) {
 								case TField(subj, _): switch(stripWrap(subj).expr) { case TLocal(v): mutated.set(v.id, true); case _: }
 								case TLocal(v): mutated.set(v.id, true);
 								default:
@@ -4630,6 +4751,13 @@ class RustExpr {
 		return typeName + "::from_be_bytes([" + elems.join(", ") + "])";
 	}
 
+	function isStringIndexOf(fn: TypedExpr): Bool {
+		return switch(fn.expr) {
+			case TField(subj, FInstance(_, _, cf)) if(cf.get().name == "indexOf" && isString(stripCast(subj))): true;
+			case _: false;
+		};
+	}
+
 	function isStringCharCodeAt(fn: TypedExpr): Bool {
 		return switch(fn.expr) {
 			case TField(subj, FInstance(_, _, cf)) if(cf.get().name == "charCodeAt" && isString(stripCast(subj))): true;
@@ -4655,6 +4783,7 @@ class RustExpr {
 		final inner = stripWrap(e);
 		switch(inner.expr) {
 			case TLocal(v):
+				if(i32Locals.exists(v.id)) return "i32";
 				if(argTypes.exists(v.name)) return argTypes.get(v.name);
 			case _:
 		}
@@ -4739,6 +4868,11 @@ class RustExpr {
 				case _: false;
 			};
 			if(borrowedParam) return rendered + ".map(|v| v.to_string())";
+		}
+		// charCodeAt is represented as Option<u32>; crossing into a plain
+		// value parameter applies Haxe's null-to-zero bridge exactly once.
+		if(!isNullType(expected) && isStringCharCodeAtCall(actual) && isNullType(actual.t)) {
+			return rendered + ".unwrap_or(0)";
 		}
 		if(isInterfaceType(expected) && !isInterfaceType(actual.t)) {
 			return "Box::new(" + rendered + ")";
@@ -5138,6 +5272,9 @@ class RustExpr {
 		if(resultType != null && isStringType(resultType)) {
 			if(StringTools.endsWith(text, ".to_string()") || StringTools.endsWith(text, ".clone()")) return text;
 			return text + ".to_string()";
+		}
+		if(text.indexOf("u_string::count") >= 0 && resolveExprType(sibling) == "i32") {
+			return "(" + text + ") as i32";
 		}
 		if(!isStringType(branch.t) || !isStringType(sibling.t)) {
 			return text;

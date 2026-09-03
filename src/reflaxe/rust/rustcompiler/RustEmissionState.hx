@@ -27,6 +27,15 @@ class RustEmissionState {
 	/** Maps anonymous structure signatures to their defining typedef name and module. */
 	public final structTypedefs: Map<String, {module: String, name: String}> = [];
 
+	/**
+		Private static functions reachable from emitted code, keyed by
+		"<module>.<field>". Haxe's @:keep on whole registry classes forces
+		uncalled private statics into the output where rustc reports them
+		as dead; the compiler scans references before emission and omits
+		the unreachable ones.
+	**/
+	public final referencedStatics: Map<String, Bool> = [];
+
 	/** Standard-library shims used during compilation. */
 	public final shimsUsed: Map<String, Bool> = [];
 
