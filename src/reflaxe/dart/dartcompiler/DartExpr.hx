@@ -1268,6 +1268,10 @@ class DartExpr {
 				// result re-signs into i32, the wrap targets with a
 				// native 32-bit int perform in hardware.
 				return "(" + operand(l, op, false) + ".toUnsigned(32) >> " + operand(r, op, true) + ").toSigned(32)";
+			case OpLt | OpLte | OpGt | OpGte if(isStringLeafType(l.t) && isStringLeafType(r.t)):
+				final cmp = expr(l) + ".compareTo(" + expr(r) + ")";
+				final cmpOp = switch(op) { case OpLt: "<"; case OpLte: "<="; case OpGt: ">"; case OpGte: ">="; case _: "<"; };
+				return cmp + " " + cmpOp + " 0";
 			case _:
 				return operand(l, op, false) + " " + symbolOf(op) + " " + operand(r, op, true);
 		}
@@ -1545,14 +1549,13 @@ class DartExpr {
 			case _:
 				[for(_ in args) null];
 		};
-		return [
-			for(i in 0...args.length) {
-				final a = args[i];
-				final pt = i < paramTypes.length ? paramTypes[i] : null;
-				final demandsValue = pt != null && !isNullLeafType(pt);
-				demandsValue && optionalValued(a) && !isLocalExpr(a) ? expr(a) + "!" : expr(a);
-			}
-		];
+		final rendered = [for(i in 0...args.length) {
+			final a = args[i];
+			final pt = i < paramTypes.length ? paramTypes[i] : null;
+			final demandsValue = pt != null && !isNullLeafType(pt);
+			(demandsValue && isNullLeafType(a.t)) ? expr(a) + "!" : (demandsValue && optionalValued(a) && !isLocalExpr(a) ? expr(a) + "!" : expr(a));
+		}];
+		return rendered;
 	}
 
 	/** A method receiver unwraps when the receiver expression is optional. */
@@ -1826,7 +1829,7 @@ class DartExpr {
 				if(module == "String" && cls.pack.length == 0 && fName == "fromCharCode") {
 					// Dart's factory encodes a supplementary scalar as its
 					// pair, the Haxe semantics for the valid domain.
-					return "String.fromCharCode(" + expr(args[0]) + ")";
+					return "String.fromCharCode(" + expr(args[0]) + (isNullLeafType(args[0].t) ? "!" : "") + ")";
 				}
 				if(module == "Std") {
 					final s = expr(args[0]);
@@ -1952,6 +1955,9 @@ class DartExpr {
 					}
 					return "(() { final _s = " + receiverText(subj) + "; final _from = " + expr(args[0]) + "; final _to = " + expr(args[1])
 						+ "; final _start = _from < 0 ? 0 : (_from > _s.length ? _s.length : _from); final _end = _to < 0 ? 0 : (_to > _s.length ? _s.length : _to); return _start > _end ? _s.substring(_end, _start) : _s.substring(_start, _end); })()";
+				}
+				if(name == "charAt" && isStringSubject(subj)) {
+					return receiverText(subj) + "[" + expr(args[0]) + "]";
 				}
 				if(name == "charCodeAt" && isStringSubject(subj)) {
 					// stdlib/15: evaluate receiver and index once; an out-of-range
