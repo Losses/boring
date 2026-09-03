@@ -205,19 +205,30 @@ class DartDecl {
 	function dataClassComparator(cls: ClassType): String {
 		final lines = ["int compare" + cls.name + "(" + cls.name + " a, " + cls.name + " b) {"];
 		for(f in [for(x in cls.fields.get()) if(switch(x.kind) { case FVar(read, write): !(read.match(AccCall) && write.match(AccNever)); case _: false; }) x]) {
+			switch(f.type) {
+				case TAbstract(a, params) if(a.get().name == "Null" && params.length == 1):
+					lines.push("  if (a." + f.name + " == null && b." + f.name + " != null) return -1;"); lines.push("  if (a." + f.name + " != null && b." + f.name + " == null) return 1;");
+					lines.push("  if (a." + f.name + " != null && b." + f.name + " != null) { final cmp" + f.name + " = a." + f.name + ".compareTo(b." + f.name + "); if (cmp" + f.name + " != 0) return cmp" + f.name + "; }"); continue;
+				case TAbstract(a, params) if(a.get().name == "ReadOnlyArray" && params.length == 1):
+					switch(Context.follow(params[0])) {
+						case TEnum(e, _):
+							final en = e.get();
+							final orderName = cls.name + f.name + "ElementOrder";
+							lines.unshift("int " + orderName + "(" + en.name + " v) {\n" + [for(ef in en.constructs) "  if (v is " + en.name + ef.name + ") return " + ef.index + ";"].join("\n") + "\n  return 0;\n}");
+							lines.push("  for (var i = 0; i < a." + f.name + ".length && i < b." + f.name + ".length; i++) { final cmp = " + orderName + "(a." + f.name + "[i]) - " + orderName + "(b." + f.name + "[i]); if (cmp != 0) return cmp; }");
+						case TInst(c, _) if(c.get().meta.has(":dataClass")): lines.push("  for (var i = 0; i < a." + f.name + ".length && i < b." + f.name + ".length; i++) { final cmp = compare" + c.get().name + "(a." + f.name + "[i], b." + f.name + "[i]); if (cmp != 0) return cmp; }");
+						case _: lines.push("  for (var i = 0; i < a." + f.name + ".length && i < b." + f.name + ".length; i++) { final cmp = a." + f.name + "[i].compareTo(b." + f.name + "[i]); if (cmp != 0) return cmp; }");
+					}
+					lines.push("  if (a." + f.name + ".length != b." + f.name + ".length) return a." + f.name + ".length - b." + f.name + ".length;"); continue;
+				default:
+			}
 			switch(Context.follow(f.type)) {
 				case TAbstract(a, _) if(a.get().name == "Int"): lines.push("  if (a." + f.name + " != b." + f.name + ") return a." + f.name + " - b." + f.name + ";");
 				case TInst(c, _) if(c.get().name == "String"): lines.push("  final cmp" + f.name + " = a." + f.name + ".compareTo(b." + f.name + "); if (cmp" + f.name + " != 0) return cmp" + f.name + ";");
 				case TInst(c, _) if(c.get().meta.has(":dataClass")): lines.push("  final cmp" + f.name + " = compare" + c.get().name + "(a." + f.name + ", b." + f.name + "); if (cmp" + f.name + " != 0) return cmp" + f.name + ";");
 				case TEnum(e, _):
 					final en = e.get();
-					final hasPayload = enumHasPayload(en);
-					if(hasPayload) {
-						lines.unshift("int " + cls.name + f.name + "Order(" + en.name + " v) {\n" + [for(ef in en.constructs) "  if (v is " + en.name + ef.name + ") return " + ef.index + ";"].join("\n") + "\n  return 0;\n}");
-						lines.push("  if (" + cls.name + f.name + "Order(a." + f.name + ") != " + cls.name + f.name + "Order(b." + f.name + ")) return " + cls.name + f.name + "Order(a." + f.name + ") - " + cls.name + f.name + "Order(b." + f.name + ");");
-					} else {
-						lines.push("  if (a." + f.name + ".index != b." + f.name + ".index) return a." + f.name + ".index - b." + f.name + ".index;");
-					}
+					if(enumHasPayload(en)) { lines.unshift("int " + cls.name + f.name + "Order(" + en.name + " v) {\n" + [for(ef in en.constructs) "  if (v is " + en.name + ef.name + ") return " + ef.index + ";"].join("\n") + "\n  return 0;\n}"); lines.push("  if (" + cls.name + f.name + "Order(a." + f.name + ") != " + cls.name + f.name + "Order(b." + f.name + ")) return " + cls.name + f.name + "Order(a." + f.name + ") - " + cls.name + f.name + "Order(b." + f.name + ");"); } else lines.push("  if (a." + f.name + ".index != b." + f.name + ".index) return a." + f.name + ".index - b." + f.name + ".index;");
 				case _:
 			}
 		}

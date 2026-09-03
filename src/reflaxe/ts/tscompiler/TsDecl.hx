@@ -151,27 +151,70 @@ class TsDecl {
 	function dataClassComparator(cls: ClassType): String {
 		final lines: Array<String> = [];
 		final fields = [for(x in cls.fields.get()) if(switch(x.kind) { case FVar(read, write): !(read.match(AccCall) && write.match(AccNever)); case _: false; }) x];
-		for(f in fields) switch(Context.follow(f.type)) {
-			case TEnum(e, _):
-				final en = e.get();
+		for(f in fields) {
+			var orderType: Null<EnumType> = null;
+			switch(f.type) {
+				case TAbstract(a, params) if(a.get().name == "ReadOnlyArray" && params.length == 1):
+					switch(Context.follow(params[0])) { case TEnum(e, _): orderType = e.get(); case _: }
+				case _: switch(Context.follow(f.type)) { case TEnum(e, _): orderType = e.get(); case _: }
+			}
+			if(orderType != null) {
+				final en = orderType;
 				lines.push('export function ${cls.name}${f.name}Order(v: ${en.name}): number {');
 				for(ef in en.constructs) lines.push('  if (v.kind === "${ef.name}") return ${ef.index};');
 				lines.push('  return 0;'); lines.push('}'); lines.push("");
-			case _: 
+			}
 		}
 		lines.push('export function compare${cls.name}(a: ${cls.name}, b: ${cls.name}): number {');
 		lines.push('  if (a === b) return 0;');
-		for(f in fields) switch(Context.follow(f.type)) {
-			case TAbstract(a, _) if(a.get().name == "Int"): lines.push('  if (a.${f.name} !== b.${f.name}) return a.${f.name} - b.${f.name};');
-			case TInst(c, _) if(c.get().name == "String"): lines.push('  if (a.${f.name} !== b.${f.name}) return a.${f.name} < b.${f.name} ? -1 : 1;');
-			case TInst(c, _) if(c.get().meta.has(":dataClass")): imports.value(c.get().module, "compare" + c.get().name); lines.push('  { const cmp = compare${c.get().name}(a.${f.name}, b.${f.name}); if (cmp !== 0) return cmp; }');
-			case TEnum(_, _): lines.push('  if (${cls.name}${f.name}Order(a.${f.name}) !== ${cls.name}${f.name}Order(b.${f.name})) return ${cls.name}${f.name}Order(a.${f.name}) - ${cls.name}${f.name}Order(b.${f.name});');
-			case _: // validated before emission
+		for(f in fields) {
+			switch(f.type) {
+				case TAbstract(a, params) if(a.get().name == "Null" && params.length == 1):
+					lines.push('  if (a.${f.name} === null && b.${f.name} !== null) return -1;');
+					lines.push('  if (a.${f.name} !== null && b.${f.name} === null) return 1;');
+					// A string compare yields only -1 or 1; tsc reports a
+					// `!== 0` check on that union as dead, so guard on
+					// inequality like the string-field arm below.
+					switch(Context.follow(params[0])) {
+						case TInst(c, _) if(c.get().name == "String"):
+							lines.push('  if (a.${f.name} !== null && b.${f.name} !== null && a.${f.name} !== b.${f.name}) return a.${f.name} < b.${f.name} ? -1 : 1;');
+						case _:
+							lines.push('  if (a.${f.name} !== null && b.${f.name} !== null) { const cmp = ' + tsCompareExpr(cls, f.name, params[0]) + '; if (cmp !== 0) return cmp; }');
+					}
+					continue;
+				case TAbstract(a, params) if(a.get().name == "ReadOnlyArray" && params.length == 1):
+					lines.push('  const a${f.name}Length = a.${f.name}.length; const b${f.name}Length = b.${f.name}.length;');
+					switch(Context.follow(params[0])) {
+						case TInst(c, _) if(c.get().name == "String"):
+							lines.push('  for (let i = 0; i < a${f.name}Length && i < b${f.name}Length; i++) { if (a.${f.name}[i] !== b.${f.name}[i]) return a.${f.name}[i] < b.${f.name}[i] ? -1 : 1; }');
+						case _:
+							lines.push('  for (let i = 0; i < a${f.name}Length && i < b${f.name}Length; i++) { const cmp = ' + tsCompareExpr(cls, f.name + '[i]', params[0]) + '; if (cmp !== 0) return cmp; }');
+					}
+					lines.push('  if (a${f.name}Length !== b${f.name}Length) return a${f.name}Length - b${f.name}Length;');
+					continue;
+				default:
+			}
+			switch(Context.follow(f.type)) {
+				case TAbstract(a, _) if(a.get().name == "Int"): lines.push('  if (a.${f.name} !== b.${f.name}) return a.${f.name} - b.${f.name};');
+				case TInst(c, _) if(c.get().name == "String"): lines.push('  if (a.${f.name} !== b.${f.name}) return a.${f.name} < b.${f.name} ? -1 : 1;');
+				case TInst(c, _) if(c.get().meta.has(":dataClass")): imports.value(c.get().module, "compare" + c.get().name); lines.push('  { const cmp = compare${c.get().name}(a.${f.name}, b.${f.name}); if (cmp !== 0) return cmp; }');
+				case TEnum(_, _): lines.push('  if (${cls.name}${f.name}Order(a.${f.name}) !== ${cls.name}${f.name}Order(b.${f.name})) return ${cls.name}${f.name}Order(a.${f.name}) - ${cls.name}${f.name}Order(b.${f.name});');
+				case _:
+			}
 		}
 		lines.push('  return 0;'); lines.push('}'); return lines.join("\n");
 	}
 
-	/** The erased TypeScript representation of a marked value wrapper. */
+	function tsCompareExpr(cls:ClassType, field:String, t:Type):String {
+		return switch(Context.follow(t)) {
+			case TInst(c, _) if(c.get().meta.has(":dataClass")): imports.value(c.get().module, "compare" + c.get().name); 'compare${c.get().name}(a.${field}, b.${field})';
+			case TEnum(_, _): '${cls.name}${field.indexOf("[") >= 0 ? field.substr(0, field.indexOf("[")) : field}Order(a.${field}) - ${cls.name}${field.indexOf("[") >= 0 ? field.substr(0, field.indexOf("[")) : field}Order(b.${field})';
+			case TInst(c, _) if(c.get().name == "String"): 'a.${field} < b.${field} ? -1 : 1';
+			case _: 'a.${field} - b.${field}';
+		};
+	}
+
+
 	public function valueTypeDecl(cls: ClassType, info: ValueTypeInfo, varFields: Array<ClassVarData>, funcFields: Array<ClassFuncData>): String {
 		final abs = info.abstractType;
 		final lines: Array<String> = ["export type " + info.name + " = " + types.of(info.representation) + ";"];
