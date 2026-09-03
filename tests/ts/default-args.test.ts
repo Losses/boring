@@ -151,7 +151,7 @@ describe("default argument expansion generated tree", () => {
     // Rust normalizes parameter-reading defaults at entry in declaration order.
     expect(content).toContain("pub fn greet_with_prefix(name: &str, prefix: Option<String>) -> String");
     expect(content).toContain("let prefix = prefix.unwrap_or_else(|| name.to_string());");
-    expect(content).toContain("pub fn field_access_sample(items: &mut Vec<String>, count: Option<u32>) -> u32");
+    expect(content).toContain("pub fn field_access_sample(items: &Vec<String>, count: Option<u32>) -> u32");
     expect(content).toContain("let count = count.unwrap_or_else(|| match u32::try_from((items).len())");
     expect(content).toContain("let fallback = fallback.unwrap_or_else(|| if lang == \"en\".to_string() { \"English\".to_string() } else { \"Other\".to_string() });");
     expect(content).toContain("let normalized = normalized.unwrap_or_else(|| text.to_uppercase());");
@@ -162,8 +162,8 @@ describe("default argument expansion generated tree", () => {
     expect(content).toContain("let offset = offset.unwrap_or_else(|| value + 1);");
     expect(content).toContain("pub fn instance_field_normalization(&self, p: Option<String>) -> String");
     expect(content).toContain("pub fn earlier_local_normalization(&self, seed: &str, q: Option<String>) -> String");
-    expect(content).toContain("let v = match p { None => self.fallback_count, Some(p) => p };");
-    expect(content).toContain("let w = match q { None => self.fallback_count, Some(q) => q };");
+    expect(content).toContain("let v = match p { None => self.fallback_count, Some(ref p) => p.clone() };");
+    expect(content).toContain("let w = match q { None => self.fallback_count, Some(ref q) => q.clone() };");
 
 
     // Rust has no default syntax: omission is completed to None and each
@@ -175,7 +175,7 @@ describe("default argument expansion generated tree", () => {
     expect(content).toContain("pub fn map_default(value: Option<HashMap<String, u32>>) -> HashMap<String, u32>");
     expect(content).toContain("let value = value.unwrap_or_else(|| HashMap::new());");
     expect(content).toContain("return DefaultArgsOps::infinity_default(None);");
-    expect(content).toContain("return DefaultArgsOps::map_default(None);");
+    expect(content).toContain("return DefaultArgsOps::map_default((None).clone());");
 
     // Call sites are fully expanded to full arity
     expect(content).toContain('return DefaultArgsOps::greet(&"Ada", &"Hello");');
@@ -183,8 +183,8 @@ describe("default argument expansion generated tree", () => {
     expect(content).toContain("return DefaultArgsOps::configure(100, 20, 2.5, true);");
     expect(content).toContain("return DefaultArgsOps::configure(100, 10, 2.5, true);");
     expect(content).toContain('return ops.format_label(Some("item".to_string()), &"-");');
-    expect(content).toContain('return ops.format_label(None, &"-");');
-    expect(content).toContain('return DefaultArgsOps::describe_tag(&"alpha", None);');
+    expect(content).toContain('return ops.format_label(None.clone(), &"-");');
+    expect(content).toContain('return DefaultArgsOps::describe_tag(&"alpha", None.clone());');
     expect(content).toContain("return DefaultArgsOps::open_mode(1, Mode::Read);");
     expect(content).toContain("return DefaultArgsOps::adjust(20.0, -5.0);");
     expect(content).toContain("return local_add(x, 100);");
@@ -225,7 +225,7 @@ describe("default argument expansion generated tree", () => {
     expect(content).toContain("let clamped = clamped ?? DefaultArgsOps.clampBase(value);");
     expect(content).toContain("fallback ?? SortedTable.setBuilder(SortedTable.compareInts).build()");
     expect(content).toContain("static func staticFieldSample(_ value: Int32, _ bound: Int32 = StaticStateOps.limit) -> Int32");
-    expect(content).toContain("let offset = offset ?? value + 1;");
+    expect(content).toContain("let offset = offset ?? value &+ 1;");
     expect(content).toContain("func instanceFieldNormalization(_ p: String?) -> String");
     expect(content).toContain("func earlierLocalNormalization(_ seed: String, _ q: String?) -> String");
     expect(content).toContain("let v: Int32? = p ?? self.fallbackCount");

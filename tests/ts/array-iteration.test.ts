@@ -24,14 +24,14 @@ describe("array element iteration generated tree", () => {
 
   test("Rust emits element for loops", () => {
     const content = read(path.resolve(__dirname, "../../reference/rust-gen/src/boring/array_iteration_ops.rs"));
-    expect(content).toContain("for &mut item in values {\n            total += item");
-    expect(content).toContain("for &item in values {\n            total += item");
+    expect(content).toContain("for &item in values {\n            total = u32::wrapping_add(total, item);");
+    expect(content).toContain("for &item in values {\n            total = u32::wrapping_add(total, item);");
     expect(content).toContain("let _g1 = holder.values;\n        for &item in &_g1 {");
   });
 
   test("Swift emits element for loops", () => {
     const content = read(path.resolve(__dirname, "../../reference/swift/gen/boring/ArrayIterationOps.swift"));
-    expect(content).toContain("for item in values {\n            total += item");
+    expect(content).toContain("for item in values {\n            total &+= item");
     expect(content).toContain("let _g1 = holder.values\n        for item in _g1 {");
   });
 

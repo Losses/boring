@@ -3450,7 +3450,7 @@ class RustExpr {
 					return "u_string::substring(&" + expr(subj) + ", (" + expr(args[0]) + ") as i32, ((" + expr(args[0]) + ") + 1) as i32)";
 				}
 				if(name == "indexOf" && isString(stripCast(subj)) && args.length >= 1) {
-					return "(" + expr(subj) + ").find(" + expr(args[0]) + ").map(|v| v as i32).unwrap_or(-1)";
+					return "match (" + expr(subj) + ").find(" + expr(args[0]) + ") { Some(v) => v as i32, None => -1 }";
 				}
 				if(name == "charCodeAt" && isString(stripCast(subj))) {
 					state.shimsUsed.set("std.UStringRT", true);
@@ -4869,7 +4869,7 @@ class RustExpr {
 				case TLocal(v): paramVarIds.get(v.id) == true;
 				case _: false;
 			};
-			if(borrowedParam) return rendered + ".map(|v| v.to_string())";
+			if(borrowedParam) return "match (" + rendered + ") { Some(v) => Some(v.to_string()), None => None }";
 		}
 		// charCodeAt is represented as Option<u32>; crossing into a plain
 		// value parameter applies Haxe's null-to-zero bridge exactly once.
