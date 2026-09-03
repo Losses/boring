@@ -13,9 +13,12 @@ class PrintedBadge {
 	public function new(mark:PrintedMark, width:FloatWidth) { this.mark = mark; this.width = width; }
 }
 
-// Stage 1 prints payload enum values natively without labels; the generated
-// targets print the ruled labeled forms through the Std.string interception
-// of features/34. The divergence is recorded in PrintedEnumTests.
+// Both the stage 1 reference build and the generated targets print payload
+// enum values in labeled constructor forms: stage 1 through the
+// boring_oracle-only rewrite of samples/std/EnumText.hx, the generated
+// targets through the Std.string interception of features/34. The array
+// separator row of PrintedEnumTests records the remaining native
+// difference.
 class PrintedEnumOps {
 	public static function markText(mark:PrintedMark):String return "mark=" + Std.string(mark);
 	public static function markValue(mark:PrintedMark):String return Std.string(mark);

@@ -150,8 +150,10 @@ class RecordShape {
 			out = {expr: EBinop(OpAdd, out, {expr: EConst(CString(name + "=")), pos: receiver.pos}), pos: receiver.pos};
 			final read:Expr = {expr: EField(receiver, name), pos: receiver.pos};
 			final fieldType = shape.fieldTypes[i];
+			final stage1Enum = stage1EnumFieldValue(fieldType, read, receiver.pos);
 			final value = isRecordType(fieldType)
 				? (isNullableType(fieldType) ? nullableRecordFieldValue(read, receiver.pos) : memberCallValue(read, receiver.pos))
+				: stage1Enum != null ? stage1Enum
 				: (isCollectionType(fieldType) || isEnumType(fieldType)) ? stdStringValue(read, receiver.pos) : read;
 			out = {expr: EBinop(OpAdd, out, value), pos: receiver.pos};
 		}
@@ -186,6 +188,36 @@ class RecordShape {
 			case TAbstract(a, _): a.get().name == "Null";
 			case _: false;
 		};
+	}
+
+	/**
+	 * The stage 1 operand for one enum-typed field (feature spec 40
+	 * ruling 4): a payload enum renders the labeled constructor switch,
+	 * and a nullable enum field wraps the switch in an explicit null
+	 * comparison, the two states feature spec 40 ruling 5 rules. The
+	 * branch exists only in the boring_oracle compilation; parameterless
+	 * enums and every generated-target compilation keep the Std.string
+	 * read below.
+	 */
+	static function stage1EnumFieldValue(fieldType:Type, read:Expr, pos:Position):Null<Expr> {
+		if(!Context.defined("boring_oracle")) {
+			return null;
+		}
+		final nullable = isNullableType(fieldType);
+		final followed = Context.follow(fieldType);
+		final enumType = switch(followed) {
+			case TEnum(e, _): e.get();
+			case _: return null;
+		};
+		if(!EnumText.hasPayloadConstructor(enumType)) {
+			return null;
+		}
+		final labeled = EnumText.rendererCall(read, followed, enumType, pos);
+		if(!nullable) {
+			return labeled;
+		}
+		final isNull = {expr: EBinop(OpEq, read, {expr: EConst(CIdent("null")), pos: pos}), pos: pos};
+		return {expr: ETernary(isNull, {expr: EConst(CString("null")), pos: pos}, labeled), pos: pos};
 	}
 
 	static function anonymousShape(anon:AnonType):RecordShapeData {
@@ -260,7 +292,7 @@ class RecordShape {
 
 	static function isCollectionType(type:Type):Bool {
 		return switch(Context.follow(type)) {
-			case TInst(c, _): c.get().name == "Array";
+			case TInst(c, _): c.get().name == "Array" || c.get().module == "std.SortedSet" || c.get().module == "std.SortedMap";
 			case TAbstract(a, _): a.get().module == "std.ReadOnlyArray";
 			case _: false;
 		};

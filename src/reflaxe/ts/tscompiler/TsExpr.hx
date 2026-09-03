@@ -1409,12 +1409,24 @@ class TsExpr {
 				final index = depth == 0 ? "i" : "i" + depth;
 				final item = stdStringType(element, value + "[" + index + "]!", true, origin, depth + 1);
 				'(() => { let out = "["; const n = ${value}.length; for (let ${index} = 0; ${index} < n; ${index} += 1) { if (${index} > 0) { out += ", "; } out += ${item}; } out += "]"; return out; })()';
+			case TInst(c, [element]) if(c.get().module == "std.SortedSet"):
+				final index = depth == 0 ? "i" : "i" + depth;
+				final item = stdStringType(element, value + ".at(" + index + ")", true, origin, depth + 1);
+				'(() => { let out = "["; const n = ${value}.size(); for (let ${index} = 0; ${index} < n; ${index} += 1) { if (${index} > 0) { out += ", "; } out += ${item}; } out += "]"; return out; })()';
+			case TInst(c, [key, val]) if(c.get().module == "std.SortedMap"):
+				final index = depth == 0 ? "i" : "i" + depth;
+				final itemKey = stdStringType(key, value + ".keyAt(" + index + ")", true, origin, depth + 1);
+				final itemVal = stdStringType(val, value + ".valueAt(" + index + ")", true, origin, depth + 1);
+				final item = itemKey + " + \"=\" + " + itemVal;
+				'(() => { let out = "{"; const n = ${value}.size(); for (let ${index} = 0; ${index} < n; ${index} += 1) { if (${index} > 0) { out += ", "; } out += ${item}; } out += "}"; return out; })()';
 			case TInst(c, _) if(StaticFieldHelper.hasSelfConstructionStatic(c.get()) || c.get().meta.has(":dataClass")): value + ".toString()";
 			case TAbstract(a, _) if(ValueTypeSupport.isMarkedAbstract(a.get())):
 				final abs = a.get();
 				final toString = ValueTypeSupport.memberField(abs, "toString");
 				toString == null ? (inConcat ? value : "String(" + value + ")") : imports.functionRef(abs.module, "toString", toString.isPublic) + "(" + value + ")";
 			case TAbstract(a, _) if(a.get().name == "Int" || a.get().name == "Float" || a.get().name == "Bool"):
+				inConcat ? value : "String(" + value + ")";
+			case TInst(c, _) if(c.get().kind.match(KTypeParameter(_))):
 				inConcat ? value : "String(" + value + ")";
 			case TAbstract(a, params) if(a.get().module == "std.ReadOnlyArray"):
 				stdStringType(haxe.macro.TypeTools.applyTypeParameters(a.get().type, a.get().params, params), value, inConcat, origin, depth);
