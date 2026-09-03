@@ -74,6 +74,8 @@ class TsExpr {
 	final hiddenNames: Map<Int, String> = [];
 	var hiddenCounter: Int = 0;
 	var hoistCounter: Int = 0;
+	/** Parse helpers discovered while lowering the current loop body. */
+	var activeLoopParseHoists: Null<Array<{name: String, declaration: String}>> = null;
 	/** Fresh names for the trailing-unit reads of stdlib/08 checks. */
 	var stringBufTailCounter: Int = 0;
 
@@ -227,6 +229,7 @@ class TsExpr {
 		currentClass = cls;
 		currentField = f.field.name;
 		currentLocalName = null;
+		activeLoopParseHoists = null;
 
 		scanLocals(f.expr);
 		return blockLines(statementsOf(f.expr), 2);
@@ -351,7 +354,15 @@ class TsExpr {
 				return out;
 			case TWhile(c, b, true):
 				final out = [indent(depth) + "while (" + expr(c) + ") {"];
-				for(l in blockLines(statementsOf(b), depth + 1)) out.push(l);
+				final outerParseHoists = activeLoopParseHoists;
+				activeLoopParseHoists = [];
+				final bodyLines = blockLines(statementsOf(b), depth + 1);
+				final parseHoists = activeLoopParseHoists;
+				activeLoopParseHoists = outerParseHoists;
+				if(parseHoists != null) {
+					for(h in parseHoists) out.insert(0, indent(depth) + h.declaration);
+				}
+				for(l in bodyLines) out.push(l);
 				out.push(indent(depth) + "}");
 				return out;
 			case TWhile(_, _, false):
@@ -708,7 +719,15 @@ class TsExpr {
 		final out = [
 			indent(depth) + "for (" + init + "; " + name + " < " + conditionBound + "; " + name + " += 1) {"
 		];
-		for(l in blockLines(loop.body, depth + 1)) out.push(l);
+		final outerParseHoists = activeLoopParseHoists;
+		activeLoopParseHoists = [];
+		final bodyLines = blockLines(loop.body, depth + 1);
+		final parseHoists = activeLoopParseHoists;
+		activeLoopParseHoists = outerParseHoists;
+		if(parseHoists != null) {
+			for(h in parseHoists) out.insert(out.length - 1, indent(depth) + h.declaration);
+		}
+		for(l in bodyLines) out.push(l);
 		out.push(indent(depth) + "}");
 		return out;
 	}
@@ -1560,8 +1579,18 @@ class TsExpr {
 				}
 				if(cls.module == "Std" && (fName == "parseFloat" || fName == "parseInt") && args.length == 1) {
 					final s = expr(args[0]);
-					if(fName == "parseFloat") return "((s) => { let a = 0, z = s.length; while (a < z) { const c = s.charCodeAt(a); if (c === 32 || (c >= 9 && c <= 13)) { a++; } else { break; } } while (z > a) { const c = s.charCodeAt(z - 1); if (c === 32 || (c >= 9 && c <= 13)) { z--; } else { break; } } let i = a; const c0 = s.charCodeAt(i); if (c0 === 43 || c0 === 45) { i++; } let before = 0; while (i < z) { const c = s.charCodeAt(i); if (c >= 48 && c <= 57) { i++; before++; } else { break; } } let after = 0; if (i < z && s.charCodeAt(i) === 46) { i++; while (i < z) { const c = s.charCodeAt(i); if (c >= 48 && c <= 57) { i++; after++; } else { break; } } } let ok = before > 0 || after > 0; if (ok && i < z) { const e = s.charCodeAt(i); if (e === 101 || e === 69) { i++; const c1 = s.charCodeAt(i); if (c1 === 43 || c1 === 45) { i++; } let m = 0; while (i < z) { const c = s.charCodeAt(i); if (c >= 48 && c <= 57) { i++; m++; } else { break; } } ok = m > 0; } else { ok = false; } } return ok && i === z ? Number.parseFloat(s.substring(a, z)) : Number.NaN; })(" + s + ")";
-					return "((s) => { let a = 0, z = s.length; while (a < z) { const c = s.charCodeAt(a); if (c === 32 || (c >= 9 && c <= 13)) { a++; } else { break; } } while (z > a) { const c = s.charCodeAt(z - 1); if (c === 32 || (c >= 9 && c <= 13)) { z--; } else { break; } } let i = a; const c0 = s.charCodeAt(i); if (c0 === 43 || c0 === 45) { i++; } let radix = 10; if (i + 1 < z && s.charCodeAt(i) === 48 && (s.charCodeAt(i + 1) === 120 || s.charCodeAt(i + 1) === 88)) { i += 2; radix = 16; } const st = i; while (i < z) { const c = s.charCodeAt(i); if ((c >= 48 && c <= 57) || (radix === 16 && ((c >= 97 && c <= 102) || (c >= 65 && c <= 70)))) { i++; } else { break; } } if (i === st || i !== z) { return null; } const n = Number.parseInt(s.substring(a, z), radix); if (n >= -2147483648 && n <= 2147483647) { return n; } return null; })(" + s + ")";
+					if (fName == "parseFloat") return "((s) => { let a = 0, z = s.length; while (a < z) { const c = s.charCodeAt(a); if (c === 32 || (c >= 9 && c <= 13)) { a++; } else { break; } } while (z > a) { const c = s.charCodeAt(z - 1); if (c === 32 || (c >= 9 && c <= 13)) { z--; } else { break; } } let i = a; const c0 = s.charCodeAt(i); if (c0 === 43 || c0 === 45) { i++; } let before = 0; while (i < z) { const c = s.charCodeAt(i); if (c >= 48 && c <= 57) { i++; before++; } else { break; } } let after = 0; if (i < z && s.charCodeAt(i) === 46) { i++; while (i < z) { const c = s.charCodeAt(i); if (c >= 48 && c <= 57) { i++; after++; } else { break; } } } let ok = before > 0 || after > 0; if (ok && i < z) { const e = s.charCodeAt(i); if (e === 101 || e === 69) { i++; const c1 = s.charCodeAt(i); if (c1 === 43 || c1 === 45) { i++; } let m = 0; while (i < z) { const c = s.charCodeAt(i); if (c >= 48 && c <= 57) { i++; m++; } else { break; } } ok = m > 0; } else { ok = false; } } return ok && i === z ? Number.parseFloat(s.substring(a, z)) : Number.NaN; })(" + s + ")";
+					final body = "let a = 0, z = s.length; while (a < z) { const c = s.charCodeAt(a); if (c === 32 || (c >= 9 && c <= 13)) { a++; } else { break; } } while (z > a) { const c = s.charCodeAt(z - 1); if (c === 32 || (c >= 9 && c <= 13)) { z--; } else { break; } } let i = a; const c0 = s.charCodeAt(i); if (c0 === 43 || c0 === 45) { i++; } let radix = 10; if (i + 1 < z && s.charCodeAt(i) === 48 && (s.charCodeAt(i + 1) === 120 || s.charCodeAt(i + 1) === 88)) { i += 2; radix = 16; } const st = i; while (i < z) { const c = s.charCodeAt(i); if ((c >= 48 && c <= 57) || (radix === 16 && ((c >= 97 && c <= 102) || (c >= 65 && c <= 70)))) { i++; } else { break; } } if (i === st || i !== z) { return null; } const n = Number.parseInt(s.substring(a, z), radix); if (n >= -2147483648 && n <= 2147483647) { return n; } return null;";
+					if (activeLoopParseHoists != null) {
+						var helperName: Null<String> = null;
+						for (h in activeLoopParseHoists) if (h.declaration.indexOf("const ") == 0) helperName = h.name;
+						if (helperName == null) {
+							helperName = "parseHexCode";
+							activeLoopParseHoists.push({name: helperName, declaration: "const " + helperName + " = (s: string): number | null => { " + body + " };"});
+						}
+						return helperName + "(" + s + ")";
+					}
+					return "((s) => { " + body + " })(" + s + ")";
 				}
 				if(cls.module == "Math" && fName == "isNaN" && args.length == 1) return "Number.isNaN(" + expr(args[0]) + ")";
 				if(cls.module == "Math" && fName == "isFinite" && args.length == 1) return "Number.isFinite(" + expr(args[0]) + ")";
