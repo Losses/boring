@@ -20,6 +20,6 @@ class Xxh64Tests {
 		for (step in [1,3,7,31]) { final h=new Xxh64(Int64.make(0x9E3779B1, 0x85EBCA87)); var p=0; while(p<data.length) { final n=(step < data.length-p ? step : data.length-p); h.update(data.sub(p,n)); p+=n; } Test.equals(CryptoTestSupport.i64Hex(Xxh64.make(data,Int64.make(0x9E3779B1, 0x85EBCA87))),CryptoTestSupport.i64Hex(h.digest())); }
 	}
 	@:test("xxh64 digest remains usable") public static function digestIsIdempotent():Void {
-		final h=new Xxh64(Int64.make(0x9E3779B1, 0x85EBCA87)); h.update(CryptoTestSupport.data("len1")); final first=h.digest(); Test.equals(CryptoTestSupport.i64Hex(first),CryptoTestSupport.i64Hex(h.digest())); h.update(CryptoTestSupport.data("len16")); Test.equals(CryptoTestSupport.i64Hex(Xxh64.make(CryptoTestSupport.data("len17"),Int64.make(0x9E3779B1, 0x85EBCA87))),CryptoTestSupport.i64Hex(h.digest()));
+		final h=new Xxh64(Int64.make(0x9E3779B1, 0x85EBCA87)); h.update(CryptoTestSupport.data("len1")); final first=h.digest(); Test.equals(CryptoTestSupport.i64Hex(first),CryptoTestSupport.i64Hex(h.digest())); h.update(CryptoTestSupport.data("len16")); Test.equals("03558a350cde4fc8",CryptoTestSupport.i64Hex(h.digest()));
 	}
 }
