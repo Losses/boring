@@ -46,7 +46,7 @@ describe("string buffer generated tree", () => {
     expect(content).toContain("return Ok(buf.len() as u32);");
     expect(content).toContain("String::from_utf16(buf.as_slice())");
     expect(content).toContain("UStringFault::UnpairedSurrogate { unit: unit as u32 }");
-    expect(content).toContain("UStringFault::InvalidCodePoint { code } => 1000 + code,");
+    expect(content).toContain("UStringFault::InvalidCodePoint { code } => u32::wrapping_add(1000 as u32, code),");
     expect(content).not.toContain("String::new()");
     expect(content).not.toContain("push_str");
     expect(content).not.toContain("encode_utf16().count()");
