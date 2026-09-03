@@ -1466,9 +1466,9 @@ class KotlinExpr {
 				final leftText = leftStd == null ? operand(l, op, false) : stdString(leftStd, true);
 				final rightText = rightStd == null ? operand(r, op, true) : stdString(rightStd, true);
 				if(!isStringType(l.t)) {
-					return "\"${" + leftText + "}${" + rightText + "}\"";
+					return "(" + leftText + ").toString() + " + rightText;
 				}
-				return "\"${" + leftText + "}${" + rightText + "}\"";
+				return leftText + " + " + rightText;
 			case OpAdd | OpSub | OpMult | OpDiv | OpMod | OpEq | OpNotEq | OpGt | OpGte | OpLt | OpLte | OpBoolAnd | OpBoolOr:
 				return operand(l, op, false) + " " + symbolOf(op) + " " + operand(r, op, true);
 			case OpShl:
