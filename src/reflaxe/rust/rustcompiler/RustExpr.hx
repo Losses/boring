@@ -3410,7 +3410,14 @@ class RustExpr {
 		if(inlineMapCall != null) {
 			return inlineMapCall;
 		}
-		final renderedArgs = [for(a in args) expr(a)].join(", ");
+		final renderedArgs = [for(i in 0...args.length) {
+			final text = expr(args[i]);
+			final pt = switch(Context.follow(fn.t)) {
+				case TFun(pargs, _): i < pargs.length ? pargs[i].t : null;
+				case _: null;
+			};
+			pt != null && isIntType(pt) && i32LocalDomain(args[i]) ? "(" + text + ") as " + types.of(pt, false) : text;
+		}].join(", ");
 		switch(fn.expr) {
 			case TField(_, FStatic(c, cf)) if(c.get().module == "haxe.io.Bytes" && cf.get().name == "alloc" && args.length == 1):
 				return "vec![0u8; " + expr(args[0]) + " as usize]";
