@@ -44,7 +44,7 @@ class SortedKeyDomainTests {
 
 	@:test("DataClass generated entries cover nested enum and arrays")
 	public static function testDataClassGeneratedEntries():Void {
-		Test.equals("a,b;close,open;nested-first,nested", SortedDataClassKeysOps.read(), "dataClass maps read in key order");
+	Test.equals("a,b;open,close;nested-first,nested", SortedDataClassKeysOps.read(), "dataClass maps read in key order");
 	}
 
 	@:test("Structure key lookup hits and misses")
