@@ -1421,6 +1421,8 @@ class SwiftExpr {
 					case "getLow" | "get_low" if(args.length == 1): if(isFpHelperInt64Halves(args[0])) expr(args[0]) + ".low" else "Int32(truncatingIfNeeded: " + expr(args[0]) + ")";
 					case "add" if(args.length == 2): expr(args[0]) + " &+ " + expr(args[1]);
 					case "sub" if(args.length == 2): expr(args[0]) + " &- " + expr(args[1]);
+					case "mul" if(args.length == 2): expr(args[0]) + " &* " + expr(args[1]);
+					case "mulInt" if(args.length == 2): expr(args[0]) + " &* Int64(" + expr(args[1]) + ")";
 					case "and" if(args.length == 2): expr(args[0]) + " & " + expr(args[1]);
 					case "or" if(args.length == 2): expr(args[0]) + " | " + expr(args[1]);
 					case "xor" if(args.length == 2): expr(args[0]) + " ^ " + expr(args[1]);
