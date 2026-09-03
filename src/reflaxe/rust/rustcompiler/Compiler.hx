@@ -955,10 +955,7 @@ class Compiler extends PluginCompiler<Compiler> {
 					final edgeEnum = enumOf.get(edge.callee);
 					if(edgeEnum == null) continue;
 					if(edge.absorbed.indexOf(edgeEnum.module) >= 0) {
-						if(enumOf.get(edge.callee) == null) {
-							enumOf.set(edge.callee, edgeEnum);
-							changed = true;
-						}
+						if(mergeEnum(edge.callee, edgeEnum)) changed = true;
 						if(!fallible.exists(edge.callee)) {
 							fallible.set(edge.callee, true);
 							changed = true;
@@ -966,6 +963,10 @@ class Compiler extends PluginCompiler<Compiler> {
 						continue;
 					}
 					if(mergeEnum(entry.key, edgeEnum)) changed = true;
+					if(!fallible.exists(entry.key)) {
+						fallible.set(entry.key, true);
+						changed = true;
+					}
 					if(!fallible.exists(entry.key)) {
 						fallible.set(entry.key, true);
 						changed = true;
