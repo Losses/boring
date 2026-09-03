@@ -2669,14 +2669,10 @@ class RustExpr {
 			case OpSub:
 				return operand(l, op, false) + " - " + operand(r, op, true);
 			case OpLt | OpLte | OpGt | OpGte:
-				// Int comparisons use Haxe's signed ordering, even when the
-				// business representation is u32 and an arithmetic result wrapped.
-				final signed = isIntType(l.t) && isIntType(r.t);
-				final left = signed ? "((" + operand(l, op, false) + ") as i32)" : operand(l, op, false);
-				final right = signed ? "((" + operand(r, op, true) + ") as i32)" : operand(r, op, true);
-				// Group casts at this precedence boundary so Rust does not parse
-				// the comparison as generic arguments.
-				return "(" + left + ") " + symbolOf(op) + " (" + right + ")";
+				// Rust parses an unparenthesized cast immediately followed by
+				// `<` as generic arguments (`x as u32 < y`).  Comparisons are
+				// a precedence boundary, so group both operands unconditionally.
+				return "(" + operand(l, op, false) + ") " + symbolOf(op) + " (" + operand(r, op, true) + ")";
 			case _:
 				final left = isInt64Type(l.t) ? "(" + expr(l) + ")" : operand(l, op, false);
 				final right = isInt64Type(r.t) ? "(" + expr(r) + ")" : operand(r, op, true);
@@ -4333,7 +4329,7 @@ class RustExpr {
 					case _: null;
 				};
 				if(local != null) nullableSensitiveLocals.set(local.id, true);
-			case TBinop(OpGte | OpLt | OpLte | OpGt, left, right):
+			case TBinop(OpGte | OpLt, left, right):
 				// A comparison against literal zero contemplates negative
 				// values; the local keeps the signed i32 Int domain.
 				switch([stripWrap(left).expr, stripWrap(right).expr]) {
