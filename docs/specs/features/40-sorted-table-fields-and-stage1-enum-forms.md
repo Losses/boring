@@ -68,11 +68,17 @@ overrides no `toString`, so no target prints the ruled set text natively.
    and value domains are the element domain of feature spec 33 ruling 2,
    which the payload enum operand of feature spec 34 joins.
 2. Every target builds the ruled text through the single-pass builder shape
-   of stdlib spec 12 ruling 6, stage 1 included. Kotlin emits the
-   synthesized member for a class whose fields include a sorted table
-   field: the resident table types carry no native text equal to the ruled
-   text, so the exception feature spec 33 ruling 5 grants Array fields on
-   Kotlin does not extend to sorted table fields.
+   of stdlib spec 12 ruling 6, stage 1 included. The resident table types
+   (`SortedSetTable` and `SortedMapTable` in `src/runtime/SortedTable.hx`)
+   carry the ruled text as a `toString` member: stage 1 prints a sorted
+   table field through that member, and the Kotlin data-class text
+   concatenates the field texts, so Kotlin keeps the member skip that
+   feature spec 33 ruling 5 grants Array fields. The other targets
+   synthesize the record member whose field texts go through the
+   operand-form function. A field or operand whose type is a type parameter
+   renders through the operand-form function's parameter branch, the
+   target's own conversion of the value, so a generic record over a sorted
+   table field prints.
 3. A nullable sorted table field (`Null<SortedSet<T>>`,
    `Null<SortedMap<K, V>>`) follows feature spec 33 ruling 4: it stops the
    compilation with the named error and the class keeps an explicit member.
@@ -92,10 +98,11 @@ overrides no `toString`, so no target prints the ruled set text natively.
    2, the same two states the nullable record field of spec 31 prints; it
    compiles on every target. The nullable-enum sentence of feature spec 34
    ruling 4 is replaced by this rule.
-6. The rejection sentence of stdlib spec 12, as amended by feature specs 33
-   and 34, adds no operand: a sorted table operand outside a record field
-   stops the compilation with the named error, the behavior the Contract's
-   remaining-type sentence already rules.
+6. The operand domain of stdlib spec 12, as amended by feature specs 33 and
+   34, gains the sorted tables: a sorted table operand outside a record
+   field prints the ruled text of ruling 1, through the resident member on
+   stage 1 and through the operand-form function on the five targets. The
+   rejection sentence rules the remaining types only.
 
 ## Samples and tests
 
@@ -116,12 +123,13 @@ overrides no `toString`, so no target prints the ruled set text natively.
   array argument row prints through the native `,` join.
 - Both modules are entered in all eight generation hxml files.
 - Tree assertions in `tests/ts/printed-sorted-fields.test.ts`: the
-  TypeScript, Swift, Dart, Rust, and Kotlin trees carry the synthesized
-  member with the builder shapes of stdlib spec 12 ruling 6 for the sorted
-  fields, and the nullable enum field prints through the labeled branch
-  with the null comparison; no tree renders `.map(`, `join(`,
-  `joinToString(`, `joined(`, or a native table `toString()` call for the
-  sorted fields.
+  TypeScript, Swift, Dart, and Rust trees carry the synthesized member
+  with the builder shapes of stdlib spec 12 ruling 6 for the sorted
+  fields, and the Kotlin tree carries no synthesized member, its field
+  texts coming from the resident table member; the nullable enum field
+  prints through the labeled branch with the null comparison; no tree
+  renders `.map(`, `join(`, `joinToString(`, `joined(`, or a native table
+  `toString()` call for the sorted fields.
 - Mutation checks: a field typed `SortedSet<PlainInstance>`, a class
   without the `@:dataClass` marker, stops generation with the named error
   of feature spec 33 ruling 3; a `Null<SortedSet<Int>>` field stops
