@@ -748,8 +748,54 @@ class Compiler extends PluginCompiler<Compiler> {
 				case _:
 			}
 		}
+		scanCloneBoundaries(mtypes);
 		scanFallibility(mtypes);
 	}
+
+	function scanCloneBoundaries(mtypes: Array<haxe.macro.Type.ModuleType>): Void {
+		for(mt in mtypes) switch(mt) {
+			case TClassDecl(c):
+				final cls = c.get();
+				if(cls.isExtern || !inSourceScope(cls.pos)) continue;
+				for(field in cls.statics.get()) scanCloneField(field);
+				for(field in cls.fields.get()) scanCloneField(field);
+				if(cls.constructor != null) scanCloneField(cls.constructor.get());
+			case _:
+		}
+	}
+
+	function scanCloneField(field: haxe.macro.Type.ClassField): Void {
+		final body = field.expr();
+		if(body == null) return;
+		function walk(e: TypedExpr): Void {
+			switch(e.expr) {
+				case TCall(fn, args):
+					final params = switch(Context.follow(fn.t)) { case TFun(p, _): p; case _: []; };
+					for(i in 0...args.length) if(i < params.length) {
+						final t = Context.follow(args[i].t);
+						final record = switch(t) { case TInst(c, _): c.get().meta.has(":dataClass"); case TAnonymous(_) | TType(_, _): true; case _: false; };
+						final local = switch(args[i].expr) { case TLocal(_): true; case _: false; };
+						if((record && local) || (!scanPassByRef(params[i].t) && !scanTypeCopy(t))) switch(t) {
+							case TInst(c, _): if(!c.get().isExtern) state.cloneRequiredTypes.set(c.get().module, true);
+							case _:
+						}
+					}
+				case _:
+			}
+			haxe.macro.TypedExprTools.iter(e, walk);
+		}
+		walk(body);
+	}
+
+	function scanPassByRef(t: Type): Bool return switch(Context.follow(t)) {
+		case TInst(c, _) if(c.get().name == "Array" || c.get().name == "Bytes" || c.get().name == "String"): true;
+		case TAbstract(a, _) if(a.get().name == "ReadOnlyArray"): true;
+		case _: false;
+	};
+	function scanTypeCopy(t: Type): Bool return switch(Context.follow(t)) {
+		case TAbstract(a, _) if(["Int", "Bool", "Float", "Int64"].indexOf(a.get().name) >= 0): true;
+		case _: false;
+	};
 
 	/**
 		Computes the fallibility of every function in source scope. Direct
@@ -908,8 +954,19 @@ class Compiler extends PluginCompiler<Compiler> {
 				for(edge in entry.edges) {
 					final edgeEnum = enumOf.get(edge.callee);
 					if(edgeEnum == null) continue;
-					if(edge.absorbed.indexOf(edgeEnum.module) >= 0) continue;
+					if(edge.absorbed.indexOf(edgeEnum.module) >= 0) {
+						if(mergeEnum(edge.callee, edgeEnum)) changed = true;
+						if(!fallible.exists(edge.callee)) {
+							fallible.set(edge.callee, true);
+							changed = true;
+						}
+						continue;
+					}
 					if(mergeEnum(entry.key, edgeEnum)) changed = true;
+					if(!fallible.exists(entry.key)) {
+						fallible.set(entry.key, true);
+						changed = true;
+					}
 					if(!fallible.exists(entry.key)) {
 						fallible.set(entry.key, true);
 						changed = true;
