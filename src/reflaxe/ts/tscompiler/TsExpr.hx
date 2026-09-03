@@ -474,6 +474,17 @@ class TsExpr {
 	function blockLines(stmts: Array<TypedExpr>, depth: Int): Array<String> {
 		stmts = fuseUninitializedVars(stmts);
 		stmts = regroupLoops(stmts);
+		if(stmts.length > 1) {
+			var i = 0;
+			while(i + 1 < stmts.length) {
+				switch(stmts[i].expr) {
+					case TVar(v, init) if(init != null && isLiteralExpr(init) && safeTryInitialization(v, stmts[i + 1])):
+						stmts[i] = {expr: TVar(v, null), pos: stmts[i].pos, t: stmts[i].t};
+					case _:
+				}
+				i++;
+			}
+		}
 		final out: Array<String> = [];
 
 		// features/09 LengthHoist: counted loops whose bound reads
@@ -547,6 +558,71 @@ class TsExpr {
 			i += 1;
 		}
 		return out;
+	}
+
+	function isLiteralExpr(e: TypedExpr): Bool {
+		return switch(stripCast(e).expr) { case TConst(_): true; case _: false; };
+	}
+	function safeTryInitialization(v: TVar, next: TypedExpr): Bool {
+		final region = switch(next.expr) {
+			case TTry(_, _): next;
+			case TMeta(_, inner): inner;
+			case _: null;
+		};
+		if(region == null) return false;
+		switch(region.expr) {
+			case TTry(body, catches):
+				if(catches.length == 0 || !assignsBeforeRead(body, v.id)) return false;
+				var i = 0;
+				while(i < catches.length) {
+					if(!catchTerminates(catches[i].expr)) return false;
+					i++;
+				}
+				return true;
+			case _:
+				return false;
+		}
+	}
+
+	/**
+		Reports whether the local receives a plain assignment before any
+		read of it inside `e`, so a preceding literal initializer can be
+		dropped without leaving a use-before-assign path. A compound
+		assignment (`+=`, `++`) reads the local first and therefore does
+		not count as the establishing assignment.
+	**/
+	function assignsBeforeRead(e: TypedExpr, varId: Int): Bool {
+		var assigned = false;
+		var violated = false;
+		function walk(x: TypedExpr) {
+			if(violated) return;
+			switch(x.expr) {
+				case TBinop(OpAssign, t, r):
+					switch(stripCast(t).expr) {
+						case TLocal(w) if(w.id == varId):
+							walk(r);
+							if(!violated) assigned = true;
+							return;
+						case _:
+					}
+				case TLocal(w) if(w.id == varId && !assigned):
+					violated = true;
+					return;
+				case _:
+			}
+			TypedExprTools.iter(x, walk);
+		}
+		walk(e);
+		return !violated && assigned;
+	}
+
+	function catchTerminates(e: TypedExpr): Bool {
+		return switch(e.expr) {
+			case TThrow(_) | TReturn(_): true;
+			case TBlock(stmts) if(stmts.length > 0): catchTerminates(stmts[stmts.length - 1]);
+			case TIf(_, t, f) if(f != null): catchTerminates(t) && catchTerminates(f);
+			case _: false;
+		};
 	}
 
 	function clearHoistsAt(hoists: Array<{firstUse: Int, loopAt: Int, subject: TVar, name: String}>, at: Int): Void {
