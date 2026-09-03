@@ -342,6 +342,7 @@ class TsExpr {
 			case TVar(v, init) if(init == null):
 				return [indent(depth) + "let " + localName(v) + ": " + types.of(v.t) + ";"];
 			case TBlock(stmts):
+				// Preserve the lexical scope of typer-unrolled statement blocks.
 				final out = [indent(depth) + "{"];
 				for(l in blockLines(stmts, depth + 1)) out.push(l);
 				out.push(indent(depth) + "}");
