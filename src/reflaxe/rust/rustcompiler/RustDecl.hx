@@ -176,6 +176,9 @@ class RustDecl {
 		final implGenerics = implBoundList.length > 0 ? "<" + implBoundList.join(", ") + ">" : "";
 		final ltParam = genericStr;
 
+		if(state.recordCloneTypes.exists(cls.module + "::" + cls.name) && !StaticFieldHelper.hasSelfConstructionStatic(cls) && !cls.meta.has(":dataClass") && cls.module.indexOf("registry.") != 0 && isAllClone(varFields)) {
+			lines.push("#[derive(Clone)]");
+		}
 		if(StaticFieldHelper.hasSelfConstructionStatic(cls) || cls.meta.has(":dataClass")) {
 			lines.push("#[derive(Clone)]");
 		}
@@ -1601,7 +1604,8 @@ class RustDecl {
 				case TCall(fn, callArgs):
 					switch(fn.expr) {
 						case TField(_, FInstance(cc, _, cf)) | TField(_, FStatic(cc, cf)):
-							if(state.funcErrorEnums.exists(RustEmissionState.funcKey(cc.get().module, cf.get().name, switch(fn.expr) { case TField(_, FStatic(_, _)): true; case _: false; }))) {
+							final calleeEnum = state.funcErrorEnums.get(RustEmissionState.funcKey(cc.get().module, cf.get().name, switch(fn.expr) { case TField(_, FStatic(_, _)): true; case _: false; }));
+							if(calleeEnum != null && absorbed.indexOf(calleeEnum.module) < 0) {
 								throwsOrCallsFallible = true;
 							}
 							if(isStringBufFaultOp(cc.get().module, cf.get().name)) {
@@ -1850,6 +1854,26 @@ class RustDecl {
 			case _:
 				return null;
 		}
+	}
+
+	function isAllClone(fields: Array<ClassVarData>): Bool {
+		for(f in fields) if(!f.isStatic && !isCloneType(f.field.type)) return false;
+		return true;
+	}
+
+	function isCloneType(t: Type): Bool {
+		return switch(Context.follow(t)) {
+			case TAbstract(a, _): ["Int", "Bool", "Float"].indexOf(a.get().name) >= 0;
+			case TInst(c, params):
+				final n = c.get().name;
+				if(n == "String") true else if(n == "Array") params.length == 1 && isCloneType(params[0]) else false;
+			case TType(d, params): isCloneType(haxe.macro.TypeTools.applyTypeParameters(d.get().type, d.get().params, params));
+			case TAnonymous(anon):
+				var all = true;
+				for(f in anon.get().fields) if(!isCloneType(f.type)) all = false;
+				all;
+			case _: false;
+		};
 	}
 
 	function isAllCopy(fields: Array<ClassField>): Bool {
