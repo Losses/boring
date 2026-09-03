@@ -2772,9 +2772,9 @@ class RustExpr {
 					case "sub" if(args.length == 2): expr(args[0]) + ".wrapping_sub(" + expr(args[1]) + ")";
 					case "mul" if(args.length == 2): "(" + expr(args[0]) + ").wrapping_mul(" + expr(args[1]) + ")";
 					case "mulInt" if(args.length == 2): "(" + expr(args[0]) + ").wrapping_mul(i64::from(" + expr(args[1]) + "))";
-					case "and" if(args.length == 2): "(" + expr(args[0]) + " & " + expr(args[1]) + ")";
-					case "or" if(args.length == 2): "(" + expr(args[0]) + " | " + expr(args[1]) + ")";
-					case "xor" if(args.length == 2): "(" + expr(args[0]) + " ^ " + expr(args[1]) + ")";
+					case "and" if(args.length == 2): expr(args[0]) + " & " + expr(args[1]);
+					case "or" if(args.length == 2): expr(args[0]) + " | " + expr(args[1]);
+					case "xor" if(args.length == 2): expr(args[0]) + " ^ " + expr(args[1]);
 					case "complement" if(args.length == 1): "!" + expr(args[0]);
 					case "shl" if(args.length == 2): expr(args[0]) + ".wrapping_shl(" + expr(args[1]) + " as u32)";
 					case "shr" if(args.length == 2): expr(args[0]) + ".wrapping_shr(" + expr(args[1]) + " as u32)";
@@ -3437,7 +3437,7 @@ class RustExpr {
 					}
 				}
 				if(name == "get" && isBytes(stripCast(subj))) {
-					return "(" + expr(subj) + "[(" + expr(args[0]) + ") as usize] as u32)";
+					return expr(subj) + "[" + expr(args[0]) + " as usize] as u32";
 				}
 				if(name == "set" && args.length == 2 && isBytes(stripCast(subj))) {
 					return expr(subj) + "[" + expr(args[0]) + " as usize] = (" + expr(args[1]) + ") as u8";
