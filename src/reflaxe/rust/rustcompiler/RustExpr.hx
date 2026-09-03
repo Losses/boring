@@ -157,8 +157,17 @@ class RustExpr {
 	}
 
 	/** Renders the sanctioned expression in Rust's normalization closure. */
-	function coalescingDefaultText(value: DefaultArgExpander.CoalescingDefaultValue, targetType: Type): String {
-		return switch(value) {
+	function coalescingDefaultText(value: DefaultArgExpander.CoalescingDefaultValue, targetType: Type, asOption:Bool = false): String {
+		// Null conditionals already produce an Option-valued expression; their
+		// branches must be rendered in that same domain rather than wrapping the
+		// whole conditional in Some(...).
+		if(asOption) switch(value) {
+			case CNull: return "None";
+			case CConditional(c, t, f):
+				return "if " + coalescingDefaultText(c, targetType) + " { " + coalescingDefaultText(t, targetType, true) + " } else { " + coalescingDefaultText(f, targetType, true) + " }";
+			default:
+		}
+		final rendered = switch(value) {
 			case CInt(v): Std.string(v);
 			case CFloat(s):
 				final padded = s.indexOf(".") >= 0 || s.indexOf("e") >= 0 || s.indexOf("E") >= 0 ? s : s + ".0";
@@ -197,6 +206,7 @@ class RustExpr {
 			case CConstructorCall(classPath, args):
 				classPath.split(".").pop() + "::new(" + [for(a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
 		};
+		return asOption ? "Some(" + rendered + ")" : rendered;
 	}
 
 	function coalescingStaticCallText(path:String, args:Array<DefaultArgExpander.CoalescingDefaultValue>, targetType:Type):String {
@@ -422,8 +432,9 @@ class RustExpr {
 				continue;
 			}
 			seen.set(site.parameter, true);
+			final defaultIsNull = isNullType(site.valueExpr.t) && containsNullDefault(value);
 			final rawDefaultText = value != null
-				? coalescingDefaultText(value, DefaultArgExpander.withoutNull(site.valueExpr.t))
+				? coalescingDefaultText(value, DefaultArgExpander.withoutNull(site.valueExpr.t), defaultIsNull)
 				: expr(site.defaultExpr);
 			// When a string parameter read appears inside unwrap_or_else, Rust needs
 			// the owned form (&str → String).
@@ -432,7 +443,8 @@ class RustExpr {
 				default: false;
 			};
 			final defaultText = isStringDefault ? rawDefaultText + ".to_string()" : rawDefaultText;
-			out.push(indent(depth) + "let mut " + RustImports.toSnakeCase(site.parameter) + " = " + RustImports.toSnakeCase(site.parameter) + ".unwrap_or_else(|| " + defaultText + ");");
+			final combinator = defaultIsNull ? ".or_else(|| " : ".unwrap_or_else(|| ";
+			out.push(indent(depth) + "let mut " + RustImports.toSnakeCase(site.parameter) + " = " + RustImports.toSnakeCase(site.parameter) + combinator + defaultText + ");");
 		}
 		return out;
 	}
@@ -4002,6 +4014,16 @@ class RustExpr {
 		}
 		if(!isIntType(actual.t)) return rendered;
 		return target == "u32" || target == "i32" || target == "u8" ? "(" + rendered + ") as " + target : rendered;
+	}
+
+	function containsNullDefault(value: DefaultArgExpander.CoalescingDefaultValue):Bool {
+		return switch(value) {
+			case CConditional(_, _, f): switch(f) {
+				case CNull: true;
+				case _: false;
+			};
+			case _: false;
+		};
 	}
 
 	function assignTarget(e: TypedExpr): String {
