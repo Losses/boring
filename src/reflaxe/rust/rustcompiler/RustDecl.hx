@@ -278,7 +278,18 @@ class RustDecl {
 			switch(f.type) {
 				case TAbstract(a, params) if(a.get().name == "Null" && params.length == 1):
 					rawHandled = true;
-					lines.push('    let cmp_$fn = match (&a.$fn, &b.$fn) { (None, None) => 0, (None, Some(_)) => -1, (Some(_), None) => 1, (Some(av), Some(bv)) => av.cmp(bv) as i32 };');
+					var presentCompare = "av.cmp(bv) as i32";
+					switch(Context.follow(params[0])) {
+						case TEnum(e, _):
+							final en = e.get();
+							final orderName = RustImports.toSnakeCase(cls.name) + "_" + RustImports.toSnakeCase(f.name) + "_order";
+							lines.unshift('fn $orderName(v: &${en.name}) -> i32 {\n    match v {\n' + [for(ef in en.constructs) '        ${en.name}::${ef.name}' + (enumHasPayload(ef) ? ' { .. }' : '') + ' => ${ef.index},'].join("\n") + '\n    }\n}');
+							presentCompare = '$orderName(av).cmp(&$orderName(bv)) as i32';
+						case TInst(c, _) if(c.get().meta.has(":dataClass")):
+							presentCompare = 'compare_${RustImports.toSnakeCase(c.get().name)}(av, bv)';
+						case _:
+					}
+					lines.push('    let cmp_$fn = match (&a.$fn, &b.$fn) { (None, None) => 0, (None, Some(_)) => -1, (Some(_), None) => 1, (Some(av), Some(bv)) => $presentCompare };');
 				case TAbstract(a, params) if(a.get().name == "ReadOnlyArray" && params.length == 1):
 					rawHandled = true;
 					final element = Context.follow(params[0]);
