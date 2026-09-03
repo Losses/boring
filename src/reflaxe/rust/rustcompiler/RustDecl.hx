@@ -401,7 +401,7 @@ class RustDecl {
 			final initializer = v.field.expr();
 			if(initializer == null) Context.error("value type static field must have an initializer", v.field.pos);
 			lines.push("");
-			lines.push("    pub const " + RustImports.toSnakeCase(v.field.name) + ": " + info.name + " = " + expr.rawExpression(initializer) + ";");
+			lines.push("    pub const " + RustImports.toScreamingSnakeCase(v.field.name) + ": " + info.name + " = " + expr.rawExpression(initializer) + ";");
 		}
 		lines.push("}");
 
