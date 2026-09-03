@@ -1,7 +1,5 @@
 package registry;
 
-using Lambda;
-
 typedef Version = { major:Int, minor:Int, patch:Int, pre:Array<String> };
 class Semver {
  static function intOf(x:String):Int { var out=0; for(i in 0...x.length) out=out*10+x.charCodeAt(i)-48; return out; }
