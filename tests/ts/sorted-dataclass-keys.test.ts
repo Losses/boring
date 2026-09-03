@@ -46,6 +46,12 @@ describe("sorted dataClass key generated trees", () => {
   if (a.text !== b.text) return a.text < b.text ? -1 : 1;
   return 0;
 }`);
+    expect(read("ts/gen/boring/SortedDataClassKeysOps.ts")).toContain(`export function compareTextRange(a: TextRange, b: TextRange): number {
+  if (a === b) return 0;
+  if (a.start !== b.start) return a.start - b.start;
+  if (a.end !== b.end) return a.end - b.end;
+  return 0;
+}`);
     expect(read("kotlin/gen/boring/SortedDataClassKeysOps.kt")).toContain(`fun compareTextRange(a: TextRange, b: TextRange): Int {
     var cmp = 0
     cmp = a.start.compareTo(b.start)
