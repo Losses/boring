@@ -2063,6 +2063,10 @@ class SwiftExpr {
 					}
 					return "substringUnits(" + s + ", " + expr(args[0]) + ", " + expr(args[1]) + ")";
 				}
+				if(name == "charAt" && isStringSubject(subj)) {
+					final s = receiverText(subj);
+					return "String(" + s + "[" + s + ".index(" + s + ".startIndex, offsetBy: Int(" + expr(args[0]) + "))])";
+				}
 				if(name == "charCodeAt" && isStringSubject(subj)) {
 					return types.resident
 						? "Int32(" + receiverText(subj) + "[Int(" + expr(args[0]) + ")])"
