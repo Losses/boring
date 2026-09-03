@@ -35,4 +35,14 @@ class CryptoTestSupport {
 	}
 
 	public static function signed32(raw:Float):Int return raw >= 2147483648 ? Std.int(raw - 4294967296) : Std.int(raw);
+
+	public static function i64Hex(value:haxe.Int64):String {
+		return wordHex(haxe.Int64.getHigh(value)) + wordHex(haxe.Int64.getLow(value));
+	}
+
+	static function wordHex(value:Int):String {
+		var s = StringTools.hex(value);
+		while (s.length < 8) s = "0" + s;
+		return s.toLowerCase();
+	}
 }
