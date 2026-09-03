@@ -150,12 +150,12 @@ class SwiftExpr {
 			case CNegativeInfinity: FloatPrecision.isF32() ? "-Float.infinity" : "-Double.infinity";
 			case CEnum(enumRef, enumField): types.of(Type.TEnum(enumRef, [])) + "." + SwiftDecl.lowerFirst(enumField.name);
 			case CParameterRead(name): name;
-			case CInstanceFieldRead(name): "self." + name;
+			case CInstanceFieldRead(name): "self." + SwiftNameEscape.escape(name);
 			case CLocalRead(name): name;
 			case CFieldAccess(CParameterRead(staticPath), ""): coalescingStaticFieldText(staticPath);
 			case CFieldAccess(receiver, fieldName): fieldName == "length"
 				? "Int32(" + coalescingDefaultText(receiver, targetType) + ".count)"
-				: coalescingDefaultText(receiver, targetType) + "." + fieldName;
+				: coalescingDefaultText(receiver, targetType) + "." + SwiftNameEscape.escape(fieldName);
 			case CMethodCall(receiver, methodName, args):
 				coalescingDefaultText(receiver, targetType) + "." + swiftMethodName(methodName) + "(" + [for(a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
 			case CStaticCall(fullPath, args):
@@ -1486,7 +1486,7 @@ class SwiftExpr {
 				// Haxe flows Null<T> into T and smart-casts after the nil
 				// guard; a field read through the optional force-unwraps
 				// here.
-				return receiverText(subj) + "." + name;
+				return receiverText(subj) + "." + SwiftNameEscape.escape(name);
 			case FDynamic(name):
 				if((name == "length" || name == "get_length") && isStringBuf(subj)) {
 					return "Int32(" + expr(subj) + ".count)";
@@ -1500,14 +1500,14 @@ class SwiftExpr {
 	function staticRef(cls: ClassType, name: String): String {
 		final valueType = ValueTypeSupport.markedAbstractOfClass(cls);
 		if(valueType != null) {
-			return valueType.name + "." + name;
+			return valueType.name + "." + SwiftNameEscape.escape(name);
 		}
 		final markedField = findStaticField(cls, name);
 		if(markedField != null && StaticFunctionMarkers.isMarked(markedField)) {
 			if(markedField.isPublic) {
 				imports.value(cls.module, name);
 			}
-			return name;
+			return SwiftNameEscape.escape(name);
 		}
 		final path = cls.pack.length == 0 ? cls.name : cls.pack.join(".") + "." + cls.name;
 		final module = cls.module != "" ? cls.module : path;
@@ -2074,7 +2074,7 @@ class SwiftExpr {
 						? "Int32(" + receiverText(subj) + "[Int(" + expr(args[0]) + ")])"
 						: "unitAtOptional(" + receiverText(subj) + ", " + expr(args[0]) + ")";
 				}
-				return receiverText(subj) + "." + name + "(" + rendered + ")";
+				return receiverText(subj) + "." + SwiftNameEscape.escape(name) + "(" + rendered + ")";
 			case TField(_, FEnum(en, ef)):
 				return enumConstruct(en.get().name, ef, args);
 			case TConst(TSuper):
@@ -2476,7 +2476,7 @@ class SwiftExpr {
 			case TField(_, FStatic(c, cf)):
 				return staticRef(c.get(), cf.get().name);
 			case TField(subj, FInstance(_, _, cf)) | TField(subj, FAnon(cf)):
-				return expr(subj) + "." + cf.get().name;
+				return expr(subj) + "." + SwiftNameEscape.escape(cf.get().name);
 			case TLocal(v):
 				return localName(v);
 			case TCast(inner, _) | TMeta(_, inner) | TParenthesis(inner):
@@ -3422,7 +3422,7 @@ class SwiftExpr {
 
 	function localName(v: TVar): String {
 		if(v.name != "`") {
-			return v.name;
+			return SwiftNameEscape.escape(v.name);
 		}
 		if(hiddenNames.exists(v.id)) {
 			return hiddenNames.get(v.id);
