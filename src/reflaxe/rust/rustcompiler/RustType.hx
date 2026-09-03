@@ -68,7 +68,17 @@ class RustType {
 				}
 			case TInst(c, params):
 				final cls = c.get();
-				if(cls.isInterface) {
+				// Exception classes are represented by their payload enum in
+				// Rust.  Keeping the Haxe wrapper name here creates imports for
+				// a type that is intentionally not emitted (and leaves callers
+				// trying to return `SemverException` instead of `SemverFault`).
+				if(RustDecl.isExceptionSubclass(cls) && state.exceptionPayloads.exists(cls.module)) {
+					final payloadModule = state.exceptionPayloads.get(cls.module);
+					final payloadName = payloadModule.split(".").pop();
+					final emittedIn = state.payloadEnumModules.exists(payloadModule) ? state.payloadEnumModules.get(payloadModule) : cls.module;
+					imports.requireType(emittedIn, payloadName);
+					payloadName;
+				} else if(cls.isInterface) {
 					imports.requireType(cls.module, cls.name);
 					"Box<dyn " + cls.name + ">";
 				} else switch(pathOf(cls.pack, cls.name)) {
@@ -78,7 +88,7 @@ class RustType {
 					// store an unpaired lead.
 					case "std.StringBuf" | "StringBuf": isParam ? "&mut Vec<u16>" : "Vec<u16>";
 					case "Array":
-						isParam ? "&mut Vec<" + of(params[0]) + ">" : "Vec<" + of(params[0]) + ">";
+						isParam ? "&Vec<" + of(params[0]) + ">" : "Vec<" + of(params[0]) + ">";
 					case "haxe.io.Bytes":
 						isParam ? "&[u8]" : "Vec<u8>";
 					case "haxe.io.BytesBuffer":
