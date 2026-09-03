@@ -531,8 +531,17 @@ class DartExpr {
 				return blockLines(stmts, depth);
 			case TIf(c, t, f):
 				final guarded = nullGuardLocal(c);
-				if(guarded != null && f == null) nonNullLocals.set(guarded.id, true);
-				return ifLines(c, t, f, depth);
+				if(guarded != null && f == null && isNotNullGuard(c)) {
+					final wasProven = nonNullLocals.exists(guarded.id);
+					nonNullLocals.set(guarded.id, true);
+					final lines = ifLines(c, t, f, depth);
+					if(!wasProven) nonNullLocals.remove(guarded.id);
+					return lines;
+				}
+				final lines = ifLines(c, t, f, depth);
+				// A null-defaulting branch promotes its local after the branch.
+				if(guarded != null && f == null && !isNotNullGuard(c)) nonNullLocals.set(guarded.id, true);
+				return lines;
 			case TWhile(c, b, true):
 				final out = [indent(depth) + "while (" + expr(c) + ") {"];
 				for(l in blockLines(statementsOf(b), depth + 1)) out.push(l);
@@ -1249,6 +1258,16 @@ class DartExpr {
 				return map == null ? assignTarget(l) + " = " + expr(r) : expr(map.receiver) + "[" + expr(map.key) + "] = " + expr(r);
 			case OpAssignOp(inner):
 				return assignTarget(l) + " " + symbolOf(inner) + "= " + expr(r);
+			case OpBoolAnd:
+				final guarded = nullGuardLocal(l);
+				if(guarded != null && isNotNullGuard(l)) {
+					final wasProven = nonNullLocals.exists(guarded.id);
+					nonNullLocals.set(guarded.id, true);
+					final right = operand(r, op, true);
+					if(!wasProven) nonNullLocals.remove(guarded.id);
+					return operand(l, op, false) + " && " + right;
+				}
+				return operand(l, op, false) + " && " + operand(r, op, true);
 			case OpAdd:
 				if(isStringTyped(e)) {
 					return templateLiteral(l, r);
@@ -1268,6 +1287,10 @@ class DartExpr {
 				// result re-signs into i32, the wrap targets with a
 				// native 32-bit int perform in hardware.
 				return "(" + operand(l, op, false) + ".toUnsigned(32) >> " + operand(r, op, true) + ").toSigned(32)";
+			case OpLt | OpLte | OpGt | OpGte if(isStringLeafType(l.t) && isStringLeafType(r.t)):
+				final cmp = expr(l) + ".compareTo(" + expr(r) + ")";
+				final cmpOp = switch(op) { case OpLt: "<"; case OpLte: "<="; case OpGt: ">"; case OpGte: ">="; case _: "<"; };
+				return cmp + " " + cmpOp + " 0";
 			case _:
 				return operand(l, op, false) + " " + symbolOf(op) + " " + operand(r, op, true);
 		}
@@ -1282,7 +1305,13 @@ class DartExpr {
 		var rendered = expr(e);
 		// A normalized local, or one cleared by a null guard, is already
 		// non-null in the generated Dart flow.
-		if(isNullLeafType(e.t) && !provenNonNull(e) && parent != OpEq && parent != OpNotEq) rendered += "!";
+		if(isNullLeafType(e.t) && !provenNonNull(e) && parent != OpEq && parent != OpNotEq) {
+			rendered += "!";
+			switch(stripWrap(e).expr) {
+				case TLocal(v): nonNullLocals.set(v.id, true);
+				case _:
+			}
+		}
 		switch(stripWrap(e).expr) {
 			case TBinop(op, _, _):
 				final cp = precedenceOf(op);
@@ -1535,6 +1564,11 @@ class DartExpr {
 		unwrap. Optional parameters and untyped parameters keep the
 		argument as rendered.
 	**/
+	function requiredValueText(e: TypedExpr): String {
+		if(!isNullLeafType(e.t) || provenNonNull(e)) return expr(e);
+		return expr(e) + "!";
+	}
+
 	function argTexts(fn: TypedExpr, args: Array<TypedExpr>): Array<String> {
 		final paramTypes: Array<Null<Type>> = switch(fn.expr) {
 			case TField(_, FInstance(_, _, cf)) | TField(_, FStatic(_, cf)):
@@ -1545,14 +1579,13 @@ class DartExpr {
 			case _:
 				[for(_ in args) null];
 		};
-		return [
-			for(i in 0...args.length) {
-				final a = args[i];
-				final pt = i < paramTypes.length ? paramTypes[i] : null;
-				final demandsValue = pt != null && !isNullLeafType(pt);
-				demandsValue && optionalValued(a) && !isLocalExpr(a) ? expr(a) + "!" : expr(a);
-			}
-		];
+		final rendered = [for(i in 0...args.length) {
+			final a = args[i];
+			final pt = i < paramTypes.length ? paramTypes[i] : null;
+			final demandsValue = pt != null && !isNullLeafType(pt);
+			(demandsValue && isNullLeafType(a.t)) ? requiredValueText(a) : (demandsValue && optionalValued(a) && !isLocalExpr(a) ? expr(a) + "!" : expr(a));
+		}];
+		return rendered;
 	}
 
 	/** A method receiver unwraps when the receiver expression is optional. */
@@ -1780,6 +1813,12 @@ class DartExpr {
 				if(cls.pack.length == 0 && cls.name == "StringTools" && fName == "trim") {
 					return expr(args[0]) + ".trim()";
 				}
+				if(cls.pack.length == 0 && cls.name == "StringTools" && (fName == "startsWith" || fName == "endsWith") && args.length == 2) {
+					return renderedArgs[0] + "." + fName + "(" + renderedArgs[1] + ")";
+				}
+				if(cls.pack.length == 0 && cls.name == "Lambda" && fName == "has" && args.length == 2) {
+					return renderedArgs[0] + ".contains(" + renderedArgs[1] + ")";
+				}
 				final markedField = findStaticField(cls, fName);
 				if(markedField != null && StaticFunctionMarkers.isMarked(markedField)) {
 					final nativeName = markedField.isPublic ? fName : "_" + fName;
@@ -1820,7 +1859,7 @@ class DartExpr {
 				if(module == "String" && cls.pack.length == 0 && fName == "fromCharCode") {
 					// Dart's factory encodes a supplementary scalar as its
 					// pair, the Haxe semantics for the valid domain.
-					return "String.fromCharCode(" + expr(args[0]) + ")";
+					return "String.fromCharCode(" + requiredValueText(args[0]) + ")";
 				}
 				if(module == "Std") {
 					final s = expr(args[0]);
@@ -1929,6 +1968,9 @@ class DartExpr {
 				if(name == "slice") {
 					return receiverText(subj) + ".sublist(" + expr(args[0]) + ", " + expr(args[1]) + ")";
 				}
+				if(name == "indexOf" && isStringSubject(subj) && args.length >= 1) {
+					return receiverText(subj) + ".indexOf(" + renderedArgs[0] + ")";
+				}
 				if(name == "substring" && isStringSubject(subj)) {
 					// The haxe typer passes a synthesized null for an
 					// omitted ?endIndex; the native suffix overload
@@ -1943,6 +1985,9 @@ class DartExpr {
 					}
 					return "(() { final _s = " + receiverText(subj) + "; final _from = " + expr(args[0]) + "; final _to = " + expr(args[1])
 						+ "; final _start = _from < 0 ? 0 : (_from > _s.length ? _s.length : _from); final _end = _to < 0 ? 0 : (_to > _s.length ? _s.length : _to); return _start > _end ? _s.substring(_end, _start) : _s.substring(_start, _end); })()";
+				}
+				if(name == "charAt" && isStringSubject(subj)) {
+					return receiverText(subj) + "[" + expr(args[0]) + "]";
 				}
 				if(name == "charCodeAt" && isStringSubject(subj)) {
 					// stdlib/15: evaluate receiver and index once; an out-of-range
@@ -2989,10 +3034,17 @@ class DartExpr {
 		};
 	}
 
+	function isNotNullGuard(e: TypedExpr): Bool {
+		return switch(stripWrap(e).expr) {
+			case TBinop(OpNotEq, _, _): true;
+			case _: false;
+		};
+	}
+
 	function nullGuardLocal(e:Null<TypedExpr>):Null<TVar> {
 		if(e == null) return null;
 		return switch(stripWrap(e).expr) {
-			case TBinop(OpEq, l, r):
+			case TBinop(OpEq, l, r) | TBinop(OpNotEq, l, r):
 				switch(stripWrap(r).expr) {
 					case TConst(TNull): switch(stripWrap(l).expr) { case TLocal(v): v; case _: null; }
 					case _: switch(stripWrap(l).expr) { case TConst(TNull): switch(stripWrap(r).expr) { case TLocal(v): v; case _: null; }; case _: null; }
