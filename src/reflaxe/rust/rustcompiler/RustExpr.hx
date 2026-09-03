@@ -2631,8 +2631,7 @@ class RustExpr {
 				return "((" + operand(l, op, false) + ") / (" + operand(r, op, true) + " as usize)) as u32";
 			case OpMult | OpAdd | OpSub if(isIntType(e.t) && !inGenericFunction && !isGenericLocal(l) && !isClosureParam(l) && !RustType.isTypeParam(currentReturnType) && !RustType.isTypeParam(e.t) && !RustType.isTypeParam(l.t) && !RustType.isTypeParam(r.t)):
 				final wrapDomain = (i32LocalDomain(l) || i32LocalDomain(r) || i32InitializerTarget || i32ComparisonTarget) ? "i32" : types.of(e.t);
-				final castSuffix = i32ComparisonTarget ? "" : " as " + wrapDomain;
-				return wrapDomain + "::" + wrappingMethod(op) + "(" + wrappingArg(l, op, false) + castSuffix + ", " + wrappingArg(r, op, true) + castSuffix + ")";
+				return wrapDomain + "::" + wrappingMethod(op) + "(" + wrappingArg(l, op, false) + wrappingCastSuffix(l, wrapDomain, true) + ", " + wrappingArg(r, op, true) + wrappingCastSuffix(r, wrapDomain, false) + ")";
 			case OpMult | OpAdd | OpSub | OpDiv if(isFloatType(e.t)):
 				final real = FloatPrecision.isF32() ? "f32" : "f64";
 				final lStr = if(isIntType(l.t)) "((" + operand(l, op, false) + ") as " + real + ")" else operand(l, op, false);
@@ -4202,6 +4201,19 @@ class RustExpr {
 		};
 	}
 
+	// Unsigned wrapping keeps the historical form: the left operand carries
+	// the boundary cast, the right operand stays bare. Signed wrapping casts
+	// an operand only when it crosses domains; i32-domain locals and integer
+	// literals assign to i32 without a cast.
+	function wrappingCastSuffix(e: TypedExpr, wrapDomain: String, isLeft: Bool): String {
+		if(wrapDomain != "i32") return isLeft ? " as " + wrapDomain : "";
+		if(i32ComparisonTarget || i32LocalDomain(e)) return "";
+		switch(stripWrap(e).expr) {
+			case TConst(TInt(_)): return "";
+			case _:
+		}
+		return " as i32";
+	}
 	function wrappingArg(e: TypedExpr, parent: Binop, isRight: Bool): String {
 		final value = operand(e, parent, isRight);
 		return StringTools.startsWith(value, "(") && StringTools.endsWith(value, ")") ? value.substr(1, value.length - 2) : value;
