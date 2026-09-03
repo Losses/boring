@@ -181,8 +181,6 @@ class RustDecl {
 		}
 		if(cls.module.indexOf("registry.") == 0) {
 			lines.push("#[derive(Debug, Clone, PartialEq)]");
-		} else if(state.cloneRequiredTypes.exists(cls.module)) {
-			lines.push("#[derive(Clone)]");
 		}
 		lines.push("pub struct " + cls.name + genericStr + " {");
 		for(v in varFields) {
