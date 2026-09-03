@@ -42,7 +42,7 @@ class Xxh64 {
 	}
 
 	public function digest():Int64 {
-		var h:Int64;
+		var h:Int64 = Int64.ofInt(0);
 		if (large) {
 			h = rotl(v1,1) + rotl(v2,7) + rotl(v3,12) + rotl(v4,18);
 			h = merge(h,v1); h = merge(h,v2); h = merge(h,v3); h = merge(h,v4);
