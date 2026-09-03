@@ -476,7 +476,7 @@ class RustExpr {
 				switch(stripWrap(init).expr) {
 					case TField(subj, FInstance(_, _, cf)) | TField(subj, FAnon(cf)):
 						switch(stripWrap(subj).expr) {
-							case TLocal(item) if(borrowedLoopVarIds.exists(item.id) && !isTypeCopy(cf.get().type)):
+							case TLocal(item) if((borrowedLoopVarIds.exists(item.id) || readsAfterDeclaration.exists(item.id)) && !isTypeCopy(cf.get().type)):
 								initStr += ".clone()";
 							case _:
 						}
@@ -4183,6 +4183,12 @@ class RustExpr {
 					switch(stmts[i].expr) {
 						case TVar(_, init) if(init != null):
 							switch(stripWrap(init).expr) {
+								case TLocal(source):
+									for(j in (i + 1)...stmts.length) if(mentionsLocal(stmts[j], source)) { readsAfterDeclaration.set(source.id, true); break; }
+								case _:
+							}
+						case TField(subj, _):
+							switch(stripWrap(subj).expr) {
 								case TLocal(source):
 									for(j in (i + 1)...stmts.length) if(mentionsLocal(stmts[j], source)) { readsAfterDeclaration.set(source.id, true); break; }
 								case _:
