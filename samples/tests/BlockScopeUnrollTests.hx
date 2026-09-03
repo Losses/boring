@@ -41,7 +41,9 @@ class BlockScopeUnrollTests {
 
 private class BlockScopeUnrollSupport {
 	public static function firstAboveFive():Int {
-		for (step in [1, 3, 7, 31]) { if (step > 5) return step; }
+		for (step in [1, 3, 7, 31]) { if (step > threshold()) return step; }
 		return 0;
 	}
+
+	public static function threshold():Int return 5;
 }
