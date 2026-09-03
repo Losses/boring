@@ -3068,7 +3068,7 @@ class SwiftExpr {
 	function splitConcat(e: TypedExpr): String {
 		final leaves:Array<TypedExpr> = [];
 		flattenAdd(e, leaves);
-		final declarations = [for(i in 0...leaves.length) "let p" + i + " = " + expr(leaves[i])].join("; ");
+		final declarations = [for(i in 0...leaves.length) "let p" + i + " = " + (containsThrowingCall(leaves[i]) ? "try " : "") + expr(leaves[i])].join("; ");
 		return "{ " + declarations + "; return " + [for(i in 0...leaves.length) "p" + i].join(" + ") + " }()";
 	}
 
@@ -3079,8 +3079,8 @@ class SwiftExpr {
 		leaves.push(r);
 		if(types.resident) {
 			imports.runtimeTest("TestCore");
-			return "{ let p0 = " + residentConcatLeaf(leaves[0]) + "; "
-				+ [for(i in 1...leaves.length) "let p" + i + " = " + residentConcatLeaf(leaves[i]) + "; "].join("")
+			return "{ let p0 = " + (containsThrowingCall(leaves[0]) ? "try " : "") + residentConcatLeaf(leaves[0]) + "; "
+				+ [for(i in 1...leaves.length) "let p" + i + " = " + (containsThrowingCall(leaves[i]) ? "try " : "") + residentConcatLeaf(leaves[i]) + "; "].join("")
 				+ "return " + [for(i in 0...leaves.length) "p" + i].join(" + ") + " }()";
 		}
 		var allStrings = true;
@@ -3095,7 +3095,7 @@ class SwiftExpr {
 			}
 		}
 		if(allStrings && leaves.length >= 4) {
-			final declarations = [for(i in 0...leaves.length) "let p" + i + " = " + expr(leaves[i])].join("; ");
+			final declarations = [for(i in 0...leaves.length) "let p" + i + " = " + (containsThrowingCall(leaves[i]) ? "try " : "") + expr(leaves[i])].join("; ");
 			return "{ " + declarations + "; return " + [for(i in 0...leaves.length) "p" + i].join(" + ") + " }()";
 		}
 		if(allStrings) {
