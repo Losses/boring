@@ -1237,7 +1237,7 @@ class SwiftExpr {
 				return floatAware(operand(l, op, false), l) + " / " + floatAware(operand(r, op, true), r);
 			case OpEq | OpNotEq:
 				final nullSide = isNullConstant(l) || isNullConstant(r);
-				return (nullSide ? expr(l) : operand(l, op, false)) + " " + symbolOf(op, l, r) + " " + (nullSide ? expr(r) : operand(r, op, true));
+				return (nullSide ? expr(l) : operand(l, op, false, true)) + " " + symbolOf(op, l, r) + " " + (nullSide ? expr(r) : operand(r, op, true, true));
 			case _:
 				// Haxe mixes Int into Float arithmetic and comparison
 				// with promotion; Swift has no implicit conversion, so
@@ -1359,10 +1359,10 @@ class SwiftExpr {
 		};
 	}
 
-	function operand(e: TypedExpr, parent: Binop, isRight: Bool): String {
+	function operand(e: TypedExpr, parent: Binop, isRight: Bool, suppressUnwrap: Bool = false): String {
 		final rendered = switch(stripWrap(e).expr) {
 			case TConst(TNull): expr(e);
-			case _: isLocalOptional(e) || (isStringCharCodeAt(e) && !types.resident) ? "(" + expr(e) + ")!" : expr(e);
+			case _: !suppressUnwrap && (isLocalOptional(e) || (isStringCharCodeAt(e) && !types.resident)) ? "(" + expr(e) + ")!" : expr(e);
 		};
 		switch(stripWrap(e).expr) {
 			case TBinop(op, _, _):
