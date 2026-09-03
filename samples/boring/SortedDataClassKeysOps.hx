@@ -51,4 +51,31 @@ class SortedDataClassKeysOps {
 		final rm = r.build();
 		return m.valueAt(0) + "," + m.valueAt(1) + ";" + qm.valueAt(0) + "," + qm.valueAt(1) + ";" + rm.valueAt(0) + "," + rm.valueAt(1);
 	}
+
+	public static function arrayMutations():String {
+		final a = new RubySpan(new TextRange(1, 2), "x", ["serif"], RubyKind.Other, [RubyKind.Bopomofo, RubyKind.Other], [new TextRange(1, 2)]);
+		final b = new RubySpan(new TextRange(1, 2), "x", ["serif"], RubyKind.Other, [RubyKind.Other, RubyKind.Other], [new TextRange(1, 2)]);
+		final beforeBuilder:SortedMapBuilder<RubySpan, String> = SortedMap.builder();
+		beforeBuilder.put(a, "a"); beforeBuilder.put(b, "b");
+		final before = beforeBuilder.build();
+		final c = new RubySpan(new TextRange(1, 2), "x", ["serif"], RubyKind.Other, [RubyKind.Other, RubyKind.Other], [new TextRange(1, 2)]);
+		final d = new RubySpan(new TextRange(1, 2), "x", ["serif"], RubyKind.Other, [RubyKind.Bopomofo, RubyKind.Other], [new TextRange(1, 2)]);
+		final afterBuilder:SortedMapBuilder<RubySpan, String> = SortedMap.builder();
+		afterBuilder.put(c, "c"); afterBuilder.put(d, "d");
+		final after = afterBuilder.build();
+		final prefixBuilder:SortedMapBuilder<RubySpan, String> = SortedMap.builder();
+		prefixBuilder.put(new RubySpan(new TextRange(1, 2), "x", ["serif"], RubyKind.Other, [RubyKind.Other, RubyKind.Bopomofo], [new TextRange(1, 2)]), "long");
+		prefixBuilder.put(new RubySpan(new TextRange(1, 2), "x", ["serif"], RubyKind.Other, [RubyKind.Other], [new TextRange(1, 2)]), "short");
+		final prefix = prefixBuilder.build();
+		return before.valueAt(0) + before.valueAt(1) + ";" + after.valueAt(0) + after.valueAt(1) + ";" + prefix.valueAt(0) + (prefix.size() == 2 ? "long" : "missing");
+	}
+
+	public static function nullableMutation():String {
+		final nullKey = new RubySpan(new TextRange(1, 2), "x", ["serif"], RubyKind.Other, [RubyKind.Other], [new TextRange(1, 2)]);
+		final valueKey = new RubySpan(new TextRange(1, 2), "x", ["serif"], RubyKind.Other, [RubyKind.Other], [new TextRange(1, 2)], "en");
+		final mapBuilder:SortedMapBuilder<RubySpan, String> = SortedMap.builder();
+		mapBuilder.put(valueKey, "value"); mapBuilder.put(nullKey, "null");
+		final map = mapBuilder.build();
+		return map.valueAt(0) + ";" + (map.size() == 2 ? "value" : "missing");
+	}
 }

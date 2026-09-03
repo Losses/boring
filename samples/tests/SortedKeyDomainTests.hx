@@ -2,6 +2,7 @@ package tests;
 
 import boring.ClusterTags;
 import boring.ScriptNames;
+import boring.SortedDataClassKeysOps;
 import std.SortedMap;
 import std.SortedSet;
 import std.Test;
@@ -33,6 +34,17 @@ class SortedKeyDomainTests {
 	public static function testStructureKeyOrder():Void {
 		final expected = "alpha:10:1:F=500; alpha:10:1:T=400; alpha:10:3:T=300; alpha:20:2:F=200; beta:10:1:T=100";
 		Test.equals(expected, ClusterTags.describeOrder(), "Structure key traversal matches field declaration order");
+	}
+
+	@:test("DataClass array and nullable key evidence")
+	public static function testDataClassKeyEvidence():Void {
+		Test.equals("ab;dc;shortlong", SortedDataClassKeysOps.arrayMutations(), "array element and prefix ordering");
+		Test.equals("null;value", SortedDataClassKeysOps.nullableMutation(), "null sorts before non-null");
+	}
+
+	@:test("DataClass generated entries cover nested enum and arrays")
+	public static function testDataClassGeneratedEntries():Void {
+		Test.equals("a,b;close,open;nested-first,nested", SortedDataClassKeysOps.read(), "dataClass maps read in key order");
 	}
 
 	@:test("Structure key lookup hits and misses")
