@@ -309,6 +309,25 @@ class DartExpr {
 		// Pipeline expansion emits counted-map allocation and loop as a pair;
 		// run the same Dart fill fusion here as in ordinary statement blocks.
 		final statements = statementsOf(f.expr);
+		// Count direct parameter-to-field assignments before selecting
+		// initializing formals. A parameter assigned to multiple fields must
+		// remain named so every initializer is preserved.
+		final parameterFields = new Map<String, Array<String>>();
+		for(stmt in statements) switch(stmt.expr) {
+			case TBinop(OpAssign, target, value):
+				switch(stripWrap(target).expr) {
+					case TField({expr: TConst(TThis)}, FInstance(owner, _, cf)):
+						final param = paramLocalOf(value, f);
+						if(param != null) {
+							final field = memberName(owner.get().module, cf, stmt.pos);
+							var fields = parameterFields.get(param);
+							if(fields == null) { fields = []; parameterFields.set(param, fields); }
+							if(fields.indexOf(field) < 0) fields.push(field);
+						}
+					case _:
+				}
+			case _:
+		}
 		var statementIndex = 0;
 		while(statementIndex < statements.length) {
 			// The expander's counted loop is flat in a constructor body. Pack
@@ -347,8 +366,10 @@ class DartExpr {
 							final field = memberName(owner.get().module, cf, stmt.pos);
 							final param = paramLocalOf(value, f);
 							final valueText = expr(value);
-							if(param != null) {
+							if(param != null && parameterFields.exists(param) && parameterFields.get(param).length == 1) {
 								formalFields.set(param, field);
+							} else if(param != null && parameterFields.exists(param) && parameterFields.get(param).length > 1) {
+								fieldInits.push(field + " = " + valueText);
 							} else if(mentionsConstructorLocalExpr(value, constructorLocals)) {
 								for(l in stmtLines(stmt, 2)) body.push(l);
 								statementIndex++;
@@ -528,7 +549,10 @@ class DartExpr {
 				// initialization assigns it on every path before use.
 				return [indent(depth) + types.of(v.t) + " " + localName(v)];
 			case TBlock(stmts):
-				return blockLines(stmts, depth);
+				final out = [indent(depth) + "{"];
+				for(l in blockLines(stmts, depth + 1)) out.push(l);
+				out.push(indent(depth) + "}");
+				return out;
 			case TIf(c, t, f):
 				final guarded = nullGuardLocal(c);
 				if(guarded != null && f == null && isNotNullGuard(c)) {
@@ -1722,7 +1746,9 @@ class DartExpr {
 			Context.error("StringTools.hex accepts non-negative arguments only", value.pos);
 		}
 		final valueText = "(" + expr(value) + ")";
-		final hex = valueText + ".toRadixString(16).toUpperCase()";
+		// `hex` reads its argument as u32; a negative int must pass the
+		// unsigned view or toRadixString prints a sign (numbers ruling).
+		final hex = valueText + ".toUnsigned(32).toRadixString(16).toUpperCase()";
 		return digits == null ? hex : hex + ".padLeft(" + expr(digits) + ", \"0\")";
 	}
 
