@@ -4738,7 +4738,8 @@ class RustExpr {
 					}
 				} else if(isRecordValueType(arg.t) && switch(stripWrap(arg).expr) { case TLocal(_): true; case _: false; }) {
 					argStr = "(" + argStr + ").clone()";
-				} else if(!isPassByRef(pt) && !isTypeCopy(arg.t) && !StringTools.startsWith(argStr, "&")
+				} else if(!isPassByRef(pt) && !isTypeCopy(arg.t) && !isTemporaryOwnedExpr(arg)
+					&& !StringTools.startsWith(argStr, "&")
 					&& !StringTools.endsWith(argStr, ".clone()") && !StringTools.endsWith(argStr, ".to_vec()")
 					&& !StringTools.endsWith(argStr, ".to_string()")) {
 					final provenEnum = switch(stripWrap(arg).expr) {
@@ -4767,6 +4768,13 @@ class RustExpr {
 			rendered.push(argStr);
 		}
 		return rendered.join(", ");
+	}
+
+	function isTemporaryOwnedExpr(e: TypedExpr): Bool {
+		return switch(stripWrap(e).expr) {
+			case TFunction(_) | TNew(_, _, _) | TObjectDecl(_): true;
+			case _: false;
+		};
 	}
 
 	function isUsizeExpr(e: TypedExpr): Bool {
