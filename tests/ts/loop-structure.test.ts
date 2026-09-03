@@ -274,8 +274,14 @@ async function scanTree(tree: SourceTree): Promise<LoopHit[]> {
     for (const loop of loopBodies(text)) {
       if (bodyHasLambda(tree, loop.body)) {
         // stdlib/12 recursively renders a nested array with the ruled
-        // immediately-invoked single-pass builder as its element expression.
-        if ((path.endsWith("/boring/StdStringOps.ts") || path.endsWith("/boring/PrintedCollection.ts")) && loop.body.includes('out += (() => { let out = "[";')) {
+        // immediately-invoked single-pass builder as its element expression;
+        // feature spec 34 ruling 3 routes an enum's array argument through
+        // the same builder inside a labeled arm, so the builder may sit
+        // inside a concatenation and not only directly after `out += `.
+        if (
+          (path.endsWith("/boring/StdStringOps.ts") || path.endsWith("/boring/PrintedCollection.ts") ||
+            path.endsWith("/boring/PrintedEnumOps.ts")) && loop.body.includes('(() => { let out = "[";')
+        ) {
           continue;
         }
         hits.push({
