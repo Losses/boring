@@ -51,9 +51,9 @@ describe("arithmetic helpers generated tree", () => {
 
     expect(content).not.toContain("Arithmetic::");
     expect(content).not.toContain("IntRange");
-    expect(content).toContain("return value >= low && value <= high;");
-    expect(content).toContain("return if value < floor { floor } else { value };");
-    expect(content).toContain("return if value > ceiling { ceiling } else { value };");
-    expect(content).toContain("return value >= range_start && value <= range_end;");
+    expect(content).toContain("return (value) >= (low) && (value) <= (high);");
+    expect(content).toContain("return if (value) < (floor) { floor } else { value };");
+    expect(content).toContain("return if (value) > (ceiling) { ceiling } else { value };");
+    expect(content).toContain("return (value) >= (range_start) && (value) <= (range_end);");
   });
 });
