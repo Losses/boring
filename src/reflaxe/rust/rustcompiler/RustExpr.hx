@@ -3667,11 +3667,12 @@ class RustExpr {
 				if(cls.module == "Math" && name == "isFinite") return "(" + expr(args[0]) + ").is_finite()";
 				if(cls.module == "Std" && name == "parseFloat") {
 					final real = FloatPrecision.isF32() ? "f32" : "f64";
-					final nan = FloatPrecision.isF32() ? "f32::NAN" : "f64::NAN";
-					return "(" + expr(args[0]) + ").trim().parse::<" + real + ">().unwrap_or(" + nan + ")";
+					imports.require("crate::runtime::u_string");
+					return "u_string::parse_" + real + "(&(" + expr(args[0]) + "))";
 				}
 				if(cls.module == "Std" && name == "parseInt") {
-					return "(" + expr(args[0]) + ").trim().parse::<i32>().ok()";
+					imports.require("crate::runtime::u_string");
+					return "u_string::parse_i32(&(" + expr(args[0]) + "))";
 				}
 				if(cls.pack.join(".") == "std" && cls.name == "Process" && name == "exit") {
 					imports.require("std::process::exit");
