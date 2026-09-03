@@ -332,8 +332,6 @@ class TsExpr {
 				return tryBindingLines(v, init, depth);
 			case TVar(v, init) if(init != null && isStringBufToStringCall(init)):
 				return stringBufToStringBindingLines(v, stripWrap(init), depth);
-			case TVar(v, init) if(init != null && isLiteral(init) && mutated.exists(v.id)):
-				return [indent(depth) + "let " + localName(v) + ": " + types.of(v.t) + ";"];
 			case TVar(v, init) if(init != null):
 				final kw = mutated.exists(v.id) ? "let" : "const";
 				final initText = switch(init.expr) {
@@ -2027,12 +2025,6 @@ class TsExpr {
 		the exception class (features/06). The non-matching arm rethrows the
 		caught value unchanged.
 	**/
-	function isLiteral(e: TypedExpr): Bool {
-		return switch(stripWrap(e).expr) {
-			case TConst(TInt(_) | TFloat(_) | TString(_) | TBool(_) | TNull): true;
-			case _: false;
-		};
-	}
 	function isTryRegion(e: Null<TypedExpr>): Bool {
 		if(e == null) return false;
 		return switch(stripWrap(e).expr) {
