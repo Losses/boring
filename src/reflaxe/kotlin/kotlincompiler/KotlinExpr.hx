@@ -1925,6 +1925,12 @@ class KotlinExpr {
 				if(cls.pack.length == 0 && cls.name == "StringTools" && name == "trim" && args.length == 1) {
 					return expr(args[0]) + ".trim()";
 				}
+				if(cls.pack.length == 0 && cls.name == "StringTools" && (name == "startsWith" || name == "endsWith") && args.length == 2) {
+					return expr(args[0]) + "." + name + "(" + expr(args[1]) + ")";
+				}
+				if(cls.pack.length == 0 && cls.name == "Lambda" && name == "has" && args.length == 2) {
+					return expr(args[0]) + ".contains(" + expr(args[1]) + ")";
+				}
 				if(cls.module == "Math" && name == "isNaN") return "(" + expr(args[0]) + ").isNaN()";
 				if(cls.module == "Math" && name == "isFinite") return "(" + expr(args[0]) + ").isFinite()";
 				if(cls.module == "Std" && (name == "parseFloat" || name == "parseInt") && args.length == 1) {
@@ -2064,6 +2070,9 @@ class KotlinExpr {
 					// platform bounds check explicit so the result is Null<Int>.
 					return "run { val _s = " + expr(subj) + "; val _i = " + expr(args[0])
 						+ "; if (_i >= 0 && _i < _s.length) _s[_i].code else null }";
+				}
+				if(name == "indexOf" && isString(stripCast(subj)) && args.length >= 1) {
+					return expr(subj) + ".indexOf(" + expr(args[0]) + ")";
 				}
 				if(name == "substring" && isString(stripCast(subj))) {
 					// The haxe typer passes a synthesized null for an
