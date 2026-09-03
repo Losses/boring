@@ -3,12 +3,47 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 
 describe("sorted dataClass key generated trees", () => {
+  test("pins dataClass computed key properties", () => {
+    const read = (relative: string) => fs.readFileSync(path.resolve(__dirname, "../../reference", relative), "utf8");
+    expect(read("ts/gen/boring/SortedDataClassKeysOps.ts")).toContain(`public get isEmpty(): boolean {
+    return this.get_isEmpty();
+  }`);
+    expect(read("ts/gen/boring/SortedDataClassKeysOps.ts")).toContain(`export function compareRubySpan(a: RubySpan, b: RubySpan): number {
+  if (a === b) return 0;
+  { const cmp = compareTextRange(a.baseRange, b.baseRange); if (cmp !== 0) return cmp; }
+  if (a.text !== b.text) return a.text < b.text ? -1 : 1;
+  return 0;
+}`);
+    expect(read("kotlin/gen/boring/SortedDataClassKeysOps.kt")).toContain(`val isEmpty: Boolean get() = get_isEmpty()`);
+    expect(read("kotlin/gen/boring/SortedDataClassKeysOps.kt")).toContain(`cmp = a.start.compareTo(b.start)
+    if (cmp != 0) return cmp
+    cmp = a.end.compareTo(b.end)
+    if (cmp != 0) return cmp
+    return 0`);
+    expect(read("swift/gen/boring/SortedDataClassKeysOps.swift")).toContain(`var isEmpty: Bool { get_isEmpty() }`);
+    expect(read("swift/gen/boring/SortedDataClassKeysOps.swift")).toContain(`if a.start != b.start { return a.start - b.start }
+    if a.end != b.end { return a.end - b.end }
+    return 0`);
+    expect(read("rust-gen/src/boring/sorted_data_class_keys_ops.rs")).toContain(`pub fn get_is_empty(&self) -> bool {
+        return self.start == self.end;
+    }`);
+    expect(read("rust-gen/src/boring/sorted_data_class_keys_ops.rs")).toContain(`let cmp_start = a.start.cmp(&b.start) as i32;
+    if cmp_start != 0 { return cmp_start; }
+    let cmp_end = a.end.cmp(&b.end) as i32;
+    if cmp_end != 0 { return cmp_end; }
+    0`);
+    expect(read("dart/gen/lib/boring/sorted_data_class_keys_ops.dart")).toContain(`bool get isEmpty => get_isEmpty();`);
+    expect(read("dart/gen/lib/boring/sorted_data_class_keys_ops.dart")).toContain(`if (a.start != b.start) return a.start - b.start;
+  if (a.end != b.end) return a.end - b.end;
+  return 0;`);
+  });
+
   test("pins resident comparators", () => {
     const read = (relative: string) => fs.readFileSync(path.resolve(__dirname, "../../reference", relative), "utf8");
-    expect(read("ts/gen/boring/SortedDataClassKeysOps.ts")).toContain(`export function compareTextRange(a: TextRange, b: TextRange): number {
+    expect(read("ts/gen/boring/SortedDataClassKeysOps.ts")).toContain(`export function compareRubySpan(a: RubySpan, b: RubySpan): number {
   if (a === b) return 0;
-  if (a.start !== b.start) return a.start - b.start;
-  if (a.end !== b.end) return a.end - b.end;
+  { const cmp = compareTextRange(a.baseRange, b.baseRange); if (cmp !== 0) return cmp; }
+  if (a.text !== b.text) return a.text < b.text ? -1 : 1;
   return 0;
 }`);
     expect(read("kotlin/gen/boring/SortedDataClassKeysOps.kt")).toContain(`fun compareTextRange(a: TextRange, b: TextRange): Int {
