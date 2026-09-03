@@ -1997,8 +1997,8 @@ class SwiftExpr {
 				}
 				if(name == "split" && isStringSubject(subj)) {
 					return types.resident
-						? receiverText(subj) + ".split(separator: " + expr(args[0]) + ".first!).map { Array($0) }"
-						: receiverText(subj) + ".split(separator: " + expr(args[0]) + ").map { String($0) }";
+						? receiverText(subj) + ".split(separator: " + expr(args[0]) + ".first!, omittingEmptySubsequences: false).map { Array($0) }"
+						: receiverText(subj) + ".split(separator: " + expr(args[0]) + ", omittingEmptySubsequences: false).map { String($0) }";
 				}
 				if(name == "push") {
 					return receiverText(subj) + ".append(" + optionalExpr(args[0]) + ")";
