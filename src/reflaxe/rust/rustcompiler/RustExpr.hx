@@ -577,7 +577,10 @@ class RustExpr {
 				final kw = "let ";
 				return [indent(depth) + kw + name + ": " + types.of(v.t, false) + ";"];
 			case TBlock(stmts):
-				return blockLines(stmts, depth);
+				final out = [indent(depth) + "{"];
+				for(l in blockLines(stmts, depth + 1)) out.push(l);
+				out.push(indent(depth) + "}");
+				return out;
 			case TIf(c, t, f):
 				var condStr = expr(c);
 				while(StringTools.startsWith(condStr, "(") && StringTools.endsWith(condStr, ")") && matchingParens(condStr)) {
@@ -681,6 +684,10 @@ class RustExpr {
 				return stringBufMutationLines(fn, args, depth);
 			case TMeta(_, inner):
 				return stmtLines(inner, depth);
+			case TUnop(OpIncrement, _, subj):
+				return [indent(depth) + expr(subj) + " += 1;"];
+			case TUnop(OpDecrement, _, subj):
+				return [indent(depth) + expr(subj) + " -= 1;"];
 			case _:
 				return [indent(depth) + expr(e) + ";"];
 		}
@@ -2643,12 +2650,20 @@ class RustExpr {
 				}
 				return (isInt64Type(l.t) || isInt64Type(r.t) ? "(" + expr(l) + ") & (" + expr(r) + ")" : operand(l, op, false) + " & " + operand(r, op, true));
 			case OpOr | OpXor if(isInt64Type(l.t) || isInt64Type(r.t)):
-				return "(" + expr(l) + ") " + symbolOf(op) + " (" + expr(r) + ")";
+				return expr(l) + " " + symbolOf(op) + " " + expr(r);
 			case OpUShr:
 				// The u32 domain makes Rust >> the logical shift; operand()
 				// re-adds grouping parens by precedence, so a bare shift
 				// initializer carries no outer parentheses.
 				return operand(l, op, false) + " >> " + operand(r, op, true);
+			case OpShl:
+				// Rust parses an unparenthesized cast immediately followed by
+				// `<` as generic arguments (`x as u32 << y`), the same trap the
+				// comparison case below groups around.  operand() decides by
+				// precedence alone, which lets a path-call shift RHS through
+				// bare (`as u32 << u32::wrapping_add(...)`), so group both
+				// operands unconditionally.
+				return "(" + operand(l, op, false) + ") << (" + operand(r, op, true) + ")";
 			case OpLt if(isZero(r) && isUnsignedOperand(l)):
 				return "(" + operand(l, op, false) + ") > 2147483647";
 			case OpSub:
@@ -2737,8 +2752,8 @@ class RustExpr {
 			case OpNot: return "!" + inner;
 			case OpNegBits: return "!" + inner;
 			case OpNeg: return "-" + inner;
-			case OpIncrement: return inner + " += 1";
-			case OpDecrement: return inner + " -= 1";
+			case OpIncrement: return post ? "({ let t = " + inner + "; " + inner + " += 1; t })" : "({ " + inner + " += 1; " + inner + " })";
+			case OpDecrement: return post ? "({ let t = " + inner + "; " + inner + " -= 1; t })" : "({ " + inner + " -= 1; " + inner + " })";
 			case _:
 				return fail(e, "unary operator has no lowering: " + Std.string(op));
 		}
@@ -2765,9 +2780,9 @@ class RustExpr {
 					case "sub" if(args.length == 2): expr(args[0]) + ".wrapping_sub(" + expr(args[1]) + ")";
 					case "mul" if(args.length == 2): "(" + expr(args[0]) + ").wrapping_mul(" + expr(args[1]) + ")";
 					case "mulInt" if(args.length == 2): "(" + expr(args[0]) + ").wrapping_mul(i64::from(" + expr(args[1]) + "))";
-					case "and" if(args.length == 2): "(" + expr(args[0]) + " & " + expr(args[1]) + ")";
-					case "or" if(args.length == 2): "(" + expr(args[0]) + " | " + expr(args[1]) + ")";
-					case "xor" if(args.length == 2): "(" + expr(args[0]) + " ^ " + expr(args[1]) + ")";
+					case "and" if(args.length == 2): expr(args[0]) + " & " + expr(args[1]);
+					case "or" if(args.length == 2): expr(args[0]) + " | " + expr(args[1]);
+					case "xor" if(args.length == 2): expr(args[0]) + " ^ " + expr(args[1]);
 					case "complement" if(args.length == 1): "!" + expr(args[0]);
 					case "shl" if(args.length == 2): expr(args[0]) + ".wrapping_shl(" + expr(args[1]) + " as u32)";
 					case "shr" if(args.length == 2): expr(args[0]) + ".wrapping_shr(" + expr(args[1]) + " as u32)";
@@ -3022,7 +3037,7 @@ class RustExpr {
 		final valueType = ValueTypeSupport.markedAbstractOfClass(cls);
 		if(valueType != null) {
 			imports.requireType(valueType.module, valueType.name);
-			return valueType.name + "::" + RustImports.toSnakeCase(name);
+			return valueType.name + "::" + RustImports.toScreamingSnakeCase(name);
 		}
 		final markedField = findStaticField(cls, name);
 		if(markedField != null && StaticFunctionMarkers.isMarked(markedField)) {
@@ -3430,7 +3445,7 @@ class RustExpr {
 					}
 				}
 				if(name == "get" && isBytes(stripCast(subj))) {
-					return "(" + expr(subj) + "[(" + expr(args[0]) + ") as usize] as u32)";
+					return expr(subj) + "[" + expr(args[0]) + " as usize] as u32";
 				}
 				if(name == "set" && args.length == 2 && isBytes(stripCast(subj))) {
 					return expr(subj) + "[" + expr(args[0]) + " as usize] = (" + expr(args[1]) + ") as u8";

@@ -362,7 +362,10 @@ class SwiftExpr {
 				// initialization assigns it on every path before use.
 				return [indent(depth) + "var " + localName(v) + ": " + types.of(v.t)];
 			case TBlock(stmts):
-				return blockLines(stmts, depth);
+				final out = [indent(depth) + "do {"];
+				for(l in blockLines(stmts, depth + 1)) out.push(l);
+				out.push(indent(depth) + "}");
+				return out;
 			case TIf(c, t, f):
 				return ifLines(c, t, f, depth);
 			case TWhile(c, b, true):
@@ -401,6 +404,12 @@ class SwiftExpr {
 				return stringBufMutationLines(fn, args, depth);
 			case TMeta(_, inner):
 				return stmtLines(inner, depth);
+			// Increment/decrement statements retain their direct assignment form.
+			// In a value position unop() must instead preserve the old/new value.
+			case TUnop(OpIncrement, _, subj):
+				return [indent(depth) + expr(subj) + " += 1"];
+			case TUnop(OpDecrement, _, subj):
+				return [indent(depth) + expr(subj) + " -= 1"];
 			case TBinop(OpAssign, l, r):
 				final tryKw = containsThrowingCall(r) ? "try " : "";
 				final map = mapAssignment(l);
@@ -1385,7 +1394,8 @@ class SwiftExpr {
 		};
 	}
 
-	function unop(e: TypedExpr, op: Unop, post: Bool, subj: TypedExpr): String {		final inner = expr(subj);
+	function unop(e: TypedExpr, op: Unop, post: Bool, subj: TypedExpr): String {
+		final inner = expr(subj);
 		final wrapped = switch(stripWrap(subj).expr) {
 			case TBinop(_, _, _): "(" + inner + ")";
 			case _: inner;
@@ -1394,8 +1404,8 @@ class SwiftExpr {
 			case OpNot: return "!" + wrapped;
 			case OpNegBits: return "~" + wrapped;
 			case OpNeg: return "-" + wrapped;
-			case OpIncrement: return inner + " += 1";
-			case OpDecrement: return inner + " -= 1";
+			case OpIncrement: return post ? "{ let t = " + inner + "; " + inner + " += 1; return t }()" : "{ " + inner + " += 1; return " + inner + " }()";
+			case OpDecrement: return post ? "{ let t = " + inner + "; " + inner + " -= 1; return t }()" : "{ " + inner + " -= 1; return " + inner + " }()";
 			case _:
 				{
 					final infos = Context.getPosInfos(e.pos);
@@ -1786,7 +1796,9 @@ class SwiftExpr {
 			Context.error("StringTools.hex accepts non-negative arguments only", value.pos);
 		}
 		final valueText = expr(value);
-		final hex = "String(" + valueText + ", radix: 16, uppercase: true)";
+		// `hex` reads its argument as u32; a negative Int32 must cross
+		// through the bit-pattern initializer instead of printing a sign.
+		final hex = "String(UInt32(bitPattern: " + valueText + "), radix: 16, uppercase: true)";
 		if(digits == null) {
 			return hex;
 		}

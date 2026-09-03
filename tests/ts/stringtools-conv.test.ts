@@ -32,7 +32,7 @@ describe("StringTools conversions lowering", () => {
     const rows = [
       ["reference/ts/gen/boring/StringConvOps.ts", [".toString(16)", ".toUpperCase()", ".padStart(", ".toLowerCase()"]],
       ["reference/kotlin/gen/boring/StringConvOps.kt", [".toString(16)", ".uppercase()", ".padStart(", ".lowercase()"]],
-      ["reference/swift/gen/boring/StringConvOps.swift", ["String(10, radix: 16, uppercase: true)", ".uppercased()", "s.count <", ".lowercased()"]],
+      ["reference/swift/gen/boring/StringConvOps.swift", ["String(UInt32(bitPattern: 10), radix: 16, uppercase: true)", ".uppercased()", "s.count <", ".lowercased()"]],
       ["reference/dart/gen/lib/boring/string_conv_ops.dart", [".toRadixString(16)", ".toUpperCase()", ".padLeft(", ".toLowerCase()"]],
       ["reference/rust-gen/src/boring/string_conv_ops.rs", ["{:X}", "{:0w$X}", ".to_lowercase()", ".to_uppercase()"]],
     ] as const;
