@@ -19,25 +19,25 @@ describe("array element iteration generated tree", () => {
   test("Kotlin emits element for loops", () => {
     const content = read(path.resolve(__dirname, "../../reference/kotlin/gen/boring/ArrayIterationOps.kt"));
     expect(content).toContain("for (item in values) {\n            total += item");
-    expect(content).toContain("val _g1 = holder.values\n        for (item in _g1) {");
+    expect(content).toContain("val _g1 = holder.values\n            for (item in _g1) {");
   });
 
   test("Rust emits element for loops", () => {
     const content = read(path.resolve(__dirname, "../../reference/rust-gen/src/boring/array_iteration_ops.rs"));
     expect(content).toContain("for &item in values {\n            total = u32::wrapping_add(total, item);");
     expect(content).toContain("for &item in values {\n            total = u32::wrapping_add(total, item);");
-    expect(content).toContain("let _g1 = holder.values;\n        for &item in &_g1 {");
+    expect(content).toContain("let _g1 = holder.values;\n            for &item in &_g1 {");
   });
 
   test("Swift emits element for loops", () => {
     const content = read(path.resolve(__dirname, "../../reference/swift/gen/boring/ArrayIterationOps.swift"));
     expect(content).toContain("for item in values {\n            total &+= item");
-    expect(content).toContain("let _g1 = holder.values\n        for item in _g1 {");
+    expect(content).toContain("let _g1 = holder.values\n            for item in _g1 {");
   });
 
   test("Dart emits element for loops", () => {
     const content = read(path.resolve(__dirname, "../../reference/dart/gen/lib/boring/array_iteration_ops.dart"));
     expect(content).toContain("for (var item in values) {\n    total += item");
-    expect(content).toContain("final _g1 = holder.values;\n  for (var item in _g1) {");
+    expect(content).toContain("final _g1 = holder.values;\n    for (var item in _g1) {");
   });
 });
