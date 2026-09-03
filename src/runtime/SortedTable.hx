@@ -139,6 +139,24 @@ class SortedMapTable<K, V> {
 	}
 
 	/**
+		The ruled printed form: `{` + entries joined with `", "` + `}`,
+		one entry as the key form, `=`, and the value form, in table
+		order. An empty map renders `{}`.
+	**/
+	public function toString():String {
+		var out = "{";
+		var i = 0;
+		while(i < keys.length) {
+			if(i > 0) {
+				out += ", ";
+			}
+			out += Std.string(keys[i]) + "=" + Std.string(values[i]);
+			i += 1;
+		}
+		return out + "}";
+	}
+
+	/**
 		Binary search for `key` over the half-open range [0, length):
 		its index when present, minus one when absent. The half-open
 		form never subtracts from an empty range, which the Rust lowering
@@ -271,6 +289,23 @@ class SortedSetTable<K> {
 	/** The element at `index`; the index must be within range. */
 	public function at(index:Int):K {
 		return keys[index];
+	}
+
+	/**
+		The ruled printed form: `[` + elements joined with `", "` + `]`
+		in table order. An empty set renders `[]`.
+	**/
+	public function toString():String {
+		var out = "[";
+		var i = 0;
+		while(i < keys.length) {
+			if(i > 0) {
+				out += ", ";
+			}
+			out += Std.string(keys[i]);
+			i += 1;
+		}
+		return out + "]";
 	}
 
 	/**
