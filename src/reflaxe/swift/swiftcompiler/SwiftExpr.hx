@@ -1236,7 +1236,8 @@ class SwiftExpr {
 				}
 				return floatAware(operand(l, op, false), l) + " / " + floatAware(operand(r, op, true), r);
 			case OpEq | OpNotEq:
-				return operand(l, op, false) + " " + symbolOf(op) + " " + operand(r, op, true);
+				final nullSide = isNullConstant(l) || isNullConstant(r);
+				return (nullSide ? expr(l) : operand(l, op, false)) + " " + symbolOf(op) + " " + (nullSide ? expr(r) : operand(r, op, true));
 			case _:
 				// Haxe mixes Int into Float arithmetic and comparison
 				// with promotion; Swift has no implicit conversion, so
@@ -1249,6 +1250,13 @@ class SwiftExpr {
 	}
 
 	/** The module real's Swift name; Int sides of Float operations widen to it. */
+	function isNullConstant(e: TypedExpr): Bool {
+		return switch(stripWrap(e).expr) {
+			case TConst(TNull): true;
+			case _: false;
+		};
+	}
+
 	function realType(): String {
 		return FloatPrecision.isF32() ? "Float" : "Double";
 	}
@@ -1343,21 +1351,26 @@ class SwiftExpr {
 				final cp = precedenceOf(op);
 				final pp = precedenceOf(parent);
 				var parens = cp < pp;
-				if(cp == pp && isRight) parens = !(op == parent && associative(op));
+				if(cp == pp) {
+					parens = isShift(op) && isShift(parent) || isRight && !(op == parent && associative(op));
+				}
 				parens ? "(" + rendered + ")" : rendered;
 			case _: rendered;
 		};
 	}
 
 	function operand(e: TypedExpr, parent: Binop, isRight: Bool): String {
-		final rendered = isStringCharCodeAt(e) && !types.resident ? "(" + expr(e) + ")!" : expr(e);
+		final rendered = switch(stripWrap(e).expr) {
+			case TConst(TNull): expr(e);
+			case _: isLocalOptional(e) || (isStringCharCodeAt(e) && !types.resident) ? "(" + expr(e) + ")!" : expr(e);
+		};
 		switch(stripWrap(e).expr) {
 			case TBinop(op, _, _):
 				final cp = precedenceOf(op);
 				final pp = precedenceOf(parent);
 				var parens = cp < pp;
-				if(cp == pp && isRight) {
-					parens = !(op == parent && associative(op));
+				if(cp == pp) {
+					parens = isShift(op) && isShift(parent) || isRight && !(op == parent && associative(op));
 				}
 				return parens ? "(" + rendered + ")" : rendered;
 			case _:
@@ -1365,8 +1378,14 @@ class SwiftExpr {
 		}
 	}
 
-	function unop(e: TypedExpr, op: Unop, post: Bool, subj: TypedExpr): String {
-		final inner = expr(subj);
+	function isLocalOptional(e: TypedExpr): Bool {
+		return switch(stripWrap(e).expr) {
+			case TLocal(v): isNullLeafType(e.t) && !coalescingLocals.exists(v.id);
+			case _: false;
+		};
+	}
+
+	function unop(e: TypedExpr, op: Unop, post: Bool, subj: TypedExpr): String {		final inner = expr(subj);
 		final wrapped = switch(stripWrap(subj).expr) {
 			case TBinop(_, _, _): "(" + inner + ")";
 			case _: inner;
@@ -1879,7 +1898,7 @@ class SwiftExpr {
 				if(module == "String" && cls.pack.length == 0 && fName == "fromCharCode") {
 					// The char domain of the subset stays inside valid
 					// scalars; the force unwrap states that contract.
-					return "String(UnicodeScalar(UInt32(bitPattern: " + expr(args[0]) + "))!)";
+					return "String(UnicodeScalar(UInt32(bitPattern: " + (optionalValued(args[0]) ? "(" + expr(args[0]) + ")!" : expr(args[0])) + "))!)";
 				}
 				if(module == "Std") {
 					final s = expr(args[0]);
@@ -3407,6 +3426,13 @@ class SwiftExpr {
 		multiplication with `&`, then addition with `|` and `^`, then
 		comparisons, then the logical pair.
 	**/
+	function isShift(op: Binop): Bool {
+		return switch(op) {
+			case OpShl | OpShr | OpUShr: true;
+			case _: false;
+		};
+	}
+
 	function precedenceOf(op: Binop): Int {
 		return switch(op) {
 			case OpBoolOr: 1;
