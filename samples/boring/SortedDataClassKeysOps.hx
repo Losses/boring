@@ -21,9 +21,11 @@ class RubySpan {
 	public final text:String;
 	public final fontFamilies:ReadOnlyArray<String>;
 	public final kind:RubyKind;
+	public final enumKinds:ReadOnlyArray<RubyKind>;
+	public final ranges:ReadOnlyArray<TextRange>;
 	public final locale:Null<String>;
-	public function new(baseRange:TextRange, text:String, fontFamilies:ReadOnlyArray<String>, kind:RubyKind, ?locale:String) {
-		this.baseRange = baseRange; this.text = text; this.fontFamilies = fontFamilies; this.kind = kind;
+	public function new(baseRange:TextRange, text:String, fontFamilies:ReadOnlyArray<String>, kind:RubyKind, enumKinds:ReadOnlyArray<RubyKind>, ranges:ReadOnlyArray<TextRange>, ?locale:String) {
+		this.baseRange = baseRange; this.text = text; this.fontFamilies = fontFamilies; this.kind = kind; this.enumKinds = enumKinds; this.ranges = ranges;
 		this.locale = locale == null ? (kind == RubyKind.Bopomofo ? "zh-TW" : null) : locale;
 	}
 }
@@ -45,7 +47,7 @@ class SortedDataClassKeysOps {
 		q.put(new QuotePair(2, 4, QuoteType.Close), "close"); q.put(new QuotePair(2, 4, QuoteType.Open), "open");
 		final qm = q.build();
 		final r = SortedMap.builder();
-		r.put(new RubySpan(new TextRange(3, 4), "z", ["serif"], RubyKind.Other), "nested"); r.put(new RubySpan(new TextRange(1, 2), "a", ["serif"], RubyKind.Other), "nested-first");
+		r.put(new RubySpan(new TextRange(3, 4), "z", ["serif"], RubyKind.Other, [RubyKind.Other], [new TextRange(3, 4)]), "nested"); r.put(new RubySpan(new TextRange(1, 2), "a", ["serif"], RubyKind.Other, [RubyKind.Bopomofo], [new TextRange(1, 2)]), "nested-first");
 		final rm = r.build();
 		return m.valueAt(0) + "," + m.valueAt(1) + ";" + qm.valueAt(0) + "," + qm.valueAt(1) + ";" + rm.valueAt(0) + "," + rm.valueAt(1);
 	}
