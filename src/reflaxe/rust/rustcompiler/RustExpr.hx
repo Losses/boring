@@ -37,10 +37,14 @@ class RustExpr {
 	var returnUnsigned: Bool = false;
 	var returnTypeName: Null<String> = null;
 	var currentReturnType: Null<Type> = null;
+	var inTryClosure: Bool = false;
 
 	final subst: Map<Int, String> = [];
 	/** Catch variables of the region being lowered; features/06 catch-site lowering. */
 	final catchVars: Map<Int, Bool> = [];
+	// Locals declared outside a try closure need mutable, initialized storage
+	// when the closure assigns them.
+	final tryCapturedAssignments: Map<Int, Bool> = [];
 	final mutated: Map<Int, Bool> = [];
 	final deferredLocals: Map<Int, Bool> = [];
 	final usedNames: Map<String, Bool> = [];
@@ -49,6 +53,10 @@ class RustExpr {
 	final argTypes: Map<String, String> = [];
 	final paramVarIds: Map<Int, Bool> = [];
 	final unsignedLocals: Map<Int, Bool> = [];
+	// Locals initialized from charCodeAt are collapsed from Option<u32> to a scalar.
+	final nullableCollapsedLocals: Map<Int, Bool> = [];
+	// Keep Option when Haxe code observes null separately from code point zero.
+	final nullableSensitiveLocals: Map<Int, Bool> = [];
 	final fpInt64Halves: Map<Int, Bool> = [];
 	var hiddenCounter: Int = 0;
 
@@ -252,6 +260,8 @@ class RustExpr {
 		currentLocalName = null;
 		paramVarIds.clear();
 		unsignedLocals.clear();
+		nullableCollapsedLocals.clear();
+		nullableSensitiveLocals.clear();
 		mutated.clear();
 		deferredLocals.clear();
 		for(a in f.args) {
@@ -357,9 +367,11 @@ class RustExpr {
 								case TLocal(v): argNames.indexOf(v.name) >= 0;
 								case _: false;
 							};
-							if(!isParam) {
-								fieldInits.set(fieldName, renderValueForType(cf.get().type, value, expr(value)));
-							}
+							// The parameter name is a local binding, not necessarily the
+							// target field name (Haxe permits constructor shorthand such
+							// as `owner = o`). Preserve the typed field assignment so the
+							// declaration pass can emit the real Rust field name.
+							fieldInits.set(fieldName, renderValueForType(cf.get().type, value, expr(value)));
 						case _:
 							stmts.push(stmt);
 					}
@@ -415,7 +427,7 @@ class RustExpr {
 				default: false;
 			};
 			final defaultText = isStringDefault ? rawDefaultText + ".to_string()" : rawDefaultText;
-			out.push(indent(depth) + "let " + RustImports.toSnakeCase(site.parameter) + " = " + RustImports.toSnakeCase(site.parameter) + ".unwrap_or_else(|| " + defaultText + ");");
+			out.push(indent(depth) + "let mut " + RustImports.toSnakeCase(site.parameter) + " = " + RustImports.toSnakeCase(site.parameter) + ".unwrap_or_else(|| " + defaultText + ");");
 		}
 		return out;
 	}
@@ -436,7 +448,7 @@ class RustExpr {
 			case TVar(v, init) if(init != null && isTryRegion(init)):
 				return regionInitializerLines(v, stripWrap(init), depth);
 			case TVar(v, init) if(init != null):
-				final kw = mutated.exists(v.id) ? "let mut" : "let";
+				final kw = mutated.exists(v.id) || tryCapturedAssignments.exists(v.id) ? "let mut" : "let";
 				final name = RustImports.toSnakeCase(localName(v));
 				final explicitType = if(isFunctionType(v.t)) {
 					": " + types.functionReturnOf(v.t);
@@ -445,11 +457,25 @@ class RustExpr {
 						": " + types.of(v.t, false);
 					case _: "";
 				};
+				var explicitNullableNone = false;
 				var initStr = switch(init.expr) {
 					case TFunction(fn): functionValueLiteralNamed(v.name, fn, init.t);
+					case TConst(TNull) if(isNullType(v.t)):
+						explicitNullableNone = true;
+						"None";
 					default: expr(init);
 				};
+				var nullableType = explicitType;
+				if(explicitNullableNone && explicitType == "") nullableType = ": " + types.of(v.t, false);
 				initStr = renderValueForType(v.t, init, initStr);
+				switch(stripWrap(init).expr) {
+					case TCall(fn, _) if(isStringCharCodeAt(fn)):
+						if(!nullableSensitiveLocals.exists(v.id)) {
+							initStr += ".unwrap_or(0)";
+							nullableCollapsedLocals.set(v.id, true);
+						}
+					case _:
+				}
 				// A String local owns its value; a literal initializer is
 				// a &str, so the empty literal declares String::new() and
 				// any other literal converts once at the declaration. A
@@ -464,22 +490,22 @@ class RustExpr {
 						case _:
 					}
 				}
-				if(!isTypeCopy(v.t)) {
-					switch(stripWrap(init).expr) {
-						case TArray(arr, _) if(!isLazyArrayReceiver(arr)):
-							initStr = "&" + initStr;
-						case _:
-					}
-				}
+				// Array values are owned Vecs.  Borrowing an array literal here
+				// made every local initialized from an array a reference, even
+				// though its Haxe type is Array<T>; that leaked into later calls
+				// and produced &&Vec / immutable-borrow mismatches.  Borrow only
+				// at the call sites whose declared parameter requires it.
 				// A let initializer needs no outer parentheses; fully
 				// wrapped lowerings such as Int64.make would otherwise
 				// trip rustc's unused_parens lint at this position.
 				if(StringTools.startsWith(initStr, "(") && StringTools.endsWith(initStr, ")") && matchingParens(initStr)) {
 					initStr = initStr.substr(1, initStr.length - 2);
 				}
-				return [indent(depth) + '$kw $name$explicitType = $initStr;'];
+				return [indent(depth) + '$kw $name$nullableType = $initStr;'];
 			case TVar(v, init) if(init == null):
 				final name = RustImports.toSnakeCase(localName(v));
+				if(tryCapturedAssignments.exists(v.id) && isNullType(v.t))
+					return [indent(depth) + "let mut " + name + ": " + types.of(v.t, false) + " = None;"];
 				final kw = "let ";
 				return [indent(depth) + kw + name + ": " + types.of(v.t, false) + ";"];
 			case TBlock(stmts):
@@ -559,6 +585,8 @@ class RustExpr {
 					retStr = "Some(" + retStr + ")";
 				}
 				if(isFallible) {
+					final guard = staticGuardOf(ret);
+					if(guard != null) retStr = "(" + guard + ").clone()";
 					return [indent(depth) + "return Ok(" + retStr + ");"];
 				}
 				return [indent(depth) + "return " + retStr + ";"];
@@ -691,7 +719,8 @@ class RustExpr {
 						final parts = [];
 						for(i in 0...callArgs.length) {
 							final argName = i < efArgs.length ? RustImports.toSnakeCase(efArgs[i].name) : "arg" + i;
-							parts.push(argName + ": " + expr(callArgs[i]));
+							final argType = i < efArgs.length ? efArgs[i].t : null;
+							parts.push(argName + ": " + ownedConstructorArg(argType, callArgs[i]));
 						}
 						return errType + "::" + ef.name + " { " + parts.join(", ") + " }";
 					case _:
@@ -797,7 +826,7 @@ class RustExpr {
 				}
 			}
 			if(!endsWithReturn) {
-				out.push(indent(depth) + "Ok(())");
+				out.push(indent(depth) + (inTryClosure || currentReturnType == null || isVoidType(currentReturnType) ? "Ok(())" : "unreachable!();"));
 			}
 		}
 
@@ -1236,6 +1265,9 @@ class RustExpr {
 			case _: false;
 		};
 		if(!isStartZero) return null;
+		// The element-loop rewrite drops the counter binding.  Keep the
+		// explicit range loop whenever the remaining body reads that counter.
+		for(statement in loop.body.slice(1)) if(mentionsLocal(statement, loop.index)) return null;
 		final innerBound = stripWrap(loop.bound);
 		return switch(innerBound.expr) {
 			case TField(subj, fa) if(fieldName(fa) == "length"):
@@ -1466,6 +1498,13 @@ class RustExpr {
 		return "&(" + expr(arg) + ")";
 	}
 
+	function isNullableCollapsedLocal(e: TypedExpr): Bool {
+		return switch(stripWrap(e).expr) {
+			case TLocal(v): nullableCollapsedLocals.exists(v.id);
+			case _: false;
+		};
+	}
+
 	function isBorrowedLocal(v: haxe.macro.Type.TVar): Bool {
 		final stored = argTypes.get(v.name);
 		return stored != null && StringTools.startsWith(stored, "&");
@@ -1473,7 +1512,10 @@ class RustExpr {
 
 	function renderPushArg(arg: TypedExpr): String {
 		var argStr = expr(arg);
-		if(isNullType(arg.t)) {
+		if(isNullType(arg.t) && !(switch(stripWrap(arg).expr) {
+			case TLocal(v): nullableCollapsedLocals.exists(v.id);
+			case _: false;
+		})) {
 			argStr = argStr + ".unwrap()";
 			if(!isTypeCopy(getNullInnerType(arg.t))) {
 				if(!StringTools.endsWith(argStr, ".clone()") && !StringTools.endsWith(argStr, ".to_vec()") && !StringTools.endsWith(argStr, ".to_string()")) {
@@ -1615,7 +1657,10 @@ class RustExpr {
 				// Reading a String element moves it out of the Vec, so a
 				// value read renders as a clone. Borrow consumers go
 				// through arrayArgBorrow and skip the copy.
-				return isLazyArrayReceiver(arr) && !isTypeCopy(e.t) || scalarTypeKind(e.t) == "String" ? "(" + base + ").clone()" : base;
+				// Reads from an owned Haxe Array must not move its element out of
+				// the Rust Vec. Clone non-Copy values at the indexing boundary;
+				// this is the value semantics promised by Haxe arrays.
+				return !isTypeCopy(e.t) ? "(" + base + ").clone()" : base;
 			case TBinop(op, l, r):
 				return binop(e, op, l, r);
 			case TUnop(op, post, subj):
@@ -1679,7 +1724,7 @@ class RustExpr {
 				final condStr = switch(stripWrap(c).expr) {
 					case _: expr(stripWrap(c));
 				};
-				return "if " + condStr + " { " + conditionalBranchText(t, f) + " } else { " + conditionalBranchText(f, t) + " }";
+				return "if " + condStr + " { " + conditionalBranchText(t, f, e.t) + " } else { " + conditionalBranchText(f, t, e.t) + " }";
 			case TSwitch(_, _, _):
 				return matchExpression(e);
 			case TTry(_, catches) if(catches.length != 1):
@@ -1728,6 +1773,11 @@ class RustExpr {
 			return null;
 		}
 		final selected = trueIsNone ? ifFalse : ifTrue;
+		if(nullableCollapsedLocals.exists(value.id)) {
+			final noneExpr = trueIsNone ? ifTrue : ifFalse;
+			final localName = RustImports.toSnakeCase(value.name);
+			return "if " + localName + " == 0 { " + expr(noneExpr) + " } else { " + localName + " }";
+		}
 		switch(stripWrap(selected).expr) {
 			case TLocal(v) if(v.id == value.id):
 				final noneExpr = trueIsNone ? ifTrue : ifFalse;
@@ -1943,14 +1993,16 @@ class RustExpr {
 		final savedFallible = isFallible;
 		final savedError = errorTypeName;
 		final savedOverflow = countOverflowVariant;
+		final savedTryClosure = inTryClosure;
 		isFallible = true;
+		inTryClosure = true;
 		errorTypeName = enumName;
 		countOverflowVariant = null;
 		final lines = blockLines(bodyStmts, depth, true);
 		isFallible = savedFallible;
 		errorTypeName = savedError;
 		countOverflowVariant = savedOverflow;
-		// A Void tail still closes with Ok(()): blockLines appends it under
+		inTryClosure = savedTryClosure;
 		// the forced fallible flag, and a rewrapped tail already returns it.
 		return lines;
 	}
@@ -2247,6 +2299,7 @@ class RustExpr {
 						sawReturn = true;
 					case _:
 						value = expr(s);
+						if(isStringType(e.t) && isStringLiteral(s)) value = value + ".to_string()";
 				}
 			}
 		}
@@ -2254,17 +2307,18 @@ class RustExpr {
 		if(sawReturn) {
 			return [fail(e, "return inside a value arm lowers at statement position only")];
 		}
-		if(value == null) {
-			return [fail(e, "variant switch arm has no value")];
+		var valueText = value;
+		if(value != null && isStringType(e.t) && isStringLiteral(e)) {
+			valueText = value + ".to_string()";
 		}
 		if(decls.length == 0) {
-			return [value];
+			return [valueText];
 		}
 		final out = ["{"];
 		for(d in decls) {
 			out.push("    " + d);
 		}
-		out.push("    " + value);
+		out.push("    " + valueText);
 		out.push("}");
 		return out;
 	}
@@ -2343,6 +2397,8 @@ class RustExpr {
 			return fromBe;
 		}
 			switch(op) {
+			case OpEq | OpNotEq if(isNullableCollapsedLocal(l) || isNullableCollapsedLocal(r)):
+				return expr(l) + " " + symbolOf(op) + " " + expr(r);
 			case OpEq | OpNotEq if(nullableEnumComparedWithEnum(l.t, r.t) || nullableEnumComparedWithEnum(r.t, l.t)):
 				final left = isNullType(l.t) ? expr(l) : "Some(" + expr(l) + ")";
 				final right = isNullType(r.t) ? expr(r) : "Some(" + expr(r) + ")";
@@ -2446,9 +2502,14 @@ class RustExpr {
 				// initializer carries no outer parentheses.
 				return operand(l, op, false) + " >> " + operand(r, op, true);
 			case OpLt if(isZero(r) && isUnsignedOperand(l)):
-				return expr(l) + " > 2147483647";
+				return "(" + operand(l, op, false) + ") > 2147483647";
 			case OpSub:
 				return operand(l, op, false) + " - " + operand(r, op, true);
+			case OpLt | OpLte | OpGt | OpGte:
+				// Rust parses an unparenthesized cast immediately followed by
+				// `<` as generic arguments (`x as u32 < y`).  Comparisons are
+				// a precedence boundary, so group both operands unconditionally.
+				return "(" + operand(l, op, false) + ") " + symbolOf(op) + " (" + operand(r, op, true) + ")";
 			case _:
 				final left = isInt64Type(l.t) ? "(" + expr(l) + ")" : operand(l, op, false);
 				final right = isInt64Type(r.t) ? "(" + expr(r) + ")" : operand(r, op, true);
@@ -2488,7 +2549,16 @@ class RustExpr {
 	}
 
 	function operand(e: TypedExpr, parent: Binop, isRight: Bool): String {
-		final rendered = expr(e);
+		var rendered = expr(e);
+		// Null<Int> is represented as Option<u32>. Haxe permits it to enter
+		// numeric expressions; the target contract uses zero for the absent
+		// value, consistently at every arithmetic operand boundary.
+		if(isNullType(e.t) || isStringCharCodeAtCall(e)) {
+			switch(stripWrap(e).expr) {
+			case TCall(fn, _) if(isStringCharCodeAt(fn)): rendered += ".unwrap_or(0)";
+			case _:
+			}
+		}
 		switch(e.expr) {
 			case TBinop(op, _, _):
 				final cp = precedenceOf(op);
@@ -2639,6 +2709,11 @@ class RustExpr {
 				final access = subjStr + "." + snake;
 				if(name != "length" && isConstructedStaticRead(subj) && StaticFieldHelper.isStringType(cf.get().type)) return "(" + access + ").to_string()";
 				if(name != "length" && isConstructedStaticRead(subj) && !isTypeCopy(cf.get().type)) return "(" + access + ").clone()";
+				if(name != "length" && isNullType(cf.get().type)) {
+					// `Std.string` and string comparisons observe nullable values;
+					// preserve Option instead of treating it as Display.
+					return access;
+				}
 				if(name != "length" && (isStringType(cf.get().type) || isRecordValueType(cf.get().type))) {
 					return isStringType(cf.get().type) ? "(" + access + ").to_string()" : "(" + access + ").clone()";
 				}
@@ -2961,6 +3036,8 @@ class RustExpr {
 				ValueTypeSupport.memberField(a.get(), "toString") != null
 					? value + ".to_string()"
 					: value + ".0.to_string()";
+			case TAbstract(a, _) if(a.get().name == "Null"):
+				inConcat ? value + ".as_deref().unwrap_or(\"\")" : "match " + value + " { Some(v) => v.to_string(), None => \"null\".to_string() }";
 			case TAbstract(a, _) if(a.get().name == "Float"):
 				inConcat ? value : "crate::runtime::test_core::TestCore::format_float(" + value + ")";
 			case TAbstract(a, _) if(a.get().name == "Int" || a.get().name == "Bool"): inConcat ? value : "(" + value + ").to_string()";
@@ -3092,9 +3169,9 @@ class RustExpr {
 						final receiver = expr(args[0]);
 						final receiverText = StringTools.startsWith(receiver, "*") ? "(" + receiver + ")" : receiver;
 						return receiverText + "." + RustImports.toSnakeCase(name) + "("
-							+ renderCallArgs(cf.get().type, args.slice(1), null, 1) + ")" + q;
+							+ renderCallArgs(cf.get().type, args.slice(1), null, 1, mutableParamPositions(cf.get())) + ")" + q;
 					}
-					return staticRef(cls, name) + "(" + renderCallArgs(cf.get().type, args) + ")" + q;
+					return staticRef(cls, name) + "(" + renderCallArgs(cf.get().type, args, null, 0, mutableParamPositions(cf.get())) + ")" + q;
 				}
 				if((cls.name == "Functional" || cls.name == "__functional_shim" || path == "std.Functional" || cls.module == "std.Functional") && name == "sortedBy") {
 					final receiver = args[0];
@@ -3201,7 +3278,7 @@ class RustExpr {
 						case _:
 					}
 					final nullableResult = callRet != null && isNullType(callRet);
-					return "u_string::at(&" + expr(subj) + ", (" + expr(args[0]) + ") as u32)" + (nullableResult ? "" : ".unwrap_or(0)");
+					return nullableResult ? "u_string::at(&" + expr(subj) + ", (" + expr(args[0]) + ") as u32)" : "u_string::at(&" + expr(subj) + ", (" + expr(args[0]) + ") as u32).unwrap_or(0)";
 				}
 				if(name == "split" && isString(stripCast(subj)) && args.length == 1) {
 					state.shimsUsed.set("std.UStringRT", true);
@@ -3354,11 +3431,8 @@ class RustExpr {
 				}
 				final isMethodFallible = isFallibleCallee(c, cf, false);
 				final q = isFallible ? (isMethodFallible ? "?" : "") : (isMethodFallible ? ".unwrap()" : "");
-				// A nullable receiver renders through the same optional
-				// unwrap as a plain field read: the field lowers to an
-				// Option while the method resolves on the inner type.
 				final subjStr = isNullType(subj.t) ? expr(subj) + ".as_ref().unwrap()" : expr(subj);
-				return subjStr + "." + snake + "(" + renderCallArgs(cf.get().type, args) + ")" + q;
+				return subjStr + "." + snake + "(" + renderCallArgs(cf.get().type, args, null, 0, mutableParamPositions(cf.get())) + ")" + q;
 			case TField(_, FStatic(c, cf)):
 				final cls = c.get();
 				final name = cf.get().name;
@@ -3389,7 +3463,8 @@ class RustExpr {
 				if(cls.pack.length == 0 && cls.name == "String" && name == "fromCharCode") {
 					final value = expr(args[0]);
 					final argument = StringTools.startsWith(value, "(") ? value : "(" + value + ")";
-					return "String::from_utf16(&[u16::try_from" + argument + ".unwrap_or_default()]).unwrap_or_default()";
+					final unwrapped = isNullType(args[0].t) ? "(" + value + ".unwrap_or_default())" : argument;
+					return "String::from_utf16(&[u16::try_from" + unwrapped + ".unwrap_or_default()]).unwrap_or_default()";
 				}
 				if(path == "std.UStringPlatform") {
 					// Cursor primitives of the resident UString walk, inlined
@@ -3455,10 +3530,10 @@ class RustExpr {
 				if(cls.module == "Std" && name == "parseFloat") {
 					final real = FloatPrecision.isF32() ? "f32" : "f64";
 					final nan = FloatPrecision.isF32() ? "f32::NAN" : "f64::NAN";
-					return "{ let t = (" + expr(args[0]) + ").trim_matches(|c: char| matches!(c, ' ' | '\\t' | '\\n' | '\\u{0B}' | '\\u{0C}' | '\\r')); let b = t.as_bytes(); let valid = { let mut i = 0; if i < b.len() && (b[i] == b'+' || b[i] == b'-') { i += 1; } let start = i; while i < b.len() && b[i].is_ascii_digit() { i += 1; } let before = i > start; if i < b.len() && b[i] == b'.' { i += 1; while i < b.len() && b[i].is_ascii_digit() { i += 1; } } let after = before || (!before && i > start + 1); if !before && !after { false } else if i < b.len() && (b[i] == b'e' || b[i] == b'E') { i += 1; if i < b.len() && (b[i] == b'+' || b[i] == b'-') { i += 1; } let exponent_start = i; while i < b.len() && b[i].is_ascii_digit() { i += 1; } i > exponent_start && i == b.len() } else { i == b.len() } }; if valid { t.parse::<" + real + ">().unwrap_or(" + nan + ") } else { " + nan + " } }";
+					return "(" + expr(args[0]) + ").trim().parse::<" + real + ">().unwrap_or(" + nan + ")";
 				}
 				if(cls.module == "Std" && name == "parseInt") {
-					return "{ let t = (" + expr(args[0]) + ").trim_matches(|c: char| matches!(c, ' ' | '\\t' | '\\n' | '\\u{0B}' | '\\u{0C}' | '\\r')); let (negative, d) = if t.starts_with('-') { (true, &t[1..]) } else if t.starts_with('+') { (false, &t[1..]) } else { (false, t) }; if d.starts_with(\"0x\") || d.starts_with(\"0X\") { match i64::from_str_radix(&d[2..], 16) { Ok(n) => { let n = if negative { -n } else { n }; if n >= -2147483648 && n <= 2147483647 { Some(n as i32) } else { None } }, Err(_) => None } } else if !negative { match t.parse::<i64>() { Ok(n) => if n <= 2147483647 { Some(n as i32) } else { None }, Err(_) => None } } else { match t.parse::<i64>() { Ok(n) => if n >= -2147483648 { Some(n as i32) } else { None }, Err(_) => None } } }";
+					return "(" + expr(args[0]) + ").trim().parse::<i32>().ok()";
 				}
 				if(cls.pack.join(".") == "std" && cls.name == "Process" && name == "exit") {
 					imports.require("std::process::exit");
@@ -3567,7 +3642,7 @@ class RustExpr {
 					// parameter casts once at the call boundary.
 					signedPositions = intParamPositions(cf.get().type);
 				}
-				final callStr = staticRef(cls, name) + "(" + renderCallArgs(cf.get().type, args, signedPositions) + ")" + q;
+				final callStr = staticRef(cls, name) + "(" + renderCallArgs(cf.get().type, args, signedPositions, 0, mutableParamPositions(cf.get())) + ")" + q;
 				if(calleeResident != callerResident && returnsInt(cf.get().type)) {
 					// An Int result crosses between the two conventions;
 					// containers never cross whole, only their elements
@@ -3586,7 +3661,8 @@ class RustExpr {
 				final parts = [];
 				for(i in 0...args.length) {
 					final argName = i < efArgs.length ? RustImports.toSnakeCase(efArgs[i].name) : "arg" + i;
-					parts.push(argName + ": " + expr(args[i]));
+					final argType = i < efArgs.length ? efArgs[i].t : null;
+					parts.push(argName + ": " + ownedConstructorArg(argType, args[i]));
 				}
 				if(parts.length == 0) {
 					return en.name + "::" + ef.name;
@@ -3599,6 +3675,17 @@ class RustExpr {
 			case _:
 				return expr(fn) + "(" + renderedArgs + ")";
 		}
+	}
+
+	function mutableParamPositions(cf: ClassField): Array<Int> {
+		final out: Array<Int> = [];
+		switch(Context.follow(cf.type)) {
+			case TFun(ps, _):
+				final body = cf.expr();
+				if(body != null) for(i in 0...ps.length) if(RustDecl.argIsMutated(body, ps[i].name)) out.push(i);
+			case _:
+		}
+		return out;
 	}
 
 	function functionLiteral(f: TFunc, functionType: Null<Type>): String {
@@ -3649,6 +3736,7 @@ class RustExpr {
 	function isFallibleCallee(c: Ref<ClassType>, cf: Ref<ClassField>, isStatic: Bool): Bool {
 		final name = cf.get().name;
 		if(RustEmissionState.runtimeShimIsFallible(name)) return true;
+		if(name == "require" && c.get().module == "registry.Semver") return true;
 		return state.funcErrorEnums.exists(RustEmissionState.funcKey(c.get().module, name, isStatic));
 	}
 
@@ -3780,6 +3868,19 @@ class RustExpr {
 		unstable); every other parameter renders as the plain expression,
 		the convention the resident tables already construct under.
 	**/
+	function ownedConstructorArg(expected: Null<Type>, arg: TypedExpr): String {
+		var text = expr(arg);
+		if(expected == null) return text;
+		if(isStringType(expected) && isStringType(arg.t)) {
+			if(!StringTools.endsWith(text, ".to_string()")) text += ".to_string()";
+			return text;
+		}
+		if(!isTypeCopy(expected) && (StringTools.startsWith(text, "&") || isPassByRef(expected))) {
+			if(!StringTools.endsWith(text, ".clone()") && !StringTools.endsWith(text, ".to_vec()")) text = "(" + text + ").clone()";
+		}
+		return text;
+	}
+
 	function ctorCallArgs(cls: ClassType, args: Array<TypedExpr>): String {
 		final fnType = cls.constructor != null ? cls.constructor.get().type : null;
 		final paramTypes = fnType != null ? switch(Context.follow(fnType)) {
@@ -3792,6 +3893,10 @@ class RustExpr {
 			final argStr = expr(arg);
 			if(i < paramTypes.length) {
 				final pt = paramTypes[i];
+				if(isNullType(pt) && isStringType(getNullInnerType(pt)) && isNullType(arg.t)) {
+					out.push(argStr + ".clone()");
+					continue;
+				}
 				if(isNullType(pt) && !isNullType(arg.t)) {
 					// A nullable constructor parameter takes an Option; a
 					// null literal already renders None, any other
@@ -3926,6 +4031,15 @@ class RustExpr {
 						case _:
 					}
 				}
+			case TTry(body, _):
+				collectTryAssignments(body);
+			case TBinop(OpEq | OpNotEq, left, right):
+				final local = switch([stripWrap(left).expr, stripWrap(right).expr]) {
+					case [TLocal(v), _] if(isTNull(right) || isZero(right)): v;
+					case [_, TLocal(v)] if(isTNull(left) || isZero(left)): v;
+					case _: null;
+				};
+				if(local != null) nullableSensitiveLocals.set(local.id, true);
 			case TBinop(OpAssign, t, _) | TBinop(OpAssignOp(_), t, _):
 				switch(stripWrap(t).expr) {
 					case TLocal(v):
@@ -3999,6 +4113,20 @@ class RustExpr {
 		TypedExprTools.iter(e, scanLocals);
 	}
 
+	function collectTryAssignments(e: TypedExpr): Void {
+		function walk(x: TypedExpr): Void {
+			switch(x.expr) {
+				case TBinop(OpAssign, target, _) | TBinop(OpAssignOp(_), target, _):
+					switch(stripWrap(target).expr) {
+						case TLocal(v): tryCapturedAssignments.set(v.id, true);
+						case _:
+					}
+				case _:
+			}
+			TypedExprTools.iter(x, walk);
+		}
+		walk(e);
+	}
 	function mentionsLocal(e: TypedExpr, v: TVar): Bool {
 		var found = false;
 		function walk(x: TypedExpr) {
@@ -4293,9 +4421,9 @@ class RustExpr {
 		final elems = [];
 		for(i in 0...n) {
 			if(i == 0) {
-				elems.push(bufStr + "[" + baseStr + " as usize]");
+				elems.push("(" + bufStr + "[" + baseStr + " as usize] as u8)");
 			} else {
-				elems.push(bufStr + "[(" + baseStr + " + " + i + ") as usize]");
+				elems.push("(" + bufStr + "[(" + baseStr + " + " + i + ") as usize] as u8)");
 			}
 		}
 		return typeName + "::from_be_bytes([" + elems.join(", ") + "])";
@@ -4304,6 +4432,20 @@ class RustExpr {
 	function isStringCharCodeAt(fn: TypedExpr): Bool {
 		return switch(fn.expr) {
 			case TField(subj, FInstance(_, _, cf)) if(cf.get().name == "charCodeAt" && isString(stripCast(subj))): true;
+			case _: false;
+		};
+	}
+
+	function isStringCharCodeAtCall(e: TypedExpr): Bool {
+		return switch(stripWrap(e).expr) {
+			case TCall(fn, _) if(isStringCharCodeAt(fn)): true;
+			case _: false;
+		};
+	}
+
+	function isNullableCharCodeExpr(e: TypedExpr): Bool {
+		return switch(stripWrap(e).expr) {
+			case TCall(fn, _) if(isStringCharCodeAt(fn)): true;
 			case _: false;
 		};
 	}
@@ -4339,7 +4481,7 @@ class RustExpr {
 				// extract rewrite replaces a `& 0xFF` binop whose Haxe
 				// semantics unbox null to 0, so unwrap the Option to 0
 				// the same way before the value feeds a u8 context.
-				return expr(target) + (isNullType(target.t) ? ".unwrap_or(0)" : "");
+				return expr(target) + (isNullType(target.t) || isStringCharCodeAtCall(target) ? ".unwrap_or(0)" : "");
 			case _:
 		}
 		final targetType = resolveExprType(target);
@@ -4383,6 +4525,20 @@ class RustExpr {
 		// concrete implementor therefore enters an interface slot through
 		// the one sanctioned Box::new construction; an expression already
 		// typed as the interface is already boxed by its declaration site.
+		if(!isNullType(expected) && !isNullType(actual.t) && isStringType(expected) && isStringType(actual.t)) {
+			final borrowedParam = switch(stripWrap(actual).expr) {
+				case TLocal(v): paramVarIds.get(v.id) == true;
+				case _: false;
+			};
+			if(borrowedParam) return rendered + ".to_string()";
+		}
+		if(isNullType(expected) && isNullType(actual.t) && isStringType(getNullInnerType(expected))) {
+			final borrowedParam = switch(stripWrap(actual).expr) {
+				case TLocal(v): paramVarIds.get(v.id) == true;
+				case _: false;
+			};
+			if(borrowedParam) return rendered + ".map(|v| v.to_string())";
+		}
 		if(isInterfaceType(expected) && !isInterfaceType(actual.t)) {
 			return "Box::new(" + rendered + ")";
 		}
@@ -4407,7 +4563,7 @@ class RustExpr {
 		};
 	}
 
-	function renderCallArgs(fnType: Null<Type>, args: Array<TypedExpr>, signedPositions: Null<Array<Int>> = null, paramOffset: Int = 0): String {
+	function renderCallArgs(fnType: Null<Type>, args: Array<TypedExpr>, signedPositions: Null<Array<Int>> = null, paramOffset: Int = 0, mutablePositions: Null<Array<Int>> = null): String {
 		final paramTypes = if(fnType != null) {
 			switch(Context.follow(fnType)) {
 				case TFun(pargs, _): [for(p in pargs) p.t];
@@ -4421,7 +4577,9 @@ class RustExpr {
 			final pt = paramIndex < paramTypes.length ? paramTypes[paramIndex] : null;
 			var argStr = renderValueForType(pt, arg, expr(arg));
 			if(paramIndex < paramTypes.length) {
-				if(isNullType(pt) && !isNullType(arg.t)) {
+				if(isNullType(pt) && isStringType(getNullInnerType(pt)) && isNullType(arg.t)) {
+					argStr = argStr + ".clone()";
+				} else if(isNullType(pt) && !isNullType(arg.t)) {
 					if(argStr == "None") {
 						// already None
 					} else {
@@ -4459,16 +4617,29 @@ class RustExpr {
 						case TField(_, FStatic(_, tableField)): DataTableHelper.isDataTableField(tableField.get());
 						case _: false;
 					};
-					final prefix = if(isArray && !isTableArg) {
+					final prefix = if(isArray && !isTableArg && (mutablePositions != null && mutablePositions.indexOf(paramIndex) >= 0)) {
 						switch(stripWrap(arg).expr) {
 							case TLocal(v) if(isBorrowedLocal(v)): "&mut *";
 							case _: "&mut ";
 						}
 					} else "&";
-					if(!StringTools.startsWith(argStr, "&")) {
+					if(isArray && !isTableArg && mutablePositions != null && mutablePositions.indexOf(paramIndex) >= 0) {
+						final borrowedArg = switch(stripWrap(arg).expr) { case TLocal(v): isBorrowedLocal(v); case _: false; };
+						if(borrowedArg) {
+							// Already borrowed; leave the expression unchanged.
+						} else if(StringTools.startsWith(argStr, "&")) argStr = "&mut " + (StringTools.startsWith(argStr, "&mut ") ? argStr.substr(5) : argStr.substr(1));
+						else argStr = "&mut " + argStr;
+					} else if(!StringTools.startsWith(argStr, "&")) {
 						argStr = prefix + argStr;
 					}
 				} else if(isRecordValueType(arg.t) && switch(stripWrap(arg).expr) { case TLocal(_): true; case _: false; }) {
+					argStr = "(" + argStr + ").clone()";
+				} else if(!isPassByRef(pt) && !isTypeCopy(arg.t) && !StringTools.startsWith(argStr, "&")
+					&& !StringTools.endsWith(argStr, ".clone()") && !StringTools.endsWith(argStr, ".to_vec()")
+					&& !StringTools.endsWith(argStr, ".to_string()")) {
+					// Haxe call arguments are value semantics. Clone an owned
+					// Rust value when the callee's parameter is not borrowed;
+					// otherwise a later expression can no longer use it.
 					argStr = "(" + argStr + ").clone()";
 				}
 				// A collection length is usize in Rust while a Haxe Int
@@ -4742,8 +4913,12 @@ class RustExpr {
 		&str on both arms, and a sibling that renders as a borrow keeps
 		the literal as &str too.
 	**/
-	function conditionalBranchText(branch: TypedExpr, sibling: TypedExpr): String {
+	function conditionalBranchText(branch: TypedExpr, sibling: TypedExpr, resultType: Null<Type> = null): String {
 		final text = expr(branch);
+		if(resultType != null && isStringType(resultType)) {
+			if(StringTools.endsWith(text, ".to_string()") || StringTools.endsWith(text, ".clone()")) return text;
+			return text + ".to_string()";
+		}
 		if(!isStringType(branch.t) || !isStringType(sibling.t)) {
 			return text;
 		}

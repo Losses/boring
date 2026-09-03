@@ -218,7 +218,7 @@ pub fn from_code_point(code: u32) -> String {
     UString::from_code_point(code as i32)
 }
 
-pub fn from_code_points(codes: &mut Vec<u32>) -> String {
+pub fn from_code_points(codes: &Vec<u32>) -> String {
     let mut inner = Vec::with_capacity(codes.len());
     for index in 0..codes.len() {
         inner.push(codes[index] as i32);

@@ -6,7 +6,12 @@
 -cp src/reflaxe/kotlin/std-shadow
 -cp src/reflaxe/kotlin
 -cp samples
---macro Intercept.run(['samples'])
+-cp tools/registry/src
+--macro Intercept.run(['samples', 'tools/registry/src'])
+--macro haxe.macro.Compiler.keep('registry.Core')
+--macro haxe.macro.Compiler.keep('registry.Json')
+--macro haxe.macro.Compiler.keep('registry.Semver')
+
 --macro haxe.macro.Compiler.addGlobalMetadata('boring', '@:build(std.RecordMember.build())')
 --macro kotlincompiler.Compiler.use()
 -D kotlin-output=reference/kotlin-f32/gen
@@ -116,4 +121,21 @@ boring.ArrayRootStateOps
 boring.NumberParsingOps
 tests.NumberParsingTests
 tests.ArrayRootTests
+
+registry.Core
+registry.CoreFault
+registry.Json
+registry.JsonFault
+registry.Semver
+registry.SemverFault
+registry.CoreException
+registry.JsonException
+registry.SemverException
+registry.Sha1
+registry.Release
+tests.RegistrySha1Tests
+tests.RegistryJsonTests
+tests.RegistrySemverTests
+tests.RegistryPipelineTests
+tests.RegistryParseArgsTests
 boring.ArrayIterationOps

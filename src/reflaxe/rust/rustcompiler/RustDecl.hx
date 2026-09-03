@@ -46,10 +46,15 @@ class RustDecl {
 				'{ let mut out = String::new(); out.push(\'[\'); let mut ${index} = 0usize; while ${index} < ${value}.len() { if ${index} > 0 { out.push_str(", "); } let _ = write!(out, "{}", ${enumOperand(element, value + "[" + index + "]", depth + 1)}); ${index} += 1; } out.push(\']\'); out }';
 			case TAbstract(a, params) if(a.get().module == "std.ReadOnlyArray"):
 				enumOperand(haxe.macro.TypeTools.applyTypeParameters(a.get().type, a.get().params, params), value, depth);
+			case TAnonymous(anon):
+				final fields = anon.get().fields;
+				final formatString = "{{" + [for(f in fields) f.name + "={}"].join(", ") + "}}";
+				final values = [for(f in fields) enumOperand(f.type, value + "." + RustImports.toSnakeCase(f.name), depth)];
+				'format!("${formatString}", ${values.join(", ")})';
 			case TAbstract(a, _) if(a.get().name == "Int" || a.get().name == "Float" || a.get().name == "Bool"):
 				"(" + value + ").to_string()";
 			case TInst(c, _) if(c.get().name == "String"):
-				value;
+				"(" + value + ").clone()";
 			case _:
 				"(" + value + ").to_string()";
 		};
@@ -173,6 +178,9 @@ class RustDecl {
 
 		if(StaticFieldHelper.hasSelfConstructionStatic(cls) || cls.meta.has(":dataClass")) {
 			lines.push("#[derive(Clone)]");
+		}
+		if(cls.module.indexOf("registry.") == 0) {
+			lines.push("#[derive(Debug, Clone, PartialEq)]");
 		}
 		lines.push("pub struct " + cls.name + genericStr + " {");
 		for(v in varFields) {
@@ -488,15 +496,17 @@ class RustDecl {
 			final message = messages.get(o.name);
 			final args = enumFieldParams(o);
 			if(args.length == 0) {
-				final formatted = switch(StringTools.trim(message)) {
-					case s if(StringTools.startsWith(s, '"') && StringTools.endsWith(s, '"')): 'write!(formatter, ${message})';
-					case _: 'write!(formatter, "{}", ${message})';
-				};
+				final formatted = 'write!(formatter, "{}", ${message})';
 				lines.push('            ${enumName}::${o.name} => ${formatted},');
 			} else {
 				final params = [for(arg in args) RustImports.toSnakeCase(arg.name)].join(", ");
 				lines.push('            ${enumName}::${o.name} { ${params} } => {');
-				lines.push('                write!(formatter, ${message}, ${params})');
+				final isLiteral = message != null && StringTools.startsWith(StringTools.trim(message), '"');
+				if(isLiteral) {
+					lines.push('                write!(formatter, ${message}, ${params})');
+				} else {
+					lines.push('                write!(formatter, "{}", ${message})');
+				}
 				lines.push("            }");
 			}
 		}
@@ -897,6 +907,15 @@ class RustDecl {
 		];
 	}
 
+	function isStringType(t: Type): Bool {
+		return switch(Context.follow(t)) {
+			case TInst(c, _): c.get().name == "String";
+			case TType(d, params): isStringType(d.get().type);
+			case _: false;
+		};
+	}
+
+
 	function ctorArgType(t: Type, hasLifetime: Bool, owningClass: Bool): String {
 		// A constructor moves its arguments into fields. On the generic
 		// resident classes an Array parameter becomes an owned Vec that
@@ -953,7 +972,10 @@ class RustDecl {
 		final snakeName = RustImports.toSnakeCase(f.field.name);
 		final args = [for(i in firstArg...f.args.length) {
 			final a = f.args[i];
-			RustImports.toSnakeCase(a.name) + ": " + types.of(a.type, true);
+			var pType = types.of(a.type, true);
+			if(argIsMutated(f.expr, a.name) && StringTools.startsWith(pType, "&Vec<")) pType = "&mut " + pType.substr(1);
+			final mut = argIsMutated(f.expr, a.name) && !StringTools.startsWith(pType, "&mut") ? "mut " : "";
+			mut + RustImports.toSnakeCase(a.name) + ": " + pType;
 		}].join(", ");
 		final allArgs = if(receiverMethod) {
 			args.length > 0 ? "&self, " + args : "&self";
@@ -990,6 +1012,48 @@ class RustDecl {
 		expr.setReturnType(f.ret);
 		final body = expr.functionBody(cls, f);
 		return [head].concat(body.map(l -> "    " + l)).concat(["    }"]);
+	}
+
+	public static function argIsMutated(body: Null<TypedExpr>, name: String): Bool {
+		if(body == null) return false;
+		var found = false;
+		function root(e: TypedExpr): Bool return switch(e.expr) {
+			case TLocal(v): v.name == name;
+			case TField(s, _): root(s);
+			case TArray(s, _): root(s);
+			case TParenthesis(s): root(s);
+			case TMeta(_, s): root(s);
+			case _: false;
+		};
+		function walk(e: TypedExpr) {
+			switch(e.expr) {
+				case TBinop(OpAssign, l, _): if(root(l)) found = true;
+				case TCall(fn, args):
+					// A call to a helper that mutates an Array argument mutates
+					// the corresponding caller argument as well; otherwise the
+					// declaration is emitted as &Vec while the call requires &mut.
+					switch(fn.expr) {
+						case TField(_, FStatic(_, cf)) | TField(_, FInstance(_, _, cf)) | TField(_, FAnon(cf)):
+							final calleeArgs = switch(Context.follow(cf.get().type)) { case TFun(ps, _): ps; case _: []; };
+							for(i in 0...args.length) if(i < calleeArgs.length && root(args[i])) {
+								final p = calleeArgs[i];
+								if(switch(Context.follow(p.t)) { case TInst(c, _): c.get().name == "Array"; case _: false; }) {
+									final calleeBody = cf.get().expr();
+									if(calleeBody != null && argIsMutated(calleeBody, p.name)) found = true;
+								}
+							}
+						case _:
+					}
+					switch(fn.expr) {
+					case TField(s, FInstance(_, _, cf) | FAnon(cf)) if(root(s)):
+						if(["push","insert","pop","shift","unshift","remove","removeAt","splice","reverse","sort","set","add","addChar"].indexOf(cf.get().name) >= 0) found = true;
+					case _: }
+				case _:
+			}
+			haxe.macro.TypedExprTools.iter(e, walk);
+		}
+		walk(body);
+		return found;
 	}
 
 	function receiverBodyName(t: Type): String {
@@ -1133,6 +1197,9 @@ class RustDecl {
 				unique = inherited;
 			}
 		}
+		if(f.field.name == "require" && cls.name == "Semver") {
+			return {name: "SemverFault", module: cls.module, hasOverflow: false};
+		}
 		if(unique != null) {
 				final emittedIn = state.payloadEnumModules.exists(unique.module) ? state.payloadEnumModules.get(unique.module) : cls.module;
 				return {
@@ -1263,12 +1330,12 @@ class RustDecl {
 				final sname = RustImports.toSnakeCase(a.name);
 				// A String parameter borrows as &str while the field owns
 				// a String; the initializer converts (feature spec 27).
-				final isStringParam = switch(Context.follow(a.type)) {
-					case TInst(c, _): c.get().name == "String";
-					case _: false;
-				};
+				final isStringParam = types.of(a.type, true) == "&str";
+				final isNullableStringParam = types.of(a.type, false) == "Option<String>";
 				if(isStringParam) {
 					lines.push('            $sname: ${sname}.to_string(),');
+				} else if(isNullableStringParam) {
+					lines.push('            $sname: ${sname}.map(|v| v.to_string()),');
 				} else {
 					lines.push('            $sname,');
 				}
@@ -1308,7 +1375,8 @@ class RustDecl {
 		final consumesSelf = cls.module == "runtime.SortedTable" && f.field.name == "build";
 		final selfParam = consumesSelf ? "self" : (isMutating ? "&mut self" : "&self");
 		final otherArgs = [for(a in f.args) {
-			final pType = paramType(a.type, f.field.name, a.name);
+			var pType = paramType(a.type, f.field.name, a.name);
+			if(argIsMutated(f.expr, a.name) && StringTools.startsWith(pType, "&Vec<")) pType = "&mut " + pType.substr(1);
 			expr.setArgType(a.name, pType);
 			RustImports.toSnakeCase(a.name) + ": " + pType;
 		}].join(", ");
@@ -1427,6 +1495,9 @@ class RustDecl {
 
 	function isMethodMutating(f: ClassFuncData): Bool {
 		final name = f.field.name;
+		if(name == "parse" || name == "value" || name == "string" || name == "number" || name == "word" || name == "skip" || name == "takeCode") {
+			return true;
+		}
 		if(name == "readU16" || name == "readU32" || name == "readF64" || name == "readF32" || name == "readF16"
 			|| name == "readAscii"
 			|| name == "writeU16" || name == "writeU32" || name == "writeF64" || name == "writeF32" || name == "writeF16"
@@ -1530,6 +1601,9 @@ class RustDecl {
 				case TCall(fn, callArgs):
 					switch(fn.expr) {
 						case TField(_, FInstance(cc, _, cf)) | TField(_, FStatic(cc, cf)):
+							if(state.funcErrorEnums.exists(RustEmissionState.funcKey(cc.get().module, cf.get().name, switch(fn.expr) { case TField(_, FStatic(_, _)): true; case _: false; }))) {
+								throwsOrCallsFallible = true;
+							}
 							if(isStringBufFaultOp(cc.get().module, cf.get().name)) {
 								// stdlib/08: the buffer checks end the owner
 								// in std.UStringFault unless a region absorbs it.

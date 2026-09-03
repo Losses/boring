@@ -416,8 +416,7 @@ consumer.
     precedent in `samples/std/`: text file read; file write; directory
     creation; directory listing; command-line arguments; and process
     exit. Every extern declares real types; no
-    extern parameter or return carries `Dynamic`. Compiling the tool
-    through the other four targets is out of scope. JSON parsing and
+    extern parameter or return carries `Dynamic`. JSON parsing and
     serialization, the sha1 of the Maven metadata, and the semver
     comparison are pure Haxe modules of the tool: the JSON reader
     builds an ordered value tree (objects keep their field order), the
@@ -494,3 +493,38 @@ consumer.
 - The tag fallback has one test: a fixture version whose committed
   artifact URLs deviate from the `v<version>` tag shape makes its
   package's rules per-version exact rules.
+
+## Core and shell boundary
+
+The registry core is the pure `registry.Core` module. It accepts literal
+argument arrays and relative-path/text input records, and returns either a
+configuration, a fault message, or a list of relative output files. It owns
+argument parsing, validation, JSON, semver, SHA-1, scanning, and all five
+writers including headers and redirects; it performs zero IO and never reads
+environment state. The TypeScript shell (`registry.Main` and
+`registry.Platform`) has exactly six responsibilities: read process argv,
+walk `--tree`, read files as text, invoke the core, create/write the returned
+files under `--output`, and report faults/set the process exit code.
+
+The cross-target `@:test` suite is in package `tests`: registry SHA-1 boundary
+vectors (`RegistrySha1Tests`), JSON round trips (`RegistryJsonTests`), semver
+ordering (`RegistrySemverTests`), and the core pipeline and argument-parser
+fixtures. Test inputs and expected values are literals and assertions use
+`std.Test`. The pipeline fixture exercises `Core.parseArgs` and `Core.generate`
+with two owners and npm/cargo records, comparing every returned path and body,
+including the npm index, `_headers`, and `_redirects`. The argument fixture
+checks missing required flags, the exact help usage text, and unknown-flag
+errors. All five registry test modules are listed in each of the eight target
+HXML module manifests; the generated result streams are consumed by the
+cross-target consistency manager.
+
+The two additional `@:test` modules are `RegistryParseArgsTests` and
+`RegistryPipelineTests`; they exercise the core's literal argument failures and
+end-to-end five-ecosystem record-to-output pipeline without shell IO. The
+cross-target result streams are compared by `test:consistency`, which requires
+identical pass/fail identities across Haxe, TypeScript, Kotlin, Rust, Swift,
+and Dart.
+`examples/{ts,kotlin,kotlin-f32,rust,rust-f32,swift,swift-f32,dart}.hxml`
+entries include the core and `tests.*` suite, but not `registry.Main` or
+`registry.Platform`; browser-consumable runtime entry points do not import
+this module.
