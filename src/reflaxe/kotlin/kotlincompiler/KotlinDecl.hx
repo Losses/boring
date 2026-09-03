@@ -276,6 +276,30 @@ class KotlinDecl {
 		lines.push('    fun compare${cls.name}(a: ${cls.name}, b: ${cls.name}): Int {');
 		lines.push('    var cmp = 0');
 		for(f in fields) {
+			// Context.follow unwraps Null, so nullable fields must be handled from the raw type.
+			switch(f.type) {
+				case TAbstract(a, params) if(a.get().name == "Null" && params.length == 1):
+					lines.push('    cmp = compareValues(a.${f.name}, b.${f.name})');
+					lines.push('    if (cmp != 0) return cmp');
+					continue;
+				case TAbstract(a, params) if(a.get().pack.join(".") == "std" && a.get().name == "ReadOnlyArray" && params.length == 1):
+					final element = params[0];
+					lines.push('    var idx${f.name} = 0');
+					lines.push('    while (idx${f.name} < a.${f.name}.size && idx${f.name} < b.${f.name}.size) {');
+					switch(Context.follow(element)) {
+						case TInst(c, _) if(c.get().meta.has(":dataClass")): imports.requireType(c.get().module, "compare" + c.get().name); lines.push('        cmp = compare${c.get().name}(a.${f.name}[idx${f.name}], b.${f.name}[idx${f.name}])');
+						case TEnum(e, _):
+							final en = e.get();
+							lines.push('        cmp = ${cls.name}${f.name}Order(a.${f.name}[idx${f.name}]).compareTo(${cls.name}${f.name}Order(b.${f.name}[idx${f.name}]))');
+						case _: lines.push('        cmp = a.${f.name}[idx${f.name}].compareTo(b.${f.name}[idx${f.name}])');
+					}
+					lines.push('        if (cmp != 0) return cmp');
+					lines.push('        idx${f.name} += 1'); lines.push('    }');
+					lines.push('    cmp = a.${f.name}.size - b.${f.name}.size');
+					lines.push('    if (cmp != 0) return cmp');
+					continue;
+				default:
+			}
 			switch(Context.follow(f.type)) {
 				case TAbstract(a, _) if(a.get().name == "Int"): lines.push('    cmp = a.${f.name}.compareTo(b.${f.name})');
 				case TInst(c, _) if(c.get().name == "String"): lines.push('    cmp = a.${f.name}.compareTo(b.${f.name})');
