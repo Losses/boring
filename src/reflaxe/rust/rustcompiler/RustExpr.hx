@@ -3416,10 +3416,10 @@ class RustExpr {
 				case TFun(pargs, _): i < pargs.length ? pargs[i].t : null;
 				case _: null;
 			};
-			pt != null && isIntType(pt) && switch(stripWrap(args[i]).expr) {
+			pt != null && isIntType(pt) && (switch(stripWrap(args[i]).expr) {
 				case TLocal(v): i32Locals.exists(v.id);
 				case _: false;
-			} ? "(" + text + ") as " + types.of(pt, false) : text;
+			}) ? "(" + text + ") as " + types.of(pt, false) : text;
 		}].join(", ");
 		switch(fn.expr) {
 			case TField(_, FStatic(c, cf)) if(c.get().module == "haxe.io.Bytes" && cf.get().name == "alloc" && args.length == 1):
