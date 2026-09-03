@@ -2519,6 +2519,13 @@ class RustExpr {
 				};
 				return assignTarget(l) + " = " + rhs;
 			case OpAssignOp(inner):
+				// Int compound assignments must preserve Haxe's 32-bit wrapping.
+				final intCompound = switch(inner) {
+					case OpAdd | OpSub | OpMult if(isIntType(l.t) && isLocalOrFieldTarget(l)):
+						assignTarget(l) + " = " + expr(l) + "." + wrappingMethod(inner) + "(" + expr(r) + ")";
+					case _: null;
+				};
+				if(intCompound != null) return intCompound;
 				// String accumulation borrows the operand: String
 				// implements AddAssign<&str>, and the += desugaring makes
 				// the right side a coercion site, so &(expr) accepts both
@@ -2537,6 +2544,8 @@ class RustExpr {
 				return "format!(\"{}{}\", " + lStr + ", " + rStr + ")";
 			case OpDiv if(StringTools.endsWith(operand(l, op, false), ".len()")):
 				return "((" + operand(l, op, false) + ") / (" + operand(r, op, true) + " as usize)) as u32";
+			case OpMult | OpAdd | OpSub if(isIntType(e.t)):
+				return "(" + operand(l, op, false) + " as " + types.of(e.t) + ")." + wrappingMethod(op) + "(" + operand(r, op, true) + ")";
 			case OpMult | OpAdd | OpSub | OpDiv if(isFloatType(e.t)):
 				final real = FloatPrecision.isF32() ? "f32" : "f64";
 				final lStr = if(isIntType(l.t)) "((" + operand(l, op, false) + ") as " + real + ")" else operand(l, op, false);
@@ -4023,6 +4032,23 @@ class RustExpr {
 				case _: false;
 			};
 			case _: false;
+		};
+	}
+
+	function wrappingMethod(op:Binop):String {
+		return switch(op) {
+			case OpAdd: "wrapping_add";
+			case OpSub: "wrapping_sub";
+			case OpMult: "wrapping_mul";
+			case _: "";
+		};
+	}
+
+	function isLocalOrFieldTarget(e:TypedExpr):Bool {
+		return switch(stripWrap(e).expr) {
+			case TLocal(_): true;
+			case TField(subj, FInstance(_, _, _)) | TField(subj, FAnon(_)): isLocalOrFieldTarget(subj);
+			default: false;
 		};
 	}
 
