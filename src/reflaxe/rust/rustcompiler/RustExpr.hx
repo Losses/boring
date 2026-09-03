@@ -4954,7 +4954,6 @@ class RustExpr {
 			final paramIndex = i + paramOffset;
 			final pt = paramIndex < paramTypes.length ? paramTypes[paramIndex] : null;
 			var argStr = renderValueForType(pt, arg, expr(arg));
-			if(pt != null && isIntType(pt) && i32LocalDomain(arg)) argStr = "(" + argStr + ") as " + types.of(pt, false);
 			if(paramIndex < paramTypes.length) {
 				if(isNullType(pt) && isStringType(getNullInnerType(pt)) && isNullType(arg.t)) {
 					argStr = argStr + ".clone()";
