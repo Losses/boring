@@ -1845,7 +1845,7 @@ class KotlinExpr {
 			Context.error("StringTools.hex accepts non-negative arguments only", value.pos);
 		}
 		final valueText = "(" + expr(value) + ")";
-		final hex = valueText + ".toString(16).uppercase()";
+		final hex = valueText + ".toUInt().toString(16).uppercase()";
 		return digits == null ? hex : hex + ".padStart(" + expr(digits) + ", '0')";
 	}
 

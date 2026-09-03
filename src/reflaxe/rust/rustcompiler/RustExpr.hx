@@ -2650,7 +2650,7 @@ class RustExpr {
 				}
 				return (isInt64Type(l.t) || isInt64Type(r.t) ? "(" + expr(l) + ") & (" + expr(r) + ")" : operand(l, op, false) + " & " + operand(r, op, true));
 			case OpOr | OpXor if(isInt64Type(l.t) || isInt64Type(r.t)):
-				return "(" + expr(l) + ") " + symbolOf(op) + " (" + expr(r) + ")";
+				return expr(l) + " " + symbolOf(op) + " " + expr(r);
 			case OpUShr:
 				// The u32 domain makes Rust >> the logical shift; operand()
 				// re-adds grouping parens by precedence, so a bare shift
@@ -3029,7 +3029,7 @@ class RustExpr {
 		final valueType = ValueTypeSupport.markedAbstractOfClass(cls);
 		if(valueType != null) {
 			imports.requireType(valueType.module, valueType.name);
-			return valueType.name + "::" + RustImports.toSnakeCase(name);
+			return valueType.name + "::" + RustImports.toScreamingSnakeCase(name);
 		}
 		final markedField = findStaticField(cls, name);
 		if(markedField != null && StaticFunctionMarkers.isMarked(markedField)) {

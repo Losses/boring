@@ -1579,7 +1579,7 @@ class TsExpr {
 			Context.error("StringTools.hex accepts non-negative arguments only", value.pos);
 		}
 		final valueText = "(" + expr(value) + ")";
-		final hex = valueText + ".toString(16).toUpperCase()";
+		final hex = "((" + valueText + ") >>> 0).toString(16).toUpperCase()";
 		return digits == null ? hex : hex + ".padStart(" + expr(digits) + ", \"0\")";
 	}
 
