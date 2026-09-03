@@ -246,8 +246,18 @@ class RustDecl {
 		final lines = ['pub fn compare_$n(a: &${cls.name}, b: &${cls.name}) -> i32 {'];
 		for(f in [for(x in cls.fields.get()) if(switch(x.kind) { case FVar(read, write): !(read.match(AccCall) && write.match(AccNever)); case _: false; }) x]) {
 			final fn = RustImports.toSnakeCase(f.name);
-			switch(Context.follow(f.type)) {
-				case TAbstract(a, _) if(a.get().name == "Int"): lines.push('    let cmp_$fn = a.$fn.cmp(&b.$fn) as i32;');
+			var rawHandled = false;
+			switch(f.type) {
+				case TAbstract(a, params) if(a.get().name == "Null" && params.length == 1):
+					rawHandled = true;
+					lines.push('    let cmp_$fn = match (&a.$fn, &b.$fn) { (None, None) => 0, (None, Some(_)) => -1, (Some(_), None) => 1, (Some(av), Some(bv)) => av.cmp(bv) as i32 };');
+				case TAbstract(a, params) if(a.get().name == "ReadOnlyArray" && params.length == 1):
+					rawHandled = true;
+					lines.push('    let mut cmp_$fn = 0; for (av, bv) in a.$fn.iter().zip(b.$fn.iter()) { cmp_$fn = av.cmp(bv) as i32; if cmp_$fn != 0 { break; } }');
+					lines.push('    if cmp_$fn == 0 { cmp_$fn = a.$fn.len().cmp(&b.$fn.len()) as i32; }');
+				default:
+			}
+			if(!rawHandled) switch(Context.follow(f.type)) {
 				case TInst(c, _) if(c.get().name == "String"): lines.push('    let cmp_$fn = SortedTable::compare_strings(a.$fn.as_str(), b.$fn.as_str());');
 				case TInst(c, _) if(c.get().meta.has(":dataClass")): lines.push('    let cmp_$fn = compare_${RustImports.toSnakeCase(c.get().name)}(&a.$fn, &b.$fn);');
 				case TEnum(e, _):
