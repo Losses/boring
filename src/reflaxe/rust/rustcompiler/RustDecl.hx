@@ -1433,7 +1433,7 @@ class RustDecl {
 				if(isStringParam) {
 					lines.push('            $sname: ${sname}.to_string(),');
 				} else if(isNullableStringParam) {
-					lines.push('            $sname: ${sname}.map(|v| v.to_string()),');
+					lines.push('            $sname: match ($sname) { Some(v) => Some(v.to_string()), None => None },');
 				} else {
 					lines.push('            $sname,');
 				}
