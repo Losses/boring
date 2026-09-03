@@ -2656,6 +2656,14 @@ class RustExpr {
 				// re-adds grouping parens by precedence, so a bare shift
 				// initializer carries no outer parentheses.
 				return operand(l, op, false) + " >> " + operand(r, op, true);
+			case OpShl:
+				// Rust parses an unparenthesized cast immediately followed by
+				// `<` as generic arguments (`x as u32 << y`), the same trap the
+				// comparison case below groups around.  operand() decides by
+				// precedence alone, which lets a path-call shift RHS through
+				// bare (`as u32 << u32::wrapping_add(...)`), so group both
+				// operands unconditionally.
+				return "(" + operand(l, op, false) + ") << (" + operand(r, op, true) + ")";
 			case OpLt if(isZero(r) && isUnsignedOperand(l)):
 				return "(" + operand(l, op, false) + ") > 2147483647";
 			case OpSub:
