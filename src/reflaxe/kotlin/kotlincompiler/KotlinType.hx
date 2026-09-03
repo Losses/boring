@@ -171,7 +171,7 @@ class KotlinType {
 		}
 		switch(Context.follow(field.type)) {
 			case TInst(c, _) if(c.get().meta.has(":dataClass")):
-				for(f in c.get().fields.get()) if(f.kind.match(FVar(_, _))) validateDataClassField(c.get(), f);
+				for(f in c.get().fields.get()) if(switch(f.kind) { case FVar(read, write): !(read.match(AccCall) && write.match(AccNever)); case _: false; }) validateDataClassField(c.get(), f);
 			case _:
 		}
 	}
