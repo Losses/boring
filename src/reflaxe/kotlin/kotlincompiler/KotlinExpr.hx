@@ -1466,9 +1466,9 @@ class KotlinExpr {
 				final leftText = leftStd == null ? operand(l, op, false) : stdString(leftStd, true);
 				final rightText = rightStd == null ? operand(r, op, true) : stdString(rightStd, true);
 				if(!isStringType(l.t)) {
-					return "(" + leftText + ").toString() + " + rightText;
+					return "\"${" + leftText + "}${" + rightText + "}\"";
 				}
-				return leftText + " + " + rightText;
+				return "\"${" + leftText + "}${" + rightText + "}\"";
 			case OpAdd | OpSub | OpMult | OpDiv | OpMod | OpEq | OpNotEq | OpGt | OpGte | OpLt | OpLte | OpBoolAnd | OpBoolOr:
 				return operand(l, op, false) + " " + symbolOf(op) + " " + operand(r, op, true);
 			case OpShl:
@@ -1807,7 +1807,7 @@ class KotlinExpr {
 			case TAbstract(a, _) if(a.get().name == "Int" || a.get().name == "Bool"):
 				inConcat ? value : "(" + value + ").toString()";
 			case TInst(c, _) if(c.get().kind.match(KTypeParameter(_))):
-				inConcat ? value : "(" + value + ").toString()";
+				inConcat ? value + ".toString()" : "(" + value + ").toString()";
 			case TAbstract(a, params) if(a.get().module == "std.ReadOnlyArray"):
 				stdStringType(haxe.macro.TypeTools.applyTypeParameters(a.get().type, a.get().params, params), value, inConcat, origin, depth);
 			case TEnum(en, _) if(isParameterlessEnum(en.get())): value + (inConcat ? "" : ".name");
