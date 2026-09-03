@@ -42,7 +42,7 @@ makes the record unusable as a key. The compiler rejects it with an error that
 names the record, the field, and the field type. A `Null<T>` field is rejected
 by the same rule because this spec defines no order between null and a value.
 
-A `(get, never)` computed property is not a stored field and does not participate in key ordering. The key gate must apply the same stored-field filter at the top-level traversal and during nested dataClass validation. This is the validation-side counterpart to the rule that the comparator reads only the declared fields.
+A `(get, never)` computed property is not a stored field and does not participate in key ordering. The key gate must apply the same stored-field filter at the top-level traversal and during nested dataClass validation. This is the validation-side counterpart to the rule that the comparator reads only the declared fields. The comparator-eligibility check that gates emission of the comparator applies the same stored-field filter: a computed property does not disqualify a record from comparator generation.
 
 Ordering must be consistent with the structural equality that features/27
 generates for `@:dataClass`: two records compare equal exactly when their
