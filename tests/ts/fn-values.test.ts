@@ -44,13 +44,13 @@ describe("first-class function value generated trees", () => {
 
   test("Rust uses one boxed representation and adapts indirect lengths", () => {
     const rust = read("reference/rust-gen/src/boring/fn_values_ops.rs");
-    expect(rust).toContain("pub style_at: Box<dyn Fn(u32) -> String>");
+    expect(rust).toContain("pub style_at: Rc<dyn Fn(u32) -> String>");
     expect(rust).toContain("pub resolver: Box<dyn NameResolver>");
-    expect(rust).toContain("pub fn new(style_at: Box<dyn Fn(u32) -> String>, resolver: Box<dyn NameResolver>)");
-    expect(rust).toContain("pub fn apply_picker(values: &mut Vec<String>, pick: Box<dyn Fn(u32) -> String>)");
-    expect(rust).toContain("return pick(values.len() as u32 - 1);");
-    expect(rust).toContain("pub fn make_prefixer(prefix: &str) -> Box<dyn");
-    expect(rust).toContain("Box::new(move |suffix|");
+    expect(rust).toContain("pub fn new(style_at: Rc<dyn Fn(u32) -> String>, resolver: Box<dyn NameResolver>)");
+    expect(rust).toContain("pub fn apply_picker(values: &Vec<String>, pick: Rc<dyn Fn(u32) -> String>)");
+    expect(rust).toContain("return pick(u32::wrapping_sub(values.len() as u32 as u32, 1));");
+    expect(rust).toContain("pub fn make_prefixer(prefix: &str) -> Rc<dyn");
+    expect(rust).toContain("Rc::new(move |suffix|");
     expect(rust).toContain("pub static DEFAULT_TAG: fn(i32) -> String =");
     expect(rust).not.toMatch(/(?:style_at|resolver): NameResolver/);
 
@@ -60,11 +60,11 @@ describe("first-class function value generated trees", () => {
 
   test("Rust's f32 tree carries the same function-value lowering", () => {
     const rust = read("reference/rust-f32-gen/src/boring/fn_values_ops.rs");
-    expect(rust).toContain("Box<dyn Fn(u32) -> String>");
+    expect(rust).toContain("Rc<dyn Fn(u32) -> String>");
     expect(rust).toContain("Box<dyn NameResolver>");
-    expect(rust).toContain("Box::new(move |suffix|");
+    expect(rust).toContain("Rc::new(move |suffix|");
     expect(rust).toContain("pub static DEFAULT_TAG: fn(i32) -> String =");
-    expect(rust).toContain("(values.len() as u32 - 1)");
+    expect(rust).toContain("u32::wrapping_sub(values.len() as u32 as u32, 1)");
   });
 });
 
