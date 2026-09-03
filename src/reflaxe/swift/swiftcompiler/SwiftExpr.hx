@@ -1671,6 +1671,15 @@ class SwiftExpr {
 				final index = depth == 0 ? "i" : "i" + depth;
 				final item = stdStringType(element, value + "[" + index + "]", true, origin, depth + 1);
 				'{ () -> String in var out = "["; let n = ${value}.count; var ${index} = 0; while ${index} < n { if ${index} > 0 { out += ", "; }; out += ${item}; ${index} += 1; }; out += "]"; return out }()';
+			case TInst(c, [element]) if(c.get().module == "std.SortedSet"):
+				final index = depth == 0 ? "i" : "i" + depth;
+				final item = stdStringType(element, value + ".at(" + index + ")", true, origin, depth + 1);
+				'{ () -> String in var out = "["; let n = ${value}.size(); var ${index} = 0; while ${index} < n { if ${index} > 0 { out += ", "; }; out += ${item}; ${index} += 1; }; out += "]"; return out }()';
+			case TInst(c, [key, val]) if(c.get().module == "std.SortedMap"):
+				final index = depth == 0 ? "i" : "i" + depth;
+				final itemKey = stdStringType(key, value + ".keyAt(" + index + ")", true, origin, depth + 1);
+				final itemVal = stdStringType(val, value + ".valueAt(" + index + ")", true, origin, depth + 1);
+				'{ () -> String in var out = "{"; let n = ${value}.size(); var ${index} = 0; while ${index} < n { if ${index} > 0 { out += ", "; }; out += ${itemKey}; out += "="; out += ${itemVal}; ${index} += 1; }; out += "}"; return out }()';
 			case TInst(c, _) if(StaticFieldHelper.hasSelfConstructionStatic(c.get()) || c.get().meta.has(":dataClass")): value + ".toString()";
 			case TAbstract(a, _) if(ValueTypeSupport.isMarkedAbstract(a.get())):
 				final abs = a.get();
@@ -1679,6 +1688,8 @@ class SwiftExpr {
 					: "String(describing: " + value + "." + ValueTypeSupport.representationFieldName(abs) + ")";
 			case TAbstract(a, _) if(a.get().name == "Float"): depth > 0 ? "\"\\(" + value + ")\"" : (inConcat ? value : "String(" + value + ").hasSuffix(\".0\") ? String(String(" + value + ").dropLast(2)) : String(" + value + ")");
 			case TAbstract(a, _) if(a.get().name == "Int" || a.get().name == "Bool"): depth > 0 ? "\"\\(" + value + ")\"" : (inConcat ? value : "String(" + value + ")");
+			case TInst(c, _) if(c.get().kind.match(KTypeParameter(_))):
+				inConcat ? value : "String(describing: " + value + ")";
 			case TAbstract(a, params) if(a.get().module == "std.ReadOnlyArray"):
 				stdStringType(haxe.macro.TypeTools.applyTypeParameters(a.get().type, a.get().params, params), value, inConcat, origin, depth);
 			case TEnum(en, _) if(isParameterlessEnum(en.get())): value + ".rawValue";
