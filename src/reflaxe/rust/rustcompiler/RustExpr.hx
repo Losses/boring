@@ -52,6 +52,9 @@ class RustExpr {
 	final rangeLoopVars: Map<Int, Bool> = [];
 	final argTypes: Map<String, String> = [];
 	final paramVarIds: Map<Int, Bool> = [];
+	final genericParamIds: Map<Int, Bool> = [];
+	final closureParamIds: Map<Int, Bool> = [];
+	var inGenericFunction: Bool = false;
 	final borrowedLoopVarIds: Map<Int, Bool> = [];
 	final provenNonNullVarIds: Map<Int, Bool> = [];
 	final readsAfterDeclaration: Map<Int, Bool> = [];
@@ -2521,8 +2524,8 @@ class RustExpr {
 			case OpAssignOp(inner):
 				// Int compound assignments must preserve Haxe's 32-bit wrapping.
 				final intCompound = switch(inner) {
-					case OpAdd | OpSub | OpMult if(isIntType(l.t) && isLocalOrFieldTarget(l)):
-						assignTarget(l) + " = " + expr(l) + "." + wrappingMethod(inner) + "(" + expr(r) + ")";
+					case OpMult | OpAdd | OpSub if(isIntType(l.t) && isLocalOrFieldTarget(l) && !isGenericLocal(l) && !isClosureParam(l) && !RustType.isTypeParam(l.t)):
+						assignTarget(l) + " = " + types.of(l.t) + "::" + wrappingMethod(inner) + "(" + assignTarget(l) + ", " + expr(r) + ")";
 					case _: null;
 				};
 				if(intCompound != null) return intCompound;
@@ -2544,8 +2547,8 @@ class RustExpr {
 				return "format!(\"{}{}\", " + lStr + ", " + rStr + ")";
 			case OpDiv if(StringTools.endsWith(operand(l, op, false), ".len()")):
 				return "((" + operand(l, op, false) + ") / (" + operand(r, op, true) + " as usize)) as u32";
-			case OpMult | OpAdd | OpSub if(isIntType(e.t)):
-				return "(" + operand(l, op, false) + " as " + types.of(e.t) + ")." + wrappingMethod(op) + "(" + operand(r, op, true) + ")";
+			case OpMult | OpAdd | OpSub if(isIntType(e.t) && !inGenericFunction && !isGenericLocal(l) && !isClosureParam(l) && !RustType.isTypeParam(currentReturnType) && !RustType.isTypeParam(e.t) && !RustType.isTypeParam(l.t) && !RustType.isTypeParam(r.t)):
+				return types.of(e.t) + "::" + wrappingMethod(op) + "(" + wrappingArg(l, op, false) + " as " + types.of(e.t) + ", " + wrappingArg(r, op, true) + ")";
 			case OpMult | OpAdd | OpSub | OpDiv if(isFloatType(e.t)):
 				final real = FloatPrecision.isF32() ? "f32" : "f64";
 				final lStr = if(isIntType(l.t)) "((" + operand(l, op, false) + ") as " + real + ")" else operand(l, op, false);
@@ -3789,10 +3792,19 @@ class RustExpr {
 		};
 		returnTypeName = functionReturn == null ? null : types.of(functionReturn, false);
 		currentReturnType = functionReturn;
+		final previousGeneric = inGenericFunction;
+		inGenericFunction = true;
+		genericParamIds.clear();
+		closureParamIds.clear();
+		for(a in f.args) {
+			closureParamIds.set(a.v.id, true);
+			if(RustType.isTypeParam(a.v.t)) genericParamIds.set(a.v.id, true);
+		}
 		final body = coalescingNormalizationLines(f.expr, 2, [for(a in f.args) a.v.name]).concat(blockLines(statementsOf(f.expr), 2, true));
 		returnUnsigned = previousReturnUnsigned;
 		returnTypeName = previousReturnTypeName;
 		currentReturnType = previousReturnType;
+		inGenericFunction = previousGeneric;
 		return 'move |$params| {\n' + body.join("\n") + '\n}';
 	}
 
@@ -4035,6 +4047,22 @@ class RustExpr {
 		};
 	}
 
+	function wrappingArg(e: TypedExpr, parent: Binop, isRight: Bool): String {
+		final value = operand(e, parent, isRight);
+		return StringTools.startsWith(value, "(") && StringTools.endsWith(value, ")") ? value.substr(1, value.length - 2) : value;
+	}
+	function isClosureParam(e: TypedExpr): Bool {
+		return switch(stripWrap(e).expr) {
+			case TLocal(v): closureParamIds.exists(v.id);
+			case _: false;
+		};
+	}
+	function isGenericLocal(e: TypedExpr): Bool {
+		return switch(stripWrap(e).expr) {
+			case TLocal(v): genericParamIds.exists(v.id);
+			case _: false;
+		};
+	}
 	function wrappingMethod(op:Binop):String {
 		return switch(op) {
 			case OpAdd: "wrapping_add";
