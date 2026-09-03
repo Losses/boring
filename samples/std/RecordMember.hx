@@ -18,6 +18,13 @@ class RecordMember {
 			return fields;
 		}
 		final cls = localClass.get();
+		// Feature spec 40 ruling 4: the stage 1 reference build rewrites
+		// payload-enum Std.string operands into the labeled switch; the
+		// generated targets keep the interception of feature spec 34 and
+		// never define boring_oracle.
+		if(Context.defined("boring_oracle")) {
+			EnumText.rewriteStringCalls(fields);
+		}
 		// Spec 32 rule 2: the bare-name singleton form belongs to a class
 		// with no instance fields. A field-carrying class whose constructor
 		// parameters all hold defaults constructs with zero arguments too,
