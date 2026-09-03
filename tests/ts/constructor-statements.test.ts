@@ -10,7 +10,7 @@ describe("constructor statement initialization safety", () => {
     );
     expect(fs.existsSync(file)).toBe(true);
     const content = fs.readFileSync(file, "utf8");
-    const signature = content.match(/ConstructorStatementOps\([^)]*\)([^\{]*)\{/);
+    const signature = content.match(/ConstructorStatementOps\([^)]*\)([^{]*)\{/);
     expect(signature).not.toBeNull();
     expect(signature![1]).not.toContain("_g");
     expect(signature![1]).not.toContain("mapped");
