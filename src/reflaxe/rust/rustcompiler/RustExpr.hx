@@ -61,6 +61,9 @@ class RustExpr {
 	final unsignedLocals: Map<Int, Bool> = [];
 	// Locals initialized from charCodeAt are collapsed from Option<u32> to a scalar.
 	final nullableCollapsedLocals: Map<Int, Bool> = [];
+	// String.indexOf lowers to an expression that always yields i32; a local
+	// initialized from it keeps that domain even where Int maps to u32.
+	final i32Locals: Map<Int, Bool> = [];
 	// Keep Option when Haxe code observes null separately from code point zero.
 	final nullableSensitiveLocals: Map<Int, Bool> = [];
 	final fpInt64Halves: Map<Int, Bool> = [];
@@ -279,6 +282,7 @@ class RustExpr {
 		unsignedLocals.clear();
 		nullableCollapsedLocals.clear();
 		nullableSensitiveLocals.clear();
+		i32Locals.clear();
 		mutated.clear();
 		deferredLocals.clear();
 		for(a in f.args) {
@@ -505,6 +509,8 @@ class RustExpr {
 							initStr += ".unwrap_or(0)";
 							nullableCollapsedLocals.set(v.id, true);
 						}
+					case TCall(ifn, iargs) if(isStringIndexOf(ifn) && iargs.length >= 1 && isIntType(v.t) && !isNullType(v.t)):
+						i32Locals.set(v.id, true);
 					case _:
 				}
 				// A String local owns its value; a literal initializer is
@@ -1833,7 +1839,7 @@ class RustExpr {
 				final noneText = expr(noneExpr);
 				final typedNoneText = isStringType(resultType) ? noneText + ".to_string()" : noneText;
 				final localName = RustImports.toSnakeCase(value.name);
-				return "match " + localName + " { None => " + typedNoneText + ", Some(" + localName + ") => " + localName + " }";
+				return "match " + localName + " { None => " + typedNoneText + ", Some(ref " + localName + ") => " + localName + ".clone() }";
 			case _:
 		}
 		return null;
@@ -2790,7 +2796,7 @@ class RustExpr {
 					if(isString(subj)) {
 						state.shimsUsed.set("std.UStringRT", true);
 						imports.require("crate::runtime::u_string");
-						return "u_string::count(&(" + expr(subj) + ")) as i32";
+						return "u_string::count(&(" + expr(subj) + "))";
 					}
 					final receiver = expr(subj);
 					final receiverText = StringTools.startsWith(receiver, "&*") ? "(" + receiver + ")" : receiver;
@@ -3588,8 +3594,14 @@ class RustExpr {
 				}
 				if(cls.pack.length == 0 && cls.name == "String" && name == "fromCharCode") {
 					final value = expr(args[0]);
-					final argument = isNullType(args[0].t) ? "(" + value + ".unwrap_or_default())" : (StringTools.startsWith(value, "(") ? value : "(" + value + ")");
-					final unwrapped = isNullType(args[0].t) ? "(" + value + ".unwrap_or_default())" : argument;
+					// A collapsed local already rendered as a plain integer;
+					// unwrap applies only to an argument that still carries Option.
+					final collapsedArg = switch(stripWrap(args[0]).expr) {
+						case TLocal(v): nullableCollapsedLocals.exists(v.id);
+						case _: false;
+					};
+					final argument = (isNullType(args[0].t) && !collapsedArg) ? "(" + value + ".unwrap_or_default())" : "(" + value + ")";
+					final unwrapped = argument;
 					return "String::from_utf16(&[u16::try_from" + unwrapped + ".unwrap_or_default()]).unwrap_or_default()";
 				}
 				if(path == "std.UStringPlatform") {
@@ -4642,6 +4654,13 @@ class RustExpr {
 		return typeName + "::from_be_bytes([" + elems.join(", ") + "])";
 	}
 
+	function isStringIndexOf(fn: TypedExpr): Bool {
+		return switch(fn.expr) {
+			case TField(subj, FInstance(_, _, cf)) if(cf.get().name == "indexOf" && isString(stripCast(subj))): true;
+			case _: false;
+		};
+	}
+
 	function isStringCharCodeAt(fn: TypedExpr): Bool {
 		return switch(fn.expr) {
 			case TField(subj, FInstance(_, _, cf)) if(cf.get().name == "charCodeAt" && isString(stripCast(subj))): true;
@@ -4667,6 +4686,7 @@ class RustExpr {
 		final inner = stripWrap(e);
 		switch(inner.expr) {
 			case TLocal(v):
+				if(i32Locals.exists(v.id)) return "i32";
 				if(argTypes.exists(v.name)) return argTypes.get(v.name);
 			case _:
 		}
@@ -4751,6 +4771,11 @@ class RustExpr {
 				case _: false;
 			};
 			if(borrowedParam) return rendered + ".map(|v| v.to_string())";
+		}
+		// charCodeAt is represented as Option<u32>; crossing into a plain
+		// value parameter applies Haxe's null-to-zero bridge exactly once.
+		if(!isNullType(expected) && isStringCharCodeAtCall(actual) && isNullType(actual.t)) {
+			return rendered + ".unwrap_or(0)";
 		}
 		if(isInterfaceType(expected) && !isInterfaceType(actual.t)) {
 			return "Box::new(" + rendered + ")";
@@ -5150,6 +5175,9 @@ class RustExpr {
 		if(resultType != null && isStringType(resultType)) {
 			if(StringTools.endsWith(text, ".to_string()") || StringTools.endsWith(text, ".clone()")) return text;
 			return text + ".to_string()";
+		}
+		if(text.indexOf("u_string::count") >= 0 && resolveExprType(sibling) == "i32") {
+			return "(" + text + ") as i32";
 		}
 		if(!isStringType(branch.t) || !isStringType(sibling.t)) {
 			return text;
