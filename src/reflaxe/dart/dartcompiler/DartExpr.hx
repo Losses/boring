@@ -531,8 +531,17 @@ class DartExpr {
 				return blockLines(stmts, depth);
 			case TIf(c, t, f):
 				final guarded = nullGuardLocal(c);
-				if(guarded != null && f == null) nonNullLocals.set(guarded.id, true);
-				return ifLines(c, t, f, depth);
+				if(guarded != null && f == null && isNotNullGuard(c)) {
+					final wasProven = nonNullLocals.exists(guarded.id);
+					nonNullLocals.set(guarded.id, true);
+					final lines = ifLines(c, t, f, depth);
+					if(!wasProven) nonNullLocals.remove(guarded.id);
+					return lines;
+				}
+				final lines = ifLines(c, t, f, depth);
+				// A null-defaulting branch promotes its local after the branch.
+				if(guarded != null && f == null && !isNotNullGuard(c)) nonNullLocals.set(guarded.id, true);
+				return lines;
 			case TWhile(c, b, true):
 				final out = [indent(depth) + "while (" + expr(c) + ") {"];
 				for(l in blockLines(statementsOf(b), depth + 1)) out.push(l);
@@ -1249,6 +1258,16 @@ class DartExpr {
 				return map == null ? assignTarget(l) + " = " + expr(r) : expr(map.receiver) + "[" + expr(map.key) + "] = " + expr(r);
 			case OpAssignOp(inner):
 				return assignTarget(l) + " " + symbolOf(inner) + "= " + expr(r);
+			case OpBoolAnd:
+				final guarded = nullGuardLocal(l);
+				if(guarded != null && isNotNullGuard(l)) {
+					final wasProven = nonNullLocals.exists(guarded.id);
+					nonNullLocals.set(guarded.id, true);
+					final right = operand(r, op, true);
+					if(!wasProven) nonNullLocals.remove(guarded.id);
+					return operand(l, op, false) + " && " + right;
+				}
+				return operand(l, op, false) + " && " + operand(r, op, true);
 			case OpAdd:
 				if(isStringTyped(e)) {
 					return templateLiteral(l, r);
@@ -1286,7 +1305,13 @@ class DartExpr {
 		var rendered = expr(e);
 		// A normalized local, or one cleared by a null guard, is already
 		// non-null in the generated Dart flow.
-		if(isNullLeafType(e.t) && !provenNonNull(e) && parent != OpEq && parent != OpNotEq) rendered += "!";
+		if(isNullLeafType(e.t) && !provenNonNull(e) && parent != OpEq && parent != OpNotEq) {
+			rendered += "!";
+			switch(stripWrap(e).expr) {
+				case TLocal(v): nonNullLocals.set(v.id, true);
+				case _:
+			}
+		}
 		switch(stripWrap(e).expr) {
 			case TBinop(op, _, _):
 				final cp = precedenceOf(op);
@@ -1539,6 +1564,11 @@ class DartExpr {
 		unwrap. Optional parameters and untyped parameters keep the
 		argument as rendered.
 	**/
+	function requiredValueText(e: TypedExpr): String {
+		if(!isNullLeafType(e.t) || provenNonNull(e)) return expr(e);
+		return expr(e) + "!";
+	}
+
 	function argTexts(fn: TypedExpr, args: Array<TypedExpr>): Array<String> {
 		final paramTypes: Array<Null<Type>> = switch(fn.expr) {
 			case TField(_, FInstance(_, _, cf)) | TField(_, FStatic(_, cf)):
@@ -1553,7 +1583,7 @@ class DartExpr {
 			final a = args[i];
 			final pt = i < paramTypes.length ? paramTypes[i] : null;
 			final demandsValue = pt != null && !isNullLeafType(pt);
-			(demandsValue && isNullLeafType(a.t)) ? expr(a) + "!" : (demandsValue && optionalValued(a) && !isLocalExpr(a) ? expr(a) + "!" : expr(a));
+			(demandsValue && isNullLeafType(a.t)) ? requiredValueText(a) : (demandsValue && optionalValued(a) && !isLocalExpr(a) ? expr(a) + "!" : expr(a));
 		}];
 		return rendered;
 	}
@@ -1829,7 +1859,7 @@ class DartExpr {
 				if(module == "String" && cls.pack.length == 0 && fName == "fromCharCode") {
 					// Dart's factory encodes a supplementary scalar as its
 					// pair, the Haxe semantics for the valid domain.
-					return "String.fromCharCode(" + expr(args[0]) + (isNullLeafType(args[0].t) ? "!" : "") + ")";
+					return "String.fromCharCode(" + requiredValueText(args[0]) + ")";
 				}
 				if(module == "Std") {
 					final s = expr(args[0]);
@@ -3004,10 +3034,17 @@ class DartExpr {
 		};
 	}
 
+	function isNotNullGuard(e: TypedExpr): Bool {
+		return switch(stripWrap(e).expr) {
+			case TBinop(OpNotEq, _, _): true;
+			case _: false;
+		};
+	}
+
 	function nullGuardLocal(e:Null<TypedExpr>):Null<TVar> {
 		if(e == null) return null;
 		return switch(stripWrap(e).expr) {
-			case TBinop(OpEq, l, r):
+			case TBinop(OpEq, l, r) | TBinop(OpNotEq, l, r):
 				switch(stripWrap(r).expr) {
 					case TConst(TNull): switch(stripWrap(l).expr) { case TLocal(v): v; case _: null; }
 					case _: switch(stripWrap(l).expr) { case TConst(TNull): switch(stripWrap(r).expr) { case TLocal(v): v; case _: null; }; case _: null; }
