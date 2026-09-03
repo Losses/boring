@@ -1650,6 +1650,7 @@ class DartExpr {
 		final constructs = [for(ef in en.constructs) ef];
 		constructs.sort((a, b) -> Reflect.compare(a.index, b.index));
 		final arms: Array<String> = [];
+		if(isNullLeafType(origin.t)) arms.push("case null: return \"null\";");
 		for(ef in constructs) {
 			final args = switch(ef.type) {
 				case TFun(args, _): args;
