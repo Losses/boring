@@ -681,6 +681,10 @@ class RustExpr {
 				return stringBufMutationLines(fn, args, depth);
 			case TMeta(_, inner):
 				return stmtLines(inner, depth);
+			case TUnop(OpIncrement, _, subj):
+				return [indent(depth) + expr(subj) + " += 1;"];
+			case TUnop(OpDecrement, _, subj):
+				return [indent(depth) + expr(subj) + " -= 1;"];
 			case _:
 				return [indent(depth) + expr(e) + ";"];
 		}
@@ -2712,13 +2716,15 @@ class RustExpr {
 	function operand(e: TypedExpr, parent: Binop, isRight: Bool): String {
 		var rendered = expr(e);
 		// Null<Int> is represented as Option<u32>. Haxe permits it to enter
-		// numeric expressions; the target contract uses zero for the absent
-		// value, consistently at every arithmetic operand boundary.
 		if(isNullType(e.t) || isStringCharCodeAtCall(e)) {
 			switch(stripWrap(e).expr) {
 			case TCall(fn, _) if(isStringCharCodeAt(fn)): rendered += ".unwrap_or(0)";
 			case _:
 			}
+		}
+		if(rendered.indexOf(" as ") >= 0
+			&& !(StringTools.startsWith(rendered, "(") && StringTools.endsWith(rendered, ")") && matchingParens(rendered))) {
+			rendered = "(" + rendered + ")";
 		}
 		switch(e.expr) {
 			case TBinop(op, _, _):
@@ -2737,8 +2743,8 @@ class RustExpr {
 			case OpNot: return "!" + inner;
 			case OpNegBits: return "!" + inner;
 			case OpNeg: return "-" + inner;
-			case OpIncrement: return inner + " += 1";
-			case OpDecrement: return inner + " -= 1";
+			case OpIncrement: return post ? "({ let t = " + inner + "; " + inner + " += 1; t })" : "({ " + inner + " += 1; " + inner + " })";
+			case OpDecrement: return post ? "({ let t = " + inner + "; " + inner + " -= 1; t })" : "({ " + inner + " -= 1; " + inner + " })";
 			case _:
 				return fail(e, "unary operator has no lowering: " + Std.string(op));
 		}
