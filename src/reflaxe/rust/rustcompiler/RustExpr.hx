@@ -2459,15 +2459,6 @@ class RustExpr {
 					return expr(l) + " && " + right;
 				}
 				return expr(l) + " && " + expr(r);
-			case OpBoolAnd:
-				final proven = provenNonNullLocal(l);
-				if(proven != null) {
-					provenNonNullVarIds.set(proven.id, true);
-					final right = expr(r);
-					provenNonNullVarIds.remove(proven.id);
-					return expr(l) + " && " + right;
-				}
-				return expr(l) + " && " + expr(r);
 			case OpAssign:
 				final map = mapAssignment(l);
 				if(map != null) {
