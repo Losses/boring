@@ -401,6 +401,12 @@ class SwiftExpr {
 				return stringBufMutationLines(fn, args, depth);
 			case TMeta(_, inner):
 				return stmtLines(inner, depth);
+			// Increment/decrement statements retain their direct assignment form.
+			// In a value position unop() must instead preserve the old/new value.
+			case TUnop(OpIncrement, _, subj):
+				return [indent(depth) + expr(subj) + " += 1"];
+			case TUnop(OpDecrement, _, subj):
+				return [indent(depth) + expr(subj) + " -= 1"];
 			case TBinop(OpAssign, l, r):
 				final tryKw = containsThrowingCall(r) ? "try " : "";
 				final map = mapAssignment(l);
@@ -1385,7 +1391,8 @@ class SwiftExpr {
 		};
 	}
 
-	function unop(e: TypedExpr, op: Unop, post: Bool, subj: TypedExpr): String {		final inner = expr(subj);
+	function unop(e: TypedExpr, op: Unop, post: Bool, subj: TypedExpr): String {
+		final inner = expr(subj);
 		final wrapped = switch(stripWrap(subj).expr) {
 			case TBinop(_, _, _): "(" + inner + ")";
 			case _: inner;
@@ -1394,8 +1401,8 @@ class SwiftExpr {
 			case OpNot: return "!" + wrapped;
 			case OpNegBits: return "~" + wrapped;
 			case OpNeg: return "-" + wrapped;
-			case OpIncrement: return inner + " += 1";
-			case OpDecrement: return inner + " -= 1";
+			case OpIncrement: return post ? "{ let t = " + inner + "; " + inner + " += 1; return t }()" : "{ " + inner + " += 1; return " + inner + " }()";
+			case OpDecrement: return post ? "{ let t = " + inner + "; " + inner + " -= 1; return t }()" : "{ " + inner + " -= 1; return " + inner + " }()";
 			case _:
 				{
 					final infos = Context.getPosInfos(e.pos);

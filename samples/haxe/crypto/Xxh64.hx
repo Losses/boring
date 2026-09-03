@@ -42,17 +42,19 @@ class Xxh64 {
 	}
 
 	public function digest():Int64 {
-		var h:Int64 = Int64.ofInt(0);
-		if (large) {
-			h = rotl(v1,1) + rotl(v2,7) + rotl(v3,12) + rotl(v4,18);
-			h = merge(h,v1); h = merge(h,v2); h = merge(h,v3); h = merge(h,v4);
-		} else h = seed + P5();
+		var h:Int64 = large ? largeStart() : seed + P5();
 		h += totalLen;
 		var p = 0;
 		while (p <= mem.length - 8) { h ^= round(Int64.ofInt(0), readMem(p)); h = rotl(h,27) * P1() + P4(); p += 8; }
 		if (p <= mem.length - 4) { h ^= Int64.ofInt(read32Mem(p)) * P1(); h = rotl(h,23) * P2() + P3(); p += 4; }
 		while (p < mem.length) { h ^= Int64.ofInt(mem[p]) * P5(); h = rotl(h,11) * P1(); p++; }
 		return avalanche(h);
+	}
+
+	function largeStart():Int64 {
+		var h:Int64 = rotl(v1,1) + rotl(v2,7) + rotl(v3,12) + rotl(v4,18);
+		h = merge(h,v1); h = merge(h,v2); h = merge(h,v3); h = merge(h,v4);
+		return h;
 	}
 
 	function consumeMem():Void { v1=round(v1,readMem(0)); v2=round(v2,readMem(8)); v3=round(v3,readMem(16)); v4=round(v4,readMem(24)); }
