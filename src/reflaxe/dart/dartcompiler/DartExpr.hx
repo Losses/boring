@@ -1603,6 +1603,15 @@ class DartExpr {
 				final index = depth == 0 ? "i" : "i" + depth;
 				final item = stdStringType(element, value + "[" + index + "]", true, origin, depth + 1);
 				'(() { final sb = StringBuffer("["); final n = ${value}.length; var ${index} = 0; while (${index} < n) { if (${index} > 0) { sb.write(", "); } sb.write(${item}); ${index} += 1; } sb.write("]"); return sb.toString(); })()';
+			case TInst(c, [element]) if(c.get().module == "std.SortedSet"):
+				final index = depth == 0 ? "i" : "i" + depth;
+				final item = stdStringType(element, value + ".at(" + index + ")", true, origin, depth + 1);
+				'(() { final sb = StringBuffer("["); final n = ${value}.size(); var ${index} = 0; while (${index} < n) { if (${index} > 0) { sb.write(", "); } sb.write(${item}); ${index} += 1; } sb.write("]"); return sb.toString(); })()';
+			case TInst(c, [key, val]) if(c.get().module == "std.SortedMap"):
+				final index = depth == 0 ? "i" : "i" + depth;
+				final itemKey = stdStringType(key, value + ".keyAt(" + index + ")", true, origin, depth + 1);
+				final itemVal = stdStringType(val, value + ".valueAt(" + index + ")", true, origin, depth + 1);
+				'(() { final sb = StringBuffer("{"); final n = ${value}.size(); var ${index} = 0; while (${index} < n) { if (${index} > 0) { sb.write(", "); } sb.write(${itemKey}); sb.write("="); sb.write(${itemVal}); ${index} += 1; } sb.write("}"); return sb.toString(); })()';
 			case TInst(c, _) if(StaticFieldHelper.hasSelfConstructionStatic(c.get()) || c.get().meta.has(":dataClass")): value + ".toString()";
 			case TAbstract(a, _) if(ValueTypeSupport.isMarkedAbstract(a.get())):
 			ValueTypeSupport.memberField(a.get(), "toString") != null
@@ -1610,6 +1619,7 @@ class DartExpr {
 				: value + "." + ValueTypeSupport.representationFieldName(a.get()) + ".toString()";
 			case TAbstract(a, _) if(a.get().name == "Float"): inConcat && depth == 0 ? value : runtimeQualified("formatFloat") + "(" + value + ")";
 			case TAbstract(a, _) if(a.get().name == "Int" || a.get().name == "Bool"): inConcat && depth == 0 ? value : "'${" + value + "}'";
+			case TInst(c, _) if(c.get().kind.match(KTypeParameter(_))): inConcat ? value : "'${" + value + "}'";
 			case TAbstract(a, params) if(a.get().module == "std.ReadOnlyArray"):
 				stdStringType(haxe.macro.TypeTools.applyTypeParameters(a.get().type, a.get().params, params), value, inConcat, origin, depth);
 			case TEnum(en, _) if(isParameterlessEnum(en.get())): value + ".label";
