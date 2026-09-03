@@ -4107,6 +4107,13 @@ class RustExpr {
 								mutated.set(v.id, true);
 							case _:
 						}
+					case TField(subj, _):
+						switch(stripWrap(subj).expr) {
+							case TLocal(v):
+								// Assigning through a field of a local requires the binding to be mutable.
+								mutated.set(v.id, true);
+							case _:
+						}
 					case _:
 				}
 			case TUnop(OpIncrement | OpDecrement, _, subj):
