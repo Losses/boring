@@ -4185,14 +4185,14 @@ class RustExpr {
 							switch(stripWrap(init).expr) {
 								case TLocal(source):
 									for(j in (i + 1)...stmts.length) if(mentionsLocal(stmts[j], source)) { readsAfterDeclaration.set(source.id, true); break; }
-								case _:
-							}
-						case TField(subj, _):
-							switch(stripWrap(subj).expr) {
-								case TLocal(source):
-									for(j in (i + 1)...stmts.length) if(mentionsLocal(stmts[j], source)) { readsAfterDeclaration.set(source.id, true); break; }
-								case _:
-							}
+							case TField(subj, _):
+								switch(stripWrap(subj).expr) {
+									case TLocal(source):
+										for(j in (i + 1)...stmts.length) if(mentionsLocal(stmts[j], source)) { readsAfterDeclaration.set(source.id, true); break; }
+									case _:
+								}
+							case _:
+						}
 						case _:
 					}
 					scanReadsAfter(stmts[i]);
