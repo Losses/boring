@@ -83,6 +83,32 @@ class RustImports {
 		return lines.join("\n") + "\n\n";
 	}
 
+	/**
+		Renders against the finished module body: the sorted-table import
+		follows a type mention that can vanish when every use of the extern
+		lowered to a different spelling, so it stays only when the body
+		names the table symbol.
+	**/
+	public function renderFiltered(body: String): String {
+		final items = [];
+		for(imp in imports.keys()) {
+			items.push(imp);
+		}
+		items.sort(Reflect.compare);
+		final lines = [];
+		for(imp in items) {
+			if(StringTools.startsWith(imp, "crate::runtime::sorted_table::")) {
+				final symbol = imp.substr(imp.lastIndexOf("::") + 2);
+				if(body.indexOf(symbol) < 0) continue;
+			}
+			lines.push("use " + imp + ";");
+		}
+		if(lines.length == 0) {
+			return "";
+		}
+		return lines.join("\n") + "\n\n";
+	}
+
 	public static function moduleToRustPath(module: String): String {
 		final parts = module.split(".");
 		final out = [];
@@ -109,7 +135,7 @@ class RustImports {
 			}
 		}
 		if(isAllUpper) {
-			return s;
+			return s.length == 1 ? s.toLowerCase() : s;
 		}
 
 		final buf = new StringBuf();

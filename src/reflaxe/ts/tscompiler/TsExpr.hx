@@ -474,6 +474,17 @@ class TsExpr {
 	function blockLines(stmts: Array<TypedExpr>, depth: Int): Array<String> {
 		stmts = fuseUninitializedVars(stmts);
 		stmts = regroupLoops(stmts);
+		if(stmts.length > 1) {
+			var i = 0;
+			while(i + 1 < stmts.length) {
+				switch(stmts[i].expr) {
+					case TVar(v, init) if(init != null && isLiteralExpr(init) && safeTryInitialization(v, stmts[i + 1])):
+						stmts[i] = {expr: TVar(v, null), pos: stmts[i].pos, t: stmts[i].t};
+					case _:
+				}
+				i++;
+			}
+		}
 		final out: Array<String> = [];
 
 		// features/09 LengthHoist: counted loops whose bound reads
@@ -547,6 +558,71 @@ class TsExpr {
 			i += 1;
 		}
 		return out;
+	}
+
+	function isLiteralExpr(e: TypedExpr): Bool {
+		return switch(stripCast(e).expr) { case TConst(_): true; case _: false; };
+	}
+	function safeTryInitialization(v: TVar, next: TypedExpr): Bool {
+		final region = switch(next.expr) {
+			case TTry(_, _): next;
+			case TMeta(_, inner): inner;
+			case _: null;
+		};
+		if(region == null) return false;
+		switch(region.expr) {
+			case TTry(body, catches):
+				if(catches.length == 0 || !assignsBeforeRead(body, v.id)) return false;
+				var i = 0;
+				while(i < catches.length) {
+					if(!catchTerminates(catches[i].expr)) return false;
+					i++;
+				}
+				return true;
+			case _:
+				return false;
+		}
+	}
+
+	/**
+		Reports whether the local receives a plain assignment before any
+		read of it inside `e`, so a preceding literal initializer can be
+		dropped without leaving a use-before-assign path. A compound
+		assignment (`+=`, `++`) reads the local first and therefore does
+		not count as the establishing assignment.
+	**/
+	function assignsBeforeRead(e: TypedExpr, varId: Int): Bool {
+		var assigned = false;
+		var violated = false;
+		function walk(x: TypedExpr) {
+			if(violated) return;
+			switch(x.expr) {
+				case TBinop(OpAssign, t, r):
+					switch(stripCast(t).expr) {
+						case TLocal(w) if(w.id == varId):
+							walk(r);
+							if(!violated) assigned = true;
+							return;
+						case _:
+					}
+				case TLocal(w) if(w.id == varId && !assigned):
+					violated = true;
+					return;
+				case _:
+			}
+			TypedExprTools.iter(x, walk);
+		}
+		walk(e);
+		return !violated && assigned;
+	}
+
+	function catchTerminates(e: TypedExpr): Bool {
+		return switch(e.expr) {
+			case TThrow(_) | TReturn(_): true;
+			case TBlock(stmts) if(stmts.length > 0): catchTerminates(stmts[stmts.length - 1]);
+			case TIf(_, t, f) if(f != null): catchTerminates(t) && catchTerminates(f);
+			case _: false;
+		};
 	}
 
 	function clearHoistsAt(hoists: Array<{firstUse: Int, loopAt: Int, subject: TVar, name: String}>, at: Int): Void {
@@ -1577,6 +1653,12 @@ class TsExpr {
 				if(cls.pack.length == 0 && cls.name == "StringTools" && fName == "trim" && args.length == 1) {
 					return expr(args[0]) + ".trim()";
 				}
+				if(cls.pack.length == 0 && cls.name == "StringTools" && (fName == "startsWith" || fName == "endsWith") && args.length == 2) {
+					return expr(args[0]) + "." + fName + "(" + expr(args[1]) + ")";
+				}
+				if(cls.pack.length == 0 && cls.name == "Lambda" && fName == "has" && args.length == 2) {
+					return expr(args[0]) + ".includes(" + expr(args[1]) + ")";
+				}
 				if(cls.module == "Std" && (fName == "parseFloat" || fName == "parseInt") && args.length == 1) {
 					final s = expr(args[0]);
 					if (fName == "parseFloat") return "((s) => { let a = 0, z = s.length; while (a < z) { const c = s.charCodeAt(a); if (c === 32 || (c >= 9 && c <= 13)) { a++; } else { break; } } while (z > a) { const c = s.charCodeAt(z - 1); if (c === 32 || (c >= 9 && c <= 13)) { z--; } else { break; } } let i = a; const c0 = s.charCodeAt(i); if (c0 === 43 || c0 === 45) { i++; } let before = 0; while (i < z) { const c = s.charCodeAt(i); if (c >= 48 && c <= 57) { i++; before++; } else { break; } } let after = 0; if (i < z && s.charCodeAt(i) === 46) { i++; while (i < z) { const c = s.charCodeAt(i); if (c >= 48 && c <= 57) { i++; after++; } else { break; } } } let ok = before > 0 || after > 0; if (ok && i < z) { const e = s.charCodeAt(i); if (e === 101 || e === 69) { i++; const c1 = s.charCodeAt(i); if (c1 === 43 || c1 === 45) { i++; } let m = 0; while (i < z) { const c = s.charCodeAt(i); if (c >= 48 && c <= 57) { i++; m++; } else { break; } } ok = m > 0; } else { ok = false; } } return ok && i === z ? Number.parseFloat(s.substring(a, z)) : Number.NaN; })(" + s + ")";
@@ -2113,7 +2195,7 @@ class TsExpr {
 			return fail(parts.c.expr, "try region catch type is not an exception class");
 		}
 		final name = localName(v);
-		final out = [indent(depth) + "let " + name + ";", indent(depth) + "try {"];
+		final out = [indent(depth) + "let " + name + ": " + types.of(v.t) + ";", indent(depth) + "try {"];
 		final body = blockValueLines(parts.body, depth + 1);
 		if(body.value == null) {
 			return fail(region, "try region body has no value");
