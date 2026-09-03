@@ -172,11 +172,24 @@ class TsDecl {
 				case TAbstract(a, params) if(a.get().name == "Null" && params.length == 1):
 					lines.push('  if (a.${f.name} === null && b.${f.name} !== null) return -1;');
 					lines.push('  if (a.${f.name} !== null && b.${f.name} === null) return 1;');
-					lines.push('  if (a.${f.name} !== null && b.${f.name} !== null) { const cmp = ' + tsCompareExpr(cls, f.name, params[0]) + '; if (cmp !== 0) return cmp; }');
+					// A string compare yields only -1 or 1; tsc reports a
+					// `!== 0` check on that union as dead, so guard on
+					// inequality like the string-field arm below.
+					switch(Context.follow(params[0])) {
+						case TInst(c, _) if(c.get().name == "String"):
+							lines.push('  if (a.${f.name} !== null && b.${f.name} !== null && a.${f.name} !== b.${f.name}) return a.${f.name} < b.${f.name} ? -1 : 1;');
+						case _:
+							lines.push('  if (a.${f.name} !== null && b.${f.name} !== null) { const cmp = ' + tsCompareExpr(cls, f.name, params[0]) + '; if (cmp !== 0) return cmp; }');
+					}
 					continue;
 				case TAbstract(a, params) if(a.get().name == "ReadOnlyArray" && params.length == 1):
 					lines.push('  const a${f.name}Length = a.${f.name}.length; const b${f.name}Length = b.${f.name}.length;');
-					lines.push('  for (let i = 0; i < a${f.name}Length && i < b${f.name}Length; i++) { const cmp = ' + tsCompareExpr(cls, f.name + '[i]', params[0]) + '; if (cmp !== 0) return cmp; }');
+					switch(Context.follow(params[0])) {
+						case TInst(c, _) if(c.get().name == "String"):
+							lines.push('  for (let i = 0; i < a${f.name}Length && i < b${f.name}Length; i++) { if (a.${f.name}[i] !== b.${f.name}[i]) return a.${f.name}[i] < b.${f.name}[i] ? -1 : 1; }');
+						case _:
+							lines.push('  for (let i = 0; i < a${f.name}Length && i < b${f.name}Length; i++) { const cmp = ' + tsCompareExpr(cls, f.name + '[i]', params[0]) + '; if (cmp !== 0) return cmp; }');
+					}
 					lines.push('  if (a${f.name}Length !== b${f.name}Length) return a${f.name}Length - b${f.name}Length;');
 					continue;
 				default:

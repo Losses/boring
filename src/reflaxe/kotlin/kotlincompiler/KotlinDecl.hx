@@ -295,13 +295,10 @@ class KotlinDecl {
 					lines.push('    while (idx${f.name} < a.${f.name}.size && idx${f.name} < b.${f.name}.size) {');
 					switch(Context.follow(element)) {
 						case TInst(c, _) if(c.get().meta.has(":dataClass")): imports.requireType(c.get().module, "compare" + c.get().name); lines.push('        cmp = compare${c.get().name}(a.${f.name}[idx${f.name}], b.${f.name}[idx${f.name}])');
-						case TEnum(e, _):
-							final en = e.get();
-							final orderName = cls.name + f.name + "Order";
-							lines.push('    fun ${cls.name}${f.name}Order(v: ${en.name}): Int = when (v) {');
-							for(ef in en.constructs) lines.push(enumFieldParams(ef).length > 0 ? '        is ${en.name}.${ef.name} -> ${ef.index}' : '        ${en.name}.${ef.name} -> ${ef.index}');
-							lines.push('    }');
-							lines.push('        cmp = ${orderName}(a.${f.name}[idx${f.name}]).compareTo(${orderName}(b.${f.name}[idx${f.name}]))');
+						// The order helper is hoisted by the pre-pass over the
+						// fields; emitting it here would nest a fun inside
+						// the while loop body.
+						case TEnum(e, _): lines.push('        cmp = ${cls.name}${f.name}Order(a.${f.name}[idx${f.name}]).compareTo(${cls.name}${f.name}Order(b.${f.name}[idx${f.name}]))');
 						case _: lines.push('        cmp = a.${f.name}[idx${f.name}].compareTo(b.${f.name}[idx${f.name}])');
 					}
 					lines.push('        if (cmp != 0) return cmp');
