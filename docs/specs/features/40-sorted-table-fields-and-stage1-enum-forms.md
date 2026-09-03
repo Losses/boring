@@ -88,7 +88,7 @@ overrides no `toString`, so no target prints the ruled set text natively.
    constructor keeps its bare name. The branch covers every constructor
    with no catch-all arm, and its argument forms follow feature spec 34
    ruling 3, so an array argument joins its elements with `", "` through
-   the ruled array form rather than the native `,` join. The stage-1
+   the ruled array form; the native `,` join does not apply. The stage-1
    sentence of feature spec 34 ruling 6 is replaced by this rule; the
    payload rows of `samples/tests/PrintedEnumTests.hx` and the sample
    header divergence note for payload constructors are removed, while the
