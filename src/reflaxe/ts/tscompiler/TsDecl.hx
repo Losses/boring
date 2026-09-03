@@ -151,13 +151,19 @@ class TsDecl {
 	function dataClassComparator(cls: ClassType): String {
 		final lines: Array<String> = [];
 		final fields = [for(x in cls.fields.get()) if(switch(x.kind) { case FVar(read, write): !(read.match(AccCall) && write.match(AccNever)); case _: false; }) x];
-		for(f in fields) switch(Context.follow(f.type)) {
-			case TEnum(e, _):
-				final en = e.get();
+		for(f in fields) {
+			var orderType: Null<EnumType> = null;
+			switch(f.type) {
+				case TAbstract(a, params) if(a.get().name == "ReadOnlyArray" && params.length == 1):
+					switch(Context.follow(params[0])) { case TEnum(e, _): orderType = e.get(); case _: }
+				case _: switch(Context.follow(f.type)) { case TEnum(e, _): orderType = e.get(); case _: }
+			}
+			if(orderType != null) {
+				final en = orderType;
 				lines.push('export function ${cls.name}${f.name}Order(v: ${en.name}): number {');
 				for(ef in en.constructs) lines.push('  if (v.kind === "${ef.name}") return ${ef.index};');
 				lines.push('  return 0;'); lines.push('}'); lines.push("");
-			case _: 
+			}
 		}
 		lines.push('export function compare${cls.name}(a: ${cls.name}, b: ${cls.name}): number {');
 		lines.push('  if (a === b) return 0;');
@@ -187,8 +193,8 @@ class TsDecl {
 
 	function tsCompareExpr(cls:ClassType, field:String, t:Type):String {
 		return switch(Context.follow(t)) {
-			case TInst(c, _) if(c.get().meta.has(":dataClass")): 'compare${c.get().name}(a.${field}, b.${field})';
-			case TEnum(_, _): '${cls.name}${field}Order(a.${field}) - ${cls.name}${field}Order(b.${field})';
+			case TInst(c, _) if(c.get().meta.has(":dataClass")): imports.value(c.get().module, "compare" + c.get().name); 'compare${c.get().name}(a.${field}, b.${field})';
+			case TEnum(_, _): '${cls.name}${field.indexOf("[") >= 0 ? field.substr(0, field.indexOf("[")) : field}Order(a.${field}) - ${cls.name}${field.indexOf("[") >= 0 ? field.substr(0, field.indexOf("[")) : field}Order(b.${field})';
 			case TInst(c, _) if(c.get().name == "String"): 'a.${field} < b.${field} ? -1 : 1';
 			case _: 'a.${field} - b.${field}';
 		};
