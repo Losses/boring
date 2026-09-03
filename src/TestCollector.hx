@@ -330,6 +330,14 @@ class TestMain {
                     return a === b ? 0 : (a ? 1 : -1);
                 }
                 if (ta === \\\"object\\\" && tb === \\\"object\\\" && a !== null && b !== null) {
+                    // Spec 16 orders enum values by constructor
+                    // declaration order, which the haxe JS runtime
+                    // stores as _hx_index. The member walk below
+                    // would order them by _hx_name instead, an
+                    // accident of key insertion order.
+                    if (typeof a.__enum__ === \\\"string\\\" && typeof b.__enum__ === \\\"string\\\" && a.__enum__ === b.__enum__ && a._hx_index !== b._hx_index) {
+                        return a._hx_index - b._hx_index;
+                    }
                     let keysA = Object.keys(a);
                     for (let i = 0; i < keysA.length; i++) {
                         let k = keysA[i];
