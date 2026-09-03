@@ -52,6 +52,9 @@ class RustExpr {
 	final rangeLoopVars: Map<Int, Bool> = [];
 	final argTypes: Map<String, String> = [];
 	final paramVarIds: Map<Int, Bool> = [];
+	final borrowedLoopVarIds: Map<Int, Bool> = [];
+	final provenNonNullVarIds: Map<Int, Bool> = [];
+	final readsAfterDeclaration: Map<Int, Bool> = [];
 	final unsignedLocals: Map<Int, Bool> = [];
 	// Locals initialized from charCodeAt are collapsed from Option<u32> to a scalar.
 	final nullableCollapsedLocals: Map<Int, Bool> = [];
@@ -259,6 +262,7 @@ class RustExpr {
 		currentMethodName = f.field.name;
 		currentLocalName = null;
 		paramVarIds.clear();
+		borrowedLoopVarIds.clear();
 		unsignedLocals.clear();
 		nullableCollapsedLocals.clear();
 		nullableSensitiveLocals.clear();
@@ -275,6 +279,7 @@ class RustExpr {
 		final fusedRoot = fuseWithin(f.expr);
 		f.expr.expr = fusedRoot.expr;
 		scanLocals(f.expr);
+		scanReadsAfter(f.expr);
 		final lines = blockLines(statementsOf(f.expr), 1, true);
 		return coalescingNormalizationLines(f.expr, 1, [for(a in f.args) a.name]).concat(lines);
 	}
@@ -469,6 +474,17 @@ class RustExpr {
 				if(explicitNullableNone && explicitType == "") nullableType = ": " + types.of(v.t, false);
 				initStr = renderValueForType(v.t, init, initStr);
 				switch(stripWrap(init).expr) {
+					case TField(subj, FInstance(_, _, cf)) | TField(subj, FAnon(cf)):
+						switch(stripWrap(subj).expr) {
+							case TLocal(item) if((borrowedLoopVarIds.exists(item.id) || readsAfterDeclaration.exists(item.id)) && !isTypeCopy(cf.get().type)):
+								initStr += ".clone()";
+							case _:
+						}
+					case TLocal(source) if(!isTypeCopy(v.t) && readsAfterDeclaration.exists(source.id)):
+						initStr = "(" + initStr + ").clone()";
+					case _:
+				}
+				switch(stripWrap(init).expr) {
 					case TCall(fn, _) if(isStringCharCodeAt(fn)):
 						if(!nullableSensitiveLocals.exists(v.id)) {
 							initStr += ".unwrap_or(0)";
@@ -515,8 +531,11 @@ class RustExpr {
 				while(StringTools.startsWith(condStr, "(") && StringTools.endsWith(condStr, ")") && matchingParens(condStr)) {
 					condStr = condStr.substr(1, condStr.length - 2);
 				}
+				final proven = provenNonNullLocal(c);
+				if(proven != null) provenNonNullVarIds.set(proven.id, true);
 				final out = [indent(depth) + "if " + condStr + " {"];
 				for(l in blockLines(statementsOf(t), depth + 1)) out.push(l);
+				if(proven != null) provenNonNullVarIds.remove(proven.id);
 				if(f != null) {
 					out.push(indent(depth) + "} else {");
 					for(l in blockLines(statementsOf(f), depth + 1)) out.push(l);
@@ -577,7 +596,11 @@ class RustExpr {
 						case _:
 					}
 				} else if(StringTools.startsWith(returnTypeName, "Option<") && !isNullType(ret.t) && !isTNull(ret)) {
-					retStr = "Some(" + retStr + ")";
+					final payload = switch(stripWrap(ret).expr) {
+						case TLocal(v) if(borrowedLoopVarIds.exists(v.id)): "(" + retStr + ").clone()";
+						case _: retStr;
+					};
+					retStr = "Some(" + payload + ")";
 				} else if(StringTools.startsWith(returnTypeName, "Option<") && isIntType(ret.t) && !isNullType(ret.t) && !isTNull(ret)) {
 					// An Int expression returned from a Null<Int> function
 					// wraps once at the boundary; Null-typed expressions
@@ -1184,8 +1207,9 @@ class RustExpr {
 						n == "Int" || n == "Bool" || n == "Float";
 					default: false;
 				};
+				// A name-keyed lookup is valid only for current-function parameters because argTypes accumulates across functions.
 				final argType = switch(stripWrap(sliceSubj).expr) {
-					case TLocal(v): argTypes.get(v.name);
+					case TLocal(v): paramVarIds.exists(v.id) ? argTypes.get(v.name) : null;
 					default: null;
 					};
 				// A scalar loop over an owned local array borrows the array: the
@@ -1201,7 +1225,11 @@ class RustExpr {
 				} else {
 					itemName;
 				};
-				final iterated = ownedLocal ? "&" + expr(sliceSubj) : expr(sliceSubj);
+				if(argType != null) borrowedLoopVarIds.set(itemVar.id, true);
+				final subjectLocalId = switch(stripWrap(sliceSubj).expr) { case TLocal(v): v.id; case _: -1; };
+				final nonScalarOwnedLocal = !isScalar && argType == null && !paramVarIds.exists(subjectLocalId);
+				if(argType != null || nonScalarOwnedLocal) borrowedLoopVarIds.set(itemVar.id, true);
+				final iterated = (ownedLocal || nonScalarOwnedLocal) ? "&" + expr(sliceSubj) : expr(sliceSubj);
 				switch(Context.follow(itemVar.t)) {
 					case TAbstract(a, _) if(a.get().name == "Int"):
 						// Array elements reach Rust as u32; remember the loop binding
@@ -2330,6 +2358,13 @@ class RustExpr {
 		};
 	}
 
+	function borrowedStringLoopItem(e: TypedExpr): Null<TVar> {
+		return switch(stripWrap(e).expr) {
+			case TLocal(v): borrowedLoopVarIds.exists(v.id) && isStringType(v.t) ? v : null;
+			default: null;
+		};
+	}
+
 	function isSortedBuilder(subj: TypedExpr): Bool {
 		return switch(Context.follow(subj.t)) {
 			case TInst(c, _):
@@ -2414,6 +2449,20 @@ class RustExpr {
 			case OpEq | OpNotEq if((isNullType(l.t) && isTNull(r)) || (isNullType(r.t) && isTNull(l))):
 				final nullable = isNullType(l.t) ? l : r;
 				return expr(nullable) + (op == OpEq ? ".is_none()" : ".is_some()");
+			// Borrowed loop items render as references in Rust.
+			case OpEq | OpNotEq if(borrowedStringLoopItem(l) != null || borrowedStringLoopItem(r) != null):
+				final left = borrowedStringLoopItem(l) != null ? "*" + expr(l) : expr(l);
+				final right = borrowedStringLoopItem(r) != null ? "*" + expr(r) : expr(r);
+				return left + " " + symbolOf(op) + " " + right;
+			case OpBoolAnd:
+				final proven = provenNonNullLocal(l);
+				if(proven != null) {
+					provenNonNullVarIds.set(proven.id, true);
+					final right = expr(r);
+					provenNonNullVarIds.remove(proven.id);
+					return expr(l) + " && " + right;
+				}
+				return expr(l) + " && " + expr(r);
 			case OpAssign:
 				final map = mapAssignment(l);
 				if(map != null) {
@@ -2522,6 +2571,19 @@ class RustExpr {
 		return switch(Context.follow(getNullInnerType(nullable))) {
 			case TEnum(_, _): switch(Context.follow(value)) { case TEnum(_, _): true; case _: false; };
 			case _: false;
+		};
+	}
+
+	function provenNonNullLocal(e: TypedExpr): Null<TVar> {
+		final inner = stripWrap(e);
+		return switch(inner.expr) {
+			case TBinop(OpNotEq, left, right):
+				switch[stripWrap(left).expr, stripWrap(right).expr] {
+					case [TLocal(v), _] if(isTNull(right)): v;
+					case [_, TLocal(v)] if(isTNull(left)): v;
+					case _: null;
+				};
+			case _: null;
 		};
 	}
 
@@ -4051,6 +4113,13 @@ class RustExpr {
 								mutated.set(v.id, true);
 							case _:
 						}
+					case TField(subj, _):
+						switch(stripWrap(subj).expr) {
+							case TLocal(v):
+								// Assigning through a field of a local requires the binding to be mutable.
+								mutated.set(v.id, true);
+							case _:
+						}
 					case _:
 				}
 			case TUnop(OpIncrement | OpDecrement, _, subj):
@@ -4111,6 +4180,33 @@ class RustExpr {
 			case _:
 		}
 		TypedExprTools.iter(e, scanLocals);
+	}
+
+	function scanReadsAfter(e: TypedExpr): Void {
+		switch(e.expr) {
+			case TBlock(stmts):
+				for(i in 0...stmts.length) {
+					switch(stmts[i].expr) {
+						case TVar(_, init) if(init != null):
+							switch(stripWrap(init).expr) {
+								case TLocal(source):
+									for(j in (i + 1)...stmts.length) if(mentionsLocal(stmts[j], source)) { readsAfterDeclaration.set(source.id, true); break; }
+								case TField(subj, _):
+									switch(stripWrap(subj).expr) {
+										case TLocal(source):
+											for(j in (i + 1)...stmts.length) if(mentionsLocal(stmts[j], source)) { readsAfterDeclaration.set(source.id, true); break; }
+										case _:
+									}
+								case _:
+							}
+						case _:
+					}
+					scanReadsAfter(stmts[i]);
+				}
+			case _:
+		}
+		// Loop and branch bodies are blocks too; the sibling scan must reach them.
+		TypedExprTools.iter(e, scanReadsAfter);
 	}
 
 	function collectTryAssignments(e: TypedExpr): Void {
@@ -4604,6 +4700,13 @@ class RustExpr {
 						argStr = "&(" + argStr + ")";
 					}
 				} else if(isPassByRef(pt)) {
+					final provenString = switch(stripWrap(arg).expr) {
+						case TLocal(v) if(provenNonNullVarIds.exists(v.id) && isNullType(arg.t) && isStringType(pt)): true;
+						case _: false;
+					};
+					if(provenString) {
+						argStr = expr(arg) + ".as_deref().unwrap_or(\"\")";
+					} else {
 					// The mutating faces are arrays and the writer and reader
 					// fronts; every other borrowed parameter reads only.
 					final isArray = switch(Context.follow(pt)) {
@@ -4632,15 +4735,18 @@ class RustExpr {
 					} else if(!StringTools.startsWith(argStr, "&")) {
 						argStr = prefix + argStr;
 					}
+					}
 				} else if(isRecordValueType(arg.t) && switch(stripWrap(arg).expr) { case TLocal(_): true; case _: false; }) {
 					argStr = "(" + argStr + ").clone()";
 				} else if(!isPassByRef(pt) && !isTypeCopy(arg.t) && !StringTools.startsWith(argStr, "&")
 					&& !StringTools.endsWith(argStr, ".clone()") && !StringTools.endsWith(argStr, ".to_vec()")
 					&& !StringTools.endsWith(argStr, ".to_string()")) {
-					// Haxe call arguments are value semantics. Clone an owned
-					// Rust value when the callee's parameter is not borrowed;
-					// otherwise a later expression can no longer use it.
-					argStr = "(" + argStr + ").clone()";
+					final provenEnum = switch(stripWrap(arg).expr) {
+						case TLocal(v) if(provenNonNullVarIds.exists(v.id) && isNullType(arg.t)): true;
+						case _: false;
+					};
+					if(provenEnum) argStr = expr(arg) + ".unwrap()";
+					else argStr = "(" + argStr + ").clone()";
 				}
 				// A collection length is usize in Rust while a Haxe Int
 				// function parameter is u32 in business modules. The
