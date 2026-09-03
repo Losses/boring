@@ -2763,6 +2763,8 @@ class RustExpr {
 						if(isFpHelperInt64Halves(args[0])) expr(args[0]) + ".low" else expr(args[0]) + " as u32";
 					case "add" if(args.length == 2): expr(args[0]) + ".wrapping_add(" + expr(args[1]) + ")";
 					case "sub" if(args.length == 2): expr(args[0]) + ".wrapping_sub(" + expr(args[1]) + ")";
+					case "mul" if(args.length == 2): "(" + expr(args[0]) + ").wrapping_mul(" + expr(args[1]) + ")";
+					case "mulInt" if(args.length == 2): "(" + expr(args[0]) + ").wrapping_mul(i64::from(" + expr(args[1]) + "))";
 					case "and" if(args.length == 2): "(" + expr(args[0]) + " & " + expr(args[1]) + ")";
 					case "or" if(args.length == 2): "(" + expr(args[0]) + " | " + expr(args[1]) + ")";
 					case "xor" if(args.length == 2): "(" + expr(args[0]) + " ^ " + expr(args[1]) + ")";

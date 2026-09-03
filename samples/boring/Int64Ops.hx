@@ -8,6 +8,14 @@ class Int64Ops {
 		return Int64.make(0, -1) + Int64.ofInt(1);
 	}
 
+	public static function mulAnchors():Int64 {
+		return Int64.make(0x9E3779B1, 0x85EBCA87) * Int64.make(0xC2B2AE3D, 0x27D4EB4F);
+	}
+
+	public static function mulIntAnchor(value:Int64):Int64 {
+		return Int64.mul(value, 3);
+	}
+
 	public static function rotate(value:Int64, distance:Int):Int64 {
 		return Int64.or(Int64.ushr(value, distance), Int64.shl(value, 64 - distance));
 	}
