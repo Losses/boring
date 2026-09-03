@@ -1363,6 +1363,8 @@ class DartExpr {
 					case "getLow" | "get_low" if(args.length == 1): if(isFpHelperInt64Halves(args[0])) expr(args[0]) + ".low" else "(" + expr(args[0]) + ").toSigned(32)";
 					case "add" if(args.length == 2): "(" + expr(args[0]) + " + " + expr(args[1]) + ").toSigned(64)";
 					case "sub" if(args.length == 2): "(" + expr(args[0]) + " - " + expr(args[1]) + ").toSigned(64)";
+					case "mul" if(args.length == 2): "(" + expr(args[0]) + " * " + expr(args[1]) + ").toSigned(64)";
+					case "mulInt" if(args.length == 2): "(" + expr(args[0]) + " * " + expr(args[1]) + ").toSigned(64)";
 					case "and" if(args.length == 2): "(" + expr(args[0]) + " & " + expr(args[1]) + ").toSigned(64)";
 					case "or" if(args.length == 2): "(" + expr(args[0]) + " | " + expr(args[1]) + ").toSigned(64)";
 					case "xor" if(args.length == 2): "(" + expr(args[0]) + " ^ " + expr(args[1]) + ").toSigned(64)";
