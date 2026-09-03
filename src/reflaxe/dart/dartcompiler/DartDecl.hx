@@ -24,7 +24,12 @@ class DartDecl {
 	final types: DartType;
 	final expr: DartExpr;
 
-	/** Top-level names already claimed in this library. */
+	function qualifiedRef(module: String, name: String): String {
+		final prefix = imports.value(module, name);
+		return prefix.length > 0 ? prefix + "." + name : name;
+	}
+
+
 	final topLevelNames: Map<String, Bool> = [];
 
 	/** Whether any emitted equality compares a list field. */
@@ -207,14 +212,14 @@ class DartDecl {
 		for(f in [for(x in cls.fields.get()) if(switch(x.kind) { case FVar(read, write): !(read.match(AccCall) && write.match(AccNever)); case _: false; }) x]) {
 			switch(f.type) {
 				case TAbstract(a, params) if(a.get().name == "Null" && params.length == 1):
-					lines.push("  if (a." + f.name + " == null && b." + f.name + " != null) return -1;"); lines.push("  if (a." + f.name + " != null && b." + f.name + " == null) return 1;");
-					lines.push("  if (a." + f.name + " != null && b." + f.name + " != null) { final cmp" + f.name + " = a." + f.name + ".compareTo(b." + f.name + "); if (cmp" + f.name + " != 0) return cmp" + f.name + "; }"); continue;
+					lines.push("  final av" + f.name + " = a." + f.name + "; final bv" + f.name + " = b." + f.name + ";"); lines.push("  if (av" + f.name + " == null && bv" + f.name + " != null) return -1;"); lines.push("  if (av" + f.name + " != null && bv" + f.name + " == null) return 1;");
+					switch(Context.follow(params[0])) { case TEnum(e, _): final en = e.get(); final orderName = cls.name + f.name + "Order"; lines.unshift("int " + orderName + "(" + qualifiedRef(en.module, en.name) + " v) {\n" + [for(ef in en.constructs) (enumHasPayload(en) ? "  if (v is " + qualifiedRef(en.module, en.name + ef.name) + ") return " + ef.index + ";" : "  if (v == " + qualifiedRef(en.module, en.name) + "." + lowerFirst(ef.name) + ") return " + ef.index + ";")].join("\n") + "\n  return 0;\n}"); lines.push("  if (av" + f.name + " != null && bv" + f.name + " != null) { final cmp" + f.name + " = " + orderName + "(av" + f.name + ") - " + orderName + "(bv" + f.name + "); if (cmp" + f.name + " != 0) return cmp" + f.name + "; }"); case _: lines.push("  if (av" + f.name + " != null && bv" + f.name + " != null) { final cmp" + f.name + " = av" + f.name + ".compareTo(bv" + f.name + "); if (cmp" + f.name + " != 0) return cmp" + f.name + "; }"); }; continue;
 				case TAbstract(a, params) if(a.get().name == "ReadOnlyArray" && params.length == 1):
 					switch(Context.follow(params[0])) {
 						case TEnum(e, _):
 							final en = e.get();
 							final orderName = cls.name + f.name + "ElementOrder";
-							lines.unshift("int " + orderName + "(" + en.name + " v) {\n" + [for(ef in en.constructs) "  if (v is " + en.name + ef.name + ") return " + ef.index + ";"].join("\n") + "\n  return 0;\n}");
+							lines.unshift("int " + orderName + "(" + qualifiedRef(en.module, en.name) + " v) {\n" + [for(ef in en.constructs) (enumHasPayload(en) ? "  if (v is " + qualifiedRef(en.module, en.name + ef.name) + ") return " + ef.index + ";" : "  if (v == " + qualifiedRef(en.module, en.name) + "." + lowerFirst(ef.name) + ") return " + ef.index + ";")].join("\n") + "\n  return 0;\n}");
 							lines.push("  for (var i = 0; i < a." + f.name + ".length && i < b." + f.name + ".length; i++) { final cmp = " + orderName + "(a." + f.name + "[i]) - " + orderName + "(b." + f.name + "[i]); if (cmp != 0) return cmp; }");
 						case TInst(c, _) if(c.get().meta.has(":dataClass")): lines.push("  for (var i = 0; i < a." + f.name + ".length && i < b." + f.name + ".length; i++) { final cmp = compare" + c.get().name + "(a." + f.name + "[i], b." + f.name + "[i]); if (cmp != 0) return cmp; }");
 						case _: lines.push("  for (var i = 0; i < a." + f.name + ".length && i < b." + f.name + ".length; i++) { final cmp = a." + f.name + "[i].compareTo(b." + f.name + "[i]); if (cmp != 0) return cmp; }");
@@ -228,7 +233,7 @@ class DartDecl {
 				case TInst(c, _) if(c.get().meta.has(":dataClass")): lines.push("  final cmp" + f.name + " = compare" + c.get().name + "(a." + f.name + ", b." + f.name + "); if (cmp" + f.name + " != 0) return cmp" + f.name + ";");
 				case TEnum(e, _):
 					final en = e.get();
-					if(enumHasPayload(en)) { lines.unshift("int " + cls.name + f.name + "Order(" + en.name + " v) {\n" + [for(ef in en.constructs) "  if (v is " + en.name + ef.name + ") return " + ef.index + ";"].join("\n") + "\n  return 0;\n}"); lines.push("  if (" + cls.name + f.name + "Order(a." + f.name + ") != " + cls.name + f.name + "Order(b." + f.name + ")) return " + cls.name + f.name + "Order(a." + f.name + ") - " + cls.name + f.name + "Order(b." + f.name + ");"); } else lines.push("  if (a." + f.name + ".index != b." + f.name + ".index) return a." + f.name + ".index - b." + f.name + ".index;");
+					if(enumHasPayload(en)) { lines.unshift("int " + cls.name + f.name + "Order(" + qualifiedRef(en.module, en.name) + " v) {\n" + [for(ef in en.constructs) (enumHasPayload(en) ? "  if (v is " + qualifiedRef(en.module, en.name + ef.name) + ") return " + ef.index + ";" : "  if (v == " + qualifiedRef(en.module, en.name) + "." + lowerFirst(ef.name) + ") return " + ef.index + ";")].join("\n") + "\n  return 0;\n}"); lines.push("  if (" + cls.name + f.name + "Order(a." + f.name + ") != " + cls.name + f.name + "Order(b." + f.name + ")) return " + cls.name + f.name + "Order(a." + f.name + ") - " + cls.name + f.name + "Order(b." + f.name + ");"); } else lines.push("  if (a." + f.name + ".index != b." + f.name + ".index) return a." + f.name + ".index - b." + f.name + ".index;");
 				case _:
 			}
 		}

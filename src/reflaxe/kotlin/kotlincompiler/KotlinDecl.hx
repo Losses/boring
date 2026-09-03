@@ -286,8 +286,13 @@ class KotlinDecl {
 			// Context.follow unwraps Null, so nullable fields must be handled from the raw type.
 			switch(f.type) {
 				case TAbstract(a, params) if(a.get().name == "Null" && params.length == 1):
-					lines.push('    cmp = compareValues(a.${f.name}, b.${f.name})');
-					lines.push('    if (cmp != 0) return cmp');
+					lines.push('    if (a.${f.name} == null && b.${f.name} != null) return -1');
+					lines.push('    if (a.${f.name} != null && b.${f.name} == null) return 1');
+					switch(Context.follow(params[0])) {
+						case TEnum(e, _): lines.push('    if (a.${f.name} != null && b.${f.name} != null) { cmp = ${cls.name}${f.name}Order(a.${f.name}).compareTo(${cls.name}${f.name}Order(b.${f.name})); if (cmp != 0) return cmp }');
+						case TAbstract(_, _) | TInst(_, _): lines.push('    if (a.${f.name} != null && b.${f.name} != null) { cmp = a.${f.name}!!.compareTo(b.${f.name}!!); if (cmp != 0) return cmp }');
+						case _: lines.push('    if (a.${f.name} != null && b.${f.name} != null) { cmp = a.${f.name}!!.toString().compareTo(b.${f.name}!!.toString()); if (cmp != 0) return cmp }');
+					}
 					continue;
 				case TAbstract(a, params) if(a.get().pack.join(".") == "std" && a.get().name == "ReadOnlyArray" && params.length == 1):
 					final element = params[0];
