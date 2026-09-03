@@ -20,6 +20,8 @@ abstract Int64(Int64Repr) {
 
 	@:op(A + B) public static function add(a:Int64, b:Int64):Int64 return make(0, 0);
 	@:op(A - B) public static function sub(a:Int64, b:Int64):Int64 return make(0, 0);
+	@:op(A * B) public static function mul(a:Int64, b:Int64):Int64 return make(0, 0);
+	@:op(A * B) @:commutative public static function mulInt(a:Int64, b:Int):Int64 return make(0, 0);
 	@:op(A & B) public static function and(a:Int64, b:Int64):Int64 return make(0, 0);
 	@:op(A | B) public static function or(a:Int64, b:Int64):Int64 return make(0, 0);
 	@:op(A ^ B) public static function xor(a:Int64, b:Int64):Int64 return make(0, 0);

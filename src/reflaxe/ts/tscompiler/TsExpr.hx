@@ -1294,6 +1294,8 @@ class TsExpr {
 						if(isFpHelperInt64Halves(args[0])) expr(args[0]) + ".low" else "Number(BigInt.asIntN(32, " + expr(args[0]) + "))";
 					case "add" if(args.length == 2): "BigInt.asIntN(64, " + expr(args[0]) + " + " + expr(args[1]) + ")";
 					case "sub" if(args.length == 2): "BigInt.asIntN(64, " + expr(args[0]) + " - " + expr(args[1]) + ")";
+					case "mul" if(args.length == 2): "BigInt.asIntN(64, " + expr(args[0]) + " * " + expr(args[1]) + ")";
+					case "mulInt" if(args.length == 2): "BigInt.asIntN(64, " + expr(args[0]) + " * BigInt(" + expr(args[1]) + "))";
 					case "and" if(args.length == 2): "BigInt.asIntN(64, " + expr(args[0]) + " & " + expr(args[1]) + ")";
 					case "or" if(args.length == 2): "BigInt.asIntN(64, " + expr(args[0]) + " | " + expr(args[1]) + ")";
 					case "xor" if(args.length == 2): "BigInt.asIntN(64, " + expr(args[0]) + " ^ " + expr(args[1]) + ")";

@@ -19,6 +19,22 @@ class Int64Tests {
 		Test.equals(0, Int64Ops.low(value));
 	}
 
+	@:test("wraps Int64 multiplication")
+	public static function multiplication():Void {
+		final value = Int64Ops.mulAnchors();
+		Test.equals(0xDEF35B01, Int64Ops.high(value));
+		Test.equals(0x0F796CA9, Int64Ops.low(value));
+		final negative = Int64.mul(Int64.make(-1, -1), Int64.make(-1, -1));
+		Test.equals(0, Int64Ops.high(negative));
+		Test.equals(1, Int64Ops.low(negative));
+		final mixed = Int64Ops.mulIntAnchor(Int64.make(0, 5));
+		Test.equals(0, Int64Ops.high(mixed));
+		Test.equals(15, Int64Ops.low(mixed));
+		final direct = Int64.mul(Int64.make(0, 3), Int64.make(0, 5));
+		Test.equals(0, Int64Ops.high(direct));
+		Test.equals(15, Int64Ops.low(direct));
+	}
+
 	@:test("compares signed Int64 values at limits and across zero")
 	public static function ordering():Void {
 		final negative = Int64.ofInt(-1);
