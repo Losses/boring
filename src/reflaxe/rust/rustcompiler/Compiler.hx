@@ -760,6 +760,34 @@ class Compiler extends PluginCompiler<Compiler> {
 		type.
 	**/
 	function scanFallibility(mtypes: Array<haxe.macro.Type.ModuleType>): Void {
+		function isPassByRefType(t: Type): Bool {
+			return switch(Context.follow(t)) {
+				case TAbstract(a, _) if(a.get().name == "ReadOnlyArray"): true;
+				case TInst(c, _) if(c.get().name == "Array" || c.get().name == "Bytes" || c.get().name == "String"): true;
+				case _: false;
+			};
+		}
+		function recordModule(t: Type): Null<String> {
+			return switch(Context.follow(t)) {
+			case TInst(c, _) if(!c.get().isInterface): c.get().module + "::" + c.get().name;
+				case TType(d, _): recordModule(d.get().type);
+				case _: null;
+			};
+		}
+		function markRecordCloneArgs(fn: TypedExpr, args: Array<TypedExpr>): Void {
+			final paramTypes: Array<Type> = switch(Context.follow(fn.t)) {
+				case TFun(params, _): [for(p in params) p.t];
+				case _: [];
+			};
+			for(i in 0...args.length) {
+				if(i >= paramTypes.length || isPassByRefType(paramTypes[i])) continue;
+				final isLocal = switch(stripDecorations(args[i]).expr) { case TLocal(_): true; case _: false; };
+				if(isLocal) {
+					final module = recordModule(args[i].t);
+					if(module != null) state.recordCloneTypes.set(module, true);
+				}
+			}
+		}
 		final fallible = new Map<String, Bool>();
 		final enumOf = new Map<String, {module: String, name: String}>();
 		final conflicts = new Map<String, Bool>();
@@ -817,6 +845,7 @@ class Compiler extends PluginCompiler<Compiler> {
 											}
 											descend();
 										case TCall(fn, callArgs):
+											markRecordCloneArgs(fn, callArgs);
 											switch(fn.expr) {
 												case TField(_, FInstance(cc, _, cf)):
 													final calleeName = cf.get().name;
