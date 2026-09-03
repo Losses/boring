@@ -539,7 +539,14 @@ class SwiftDecl {
 			final defaultText = if (coalescing != null) {
 				if (readsParam) " = nil" else " = " + expr.coalescingDefaultText(coalescing, a.type);
 			} else "";
-			"_ " + a.name + ": " + escaping + types.of(parameterType) + defaultText;
+			if(SwiftInoutParams.isMutatingParam(cls.module, cls.name, f.field.name, a.name, a.index)) {
+				if(coalescing != null) {
+					Context.error("inout parameter cannot have a default value: " + a.name, f.field.pos);
+				}
+				"_ " + a.name + ": inout " + escaping + types.of(parameterType);
+			} else {
+				"_ " + a.name + ": " + escaping + types.of(parameterType) + defaultText;
+			}
 		}].join(", ") + ")";
 	}
 
