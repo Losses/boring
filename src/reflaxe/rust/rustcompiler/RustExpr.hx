@@ -2716,6 +2716,8 @@ class RustExpr {
 	function operand(e: TypedExpr, parent: Binop, isRight: Bool): String {
 		var rendered = expr(e);
 		// Null<Int> is represented as Option<u32>. Haxe permits it to enter
+		// numeric expressions; the target contract uses zero for the absent
+		// value, consistently at every arithmetic operand boundary.
 		if(isNullType(e.t) || isStringCharCodeAtCall(e)) {
 			switch(stripWrap(e).expr) {
 			case TCall(fn, _) if(isStringCharCodeAt(fn)): rendered += ".unwrap_or(0)";
