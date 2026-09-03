@@ -1629,7 +1629,17 @@ class SwiftExpr {
 				final a = args[i];
 				final pt = i < paramTypes.length ? paramTypes[i] : null;
 				final demandsValue = pt != null && !isNullLeafType(pt);
-				demandsValue && optionalValued(a) ? expr(a) + "!" : expr(a);
+				if(SwiftInoutParams.isMutatingCallArg(fn, i)) {
+					switch(stripWrap(a).expr) {
+						case TLocal(_) | TField(_):
+							"&" + expr(a);
+						case _:
+							Context.error("inout argument must be a local variable or field: " + Std.string(a.expr), a.pos);
+							"&" + expr(a);
+					}
+				} else {
+					demandsValue && optionalValued(a) ? expr(a) + "!" : expr(a);
+				}
 			}
 		];
 		switch(fn.expr) {
@@ -3300,7 +3310,16 @@ class SwiftExpr {
 						markMutated(v);
 					case _:
 				}
-			case TCall(fn, _):
+			case TCall(fn, args):
+				for(i in 0...args.length) {
+					if(SwiftInoutParams.isMutatingCallArg(fn, i)) {
+						switch(stripWrap(args[i]).expr) {
+							case TLocal(v):
+								markMutated(v);
+							case _:
+						}
+					}
+				}
 				switch(fn.expr) {
 					case TField(subj, FInstance(_, _, cf)):
 						final n = cf.get().name;
@@ -3342,6 +3361,9 @@ class SwiftExpr {
 		final out: Array<String> = [];
 		for(a in args) {
 			if(a.name == null || a.name.length == 0) {
+				continue;
+			}
+			if(currentClass != null && currentField != null && SwiftInoutParams.isMutatingParam(currentClass.module, currentClass.name, currentField, a.name)) {
 				continue;
 			}
 			final written = a.tvar != null && a.tvar.id != null
