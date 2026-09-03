@@ -10,10 +10,14 @@ grep -rn "Map<TextRange,\|Map<RubySpan,\|Map<QuotePair," engine/src/commonMain/k
 ```
 
 The three key shapes are `TextRange(start: Int, end: Int)`,
-`RubySpan(baseRange: TextRange, text: String, ... font fields)`, and
-`QuotePair(openIndex: Int, closeIndex: Int, quoteType: QuoteType)`. Each shape
-uses only the comparable field kinds defined below, so one ruling covers all 44
-sites.
+`RubySpan(baseRange: TextRange, text: String, fontFamilies: List<String>, kind:
+RubyKind, locale: String?)` (declared at
+`engine/src/commonMain/kotlin/org/tiqian/core/TextModel.kt:359`), and
+`QuotePair(openIndex: Int, closeIndex: Int, quoteType: QuoteType)`. The first
+release of this spec listed kinds 1 through 4 below and its scope note claimed
+every shape stayed inside them; the real `RubySpan` declaration also carries a
+read-only array field and a nullable field. The ruling below therefore extends
+to kinds 5 and 6, and one ruling again covers all 44 sites.
 
 `HashMap<Long, EdgeState>` at `ParagraphDpLineBreaker.kt:466` stays outside this
 spec because its key is Int64 and TypeScript number precision governs it; that
@@ -36,18 +40,26 @@ A field is comparable when its type is one of:
 2. `String`, compared in UTF-16 code unit order, matching spec 07.
 3. An enum type, compared by constructor declaration order, matching features/28. This order applies equally to parameterized constructors after target-specific lowering.
 4. A nested `@:dataClass` record, compared by this rule recursively.
+5. `std.ReadOnlyArray<T>` where `T` is a comparable kind above, compared
+   element-wise in index order by the `T` rule; when one array is a prefix of
+   the other, the shorter array sorts first.
+6. `Null<T>` where `T` is a comparable kind above. A null value sorts before
+   every non-null value and two null values compare equal; two non-null values
+   compare by the `T` rule.
 
-A field of any other type (`Float`, `Bool`, collections, plain class references)
+A field of any other type (`Float`, `Bool`, `Array<T>`, plain class references)
 makes the record unusable as a key. The compiler rejects it with an error that
-names the record, the field, and the field type. A `Null<T>` field is rejected
-by the same rule because this spec defines no order between null and a value.
+names the record, the field, and the field type.
 
 A `(get, never)` computed property is not a stored field and does not participate in key ordering. The key gate must apply the same stored-field filter at the top-level traversal and during nested dataClass validation. This is the validation-side counterpart to the rule that the comparator reads only the declared fields. The comparator-eligibility check that gates emission of the comparator applies the same stored-field filter: a computed property does not disqualify a record from comparator generation.
 
 Ordering must be consistent with the structural equality that features/27
 generates for `@:dataClass`: two records compare equal exactly when their
 generated `equals` returns true. The comparator reads only the declared fields;
-generated members such as `toString` take no part in comparison.
+generated members such as `toString` take no part in comparison. Equality over
+the two new kinds follows features/33: an array field compares equal only at
+equal length with element-wise equality, and a nullable field compares equal
+only when both values are null or both hold equal values.
 
 A comparator is generated only for records whose fields are all comparable; a record with an unsupported field has no comparator, and using it as a sorted key is rejected at the key type gate.
 
@@ -67,9 +79,10 @@ sorted keyed tables support Int, String, structure, and dataClass keys in this i
 ## Samples and tests
 
 Add `samples/boring/SortedDataClassKeysOps.hx` exercising the domain: a flat
-two-field record (`TextRange` shape), a nested record (`RubySpan` shape), and an
-enum-field record (`QuotePair` shape), each used as a `std.SortedMap` key with
-insertions out of order and reads in key order.
+two-field record (`TextRange` shape), a nested record carrying the full
+`RubySpan` field list including `fontFamilies:std.ReadOnlyArray<String>` and
+`locale:Null<String>`, and an enum-field record (`QuotePair` shape), each used
+as a `std.SortedMap` key with insertions out of order and reads in key order.
 
 Add `tests/ts/sorted-dataclass-keys.test.ts` mirroring the existing generated
 tree tests: it reads the generated file for each target under `reference/` and
@@ -84,6 +97,11 @@ features/19:
    first, with key values chosen so the two orders disagree.
 4. Adding a `Float` field to a keyed record makes compilation fail with the
    error naming the record and the field.
+5. Replacing one element of a longer array field changes which of two keys
+   sorts first on every target, and shortening one array to a prefix of the
+   other makes the shorter key sort first.
+6. Changing a nullable field from null to a value moves that key after every
+   key whose nullable field stays null.
 
 ## Bans restated
 
