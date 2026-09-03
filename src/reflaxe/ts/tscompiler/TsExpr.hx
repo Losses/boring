@@ -332,6 +332,8 @@ class TsExpr {
 				return tryBindingLines(v, init, depth);
 			case TVar(v, init) if(init != null && isStringBufToStringCall(init)):
 				return stringBufToStringBindingLines(v, stripWrap(init), depth);
+			case TVar(v, init) if(init != null && isLiteral(init) && mutated.exists(v.id)):
+				return [indent(depth) + "let " + localName(v) + ": " + types.of(v.t) + ";"];
 			case TVar(v, init) if(init != null):
 				final kw = mutated.exists(v.id) ? "let" : "const";
 				final initText = switch(init.expr) {
@@ -1577,6 +1579,12 @@ class TsExpr {
 				if(cls.pack.length == 0 && cls.name == "StringTools" && fName == "trim" && args.length == 1) {
 					return expr(args[0]) + ".trim()";
 				}
+				if(cls.pack.length == 0 && cls.name == "StringTools" && (fName == "startsWith" || fName == "endsWith") && args.length == 2) {
+					return expr(args[0]) + "." + fName + "(" + expr(args[1]) + ")";
+				}
+				if(cls.pack.length == 0 && cls.name == "Lambda" && fName == "has" && args.length == 2) {
+					return expr(args[0]) + ".includes(" + expr(args[1]) + ")";
+				}
 				if(cls.module == "Std" && (fName == "parseFloat" || fName == "parseInt") && args.length == 1) {
 					final s = expr(args[0]);
 					if (fName == "parseFloat") return "((s) => { let a = 0, z = s.length; while (a < z) { const c = s.charCodeAt(a); if (c === 32 || (c >= 9 && c <= 13)) { a++; } else { break; } } while (z > a) { const c = s.charCodeAt(z - 1); if (c === 32 || (c >= 9 && c <= 13)) { z--; } else { break; } } let i = a; const c0 = s.charCodeAt(i); if (c0 === 43 || c0 === 45) { i++; } let before = 0; while (i < z) { const c = s.charCodeAt(i); if (c >= 48 && c <= 57) { i++; before++; } else { break; } } let after = 0; if (i < z && s.charCodeAt(i) === 46) { i++; while (i < z) { const c = s.charCodeAt(i); if (c >= 48 && c <= 57) { i++; after++; } else { break; } } } let ok = before > 0 || after > 0; if (ok && i < z) { const e = s.charCodeAt(i); if (e === 101 || e === 69) { i++; const c1 = s.charCodeAt(i); if (c1 === 43 || c1 === 45) { i++; } let m = 0; while (i < z) { const c = s.charCodeAt(i); if (c >= 48 && c <= 57) { i++; m++; } else { break; } } ok = m > 0; } else { ok = false; } } return ok && i === z ? Number.parseFloat(s.substring(a, z)) : Number.NaN; })(" + s + ")";
@@ -2019,6 +2027,12 @@ class TsExpr {
 		the exception class (features/06). The non-matching arm rethrows the
 		caught value unchanged.
 	**/
+	function isLiteral(e: TypedExpr): Bool {
+		return switch(stripWrap(e).expr) {
+			case TConst(TInt(_) | TFloat(_) | TString(_) | TBool(_) | TNull): true;
+			case _: false;
+		};
+	}
 	function isTryRegion(e: Null<TypedExpr>): Bool {
 		if(e == null) return false;
 		return switch(stripWrap(e).expr) {
@@ -2113,7 +2127,7 @@ class TsExpr {
 			return fail(parts.c.expr, "try region catch type is not an exception class");
 		}
 		final name = localName(v);
-		final out = [indent(depth) + "let " + name + ";", indent(depth) + "try {"];
+		final out = [indent(depth) + "let " + name + ": " + types.of(v.t) + ";", indent(depth) + "try {"];
 		final body = blockValueLines(parts.body, depth + 1);
 		if(body.value == null) {
 			return fail(region, "try region body has no value");
