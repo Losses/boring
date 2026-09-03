@@ -199,12 +199,16 @@ class TsType {
 
 	static function isDataClassFieldKey(t: Type): Bool {
 		return switch(t) {
-			case TAbstract(a, _): a.get().name == "Int";
+			case TAbstract(a, params): a.get().name == "Int"
+				|| (a.get().name == "Null" && params.length == 1 && isDataClassFieldKey(params[0]))
+				|| (a.get().pack.join(".") == "std" && a.get().name == "ReadOnlyArray" && params.length == 1 && isDataClassFieldKey(params[0]));
 			case TEnum(_, _): true;
 			case TInst(c, _): c.get().name == "String" || c.get().meta.has(":dataClass");
 			case TLazy(f): isDataClassFieldKey(f());
 			case _: switch(Context.follow(t)) {
-				case TAbstract(a, _): a.get().name == "Int";
+				case TAbstract(a, params): a.get().name == "Int"
+					|| (a.get().name == "Null" && params.length == 1 && isDataClassFieldKey(params[0]))
+					|| (a.get().pack.join(".") == "std" && a.get().name == "ReadOnlyArray" && params.length == 1 && isDataClassFieldKey(params[0]));
 				case TInst(c, _): c.get().name == "String" || c.get().meta.has(":dataClass");
 				case TEnum(_, _): true;
 				case _: false;
