@@ -46,7 +46,7 @@ class Xxh64 {
 		h += totalLen;
 		var p = 0;
 		while (p <= mem.length - 8) { h ^= round(Int64.ofInt(0), readMem(p)); h = rotl(h,27) * P1() + P4(); p += 8; }
-		if (p <= mem.length - 4) { h ^= Int64.ofInt(read32Mem(p)) * P1(); h = rotl(h,23) * P2() + P3(); p += 4; }
+		if (p <= mem.length - 4) { h ^= Int64.make(0, read32Mem(p)) * P1(); h = rotl(h,23) * P2() + P3(); p += 4; }
 		while (p < mem.length) { h ^= Int64.ofInt(mem[p]) * P5(); h = rotl(h,11) * P1(); p++; }
 		return avalanche(h);
 	}
