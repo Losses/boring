@@ -253,7 +253,21 @@ class RustDecl {
 					lines.push('    let cmp_$fn = match (&a.$fn, &b.$fn) { (None, None) => 0, (None, Some(_)) => -1, (Some(_), None) => 1, (Some(av), Some(bv)) => av.cmp(bv) as i32 };');
 				case TAbstract(a, params) if(a.get().name == "ReadOnlyArray" && params.length == 1):
 					rawHandled = true;
-					lines.push('    let mut cmp_$fn = 0; for (av, bv) in a.$fn.iter().zip(b.$fn.iter()) { cmp_$fn = av.cmp(bv) as i32; if cmp_$fn != 0 { break; } }');
+					final element = Context.follow(params[0]);
+					final elementExprA = "a." + fn + ".iter()";
+					final elementExprB = "b." + fn + ".iter()";
+					var elementCompare = "av.cmp(bv) as i32";
+					switch(element) {
+						case TEnum(e, _):
+							final en = e.get();
+							final orderName = n + "_" + fn + "_element_order";
+							lines.unshift('fn $orderName(v: &${en.name}) -> i32 {\n    match v {\n' + [for(ef in en.constructs) '        ${en.name}::${ef.name}' + (enumHasPayload(ef) ? ' { .. }' : '') + ' => ${ef.index},'].join("\n") + '\n    }\n}');
+							elementCompare = '$orderName(av).cmp(&$orderName(bv)) as i32';
+						case TInst(c, _) if(c.get().meta.has(":dataClass")):
+							elementCompare = 'compare_${RustImports.toSnakeCase(c.get().name)}(av, bv)';
+						case _:
+					}
+					lines.push('    let mut cmp_$fn = 0; for (av, bv) in a.$fn.iter().zip(b.$fn.iter()) { cmp_$fn = $elementCompare; if cmp_$fn != 0 { break; } }');
 					lines.push('    if cmp_$fn == 0 { cmp_$fn = a.$fn.len().cmp(&b.$fn.len()) as i32; }');
 				default:
 			}

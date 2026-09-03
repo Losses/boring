@@ -229,7 +229,16 @@ class SwiftDecl {
 					lines.push("    }"); continue;
 				case TAbstract(a, params) if(a.get().name == "ReadOnlyArray" && params.length == 1):
 					lines.push("    var i" + f.name + " = 0"); lines.push("    while i" + f.name + " < a." + f.name + ".count && i" + f.name + " < b." + f.name + ".count {");
-					switch(Context.follow(params[0])) { case TInst(sc, _) if(sc.get().name == "String"): lines.push("        let cmp = compareUnitOrder(a." + f.name + "[i" + f.name + "], b." + f.name + "[i" + f.name + "]); if cmp != 0 { return cmp }"); case _: lines.push("        if a." + f.name + "[i" + f.name + "] != b." + f.name + "[i" + f.name + "] { return 1 }"); }
+					switch(Context.follow(params[0])) {
+						case TInst(sc, _) if(sc.get().name == "String"): lines.push("        let cmp = compareUnitOrder(a." + f.name + "[i" + f.name + "], b." + f.name + "[i" + f.name + "]); if cmp != 0 { return cmp }");
+						case TEnum(e, _):
+							final en = e.get();
+							final orderName = cls.name + f.name + "ElementOrder";
+							lines.unshift("    func " + orderName + "(_ v: " + en.name + ") -> Int32 {\n        switch v {\n" + [for(ef in en.constructs) "        case ." + lowerFirst(ef.name) + (switch(ef.type) { case TFun(args, _): args.length > 0 ? "(" + [for(_ in args) "_"].join(", ") + ")" : ""; case _: ""; }) + ": return " + ef.index].join("\n") + "\n        }\n    }");
+							lines.push("        let cmp = " + orderName + "(a." + f.name + "[i" + f.name + "]) - " + orderName + "(b." + f.name + "[i" + f.name + "]); if cmp != 0 { return cmp }");
+						case TInst(c, _) if(c.get().meta.has(":dataClass")): lines.push("        let cmp = compare" + c.get().name + "(a." + f.name + "[i" + f.name + "], b." + f.name + "[i" + f.name + "]); if cmp != 0 { return cmp }");
+						case _: lines.push("        if a." + f.name + "[i" + f.name + "] != b." + f.name + "[i" + f.name + "] { return 1 }");
+					}
 					lines.push("        i" + f.name + " += 1"); lines.push("    }"); lines.push("    if a." + f.name + ".count != b." + f.name + ".count { return Int32(a." + f.name + ".count - b." + f.name + ".count) }"); continue;
 				default:
 			}

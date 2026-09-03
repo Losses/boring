@@ -210,7 +210,15 @@ class DartDecl {
 					lines.push("  if (a." + f.name + " == null && b." + f.name + " != null) return -1;"); lines.push("  if (a." + f.name + " != null && b." + f.name + " == null) return 1;");
 					lines.push("  if (a." + f.name + " != null && b." + f.name + " != null) { final cmp" + f.name + " = a." + f.name + ".compareTo(b." + f.name + "); if (cmp" + f.name + " != 0) return cmp" + f.name + "; }"); continue;
 				case TAbstract(a, params) if(a.get().name == "ReadOnlyArray" && params.length == 1):
-					lines.push("  for (var i = 0; i < a." + f.name + ".length && i < b." + f.name + ".length; i++) { final cmp = a." + f.name + "[i].compareTo(b." + f.name + "[i]); if (cmp != 0) return cmp; }");
+					switch(Context.follow(params[0])) {
+						case TEnum(e, _):
+							final en = e.get();
+							final orderName = cls.name + f.name + "ElementOrder";
+							lines.unshift("int " + orderName + "(" + en.name + " v) {\n" + [for(ef in en.constructs) "  if (v is " + en.name + ef.name + ") return " + ef.index + ";"].join("\n") + "\n  return 0;\n}");
+							lines.push("  for (var i = 0; i < a." + f.name + ".length && i < b." + f.name + ".length; i++) { final cmp = " + orderName + "(a." + f.name + "[i]) - " + orderName + "(b." + f.name + "[i]); if (cmp != 0) return cmp; }");
+						case TInst(c, _) if(c.get().meta.has(":dataClass")): lines.push("  for (var i = 0; i < a." + f.name + ".length && i < b." + f.name + ".length; i++) { final cmp = compare" + c.get().name + "(a." + f.name + "[i], b." + f.name + "[i]); if (cmp != 0) return cmp; }");
+						case _: lines.push("  for (var i = 0; i < a." + f.name + ".length && i < b." + f.name + ".length; i++) { final cmp = a." + f.name + "[i].compareTo(b." + f.name + "[i]); if (cmp != 0) return cmp; }");
+					}
 					lines.push("  if (a." + f.name + ".length != b." + f.name + ".length) return a." + f.name + ".length - b." + f.name + ".length;"); continue;
 				default:
 			}
