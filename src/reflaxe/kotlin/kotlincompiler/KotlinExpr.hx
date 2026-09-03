@@ -374,7 +374,10 @@ class KotlinExpr {
 				// Kotlin's definite-assignment analysis checks every read.
 				return [indent(depth) + "var " + localName(v) + ": " + types.of(v.t)];
 			case TBlock(stmts):
-				return blockLines(stmts, depth);
+				final out = [indent(depth) + "run {"];
+				for(l in blockLines(stmts, depth + 1)) out.push(l);
+				out.push(indent(depth) + "}");
+				return out;
 			case TIf(c, t, f):
 				final guarded = nullGuardLocal(c);
 				if(guarded != null && f == null) nonNullLocals.set(guarded.id, true);

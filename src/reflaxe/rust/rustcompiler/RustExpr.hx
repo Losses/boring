@@ -577,7 +577,10 @@ class RustExpr {
 				final kw = "let ";
 				return [indent(depth) + kw + name + ": " + types.of(v.t, false) + ";"];
 			case TBlock(stmts):
-				return blockLines(stmts, depth);
+				final out = [indent(depth) + "{"];
+				for(l in blockLines(stmts, depth + 1)) out.push(l);
+				out.push(indent(depth) + "}");
+				return out;
 			case TIf(c, t, f):
 				var condStr = expr(c);
 				while(StringTools.startsWith(condStr, "(") && StringTools.endsWith(condStr, ")") && matchingParens(condStr)) {
@@ -2723,10 +2726,6 @@ class RustExpr {
 			case TCall(fn, _) if(isStringCharCodeAt(fn)): rendered += ".unwrap_or(0)";
 			case _:
 			}
-		}
-		if(rendered.indexOf(" as ") >= 0
-			&& !(StringTools.startsWith(rendered, "(") && StringTools.endsWith(rendered, ")") && matchingParens(rendered))) {
-			rendered = "(" + rendered + ")";
 		}
 		switch(e.expr) {
 			case TBinop(op, _, _):
