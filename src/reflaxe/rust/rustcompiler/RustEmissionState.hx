@@ -42,6 +42,9 @@ class RustEmissionState {
 	/** Functions whose call edges reach two different error enums. */
 	public final funcEnumConflicts: Map<String, Bool> = [];
 
+	/** Class modules whose by-value call boundaries require Clone. */
+	public final cloneRequiredTypes: Map<String, Bool> = [];
+
 	public static function funcKey(module: String, name: String, isStatic: Bool): String {
 		return module + "::" + (isStatic ? "s." : "i.") + name;
 	}
