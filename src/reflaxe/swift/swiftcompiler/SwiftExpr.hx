@@ -163,7 +163,7 @@ class SwiftExpr {
 			case CConditional(c, t, f):
 				"(" + coalescingDefaultText(c, targetType) + " ? " + coalescingDefaultText(t, targetType) + " : " + coalescingDefaultText(f, targetType) + ")";
 			case CBinaryOp(op, left, right):
-				coalescingDefaultText(left, targetType) + " " + opStr(op) + " " + coalescingDefaultText(right, targetType);
+				coalescingDefaultText(left, targetType) + " " + opStr(op, isIntLeafType(targetType)) + " " + coalescingDefaultText(right, targetType);
 			case CConstructorCall(classPath, args):
 				classPath.split(".").pop() + "(" + [for(a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
 		};
@@ -196,11 +196,11 @@ class SwiftExpr {
 		return name == "toUpperCase" ? "uppercased" : name;
 	}
 
-	static function opStr(op:Binop):String {
+	static function opStr(op:Binop, wrapping:Bool = false):String {
 		return switch(op) {
-			case OpAdd: "+";
-			case OpSub: "-";
-			case OpMult: "*";
+			case OpAdd: wrapping ? "&+" : "+";
+			case OpSub: wrapping ? "&-" : "-";
+			case OpMult: wrapping ? "&*" : "*";
 			case OpDiv: "/";
 			case OpMod: "%";
 			case OpEq: "==";
@@ -408,7 +408,7 @@ class SwiftExpr {
 				return [indent(depth) + target + tryKw + assignmentValue(l, r)];
 			case TBinop(OpAssignOp(inner), l, r):
 				final tryKw = containsThrowingCall(r) ? "try " : "";
-				return [indent(depth) + assignTarget(l) + " " + symbolOf(inner) + "= " + tryKw + expr(r)];
+				return [indent(depth) + assignTarget(l) + " " + symbolOf(inner, l, r) + "= " + tryKw + expr(r)];
 			case _:
 				final tryKw = containsThrowingCall(e) ? "try " : "";
 				// A call whose result the source discards reads as an
@@ -1114,7 +1114,7 @@ class SwiftExpr {
 				final field = ValueTypeSupport.binaryOperatorField(abs, op);
 				if(field == null) expr(value) else {
 					final asRepresentation = nativeOperator && field.name == currentField;
-					final rendered = valueTypeOperand(left, locals, abs, asRepresentation) + " " + opStr(op) + " " + valueTypeOperand(right, locals, abs, asRepresentation);
+					final rendered = valueTypeOperand(left, locals, abs, asRepresentation) + " " + opStr(op, isIntTyped(left) && isIntTyped(right)) + " " + valueTypeOperand(right, locals, abs, asRepresentation);
 					nativeOperator && field.name == currentField ? abs.name + "(" + rendered + ")" : rendered;
 				}
 			case TUnop(op, _, subject):
@@ -1209,7 +1209,7 @@ class SwiftExpr {
 				final rhs = assignmentValue(l, r);
 			return map == null ? assignTarget(l) + " = " + rhs : expr(map.receiver) + "[" + expr(map.key) + "] = " + rhs;
 			case OpAssignOp(inner):
-				return assignTarget(l) + " " + symbolOf(inner) + "= " + expr(r);
+				return assignTarget(l) + " " + symbolOf(inner, l, r) + "= " + expr(r);
 			case OpAdd:
 				if(isUnitArrayTyped(e) && addLeafCount(e) >= 4) {
 					return splitConcat(e);
@@ -1217,7 +1217,7 @@ class SwiftExpr {
 				if(isStringTyped(e)) {
 					return templateLiteral(l, r);
 				}
-				return optionalOperand(l, op, false) + " + " + optionalOperand(r, op, true);
+				return optionalOperand(l, op, false) + " " + symbolOf(op, l, r) + " " + optionalOperand(r, op, true);
 			case OpUShr:
 				// `>>>` reinterprets the bits: UInt32(Int32) traps on a
 				// negative argument, so both sides cross through the
@@ -1237,15 +1237,15 @@ class SwiftExpr {
 				return floatAware(operand(l, op, false), l) + " / " + floatAware(operand(r, op, true), r);
 			case OpEq | OpNotEq:
 				final nullSide = isNullConstant(l) || isNullConstant(r);
-				return (nullSide ? expr(l) : operand(l, op, false)) + " " + symbolOf(op) + " " + (nullSide ? expr(r) : operand(r, op, true));
+				return (nullSide ? expr(l) : operand(l, op, false)) + " " + symbolOf(op, l, r) + " " + (nullSide ? expr(r) : operand(r, op, true));
 			case _:
 				// Haxe mixes Int into Float arithmetic and comparison
 				// with promotion; Swift has no implicit conversion, so
 				// the Int side widens when the other side is Float.
 				if((isFloatTyped(l) || isFloatTyped(r)) && (isFloatTyped(l) != isFloatTyped(r))) {
-					return floatAware(operand(l, op, false), l) + " " + symbolOf(op) + " " + floatAware(operand(r, op, true), r);
+					return floatAware(operand(l, op, false), l) + " " + symbolOf(op, l, r) + " " + floatAware(operand(r, op, true), r);
 				}
-				return operand(l, op, false) + " " + symbolOf(op) + " " + operand(r, op, true);
+				return operand(l, op, false) + " " + symbolOf(op, l, r) + " " + operand(r, op, true);
 		}
 	}
 
@@ -1822,7 +1822,7 @@ class SwiftExpr {
 
 	function opStrForValue(op:ValueTypeOperator):String {
 		return switch(op) {
-			case Binary(binary): opStr(binary);
+			case Binary(binary): opStr(binary, false);
 			case Unary(_): "-";
 		};
 	}
@@ -3396,12 +3396,13 @@ class SwiftExpr {
 	// Operators, predicates, and rendering helpers
 	// ------------------------------------------------------------------
 
-	function symbolOf(op: Binop): String {
+	function symbolOf(op: Binop, ?left:TypedExpr, ?right:TypedExpr): String {
+		final wrapping = left != null && isIntTyped(left) && (right == null || isIntTyped(right));
 		return switch(op) {
-			case OpAdd: "+";
-			case OpMult: "*";
+			case OpAdd: wrapping ? "&+" : "+";
+			case OpMult: wrapping ? "&*" : "*";
 			case OpDiv: "/";
-			case OpSub: "-";
+			case OpSub: wrapping ? "&-" : "-";
 			case OpEq: "==";
 			case OpNotEq: "!=";
 			case OpGt: ">";
