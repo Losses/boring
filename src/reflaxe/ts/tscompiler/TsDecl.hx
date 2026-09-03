@@ -161,17 +161,40 @@ class TsDecl {
 		}
 		lines.push('export function compare${cls.name}(a: ${cls.name}, b: ${cls.name}): number {');
 		lines.push('  if (a === b) return 0;');
-		for(f in fields) switch(Context.follow(f.type)) {
-			case TAbstract(a, _) if(a.get().name == "Int"): lines.push('  if (a.${f.name} !== b.${f.name}) return a.${f.name} - b.${f.name};');
-			case TInst(c, _) if(c.get().name == "String"): lines.push('  if (a.${f.name} !== b.${f.name}) return a.${f.name} < b.${f.name} ? -1 : 1;');
-			case TInst(c, _) if(c.get().meta.has(":dataClass")): imports.value(c.get().module, "compare" + c.get().name); lines.push('  { const cmp = compare${c.get().name}(a.${f.name}, b.${f.name}); if (cmp !== 0) return cmp; }');
-			case TEnum(_, _): lines.push('  if (${cls.name}${f.name}Order(a.${f.name}) !== ${cls.name}${f.name}Order(b.${f.name})) return ${cls.name}${f.name}Order(a.${f.name}) - ${cls.name}${f.name}Order(b.${f.name});');
-			case _: // validated before emission
+		for(f in fields) {
+			switch(f.type) {
+				case TAbstract(a, params) if(a.get().name == "Null" && params.length == 1):
+					lines.push('  if (a.${f.name} === null && b.${f.name} !== null) return -1;');
+					lines.push('  if (a.${f.name} !== null && b.${f.name} === null) return 1;');
+					lines.push('  if (a.${f.name} !== null && b.${f.name} !== null) { const cmp = ' + tsCompareExpr(cls, f.name, params[0]) + '; if (cmp !== 0) return cmp; }');
+					continue;
+				case TAbstract(a, params) if(a.get().name == "ReadOnlyArray" && params.length == 1):
+					lines.push('  for (let i = 0; i < a.${f.name}.length && i < b.${f.name}.length; i++) { const cmp = ' + tsCompareExpr(cls, f.name + '[i]', params[0]) + '; if (cmp !== 0) return cmp; }');
+					lines.push('  if (a.${f.name}.length !== b.${f.name}.length) return a.${f.name}.length - b.${f.name}.length;');
+					continue;
+				default:
+			}
+			switch(Context.follow(f.type)) {
+				case TAbstract(a, _) if(a.get().name == "Int"): lines.push('  if (a.${f.name} !== b.${f.name}) return a.${f.name} - b.${f.name};');
+				case TInst(c, _) if(c.get().name == "String"): lines.push('  if (a.${f.name} !== b.${f.name}) return a.${f.name} < b.${f.name} ? -1 : 1;');
+				case TInst(c, _) if(c.get().meta.has(":dataClass")): imports.value(c.get().module, "compare" + c.get().name); lines.push('  { const cmp = compare${c.get().name}(a.${f.name}, b.${f.name}); if (cmp !== 0) return cmp; }');
+				case TEnum(_, _): lines.push('  if (${cls.name}${f.name}Order(a.${f.name}) !== ${cls.name}${f.name}Order(b.${f.name})) return ${cls.name}${f.name}Order(a.${f.name}) - ${cls.name}${f.name}Order(b.${f.name});');
+				case _:
+			}
 		}
 		lines.push('  return 0;'); lines.push('}'); return lines.join("\n");
 	}
 
-	/** The erased TypeScript representation of a marked value wrapper. */
+	function tsCompareExpr(cls:ClassType, field:String, t:Type):String {
+		return switch(Context.follow(t)) {
+			case TInst(c, _) if(c.get().meta.has(":dataClass")): 'compare${c.get().name}(a.${field}, b.${field})';
+			case TEnum(_, _): '${cls.name}${field}Order(a.${field}) - ${cls.name}${field}Order(b.${field})';
+			case TInst(c, _) if(c.get().name == "String"): 'a.${field} < b.${field} ? -1 : 1';
+			case _: 'a.${field} - b.${field}';
+		};
+	}
+
+
 	public function valueTypeDecl(cls: ClassType, info: ValueTypeInfo, varFields: Array<ClassVarData>, funcFields: Array<ClassFuncData>): String {
 		final abs = info.abstractType;
 		final lines: Array<String> = ["export type " + info.name + " = " + types.of(info.representation) + ";"];

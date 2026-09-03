@@ -1,8 +1,10 @@
 package boring;
 
 import std.SortedMap;
+import std.ReadOnlyArray;
 
 enum QuoteType { Open; Close; }
+enum RubyKind { Bopomofo; Other; }
 
 @:dataClass
 class TextRange {
@@ -17,7 +19,13 @@ class TextRange {
 class RubySpan {
 	public final baseRange:TextRange;
 	public final text:String;
-	public function new(baseRange:TextRange, text:String) { this.baseRange = baseRange; this.text = text; }
+	public final fontFamilies:ReadOnlyArray<String>;
+	public final kind:RubyKind;
+	public final locale:Null<String>;
+	public function new(baseRange:TextRange, text:String, fontFamilies:ReadOnlyArray<String>, kind:RubyKind, ?locale:String) {
+		this.baseRange = baseRange; this.text = text; this.fontFamilies = fontFamilies; this.kind = kind;
+		this.locale = locale == null ? (kind == RubyKind.Bopomofo ? "zh-TW" : null) : locale;
+	}
 }
 
 @:dataClass
@@ -37,7 +45,7 @@ class SortedDataClassKeysOps {
 		q.put(new QuotePair(2, 4, QuoteType.Close), "close"); q.put(new QuotePair(2, 4, QuoteType.Open), "open");
 		final qm = q.build();
 		final r = SortedMap.builder();
-		r.put(new RubySpan(new TextRange(3, 4), "z"), "nested"); r.put(new RubySpan(new TextRange(1, 2), "a"), "nested-first");
+		r.put(new RubySpan(new TextRange(3, 4), "z", ["serif"], RubyKind.Other), "nested"); r.put(new RubySpan(new TextRange(1, 2), "a", ["serif"], RubyKind.Other), "nested-first");
 		final rm = r.build();
 		return m.valueAt(0) + "," + m.valueAt(1) + ";" + qm.valueAt(0) + "," + qm.valueAt(1) + ";" + rm.valueAt(0) + "," + rm.valueAt(1);
 	}

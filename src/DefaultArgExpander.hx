@@ -1511,7 +1511,18 @@ class DefaultArgExpander {
 	public static function coalescingParameterType(value:CoalescingDefaultValue, t:Type):Type {
 		return switch (value) {
 			case CNull: t;
+			case CConditional(_, ifTrue, ifFalse):
+				if(coalescingCanBeNull(ifTrue) || coalescingCanBeNull(ifFalse)) t else withoutNull(t);
 			default: withoutNull(t);
+		};
+	}
+
+	static function coalescingCanBeNull(value:CoalescingDefaultValue):Bool {
+		return switch(value) {
+			case CNull: true;
+			case CConditional(_, ifTrue, ifFalse): coalescingCanBeNull(ifTrue) || coalescingCanBeNull(ifFalse);
+			case CBinaryOp(_, left, right): coalescingCanBeNull(left) || coalescingCanBeNull(right);
+			default: false;
 		};
 	}
 
