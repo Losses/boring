@@ -2023,11 +2023,13 @@ class KotlinExpr {
 					if(name == "toLowerCase") return expr(subj) + ".lowercase()";
 					if(name == "toUpperCase") return expr(subj) + ".uppercase()";
 				}
+				if(name == "toChar" && isNullType(subj.t)) return "(" + expr(subj) + ")!!.toChar()";
 				if(isMapType(subj.t)) {
 					if(name == "exists" && args.length == 1) return expr(subj) + ".containsKey(" + expr(args[0]) + ")";
 					if(name == "get" && args.length == 1) return expr(subj) + "[" + expr(args[0]) + "]";
 					if(name == "set" && args.length == 2) return expr(subj) + ".put(" + expr(args[0]) + ", " + expr(args[1]) + ")";
 				}
+				if(name == "toChar" && isNullType(subj.t)) return "(" + expr(subj) + ")!!.toChar()";
 				if(isStringBuf(subj)) {
 					// stdlib/08: a Kotlin throw is an expression, so the
 					// checked operations stay expression-capable; the
@@ -2064,6 +2066,9 @@ class KotlinExpr {
 				}
 				if(name == "sub" && args.length == 2 && isBytes(stripCast(subj))) {
 					return expr(subj) + ".copyOfRange(" + expr(args[0]) + ", " + expr(args[0]) + " + " + expr(args[1]) + ")";
+				}
+				if(name == "charAt" && isString(stripCast(subj))) {
+					return expr(subj) + "[" + expr(args[0]) + "].toString()";
 				}
 				if(name == "charCodeAt" && isString(stripCast(subj))) {
 					// stdlib/15: capture both operands once, then make the
@@ -2103,7 +2108,8 @@ class KotlinExpr {
 				final cls = c.get();
 				final name = cf.get().name;
 				if(cls.pack.length == 0 && cls.name == "String" && name == "fromCharCode") {
-					return "((" + expr(args[0]) + ").toChar()).toString()";
+					final code = expr(args[0]);
+					return "((" + code + (isNullType(args[0].t) ? ")!!" : ")") + ".toChar()).toString()";
 				}
 				if(cls.pack.join(".") == "std" && cls.name == "Process" && name == "exit") {
 					imports.require("kotlin.system.exitProcess");
@@ -2180,7 +2186,13 @@ class KotlinExpr {
 	}
 
 	function localCallArgs(fn: TypedExpr, args: Array<TypedExpr>): String {
-		final rendered = [for(a in args) expr(a)];
+		final params = paramsForCall(fn);
+		final rendered = [for(i in 0...args.length) {
+			final a = args[i];
+			final text = expr(a);
+			final expected = i < params.length ? params[i] : null;
+			isNullType(a.t) && expected != null && !isNullType(expected) ? text + "!!" : text;
+		}];
 		switch(fn.expr) {
 			case TLocal(v) if(currentClass != null && currentField != null):
 				final params = switch(Context.follow(fn.t)) {
@@ -2195,6 +2207,14 @@ class KotlinExpr {
 			default:
 		}
 		return rendered.join(", ");
+	}
+
+	function paramsForCall(fn: TypedExpr): Array<Type> {
+		return switch(fn.expr) {
+			case TField(_, FInstance(_, _, cf)) | TField(_, FStatic(_, cf)):
+				switch(Context.follow(cf.get().type)) { case TFun(values, _): [for(v in values) v.t]; case _: []; }
+			case _: [];
+		};
 	}
 
 	function functionLiteralNamed(name: String, f: TFunc): String {
