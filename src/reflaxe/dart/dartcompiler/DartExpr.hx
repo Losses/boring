@@ -549,7 +549,10 @@ class DartExpr {
 				// initialization assigns it on every path before use.
 				return [indent(depth) + types.of(v.t) + " " + localName(v)];
 			case TBlock(stmts):
-				return blockLines(stmts, depth);
+				final out = [indent(depth) + "{"];
+				for(l in blockLines(stmts, depth + 1)) out.push(l);
+				out.push(indent(depth) + "}");
+				return out;
 			case TIf(c, t, f):
 				final guarded = nullGuardLocal(c);
 				if(guarded != null && f == null && isNotNullGuard(c)) {
