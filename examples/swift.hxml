@@ -60,6 +60,7 @@ tests.BytesTests
 tests.Sha256Tests
 tests.Sha512Tests
 tests.Xxh64Tests
+tests.BlockScopeUnrollTests
 tests.CryptoTestSupport
 tests.CrcTests
 tests.VectorCodecTests

@@ -342,7 +342,10 @@ class TsExpr {
 			case TVar(v, init) if(init == null):
 				return [indent(depth) + "let " + localName(v) + ": " + types.of(v.t) + ";"];
 			case TBlock(stmts):
-				return blockLines(stmts, depth);
+				final out = [indent(depth) + "{"];
+				for(l in blockLines(stmts, depth + 1)) out.push(l);
+				out.push(indent(depth) + "}");
+				return out;
 			case TIf(c, t, f):
 				final out = [indent(depth) + "if (" + expr(c) + ") {"];
 				for(l in blockLines(statementsOf(t), depth + 1)) out.push(l);
