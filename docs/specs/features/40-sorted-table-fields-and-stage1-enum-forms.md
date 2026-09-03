@@ -121,6 +121,11 @@ overrides no `toString`, so no target prints the ruled set text natively.
   `mark=Ring(diameter=1.5)`; stage 1 asserts the sorted rows directly, and
   the sample header records the array-element divergence only where an
   array argument row prints through the native `,` join.
+- `samples/boring/PrintedEnumOps.hx`: the `Trail(steps:Array<Int>)` and
+  `Aliases(names:Array<String>)` constructors exercise the array-argument
+  sentence of ruling 4; `samples/tests/PrintedEnumTests.hx` holds the two
+  unconditional rows `Trail(steps=[1, 2])` and
+  `Aliases(names=[alpha, beta])`, identical on stage 1 and every target.
 - Both modules are entered in all eight generation hxml files.
 - Tree assertions in `tests/ts/printed-sorted-fields.test.ts`: the
   TypeScript, Swift, Dart, and Rust trees carry the synthesized member
