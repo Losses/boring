@@ -1780,6 +1780,12 @@ class DartExpr {
 				if(cls.pack.length == 0 && cls.name == "StringTools" && fName == "trim") {
 					return expr(args[0]) + ".trim()";
 				}
+				if(cls.pack.length == 0 && cls.name == "StringTools" && (fName == "startsWith" || fName == "endsWith") && args.length == 2) {
+					return renderedArgs[0] + "." + fName + "(" + renderedArgs[1] + ")";
+				}
+				if(cls.pack.length == 0 && cls.name == "Lambda" && fName == "has" && args.length == 2) {
+					return renderedArgs[0] + ".contains(" + renderedArgs[1] + ")";
+				}
 				final markedField = findStaticField(cls, fName);
 				if(markedField != null && StaticFunctionMarkers.isMarked(markedField)) {
 					final nativeName = markedField.isPublic ? fName : "_" + fName;
@@ -1928,6 +1934,9 @@ class DartExpr {
 				}
 				if(name == "slice") {
 					return receiverText(subj) + ".sublist(" + expr(args[0]) + ", " + expr(args[1]) + ")";
+				}
+				if(name == "indexOf" && isStringSubject(subj) && args.length >= 1) {
+					return receiverText(subj) + ".indexOf(" + renderedArgs[0] + ")";
 				}
 				if(name == "substring" && isStringSubject(subj)) {
 					// The haxe typer passes a synthesized null for an

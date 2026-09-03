@@ -2790,7 +2790,7 @@ class RustExpr {
 					if(isString(subj)) {
 						state.shimsUsed.set("std.UStringRT", true);
 						imports.require("crate::runtime::u_string");
-						return "u_string::count(&(" + expr(subj) + "))";
+						return "u_string::count(&(" + expr(subj) + ")) as i32";
 					}
 					final receiver = expr(subj);
 					final receiverText = StringTools.startsWith(receiver, "&*") ? "(" + receiver + ")" : receiver;
@@ -3392,6 +3392,12 @@ class RustExpr {
 						case _:
 					}
 					final nullableResult = callRet != null && isNullType(callRet);
+					var callRet: Null<Type> = null;
+					 switch(Context.follow(fn.t)) {
+						case TFun(_, r): callRet = r;
+						case _:
+					}
+					final nullableResult = callRet != null && isNullType(callRet);
 					return nullableResult ? "u_string::at(&" + expr(subj) + ", (" + expr(args[0]) + ") as u32)" : "u_string::at(&" + expr(subj) + ", (" + expr(args[0]) + ") as u32).unwrap_or(0)";
 				}
 				if(name == "split" && isString(stripCast(subj)) && args.length == 1) {
@@ -3557,6 +3563,12 @@ class RustExpr {
 				if(cls.pack.length == 0 && cls.name == "StringTools" && name == "trim" && args.length == 1) {
 					return expr(args[0]) + ".trim()";
 				}
+				if(cls.pack.length == 0 && cls.name == "StringTools" && (name == "startsWith" || name == "endsWith") && args.length == 2) {
+					return "(" + expr(args[0]) + ")." + RustImports.toSnakeCase(name) + "(&" + expr(args[1]) + ")";
+				}
+				if(cls.pack.length == 0 && cls.name == "Lambda" && name == "has" && args.length == 2) {
+					return "(" + expr(args[0]) + ").contains(&" + expr(args[1]) + ")";
+				}
 				if(cls.pack.length == 0 && cls.name == "Std" && name == "int") {
 					// An Int-typed argument converts nothing, except a
 					// bare length read, whose rendering is usize; Float
@@ -3576,7 +3588,7 @@ class RustExpr {
 				}
 				if(cls.pack.length == 0 && cls.name == "String" && name == "fromCharCode") {
 					final value = expr(args[0]);
-					final argument = StringTools.startsWith(value, "(") ? value : "(" + value + ")";
+					final argument = isNullType(args[0].t) ? "(" + value + ".unwrap_or_default())" : (StringTools.startsWith(value, "(") ? value : "(" + value + ")");
 					final unwrapped = isNullType(args[0].t) ? "(" + value + ".unwrap_or_default())" : argument;
 					return "String::from_utf16(&[u16::try_from" + unwrapped + ".unwrap_or_default()]).unwrap_or_default()";
 				}
