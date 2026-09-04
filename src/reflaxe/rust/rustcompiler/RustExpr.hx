@@ -626,7 +626,7 @@ class RustExpr {
 				// boundary. Each length read keeps its native type; the conversion
 				// occurs at the call boundary.
 				var retStr = if(returnUnsigned && isUsizeExpr(ret)) {
-					"(" + expr(ret) + ") as u32";
+					RustConversions.truncate(expr(ret), "u32");
 				} else {
 					renderValueForType(currentReturnType, ret, expr(ret));
 				};
@@ -3028,23 +3028,23 @@ class RustExpr {
 						return "(" + expr(subj) + ").as_ref().map_or(0, |v| v.len())";
 					}
 					if(isStringBuf(subj)) {
-						return expr(subj) + ".len() as u32";
+						return RustConversions.truncate(expr(subj) + ".len()", "u32");
 					}
 					// Resident modules keep the signed Int domain: their
 					// lengths join index arithmetic, so the read narrows
 					// here the way UStringPlatform end inlines.
 					if(RuntimeResidents.isResident(imports.selfModule)) {
-						return "(" + expr(subj) + ").len() as i32";
+						return RustConversions.narrowI32("(" + expr(subj) + ").len()");
 					}
 					if(isString(subj)) {
 						state.shimsUsed.set("std.UStringRT", true);
 						imports.require("crate::runtime::u_string");
 						return "u_string::count(&(" + expr(subj) + "))";
 					}
-					if(i32ComparisonTarget) return "((" + expr(subj) + ").len() as i32)";
+					if(i32ComparisonTarget) return "(" + RustConversions.narrowI32("(" + expr(subj) + ").len()") + ")";
 					final receiver = expr(subj);
 					final receiverText = StringTools.startsWith(receiver, "&*") ? "(" + receiver + ")" : receiver;
-					return receiverText + ".len() as u32";
+					return RustConversions.truncate(receiverText + ".len()", "u32");
 				}
 				final snake = RustImports.toSnakeCase(name);
 				final subjStr = if(isNullType(subj.t)) expr(subj) + ".as_ref().unwrap()" else expr(subj);
@@ -3062,7 +3062,7 @@ class RustExpr {
 				return access;
 			case FDynamic(name):
 				if((name == "length" || name == "get_length") && isStringBuf(subj)) {
-					return expr(subj) + ".len() as u32";
+					return RustConversions.truncate(expr(subj) + ".len()", "u32");
 				}
 				return fail(subj, "dynamic field access has no lowering");
 			case FClosure(_):
@@ -3561,7 +3561,7 @@ class RustExpr {
 			case TCast(inner, _):
 				return call(inner, args);
 			case TField(subj, FDynamic(name)) if((name == "length" || name == "get_length") && isStringBuf(subj)):
-				return expr(subj) + ".len() as u32";
+				return RustConversions.truncate(expr(subj) + ".len()", "u32");
 			case TField(subj, FInstance(c, _, cf)):
 				final name = cf.get().name;
 				final staticGuard = staticGuardOf(subj);
@@ -3606,7 +3606,7 @@ class RustExpr {
 							+ expr(subj) + "[" + expr(subj) + ".len() - 1] as u32 })" + q;
 					}
 					if(name == "get_length" || name == "length") {
-						return expr(subj) + ".len() as u32";
+						return RustConversions.truncate(expr(subj) + ".len()", "u32");
 					}
 				}
 				if(name == "get" && isBytes(stripCast(subj))) {
@@ -3877,7 +3877,7 @@ class RustExpr {
 					}
 					switch(name) {
 						case "end":
-							return "(" + expr(args[0]) + ").len() as i32";
+							return RustConversions.narrowI32("(" + expr(args[0]) + ").len()");
 						case "codeAt":
 							return "(" + expr(args[0]) + ")[" + castArg(args[1], "usize") + "..].chars().next().unwrap_or('\\0') as i32";
 						case "advance":
@@ -5232,8 +5232,10 @@ class RustExpr {
 				if(isIntType(pt) && isUsizeExpr(arg)
 					&& (signedPositions == null || signedPositions.indexOf(i) < 0)) {
 					final targetType = types.of(pt, false);
-					if(targetType == "u32" || targetType == "i32") {
-						argStr = "(" + argStr + ") as " + targetType;
+					if(targetType == "u32") {
+						argStr = RustConversions.truncate(argStr, "u32");
+					} else if(targetType == "i32") {
+						argStr = RustConversions.narrowI32(argStr);
 					}
 				}
 			}

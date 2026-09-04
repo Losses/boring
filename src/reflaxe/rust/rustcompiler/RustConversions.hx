@@ -108,6 +108,17 @@ class RustConversions {
 		return "i64::from_ne_bytes(u64::from_ne_bytes((" + x + ").to_ne_bytes()).wrapping_shr(" + n + ").to_ne_bytes())";
 	}
 
+	/**
+		Narrowing a usize value to a signed i32 the way `(x) as i32` does:
+		keep the low 32 bits and reinterpret them as two's-complement signed.
+		The byte round-trip reads the native-endian low word, so it equals
+		`as` for every usize (verified by aszero-probe5 for 0, u32::MAX, and a
+		usize above u32::MAX, which truncates to 1).
+	**/
+	public static function narrowI32(x: String): String {
+		return "i32::from_ne_bytes(u32::from_ne_bytes((" + x + ").to_ne_bytes()[..4].try_into().unwrap()).to_ne_bytes())";
+	}
+
 	static function failTarget(to: String): String {
 		return "0xFFFF_FFFF";
 	}
