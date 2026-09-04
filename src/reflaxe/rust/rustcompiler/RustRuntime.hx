@@ -54,7 +54,57 @@ impl FPHelper {
     // reverse widens losslessly before the bit conversion. Only the
     // float-precision=f32 lane references them (feature spec 23).
     pub fn i64_to_f32(low: u32, high: u32) -> f32 {
-        Self::i64_to_double(low, high).to_string().parse::<f32>().unwrap_or(f32::NAN)
+        f32::from_bits(Self::f64_halves_to_f32_bits(low, high))
+    }
+
+    fn f64_halves_to_f32_bits(low: u32, high: u32) -> u32 {
+        let sign = high >> 31;
+        let exp11 = high >> 20 & 2047;
+        if exp11 == 2047 {
+            if (high & 1048575) == 0 && low == 0 {
+                return sign << 31 | 2139095040;
+            }
+            return sign << 31 | 2139095040 | 4194304 | high >> 10 & 1023;
+        }
+        if exp11 == 0 {
+            return sign << 31;
+        }
+        let mant_high = high & 1048575;
+        let mut sig24 = 8388608 | mant_high << 3 | low >> 29;
+        let dropped = low & 536870911;
+        let half = 268435456;
+        if dropped > half || dropped == half && (sig24 & 1) == 1 {
+            sig24 = sig24.wrapping_add(1);
+        }
+        let mut e2 = exp11;
+        if sig24 == 16777216 {
+            sig24 = 8388608;
+            e2 = e2.wrapping_add(1);
+        }
+        if e2 >= 1151 {
+            return sign << 31 | 2139095040;
+        }
+        if e2 >= 897 {
+            return sign << 31 | (e2 - 896) << 23 | sig24 & 8388607;
+        }
+        sign << 31 | Self::subnormal_target(mant_high, low, 896 - e2)
+    }
+
+    fn subnormal_target(mant_high: u32, low: u32, k: u32) -> u32 {
+        if k >= 24 { return 0; }
+        let top = (1048576 | mant_high) << 2 | low >> 30;
+        let rest = low & 1073741823;
+        let half_rest = 536870912;
+        let mut h = if k == 0 { top } else { top >> k };
+        if k == 0 {
+            if rest > half_rest || rest == half_rest && (h & 1) == 1 { h = h.wrapping_add(1); }
+        } else {
+            let r = top & ((1 << k) - 1);
+            let half_r = 1 << (k - 1);
+            if r > half_r || r == half_r && rest > 0 || r == half_r && rest == 0 && (h & 1) == 1 { h = h.wrapping_add(1); }
+        }
+        if h == 8388608 { return 8388608; }
+        h
     }
 
     pub fn f32_to_i64(v: f32) -> Int64Halves {
