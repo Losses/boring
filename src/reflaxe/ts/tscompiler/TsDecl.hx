@@ -188,7 +188,11 @@ class TsDecl {
 						case TInst(c, _) if(c.get().name == "String"):
 							lines.push('  for (let i = 0; i < a${f.name}Length && i < b${f.name}Length; i++) { if (a.${f.name}[i] !== b.${f.name}[i]) return a.${f.name}[i] < b.${f.name}[i] ? -1 : 1; }');
 						case _:
-							lines.push('  for (let i = 0; i < a${f.name}Length && i < b${f.name}Length; i++) { const cmp = ' + tsCompareExpr(cls, f.name + '[i]', params[0]) + '; if (cmp !== 0) return cmp; }');
+							// The indexed element carries the non-null assertion: the
+							// element flows into a typed parameter (an Order function or
+							// a nested compare), which noUncheckedIndexedAccess rejects
+							// for a `T | undefined` index read.
+							lines.push('  for (let i = 0; i < a${f.name}Length && i < b${f.name}Length; i++) { const cmp = ' + tsCompareExpr(cls, f.name + '[i]!', params[0]) + '; if (cmp !== 0) return cmp; }');
 					}
 					lines.push('  if (a${f.name}Length !== b${f.name}Length) return a${f.name}Length - b${f.name}Length;');
 					continue;
