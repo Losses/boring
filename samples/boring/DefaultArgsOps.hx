@@ -299,6 +299,33 @@ class ChainedPaint {
     }
 }
 
+class CtorDefaultBadge {
+    public var tag:String;
+
+    public function new(tag:String) {
+        this.tag = tag;
+    }
+}
+
+class CtorDefaultHolder {
+    public final badge:CtorDefaultBadge;
+
+    public function new(?badge:CtorDefaultBadge) {
+        this.badge = badge == null ? new CtorDefaultBadge("fresh") : badge;
+    }
+}
+
+class KeywordNameOps {
+    public static function clampVal(val:Int, min:Int, max:Int):Int {
+        return val < min ? min : (val > max ? max : val);
+    }
+
+    public static function localKeywordRead():Int {
+        final val = 7;
+        return val + 1;
+    }
+}
+
 /**
     The AutoSpacePolicy shape of the engine port: a @:dataClass whose
     constructor parameters all hold coalescing defaults, so the default
