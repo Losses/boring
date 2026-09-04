@@ -9,3 +9,4 @@
 --macro TestCollector.generate('out/haxe')
 -main GenerateMain
 -js out/haxe/generate-main.js
+-D boring_oracle
