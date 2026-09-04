@@ -510,6 +510,7 @@ class DartDecl {
 		if(v.isStatic && DataTableHelper.isDataTableField(field)) {
 			final elems = DataTableHelper.getDataTableElements(field.expr());
 			if(elems != null) {
+				// Preserve Dart privacy when flattening private table statics.
 				return ["final List<int> " + claimTopLevel(field.isPublic ? field.name : "_" + field.name, field.pos) + " = [" + renderDataTableElements(elems) + "];"];
 			}
 		}
