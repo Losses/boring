@@ -10,6 +10,7 @@ export default tseslint.config(
       "reference/rust/**",
       "tests/vectors/**",
       "bun.lock",
+      ".haxelib/**",
     ],
   },
   js.configs.recommended,
