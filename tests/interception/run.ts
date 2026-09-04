@@ -35,7 +35,7 @@ for (const name of readdirSync(casesRoot).sort()) {
   writeFileSync(
     buildFile,
     [
-      "-cp src",
+      "-cp packages/compiler",
       "-cp samples",
       `-cp ${guardPath}`,
       "-main Case",

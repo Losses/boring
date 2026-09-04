@@ -1,5 +1,5 @@
 # Haxe reference in-source test runner (docs/specs/features/19-testing.md).
--cp src
+-cp packages/compiler
 -cp samples
 -cp out/haxe
 -cp packages/registry/src
