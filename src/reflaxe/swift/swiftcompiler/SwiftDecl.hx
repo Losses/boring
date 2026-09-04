@@ -225,7 +225,12 @@ class SwiftDecl {
 					lines.push("    if a." + f.name + " == nil && b." + f.name + " != nil { return -1 }");
 					lines.push("    if a." + f.name + " != nil && b." + f.name + " == nil { return 1 }");
 					lines.push("    if let av = a." + f.name + ", let bv = b." + f.name + " {");
-					switch(Context.follow(params[0])) { case TAbstract(ia, _) if(ia.get().name == "Int"): lines.push("        if av != bv { return av - bv }"); case TInst(sc, _) if(sc.get().name == "String"): lines.push("        let cmp" + f.name + " = compareUnitOrder(av, bv); if cmp" + f.name + " != 0 { return cmp" + f.name + " }"); case TEnum(e, _): final en = e.get(); final orderName = cls.name + f.name + "Order"; lines.unshift("    func " + orderName + "(_ v: " + en.name + ") -> Int32 {\n        switch v {\n" + [for(ef in en.constructs) "        case ." + lowerFirst(ef.name) + ": return " + ef.index].join("\n") + "\n        }\n    }"); lines.push("        if " + orderName + "(av) != " + orderName + "(bv) { return " + orderName + "(av) - " + orderName + "(bv) }"); case _:
+					switch(rawArrayElement(params[0])) {
+						case null:
+							switch(Context.follow(params[0])) { case TAbstract(ia, _) if(ia.get().name == "Int"): lines.push("        if av != bv { return av - bv }"); case TInst(sc, _) if(sc.get().name == "String"): lines.push("        let cmp" + f.name + " = compareUnitOrder(av, bv); if cmp" + f.name + " != 0 { return cmp" + f.name + " }"); case TEnum(e, _): final en = e.get(); final orderName = cls.name + f.name + "Order"; lines.unshift("    func " + orderName + "(_ v: " + en.name + ") -> Int32 {\n        switch v {\n" + [for(ef in en.constructs) "        case ." + lowerFirst(ef.name) + ": return " + ef.index].join("\n") + "\n        }\n    }"); lines.push("        if " + orderName + "(av) != " + orderName + "(bv) { return " + orderName + "(av) - " + orderName + "(bv) }"); case _:
+							}
+						case element:
+							nullableArrayComparator(lines, cls, f.name, element);
 					}
 					lines.push("    }"); continue;
 				case TAbstract(a, params) if(a.get().name == "ReadOnlyArray" && params.length == 1):
@@ -261,6 +266,41 @@ class SwiftDecl {
 		for(f in funcFields) if(f.field.name == name) return f;
 		Context.error("value type member is missing: " + name, Context.currentPos());
 		return null;
+	}
+
+	/**
+		The element type when `t` is a raw ReadOnlyArray (checked before
+		Context.follow, which erases the abstract to Array). Nullable
+		collections need this raw check: the Null arm's followed inner
+		type is Array and would otherwise lose the array shape.
+	**/
+	function rawArrayElement(t: Type): Null<Type> {
+		return switch(t) {
+			case TAbstract(a, params) if(a.get().name == "ReadOnlyArray" && params.length == 1): params[0];
+			case TLazy(f): rawArrayElement(f());
+			case _: null;
+		};
+	}
+
+	/**
+		The element-wise compare lines for a nullable collection field
+		inside the `if let` bindings. The locals av/bv hold the present
+		arrays; the semantics mirror the non-null ReadOnlyArray arm:
+		compare in index order, then by length.
+	**/
+	function nullableArrayComparator(lines:Array<String>, cls:ClassType, field:String, element:Type):Void {
+		lines.push("        var i" + field + " = 0"); lines.push("        while i" + field + " < av.count && i" + field + " < bv.count {");
+		switch(Context.follow(element)) {
+			case TInst(sc, _) if(sc.get().name == "String"): lines.push("            let cmp = compareUnitOrder(av[i" + field + "], bv[i" + field + "]); if cmp != 0 { return cmp }");
+			case TEnum(e, _):
+				final en = e.get();
+				final orderName = cls.name + field + "ElementOrder";
+				lines.unshift("    func " + orderName + "(_ v: " + en.name + ") -> Int32 {\n        switch v {\n" + [for(ef in en.constructs) "        case ." + lowerFirst(ef.name) + (switch(ef.type) { case TFun(args, _): args.length > 0 ? "(" + [for(_ in args) "_"].join(", ") + ")" : ""; case _: ""; }) + ": return " + ef.index].join("\n") + "\n        }\n    }");
+				lines.push("            let cmp = " + orderName + "(av[i" + field + "]) - " + orderName + "(bv[i" + field + "]); if cmp != 0 { return cmp }");
+			case TInst(c, _) if(c.get().meta.has(":dataClass")): lines.push("            let cmp = compare" + c.get().name + "(av[i" + field + "], bv[i" + field + "]); if cmp != 0 { return cmp }");
+			case _: lines.push("            if av[i" + field + "] != bv[i" + field + "] { return 1 }");
+		}
+		lines.push("            i" + field + " += 1"); lines.push("        }"); lines.push("        if av.count != bv.count { return Int32(av.count - bv.count) }");
 	}
 
 	function swiftOperatorName(op: ValueTypeOperator): String {
