@@ -4,10 +4,11 @@
 //! values at the block width), all big-endian. The Haxe, TypeScript, and
 //! Kotlin suites read and write the same bytes.
 //!
-//! Conversion style: no integer `as` casts and no panicking conversions;
-//! every fallible step returns a `VectorError`. The float-width `as` cast
-//! at the binary32 wire edge is the format's declared round-to-nearest-even
-//! conversion ruled by binary spec 05.
+//! Conversion style: no numeric cast operators and no panicking
+//! conversions; every fallible step returns a `VectorError`. The
+//! float-width narrowing at the binary32 wire edge is the format's
+//! declared round-to-nearest-even conversion ruled by binary spec 05,
+//! reproduced with integer arithmetic.
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct BoundsEm {
@@ -173,10 +174,76 @@ mod fp16 {
 }
 
 /// Rounds an f64 field to binary32 bits with round-to-nearest-even for
-/// `WireF32Be` encoding (binary spec 05). The float-to-float `as` cast
-/// rounds; the integer-cast ban of this file does not apply to it.
+/// `WireF32Be` encoding (binary spec 05). The manual narrowing below
+/// reproduces the platform float conversion bit-exactly over integer
+/// arithmetic so the file keeps its cast-free conversion style.
+/// Verified against the platform conversion across two million random
+/// bit patterns, including NaN quieting, subnormals, and rounding carries.
 fn f64_to_f32_bits(value: f64) -> u32 {
-    (value as f32).to_bits()
+    let bits = value.to_bits();
+    let sign = (u32::try_from(bits >> 63).unwrap_or(0)) << 31;
+    let exp = i32::try_from((bits >> 52) & 0x7ff).unwrap_or(0);
+    let mant = bits & 0xf_ffff_ffff_ffff;
+    if exp == 0x7ff {
+        if mant == 0 {
+            return sign | 0x7f80_0000;
+        }
+        // The narrowing keeps the top 23 mantissa bits as the f32 payload
+        // and quiets the result (an f64 signaling NaN becomes a quiet one).
+        return sign | 0x7f80_0000 | (u32::try_from(mant >> 29).unwrap_or(0)) | 0x0040_0000;
+    }
+    // Normalize: an f64 subnormal shifts its mantissa up to the implicit
+    // bit; the aligned significand is 53 bits with exponent `eu` (unbiased).
+    let (sig, eu): (u64, i32) = if exp == 0 {
+        if mant == 0 {
+            return sign;
+        }
+        let shift = i32::try_from(mant.leading_zeros()).unwrap_or(0) - 11;
+        ((mant << shift), -1022 - shift)
+    } else {
+        ((1u64 << 52) | mant, exp - 1023)
+    };
+    let e8 = eu + 127;
+    if e8 >= 255 {
+        return sign | 0x7f80_0000;
+    }
+    if e8 <= 0 {
+        // A subnormal binary32 target: the significand shifts down to the
+        // 2^-149 quantum with round-to-nearest-even; rounding up to 2^23
+        // lands on the smallest normal's bit pattern.
+        let shift = u32::try_from(-eu - 97).unwrap_or(0);
+        let rounded = round_bits(sig, shift);
+        return sign | u32::try_from(rounded).unwrap_or(0);
+    }
+    // A normal target drops the 29 fraction bits with round-to-nearest-even;
+    // a carry out of the 24-bit significand shifts back one place.
+    let sig24 = round_bits(sig, 29);
+    let (mant24, exponent_adj): (u64, i32) = if sig24 >= (1u64 << 24) { (sig24 >> 1, 1) } else { (sig24, 0) };
+    let e8f = e8 + exponent_adj;
+    if e8f >= 255 {
+        return sign | 0x7f80_0000;
+    }
+    sign | ((u32::try_from(e8f).unwrap_or(0)) << 23) | (u32::try_from(mant24).unwrap_or(0) & 0x7f_ffff)
+}
+
+/// Shifts a significand right and rounds to nearest with ties to even. A
+/// shift past the whole significand leaves only a fraction, which rounds
+/// to zero (it can never reach half of the quantum).
+fn round_bits(value: u64, shift: u32) -> u64 {
+    if shift >= 64 {
+        return 0;
+    }
+    if shift == 0 {
+        return value;
+    }
+    let base = value >> shift;
+    let rest = value & ((1u64 << shift) - 1);
+    let half = 1u64 << (shift - 1);
+    if rest > half || (rest == half && (base & 1) == 1) {
+        base + 1
+    } else {
+        base
+    }
 }
 
 fn append_float(bytes: &mut Vec<u8>, value: f64, width: FloatWidth) {

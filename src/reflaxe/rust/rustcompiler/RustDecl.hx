@@ -282,13 +282,13 @@ class RustDecl {
 			switch(f.type) {
 				case TAbstract(a, params) if(a.get().name == "Null" && params.length == 1):
 					rawHandled = true;
-					var presentCompare = "av.cmp(bv) as i32";
+					var presentCompare = cmpToI32("av.cmp(bv)");
 					switch(Context.follow(params[0])) {
 						case TEnum(e, _):
 							final en = e.get();
 							final orderName = RustImports.toSnakeCase(cls.name) + "_" + RustImports.toSnakeCase(f.name) + "_order";
 							lines.unshift('fn $orderName(v: &${en.name}) -> i32 {\n    match v {\n' + [for(ef in en.constructs) '        ${en.name}::${ef.name}' + (enumHasPayload(ef) ? ' { .. }' : '') + ' => ${ef.index},'].join("\n") + '\n    }\n}');
-							presentCompare = '$orderName(av).cmp(&$orderName(bv)) as i32';
+							presentCompare = cmpToI32('$orderName(av).cmp(&$orderName(bv))');
 						case TInst(c, _) if(c.get().meta.has(":dataClass")):
 							presentCompare = 'compare_${RustImports.toSnakeCase(c.get().name)}(av, bv)';
 						case _:
@@ -299,19 +299,19 @@ class RustDecl {
 					final element = Context.follow(params[0]);
 					final elementExprA = "a." + fn + ".iter()";
 					final elementExprB = "b." + fn + ".iter()";
-					var elementCompare = "av.cmp(bv) as i32";
+					var elementCompare = cmpToI32("av.cmp(bv)");
 					switch(element) {
 						case TEnum(e, _):
 							final en = e.get();
 							final orderName = n + "_" + fn + "_element_order";
 							lines.unshift('fn $orderName(v: &${en.name}) -> i32 {\n    match v {\n' + [for(ef in en.constructs) '        ${en.name}::${ef.name}' + (enumHasPayload(ef) ? ' { .. }' : '') + ' => ${ef.index},'].join("\n") + '\n    }\n}');
-							elementCompare = '$orderName(av).cmp(&$orderName(bv)) as i32';
+							elementCompare = cmpToI32('$orderName(av).cmp(&$orderName(bv))');
 						case TInst(c, _) if(c.get().meta.has(":dataClass")):
 							elementCompare = 'compare_${RustImports.toSnakeCase(c.get().name)}(av, bv)';
 						case _:
 					}
 					lines.push('    let mut cmp_$fn = 0; for (av, bv) in a.$fn.iter().zip(b.$fn.iter()) { cmp_$fn = $elementCompare; if cmp_$fn != 0 { break; } }');
-					lines.push('    if cmp_$fn == 0 { cmp_$fn = a.$fn.len().cmp(&b.$fn.len()) as i32; }');
+					lines.push('    if cmp_$fn == 0 { cmp_$fn = ' + cmpToI32('a.$fn.len().cmp(&b.$fn.len())') + '; }');
 				default:
 			}
 			if(!rawHandled) switch(Context.follow(f.type)) {
@@ -326,7 +326,7 @@ class RustDecl {
 					final en = e.get();
 					final orderName = RustImports.toSnakeCase(cls.name) + "_" + RustImports.toSnakeCase(f.name) + "_order";
 					lines.unshift('fn $orderName(v: &${en.name}) -> i32 {\n    match v {\n' + [for(ef in en.constructs) '        ${en.name}::${ef.name}' + (enumHasPayload(ef) ? ' { .. }' : '') + ' => ${ef.index},'].join("\n") + '\n    }\n}');
-					lines.push('    let cmp_$fn = $orderName(&a.$fn).cmp(&$orderName(&b.$fn)) as i32;');
+					lines.push('    let cmp_$fn = ' + cmpToI32('$orderName(&a.$fn).cmp(&$orderName(&b.$fn))') + ';');
 				case _: // validated before emission
 			}
 			lines.push('    if cmp_$fn != 0 { return cmp_$fn; }');
@@ -338,6 +338,11 @@ class RustDecl {
 
 	function enumHasPayload(ef: haxe.macro.Type.EnumField): Bool {
 		return switch(ef.type) { case TFun(args, _): args.length > 0; case _: false; };
+	}
+
+	/** An `Ordering` expression to the i32 trichotomy the comparators carry. */
+	static function cmpToI32(cmpExpr: String): String {
+		return "match " + cmpExpr + " { core::cmp::Ordering::Less => -1, core::cmp::Ordering::Equal => 0, core::cmp::Ordering::Greater => 1 }";
 	}
 
 
