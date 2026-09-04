@@ -1,9 +1,9 @@
 # Haxe reference in-source test runner (docs/specs/features/19-testing.md).
--cp src
+-cp packages/compiler
 -cp samples
 -cp out/haxe
--cp tools/registry/src
---macro Intercept.run(['samples', 'tools/registry/src'])
+-cp packages/registry/src
+--macro Intercept.run(['samples', 'packages/registry/src'])
 --macro haxe.macro.Compiler.addGlobalMetadata('boring', '@:build(std.RecordMember.build())')
 -main TestMain
 -js out/haxe/test-main.js

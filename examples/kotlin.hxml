@@ -3,12 +3,12 @@
 # The kotlin-output define writes output to reference/kotlin/gen.
 -lib reflaxe
 -lib boring
--cp src/reflaxe/kotlin/std-shadow
--cp src/reflaxe/kotlin
+-cp packages/compiler/reflaxe/kotlin/std-shadow
+-cp packages/compiler/reflaxe/kotlin
 -cp samples
 -cp samples/haxe
--cp tools/registry/src
---macro Intercept.run(['samples', 'tools/registry/src'])
+-cp packages/registry/src
+--macro Intercept.run(['samples', 'packages/registry/src'])
 --macro haxe.macro.Compiler.keep('registry.Core')
 --macro haxe.macro.Compiler.keep('registry.Json')
 --macro haxe.macro.Compiler.keep('registry.Semver')

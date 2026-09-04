@@ -2826,7 +2826,7 @@ class RustExpr {
 
 	/**
 		Folds an integer-literal `as` cast into a typed literal, matching the
-		bit-level result of `(x) as T` for the module's integer domain. Returns
+		bitwise result of `(x) as T` for the module's integer domain. Returns
 		null when `e` is not an integer constant, so the caller falls back to a
 		runtime cast. A Haxe Int literal is the signed i32 value; the business-
 		module u32 rendering is its low 32 bits, so widening casts of such a
@@ -2884,7 +2884,7 @@ class RustExpr {
 			// A u8 target (Bytes element stores) truncates the source the
 			// way Rust `as u8` does: mask the low byte, then try_from. The
 			// literal fold above has already run, so only real expressions
-			// land here.
+			// reach this branch.
 			return RustConversions.truncate(expr(e), "u8");
 		}
 		return "(" + expr(e) + ") as " + ty;
@@ -4492,8 +4492,8 @@ class RustExpr {
 		// code free of no-op casts. Only operands that render in a different
 		// width or signedness cross the boundary here.
 		if(types.of(e.t, false) == wrapDomain) return "";
-		// A collapsed Null<Int> operand renders its inner scalar in the
-		// module domain (the collapse already applied unwrap_or), so the
+		// A Null<Int> operand already unwrapped renders its inner scalar
+		// in the module domain (unwrap_or was already applied), so the
 		// Option wrapper in the static type is not the rendering domain.
 		if(isNullType(e.t) && isIntType(getNullInnerType(e.t))) {
 			final innerDomain = RuntimeResidents.isResident(imports.selfModule) ? "i32" : "u32";

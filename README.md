@@ -2,7 +2,7 @@
 
 boring is a Haxe package that exposes the transpilation toolchain to
 tiqian. tiqian provides the original Haxe sources and translates them to
-each platform through the reflaxe targets under `src/reflaxe/`.
+each platform through the reflaxe targets under `packages/compiler/reflaxe/`.
 
 Every file under `samples/` demonstrates language capabilities of the
 translatable subset. The sample set debugs each language feature of the
@@ -27,7 +27,7 @@ explicit `[[test]]` path into `tests/`.
 
 | Path | Content |
 | --- | --- |
-| `src/` | the transpilation toolchain: the interception pass, the runtime-package configuration, and the reflaxe targets (`src/reflaxe/ts/`, `src/reflaxe/kotlin/`, `src/reflaxe/rust/`); exposed as the `boring` haxelib package through `haxelib.json`, `extraParams.hxml`, and `defines.json` |
+| `packages/compiler/` | the transpilation toolchain: the interception pass, the runtime-package configuration, and the reflaxe targets (`packages/compiler/reflaxe/ts/`, `packages/compiler/reflaxe/kotlin/`, `packages/compiler/reflaxe/rust/`); exposed as the `boring` haxelib package through `haxelib.json`, `extraParams.hxml`, and `defines.json` |
 | `samples/` | Haxe capability samples for the translatable subset, including the subset standard library `samples/std/` |
 | `examples/` | generation entries (`ts.hxml`, `kotlin.hxml`, `rust.hxml`) and the reflaxe smoke file; each entry demonstrates package consumption |
 | `reference/ts/` | hand-written TypeScript reference translation (package `@boring/codec`); `reference/ts/gen/` is the gitignored reflaxe-generated tree |
