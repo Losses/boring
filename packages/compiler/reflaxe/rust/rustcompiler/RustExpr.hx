@@ -174,7 +174,7 @@ class RustExpr {
     }
 
     /** Renders the sanctioned expression in Rust's normalization closure. */
-    function coalescingDefaultText(value:DefaultArgExpander.CoalescingDefaultValue, targetType:Type, asOption:Bool = false):String {
+    function coalescingDefaultText(value:DefaultArgExpander.CoalescingDefaultValue, targetType:Type, asOption:Bool = false, nested:Bool = false):String {
         // Null conditionals already produce an Option-valued expression; their
         // branches must be rendered in that same domain. The whole conditional is not
         // wrapped in Some(...).
@@ -183,8 +183,8 @@ class RustExpr {
                 case CNull:
                     return "None";
                 case CConditional(c, t, f):
-                    return "if " + coalescingDefaultText(c, targetType) + " { " + coalescingDefaultText(t, targetType, true) + " } else { "
-                        + coalescingDefaultText(f, targetType, true) + " }";
+                    return "if " + coalescingDefaultText(c, targetType, false, nested) + " { " + coalescingDefaultText(t, targetType, true, nested)
+                        + " } else { " + coalescingDefaultText(f, targetType, true, nested) + " }";
                 default:
             }
         final rendered = switch (value) {
@@ -192,7 +192,7 @@ class RustExpr {
             case CFloat(s):
                 final padded = s.indexOf(".") >= 0 || s.indexOf("e") >= 0 || s.indexOf("E") >= 0 ? s : s + ".0";
                 FloatPrecision.isF32() ? padded + "f32" : padded;
-            case CString(s): quoteString(s) + ".to_string()";
+            case CString(s): quoteString(s) + (nested ? "" : ".to_string()");
             case CBool(b): b ? "true" : "false";
             case CNull: "None";
             case CEmptyArray: "vec![]";
@@ -237,7 +237,10 @@ class RustExpr {
                 + " "
                 + coalescingDefaultText(right, targetType);
             case CConstructorCall(classPath, args):
-                classPath.split(".").pop() + "::new(" + [for (a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
+                // Constructor parameters render in reference form (a String
+                // parameter is &str), so nested string literal arguments stay
+                // bare; only the top-level default needs the owned form.
+                classPath.split(".").pop() + "::new(" + [for (a in args) coalescingDefaultText(a, targetType, false, true)].join(", ") + ")";
         };
         return asOption ? "Some(" + rendered + ")" : rendered;
     }
