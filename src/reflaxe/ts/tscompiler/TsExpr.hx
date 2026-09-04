@@ -1338,7 +1338,10 @@ class TsExpr {
 	function field(subj: TypedExpr, fa: FieldAccess): String {
 		switch(fa) {
 			case FStatic(c, cf):
-				return staticRef(c.get(), cf.get().name);
+				final cls = c.get();
+				final rendered = staticRef(cls, cf.get().name);
+				return DataTableHelper.isDataTableField(cf.get()) && !RuntimeResidents.isResident(cls.module)
+					? "Array.from(" + rendered + ")" : rendered;
 			case FEnum(en, ef):
 				final enumDef = en.get();
 				if(isValueEnum(enumDef)) imports.value(enumDef.module, enumDef.name);
