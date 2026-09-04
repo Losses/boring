@@ -4419,6 +4419,12 @@ class RustExpr {
 	// an operand only when it crosses domains; i32-domain locals and integer
 	// literals assign to i32 without a cast.
 	function wrappingCastSuffix(e: TypedExpr, wrapDomain: String, isLeft: Bool): String {
+		// A operand already rendered in the wrap domain needs no cast: an Int
+		// local or field in business is u32 and a wrapping arithmetic result
+		// carries it; dropping the redundant `(x) as u32` keeps the emitted
+		// code free of no-op casts. Only operands that render in a different
+		// width or signedness cross the boundary here.
+		if(types.of(e.t, false) == wrapDomain) return "";
 		if(wrapDomain != "i32") return (isParameterOfDomain(e, wrapDomain) ? "" : (isLeft ? " as " + wrapDomain : ""));
 		if(i32ComparisonTarget || i32OperandDomain(e)) return "";
 		switch(stripWrap(e).expr) {
