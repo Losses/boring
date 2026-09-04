@@ -151,6 +151,8 @@ tests.Xxh64Tests
 tests.Xxh128Tests
 tests.CrcTests
 tests.BlockScopeUnrollTests
+tests.HandWrittenLoopPositionTests
+tests.HandWrittenLoopPositionSupport
 tests.RegistryJsonTests
 tests.RegistrySemverTests
 tests.RegistryPipelineTests
