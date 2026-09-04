@@ -1,19 +1,18 @@
 package swiftcompiler;
 
 #if (macro || reflaxe_runtime)
-
 /**
-	Source of the runtime module emitted next to the generated files.
-	It only hosts what the translatable subset cannot express inline:
-	the Int64 bit representation (stdlib/05), the growable byte sink
-	behind haxe.io.BytesBuffer (stdlib/02), the exception base class of
-	features/06, and the unit-order string comparison the ordering
-	ruling of docs/specs/features/07-numeric-tower.md requires (native operators
-	compare canonical order). Resident modules compile through the
-	normal pipeline and append after this prelude.
+    Source of the runtime module emitted next to the generated files.
+    It only hosts what the translatable subset cannot express inline:
+    the Int64 bit representation (stdlib/05), the growable byte sink
+    behind haxe.io.BytesBuffer (stdlib/02), the exception base class of
+    features/06, and the unit-order string comparison the ordering
+    ruling of docs/specs/features/07-numeric-tower.md requires (native operators
+    compare canonical order). Resident modules compile through the
+    normal pipeline and append after this prelude.
 **/
 class SwiftRuntime {
-	public static final SOURCE = '/// The two 32-bit halves of a binary64 value (stdlib/05). The halves
+    public static final SOURCE = '/// The two 32-bit halves of a binary64 value (stdlib/05). The halves
 /// carry the bit patterns as Int32 so they flow into Int32 arithmetic
 /// at the codec boundaries without conversions.
 struct Int64Halves {
@@ -220,15 +219,15 @@ func unitCodePoint(_ s: [UInt16], _ index: Int32) -> Int32 {
 
 ';
 
-	/**
-		Source of the test host emitted beside the runtime module. It
-		holds the raise type of this language, the runner state, and the
-		result-line edge to stdout; the consistency run redirects stdout
-		to the jsonl results file. Assertion checks and canonical
-		formatting live in TestCore, appended after this host in this
-		same file.
-	**/
-	public static final TEST_SOURCE = '
+    /**
+        Source of the test host emitted beside the runtime module. It
+        holds the raise type of this language, the runner state, and the
+        result-line edge to stdout; the consistency run redirects stdout
+        to the jsonl results file. Assertion checks and canonical
+        formatting live in TestCore, appended after this host in this
+        same file.
+    **/
+    public static final TEST_SOURCE = '
 
 /// The assertion failure of features/19: the canonical message in the
 /// resident unit-array ABI, converted to text only at the print edge.

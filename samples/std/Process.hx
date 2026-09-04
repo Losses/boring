@@ -6,5 +6,5 @@ package std;
  */
 @:native("process")
 extern class Process {
-	static function exit(code:Int):Void;
+    static function exit(code:Int):Void;
 }
