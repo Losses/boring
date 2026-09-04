@@ -177,3 +177,21 @@ Byte buffer boundaries and round trips are asserted in:
 - `tests/haxe/Main.hx` (lines 79-88)
 - `tests/ts/codec.test.ts` (lines 13-54)
 - `tests/ts/vector.test.ts` (lines 7-25)
+
+## Amendment (2026-09-04): BytesBuffer.add
+
+`haxe.io.BytesBuffer` gains `add(b:Bytes):Void`, matching Haxe's own
+declaration. The member appends the argument's bytes to the end of the
+buffer by copying; the buffer never aliases the argument's storage, so
+a later `set` on the argument leaves the buffered copy unchanged and
+later buffer writes never mutate the argument. Appending an empty
+`Bytes` is legal and appends nothing.
+
+Per-target sites: TypeScript, Kotlin, Swift, and Rust implement the
+member on the runtime `BytesBuffer` class
+(`packages/compiler/reflaxe/<target>/<target>compiler/<Target>Runtime.hx`);
+Rust additionally lowers call sites through a mutable-borrow branch in
+`RustExpr.hx`. Dart erases `BytesBuffer` to `List<int>` (`DartType.hx`), so
+the member lowers to `List.addAll` at the call site (`DartExpr.hx`).
+`addString` and `addBytes` stay out: callers compose them as
+`add(Bytes.ofString(s))` and `add(b.sub(pos, len))`.

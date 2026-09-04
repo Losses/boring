@@ -51,6 +51,20 @@ export class BytesBuffer {
     this.length += 1;
   }
 
+  add(bytes: Uint8Array): void {
+    if(this.length + bytes.length > this.bytes.length) {
+      let capacity = this.bytes.length;
+      while(capacity < this.length + bytes.length) {
+        capacity *= 2;
+      }
+      const grown = new Uint8Array(capacity);
+      grown.set(this.bytes);
+      this.bytes = grown;
+    }
+    this.bytes.set(bytes, this.length);
+    this.length += bytes.length;
+  }
+
   getBytes(): Uint8Array {
     return this.bytes.slice(0, this.length);
   }
