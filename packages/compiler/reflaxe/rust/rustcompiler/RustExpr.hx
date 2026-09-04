@@ -5087,11 +5087,19 @@ class RustExpr {
                             case _:
                         }
                     case TField(subj, _):
-                        switch (stripWrap(subj).expr) {
-                            case TLocal(v):
-                                // Assigning through a field of a local requires the binding to be mutable.
-                                mutated.set(v.id, true);
-                            case _:
+                        // Assigning through a field of a local requires the binding to be mutable;
+                        // the chain can be arbitrarily deep (a.b.c = ... marks a).
+                        var inner = subj;
+                        while (true) {
+                            switch (stripWrap(inner).expr) {
+                                case TLocal(v):
+                                    mutated.set(v.id, true);
+                                    break;
+                                case TField(next, _):
+                                    inner = next;
+                                case _:
+                                    break;
+                            }
                         }
                     case _:
                 }
