@@ -22,11 +22,11 @@ interface MutationResult {
 }
 
 const mutationTargets: MutationTarget[] = [
-  { compiler: "tscompiler.Compiler.use()", define: "ts-output", id: "ts", shadow: "src/reflaxe/ts/std-shadow" },
-  { compiler: "kotlincompiler.Compiler.use()", define: "kotlin-output", id: "kotlin", shadow: "src/reflaxe/kotlin/std-shadow" },
-  { compiler: "swiftcompiler.Compiler.use()", define: "swift-output", id: "swift", shadow: "src/reflaxe/swift/std-shadow" },
-  { compiler: "dartcompiler.Compiler.use()", define: "dart-output", id: "dart", shadow: "src/reflaxe/dart/std-shadow" },
-  { compiler: "rustcompiler.Compiler.use()", define: "rust-output", id: "rust", shadow: "src/reflaxe/rust/std-shadow" },
+  { compiler: "tscompiler.Compiler.use()", define: "ts-output", id: "ts", shadow: "packages/compiler/reflaxe/ts/std-shadow" },
+  { compiler: "kotlincompiler.Compiler.use()", define: "kotlin-output", id: "kotlin", shadow: "packages/compiler/reflaxe/kotlin/std-shadow" },
+  { compiler: "swiftcompiler.Compiler.use()", define: "swift-output", id: "swift", shadow: "packages/compiler/reflaxe/swift/std-shadow" },
+  { compiler: "dartcompiler.Compiler.use()", define: "dart-output", id: "dart", shadow: "packages/compiler/reflaxe/dart/std-shadow" },
+  { compiler: "rustcompiler.Compiler.use()", define: "rust-output", id: "rust", shadow: "packages/compiler/reflaxe/rust/std-shadow" },
 ];
 
 const invalidShapes = {

@@ -210,7 +210,7 @@ fn f64_to_f32_bits(value: f64) -> u32 {
     if e8 <= 0 {
         // A subnormal binary32 target: the significand shifts down to the
         // 2^-149 quantum with round-to-nearest-even; rounding up to 2^23
-        // lands on the smallest normal's bit pattern.
+        // produces the smallest normal's bit pattern.
         let shift = u32::try_from(-eu - 97).unwrap_or(0);
         let rounded = round_bits(sig, shift);
         return sign | u32::try_from(rounded).unwrap_or(0);

@@ -4,11 +4,11 @@
 # The output is written to reference/rust-f32-gen/src; the crate is the
 # boring-codec-f32-gen workspace member.
 -lib boring
--cp src/reflaxe/rust/std-shadow
--cp src/reflaxe/rust
+-cp packages/compiler/reflaxe/rust/std-shadow
+-cp packages/compiler/reflaxe/rust
 -cp samples
--cp tools/registry/src
---macro Intercept.run(['samples', 'tools/registry/src'])
+-cp packages/registry/src
+--macro Intercept.run(['samples', 'packages/registry/src'])
 --macro haxe.macro.Compiler.keep('registry.Core')
 --macro haxe.macro.Compiler.keep('registry.Json')
 --macro haxe.macro.Compiler.keep('registry.Semver')
