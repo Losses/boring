@@ -59,7 +59,7 @@ const mutationTargets: TargetConfig[] = [
     define: "ts-output",
     file: "boring/PrintedRecord.ts",
     id: "ts",
-    shadow: "src/reflaxe/ts/std-shadow",
+    shadow: "packages/compiler/reflaxe/ts/std-shadow",
     signature: "public toString(): string",
   },
   {
@@ -67,7 +67,7 @@ const mutationTargets: TargetConfig[] = [
     define: "swift-output",
     file: "boring/PrintedRecord.swift",
     id: "swift",
-    shadow: "src/reflaxe/swift/std-shadow",
+    shadow: "packages/compiler/reflaxe/swift/std-shadow",
     signature: "func toString() -> String",
   },
   {
@@ -75,7 +75,7 @@ const mutationTargets: TargetConfig[] = [
     define: "dart-output",
     file: "lib/boring/printed_record.dart",
     id: "dart",
-    shadow: "src/reflaxe/dart/std-shadow",
+    shadow: "packages/compiler/reflaxe/dart/std-shadow",
     signature: "String toString()",
     testDefine: "dart-test-output",
   },
@@ -84,7 +84,7 @@ const mutationTargets: TargetConfig[] = [
     define: "rust-output",
     file: "boring/printed_record.rs",
     id: "rust",
-    shadow: "src/reflaxe/rust/std-shadow",
+    shadow: "packages/compiler/reflaxe/rust/std-shadow",
     signature: "pub fn to_string(&self) -> String",
   },
 ];

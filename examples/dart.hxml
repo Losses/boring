@@ -3,8 +3,8 @@
 # The dart-output define writes output to reference/dart/gen.
 -lib reflaxe
 -lib boring
--cp src/reflaxe/dart/std-shadow
--cp src/reflaxe/dart
+-cp packages/compiler/reflaxe/dart/std-shadow
+-cp packages/compiler/reflaxe/dart
 -cp samples
 -cp samples/haxe
 -cp tools/registry/src

@@ -39,8 +39,8 @@ test("a missing deferred assignment is rejected by the Kotlin tree build", async
     const hxml = path.join(dir, "invalid.hxml");
     fs.writeFileSync(hxml, [
       "-lib reflaxe", "-lib boring",
-      `-cp ${path.join(root, "src/reflaxe/kotlin/std-shadow")}`,
-      `-cp ${path.join(root, "src/reflaxe/kotlin")}`,
+      `-cp ${path.join(root, "packages/compiler/reflaxe/kotlin/std-shadow")}`,
+      `-cp ${path.join(root, "packages/compiler/reflaxe/kotlin")}`,
       `-cp ${path.join(root, "samples")}`, `-cp ${sourceRoot}`,
       `--macro Intercept.run(["${sourceRoot}"])`,
       "--macro kotlincompiler.Compiler.use()",
