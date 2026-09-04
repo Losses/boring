@@ -3273,11 +3273,39 @@ class SwiftExpr {
 				case TConst(TString(s)): b.add(escapeInterpolation(s));
 				case _:
 					final stdArg = stdStringArg(leaf);
-					b.add("\\(" + (stdArg == null ? expr(leaf) : stdString(stdArg, true)) + ")");
+					b.add("\\(" + (stdArg == null ? interpolationLeaf(leaf) : stdString(stdArg, true)) + ")");
 			}
 		}
 		b.addChar('"'.code);
 		return b.toString();
+	}
+
+	/**
+		The interpolation operand of one concat leaf. An optional String
+		leaf renders through `String(describing:)`: a bare interpolation
+		of an optional carries a debug-description warning, and the
+		describing form prints byte-identical text (nil prints "nil", a
+		present value prints the same debug description) with no warning.
+	**/
+	function interpolationLeaf(leaf: TypedExpr): String {
+		final rendered = expr(leaf);
+		return isOptionalStringLeafType(leaf.t) ? "String(describing: " + rendered + ")" : rendered;
+	}
+
+	/** Whether a type is `Null<String>`, an optional string leaf. */
+	function isOptionalStringLeafType(t: Null<Type>): Bool {
+		if(t == null) {
+			return false;
+		}
+		return switch(t) {
+			case TAbstract(a, params) if(a.get().name == "Null" && params.length == 1):
+				switch(Context.follow(params[0])) {
+					case TInst(c, _): c.get().name == "String";
+					case _: false;
+				};
+			case TLazy(f): isOptionalStringLeafType(f());
+			case _: false;
+		};
 	}
 
 	/**
