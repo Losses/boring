@@ -4152,6 +4152,9 @@ class RustExpr {
                 if (name == "addByte") {
                     return expr(subj) + ".add_byte(" + RustConversions.truncate(expr(args[0]), "u8") + ")";
                 }
+                if (name == "add") {
+                    return expr(subj) + ".add(&" + expr(args[0]) + ")";
+                }
                 if (name == "readU16") {
                     // The wire read answers u16 while the Int domain is
                     // u32; the widening is total, so from covers every
