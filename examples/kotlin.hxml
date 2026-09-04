@@ -3,8 +3,8 @@
 # The kotlin-output define writes output to reference/kotlin/gen.
 -lib reflaxe
 -lib boring
--cp src/reflaxe/kotlin/std-shadow
--cp src/reflaxe/kotlin
+-cp packages/compiler/reflaxe/kotlin/std-shadow
+-cp packages/compiler/reflaxe/kotlin
 -cp samples
 -cp samples/haxe
 -cp tools/registry/src

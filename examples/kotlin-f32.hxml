@@ -3,8 +3,8 @@
 # Run from the repository root: haxe examples/kotlin-f32.hxml
 # The output goes to reference/kotlin-f32/gen and gen-tests.
 -lib boring
--cp src/reflaxe/kotlin/std-shadow
--cp src/reflaxe/kotlin
+-cp packages/compiler/reflaxe/kotlin/std-shadow
+-cp packages/compiler/reflaxe/kotlin
 -cp samples
 -cp tools/registry/src
 --macro Intercept.run(['samples', 'tools/registry/src'])

@@ -16,10 +16,10 @@ import { join } from "node:path";
  */
 
 const COMPILER_DIRECTORIES: readonly string[] = [
-  "src",
-  "src/reflaxe/ts/tscompiler",
-  "src/reflaxe/kotlin/kotlincompiler",
-  "src/reflaxe/rust/rustcompiler",
+  "packages/compiler",
+  "packages/compiler/reflaxe/ts/tscompiler",
+  "packages/compiler/reflaxe/kotlin/kotlincompiler",
+  "packages/compiler/reflaxe/rust/rustcompiler",
 ];
 
 /** Substrings that assume the compiled package or name the sample modules. */

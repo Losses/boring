@@ -99,8 +99,8 @@ const kotlinTarget: MutationTarget = {
   define: "kotlin-output",
   file: "boring/RecordOrderOps.kt",
   id: "kotlin",
-  shadow: "src/reflaxe/kotlin/std-shadow",
-  shadowParent: "src/reflaxe/kotlin",
+  shadow: "packages/compiler/reflaxe/kotlin/std-shadow",
+  shadowParent: "packages/compiler/reflaxe/kotlin",
 };
 
 const tsTarget: MutationTarget = {
@@ -108,8 +108,8 @@ const tsTarget: MutationTarget = {
   define: "ts-output",
   file: "boring/RecordOrderOps.ts",
   id: "ts",
-  shadow: "src/reflaxe/ts/std-shadow",
-  shadowParent: "src/reflaxe/ts",
+  shadow: "packages/compiler/reflaxe/ts/std-shadow",
+  shadowParent: "packages/compiler/reflaxe/ts",
 };
 
 interface CompileResult {

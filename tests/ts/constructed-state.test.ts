@@ -36,8 +36,8 @@ async function compileMutation(source: string): Promise<string> {
     const hxml = path.join(dir, "probe.hxml");
     fs.writeFileSync(hxml, [
       "-lib reflaxe", "-lib boring",
-      `-cp ${path.join(root, "src/reflaxe/ts/std-shadow")}`,
-      `-cp ${path.join(root, "src/reflaxe/ts")}`,
+      `-cp ${path.join(root, "packages/compiler/reflaxe/ts/std-shadow")}`,
+      `-cp ${path.join(root, "packages/compiler/reflaxe/ts")}`,
       `-cp ${path.join(root, "samples")}`, `-cp ${sourceRoot}`,
       `--macro Intercept.run(["${sourceRoot}"])`,
       "--macro haxe.macro.Compiler.addGlobalMetadata('boring', '@:build(std.RecordMember.build())')",

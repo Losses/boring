@@ -5,7 +5,7 @@ import { VectorException } from "../../reference/ts/gen/boring/VectorException.t
 import { VectorSort } from "../../reference/ts/gen/boring/VectorSort.ts";
 
 /**
- * Behavior guard for the reflaxe-generated tree (src/reflaxe/ts), per
+ * Behavior guard for the reflaxe-generated tree (packages/compiler/reflaxe/ts), per
  * docs/specs/features/14-type-system-mapping.md M2/M3. The generated
  * modules run against the same vectors as the hand-written tree:
  *

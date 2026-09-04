@@ -23,8 +23,8 @@ async function compileFixture(source: string): Promise<CompileFixtureResult> {
   const hxml = path.join(dir, "probe.hxml");
   fs.writeFileSync(hxml, [
     "-lib reflaxe", "-lib boring",
-    `-cp ${path.join(root, "src/reflaxe/ts")}`,
-    `-cp ${path.join(root, "src/reflaxe/ts/std-shadow")}`,
+    `-cp ${path.join(root, "packages/compiler/reflaxe/ts")}`,
+    `-cp ${path.join(root, "packages/compiler/reflaxe/ts/std-shadow")}`,
     `-cp ${path.join(root, "samples")}`, `-cp ${sourceRoot}`,
     `--macro Intercept.run(["${sourceRoot}"])`,
     "--macro tscompiler.Compiler.use()", `-D ts-output=${path.join(dir, "out")}`,

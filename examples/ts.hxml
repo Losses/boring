@@ -3,8 +3,8 @@
 # The ts-output define writes output to reference/ts/gen.
 -lib reflaxe
 -lib boring
--cp src/reflaxe/ts/std-shadow
--cp src/reflaxe/ts
+-cp packages/compiler/reflaxe/ts/std-shadow
+-cp packages/compiler/reflaxe/ts
 -cp samples
 -cp samples/haxe
 -cp tools/registry/src
