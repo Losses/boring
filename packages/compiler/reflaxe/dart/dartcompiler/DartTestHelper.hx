@@ -354,7 +354,8 @@ class DartTestHelper {
                 continue;
             }
             final bindings = [
-                for (i in 0...payloadArgs.length) payloadArgs[i].name + ": var " + payloadArgName(payloadArgs[i], i)
+                for (i in 0...payloadArgs.length)
+                    payloadArgs[i].name + ": var " + payloadArgName(payloadArgs[i], i)
             ].join(", ");
             lines.push("    case " + prefix + cls + "(" + bindings + "):");
             final parts:Array<String> = [];
