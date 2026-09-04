@@ -1,7 +1,7 @@
 node_modules/
 out/
 reference/ts/gen/
-tools/registry/gen/
+packages/registry/gen/
 reference/ts/gen-tests/
 target/
 .haxe/

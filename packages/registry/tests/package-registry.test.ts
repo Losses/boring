@@ -114,7 +114,7 @@ function createFixture(label: string, options: FixtureOptions = {}): string {
 
 let compilation: Promise<CommandResult> | undefined;
 function compileRegistry(): Promise<CommandResult> {
-  compilation ??= run(["haxe", "tools/registry/compile.hxml"]);
+  compilation ??= run(["haxe", "packages/registry/compile.hxml"]);
   return compilation;
 }
 
@@ -130,7 +130,7 @@ async function run(args: string[], cwd = ROOT): Promise<CommandResult> {
 
 async function generate(tree: string, output: string, extras: string[] = [], archiveBase = "https://archive.example.test"): Promise<CommandResult> {
   await compileRegistry();
-  const args = ["bun", "tools/registry/run.ts", "--tree", tree, "--output", output, "--base-url", BASE, "--swift-scope", SCOPE, "--archive-base", archiveBase, ...extras];
+  const args = ["bun", "packages/registry/run.ts", "--tree", tree, "--output", output, "--base-url", BASE, "--swift-scope", SCOPE, "--archive-base", archiveBase, ...extras];
   return run(args);
 }
 
@@ -203,7 +203,7 @@ describe("committed package registry", () => {
 
   test("rejects missing required flags", async () => {
     await compileRegistry();
-    const result = await run(["bun", "tools/registry/run.ts", "--tree", "/tmp/no-such-tree"]);
+    const result = await run(["bun", "packages/registry/run.ts", "--tree", "/tmp/no-such-tree"]);
     expect(result.code).not.toBe(0);
     expect(result.output).toContain("--output");
   });

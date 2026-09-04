@@ -1,0 +1,13 @@
+-lib reflaxe
+-lib boring
+-cp packages/compiler/reflaxe/ts/std-shadow
+-cp packages/compiler/reflaxe/ts
+-cp samples
+-cp packages/registry/src
+--macro Intercept.run(['packages/registry/src'])
+--macro tscompiler.Compiler.use()
+-D ts-output=packages/registry/gen
+-D package-shell=none
+-D runtime-import=./runtime.ts
+-D runtime-emit=.
+registry.Main
