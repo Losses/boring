@@ -146,10 +146,11 @@ class KotlinType {
                     StringKey;
                 } else if (cls.meta.has(":dataClass")) {
                     final fields = [
-                        for (f in cls.fields.get()) if (switch (f.kind) {
-                                case FVar(read, write): !(read.match(AccCall) && write.match(AccNever));
-                                case _: false;
-                            }) f
+                        for (f in cls.fields.get())
+                            if (switch (f.kind) {
+                                    case FVar(read, write): !(read.match(AccCall) && write.match(AccNever));
+                                    case _: false;
+                                }) f
                     ];
                     for (f in fields)
                         validateDataClassField(cls, f);

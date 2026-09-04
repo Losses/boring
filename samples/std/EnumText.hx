@@ -303,9 +303,12 @@ class EnumText {
                     }
                 ],
                 ret: (macro :String),
-                expr: {expr: EBlock([
-                    {expr: EReturn(operandForm(elementType, elemIdent, pos, selfName, root)), pos: pos}
-                ]), pos: pos}
+                expr: {
+                    expr: EBlock([
+                        {expr: EReturn(operandForm(elementType, elemIdent, pos, selfName, root)), pos: pos}
+                    ]),
+                    pos: pos
+                }
             }),
             pos: pos
         };
@@ -320,12 +323,15 @@ class EnumText {
                         {
                             name: "enumTextOut",
                             type: (macro :StringBuf),
-                            expr: {expr: ENew({
-                                pack: [],
-                                name: "StringBuf",
-                                sub: null,
-                                params: []
-                            }, []), pos: pos},
+                            expr: {
+                                expr: ENew({
+                                    pack: [],
+                                    name: "StringBuf",
+                                    sub: null,
+                                    params: []
+                                }, []),
+                                pos: pos
+                            },
                             isFinal: true
                         }
                     ]),

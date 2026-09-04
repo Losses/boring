@@ -359,7 +359,8 @@ class PackageArtifacts {
 
     static function recordedEntries():Array<{name:String, data:haxe.io.Bytes}> {
         return [
-            for (entry in sortedPaths()) {name: entry.path, data: haxe.io.Bytes.ofString(entry.content)}
+            for (entry in sortedPaths())
+                {name: entry.path, data: haxe.io.Bytes.ofString(entry.content)}
         ];
     }
 

@@ -23,6 +23,12 @@ class BytesBuffer {
         buffer.add((byte and 0xFF).toByte())
     }
 
+    fun add(bytes: ByteArray) {
+        for (byte in bytes) {
+            buffer.add(byte)
+        }
+    }
+
     fun getBytes(): ByteArray {
         val bytes = ByteArray(buffer.size)
         for (i in 0 until buffer.size) {

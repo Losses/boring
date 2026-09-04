@@ -373,11 +373,15 @@ class DartExpr {
             if (statementIndex + 3 < statements.length) {
                 final loop = intervalCore(statements[statementIndex + 1], statements[statementIndex + 2], statements[statementIndex + 3]);
                 if (loop != null) {
-                    final grouped:TypedExpr = {expr: TBlock([
-                        statements[statementIndex + 1],
-                        statements[statementIndex + 2],
-                        statements[statementIndex + 3]
-                    ]), pos: statements[statementIndex + 1].pos, t: statements[statementIndex + 3].t};
+                    final grouped:TypedExpr = {
+                        expr: TBlock([
+                            statements[statementIndex + 1],
+                            statements[statementIndex + 2],
+                            statements[statementIndex + 3]
+                        ]),
+                        pos: statements[statementIndex + 1].pos,
+                        t: statements[statementIndex + 3].t
+                    };
                     fillStatements = [statements[statementIndex], grouped];
                     fillIndex = 0;
                     packedLoop = true;
@@ -2286,6 +2290,9 @@ class DartExpr {
                 if (name == "addByte" && isBytesBuffer(stripCast(subj).t)) {
                     return receiverText(subj) + ".add(" + expr(args[0]) + ")";
                 }
+                if (name == "add" && args.length == 1 && isBytesBuffer(stripCast(subj).t)) {
+                    return receiverText(subj) + ".addAll(" + expr(args[0]) + ")";
+                }
                 if (name == "getBytes" && isBytesBuffer(stripCast(subj).t)) {
                     imports.useTypedData();
                     return "Uint8List.fromList(" + receiverText(subj) + ")";
@@ -3206,7 +3213,8 @@ class DartExpr {
             final names = payloadNames(info.field);
             final used = usedPayloadIndices(c.expr, info.field);
             final bindings = [
-                for (i in 0...names.length) if (used.indexOf(i) >= 0) names[i] + ": var " + names[i]
+                for (i in 0...names.length)
+                    if (used.indexOf(i) >= 0) names[i] + ": var " + names[i]
             ];
             final cls = DartDecl.constructClassName(info.enumName, info.name);
             final pattern = bindings.length == 0

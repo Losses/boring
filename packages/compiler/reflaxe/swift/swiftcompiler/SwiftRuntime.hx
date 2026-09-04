@@ -58,6 +58,10 @@ final class BytesBuffer {
         bytes.append(UInt8(bitPattern: Int8(truncatingIfNeeded: byte)))
     }
 
+    func add(_ bytes: [UInt8]) -> Void {
+        self.bytes.append(contentsOf: bytes)
+    }
+
     func getBytes() -> [UInt8] {
         return bytes
     }

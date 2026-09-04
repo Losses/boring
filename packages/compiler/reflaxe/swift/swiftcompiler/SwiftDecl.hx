@@ -234,10 +234,11 @@ class SwiftDecl {
             "func compare" + cls.name + "(_ a: " + cls.name + ", _ b: " + cls.name + ") -> Int32 {"
         ];
         for (f in [
-            for (x in cls.fields.get()) if (switch (x.kind) {
-                    case FVar(read, write): !(read.match(AccCall) && write.match(AccNever));
-                    case _: false;
-                }) x
+            for (x in cls.fields.get())
+                if (switch (x.kind) {
+                        case FVar(read, write): !(read.match(AccCall) && write.match(AccNever));
+                        case _: false;
+                    }) x
         ]) {
             switch (f.type) {
                 case TAbstract(a, params) if (a.get().name == "Null" && params.length == 1):
@@ -261,7 +262,8 @@ class SwiftDecl {
                                         + en.name
                                         + ") -> Int32 {\n        switch v {\n"
                                         + [
-                                            for (ef in en.constructs) "        case ." + lowerFirst(ef.name) + ": return " + ef.index
+                                            for (ef in en.constructs)
+                                                "        case ." + lowerFirst(ef.name) + ": return " + ef.index
                                         ].join("\n") + "\n        }\n    }");
                                     lines.push("        if " + orderName + "(av) != " + orderName + "(bv) { return " + orderName + "(av) - " + orderName
                                         + "(bv) }");
@@ -289,10 +291,11 @@ class SwiftDecl {
                                 + en.name
                                 + ") -> Int32 {\n        switch v {\n"
                                 + [
-                                    for (ef in en.constructs) "        case ." + lowerFirst(ef.name) + (switch (ef.type) {
-                                        case TFun(args, _): args.length > 0 ? "(" + [for (_ in args) "_"].join(", ") + ")" : "";
-                                        case _: "";
-                                    }) + ": return " + ef.index
+                                    for (ef in en.constructs)
+                                        "        case ." + lowerFirst(ef.name) + (switch (ef.type) {
+                                            case TFun(args, _): args.length > 0 ? "(" + [for (_ in args) "_"].join(", ") + ")" : "";
+                                            case _: "";
+                                        }) + ": return " + ef.index
                                 ].join("\n") + "\n        }\n    }");
                             lines.push("        let cmp = " + orderName + "(a." + f.name + "[i" + f.name + "]) - " + orderName + "(b." + f.name + "[i"
                                 + f.name + "]); if cmp != 0 { return cmp }");
@@ -330,10 +333,11 @@ class SwiftDecl {
                         + en.name
                         + ") -> Int32 {\n        switch v {\n"
                         + [
-                            for (ef in en.constructs) "        case ." + lowerFirst(ef.name) + (switch (ef.type) {
-                                case TFun(args, _): args.length > 0 ? "(" + [for (_ in args) "_"].join(", ") + ")" : "";
-                                case _: "";
-                            }) + ": return " + ef.index
+                            for (ef in en.constructs)
+                                "        case ." + lowerFirst(ef.name) + (switch (ef.type) {
+                                    case TFun(args, _): args.length > 0 ? "(" + [for (_ in args) "_"].join(", ") + ")" : "";
+                                    case _: "";
+                                }) + ": return " + ef.index
                         ].join("\n") + "\n        }\n    }");
                 case TInst(c, _) if (c.get().name == "String"):
                     lines.push("    let cmp" + f.name + " = compareUnitOrder(a." + f.name + ", b." + f.name + "); if cmp" + f.name + " != 0 { return cmp"
@@ -392,10 +396,11 @@ class SwiftDecl {
                     + en.name
                     + ") -> Int32 {\n        switch v {\n"
                     + [
-                        for (ef in en.constructs) "        case ." + lowerFirst(ef.name) + (switch (ef.type) {
-                            case TFun(args, _): args.length > 0 ? "(" + [for (_ in args) "_"].join(", ") + ")" : "";
-                            case _: "";
-                        }) + ": return " + ef.index
+                        for (ef in en.constructs)
+                            "        case ." + lowerFirst(ef.name) + (switch (ef.type) {
+                                case TFun(args, _): args.length > 0 ? "(" + [for (_ in args) "_"].join(", ") + ")" : "";
+                                case _: "";
+                            }) + ": return " + ef.index
                     ].join("\n") + "\n        }\n    }");
                 lines.push("            let cmp = "
                     + orderName
