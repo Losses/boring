@@ -12,7 +12,7 @@ const trees = [
   "reference/dart/gen/lib/boring/printed_sorted_fields.dart",
 ];
 
-const forbidden = /\.map\(|\bjoin(?:ToString)?\(|\.joined\(|(?:marks|points|lookup|emptySet|emptyMap)[^\n;]*\.toString\(\)/;
+const forbidden = /\.map\(|\bjoin(?:ToString)?\(|\.joined\(|(?:marks|points|lookup|emptySet|emptyMap)\s*\.\s*toString\(\)/;
 
 describe("printed sorted field trees", () => {
   test("all native targets retain resident collection members", () => {
