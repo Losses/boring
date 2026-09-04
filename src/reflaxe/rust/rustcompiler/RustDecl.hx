@@ -283,15 +283,21 @@ class RustDecl {
 				case TAbstract(a, params) if(a.get().name == "Null" && params.length == 1):
 					rawHandled = true;
 					var presentCompare = cmpToI32("av.cmp(bv)");
-					switch(Context.follow(params[0])) {
-						case TEnum(e, _):
-							final en = e.get();
-							final orderName = RustImports.toSnakeCase(cls.name) + "_" + RustImports.toSnakeCase(f.name) + "_order";
-							lines.unshift('fn $orderName(v: &${en.name}) -> i32 {\n    match v {\n' + [for(ef in en.constructs) '        ${en.name}::${ef.name}' + (enumHasPayload(ef) ? ' { .. }' : '') + ' => ${ef.index},'].join("\n") + '\n    }\n}');
-							presentCompare = cmpToI32('$orderName(av).cmp(&$orderName(bv))');
-						case TInst(c, _) if(c.get().meta.has(":dataClass")):
-							presentCompare = 'compare_${RustImports.toSnakeCase(c.get().name)}(av, bv)';
-						case _:
+					switch(rawArrayElement(params[0])) {
+						case null:
+							switch(Context.follow(params[0])) {
+								case TEnum(e, _):
+									final en = e.get();
+									final orderName = RustImports.toSnakeCase(cls.name) + "_" + RustImports.toSnakeCase(f.name) + "_order";
+									lines.unshift('fn $orderName(v: &${en.name}) -> i32 {\n    match v {\n' + [for(ef in en.constructs) '        ${en.name}::${ef.name}' + (enumHasPayload(ef) ? ' { .. }' : '') + ' => ${ef.index},'].join("\n") + '\n    }\n}');
+									presentCompare = cmpToI32('$orderName(av).cmp(&$orderName(bv))');
+								case TInst(c, _) if(c.get().meta.has(":dataClass")):
+									presentCompare = 'compare_${RustImports.toSnakeCase(c.get().name)}(av, bv)';
+								case _:
+							}
+						case element:
+							final elementExpr = nullableArrayCompareExpr(lines, cls, f.name, element);
+							presentCompare = '{ let mut cmp = 0; for (av, bv) in av.iter().zip(bv.iter()) { cmp = $elementExpr; if cmp != 0 { break; } } if cmp == 0 { cmp = ' + cmpToI32('av.len().cmp(&bv.len())') + '; } cmp }';
 					}
 					lines.push('    let cmp_$fn = match (&a.$fn, &b.$fn) { (None, None) => 0, (None, Some(_)) => -1, (Some(_), None) => 1, (Some(av), Some(bv)) => $presentCompare };');
 				case TAbstract(a, params) if(a.get().name == "ReadOnlyArray" && params.length == 1):
@@ -338,6 +344,43 @@ class RustDecl {
 
 	function enumHasPayload(ef: haxe.macro.Type.EnumField): Bool {
 		return switch(ef.type) { case TFun(args, _): args.length > 0; case _: false; };
+	}
+
+	/**
+		The element type when `t` is a raw ReadOnlyArray (checked before
+		Context.follow, which erases the abstract to Array). Nullable
+		collections need this raw check: the Null arm's followed inner
+		type is Array and would otherwise lose the array shape.
+	**/
+	function rawArrayElement(t: Type): Null<Type> {
+		return switch(t) {
+			case TAbstract(a, params) if(a.get().pack.join(".") == "std" && a.get().name == "ReadOnlyArray" && params.length == 1): params[0];
+			case TLazy(f): rawArrayElement(f());
+			case _: null;
+		};
+	}
+
+	/**
+		The element-wise compare expression for one nullable collection
+		field. The loop binds av/bv to the zipped element references,
+		shadowing the match arm's array bindings; the semantics mirror
+		the non-null ReadOnlyArray arm: compare in index order, then by
+		length, with the same per-element rules (native Ord for scalars
+		and strings, the order helper for enums, the nested comparator
+		for records).
+	**/
+	function nullableArrayCompareExpr(lines:Array<String>, cls:ClassType, field: String, element: Type): String {
+		return switch(Context.follow(element)) {
+			case TEnum(e, _):
+				final en = e.get();
+				final orderName = RustImports.toSnakeCase(cls.name) + "_" + RustImports.toSnakeCase(field) + "_order";
+				lines.unshift('fn $orderName(v: &${en.name}) -> i32 {\n    match v {\n' + [for(ef in en.constructs) '        ${en.name}::${ef.name}' + (enumHasPayload(ef) ? ' { .. }' : '') + ' => ${ef.index},'].join("\n") + '\n    }\n}');
+				cmpToI32('$orderName(av).cmp(&$orderName(bv))');
+			case TInst(c, _) if(c.get().meta.has(":dataClass")):
+				'compare_${RustImports.toSnakeCase(c.get().name)}(av, bv)';
+			case _:
+				cmpToI32("av.cmp(bv)");
+		};
 	}
 
 	/** An `Ordering` expression to the i32 trichotomy the comparators carry. */
