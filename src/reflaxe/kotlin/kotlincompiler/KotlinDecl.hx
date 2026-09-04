@@ -1065,7 +1065,7 @@ class KotlinDecl {
 			case TAnonymous(anonRef):
 				final fields = anonRef.get().fields.copy();
 				fields.sort((a, b) -> Reflect.compare(Context.getPosInfos(a.pos).min, Context.getPosInfos(b.pos).min));
-				final fieldLines = [for(field in fields) '    val ${field.name}: ${types.of(field.type)}'];
+				final fieldLines = [for(field in fields) '    var ${field.name}: ${types.of(field.type)}'];
 				final dataClassStr = ['data class ${def.name}(', fieldLines.join(",\n"), ')'].join("\n");
 
 				if(isStructKeyCandidate(fields)) {
