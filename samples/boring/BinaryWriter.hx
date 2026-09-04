@@ -44,9 +44,7 @@ class BinaryWriter {
     }
 
     public function writeAscii(value:String):Void {
-        for (index in 0...value.length) {
-            buffer.addByte(value.charCodeAt(index) & 0xFF);
-        }
+        buffer.add(Bytes.ofString(value));
     }
 
     public function finish():Bytes {
