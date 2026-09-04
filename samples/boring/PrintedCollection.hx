@@ -16,9 +16,28 @@ class PrintedCollection {
 	}
 }
 
+/**
+ * A payload enum element of a collection field (features 34 and 42). The
+ * member carries the labeled renderer inside the array loop, so the loop
+ * body holds calls only.
+ */
+@:dataClass
+class PrintedEnumCollection {
+	public final flags:ReadOnlyArray<PrintedFlag>;
+
+	public function new(flags:ReadOnlyArray<PrintedFlag>) {
+		this.flags = flags;
+	}
+}
+
 @:dataClass
 class PrintedPoint {
 	public final x:Int;
 	public final y:Int;
 	public function new(x:Int, y:Int) { this.x = x; this.y = y; }
+}
+
+enum PrintedFlag {
+	Silent;
+	Steps(count:Int);
 }
