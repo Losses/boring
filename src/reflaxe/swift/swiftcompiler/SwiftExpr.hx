@@ -1421,6 +1421,41 @@ class SwiftExpr {
 		};
 	}
 
+	function int64Operand(e:TypedExpr, parent:Binop, isRight:Bool):String {
+		final rendered = expr(e);
+		final child = switch(stripWrap(e).expr) {
+			case TBinop(op, _, _): op;
+			case TCall(fn, _): int64CallOperator(fn);
+			case _: null;
+		};
+		if(child == null) return rendered;
+		final cp = precedenceOf(child);
+		final pp = precedenceOf(parent);
+		var parens = cp < pp;
+		if(cp == pp) {
+			parens = isShift(child) && isShift(parent) || isRight && !(child == parent && associative(child));
+		}
+		return parens ? "(" + rendered + ")" : rendered;
+	}
+
+	function int64CallOperator(fn:TypedExpr):Null<Binop> {
+		return switch(stripWrap(fn).expr) {
+			case TField(_, FStatic(classRef, fieldRef)) if(classRef.get().module == "haxe.Int64" && classRef.get().name == "Int64_Impl_"):
+				switch(fieldRef.get().name) {
+					case "add": OpAdd;
+					case "sub": OpSub;
+					case "mul" | "mulInt": OpMult;
+					case "and": OpAnd;
+					case "or": OpOr;
+					case "xor": OpXor;
+					case "shl": OpShl;
+					case "shr" | "ushr": OpShr;
+					case _: null;
+				}
+			default: null;
+		};
+	}
+
 	function int64Call(fn:TypedExpr, args:Array<TypedExpr>):Null<String> {
 		return switch(stripWrap(fn).expr) {
 			case TField(_, FStatic(classRef, fieldRef)) if(classRef.get().module == "haxe.Int64" && classRef.get().name == "Int64_Impl_"):
@@ -1429,16 +1464,16 @@ class SwiftExpr {
 					case "ofInt" if(args.length == 1): "Int64(" + expr(args[0]) + ")";
 					case "getHigh" | "get_high" if(args.length == 1): if(isFpHelperInt64Halves(args[0])) expr(args[0]) + ".high" else "Int32(truncatingIfNeeded: " + expr(args[0]) + " >> 32)";
 					case "getLow" | "get_low" if(args.length == 1): if(isFpHelperInt64Halves(args[0])) expr(args[0]) + ".low" else "Int32(truncatingIfNeeded: " + expr(args[0]) + ")";
-					case "add" if(args.length == 2): expr(args[0]) + " &+ " + expr(args[1]);
-					case "sub" if(args.length == 2): expr(args[0]) + " &- " + expr(args[1]);
-					case "mul" if(args.length == 2): expr(args[0]) + " &* " + expr(args[1]);
-					case "mulInt" if(args.length == 2): expr(args[0]) + " &* Int64(" + expr(args[1]) + ")";
-					case "and" if(args.length == 2): expr(args[0]) + " & " + expr(args[1]);
-					case "or" if(args.length == 2): expr(args[0]) + " | " + expr(args[1]);
-					case "xor" if(args.length == 2): expr(args[0]) + " ^ " + expr(args[1]);
+					case "add" if(args.length == 2): int64Operand(args[0], OpAdd, false) + " &+ " + int64Operand(args[1], OpAdd, true);
+					case "sub" if(args.length == 2): int64Operand(args[0], OpSub, false) + " &- " + int64Operand(args[1], OpSub, true);
+					case "mul" if(args.length == 2): int64Operand(args[0], OpMult, false) + " &* " + int64Operand(args[1], OpMult, true);
+					case "mulInt" if(args.length == 2): int64Operand(args[0], OpMult, false) + " &* Int64(" + expr(args[1]) + ")";
+					case "and" if(args.length == 2): int64Operand(args[0], OpAnd, false) + " & " + int64Operand(args[1], OpAnd, true);
+					case "or" if(args.length == 2): int64Operand(args[0], OpOr, false) + " | " + int64Operand(args[1], OpOr, true);
+					case "xor" if(args.length == 2): int64Operand(args[0], OpXor, false) + " ^ " + int64Operand(args[1], OpXor, true);
 					case "complement" if(args.length == 1): "~" + expr(args[0]);
-					case "shl" if(args.length == 2): expr(args[0]) + " &<< Int64(" + expr(args[1]) + " & 63)";
-					case "shr" if(args.length == 2): expr(args[0]) + " &>> Int64(" + expr(args[1]) + " & 63)";
+					case "shl" if(args.length == 2): int64Operand(args[0], OpShl, false) + " &<< Int64(" + expr(args[1]) + " & 63)";
+					case "shr" if(args.length == 2): int64Operand(args[0], OpShr, false) + " &>> Int64(" + expr(args[1]) + " & 63)";
 					case "ushr" if(args.length == 2): "Int64(bitPattern: UInt64(bitPattern: " + expr(args[0]) + ") >> UInt64(" + expr(args[1]) + " & 63))";
 					case "eq" if(args.length == 2): expr(args[0]) + " == " + expr(args[1]);
 					case "neq" if(args.length == 2): expr(args[0]) + " != " + expr(args[1]);
