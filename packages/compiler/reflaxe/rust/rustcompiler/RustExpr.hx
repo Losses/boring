@@ -4786,6 +4786,26 @@ class RustExpr {
                     });
                     continue;
                 }
+                final bytesParam = switch (Context.follow(pt)) {
+                    case TInst(c, _): c.get().module == "haxe.io.Bytes";
+                    case TType(d, _): d.get().module == "haxe.io.Bytes";
+                    case _: false;
+                };
+                if (bytesParam) {
+                    // A Bytes parameter renders as &[u8] (RustType.isParam);
+                    // an owned expression (a producer call, an owned local)
+                    // borrows with &, while a borrowed parameter local stays
+                    // unchanged. renderCallArgs applies the same prefix at
+                    // ordinary call sites.
+                    final borrowedLocal = switch (stripWrap(arg).expr) {
+                        case TLocal(v): isBorrowedLocal(v);
+                        case _: false;
+                    };
+                    if (!borrowedLocal && !StringTools.startsWith(argStr, "&")) {
+                        out.push("&" + argStr);
+                        continue;
+                    }
+                }
             }
             out.push(argStr);
         }
