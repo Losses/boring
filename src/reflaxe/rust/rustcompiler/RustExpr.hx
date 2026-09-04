@@ -626,7 +626,7 @@ class RustExpr {
 				// boundary. Each length read keeps its native type; the conversion
 				// occurs at the call boundary.
 				var retStr = if(returnUnsigned && isUsizeExpr(ret)) {
-					"(" + expr(ret) + ") as u32";
+					RustConversions.truncate(expr(ret), "u32");
 				} else {
 					renderValueForType(currentReturnType, ret, expr(ret));
 				};
@@ -774,7 +774,7 @@ class RustExpr {
 			out.push(indent(depth + 2) + "return Err(" + fault + "::UnpairedSurrogate { unit: last as u32 });");
 			out.push(indent(depth + 1) + "}");
 			out.push(indent(depth) + "}");
-			out.push(indent(depth) + buf + ".push(" + u + " as u16);");
+			out.push(indent(depth) + buf + ".push(" + RustConversions.truncate(u, "u16") + ");");
 		}
 		return out;
 	}
@@ -1804,7 +1804,7 @@ class RustExpr {
 				}
 				final receiver = expr(arr);
 				final receiverText = StringTools.startsWith(receiver, "&*") ? "(" + receiver + ")" : receiver;
-				final base = receiverText + "[(" + expr(idx) + ") as usize]";
+				final base = receiverText + "[" + castArg(idx, "usize") + "]";
 				// Reading a String element moves it out of the Vec, so a
 				// value read renders as a clone. Borrow consumers go
 				// through arrayArgBorrow and skip the copy.
@@ -2657,7 +2657,11 @@ class RustExpr {
 				final rStr = rightStd != null ? stdString(rightStd, true) : (isNullType(r.t) ? expr(r) + ".as_deref().unwrap_or(\"\")" : expr(r));
 				return "format!(\"{}{}\", " + lStr + ", " + rStr + ")";
 			case OpDiv if(StringTools.endsWith(operand(l, op, false), ".len()")):
-				return "((" + operand(l, op, false) + ") / (" + operand(r, op, true) + " as usize)) as u32";
+				// A length divided by a Haxe-Int divisor: the divisor widens to
+				// usize (T3, never truncates), the quotient is the target u32,
+				// narrowed by the T4 mask.
+				final lenDiv = "((" + operand(l, op, false) + ") / " + usizeIndex(operand(r, op, true)) + ")";
+				return RustConversions.truncate(lenDiv, "u32");
 			case OpMult | OpAdd | OpSub if(isIntType(e.t) && !inGenericFunction && !isGenericLocal(l) && !isClosureParam(l) && !RustType.isTypeParam(currentReturnType) && !RustType.isTypeParam(e.t) && !RustType.isTypeParam(l.t) && !RustType.isTypeParam(r.t)):
 				final wrapDomain = (i32OperandDomain(l) || i32OperandDomain(r) || i32InitializerTarget || i32ComparisonTarget) ? "i32" : types.of(e.t);
 				return wrapDomain + "::" + wrappingMethod(op) + "(" + wrappingArg(l, op, false) + wrappingCastSuffix(l, wrapDomain, true) + ", " + wrappingArg(r, op, true) + wrappingCastSuffix(r, wrapDomain, false) + ")";
@@ -2818,6 +2822,103 @@ class RustExpr {
 		return int64CallText(fn, args);
 	}
 
+	/**
+		Folds an integer-literal `as` cast into a typed literal, matching the
+		bit-level result of `(x) as T` for the module's integer domain. Returns
+		null when `e` is not an integer constant, so the caller falls back to a
+		runtime cast. A Haxe Int literal is the signed i32 value; the business-
+		module u32 rendering is its low 32 bits, so widening casts of such a
+		literal are the unsigned decimal and a cast to i32 is the signed value.
+		The same v + 4294967296 arithmetic the bare literal renderer uses (in
+		`expr` for a negative business constant) yields that unsigned decimal.
+		Resident modules keep the signed rendering.
+	**/
+	function constantCast(e:TypedExpr, ty:String):Null<String> {
+		switch(stripWrap(e).expr) {
+			case TConst(TInt(v)):
+				if(ty == "u64") {
+					// A resident negative i32 constant casts with sign extension,
+					// which the emitter never requests (Int64 and sha literals are
+					// positive domain constants), so fall back to a runtime cast
+					// for that rare case.
+					if(RuntimeResidents.isResident(imports.selfModule) && v < 0) return null;
+				}
+				final unsigned = v < 0 ? Std.string(v + 4294967296) : Std.string(v);
+				// The folded literal is a typed integer literal, whose precedence
+				// binds as tightly as any parenthesized atom, so it can stand
+				// bare wherever `(x) as T` used to stand without altering
+				// precedence or triggering unnecessary-parens warnings.
+				switch(ty) {
+					case "u32": return unsigned + "u32";
+					case "i32": return v + "i32";
+					case "i64":
+						if(RuntimeResidents.isResident(imports.selfModule)) return v + "i64";
+						return unsigned + "i64";
+					case "u64": return unsigned + "u64";
+					case "usize": return unsigned + "usize";
+					case "u8": return (v & 0xFF) + "u8";
+					case "u16": return (v & 0xFFFF) + "u16";
+					case "f64": return unsigned + ".0";
+					case "f32": return unsigned + ".0f32";
+					default: return null;
+				}
+			default: return null;
+		}
+	}
+
+	/** Folds an integer-constant cast to a typed literal, else renders the runtime cast. */
+	function castArg(e:TypedExpr, ty:String):String {
+		final folded = constantCast(e, ty);
+		if(folded != null) return folded;
+		if(ty == "usize") {
+			// Index positions reach Rust as usize from a Haxe Int (u32)
+			// source; the T3 form preserves every representable value and
+			// never truncates, so it is allowed wherever the old `as usize`
+			// index stood. usize::try_from(u32) always succeeds, making the
+			// unwrap_or(0) arm unreachable.
+			return usizeIndex(expr(e));
+		}
+		return "(" + expr(e) + ") as " + ty;
+	}
+
+	/** T3 index form for an already-rendered source expression. */
+	function usizeIndex(rendered: String): String {
+		// The call parentheses already delimit the argument, so an outer
+		// grouping of the rendered source (a block expression, a parenthesized
+		// binop) is dropped to keep the generated code free of
+		// unnecessary-parens warnings.
+		var inner = rendered;
+		if(StringTools.startsWith(inner, "(") && StringTools.endsWith(inner, ")") && matchingParens(inner)) {
+			inner = inner.substr(1, inner.length - 2);
+		}
+		return "usize::try_from(" + inner + ").unwrap_or(0)";
+	}
+
+	/**
+		Reinterpret a same-width u32-domain business value into the signed i32
+		position a resident runtime parameter expects. Folds a literal to its
+		signed value; otherwise goes through the native-endian byte round-trip
+		(T5). This is the drop-in for the `(x) as i32` cast on such boundaries.
+	**/
+	function castSignedI32(e:TypedExpr):String {
+		final folded = constantCast(e, "i32");
+		if(folded != null) return folded;
+		// In a resident module Haxe Int is already i32, so `(x) as i32` is a
+		// no-op and the expression renders bare (this keeps integer locals
+		// inferable). In a business module the value is u32 and the same-width
+		// cast reinterprets bits (T5).
+		if(RuntimeResidents.isResident(imports.selfModule)) return expr(e);
+		return RustConversions.reinterpret(expr(e), "i32");
+	}
+
+	/** Casts an Int shift count to u32 (a no-op in business, reinterpret in resident). */
+	function castShiftU32(e:TypedExpr):String {
+		final folded = constantCast(e, "u32");
+		if(folded != null) return folded;
+		if(RuntimeResidents.isResident(imports.selfModule)) return RustConversions.reinterpret(expr(e), "u32");
+		return expr(e);
+	}
+
 	function int64CallText(fn:TypedExpr, args:Array<TypedExpr>):Null<String> {
 		function topClass(e:TypedExpr):Int {
 			return switch(stripWrap(e).expr) {
@@ -2850,15 +2951,39 @@ class RustExpr {
 			return topClass(e) == 100 ? text : "(" + text + ")";
 		}
 		function castOperand(e:TypedExpr, ty:String):String {
+			final folded = constantCast(e, ty);
+			if(folded != null) return folded;
 			return "(" + expr(e) + ") as " + ty;
 		}
+
+		/** T2 widen of a u32-domain word into i64 (positive), folding literals. */
+		function widenI64(e:TypedExpr):String {
+			final folded = constantCast(e, "i64");
+			if(folded != null) return folded;
+			return "i64::from(" + expr(e) + ")";
+		}
+
+		/** Sign-extends a Haxe Int to i64 (Int64.ofInt). */
+		function signExtendI64(e:TypedExpr):String {
+			switch(stripWrap(e).expr) {
+				case TConst(TInt(v)):
+					// `(x as i32) as i64` of a literal is its signed value.
+					return v + "i64";
+				default:
+			}
+			if(RuntimeResidents.isResident(imports.selfModule)) {
+				return "i64::from(" + expr(e) + ")";
+			}
+			return RustConversions.ofInt(expr(e));
+		}
+
 		return switch(stripWrap(fn).expr) {
 			case TField(_, FStatic(classRef, fieldRef)) if(classRef.get().module == "haxe.Int64" && classRef.get().name == "Int64_Impl_"):
 				switch(fieldRef.get().name) {
-				case "make" if(args.length == 2): "((" + expr(args[0]) + ") as i64) << 32 | " + castOperand(args[1], "u32") + " as i64";
-				case "ofInt" if(args.length == 1): castOperand(args[0], "i32") + " as i64";
-				case "getHigh" | "get_high" if(args.length == 1): if(isFpHelperInt64Halves(args[0])) expr(args[0]) + ".high" else "(" + receiverOperand(args[0]) + " >> 32) as u32";
-				case "getLow" | "get_low" if(args.length == 1): if(isFpHelperInt64Halves(args[0])) expr(args[0]) + ".low" else "(" + expr(args[0]) + ") as u32";
+				case "make" if(args.length == 2): widenI64(args[0]) + " << 32 | " + widenI64(args[1]);
+				case "ofInt" if(args.length == 1): signExtendI64(args[0]);
+				case "getHigh" | "get_high" if(args.length == 1): if(isFpHelperInt64Halves(args[0])) expr(args[0]) + ".high" else RustConversions.truncate("(" + receiverOperand(args[0]) + " >> 32)", "u32");
+				case "getLow" | "get_low" if(args.length == 1): if(isFpHelperInt64Halves(args[0])) expr(args[0]) + ".low" else RustConversions.truncate(expr(args[0]), "u32");
 				case "add" if(args.length == 2): receiverOperand(args[0]) + ".wrapping_add(" + expr(args[1]) + ")";
 				case "sub" if(args.length == 2): receiverOperand(args[0]) + ".wrapping_sub(" + expr(args[1]) + ")";
 				case "mul" if(args.length == 2): "(" + expr(args[0]) + ").wrapping_mul(" + expr(args[1]) + ")";
@@ -2867,9 +2992,9 @@ class RustExpr {
 				case "or" if(args.length == 2): infixOperand(args[0], 1) + " | " + infixOperand(args[1], 1);
 				case "xor" if(args.length == 2): infixOperand(args[0], 2) + " ^ " + infixOperand(args[1], 2);
 				case "complement" if(args.length == 1): "!" + expr(args[0]);
-				case "shl" if(args.length == 2): receiverOperand(args[0]) + ".wrapping_shl(" + castOperand(args[1], "u32") + ")";
-				case "shr" if(args.length == 2): receiverOperand(args[0]) + ".wrapping_shr(" + castOperand(args[1], "u32") + ")";
-				case "ushr" if(args.length == 2): "(" + castOperand(args[0], "u64") + ").wrapping_shr(" + castOperand(args[1], "u32") + ") as i64";
+				case "shl" if(args.length == 2): receiverOperand(args[0]) + ".wrapping_shl(" + castShiftU32(args[1]) + ")";
+				case "shr" if(args.length == 2): receiverOperand(args[0]) + ".wrapping_shr(" + castShiftU32(args[1]) + ")";
+				case "ushr" if(args.length == 2): RustConversions.shrLogicalI64(expr(args[0]), castShiftU32(args[1]));
 				case "eq" if(args.length == 2): expr(args[0]) + " == " + expr(args[1]);
 				case "neq" if(args.length == 2): expr(args[0]) + " != " + expr(args[1]);
 				case "lt" if(args.length == 2): expr(args[0]) + " < " + expr(args[1]);
@@ -2949,23 +3074,23 @@ class RustExpr {
 						return "(" + expr(subj) + ").as_ref().map_or(0, |v| v.len())";
 					}
 					if(isStringBuf(subj)) {
-						return expr(subj) + ".len() as u32";
+						return RustConversions.truncate(expr(subj) + ".len()", "u32");
 					}
 					// Resident modules keep the signed Int domain: their
 					// lengths join index arithmetic, so the read narrows
 					// here the way UStringPlatform end inlines.
 					if(RuntimeResidents.isResident(imports.selfModule)) {
-						return "(" + expr(subj) + ").len() as i32";
+						return RustConversions.narrowI32("(" + expr(subj) + ").len()");
 					}
 					if(isString(subj)) {
 						state.shimsUsed.set("std.UStringRT", true);
 						imports.require("crate::runtime::u_string");
 						return "u_string::count(&(" + expr(subj) + "))";
 					}
-					if(i32ComparisonTarget) return "((" + expr(subj) + ").len() as i32)";
+					if(i32ComparisonTarget) return "(" + RustConversions.narrowI32("(" + expr(subj) + ").len()") + ")";
 					final receiver = expr(subj);
 					final receiverText = StringTools.startsWith(receiver, "&*") ? "(" + receiver + ")" : receiver;
-					return receiverText + ".len() as u32";
+					return RustConversions.truncate(receiverText + ".len()", "u32");
 				}
 				final snake = RustImports.toSnakeCase(name);
 				final subjStr = if(isNullType(subj.t)) expr(subj) + ".as_ref().unwrap()" else expr(subj);
@@ -2983,7 +3108,7 @@ class RustExpr {
 				return access;
 			case FDynamic(name):
 				if((name == "length" || name == "get_length") && isStringBuf(subj)) {
-					return expr(subj) + ".len() as u32";
+					return RustConversions.truncate(expr(subj) + ".len()", "u32");
 				}
 				return fail(subj, "dynamic field access has no lowering");
 			case FClosure(_):
@@ -3478,11 +3603,11 @@ class RustExpr {
 		final renderedArgs = [for(a in args) expr(a)].join(", ");
 		switch(fn.expr) {
 			case TField(_, FStatic(c, cf)) if(c.get().module == "haxe.io.Bytes" && cf.get().name == "alloc" && args.length == 1):
-				return "vec![0u8; " + expr(args[0]) + " as usize]";
+				return "vec![0u8; " + castArg(args[0], "usize") + "]";
 			case TCast(inner, _):
 				return call(inner, args);
 			case TField(subj, FDynamic(name)) if((name == "length" || name == "get_length") && isStringBuf(subj)):
-				return expr(subj) + ".len() as u32";
+				return RustConversions.truncate(expr(subj) + ".len()", "u32");
 			case TField(subj, FInstance(c, _, cf)):
 				final name = cf.get().name;
 				final staticGuard = staticGuardOf(subj);
@@ -3527,31 +3652,31 @@ class RustExpr {
 							+ expr(subj) + "[" + expr(subj) + ".len() - 1] as u32 })" + q;
 					}
 					if(name == "get_length" || name == "length") {
-						return expr(subj) + ".len() as u32";
+						return RustConversions.truncate(expr(subj) + ".len()", "u32");
 					}
 				}
 				if(name == "get" && isBytes(stripCast(subj))) {
-					return expr(subj) + "[" + expr(args[0]) + " as usize] as u32";
+					return expr(subj) + "[" + castArg(args[0], "usize") + "] as u32";
 				}
 				if(name == "set" && args.length == 2 && isBytes(stripCast(subj))) {
-					return expr(subj) + "[" + expr(args[0]) + " as usize] = (" + expr(args[1]) + ") as u8";
+					return expr(subj) + "[" + castArg(args[0], "usize") + "] = " + castArg(args[1], "u8");
 				}
 				if(name == "blit" && args.length == 4 && isBytes(stripCast(subj))) {
-					return expr(subj) + "[" + expr(args[0]) + " as usize..(" + expr(args[0]) + " + " + expr(args[3]) + ") as usize].copy_from_slice(&" + expr(args[1]) + "[" + expr(args[2]) + " as usize..(" + expr(args[2]) + " + " + expr(args[3]) + ") as usize])";
+					return expr(subj) + "[" + castArg(args[0], "usize") + ".." + usizeIndex("(" + expr(args[0]) + " + " + expr(args[3]) + ")") + "].copy_from_slice(&" + expr(args[1]) + "[" + castArg(args[2], "usize") + ".." + usizeIndex("(" + expr(args[2]) + " + " + expr(args[3]) + ")") + "])";
 				}
 				if(name == "fill" && args.length == 3 && isBytes(stripCast(subj))) {
-					return expr(subj) + "[" + expr(args[0]) + " as usize..(" + expr(args[0]) + " + " + expr(args[1]) + ") as usize].fill(" + expr(args[2]) + " as u8)";
+					return expr(subj) + "[" + castArg(args[0], "usize") + ".." + usizeIndex("(" + expr(args[0]) + " + " + expr(args[1]) + ")") + "].fill(" + castArg(args[2], "u8") + ")";
 				}
 				if(name == "sub" && args.length == 2 && isBytes(stripCast(subj))) {
-					return expr(subj) + "[(" + expr(args[0]) + ") as usize..((" + expr(args[0]) + ") + " + expr(args[1]) + ") as usize].to_vec()";
+					return expr(subj) + "[" + castArg(args[0], "usize") + ".." + usizeIndex("(" + expr(args[0]) + " + " + expr(args[1]) + ")") + "].to_vec()";
 				}
 				if(name == "charAt" && isString(stripCast(subj))) {
 					state.shimsUsed.set("std.UStringRT", true);
 					imports.require("crate::runtime::u_string");
-					return "u_string::substring(&" + expr(subj) + ", (" + expr(args[0]) + ") as i32, ((" + expr(args[0]) + ") + 1) as i32)";
+					return "u_string::substring(&" + expr(subj) + ", " + castSignedI32(args[0]) + ", " + RustConversions.reinterpret("((" + expr(args[0]) + ") + 1)", "i32") + ")";
 				}
 				if(name == "indexOf" && isString(stripCast(subj)) && args.length >= 1) {
-					return "match (" + expr(subj) + ").find(" + expr(args[0]) + ") { Some(v) => v as i32, None => -1 }";
+					return "match (" + expr(subj) + ").find(" + expr(args[0]) + ") { Some(v) => " + RustConversions.narrowI32("v") + ", None => -1 }";
 				}
 				if(name == "charCodeAt" && isString(stripCast(subj))) {
 					state.shimsUsed.set("std.UStringRT", true);
@@ -3570,7 +3695,7 @@ class RustExpr {
 						case _:
 					}
 					final nullableResult = callRet != null && isNullType(callRet);
-					return nullableResult ? "u_string::at(&" + expr(subj) + ", (" + expr(args[0]) + ") as u32)" : "u_string::at(&" + expr(subj) + ", (" + expr(args[0]) + ") as u32).unwrap_or(0)";
+					return nullableResult ? "u_string::at(&" + expr(subj) + ", " + castShiftU32(args[0]) + ")" : "u_string::at(&" + expr(subj) + ", " + castShiftU32(args[0]) + ").unwrap_or(0)";
 				}
 				if(name == "split" && isString(stripCast(subj)) && args.length == 1) {
 					state.shimsUsed.set("std.UStringRT", true);
@@ -3593,9 +3718,9 @@ class RustExpr {
 						case _: false;
 					};
 					if(!endOmitted) {
-						return "u_string::substring(&" + expr(subj) + ", (" + expr(args[0]) + ") as i32, (" + expr(args[1]) + ") as i32)";
+						return "u_string::substring(&" + expr(subj) + ", " + castSignedI32(args[0]) + ", " + castSignedI32(args[1]) + ")";
 					}
-					return "u_string::substring_from(&" + expr(subj) + ", (" + expr(args[0]) + ") as i32)";
+					return "u_string::substring_from(&" + expr(subj) + ", " + castSignedI32(args[0]) + ")";
 				}
 				if(name == "substr" && isString(stripCast(subj))) {
 					// Member-call lowering into the u_string runtime:
@@ -3610,9 +3735,9 @@ class RustExpr {
 						case _: false;
 					};
 					if(!lenOmitted) {
-						return "u_string::substr(&" + expr(subj) + ", (" + expr(args[0]) + ") as i32, Some((" + expr(args[1]) + ") as i32))";
+						return "u_string::substr(&" + expr(subj) + ", " + castSignedI32(args[0]) + ", Some(" + castSignedI32(args[1]) + "))";
 					}
-					return "u_string::substr(&" + expr(subj) + ", (" + expr(args[0]) + ") as i32, None)";
+					return "u_string::substr(&" + expr(subj) + ", " + castSignedI32(args[0]) + ", None)";
 				}
 				if(name == "put" && isSortedBuilder(subj)) {
 					// Builder puts borrow every argument; the resident
@@ -3625,12 +3750,12 @@ class RustExpr {
 					return expr(subj) + "." + name + "(" + sortedRefArg(args[0]) + ")";
 				}
 				if(name == "size" && isSortedTable(subj)) {
-					// The resident counts in its signed Int domain; the
-					// business domain is unsigned.
-					return "(" + expr(subj) + ".size()) as u32";
+					// The resident counts in its signed Int domain; the business
+					// domain is unsigned, so the read reinterprets the raw i32.
+					return RustConversions.reinterpret(expr(subj) + ".size()", "u32");
 				}
 				if((name == "keyAt" || name == "valueAt" || name == "at") && isSortedTable(subj)) {
-					return expr(subj) + "." + RustImports.toSnakeCase(name) + "((" + expr(args[0]) + ") as i32)";
+					return expr(subj) + "." + RustImports.toSnakeCase(name) + "(" + castSignedI32(args[0]) + ")";
 				}
 				if(name == "put" && isSortedBuilder(subj)) {
 					final kExpr = switch(args[0].expr) {
@@ -3680,7 +3805,7 @@ class RustExpr {
 					return expr(subj) + ".join(" + renderedArgs + ")";
 				}
 				if(name == "addByte") {
-					return expr(subj) + ".add_byte((" + expr(args[0]) + ") as u8)";
+					return expr(subj) + ".add_byte(" + RustConversions.truncate(expr(args[0]), "u8") + ")";
 				}
 				if(name == "readU16") {
 					// The wire read answers u16 while the Int domain is
@@ -3694,7 +3819,7 @@ class RustExpr {
 					// the Haxe writer masks to the low half, and the Rust
 					// cast truncates identically, so the narrowing matches
 					// source semantics for every value.
-					return expr(subj) + ".write_u16((" + expr(args[0]) + ") as u16)";
+					return expr(subj) + ".write_u16(" + RustConversions.truncate(expr(args[0]), "u16") + ")";
 				}
 				if(name == "writeU32") {
 					final innerArg = stripWrap(args[0]);
@@ -3798,13 +3923,13 @@ class RustExpr {
 					}
 					switch(name) {
 						case "end":
-							return "(" + expr(args[0]) + ").len() as i32";
+							return RustConversions.narrowI32("(" + expr(args[0]) + ").len()");
 						case "codeAt":
-							return "(" + expr(args[0]) + ")[(" + expr(args[1]) + ") as usize..].chars().next().unwrap_or('\\0') as i32";
+							return "(" + expr(args[0]) + ")[" + castArg(args[1], "usize") + "..].chars().next().unwrap_or('\\0') as i32";
 						case "advance":
-							return "((" + expr(args[1]) + ") as usize + (" + expr(args[0]) + ")[(" + expr(args[1]) + ") as usize..].chars().next().unwrap_or('\\0').len_utf8()) as i32";
+							return "(" + castArg(args[1], "usize") + " + (" + expr(args[0]) + ")[" + castArg(args[1], "usize") + "..].chars().next().unwrap_or('\\0').len_utf8()) as i32";
 						case "substringBetween":
-							return "(" + expr(args[0]) + ")[(" + expr(args[1]) + ") as usize..(" + expr(args[2]) + ") as usize].to_string()";
+							return "(" + expr(args[0]) + ")[" + castArg(args[1], "usize") + ".." + castArg(args[2], "usize") + "].to_string()";
 						case "fromCodePoint":
 							return "char::from_u32((" + expr(args[0]) + ") as u32).unwrap_or('\\0').to_string()";
 						case _:
@@ -3927,7 +4052,7 @@ class RustExpr {
 								case "Int":
 									// Business Int renders u32, usize in loop heads;
 									// the resident takes i32, so both sides cast once.
-									return "test_core::TestCore::equals_int((" + expr(expectedArg) + ") as i32, (" + expr(actualArg) + ") as i32, " + msg + ")";
+									return "test_core::TestCore::equals_int(" + castArg(expectedArg, "i32") + ", " + castArg(actualArg, "i32") + ", " + msg + ")";
 								case "Float":
 									return "test_core::TestCore::equals_float(" + expr(expectedArg) + ", " + expr(actualArg) + ", " + msg + ")";
 								case "String":
@@ -4271,7 +4396,12 @@ class RustExpr {
 			return "(" + base + ".unwrap_or(0)) as " + target;
 		}
 		if(!isIntType(actual.t)) return rendered;
-		return target == "u32" || target == "i32" || target == "u8" ? "(" + rendered + ") as " + target : rendered;
+		if(target == "u8") {
+			final folded = constantCast(actual, "u8");
+			if(folded != null) return folded;
+			return RustConversions.truncate(rendered, "u8");
+		}
+		return target == "u32" || target == "i32" ? "(" + rendered + ") as " + target : rendered;
 	}
 
 	function containsNullDefault(value: DefaultArgExpander.CoalescingDefaultValue):Bool {
@@ -4289,6 +4419,12 @@ class RustExpr {
 	// an operand only when it crosses domains; i32-domain locals and integer
 	// literals assign to i32 without a cast.
 	function wrappingCastSuffix(e: TypedExpr, wrapDomain: String, isLeft: Bool): String {
+		// A operand already rendered in the wrap domain needs no cast: an Int
+		// local or field in business is u32 and a wrapping arithmetic result
+		// carries it; dropping the redundant `(x) as u32` keeps the emitted
+		// code free of no-op casts. Only operands that render in a different
+		// width or signedness cross the boundary here.
+		if(types.of(e.t, false) == wrapDomain) return "";
 		if(wrapDomain != "i32") return (isParameterOfDomain(e, wrapDomain) ? "" : (isLeft ? " as " + wrapDomain : ""));
 		if(i32ComparisonTarget || i32OperandDomain(e)) return "";
 		switch(stripWrap(e).expr) {
@@ -4357,7 +4493,7 @@ class RustExpr {
 	function assignTarget(e: TypedExpr): String {
 		switch(e.expr) {
 			case TArray(arr, idx):
-				return expr(arr) + "[(" + expr(idx) + ") as usize]";
+				return expr(arr) + "[" + castArg(idx, "usize") + "]";
 			case TField(_, FStatic(c, cf)):
 				final target = staticAssignmentTarget(e);
 				return target != null ? target : staticRef(c.get(), cf.get().name);
@@ -4896,9 +5032,9 @@ class RustExpr {
 		final elems = [];
 		for(i in 0...n) {
 			if(i == 0) {
-				elems.push("(" + bufStr + "[" + baseStr + " as usize] as u8)");
+				elems.push("(" + bufStr + "[" + usizeIndex(baseStr) + "] as u8)");
 			} else {
-				elems.push("(" + bufStr + "[(" + baseStr + " + " + i + ") as usize] as u8)");
+				elems.push("(" + bufStr + "[" + usizeIndex(baseStr + " + " + i) + "] as u8)");
 			}
 		}
 		return typeName + "::from_be_bytes([" + elems.join(", ") + "])";
@@ -5153,8 +5289,10 @@ class RustExpr {
 				if(isIntType(pt) && isUsizeExpr(arg)
 					&& (signedPositions == null || signedPositions.indexOf(i) < 0)) {
 					final targetType = types.of(pt, false);
-					if(targetType == "u32" || targetType == "i32") {
-						argStr = "(" + argStr + ") as " + targetType;
+					if(targetType == "u32") {
+						argStr = RustConversions.truncate(argStr, "u32");
+					} else if(targetType == "i32") {
+						argStr = RustConversions.narrowI32(argStr);
 					}
 				}
 			}
@@ -5321,7 +5459,7 @@ class RustExpr {
 		// A direct array access can be borrowed without the value-read
 		// clone; the borrow consumers above do not need the copy.
 		return switch(e.expr) {
-			case TArray(arr, idx): expr(arr) + "[(" + expr(idx) + ") as usize]";
+			case TArray(arr, idx): expr(arr) + "[" + castArg(idx, "usize") + "]";
 			case _: expr(e);
 		};
 	}
@@ -5430,7 +5568,7 @@ class RustExpr {
 			return text + ".to_string()";
 		}
 		if(text.indexOf("u_string::count") >= 0 && resolveExprType(sibling) == "i32") {
-			return "(" + text + ") as i32";
+			return RustConversions.reinterpret(text, "i32");
 		}
 		if(!isStringType(branch.t) || !isStringType(sibling.t)) {
 			return text;
