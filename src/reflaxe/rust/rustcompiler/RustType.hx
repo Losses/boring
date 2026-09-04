@@ -71,7 +71,7 @@ class RustType {
 				// Exception classes are represented by their payload enum in
 				// Rust.  Keeping the Haxe wrapper name here creates imports for
 				// a type that is intentionally not emitted (and leaves callers
-				// trying to return `SemverException` instead of `SemverFault`).
+				// trying to return `SemverException` at a location that returns `SemverFault`).
 				if(RustDecl.isExceptionSubclass(cls) && state.exceptionPayloads.exists(cls.module)) {
 					final payloadModule = state.exceptionPayloads.get(cls.module);
 					final payloadName = payloadModule.split(".").pop();

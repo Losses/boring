@@ -135,12 +135,12 @@ class Compiler extends PluginCompiler<Compiler> {
 	/**
 		Every member passes except an unreferenced private static function:
 		public members, tests, @:keep fields, and instance members emit
-		regardless, and a private static referenced anywhere in the corpus
-		(state.referencedStatics) emits as well.
+		regardless, and a private static referenced anywhere in the compiled
+		program (state.referencedStatics) emits as well.
 	**/
 	function includeStaticFunc(cls: ClassType, f: ClassFuncData): Bool {
 		// @:keep arrives here injected wholesale by haxe.macro.Compiler.keep
-		// on every field of the kept class; the class-level retention already
+		// on every field of the kept class; retaining the class itself already
 		// carried the public members, and an unreferenced private static
 		// would emit as dead text, so the reference scan decides alone.
 		if(!f.isStatic || f.field.isPublic || f.field.meta.has(":test")) {
