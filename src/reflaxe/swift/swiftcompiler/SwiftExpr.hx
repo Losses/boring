@@ -1456,6 +1456,18 @@ class SwiftExpr {
 		};
 	}
 
+	/** A prefix operator binds tighter than every binary tier in Swift,
+	    so an operand rendered as a binary expression wraps unconditionally. */
+	function int64Prefixed(e:TypedExpr):String {
+		final rendered = expr(e);
+		final binaryForm = switch(stripWrap(e).expr) {
+			case TBinop(_, _, _): true;
+			case TCall(fn, _): int64CallOperator(fn) != null;
+			case _: false;
+		}
+		return binaryForm ? "(" + rendered + ")" : rendered;
+	}
+
 	function int64Call(fn:TypedExpr, args:Array<TypedExpr>):Null<String> {
 		return switch(stripWrap(fn).expr) {
 			case TField(_, FStatic(classRef, fieldRef)) if(classRef.get().module == "haxe.Int64" && classRef.get().name == "Int64_Impl_"):
@@ -1471,10 +1483,10 @@ class SwiftExpr {
 					case "and" if(args.length == 2): int64Operand(args[0], OpAnd, false) + " & " + int64Operand(args[1], OpAnd, true);
 					case "or" if(args.length == 2): int64Operand(args[0], OpOr, false) + " | " + int64Operand(args[1], OpOr, true);
 					case "xor" if(args.length == 2): int64Operand(args[0], OpXor, false) + " ^ " + int64Operand(args[1], OpXor, true);
-					case "complement" if(args.length == 1): "~" + expr(args[0]);
-					case "shl" if(args.length == 2): int64Operand(args[0], OpShl, false) + " &<< Int64(" + expr(args[1]) + " & 63)";
-					case "shr" if(args.length == 2): int64Operand(args[0], OpShr, false) + " &>> Int64(" + expr(args[1]) + " & 63)";
-					case "ushr" if(args.length == 2): "Int64(bitPattern: UInt64(bitPattern: " + expr(args[0]) + ") >> UInt64(" + expr(args[1]) + " & 63))";
+					case "complement" if(args.length == 1): "~" + int64Prefixed(args[0]);
+					case "shl" if(args.length == 2): int64Operand(args[0], OpShl, false) + " &<< Int64(" + int64Operand(args[1], OpAnd, false) + " & 63)";
+					case "shr" if(args.length == 2): int64Operand(args[0], OpShr, false) + " &>> Int64(" + int64Operand(args[1], OpAnd, false) + " & 63)";
+					case "ushr" if(args.length == 2): "Int64(bitPattern: UInt64(bitPattern: " + expr(args[0]) + ") >> UInt64(" + int64Operand(args[1], OpAnd, false) + " & 63))";
 					case "eq" if(args.length == 2): expr(args[0]) + " == " + expr(args[1]);
 					case "neq" if(args.length == 2): expr(args[0]) + " != " + expr(args[1]);
 					case "lt" if(args.length == 2): expr(args[0]) + " < " + expr(args[1]);
@@ -1831,8 +1843,8 @@ class SwiftExpr {
 			Context.error("StringTools.hex accepts non-negative arguments only", value.pos);
 		}
 		final valueText = expr(value);
-		// `hex` reads its argument as u32; a negative Int32 must cross
-		// through the bit-pattern initializer instead of printing a sign.
+		// `hex` reads its argument as u32; a negative Int32 crosses
+		// through the bit-pattern initializer to keep its bit pattern.
 		final hex = "String(UInt32(bitPattern: " + valueText + "), radix: 16, uppercase: true)";
 		if(digits == null) {
 			return hex;
