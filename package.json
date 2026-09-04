@@ -6,7 +6,7 @@
     "reference/ts"
   ],
   "scripts": {
-    "test": "bun test tests/ tools/registry/tests/",
+    "test": "bun test tests/ packages/registry/tests/",
     "test:haxe": "haxe tests/haxe/compile.hxml && bun out/haxe/tests.js",
     "test:kotlin": "mkdir -p out/kotlin && kotlinc $(find reference/kotlin/gen -name '*.kt') tests/kotlin/Main.kt -include-runtime -d out/kotlin/tests.jar && java -cp out/kotlin/tests.jar MainKt",
     "test:rust": "cargo test",
@@ -36,7 +36,7 @@
     "check:reflaxe": "haxe -lib reflaxe -cp examples -main Smoke -js out/haxe/reflaxe-smoke.js",
     "commit": "bun tools/commit/commit.ts",
     "install:hooks": "bun tools/git-hooks/install.ts",
-    "verify": "bun run gen:ts && bun run gen:kotlin && bun run gen:rust && bun run gen:rust-f32 && bun run gen:swift && bun run gen:swift-f32 && bun run gen:dart && bun run gen:kotlin-f32 && bun run test && bun run test:haxe && bun run test:kotlin && bun run test:intercept && bun run test:rust && bun run test:stage1:haxe && bun run test:stage1:ts && bun run test:stage1:kotlin && bun run test:stage1:rust && bun run test:swift && bun run test:swift-f32 && bun run test:dart && bun run test:rust-f32 && bun run test:kotlin-f32 && bun run test:consistency && haxe tools/registry/compile.hxml && bun run lint && bun run typecheck && bun run check:docs && bun run gen:vector && bun run check:reflaxe"
+    "verify": "bun run gen:ts && bun run gen:kotlin && bun run gen:rust && bun run gen:rust-f32 && bun run gen:swift && bun run gen:swift-f32 && bun run gen:dart && bun run gen:kotlin-f32 && bun run test && bun run test:haxe && bun run test:kotlin && bun run test:intercept && bun run test:rust && bun run test:stage1:haxe && bun run test:stage1:ts && bun run test:stage1:kotlin && bun run test:stage1:rust && bun run test:swift && bun run test:swift-f32 && bun run test:dart && bun run test:rust-f32 && bun run test:kotlin-f32 && bun run test:consistency && haxe packages/registry/compile.hxml && bun run lint && bun run typecheck && bun run check:docs && bun run gen:vector && bun run check:reflaxe"
   },
   "devDependencies": {
     "@boring/codec": "workspace:*",
