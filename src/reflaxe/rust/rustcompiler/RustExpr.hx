@@ -758,7 +758,7 @@ class RustExpr {
 			// the trail surrogate the contract would pair; the trail-start
 			// clause of stdlib/08 folds away.
 			out.push(indent(depth + 1) + "if unit >= 55296 && unit <= 56319 && !" + part + ".is_empty() {");
-			out.push(indent(depth + 2) + "return Err(" + fault + "::UnpairedSurrogate { unit: unit as u32 });");
+			out.push(indent(depth + 2) + "return Err(" + fault + "::UnpairedSurrogate { unit: u32::from(unit) });");
 			out.push(indent(depth + 1) + "}");
 			out.push(indent(depth) + "}");
 			out.push(indent(depth) + buf + ".extend(" + part + ".encode_utf16());");
@@ -771,7 +771,7 @@ class RustExpr {
 			out.push(indent(depth + 1) + "}");
 			out.push(indent(depth) + "} else if let Some(&last) = " + buf + ".last() {");
 			out.push(indent(depth + 1) + "if last >= 55296 && last <= 56319 {");
-			out.push(indent(depth + 2) + "return Err(" + fault + "::UnpairedSurrogate { unit: last as u32 });");
+			out.push(indent(depth + 2) + "return Err(" + fault + "::UnpairedSurrogate { unit: u32::from(last) });");
 			out.push(indent(depth + 1) + "}");
 			out.push(indent(depth) + "}");
 			out.push(indent(depth) + buf + ".push(" + RustConversions.truncate(u, "u16") + ");");
@@ -1608,7 +1608,7 @@ class RustExpr {
 		return switch(RustType.classifyKey(kType, pos)) {
 			case IntKey:
 				imports.require("std::rc::Rc");
-				"Rc::new(|a, b| SortedTable::compare_ints((*a) as i32, (*b) as i32))";
+				"Rc::new(|a, b| SortedTable::compare_ints(" + RustConversions.reinterpret("(*a)", "i32") + ", " + RustConversions.reinterpret("(*b)", "i32") + "))";
 			case StringKey:
 				imports.require("std::rc::Rc");
 				"Rc::new(|a, b| SortedTable::compare_strings(a.as_str(), b.as_str()))";
@@ -2667,8 +2667,10 @@ class RustExpr {
 				return wrapDomain + "::" + wrappingMethod(op) + "(" + wrappingArg(l, op, false) + wrappingCastSuffix(l, wrapDomain, true) + ", " + wrappingArg(r, op, true) + wrappingCastSuffix(r, wrapDomain, false) + ")";
 			case OpMult | OpAdd | OpSub | OpDiv if(isFloatType(e.t)):
 				final real = FloatPrecision.isF32() ? "f32" : "f64";
-				final lStr = if(isIntType(l.t)) "((" + operand(l, op, false) + ") as " + real + ")" else operand(l, op, false);
-				final rStr = if(isIntType(r.t)) "((" + operand(r, op, true) + ") as " + real + ")" else operand(r, op, true);
+				// An integer operand crosses through its exact decimal
+				// (T7), which rounds identically to `as` without a cast.
+				final lStr = if(isIntType(l.t)) RustConversions.intToFloat(operand(l, op, false), real) else operand(l, op, false);
+				final rStr = if(isIntType(r.t)) RustConversions.intToFloat(operand(r, op, true), real) else operand(r, op, true);
 				return lStr + " " + symbolOf(op) + " " + rStr;
 			case OpAnd:
 				final rightInner = stripWrap(r);
@@ -2915,6 +2917,12 @@ class RustExpr {
 		// inferable). In a business module the value is u32 and the same-width
 		// cast reinterprets bits (T5).
 		if(RuntimeResidents.isResident(imports.selfModule)) return expr(e);
+		// A generic static call's return type is inferred from its context;
+		// `.to_ne_bytes()` alone leaves it ambiguous (E0689), so an
+		// annotated binding pins the u32 domain before the byte round-trip.
+		if(genericStaticCallArg(e)) {
+			return "{ let v: u32 = " + expr(e) + "; i32::from_ne_bytes(v.to_ne_bytes()) }";
+		}
 		return RustConversions.reinterpret(expr(e), "i32");
 	}
 
@@ -3655,17 +3663,19 @@ class RustExpr {
 						// that lead and the map_err names it. The `?` or
 						// `.unwrap()` rides the ordinary fallibility rules.
 						final q = isFallible ? "?" : ".unwrap()";
-						return "String::from_utf16(" + expr(subj) + ".as_slice()).map_err(|_| " + fault + "::UnpairedSurrogate { unit: "
-							+ expr(subj) + "[" + expr(subj) + ".len() - 1] as u32 })" + q;
+						return "String::from_utf16(" + expr(subj) + ".as_slice()).map_err(|_| " + fault + "::UnpairedSurrogate { unit: u32::from("
+							+ expr(subj) + "[" + expr(subj) + ".len() - 1]) })" + q;
 					}
 					if(name == "get_length" || name == "length") {
 						return RustConversions.truncate(expr(subj) + ".len()", "u32");
 					}
 				}
 				if(name == "get" && isBytes(stripCast(subj))) {
-					// A Bytes element is u8; widening to the Haxe Int
-					// domain goes through From so the read carries no `as`.
-					return "u32::from(" + expr(subj) + "[" + castArg(args[0], "usize") + "])";
+					// A Bytes element is u8; widening to the module's Haxe
+					// Int domain (u32 in business, i32 in resident) goes
+					// through From so the read carries no `as`.
+					final intDomain = RuntimeResidents.isResident(imports.selfModule) ? "i32" : "u32";
+					return intDomain + "::from(" + expr(subj) + "[" + castArg(args[0], "usize") + "])";
 				}
 				if(name == "set" && args.length == 2 && isBytes(stripCast(subj))) {
 					return expr(subj) + "[" + castArg(args[0], "usize") + "] = " + castArg(args[1], "u8");
@@ -3894,20 +3904,29 @@ class RustExpr {
 				}
 				if(cls.pack.length == 0 && cls.name == "Std" && name == "int") {
 					// An Int-typed argument converts nothing, except a
-					// bare length read, whose rendering is usize; Float
-					// arguments and those lengths still cross through
-					// the cast.
+					// bare length read, whose rendering is usize.
 					if(isIntType(args[0].t) && !isUsizeExpr(args[0])) {
 						return expr(args[0]);
 					}
-					// Haxe types Int/Int division as Float, but the
-					// length-division lowering renders it as
-					// truncating integer division; Std.int over it
+					// Haxe types Int/Int division as Float but truncates it
+					// back through Std.int; the truncation is Rust integer
+					// division, so the Float round-trip drops away.
+					final truncDiv = intDivisionOf(args[0]);
+					if(truncDiv != null) {
+						return truncDiv;
+					}
+					// A length-division lowering is already a truncating
+					// integer quotient in the module domain; Std.int over it
 					// converts nothing.
 					if(isLengthDivision(args[0])) {
-						return "(" + expr(args[0]) + ") as " + (RuntimeResidents.isResident(imports.selfModule) ? "i32" : "u32");
+						return expr(args[0]);
 					}
-					return RuntimeResidents.isResident(imports.selfModule) ? "(" + expr(args[0]) + ") as i32" : "(" + expr(args[0]) + ") as u32";
+					// A genuine Float argument truncates with Rust `as`
+					// saturation, reproduced bit-exactly without a cast.
+					if(RuntimeResidents.isResident(imports.selfModule)) {
+						return RustConversions.floatToI32(expr(args[0]));
+					}
+					return RustConversions.floatToU32(expr(args[0]));
 				}
 				if(cls.pack.length == 0 && cls.name == "String" && name == "fromCharCode") {
 					final value = expr(args[0]);
@@ -3934,13 +3953,17 @@ class RustExpr {
 						case "end":
 							return RustConversions.narrowI32("(" + expr(args[0]) + ").len()");
 						case "codeAt":
-							return "(" + expr(args[0]) + ")[" + castArg(args[1], "usize") + "..].chars().next().unwrap_or('\\0') as i32";
+							// A char lowers to its Unicode scalar through
+							// From<char> for u32, then narrows into the
+							// resident i32 domain (values fit: scalars cap at
+							// 0x10FFFF).
+							return "i32::try_from(u32::from(" + "(" + expr(args[0]) + ")[" + castArg(args[1], "usize") + "..].chars().next().unwrap_or('\\0')" + ")).unwrap_or(0)";
 						case "advance":
-							return "(" + castArg(args[1], "usize") + " + (" + expr(args[0]) + ")[" + castArg(args[1], "usize") + "..].chars().next().unwrap_or('\\0').len_utf8()) as i32";
+							return RustConversions.narrowI32("(" + castArg(args[1], "usize") + " + (" + expr(args[0]) + ")[" + castArg(args[1], "usize") + "..].chars().next().unwrap_or('\\0').len_utf8())");
 						case "substringBetween":
 							return "(" + expr(args[0]) + ")[" + castArg(args[1], "usize") + ".." + castArg(args[2], "usize") + "].to_string()";
 						case "fromCodePoint":
-							return "char::from_u32((" + expr(args[0]) + ") as u32).unwrap_or('\\0').to_string()";
+							return "char::from_u32(" + RustConversions.reinterpret(expr(args[0]), "u32") + ").unwrap_or('\\0').to_string()";
 						case _:
 					}
 				}
@@ -4060,8 +4083,10 @@ class RustExpr {
 									return "test_core::TestCore::equals_bool(" + expr(expectedArg) + ", " + expr(actualArg) + ", " + msg + ")";
 								case "Int":
 									// Business Int renders u32, usize in loop heads;
-									// the resident takes i32, so both sides cast once.
-									return "test_core::TestCore::equals_int(" + castArg(expectedArg, "i32") + ", " + castArg(actualArg, "i32") + ", " + msg + ")";
+									// the resident takes i32, so both sides
+									// reinterpret once (T5). Literals fold to
+									// their signed value first.
+									return "test_core::TestCore::equals_int(" + castSignedI32(expectedArg) + ", " + castSignedI32(actualArg) + ", " + msg + ")";
 								case "Float":
 									return "test_core::TestCore::equals_float(" + expr(expectedArg) + ", " + expr(actualArg) + ", " + msg + ")";
 								case "String":
@@ -4103,8 +4128,9 @@ class RustExpr {
 					// An Int result crosses between the two conventions;
 					// containers never cross whole, only their elements
 					// through Int-typed expressions, which the argument
-					// casts above already cover.
-					return "(" + callStr + ") as " + (callerResident ? "i32" : "u32");
+					// casts above already cover. The crossing reinterprets
+					// the same-width bits (T5).
+					return RustConversions.reinterpret(callStr, callerResident ? "i32" : "u32");
 				}
 				return callStr;
 			case TField(subj, FEnum(e, ef)):
@@ -4402,6 +4428,17 @@ class RustExpr {
 		if(isNullType(actual.t)) {
 			final castAt = rendered.indexOf(" as ");
 			final base = castAt >= 0 ? rendered.substr(0, castAt) : rendered;
+			// A collapsed Null<Int> renders its inner scalar; when that
+			// scalar's domain is already the assignment target the
+			// unwrap alone suffices.
+			if((target == "u32" || target == "i32") && isIntType(getNullInnerType(actual.t))) {
+				final innerDomain = RuntimeResidents.isResident(imports.selfModule) ? "i32" : "u32";
+				if(innerDomain == target) {
+					// Parentheses stay only when the base carries top-level
+					// operators that would change `.unwrap_or` binding.
+					return isSimpleValueText(base) ? base + ".unwrap_or(0)" : "(" + base + ".unwrap_or(0))";
+				}
+			}
 			return "(" + base + ".unwrap_or(0)) as " + target;
 		}
 		if(!isIntType(actual.t)) return rendered;
@@ -4409,6 +4446,27 @@ class RustExpr {
 			final folded = constantCast(actual, "u8");
 			if(folded != null) return folded;
 			return RustConversions.truncate(rendered, "u8");
+		}
+		// The rendered source already carries the module's Int domain unless
+		// an i32-domain local or a shim parameter overrides it; when source
+		// and target agree, `(x) as T` is a no-op and drops away. A
+		// byte-extract renders a u8 element read while its Haxe type stays
+		// the Int domain, so it widens back through From instead.
+		if(target == "u32" || target == "i32") {
+			final source = resolveExprType(actual);
+			// A wrapping binop of i32-domain locals renders in i32 even
+			// though its Haxe type is the module Int (business u32).
+			final i32Source = target == "i32" && i32LocalDomain(actual);
+			if(source == target || i32Source) {
+				if(rendered.indexOf(".to_be_bytes()[") >= 0) return target + "::from(" + rendered + ")";
+				// Fold an integer constant to a typed literal: the fold
+				// keeps the binding's type anchored exactly like the old
+				// `as` did (a `let x = 0; x = 256;` chain infers {integer}
+				// without a typed assignment).
+				final folded = constantCast(actual, target);
+				if(folded != null) return folded;
+				return rendered;
+			}
 		}
 		return target == "u32" || target == "i32" ? "(" + rendered + ") as " + target : rendered;
 	}
@@ -4434,6 +4492,13 @@ class RustExpr {
 		// code free of no-op casts. Only operands that render in a different
 		// width or signedness cross the boundary here.
 		if(types.of(e.t, false) == wrapDomain) return "";
+		// A collapsed Null<Int> operand renders its inner scalar in the
+		// module domain (the collapse already applied unwrap_or), so the
+		// Option wrapper in the static type is not the rendering domain.
+		if(isNullType(e.t) && isIntType(getNullInnerType(e.t))) {
+			final innerDomain = RuntimeResidents.isResident(imports.selfModule) ? "i32" : "u32";
+			if(innerDomain == wrapDomain) return "";
+		}
 		if(wrapDomain != "i32") return (isParameterOfDomain(e, wrapDomain) ? "" : (isLeft ? " as " + wrapDomain : ""));
 		if(i32ComparisonTarget || i32OperandDomain(e)) return "";
 		switch(stripWrap(e).expr) {
@@ -4910,6 +4975,25 @@ class RustExpr {
 		return s;
 	}
 
+	/** Whether a rendered value is a lone atom: no top-level operator
+		whose precedence could capture a trailing method call. */
+	static function isSimpleValueText(s: String): Bool {
+		var depth = 0;
+		for(i in 0...s.length) {
+			final ch = s.charAt(i);
+			switch(ch) {
+				case "(" | "[": depth++;
+				case ")" | "]": depth--;
+				default:
+					if(depth == 0) switch(ch) {
+						case "+" | "-" | "*" | "/" | "%" | "&" | "|" | "^" | "<" | ">": return false;
+						case _:
+					}
+			}
+		}
+		return true;
+	}
+
 	function matchingParens(s: String): Bool {
 		var depth = 0;
 		for(i in 0...s.length) {
@@ -5215,7 +5299,12 @@ class RustExpr {
 			final paramIndex = i + paramOffset;
 			final pt = paramIndex < paramTypes.length ? paramTypes[paramIndex] : null;
 			var argStr = renderValueForType(pt, arg, expr(arg));
-			if(pt != null && isIntType(pt) && i32LocalDomain(arg)) argStr = "(" + argStr + ") as " + types.of(pt, false);
+			// An i32-domain argument crossing into a u32 business parameter
+			// reinterprets bits (T5); a same-domain pass (a resident runtime
+			// calling another resident runtime) needs no cast.
+			if(pt != null && isIntType(pt) && i32LocalDomain(arg) && types.of(pt, false) == "u32") {
+				argStr = RustConversions.reinterpret(argStr, "u32");
+			}
 			if(paramIndex < paramTypes.length) {
 				if(isNullType(pt) && isStringType(getNullInnerType(pt)) && isNullType(arg.t)) {
 					argStr = argStr + ".clone()";
@@ -5309,7 +5398,10 @@ class RustExpr {
 				}
 			}
 			if(signedPositions != null && signedPositions.indexOf(i) >= 0) {
-				argStr = "(" + argStr + ") as i32";
+				// The position is a resident i32 slot: fold a literal,
+				// leave a resident caller's i32 value bare, and reinterpret
+				// a business u32 value (T5).
+				argStr = castSignedI32(arg);
 			}
 			rendered.push(argStr);
 		}
@@ -5523,6 +5615,21 @@ class RustExpr {
 		};
 	}
 
+	/** An Int/Int division under Std.int, which truncates the Float
+		quotient: Rust integer division on the same operands matches, so
+		the division renders without the Float round-trip. Returns null
+		when the operand is not such a division. */
+	function intDivisionOf(e: TypedExpr): Null<String> {
+		return switch(stripWrap(e).expr) {
+			case TBinop(OpDiv, l, r) if(isIntType(l.t) && isIntType(r.t)):
+				switch(stripWrap(r).expr) {
+					case TConst(TInt(k)) if(k != 0): "(" + expr(l) + ") / (" + expr(r) + ")";
+					case _: null;
+				};
+			case _: null;
+		};
+	}
+
 	/** The parameter positions of one function type that carry Int. */
 	function intParamPositions(fnType: Null<Type>): Null<Array<Int>> {
 		if(fnType == null) return null;
@@ -5544,6 +5651,30 @@ class RustExpr {
 		if(fnType == null) return false;
 		return switch(Context.follow(fnType)) {
 			case TFun(_, ret): isIntType(ret);
+			case _: false;
+		};
+	}
+
+	/** Whether a type mentions a type parameter through any wrapper. */
+	function typeHasParam(t: Null<Type>): Bool {
+		if(t == null) return false;
+		if(RustType.isTypeParam(t)) return true;
+		return switch(t) {
+			case TAbstract(a, params): [for(p in params) typeHasParam(p)].indexOf(true) >= 0;
+			case TInst(_, params): [for(p in params) typeHasParam(p)].indexOf(true) >= 0;
+			case TFun(pargs, ret): [for(p in pargs) typeHasParam(p.t)].indexOf(true) >= 0 || typeHasParam(ret);
+			case TLazy(f): typeHasParam(f());
+			case _: false;
+		};
+	}
+
+	/** Whether the expression is a call to a generic static function. */
+	function genericStaticCallArg(e: TypedExpr): Bool {
+		return switch(stripWrap(e).expr) {
+			case TCall(fn, _): switch(stripWrap(fn).expr) {
+				case TField(_, FStatic(_, cf)): typeHasParam(cf.get().type);
+				case _: false;
+			};
 			case _: false;
 		};
 	}

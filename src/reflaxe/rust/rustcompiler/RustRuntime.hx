@@ -207,10 +207,10 @@ impl Process {
 	**/
 	public static final USTRING_ABI_SOURCE = '
 // Business ABI adapters over the resident UString class: Int arguments
-// arrive as u32 and results return u32; the class works in i32. slice and
-// substring keep i32 bounds because negative bounds are part of their
-// clamping contract. The class lives in this same module, so the
-// adapters name it directly without an import.
+// arrive unsigned (u32) and results return u32; the class works in i32.
+// slice and substring keep i32 bounds because negative bounds are part
+// of their clamping contract. The class lives in this same module, so
+// the adapters name it directly without an import.
 pub fn count(s: &str) -> u32 {
     u32::try_from(UString::count(s)).unwrap_or(0)
 }
