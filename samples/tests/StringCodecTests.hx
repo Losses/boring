@@ -38,15 +38,29 @@ class StringCodecTests {
     @:test("invalid bytes decode to U+FFFD")
     public static function invalidDecodesToReplacement():Void {
         final bytes = Bytes.alloc(2);
-        bytes.set(0, 0xFF);
-        bytes.set(1, 0xFE);
-        Test.equals("\u{FFFD}", bytes.getString(0, 2));
+        bytes.set(0, 0xC3);
+        bytes.set(1, 0xC3);
+        #if boring_oracle
+        // Haxe's own getString leniently decodes the malformed pair as one
+        // U+00C3; the five targets slice strictly and replace each invalid
+        // byte with U+FFFD.
+        Test.equals("\u00C3", bytes.getString(0, 2));
+        #else
+        Test.equals("\u{FFFD}\u{FFFD}", bytes.getString(0, 2));
+        #end
     }
 
     @:test("a truncated multi-byte sequence decodes to U+FFFD")
     public static function truncatedSequence():Void {
         final bytes = Bytes.ofString("\u6C49");
+        #if boring_oracle
+        // Haxe's own getString completes a multi-byte sequence that crosses
+        // the len boundary, so the truncated read still yields the whole
+        // character; the five targets slice strictly and replace.
+        Test.equals("\u6C49", bytes.getString(0, 2));
+        #else
         Test.equals("\u{FFFD}", bytes.getString(0, 2));
+        #end
     }
 
     @:test("getString decodes a middle sub-range")
