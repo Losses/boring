@@ -1,6 +1,9 @@
 package tests;
 
 import boring.DefaultArgsOps;
+import boring.DefaultArgsOps.CtorDefaultBadge;
+import boring.DefaultArgsOps.CtorDefaultHolder;
+import boring.DefaultArgsOps.KeywordNameOps;
 import std.Test;
 
 class DefaultArgsTests {
@@ -142,5 +145,24 @@ class DefaultArgsTests {
         Test.equals("CoalescingPreset(base=0.125, ceiling=0.5)", Std.string(CoalescingPreset.Default));
         Test.equals("CoalescingPreset(base=0.125, ceiling=0.5)", CoalescingPreset.Default.toString());
         Test.equals("CoalescingPreset(base=0.25, ceiling=0.75)", Std.string(new CoalescingPreset(0.25, 0.75)));
+    }
+
+    @:test("constructor default leaf builds a fresh instance per omitting call")
+    public static function ctorDefaultLeafFreshness():Void {
+        var first = new CtorDefaultHolder();
+        final second = new CtorDefaultHolder();
+        first.badge.tag = "mutated";
+        Test.equals("mutated", first.badge.tag);
+        Test.equals("fresh", second.badge.tag);
+        final given = new CtorDefaultHolder(new CtorDefaultBadge("given"));
+        Test.equals("given", given.badge.tag);
+    }
+
+    @:test("kotlin hard keyword identifiers survive every target")
+    public static function kotlinHardKeywordIdentifiers():Void {
+        Test.equals(5, KeywordNameOps.clampVal(0, 5, 10));
+        Test.equals(10, KeywordNameOps.clampVal(99, 5, 10));
+        Test.equals(7, KeywordNameOps.clampVal(7, 5, 10));
+        Test.equals(8, KeywordNameOps.localKeywordRead());
     }
 }
