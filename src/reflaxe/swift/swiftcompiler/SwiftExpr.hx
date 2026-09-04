@@ -705,7 +705,16 @@ class SwiftExpr {
 					switch(stripWrap(init).expr) {
 						case TArray(_, {expr: TLocal(index)}) if(index.id == loop.index.id):
 							final out = [indent(depth) + "for " + localName(item) + " in " + expr(array) + " {"];
-							for(l in blockLines(loop.body.slice(1), depth + 1)) out.push(l);
+							final gb = matchGroupByBody(loop.body.slice(1));
+							if(gb != null) {
+								for(l in blockLines(gb.prefix, depth + 1)) out.push(l);
+								out.push(indent(depth + 1) + "let " + localName(gb.entryVar) + " = " + expr(gb.entryInit));
+								out.push(indent(depth + 1) + "var " + localName(gb.bucketVar) + " = " + expr(gb.getCall) + " ?? " + types.of(gb.bucketVar.t) + "()");
+								out.push(indent(depth + 1) + localName(gb.bucketVar) + ".append(" + expr(gb.valArg) + ")");
+								out.push(indent(depth + 1) + expr(gb.builderSubj) + ".put(" + expr(gb.keyArg) + ", " + localName(gb.bucketVar) + ")");
+							} else {
+								for(l in blockLines(loop.body.slice(1), depth + 1)) out.push(l);
+							}
 							out.push(indent(depth) + "}"); return out;
 						default:
 					}
@@ -760,7 +769,7 @@ class SwiftExpr {
 		bucketVar: TVar,
 		valArg: TypedExpr
 	}> {
-		if(body.length < 2) {
+		if(body.length < 1) {
 			return null;
 		}
 		// The lambda body is one trailing TBlock containing the four core
