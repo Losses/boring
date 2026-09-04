@@ -156,7 +156,9 @@ class RecordShape {
 				? (isNullableType(fieldType) ? nullableRecordFieldValue(read, receiver.pos) : memberCallValue(read, receiver.pos))
 				: stage1Enum != null ? stage1Enum
 				: stage1Collection != null ? stage1Collection
-				: (isCollectionType(fieldType) || isEnumType(fieldType)) ? stdStringValue(read, receiver.pos) : read;
+				: (isCollectionType(fieldType) || isEnumType(fieldType))
+					? (isNullableType(fieldType) ? nullableStdStringValue(read, receiver.pos) : stdStringValue(read, receiver.pos))
+					: read;
 			out = {expr: EBinop(OpAdd, out, value), pos: receiver.pos};
 		}
 		return {expr: EBinop(OpAdd, out, {expr: EConst(CString(close)), pos: receiver.pos}), pos: receiver.pos};
@@ -183,6 +185,19 @@ class RecordShape {
 		final nullLiteral = {expr: EConst(CIdent("null")), pos: pos};
 		final isNull = {expr: EBinop(OpEq, read, nullLiteral), pos: pos};
 		return {expr: ETernary(isNull, {expr: EConst(CString("null")), pos: pos}, memberCallValue(read, pos)), pos: pos};
+	}
+
+	/**
+	 * The printed operand for one nullable collection or enum field outside
+	 * the oracle compilation. A null field prints "null" and a present
+	 * field prints the Std.string form; without the comparison every
+	 * generated target dereferences the collection inside its join code
+	 * and the Dart, Kotlin, and Swift compilers reject the null read.
+	 */
+	static function nullableStdStringValue(read:Expr, pos:Position):Expr {
+		final nullLiteral = {expr: EConst(CIdent("null")), pos: pos};
+		final isNull = {expr: EBinop(OpEq, read, nullLiteral), pos: pos};
+		return {expr: ETernary(isNull, {expr: EConst(CString("null")), pos: pos}, stdStringValue(read, pos)), pos: pos};
 	}
 
 	static function isNullableType(type:Type):Bool {
@@ -222,17 +237,29 @@ class RecordShape {
 		return {expr: ETernary(isNull, {expr: EConst(CString("null")), pos: pos}, labeled), pos: pos};
 	}
 
-	/** Renders an Array or ReadOnlyArray field using the stage-1 ruled form. */
+	/**
+	 * Renders an Array or ReadOnlyArray field using the stage-1 ruled form.
+	 * A nullable collection field wraps the form in an explicit null
+	 * comparison, the same two states the enum-field branch above rules: a
+	 * null field prints "null" and a present field prints the array form.
+	 */
 	static function stage1CollectionFieldValue(fieldType:Type, read:Expr, pos:Position):Null<Expr> {
 		if(!Context.defined("boring_oracle")) {
 			return null;
 		}
-		final elementType = switch(Context.follow(fieldType)) {
+		final nullable = isNullableType(fieldType);
+		final followed = Context.follow(fieldType);
+		final elementType = switch(followed) {
 			case TInst(c, params) if(c.get().name == "Array" && params.length == 1): params[0];
 			case TAbstract(a, params) if(a.get().module == "std.ReadOnlyArray" && params.length == 1): params[0];
 			case _: return null;
 		};
-		return EnumText.stage1ArrayForm(elementType, read, pos, null, null, Context.follow(fieldType));
+		final form = EnumText.stage1ArrayForm(elementType, read, pos, null, null, followed);
+		if(!nullable) {
+			return form;
+		}
+		final isNull = {expr: EBinop(OpEq, read, {expr: EConst(CIdent("null")), pos: pos}), pos: pos};
+		return {expr: ETernary(isNull, {expr: EConst(CString("null")), pos: pos}, form), pos: pos};
 	}
 
 	static function anonymousShape(anon:AnonType):RecordShapeData {
