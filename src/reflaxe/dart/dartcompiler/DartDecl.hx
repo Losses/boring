@@ -213,7 +213,13 @@ class DartDecl {
 			switch(f.type) {
 				case TAbstract(a, params) if(a.get().name == "Null" && params.length == 1):
 					lines.push("  final av" + f.name + " = a." + f.name + "; final bv" + f.name + " = b." + f.name + ";"); lines.push("  if (av" + f.name + " == null && bv" + f.name + " != null) return -1;"); lines.push("  if (av" + f.name + " != null && bv" + f.name + " == null) return 1;");
-					switch(Context.follow(params[0])) { case TEnum(e, _): final en = e.get(); final orderName = cls.name + f.name + "Order"; lines.unshift("int " + orderName + "(" + qualifiedRef(en.module, en.name) + " v) {\n" + [for(ef in en.constructs) (enumHasPayload(en) ? "  if (v is " + qualifiedRef(en.module, en.name + ef.name) + ") return " + ef.index + ";" : "  if (v == " + qualifiedRef(en.module, en.name) + "." + lowerFirst(ef.name) + ") return " + ef.index + ";")].join("\n") + "\n  return 0;\n}"); lines.push("  if (av" + f.name + " != null && bv" + f.name + " != null) { final cmp" + f.name + " = " + orderName + "(av" + f.name + ") - " + orderName + "(bv" + f.name + "); if (cmp" + f.name + " != 0) return cmp" + f.name + "; }"); case _: lines.push("  if (av" + f.name + " != null && bv" + f.name + " != null) { final cmp" + f.name + " = av" + f.name + ".compareTo(bv" + f.name + "); if (cmp" + f.name + " != 0) return cmp" + f.name + "; }"); }; continue;
+					switch(rawArrayElement(params[0])) {
+						case null:
+							switch(Context.follow(params[0])) { case TEnum(e, _): final en = e.get(); final orderName = cls.name + f.name + "Order"; lines.unshift("int " + orderName + "(" + qualifiedRef(en.module, en.name) + " v) {\n" + [for(ef in en.constructs) (enumHasPayload(en) ? "  if (v is " + qualifiedRef(en.module, en.name + ef.name) + ") return " + ef.index + ";" : "  if (v == " + qualifiedRef(en.module, en.name) + "." + lowerFirst(ef.name) + ") return " + ef.index + ";")].join("\n") + "\n  return 0;\n}"); lines.push("  if (av" + f.name + " != null && bv" + f.name + " != null) { final cmp" + f.name + " = " + orderName + "(av" + f.name + ") - " + orderName + "(bv" + f.name + "); if (cmp" + f.name + " != 0) return cmp" + f.name + "; }"); case _: lines.push("  if (av" + f.name + " != null && bv" + f.name + " != null) { final cmp" + f.name + " = av" + f.name + ".compareTo(bv" + f.name + "); if (cmp" + f.name + " != 0) return cmp" + f.name + "; }"); };
+						case element:
+							nullableArrayComparator(lines, cls, f.name, element);
+					}
+					continue;
 				case TAbstract(a, params) if(a.get().name == "ReadOnlyArray" && params.length == 1):
 					switch(Context.follow(params[0])) {
 						case TEnum(e, _):
@@ -243,6 +249,43 @@ class DartDecl {
 	function enumHasPayload(en: EnumType): Bool {
 		for(ef in en.constructs) switch(ef.type) { case TFun(args, _): if(args.length > 0) return true; case _: }
 		return false;
+	}
+
+	/**
+		The element type when `t` is a raw ReadOnlyArray (checked before
+		Context.follow, which erases the abstract to Array). Nullable
+		collections need this raw check: the Null arm's followed inner
+		type is Array and would otherwise lose the array shape.
+	**/
+	function rawArrayElement(t: Type): Null<Type> {
+		return switch(t) {
+			case TAbstract(a, params) if(a.get().name == "ReadOnlyArray" && params.length == 1): params[0];
+			case TLazy(f): rawArrayElement(f());
+			case _: null;
+		};
+	}
+
+	/**
+		The element-wise compare lines for a nullable collection field
+		inside the non-null guard. The locals av/bv hold the present
+		arrays; the semantics mirror the non-null ReadOnlyArray arm:
+		compare in index order, then by length.
+	**/
+	function nullableArrayComparator(lines:Array<String>, cls:ClassType, field:String, element:Type):Void {
+		lines.push("  if (av" + field + " != null && bv" + field + " != null) {");
+		switch(Context.follow(element)) {
+			case TEnum(e, _):
+				final en = e.get();
+				final orderName = cls.name + field + "Order";
+				lines.unshift("int " + orderName + "(" + qualifiedRef(en.module, en.name) + " v) {\n" + [for(ef in en.constructs) (enumHasPayload(en) ? "  if (v is " + qualifiedRef(en.module, en.name + ef.name) + ") return " + ef.index + ";" : "  if (v == " + qualifiedRef(en.module, en.name) + "." + lowerFirst(ef.name) + ") return " + ef.index + ";")].join("\n") + "\n  return 0;\n}");
+				lines.push("    for (var i = 0; i < av" + field + ".length && i < bv" + field + ".length; i++) { final cmp = " + orderName + "(av" + field + "[i]) - " + orderName + "(bv" + field + "[i]); if (cmp != 0) return cmp; }");
+			case TInst(c, _) if(c.get().meta.has(":dataClass")):
+				lines.push("    for (var i = 0; i < av" + field + ".length && i < bv" + field + ".length; i++) { final cmp = compare" + c.get().name + "(av" + field + "[i], bv" + field + "[i]); if (cmp != 0) return cmp; }");
+			case _:
+				lines.push("    for (var i = 0; i < av" + field + ".length && i < bv" + field + ".length; i++) { final cmp = av" + field + "[i].compareTo(bv" + field + "[i]); if (cmp != 0) return cmp; }");
+		}
+		lines.push("    if (av" + field + ".length != bv" + field + ".length) return av" + field + ".length - bv" + field + ".length;");
+		lines.push("  }");
 	}
 
 
