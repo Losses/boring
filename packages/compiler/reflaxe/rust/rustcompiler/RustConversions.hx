@@ -4,9 +4,9 @@ package rustcompiler;
 /**
 	Zero-`as` numeric conversion helpers for the rust emitter.
 
-	Every function replaces a specific `as` cast family with a bit-level
+	Every function replaces a specific `as` cast family with a bitwise
 	equivalent, so the generated crate compiles without any numeric `as`.
-	Each helper documents the cast it replaces, the bit-level equivalence,
+	Each helper documents the cast it replaces, the bitwise equivalence,
 	and why any `unwrap_or` dead arm is unreachable.
 
 	Parenthesization: each helper returns a self-contained expression that
@@ -26,7 +26,7 @@ class RustConversions {
 		`(x) as u32` (x: u16). `std` implements `From<u32> for i64/u64` and
 		`From<u16> for u32`, so the value is preserved exactly. There is no
 		`usize::from(u32)` in `std`, so index sites must use indexUsize
-		instead of this helper.
+		for that case.
 	**/
 	public static function widen(x: String, to: String): String {
 		return to + "::from(" + x + ")";
