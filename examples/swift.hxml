@@ -3,8 +3,8 @@
 # The swift-output define writes output to reference/swift/gen.
 -lib reflaxe
 -lib boring
--cp src/reflaxe/swift/std-shadow
--cp src/reflaxe/swift
+-cp packages/compiler/reflaxe/swift/std-shadow
+-cp packages/compiler/reflaxe/swift
 -cp samples
 -cp samples/haxe
 -cp tools/registry/src

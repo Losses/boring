@@ -2,7 +2,7 @@
 
 boring is a Haxe package that exposes the transpilation toolchain to
 tiqian. tiqian provides the original Haxe sources and translates them to
-each platform through the reflaxe targets under `src/reflaxe/`. This
+each platform through the reflaxe targets under `packages/compiler/reflaxe/`. This
 repository hosts the targets, the interception pass, the capability
 samples under `samples/`, the generation entries under `examples/`, the
 hand-written reference translations under `reference/`, and the tooling
@@ -97,14 +97,14 @@ reflaxe smoke compile. Individual commands:
 
 ## Layout
 
-- `src/`: the transpilation toolchain, exposed as the `boring` haxelib
+- `packages/compiler/`: the transpilation toolchain, exposed as the `boring` haxelib
   package through `haxelib.json` (class path, reflaxe dependency),
   `extraParams.hxml` (the documented set of package parameters), and
   `defines.json` (the define descriptions registered for
   `haxe --help-defines`). It holds the interception pass
-  (`src/Intercept.hx`), the shared runtime-package configuration
-  (`src/RuntimeConfig.hx`), and the reflaxe targets under
-  `src/reflaxe/ts/`, `src/reflaxe/kotlin/`, and `src/reflaxe/rust/`,
+  (`packages/compiler/Intercept.hx`), the shared runtime-package configuration
+  (`packages/compiler/RuntimeConfig.hx`), and the reflaxe targets under
+  `packages/compiler/reflaxe/ts/`, `packages/compiler/reflaxe/kotlin/`, and `packages/compiler/reflaxe/rust/`,
   each with its compiler package and its `std-shadow` of the `haxe.io`
   externs. The target directories sit at non-package-aligned depth, so
   a compilation adds them through explicit class paths as the examples
@@ -147,7 +147,7 @@ reflaxe smoke compile. Individual commands:
   commit tool, the git hooks, and the vector generator.
 
 Test tooling and language implementations are separate trees: a language
-implementation lives under `src/`, `samples/`, or `reference/`;
+implementation lives under `packages/compiler/`, `samples/`, or `reference/`;
 everything that verifies an implementation lives under `tests/`. No
 language keeps a separate runtime tree: TypeScript runs under bun, Rust
 builds with cargo, the Haxe test binary is compiled JS executed by bun,
