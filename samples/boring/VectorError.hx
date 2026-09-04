@@ -5,11 +5,12 @@
  * and the Kotlin sealed `VectorException` one to one. Messages are display
  * text derived from the variant; no consumer reads them back.
  */
+
 package boring;
 
 enum VectorError {
-	BadMagic;
-	CountOverflow;
-	UnexpectedEof;
-	TrailingBytes(remaining:Int);
+    BadMagic;
+    CountOverflow;
+    UnexpectedEof;
+    TrailingBytes(remaining:Int);
 }

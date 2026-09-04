@@ -9,47 +9,47 @@ import haxe.io.BytesBuffer;
  * signed Int carries every value used here without sign concerns.
  */
 class BinaryWriter {
-	final buffer:BytesBuffer;
+    final buffer:BytesBuffer;
 
-	public function new() {
-		buffer = new BytesBuffer();
-	}
+    public function new() {
+        buffer = new BytesBuffer();
+    }
 
-	public function writeU16(value:Int):Void {
-		buffer.addByte((value >>> 8) & 0xFF);
-		buffer.addByte(value & 0xFF);
-	}
+    public function writeU16(value:Int):Void {
+        buffer.addByte((value >>> 8) & 0xFF);
+        buffer.addByte(value & 0xFF);
+    }
 
-	public function writeU32(value:Int):Void {
-		buffer.addByte((value >>> 24) & 0xFF);
-		buffer.addByte((value >>> 16) & 0xFF);
-		buffer.addByte((value >>> 8) & 0xFF);
-		buffer.addByte(value & 0xFF);
-	}
+    public function writeU32(value:Int):Void {
+        buffer.addByte((value >>> 24) & 0xFF);
+        buffer.addByte((value >>> 16) & 0xFF);
+        buffer.addByte((value >>> 8) & 0xFF);
+        buffer.addByte(value & 0xFF);
+    }
 
-	public function writeF64(value:Float):Void {
-		final bits = haxe.io.FPHelper.doubleToI64(value);
-		// The Int64 parts carry raw two's-complement bits; writing them as
-		// two u32 words keeps the byte order identical on every target.
-		writeU32(bits.high);
-		writeU32(bits.low);
-	}
+    public function writeF64(value:Float):Void {
+        final bits = haxe.io.FPHelper.doubleToI64(value);
+        // The Int64 parts carry raw two's-complement bits; writing them as
+        // two u32 words keeps the byte order identical on every target.
+        writeU32(bits.high);
+        writeU32(bits.low);
+    }
 
-	public function writeF32(value:Float):Void {
-		writeU32(Fp32.toBits(value));
-	}
+    public function writeF32(value:Float):Void {
+        writeU32(Fp32.toBits(value));
+    }
 
-	public function writeF16(value:Float):Void {
-		writeU16(Fp16.f32ToF16Bits(Fp32.toBits(value)));
-	}
+    public function writeF16(value:Float):Void {
+        writeU16(Fp16.f32ToF16Bits(Fp32.toBits(value)));
+    }
 
-	public function writeAscii(value:String):Void {
-		for (index in 0...value.length) {
-			buffer.addByte(value.charCodeAt(index) & 0xFF);
-		}
-	}
+    public function writeAscii(value:String):Void {
+        for (index in 0...value.length) {
+            buffer.addByte(value.charCodeAt(index) & 0xFF);
+        }
+    }
 
-	public function finish():Bytes {
-		return buffer.getBytes();
-	}
+    public function finish():Bytes {
+        return buffer.getBytes();
+    }
 }

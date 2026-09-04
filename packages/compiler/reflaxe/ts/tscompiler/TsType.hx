@@ -5,256 +5,274 @@ import haxe.macro.Context;
 import haxe.macro.Type;
 
 enum KeyDomain {
-	IntKey;
-	StringKey;
-	StructKey(def: DefType, fields: Array<ClassField>);
-	DataClassKey(cls: ClassType, fields: Array<ClassField>);
+    IntKey;
+    StringKey;
+    StructKey(def:DefType, fields:Array<ClassField>);
+    DataClassKey(cls:ClassType, fields:Array<ClassField>);
 }
 
 /**
-	Type mapping from the translatable Haxe subset to TypeScript, per
-	docs/specs/features/14-type-system-mapping.md and the stdlib rulings:
-	haxe.io.Bytes is Uint8Array (stdlib/01), haxe.io.BytesBuffer is the
-	runtime growth class (stdlib/02), haxe.Int64 stays out of value
-	domain (stdlib/05), ReadOnlyArray<T> is `readonly T[]` (features/18).
+    Type mapping from the translatable Haxe subset to TypeScript, per
+    docs/specs/features/14-type-system-mapping.md and the stdlib rulings:
+    haxe.io.Bytes is Uint8Array (stdlib/01), haxe.io.BytesBuffer is the
+    runtime growth class (stdlib/02), haxe.Int64 stays out of value
+    domain (stdlib/05), ReadOnlyArray<T> is `readonly T[]` (features/18).
 **/
 class TsType {
+    final imports:TsImports;
 
-	final imports: TsImports;
+    public function new(imports:TsImports) {
+        this.imports = imports;
+    }
 
-	public function new(imports: TsImports) {
-		this.imports = imports;
-	}
+    public function of(t:Null<Type>):String {
+        if (t == null) {
+            return "void";
+        }
+        return switch (t) {
+            case TAbstract(a, params):
+                final abs = a.get();
+                if (ValueTypeSupport.isMarkedAbstract(abs)) {
+                    imports.type(abs.module, abs.name);
+                    abs.name;
+                } else switch (pathOf(abs.pack, abs.name)) {
+                    case "Int", "Float": "number";
+                    case "Bool": "boolean";
+                    case "Void": "void";
+                    case "Null": of(params[0]) + " | null";
+                    case "haxe.ds.Map" if (params.length == 2): "Map<" + of(params[0]) + ", " + of(params[1]) + ">";
+                    case "std.ReadOnlyArray": "readonly " + of(params[0]) + "[]";
+                    case "haxe.Int64": "bigint";
+                    case _: of(abs.type);
+                };
+            case TInst(c, params):
+                final cls = c.get();
+                switch (pathOf(cls.pack, cls.name)) {
+                    case "String" | "std.StringBuf" | "StringBuf": "string";
+                    case "Array": of(params[0]) + "[]";
+                    case "haxe.io.Bytes": "Uint8Array";
+                    case "haxe.io.BytesBuffer":
+                        imports.runtime("BytesBuffer");
+                        "BytesBuffer";
+                    case "std.SortedMap":
+                        imports.runtime("SortedMapTable");
+                        "SortedMapTable<" + of(params[0]) + ", " + of(params[1]) + ">";
+                    case "std.SortedMapBuilder":
+                        imports.runtime("SortedMapTableBuilder");
+                        "SortedMapTableBuilder<" + of(params[0]) + ", " + of(params[1]) + ">";
+                    case "std.SortedSet":
+                        imports.runtime("SortedSetTable");
+                        "SortedSetTable<" + of(params[0]) + ">";
+                    case "std.SortedSetBuilder":
+                        imports.runtime("SortedSetTableBuilder");
+                        "SortedSetTableBuilder<" + of(params[0]) + ">";
+                    case _:
+                        imports.type(cls.module, cls.name);
+                        if (params.length > 0) {
+                            cls.name + "<" + [for (p in params) of(p)].join(", ") + ">";
+                        } else {
+                            cls.name;
+                        }
+                }
+            case TType(def, params):
+                final d = def.get();
+                if (d.pack.join(".") == "haxe.io" && d.name == "Bytes") {
+                    "Uint8Array";
+                } else if (d.pack.length == 0 && d.name == "Map" && params.length == 2) {
+                    "Map<" + of(params[0]) + ", " + of(params[1]) + ">";
+                } else if (RuntimeResidents.isResident(d.module) && params.length > 0) {
+                    // A resident typedef lowers to a generic type alias
+                    // inside the runtime file (TsDecl.functionTypeDecl);
+                    // references carry the applied arguments.
+                    d.name + "<" + [for (p in params) of(p)].join(", ") + ">";
+                } else if (params.length == 0) {
+                    imports.type(d.module, d.name);
+                    d.name;
+                } else {
+                    fail(t);
+                }
+            case TEnum(e, _):
+                final en = e.get();
+                imports.type(en.module, en.name);
+                en.name;
+            case TFun(args, ret):
+                // Function types written without argument names, like the
+                // comparator `(K, K) -> Int`, still need positional names
+                // in TypeScript.
+                "(" + [
+                    for (index in 0...args.length) {
+                        final arg = args[index];
+                        final argName = arg.name != "" ? arg.name : "a" + index;
+                        '${argName}: ${of(arg.t)}';
+                    }
+                ].join(", ") + ") => " + of(ret);
+            case TAnonymous(_):
+                Context.error("anonymous structure types must be named typedefs before translation", Context.currentPos());
+                null;
+            case TDynamic(_) | TMono(_):
+                fail(t);
+            case TLazy(f): of(f());
+        }
+    }
 
-	public function of(t: Null<Type>): String {
-		if(t == null) {
-			return "void";
-		}
-		return switch(t) {
-			case TAbstract(a, params):
-				final abs = a.get();
-				if(ValueTypeSupport.isMarkedAbstract(abs)) {
-					imports.type(abs.module, abs.name);
-					abs.name;
-				} else switch(pathOf(abs.pack, abs.name)) {
-					case "Int", "Float": "number";
-					case "Bool": "boolean";
-					case "Void": "void";
-					case "Null": of(params[0]) + " | null";
-					case "haxe.ds.Map" if(params.length == 2): "Map<" + of(params[0]) + ", " + of(params[1]) + ">";
-					case "std.ReadOnlyArray": "readonly " + of(params[0]) + "[]";
-					case "haxe.Int64": "bigint";
-					case _: of(abs.type);
-				};
-			case TInst(c, params):
-				final cls = c.get();
-				switch(pathOf(cls.pack, cls.name)) {
-					case "String" | "std.StringBuf" | "StringBuf": "string";
-					case "Array": of(params[0]) + "[]";
-					case "haxe.io.Bytes": "Uint8Array";
-					case "haxe.io.BytesBuffer":
-						imports.runtime("BytesBuffer");
-						"BytesBuffer";
-					case "std.SortedMap":
-						imports.runtime("SortedMapTable");
-						"SortedMapTable<" + of(params[0]) + ", " + of(params[1]) + ">";
-					case "std.SortedMapBuilder":
-						imports.runtime("SortedMapTableBuilder");
-						"SortedMapTableBuilder<" + of(params[0]) + ", " + of(params[1]) + ">";
-					case "std.SortedSet":
-						imports.runtime("SortedSetTable");
-						"SortedSetTable<" + of(params[0]) + ">";
-					case "std.SortedSetBuilder":
-						imports.runtime("SortedSetTableBuilder");
-						"SortedSetTableBuilder<" + of(params[0]) + ">";
-					case _:
-						imports.type(cls.module, cls.name);
-						if(params.length > 0) {
-							cls.name + "<" + [for(p in params) of(p)].join(", ") + ">";
-						} else {
-							cls.name;
-						}
+    public function moduleBase(module:String):String {
+        final parts = module.split(".");
+        return parts[parts.length - 1];
+    }
 
-				}
-			case TType(def, params):
-				final d = def.get();
-				if(d.pack.join(".") == "haxe.io" && d.name == "Bytes") {
-					"Uint8Array";
-				} else if(d.pack.length == 0 && d.name == "Map" && params.length == 2) {
-					"Map<" + of(params[0]) + ", " + of(params[1]) + ">";
-				} else if(RuntimeResidents.isResident(d.module) && params.length > 0) {
-					// A resident typedef lowers to a generic type alias
-					// inside the runtime file (TsDecl.functionTypeDecl);
-					// references carry the applied arguments.
-					d.name + "<" + [for(p in params) of(p)].join(", ") + ">";
-				} else if(params.length == 0) {
-					imports.type(d.module, d.name);
-					d.name;
-				} else {
-					fail(t);
-				}
-			case TEnum(e, _):
-				final en = e.get();
-				imports.type(en.module, en.name);
-				en.name;
-			case TFun(args, ret):
-				// Function types written without argument names, like the
-				// comparator `(K, K) -> Int`, still need positional names
-				// in TypeScript.
-				"(" + [for(index in 0...args.length) {
-					final arg = args[index];
-					final argName = arg.name != "" ? arg.name : "a" + index;
-					'${argName}: ${of(arg.t)}';
-				}].join(", ") + ") => " + of(ret);
-			case TAnonymous(_):
-				Context.error("anonymous structure types must be named typedefs before translation", Context.currentPos());
-				null;
-			case TDynamic(_) | TMono(_):
-				fail(t);
-			case TLazy(f): of(f());
-		}
-	}
+    function pathOf(pack:Array<String>, name:String):String {
+        return pack.length == 0 ? name : pack.join(".") + "." + name;
+    }
 
-	public function moduleBase(module: String): String {
-		final parts = module.split(".");
-		return parts[parts.length - 1];
-	}
+    public static function classifyKey(t:Null<Type>, ?pos:haxe.macro.Expr.Position):KeyDomain {
+        if (t == null) {
+            final p = pos != null ? pos : Context.currentPos();
+            Context.error("sorted keyed tables support Int, String, structure, and dataClass keys in this implementation", p);
+            return IntKey;
+        }
+        final p = pos != null ? pos : Context.currentPos();
+        return switch (t) {
+            case TAbstract(a, _):
+                if (a.get().name == "Int") {
+                    IntKey;
+                } else {
+                    Context.error("sorted keyed tables support Int, String, structure, and dataClass keys in this implementation", p);
+                    IntKey;
+                }
+            case TInst(c, _):
+                final cls = c.get();
+                if (cls.name == "String") {
+                    StringKey;
+                } else if (cls.meta.has(":dataClass")) {
+                    final fields = [
+                        for (f in cls.fields.get()) if (switch (f.kind) {
+                                case FVar(read, write): !(read.match(AccCall) && write.match(AccNever));
+                                case _: false;
+                            }) f
+                    ];
+                    for (f in fields)
+                        validateDataClassField(cls, f);
+                    DataClassKey(cls, fields);
+                } else {
+                    Context.error("sorted keyed tables support Int, String, structure, and dataClass keys in this implementation", p);
+                    IntKey;
+                }
+            case TType(defRef, _):
+                final def = defRef.get();
+                final fields = validateStructDef(def, p, [def.name]);
+                StructKey(def, fields);
+            case TLazy(f):
+                classifyKey(f(), p);
+            case _:
+                Context.error("sorted keyed tables support Int, String, structure, and dataClass keys in this implementation", p);
+                IntKey;
+        }
+    }
 
-	function pathOf(pack: Array<String>, name: String): String {
-		return pack.length == 0 ? name : pack.join(".") + "." + name;
-	}
+    static function validateStructDef(def:DefType, pos:haxe.macro.Expr.Position, visited:Array<String>):Array<ClassField> {
+        return switch (def.type) {
+            case TAnonymous(anonRef):
+                final fields = anonRef.get().fields.copy();
+                fields.sort((a, b) -> Reflect.compare(Context.getPosInfos(a.pos).min, Context.getPosInfos(b.pos).min));
+                for (f in fields) {
+                    validateFieldType(f.type, f.pos, visited);
+                }
+                fields;
+            case TType(innerDefRef, _):
+                validateStructDef(innerDefRef.get(), pos, visited);
+            case _:
+                Context.error("sorted keyed tables support Int, String, structure, and dataClass keys in this implementation", pos);
+                [];
+        }
+    }
 
-	public static function classifyKey(t: Null<Type>, ?pos: haxe.macro.Expr.Position): KeyDomain {
-		if(t == null) {
-			final p = pos != null ? pos : Context.currentPos();
-			Context.error("sorted keyed tables support Int, String, structure, and dataClass keys in this implementation", p);
-			return IntKey;
-		}
-		final p = pos != null ? pos : Context.currentPos();
-		return switch(t) {
-			case TAbstract(a, _):
-				if(a.get().name == "Int") {
-					IntKey;
-				} else {
-					Context.error("sorted keyed tables support Int, String, structure, and dataClass keys in this implementation", p);
-					IntKey;
-				}
-			case TInst(c, _):
-				final cls = c.get();
-				if(cls.name == "String") {
-					StringKey;
-				} else if(cls.meta.has(":dataClass")) {
-					final fields = [for(f in cls.fields.get()) if(switch(f.kind) { case FVar(read, write): !(read.match(AccCall) && write.match(AccNever)); case _: false; }) f];
-					for(f in fields) validateDataClassField(cls, f);
-					DataClassKey(cls, fields);
-				} else {
-					Context.error("sorted keyed tables support Int, String, structure, and dataClass keys in this implementation", p);
-					IntKey;
-				}
-			case TType(defRef, _):
-				final def = defRef.get();
-				final fields = validateStructDef(def, p, [def.name]);
-				StructKey(def, fields);
-			case TLazy(f):
-				classifyKey(f(), p);
-			case _:
-				Context.error("sorted keyed tables support Int, String, structure, and dataClass keys in this implementation", p);
-				IntKey;
-		}
-	}
+    static function validateDataClassField(cls:ClassType, field:ClassField):Void {
+        if (!isDataClassFieldKey(field.type)) {
+            Context.error("dataClass key " + cls.name + " field " + field.name + " has unsupported type " + field.type, field.pos);
+            return;
+        }
+        switch (Context.follow(field.type)) {
+            case TInst(c, _) if (c.get().meta.has(":dataClass")):
+                for (f in c.get().fields.get())
+                    if (switch (f.kind) {
+                            case FVar(read, write): !(read.match(AccCall) && write.match(AccNever));
+                            case _: false;
+                        })
+                        validateDataClassField(c.get(), f);
+            case _:
+        }
+    }
 
-	static function validateStructDef(def: DefType, pos: haxe.macro.Expr.Position, visited: Array<String>): Array<ClassField> {
-		return switch(def.type) {
-			case TAnonymous(anonRef):
-				final fields = anonRef.get().fields.copy();
-				fields.sort((a, b) -> Reflect.compare(Context.getPosInfos(a.pos).min, Context.getPosInfos(b.pos).min));
-				for(f in fields) {
-					validateFieldType(f.type, f.pos, visited);
-				}
-				fields;
-			case TType(innerDefRef, _):
-				validateStructDef(innerDefRef.get(), pos, visited);
-			case _:
-				Context.error("sorted keyed tables support Int, String, structure, and dataClass keys in this implementation", pos);
-				[];
-		}
-	}
+    public static function canEmitDataClassComparator(cls:ClassType):Bool {
+        for (f in cls.fields.get())
+            if (switch (f.kind) {
+                    case FVar(read, write): !(read.match(AccCall) && write.match(AccNever)) && !isDataClassFieldKey(f.type);
+                    case _: false;
+                })
+                return false;
+        return true;
+    }
 
-	static function validateDataClassField(cls: ClassType, field: ClassField): Void {
-		if(!isDataClassFieldKey(field.type)) {
-			Context.error("dataClass key " + cls.name + " field " + field.name + " has unsupported type " + field.type, field.pos);
-			return;
-		}
-		switch(Context.follow(field.type)) {
-			case TInst(c, _) if(c.get().meta.has(":dataClass")):
-				for(f in c.get().fields.get()) if(switch(f.kind) { case FVar(read, write): !(read.match(AccCall) && write.match(AccNever)); case _: false; }) validateDataClassField(c.get(), f);
-			case _:
-		}
-	}
+    static function isDataClassFieldKey(t:Type):Bool {
+        return switch (t) {
+            case TAbstract(a, params): a.get()
+                    .name == "Int" || (a.get()
+                    .name == "Null" && params.length == 1 && isDataClassFieldKey(params[0])) || (a.get().pack.join(".") == "std"
+                    && a.get().name == "ReadOnlyArray" && params.length == 1 && isDataClassFieldKey(params[0]));
+            case TEnum(_, _): true;
+            case TInst(c, _): c.get().name == "String" || c.get().meta.has(":dataClass");
+            case TLazy(f): isDataClassFieldKey(f());
+            case _: switch (Context.follow(t)) {
+                    case TAbstract(a, params): a.get()
+                            .name == "Int" || (a.get()
+                            .name == "Null" && params.length == 1 && isDataClassFieldKey(params[0])) || (a.get().pack.join(".") == "std"
+                            && a.get().name == "ReadOnlyArray" && params.length == 1 && isDataClassFieldKey(params[0]));
+                    case TInst(c, _): c.get().name == "String" || c.get().meta.has(":dataClass");
+                    case TEnum(_, _): true;
+                    case _: false;
+                };
+        };
+    }
 
-	public static function canEmitDataClassComparator(cls: ClassType): Bool {
-		for(f in cls.fields.get()) if(switch(f.kind) { case FVar(read, write): !(read.match(AccCall) && write.match(AccNever)) && !isDataClassFieldKey(f.type); case _: false; }) return false;
-		return true;
-	}
+    static function validateFieldType(t:Type, pos:haxe.macro.Expr.Position, visited:Array<String>):Void {
+        switch (t) {
+            case TAbstract(a, _):
+                final name = a.get().name;
+                if (name == "Int" || name == "Bool") {
+                    return;
+                }
+                Context.error("structure key fields must be Int, Bool, String, or a nested structure", pos);
+            case TInst(c, _):
+                if (c.get().name == "String") {
+                    return;
+                }
+                Context.error("structure key fields must be Int, Bool, String, or a nested structure", pos);
+            case TType(dRef, _):
+                final def = dRef.get();
+                if (visited.indexOf(def.name) >= 0) {
+                    Context.error("structure key fields must be Int, Bool, String, or a nested structure", pos);
+                    return;
+                }
+                switch (def.type) {
+                    case TAnonymous(_):
+                        final nextVisited = visited.copy();
+                        nextVisited.push(def.name);
+                        validateStructDef(def, pos, nextVisited);
+                    case TType(innerRef, _):
+                        validateFieldType(def.type, pos, visited);
+                    case _:
+                        Context.error("structure key fields must be Int, Bool, String, or a nested structure", pos);
+                }
+            case TLazy(f):
+                validateFieldType(f(), pos, visited);
+            case _:
+                Context.error("structure key fields must be Int, Bool, String, or a nested structure", pos);
+        }
+    }
 
-	static function isDataClassFieldKey(t: Type): Bool {
-		return switch(t) {
-			case TAbstract(a, params): a.get().name == "Int"
-				|| (a.get().name == "Null" && params.length == 1 && isDataClassFieldKey(params[0]))
-				|| (a.get().pack.join(".") == "std" && a.get().name == "ReadOnlyArray" && params.length == 1 && isDataClassFieldKey(params[0]));
-			case TEnum(_, _): true;
-			case TInst(c, _): c.get().name == "String" || c.get().meta.has(":dataClass");
-			case TLazy(f): isDataClassFieldKey(f());
-			case _: switch(Context.follow(t)) {
-				case TAbstract(a, params): a.get().name == "Int"
-					|| (a.get().name == "Null" && params.length == 1 && isDataClassFieldKey(params[0]))
-					|| (a.get().pack.join(".") == "std" && a.get().name == "ReadOnlyArray" && params.length == 1 && isDataClassFieldKey(params[0]));
-				case TInst(c, _): c.get().name == "String" || c.get().meta.has(":dataClass");
-				case TEnum(_, _): true;
-				case _: false;
-			};
-		};
-	}
-
-	static function validateFieldType(t: Type, pos: haxe.macro.Expr.Position, visited: Array<String>): Void {
-		switch(t) {
-			case TAbstract(a, _):
-				final name = a.get().name;
-				if(name == "Int" || name == "Bool") {
-					return;
-				}
-				Context.error("structure key fields must be Int, Bool, String, or a nested structure", pos);
-			case TInst(c, _):
-				if(c.get().name == "String") {
-					return;
-				}
-				Context.error("structure key fields must be Int, Bool, String, or a nested structure", pos);
-			case TType(dRef, _):
-				final def = dRef.get();
-				if(visited.indexOf(def.name) >= 0) {
-					Context.error("structure key fields must be Int, Bool, String, or a nested structure", pos);
-					return;
-				}
-				switch(def.type) {
-					case TAnonymous(_):
-						final nextVisited = visited.copy();
-						nextVisited.push(def.name);
-						validateStructDef(def, pos, nextVisited);
-					case TType(innerRef, _):
-						validateFieldType(def.type, pos, visited);
-					case _:
-						Context.error("structure key fields must be Int, Bool, String, or a nested structure", pos);
-				}
-			case TLazy(f):
-				validateFieldType(f(), pos, visited);
-			case _:
-				Context.error("structure key fields must be Int, Bool, String, or a nested structure", pos);
-		}
-	}
-
-	function fail(t: Type): String {
-		Context.error("type has no TypeScript lowering in the translatable subset: " + Std.string(t), Context.currentPos());
-		return null;
-	}
+    function fail(t:Type):String {
+        Context.error("type has no TypeScript lowering in the translatable subset: " + Std.string(t), Context.currentPos());
+        return null;
+    }
 }
 #end

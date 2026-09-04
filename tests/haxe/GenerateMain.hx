@@ -3,5 +3,5 @@
 // compile resolves -main TestMain, because classpath listings are cached
 // before macro callbacks run and a first run on a fresh tree would fail.
 class GenerateMain {
-	static function main():Void {}
+    static function main():Void {}
 }

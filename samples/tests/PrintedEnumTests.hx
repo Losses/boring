@@ -1,4 +1,5 @@
 package tests;
+
 import boring.PrintedEnumOps;
 import boring.PrintedEnumOps.PrintedMark;
 import boring.FloatWidth;
@@ -9,19 +10,19 @@ import std.Test;
 // enum values in labeled constructor forms. The array separator row keeps
 // the one remaining native difference.
 class PrintedEnumTests {
-	@:test("enum constructor printed forms")
-	public static function forms():Void {
-		Test.equals("Plain", PrintedEnumOps.markValue(Plain));
-		Test.equals("mark=Ring(diameter=1.5)", PrintedEnumOps.markText(Ring(1.5)));
-		final label = "x";
-		Test.equals("Tag(text=x, weight=2)", PrintedEnumOps.markValue(Tag(label, 2)));
-		Test.equals("PrintedBadge(mark=Ring(diameter=1.5), width=F64)", PrintedEnumOps.badgeText(new PrintedBadge(Ring(1.5), F64)));
-		Test.equals("Trail(steps=[1, 2])", PrintedEnumOps.markValue(Trail([1, 2])));
-		Test.equals("Aliases(names=[alpha, beta])", PrintedEnumOps.markValue(Aliases(["alpha", "beta"])));
-		#if boring_oracle
-		Test.equals("[Plain,Ring(1.5)]", PrintedEnumOps.markList([Plain, Ring(1.5)]));
-		#else
-		Test.equals("[Plain, Ring(diameter=1.5)]", PrintedEnumOps.markList([Plain, Ring(1.5)]));
-		#end
-	}
+    @:test("enum constructor printed forms")
+    public static function forms():Void {
+        Test.equals("Plain", PrintedEnumOps.markValue(Plain));
+        Test.equals("mark=Ring(diameter=1.5)", PrintedEnumOps.markText(Ring(1.5)));
+        final label = "x";
+        Test.equals("Tag(text=x, weight=2)", PrintedEnumOps.markValue(Tag(label, 2)));
+        Test.equals("PrintedBadge(mark=Ring(diameter=1.5), width=F64)", PrintedEnumOps.badgeText(new PrintedBadge(Ring(1.5), F64)));
+        Test.equals("Trail(steps=[1, 2])", PrintedEnumOps.markValue(Trail([1, 2])));
+        Test.equals("Aliases(names=[alpha, beta])", PrintedEnumOps.markValue(Aliases(["alpha", "beta"])));
+        #if boring_oracle
+        Test.equals("[Plain,Ring(1.5)]", PrintedEnumOps.markList([Plain, Ring(1.5)]));
+        #else
+        Test.equals("[Plain, Ring(diameter=1.5)]", PrintedEnumOps.markList([Plain, Ring(1.5)]));
+        #end
+    }
 }

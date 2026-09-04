@@ -11,21 +11,21 @@ import std.StringBuf;
  */
 @:build(DataTables.codeUnitsField("samples/data/synthetic-payload-text.txt", "TEXT_UNITS"))
 class PayloadTextTable {
-	public static function text():String {
-		final output = new StringBuf();
-		var index:Int = 0;
-		while (index < TEXT_UNITS.length) {
-			output.add(String.fromCharCode(TEXT_UNITS[index]));
-			index += 1;
-		}
-		return output.toString();
-	}
+    public static function text():String {
+        final output = new StringBuf();
+        var index:Int = 0;
+        while (index < TEXT_UNITS.length) {
+            output.add(String.fromCharCode(TEXT_UNITS[index]));
+            index += 1;
+        }
+        return output.toString();
+    }
 
-	public static function unitCount():Int {
-		return TEXT_UNITS.length;
-	}
+    public static function unitCount():Int {
+        return TEXT_UNITS.length;
+    }
 
-	public static function unitAt(index:Int):Int {
-		return TEXT_UNITS[index];
-	}
+    public static function unitAt(index:Int):Int {
+        return TEXT_UNITS[index];
+    }
 }

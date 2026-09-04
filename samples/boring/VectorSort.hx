@@ -8,21 +8,21 @@ package boring;
  * array for the identical input.
  */
 class VectorSort {
-	/**
-		Sorts records in place by code point, ascending, stable. Returns the
-		same array.
-	**/
-	public static function byCodePoint(records:Array<GlyphMetrics>):Array<GlyphMetrics> {
-		for (write in 1...records.length) {
-			final record = records[write];
-			final key = record.codePoint;
-			var read = write - 1;
-			while (read >= 0 && records[read].codePoint > key) {
-				records[read + 1] = records[read];
-				read -= 1;
-			}
-			records[read + 1] = record;
-		}
-		return records;
-	}
+    /**
+        Sorts records in place by code point, ascending, stable. Returns the
+        same array.
+    **/
+    public static function byCodePoint(records:Array<GlyphMetrics>):Array<GlyphMetrics> {
+        for (write in 1...records.length) {
+            final record = records[write];
+            final key = record.codePoint;
+            var read = write - 1;
+            while (read >= 0 && records[read].codePoint > key) {
+                records[read + 1] = records[read];
+                read -= 1;
+            }
+            records[read + 1] = record;
+        }
+        return records;
+    }
 }

@@ -12,18 +12,18 @@ package std;
  * whose inline wrappers route into runtime.UString.
  */
 extern class UStringPlatform {
-	/** The cursor position one past the last character. */
-	public static function end(s:String):Int;
+    /** The cursor position one past the last character. */
+    public static function end(s:String):Int;
 
-	/** The code point that starts at `cursor`, which must sit on a boundary. */
-	public static function codeAt(s:String, cursor:Int):Int;
+    /** The code point that starts at `cursor`, which must sit on a boundary. */
+    public static function codeAt(s:String, cursor:Int):Int;
 
-	/** The cursor of the next character. */
-	public static function advance(s:String, cursor:Int):Int;
+    /** The cursor of the next character. */
+    public static function advance(s:String, cursor:Int):Int;
 
-	/** The substring between two boundary cursors, `start` no greater than `stop`. */
-	public static function substringBetween(s:String, startCursor:Int, stopCursor:Int):String;
+    /** The substring between two boundary cursors, `start` no greater than `stop`. */
+    public static function substringBetween(s:String, startCursor:Int, stopCursor:Int):String;
 
-	/** The string holding one code point of the valid domain. */
-	public static function fromCodePoint(code:Int):String;
+    /** The string holding one code point of the valid domain. */
+    public static function fromCodePoint(code:Int):String;
 }

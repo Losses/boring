@@ -4,19 +4,20 @@
  * `@:test` functions and nothing else, so probes live in an ordinary
  * class and cross into the tests through the normal member lowering.
  */
+
 package tests;
 
 import boring.ValueException;
 import boring.ValueRecord;
 
 class ValueRecordProbes {
-	public static function ctorRejected(start:Int, end:Int):Bool {
-		var rejected = false;
-		try {
-			new ValueRecord(start, end, "probe");
-		} catch (_:ValueException) {
-			rejected = true;
-		}
-		return rejected;
-	}
+    public static function ctorRejected(start:Int, end:Int):Bool {
+        var rejected = false;
+        try {
+            new ValueRecord(start, end, "probe");
+        } catch (_:ValueException) {
+            rejected = true;
+        }
+        return rejected;
+    }
 }

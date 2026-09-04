@@ -11,15 +11,15 @@ import std.RecordEq;
  */
 @:dataClass
 class RecordOrderShifted {
-	public final a:Int;
-	public final b:Int;
-	public final c:String;
+    public final a:Int;
+    public final b:Int;
+    public final c:String;
 
-	public function new(a:Int, c:String, ?b:Int) {
-		this.a = a;
-		this.b = b == null ? 0 : b;
-		this.c = c;
-	}
+    public function new(a:Int, c:String, ?b:Int) {
+        this.a = a;
+        this.b = b == null ? 0 : b;
+        this.c = c;
+    }
 }
 
 /**
@@ -29,15 +29,15 @@ class RecordOrderShifted {
  */
 @:dataClass
 class RecordOrderAligned {
-	public final a:Int;
-	public final b:Int;
-	public final c:String;
+    public final a:Int;
+    public final b:Int;
+    public final c:String;
 
-	public function new(a:Int, b:Int, c:String) {
-		this.a = a;
-		this.b = b;
-		this.c = c;
-	}
+    public function new(a:Int, b:Int, c:String) {
+        this.a = a;
+        this.b = b;
+        this.c = c;
+    }
 }
 
 /**
@@ -45,21 +45,21 @@ class RecordOrderAligned {
  * an equality check.
  */
 class RecordOrderOps {
-	public static function shiftedPrinted():String {
-		return new RecordOrderShifted(1, "x", 5).toString();
-	}
+    public static function shiftedPrinted():String {
+        return new RecordOrderShifted(1, "x", 5).toString();
+    }
 
-	public static function shiftedDefaulted():String {
-		return new RecordOrderShifted(1, "x").toString();
-	}
+    public static function shiftedDefaulted():String {
+        return new RecordOrderShifted(1, "x").toString();
+    }
 
-	public static function alignedPrinted():String {
-		return new RecordOrderAligned(1, 5, "x").toString();
-	}
+    public static function alignedPrinted():String {
+        return new RecordOrderAligned(1, 5, "x").toString();
+    }
 
-	public static function shiftedEqual():Bool {
-		final left = new RecordOrderShifted(1, "x", 5);
-		final right = new RecordOrderShifted(1, "x", 5);
-		return RecordEq.eq(left, right);
-	}
+    public static function shiftedEqual():Bool {
+        final left = new RecordOrderShifted(1, "x", 5);
+        final right = new RecordOrderShifted(1, "x", 5);
+        return RecordEq.eq(left, right);
+    }
 }

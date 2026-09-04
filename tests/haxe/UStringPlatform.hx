@@ -15,9 +15,9 @@ class UStringPlatform {
 
     public static function codeAt(s:String, cursor:Int):Int {
         final unit = s.charCodeAt(cursor);
-        if(unit >= 0xD800 && unit <= 0xDBFF && cursor + 1 < s.length) {
+        if (unit >= 0xD800 && unit <= 0xDBFF && cursor + 1 < s.length) {
             final next = s.charCodeAt(cursor + 1);
-            if(next >= 0xDC00 && next <= 0xDFFF) {
+            if (next >= 0xDC00 && next <= 0xDFFF) {
                 return 0x10000 + ((unit - 0xD800) << 10) + (next - 0xDC00);
             }
         }
@@ -33,7 +33,7 @@ class UStringPlatform {
     }
 
     public static function fromCodePoint(code:Int):String {
-        if(code < 0x10000) {
+        if (code < 0x10000) {
             return String.fromCharCode(code);
         }
         final offset = code - 0x10000;

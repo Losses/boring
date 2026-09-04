@@ -6,13 +6,13 @@ package boring;
  */
 @:dataClass
 class PrintedCustom {
-	public final value:Int;
+    public final value:Int;
 
-	public function new(value:Int) {
-		this.value = value;
-	}
+    public function new(value:Int) {
+        this.value = value;
+    }
 
-	public function toString():String {
-		return "custom=" + value;
-	}
+    public function toString():String {
+        return "custom=" + value;
+    }
 }

@@ -2,11 +2,11 @@ package rustcompiler;
 
 #if (macro || reflaxe_runtime)
 /**
-	Headerless runtime shim sources for the standard library, emitted on
-	demand under the configured runtime package.
+    Headerless runtime shim sources for the standard library, emitted on
+    demand under the configured runtime package.
 **/
 class RustRuntime {
-	public static final BYTES_BUFFER_SOURCE = '
+    public static final BYTES_BUFFER_SOURCE = '
 pub struct BytesBuffer {
     bytes: Vec<u8>,
 }
@@ -26,7 +26,7 @@ impl BytesBuffer {
 }
 ';
 
-	public static final FP_HELPER_SOURCE = '
+    public static final FP_HELPER_SOURCE = '
 pub struct FPHelper;
 
 pub struct Int64Halves {
@@ -113,7 +113,7 @@ impl FPHelper {
 }
 ';
 
-	public static final CONSOLE_SOURCE = '
+    public static final CONSOLE_SOURCE = '
 pub struct Console;
 
 impl Console {
@@ -123,7 +123,7 @@ impl Console {
 }
 ';
 
-	public static final PROCESS_SOURCE = '
+    public static final PROCESS_SOURCE = '
 pub struct Process;
 
 impl Process {
@@ -133,79 +133,77 @@ impl Process {
 }
 ';
 
-	public static final TEST_SOURCE = [
-		'use std::cell::RefCell;',
-		'use std::fs::OpenOptions;',
-		'use std::io::Write;',
-		'',
-		'thread_local! {',
-		'    static CURRENT_TEST: RefCell<Option<String>> = RefCell::new(None);',
-		'}',
-		'',
-		'// Host edges of the test runtime (P6): the runner state, the language',
-		'// raise, and the result-file edge. The assertion checks and canonical',
-		'// formatting live in runtime.TestCore, compiled beside this module.',
-		'pub fn current_test_id() -> String {',
-		'    CURRENT_TEST.with(|cur| cur.borrow().clone().unwrap_or_default())',
-		'}',
-		'',
-		'pub fn run<F: FnOnce()>(id: &str, name: &str, body: F) {',
-		'    CURRENT_TEST.with(|cur| {',
-		'        *cur.borrow_mut() = Some(id.to_string());',
-		'    });',
-		'    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(body));',
-		'    CURRENT_TEST.with(|cur| {',
-		'        *cur.borrow_mut() = None;',
-		'    });',
-		'    match result {',
-		'        Ok(_) => {',
-		'            record_result(id, name, "pass", None);',
-		'        }',
-		'        Err(err) => {',
-		'            let msg = if let Some(s) = err.downcast_ref::<String>() {',
-		'                s.clone()',
-		'            } else if let Some(s) = err.downcast_ref::<&str>() {',
-		'                s.to_string()',
-		'            } else {',
-		'                "test panicked".to_string()',
-		'            };',
-		'            record_result(id, name, "fail", Some(&msg));',
-		'            std::panic::resume_unwind(err);',
-		'        }',
-		'    }',
-		'}',
-		'',
-		'fn record_result(id: &str, name: &str, verdict: &str, message: Option<&str>) {',
-		'    // The resident builds the record line; this module only writes it.',
-		'    let json_line = crate::runtime::test_core::TestCore::result_line(',
-		'        id,',
-		'        name,',
-		'        verdict == "fail",',
-		'        message.unwrap_or(""),',
-		'    );',
-		'    let file_path = std::env::var("BORING_TEST_RESULTS").unwrap_or_else(|_| "out/test-results/rust.jsonl".to_string());',
-		'    if let Some(parent) = std::path::Path::new(&file_path).parent() {',
-		'        let _ = std::fs::create_dir_all(parent);',
-		'    }',
-		'    if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(&file_path) {',
-		'        let _ = file.write_all(json_line.as_bytes());',
-		'    }',
-		'}',
-	].join("\n");
+    public static final TEST_SOURCE = [
+        'use std::cell::RefCell;',
+        'use std::fs::OpenOptions;',
+        'use std::io::Write;',
+        '',
+        'thread_local! {',
+        '    static CURRENT_TEST: RefCell<Option<String>> = RefCell::new(None);',
+        '}',
+        '',
+        '// Host edges of the test runtime (P6): the runner state, the language',
+        '// raise, and the result-file edge. The assertion checks and canonical',
+        '// formatting live in runtime.TestCore, compiled beside this module.',
+        'pub fn current_test_id() -> String {',
+        '    CURRENT_TEST.with(|cur| cur.borrow().clone().unwrap_or_default())',
+        '}',
+        '',
+        'pub fn run<F: FnOnce()>(id: &str, name: &str, body: F) {',
+        '    CURRENT_TEST.with(|cur| {',
+        '        *cur.borrow_mut() = Some(id.to_string());',
+        '    });',
+        '    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(body));',
+        '    CURRENT_TEST.with(|cur| {',
+        '        *cur.borrow_mut() = None;',
+        '    });',
+        '    match result {',
+        '        Ok(_) => {',
+        '            record_result(id, name, "pass", None);',
+        '        }',
+        '        Err(err) => {',
+        '            let msg = if let Some(s) = err.downcast_ref::<String>() {',
+        '                s.clone()',
+        '            } else if let Some(s) = err.downcast_ref::<&str>() {',
+        '                s.to_string()',
+        '            } else {',
+        '                "test panicked".to_string()',
+        '            };',
+        '            record_result(id, name, "fail", Some(&msg));',
+        '            std::panic::resume_unwind(err);',
+        '        }',
+        '    }',
+        '}',
+        '',
+        'fn record_result(id: &str, name: &str, verdict: &str, message: Option<&str>) {',
+        '    // The resident builds the record line; this module only writes it.',
+        '    let json_line = crate::runtime::test_core::TestCore::result_line(',
+        '        id,',
+        '        name,',
+        '        verdict == "fail",',
+        '        message.unwrap_or(""),',
+        '    );',
+        '    let file_path = std::env::var("BORING_TEST_RESULTS").unwrap_or_else(|_| "out/test-results/rust.jsonl".to_string());',
+        '    if let Some(parent) = std::path::Path::new(&file_path).parent() {',
+        '        let _ = std::fs::create_dir_all(parent);',
+        '    }',
+        '    if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(&file_path) {',
+        '        let _ = file.write_all(json_line.as_bytes());',
+        '    }',
+        '}',
+    ].join("\n");
 
-
-
-	/**
-		Business ABI adapters appended to the compiled runtime.UString class
-		in u_string.rs
-		(docs/specs/stdlib/10-unicode-string-access.md). Business modules
-		render haxe Int as u32 while the resident class renders i32, and
-		Null and Array results have no call-site cast machinery, so the
-		adapters cast once here. substring and its unit-to-byte helpers
-		keep their P3 contract: the UTF-16 unit bounds of the haxe
-		substring member lower into them directly.
-	**/
-	public static final USTRING_ABI_SOURCE = '
+    /**
+        Business ABI adapters appended to the compiled runtime.UString class
+        in u_string.rs
+        (docs/specs/stdlib/10-unicode-string-access.md). Business modules
+        render haxe Int as u32 while the resident class renders i32, and
+        Null and Array results have no call-site cast machinery, so the
+        adapters cast once here. substring and its unit-to-byte helpers
+        keep their P3 contract: the UTF-16 unit bounds of the haxe
+        substring member lower into them directly.
+    **/
+    public static final USTRING_ABI_SOURCE = '
 // Business ABI adapters over the resident UString class: Int arguments
 // arrive unsigned (u32) and results return u32; the class works in i32.
 // slice and substring keep i32 bounds because negative bounds are part
@@ -447,16 +445,16 @@ fn unit_index(s: &str, unit: u32, round_up: bool) -> usize {
 }
 ';
 
-	/**
-		Business ABI adapter appended to the compiled runtime.Graphemes
-		class in graphemes.rs
-		(docs/specs/stdlib/11-grapheme-clusters.md). The boundary vector
-		of boundaries crosses whole from the resident i32 domain into the
-		business u32 domain; Array results have no call-site cast
-		machinery, so the adapter casts each element once here, the
-		pattern of USTRING_ABI_SOURCE above.
-	**/
-	public static final GRAPHEMES_ABI_SOURCE = '
+    /**
+        Business ABI adapter appended to the compiled runtime.Graphemes
+        class in graphemes.rs
+        (docs/specs/stdlib/11-grapheme-clusters.md). The boundary vector
+        of boundaries crosses whole from the resident i32 domain into the
+        business u32 domain; Array results have no call-site cast
+        machinery, so the adapter casts each element once here, the
+        pattern of USTRING_ABI_SOURCE above.
+    **/
+    public static final GRAPHEMES_ABI_SOURCE = '
 // Business ABI adapter over the resident Graphemes class: the boundary
 // vector crosses whole from the resident i32 domain into the business
 // u32 domain, element by element. Every scalar operation keeps its

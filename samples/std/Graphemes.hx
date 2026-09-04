@@ -11,9 +11,9 @@ package std;
  * stage-one harness execute.
  */
 extern class Graphemes {
-	public static function count(s:String):Int;
-	public static function at(s:String, index:Int):Null<String>;
-	public static function slice(s:String, from:Int, to:Int):String;
-	public static function parts(s:String):Array<String>;
-	public static function boundaries(s:String):Array<Int>;
+    public static function count(s:String):Int;
+    public static function at(s:String, index:Int):Null<String>;
+    public static function slice(s:String, from:Int, to:Int):String;
+    public static function parts(s:String):Array<String>;
+    public static function boundaries(s:String):Array<Int>;
 }

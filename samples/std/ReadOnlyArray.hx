@@ -8,9 +8,9 @@ package std;
  */
 @:forward(length)
 abstract ReadOnlyArray<T>(Array<T>) from Array<T> {
-	public extern function iterator():Iterator<T>;
+    public extern function iterator():Iterator<T>;
 
-	@:arrayAccess inline function get(index:Int):T {
-		return this[index];
-	}
+    @:arrayAccess inline function get(index:Int):T {
+        return this[index];
+    }
 }

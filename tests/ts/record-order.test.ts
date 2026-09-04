@@ -129,14 +129,14 @@ async function compileVariant(
     // Declaring the shifted fields in constructor order removes the
     // reorder, so the native print and the member agree again.
     variantSource = source.replace(
-      "\tpublic final a:Int;\n\tpublic final b:Int;\n\tpublic final c:String;\n\n\tpublic function new(a:Int, c:String, ?b:Int) {",
-      "\tpublic final a:Int;\n\tpublic final c:String;\n\tpublic final b:Int;\n\n\tpublic function new(a:Int, c:String, ?b:Int) {",
+      "    public final a:Int;\n    public final b:Int;\n    public final c:String;\n\n    public function new(a:Int, c:String, ?b:Int) {",
+      "    public final a:Int;\n    public final c:String;\n    public final b:Int;\n\n    public function new(a:Int, c:String, ?b:Int) {",
     );
     expect(variantSource).not.toBe(source);
   } else {
     variantSource = source.replace(
-      "\tpublic function new(a:Int, b:Int, c:String) {",
-      "\tpublic function new(a:Int, b:Int, c:String, d:Int) {",
+      "    public function new(a:Int, b:Int, c:String) {",
+      "    public function new(a:Int, b:Int, c:String, d:Int) {",
     );
     expect(variantSource).not.toBe(source);
   }
