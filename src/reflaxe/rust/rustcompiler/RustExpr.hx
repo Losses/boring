@@ -966,27 +966,41 @@ class RustExpr {
 	function matchCountdownLoop(decl: TypedExpr, loop: TypedExpr): Null<{readVar: TVar, base: TypedExpr, cond: TypedExpr, body: TypedExpr}> {
 		switch[decl.expr, loop.expr] {
 			case [TVar(readVar, init), TWhile(cond, body, true)] if(init != null):
-				final base = switch(stripWrap(init).expr) {
-					case TBinop(OpSub, b, r):
-						switch(stripWrap(r).expr) {
-							case TConst(TInt(1)): b;
-							case _: null;
-						};
-					case _: null;
-				};
-				if(base == null) {
-					return null;
-				}
+				if(!isIntType(init.t)) return null;
 				if(!hasGteZeroCheck(cond, readVar.id)) {
 					return null;
 				}
-				if(!mentionsDecrement(statementsOf(body), readVar.id)) {
+				if(!mentionsUnitDecrement(statementsOf(body), readVar.id)) {
 					return null;
 				}
+				// The guard becomes `> 0` and every body reference shifts
+				// down by one, so the transformed loop must start one above
+				// the initializer for the body to see the initializer's own
+				// value on the first pass. An initializer of the exact shape
+				// `X - 1` keeps the stripped `X` form; any other initializer
+				// gets an explicit `+ 1`.
+				final stripped = strippedUnitSub(init);
+				final base = stripped != null ? stripped : {
+					expr: TBinop(OpAdd, init, {expr: TConst(TInt(1)), pos: init.pos, t: init.t}),
+					pos: init.pos,
+					t: init.t
+				};
 				return {readVar: readVar, base: base, cond: cond, body: body};
 			case _:
 				return null;
 		}
+	}
+
+	// `X - 1` with a literal 1 on the right yields X.
+	function strippedUnitSub(e: TypedExpr): Null<TypedExpr> {
+		return switch(stripWrap(e).expr) {
+			case TBinop(OpSub, b, r):
+				switch(stripWrap(r).expr) {
+					case TConst(TInt(1)): b;
+					case _: null;
+				};
+			case _: null;
+		};
 	}
 
 	function isLiteralTrue(e: TypedExpr): Bool {
@@ -1085,16 +1099,20 @@ class RustExpr {
 		return found;
 	}
 
-	function mentionsDecrement(stmts: Array<TypedExpr>, varId: Int): Bool {
+	function mentionsUnitDecrement(stmts: Array<TypedExpr>, varId: Int): Bool {
 		var found = false;
 		for(s in stmts) {
 			function walk(x: TypedExpr) {
 				switch(x.expr) {
-					case TBinop(OpAssignOp(OpSub), l, _) if(isTargetVar(l, varId)):
+					// Only a unit step is transformable: the unsigned `> 0`
+					// guard exits exactly at zero, and a larger step would
+					// wrap below zero on the unsigned domain and keep
+					// looping.
+					case TBinop(OpAssignOp(OpSub), l, r) if(isTargetVar(l, varId) && isLiteralOne(r)):
 						found = true;
 					case TBinop(OpAssign, l, r) if(isTargetVar(l, varId)):
 						switch(stripWrap(r).expr) {
-							case TBinop(OpSub, subTarget, _) if(isTargetVar(subTarget, varId)):
+							case TBinop(OpSub, subTarget, sub) if(isTargetVar(subTarget, varId) && isLiteralOne(sub)):
 								found = true;
 							case _:
 						}
@@ -1107,6 +1125,13 @@ class RustExpr {
 			walk(s);
 		}
 		return found;
+	}
+
+	function isLiteralOne(e: TypedExpr): Bool {
+		return switch(stripWrap(e).expr) {
+			case TConst(TInt(1)): true;
+			case _: false;
+		};
 	}
 
 	function isTargetVar(e: TypedExpr, varId: Int): Bool {
@@ -1628,6 +1653,10 @@ class RustExpr {
 	}
 
 	function isBorrowedLocal(v: haxe.macro.Type.TVar): Bool {
+		// argTypes accumulates across functions, so a name match alone can
+		// read a previous function's parameter; only a current-function
+		// parameter is borrowed.
+		if(!paramVarIds.exists(v.id)) return false;
 		final stored = argTypes.get(v.name);
 		return stored != null && StringTools.startsWith(stored, "&");
 	}
@@ -2630,7 +2659,7 @@ class RustExpr {
 			case OpDiv if(StringTools.endsWith(operand(l, op, false), ".len()")):
 				return "((" + operand(l, op, false) + ") / (" + operand(r, op, true) + " as usize)) as u32";
 			case OpMult | OpAdd | OpSub if(isIntType(e.t) && !inGenericFunction && !isGenericLocal(l) && !isClosureParam(l) && !RustType.isTypeParam(currentReturnType) && !RustType.isTypeParam(e.t) && !RustType.isTypeParam(l.t) && !RustType.isTypeParam(r.t)):
-				final wrapDomain = (i32LocalDomain(l) || i32LocalDomain(r) || i32InitializerTarget || i32ComparisonTarget) ? "i32" : types.of(e.t);
+				final wrapDomain = (i32OperandDomain(l) || i32OperandDomain(r) || i32InitializerTarget || i32ComparisonTarget) ? "i32" : types.of(e.t);
 				return wrapDomain + "::" + wrappingMethod(op) + "(" + wrappingArg(l, op, false) + wrappingCastSuffix(l, wrapDomain, true) + ", " + wrappingArg(r, op, true) + wrappingCastSuffix(r, wrapDomain, false) + ")";
 			case OpMult | OpAdd | OpSub | OpDiv if(isFloatType(e.t)):
 				final real = FloatPrecision.isF32() ? "f32" : "f64";
@@ -2734,7 +2763,7 @@ class RustExpr {
 	**/
 	function isUnsignedOperand(e: TypedExpr): Bool {
 		return switch(stripWrap(e).expr) {
-			case TLocal(v): unsignedLocals.exists(v.id) || isUnsignedTypeName(argTypes.get(v.name)) || (isIntType(v.t) && !RuntimeResidents.isResident(imports.selfModule));
+			case TLocal(v): unsignedLocals.exists(v.id) || (paramVarIds.exists(v.id) && isUnsignedTypeName(argTypes.get(v.name))) || (isIntType(v.t) && !RuntimeResidents.isResident(imports.selfModule));
 			case _: false;
 		};
 	}
@@ -2786,33 +2815,68 @@ class RustExpr {
 	}
 
 	function int64Call(fn:TypedExpr, args:Array<TypedExpr>):Null<String> {
+		return int64CallText(fn, args);
+	}
+
+	function int64CallText(fn:TypedExpr, args:Array<TypedExpr>):Null<String> {
+		function topClass(e:TypedExpr):Int {
+			return switch(stripWrap(e).expr) {
+				case TCall(callee, _): switch(stripWrap(callee).expr) {
+					case TField(_, FStatic(c, f)) if(c.get().module == "haxe.Int64" && c.get().name == "Int64_Impl_"):
+						switch(f.get().name) {
+							case "make" | "or": 1;
+							case "xor": 2;
+							case "and": 3;
+							case "ofInt" | "getLow" | "get_low" | "getHigh" | "get_high" | "ushr": 90;
+							case _: 100;
+						};
+					case _: 100;
+				};
+				case TBinop(op, _, _): switch(op) {
+					case OpOr: 1;
+					case OpXor: 2;
+					case OpAnd: 3;
+					case _: 100;
+				};
+				case _: 100;
+			};
+		}
+		function infixOperand(e:TypedExpr, parentClass:Int):String {
+			final text = expr(e);
+			return topClass(e) < parentClass ? "(" + text + ")" : text;
+		}
+		function receiverOperand(e:TypedExpr):String {
+			final text = expr(e);
+			return topClass(e) == 100 ? text : "(" + text + ")";
+		}
+		function castOperand(e:TypedExpr, ty:String):String {
+			return "(" + expr(e) + ") as " + ty;
+		}
 		return switch(stripWrap(fn).expr) {
 			case TField(_, FStatic(classRef, fieldRef)) if(classRef.get().module == "haxe.Int64" && classRef.get().name == "Int64_Impl_"):
 				switch(fieldRef.get().name) {
-					case "make" if(args.length == 2): "((" + expr(args[0]) + " as i64) << 32) | ((" + expr(args[1]) + " as u32) as i64)";
-					case "ofInt" if(args.length == 1): "(" + expr(args[0]) + " as i32) as i64";
-					case "getHigh" | "get_high" if(args.length == 1):
-						if(isFpHelperInt64Halves(args[0])) expr(args[0]) + ".high" else "(" + expr(args[0]) + " >> 32) as u32";
-					case "getLow" | "get_low" if(args.length == 1):
-						if(isFpHelperInt64Halves(args[0])) expr(args[0]) + ".low" else expr(args[0]) + " as u32";
-					case "add" if(args.length == 2): expr(args[0]) + ".wrapping_add(" + expr(args[1]) + ")";
-					case "sub" if(args.length == 2): expr(args[0]) + ".wrapping_sub(" + expr(args[1]) + ")";
-					case "mul" if(args.length == 2): "(" + expr(args[0]) + ").wrapping_mul(" + expr(args[1]) + ")";
-					case "mulInt" if(args.length == 2): "(" + expr(args[0]) + ").wrapping_mul(i64::from(" + expr(args[1]) + "))";
-					case "and" if(args.length == 2): expr(args[0]) + " & " + expr(args[1]);
-					case "or" if(args.length == 2): expr(args[0]) + " | " + expr(args[1]);
-					case "xor" if(args.length == 2): expr(args[0]) + " ^ " + expr(args[1]);
-					case "complement" if(args.length == 1): "!" + expr(args[0]);
-					case "shl" if(args.length == 2): expr(args[0]) + ".wrapping_shl(" + expr(args[1]) + " as u32)";
-					case "shr" if(args.length == 2): expr(args[0]) + ".wrapping_shr(" + expr(args[1]) + " as u32)";
-					case "ushr" if(args.length == 2): "((" + expr(args[0]) + " as u64).wrapping_shr(" + expr(args[1]) + " as u32)) as i64";
-					case "eq" if(args.length == 2): expr(args[0]) + " == " + expr(args[1]);
-					case "neq" if(args.length == 2): expr(args[0]) + " != " + expr(args[1]);
-					case "lt" if(args.length == 2): expr(args[0]) + " < " + expr(args[1]);
-					case "gt" if(args.length == 2): expr(args[0]) + " > " + expr(args[1]);
-					case "lte" if(args.length == 2): expr(args[0]) + " <= " + expr(args[1]);
-					case "gte" if(args.length == 2): expr(args[0]) + " >= " + expr(args[1]);
-					default: null;
+				case "make" if(args.length == 2): "((" + expr(args[0]) + ") as i64) << 32 | " + castOperand(args[1], "u32") + " as i64";
+				case "ofInt" if(args.length == 1): castOperand(args[0], "i32") + " as i64";
+				case "getHigh" | "get_high" if(args.length == 1): if(isFpHelperInt64Halves(args[0])) expr(args[0]) + ".high" else "(" + receiverOperand(args[0]) + " >> 32) as u32";
+				case "getLow" | "get_low" if(args.length == 1): if(isFpHelperInt64Halves(args[0])) expr(args[0]) + ".low" else "(" + expr(args[0]) + ") as u32";
+				case "add" if(args.length == 2): receiverOperand(args[0]) + ".wrapping_add(" + expr(args[1]) + ")";
+				case "sub" if(args.length == 2): receiverOperand(args[0]) + ".wrapping_sub(" + expr(args[1]) + ")";
+				case "mul" if(args.length == 2): "(" + expr(args[0]) + ").wrapping_mul(" + expr(args[1]) + ")";
+				case "mulInt" if(args.length == 2): "(" + expr(args[0]) + ").wrapping_mul(i64::from(" + expr(args[1]) + "))";
+				case "and" if(args.length == 2): infixOperand(args[0], 3) + " & " + infixOperand(args[1], 3);
+				case "or" if(args.length == 2): infixOperand(args[0], 1) + " | " + infixOperand(args[1], 1);
+				case "xor" if(args.length == 2): infixOperand(args[0], 2) + " ^ " + infixOperand(args[1], 2);
+				case "complement" if(args.length == 1): "!" + expr(args[0]);
+				case "shl" if(args.length == 2): receiverOperand(args[0]) + ".wrapping_shl(" + castOperand(args[1], "u32") + ")";
+				case "shr" if(args.length == 2): receiverOperand(args[0]) + ".wrapping_shr(" + castOperand(args[1], "u32") + ")";
+				case "ushr" if(args.length == 2): "(" + castOperand(args[0], "u64") + ").wrapping_shr(" + castOperand(args[1], "u32") + ") as i64";
+				case "eq" if(args.length == 2): expr(args[0]) + " == " + expr(args[1]);
+				case "neq" if(args.length == 2): expr(args[0]) + " != " + expr(args[1]);
+				case "lt" if(args.length == 2): expr(args[0]) + " < " + expr(args[1]);
+				case "gt" if(args.length == 2): expr(args[0]) + " > " + expr(args[1]);
+				case "lte" if(args.length == 2): expr(args[0]) + " <= " + expr(args[1]);
+				case "gte" if(args.length == 2): expr(args[0]) + " >= " + expr(args[1]);
+				default: null;
 				}
 			default: null;
 		};
@@ -2850,6 +2914,7 @@ class RustExpr {
 					return StaticFieldHelper.isArrayType(cf.get().type) ? guard : guard + ".clone()";
 				}
 				final rendered = staticRef(cls, name);
+				if(StaticFieldHelper.isArrayType(cf.get().type)) return rendered + ".to_vec()";
 				return StaticFieldHelper.isStringType(cf.get().type) ? rendered + ".to_string()" : rendered;
 			case FEnum(e, ef):
 				final en = e.get();
@@ -3032,6 +3097,7 @@ class RustExpr {
 	function staticContainerArg(e: TypedExpr): String {
 		final rendered = expr(e);
 		if(StaticFieldHelper.isConstruction(e)) return rendered;
+		if(StaticFieldHelper.isArrayType(e.t)) return rendered + ".to_vec()";
 		if(StaticFieldHelper.isStringType(e.t)
 			&& !StringTools.endsWith(rendered, ".clone()")) {
 			return rendered + ".to_string()";
@@ -3530,6 +3596,23 @@ class RustExpr {
 						return "u_string::substring(&" + expr(subj) + ", (" + expr(args[0]) + ") as i32, (" + expr(args[1]) + ") as i32)";
 					}
 					return "u_string::substring_from(&" + expr(subj) + ", (" + expr(args[0]) + ") as i32)";
+				}
+				if(name == "substr" && isString(stripCast(subj))) {
+					// Member-call lowering into the u_string runtime:
+					// UTF-16 units bound the cut on every target, a
+					// negative pos counts from the end of the unit
+					// sequence, and an omitted ?len reaches this arm as
+					// a null argument and routes to None.
+					state.shimsUsed.set("std.UStringRT", true);
+					imports.require("crate::runtime::u_string");
+					final lenOmitted = args.length < 2 || switch(stripWrap(args[1]).expr) {
+						case TConst(TNull): true;
+						case _: false;
+					};
+					if(!lenOmitted) {
+						return "u_string::substr(&" + expr(subj) + ", (" + expr(args[0]) + ") as i32, Some((" + expr(args[1]) + ") as i32))";
+					}
+					return "u_string::substr(&" + expr(subj) + ", (" + expr(args[0]) + ") as i32, None)";
 				}
 				if(name == "put" && isSortedBuilder(subj)) {
 					// Builder puts borrow every argument; the resident
@@ -4206,14 +4289,21 @@ class RustExpr {
 	// an operand only when it crosses domains; i32-domain locals and integer
 	// literals assign to i32 without a cast.
 	function wrappingCastSuffix(e: TypedExpr, wrapDomain: String, isLeft: Bool): String {
-		if(wrapDomain != "i32") return isLeft ? " as " + wrapDomain : "";
-		if(i32ComparisonTarget || i32LocalDomain(e)) return "";
+		if(wrapDomain != "i32") return (isParameterOfDomain(e, wrapDomain) ? "" : (isLeft ? " as " + wrapDomain : ""));
+		if(i32ComparisonTarget || i32OperandDomain(e)) return "";
 		switch(stripWrap(e).expr) {
 			case TConst(TInt(_)): return "";
 			case _:
 		}
 		return " as i32";
 	}
+	function isParameterOfDomain(e: TypedExpr, domain: String): Bool {
+		return switch(stripWrap(e).expr) {
+			case TLocal(v) if(paramVarIds.exists(v.id)): types.of(e.t) == domain;
+			case _: false;
+		};
+	}
+
 	function wrappingArg(e: TypedExpr, parent: Binop, isRight: Bool): String {
 		final value = operand(e, parent, isRight);
 		return StringTools.startsWith(value, "(") && StringTools.endsWith(value, ")") ? value.substr(1, value.length - 2) : value;
@@ -4232,8 +4322,17 @@ class RustExpr {
 	}
 	function i32LocalDomain(e: TypedExpr): Bool {
 		return switch(stripWrap(e).expr) {
-			case TLocal(v): i32Locals.exists(v.id);
+			case TLocal(v): i32Locals.exists(v.id) && !paramVarIds.exists(v.id);
 			case TBinop(OpAdd | OpSub | OpMult, left, right): i32LocalDomain(left) || i32LocalDomain(right);
+			case _: false;
+		};
+	}
+
+	function i32OperandDomain(e: TypedExpr): Bool {
+		return switch(stripWrap(e).expr) {
+			case TLocal(v) if(paramVarIds.exists(v.id)): types.of(e.t) == "i32";
+			case TLocal(_): i32LocalDomain(e);
+			case TBinop(OpAdd | OpSub | OpMult, left, right): i32OperandDomain(left) || i32OperandDomain(right);
 			case _: false;
 		};
 	}
@@ -4838,7 +4937,9 @@ class RustExpr {
 		switch(inner.expr) {
 			case TLocal(v):
 				if(i32Locals.exists(v.id)) return "i32";
-				if(argTypes.exists(v.name)) return argTypes.get(v.name);
+				// argTypes accumulates across functions; a current-function
+				// parameter is the only valid name-keyed lookup.
+				if(paramVarIds.exists(v.id) && argTypes.exists(v.name)) return argTypes.get(v.name);
 			case _:
 		}
 		return types.of(e.t);
@@ -4921,7 +5022,7 @@ class RustExpr {
 				case TLocal(v): paramVarIds.get(v.id) == true;
 				case _: false;
 			};
-			if(borrowedParam) return "match (" + rendered + ") { Some(v) => Some(v.to_string()), None => None }";
+			if(borrowedParam) return "match " + rendered + " { Some(v) => Some(v.to_string()), None => None }";
 		}
 		// charCodeAt is represented as Option<u32>; crossing into a plain
 		// value parameter applies Haxe's null-to-zero bridge exactly once.
