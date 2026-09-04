@@ -406,6 +406,9 @@ class Compiler extends PluginCompiler<Compiler> {
         if (ctx.imports.usesDartMath()) {
             lines.push("import 'dart:math' as math;");
         }
+        if (ctx.imports.usesConvert()) {
+            lines.push("import 'dart:convert';");
+        }
         for (entry in ctx.imports.moduleList()) {
             lines.push("import '"
                 + importSpecifier(filePath, dartOutput + "/lib/" + DartImports.libraryPathOf(entry.module))
