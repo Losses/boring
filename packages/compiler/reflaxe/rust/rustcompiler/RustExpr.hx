@@ -3900,6 +3900,10 @@ class RustExpr {
         switch (fn.expr) {
             case TField(_, FStatic(c, cf)) if (c.get().module == "haxe.io.Bytes" && cf.get().name == "alloc" && args.length == 1):
                 return "vec![0u8; " + castArg(args[0], "usize") + "]";
+            case TField(_, FStatic(c, cf)) if (c.get().module == "haxe.io.Bytes" && cf.get().name == "ofString" && args.length == 1):
+                return expr(args[0]) + ".as_bytes().to_vec()";
+            case TField(_, FStatic(c, cf)) if (c.get().module == "haxe.io.Bytes" && cf.get().name == "concat" && args.length == 2):
+                return "{ let mut v = " + expr(args[0]) + ".to_vec(); v.extend_from_slice(&" + expr(args[1]) + "); v }";
             case TCast(inner, _):
                 return call(inner, args);
             case TField(subj, FDynamic(name)) if ((name == "length" || name == "get_length") && isStringBuf(subj)):
@@ -3998,6 +4002,15 @@ class RustExpr {
                         + ".."
                         + usizeIndex("(" + expr(args[0]) + " + " + expr(args[1]) + ")")
                         + "].to_vec()";
+                }
+                if (name == "getString" && args.length == 2 && isBytes(stripCast(subj))) {
+                    return "String::from_utf8_lossy(&"
+                        + expr(subj)
+                        + "["
+                        + castArg(args[0], "usize")
+                        + ".."
+                        + usizeIndex("(" + expr(args[0]) + " + " + expr(args[1]) + ")")
+                        + "]).into_owned()";
                 }
                 if (name == "charAt" && isString(stripCast(subj))) {
                     state.shimsUsed.set("std.UStringRT", true);

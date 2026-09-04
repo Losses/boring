@@ -1852,6 +1852,14 @@ class TsExpr {
         switch (fn.expr) {
             case TField(_, FStatic(c, cf)) if (c.get().module == "haxe.io.Bytes" && cf.get().name == "alloc" && args.length == 1):
                 return "new Uint8Array(" + expr(args[0]) + ")";
+            case TField(_, FStatic(c, cf)) if (c.get().module == "haxe.io.Bytes" && cf.get().name == "ofString" && args.length == 1):
+                return "new TextEncoder().encode(" + expr(args[0]) + ")";
+            case TField(_, FStatic(c, cf)) if (c.get().module == "haxe.io.Bytes" && cf.get().name == "concat" && args.length == 2):
+                return "((a, b) => { const r = new Uint8Array(a.length + b.length); r.set(a, 0); r.set(b, a.length); return r; })("
+                    + expr(args[0])
+                    + ", "
+                    + expr(args[1])
+                    + ")";
             case TField(_, FStatic(c, cf)) if (c.get().module == "Std" && cf.get().name == "string" && args.length == 1):
                 return stdString(args[0], false);
             case TField(_, FStatic(c, cf)) if (c.get().module == "Std" && cf.get().name == "isOfType" && args.length == 2):
@@ -2037,6 +2045,17 @@ class TsExpr {
                 }
                 if (name == "sub" && args.length == 2 && isBytes(stripCast(subj))) {
                     return expr(subj) + ".slice(" + expr(args[0]) + ", " + expr(args[0]) + " + " + expr(args[1]) + ")";
+                }
+                if (name == "getString" && args.length == 2 && isBytes(stripCast(subj))) {
+                    return "new TextDecoder().decode("
+                        + expr(subj)
+                        + ".subarray("
+                        + expr(args[0])
+                        + ", "
+                        + expr(args[0])
+                        + " + "
+                        + expr(args[1])
+                        + "))";
                 }
                 if (name == "charCodeAt" && isStringSubject(subj) && args.length == 1) {
                     // stdlib/15: charCodeAt's NaN sentinel must become null.

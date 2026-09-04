@@ -27,6 +27,7 @@ class DartImports {
 
     var dartMathUsed = false;
     var typedDataUsed = false;
+    var convertUsed = false;
 
     public function new(selfModule:String) {
         this.selfModule = selfModule;
@@ -49,6 +50,14 @@ class DartImports {
 
     public function usesTypedData():Bool {
         return typedDataUsed;
+    }
+
+    public function useConvert():Void {
+        convertUsed = true;
+    }
+
+    public function usesConvert():Bool {
+        return convertUsed;
     }
 
     /** The cross-module imports recorded so far, in first-reference order. */
