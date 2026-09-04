@@ -211,9 +211,10 @@ for code points U+0000..U+007F and diverge everywhere else.
    sanctioned replacements are `std.UString.at` and
    `std.UString.fromCodePoint`.
 6. **`String.substring` carries haxe positions on every target.**
-   `substring` is the one member of the character-operation list
-   with a lowering on all four targets, so it is permitted beyond the
-   ASCII tier. TypeScript and Kotlin call the platform method; Rust
+   `substring` and `substr` are the members of the
+   character-operation list with a lowering on every target, so both
+   are permitted beyond the ASCII tier. TypeScript and Kotlin call
+   the platform method; Rust
    lowers the call to `ustring::substring`, which converts UTF-16 unit
    bounds to byte boundaries by walking `char_indices`. The bounds are
    haxe string positions, UTF-16 code units, on every target. The
@@ -237,11 +238,12 @@ for code points U+0000..U+007F and diverge everywhere else.
    | Call | TypeScript | Kotlin | Swift | Dart | Rust |
    | --- | --- | --- | --- | --- | --- |
    | `substring` | lowered to `.substring` | lowered to `.substring` | lowered through `substringUnits` | lowered to `.substring` | lowered through `u_string::substring` |
+   | `substr` | lowered to `.substr` | lowered through a clamped `run` block | lowered through `substrUnits` / `substrUnitsArray` | lowered through a clamped IIFE | lowered through `u_string::substr` |
    | `indexOf` | ASCII tier only; no evidenced cross-target lowering | ASCII tier only; no evidenced cross-target lowering | ASCII tier only; no evidenced cross-target lowering | ASCII tier only; no evidenced cross-target lowering | ASCII tier only; no evidenced cross-target lowering |
    | `lastIndexOf` | ASCII tier only; no evidenced cross-target lowering | ASCII tier only; no evidenced cross-target lowering | ASCII tier only; no evidenced cross-target lowering | ASCII tier only; no evidenced cross-target lowering | ASCII tier only; no evidenced cross-target lowering |
 
-   This makes the three calls consistent: `substring` is the lowered
-   character operation with its haxe UTF-16 position contract, while the two
+   This makes the four calls consistent: `substring` and `substr` are the lowered
+   character operations with their haxe UTF-16 position contracts, while the two
    search calls are not admitted for non-ASCII content until a corresponding
    `std.UString` lowering is specified.
 8. **An omitted optional position lowers to the one-argument call.**
@@ -256,6 +258,22 @@ for code points U+0000..U+007F and diverge everywhere else.
    null would fail the generated tree's own typechecking; the
    one-argument overload carries the same meaning, the search from
    the start.
+9. **`String.substr` carries the from-the-end position contract on
+   every target.** The bounds are UTF-16 code units. A negative `pos`
+   counts from the end of the unit sequence (`length + pos`, clamped
+   to 0), an omitted or null `?len` runs to the end of the string, a
+   `pos` past the end yields the empty string, and a `len` reaching
+   past the end truncates at the end. A negative `len` is unspecified
+   in the std (`std/String.hx`), so it sits outside the shared domain;
+   every platform lowering returns the empty string there, matching
+   the JavaScript target. The null convention of ruling 8 drops the
+   synthesized null `?len` on TypeScript and routes it to the
+   one-sided form on the other targets. Kotlin clamps the bounds
+   inside the lowering, because the native call is index-based and
+   the length converts to an end bound after the clamp; the platform
+   exception is not preserved. A `pos` inside a surrogate pair keeps
+   the same target divergence as `substring`: the UTF-16 targets cut
+   at the lone unit, and Rust cuts at the code-point boundary.
 
 Enforcement: style rule `V18 NonAsciiStringIndex` reports at Haxe compile
 time, split across the two interception passes. The call forms are checked

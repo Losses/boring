@@ -54,7 +54,7 @@ impl FPHelper {
     // reverse widens losslessly before the bit conversion. Only the
     // float-precision=f32 lane references them (feature spec 23).
     pub fn i64_to_f32(low: u32, high: u32) -> f32 {
-        Self::i64_to_double(low, high) as f32
+        Self::i64_to_double(low, high).to_string().parse::<f32>().unwrap_or(f32::NAN)
     }
 
     pub fn f32_to_i64(v: f32) -> Int64Halves {
@@ -162,14 +162,14 @@ impl Process {
 // clamping contract. The class lives in this same module, so the
 // adapters name it directly without an import.
 pub fn count(s: &str) -> u32 {
-    UString::count(s) as u32
+    u32::try_from(UString::count(s)).unwrap_or(0)
 }
 
 pub fn at(s: &str, index: u32) -> Option<u32> {
     let mut remaining = index;
     for c in s.chars() {
         if remaining == 0 {
-            return Some(c as u32);
+            return Some(u32::from(c));
         }
         remaining -= 1;
     }
@@ -209,19 +209,19 @@ pub fn slice(s: &str, from: i32, to: i32) -> String {
 pub fn to_code_points(s: &str) -> Vec<u32> {
     let mut out = Vec::new();
     for code in UString::to_code_points(s) {
-        out.push(code as u32);
+        out.push(u32::try_from(code).unwrap_or(0));
     }
     out
 }
 
 pub fn from_code_point(code: u32) -> String {
-    UString::from_code_point(code as i32)
+    UString::from_code_point(i32::try_from(code).unwrap_or(0))
 }
 
 pub fn from_code_points(codes: &Vec<u32>) -> String {
     let mut inner = Vec::with_capacity(codes.len());
     for index in 0..codes.len() {
-        inner.push(codes[index] as i32);
+        inner.push(i32::try_from(codes[index]).unwrap_or(0));
     }
     UString::from_code_points(&mut inner)
 }
@@ -229,8 +229,8 @@ pub fn from_code_points(codes: &Vec<u32>) -> String {
 // substring keeps i32 bounds for the same clamping reason as slice:
 // negative bounds are part of the haxe substring contract.
 pub fn substring(s: &str, from: i32, to: i32) -> String {
-    let mut start = if from < 0 { 0u32 } else { from as u32 };
-    let mut end = if to < 0 { 0u32 } else { to as u32 };
+    let mut start = if from < 0 { 0u32 } else { u32::try_from(from).unwrap_or(0) };
+    let mut end = if to < 0 { 0u32 } else { u32::try_from(to).unwrap_or(0) };
     if start > end {
         let tmp = start;
         start = end;
@@ -242,8 +242,37 @@ pub fn substring(s: &str, from: i32, to: i32) -> String {
 }
 
 pub fn substring_from(s: &str, from: i32) -> String {
-    let start = if from < 0 { 0u32 } else { from as u32 };
+    let start = if from < 0 { 0u32 } else { u32::try_from(from).unwrap_or(0) };
     s[unit_index(s, start, true)..].to_string()
+}
+
+// substr keeps i32 bounds like substring. A negative pos counts from
+// the end of the unit sequence per the std contract. A negative len is
+// unspecified in the std (std/String.hx), so this runtime returns the
+// empty string, matching the JavaScript target, and features/08 rules
+// the shared domain to non-negative len values.
+pub fn substr(s: &str, pos: i32, len: Option<i32>) -> String {
+    match len {
+        Some(l) if l < 0 => return String::new(),
+        _ => {}
+    }
+    let units = i64::try_from(s.encode_utf16().count()).unwrap_or(0);
+    let start = if pos < 0 {
+        let back = i64::from(pos).saturating_neg();
+        if units > back { units - back } else { 0 }
+    } else {
+        if i64::from(pos) > units { units } else { i64::from(pos) }
+    };
+    let end = match len {
+        None => units,
+        Some(l) => {
+            let raw = start + i64::from(l);
+            if raw > units { units } else { raw }
+        }
+    };
+    let byte_start = usize::try_from(start).unwrap_or(0);
+    let byte_end = usize::try_from(end).unwrap_or(0);
+    s[byte_start..byte_end].to_string()
 }
 
 // Haxe Std.parseFloat lowers here. The token must match the full decimal
@@ -358,7 +387,7 @@ fn unit_index(s: &str, unit: u32, round_up: bool) -> usize {
         if u >= unit {
             return b;
         }
-        let w = c.len_utf16() as u32;
+        let w = u32::try_from(c.len_utf16()).unwrap_or(0);
         if u + w > unit {
             return if round_up { b + c.len_utf8() } else { b };
         }
@@ -385,7 +414,7 @@ fn unit_index(s: &str, unit: u32, round_up: bool) -> usize {
 pub fn boundaries(s: &str) -> Vec<u32> {
     let mut out = Vec::new();
     for unit in Graphemes::boundaries(s) {
-        out.push(unit as u32);
+        out.push(u32::try_from(unit).unwrap_or(0));
     }
     out
 }
