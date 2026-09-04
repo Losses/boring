@@ -93,8 +93,8 @@ describe("static function field capture validation", () => {
       fs.writeFileSync(hxml, [
         "-lib reflaxe",
         "-lib boring",
-        "-cp " + path.join(root, "src/reflaxe/rust/std-shadow"),
-        "-cp " + path.join(root, "src/reflaxe/rust"),
+        "-cp " + path.join(root, "packages/compiler/reflaxe/rust/std-shadow"),
+        "-cp " + path.join(root, "packages/compiler/reflaxe/rust"),
         "-cp " + path.join(root, "samples"),
         "-cp " + sourceRoot,
         "--macro Intercept.run([\"" + sourceRoot + "\"])",

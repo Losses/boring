@@ -4,8 +4,8 @@
 # The output goes to reference/swift-f32/gen and gen-tests.
 -lib reflaxe
 -lib boring
--cp src/reflaxe/swift/std-shadow
--cp src/reflaxe/swift
+-cp packages/compiler/reflaxe/swift/std-shadow
+-cp packages/compiler/reflaxe/swift
 -cp samples
 -cp tools/registry/src
 --macro Intercept.run(['samples', 'tools/registry/src'])
