@@ -2102,6 +2102,24 @@ class KotlinExpr {
 						+ "; val _end = if (_to < 0) 0 else if (_to > _s.length) _s.length else _to"
 						+ "; if (_start > _end) _s.substring(_end, _start) else _s.substring(_start, _end) }";
 				}
+				if(name == "substr" && isString(stripCast(subj))) {
+					// The haxe typer passes a synthesized null for an
+					// omitted ?len; the native call is index-based, so
+					// the length converts to an end bound after the pos
+					// clamping, and a negative len yields the empty
+					// string like the JavaScript target.
+					final lenOmitted = args.length < 2 || switch(stripWrap(args[1]).expr) {
+						case TConst(TNull): true;
+						case _: false;
+					};
+					if(lenOmitted) {
+						return "run { val _s = " + expr(subj) + "; val _pos = " + expr(args[0])
+							+ "; val _start = if (_pos < 0) maxOf(0, _s.length + _pos) else minOf(_pos, _s.length); _s.substring(_start) }";
+					}
+					return "run { val _s = " + expr(subj) + "; val _pos = " + expr(args[0]) + "; val _len = " + expr(args[1])
+						+ "; val _start = if (_pos < 0) maxOf(0, _s.length + _pos) else minOf(_pos, _s.length)"
+						+ "; if (_len < 0) \"\" else { val _end = minOf(_s.length, _start + _len); _s.substring(_start, _end) } }";
+				}
 				if(name == "push") {
 					return expr(subj) + ".add(" + renderedArgs + ")";
 				}

@@ -2077,6 +2077,23 @@ class SwiftExpr {
 					}
 					return "substringUnits(" + s + ", " + expr(args[0]) + ", " + expr(args[1]) + ")";
 				}
+				if(name == "substr" && isStringSubject(subj)) {
+					// The haxe typer passes a synthesized null for an
+					// omitted ?len; the runtime helper carries the
+					// from-the-end reading of a negative pos and the
+					// empty string for a negative len.
+					final lenOmitted = args.length < 2 || switch(stripWrap(args[1]).expr) {
+						case TConst(TNull): true;
+						case _: false;
+					};
+					final s = receiverText(subj);
+					final lenText = lenOmitted ? "nil" : expr(args[1]);
+					if(types.resident) {
+						// The resident subject is the unit array.
+						return "substrUnitsArray(" + s + ", " + expr(args[0]) + ", " + lenText + ")";
+					}
+					return "substrUnits(" + s + ", " + expr(args[0]) + ", " + lenText + ")";
+				}
 				if(name == "charAt" && isStringSubject(subj)) {
 					final s = receiverText(subj);
 					return "String(" + s + "[" + s + ".index(" + s + ".startIndex, offsetBy: Int(" + expr(args[0]) + "))])";
@@ -3319,18 +3336,20 @@ class SwiftExpr {
 				}
 				case TBinop(OpAssign, t, _) | TBinop(OpAssignOp(_), t, _):
 					switch(t.expr) {
-						case TLocal(v):
-							markMutated(v);
+						case TLocal(v): markMutated(v);
+						case TField(subj, FInstance(_, _, _)) | TField(subj, FAnon(_)):
+							switch(stripWrap(subj).expr) {
+								case TLocal(v): markMutated(v);
+								case _: 
+							}
 						case TArray(arr, _):
-							// Storing through a subscript mutates the array
-							// value itself.
 							final receiver = mapBackingReceiver(arr);
 							switch(stripWrap(receiver == null ? arr : receiver).expr) {
 								case TLocal(v): markMutated(v);
 								case _:
-						}
-					case _:
-				}
+							}
+						case _:
+					}
 			// An increment or decrement reassigns the local, so the
 			// declaration needs var even without a plain assignment.
 			case TUnop(OpIncrement, _, t) | TUnop(OpDecrement, _, t):
