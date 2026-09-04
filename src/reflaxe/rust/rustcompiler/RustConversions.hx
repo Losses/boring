@@ -115,6 +115,41 @@ class RustConversions {
 	}
 
 	/**
+		Float to u32 with Rust's `as u32` saturation, without an `as` cast.
+		Replaces `(x) as u32` (x: f64/f32) where a Haxe Int truncates a
+		Float: Rust `as` saturates at the domain ends and zeroes NaN and
+		negative values. The value side splits the exponent and shifts the
+		implicit-bit mantissa down by the fraction width; the guard branches
+		reproduce the saturation exactly. The input widens through `f64::from`
+		(identity for a binary64 value, exact for binary32) so one 64-bit
+		bit decomposition serves both real widths. The shift only runs for
+		finite non-negative inputs below 2^32 (exponent 0..31), where the
+		shift amount stays in range.
+	**/
+	public static function floatToU32(x: String): String {
+		return "match f64::from(" + x + ") { v if !(v >= 0.0) || v.is_nan() => 0u32, v if v >= 4294967296.0 => 4294967295u32, v => "
+			+ truncU32Inner("v") + " }";
+	}
+
+	/**
+		Float to i32 with Rust's `as i32` saturation, without an `as` cast.
+		NaN zeroes; the domain ends saturate; an in-range negative value
+		keeps its sign through two's-complement wrapping of the magnitude's
+		truncation; a non-negative value reinterprets its truncation bits.
+	**/
+	public static function floatToI32(x: String): String {
+		return "match f64::from(" + x + ") { v if v.is_nan() => 0i32, v if v >= 2147483648.0 => 2147483647i32, v if v < -2147483648.0 => -2147483648i32, "
+			+ "v if v < 0.0 => i32::from_ne_bytes(u32::wrapping_sub(0, " + truncU32Inner("(0.0 - v)") + ").to_ne_bytes()), "
+			+ "v => i32::from_ne_bytes(" + truncU32Inner("v") + ".to_ne_bytes()) }";
+	}
+
+	/** Truncation of a finite non-negative float below 2^32 to its u32 value. */
+	static function truncU32Inner(v: String): String {
+		return "match ((" + v + ").to_bits() >> 52) & 2047 { e if e < 1023 => 0u32, "
+			+ "e => u32::try_from((((" + v + ").to_bits() & 4503599627370495) | 4503599627370496) >> (52 - (e - 1023))).unwrap_or(0) }";
+	}
+
+	/**
 		T8 i64 logical right shift without unsigned casts. Replaces
 		`((x) as u64).wrapping_shr(n) as i64` with a byte round-trip: the bits
 		are interpreted as u64, shifted logically, and reinterpreted as i64.
