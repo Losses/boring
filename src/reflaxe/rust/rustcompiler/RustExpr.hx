@@ -2894,6 +2894,31 @@ class RustExpr {
 		return "usize::try_from(" + inner + ").unwrap_or(0)";
 	}
 
+	/**
+		Reinterpret a same-width u32-domain business value into the signed i32
+		position a resident runtime parameter expects. Folds a literal to its
+		signed value; otherwise goes through the native-endian byte round-trip
+		(T5). This is the drop-in for the `(x) as i32` cast on such boundaries.
+	**/
+	function castSignedI32(e:TypedExpr):String {
+		final folded = constantCast(e, "i32");
+		if(folded != null) return folded;
+		// In a resident module Haxe Int is already i32, so `(x) as i32` is a
+		// no-op and the expression renders bare (this keeps integer locals
+		// inferable). In a business module the value is u32 and the same-width
+		// cast reinterprets bits (T5).
+		if(RuntimeResidents.isResident(imports.selfModule)) return expr(e);
+		return RustConversions.reinterpret(expr(e), "i32");
+	}
+
+	/** Casts an Int shift count to u32 (a no-op in business, reinterpret in resident). */
+	function castShiftU32(e:TypedExpr):String {
+		final folded = constantCast(e, "u32");
+		if(folded != null) return folded;
+		if(RuntimeResidents.isResident(imports.selfModule)) return RustConversions.reinterpret(expr(e), "u32");
+		return expr(e);
+	}
+
 	function int64CallText(fn:TypedExpr, args:Array<TypedExpr>):Null<String> {
 		function topClass(e:TypedExpr):Int {
 			return switch(stripWrap(e).expr) {
@@ -2950,14 +2975,6 @@ class RustExpr {
 				return "i64::from(" + expr(e) + ")";
 			}
 			return RustConversions.ofInt(expr(e));
-		}
-
-		/** Casts an Int shift count to u32 (a no-op in business, reinterpret in resident). */
-		function castShiftU32(e:TypedExpr):String {
-			final folded = constantCast(e, "u32");
-			if(folded != null) return folded;
-			if(RuntimeResidents.isResident(imports.selfModule)) return RustConversions.reinterpret(expr(e), "u32");
-			return expr(e);
 		}
 
 		return switch(stripWrap(fn).expr) {
@@ -3656,10 +3673,10 @@ class RustExpr {
 				if(name == "charAt" && isString(stripCast(subj))) {
 					state.shimsUsed.set("std.UStringRT", true);
 					imports.require("crate::runtime::u_string");
-					return "u_string::substring(&" + expr(subj) + ", (" + expr(args[0]) + ") as i32, ((" + expr(args[0]) + ") + 1) as i32)";
+					return "u_string::substring(&" + expr(subj) + ", " + castSignedI32(args[0]) + ", " + RustConversions.reinterpret("((" + expr(args[0]) + ") + 1)", "i32") + ")";
 				}
 				if(name == "indexOf" && isString(stripCast(subj)) && args.length >= 1) {
-					return "match (" + expr(subj) + ").find(" + expr(args[0]) + ") { Some(v) => v as i32, None => -1 }";
+					return "match (" + expr(subj) + ").find(" + expr(args[0]) + ") { Some(v) => " + RustConversions.narrowI32("v") + ", None => -1 }";
 				}
 				if(name == "charCodeAt" && isString(stripCast(subj))) {
 					state.shimsUsed.set("std.UStringRT", true);
@@ -3678,7 +3695,7 @@ class RustExpr {
 						case _:
 					}
 					final nullableResult = callRet != null && isNullType(callRet);
-					return nullableResult ? "u_string::at(&" + expr(subj) + ", (" + expr(args[0]) + ") as u32)" : "u_string::at(&" + expr(subj) + ", (" + expr(args[0]) + ") as u32).unwrap_or(0)";
+					return nullableResult ? "u_string::at(&" + expr(subj) + ", " + castShiftU32(args[0]) + ")" : "u_string::at(&" + expr(subj) + ", " + castShiftU32(args[0]) + ").unwrap_or(0)";
 				}
 				if(name == "split" && isString(stripCast(subj)) && args.length == 1) {
 					state.shimsUsed.set("std.UStringRT", true);
@@ -3701,9 +3718,9 @@ class RustExpr {
 						case _: false;
 					};
 					if(!endOmitted) {
-						return "u_string::substring(&" + expr(subj) + ", (" + expr(args[0]) + ") as i32, (" + expr(args[1]) + ") as i32)";
+						return "u_string::substring(&" + expr(subj) + ", " + castSignedI32(args[0]) + ", " + castSignedI32(args[1]) + ")";
 					}
-					return "u_string::substring_from(&" + expr(subj) + ", (" + expr(args[0]) + ") as i32)";
+					return "u_string::substring_from(&" + expr(subj) + ", " + castSignedI32(args[0]) + ")";
 				}
 				if(name == "substr" && isString(stripCast(subj))) {
 					// Member-call lowering into the u_string runtime:
@@ -3718,9 +3735,9 @@ class RustExpr {
 						case _: false;
 					};
 					if(!lenOmitted) {
-						return "u_string::substr(&" + expr(subj) + ", (" + expr(args[0]) + ") as i32, Some((" + expr(args[1]) + ") as i32))";
+						return "u_string::substr(&" + expr(subj) + ", " + castSignedI32(args[0]) + ", Some(" + castSignedI32(args[1]) + "))";
 					}
-					return "u_string::substr(&" + expr(subj) + ", (" + expr(args[0]) + ") as i32, None)";
+					return "u_string::substr(&" + expr(subj) + ", " + castSignedI32(args[0]) + ", None)";
 				}
 				if(name == "put" && isSortedBuilder(subj)) {
 					// Builder puts borrow every argument; the resident
@@ -3733,12 +3750,12 @@ class RustExpr {
 					return expr(subj) + "." + name + "(" + sortedRefArg(args[0]) + ")";
 				}
 				if(name == "size" && isSortedTable(subj)) {
-					// The resident counts in its signed Int domain; the
-					// business domain is unsigned.
-					return "(" + expr(subj) + ".size()) as u32";
+					// The resident counts in its signed Int domain; the business
+					// domain is unsigned, so the read reinterprets the raw i32.
+					return RustConversions.reinterpret(expr(subj) + ".size()", "u32");
 				}
 				if((name == "keyAt" || name == "valueAt" || name == "at") && isSortedTable(subj)) {
-					return expr(subj) + "." + RustImports.toSnakeCase(name) + "((" + expr(args[0]) + ") as i32)";
+					return expr(subj) + "." + RustImports.toSnakeCase(name) + "(" + castSignedI32(args[0]) + ")";
 				}
 				if(name == "put" && isSortedBuilder(subj)) {
 					final kExpr = switch(args[0].expr) {
@@ -5540,7 +5557,7 @@ class RustExpr {
 			return text + ".to_string()";
 		}
 		if(text.indexOf("u_string::count") >= 0 && resolveExprType(sibling) == "i32") {
-			return "(" + text + ") as i32";
+			return RustConversions.reinterpret(text, "i32");
 		}
 		if(!isStringType(branch.t) || !isStringType(sibling.t)) {
 			return text;

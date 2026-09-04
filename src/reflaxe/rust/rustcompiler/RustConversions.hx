@@ -70,7 +70,24 @@ class RustConversions {
 		conversion and overflow, so reinterpretation must never use it.
 	**/
 	public static function reinterpret(x: String, to: String): String {
-		return to + "::from_ne_bytes((" + x + ").to_ne_bytes())";
+		// The `from_ne_bytes` call parentheses delimit the argument; drop a
+		// redundant outer grouping from a compound rendered source so the
+		// generated code stays free of unnecessary-parens warnings.
+		var inner = x;
+		if(StringTools.startsWith(inner, "(") && StringTools.endsWith(inner, ")")) {
+			var depth = 0;
+			var balanced = true;
+			for(i in 0...inner.length) {
+				final c = inner.charAt(i);
+				if(c == "(") depth++;
+				else if(c == ")") {
+					depth--;
+					if(depth == 0 && i < inner.length - 1) { balanced = false; break; }
+				}
+			}
+			if(balanced && depth == 0) inner = inner.substr(1, inner.length - 2);
+		}
+		return to + "::from_ne_bytes((" + inner + ").to_ne_bytes())";
 	}
 
 	/**
