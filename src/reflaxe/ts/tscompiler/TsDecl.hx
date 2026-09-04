@@ -186,7 +186,11 @@ class TsDecl {
 					lines.push('  const a${f.name}Length = a.${f.name}.length; const b${f.name}Length = b.${f.name}.length;');
 					switch(Context.follow(params[0])) {
 						case TInst(c, _) if(c.get().name == "String"):
-							lines.push('  for (let i = 0; i < a${f.name}Length && i < b${f.name}Length; i++) { if (a.${f.name}[i] !== b.${f.name}[i]) return a.${f.name}[i] < b.${f.name}[i] ? -1 : 1; }');
+							// The indexed reads feed `<` directly; noUncheckedIndexedAccess
+							// rejects `string | undefined` operands. The `!==` guard stays bare:
+							// both sides are undefined together only when the guard is false,
+							// so `<` is never reached with undefined.
+							lines.push('  for (let i = 0; i < a${f.name}Length && i < b${f.name}Length; i++) { if (a.${f.name}[i] !== b.${f.name}[i]) return a.${f.name}[i]! < b.${f.name}[i]! ? -1 : 1; }');
 						case _:
 							// The indexed element carries the non-null assertion: the
 							// element flows into a typed parameter (an Order function or
