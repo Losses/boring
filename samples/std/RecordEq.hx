@@ -17,19 +17,19 @@ import haxe.macro.Type;
  * records compare all fields in declaration order.
  */
 class RecordEq {
-	public static macro function eq(a:Expr, b:Expr):Expr {
-		final names = RecordShape.fieldNames(a, "record eq accepts record receivers only");
-		if(names.length == 0) {
-			return macro true;
-		}
-		var out: Expr = null;
-		for(i in 0...names.length) {
-			final name = names[i];
-			final readA = { expr: EField(a, name), pos: a.pos };
-			final readB = { expr: EField(b, name), pos: b.pos };
-			final piece = { expr: EBinop(OpEq, readA, readB), pos: a.pos };
-			out = out == null ? piece : { expr: EBinop(OpBoolAnd, out, piece), pos: a.pos };
-		}
-		return out;
-	}
+    public static macro function eq(a:Expr, b:Expr):Expr {
+        final names = RecordShape.fieldNames(a, "record eq accepts record receivers only");
+        if (names.length == 0) {
+            return macro true;
+        }
+        var out:Expr = null;
+        for (i in 0...names.length) {
+            final name = names[i];
+            final readA = {expr: EField(a, name), pos: a.pos};
+            final readB = {expr: EField(b, name), pos: b.pos};
+            final piece = {expr: EBinop(OpEq, readA, readB), pos: a.pos};
+            out = out == null ? piece : {expr: EBinop(OpBoolAnd, out, piece), pos: a.pos};
+        }
+        return out;
+    }
 }

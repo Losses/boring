@@ -9,36 +9,36 @@ package std;
  * std.UStringRT.
  */
 class UString {
-	public static inline function count(s:String):Int {
-		return std.UStringRT.count(s);
-	}
+    public static inline function count(s:String):Int {
+        return std.UStringRT.count(s);
+    }
 
-	public static inline function at(s:String, index:Int):Null<Int> {
-		return std.UStringRT.at(s, index);
-	}
+    public static inline function at(s:String, index:Int):Null<Int> {
+        return std.UStringRT.at(s, index);
+    }
 
-	public static inline function slice(s:String, from:Int, to:Int):String {
-		return std.UStringRT.slice(s, from, to);
-	}
+    public static inline function slice(s:String, from:Int, to:Int):String {
+        return std.UStringRT.slice(s, from, to);
+    }
 
-	public static inline function toCodePoints(s:String):Array<Int> {
-		return std.UStringRT.toCodePoints(s);
-	}
+    public static inline function toCodePoints(s:String):Array<Int> {
+        return std.UStringRT.toCodePoints(s);
+    }
 
-	public static inline function fromCodePoint(code:Int):String {
-		if (code < 0 || code > 0x10FFFF || (code >= 0xD800 && code <= 0xDFFF)) {
-			throw new std.UStringException(std.UStringFault.InvalidCodePoint(code));
-		}
-		return std.UStringRT.fromCodePoint(code);
-	}
+    public static inline function fromCodePoint(code:Int):String {
+        if (code < 0 || code > 0x10FFFF || (code >= 0xD800 && code <= 0xDFFF)) {
+            throw new std.UStringException(std.UStringFault.InvalidCodePoint(code));
+        }
+        return std.UStringRT.fromCodePoint(code);
+    }
 
-	public static inline function fromCodePoints(codes:Array<Int>):String {
-		for (i in 0...codes.length) {
-			final code:Int = codes[i];
-			if (code < 0 || code > 0x10FFFF || (code >= 0xD800 && code <= 0xDFFF)) {
-				throw new std.UStringException(std.UStringFault.InvalidCodePoint(code));
-			}
-		}
-		return std.UStringRT.fromCodePoints(codes);
-	}
+    public static inline function fromCodePoints(codes:Array<Int>):String {
+        for (i in 0...codes.length) {
+            final code:Int = codes[i];
+            if (code < 0 || code > 0x10FFFF || (code >= 0xD800 && code <= 0xDFFF)) {
+                throw new std.UStringException(std.UStringFault.InvalidCodePoint(code));
+            }
+        }
+        return std.UStringRT.fromCodePoints(codes);
+    }
 }

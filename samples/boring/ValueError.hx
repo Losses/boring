@@ -4,10 +4,11 @@
  * is the failure identity shared by every language tree, and the message
  * is display text derived from the variant.
  */
+
 package boring;
 
 enum ValueError {
-	StartAfterEnd;
-	NegativeStart;
-	BlankValue;
+    StartAfterEnd;
+    NegativeStart;
+    BlankValue;
 }

@@ -13,15 +13,15 @@ package std;
  * is a compile error.
  */
 extern class TestPlatform {
-	/** Abort with the canonical failure message; never returns. */
-	public static function raise(canonical:String):Void;
+    /** Abort with the canonical failure message; never returns. */
+    public static function raise(canonical:String):Void;
 
-	/** The id of the running test, empty when none is running. */
-	public static function currentTestId():String;
+    /** The id of the running test, empty when none is running. */
+    public static function currentTestId():String;
 
-	/** The decimal rendering of an integer. */
-	public static function intToString(v:Int):String;
+    /** The decimal rendering of an integer. */
+    public static function intToString(v:Int):String;
 
-	/** The decimal rendering of a float without the special values. */
-	public static function floatToString(v:Float):String;
+    /** The decimal rendering of a float without the special values. */
+    public static function floatToString(v:Float):String;
 }

@@ -4,143 +4,143 @@ import boring.DefaultArgsOps;
 import std.Test;
 
 class DefaultArgsTests {
-	@:test("greet with explicit and default prefix")
-	public static function testGreet():Void {
-		Test.equals("Greetings Ada", DefaultArgsOps.callGreet0());
-		Test.equals("Hello Ada", DefaultArgsOps.callGreet1());
-	}
+    @:test("greet with explicit and default prefix")
+    public static function testGreet():Void {
+        Test.equals("Greetings Ada", DefaultArgsOps.callGreet0());
+        Test.equals("Hello Ada", DefaultArgsOps.callGreet1());
+    }
 
-	@:test("configure with zero, one, two, and three omitted arguments")
-	public static function testConfigure():Void {
-		Test.equals(-180.0, DefaultArgsOps.callConfigure0());
-		Test.equals(180.0, DefaultArgsOps.callConfigure1());
-		Test.equals(300.0, DefaultArgsOps.callConfigure2());
-		Test.equals(275.0, DefaultArgsOps.callConfigure3());
-	}
+    @:test("configure with zero, one, two, and three omitted arguments")
+    public static function testConfigure():Void {
+        Test.equals(-180.0, DefaultArgsOps.callConfigure0());
+        Test.equals(180.0, DefaultArgsOps.callConfigure1());
+        Test.equals(300.0, DefaultArgsOps.callConfigure2());
+        Test.equals(275.0, DefaultArgsOps.callConfigure3());
+    }
 
-	@:test("formatLabel instance method with nullable and value optional parameters")
-	public static function testFormatLabel():Void {
-		Test.equals("item:formatted", DefaultArgsOps.callFormatLabel0());
-		Test.equals("item-formatted", DefaultArgsOps.callFormatLabel1());
-		Test.equals("none-default", DefaultArgsOps.callFormatLabel2());
-	}
+    @:test("formatLabel instance method with nullable and value optional parameters")
+    public static function testFormatLabel():Void {
+        Test.equals("item:formatted", DefaultArgsOps.callFormatLabel0());
+        Test.equals("item-formatted", DefaultArgsOps.callFormatLabel1());
+        Test.equals("none-default", DefaultArgsOps.callFormatLabel2());
+    }
 
-	@:test("describeTag with explicit null default")
-	public static function testDescribeTag():Void {
-		Test.equals("alpha:extra", DefaultArgsOps.callDescribeTag0());
-		Test.equals("alpha:none", DefaultArgsOps.callDescribeTag1());
-	}
+    @:test("describeTag with explicit null default")
+    public static function testDescribeTag():Void {
+        Test.equals("alpha:extra", DefaultArgsOps.callDescribeTag0());
+        Test.equals("alpha:none", DefaultArgsOps.callDescribeTag1());
+    }
 
-	@:test("openMode with zero-argument enum constructor default")
-	public static function testOpenMode():Void {
-		Test.equals("write:1", DefaultArgsOps.callOpenMode0());
-		Test.equals("read:1", DefaultArgsOps.callOpenMode1());
-	}
+    @:test("openMode with zero-argument enum constructor default")
+    public static function testOpenMode():Void {
+        Test.equals("write:1", DefaultArgsOps.callOpenMode0());
+        Test.equals("read:1", DefaultArgsOps.callOpenMode1());
+    }
 
-	@:test("adjust with negative literal default")
-	public static function testAdjust():Void {
-		Test.equals(30.0, DefaultArgsOps.callAdjust0());
-		Test.equals(15.0, DefaultArgsOps.callAdjust1());
-	}
+    @:test("adjust with negative literal default")
+    public static function testAdjust():Void {
+        Test.equals(30.0, DefaultArgsOps.callAdjust0());
+        Test.equals(15.0, DefaultArgsOps.callAdjust1());
+    }
 
-	@:test("coalescing infinity default preserves explicit values")
-	public static function testCoalescingInfinity():Void {
-		Test.equals(Math.POSITIVE_INFINITY, DefaultArgsOps.callInfinity0());
-		Test.equals(1.25, DefaultArgsOps.callInfinity1());
-	}
+    @:test("coalescing infinity default preserves explicit values")
+    public static function testCoalescingInfinity():Void {
+        Test.equals(Math.POSITIVE_INFINITY, DefaultArgsOps.callInfinity0());
+        Test.equals(1.25, DefaultArgsOps.callInfinity1());
+    }
 
-	@:test("coalescing array defaults are fresh per constructor call")
-	public static function testCoalescingArrayFreshness():Void {
-		final first = new DefaultArgsOps().familyNames;
-		final second = new DefaultArgsOps().familyNames;
-		first.push("serif");
-		Test.equals(1, first.length);
-		Test.equals(0, second.length);
-	}
+    @:test("coalescing array defaults are fresh per constructor call")
+    public static function testCoalescingArrayFreshness():Void {
+        final first = new DefaultArgsOps().familyNames;
+        final second = new DefaultArgsOps().familyNames;
+        first.push("serif");
+        Test.equals(1, first.length);
+        Test.equals(0, second.length);
+    }
 
-	@:test("coalescing map defaults are fresh per function call")
-	public static function testCoalescingMapFreshness():Void {
-		final first = DefaultArgsOps.callMapDefault();
-		final second = DefaultArgsOps.callMapDefault();
-		first.set("serif", 1);
-		Test.equals(true, first.exists("serif"));
-		Test.equals(false, second.exists("serif"));
-	}
+    @:test("coalescing map defaults are fresh per function call")
+    public static function testCoalescingMapFreshness():Void {
+        final first = DefaultArgsOps.callMapDefault();
+        final second = DefaultArgsOps.callMapDefault();
+        first.set("serif", 1);
+        Test.equals(true, first.exists("serif"));
+        Test.equals(false, second.exists("serif"));
+    }
 
-	@:test("local function with default argument called with omission")
-	public static function testLocalFunction():Void {
-		Test.equals(107, DefaultArgsOps.callLocal());
-		Test.equals(207, DefaultArgsOps.callLocalB());
-	}
+    @:test("local function with default argument called with omission")
+    public static function testLocalFunction():Void {
+        Test.equals(107, DefaultArgsOps.callLocal());
+        Test.equals(207, DefaultArgsOps.callLocalB());
+    }
 
-	@:test("interface method with default parameter called through interface")
-	public static function testInterfaceMethod():Void {
-		Test.equals("Admin:Sam", DefaultArgsOps.callInterface0());
-		Test.equals("User:Sam", DefaultArgsOps.callInterface1());
-	}
+    @:test("interface method with default parameter called through interface")
+    public static function testInterfaceMethod():Void {
+        Test.equals("Admin:Sam", DefaultArgsOps.callInterface0());
+        Test.equals("User:Sam", DefaultArgsOps.callInterface1());
+    }
 
-	// --- Stage A grammar roots: coalescing defaults that read parameters ---
+    // --- Stage A grammar roots: coalescing defaults that read parameters ---
 
-	@:test("bare earlier-parameter read")
-	public static function testParameterRead():Void {
-		Test.equals("hello", DefaultArgsOps.greetWithPrefix("hello"));
-		Test.equals("hi", DefaultArgsOps.greetWithPrefix("hello", "hi"));
-	}
+    @:test("bare earlier-parameter read")
+    public static function testParameterRead():Void {
+        Test.equals("hello", DefaultArgsOps.greetWithPrefix("hello"));
+        Test.equals("hi", DefaultArgsOps.greetWithPrefix("hello", "hi"));
+    }
 
-	@:test("field access over a parameter")
-	public static function testFieldAccess():Void {
-		Test.equals("size:2", DefaultArgsOps.sizeLabel(["a", "b"]));
-		Test.equals("size:0", DefaultArgsOps.sizeLabel());
-		Test.equals(2, DefaultArgsOps.fieldAccessSample(["a", "b"]));
-		Test.equals(7, DefaultArgsOps.fieldAccessSample(["a", "b"], 7));
-	}
+    @:test("field access over a parameter")
+    public static function testFieldAccess():Void {
+        Test.equals("size:2", DefaultArgsOps.sizeLabel(["a", "b"]));
+        Test.equals("size:0", DefaultArgsOps.sizeLabel());
+        Test.equals(2, DefaultArgsOps.fieldAccessSample(["a", "b"]));
+        Test.equals(7, DefaultArgsOps.fieldAccessSample(["a", "b"], 7));
+    }
 
-	@:test("conditional over a parameter")
-	public static function testConditional():Void {
-		Test.equals("English", DefaultArgsOps.localeSample("en"));
-		Test.equals("french", DefaultArgsOps.localeSample("fr", "french"));
-	}
+    @:test("conditional over a parameter")
+    public static function testConditional():Void {
+        Test.equals("English", DefaultArgsOps.localeSample("en"));
+        Test.equals("french", DefaultArgsOps.localeSample("fr", "french"));
+    }
 
-	@:test("instance method call, static call, and binary operator defaults")
-	public static function testCallAndBinaryDefaults():Void {
-		Test.equals("HELLO", DefaultArgsOps.methodCallSample("hello"));
-		Test.equals(7, DefaultArgsOps.staticCallSample(7));
-		Test.equals(8, DefaultArgsOps.binarySample(7));
-	}
+    @:test("instance method call, static call, and binary operator defaults")
+    public static function testCallAndBinaryDefaults():Void {
+        Test.equals("HELLO", DefaultArgsOps.methodCallSample("hello"));
+        Test.equals(7, DefaultArgsOps.staticCallSample(7));
+        Test.equals(8, DefaultArgsOps.binarySample(7));
+    }
 
-	@:test("static-field read")
-	public static function testStaticFieldRead():Void {
-		Test.equals(4097, DefaultArgsOps.staticFieldSample(1));
-		Test.equals(6, DefaultArgsOps.staticFieldSample(5, 1));
-	}
+    @:test("static-field read")
+    public static function testStaticFieldRead():Void {
+        Test.equals(4097, DefaultArgsOps.staticFieldSample(1));
+        Test.equals(6, DefaultArgsOps.staticFieldSample(5, 1));
+    }
 
-	@:test("dependence assertion: different earlier arguments resolve differently")
-	public static function testDependence():Void {
-		Test.equals("alpha", DefaultArgsOps.callDependenceA());
-		Test.equals("beta", DefaultArgsOps.callDependenceB());
-	}
+    @:test("dependence assertion: different earlier arguments resolve differently")
+    public static function testDependence():Void {
+        Test.equals("alpha", DefaultArgsOps.callDependenceA());
+        Test.equals("beta", DefaultArgsOps.callDependenceB());
+    }
 
-	@:test("chain with both parameters omitted resolves through the earlier default")
-	public static function testChainedCoalescing():Void {
-		Test.equals(5.0, DefaultArgsOps.callChainedBothOmitted());
-		Test.equals(7.0, DefaultArgsOps.callChainedLaterOmitted());
-		Test.equals(9.5, DefaultArgsOps.callChainedBothGiven());
-	}
+    @:test("chain with both parameters omitted resolves through the earlier default")
+    public static function testChainedCoalescing():Void {
+        Test.equals(5.0, DefaultArgsOps.callChainedBothOmitted());
+        Test.equals(7.0, DefaultArgsOps.callChainedLaterOmitted());
+        Test.equals(9.5, DefaultArgsOps.callChainedBothGiven());
+    }
 
-	@:test("constructor chain defaults the later field to the earlier parameter")
-	public static function testChainedPaint():Void {
-		final both = new ChainedPaint();
-		Test.equals(0.0, both.radius);
-		Test.equals(0.0, both.followRadius);
-		final given = new ChainedPaint(4.5);
-		Test.equals(4.5, given.radius);
-		Test.equals(4.5, given.followRadius);
-	}
+    @:test("constructor chain defaults the later field to the earlier parameter")
+    public static function testChainedPaint():Void {
+        final both = new ChainedPaint();
+        Test.equals(0.0, both.radius);
+        Test.equals(0.0, both.followRadius);
+        final given = new ChainedPaint(4.5);
+        Test.equals(4.5, given.radius);
+        Test.equals(4.5, given.followRadius);
+    }
 
-	@:test("zero-argument self-construction on a field-carrying class keeps the labeled printed form")
-	public static function testCoalescingPreset():Void {
-		Test.equals("CoalescingPreset(base=0.125, ceiling=0.5)", Std.string(CoalescingPreset.Default));
-		Test.equals("CoalescingPreset(base=0.125, ceiling=0.5)", CoalescingPreset.Default.toString());
-		Test.equals("CoalescingPreset(base=0.25, ceiling=0.75)", Std.string(new CoalescingPreset(0.25, 0.75)));
-	}
+    @:test("zero-argument self-construction on a field-carrying class keeps the labeled printed form")
+    public static function testCoalescingPreset():Void {
+        Test.equals("CoalescingPreset(base=0.125, ceiling=0.5)", Std.string(CoalescingPreset.Default));
+        Test.equals("CoalescingPreset(base=0.125, ceiling=0.5)", CoalescingPreset.Default.toString());
+        Test.equals("CoalescingPreset(base=0.25, ceiling=0.75)", Std.string(new CoalescingPreset(0.25, 0.75)));
+    }
 }

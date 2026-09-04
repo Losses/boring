@@ -8,10 +8,10 @@ package std;
  * stage-one side binds globalThis.std.UStringRT.
  */
 extern class UStringRT {
-	public static function count(s:String):Int;
-	public static function at(s:String, index:Int):Null<Int>;
-	public static function slice(s:String, from:Int, to:Int):String;
-	public static function toCodePoints(s:String):Array<Int>;
-	public static function fromCodePoint(code:Int):String;
-	public static function fromCodePoints(codes:Array<Int>):String;
+    public static function count(s:String):Int;
+    public static function at(s:String, index:Int):Null<Int>;
+    public static function slice(s:String, from:Int, to:Int):String;
+    public static function toCodePoints(s:String):Array<Int>;
+    public static function fromCodePoint(code:Int):String;
+    public static function fromCodePoints(codes:Array<Int>):String;
 }
