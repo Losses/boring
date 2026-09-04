@@ -2931,13 +2931,42 @@ class RustExpr {
 			return "(" + expr(e) + ") as " + ty;
 		}
 
+		/** T2 widen of a u32-domain word into i64 (positive), folding literals. */
+		function widenI64(e:TypedExpr):String {
+			final folded = constantCast(e, "i64");
+			if(folded != null) return folded;
+			return "i64::from(" + expr(e) + ")";
+		}
+
+		/** Sign-extends a Haxe Int to i64 (Int64.ofInt). */
+		function signExtendI64(e:TypedExpr):String {
+			switch(stripWrap(e).expr) {
+				case TConst(TInt(v)):
+					// `(x as i32) as i64` of a literal is its signed value.
+					return v + "i64";
+				default:
+			}
+			if(RuntimeResidents.isResident(imports.selfModule)) {
+				return "i64::from(" + expr(e) + ")";
+			}
+			return RustConversions.ofInt(expr(e));
+		}
+
+		/** Casts an Int shift count to u32 (a no-op in business, reinterpret in resident). */
+		function castShiftU32(e:TypedExpr):String {
+			final folded = constantCast(e, "u32");
+			if(folded != null) return folded;
+			if(RuntimeResidents.isResident(imports.selfModule)) return RustConversions.reinterpret(expr(e), "u32");
+			return expr(e);
+		}
+
 		return switch(stripWrap(fn).expr) {
 			case TField(_, FStatic(classRef, fieldRef)) if(classRef.get().module == "haxe.Int64" && classRef.get().name == "Int64_Impl_"):
 				switch(fieldRef.get().name) {
-				case "make" if(args.length == 2): "((" + expr(args[0]) + ") as i64) << 32 | " + castOperand(args[1], "u32") + " as i64";
-				case "ofInt" if(args.length == 1): castOperand(args[0], "i32") + " as i64";
-				case "getHigh" | "get_high" if(args.length == 1): if(isFpHelperInt64Halves(args[0])) expr(args[0]) + ".high" else "(" + receiverOperand(args[0]) + " >> 32) as u32";
-				case "getLow" | "get_low" if(args.length == 1): if(isFpHelperInt64Halves(args[0])) expr(args[0]) + ".low" else "(" + expr(args[0]) + ") as u32";
+				case "make" if(args.length == 2): widenI64(args[0]) + " << 32 | " + widenI64(args[1]);
+				case "ofInt" if(args.length == 1): signExtendI64(args[0]);
+				case "getHigh" | "get_high" if(args.length == 1): if(isFpHelperInt64Halves(args[0])) expr(args[0]) + ".high" else RustConversions.truncate("(" + receiverOperand(args[0]) + " >> 32)", "u32");
+				case "getLow" | "get_low" if(args.length == 1): if(isFpHelperInt64Halves(args[0])) expr(args[0]) + ".low" else RustConversions.truncate(expr(args[0]), "u32");
 				case "add" if(args.length == 2): receiverOperand(args[0]) + ".wrapping_add(" + expr(args[1]) + ")";
 				case "sub" if(args.length == 2): receiverOperand(args[0]) + ".wrapping_sub(" + expr(args[1]) + ")";
 				case "mul" if(args.length == 2): "(" + expr(args[0]) + ").wrapping_mul(" + expr(args[1]) + ")";
@@ -2946,9 +2975,9 @@ class RustExpr {
 				case "or" if(args.length == 2): infixOperand(args[0], 1) + " | " + infixOperand(args[1], 1);
 				case "xor" if(args.length == 2): infixOperand(args[0], 2) + " ^ " + infixOperand(args[1], 2);
 				case "complement" if(args.length == 1): "!" + expr(args[0]);
-				case "shl" if(args.length == 2): receiverOperand(args[0]) + ".wrapping_shl(" + castOperand(args[1], "u32") + ")";
-				case "shr" if(args.length == 2): receiverOperand(args[0]) + ".wrapping_shr(" + castOperand(args[1], "u32") + ")";
-				case "ushr" if(args.length == 2): "(" + castOperand(args[0], "u64") + ").wrapping_shr(" + castOperand(args[1], "u32") + ") as i64";
+				case "shl" if(args.length == 2): receiverOperand(args[0]) + ".wrapping_shl(" + castShiftU32(args[1]) + ")";
+				case "shr" if(args.length == 2): receiverOperand(args[0]) + ".wrapping_shr(" + castShiftU32(args[1]) + ")";
+				case "ushr" if(args.length == 2): RustConversions.shrLogicalI64(expr(args[0]), castShiftU32(args[1]));
 				case "eq" if(args.length == 2): expr(args[0]) + " == " + expr(args[1]);
 				case "neq" if(args.length == 2): expr(args[0]) + " != " + expr(args[1]);
 				case "lt" if(args.length == 2): expr(args[0]) + " < " + expr(args[1]);
