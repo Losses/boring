@@ -133,15 +133,17 @@ class KotlinExpr {
             case CPositiveInfinity: FloatPrecision.isF32() ? "Float.POSITIVE_INFINITY" : "Double.POSITIVE_INFINITY";
             case CNegativeInfinity: FloatPrecision.isF32() ? "Float.NEGATIVE_INFINITY" : "Double.NEGATIVE_INFINITY";
             case CEnum(enumRef, enumField): types.of(Type.TEnum(enumRef, [])) + "." + enumField.name;
-            case CParameterRead(name): name;
-            case CInstanceFieldRead(name): "this." + name;
-            case CLocalRead(name): name;
+            case CParameterRead(name): KotlinNameEscape.escape(name);
+            case CInstanceFieldRead(name): "this." + KotlinNameEscape.escape(name);
+            case CLocalRead(name): KotlinNameEscape.escape(name);
             case CFieldAccess(CParameterRead(staticPath), ""): coalescingStaticFieldText(staticPath);
-            case CFieldAccess(receiver, fieldName): coalescingDefaultText(receiver, targetType) + "." + (fieldName == "length" ? "size" : fieldName);
+            case CFieldAccess(receiver, fieldName): coalescingDefaultText(receiver, targetType)
+                + "."
+                + KotlinNameEscape.escape(fieldName == "length" ? "size" : fieldName);
             case CMethodCall(receiver, methodName, args):
                 coalescingDefaultText(receiver, targetType)
                 + "."
-                + kotlinMethodName(methodName)
+                + KotlinNameEscape.escape(kotlinMethodName(methodName))
                 + "("
                 + [for (a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
             case CStaticCall(fullPath, args):
@@ -160,10 +162,10 @@ class KotlinExpr {
                 + " "
                 + coalescingDefaultText(right, targetType);
             case CConstructorCall(classPath, args):
-                "new "
-                + classPath.split(".").pop()
-                + "("
-                + [for (a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
+                final name = classPath.split(".").pop();
+                if (classPath.indexOf(".") >= 0)
+                    imports.requireType(classPath, name);
+                name + "(" + [for (a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
         };
     }
 
@@ -1293,7 +1295,7 @@ class KotlinExpr {
     }
 
     function functionLiteral(f:TFunc):String {
-        final params = [for (a in f.args) '${a.v.name}: ${types.of(a.v.t)}'].join(", ");
+        final params = [for (a in f.args) '${KotlinNameEscape.escape(a.v.name)}: ${types.of(a.v.t)}'].join(", ");
         final ret = types.of(f.t);
         final retStr = ret == "Unit" ? "" : ": " + ret;
         return 'fun($params)$retStr {\n' + blockLines(statementsOf(f.expr), 1).join("\n") + '\n}';
@@ -1801,7 +1803,7 @@ class KotlinExpr {
                         return expr(subj) + ".size";
                     }
                 }
-                return expr(subj) + "." + name;
+                return expr(subj) + "." + KotlinNameEscape.escape(name);
             case FDynamic(name):
                 if ((name == "length" || name == "get_length") && isStringBuf(subj)) {
                     return expr(subj) + ".length";
@@ -2229,7 +2231,7 @@ class KotlinExpr {
                     final lambda = args[1];
                     final func = unwrapLambda(lambda);
                     if (func != null && func.args.length == 1) {
-                        final paramName = func.args[0].v.name;
+                        final paramName = KotlinNameEscape.escape(func.args[0].v.name);
                         final keyExpr = expr(lambdaBody(func.expr));
                         return expr(receiver) + ".toMutableList().apply { sortBy { " + paramName + " -> " + keyExpr + " } }";
                     }
@@ -2619,7 +2621,7 @@ class KotlinExpr {
             case TField(_, FStatic(c, cf)):
                 return staticRef(c.get(), cf.get().name);
             case TField(subj, FInstance(_, _, cf)) | TField(subj, FAnon(cf)):
-                return expr(subj) + "." + cf.get().name;
+                return expr(subj) + "." + KotlinNameEscape.escape(cf.get().name);
             case TLocal(v):
                 return localName(v);
             case TCast(inner, _) | TMeta(_, inner) | TParenthesis(inner):
@@ -2711,7 +2713,7 @@ class KotlinExpr {
         // identifier, so it goes through the same generated-name path
         // as the compiler's ` temporaries.
         if (v.name != "`" && v.name != "_") {
-            return v.name;
+            return KotlinNameEscape.escape(v.name);
         }
         if (hiddenNames.exists(v.id)) {
             return hiddenNames.get(v.id);
