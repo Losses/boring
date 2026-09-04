@@ -24,8 +24,8 @@ test("Rust borrows input Bytes fields and owns allocated Bytes fields", async ()
   const hxml = path.join(dir, "probe.hxml");
   fs.writeFileSync(hxml, [
     "-lib reflaxe", "-lib boring",
-    `-cp ${path.join(root, "src/reflaxe/rust/std-shadow")}`,
-    `-cp ${path.join(root, "src/reflaxe/rust")}`,
+    `-cp ${path.join(root, "packages/compiler/reflaxe/rust/std-shadow")}`,
+    `-cp ${path.join(root, "packages/compiler/reflaxe/rust")}`,
     `-cp ${sourceRoot}`,
     `--macro Intercept.run(["${sourceRoot}"])`,
     "--macro rustcompiler.Compiler.use()",

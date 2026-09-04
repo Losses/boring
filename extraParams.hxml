@@ -4,14 +4,14 @@
 #   runtime-import, runtime-emit, ts-output, kotlin-output, rust-output,
 #   float-precision (f64 default, f32 per feature spec 23)
 #
-# Macro entry points (on the package class path `src`):
+# Macro entry points (on the package class path `packages/compiler`):
 #   --macro Intercept.run(<sourceDirs>, <excludedFiles>)
 #   plus exactly one target activation:
 #   --macro tscompiler.Compiler.use()
 #   --macro kotlincompiler.Compiler.use()
 #   --macro rustcompiler.Compiler.use()
 #
-# Target compilers sit below `src` at non-package-aligned depth and cannot ride
+# Target compilers sit below `packages/compiler` at non-package-aligned depth and cannot ride
 # the package class path; add them per compilation, as examples/*.hxml do:
-#   -cp <boring>/src/reflaxe/<target>/std-shadow
-#   -cp <boring>/src/reflaxe/<target>
+#   -cp <boring>/packages/compiler/reflaxe/<target>/std-shadow
+#   -cp <boring>/packages/compiler/reflaxe/<target>

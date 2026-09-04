@@ -3,12 +3,12 @@
 # The swift-output define writes output to reference/swift/gen.
 -lib reflaxe
 -lib boring
--cp src/reflaxe/swift/std-shadow
--cp src/reflaxe/swift
+-cp packages/compiler/reflaxe/swift/std-shadow
+-cp packages/compiler/reflaxe/swift
 -cp samples
 -cp samples/haxe
--cp tools/registry/src
---macro Intercept.run(['samples', 'tools/registry/src'])
+-cp packages/registry/src
+--macro Intercept.run(['samples', 'packages/registry/src'])
 --macro haxe.macro.Compiler.keep('registry.Core')
 --macro haxe.macro.Compiler.keep('registry.Json')
 --macro haxe.macro.Compiler.keep('registry.Semver')
