@@ -1616,7 +1616,7 @@ class KotlinExpr {
 			case FStatic(c, cf):
 				final cls = c.get();
 				final rendered = staticRef(cls, cf.get().name);
-				return StaticFieldHelper.isArrayType(cf.get().type) ? rendered + ".toMutableList()" : rendered;
+				return DataTableHelper.isDataTableField(cf.get()) ? rendered + ".toMutableList()" : rendered;
 			case FEnum(e, ef):
 				final en = e.get();
 				final owner = state.payloadEnumOwners.get(en.module);
