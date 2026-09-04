@@ -151,9 +151,11 @@ class RecordShape {
 			final read:Expr = {expr: EField(receiver, name), pos: receiver.pos};
 			final fieldType = shape.fieldTypes[i];
 			final stage1Enum = stage1EnumFieldValue(fieldType, read, receiver.pos);
+			final stage1Collection = stage1CollectionFieldValue(fieldType, read, receiver.pos);
 			final value = isRecordType(fieldType)
 				? (isNullableType(fieldType) ? nullableRecordFieldValue(read, receiver.pos) : memberCallValue(read, receiver.pos))
 				: stage1Enum != null ? stage1Enum
+				: stage1Collection != null ? stage1Collection
 				: (isCollectionType(fieldType) || isEnumType(fieldType)) ? stdStringValue(read, receiver.pos) : read;
 			out = {expr: EBinop(OpAdd, out, value), pos: receiver.pos};
 		}
@@ -218,6 +220,19 @@ class RecordShape {
 		}
 		final isNull = {expr: EBinop(OpEq, read, {expr: EConst(CIdent("null")), pos: pos}), pos: pos};
 		return {expr: ETernary(isNull, {expr: EConst(CString("null")), pos: pos}, labeled), pos: pos};
+	}
+
+	/** Renders an Array or ReadOnlyArray field using the stage-1 ruled form. */
+	static function stage1CollectionFieldValue(fieldType:Type, read:Expr, pos:Position):Null<Expr> {
+		if(!Context.defined("boring_oracle")) {
+			return null;
+		}
+		final elementType = switch(Context.follow(fieldType)) {
+			case TInst(c, params) if(c.get().name == "Array" && params.length == 1): params[0];
+			case TAbstract(a, params) if(a.get().module == "std.ReadOnlyArray" && params.length == 1): params[0];
+			case _: return null;
+		};
+		return EnumText.stage1ArrayForm(elementType, read, pos, null, null, Context.follow(fieldType));
 	}
 
 	static function anonymousShape(anon:AnonType):RecordShapeData {
