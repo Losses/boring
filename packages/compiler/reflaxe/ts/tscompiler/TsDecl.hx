@@ -156,10 +156,11 @@ class TsDecl {
     function dataClassComparator(cls:ClassType):String {
         final lines:Array<String> = [];
         final fields = [
-            for (x in cls.fields.get()) if (switch (x.kind) {
-                    case FVar(read, write): !(read.match(AccCall) && write.match(AccNever));
-                    case _: false;
-                }) x
+            for (x in cls.fields.get())
+                if (switch (x.kind) {
+                        case FVar(read, write): !(read.match(AccCall) && write.match(AccNever));
+                        case _: false;
+                    }) x
         ];
         for (f in fields) {
             var orderType:Null<EnumType> = null;
@@ -646,7 +647,8 @@ class TsDecl {
                 valueEnum = false;
         if (valueEnum) {
             final members = [
-                for (o in sorted) '  ${o.name}: Object.freeze({ kind: "${o.name}" } as ${o.name})'
+                for (o in sorted)
+                    '  ${o.name}: Object.freeze({ kind: "${o.name}" } as ${o.name})'
             ];
             blocks.push('export const ${en.name} = Object.freeze({\n' + members.join(",\n") + '\n});');
             final use = EnumQueryExpander.usage(en);

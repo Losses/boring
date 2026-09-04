@@ -2488,7 +2488,8 @@ class SwiftExpr {
             case _: "";
         };
         final converted = [
-            for (a in args) isStringSubject(a) && !types.resident ? unitArrayText(a) : expr(a)
+            for (a in args)
+                isStringSubject(a) && !types.resident ? unitArrayText(a) : expr(a)
         ];
         final callText = resident + "." + fName + "(" + converted.join(", ") + ")";
         return switch (Context.follow(fn.t)) {
@@ -3561,7 +3562,8 @@ class SwiftExpr {
         final leaves:Array<TypedExpr> = [];
         flattenAdd(e, leaves);
         final declarations = [
-            for (i in 0...leaves.length) "let p" + i + " = " + (containsThrowingCall(leaves[i]) ? "try " : "") + expr(leaves[i])
+            for (i in 0...leaves.length)
+                "let p" + i + " = " + (containsThrowingCall(leaves[i]) ? "try " : "") + expr(leaves[i])
         ].join("; ");
         return "{ " + declarations + "; return " + [for (i in 0...leaves.length) "p" + i].join(" + ") + " }()";
     }
@@ -3577,7 +3579,8 @@ class SwiftExpr {
                 + residentConcatLeaf(leaves[0])
                 + "; "
                 + [
-                    for (i in 1...leaves.length) "let p"
+                    for (i in 1...leaves.length)
+                        "let p"
                         + i
                         + " = "
                         + (containsThrowingCall(leaves[i]) ? "try " : "")
@@ -3597,7 +3600,8 @@ class SwiftExpr {
         }
         if (allStrings && leaves.length >= 4) {
             final declarations = [
-                for (i in 0...leaves.length) "let p" + i + " = " + (containsThrowingCall(leaves[i]) ? "try " : "") + expr(leaves[i])
+                for (i in 0...leaves.length)
+                    "let p" + i + " = " + (containsThrowingCall(leaves[i]) ? "try " : "") + expr(leaves[i])
             ].join("; ");
             return "{ " + declarations + "; return " + [for (i in 0...leaves.length) "p" + i].join(" + ") + " }()";
         }
