@@ -1767,7 +1767,35 @@ class SwiftExpr {
 	}
 
 	function stdString(arg: TypedExpr, inConcat: Bool): String {
-		return stdStringType(arg.t, expr(arg), inConcat, arg);
+		final nullableCollection = isNullableCollectionType(arg.t);
+		return stdStringType(arg.t, nullableCollection ? "(" + expr(arg) + ")!" : expr(arg), inConcat, arg);
+	}
+
+	/**
+		Whether `t` wraps a collection (Array, ReadOnlyArray, SortedSet,
+		SortedMap) in Null. The record member guards a nullable collection
+		field with an explicit null comparison before the Std.string call,
+		and Swift cannot promote a field read through the guard, so the
+		collection lowering reads the subject through a force-unwrap.
+	**/
+	function isNullableCollectionType(t: Null<Type>): Bool {
+		if(t == null) {
+			return false;
+		}
+		return switch(t) {
+			case TAbstract(a, params) if(a.get().name == "Null" && params.length == 1): isCollectionTyped(params[0]);
+			case TLazy(f): isNullableCollectionType(f());
+			case _: false;
+		};
+	}
+
+	function isCollectionTyped(t: Type): Bool {
+		return switch(Context.follow(t)) {
+			case TInst(c, _): c.get().name == "Array" || c.get().module == "std.SortedSet" || c.get().module == "std.SortedMap";
+			case TAbstract(a, _): a.get().module == "std.ReadOnlyArray";
+			case TLazy(f): isCollectionTyped(f());
+			case _: false;
+		};
 	}
 
 	function stdIsOfType(args: Array<TypedExpr>): String {
@@ -3273,11 +3301,39 @@ class SwiftExpr {
 				case TConst(TString(s)): b.add(escapeInterpolation(s));
 				case _:
 					final stdArg = stdStringArg(leaf);
-					b.add("\\(" + (stdArg == null ? expr(leaf) : stdString(stdArg, true)) + ")");
+					b.add("\\(" + (stdArg == null ? interpolationLeaf(leaf) : stdString(stdArg, true)) + ")");
 			}
 		}
 		b.addChar('"'.code);
 		return b.toString();
+	}
+
+	/**
+		The interpolation operand of one concat leaf. An optional String
+		leaf renders through `String(describing:)`: a bare interpolation
+		of an optional carries a debug-description warning, and the
+		describing form prints byte-identical text (nil prints "nil", a
+		present value prints the same debug description) with no warning.
+	**/
+	function interpolationLeaf(leaf: TypedExpr): String {
+		final rendered = expr(leaf);
+		return isOptionalStringLeafType(leaf.t) ? "String(describing: " + rendered + ")" : rendered;
+	}
+
+	/** Whether a type is `Null<String>`, an optional string leaf. */
+	function isOptionalStringLeafType(t: Null<Type>): Bool {
+		if(t == null) {
+			return false;
+		}
+		return switch(t) {
+			case TAbstract(a, params) if(a.get().name == "Null" && params.length == 1):
+				switch(Context.follow(params[0])) {
+					case TInst(c, _): c.get().name == "String";
+					case _: false;
+				};
+			case TLazy(f): isOptionalStringLeafType(f());
+			case _: false;
+		};
 	}
 
 	/**

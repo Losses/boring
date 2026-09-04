@@ -175,11 +175,16 @@ class TsDecl {
 					// A string compare yields only -1 or 1; tsc reports a
 					// `!== 0` check on that union as dead, so guard on
 					// inequality like the string-field arm below.
-					switch(Context.follow(params[0])) {
-						case TInst(c, _) if(c.get().name == "String"):
-							lines.push('  if (a.${f.name} !== null && b.${f.name} !== null && a.${f.name} !== b.${f.name}) return a.${f.name} < b.${f.name} ? -1 : 1;');
-						case _:
-							lines.push('  if (a.${f.name} !== null && b.${f.name} !== null) { const cmp = ' + tsCompareExpr(cls, f.name, params[0]) + '; if (cmp !== 0) return cmp; }');
+					switch(rawArrayElement(params[0])) {
+						case null:
+							switch(Context.follow(params[0])) {
+								case TInst(c, _) if(c.get().name == "String"):
+									lines.push('  if (a.${f.name} !== null && b.${f.name} !== null && a.${f.name} !== b.${f.name}) return a.${f.name} < b.${f.name} ? -1 : 1;');
+								case _:
+									lines.push('  if (a.${f.name} !== null && b.${f.name} !== null) { const cmp = ' + tsCompareExpr(cls, f.name, params[0]) + '; if (cmp !== 0) return cmp; }');
+							}
+						case element:
+							nullableArrayComparator(lines, cls, f.name, element);
 					}
 					continue;
 				case TAbstract(a, params) if(a.get().name == "ReadOnlyArray" && params.length == 1):
@@ -220,6 +225,38 @@ class TsDecl {
 			case TInst(c, _) if(c.get().name == "String"): 'a.${field} < b.${field} ? -1 : 1';
 			case _: 'a.${field} - b.${field}';
 		};
+	}
+
+	/**
+		The element type when `t` is a raw ReadOnlyArray (checked before
+		Context.follow, which erases the abstract to Array). Nullable
+		collections need this raw check: the Null arm's followed inner
+		type is Array and would otherwise lose the array shape.
+	**/
+	function rawArrayElement(t: Type): Null<Type> {
+		return switch(t) {
+			case TAbstract(a, params) if(a.get().name == "ReadOnlyArray" && params.length == 1): params[0];
+			case TLazy(f): rawArrayElement(f());
+			case _: null;
+		};
+	}
+
+	/**
+		The element-wise compare lines for a nullable collection field
+		inside the `!== null` guard. The semantics mirror the non-null
+		ReadOnlyArray arm: compare in index order, then by length; the
+		field is already narrowed to the array by the outer guard.
+	**/
+	function nullableArrayComparator(lines:Array<String>, cls:ClassType, field:String, element:Type):Void {
+		lines.push('  if (a.${field} !== null && b.${field} !== null) { const a${field}Length = a.${field}.length; const b${field}Length = b.${field}.length;');
+		switch(Context.follow(element)) {
+			case TInst(c, _) if(c.get().name == "String"):
+				lines.push('    for (let i = 0; i < a${field}Length && i < b${field}Length; i++) { if (a.${field}[i] !== b.${field}[i]) return a.${field}[i]! < b.${field}[i]! ? -1 : 1; }');
+			case _:
+				lines.push('    for (let i = 0; i < a${field}Length && i < b${field}Length; i++) { const cmp = ' + tsCompareExpr(cls, field + '[i]!', element) + '; if (cmp !== 0) return cmp; }');
+		}
+		lines.push('    if (a${field}Length !== b${field}Length) return a${field}Length - b${field}Length;');
+		lines.push('  }');
 	}
 
 
