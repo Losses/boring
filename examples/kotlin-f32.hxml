@@ -147,6 +147,7 @@ tests.Sha512Tests
 tests.Xxh64Tests
 tests.CrcTests
 tests.BlockScopeUnrollTests
+tests.HandWrittenLoopPositionTests
 tests.RegistryJsonTests
 tests.RegistrySemverTests
 tests.RegistryPipelineTests
