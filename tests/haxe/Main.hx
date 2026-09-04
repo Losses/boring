@@ -27,265 +27,287 @@ import haxe.io.Bytes;
  * code.
  */
 class Main {
-	static var failures:Int = 0;
-	static var passes:Int = 0;
+    static var failures:Int = 0;
+    static var passes:Int = 0;
 
-	static final VECTOR_RECORDS:Array<GlyphMetrics> = [
-		{
-			codePoint: 65,
-			advanceEm: 0.5,
-			bounds: { xMin: 0.03125, yMin: -0.21875, xMax: 0.46875, yMax: 0.03125 }
-		},
-		{
-			codePoint: 19969,
-			advanceEm: 1.0,
-			bounds: { xMin: 0.03125, yMin: -0.875, xMax: 0.96875, yMax: 0.03125 }
-		},
-		{
-			codePoint: 65292,
-			advanceEm: 0.5,
-			bounds: { xMin: 0.03125, yMin: -0.21875, xMax: 0.46875, yMax: 0.03125 }
-		},
-		{
-			codePoint: 65311,
-			advanceEm: 0.75,
-			bounds: { xMin: 0.0625, yMin: -0.15625, xMax: 0.6875, yMax: 0.0625 }
-		}
-	];
+    static final VECTOR_RECORDS:Array<GlyphMetrics> = [
+        {
+            codePoint: 65,
+            advanceEm: 0.5,
+            bounds: {
+                xMin: 0.03125,
+                yMin: -0.21875,
+                xMax: 0.46875,
+                yMax: 0.03125
+            }
+        },
+        {
+            codePoint: 19969,
+            advanceEm: 1.0,
+            bounds: {
+                xMin: 0.03125,
+                yMin: -0.875,
+                xMax: 0.96875,
+                yMax: 0.03125
+            }
+        },
+        {
+            codePoint: 65292,
+            advanceEm: 0.5,
+            bounds: {
+                xMin: 0.03125,
+                yMin: -0.21875,
+                xMax: 0.46875,
+                yMax: 0.03125
+            }
+        },
+        {
+            codePoint: 65311,
+            advanceEm: 0.75,
+            bounds: {
+                xMin: 0.0625,
+                yMin: -0.15625,
+                xMax: 0.6875,
+                yMax: 0.0625
+            }
+        }
+    ];
 
-	static final EXPECTED_HEX:String = "4252473100000004"
-		+ "000000413fe00000000000003fa0000000000000bfcc0000000000003fde0000000000003fa0000000000000"
-		+ "00004e013ff00000000000003fa0000000000000bfec0000000000003fef0000000000003fa0000000000000"
-		+ "0000ff0c3fe00000000000003fa0000000000000bfcc0000000000003fde0000000000003fa0000000000000"
-		+ "0000ff1f3fe80000000000003fb0000000000000bfc40000000000003fe60000000000003fb0000000000000";
+    static final EXPECTED_HEX:String = "4252473100000004"
+        + "000000413fe00000000000003fa0000000000000bfcc0000000000003fde0000000000003fa0000000000000"
+        + "00004e013ff00000000000003fa0000000000000bfec0000000000003fef0000000000003fa0000000000000"
+        + "0000ff0c3fe00000000000003fa0000000000000bfcc0000000000003fde0000000000003fa0000000000000"
+        + "0000ff1f3fe80000000000003fb0000000000000bfc40000000000003fe60000000000003fb0000000000000";
 
-	// The same records at the f32 and f16 block float widths of binary
-	// spec 05; every record value is exact at binary16 precision, so the
-	// three widths carry equal values.
-	static final EXPECTED_HEX_F32:String = "4252473200000004"
-		+ "000000413f0000003d000000be6000003ef000003d000000"
-		+ "00004e013f8000003d000000bf6000003f7800003d000000"
-		+ "0000ff0c3f0000003d000000be6000003ef000003d000000"
-		+ "0000ff1f3f4000003d800000be2000003f3000003d800000";
+    // The same records at the f32 and f16 block float widths of binary
+    // spec 05; every record value is exact at binary16 precision, so the
+    // three widths carry equal values.
+    static final EXPECTED_HEX_F32:String = "4252473200000004" + "000000413f0000003d000000be6000003ef000003d000000"
+        + "00004e013f8000003d000000bf6000003f7800003d000000" + "0000ff0c3f0000003d000000be6000003ef000003d000000"
+        + "0000ff1f3f4000003d800000be2000003f3000003d800000";
 
-	static final EXPECTED_HEX_F16:String = "4252473300000004"
-		+ "0000004138002800b30037802800"
-		+ "00004e013c002800bb003bc02800"
-		+ "0000ff0c38002800b30037802800"
-		+ "0000ff1f3a002c00b10039802c00";
+    static final EXPECTED_HEX_F16:String = "4252473300000004" + "0000004138002800b30037802800" + "00004e013c002800bb003bc02800"
+        + "0000ff0c38002800b30037802800" + "0000ff1f3a002c00b10039802c00";
 
-	static function recordEquals(left:GlyphMetrics, right:GlyphMetrics):Bool {
-		return left.codePoint == right.codePoint
-			&& left.advanceEm == right.advanceEm
-			&& left.bounds.xMin == right.bounds.xMin
-			&& left.bounds.yMin == right.bounds.yMin
-			&& left.bounds.xMax == right.bounds.xMax
-			&& left.bounds.yMax == right.bounds.yMax;
-	}
+    static function recordEquals(left:GlyphMetrics, right:GlyphMetrics):Bool {
+        return left.codePoint == right.codePoint
+            && left.advanceEm == right.advanceEm
+            && left.bounds.xMin == right.bounds.xMin
+            && left.bounds.yMin == right.bounds.yMin
+            && left.bounds.xMax == right.bounds.xMax
+            && left.bounds.yMax == right.bounds.yMax;
+    }
 
-	static function recordsEqual(left:ReadOnlyArray<GlyphMetrics>, right:ReadOnlyArray<GlyphMetrics>):Bool {
-		if (left.length != right.length) return false;
-		for (index in 0...left.length) {
-			if (!recordEquals(left[index], right[index])) return false;
-		}
-		return true;
-	}
+    static function recordsEqual(left:ReadOnlyArray<GlyphMetrics>, right:ReadOnlyArray<GlyphMetrics>):Bool {
+        if (left.length != right.length)
+            return false;
+        for (index in 0...left.length) {
+            if (!recordEquals(left[index], right[index]))
+                return false;
+        }
+        return true;
+    }
 
-	static function expectTrue(label:String, condition:Bool):Void {
-		if (condition) {
-			passes++;
-			Console.log('pass $label');
-		} else {
-			failures++;
-			Console.log('FAIL $label');
-		}
-	}
+    static function expectTrue(label:String, condition:Bool):Void {
+        if (condition) {
+            passes++;
+            Console.log('pass $label');
+        } else {
+            failures++;
+            Console.log('FAIL $label');
+        }
+    }
 
-	static function main():Void {
-		// The externs of std.UStringRT and std.Graphemes resolve to the
-		// compiled resident modules runtime.UString and runtime.Graphemes,
-		// the same classes stage one binds for TestMain. runtime.UString
-		// walks strings through std.UStringPlatform, bound to the UTF-16
-		// cursor implementation beside this harness.
-		js.Syntax.code("globalThis.std = globalThis.std || {}; globalThis.std.UStringRT = {0};", RuntimeUString);
-		js.Syntax.code("globalThis.std.UStringPlatform = {0};", UStringPlatform);
-		js.Syntax.code("globalThis.std.Graphemes = {0};", Graphemes);
+    static function main():Void {
+        // The externs of std.UStringRT and std.Graphemes resolve to the
+        // compiled resident modules runtime.UString and runtime.Graphemes,
+        // the same classes stage one binds for TestMain. runtime.UString
+        // walks strings through std.UStringPlatform, bound to the UTF-16
+        // cursor implementation beside this harness.
+        js.Syntax.code("globalThis.std = globalThis.std || {}; globalThis.std.UStringRT = {0};", RuntimeUString);
+        js.Syntax.code("globalThis.std.UStringPlatform = {0};", UStringPlatform);
+        js.Syntax.code("globalThis.std.Graphemes = {0};", Graphemes);
 
-		final encoded = VectorCodec.encode(VECTOR_RECORDS);
-		expectTrue("encoded length matches the committed vector", encoded.length == 184);
-		expectTrue("encoded hex matches the committed vector", encoded.toHex() == EXPECTED_HEX);
+        final encoded = VectorCodec.encode(VECTOR_RECORDS);
+        expectTrue("encoded length matches the committed vector", encoded.length == 184);
+        expectTrue("encoded hex matches the committed vector", encoded.toHex() == EXPECTED_HEX);
 
-		final decoded = VectorCodec.decode(Bytes.ofHex(EXPECTED_HEX));
-		expectTrue("decoded records match the source records", recordsEqual(decoded, VECTOR_RECORDS));
+        final decoded = VectorCodec.decode(Bytes.ofHex(EXPECTED_HEX));
+        expectTrue("decoded records match the source records", recordsEqual(decoded, VECTOR_RECORDS));
 
-		final roundTripped = VectorCodec.decode(VectorCodec.encode(VECTOR_RECORDS));
-		expectTrue("round trip preserves every record", recordsEqual(roundTripped, VECTOR_RECORDS));
+        final roundTripped = VectorCodec.decode(VectorCodec.encode(VECTOR_RECORDS));
+        expectTrue("round trip preserves every record", recordsEqual(roundTripped, VECTOR_RECORDS));
 
-		// Block float widths per binary spec 05: the committed f32 and f16
-		// vectors carry the same records, and re-encoding the source records
-		// reproduces their bytes.
-		final encodedF32 = VectorCodec.encode(VECTOR_RECORDS, F32);
-		expectTrue("f32 encoded length matches the committed vector", encodedF32.length == 104);
-		expectTrue("f32 encoded hex matches the committed vector", encodedF32.toHex() == EXPECTED_HEX_F32);
-		final decodedF32 = VectorCodec.decode(Bytes.ofHex(EXPECTED_HEX_F32));
-		expectTrue("f32 decoded records match the source records", recordsEqual(decodedF32, VECTOR_RECORDS));
+        // Block float widths per binary spec 05: the committed f32 and f16
+        // vectors carry the same records, and re-encoding the source records
+        // reproduces their bytes.
+        final encodedF32 = VectorCodec.encode(VECTOR_RECORDS, F32);
+        expectTrue("f32 encoded length matches the committed vector", encodedF32.length == 104);
+        expectTrue("f32 encoded hex matches the committed vector", encodedF32.toHex() == EXPECTED_HEX_F32);
+        final decodedF32 = VectorCodec.decode(Bytes.ofHex(EXPECTED_HEX_F32));
+        expectTrue("f32 decoded records match the source records", recordsEqual(decodedF32, VECTOR_RECORDS));
 
-		final encodedF16 = VectorCodec.encode(VECTOR_RECORDS, F16);
-		expectTrue("f16 encoded length matches the committed vector", encodedF16.length == 64);
-		expectTrue("f16 encoded hex matches the committed vector", encodedF16.toHex() == EXPECTED_HEX_F16);
-		final decodedF16 = VectorCodec.decode(Bytes.ofHex(EXPECTED_HEX_F16));
-		expectTrue("f16 decoded records match the source records", recordsEqual(decodedF16, VECTOR_RECORDS));
+        final encodedF16 = VectorCodec.encode(VECTOR_RECORDS, F16);
+        expectTrue("f16 encoded length matches the committed vector", encodedF16.length == 64);
+        expectTrue("f16 encoded hex matches the committed vector", encodedF16.toHex() == EXPECTED_HEX_F16);
+        final decodedF16 = VectorCodec.decode(Bytes.ofHex(EXPECTED_HEX_F16));
+        expectTrue("f16 decoded records match the source records", recordsEqual(decodedF16, VECTOR_RECORDS));
 
-		final mixedWidthReader = new BinaryReader(Bytes.ofHex(EXPECTED_HEX_F16));
-		expectTrue("f16 magic reads back", mixedWidthReader.readAscii(4) == "BRG3");
-		expectTrue("BRG1 declares f64 blocks", VectorCodec.widthOfMagic("BRG1") == F64);
-		expectTrue("BRG2 declares f32 blocks", VectorCodec.widthOfMagic("BRG2") == F32);
-		expectTrue("BRG3 declares f16 blocks", VectorCodec.widthOfMagic("BRG3") == F16);
-		expectTrue("unknown magics answer null", VectorCodec.widthOfMagic("BRG4") == null);
+        final mixedWidthReader = new BinaryReader(Bytes.ofHex(EXPECTED_HEX_F16));
+        expectTrue("f16 magic reads back", mixedWidthReader.readAscii(4) == "BRG3");
+        expectTrue("BRG1 declares f64 blocks", VectorCodec.widthOfMagic("BRG1") == F64);
+        expectTrue("BRG2 declares f32 blocks", VectorCodec.widthOfMagic("BRG2") == F32);
+        expectTrue("BRG3 declares f16 blocks", VectorCodec.widthOfMagic("BRG3") == F16);
+        expectTrue("unknown magics answer null", VectorCodec.widthOfMagic("BRG4") == null);
 
-		final writer = new BinaryWriter();
-		writer.writeU16(0x1234);
-		writer.writeU32(0x56789abc);
-		writer.writeF32(0.25);
-		writer.writeF16(-0.75);
-		final reader = new BinaryReader(writer.finish());
-		expectTrue("u16 round trip", reader.readU16() == 0x1234);
-		expectTrue("u32 round trip", reader.readU32() == 0x56789abc);
-		expectTrue("f32 round trip", reader.readF32() == 0.25);
-		expectTrue("f16 round trip", reader.readF16() == -0.75);
-		expectTrue("reader fully consumed", reader.remaining() == 0);
+        final writer = new BinaryWriter();
+        writer.writeU16(0x1234);
+        writer.writeU32(0x56789abc);
+        writer.writeF32(0.25);
+        writer.writeF16(-0.75);
+        final reader = new BinaryReader(writer.finish());
+        expectTrue("u16 round trip", reader.readU16() == 0x1234);
+        expectTrue("u32 round trip", reader.readU32() == 0x56789abc);
+        expectTrue("f32 round trip", reader.readF32() == 0.25);
+        expectTrue("f16 round trip", reader.readF16() == -0.75);
+        expectTrue("reader fully consumed", reader.remaining() == 0);
 
-		var badMagicVariant:Null<VectorError> = null;
-		try {
-			VectorCodec.decode(Bytes.ofHex("5858585800000000"));
-		} catch (error:VectorException) {
-			badMagicVariant = error.error;
-		}
-		expectTrue("bad magic throws the BadMagic variant", badMagicVariant == BadMagic);
+        var badMagicVariant:Null<VectorError> = null;
+        try {
+            VectorCodec.decode(Bytes.ofHex("5858585800000000"));
+        } catch (error:VectorException) {
+            badMagicVariant = error.error;
+        }
+        expectTrue("bad magic throws the BadMagic variant", badMagicVariant == BadMagic);
 
-		// A future width magic must be rejected explicitly, never misread.
-		var unknownWidthVariant:Null<VectorError> = null;
-		try {
-			VectorCodec.decode(Bytes.ofHex("4252473400000000"));
-		} catch (error:VectorException) {
-			unknownWidthVariant = error.error;
-		}
-		expectTrue("unknown width magic throws the BadMagic variant", unknownWidthVariant == BadMagic);
+        // A future width magic must be rejected explicitly, never misread.
+        var unknownWidthVariant:Null<VectorError> = null;
+        try {
+            VectorCodec.decode(Bytes.ofHex("4252473400000000"));
+        } catch (error:VectorException) {
+            unknownWidthVariant = error.error;
+        }
+        expectTrue("unknown width magic throws the BadMagic variant", unknownWidthVariant == BadMagic);
 
-		var truncatedVariant:Null<VectorError> = null;
-		try {
-			VectorCodec.decode(Bytes.ofHex("4252473100000001"));
-		} catch (error:VectorException) {
-			truncatedVariant = error.error;
-		}
-		expectTrue("truncated vector throws the UnexpectedEof variant", truncatedVariant == UnexpectedEof);
+        var truncatedVariant:Null<VectorError> = null;
+        try {
+            VectorCodec.decode(Bytes.ofHex("4252473100000001"));
+        } catch (error:VectorException) {
+            truncatedVariant = error.error;
+        }
+        expectTrue("truncated vector throws the UnexpectedEof variant", truncatedVariant == UnexpectedEof);
 
-		// The decodable count domain is [0, 2^31) per docs/specs/binary/01-binary-record-layout.md.
-		var hugeCountVariant:Null<VectorError> = null;
-		try {
-			VectorCodec.decode(Bytes.ofHex("42524731ffffffff"));
-		} catch (error:VectorException) {
-			hugeCountVariant = error.error;
-		}
-		expectTrue("huge count throws the CountOverflow variant", hugeCountVariant == CountOverflow);
+        // The decodable count domain is [0, 2^31) per docs/specs/binary/01-binary-record-layout.md.
+        var hugeCountVariant:Null<VectorError> = null;
+        try {
+            VectorCodec.decode(Bytes.ofHex("42524731ffffffff"));
+        } catch (error:VectorException) {
+            hugeCountVariant = error.error;
+        }
+        expectTrue("huge count throws the CountOverflow variant", hugeCountVariant == CountOverflow);
 
-		var boundaryCountVariant:Null<VectorError> = null;
-		try {
-			VectorCodec.decode(Bytes.ofHex("4252473180000000"));
-		} catch (error:VectorException) {
-			boundaryCountVariant = error.error;
-		}
-		expectTrue("boundary count throws the CountOverflow variant", boundaryCountVariant == CountOverflow);
+        var boundaryCountVariant:Null<VectorError> = null;
+        try {
+            VectorCodec.decode(Bytes.ofHex("4252473180000000"));
+        } catch (error:VectorException) {
+            boundaryCountVariant = error.error;
+        }
+        expectTrue("boundary count throws the CountOverflow variant", boundaryCountVariant == CountOverflow);
 
-		// std.UString construction domain and stage-one value answers per
-		// docs/specs/stdlib/10-unicode-string-access.md. The fault paths run
-		// here because typed catch has no transpiler lowering yet; the
-		// four-side harness covers the value paths in tests.UStringTests.
-		expectTrue("bmp cjk counts by code point", UString.count("提椠排版") == 4);
-		expectTrue("supplementary cjk reads whole", UString.at("𠀀一𠀁", 2) == 0x20001);
+        // std.UString construction domain and stage-one value answers per
+        // docs/specs/stdlib/10-unicode-string-access.md. The fault paths run
+        // here because typed catch has no transpiler lowering yet; the
+        // four-side harness covers the value paths in tests.UStringTests.
+        expectTrue("bmp cjk counts by code point", UString.count("提椠排版") == 4);
+        expectTrue("supplementary cjk reads whole", UString.at("𠀀一𠀁", 2) == 0x20001);
 
-		var surrogateFault:Null<UStringFault> = null;
-		try {
-			UString.fromCodePoint(0xD800);
-		} catch (error:UStringException) {
-			surrogateFault = error.fault;
-		}
-		expectTrue("surrogate code point throws the InvalidCodePoint variant", faultEquals(surrogateFault, InvalidCodePoint(0xD800)));
+        var surrogateFault:Null<UStringFault> = null;
+        try {
+            UString.fromCodePoint(0xD800);
+        } catch (error:UStringException) {
+            surrogateFault = error.fault;
+        }
+        expectTrue("surrogate code point throws the InvalidCodePoint variant", faultEquals(surrogateFault, InvalidCodePoint(0xD800)));
 
-		var negativeFault:Null<UStringFault> = null;
-		try {
-			UString.fromCodePoints([0x4E2D, -1]);
-		} catch (error:UStringException) {
-			negativeFault = error.fault;
-		}
-		expectTrue("negative code point throws the InvalidCodePoint variant", faultEquals(negativeFault, InvalidCodePoint(-1)));
+        var negativeFault:Null<UStringFault> = null;
+        try {
+            UString.fromCodePoints([0x4E2D, -1]);
+        } catch (error:UStringException) {
+            negativeFault = error.fault;
+        }
+        expectTrue("negative code point throws the InvalidCodePoint variant", faultEquals(negativeFault, InvalidCodePoint(-1)));
 
-		runSortChecks();
+        runSortChecks();
 
-		if (failures > 0) {
-			Console.log('$failures failure(s)');
-			Process.exit(1);
-		}
-		Console.log('all ${passes} haxe checks passed');
-	}
+        if (failures > 0) {
+            Console.log('$failures failure(s)');
+            Process.exit(1);
+        }
+        Console.log('all ${passes} haxe checks passed');
+    }
 
-	// Sort fixture and oracle shared verbatim with tests/ts/vector-sort.test.ts
-	// and tests/rust/vector.rs; the trees must produce identical outputs.
-	static final SORT_SHUFFLED_KEYS:Array<Int> = [
-		0x82A1, 0x78E2, 0x76EF, 0x6371, 0x4E00, 0x0020, 0x7AD5, 0x74FC, 0x694A, 0x6F23,
-		0x6D30, 0x8A6D, 0x617E, 0x7EBB, 0x3105, 0x5BA5, 0x6B3D, 0x8687, 0x7116, 0x7CC8,
-		0xFF01, 0x8494, 0x80AE, 0x59B2, 0x4FF3, 0x4E00, 0x9FFF, 0x57BF, 0xFF01, 0x6564,
-		0x53D9, 0x5D98, 0x6757, 0x3105, 0x5F8B, 0x7309, 0x55CC, 0x51E6, 0x4E00, 0x887A
-	];
+    // Sort fixture and oracle shared verbatim with tests/ts/vector-sort.test.ts
+    // and tests/rust/vector.rs; the trees must produce identical outputs.
+    static final SORT_SHUFFLED_KEYS:Array<Int> = [
+        0x82A1, 0x78E2, 0x76EF, 0x6371, 0x4E00, 0x0020, 0x7AD5, 0x74FC, 0x694A, 0x6F23,
+        0x6D30, 0x8A6D, 0x617E, 0x7EBB, 0x3105, 0x5BA5, 0x6B3D, 0x8687, 0x7116, 0x7CC8,
+        0xFF01, 0x8494, 0x80AE, 0x59B2, 0x4FF3, 0x4E00, 0x9FFF, 0x57BF, 0xFF01, 0x6564,
+        0x53D9, 0x5D98, 0x6757, 0x3105, 0x5F8B, 0x7309, 0x55CC, 0x51E6, 0x4E00, 0x887A
+    ];
 
-	static final SORT_SORTED_KEYS:Array<Int> = [
-		0x20, 0x3105, 0x3105, 0x4E00, 0x4E00, 0x4E00, 0x4FF3, 0x51E6, 0x53D9, 0x55CC,
-		0x57BF, 0x59B2, 0x5BA5, 0x5D98, 0x5F8B, 0x617E, 0x6371, 0x6564, 0x6757, 0x694A,
-		0x6B3D, 0x6D30, 0x6F23, 0x7116, 0x7309, 0x74FC, 0x76EF, 0x78E2, 0x7AD5, 0x7CC8,
-		0x7EBB, 0x80AE, 0x82A1, 0x8494, 0x8687, 0x887A, 0x8A6D, 0x9FFF, 0xFF01, 0xFF01
-	];
+    static final SORT_SORTED_KEYS:Array<Int> = [
+          0x20, 0x3105, 0x3105, 0x4E00, 0x4E00, 0x4E00, 0x4FF3, 0x51E6, 0x53D9, 0x55CC,
+        0x57BF, 0x59B2, 0x5BA5, 0x5D98, 0x5F8B, 0x617E, 0x6371, 0x6564, 0x6757, 0x694A,
+        0x6B3D, 0x6D30, 0x6F23, 0x7116, 0x7309, 0x74FC, 0x76EF, 0x78E2, 0x7AD5, 0x7CC8,
+        0x7EBB, 0x80AE, 0x82A1, 0x8494, 0x8687, 0x887A, 0x8A6D, 0x9FFF, 0xFF01, 0xFF01
+    ];
 
-	static function sortRecordsFromKeys(keys:Array<Int>):Array<GlyphMetrics> {
-		final records = new Array<GlyphMetrics>();
-		for (index in 0...keys.length) {
-			// advanceEm marks the input position for the stability assertion.
-			records.push({
-				codePoint: keys[index],
-				advanceEm: index,
-				bounds: { xMin: 0, yMin: 0, xMax: 0, yMax: 0 }
-			});
-		}
-		return records;
-	}
+    static function sortRecordsFromKeys(keys:Array<Int>):Array<GlyphMetrics> {
+        final records = new Array<GlyphMetrics>();
+        for (index in 0...keys.length) {
+            // advanceEm marks the input position for the stability assertion.
+            records.push({
+                codePoint: keys[index],
+                advanceEm: index,
+                bounds: {
+                    xMin: 0,
+                    yMin: 0,
+                    xMax: 0,
+                    yMax: 0
+                }
+            });
+        }
+        return records;
+    }
 
-	// Enums with arguments need structural comparison; this keeps the
-	// fault checks free of reflection.
-	static function faultEquals(left:Null<UStringFault>, right:UStringFault):Bool {
-		if (left == null) return false;
-		return switch [left, right] {
-			case [InvalidCodePoint(a), InvalidCodePoint(b)]: a == b;
-			case _: false;
-		}
-	}
+    // Enums with arguments need structural comparison; this keeps the
+    // fault checks free of reflection.
+    static function faultEquals(left:Null<UStringFault>, right:UStringFault):Bool {
+        if (left == null)
+            return false;
+        return switch [left, right] {
+            case [InvalidCodePoint(a), InvalidCodePoint(b)]: a == b;
+            case _: false;
+        }
+    }
 
-	static function runSortChecks():Void {
-		final records = sortRecordsFromKeys(SORT_SHUFFLED_KEYS);
-		final result = VectorSort.byCodePoint(records);
-		expectTrue("sort returns the same array", result == records);
-		var keysMatch = true;
-		for (index in 0...SORT_SORTED_KEYS.length) {
-			if (result[index].codePoint != SORT_SORTED_KEYS[index]) {
-				keysMatch = false;
-			}
-		}
-		expectTrue("sort matches the shared oracle", keysMatch);
-		var stable = true;
-		for (index in 1...result.length) {
-			if (result[index].codePoint == result[index - 1].codePoint
-				&& result[index].advanceEm < result[index - 1].advanceEm) {
-				stable = false;
-			}
-		}
-		expectTrue("equal keys keep input order", stable);
-	}
+    static function runSortChecks():Void {
+        final records = sortRecordsFromKeys(SORT_SHUFFLED_KEYS);
+        final result = VectorSort.byCodePoint(records);
+        expectTrue("sort returns the same array", result == records);
+        var keysMatch = true;
+        for (index in 0...SORT_SORTED_KEYS.length) {
+            if (result[index].codePoint != SORT_SORTED_KEYS[index]) {
+                keysMatch = false;
+            }
+        }
+        expectTrue("sort matches the shared oracle", keysMatch);
+        var stable = true;
+        for (index in 1...result.length) {
+            if (result[index].codePoint == result[index - 1].codePoint && result[index].advanceEm < result[index - 1].advanceEm) {
+                stable = false;
+            }
+        }
+        expectTrue("equal keys keep input order", stable);
+    }
 }

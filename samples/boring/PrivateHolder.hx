@@ -5,18 +5,20 @@
  * target's private spelling: `private val` on Kotlin, `private let` on
  * Swift, the `_`-prefixed name on Dart.
  */
+
 package boring;
 
 class PrivateHolder {
-	public final shown:Int;
-	final hidden:Int;
+    public final shown:Int;
 
-	public function new(shown:Int, hidden:Int) {
-		this.shown = shown;
-		this.hidden = hidden;
-	}
+    final hidden:Int;
 
-	public function total():Int {
-		return shown + hidden;
-	}
+    public function new(shown:Int, hidden:Int) {
+        this.shown = shown;
+        this.hidden = hidden;
+    }
+
+    public function total():Int {
+        return shown + hidden;
+    }
 }

@@ -2,22 +2,34 @@ package registry;
 
 @:jsRequire("node:fs")
 extern class Fs {
-	static function existsSync(path:String):Bool;
-	static function statSync(path:String):Stats;
-	static function readdirSync(path:String):Array<String>;
-	static function readFileSync(path:String, encoding:String):String;
-	static function writeFileSync(path:String, data:String, encoding:String):Void;
-	static function mkdirSync(path:String, options:{recursive:Bool}):Void;
+    static function existsSync(path:String):Bool;
+    static function statSync(path:String):Stats;
+    static function readdirSync(path:String):Array<String>;
+    static function readFileSync(path:String, encoding:String):String;
+    static function writeFileSync(path:String, data:String, encoding:String):Void;
+    static function mkdirSync(path:String, options:{recursive:Bool}):Void;
 }
+
 @:jsRequire("node:path")
 extern class Path {
-	static function join(a:String, b:String):String;
-	static function dirname(path:String):String;
+    static function join(a:String, b:String):String;
+    static function dirname(path:String):String;
 }
-extern class Stats { function isDirectory():Bool; }
-extern class MkdirOptions { var recursive:Bool; function new(recursive:Bool); }
+
+extern class Stats {
+    function isDirectory():Bool;
+}
+
+extern class MkdirOptions {
+    var recursive:Bool;
+    function new(recursive:Bool);
+}
+
 @:native("process") extern class NodeProcess {
-	static var argv:Array<String>;
-	static function exit(code:Int):Void;
+    static var argv:Array<String>;
+    static function exit(code:Int):Void;
 }
-@:native("console") extern class Console { static function error(message:String):Void; }
+
+@:native("console") extern class Console {
+    static function error(message:String):Void;
+}

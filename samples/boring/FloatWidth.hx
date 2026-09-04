@@ -4,10 +4,11 @@
  * independent of the module real width that feature spec 23 selects at
  * compile time.
  */
+
 package boring;
 
 enum FloatWidth {
-	F64;
-	F32;
-	F16;
+    F64;
+    F32;
+    F16;
 }

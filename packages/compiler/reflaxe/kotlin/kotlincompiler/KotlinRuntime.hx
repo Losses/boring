@@ -1,21 +1,20 @@
 package kotlincompiler;
 
 #if (macro || reflaxe_runtime)
-
 /**
-	Bodies of the standard-library shims, emitted on demand into the
-	runtime package configured through RuntimeConfig. Each source is a
-	type declaration without a package line: the emitter prefixes the
-	// the configured package directive, so the source contains no namespace.
-	- haxe.io.BytesBuffer: growable byte buffer sink
-	- haxe.io.FPHelper: IEEE-754 64-bit float bit conversions, plus the
-	  binary32 value edges of feature spec 23
-	- std.Console: logging
-	- std.Process: process exit
-	- test extern: test assertions and runner
+    Bodies of the standard-library shims, emitted on demand into the
+    runtime package configured through RuntimeConfig. Each source is a
+    type declaration without a package line: the emitter prefixes the
+    // the configured package directive, so the source contains no namespace.
+    - haxe.io.BytesBuffer: growable byte buffer sink
+    - haxe.io.FPHelper: IEEE-754 64-bit float bit conversions, plus the
+      binary32 value edges of feature spec 23
+    - std.Console: logging
+    - std.Process: process exit
+    - test extern: test assertions and runner
 **/
 class KotlinRuntime {
-	public static final BYTES_BUFFER_SOURCE = "import java.util.ArrayList
+    public static final BYTES_BUFFER_SOURCE = "import java.util.ArrayList
 
 class BytesBuffer {
     private val buffer = ArrayList<Byte>()
@@ -34,7 +33,7 @@ class BytesBuffer {
 }
 ";
 
-	public static final FP_HELPER_SOURCE = "class Int64Halves(val high: Int, val low: Int)
+    public static final FP_HELPER_SOURCE = "class Int64Halves(val high: Int, val low: Int)
 
 object FPHelper {
     fun doubleToI64(value: Double): Int64Halves {
@@ -65,14 +64,14 @@ object FPHelper {
 }
 ";
 
-	public static final CONSOLE_SOURCE = "object Console {
+    public static final CONSOLE_SOURCE = "object Console {
     fun log(message: String) {
         println(message)
     }
 }
 ";
 
-	public static final PROCESS_SOURCE = "import kotlin.system.exitProcess
+    public static final PROCESS_SOURCE = "import kotlin.system.exitProcess
 
 object Process {
     fun exit(code: Int) {
@@ -81,13 +80,13 @@ object Process {
 }
 ";
 
-	public static function testSource(): String {
-		// The floating-point members follow the module real of the
-		// compilation (feature spec 23): TestCore is Haxe source compiled
-		// through the same pipeline, so its formatFloat signature switches
-		// with the compilation's real type and the delegate overloads must switch with it.
-		final real = FloatPrecision.isF32() ? "Float" : "Double";
-		return 'import java.io.File
+    public static function testSource():String {
+        // The floating-point members follow the module real of the
+        // compilation (feature spec 23): TestCore is Haxe source compiled
+        // through the same pipeline, so its formatFloat signature switches
+        // with the compilation's real type and the delegate overloads must switch with it.
+        final real = FloatPrecision.isF32() ? "Float" : "Double";
+        return 'import java.io.File
 import java.io.FileWriter
 
 object Test {
@@ -193,6 +192,6 @@ object Test {
     }
 }
 ';
-	}
+    }
 }
 #end

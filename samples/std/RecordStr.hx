@@ -17,8 +17,8 @@ import haxe.macro.Type;
  * language tree, and hand-written Kotlin consumers read the same string.
  */
 class RecordStr {
-	public static macro function str(r:Expr):Expr {
-		final shape = RecordShape.of(r, "record str accepts record receivers only");
-		return RecordShape.assemble(r, shape);
-	}
+    public static macro function str(r:Expr):Expr {
+        final shape = RecordShape.of(r, "record str accepts record receivers only");
+        return RecordShape.assemble(r, shape);
+    }
 }

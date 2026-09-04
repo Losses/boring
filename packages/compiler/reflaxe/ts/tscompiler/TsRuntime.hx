@@ -1,15 +1,14 @@
 package tscompiler;
 
 #if (macro || reflaxe_runtime)
-
 /**
-	Source of the runtime module emitted next to the generated files.
-	It only hosts what the translatable subset cannot express inline:
-	the Int64 bit representation (stdlib/05) and the growable byte
-	sink behind haxe.io.BytesBuffer (stdlib/02).
+    Source of the runtime module emitted next to the generated files.
+    It only hosts what the translatable subset cannot express inline:
+    the Int64 bit representation (stdlib/05) and the growable byte
+    sink behind haxe.io.BytesBuffer (stdlib/02).
 **/
 class TsRuntime {
-	public static final SOURCE = '
+    public static final SOURCE = '
 const DOUBLE_SCRATCH = new DataView(new ArrayBuffer(8));
 
 export interface Int64Halves {
@@ -59,13 +58,13 @@ export class BytesBuffer {
 
 ';
 
-	/**
-		Source of the test entry emitted beside the runtime module. It
-		holds the test result writer, the only runtime member that needs
-		the host file system; the general entry above stays free of node
-		imports so a browser can load it.
-	**/
-	public static final TEST_SOURCE = 'import * as fs from "node:fs";
+    /**
+        Source of the test entry emitted beside the runtime module. It
+        holds the test result writer, the only runtime member that needs
+        the host file system; the general entry above stays free of node
+        imports so a browser can load it.
+    **/
+    public static final TEST_SOURCE = 'import * as fs from "node:fs";
 import * as path from "node:path";
 
 export type TestBody = () => void;

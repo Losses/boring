@@ -1,21 +1,20 @@
 package dartcompiler;
 
 #if (macro || reflaxe_runtime)
-
 /**
-	Source of the runtime library emitted next to the generated files
-	(docs/specs/stdlib/06-std-modules.md). It only hosts what the translatable
-	subset cannot express inline: the Int64 bit representation
-	(stdlib/05), the exception base class of features/06, and the
-	unit-order comparator tear-off the sorted builders bind
-	(stdlib/07). The byte sink and the string-view helpers of the Swift
-	Swift's byte sink and string-view helpers have no Dart equivalent. Dart uses the list itself for
-	haxe.io.BytesBuffer (stdlib/02), and native String provides the
-	UTF-16 view. Resident modules compile through the normal pipeline and
-	append after this prelude.
+    Source of the runtime library emitted next to the generated files
+    (docs/specs/stdlib/06-std-modules.md). It only hosts what the translatable
+    subset cannot express inline: the Int64 bit representation
+    (stdlib/05), the exception base class of features/06, and the
+    unit-order comparator tear-off the sorted builders bind
+    (stdlib/07). The byte sink and the string-view helpers of the Swift
+    Swift's byte sink and string-view helpers have no Dart equivalent. Dart uses the list itself for
+    haxe.io.BytesBuffer (stdlib/02), and native String provides the
+    UTF-16 view. Resident modules compile through the normal pipeline and
+    append after this prelude.
 **/
 class DartRuntime {
-	public static final SOURCE = "
+    public static final SOURCE = "
 
 /// carry the bit patterns as the signed halves the codec boundaries
 /// read, recombined through a typed view at the float edge.
@@ -91,16 +90,16 @@ int _codePointAt(String s, int i) {
 
 ";
 
-	/**
-		Source of the test host entry. It holds the raise type of this
-		language, the runner state behind a library-private variable with
-		one accessor, and the stdout edge; the consistency run redirects
-		stdout to the jsonl results file. The runtime import is prepended
-		by the compiler because its relative path depends on the output
-		defines; TestCore compiles through the normal pipeline and
-		appends after this host in the same library.
-	**/
-	public static final TEST_SOURCE = "
+    /**
+        Source of the test host entry. It holds the raise type of this
+        language, the runner state behind a library-private variable with
+        one accessor, and the stdout edge; the consistency run redirects
+        stdout to the jsonl results file. The runtime import is prepended
+        by the compiler because its relative path depends on the output
+        defines; TestCore compiles through the normal pipeline and
+        appends after this host in the same library.
+    **/
+    public static final TEST_SOURCE = "
 /// The code point at a unit index, the private twin of the runtime
 /// library's helper; TestCore inlines the same resident cursor walk.
 int _codePointAt(String s, int i) {

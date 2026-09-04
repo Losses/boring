@@ -7,6 +7,6 @@ package std;
  * ill-formed Unicode value crossing the string subsystem.
  */
 enum UStringFault {
-	InvalidCodePoint(code:Int);
-	UnpairedSurrogate(unit:Int);
+    InvalidCodePoint(code:Int);
+    UnpairedSurrogate(unit:Int);
 }
