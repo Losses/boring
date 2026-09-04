@@ -53,12 +53,9 @@ class BinaryReader {
 
     public function readAscii(length:Int):String {
         ensureRemaining(length);
-        final parts = new Array<String>();
-        for (index in 0...length) {
-            parts.push(String.fromCharCode(bytes.get(offset + index)));
-        }
+        final text = bytes.getString(offset, length);
         offset += length;
-        return parts.join("");
+        return text;
     }
 
     public function remaining():Int {
