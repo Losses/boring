@@ -1539,6 +1539,31 @@ class KotlinExpr {
 		};
 	}
 
+	function int64Operand(e:TypedExpr, parentPrec:Int, isRight:Bool, parentAssociative:Bool):String {
+		final rendered = expr(e);
+		final ownPrec = switch(stripWrap(e).expr) {
+			case TBinop(op, _, _): precedenceOf(op);
+			case TCall(callFn, _): int64CallPrecedence(callFn);
+			case _: 100;
+		};
+		return ownPrec < parentPrec || (ownPrec == parentPrec && isRight && !parentAssociative)
+			? "(" + rendered + ")" : rendered;
+	}
+
+	function int64CallPrecedence(fn:TypedExpr):Int {
+		return switch(stripWrap(fn).expr) {
+			case TField(_, FStatic(c, f)) if(c.get().module == "haxe.Int64" && c.get().name == "Int64_Impl_"):
+				switch(f.get().name) {
+					case "eq" | "neq": 4;
+					case "lt" | "gt" | "lte" | "gte": 5;
+					case "add" | "sub": 7;
+					case "mul" | "mulInt": 8;
+					case _: 100;
+				};
+			case _: 100;
+		};
+	}
+
 	function int64Call(fn:TypedExpr, args:Array<TypedExpr>):Null<String> {
 		return switch(stripWrap(fn).expr) {
 			case TField(_, FStatic(classRef, fieldRef)) if(classRef.get().module == "haxe.Int64" && classRef.get().name == "Int64_Impl_"):
@@ -1547,10 +1572,10 @@ class KotlinExpr {
 					case "ofInt" if(args.length == 1): expr(args[0]) + ".toLong()";
 					case "getHigh" | "get_high" if(args.length == 1): if(isFpHelperInt64Halves(args[0])) expr(args[0]) + ".high" else "(" + expr(args[0]) + " shr 32).toInt()";
 					case "getLow" | "get_low" if(args.length == 1): if(isFpHelperInt64Halves(args[0])) expr(args[0]) + ".low" else expr(args[0]) + ".toInt()";
-					case "add" if(args.length == 2): expr(args[0]) + " + " + expr(args[1]);
-					case "sub" if(args.length == 2): expr(args[0]) + " - " + expr(args[1]);
-					case "mul" if(args.length == 2): expr(args[0]) + " * " + expr(args[1]);
-					case "mulInt" if(args.length == 2): expr(args[0]) + " * (" + expr(args[1]) + ").toLong()";
+					case "add" if(args.length == 2): int64Operand(args[0], 7, false, true) + " + " + int64Operand(args[1], 7, true, true);
+					case "sub" if(args.length == 2): int64Operand(args[0], 7, false, false) + " - " + int64Operand(args[1], 7, true, false);
+					case "mul" if(args.length == 2): int64Operand(args[0], 8, false, true) + " * " + int64Operand(args[1], 8, true, true);
+					case "mulInt" if(args.length == 2): int64Operand(args[0], 8, false, true) + " * (" + int64Operand(args[1], 100, false, true) + ").toLong()";
 					case "and" if(args.length == 2): "((" + expr(args[0]) + ") and (" + expr(args[1]) + "))";
 					case "or" if(args.length == 2): "((" + expr(args[0]) + ") or (" + expr(args[1]) + "))";
 					case "xor" if(args.length == 2): "((" + expr(args[0]) + ") xor (" + expr(args[1]) + "))";
@@ -1558,12 +1583,12 @@ class KotlinExpr {
 					case "shl" if(args.length == 2): "((" + expr(args[0]) + ") shl ((" + expr(args[1]) + ") and 63))";
 					case "shr" if(args.length == 2): "((" + expr(args[0]) + ") shr ((" + expr(args[1]) + ") and 63))";
 					case "ushr" if(args.length == 2): "((" + expr(args[0]) + ") ushr ((" + expr(args[1]) + ") and 63))";
-					case "eq" if(args.length == 2): expr(args[0]) + " == " + expr(args[1]);
-					case "neq" if(args.length == 2): expr(args[0]) + " != " + expr(args[1]);
-					case "lt" if(args.length == 2): expr(args[0]) + " < " + expr(args[1]);
-					case "gt" if(args.length == 2): expr(args[0]) + " > " + expr(args[1]);
-					case "lte" if(args.length == 2): expr(args[0]) + " <= " + expr(args[1]);
-					case "gte" if(args.length == 2): expr(args[0]) + " >= " + expr(args[1]);
+					case "eq" if(args.length == 2): int64Operand(args[0], 4, false, false) + " == " + int64Operand(args[1], 4, true, false);
+					case "neq" if(args.length == 2): int64Operand(args[0], 4, false, false) + " != " + int64Operand(args[1], 4, true, false);
+					case "lt" if(args.length == 2): int64Operand(args[0], 5, false, false) + " < " + int64Operand(args[1], 5, true, false);
+					case "gt" if(args.length == 2): int64Operand(args[0], 5, false, false) + " > " + int64Operand(args[1], 5, true, false);
+					case "lte" if(args.length == 2): int64Operand(args[0], 5, false, false) + " <= " + int64Operand(args[1], 5, true, false);
+					case "gte" if(args.length == 2): int64Operand(args[0], 5, false, false) + " >= " + int64Operand(args[1], 5, true, false);
 					default: null;
 				}
 			default: null;
