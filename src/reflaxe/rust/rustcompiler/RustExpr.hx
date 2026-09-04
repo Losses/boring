@@ -174,8 +174,8 @@ class RustExpr {
 	/** Renders the sanctioned expression in Rust's normalization closure. */
 	function coalescingDefaultText(value: DefaultArgExpander.CoalescingDefaultValue, targetType: Type, asOption:Bool = false): String {
 		// Null conditionals already produce an Option-valued expression; their
-		// branches must be rendered in that same domain rather than wrapping the
-		// whole conditional in Some(...).
+		// branches must be rendered in that same domain. The whole conditional is not
+		// wrapped in Some(...).
 		if(asOption) switch(value) {
 			case CNull: return "None";
 			case CConditional(c, t, f):
@@ -399,7 +399,7 @@ class RustExpr {
 								case TLocal(v): argNames.indexOf(v.name) >= 0;
 								case _: false;
 							};
-							// The parameter name is a local binding, not necessarily the
+							// The parameter name is a local binding. It is not necessarily the
 							// target field name (Haxe permits constructor shorthand such
 							// as `owner = o`). Preserve the typed field assignment so the
 							// declaration pass can emit the real Rust field name.
@@ -2974,7 +2974,7 @@ class RustExpr {
 				if(name != "length" && isConstructedStaticRead(subj) && !isTypeCopy(cf.get().type)) return "(" + access + ").clone()";
 				if(name != "length" && isNullType(cf.get().type)) {
 					// `Std.string` and string comparisons observe nullable values;
-					// preserve Option instead of treating it as Display.
+					// preserve Option. Do not treat it as Display.
 					return access;
 				}
 				if(name != "length" && (isStringType(cf.get().type) || isRecordValueType(cf.get().type))) {
