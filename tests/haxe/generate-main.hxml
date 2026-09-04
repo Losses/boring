@@ -4,6 +4,7 @@
 -cp src
 -cp samples
 -cp tests/haxe
+-cp tools/registry/src
 --macro haxe.macro.Compiler.addGlobalMetadata('boring', '@:build(std.RecordMember.build())')
 --macro TestCollector.generate('out/haxe')
 -main GenerateMain

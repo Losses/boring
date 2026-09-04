@@ -2,7 +2,8 @@
 -cp src
 -cp samples
 -cp out/haxe
---macro Intercept.run(['samples'])
+-cp tools/registry/src
+--macro Intercept.run(['samples', 'tools/registry/src'])
 --macro haxe.macro.Compiler.addGlobalMetadata('boring', '@:build(std.RecordMember.build())')
 -main TestMain
 -js out/haxe/test-main.js
