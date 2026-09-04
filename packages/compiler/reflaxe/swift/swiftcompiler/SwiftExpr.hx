@@ -2328,6 +2328,10 @@ class SwiftExpr {
         switch (fn.expr) {
             case TField(_, FStatic(c, cf)) if (c.get().module == "haxe.io.Bytes" && cf.get().name == "alloc" && args.length == 1):
                 return "[UInt8](repeating: 0, count: Int(" + expr(args[0]) + "))";
+            case TField(_, FStatic(c, cf)) if (c.get().module == "haxe.io.Bytes" && cf.get().name == "ofString" && args.length == 1):
+                return "Array(" + expr(args[0]) + ".utf8)";
+            case TField(_, FStatic(c, cf)) if (c.get().module == "haxe.io.Bytes" && cf.get().name == "concat" && args.length == 2):
+                return expr(args[0]) + " + " + expr(args[1]);
             case TCast(inner, _):
                 return call(inner, args);
             case TField(subj, FDynamic(name)) if ((name == "length" || name == "get_length") && isStringBuf(subj)):
@@ -2384,6 +2388,10 @@ class SwiftExpr {
                 }
                 if (name == "sub" && args.length == 2 && isBytes(stripCast(subj))) {
                     return "Array(" + receiverText(subj) + "[Int(" + expr(args[0]) + ")..<Int(" + expr(args[0]) + " + " + expr(args[1]) + ")])";
+                }
+                if (name == "getString" && args.length == 2 && isBytes(stripCast(subj))) {
+                    return "String(decoding: " + receiverText(subj) + "[Int(" + expr(args[0]) + ")..<Int(" + expr(args[0]) + " + " + expr(args[1])
+                        + ")], as: UTF8.self)";
                 }
                 if (name == "indexOf" && isStringSubject(subj) && args.length >= 1) {
                     final s = receiverText(subj);
