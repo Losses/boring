@@ -700,7 +700,7 @@ class SwiftDecl {
 				// optionals, nested records) synthesize the conformance.
 				final lines: Array<String> = ["struct " + def.name + ": Equatable {"];
 				for(field in fields) {
-					lines.push("    let " + field.name + ": " + types.of(field.type));
+					lines.push("    var " + field.name + ": " + types.of(field.type));
 				}
 				lines.push("}");
 				if(isStructKeyCandidate(fields)) {
