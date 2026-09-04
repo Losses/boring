@@ -6,8 +6,8 @@
 -cp packages/compiler/reflaxe/kotlin/std-shadow
 -cp packages/compiler/reflaxe/kotlin
 -cp samples
--cp tools/registry/src
---macro Intercept.run(['samples', 'tools/registry/src'])
+-cp packages/registry/src
+--macro Intercept.run(['samples', 'packages/registry/src'])
 --macro haxe.macro.Compiler.keep('registry.Core')
 --macro haxe.macro.Compiler.keep('registry.Json')
 --macro haxe.macro.Compiler.keep('registry.Semver')
