@@ -1,7 +1,7 @@
 # Generates out/haxe/TestMain.hx (docs/specs/features/19-testing.md).
 # Runs before tests/haxe/test-main.hxml so -main TestMain resolves on a
 # fresh tree: haxe caches classpath listings before --macro callbacks fire.
--cp src
+-cp packages/compiler
 -cp samples
 -cp tests/haxe
 -cp packages/registry/src
