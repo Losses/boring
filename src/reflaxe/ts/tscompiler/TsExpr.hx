@@ -1551,6 +1551,10 @@ class TsExpr {
 			final args = switch(ef.type) { case TFun(a, _): a; case _: []; };
 			var arm = '"${ef.name}"';
 			if(args.length > 0) {
+				// Parameterized variants cast through interfaces (e.g. `(v as Ring)`)
+				// that live in the enum's own module; cross-module files need them
+				// imported. TsImports.add skips the enum's own module automatically.
+				imports.type(en.module, ef.name);
 				var body = '"${ef.name}(';
 				for(j in 0...args.length) body += (j == 0 ? "" : ' + ", ') + args[j].name + '=" + ' + stdStringType(args[j].t, "(" + value + " as " + ef.name + ")." + args[j].name, true, origin, 0);
 				arm = "(" + body + ' + ")")';
