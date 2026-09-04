@@ -37,6 +37,17 @@ class PrintedPoint {
 	public function new(x:Int, y:Int) { this.x = x; this.y = y; }
 }
 
+/**
+ * A nullable collection field (feature spec 33 ruling 4 gap closure): the
+ * printed member renders null as "null" and a present array through the
+ * ruled array form.
+ */
+@:dataClass
+class PrintedNullableCollection {
+	public var words:Null<ReadOnlyArray<String>>;
+	public function new(words:Null<ReadOnlyArray<String>>) { this.words = words; }
+}
+
 enum PrintedFlag {
 	Silent;
 	Steps(count:Int);
