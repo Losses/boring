@@ -58,6 +58,7 @@ tests.TestData
 tests.Int64Tests
 tests.ValuePassingTests
 tests.BytesTests
+tests.StringCodecTests
 tests.Sha256Tests
 tests.Sha512Tests
 tests.Xxh64Tests

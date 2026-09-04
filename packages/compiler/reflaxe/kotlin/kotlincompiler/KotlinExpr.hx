@@ -2244,6 +2244,10 @@ class KotlinExpr {
         switch (fn.expr) {
             case TField(_, FStatic(c, cf)) if (c.get().module == "haxe.io.Bytes" && cf.get().name == "alloc" && args.length == 1):
                 return "ByteArray(" + expr(args[0]) + ")";
+            case TField(_, FStatic(c, cf)) if (c.get().module == "haxe.io.Bytes" && cf.get().name == "ofString" && args.length == 1):
+                return expr(args[0]) + ".toByteArray(Charsets.UTF_8)";
+            case TField(_, FStatic(c, cf)) if (c.get().module == "haxe.io.Bytes" && cf.get().name == "concat" && args.length == 2):
+                return expr(args[0]) + " + " + expr(args[1]);
             case TCast(inner, _):
                 return call(inner, args);
             case TField(subj, FDynamic(name)) if ((name == "length" || name == "get_length") && isStringBuf(subj)):
@@ -2314,6 +2318,9 @@ class KotlinExpr {
                 }
                 if (name == "sub" && args.length == 2 && isBytes(stripCast(subj))) {
                     return expr(subj) + ".copyOfRange(" + expr(args[0]) + ", " + expr(args[0]) + " + " + expr(args[1]) + ")";
+                }
+                if (name == "getString" && args.length == 2 && isBytes(stripCast(subj))) {
+                    return "String(" + expr(subj) + ", " + expr(args[0]) + ", " + expr(args[1]) + ", Charsets.UTF_8)";
                 }
                 if (name == "charAt" && isString(stripCast(subj))) {
                     return expr(subj) + "[" + expr(args[0]) + "].toString()";

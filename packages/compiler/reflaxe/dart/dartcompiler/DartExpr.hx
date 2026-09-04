@@ -2211,6 +2211,13 @@ class DartExpr {
             case TField(_, FStatic(c, cf)) if (c.get().module == "haxe.io.Bytes" && cf.get().name == "alloc" && args.length == 1):
                 imports.useTypedData();
                 return "Uint8List(" + expr(args[0]) + ")";
+            case TField(_, FStatic(c, cf)) if (c.get().module == "haxe.io.Bytes" && cf.get().name == "ofString" && args.length == 1):
+                imports.useConvert();
+                return "Uint8List.fromList(utf8.encode(" + expr(args[0]) + "))";
+            case TField(_, FStatic(c, cf)) if (c.get().module == "haxe.io.Bytes" && cf.get().name == "concat" && args.length == 2):
+                imports.useTypedData();
+                return "(() { final r = Uint8List(" + expr(args[0]) + ".length + " + expr(args[1]) + ".length); r.setRange(0, " + expr(args[0])
+                    + ".length, " + expr(args[0]) + "); r.setRange(" + expr(args[0]) + ".length, r.length, " + expr(args[1]) + "); return r; })()";
             case TCast(inner, _):
                 return call(inner, args);
             case TField(subj, FDynamic(name)) if ((name == "length" || name == "get_length") && isStringBuf(subj)):
@@ -2284,6 +2291,11 @@ class DartExpr {
                         + " + "
                         + expr(args[1])
                         + "))";
+                }
+                if (name == "getString" && args.length == 2 && isBytes(stripCast(subj).t)) {
+                    imports.useConvert();
+                    return "utf8.decode(" + receiverText(subj) + ".sublist(" + expr(args[0]) + ", " + expr(args[0]) + " + " + expr(args[1])
+                        + "), allowMalformed: true)";
                 }
                 // stdlib/02: the growable byte sink is the plain int
                 // list; addByte appends one element.
