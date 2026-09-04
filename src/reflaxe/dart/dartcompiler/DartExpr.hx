@@ -2014,6 +2014,22 @@ class DartExpr {
 					return "(() { final _s = " + receiverText(subj) + "; final _from = " + expr(args[0]) + "; final _to = " + expr(args[1])
 						+ "; final _start = _from < 0 ? 0 : (_from > _s.length ? _s.length : _from); final _end = _to < 0 ? 0 : (_to > _s.length ? _s.length : _to); return _start > _end ? _s.substring(_end, _start) : _s.substring(_start, _end); })()";
 				}
+				if(name == "substr" && isStringSubject(subj)) {
+					// The haxe typer passes a synthesized null for an
+					// omitted ?len; a negative pos counts from the end
+					// of the code-unit sequence and a negative len
+					// yields the empty string.
+					final lenOmitted = args.length < 2 || switch(stripWrap(args[1]).expr) {
+						case TConst(TNull): true;
+						case _: false;
+					};
+					if(lenOmitted) {
+						return "(() { final _s = " + receiverText(subj) + "; final _pos = " + expr(args[0])
+							+ "; final _start = _pos < 0 ? (_s.length + _pos < 0 ? 0 : _s.length + _pos) : (_pos > _s.length ? _s.length : _pos); return _s.substring(_start); })()";
+					}
+					return "(() { final _s = " + receiverText(subj) + "; final _pos = " + expr(args[0]) + "; final _len = " + expr(args[1])
+						+ "; if (_len < 0) return ''; final _start = _pos < 0 ? (_s.length + _pos < 0 ? 0 : _s.length + _pos) : (_pos > _s.length ? _s.length : _pos); final _end = _start + _len > _s.length ? _s.length : _start + _len; return _s.substring(_start, _end); })()";
+				}
 				if(name == "charAt" && isStringSubject(subj)) {
 					return receiverText(subj) + "[" + expr(args[0]) + "]";
 				}

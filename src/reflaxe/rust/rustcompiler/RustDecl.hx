@@ -833,7 +833,7 @@ class RustDecl {
 			chunks.push("    " + formatted.slice(i, end).join(", "));
 			i = end;
 		}
-		return '${vis}static ${field.name}: [${elemType}; ${elems.length}] = [\n' + chunks.join(",\n") + "\n];";
+		return '${vis}static ${RustImports.toScreamingSnakeCase(field.name)}: [${elemType}; ${elems.length}] = [\n' + chunks.join(",\n") + "\n];";
 	}
 
 	function isFunctionType(t: Null<Type>): Bool {
@@ -1433,7 +1433,7 @@ class RustDecl {
 				if(isStringParam) {
 					lines.push('            $sname: ${sname}.to_string(),');
 				} else if(isNullableStringParam) {
-					lines.push('            $sname: match ($sname) { Some(v) => Some(v.to_string()), None => None },');
+					lines.push('            $sname: match $sname { Some(v) => Some(v.to_string()), None => None },');
 				} else {
 					lines.push('            $sname,');
 				}

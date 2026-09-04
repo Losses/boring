@@ -416,7 +416,7 @@ class DartDecl {
 		if(v.isStatic && DataTableHelper.isDataTableField(field)) {
 			final elems = DataTableHelper.getDataTableElements(field.expr());
 			if(elems != null) {
-				return ["  static final List<int> " + claimTopLevel(field.name, field.pos) + " = [" + renderDataTableElements(elems) + "];"];
+				return ["  static final List<int> " + claimTopLevel(field.isPublic ? field.name : "_" + field.name, field.pos) + " = [" + renderDataTableElements(elems) + "];"];
 			}
 		}
 		if(v.isStatic && isFunctionType(field.type)) {
@@ -510,7 +510,8 @@ class DartDecl {
 		if(v.isStatic && DataTableHelper.isDataTableField(field)) {
 			final elems = DataTableHelper.getDataTableElements(field.expr());
 			if(elems != null) {
-				return ["final List<int> " + claimTopLevel(field.name, field.pos) + " = [" + renderDataTableElements(elems) + "];"];
+				// Preserve Dart privacy when flattening private table statics.
+				return ["final List<int> " + claimTopLevel(field.isPublic ? field.name : "_" + field.name, field.pos) + " = [" + renderDataTableElements(elems) + "];"];
 			}
 		}
 		if(v.isStatic && isFunctionType(field.type)) {
@@ -861,7 +862,7 @@ class DartDecl {
 				}
 				final lines: Array<String> = ["class " + claimTopLevel(def.name, def.pos) + " {"];
 				for(field in fields) {
-					lines.push("  final " + types.of(field.type) + " " + field.name + ";");
+					lines.push("  " + types.of(field.type) + " " + field.name + ";");
 				}
 				lines.push("");
 				lines.push("  " + def.name + "(" + [for(f in fields) "this." + f.name].join(", ") + ");");

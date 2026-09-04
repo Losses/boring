@@ -166,6 +166,43 @@ func substringUnits(_ s: String, _ start: Int32, _ end: Int32) -> String {
     return String(decoding: u[f..<t], as: UTF16.self)
 }
 
+/// substr over UTF-16 units: a negative pos counts from the end, an
+/// omitted len runs to the end, and a negative len yields the empty
+/// string, matching the JavaScript target where the std leaves the
+/// negative len unspecified.
+func substrUnits(_ s: String, _ pos: Int32, _ len: Int32?) -> String {
+    let u = s.utf16
+    let count = Int32(u.count)
+    var from = pos < 0 ? count + pos : pos
+    if from < 0 { from = 0 }
+    if from > count { from = count }
+    if let l = len {
+        if l < 0 { return "" }
+        var to = from + l
+        if to > count { to = count }
+        let f = u.index(u.startIndex, offsetBy: Int(from))
+        let t = u.index(u.startIndex, offsetBy: Int(to))
+        return String(decoding: u[f..<t], as: UTF16.self)
+    }
+    let f = u.index(u.startIndex, offsetBy: Int(from))
+    return String(decoding: u[f...], as: UTF16.self)
+}
+
+/// The resident unit-array reading of the same substr contract.
+func substrUnitsArray(_ s: [UInt16], _ pos: Int32, _ len: Int32?) -> [UInt16] {
+    let count = Int32(s.count)
+    var from = pos < 0 ? count + pos : pos
+    if from < 0 { from = 0 }
+    if from > count { from = count }
+    if let l = len {
+        if l < 0 { return [] }
+        var to = from + l
+        if to > count { to = count }
+        return Array(s[Int(from)..<Int(to)])
+    }
+    return Array(s[Int(from)...])
+}
+
 /// The code point at a unit cursor of the resident unit array: a
 /// well-formed surrogate pair combines into its scalar, anything else
 /// reads as the single unit (docs/specs/stdlib/10-unicode-string-access.md
