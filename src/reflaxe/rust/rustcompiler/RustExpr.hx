@@ -774,7 +774,7 @@ class RustExpr {
 			out.push(indent(depth + 2) + "return Err(" + fault + "::UnpairedSurrogate { unit: last as u32 });");
 			out.push(indent(depth + 1) + "}");
 			out.push(indent(depth) + "}");
-			out.push(indent(depth) + buf + ".push(" + u + " as u16);");
+			out.push(indent(depth) + buf + ".push(" + RustConversions.truncate(u, "u16") + ");");
 		}
 		return out;
 	}
@@ -3805,7 +3805,7 @@ class RustExpr {
 					return expr(subj) + ".join(" + renderedArgs + ")";
 				}
 				if(name == "addByte") {
-					return expr(subj) + ".add_byte((" + expr(args[0]) + ") as u8)";
+					return expr(subj) + ".add_byte(" + RustConversions.truncate(expr(args[0]), "u8") + ")";
 				}
 				if(name == "readU16") {
 					// The wire read answers u16 while the Int domain is
@@ -3819,7 +3819,7 @@ class RustExpr {
 					// the Haxe writer masks to the low half, and the Rust
 					// cast truncates identically, so the narrowing matches
 					// source semantics for every value.
-					return expr(subj) + ".write_u16((" + expr(args[0]) + ") as u16)";
+					return expr(subj) + ".write_u16(" + RustConversions.truncate(expr(args[0]), "u16") + ")";
 				}
 				if(name == "writeU32") {
 					final innerArg = stripWrap(args[0]);
@@ -4396,7 +4396,12 @@ class RustExpr {
 			return "(" + base + ".unwrap_or(0)) as " + target;
 		}
 		if(!isIntType(actual.t)) return rendered;
-		return target == "u32" || target == "i32" || target == "u8" ? "(" + rendered + ") as " + target : rendered;
+		if(target == "u8") {
+			final folded = constantCast(actual, "u8");
+			if(folded != null) return folded;
+			return RustConversions.truncate(rendered, "u8");
+		}
+		return target == "u32" || target == "i32" ? "(" + rendered + ") as " + target : rendered;
 	}
 
 	function containsNullDefault(value: DefaultArgExpander.CoalescingDefaultValue):Bool {
