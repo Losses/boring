@@ -60,12 +60,12 @@ class KotlinDecl {
                         final coalescing = DefaultArgExpander.coalescingDefaultAt(cls, f.field.name, a.index);
                         final parameterType = coalescing != null ? DefaultArgExpander.coalescingParameterType(coalescing, a.type) : a.type;
                         final defaultText = coalescing != null ? " = " + expr.coalescingDefaultText(coalescing, a.type) : "";
-                        '${a.name}: ${types.of(parameterType)}$defaultText';
+                        '${KotlinNameEscape.escape(a.name)}: ${types.of(parameterType)}$defaultText';
                     }
                 ].join(", ");
                 final retType = types.of(f.ret);
                 final ret = retType == "Unit" ? "" : ": " + retType;
-                lines.push('    fun ${f.field.name}($args)$ret');
+                lines.push('    fun ${KotlinNameEscape.escape(f.field.name)}($args)$ret');
             }
             lines.push("}");
             return lines.join("\n");
@@ -202,7 +202,7 @@ class KotlinDecl {
                 continue;
             }
             if (ctorInit.assigned.indexOf(v.field.name) >= 0) {
-                lines.push('    ${(v.field.isFinal ? "val" : "var")} ${v.field.name}: ${types.of(v.field.type)}');
+                lines.push('    ${(v.field.isFinal ? "val" : "var")} ${KotlinNameEscape.escape(v.field.name)}: ${types.of(v.field.type)}');
             } else {
                 for (l in classVarDecl(v))
                     lines.push(l);
@@ -229,7 +229,7 @@ class KotlinDecl {
             }
             if (hasInstanceGetter) {
                 final vis = field.isPublic ? "" : "private ";
-                lines.push('    ${vis}val ${field.name}: ${types.of(field.type)} get() = get_${field.name}()');
+                lines.push('    ${vis}val ${KotlinNameEscape.escape(field.name)}: ${types.of(field.type)} get() = get_${KotlinNameEscape.escape(field.name)}()');
             }
         }
 
@@ -584,7 +584,10 @@ class KotlinDecl {
             if (args.length == 0) {
                 lines.push('    data object ${o.name} : ${cls.name}(${message})');
             } else {
-                final params = [for (arg in args) 'val ${arg.name}: ${types.of(arg.type)}'].join(", ");
+                final params = [
+                    for (arg in args)
+                        'val ${KotlinNameEscape.escape(arg.name)}: ${types.of(arg.type)}'
+                ].join(", ");
                 lines.push('    data class ${o.name}($params) :');
                 lines.push('        ${cls.name}(${message})');
             }
@@ -876,7 +879,7 @@ class KotlinDecl {
             final coalescing = DefaultArgExpander.coalescingDefaultAt(cls, ctor.field.name, a.index);
             final parameterType = coalescing != null ? DefaultArgExpander.coalescingParameterType(coalescing, a.type) : a.type;
             final defaultText = coalescing != null ? " = " + expr.coalescingDefaultText(coalescing, a.type) : "";
-            params.push(prefix + a.name + ": " + types.of(parameterType) + defaultText);
+            params.push(prefix + KotlinNameEscape.escape(a.name) + ": " + types.of(parameterType) + defaultText);
         }
         return "(" + params.join(", ") + ")";
     }
@@ -982,12 +985,14 @@ class KotlinDecl {
             final kw = field.isFinal && StaticFieldHelper.isConstValue(field) ? "const val" : (field.isFinal ? "val" : "var");
             final vis = field.isPublic ? "" : "private ";
             final jvmField = !field.isFinal ? ["    @JvmField"] : [];
-            return jvmField.concat(['    $vis$kw ${field.name}: ${types.of(field.type)} = $initStr']);
+            return jvmField.concat([
+                '    $vis$kw ${KotlinNameEscape.escape(field.name)}: ${types.of(field.type)} = $initStr'
+            ]);
         }
         if (field.meta.has(":value")) {
             Context.error("instance field default has no lowering; assign it in the constructor", field.pos);
         }
-        return ['    val ${field.name}: ${types.of(field.type)}'];
+        return ['    val ${KotlinNameEscape.escape(field.name)}: ${types.of(field.type)}'];
     }
 
     function staticFunctionVarDecl(v:ClassVarData):Array<String> {
@@ -998,7 +1003,7 @@ class KotlinDecl {
             return [];
         }
         return [
-            '    val ${field.name}: ${types.of(field.type)} = ${expr.rawExpression(initializer)}'
+            '    val ${KotlinNameEscape.escape(field.name)}: ${types.of(field.type)} = ${expr.rawExpression(initializer)}'
         ];
     }
 
@@ -1031,7 +1036,9 @@ class KotlinDecl {
                 }
             case _:
         }
-        return ['    ${vis}${kw} ${field.name}: ${types.of(field.type)}$initStr'];
+        return [
+            '    ${vis}${kw} ${KotlinNameEscape.escape(field.name)}: ${types.of(field.type)}$initStr'
+        ];
     }
 
     function isModuleType(cls:ClassType, packDot:String, name:String):Bool {
@@ -1058,7 +1065,7 @@ class KotlinDecl {
                 final coalescing = DefaultArgExpander.coalescingDefaultAt(cls, f.field.name, a.index);
                 final parameterType = coalescing != null ? DefaultArgExpander.coalescingParameterType(coalescing, a.type) : a.type;
                 final defaultText = coalescing != null ? " = " + expr.coalescingDefaultText(coalescing, a.type) : "";
-                '${a.name}: ${types.of(parameterType)}$defaultText';
+                '${KotlinNameEscape.escape(a.name)}: ${types.of(parameterType)}$defaultText';
             }
         ].join(", ");
         final retType = types.of(f.ret);
@@ -1074,7 +1081,7 @@ class KotlinDecl {
         // parameters stay in the class header only.
         final methodParams = collectMethodTypeParams(cls, f);
         final genericStr = methodParams.length > 0 ? "<" + methodParams.join(", ") + "> " : "";
-        final head = '    ${vis}${overrideStr}fun ${genericStr}${f.field.name}($args)$ret {';
+        final head = '    ${vis}${overrideStr}fun ${genericStr}${KotlinNameEscape.escape(f.field.name)}($args)$ret {';
 
         final boundary = switch (f.ret) {
             case TAbstract(a, _): final abs = a.get(); abs.pack.join(".") == "std" && abs.name == "ReadOnlyArray";
@@ -1099,7 +1106,7 @@ class KotlinDecl {
                 final coalescing = DefaultArgExpander.coalescingDefaultAt(cls, f.field.name, a.index);
                 final parameterType = coalescing != null ? DefaultArgExpander.coalescingParameterType(coalescing, a.type) : a.type;
                 final defaultText = coalescing != null ? " = " + expr.coalescingDefaultText(coalescing, a.type) : "";
-                '${a.name}: ${types.of(parameterType)}$defaultText';
+                '${KotlinNameEscape.escape(a.name)}: ${types.of(parameterType)}$defaultText';
             }
         ].join(", ");
         final retType = types.of(f.ret);
@@ -1108,7 +1115,7 @@ class KotlinDecl {
         final methodParams = collectMethodTypeParams(cls, f);
         final genericStr = methodParams.length > 0 ? "<" + methodParams.join(", ") + "> " : "";
         final receiver = isExtension ? types.of(f.args[0].type) + "." : "";
-        final head = '${vis}fun ${genericStr}${receiver}${f.field.name}($args)$ret {';
+        final head = '${vis}fun ${genericStr}${receiver}${KotlinNameEscape.escape(f.field.name)}($args)$ret {';
         if (isExtension && f.args[0].tvar != null) {
             expr.bindLocalName(f.args[0].tvar, "this");
         }
@@ -1141,7 +1148,7 @@ class KotlinDecl {
         final indented = body.map(l -> "            " + l);
         return [
             "    @kotlin.test.Test",
-            '    fun ${f.field.name}() {',
+            '    fun ${KotlinNameEscape.escape(f.field.name)}() {',
             '        Test.run("${escapeKotlinString(id)}", "${escapeKotlinString(runnerName)}") {',
         ].concat(indented).concat(["        }", "    }"]);
     }
