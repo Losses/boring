@@ -20,6 +20,10 @@ impl BytesBuffer {
         self.bytes.push(byte);
     }
 
+    pub fn add(&mut self, bytes: &Vec<u8>) {
+        self.bytes.extend_from_slice(bytes);
+    }
+
     pub fn get_bytes(&self) -> Vec<u8> {
         self.bytes.clone()
     }
