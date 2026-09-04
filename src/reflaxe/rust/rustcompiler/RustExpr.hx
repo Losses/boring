@@ -1804,7 +1804,7 @@ class RustExpr {
 				}
 				final receiver = expr(arr);
 				final receiverText = StringTools.startsWith(receiver, "&*") ? "(" + receiver + ")" : receiver;
-				final base = receiverText + "[(" + expr(idx) + ") as usize]";
+				final base = receiverText + "[" + castArg(idx, "usize") + "]";
 				// Reading a String element moves it out of the Vec, so a
 				// value read renders as a clone. Borrow consumers go
 				// through arrayArgBorrow and skip the copy.
@@ -2818,6 +2818,57 @@ class RustExpr {
 		return int64CallText(fn, args);
 	}
 
+	/**
+		Folds an integer-literal `as` cast into a typed literal, matching the
+		bit-level result of `(x) as T` for the module's integer domain. Returns
+		null when `e` is not an integer constant, so the caller falls back to a
+		runtime cast. A Haxe Int literal is the signed i32 value; the business-
+		module u32 rendering is its low 32 bits, so widening casts of such a
+		literal are the unsigned decimal and a cast to i32 is the signed value.
+		The same v + 4294967296 arithmetic the bare literal renderer uses (in
+		`expr` for a negative business constant) yields that unsigned decimal.
+		Resident modules keep the signed rendering.
+	**/
+	function constantCast(e:TypedExpr, ty:String):Null<String> {
+		switch(stripWrap(e).expr) {
+			case TConst(TInt(v)):
+				if(ty == "u64") {
+					// A resident negative i32 constant casts with sign extension,
+					// which the emitter never requests (Int64 and sha literals are
+					// positive domain constants), so fall back to a runtime cast
+					// for that rare case.
+					if(RuntimeResidents.isResident(imports.selfModule) && v < 0) return null;
+				}
+				final unsigned = v < 0 ? Std.string(v + 4294967296) : Std.string(v);
+				// The folded literal is a typed integer literal, whose precedence
+				// binds as tightly as any parenthesized atom, so it can stand
+				// bare wherever `(x) as T` used to stand without altering
+				// precedence or triggering unnecessary-parens warnings.
+				switch(ty) {
+					case "u32": return unsigned + "u32";
+					case "i32": return v + "i32";
+					case "i64":
+						if(RuntimeResidents.isResident(imports.selfModule)) return v + "i64";
+						return unsigned + "i64";
+					case "u64": return unsigned + "u64";
+					case "usize": return unsigned + "usize";
+					case "u8": return (v & 0xFF) + "u8";
+					case "u16": return (v & 0xFFFF) + "u16";
+					case "f64": return unsigned + ".0";
+					case "f32": return unsigned + ".0f32";
+					default: return null;
+				}
+			default: return null;
+		}
+	}
+
+	/** Folds an integer-constant cast to a typed literal, else renders the runtime cast. */
+	function castArg(e:TypedExpr, ty:String):String {
+		final folded = constantCast(e, ty);
+		if(folded != null) return folded;
+		return "(" + expr(e) + ") as " + ty;
+	}
+
 	function int64CallText(fn:TypedExpr, args:Array<TypedExpr>):Null<String> {
 		function topClass(e:TypedExpr):Int {
 			return switch(stripWrap(e).expr) {
@@ -2850,8 +2901,11 @@ class RustExpr {
 			return topClass(e) == 100 ? text : "(" + text + ")";
 		}
 		function castOperand(e:TypedExpr, ty:String):String {
+			final folded = constantCast(e, ty);
+			if(folded != null) return folded;
 			return "(" + expr(e) + ") as " + ty;
 		}
+
 		return switch(stripWrap(fn).expr) {
 			case TField(_, FStatic(classRef, fieldRef)) if(classRef.get().module == "haxe.Int64" && classRef.get().name == "Int64_Impl_"):
 				switch(fieldRef.get().name) {
@@ -3478,7 +3532,7 @@ class RustExpr {
 		final renderedArgs = [for(a in args) expr(a)].join(", ");
 		switch(fn.expr) {
 			case TField(_, FStatic(c, cf)) if(c.get().module == "haxe.io.Bytes" && cf.get().name == "alloc" && args.length == 1):
-				return "vec![0u8; " + expr(args[0]) + " as usize]";
+				return "vec![0u8; " + castArg(args[0], "usize") + "]";
 			case TCast(inner, _):
 				return call(inner, args);
 			case TField(subj, FDynamic(name)) if((name == "length" || name == "get_length") && isStringBuf(subj)):
@@ -3531,19 +3585,19 @@ class RustExpr {
 					}
 				}
 				if(name == "get" && isBytes(stripCast(subj))) {
-					return expr(subj) + "[" + expr(args[0]) + " as usize] as u32";
+					return expr(subj) + "[" + castArg(args[0], "usize") + "] as u32";
 				}
 				if(name == "set" && args.length == 2 && isBytes(stripCast(subj))) {
-					return expr(subj) + "[" + expr(args[0]) + " as usize] = (" + expr(args[1]) + ") as u8";
+					return expr(subj) + "[" + castArg(args[0], "usize") + "] = " + castArg(args[1], "u8");
 				}
 				if(name == "blit" && args.length == 4 && isBytes(stripCast(subj))) {
-					return expr(subj) + "[" + expr(args[0]) + " as usize..(" + expr(args[0]) + " + " + expr(args[3]) + ") as usize].copy_from_slice(&" + expr(args[1]) + "[" + expr(args[2]) + " as usize..(" + expr(args[2]) + " + " + expr(args[3]) + ") as usize])";
+					return expr(subj) + "[" + castArg(args[0], "usize") + "..(" + expr(args[0]) + " + " + expr(args[3]) + ") as usize].copy_from_slice(&" + expr(args[1]) + "[" + castArg(args[2], "usize") + "..(" + expr(args[2]) + " + " + expr(args[3]) + ") as usize])";
 				}
 				if(name == "fill" && args.length == 3 && isBytes(stripCast(subj))) {
-					return expr(subj) + "[" + expr(args[0]) + " as usize..(" + expr(args[0]) + " + " + expr(args[1]) + ") as usize].fill(" + expr(args[2]) + " as u8)";
+					return expr(subj) + "[" + castArg(args[0], "usize") + "..(" + expr(args[0]) + " + " + expr(args[1]) + ") as usize].fill(" + castArg(args[2], "u8") + ")";
 				}
 				if(name == "sub" && args.length == 2 && isBytes(stripCast(subj))) {
-					return expr(subj) + "[(" + expr(args[0]) + ") as usize..((" + expr(args[0]) + ") + " + expr(args[1]) + ") as usize].to_vec()";
+					return expr(subj) + "[" + castArg(args[0], "usize") + "..(" + expr(args[0]) + " + " + expr(args[1]) + ") as usize].to_vec()";
 				}
 				if(name == "charAt" && isString(stripCast(subj))) {
 					state.shimsUsed.set("std.UStringRT", true);
@@ -3927,7 +3981,7 @@ class RustExpr {
 								case "Int":
 									// Business Int renders u32, usize in loop heads;
 									// the resident takes i32, so both sides cast once.
-									return "test_core::TestCore::equals_int((" + expr(expectedArg) + ") as i32, (" + expr(actualArg) + ") as i32, " + msg + ")";
+									return "test_core::TestCore::equals_int(" + castArg(expectedArg, "i32") + ", " + castArg(actualArg, "i32") + ", " + msg + ")";
 								case "Float":
 									return "test_core::TestCore::equals_float(" + expr(expectedArg) + ", " + expr(actualArg) + ", " + msg + ")";
 								case "String":
@@ -4357,7 +4411,7 @@ class RustExpr {
 	function assignTarget(e: TypedExpr): String {
 		switch(e.expr) {
 			case TArray(arr, idx):
-				return expr(arr) + "[(" + expr(idx) + ") as usize]";
+				return expr(arr) + "[" + castArg(idx, "usize") + "]";
 			case TField(_, FStatic(c, cf)):
 				final target = staticAssignmentTarget(e);
 				return target != null ? target : staticRef(c.get(), cf.get().name);
@@ -5321,7 +5375,7 @@ class RustExpr {
 		// A direct array access can be borrowed without the value-read
 		// clone; the borrow consumers above do not need the copy.
 		return switch(e.expr) {
-			case TArray(arr, idx): expr(arr) + "[(" + expr(idx) + ") as usize]";
+			case TArray(arr, idx): expr(arr) + "[" + castArg(idx, "usize") + "]";
 			case _: expr(e);
 		};
 	}
