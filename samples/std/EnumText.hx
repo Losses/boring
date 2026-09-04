@@ -280,6 +280,24 @@ class EnumText {
 		final arrayIdent = {expr: EConst(CIdent("enumTextArray")), pos: pos};
 		final out = {expr: EConst(CIdent("enumTextOut")), pos: pos};
 		final index = {expr: EConst(CIdent("enumTextIndex")), pos: pos};
+		// The element form sits in a named function declared before the loop
+		// so the loop body carries calls only. A renderer or nested array
+		// form written inline would leave a function value inside the loop
+		// body, which rule V08 of the style standard rejects.
+		final elemIdent = {expr: EConst(CIdent("enumTextElem")), pos: pos};
+		final elementWritten = TypeTools.toComplexType(elementType);
+		final elementFunction:Expr = {
+			expr: EFunction(FNamed("enumTextElement", null), {
+				args: [{name: "enumTextElem", type: elementWritten, opt: false, value: null}],
+				ret: (macro :String),
+				expr: {expr: EBlock([{expr: EReturn(operandForm(elementType, elemIdent, pos, selfName, root)), pos: pos}]), pos: pos}
+			}),
+			pos: pos
+		};
+		final elementCall:Expr = {
+			expr: ECall({expr: EConst(CIdent("enumTextElement")), pos: pos}, [{expr: EArray(arrayIdent, index), pos: pos}]),
+			pos: pos
+		};
 		final body:Expr = {
 			expr: EBlock([
 				{
@@ -291,6 +309,7 @@ class EnumText {
 					}]),
 					pos: pos
 				},
+				elementFunction,
 				{
 					expr: ECall({expr: EField(out, "add"), pos: pos}, [{expr: EConst(CString("[")), pos: pos}]),
 					pos: pos
@@ -316,7 +335,7 @@ class EnumText {
 									pos: pos
 								},
 								{
-									expr: ECall({expr: EField(out, "add"), pos: pos}, [operandForm(elementType, {expr: EArray(arrayIdent, index), pos: pos}, pos, selfName, root)]),
+									expr: ECall({expr: EField(out, "add"), pos: pos}, [elementCall]),
 									pos: pos
 								}
 							]),
