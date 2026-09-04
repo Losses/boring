@@ -2,7 +2,7 @@
 
 ## Parameter model
 
-`CrcModel(width, poly, init, refin, refout, xorout)` freezes the standard
+`CrcModel(width, poly, init, refin, refout, xorout)` holds the standard
 width-bit CRC parameters. The portable API is:
 
 ```haxe

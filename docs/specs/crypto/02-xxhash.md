@@ -12,7 +12,7 @@ The `Xxh128.make(data, seed)` API is one-shot and returns `{high, low}` in the
 same order as `XXH128_hash_t`'s high and low words. Its result is defined for
 all byte lengths and for both zero and non-zero seeds.
 
-## XXH3-128 branch surface
+## XXH3-128 branch structure
 
 The implementation retains all reference branches:
 
@@ -26,7 +26,7 @@ The implementation retains all reference branches:
 The short branches use the secret offsets and mix the first, last, and middle
 bytes exactly as specified by XXH3. Long inputs process 64-byte stripes with
 the 192-byte default secret, scramble each accumulator with the secret, and
-merge the lanes with 64-by-64-to-128 multiplication.
+merge the accumulators with 64-by-64-to-128 multiplication.
 
 For a non-zero seed, `XXH3_initSecret` derives a private secret by adding the
 seed to one 64-bit half and subtracting it from the other half of every
@@ -36,7 +36,7 @@ each four-byte derivation position. Seed zero uses the default secret.
 ## 128-bit multiplication
 
 Haxe `Int64` has no portable 128-bit product. The portable decomposition treats
-each operand as two unsigned 32-bit halves:
+each operand as a high and a low unsigned 32-bit part:
 
 ```haxe
 static function carryOut(a:haxe.Int64, b:haxe.Int64, sum:haxe.Int64):haxe.Int64 {
@@ -63,15 +63,15 @@ static function wideMul(a:haxe.Int64, b:haxe.Int64):{hi:haxe.Int64, lo:haxe.Int6
 }
 ```
 
-The carry test is a bit-sign test, not `sum < a`: Haxe comparisons are
-signed while the operands represent unsigned bit patterns.
+The carry test reads the sign bit. `sum < a` cannot be used here because Haxe
+comparisons are signed while the operands represent unsigned bit patterns.
 
 ## Boundaries and representation
 
 XXH64 buffering uses signed Haxe `Int` comparisons for sentinel expressions
 such as `p <= mem.length - 8`; a negative right-hand side must prevent the
 loop. The implementation must not reinterpret that expression as an unsigned
-comparison merely because a Rust business module stores `Int` as `u32`.
+comparison because a Rust business module stores `Int` as `u32`.
 
 `StringTools.hex` is an unsigned view of the low bits. A negative 32-bit word
 is rendered with eight hexadecimal digits, and a 64-bit result is rendered as

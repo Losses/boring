@@ -173,7 +173,7 @@ class RustDecl {
 		// the impl. Every parameter takes a Clone bound on the impl:
 		// reads of stored elements clone out of the arrays, and the one
 		// source of these classes is the sorted-table resident. A member
-		// that formats a parameter for printing lands in a second impl
+		// that formats a parameter for printing goes into a second impl
 		// whose parameters also carry Debug, so callers that never print
 		// keep the Clone-only bound set.
 		final classParams = [for(p in cls.params) p.name];

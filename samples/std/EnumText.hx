@@ -36,8 +36,8 @@ class EnumText {
 	 * The stage 1 operand for one payload enum value: an immediately
 	 * invoked local function whose body returns the exhaustive labeled
 	 * switch. An argument of the same enum type recurses through the
-	 * function name, so a recursive constructor renders at run time
-	 * instead of expanding the switch again at macro time. An argument of
+	 * function name. The recursive constructor renders at run time. The switch is
+	 * not expanded again at macro time. An argument of
 	 * a different payload enum type gets its own renderer call here.
 	 */
 	public static function rendererCall(value:Expr, valueType:Type, e:EnumType, pos:Position):Expr {
