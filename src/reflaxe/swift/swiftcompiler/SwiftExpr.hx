@@ -73,6 +73,7 @@ class SwiftExpr {
 	**/
 	final optionalInferred: Map<Int, Bool> = [];
 	final coalescingLocals: Map<Int, Bool> = [];
+	var currentFuncReturnsOptional: Bool = false;
 
 	/** Names used by parameters and locals; generated names avoid them. */
 	final usedNames: Map<String, Bool> = [];
@@ -233,6 +234,10 @@ class SwiftExpr {
 		currentClass = cls;
 		currentField = f.field.name;
 		currentLocalName = null;
+		currentFuncReturnsOptional = switch(f.field.type) {
+			case TFun(_, ret): isNullLeafType(ret);
+			case _: false;
+		};
 		// Depth 2: one level under the member's own indentation.
 		scanLocals(f.expr);
 		return blockLines(statementsOf(f.expr), depth);
@@ -265,6 +270,10 @@ class SwiftExpr {
 		currentClass = cls;
 		currentField = f.field.name;
 		currentLocalName = null;
+		currentFuncReturnsOptional = switch(f.field.type) {
+			case TFun(_, ret): isNullLeafType(ret);
+			case _: false;
+		};
 		scanLocals(f.expr);
 		final out:Array<String> = [];
 		for(stmt in statementsOf(f.expr)) {
@@ -287,6 +296,10 @@ class SwiftExpr {
 		currentClass = cls;
 		currentField = f.field.name;
 		currentLocalName = null;
+		currentFuncReturnsOptional = switch(f.field.type) {
+			case TFun(_, ret): isNullLeafType(ret);
+			case _: false;
+		};
 		DefaultArgExpander.completeRootExpr(cls, f.field.name, f.expr);
 		PipelineExpander.expandRootExpr(f.expr);
 		EnumQueryExpander.expandRootExpr(f.expr);
@@ -692,7 +705,16 @@ class SwiftExpr {
 					switch(stripWrap(init).expr) {
 						case TArray(_, {expr: TLocal(index)}) if(index.id == loop.index.id):
 							final out = [indent(depth) + "for " + localName(item) + " in " + expr(array) + " {"];
-							for(l in blockLines(loop.body.slice(1), depth + 1)) out.push(l);
+							final gb = matchGroupByBody(loop.body.slice(1));
+							if(gb != null) {
+								for(l in blockLines(gb.prefix, depth + 1)) out.push(l);
+								out.push(indent(depth + 1) + "let " + localName(gb.entryVar) + " = " + expr(gb.entryInit));
+								out.push(indent(depth + 1) + "var " + localName(gb.bucketVar) + " = " + expr(gb.getCall) + " ?? " + types.of(gb.bucketVar.t) + "()");
+								out.push(indent(depth + 1) + localName(gb.bucketVar) + ".append(" + expr(gb.valArg) + ")");
+								out.push(indent(depth + 1) + expr(gb.builderSubj) + ".put(" + expr(gb.keyArg) + ", " + localName(gb.bucketVar) + ")");
+							} else {
+								for(l in blockLines(loop.body.slice(1), depth + 1)) out.push(l);
+							}
 							out.push(indent(depth) + "}"); return out;
 						default:
 					}
@@ -747,7 +769,7 @@ class SwiftExpr {
 		bucketVar: TVar,
 		valArg: TypedExpr
 	}> {
-		if(body.length < 2) {
+		if(body.length < 1) {
 			return null;
 		}
 		// The lambda body is one trailing TBlock containing the four core
@@ -1189,6 +1211,14 @@ class SwiftExpr {
 	}
 
 	function functionLiteral(f: TFunc): String {
+		final previousOptional = currentFuncReturnsOptional;
+		currentFuncReturnsOptional = isNullLeafType(f.t);
+		final result = functionLiteralInner(f);
+		currentFuncReturnsOptional = previousOptional;
+		return result;
+	}
+
+	function functionLiteralInner(f: TFunc): String {
 		final params = [for(a in f.args) a.v.name + ": " + types.of(a.v.t)].join(", ");
 		// TFunc.t is the declared return type of the literal.
 		final ret = types.of(f.t);
@@ -1327,13 +1357,11 @@ class SwiftExpr {
 		return switch(stripWrap(ret).expr) {
 			case TConst(TNull): expr(ret);
 			case TCall(_, _) if(isNullLeafType(ret.t)): expr(ret);
-			case TLocal(v) if(isNullLeafType(v.t) && !coalescingLocals.exists(v.id)): expr(ret) + "!";
-			case _: optionalValued(ret) ? expr(ret) + "!" : expr(ret);
+			case TLocal(v) if(isNullLeafType(v.t) && !coalescingLocals.exists(v.id)):
+				currentFuncReturnsOptional ? expr(ret) : expr(ret) + "!";
+			case _:
+				currentFuncReturnsOptional ? expr(ret) : (optionalValued(ret) ? expr(ret) + "!" : expr(ret));
 		};
-	}
-
-	function declaredReturnOptional(): Bool {
-		return false;
 	}
 
 	function isStringCharCodeAt(e: TypedExpr): Bool {

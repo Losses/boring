@@ -251,7 +251,7 @@ enum Test {
         return Test.currentTestId
     }
 
-    static func run(_ id: String, _ name: String, _ body: () throws -> Void) -> Void {
+    static func run(_ id: String, _ name: String, _ body: () throws -> Void) -> Bool {
         let idUnits = Array(id.utf16)
         let nameUnits = Array(name.utf16)
         Test.currentTestId = idUnits
@@ -260,15 +260,22 @@ enum Test {
         do {
             try body()
             print(decodeUnits(TestCore.resultLine(idUnits, nameUnits, false, [])), terminator: "")
+            Test.currentTestId = []
+            return false
         } catch let error as TestFailure {
             print(decodeUnits(TestCore.resultLine(idUnits, nameUnits, true, error.message)), terminator: "")
+            Test.currentTestId = []
+            return true
         } catch let error as BoringException {
             print(decodeUnits(TestCore.resultLine(idUnits, nameUnits, true, Array(error.message.utf16))), terminator: "")
+            Test.currentTestId = []
+            return true
         } catch {
             let fallback = String(describing: error)
             print(decodeUnits(TestCore.resultLine(idUnits, nameUnits, true, Array(fallback.utf16))), terminator: "")
+            Test.currentTestId = []
+            return true
         }
-        Test.currentTestId = []
     }
 }
 

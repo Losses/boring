@@ -24,9 +24,15 @@ class SwiftTestHelper {
 			"enum TestMain {",
 			"    static func main() {"
 		];
+		lines.push("        var failures = 0");
 		for(e in sorted) {
-			lines.push('        Test.run("${escapeSwiftString(e.id)}", "${escapeSwiftString(e.runnerName)}", ${e.call})');
+			lines.push('        if Test.run("${escapeSwiftString(e.id)}", "${escapeSwiftString(e.runnerName)}", ${e.call}) {');
+			lines.push("            failures += 1");
+			lines.push("        }");
 		}
+		lines.push("        if failures > 0 {");
+		lines.push("            exit(1)");
+		lines.push("        }");
 		lines.push("    }");
 		lines.push("}");
 		return lines.join("\n") + "\n";
