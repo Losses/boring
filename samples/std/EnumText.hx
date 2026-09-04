@@ -228,7 +228,7 @@ class EnumText {
 	 * nullable enum argument has no ruled form and reads through
 	 * Std.string.
 	 */
-	static function operandForm(type:Type, read:Expr, pos:Position, selfName:Null<String>, root:EnumType):Expr {
+	static function operandForm(type:Type, read:Expr, pos:Position, selfName:Null<String>, root:Null<EnumType>):Expr {
 		switch(type) {
 			case TAbstract(a, _) if(a.get().name == "Null"):
 				return stdString(read, pos);
@@ -240,7 +240,7 @@ class EnumText {
 				if(!hasPayloadConstructor(enumType)) {
 					return stdString(read, pos);
 				}
-				if(selfName != null && sameEnum(enumType, root)) {
+				if(selfName != null && root != null && sameEnum(enumType, root)) {
 					return {expr: ECall({expr: EConst(CIdent(selfName)), pos: pos}, [read]), pos: pos};
 				}
 				return rendererCall(read, TEnum(en, params), enumType, pos);
@@ -266,7 +266,17 @@ class EnumText {
 		return a.module == b.module && a.name == b.name;
 	}
 
-	static function arrayForm(elementType:Type, read:Expr, pos:Position, selfName:Null<String>, root:EnumType):Expr {
+	public static function arrayForm(elementType:Type, read:Expr, pos:Position, selfName:Null<String>, root:Null<EnumType>):Expr {
+		final elemWritten = TypeTools.toComplexType(elementType);
+		final arrayWritten:Null<ComplexType> = elemWritten == null ? null : (macro :Array<$elemWritten>);
+		return arrayFormWithType(elementType, read, pos, selfName, root, arrayWritten);
+	}
+
+	public static function stage1ArrayForm(elementType:Type, read:Expr, pos:Position, selfName:Null<String>, root:Null<EnumType>, arrayType:Type):Expr {
+		return arrayFormWithType(elementType, read, pos, selfName, root, TypeTools.toComplexType(arrayType));
+	}
+
+	static function arrayFormWithType(elementType:Type, read:Expr, pos:Position, selfName:Null<String>, root:Null<EnumType>, arrayWrittenType:Null<ComplexType>):Expr {
 		final arrayIdent = {expr: EConst(CIdent("enumTextArray")), pos: pos};
 		final out = {expr: EConst(CIdent("enumTextOut")), pos: pos};
 		final index = {expr: EConst(CIdent("enumTextIndex")), pos: pos};
@@ -326,8 +336,7 @@ class EnumText {
 			]),
 			pos: pos
 		};
-		final elemWritten = TypeTools.toComplexType(elementType);
-		final arrayWritten = elemWritten == null ? null : (macro :Array<$elemWritten>);
+		final arrayWritten = arrayWrittenType;
 		return {
 			expr: ECall({
 				expr: EFunction(FAnonymous, {
