@@ -211,10 +211,11 @@ class DartDecl {
     function dataClassComparator(cls:ClassType):String {
         final lines = ["int compare" + cls.name + "(" + cls.name + " a, " + cls.name + " b) {"];
         for (f in [
-            for (x in cls.fields.get()) if (switch (x.kind) {
-                    case FVar(read, write): !(read.match(AccCall) && write.match(AccNever));
-                    case _: false;
-                }) x
+            for (x in cls.fields.get())
+                if (switch (x.kind) {
+                        case FVar(read, write): !(read.match(AccCall) && write.match(AccNever));
+                        case _: false;
+                    }) x
         ]) {
             switch (f.type) {
                 case TAbstract(a, params) if (a.get().name == "Null" && params.length == 1):
@@ -228,14 +229,15 @@ class DartDecl {
                                     final en = e.get();
                                     final orderName = cls.name + f.name + "Order";
                                     lines.unshift("int " + orderName + "(" + qualifiedRef(en.module, en.name) + " v) {\n" + [
-                                        for (ef in en.constructs) (enumHasPayload(en) ? "  if (v is " + qualifiedRef(en.module, en.name + ef.name)
-                                            + ") return " + ef.index + ";" : "  if (v == "
-                                            + qualifiedRef(en.module, en.name)
-                                            + "."
-                                            + lowerFirst(ef.name)
-                                            + ") return "
-                                            + ef.index
-                                            + ";")
+                                        for (ef in en.constructs)
+                                            (enumHasPayload(en) ? "  if (v is " + qualifiedRef(en.module,
+                                                en.name + ef.name) + ") return " + ef.index + ";" : "  if (v == "
+                                                + qualifiedRef(en.module, en.name)
+                                                + "."
+                                                + lowerFirst(ef.name)
+                                                + ") return "
+                                                + ef.index
+                                                + ";")
                                     ].join("\n") + "\n  return 0;\n}");
                                     lines.push("  if (av" + f.name + " != null && bv" + f.name + " != null) { final cmp" + f.name + " = " + orderName
                                         + "(av" + f.name + ") - " + orderName + "(bv" + f.name + "); if (cmp" + f.name + " != 0) return cmp" + f.name + "; }");
@@ -252,14 +254,15 @@ class DartDecl {
                             final en = e.get();
                             final orderName = cls.name + f.name + "ElementOrder";
                             lines.unshift("int " + orderName + "(" + qualifiedRef(en.module, en.name) + " v) {\n" + [
-                                for (ef in en.constructs) (enumHasPayload(en) ? "  if (v is " + qualifiedRef(en.module, en.name + ef.name) + ") return "
-                                    + ef.index + ";" : "  if (v == "
-                                    + qualifiedRef(en.module, en.name)
-                                    + "."
-                                    + lowerFirst(ef.name)
-                                    + ") return "
-                                    + ef.index
-                                    + ";")
+                                for (ef in en.constructs)
+                                    (enumHasPayload(en) ? "  if (v is " + qualifiedRef(en.module,
+                                        en.name + ef.name) + ") return " + ef.index + ";" : "  if (v == "
+                                        + qualifiedRef(en.module, en.name)
+                                        + "."
+                                        + lowerFirst(ef.name)
+                                        + ") return "
+                                        + ef.index
+                                        + ";")
                             ].join("\n") + "\n  return 0;\n}");
                             lines.push("  for (var i = 0; i < a." + f.name + ".length && i < b." + f.name + ".length; i++) { final cmp = " + orderName
                                 + "(a." + f.name + "[i]) - " + orderName + "(b." + f.name + "[i]); if (cmp != 0) return cmp; }");
@@ -294,14 +297,15 @@ class DartDecl {
                             + qualifiedRef(en.module, en.name)
                             + " v) {\n"
                             + [
-                                for (ef in en.constructs) (enumHasPayload(en) ? "  if (v is " + qualifiedRef(en.module, en.name + ef.name) + ") return "
-                                    + ef.index + ";" : "  if (v == "
-                                    + qualifiedRef(en.module, en.name)
-                                    + "."
-                                    + lowerFirst(ef.name)
-                                    + ") return "
-                                    + ef.index
-                                    + ";")
+                                for (ef in en.constructs)
+                                    (enumHasPayload(en) ? "  if (v is " + qualifiedRef(en.module,
+                                        en.name + ef.name) + ") return " + ef.index + ";" : "  if (v == "
+                                        + qualifiedRef(en.module, en.name)
+                                        + "."
+                                        + lowerFirst(ef.name)
+                                        + ") return "
+                                        + ef.index
+                                        + ";")
                             ].join("\n") + "\n  return 0;\n}");
                         lines.push("  if (" + cls.name + f.name + "Order(a." + f.name + ") != " + cls.name + f.name + "Order(b." + f.name + ")) return "
                             + cls.name + f.name + "Order(a." + f.name + ") - " + cls.name + f.name + "Order(b." + f.name + ");");
@@ -353,14 +357,14 @@ class DartDecl {
                 final en = e.get();
                 final orderName = cls.name + field + "Order";
                 lines.unshift("int " + orderName + "(" + qualifiedRef(en.module, en.name) + " v) {\n" + [
-                    for (ef in en.constructs) (enumHasPayload(en) ? "  if (v is " + qualifiedRef(en.module,
-                        en.name + ef.name) + ") return " + ef.index + ";" : "  if (v == "
-                        + qualifiedRef(en.module, en.name)
-                        + "."
-                        + lowerFirst(ef.name)
-                        + ") return "
-                        + ef.index
-                        + ";")
+                    for (ef in en.constructs)
+                        (enumHasPayload(en) ? "  if (v is " + qualifiedRef(en.module, en.name + ef.name) + ") return " + ef.index + ";" : "  if (v == "
+                            + qualifiedRef(en.module, en.name)
+                            + "."
+                            + lowerFirst(ef.name)
+                            + ") return "
+                            + ef.index
+                            + ";")
                 ].join("\n") + "\n  return 0;\n}");
                 lines.push("    for (var i = 0; i < av" + field + ".length && i < bv" + field + ".length; i++) { final cmp = " + orderName + "(av" + field
                     + "[i]) - " + orderName + "(bv" + field + "[i]); if (cmp != 0) return cmp; }");
