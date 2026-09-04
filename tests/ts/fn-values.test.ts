@@ -48,7 +48,7 @@ describe("first-class function value generated trees", () => {
     expect(rust).toContain("pub resolver: Box<dyn NameResolver>");
     expect(rust).toContain("pub fn new(style_at: Rc<dyn Fn(u32) -> String>, resolver: Box<dyn NameResolver>)");
     expect(rust).toContain("pub fn apply_picker(values: &Vec<String>, pick: Rc<dyn Fn(u32) -> String>)");
-    expect(rust).toContain("return pick(u32::wrapping_sub(values.len() as u32 as u32, 1));");
+    expect(rust).toContain("return pick(u32::wrapping_sub(u32::try_from((values.len()) & 0xFFFF_FFFF).unwrap_or(0), 1));");
     expect(rust).toContain("pub fn make_prefixer(prefix: &str) -> Rc<dyn");
     expect(rust).toContain("Rc::new(move |suffix|");
     expect(rust).toContain("pub static DEFAULT_TAG: fn(i32) -> String =");
@@ -64,7 +64,7 @@ describe("first-class function value generated trees", () => {
     expect(rust).toContain("Box<dyn NameResolver>");
     expect(rust).toContain("Rc::new(move |suffix|");
     expect(rust).toContain("pub static DEFAULT_TAG: fn(i32) -> String =");
-    expect(rust).toContain("u32::wrapping_sub(values.len() as u32 as u32, 1)");
+    expect(rust).toContain("u32::wrapping_sub(u32::try_from((values.len()) & 0xFFFF_FFFF).unwrap_or(0), 1)");
   });
 });
 

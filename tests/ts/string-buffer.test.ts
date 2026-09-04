@@ -42,11 +42,11 @@ describe("string buffer generated tree", () => {
 
     expect(content).toContain("let mut buf = Vec::<u16>::new();");
     expect(content).toContain("buf.extend(a.encode_utf16());");
-    expect(content).toContain("buf.push(code_a as u16);");
-    expect(content).toContain("return Ok(buf.len() as u32);");
+    expect(content).toContain("buf.push(u16::try_from((code_a) & 0xFFFF).unwrap_or(0));");
+    expect(content).toContain("return Ok(u32::try_from((buf.len()) & 0xFFFF_FFFF).unwrap_or(0));");
     expect(content).toContain("String::from_utf16(buf.as_slice())");
-    expect(content).toContain("UStringFault::UnpairedSurrogate { unit: unit as u32 }");
-    expect(content).toContain("UStringFault::InvalidCodePoint { code } => u32::wrapping_add(1000 as u32, code),");
+    expect(content).toContain("UStringFault::UnpairedSurrogate { unit: u32::from(unit) }");
+    expect(content).toContain("UStringFault::InvalidCodePoint { code } => u32::wrapping_add(1000, code),");
     expect(content).not.toContain("String::new()");
     expect(content).not.toContain("push_str");
     expect(content).not.toContain("encode_utf16().count()");
