@@ -2878,6 +2878,13 @@ class RustExpr {
 			// unwrap_or(0) arm unreachable.
 			return usizeIndex(expr(e));
 		}
+		if(ty == "u8") {
+			// A u8 target (Bytes element stores) truncates the source the
+			// way Rust `as u8` does: mask the low byte, then try_from. The
+			// literal fold above has already run, so only real expressions
+			// land here.
+			return RustConversions.truncate(expr(e), "u8");
+		}
 		return "(" + expr(e) + ") as " + ty;
 	}
 
@@ -3656,7 +3663,9 @@ class RustExpr {
 					}
 				}
 				if(name == "get" && isBytes(stripCast(subj))) {
-					return expr(subj) + "[" + castArg(args[0], "usize") + "] as u32";
+					// A Bytes element is u8; widening to the Haxe Int
+					// domain goes through From so the read carries no `as`.
+					return "u32::from(" + expr(subj) + "[" + castArg(args[0], "usize") + "])";
 				}
 				if(name == "set" && args.length == 2 && isBytes(stripCast(subj))) {
 					return expr(subj) + "[" + castArg(args[0], "usize") + "] = " + castArg(args[1], "u8");
@@ -5029,13 +5038,16 @@ class RustExpr {
 
 		final bufStr = expr(extracted[0].buf);
 		final baseStr = expr(extracted[0].base);
+		// A byte buffer's element is already u8, so the element read needs
+		// no cast in the from_be_bytes array; an Int-word buffer (registry
+		// hashing pads a Vec<u32> with bytes) narrows each element the way
+		// the old `as u8` did, through the T4 mask.
+		final byteSource = isBytes(stripWrap(extracted[0].buf));
 		final elems = [];
 		for(i in 0...n) {
-			if(i == 0) {
-				elems.push("(" + bufStr + "[" + usizeIndex(baseStr) + "] as u8)");
-			} else {
-				elems.push("(" + bufStr + "[" + usizeIndex(baseStr + " + " + i) + "] as u8)");
-			}
+			final idx = i == 0 ? usizeIndex(baseStr) : usizeIndex(baseStr + " + " + i);
+			final elem = byteSource ? "(" + bufStr + "[" + idx + "])" : RustConversions.truncate(bufStr + "[" + idx + "]", "u8");
+			elems.push("(" + elem + ")");
 		}
 		return typeName + "::from_be_bytes([" + elems.join(", ") + "])";
 	}
