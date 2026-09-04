@@ -54,7 +54,8 @@ class RustDecl {
                 final fields = anon.get().fields;
                 final formatString = "{{" + [for (f in fields) f.name + "={}"].join(", ") + "}}";
                 final values = [
-                    for (f in fields) enumOperand(f.type, value + "." + RustImports.toSnakeCase(f.name), depth)
+                    for (f in fields)
+                        enumOperand(f.type, value + "." + RustImports.toSnakeCase(f.name), depth)
                 ];
                 'format!("${formatString}", ${values.join(", ")})';
             case TAbstract(a, _) if (a.get().name == "Int" || a.get().name == "Float" || a.get().name == "Bool"):
@@ -77,7 +78,8 @@ class RustDecl {
             lines.push("    fn __haxe_type_name(&self) -> &'static str;");
             for (f in funcFields) {
                 final paramList = [
-                    for (a in f.args) RustImports.toSnakeCase(a.name) + ": " + types.of(a.type, true)
+                    for (a in f.args)
+                        RustImports.toSnakeCase(a.name) + ": " + types.of(a.type, true)
                 ].join(", ");
                 final selfPrefix = f.isStatic ? "" : "&self" + (f.args.length > 0 ? ", " : "");
                 final retType = types.of(f.ret, false);
@@ -191,8 +193,10 @@ class RustDecl {
         final genericList = hasLifetime ? ["'a"].concat(classParams) : classParams;
         final genericStr = genericList.length > 0 ? "<" + genericList.join(", ") + ">" : "";
         final implBoundList = hasLifetime ? ["'a"].concat([for (n in classParams) n + ": Clone"]) : [for (n in classParams) n + ": Clone"];
-        final debugBoundList = hasLifetime ? ["'a"].concat([for (n in classParams) n + ": Clone + std::fmt::Debug"]) : [for (n in classParams) n
-            + ": Clone + std::fmt::Debug"];
+        final debugBoundList = hasLifetime ? ["'a"].concat([for (n in classParams) n + ": Clone + std::fmt::Debug"]) : [
+            for (n in classParams)
+                n + ": Clone + std::fmt::Debug"
+        ];
         final implGenerics = implBoundList.length > 0 ? "<" + implBoundList.join(", ") + ">" : "";
         final ltParam = genericStr;
 
@@ -310,10 +314,11 @@ class RustDecl {
         final n = RustImports.toSnakeCase(cls.name);
         final lines = ['pub fn compare_$n(a: &${cls.name}, b: &${cls.name}) -> i32 {'];
         for (f in [
-            for (x in cls.fields.get()) if (switch (x.kind) {
-                    case FVar(read, write): !(read.match(AccCall) && write.match(AccNever));
-                    case _: false;
-                }) x
+            for (x in cls.fields.get())
+                if (switch (x.kind) {
+                        case FVar(read, write): !(read.match(AccCall) && write.match(AccNever));
+                        case _: false;
+                    }) x
         ]) {
             final fn = RustImports.toSnakeCase(f.name);
             var rawHandled = false;
@@ -328,7 +333,8 @@ class RustDecl {
                                     final en = e.get();
                                     final orderName = RustImports.toSnakeCase(cls.name) + "_" + RustImports.toSnakeCase(f.name) + "_order";
                                     lines.unshift('fn $orderName(v: &${en.name}) -> i32 {\n    match v {\n' + [
-                                        for (ef in en.constructs) '        ${en.name}::${ef.name}' + (enumHasPayload(ef) ? ' { .. }' : '') + ' => ${ef.index},'
+                                        for (ef in en.constructs)
+                                            '        ${en.name}::${ef.name}' + (enumHasPayload(ef) ? ' { .. }' : '') + ' => ${ef.index},'
                                     ].join("\n") + '\n    }\n}');
                                     presentCompare = cmpToI32('$orderName(av).cmp(&$orderName(bv))');
                                 case TInst(c, _) if (c.get().meta.has(":dataClass")):
@@ -353,7 +359,8 @@ class RustDecl {
                             final en = e.get();
                             final orderName = n + "_" + fn + "_element_order";
                             lines.unshift('fn $orderName(v: &${en.name}) -> i32 {\n    match v {\n' + [
-                                for (ef in en.constructs) '        ${en.name}::${ef.name}' + (enumHasPayload(ef) ? ' { .. }' : '') + ' => ${ef.index},'
+                                for (ef in en.constructs)
+                                    '        ${en.name}::${ef.name}' + (enumHasPayload(ef) ? ' { .. }' : '') + ' => ${ef.index},'
                             ].join("\n") + '\n    }\n}');
                             elementCompare = cmpToI32('$orderName(av).cmp(&$orderName(bv))');
                         case TInst(c, _) if (c.get().meta.has(":dataClass")):
@@ -379,7 +386,8 @@ class RustDecl {
                         final en = e.get();
                         final orderName = RustImports.toSnakeCase(cls.name) + "_" + RustImports.toSnakeCase(f.name) + "_order";
                         lines.unshift('fn $orderName(v: &${en.name}) -> i32 {\n    match v {\n' + [
-                            for (ef in en.constructs) '        ${en.name}::${ef.name}' + (enumHasPayload(ef) ? ' { .. }' : '') + ' => ${ef.index},'
+                            for (ef in en.constructs)
+                                '        ${en.name}::${ef.name}' + (enumHasPayload(ef) ? ' { .. }' : '') + ' => ${ef.index},'
                         ].join("\n") + '\n    }\n}');
                         lines.push('    let cmp_$fn = ' + cmpToI32('$orderName(&a.$fn).cmp(&$orderName(&b.$fn))') + ';');
                     case _: // validated before emission
@@ -427,7 +435,8 @@ class RustDecl {
                 final en = e.get();
                 final orderName = RustImports.toSnakeCase(cls.name) + "_" + RustImports.toSnakeCase(field) + "_order";
                 lines.unshift('fn $orderName(v: &${en.name}) -> i32 {\n    match v {\n' + [
-                    for (ef in en.constructs) '        ${en.name}::${ef.name}' + (enumHasPayload(ef) ? ' { .. }' : '') + ' => ${ef.index},'
+                    for (ef in en.constructs)
+                        '        ${en.name}::${ef.name}' + (enumHasPayload(ef) ? ' { .. }' : '') + ' => ${ef.index},'
                 ].join("\n") + '\n    }\n}');
                 cmpToI32('$orderName(av).cmp(&$orderName(bv))');
             case TInst(c, _) if (c.get().meta.has(":dataClass")):
@@ -685,7 +694,8 @@ class RustDecl {
                 lines.push("    " + o.name + ",");
             } else {
                 final params = [
-                    for (arg in args) RustImports.toSnakeCase(arg.name) + ": " + fieldType(arg.type, arg.name)
+                    for (arg in args)
+                        RustImports.toSnakeCase(arg.name) + ": " + fieldType(arg.type, arg.name)
                 ].join(", ");
                 lines.push("    " + o.name + " { " + params + " },");
             }
@@ -1389,7 +1399,8 @@ class RustDecl {
 
     function unindentRustFunction(lines:Array<String>):Array<String> {
         return [
-            for (line in lines) StringTools.startsWith(line, "    ") ? line.substring(4) : line
+            for (line in lines)
+                StringTools.startsWith(line, "    ") ? line.substring(4) : line
         ];
     }
 
@@ -1572,7 +1583,8 @@ class RustDecl {
 
         if (isConstructor) {
             final args = [
-                for (a in f.args) RustImports.toSnakeCase(a.name) + ": " + ctorArgType(a.type, hasLifetime, cls.params.length > 0)
+                for (a in f.args)
+                    RustImports.toSnakeCase(a.name) + ": " + ctorArgType(a.type, hasLifetime, cls.params.length > 0)
             ].join(", ");
             // A throwing constructor returns Result<Self, E> through the
             // fallibility machinery; its statements render before the
@@ -2048,7 +2060,8 @@ class RustDecl {
                 lines.push("    " + o.name + ",");
             } else {
                 final params = [
-                    for (arg in o.args) RustImports.toSnakeCase(arg.name) + ": " + types.of(arg.type)
+                    for (arg in o.args)
+                        RustImports.toSnakeCase(arg.name) + ": " + types.of(arg.type)
                 ].join(", ");
                 lines.push("    " + o.name + " { " + params + " },");
             }
@@ -2122,7 +2135,8 @@ class RustDecl {
                 final fields = anonRef.get().fields.copy();
                 fields.sort((a, b) -> Reflect.compare(Context.getPosInfos(a.pos).min, Context.getPosInfos(b.pos).min));
                 final fieldLines = [
-                    for (field in fields) '    pub ${RustImports.toSnakeCase(field.name)}: ${types.of(field.type)},'
+                    for (field in fields)
+                        '    pub ${RustImports.toSnakeCase(field.name)}: ${types.of(field.type)},'
                 ];
                 final deriveAttr = isAllCopy(fields) ? "#[derive(Debug, Clone, Copy, PartialEq)]" : "#[derive(Debug, Clone, PartialEq)]";
                 final structStr = [deriveAttr, 'pub struct ${def.name} {', fieldLines.join("\n"), "}"].join("\n");

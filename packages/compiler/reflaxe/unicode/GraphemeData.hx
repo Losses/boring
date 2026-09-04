@@ -185,7 +185,8 @@ class GraphemeData {
         }
         cachedVersion = StringTools.trim(lines[0]);
         cachedTable = [
-            for (part in lines[1].split(",")) if (StringTools.trim(part).length > 0) Std.parseInt(StringTools.trim(part))
+            for (part in lines[1].split(","))
+                if (StringTools.trim(part).length > 0) Std.parseInt(StringTools.trim(part))
         ];
         for (v in cachedTable) {
             if (v == null) {

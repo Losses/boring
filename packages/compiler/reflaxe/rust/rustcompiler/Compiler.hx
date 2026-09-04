@@ -554,13 +554,23 @@ class Compiler extends PluginCompiler<Compiler> {
                             final fields = anonRef.get().fields.copy();
                             fields.sort((x, y) -> Reflect.compare(Context.getPosInfos(x.pos).min, Context.getPosInfos(y.pos).min));
                             final eqChecks = [
-                                for (f in fields) 'equals_' + typeSafeSnake(f.type, types) + '(&a.' + RustImports.toSnakeCase(f.name) + ', &b.'
-                                    + RustImports.toSnakeCase(f.name) + ')'
-                            ].join(" && ");
+                                for (f in fields)
+                                    'equals_'
+                                    + typeSafeSnake(f.type, types)
+                                    + '(&a.'
+                                    + RustImports.toSnakeCase(f.name)
+                                    + ', &b.'
+                                    + RustImports.toSnakeCase(f.name)
+                                    + ')'].join(" && ");
                             final fmtParts = [
-                                for (f in fields) '"' + f.name + ': ".to_string() + &format_' + typeSafeSnake(f.type, types) + '(&v.'
-                                    + RustImports.toSnakeCase(f.name) + ')'
-                            ].join(', ');
+                                for (f in fields)
+                                    '"'
+                                    + f.name
+                                    + ': ".to_string() + &format_'
+                                    + typeSafeSnake(f.type, types)
+                                    + '(&v.'
+                                    + RustImports.toSnakeCase(f.name)
+                                    + ')'].join(', ');
                             lines.push("");
                             lines.push('pub fn equals_$safeSnake(a: &$structPath, b: &$structPath) -> bool {');
                             lines.push('    ' + (eqChecks.length > 0 ? eqChecks : "true"));
@@ -1031,8 +1041,10 @@ class Compiler extends PluginCompiler<Compiler> {
                                                             && !(state.errorModule != null && absorbed.indexOf(state.errorModule) >= 0)) {
                                                             markFallibleThroughLength(key);
                                                         }
-                                                        entry.edges.push({callee: RustEmissionState.funcKey(cc.get().module, calleeName,
-                                                            false), absorbed: absorbed.slice(0, absorbed.length)});
+                                                        entry.edges.push({
+                                                            callee: RustEmissionState.funcKey(cc.get().module, calleeName, false),
+                                                            absorbed: absorbed.slice(0, absorbed.length)
+                                                        });
                                                     }
                                                 case TField(_, FStatic(cc, cf)):
                                                     final calleeName = cf.get().name;
@@ -1048,8 +1060,10 @@ class Compiler extends PluginCompiler<Compiler> {
                                                             && !(state.errorModule != null && absorbed.indexOf(state.errorModule) >= 0)) {
                                                             markFallibleThroughLength(key);
                                                         }
-                                                        entry.edges.push({callee: RustEmissionState.funcKey(cc.get().module, calleeName,
-                                                            true), absorbed: absorbed.slice(0, absorbed.length)});
+                                                        entry.edges.push({
+                                                            callee: RustEmissionState.funcKey(cc.get().module, calleeName, true),
+                                                            absorbed: absorbed.slice(0, absorbed.length)
+                                                        });
                                                     }
                                                 case _:
                                             }
@@ -1069,8 +1083,10 @@ class Compiler extends PluginCompiler<Compiler> {
                                             // class constructor: a throwing
                                             // constructor infects its construction
                                             // sites (feature spec 27).
-                                            entry.edges.push({callee: RustEmissionState.funcKey(c.get().module, "new",
-                                                false), absorbed: absorbed.slice(0, absorbed.length)});
+                                            entry.edges.push({
+                                                callee: RustEmissionState.funcKey(c.get().module, "new", false),
+                                                absorbed: absorbed.slice(0, absorbed.length)
+                                            });
                                             descend();
                                         case _:
                                             descend();
