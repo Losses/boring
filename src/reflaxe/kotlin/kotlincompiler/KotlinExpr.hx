@@ -1589,7 +1589,9 @@ class KotlinExpr {
 	function field(subj: TypedExpr, fa: FieldAccess): String {
 		switch(fa) {
 			case FStatic(c, cf):
-				return staticRef(c.get(), cf.get().name);
+				final cls = c.get();
+				final rendered = staticRef(cls, cf.get().name);
+				return StaticFieldHelper.isArrayType(cf.get().type) ? rendered + ".toMutableList()" : rendered;
 			case FEnum(e, ef):
 				final en = e.get();
 				final owner = state.payloadEnumOwners.get(en.module);
