@@ -1,5 +1,7 @@
 package tests;
 
+import boring.BinaryReader;
+import boring.BinaryWriter;
 import boring.FloatWidth;
 import boring.GlyphMetrics;
 import boring.VectorCodec;
@@ -95,5 +97,15 @@ class VectorCodecTests {
     @:test
     public static function testWithoutDescription():Void {
         Test.ok(true);
+    }
+
+    @:test("ascii codecs round-trip through the Bytes APIs")
+    public static function asciiCodecsRoundTrip():Void {
+        final writer = new BinaryWriter();
+        writer.writeAscii("BRG9");
+        Test.equals("BRG9", new BinaryReader(writer.finish()).readAscii(4));
+        final wide = new BinaryWriter();
+        wide.writeAscii("汉");
+        Test.equals("汉", new BinaryReader(wide.finish()).readAscii(3));
     }
 }
