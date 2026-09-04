@@ -891,7 +891,8 @@ class PipelineExpander {
 	}
 
 	static function findLambdaInInlinedLoop(whileBody:TypedExpr, receiverExpr:TypedExpr, topBlock:TypedExpr):Null<PipelineCall> {
-		if (whileBody == null) return null;
+		if (whileBody == null || !isPipelineSource(topBlock)) return null;
+
 		switch (whileBody.expr) {
 			case TBlock(bodyStmts):
 				var elementVar:Null<TVar> = null;
@@ -1035,6 +1036,19 @@ class PipelineExpander {
 			default:
 		}
 		return null;
+	}
+
+	static function isPipelineSource(e:TypedExpr):Bool {
+		final info = Context.getPosInfos(e.pos);
+		try {
+			final source = sys.io.File.getContent(info.file);
+			final start = info.min < source.length ? info.min : source.length;
+			final end = info.max > start ? info.max : start;
+			final text = source.substring(start, end);
+			return text.indexOf(".map") >= 0 || text.indexOf(".filter") >= 0;
+		} catch (_) {
+			return false;
+		}
 	}
 
 	static function isArrayType(t:Type):Bool {
