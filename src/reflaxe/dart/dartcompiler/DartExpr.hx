@@ -1642,7 +1642,45 @@ class DartExpr {
 	}
 
 	function stdString(arg: TypedExpr, inConcat: Bool): String {
-		return stdStringType(arg.t, expr(arg), inConcat, arg);
+		return stdStringType(arg.t, nullableCollectionSubject(arg), inConcat, arg);
+	}
+
+	/**
+		The subject text of a Std.string operand. The record member
+		guards a nullable collection field with an explicit null
+		comparison before the call; Dart cannot promote a public field
+		read through the guard or into the collection closure, so the
+		subject force-unwraps when its type is Null over a collection.
+	**/
+	function nullableCollectionSubject(arg: TypedExpr): String {
+		if(!isNullableCollectionType(arg.t)) {
+			return expr(arg);
+		}
+		return "(" + expr(arg) + ")!";
+	}
+
+	/**
+		Whether `t` wraps a collection (Array, ReadOnlyArray, SortedSet,
+		SortedMap) in Null.
+	**/
+	function isNullableCollectionType(t: Null<Type>): Bool {
+		if(t == null) {
+			return false;
+		}
+		return switch(t) {
+			case TAbstract(a, params) if(a.get().name == "Null" && params.length == 1): isCollectionTyped(params[0]);
+			case TLazy(f): isNullableCollectionType(f());
+			case _: false;
+		};
+	}
+
+	function isCollectionTyped(t: Type): Bool {
+		return switch(Context.follow(t)) {
+			case TInst(c, _): c.get().name == "Array" || c.get().module == "std.SortedSet" || c.get().module == "std.SortedMap";
+			case TAbstract(a, _): a.get().module == "std.ReadOnlyArray";
+			case TLazy(f): isCollectionTyped(f());
+			case _: false;
+		};
 	}
 
 	function stdIsOfType(args: Array<TypedExpr>): String {
