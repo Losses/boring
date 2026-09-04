@@ -269,9 +269,9 @@ for code points U+0000..U+007F and diverge everywhere else.
    the JavaScript target. The null convention of ruling 8 drops the
    synthesized null `?len` on TypeScript and routes it to the
    one-sided form on the other targets. Kotlin clamps the bounds
-   inside the lowering instead of keeping its platform exception,
-   because the native call is index-based and the length converts to
-   an end bound after the clamp. A `pos` inside a surrogate pair keeps
+   inside the lowering, because the native call is index-based and
+   the length converts to an end bound after the clamp; the platform
+   exception is not preserved. A `pos` inside a surrogate pair keeps
    the same target divergence as `substring`: the UTF-16 targets cut
    at the lone unit, and Rust cuts at the code-point boundary.
 
