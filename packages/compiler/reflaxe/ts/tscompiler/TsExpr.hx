@@ -1898,8 +1898,10 @@ class TsExpr {
                                 helperName = h.name;
                         if (helperName == null) {
                             helperName = "parseHexCode";
-                            activeLoopParseHoists.push({name: helperName, declaration: "const " + helperName + " = (s: string): number | null => { " + body
-                                + " };"});
+                            activeLoopParseHoists.push({
+                                name: helperName,
+                                declaration: "const " + helperName + " = (s: string): number | null => { " + body + " };"
+                            });
                         }
                         return helperName + "(" + s + ")";
                     }

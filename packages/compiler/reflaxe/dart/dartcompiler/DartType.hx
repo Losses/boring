@@ -222,7 +222,8 @@ class DartType {
                 TEnum(e, [for (p in ps) substituteType(p, params, args)]);
             case TFun(fargs, ret):
                 TFun([
-                    for (a in fargs) {name: a.name, t: substituteType(a.t, params, args), opt: a.opt}
+                    for (a in fargs)
+                        {name: a.name, t: substituteType(a.t, params, args), opt: a.opt}
                 ], substituteType(ret, params, args));
             case TLazy(f):
                 substituteType(f(), params, args);
@@ -261,10 +262,11 @@ class DartType {
                     DartStringKey;
                 } else if (cls.meta.has(":dataClass")) {
                     final fields = [
-                        for (f in cls.fields.get()) if (switch (f.kind) {
-                                case FVar(read, write): !(read.match(AccCall) && write.match(AccNever));
-                                case _: false;
-                            }) f
+                        for (f in cls.fields.get())
+                            if (switch (f.kind) {
+                                    case FVar(read, write): !(read.match(AccCall) && write.match(AccNever));
+                                    case _: false;
+                                }) f
                     ];
                     for (f in fields)
                         validateDataClassField(cls, f);

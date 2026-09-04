@@ -327,10 +327,13 @@ class Core {
             var n = ns[ni], g = group(a, "npm", n), vs:Array<JsonField> = [];
             for (i in 0...g.length) {
                 var r = g[i], f = fields(r), ru = r.url, u:String = ru == null ? "" : ru;
-                f.push({name: "dist", value: O([
-                    {name: "tarball", value: S(u)},
-                    {name: "integrity", value: S("sha512-" + r.digest)}
-                ])});
+                f.push({
+                    name: "dist",
+                    value: O([
+                        {name: "tarball", value: S(u)},
+                        {name: "integrity", value: S("sha512-" + r.digest)}
+                    ])
+                });
                 vs.push({name: r.version, value: O(f)});
             }
             emit(root, "npm/" + n.split("/").join("%2f"), Json.write(O([
@@ -418,13 +421,16 @@ class Core {
                 emit(root, "swift/" + scope + "/" + n + "/" + r.version + ".json", Json.write(O([
                     {name: "id", value: S(scope + "." + n)},
                     {name: "version", value: S(r.version)},
-                    {name: "resources", value: A([
-                        O([
-                            {name: "name", value: S("source-archive")},
-                            {name: "type", value: S("application/zip")},
-                            {name: "checksum", value: S(r.digest)}
+                    {
+                        name: "resources",
+                        value: A([
+                            O([
+                                {name: "name", value: S("source-archive")},
+                                {name: "type", value: S("application/zip")},
+                                {name: "checksum", value: S(r.digest)}
+                            ])
                         ])
-                    ])},
+                    },
                     {name: "metadata", value: O([])}
                 ])));
                 emit(root, "swift/" + scope + "/" + n + "/" + r.version + "/Package.swift", ps);
