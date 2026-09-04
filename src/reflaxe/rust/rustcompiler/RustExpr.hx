@@ -2657,7 +2657,11 @@ class RustExpr {
 				final rStr = rightStd != null ? stdString(rightStd, true) : (isNullType(r.t) ? expr(r) + ".as_deref().unwrap_or(\"\")" : expr(r));
 				return "format!(\"{}{}\", " + lStr + ", " + rStr + ")";
 			case OpDiv if(StringTools.endsWith(operand(l, op, false), ".len()")):
-				return "((" + operand(l, op, false) + ") / (" + operand(r, op, true) + " as usize)) as u32";
+				// A length divided by a Haxe-Int divisor: the divisor widens to
+				// usize (T3, never truncates), the quotient is the target u32,
+				// narrowed by the T4 mask.
+				final lenDiv = "((" + operand(l, op, false) + ") / " + usizeIndex(operand(r, op, true)) + ")";
+				return RustConversions.truncate(lenDiv, "u32");
 			case OpMult | OpAdd | OpSub if(isIntType(e.t) && !inGenericFunction && !isGenericLocal(l) && !isClosureParam(l) && !RustType.isTypeParam(currentReturnType) && !RustType.isTypeParam(e.t) && !RustType.isTypeParam(l.t) && !RustType.isTypeParam(r.t)):
 				final wrapDomain = (i32OperandDomain(l) || i32OperandDomain(r) || i32InitializerTarget || i32ComparisonTarget) ? "i32" : types.of(e.t);
 				return wrapDomain + "::" + wrappingMethod(op) + "(" + wrappingArg(l, op, false) + wrappingCastSuffix(l, wrapDomain, true) + ", " + wrappingArg(r, op, true) + wrappingCastSuffix(r, wrapDomain, false) + ")";
@@ -2866,7 +2870,28 @@ class RustExpr {
 	function castArg(e:TypedExpr, ty:String):String {
 		final folded = constantCast(e, ty);
 		if(folded != null) return folded;
+		if(ty == "usize") {
+			// Index positions reach Rust as usize from a Haxe Int (u32)
+			// source; the T3 form preserves every representable value and
+			// never truncates, so it is allowed wherever the old `as usize`
+			// index stood. usize::try_from(u32) always succeeds, making the
+			// unwrap_or(0) arm unreachable.
+			return usizeIndex(expr(e));
+		}
 		return "(" + expr(e) + ") as " + ty;
+	}
+
+	/** T3 index form for an already-rendered source expression. */
+	function usizeIndex(rendered: String): String {
+		// The call parentheses already delimit the argument, so an outer
+		// grouping of the rendered source (a block expression, a parenthesized
+		// binop) is dropped to keep the generated code free of
+		// unnecessary-parens warnings.
+		var inner = rendered;
+		if(StringTools.startsWith(inner, "(") && StringTools.endsWith(inner, ")") && matchingParens(inner)) {
+			inner = inner.substr(1, inner.length - 2);
+		}
+		return "usize::try_from(" + inner + ").unwrap_or(0)";
 	}
 
 	function int64CallText(fn:TypedExpr, args:Array<TypedExpr>):Null<String> {
@@ -3591,13 +3616,13 @@ class RustExpr {
 					return expr(subj) + "[" + castArg(args[0], "usize") + "] = " + castArg(args[1], "u8");
 				}
 				if(name == "blit" && args.length == 4 && isBytes(stripCast(subj))) {
-					return expr(subj) + "[" + castArg(args[0], "usize") + "..(" + expr(args[0]) + " + " + expr(args[3]) + ") as usize].copy_from_slice(&" + expr(args[1]) + "[" + castArg(args[2], "usize") + "..(" + expr(args[2]) + " + " + expr(args[3]) + ") as usize])";
+					return expr(subj) + "[" + castArg(args[0], "usize") + ".." + usizeIndex("(" + expr(args[0]) + " + " + expr(args[3]) + ")") + "].copy_from_slice(&" + expr(args[1]) + "[" + castArg(args[2], "usize") + ".." + usizeIndex("(" + expr(args[2]) + " + " + expr(args[3]) + ")") + "])";
 				}
 				if(name == "fill" && args.length == 3 && isBytes(stripCast(subj))) {
-					return expr(subj) + "[" + castArg(args[0], "usize") + "..(" + expr(args[0]) + " + " + expr(args[1]) + ") as usize].fill(" + castArg(args[2], "u8") + ")";
+					return expr(subj) + "[" + castArg(args[0], "usize") + ".." + usizeIndex("(" + expr(args[0]) + " + " + expr(args[1]) + ")") + "].fill(" + castArg(args[2], "u8") + ")";
 				}
 				if(name == "sub" && args.length == 2 && isBytes(stripCast(subj))) {
-					return expr(subj) + "[" + castArg(args[0], "usize") + "..(" + expr(args[0]) + " + " + expr(args[1]) + ") as usize].to_vec()";
+					return expr(subj) + "[" + castArg(args[0], "usize") + ".." + usizeIndex("(" + expr(args[0]) + " + " + expr(args[1]) + ")") + "].to_vec()";
 				}
 				if(name == "charAt" && isString(stripCast(subj))) {
 					state.shimsUsed.set("std.UStringRT", true);
@@ -3854,11 +3879,11 @@ class RustExpr {
 						case "end":
 							return "(" + expr(args[0]) + ").len() as i32";
 						case "codeAt":
-							return "(" + expr(args[0]) + ")[(" + expr(args[1]) + ") as usize..].chars().next().unwrap_or('\\0') as i32";
+							return "(" + expr(args[0]) + ")[" + castArg(args[1], "usize") + "..].chars().next().unwrap_or('\\0') as i32";
 						case "advance":
-							return "((" + expr(args[1]) + ") as usize + (" + expr(args[0]) + ")[(" + expr(args[1]) + ") as usize..].chars().next().unwrap_or('\\0').len_utf8()) as i32";
+							return "(" + castArg(args[1], "usize") + " + (" + expr(args[0]) + ")[" + castArg(args[1], "usize") + "..].chars().next().unwrap_or('\\0').len_utf8()) as i32";
 						case "substringBetween":
-							return "(" + expr(args[0]) + ")[(" + expr(args[1]) + ") as usize..(" + expr(args[2]) + ") as usize].to_string()";
+							return "(" + expr(args[0]) + ")[" + castArg(args[1], "usize") + ".." + castArg(args[2], "usize") + "].to_string()";
 						case "fromCodePoint":
 							return "char::from_u32((" + expr(args[0]) + ") as u32).unwrap_or('\\0').to_string()";
 						case _:
@@ -4950,9 +4975,9 @@ class RustExpr {
 		final elems = [];
 		for(i in 0...n) {
 			if(i == 0) {
-				elems.push("(" + bufStr + "[" + baseStr + " as usize] as u8)");
+				elems.push("(" + bufStr + "[" + usizeIndex(baseStr) + "] as u8)");
 			} else {
-				elems.push("(" + bufStr + "[(" + baseStr + " + " + i + ") as usize] as u8)");
+				elems.push("(" + bufStr + "[" + usizeIndex(baseStr + " + " + i) + "] as u8)");
 			}
 		}
 		return typeName + "::from_be_bytes([" + elems.join(", ") + "])";
