@@ -65,6 +65,7 @@ tests.Sha512Tests
 tests.Xxh64Tests
 tests.BlockScopeUnrollTests
 tests.HandWrittenLoopPositionTests
+tests.HandWrittenLoopPositionSupport
 tests.CryptoTestSupport
 tests.CrcTests
 tests.VectorCodecTests
