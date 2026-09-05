@@ -16,9 +16,16 @@ package swiftcompiler;
 class SwiftHostEdges {
     /** Host-edge keys in emission order. */
     public static final KEYS = [
-        "Env.get", "Env.set", "Env.remove",
-        "Fs.exists", "Fs.isDirectory", "Fs.readText", "Fs.writeText",
-        "Fs.appendText", "Fs.makeDirs", "Fs.readDir"
+        "Env.get",
+        "Env.set",
+        "Env.remove",
+        "Fs.exists",
+        "Fs.isDirectory",
+        "Fs.readText",
+        "Fs.writeText",
+        "Fs.appendText",
+        "Fs.makeDirs",
+        "Fs.readDir"
     ];
 
     /** The Swift file-scope helper behind each key. */
@@ -57,7 +64,6 @@ class SwiftHostEdges {
             case _: false;
         }
     }
-
 
     /** The source text of one host-edge helper. */
     public static function source(key:String):Null<String> {
