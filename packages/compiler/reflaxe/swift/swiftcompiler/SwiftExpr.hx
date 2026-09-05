@@ -595,6 +595,12 @@ class SwiftExpr {
 
     /** Expression-position block lowering (features/43). */
     function blockExpression(stmts:Array<TypedExpr>):String {
+        if (stmts.length > 0)
+            switch (stmts[stmts.length - 1].expr) {
+                case TBlock(inner):
+                    return blockExpression(stmts.slice(0, stmts.length - 1).concat(inner));
+                case _:
+            }
         if (stmts.length == 0)
             return fail(null, "expression block must end in a value statement (features/43)");
         for (i in 0...stmts.length - 1)
@@ -610,9 +616,29 @@ class SwiftExpr {
             case _:
         }
         final out = ["({ () -> " + types.of(stmts[stmts.length - 1].t) + " in"];
+        final syntheticIds = new Map<Int, Bool>();
         for (s in stmts.slice(0, stmts.length - 1))
-            for (line in stmtLines(s, 1))
-                out.push(line);
+            switch (s.expr) {
+                case TVar(v, init):
+                    switch (init == null ? null : init.expr) {
+                        case TEnumParameter(se, ef, index):
+                            switch (Context.follow(se.t)) {
+                                case TEnum(r, _) if (Lambda.count(r.get().constructs) == 1):
+                                    subst.set(v.id, payloadName(ef, index));
+                                    syntheticIds.set(v.id, true);
+                                case _:
+                            }
+                        case _:
+                    }
+                case _:
+            }
+        for (s in stmts.slice(0, stmts.length - 1))
+            switch (s.expr) {
+                case TVar(v, _) if (syntheticIds.exists(v.id)):
+                case _:
+                    for (line in stmtLines(s, 1))
+                        out.push(line);
+            }
         out.push(indent(1) + "return " + expr(stmts[stmts.length - 1]));
         out.push("})()");
         return out.join("\n");
@@ -1215,8 +1241,13 @@ class SwiftExpr {
                 return expr(inner);
             case TCast(inner, _):
                 return expr(inner);
-            case TEnumParameter(_, _, _):
-                return fail(e, "enum payload only lowers inside a variant switch arm");
+            case TEnumParameter(se, ef, index):
+                final en = switch (Context.follow(se.t)) {
+                    case TEnum(r, _) if (Lambda.count(r.get().constructs) == 1): r.get();
+                    case _: return fail(e, "enum payload only lowers inside a variant switch arm");
+                };
+                final n = payloadName(ef, index);
+                return "({ () -> " + types.of(e.t) + " in\n    switch " + expr(se) + " {\n    case ." + SwiftDecl.lowerFirst(ef.name) + "(let " + n + "): return " + n + "\n    }\n})()";
             case TEnumIndex(_):
                 return fail(e, "enum index only lowers inside a variant switch");
             case TFunction(f):

@@ -1060,6 +1060,12 @@ class RustExpr {
 
     /** Expression-position block lowering (features/43). */
     function blockExpression(stmts:Array<TypedExpr>):String {
+        if (stmts.length > 0)
+            switch (stmts[stmts.length - 1].expr) {
+                case TBlock(inner):
+                    return blockExpression(stmts.slice(0, stmts.length - 1).concat(inner));
+                case _:
+            }
         if (stmts.length == 0)
             return fail(null, "expression block must end in a value statement (features/43)");
         for (i in 0...stmts.length - 1)
