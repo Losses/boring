@@ -31,6 +31,11 @@ class TsDecl {
         return imports.render();
     }
 
+    /** The top-level std.Fs helper declarations this module's calls registered. */
+    public function renderFsHelpers():String {
+        return imports.renderFsHelpers();
+    }
+
     public function renderTestImports(testOutputDir:String, mainOutputDir:String, testRunner:String):String {
         return imports.renderTestImports(testOutputDir, mainOutputDir, testRunner);
     }
