@@ -87,6 +87,7 @@ boring.StringBufOps
 tests.StringBufTests
 boring.TryOps
 tests.TryTests
+tests.SwitchOpsTests
 boring.ArithmeticOps
 tests.ArithmeticTests
 boring.DefaultArgsOps
@@ -165,6 +166,7 @@ tests.RegistrySemverTests
 tests.RegistryPipelineTests
 tests.RegistryParseArgsTests
 boring.ArrayIterationOps
+boring.SwitchOps
 boring.PlatformOps
 tests.ExpressionBlockTests
 tests.PlatformModulesTestSupport

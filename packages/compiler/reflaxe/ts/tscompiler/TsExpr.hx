@@ -372,6 +372,8 @@ class TsExpr {
                 return tryBindingLines(v, init, depth);
             case TVar(v, init) if (init != null && isStringBufToStringCall(init)):
                 return stringBufToStringBindingLines(v, stripWrap(init), depth);
+            case TVar(v, init) if (init != null && isSwitch(init)):
+                return switchBindingLines(v, init, depth);
             case TVar(v, init) if (init != null):
                 final kw = mutated.exists(v.id) ? "let" : "const";
                 final initText = switch (init.expr) {
@@ -436,6 +438,10 @@ class TsExpr {
                 }
             case TThrow(x):
                 return [indent(depth) + "throw " + expr(x) + ";"];
+            case TBinop(OpAssign, target, value) if (isSwitch(value)):
+                return switchAssign(target, value, depth);
+            case TSwitch(_, _, _):
+                return switchStatement(e, depth);
             case TTry(body, catches) if (catches.length == 1):
                 return tryStatementLines(body, catches[0], depth);
             case TTry(_, _):
@@ -1201,7 +1207,7 @@ class TsExpr {
             case TTry(_, _):
                 return fail(e, "try region lowers at statement, initializer, or return position");
             case TSwitch(_, _, _):
-                return fail(e, "variant switch lowers at return position");
+                return switchExpression(e);
             case TConst(c):
                 switch (c) {
                     case TInt(v): return Std.string(v);
@@ -1245,8 +1251,8 @@ class TsExpr {
                 return expr(inner);
             case TEnumParameter(se, ef, index):
                 return expr(se) + "." + payloadName(ef, index);
-            case TEnumIndex(_):
-                return fail(e, "enum index only lowers inside a variant switch");
+            case TEnumIndex(inner):
+                return expr(inner) + ".kind";
             case TFunction(f):
                 return functionLiteral(f);
             case TIf(c, t, f) if (f != null):
@@ -2854,6 +2860,41 @@ class TsExpr {
         }
     }
 
+    function isSwitch(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) { case TSwitch(_, _, _): true; case _: false; };
+    }
+
+    function switchBindingLines(v:TVar, sw:TypedExpr, depth:Int):Array<String> {
+        return [indent(depth) + (mutated.exists(v.id) ? "let " : "const ") + localName(v) + " = " + switchExpression(sw) + ";"];
+    }
+
+    function switchStatement(sw:TypedExpr, depth:Int):Array<String> {
+        final lines = switchReturn(sw, depth);
+        for (i in 0...lines.length) {
+            final marker = "return ";
+            final p = lines[i].indexOf(marker);
+            if (p >= 0) lines[i] = lines[i].substr(0, p) + lines[i].substr(p + marker.length);
+        }
+        return lines;
+    }
+
+    function switchAssign(target:TypedExpr, sw:TypedExpr, depth:Int):Array<String> {
+        final lines = switchReturn(sw, depth);
+        final prefix = indent(depth + 2) + "return ";
+        for (i in 0...lines.length)
+            if (StringTools.startsWith(lines[i], prefix))
+                lines[i] = indent(depth + 2) + expr(target) + " = " + lines[i].substr(prefix.length);
+        return lines;
+    }
+
+    function switchExpression(sw:TypedExpr):String {
+        sw = stripWrap(sw);
+        final out = ["(() => {"];
+        for (line in switchReturn(sw, 1)) out.push(line);
+        out.push("})()");
+        return out.join("\n");
+    }
+
     function switchReturn(sw:TypedExpr, depth:Int):Array<String> {
         final switchParts = switch (sw.expr) {
             case TSwitch(subj, cases, def): {subj: subj, cases: cases, def: def};
@@ -2862,7 +2903,7 @@ class TsExpr {
         final subj = stripWrap(switchParts.subj);
         final se = switch (subj.expr) {
             case TEnumIndex(inner): inner;
-            case _: return fail(sw, "switch subject is not a variant index");
+            case _: subj;
         }
         final subjRendered = expr(se);
         final table = enumTable(se);
@@ -2881,7 +2922,8 @@ class TsExpr {
                 out.push(l);
         }
         if (switchParts.def != null) {
-            return fail(sw, "variant switch carries a default arm (V15)");
+            out.push(indent(depth) + "  default:");
+            for (l in armLines(switchParts.def, depth + 2)) out.push(l);
         }
         out.push(indent(depth) + "}");
         return out;
