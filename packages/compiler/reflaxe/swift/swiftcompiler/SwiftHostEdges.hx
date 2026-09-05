@@ -13,7 +13,10 @@ package swiftcompiler;
     Apple SDKs (which do not expose FoundationEssentials as a top-level
     module), and the env helpers use the Windows `CRT` module (the Swift
     overlay of ucrt that swiftlang toolchains ship since 5.3; there is
-    no MSVCRT module in 6.x SDKs). The SwiftPM package ships the
+    no MSVCRT module in 6.x SDKs). Foundation's `fileExists` takes its
+    directory probe as `ObjCBool` where FoundationEssentials takes
+    `Bool`, so Fs.isDirectory carries a separate arm body per module.
+    The SwiftPM package ships the
     swift-system dependency, and only files that reference std.Fs import
     SystemPackage (the calling file's own `import` block).
 **/
@@ -152,8 +155,13 @@ private func boringFsExists(_ path: String) -> Bool {
     static final FS_IS_DIRECTORY = '
 private func boringFsIsDirectory(_ path: String) -> Bool {
     #if canImport(FoundationEssentials) || canImport(Darwin)
+    #if canImport(FoundationEssentials)
     var isDirectory = false
     return FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory) && isDirectory
+    #else
+    var isDirectory = ObjCBool(false)
+    return FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory) && isDirectory.boolValue
+    #endif
     #else
     return false
     #endif
