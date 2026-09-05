@@ -161,44 +161,26 @@ import runtime.Graphemes;
 import runtime.SortedTable;
 import runtime.TestCore;
 import runtime.UString;
+import std.Env;
+import std.Fs;
+import std.Path;
 import std.UStringException;
 import std.UStringFault;
-
-@:jsRequire("node:fs")
-extern class Fs {
-    static function appendFileSync(path:String, data:String, encoding:String):Void;
-    static function mkdirSync(path:String, options:{recursive:Bool}):Void;
-    static function existsSync(path:String):Bool;
-    static function readFileSync(path:String, encoding:String):String;
-    static function writeFileSync(path:String, data:String, encoding:String):Void;
-    static function readdirSync(path:String):Array<String>;
-    static function statSync(path:String):Dynamic;
-}
-
-@:jsRequire("node:path")
-extern class Path {
-    static function dirname(p:String):String;
-}
-
-@:jsRequire("node:process")
-extern class NodeProcess {
-    static final env:haxe.DynamicAccess<String>;
-}
 
 class TestMain {
     static var failures:Int = 0;
 
     static function recordResult(id:String, name:String, verdict:String, message:Null<String>):Void {
-        var envPath = NodeProcess.env.get("BORING_TEST_RESULTS");
+        var envPath = Env.get("BORING_TEST_RESULTS");
         var filePath = envPath != null && envPath.length > 0 ? envPath : "out/test-results/haxe.jsonl";
         var jsonLine = TestCore.resultLine(id, name, verdict == "fail", message != null ? message : "");
         var dir = Path.dirname(filePath);
         if (dir != null && dir != "" && dir != ".") {
             try {
-                Fs.mkdirSync(dir, {recursive: true});
+                Fs.makeDirs(dir);
             } catch (_:Dynamic) {}
         }
-        Fs.appendFileSync(filePath, jsonLine, "utf8");
+        Fs.appendText(filePath, jsonLine);
     }
 
     static function formatValue(v:Dynamic):String {
@@ -345,49 +327,50 @@ class TestMain {
             }
         };
         js.Syntax.code(\'globalThis.std.Env = {0};\', envOracle);
+        var nodeFs:Dynamic = js.Syntax.code(\'require("node:fs")\');
         var fsOracle = {
             exists: function(p:String):Bool {
-                return Fs.existsSync(p);
+                return cast nodeFs.existsSync(p);
             },
             readText: function(p:String):String {
                 try {
-                    return Fs.readFileSync(p, \'utf8\');
+                    return cast nodeFs.readFileSync(p, "utf8");
                 } catch (e:Dynamic) {
-                    throw new haxe.Exception(p + \': \' + Std.string(e));
+                    throw new haxe.Exception(p + ": " + Std.string(e));
                 }
             },
             writeText: function(p:String, data:String):Void {
                 try {
-                    Fs.writeFileSync(p, data, \'utf8\');
+                    nodeFs.writeFileSync(p, data, "utf8");
                 } catch (e:Dynamic) {
-                    throw new haxe.Exception(p + \': \' + Std.string(e));
+                    throw new haxe.Exception(p + ": " + Std.string(e));
                 }
             },
             appendText: function(p:String, data:String):Void {
                 try {
-                    Fs.appendFileSync(p, data, \'utf8\');
+                    nodeFs.appendFileSync(p, data, "utf8");
                 } catch (e:Dynamic) {
-                    throw new haxe.Exception(p + \': \' + Std.string(e));
+                    throw new haxe.Exception(p + ": " + Std.string(e));
                 }
             },
             makeDirs: function(p:String):Void {
                 try {
-                    Fs.mkdirSync(p, {recursive: true});
+                    nodeFs.mkdirSync(p, {recursive: true});
                 } catch (e:Dynamic) {
-                    throw new haxe.Exception(p + \': \' + Std.string(e));
+                    throw new haxe.Exception(p + ": " + Std.string(e));
                 }
             },
             readDir: function(p:String):Array<String> {
                 try {
-                    return Fs.readdirSync(p);
+                    return cast nodeFs.readdirSync(p);
                 } catch (e:Dynamic) {
-                    throw new haxe.Exception(p + \': \' + Std.string(e));
+                    throw new haxe.Exception(p + ": " + Std.string(e));
                 }
             },
             isDirectory: function(p:String):Bool {
                 try {
-                    var st:Dynamic = Fs.statSync(p);
-                    return st.isDirectory();
+                    var st:Dynamic = nodeFs.statSync(p);
+                    return cast st.isDirectory();
                 } catch (e:Dynamic) {
                     return false;
                 }

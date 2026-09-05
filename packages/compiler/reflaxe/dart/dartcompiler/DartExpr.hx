@@ -3921,7 +3921,9 @@ class DartExpr {
         final p = expr(args[0]);
         return switch (name) {
             case "exists":
-                "FileSystemEntity.typeSync(" + p + ") != FileSystemEntityType.notFound";
+                // A comparison lowering is not an atom: a surrounding
+                // unary ! would otherwise bind to the first operand.
+                "(FileSystemEntity.typeSync(" + p + ") != FileSystemEntityType.notFound)";
             case "readText":
                 "File(" + p + ").readAsStringSync()";
             case "writeText":
