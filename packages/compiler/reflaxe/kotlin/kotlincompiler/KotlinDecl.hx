@@ -156,7 +156,15 @@ class KotlinDecl {
         }
 
         final ctorHeader = constructorFunc != null ? buildPrimaryConstructor(cls, constructorFunc, varFields) : "";
-        final ifaceStr = cls.interfaces.length > 0 ? " : " + [for (i in cls.interfaces) i.t.get().name].join(", ") : "";
+        // The implements clause names every interface; a cross-package
+        // interface needs its import recorded here, exactly like a
+        // field-type reference does. Same-package interfaces emit no import.
+        final ifaces = [for (i in cls.interfaces) {
+            final iface = i.t.get();
+            imports.requireType(iface.module, iface.name);
+            iface.name;
+        }];
+        final ifaceStr = ifaces.length > 0 ? " : " + ifaces.join(", ") : "";
         final classParams = cls.params.length > 0 ? "<" + [for (p in cls.params) p.name].join(", ") + ">" : "";
         // @:dataClass opts into the Kotlin data class prefix (feature spec 27);
         // every constructor parameter must be a field for the synthesized
