@@ -24,6 +24,14 @@ Haxe holds no named call arguments, so every call in the pipeline is
 positional and omission is trailing only. The pass fills omitted trailing
 parameters and performs no argument reordering.
 
+### Call-site materialization correction
+
+When an argument is the null literal at a parameter position with a registered
+default, the target materializes the registered default expression. A
+nullable-typed argument at such a position lowers to the target language's
+null-coalescing form over that default. Arguments without a registered default
+retain ordinary target lowering.
+
 ## Haxe construct
 
 ```haxe
