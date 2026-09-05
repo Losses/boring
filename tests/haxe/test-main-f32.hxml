@@ -1,0 +1,12 @@
+# Haxe reference in-source f32 oracle test runner (features/44).
+-cp packages/compiler
+-cp samples
+-cp out/haxe
+-cp packages/registry/src
+--macro Intercept.run(['samples', 'packages/registry/src'])
+--macro haxe.macro.Compiler.addGlobalMetadata('boring', '@:build(std.RecordMember.build())')
+-main TestMainF32
+-js out/haxe/test-main-f32.js
+-D analyzer-optimize
+-D boring_oracle
+-D float-precision=f32
