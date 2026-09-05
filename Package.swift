@@ -20,7 +20,7 @@ let package = Package(
             name: "Codec",
             dependencies: [swiftSystem],
             path: "reference/swift/gen",
-            exclude: ["_GeneratedFiles.txt"]
+            exclude: ["_GeneratedFiles.txt", "registry/Main.swift"]
         ),
         .executableTarget(
             name: "BoringSwiftTests",
