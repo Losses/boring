@@ -8,7 +8,8 @@ import std.StringBuf;
     fewest significant digits that round-trip to the same binary32
     bits, rendered in plain decimal placement with a trailing ".0"
     for whole numbers. Values whose shortest form needs more than
-    nine significant digits keep the platform text.
+    nine significant digits keep the platform text. Non-finite
+    values have no shortest form and keep the platform text.
 **/
 class FpText {
     public static function shortest(value:Float):String {
@@ -16,6 +17,9 @@ class FpText {
         var v = Math.abs(value);
         if (v == 0) {
             return negative ? "-0.0" : "0.0";
+        }
+        if (!Math.isFinite(v)) {
+            return (negative ? "-" : "") + Std.string(v);
         }
         var e = 0;
         var x = v;
