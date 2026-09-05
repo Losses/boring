@@ -4,9 +4,10 @@
 // the committed bytes exactly (binary spec 05). Every vector value is an
 // f32-exact dyadic rational, so both configurations
 // agree byte for byte. This toolchain carries no Foundation module, so
-// file reading goes through the POSIX calls of Glibc.
+// file reading goes through SystemPackage's FileDescriptor, which
+// compiles on Linux, macOS, and the Windows MSVC toolchain alike.
 
-import Glibc
+import SystemPackage
 import CodecF32
 
 var failures: Int = 0
@@ -21,20 +22,15 @@ func check(_ condition: Bool, _ name: String) {
 }
 
 func readBytes(_ path: String) -> [UInt8] {
-    let fd = open(path, O_RDONLY)
-    if fd < 0 {
+    guard let handle = try? FileDescriptor.open(FilePath(path), .readOnly) else {
         return []
     }
     defer {
-        close(fd)
+        try? handle.close()
     }
     var buffer = [UInt8]()
     var chunk = [UInt8](repeating: 0, count: 4096)
-    while true {
-        let got = read(fd, &chunk, 4096)
-        if got <= 0 {
-            break
-        }
+    while let got = try? chunk.withUnsafeMutableBytes({ try handle.read(into: $0) }), got > 0 {
         buffer.append(contentsOf: chunk[0..<got])
     }
     return buffer
@@ -89,6 +85,6 @@ check(badMagicRejected, "an unknown magic rejects the block")
 
 if failures > 0 {
     print("\(failures) check(s) failed")
-    exit(1)
+    fatalError("\(failures) vector check(s) failed")
 }
 print("all vector checks passed")
