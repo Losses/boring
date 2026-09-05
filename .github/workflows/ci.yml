@@ -59,6 +59,29 @@ jobs:
           echo '--- backtrace under gdb ---'
           (sudo apt-get update -qq && sudo apt-get install -y -qq gdb >/dev/null 2>&1) || true
           nix develop -c bash -c 'command -v gdb >/dev/null 2>&1 || exit 0; gdb -batch -ex "run > /dev/null 2>&1" -ex "bt 20" -ex "x/6i \$rip" --args ./.build/debug/BoringSwiftTests' 2>&1 | tail -50 || true
+      - name: Dump Swift crash diagnostics
+        if: failure()
+        run: |
+          echo '--- nonpassing records in out/test-results/swift.jsonl ---'
+          grep -v '"verdict":"pass"' out/test-results/swift.jsonl 2>/dev/null | tail -40 || echo '(no nonpassing records)'
+      # The CI binary segfaults while the same tree passes locally, so the
+      # binary itself and the (possibly truncated) jsonl are uploaded for a
+      # byte-level local reproduction alongside a runner fingerprint.
+      - name: Upload Swift crash artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-swift-crash
+          path: |
+            .build/x86_64-unknown-linux-gnu/debug/BoringSwiftTests
+            out/test-results/swift.jsonl
+      - name: Record runner environment fingerprint
+        if: failure()
+        run: |
+          ldd --version | head -1
+          uname -a
+          grep -m1 'model name' /proc/cpuinfo || true
+          grep -m1 flags /proc/cpuinfo || true
       - name: Export nix closure
         if: always()
         run: nix-store --export $(nix-store -qR $(nix build .#devShells.x86_64-linux.default --no-link --print-out-paths)) > nix-closure.nar
@@ -84,6 +107,15 @@ jobs:
         # Echo the toolchain variables the darwin shellHook pins so the
         # log shows what SwiftPM actually saw if the manifest build fails.
         run: nix develop -c bash -c 'echo "SDKROOT=$SDKROOT CC=$CC DEVELOPER_DIR=$DEVELOPER_DIR" && bun install && bun run gen:ts && bun run gen:kotlin && bun run gen:kotlin-f32 && bun run gen:rust && bun run gen:rust-f32 && bun run gen:swift && bun run gen:swift-f32 && bun run gen:dart && bun run test:stage1:haxe && bun run test:stage1:ts && bun run test:stage1:kotlin && bun run test:stage1:rust && bun run test:haxe && bun run test:kotlin && bun run test:rust && bun run test:swift && bun run test:swift-f32 && bun run test:dart && bun run test:kotlin-f32 && bun run test:rust-f32 && bun run test:consistency && bun run check:docs'
+      # BoringSwiftTests reports failed tests through its exit code while
+      # the jsonl redirect hides the details, so dump the nonpassing
+      # records the same way the windows job does.
+      - name: Dump Swift test failures
+        if: failure()
+        run: |
+          echo '--- failing records in out/test-results/swift.jsonl ---'
+          wc -l out/test-results/swift.jsonl 2>/dev/null || echo '(no swift.jsonl)'
+          grep -v '"verdict":"pass"' out/test-results/swift.jsonl 2>/dev/null | tail -40 || echo '(all records pass)'
       - name: Export nix closure
         if: always()
         run: nix-store --export $(nix-store -qR $(nix build .#devShells.aarch64-darwin.default --no-link --print-out-paths)) > nix-closure.nar
@@ -154,8 +186,24 @@ jobs:
       # the write.
       - name: Probe CRT environment visibility
         if: failure()
+        # A bare `swiftc file.swift` cannot resolve `import MSVCRT` (the
+        # module lives where only SwiftPM's build looks), so the probe is
+        # a throwaway SwiftPM package built the same way as the main
+        # chain. If the process environment set by bash is invisible to
+        # getenv, the CRT environ the test binary reads is a different
+        # view than the one _putenv_s writes.
         run: |
-          cat > envprobe.swift <<'EOF'
+          mkdir -p envprobe/Sources/EnvProbe
+          cat > envprobe/Package.swift <<'PKG'
+          // swift-tools-version:5.9
+          import PackageDescription
+
+          let package = Package(
+              name: "EnvProbe",
+              targets: [.executableTarget(name: "EnvProbe")]
+          )
+          PKG
+          cat > envprobe/Sources/EnvProbe/main.swift <<'EOF'
           import MSVCRT
 
           if let v = getenv("PROBE_FROM_BASH") {
@@ -184,4 +232,4 @@ jobs:
               print("getenv PROBE_KEY after remove: nil")
           }
           EOF
-          swiftc envprobe.swift -o envprobe.exe && PROBE_FROM_BASH=bashvalue ./envprobe.exe
+          (cd envprobe && CC="${CC:-clang}" swift build) && PROBE_FROM_BASH=bashvalue LD_LIBRARY_PATH="$BORING_SWIFT_LIBDISPATCH:${LD_LIBRARY_PATH:-}" envprobe/.build/debug/EnvProbe.exe
