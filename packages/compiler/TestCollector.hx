@@ -169,6 +169,10 @@ extern class Fs {
     static function appendFileSync(path:String, data:String, encoding:String):Void;
     static function mkdirSync(path:String, options:{recursive:Bool}):Void;
     static function existsSync(path:String):Bool;
+    static function readFileSync(path:String, encoding:String):String;
+    static function writeFileSync(path:String, data:String, encoding:String):Void;
+    static function readdirSync(path:String):Array<String>;
+    static function statSync(path:String):Dynamic;
 }
 
 @:jsRequire("node:path")
@@ -322,6 +326,76 @@ class TestMain {
         js.Syntax.code("globalThis.std.Graphemes = {0};", Graphemes);
         js.Syntax.code("globalThis.std.TestPlatform = {0};", TestPlatform);
         js.Syntax.code("globalThis.__runtime_sorted_table = {0};", SortedTable);
+        js.Syntax.code("globalThis.std = globalThis.std || {};", null);
+        // stdlib/17 platform modules on the stage-one JS host: node backs
+        // the std.Env and std.Fs faces the transpiled targets lower
+        // inline. A missing key reads as null (the direct Null<String>
+        // match); the fs operations raise the haxe.Exception mapping with
+        // the path and the host error text.
+        var envOracle = {
+            get: function(k:String):Null<String> {
+                var v:Dynamic = js.Syntax.code(\'process.env[{0}]\', k);
+                return v == null ? null : Std.string(v);
+            },
+            set: function(k:String, v:String):Void {
+                js.Syntax.code(\'process.env[{0}] = {1}\', k, v);
+            },
+            remove: function(k:String):Void {
+                js.Syntax.code(\'delete process.env[{0}]\', k);
+            }
+        };
+        js.Syntax.code(\'globalThis.std.Env = {0};\', envOracle);
+        var fsOracle = {
+            exists: function(p:String):Bool {
+                return Fs.existsSync(p);
+            },
+            readText: function(p:String):String {
+                try {
+                    return Fs.readFileSync(p, \'utf8\');
+                } catch (e:Dynamic) {
+                    throw new haxe.Exception(p + \': \' + Std.string(e));
+                }
+            },
+            writeText: function(p:String, data:String):Void {
+                try {
+                    Fs.writeFileSync(p, data, \'utf8\');
+                } catch (e:Dynamic) {
+                    throw new haxe.Exception(p + \': \' + Std.string(e));
+                }
+            },
+            appendText: function(p:String, data:String):Void {
+                try {
+                    Fs.appendFileSync(p, data, \'utf8\');
+                } catch (e:Dynamic) {
+                    throw new haxe.Exception(p + \': \' + Std.string(e));
+                }
+            },
+            makeDirs: function(p:String):Void {
+                try {
+                    Fs.mkdirSync(p, {recursive: true});
+                } catch (e:Dynamic) {
+                    throw new haxe.Exception(p + \': \' + Std.string(e));
+                }
+            },
+            readDir: function(p:String):Array<String> {
+                try {
+                    return Fs.readdirSync(p);
+                } catch (e:Dynamic) {
+                    throw new haxe.Exception(p + \': \' + Std.string(e));
+                }
+            },
+            isDirectory: function(p:String):Bool {
+                try {
+                    var st:Dynamic = Fs.statSync(p);
+                    return st.isDirectory();
+                } catch (e:Dynamic) {
+                    return false;
+                }
+            }
+        };
+        js.Syntax.code(\'globalThis.std.Fs = {0};\', fsOracle);
+        js.Syntax.code(\'globalThis.std.Process = globalThis.std.Process || {}; globalThis.std.Process.args = {0};\',
+            function():Array<String> return js.Syntax.code(\'process.argv.slice(2)\'));
         js.Syntax.code("
             function jsCompare(a, b) {
                 if (a === b) return 0;
