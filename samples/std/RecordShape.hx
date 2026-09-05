@@ -211,8 +211,7 @@ class RecordShape {
             return null;
         }
         final nullable = isNullableType(fieldType);
-        final followedField = Context.follow(fieldType);
-        final inner:Type = nullable ? switch (followedField) {
+        final inner:Type = nullable ? switch (fieldType) {
             case TAbstract(_, params) if (params.length > 0): params[0];
             case _: return null;
         } : fieldType;
