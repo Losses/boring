@@ -29,6 +29,14 @@ class KotlinEmissionState {
     public final testClasses:Map<String, {cls:ClassType, funcs:Array<String>}> = [];
 
     /**
+        Whether any compiled module referenced std.Process.args: the test
+        entry then takes the program arguments and stores them for the
+        lowered calls (stdlib/17). Entries that never reference args keep
+        today's no-argument shape.
+    **/
+    public var processArgsReferenced:Bool = false;
+
+    /**
         Guaranteed std modules that reached compilation only through the
         scope bypass: they write no file unless generated output also
         recorded a reference to them in `shimsUsed`.

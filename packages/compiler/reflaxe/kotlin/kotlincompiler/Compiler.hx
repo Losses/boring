@@ -243,6 +243,7 @@ class Compiler extends PluginCompiler<Compiler> {
         emitShim("haxe.io.FPHelper", "FPHelper.kt", KotlinRuntime.FP_HELPER_SOURCE);
         emitShim("haxe.io.BytesBuffer", "BytesBuffer.kt", KotlinRuntime.BYTES_BUFFER_SOURCE);
         emitShim("std.Console", "Console.kt", KotlinRuntime.CONSOLE_SOURCE);
+        emitShim("std.Env", "Env.kt", KotlinRuntime.ENV_SOURCE);
         emitShim("std.Process", "Process.kt", KotlinRuntime.PROCESS_SOURCE);
         emitShim(RuntimeResidents.externsOf("runtime.TestCore")[0], "test/Test.kt", KotlinRuntime.testSource(), "test");
         // std.SortedMap and std.SortedSet no longer emit shims: the
@@ -451,7 +452,21 @@ class Compiler extends PluginCompiler<Compiler> {
     }
 
     function generateTestMain(kotlinTestOutput:String, kotlinOutput:String):Void {
-        final lines = ["fun main() {", "    var hasFailure = false"];
+        final lines:Array<String> = [];
+        final withArgs = state.processArgsReferenced;
+        if (withArgs) {
+            // std.Process.args is referenced: the entry takes the program
+            // arguments and stores them for the lowered calls (stdlib/17).
+            final runtimePackage = RuntimeConfig.requireImportName("module std.Process");
+            state.shimsUsed.set("std.Process", true);
+            lines.push("import " + runtimePackage + ".Process");
+            lines.push("");
+            lines.push("fun main(args: Array<String>) {");
+            lines.push("    Process.storeArgs(args)");
+        } else {
+            lines.push("fun main() {");
+        }
+        lines.push("    var hasFailure = false");
         var idx = 0;
         for (module in state.testClasses.keys()) {
             final data = state.testClasses.get(module);
