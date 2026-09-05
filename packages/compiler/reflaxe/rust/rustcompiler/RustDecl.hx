@@ -317,6 +317,12 @@ class RustDecl {
         imports.requireType("runtime.SortedTable", "SortedTable");
         final n = RustImports.toSnakeCase(cls.name);
         final lines = ['pub fn compare_$n(a: &${cls.name}, b: &${cls.name}) -> i32 {'];
+        function importElementComparator(elem:ClassType):Void {
+            if (elem.module != imports.selfModule) {
+                final cmp = "compare_" + RustImports.toSnakeCase(elem.name);
+                imports.require("crate::" + RustImports.moduleToRustPath(elem.module) + "::" + cmp);
+            }
+        }
         for (f in [
             for (x in cls.fields.get())
                 if (switch (x.kind) {
@@ -342,6 +348,7 @@ class RustDecl {
                                     ].join("\n") + '\n    }\n}');
                                     presentCompare = cmpToI32('$orderName(av).cmp(&$orderName(bv))');
                                 case TInst(c, _) if (c.get().meta.has(":dataClass")):
+                                    importElementComparator(c.get());
                                     presentCompare = 'compare_${RustImports.toSnakeCase(c.get().name)}(av, bv)';
                                 case _:
                             }
@@ -368,6 +375,7 @@ class RustDecl {
                             ].join("\n") + '\n    }\n}');
                             elementCompare = cmpToI32('$orderName(av).cmp(&$orderName(bv))');
                         case TInst(c, _) if (c.get().meta.has(":dataClass")):
+                            importElementComparator(c.get());
                             elementCompare = 'compare_${RustImports.toSnakeCase(c.get().name)}(av, bv)';
                         case _:
                     }
@@ -385,6 +393,7 @@ class RustDecl {
                     case TInst(c, _) if (c.get().name == "String"):
                         lines.push('    let cmp_$fn = SortedTable::compare_strings(a.$fn.as_str(), b.$fn.as_str());');
                     case TInst(c, _) if (c.get().meta.has(":dataClass")):
+                        importElementComparator(c.get());
                         lines.push('    let cmp_$fn = compare_${RustImports.toSnakeCase(c.get().name)}(&a.$fn, &b.$fn);');
                     case TEnum(e, _):
                         final en = e.get();
