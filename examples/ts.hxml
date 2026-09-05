@@ -160,10 +160,14 @@ registry.JsonException
 registry.SemverException
 registry.Sha1
 registry.Release
+registry.Main
 tests.RegistrySha1Tests
 tests.RegistryJsonTests
 tests.RegistrySemverTests
 tests.RegistryPipelineTests
 tests.RegistryParseArgsTests
 boring.ArrayIterationOps
+boring.PlatformOps
 tests.ExpressionBlockTests
+tests.PlatformModulesTestSupport
+tests.PlatformModulesTests
