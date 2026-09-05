@@ -12,4 +12,10 @@ class MathMinMaxOps {
 
     public static function largerOfInts(a:Int, b:Int):Float
         return Math.max(a, b);
+
+    public static function absValue(a:Float):Float
+        return Math.abs(a);
+
+    public static function absOfInts(a:Int):Float
+        return Math.abs(a);
 }
