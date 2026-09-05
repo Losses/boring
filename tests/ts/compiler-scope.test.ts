@@ -12,7 +12,12 @@ import { join } from "node:path";
  *
  * The standard namespaces the compilers ARE allowed to know are the
  * Haxe std modules (haxe.*) and the subset's own std pack, mirroring
- * the compiler-recognized namespaces of the entry configuration.
+ * the compiler-recognized namespaces of the entry configuration. The
+ * platform modules of stdlib/17 (`std.Fs`, `std.Env`, `std.Process`,
+ * and the compiled `std.Path`) are members of that pack: each target's
+ * expression compiler names them to lower their statics inline, so they
+ * are allowed here. The names below are the sample modules outside the
+ * std pack that a compiler must never assume.
  */
 
 const COMPILER_DIRECTORIES: readonly string[] = [
@@ -30,6 +35,8 @@ const BANNED_SUBSTRINGS: readonly string[] = [
   "BoundsEm",
   "BinaryReader",
   "BinaryWriter",
+  "PlatformOps",
+  "PlatformModules",
 ];
 
 function haxeFiles(directory: string): string[] {

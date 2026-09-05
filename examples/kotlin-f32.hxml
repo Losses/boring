@@ -157,4 +157,7 @@ tests.RegistrySemverTests
 tests.RegistryPipelineTests
 tests.RegistryParseArgsTests
 boring.ArrayIterationOps
+boring.PlatformOps
 tests.ExpressionBlockTests
+tests.PlatformModulesTestSupport
+tests.PlatformModulesTests

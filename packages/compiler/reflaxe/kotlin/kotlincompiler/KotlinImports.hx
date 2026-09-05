@@ -14,6 +14,7 @@ class KotlinImports {
         "haxe.io.FPHelper" => true,
         "haxe.io.BytesBuffer" => true,
         "std.Console" => true,
+        "std.Env" => true,
         "std.Process" => true,
         "std.SortedMap" => true,
         "std.SortedMapBuilder" => true,

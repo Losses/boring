@@ -603,6 +603,22 @@ class RustExpr {
                         case _:
                     }
                 }
+                // An empty array literal is an untyped `vec![]` in Rust; the
+                // element reads and writes of an array local infer through
+                // later uses, but an index read before any write leaves the
+                // element type unknown (E0282). The declared Haxe Array
+                // element type anchors the binding.
+                if (explicitType == "") {
+                    switch (stripWrap(init).expr) {
+                        case TArrayDecl(elems) if (elems.length == 0):
+                            switch (Context.follow(v.t)) {
+                                case TInst(c, _) if (c.get().name == "Array"):
+                                    nullableType = ": " + types.of(v.t, false);
+                                case _:
+                            }
+                        case _:
+                    }
+                }
                 // Array values are owned Vecs.  Borrowing an array literal here
                 // made every local initialized from an array a reference, even
                 // though its Haxe type is Array<T>; that leaked into later calls
@@ -701,6 +717,11 @@ class RustExpr {
                 if (returnTypeName == "String") {
                     switch (stripWrap(ret).expr) {
                         case TConst(TString(s)): retStr = s.length == 0 ? "String::new()" : retStr + ".to_string()";
+                        case TLocal(v) if (provenNonNullVarIds.exists(v.id) && isNullType(ret.t)):
+                            // A null-checked Null<String> local owns its
+                            // text; the view unwrap yields the value the
+                            // guard proved present.
+                            retStr = "(" + retStr + ").as_deref().unwrap_or(\"\").to_string()";
                         case _:
                     }
                 } else if (StringTools.startsWith(returnTypeName, "Option<") && !isNullType(ret.t) && !isTNull(ret)) {
@@ -928,11 +949,104 @@ class RustExpr {
     }
 
     /**
-        `tailScope` marks the two scopes whose fallible bodies close with a
-        synthesized result tail: the function body root and lambda bodies.
-        Nested blocks never synthesize one regardless of depth; the old
-        depth-equals-two test misfired whenever the root depth changed.
+        Locals that an early-exit null guard proves present for the rest of
+        a statement list: an `if (x == null) return;` without an else arm
+        ends the block whenever x is absent, so every later statement sees
+        a present value. A guard whose local a later statement reassigns
+        (impossible for a final binding) is excluded.
     **/
+    function earlyExitGuardIds(stmts:Array<TypedExpr>):Array<Int> {
+        final ids = [];
+        for (i in 0...stmts.length) {
+            final localId = earlyExitGuardLocal(stmts[i]);
+            if (localId != null && !writesLocalAfter(stmts, i, localId))
+                ids.push(localId);
+        }
+        return ids;
+    }
+
+    /** The local an early-exit null guard statement proves, or null. */
+    function earlyExitGuardLocal(stmt:TypedExpr):Null<Int> {
+        return switch (stripWrap(stmt).expr) {
+            case TIf(cond, thenBody, null):
+                final localId = nullEqLocal(cond);
+                if (localId != null && alwaysTerminates(thenBody)) localId else null;
+            case _: null;
+        };
+    }
+
+    /** The local an `x == null` or `null == x` condition compares. */
+    function nullEqLocal(cond:TypedExpr):Null<Int> {
+        return switch (stripWrap(cond).expr) {
+            case TBinop(OpEq, l, r):
+                switch [stripWrap(l).expr, stripWrap(r).expr] {
+                    case [TLocal(v), TConst(TNull)]: v.id;
+                    case [TConst(TNull), TLocal(v)]: v.id;
+                    case _: null;
+                };
+            case _: null;
+        };
+    }
+
+    /** Whether control never falls through an expression. */
+    function alwaysTerminates(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TReturn(_) | TThrow(_) | TBreak | TContinue: true;
+            case TBlock(stmts): blockTerminates(stmts);
+            case TIf(_, t, f) if (f != null): alwaysTerminates(t) && alwaysTerminates(f);
+            case _: false;
+        };
+    }
+
+    /** Whether one of the statements ends control before the block ends. */
+    function blockTerminates(stmts:Array<TypedExpr>):Bool {
+        for (s in stmts) {
+            if (alwaysTerminates(s))
+                return true;
+        }
+        return false;
+    }
+
+    /** Whether any statement after `from` assigns through the local. */
+    function writesLocalAfter(stmts:Array<TypedExpr>, from:Int, localId:Int):Bool {
+        for (i in (from + 1)...stmts.length) {
+            if (writesLocal(stmts[i], localId))
+                return true;
+        }
+        return false;
+    }
+
+    /** Whether the statement assigns through the local anywhere. */
+    function writesLocal(e:TypedExpr, localId:Int):Bool {
+        return switch (stripWrap(e).expr) {
+            case TBinop(OpAssign | OpAssignOp(_), t, _): targetMentions(t, localId);
+            case TUnop(OpIncrement | OpDecrement, _, subj): targetMentions(subj, localId);
+            case TBlock(stmts): anyWrites(stmts, localId);
+            case TIf(_, t, f): writesLocal(t, localId) || (f != null && writesLocal(f, localId));
+            case TWhile(_, b, _) | TFor(_, _, b): writesLocal(b, localId);
+            case TVar(_, init): init != null && writesLocal(init, localId);
+            case _: false;
+        };
+    }
+
+    function anyWrites(stmts:Array<TypedExpr>, localId:Int):Bool {
+        for (s in stmts) {
+            if (writesLocal(s, localId))
+                return true;
+        }
+        return false;
+    }
+
+    /** Whether the assignment target chain mentions the local. */
+    function targetMentions(e:TypedExpr, localId:Int):Bool {
+        return switch (stripWrap(e).expr) {
+            case TLocal(v): v.id == localId;
+            case TArray(arr, _): targetMentions(arr, localId);
+            case TField(subj, _): targetMentions(subj, localId);
+            case _: false;
+        };
+    }
+
     /** Expression-position block lowering (features/43). */
     function blockExpression(stmts:Array<TypedExpr>):String {
         if (stmts.length == 0)
@@ -944,13 +1058,15 @@ class RustExpr {
                     return fail(stmts[i], "expression block allows only declarations before its value statement (features/43)");
             }
         switch (stmts[stmts.length - 1].expr) {
-            case TReturn(_) | TThrow(_) | TVar(_, _) | TIf(_, _, _) | TWhile(_, _, _) | TFor(_, _, _) | TSwitch(_, _, _) | TTry(_, _) | TBlock(_) | TBreak | TContinue | TBinop(OpAssign, _, _) | TBinop(OpAssignOp(_), _, _):
+            case TReturn(_) | TThrow(_) | TVar(_, _) | TIf(_, _, _) | TWhile(_, _, _) | TFor(_, _, _) | TSwitch(_, _, _) | TTry(_, _) | TBlock(_) | TBreak |
+                TContinue | TBinop(OpAssign, _, _) | TBinop(OpAssignOp(_), _, _):
                 return fail(stmts[stmts.length - 1], "expression block must end in a value statement (features/43)");
             case _:
         }
         final out = ["{"];
         for (s in stmts.slice(0, stmts.length - 1))
-            for (line in stmtLines(s, 1)) out.push(line);
+            for (line in stmtLines(s, 1))
+                out.push(line);
         out.push(indent(1) + expr(stmts[stmts.length - 1]));
         out.push("}");
         return out.join("\n");
@@ -961,6 +1077,9 @@ class RustExpr {
         stmts = regroupLoops(stmts);
         stmts = transformCountdownLoops(stmts);
         final out:Array<String> = [];
+        final provenByGuard = earlyExitGuardIds(stmts);
+        for (id in provenByGuard)
+            provenNonNullVarIds.set(id, true);
 
         var i = 0;
         while (i < stmts.length) {
@@ -1003,6 +1122,8 @@ class RustExpr {
             }
         }
 
+        for (id in provenByGuard)
+            provenNonNullVarIds.remove(id);
         return out;
     }
 
@@ -1829,9 +1950,11 @@ class RustExpr {
                     argStr = argStr + ".to_string()";
                 case TNew(_, _, _):
                 case TLocal(v) if (isBorrowedLocal(v)):
-                    // The local holds a reference (a borrowed parameter):
-                    // clone the referent so the array owns its element.
-                    argStr = "(*" + argStr + ").clone()";
+                    // The local holds a reference (a borrowed parameter).
+                    // A String parameter is &str, which owns through
+                    // to_string(); any other reference clones the referent
+                    // so the array owns its element.
+                    argStr = isStringType(arg.t) ? argStr + ".to_string()" : "(*" + argStr + ").clone()";
                 case TLocal(_) | TField(_) | TArray(_, _):
                     if (!StringTools.endsWith(argStr, ".clone()")
                         && !StringTools.endsWith(argStr, ".to_vec()")
@@ -2771,6 +2894,21 @@ class RustExpr {
         return true;
     }
 
+    /**
+        The inner value of an Option comparison arm. A String inner must be
+        owned: the Some of an Option<String> cannot hold a &str literal or a
+        borrowed parameter's view.
+    **/
+    function optionSomeInner(e:TypedExpr):String {
+        if (!isStringType(e.t))
+            return expr(e);
+        return switch (stripWrap(e).expr) {
+            case TConst(TString(_)): expr(e) + ".to_string()";
+            case TLocal(v) if (isBorrowedLocal(v)): expr(e) + ".to_string()";
+            case _: expr(e);
+        };
+    }
+
     function binop(e:TypedExpr, op:Binop, l:TypedExpr, r:TypedExpr):String {
         final fromBe = tryMatchFromBeBytes(e);
         if (fromBe != null) {
@@ -2788,9 +2926,9 @@ class RustExpr {
             // require PartialEq on the inner type, which the emitted
             // structs do not carry.
             case OpEq | OpNotEq if (isNullType(l.t) && !isNullType(r.t) && !isTNull(r)):
-                return expr(l) + " " + symbolOf(op) + " Some(" + expr(r) + ")";
+                return expr(l) + " " + symbolOf(op) + " Some(" + optionSomeInner(r) + ")";
             case OpEq | OpNotEq if (isNullType(r.t) && !isNullType(l.t) && !isTNull(l)):
-                return expr(r) + " " + symbolOf(op) + " Some(" + expr(l) + ")";
+                return expr(r) + " " + symbolOf(op) + " Some(" + optionSomeInner(l) + ")";
             case OpEq | OpNotEq if ((isNullType(l.t) && isTNull(r)) || (isNullType(r.t) && isTNull(l))):
                 final nullable = isNullType(l.t) ? l : r;
                 return expr(nullable) + (op == OpEq ? ".is_none()" : ".is_some()");
@@ -2847,6 +2985,10 @@ class RustExpr {
                 } else if (isStringType(l.t) && !isNullType(l.t)) {
                     switch (stripWrap(r).expr) {
                         case TConst(TString(_)): expr(r) + ".to_string()";
+                        // A String parameter renders as &str in the callee;
+                        // the element slot owns its text, so the assigned
+                        // value converts on the way in.
+                        case TLocal(v) if (isBorrowedLocal(v)): expr(r) + ".to_string()";
                         default: expr(r);
                     }
                 } else {
@@ -2905,8 +3047,8 @@ class RustExpr {
                     && !RustType.isTypeParam(l.t)
                     && !RustType.isTypeParam(r.t)):
                 final wrapDomain = (i32OperandDomain(l) || i32OperandDomain(r) || i32InitializerTarget || i32ComparisonTarget) ? "i32" : types.of(e.t);
-                return wrapDomain + "::" + wrappingMethod(op) + "(" + wrappingArg(l, op, false) + wrappingCastSuffix(l, wrapDomain, true) + ", "
-                    + wrappingArg(r, op, true) + wrappingCastSuffix(r, wrapDomain, false) + ")";
+                return wrapDomain + "::" + wrappingMethod(op) + "(" + wrappingOperand(l, op, wrapDomain, true) + ", "
+                    + wrappingOperand(r, op, wrapDomain, false) + ")";
             case OpMult | OpAdd | OpSub | OpDiv if (isFloatType(e.t)):
                 final real = FloatPrecision.isF32() ? "f32" : "f64";
                 // An integer operand crosses through its exact decimal
@@ -2943,11 +3085,18 @@ class RustExpr {
                 // bare (`as u32 << u32::wrapping_add(...)`), so group both
                 // operands unconditionally.
                 return "(" + operand(l, op, false) + ") << (" + operand(r, op, true) + ")";
-            case OpLt if (isZero(r) && isUnsignedOperand(l)):
+            case OpLt if (isZero(r) && (isUnsignedOperand(l) || businessIntExpr(l))):
                 return "(" + operand(l, op, false) + ") > 2147483647";
             case OpSub:
                 return operand(l, op, false) + " - " + operand(r, op, true);
             case OpLt | OpLte | OpGt | OpGte:
+                // Rust std implements PartialOrd only between equal string
+                // types: String compares with &str through PartialEq but
+                // not PartialOrd, so an ordered string comparison moves
+                // every owned operand to its str view first.
+                if (isStringType(l.t) && isStringType(r.t)) {
+                    return "(" + stringOrderOperand(l) + ") " + symbolOf(op) + " (" + stringOrderOperand(r) + ")";
+                }
                 // Rust parses an unparenthesized cast immediately followed by
                 // `<` as generic arguments (`x as u32 < y`).  Comparisons are
                 // a precedence boundary, so group both operands unconditionally.
@@ -2966,6 +3115,20 @@ class RustExpr {
                 final right = isInt64Type(r.t) ? "(" + expr(r) + ")" : operand(r, op, true);
                 return left + " " + symbolOf(op) + " " + right;
         }
+    }
+
+    /**
+        One operand of an ordered string comparison. A literal and a
+        borrowed &str parameter already render as a str view; every other
+        String expression is owned and moves to its str view through
+        as_str, so both sides compare as str.
+    **/
+    function stringOrderOperand(e:TypedExpr):String {
+        return switch (stripWrap(e).expr) {
+            case TConst(TString(_)): expr(e);
+            case TLocal(v) if (isBorrowedLocal(v)): expr(e);
+            case _: "(" + expr(e) + ").as_str()";
+        };
     }
 
     function nullableEnumComparedWithEnum(nullable:Type, value:Type):Bool {
@@ -3022,6 +3185,19 @@ class RustExpr {
                     && isUnsignedTypeName(argTypes.get(v.name))) || (isIntType(v.t) && !RuntimeResidents.isResident(imports.selfModule));
             case _: false;
         };
+    }
+
+    /**
+        Whether a Haxe Int expression renders in the business u32 domain:
+        a negative test against literal zero must then read as an
+        upper-bound check on the unsigned rendering.
+    **/
+    function businessIntExpr(e:TypedExpr):Bool {
+        if (!isIntType(e.t) || RuntimeResidents.isResident(imports.selfModule))
+            return false;
+        if (i32OperandDomain(e) || i32LocalDomain(e))
+            return false;
+        return true;
     }
 
     function isUnsignedTypeName(n:Null<String>):Bool {
@@ -3635,8 +3811,17 @@ class RustExpr {
                 if (markedField != null && (isDirectArrayStaticField(markedField) || isLazyArrayStaticField(markedField))) {
                     return staticItemPath(cls, name);
                 }
-                imports.requireType(cls.module, cls.name);
-                return cls.name + "::" + staticName;
+                // The typer renders an @:native extern class under its
+                // native name (console, process) instead of its
+                // declaration name; the emitted shim keeps the
+                // declaration's module name (Console, Process). A
+                // Pascal-case name is already the declaration name and
+                // stays untouched.
+                final first = cls.name.length > 0 ? cls.name.charAt(0) : "?";
+                final nativeLower = first >= "a" && first <= "z";
+                final structName = nativeLower ? cls.module.substr(cls.module.lastIndexOf(".") + 1) : cls.name;
+                imports.requireType(cls.module, structName);
+                return structName + "::" + staticName;
         }
     }
 
@@ -4043,12 +4228,12 @@ class RustExpr {
                 if (name == "charAt" && isString(stripCast(subj))) {
                     state.shimsUsed.set("std.UStringRT", true);
                     imports.require("crate::runtime::u_string");
-                    return "u_string::substring(&"
-                        + expr(subj)
-                        + ", "
-                        + castSignedI32(args[0])
-                        + ", "
-                        + RustConversions.reinterpret("((" + expr(args[0]) + ") + 1)", "i32")
+                    // The exclusive end is the index plus one in the same
+                    // integer domain as the start. A bare `(index) + 1`
+                    // rendered source is an untyped {integer} literal when
+                    // index is one (E0689), so the end arrives as a typed
+                    // wrapping add on the start's cast form instead.
+                    return "u_string::substring(&" + expr(subj) + ", " + castSignedI32(args[0]) + ", i32::wrapping_add(" + castSignedI32(args[0]) + ", 1)"
                         + ")";
                 }
                 if (name == "indexOf" && isString(stripCast(subj)) && args.length >= 1) {
@@ -4398,9 +4583,14 @@ class RustExpr {
                     imports.require("crate::runtime::u_string");
                     return "u_string::parse_i32(&(" + expr(args[0]) + "))";
                 }
-                if (cls.pack.join(".") == "std" && cls.name == "Process" && name == "exit") {
+                if ((cls.module == "std.Process" || (cls.pack.join(".") == "std" && cls.name == "Process")) && name == "exit") {
                     imports.require("std::process::exit");
                     return "exit(" + renderedArgs + ")";
+                }
+                if ((path == "std.Process" || cls.module == "std.Process") && name == "args") {
+                    // std.Process.args() reads the arguments of the test
+                    // binary after its name (stdlib/17).
+                    return "std::env::args().skip(1).collect::<Vec<String>>()";
                 }
                 if ((path == "std.SortedMap" || cls.module == "std.SortedMap") && name == "builder") {
                     final kType = sortedKeyType(fn);
@@ -4858,7 +5048,7 @@ class RustExpr {
                     return isSimpleValueText(base) ? base + ".unwrap_or(0)" : "(" + base + ".unwrap_or(0))";
                 }
             }
-            return "(" + base + ".unwrap_or(0)) as " + target;
+            return RustConversions.reinterpret("(" + base + ".unwrap_or(0))", target);
         }
         if (!isIntType(actual.t))
             return rendered;
@@ -4891,7 +5081,7 @@ class RustExpr {
                 return rendered;
             }
         }
-        return target == "u32" || target == "i32" ? "(" + rendered + ") as " + target : rendered;
+        return target == "u32" || target == "i32" ? RustConversions.reinterpret(rendered, target) : rendered;
     }
 
     function containsNullDefault(value:DefaultArgExpander.CoalescingDefaultValue):Bool {
@@ -4908,32 +5098,43 @@ class RustExpr {
     // the boundary cast, the right operand stays bare. Signed wrapping casts
     // an operand only when it crosses domains; i32-domain locals and integer
     // literals assign to i32 without a cast.
-    function wrappingCastSuffix(e:TypedExpr, wrapDomain:String, isLeft:Bool):String {
-        // A operand already rendered in the wrap domain needs no cast: an Int
+
+    /**
+        One operand of a wrapping binop, rendered in the operation's wrap
+        domain. An operand that renders in the other same-width domain
+        reinterprets its bits (T5); the right operand of unsigned wrapping
+        keeps its historical bare form.
+    **/
+    function wrappingOperand(e:TypedExpr, op:Binop, wrapDomain:String, isLeft:Bool):String {
+        final text = wrappingArg(e, op, isLeft);
+        // An operand already rendered in the wrap domain needs no cast: an Int
         // local or field in business is u32 and a wrapping arithmetic result
         // carries it; dropping the redundant `(x) as u32` keeps the emitted
         // code free of no-op casts. Only operands that render in a different
         // width or signedness cross the boundary here.
         if (types.of(e.t, false) == wrapDomain)
-            return "";
+            return text;
         // A Null<Int> operand already unwrapped renders its inner scalar
         // in the module domain (unwrap_or was already applied), so the
         // Option wrapper in the static type is not the rendering domain.
         if (isNullType(e.t) && isIntType(getNullInnerType(e.t))) {
             final innerDomain = RuntimeResidents.isResident(imports.selfModule) ? "i32" : "u32";
             if (innerDomain == wrapDomain)
-                return "";
+                return text;
         }
-        if (wrapDomain != "i32")
-            return (isParameterOfDomain(e, wrapDomain) ? "" : (isLeft ? " as " + wrapDomain : ""));
+        if (wrapDomain != "i32") {
+            if (isParameterOfDomain(e, wrapDomain) || !isLeft)
+                return text;
+            return RustConversions.reinterpret(text, wrapDomain);
+        }
         if (i32ComparisonTarget || i32OperandDomain(e))
-            return "";
+            return text;
         switch (stripWrap(e).expr) {
             case TConst(TInt(_)):
-                return "";
+                return text;
             case _:
         }
-        return " as i32";
+        return RustConversions.reinterpret(text, "i32");
     }
 
     function isParameterOfDomain(e:TypedExpr, domain:String):Bool {
