@@ -684,7 +684,7 @@ class DartExpr {
                             case _: false;
                         };
                         return [
-                            indent(depth) + "return " + (optionalValued(ret) && !nonNullReturn ? rendered + "!" : rendered)
+                            indent(depth) + "return " + (optionalValued(ret) || (isNullLeafType(ret.t) && !isLocalExpr(ret)) && !nonNullReturn ? rendered + "!" : rendered)
                         ];
                 }
             case TThrow(x):
@@ -2740,7 +2740,6 @@ class DartExpr {
 
     function callArgTexts(fn:TypedExpr, args:Array<TypedExpr>):Array<String> {
         final base = argTexts(fn, args);
-        final base = argTexts(fn, args);
         final target = switch (fn.expr) {
             case TField(_, FInstance(c, _, cf)) | TField(_, FStatic(c, cf)): {c: c.get(), n: cf.get().name, t: cf.get().type};
             default: null;
@@ -2754,7 +2753,7 @@ class DartExpr {
             final d = target == null ? null : DefaultArgExpander.defaultAt(target.c, target.n, i);
             d != null
             && p != null && isNullLiteral(args[i]) ? defaultArgText(d, p) : d != null && p != null && isNullLeafType(args[i].t) ? "(" + expr(args[i]) + " ?? " + defaultArgText(d,
-                p) + ")" : base[i];
+                p) + ")!" : base[i];
         }
         ];
     }
@@ -2769,7 +2768,7 @@ class DartExpr {
             final d = DefaultArgExpander.defaultAt(cls, "new", i);
             d != null
             && p != null && isNullLiteral(args[i]) ? defaultArgText(d, p) : d != null && p != null && isNullLeafType(args[i].t) ? "(" + expr(args[i]) + " ?? " + defaultArgText(d,
-                p) + ")" : expr(args[i]);
+                p) + ")!" : expr(args[i]);
         }
         ];
     }
