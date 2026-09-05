@@ -1280,8 +1280,14 @@ class RustDecl {
         return found;
     }
 
-    public static function argIsMutated(body:Null<TypedExpr>, name:String):Bool {
+    public static function argIsMutated(body:Null<TypedExpr>, name:String, depth:Int = 0):Bool {
         if (body == null)
+            return false;
+        // A recursive callee (a helper that calls itself with the same
+        // array argument) would analyze its own body forever; the
+        // direct mutations the walk detects already settled the answer
+        // above the recursion, so a deep chain stops conservatively.
+        if (depth > 8)
             return false;
         var found = false;
         function root(e:TypedExpr):Bool
@@ -1316,7 +1322,7 @@ class RustDecl {
                                             case _: false;
                                         }) {
                                         final calleeBody = cf.get().expr();
-                                        if (calleeBody != null && argIsMutated(calleeBody, p.name))
+                                        if (calleeBody != null && argIsMutated(calleeBody, p.name, depth + 1))
                                             found = true;
                                         }
                                 }
