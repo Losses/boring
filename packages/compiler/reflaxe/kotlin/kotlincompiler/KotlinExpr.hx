@@ -2019,6 +2019,7 @@ class KotlinExpr {
                 'run { val sb = StringBuilder(); sb.append(\'{\'); val n = ${value}.size(); var ${index} = 0; while (${index} < n) { if (${index} > 0) { sb.append(", "); }; sb.append(${itemKey}); sb.append("="); sb.append(${itemVal}); ${index} += 1; }; sb.append(\'}\'); sb.toString() }';
             case TInst(c, _) if (StaticFieldHelper.hasSelfConstructionStatic(c.get())
                 || c.get().meta.has(":dataClass")): value + ".toString()";
+            case TInst(c, _) if (hasInstanceToString(c.get())): value + ".toString()";
             case TAbstract(a, _) if (ValueTypeSupport.isMarkedAbstract(a.get())):
                 final abs = a.get();
                 if (ValueTypeSupport.memberField(abs, "toString") != null) {
@@ -2052,6 +2053,15 @@ class KotlinExpr {
                 Context.error("Std.string accepts scalars, enum values, records, and arrays of them only", origin.pos);
                 null;
         };
+    }
+
+    function hasInstanceToString(cls:ClassType):Bool {
+        for (field in cls.fields.get())
+            if (field.name == "toString")
+                return true;
+        if (cls.superClass == null)
+            return false;
+        return hasInstanceToString(cls.superClass.t.get());
     }
 
     function cyclicEnumString(en:EnumType, value:String, inConcat:Bool, origin:TypedExpr):String {
