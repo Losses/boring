@@ -32,8 +32,8 @@ class Path {
         if (StringTools.startsWith(p, UNC_LEAD))
             return 1;
         if (p.length >= 2 && p.charAt(1) == ":") {
-            final c = p.charCodeAt(0);
-            final letter = c != null && (c >= 65 && c <= 90 || c >= 97 && c <= 122);
+            final c = p.charAt(0).toLowerCase();
+            final letter = c >= "a" && c <= "z";
             if (letter) {
                 final sep = p.length >= 3 ? p.charAt(2) : "";
                 if (sep == "/" || sep == "\\")
@@ -231,18 +231,15 @@ class Path {
                 // "../../b". A rooted path never keeps "..": the dot
                 // resolves against the root and is dropped there.
                 if (depth > 0 && kept[depth - 1] == "..") {
-                    kept[depth] = segment;
-                    depth++;
+                    depth = stackPush(kept, depth, segment);
                 } else if (depth > 0) {
                     depth--;
                 } else if (k == 7) {
-                    kept[depth] = segment;
-                    depth++;
+                    depth = stackPush(kept, depth, segment);
                 }
                 i++;
             } else {
-                kept[depth] = segment;
-                depth++;
+                depth = stackPush(kept, depth, segment);
                 i++;
             }
         }
@@ -262,11 +259,28 @@ class Path {
         return prefix + body;
     }
 
+    /**
+     * Append a segment to the stack array. A pop only lowers `depth`,
+     * leaving the popped entry in place, so an append first overwrites a
+     * freed slot when one exists and grows the array only when the stack
+     * is at its length. The array writes therefore always stay inside the
+     * bounds every target's list enforces.
+     */
+    static function stackPush(kept:Array<String>, depth:Int, segment:String):Int {
+        if (depth < kept.length)
+            kept[depth] = segment;
+        else
+            kept.push(segment);
+        return depth + 1;
+    }
+
     /** Expand a leading `~` to the home directory via `std.Env`. */
     public static function expandHome(p:String):String {
         if (p == "~" || StringTools.startsWith(p, "~/") || StringTools.startsWith(p, "~\\")) {
             final home = homeDir();
-            if (home == null || home == "")
+            if (home == null)
+                return p;
+            if (home == "")
                 return p;
             if (p.length == 1)
                 return home;
@@ -282,10 +296,13 @@ class Path {
 
     /** HOME on POSIX hosts, USERPROFILE on Windows hosts, via std.Env. */
     static function homeDir():Null<String> {
-        final home = Env.get("HOME");
-        if (home != null && home != "")
-            return home;
-        final profile = Env.get("USERPROFILE");
-        return profile != null && profile != "" ? profile : null;
+        var home = Env.get("HOME");
+        if (home == null || home == "")
+            home = Env.get("USERPROFILE");
+        if (home == null)
+            return null;
+        if (home == "")
+            return null;
+        return home;
     }
 }

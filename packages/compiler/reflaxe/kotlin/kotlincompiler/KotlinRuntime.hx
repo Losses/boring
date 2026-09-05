@@ -80,8 +80,51 @@ object FPHelper {
     public static final PROCESS_SOURCE = "import kotlin.system.exitProcess
 
 object Process {
+    private var programArgs: MutableList<String> = mutableListOf()
+
+    fun storeArgs(args: Array<String>) {
+        programArgs = args.toMutableList()
+    }
+
+    fun args(): MutableList<String> = programArgs
+
     fun exit(code: Int) {
         exitProcess(code)
+    }
+}
+";
+
+    /**
+        The process-local environment overlay of std.Env
+        (docs/specs/stdlib/17-platform-modules.md). The JVM exposes the
+        process environment read-only, so set and remove cannot reach the
+        host; every std.Env call routes through this overlay, which
+        records the writes and falls back to the host for the keys it has
+        never seen. Get and set therefore operate on one environment view.
+    **/
+    public static final ENV_SOURCE = "object Env {
+    private val setValues = HashMap<String, String>()
+    private val removedKeys = HashSet<String>()
+
+    fun get(key: String): String? {
+        if (removedKeys.contains(key)) {
+            return null
+        }
+        val value = setValues[key]
+        if (value != null) {
+            return value
+        }
+        return System.getenv(key)
+    }
+
+    fun set(key: String, value: String) {
+        removedKeys.remove(key)
+        setValues[key] = value
+    }
+
+    fun remove(key: String) {
+        setValues.remove(key)
+        removedKeys.add(key)
     }
 }
 ";
