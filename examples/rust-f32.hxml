@@ -137,13 +137,13 @@ boring.SealedVariantOps
 tests.SealedVariantTests
 boring.RecordInterfaceOps
 tests.RecordInterfaceOpsTests
+tests.NullArgsTests
 boring.ConstructedStateOps
 tests.ConstructedStateTests
 boring.ArrayRootStateOps
 boring.NumberParsingOps
 tests.NumberParsingTests
 tests.ArrayRootTests
-
 registry.Core
 registry.CoreFault
 registry.Json
