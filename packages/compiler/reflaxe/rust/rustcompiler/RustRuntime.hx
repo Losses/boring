@@ -137,6 +137,120 @@ impl Process {
 }
 ';
 
+    /**
+        The process-local environment overlay of std.Env
+        (docs/specs/stdlib/17-platform-modules.md). Rust can write the
+        process environment, but cargo runs the generated tests in
+        parallel and std::env::set_var is unsafe under concurrency
+        (edition 2024); every std.Env call routes through this overlay,
+        which records the writes and falls back to the host for the keys
+        it has never seen. Get and set therefore operate on one
+        environment view.
+    **/
+    public static final ENV_SOURCE = '
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::collections::HashSet;
+
+thread_local! {
+    static SET_VALUES: RefCell<HashMap<String, String>> = RefCell::new(HashMap::new());
+    static REMOVED_KEYS: RefCell<HashSet<String>> = RefCell::new(HashSet::new());
+}
+
+pub struct Env;
+
+impl Env {
+    pub fn get(key: &str) -> Option<String> {
+        if REMOVED_KEYS.with(|removed| removed.borrow().contains(key)) {
+            return None;
+        }
+        if let Some(value) = SET_VALUES.with(|set| set.borrow().get(key).cloned()) {
+            return Some(value);
+        }
+        std::env::var(key).ok()
+    }
+
+    pub fn set(key: &str, value: &str) {
+        REMOVED_KEYS.with(|removed| {
+            removed.borrow_mut().remove(key);
+        });
+        SET_VALUES.with(|set| {
+            set.borrow_mut().insert(key.to_string(), value.to_string());
+        });
+    }
+
+    pub fn remove(key: &str) {
+        SET_VALUES.with(|set| {
+            set.borrow_mut().remove(key);
+        });
+        REMOVED_KEYS.with(|removed| {
+            removed.borrow_mut().insert(key.to_string());
+        });
+    }
+}
+';
+
+    /**
+        The std.Fs backing module (docs/specs/stdlib/17-platform-modules.md).
+        Each method maps to the std::fs operation the spec rules; a
+        failing operation panics with the path and the host error text,
+        the target's exception mapping. The calls lower through the normal
+        shim path, so the calling file carries no host import.
+    **/
+    public static final FS_SOURCE = '
+pub struct Fs;
+
+fn fail(path: &str, error: std::io::Error) -> ! {
+    panic!("{}: {}", path, error);
+}
+
+impl Fs {
+    pub fn exists(path: &str) -> bool {
+        std::path::Path::new(path).exists()
+    }
+
+    pub fn read_text(path: &str) -> String {
+        let bytes = std::fs::read(path).unwrap_or_else(|e| fail(path, e));
+        String::from_utf8_lossy(&bytes).into_owned()
+    }
+
+    pub fn write_text(path: &str, data: &str) {
+        std::fs::write(path, data).unwrap_or_else(|e| fail(path, e));
+    }
+
+    pub fn append_text(path: &str, data: &str) {
+        use std::io::Write;
+        let mut file = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(path)
+            .unwrap_or_else(|e| fail(path, e));
+        file.write_all(data.as_bytes())
+            .unwrap_or_else(|e| fail(path, e));
+    }
+
+    pub fn make_dirs(path: &str) {
+        std::fs::create_dir_all(path).unwrap_or_else(|e| fail(path, e));
+    }
+
+    pub fn read_dir(path: &str) -> Vec<String> {
+        let entries = std::fs::read_dir(path).unwrap_or_else(|e| fail(path, e));
+        entries
+            .map(|entry| {
+                let entry = entry.unwrap_or_else(|e| fail(path, e));
+                entry.file_name().to_string_lossy().into_owned()
+            })
+            .collect()
+    }
+
+    pub fn is_directory(path: &str) -> bool {
+        std::fs::metadata(path)
+            .map(|m| m.is_dir())
+            .unwrap_or(false)
+    }
+}
+';
+
     public static final TEST_SOURCE = [
         'use std::cell::RefCell;',
         'use std::fs::OpenOptions;',

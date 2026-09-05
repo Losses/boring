@@ -278,6 +278,8 @@ class Compiler extends PluginCompiler<Compiler> {
         emitShim("haxe.io.FPHelper", "fp_helper.rs", RustRuntime.FP_HELPER_SOURCE);
         emitShim("haxe.io.BytesBuffer", "bytes_buffer.rs", RustRuntime.BYTES_BUFFER_SOURCE);
         emitShim("std.Console", "console.rs", RustRuntime.CONSOLE_SOURCE);
+        emitShim("std.Env", "env.rs", RustRuntime.ENV_SOURCE);
+        emitShim("std.Fs", "fs.rs", RustRuntime.FS_SOURCE);
         emitShim("std.Process", "process.rs", RustRuntime.PROCESS_SOURCE);
         emitShim(RustTestBinding.externModule(), RustTestBinding.shimPath(), RustRuntime.TEST_SOURCE);
 
@@ -290,6 +292,10 @@ class Compiler extends PluginCompiler<Compiler> {
                 runtimeMods.push("bytes_buffer");
             if (state.shimsUsed.exists("std.Console"))
                 runtimeMods.push("console");
+            if (state.shimsUsed.exists("std.Env"))
+                runtimeMods.push("env");
+            if (state.shimsUsed.exists("std.Fs"))
+                runtimeMods.push("fs");
             if (state.shimsUsed.exists("std.Process"))
                 runtimeMods.push("process");
             final testUsed = RuntimeResidents.externsOf("runtime.TestCore").filter(m -> state.shimsUsed.exists(m));
