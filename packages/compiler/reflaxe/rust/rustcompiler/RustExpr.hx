@@ -48,6 +48,12 @@ class RustExpr {
     final mutated:Map<Int, Bool> = [];
     final deferredLocals:Map<Int, Bool> = [];
     final usedNames:Map<String, Bool> = [];
+
+    /** Active runtime renderers for cyclic enum stringification. */
+    final enumStringHelpers:Map<String, String> = [];
+
+    var enumStringHelperCounter:Int = 0;
+
     final hiddenNames:Map<Int, String> = [];
     final rangeLoopVars:Map<Int, Bool> = [];
     final argTypes:Map<String, String> = [];
@@ -944,13 +950,15 @@ class RustExpr {
                     return fail(stmts[i], "expression block allows only declarations before its value statement (features/43)");
             }
         switch (stmts[stmts.length - 1].expr) {
-            case TReturn(_) | TThrow(_) | TVar(_, _) | TIf(_, _, _) | TWhile(_, _, _) | TFor(_, _, _) | TSwitch(_, _, _) | TTry(_, _) | TBlock(_) | TBreak | TContinue | TBinop(OpAssign, _, _) | TBinop(OpAssignOp(_), _, _):
+            case TReturn(_) | TThrow(_) | TVar(_, _) | TIf(_, _, _) | TWhile(_, _, _) | TFor(_, _, _) | TSwitch(_, _, _) | TTry(_, _) | TBlock(_) | TBreak |
+                TContinue | TBinop(OpAssign, _, _) | TBinop(OpAssignOp(_), _, _):
                 return fail(stmts[stmts.length - 1], "expression block must end in a value statement (features/43)");
             case _:
         }
         final out = ["{"];
         for (s in stmts.slice(0, stmts.length - 1))
-            for (line in stmtLines(s, 1)) out.push(line);
+            for (line in stmtLines(s, 1))
+                out.push(line);
         out.push(indent(1) + expr(stmts[stmts.length - 1]));
         out.push("}");
         return out.join("\n");
@@ -3757,11 +3765,46 @@ class RustExpr {
             case TEnum(en, _) if (isParameterlessEnum(en.get())):
                 EnumQueryExpander.requireNameRead(en.get());
                 value + ".name()" + (inConcat ? "" : ".to_string()");
+            case TEnum(en, _) if (EnumCycleDetector.isCyclic(en.get())): cyclicEnumString(en.get(), value, inConcat, origin);
             case TEnum(_, _): value + ".to_string()";
             case _:
                 Context.error("Std.string accepts scalars, enum values, records, and arrays of them only", origin.pos);
                 null;
         };
+    }
+
+    function cyclicEnumString(en:EnumType, value:String, inConcat:Bool, origin:TypedExpr):String {
+        final key = en.module + ":" + en.name;
+        final existing = enumStringHelpers.get(key);
+        if (existing != null)
+            return existing + "(&" + value + ")";
+        final name = "stdString" + en.name + enumStringHelperCounter++;
+        enumStringHelpers.set(key, name);
+        final body = payloadEnumString(en, "v", false, origin);
+        enumStringHelpers.remove(key);
+        return "{ fn " + name + "(v: &" + en.name + ") -> String { " + body + " } " + name + "(&" + value + ") }";
+    }
+
+    function payloadEnumString(en:EnumType, value:String, inConcat:Bool, origin:TypedExpr):String {
+        final fields = [for (ef in en.constructs) ef];
+        fields.sort((a, b) -> Reflect.compare(a.index, b.index));
+        final arms:Array<String> = [];
+        for (ef in fields) {
+            final args = switch (ef.type) {
+                case TFun(a, _): a;
+                case _: [];
+            };
+            if (args.length == 0)
+                arms.push(en.name + "::" + ef.name + " => \"" + ef.name + "\".to_string()");
+            else {
+                var text = "format!(\"" + ef.name + "(";
+                for (i in 0...args.length)
+                    text += (i == 0 ? "" : ", ") + args[i].name + "={}";
+                text += ")\", " + [for (a in args) stdStringType(a.t, a.name, true, origin)].join(", ") + ")";
+                arms.push(en.name + "::" + ef.name + " { " + [for (a in args) a.name].join(", ") + " } => " + text);
+            }
+        }
+        return "match " + value + " { " + arms.join(", ") + " }";
     }
 
     function isParameterlessEnum(en:EnumType):Bool {
@@ -4529,7 +4572,7 @@ class RustExpr {
                 for (i in 0...args.length) {
                     final argName = i < efArgs.length ? RustImports.toSnakeCase(efArgs[i].name) : "arg" + i;
                     final argType = i < efArgs.length ? efArgs[i].t : null;
-                    parts.push(argName + ": " + ownedConstructorArg(argType, args[i]));
+                    parts.push(argName + ": " + ownedConstructorArg(argType, args[i], en));
                 }
                 if (parts.length == 0) {
                     return en.name + "::" + ef.name;
@@ -4755,8 +4798,19 @@ class RustExpr {
         unstable); every other parameter renders as the plain expression,
         the convention the resident tables already construct under.
     **/
-    function ownedConstructorArg(expected:Null<Type>, arg:TypedExpr):String {
+    function isSelfEnumField(expected:Null<Type>, en:EnumType):Bool {
+        if (expected == null)
+            return false;
+        return switch (Context.follow(expected)) {
+            case TEnum(e, _): final t = e.get(); t.module == en.module && t.name == en.name;
+            case _: false;
+        };
+    }
+
+    function ownedConstructorArg(expected:Null<Type>, arg:TypedExpr, constructed:Null<EnumType> = null):String {
         var text = expr(arg);
+        if (constructed != null && isSelfEnumField(expected, constructed))
+            return "Box::new(" + text + ")";
         if (expected == null)
             return text;
         if (isStringType(expected) && isStringType(arg.t)) {
