@@ -104,6 +104,7 @@ boring.DefaultArgsOps
 tests.DefaultArgsTests
 tests.KotlinNullabilityTests
 boring.SortedDataClassKeysOps
+boring.CaptureSwitchOps
 boring.UStringOps
 boring.StringUnitOps
 boring.GraphemeOps
@@ -184,6 +185,7 @@ boring.PlatformOps
 tests.ExpressionBlockTests
 tests.FontIdTests
 tests.GlyphClusterTests
+tests.CaptureSwitchOpsTests
 tests.NoSuchElementTests
 tests.PosterShapeTests
 tests.ShapeTextTests
