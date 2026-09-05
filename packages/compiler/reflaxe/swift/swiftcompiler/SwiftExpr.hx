@@ -384,6 +384,8 @@ class SwiftExpr {
                 return tryBindingLines(v, init, depth);
             case TVar(v, init) if (init != null && isStringBufToStringCall(init)):
                 return stringBufToStringBindingLines(v, stripWrap(init), depth);
+            case TVar(v, init) if (init != null && isSwitch(init)):
+                return switchBindingLines(v, init, depth);
             case TVar(v, init) if (init != null):
                 final coalescing = coalescingSiteFor(init);
                 if (coalescing != null)
@@ -454,6 +456,10 @@ class SwiftExpr {
                 }
             case TThrow(x):
                 return [indent(depth) + "throw " + expr(x)];
+            case TBinop(OpAssign, target, value) if (isSwitch(value)):
+                return switchAssign(target, value, depth);
+            case TSwitch(_, _, _):
+                return switchStatement(e, depth);
             case TTry(body, catches) if (catches.length == 1):
                 return tryStatementLines(body, catches[0], depth);
             case TTry(_, _):
@@ -1166,7 +1172,7 @@ class SwiftExpr {
             case TTry(_, _):
                 return fail(e, "try region lowers at statement, initializer, or return position");
             case TSwitch(_, _, _):
-                return fail(e, "variant switch lowers at return position");
+                return switchExpression(e);
             case TConst(c):
                 switch (c) {
                     case TInt(v): return Std.string(v);
@@ -1217,8 +1223,8 @@ class SwiftExpr {
                 return expr(inner);
             case TEnumParameter(_, _, _):
                 return fail(e, "enum payload only lowers inside a variant switch arm");
-            case TEnumIndex(_):
-                return fail(e, "enum index only lowers inside a variant switch");
+            case TEnumIndex(inner):
+                return expr(inner);
             case TFunction(f):
                 return functionLiteral(f);
             case TIf(c, t, f) if (f != null):
@@ -3498,6 +3504,58 @@ class SwiftExpr {
         its Equatable enum. The arms extract payloads through pattern
         bindings; exhaustive cases need no default arm.
     **/
+    function isSwitch(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) { case TSwitch(_, _, _): true; case _: false; };
+    }
+
+    function switchBindingLines(v:TVar, sw:TypedExpr, depth:Int):Array<String> {
+        return [indent(depth) + (mutated.exists(v.id) ? "var " : "let ") + localName(v) + " = " + switchExpression(sw)];
+    }
+
+    function switchStatement(sw:TypedExpr, depth:Int):Array<String> {
+        final lines = switchReturn(sw, depth);
+        for (i in 0...lines.length) {
+            final p = lines[i].indexOf("return ");
+            if (p >= 0) lines[i] = lines[i].substr(0, p) + lines[i].substr(p + 7);
+        }
+        return lines;
+    }
+
+    function switchAssign(target:TypedExpr, sw:TypedExpr, depth:Int):Array<String> {
+        final lines = switchReturn(sw, depth);
+        final marker = indent(depth + 2) + "return ";
+        for (i in 0...lines.length)
+            if (StringTools.startsWith(lines[i], marker))
+                lines[i] = indent(depth + 2) + assignTarget(target) + " = " + lines[i].substr(marker.length);
+        return lines;
+    }
+
+    function switchExpression(sw:TypedExpr):String {
+        sw = stripWrap(sw);
+        final parts = switch (sw.expr) { case TSwitch(subj, cases, def): {subj: subj, cases: cases, def: def}; case _: return fail(sw, "not a switch"); };
+        final subj = stripWrap(parts.subj);
+        final se = switch (subj.expr) { case TEnumIndex(inner): inner; case _: subj; };
+        final table = enumTable(se);
+        final out = ["switch " + expr(se) + " {"];
+        for (c in parts.cases) {
+            final index = switch (c.values[0].expr) { case TConst(TInt(v)): v; case _: return fail(sw, "variant switch case is not a constant index"); };
+            final info = table.get(index);
+            if (info == null) return fail(sw, "variant switch case index has no construct");
+            final names = payloadNames(info.field);
+            final used = usedPayloadIndices(c.expr, info.field);
+            final bindings = [for (i in 0...names.length) used.indexOf(i) >= 0 ? "let " + names[i] : "_"].join(", ");
+            out.push("case ." + SwiftDecl.lowerFirst(info.name) + (names.length > 0 ? "(" + bindings + ")" : "") + ": " + armValue(c.expr));
+        }
+        if (parts.def != null) out.push("default: " + armValue(parts.def));
+        out.push("}");
+        return out.join("\n");
+    }
+
+    function armValue(e:TypedExpr):String {
+        final ss = statementsOf(e);
+        return expr(ss[ss.length - 1]);
+    }
+
     function switchReturn(sw:TypedExpr, depth:Int):Array<String> {
         final switchParts = switch (sw.expr) {
             case TSwitch(subj, cases, def): {subj: subj, cases: cases, def: def};
