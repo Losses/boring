@@ -46,6 +46,20 @@ target's import table:
   `reference/kotlin/gen/std/UStringException.kt`); a reference from a
   compiled module to another compiled module is an ordinary
   cross-package file import.
+- **Platform modules** are the third class (stdlib/17): extern classes in
+  `samples/std/` whose statics lower inline at every call site and that no
+  runtime package implements. `std.UStringPlatform`
+  (`samples/std/UStringPlatform.hx`) and `std.TestPlatform`
+  (`samples/std/TestPlatform.hx`) are the prior art; `std.Fs`, `std.Env`,
+  and the argument face of `std.Process` join them. A call on a platform
+  module emits the host access (or the throwing stub when the host has no
+  such capability) into the calling file, so a module that never calls one
+  never mentions a host API and the general entry of the runtime package
+  stays host-free. A platform module is an extern, so it emits no file of
+  its own, and its lowering is fixed per target by its specification,
+  independent of its declarations. `std.Path` (stdlib/17) is deliberately
+  outside this class: its operations are string logic, so it is a compiled
+  module in pure Haxe that every target shares.
 
 Class membership is a named list, and the safe direction is explicit: a
 module absent from the list emits as a compiled module, which compiles
