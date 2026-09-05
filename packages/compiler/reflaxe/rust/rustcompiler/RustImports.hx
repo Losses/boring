@@ -126,6 +126,10 @@ class RustImports {
         return toSnakeCase(s).toUpperCase();
     }
 
+    public static function emittedTypeName(s:String):String {
+        return StringTools.endsWith(s, "_Impl_") ? toUpperCamelCase(s) : s;
+    }
+
     public static function toUpperCamelCase(s:String):String {
         return [
             for (part in toSnakeCase(s).split("_"))
