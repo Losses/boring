@@ -18,9 +18,10 @@ let swiftSystem = Target.Dependency.product(name: "SystemPackage", package: "swi
 // system loader (ubuntu-24.04 runners carry 2.39) then drives the newer
 // libc and crashes before main. The variable is unset on macOS and
 // Windows, where the flag has no meaning and the manifest evaluates to
-// no linker settings. The pin lives here rather than in the package.json
-// script: bun runs scripts through its own shell on Windows, which does
-// not parse the ${VAR:+...} expansion a shell-level conditional needs.
+// no linker settings. The pin lives in this manifest because bun runs
+// package.json scripts through its own shell on Windows, which does not
+// parse the ${VAR:+...} expansion, so the conditional is expressed in
+// Swift here.
 let pinnedLoader = ProcessInfo.processInfo.environment["BORING_SWIFT_DYNAMIC_LINKER"]
 let loaderLinkerSettings: [LinkerSetting]
 if let pinnedLoader {
