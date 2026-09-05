@@ -774,12 +774,21 @@ class RustExpr {
 
     function throwVariant(x:TypedExpr):String {
         final inner = stripWrap(x);
-        switch (inner.expr) {
-            case TNew(c, _, args) if (args.length == 1):
-                return exceptionVariant(c.get(), args[0]);
-            case _:
+        final raw = switch (inner.expr) {
+            case TNew(c, _, args) if (args.length == 1): exceptionVariant(c.get(), args[0]);
+            case _: expr(x);
+        };
+        final payload = switch (inner.expr) {
+            case TNew(_, _, args) if (args.length == 1): payloadEnumRef(args[0]);
+            case _: null;
+        };
+        if (payload != null
+            && errorTypeName != null
+            && StringTools.endsWith(errorTypeName, "Fault")
+            && errorTypeName != payload.get().name) {
+            return errorTypeName + "::" + payload.get().name + "Fault(" + raw + ")";
         }
-        return expr(x);
+        return raw;
     }
 
     /**
@@ -894,6 +903,20 @@ class RustExpr {
             case _:
         }
         return errType + "::" + expr(payloadArg);
+    }
+
+    function errorPropagationSuffix(c:Ref<ClassType>, cf:Ref<ClassField>, isStatic:Bool):String {
+        if (!isFallible)
+            return isFallibleCallee(c, cf, isStatic) ? ".unwrap()" : "";
+        if (!isFallibleCallee(c, cf, isStatic))
+            return "";
+        final callee = state.funcErrorTypes.get(RustEmissionState.funcKey(c.get().module, cf.get().name, isStatic));
+        if (callee == null || errorTypeName == null || callee.name == errorTypeName)
+            return "?";
+        final variant = state.syntheticErrorVariant(errorTypeName, callee);
+        if (variant == null)
+            return "?";
+        return ".map_err(|e| " + errorTypeName + "::" + variant + "(e))?";
     }
 
     function payloadEnumRef(e:TypedExpr):Null<Ref<haxe.macro.Type.EnumType>> {
@@ -4489,7 +4512,7 @@ class RustExpr {
                     return "(" + expr(subj) + "." + snake + ")(" + renderCallArgs(cf.get().type, args) + ")";
                 }
                 final isMethodFallible = isFallibleCallee(c, cf, false);
-                final q = isFallible ? (isMethodFallible ? "?" : "") : (isMethodFallible ? ".unwrap()" : "");
+                final q = isFallible ? (isMethodFallible ? errorPropagationSuffix(c, cf, false) : "") : (isMethodFallible ? ".unwrap()" : "");
                 final subjStr = isNullType(subj.t) ? expr(subj) + ".as_ref().unwrap()" : expr(subj);
                 return subjStr + "." + snake + "(" + renderCallArgs(cf.get().type, args, null, 0, mutableParamPositions(cf.get())) + ")" + q;
             case TField(_, FStatic(c, cf)):
@@ -4726,7 +4749,7 @@ class RustExpr {
                     }
                 }
                 final isStaticFallible = isFallibleCallee(c, cf, true);
-                final q = isFallible ? (isStaticFallible ? "?" : "") : (isStaticFallible ? ".unwrap()" : "");
+                final q = isFallible ? (isStaticFallible ? errorPropagationSuffix(c, cf, true) : "") : (isStaticFallible ? ".unwrap()" : "");
                 final shimKey = if (cls.module == "std.UStringRT") {
                     "u_string." + name;
                 } else {
