@@ -23,6 +23,24 @@ class KotlinImports {
         "std.Graphemes" => true,
     ];
 
+    /**
+        Compiled std modules whose presence generated output itself
+        guarantees: the string-buffer fault checks throw
+        `std.UStringException` without any consumer source naming it. A
+        consumer build's source scope excludes `samples/`, so the scope
+        filter alone would drop the class while the import stays; these
+        modules compile past the scope filter and a build whose generated
+        output never referenced them writes no file.
+    **/
+    static final GUARANTEED_STD_MODULES:Map<String, Bool> = [
+        "std.UStringException" => true,
+    ];
+
+    /** Whether a module is a compiled std module generated output guarantees. */
+    public static function isGuaranteedStdModule(module:String):Bool {
+        return GUARANTEED_STD_MODULES.exists(module);
+    }
+
     final selfPack:String;
 
     public final selfResident:Bool;
@@ -77,6 +95,13 @@ class KotlinImports {
                 require(targetPack + "." + name);
             }
             return;
+        }
+        if (isGuaranteedStdModule(module)) {
+            // The reference keeps the module's shims-used flag set so a
+            // consumer build (whose source scope excludes `samples/`)
+            // writes the compiled std file; in-scope builds emit the
+            // module unconditionally like any other compiled module.
+            state.shimsUsed.set(module, true);
         }
         final pack = packOf(module);
         if (pack != selfPack) {
