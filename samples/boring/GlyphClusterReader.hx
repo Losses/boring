@@ -7,7 +7,7 @@ import std.ReadOnlyArray;
     `arr[i].clusterRange` lowers to a Kotlin array-index read followed by a
     field access, which must resolve the record member (features/49). The
     array arrives from a function whose return type is ReadOnlyArray, the
-    decode-boundary shape the target freezes as an asList() view.
+    decode-boundary shape the target renders as an asList() view.
 **/
 class GlyphClusterReader {
     public static function ranges():ReadOnlyArray<GlyphCluster>
