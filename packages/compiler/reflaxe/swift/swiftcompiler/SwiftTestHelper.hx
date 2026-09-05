@@ -31,7 +31,7 @@ class SwiftTestHelper {
             lines.push("        }");
         }
         lines.push("        if failures > 0 {");
-        lines.push("            exit(1)");
+        lines.push("            fatalError(\"Swift tests failed\")");
         lines.push("        }");
         lines.push("    }");
         lines.push("}");
