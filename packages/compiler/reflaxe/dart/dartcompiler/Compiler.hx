@@ -47,6 +47,16 @@ class Compiler extends PluginCompiler<Compiler> {
 
     var current:Null<DartDecl> = null;
 
+    /**
+        Synthetic abstract-implementation classes whose statics a generated
+        reference names (`Name_Impl_.field` or the top-level lowering of its
+        module). A sub-type abstract's non-inline static lowers to its
+        `_Impl_`, so `compileClassImpl` must emit the referenced `_Impl_`
+        even though ordinary synthetic impls never reach the output
+        (features/49).
+    **/
+    public static final referencedImplModules:Map<String, Bool> = [];
+
     public static function use() {
         // Dart has one storage width for reals (double) with no binary32
         // alias in the language, so the f32 configuration has no faithful Dart
@@ -126,7 +136,17 @@ class Compiler extends PluginCompiler<Compiler> {
             return null;
         }
         SealedVariantHelper.validateClass(classType);
-        if (isSyntheticImpl(classType.name) || (!classType.isInterface && isInlineOnly(classType, varFields, funcFields))) {
+        if (isSyntheticImpl(classType.name)) {
+            // A synthetic abstract-implementation class emits only when a
+            // generated reference names its statics (`Name_Impl_.field`): a
+            // sub-type abstract whose non-inline static another module calls
+            // needs the `_Impl_` to resolve (features/49). Unreferenced
+            // synthetic impls (including fully-inline integrated abstracts)
+            // stay dropped.
+            if (!Compiler.referencedImplModules.exists(classType.module)) {
+                return null;
+            }
+        } else if (!classType.isInterface && isInlineOnly(classType, varFields, funcFields)) {
             return null;
         }
         StaticFunctionMarkers.validateAll(funcFields);
