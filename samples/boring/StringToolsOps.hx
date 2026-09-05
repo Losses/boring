@@ -3,8 +3,8 @@ package boring;
 /**
  * Drives the standard `StringTools` statics through the Kotlin target.
  * `lpad` has no native Kotlin `String` equivalent and no inline lowering,
- * so it must route into a runtime StringTools module rather than emit an
- * unresolvable `StringTools.lpad` call.
+ * so it must route into a runtime StringTools module (not an
+ * unresolvable `StringTools.lpad` call).
  */
 class StringToolsOps {
     public static function padLeft(s:String, len:Int):String {

@@ -50,7 +50,7 @@ resolves.
 A `haxe.Exception` subclass whose payload enum has exactly one variant folds
 into a sealed hierarchy. The Kotlin target kept a separate penalty object for
 the single-variant payload; the fix preserves the fold so the message text
-stays on the emitted variant rather than as a runtime-dependent accessor.
+stays on the emitted variant, with no runtime-dependent accessor.
 
 ### Rule
 
@@ -80,7 +80,7 @@ lacks.
 A `message` or `get_message` read maps to the native message property
 whenever the subject's type resolves to a folded exception subclass, whether
 or not the value is a catch variable. Each target follows the subject type
-and routes the read to the property instead of the accessor.
+and routes the read to the property, never the accessor.
 
 ### Worked example
 
@@ -132,7 +132,7 @@ unreferenced impls.
 A synthetic `*_Impl_` class emits when a generated reference names its
 statics (`Name_Impl_.<field>`). Each target records the referenced module at
 the reference site and lets `compileClassImpl` emit the `_Impl_` body
-(companion declarations for its referenced statics) instead of skipping it.
+(companion declarations for its referenced statics) in place of dropping it.
 Unreferenced synthetic impls, and fully-inline abstracts whose calls never
 name the module, still emit nothing.
 
@@ -162,7 +162,7 @@ was the comparator the record generates over those element arrays.
 
 A `@:dataClass` comparator reference to another data class's compare function
 resolves through the target's import tables. Rust imports the element
-comparator module-level function; Dart qualifies the call through the
+comparator function of that module; Dart qualifies the call through the
 element library prefix. Same-module comparators stay unqualified.
 
 ### Worked example

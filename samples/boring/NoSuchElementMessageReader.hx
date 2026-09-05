@@ -2,9 +2,9 @@ package boring;
 
 /**
  * Reads the message text of a folded exception class from a plain
- * parameter position, not a catch variable: the runtime-dependent
+ * parameter position outside a catch variable: the runtime-dependent
  * get_message lowering must map to the sealed class's native message
- * property wherever the value is read, not only at a catch site.
+ * property wherever the value is read, including at a catch site.
  */
 class NoSuchElementMessageReader {
     public static function describe(error:NoSuchElementFaultException):String {

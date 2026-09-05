@@ -124,7 +124,15 @@ class TsDecl {
         }
 
         final lines:Array<String> = [];
-        final ifaceStr = cls.interfaces.length > 0 ? " implements " + [for (i in cls.interfaces) i.t.get().name].join(", ") : "";
+        // The implements clause names every interface; a cross-module
+        // interface needs its import recorded here, exactly like a
+        // field-type reference does. Same-module interfaces emit no import.
+        final ifaces = [for (i in cls.interfaces) {
+            final iface = i.t.get();
+            imports.type(iface.module, iface.name);
+            iface.name;
+        }];
+        final ifaceStr = ifaces.length > 0 ? " implements " + ifaces.join(", ") : "";
         final classParams = cls.params.length > 0 ? "<" + [for (p in cls.params) p.name].join(", ") + ">" : "";
         lines.push('export class ${cls.name}$classParams' + (isException(cls) ? " extends Error" : "") + ifaceStr + " {");
 
