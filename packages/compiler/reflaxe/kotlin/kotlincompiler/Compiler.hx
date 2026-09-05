@@ -45,9 +45,10 @@ class Compiler extends PluginCompiler<Compiler> {
         // Test.run, and non-concat float stringification routes through
         // runtime.TestCore. Typing them here keeps every Kotlin build,
         // including consumer builds whose entry list omits them, able
-        // to emit them on demand.
-        haxe.macro.Compiler.keep("std.UStringException");
-        haxe.macro.Compiler.keep("runtime.TestCore");
+        // to emit them on demand; `keep` alone cannot do this because
+        // it only protects an already-typed module from DCE.
+        Context.getType("std.UStringException");
+        Context.getType("runtime.TestCore");
         ReflectCompiler.AddCompiler(compiler, {
             fileOutputType: BaseCompilerFileOutputType.Manual,
             fileOutputExtension: ".kt",
