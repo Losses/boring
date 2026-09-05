@@ -135,15 +135,20 @@ class Compiler extends PluginCompiler<Compiler> {
         final synthetic = state.syntheticErrorEnums.get(classType.module);
         if (synthetic != null && synthetic.length > 0 && !state.emittedSyntheticErrorModules.exists(classType.module)) {
             state.emittedSyntheticErrorModules.set(classType.module, true);
-            final unionLines = [for (u in synthetic) {
-                final lines = ["#[derive(Debug, Clone, PartialEq)]", "pub enum " + u.name + " {"];
-                for (item in u.members) {
-                    final emitted = state.payloadEnumModules.exists(item.module) ? state.payloadEnumModules.get(item.module) : item.module;
-                    lines.push("    " + item.name + "Fault(" + item.name + "),");
+            final unionLines = [
+                for (u in synthetic) {
+                    final lines = ["#[derive(Debug, Clone, PartialEq)]", "pub enum " + u.name + " {"];
+                    final variants = state.syntheticErrorVariants.get(u.name);
+                    for (item in u.members) {
+                        final emitted = state.payloadEnumModules.exists(item.module) ? state.payloadEnumModules.get(item.module) : item.module;
+                        final variant = variants != null
+                            && variants.exists(item.module + "::" + item.name) ? variants.get(item.module + "::" + item.name) : item.name + "Fault";
+                        lines.push("    " + variant + "(crate::" + RustImports.moduleToRustPath(emitted) + "::" + item.name + "),");
+                    }
+                    lines.push("}");
+                    lines.join("\n");
                 }
-                lines.push("}");
-                lines.join("\n");
-            }];
+            ];
             result = unionLines.join("\n\n") + (result.length > 0 ? "\n\n" + result : "");
         }
         if (result != null && result.length > 0) {
@@ -990,7 +995,7 @@ class Compiler extends PluginCompiler<Compiler> {
                 members.set(key, [pair]);
                 return true;
             }
-            if (existing.module != pair.module) {
+            if (existing.module != pair.module || existing.name != pair.name) {
                 conflicts.set(key, true);
             }
             final current = members.get(key);
@@ -998,8 +1003,11 @@ class Compiler extends PluginCompiler<Compiler> {
                 members.set(key, [existing, pair]);
             } else {
                 var seen = false;
-                for (item in current) if (item.module == pair.module) seen = true;
-                if (!seen) current.push(pair);
+                for (item in current)
+                    if (item.module == pair.module && item.name == pair.name)
+                        seen = true;
+                if (!seen)
+                    current.push(pair);
             }
             return false;
         }
@@ -1166,19 +1174,70 @@ class Compiler extends PluginCompiler<Compiler> {
             final pair = enumOf.get(key);
             if (pair != null) {
                 state.funcErrorEnums.set(key, pair);
+                state.funcErrorTypes.set(key, pair);
             }
             final set = members.get(key);
             if (set != null)
                 state.funcErrorUnionMembers.set(key, set);
         }
+        for (key in conflicts.keys()) {
+            final sep = key.indexOf("::");
+            final module = key.substr(0, sep);
+            final tail = key.substr(sep + 2);
+            final dot = tail.indexOf(".");
+            final fieldName = tail.substr(dot + 1);
+            final className = module.substr(module.lastIndexOf(".") + 1);
+            final unionName = className + RustImports.toUpperCamelCase(fieldName) + "Fault";
+            final set = members.get(key);
+            if (set != null) {
+                final variants:Map<String, String> = [];
+                for (item in set) {
+                    final variant = StringTools.startsWith(item.name, className)
+                        && StringTools.endsWith(item.name, "Fault") ? item.name.substr(className.length) : item.name + "Fault";
+                    variants.set(item.module + "::" + item.name, variant);
+                }
+                var decls = state.syntheticErrorEnums.get(module);
+                if (decls == null) {
+                    decls = [];
+                    state.syntheticErrorEnums.set(module, decls);
+                }
+                decls.push({name: unionName, members: set});
+                state.syntheticErrorVariants.set(unionName, variants);
+                state.funcErrorTypes.set(key, {module: module, name: unionName});
+                state.funcErrorEnums.set(key, {module: module, name: unionName});
+            }
+        }
+
         // Re-run propagation once synthetic types exist so callers of a union
         // can form the next union level (union nesting is intentional).
         for (entry in entries) {
             for (edge in entry.edges) {
                 final syntheticCallee = state.funcErrorTypes.get(edge.callee);
-                if (syntheticCallee != null && edge.absorbed.indexOf(syntheticCallee.module) < 0)
-                    mergeEnum(entry.key, syntheticCallee);
+                if (syntheticCallee != null
+                    && state.isSyntheticErrorType(syntheticCallee.name)
+                    && edge.absorbed.indexOf(syntheticCallee.module) < 0) {
+                    final nested = state.syntheticErrorMembers(syntheticCallee.name);
+                    final current = members.get(entry.key);
+                    var covered = current != null && nested != null && current.length > 0;
+                    if (covered) {
+                        for (item in current)
+                            if (nested.indexOf(item) < 0)
+                                covered = false;
+                    }
+                    if (covered) {
+                        members.set(entry.key, [syntheticCallee]);
+                        enumOf.set(entry.key, syntheticCallee);
+                    } else if (mergeEnum(entry.key, syntheticCallee) && !fallible.exists(entry.key)) {
+                        fallible.set(entry.key, true);
+                    }
+                }
             }
+        }
+        for (key in fallible.keys()) {
+            final pair = enumOf.get(key);
+            final current = state.funcErrorTypes.get(key);
+            if (pair != null && (current == null || !state.isSyntheticErrorType(current.name)))
+                state.funcErrorTypes.set(key, pair);
         }
 
         for (key in conflicts.keys()) {
@@ -1189,20 +1248,26 @@ class Compiler extends PluginCompiler<Compiler> {
             final dot = tail.indexOf(".");
             final fieldName = tail.substr(dot + 1);
             final className = module.substr(module.lastIndexOf(".") + 1);
-            final unionName = className + RustImports.toSnakeCase(fieldName).charAt(0).toUpperCase()
-                + RustImports.toSnakeCase(fieldName).substr(1) + "Fault";
+            final unionName = className + RustImports.toUpperCamelCase(fieldName) + "Fault";
             final set = members.get(key);
-            if (set != null) {
+            if (set != null && !state.isSyntheticErrorType(unionName)) {
                 final declLines = ["#[derive(Debug, Clone, PartialEq)]", "pub enum " + unionName + " {"];
+                final variants:Map<String, String> = [];
                 for (item in set) {
-                    final variant = item.name + "Fault";
+                    final variant = StringTools.startsWith(item.name, className)
+                        && StringTools.endsWith(item.name, "Fault") ? item.name.substr(className.length) : item.name + "Fault";
+                    variants.set(item.module + "::" + item.name, variant);
                     final emitted = state.payloadEnumModules.exists(item.module) ? state.payloadEnumModules.get(item.module) : item.module;
                     declLines.push("    " + variant + "(crate::" + RustImports.moduleToRustPath(emitted) + "::" + item.name + "),");
                 }
                 declLines.push("}");
                 var decls = state.syntheticErrorEnums.get(module);
-                if (decls == null) { decls = []; state.syntheticErrorEnums.set(module, decls); }
+                if (decls == null) {
+                    decls = [];
+                    state.syntheticErrorEnums.set(module, decls);
+                }
                 decls.push({name: unionName, members: set});
+                state.syntheticErrorVariants.set(unionName, variants);
                 state.funcErrorTypes.set(key, {module: module, name: unionName});
                 state.funcErrorEnums.set(key, {module: module, name: unionName});
             }
