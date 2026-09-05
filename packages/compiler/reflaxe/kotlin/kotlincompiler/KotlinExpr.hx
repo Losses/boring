@@ -1551,6 +1551,26 @@ class KotlinExpr {
         itself: the folded tree makes the variable the variant value
         (features/06 catch-site lowering).
     **/
+    /**
+        A `message` or `get_message` read on a folded exception: the sealed
+        class overrides `Throwable.message` with a non-null String, so any
+        read maps to the native property whether or not the value sits in a
+        catch-variable position. Without this, a read outside a catch emits
+        the runtime-dependent `get_message()` accessor, which kotlinc
+        rejects (features/06 message lowering).
+    **/
+    function foldedExceptionMessage(subj:TypedExpr):Null<String> {
+        switch (Context.follow(subj.t)) {
+            case TInst(c, _):
+                if (!KotlinDecl.isExceptionSubclass(c.get())) {
+                    return null;
+                }
+                return expr(subj) + ".message";
+            case _:
+                return null;
+        }
+    }
+
     function catchPayloadAccess(subj:TypedExpr, name:String):Null<String> {
         switch (stripWrap(subj).expr) {
             case TLocal(v) if (catchVars.exists(v.id)):
@@ -1830,12 +1850,9 @@ class KotlinExpr {
                     }
                 }
                 if (name == "message" || name == "get_message") {
-                    switch (stripWrap(subj).expr) {
-                        case TLocal(v) if (catchVars.exists(v.id)):
-                            // The folded exception tree keeps the native
-                            // message property (features/06: display text).
-                            return localName(v) + ".message";
-                        case _:
+                    final folded = foldedExceptionMessage(subj);
+                    if (folded != null) {
+                        return folded;
                     }
                 }
                 if (name == "length") {
@@ -2214,13 +2231,9 @@ class KotlinExpr {
             case TField(_, FStatic(c, cf)) if (c.get().module == "Std" && cf.get().name == "isOfType" && args.length == 2):
                 return stdIsOfType(args);
             case TField(subj, FInstance(_, _, cf)) if (cf.get().name == "get_message" && args.length == 0):
-                final target = stripWrap(subj);
-                switch (target.expr) {
-                    case TLocal(v) if (catchVars.exists(v.id)):
-                        // Property getter on a caught exception: the native
-                        // message property (features/06: display text).
-                        return localName(v) + ".message";
-                    case _:
+                final folded = foldedExceptionMessage(subj);
+                if (folded != null) {
+                    return folded;
                 }
             case TField(subj, FStatic(c, cf)):
                 final cls = c.get();
