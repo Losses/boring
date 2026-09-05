@@ -2508,17 +2508,35 @@ class KotlinExpr {
         }
     }
 
-    function localCallArgs(fn:TypedExpr, args:Array<TypedExpr>):String {
-        final params = paramsForCall(fn);
-        final rendered = [
+    function renderCallArgs(args:Array<TypedExpr>, params:Array<Type>):Array<String> {
+        return [
             for (i in 0...args.length) {
                 final a = args[i];
                 final text = expr(a);
                 final expected = i < params.length ? params[i] : null;
-                isNullType(a.t)
-            && expected != null && !isNullType(expected) ? text + "!!" : text;
+                if (isNullType(a.t) && expected != null && !isNullType(expected)) text
+                    + "!!"; else if (isIntType(a.t) && isFloatExpectedType(expected)) "(" + text + ")." +
+                    (FloatPrecision.isF32() ? "toFloat()" : "toDouble()"); else text;
             }
         ];
+    }
+
+    function isFloatExpectedType(t:Null<Type>):Bool {
+        if (t == null)
+            return false;
+        final followed = Context.follow(t);
+        final base = isNullType(followed) ? switch (followed) {
+            case TAbstract(_, params) if (params.length == 1): params[0];
+            case _: followed;
+        } : followed;
+        return switch (Context.follow(base)) {
+            case TAbstract(a, _): a.get().name == "Float";
+            case _: false;
+        };
+    }
+
+    function localCallArgs(fn:TypedExpr, args:Array<TypedExpr>):String {
+        final rendered = renderCallArgs(args, paramsForCall(fn));
         switch (fn.expr) {
             case TLocal(v) if (currentClass != null && currentField != null):
                 final params = switch (Context.follow(fn.t)) {
@@ -2536,7 +2554,7 @@ class KotlinExpr {
     }
 
     function paramsForCall(fn:TypedExpr):Array<Type> {
-        return switch (fn.expr) {
+        final fieldParams = switch (fn.expr) {
             case TField(_, FInstance(_, _, cf)) | TField(_, FStatic(_, cf)):
                 switch (Context.follow(cf.get().type)) {
                     case TFun(values, _): [for (v in values) v.t];
@@ -2544,6 +2562,26 @@ class KotlinExpr {
                 }
             case _: [];
         };
+        if (fieldParams.length > 0)
+            return fieldParams;
+        return switch (Context.follow(fn.t)) {
+            case TFun(values, _): [for (v in values) v.t];
+            case _: [];
+        };
+    }
+
+    function constructorParams(cls:ClassType):Array<Type> {
+        if (cls.constructor != null)
+            return switch (Context.follow(cls.constructor.get().type)) {
+                case TFun(values, _): [for (v in values) v.t];
+                case _: [];
+            };
+        if (cls.init != null)
+            return switch (Context.follow(cls.init.t)) {
+                case TFun(values, _): [for (v in values) v.t];
+                case _: [];
+            };
+        return [];
     }
 
     function functionLiteralNamed(name:String, f:TFunc):String {
@@ -2559,7 +2597,7 @@ class KotlinExpr {
         final valueType = ValueTypeSupport.markedAbstractOfClass(cls);
         if (valueType != null)
             return args.length == 0 ? valueType.name : valueType.name + "(" + expr(args[0]) + ")";
-        final renderedArgs = [for (a in args) expr(a)].join(", ");
+        final renderedArgs = renderCallArgs(args, constructorParams(cls)).join(", ");
         final path = cls.pack.length == 0 ? cls.name : cls.pack.join(".") + "." + cls.name;
         switch (path) {
             case "std.StringBuf" | "StringBuf":
