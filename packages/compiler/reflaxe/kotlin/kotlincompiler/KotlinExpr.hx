@@ -9,6 +9,7 @@ import haxe.macro.Type.FieldAccess;
 import haxe.macro.Type.TypedExpr;
 import haxe.macro.TypedExprTools;
 import reflaxe.data.ClassFuncData;
+import ExpressionPredicates;
 import ValueTypeSupport;
 import ValueTypeSupport.ValueTypeOperator;
 
@@ -2499,22 +2500,11 @@ class KotlinExpr {
     }
 
     function isNegativeIntLiteral(e:TypedExpr):Bool {
-        return switch (stripWrap(e).expr) {
-            case TConst(TInt(value)): value < 0;
-            case TUnop(OpNeg, _, inner):
-                switch (stripWrap(inner).expr) {
-                    case TConst(TInt(value)): value > 0;
-                    case _: false;
-                }
-            case _: false;
-        };
+        return ExpressionPredicates.isNegativeIntLiteral(e);
     }
 
     function isNullExpr(e:TypedExpr):Bool {
-        return switch (stripWrap(e).expr) {
-            case TConst(TNull): true;
-            case _: false;
-        };
+        return ExpressionPredicates.isNullExpr(e);
     }
 
     /** Routes calls on a marked abstract implementation to value members. */

@@ -9,6 +9,7 @@ import haxe.macro.Type.FieldAccess;
 import haxe.macro.Type.TypedExpr;
 import haxe.macro.TypedExprTools;
 import reflaxe.data.ClassFuncData;
+import ExpressionPredicates;
 import TerminationAnalysis;
 import ValueTypeSupport;
 import ValueTypeSupport.ValueTypeOperator;
@@ -4123,15 +4124,7 @@ class RustExpr {
     }
 
     function isNegativeIntLiteral(e:TypedExpr):Bool {
-        return switch (stripWrap(e).expr) {
-            case TConst(TInt(value)): value < 0;
-            case TUnop(OpNeg, _, inner):
-                switch (stripWrap(inner).expr) {
-                    case TConst(TInt(value)): value > 0;
-                    case _: false;
-                }
-            case _: false;
-        };
+        return ExpressionPredicates.isNegativeIntLiteral(e);
     }
 
     /** Routes calls on a marked abstract implementation to Rust members. */
