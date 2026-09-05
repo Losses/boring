@@ -74,18 +74,18 @@ describe("default argument expansion generated tree", () => {
     expect(content).toContain('return greeter.say("Sam", "User");');
   });
 
-  test("Kotlin generated tree emits full-arity calls and clean method signatures", () => {
+  test("Kotlin generated tree emits native defaults and full-arity calls", () => {
     const ktFile = path.join(kotlinGenDir, "boring/DefaultArgsOps.kt");
     expect(fs.existsSync(ktFile)).toBe(true);
     const content = fs.readFileSync(ktFile, "utf8");
 
-    // Method signatures carry no default parameter initializers
-    expect(content).toContain("fun greet(name: String, prefix: String): String");
-    expect(content).toContain("fun configure(base: Int, offset: Int, scale: Double, flag: Boolean): Double");
-    expect(content).toContain("fun formatLabel(label: String?, sep: String): String");
-    expect(content).toContain("fun describeTag(tag: String, detail: String?): String");
-    expect(content).toContain("fun openMode(id: Int, mode: Mode): String");
-    expect(content).toContain("fun adjust(value: Double, step: Double): Double");
+    // Optional parameters carry native Kotlin default initializers.
+    expect(content).toContain('fun greet(name: String, prefix: String = "Hello"): String');
+    expect(content).toContain("fun configure(base: Int, offset: Int = 10, scale: Double = 2.5, flag: Boolean = true): Double");
+    expect(content).toContain("fun formatLabel(label: String? = null, sep: String = \"-\"): String");
+    expect(content).toContain("fun describeTag(tag: String, detail: String? = null): String");
+    expect(content).toContain("fun openMode(id: Int, mode: Mode = Mode.Read): String");
+    expect(content).toContain("fun adjust(value: Double, step: Double = -5.0): Double");
 
     // Parameter-reading coalescing defaults stay native on Kotlin.
     expect(content).toContain("fun greetWithPrefix(name: String, prefix: String = name): String");

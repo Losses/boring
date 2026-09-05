@@ -4,6 +4,7 @@ package kotlincompiler;
 import haxe.macro.Context;
 import haxe.macro.Type;
 import reflaxe.data.ClassFuncData;
+import reflaxe.data.ClassFuncArg;
 import reflaxe.data.ClassVarData;
 import reflaxe.data.EnumOptionData;
 import ValueTypeSupport;
@@ -58,12 +59,8 @@ class KotlinDecl {
             lines.push(sealed + "interface " + cls.name + " {");
             for (f in funcFields) {
                 final args = [
-                    for (a in f.args) {
-                        final coalescing = DefaultArgExpander.coalescingDefaultAt(cls, f.field.name, a.index);
-                        final parameterType = coalescing != null ? DefaultArgExpander.coalescingParameterType(coalescing, a.type) : a.type;
-                        final defaultText = coalescing != null ? " = " + expr.coalescingDefaultText(coalescing, a.type) : "";
-                        '${KotlinNameEscape.escape(a.name)}: ${types.of(parameterType)}$defaultText';
-                    }
+                    for (a in f.args)
+                        parameterText(cls, f.field.name, a, !isInterfaceMethod(cls, f))
                 ].join(", ");
                 final retType = types.of(f.ret);
                 final ret = retType == "Unit" ? "" : ": " + retType;
@@ -858,6 +855,13 @@ class KotlinDecl {
         }
     }
 
+    function parameterText(cls:ClassType, fieldName:String, a:ClassFuncArg, emitDefault:Bool = true):String {
+        final registered = DefaultArgExpander.defaultAt(cls, fieldName, a.index);
+        final parameterType = registered != null ? DefaultArgExpander.defaultParameterType(registered, a.type) : a.type;
+        final defaultText = registered != null && emitDefault ? " = " + expr.defaultArgText(registered, a.type) : "";
+        return KotlinNameEscape.escape(a.name) + ": " + types.of(parameterType) + defaultText;
+    }
+
     function buildPrimaryConstructor(cls:ClassType, ctor:ClassFuncData, varFields:Array<ClassVarData>):String {
         if (ctor.args.length == 0)
             return "";
@@ -878,10 +882,7 @@ class KotlinDecl {
             // the primary constructor (feature spec 27); a parameter without
             // a same-named field stays a plain parameter.
             final prefix = isField ? (isPublic ? "" : "private ") + (isFinal ? "val " : "var ") : "";
-            final coalescing = DefaultArgExpander.coalescingDefaultAt(cls, ctor.field.name, a.index);
-            final parameterType = coalescing != null ? DefaultArgExpander.coalescingParameterType(coalescing, a.type) : a.type;
-            final defaultText = coalescing != null ? " = " + expr.coalescingDefaultText(coalescing, a.type) : "";
-            params.push(prefix + KotlinNameEscape.escape(a.name) + ": " + types.of(parameterType) + defaultText);
+            params.push(prefix + parameterText(cls, ctor.field.name, a));
         }
         return "(" + params.join(", ") + ")";
     }
@@ -1063,12 +1064,8 @@ class KotlinDecl {
             expr.reserveName(a.name);
         }
         final args = [
-            for (a in f.args) {
-                final coalescing = DefaultArgExpander.coalescingDefaultAt(cls, f.field.name, a.index);
-                final parameterType = coalescing != null ? DefaultArgExpander.coalescingParameterType(coalescing, a.type) : a.type;
-                final defaultText = coalescing != null ? " = " + expr.coalescingDefaultText(coalescing, a.type) : "";
-                '${KotlinNameEscape.escape(a.name)}: ${types.of(parameterType)}$defaultText';
-            }
+            for (a in f.args)
+                parameterText(cls, f.field.name, a, !isInterfaceMethod(cls, f))
         ].join(", ");
         final retType = types.of(f.ret);
         final ret = retType == "Unit" ? "" : ": " + retType;
@@ -1105,9 +1102,9 @@ class KotlinDecl {
         final args = [
             for (i in firstArg...f.args.length) {
                 final a = f.args[i];
-                final coalescing = DefaultArgExpander.coalescingDefaultAt(cls, f.field.name, a.index);
-                final parameterType = coalescing != null ? DefaultArgExpander.coalescingParameterType(coalescing, a.type) : a.type;
-                final defaultText = coalescing != null ? " = " + expr.coalescingDefaultText(coalescing, a.type) : "";
+                final registered = DefaultArgExpander.defaultAt(cls, f.field.name, a.index);
+                final parameterType = registered != null ? DefaultArgExpander.defaultParameterType(registered, a.type) : a.type;
+                final defaultText = registered != null ? " = " + expr.defaultArgText(registered, a.type) : "";
                 '${KotlinNameEscape.escape(a.name)}: ${types.of(parameterType)}$defaultText';
             }
         ].join(", ");

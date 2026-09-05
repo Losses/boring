@@ -119,7 +119,18 @@ class KotlinExpr {
         return site;
     }
 
-    /** Renders a sanctioned default in Kotlin's native parameter context. */
+    public function defaultArgText(value:DefaultArgExpander.DefaultArgValue, targetType:Type):String {
+        return switch (value) {
+            case VInt(v): Std.string(v);
+            case VFloat(s): FloatPrecision.isF32() ? ((s.indexOf(".") >= 0 || s.indexOf("e") >= 0 || s.indexOf("E") >= 0) ? s : s + ".0") + "f" : s;
+            case VString(s): quoteString(s);
+            case VBool(b): b ? "true" : "false";
+            case VNull: "null";
+            case VEnum(enumRef, enumField): types.of(Type.TEnum(enumRef, [])) + "." + enumField.name;
+            case VCoalescing(coalescing): coalescingDefaultText(coalescing, targetType);
+        };
+    }
+
     public function coalescingDefaultText(value:DefaultArgExpander.CoalescingDefaultValue, targetType:Type):String {
         return switch (value) {
             case CInt(v): Std.string(v);
@@ -2495,7 +2506,7 @@ class KotlinExpr {
                 if (name == "join") {
                     return expr(subj) + ".joinToString(" + renderedArgs + ")";
                 }
-                return expr(subj) + "." + name + "(" + renderedArgs + ")";
+                return expr(subj) + (isNullType(subj.t) ? "?." : ".") + name + "(" + renderedArgs + ")";
             case TField(_, FStatic(c, cf)):
                 final cls = c.get();
                 final name = cf.get().name;
