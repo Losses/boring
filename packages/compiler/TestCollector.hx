@@ -39,7 +39,8 @@ class TestCollector {
     }
 
     public static function generate(outDir:String = "out/haxe", extraTestDirs:Array<String> = null, mainName:String = "TestMain"):Void {
-        if (extraTestDirs == null) extraTestDirs = [];
+        if (extraTestDirs == null)
+            extraTestDirs = [];
         final tests:Array<{
             id:String,
             name:String,
@@ -50,95 +51,95 @@ class TestCollector {
 
         final testDirs = ["samples/tests"].concat(extraTestDirs);
         for (testDir in testDirs) {
-        if (FileSystem.exists(testDir) && FileSystem.isDirectory(testDir)) {
-            final files = FileSystem.readDirectory(testDir);
-            files.sort(Reflect.compare);
-            for (file in files) {
-                if (!StringTools.endsWith(file, ".hx")) {
-                    continue;
-                }
-                final baseName = file.substr(0, file.length - 3);
-                final pkg = testDir.substr("samples/".length).split("/").join(".");
-                final moduleName = pkg + "." + baseName;
-                final types = try {
-                    Context.getModule(moduleName);
-                } catch (e:Dynamic) {
-                    continue;
-                }
+            if (FileSystem.exists(testDir) && FileSystem.isDirectory(testDir)) {
+                final files = FileSystem.readDirectory(testDir);
+                files.sort(Reflect.compare);
+                for (file in files) {
+                    if (!StringTools.endsWith(file, ".hx")) {
+                        continue;
+                    }
+                    final baseName = file.substr(0, file.length - 3);
+                    final pkg = testDir.substr("samples/".length).split("/").join(".");
+                    final moduleName = pkg + "." + baseName;
+                    final types = try {
+                        Context.getModule(moduleName);
+                    } catch (e:Dynamic) {
+                        continue;
+                    }
 
-                for (t in types) {
-                    switch (t) {
-                        case TInst(c, _):
-                            final cls = c.get();
-                            final statics = cls.statics.get().copy();
-                            statics.sort((a, b) -> Reflect.compare(Context.getPosInfos(a.pos).min, Context.getPosInfos(b.pos).min));
+                    for (t in types) {
+                        switch (t) {
+                            case TInst(c, _):
+                                final cls = c.get();
+                                final statics = cls.statics.get().copy();
+                                statics.sort((a, b) -> Reflect.compare(Context.getPosInfos(a.pos).min, Context.getPosInfos(b.pos).min));
 
-                            for (field in statics) {
-                                if (!field.meta.has(":test")) {
-                                    continue;
-                                }
-                                final id = cls.module + "." + field.name;
+                                for (field in statics) {
+                                    if (!field.meta.has(":test")) {
+                                        continue;
+                                    }
+                                    final id = cls.module + "." + field.name;
 
-                                // Validate public static Void -> Void.
-                                // Match the declared signature directly: Context.follow during
-                                // the --macro phase forces lazy completion of modules with
-                                // @:build or static self-referencing initializers and corrupts
-                                // the typer cache (Haxe 4.3.7), so follow is not used here.
-                                if (!field.isPublic) {
-                                    Context.error("Test function " + id + " must be public", field.pos);
-                                }
+                                    // Validate public static Void -> Void.
+                                    // Match the declared signature directly: Context.follow during
+                                    // the --macro phase forces lazy completion of modules with
+                                    // @:build or static self-referencing initializers and corrupts
+                                    // the typer cache (Haxe 4.3.7), so follow is not used here.
+                                    if (!field.isPublic) {
+                                        Context.error("Test function " + id + " must be public", field.pos);
+                                    }
 
-                                final ftype = field.type;
-                                switch (ftype) {
-                                    case TFun(args, ret):
-                                        var isVoid = switch (ret) {
-                                            case TAbstract(a, _): a.get().name == "Void";
-                                            case _: false;
-                                        };
-                                        if (args.length != 0 || !isVoid) {
-                                            Context.error("Test function " + id + " must take no arguments and return Void", field.pos);
-                                        }
-                                    case TLazy(l):
-                                        switch (l()) {
-                                            case TFun(args, ret):
-                                                var isVoid = switch (ret) {
-                                                    case TAbstract(a, _): a.get().name == "Void";
-                                                    case _: false;
-                                                };
-                                                if (args.length != 0 || !isVoid) {
-                                                    Context.error("Test function " + id + " must take no arguments and return Void", field.pos);
-                                                }
-                                            case _:
-                                                Context.error("Test function " + id + " must be a function", field.pos);
-                                        }
-                                    case _:
-                                        Context.error("Test function " + id + " must be a function", field.pos);
-                                }
+                                    final ftype = field.type;
+                                    switch (ftype) {
+                                        case TFun(args, ret):
+                                            var isVoid = switch (ret) {
+                                                case TAbstract(a, _): a.get().name == "Void";
+                                                case _: false;
+                                            };
+                                            if (args.length != 0 || !isVoid) {
+                                                Context.error("Test function " + id + " must take no arguments and return Void", field.pos);
+                                            }
+                                        case TLazy(l):
+                                            switch (l()) {
+                                                case TFun(args, ret):
+                                                    var isVoid = switch (ret) {
+                                                        case TAbstract(a, _): a.get().name == "Void";
+                                                        case _: false;
+                                                    };
+                                                    if (args.length != 0 || !isVoid) {
+                                                        Context.error("Test function " + id + " must take no arguments and return Void", field.pos);
+                                                    }
+                                                case _:
+                                                    Context.error("Test function " + id + " must be a function", field.pos);
+                                            }
+                                        case _:
+                                            Context.error("Test function " + id + " must be a function", field.pos);
+                                    }
 
-                                var desc:Null<String> = null;
-                                for (entry in field.meta.extract(":test")) {
-                                    if (entry.params != null && entry.params.length > 0) {
-                                        switch (entry.params[0].expr) {
-                                            case EConst(CString(sv)): desc = sv;
-                                            case _:
+                                    var desc:Null<String> = null;
+                                    for (entry in field.meta.extract(":test")) {
+                                        if (entry.params != null && entry.params.length > 0) {
+                                            switch (entry.params[0].expr) {
+                                                case EConst(CString(sv)): desc = sv;
+                                                case _:
+                                            }
                                         }
                                     }
-                                }
 
-                                final runnerName = desc != null ? id + ": " + desc : id;
-                                tests.push({
-                                    id: id,
-                                    name: runnerName,
-                                    moduleName: cls.module,
-                                    className: cls.name,
-                                    fieldName: field.name
-                                });
-                            }
-                        case _:
+                                    final runnerName = desc != null ? id + ": " + desc : id;
+                                    tests.push({
+                                        id: id,
+                                        name: runnerName,
+                                        moduleName: cls.module,
+                                        className: cls.name,
+                                        fieldName: field.name
+                                    });
+                                }
+                            case _:
+                        }
                     }
                 }
             }
-        }
         }
 
         if (!FileSystem.exists(outDir)) {
