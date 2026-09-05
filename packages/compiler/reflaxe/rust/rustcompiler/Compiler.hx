@@ -3,6 +3,7 @@ package rustcompiler;
 #if (macro || reflaxe_runtime)
 import haxe.macro.Context;
 import haxe.macro.Type;
+import PolicyQueries;
 import reflaxe.BaseCompiler.BaseCompilerFileOutputType;
 import reflaxe.PluginCompiler;
 import reflaxe.ReflectCompiler;
@@ -1318,23 +1319,11 @@ class Compiler extends PluginCompiler<Compiler> {
     }
 
     function isSyntheticImpl(name:String):Bool {
-        return StringTools.endsWith(name, "_Impl_");
+        return PolicyQueries.isSyntheticImpl(name);
     }
 
     function isInlineOnly(classType:ClassType, varFields:Array<ClassVarData>, funcFields:Array<ClassFuncData>):Bool {
-        if (varFields.length == 0 && funcFields.length == 0)
-            return true;
-        if (varFields.length == 0 && funcFields.length > 0) {
-            for (f in funcFields) {
-                switch (f.field.kind) {
-                    case FMethod(MethInline) | FMethod(MethMacro):
-                    case _:
-                        return false;
-                }
-            }
-            return true;
-        }
-        return false;
+        return PolicyQueries.isInlineOnly(classType, varFields, funcFields);
     }
 
     function registerPackagePath(pack:String, children:Map<String, Array<String>>):Void {
