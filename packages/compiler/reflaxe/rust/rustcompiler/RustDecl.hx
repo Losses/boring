@@ -768,7 +768,7 @@ class RustDecl {
                 collectMessageCases(r, options, out);
             case TConst(TString(s)) if (options.length == 1):
                 // A single-variant exception folds its message function
-                // down to the bare string literal: the typer collapses a
+                // down to the bare string literal: the typer reduces a
                 // one-case switch, so there is no TSwitch to scan. The
                 // message belongs to the sole option.
                 out.set(options[0].name, '"' + s + '"');

@@ -709,9 +709,9 @@ class KotlinDecl {
     **/
     function collectCollapsedCase(stmts:Array<TypedExpr>, options:Array<haxe.macro.Type.EnumField>, out:Map<String, String>):Void {
         if (options.length == 1) {
-            // A single-variant enum: the whole switch collapses to the
-            // body with no pattern capture (there is nothing to bind), so
-            // no TEnumParameter marks the constructor. Attribute the
+            // A single-variant enum reduces to the body with no pattern
+            // capture (there is nothing to bind), so no TEnumParameter
+            // marks the constructor. Attribute the
             // rendered body to the one option.
             final name = options[0].name;
             final body = unwrapReturn(stmts[stmts.length - 1]);
