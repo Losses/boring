@@ -1224,8 +1224,7 @@ class KotlinExpr {
                     case TLocal(v): enumVariants.get(v.id);
                     case _: null;
                 };
-                final narrowed = Lambda.count(en.constructs) == 1
-                    || variant == ef.name
+                final narrowed = variant == ef.name
                     || enumVariantKey(se) != null
                     && enumVariantExpressions.exists(enumVariantKey(se));
                 if (owner != null) {
