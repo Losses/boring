@@ -1445,14 +1445,25 @@ class DefaultArgExpander {
         return null;
     }
 
-    /** Returns the sanctioned default for one declared parameter, if any. */
-    public static function coalescingDefaultAt(classType:ClassType, fieldName:String, index:Int):Null<CoalescingDefaultValue> {
+    public static function defaultAt(classType:ClassType, fieldName:String, index:Int):Null<DefaultArgValue> {
         final defaults = lookupFieldDefaultsExact(classType, fieldName);
         if (defaults == null || index < 0 || index >= defaults.length)
             return null;
-        return switch (defaults[index]) {
+        return defaults[index];
+    }
+
+    public static function coalescingDefaultAt(classType:ClassType, fieldName:String, index:Int):Null<CoalescingDefaultValue> {
+        return switch (defaultAt(classType, fieldName, index)) {
             case VCoalescing(value): value;
             default: null;
+        };
+    }
+
+    public static function defaultParameterType(value:DefaultArgValue, t:Type):Type {
+        return switch (value) {
+            case VNull: t;
+            case VCoalescing(coalescing): coalescingParameterType(coalescing, t);
+            default: withoutNull(t);
         };
     }
 
