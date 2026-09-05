@@ -2786,12 +2786,13 @@ class RustExpr {
             if (argCount > 0) {
                 final bindings:Array<String> = [];
                 for (idx in 0...argCount) {
-                    if (Lambda.has(usedIndices, idx)) {
-                        bindings.push(payloadName(ef, idx));
-                    } else if (idx < lastUsed) {
-                        // An unused payload before a used one still binds,
-                        // under the underscore name.
-                        bindings.push("_" + payloadName(ef, idx));
+                    if (Lambda.has(usedIndices, idx) || idx < lastUsed) {
+                        // A used payload binds under a reserved name so an
+                        // arm body cannot shadow an outer local with the
+                        // pattern binding; an unused payload before a used
+                        // one binds the same way, and the leading underscore
+                        // keeps the binding warning-free.
+                        bindings.push(payloadName(ef, idx) + ": _p" + idx);
                     } else {
                         // Everything from the first unused tail payload on
                         // represents the remaining fields with the rest pattern.
@@ -2831,9 +2832,10 @@ class RustExpr {
                         }
                         switch (stripWrap(init).expr) {
                             case TEnumParameter(_, ef, index):
-                                // The variant pattern binds the payload as a
-                                // named field, so the capture reads it bare.
-                                subst.set(v.id, payloadName(ef, index));
+                                // The variant pattern binds every payload
+                                // under its reserved name, so the capture
+                                // reads it bare.
+                                subst.set(v.id, "_p" + index);
                             case TLocal(source) if (subst.exists(source.id)):
                                 subst.set(v.id, subst.get(source.id));
                             case _:

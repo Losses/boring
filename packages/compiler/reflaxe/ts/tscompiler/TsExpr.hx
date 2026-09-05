@@ -2870,12 +2870,20 @@ class TsExpr {
 
     function switchStatement(sw:TypedExpr, depth:Int):Array<String> {
         final lines = switchReturn(sw, depth);
-        for (i in 0...lines.length) {
+        final out:Array<String> = [];
+        for (line in lines) {
             final marker = "return ";
-            final p = lines[i].indexOf(marker);
-            if (p >= 0) lines[i] = lines[i].substr(0, p) + lines[i].substr(p + marker.length);
+            final p = line.indexOf(marker);
+            if (p >= 0) {
+                out.push(line.substr(0, p) + line.substr(p + marker.length));
+                // Statement-position switch arms must not fall through to the
+                // next variant. Return-position arms retain their returns.
+                out.push(indent(depth + 2) + "break;");
+            } else {
+                out.push(line);
+            }
         }
-        return lines;
+        return out;
     }
 
     function switchAssign(target:TypedExpr, sw:TypedExpr, depth:Int):Array<String> {
