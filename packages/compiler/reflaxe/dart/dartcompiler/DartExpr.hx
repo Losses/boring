@@ -9,6 +9,7 @@ import haxe.macro.Type.FieldAccess;
 import haxe.macro.Type.TypedExpr;
 import haxe.macro.TypedExprTools;
 import reflaxe.data.ClassFuncData;
+import TerminationAnalysis;
 import ValueTypeSupport;
 import ValueTypeSupport.ValueTypeOperator;
 
@@ -829,6 +830,13 @@ class DartExpr {
         final out:Array<String> = [];
         var i = 0;
         while (i < stmts.length) {
+            // Statements after one that ends control are unreachable text
+            // the analyzer rejects, so emission stops at the terminator.
+            if (TerminationAnalysis.alwaysTerminates(stmts[i])) {
+                for (l in stmtLines(stmts[i], depth))
+                    out.push(l);
+                break;
+            }
             final fused = fillFusion(stmts, i, depth);
             if (fused != null) {
                 for (l in terminated(fused))
