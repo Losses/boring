@@ -123,6 +123,9 @@ boring.ExtensionOps
 boring.ExtensionConsumer
 boring.FontId
 boring.FontIdConsumer
+boring.GlyphCluster
+boring.GlyphClusterHolder
+boring.GlyphClusterReader
 tests.StaticExtensionProbes
 tests.StaticExtensionTests
 boring.StaticStateOps
@@ -176,6 +179,7 @@ boring.SortedDataClassKeysOps
 boring.PlatformOps
 tests.ExpressionBlockTests
 tests.FontIdTests
+tests.GlyphClusterTests
 tests.NoSuchElementTests
 tests.PosterShapeTests
 tests.ShapeTextTests
