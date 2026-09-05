@@ -465,9 +465,7 @@ class Compiler extends PluginCompiler<Compiler> {
             // The synthesized platform host of stdlib/17 sits beside the
             // runtime at the output root; every referencing file imports
             // it under the fixed prefix the lowered calls spell.
-            lines.push("import '"
-                + importSpecifier(filePath, dartOutput + "/platform_host.dart")
-                + "' as platform_host;");
+            lines.push("import '" + importSpecifier(filePath, dartOutput + "/platform_host.dart") + "' as platform_host;");
         }
         if (ctx.imports.usesRuntime()) {
             final emitDir = RuntimeConfig.emitDir();
