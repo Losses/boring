@@ -3818,8 +3818,8 @@ class RustExpr {
                     return staticItemPath(cls, name);
                 }
                 // The typer renders an @:native extern class under its
-                // native name (console, process) instead of its
-                // declaration name; the emitted shim keeps the
+                // native name (console, process) even when its
+                // declaration name differs; the emitted shim keeps the
                 // declaration's module name (Console, Process). A
                 // Pascal-case name is already the declaration name and
                 // stays untouched.
