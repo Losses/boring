@@ -883,7 +883,7 @@ class RustExpr {
         imports.requireType(emittedIn, errType);
         switch (arg.expr) {
             case TField(_, FEnum(_, ef)):
-                return errType + "::" + ef.name;
+                return errType + "::" + RustImports.toUpperCamelCase(ef.name);
             case TCall(fn, callArgs):
                 switch (stripWrap(fn).expr) {
                     case TField(_, FEnum(_, ef)):
@@ -897,7 +897,7 @@ class RustExpr {
                             final argType = i < efArgs.length ? efArgs[i].t : null;
                             parts.push(argName + ": " + ownedConstructorArg(argType, callArgs[i]));
                         }
-                        return errType + "::" + ef.name + " { " + parts.join(", ") + " }";
+                        return errType + "::" + RustImports.toUpperCamelCase(ef.name) + " { " + parts.join(", ") + " }";
                     case _:
                 }
             case _:
@@ -2170,7 +2170,17 @@ class RustExpr {
                 }
                 requireEnum(en.module, en.name);
                 final pname = payloadName(ef, index);
-                return "match " + expr(se) + " { " + en.name + "::" + ef.name + " { " + pname + ", .. } => " + pname + " }";
+                return "match "
+                    + expr(se)
+                    + " { "
+                    + en.name
+                    + "::"
+                    + RustImports.toUpperCamelCase(ef.name)
+                    + " { "
+                    + pname
+                    + ", .. } => "
+                    + pname
+                    + " }";
             case TEnumIndex(_):
                 return fail(e, "enum index only lowers inside a variant switch");
             case TFunction(f):
@@ -2756,7 +2766,7 @@ class RustExpr {
                     lastUsed = idx;
                 }
             }
-            var pattern = en.name + "::" + ef.name;
+            var pattern = en.name + "::" + RustImports.toUpperCamelCase(ef.name);
             if (argCount > 0) {
                 final bindings:Array<String> = [];
                 for (idx in 0...argCount) {
@@ -3534,7 +3544,7 @@ class RustExpr {
             case FEnum(e, ef):
                 final en = e.get();
                 imports.requireType(en.module, en.name);
-                return en.name + "::" + ef.name;
+                return en.name + "::" + RustImports.toUpperCamelCase(ef.name);
             case FInstance(_, _, cf) | FAnon(cf):
                 final name = cf.get().name;
                 {
@@ -3994,7 +4004,7 @@ class RustExpr {
         final existing = enumStringHelpers.get(key);
         if (existing != null)
             return existing + "(&" + value + ")";
-        final name = "stdString" + en.name + enumStringHelperCounter++;
+        final name = RustImports.toSnakeCase("stdString" + en.name) + enumStringHelperCounter++;
         enumStringHelpers.set(key, name);
         final body = payloadEnumString(en, "v", false, origin);
         enumStringHelpers.remove(key);
@@ -4011,13 +4021,13 @@ class RustExpr {
                 case _: [];
             };
             if (args.length == 0)
-                arms.push(en.name + "::" + ef.name + " => \"" + ef.name + "\".to_string()");
+                arms.push(en.name + "::" + RustImports.toUpperCamelCase(ef.name) + " => \"" + ef.name + "\".to_string()");
             else {
                 var text = "format!(\"" + ef.name + "(";
                 for (i in 0...args.length)
                     text += (i == 0 ? "" : ", ") + args[i].name + "={}";
                 text += ")\", " + [for (a in args) stdStringType(a.t, a.name, true, origin)].join(", ") + ")";
-                arms.push(en.name + "::" + ef.name + " { " + [for (a in args) a.name].join(", ") + " } => " + text);
+                arms.push(en.name + "::" + RustImports.toUpperCamelCase(ef.name) + " { " + [for (a in args) a.name].join(", ") + " } => " + text);
             }
         }
         return "match " + value + " { " + arms.join(", ") + " }";
@@ -4796,9 +4806,9 @@ class RustExpr {
                     parts.push(argName + ": " + ownedConstructorArg(argType, args[i], en));
                 }
                 if (parts.length == 0) {
-                    return en.name + "::" + ef.name;
+                    return en.name + "::" + RustImports.toUpperCamelCase(ef.name);
                 }
-                return en.name + "::" + ef.name + " { " + parts.join(", ") + " }";
+                return en.name + "::" + RustImports.toUpperCamelCase(ef.name) + " { " + parts.join(", ") + " }";
             case TConst(TSuper):
                 return "super(" + renderedArgs + ")";
             case TLocal(_):
