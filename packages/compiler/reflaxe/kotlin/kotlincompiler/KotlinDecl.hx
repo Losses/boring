@@ -20,11 +20,13 @@ class KotlinDecl {
     final imports:KotlinImports;
     final types:KotlinType;
     final expr:KotlinExpr;
+    final state:KotlinEmissionState;
 
     public function new(selfModule:String, state:KotlinEmissionState) {
         this.imports = new KotlinImports(selfModule, state);
         this.types = new KotlinType(imports, state);
         this.expr = new KotlinExpr(imports, types, state);
+        this.state = state;
     }
 
     public function renderImports():String {
@@ -1144,6 +1146,10 @@ class KotlinDecl {
         final runnerName = desc != null ? id + ": " + desc : id;
         final runtimePackage = RuntimeConfig.requireImportName("test module " + cls.module);
         imports.require(runtimePackage + ".test.Test");
+        // The Test.run call is emitter-synthesized: no consumer source
+        // names std.Test, so the reference itself marks the test host
+        // entry and the runtime.TestCore resident as used.
+        state.shimsUsed.set(RuntimeResidents.externsOf("runtime.TestCore")[0], true);
         final body = expr.functionBody(cls, f);
         final indented = body.map(l -> "            " + l);
         return [
