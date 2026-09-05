@@ -44,11 +44,35 @@ class Path {
         if (p.length >= 1 && p.charAt(0) == "\\")
             return 4;
         if (p.length >= 1 && p.charAt(0) == "/") {
-            if (p.length >= 2 && p.charAt(1) == "/")
-                return 6;
+            if (p.length >= 2 && p.charAt(1) == "/") {
+                // A forward UNC (//server/share/...) keeps the server and
+                // share as its root; a lone POSIX double slash (//a)
+                // stays kind 6 (the spec's dirname example fixes the
+                // two-segment form as UNC).
+                return hasUncShape(p) ? 1 : 6;
+            }
             return 5;
         }
         return 7;
+    }
+
+    /** True when a "//..." path carries a second segment (the UNC shape). */
+    static function hasUncShape(p:String):Bool {
+        final n = p.length;
+        var i = 2;
+        var segments = 0;
+        while (i < n) {
+            if (isSep(p, i)) {
+                i++;
+                continue;
+            }
+            segments++;
+            while (i < n && !isSep(p, i))
+                i++;
+            if (segments >= 2)
+                return true;
+        }
+        return false;
     }
 
     /** True when the path uses a "/" or "\" separator at `index`. */

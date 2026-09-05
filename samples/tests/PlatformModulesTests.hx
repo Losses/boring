@@ -75,6 +75,40 @@ class PlatformModulesTests {
         Test.equals("C:/", PlatformOps.dirname("C:/a"));
         Test.equals("a/b", PlatformOps.dirname("a/b/c"));
         Test.equals(".", PlatformOps.dirname("a"));
+        // The spec's own kind-table examples: UNC keeps its root and
+        // never strips it, a drive-absolute root keeps its separator,
+        // and a root-relative path stops at its root.
+        Test.equals("//s/share", PlatformOps.dirname("//s/share/a"));
+        Test.equals("//s/share", PlatformOps.dirname("\\\\s\\share\\a"));
+        Test.equals("/", PlatformOps.dirname("/a"));
+        Test.equals("//s/share", PlatformOps.dirname("//s/share"));
+    }
+
+    @:test("std.Path normalize follows the kind table")
+    public static function pathNormalizeKinds():Void {
+        // Device paths return verbatim: after \\?\ Win32 accepts no
+        // separator translation and no dot resolution.
+        Test.equals("\\\\?\\C:\\x", PlatformOps.normalize("\\\\?\\C:\\x"));
+        Test.equals("\\\\?\\C:\\a\\..\\x", PlatformOps.normalize("\\\\?\\C:\\a\\..\\x"));
+        // A UNC root survives; dot segments resolve above it and drop
+        // at the root.
+        Test.equals("//s/share/b", PlatformOps.normalize("//s/share/a/../b"));
+        Test.equals("//s/share", PlatformOps.normalize("//s/share/a/../.."));
+        // Drive-relative text stays untouched beyond separator
+        // translation (per-drive cwd is host state a string layer
+        // does not have).
+        Test.equals("C:a/../b", PlatformOps.normalize("C:a\\..\\b"));
+        // POSIX double slash keeps its leading pair.
+        Test.equals("//a/b", PlatformOps.normalize("//a/b"));
+    }
+
+    @:test("std.Path join keeps absolute and device seconds")
+    public static function pathJoinKinds():Void {
+        Test.equals("\\\\?\\C:\\x", PlatformOps.join("a", "\\\\?\\C:\\x"));
+        Test.equals("//s/share", PlatformOps.join("a", "//s/share"));
+        Test.equals("C:/win", PlatformOps.join("a", "C:/win"));
+        Test.equals("/abs", PlatformOps.join("a", "/abs"));
+        Test.equals("a/b", PlatformOps.join("a", "b"));
     }
 
     @:test("std.Path expandHome reads HOME through std.Env")
