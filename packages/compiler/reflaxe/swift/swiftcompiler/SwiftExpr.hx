@@ -2060,6 +2060,7 @@ class SwiftExpr {
                 '{ () -> String in var out = "{"; let n = ${value}.size(); var ${index}: Int32 = 0; while ${index} < n { if ${index} > 0 { out += ", "; }; out += ${itemKey}; out += "="; out += ${itemVal}; ${index} += 1; }; out += "}"; return out }()';
             case TInst(c, _) if (StaticFieldHelper.hasSelfConstructionStatic(c.get())
                 || c.get().meta.has(":dataClass")): value + ".toString()";
+            case TInst(c, _) if (hasInstanceToString(c.get())): value + ".toString()";
             case TAbstract(a, _) if (ValueTypeSupport.isMarkedAbstract(a.get())):
                 final abs = a.get();
                 ValueTypeSupport.memberField(abs, "toString") != null ? value + ".description" : "String(describing: "
@@ -2084,6 +2085,15 @@ class SwiftExpr {
                 Context.error("Std.string accepts scalars, enum values, records, and arrays of them only", origin.pos);
                 null;
         };
+    }
+
+    function hasInstanceToString(cls:ClassType):Bool {
+        for (field in cls.fields.get())
+            if (field.name == "toString")
+                return true;
+        if (cls.superClass == null)
+            return false;
+        return hasInstanceToString(cls.superClass.t.get());
     }
 
     function cyclicEnumString(en:EnumType, value:String, inConcat:Bool, origin:TypedExpr):String {
