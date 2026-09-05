@@ -38,7 +38,8 @@ class TestCollector {
         return buf.toString();
     }
 
-    public static function generate(outDir:String = "out/haxe"):Void {
+    public static function generate(outDir:String = "out/haxe", extraTestDirs:Array<String> = null, mainName:String = "TestMain"):Void {
+        if (extraTestDirs == null) extraTestDirs = [];
         final tests:Array<{
             id:String,
             name:String,
@@ -47,7 +48,8 @@ class TestCollector {
             fieldName:String
         }> = [];
 
-        final testDir = "samples/tests";
+        final testDirs = ["samples/tests"].concat(extraTestDirs);
+        for (testDir in testDirs) {
         if (FileSystem.exists(testDir) && FileSystem.isDirectory(testDir)) {
             final files = FileSystem.readDirectory(testDir);
             files.sort(Reflect.compare);
@@ -56,7 +58,8 @@ class TestCollector {
                     continue;
                 }
                 final baseName = file.substr(0, file.length - 3);
-                final moduleName = "tests." + baseName;
+                final pkg = testDir.substr("samples/".length).split("/").join(".");
+                final moduleName = pkg + "." + baseName;
                 final types = try {
                     Context.getModule(moduleName);
                 } catch (e:Dynamic) {
@@ -136,6 +139,7 @@ class TestCollector {
                 }
             }
         }
+        }
 
         if (!FileSystem.exists(outDir)) {
             FileSystem.createDirectory(outDir);
@@ -181,7 +185,7 @@ extern class NodeProcess {
     static final env:haxe.DynamicAccess<String>;
 }
 
-class TestMain {
+class $mainName {
     static var failures:Int = 0;
 
     static function recordResult(id:String, name:String, verdict:String, message:Null<String>):Void {
@@ -518,7 +522,7 @@ class StringBufOracle {
 }
 
 ';
-        File.saveContent(outDir + "/TestMain.hx", runnerSource);
+        File.saveContent(outDir + "/" + mainName + ".hx", runnerSource);
         // The cursor platform is a tracked source file shared with the typed
         // harness in tests/haxe; stage one compiles the copy next to TestMain
         // and binds it under globalThis.std.UStringPlatform.
