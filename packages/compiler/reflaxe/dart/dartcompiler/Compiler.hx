@@ -9,6 +9,7 @@ import reflaxe.ReflectCompiler;
 import reflaxe.data.ClassFuncData;
 import reflaxe.data.ClassVarData;
 import reflaxe.data.EnumOptionData;
+import StaticReferenceScan;
 
 /**
     reflaxe plugin producing the Dart target of the translatable subset
@@ -36,6 +37,9 @@ class Compiler extends PluginCompiler<Compiler> {
 
     /** Modules that contain @:test functions and emit to the test tree. */
     final testModules:Map<String, Bool> = [];
+
+    /** Private static functions reached from Dart-emitted class bodies. */
+    final referencedStatics:Map<String, Bool> = [];
 
     /** One entry per @:test function, in emission order. */
     final testEntries:Array<{
@@ -111,6 +115,11 @@ class Compiler extends PluginCompiler<Compiler> {
                 case _:
             }
         }
+        referencedStatics.clear();
+        final referenced = StaticReferenceScan.scan(mtypes, cls -> !cls.isExtern
+            && (RuntimeResidents.isResident(cls.module) || inSourceScope(cls.pos)));
+        for (key in referenced.keys())
+            referencedStatics.set(key, true);
     }
 
     // ------------------------------------------------------------------
@@ -150,6 +159,7 @@ class Compiler extends PluginCompiler<Compiler> {
             return null;
         }
         StaticFunctionMarkers.validateAll(funcFields);
+        funcFields = [for (f in funcFields) if (includeStaticFunc(classType, f)) f];
 
         var hasTestFuncs = false;
         for (f in funcFields) {
@@ -239,6 +249,13 @@ class Compiler extends PluginCompiler<Compiler> {
             parts.get(classType.module).push(result);
         }
         return result;
+    }
+
+    function includeStaticFunc(cls:ClassType, f:ClassFuncData):Bool {
+        return !f.isStatic
+            || f.field.isPublic
+            || f.field.meta.has(":test")
+            || referencedStatics.exists(cls.module + "." + f.field.name);
     }
 
     public function compileEnumImpl(enumType:EnumType, options:Array<EnumOptionData>):Null<String> {
