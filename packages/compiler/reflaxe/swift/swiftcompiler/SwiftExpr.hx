@@ -1778,8 +1778,9 @@ class SwiftExpr {
             case FInstance(_, _, cf) | FAnon(cf):
                 final name = cf.get().name;
                 final target = stripCast(subj);
-                if (isCatchMessageAccess(target, name)) {
-                    return expr(target) + ".message";
+                final folded = foldedExceptionMessage(target, name);
+                if (folded != null) {
+                    return folded;
                 }
                 if (name == "length") {
                     if (isStringBuf(subj)) {
@@ -2271,13 +2272,9 @@ class SwiftExpr {
             case TField(_, FStatic(c, cf)) if (c.get().module == "Std" && cf.get().name == "isOfType" && args.length == 2):
                 return stdIsOfType(args);
             case TField(subj, FInstance(_, _, cf)) if (cf.get().name == "get_message" && args.length == 0):
-                final target = stripCast(subj);
-                switch (target.expr) {
-                    case TLocal(v) if (catchVars.exists(v.id)):
-                        // Property getter on a caught exception: the native
-                        // message field (features/06: display text).
-                        return localName(v) + ".message";
-                    case _:
+                final folded = foldedExceptionMessage(stripCast(subj), "get_message");
+                if (folded != null) {
+                    return folded;
                 }
             case TField(subj, FStatic(c, cf)):
                 final cls = c.get();
@@ -2297,6 +2294,14 @@ class SwiftExpr {
                     && (fName == "startsWith" || fName == "endsWith")
                     && args.length == 2) {
                     return expr(args[0]) + ".has" + (fName == "startsWith" ? "Prefix" : "Suffix") + "(" + expr(args[1]) + ")";
+                }
+                if (cls.pack.length == 0 && cls.name == "StringTools") {
+                    // StringTools statics without a native Swift/String
+                    // inline lowering (lpad, rpad, ltrim, rtrim, replace,
+                    // ...) route into the runtime module, mirroring the
+                    // Kotlin target. The inline-lowered ones (hex, trim,
+                    // startsWith, endsWith) are handled before this point.
+                    return residentCall("StringTools", args, fn);
                 }
                 if (cls.pack.length == 0 && cls.name == "Lambda" && fName == "has" && args.length == 2) {
                     return expr(args[0]) + ".contains(" + expr(args[1]) + ")";
@@ -2486,7 +2491,12 @@ class SwiftExpr {
                     return receiverText(subj) + ".append(" + optionalExpr(args[0]) + ")";
                 }
                 if (name == "join") {
-                    return receiverText(subj) + ".joined(separator: " + rendered + ")";
+                    // The split/join pair in the resident StringTools
+                    // operates on unit arrays: split yields [[UInt16]] and
+                    // join must re-fold that into [UInt16], which
+                    // `.joined(separator:)` alone does not type as.
+                    final joined = receiverText(subj) + ".joined(separator: " + rendered + ")";
+                    return types.resident ? "Array(" + joined + ")" : joined;
                 }
                 if (name == "slice") {
                     return "Array(" + receiverText(subj) + "[Int(" + expr(args[0]) + ")..<Int(" + expr(args[1]) + ")])";
@@ -3450,17 +3460,25 @@ class SwiftExpr {
     }
 
     /**
-        Message accessor on a caught exception: the property getter reads as
-        the native message field (features/06: messages are display text).
+        Message accessor on a folded exception: the sealed class overrides
+        `message` with a non-null String, so any read maps to the native
+        property whether or not the value sits in a catch-variable position
+        (features/06 message lowering). Returns the lowered text when the
+        subject resolves to a folded exception subclass, else null.
     **/
-    function isCatchMessageAccess(subj:TypedExpr, name:String):Bool {
+    function foldedExceptionMessage(subj:TypedExpr, name:String):Null<String> {
         if (name != "message" && name != "get_message") {
-            return false;
+            return null;
         }
-        return switch (stripWrap(subj).expr) {
-            case TLocal(v): catchVars.exists(v.id);
-            case _: false;
-        };
+        switch (Context.follow(subj.t)) {
+            case TInst(c, _):
+                if (!SwiftDecl.isException(c.get())) {
+                    return null;
+                }
+                return expr(stripCast(subj)) + ".message";
+            case _:
+                return null;
+        }
     }
 
     // ------------------------------------------------------------------

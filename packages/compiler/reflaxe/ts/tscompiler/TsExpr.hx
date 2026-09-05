@@ -1569,8 +1569,9 @@ class TsExpr {
                         return boundSubst.get(v.id);
                     case _:
                 }
-                if (isCatchMessageAccess(target, name)) {
-                    return expr(target) + ".message";
+                final folded = foldedExceptionMessage(target, name);
+                if (folded != null) {
+                    return folded;
                 }
                 return expr(subj) + "." + name;
             case FDynamic(name):
@@ -1923,13 +1924,9 @@ class TsExpr {
             case TField(_, FStatic(c, cf)) if (c.get().module == "Std" && cf.get().name == "isOfType" && args.length == 2):
                 return stdIsOfType(args);
             case TField(subj, FInstance(_, _, cf)) if (cf.get().name == "get_message" && args.length == 0):
-                final target = stripCast(subj);
-                switch (target.expr) {
-                    case TLocal(v) if (catchVars.exists(v.id)):
-                        // Property getter on a caught exception: the native
-                        // message field (features/06: display text).
-                        return localName(v) + ".message";
-                    case _:
+                final folded = foldedExceptionMessage(stripCast(subj), "get_message");
+                if (folded != null) {
+                    return folded;
                 }
             case TField(subj, FStatic(c, cf)):
                 final cls = c.get();
@@ -1945,6 +1942,15 @@ class TsExpr {
                     && (fName == "startsWith" || fName == "endsWith")
                     && args.length == 2) {
                     return expr(args[0]) + "." + fName + "(" + expr(args[1]) + ")";
+                }
+                if (cls.pack.length == 0 && cls.name == "StringTools") {
+                    // StringTools statics without a native JS/String inline
+                    // lowering (lpad, rpad, ltrim, rtrim, replace, ...) route
+                    // into the runtime module, mirroring the Kotlin target.
+                    // The inline-lowered ones (hex, trim, startsWith,
+                    // endsWith) are handled before this point.
+                    imports.runtime("StringTools");
+                    return "StringTools." + fName + "(" + [for (a in args) expr(a)].join(", ") + ")";
                 }
                 if (cls.pack.length == 0 && cls.name == "Lambda" && fName == "has" && args.length == 2) {
                     return expr(args[0]) + ".includes(" + expr(args[1]) + ")";
@@ -2812,17 +2818,32 @@ class TsExpr {
     }
 
     /**
-        Message accessor on a caught exception: the property getter reads as
-        the native message field (features/06: messages are display text).
+        Message accessor on a folded exception: the sealed class overrides
+        Throwable.message with a non-null String, so any read maps to the
+        native property whether or not the value sits in a catch-variable
+        position (features/06 message lowering). Named `isCatchMessageAccess`
+        historically because the catch-variable form was the first shape the
+        typer produced; a read outside a catch carries the same folded type,
+        so the property lowering is the same. Returns the lowered text when
+        the subject resolves to a folded exception subclass, else null.
     **/
-    function isCatchMessageAccess(subj:TypedExpr, name:String):Bool {
+    function foldedExceptionMessage(subj:TypedExpr, name:String):Null<String> {
         if (name != "message" && name != "get_message") {
-            return false;
+            return null;
         }
-        return switch (stripWrap(subj).expr) {
-            case TLocal(v): catchVars.exists(v.id);
-            case _: false;
-        };
+        switch (Context.follow(subj.t)) {
+            case TInst(c, _):
+                if (c.get().superClass == null) {
+                    return null;
+                }
+                final parent = c.get().superClass.t.get();
+                if (parent.pack.join(".") != "haxe" || parent.name != "Exception") {
+                    return null;
+                }
+                return expr(stripCast(subj)) + ".message";
+            case _:
+                return null;
+        }
     }
 
     function switchReturn(sw:TypedExpr, depth:Int):Array<String> {

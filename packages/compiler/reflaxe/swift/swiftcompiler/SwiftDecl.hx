@@ -474,7 +474,7 @@ class SwiftDecl {
     }
 
     /** A class extending haxe.Exception is one of the features/06 exception classes. */
-    static function isException(cls:ClassType):Bool {
+    public static function isException(cls:ClassType):Bool {
         if (cls.superClass == null) {
             return false;
         }
