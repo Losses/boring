@@ -1887,6 +1887,14 @@ class SwiftExpr {
                 imports.runtime("SortedTable");
                 return "SortedTable." + (name == "builder" ? "setBuilder" : name);
             case _:
+                if (cls.module != "" && StringTools.endsWith(cls.name, "_Impl_")) {
+                    // A sub-type abstract's non-inline static (for example
+                    // `FontId.of`) lowers to the synthetic implementation's
+                    // `_Impl_`. The call site names that symbol, so
+                    // compileClassImpl must not drop the referenced `_Impl_`
+                    // even though ordinary synthetic impls never emit.
+                    Compiler.referencedImplModules.set(cls.module, true);
+                }
                 imports.value(module, cls.name);
                 return cls.name + "." + name;
         }

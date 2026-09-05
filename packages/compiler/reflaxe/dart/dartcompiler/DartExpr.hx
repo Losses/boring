@@ -1782,6 +1782,15 @@ class DartExpr {
                     // class. Resident statics keep the class: the runtime
                     // library merges several modules whose top-level
                     // function names would collide.
+                    if (module != "" && StringTools.endsWith(cls.name, "_Impl_")) {
+                        // A sub-type abstract's non-inline static (for
+                        // example `FontId.of`) lowers to the synthetic
+                        // implementation's statics. The call site names that
+                        // module, so compileClassImpl must not drop the
+                        // referenced `_Impl_` even though ordinary synthetic
+                        // impls never emit (features/49).
+                        Compiler.referencedImplModules.set(module, true);
+                    }
                     return qualifiedRef(module, name);
                 }
                 final prefix = imports.value(module, cls.name);

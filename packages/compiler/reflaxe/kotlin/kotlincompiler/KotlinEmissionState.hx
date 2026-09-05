@@ -22,6 +22,15 @@ class KotlinEmissionState {
     /** Anonymous-structure signature to the typedef naming it. */
     public final structTypedefs:Map<String, {module:String, name:String}> = [];
 
+    /**
+        Synthetic abstract-implementation classes whose statics a generated
+        reference names (`Name_Impl_.field`). A sub-type abstract's non-inline
+        statics lower to its `_Impl_` companion, so `compileClassImpl` must
+        emit the referenced `_Impl_` object even though ordinary synthetic
+        impls never reach the output (features/49).
+    **/
+    public final referencedImpls:Map<String, Bool> = [];
+
     /** Types reachable at test assertion call sites for type-guided helpers. */
     public final testReachableTypes:Map<String, Type> = [];
 

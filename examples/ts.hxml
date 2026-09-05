@@ -124,6 +124,8 @@ boring.FileLevelOps
 boring.FileLevelConsumer
 boring.ExtensionOps
 boring.ExtensionConsumer
+boring.FontId
+boring.FontIdConsumer
 tests.StaticExtensionProbes
 tests.StaticExtensionTests
 boring.StaticStateOps
@@ -175,6 +177,7 @@ tests.RegistryParseArgsTests
 boring.ArrayIterationOps
 boring.PlatformOps
 tests.ExpressionBlockTests
+tests.FontIdTests
 tests.NoSuchElementTests
 tests.PosterShapeTests
 tests.ShapeTextTests
