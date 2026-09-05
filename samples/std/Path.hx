@@ -82,16 +82,19 @@ class Path {
      * path, and 0 for a relative path. UNC carries its own scan.
      */
     static function rootEnd(t:String, k:Int):Int {
-        return switch (k) {
-            case 0: t.length;
-            case 1: uncRootEnd(t);
-            case 2: 3;
-            case 3: 2;
-            case 4: 1;
-            case 5: 1;
-            case 6: 2;
-            default: 0;
-        };
+        if (k == 0)
+            return t.length;
+        if (k == 1)
+            return uncRootEnd(t);
+        if (k == 2)
+            return 3;
+        if (k == 3)
+            return 2;
+        if (k == 4 || k == 5)
+            return 1;
+        if (k == 6)
+            return 2;
+        return 0;
     }
 
     /**
@@ -267,7 +270,12 @@ class Path {
                 return p;
             if (p.length == 1)
                 return home;
-            return home + "/" + normalize(p.substring(2));
+            final rest = p.substring(2);
+            // A trailing separator after the tilde carries no segment;
+            // the expanded home stands alone.
+            if (rest == "")
+                return home;
+            return home + "/" + normalize(rest);
         }
         return p;
     }
