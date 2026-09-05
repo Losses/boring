@@ -23,4 +23,10 @@ class PrintedFloatTests {
     public static function printsNullableFloatCollectionForm():Void {
         Test.equals("PrintedFloat(ratio=0.8, offset=null, count=7, stops=[1.5, 2.5])", Std.string(new PrintedFloat(0.8, null, 7, [1.5, 2.5])));
     }
+
+    @:test("non-finite binary32 text keeps the platform form")
+    public static function printsNonFiniteFloatFields():Void {
+        Test.equals("PrintedFloat(ratio=Infinity, offset=NaN, count=3, stops=null)", Std.string(new PrintedFloat(Math.POSITIVE_INFINITY, 0.0 / 0.0, 3, null)));
+        Test.equals("PrintedFloat(ratio=-Infinity, offset=null, count=4, stops=null)", Std.string(new PrintedFloat(Math.NEGATIVE_INFINITY, null, 4, null)));
+    }
 }
