@@ -35,8 +35,10 @@ jobs:
         run: nix develop -c bash -c 'bun install && bun run gen:ts && bun run gen:kotlin && bun run gen:kotlin-f32 && bun run gen:rust && bun run gen:rust-f32 && bun run gen:swift && bun run gen:swift-f32 && bun run gen:dart && bun run test:stage1:haxe && bun run test:stage1:ts && bun run test:stage1:kotlin && bun run test:stage1:rust && bun run test:haxe && bun run test:kotlin && bun run test:rust && bun run test:swift && bun run test:swift-f32 && bun run test:dart && bun run test:kotlin-f32 && bun run test:rust-f32 && bun run test:consistency && bun run check:docs'
       # BoringSwiftTests segfaulted on CI while the same tree and toolchain
       # pass locally, and the redirected stdout is fully buffered so the
-      # log shows nothing; capture where the fault landed and how far the
-      # jsonl got before the process died.
+      # log shows nothing. The only library that differs between the two
+      # machines is the system libstdc++ (everything else resolves into
+      # identical nix store paths), so the diagnostics rerun once with the
+      # nix closure's libstdc++ preferred and once under a debugger.
       - name: Dump Swift crash diagnostics
         if: failure()
         run: |
@@ -44,21 +46,19 @@ jobs:
           tail -c 2000 out/test-results/swift.jsonl 2>/dev/null || echo '(no swift.jsonl)'
           echo '--- kernel segfault records ---'
           sudo dmesg | grep -i segfault | tail -6 || true
-          echo '--- dynamic linker resolution ---'
-          ldd .build/debug/BoringSwiftTests 2>/dev/null | grep -i -E 'swift|dispatch|stdc|not found' || true
-          echo '--- address space and core dump setup ---'
-          cat /proc/sys/kernel/randomize_va_space
-          cat /proc/sys/kernel/core_pattern
-          ulimit -c
-          echo '--- core file backtrace ---'
-          CORE="$(ls -t core* 2>/dev/null | head -1)"
-          if [ -n "$CORE" ]; then
-            command -v gdb >/dev/null && gdb -batch -ex 'bt 15' ./.build/debug/BoringSwiftTests "$CORE" 2>&1 | tail -30 || echo '(gdb unavailable)'
-          else
-            echo '(no core file in workspace)'
-            echo '--- rerun under gdb for a live backtrace ---'
-            nix develop -c bash -c 'command -v gdb >/dev/null && gdb -batch -ex "run > /dev/null 2>&1" -ex "bt 15" --args ./.build/debug/BoringSwiftTests' 2>&1 | tail -30 || true
-          fi
+          echo '--- rerun with nix closure libstdc++ preferred ---'
+          nix develop -c bash -c '
+            GCCLIB="$(nix-store -qR "$(nix build .#devShells.x86_64-linux.default --no-link --print-out-paths)" | grep -E "gcc-[0-9.]+-lib$" | head -1)"
+            echo "gcc lib dir: $GCCLIB"
+            if [ -n "$GCCLIB" ]; then
+              LD_LIBRARY_PATH="$GCCLIB/lib:$BORING_SWIFT_LIBDISPATCH" ./.build/debug/BoringSwiftTests > /tmp/probe.jsonl 2>&1
+              echo "probe rc=$? jsonl bytes=$(wc -c < /tmp/probe.jsonl)"
+              tail -c 400 /tmp/probe.jsonl
+            fi
+          ' || true
+          echo '--- backtrace under gdb ---'
+          (sudo apt-get update -qq && sudo apt-get install -y -qq gdb >/dev/null 2>&1) || true
+          nix develop -c bash -c 'command -v gdb >/dev/null 2>&1 || exit 0; gdb -batch -ex "run > /dev/null 2>&1" -ex "bt 20" -ex "x/6i \$rip" --args ./.build/debug/BoringSwiftTests' 2>&1 | tail -50 || true
       - name: Export nix closure
         if: always()
         run: nix-store --export $(nix-store -qR $(nix build .#devShells.x86_64-linux.default --no-link --print-out-paths)) > nix-closure.nar
@@ -147,3 +147,41 @@ jobs:
           echo '--- failing records in out/test-results/swift.jsonl ---'
           wc -l out/test-results/swift.jsonl 2>/dev/null || echo '(no swift.jsonl)'
           grep -v '"verdict":"pass"' out/test-results/swift.jsonl 2>/dev/null | tail -40 || echo '(all records pass)'
+      # envRoundTrip and pathExpandHome report that a value written with
+      # _putenv_s is not visible to getenv in the same process, which the
+      # CRT pair should guarantee; this standalone probe reproduces the
+      # sequence outside the SwiftPM test binary to pin which layer loses
+      # the write.
+      - name: Probe CRT environment visibility
+        if: failure()
+        run: |
+          cat > envprobe.swift <<'EOF'
+          import MSVCRT
+
+          if let v = getenv("PROBE_FROM_BASH") {
+              print("getenv PROBE_FROM_BASH: \(String(cString: v))")
+          } else {
+              print("getenv PROBE_FROM_BASH: nil")
+          }
+          if let v = getenv("HOME") {
+              print("getenv HOME: \(String(cString: v))")
+          } else {
+              print("getenv HOME: nil")
+          }
+          let rc = _putenv_s("PROBE_KEY", "probe_value")
+          print("_putenv_s rc: \(rc)")
+          if let v = getenv("PROBE_KEY") {
+              print("getenv PROBE_KEY after set: \(String(cString: v))")
+          } else {
+              print("getenv PROBE_KEY after set: nil")
+          }
+          _ = system("echo child sees PROBE_KEY=%PROBE_KEY%")
+          let rc2 = _putenv("PROBE_KEY=")
+          print("_putenv remove rc: \(rc2)")
+          if let v = getenv("PROBE_KEY") {
+              print("getenv PROBE_KEY after remove: \(String(cString: v))")
+          } else {
+              print("getenv PROBE_KEY after remove: nil")
+          }
+          EOF
+          swiftc envprobe.swift -o envprobe.exe && PROBE_FROM_BASH=bashvalue ./envprobe.exe
