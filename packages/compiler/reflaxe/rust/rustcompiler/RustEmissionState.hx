@@ -28,6 +28,15 @@ class RustEmissionState {
     public final structTypedefs:Map<String, {module:String, name:String}> = [];
 
     /**
+        Synthetic abstract-implementation classes whose statics a generated
+        reference names (`Name_Impl_::field`). A sub-type abstract's non-inline
+        statics lower to its `_Impl_`, so `compileClassImpl` must emit the
+        referenced `_Impl_` even though ordinary synthetic impls never reach
+        the output (features/49).
+    **/
+    public final referencedImpls:Map<String, Bool> = [];
+
+    /**
         Private static functions reachable from emitted code, keyed by
         "<module>.<field>". Haxe's @:keep on whole registry classes forces
         uncalled private statics into the output where rustc reports them
