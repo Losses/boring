@@ -210,6 +210,14 @@ class DartDecl {
 
     function dataClassComparator(cls:ClassType):String {
         final lines = ["int compare" + cls.name + "(" + cls.name + " a, " + cls.name + " b) {"];
+        function comparatorRef(elem:ClassType):String {
+            // The element comparator lives at module level in its own
+            // library. A cross-module reference needs the library prefix
+            // (imports.value) so the generated call resolves
+            // (features/49: ReadOnlyArray element member access).
+            final prefix = imports.value(elem.module, "compare" + elem.name);
+            return prefix.length > 0 ? prefix + ".compare" + elem.name : "compare" + elem.name;
+        }
         for (f in [
             for (x in cls.fields.get())
                 if (switch (x.kind) {
@@ -269,7 +277,7 @@ class DartDecl {
                         case TInst(c,
                             _) if (c.get()
                                 .meta.has(":dataClass")): lines.push("  for (var i = 0; i < a." + f.name + ".length && i < b." + f.name
-                                + ".length; i++) { final cmp = compare" + c.get().name + "(a." + f.name + "[i], b." + f.name
+                                + ".length; i++) { final cmp = " + comparatorRef(c.get()) + "(a." + f.name + "[i], b." + f.name
                                 + "[i]); if (cmp != 0) return cmp; }");
                         case _: lines.push("  for (var i = 0; i < a." + f.name + ".length && i < b." + f.name + ".length; i++) { final cmp = a." + f.name
                                 + "[i].compareTo(b." + f.name + "[i]); if (cmp != 0) return cmp; }");
@@ -285,7 +293,7 @@ class DartDecl {
                     lines.push("  final cmp" + f.name + " = a." + f.name + ".compareTo(b." + f.name + "); if (cmp" + f.name + " != 0) return cmp" + f.name
                         + ";");
                 case TInst(c, _) if (c.get().meta.has(":dataClass")):
-                    lines.push("  final cmp" + f.name + " = compare" + c.get().name + "(a." + f.name + ", b." + f.name + "); if (cmp" + f.name
+                    lines.push("  final cmp" + f.name + " = " + comparatorRef(c.get()) + "(a." + f.name + ", b." + f.name + "); if (cmp" + f.name
                         + " != 0) return cmp" + f.name + ";");
                 case TEnum(e, _):
                     final en = e.get();
