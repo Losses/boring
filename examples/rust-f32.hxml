@@ -122,7 +122,9 @@ tests.ValueTypeTests
 boring.PrintedCollection
 tests.PrintedCollectionTests
 boring.PrintedEnumOps
+boring.StdStringSelfRecOps
 tests.PrintedEnumTests
+tests.StdStringSelfRecTests
 boring.PrintedSortedFields
 tests.PrintedSortedFieldsTests
 boring.SealedVariantOps

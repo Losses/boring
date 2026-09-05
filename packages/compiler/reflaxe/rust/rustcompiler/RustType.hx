@@ -23,6 +23,15 @@ class RustType {
         this.state = state;
     }
 
+    public function recursiveEnumField(t:Type, root:EnumType):String {
+        return switch (Context.follow(t)) {
+            case TEnum(e, _) if (e.get().module == root.module && e.get().name == root.name): "Box<" + root.name + ">";
+            case TInst(c, [element]) if (c.get().name == "Array"): "Vec<" + of(element) + ">";
+            case TAbstract(a, params) if (a.get().name == "Null" && params.length == 1): "Option<" + recursiveEnumField(params[0], root) + ">";
+            case _: of(t);
+        };
+    }
+
     public function of(t:Null<Type>, isParam:Bool = false):String {
         if (t == null) {
             return "()";
