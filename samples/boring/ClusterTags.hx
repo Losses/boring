@@ -117,4 +117,22 @@ class ClusterTags {
         }
         return parts.join("; ");
     }
+
+    // The loop bound is a size() call inside a function with no error enum;
+    // the rust target widens the u32 bound to usize with no failure path.
+    public static function setScores():Array<Int> {
+        final set = createSet();
+        final scores = new Array<Int>();
+        for (i in 0...set.size())
+            scores.push(set.at(i).score);
+        return scores;
+    }
+
+    public static function describeScores():String {
+        final scores = setScores();
+        final parts = new Array<String>();
+        for (i in 0...scores.length)
+            parts.push(Std.string(scores[i]));
+        return parts.join(",");
+    }
 }

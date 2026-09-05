@@ -1994,6 +1994,11 @@ class RustExpr {
                 return expr(subj) + ".len()";
             case _:
                 if (errorTypeName == null || countOverflowVariant == null) {
+                    // Haxe Int is u32; the T3 index form widens it to usize
+                    // infallibly, so an Int bound in a function without an
+                    // error enum needs no overflow variant.
+                    if (isIntType(bound.t))
+                        return usizeIndex(expr(bound));
                     Context.error("cannot lower fallible capacity expression: missing error enum or overflow variant", bound.pos);
                     return "0";
                 }
