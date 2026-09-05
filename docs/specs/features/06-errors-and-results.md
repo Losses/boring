@@ -364,6 +364,26 @@ so a wrapper that converts reader faults to its own domain lowers as
 an infallible-to-the-caller function only when no uncaught domain
 escapes it.
 
+### Capacity bounds on the Rust target
+
+An array built by a tight `push` loop reserves its capacity with
+`Vec::with_capacity` before the loop. The bound lowers by shape:
+
+- A constant bound lowers as a literal.
+- A `.length` bound lowers as `.len()` on the receiver.
+- Any other bound inside a function whose error domain declares a
+  count-overflow variant lowers as
+  `usize::try_from(bound).map_err(|_| Error::CountOverflow)?`; the
+  reference example is `reference/rust/src/lib.rs`
+  (`usize::try_from(count).map_err(|_| VectorError::CountOverflow)?`).
+- Any other Haxe `Int` bound inside a function with no error domain
+  lowers as `usize::try_from(bound).unwrap_or(0)`, the same infallible
+  T3 index form the backend uses for Haxe `Int` index positions. Haxe
+  `Int` maps to `u32` on the Rust target and `usize::try_from(u32)`
+  succeeds on every supported target, so the `unwrap_or(0)` arm is
+  unreachable and a reserved capacity of zero stays a valid hint. A
+  non-`Int` bound in a no-error-domain function stays rejected.
+
 Messages are display text derived from the variant at construction time. No consumer discriminates a failure by reading or matching a message string; tests assert variant identity, never message content. Adding a failure mode adds one variant to every tree in the same commit, and the exhaustiveness checking of `docs/specs/features/01-enums-and-pattern-matching.md` fails the build of any tree whose handling was not extended.
 
 Kotlin `runCatching` and catch-all `Result` returns are banned in codec code because they capture programming errors alongside domain failures. Rust panic and `Box<dyn Error>` returns are banned for the reasons in the judgment table.

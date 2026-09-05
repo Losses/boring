@@ -92,6 +92,8 @@ class SortedKeyDomainTests {
     public static function testStructureSetOperations():Void {
         final expected = "alpha:10:1:F; alpha:20:2:F; beta:10:1:T";
         Test.equals(expected, ClusterTags.describeSetOrder(), "SortedSet deduplicated elements match expected order");
+        Test.equals("10,20,10", ClusterTags.describeScores(), "indexed size() loop collects the scores in set order");
+        Test.equals(3, ClusterTags.setScores().length, "score array length matches set size");
 
         final set = ClusterTags.createSet();
         Test.equals(3, set.size(), "set size after deduplication");
