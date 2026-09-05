@@ -6,9 +6,28 @@
 // declaration renders public. The swift-system dependency (pinned to
 // the Swift 5 compatible line) backs the std.Fs host helpers of the
 // generated files; the f32 variant is a second tree with its own module.
+import Foundation
 import PackageDescription
 
 let swiftSystem = Target.Dependency.product(name: "SystemPackage", package: "swift-system")
+
+// The nix devShell exports BORING_SWIFT_DYNAMIC_LINKER on Linux so the
+// test executables record the closure's own loader as their interpreter.
+// The FHS toolchain otherwise leaves a generic /lib64 interpreter while
+// the RUNPATH resolves libc to the nix glibc, and a host with an older
+// system loader (ubuntu-24.04 runners carry 2.39) then drives the newer
+// libc and crashes before main. The variable is unset on macOS and
+// Windows, where the flag has no meaning and the manifest evaluates to
+// no linker settings. The pin lives here rather than in the package.json
+// script: bun runs scripts through its own shell on Windows, which does
+// not parse the ${VAR:+...} expansion a shell-level conditional needs.
+let pinnedLoader = ProcessInfo.processInfo.environment["BORING_SWIFT_DYNAMIC_LINKER"]
+let loaderLinkerSettings: [LinkerSetting]
+if let pinnedLoader {
+    loaderLinkerSettings = [.unsafeFlags(["-Xlinker", "-dynamic-linker", "-Xlinker", pinnedLoader])]
+} else {
+    loaderLinkerSettings = []
+}
 
 let package = Package(
     name: "boring",
@@ -32,13 +51,15 @@ let package = Package(
             name: "BoringSwiftTests",
             dependencies: ["Codec", swiftSystem],
             path: "reference/swift/gen-tests",
-            swiftSettings: [.swiftLanguageMode(.v5)]
+            swiftSettings: [.swiftLanguageMode(.v5)],
+            linkerSettings: loaderLinkerSettings
         ),
         .executableTarget(
             name: "VectorSwiftTests",
             dependencies: ["Codec", swiftSystem],
             path: "tests/swift",
-            swiftSettings: [.swiftLanguageMode(.v5)]
+            swiftSettings: [.swiftLanguageMode(.v5)],
+            linkerSettings: loaderLinkerSettings
         ),
         .target(
             name: "CodecF32",
@@ -51,13 +72,15 @@ let package = Package(
             name: "BoringSwiftTestsF32",
             dependencies: ["CodecF32", swiftSystem],
             path: "reference/swift-f32/gen-tests",
-            swiftSettings: [.swiftLanguageMode(.v5)]
+            swiftSettings: [.swiftLanguageMode(.v5)],
+            linkerSettings: loaderLinkerSettings
         ),
         .executableTarget(
             name: "VectorSwiftTestsF32",
             dependencies: ["CodecF32", swiftSystem],
             path: "tests/swift-f32",
-            swiftSettings: [.swiftLanguageMode(.v5)]
+            swiftSettings: [.swiftLanguageMode(.v5)],
+            linkerSettings: loaderLinkerSettings
         ),
         // The stdlib/17 Windows-arm typecheck probe: the canImport
         // (MSVCRT) and canImport(WinSDK) arm bodies compile on Linux
@@ -66,7 +89,8 @@ let package = Package(
             name: "WindowsProbeSwiftTests",
             dependencies: [],
             path: "tests/swift-windows-probe",
-            swiftSettings: [.swiftLanguageMode(.v5)]
+            swiftSettings: [.swiftLanguageMode(.v5)],
+            linkerSettings: loaderLinkerSettings
         ),
     ]
 )
