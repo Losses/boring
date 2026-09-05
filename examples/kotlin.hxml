@@ -153,9 +153,11 @@ boring.NumberParsingOps
 tests.NumberParsingTests
 boring.NumberClassifyOps
 boring.MathMinMaxOps
+boring.SwitchOps
 tests.NumberClassifyTests
 tests.MathMinMaxTests
 tests.ArrayRootTests
+tests.SwitchOpsTests
 
 registry.Core
 registry.CoreFault

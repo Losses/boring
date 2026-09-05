@@ -3505,24 +3505,30 @@ class SwiftExpr {
         bindings; exhaustive cases need no default arm.
     **/
     function isSwitch(e:TypedExpr):Bool {
-        return switch (stripWrap(e).expr) { case TSwitch(_, _, _): true; case _: false; };
+        return switch (stripWrap(e).expr) {
+            case TSwitch(_, _, _): true;
+            case _: false;
+        };
     }
 
     function switchBindingLines(v:TVar, sw:TypedExpr, depth:Int):Array<String> {
-        return [indent(depth) + (mutated.exists(v.id) ? "var " : "let ") + localName(v) + " = " + switchExpression(sw)];
+        return [
+            indent(depth) + (mutated.exists(v.id) ? "var " : "let ") + localName(v) + " = " + switchExpression(sw)
+        ];
     }
 
     function switchStatement(sw:TypedExpr, depth:Int):Array<String> {
-        final lines = switchReturn(sw, depth);
+        final lines = switchReturn(sw, depth, true);
         for (i in 0...lines.length) {
             final p = lines[i].indexOf("return ");
-            if (p >= 0) lines[i] = lines[i].substr(0, p) + lines[i].substr(p + 7);
+            if (p >= 0)
+                lines[i] = lines[i].substr(0, p) + lines[i].substr(p + 7);
         }
         return lines;
     }
 
     function switchAssign(target:TypedExpr, sw:TypedExpr, depth:Int):Array<String> {
-        final lines = switchReturn(sw, depth);
+        final lines = switchReturn(sw, depth, true);
         final marker = indent(depth + 2) + "return ";
         for (i in 0...lines.length)
             if (StringTools.startsWith(lines[i], marker))
@@ -3532,31 +3538,78 @@ class SwiftExpr {
 
     function switchExpression(sw:TypedExpr):String {
         sw = stripWrap(sw);
-        final parts = switch (sw.expr) { case TSwitch(subj, cases, def): {subj: subj, cases: cases, def: def}; case _: return fail(sw, "not a switch"); };
+        final parts = switch (sw.expr) {
+            case TSwitch(subj, cases, def): {subj: subj, cases: cases, def: def};
+            case _: return fail(sw, "not a switch");
+        };
         final subj = stripWrap(parts.subj);
-        final se = switch (subj.expr) { case TEnumIndex(inner): inner; case _: subj; };
+        final se = switch (subj.expr) {
+            case TEnumIndex(inner): inner;
+            case _: subj;
+        };
         final table = enumTable(se);
         final out = ["switch " + expr(se) + " {"];
         for (c in parts.cases) {
-            final index = switch (c.values[0].expr) { case TConst(TInt(v)): v; case _: return fail(sw, "variant switch case is not a constant index"); };
+            final index = switch (c.values[0].expr) {
+                case TConst(TInt(v)): v;
+                case _: return fail(sw, "variant switch case is not a constant index");
+            };
             final info = table.get(index);
-            if (info == null) return fail(sw, "variant switch case index has no construct");
+            if (info == null)
+                return fail(sw, "variant switch case index has no construct");
             final names = payloadNames(info.field);
             final used = usedPayloadIndices(c.expr, info.field);
-            final bindings = [for (i in 0...names.length) used.indexOf(i) >= 0 ? "let " + names[i] : "_"].join(", ");
+            final bindings = [
+                for (i in 0...names.length)
+                    used.indexOf(i) >= 0 ? "let " + payloadBindingName(info.field, i) : "_"
+            ].join(", ");
             out.push("case ." + SwiftDecl.lowerFirst(info.name) + (names.length > 0 ? "(" + bindings + ")" : "") + ": " + armValue(c.expr));
         }
-        if (parts.def != null) out.push("default: " + armValue(parts.def));
+        if (parts.def != null)
+            out.push("default: " + armValue(parts.def));
         out.push("}");
         return out.join("\n");
     }
 
     function armValue(e:TypedExpr):String {
+        // Expression-position arms may contain a block that introduces the
+        // typer's hidden payload locals. Register the same substitutions used
+        // by statement-position arms before rendering that block; otherwise
+        // its forwarding local is emitted as an undeclared name such as _g.
+        function prepare(stmts:Array<TypedExpr>) {
+            for (s in stmts) {
+                switch (s.expr) {
+                    case TVar(v, init) if (init != null):
+                        switch (stripWrap(init).expr) {
+                            case TEnumParameter(_, ef, index):
+                                subst.set(v.id, payloadBindingName(ef, index));
+                            case TLocal(source) if (subst.exists(source.id)):
+                                subst.set(v.id, subst.get(source.id));
+                            case _:
+                        }
+                    case _:
+                }
+                TypedExprTools.iter(s, function(child) {
+                    switch (child.expr) {
+                        case TVar(v, init) if (init != null):
+                            switch (stripWrap(init).expr) {
+                                case TEnumParameter(_, ef, index):
+                                    subst.set(v.id, payloadBindingName(ef, index));
+                                case TLocal(source) if (subst.exists(source.id)):
+                                    subst.set(v.id, subst.get(source.id));
+                                case _:
+                            }
+                        case _:
+                    }
+                });
+            }
+        }
+        prepare(statementsOf(e));
         final ss = statementsOf(e);
         return expr(ss[ss.length - 1]);
     }
 
-    function switchReturn(sw:TypedExpr, depth:Int):Array<String> {
+    function switchReturn(sw:TypedExpr, depth:Int, reservedPayloadNames:Bool = false):Array<String> {
         final switchParts = switch (sw.expr) {
             case TSwitch(subj, cases, def): {subj: subj, cases: cases, def: def};
             case _: return fail(sw, "not a switch");
@@ -3580,9 +3633,11 @@ class SwiftExpr {
             }
             final names = payloadNames(info.field);
             final used = usedPayloadIndices(c.expr, info.field);
-            final bindings = [for (i in 0...names.length) used.indexOf(i) >= 0 ? "let " + names[i] : "_"].join(", ");
+            final bindings = [
+                for (i in 0...names.length) used.indexOf(i) >= 0 ? "let " + (reservedPayloadNames ? payloadBindingName(info.field, i) : names[i]) : "_"
+            ].join(", ");
             out.push(indent(depth + 1) + "case ." + SwiftDecl.lowerFirst(info.name) + (names.length > 0 ? "(" + bindings + ")" : "") + ":");
-            for (l in armLines(c.expr, depth + 2))
+            for (l in armLines(c.expr, depth + 2, reservedPayloadNames))
                 out.push(l);
         }
         if (switchParts.def != null) {
@@ -3592,7 +3647,7 @@ class SwiftExpr {
         return out;
     }
 
-    function armLines(e:TypedExpr, depth:Int):Array<String> {
+    function armLines(e:TypedExpr, depth:Int, reservedPayloadNames:Bool = false):Array<String> {
         final out:Array<String> = [];
         var value:Null<String> = null;
         function walk(stmts:Array<TypedExpr>) {
@@ -3604,7 +3659,7 @@ class SwiftExpr {
                         }
                         switch (stripWrap(init).expr) {
                             case TEnumParameter(se, ef, index):
-                                subst.set(v.id, payloadName(ef, index));
+                                subst.set(v.id, reservedPayloadNames ? payloadBindingName(ef, index) : payloadName(ef, index));
                             case TLocal(source) if (subst.exists(source.id)):
                                 // The typer binds the switch subject to a hidden
                                 // local before extracting the payload; forward
@@ -3701,6 +3756,10 @@ class SwiftExpr {
             }
         }
         return used;
+    }
+
+    function payloadBindingName(ef:EnumField, index:Int):String {
+        return "_p" + index;
     }
 
     function payloadName(ef:EnumField, index:Int):String {

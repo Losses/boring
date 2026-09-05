@@ -97,7 +97,9 @@ boring.PlainLabel
 boring.ToStringOps
 tests.ToStringTests
 boring.EnumQueriesOps
+boring.SwitchOps
 tests.EnumQueriesTests
+tests.SwitchOpsTests
 tests.EnumQueriesProbes
 boring.StdStringOps
 tests.StdStringTests
