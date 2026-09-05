@@ -1479,7 +1479,7 @@ class RustDecl {
     function resolveErrorOwner(f:ClassFuncData, cls:ClassType):{name:String, module:String, hasOverflow:Bool} {
         final key = RustEmissionState.funcKey(f.classType.module, f.field.name, f.isStatic);
         final syntheticType = state.funcErrorTypes.get(key);
-        if (syntheticType != null) {
+        if (syntheticType != null && state.isSyntheticErrorType(syntheticType.name)) {
             return {name: syntheticType.name, module: syntheticType.module, hasOverflow: false};
         }
         if (state.funcEnumConflicts.exists(key)) {

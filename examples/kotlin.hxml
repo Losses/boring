@@ -168,6 +168,7 @@ tests.RegistryParseArgsTests
 boring.ArrayIterationOps
 boring.SortedDataClassKeysOps
 boring.PlatformOps
+tests.ExpressionBlockTests
 tests.RustUnionFaultTests
 tests.PlatformModulesTestSupport
 tests.PlatformModulesTests

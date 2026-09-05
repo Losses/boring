@@ -68,13 +68,30 @@ class RustEmissionState {
 
     /** Synthetic union members, grouped by owning Haxe module. */
     public final syntheticErrorEnums:Map<String, Array<{name:String, members:Array<{module:String, name:String}>}>> = [];
+
+    public final syntheticErrorVariants:Map<String, Map<String, String>> = [];
+
     public final emittedSyntheticErrorModules:Map<String, Bool> = [];
 
     public function isSyntheticErrorType(name:String):Bool {
         for (decls in syntheticErrorEnums)
             for (decl in decls)
-                if (decl.name == name) return true;
+                if (decl.name == name)
+                    return true;
         return false;
+    }
+
+    public function syntheticErrorMembers(name:String):Null<Array<{module:String, name:String}>> {
+        for (decls in syntheticErrorEnums)
+            for (decl in decls)
+                if (decl.name == name)
+                    return decl.members;
+        return null;
+    }
+
+    public function syntheticErrorVariant(name:String, member:{module:String, name:String}):Null<String> {
+        final variants = syntheticErrorVariants.get(name);
+        return variants == null ? null : variants.get(member.module + "::" + member.name);
     }
 
     public final recordCloneTypes:Map<String, Bool> = [];

@@ -9,19 +9,28 @@ enum remains unchanged.
 ## Union synthesis
 
 For a conflicting function, the emitter creates one enum named from the owning
-class and function, ending in `Fault` (for example `RunnerLoadFault`). Each
-reachable payload enum contributes one variant named `<Payload>Fault`, carrying
-an owned instance of that enum. The function returns `Result<T, RunnerLoadFault>`.
+class and function, ending in `Fault` (for example `RunnerLoadFault`). The
+function portion uses UpperCamelCase (`through_calls` becomes `ThroughCalls`),
+so generated Rust names never contain an underscored function fragment. Each
+reachable payload type contributes one variant named `<Payload>Fault`, carrying
+an owned instance of that type. A synthetic union is itself one payload type
+when it reaches another caller. The function returns `Result<T, RunnerLoadFault>`.
 The declaration is emitted in the function's Haxe module and is private to the
 generated Rust module boundary through ordinary imports.
 
-Direct `throw` expressions are wrapped at the throw site. A call edge whose
-callee error type differs from the caller's union is wrapped with
-`map_err(|e| RunnerLoadFault::<Payload>Fault(e))`. This is value-based and does
-not use a trait object.
+Direct `throw` expressions are wrapped at the throw site. Call propagation
+uses the complete error type and its module metadata:
 
-The same analysis is propagated to a fixed point. Therefore a caller of a union
-function can itself form a union, including a union as one of its payloads.
+- If the caller's reachable error set has one member, its error type is that
+  member and the call edge emits only `?`, including when that member is a
+  synthetic union.
+- If the caller's set has two or more members, the caller gets its own union;
+  each member gets one `<Payload>Fault` variant, and a callee union remains a
+  union payload. The call edge uses `map_err` into the matching caller variant.
+
+This is value-based and does not use a trait object. The same analysis is
+propagated to a fixed point, so a caller of a union function can itself form a
+union, including a union as one of its payloads.
 
 ## Catch boundary
 
