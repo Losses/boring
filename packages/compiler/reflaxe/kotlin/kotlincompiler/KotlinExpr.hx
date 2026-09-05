@@ -2545,6 +2545,20 @@ class KotlinExpr {
         };
     }
 
+    function constructorParams(cls:ClassType):Array<Type> {
+        if (cls.constructor != null)
+            return switch (Context.follow(cls.constructor.get().type)) {
+                case TFun(values, _): [for (v in values) v.t];
+                case _: [];
+            };
+        if (cls.init != null)
+            return switch (Context.follow(cls.init.t)) {
+                case TFun(values, _): [for (v in values) v.t];
+                case _: [];
+            };
+        return [];
+    }
+
     function functionLiteralNamed(name:String, f:TFunc):String {
         final previous = currentLocalName;
         currentLocalName = name;
@@ -2558,7 +2572,7 @@ class KotlinExpr {
         final valueType = ValueTypeSupport.markedAbstractOfClass(cls);
         if (valueType != null)
             return args.length == 0 ? valueType.name : valueType.name + "(" + expr(args[0]) + ")";
-        final renderedArgs = [for (a in args) expr(a)].join(", ");
+        final renderedArgs = renderCallArgs(args, constructorParams(cls)).join(", ");
         final path = cls.pack.length == 0 ? cls.name : cls.pack.join(".") + "." + cls.name;
         switch (path) {
             case "std.StringBuf" | "StringBuf":
