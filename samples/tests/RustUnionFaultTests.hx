@@ -15,8 +15,8 @@ class RustUnionFaultTests {
 }
 
 private class RustUnionFaultSupport {
-    public static function directBoth():Int {
-        if (true)
+    public static function directBoth(flag:Bool):Int {
+        if (flag)
             throw new VectorException(VectorError.BadMagic);
         throw new CoreException(CoreFault.Config("core"));
     }
@@ -29,13 +29,19 @@ private class RustUnionFaultSupport {
         throw new CoreException(CoreFault.Tree("tree"));
     }
 
-    public static function throughCalls():Int {
-        if (true)
+    public static function throughCalls(flag:Bool):Int {
+        if (flag)
             return vectorPath();
         return corePath();
     }
 
-    public static function secondCaller():Int {
-        return throughCalls();
+    public static function secondCaller(flag:Bool):Int {
+        return throughCalls(flag);
+    }
+
+    public static function mixedCaller(flag:Bool):Int {
+        if (flag)
+            return throughCalls(flag);
+        throw new VectorException(VectorError.BadMagic);
     }
 }

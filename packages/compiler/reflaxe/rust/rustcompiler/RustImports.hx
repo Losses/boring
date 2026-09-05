@@ -126,6 +126,13 @@ class RustImports {
         return toSnakeCase(s).toUpperCase();
     }
 
+    public static function toUpperCamelCase(s:String):String {
+        return [
+            for (part in toSnakeCase(s).split("_"))
+                if (part.length > 0) part.charAt(0).toUpperCase() + part.substr(1)
+        ].join("");
+    }
+
     public static function toSnakeCase(s:String):String {
         if (s == null || s.length == 0) {
             return s;
