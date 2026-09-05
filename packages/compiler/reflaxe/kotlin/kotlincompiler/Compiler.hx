@@ -43,12 +43,19 @@ class Compiler extends PluginCompiler<Compiler> {
         // consumer source reaches: the stdlib/08 string-buffer fault
         // throws std.UStringException, the test host entry calls
         // Test.run, and non-concat float stringification routes through
-        // runtime.TestCore. Typing them here keeps every Kotlin build,
-        // including consumer builds whose entry list omits them, able
-        // to emit them on demand; `keep` alone cannot do this because
-        // it only protects an already-typed module from DCE.
+        // runtime.TestCore. Typing them here keeps every build that
+        // names a runtime package, including consumer builds whose
+        // entry list omits them, able to emit them on demand; `keep`
+        // alone cannot do this because it only protects an
+        // already-typed module from DCE.
         Context.getType("std.UStringException");
-        Context.getType("runtime.TestCore");
+        // TestCore is a resident module: compiling it derives its
+        // output package from `runtime-import`, and a build without
+        // that define cannot compile it. Skip the forced typing there;
+        // such a build has no way to reference the runtime package.
+        if (RuntimeConfig.importName() != null) {
+            Context.getType("runtime.TestCore");
+        }
         ReflectCompiler.AddCompiler(compiler, {
             fileOutputType: BaseCompilerFileOutputType.Manual,
             fileOutputExtension: ".kt",
@@ -570,7 +577,8 @@ class Compiler extends PluginCompiler<Compiler> {
                     // Guaranteed std modules register their payload fold
                     // in consumer builds too; the throw lowering reads
                     // the linkage in `exceptionPayloads`.
-                    if (cls.isExtern || isSyntheticImpl(cls.name)
+                    if (cls.isExtern
+                        || isSyntheticImpl(cls.name)
                         || (!inSourceScope(cls.pos) && !KotlinImports.isGuaranteedStdModule(cls.module))) {
                         continue;
                     }
