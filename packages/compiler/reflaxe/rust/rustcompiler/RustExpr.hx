@@ -5074,6 +5074,16 @@ class RustExpr {
             final argStr = expr(arg);
             if (i < paramTypes.length) {
                 final pt = paramTypes[i];
+                final registered = DefaultArgExpander.defaultAt(cls, "new", i);
+                if (registered != null && isNullLiteral(arg)) {
+                    final d = defaultArgText(registered, pt);
+                    out.push(isNullType(pt) ? "Some(" + d + ")" : d);
+                    continue;
+                }
+                if (registered != null && isNullType(arg.t)) {
+                    out.push("(" + argStr + ").unwrap_or(" + defaultArgText(registered, getNullInnerType(pt)) + ")");
+                    continue;
+                }
                 if (isNullType(pt) && isStringType(getNullInnerType(pt)) && isNullType(arg.t)) {
                     out.push(argStr + ".clone()");
                     continue;
@@ -5130,6 +5140,23 @@ class RustExpr {
         }
         return out.join(", ");
     }
+
+    function isNullLiteral(e:TypedExpr):Bool
+        return switch (stripWrap(e).expr) {
+            case TConst(TNull): true;
+            case _: false;
+        };
+
+    function defaultArgText(v:DefaultArgExpander.DefaultArgValue, t:Type):String
+        return switch (v) {
+            case VInt(x): Std.string(x);
+            case VFloat(x): x;
+            case VString(x): quoteString(x) + ".to_string()";
+            case VBool(x): x ? "true" : "false";
+            case VNull: "None";
+            case VEnum(e, f): e.get().name + "::" + RustImports.toSnakeCase(f.name);
+            case VCoalescing(x): coalescingDefaultText(x, t);
+        };
 
     function numericAssignmentValue(expected:Type, actual:TypedExpr, rendered:String, targetOverride:Null<String> = null):String {
         if (!isIntType(expected))
