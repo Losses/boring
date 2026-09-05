@@ -28,6 +28,13 @@ class KotlinEmissionState {
     /** Test classes compiled with their @:test methods. */
     public final testClasses:Map<String, {cls:ClassType, funcs:Array<String>}> = [];
 
+    /**
+        Guaranteed std modules that reached compilation only through the
+        scope bypass: they write no file unless generated output also
+        recorded a reference to them in `shimsUsed`.
+    **/
+    public final outOfScopeGuaranteedStd:Map<String, Bool> = [];
+
     public function new() {}
 }
 #end
