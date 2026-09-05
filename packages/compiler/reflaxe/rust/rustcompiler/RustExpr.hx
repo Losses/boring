@@ -4713,6 +4713,8 @@ class RustExpr {
                     return "(" + expr(args[0]) + ").is_nan()";
                 if (cls.module == "Math" && name == "isFinite")
                     return "(" + expr(args[0]) + ").is_finite()";
+                if (cls.module == "Math" && name == "abs")
+                    return "(" + mathFloatArg(args[0]) + ").abs()";
                 if (cls.module == "Math" && (name == "min" || name == "max") && args.length == 2)
                     return staticRef(cls, name) + "(" + mathFloatArg(args[0]) + ", " + mathFloatArg(args[1]) + ")";
                 if (cls.module == "Std" && name == "parseFloat") {

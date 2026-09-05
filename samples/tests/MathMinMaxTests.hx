@@ -23,4 +23,16 @@ class MathMinMaxTests {
         Test.equals(4.0, MathMinMaxOps.smallerOfInts(4, 9));
         Test.equals(9.0, MathMinMaxOps.largerOfInts(4, 9));
     }
+
+    @:test("Math.abs returns the absolute value of the float operand")
+    public static function absFloat():Void {
+        Test.equals(2.5, MathMinMaxOps.absValue(-2.5));
+        Test.equals(2.5, MathMinMaxOps.absValue(2.5));
+        Test.equals(0.0, MathMinMaxOps.absValue(-0.0));
+    }
+
+    @:test("Math.abs accepts an int operand through the float signature")
+    public static function absInt():Void {
+        Test.equals(7.0, MathMinMaxOps.absOfInts(7));
+    }
 }
