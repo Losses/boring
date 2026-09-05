@@ -115,17 +115,25 @@
         in
         {
           default = pkgs.mkShell {
-            packages = with pkgs; [
-              haxe
-              bun
-              nodejs_22
-              git
-              rustToolchain
-              kotlin
-              jdk21
-              clang
-              dart
-            ] ++ swiftPackages;
+            # darwin keeps clang from the system Xcode toolchain as well.
+            # stdenv puts its own clang wrapper on PATH regardless of this
+            # list, and that wrapper pins an apple-sdk too old for the
+            # default Xcode compiler, so the shellHook below exports CC to
+            # select the system clang instead; clang stays listed for the
+            # non-darwin shells only.
+            packages =
+              with pkgs; [
+                haxe
+                bun
+                nodejs_22
+                git
+                rustToolchain
+                kotlin
+                jdk21
+                dart
+              ]
+              ++ (if useDarwinSwift then [ ] else [ clang ])
+              ++ swiftPackages;
             shellHook = ''
               export HAXELIB_PATH="$PWD/.haxelib"
               mkdir -p "$HAXELIB_PATH"
@@ -146,7 +154,13 @@
                 if useLinuxSwift
                 then ''export BORING_SWIFT_LIBDISPATCH="${linuxSwift.passthru.libdispatch}"''
                 else if useDarwinSwift
-                then "# darwin: Swift comes from the system Xcode toolchain; LD_LIBRARY_PATH is unused on macOS"
+                then ''
+                  # darwin: Swift comes from the system Xcode toolchain;
+                  # LD_LIBRARY_PATH is unused on macOS. SwiftPM derives the
+                  # SDK from CC, so pin it to the system clang to avoid the
+                  # stdenv wrapper's outdated apple-sdk.
+                  export CC=/usr/bin/clang
+                ''
                 else ''export BORING_SWIFT_LIBDISPATCH="${pkgs.swift-corelibs-libdispatch}/lib"''
               }
             '';

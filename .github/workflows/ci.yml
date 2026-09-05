@@ -17,6 +17,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: DeterminateSystems/nix-installer-action@v17
+      # ubuntu 24.04 restricts unprivileged user namespaces via AppArmor,
+      # which blocks the bwrap sandbox of the Swift FHS wrapper; older
+      # images without this sysctl have no restriction to lift.
+      - name: Allow user namespaces for the Swift FHS wrapper
+        run: sudo sysctl kernel.apparmor_restrict_unprivileged_userns=0 || true
       - name: Restore nix closure
         uses: actions/cache@v4
         with:
@@ -67,26 +72,16 @@ jobs:
         run: |
           powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "irm bun.sh/install.ps1 | iex"
           echo "$HOME/.bun/bin" >> "$GITHUB_PATH"
-      - name: Restore Swift toolchain
-        id: swift-cache
-        uses: actions/cache@v4
-        with:
-          path: C:/Users/runner/AppData/Local/Programs/Swift
-          key: swift-6.1.2-windows10
+      # The Swift-on-Windows installer needs elevation and records its
+      # PATH entries in the registry rather than a fixed location, so
+      # installation and PATH discovery are left to the action; its
+      # cache input caches the installer download.
       - name: Install Swift
-        if: steps.swift-cache.outputs.cache-hit != 'true'
-        run: powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "\$url = 'https://download.swift.org/swift-6.1.2-release/windows10/swift-6.1.2-RELEASE/swift-6.1.2-RELEASE-windows10.exe'; Invoke-WebRequest -Uri \$url -OutFile swift-installer.exe; Start-Process .\\swift-installer.exe -ArgumentList '/quiet' -Wait"
-      - name: Add Swift to PATH
-        run: |
-          SWIFT_ROOT="$(cygpath -u "$LOCALAPPDATA")/Programs/Swift"
-          SWIFT_EXE="$(find "$SWIFT_ROOT" "/c/Program Files/Swift" -name swift.exe 2>/dev/null | head -1)"
-          if [ -z "$SWIFT_EXE" ]; then
-            echo "swift.exe not found under $SWIFT_ROOT or /c/Program Files/Swift" >&2
-            exit 1
-          fi
-          SWIFT_BIN="$(dirname "$SWIFT_EXE")"
-          echo "$SWIFT_BIN" >> "$GITHUB_PATH"
-          "$SWIFT_BIN/swift.exe" --version
+        uses: compnerd/gha-setup-swift@397094e75494
+        with:
+          swift-version: swift-6.1.2-release
+          swift-build: 6.1.2-RELEASE
+          cache: true
       - name: Install reflaxe and format
         run: |
           git clone https://github.com/SomeRanDev/reflaxe.git .reflaxe
