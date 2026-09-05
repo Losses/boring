@@ -10,10 +10,7 @@ import std.Test;
 class GlyphClusterTests {
     @:test("a data-class member reads off a ReadOnlyArray field element")
     public static function firstRange():Void {
-        final holder = new GlyphClusterHolder([
-            new GlyphCluster(3, 0, 4),
-            new GlyphCluster(7, 4, 8)
-        ]);
+        final holder = new GlyphClusterHolder([new GlyphCluster(3, 0, 4), new GlyphCluster(7, 4, 8)]);
         Test.equals(3, GlyphClusterReader.firstRange(holder));
     }
 
