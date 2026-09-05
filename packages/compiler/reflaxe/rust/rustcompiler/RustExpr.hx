@@ -3332,6 +3332,22 @@ class RustExpr {
         }
     }
 
+    /**
+        A Float-domain Math argument. The typer widens an Int operand to
+        the Float parameter implicitly; rust needs the explicit crossing.
+        A bare int literal stays as written because rust infers it into
+        the parameter type, keeping existing trees unchanged.
+    **/
+    function mathFloatArg(a:TypedExpr):String {
+        if (!isIntType(a.t)) {
+            return expr(a);
+        }
+        return switch (stripWrap(a).expr) {
+            case TConst(TInt(_)): expr(a);
+            case _: RustConversions.intToFloat(expr(a), FloatPrecision.isF32() ? "f32" : "f64");
+        };
+    }
+
     /** Folds an integer-constant cast to a typed literal, else renders the runtime cast. */
     function castArg(e:TypedExpr, ty:String):String {
         final folded = constantCast(e, ty);
@@ -4648,6 +4664,8 @@ class RustExpr {
                     return "(" + expr(args[0]) + ").is_nan()";
                 if (cls.module == "Math" && name == "isFinite")
                     return "(" + expr(args[0]) + ").is_finite()";
+                if (cls.module == "Math" && (name == "min" || name == "max") && args.length == 2)
+                    return staticRef(cls, name) + "(" + mathFloatArg(args[0]) + ", " + mathFloatArg(args[1]) + ")";
                 if (cls.module == "Std" && name == "parseFloat") {
                     final real = FloatPrecision.isF32() ? "f32" : "f64";
                     imports.require("crate::runtime::u_string");

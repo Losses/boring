@@ -1871,6 +1871,23 @@ class DartExpr {
         return rendered;
     }
 
+    /**
+        A Float-domain Math argument. The typer widens an Int operand to
+        the Float parameter implicitly; math.min and math.max infer their
+        type parameter from the double call context, which accepts an int
+        literal but not an int variable, so the variable crosses through
+        the explicit toDouble.
+    **/
+    function mathFloatArg(a:TypedExpr):String {
+        if (!isIntLeafType(a.t)) {
+            return expr(a);
+        }
+        return switch (stripWrap(a).expr) {
+            case TConst(TInt(_)): expr(a);
+            case _: "(" + expr(a) + ").toDouble()";
+        };
+    }
+
     /** A method receiver unwraps when the receiver expression is optional. */
     function receiverText(subj:TypedExpr):String {
         if (!optionalValued(subj)) {
@@ -2224,6 +2241,12 @@ class DartExpr {
                         case "sqrt":
                             imports.useDartMath();
                             return "math.sqrt(" + expr(args[0]) + ")";
+                        case "min":
+                            imports.useDartMath();
+                            return "math.min(" + mathFloatArg(args[0]) + ", " + mathFloatArg(args[1]) + ")";
+                        case "max":
+                            imports.useDartMath();
+                            return "math.max(" + mathFloatArg(args[0]) + ", " + mathFloatArg(args[1]) + ")";
                         case "isNaN": return "(" + expr(args[0]) + ").isNaN";
                         case "isFinite": return "(" + expr(args[0]) + ").isFinite";
                         case _:

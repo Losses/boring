@@ -2330,6 +2330,8 @@ class SwiftExpr {
                     return residentCall("Graphemes", args, fn);
                 }
                 if (module == "Math") {
+                    if ((fName == "min" || fName == "max") && args.length == 2)
+                        return fName + "(" + mathFloatArg(args[0]) + ", " + mathFloatArg(args[1]) + ")";
                     if (fName == "isNaN")
                         return "(" + expr(args[0]) + ").isNaN";
                     if (fName == "isFinite")
@@ -4115,6 +4117,24 @@ class SwiftExpr {
             case OpOr | OpXor | OpAnd | OpBoolAnd | OpBoolOr | OpAdd | OpMult: true;
             case _: false;
         }
+    }
+
+    /**
+        A Float-domain Math argument. The typer widens an Int operand to
+        the Float parameter implicitly; the generic min and max free
+        functions infer the operand type instead, so an int variable
+        crosses through the explicit Double initializer (Float under the
+        f32 configuration) while a bare int literal stays as written
+        because the call context converts it.
+    **/
+    function mathFloatArg(a:TypedExpr):String {
+        if (!isIntTyped(a)) {
+            return expr(a);
+        }
+        return switch (stripWrap(a).expr) {
+            case TConst(TInt(_)): expr(a);
+            case _: (FloatPrecision.isF32() ? "Float(" : "Double(") + expr(a) + ")";
+        };
     }
 
     function isIntTyped(e:TypedExpr):Bool {
