@@ -54,6 +54,27 @@ as compiled, would leave the target without its backing. Adding a
 runtime-backed module therefore means adding its name to each target's
 list, and this specification is amended together with that change.
 
+Emitter-synthesized references can name a compiled std module that no
+consumer source names: the string-buffer fault check throws
+`std.UStringException` wherever a buffer write runs (stdlib/08), so a
+consumer build must write that file even though its source scope
+excludes `samples/`. Kotlin carries a second named list for this shape,
+`KotlinImports.GUARANTEED_STD_MODULES`: `use()` types each listed module
+with `Context.getType` (typing is what the entry module list gives this
+repository's own builds; `haxe.macro.Compiler.keep` cannot substitute
+because it only protects an already-typed module from DCE), the class
+compiles past the source-scope filter, and the write step emits the
+file only when generated output recorded a reference to the module. A
+build whose output never named the module writes no file for it, so an
+in-scope build and a consumer build keep the same conditional shape.
+
+The test host follows the same rule from the other side. The `Test.run`
+call inside each generated test entry and the `runtime.TestCore`
+float-stringification call are emitter-synthesized, so both reference
+sites set the `std.Test` usage flag themselves; `use()` types
+`runtime.TestCore` the same way, and the resident writes beside the
+test host entry only when some generated output called into it.
+
 `reference/kotlin/gen/boring/BinaryWriter.kt` importing `haxe.io.BytesBuffer` and
 TypeScript files importing a runtime module by a path that walks out of
 their package directory were both defects of this rule and are removed.
