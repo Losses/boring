@@ -134,8 +134,9 @@ class RecordShape {
 
     /**
      * Builds the printed form for both the call-site macro and a synthesized
-     * member. Record-typed fields call their own member explicitly so each
-     * target uses the nested record's printed form.
+     * member. Record-typed fields and interface-typed fields whose interface
+     * declares toString call their own member explicitly so each target uses
+     * the value's printed form.
      */
     public static function assemble(receiver:Expr, shape:RecordShapeData):Expr {
         final open = shape.isClass ? shape.name + "(" : "{ ";
@@ -152,9 +153,10 @@ class RecordShape {
             final floatText = f32FloatFieldValue(fieldType, read, receiver.pos);
             final stage1Enum = stage1EnumFieldValue(fieldType, read, receiver.pos);
             final stage1Collection = stage1CollectionFieldValue(fieldType, read, receiver.pos);
-            final value = floatText != null ? floatText : isRecordType(fieldType) ? (isNullableType(fieldType) ? nullableRecordFieldValue(read,
-                receiver.pos) : memberCallValue(read,
-                    receiver.pos)) : stage1Enum != null ? stage1Enum : stage1Collection != null ? stage1Collection : (isCollectionType(fieldType)
+            final value = floatText != null ? floatText : isRecordType(fieldType)
+                || interfaceDeclaresToString(fieldType) ? (isNullableType(fieldType) ? nullableRecordFieldValue(read,
+                    receiver.pos) : memberCallValue(read,
+                        receiver.pos)) : stage1Enum != null ? stage1Enum : stage1Collection != null ? stage1Collection : (isCollectionType(fieldType)
                     || isEnumType(fieldType)) ? (isNullableType(fieldType) ? nullableStdStringValue(read,
                         receiver.pos) : stdStringValue(read, receiver.pos)) : read;
             out = {expr: EBinop(OpAdd, out, value), pos: receiver.pos};
@@ -163,21 +165,22 @@ class RecordShape {
     }
 
     /**
-     * The printed operand for one record-typed field. The field's own
-     * member supplies the text (feature spec 31); a nullable field wraps
-     * the call in an explicit null comparison.
+     * The printed operand for one record-typed field or interface-typed
+     * field with a declared toString. The field's own member supplies the
+     * text (feature spec 31); a nullable field wraps the call in an
+     * explicit null comparison.
      */
     static function memberCallValue(read:Expr, pos:Position):Expr {
         return {expr: ECall({expr: EField(read, "toString"), pos: pos}, []), pos: pos};
     }
 
     /**
-     * The printed operand for one nullable record-typed field. A null
-     * field prints "null" and a present field prints the field's own
-     * member text, the same two states the Kotlin data class synthesis
-     * prints. Non-nullable record fields read through the plain member
-     * call; Swift and Rust have no valid nil or None comparison for a
-     * non-optional operand.
+     * The printed operand for one nullable record-typed or
+     * interface-typed-with-toString field. A null field prints "null" and
+     * a present field prints the field's own member text, the same two
+     * states the Kotlin data class synthesis prints. Non-nullable fields
+     * read through the plain member call; Swift and Rust have no valid
+     * nil or None comparison for a non-optional operand.
      */
     static function nullableRecordFieldValue(read:Expr, pos:Position):Expr {
         final nullLiteral = {expr: EConst(CIdent("null")), pos: pos};
@@ -217,9 +220,13 @@ class RecordShape {
         } : fieldType;
         switch (Context.follow(inner)) {
             case TAbstract(a, _) if (a.get().name == "Float"):
-            case _: return null;
+            case _:
+                return null;
         }
-        final call = {expr: ECall({expr: EField({expr: EField({expr: EConst(CIdent("std")), pos: pos}, "FpText"), pos: pos}, "shortest"), pos: pos}, [read]), pos: pos};
+        final call = {
+            expr: ECall({expr: EField({expr: EField({expr: EConst(CIdent("std")), pos: pos}, "FpText"), pos: pos}, "shortest"), pos: pos}, [read]),
+            pos: pos
+        };
         if (!nullable) {
             return call;
         }
@@ -380,6 +387,37 @@ class RecordShape {
             case TInst(c, _): c.get().meta.has(":dataClass");
             case _: false;
         };
+    }
+
+    /**
+     * Whether the field's interface type declares the printed member
+     * directly (feature spec 31 amendment): a zero-argument toString
+     * returning String. Such a field prints through the interface's own
+     * member, the same member call a record-typed field uses.
+     */
+    static function interfaceDeclaresToString(type:Type):Bool {
+        final followed = Context.follow(type);
+        return switch (followed) {
+            case TInst(c, _) if (c.get().isInterface): interfaceDeclaresZeroArgStringToString(c.get());
+            case _: false;
+        };
+    }
+
+    static function interfaceDeclaresZeroArgStringToString(cls:ClassType):Bool {
+        for (field in cls.fields.get()) {
+            if (field.name != "toString") {
+                continue;
+            }
+            switch (Context.follow(field.type)) {
+                case TFun(args, ret) if (args.length == 0):
+                    return switch (Context.follow(ret)) {
+                        case TInst(c, _): c.get().name == "String";
+                        case _: false;
+                    };
+                case _:
+            }
+        }
+        return false;
     }
 
     public static function fieldNames(receiver:Expr, message:String):Array<String> {

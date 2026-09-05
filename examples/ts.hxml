@@ -149,6 +149,8 @@ boring.PrintedSortedFields
 tests.PrintedSortedFieldsTests
 boring.SealedVariantOps
 tests.SealedVariantTests
+boring.RecordInterfaceOps
+tests.RecordInterfaceOpsTests
 boring.ConstructedStateOps
 tests.ConstructedStateTests
 boring.ArrayRootStateOps
