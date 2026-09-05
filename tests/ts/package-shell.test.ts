@@ -258,7 +258,7 @@ describe("package shell emission", () => {
     // generated trees carry no manifest of their own.
     expect(fs.existsSync(path.join(REPO_ROOT, "reference/swift/gen/Package.swift"))).toBe(false);
     const swiftPackage = fs.readFileSync(path.join(REPO_ROOT, "Package.swift"), "utf8");
-    expect(swiftPackage).toContain('// swift-tools-version:5.9');
+    expect(swiftPackage).toContain('// swift-tools-version:6.0');
     expect(swiftPackage).toContain('.package(url: "https://github.com/apple/swift-system", exact: "1.6.6")');
     expect(swiftPackage).toContain('name: "Codec"');
     expect(swiftPackage).toContain('name: "BoringSwiftTests"');
