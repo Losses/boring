@@ -8,6 +8,7 @@ import reflaxe.data.ClassFuncArg;
 import reflaxe.data.ClassVarData;
 import reflaxe.data.EnumOptionData;
 import ValueTypeSupport;
+import PolicyQueries;
 import ValueTypeSupport.ValueTypeOperator;
 import ValueTypeSupport.ValueTypeInfo;
 
@@ -1287,28 +1288,11 @@ class KotlinDecl {
     }
 
     function isStructKeyCandidate(fields:Array<ClassField>):Bool {
-        for (f in fields) {
-            if (!isFieldKeyCandidate(f.type))
-                return false;
-        }
-        return true;
+        return PolicyQueries.isStructKeyCandidate(fields);
     }
 
     function isFieldKeyCandidate(t:Type):Bool {
-        return switch (t) {
-            case TAbstract(a, _): final n = a.get().name; n == "Int" || n == "Bool";
-            case TInst(c, _):
-                c.get().name == "String";
-            case TType(d, _):
-                switch (d.get().type) {
-                    case TAnonymous(anon):
-                        isStructKeyCandidate(anon.get().fields);
-                    case _: false;
-                }
-            case TLazy(fn):
-                isFieldKeyCandidate(fn());
-            case _: false;
-        };
+        return PolicyQueries.isFieldKeyCandidate(t);
     }
 }
 #end
