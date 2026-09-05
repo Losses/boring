@@ -77,7 +77,7 @@ jobs:
       # installation and PATH discovery are left to the action; its
       # cache input caches the installer download.
       - name: Install Swift
-        uses: compnerd/gha-setup-swift@397094e75494
+        uses: compnerd/gha-setup-swift@397094e75494a93fa8d81db0268dbc8f5d6cf7c6
         with:
           swift-version: swift-6.1.2-release
           swift-build: 6.1.2-RELEASE
