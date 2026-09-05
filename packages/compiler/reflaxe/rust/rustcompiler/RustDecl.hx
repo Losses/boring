@@ -209,7 +209,7 @@ class RustDecl {
             && classParams.length == 0) {
             lines.push("#[derive(Clone)]");
         }
-        if ((StaticFieldHelper.hasSelfConstructionStatic(cls) || cls.meta.has(":dataClass"))
+        if ((StaticFieldHelper.hasSelfConstructionStatic(cls) || cls.meta.has(":dataClass") || classParams.length > 0)
             && (classParams.length > 0 || isAllClone(varFields))) {
             lines.push("#[derive(Clone)]");
         }
@@ -2228,10 +2228,19 @@ class RustDecl {
 
     function isCloneType(t:Type):Bool {
         return switch (Context.follow(t)) {
-            case TAbstract(a, _): ["Int", "Bool", "Float"].indexOf(a.get().name) >= 0;
+            case TAbstract(a, params): // `follow` unwraps Null<T> but keeps plain abstracts, so
+                // ReadOnlyArray must recurse into its element type here.
+                (["Int", "Bool", "Float"].indexOf(a.get().name) >= 0
+                    && params.length == 0) || (a.get().name == "ReadOnlyArray" && params.length == 1 && isCloneType(params[0]));
+            case TEnum(_):
+                // Every generated enum derives Clone at its declaration
+                // site, so an enum-typed field keeps its owner's derive.
+                true;
             case TInst(c, params):
-                final n = c.get().name;
-                if (n == "String") true else if (n == "Array") params.length == 1 && isCloneType(params[0]) else false;
+                final cls = c.get();
+                final n = cls.name;
+                if (n == "String") true else if (n == "Array") params.length == 1 && isCloneType(params[0]) else if (cls.meta.has(":dataClass"))
+                    dataClassFieldsAllClone(cls, 0) else false;
             case TType(d, params): isCloneType(haxe.macro.TypeTools.applyTypeParameters(d.get().type, d.get().params, params));
             case TAnonymous(anon):
                 var all = true;
@@ -2241,6 +2250,27 @@ class RustDecl {
                 all;
             case _: false;
         };
+    }
+
+    /**
+        A nested data class keeps its owner's derive(Clone) when its own
+        instance fields are Clone-capable; the depth cap keeps a cyclic
+        alias chain from recursing forever.
+    **/
+    function dataClassFieldsAllClone(cls:ClassType, depth:Int):Bool {
+        if (depth > 8)
+            return false;
+        // `fields` lists instance members only; statics live on `statics`.
+        for (f in cls.fields.get()) {
+            switch (f.kind) {
+                case FMethod(_):
+                    continue;
+                case _:
+            }
+            if (!isCloneType(f.type))
+                return false;
+        }
+        return true;
     }
 
     function isAllCopy(fields:Array<ClassField>):Bool {
