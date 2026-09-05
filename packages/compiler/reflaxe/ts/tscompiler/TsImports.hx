@@ -262,6 +262,39 @@ class TsImports {
         return lines.length == 0 ? "" : lines.join("\n") + "\n";
     }
 
+    /** Top-level std.Fs helper declarations, keyed by helper name. */
+    final fsHelpers:Map<String, String> = [];
+
+    /**
+        Registers the top-level std.Fs lowering for one member
+        (stdlib/17) and returns its name. The helper is one named arrow
+        per used member at the file top, outside every loop body, so the
+        call site lowers to a plain call expression and no loop body
+        carries a closure. The loader probe stays inside the helper
+        body, so `node:fs` still loads lazily per call.
+    **/
+    public function fsHelper(member:String, source:String):String {
+        final name = "fs" + member.charAt(0).toUpperCase() + member.substring(1);
+        fsHelpers.set(name, source);
+        return name;
+    }
+
+    /** Renders the top-level std.Fs helper declarations, names sorted. */
+    public function renderFsHelpers():String {
+        final names = [];
+        for (name in fsHelpers.keys())
+            names.push(name);
+        names.sort(Reflect.compare);
+        final lines = [];
+        for (name in names) {
+            final source = fsHelpers.get(name);
+            if (source != null) {
+                lines.push(source);
+            }
+        }
+        return lines.length == 0 ? "" : lines.join("\n") + "\n";
+    }
+
     /**
         Whether a runtime-import define value selects relative mode. A
         relative specifier makes the generated tree self-contained: the
