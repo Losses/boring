@@ -1983,6 +1983,14 @@ class KotlinExpr {
                 if (cls.module == "std.Fs" || cls.module == "std.Env") {
                     Context.error("std.Fs and std.Env statics lower at their call site; a bare reference has no lowering", Context.currentPos());
                 }
+                if (cls.module != "" && StringTools.endsWith(cls.name, "_Impl_")) {
+                    // A sub-type abstract's non-inline static (for example
+                    // `FontId.of`) lowers to the synthetic implementation's
+                    // `_Impl_` companion. The call site names that object, so
+                    // compileClassImpl must not drop the referenced `_Impl_`
+                    // even though ordinary synthetic impls never emit.
+                    state.referencedImpls.set(cls.module, true);
+                }
                 imports.requireType(cls.module, cls.name);
                 return cls.name + "." + name;
         }
