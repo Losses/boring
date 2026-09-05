@@ -1,8 +1,11 @@
 #if (macro || reflaxe_runtime)
 import haxe.macro.Context;
 import haxe.macro.Type;
+import reflaxe.data.ClassFuncData;
+import reflaxe.data.ClassVarData;
+import RuntimeResidents;
 
-/** Shared policy queries for data-class and structural field keys. */
+/** Shared policy queries for declaration and field-key decisions. */
 class PolicyQueries {
     public static function canEmitDataClassComparator(cls:ClassType):Bool {
         for (f in cls.fields.get())
@@ -58,6 +61,31 @@ class PolicyQueries {
                 isFieldKeyCandidate(fn());
             case _: false;
         };
+    }
+
+    public static function isInlineOnly(classType:ClassType, varFields:Array<ClassVarData>, funcFields:Array<ClassFuncData>):Bool {
+        if (varFields.length == 0 && funcFields.length == 0)
+            return true;
+        if (varFields.length == 0 && funcFields.length > 0) {
+            for (f in funcFields) {
+                switch (f.field.kind) {
+                    case FMethod(MethInline) | FMethod(MethMacro):
+                    case _:
+                        return false;
+                }
+            }
+            return true;
+        }
+        return false;
+    }
+
+    public static function isSyntheticImpl(name:String):Bool {
+        return StringTools.endsWith(name, "_Impl_");
+    }
+
+    public static function isTestExtern(cls:ClassType):Bool {
+        return RuntimeResidents.externsOf("runtime.TestCore").indexOf(cls.module) >= 0
+            || (cls.pack.join(".") == "std" && RuntimeResidents.testExternNativeFaces().indexOf(cls.name) >= 0);
     }
 }
 #end
