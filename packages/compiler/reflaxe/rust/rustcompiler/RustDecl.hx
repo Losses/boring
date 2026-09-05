@@ -72,9 +72,10 @@ class RustDecl {
     // ------------------------------------------------------------------
 
     public function classDecl(cls:ClassType, varFields:Array<ClassVarData>, funcFields:Array<ClassFuncData>):String {
+        final emittedName = RustImports.emittedTypeName(cls.name);
         if (cls.isInterface) {
             final lines:Array<String> = [];
-            lines.push("pub trait " + cls.name + " {");
+            lines.push("pub trait " + emittedName + " {");
             lines.push("    fn __haxe_type_name(&self) -> &'static str;");
             for (f in funcFields) {
                 final paramList = [
@@ -159,8 +160,8 @@ class RustDecl {
         final lines:Array<String> = [];
 
         if (isStaticClass) {
-            lines.push("pub struct " + cls.name + ";\n");
-            lines.push("impl " + cls.name + " {");
+            lines.push("pub struct " + emittedName + ";\n");
+            lines.push("impl " + emittedName + " {");
             for (v in varFields) {
                 for (l in staticVarDecl(cls, v))
                     lines.push(l);
@@ -214,7 +215,7 @@ class RustDecl {
         if (cls.module.indexOf("registry.") == 0) {
             lines.push("#[derive(Debug, Clone, PartialEq)]");
         }
-        lines.push("pub struct " + cls.name + genericStr + " {");
+        lines.push("pub struct " + emittedName + genericStr + " {");
         for (v in varFields) {
             if (v.isStatic)
                 continue;
@@ -223,7 +224,7 @@ class RustDecl {
         }
         lines.push("}\n");
 
-        lines.push("impl" + implGenerics + " " + cls.name + genericStr + " {");
+        lines.push("impl" + implGenerics + " " + emittedName + genericStr + " {");
         var sep = false;
         for (v in varFields) {
             if (!v.isStatic)

@@ -3922,7 +3922,7 @@ class RustExpr {
                 // stays untouched.
                 final first = cls.name.length > 0 ? cls.name.charAt(0) : "?";
                 final nativeLower = first >= "a" && first <= "z";
-                final structName = nativeLower ? cls.module.substr(cls.module.lastIndexOf(".") + 1) : cls.name;
+                final structName = nativeLower ? cls.module.substr(cls.module.lastIndexOf(".") + 1) : RustImports.emittedTypeName(cls.name);
                 if (cls.module != "" && StringTools.endsWith(cls.name, "_Impl_")) {
                     // A sub-type abstract's non-inline static (for example
                     // `FontId::of`) lowers to the synthetic implementation's
@@ -3973,8 +3973,8 @@ class RustExpr {
                     imports.require("crate::runtime::test as testlib");
                     return "testlib";
                 }
-                imports.requireType(cls.module, cls.name);
-                return cls.name;
+                imports.requireType(cls.module, RustImports.emittedTypeName(cls.name));
+                return RustImports.emittedTypeName(cls.name);
             case TEnumDecl(e):
                 final en = e.get();
                 final owner = state.payloadEnumOwners.get(en.module);
