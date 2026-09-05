@@ -595,6 +595,12 @@ class SwiftExpr {
 
     /** Expression-position block lowering (features/43). */
     function blockExpression(stmts:Array<TypedExpr>):String {
+        if (stmts.length > 0)
+            switch (stmts[stmts.length - 1].expr) {
+                case TBlock(inner):
+                    return blockExpression(stmts.slice(0, stmts.length - 1).concat(inner));
+                case _:
+            }
         if (stmts.length == 0)
             return fail(null, "expression block must end in a value statement (features/43)");
         for (i in 0...stmts.length - 1)
@@ -610,6 +616,9 @@ class SwiftExpr {
             case _:
         }
         final out = ["({ () -> " + types.of(stmts[stmts.length - 1].t) + " in"];
+        // Keep the typer's extraction local. Substituting it with the
+        // payload label leaves forwarding declarations as `let text = text`;
+        // rendering TEnumParameter instead performs a scoped enum match.
         for (s in stmts.slice(0, stmts.length - 1))
             for (line in stmtLines(s, 1))
                 out.push(line);
@@ -1215,8 +1224,13 @@ class SwiftExpr {
                 return expr(inner);
             case TCast(inner, _):
                 return expr(inner);
-            case TEnumParameter(_, _, _):
-                return fail(e, "enum payload only lowers inside a variant switch arm");
+            case TEnumParameter(se, ef, index):
+                final en = switch (Context.follow(se.t)) {
+                    case TEnum(r, _) if (Lambda.count(r.get().constructs) == 1): r.get();
+                    case _: return fail(e, "enum payload only lowers inside a variant switch arm");
+                };
+                final n = payloadName(ef, index);
+                return "({ () -> " + types.of(e.t) + " in\n    switch " + expr(se) + " {\n    case ." + SwiftDecl.lowerFirst(ef.name) + "(let " + n + "): return " + n + "\n    }\n})()";
             case TEnumIndex(_):
                 return fail(e, "enum index only lowers inside a variant switch");
             case TFunction(f):
