@@ -4,6 +4,7 @@ package swiftcompiler;
 import haxe.macro.Context;
 import haxe.macro.Type;
 import StructuralKeyValidator;
+import PolicyQueries;
 
 enum SwiftKeyDomain {
     SwiftIntKey;
@@ -310,34 +311,11 @@ class SwiftType {
     }
 
     public static function canEmitDataClassComparator(cls:ClassType):Bool {
-        for (f in cls.fields.get())
-            if (switch (f.kind) {
-                    case FVar(read, write): !(read.match(AccCall) && write.match(AccNever)) && !isDataClassFieldKey(f.type);
-                    case _: false;
-                })
-                return false;
-        return true;
+        return PolicyQueries.canEmitDataClassComparator(cls);
     }
 
     static function isDataClassFieldKey(t:Type):Bool {
-        return switch (t) {
-            case TAbstract(a, params): a.get()
-                    .name == "Int" || (a.get()
-                    .name == "Null" && params.length == 1 && isDataClassFieldKey(params[0])) || (a.get().pack.join(".") == "std"
-                    && a.get().name == "ReadOnlyArray" && params.length == 1 && isDataClassFieldKey(params[0]));
-            case TEnum(_, _): true;
-            case TInst(c, _): c.get().name == "String" || c.get().meta.has(":dataClass");
-            case TLazy(f): isDataClassFieldKey(f());
-            case _: switch (Context.follow(t)) {
-                    case TAbstract(a, params): a.get()
-                            .name == "Int" || (a.get()
-                            .name == "Null" && params.length == 1 && isDataClassFieldKey(params[0])) || (a.get().pack.join(".") == "std"
-                            && a.get().name == "ReadOnlyArray" && params.length == 1 && isDataClassFieldKey(params[0]));
-                    case TEnum(_, _): true;
-                    case TInst(c, _): c.get().name == "String" || c.get().meta.has(":dataClass");
-                    case _: false;
-                };
-        };
+        return PolicyQueries.isDataClassFieldKey(t);
     }
 
     static function validateStructDef(def:DefType, pos:haxe.macro.Expr.Position, visited:Array<String>):Array<ClassField> {
