@@ -178,10 +178,12 @@ tests.RegistryPipelineTests
 tests.RegistryParseArgsTests
 boring.ArrayIterationOps
 boring.SortedDataClassKeysOps
+boring.CaptureSwitchOps
 boring.PlatformOps
 tests.ExpressionBlockTests
 tests.FontIdTests
 tests.GlyphClusterTests
+tests.CaptureSwitchOpsTests
 tests.NoSuchElementTests
 tests.PosterShapeTests
 tests.ShapeTextTests
