@@ -3,11 +3,11 @@ package tscompiler;
 #if (macro || reflaxe_runtime)
 import haxe.macro.Type.ClassType;
 import RuntimeResidents;
+import PolicyQueries;
 
 class TsTestBinding {
     public static function isTestExtern(cls:ClassType):Bool {
-        return RuntimeResidents.externsOf("runtime.TestCore").indexOf(cls.module) >= 0
-            || (cls.pack.join(".") == "std" && RuntimeResidents.testExternNativeFaces().indexOf(cls.name) >= 0);
+        return PolicyQueries.isTestExtern(cls);
     }
 
     public static function isTestPlatformExtern(module:String):Bool
