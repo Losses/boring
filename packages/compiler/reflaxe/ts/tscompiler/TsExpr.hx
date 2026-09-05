@@ -9,6 +9,7 @@ import haxe.macro.Type.FieldAccess;
 import haxe.macro.Type.TypedExpr;
 import haxe.macro.TypedExprTools;
 import reflaxe.data.ClassFuncData;
+import ExpressionPredicates;
 import ValueTypeSupport;
 
 /**
@@ -454,27 +455,7 @@ class TsExpr {
     }
 
     function isVarAssigned(e:TypedExpr, varId:Int):Bool {
-        var found = false;
-        function walk(x:TypedExpr) {
-            switch (x.expr) {
-                case TBinop(OpAssign, t, _) | TBinop(OpAssignOp(_), t, _):
-                    switch (stripCast(t).expr) {
-                        case TLocal(v) if (v.id == varId): found = true;
-                        case _:
-                    }
-                // An increment or decrement reassigns the local, so the
-                // declaration needs let even without a plain assignment.
-                case TUnop(OpIncrement, _, t) | TUnop(OpDecrement, _, t):
-                    switch (stripCast(t).expr) {
-                        case TLocal(v) if (v.id == varId): found = true;
-                        case _:
-                    }
-                case _:
-            }
-            TypedExprTools.iter(x, walk);
-        }
-        walk(e);
-        return found;
+        return ExpressionPredicates.isVarAssigned(e, varId);
     }
 
     function fuseUninitializedVars(stmts:Array<TypedExpr>):Array<TypedExpr> {
@@ -1858,22 +1839,11 @@ class TsExpr {
     }
 
     function isNegativeIntLiteral(e:TypedExpr):Bool {
-        return switch (stripWrap(e).expr) {
-            case TConst(TInt(value)): value < 0;
-            case TUnop(OpNeg, _, inner):
-                switch (stripWrap(inner).expr) {
-                    case TConst(TInt(value)): value > 0;
-                    case _: false;
-                }
-            case _: false;
-        };
+        return ExpressionPredicates.isNegativeIntLiteral(e);
     }
 
     function isNullExpr(e:TypedExpr):Bool {
-        return switch (stripWrap(e).expr) {
-            case TConst(TNull): true;
-            case _: false;
-        };
+        return ExpressionPredicates.isNullExpr(e);
     }
 
     /** Routes calls on a marked abstract implementation to its erased API. */
@@ -2356,27 +2326,11 @@ class TsExpr {
 
     /** stdlib/04 ConstantAsciiFold: writeAscii of a width-4 or width-2 ASCII constant packs into one word write. */
     function constantAsciiFold(subj:TypedExpr, name:String, args:Array<TypedExpr>):Null<String> {
-        if (name != "writeAscii" || args.length != 1) {
+        final folded = ExpressionPredicates.asciiFoldWord(name, args);
+        if (folded == null) {
             return null;
         }
-        final s = switch (args[0].expr) {
-            case TConst(TString(v)): v;
-            case _: return null;
-        }
-        if (s.length != 4 && s.length != 2) {
-            return null;
-        }
-        var word = 0;
-        for (i in 0...s.length) {
-            final code = s.charCodeAt(i);
-            if (code > 255) {
-                return null;
-            }
-            word = word * 256 + code;
-        }
-        final method = s.length == 4 ? "writeU32" : "writeU16";
-        final digits = s.length == 4 ? 8 : 4;
-        return expr(subj) + "." + method + "(0x" + StringTools.hex(word, digits) + ")";
+        return expr(subj) + "." + folded.method + "(0x" + StringTools.hex(folded.word, folded.digits) + ")";
     }
 
     function enumConstruct(en:EnumType, ef:EnumField, args:Array<TypedExpr>):String {
