@@ -1938,6 +1938,16 @@ class KotlinExpr {
                 state.shimsUsed.set("std.UStringRT", true);
                 imports.require(runtimePackage + ".UString");
                 return "UString." + name;
+            case "StringTools":
+                // StringTools statics without a native Kotlin lowering
+                // (lpad, rpad, ltrim, rtrim, replace, ...) route into the
+                // runtime module instead of an unresolvable top-level
+                // StringTools reference. The inline-lowered ones (hex,
+                // trim, startsWith, endsWith) are handled before staticRef.
+                final strToolsPackage = RuntimeConfig.requireImportName("module StringTools");
+                state.shimsUsed.set("StringTools", true);
+                imports.require(strToolsPackage + ".StringTools");
+                return "StringTools." + name;
             case "std.Graphemes":
                 final graphemesPackage = RuntimeConfig.requireImportName("module std.Graphemes");
                 state.shimsUsed.set("std.Graphemes", true);
