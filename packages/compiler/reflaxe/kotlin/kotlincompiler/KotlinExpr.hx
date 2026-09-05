@@ -2069,7 +2069,7 @@ class KotlinExpr {
             } else {
                 final pieces = [
                     for (a in args)
-                        ""
+                        "\""
                         + a.name
                         + "=\" + ("
                         + stdStringType(a.t, "(v as " + en.name + "." + ef.name + ")." + a.name, true, origin)
