@@ -33,6 +33,19 @@ jobs:
         run: sudo nix-store --import < nix-closure.nar || true
       - name: Run generation and tests
         run: nix develop -c bash -c 'bun install && bun run gen:ts && bun run gen:kotlin && bun run gen:kotlin-f32 && bun run gen:rust && bun run gen:rust-f32 && bun run gen:swift && bun run gen:swift-f32 && bun run gen:dart && bun run test:stage1:haxe && bun run test:stage1:ts && bun run test:stage1:kotlin && bun run test:stage1:rust && bun run test:haxe && bun run test:kotlin && bun run test:rust && bun run test:swift && bun run test:swift-f32 && bun run test:dart && bun run test:kotlin-f32 && bun run test:rust-f32 && bun run test:consistency && bun run check:docs'
+      # BoringSwiftTests segfaulted on CI while the same tree and toolchain
+      # pass locally, and the redirected stdout is fully buffered so the
+      # log shows nothing; capture where the fault landed and how far the
+      # jsonl got before the process died.
+      - name: Dump Swift crash diagnostics
+        if: failure()
+        run: |
+          echo '--- tail of out/test-results/swift.jsonl ---'
+          tail -c 2000 out/test-results/swift.jsonl 2>/dev/null || echo '(no swift.jsonl)'
+          echo '--- kernel segfault records ---'
+          sudo dmesg | grep -i segfault | tail -6 || true
+          echo '--- dynamic linker resolution ---'
+          ldd .build/debug/BoringSwiftTests 2>/dev/null | grep -i -E 'swift|dispatch|stdc|not found' || true
       - name: Export nix closure
         if: always()
         run: nix-store --export $(nix-store -qR $(nix build .#devShells.x86_64-linux.default --no-link --print-out-paths)) > nix-closure.nar
@@ -55,7 +68,9 @@ jobs:
       - name: Swift toolchain version
         run: swift --version
       - name: Run generation and tests
-        run: nix develop -c bash -c 'bun install && bun run gen:ts && bun run gen:kotlin && bun run gen:kotlin-f32 && bun run gen:rust && bun run gen:rust-f32 && bun run gen:swift && bun run gen:swift-f32 && bun run gen:dart && bun run test:stage1:haxe && bun run test:stage1:ts && bun run test:stage1:kotlin && bun run test:stage1:rust && bun run test:haxe && bun run test:kotlin && bun run test:rust && bun run test:swift && bun run test:swift-f32 && bun run test:dart && bun run test:kotlin-f32 && bun run test:rust-f32 && bun run test:consistency && bun run check:docs'
+        # Echo the toolchain variables the darwin shellHook pins so the
+        # log shows what SwiftPM actually saw if the manifest build fails.
+        run: nix develop -c bash -c 'echo "SDKROOT=$SDKROOT CC=$CC DEVELOPER_DIR=$DEVELOPER_DIR" && bun install && bun run gen:ts && bun run gen:kotlin && bun run gen:kotlin-f32 && bun run gen:rust && bun run gen:rust-f32 && bun run gen:swift && bun run gen:swift-f32 && bun run gen:dart && bun run test:stage1:haxe && bun run test:stage1:ts && bun run test:stage1:kotlin && bun run test:stage1:rust && bun run test:haxe && bun run test:kotlin && bun run test:rust && bun run test:swift && bun run test:swift-f32 && bun run test:dart && bun run test:kotlin-f32 && bun run test:rust-f32 && bun run test:consistency && bun run check:docs'
       - name: Export nix closure
         if: always()
         run: nix-store --export $(nix-store -qR $(nix build .#devShells.aarch64-darwin.default --no-link --print-out-paths)) > nix-closure.nar
