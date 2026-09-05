@@ -102,6 +102,7 @@ boring.ArithmeticOps
 tests.ArithmeticTests
 boring.DefaultArgsOps
 tests.DefaultArgsTests
+tests.KotlinNullabilityTests
 boring.SortedDataClassKeysOps
 boring.UStringOps
 boring.StringUnitOps
