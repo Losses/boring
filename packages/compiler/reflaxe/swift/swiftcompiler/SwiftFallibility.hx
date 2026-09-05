@@ -34,6 +34,9 @@ class SwiftFallibility {
     /** funcKey to the exception-class modules that escape it. */
     static final escaping:Map<String, Map<String, Bool>> = [];
 
+    /** The std.Fs operations whose failure raises (stdlib/17). */
+    static final THROWING_FS_OPS = ["readText", "writeText", "appendText", "makeDirs", "readDir"];
+
     static final bodies:Array<{key:String, body:TypedExpr}> = [];
 
     /** The unique key of one function; the subset has no overloads. */
@@ -171,6 +174,12 @@ class SwiftFallibility {
                     infect(infections, absorbed, TEST_FAILURE);
                     return;
                 }
+                if (cls.module == "std.Fs" && THROWING_FS_OPS.indexOf(name) >= 0) {
+                    // The std.Fs host helpers raise BoringException, the
+                    // features/06 haxe.Exception mapping (stdlib/17).
+                    infect(infections, absorbed, "haxe.Exception");
+                    return;
+                }
                 final callee = escaping.exists(routedFuncKey(cls.module, name, true)) ? escaping.get(routedFuncKey(cls.module, name, true)) : null;
                 if (callee != null) {
                     for (domain in callee.keys()) {
@@ -234,6 +243,9 @@ class SwiftFallibility {
         }
         if (cls.module == "std.UStringPlatform" || SwiftTestBinding.isTestPlatformExtern(cls.module)) {
             return false;
+        }
+        if (cls.module == "std.Fs") {
+            return THROWING_FS_OPS.indexOf(name) >= 0;
         }
         return isThrowing(routedModule(cls.module, name), name, true);
     }
