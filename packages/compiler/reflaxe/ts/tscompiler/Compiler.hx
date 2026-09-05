@@ -42,6 +42,15 @@ class Compiler extends PluginCompiler<Compiler> {
                 Context.currentPos());
         }
         Context.onAfterTyping(ValueTypeSupport.validateModules);
+        // runtime.StringTools backs the StringTools statics that have no
+        // inline lowering (lpad, rpad, ltrim, rtrim, replace, ...). The
+        // target rewrites those static calls into the runtime module, which
+        // Haxe never types from a business reference, so force it here like
+        // the Kotlin target forces runtime.TestCore. A build without a
+        // runtime-import define has no way to reference the runtime package.
+        if (RuntimeConfig.importName() != null) {
+            Context.getType("runtime.StringTools");
+        }
         ReflectCompiler.AddCompiler(new Compiler(), {
             fileOutputType: BaseCompilerFileOutputType.Manual,
             fileOutputExtension: ".ts",

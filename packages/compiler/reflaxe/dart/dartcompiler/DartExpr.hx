@@ -2197,6 +2197,14 @@ class DartExpr {
                     && args.length == 2) {
                     return renderedArgs[0] + "." + fName + "(" + renderedArgs[1] + ")";
                 }
+                if (cls.pack.length == 0 && cls.name == "StringTools") {
+                    // StringTools statics without a native Dart/String inline
+                    // lowering (lpad, rpad, ltrim, rtrim, replace, ...) route
+                    // into the runtime module, mirroring the Kotlin target.
+                    // The inline-lowered ones (hex, trim, startsWith,
+                    // endsWith) are handled before this point.
+                    return runtimeQualified("StringTools." + fName) + "(" + rendered + ")";
+                }
                 if (cls.pack.length == 0 && cls.name == "Lambda" && fName == "has" && args.length == 2) {
                     return renderedArgs[0] + ".contains(" + renderedArgs[1] + ")";
                 }

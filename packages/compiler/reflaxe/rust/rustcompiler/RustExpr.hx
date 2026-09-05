@@ -2441,6 +2441,35 @@ class RustExpr {
         return null;
     }
 
+    /**
+        A `message` or `get_message` read on a folded exception. The sealed
+        fold keeps the Display impl as the message carrier, so any read maps
+        to `format!("{}", value)` whether or not the value sits in a
+        catch-variable position (features/06 message lowering). Without this,
+        a read outside a catch emits the runtime-dependent `get_message()`
+        accessor, which the folded enum lacks.
+    **/
+    function foldedExceptionMessage(subj:TypedExpr, name:String):Null<String> {
+        if (name != "message" && name != "get_message") {
+            return null;
+        }
+        switch (Context.follow(subj.t)) {
+            case TInst(c, _):
+                if (!RustDecl.isExceptionSubclass(c.get())) {
+                    return null;
+                }
+                return "format!(\"{}\", " + expr(subj) + ")";
+            case TEnum(en, _):
+                final owner = state.payloadEnumOwners.get(en.get().module);
+                if (owner == null) {
+                    return null;
+                }
+                return "format!(\"{}\", " + expr(subj) + ")";
+            case _:
+                return null;
+        }
+    }
+
     /** The payload enum of the exception class a region catches, or null. */
     function caughtPayloadEnum(c:{v:TVar, expr:TypedExpr}):Null<{name:String, module:String}> {
         switch (Context.follow(c.v.t)) {
@@ -3553,6 +3582,10 @@ class RustExpr {
                 return en.name + "::" + ef.name;
             case FInstance(_, _, cf) | FAnon(cf):
                 final name = cf.get().name;
+                final folded = foldedExceptionMessage(subj, name);
+                if (folded != null) {
+                    return folded;
+                }
                 {
                     final bound = catchPayloadAccess(subj, name);
                     if (bound != null) {
@@ -3812,6 +3845,21 @@ class RustExpr {
                 }
                 imports.requireType("runtime.Graphemes", "Graphemes");
                 return "Graphemes::" + RustImports.toSnakeCase(name);
+            case "StringTools":
+                // StringTools statics without a native Rust/String inline
+                // lowering (lpad, rpad, ltrim, rtrim, replace, ...) route
+                // into the runtime module, mirroring the Kotlin target.
+                // The inline-lowered ones (hex, trim, startsWith,
+                // endsWith) are handled before staticRef. A resident
+                // caller addresses the compiled class directly; a business
+                // caller goes through the adapter module (RuntimeResidents).
+                state.shimsUsed.set("StringTools", true);
+                if (RuntimeResidents.isResident(imports.selfModule)) {
+                    imports.requireType("runtime.StringTools", "StringTools");
+                    return "StringTools::" + RustImports.toSnakeCase(name);
+                }
+                imports.require("crate::runtime::string_tools");
+                return "string_tools::StringTools::" + RustImports.toSnakeCase(name);
             case _:
                 if (RustTestBinding.isTestExtern(cls)) {
                     state.shimsUsed.set(RuntimeResidents.externsOf("runtime.TestCore")[0], true);
@@ -4150,13 +4198,9 @@ class RustExpr {
             case TField(_, FStatic(c, cf)) if (c.get().module == "Std" && cf.get().name == "isOfType" && args.length == 2):
                 return stdIsOfType(args);
             case TField(subj, FInstance(_, _, cf)) if (cf.get().name == "get_message" && args.length == 0):
-                final target = stripWrap(subj);
-                switch (target.expr) {
-                    case TLocal(v) if (catchVars.exists(v.id)):
-                        // Property getter on a caught exception: Display
-                        // carries the variant text (features/06).
-                        return "format!(\"{}\", " + RustImports.toSnakeCase(localName(v)) + ")";
-                    case _:
+                final folded = foldedExceptionMessage(stripCast(subj), "get_message");
+                if (folded != null) {
+                    return folded;
                 }
             case TField(subj, FStatic(c, cf)):
                 final cls = c.get();
