@@ -782,7 +782,9 @@ class RustExpr {
             case TNew(_, _, args) if (args.length == 1): payloadEnumRef(args[0]);
             case _: null;
         };
-        if (payload != null && errorTypeName != null && StringTools.endsWith(errorTypeName, "Fault")
+        if (payload != null
+            && errorTypeName != null
+            && StringTools.endsWith(errorTypeName, "Fault")
             && errorTypeName != payload.get().name) {
             return errorTypeName + "::" + payload.get().name + "Fault(" + raw + ")";
         }
@@ -908,15 +910,15 @@ class RustExpr {
             return isFallibleCallee(c, cf, isStatic) ? ".unwrap()" : "";
         if (!isFallibleCallee(c, cf, isStatic))
             return "";
-        final callee = state.funcErrorEnums.get(RustEmissionState.funcKey(c.get().module, cf.get().name, isStatic));
-        if (callee != null && errorTypeName != null && callee.name != errorTypeName) {
-            final member = state.funcErrorUnionMembers.get(imports.selfModule + "::i.__unknown");
-            // The union variant is selected by the callee's payload enum name;
-            // union declarations use the same stable names.
-            return ".map_err(|e| " + errorTypeName + "::" + callee.name + "Fault(e))?";
-        }
-        return "?";
+        final callee = state.funcErrorTypes.get(RustEmissionState.funcKey(c.get().module, cf.get().name, isStatic));
+        if (callee == null || errorTypeName == null || callee.name == errorTypeName)
+            return "?";
+        final variant = state.syntheticErrorVariant(errorTypeName, callee);
+        if (variant == null)
+            return "?";
+        return ".map_err(|e| " + errorTypeName + "::" + variant + "(e))?";
     }
+
     function payloadEnumRef(e:TypedExpr):Null<Ref<haxe.macro.Type.EnumType>> {
         return switch (e.expr) {
             case TField(_, FEnum(en, _)): en;
