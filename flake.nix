@@ -57,6 +57,7 @@
               kotlin
               jdk21
               swift
+              swiftpm
               dart
             ];
             shellHook = ''
