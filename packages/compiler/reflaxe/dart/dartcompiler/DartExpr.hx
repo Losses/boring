@@ -822,29 +822,11 @@ class DartExpr {
             case _:
         }
         final out = ["(() {"];
-        final syntheticIds = new Map<Int, Bool>();
+        // Do not erase single-case payload declarations: their initializer
+        // must render the enum match. Erasing them makes `final text = text`.
         for (s in stmts.slice(0, stmts.length - 1))
-            switch (s.expr) {
-                case TVar(v, init):
-                    switch (init == null ? null : init.expr) {
-                        case TEnumParameter(se, ef, index):
-                            switch (Context.follow(se.t)) {
-                                case TEnum(r, _) if (Lambda.count(r.get().constructs) == 1):
-                                    subst.set(v.id, payloadName(ef, index));
-                                    syntheticIds.set(v.id, true);
-                                case _:
-                            }
-                        case _:
-                    }
-                case _:
-            }
-        for (s in stmts.slice(0, stmts.length - 1))
-            switch (s.expr) {
-                case TVar(v, _) if (syntheticIds.exists(v.id)):
-                case _:
-                    for (line in stmtLines(s, 1))
-                        out.push(line);
-            }
+            for (line in stmtLines(s, 1))
+                out.push(line);
         out.push(indent(1) + "return " + expr(stmts[stmts.length - 1]) + ";");
         out.push("})()");
         return out.join("\n");
@@ -1356,7 +1338,8 @@ class DartExpr {
                     case TEnum(r, _) if (Lambda.count(r.get().constructs) == 1): r.get();
                     case _: return fail(e, "enum payload only lowers inside a variant switch arm");
                 };
-                return "(() { final _v = " + expr(se) + "; switch (_v) { case " + qualifiedRef(en.module, DartDecl.constructClassName(en.name, ef.name)) + "(" + payloadName(ef, index) + "): return " + payloadName(ef, index) + "; } })()";
+                final n = payloadName(ef, index);
+                return "(() { final _v = " + expr(se) + "; switch (_v) { case " + qualifiedRef(en.module, DartDecl.constructClassName(en.name, ef.name)) + "(" + n + ": var " + n + "): return " + n + "; } })()";
             case TEnumIndex(_):
                 return fail(e, "enum index only lowers inside a variant switch");
             case TFunction(f):
