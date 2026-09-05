@@ -277,6 +277,10 @@ class RustDecl {
 
         for (iface in cls.interfaces) {
             final ifaceCls = iface.t.get();
+            // A cross-module interface needs its trait import recorded
+            // here, exactly like a field-type reference does; a
+            // same-module interface needs no import.
+            imports.requireType(ifaceCls.module, ifaceCls.name);
             lines.push("\nimpl" + implGenerics + " " + ifaceCls.name + " for " + cls.name + genericStr + " {");
             lines.push('    fn __haxe_type_name(&self) -> &\'static str {');
             lines.push('        "${cls.module}.${cls.name}"');
@@ -753,6 +757,12 @@ class RustDecl {
         switch (e.expr) {
             case TReturn(r) if (r != null):
                 collectMessageCases(r, options, out);
+            case TConst(TString(s)) if (options.length == 1):
+                // A single-variant exception folds its message function
+                // down to the bare string literal: the typer collapses a
+                // one-case switch, so there is no TSwitch to scan. The
+                // message belongs to the sole option.
+                out.set(options[0].name, '"' + s + '"');
             case TBlock(stmts):
                 for (s in stmts)
                     collectMessageCases(s, options, out);
