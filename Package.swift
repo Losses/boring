@@ -5,7 +5,7 @@
 // import it across the module boundary, which is why every generated
 // declaration renders public. The swift-system dependency (pinned to
 // the Swift 5 compatible line) backs the std.Fs host helpers of the
-// generated files; the f32 lane is a second tree with its own module.
+// generated files; the f32 variant is a second tree with its own module.
 import PackageDescription
 
 let swiftSystem = Target.Dependency.product(name: "SystemPackage", package: "swift-system")

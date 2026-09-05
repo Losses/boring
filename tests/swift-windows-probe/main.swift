@@ -21,7 +21,7 @@
 // - _access (Microsoft Learn)
 
 // ---------------------------------------------------------------------
-// Stub declarations (Linux stand-ins for the Windows SDK surface)
+// Stub declarations (Linux stand-ins for the Windows SDK API set)
 // ---------------------------------------------------------------------
 
 typealias DWORD = UInt32

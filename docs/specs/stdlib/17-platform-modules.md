@@ -2,8 +2,8 @@
 
 ## Scope
 
-This specification rules four host-adjacent standard library modules —
-`std.Fs`, `std.Env`, the argument face of `std.Process`, and `std.Path` —
+This specification rules four host-adjacent standard library modules
+(`std.Fs`, `std.Env`, the argument face of `std.Process`, and `std.Path`)
 and the Swift build-chain change that `std.Fs` on Swift requires. For each
 module it fixes which functions the module exposes, how each of the five
 targets implements a call, and what a browser host does when it cannot.
@@ -21,14 +21,14 @@ spec 06 is untouched and `tests/ts/runtime-entry.test.ts` keeps scanning
 an unchanged entry.
 
 Spec 06 currently rules two classes for `std.*`: runtime-backed modules
-and compiled modules. A platform module is neither — spec 06 gains this
+and compiled modules. A platform module is neither class. Spec 06 gains this
 third class, with `std.UStringPlatform` (`samples/std/UStringPlatform.hx`)
 and `std.TestPlatform` (`samples/std/TestPlatform.hx`) named as the prior
 art that already follows it.
 
 `std.Path` is NOT a platform module. It is a compiled std module in pure
 Haxe (ruling 2026-09-02): every target shares one implementation, because
-path joining and splitting are string logic, not a host capability.
+path joining and splitting are string logic that needs no host capability.
 
 ## Faces
 
@@ -107,10 +107,10 @@ decides what the function may do with it:
 | Drive relative | `C:a` | No separator after the drive; per-drive current directories are host state a string layer does not have, so `normalize` leaves the text after the drive untouched and only applies separator translation. |
 | Root relative | `\a` | Starts with `\` but no drive, no UNC. Kept root-relative; `dirname` stops at `\`. |
 | POSIX absolute | `/a` | A leading `/` is always POSIX-absolute in this module, never a Windows root-relative path; a Windows caller passes `\a` for that meaning. |
-| POSIX double slash | `//a` | POSIX leaves exactly two leading slashes implementation-defined; `normalize` preserves them instead of collapsing. |
-| Relative | `a`, `a/b`, `a\b` | Both separators accepted (constant across hosts, per the 2026-09-02 ruling); on a POSIX host a `\` inside a filename is legal and this module rewrites it — the spec states this cost openly rather than letting behavior drift per host. |
+| POSIX double slash | `//a` | POSIX leaves exactly two leading slashes implementation-defined; `normalize` preserves both leading slashes. |
+| Relative | `a`, `a/b`, `a\b` | Both separators accepted (constant across hosts, per the 2026-09-02 ruling); on a POSIX host a `\` inside a filename is legal and this module rewrites it. The spec states this cost openly to keep the behavior identical on every host. |
 
-Function-level consequences: `join(a, b)` returns `b` unchanged when `b`
+Consequences for individual functions: `join(a, b)` returns `b` unchanged when `b`
 is a device, UNC, drive-absolute, or POSIX-absolute path; joining onto a
 device path is not defined and returns `b` as well. `normalize` on a
 device path returns the input verbatim; on other kinds it translates
@@ -121,7 +121,7 @@ return `"."`; `dirname("/")` returns `"/"`; `dirname("C:/a")` returns
 
 Out of scope, stated as boundaries: the module does not validate reserved
 device names (`CON`, `NUL`, `COM1`…), does not validate illegal
-characters (`<>:"|?*`), and does not fold case — case sensitivity is a
+characters (`<>:"|?*`), and does not fold case; case sensitivity is a
 host filesystem property. Source literals vs runtime values: in Haxe
 source `"C:\\Users"` is the single-backslash value `C:\Users`; every
 spec example and test fixture that contains a backslash must state
@@ -134,8 +134,8 @@ whether it shows the escaped source form or the runtime value.
   `node:fs` lazily per call; when no host loader exists (browser), the
   call raises the haxe.Exception mapping with the fixed message
   `std.Fs is not available on this host`. `std.Env.get` reads
-  `localStorage.getItem(key)` when `localStorage` is defined — synchronous,
-  missing key null, a direct `Null<String>` match (ruling 2026-09-02) —
+  `localStorage.getItem(key)` when `localStorage` is defined (synchronous,
+  missing key null, a direct `Null<String>` match per ruling 2026-09-02)
   and `process.env[key] ?? null` otherwise; `set`/`remove` map to
   `setItem`/`removeItem` on the browser and to env assignment/deletion on
   node. `std.Process.args()` reads `process.argv.slice(2)` lazily.
@@ -198,8 +198,8 @@ The Swift chain moves from bare `swiftc` invocations to SwiftPM:
 3. The `import SystemPackage` line lowers only into generated files whose
    functions reference `std.Fs` (inline lowering keeps host imports inside
    function bodies, so files with no fs reference never import the
-   package — ruling 2026-09-02: conditional import, never a blanket
-   import).
+   package; ruling 2026-09-02 requires conditional import and never a
+   blanket import).
 4. `std.Process.args()` probes `CommandLine.arguments` availability in the
    same migration.
 
@@ -209,11 +209,11 @@ Failures raise the target's `haxe.Exception` mapping (spec 03) with the
 path and the host error text in the message. An unmapped capability on a
 host (for example `std.Fs` in a browser) raises the same mapping with the
 fixed unavailability message above; it never returns a wrong value.
-A platform this spec implements — the Windows Swift host among them —
+A platform this spec implements (the Windows Swift host among them)
 never falls under the unmapped clause: unmapped means the host has no
-corresponding capability at all, not that the toolchain skipped
-implementing a platform. Compilation always succeeds — host support is a
-runtime property, decided at the call.
+corresponding capability at all; it does not mean that the toolchain
+skipped implementing a platform. Compilation always succeeds; host
+support is a runtime property, decided at the call.
 
 ## Host externs that retire
 
@@ -222,12 +222,12 @@ runtime property, decided at the call.
 | `packages/registry/src/registry/Platform.hx` (jsRequire Fs/Path, NodeProcess, Console.error) | retires onto `std.Fs`, `std.Path`, `std.Process`, `std.Console` |
 | `packages/registry/src/registry/Environment.hx` (JSON-text bridge over `process.env`) | retires onto `std.Env.get`; the bridge existed because a typed extern could not carry undefined-vs-null, and inline lowering emits `?? null` itself (spec 26 rewrite follows) |
 | `packages/compiler/TestCollector.hx` (runnerSource embedded jsRequire externs) | retires onto `std.Fs`/`std.Env`/`std.Process` |
-| `tools/test-consistency/Main.hx` (Syntax.code require fs) | retires when the tool's host haxe compiles through boring (separate decision, not this spec) |
+| `tools/test-consistency/Main.hx` (Syntax.code require fs) | retires when the tool's host haxe compiles through boring (a separate decision outside this spec) |
 | `packages/compiler/reflaxe/ts/tscompiler/TsRuntime.hx` (TEST_SOURCE node:fs) | stays: the test entry owns host filesystem access per spec 06 |
 | `samples/std/Process.hx`, `samples/std/Console.hx` | stay; Process gains `args()` |
 
 Payoff: `packages/registry/src/registry/Main.hx` enters five-target
-compilation — its blocker was the `@:jsRequire` externs of `Platform.hx`,
+compilation; its blocker was the `@:jsRequire` externs of `Platform.hx`,
 and after migration no jsRequire import remains.
 
 ## Test hooks
