@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@v17
+      - uses: DeterminateSystems/magic-nix-cache-action@v8
+      - name: Run generation and tests
+        run: nix develop -c bash -c 'bun install && bun run gen:ts && bun run gen:kotlin && bun run gen:kotlin-f32 && bun run gen:rust && bun run gen:rust-f32 && bun run gen:swift && bun run gen:swift-f32 && bun run gen:dart && bun run test:stage1:haxe && bun run test:stage1:ts && bun run test:stage1:kotlin && bun run test:stage1:rust && bun run test:haxe && bun run test:kotlin && bun run test:rust && bun run test:swift && bun run test:swift-f32 && bun run test:dart && bun run test:kotlin-f32 && bun run test:rust-f32 && bun run test:consistency && bun run check:docs'
+
+  macos:
+    runs-on: macos-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@v17
+      - uses: DeterminateSystems/magic-nix-cache-action@v8
+      - name: Run generation and tests
+        run: nix develop -c bash -c 'bun install && bun run gen:ts && bun run gen:kotlin && bun run gen:kotlin-f32 && bun run gen:rust && bun run gen:rust-f32 && bun run gen:swift && bun run gen:swift-f32 && bun run gen:dart && bun run test:stage1:haxe && bun run test:stage1:ts && bun run test:stage1:kotlin && bun run test:stage1:rust && bun run test:haxe && bun run test:kotlin && bun run test:rust && bun run test:swift && bun run test:swift-f32 && bun run test:dart && bun run test:kotlin-f32 && bun run test:rust-f32 && bun run test:consistency && bun run check:docs'
+
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 120
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Haxe
+        run: choco install haxe --yes --no-progress
+      - name: Install Bun
+        shell: bash
+        run: |
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "irm bun.sh/install.ps1 | iex"
+          echo "$HOME/.bun/bin" >> "$GITHUB_PATH"
+      - name: Install Swift
+        shell: bash
+        run: |
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "\$url = 'https://download.swift.org/swift-6.1.2-release/windows10/swift-6.1.2-RELEASE/swift-6.1.2-RELEASE-windows10.exe'; Invoke-WebRequest -Uri \$url -OutFile swift-installer.exe; Start-Process .\\swift-installer.exe -ArgumentList '/quiet' -Wait"
+          echo '/c/Swift/usr/bin' >> "$GITHUB_PATH"
+          export PATH="/c/Swift/usr/bin:$PATH"
+          swift --version
+      - name: Install reflaxe
+        run: |
+          git clone https://github.com/SomeRanDev/reflaxe.git .reflaxe
+          git -C .reflaxe checkout 9fa459a0b4436d1706db6495823b81f2947ff7a0
+          haxelib dev reflaxe "$PWD/.reflaxe"
+          haxelib dev boring "$PWD"
+      - name: Run Swift generation and tests
+        run: bun install && bun run gen:swift && bun run test:swift
