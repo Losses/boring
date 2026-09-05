@@ -48,11 +48,16 @@ class SwiftHostEdges {
 
     /** Whether the helper needs the swift-system package import. */
     public static function needsSystemPackage(key:String):Bool {
-        return switch (key) {
-            case "Fs.readText" | "Fs.writeText" | "Fs.appendText": true;
-            case _: false;
-        };
+        return key == "Fs.appendText";
     }
+
+    public static function needsFoundationEssentials(key:String):Bool {
+        return switch (key) {
+            case "Fs.exists" | "Fs.isDirectory" | "Fs.readText" | "Fs.writeText" | "Fs.makeDirs" | "Fs.readDir": true;
+            case _: false;
+        }
+    }
+
 
     /** The source text of one host-edge helper. */
     public static function source(key:String):Null<String> {
@@ -126,11 +131,8 @@ private func boringEnvRemove(_ key: String) {
 
     static final FS_EXISTS = '
 private func boringFsExists(_ path: String) -> Bool {
-    #if canImport(Glibc) || canImport(Darwin)
-    return path.withCString { p in access(p, F_OK) == 0 }
-    #elseif canImport(MSVCRT)
-    // _access mode 0 tests existence (Microsoft Learn, _access).
-    return path.withCString { p in _access(p, 0) == 0 }
+    #if canImport(FoundationEssentials)
+    return FileManager.default.fileExists(atPath: path)
     #else
     return false
     #endif
@@ -139,15 +141,9 @@ private func boringFsExists(_ path: String) -> Bool {
 
     static final FS_IS_DIRECTORY = '
 private func boringFsIsDirectory(_ path: String) -> Bool {
-    #if canImport(Glibc) || canImport(Darwin)
-    var st = stat()
-    return path.withCString { p in stat(p, &st) == 0 && (st.st_mode & S_IFMT) == S_IFDIR }
-    #elseif canImport(WinSDK)
-    // GetFileAttributesW reports the directory bit (Microsoft Learn,
-    // GetFileAttributesW and File Attribute Constants).
-    let wide = Array(path.utf16)
-    let attrs = wide.withUnsafeBufferPointer { GetFileAttributesW($0.baseAddress) }
-    return attrs != INVALID_FILE_ATTRIBUTES && (attrs & FILE_ATTRIBUTE_DIRECTORY) != 0
+    #if canImport(FoundationEssentials)
+    var isDirectory = false
+    return FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory) && isDirectory
     #else
     return false
     #endif
@@ -156,22 +152,11 @@ private func boringFsIsDirectory(_ path: String) -> Bool {
 
     static final FS_READ_TEXT = '
 private func boringFsReadText(_ path: String) throws -> String {
-    #if canImport(SystemPackage)
-    do {
-        let handle = try FileDescriptor.open(FilePath(path), .readOnly)
-        return try handle.closeAfter {
-            var data: [UInt8] = []
-            var chunk = [UInt8](repeating: 0, count: 65536)
-            while true {
-                let count = try chunk.withUnsafeMutableBytes { try handle.read(into: $0) }
-                if count == 0 { break }
-                data.append(contentsOf: chunk[0..<count])
-            }
-            return String(decoding: data, as: UTF8.self)
-        }
-    } catch {
-        throw BoringException(message: path + ": " + String(describing: error))
+    #if canImport(FoundationEssentials)
+    guard let data = FileManager.default.contents(atPath: path) else {
+        throw BoringException(message: path + ": read failed")
     }
+    return String(decoding: data, as: UTF8.self)
     #else
     throw BoringException(message: "std.Fs is not available on this host")
     #endif
@@ -180,15 +165,10 @@ private func boringFsReadText(_ path: String) throws -> String {
 
     static final FS_WRITE_TEXT = '
 private func boringFsWriteText(_ path: String, _ data: String) throws {
-    #if canImport(SystemPackage)
-    do {
-        let handle = try FileDescriptor.open(FilePath(path), .writeOnly,
-            options: [.create, .truncate], permissions: FilePermissions(rawValue: 0o644))
-        let _ = try handle.closeAfter {
-            try Array(data.utf8).withUnsafeBytes { try handle.writeAll($0) }
-        }
-    } catch {
-        throw BoringException(message: path + ": " + String(describing: error))
+    #if canImport(FoundationEssentials)
+    let bytes = Data(Array(data.utf8))
+    guard FileManager.default.createFile(atPath: path, contents: bytes) else {
+        throw BoringException(message: path + ": write failed")
     }
     #else
     throw BoringException(message: "std.Fs is not available on this host")
@@ -216,146 +196,29 @@ private func boringFsAppendText(_ path: String, _ data: String) throws {
 
     static final FS_MAKE_DIRS = '
 private func boringFsMakeDirs(_ path: String) throws {
-    #if canImport(Glibc) || canImport(Darwin)
-    if path.isEmpty { return }
-    var prefix = path.hasPrefix("/") ? "/" : ""
-    for part in path.split(separator: "/") {
-        if part.isEmpty { continue }
-        prefix += part
-        let rc = prefix.withCString { p in mkdir(p, 0o755) }
-        if rc != 0 && errno != EEXIST {
-            throw BoringException(message: path + ": " + String(cString: strerror(errno)))
-        }
-        prefix += "/"
-    }
-    #elseif canImport(WinSDK)
-    // CreateDirectoryW per component (Microsoft Learn,
-    // CreateDirectoryW); an existing component is not an error.
-    if path.isEmpty { return }
-    let chars = Array(path)
-    var prefix = ""
-    var i = 0
-    let n = chars.count
-    if n >= 2 && isAsciiLetter(chars[0]) && chars[1] == ":" {
-        prefix = String(chars[0]) + ":"
-        i = 2
-        if i < n && (chars[i] == "/" || chars[i] == "\\\\") {
-            prefix += "\\\\"
-            i += 1
-        }
-    } else if n >= 2 && chars[0] == "\\\\" && chars[1] == "\\\\" {
-        prefix = "\\\\\\\\"
-        i = 2
-        var separators = 0
-        while i < n {
-            prefix.append(chars[i])
-            if chars[i] == "/" || chars[i] == "\\\\" {
-                separators += 1
-                if separators == 2 {
-                    i += 1
-                    break
-                }
-            }
-            i += 1
-        }
-    } else if chars[0] == "/" || chars[0] == "\\\\" {
-        prefix = "\\\\"
-        i = 1
-    }
-    var segment = ""
-    while i <= n {
-        let atEnd = i == n
-        let isSep = !atEnd && (chars[i] == "/" || chars[i] == "\\\\")
-        if atEnd || isSep {
-            if !segment.isEmpty {
-                prefix += segment
-                let wide = Array(prefix.utf16)
-                let created = wide.withUnsafeBufferPointer { CreateDirectoryW($0.baseAddress, nil) != 0 }
-                if !created {
-                    let code = GetLastError()
-                    if code != ERROR_ALREADY_EXISTS {
-                        throw BoringException(message: path + ": Win32 error " + String(code))
-                    }
-                }
-                prefix += "\\\\"
-                segment = ""
-            }
-        } else {
-            segment.append(chars[i])
-        }
-        i += 1
+    #if canImport(FoundationEssentials)
+    do {
+        try FileManager.default.createDirectory(atPath: path, withIntermediateDirectories: true)
+    } catch {
+        throw BoringException(message: path + ": " + String(describing: error))
     }
     #else
     throw BoringException(message: "std.Fs is not available on this host")
     #endif
-}
-
-private func isAsciiLetter(_ c: Character) -> Bool {
-    return (c >= "a" && c <= "z") || (c >= "A" && c <= "Z")
 }
 ';
 
     static final FS_READ_DIR = '
 private func boringFsReadDir(_ path: String) throws -> [String] {
-    #if canImport(Glibc) || canImport(Darwin)
-    return try path.withCString { p in
-        guard let dir = opendir(p) else {
-            throw BoringException(message: path + ": " + String(cString: strerror(errno)))
-        }
-        defer { closedir(dir) }
-        var names: [String] = []
-        while let entry = readdir(dir) {
-            let name = withUnsafePointer(to: &entry.pointee.d_name) {
-                String(cString: UnsafeRawPointer($0).assumingMemoryBound(to: CChar.self))
-            }
-            if name != "." && name != ".." {
-                names.append(name)
-            }
-        }
-        return names
+    #if canImport(FoundationEssentials)
+    do {
+        return try FileManager.default.contentsOfDirectory(atPath: path)
+    } catch {
+        throw BoringException(message: path + ": " + String(describing: error))
     }
-    #elseif canImport(WinSDK)
-    // FindFirstFileW/FindNextFileW/FindClose (Microsoft Learn): the
-    // pattern is the path plus a \\* suffix, and entry names convert
-    // through the UTF-16 view (String.utf16). FindClose runs on every
-    // exit path through defer.
-    let pattern = path.hasSuffix("\\\\") || path.hasSuffix("/") ? path + "*" : path + "\\\\*"
-    let widePattern = Array(pattern.utf16)
-    var data = WIN32_FIND_DATAW()
-    let handle = widePattern.withUnsafeBufferPointer { FindFirstFileW($0.baseAddress, &data) }
-    if handle == INVALID_HANDLE_VALUE {
-        throw BoringException(message: path + ": Win32 error " + String(GetLastError()))
-    }
-    defer { FindClose(handle) }
-    var names: [String] = []
-    while true {
-        let name = withUnsafePointer(to: &data.cFileName) {
-            boringWideString(UnsafeRawPointer($0).assumingMemoryBound(to: UInt16.self))
-        }
-        if name != "." && name != ".." {
-            names.append(name)
-        }
-        if FindNextFileW(handle, &data) == 0 {
-            if GetLastError() != ERROR_NO_MORE_FILES {
-                throw BoringException(message: path + ": Win32 error " + String(GetLastError()))
-            }
-            break
-        }
-    }
-    return names
     #else
     throw BoringException(message: "std.Fs is not available on this host")
     #endif
-}
-
-private func boringWideString(_ units: UnsafePointer<UInt16>) -> String {
-    var out: [UInt16] = []
-    var p = units
-    while p.pointee != 0 {
-        out.append(p.pointee)
-        p += 1
-    }
-    return String(decoding: out, as: UTF16.self)
 }
 ';
 }
