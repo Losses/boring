@@ -5,6 +5,7 @@
 // so file reading goes through the POSIX calls of Glibc.
 
 import Glibc
+import Codec
 
 var failures: Int = 0
 

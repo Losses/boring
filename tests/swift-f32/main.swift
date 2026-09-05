@@ -7,6 +7,7 @@
 // file reading goes through the POSIX calls of Glibc.
 
 import Glibc
+import CodecF32
 
 var failures: Int = 0
 

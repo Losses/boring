@@ -24,3 +24,4 @@ reference/swift-f32/gen/
 reference/swift-f32/gen-tests/
 reference/dart/gen/
 reference/dart/gen-tests/
+.build/

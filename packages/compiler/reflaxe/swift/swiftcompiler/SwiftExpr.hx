@@ -2244,6 +2244,14 @@ class SwiftExpr {
                     }
                     return nativeName + "(" + rendered + ")";
                 }
+                if (module == "std.Env" || module == "std.Fs") {
+                    return platformModuleCall(module, fName, args, fn);
+                }
+                if (module == "std.Process" && fName == "args") {
+                    // std.Process.args() reads the arguments after the
+                    // program name (stdlib/17).
+                    return "Array(CommandLine.arguments.dropFirst())";
+                }
                 if (module == "std.UStringPlatform") {
                     return ustringPlatformCall(fName, args, fn);
                 }
@@ -2537,12 +2545,42 @@ class SwiftExpr {
     }
 
     /**
+        stdlib/17 platform modules: a std.Env or std.Fs static call lowers
+        to a call on the file-scope host helper of the calling file. The
+        helper carries the #if canImport arms, and the file imports the
+        host modules (and SystemPackage for std.Fs) through its own
+        header. Env helpers take the key and value strings; Fs helpers
+        take the path and payload strings in declaration order.
+    **/
+    function platformModuleCall(module:String, fName:String, args:Array<TypedExpr>, fn:TypedExpr):String {
+        final short = module.indexOf(".") >= 0 ? module.substr(module.lastIndexOf(".") + 1) : module;
+        final key = short + "." + fName;
+        if (SwiftHostEdges.source(key) == null) {
+            return fail(fn, module + "." + fName + " has no Swift lowering");
+        }
+        imports.hostEdge(key);
+        if (SwiftHostEdges.needsSystemPackage(key))
+            imports.systemPackage();
+        // The raise of the throwing Fs helpers is the shared BoringException
+        // base (the features/06 haxe.Exception mapping), resident in
+        // Runtime.swift; marking the runtime used keeps that file emitted.
+        if (SwiftHostEdges.throws(key))
+            imports.runtime("BoringException");
+        final helper = SwiftHostEdges.helperName(key);
+        // The helper parameters are plain Strings; an optional argument
+        // (a null-checked Null<String>) force-unwraps at the boundary
+        // exactly like any other non-optional call parameter.
+        final callArgs = argTexts(fn, args).join(", ");
+        return helper + "(" + callArgs + ")";
+    }
+
+    /**
         Cursor primitives of the resident UString walk, inlined per call
         against the unit array: end is the unit count, codeAt is an
         integer subscript, advance adds the surrogate-pair width, and
         fromCodePoint encodes the scalar (an out-of-domain argument
-        yields the NUL replacement, matching the Rust implementation. Business
-        code never reaches these; it calls std.UString.
+        yields the NUL replacement, matching the Rust implementation).
+        Business code never reaches these; it calls std.UString.
     **/
     function ustringPlatformCall(fName:String, args:Array<TypedExpr>, fn:TypedExpr):String {
         if (!imports.selfResident) {
