@@ -175,6 +175,10 @@ tests.RegistryParseArgsTests
 boring.ArrayIterationOps
 boring.PlatformOps
 tests.ExpressionBlockTests
+tests.NoSuchElementTests
+tests.PosterShapeTests
+tests.ShapeTextTests
+tests.StringToolsTests
 tests.RustUnionFaultTests
 tests.PlatformModulesTestSupport
 tests.PlatformModulesTests

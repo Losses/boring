@@ -33,6 +33,15 @@ class Compiler extends PluginCompiler<Compiler> {
         final compiler = new Compiler();
         haxe.macro.Context.onAfterTyping(ValueTypeSupport.validateModules);
         haxe.macro.Context.onAfterTyping(compiler.preScan);
+        // runtime.StringTools backs the StringTools statics that have no
+        // inline lowering (lpad, rpad, ltrim, rtrim, replace, ...). The
+        // target rewrites those static calls into the runtime module, which
+        // Haxe never types from a business reference, so force it here like
+        // the Kotlin target forces runtime.TestCore. A build without a
+        // runtime-import define has no way to reference the runtime package.
+        if (RuntimeConfig.importName() != null) {
+            Context.getType("runtime.StringTools");
+        }
         ReflectCompiler.AddCompiler(compiler, {
             fileOutputType: BaseCompilerFileOutputType.Manual,
             fileOutputExtension: ".rs",
@@ -324,6 +333,8 @@ class Compiler extends PluginCompiler<Compiler> {
             }
             if (state.shimsUsed.exists("std.UStringRT"))
                 runtimeMods.push("u_string");
+            if (state.shimsUsed.exists("StringTools"))
+                runtimeMods.push("string_tools");
             if (state.shimsUsed.exists("std.Graphemes")) {
                 runtimeMods.push("graphemes");
                 runtimeMods.push("grapheme_walk");
