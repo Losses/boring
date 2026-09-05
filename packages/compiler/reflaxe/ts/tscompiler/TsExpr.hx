@@ -1632,6 +1632,9 @@ class TsExpr {
                         return name;
                     }
                 }
+                if (cls.module == "std.Fs" || cls.module == "std.Env") {
+                    Context.error("std.Fs and std.Env statics lower at their call site; a bare reference has no lowering", Context.currentPos());
+                }
                 imports.value(cls.module, cls.name);
                 return cls.name + "." + name;
         }
@@ -1960,6 +1963,15 @@ class TsExpr {
                         case _:
                     }
                 }
+                if (cls.module == "std.Fs" || cls.pack.join(".") + "." + cls.name == "std.Fs") {
+                    return fsCall(fName, args, fn);
+                }
+                if (cls.module == "std.Env" || cls.pack.join(".") + "." + cls.name == "std.Env") {
+                    return envCall(fName, args, fn);
+                }
+                if ((cls.module == "std.Process" || cls.pack.join(".") + "." + cls.name == "std.Process") && fName == "args") {
+                    return processArgs(fn);
+                }
                 if ((cls.name == "Functional"
                     || cls.name == "__functional_shim"
                     || cls.module == "std.Functional"
@@ -2161,6 +2173,82 @@ class TsExpr {
             case TFun(_, TInst(_, params)) if (params.length > 1): params[1];
             case _: null;
         };
+    }
+
+    // ------------------------------------------------------------------
+    // Platform modules (docs/specs/stdlib/17-platform-modules.md)
+    // ------------------------------------------------------------------
+
+    static final FS_UNAVAILABLE = "std.Fs is not available on this host";
+
+    /**
+        A std.Fs static call (stdlib/17). Every host access sits inside the
+        lowered call body: the file gains no top-level `node:` import, and
+        `node:fs` loads lazily through `require` per call. When no host
+        loader exists (a browser) the call raises the fixed
+        unavailability message; compilation always succeeds and host
+        support is decided at the call.
+    **/
+    function fsCall(name:String, args:Array<TypedExpr>, fn:TypedExpr):String {
+        final rendered = [for (a in args) expr(a)];
+        final member = switch (name) {
+            case "exists": "existsSync(p)";
+            case "readText": 'readFileSync(p, "utf8")';
+            case "writeText": 'writeFileSync(p, d, "utf8")';
+            case "appendText": 'appendFileSync(p, d, "utf8")';
+            case "makeDirs": "mkdirSync(p, { recursive: true })";
+            case "readDir": "readdirSync(p)";
+            case "isDirectory": "statSync(p).isDirectory()";
+            case _:
+                Context.error("std.Fs has no lowering for member " + name, fn.pos);
+                return "null";
+        }
+        final params = (name == "writeText" || name == "appendText") ? "p, d" : "p";
+        return "((p" + (params == "p, d" ? ", d" : "") + ") => { const fs = typeof require === \"function\" ? require(\"node:fs\") : null; if (fs === null) { throw new Error("
+            + tsStringLiteral(FS_UNAVAILABLE)
+            + "); } return fs."
+            + member
+            + "; })("
+            + rendered.join(", ")
+            + ")";
+    }
+
+    /**
+        A std.Env static call (stdlib/17). A browser host maps to
+        localStorage (missing key null, the direct Null<String> match); a
+        node host maps to process.env with `?? null` for an absent entry.
+    **/
+    function envCall(name:String, args:Array<TypedExpr>, fn:TypedExpr):String {
+        final rendered = [for (a in args) expr(a)];
+        switch (name) {
+            case "get":
+                return "((k) => { if (typeof localStorage !== \"undefined\" && localStorage !== null) { return localStorage.getItem(k); } return (typeof process !== \"undefined\" && process.env ? process.env[k] : null) ?? null; })("
+                    + rendered[0]
+                    + ")";
+            case "set":
+                return "((k, v) => { if (typeof localStorage !== \"undefined\" && localStorage !== null) { localStorage.setItem(k, v); return; } if (typeof process !== \"undefined\" && process.env) { process.env[k] = v; } })("
+                    + rendered[0]
+                    + ", "
+                    + rendered[1]
+                    + ")";
+            case "remove":
+                return "((k) => { if (typeof localStorage !== \"undefined\" && localStorage !== null) { localStorage.removeItem(k); return; } if (typeof process !== \"undefined\" && process.env) { delete process.env[k]; } })("
+                    + rendered[0]
+                    + ")";
+            case _:
+                Context.error("std.Env has no lowering for member " + name, fn.pos);
+                return "null";
+        }
+    }
+
+    /** std.Process.args() reads process.argv.slice(2) lazily (stdlib/17). */
+    function processArgs(fn:TypedExpr):String {
+        return "((typeof process !== \"undefined\" && process.argv ? process.argv : []).slice(2))";
+    }
+
+    /** A double-quoted TypeScript string literal. */
+    static function tsStringLiteral(s:String):String {
+        return '"' + StringTools.replace(StringTools.replace(s, "\\", "\\\\"), '"', '\\"') + '"';
     }
 
     /**
