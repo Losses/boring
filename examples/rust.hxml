@@ -115,6 +115,8 @@ tests.EnumQueriesTests
 tests.EnumQueriesProbes
 boring.StdStringOps
 tests.StdStringTests
+boring.NullableArrayOps
+tests.NullableArrayTests
 boring.StringConvOps
 tests.StringConvTests
 boring.FileLevelOps
