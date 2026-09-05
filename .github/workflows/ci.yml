@@ -46,6 +46,19 @@ jobs:
           sudo dmesg | grep -i segfault | tail -6 || true
           echo '--- dynamic linker resolution ---'
           ldd .build/debug/BoringSwiftTests 2>/dev/null | grep -i -E 'swift|dispatch|stdc|not found' || true
+          echo '--- address space and core dump setup ---'
+          cat /proc/sys/kernel/randomize_va_space
+          cat /proc/sys/kernel/core_pattern
+          ulimit -c
+          echo '--- core file backtrace ---'
+          CORE="$(ls -t core* 2>/dev/null | head -1)"
+          if [ -n "$CORE" ]; then
+            command -v gdb >/dev/null && gdb -batch -ex 'bt 15' ./.build/debug/BoringSwiftTests "$CORE" 2>&1 | tail -30 || echo '(gdb unavailable)'
+          else
+            echo '(no core file in workspace)'
+            echo '--- rerun under gdb for a live backtrace ---'
+            nix develop -c bash -c 'command -v gdb >/dev/null && gdb -batch -ex "run > /dev/null 2>&1" -ex "bt 15" --args ./.build/debug/BoringSwiftTests' 2>&1 | tail -30 || true
+          fi
       - name: Export nix closure
         if: always()
         run: nix-store --export $(nix-store -qR $(nix build .#devShells.x86_64-linux.default --no-link --print-out-paths)) > nix-closure.nar
@@ -126,3 +139,11 @@ jobs:
       # generated even though only the f64 products are tested here.
       - name: Run Swift generation and tests
         run: bun install && bun run gen:swift && bun run gen:swift-f32 && bun run test:swift
+      # BoringSwiftTests runs to completion here but reports failed tests
+      # through its exit code, and the jsonl redirect hides the details.
+      - name: Dump Swift test failures
+        if: failure()
+        run: |
+          echo '--- failing records in out/test-results/swift.jsonl ---'
+          wc -l out/test-results/swift.jsonl 2>/dev/null || echo '(no swift.jsonl)'
+          grep -v '"verdict":"pass"' out/test-results/swift.jsonl 2>/dev/null | tail -40 || echo '(all records pass)'
