@@ -232,10 +232,12 @@ Construct semantics, typed-AST shapes, and the Haxe-side restrictions live
 in the `features/`, `macros/`, and `stdlib/` specifications; this document
 adds the Swift column and cross-references them by number.
 
-The toolchain is `swiftc` 5.10 without Foundation: the dev shell carries no
-Foundation for the Linux target, so every ruling below uses the Swift
-standard library only. A linked Swift binary resolves `libswiftCore`
-through its `RUNPATH`, which loads `libdispatch`; the test entry runs with
+On x86_64 Linux the toolchain is the official Swift 6.2.4 Amazon Linux 2
+distribution inside a nix `buildFHSEnv`; it supplies FoundationEssentials and
+SwiftPM. The six `std.Fs` operations that use FoundationEssentials are
+available through `FileManager`, while atomic append remains on swift-system.
+Darwin and other hosts retain the native Swift toolchain path. A linked Swift
+binary resolves `libswiftCore` through its `RUNPATH`; the test entry runs with
 `LD_LIBRARY_PATH` set to `BORING_SWIFT_LIBDISPATCH` from the dev shell.
 
 #### Facts the rulings cite
