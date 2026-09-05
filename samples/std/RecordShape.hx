@@ -149,9 +149,10 @@ class RecordShape {
             out = {expr: EBinop(OpAdd, out, {expr: EConst(CString(name + "=")), pos: receiver.pos}), pos: receiver.pos};
             final read:Expr = {expr: EField(receiver, name), pos: receiver.pos};
             final fieldType = shape.fieldTypes[i];
+            final floatText = f32FloatFieldValue(fieldType, read, receiver.pos);
             final stage1Enum = stage1EnumFieldValue(fieldType, read, receiver.pos);
             final stage1Collection = stage1CollectionFieldValue(fieldType, read, receiver.pos);
-            final value = isRecordType(fieldType) ? (isNullableType(fieldType) ? nullableRecordFieldValue(read,
+            final value = floatText != null ? floatText : isRecordType(fieldType) ? (isNullableType(fieldType) ? nullableRecordFieldValue(read,
                 receiver.pos) : memberCallValue(read,
                     receiver.pos)) : stage1Enum != null ? stage1Enum : stage1Collection != null ? stage1Collection : (isCollectionType(fieldType)
                     || isEnumType(fieldType)) ? (isNullableType(fieldType) ? nullableStdStringValue(read,
@@ -195,6 +196,37 @@ class RecordShape {
         final nullLiteral = {expr: EConst(CIdent("null")), pos: pos};
         final isNull = {expr: EBinop(OpEq, read, nullLiteral), pos: pos};
         return {expr: ETernary(isNull, {expr: EConst(CString("null")), pos: pos}, stdStringValue(read, pos)), pos: pos};
+    }
+
+    /**
+     * The printed operand for one Float or Null<Float> field under the
+     * f32 oracle compilation (features/44): the shortest round-trip
+     * decimal of the binary32 value, matching the Kotlin data class
+     * reference text. A nullable field wraps the call in an explicit
+     * null comparison like nullableRecordFieldValue above. Every other
+     * compilation keeps the plain read.
+     */
+    static function f32FloatFieldValue(fieldType:Type, read:Expr, pos:Position):Null<Expr> {
+        if (!Context.defined("boring_oracle") || Context.definedValue("float-precision") != "f32") {
+            return null;
+        }
+        final nullable = isNullableType(fieldType);
+        final followedField = Context.follow(fieldType);
+        final inner:Type = nullable ? switch (followedField) {
+            case TAbstract(_, params) if (params.length > 0): params[0];
+            case _: return null;
+        } : fieldType;
+        switch (Context.follow(inner)) {
+            case TAbstract(a, _) if (a.get().name == "Float"):
+            case _: return null;
+        }
+        final call = {expr: ECall({expr: EField({expr: EField({expr: EConst(CIdent("std")), pos: pos}, "FpText"), pos: pos}, "shortest"), pos: pos}, [read]), pos: pos};
+        if (!nullable) {
+            return call;
+        }
+        final nullLiteral = {expr: EConst(CIdent("null")), pos: pos};
+        final isNull = {expr: EBinop(OpEq, read, nullLiteral), pos: pos};
+        return {expr: ETernary(isNull, {expr: EConst(CString("null")), pos: pos}, call), pos: pos};
     }
 
     static function isNullableType(type:Type):Bool {
