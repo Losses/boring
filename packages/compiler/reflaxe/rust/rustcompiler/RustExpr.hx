@@ -5076,11 +5076,15 @@ class RustExpr {
                 final pt = paramTypes[i];
                 final registered = DefaultArgExpander.defaultAt(cls, "new", i);
                 if (registered != null && isNullLiteral(arg)) {
+                    if (isCoalescingDefault(registered)) {
+                        out.push(argStr);
+                        continue;
+                    }
                     final d = defaultArgText(registered, pt);
-                    out.push(isNullType(pt) ? "Some(" + d + ")" : d);
+                    out.push(isNullType(pt) && !isCoalescingDefault(registered) ? "Some(" + d + ")" : d);
                     continue;
                 }
-                if (registered != null && isNullType(arg.t)) {
+                if (registered != null && isNullType(arg.t) && !isNullType(pt) && !isCoalescingDefault(registered)) {
                     out.push("(" + argStr + ").unwrap_or(" + defaultArgText(registered, getNullInnerType(pt)) + ")");
                     continue;
                 }
@@ -5092,15 +5096,15 @@ class RustExpr {
                     // A nullable constructor parameter takes an Option; a
                     // null literal already renders None, any other
                     // argument wraps.
-                    if (argStr != "None") {
-                        final inner = switch (stripWrap(arg).expr) {
-                            case TConst(TString(s)): quoteString(s) + ".to_string()";
-                            case _: isInterfaceType(getNullInnerType(pt)) && !isInterfaceType(arg.t) ? "Box::new(" + argStr + ")" : argStr;
-                        };
-                        out.push("Some(" + inner + ")");
+                    if (argStr == "None" || StringTools.startsWith(argStr, "Some(")) {
+                        out.push(argStr);
                         continue;
                     }
-                    out.push(argStr);
+                    final inner = switch (stripWrap(arg).expr) {
+                        case TConst(TString(s)): quoteString(s) + ".to_string()";
+                        case _: isInterfaceType(getNullInnerType(pt)) && !isInterfaceType(arg.t) ? "Box::new(" + argStr + ")" : argStr;
+                    };
+                    out.push("Some(" + inner + ")");
                     continue;
                 }
                 if (isInterfaceType(pt)) {
@@ -5141,6 +5145,17 @@ class RustExpr {
         return out.join(", ");
     }
 
+    function isCoalescingDefaultAt(cls:ClassType, index:Int):Bool
+        return switch (DefaultArgExpander.defaultAt(cls, "new", index)) {
+            case VCoalescing(_): true;
+            case _: false;
+        };
+    function isCoalescingDefault(v:DefaultArgExpander.DefaultArgValue):Bool
+        return switch (v) {
+            case VCoalescing(_): true;
+            case _: false;
+        };
+
     function isNullLiteral(e:TypedExpr):Bool
         return switch (stripWrap(e).expr) {
             case TConst(TNull): true;
@@ -5155,7 +5170,7 @@ class RustExpr {
             case VBool(x): x ? "true" : "false";
             case VNull: "None";
             case VEnum(e, f): e.get().name + "::" + RustImports.toSnakeCase(f.name);
-            case VCoalescing(x): coalescingDefaultText(x, t);
+            case VCoalescing(_): "None";
         };
 
     function numericAssignmentValue(expected:Type, actual:TypedExpr, rendered:String, targetOverride:Null<String> = null):String {

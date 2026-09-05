@@ -1650,7 +1650,9 @@ class RustDecl {
                 if (isStringParam) {
                     lines.push('            $sname: ${sname}.to_string(),');
                 } else if (isNullableStringParam) {
-                    lines.push('            $sname: match $sname { Some(v) => Some(v.to_string()), None => None },');
+                    final coalesced = DefaultArgExpander.coalescingDefaultForLocalParam(cls, f.field.name, a.name, a.name) != null
+                        || DefaultArgExpander.coalescingDefaultForParam(cls, f.field.name, a.name) != null;
+                    lines.push(coalesced ? '            $sname: Some($sname),' : '            $sname: match $sname { Some(v) => Some(v.to_string()), None => None },');
                 } else {
                     lines.push('            $sname,');
                 }
