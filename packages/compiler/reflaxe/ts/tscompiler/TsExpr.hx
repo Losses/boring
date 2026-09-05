@@ -1993,7 +1993,7 @@ class TsExpr {
                 }
             case _:
         }
-        final rendered = [for (a in args) expr(a)].join(", ");
+        final rendered = callArgTexts(fn, args).join(", ");
         final inlineMapCall = mapHasOwnPropertyCall(fn, args);
         if (inlineMapCall != null) {
             return inlineMapCall;
@@ -2312,13 +2312,76 @@ class TsExpr {
         return "{ " + parts.join(", ") + " }";
     }
 
+    function callArgTexts(fn:TypedExpr, args:Array<TypedExpr>):Array<String> {
+        final target = switch (fn.expr) {
+            case TField(_, FInstance(c, _, cf)): {owner: c.get(), name: cf.get().name, type: cf.get().type};
+            case TField(_, FStatic(c, cf)): {owner: c.get(), name: cf.get().name, type: cf.get().type};
+            default: null;
+        };
+        final typesOf = target == null ? [] : switch (Context.follow(target.type)) {
+            case TFun(p, _): [for (x in p) x.t];
+            case _: [];
+        };
+        return [
+            for (i in 0...args.length) {
+                final expected = i < typesOf.length ? typesOf[i] : null;
+                final d = target != null ? DefaultArgExpander.defaultAt(target.owner, target.name, i) : null;
+                if (d != null && expected != null && isNullLiteral(args[i])) defaultArgText(d,
+                    expected) else if (d != null && expected != null && isNullType(args[i].t)) "("
+                    + expr(args[i])
+                    + " ?? "
+                    + defaultArgText(d, expected)
+                    + ")" else expr(args[i]);
+            }
+        ];
+    }
+
+    function constructorArgTexts(cls:ClassType, args:Array<TypedExpr>):Array<String> {
+        final ps = cls.constructor == null ? [] : switch (Context.follow(cls.constructor.get().type)) {
+            case TFun(p, _): [for (x in p) x.t];
+            case _: [];
+        };
+        return [for (i in 0...args.length) {
+            final d = DefaultArgExpander.defaultAt(cls, "new", i);
+            final p = i < ps.length ? ps[i] : null;
+            d != null
+            && p != null && isNullLiteral(args[i]) ? defaultArgText(d, p) : d != null && p != null && isNullType(args[i].t) ? "(" + expr(args[i]) + " ?? " + defaultArgText(d,
+                p) + ")" : expr(args[i]);
+        }
+        ];
+    }
+
+    function isNullLiteral(e:TypedExpr):Bool
+        return switch (stripWrap(e).expr) {
+            case TConst(TNull): true;
+            case _: false;
+        };
+
+    function isNullType(t:Null<Type>):Bool
+        return t != null && switch (t) {
+            case TAbstract(a, _): a.get().name == "Null";
+            case TLazy(f): isNullType(f());
+            case _: false;
+        };
+
+    function defaultArgText(v:DefaultArgExpander.DefaultArgValue, t:Type):String
+        return switch (v) {
+            case VInt(x): Std.string(x);
+            case VFloat(x): x;
+            case VString(x): quoteString(x);
+            case VBool(x): x ? "true" : "false";
+            case VNull: "null";
+            case VEnum(e, f): e.get().name + "." + f.name;
+            case VCoalescing(x): coalescingDefaultText(x, t);
+        };
+
     static function isValueEnum(en:EnumType):Bool {
         return PolicyQueries.isValueEnum(en);
     }
 
     function newExpr(c:Ref<ClassType>, params:Array<Type>, args:Array<TypedExpr>):String {
         final cls = c.get();
-        final rendered = [for (a in args) expr(a)].join(", ");
+        final rendered = constructorArgTexts(cls, args).join(", ");
         final path = cls.pack.length == 0 ? cls.name : cls.pack.join(".") + "." + cls.name;
         switch (path) {
             case "std.StringBuf" | "StringBuf":
