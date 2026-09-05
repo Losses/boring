@@ -1,15 +1,15 @@
 // Windows-arm typecheck probe of the stdlib/17 host-edge helpers
 // (docs/specs/stdlib/17-platform-modules.md, "Host conditioning").
 //
-// The toolchain's Swift chain runs on Linux, so the canImport(MSVCRT)
+// The toolchain's Swift chain runs on Linux, so the canImport(CRT)
 // and canImport(WinSDK) arms of the std.Env and std.Fs helpers cannot
 // execute here. Their verification level is (a) review against the
 // documented Win32/UCRT semantics (citations inline below) and (b) this
 // compile probe: the arm bodies are extracted from the emitter sources
 // and compiled on Linux against stub declarations of the UCRT and Win32
 // symbols they call, which type-checks every identifier, argument, and
-// call shape the arms use. A Windows CI slot that compiles and runs the
-// suite natively is the follow-up that upgrades this level.
+// call shape the arms use. The CI windows job now compiles and runs the
+// suite natively; this probe stays as the Linux-side type-check gate.
 //
 // Stub shapes follow the swift-corelibs-foundation WinSDK overlay where
 // one exists. Citations:

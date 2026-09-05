@@ -9,8 +9,12 @@ package swiftcompiler;
     file that references a platform module carries its own copy without
     colliding across files of the one Swift module. The C interop of
     every helper sits inside `#if canImport(...)` arms per the spec's
-    host conditioning; the SwiftPM package ships the swift-system
-    dependency, and only files that reference std.Fs import
+    host conditioning: the six FileManager helpers accept Foundation on
+    Apple SDKs (which do not expose FoundationEssentials as a top-level
+    module), and the env helpers use the Windows `CRT` module (the Swift
+    overlay of ucrt that swiftlang toolchains ship since 5.3; there is
+    no MSVCRT module in 6.x SDKs). The SwiftPM package ships the
+    swift-system dependency, and only files that reference std.Fs import
     SystemPackage (the calling file's own `import` block).
 **/
 class SwiftHostEdges {
@@ -89,7 +93,7 @@ private func boringEnvGet(_ key: String) -> String? {
         guard let value = getenv(k) else { return nil }
         return String(cString: value)
     }
-    #elseif canImport(MSVCRT)
+    #elseif canImport(CRT)
     // The UCRT exports the same getenv symbol; the read goes through
     // the CRT so get and set share one environment view.
     return key.withCString { k in
@@ -108,7 +112,7 @@ private func boringEnvSet(_ key: String, _ value: String) {
     _ = key.withCString { k in
         value.withCString { v in setenv(k, v, 1) }
     }
-    #elseif canImport(MSVCRT)
+    #elseif canImport(CRT)
     // Set goes through the CRT pair on purpose (spec stdlib/17): get
     // reads the CRT, so the write must land there too. _putenv_s
     // returns errno_t; a failing set has no observable effect here.
@@ -124,7 +128,7 @@ private func boringEnvSet(_ key: String, _ value: String) {
 private func boringEnvRemove(_ key: String) {
     #if canImport(Glibc) || canImport(Darwin)
     _ = key.withCString { k in unsetenv(k) }
-    #elseif canImport(MSVCRT)
+    #elseif canImport(CRT)
     // The documented remove form of _putenv is the "name=" entry
     // (Microsoft Learn, _putenv/_wputenv): a name with an empty value
     // removes the variable rather than setting it.
@@ -137,7 +141,7 @@ private func boringEnvRemove(_ key: String) {
 
     static final FS_EXISTS = '
 private func boringFsExists(_ path: String) -> Bool {
-    #if canImport(FoundationEssentials)
+    #if canImport(FoundationEssentials) || canImport(Darwin)
     return FileManager.default.fileExists(atPath: path)
     #else
     return false
@@ -147,7 +151,7 @@ private func boringFsExists(_ path: String) -> Bool {
 
     static final FS_IS_DIRECTORY = '
 private func boringFsIsDirectory(_ path: String) -> Bool {
-    #if canImport(FoundationEssentials)
+    #if canImport(FoundationEssentials) || canImport(Darwin)
     var isDirectory = false
     return FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory) && isDirectory
     #else
@@ -158,7 +162,7 @@ private func boringFsIsDirectory(_ path: String) -> Bool {
 
     static final FS_READ_TEXT = '
 private func boringFsReadText(_ path: String) throws -> String {
-    #if canImport(FoundationEssentials)
+    #if canImport(FoundationEssentials) || canImport(Darwin)
     guard let data = FileManager.default.contents(atPath: path) else {
         throw BoringException(message: path + ": read failed")
     }
@@ -171,7 +175,7 @@ private func boringFsReadText(_ path: String) throws -> String {
 
     static final FS_WRITE_TEXT = '
 private func boringFsWriteText(_ path: String, _ data: String) throws {
-    #if canImport(FoundationEssentials)
+    #if canImport(FoundationEssentials) || canImport(Darwin)
     let bytes = Data(Array(data.utf8))
     guard FileManager.default.createFile(atPath: path, contents: bytes) else {
         throw BoringException(message: path + ": write failed")
@@ -202,7 +206,7 @@ private func boringFsAppendText(_ path: String, _ data: String) throws {
 
     static final FS_MAKE_DIRS = '
 private func boringFsMakeDirs(_ path: String) throws {
-    #if canImport(FoundationEssentials)
+    #if canImport(FoundationEssentials) || canImport(Darwin)
     do {
         try FileManager.default.createDirectory(atPath: path, withIntermediateDirectories: true)
     } catch {
@@ -216,7 +220,7 @@ private func boringFsMakeDirs(_ path: String) throws {
 
     static final FS_READ_DIR = '
 private func boringFsReadDir(_ path: String) throws -> [String] {
-    #if canImport(FoundationEssentials)
+    #if canImport(FoundationEssentials) || canImport(Darwin)
     do {
         return try FileManager.default.contentsOfDirectory(atPath: path)
     } catch {
