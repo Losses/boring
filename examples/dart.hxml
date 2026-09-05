@@ -163,3 +163,4 @@ tests.RegistryPipelineTests
 tests.RegistryParseArgsTests
 boring.ArrayIterationOps
 boring.SortedDataClassKeysOps
+tests.ExpressionBlockTests
