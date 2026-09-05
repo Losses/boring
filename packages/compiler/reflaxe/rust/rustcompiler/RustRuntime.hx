@@ -235,18 +235,22 @@ impl Fs {
 
     pub fn read_dir(path: &str) -> Vec<String> {
         let entries = std::fs::read_dir(path).unwrap_or_else(|e| fail(path, e));
-        entries
-            .map(|entry| {
-                let entry = entry.unwrap_or_else(|e| fail(path, e));
-                entry.file_name().to_string_lossy().into_owned()
-            })
-            .collect()
+        let mut names = Vec::new();
+        for entry in entries {
+            let entry = match entry {
+                Ok(entry) => entry,
+                Err(e) => fail(path, e),
+            };
+            names.push(entry.file_name().to_string_lossy().into_owned());
+        }
+        names
     }
 
     pub fn is_directory(path: &str) -> bool {
-        std::fs::metadata(path)
-            .map(|m| m.is_dir())
-            .unwrap_or(false)
+        match std::fs::metadata(path) {
+            Ok(metadata) => metadata.is_dir(),
+            Err(_) => false,
+        }
     }
 }
 ';
