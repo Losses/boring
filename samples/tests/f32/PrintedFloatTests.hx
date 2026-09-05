@@ -6,12 +6,21 @@ import std.Test;
 class PrintedFloatTests {
     @:test("shortest binary32 text")
     public static function printsShortestFloatText():Void {
-        Test.equals("PrintedFloat(ratio=0.8, offset=96.004, count=7)", Std.string(new PrintedFloat(0.8, 96.004, 7)));
+        Test.equals("PrintedFloat(ratio=0.8, offset=96.004, count=7, stops=null)", Std.string(new PrintedFloat(0.8, 96.004, 7, null)));
     }
 
     @:test("whole, negative, and null binary32 text")
     public static function printsWholeNegativeAndNullFloatFields():Void {
-        Test.equals("PrintedFloat(ratio=18.0, offset=null, count=1)", Std.string(new PrintedFloat(18.0, null, 1)));
-        Test.equals("PrintedFloat(ratio=-0.8, offset=18.08, count=2)", Std.string(new PrintedFloat(-0.8, 18.08, 2)));
+        Test.equals("PrintedFloat(ratio=18.0, offset=null, count=1, stops=null)", Std.string(new PrintedFloat(18.0, null, 1, null)));
+        Test.equals("PrintedFloat(ratio=-0.8, offset=18.08, count=2, stops=null)", Std.string(new PrintedFloat(-0.8, 18.08, 2, null)));
+    }
+
+    @:test("computed shortest text stays applied to nullable fields")
+    public static function printsComputedShortestTextOnNullableFields():Void {
+        Test.equals("PrintedFloat(ratio=0.5714286, offset=0.5714286, count=7, stops=null)", Std.string(new PrintedFloat(4 / 7, 4 / 7, 7, null)));
+    }
+    @:test("nullable float collection keeps the ruled array form")
+    public static function printsNullableFloatCollectionForm():Void {
+        Test.equals("PrintedFloat(ratio=0.8, offset=null, count=7, stops=[1.5, 2.5])", Std.string(new PrintedFloat(0.8, null, 7, [1.5, 2.5])));
     }
 }
