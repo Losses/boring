@@ -3913,6 +3913,14 @@ class RustExpr {
                 final first = cls.name.length > 0 ? cls.name.charAt(0) : "?";
                 final nativeLower = first >= "a" && first <= "z";
                 final structName = nativeLower ? cls.module.substr(cls.module.lastIndexOf(".") + 1) : cls.name;
+                if (cls.module != "" && StringTools.endsWith(cls.name, "_Impl_")) {
+                    // A sub-type abstract's non-inline static (for example
+                    // `FontId::of`) lowers to the synthetic implementation's
+                    // `_Impl_`. The call site names that symbol, so
+                    // compileClassImpl must not drop the referenced `_Impl_`
+                    // even though ordinary synthetic impls never emit.
+                    state.referencedImpls.set(cls.module, true);
+                }
                 imports.requireType(cls.module, structName);
                 return structName + "::" + staticName;
         }

@@ -109,7 +109,18 @@ class Compiler extends PluginCompiler<Compiler> {
             return null;
         }
         SealedVariantHelper.validateClass(classType);
-        if (isSyntheticImpl(classType.name) || (!classType.isInterface && isInlineOnly(classType, varFields, funcFields))) {
+        if (isSyntheticImpl(classType.name)) {
+            // A synthetic abstract-implementation class emits only when a
+            // generated reference names its statics (`Name_Impl_.field`):
+            // a sub-type abstract whose non-inline static another module
+            // calls needs the `_Impl_` companion to resolve (features/49).
+            // Unreferenced synthetic impls (including fully-inline
+            // integrated abstracts, whose calls inline before any reference
+            // survives) stay dropped.
+            if (!state.referencedImpls.exists(classType.module)) {
+                return null;
+            }
+        } else if (!classType.isInterface && isInlineOnly(classType, varFields, funcFields)) {
             return null;
         }
         StaticFunctionMarkers.validateAll(funcFields);
