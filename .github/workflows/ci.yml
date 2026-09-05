@@ -17,9 +17,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: DeterminateSystems/nix-installer-action@v17
-      - uses: DeterminateSystems/magic-nix-cache-action@v8
+      - name: Restore nix closure
+        uses: actions/cache@v4
+        with:
+          path: nix-closure.nar
+          key: nix-closure-linux-${{ hashFiles('flake.lock') }}
+          restore-keys: nix-closure-linux-
+      - name: Import nix closure
+        if: hashFiles('nix-closure.nar') != ''
+        run: sudo nix-store --import < nix-closure.nar || true
       - name: Run generation and tests
         run: nix develop -c bash -c 'bun install && bun run gen:ts && bun run gen:kotlin && bun run gen:kotlin-f32 && bun run gen:rust && bun run gen:rust-f32 && bun run gen:swift && bun run gen:swift-f32 && bun run gen:dart && bun run test:stage1:haxe && bun run test:stage1:ts && bun run test:stage1:kotlin && bun run test:stage1:rust && bun run test:haxe && bun run test:kotlin && bun run test:rust && bun run test:swift && bun run test:swift-f32 && bun run test:dart && bun run test:kotlin-f32 && bun run test:rust-f32 && bun run test:consistency && bun run check:docs'
+      - name: Export nix closure
+        run: nix-store --export $(nix-store -qR $(nix build .#devShells.x86_64-linux.default --no-link --print-out-paths)) > nix-closure.nar
 
   macos:
     runs-on: macos-latest
@@ -27,9 +37,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: DeterminateSystems/nix-installer-action@v17
-      - uses: DeterminateSystems/magic-nix-cache-action@v8
+      - name: Restore nix closure
+        uses: actions/cache@v4
+        with:
+          path: nix-closure.nar
+          key: nix-closure-macos-${{ hashFiles('flake.lock') }}
+          restore-keys: nix-closure-macos-
+      - name: Import nix closure
+        if: hashFiles('nix-closure.nar') != ''
+        run: sudo nix-store --import < nix-closure.nar || true
+      - name: Swift toolchain version
+        run: swift --version
       - name: Run generation and tests
         run: nix develop -c bash -c 'bun install && bun run gen:ts && bun run gen:kotlin && bun run gen:kotlin-f32 && bun run gen:rust && bun run gen:rust-f32 && bun run gen:swift && bun run gen:swift-f32 && bun run gen:dart && bun run test:stage1:haxe && bun run test:stage1:ts && bun run test:stage1:kotlin && bun run test:stage1:rust && bun run test:haxe && bun run test:kotlin && bun run test:rust && bun run test:swift && bun run test:swift-f32 && bun run test:dart && bun run test:kotlin-f32 && bun run test:rust-f32 && bun run test:consistency && bun run check:docs'
+      - name: Export nix closure
+        run: nix-store --export $(nix-store -qR $(nix build .#devShells.aarch64-darwin.default --no-link --print-out-paths)) > nix-closure.nar
 
   windows:
     runs-on: windows-latest
@@ -42,22 +64,35 @@ jobs:
       - name: Install Haxe
         run: choco install haxe --yes --no-progress
       - name: Install Bun
-        shell: bash
         run: |
           powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "irm bun.sh/install.ps1 | iex"
           echo "$HOME/.bun/bin" >> "$GITHUB_PATH"
+      - name: Restore Swift toolchain
+        id: swift-cache
+        uses: actions/cache@v4
+        with:
+          path: C:/Users/runner/AppData/Local/Programs/Swift
+          key: swift-6.1.2-windows10
       - name: Install Swift
-        shell: bash
+        if: steps.swift-cache.outputs.cache-hit != 'true'
+        run: powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "\$url = 'https://download.swift.org/swift-6.1.2-release/windows10/swift-6.1.2-RELEASE/swift-6.1.2-RELEASE-windows10.exe'; Invoke-WebRequest -Uri \$url -OutFile swift-installer.exe; Start-Process .\\swift-installer.exe -ArgumentList '/quiet' -Wait"
+      - name: Add Swift to PATH
         run: |
-          powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "\$url = 'https://download.swift.org/swift-6.1.2-release/windows10/swift-6.1.2-RELEASE/swift-6.1.2-RELEASE-windows10.exe'; Invoke-WebRequest -Uri \$url -OutFile swift-installer.exe; Start-Process .\\swift-installer.exe -ArgumentList '/quiet' -Wait"
-          echo '/c/Swift/usr/bin' >> "$GITHUB_PATH"
-          export PATH="/c/Swift/usr/bin:$PATH"
-          swift --version
-      - name: Install reflaxe
+          SWIFT_ROOT="$(cygpath -u "$LOCALAPPDATA")/Programs/Swift"
+          SWIFT_EXE="$(find "$SWIFT_ROOT" "/c/Program Files/Swift" -name swift.exe 2>/dev/null | head -1)"
+          if [ -z "$SWIFT_EXE" ]; then
+            echo "swift.exe not found under $SWIFT_ROOT or /c/Program Files/Swift" >&2
+            exit 1
+          fi
+          SWIFT_BIN="$(dirname "$SWIFT_EXE")"
+          echo "$SWIFT_BIN" >> "$GITHUB_PATH"
+          "$SWIFT_BIN/swift.exe" --version
+      - name: Install reflaxe and format
         run: |
           git clone https://github.com/SomeRanDev/reflaxe.git .reflaxe
           git -C .reflaxe checkout 9fa459a0b4436d1706db6495823b81f2947ff7a0
           haxelib dev reflaxe "$PWD/.reflaxe"
           haxelib dev boring "$PWD"
+          haxelib install format 3.8.0
       - name: Run Swift generation and tests
         run: bun install && bun run gen:swift && bun run test:swift

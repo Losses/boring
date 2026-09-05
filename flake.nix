@@ -103,8 +103,15 @@
           # Swift and Dart compile and run their generated codec trees.
           rustToolchain = pkgs.rust-bin.stable.latest.default;
           useLinuxSwift = pkgs.stdenv.hostPlatform.isLinux && pkgs.stdenv.hostPlatform.isx86_64;
+          useDarwinSwift = pkgs.stdenv.hostPlatform.isDarwin;
           linuxSwift = mkLinuxSwift pkgs;
-          swiftPackages = if useLinuxSwift then [ linuxSwift ] else (with pkgs; [ swift swiftpm ]);
+          # nixpkgs only carries Swift 5.10 on darwin, below the
+          # swift-tools-version:6.0 manifest requirement, so darwin
+          # shells use the system Xcode toolchain instead.
+          swiftPackages =
+            if useLinuxSwift then [ linuxSwift ]
+            else if useDarwinSwift then [ ]
+            else (with pkgs; [ swift swiftpm ]);
         in
         {
           default = pkgs.mkShell {
@@ -124,6 +131,13 @@
               mkdir -p "$HAXELIB_PATH"
               haxelib dev reflaxe "${reflaxe}" >/dev/null
               haxelib dev boring "$PWD" >/dev/null
+              # boring's haxelib.json declares a dependency on "format";
+              # install the pinned libraries so fresh checkouts compile.
+              # Idempotent: reports "already installed" with exit 0. An
+              # offline install fails silently here and surfaces later as
+              # the library-specific haxe error.
+              haxelib install format 3.8.0 >/dev/null 2>&1 || true
+              haxelib install formatter 1.18.0 >/dev/null 2>&1 || true
               # A linked Swift binary resolves libswiftCore through its
               # RUNPATH, and libswiftCore loads libdispatch from another
               # store path the binary RUNPATH does not cover; generated
@@ -131,6 +145,8 @@
               ${
                 if useLinuxSwift
                 then ''export BORING_SWIFT_LIBDISPATCH="${linuxSwift.passthru.libdispatch}"''
+                else if useDarwinSwift
+                then "# darwin: Swift comes from the system Xcode toolchain; LD_LIBRARY_PATH is unused on macOS"
                 else ''export BORING_SWIFT_LIBDISPATCH="${pkgs.swift-corelibs-libdispatch}/lib"''
               }
             '';
