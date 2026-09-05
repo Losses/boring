@@ -75,7 +75,8 @@ implementation stands in for the standard library.
 - Kotlin: the buffer renders as `StringBuilder`. `add` emits the
   boundary check and `append`. `addChar` emits the pairing check reading
   the trailing unit and `append(codeUnit.toChar())`. The fault
-  constructs the compiled `std.UStringException`. `length` emits the
+  constructs the compiled `std.UStringException`, which consumer builds
+  write through stdlib/06's guaranteed-module list. `length` emits the
   `.length` property. `toString` emits the dangling-lead check and
   `toString()`.
 - Haxe stage 1: the wrapper that binds the standard `StringBuf` applies
