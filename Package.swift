@@ -12,6 +12,11 @@ let swiftSystem = Target.Dependency.product(name: "SystemPackage", package: "swi
 
 let package = Package(
     name: "boring",
+    // The generated code calls String.split(separator:maxSplits:
+    // omittingEmptySubsequences:), which requires macOS 13; without a
+    // platforms declaration SwiftPM assumes a deployment target older
+    // than that and the macOS build fails availability checking.
+    platforms: [.macOS(.v13)],
     dependencies: [
         .package(url: "https://github.com/apple/swift-system", exact: "1.6.6")
     ],
