@@ -296,13 +296,11 @@ class Path {
 
     /** HOME on POSIX hosts, USERPROFILE on Windows hosts, via std.Env. */
     static function homeDir():Null<String> {
-        var home = Env.get("HOME");
-        if (home == null || home == "")
-            home = Env.get("USERPROFILE");
+        final home = Env.get("HOME");
         if (home == null)
-            return null;
+            return Env.get("USERPROFILE");
         if (home == "")
-            return null;
+            return Env.get("USERPROFILE");
         return home;
     }
 }
