@@ -29,6 +29,9 @@ class PipelineOps {
         final mapped = items.map(function(item:Item):Int {
             return item.score + item.id;
         });
+        if (items.length > 100) {
+            item = 1000;
+        }
         if (item != 999) {
             return [];
         }
