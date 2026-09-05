@@ -654,7 +654,10 @@ class KotlinExpr {
                 }
             case _:
         }
-        return owner + "(" + expr(payloadArg) + ")";
+        // Any other payload expression already carries the folded enum
+        // type, which renders as the owner's sealed type; the value is the
+        // variant itself, so no construction wraps it.
+        return expr(payloadArg);
     }
 
     function fuseWithin(e:TypedExpr):TypedExpr {
@@ -2610,6 +2613,7 @@ class KotlinExpr {
                 final en = e.get();
                 final owner = state.payloadEnumOwners.get(en.module);
                 if (owner != null) {
+                    imports.requireType(en.pack.concat([owner]).join("."), owner);
                     return owner + "." + ef.name + "(" + renderedArgs + ")";
                 }
                 imports.requireType(en.module, en.name);

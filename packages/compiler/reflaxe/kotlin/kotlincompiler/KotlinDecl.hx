@@ -710,11 +710,13 @@ class KotlinDecl {
         return.
     **/
     function collectCollapsedCase(stmts:Array<TypedExpr>, options:Array<haxe.macro.Type.EnumField>, out:Map<String, String>):Void {
-        if (options.length == 1) {
-            // A single-variant enum reduces to the body with no pattern
-            // capture (there is nothing to bind), so no TEnumParameter
-            // marks the constructor. Attribute the
-            // rendered body to the one option.
+        if (options.length == 1 && enumFieldParams(options[0]).length == 0) {
+            // A single-variant enum with no payload reduces to the body
+            // with no pattern capture (there is nothing to bind), so no
+            // TEnumParameter marks the constructor. A payload-carrying
+            // variant still arrives as the two-statement capture form and
+            // takes the shared path below. Attribute the rendered body
+            // to the one option.
             final name = options[0].name;
             final body = unwrapReturn(stmts[stmts.length - 1]);
             bindPatternLocals(stmts[stmts.length - 1]);

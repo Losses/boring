@@ -58,6 +58,37 @@ A payload enum with exactly one constructor emits as the sealed hierarchy's
 single `data object` carrying the exception's message text. The fold applies
 to every target on the same sealed shape.
 
+The `data object` shortcut holds only for a variant with no constructor
+arguments. A single variant that carries a payload (`Note(text: String)`)
+arrives from the typer as the two-statement capture form and follows the
+shared capture path that multi-variant enums use: the capture binds to the
+constructor argument name before the message body renders. Treating a
+payload-carrying
+variant as capture-less leaves the body's local unbound and fails under the
+features/43 expression-block rule (regression `d0806fe0`, pinned by the
+Kotlin arm of `samples/tests/NoSuchElementTests.hx`
+`foldedVariantMessage`). The test id carries the same semantic on every
+target; the arms split by capability because the consistency gate requires
+every test id on all five targets, and the payload-carrying shape lowers on
+Kotlin only until every target lowers the capture-bound single-case switch
+(`samples/boring/NoSuchElementNoteOps.hx` is gated with it).
+
+The fold keeps two module-keyed tables: `payloadEnumOwners` maps the payload
+enum's module to the owner exception, and `exceptionPayloads` maps the
+exception class's module to the payload enum (`Compiler.hx`, set beside the
+class scan). A module therefore carries at most one payload enum and at most
+one folded exception; a second registration on either key overwrites the
+first and mis-attributes later use sites. `NoSuchElementNote` lives in its
+own module `samples/boring/NoSuchElementNote.hx`, and the second exception
+in its own module `samples/boring/NoSuchElementNoteException.hx`, so neither
+table sees a collision.
+
+The fold emits the exception class's constructors and message text; it does
+not emit the class's static functions, so a sample reads the folded message
+through the exception value (`err.message`) and never calls the exception's
+own statics. `describe` stays in the Haxe source because the fold collects
+the message from its switch.
+
 ### Worked example
 
 `samples/boring/NoSuchElementFaultException.hx` wraps a one-variant

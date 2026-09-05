@@ -3,6 +3,8 @@ package tests;
 import boring.NoSuchElementFault;
 import boring.NoSuchElementFaultException;
 import boring.NoSuchElementMessageReader;
+import boring.NoSuchElementNote;
+import boring.NoSuchElementNoteOps;
 import boring.NoSuchElementThrower;
 import std.Test;
 
@@ -22,5 +24,14 @@ class NoSuchElementTests {
     public static function messageRead():Void {
         final err = new NoSuchElementFaultException(NoSuchElementFault.Missing);
         Test.equals("no such element", NoSuchElementMessageReader.describe(err));
+    }
+
+    @:test("a folded exception reports its variant message text")
+    public static function foldedVariantMessage():Void {
+        #if kotlin_output
+        Test.equals("gone", NoSuchElementNoteOps.describe(NoSuchElementNote.Note("gone")));
+        #else
+        Test.equals("no such element", new NoSuchElementFaultException(NoSuchElementFault.Missing).message);
+        #end
     }
 }
