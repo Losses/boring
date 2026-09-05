@@ -150,7 +150,9 @@ boring.ArrayRootStateOps
 boring.NumberParsingOps
 tests.NumberParsingTests
 boring.NumberClassifyOps
+boring.MathMinMaxOps
 tests.NumberClassifyTests
+tests.MathMinMaxTests
 tests.ArrayRootTests
 
 registry.Core
