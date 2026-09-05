@@ -218,3 +218,14 @@ interface-typed field on a record; `tests.RecordInterfaceOpsTests`
 asserts the printed text of both variant kinds and of the null state and
 compares the member text with `RecordStr.str` on the same receiver. The
 module and its tests are entered in all eight generation hxml files.
+
+## Target-specific amendments
+
+- **Kotlin target:** an interface member named `toString` with zero parameters
+  is emitted with the `override` modifier because it hides
+  `kotlin.Any.toString`.
+- **Rust target:** a record carrying an interface-typed field does not derive
+  `Clone` (the trait object is not `Clone`), matching the existing all-fields-
+  `Clone` gate for ordinary records; a nullable interface slot boxes its
+  initializer (`Some(Box::new(...))`) exactly like a non-nullable slot.
+
