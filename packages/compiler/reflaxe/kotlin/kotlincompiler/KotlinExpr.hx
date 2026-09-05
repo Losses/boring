@@ -1911,6 +1911,9 @@ class KotlinExpr {
                     imports.require(graphemesPackage + ".Graphemes");
                     return "Graphemes." + name;
                 }
+                if (cls.module == "std.Fs" || cls.module == "std.Env") {
+                    Context.error("std.Fs and std.Env statics lower at their call site; a bare reference has no lowering", Context.currentPos());
+                }
                 imports.requireType(cls.module, cls.name);
                 return cls.name + "." + name;
         }
@@ -2201,6 +2204,15 @@ class KotlinExpr {
                             return "String(Character.toChars(" + expr(args[0]) + "))";
                         case _:
                     }
+                }
+                if (cls.module == "std.Fs") {
+                    return fsCall(name, args, fn);
+                }
+                if (cls.module == "std.Env") {
+                    return envCall(name, args, fn);
+                }
+                if (cls.module == "std.Process" && name == "args") {
+                    return processArgs(fn);
                 }
                 if (KotlinTestBinding.isTestPlatformExtern(cls.module)) {
                     // Host edges of the resident runtime.TestCore, inlined
@@ -3015,6 +3027,74 @@ class KotlinExpr {
         final pos = e != null ? e.pos : Context.currentPos();
         Context.error("kotlin target: " + message, pos);
         return null;
+    }
+
+    // ------------------------------------------------------------------
+    // Platform modules (docs/specs/stdlib/17-platform-modules.md)
+    // ------------------------------------------------------------------
+
+    /**
+        A std.Fs static call (stdlib/17). The java.nio.file calls lower
+        inline at the call site; no runtime module implements std.Fs. Host
+        failures raise the native exception, which the target's exception
+        mapping carries.
+    **/
+    function fsCall(name:String, args:Array<TypedExpr>, fn:TypedExpr):String {
+        imports.require("java.nio.file.Files");
+        imports.require("java.nio.file.Paths");
+        final p = expr(args[0]);
+        return switch (name) {
+            case "exists":
+                "Files.exists(Paths.get(" + p + "))";
+            case "readText":
+                "Files.readString(Paths.get(" + p + "))";
+            case "writeText":
+                "Files.writeString(Paths.get(" + p + "), " + expr(args[1]) + ")";
+            case "appendText":
+                imports.require("java.nio.file.StandardOpenOption");
+                "Files.writeString(Paths.get(" + p + "), " + expr(args[1]) + ", StandardOpenOption.CREATE, StandardOpenOption.APPEND)";
+            case "makeDirs":
+                "Files.createDirectories(Paths.get(" + p + "))";
+            case "readDir":
+                "Files.newDirectoryStream(Paths.get(" + p + ")).use { s -> s.map { it.fileName.toString() }.toMutableList() }";
+            case "isDirectory":
+                "Files.isDirectory(Paths.get(" + p + "))";
+            case _:
+                Context.error("std.Fs has no lowering for member " + name, fn.pos);
+                "null";
+        }
+    }
+
+    /**
+        A std.Env static call (stdlib/17). The JVM exposes the process
+        environment read-only, so get, set, and remove route through the
+        process-local overlay shim, which records writes and falls back to
+        the host for keys it has never seen.
+    **/
+    function envCall(name:String, args:Array<TypedExpr>, fn:TypedExpr):String {
+        final runtimePackage = RuntimeConfig.requireImportName("module std.Env");
+        state.shimsUsed.set("std.Env", true);
+        imports.require(runtimePackage + ".Env");
+        return switch (name) {
+            case "get":
+                "Env.get(" + expr(args[0]) + ")";
+            case "set":
+                "Env.set(" + expr(args[0]) + ", " + expr(args[1]) + ")";
+            case "remove":
+                "Env.remove(" + expr(args[0]) + ")";
+            case _:
+                Context.error("std.Env has no lowering for member " + name, fn.pos);
+                "null";
+        }
+    }
+
+    /** std.Process.args() reads the arguments the test entry stored (stdlib/17). */
+    function processArgs(fn:TypedExpr):String {
+        final runtimePackage = RuntimeConfig.requireImportName("module std.Process");
+        state.shimsUsed.set("std.Process", true);
+        imports.require(runtimePackage + ".Process");
+        state.processArgsReferenced = true;
+        return "Process.args()";
     }
 }
 #end

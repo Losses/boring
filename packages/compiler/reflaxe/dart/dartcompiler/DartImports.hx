@@ -24,8 +24,10 @@ class DartImports {
 
     final runtimeNames:Map<String, Bool> = [];
     final runtimeTestNames:Map<String, Bool> = [];
+    var platformHostUsed = false;
 
     var dartMathUsed = false;
+    var dartIoUsed = false;
     var typedDataUsed = false;
     var convertUsed = false;
 
@@ -42,6 +44,16 @@ class DartImports {
     /** Whether this module needs the dart:math import. */
     public function usesDartMath():Bool {
         return dartMathUsed;
+    }
+
+    /** Records that this module references a dart:io member (std.Fs). */
+    public function useDartIo():Void {
+        dartIoUsed = true;
+    }
+
+    /** Whether this module needs the dart:io import. */
+    public function usesDartIo():Bool {
+        return dartIoUsed;
     }
 
     public function useTypedData():Void {
@@ -84,6 +96,22 @@ class DartImports {
     /** Records a reference to a symbol of the test host entry. */
     public function runtimeTest(name:String):Void {
         runtimeTestNames.set(name, true);
+    }
+
+    /**
+        Records that this module calls the synthesized platform host
+        (stdlib/17: std.Env and std.Process.args on hosts whose native
+        environment is read-only). The host is a small library emitted
+        beside the tree on demand; the reference both marks the file used
+        and records the import.
+    **/
+    public function platformHost():Void {
+        platformHostUsed = true;
+    }
+
+    /** Whether this module references the synthesized platform host. */
+    public function usesPlatformHost():Bool {
+        return platformHostUsed;
     }
 
     /**

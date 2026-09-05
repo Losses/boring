@@ -19,14 +19,17 @@ class DartTestHelper {
         The runner entry: one main function registering every @:test
         function in id order. The test modules lower to top-level
         functions of their own libraries, so each call reaches through
-        the module's import prefix.
+        the module's import prefix. When a compiled module referenced
+        std.Process.args the entry takes the program arguments and stores
+        them for the lowered calls (stdlib/17); without the reference the
+        entry keeps today's no-argument shape.
     **/
     public static function testMainSource(entries:Array<{
         id:String,
         runnerName:String,
         module:String,
         fn:String
-    }>):String {
+    }>, dartOutput:String, testOutput:String, withArgs:Bool):String {
         final sorted = entries.copy();
         sorted.sort((a, b) -> Reflect.compare(a.id, b.id));
         final modules:Array<String> = [];
@@ -43,13 +46,23 @@ class DartTestHelper {
             "",
             "import 'test_host.dart' as test_host;"
         ];
+        if (withArgs) {
+            lines.push("import '"
+                + Compiler.importSpecifier(testOutput + "/main.dart", dartOutput + "/platform_host.dart")
+                + "' as platform_host;");
+        }
         for (m in modules) {
             // The test module's own pack is `tests`, so its library path
             // already carries the subdirectory relative to the runner.
             lines.push("import '" + DartImports.libraryPathOf(m) + "' as " + DartImports.importPrefixOf(m) + ";");
         }
         lines.push("");
-        lines.push("void main() {");
+        if (withArgs) {
+            lines.push("void main(List<String> args) {");
+            lines.push("  platform_host.storeArgs(args);");
+        } else {
+            lines.push("void main() {");
+        }
         lines.push("  var failures = 0;");
         for (e in sorted) {
             lines.push("  if (test_host.run('" + escapeDartString(e.id) + "', '" + escapeDartString(e.runnerName) + "', () => "
