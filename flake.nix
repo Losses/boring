@@ -152,7 +152,21 @@
               # test binaries run with this directory on LD_LIBRARY_PATH.
               ${
                 if useLinuxSwift
-                then ''export BORING_SWIFT_LIBDISPATCH="${linuxSwift.passthru.libdispatch}"''
+                then ''
+                  # The pinned loader below skips the host's default library
+                  # directories, and libstdc++ is a transitive dependency of
+                  # the swift libraries (the executable RUNPATH does not
+                  # cover transitive lookups), so the gcc lib directory rides
+                  # along on the shared LD_LIBRARY_PATH prefix.
+                  export BORING_SWIFT_LIBDISPATCH="${linuxSwift.passthru.libdispatch}:${pkgs.gcc.cc.lib}/lib"
+                  # The FHS toolchain records a generic /lib64 interpreter
+                  # while its RUNPATH resolves libc to this glibc, so a host
+                  # with an older system loader (ubuntu-24.04 runners carry
+                  # 2.39) runs a 2.39 loader against the 2.42 libc and the
+                  # process crashes before main. Test binaries pin the
+                  # interpreter to the matching loader through this path.
+                  export BORING_SWIFT_DYNAMIC_LINKER="${pkgs.glibc}/lib/ld-linux-x86-64.so.2"
+                ''
                 else if useDarwinSwift
                 then ''
                   # darwin: Swift comes from the system Xcode toolchain;
