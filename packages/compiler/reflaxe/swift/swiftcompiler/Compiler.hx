@@ -407,6 +407,21 @@ class Compiler extends PluginCompiler<Compiler> {
             header.push("import Foundation");
         }
         final hostKeys = decl.hostEdgeKeys();
+        var needsFoundationEssentials = false;
+        var needsSystemPackage = false;
+        for (key in hostKeys) {
+            if (SwiftHostEdges.needsFoundationEssentials(key)) {
+                needsFoundationEssentials = true;
+            }
+            if (SwiftHostEdges.needsSystemPackage(key)) {
+                needsSystemPackage = true;
+            }
+        }
+        if (needsFoundationEssentials) {
+            header.push("#if canImport(FoundationEssentials)");
+            header.push("import FoundationEssentials");
+            header.push("#endif");
+        }
         if (hostKeys.length > 0) {
             header.push("#if canImport(Glibc)");
             header.push("import Glibc");
@@ -421,7 +436,7 @@ class Compiler extends PluginCompiler<Compiler> {
             header.push("import WinSDK");
             header.push("#endif");
         }
-        if (decl.usesSystemPackage()) {
+        if (needsSystemPackage) {
             header.push("import SystemPackage");
         }
         final helpers:Array<String> = [];

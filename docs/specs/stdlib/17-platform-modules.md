@@ -161,75 +161,30 @@ whether it shows the escaped source form or the runtime value.
   `Platform.environment[key]`. `std.Process.args()` threads
   `main(List<String> args)` like Kotlin. The web compilation of Dart is
   not a target of this toolchain; `dart:io` availability is unconditional.
-- **Swift.** The toolchain carries no Foundation (spec 06 Swift rulings)
-  and the codebase has no Swift filesystem precedent; the test entry today
-  writes results through `print(..., terminator: "")` to stdout
-  (`packages/compiler/reflaxe/swift/swiftcompiler/SwiftRuntime.hx`). Ruling
-  2026-09-02: `std.Fs` maps to Apple's swift-system package, and the
-  SwiftPM build chain is built alongside this spec rather than deferred.
-  Verified package facts (re-verified 2026-09-03 on the upstream `main`
-  tree, shallow clone `/tmp/swift-system-ref`): single product
-  `SystemPackage`; synchronous `FilePath`/`FileDescriptor` operations;
-  `Stat`/`FileType` cover `isDirectory`; there is NO public directory-
-  listing API (`fdopendir`/`readdir` exist only as internal syscall
-  wrappers in `Internals/Syscalls.swift`); no environment access either.
+ - **Swift.** On x86_64 Linux, Swift 6.2.4 supplies FoundationEssentials;
+   the test entry writes results through `print(..., terminator: "")` to stdout
+   (`packages/compiler/reflaxe/swift/swiftcompiler/SwiftRuntime.hx`). The six
+   `std.Fs` operations `exists`, `readText`, `writeText`, `makeDirs`, `readDir`,
+   and `isDirectory` map to `FoundationEssentials.FileManager`. `appendText`
+   remains on swift-system: one `FileDescriptor.open(FilePath(path),
+   .writeOnly, options: [.create, .append], ...)` call followed by
+   `writeAll(text.utf8)`. `std.Env.get`, `set`, and `remove` remain native
+   platform calls so all three operate on the same environment view.
+   FoundationEssentials is conditionally imported only in generated files that
+   reference one of the six FileManager helpers; `SystemPackage` is imported
+   only for appendText. SwiftPM pins `SystemPackage` at `1.6.6` and keeps
+   generated sources in Swift 5 language mode.
 
-  Host conditioning (user rulings 2026-09-03, two parts: first, the
-  Swift target is not a POSIX-only target — `opendir`, `setenv`, and
-  `unsetenv` do not exist on Windows, so an unconditional C-interop
-  lowering would fail to compile there and break this spec's own
-  compilation-always-succeeds contract; second, conditioning must NOT
-  downgrade Windows to a throwing stub — a host that has a filesystem
-  or an environment gets real code on every platform this spec
-  implements, and only a host with no such capability at all may
-  throw). Every C-interop lowering is emitted inside
-  `#if canImport(...)` conditions, and every arm is implemented:
 
-  - `std.Env.get`: `#if canImport(Glibc) || canImport(Darwin)` reads
-    `getenv`; `#elseif canImport(MSVCRT)` reads `getenv` from the
-    UCRT. Both arms call the same symbol.
-  - `std.Env.set`: the POSIX arm calls `setenv`; the
-    `#elseif canImport(MSVCRT)` arm calls `_putenv_s`. Set goes
-    through the CRT pair on purpose: `Env.get` reads through the CRT,
-    and get/set must operate on the same environment view regardless
-    of how the host CRT caches it (`SetEnvironmentVariableW` is not
-    the pairing for that reason).
-  - `std.Env.remove`: the POSIX arm calls `unsetenv`; the MSVCRT arm
-    removes through `_putenv` with its documented remove form. The
-    exact form is pinned against Microsoft Learn when the
-    implementation lane lands, and the citation lands with it.
-  - `readDir`: the POSIX arm (`#if canImport(Glibc) ||
-    canImport(Darwin)`) lowers to `opendir`/`readdir`, closes the
-    directory with `closedir` on every exit path, filters `.` and
-    `..`, and raises the haxe.Exception mapping when `opendir` returns
-    null. The `#elseif canImport(WinSDK)` arm lowers to
-    `FindFirstFileW`/`FindNextFileW`/`FindClose`: the path gains a
-    `\*` pattern suffix, converts through `String.utf16` (a Swift
-    stdlib view, available without Foundation), filters the same
-    `.` and `..`, closes with `FindClose` on every exit path, and
-    raises the Exception mapping when `FindFirstFileW` returns
-    `INVALID_HANDLE_VALUE`.
-  - The final `#else` arm (a Swift host with neither libc family —
-    for example an embedded or WASM Swift) raises the fixed
-    unavailability message. Windows is NOT in this arm.
+  Host conditioning remains explicit for the native environment helpers:
+  `std.Env.get` uses `getenv` on Glibc/Darwin and MSVCRT, `std.Env.set` uses
+  `setenv` or `_putenv_s`, and `std.Env.remove` uses `unsetenv` or `_putenv`.
+  The paired C runtime calls keep get/set/remove on one environment view.
+  FileManager supplies the filesystem behavior on FoundationEssentials hosts;
+  hosts without that module use the fixed unavailability exception arm.
 
-  Verification level of the Windows arms, stated openly: the
-  toolchain's test chain runs Swift on Linux, so the Windows arms
-  cannot execute here. They are verified by (a) review against the
-  documented Win32/UCRT semantics, with citations required in the
-  implementation lane, and (b) a mock-declaration compile probe — the
-  arm bodies are extracted and compiled on Linux against stub
-  declarations of `_putenv_s`/`_putenv`/`FindFirstFileW`/
-  `FindNextFileW`/`FindClose`, which type-checks every identifier,
-  argument, and call shape the arms use. A Windows CI slot that
-  compiles and runs the suite natively is the follow-up that upgrades
-  this level; until then the spec records exactly this level instead
-  of claiming less or more.
-
-  Version pinning: the 1.8.x line requires Swift 6.1+ and the toolchain is
-  swiftc 5.10, so the pin lands on a Swift 5 compatible line. The exact
-  version is fixed during implementation: `1.6.6`, resolved and built on
-  this toolchain in the implementation lane.
+  The SwiftPM test chain runs Swift 6.2.4 on Linux and pins swift-system
+  `1.6.6`; every generated target stays in Swift 5 language mode.
 
 ## Swift build-chain migration (in scope, ruling 2026-09-02)
 
