@@ -68,9 +68,15 @@ func _putenv_s(_ name: UnsafePointer<CChar>, _ value: UnsafePointer<CChar>) -> I
 func _putenv(_ name: UnsafePointer<CChar>) -> Int32 {
     return 0
 }
-func getenv(_ name: UnsafePointer<CChar>) -> UnsafeMutablePointer<CChar>? {
-    return nil
+func _dupenv_s(
+    _ buffer: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>,
+    _ count: UnsafeMutablePointer<Int>,
+    _ name: UnsafePointer<CChar>
+) -> Int32 {
+    return 1
 }
+func free(_ buffer: UnsafeMutablePointer<CChar>) {}
+
 
 // The haxe.Exception mapping the helpers raise (features/06).
 class BoringException: Error {
@@ -96,11 +102,16 @@ private func boringWideString(_ units: UnsafePointer<UInt16>) -> String {
 // body is the text the emitter places inside its arm)
 // ---------------------------------------------------------------------
 
-// std.Env.get, MSVCRT arm (getenv from the UCRT).
+// std.Env.get, MSVCRT arm (_dupenv_s from the UCRT).
 private func boringEnvGet(_ key: String) -> String? {
     return key.withCString { k in
-        guard let value = getenv(k) else { return nil }
-        return String(cString: value)
+        var buffer: UnsafeMutablePointer<CChar>? = nil
+        var count: Int = 0
+        if _dupenv_s(&buffer, &count, k) == 0, let buffer {
+            defer { free(buffer) }
+            return String(cString: buffer)
+        }
+        return nil
     }
 }
 
