@@ -105,5 +105,9 @@ jobs:
           haxelib dev reflaxe "$PWD/.reflaxe"
           haxelib dev boring "$PWD"
           haxelib install format 3.8.0
+      # The root Package.swift declares the CodecF32 target at
+      # reference/swift-f32/gen, and swift build validates every declared
+      # target path when loading the manifest, so the f32 tree must be
+      # generated even though only the f64 products are tested here.
       - name: Run Swift generation and tests
-        run: bun install && bun run gen:swift && bun run test:swift
+        run: bun install && bun run gen:swift && bun run gen:swift-f32 && bun run test:swift
