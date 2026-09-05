@@ -58,6 +58,7 @@
               jdk21
               swift
               swiftpm
+              clang
               dart
             ];
             shellHook = ''
