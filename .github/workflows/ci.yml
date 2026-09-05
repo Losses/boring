@@ -59,26 +59,24 @@ jobs:
           echo '--- backtrace under gdb ---'
           (sudo apt-get update -qq && sudo apt-get install -y -qq gdb >/dev/null 2>&1) || true
           nix develop -c bash -c 'command -v gdb >/dev/null 2>&1 || exit 0; gdb -batch -ex "run > /dev/null 2>&1" -ex "bt 20" -ex "x/6i \$rip" -ex "info symbol \$rip" -ex "info proc mappings" --args ./.build/debug/BoringSwiftTests' 2>&1 | tail -150 || true
-      # The crash instruction bytes exist in no file the process maps: not
-      # the binary, not any nix store library, not the runner's Ubuntu
-      # loader build. The only executable pages left are kernel-provided
-      # (the vdso), which local kernels do not reproduce. These probes pin
-      # the loader and libc to the nix pair (whose loader takes a
-      # different path through that area), strip the environment, and
-      # record the vdso auxv entry, so the next run decides the fix.
+      # The r12 crash is closed: the toolchain records a generic /lib64
+      # interpreter while the RUNPATH resolves libc to the nix glibc, so
+      # the runner's ubuntu 2.39 loader drove the 2.42 libc and the
+      # process died before main (reproduced locally by mixing those two
+      # and fixed by pinning the interpreter at link time). These probes
+      # verify the pin if the suite ever crashes again: they read the
+      # binary's actual interpreter and rerun through it explicitly.
       - name: Probe loader and environment conditioning
         if: failure()
         run: |
           nix develop -c bash -c '
-            CLOSURE="$(nix build .#devShells.x86_64-linux.default --no-link --print-out-paths)"
-            GLIBC="$(nix-store -qR "$CLOSURE" | grep -E "glibc-[0-9.]+$" | head -1)"
-            GCCLIB="$(nix-store -qR "$CLOSURE" | grep -E "gcc-[0-9.]+-lib$" | head -1)"
-            echo "glibc dir: $GLIBC"
-            if [ -n "$GLIBC" ] && [ -x "$GLIBC/lib/ld-linux-x86-64.so.2" ]; then
+            INTERP="$(readelf -l ./.build/debug/BoringSwiftTests | grep "Requesting program interpreter" | sed "s/.*: //;s/\]//")"
+            echo "interpreter: $INTERP"
+            if [ -x "$INTERP" ]; then
               rc=0
-              "$GLIBC/lib/ld-linux-x86-64.so.2" --library-path "$BORING_SWIFT_LIBDISPATCH:$GCCLIB/lib:$GLIBC/lib" ./.build/debug/BoringSwiftTests > /tmp/probe-nix.jsonl 2>&1 || rc=$?
-              echo "nix-loader probe rc=$rc jsonl bytes=$(wc -c < /tmp/probe-nix.jsonl)"
-              tail -c 400 /tmp/probe-nix.jsonl
+              "$INTERP" --library-path "$BORING_SWIFT_LIBDISPATCH" ./.build/debug/BoringSwiftTests > /tmp/probe-interp.jsonl 2>&1 || rc=$?
+              echo "interpreter rerun rc=$rc jsonl bytes=$(wc -c < /tmp/probe-interp.jsonl)"
+              tail -c 400 /tmp/probe-interp.jsonl
             fi
             echo "--- environment conditioning ---"
             echo "randomize_va_space=$(cat /proc/sys/kernel/randomize_va_space)"
