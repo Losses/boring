@@ -156,12 +156,13 @@
                 else if useDarwinSwift
                 then ''
                   # darwin: Swift comes from the system Xcode toolchain;
-                  # LD_LIBRARY_PATH is unused on macOS. SwiftPM reads the
-                  # SDKROOT variable first and the CC compiler second, and
-                  # the stdenv setup hooks export both: SDKROOT points at
-                  # the nixpkgs apple-sdk (built with Swift 5.10) and CC at
-                  # the stdenv wrapper. Pin the manifest build to the
-                  # system toolchain by overriding both.
+                  # LD_LIBRARY_PATH is unused on macOS. The stdenv setup
+                  # hooks export CC at the stdenv wrapper and SDKROOT and
+                  # DEVELOPER_DIR at the nixpkgs apple-sdk (built with
+                  # Swift 5.10); SwiftPM reads SDKROOT first, and
+                  # DEVELOPER_DIR redirects xcrun itself, so it must be
+                  # cleared before asking xcrun for the system SDK path.
+                  unset DEVELOPER_DIR
                   export CC=/usr/bin/clang
                   if [ -x /usr/bin/xcrun ]; then
                     export SDKROOT="$(/usr/bin/xcrun --sdk macosx --show-sdk-path)"
