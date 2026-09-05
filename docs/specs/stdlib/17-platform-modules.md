@@ -12,10 +12,12 @@ It also lists the ad-hoc host externs in the toolchain that retire.
 ## Mechanism
 
 A platform module is an `extern class` in `samples/std/`. Each target's
-expression compiler lowers every static call on the module inline at the
-call site. No runtime package implements a platform module, and no runtime
-file carries one: the backing expression (a host call, a lazy host load,
-or a throwing stub) is emitted into the calling file. A file that never
+expression compiler lowers every static call on the module into the
+calling file. No runtime package implements a platform module, and no
+runtime file carries one: the backing expression (a host call, a lazy
+host load, or a throwing stub) is emitted into the calling file, at the
+call site or, when a target ruling fixes that shape, as the top-level
+lowering the call site invokes. A file that never
 calls `std.Fs` never mentions a host API, so the general-entry contract of
 spec 06 is untouched and `tests/ts/runtime-entry.test.ts` keeps scanning
 an unchanged entry.
@@ -129,11 +131,17 @@ whether it shows the escaped source form or the runtime value.
 
 ## Target rulings
 
-- **TypeScript.** Every host access sits inside the lowered function body;
-  the calling file gains no top-level `node:` import. `std.Fs` loads
-  `node:fs` lazily per call; when no host loader exists (browser), the
-  call raises the haxe.Exception mapping with the fixed message
-  `std.Fs is not available on this host`. `std.Env.get` reads
+- **TypeScript.** The calling file gains no top-level `node:` import.
+  Each `std.Fs` member a file uses lowers once to a top-level named
+  arrow (`fs` + the capitalized member, as in `fsMakeDirs`) whose body
+  holds the loader probe (`typeof require === "function" ?
+  require("node:fs") : null`) and the unavailability throw; the probe
+  evaluates per call, so `node:fs` still loads lazily per call and, when
+  no host loader exists (browser), the call raises the haxe.Exception
+  mapping with the fixed message `std.Fs is not available on this host`.
+  The call site lowers to a plain call of that helper, so a loop body
+  never carries a closure (the loop-structure invariant the generated
+  tree is held to). `std.Env.get` reads
   `localStorage.getItem(key)` when `localStorage` is defined (synchronous,
   missing key null, a direct `Null<String>` match per ruling 2026-09-02)
   and `process.env[key] ?? null` otherwise; `set`/`remove` map to
