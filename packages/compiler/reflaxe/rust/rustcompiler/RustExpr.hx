@@ -9,6 +9,7 @@ import haxe.macro.Type.FieldAccess;
 import haxe.macro.Type.TypedExpr;
 import haxe.macro.TypedExprTools;
 import reflaxe.data.ClassFuncData;
+import TerminationAnalysis;
 import ValueTypeSupport;
 import ValueTypeSupport.ValueTypeOperator;
 
@@ -999,7 +1000,7 @@ class RustExpr {
         return switch (stripWrap(stmt).expr) {
             case TIf(cond, thenBody, null):
                 final localId = nullEqLocal(cond);
-                if (localId != null && alwaysTerminates(thenBody)) localId else null;
+                if (localId != null && TerminationAnalysis.alwaysTerminates(thenBody)) localId else null;
             case _: null;
         };
     }
@@ -1015,25 +1016,6 @@ class RustExpr {
                 };
             case _: null;
         };
-    }
-
-    /** Whether control never falls through an expression. */
-    function alwaysTerminates(e:TypedExpr):Bool {
-        return switch (stripWrap(e).expr) {
-            case TReturn(_) | TThrow(_) | TBreak | TContinue: true;
-            case TBlock(stmts): blockTerminates(stmts);
-            case TIf(_, t, f) if (f != null): alwaysTerminates(t) && alwaysTerminates(f);
-            case _: false;
-        };
-    }
-
-    /** Whether one of the statements ends control before the block ends. */
-    function blockTerminates(stmts:Array<TypedExpr>):Bool {
-        for (s in stmts) {
-            if (alwaysTerminates(s))
-                return true;
-        }
-        return false;
     }
 
     /** Whether any statement after `from` assigns through the local. */
@@ -1112,7 +1094,7 @@ class RustExpr {
 
         var i = 0;
         while (i < stmts.length) {
-            if (alwaysTerminates(stmts[i])) {
+            if (TerminationAnalysis.alwaysTerminates(stmts[i])) {
                 for (l in stmtLines(stmts[i], depth))
                     out.push(l);
                 break;
