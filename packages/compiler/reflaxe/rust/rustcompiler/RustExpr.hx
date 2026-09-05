@@ -2120,13 +2120,15 @@ class RustExpr {
             case TObjectDecl(fields):
                 return objectLiteral(e, fields);
             case TArrayDecl(elems):
-                final isStringElem = switch (Context.follow(e.t)) {
-                    case TInst(c, params) if (c.get().name == "Array" && params.length > 0 && isStringType(params[0])): true;
-                    case _: false;
+                final elemType = switch (Context.follow(e.t)) {
+                    case TInst(c, params) if (c.get().name == "Array" && params.length > 0): params[0];
+                    case _: null;
                 };
+                final isStringElem = elemType != null && isStringType(elemType);
+                final isNullableElem = elemType != null && StaticFieldHelper.isNullableType(elemType);
                 final rendered = [
                     for (x in elems) {
-                        if (isStringElem) {
+                        final inner = if (isStringElem) {
                             switch (stripWrap(x).expr) {
                                 case TConst(TString(_)):
                                     expr(x) + ".to_string()";
@@ -2137,6 +2139,11 @@ class RustExpr {
                             }
                         } else {
                             expr(x);
+                        };
+                        if (isNullableElem && !isTNull(x) && !StaticFieldHelper.isNullableType(x.t)) {
+                            "Some(" + inner + ")";
+                        } else {
+                            inner;
                         }
                     }
                 ];
