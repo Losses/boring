@@ -31,7 +31,7 @@ let package = Package(
         ),
         .executableTarget(
             name: "VectorSwiftTests",
-            dependencies: ["Codec"],
+            dependencies: ["Codec", swiftSystem],
             path: "tests/swift",
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
@@ -50,7 +50,7 @@ let package = Package(
         ),
         .executableTarget(
             name: "VectorSwiftTestsF32",
-            dependencies: ["CodecF32"],
+            dependencies: ["CodecF32", swiftSystem],
             path: "tests/swift-f32",
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
