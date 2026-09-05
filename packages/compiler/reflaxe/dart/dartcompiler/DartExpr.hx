@@ -79,6 +79,11 @@ class DartExpr {
     /** Names used by parameters and locals; generated names avoid them. */
     final usedNames:Map<String, Bool> = [];
 
+    /** Active runtime renderers for cyclic enum stringification. */
+    final enumStringHelpers:Map<String, String> = [];
+
+    var enumStringHelperCounter:Int = 0;
+
     /** Catch variables in scope, keyed by TVar id (features/06). */
     final catchVars:Map<Int, Bool> = [];
 
@@ -804,13 +809,15 @@ class DartExpr {
                     return fail(stmts[i], "expression block allows only declarations before its value statement (features/43)");
             }
         switch (stmts[stmts.length - 1].expr) {
-            case TReturn(_) | TThrow(_) | TVar(_, _) | TIf(_, _, _) | TWhile(_, _, _) | TFor(_, _, _) | TSwitch(_, _, _) | TTry(_, _) | TBlock(_) | TBreak | TContinue | TBinop(OpAssign, _, _) | TBinop(OpAssignOp(_), _, _):
+            case TReturn(_) | TThrow(_) | TVar(_, _) | TIf(_, _, _) | TWhile(_, _, _) | TFor(_, _, _) | TSwitch(_, _, _) | TTry(_, _) | TBlock(_) | TBreak |
+                TContinue | TBinop(OpAssign, _, _) | TBinop(OpAssignOp(_), _, _):
                 return fail(stmts[stmts.length - 1], "expression block must end in a value statement (features/43)");
             case _:
         }
         final out = ["(() {"];
         for (s in stmts.slice(0, stmts.length - 1))
-            for (line in stmtLines(s, 1)) out.push(line);
+            for (line in stmtLines(s, 1))
+                out.push(line);
         out.push(indent(1) + "return " + expr(stmts[stmts.length - 1]) + ";");
         out.push("})()");
         return out.join("\n");
@@ -1972,11 +1979,24 @@ class DartExpr {
             case TAbstract(a, params) if (a.get().module == "std.ReadOnlyArray"):
                 stdStringType(haxe.macro.TypeTools.applyTypeParameters(a.get().type, a.get().params, params), value, inConcat, origin, depth);
             case TEnum(en, _) if (isParameterlessEnum(en.get())): value + ".label";
+            case TEnum(en, _) if (EnumCycleDetector.isCyclic(en.get())): cyclicEnumString(en.get(), value, inConcat, origin);
             case TEnum(en, _): enumLabeledText(en.get(), value, origin);
             case _:
                 Context.error("Std.string accepts scalars, enum values, records, and arrays of them only", origin.pos);
                 null;
         };
+    }
+
+    function cyclicEnumString(en:EnumType, value:String, inConcat:Bool, origin:TypedExpr):String {
+        final key = en.module + ":" + en.name;
+        final existing = enumStringHelpers.get(key);
+        if (existing != null)
+            return existing + "(" + value + ")";
+        final name = "stdString" + en.name + enumStringHelperCounter++;
+        enumStringHelpers.set(key, name);
+        final body = enumLabeledText(en, "v", origin);
+        enumStringHelpers.remove(key);
+        return "(() { String " + name + "(dynamic v) { return " + body + "!; } return " + name + "(" + value + "); })()";
     }
 
     function isParameterlessEnum(en:EnumType):Bool {

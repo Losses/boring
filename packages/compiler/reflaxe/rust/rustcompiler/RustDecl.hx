@@ -2067,7 +2067,8 @@ class RustDecl {
             } else {
                 final params = [
                     for (arg in o.args)
-                        RustImports.toSnakeCase(arg.name) + ": " + types.of(arg.type)
+                        RustImports.toSnakeCase(arg.name) + ": " + (EnumCycleDetector.isCyclic(en) ? types.recursiveEnumField(arg.type,
+                            en) : types.of(arg.type))
                 ].join(", ");
                 lines.push("    " + o.name + " { " + params + " },");
             }

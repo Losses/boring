@@ -871,7 +871,8 @@ class SwiftDecl {
             // Equatable backs the construct comparisons the samples run
             // (`width == F64`); payload types of the subset (Int32,
             // String, nested enums) synthesize the conformance.
-            "public enum " + en.name + ": Equatable {"
+            // Recursive payload enums require indirect storage in Swift.
+            "public " + (EnumCycleDetector.isCyclic(en) ? "indirect " : "") + "enum " + en.name + ": Equatable {"
         ];
         for (o in sorted) {
             final caseName = lowerFirst(o.name);
