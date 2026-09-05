@@ -2345,6 +2345,8 @@ class SwiftExpr {
                 if (module == "Math") {
                     if ((fName == "min" || fName == "max") && args.length == 2)
                         return fName + "(" + mathFloatArg(args[0]) + ", " + mathFloatArg(args[1]) + ")";
+                    if (fName == "abs")
+                        return "abs(" + mathFloatArg(args[0]) + ")";
                     if (fName == "isNaN")
                         return "(" + expr(args[0]) + ").isNaN";
                     if (fName == "isFinite")
