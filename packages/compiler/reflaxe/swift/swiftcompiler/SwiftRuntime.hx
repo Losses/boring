@@ -15,19 +15,19 @@ class SwiftRuntime {
     public static final SOURCE = '/// The two 32-bit halves of a binary64 value (stdlib/05). The halves
 /// carry the bit patterns as Int32 so they flow into Int32 arithmetic
 /// at the codec boundaries without conversions.
-struct Int64Halves {
-    let high: Int32
-    let low: Int32
+public struct Int64Halves {
+    public let high: Int32
+    public let low: Int32
 }
 
-func doubleToI64(_ value: Double) -> Int64Halves {
+public func doubleToI64(_ value: Double) -> Int64Halves {
     let bits = value.bitPattern
     return Int64Halves(
         high: Int32(bitPattern: UInt32(truncatingIfNeeded: bits >> 32)),
         low: Int32(bitPattern: UInt32(truncatingIfNeeded: bits)))
 }
 
-func i64ToDouble(_ low: Int32, _ high: Int32) -> Double {
+public func i64ToDouble(_ low: Int32, _ high: Int32) -> Double {
     let highWord = UInt64(UInt32(bitPattern: high))
     let lowWord = UInt64(UInt32(bitPattern: low))
     return Double(bitPattern: (highWord << 32) | lowWord)
@@ -37,32 +37,32 @@ func i64ToDouble(_ low: Int32, _ high: Int32) -> Double {
 /// then round once to the module real; the reverse widens losslessly
 /// before the bit conversion. Only the float-precision=f32 lane
 /// references them.
-func i64ToF32(_ low: Int32, _ high: Int32) -> Float {
+public func i64ToF32(_ low: Int32, _ high: Int32) -> Float {
     return Float(i64ToDouble(low, high))
 }
 
-func f32ToI64(_ value: Float) -> Int64Halves {
+public func f32ToI64(_ value: Float) -> Int64Halves {
     return doubleToI64(Double(value))
 }
 
 /// The growable byte sink behind haxe.io.BytesBuffer (stdlib/02).
 /// Array value semantics make the slice returned by getBytes immune to
 /// later appends through copy-on-write, so no defensive copy runs.
-final class BytesBuffer {
+public final class BytesBuffer {
     private var bytes: [UInt8] = []
 
-    init() {
+    public init() {
     }
 
-    func addByte(_ byte: Int32) -> Void {
+    public func addByte(_ byte: Int32) -> Void {
         bytes.append(UInt8(bitPattern: Int8(truncatingIfNeeded: byte)))
     }
 
-    func add(_ bytes: [UInt8]) -> Void {
+    public func add(_ bytes: [UInt8]) -> Void {
         self.bytes.append(contentsOf: bytes)
     }
 
-    func getBytes() -> [UInt8] {
+    public func getBytes() -> [UInt8] {
         return bytes
     }
 }
@@ -70,10 +70,10 @@ final class BytesBuffer {
 /// Base class of the exception classes features/06 lowers; the caught
 /// side reads the display message through it. The base stays non-final
 /// because the generated exception classes subclass it.
-class BoringException: Error {
-    let message: String
+public class BoringException: Error {
+    public let message: String
 
-    init(message: String) {
+    public init(message: String) {
         self.message = message
     }
 }
@@ -84,7 +84,7 @@ class BoringException: Error {
 /// views in lockstep. Generic over the two collections so the same
 /// body serves String and Array<UInt16> subjects; specialization
 /// removes the generics at compile time.
-func unitOrderCompare<A: Collection, B: Collection>(_ a: A, _ b: B) -> Int32
+public func unitOrderCompare<A: Collection, B: Collection>(_ a: A, _ b: B) -> Int32
         where A.Element == UInt16, B.Element == UInt16 {
     var ia = a.startIndex
     var ib = b.startIndex
@@ -103,17 +103,17 @@ func unitOrderCompare<A: Collection, B: Collection>(_ a: A, _ b: B) -> Int32
     return ia == a.endIndex ? -1 : 1
 }
 
-func compareUnitOrder(_ a: String, _ b: String) -> Int32 {
+public func compareUnitOrder(_ a: String, _ b: String) -> Int32 {
     return unitOrderCompare(a.utf16, b.utf16)
 }
 
-func compareUnitOrder(_ a: [UInt16], _ b: [UInt16]) -> Int32 {
+public func compareUnitOrder(_ a: [UInt16], _ b: [UInt16]) -> Int32 {
     return unitOrderCompare(a, b)
 }
 
 /// Std.parseInt checked Haxe semantics, kept named so the Swift type
 /// checker does not have to solve the complete parser at every call site.
-func parseIntRuntime(_ s: String) -> Int32? {
+public func parseIntRuntime(_ s: String) -> Int32? {
     let all = Array(s.unicodeScalars)
     func isSpace(_ v: UInt32) -> Bool { return v == 32 || (v >= 9 && v <= 13) }
     var left = 0
@@ -145,19 +145,19 @@ func parseIntRuntime(_ s: String) -> Int32? {
 /// Unit-indexed reads and cuts over native String, the business face
 /// of the UTF-16 view: an index advances through the view because the
 /// indices are opaque. Both specialize away at compile time.
-func unitAt(_ s: String, _ index: Int32) -> Int32 {
+public func unitAt(_ s: String, _ index: Int32) -> Int32 {
     let u = s.utf16
     if index < 0 || index >= Int32(u.count) { return 0 }
     return Int32(u[u.index(u.startIndex, offsetBy: Int(index))])
 }
 
-func unitAtOptional(_ s: String, _ index: Int32) -> Int32? {
+public func unitAtOptional(_ s: String, _ index: Int32) -> Int32? {
     let u = s.utf16
     if index < 0 || index >= Int32(u.count) { return nil }
     return Int32(u[u.index(u.startIndex, offsetBy: Int(index))])
 }
 
-func substringUnits(_ s: String, _ start: Int32, _ end: Int32) -> String {
+public func substringUnits(_ s: String, _ start: Int32, _ end: Int32) -> String {
     let u = s.utf16
     var from = start < 0 ? 0 : start
     var to = end < 0 ? 0 : end
@@ -173,7 +173,7 @@ func substringUnits(_ s: String, _ start: Int32, _ end: Int32) -> String {
 /// omitted len runs to the end, and a negative len yields the empty
 /// string, matching the JavaScript target where the std leaves the
 /// negative len unspecified.
-func substrUnits(_ s: String, _ pos: Int32, _ len: Int32?) -> String {
+public func substrUnits(_ s: String, _ pos: Int32, _ len: Int32?) -> String {
     let u = s.utf16
     let count = Int32(u.count)
     var from = pos < 0 ? count + pos : pos
@@ -192,7 +192,7 @@ func substrUnits(_ s: String, _ pos: Int32, _ len: Int32?) -> String {
 }
 
 /// The resident unit-array reading of the same substr contract.
-func substrUnitsArray(_ s: [UInt16], _ pos: Int32, _ len: Int32?) -> [UInt16] {
+public func substrUnitsArray(_ s: [UInt16], _ pos: Int32, _ len: Int32?) -> [UInt16] {
     let count = Int32(s.count)
     var from = pos < 0 ? count + pos : pos
     if from < 0 { from = 0 }
@@ -210,7 +210,7 @@ func substrUnitsArray(_ s: [UInt16], _ pos: Int32, _ len: Int32?) -> [UInt16] {
 /// well-formed surrogate pair combines into its scalar, anything else
 /// reads as the single unit (docs/specs/stdlib/10-unicode-string-access.md
 /// keeps `codeAt` the pair-combining read on every UTF-16 target).
-func unitCodePoint(_ s: [UInt16], _ index: Int32) -> Int32 {
+public func unitCodePoint(_ s: [UInt16], _ index: Int32) -> Int32 {
     let high = s[Int(index)]
     if high >= 0xD800 && high <= 0xDBFF && Int(index) + 1 < s.count {
         let low = s[Int(index) + 1]
@@ -235,26 +235,30 @@ func unitCodePoint(_ s: [UInt16], _ index: Int32) -> Int32 {
 
 /// The assertion failure of features/19: the canonical message in the
 /// resident unit-array ABI, converted to text only at the print edge.
-struct TestFailure: Error {
-    let message: [UInt16]
+public struct TestFailure: Error {
+    public let message: [UInt16]
+
+    public init(message: [UInt16]) {
+        self.message = message
+    }
 }
 
 func decodeUnits(_ units: [UInt16]) -> String {
     return String(decoding: units, as: UTF16.self)
 }
 
-enum Test {
+public enum Test {
     private static var currentTestId: [UInt16] = []
 
     // Host edges of the test entry (features/19): the runner state, the
     // raise of this language, and the stdout result edge. Assertion
     // checks and scalar formatting live in TestCore, appended after
     // this enum in this same file.
-    static func currentTestIdState() -> [UInt16] {
+    public static func currentTestIdState() -> [UInt16] {
         return Test.currentTestId
     }
 
-    static func run(_ id: String, _ name: String, _ body: () throws -> Void) -> Bool {
+    public static func run(_ id: String, _ name: String, _ body: () throws -> Void) -> Bool {
         let idUnits = Array(id.utf16)
         let nameUnits = Array(name.utf16)
         Test.currentTestId = idUnits

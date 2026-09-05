@@ -44,6 +44,16 @@ class SwiftDecl {
         return imports.usesRuntimeTest();
     }
 
+    /** Whether this module references the swift-system package (stdlib/17). */
+    public function usesSystemPackage():Bool {
+        return imports.usesSystemPackage();
+    }
+
+    /** Host-edge helper keys this module references (stdlib/17). */
+    public function hostEdgeKeys():Array<String> {
+        return imports.hostEdgeNames();
+    }
+
     public function topLevelStatements(e:TypedExpr):String {
         return expr.topLevelStatements(e);
     }
@@ -60,7 +70,7 @@ class SwiftDecl {
         if (cls.isInterface) {
             // An interface lowers to a protocol; the implementing class
             // names it in its conformance clause.
-            final lines:Array<String> = ["protocol " + cls.name + " {"];
+            final lines:Array<String> = ["public protocol " + cls.name + " {"];
             for (f in funcFields) {
                 lines.push("    func " + f.field.name + paramList(cls, f) + " -> " + types.of(f.ret));
             }
@@ -96,7 +106,7 @@ class SwiftDecl {
         // subclassing outside haxe.Exception).
         final classParams = cls.params.length > 0 ? "<" + [for (p in cls.params) p.name].join(", ") + ">" : "";
         if (staticsOnly) {
-            lines.push("enum " + cls.name + classParams + " {");
+            lines.push("public enum " + cls.name + classParams + " {");
         } else {
             final conformances:Array<String> = [];
             if (isException(cls)) {
@@ -105,7 +115,7 @@ class SwiftDecl {
             for (i in cls.interfaces) {
                 conformances.push(i.t.get().name);
             }
-            lines.push("final class " + cls.name + classParams + (conformances.length > 0 ? ": " + conformances.join(", ") : "") + " {");
+            lines.push("public final class " + cls.name + classParams + (conformances.length > 0 ? ": " + conformances.join(", ") : "") + " {");
         }
 
         // One blank line between members; none inside a member's body.
@@ -164,10 +174,10 @@ class SwiftDecl {
         final conformances = ["Equatable", "Hashable"];
         if (hasToString)
             conformances.push("CustomStringConvertible");
-        final lines:Array<String> = ["struct " + info.name + ": " + conformances.join(", ") + " {"];
+        final lines:Array<String> = ["public struct " + info.name + ": " + conformances.join(", ") + " {"];
         final ctorThrows = ctor != null && ValueTypeSupport.constructorThrows(abs);
-        lines.push("    let " + fieldName + ": " + representation);
-        lines.push("    init(_ " + fieldName + ": " + representation + ")" + (ctorThrows ? " throws" : "") + " {");
+        lines.push("    public let " + fieldName + ": " + representation);
+        lines.push("    public init(_ " + fieldName + ": " + representation + ")" + (ctorThrows ? " throws" : "") + " {");
         if (ctorThrows) {
             for (line in expr.valueTypeConstructorBody(cls, findFunc(funcFields, "_new")))
                 lines.push("    " + line);
@@ -188,8 +198,8 @@ class SwiftDecl {
             final ret = types.of(f.ret);
             final head = if (isOperator) {
                 switch (op) {
-                    case Binary(_): "    static func " + name + "(lhs: " + info.name + ", rhs: " + info.name + ") -> " + ret + " {";
-                    case Unary(_): "    static prefix func " + name + "(value: " + info.name + ") -> " + ret + " {";
+                    case Binary(_): "    public static func " + name + "(lhs: " + info.name + ", rhs: " + info.name + ") -> " + ret + " {";
+                    case Unary(_): "    public static prefix func " + name + "(value: " + info.name + ") -> " + ret + " {";
                 }
             } else {
                 final args = [
@@ -198,7 +208,7 @@ class SwiftDecl {
                         "_ " + a.name + ": " + types.of(a.type);
                     }
                 ].join(", ");
-                "    " + (f.field.isPublic ? "" : "private ") + "func " + name + "(" + args + ") -> " + ret + " {";
+                "    " + (f.field.isPublic ? "public " : "private ") + "func " + name + "(" + args + ") -> " + ret + " {";
             };
             lines.push("");
             lines.push(head);
@@ -210,7 +220,7 @@ class SwiftDecl {
         if (hasToString) {
             final f = findFunc(funcFields, "toString");
             lines.push("");
-            lines.push("    var description: String {");
+            lines.push("    public var description: String {");
             for (line in expr.valueTypeFunctionBody(cls, f, fieldName))
                 lines.push("    " + line);
             lines.push("    }");
@@ -223,7 +233,7 @@ class SwiftDecl {
             if (initializer == null)
                 Context.error("value type static field must have an initializer", v.field.pos);
             lines.push("");
-            lines.push("    static let " + SwiftNameEscape.escape(v.field.name) + ": " + info.name + " = " + expr.rawExpression(initializer));
+            lines.push("    public static let " + SwiftNameEscape.escape(v.field.name) + ": " + info.name + " = " + expr.rawExpression(initializer));
         }
         lines.push("}");
         return lines.join("\n");
@@ -231,7 +241,7 @@ class SwiftDecl {
 
     function dataClassComparator(cls:ClassType):String {
         final lines = [
-            "func compare" + cls.name + "(_ a: " + cls.name + ", _ b: " + cls.name + ") -> Int32 {"
+            "public func compare" + cls.name + "(_ a: " + cls.name + ", _ b: " + cls.name + ") -> Int32 {"
         ];
         for (f in [
             for (x in cls.fields.get())
@@ -511,7 +521,7 @@ class SwiftDecl {
             final elems = DataTableHelper.getDataTableElements(field.expr());
             if (elems != null) {
                 return [
-                    "    static let " + SwiftNameEscape.escape(field.name) + ": [Int32] = [" + renderDataTableElements(elems) + "]"
+                    "    public static let " + SwiftNameEscape.escape(field.name) + ": [Int32] = [" + renderDataTableElements(elems) + "]"
                 ];
             }
         }
@@ -521,7 +531,7 @@ class SwiftDecl {
                 Context.error("static function fields require initializers", field.pos);
                 return [];
             }
-            return ["    static let "
+            return ["    public static let "
                 + SwiftNameEscape.escape(field.name)
                 + ": "
                 + types.of(field.type)
@@ -533,7 +543,7 @@ class SwiftDecl {
             final array = StaticFieldHelper.isArrayType(field.type);
             final smallArray = field.isFinal && StaticFieldHelper.isNonEmptyArrayLiteral(init);
             final kw = smallArray ? "let" : (array || !field.isFinal ? "var" : "let");
-            final vis = field.isPublic ? "" : "private ";
+            final vis = field.isPublic ? "public " : "private ";
             return ["    "
                 + vis
                 + "static "
@@ -561,8 +571,9 @@ class SwiftDecl {
         };
         final kw = isArrayField || !field.isFinal ? "var" : "let";
         // Private fields render with Swift's private marker (feature
-        // spec 27); public fields keep the default internal visibility.
-        final vis = field.isPublic ? "" : "private ";
+        // spec 27); public fields render public for the SwiftPM split
+        // between the generated-code module and its consumers.
+        final vis = field.isPublic ? "public " : "private ";
         return [
             "    " + vis + kw + " " + SwiftNameEscape.escape(field.name) + ": " + types.of(field.type)
         ];
@@ -595,7 +606,7 @@ class SwiftDecl {
         consuming Swift code.
     **/
     function propertyDecl(cls:ClassType, field:ClassField):Array<String> {
-        final vis = field.isPublic ? "" : "private ";
+        final vis = field.isPublic ? "public " : "private ";
         final getter = "get_" + field.name;
         return [
             "    " + vis + "var " + SwiftNameEscape.escape(field.name) + ": " + types.of(field.type) + " { " + getter + "() }"
@@ -626,7 +637,7 @@ class SwiftDecl {
         final throws = SwiftFallibility.isThrowing(cls.module, f.field.name, true) ? " throws" : "";
         final body = expr.functionBody(cls, f);
         return [
-            "    static func " + SwiftNameEscape.escape(f.field.name) + "()" + throws + " -> Void {"
+            "    public static func " + SwiftNameEscape.escape(f.field.name) + "()" + throws + " -> Void {"
         ].concat(body).concat(["    }"]);
     }
 
@@ -655,7 +666,7 @@ class SwiftDecl {
             // method form emits; the field assignment then reads the
             // normalized value.
             final normLines = coalescingBodyNormalizationLines(cls, f);
-            return withParamShadows(["    init" + paramList(cls, f) + ctorThrows + " {"], normLines.concat(body), cast f.args).concat(["    }"]);
+            return withParamShadows(["    public init" + paramList(cls, f) + ctorThrows + " {"], normLines.concat(body), cast f.args).concat(["    }"]);
         }
         for (a in f.args) {
             expr.reserveName(a.name);
@@ -671,9 +682,9 @@ class SwiftDecl {
         final body = decodeBoundaryBody(cls, f);
         final normLines = coalescingBodyNormalizationLines(cls, f);
         // Private functions render with Swift's private marker (feature
-        // spec 27); public functions keep the default internal visibility.
-        final vis = f.field.isPublic ? "" : "private ";
-        final head = '    $stat$vis' + 'func ${SwiftNameEscape.escape(f.field.name)}$genericStr${paramList(cls, f)}$throws -> $ret {';
+        // spec 27); public functions render public for the SwiftPM split.
+        final vis = f.field.isPublic ? "public " : "private ";
+        final head = '    $vis$stat' + 'func ${SwiftNameEscape.escape(f.field.name)}$genericStr${paramList(cls, f)}$throws -> $ret {';
         return withParamShadows([head], normLines.concat(body), cast f.args).concat(["    }"]);
     }
 
@@ -687,7 +698,7 @@ class SwiftDecl {
         final throws = SwiftFallibility.isThrowing(module, f.field.name, true) ? " throws" : "";
         final methodParams = collectMethodTypeParams(cls, f);
         final genericStr = methodParams.length > 0 ? "<" + methodParams.join(", ") + ">" : "";
-        final vis = f.field.isPublic ? "" : "private ";
+        final vis = f.field.isPublic ? "public " : "private ";
         final receiverType = isExtension ? types.of(f.args[0].type) : "";
         final methodIndent = isExtension ? "    " : "";
         final head = methodIndent + vis + "func " + SwiftNameEscape.escape(f.field.name) + genericStr + paramList(cls, f, firstArg) + throws + " -> " + ret
@@ -850,7 +861,7 @@ class SwiftDecl {
             if (o.args.length > 0)
                 valueEnum = false;
         if (valueEnum) {
-            final lines = ['enum ${en.name}: String, CaseIterable, Equatable {'];
+            final lines = ['public enum ${en.name}: String, CaseIterable, Equatable {'];
             for (o in sorted)
                 lines.push('    case ${lowerFirst(o.name)} = "${o.name}"');
             lines.push("}");
@@ -860,7 +871,7 @@ class SwiftDecl {
             // Equatable backs the construct comparisons the samples run
             // (`width == F64`); payload types of the subset (Int32,
             // String, nested enums) synthesize the conformance.
-            "enum " + en.name + ": Equatable {"
+            "public enum " + en.name + ": Equatable {"
         ];
         for (o in sorted) {
             final caseName = lowerFirst(o.name);
@@ -891,10 +902,20 @@ class SwiftDecl {
                 // Equatable backs the generated test assertions; the
                 // field types of the subset (scalars, strings, arrays,
                 // optionals, nested records) synthesize the conformance.
-                final lines:Array<String> = ["struct " + def.name + ": Equatable {"];
+                final lines:Array<String> = ["public struct " + def.name + ": Equatable {"];
                 for (field in fields) {
-                    lines.push("    var " + field.name + ": " + types.of(field.type));
+                    lines.push("    public var " + field.name + ": " + types.of(field.type));
                 }
+                // The synthesized memberwise init is internal; the record
+                // crosses the module boundary into the test tree, so the
+                // init renders public with the labeled parameters in
+                // declaration order, matching the memberwise form.
+                final initArgs = [for (field in fields) field.name + ": " + types.of(field.type)].join(", ");
+                lines.push("    public init(" + initArgs + ") {");
+                for (field in fields) {
+                    lines.push("        self." + field.name + " = " + field.name);
+                }
+                lines.push("    }");
                 lines.push("}");
                 if (isStructKeyCandidate(fields)) {
                     return lines.join("\n") + "\n\n" + comparatorDecl(def, fields);
@@ -915,7 +936,7 @@ class SwiftDecl {
     **/
     function comparatorDecl(def:DefType, fields:Array<ClassField>):String {
         final lines:Array<String> = [
-            "func compare" + def.name + "(_ a: " + def.name + ", _ b: " + def.name + ") -> Int32 {"
+            "public func compare" + def.name + "(_ a: " + def.name + ", _ b: " + def.name + ") -> Int32 {"
         ];
         for (f in fields) {
             switch (Context.follow(f.type)) {

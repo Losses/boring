@@ -330,8 +330,18 @@ class Compiler extends PluginCompiler<Compiler> {
             }
         }
 
+        if (anyPlatformHostUsed()) {
+            // The synthesized platform host of stdlib/17 (std.Env writes
+            // and std.Process.args on the read-only Dart VM host): one
+            // small library beside the runtime, emitted only when a
+            // lowered call references it.
+            saveTreeFile("platform_host.dart", DartRuntime.PLATFORM_HOST_SOURCE);
+        }
+
         if (testEntries.length > 0) {
-            saveTreeFile(testRel + "/main.dart", DartTestHelper.testMainSource(testEntries));
+            final withArgs = DartExpr.processArgsReferenced;
+            final mainSource = DartTestHelper.testMainSource(testEntries, dartOutput, testOutput, withArgs);
+            saveTreeFile(testRel + "/main.dart", mainSource);
             if (DartTestTypes.registered.length > 0) {
                 final helperImports = new DartImports("test_helper");
                 final helperTypes = new DartType(helperImports);
@@ -406,6 +416,9 @@ class Compiler extends PluginCompiler<Compiler> {
         if (ctx.imports.usesDartMath()) {
             lines.push("import 'dart:math' as math;");
         }
+        if (ctx.imports.usesDartIo()) {
+            lines.push("import 'dart:io';");
+        }
         if (ctx.imports.usesConvert()) {
             lines.push("import 'dart:convert';");
         }
@@ -418,6 +431,14 @@ class Compiler extends PluginCompiler<Compiler> {
         }
         for (module in ctx.imports.extensionModuleList()) {
             lines.push("import '" + importSpecifier(filePath, dartOutput + "/lib/" + DartImports.libraryPathOf(module)) + "';");
+        }
+        if (ctx.imports.usesPlatformHost()) {
+            // The synthesized platform host of stdlib/17 sits beside the
+            // runtime at the output root; every referencing file imports
+            // it under the fixed prefix the lowered calls spell.
+            lines.push("import '"
+                + importSpecifier(filePath, dartOutput + "/platform_host.dart")
+                + "' as platform_host;");
         }
         if (ctx.imports.usesRuntime()) {
             final emitDir = RuntimeConfig.emitDir();
@@ -452,6 +473,16 @@ class Compiler extends PluginCompiler<Compiler> {
     function anyRuntimeUsed():Bool {
         for (decl in contexts.iterator()) {
             if (decl.usesRuntime()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Whether any generated module references the synthesized platform host. */
+    function anyPlatformHostUsed():Bool {
+        for (decl in contexts.iterator()) {
+            if (decl.imports.usesPlatformHost()) {
                 return true;
             }
         }
@@ -529,7 +560,7 @@ class Compiler extends PluginCompiler<Compiler> {
         The relative import specifier from one generated file to another,
         both expressed relative to the dart-output root.
     **/
-    static function importSpecifier(fromFile:String, toFile:String):String {
+    public static function importSpecifier(fromFile:String, toFile:String):String {
         final fromParts = fromFile.split("/");
         fromParts.pop();
         final toParts = toFile.split("/");
