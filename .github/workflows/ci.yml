@@ -34,6 +34,7 @@ jobs:
       - name: Run generation and tests
         run: nix develop -c bash -c 'bun install && bun run gen:ts && bun run gen:kotlin && bun run gen:kotlin-f32 && bun run gen:rust && bun run gen:rust-f32 && bun run gen:swift && bun run gen:swift-f32 && bun run gen:dart && bun run test:stage1:haxe && bun run test:stage1:ts && bun run test:stage1:kotlin && bun run test:stage1:rust && bun run test:haxe && bun run test:kotlin && bun run test:rust && bun run test:swift && bun run test:swift-f32 && bun run test:dart && bun run test:kotlin-f32 && bun run test:rust-f32 && bun run test:consistency && bun run check:docs'
       - name: Export nix closure
+        if: always()
         run: nix-store --export $(nix-store -qR $(nix build .#devShells.x86_64-linux.default --no-link --print-out-paths)) > nix-closure.nar
 
   macos:
@@ -56,6 +57,7 @@ jobs:
       - name: Run generation and tests
         run: nix develop -c bash -c 'bun install && bun run gen:ts && bun run gen:kotlin && bun run gen:kotlin-f32 && bun run gen:rust && bun run gen:rust-f32 && bun run gen:swift && bun run gen:swift-f32 && bun run gen:dart && bun run test:stage1:haxe && bun run test:stage1:ts && bun run test:stage1:kotlin && bun run test:stage1:rust && bun run test:haxe && bun run test:kotlin && bun run test:rust && bun run test:swift && bun run test:swift-f32 && bun run test:dart && bun run test:kotlin-f32 && bun run test:rust-f32 && bun run test:consistency && bun run check:docs'
       - name: Export nix closure
+        if: always()
         run: nix-store --export $(nix-store -qR $(nix build .#devShells.aarch64-darwin.default --no-link --print-out-paths)) > nix-closure.nar
 
   windows:
@@ -74,8 +76,7 @@ jobs:
         run: |
           choco install neko --yes --no-progress
           curl -sL -o haxe.zip https://github.com/HaxeFoundation/haxe/releases/download/4.3.7/haxe-4.3.7-win64.zip
-          mkdir -p "$HOME/haxe-4.3.7"
-          tar -xf haxe.zip -C "$HOME/haxe-4.3.7"
+          powershell.exe -NoProfile -Command 'Expand-Archive -Path haxe.zip -DestinationPath "$env:USERPROFILE\haxe-4.3.7" -Force'
           HAXE_EXE="$(find "$HOME/haxe-4.3.7" -name haxe.exe -print -quit 2>/dev/null)"
           if [ -z "$HAXE_EXE" ]; then
             echo "haxe.exe not found in extracted archive" >&2
