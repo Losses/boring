@@ -187,3 +187,34 @@ port deletes the mechanical `toString` members in a dedicated mechanical
 pass: an unchanged golden output is the acceptance, and any class whose
 hand-written field order or field set differs from the constructor
 parameters keeps its explicit member, named by the golden diff.
+
+## Amendment: interface-typed record fields print through the declared member
+
+A record field whose static type is an interface that declares a
+zero-argument `toString` returning `String` prints through the interface's
+own virtual member. The assembly routine routes such a field through the
+same member-call arm a record-typed field uses: the non-nullable field
+renders an explicit `field.toString()` call, and a nullable field wraps
+the call in the explicit null comparison of ruling 4, printing `null` for
+a null field and the member text for a present field. Every target lowers
+the interface member call as an ordinary virtual dispatch, so the printed
+text is the same text the Kotlin native data class print renders for the
+same source.
+
+The ruling covers interface-typed fields of records whose interface
+declares `toString`. A direct `Std.string(interfaceValue)` call elsewhere
+in source stays outside the `Std.string` operand domain of
+[docs/specs/stdlib/12-std-string.md](../stdlib/12-std-string.md); the
+sanctioned form there is the explicit `.toString()` call, and this
+amendment widens no `Std.string` acceptance set. An interface-typed field
+whose interface does not declare `toString` keeps the previous behavior:
+the generated targets reject it with the `Std.string` operand error, which
+stays correct.
+
+Test hooks: `samples/boring/RecordInterfaceOps.hx` declares a sealed
+interface with `toString`, a singleton variant, and a `@:dataClass`
+variant, and holds both an interface-typed field and a nullable
+interface-typed field on a record; `tests.RecordInterfaceOpsTests`
+asserts the printed text of both variant kinds and of the null state and
+compares the member text with `RecordStr.str` on the same receiver. The
+module and its tests are entered in all eight generation hxml files.
