@@ -3784,8 +3784,17 @@ class RustExpr {
                 if (markedField != null && (isDirectArrayStaticField(markedField) || isLazyArrayStaticField(markedField))) {
                     return staticItemPath(cls, name);
                 }
-                imports.requireType(cls.module, cls.name);
-                return cls.name + "::" + staticName;
+                // The typer renders an @:native extern class under its
+                // native name (console, process) instead of its
+                // declaration name; the emitted shim keeps the
+                // declaration's module name (Console, Process). A
+                // Pascal-case name is already the declaration name and
+                // stays untouched.
+                final first = cls.name.length > 0 ? cls.name.charAt(0) : "?";
+                final nativeLower = first >= "a" && first <= "z";
+                final structName = nativeLower ? cls.module.substr(cls.module.lastIndexOf(".") + 1) : cls.name;
+                imports.requireType(cls.module, structName);
+                return structName + "::" + staticName;
         }
     }
 
@@ -4197,11 +4206,7 @@ class RustExpr {
                     // rendered source is an untyped {integer} literal when
                     // index is one (E0689), so the end arrives as a typed
                     // wrapping add on the start's cast form instead.
-                    return "u_string::substring(&"
-                        + expr(subj)
-                        + ", "
-                        + castSignedI32(args[0])
-                        + ", i32::wrapping_add(" + castSignedI32(args[0]) + ", 1)"
+                    return "u_string::substring(&" + expr(subj) + ", " + castSignedI32(args[0]) + ", i32::wrapping_add(" + castSignedI32(args[0]) + ", 1)"
                         + ")";
                 }
                 if (name == "indexOf" && isString(stripCast(subj)) && args.length >= 1) {
@@ -4551,7 +4556,7 @@ class RustExpr {
                     imports.require("crate::runtime::u_string");
                     return "u_string::parse_i32(&(" + expr(args[0]) + "))";
                 }
-                if (cls.pack.join(".") == "std" && cls.name == "Process" && name == "exit") {
+                if ((cls.module == "std.Process" || (cls.pack.join(".") == "std" && cls.name == "Process")) && name == "exit") {
                     imports.require("std::process::exit");
                     return "exit(" + renderedArgs + ")";
                 }
@@ -5066,6 +5071,7 @@ class RustExpr {
     // the boundary cast, the right operand stays bare. Signed wrapping casts
     // an operand only when it crosses domains; i32-domain locals and integer
     // literals assign to i32 without a cast.
+
     /**
         One operand of a wrapping binop, rendered in the operation's wrap
         domain. An operand that renders in the other same-width domain
