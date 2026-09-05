@@ -1,0 +1,5 @@
+# The payload fixtures and vector binaries are compared byte for byte,
+# but GitHub's Windows runners set core.autocrlf and would rewrite LF
+# fixtures to CRLF at checkout; disabling text conversion for every file
+# keeps checked-out bytes identical to the committed bytes.
+* -text
