@@ -157,3 +157,4 @@ tests.RegistrySemverTests
 tests.RegistryPipelineTests
 tests.RegistryParseArgsTests
 boring.ArrayIterationOps
+tests.ExpressionBlockTests
