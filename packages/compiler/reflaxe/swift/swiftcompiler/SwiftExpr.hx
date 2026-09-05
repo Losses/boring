@@ -3891,7 +3891,17 @@ class SwiftExpr {
                     case TLocal(v): markMutated(v);
                     case TField(subj, FInstance(_, _, _)) | TField(subj, FAnon(_)):
                         switch (stripWrap(subj).expr) {
-                            case TLocal(v): markMutated(v);
+                            case TLocal(v):
+                                if (isClassInstanceType(v.t)) {
+                                    // A class instance's property writes do not require var;
+                                    // keep the name marker so parameter shadow emission is
+                                    // byte-identical, but the local can stay let.
+                                    if (v.name != "`") {
+                                        mutatedNames.set(v.name, true);
+                                    }
+                                } else {
+                                    markMutated(v);
+                                }
                             case _:
                         }
                     case TArray(arr, _):
@@ -3935,6 +3945,15 @@ class SwiftExpr {
             case _:
         }
         TypedExprTools.iter(e, scanLocals);
+    }
+
+    function isClassInstanceType(t:Null<Type>):Bool {
+        if (t == null)
+            return false;
+        return switch (Context.follow(t)) {
+            case TInst(c, _): c.get().kind == KNormal;
+            case _: false;
+        };
     }
 
     function markMutated(v:TVar):Void {
