@@ -269,6 +269,7 @@ class KotlinExpr {
         nonNullLocals.clear();
         nonNullFields.clear();
         enumVariants.clear();
+        registerNonNullDefaultParams(cls, f);
         // Fuse declaration-plus-assignment pairs before the mutation scan.
         // The typer lowers abstract-inline receiver bindings as `TVar(v,
         // null)` followed by an assignment; the fused initializer is the
@@ -344,6 +345,7 @@ class KotlinExpr {
         nonNullLocals.clear();
         nonNullFields.clear();
         enumVariants.clear();
+        registerNonNullDefaultParams(cls, f);
         scanLocals(f.expr);
         final out:Array<String> = [];
         final assigned:Array<String> = [];
@@ -467,7 +469,11 @@ class KotlinExpr {
                     addProofs(conditionProofs(c).elsePath);
                     proofSnapshot();
                 };
-                restoreProofs(intersectProofs(base, afterThen, afterElse));
+                // A branch whose block terminates (return/throw) contributes no
+                // survivors, so the merged state is the other branch alone.
+                final thenTerminates = blockTerminates(t);
+                final elseTerminates = f != null && blockTerminates(f);
+                restoreProofs(if (thenTerminates != elseTerminates) (thenTerminates ? afterElse : afterThen) else intersectProofs(base, afterThen, afterElse));
                 out.push(indent(depth) + "}");
                 return out;
             case TWhile(c, b, true):
@@ -1681,7 +1687,11 @@ class KotlinExpr {
     function updateLocalProof(v:TVar, init:TypedExpr):Void {
         if (!isNullType(v.t))
             return;
-        if (!isNullType(init.t))
+        // The initializer proves the local when its own type is non-null,
+        // when it reads an already-proven local or field, or when it is a
+        // null-guard coalescing whose default branch is non-null (the
+        // rendered elvis then has a non-null right side).
+        if (!isNullType(init.t) || provenNonNull(init) || isNonNullNormalization(init))
             nonNullLocals.set(v.id, true);
         else
             nonNullLocals.remove(v.id);
@@ -1744,12 +1754,16 @@ class KotlinExpr {
         switch (stripWrap(e).expr) {
             case TBinop(OpBoolAnd, l, r):
                 final lp = conditionProofs(l), rp = conditionProofs(r);
-                return {thenPath: {locals: lp.thenPath.locals.concat(rp.thenPath.locals), fields: lp.thenPath.fields.concat(rp.thenPath.fields)},
-                    elsePath: empty()};
+                return {
+                    thenPath: {locals: lp.thenPath.locals.concat(rp.thenPath.locals), fields: lp.thenPath.fields.concat(rp.thenPath.fields)},
+                    elsePath: empty()
+                };
             case TBinop(OpBoolOr, l, r):
                 final lp = conditionProofs(l), rp = conditionProofs(r);
-                return {thenPath: intersectProofArrays(lp.thenPath,
-                    rp.thenPath), elsePath: {locals: lp.elsePath.locals.concat(rp.elsePath.locals), fields: lp.elsePath.fields.concat(rp.elsePath.fields)}};
+                return {
+                    thenPath: intersectProofArrays(lp.thenPath, rp.thenPath),
+                    elsePath: {locals: lp.elsePath.locals.concat(rp.elsePath.locals), fields: lp.elsePath.fields.concat(rp.elsePath.fields)}
+                };
             case TBinop(OpEq, l, r) | TBinop(OpNotEq, l, r):
                 final leftNull = isNullExpr(l), rightNull = isNullExpr(r);
                 final subject = leftNull ? r : (rightNull ? l : null);
@@ -1806,9 +1820,52 @@ class KotlinExpr {
 
     function isNonNullNormalization(e:TypedExpr):Bool {
         return switch (stripWrap(e).expr) {
-            case TIf(c, _, f) if (f != null): nullGuardLocal(c) != null;
+            case TIf(c, t, f) if (f != null): final guard = nullGuardLocal(c); // A proven guard decides the condition statically: the
+                // rendered branch is the guard itself (or a non-null
+                // default), so the ternary yields a non-null value.
+                guard != null && (nonNullLocals.exists(guard.id) || !isNullType(t.t) || provenNonNull(branchValue(t)));
             case _: false;
         };
+    }
+
+    /** The value a branch contributes: a block stands for its last statement. */
+    function branchValue(e:TypedExpr):TypedExpr {
+        return switch (stripWrap(e).expr) {
+            case TBlock(stmts) if (stmts.length > 0): branchValue(stmts[stmts.length - 1]);
+            case _: e;
+        };
+    }
+
+    /** True when the block's last statement always exits (return/throw). */
+    function blockTerminates(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TBlock(stmts): stmts.length > 0 && stmtTerminates(stmts[stmts.length - 1]);
+            case _: stmtTerminates(e);
+        }
+    }
+
+    function stmtTerminates(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TReturn(_) | TThrow(_): true;
+            case TBlock(stmts): stmts.length > 0 && stmtTerminates(stmts[stmts.length - 1]);
+            case _: false;
+        }
+    }
+
+    /**
+        Parameters whose Kotlin signature renders a non-null type while the
+        Haxe type is nullable (a registered default argument lifts the
+        `x == null ? D : x` pattern into `x: T = D`) are never null at body
+        start, so they join the proof set before the body renders.
+    **/
+    function registerNonNullDefaultParams(cls:ClassType, f:ClassFuncData):Void {
+        for (a in f.args) {
+            final registered = DefaultArgExpander.defaultAt(cls, f.field.name, a.index);
+            if (registered == null || !isNullType(a.type) || isNullType(DefaultArgExpander.defaultParameterType(registered, a.type)))
+                continue;
+            if (a.tvar != null)
+                nonNullLocals.set(a.tvar.id, true);
+        }
     }
 
     function nullGuardLocal(e:Null<TypedExpr>):Null<TVar> {
@@ -2499,6 +2556,31 @@ class KotlinExpr {
         };
     }
 
+    /**
+        Call shapes that render their argument text themselves (so they must
+        not let localCallArgs register proofs for discarded renderings). The
+        fromCharCode template appends its own `!!` for unproven nullable
+        arguments and registers the proof, matching renderCallArgs.
+    **/
+    function selfRenderedCallText(fn:TypedExpr, args:Array<TypedExpr>):Null<String> {
+        switch (fn.expr) {
+            case TField(_, FStatic(c, cf)) if (c.get().module == "haxe.io.Bytes" && cf.get().name == "alloc" && args.length == 1):
+                return "ByteArray(" + expr(args[0]) + ")";
+            case TField(_, FStatic(c, cf)) if (c.get().module == "haxe.io.Bytes" && cf.get().name == "ofString" && args.length == 1):
+                return expr(args[0]) + ".toByteArray(Charsets.UTF_8)";
+            case TField(_, FStatic(c, cf)) if (c.get().module == "haxe.io.Bytes" && cf.get().name == "concat" && args.length == 2):
+                return expr(args[0]) + " + " + expr(args[1]);
+            case TField(_, FStatic(c, cf)) if (c.get().pack.length == 0 && c.get().name == "String" && cf.get().name == "fromCharCode" && args.length == 1):
+                final code = expr(args[0]);
+                final assertNeeded = isNullType(args[0].t) && !provenNonNull(args[0]);
+                if (assertNeeded)
+                    addProofExpr(args[0]);
+                return "((" + code + (assertNeeded ? ")!!" : ")") + ".toChar()).toString()";
+            case _:
+                return null;
+        }
+    }
+
     function call(fn:TypedExpr, args:Array<TypedExpr>):String {
         final int64CallText = int64Call(fn, args);
         if (int64CallText != null)
@@ -2645,14 +2727,16 @@ class KotlinExpr {
         if (inlineMapCall != null) {
             return inlineMapCall;
         }
+        // Branches that render their own argument text must run before
+        // localCallArgs: renderCallArgs registers a non-null proof for every
+        // `!!` it appends, so a rendering whose text is then discarded would
+        // leave a phantom proof that later emissions trust.
+        final selfRendered = selfRenderedCallText(fn, args);
+        if (selfRendered != null) {
+            return selfRendered;
+        }
         final renderedArgs = localCallArgs(fn, args);
         switch (fn.expr) {
-            case TField(_, FStatic(c, cf)) if (c.get().module == "haxe.io.Bytes" && cf.get().name == "alloc" && args.length == 1):
-                return "ByteArray(" + expr(args[0]) + ")";
-            case TField(_, FStatic(c, cf)) if (c.get().module == "haxe.io.Bytes" && cf.get().name == "ofString" && args.length == 1):
-                return expr(args[0]) + ".toByteArray(Charsets.UTF_8)";
-            case TField(_, FStatic(c, cf)) if (c.get().module == "haxe.io.Bytes" && cf.get().name == "concat" && args.length == 2):
-                return expr(args[0]) + " + " + expr(args[1]);
             case TCast(inner, _):
                 return call(inner, args);
             case TField(subj, FDynamic(name)) if ((name == "length" || name == "get_length") && isStringBuf(subj)):
@@ -2804,10 +2888,6 @@ class KotlinExpr {
             case TField(_, FStatic(c, cf)):
                 final cls = c.get();
                 final name = cf.get().name;
-                if (cls.pack.length == 0 && cls.name == "String" && name == "fromCharCode") {
-                    final code = expr(args[0]);
-                    return "((" + code + (isNullType(args[0].t) ? ")!!" : ")") + ".toChar()).toString()";
-                }
                 if (cls.pack.join(".") == "std" && cls.name == "Process" && name == "exit") {
                     imports.require("kotlin.system.exitProcess");
                 }
