@@ -64,7 +64,9 @@ class KotlinDecl {
                 ].join(", ");
                 final retType = types.of(f.ret);
                 final ret = retType == "Unit" ? "" : ": " + retType;
-                lines.push('    fun ${KotlinNameEscape.escape(f.field.name)}($args)$ret');
+                final overridesAny = f.field.name == "toString" && f.args.length == 0;
+                final overrideStr = overridesAny ? "override " : "";
+                lines.push('    ${overrideStr}fun ${KotlinNameEscape.escape(f.field.name)}($args)$ret');
             }
             lines.push("}");
             return lines.join("\n");
