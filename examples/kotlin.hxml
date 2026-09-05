@@ -162,3 +162,6 @@ tests.RegistryPipelineTests
 tests.RegistryParseArgsTests
 boring.ArrayIterationOps
 boring.SortedDataClassKeysOps
+boring.PlatformOps
+tests.PlatformModulesTestSupport
+tests.PlatformModulesTests

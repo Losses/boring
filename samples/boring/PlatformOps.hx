@@ -53,8 +53,17 @@ class PlatformOps {
         final afterSet = Env.get(key);
         Env.remove(key);
         final afterRemove = Env.get(key);
-        final present = afterSet == null ? "<null>" : afterSet;
-        return present + "|" + (afterRemove == null ? "<absent>" : afterRemove);
+        var present:String;
+        if (afterSet == null)
+            present = "<null>";
+        else
+            present = afterSet;
+        var removed:String;
+        if (afterRemove == null)
+            removed = "<absent>";
+        else
+            removed = afterRemove;
+        return present + "|" + removed;
     }
 
     /** The first program argument, or the marker when none was passed. */
