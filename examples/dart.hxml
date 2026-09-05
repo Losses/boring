@@ -134,6 +134,7 @@ boring.PrintedEnumOps
 boring.StdStringSelfRecOps
 tests.PrintedEnumTests
 tests.StdStringSelfRecTests
+tests.StdStringPlainClassTests
 boring.PrintedSortedFields
 tests.PrintedSortedFieldsTests
 boring.SealedVariantOps
