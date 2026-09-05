@@ -1996,6 +1996,10 @@ class KotlinExpr {
             case TAbstract(a, _) if (a.get().name == "Float"):
                 if (inConcat) value else {final runtimePackage = RuntimeConfig.requireImportName("module test extern");
                     imports.require(runtimePackage + ".test.TestCore");
+                    // The formatFloat call is emitter-synthesized: no
+                    // consumer source names std.Test, so the reference
+                    // itself marks the TestCore resident as used.
+                    state.shimsUsed.set(RuntimeResidents.externsOf("runtime.TestCore")[0], true);
                     runtimePackage
                     + ".test.TestCore.formatFloat("
                     + value

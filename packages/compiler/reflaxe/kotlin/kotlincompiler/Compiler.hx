@@ -39,6 +39,15 @@ class Compiler extends PluginCompiler<Compiler> {
         // Registered before the framework's own callback so the linkage
         // scan completes before any per-declaration lowering runs.
         haxe.macro.Context.onAfterTyping(compiler.preScan);
+        // Emitter-synthesized references name support modules no
+        // consumer source reaches: the stdlib/08 string-buffer fault
+        // throws std.UStringException, the test host entry calls
+        // Test.run, and non-concat float stringification routes through
+        // runtime.TestCore. Typing them here keeps every Kotlin build,
+        // including consumer builds whose entry list omits them, able
+        // to emit them on demand.
+        haxe.macro.Compiler.keep("std.UStringException");
+        haxe.macro.Compiler.keep("runtime.TestCore");
         ReflectCompiler.AddCompiler(compiler, {
             fileOutputType: BaseCompilerFileOutputType.Manual,
             fileOutputExtension: ".kt",
@@ -63,6 +72,14 @@ class Compiler extends PluginCompiler<Compiler> {
         // Resident runtime modules sit under src/runtime, outside the
         // sample source roots, but compile through this same pipeline.
         final isResident = RuntimeResidents.isResident(classType.module);
+        // Guaranteed std modules compile past the scope filter so a
+        // consumer build can still write them; the write step drops the
+        // file when generated output never referenced the module.
+        final isGuaranteedStd = KotlinImports.isGuaranteedStdModule(classType.module);
+        final inScope = inSourceScope(classType.pos);
+        if (isGuaranteedStd && !inScope) {
+            state.outOfScopeGuaranteedStd.set(classType.module, true);
+        }
         final valueType = ValueTypeSupport.infoOfClass(classType);
         if (valueType != null) {
             if (!ValueTypeSupport.isValidAbstract(valueType.abstractType)) {
@@ -74,7 +91,7 @@ class Compiler extends PluginCompiler<Compiler> {
             parts.get(classType.module).push(result);
             return result;
         }
-        if (classType.isExtern || (!isResident && !inSourceScope(classType.pos))) {
+        if (classType.isExtern || (!isResident && !isGuaranteedStd && !inScope)) {
             return null;
         }
         SealedVariantHelper.validateClass(classType);
@@ -190,6 +207,11 @@ class Compiler extends PluginCompiler<Compiler> {
         for (module in modules) {
             if (state.payloadEnumOwners.exists(module)) {
                 // The sealed fold already carries these variants.
+                continue;
+            }
+            if (state.outOfScopeGuaranteedStd.exists(module) && !state.shimsUsed.exists(module)) {
+                // A consumer build whose generated output never named
+                // this guaranteed std module writes no file for it.
                 continue;
             }
             if (RuntimeResidents.isResident(module)) {
@@ -544,7 +566,11 @@ class Compiler extends PluginCompiler<Compiler> {
             switch (mt) {
                 case TClassDecl(c):
                     final cls = c.get();
-                    if (cls.isExtern || isSyntheticImpl(cls.name) || !inSourceScope(cls.pos)) {
+                    // Guaranteed std modules register their payload fold
+                    // in consumer builds too; the throw lowering reads
+                    // the linkage in `exceptionPayloads`.
+                    if (cls.isExtern || isSyntheticImpl(cls.name)
+                        || (!inSourceScope(cls.pos) && !KotlinImports.isGuaranteedStdModule(cls.module))) {
                         continue;
                     }
                     if (KotlinDecl.isExceptionSubclass(cls)) {
