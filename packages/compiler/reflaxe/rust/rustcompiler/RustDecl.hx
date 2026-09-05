@@ -334,7 +334,8 @@ class RustDecl {
                                     final orderName = RustImports.toSnakeCase(cls.name) + "_" + RustImports.toSnakeCase(f.name) + "_order";
                                     lines.unshift('fn $orderName(v: &${en.name}) -> i32 {\n    match v {\n' + [
                                         for (ef in en.constructs)
-                                            '        ${en.name}::${ef.name}' + (enumHasPayload(ef) ? ' { .. }' : '') + ' => ${ef.index},'
+                                            '        ${en.name}::${RustImports.toUpperCamelCase(ef.name)}' + (enumHasPayload(ef) ? ' { .. }' : '') +
+                                            ' => ${ef.index},'
                                     ].join("\n") + '\n    }\n}');
                                     presentCompare = cmpToI32('$orderName(av).cmp(&$orderName(bv))');
                                 case TInst(c, _) if (c.get().meta.has(":dataClass")):
@@ -360,7 +361,7 @@ class RustDecl {
                             final orderName = n + "_" + fn + "_element_order";
                             lines.unshift('fn $orderName(v: &${en.name}) -> i32 {\n    match v {\n' + [
                                 for (ef in en.constructs)
-                                    '        ${en.name}::${ef.name}' + (enumHasPayload(ef) ? ' { .. }' : '') + ' => ${ef.index},'
+                                    '        ${en.name}::${RustImports.toUpperCamelCase(ef.name)}' + (enumHasPayload(ef) ? ' { .. }' : '') + ' => ${ef.index},'
                             ].join("\n") + '\n    }\n}');
                             elementCompare = cmpToI32('$orderName(av).cmp(&$orderName(bv))');
                         case TInst(c, _) if (c.get().meta.has(":dataClass")):
@@ -387,7 +388,7 @@ class RustDecl {
                         final orderName = RustImports.toSnakeCase(cls.name) + "_" + RustImports.toSnakeCase(f.name) + "_order";
                         lines.unshift('fn $orderName(v: &${en.name}) -> i32 {\n    match v {\n' + [
                             for (ef in en.constructs)
-                                '        ${en.name}::${ef.name}' + (enumHasPayload(ef) ? ' { .. }' : '') + ' => ${ef.index},'
+                                '        ${en.name}::${RustImports.toUpperCamelCase(ef.name)}' + (enumHasPayload(ef) ? ' { .. }' : '') + ' => ${ef.index},'
                         ].join("\n") + '\n    }\n}');
                         lines.push('    let cmp_$fn = ' + cmpToI32('$orderName(&a.$fn).cmp(&$orderName(&b.$fn))') + ';');
                     case _: // validated before emission
@@ -436,7 +437,7 @@ class RustDecl {
                 final orderName = RustImports.toSnakeCase(cls.name) + "_" + RustImports.toSnakeCase(field) + "_order";
                 lines.unshift('fn $orderName(v: &${en.name}) -> i32 {\n    match v {\n' + [
                     for (ef in en.constructs)
-                        '        ${en.name}::${ef.name}' + (enumHasPayload(ef) ? ' { .. }' : '') + ' => ${ef.index},'
+                        '        ${en.name}::${RustImports.toUpperCamelCase(ef.name)}' + (enumHasPayload(ef) ? ' { .. }' : '') + ' => ${ef.index},'
                 ].join("\n") + '\n    }\n}');
                 cmpToI32('$orderName(av).cmp(&$orderName(bv))');
             case TInst(c, _) if (c.get().meta.has(":dataClass")):
@@ -691,13 +692,13 @@ class RustDecl {
         for (o in options) {
             final args = enumFieldParams(o);
             if (args.length == 0) {
-                lines.push("    " + o.name + ",");
+                lines.push("    " + RustImports.toUpperCamelCase(o.name) + ",");
             } else {
                 final params = [
                     for (arg in args)
                         RustImports.toSnakeCase(arg.name) + ": " + fieldType(arg.type, arg.name)
                 ].join(", ");
-                lines.push("    " + o.name + " { " + params + " },");
+                lines.push("    " + RustImports.toUpperCamelCase(o.name) + " { " + params + " },");
             }
         }
         lines.push("}\n");
@@ -711,10 +712,10 @@ class RustDecl {
             final args = enumFieldParams(o);
             if (args.length == 0) {
                 final formatted = 'write!(formatter, "{}", ${message})';
-                lines.push('            ${enumName}::${o.name} => ${formatted},');
+                lines.push('            ${enumName}::${RustImports.toUpperCamelCase(o.name)} => ${formatted},');
             } else {
                 final params = [for (arg in args) RustImports.toSnakeCase(arg.name)].join(", ");
-                lines.push('            ${enumName}::${o.name} { ${params} } => {');
+                lines.push('            ${enumName}::${RustImports.toUpperCamelCase(o.name)} { ${params} } => {');
                 final isLiteral = message != null && StringTools.startsWith(StringTools.trim(message), '"');
                 if (isLiteral) {
                     lines.push('                write!(formatter, ${message}, ${params})');
@@ -2069,14 +2070,14 @@ class RustDecl {
         final lines = [deriveAttr, "pub enum " + en.name + " {"];
         for (o in sorted) {
             if (o.args.length == 0) {
-                lines.push("    " + o.name + ",");
+                lines.push("    " + RustImports.toUpperCamelCase(o.name) + ",");
             } else {
                 final params = [
                     for (arg in o.args)
                         RustImports.toSnakeCase(arg.name) + ": " + (EnumCycleDetector.isCyclic(en) ? types.recursiveEnumField(arg.type,
                             en) : types.of(arg.type))
                 ].join(", ");
-                lines.push("    " + o.name + " { " + params + " },");
+                lines.push("    " + RustImports.toUpperCamelCase(o.name) + " { " + params + " },");
             }
         }
         lines.push("}");
@@ -2088,11 +2089,11 @@ class RustDecl {
             for (o in sorted) {
                 final args = [for (arg in o.args) RustImports.toSnakeCase(arg.name)];
                 if (args.length == 0)
-                    lines.push('            ${en.name}::${o.name} => "${o.name}".to_string(),');
+                    lines.push('            ${en.name}::${RustImports.toUpperCamelCase(o.name)} => "${o.name}".to_string(),');
                 else {
                     final params = [for (arg in o.args) RustImports.toSnakeCase(arg.name)];
                     final values = [for (i in 0...o.args.length) enumOperand(o.args[i].type, params[i])];
-                    lines.push('            ${en.name}::${o.name} { ${params.join(", ")} } => format!("${o.name}(${[for(a in params) a + "={}"].join(", ")})", ${values.join(", ")}),');
+                    lines.push('            ${en.name}::${RustImports.toUpperCamelCase(o.name)} { ${params.join(", ")} } => format!("${o.name}(${[for(a in params) a + "={}"].join(", ")})", ${values.join(", ")}),');
                 }
             }
             lines.push("        }");
@@ -2105,7 +2106,7 @@ class RustDecl {
             lines.push("    pub fn to_string(&self) -> String {");
             lines.push("        match self {");
             for (o in sorted)
-                lines.push('            ${en.name}::${o.name} => "${o.name}".to_string(),');
+                lines.push('            ${en.name}::${RustImports.toUpperCamelCase(o.name)} => "${o.name}".to_string(),');
             lines.push("        }");
             lines.push("    }");
             lines.push("}");
@@ -2115,12 +2116,13 @@ class RustDecl {
             lines.push("");
             lines.push('impl ${en.name} {');
             if (use.collection)
-                lines.push('    pub const ALL: [${en.name}; ${sorted.length}] = [' + [for (o in sorted) '${en.name}::${o.name}'].join(", ") + '];');
+                lines.push('    pub const ALL: [${en.name}; ${sorted.length}] = ['
+                    + [for (o in sorted) '${en.name}::${RustImports.toUpperCamelCase(o.name)}'].join(", ") + '];');
             if (use.name) {
                 lines.push("    pub fn name(&self) -> &'static str {");
                 lines.push("        match self {");
                 for (o in sorted)
-                    lines.push('            ${en.name}::${o.name} => "${o.name}",');
+                    lines.push('            ${en.name}::${RustImports.toUpperCamelCase(o.name)} => "${o.name}",');
                 lines.push("        }");
                 lines.push("    }");
             }
@@ -2128,7 +2130,7 @@ class RustDecl {
                 lines.push('    pub fn from_name(name: &str) -> Option<${en.name}> {');
                 lines.push("        match name {");
                 for (o in sorted)
-                    lines.push('            "${o.name}" => Some(${en.name}::${o.name}),');
+                    lines.push('            "${o.name}" => Some(${en.name}::${RustImports.toUpperCamelCase(o.name)}),');
                 lines.push("            _ => None,");
                 lines.push("        }");
                 lines.push("    }");
