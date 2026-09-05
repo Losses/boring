@@ -354,8 +354,8 @@ class KotlinDecl {
                                     _): lines.push('    if (a.${f.name} != null && b.${f.name} != null) { cmp = ${cls.name}${f.name}Order(a.${f.name}).compareTo(${cls.name}${f.name}Order(b.${f.name})); if (cmp != 0) return cmp }');
                                 case TAbstract(_,
                                     _) | TInst(_,
-                                        _): lines.push('    if (a.${f.name} != null && b.${f.name} != null) { cmp = a.${f.name}!!.compareTo(b.${f.name}!!); if (cmp != 0) return cmp }');
-                                case _: lines.push('    if (a.${f.name} != null && b.${f.name} != null) { cmp = a.${f.name}!!.toString().compareTo(b.${f.name}!!.toString()); if (cmp != 0) return cmp }');
+                                        _): lines.push('    if (a.${f.name} != null && b.${f.name} != null) { cmp = a.${f.name}.compareTo(b.${f.name}); if (cmp != 0) return cmp }');
+                                case _: lines.push('    if (a.${f.name} != null && b.${f.name} != null) { cmp = a.${f.name}.toString().compareTo(b.${f.name}.toString()); if (cmp != 0) return cmp }');
                             }
                         case element:
                             nullableArrayComparator(lines, cls, f.name, element);

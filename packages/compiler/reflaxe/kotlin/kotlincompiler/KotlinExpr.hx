@@ -51,6 +51,14 @@ class KotlinExpr {
     /** Locals whose control-flow or normalization initializer proves non-null. */
     final nonNullLocals:Map<Int, Bool> = [];
 
+    /** Field reads proven non-null by a dominating null check. */
+    final nonNullFields:Map<String, Bool> = [];
+
+    /** Enum locals narrowed to a constructor by the active switch arm. */
+    final enumVariants:Map<Int, String> = [];
+
+    final enumVariantExpressions:Map<String, String> = [];
+
     var hiddenCounter:Int = 0;
 
     /** Fresh names for the trailing-unit reads of stdlib/08 checks. */
@@ -259,6 +267,9 @@ class KotlinExpr {
         currentField = f.field.name;
         currentLocalName = null;
         nonNullLocals.clear();
+        nonNullFields.clear();
+        enumVariants.clear();
+        registerNonNullDefaultParams(cls, f);
         // Fuse declaration-plus-assignment pairs before the mutation scan.
         // The typer lowers abstract-inline receiver bindings as `TVar(v,
         // null)` followed by an assignment; the fused initializer is the
@@ -332,6 +343,9 @@ class KotlinExpr {
         currentField = f.field.name;
         currentLocalName = null;
         nonNullLocals.clear();
+        nonNullFields.clear();
+        enumVariants.clear();
+        registerNonNullDefaultParams(cls, f);
         scanLocals(f.expr);
         final out:Array<String> = [];
         final assigned:Array<String> = [];
@@ -410,8 +424,6 @@ class KotlinExpr {
             case TVar(v, init) if (init != null && isStringBufToStringCall(init)):
                 return stringBufToStringBindingLines(v, stripWrap(init), depth);
             case TVar(v, init) if (init != null):
-                if (isNonNullNormalization(init))
-                    nonNullLocals.set(v.id, true);
                 final kw = mutated.exists(v.id) ? "var" : "val";
                 switch (stripWrap(init).expr) {
                     case TLocal(origV) if (asListReturn.exists(origV.id)):
@@ -426,6 +438,7 @@ class KotlinExpr {
                     case TFunction(fn): functionLiteralNamed(v.name, fn);
                     default: expr(init);
                 };
+                updateLocalProof(v, init);
                 return [indent(depth) + '$kw ${localName(v)}$typeAnn = $initText'];
             case TVar(v, init) if (init == null):
                 // Deferred local declarations are initialized by later assignments;
@@ -438,17 +451,29 @@ class KotlinExpr {
                 out.push(indent(depth) + "}");
                 return out;
             case TIf(c, t, f):
-                final guarded = nullGuardLocal(c);
-                if (guarded != null && f == null)
-                    nonNullLocals.set(guarded.id, true);
-                final out = [indent(depth) + "if (" + expr(c) + ") {"];
+                final condition = expr(c);
+                final base = proofSnapshot();
+                addProofs(conditionProofs(c).thenPath);
+                final out = [indent(depth) + "if (" + condition + ") {"];
                 for (l in blockLines(statementsOf(t), depth + 1))
                     out.push(l);
-                if (f != null) {
+                final afterThen = proofSnapshot();
+                restoreProofs(base);
+                final afterElse = if (f != null) {
+                    addProofs(conditionProofs(c).elsePath);
                     out.push(indent(depth) + "} else {");
                     for (l in blockLines(statementsOf(f), depth + 1))
                         out.push(l);
-                }
+                    proofSnapshot();
+                } else {
+                    addProofs(conditionProofs(c).elsePath);
+                    proofSnapshot();
+                };
+                // A branch whose block terminates (return/throw) contributes no
+                // survivors, so the merged state is the other branch alone.
+                final thenTerminates = blockTerminates(t);
+                final elseTerminates = f != null && blockTerminates(f);
+                restoreProofs(if (thenTerminates != elseTerminates) (thenTerminates ? afterElse : afterThen) else intersectProofs(base, afterThen, afterElse));
                 out.push(indent(depth) + "}");
                 return out;
             case TWhile(c, b, true):
@@ -1188,12 +1213,20 @@ class KotlinExpr {
                     return fail(e, "payload read of a multi-variant enum lowers inside a when arm only");
                 }
                 final owner = state.payloadEnumOwners.get(en.module);
+                final variant = switch (stripWrap(se).expr) {
+                    case TLocal(v): enumVariants.get(v.id);
+                    case _: null;
+                };
+                final narrowed = Lambda.count(en.constructs) == 1
+                    || variant == ef.name
+                    || enumVariantKey(se) != null
+                    && enumVariantExpressions.exists(enumVariantKey(se));
                 if (owner != null) {
                     imports.requireType(en.pack.concat([owner]).join("."), owner);
-                    return "(" + expr(se) + " as " + owner + "." + ef.name + ")." + payloadName(ef, index);
+                    return (narrowed ? expr(se) : "(" + expr(se) + " as " + owner + "." + ef.name + ")") + "." + payloadName(ef, index);
                 }
                 imports.requireType(en.module, en.name);
-                return "(" + expr(se) + " as " + en.name + "." + ef.name + ")." + payloadName(ef, index);
+                return (narrowed ? expr(se) : "(" + expr(se) + " as " + en.name + "." + ef.name + ")") + "." + payloadName(ef, index);
             case TEnumIndex(_):
                 return fail(e, "enum index only lowers inside a variant switch");
             case TFunction(f):
@@ -1210,7 +1243,17 @@ class KotlinExpr {
                         return expr(coalescing.valueExpr) + " ?: " + expr(coalescing.defaultExpr);
                     return expr(coalescing.valueExpr);
                 }
-                return "(if (" + expr(c) + ") " + expr(t) + " else " + expr(f) + ")";
+                final condition = expr(c);
+                final base = proofSnapshot();
+                addProofs(conditionProofs(c).thenPath);
+                final thenText = expr(t);
+                final afterThen = proofSnapshot();
+                restoreProofs(base);
+                addProofs(conditionProofs(c).elsePath);
+                final elseText = expr(f);
+                final afterElse = proofSnapshot();
+                restoreProofs(intersectProofs(base, afterThen, afterElse));
+                return "(if (" + condition + ") " + thenText + " else " + elseText + ")";
             case TSwitch(_, _, _):
                 return switchExpression(e);
             case TTry(body, catches) if (catches.length == 1):
@@ -1396,6 +1439,14 @@ class KotlinExpr {
             if (ef == null) {
                 return fail(sw, "variant switch case index has no construct");
             }
+            switch (stripWrap(se).expr) {
+                case TLocal(v):
+                    enumVariants.set(v.id, ef.name);
+                case _:
+            }
+            final variantKey = enumVariantKey(se);
+            if (variantKey != null)
+                enumVariantExpressions.set(variantKey, ef.name);
             final arm = armLines(c.expr);
             // The `is` pattern smart-casts the subject to the variant, so
             // payload captures read as properties on it. Arms separate by
@@ -1605,7 +1656,10 @@ class KotlinExpr {
         switch (op) {
             case OpAssign:
                 final map = mapAssignment(l);
-                return map == null ? assignTarget(l) + " = " + expr(r) : expr(map.receiver) + ".put(" + expr(map.key) + ", " + expr(r) + ")";
+                final value = expr(r);
+                if (map == null)
+                    updateLocalProofTarget(l, r);
+                return map == null ? assignTarget(l) + " = " + value : expr(map.receiver) + ".put(" + expr(map.key) + ", " + value + ")";
             case OpAssignOp(inner):
                 switch (inner) {
                     case OpAdd | OpSub | OpMult | OpDiv | OpMod:
@@ -1616,6 +1670,142 @@ class KotlinExpr {
             case _:
                 return binopCore(op, l, r);
         }
+    }
+
+    function addProofExpr(e:TypedExpr):Void {
+        switch (stripWrap(e).expr) {
+            case TLocal(v):
+                nonNullLocals.set(v.id, true);
+            case TField(_, _):
+                final key = fieldAccessKey(e);
+                if (key != null)
+                    nonNullFields.set(key, true);
+            case _:
+        }
+    }
+
+    function updateLocalProof(v:TVar, init:TypedExpr):Void {
+        if (!isNullType(v.t))
+            return;
+        // The initializer proves the local when its own type is non-null,
+        // when it reads an already-proven local or field, or when it is a
+        // null-guard coalescing whose default branch is non-null (the
+        // rendered elvis then has a non-null right side).
+        if (!isNullType(init.t) || provenNonNull(init) || isNonNullNormalization(init))
+            nonNullLocals.set(v.id, true);
+        else
+            nonNullLocals.remove(v.id);
+    }
+
+    function updateLocalProofTarget(target:TypedExpr, value:TypedExpr):Void {
+        switch (stripWrap(target).expr) {
+            case TLocal(v) if (isNullType(target.t)):
+                if (!isNullType(value.t))
+                    nonNullLocals.set(v.id, true);
+                else
+                    nonNullLocals.remove(v.id);
+            case _:
+        }
+    }
+
+    function proofSnapshot():{locals:Map<Int, Bool>, fields:Map<String, Bool>} {
+        final l:Map<Int, Bool> = [], f:Map<String, Bool> = [];
+        for (k in nonNullLocals.keys())
+            l.set(k, true);
+        for (k in nonNullFields.keys())
+            f.set(k, true);
+        return {locals: l, fields: f};
+    }
+
+    function restoreProofs(s:{locals:Map<Int, Bool>, fields:Map<String, Bool>}):Void {
+        nonNullLocals.clear();
+        nonNullFields.clear();
+        for (k in s.locals.keys())
+            nonNullLocals.set(k, true);
+        for (k in s.fields.keys())
+            nonNullFields.set(k, true);
+    }
+
+    function addProofs(p:{locals:Array<Int>, fields:Array<String>}):Void {
+        for (k in p.locals)
+            nonNullLocals.set(k, true);
+        for (k in p.fields)
+            nonNullFields.set(k, true);
+    }
+
+    function intersectProofs(base:{locals:Map<Int, Bool>, fields:Map<String, Bool>}, a:{locals:Map<Int, Bool>, fields:Map<String, Bool>},
+            b:{locals:Map<Int, Bool>, fields:Map<String, Bool>}):{locals:Map<Int, Bool>, fields:Map<String, Bool>} {
+        final result = proofSnapshot();
+        result.locals.clear();
+        result.fields.clear();
+        for (k in a.locals.keys())
+            if (b.locals.exists(k))
+                result.locals.set(k, true);
+        for (k in a.fields.keys())
+            if (b.fields.exists(k))
+                result.fields.set(k, true);
+        return result;
+    }
+
+    function conditionProofs(e:Null<TypedExpr>):{thenPath:{locals:Array<Int>, fields:Array<String>}, elsePath:{locals:Array<Int>, fields:Array<String>}} {
+        final empty = function() return {locals: [], fields: []};
+        if (e == null)
+            return {thenPath: empty(), elsePath: empty()};
+        switch (stripWrap(e).expr) {
+            case TBinop(OpBoolAnd, l, r):
+                final lp = conditionProofs(l), rp = conditionProofs(r);
+                return {
+                    thenPath: {locals: lp.thenPath.locals.concat(rp.thenPath.locals), fields: lp.thenPath.fields.concat(rp.thenPath.fields)},
+                    elsePath: empty()
+                };
+            case TBinop(OpBoolOr, l, r):
+                final lp = conditionProofs(l), rp = conditionProofs(r);
+                return {
+                    thenPath: intersectProofArrays(lp.thenPath, rp.thenPath),
+                    elsePath: {locals: lp.elsePath.locals.concat(rp.elsePath.locals), fields: lp.elsePath.fields.concat(rp.elsePath.fields)}
+                };
+            case TBinop(OpEq, l, r) | TBinop(OpNotEq, l, r):
+                final leftNull = isNullExpr(l), rightNull = isNullExpr(r);
+                final subject = leftNull ? r : (rightNull ? l : null);
+                if (subject != null) {
+                    final p = proofFor(subject);
+                    return switch (stripWrap(e).expr) {
+                        case TBinop(OpNotEq, _, _): {thenPath: p, elsePath: empty()};
+                        case _: {thenPath: empty(), elsePath: p};
+                    };
+                }
+                final literalSubject = switch (stripWrap(l).expr) {
+                    case TLocal(_) | TField(_, _): switch (stripWrap(r).expr) {
+                            case TConst(_): l;
+                            default: null;
+                        };
+                    case _: switch (stripWrap(r).expr) {
+                            case TLocal(_) | TField(_, _): switch (stripWrap(l).expr) {
+                                    case TConst(_): r;
+                                    default: null;
+                                };
+                            case _: null;
+                        }
+                };
+                return literalSubject == null ? {thenPath: empty(), elsePath: empty()} : {thenPath: proofFor(literalSubject), elsePath: empty()};
+            case _:
+                return {thenPath: empty(), elsePath: empty()};
+        }
+    }
+
+    function intersectProofArrays(a:{locals:Array<Int>, fields:Array<String>},
+            b:{locals:Array<Int>, fields:Array<String>}):{locals:Array<Int>, fields:Array<String>} {
+        return {locals: [for (x in a.locals) if (b.locals.indexOf(x) >= 0) x], fields: [for (x in a.fields) if (b.fields.indexOf(x) >= 0) x]};
+    }
+
+    function proofFor(e:TypedExpr):{locals:Array<Int>, fields:Array<String>} {
+        return switch (stripWrap(e).expr) {
+            case TLocal(v): {locals: [v.id], fields: []};
+            case TField(_, _):
+                final key = fieldAccessKey(e);
+                key == null ? {locals: [], fields: []} : {locals: [], fields: [key]};
+            case _: {locals: [], fields: []};
+        };
     }
 
     function isNullType(t:Null<Type>):Bool {
@@ -1630,16 +1820,59 @@ class KotlinExpr {
 
     function isNonNullNormalization(e:TypedExpr):Bool {
         return switch (stripWrap(e).expr) {
-            case TIf(c, _, f) if (f != null): nullGuardLocal(c) != null;
+            case TIf(c, t, f) if (f != null): final guard = nullGuardLocal(c); // A proven guard decides the condition statically: the
+                // rendered branch is the guard itself (or a non-null
+                // default), so the ternary yields a non-null value.
+                guard != null && (nonNullLocals.exists(guard.id) || !isNullType(t.t) || provenNonNull(branchValue(t)));
             case _: false;
         };
+    }
+
+    /** The value a branch contributes: a block stands for its last statement. */
+    function branchValue(e:TypedExpr):TypedExpr {
+        return switch (stripWrap(e).expr) {
+            case TBlock(stmts) if (stmts.length > 0): branchValue(stmts[stmts.length - 1]);
+            case _: e;
+        };
+    }
+
+    /** True when the block's last statement always exits (return/throw). */
+    function blockTerminates(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TBlock(stmts): stmts.length > 0 && stmtTerminates(stmts[stmts.length - 1]);
+            case _: stmtTerminates(e);
+        }
+    }
+
+    function stmtTerminates(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TReturn(_) | TThrow(_): true;
+            case TBlock(stmts): stmts.length > 0 && stmtTerminates(stmts[stmts.length - 1]);
+            case _: false;
+        }
+    }
+
+    /**
+        Parameters whose Kotlin signature renders a non-null type while the
+        Haxe type is nullable (a registered default argument lifts the
+        `x == null ? D : x` pattern into `x: T = D`) are never null at body
+        start, so they join the proof set before the body renders.
+    **/
+    function registerNonNullDefaultParams(cls:ClassType, f:ClassFuncData):Void {
+        for (a in f.args) {
+            final registered = DefaultArgExpander.defaultAt(cls, f.field.name, a.index);
+            if (registered == null || !isNullType(a.type) || isNullType(DefaultArgExpander.defaultParameterType(registered, a.type)))
+                continue;
+            if (a.tvar != null)
+                nonNullLocals.set(a.tvar.id, true);
+        }
     }
 
     function nullGuardLocal(e:Null<TypedExpr>):Null<TVar> {
         if (e == null)
             return null;
         return switch (stripWrap(e).expr) {
-            case TBinop(OpEq, l, r):
+            case TBinop(OpEq, l, r) | TBinop(OpNotEq, l, r):
                 switch (stripWrap(r).expr) {
                     case TConst(TNull): switch (stripWrap(l).expr) {
                             case TLocal(v): v;
@@ -1652,6 +1885,77 @@ class KotlinExpr {
                                 };
                             case _: null;
                         }
+                }
+            case _: null;
+        };
+    }
+
+    function provenNonNull(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TLocal(v): nonNullLocals.exists(v.id);
+            case TField(_, _): final key = fieldAccessKey(e); key != null && nonNullFields.exists(key);
+            case _: false;
+        };
+    }
+
+    function nullGuardFields(e:Null<TypedExpr>):Array<String> {
+        if (e == null)
+            return [];
+        return switch (stripWrap(e).expr) {
+            case TBinop(OpNotEq, l, r):
+                final value = isNullExpr(l) ? r : (isNullExpr(r) ? l : null);
+                final key = value == null ? null : fieldAccessKey(value);
+                key == null ? [] : [key];
+            case TBinop(OpBoolAnd, l, r):
+                final left = nullGuardFields(l);
+                final right = nullGuardFields(r);
+                left.concat(right);
+            case _: [];
+        };
+    }
+
+    function isCompleteNullGuard(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TBinop(OpNotEq, l, r) | TBinop(OpEq, l, r): final value = isNullExpr(l) ? r : (isNullExpr(r) ? l : null); value != null && fieldAccessKey(value) != null;
+            case TBinop(OpBoolAnd, l, r): isCompleteNullGuard(l) && isCompleteNullGuard(r);
+            case _: false;
+        };
+    }
+
+    function saveNonNullFields(keys:Array<String>):Map<String, Bool> {
+        final saved:Map<String, Bool> = [];
+        for (key in keys) {
+            saved.set(key, nonNullFields.exists(key) && nonNullFields.get(key));
+            nonNullFields.set(key, true);
+        }
+        return saved;
+    }
+
+    function restoreNonNullFields(saved:Map<String, Bool>):Void {
+        for (key in saved.keys()) {
+            if (saved.get(key))
+                nonNullFields.set(key, true);
+            else
+                nonNullFields.remove(key);
+        }
+    }
+
+    function enumVariantKey(e:TypedExpr):Null<String> {
+        return switch (stripWrap(e).expr) {
+            case TLocal(v): "local:" + localName(v);
+            case TField(_, _):
+                final key = fieldAccessKey(e);
+                key == null ? null : "field:" + key;
+            case _: null;
+        };
+    }
+
+    function fieldAccessKey(e:TypedExpr):Null<String> {
+        return switch (stripWrap(e).expr) {
+            case TField(receiver, FInstance(_, _, _)) | TField(receiver, FAnon(_)):
+                switch (stripWrap(receiver).expr) {
+                    case TLocal(_) | TConst(TThis): "field:" + expr(e);
+                    case _: null;
                 }
             case _: null;
         };
@@ -1677,7 +1981,22 @@ class KotlinExpr {
                     return "(" + leftText + ").toString() + " + rightText;
                 }
                 return leftText + " + " + rightText;
-            case OpAdd | OpSub | OpMult | OpDiv | OpMod | OpEq | OpNotEq | OpGt | OpGte | OpLt | OpLte | OpBoolAnd | OpBoolOr:
+            case OpBoolAnd:
+                final leftText = operand(l, op, false);
+                final saved = proofSnapshot();
+                addProofs(conditionProofs(l).thenPath);
+                final rightText = operand(r, op, true);
+                restoreProofs(saved);
+                return leftText + " && " + rightText;
+            case OpGt | OpGte | OpLt | OpLte:
+                final leftText = operand(l, op, false);
+                final saved = proofSnapshot();
+                addProofExpr(l);
+                addProofExpr(r);
+                final rightText = operand(r, op, true);
+                restoreProofs(saved);
+                return leftText + " " + symbolOf(op) + " " + rightText;
+            case OpAdd | OpSub | OpMult | OpDiv | OpMod | OpEq | OpNotEq | OpBoolOr:
                 return operand(l, op, false) + " " + symbolOf(op) + " " + operand(r, op, true);
             case OpShl:
                 return "((" + operand(l, op, false) + ") shl (" + operand(r, op, true) + "))";
@@ -1701,12 +2020,11 @@ class KotlinExpr {
         // Nullable values still need extraction unless the Haxe expression
         // has already been normalized, or control flow proved the local is
         // non-null. Kotlin's smart casts then make `!!` redundant.
-        final proven = switch (stripWrap(e).expr) {
-            case TLocal(v): nonNullLocals.exists(v.id);
-            case _: false;
-        };
-        if (isNullType(e.t) && !proven && parent != OpEq && parent != OpNotEq)
+        final proven = provenNonNull(e);
+        if (isNullType(e.t) && !proven && parent != OpEq && parent != OpNotEq) {
             rendered += "!!";
+            addProofExpr(e);
+        }
         switch (e.expr) {
             case TBinop(op, _, _):
                 final cp = precedenceOf(op);
@@ -2133,11 +2451,8 @@ class KotlinExpr {
             } else {
                 final pieces = [
                     for (a in args)
-                        "\""
-                        + a.name
-                        + "=\" + ("
-                        + stdStringType(a.t, "(v as " + en.name + "." + ef.name + ")." + a.name, true, origin)
-                        + ")"];
+                        "\"" + a.name + "=\" + (" + stdStringType(a.t, "v." + a.name, true, origin) + ")"
+                ];
                 arms.push("is " + en.name + "." + ef.name + " -> \"" + ef.name + "(\" + " + pieces.join(" + \", \" + ") + " + \")\"");
             }
         }
@@ -2239,6 +2554,31 @@ class KotlinExpr {
             case Binary(binary): opStr(binary);
             case Unary(_): "-";
         };
+    }
+
+    /**
+        Call shapes that render their argument text themselves (so they must
+        not let localCallArgs register proofs for discarded renderings). The
+        fromCharCode template appends its own `!!` for unproven nullable
+        arguments and registers the proof, matching renderCallArgs.
+    **/
+    function selfRenderedCallText(fn:TypedExpr, args:Array<TypedExpr>):Null<String> {
+        switch (fn.expr) {
+            case TField(_, FStatic(c, cf)) if (c.get().module == "haxe.io.Bytes" && cf.get().name == "alloc" && args.length == 1):
+                return "ByteArray(" + expr(args[0]) + ")";
+            case TField(_, FStatic(c, cf)) if (c.get().module == "haxe.io.Bytes" && cf.get().name == "ofString" && args.length == 1):
+                return expr(args[0]) + ".toByteArray(Charsets.UTF_8)";
+            case TField(_, FStatic(c, cf)) if (c.get().module == "haxe.io.Bytes" && cf.get().name == "concat" && args.length == 2):
+                return expr(args[0]) + " + " + expr(args[1]);
+            case TField(_, FStatic(c, cf)) if (c.get().pack.length == 0 && c.get().name == "String" && cf.get().name == "fromCharCode" && args.length == 1):
+                final code = expr(args[0]);
+                final assertNeeded = isNullType(args[0].t) && !provenNonNull(args[0]);
+                if (assertNeeded)
+                    addProofExpr(args[0]);
+                return "((" + code + (assertNeeded ? ")!!" : ")") + ".toChar()).toString()";
+            case _:
+                return null;
+        }
     }
 
     function call(fn:TypedExpr, args:Array<TypedExpr>):String {
@@ -2387,14 +2727,16 @@ class KotlinExpr {
         if (inlineMapCall != null) {
             return inlineMapCall;
         }
+        // Branches that render their own argument text must run before
+        // localCallArgs: renderCallArgs registers a non-null proof for every
+        // `!!` it appends, so a rendering whose text is then discarded would
+        // leave a phantom proof that later emissions trust.
+        final selfRendered = selfRenderedCallText(fn, args);
+        if (selfRendered != null) {
+            return selfRendered;
+        }
         final renderedArgs = localCallArgs(fn, args);
         switch (fn.expr) {
-            case TField(_, FStatic(c, cf)) if (c.get().module == "haxe.io.Bytes" && cf.get().name == "alloc" && args.length == 1):
-                return "ByteArray(" + expr(args[0]) + ")";
-            case TField(_, FStatic(c, cf)) if (c.get().module == "haxe.io.Bytes" && cf.get().name == "ofString" && args.length == 1):
-                return expr(args[0]) + ".toByteArray(Charsets.UTF_8)";
-            case TField(_, FStatic(c, cf)) if (c.get().module == "haxe.io.Bytes" && cf.get().name == "concat" && args.length == 2):
-                return expr(args[0]) + " + " + expr(args[1]);
             case TCast(inner, _):
                 return call(inner, args);
             case TField(subj, FDynamic(name)) if ((name == "length" || name == "get_length") && isStringBuf(subj)):
@@ -2542,14 +2884,10 @@ class KotlinExpr {
                 if (name == "join") {
                     return expr(subj) + ".joinToString(" + renderedArgs + ")";
                 }
-                return expr(subj) + (isNullType(subj.t) ? "?." : ".") + name + "(" + renderedArgs + ")";
+                return expr(subj) + (isNullType(subj.t) && !provenNonNull(subj) ? "?." : ".") + name + "(" + renderedArgs + ")";
             case TField(_, FStatic(c, cf)):
                 final cls = c.get();
                 final name = cf.get().name;
-                if (cls.pack.length == 0 && cls.name == "String" && name == "fromCharCode") {
-                    final code = expr(args[0]);
-                    return "((" + code + (isNullType(args[0].t) ? ")!!" : ")") + ".toChar()).toString()";
-                }
                 if (cls.pack.join(".") == "std" && cls.name == "Process" && name == "exit") {
                     imports.require("kotlin.system.exitProcess");
                 }
@@ -2631,9 +2969,11 @@ class KotlinExpr {
                 final a = args[i];
                 final text = expr(a);
                 final expected = i < params.length ? params[i] : null;
-                if (isNullType(a.t) && expected != null && !isNullType(expected)) text
-                    + "!!"; else if (isIntType(a.t) && isFloatExpectedType(expected)) "(" + text + ")." +
-                    (FloatPrecision.isF32() ? "toFloat()" : "toDouble()"); else text;
+                if (isNullType(a.t) && expected != null && !isNullType(expected) && !provenNonNull(a)) {
+                    addProofExpr(a);
+                    text + "!!";
+                } else if (isIntType(a.t) && isFloatExpectedType(expected)) "(" + text + ")." + (FloatPrecision.isF32() ? "toFloat()" : "toDouble()"); else
+                    text;
             }
         ];
     }
