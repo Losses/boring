@@ -2233,7 +2233,6 @@ class TsExpr {
     // ------------------------------------------------------------------
     // Platform modules (docs/specs/stdlib/17-platform-modules.md)
     // ------------------------------------------------------------------
-
     static final FS_UNAVAILABLE = "std.Fs is not available on this host";
 
     /**
@@ -2259,7 +2258,9 @@ class TsExpr {
                 return "null";
         }
         final params = (name == "writeText" || name == "appendText") ? "p, d" : "p";
-        return "((p" + (params == "p, d" ? ", d" : "") + ") => { const fs = typeof require === \"function\" ? require(\"node:fs\") : null; if (fs === null) { throw new Error("
+        return "((p"
+            + (params == "p, d" ? ", d" : "")
+            + ") => { const fs = typeof require === \"function\" ? require(\"node:fs\") : null; if (fs === null) { throw new Error("
             + tsStringLiteral(FS_UNAVAILABLE)
             + "); } return fs."
             + member
@@ -2277,17 +2278,20 @@ class TsExpr {
         final rendered = [for (a in args) expr(a)];
         switch (name) {
             case "get":
-                return "((k) => { if (typeof localStorage !== \"undefined\" && localStorage !== null) { return localStorage.getItem(k); } return (typeof process !== \"undefined\" && process.env ? process.env[k] : null) ?? null; })("
+                return
+                    "((k) => { if (typeof localStorage !== \"undefined\" && localStorage !== null) { return localStorage.getItem(k); } return (typeof process !== \"undefined\" && process.env ? process.env[k] : null) ?? null; })("
                     + rendered[0]
                     + ")";
             case "set":
-                return "((k, v) => { if (typeof localStorage !== \"undefined\" && localStorage !== null) { localStorage.setItem(k, v); return; } if (typeof process !== \"undefined\" && process.env) { process.env[k] = v; } })("
+                return
+                    "((k, v) => { if (typeof localStorage !== \"undefined\" && localStorage !== null) { localStorage.setItem(k, v); return; } if (typeof process !== \"undefined\" && process.env) { process.env[k] = v; } })("
                     + rendered[0]
                     + ", "
                     + rendered[1]
                     + ")";
             case "remove":
-                return "((k) => { if (typeof localStorage !== \"undefined\" && localStorage !== null) { localStorage.removeItem(k); return; } if (typeof process !== \"undefined\" && process.env) { delete process.env[k]; } })("
+                return
+                    "((k) => { if (typeof localStorage !== \"undefined\" && localStorage !== null) { localStorage.removeItem(k); return; } if (typeof process !== \"undefined\" && process.env) { delete process.env[k]; } })("
                     + rendered[0]
                     + ")";
             case _:

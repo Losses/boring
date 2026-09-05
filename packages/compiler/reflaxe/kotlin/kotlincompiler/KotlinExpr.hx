@@ -3172,7 +3172,11 @@ class KotlinExpr {
                 "Files.writeString(Paths.get(" + p + "), " + expr(args[1]) + ")";
             case "appendText":
                 imports.require("java.nio.file.StandardOpenOption");
-                "Files.writeString(Paths.get(" + p + "), " + expr(args[1]) + ", StandardOpenOption.CREATE, StandardOpenOption.APPEND)";
+                "Files.writeString(Paths.get("
+                + p
+                + "), "
+                + expr(args[1])
+                + ", StandardOpenOption.CREATE, StandardOpenOption.APPEND)";
             case "makeDirs":
                 "Files.createDirectories(Paths.get(" + p + "))";
             case "readDir":
