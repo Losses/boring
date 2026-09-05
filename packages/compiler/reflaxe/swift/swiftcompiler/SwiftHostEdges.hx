@@ -97,11 +97,14 @@ private func boringEnvGet(_ key: String) -> String? {
         return String(cString: value)
     }
     #elseif canImport(CRT)
-    // The UCRT exports the same getenv symbol; the read goes through
-    // the CRT so get and set share one environment view.
     return key.withCString { k in
-        guard let value = getenv(k) else { return nil }
-        return String(cString: value)
+        var buffer: UnsafeMutablePointer<CChar>? = nil
+        var count: Int = 0
+        if _dupenv_s(&buffer, &count, k) == 0, let buffer {
+            defer { free(buffer) }
+            return String(cString: buffer)
+        }
+        return nil
     }
     #else
     return nil
