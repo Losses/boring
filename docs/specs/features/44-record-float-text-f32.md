@@ -9,8 +9,9 @@ selected.
 A record `Float` field currently reaches string concatenation directly in the
 oracle. Java's `Float.toString` instead renders the binary32 value using its
 shortest decimal text, so values such as `0.8` can disagree with the oracle's
-binary64 expansion. This feature covers record fields only; it does not alter
-ordinary arithmetic or other string conversions.
+binary64 expansion. This feature covers record fields and the `Float` operands
+the stage-1 operand forms print; it does not alter ordinary arithmetic or other
+string conversions.
 
 ## Ruling
 
@@ -35,3 +36,10 @@ ordinary arithmetic or other string conversions.
    compilations do not include it, and it is not registered in any
    `examples/*.hxml` file. It is portable Haxe, but need not belong to the
    translatable subset.
+5. The same gate routes every `Float` operand printed by the stage-1 operand
+   forms through `std.FpText.shortest(read)`: an array element of a record
+   collection field (`Array<Float>` and `std.ReadOnlyArray<Float>`, including
+   nested arrays) and a `Float` payload argument of a payload enum constructor.
+   A `Null<Float>` element keeps the `Std.string` form of the pre-existing null
+   branch. Ruling 1's unchanged-compilation guarantee applies to this routing
+   verbatim.

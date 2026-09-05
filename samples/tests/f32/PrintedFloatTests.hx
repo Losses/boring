@@ -24,6 +24,11 @@ class PrintedFloatTests {
         Test.equals("PrintedFloat(ratio=0.8, offset=null, count=7, stops=[1.5, 2.5])", Std.string(new PrintedFloat(0.8, null, 7, [1.5, 2.5])));
     }
 
+    @:test("float collection elements use the shortest binary32 text")
+    public static function printsShortestFloatTextOnCollectionElements():Void {
+        Test.equals("PrintedFloat(ratio=0.8, offset=null, count=7, stops=[0.5714286, 18.0, -0.8])", Std.string(new PrintedFloat(0.8, null, 7, [4 / 7, 18.0, -0.8])));
+    }
+
     @:test("non-finite binary32 text keeps the platform form")
     public static function printsNonFiniteFloatFields():Void {
         Test.equals("PrintedFloat(ratio=Infinity, offset=NaN, count=3, stops=null)", Std.string(new PrintedFloat(Math.POSITIVE_INFINITY, 0.0 / 0.0, 3, null)));
