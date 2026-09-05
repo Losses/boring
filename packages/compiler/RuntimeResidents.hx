@@ -20,6 +20,7 @@
 class RuntimeResidents {
     /** Resident modules of the general runtime, in emission order. */
     public static final MODULES:Array<String> = [
+        "runtime.StringTools",
         "runtime.UString",
         "runtime.GraphemeWalk",
         "runtime.Graphemes",
@@ -50,6 +51,7 @@ class RuntimeResidents {
      */
     public static function externsOf(module:String):Array<String> {
         return switch (module) {
+            case "runtime.StringTools": ["StringTools"];
             case "runtime.UString": ["std.UStringRT"];
             case "runtime.Graphemes" | "runtime.GraphemeWalk": ["std.Graphemes"];
             case "runtime.SortedTable": ["std.SortedMap", "std.SortedMapBuilder", "std.SortedSet", "std.SortedSetBuilder"];
