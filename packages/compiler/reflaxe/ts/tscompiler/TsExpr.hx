@@ -1748,6 +1748,7 @@ class TsExpr {
                 '(() => { let out = "{"; const n = ${value}.size(); for (let ${index} = 0; ${index} < n; ${index} += 1) { if (${index} > 0) { out += ", "; } out += ${item}; } out += "}"; return out; })()';
             case TInst(c, _) if (StaticFieldHelper.hasSelfConstructionStatic(c.get())
                 || c.get().meta.has(":dataClass")): value + ".toString()";
+            case TInst(c, _) if (hasInstanceToString(c.get())): value + ".toString()";
             case TAbstract(a, _) if (ValueTypeSupport.isMarkedAbstract(a.get())):
                 final abs = a.get();
                 final toString = ValueTypeSupport.memberField(abs, "toString");
@@ -1768,6 +1769,15 @@ class TsExpr {
                 Context.error("Std.string accepts scalars, enum values, records, and arrays of them only", origin.pos);
                 null;
         };
+    }
+
+    function hasInstanceToString(cls:ClassType):Bool {
+        for (field in cls.fields.get())
+            if (field.name == "toString")
+                return true;
+        if (cls.superClass == null)
+            return false;
+        return hasInstanceToString(cls.superClass.t.get());
     }
 
     function cyclicEnumString(en:EnumType, value:String, inConcat:Bool, origin:TypedExpr):String {
@@ -2223,7 +2233,6 @@ class TsExpr {
     // ------------------------------------------------------------------
     // Platform modules (docs/specs/stdlib/17-platform-modules.md)
     // ------------------------------------------------------------------
-
     static final FS_UNAVAILABLE = "std.Fs is not available on this host";
 
     /**
@@ -2249,7 +2258,9 @@ class TsExpr {
                 return "null";
         }
         final params = (name == "writeText" || name == "appendText") ? "p, d" : "p";
-        return "((p" + (params == "p, d" ? ", d" : "") + ") => { const fs = typeof require === \"function\" ? require(\"node:fs\") : null; if (fs === null) { throw new Error("
+        return "((p"
+            + (params == "p, d" ? ", d" : "")
+            + ") => { const fs = typeof require === \"function\" ? require(\"node:fs\") : null; if (fs === null) { throw new Error("
             + tsStringLiteral(FS_UNAVAILABLE)
             + "); } return fs."
             + member
@@ -2267,17 +2278,20 @@ class TsExpr {
         final rendered = [for (a in args) expr(a)];
         switch (name) {
             case "get":
-                return "((k) => { if (typeof localStorage !== \"undefined\" && localStorage !== null) { return localStorage.getItem(k); } return (typeof process !== \"undefined\" && process.env ? process.env[k] : null) ?? null; })("
+                return
+                    "((k) => { if (typeof localStorage !== \"undefined\" && localStorage !== null) { return localStorage.getItem(k); } return (typeof process !== \"undefined\" && process.env ? process.env[k] : null) ?? null; })("
                     + rendered[0]
                     + ")";
             case "set":
-                return "((k, v) => { if (typeof localStorage !== \"undefined\" && localStorage !== null) { localStorage.setItem(k, v); return; } if (typeof process !== \"undefined\" && process.env) { process.env[k] = v; } })("
+                return
+                    "((k, v) => { if (typeof localStorage !== \"undefined\" && localStorage !== null) { localStorage.setItem(k, v); return; } if (typeof process !== \"undefined\" && process.env) { process.env[k] = v; } })("
                     + rendered[0]
                     + ", "
                     + rendered[1]
                     + ")";
             case "remove":
-                return "((k) => { if (typeof localStorage !== \"undefined\" && localStorage !== null) { localStorage.removeItem(k); return; } if (typeof process !== \"undefined\" && process.env) { delete process.env[k]; } })("
+                return
+                    "((k) => { if (typeof localStorage !== \"undefined\" && localStorage !== null) { localStorage.removeItem(k); return; } if (typeof process !== \"undefined\" && process.env) { delete process.env[k]; } })("
                     + rendered[0]
                     + ")";
             case _:
