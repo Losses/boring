@@ -120,6 +120,7 @@ Every candidate translation is evaluated across four fixed axes:
 | Number | Specification | Status | Description |
 | --- | --- | --- | --- |
 | 01 | [01-haxe-style-standard.md](style/01-haxe-style-standard.md) | Complete | Haxe style standard for translatable source and the named-violation interception that gates generation. |
+| 02 | [02-translator-implementation-standard.md](style/02-translator-implementation-standard.md) | In progress | Layer ownership, consolidation procedure for repeated mechanisms, exception shapes, emission quality requirements, and fix location for the translator implementation; the exception ledger is ruled and pending implementation. |
 
 ### Target specifications
 
