@@ -185,11 +185,16 @@ whether it shows the escaped source form or the runtime value.
 
 
   Host conditioning remains explicit for the native environment helpers:
-  `std.Env.get` uses `getenv` on Glibc/Darwin and MSVCRT, `std.Env.set` uses
-  `setenv` or `_putenv_s`, and `std.Env.remove` uses `unsetenv` or `_putenv`.
-  The paired C runtime calls keep get/set/remove on one environment view.
-  FileManager supplies the filesystem behavior on FoundationEssentials hosts;
-  hosts without that module use the fixed unavailability exception arm.
+  `std.Env.get` uses `getenv` on Glibc/Darwin and the Windows `CRT` module,
+  `std.Env.set` uses `setenv` or `_putenv_s`, and `std.Env.remove` uses
+  `unsetenv` or `_putenv`. The paired C runtime calls keep get/set/remove
+  on one environment view. The Windows module is `CRT`, the Swift overlay
+  of ucrt that swiftlang toolchains ship; the 6.1.2 Windows SDK has no
+  MSVCRT module. FileManager supplies the filesystem behavior on hosts
+  that import FoundationEssentials; Apple SDKs do not expose that module
+  as a top-level import, so generated files fall back to `Foundation`
+  through `canImport(Darwin)`. Hosts with neither module use the fixed
+  unavailability exception arm.
 
   The SwiftPM test chain runs Swift 6.2.4 on Linux and pins swift-system
   `1.6.6`; every generated target stays in Swift 5 language mode.

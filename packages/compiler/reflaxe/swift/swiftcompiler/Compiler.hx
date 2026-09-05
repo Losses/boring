@@ -418,8 +418,13 @@ class Compiler extends PluginCompiler<Compiler> {
             }
         }
         if (needsFoundationEssentials) {
+            // Apple SDKs do not expose FoundationEssentials as a
+            // top-level module; Foundation provides the same FileManager
+            // API there, so the header falls back through Darwin.
             header.push("#if canImport(FoundationEssentials)");
             header.push("import FoundationEssentials");
+            header.push("#elseif canImport(Darwin)");
+            header.push("import Foundation");
             header.push("#endif");
         }
         if (hostKeys.length > 0) {
@@ -429,8 +434,8 @@ class Compiler extends PluginCompiler<Compiler> {
             header.push("#if canImport(Darwin)");
             header.push("import Darwin");
             header.push("#endif");
-            header.push("#if canImport(MSVCRT)");
-            header.push("import MSVCRT");
+            header.push("#if canImport(CRT)");
+            header.push("import CRT");
             header.push("#endif");
             header.push("#if canImport(WinSDK)");
             header.push("import WinSDK");
