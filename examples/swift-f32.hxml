@@ -18,8 +18,10 @@
 -D swift-output=reference/swift-f32/gen
 -D swift-test-output=reference/swift-f32/gen-tests
 -D swift-test-runner=native
+-D swift-test-import=CodecF32
 -D runtime-import=@boring/runtime
 -D runtime-emit=.
+-D package-shell=none
 -D float-precision=f32
 boring.BinaryReader
 boring.BinaryWriter
@@ -159,4 +161,7 @@ tests.RegistrySemverTests
 tests.RegistryPipelineTests
 tests.RegistryParseArgsTests
 boring.ArrayIterationOps
+boring.PlatformOps
 tests.ExpressionBlockTests
+tests.PlatformModulesTestSupport
+tests.PlatformModulesTests

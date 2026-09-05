@@ -116,6 +116,12 @@ class PackageArtifacts {
         // staged sources as ES modules.
         sys.io.File.saveContent(haxe.io.Path.join([stage, "package.json"]), manifest);
         sys.io.File.saveContent(haxe.io.Path.join([stage, "tsconfig.json"]), TSCONFIG);
+        // The staged tree carries no @types package, so the platform
+        // module host probes (stdlib/17) would fail to typecheck: write
+        // the minimal ambient declarations of the hosts the lowered
+        // bodies probe. The declared shapes stay optional so a browser
+        // build typechecks the same files.
+        sys.io.File.saveContent(haxe.io.Path.join([stage, "host.d.ts"]), HOST_DECLARATIONS);
         runTool("package-tsc", tsc, ["-p", stage]);
         final files:Array<{name:String, data:haxe.io.Bytes}> = [{name: "package.json", data: haxe.io.Bytes.ofString(manifest)},];
         for (distPath in walkFiles(haxe.io.Path.join([stage, "dist"]))) {
@@ -136,6 +142,39 @@ class PackageArtifacts {
     static final TSCONFIG = "{\n" + "  \"compilerOptions\": {\n" + "    \"module\": \"nodenext\",\n" + "    \"target\": \"es2022\",\n"
         + "    \"declaration\": true,\n" + "    \"outDir\": \"dist\",\n" + "    \"rootDir\": \".\",\n" + "    \"skipLibCheck\": true\n" + "  },\n"
         + "  \"include\": [\"**/*\"]\n" + "}\n";
+
+    /**
+        The ambient host declarations of the npm staging tree. The stage
+        has no node_modules, so `process`, `require`, and
+        `localStorage` are undeclared and the platform-module probes of
+        stdlib/17 would fail TypeScript's name resolution. These minimal
+        shapes make the lowered bodies typecheck; the runtime feature
+        test decides presence through the `typeof` probes, so every name
+        stays optional here.
+    **/
+    static final HOST_DECLARATIONS = "// Ambient host declarations for the platform-module probes\n"
+        + "// (docs/specs/stdlib/17-platform-modules.md). The npm stage has\n"
+        + "// no @types package; these minimal shapes let the lowered\n"
+        + "// bodies typecheck while the runtime probes decide presence.\n"
+        + "declare const process: {\n"
+        + "    env: Record<string, string | undefined>;\n"
+        + "    argv: string[];\n"
+        + "} | undefined;\n"
+        + "declare function require(id: \"node:fs\"): {\n"
+        + "    existsSync(path: string): boolean;\n"
+        + "    readFileSync(path: string, encoding: string): string;\n"
+        + "    writeFileSync(path: string, data: string, encoding: string): void;\n"
+        + "    appendFileSync(path: string, data: string, encoding: string): void;\n"
+        + "    mkdirSync(path: string, options: { recursive: boolean }): void;\n"
+        + "    statSync(path: string): { isDirectory(): boolean };\n"
+        + "    readdirSync(path: string): string[];\n"
+        + "};\n"
+        + "declare function require(id: string): unknown;\n"
+        + "declare const localStorage: {\n"
+        + "    getItem(key: string): string | null;\n"
+        + "    setItem(key: string, value: string): void;\n"
+        + "    removeItem(key: string): void;\n"
+        + "} | undefined;\n";
 
     /**
         Rewrites the import specifiers of one staged module from `.ts`

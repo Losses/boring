@@ -42,6 +42,15 @@ import ValueTypeSupport.ValueTypeOperator;
       Std.int of that division folds to `~/`.
 **/
 class DartExpr {
+    /**
+        Whether any compiled module referenced std.Process.args: the test
+        entry then takes the program arguments and stores them for the
+        lowered calls (stdlib/17). One haxe process compiles one target
+        tree, so a static flag is the shared note the entry generator
+        reads after the expressions lowered.
+    **/
+    public static var processArgsReferenced:Bool = false;
+
     final imports:DartImports;
     final types:DartType;
 
@@ -1757,6 +1766,8 @@ class DartExpr {
                 return runtimeQualified("SortedTable." + (name == "builder" ? "mapBuilder" : name));
             case "std.SortedSet":
                 return runtimeQualified("SortedTable." + (name == "builder" ? "setBuilder" : name));
+            case "std.Fs" | "std.Env":
+                return fail(null, "std.Fs and std.Env statics lower at their call site; a bare reference has no lowering");
             case _:
                 if (isStaticsOnlyClass(cls) && !RuntimeResidents.isResident(module)) {
                     // A statics-only business class lowers to top-level
@@ -2155,6 +2166,15 @@ class DartExpr {
                 }
                 if (module == "std.UStringPlatform") {
                     return ustringPlatformCall(fName, args, fn);
+                }
+                if (module == "std.Fs") {
+                    return fsCall(fName, args, fn);
+                }
+                if (module == "std.Env") {
+                    return envCall(fName, args, fn);
+                }
+                if (module == "std.Process" && fName == "args") {
+                    return processArgsCall(fn);
                 }
                 if (DartTestBinding.isTestPlatformExtern(module)) {
                     return testPlatformCall(fName, args, fn);
@@ -3909,6 +3929,70 @@ class DartExpr {
         final pos = e != null ? e.pos : Context.currentPos();
         Context.error("dart target: " + message, pos);
         return null;
+    }
+
+    // ------------------------------------------------------------------
+    // Platform modules (docs/specs/stdlib/17-platform-modules.md)
+    // ------------------------------------------------------------------
+
+    /**
+        A std.Fs static call (stdlib/17). The dart:io operations lower
+        inline at the call site; no runtime module implements std.Fs. Host
+        failures raise the native exception, which the target's exception
+        mapping carries.
+    **/
+    function fsCall(name:String, args:Array<TypedExpr>, fn:TypedExpr):String {
+        imports.useDartIo();
+        final p = expr(args[0]);
+        return switch (name) {
+            case "exists":
+                // A comparison lowering is not an atom: a surrounding
+                // unary ! would otherwise bind to the first operand.
+                "(FileSystemEntity.typeSync(" + p + ") != FileSystemEntityType.notFound)";
+            case "readText":
+                "File(" + p + ").readAsStringSync()";
+            case "writeText":
+                "File(" + p + ").writeAsStringSync(" + expr(args[1]) + ")";
+            case "appendText":
+                "File(" + p + ").writeAsStringSync(" + expr(args[1]) + ", mode: FileMode.append)";
+            case "makeDirs":
+                "Directory(" + p + ").createSync(recursive: true)";
+            case "readDir":
+                "Directory(" + p + ").listSync().map((e) => e.path.split(RegExp(r'[/\\\\]')).last).toList()";
+            case "isDirectory":
+                "FileSystemEntity.isDirectorySync(" + p + ")";
+            case _:
+                fail(fn, "std.Fs has no lowering for member " + name);
+                "null";
+        }
+    }
+
+    /**
+        A std.Env static call (stdlib/17). The Dart VM exposes the process
+        environment read-only, so get, set, and remove route through the
+        synthesized platform host, which records writes and falls back to
+        the host for keys it has never seen.
+    **/
+    function envCall(name:String, args:Array<TypedExpr>, fn:TypedExpr):String {
+        imports.platformHost();
+        return switch (name) {
+            case "get":
+                "platform_host.envGet(" + expr(args[0]) + ")";
+            case "set":
+                "platform_host.envSet(" + expr(args[0]) + ", " + expr(args[1]) + ")";
+            case "remove":
+                "platform_host.envRemove(" + expr(args[0]) + ")";
+            case _:
+                fail(fn, "std.Env has no lowering for member " + name);
+                "null";
+        }
+    }
+
+    /** std.Process.args() reads the arguments the test entry stored (stdlib/17). */
+    function processArgsCall(fn:TypedExpr):String {
+        imports.platformHost();
+        processArgsReferenced = true;
+        return "platform_host.processArgs()";
     }
 }
 #end

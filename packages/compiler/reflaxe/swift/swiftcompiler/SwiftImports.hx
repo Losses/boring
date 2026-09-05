@@ -15,8 +15,12 @@ class SwiftImports {
     public final selfResident:Bool;
 
     var needsFoundation:Bool = false;
+    var needsSystemPackage:Bool = false;
     final runtimeNames:Map<String, Bool> = [];
     final runtimeTestNames:Map<String, Bool> = [];
+
+    /** Host-edge helpers this module references (stdlib/17). */
+    final hostEdges:Map<String, Bool> = [];
 
     public function new(selfModule:String) {
         this.selfModule = selfModule;
@@ -44,6 +48,32 @@ class SwiftImports {
 
     public function usesFoundation():Bool {
         return needsFoundation;
+    }
+
+    /** Records a reference to the swift-system package (stdlib/17). */
+    public function systemPackage():Void {
+        needsSystemPackage = true;
+    }
+
+    public function usesSystemPackage():Bool {
+        return needsSystemPackage;
+    }
+
+    /** Records a reference to one stdlib/17 host-edge helper. */
+    public function hostEdge(name:String):Void {
+        hostEdges.set(name, true);
+    }
+
+    public function usesHostEdge(name:String):Bool {
+        return hostEdges.exists(name);
+    }
+
+    public function hostEdgeNames():Array<String> {
+        final out = [];
+        for (name in hostEdges.keys())
+            out.push(name);
+        out.sort(Reflect.compare);
+        return out;
     }
 
     /** Records a reference to a symbol of the test host entry. */

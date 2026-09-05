@@ -166,40 +166,26 @@ import runtime.Graphemes;
 import runtime.SortedTable;
 import runtime.TestCore;
 import runtime.UString;
+import std.Env;
+import std.Fs;
+import std.Path;
 import std.UStringException;
 import std.UStringFault;
-
-@:jsRequire("node:fs")
-extern class Fs {
-    static function appendFileSync(path:String, data:String, encoding:String):Void;
-    static function mkdirSync(path:String, options:{recursive:Bool}):Void;
-    static function existsSync(path:String):Bool;
-}
-
-@:jsRequire("node:path")
-extern class Path {
-    static function dirname(p:String):String;
-}
-
-@:jsRequire("node:process")
-extern class NodeProcess {
-    static final env:haxe.DynamicAccess<String>;
-}
 
 class $mainName {
     static var failures:Int = 0;
 
     static function recordResult(id:String, name:String, verdict:String, message:Null<String>):Void {
-        var envPath = NodeProcess.env.get("BORING_TEST_RESULTS");
+        var envPath = Env.get("BORING_TEST_RESULTS");
         var filePath = envPath != null && envPath.length > 0 ? envPath : "out/test-results/haxe.jsonl";
         var jsonLine = TestCore.resultLine(id, name, verdict == "fail", message != null ? message : "");
         var dir = Path.dirname(filePath);
         if (dir != null && dir != "" && dir != ".") {
             try {
-                Fs.mkdirSync(dir, {recursive: true});
+                Fs.makeDirs(dir);
             } catch (_:Dynamic) {}
         }
-        Fs.appendFileSync(filePath, jsonLine, "utf8");
+        Fs.appendText(filePath, jsonLine);
     }
 
     static function formatValue(v:Dynamic):String {
@@ -327,6 +313,77 @@ class $mainName {
         js.Syntax.code("globalThis.std.Graphemes = {0};", Graphemes);
         js.Syntax.code("globalThis.std.TestPlatform = {0};", TestPlatform);
         js.Syntax.code("globalThis.__runtime_sorted_table = {0};", SortedTable);
+        js.Syntax.code("globalThis.std = globalThis.std || {};", null);
+        // stdlib/17 platform modules on the stage-one JS host: node backs
+        // the std.Env and std.Fs faces the transpiled targets lower
+        // inline. A missing key reads as null (the direct Null<String>
+        // match); the fs operations raise the haxe.Exception mapping with
+        // the path and the host error text.
+        var envOracle = {
+            get: function(k:String):Null<String> {
+                var v:Dynamic = js.Syntax.code(\'process.env[{0}]\', k);
+                return v == null ? null : Std.string(v);
+            },
+            set: function(k:String, v:String):Void {
+                js.Syntax.code(\'process.env[{0}] = {1}\', k, v);
+            },
+            remove: function(k:String):Void {
+                js.Syntax.code(\'delete process.env[{0}]\', k);
+            }
+        };
+        js.Syntax.code(\'globalThis.std.Env = {0};\', envOracle);
+        var nodeFs:Dynamic = js.Syntax.code(\'require("node:fs")\');
+        var fsOracle = {
+            exists: function(p:String):Bool {
+                return cast nodeFs.existsSync(p);
+            },
+            readText: function(p:String):String {
+                try {
+                    return cast nodeFs.readFileSync(p, "utf8");
+                } catch (e:Dynamic) {
+                    throw new haxe.Exception(p + ": " + Std.string(e));
+                }
+            },
+            writeText: function(p:String, data:String):Void {
+                try {
+                    nodeFs.writeFileSync(p, data, "utf8");
+                } catch (e:Dynamic) {
+                    throw new haxe.Exception(p + ": " + Std.string(e));
+                }
+            },
+            appendText: function(p:String, data:String):Void {
+                try {
+                    nodeFs.appendFileSync(p, data, "utf8");
+                } catch (e:Dynamic) {
+                    throw new haxe.Exception(p + ": " + Std.string(e));
+                }
+            },
+            makeDirs: function(p:String):Void {
+                try {
+                    nodeFs.mkdirSync(p, {recursive: true});
+                } catch (e:Dynamic) {
+                    throw new haxe.Exception(p + ": " + Std.string(e));
+                }
+            },
+            readDir: function(p:String):Array<String> {
+                try {
+                    return cast nodeFs.readdirSync(p);
+                } catch (e:Dynamic) {
+                    throw new haxe.Exception(p + ": " + Std.string(e));
+                }
+            },
+            isDirectory: function(p:String):Bool {
+                try {
+                    var st:Dynamic = nodeFs.statSync(p);
+                    return cast st.isDirectory();
+                } catch (e:Dynamic) {
+                    return false;
+                }
+            }
+        };
+        js.Syntax.code(\'globalThis.std.Fs = {0};\', fsOracle);
+        js.Syntax.code(\'globalThis.std.Process = globalThis.std.Process || {}; globalThis.std.Process.args = {0};\',
+            function():Array<String> return js.Syntax.code(\'process.argv.slice(2)\'));
         js.Syntax.code("
             function jsCompare(a, b) {
                 if (a === b) return 0;
