@@ -5136,7 +5136,7 @@ class RustExpr {
                     if (argStr != "None") {
                         final inner = switch (stripWrap(arg).expr) {
                             case TConst(TString(s)): quoteString(s) + ".to_string()";
-                            case _: argStr;
+                            case _: isInterfaceType(getNullInnerType(pt)) && !isInterfaceType(arg.t) ? "Box::new(" + argStr + ")" : argStr;
                         };
                         out.push("Some(" + inner + ")");
                         continue;
@@ -6167,7 +6167,7 @@ class RustExpr {
                     } else {
                         final inner = switch (stripWrap(arg).expr) {
                             case TConst(TString(s)): quoteString(s) + ".to_string()";
-                            case _: argStr;
+                            case _: isInterfaceType(getNullInnerType(pt)) && !isInterfaceType(arg.t) ? "Box::new(" + argStr + ")" : argStr;
                         };
                         argStr = "Some(" + inner + ")";
                     }

@@ -209,7 +209,8 @@ class RustDecl {
             && classParams.length == 0) {
             lines.push("#[derive(Clone)]");
         }
-        if (StaticFieldHelper.hasSelfConstructionStatic(cls) || cls.meta.has(":dataClass") || classParams.length > 0) {
+        if ((StaticFieldHelper.hasSelfConstructionStatic(cls) || cls.meta.has(":dataClass"))
+            && (classParams.length > 0 || isAllClone(varFields))) {
             lines.push("#[derive(Clone)]");
         }
         if (cls.module.indexOf("registry.") == 0) {
