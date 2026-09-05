@@ -66,8 +66,23 @@ jobs:
         shell: bash
     steps:
       - uses: actions/checkout@v4
-      - name: Install Haxe
-        run: choco install haxe --yes --no-progress
+      # choco only packages Haxe 4.3.4, but the nix devShell pins 4.3.7
+      # and PipelineExpander.hx:1867 types differently on 4.3.4
+      # ("has extra field isStatic"); install the official 4.3.7 archive.
+      # Neko comes from choco, which sets NEKOPATH for haxelib.
+      - name: Install Haxe 4.3.7 and Neko
+        run: |
+          choco install neko --yes --no-progress
+          curl -sL -o haxe.zip https://github.com/HaxeFoundation/haxe/releases/download/4.3.7/haxe-4.3.7-win64.zip
+          mkdir -p "$HOME/haxe-4.3.7"
+          tar -xf haxe.zip -C "$HOME/haxe-4.3.7"
+          HAXE_EXE="$(find "$HOME/haxe-4.3.7" -name haxe.exe -print -quit 2>/dev/null)"
+          if [ -z "$HAXE_EXE" ]; then
+            echo "haxe.exe not found in extracted archive" >&2
+            exit 1
+          fi
+          echo "$(dirname "$HAXE_EXE")" >> "$GITHUB_PATH"
+          "$HAXE_EXE" --version
       - name: Install Bun
         run: |
           powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "irm bun.sh/install.ps1 | iex"
