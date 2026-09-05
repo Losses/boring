@@ -53,17 +53,12 @@ class PlatformOps {
         final afterSet = Env.get(key);
         Env.remove(key);
         final afterRemove = Env.get(key);
-        var present:String;
-        if (afterSet == null)
-            present = "<null>";
-        else
-            present = afterSet;
-        var removed:String;
-        if (afterRemove == null)
-            removed = "<absent>";
-        else
-            removed = afterRemove;
-        return present + "|" + removed;
+        return textOr(afterSet, "<null>") + "|" + textOr(afterRemove, "<absent>");
+    }
+
+    /** The entry text when present, the marker when absent. */
+    static function textOr(value:Null<String>, marker:String):String {
+        return value == null ? marker : value;
     }
 
     /** The first program argument, or the marker when none was passed. */
