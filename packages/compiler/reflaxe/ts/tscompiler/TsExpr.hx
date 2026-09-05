@@ -2236,12 +2236,14 @@ class TsExpr {
     static final FS_UNAVAILABLE = "std.Fs is not available on this host";
 
     /**
-        A std.Fs static call (stdlib/17). Every host access sits inside the
-        lowered call body: the file gains no top-level `node:` import, and
-        `node:fs` loads lazily through `require` per call. When no host
-        loader exists (a browser) the call raises the fixed
-        unavailability message; compilation always succeeds and host
-        support is decided at the call.
+        A std.Fs static call (stdlib/17). The member lowers to one named
+        arrow at the file top, one per used member, registered on the
+        module context: the loader probe and the unavailability throw sit
+        inside the helper body and evaluate per call, so `node:fs` still
+        loads lazily and host support stays decided at the call. The call
+        site lowers to a plain call of that helper, which keeps loop
+        bodies free of closures (the loop-structure invariant). The file
+        still gains no top-level `node:` import.
     **/
     function fsCall(name:String, args:Array<TypedExpr>, fn:TypedExpr):String {
         final rendered = [for (a in args) expr(a)];
@@ -2257,16 +2259,19 @@ class TsExpr {
                 Context.error("std.Fs has no lowering for member " + name, fn.pos);
                 return "null";
         }
-        final params = (name == "writeText" || name == "appendText") ? "p, d" : "p";
-        return "((p"
-            + (params == "p, d" ? ", d" : "")
+        final params = (name == "writeText" || name == "appendText") ? "p: string, d: string" : "p: string";
+        final helper = imports.fsHelper(name,
+            "const fs"
+            + name.charAt(0).toUpperCase()
+            + name.substring(1)
+            + " = ("
+            + params
             + ") => { const fs = typeof require === \"function\" ? require(\"node:fs\") : null; if (fs === null) { throw new Error("
             + tsStringLiteral(FS_UNAVAILABLE)
             + "); } return fs."
             + member
-            + "; })("
-            + rendered.join(", ")
-            + ")";
+            + "; };");
+        return helper + "(" + rendered.join(", ") + ")";
     }
 
     /**
