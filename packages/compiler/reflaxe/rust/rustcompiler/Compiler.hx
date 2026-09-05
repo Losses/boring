@@ -9,6 +9,7 @@ import reflaxe.ReflectCompiler;
 import reflaxe.data.ClassFuncData;
 import reflaxe.data.ClassVarData;
 import reflaxe.data.EnumOptionData;
+import StaticReferenceScan;
 
 /**
     reflaxe plugin producing the Rust target of the translatable subset.
@@ -178,9 +179,9 @@ class Compiler extends PluginCompiler<Compiler> {
 
     /**
         Every member passes except an unreferenced private static function:
-        public members, tests, @:keep fields, and instance members emit
-        regardless, and a private static referenced anywhere in the compiled
-        program (state.referencedStatics) emits as well.
+        public members, tests, and instance members emit regardless, and a
+        private static referenced anywhere in the compiled program
+        (state.referencedStatics) emits as well.
     **/
     function includeStaticFunc(cls:ClassType, f:ClassFuncData):Bool {
         // @:keep arrives here injected wholesale by haxe.macro.Compiler.keep
@@ -882,81 +883,11 @@ class Compiler extends PluginCompiler<Compiler> {
         their emission does not depend on references.
     **/
     function scanStaticReferences(mtypes:Array<haxe.macro.Type.ModuleType>):Void {
-        final candidates:Map<String, TypedExpr> = [];
-        final bodies:Array<{e:TypedExpr, candidateKey:Null<String>}> = [];
-        function classBodies(c:Ref<ClassType>) {
-            final cls = c.get();
-            // Mirror the emission scope of compileClassImpl: resident
-            // runtime classes bypass the source-root check there, so their
-            // bodies seed references here too.
-            if (cls.isExtern || (!RuntimeResidents.isResident(cls.module) && !inSourceScope(cls.pos)))
-                return;
-            for (f in cls.statics.get()) {
-                final e = f.expr();
-                if (e == null)
-                    continue;
-                final prunable = !f.isPublic && !f.meta.has(":test") && !RustDecl.isExceptionSubclass(cls) && f.kind.match(FMethod(_));
-                final key = prunable ? cls.module + "." + f.name : null;
-                if (key != null)
-                    candidates.set(key, e);
-                bodies.push({e: e, candidateKey: key});
-            }
-            for (f in cls.fields.get()) {
-                final e = f.expr();
-                if (e != null)
-                    bodies.push({e: e, candidateKey: null});
-            }
-            final ctor = cls.constructor != null ? cls.constructor.get() : null;
-            if (ctor != null) {
-                final e = ctor.expr();
-                if (e != null)
-                    bodies.push({e: e, candidateKey: null});
-            }
-        }
-        for (mt in mtypes) {
-            switch (mt) {
-                case TClassDecl(c):
-                    classBodies(c);
-                case _:
-            }
-        }
-        final referenced:Map<String, Bool> = [];
-        function collectInto(e:TypedExpr) {
-            switch (e.expr) {
-                case TField(_, FStatic(c, cf)):
-                    referenced.set(c.get().module + "." + cf.get().name, true);
-                case _:
-            }
-            haxe.macro.TypedExprTools.iter(e, collectInto);
-        }
-        // Seed from bodies that are not themselves candidates: their
-        // references stand regardless of reachability pruning.
-        for (entry in bodies) {
-            if (entry.candidateKey != null)
-                continue;
-            collectInto(entry.e);
-        }
-        // Propagate through reached candidates until the set is stable.
-        var frontier = [for (k in referenced.keys()) k];
-        final propagated:Map<String, Bool> = [];
-        while (frontier.length > 0) {
-            final next:Array<String> = [];
-            for (k in frontier) {
-                if (!candidates.exists(k) || propagated.exists(k))
-                    continue;
-                propagated.set(k, true);
-                collectInto(candidates.get(k));
-                for (k2 in referenced.keys()) {
-                    if (!propagated.exists(k2) && candidates.exists(k2))
-                        next.push(k2);
-                }
-            }
-            frontier = next;
-        }
-        for (key in candidates.keys()) {
-            if (referenced.exists(key))
-                state.referencedStatics.set(key, true);
-        }
+        final referenced = StaticReferenceScan.scan(mtypes, cls -> !cls.isExtern
+            && (RuntimeResidents.isResident(cls.module) || inSourceScope(cls.pos)),
+            cls -> RustDecl.isExceptionSubclass(cls));
+        for (key in referenced.keys())
+            state.referencedStatics.set(key, true);
     }
 
     /**
