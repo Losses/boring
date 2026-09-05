@@ -1172,7 +1172,7 @@ class Compiler extends PluginCompiler<Compiler> {
                 state.funcErrorUnionMembers.set(key, set);
         }
         // Re-run propagation once synthetic types exist so callers of a union
-        // can form the next-level union (union nesting is intentional).
+        // can form the next union level (union nesting is intentional).
         for (entry in entries) {
             for (edge in entry.edges) {
                 final syntheticCallee = state.funcErrorTypes.get(edge.callee);
