@@ -104,6 +104,7 @@ tests.ArithmeticTests
 boring.DefaultArgsOps
 tests.DefaultArgsTests
 tests.KotlinNullabilityTests
+tests.NullArgsTests
 boring.SortedDataClassKeysOps
 boring.CaptureSwitchOps
 boring.SwitchOps
