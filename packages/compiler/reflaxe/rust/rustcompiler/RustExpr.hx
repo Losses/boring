@@ -933,6 +933,29 @@ class RustExpr {
         Nested blocks never synthesize one regardless of depth; the old
         depth-equals-two test misfired whenever the root depth changed.
     **/
+    /** Expression-position block lowering (features/43). */
+    function blockExpression(stmts:Array<TypedExpr>):String {
+        if (stmts.length == 0)
+            return fail(null, "expression block must end in a value statement (features/43)");
+        for (i in 0...stmts.length - 1)
+            switch (stmts[i].expr) {
+                case TVar(_, _):
+                case _:
+                    return fail(stmts[i], "expression block allows only declarations before its value statement (features/43)");
+            }
+        switch (stmts[stmts.length - 1].expr) {
+            case TReturn(_) | TThrow(_) | TVar(_, _) | TIf(_, _, _) | TWhile(_, _, _) | TFor(_, _, _) | TSwitch(_, _, _) | TTry(_, _) | TBlock(_) | TBreak | TContinue | TBinop(OpAssign, _, _) | TBinop(OpAssignOp(_), _, _):
+                return fail(stmts[stmts.length - 1], "expression block must end in a value statement (features/43)");
+            case _:
+        }
+        final out = ["{"];
+        for (s in stmts.slice(0, stmts.length - 1))
+            for (line in stmtLines(s, 1)) out.push(line);
+        out.push(indent(1) + expr(stmts[stmts.length - 1]));
+        out.push("}");
+        return out.join("\n");
+    }
+
     function blockLines(stmts:Array<TypedExpr>, depth:Int, tailScope:Bool = false):Array<String> {
         stmts = fuseUninitializedVars(stmts);
         stmts = regroupLoops(stmts);
@@ -2020,6 +2043,8 @@ class RustExpr {
                 // statement position and initializer position render in
                 // stmtLines, return position in TReturn.
                 return fail(e, "try region lowers at statement, initializer, or return position");
+            case TBlock(stmts):
+                return blockExpression(stmts);
             case _:
                 return fail(e, "expression has no Rust lowering in the subset: " + Std.string(e.expr));
         }
