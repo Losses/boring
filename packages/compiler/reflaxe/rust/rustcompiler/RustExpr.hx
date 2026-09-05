@@ -1112,6 +1112,11 @@ class RustExpr {
 
         var i = 0;
         while (i < stmts.length) {
+            if (alwaysTerminates(stmts[i])) {
+                for (l in stmtLines(stmts[i], depth))
+                    out.push(l);
+                break;
+            }
             final fused = fillFusion(stmts, i, depth);
             if (fused != null) {
                 for (l in fused)
