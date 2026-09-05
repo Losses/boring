@@ -329,6 +329,9 @@ class $mainName {
         js.Syntax.code("
             function jsCompare(a, b) {
                 if (a === b) return 0;
+                // Spec 16 rule 6: a null sorts before every non-null value.
+                if (a === null) return -1;
+                if (b === null) return 1;
                 let ta = typeof a;
                 let tb = typeof b;
                 if (ta === \\\"number\\\" && tb === \\\"number\\\") {
@@ -339,6 +342,15 @@ class $mainName {
                 }
                 if (ta === \\\"boolean\\\" && tb === \\\"boolean\\\") {
                     return a === b ? 0 : (a ? 1 : -1);
+                }
+                // Spec 16 rule 5: element-wise, then the shorter prefix first.
+                if (Array.isArray(a) && Array.isArray(b)) {
+                    let shared = a.length < b.length ? a.length : b.length;
+                    for (let i = 0; i < shared; i++) {
+                        let cmp = jsCompare(a[i], b[i]);
+                        if (cmp !== 0) return cmp;
+                    }
+                    return a.length - b.length;
                 }
                 if (ta === \\\"object\\\" && tb === \\\"object\\\" && a !== null && b !== null) {
                     // Spec 16 orders enum values by constructor

@@ -42,9 +42,8 @@ class PrintedCollectionTests {
     // A nullable collection field is a legal sorted-table key (spec
     // stdlib/16 ruling 6: a null sorts before every non-null value, two
     // nulls compare equal, and two present arrays compare element-wise
-    // then by length). The generated comparators carry that ordering;
-    // the stage 1 oracle walk compares a null field and a present field
-    // as equal object members, so its rows assert the surviving entry.
+    // then by length). The generated comparators and the stage 1 oracle
+    // comparator carry that ordering.
 
     @:test("nullable collection keys order null, elements, then length")
     public static function nullableCollectionKeys():Void {
@@ -62,13 +61,9 @@ class PrintedCollectionTests {
         nullFirst.put(new PrintedNullableCollection(["alpha"]), "value");
         nullFirst.put(new PrintedNullableCollection(null), "null");
         final nullFirstMap = nullFirst.build();
-        #if boring_oracle
-        Test.equals("null", nullFirstMap.valueAt(0), "oracle keeps the later null-keyed put");
-        #else
         Test.equals(2, nullFirstMap.size(), "null and value keys stay distinct");
         Test.equals("null", nullFirstMap.valueAt(0), "null sorts before a present array");
         Test.equals("value", nullFirstMap.valueAt(1), "the present key follows the null key");
-        #end
 
         // Two keys with equal arrays compare equal: the later put wins.
         final sameElements:SortedMapBuilder<PrintedNullableCollection, String> = SortedMap.builder();
@@ -85,12 +80,8 @@ class PrintedCollectionTests {
         prefixLength.put(new PrintedNullableCollection(["alpha", "beta"]), "long");
         prefixLength.put(new PrintedNullableCollection(["alpha"]), "short");
         final prefixLengthMap = prefixLength.build();
-        #if boring_oracle
-        Test.equals("short", prefixLengthMap.valueAt(0), "oracle keeps the later prefix put");
-        #else
         Test.equals(2, prefixLengthMap.size(), "prefix and longer keys stay distinct");
         Test.equals("short", prefixLengthMap.valueAt(0), "a prefix array sorts before its extension");
         Test.equals("long", prefixLengthMap.valueAt(1), "the longer array follows its prefix");
-        #end
     }
 }
