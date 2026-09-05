@@ -57,10 +57,26 @@ class RustEmissionState {
     **/
     public final funcErrorEnums:Map<String, {module:String, name:String}> = [];
 
-    /** Functions whose call edges reach two different error enums. */
+    /** Functions whose reachable error set requires a per-function union. */
     public final funcEnumConflicts:Map<String, Bool> = [];
 
-    /** Named record types passed by value to a call site that clones them. */
+    /** Complete reachable payload set for each fallible function. */
+    public final funcErrorUnionMembers:Map<String, Array<{module:String, name:String}>> = [];
+
+    /** Resolved Result error type for each fallible function. */
+    public final funcErrorTypes:Map<String, {module:String, name:String}> = [];
+
+    /** Synthetic union members, grouped by owning Haxe module. */
+    public final syntheticErrorEnums:Map<String, Array<{name:String, members:Array<{module:String, name:String}>}>> = [];
+    public final emittedSyntheticErrorModules:Map<String, Bool> = [];
+
+    public function isSyntheticErrorType(name:String):Bool {
+        for (decls in syntheticErrorEnums)
+            for (decl in decls)
+                if (decl.name == name) return true;
+        return false;
+    }
+
     public final recordCloneTypes:Map<String, Bool> = [];
 
     public static function funcKey(module:String, name:String, isStatic:Bool):String {

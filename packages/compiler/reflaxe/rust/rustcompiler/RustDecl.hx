@@ -1478,8 +1478,14 @@ class RustDecl {
     **/
     function resolveErrorOwner(f:ClassFuncData, cls:ClassType):{name:String, module:String, hasOverflow:Bool} {
         final key = RustEmissionState.funcKey(f.classType.module, f.field.name, f.isStatic);
+        final syntheticType = state.funcErrorTypes.get(key);
+        if (syntheticType != null) {
+            return {name: syntheticType.name, module: syntheticType.module, hasOverflow: false};
+        }
         if (state.funcEnumConflicts.exists(key)) {
-            Context.error("call paths reach two different error enums" + "; the Rust lowering supports one error enum per function", f.field.pos);
+            final synthetic = state.funcErrorTypes.get(key);
+            if (synthetic != null)
+                return {name: synthetic.name, module: synthetic.module, hasOverflow: false};
         }
         var unique:Null<{name:String, module:String}> = null;
         for (thrown in collectThrownPayloadEnums(f.expr)) {

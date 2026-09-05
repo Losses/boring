@@ -131,7 +131,21 @@ class Compiler extends PluginCompiler<Compiler> {
         }
 
         final decl = contextFor(classType.module);
-        final result = decl.classDecl(classType, varFields, funcFields);
+        var result = decl.classDecl(classType, varFields, funcFields);
+        final synthetic = state.syntheticErrorEnums.get(classType.module);
+        if (synthetic != null && synthetic.length > 0 && !state.emittedSyntheticErrorModules.exists(classType.module)) {
+            state.emittedSyntheticErrorModules.set(classType.module, true);
+            final unionLines = [for (u in synthetic) {
+                final lines = ["#[derive(Debug, Clone, PartialEq)]", "pub enum " + u.name + " {"];
+                for (item in u.members) {
+                    final emitted = state.payloadEnumModules.exists(item.module) ? state.payloadEnumModules.get(item.module) : item.module;
+                    lines.push("    " + item.name + "Fault(" + item.name + "),");
+                }
+                lines.push("}");
+                lines.join("\n");
+            }];
+            result = unionLines.join("\n\n") + (result.length > 0 ? "\n\n" + result : "");
+        }
         if (result != null && result.length > 0) {
             parts.get(classType.module).push(result);
         }
@@ -964,6 +978,7 @@ class Compiler extends PluginCompiler<Compiler> {
         final fallible = new Map<String, Bool>();
         final enumOf = new Map<String, {module:String, name:String}>();
         final conflicts = new Map<String, Bool>();
+        final members:Map<String, Array<{module:String, name:String}>> = [];
         // An edge records the error enums its call site sits inside a try
         // region for: a fully handled domain does not infect the enclosing
         // function (features/06 catch-site lowering).
@@ -972,10 +987,19 @@ class Compiler extends PluginCompiler<Compiler> {
             final existing = enumOf.get(key);
             if (existing == null) {
                 enumOf.set(key, pair);
+                members.set(key, [pair]);
                 return true;
             }
             if (existing.module != pair.module) {
                 conflicts.set(key, true);
+            }
+            final current = members.get(key);
+            if (current == null) {
+                members.set(key, [existing, pair]);
+            } else {
+                var seen = false;
+                for (item in current) if (item.module == pair.module) seen = true;
+                if (!seen) current.push(pair);
             }
             return false;
         }
@@ -1143,9 +1167,45 @@ class Compiler extends PluginCompiler<Compiler> {
             if (pair != null) {
                 state.funcErrorEnums.set(key, pair);
             }
+            final set = members.get(key);
+            if (set != null)
+                state.funcErrorUnionMembers.set(key, set);
         }
+        // Re-run propagation once synthetic types exist so callers of a union
+        // can form the next-level union (union nesting is intentional).
+        for (entry in entries) {
+            for (edge in entry.edges) {
+                final syntheticCallee = state.funcErrorTypes.get(edge.callee);
+                if (syntheticCallee != null && edge.absorbed.indexOf(syntheticCallee.module) < 0)
+                    mergeEnum(entry.key, syntheticCallee);
+            }
+        }
+
         for (key in conflicts.keys()) {
             state.funcEnumConflicts.set(key, true);
+            final sep = key.indexOf("::");
+            final module = key.substr(0, sep);
+            final tail = key.substr(sep + 2);
+            final dot = tail.indexOf(".");
+            final fieldName = tail.substr(dot + 1);
+            final className = module.substr(module.lastIndexOf(".") + 1);
+            final unionName = className + RustImports.toSnakeCase(fieldName).charAt(0).toUpperCase()
+                + RustImports.toSnakeCase(fieldName).substr(1) + "Fault";
+            final set = members.get(key);
+            if (set != null) {
+                final declLines = ["#[derive(Debug, Clone, PartialEq)]", "pub enum " + unionName + " {"];
+                for (item in set) {
+                    final variant = item.name + "Fault";
+                    final emitted = state.payloadEnumModules.exists(item.module) ? state.payloadEnumModules.get(item.module) : item.module;
+                    declLines.push("    " + variant + "(crate::" + RustImports.moduleToRustPath(emitted) + "::" + item.name + "),");
+                }
+                declLines.push("}");
+                var decls = state.syntheticErrorEnums.get(module);
+                if (decls == null) { decls = []; state.syntheticErrorEnums.set(module, decls); }
+                decls.push({name: unionName, members: set});
+                state.funcErrorTypes.set(key, {module: module, name: unionName});
+                state.funcErrorEnums.set(key, {module: module, name: unionName});
+            }
         }
     }
 
