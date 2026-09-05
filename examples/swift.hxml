@@ -17,8 +17,10 @@
 -D swift-output=reference/swift/gen
 -D swift-test-output=reference/swift/gen-tests
 -D swift-test-runner=native
+-D swift-test-import=Codec
 -D runtime-import=@boring/runtime
 -D runtime-emit=.
+-D package-shell=none
 boring.BinaryReader
 boring.BinaryWriter
 boring.Int64Ops
@@ -163,3 +165,6 @@ tests.RegistryPipelineTests
 tests.RegistryParseArgsTests
 boring.ArrayIterationOps
 boring.SortedDataClassKeysOps
+boring.PlatformOps
+tests.PlatformModulesTestSupport
+tests.PlatformModulesTests
