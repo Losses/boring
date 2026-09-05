@@ -1,0 +1,11 @@
+# Generates the f32 oracle runner for feature 44 record float text.
+-cp packages/compiler
+-cp samples
+-cp tests/haxe
+-cp packages/registry/src
+--macro haxe.macro.Compiler.addGlobalMetadata('boring', '@:build(std.RecordMember.build())')
+--macro TestCollector.generate('out/haxe', ['samples/tests/f32'], 'TestMainF32')
+-main GenerateMain
+-js out/haxe/generate-main-f32.js
+-D boring_oracle
+-D float-precision=f32
