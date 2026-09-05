@@ -34,4 +34,12 @@ describe("sorted key domains generated tree", () => {
     const content = fs.readFileSync(scriptNamesPath, "utf8");
     expect(content).toContain("SortedTable.mapBuilder<string, number>(SortedTable.compareStrings)");
   });
+
+  test("Rust generated tree widens an int capacity bound without an error enum", () => {
+    const clusterTagsPath = path.resolve(__dirname, "../../reference/rust-gen/src/boring/cluster_tags.rs");
+    expect(fs.existsSync(clusterTagsPath)).toBe(true);
+    const content = fs.readFileSync(clusterTagsPath, "utf8");
+    expect(content).toContain("let capacity = usize::try_from(u32::from_ne_bytes((set.size()).to_ne_bytes())).unwrap_or(0);");
+    expect(content).toContain("let mut scores = Vec::with_capacity(capacity);");
+  });
 });
