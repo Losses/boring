@@ -193,7 +193,11 @@ whether it shows the escaped source form or the runtime value.
   MSVCRT module. FileManager supplies the filesystem behavior on hosts
   that import FoundationEssentials; Apple SDKs do not expose that module
   as a top-level import, so generated files fall back to `Foundation`
-  through `canImport(Darwin)`. Hosts with neither module use the fixed
+  through `canImport(Darwin)`. The two modules type the directory probe
+  of `FileManager.fileExists(atPath:isDirectory:)` differently
+  (`UnsafeMutablePointer<Bool>` on FoundationEssentials,
+  `UnsafeMutablePointer<ObjCBool>` on Foundation), so `std.Fs.isDirectory`
+  carries one arm body per module. Hosts with neither module use the fixed
   unavailability exception arm.
 
   The SwiftPM test chain runs Swift 6.2.4 on Linux and pins swift-system
