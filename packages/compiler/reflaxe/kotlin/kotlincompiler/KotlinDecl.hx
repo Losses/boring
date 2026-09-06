@@ -1210,7 +1210,9 @@ class KotlinDecl {
             if (o.args.length > 0)
                 valueEnum = false;
         if (valueEnum) {
-            return 'enum class ${en.name} {\n    ' + [for (o in sorted) o.name].join(",\n    ") + '\n}';
+            final lines = ['enum class ${en.name} {\n    ' + [for (o in sorted) o.name].join(",\n    ") + '\n}'];
+            lines.push('fun compare${en.name}(a: ${en.name}, b: ${en.name}): Int = a.ordinal - b.ordinal');
+            return lines.join("\n");
         }
         final lines = ['sealed interface ${en.name} {'];
         for (o in sorted) {

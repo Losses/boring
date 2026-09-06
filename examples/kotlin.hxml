@@ -193,3 +193,6 @@ tests.StringToolsTests
 tests.RustUnionFaultTests
 tests.PlatformModulesTestSupport
 tests.PlatformModulesTests
+
+boring.EnumSortedKeysOps
+tests.EnumSortedKeysTests
