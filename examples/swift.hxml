@@ -163,6 +163,8 @@ boring.NumberClassifyOps
 boring.MathMinMaxOps
 tests.NumberClassifyTests
 tests.MathMinMaxTests
+boring.InstanceDefaults
+tests.InstanceDefaultsTests
 tests.ArrayRootTests
 
 registry.Core

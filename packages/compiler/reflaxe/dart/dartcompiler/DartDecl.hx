@@ -599,9 +599,9 @@ class DartDecl {
             final type = StaticFieldHelper.isSelfConstruction(field, cls, init) ? "" : types.of(field.type) + " ";
             return ["  static " + kw + type + name + " = " + expr.rawExpression(init) + ";"];
         }
-        if (field.meta.has(":value")) {
-            Context.error("instance field default has no lowering; assign it in the constructor", field.pos);
-        }
+        // The Haxe typer places instance field defaults in the
+        // constructor; the constructor lowering routes those
+        // assignments into Dart's initializer list.
         // A `var x(get, never)` field renders no storage; the getter
         // beside the accessor function is the lowering (feature spec 27).
         if (isGetterOnlyProperty(field)) {
