@@ -63,6 +63,9 @@ class KotlinExpr {
     /** Locals compared with null somewhere in the currently emitted statement block. */
     var activeNullGuardLocals:Map<Int, Bool> = [];
 
+    /** Null comparisons in the current statement block, keyed by local id and source position. */
+    var activeNullGuardPositions:Map<Int, Array<{file:String, min:Int, max:Int}>> = [];
+
     static final nullInitializedFields:Map<String, Bool> = [];
 
     public static function registerNullInitializedField(key:String):Void {
@@ -790,7 +793,26 @@ class KotlinExpr {
         stmts = regroupLoops(stmts);
         final out:Array<String> = [];
         final previousNullGuards = activeNullGuardLocals;
-        activeNullGuardLocals = nullGuardLocalsInBlock(stmts);
+        final previousNullGuardPositions = activeNullGuardPositions;
+        final localNullGuards = nullGuardLocalsInBlock(stmts);
+        activeNullGuardLocals = [];
+        for (k in previousNullGuards.keys())
+            activeNullGuardLocals.set(k, true);
+        for (k in localNullGuards.keys())
+            activeNullGuardLocals.set(k, true);
+        final localNullGuardPositions = nullGuardPositionsInBlock(stmts);
+        activeNullGuardPositions = [];
+        for (k in previousNullGuardPositions.keys())
+            activeNullGuardPositions.set(k, previousNullGuardPositions.get(k).copy());
+        for (k in localNullGuardPositions.keys()) {
+            var entries = activeNullGuardPositions.get(k);
+            if (entries == null) {
+                entries = [];
+                activeNullGuardPositions.set(k, entries);
+            }
+            for (entry in localNullGuardPositions.get(k))
+                entries.push(entry);
+        }
 
         var i = 0;
         while (i < stmts.length) {
@@ -813,6 +835,7 @@ class KotlinExpr {
             i += 1;
         }
         activeNullGuardLocals = previousNullGuards;
+        activeNullGuardPositions = previousNullGuardPositions;
         return out;
     }
 
@@ -829,6 +852,33 @@ class KotlinExpr {
                         if (subject != null)
                             switch (stripWrap(subject).expr) {
                                 case TLocal(v): result.set(v.id, true);
+                                case _:
+                            }
+                    case _:
+                }
+            });
+        }
+        return result;
+    }
+
+    /** Records the source ranges of null comparisons for order-sensitive use-site proofs. */
+    function nullGuardPositionsInBlock(stmts:Array<TypedExpr>):Map<Int, Array<{file:String, min:Int, max:Int}>> {
+        final result:Map<Int, Array<{file:String, min:Int, max:Int}>> = [];
+        for (stmt in stmts) {
+            TypedExprTools.iter(stmt, function(node:TypedExpr):Void {
+                switch (stripWrap(node).expr) {
+                    case TBinop(OpEq, l, r) | TBinop(OpNotEq, l, r):
+                        final subject = isNullExpr(l) ? r : (isNullExpr(r) ? l : null);
+                        if (subject != null)
+                            switch (stripWrap(subject).expr) {
+                                case TLocal(v):
+                                    final p = Context.getPosInfos(node.pos);
+                                    var entries = result.get(v.id);
+                                    if (entries == null) {
+                                        entries = [];
+                                        result.set(v.id, entries);
+                                    }
+                                    entries.push({file: p.file, min: p.min, max: p.max});
                                 case _:
                             }
                     case _:
@@ -1655,8 +1705,10 @@ class KotlinExpr {
                 return "!!.";
             case _:
         }
-        if (isNullType(subj.t) && !provenNonNull(subj))
+        if (isNullType(subj.t) && !provenNonNull(subj) && !guardProofBefore(subj))
             return "?.";
+        if (isNullType(subj.t))
+            return "!!.";
         return ".";
     }
 
@@ -1758,6 +1810,30 @@ class KotlinExpr {
             case TField(_, _): final key = fieldAccessKey(e); key != null && nonNullFields.exists(key);
             case _: false;
         };
+    }
+
+    /** True when a local (or access rooted at it) follows a null comparison in this block. */
+    function guardProofBefore(e:TypedExpr):Bool {
+        var local:Null<TVar> = null;
+        var root = stripWrap(e);
+        while (true) {
+            switch (root.expr) {
+                case TLocal(v): local = v;
+                case TField(subject, _): root = stripWrap(subject); continue;
+                case _:
+            }
+            break;
+        }
+        if (local == null)
+            return false;
+        final entries = activeNullGuardPositions.get(local.id);
+        if (entries == null)
+            return false;
+        final use = Context.getPosInfos(e.pos);
+        for (entry in entries)
+            if (entry.file == use.file && entry.max <= use.min)
+                return true;
+        return false;
     }
 
     function nullGuardFields(e:Null<TypedExpr>):Array<String> {
@@ -1903,7 +1979,7 @@ class KotlinExpr {
         // invariant: it extracts on every use and never joins the proof
         // set, because render-order proofs misjudge assignments inside
         // loops and branches.
-        final proven = provenNonNull(e);
+        final proven = provenNonNull(e) || guardProofBefore(e);
         final nullInit = isNullInitialized(e);
         if (((isNullType(e.t) && !proven) || nullInit) && parent != OpEq && parent != OpNotEq) {
             rendered += "!!";
@@ -2416,7 +2492,7 @@ class KotlinExpr {
                 return expr(args[0]) + " + " + expr(args[1]);
             case TField(_, FStatic(c, cf)) if (c.get().pack.length == 0 && c.get().name == "String" && cf.get().name == "fromCharCode" && args.length == 1):
                 final code = expr(args[0]);
-                final assertNeeded = isNullType(args[0].t) && !provenNonNull(args[0]);
+                final assertNeeded = isNullType(args[0].t) && !provenNonNull(args[0]) && !guardProofBefore(args[0]);
                 if (assertNeeded)
                     addProofExpr(args[0]);
                 return "((" + code + (assertNeeded ? ")!!" : ")") + ".toChar()).toString()";
@@ -2429,7 +2505,7 @@ class KotlinExpr {
         its Haxe type is nullable, mirroring renderCallArgs. */
     function nullableFirstArg(a:TypedExpr):String {
         final rendered = expr(a);
-        if (isNullType(a.t) && !provenNonNull(a)) {
+        if (isNullType(a.t) && !provenNonNull(a) && !guardProofBefore(a)) {
             addProofExpr(a);
             return rendered + "!!";
         }
@@ -2839,7 +2915,7 @@ class KotlinExpr {
                     defaultArgText(registered, expected);
                 } else if (registered != null && expected != null && isNullType(a.t)) {
                     "(" + text + " ?: " + defaultArgText(registered, expected) + ")";
-                } else if (((isNullType(a.t) && !provenNonNull(a)) || isNullInitialized(a)) && expected != null && !isNullType(expected)) {
+                } else if (((isNullType(a.t) && !provenNonNull(a) && !guardProofBefore(a)) || isNullInitialized(a)) && expected != null && !isNullType(expected)) {
                     if (!isNullInitialized(a))
                         addProofExpr(a);
                     text + "!!";
