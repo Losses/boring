@@ -1497,45 +1497,45 @@ class SwiftExpr {
 
     function int64Call(fn:TypedExpr, args:Array<TypedExpr>):Null<String> {
         return switch (PolicyQueries.int64OpOf(fn, args)) {
-                    case Make(high, low): "Int64(bitPattern: (UInt64(UInt32(bitPattern: "
+            case Make(high, low): "Int64(bitPattern: (UInt64(UInt32(bitPattern: "
                         + expr(high)
                         + ")) << 32) | UInt64(UInt32(bitPattern: "
                         + expr(low)
                         + ")))";
-                    case OfInt(value): "Int64(" + expr(value) + ")";
-                    case GetHigh(value): if (isFpHelperInt64Halves(value)) expr(value) +
+            case OfInt(value): "Int64(" + expr(value) + ")";
+            case GetHigh(value): if (isFpHelperInt64Halves(value)) expr(value) +
                             ".high" else "Int32(truncatingIfNeeded: "
                             + expr(value) + " >> 32)";
-                    case GetLow(value): if (isFpHelperInt64Halves(value)) expr(value) +
+            case GetLow(value): if (isFpHelperInt64Halves(value)) expr(value) +
                             ".low" else "Int32(truncatingIfNeeded: "
                             + expr(value) + ")";
-                    case Add(l, r): int64Operand(l, OpAdd, false) + " &+ " + int64Operand(r, OpAdd, true);
-                    case Sub(l, r): int64Operand(l, OpSub, false) + " &- " + int64Operand(r, OpSub, true);
-                    case Mul(l, r): int64Operand(l, OpMult, false) + " &* " + int64Operand(r, OpMult, true);
-                    case MulInt(l, r): int64Operand(l, OpMult, false) + " &* Int64(" + expr(r) + ")";
-                    case And(l, r): int64Operand(l, OpAnd, false) + " & " + int64Operand(r, OpAnd, true);
-                    case Or(l, r): int64Operand(l, OpOr, false) + " | " + int64Operand(r, OpOr, true);
-                    case Xor(l, r): int64Operand(l, OpXor, false) + " ^ " + int64Operand(r, OpXor, true);
-                    case Complement(value): "~" + int64Prefixed(value);
-                    case Shl(l, r): int64Operand(l, OpShl, false)
+            case Add(l, r): int64Operand(l, OpAdd, false) + " &+ " + int64Operand(r, OpAdd, true);
+            case Sub(l, r): int64Operand(l, OpSub, false) + " &- " + int64Operand(r, OpSub, true);
+            case Mul(l, r): int64Operand(l, OpMult, false) + " &* " + int64Operand(r, OpMult, true);
+            case MulInt(l, r): int64Operand(l, OpMult, false) + " &* Int64(" + expr(r) + ")";
+            case And(l, r): int64Operand(l, OpAnd, false) + " & " + int64Operand(r, OpAnd, true);
+            case Or(l, r): int64Operand(l, OpOr, false) + " | " + int64Operand(r, OpOr, true);
+            case Xor(l, r): int64Operand(l, OpXor, false) + " ^ " + int64Operand(r, OpXor, true);
+            case Complement(value): "~" + int64Prefixed(value);
+            case Shl(l, r): int64Operand(l, OpShl, false)
                         + " &<< Int64("
                         + int64Operand(r, OpAnd, false)
                         + " & 63)";
-                    case Shr(l, r): int64Operand(l, OpShr, false)
+            case Shr(l, r): int64Operand(l, OpShr, false)
                         + " &>> Int64("
                         + int64Operand(r, OpAnd, false)
                         + " & 63)";
-                    case Ushr(l, r): "Int64(bitPattern: UInt64(bitPattern: "
+            case Ushr(l, r): "Int64(bitPattern: UInt64(bitPattern: "
                         + expr(l)
                         + ") >> UInt64("
                         + int64Operand(r, OpAnd, false)
                         + " & 63))";
-                    case Eq(l, r): expr(l) + " == " + expr(r);
-                    case Neq(l, r): expr(l) + " != " + expr(r);
-                    case Lt(l, r): expr(l) + " < " + expr(r);
-                    case Gt(l, r): expr(l) + " > " + expr(r);
-                    case Lte(l, r): expr(l) + " <= " + expr(r);
-                    case Gte(l, r): expr(l) + " >= " + expr(r);
+            case Eq(l, r): expr(l) + " == " + expr(r);
+            case Neq(l, r): expr(l) + " != " + expr(r);
+            case Lt(l, r): expr(l) + " < " + expr(r);
+            case Gt(l, r): expr(l) + " > " + expr(r);
+            case Lte(l, r): expr(l) + " <= " + expr(r);
+            case Gte(l, r): expr(l) + " >= " + expr(r);
             case null: null;
         };
     }

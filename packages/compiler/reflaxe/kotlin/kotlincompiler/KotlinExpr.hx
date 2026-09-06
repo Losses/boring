@@ -1999,35 +1999,35 @@ class KotlinExpr {
 
     function int64Call(fn:TypedExpr, args:Array<TypedExpr>):Null<String> {
         return switch (PolicyQueries.int64OpOf(fn, args)) {
-                    case Make(high, low): "(("
+            case Make(high, low): "(("
                         + int64LongOperand(high)
                         + " shl 32) or ("
                         + int64LongOperand(low)
                         + " and 0xFFFFFFFFL))";
-                    case OfInt(value): expr(value) + ".toLong()";
-                    case GetHigh(value): if (isFpHelperInt64Halves(value)) expr(value) + ".high" else "(" + expr(value)
+            case OfInt(value): expr(value) + ".toLong()";
+            case GetHigh(value): if (isFpHelperInt64Halves(value)) expr(value) + ".high" else "(" + expr(value)
                             + " shr 32).toInt()";
-                    case GetLow(value): if (isFpHelperInt64Halves(value)) expr(value) + ".low" else expr(value) + ".toInt()";
-                    case Add(l, r): int64Operand(l, 7, false, true) + " + " + int64Operand(r, 7, true, true);
-                    case Sub(l, r): int64Operand(l, 7, false, false) + " - " + int64Operand(r, 7, true, false);
-                    case Mul(l, r): int64Operand(l, 8, false, true) + " * " + int64Operand(r, 8, true, true);
-                    case MulInt(l, r): int64Operand(l, 8, false, true)
+            case GetLow(value): if (isFpHelperInt64Halves(value)) expr(value) + ".low" else expr(value) + ".toInt()";
+            case Add(l, r): int64Operand(l, 7, false, true) + " + " + int64Operand(r, 7, true, true);
+            case Sub(l, r): int64Operand(l, 7, false, false) + " - " + int64Operand(r, 7, true, false);
+            case Mul(l, r): int64Operand(l, 8, false, true) + " * " + int64Operand(r, 8, true, true);
+            case MulInt(l, r): int64Operand(l, 8, false, true)
                         + " * ("
                         + int64Operand(r, 100, false, true)
                         + ").toLong()";
-                    case And(l, r): "((" + expr(l) + ") and (" + expr(r) + "))";
-                    case Or(l, r): "((" + expr(l) + ") or (" + expr(r) + "))";
-                    case Xor(l, r): "((" + expr(l) + ") xor (" + expr(r) + "))";
-                    case Complement(value): "(" + expr(value) + ").inv()";
-                    case Shl(l, r): "((" + expr(l) + ") shl ((" + expr(r) + ") and 63))";
-                    case Shr(l, r): "((" + expr(l) + ") shr ((" + expr(r) + ") and 63))";
-                    case Ushr(l, r): "((" + expr(l) + ") ushr ((" + expr(r) + ") and 63))";
-                    case Eq(l, r): int64Operand(l, 4, false, false) + " == " + int64Operand(r, 4, true, false);
-                    case Neq(l, r): int64Operand(l, 4, false, false) + " != " + int64Operand(r, 4, true, false);
-                    case Lt(l, r): int64Operand(l, 5, false, false) + " < " + int64Operand(r, 5, true, false);
-                    case Gt(l, r): int64Operand(l, 5, false, false) + " > " + int64Operand(r, 5, true, false);
-                    case Lte(l, r): int64Operand(l, 5, false, false) + " <= " + int64Operand(r, 5, true, false);
-                    case Gte(l, r): int64Operand(l, 5, false, false) + " >= " + int64Operand(r, 5, true, false);
+            case And(l, r): "((" + expr(l) + ") and (" + expr(r) + "))";
+            case Or(l, r): "((" + expr(l) + ") or (" + expr(r) + "))";
+            case Xor(l, r): "((" + expr(l) + ") xor (" + expr(r) + "))";
+            case Complement(value): "(" + expr(value) + ").inv()";
+            case Shl(l, r): "((" + expr(l) + ") shl ((" + expr(r) + ") and 63))";
+            case Shr(l, r): "((" + expr(l) + ") shr ((" + expr(r) + ") and 63))";
+            case Ushr(l, r): "((" + expr(l) + ") ushr ((" + expr(r) + ") and 63))";
+            case Eq(l, r): int64Operand(l, 4, false, false) + " == " + int64Operand(r, 4, true, false);
+            case Neq(l, r): int64Operand(l, 4, false, false) + " != " + int64Operand(r, 4, true, false);
+            case Lt(l, r): int64Operand(l, 5, false, false) + " < " + int64Operand(r, 5, true, false);
+            case Gt(l, r): int64Operand(l, 5, false, false) + " > " + int64Operand(r, 5, true, false);
+            case Lte(l, r): int64Operand(l, 5, false, false) + " <= " + int64Operand(r, 5, true, false);
+            case Gte(l, r): int64Operand(l, 5, false, false) + " >= " + int64Operand(r, 5, true, false);
             case null: null;
         };
     }
