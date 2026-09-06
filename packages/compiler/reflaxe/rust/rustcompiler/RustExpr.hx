@@ -3009,6 +3009,15 @@ class RustExpr {
                     } else {
                         expr(r);
                     };
+                    // The assignment target locks the guard mutex; a right
+                    // side that reads any guard static holds its own guard
+                    // until the end of the statement, so the target's lock
+                    // would deadlock. Evaluate the right side into a fresh
+                    // local first.
+                    if (rhsMentionsGuardStatic(r)) {
+                        final temp = freshRegionName("__rhs_value");
+                        return "{ let " + temp + " = " + staticValue + "; " + staticTarget + " = " + temp + "; }";
+                    }
                     return staticTarget + " = " + staticValue;
                 }
                 final rhs = if (isNullType(l.t) && !isNullType(r.t) && !isTNull(r)) {
@@ -3723,6 +3732,24 @@ class RustExpr {
                 "*" + staticGuard(c.get(), cf.get().name);
             case _: null;
         };
+    }
+
+    /** True when the expression reads any guard-static field anywhere. */
+    function rhsMentionsGuardStatic(e:TypedExpr):Bool {
+        var found = false;
+        function walk(node:TypedExpr) {
+            if (found)
+                return;
+            switch (node.expr) {
+                case TField(_, FStatic(c, cf)) if (isGuardStaticField(c.get(), cf.get().name)):
+                    found = true;
+                    return;
+                case _:
+            }
+            haxe.macro.TypedExprTools.iter(node, walk);
+        }
+        walk(e);
+        return found;
     }
 
     function isConstructedStaticRead(e:TypedExpr):Bool {
