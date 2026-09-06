@@ -642,7 +642,7 @@ class KotlinExpr {
 
     function freshTailName():String {
         stringBufTailCounter += 1;
-        return stringBufTailCounter == 1 ? "tail" : "tail" + stringBufTailCounter;
+        return PolicyQueries.freshTailName(stringBufTailCounter);
     }
 
     /** Statement lowering: one bound tail read, the check, then the op. */

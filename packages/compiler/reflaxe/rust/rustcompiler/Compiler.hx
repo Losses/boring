@@ -258,7 +258,7 @@ class Compiler extends PluginCompiler<Compiler> {
             final imports = decl.renderImportsFiltered(body);
             final isTest = state.testModules.exists(module);
             final content = (isTest ? "#![cfg(test)]\n\n" : "") + imports + (imports.length > 0 ? "\n" : "") + body + "\n";
-            saveTreeFile(modulePath(module), content);
+            PackageArtifacts.saveTreeFile(output, modulePath(module), content);
 
             final pack = packageOf(module);
             if (!packages.exists(pack)) {
@@ -293,7 +293,7 @@ class Compiler extends PluginCompiler<Compiler> {
             for (m in modNames)
                 lines.push("pub use " + m + "::*;");
             final modPath = pack.split(".").map(RustImports.toSnakeCase).join("/") + "/mod.rs";
-            saveTreeFile(modPath, lines.join("\n") + "\n");
+            PackageArtifacts.saveTreeFile(output, modPath, lines.join("\n") + "\n");
         }
 
         if (packages.exists("tests")) {
@@ -311,7 +311,7 @@ class Compiler extends PluginCompiler<Compiler> {
             for (m in modNames) {
                 lines.push("pub use " + m + "::*;");
             }
-            saveTreeFile("tests/mod.rs", lines.join("\n") + "\n");
+            PackageArtifacts.saveTreeFile(output, "tests/mod.rs", lines.join("\n") + "\n");
         }
 
         // Emit runtime shims
@@ -364,7 +364,7 @@ class Compiler extends PluginCompiler<Compiler> {
             // declaration by its qualified path, and re-exporting two
             // modules that share a function name (ustring and graphemes
             // both define count, at, slice) is an ambiguous re-export.
-            saveTreeFile(RuntimeConfig.emitPath(emitDir, "mod.rs"), rtLines.join("\n") + "\n");
+            PackageArtifacts.saveTreeFile(output, RuntimeConfig.emitPath(emitDir, "mod.rs"), rtLines.join("\n") + "\n");
         }
 
         // Generate root lib.rs
@@ -385,24 +385,15 @@ class Compiler extends PluginCompiler<Compiler> {
         for (p in rootPackages)
             if (p != "tests")
                 libLines.push("pub use " + p + "::*;");
-        saveTreeFile("lib.rs", libLines.join("\n") + "\n");
+        PackageArtifacts.saveTreeFile(output, "lib.rs", libLines.join("\n") + "\n");
 
         if (PackageShell.enabled()) {
-            saveTreeFile("Cargo.toml", packageManifest());
+            PackageArtifacts.saveTreeFile(output, "Cargo.toml", packageManifest());
         }
         if (PackageArtifacts.enabled()) {
             PackageArtifacts.requireShell();
             PackageArtifacts.emitTarGz(Context.definedValue("rust-output"), ".crate");
         }
-    }
-
-    /**
-        Saves one file through the output manager and records the write
-        for artifact packing (feature spec 25).
-    **/
-    function saveTreeFile(path:String, content:String):Void {
-        output.saveFile(path, content);
-        PackageArtifacts.record(path, content);
     }
 
     /**
@@ -675,7 +666,7 @@ class Compiler extends PluginCompiler<Compiler> {
                 case _:
             }
         }
-        saveTreeFile("tests/test_helper.rs", lines.join("\n") + "\n");
+        PackageArtifacts.saveTreeFile(output, "tests/test_helper.rs", lines.join("\n") + "\n");
     }
 
     function rustType(t:Type):String {
@@ -754,7 +745,7 @@ class Compiler extends PluginCompiler<Compiler> {
             return;
         }
         final path = RuntimeConfig.emitPath(dir, fileName);
-        saveTreeFile(path, StringTools.trim(source) + "\n");
+        PackageArtifacts.saveTreeFile(output, path, StringTools.trim(source) + "\n");
     }
 
     /**
@@ -797,7 +788,7 @@ class Compiler extends PluginCompiler<Compiler> {
             + StringTools.trim(RustRuntime.GRAPHEMES_ABI_SOURCE)
             + "\n" : "";
         final content = imports + (imports.length > 0 ? "\n" : "") + body + abiSource + "\n";
-        saveTreeFile(RuntimeConfig.emitPath(dir, fileName), content);
+        PackageArtifacts.saveTreeFile(output, RuntimeConfig.emitPath(dir, fileName), content);
     }
 
     // ------------------------------------------------------------------

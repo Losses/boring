@@ -24,6 +24,13 @@ enum KeyDomain {
 
 /** Shared policy queries for declaration and field-key decisions. */
 class PolicyQueries {
+    /** Tail-name scheme shared by the StringBuf trailing-unit checks
+        (stdlib/08): the first probe reads `tail`, later probes append
+        their ordinal. */
+    public static function freshTailName(counter:Int):String {
+        return counter == 1 ? "tail" : "tail" + counter;
+    }
+
     public static function canEmitDataClassComparator(cls:ClassType):Bool {
         for (f in cls.fields.get())
             if (switch (f.kind) {

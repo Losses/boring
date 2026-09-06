@@ -2157,7 +2157,7 @@ class TsExpr {
         if (folded == null) {
             return null;
         }
-        return expr(subj) + "." + folded.method + "(0x" + StringTools.hex(folded.word, folded.digits) + ")";
+        return ExpressionPredicates.asciiFoldCallText(expr(subj), folded);
     }
 
     function enumConstruct(en:EnumType, ef:EnumField, args:Array<TypedExpr>):String {
@@ -2560,7 +2560,7 @@ class TsExpr {
 
     function freshTailName():String {
         stringBufTailCounter += 1;
-        return stringBufTailCounter == 1 ? "tail" : "tail" + stringBufTailCounter;
+        return PolicyQueries.freshTailName(stringBufTailCounter);
     }
 
     /** The trailing-unit read every check opens with; NaN compares false on an empty buffer. */
