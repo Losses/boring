@@ -9,6 +9,8 @@ import reflaxe.data.ClassVarData;
 import reflaxe.data.EnumOptionData;
 import ValueTypeSupport;
 import PolicyQueries;
+import ComparatorPlan;
+import ComparatorPlan.ComparatorFieldKind;
 import ValueTypeSupport.ValueTypeOperator;
 import ValueTypeSupport.ValueTypeInfo;
 
@@ -296,13 +298,8 @@ class KotlinDecl {
 
     function dataClassComparator(cls:ClassType):String {
         final lines:Array<String> = [];
-        final fields = [
-            for (x in cls.fields.get())
-                if (switch (x.kind) {
-                        case FVar(read, write): !(read.match(AccCall) && write.match(AccNever));
-                        case _: false;
-                    }) x
-        ];
+        final entries = ComparatorPlan.entries(cls, true, true);
+        final fields = [for (entry in entries) entry.field];
         for (f in fields) {
             switch (f.type) {
                 case TAbstract(a, params) if (a.get().name == "ReadOnlyArray" && params.length == 1):
@@ -342,28 +339,25 @@ class KotlinDecl {
         }
         lines.push('    fun compare${cls.name}(a: ${cls.name}, b: ${cls.name}): Int {');
         lines.push('    var cmp = 0');
-        for (f in fields) {
+        for (entry in entries) {
+            final f = entry.field;
             // Context.follow unwraps Null, so nullable fields must be handled from the raw type.
-            switch (f.type) {
-                case TAbstract(a, params) if (a.get().name == "Null" && params.length == 1):
+            switch (entry.kind) {
+                case NullableScalar(inner):
                     lines.push('    if (a.${f.name} == null && b.${f.name} != null) return -1');
                     lines.push('    if (a.${f.name} != null && b.${f.name} == null) return 1');
-                    switch (rawArrayElement(params[0])) {
-                        case null:
-                            switch (Context.follow(params[0])) {
-                                case TEnum(e,
-                                    _): lines.push('    if (a.${f.name} != null && b.${f.name} != null) { cmp = ${cls.name}${f.name}Order(a.${f.name}).compareTo(${cls.name}${f.name}Order(b.${f.name})); if (cmp != 0) return cmp }');
-                                case TAbstract(_,
-                                    _) | TInst(_,
-                                        _): lines.push('    if (a.${f.name} != null && b.${f.name} != null) { cmp = a.${f.name}.compareTo(b.${f.name}); if (cmp != 0) return cmp }');
-                                case _: lines.push('    if (a.${f.name} != null && b.${f.name} != null) { cmp = a.${f.name}.toString().compareTo(b.${f.name}.toString()); if (cmp != 0) return cmp }');
-                            }
-                        case element:
+                    switch (Context.follow(inner)) {
+                        case TEnum(e,
+                            _): lines.push('    if (a.${f.name} != null && b.${f.name} != null) { cmp = ${cls.name}${f.name}Order(a.${f.name}).compareTo(${cls.name}${f.name}Order(b.${f.name})); if (cmp != 0) return cmp }');
+                        case TAbstract(_,
+                            _) | TInst(_,
+                                _): lines.push('    if (a.${f.name} != null && b.${f.name} != null) { cmp = a.${f.name}.compareTo(b.${f.name}); if (cmp != 0) return cmp }');
+                        case _: lines.push('    if (a.${f.name} != null && b.${f.name} != null) { cmp = a.${f.name}.toString().compareTo(b.${f.name}.toString()); if (cmp != 0) return cmp }');
+                        case NullableArray(element):
                             nullableArrayComparator(lines, cls, f.name, element);
                     }
                     continue;
-                case TAbstract(a, params) if (a.get().pack.join(".") == "std" && a.get().name == "ReadOnlyArray" && params.length == 1):
-                    final element = params[0];
+                case ReadOnlyArrayField(element):
                     lines.push('    var idx${f.name} = 0');
                     lines.push('    while (idx${f.name} < a.${f.name}.size && idx${f.name} < b.${f.name}.size) {');
                     switch (Context.follow(element)) {
@@ -382,8 +376,8 @@ class KotlinDecl {
                     lines.push('    }');
                     lines.push('    cmp = a.${f.name}.size - b.${f.name}.size');
                     lines.push('    if (cmp != 0) return cmp');
-                    continue;
-                default:
+
+                case PlainField:
             }
             switch (Context.follow(f.type)) {
                 case TAbstract(a, _) if (a.get().name == "Int"):
@@ -1200,7 +1194,9 @@ class KotlinDecl {
             if (o.args.length > 0)
                 valueEnum = false;
         if (valueEnum) {
-            final lines = ['enum class ${en.name} {\n    ' + [for (o in sorted) o.name].join(",\n    ") + '\n}'];
+            final lines = [
+                'enum class ${en.name} {\n    ' + [for (o in sorted) o.name].join(",\n    ") + '\n}'
+            ];
             lines.push('fun compare${en.name}(a: ${en.name}, b: ${en.name}): Int = a.ordinal - b.ordinal');
             return lines.join("\n");
         }
