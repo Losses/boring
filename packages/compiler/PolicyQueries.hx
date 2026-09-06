@@ -408,10 +408,6 @@ class PolicyQueries {
         target renders the classified operation its own way. Arity
         mismatches and unknown names return null exactly as the five
         per-target dispatch tables did. */
-    /** Classifies a haxe.Int64 implementation static call once; each
-        target renders the classified operation its own way. Arity
-        mismatches and unknown names return null exactly as the five
-        per-target dispatch tables did. */
     public static function int64OpOf(fn:TypedExpr, args:Array<TypedExpr>):Null<Int64Op> {
         return switch (ExpressionPredicates.stripWrap(fn).expr) {
             case TField(_, FStatic(classRef, fieldRef)) if (classRef.get().module == "haxe.Int64" && classRef.get().name == "Int64_Impl_"):
