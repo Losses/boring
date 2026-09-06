@@ -25,6 +25,8 @@
     "lint": "eslint .",
     "typecheck": "tsc -p .",
     "check:docs": "bun tools/doc-style/check.ts",
+    "check:ledger": "bun tools/ledger-check/check.ts",
+    "check:registry": "bun tools/registry-guard/backstop.ts",
     "gen:vector": "bun tools/gen-vector.ts",
     "gen:ts": "haxe examples/ts.hxml",
     "gen:kotlin": "haxe examples/kotlin.hxml",

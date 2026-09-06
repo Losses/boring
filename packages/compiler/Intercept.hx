@@ -146,6 +146,9 @@ class Intercept {
     }
 
     public static function run(rootPrefixes:Array<String>):Void {
+        SemanticExceptionLedger.validate();
+        SemanticExceptionLedger.emitArtifact();
+        SemanticPassRegistry.validate();
         for (index in 0...rootPrefixes.length) {
             roots.push(rootPrefixes[index]);
         }
