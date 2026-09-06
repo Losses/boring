@@ -1728,6 +1728,7 @@ class KotlinExpr {
                     return isNullType(root.t);
             }
         }
+    }
 
     function isNullableReferenceType(t:Null<Type>):Bool {
         if (t == null)
