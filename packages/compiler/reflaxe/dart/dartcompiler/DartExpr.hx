@@ -3834,7 +3834,8 @@ class DartExpr {
     **/
     function memberName(ownerModule:String, cf:Ref<ClassField>, pos:haxe.macro.Expr.Position):String {
         final field = cf.get();
-        if (field.isPublic) {
+        if (field.isPublic || field.meta.has(":allow")) {
+            // @:allow members use a public Dart name across libraries.
             return field.name;
         }
         if (ownerModule != imports.selfModule) {
