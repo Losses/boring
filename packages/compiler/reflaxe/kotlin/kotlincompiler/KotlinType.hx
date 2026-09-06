@@ -6,7 +6,6 @@ import haxe.macro.Type;
 import StructuralKeyValidator;
 import PolicyQueries;
 
-
 /**
     Type mapping from the translatable Haxe subset to Kotlin, per
     docs/specs/features/14-type-system-mapping.md and stdlib rulings.
