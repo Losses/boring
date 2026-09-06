@@ -82,6 +82,16 @@ class TsImports {
         Modules under `std.` that the runtime package provides. Every other
         std module is a compiled file and imports like any other module.
     **/
+    /** Modules whose declarations are synthesized as target support. */
+    static final GUARANTEED_STD_MODULES:Map<String, Bool> = [
+        "std.UStringException" => true,
+        "std.UStringFault" => true,
+    ];
+
+    public static function isGuaranteedStdModule(module:String):Bool {
+        return GUARANTEED_STD_MODULES.exists(module);
+    }
+
     static final runtimeProvidedModules:Map<String, Bool> = [
         "std.Functional" => true,
         "std.ReadOnlyArray" => true,
