@@ -177,12 +177,17 @@ so `final class` throughout costs nothing.
 
 ### Dart target rulings
 
+#### Static-only collision handling
+
+A statics-only class is flattened only while its emitted static names are
+unique within the module library. If two such classes would claim the same
+Dart top-level name, both classes retain their `final class` namespace and
+their static members remain class statics. This preserves the Haxe class
+qualification without changing the names or wiring of either member; the
+same collision check applies to the target-visible member spelling,
+including Dart's underscore prefix for private members.
+
 #### Static extension and dispatch (`features/10`, `features/12`)
 
 Unmarked static extensions lower to direct top-level calls in the
 library of the resolving module. A static marked `@:extension` emits
-as an unnamed `extension` on the receiver type and marked call sites
-render `x.f(a)`; a static marked `@:topLevel` emits as a top-level
-library function (`features/10` rules the markers and the call-site
-table). Classes keep their methods; the samples contain no subclassing,
-so `final class` throughout costs nothing.
