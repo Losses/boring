@@ -2715,6 +2715,8 @@ class DartExpr {
             case DartDataClassKey(cls, _):
                 final cmpName = "compare" + cls.name;
                 qualifiedRef(cls.module, cmpName);
+            case DartEnumKey(en):
+                qualifiedRef(en.module, "compare" + en.name);
         };
     }
 
