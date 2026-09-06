@@ -42,14 +42,17 @@ class SemanticExceptionLedger {
         The ledger file ships inside the compiler repository while this macro
         runs from the working directory of whoever invoked the gates. Resolve
         the file through the compiler class path and strip the known suffix;
-        the remainder is the repository root for every caller.
+        the remainder is the repository root for every caller. Windows joins
+        the class path prefix with a backslash, so compare on a normalized
+        copy and slice the original string by length.
     **/
     public static function repoRoot():String {
         final resolved = Context.resolvePath("semantic-exceptions.json");
-        if (resolved == path) {
+        final normalized = StringTools.replace(resolved, "\\", "/");
+        if (normalized == path) {
             return ".";
         }
-        if (resolved.length > path.length && resolved.substr(resolved.length - path.length - 1) == "/" + path) {
+        if (normalized.length > path.length && normalized.substr(normalized.length - path.length - 1) == "/" + path) {
             return resolved.substr(0, resolved.length - path.length - 1);
         }
         Context.error("semantic exception ledger: cannot locate the repository root from " + resolved, Context.currentPos());
