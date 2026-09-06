@@ -81,4 +81,17 @@ describe("Std.string lowering", () => {
     expect(await proc.exited).not.toBe(0);
     expect(stderr).toContain("Std.string accepts scalars, enum values, records, and arrays of them only");
   });
+
+  test("nullable operands are rejected on every target", async () => {
+    for (const target of ["ts", "kotlin", "swift", "dart", "rust"]) {
+      const proc = Bun.spawn(["haxe", `examples/${target}.hxml`, "tests.StdNullStringProbes"], {
+        cwd: root,
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      const stderr = await new Response(proc.stderr).text();
+      expect(await proc.exited).not.toBe(0);
+      expect(stderr).toContain("Std.string does not accept Null<T> operands; compare against null first");
+    }
+  }, 120000);
 });
