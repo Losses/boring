@@ -14,7 +14,6 @@ import PolicyQueries;
 import ExpressionBlockNorm;
 import AssignTargetPlan;
 import AssignTargetPlan.AssignTargetFieldKind;
-import PolicyQueries.IntervalCapability;
 import PolicyQueries.StdStringCategory;
 import PolicyQueries.Int64Op;
 import FusionPlan;
@@ -806,16 +805,16 @@ class DartExpr {
             switch (stmts[i].expr) {
                 case TVar(v, _):
                     out.push({expr: TVar(v, step.rhs), pos: stmts[i].pos, t: stmts[i].t});
-                var otherAssign = false;
-                for (s in remaining) {
-                    if (isVarAssigned(s, v.id)) {
-                        otherAssign = true;
-                        break;
+                    var otherAssign = false;
+                    for (s in remaining) {
+                        if (isVarAssigned(s, v.id)) {
+                            otherAssign = true;
+                            break;
+                        }
                     }
-                }
-                if (!otherAssign) {
-                    mutated.remove(v.id);
-                }
+                    if (!otherAssign) {
+                        mutated.remove(v.id);
+                    }
                 case _:
                     out.push(stmts[i]);
             }
@@ -825,8 +824,7 @@ class DartExpr {
 
     /** Expression-position block lowering (features/43). */
     function blockExpression(stmts:Array<TypedExpr>):String {
-        stmts = ExpressionBlockNorm.normalize(stmts, (e, message) -> fail(e, message),
-            _ -> "expression block must end in a value statement (features/43)",
+        stmts = ExpressionBlockNorm.normalize(stmts, (e, message) -> fail(e, message), _ -> "expression block must end in a value statement (features/43)",
             "expression block allows only declarations before its value statement (features/43)");
         final out = ["(() {"];
         // Do not erase single-case payload declarations: their initializer
@@ -883,10 +881,8 @@ class DartExpr {
         while are three sibling statements with no wrapping block.
         Regrouping restores the block form the loop lowerings match on.
     **/
-    static final intervalCaps:Array<IntervalCapability> = [];
-
     function regroupLoops(stmts:Array<TypedExpr>):Array<TypedExpr> {
-        return PolicyQueries.regroupLoops(stmts, intervalCaps);
+        return PolicyQueries.regroupLoops(stmts);
     }
 
     function intervalCore(counterDecl:TypedExpr, boundDecl:TypedExpr, whileExpr:TypedExpr):Null<{
@@ -904,7 +900,7 @@ class DartExpr {
         bound:TypedExpr,
         body:Array<TypedExpr>
     }> {
-        return PolicyQueries.matchInterval(e, intervalCaps);
+        return PolicyQueries.matchInterval(e);
     }
 
     function intervalShort(counterDecl:TypedExpr, whileExpr:TypedExpr):Null<{
@@ -913,7 +909,7 @@ class DartExpr {
         bound:TypedExpr,
         body:Array<TypedExpr>
     }> {
-        return PolicyQueries.intervalShort(counterDecl, whileExpr, intervalCaps);
+        return PolicyQueries.intervalShort(counterDecl, whileExpr);
     }
 
     function loopLines(loop:{
@@ -1431,10 +1427,8 @@ class DartExpr {
         return switch (PolicyQueries.int64OpOf(fn, args)) {
             case Make(high, low): "(((" + expr(high) + ").toSigned(32) << 32) | ((" + expr(low) + ").toUnsigned(32))).toSigned(64)";
             case OfInt(value): "(" + expr(value) + ").toSigned(64)";
-            case GetHigh(value): if (isFpHelperInt64Halves(value)) expr(value) + ".high" else "((" + expr(value)
-                            + " >> 32).toSigned(32))";
-            case GetLow(value): if (isFpHelperInt64Halves(value)) expr(value) + ".low" else "(" + expr(value)
-                            + ").toSigned(32)";
+            case GetHigh(value): if (isFpHelperInt64Halves(value)) expr(value) + ".high" else "((" + expr(value) + " >> 32).toSigned(32))";
+            case GetLow(value): if (isFpHelperInt64Halves(value)) expr(value) + ".low" else "(" + expr(value) + ").toSigned(32)";
             case Add(l, r): "(" + expr(l) + " + " + expr(r) + ").toSigned(64)";
             case Sub(l, r): "(" + expr(l) + " - " + expr(r) + ").toSigned(64)";
             case Mul(l, r): "(" + expr(l) + " * " + expr(r) + ").toSigned(64)";
@@ -1579,8 +1573,7 @@ class DartExpr {
             case "std.Fs" | "std.Env":
                 return fail(null, "std.Fs and std.Env statics lower at their call site; a bare reference has no lowering");
             case _:
-                if (isStaticsOnlyClass(cls) && !RuntimeResidents.isResident(module)
-                    && !Compiler.keepStaticsClass(cls)) {
+                if (isStaticsOnlyClass(cls) && !RuntimeResidents.isResident(module) && !Compiler.keepStaticsClass(cls)) {
                     // A statics-only business class lowers to top-level
                     // functions of its own library; the reference carries no
                     // class. Resident statics keep the class: the runtime
@@ -1730,7 +1723,8 @@ class DartExpr {
         if (fromSource && nullable) {
             Context.error("Std.string does not accept Null<T> operands; compare against null first", arg.pos);
         }
-        return stdStringType(arg.t, !fromSource && nullable ? "(" + expr(arg) + ")!" : expr(arg), inConcat, arg, 0, !fromSource && nullable);
+        return stdStringType(arg.t, !fromSource
+            && nullable ? "(" + expr(arg) + ")!" : expr(arg), inConcat, arg, 0, !fromSource && nullable);
     }
 
     function stdIsOfType(args:Array<TypedExpr>):String {
@@ -2650,18 +2644,13 @@ class DartExpr {
     }
 
     function assignTarget(e:TypedExpr):String {
-        return AssignTargetPlan.assignTarget(e,
-            (arr, idx) -> expr(arr) + "[" + expr(idx) + "]",
-            e -> switch (e.expr) {
-                case TField(_, FStatic(c, cf)): staticRef(c.get(), cf.get().name);
-                case _: fail(e, "assignment target has no Dart lowering");
-            },
-            (subj, kind, original) -> switch (kind) {
-                case Instance(owner, cf): expr(subj) + "." + memberName(owner.get().module, cf, original.pos);
-                case Anonymous(cf): expr(subj) + "." + cf.get().name;
-            },
-            v -> localName(v),
-            (e, _) -> fail(e, "assignment target has no Dart lowering"));
+        return AssignTargetPlan.assignTarget(e, (arr, idx) -> expr(arr) + "[" + expr(idx) + "]", e -> switch (e.expr) {
+            case TField(_, FStatic(c, cf)): staticRef(c.get(), cf.get().name);
+            case _: fail(e, "assignment target has no Dart lowering");
+        }, (subj, kind, original) -> switch (kind) {
+            case Instance(owner, cf): expr(subj) + "." + memberName(owner.get().module, cf, original.pos);
+            case Anonymous(cf): expr(subj) + "." + cf.get().name;
+        }, v -> localName(v), (e, _) -> fail(e, "assignment target has no Dart lowering"));
     }
 
     /**

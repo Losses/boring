@@ -14,7 +14,6 @@ import PolicyQueries;
 import ExpressionBlockNorm;
 import AssignTargetPlan;
 import AssignTargetPlan.AssignTargetFieldKind;
-import PolicyQueries.IntervalCapability;
 import PolicyQueries.StdStringCategory;
 import PolicyQueries.Int64Op;
 import FusionPlan;
@@ -587,16 +586,16 @@ class SwiftExpr {
             switch (stmts[i].expr) {
                 case TVar(v, _):
                     out.push({expr: TVar(v, step.rhs), pos: stmts[i].pos, t: stmts[i].t});
-                var otherAssign = false;
-                for (s in remaining) {
-                    if (isVarAssigned(s, v.id)) {
-                        otherAssign = true;
-                        break;
+                    var otherAssign = false;
+                    for (s in remaining) {
+                        if (isVarAssigned(s, v.id)) {
+                            otherAssign = true;
+                            break;
+                        }
                     }
-                }
-                if (!otherAssign) {
-                    mutated.remove(v.id);
-                }
+                    if (!otherAssign) {
+                        mutated.remove(v.id);
+                    }
                 case _:
                     out.push(stmts[i]);
             }
@@ -606,8 +605,7 @@ class SwiftExpr {
 
     /** Expression-position block lowering (features/43). */
     function blockExpression(stmts:Array<TypedExpr>):String {
-        stmts = ExpressionBlockNorm.normalize(stmts, (e, message) -> fail(e, message),
-            _ -> "expression block must end in a value statement (features/43)",
+        stmts = ExpressionBlockNorm.normalize(stmts, (e, message) -> fail(e, message), _ -> "expression block must end in a value statement (features/43)",
             "expression block allows only declarations before its value statement (features/43)");
         final out = ["({ () -> " + types.of(stmts[stmts.length - 1].t) + " in"];
         // Keep the typer's extraction local. Substituting it with the
@@ -658,10 +656,8 @@ class SwiftExpr {
         while are three sibling statements with no wrapping block.
         Regrouping restores the block form the loop lowerings match on.
     **/
-    static final intervalCaps:Array<IntervalCapability> = [];
-
     function regroupLoops(stmts:Array<TypedExpr>):Array<TypedExpr> {
-        return PolicyQueries.regroupLoops(stmts, intervalCaps);
+        return PolicyQueries.regroupLoops(stmts);
     }
 
     function intervalCore(counterDecl:TypedExpr, boundDecl:TypedExpr, whileExpr:TypedExpr):Null<{
@@ -679,7 +675,7 @@ class SwiftExpr {
         bound:TypedExpr,
         body:Array<TypedExpr>
     }> {
-        return PolicyQueries.matchInterval(e, intervalCaps);
+        return PolicyQueries.matchInterval(e);
     }
 
     function intervalShort(counterDecl:TypedExpr, whileExpr:TypedExpr):Null<{
@@ -688,7 +684,7 @@ class SwiftExpr {
         bound:TypedExpr,
         body:Array<TypedExpr>
     }> {
-        return PolicyQueries.intervalShort(counterDecl, whileExpr, intervalCaps);
+        return PolicyQueries.intervalShort(counterDecl, whileExpr);
     }
 
     function strideValue(e:TypedExpr):String {
@@ -1481,17 +1477,13 @@ class SwiftExpr {
     function int64Call(fn:TypedExpr, args:Array<TypedExpr>):Null<String> {
         return switch (PolicyQueries.int64OpOf(fn, args)) {
             case Make(high, low): "Int64(bitPattern: (UInt64(UInt32(bitPattern: "
-                        + expr(high)
-                        + ")) << 32) | UInt64(UInt32(bitPattern: "
-                        + expr(low)
-                        + ")))";
+                + expr(high)
+                + ")) << 32) | UInt64(UInt32(bitPattern: "
+                + expr(low)
+                + ")))";
             case OfInt(value): "Int64(" + expr(value) + ")";
-            case GetHigh(value): if (isFpHelperInt64Halves(value)) expr(value) +
-                            ".high" else "Int32(truncatingIfNeeded: "
-                            + expr(value) + " >> 32)";
-            case GetLow(value): if (isFpHelperInt64Halves(value)) expr(value) +
-                            ".low" else "Int32(truncatingIfNeeded: "
-                            + expr(value) + ")";
+            case GetHigh(value): if (isFpHelperInt64Halves(value)) expr(value) + ".high" else "Int32(truncatingIfNeeded: " + expr(value) + " >> 32)";
+            case GetLow(value): if (isFpHelperInt64Halves(value)) expr(value) + ".low" else "Int32(truncatingIfNeeded: " + expr(value) + ")";
             case Add(l, r): int64Operand(l, OpAdd, false) + " &+ " + int64Operand(r, OpAdd, true);
             case Sub(l, r): int64Operand(l, OpSub, false) + " &- " + int64Operand(r, OpSub, true);
             case Mul(l, r): int64Operand(l, OpMult, false) + " &* " + int64Operand(r, OpMult, true);
@@ -1500,19 +1492,13 @@ class SwiftExpr {
             case Or(l, r): int64Operand(l, OpOr, false) + " | " + int64Operand(r, OpOr, true);
             case Xor(l, r): int64Operand(l, OpXor, false) + " ^ " + int64Operand(r, OpXor, true);
             case Complement(value): "~" + int64Prefixed(value);
-            case Shl(l, r): int64Operand(l, OpShl, false)
-                        + " &<< Int64("
-                        + int64Operand(r, OpAnd, false)
-                        + " & 63)";
-            case Shr(l, r): int64Operand(l, OpShr, false)
-                        + " &>> Int64("
-                        + int64Operand(r, OpAnd, false)
-                        + " & 63)";
+            case Shl(l, r): int64Operand(l, OpShl, false) + " &<< Int64(" + int64Operand(r, OpAnd, false) + " & 63)";
+            case Shr(l, r): int64Operand(l, OpShr, false) + " &>> Int64(" + int64Operand(r, OpAnd, false) + " & 63)";
             case Ushr(l, r): "Int64(bitPattern: UInt64(bitPattern: "
-                        + expr(l)
-                        + ") >> UInt64("
-                        + int64Operand(r, OpAnd, false)
-                        + " & 63))";
+                + expr(l)
+                + ") >> UInt64("
+                + int64Operand(r, OpAnd, false)
+                + " & 63))";
             case Eq(l, r): expr(l) + " == " + expr(r);
             case Neq(l, r): expr(l) + " != " + expr(r);
             case Lt(l, r): expr(l) + " < " + expr(r);
@@ -2779,16 +2765,12 @@ class SwiftExpr {
     }
 
     function assignTarget(e:TypedExpr):String {
-        return AssignTargetPlan.assignTarget(e,
-            (arr, idx) -> expr(arr) + "[Int(" + expr(idx) + ")]",
-            e -> switch (e.expr) {
-                case TField(_, FStatic(c, cf)): staticRef(c.get(), cf.get().name);
-                case _: fail(e, "assignment target has no Swift lowering");
-            },
-            (subj, kind, _) -> switch (kind) {
-                case Instance(_, cf) | Anonymous(cf): expr(subj) + "." + SwiftNameEscape.escape(cf.get().name);
-            },
-            v -> localName(v),
+        return AssignTargetPlan.assignTarget(e, (arr, idx) -> expr(arr) + "[Int(" + expr(idx) + ")]", e -> switch (e.expr) {
+            case TField(_, FStatic(c, cf)): staticRef(c.get(), cf.get().name);
+            case _: fail(e, "assignment target has no Swift lowering");
+        }, (subj, kind, _) -> switch (kind) {
+            case Instance(_, cf) | Anonymous(cf): expr(subj) + "." + SwiftNameEscape.escape(cf.get().name);
+        }, v -> localName(v),
             (e, _) -> fail(e, "assignment target has no Swift lowering"));
     }
 
