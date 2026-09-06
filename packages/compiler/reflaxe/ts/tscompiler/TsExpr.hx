@@ -14,7 +14,6 @@ import PolicyQueries;
 import ExpressionBlockNorm;
 import AssignTargetPlan;
 import AssignTargetPlan.AssignTargetFieldKind;
-import PolicyQueries.IntervalCapability;
 import PolicyQueries.StdStringCategory;
 import PolicyQueries.Int64Op;
 import FusionPlan;
@@ -543,16 +542,16 @@ class TsExpr {
             switch (stmts[i].expr) {
                 case TVar(v, _):
                     out.push({expr: TVar(v, step.rhs), pos: stmts[i].pos, t: stmts[i].t});
-                var otherAssign = false;
-                for (s in remaining) {
-                    if (isVarAssigned(s, v.id)) {
-                        otherAssign = true;
-                        break;
+                    var otherAssign = false;
+                    for (s in remaining) {
+                        if (isVarAssigned(s, v.id)) {
+                            otherAssign = true;
+                            break;
+                        }
                     }
-                }
-                if (!otherAssign) {
-                    mutated.remove(v.id);
-                }
+                    if (!otherAssign) {
+                        mutated.remove(v.id);
+                    }
                 case _:
                     out.push(stmts[i]);
             }
@@ -563,8 +562,9 @@ class TsExpr {
     /** Expression-position block lowering (features/43). */
     function blockExpression(stmts:Array<TypedExpr>):String {
         stmts = ExpressionBlockNorm.normalize(stmts, (e, message) -> fail(e, message),
-            e -> e == null ? "expression block must end in a value statement (features/43)" :
-                "expression block must end in a value statement (features/43): " + Std.string(e.expr),
+            e ->
+                e == null ? "expression block must end in a value statement (features/43)" : "expression block must end in a value statement (features/43): " +
+                Std.string(e.expr),
             "expression block allows only declarations before its value statement (features/43)");
         final out = ["(() => {"];
         for (s in stmts.slice(0, stmts.length - 1))
@@ -775,10 +775,8 @@ class TsExpr {
         while are three sibling statements with no wrapping block.
         Regrouping restores the block form the loop lowerings match on.
     **/
-    static final intervalCaps:Array<IntervalCapability> = [MatchesDoWhileLoops, UnwrapsBoundSubject];
-
     function regroupLoops(stmts:Array<TypedExpr>):Array<TypedExpr> {
-        return PolicyQueries.regroupLoops(stmts, intervalCaps);
+        return PolicyQueries.regroupLoops(stmts);
     }
 
     function intervalCore(counterDecl:TypedExpr, boundDecl:TypedExpr, whileExpr:TypedExpr):Null<{
@@ -796,7 +794,7 @@ class TsExpr {
         bound:TypedExpr,
         body:Array<TypedExpr>
     }> {
-        return PolicyQueries.matchInterval(e, intervalCaps);
+        return PolicyQueries.matchInterval(e);
     }
 
     function intervalShort(counterDecl:TypedExpr, whileExpr:TypedExpr):Null<{
@@ -805,7 +803,7 @@ class TsExpr {
         bound:TypedExpr,
         body:Array<TypedExpr>
     }> {
-        return PolicyQueries.intervalShort(counterDecl, whileExpr, intervalCaps);
+        return PolicyQueries.intervalShort(counterDecl, whileExpr);
     }
 
     function isSortedSetSizeBound(bound:TypedExpr):Bool {
@@ -1307,16 +1305,12 @@ class TsExpr {
     function int64Call(fn:TypedExpr, args:Array<TypedExpr>):Null<String> {
         return switch (PolicyQueries.int64OpOf(fn, args)) {
             case Make(high, low):
-                        "BigInt.asIntN(64, (BigInt("
-                        + expr(high)
-                        + ") << 32n) | BigInt.asUintN(32, BigInt("
-                        + expr(low)
-                        + ")))";
+                "BigInt.asIntN(64, (BigInt(" + expr(high) + ") << 32n) | BigInt.asUintN(32, BigInt(" + expr(low) + ")))";
             case OfInt(value): "BigInt.asIntN(64, BigInt(" + expr(value) + "))";
             case GetHigh(value):
-                        if (isFpHelperInt64Halves(value)) expr(value) + ".high" else "Number(BigInt.asIntN(32, " + expr(value) + " >> 32n))";
+                if (isFpHelperInt64Halves(value)) expr(value) + ".high" else "Number(BigInt.asIntN(32, " + expr(value) + " >> 32n))";
             case GetLow(value):
-                        if (isFpHelperInt64Halves(value)) expr(value) + ".low" else "Number(BigInt.asIntN(32, " + expr(value) + "))";
+                if (isFpHelperInt64Halves(value)) expr(value) + ".low" else "Number(BigInt.asIntN(32, " + expr(value) + "))";
             case Add(l, r): "BigInt.asIntN(64, " + expr(l) + " + " + expr(r) + ")";
             case Sub(l, r): "BigInt.asIntN(64, " + expr(l) + " - " + expr(r) + ")";
             case Mul(l, r): "BigInt.asIntN(64, " + expr(l) + " * " + expr(r) + ")";
@@ -1327,11 +1321,7 @@ class TsExpr {
             case Complement(value): "BigInt.asIntN(64, ~" + expr(value) + ")";
             case Shl(l, r): "BigInt.asIntN(64, " + expr(l) + " << BigInt(" + expr(r) + "))";
             case Shr(l, r): "BigInt.asIntN(64, " + expr(l) + " >> BigInt(" + expr(r) + "))";
-            case Ushr(l, r): "BigInt.asIntN(64, BigInt.asUintN(64, "
-                        + expr(l)
-                        + ") >> BigInt("
-                        + expr(r)
-                        + "))";
+            case Ushr(l, r): "BigInt.asIntN(64, BigInt.asUintN(64, " + expr(l) + ") >> BigInt(" + expr(r) + "))";
             case Eq(l, r): expr(l) + " === " + expr(r);
             case Neq(l, r): expr(l) + " !== " + expr(r);
             case Lt(l, r): expr(l) + " < " + expr(r);
@@ -2291,16 +2281,12 @@ class TsExpr {
     }
 
     function assignTarget(e:TypedExpr):String {
-        return AssignTargetPlan.assignTarget(e,
-            (arr, idx) -> expr(arr) + "[" + expr(idx) + "]",
-            e -> switch (e.expr) {
-                case TField(_, FStatic(c, cf)): staticRef(c.get(), cf.get().name);
-                case _: fail(e, "assignment target has no TypeScript lowering");
-            },
-            (subj, kind, original) -> switch (kind) {
-                case Instance(_, cf) | Anonymous(cf): expr(subj) + "." + cf.get().name;
-            },
-            v -> localName(v),
+        return AssignTargetPlan.assignTarget(e, (arr, idx) -> expr(arr) + "[" + expr(idx) + "]", e -> switch (e.expr) {
+            case TField(_, FStatic(c, cf)): staticRef(c.get(), cf.get().name);
+            case _: fail(e, "assignment target has no TypeScript lowering");
+        }, (subj, kind, original) -> switch (kind) {
+            case Instance(_, cf) | Anonymous(cf): expr(subj) + "." + cf.get().name;
+        }, v -> localName(v),
             (e, _) -> fail(e, "assignment target has no TypeScript lowering"));
     }
 
