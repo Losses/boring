@@ -170,3 +170,9 @@ for the consistency run. The comparator tears off
 `compare<Record>` functions for structure keys; the endpoints and the
 insert-then-build shape of the extern are the resident classes' own.
 No hand-written table ships in the generated business tree.
+
+## Parameterless enum keys
+
+Parameterless enums are supported sorted keys. Their ordering is declaration order: the first constructor in the Haxe source compares before the next constructor, regardless of insertion order. A comparison returns zero if and only if both values are the same constructor, and therefore satisfies the `SortedTableCompare<K>` contract on every target.
+
+Enums with payloads remain outside the sorted key domain. Specification 07 does not define structural equality for payload enum values, so the five target implementations cannot guarantee consistent ordering and equality. The compiler rejects such keys with the common diagnostic: “parameterless enums are supported; enums with payloads are not keys”.

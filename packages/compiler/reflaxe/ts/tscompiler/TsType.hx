@@ -11,6 +11,7 @@ enum KeyDomain {
     StringKey;
     StructKey(def:DefType, fields:Array<ClassField>);
     DataClassKey(cls:ClassType, fields:Array<ClassField>);
+    EnumKey(en:EnumType);
 }
 
 /**
@@ -129,7 +130,7 @@ class TsType {
     public static function classifyKey(t:Null<Type>, ?pos:haxe.macro.Expr.Position):KeyDomain {
         if (t == null) {
             final p = pos != null ? pos : Context.currentPos();
-            Context.error("sorted keyed tables support Int, String, structure, and dataClass keys in this implementation", p);
+            Context.error("sorted keyed tables support Int, String, structure, and dataClass keys; parameterless enums are supported; enums with payloads are not keys", p);
             return IntKey;
         }
         final p = pos != null ? pos : Context.currentPos();
@@ -138,7 +139,7 @@ class TsType {
                 if (a.get().name == "Int") {
                     IntKey;
                 } else {
-                    Context.error("sorted keyed tables support Int, String, structure, and dataClass keys in this implementation", p);
+                    Context.error("sorted keyed tables support Int, String, structure, and dataClass keys; parameterless enums are supported; enums with payloads are not keys", p);
                     IntKey;
                 }
             case TInst(c, _):
@@ -157,7 +158,21 @@ class TsType {
                         validateDataClassField(cls, f);
                     DataClassKey(cls, fields);
                 } else {
-                    Context.error("sorted keyed tables support Int, String, structure, and dataClass keys in this implementation", p);
+                    Context.error("sorted keyed tables support Int, String, structure, and dataClass keys; parameterless enums are supported; enums with payloads are not keys", p);
+                    IntKey;
+                }
+            case TEnum(e, _):
+                final en = e.get();
+                var parameterless = true;
+                for (ef in en.constructs)
+                    switch (Context.follow(ef.type)) {
+                        case TFun(args, _) if (args.length > 0): parameterless = false;
+                        case _:
+                    }
+                if (parameterless) {
+                    EnumKey(en);
+                } else {
+                    Context.error("sorted keyed tables support Int, String, structure, and dataClass keys; parameterless enums are supported; enums with payloads are not keys", p);
                     IntKey;
                 }
             case TType(defRef, _):
@@ -167,7 +182,7 @@ class TsType {
             case TLazy(f):
                 classifyKey(f(), p);
             case _:
-                Context.error("sorted keyed tables support Int, String, structure, and dataClass keys in this implementation", p);
+                Context.error("sorted keyed tables support Int, String, structure, and dataClass keys; parameterless enums are supported; enums with payloads are not keys", p);
                 IntKey;
         }
     }

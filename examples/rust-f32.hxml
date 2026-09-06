@@ -174,3 +174,6 @@ tests.CaptureSwitchOpsTests
 tests.ExpressionBlockTests
 tests.PlatformModulesTestSupport
 tests.PlatformModulesTests
+
+boring.EnumSortedKeysOps
+tests.EnumSortedKeysTests
