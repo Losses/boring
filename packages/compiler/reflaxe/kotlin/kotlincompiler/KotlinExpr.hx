@@ -174,8 +174,8 @@ class KotlinExpr {
                 + KotlinNameEscape.escape(kotlinMethodName(methodName))
                 + "("
                 + [for (a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
-            case CStaticCall(fullPath, args):
-                coalescingStaticCallText(fullPath, args, targetType);
+            case CStaticCall(modulePath, className, methodName, args):
+                coalescingStaticCallText(modulePath, className, methodName, args, targetType);
             case CConditional(c, t, f):
                 "if ("
                 + coalescingDefaultText(c, targetType)
@@ -189,17 +189,16 @@ class KotlinExpr {
                 + opStr(op)
                 + " "
                 + coalescingDefaultText(right, targetType);
-            case CConstructorCall(classPath, args):
-                final name = classPath.split(".").pop();
-                if (classPath.indexOf(".") >= 0)
-                    imports.requireType(classPath, name);
+            case CConstructorCall(modulePath, name, args):
+                imports.requireType(modulePath, name);
                 name + "(" + [for (a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
         };
     }
 
-    function coalescingStaticCallText(path:String, args:Array<DefaultArgExpander.CoalescingDefaultValue>, targetType:Type):String {
+    function coalescingStaticCallText(modulePath:String, className:String, methodName:String, args:Array<DefaultArgExpander.CoalescingDefaultValue>,
+            targetType:Type):String {
         final rendered = [for (a in args) coalescingDefaultText(a, targetType)].join(", ");
-        if (path == "std.SortedSet.builder") {
+        if (modulePath == "std.SortedSet" && methodName == "builder") {
             final key = switch (Context.follow(DefaultArgExpander.withoutNull(targetType))) {
                 case TInst(_, params) if (params.length > 0): params[0];
                 case _: null;
@@ -207,7 +206,8 @@ class KotlinExpr {
             imports.requireType("std.SortedSet", "SortedTable");
             return "SortedTable.setBuilder<" + types.of(key) + ">(" + sortedComparator("std.SortedSet", key, Context.currentPos()) + ")";
         }
-        return path + "(" + rendered + ")";
+        imports.requireType(modulePath, className);
+        return className + "." + methodName + "(" + rendered + ")";
     }
 
     function coalescingStaticFieldText(path:String):String {
