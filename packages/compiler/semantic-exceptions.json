@@ -1,0 +1,101 @@
+[
+  {
+    "id": "associative-kotlin",
+    "mechanism": "associative",
+    "target": "kotlin",
+    "shape": "Kotlin omits the OpOr, OpXor, and OpAnd arms from associative operator handling",
+    "reason": "The three Kotlin bitwise operators have equal precedence; adding the arms would change the parentheses and therefore the meaning of expressions",
+    "ruling": "keep the Kotlin-specific precedence surface until an explicit lowering proof permits unification (2026-09-06 advisory)",
+    "fixture": "packages/compiler/reflaxe/kotlin/kotlincompiler/KotlinExpr.hx"
+  },
+  {
+    "id": "coalescing-site-for-rust",
+    "mechanism": "coalescingSiteFor",
+    "target": "rust",
+    "shape": "Rust coalescingSiteFor uses currentMethodName state and does not filter isNormalizationSource",
+    "reason": "The Rust lowering observes target-specific method context and normalization behavior that the other emitters do not share",
+    "ruling": "retain the Rust behavior on the target side and do not widen the shared mechanism without a Rust lowering proof (2026-09-06 advisory)",
+    "fixture": "packages/compiler/reflaxe/rust/rustcompiler/RustExpr.hx"
+  },
+  {
+    "id": "interval-matches-do-while-ts",
+    "mechanism": "IntervalCapability.MatchesDoWhileLoops",
+    "target": "ts",
+    "shape": "MatchesDoWhileLoops is accepted only by the TypeScript interval recognizer",
+    "reason": "A do-while executes once before testing; a range-for executes zero times when start is greater than or equal to bound, so widening the interval surface deletes one execution",
+    "ruling": "keep the narrow surface; probe interval-do-while-trip-count before any unification (2026-09-06 advisory)",
+    "fixture": "packages/compiler/reflaxe/ts/tscompiler/TsExpr.hx"
+  },
+  {
+    "id": "interval-requires-initialized-counter-kotlin",
+    "mechanism": "IntervalCapability.RequiresInitializedCounter",
+    "target": "kotlin",
+    "shape": "RequiresInitializedCounter is accepted only by the Kotlin interval recognizer",
+    "reason": "Kotlin's generated loop counter must be initialized before the target lowering can safely represent the interval",
+    "ruling": "keep the Kotlin-only requirement as a target contract until counter initialization is proven equivalent across emitters (2026-09-06 advisory)",
+    "fixture": "packages/compiler/reflaxe/kotlin/kotlincompiler/KotlinExpr.hx"
+  },
+  {
+    "id": "interval-unwraps-bound-subject-ts",
+    "mechanism": "IntervalCapability.UnwrapsBoundSubject",
+    "target": "ts",
+    "shape": "UnwrapsBoundSubject is accepted only by the TypeScript interval recognizer",
+    "reason": "The TypeScript recognizer unwraps the bound subject in a form that is not shared by the other target recognizers",
+    "ruling": "keep the narrow surface; investigate bound-subject evaluation count before any unification (2026-09-06 advisory)",
+    "fixture": "packages/compiler/reflaxe/ts/tscompiler/TsExpr.hx"
+  },
+  {
+    "id": "scan-locals-dart",
+    "mechanism": "scanLocals",
+    "target": "dart",
+    "shape": "Dart collects optionalInferred, mutatedNames, and nonNullLocals, with StringBuf call mutation and no explicit TArray mutation arm",
+    "reason": "Dart's nullability inference and mutation facts are coupled to its target representation; markMutated removes non-null locals as well as recording mutation",
+    "ruling": "retain the Dart-specific fact collection and record it rather than unifying scanLocals (2026-09-06 probe)",
+    "fixture": "packages/compiler/reflaxe/dart/dartcompiler/DartExpr.hx"
+  },
+  {
+    "id": "scan-locals-kotlin-underscore",
+    "mechanism": "scanLocals",
+    "target": "kotlin",
+    "shape": "Kotlin excludes the underscore name from its usedNames collection",
+    "reason": "The Kotlin emitter reserves underscore as a discard-style local name and must not treat it as an ordinary collision candidate",
+    "ruling": "retain the Kotlin underscore exclusion as a target-specific design (2026-09-06 probe)",
+    "fixture": "packages/compiler/reflaxe/kotlin/kotlincompiler/KotlinExpr.hx"
+  },
+  {
+    "id": "scan-locals-rust",
+    "mechanism": "scanLocals",
+    "target": "rust",
+    "shape": "Rust collects deferredLocals, unsignedLocals, countdownShiftedVars, nullableSensitiveLocals, and i32Locals",
+    "reason": "Rust loop lowering and integer-domain rules require facts that do not exist in the other target emitters, including deferred locals and negative-domain handling",
+    "ruling": "retain Rust's target-specific scan state and do not unify the complete function (2026-09-06 probe)",
+    "fixture": "packages/compiler/reflaxe/rust/rustcompiler/RustExpr.hx"
+  },
+  {
+    "id": "scan-locals-swift",
+    "mechanism": "scanLocals",
+    "target": "swift",
+    "shape": "Swift collects optionalInferred and mutatedNames and tracks inout arguments, field mutation, and map-backed array mutation",
+    "reason": "Swift mutation facts include inout calling conventions and target-specific receiver handling that cannot be expressed by the shared scanner",
+    "ruling": "retain Swift's target-specific scan state and do not unify the complete function (2026-09-06 probe)",
+    "fixture": "packages/compiler/reflaxe/swift/swiftcompiler/SwiftExpr.hx"
+  },
+  {
+    "id": "scan-locals-ts",
+    "mechanism": "scanLocals",
+    "target": "ts",
+    "shape": "TypeScript tracks usedNames, fpInt64Halves, and mutated, including StringBuf add and addChar mutation calls",
+    "reason": "The TypeScript emitter's source-name reservation and mutation facts are tied to its local lowering and differ from the richer target scanners",
+    "ruling": "retain the TypeScript-specific scan behavior and record it rather than unifying scanLocals (2026-09-06 probe)",
+    "fixture": "packages/compiler/reflaxe/ts/tscompiler/TsExpr.hx"
+  },
+  {
+    "id": "try-binding-and-return-lines",
+    "mechanism": "tryBindingLines/tryReturnLines",
+    "target": "dart, kotlin, rust, swift, ts",
+    "shape": "The five target copies of tryBindingLines and tryReturnLines have different bodies",
+    "reason": "Each target represents caught-region bindings and returns in a different control-flow and exception model, so replacing the copies would alter emitted semantics",
+    "ruling": "retain separate target implementations until all five control-flow lowerings have an equivalence proof (2026-09-06 advisory)",
+    "fixture": "none"
+  }
+]
