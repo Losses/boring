@@ -19,6 +19,7 @@ import FusionPlan;
 import FusionPlan.FusionStep;
 import VarFusionPlan;
 import ValueTypeSupport;
+import ValueTypePlan;
 
 /**
     Statement and expression lowering from the Haxe typed AST to
@@ -1090,20 +1091,23 @@ class TsExpr {
         use the native operator directly.
     **/
     function valueTypeSynthetic(wrapper:TypedExpr, value:TypedExpr):String {
-        final abs = ValueTypeSupport.markedAbstractOfType(wrapper.t);
+        final plan = ValueTypePlan.planValueTypeSynthetic(wrapper, value, {
+            markedAbstractOfType: ValueTypeSupport.markedAbstractOfType,
+            localValues: valueTypeLocalValues,
+            activeAbstract: () -> currentClass == null ? null : ValueTypeSupport.markedAbstractOfClass(currentClass),
+            activeField: (a, n) -> n == null ? null : ValueTypeSupport.memberField(a, n),
+            activeFieldName: () -> currentField,
+            stripValue: stripWrap,
+            wrapNative: false
+        });
+        final abs = plan.abstractType;
         if (abs == null)
             return expr(value);
-        final localValues = valueTypeLocalValues(wrapper);
-        final activeAbs = currentClass == null ? null : ValueTypeSupport.markedAbstractOfClass(currentClass);
-        final activeField = activeAbs != null && currentField != null ? ValueTypeSupport.memberField(activeAbs, currentField) : null;
-        final nativeOperator = activeAbs != null
-            && activeField != null
-            && ValueTypeSupport.sameAbstract(activeAbs, abs)
-            && currentField != null
-            && ValueTypeSupport.operatorOf(abs, activeField) != null;
-        return switch (stripWrap(value).expr) {
-            case TBinop(op, left, right):
-                final field = ValueTypeSupport.binaryOperatorField(abs, op);
+        final localValues = plan.locals;
+        final nativeOperator = plan.nativeOperator;
+        return switch (plan.kind) {
+            case ValueTypeBinary(op, left, right):
+                final field = plan.field;
                 if (field == null) expr(value) else if (nativeOperator && field.name == currentField) {
                     valueTypeOperand(left, localValues) + " " + symbolOf(op) + " " + valueTypeOperand(right, localValues);
                 } else {imports.functionRef(abs.module, field.name, true)
@@ -1113,8 +1117,8 @@ class TsExpr {
                     + valueTypeOperand(right, localValues)
                     + ")";
                 }
-            case TUnop(op, _, subject):
-                final field = ValueTypeSupport.unaryOperatorField(abs, op);
+            case ValueTypeUnary(op, subject):
+                final field = plan.field;
                 if (field == null) expr(value) else if (nativeOperator && field.name == currentField) {
                     "-" + valueTypeOperand(subject, localValues);
                 } else {
