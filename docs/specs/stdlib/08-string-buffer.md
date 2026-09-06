@@ -36,6 +36,14 @@ value crossing the string subsystem.
 
 ## Haxe declarations and routing
 
+The TypeScript emitter synthesizes the exception reference in its pairing
+checks, so a consumer build whose source scope excludes `samples/` must still
+force-type and emit `std.UStringException` and its payload module
+`std.UStringFault`. These guaranteed support modules bypass the ordinary
+source-scope filter; they are emitted as compiled declarations and do not use
+extern bindings. If no generated value reference uses the exception, the normal
+output remains unchanged.
+
 `samples/std/StringBuf.hx` declares the extern following the `SortedMap`
 pattern. The pipeline maps the module to the per-platform type below. On the
 haxe stage-1 side the extern resolves to the haxe standard library `StringBuf`,
