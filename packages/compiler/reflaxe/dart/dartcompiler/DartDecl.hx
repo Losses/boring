@@ -895,12 +895,8 @@ class DartDecl {
         sealed hierarchy with no default arm.
     **/
     public function enumDecl(en:EnumType, options:Array<EnumOptionData>):String {
-        final sorted = options.copy();
-        sorted.sort((a, b) -> Reflect.compare(a.field.index, b.field.index));
-        var valueEnum = true;
-        for (o in sorted)
-            if (o.args.length > 0)
-                valueEnum = false;
+        final sorted = PolicyQueries.sortedEnumOptions(options);
+        final valueEnum = PolicyQueries.isValueEnumOptions(sorted);
         if (valueEnum) {
             final lines = ['enum ${claimTopLevel(en.name, en.pos)} {'];
             for (i in 0...sorted.length) {
@@ -994,8 +990,7 @@ class DartDecl {
     public function typedefDecl(def:DefType):String {
         switch (def.type) {
             case TAnonymous(anonRef):
-                final fields = anonRef.get().fields.copy();
-                fields.sort((a, b) -> Reflect.compare(Context.getPosInfos(a.pos).min, Context.getPosInfos(b.pos).min));
+                final fields = PolicyQueries.sortedAnonFields(anonRef);
                 var hasListField = false;
                 for (field in fields) {
                     if (isListType(field.type)) {
