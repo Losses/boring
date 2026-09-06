@@ -8,6 +8,8 @@ import reflaxe.data.ClassVarData;
 import reflaxe.data.EnumOptionData;
 import ValueTypeSupport;
 import PolicyQueries;
+import ComparatorPlan;
+import ComparatorPlan.ComparatorFieldKind;
 import ValueTypeSupport.ValueTypeInfo;
 import ValueTypeSupport.ValueTypeOperator;
 import NameConversion;
