@@ -2423,6 +2423,17 @@ class KotlinExpr {
         }
     }
 
+    /** A StringTools receiver argument renders with a null extraction when
+        its Haxe type is nullable, mirroring renderCallArgs. */
+    function nullableFirstArg(a:TypedExpr):String {
+        final rendered = expr(a);
+        if (isNullType(a.t) && !provenNonNull(a)) {
+            addProofExpr(a);
+            return rendered + "!!";
+        }
+        return rendered;
+    }
+
     function call(fn:TypedExpr, args:Array<TypedExpr>):String {
         final int64CallText = int64Call(fn, args);
         if (int64CallText != null)
@@ -2447,13 +2458,13 @@ class KotlinExpr {
                     return stringToolsHex(args);
                 }
                 if (cls.pack.length == 0 && cls.name == "StringTools" && name == "trim" && args.length == 1) {
-                    return expr(args[0]) + ".trim()";
+                    return nullableFirstArg(args[0]) + ".trim()";
                 }
                 if (cls.pack.length == 0
                     && cls.name == "StringTools"
                     && (name == "startsWith" || name == "endsWith")
                     && args.length == 2) {
-                    return expr(args[0]) + "." + name + "(" + expr(args[1]) + ")";
+                    return nullableFirstArg(args[0]) + "." + name + "(" + expr(args[1]) + ")";
                 }
                 if (cls.pack.length == 0 && cls.name == "Lambda" && name == "has" && args.length == 2) {
                     return expr(args[0]) + ".contains(" + expr(args[1]) + ")";
