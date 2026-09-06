@@ -15,6 +15,7 @@ package std;
 class Path {
     /** Device paths: "\\?\" and ".\" prefixes; every function returns the input unchanged. */
     static inline final DEVICE_A = "\\\\?\\";
+
     static inline final DEVICE_B = "\\\\.\\";
 
     /** UNC paths: a leading "\\" that is not a device prefix. */
