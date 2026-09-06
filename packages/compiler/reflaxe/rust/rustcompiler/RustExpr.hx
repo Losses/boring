@@ -4727,6 +4727,14 @@ class RustExpr {
                     final real = FloatPrecision.isF32() ? "f32" : "f64";
                     return real + "::powf(" + mathFloatArg(args[0]) + ", " + mathFloatArg(args[1]) + ")";
                 }
+                if (cls.module == "Math" && (name == "floor" || name == "ceil" || name == "round")) {
+                    // Haxe types floor, ceil, and round as Int; the Rust
+                    // methods return the real type, so the call site
+                    // truncates through the same conversion Std.int uses.
+                    final real = FloatPrecision.isF32() ? "f32" : "f64";
+                    final rounded = real + "::" + name + "(" + expr(args[0]) + ")";
+                    return RuntimeResidents.isResident(imports.selfModule) ? RustConversions.floatToI32(rounded) : RustConversions.floatToU32(rounded);
+                }
                 if (cls.module == "Std" && name == "parseFloat") {
                     final real = FloatPrecision.isF32() ? "f32" : "f64";
                     imports.require("crate::runtime::u_string");

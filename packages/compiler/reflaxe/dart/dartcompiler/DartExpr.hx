@@ -2257,6 +2257,7 @@ class DartExpr {
                     switch (fName) {
                         case "floor": return "(" + expr(args[0]) + ").floor()";
                         case "ceil": return "(" + expr(args[0]) + ").ceil()";
+                        case "round": return "(" + expr(args[0]) + ").round()";
                         case "abs": return "(" + mathFloatArg(args[0]) + ").abs()";
                         case "sqrt":
                             imports.useDartMath();
