@@ -3263,38 +3263,18 @@ class SwiftExpr {
         return lines;
     }
 
+    /**
+        Expression-position variant switches use an immediately-invoked
+        closure so the native switch remains in Swift's permitted return
+        position. The initializer-position caller intentionally continues to
+        use this function unchanged, preserving its existing output.
+    **/
     function switchExpression(sw:TypedExpr):String {
-        sw = stripWrap(sw);
-        final parts = switch (sw.expr) {
-            case TSwitch(subj, cases, def): {subj: subj, cases: cases, def: def};
-            case _: return fail(sw, "not a switch");
-        };
-        final subj = stripWrap(parts.subj);
-        final se = switch (subj.expr) {
-            case TEnumIndex(inner): inner;
-            case _: subj;
-        };
-        final table = enumTable(se);
-        final out = ["switch " + expr(se) + " {"];
-        for (c in parts.cases) {
-            final index = switch (c.values[0].expr) {
-                case TConst(TInt(v)): v;
-                case _: return fail(sw, "variant switch case is not a constant index");
-            };
-            final info = table.get(index);
-            if (info == null)
-                return fail(sw, "variant switch case index has no construct");
-            final names = payloadNames(info.field);
-            final used = usedPayloadIndices(c.expr, info.field);
-            final bindings = [
-                for (i in 0...names.length)
-                    used.indexOf(i) >= 0 ? "let " + payloadBindingName(info.field, i) : "_"
-            ].join(", ");
-            out.push("case ." + SwiftDecl.lowerFirst(info.name) + (names.length > 0 ? "(" + bindings + ")" : "") + ": " + armValue(c.expr));
-        }
-        if (parts.def != null)
-            out.push("default: " + armValue(parts.def));
-        out.push("}");
+        final lines = switchReturn(sw, 1);
+        final out = ["({ () -> " + types.of(sw.t) + " in"];
+        for (line in lines)
+            out.push(line);
+        out.push("})()");
         return out.join("\n");
     }
 
