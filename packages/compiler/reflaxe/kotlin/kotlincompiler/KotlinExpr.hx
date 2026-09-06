@@ -456,8 +456,18 @@ class KotlinExpr {
                     case TFunction(fn): functionLiteralNamed(v.name, fn);
                     default: expr(init);
                 };
+                // Haxe permits binding a non-null local from a Null<T>
+                // initializer (an unsound assignment); Kotlin infers the
+                // initializer's nullable type, so the declaration extracts
+                // once. The null-literal case keeps its declared-nullable
+                // annotation above.
+                final extractsAtDecl = !isNullType(v.t) && isNullType(init.t)
+                    && switch (stripWrap(init).expr) {
+                        case TConst(TNull): false;
+                        case _: true;
+                    };
                 updateLocalProof(v, init);
-                return [indent(depth) + '$kw ${localName(v)}$typeAnn = $initText'];
+                return [indent(depth) + '$kw ${localName(v)}$typeAnn = $initText' + (extractsAtDecl ? "!!" : "")];
             case TVar(v, init) if (init == null):
                 // Deferred local declarations are initialized by later assignments;
                 // Kotlin's definite-assignment analysis checks every read.
