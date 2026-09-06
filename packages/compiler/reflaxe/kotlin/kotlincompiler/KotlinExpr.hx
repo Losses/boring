@@ -12,6 +12,7 @@ import reflaxe.data.ClassFuncData;
 import ExpressionPredicates;
 import PolicyQueries;
 import PolicyQueries.IntervalCapability;
+import PolicyQueries.StdStringCategory;
 import FusionPlan;
 import FusionPlan.FusionStep;
 import ValueTypeSupport;
@@ -21,6 +22,7 @@ import ValueTypeSupport.ValueTypeOperator;
     Statement and expression lowering from the Haxe typed AST to Kotlin.
 **/
 class KotlinExpr {
+    // EnumCycleDetector classification is shared by PolicyQueries.
     final imports:KotlinImports;
     final types:KotlinType;
     final state:KotlinEmissionState;
@@ -2224,33 +2226,31 @@ class KotlinExpr {
     }
 
     function stdStringType(t:Type, value:String, inConcat:Bool, origin:TypedExpr, depth:Int = 0):String {
-        return switch (Context.follow(t)) {
-            case TInst(c, _) if (c.get().name == "String"): value;
-            case TInst(c, [element]) if (c.get().name == "Array"):
+        return switch (PolicyQueries.stdStringCategory(t)) {
+            case IsString: value;
+            case IsArray(element):
                 final index = depth == 0 ? "i" : "i" + depth;
                 final item = stdStringType(element, value + "[" + index + "]", true, origin, depth + 1);
                 'run { val sb = StringBuilder(); sb.append(\'[\'); val n = ${value}.size; var ${index} = 0; while (${index} < n) { if (${index} > 0) { sb.append(", "); }; sb.append(${item}); ${index} += 1; }; sb.append(\']\'); sb.toString() }';
-            case TInst(c, [element]) if (c.get().module == "std.SortedSet"):
+            case IsSortedSet(element):
                 final index = depth == 0 ? "i" : "i" + depth;
                 final item = stdStringType(element, value + ".at(" + index + ")", true, origin, depth + 1);
                 'run { val sb = StringBuilder(); sb.append(\'[\'); val n = ${value}.size(); var ${index} = 0; while (${index} < n) { if (${index} > 0) { sb.append(", "); }; sb.append(${item}); ${index} += 1; }; sb.append(\']\'); sb.toString() }';
-            case TInst(c, [key, val]) if (c.get().module == "std.SortedMap"):
+            case IsSortedMap(key, val):
                 final index = depth == 0 ? "i" : "i" + depth;
                 final itemKey = stdStringType(key, value + ".keyAt(" + index + ")", true, origin, depth + 1);
                 final itemVal = stdStringType(val, value + ".valueAt(" + index + ")", true, origin, depth + 1);
                 'run { val sb = StringBuilder(); sb.append(\'{\'); val n = ${value}.size(); var ${index} = 0; while (${index} < n) { if (${index} > 0) { sb.append(", "); }; sb.append(${itemKey}); sb.append("="); sb.append(${itemVal}); ${index} += 1; }; sb.append(\'}\'); sb.toString() }';
-            case TInst(c, _) if (StaticFieldHelper.hasSelfConstructionStatic(c.get())
-                || c.get().meta.has(":dataClass")): value + ".toString()";
-            case TInst(c, _) if (hasInstanceToString(c.get())): value + ".toString()";
-            case TAbstract(a, _) if (ValueTypeSupport.isMarkedAbstract(a.get())):
-                final abs = a.get();
+            case IsRecordLike: value + ".toString()";
+            case IsInstanceToString: value + ".toString()";
+            case IsMarkedAbstract(abs):
                 if (ValueTypeSupport.memberField(abs, "toString") != null) {
                     value + ".toString()";
                 } else {
                     final representation = value + "." + ValueTypeSupport.representationFieldName(abs);
                     inConcat ? representation : "(" + representation + ").toString()";
                 }
-            case TAbstract(a, _) if (a.get().name == "Float"):
+            case IsFloat:
                 if (inConcat) value else {final runtimePackage = RuntimeConfig.requireImportName("module test extern");
                     imports.require(runtimePackage + ".test.TestCore");
                     // The formatFloat call is emitter-synthesized: no
@@ -2262,16 +2262,16 @@ class KotlinExpr {
                     + value
                     + ")";
                 }
-            case TAbstract(a, _) if (a.get().name == "Int" || a.get().name == "Bool"):
+            case IsInt | IsBool:
                 inConcat ? value : "(" + value + ").toString()";
-            case TInst(c, _) if (c.get().kind.match(KTypeParameter(_))):
+            case IsTypeParameter:
                 inConcat ? value + ".toString()" : "(" + value + ").toString()";
-            case TAbstract(a, params) if (a.get().module == "std.ReadOnlyArray"):
-                stdStringType(haxe.macro.TypeTools.applyTypeParameters(a.get().type, a.get().params, params), value, inConcat, origin, depth);
-            case TEnum(en, _) if (isParameterlessEnum(en.get())): value + (inConcat ? "" : ".name");
-            case TEnum(en, _) if (EnumCycleDetector.isCyclic(en.get())): cyclicEnumString(en.get(), value, inConcat, origin);
-            case TEnum(_, _): inConcat ? value : value + ".toString()";
-            case _:
+            case IsReadOnlyArray(underlying):
+                stdStringType(underlying, value, inConcat, origin, depth);
+            case IsParameterlessEnum(en): value + (inConcat ? "" : ".name");
+            case IsCyclicEnum(en): cyclicEnumString(en, value, inConcat, origin);
+            case IsPayloadEnum(_): inConcat ? value : value + ".toString()";
+            case IsNull | IsUnsupported:
                 Context.error("Std.string accepts scalars, enum values, records, and arrays of them only", origin.pos);
                 null;
         };
