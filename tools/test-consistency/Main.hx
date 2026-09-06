@@ -146,7 +146,8 @@ class Main {
             headerParts.push(StringTools.rpad(header, " ", colWidths.get(target)));
         }
         final separatorParts = [
-            for (target in ["id"].concat(targets)) StringTools.rpad("", "-", colWidths.get(target))
+            for (target in ["id"].concat(targets))
+                StringTools.rpad("", "-", colWidths.get(target))
         ];
 
         print(headerParts.join(" | "));

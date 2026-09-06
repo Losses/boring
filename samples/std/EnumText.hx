@@ -259,13 +259,19 @@ class EnumText {
                 }
                 return stdString(read, pos);
             case TAbstract(a, _) if (a.get().name == "Float"
-                    && Context.defined("boring_oracle")
-                    && Context.definedValue("float-precision") == "f32"):
+                && Context.defined("boring_oracle")
+                && Context.definedValue("float-precision") == "f32"):
                 // Feature spec 44 ruling 5: under the f32 oracle gate a
                 // Float operand prints through std.FpText.shortest, the same
                 // routing record Float fields use
                 // (RecordShape.f32FloatFieldValue).
-                final shortestCall = {expr: ECall({expr: EField({expr: EField({expr: EConst(CIdent("std")), pos: pos}, "FpText"), pos: pos}, "shortest"), pos: pos}, [read]), pos: pos};
+                final shortestCall = {
+                    expr: ECall({
+                        expr: EField({expr: EField({expr: EConst(CIdent("std")), pos: pos}, "FpText"), pos: pos}, "shortest"),
+                        pos: pos
+                    }, [read]),
+                    pos: pos
+                };
                 return shortestCall;
             case _:
                 return stdString(read, pos);

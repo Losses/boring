@@ -595,6 +595,13 @@ class DartExpr {
                 return tryBindingLines(v, init, depth);
             case TVar(v, init) if (init != null && isStringBufToStringCall(init)):
                 return stringBufToStringBindingLines(v, stripWrap(init), depth);
+            case TVar(v, init) if (init != null && isSwitch(init)):
+                final target:TypedExpr = {expr: TLocal(v), t: v.t, pos: init.pos};
+                // Definite initialization assigns it on every path before use.
+                final out = [indent(depth) + types.of(v.t) + " " + localName(v)];
+                for (l in switchAssign(target, init, depth))
+                    out.push(l);
+                return out;
             case TVar(v, init) if (init != null):
                 if (isNonNullNormalization(init) && !isNullLeafType(v.t))
                     nonNullLocals.set(v.id, true);
@@ -694,6 +701,10 @@ class DartExpr {
                 return stringBufMutationLines(fn, args, depth);
             case TMeta(_, inner):
                 return stmtLines(inner, depth);
+            case TSwitch(_, _, _):
+                return switchStatement(e, depth);
+            case TBinop(OpAssign, target, value) if (isSwitch(value)):
+                return switchAssign(target, value, depth);
             case TBinop(OpAssign, l, r):
                 final map = mapAssignment(l);
                 final target = map == null ? assignTarget(l) + " = " : expr(map.receiver) + "[" + expr(map.key) + "] = ";
@@ -1221,38 +1232,12 @@ class DartExpr {
 
     /** `arr[idx] = value` matcher, wrapper-tolerant. */
     function indexedStoreOf(s:TypedExpr):Null<{arr:TVar, idx:TVar, value:TypedExpr}> {
-        switch (stripWrap(s).expr) {
-            case TBinop(OpAssign, target, value):
-                switch (stripWrap(target).expr) {
-                    case TArray(arr, idx):
-                        final arrLocal = stripWrap(arr);
-                        final idxLocal = stripWrap(idx);
-                        switch [arrLocal.expr, idxLocal.expr] {
-                            case [TLocal(a), TLocal(ix)]: return {arr: a, idx: ix, value: value};
-                            case _:
-                        }
-                    case _:
-                }
-            case _:
-        }
-        return null;
+        return PolicyQueries.indexedStoreOf(s);
     }
 
     /** `arr.push(arg)` matcher, wrapper-tolerant. */
     function pushOf(s:TypedExpr):Null<{arr:TVar, arg:TypedExpr}> {
-        switch (stripWrap(s).expr) {
-            case TCall(fn, args) if (args.length == 1):
-                switch (stripWrap(fn).expr) {
-                    case TField(subj, fa) if (fieldName(fa) == "push"):
-                        switch (stripWrap(subj).expr) {
-                            case TLocal(a): return {arr: a, arg: args[0]};
-                            case _:
-                        }
-                    case _:
-                }
-            case _:
-        }
-        return null;
+        return PolicyQueries.pushOf(s);
     }
 
     // ------------------------------------------------------------------
@@ -1273,7 +1258,7 @@ class DartExpr {
             case TTry(_, _):
                 return fail(e, "try region lowers at statement, initializer, or return position");
             case TSwitch(_, _, _):
-                return fail(e, "variant switch lowers at return position");
+                return fail(e, "variant switch lowers at return, statement, initializer, or assign position");
             case TConst(c):
                 switch (c) {
                     case TInt(v): return Std.string(v);
@@ -1321,7 +1306,17 @@ class DartExpr {
                     case _: return fail(e, "enum payload only lowers inside a variant switch arm");
                 };
                 final n = payloadName(ef, index);
-                return "(() { final _v = " + expr(se) + "; switch (_v) { case " + qualifiedRef(en.module, DartDecl.constructClassName(en.name, ef.name)) + "(" + n + ": var " + n + "): return " + n + "; } })()";
+                return "(() { final _v = "
+                    + expr(se)
+                    + "; switch (_v) { case "
+                    + qualifiedRef(en.module, DartDecl.constructClassName(en.name, ef.name))
+                    + "("
+                    + n
+                    + ": var "
+                    + n
+                    + "): return "
+                    + n
+                    + "; } })()";
             case TEnumIndex(_):
                 return fail(e, "enum index only lowers inside a variant switch");
             case TFunction(f):
@@ -1374,17 +1369,7 @@ class DartExpr {
     }
 
     function valueTypeLocalValues(wrapper:TypedExpr):Map<Int, TypedExpr> {
-        final values:Map<Int, TypedExpr> = [];
-        switch (wrapper.expr) {
-            case TBlock(stmts):
-                for (stmt in stmts)
-                    switch (stmt.expr) {
-                        case TVar(v, init) if (init != null && !StringTools.startsWith(v.name, "this")): values.set(v.id, init);
-                        case _:
-                    }
-            case _:
-        }
-        return values;
+        return PolicyQueries.valueTypeLocalValues(wrapper);
     }
 
     function valueTypeOperand(value:TypedExpr, locals:Map<Int, TypedExpr>, ?abs:AbstractType, asRepresentation:Bool = false):String {
@@ -1665,11 +1650,7 @@ class DartExpr {
     }
 
     function isFpHelperInt64Call(fn:TypedExpr):Bool {
-        return switch (stripWrap(fn).expr) {
-            case TField(_, FStatic(classRef, fieldRef)): classRef.get()
-                    .module == "haxe.io.FPHelper" && (fieldRef.get().name == "doubleToI64" || fieldRef.get().name == "f32ToI64");
-            case _: false;
-        };
+        return PolicyQueries.isFpHelperInt64Call(fn);
     }
 
     function field(subj:TypedExpr, fa:FieldAccess):String {
@@ -2018,12 +1999,7 @@ class DartExpr {
     }
 
     function hasInstanceToString(cls:ClassType):Bool {
-        for (field in cls.fields.get())
-            if (field.name == "toString")
-                return true;
-        if (cls.superClass == null)
-            return false;
-        return hasInstanceToString(cls.superClass.t.get());
+        return PolicyQueries.hasInstanceToString(cls);
     }
 
     function cyclicEnumString(en:EnumType, value:String, inConcat:Bool, origin:TypedExpr):String {
@@ -2039,13 +2015,7 @@ class DartExpr {
     }
 
     function isParameterlessEnum(en:EnumType):Bool {
-        for (ef in en.constructs)
-            switch (ef.type) {
-                case TFun(args, _) if (args.length > 0):
-                    return false;
-                case _:
-            }
-        return true;
+        return PolicyQueries.isParameterlessEnum(en);
     }
 
     /**
@@ -2084,10 +2054,7 @@ class DartExpr {
     }
 
     function stdStringArg(e:TypedExpr):Null<TypedExpr> {
-        return switch (stripWrap(e).expr) {
-            case TCall({expr: TField(_, FStatic(c, cf))}, args) if (c.get().module == "Std" && cf.get().name == "string" && args.length == 1): args[0];
-            case _: null;
-        };
+        return PolicyQueries.stdStringArg(e);
     }
 
     function stringToolsHex(args:Array<TypedExpr>):String {
@@ -2247,6 +2214,7 @@ class DartExpr {
                     switch (fName) {
                         case "floor": return "(" + expr(args[0]) + ").floor()";
                         case "ceil": return "(" + expr(args[0]) + ").ceil()";
+                        case "round": return "(" + expr(args[0]) + ").round()";
                         case "abs": return "(" + mathFloatArg(args[0]) + ").abs()";
                         case "sqrt":
                             imports.useDartMath();
@@ -2257,6 +2225,11 @@ class DartExpr {
                         case "max":
                             imports.useDartMath();
                             return "math.max(" + mathFloatArg(args[0]) + ", " + mathFloatArg(args[1]) + ")";
+                        case "pow":
+                            // math.pow returns num; the call site narrows
+                            // to the double the Haxe signature promises.
+                            imports.useDartMath();
+                            return "math.pow(" + mathFloatArg(args[0]) + ", " + mathFloatArg(args[1]) + ").toDouble()";
                         case "isNaN": return "(" + expr(args[0]) + ").isNaN";
                         case "isFinite": return "(" + expr(args[0]) + ").isFinite";
                         case _:
@@ -2712,18 +2685,12 @@ class DartExpr {
 
     /** The key type argument of a sorted builder factory call. */
     function kTypeOf(fn:TypedExpr):Null<Type> {
-        return switch (fn.t) {
-            case TFun(_, TInst(_, params)) if (params.length > 0): params[0];
-            case _: null;
-        };
+        return PolicyQueries.kTypeOf(fn);
     }
 
     /** The value type argument of a sorted map builder factory call. */
     function vTypeOf(fn:TypedExpr):Null<Type> {
-        return switch (fn.t) {
-            case TFun(_, TInst(_, params)) if (params.length > 1): params[1];
-            case _: null;
-        };
+        return PolicyQueries.vTypeOf(fn);
     }
 
     /**
@@ -2772,13 +2739,7 @@ class DartExpr {
     }
 
     static function isValueEnum(en:EnumType):Bool {
-        for (ef in en.constructs)
-            switch (Context.follow(ef.type)) {
-                case TFun(args, _) if (args.length > 0):
-                    return false;
-                case _:
-            }
-        return true;
+        return PolicyQueries.isValueEnum(en);
     }
 
     function newExpr(c:Ref<ClassType>, params:Array<Type>, args:Array<TypedExpr>):String {
@@ -2822,11 +2783,7 @@ class DartExpr {
     }
 
     function mapBackingReceiver(e:TypedExpr):Null<TypedExpr> {
-        return switch (stripWrap(e).expr) {
-            case TField(receiver, FInstance(_, _, cf)) if (cf.get().name == "h" && isMapBackingType(receiver.t)): receiver;
-            case TField(receiver, FAnon(cf)) if (cf.get().name == "h" && isMapBackingType(receiver.t)): receiver;
-            case _: null;
-        };
+        return PolicyQueries.mapBackingReceiver(e);
     }
 
     function isMapBackingType(t:Type):Bool {
@@ -2834,19 +2791,11 @@ class DartExpr {
     }
 
     function mapAssignment(e:TypedExpr):Null<{receiver:TypedExpr, key:TypedExpr}> {
-        return switch (stripWrap(e).expr) {
-            case TArray(arr, key):
-                final receiver = mapBackingReceiver(arr);
-                receiver == null ? null : {receiver: receiver, key: key};
-            case _: null;
-        };
+        return PolicyQueries.mapAssignment(e);
     }
 
     function isHasOwnPropertyValue(e:TypedExpr):Bool {
-        return switch (stripWrap(e).expr) {
-            case TField(_, FInstance(_, _, cf)) | TField(_, FAnon(cf)) if (cf.get().name == "hasOwnProperty"): true;
-            case _: false;
-        };
+        return PolicyQueries.isHasOwnPropertyValue(e);
     }
 
     function mapHasOwnPropertyCall(fn:TypedExpr, args:Array<TypedExpr>):Null<String> {
@@ -3142,11 +3091,7 @@ class DartExpr {
         NaN tail read in the TS implementation.
     **/
     function stringBufMutationParts(fn:TypedExpr):Null<{name:String, subj:TypedExpr}> {
-        return switch (fn.expr) {
-            case TField(subj, FInstance(_, _, cf)) if (isStringBuf(subj)): final n = cf.get()
-                    .name; n == "add" || n == "addChar" ? {name: n, subj: subj} : null;
-            case _: null;
-        };
+        return PolicyQueries.stringBufMutationParts(fn);
     }
 
     function isStringBufToStringCall(e:TypedExpr):Bool {
@@ -3282,7 +3227,43 @@ class DartExpr {
         through `field: var name` subpatterns; the sealed hierarchy
         keeps the statement exhaustive with no default arm.
     **/
-    function switchReturn(sw:TypedExpr, depth:Int):Array<String> {
+    function switchStatement(sw:TypedExpr, depth:Int):Array<String> {
+        final lines = switchReturn(sw, depth, true);
+        final out:Array<String> = [];
+        for (line in lines) {
+            final marker = "return ";
+            final p = line.indexOf(marker);
+            if (p >= 0) {
+                out.push(line.substr(0, p) + line.substr(p + marker.length));
+                // Statement-position switch arms must not fall through to the
+                // next variant. Return-position arms retain their returns.
+                out.push(indent(depth + 2) + "break;");
+            } else {
+                out.push(line);
+            }
+        }
+        return out;
+    }
+
+    function switchAssign(target:TypedExpr, sw:TypedExpr, depth:Int):Array<String> {
+        final lines = switchReturn(sw, depth, true);
+        final prefix = indent(depth + 2) + "return ";
+        final out:Array<String> = [];
+        for (line in lines) {
+            if (StringTools.startsWith(line, prefix)) {
+                out.push(indent(depth + 2) + assignTarget(target) + " = " + line.substr(prefix.length));
+                // Statement-position switch arms must not fall through to the
+                // next variant. Return-position arms retain their returns.
+                out.push(indent(depth + 2) + "break;");
+            } else {
+                out.push(line);
+            }
+        }
+        return out;
+    }
+
+    function switchReturn(sw:TypedExpr, depth:Int, reservedPayloadNames:Bool = false):Array<String> {
+        sw = stripWrap(sw);
         final switchParts = switch (sw.expr) {
             case TSwitch(subj, cases, def): {subj: subj, cases: cases, def: def};
             case _: return fail(sw, "not a switch");
@@ -3308,7 +3289,7 @@ class DartExpr {
             final used = usedPayloadIndices(c.expr, info.field);
             final bindings = [
                 for (i in 0...names.length)
-                    if (used.indexOf(i) >= 0) names[i] + ": var " + names[i]
+                    if (used.indexOf(i) >= 0) names[i] + ": var " + (reservedPayloadNames ? payloadBindingName(info.field, i) : names[i])
             ];
             final cls = DartDecl.constructClassName(info.enumName, info.name);
             final pattern = bindings.length == 0
@@ -3316,7 +3297,7 @@ class DartExpr {
                     info.enumName) + "." + DartDecl.lowerFirst(info.name) : qualifiedRef(info.module,
                         cls) + (bindings.length > 0 ? "(" + bindings.join(", ") + ")" : "()");
             out.push(indent(depth + 1) + "case " + pattern + ":");
-            for (l in armLines(c.expr, depth + 2))
+            for (l in armLines(c.expr, depth + 2, reservedPayloadNames))
                 out.push(l);
         }
         if (switchParts.def != null) {
@@ -3326,7 +3307,7 @@ class DartExpr {
         return out;
     }
 
-    function armLines(e:TypedExpr, depth:Int):Array<String> {
+    function armLines(e:TypedExpr, depth:Int, reservedPayloadNames:Bool = false):Array<String> {
         final out:Array<String> = [];
         var value:Null<String> = null;
         function walk(stmts:Array<TypedExpr>) {
@@ -3338,7 +3319,7 @@ class DartExpr {
                         }
                         switch (stripWrap(init).expr) {
                             case TEnumParameter(se, ef, index):
-                                subst.set(v.id, payloadName(ef, index));
+                                subst.set(v.id, reservedPayloadNames ? payloadBindingName(ef, index) : payloadName(ef, index));
                             case TLocal(source) if (subst.exists(source.id)):
                                 // The typer binds the switch subject to a hidden
                                 // local before extracting the payload; forward
@@ -3396,6 +3377,10 @@ class DartExpr {
                 return fail(se, "variant switch subject is not a variant value");
         }
         return table;
+    }
+
+    function payloadBindingName(ef:EnumField, index:Int):String {
+        return "_p" + index;
     }
 
     function payloadNames(ef:EnumField):Array<String> {
@@ -3558,13 +3543,7 @@ class DartExpr {
     }
 
     function flattenAdd(e:TypedExpr, into:Array<TypedExpr>):Void {
-        switch (e.expr) {
-            case TBinop(OpAdd, a, b):
-                flattenAdd(a, into);
-                into.push(b);
-            case _:
-                into.push(e);
-        }
+        return PolicyQueries.flattenAdd(e, into);
     }
 
     function provenNonNull(e:TypedExpr):Bool {
@@ -3675,17 +3654,7 @@ class DartExpr {
     }
 
     function mentionsLocal(e:TypedExpr, v:TVar):Bool {
-        var found = false;
-        function walk(x:TypedExpr) {
-            switch (x.expr) {
-                case TLocal(l) if (l.id == v.id):
-                    found = true;
-                case _:
-            }
-            TypedExprTools.iter(x, walk);
-        }
-        walk(e);
-        return found;
+        return PolicyQueries.mentionsLocal(e, v);
     }
 
     function localName(v:TVar):String {
@@ -3851,22 +3820,11 @@ class DartExpr {
     }
 
     function isStringBuf(e:TypedExpr):Bool {
-        if (e == null)
-            return false;
-        return switch (Context.follow(e.t)) {
-            case TInst(c, _): final cls = c.get(); (cls.pack.join(".") == "std" && cls.name == "StringBuf") || (cls.pack.length == 0 && cls.name == "StringBuf");
-            case _: false;
-        };
+        return PolicyQueries.isStringBuf(e);
     }
 
     function unwrapLambda(e:TypedExpr):Null<TFunc> {
-        if (e == null)
-            return null;
-        return switch (e.expr) {
-            case TFunction(f): f;
-            case TParenthesis(inner) | TCast(inner, _) | TMeta(_, inner): unwrapLambda(inner);
-            case _: null;
-        };
+        return PolicyQueries.unwrapLambda(e);
     }
 
     function lambdaBody(e:TypedExpr):TypedExpr {
@@ -3888,10 +3846,7 @@ class DartExpr {
     }
 
     function isStringSubject(e:TypedExpr):Bool {
-        return switch (Context.follow(stripCast(e).t)) {
-            case TInst(c, _): c.get().name == "String";
-            case _: false;
-        }
+        return PolicyQueries.isStringSubject(e);
     }
 
     /**
@@ -3904,6 +3859,13 @@ class DartExpr {
             case TParenthesis(inner) | TCast(inner, _) | TMeta(_, inner): stripWrap(inner);
             case _: e;
         }
+    }
+
+    function isSwitch(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TSwitch(_, _, _): true;
+            case _: false;
+        };
     }
 
     function quoteString(s:String):String {

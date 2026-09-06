@@ -4,7 +4,6 @@ import boring.SwitchOps;
 import std.Test;
 
 class SwitchOpsTests {
-
     @:test("switch assign position lowers")
     public static function testAssign():Void {
         Test.equals("empty", SwitchOps.assign(Empty));
