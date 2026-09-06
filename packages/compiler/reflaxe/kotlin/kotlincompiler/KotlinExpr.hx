@@ -1615,8 +1615,8 @@ class KotlinExpr {
 
     /**
         The member-access separator rendered after a subject. A subject
-        whose Haxe type is nullable takes `?.` until a dominating proof
-        narrows it. A null-initialized subject declares a non-null Haxe
+        whose Haxe type is nullable extracts with `!!` until a dominating
+        proof narrows it. A null-initialized subject declares a non-null Haxe
         type, so the program keeps the value present at every use and the
         extraction uses `!!`; its result stays non-null for the enclosing
         expression, which `?.` would widen into a type error inside
@@ -1625,8 +1625,16 @@ class KotlinExpr {
     function nullableAccess(subj:TypedExpr):String {
         if (isNullInitialized(subj))
             return "!!.";
+        // The typer wraps an implicit Null<T> unwrap in TCast; the cast's
+        // own type is the non-null target, so look through it before
+        // deciding.
+        switch (subj.expr) {
+            case TCast(inner, _) if (isNullType(inner.t) && !provenNonNull(inner)):
+                return "!!.";
+            case _:
+        }
         if (isNullType(subj.t) && !provenNonNull(subj))
-            return "?.";
+            return "!!.";
         return ".";
     }
 
