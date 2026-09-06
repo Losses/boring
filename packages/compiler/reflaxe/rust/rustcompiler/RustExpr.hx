@@ -14,7 +14,6 @@ import PolicyQueries;
 import ExpressionBlockNorm;
 import AssignTargetPlan;
 import AssignTargetPlan.AssignTargetFieldKind;
-import PolicyQueries.IntervalCapability;
 import PolicyQueries.StdStringCategory;
 import PolicyQueries.Int64Op;
 import FusionPlan;
@@ -23,7 +22,6 @@ import VarFusionPlan;
 import TerminationAnalysis;
 import ValueTypeSupport;
 import ValueTypePlan;
-
 
 /**
     Statement and expression lowering from the Haxe typed AST to Rust.
@@ -1086,8 +1084,7 @@ class RustExpr {
 
     /** Expression-position block lowering (features/43). */
     function blockExpression(stmts:Array<TypedExpr>):String {
-        stmts = ExpressionBlockNorm.normalize(stmts, (e, message) -> fail(e, message),
-            _ -> "expression block must end in a value statement (features/43)",
+        stmts = ExpressionBlockNorm.normalize(stmts, (e, message) -> fail(e, message), _ -> "expression block must end in a value statement (features/43)",
             "expression block allows only declarations before its value statement (features/43)");
         final out = ["{"];
         for (s in stmts.slice(0, stmts.length - 1))
@@ -1450,10 +1447,8 @@ class RustExpr {
     // ------------------------------------------------------------------
     // Counted loops
     // ------------------------------------------------------------------
-    static final intervalCaps:Array<IntervalCapability> = [];
-
     function regroupLoops(stmts:Array<TypedExpr>):Array<TypedExpr> {
-        return PolicyQueries.regroupLoops(stmts, intervalCaps);
+        return PolicyQueries.regroupLoops(stmts);
     }
 
     function intervalCore(counterDecl:TypedExpr, boundDecl:TypedExpr, whileExpr:TypedExpr):Null<{
@@ -1471,7 +1466,7 @@ class RustExpr {
         bound:TypedExpr,
         body:Array<TypedExpr>
     }> {
-        return PolicyQueries.matchInterval(e, intervalCaps);
+        return PolicyQueries.matchInterval(e);
     }
 
     function intervalShort(counterDecl:TypedExpr, whileExpr:TypedExpr):Null<{
@@ -1480,7 +1475,7 @@ class RustExpr {
         bound:TypedExpr,
         body:Array<TypedExpr>
     }> {
-        return PolicyQueries.intervalShort(counterDecl, whileExpr, intervalCaps);
+        return PolicyQueries.intervalShort(counterDecl, whileExpr);
     }
 
     function loopLines(loop, depth:Int):Array<String> {
@@ -2297,18 +2292,22 @@ class RustExpr {
         return switch (plan.kind) {
             case ValueTypeBinary(op, left, right):
                 final field = plan.field;
-                if (field == null) expr(value) else {
-                    final asRepresentation = nativeOperator && field.name == currentMethodName;
+                if (field == null) expr(value) else {final asRepresentation = nativeOperator && field.name == currentMethodName;
                     final rendered = valueTypeOperand(left, locals, abs, asRepresentation) + " " + opStr(op) + " "
                         + valueTypeOperand(right, locals, abs, asRepresentation);
-                    plan.wrapperRequired ? wrapperName + "(" + rendered + ")" : rendered;
+                    plan.wrapperRequired ? wrapperName
+                        + "("
+                        + rendered
+                        + ")" : rendered;
                 }
             case ValueTypeUnary(op, subject):
                 final field = plan.field;
-                if (field == null) expr(value) else {
-                    final asRepresentation = nativeOperator && field.name == currentMethodName;
+                if (field == null) expr(value) else {final asRepresentation = nativeOperator && field.name == currentMethodName;
                     final rendered = "-" + valueTypeOperand(subject, locals, abs, asRepresentation);
-                    plan.wrapperRequired ? wrapperName + "(" + rendered + ")" : rendered;
+                    plan.wrapperRequired ? wrapperName
+                        + "("
+                        + rendered
+                        + ")" : rendered;
                 }
             case _: wrapperName + "(" + expr(value) + ")";
         };
@@ -3529,11 +3528,9 @@ class RustExpr {
         return switch (PolicyQueries.int64OpOf(fn, args)) {
             case Make(high, low): widenI64(high) + " << 32 | " + widenI64(low);
             case OfInt(value): signExtendI64(value);
-            case GetHigh(value): if (isFpHelperInt64Halves(value)) expr(value) + ".high" else
-                            RustConversions.truncate("("
-                            + receiverOperand(value) + " >> 32)", "u32");
-            case GetLow(value): if (isFpHelperInt64Halves(value)) expr(value) + ".low" else
-                            RustConversions.truncate(expr(value), "u32");
+            case GetHigh(value): if (isFpHelperInt64Halves(value)) expr(value) + ".high" else RustConversions.truncate("(" + receiverOperand(value) +
+                    " >> 32)", "u32");
+            case GetLow(value): if (isFpHelperInt64Halves(value)) expr(value) + ".low" else RustConversions.truncate(expr(value), "u32");
             case Add(l, r): receiverOperand(l) + ".wrapping_add(" + expr(r) + ")";
             case Sub(l, r): receiverOperand(l) + ".wrapping_sub(" + expr(r) + ")";
             case Mul(l, r): "(" + expr(l) + ").wrapping_mul(" + expr(r) + ")";
@@ -5444,20 +5441,16 @@ class RustExpr {
     }
 
     function assignTarget(e:TypedExpr):String {
-        return AssignTargetPlan.assignTarget(e,
-            (arr, idx) -> expr(arr) + "[" + castArg(idx, "usize") + "]",
-            e -> {
-                final target = staticAssignmentTarget(e);
-                return switch (e.expr) {
-                    case TField(_, FStatic(c, cf)): target != null ? target : staticRef(c.get(), cf.get().name);
-                    case _: fail(e, "assignment target has no Rust lowering");
-                };
-            },
-            (subj, kind, _) -> switch (kind) {
-                case Instance(_, cf) | Anonymous(cf): expr(subj) + "." + RustImports.toSnakeCase(cf.get().name);
-            },
-            v -> RustImports.toSnakeCase(localName(v)),
-            (e, _) -> fail(e, "assignment target has no Rust lowering: " + Std.string(e.expr)));
+        return AssignTargetPlan.assignTarget(e, (arr, idx) -> expr(arr) + "[" + castArg(idx, "usize") + "]", e -> {
+            final target = staticAssignmentTarget(e);
+            return switch (e.expr) {
+                case TField(_, FStatic(c, cf)): target != null ? target : staticRef(c.get(), cf.get().name);
+                case _: fail(e, "assignment target has no Rust lowering");
+            };
+        }, (subj, kind, _) -> switch (kind) {
+            case Instance(_, cf) | Anonymous(cf): expr(subj) + "." + RustImports.toSnakeCase(cf.get().name);
+        },
+            v -> RustImports.toSnakeCase(localName(v)), (e, _) -> fail(e, "assignment target has no Rust lowering: " + Std.string(e.expr)));
     }
 
     function objectLiteral(e:TypedExpr, fields:Array<{name:String, expr:TypedExpr}>):String {

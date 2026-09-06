@@ -18,33 +18,6 @@
     "fixture": "packages/compiler/reflaxe/rust/rustcompiler/RustExpr.hx"
   },
   {
-    "id": "interval-matches-do-while-ts",
-    "mechanism": "IntervalCapability.MatchesDoWhileLoops",
-    "target": "ts",
-    "shape": "MatchesDoWhileLoops is accepted only by the TypeScript interval recognizer",
-    "reason": "A do-while executes once before testing; a range-for executes zero times when start is greater than or equal to bound, so widening the interval surface deletes one execution",
-    "ruling": "keep the narrow surface; probe interval-do-while-trip-count before any unification (2026-09-06 advisory)",
-    "fixture": "packages/compiler/reflaxe/ts/tscompiler/TsExpr.hx"
-  },
-  {
-    "id": "interval-requires-initialized-counter-kotlin",
-    "mechanism": "IntervalCapability.RequiresInitializedCounter",
-    "target": "kotlin",
-    "shape": "RequiresInitializedCounter is accepted only by the Kotlin interval recognizer",
-    "reason": "Kotlin's generated loop counter must be initialized before the target lowering can safely represent the interval",
-    "ruling": "keep the Kotlin-only requirement as a target contract until counter initialization is proven equivalent across emitters (2026-09-06 advisory)",
-    "fixture": "packages/compiler/reflaxe/kotlin/kotlincompiler/KotlinExpr.hx"
-  },
-  {
-    "id": "interval-unwraps-bound-subject-ts",
-    "mechanism": "IntervalCapability.UnwrapsBoundSubject",
-    "target": "ts",
-    "shape": "UnwrapsBoundSubject is accepted only by the TypeScript interval recognizer",
-    "reason": "The TypeScript recognizer unwraps the bound subject in a form that is not shared by the other target recognizers",
-    "ruling": "keep the narrow surface; investigate bound-subject evaluation count before any unification (2026-09-06 advisory)",
-    "fixture": "packages/compiler/reflaxe/ts/tscompiler/TsExpr.hx"
-  },
-  {
     "id": "scan-locals-dart",
     "mechanism": "scanLocals",
     "target": "dart",
