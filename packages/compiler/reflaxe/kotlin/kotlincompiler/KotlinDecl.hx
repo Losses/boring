@@ -1185,12 +1185,8 @@ class KotlinDecl {
     // ------------------------------------------------------------------
 
     public function enumDecl(en:EnumType, options:Array<EnumOptionData>):String {
-        final sorted = options.copy();
-        sorted.sort((a, b) -> Reflect.compare(a.field.index, b.field.index));
-        var valueEnum = true;
-        for (o in sorted)
-            if (o.args.length > 0)
-                valueEnum = false;
+        final sorted = PolicyQueries.sortedEnumOptions(options);
+        final valueEnum = PolicyQueries.isValueEnumOptions(sorted);
         if (valueEnum) {
             final lines = [
                 'enum class ${en.name} {\n    ' + [for (o in sorted) o.name].join(",\n    ") + '\n}'
@@ -1218,8 +1214,7 @@ class KotlinDecl {
     public function typedefDecl(def:DefType):String {
         switch (def.type) {
             case TAnonymous(anonRef):
-                final fields = anonRef.get().fields.copy();
-                fields.sort((a, b) -> Reflect.compare(Context.getPosInfos(a.pos).min, Context.getPosInfos(b.pos).min));
+                final fields = PolicyQueries.sortedAnonFields(anonRef);
                 final fieldLines = [for (field in fields) '    var ${field.name}: ${types.of(field.type)}'];
                 final dataClassStr = ['data class ${def.name}(', fieldLines.join(",\n"), ')'].join("\n");
 
