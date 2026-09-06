@@ -973,7 +973,7 @@ class KotlinDecl {
         if (v.isStatic) {
             final init = StaticFieldHelper.validatedInitializer(field, cls);
             final nullInitialized = switch (init == null ? null : init.expr) {
-                case TConst(TNull): isNullableReferenceType(field.type);
+                case TConst(TNull): !PolicyQueries.isNullableType(field.type) && isNullableReferenceType(field.type);
                 default: false;
             };
             if (nullInitialized)

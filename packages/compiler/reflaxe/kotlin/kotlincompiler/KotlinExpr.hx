@@ -65,10 +65,6 @@ class KotlinExpr {
         nullInitializedFields.set(key, true);
     }
 
-    public static function isNullInitializedField(key:String):Bool {
-        return nullInitializedFields.exists(key);
-    }
-
     /** Field reads proven non-null by a dominating null check. */
     final nonNullFields:Map<String, Bool> = [];
 
@@ -448,7 +444,7 @@ class KotlinExpr {
                     default:
                 }
                 final nullInitialized = switch (stripWrap(init).expr) {
-                    case TConst(TNull): isNullableReferenceType(v.t);
+                    case TConst(TNull): !isNullType(v.t) && isNullableReferenceType(v.t);
                     default: false;
                 };
                 if (nullInitialized)
@@ -1619,8 +1615,21 @@ class KotlinExpr {
         };
     }
 
-    function isNullableType(e:TypedExpr):Bool {
-        return PolicyQueries.isNullableType(e.t) || isNullInitialized(e);
+    /**
+        The member-access separator rendered after a subject. A subject
+        whose Haxe type is nullable takes `?.` until a dominating proof
+        narrows it. A null-initialized subject declares a non-null Haxe
+        type, so the program keeps the value present at every use and the
+        extraction uses `!!`; its result stays non-null for the enclosing
+        expression, which `?.` would widen into a type error inside
+        arithmetic and assignment contexts. A proven subject takes `.`.
+    **/
+    function nullableAccess(subj:TypedExpr):String {
+        if (isNullInitialized(subj))
+            return "!!.";
+        if (isNullType(subj.t) && !provenNonNull(subj))
+            return "?.";
+        return ".";
     }
 
     function isNullableReferenceType(t:Null<Type>):Bool {
@@ -1828,8 +1837,18 @@ class KotlinExpr {
                 final rightText = operand(r, op, true);
                 restoreProofs(saved);
                 return leftText + " " + symbolOf(op) + " " + rightText;
-            case OpAdd | OpSub | OpMult | OpDiv | OpMod | OpEq | OpNotEq | OpBoolOr:
+            case OpAdd | OpSub | OpMult | OpDiv | OpMod | OpEq | OpNotEq:
                 return operand(l, op, false) + " " + symbolOf(op) + " " + operand(r, op, true);
+            case OpBoolOr:
+                // Kotlin's flow analysis treats a evaluated-false left
+                // operand as establishing the left null guard's else path,
+                // so the right operand renders under that proof.
+                final leftText = operand(l, op, false);
+                final saved = proofSnapshot();
+                addProofs(conditionProofs(l).elsePath);
+                final rightText = operand(r, op, true);
+                restoreProofs(saved);
+                return leftText + " || " + rightText;
             case OpShl:
                 return "((" + operand(l, op, false) + ") shl (" + operand(r, op, true) + "))";
             case OpShr:
@@ -1851,11 +1870,17 @@ class KotlinExpr {
         var rendered = expr(e);
         // Nullable values still need extraction unless the Haxe expression
         // has already been normalized, or control flow proved the local is
-        // non-null. Kotlin's smart casts then make `!!` redundant.
+        // non-null. Kotlin's smart casts then make `!!` redundant. A
+        // null-initialized local carries a non-null Haxe type as a program
+        // invariant: it extracts on every use and never joins the proof
+        // set, because render-order proofs misjudge assignments inside
+        // loops and branches.
         final proven = provenNonNull(e);
-        if ((PolicyQueries.isNullableType(e.t) || isNullInitialized(e)) && !proven && parent != OpEq && parent != OpNotEq) {
+        final nullInit = isNullInitialized(e);
+        if (((isNullType(e.t) && !proven) || nullInit) && parent != OpEq && parent != OpNotEq) {
             rendered += "!!";
-            addProofExpr(e);
+            if (!nullInit)
+                addProofExpr(e);
         }
         switch (e.expr) {
             case TBinop(op, _, _):
@@ -2005,15 +2030,14 @@ class KotlinExpr {
                     }
                 }
                 if (name == "length") {
-                    final receiver = expr(subj) + (PolicyQueries.isNullableType(subj.t) || isNullInitialized(subj) ? "?." : ".");
+                    final receiver = expr(subj) + nullableAccess(subj);
                     if (isString(subj)) {
                         return receiver + "length";
                     } else {
                         return receiver + "size";
                     }
                 }
-                return expr(subj) + (PolicyQueries.isNullableType(subj.t)
-                    || isNullInitialized(subj) ? "?." : ".") + KotlinNameEscape.escape(name);
+                return expr(subj) + nullableAccess(subj) + KotlinNameEscape.escape(name);
             case FDynamic(name):
                 if ((name == "length" || name == "get_length") && isStringBuf(subj)) {
                     return expr(subj) + ".length";
@@ -2700,12 +2724,7 @@ class KotlinExpr {
                 if (name == "join") {
                     return expr(subj) + ".joinToString(" + renderedArgs + ")";
                 }
-                return expr(subj)
-                    + (PolicyQueries.isNullableType(subj.t) || isNullInitialized(subj) ? "?." : ".")
-                    + name
-                    + "("
-                    + renderedArgs
-                    + ")";
+                return expr(subj) + nullableAccess(subj) + name + "(" + renderedArgs + ")";
             case TField(_, FStatic(c, cf)):
                 final cls = c.get();
                 final name = cf.get().name;
@@ -2795,11 +2814,9 @@ class KotlinExpr {
                     defaultArgText(registered, expected);
                 } else if (registered != null && expected != null && isNullType(a.t)) {
                     "(" + text + " ?: " + defaultArgText(registered, expected) + ")";
-                } else if ((PolicyQueries.isNullableType(a.t) || isNullInitialized(a))
-                    && expected != null
-                    && !isNullType(expected)
-                    && !provenNonNull(a)) {
-                    addProofExpr(a);
+                } else if (((isNullType(a.t) && !provenNonNull(a)) || isNullInitialized(a)) && expected != null && !isNullType(expected)) {
+                    if (!isNullInitialized(a))
+                        addProofExpr(a);
                     text + "!!";
                 } else if (isIntType(a.t) && isFloatExpectedType(expected)) "(" + text + ")." + (FloatPrecision.isF32() ? "toFloat()" : "toDouble()"); else
                     text;
