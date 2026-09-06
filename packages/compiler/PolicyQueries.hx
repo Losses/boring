@@ -5,6 +5,7 @@ import haxe.macro.Type;
 import reflaxe.data.ClassFuncData;
 import reflaxe.data.ClassVarData;
 import RuntimeResidents;
+import ExpressionPredicates;
 
 /** Shared policy queries for declaration and field-key decisions. */
 class PolicyQueries {
@@ -161,6 +162,7 @@ class PolicyQueries {
     }
 
 
+
     public static function indexedStoreOf(s:TypedExpr):Null<{arr:TVar, idx:TVar, value:TypedExpr}> {
         switch (ExpressionPredicates.stripWrap(s).expr) {
             case TBinop(OpAssign, target, value):
@@ -293,6 +295,53 @@ class PolicyQueries {
             case _:
         }
         return values;
+    }
+
+    public static function flattenAdd(e:TypedExpr, into:Array<TypedExpr>):Void {
+        switch (e.expr) {
+            case TBinop(OpAdd, a, b):
+                flattenAdd(a, into);
+                into.push(b);
+            case _:
+                into.push(e);
+        }
+    }
+
+    public static function isValueEnum(en:EnumType):Bool {
+        for (ef in en.constructs)
+            switch (Context.follow(ef.type)) {
+                case TFun(args, _) if (args.length > 0):
+                    return false;
+                case _:
+            }
+        return true;
+    }
+
+    public static function kTypeOf(fn:TypedExpr):Null<Type> {
+        return switch (fn.t) {
+            case TFun(_, TInst(_, params)) if (params.length > 0): params[0];
+            case _: null;
+        };
+    }
+
+    public static function vTypeOf(fn:TypedExpr):Null<Type> {
+        return switch (fn.t) {
+            case TFun(_, TInst(_, params)) if (params.length > 1): params[1];
+            case _: null;
+        };
+    }
+
+    public static function structureSignature(anon:Ref<AnonType>):String {
+        final entries = [for (f in anon.get().fields) f.name + ":" + Std.string(f.type)];
+        entries.sort(Reflect.compare);
+        return entries.join(";");
+    }
+
+    public static function isStringSubject(e:TypedExpr):Bool {
+        return switch (Context.follow(ExpressionPredicates.stripCast(e).t)) {
+            case TInst(c, _): c.get().name == "String";
+            case _: false;
+        };
     }
 }
 #end
