@@ -78,6 +78,7 @@ class DartExpr {
 
     /** Locals proven non-null by normalization or a null guard. */
     var currentFunctionReturnsNullable:Bool = false;
+
     final nonNullLocals:Map<Int, Bool> = [];
 
     /** Names used by parameters and locals; generated names avoid them. */
@@ -689,7 +690,10 @@ class DartExpr {
                             case _: false;
                         };
                         return [
-                            indent(depth) + "return " + ((optionalValued(ret) || (!currentFunctionReturnsNullable && isNullLeafType(ret.t) && !isLocalExpr(ret))) && !nonNullReturn ? rendered + "!" : rendered)
+                            indent(depth) + "return " + ((optionalValued(ret)
+                                || (!currentFunctionReturnsNullable && isNullLeafType(ret.t) && !isLocalExpr(ret)))
+                                && !nonNullReturn ? rendered
+                                + "!" : rendered)
                         ];
                 }
             case TThrow(x):
