@@ -1225,9 +1225,7 @@ class KotlinExpr {
                     case TLocal(v): enumVariants.get(v.id);
                     case _: null;
                 };
-                final narrowed = variant == ef.name
-                    || enumVariantKey(se) != null
-                    && enumVariantExpressions.exists(enumVariantKey(se));
+                final narrowed = variant == ef.name || enumVariantKey(se) != null && enumVariantExpressions.exists(enumVariantKey(se));
                 if (owner != null) {
                     imports.requireType(en.pack.concat([owner]).join("."), owner);
                     return (narrowed ? expr(se) : "(" + expr(se) + " as " + owner + "." + ef.name + ")") + "." + payloadName(ef, index);
@@ -2432,12 +2430,7 @@ class KotlinExpr {
     }
 
     function hasInstanceToString(cls:ClassType):Bool {
-        for (field in cls.fields.get())
-            if (field.name == "toString")
-                return true;
-        if (cls.superClass == null)
-            return false;
-        return hasInstanceToString(cls.superClass.t.get());
+        return PolicyQueries.hasInstanceToString(cls);
     }
 
     function cyclicEnumString(en:EnumType, value:String, inConcat:Bool, origin:TypedExpr):String {
@@ -2478,13 +2471,7 @@ class KotlinExpr {
     }
 
     function isParameterlessEnum(en:EnumType):Bool {
-        for (ef in en.constructs)
-            switch (ef.type) {
-                case TFun(args, _) if (args.length > 0):
-                    return false;
-                case _:
-            }
-        return true;
+        return PolicyQueries.isParameterlessEnum(en);
     }
 
     function stdStringArg(e:TypedExpr):Null<TypedExpr> {
@@ -3416,12 +3403,7 @@ class KotlinExpr {
     }
 
     function isStringBuf(e:TypedExpr):Bool {
-        if (e == null)
-            return false;
-        return switch (Context.follow(e.t)) {
-            case TInst(c, _): final cls = c.get(); (cls.pack.join(".") == "std" && cls.name == "StringBuf") || (cls.pack.length == 0 && cls.name == "StringBuf");
-            case _: false;
-        };
+        return PolicyQueries.isStringBuf(e);
     }
 
     function recordAggregateType(t:Type):Void {
