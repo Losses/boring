@@ -772,35 +772,7 @@ class SwiftDecl {
     }
 
     function collectTypeParamsInto(t:Null<Type>, skip:Array<String>, found:Array<String>):Void {
-        if (t == null) {
-            return;
-        }
-        switch (t) {
-            case TInst(c, params):
-                final cls = c.get();
-                if (switch (cls.kind) {
-                        // Haxe 4.3 carries the parameter's constraints on
-                        // the kind constructor.
-                        case KTypeParameter(_): true;
-                        case _: false;
-                    }) {
-                    if (skip.indexOf(cls.name) < 0 && found.indexOf(cls.name) < 0) {
-                        found.push(cls.name);
-                    }
-                    }
-                for (p in params)
-                    collectTypeParamsInto(p, skip, found);
-            case TAbstract(_, params) | TType(_, params) | TEnum(_, params):
-                for (p in params)
-                    collectTypeParamsInto(p, skip, found);
-            case TFun(args, ret):
-                for (arg in args)
-                    collectTypeParamsInto(arg.t, skip, found);
-                collectTypeParamsInto(ret, skip, found);
-            case TLazy(fun):
-                collectTypeParamsInto(fun(), skip, found);
-            case _:
-        }
+        return PolicyQueries.collectTypeParamsInto(t, skip, found);
     }
 
     /**
