@@ -8,6 +8,8 @@ import reflaxe.data.ClassVarData;
 import reflaxe.data.EnumOptionData;
 import ValueTypeSupport;
 import PolicyQueries;
+import ComparatorPlan;
+import ComparatorPlan.ComparatorFieldKind;
 import ValueTypeSupport.ValueTypeInfo;
 import ValueTypeSupport.ValueTypeOperator;
 
@@ -2101,9 +2103,12 @@ class RustDecl {
             lines.push("    if a == b { return 0; }");
             lines.push("    fn rank(v: &" + en.name + ") -> i32 {");
             lines.push("        match v {");
-            for (o in sorted) lines.push("            " + en.name + "::" + RustImports.toUpperCamelCase(o.name) + " => " + o.field.index + ",");
-            lines.push("        }"); lines.push("    }");
-            lines.push("    rank(a) - rank(b)"); lines.push("}");
+            for (o in sorted)
+                lines.push("            " + en.name + "::" + RustImports.toUpperCamelCase(o.name) + " => " + o.field.index + ",");
+            lines.push("        }");
+            lines.push("    }");
+            lines.push("    rank(a) - rank(b)");
+            lines.push("}");
         }
         if (!allPlain) {
             lines.push("");
