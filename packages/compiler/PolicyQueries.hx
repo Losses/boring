@@ -784,6 +784,16 @@ class PolicyQueries {
             case _:
         }
     }
+
+    /** True when the expression reads an Int64 helper call directly or a
+        local whose initializer was one (recorded via noteFpInt64Init). */
+    public static function isFpHelperInt64Halves(e:TypedExpr, fpInt64Halves:Map<Int, Bool>):Bool {
+        return switch (ExpressionPredicates.stripWrap(e).expr) {
+            case TCall(fn, _): isFpHelperInt64Call(fn);
+            case TLocal(v): fpInt64Halves.exists(v.id);
+            case _: false;
+        }
+    }
 }
 
 // Naming state for cyclic enum Std.string helpers. The cache maps
