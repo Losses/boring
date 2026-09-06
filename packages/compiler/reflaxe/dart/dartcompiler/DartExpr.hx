@@ -566,10 +566,7 @@ class DartExpr {
     // ------------------------------------------------------------------
 
     function statementsOf(e:TypedExpr):Array<TypedExpr> {
-        return switch (e.expr) {
-            case TBlock(stmts): stmts;
-            case _: [e];
-        };
+        return PolicyQueries.statementsOf(e);
     }
 
     function stmtLines(e:TypedExpr, depth:Int):Array<String> {
