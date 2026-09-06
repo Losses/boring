@@ -28,12 +28,13 @@ class EnumSortedKeysOps {
         final b:SortedMapBuilder<EnumTier, Int> = SortedMap.builder();
         b.put(EnumTier.High, 3); b.put(EnumTier.Low, 1); b.put(EnumTier.Mid, 2);
         final m = b.build();
-        return m.keyAt(0) + ":" + m.valueAt(0) + ";" + m.keyAt(1) + ":" + m.valueAt(1) + ";" + m.keyAt(2) + ":" + m.valueAt(2);
+        return Std.string(m.keyAt(0)) + ":" + Std.string(m.valueAt(0)) + ";" + Std.string(m.keyAt(1)) + ":" + Std.string(m.valueAt(1)) + ";" + Std.string(m.keyAt(2)) + ":" + Std.string(m.valueAt(2));
     }
 
     public static function has():Bool {
         final b:SortedSetBuilder<EnumTier> = SortedSet.builder(); b.put(EnumTier.Mid);
-        return b.build().has(EnumTier.Mid) && !b.build().has(EnumTier.High);
+        final s = b.build();
+        return s.has(EnumTier.Mid) && !s.has(EnumTier.High);
     }
 
     public static function declarationOrder():String {
