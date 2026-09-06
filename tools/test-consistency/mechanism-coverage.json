@@ -1,0 +1,31 @@
+{
+  "covered": [
+    {"mechanism": "ComparatorPlan", "probes": ["PrintedRecordTests", "RecordTests"]},
+    {"mechanism": "DataTableHelper", "probes": ["DataTableTests", "SortedTableTests"]},
+    {"mechanism": "DataTables", "probes": ["DataTableTests", "EnumSortedKeysTests"]},
+    {"mechanism": "DefaultArgExpander", "probes": ["DefaultArgsTests", "InstanceDefaultsTests"]},
+    {"mechanism": "EnumCycleDetector", "probes": ["EnumQueriesTests"]},
+    {"mechanism": "EnumQueryExpander", "probes": ["EnumQueriesTests"]},
+    {"mechanism": "ExpressionPredicates", "probes": ["ExpressionBlockTests", "ArithmeticTests"]},
+    {"mechanism": "FloatPrecision", "probes": ["Fp32Tests", "Fp16Tests"]},
+    {"mechanism": "FusionPlan", "probes": ["PipelineTests", "HandWrittenLoopPositionTests"]},
+    {"mechanism": "Intercept", "probes": ["CaptureSwitchOpsTests", "TryTests"]},
+    {"mechanism": "NameConversion", "probes": ["StaticExtensionTests", "EnumQueriesTests"]},
+    {"mechanism": "PackageArtifacts", "probes": ["PlatformModulesTests"]},
+    {"mechanism": "PackageShell", "probes": ["PlatformModulesTests"]},
+    {"mechanism": "PipelineExpander", "probes": ["PipelineTests", "FnValuesTests"]},
+    {"mechanism": "PolicyQueries", "probes": ["RecordTests", "SortedKeyDomainTests"]},
+    {"mechanism": "RuntimeConfig", "probes": ["PlatformModulesTests"]},
+    {"mechanism": "RuntimeResidents", "probes": ["PlatformModulesTests", "StdStringTests"]},
+    {"mechanism": "SealedVariantHelper", "probes": ["SealedVariantTests"]},
+    {"mechanism": "StaticFieldHelper", "probes": ["StaticStateTests", "InstanceDefaultsTests"]},
+    {"mechanism": "StaticFunctionMarkers", "probes": ["StaticExtensionTests"]},
+    {"mechanism": "StaticReferenceScan", "probes": ["StaticStateTests"]},
+    {"mechanism": "StructuralKeyValidator", "probes": ["SortedKeyDomainTests", "RecordTests"]},
+    {"mechanism": "TerminationAnalysis", "probes": ["TryTests", "BlockScopeUnrollTests"]},
+    {"mechanism": "TestCollector", "probes": ["ArithmeticTests", "DefaultArgsTests"]},
+    {"mechanism": "TypeCheckHelper", "probes": ["AllowAccessTests", "SealedVariantTests"]},
+    {"mechanism": "ValueTypeSupport", "probes": ["ValueTypeTests"]}
+  ],
+  "uncoveredAllowlist": []
+}
