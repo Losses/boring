@@ -35,6 +35,19 @@ class SwitchOps {
         return value;
     }
 
+
+    /** Assign position: the switch expression assigns an existing local. */
+    public static function assign(mark:SwitchMark):String {
+        var value:String = "unset";
+        value = switch (mark) {
+            case Empty: "empty";
+            case Number(n): "number:" + n;
+            case Text(s): "text:" + s;
+            case Other: "other";
+        };
+        return value;
+    }
+
     /** Default arm: an unmatched variant uses the fallback value. */
     public static function defaulted(mark:SwitchMark):String {
         var value:String = "unset";
