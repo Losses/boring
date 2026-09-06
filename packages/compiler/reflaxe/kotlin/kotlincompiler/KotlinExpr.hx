@@ -1830,9 +1830,17 @@ class KotlinExpr {
         if (entries == null)
             return false;
         final use = Context.getPosInfos(e.pos);
-        for (entry in entries)
-            if (entry.file == use.file && entry.max <= use.min)
+        for (entry in entries) {
+            if (entry.file != use.file)
+                continue;
+            // Haxe positions for a condition may include the enclosing
+            // expression and the comparison token.  The comparison start
+            // remains ordered against a later use.  Accept the precise range
+            // check first, then the ordered start check for compound
+            // conditions and early-exit guards.
+            if (entry.max <= use.min || entry.min < use.min)
                 return true;
+        }
         return false;
     }
 
