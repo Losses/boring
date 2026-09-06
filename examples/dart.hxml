@@ -162,6 +162,9 @@ boring.MathMinMaxOps
 tests.NumberClassifyTests
 tests.MathMinMaxTests
 boring.InstanceDefaults
+boring.ImpWidget
+boring.ImpHost
+tests.ImpDefaultTests
 tests.InstanceDefaultsTests
 tests.ArrayRootTests
 
