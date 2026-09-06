@@ -130,5 +130,33 @@ class PolicyQueries {
             case _: false;
         };
     }
+
+    public static function isStringBuf(e:TypedExpr):Bool {
+        if (e == null)
+            return false;
+        return switch (Context.follow(e.t)) {
+            case TInst(c, _): final cls = c.get(); (cls.pack.join(".") == "std" && cls.name == "StringBuf") || (cls.pack.length == 0 && cls.name == "StringBuf");
+            case _: false;
+        };
+    }
+
+    public static function isParameterlessEnum(en:EnumType):Bool {
+        for (ef in en.constructs)
+            switch (ef.type) {
+                case TFun(args, _) if (args.length > 0):
+                    return false;
+                case _:
+            }
+        return true;
+    }
+
+    public static function hasInstanceToString(cls:ClassType):Bool {
+        for (field in cls.fields.get())
+            if (field.name == "toString")
+                return true;
+        if (cls.superClass == null)
+            return false;
+        return hasInstanceToString(cls.superClass.t.get());
+    }
 }
 #end
