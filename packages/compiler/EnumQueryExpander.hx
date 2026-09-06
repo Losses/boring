@@ -177,6 +177,7 @@ class EnumQueryExpander {
                         if (en == null)
                             Context.fatalError("Type.enumConstructor accepts parameterless enum values only", args[0].pos);
                         ensureValueEnum(en, args[0].pos);
+                        walk(args[0], "other");
                         register(en, QName);
                         mark(e, "name");
                     case "createEnum":
