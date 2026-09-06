@@ -14,7 +14,6 @@ import PolicyQueries;
 import ExpressionBlockNorm;
 import AssignTargetPlan;
 import AssignTargetPlan.AssignTargetFieldKind;
-import PolicyQueries.IntervalCapability;
 import PolicyQueries.StdStringCategory;
 import PolicyQueries.Int64Op;
 import FusionPlan;
@@ -756,8 +755,7 @@ class KotlinExpr {
 
     /** Expression-position block lowering (features/43). */
     function blockExpression(stmts:Array<TypedExpr>):String {
-        stmts = ExpressionBlockNorm.normalize(stmts, (e, message) -> fail(e, message),
-            _ -> "expression block must end in a value statement (features/43)",
+        stmts = ExpressionBlockNorm.normalize(stmts, (e, message) -> fail(e, message), _ -> "expression block must end in a value statement (features/43)",
             "expression block allows only declarations before its value statement (features/43)");
         final out = ["run {"];
         for (line in blockLines(stmts, 1))
@@ -869,10 +867,8 @@ class KotlinExpr {
     // ------------------------------------------------------------------
     // Counted loops
     // ------------------------------------------------------------------
-    static final intervalCaps:Array<IntervalCapability> = [RequiresInitializedCounter];
-
     function regroupLoops(stmts:Array<TypedExpr>):Array<TypedExpr> {
-        return PolicyQueries.regroupLoops(stmts, intervalCaps);
+        return PolicyQueries.regroupLoops(stmts);
     }
 
     function intervalCore(counterDecl:TypedExpr, boundDecl:TypedExpr, whileExpr:TypedExpr):Null<{
@@ -890,7 +886,7 @@ class KotlinExpr {
         bound:TypedExpr,
         body:Array<TypedExpr>
     }> {
-        return PolicyQueries.matchInterval(e, intervalCaps);
+        return PolicyQueries.matchInterval(e);
     }
 
     function intervalShort(counterDecl:TypedExpr, whileExpr:TypedExpr):Null<{
@@ -899,7 +895,7 @@ class KotlinExpr {
         bound:TypedExpr,
         body:Array<TypedExpr>
     }> {
-        return PolicyQueries.intervalShort(counterDecl, whileExpr, intervalCaps);
+        return PolicyQueries.intervalShort(counterDecl, whileExpr);
     }
 
     function loopLines(loop, depth:Int):Array<String> {
@@ -1825,8 +1821,11 @@ class KotlinExpr {
         var root = stripWrap(e);
         while (true) {
             switch (root.expr) {
-                case TLocal(v): local = v;
-                case TField(subject, _): root = stripWrap(subject); continue;
+                case TLocal(v):
+                    local = v;
+                case TField(subject, _):
+                    root = stripWrap(subject);
+                    continue;
                 case _:
             }
             break;
@@ -2062,22 +2061,14 @@ class KotlinExpr {
 
     function int64Call(fn:TypedExpr, args:Array<TypedExpr>):Null<String> {
         return switch (PolicyQueries.int64OpOf(fn, args)) {
-            case Make(high, low): "(("
-                        + int64LongOperand(high)
-                        + " shl 32) or ("
-                        + int64LongOperand(low)
-                        + " and 0xFFFFFFFFL))";
+            case Make(high, low): "((" + int64LongOperand(high) + " shl 32) or (" + int64LongOperand(low) + " and 0xFFFFFFFFL))";
             case OfInt(value): expr(value) + ".toLong()";
-            case GetHigh(value): if (isFpHelperInt64Halves(value)) expr(value) + ".high" else "(" + expr(value)
-                            + " shr 32).toInt()";
+            case GetHigh(value): if (isFpHelperInt64Halves(value)) expr(value) + ".high" else "(" + expr(value) + " shr 32).toInt()";
             case GetLow(value): if (isFpHelperInt64Halves(value)) expr(value) + ".low" else expr(value) + ".toInt()";
             case Add(l, r): int64Operand(l, 7, false, true) + " + " + int64Operand(r, 7, true, true);
             case Sub(l, r): int64Operand(l, 7, false, false) + " - " + int64Operand(r, 7, true, false);
             case Mul(l, r): int64Operand(l, 8, false, true) + " * " + int64Operand(r, 8, true, true);
-            case MulInt(l, r): int64Operand(l, 8, false, true)
-                        + " * ("
-                        + int64Operand(r, 100, false, true)
-                        + ").toLong()";
+            case MulInt(l, r): int64Operand(l, 8, false, true) + " * (" + int64Operand(r, 100, false, true) + ").toLong()";
             case And(l, r): "((" + expr(l) + ") and (" + expr(r) + "))";
             case Or(l, r): "((" + expr(l) + ") or (" + expr(r) + "))";
             case Xor(l, r): "((" + expr(l) + ") xor (" + expr(r) + "))";
@@ -2939,7 +2930,9 @@ class KotlinExpr {
                     defaultArgText(registered, expected);
                 } else if (registered != null && expected != null && isNullType(a.t)) {
                     "(" + text + " ?: " + defaultArgText(registered, expected) + ")";
-                } else if (((isNullType(a.t) && !provenNonNull(a) && !guardProofBefore(a)) || isNullInitialized(a)) && expected != null && !isNullType(expected)) {
+                } else if (((isNullType(a.t) && !provenNonNull(a) && !guardProofBefore(a)) || isNullInitialized(a))
+                    && expected != null
+                    && !isNullType(expected)) {
                     if (!isNullInitialized(a))
                         addProofExpr(a);
                     text + "!!";
@@ -3098,16 +3091,12 @@ class KotlinExpr {
     }
 
     function assignTarget(e:TypedExpr):String {
-        return AssignTargetPlan.assignTarget(e,
-            (arr, idx) -> expr(arr) + "[" + expr(idx) + "]",
-            e -> switch (e.expr) {
-                case TField(_, FStatic(c, cf)): staticRef(c.get(), cf.get().name);
-                case _: fail(e, "assignment target has no Kotlin lowering");
-            },
-            (subj, kind, _) -> switch (kind) {
-                case Instance(_, cf) | Anonymous(cf): expr(subj) + "." + KotlinNameEscape.escape(cf.get().name);
-            },
-            v -> localName(v),
+        return AssignTargetPlan.assignTarget(e, (arr, idx) -> expr(arr) + "[" + expr(idx) + "]", e -> switch (e.expr) {
+            case TField(_, FStatic(c, cf)): staticRef(c.get(), cf.get().name);
+            case _: fail(e, "assignment target has no Kotlin lowering");
+        }, (subj, kind, _) -> switch (kind) {
+            case Instance(_, cf) | Anonymous(cf): expr(subj) + "." + KotlinNameEscape.escape(cf.get().name);
+        }, v -> localName(v),
             (e, _) -> fail(e, "assignment target has no Kotlin lowering: " + Std.string(e.expr)));
     }
 
