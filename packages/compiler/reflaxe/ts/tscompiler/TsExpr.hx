@@ -2843,10 +2843,18 @@ class TsExpr {
     function switchAssign(target:TypedExpr, sw:TypedExpr, depth:Int):Array<String> {
         final lines = switchReturn(sw, depth);
         final prefix = indent(depth + 2) + "return ";
-        for (i in 0...lines.length)
-            if (StringTools.startsWith(lines[i], prefix))
-                lines[i] = indent(depth + 2) + expr(target) + " = " + lines[i].substr(prefix.length);
-        return lines;
+        final out:Array<String> = [];
+        for (line in lines) {
+            if (StringTools.startsWith(line, prefix)) {
+                out.push(indent(depth + 2) + expr(target) + " = " + line.substr(prefix.length));
+                // Statement-position switch arms must not fall through to the
+                // next variant. Return-position arms retain their returns.
+                out.push(indent(depth + 2) + "break;");
+            } else {
+                out.push(line);
+            }
+        }
+        return out;
     }
 
     function switchExpression(sw:TypedExpr):String {
@@ -2858,6 +2866,7 @@ class TsExpr {
     }
 
     function switchReturn(sw:TypedExpr, depth:Int):Array<String> {
+        sw = stripWrap(sw);
         final switchParts = switch (sw.expr) {
             case TSwitch(subj, cases, def): {subj: subj, cases: cases, def: def};
             case _: return fail(sw, "not a switch");
