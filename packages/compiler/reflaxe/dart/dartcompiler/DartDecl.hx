@@ -628,23 +628,12 @@ class DartDecl {
     }
 
     static function isFunctionType(t:Null<Type>):Bool {
-        if (t == null) {
-            return false;
-        }
-        return switch (Context.follow(t)) {
-            case TFun(_, _): true;
-            case _: false;
-        };
+        return PolicyQueries.isFunctionType(t);
     }
 
     /** A `var x(get, never)` field renders no storage on this target (feature spec 27). */
     static function isGetterOnlyProperty(field:ClassField):Bool {
-        switch (field.kind) {
-            case FVar(read, write):
-                return read.match(AccCall) && write.match(AccNever);
-            case _:
-                return false;
-        }
+        return PolicyQueries.isGetterOnlyProperty(field);
     }
 
     /**
