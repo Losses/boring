@@ -1090,7 +1090,7 @@ class DartExpr {
             case TTry(_, _):
                 return fail(e, "try region lowers at statement, initializer, or return position");
             case TSwitch(_, _, _):
-                return fail(e, "variant switch lowers at return, statement, initializer, or assign position");
+                return switchExpression(e);
             case TConst(c):
                 switch (c) {
                     case TInt(v): return Std.string(v);
@@ -3103,6 +3103,26 @@ class DartExpr {
             }
         }
         return out;
+    }
+
+    /**
+        Expression-position variant switches use a small immediately-invoked
+        function. The existing statement lowering keeps the target's pattern
+        matching and arm handling in one place; the closure supplies the value
+        that Dart requires when the switch is nested in another expression.
+    **/
+    function switchExpression(sw:TypedExpr):String {
+        final lines = switchReturn(sw, 1);
+        final out = ["(() {"];
+        for (line in lines) {
+            final trimmed = StringTools.rtrim(line);
+            if (StringTools.startsWith(StringTools.ltrim(trimmed), "return ") && !StringTools.endsWith(trimmed, ";"))
+                out.push(trimmed + ";");
+            else
+                out.push(trimmed);
+        }
+        out.push("})()");
+        return out.join("\n");
     }
 
     function switchReturn(sw:TypedExpr, depth:Int, reservedPayloadNames:Bool = false):Array<String> {

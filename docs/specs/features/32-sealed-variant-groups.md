@@ -96,6 +96,14 @@ abstract class. Three pieces are missing:
    interface properties keep their existing emission; this specification
    adds no restriction on variant class members beyond rules 2 and 3.
 
+5. When a variant switch occurs in a value position nested inside another
+   expression, including a conditional expression arm, Dart lowers it to an
+   immediately-invoked closure containing the same exhaustive native switch
+   statement used at return, initializer, assignment, and statement positions.
+   Each arm returns its value from the closure, so payload bindings and complex
+   arm expressions follow the existing arm-complexity rules without changing
+   the value or evaluation order.
+
 ## Samples and tests
 
 - `samples/boring/SealedVariantOps.hx` declares `@:sealed interface
