@@ -2835,18 +2835,12 @@ class SwiftExpr {
 
     /** The key type argument of a sorted builder factory call. */
     function kTypeOf(fn:TypedExpr):Null<Type> {
-        return switch (fn.t) {
-            case TFun(_, TInst(_, params)) if (params.length > 0): params[0];
-            case _: null;
-        };
+        return PolicyQueries.kTypeOf(fn);
     }
 
     /** The value type argument of a sorted map builder factory call. */
     function vTypeOf(fn:TypedExpr):Null<Type> {
-        return switch (fn.t) {
-            case TFun(_, TInst(_, params)) if (params.length > 1): params[1];
-            case _: null;
-        };
+        return PolicyQueries.vTypeOf(fn);
     }
 
     /**
@@ -3899,13 +3893,7 @@ class SwiftExpr {
     }
 
     function flattenAdd(e:TypedExpr, into:Array<TypedExpr>):Void {
-        switch (e.expr) {
-            case TBinop(OpAdd, a, b):
-                flattenAdd(a, into);
-                into.push(b);
-            case _:
-                into.push(e);
-        }
+        return PolicyQueries.flattenAdd(e, into);
     }
 
     // ------------------------------------------------------------------
@@ -4378,10 +4366,7 @@ class SwiftExpr {
     }
 
     function isStringSubject(e:TypedExpr):Bool {
-        return switch (Context.follow(stripCast(e).t)) {
-            case TInst(c, _): c.get().name == "String";
-            case _: false;
-        }
+        return PolicyQueries.isStringSubject(e);
     }
 
     /**
