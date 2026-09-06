@@ -81,9 +81,9 @@ problem is not decided by this specification.
 
 7. `isNaN` and `isFinite` are mathematically constant for an integer argument:
    an integer is neither NaN nor infinite. Nevertheless, the compiler must
-   widen and call the predicate; folding, rejecting, or substituting
-   a target-specific constant. This keeps the generated call shape consistent
-   across all five targets.
+   widen and call the predicate; it must not fold the call, reject the input,
+   or substitute a target-specific constant. This keeps the generated call
+   shape consistent across all five targets.
 
 ## Contract examples
 
