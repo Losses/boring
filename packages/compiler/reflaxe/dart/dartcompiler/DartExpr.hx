@@ -77,6 +77,7 @@ class DartExpr {
     final optionalInferred:Map<Int, Bool> = [];
 
     /** Locals proven non-null by normalization or a null guard. */
+    var currentFunctionReturnsNullable:Bool = false;
     final nonNullLocals:Map<Int, Bool> = [];
 
     /** Names used by parameters and locals; generated names avoid them. */
@@ -280,6 +281,10 @@ class DartExpr {
         currentClass = cls;
         currentField = f.field.name;
         currentLocalName = null;
+        currentFunctionReturnsNullable = switch (Context.follow(f.field.type)) {
+            case TFun(_, ret): isNullLeafType(ret);
+            case _: false;
+        };
         nonNullLocals.clear();
 
         scanLocals(f.expr);
@@ -684,7 +689,7 @@ class DartExpr {
                             case _: false;
                         };
                         return [
-                            indent(depth) + "return " + (optionalValued(ret) || (isNullLeafType(ret.t) && !isLocalExpr(ret)) && !nonNullReturn ? rendered + "!" : rendered)
+                            indent(depth) + "return " + ((optionalValued(ret) || (!currentFunctionReturnsNullable && isNullLeafType(ret.t) && !isLocalExpr(ret))) && !nonNullReturn ? rendered + "!" : rendered)
                         ];
                 }
             case TThrow(x):
@@ -2753,7 +2758,7 @@ class DartExpr {
             final d = target == null ? null : DefaultArgExpander.defaultAt(target.c, target.n, i);
             d != null
             && p != null && isNullLiteral(args[i]) ? defaultArgText(d, p) : d != null && p != null && isNullLeafType(args[i].t) ? "(" + expr(args[i]) + " ?? " + defaultArgText(d,
-                p) + ")!" : base[i];
+                p) + ")" : base[i];
         }
         ];
     }
@@ -2768,7 +2773,7 @@ class DartExpr {
             final d = DefaultArgExpander.defaultAt(cls, "new", i);
             d != null
             && p != null && isNullLiteral(args[i]) ? defaultArgText(d, p) : d != null && p != null && isNullLeafType(args[i].t) ? "(" + expr(args[i]) + " ?? " + defaultArgText(d,
-                p) + ")!" : expr(args[i]);
+                p) + ")" : expr(args[i]);
         }
         ];
     }
