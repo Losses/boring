@@ -180,13 +180,13 @@ class RustConversions {
 
     /**
         Narrowing a usize value to a signed i32 the way `(x) as i32` does:
-        keep the low 32 bits and reinterpret them as two's-complement signed.
-        The byte round-trip reads the native-endian low word, so it equals
-        `as` for every usize (verified by aszero-probe5 for 0, u32::MAX, and a
-        usize above u32::MAX, which truncates to 1).
+        mask to the low 32 bits and reinterpret them as two's-complement signed.
+        The mask is bit-for-bit equal to the original byte round-trip on little-
+        endian machines. `unwrap_or(0)` can never trigger because the masked
+        value is always within the u32 range, and this form is endian-independent.
     **/
     public static function narrowI32(x:String):String {
-        return "i32::from_ne_bytes(u32::from_ne_bytes((" + x + ").to_ne_bytes()[..4].try_into().unwrap()).to_ne_bytes())";
+        return "i32::from_ne_bytes(u32::try_from((" + x + ") & 4294967295).unwrap_or(0).to_ne_bytes())";
     }
 
     static function failTarget(to:String):String {
