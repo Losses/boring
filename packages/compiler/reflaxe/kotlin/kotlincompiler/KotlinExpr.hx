@@ -1654,8 +1654,8 @@ class KotlinExpr {
 
     /**
         The member-access separator rendered after a subject. A subject
-        whose Haxe type is nullable extracts with `!!` until a dominating
-        proof narrows it. A null-initialized subject declares a non-null Haxe
+        whose Haxe type is nullable takes `?.` until a dominating proof
+        narrows it. A null-initialized subject declares a non-null Haxe
         type, so the program keeps the value present at every use and the
         extraction uses `!!`; its result stays non-null for the enclosing
         expression, which `?.` would widen into a type error inside
