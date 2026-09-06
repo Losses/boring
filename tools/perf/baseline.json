@@ -1,0 +1,38 @@
+{
+  "date": "2026-09-06",
+  "rounds": 3,
+  "entries": [
+    {
+      "script": "gen:ts",
+      "medianMs": 4705
+    },
+    {
+      "script": "gen:kotlin",
+      "medianMs": 6056
+    },
+    {
+      "script": "gen:kotlin-f32",
+      "medianMs": 6406
+    },
+    {
+      "script": "gen:rust",
+      "medianMs": 15359
+    },
+    {
+      "script": "gen:rust-f32",
+      "medianMs": 13110
+    },
+    {
+      "script": "gen:swift",
+      "medianMs": 7460
+    },
+    {
+      "script": "gen:swift-f32",
+      "medianMs": 6616
+    },
+    {
+      "script": "gen:dart",
+      "medianMs": 5700
+    }
+  ]
+}
