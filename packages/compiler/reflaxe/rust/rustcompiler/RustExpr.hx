@@ -12,6 +12,7 @@ import reflaxe.data.ClassFuncData;
 import ExpressionPredicates;
 import PolicyQueries;
 import PolicyQueries.IntervalCapability;
+import PolicyQueries.StdStringCategory;
 import FusionPlan;
 import FusionPlan.FusionStep;
 import TerminationAnalysis;
@@ -22,6 +23,7 @@ import ValueTypeSupport.ValueTypeOperator;
     Statement and expression lowering from the Haxe typed AST to Rust.
 **/
 class RustExpr {
+    // EnumCycleDetector classification is shared by PolicyQueries.
     // Runtime shim parameters that take i32 where the haxe declaration
     // says Int. slice clamps with bounds that may be negative, so its
     // bound parameters are signed in the Rust runtime; the compiler
@@ -4077,46 +4079,45 @@ class RustExpr {
                     + ", None => \"null\".to_string() }";
             case _:
         }
-        return switch (Context.follow(t)) {
-            case TInst(c, _) if (c.get().name == "String"):
+        return switch (PolicyQueries.stdStringCategory(t)) {
+            case IsString:
                 inConcat ? value : value + ".to_string()";
-            case TInst(c, [element]) if (c.get().name == "Array"):
+            case IsArray(element):
                 imports.require("std::fmt::Write");
                 final index = depth == 0 ? "i" : "i" + depth;
                 final item = stdStringType(element, value + "[" + index + "]", true, origin, depth + 1);
                 '{ let mut out = String::new(); out.push(\'[\'); let n = ${value}.len(); let mut ${index} = 0usize; while ${index} < n { if ${index} > 0 { out.push_str(", "); } let _ = write!(out, "{}", ${item}); ${index} += 1; } out.push(\']\'); out }';
-            case TInst(c, [element]) if (c.get().module == "std.SortedSet"):
+            case IsSortedSet(element):
                 imports.require("std::fmt::Write");
                 final index = depth == 0 ? "i" : "i" + depth;
                 final item = stdStringType(element, value + ".at(" + index + ")", true, origin, depth + 1);
                 '{ let mut out = String::new(); out.push(\'[\'); let n = ${value}.size(); let mut ${index} = 0; while ${index} < n { if ${index} > 0 { out.push_str(", "); } let _ = write!(out, "{}", ${item}); ${index} += 1; } out.push(\']\'); out }';
-            case TInst(c, [key, val]) if (c.get().module == "std.SortedMap"):
+            case IsSortedMap(key, val):
                 imports.require("std::fmt::Write");
                 final index = depth == 0 ? "i" : "i" + depth;
                 final itemKey = stdStringType(key, value + ".key_at(" + index + ")", true, origin, depth + 1);
                 final itemVal = stdStringType(val, value + ".value_at(" + index + ")", true, origin, depth + 1);
                 '{ let mut out = String::new(); out.push(\'{\'); let n = ${value}.size(); let mut ${index} = 0; while ${index} < n { if ${index} > 0 { out.push_str(", "); } let _ = write!(out, "{}={}", ${itemKey}, ${itemVal}); ${index} += 1; } out.push(\'}\'); out }';
-            case TInst(c, _) if (c.get().kind.match(KTypeParameter(_))):
+            case IsTypeParameter:
                 state.memberPrintsTypeParam = true;
                 "format!(\"{:?}\", " + value + ")";
-            case TInst(c, _) if (StaticFieldHelper.hasSelfConstructionStatic(c.get())
-                || c.get().meta.has(":dataClass")): value + ".to_string()";
-            case TInst(c, _) if (hasInstanceToString(c.get())): value + ".to_string()";
-            case TAbstract(a, _) if (ValueTypeSupport.isMarkedAbstract(a.get())):
-                ValueTypeSupport.memberField(a.get(), "toString") != null ? value + ".to_string()" : value + ".0.to_string()";
-            case TAbstract(a, _) if (a.get().name == "Null"):
+            case IsRecordLike: value + ".to_string()";
+            case IsInstanceToString: value + ".to_string()";
+            case IsMarkedAbstract(abs):
+                ValueTypeSupport.memberField(abs, "toString") != null ? value + ".to_string()" : value + ".0.to_string()";
+            case IsNull:
                 "match " + value + " { Some(v) => v.to_string(), None => \"null\".to_string() }";
-            case TAbstract(a, _) if (a.get().name == "Float"):
+            case IsFloat:
                 inConcat ? value : "crate::runtime::test_core::TestCore::format_float(" + value + ")";
-            case TAbstract(a, _) if (a.get().name == "Int" || a.get().name == "Bool"): inConcat ? value : "(" + value + ").to_string()";
-            case TAbstract(a, params) if (a.get().module == "std.ReadOnlyArray"):
-                stdStringType(haxe.macro.TypeTools.applyTypeParameters(a.get().type, a.get().params, params), value, inConcat, origin, depth);
-            case TEnum(en, _) if (isParameterlessEnum(en.get())):
-                EnumQueryExpander.requireNameRead(en.get());
+            case IsInt | IsBool: inConcat ? value : "(" + value + ").to_string()";
+            case IsReadOnlyArray(underlying):
+                stdStringType(underlying, value, inConcat, origin, depth);
+            case IsParameterlessEnum(en):
+                EnumQueryExpander.requireNameRead(en);
                 value + ".name()" + (inConcat ? "" : ".to_string()");
-            case TEnum(en, _) if (EnumCycleDetector.isCyclic(en.get())): cyclicEnumString(en.get(), value, inConcat, origin);
-            case TEnum(_, _): value + ".to_string()";
-            case _:
+            case IsCyclicEnum(en): cyclicEnumString(en, value, inConcat, origin);
+            case IsPayloadEnum(_): value + ".to_string()";
+            case IsUnsupported:
                 Context.error("Std.string accepts scalars, enum values, records, and arrays of them only", origin.pos);
                 null;
         };
