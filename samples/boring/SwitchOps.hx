@@ -9,7 +9,8 @@ enum SwitchMark {
 
 /**
  * Variant-switch lowering fixtures covering statement assignment, initializer,
- * default arms, and payload captures for TypeScript and Swift.
+ * default arms, payload captures, and conditional arms for TypeScript, Swift,
+ * and Dart.
  */
 class SwitchOps {
     /** Statement position: each arm assigns an already-declared local. */
@@ -49,6 +50,16 @@ class SwitchOps {
             case Other: "other";
         };
         return value;
+    }
+
+    /** Conditional arm: the switch sits inside a ternary expression arm. */
+    public static function conditional(mark:SwitchMark, useFallback:Bool):String {
+        return useFallback ? "fallback" : switch (mark) {
+            case Empty: "empty";
+            case Number(n): "number:" + n;
+            case Text(s): "text:" + s;
+            case Other: "other";
+        };
     }
 
     /** Default arm: an unmatched variant uses the fallback value. */
