@@ -1723,8 +1723,13 @@ class KotlinExpr {
         while (true) {
             switch (current.expr) {
                 case TField(subject, _):
-                    if (isNullType(subject.t))
-                        return true;
+                    if (isNullType(subject.t)) {
+                        // A dominating condition can prove the chain root even
+                        // when the intermediate field remains nullable in the
+                        // typed AST.  Do not replace that proof with ?. on a
+                        // later hop.
+                        return !provenNonNull(subject) && !guardProofBefore(subject);
+                    }
                     current = stripWrap(subject);
                 case _:
                     return false;
