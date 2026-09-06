@@ -1218,7 +1218,8 @@ class SwiftExpr {
                     case _: return fail(e, "enum payload only lowers inside a variant switch arm");
                 };
                 final n = payloadName(ef, index);
-                return "({ () -> " + types.of(e.t) + " in\n    switch " + expr(se) + " {\n    case ." + SwiftDecl.lowerFirst(ef.name) + "(let " + n + "): return " + n + "\n    }\n})()";
+                return "({ () -> " + types.of(e.t) + " in\n    switch " + expr(se) + " {\n    case ." + SwiftDecl.lowerFirst(ef.name) + "(let " + n
+                    + "): return " + n + "\n    }\n})()";
             case TEnumIndex(inner):
                 return expr(inner);
             case TFunction(f):
@@ -2099,12 +2100,7 @@ class SwiftExpr {
     }
 
     function hasInstanceToString(cls:ClassType):Bool {
-        for (field in cls.fields.get())
-            if (field.name == "toString")
-                return true;
-        if (cls.superClass == null)
-            return false;
-        return hasInstanceToString(cls.superClass.t.get());
+        return PolicyQueries.hasInstanceToString(cls);
     }
 
     function cyclicEnumString(en:EnumType, value:String, inConcat:Bool, origin:TypedExpr):String {
@@ -2130,13 +2126,7 @@ class SwiftExpr {
     }
 
     function isParameterlessEnum(en:EnumType):Bool {
-        for (ef in en.constructs)
-            switch (ef.type) {
-                case TFun(args, _) if (args.length > 0):
-                    return false;
-                case _:
-            }
-        return true;
+        return PolicyQueries.isParameterlessEnum(en);
     }
 
     /**
@@ -3594,7 +3584,8 @@ class SwiftExpr {
             final names = payloadNames(info.field);
             final used = usedPayloadIndices(c.expr, info.field);
             final bindings = [
-                for (i in 0...names.length) used.indexOf(i) >= 0 ? "let " + (reservedPayloadNames ? payloadBindingName(info.field, i) : names[i]) : "_"
+                for (i in 0...names.length)
+                    used.indexOf(i) >= 0 ? "let " + (reservedPayloadNames ? payloadBindingName(info.field, i) : names[i]) : "_"
             ].join(", ");
             out.push(indent(depth + 1) + "case ." + SwiftDecl.lowerFirst(info.name) + (names.length > 0 ? "(" + bindings + ")" : "") + ":");
             for (l in armLines(c.expr, depth + 2, reservedPayloadNames))
@@ -4355,12 +4346,7 @@ class SwiftExpr {
     }
 
     function isStringBuf(e:TypedExpr):Bool {
-        if (e == null)
-            return false;
-        return switch (Context.follow(e.t)) {
-            case TInst(c, _): final cls = c.get(); (cls.pack.join(".") == "std" && cls.name == "StringBuf") || (cls.pack.length == 0 && cls.name == "StringBuf");
-            case _: false;
-        };
+        return PolicyQueries.isStringBuf(e);
     }
 
     function unwrapLambda(e:TypedExpr):Null<TFunc> {

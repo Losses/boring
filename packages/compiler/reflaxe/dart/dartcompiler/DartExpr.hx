@@ -1321,7 +1321,17 @@ class DartExpr {
                     case _: return fail(e, "enum payload only lowers inside a variant switch arm");
                 };
                 final n = payloadName(ef, index);
-                return "(() { final _v = " + expr(se) + "; switch (_v) { case " + qualifiedRef(en.module, DartDecl.constructClassName(en.name, ef.name)) + "(" + n + ": var " + n + "): return " + n + "; } })()";
+                return "(() { final _v = "
+                    + expr(se)
+                    + "; switch (_v) { case "
+                    + qualifiedRef(en.module, DartDecl.constructClassName(en.name, ef.name))
+                    + "("
+                    + n
+                    + ": var "
+                    + n
+                    + "): return "
+                    + n
+                    + "; } })()";
             case TEnumIndex(_):
                 return fail(e, "enum index only lowers inside a variant switch");
             case TFunction(f):
@@ -2018,12 +2028,7 @@ class DartExpr {
     }
 
     function hasInstanceToString(cls:ClassType):Bool {
-        for (field in cls.fields.get())
-            if (field.name == "toString")
-                return true;
-        if (cls.superClass == null)
-            return false;
-        return hasInstanceToString(cls.superClass.t.get());
+        return PolicyQueries.hasInstanceToString(cls);
     }
 
     function cyclicEnumString(en:EnumType, value:String, inConcat:Bool, origin:TypedExpr):String {
@@ -2039,13 +2044,7 @@ class DartExpr {
     }
 
     function isParameterlessEnum(en:EnumType):Bool {
-        for (ef in en.constructs)
-            switch (ef.type) {
-                case TFun(args, _) if (args.length > 0):
-                    return false;
-                case _:
-            }
-        return true;
+        return PolicyQueries.isParameterlessEnum(en);
     }
 
     /**
@@ -3849,12 +3848,7 @@ class DartExpr {
     }
 
     function isStringBuf(e:TypedExpr):Bool {
-        if (e == null)
-            return false;
-        return switch (Context.follow(e.t)) {
-            case TInst(c, _): final cls = c.get(); (cls.pack.join(".") == "std" && cls.name == "StringBuf") || (cls.pack.length == 0 && cls.name == "StringBuf");
-            case _: false;
-        };
+        return PolicyQueries.isStringBuf(e);
     }
 
     function unwrapLambda(e:TypedExpr):Null<TFunc> {
