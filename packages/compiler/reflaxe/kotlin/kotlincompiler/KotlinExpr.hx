@@ -59,6 +59,9 @@ class KotlinExpr {
     /** Locals initialized from null retain nullable access semantics. */
     final nullInitializedLocals:Map<Int, Bool> = [];
 
+    /** Locals compared with null somewhere in the currently emitted statement block. */
+    var activeNullGuardLocals:Map<Int, Bool> = [];
+
     static final nullInitializedFields:Map<String, Bool> = [];
 
     public static function registerNullInitializedField(key:String):Void {
@@ -458,8 +461,19 @@ class KotlinExpr {
                     case TFunction(fn): functionLiteralNamed(v.name, fn);
                     default: expr(init);
                 };
+                // Haxe permits binding a non-null local from a Null<T>
+                // initializer (an unsound assignment); Kotlin infers the
+                // initializer's nullable type, so the declaration extracts
+                // once. The null-literal case keeps its declared-nullable
+                // annotation above.
+                final extractsAtDecl = !isNullType(v.t) && isNullType(init.t)
+                    && !activeNullGuardLocals.exists(v.id)
+                    && switch (stripWrap(init).expr) {
+                        case TConst(TNull): false;
+                        case _: true;
+                    };
                 updateLocalProof(v, init);
-                return [indent(depth) + '$kw ${localName(v)}$typeAnn = $initText'];
+                return [indent(depth) + '$kw ${localName(v)}$typeAnn = $initText' + (extractsAtDecl ? "!!" : "")];
             case TVar(v, init) if (init == null):
                 // Deferred local declarations are initialized by later assignments;
                 // Kotlin's definite-assignment analysis checks every read.
@@ -788,6 +802,8 @@ class KotlinExpr {
         stmts = fuseUninitializedVars(stmts);
         stmts = regroupLoops(stmts);
         final out:Array<String> = [];
+        final previousNullGuards = activeNullGuardLocals;
+        activeNullGuardLocals = nullGuardLocalsInBlock(stmts);
 
         var i = 0;
         while (i < stmts.length) {
@@ -809,7 +825,30 @@ class KotlinExpr {
                 out.push(l);
             i += 1;
         }
+        activeNullGuardLocals = previousNullGuards;
         return out;
+    }
+
+    /** Finds locals whose nullable state is deliberately tested in this block.
+        Such locals must remain nullable at their declaration so the generated
+        null guard can observe the original Haxe value. */
+    function nullGuardLocalsInBlock(stmts:Array<TypedExpr>):Map<Int, Bool> {
+        final result:Map<Int, Bool> = [];
+        for (stmt in stmts) {
+            TypedExprTools.iter(stmt, function(node:TypedExpr):Void {
+                switch (stripWrap(node).expr) {
+                    case TBinop(OpEq, l, r) | TBinop(OpNotEq, l, r):
+                        final subject = isNullExpr(l) ? r : (isNullExpr(r) ? l : null);
+                        if (subject != null)
+                            switch (stripWrap(subject).expr) {
+                                case TLocal(v): result.set(v.id, true);
+                                case _:
+                            }
+                    case _:
+                }
+            });
+        }
+        return result;
     }
 
     // ------------------------------------------------------------------
@@ -1627,6 +1666,14 @@ class KotlinExpr {
     function nullableAccess(subj:TypedExpr):String {
         if (isNullInitialized(subj))
             return "!!.";
+        // The typer wraps an implicit Null<T> unwrap in TCast; the cast's
+        // own type is the non-null target, so look through it before
+        // deciding.
+        switch (subj.expr) {
+            case TCast(inner, _) if (isNullType(inner.t) && !provenNonNull(inner)):
+                return "!!.";
+            case _:
+        }
         if (isNullType(subj.t) && !provenNonNull(subj))
             return "?.";
         return ".";
@@ -2405,6 +2452,17 @@ class KotlinExpr {
         }
     }
 
+    /** A StringTools receiver argument renders with a null extraction when
+        its Haxe type is nullable, mirroring renderCallArgs. */
+    function nullableFirstArg(a:TypedExpr):String {
+        final rendered = expr(a);
+        if (isNullType(a.t) && !provenNonNull(a)) {
+            addProofExpr(a);
+            return rendered + "!!";
+        }
+        return rendered;
+    }
+
     function call(fn:TypedExpr, args:Array<TypedExpr>):String {
         final int64CallText = int64Call(fn, args);
         if (int64CallText != null)
@@ -2429,13 +2487,13 @@ class KotlinExpr {
                     return stringToolsHex(args);
                 }
                 if (cls.pack.length == 0 && cls.name == "StringTools" && name == "trim" && args.length == 1) {
-                    return expr(args[0]) + ".trim()";
+                    return nullableFirstArg(args[0]) + ".trim()";
                 }
                 if (cls.pack.length == 0
                     && cls.name == "StringTools"
                     && (name == "startsWith" || name == "endsWith")
                     && args.length == 2) {
-                    return expr(args[0]) + "." + name + "(" + expr(args[1]) + ")";
+                    return nullableFirstArg(args[0]) + "." + name + "(" + expr(args[1]) + ")";
                 }
                 if (cls.pack.length == 0 && cls.name == "Lambda" && name == "has" && args.length == 2) {
                     return expr(args[0]) + ".contains(" + expr(args[1]) + ")";
