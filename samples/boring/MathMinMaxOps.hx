@@ -24,4 +24,13 @@ class MathMinMaxOps {
 
     public static function powerOfInts(a:Int, b:Int):Float
         return Math.pow(a, b);
+
+    public static function rounded(a:Float):Int
+        return Math.round(a);
+
+    public static function floored(a:Float):Int
+        return Math.floor(a);
+
+    public static function ceiled(a:Float):Int
+        return Math.ceil(a);
 }
