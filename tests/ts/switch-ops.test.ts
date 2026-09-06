@@ -14,4 +14,11 @@ describe("variant switch lowering", () => {
     expect(SwitchOps.defaulted({ kind: "Empty" })).toBe("empty");
     expect(SwitchOps.defaulted({ kind: "Other" })).toBe("fallback");
   });
+
+  test("supports switches inside conditional arms", () => {
+    expect(SwitchOps.conditional({ kind: "Empty" }, true)).toBe("fallback");
+    expect(SwitchOps.conditional({ kind: "Empty" }, false)).toBe("empty");
+    expect(SwitchOps.conditional({ kind: "Number", value: 3 }, false)).toBe("number:3");
+    expect(SwitchOps.conditional({ kind: "Text", value: "x" }, false)).toBe("text:x");
+  });
 });
