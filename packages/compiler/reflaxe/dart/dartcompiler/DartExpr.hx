@@ -2606,17 +2606,17 @@ class DartExpr {
             Context.error("sorted builder requires an explicit key type", pos);
         }
         return switch (DartType.classifyKey(kType, pos)) {
-            case DartIntKey:
+            case IntKey:
                 runtimeQualified("SortedTable.compareInts");
-            case DartStringKey:
+            case StringKey:
                 runtimeQualified("compareUnitOrder");
-            case DartStructKey(def, _):
+            case StructKey(def, _):
                 final cmpName = "compare" + def.name;
                 qualifiedRef(def.module, cmpName);
-            case DartDataClassKey(cls, _):
+            case DataClassKey(cls, _):
                 final cmpName = "compare" + cls.name;
                 qualifiedRef(cls.module, cmpName);
-            case DartEnumKey(en):
+            case EnumKey(en):
                 qualifiedRef(en.module, "compare" + en.name);
         };
     }
