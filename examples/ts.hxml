@@ -98,6 +98,7 @@ boring.StringBufOps
 tests.StringBufTests
 boring.TryOps
 tests.TryTests
+tests.SwitchOpsTests
 boring.ArithmeticOps
 tests.ArithmeticTests
 boring.DefaultArgsOps
@@ -105,6 +106,7 @@ tests.DefaultArgsTests
 tests.KotlinNullabilityTests
 boring.SortedDataClassKeysOps
 boring.CaptureSwitchOps
+boring.SwitchOps
 boring.UStringOps
 boring.StringUnitOps
 boring.GraphemeOps
