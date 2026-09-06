@@ -11,6 +11,8 @@ import haxe.macro.TypedExprTools;
 import reflaxe.data.ClassFuncData;
 import ExpressionPredicates;
 import PolicyQueries;
+import FusionPlan;
+import FusionPlan.FusionStep;
 import TerminationAnalysis;
 import ValueTypeSupport;
 import ValueTypeSupport.ValueTypeOperator;
@@ -1744,23 +1746,7 @@ class RustExpr {
     // ------------------------------------------------------------------
 
     function fillFusion(stmts:Array<TypedExpr>, i:Int, depth:Int):Null<Array<String>> {
-        if (i + 1 >= stmts.length) {
-            return null;
-        }
-        final alloc:Null<{arr:TVar, elem:Type}> = switch (stmts[i].expr) {
-            case TVar(v, init) if (init != null):
-                switch (init.expr) {
-                    case TNew(c, params, args) if (args.length == 0):
-                        final cls = c.get();
-                        if (cls.pack.join(".") != "" || cls.name != "Array" || params.length != 1) {
-                            null;
-                        } else {
-                            {arr: v, elem: params[0]};
-                        }
-                    case _: null;
-                }
-            case _: null;
-        }
+        final alloc = FusionPlan.allocOf(stmts, i);
         if (alloc == null) {
             return null;
         }
@@ -1768,103 +1754,31 @@ class RustExpr {
         if (loop == null) {
             return null;
         }
-
-        var storeValue:Null<TypedExpr> = null;
-        var pushArg:Null<TypedExpr> = null;
-        var ok = true;
-        for (s in loop.body) {
-            final store = indexedStoreOf(s);
-            if (store != null) {
-                if (store.arr.id == alloc.arr.id && store.idx.id == loop.index.id) {
-                    if (storeValue != null) {
-                        ok = false;
-                    }
-                    storeValue = store.value;
-                } else {
-                    ok = false;
-                }
-                continue;
-            }
-            final push = pushOf(s);
-            if (push != null) {
-                if (push.arr.id == alloc.arr.id) {
-                    if (pushArg != null || storeValue != null) {
-                        ok = false;
-                    }
-                    pushArg = push.arg;
-                } else {
-                    ok = false;
-                }
-                continue;
-            }
-            if (mentionsLocal(s, alloc.arr)) {
-                ok = false;
-            }
-        }
-        if (!ok || (storeValue == null && pushArg == null)) {
+        final plan = FusionPlan.plan(alloc, loop);
+        if (plan == null) {
             return null;
         }
 
-        final arrName = RustImports.toSnakeCase(localName(alloc.arr));
-        final capStr = capacityExpr(loop.bound);
-        final boundStr = loopBound(loop.bound);
-        final loopIndexName = RustImports.toSnakeCase(loop.index.name);
-
-        // Check if loop index is mentioned in body outside the array store index
-        var loopVarMentioned = false;
-        for (s in loop.body) {
-            final store = indexedStoreOf(s);
-            if (store != null && store.arr.id == alloc.arr.id && store.idx.id == loop.index.id) {
-                if (mentionsLocal(store.value, loop.index)) {
-                    loopVarMentioned = true;
-                }
-                continue;
-            }
-            final push = pushOf(s);
-            if (push != null && push.arr.id == alloc.arr.id) {
-                if (mentionsLocal(push.arg, loop.index)) {
-                    loopVarMentioned = true;
-                }
-                continue;
-            }
-            if (mentionsLocal(s, loop.index)) {
-                loopVarMentioned = true;
-            }
-        }
-
-        final loopVar = loopVarMentioned ? loopIndexName : "_";
+        final arrName = RustImports.toSnakeCase(localName(plan.arr));
+        final capStr = capacityExpr(plan.loop.bound);
+        final boundStr = loopBound(plan.loop.bound);
+        final loopIndexName = RustImports.toSnakeCase(plan.loop.index.name);
+        final loopVar = plan.readsIndex ? loopIndexName : "_";
 
         final out:Array<String> = [];
         out.push(indent(depth) + "let capacity = " + capStr + ";");
         out.push(indent(depth) + "let mut " + arrName + " = Vec::with_capacity(capacity);");
         out.push(indent(depth) + "for " + loopVar + " in 0.." + boundStr + " {");
-        final nonStores:Array<TypedExpr> = [];
-        for (s in loop.body) {
-            final store = indexedStoreOf(s);
-            if (store != null && store.arr.id == alloc.arr.id && store.idx.id == loop.index.id) {
-                if (nonStores.length > 0) {
-                    for (l in blockLines(nonStores, depth + 1))
+        for (step in plan.steps) {
+            switch (step) {
+                case NonStoreBatch(batch):
+                    for (l in blockLines(batch, depth + 1))
                         out.push(l);
-                    nonStores.resize(0);
-                }
-                out.push(indent(depth + 1) + arrName + ".push(" + renderPushArg(store.value) + ");");
-                continue;
+                case StoreValue(value):
+                    out.push(indent(depth + 1) + arrName + ".push(" + renderPushArg(value) + ");");
+                case PushValue(arg):
+                    out.push(indent(depth + 1) + arrName + ".push(" + renderPushArg(arg) + ");");
             }
-            final push = pushOf(s);
-            if (push != null && push.arr.id == alloc.arr.id) {
-                if (nonStores.length > 0) {
-                    for (l in blockLines(nonStores, depth + 1))
-                        out.push(l);
-                    nonStores.resize(0);
-                }
-                out.push(indent(depth + 1) + arrName + ".push(" + renderPushArg(push.arg) + ");");
-                continue;
-            }
-            nonStores.push(s);
-        }
-        if (nonStores.length > 0) {
-            for (l in blockLines(nonStores, depth + 1))
-                out.push(l);
         }
         out.push(indent(depth) + "}");
         return out;
@@ -2021,14 +1935,6 @@ class RustExpr {
                 final errVariant = errorTypeName + "::" + countOverflowVariant;
                 return "usize::try_from(" + expr(bound) + ").map_err(|_| " + errVariant + ")?";
         }
-    }
-
-    function indexedStoreOf(s:TypedExpr):Null<{arr:TVar, idx:TVar, value:TypedExpr}> {
-        return PolicyQueries.indexedStoreOf(s);
-    }
-
-    function pushOf(s:TypedExpr):Null<{arr:TVar, arg:TypedExpr}> {
-        return PolicyQueries.pushOf(s);
     }
 
     // ------------------------------------------------------------------
