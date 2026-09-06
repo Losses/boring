@@ -21,6 +21,16 @@ import ValueTypeSupport.ValueTypeInfo;
     message function's switch cases.
 **/
 class KotlinDecl {
+    static function isNullType(t:Null<Type>):Bool {
+        if (t == null)
+            return false;
+        return switch (t) {
+            case TAbstract(a, _): a.get().name == "Null";
+            case TLazy(f): isNullType(f());
+            case _: false;
+        };
+    }
+
     final imports:KotlinImports;
     final types:KotlinType;
     final expr:KotlinExpr;
@@ -849,9 +859,10 @@ class KotlinDecl {
         return PolicyQueries.collectTypeParamsInto(t, skip, found);
     }
 
-    function parameterText(cls:ClassType, fieldName:String, a:ClassFuncArg, emitDefault:Bool = true):String {
+    function parameterText(cls:ClassType, fieldName:String, a:ClassFuncArg, emitDefault:Bool = true, ?typeOverride:Null<Type>):String {
         final registered = DefaultArgExpander.defaultAt(cls, fieldName, a.index);
-        final parameterType = registered != null ? DefaultArgExpander.defaultParameterType(registered, a.type) : a.type;
+        final parameterType = typeOverride != null ? typeOverride
+            : (registered != null ? DefaultArgExpander.defaultParameterType(registered, a.type) : a.type);
         final defaultText = registered != null && emitDefault ? " = " + expr.defaultArgText(registered, a.type) : "";
         return KotlinNameEscape.escape(a.name) + ": " + types.of(parameterType) + defaultText;
     }
@@ -864,11 +875,13 @@ class KotlinDecl {
             var isField = false;
             var isFinal = true;
             var isPublic = false;
+            var fieldType:Null<Type> = null;
             for (v in varFields) {
                 if (v.field.name == a.name) {
                     isField = true;
                     isFinal = v.field.isFinal;
                     isPublic = v.field.isPublic;
+                    fieldType = v.field.type;
                     break;
                 }
             }
@@ -876,7 +889,9 @@ class KotlinDecl {
             // the primary constructor (feature spec 27); a parameter without
             // a same-named field stays a plain parameter.
             final prefix = isField ? (isPublic ? "" : "private ") + (isFinal ? "val " : "var ") : "";
-            params.push(prefix + parameterText(cls, ctor.field.name, a));
+            final typeOverride = isField && fieldType != null
+                && isNullType(a.type) && !isNullType(fieldType) ? fieldType : null;
+            params.push(prefix + parameterText(cls, ctor.field.name, a, true, typeOverride));
         }
         return "(" + params.join(", ") + ")";
     }
