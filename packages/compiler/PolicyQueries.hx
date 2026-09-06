@@ -161,8 +161,6 @@ class PolicyQueries {
         return hasInstanceToString(cls.superClass.t.get());
     }
 
-
-
     public static function indexedStoreOf(s:TypedExpr):Null<{arr:TVar, idx:TVar, value:TypedExpr}> {
         switch (ExpressionPredicates.stripWrap(s).expr) {
             case TBinop(OpAssign, target, value):
