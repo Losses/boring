@@ -74,6 +74,7 @@ class RustExpr {
     // rendered text is the key because guarded subjects may be fields.
     final optionNarrowings:Array<{subjectText:String, name:String}> = [];
     var optionNarrowingHit:Bool = false;
+    final fillNarrowings:Array<{subjectText:String, fillBody:String}> = [];
     final readsAfterDeclaration:Map<Int, Bool> = [];
     final unsignedLocals:Map<Int, Bool> = [];
     // Locals initialized from charCodeAt are collapsed from Option<u32> to a scalar.
@@ -679,11 +680,9 @@ class RustExpr {
                 out.push(indent(depth) + "}");
                 return out;
             case TIf(c, t, f):
-                if (f != null) {
-                    final guarded = guardedMatchStatements(c, t, f, depth);
-                    if (guarded != null)
-                        return guarded;
-                }
+                final guarded = guardedMatchStatements(c, t, f, depth);
+                if (guarded != null)
+                    return guarded;
                 var condStr = expr(c);
                 while (StringTools.startsWith(condStr, "(") && StringTools.endsWith(condStr, ")") && matchingParens(condStr)) {
                     condStr = condStr.substr(1, condStr.length - 2);
@@ -1126,6 +1125,7 @@ class RustExpr {
         final provenByGuard = earlyExitGuardIds(stmts);
         for (id in provenByGuard)
             provenNonNullVarIds.set(id, true);
+        final fillBase = fillNarrowings.length;
 
         var i = 0;
         while (i < stmts.length) {
@@ -1150,6 +1150,9 @@ class RustExpr {
             }
             for (l in stmtLines(stmts[i], depth))
                 out.push(l);
+            final fill = fillNarrowingOf(stmts[i]);
+            if (fill != null)
+                fillNarrowings.push(fill);
             i += 1;
         }
 
@@ -1175,6 +1178,8 @@ class RustExpr {
 
         for (id in provenByGuard)
             provenNonNullVarIds.remove(id);
+        while (fillNarrowings.length > fillBase)
+            fillNarrowings.pop();
         return out;
     }
 
@@ -1895,6 +1900,15 @@ class RustExpr {
 
     function renderPushArg(arg:TypedExpr):String {
         var argStr = expr(arg);
+        // A narrowed read already lowers to the match binding, a reference
+        // to the inner value: the push dereferences it for Copy inners and
+        // clones for the owned kinds, with no Option left to unwrap.
+        if (isNullType(arg.t)) {
+            final narrowed = narrowedSubject(arg);
+            if (narrowed != null) {
+                return isTypeCopy(getNullInnerType(arg.t)) ? "*" + narrowed : "(" + narrowed + ").clone()";
+            }
+        }
         if (isNullType(arg.t) && !(switch (stripWrap(arg).expr) {
             case TLocal(v): nullableCollapsedLocals.exists(v.id);
             case _: false;
@@ -1996,6 +2010,72 @@ class RustExpr {
         return null;
     }
 
+    /** The owned inner value a `Null<T>` assignment receives from a `T` right side. */
+    function ownedNullAssignValue(r:TypedExpr):String {
+        if (isTypeCopy(r.t))
+            return expr(r);
+        return switch (stripWrap(r).expr) {
+            // A literal is a &str while the Null target owns
+            // Option<String>; clone does not exist on str.
+            case TConst(TString(_)): expr(r) + ".to_string()";
+            case _:
+                final s = expr(r);
+                if (!StringTools.endsWith(s, ".clone()")
+                    && !StringTools.endsWith(s, ".to_vec()")
+                    && !StringTools.endsWith(s, ".to_string()")) {
+                    s + ".clone()";
+                } else {
+                    s;
+                }
+        };
+    }
+
+    /**
+        A `if (x == null) x = fill;` statement with no else arm registers the
+        fill for the rest of its block: after the statement the local holds
+        the filled value, so a later forcing read of `x` reuses the fill as
+        the `get_or_insert_with` closure body. Only a plain
+        local assigned exactly once in the arm qualifies.
+    **/
+    function fillNarrowingOf(e:TypedExpr):Null<{subjectText:String, fillBody:String}> {
+        switch (e.expr) {
+            case TIf(c, t, f) if (f == null):
+                final info = nullGuardOf(c);
+                if (info == null || !info.noneWhenTrue)
+                    return null;
+                switch (stripWrap(info.subject).expr) {
+                    case TLocal(_):
+                    case _: return null;
+                }
+                final body = statementsOf(t);
+                if (body.length != 1)
+                    return null;
+                switch (stripWrap(body[0]).expr) {
+                    case TBinop(OpAssign, l, r):
+                        switch [stripWrap(l).expr, stripWrap(info.subject).expr] {
+                            case [TLocal(assigned), TLocal(subject)] if (assigned.id == subject.id):
+                                if (isNullType(r.t) || isTNull(r))
+                                    return null;
+                                return {subjectText: subjectTextOf(info.subject), fillBody: ownedNullAssignValue(r)};
+                            case _:
+                        }
+                    case _:
+                }
+            case _:
+        }
+        return null;
+    }
+
+    function filledSubjectOf(subject:TypedExpr):Null<String> {
+        final text = subjectTextOf(subject);
+        for (i in 0...fillNarrowings.length) {
+            final fill = fillNarrowings[fillNarrowings.length - 1 - i];
+            if (fill.subjectText == text)
+                return fill.fillBody;
+        }
+        return null;
+    }
+
     function guardedMatchExpression(guard:TypedExpr, ifTrue:TypedExpr, ifFalse:TypedExpr, resultType:Type):Null<String> {
         final info = nullGuardOf(guard);
         if (info == null)
@@ -2025,17 +2105,17 @@ class RustExpr {
         }
         final noneText = conditionalBranchText(noneBranch, narrowedBranch, resultType);
         final subjectText = subjectTextOf(info.subject);
-        return info.noneWhenTrue ? "match (&("
+        return info.noneWhenTrue ? "match &("
             + subjectText
-            + ")) { None => "
+            + ") { None => "
             + noneText
             + ", Some("
             + name
             + ") => "
             + narrowedText
-            + " }" : "match (&("
+            + " }" : "match &("
             + subjectText
-            + ")) { Some("
+            + ") { Some("
             + name
             + ") => "
             + narrowedText
@@ -2044,23 +2124,30 @@ class RustExpr {
             + " }";
     }
 
-    function guardedMatchStatements(guard:TypedExpr, ifTrue:TypedExpr, ifFalse:TypedExpr, depth:Int):Null<Array<String>> {
+    function guardedMatchStatements(guard:TypedExpr, ifTrue:TypedExpr, ifFalse:Null<TypedExpr>, depth:Int):Null<Array<String>> {
         final info = nullGuardOf(guard);
         if (info == null)
+            return null;
+        // A guard without an else arm narrows only the arm that exists;
+        // an `x == null` guard keeps its narrowed code in the missing else
+        // arm, so no narrowing region exists and the plain if survives.
+        final narrowedBranch = info.noneWhenTrue ? ifFalse : ifTrue;
+        if (narrowedBranch == null)
             return null;
         final name = freshRegionName("__option");
         final previousHit = optionNarrowingHit;
         optionNarrowingHit = false;
         optionNarrowings.push({subjectText: subjectTextOf(info.subject), name: name});
-        final narrowed = info.noneWhenTrue ? blockLines(statementsOf(ifFalse), depth + 2) : blockLines(statementsOf(ifTrue), depth + 2);
+        final narrowed = blockLines(statementsOf(narrowedBranch), depth + 2);
         final hit = optionNarrowingHit;
         optionNarrowings.pop();
         optionNarrowingHit = previousHit;
         if (!hit)
             return null;
-        final other = info.noneWhenTrue ? blockLines(statementsOf(ifTrue), depth + 2) : blockLines(statementsOf(ifFalse), depth + 2);
+        final otherBranch = info.noneWhenTrue ? ifTrue : ifFalse;
+        final other = otherBranch == null ? [] : blockLines(statementsOf(otherBranch), depth + 2);
         final subjectText = expr(info.subject);
-        final out = [indent(depth) + "match (&(" + subjectText + ")) {"];
+        final out = [indent(depth) + "match &(" + subjectText + ") {"];
         function arm(tag:String, lines:Array<String>):Void {
             out.push(indent(depth + 1) + tag + " => {");
             for (line in lines)
@@ -3048,7 +3135,7 @@ class RustExpr {
                     final hit = narrowedSubject(guard.subject) != null;
                     optionNarrowings.pop();
                     if (hit)
-                        return "(match (&(" + expr(guard.subject) + ")) { Some(" + name + ") => " + right + ", None => false })";
+                        return "(match &(" + expr(guard.subject) + ") { Some(" + name + ") => " + right + ", None => false })";
                 }
                 final proven = provenNonNullLocal(l);
                 if (proven != null) {
@@ -3067,7 +3154,7 @@ class RustExpr {
                     final hit = narrowedSubject(guard.subject) != null;
                     optionNarrowings.pop();
                     if (hit)
-                        return "(match (&(" + expr(guard.subject) + ")) { None => true, Some(" + name + ") => " + right + " })";
+                        return "(match &(" + expr(guard.subject) + ") { None => true, Some(" + name + ") => " + right + " })";
                 }
                 return expr(l) + " || " + expr(r);
             case OpAssign:
@@ -3096,25 +3183,7 @@ class RustExpr {
                     return staticTarget + " = " + staticValue;
                 }
                 final rhs = if (isNullType(l.t) && !isNullType(r.t) && !isTNull(r)) {
-                    final rStr = if (!isTypeCopy(r.t)) {
-                        switch (stripWrap(r).expr) {
-                            // A literal is a &str while the Null target owns
-                            // Option<String>; clone does not exist on str.
-                            case TConst(TString(_)): expr(r) + ".to_string()";
-                            case _:
-                                final s = expr(r);
-                                if (!StringTools.endsWith(s, ".clone()")
-                                    && !StringTools.endsWith(s, ".to_vec()")
-                                    && !StringTools.endsWith(s, ".to_string()")) {
-                                    s + ".clone()";
-                                } else {
-                                    s;
-                                }
-                        }
-                    } else {
-                        expr(r);
-                    };
-                    "Some(" + rStr + ")";
+                    "Some(" + ownedNullAssignValue(r) + ")";
                 } else if (isStringType(l.t) && !isNullType(l.t)) {
                     switch (stripWrap(r).expr) {
                         case TConst(TString(_)): expr(r) + ".to_string()";
@@ -3716,7 +3785,14 @@ class RustExpr {
                 final narrowed = narrowedSubject(subj);
                 if (narrowed != null)
                     optionNarrowingHit = true;
-                final subjStr = if (narrowed != null) narrowed else if (isNullType(subj.t)) subjText + ".as_ref().unwrap()" else subjText;
+                // A preceding fill guard guarantees the local holds Some: the
+                // forcing read reuses the fill as the get_or_insert_with
+                // closure body. The closure runs only when the guard did not
+                // fill, which never happens after the guard.
+                final filled = narrowed == null && isNullType(subj.t) ? filledSubjectOf(subj) : null;
+                final subjStr = if (narrowed != null) narrowed else if (filled != null) subjText + ".get_or_insert_with(|| " + filled + ")" else
+                    if (isNullType(subj.t)) subjText
+                    + ".as_ref().unwrap()" else subjText;
                 final access = subjStr + "." + snake;
                 if (name != "length" && isConstructedStaticRead(subj) && StaticFieldHelper.isStringType(cf.get().type))
                     return "(" + access + ").to_string()";
