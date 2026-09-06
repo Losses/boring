@@ -1534,34 +1534,47 @@ class SwiftExpr {
                 final enumDef = en.get();
                 imports.type(enumDef.module, enumDef.name);
                 return enumDef.name + "." + SwiftDecl.lowerFirst(ef.name);
-            case FInstance(_, _, cf) | FAnon(cf):
+            case FInstance(owner, _, cf):
                 final name = cf.get().name;
-                final target = stripCast(subj);
-                final folded = foldedExceptionMessage(target, name);
-                if (folded != null) {
-                    return folded;
-                }
-                if (name == "length") {
-                    if (isStringBuf(subj)) {
-                        return "Int32(" + receiverText(subj) + ".count)";
-                    }
-                    if (isStringSubject(subj) && !types.resident) {
-                        return "Int32(" + receiverText(subj) + ".utf16.count)";
-                    }
-                    return "Int32(" + receiverText(subj) + ".count)";
-                }
-                // Haxe flows Null<T> into T and smart-casts after the nil
-                // guard; a field read through the optional force-unwraps
-                // here.
-                return receiverText(subj) + "." + SwiftNameEscape.escape(name);
+                final getterProperty = getterOnlyPropertyName(owner.get(), name);
+                if (getterProperty != null)
+                    return receiverText(subj) + "." + SwiftNameEscape.escape(getterProperty);
+                return instanceField(subj, name);
+            case FAnon(cf):
+                return instanceField(subj, cf.get().name);
             case FDynamic(name):
-                if ((name == "length" || name == "get_length") && isStringBuf(subj)) {
+                if ((name == "length" || name == "get_length") && isStringBuf(subj))
                     return "Int32(" + expr(subj) + ".count)";
-                }
                 return fail(subj, "dynamic field access has no lowering: " + name);
             case FClosure(_):
                 return fail(subj, "function value has no lowering (V08)");
         }
+    }
+
+    function instanceField(subj:TypedExpr, name:String):String {
+        final target = stripCast(subj);
+        final folded = foldedExceptionMessage(target, name);
+        if (folded != null)
+            return folded;
+        if (name == "length") {
+            if (isStringBuf(subj))
+                return "Int32(" + receiverText(subj) + ".count)";
+            if (isStringSubject(subj) && !types.resident)
+                return "Int32(" + receiverText(subj) + ".utf16.count)";
+            return "Int32(" + receiverText(subj) + ".count)";
+        }
+        return receiverText(subj) + "." + SwiftNameEscape.escape(name);
+    }
+
+    function getterOnlyPropertyName(owner:ClassType, accessorName:String):Null<String> {
+        if (!StringTools.startsWith(accessorName, "get_"))
+            return null;
+        final propertyName = accessorName.substring("get_".length);
+        for (field in owner.fields.get()) {
+            if (field.name == propertyName && PolicyQueries.isGetterOnlyProperty(field))
+                return field.name;
+        }
+        return null;
     }
 
     function staticRef(cls:ClassType, name:String):String {
@@ -2140,8 +2153,11 @@ class SwiftExpr {
                 return call(inner, args);
             case TField(subj, FDynamic(name)) if ((name == "length" || name == "get_length") && isStringBuf(subj)):
                 return "Int32(" + expr(subj) + ".count)";
-            case TField(subj, FInstance(_, _, cf)):
+            case TField(subj, FInstance(owner, _, cf)):
                 final name = cf.get().name;
+                final getterProperty = getterOnlyPropertyName(owner.get(), name);
+                if (getterProperty != null && args.length == 0)
+                    return expr(subj) + "." + SwiftNameEscape.escape(getterProperty);
                 if (isStringSubject(subj)) {
                     if (name == "toLowerCase")
                         return expr(subj) + ".lowercased()";

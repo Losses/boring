@@ -1732,7 +1732,11 @@ class RustDecl {
         final ret = retType == "()" ? "" : " -> " + retType;
         // @:allow members use crate visibility so allowed cross-module
         // references compile; trait impls stay unmarked per Rust rules.
-        final vis = isTraitImpl ? "" : (f.field.isPublic ? "pub " : (f.field.meta.has(":allow") ? "pub(crate) " : ""));
+        final isGetterAccessor = StringTools.startsWith(f.field.name, "get_") && [
+            for (field in cls.fields.get())
+                if (field.name == f.field.name.substring("get_".length) && isGetterOnlyProperty(field)) field
+        ].length > 0;
+        final vis = isTraitImpl ? "" : (f.field.isPublic || isGetterAccessor ? "pub " : (f.field.meta.has(":allow") ? "pub(crate) " : ""));
         final methodParams = collectMethodTypeParams(f, [for (p in cls.params) p.name]);
         final methodGenericStr = methodParams.length > 0 ? "<" + methodParams.join(", ") + ">" : "";
         final head = '    ${vis}fn ${snakeName}${methodGenericStr}($allArgs)$ret {';

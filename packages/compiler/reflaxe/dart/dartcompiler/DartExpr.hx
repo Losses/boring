@@ -1482,6 +1482,14 @@ class DartExpr {
                 if (isCatchMessageAccess(target, name)) {
                     return expr(target) + ".message";
                 }
+                // A public getter-only property is represented in the typed
+                // tree by its (possibly private) get_x accessor. Read the
+                // public Dart property facade; do not reference the private
+                // accessor across libraries.
+                final property = getterOnlyPropertyName(owner.get(), name);
+                if (property != null) {
+                    return receiverText(subj) + "." + property;
+                }
                 // A private member renders under its `_`-prefixed Dart
                 // name (feature spec 27). String length is the UTF-16
                 // unit count natively; list length and the lowered
@@ -2225,6 +2233,13 @@ class DartExpr {
                         + "; final _i = "
                         + expr(args[0])
                         + "; return _i >= 0 && _i < _s.length ? _s.codeUnitAt(_i) : null; })()";
+                }
+                // Property reads are typed as calls to get_x. When the
+                // accessor is private, use the public Dart getter facade
+                // across the library privacy boundary.
+                final property = getterOnlyPropertyName(owner.get(), name);
+                if (property != null && args.length == 0) {
+                    return receiverText(subj) + "." + property;
                 }
                 // A private method renders under its `_`-prefixed Dart
                 // name (feature spec 27); the special cases above are
@@ -3612,6 +3627,19 @@ class DartExpr {
         is library-scoped and the generated tree holds one library per
         module.
     **/
+    function getterOnlyPropertyName(owner:ClassType, accessorName:String):Null<String> {
+        if (!StringTools.startsWith(accessorName, "get_")) {
+            return null;
+        }
+        final propertyName = accessorName.substring("get_".length);
+        for (field in owner.fields.get()) {
+            if (field.name == propertyName && PolicyQueries.isGetterOnlyProperty(field)) {
+                return field.name;
+            }
+        }
+        return null;
+    }
+
     function memberName(ownerModule:String, cf:Ref<ClassField>, pos:haxe.macro.Expr.Position):String {
         final field = cf.get();
         if (field.isPublic || field.meta.has(":allow")) {
