@@ -593,10 +593,7 @@ class TsDecl {
         boundary; its fill stores and return value are frozen.
     **/
     function decodeBoundaryBody(cls:ClassType, f:ClassFuncData):Array<String> {
-        final boundary = switch (f.ret) {
-            case TAbstract(a, _): final abs = a.get(); abs.pack.join(".") == "std" && abs.name == "ReadOnlyArray";
-            case _: false;
-        }
+        final boundary = StaticFieldHelper.isReadOnlyArrayType(f.ret);
         expr.setDecodeBoundary(boundary);
         final body = expr.functionBody(cls, f);
         expr.setDecodeBoundary(false);
