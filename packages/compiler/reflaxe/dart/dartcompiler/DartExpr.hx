@@ -11,6 +11,7 @@ import haxe.macro.TypedExprTools;
 import reflaxe.data.ClassFuncData;
 import ExpressionPredicates;
 import PolicyQueries;
+import ExpressionBlockNorm;
 import PolicyQueries.IntervalCapability;
 import PolicyQueries.StdStringCategory;
 import PolicyQueries.Int64Op;
@@ -821,26 +822,9 @@ class DartExpr {
 
     /** Expression-position block lowering (features/43). */
     function blockExpression(stmts:Array<TypedExpr>):String {
-        if (stmts.length > 0)
-            switch (stmts[stmts.length - 1].expr) {
-                case TBlock(inner):
-                    return blockExpression(stmts.slice(0, stmts.length - 1).concat(inner));
-                case _:
-            }
-        if (stmts.length == 0)
-            return fail(null, "expression block must end in a value statement (features/43)");
-        for (i in 0...stmts.length - 1)
-            switch (stmts[i].expr) {
-                case TVar(_, _):
-                case _:
-                    return fail(stmts[i], "expression block allows only declarations before its value statement (features/43)");
-            }
-        switch (stmts[stmts.length - 1].expr) {
-            case TReturn(_) | TThrow(_) | TVar(_, _) | TIf(_, _, _) | TWhile(_, _, _) | TFor(_, _, _) | TSwitch(_, _, _) | TTry(_, _) | TBlock(_) | TBreak |
-                TContinue | TBinop(OpAssign, _, _) | TBinop(OpAssignOp(_), _, _):
-                return fail(stmts[stmts.length - 1], "expression block must end in a value statement (features/43)");
-            case _:
-        }
+        stmts = ExpressionBlockNorm.normalize(stmts, (e, message) -> fail(e, message),
+            _ -> "expression block must end in a value statement (features/43)",
+            "expression block allows only declarations before its value statement (features/43)");
         final out = ["(() {"];
         // Do not erase single-case payload declarations: their initializer
         // must render the enum match. Erasing them makes `final text = text`.
