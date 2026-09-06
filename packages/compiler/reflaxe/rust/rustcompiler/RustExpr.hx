@@ -4721,6 +4721,12 @@ class RustExpr {
                     return "(" + mathFloatArg(args[0]) + ").abs()";
                 if (cls.module == "Math" && (name == "min" || name == "max") && args.length == 2)
                     return staticRef(cls, name) + "(" + mathFloatArg(args[0]) + ", " + mathFloatArg(args[1]) + ")";
+                if (cls.module == "Math" && name == "pow" && args.length == 2) {
+                    // Rust names the power function powf; the f32
+                    // configuration reads it from f32 (feature spec 23).
+                    final real = FloatPrecision.isF32() ? "f32" : "f64";
+                    return real + "::powf(" + mathFloatArg(args[0]) + ", " + mathFloatArg(args[1]) + ")";
+                }
                 if (cls.module == "Std" && name == "parseFloat") {
                     final real = FloatPrecision.isF32() ? "f32" : "f64";
                     imports.require("crate::runtime::u_string");

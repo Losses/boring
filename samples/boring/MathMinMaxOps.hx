@@ -18,4 +18,10 @@ class MathMinMaxOps {
 
     public static function absOfInts(a:Int):Float
         return Math.abs(a);
+
+    public static function power(a:Float, b:Float):Float
+        return Math.pow(a, b);
+
+    public static function powerOfInts(a:Int, b:Int):Float
+        return Math.pow(a, b);
 }
