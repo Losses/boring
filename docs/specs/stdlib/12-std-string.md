@@ -50,7 +50,10 @@ and an operand typed as a type parameter stop the compilation with
 only`. The sanctioned path for other values is calling `toString` in the
 Haxe source, which the explicit override rendering of
 `samples/boring/ToStringOps.hx` covers, and handling nulls with an explicit
-check in the source. Nullable operands are rejected on every target: the
+check in the source. The sanctioned narrowing for a nullable value inside
+string rendering is the null comparison ternary of the record member
+synthesis (18-non-null-require.md). Nullable operands are rejected on every
+target: the
 targets render a nullable with their own spelling (`null`, `nil`, `None`),
 and a uniform rejection costs less than five spellings of a nullable render
 (principle 3, cost symmetry).
