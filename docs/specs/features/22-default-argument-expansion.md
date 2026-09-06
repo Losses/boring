@@ -91,7 +91,11 @@ omission resolves to the coalescing expression.
    evaluates `E` at every call that omits the parameter and at no other call;
    each target lowering preserves this per-call evaluation, and two omitting
    calls receive distinct container instances. The per-call freshness is an
-   observable the consistency run pins.
+   observable the consistency run pins. The omission-only evaluation wording
+   of this rule and of rule 2 is superseded for the coalescing default by
+   rule 4 of `docs/specs/features/51-omitted-versus-explicit-null.md`: the
+   coalescing default evaluates at every invocation, and no observable
+   distinction from omission-only evaluation may be claimed.
 4. A value-optional parameter (`x:String = "?"`) keeps its declared type in
    the body; after the pass it becomes a plain required parameter. A
    nullable-optional parameter holding a constant default (`?suffix:String`
