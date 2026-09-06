@@ -80,10 +80,12 @@ collection field through that lowering.
    a structure element stop the compilation with it, and the sanctioned
    path stays the explicit `toString` member in the source.
 4. A nullable collection field (`Null<Array<T>>`,
-   `Null<ReadOnlyArray<T>>`) renders through the same `Std.string`
-   operand and stops the compilation with the named error; the class
-   keeps an explicit member. The null comparison form of spec 31 ruling 4
-   stays confined to record-typed fields.
+   `Null<ReadOnlyArray<T>>`) renders through the null comparison
+   ternary of the member synthesis: a null field prints `null`, a
+   present field prints the `Std.string` form of the field read,
+   lowered to the target's non-null assertion
+   (docs/specs/stdlib/18-non-null-require.md). The null comparison
+   form of spec 31 ruling 4 stays confined to record-typed fields.
 5. Kotlin emits no member for a `@:dataClass` class (spec 31 ruling 1);
    the native synthesis prints an `Array` field through its `List` field
    type, whose text `[a, b]` is the string the ruled builders print. The
