@@ -27,7 +27,6 @@ class ExpressionBlockTests {
         final nested = new ExpressionBlockOuter(new ExpressionBlockInner(holder));
         Test.equals("b", std.UString.slice(nested.inner.holder.text, nested.inner.holder.from, nested.inner.holder.to));
     }
-
 }
 
 class ExpressionBlockSupport {

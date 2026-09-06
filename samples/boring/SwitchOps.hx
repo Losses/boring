@@ -16,10 +16,14 @@ class SwitchOps {
     public static function statement(mark:SwitchMark):String {
         var value:String = "unset";
         switch (mark) {
-            case Empty: value = "empty";
-            case Number(n): value = "number:" + n;
-            case Text(s): value = "text:" + s;
-            case Other: value = "other";
+            case Empty:
+                value = "empty";
+            case Number(n):
+                value = "number:" + n;
+            case Text(s):
+                value = "text:" + s;
+            case Other:
+                value = "other";
         }
         return value;
     }
@@ -34,7 +38,6 @@ class SwitchOps {
         };
         return value;
     }
-
 
     /** Assign position: the switch expression assigns an existing local. */
     public static function assign(mark:SwitchMark):String {
@@ -52,10 +55,14 @@ class SwitchOps {
     public static function defaulted(mark:SwitchMark):String {
         var value:String = "unset";
         switch (mark) {
-            case Empty: value = "empty";
-            case Number(_): value = "number";
-            case Text(_): value = "text";
-            case Other: value = "fallback";
+            case Empty:
+                value = "empty";
+            case Number(_):
+                value = "number";
+            case Text(_):
+                value = "text";
+            case Other:
+                value = "fallback";
         }
         return value;
     }

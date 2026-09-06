@@ -23,8 +23,14 @@ class FpText {
         }
         var e = 0;
         var x = v;
-        while (x >= 10) { x /= 10; e += 1; }
-        while (x < 1) { x *= 10; e -= 1; }
+        while (x >= 10) {
+            x /= 10;
+            e += 1;
+        }
+        while (x < 1) {
+            x *= 10;
+            e -= 1;
+        }
         final targetBits = FPHelper.floatToI32(v);
         final target = FPHelper.i32ToFloat(targetBits);
         var p = 1;
@@ -70,12 +76,18 @@ class FpText {
         if (pointAfter <= 0) {
             out.add("0.");
             var k = 0;
-            while (k < -pointAfter) { out.add("0"); k += 1; }
+            while (k < -pointAfter) {
+                out.add("0");
+                k += 1;
+            }
             out.add(s);
         } else if (pointAfter >= p) {
             out.add(s);
             var k = p;
-            while (k < pointAfter) { out.add("0"); k += 1; }
+            while (k < pointAfter) {
+                out.add("0");
+                k += 1;
+            }
             out.add(".0");
         } else {
             out.add(s.substring(0, pointAfter));

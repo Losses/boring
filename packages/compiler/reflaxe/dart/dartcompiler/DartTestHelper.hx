@@ -47,9 +47,7 @@ class DartTestHelper {
             "import 'test_host.dart' as test_host;"
         ];
         if (withArgs) {
-            lines.push("import '"
-                + Compiler.importSpecifier(testOutput + "/main.dart", dartOutput + "/platform_host.dart")
-                + "' as platform_host;");
+            lines.push("import '" + Compiler.importSpecifier(testOutput + "/main.dart", dartOutput + "/platform_host.dart") + "' as platform_host;");
         }
         for (m in modules) {
             // The test module's own pack is `tests`, so its library path
