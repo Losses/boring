@@ -656,6 +656,12 @@ class TsDecl {
                     '  ${o.name}: Object.freeze({ kind: "${o.name}" } as ${o.name})'
             ];
             blocks.push('export const ${en.name} = Object.freeze({\n' + members.join(",\n") + '\n});');
+            final compareLines = ['export function compare${en.name}(a: ${en.name}, b: ${en.name}): number {', '  if (a === b) return 0;'];
+            for (o in sorted)
+                compareLines.push('  if (a.kind === "${o.name}") return ${o.field.index} - (b.kind === "${o.name}" ? ${o.field.index} : 0);');
+            compareLines.push('  return 0;');
+            compareLines.push('}');
+            blocks.push(compareLines.join("\n"));
             final use = EnumQueryExpander.usage(en);
             if (use != null && use.collection) {
                 final allName = EnumQueryExpander.upperSnake(en.name) + "_ALL";
