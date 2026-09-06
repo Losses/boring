@@ -860,6 +860,17 @@ class SwiftDecl {
             for (o in sorted)
                 lines.push('    case ${lowerFirst(o.name)} = "${o.name}"');
             lines.push("}");
+            lines.push("");
+            lines.push("public func compare" + en.name + "(_ a: " + en.name + ", _ b: " + en.name + ") -> Int32 {");
+            lines.push("    if a == b { return 0; }");
+            lines.push("    func rank(_ v: " + en.name + ") -> Int32 {");
+            lines.push("        switch v {");
+            for (o in sorted)
+                lines.push("        case ." + lowerFirst(o.name) + ": return " + o.field.index);
+            lines.push("        }");
+            lines.push("    }");
+            lines.push("    return rank(a) - rank(b)");
+            lines.push("}");
             return lines.join("\n");
         }
         final lines:Array<String> = [ // Equatable backs the construct comparisons the samples run
