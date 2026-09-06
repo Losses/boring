@@ -19,6 +19,7 @@ class PrintedFloatTests {
     public static function printsComputedShortestTextOnNullableFields():Void {
         Test.equals("PrintedFloat(ratio=0.5714286, offset=0.5714286, count=7, stops=null)", Std.string(new PrintedFloat(4 / 7, 4 / 7, 7, null)));
     }
+
     @:test("nullable float collection keeps the ruled array form")
     public static function printsNullableFloatCollectionForm():Void {
         Test.equals("PrintedFloat(ratio=0.8, offset=null, count=7, stops=[1.5, 2.5])", Std.string(new PrintedFloat(0.8, null, 7, [1.5, 2.5])));
@@ -26,7 +27,8 @@ class PrintedFloatTests {
 
     @:test("float collection elements use the shortest binary32 text")
     public static function printsShortestFloatTextOnCollectionElements():Void {
-        Test.equals("PrintedFloat(ratio=0.8, offset=null, count=7, stops=[0.5714286, 18.0, -0.8])", Std.string(new PrintedFloat(0.8, null, 7, [4 / 7, 18.0, -0.8])));
+        Test.equals("PrintedFloat(ratio=0.8, offset=null, count=7, stops=[0.5714286, 18.0, -0.8])",
+            Std.string(new PrintedFloat(0.8, null, 7, [4 / 7, 18.0, -0.8])));
     }
 
     @:test("non-finite binary32 text keeps the platform form")
