@@ -62,6 +62,9 @@ class Compiler extends PluginCompiler<Compiler> {
     **/
     public static final referencedImplModules:Map<String, Bool> = [];
 
+    /** Classes whose flattened public statics would share a library name. */
+    public static final collidingStaticsClasses:Map<String, Bool> = [];
+
     public static function use() {
         // Dart has one storage width for reals (double) with no binary32
         // alias in the language, so the f32 configuration has no faithful Dart
@@ -117,6 +120,35 @@ class Compiler extends PluginCompiler<Compiler> {
             }
         }
         referencedStatics.clear();
+        collidingStaticsClasses.clear();
+        final staticNames = new Map<String, Array<{cls:ClassType, names:Map<String, Bool>}>>();
+        for (mt in mtypes) {
+            switch (mt) {
+                case TClassDecl(c):
+                    final cls = c.get();
+                    if (cls.isExtern || RuntimeResidents.isResident(cls.module) || !inSourceScope(cls.pos)
+                        || cls.isInterface || cls.superClass != null || cls.interfaces.length > 0
+                        || cls.constructor != null || cls.fields.get().length > 0) {
+                        continue;
+                    }
+                    final names:Map<String, Bool> = [];
+                    for (f in cls.statics.get()) {
+                        names.set(f.isPublic ? f.name : "_" + f.name, true);
+                    }
+                    if (!staticNames.exists(cls.module)) staticNames.set(cls.module, []);
+                    staticNames.get(cls.module).push({cls: cls, names: names});
+                case _:
+            }
+        }
+        for (module in staticNames.keys()) {
+            final entries = staticNames.get(module);
+            for (i in 0...entries.length) for (j in i + 1...entries.length) {
+                for (name in entries[i].names.keys()) if (entries[j].names.exists(name)) {
+                    collidingStaticsClasses.set(module + "." + entries[i].cls.name, true);
+                    collidingStaticsClasses.set(module + "." + entries[j].cls.name, true);
+                }
+            }
+        }
         final referenced = StaticReferenceScan.scan(mtypes, cls -> !cls.isExtern
             && (RuntimeResidents.isResident(cls.module) || inSourceScope(cls.pos)));
         for (key in referenced.keys())
@@ -250,6 +282,10 @@ class Compiler extends PluginCompiler<Compiler> {
             parts.get(classType.module).push(result);
         }
         return result;
+    }
+
+    public static function keepStaticsClass(cls:ClassType):Bool {
+        return collidingStaticsClasses.exists(cls.module + "." + cls.name);
     }
 
     function includeStaticFunc(cls:ClassType, f:ClassFuncData):Bool {

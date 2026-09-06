@@ -129,7 +129,8 @@ class DartDecl {
         // outside haxe.Exception). Resident modules always keep the
         // class: the runtime library merges several modules whose
         // top-level function names would collide.
-        if (flattenStatics(cls) && isStaticsOnly(varFields, ordinaryFuncs)) {
+        if (flattenStatics(cls) && isStaticsOnly(varFields, ordinaryFuncs)
+            && !Compiler.keepStaticsClass(cls)) {
             // The data tables of a statics-only class become top-level
             // constants of its library (a top-level variable needs no
             // static keyword).

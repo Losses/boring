@@ -1,10 +1,17 @@
 package tests;
 
 import boring.StaticStateOps;
+import boring.StaticCollisionOps;
 import boring.StaticStateOps.StaticStateClient;
 import std.Test;
 
 class StaticStateTests {
+    @:test("colliding static-only classes retain distinct namespaces")
+    public static function testStaticCollision():Void {
+        Test.equals("float:1.5", StaticCollisionOps.floatValue(1.5), "float static result");
+        Test.equals("int:7", StaticCollisionOps.intValue(7), "int static result");
+    }
+
     @:test("static fields round-trip assignments and retain container state")
     public static function testStaticState():Void {
         StaticStateOps.setCurrent("own");
