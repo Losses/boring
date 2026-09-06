@@ -26,11 +26,12 @@ constructors, interfaces, and extracted functions emitted by the Kotlin target.
 4. For an instance member call, the Kotlin target inspects the compile-time type
    of the receiver. The `Null<T>` case emits `?.`; non-nullable receivers emit `.`.
    The decision uses only the compile-time type table.
-5. Haxe `Null<T>` member access would fail at runtime when the receiver is null.
-   Kotlin `?.` instead short-circuits and returns null, and that nullable result
-   flows into the existing assignment or assertion handling. This behavior
-   difference is accepted as a target-side degradation on a Haxe path that would
-   already fail.
+5. At a call site, a null literal for a parameter with a registered default
+   materializes that default. A nullable argument lowers as Kotlin's
+   null-coalescing expression over the default, preserving Haxe normalization
+   for both literal and variable arguments. Other nullable receiver behavior
+   remains as described below; a nullable member result flows into existing
+   assignment or assertion handling.
 
 ## Worked example
 
