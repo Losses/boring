@@ -808,6 +808,17 @@ class TsExpr {
         return PolicyQueries.intervalShort(counterDecl, whileExpr, intervalCaps);
     }
 
+    function isSortedSetSizeBound(bound:TypedExpr):Bool {
+        return switch (stripWrap(bound).expr) {
+            case TCall({expr: TField(subj, FInstance(_, _, cf))}, args) if (cf.get().name == "size" && args.length == 0):
+                switch (stripWrap(subj).t) {
+                    case TInst(cls, _) if (cls.get().module == "std.SortedSet"): true;
+                    case _: false;
+                }
+            case _: false;
+        };
+    }
+
     function boundLengthSubject(bound:TypedExpr):Null<TVar> {
         final inner = stripWrap(bound);
         switch (inner.expr) {
@@ -824,12 +835,11 @@ class TsExpr {
     function loopLines(loop, depth:Int, fold:Null<String>):Array<String> {
         final name = loop.index.name;
         final boundText = expr(loop.bound);
-        // The string-length pass already hoists reads like x.length into
-        // a plain local, and a constant bound folds to a literal; a bound
-        // whose rendered form carries no member access needs no second
-        // hoist. Hoisting those anyway shadows the existing local with
-        // count = count and trips the temporal dead zone at runtime.
-        final boundNeedsHoist = fold == null && boundText.indexOf(".") >= 0;
+        // Member reads and pure collection-size calls must be evaluated once
+        // before the loop. A literal bound needs no hoist; hoisting it would
+        // shadow the existing local with count = count and trip the temporal
+        // dead zone at runtime.
+        final boundNeedsHoist = fold == null && (boundText.indexOf(".") >= 0 || isSortedSetSizeBound(loop.bound));
         final init = "let "
             + name
             + " = "
@@ -930,10 +940,13 @@ class TsExpr {
         final arrName = localName(alloc.arr);
         final subject = boundLengthSubject(loop.bound);
         final hoistName = subject != null ? hoistedFor(hoists, subject) : null;
-        final allocBound = hoistName != null ? hoistName : allocationBound(loop.bound);
-        final condBound = hoistName != null ? hoistName : expr(loop.bound);
+        final sizeHoist = isSortedSetSizeBound(loop.bound);
+        final allocBound = hoistName != null ? hoistName : (sizeHoist ? "Math.max(count, 0)" : allocationBound(loop.bound));
+        final condBound = hoistName != null ? hoistName : (sizeHoist ? "count" : expr(loop.bound));
         final name = loop.index.name;
         final out:Array<String> = [];
+        if (sizeHoist)
+            out.push(indent(depth) + "const count = " + expr(loop.bound) + ";");
         out.push(indent(depth) + 'const $arrName: ${elem}[] = new Array<$elem>($allocBound);');
         out.push(indent(depth)
             + "for (let "
