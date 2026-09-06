@@ -1937,14 +1937,6 @@ class RustExpr {
         }
     }
 
-    function indexedStoreOf(s:TypedExpr):Null<{arr:TVar, idx:TVar, value:TypedExpr}> {
-        return PolicyQueries.indexedStoreOf(s);
-    }
-
-    function pushOf(s:TypedExpr):Null<{arr:TVar, arg:TypedExpr}> {
-        return PolicyQueries.pushOf(s);
-    }
-
     // ------------------------------------------------------------------
     // Expressions
     // ------------------------------------------------------------------
