@@ -123,7 +123,7 @@ class TsType {
     }
 
     function pathOf(pack:Array<String>, name:String):String {
-        return pack.length == 0 ? name : pack.join(".") + "." + name;
+        return PolicyQueries.pathOf(pack, name);
     }
 
     public static function classifyKey(t:Null<Type>, ?pos:haxe.macro.Expr.Position):KeyDomain {
