@@ -44,7 +44,7 @@ class TsType {
                     case "Void": "void";
                     case "Null": of(params[0]) + " | null";
                     case "haxe.ds.Map" if (params.length == 2): "Map<" + of(params[0]) + ", " + of(params[1]) + ">";
-                    case "std.ReadOnlyArray": "readonly " + of(params[0]) + "[]";
+                    case "std.ReadOnlyArray": "readonly " + arrayElement(params[0]) + "[]";
                     case "haxe.Int64": "bigint";
                     case _: of(abs.type);
                 };
@@ -52,7 +52,7 @@ class TsType {
                 final cls = c.get();
                 switch (pathOf(cls.pack, cls.name)) {
                     case "String" | "std.StringBuf" | "StringBuf": "string";
-                    case "Array": of(params[0]) + "[]";
+                    case "Array": arrayElement(params[0]) + "[]";
                     case "haxe.io.Bytes": "Uint8Array";
                     case "haxe.io.BytesBuffer":
                         imports.runtime("BytesBuffer");
@@ -121,6 +121,18 @@ class TsType {
     public function moduleBase(module:String):String {
         final parts = module.split(".");
         return parts[parts.length - 1];
+    }
+
+    /**
+        An array element that is itself a nullable type renders wrapped
+        in parentheses: `of` spells Null<T> as a top-level union and the
+        postfix `[]` would otherwise bind to the null side alone.
+    **/
+    function arrayElement(elem:Type):String {
+        return switch (elem) {
+            case TAbstract(a, _) if (pathOf(a.get().pack, a.get().name) == "Null"): "(" + of(elem) + ")";
+            case _: of(elem);
+        }
     }
 
     function pathOf(pack:Array<String>, name:String):String {
