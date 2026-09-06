@@ -1579,7 +1579,8 @@ class DartExpr {
             case "std.Fs" | "std.Env":
                 return fail(null, "std.Fs and std.Env statics lower at their call site; a bare reference has no lowering");
             case _:
-                if (isStaticsOnlyClass(cls) && !RuntimeResidents.isResident(module)) {
+                if (isStaticsOnlyClass(cls) && !RuntimeResidents.isResident(module)
+                    && !Compiler.keepStaticsClass(cls)) {
                     // A statics-only business class lowers to top-level
                     // functions of its own library; the reference carries no
                     // class. Resident statics keep the class: the runtime
