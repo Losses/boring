@@ -2603,6 +2603,16 @@ class KotlinExpr {
                     return "(" + expr(args[0]) + ").isNaN()";
                 if (cls.module == "Math" && name == "isFinite")
                     return "(" + expr(args[0]) + ").isFinite()";
+                if (cls.module == "Math" && (name == "floor" || name == "ceil" || name == "round")) {
+                    // Haxe types floor, ceil, and round as Int. floor and
+                    // ceil convert through kotlin.math (Float and Double
+                    // overloads); round reads java.lang.Math.round, whose
+                    // half-up ties match the TS Math.round exactly, while
+                    // kotlin.math.round sends ties toward zero.
+                    if (name == "round")
+                        return FloatPrecision.isF32() ? "Math.round(" + expr(args[0]) + ")" : "Math.round(" + expr(args[0]) + ").toInt()";
+                    return "(kotlin.math." + name + "(" + expr(args[0]) + ")).toInt()";
+                }
                 if (cls.module == "Std" && (name == "parseFloat" || name == "parseInt") && args.length == 1) {
                     final s = expr(args[0]);
                     final real = FloatPrecision.isF32() ? "Float" : "Double";
