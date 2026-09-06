@@ -6,13 +6,6 @@ import haxe.macro.Type;
 import StructuralKeyValidator;
 import PolicyQueries;
 
-enum DartKeyDomain {
-    DartIntKey;
-    DartStringKey;
-    DartStructKey(def:DefType, fields:Array<ClassField>);
-    DartDataClassKey(cls:ClassType, fields:Array<ClassField>);
-    DartEnumKey(en:EnumType);
-}
 
 /**
     Type mapping from the translatable Haxe subset to Dart, per
@@ -244,63 +237,8 @@ class DartType {
         return PolicyQueries.pathOf(pack, name);
     }
 
-    public static function classifyKey(t:Null<Type>, ?pos:haxe.macro.Expr.Position):DartKeyDomain {
-        if (t == null) {
-            final p = pos != null ? pos : Context.currentPos();
-            Context.error("sorted keyed tables support Int, String, structure, and dataClass keys; parameterless enums are supported; enums with payloads are not keys", p);
-            return DartIntKey;
-        }
-        final p = pos != null ? pos : Context.currentPos();
-        return switch (t) {
-            case TAbstract(a, _):
-                if (a.get().name == "Int") {
-                    DartIntKey;
-                } else {
-                    Context.error("sorted keyed tables support Int, String, structure, and dataClass keys; parameterless enums are supported; enums with payloads are not keys", p);
-                    DartIntKey;
-                }
-            case TInst(c, _):
-                final cls = c.get();
-                if (cls.name == "String") {
-                    DartStringKey;
-                } else if (cls.meta.has(":dataClass")) {
-                    final fields = [
-                        for (f in cls.fields.get())
-                            if (switch (f.kind) {
-                                    case FVar(read, write): !(read.match(AccCall) && write.match(AccNever));
-                                    case _: false;
-                                }) f
-                    ];
-                    for (f in fields)
-                        validateDataClassField(cls, f);
-                    DartDataClassKey(cls, fields);
-                } else {
-                    Context.error("sorted keyed tables support Int, String, structure, and dataClass keys; parameterless enums are supported; enums with payloads are not keys", p);
-                    DartStringKey;
-                }
-            case TEnum(e, _):
-                final en = e.get();
-                var parameterless = true;
-                for (ef in en.constructs)
-                    switch (Context.follow(ef.type)) {
-                        case TFun(args, _) if (args.length > 0): parameterless = false;
-                        case _:                    }
-                if (parameterless) {
-                    DartEnumKey(en);
-                } else {
-                    Context.error("sorted keyed tables support Int, String, structure, and dataClass keys; parameterless enums are supported; enums with payloads are not keys", p);
-                    DartIntKey;
-                }
-            case TType(defRef, _):
-                final def = defRef.get();
-                final fields = validateStructDef(def, p, [def.name]);
-                DartStructKey(def, fields);
-            case TLazy(f):
-                classifyKey(f(), p);
-            case _:
-                Context.error("sorted keyed tables support Int, String, structure, and dataClass keys; parameterless enums are supported; enums with payloads are not keys", p);
-                DartIntKey;
-        }
+    public static function classifyKey(t:Null<Type>, ?pos:haxe.macro.Expr.Position):KeyDomain {
+        return PolicyQueries.classifyKey(t, pos);
     }
 
     static function validateDataClassField(cls:ClassType, field:ClassField):Void {
