@@ -2267,6 +2267,11 @@ class DartExpr {
                         case "max":
                             imports.useDartMath();
                             return "math.max(" + mathFloatArg(args[0]) + ", " + mathFloatArg(args[1]) + ")";
+                        case "pow":
+                            // math.pow returns num; the call site narrows
+                            // to the double the Haxe signature promises.
+                            imports.useDartMath();
+                            return "math.pow(" + mathFloatArg(args[0]) + ", " + mathFloatArg(args[1]) + ").toDouble()";
                         case "isNaN": return "(" + expr(args[0]) + ").isNaN";
                         case "isFinite": return "(" + expr(args[0]) + ").isFinite";
                         case _:

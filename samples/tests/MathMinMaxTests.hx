@@ -35,4 +35,16 @@ class MathMinMaxTests {
     public static function absInt():Void {
         Test.equals(7.0, MathMinMaxOps.absOfInts(7));
     }
+
+    @:test("Math.pow raises the base to the exponent")
+    public static function powFloat():Void {
+        Test.equals(8.0, MathMinMaxOps.power(2.0, 3.0));
+        Test.equals(0.25, MathMinMaxOps.power(2.0, -2.0));
+        Test.equals(1.0, MathMinMaxOps.power(5.0, 0.0));
+    }
+
+    @:test("Math.pow accepts int operands through the float signature")
+    public static function powInt():Void {
+        Test.equals(9.0, MathMinMaxOps.powerOfInts(3, 2));
+    }
 }

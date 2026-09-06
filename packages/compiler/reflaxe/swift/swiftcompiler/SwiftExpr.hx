@@ -2328,6 +2328,10 @@ class SwiftExpr {
                         return fName + "(" + mathFloatArg(args[0]) + ", " + mathFloatArg(args[1]) + ")";
                     if (fName == "abs")
                         return "abs(" + mathFloatArg(args[0]) + ")";
+                    if (fName == "pow" && args.length == 2) {
+                        imports.foundation();
+                        return "pow(" + mathFloatArg(args[0]) + ", " + mathFloatArg(args[1]) + ")";
+                    }
                     if (fName == "isNaN")
                         return "(" + expr(args[0]) + ").isNaN";
                     if (fName == "isFinite")
