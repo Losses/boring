@@ -295,9 +295,9 @@ class Compiler extends PluginCompiler<Compiler> {
             final content = fileContent(module, body);
             if (testModules.exists(module)) {
                 final testFileRel = relativeFromTo(swiftOutput, testOutput) + "/" + modulePath(module);
-                saveTreeFile(testFileRel, content);
+                PackageArtifacts.saveTreeFile(output, testFileRel, content);
             } else {
-                saveTreeFile(modulePath(module), content);
+                PackageArtifacts.saveTreeFile(output, modulePath(module), content);
             }
         }
 
@@ -313,7 +313,8 @@ class Compiler extends PluginCompiler<Compiler> {
                     residentParts.push(moduleParts.join("\n\n"));
                 }
             }
-            saveTreeFile(RuntimeConfig.emitPath(emitDir, "Runtime.swift"), StringTools.trim(SwiftRuntime.SOURCE)
+            PackageArtifacts.saveTreeFile(output, RuntimeConfig.emitPath(emitDir, "Runtime.swift"),
+                StringTools.trim(SwiftRuntime.SOURCE)
                 + "\n"
                 + residentParts.join("\n\n")
                 + "\n");
@@ -328,7 +329,7 @@ class Compiler extends PluginCompiler<Compiler> {
                         testResidentParts.push(moduleParts.join("\n\n"));
                     }
                 }
-                saveTreeFile(RuntimeConfig.emitPath(emitDir, "Test.swift"),
+                PackageArtifacts.saveTreeFile(output, RuntimeConfig.emitPath(emitDir, "Test.swift"),
                     StringTools.trim(SwiftRuntime.TEST_SOURCE)
                     + "\n"
                     + testResidentParts.join("\n\n")
@@ -338,14 +339,14 @@ class Compiler extends PluginCompiler<Compiler> {
 
         if (testEntries.length > 0) {
             final testRoot = relativeFromTo(swiftOutput, testOutput);
-            saveTreeFile(testRoot + "/TestMain.swift", testImportPrefix() + SwiftTestHelper.testMainSource(testEntries));
+            PackageArtifacts.saveTreeFile(output, testRoot + "/TestMain.swift", testImportPrefix() + SwiftTestHelper.testMainSource(testEntries));
             if (SwiftTestTypes.registered.length > 0) {
-                saveTreeFile(testRoot + "/TestHelper.swift", testImportPrefix() + SwiftTestHelper.testHelperSource());
+                PackageArtifacts.saveTreeFile(output, testRoot + "/TestHelper.swift", testImportPrefix() + SwiftTestHelper.testHelperSource());
             }
         }
 
         if (PackageShell.enabled()) {
-            saveTreeFile("Package.swift", packageManifest());
+            PackageArtifacts.saveTreeFile(output, "Package.swift", packageManifest());
         }
         if (PackageArtifacts.enabled()) {
             PackageArtifacts.requireShell();
@@ -357,16 +358,6 @@ class Compiler extends PluginCompiler<Compiler> {
     function testImportPrefix():String {
         final testImport = Context.definedValue("swift-test-import");
         return testImport == null ? "" : "import " + testImport + "\n\n";
-    }
-
-    /**
-        Saves one file through the output manager and records the write
-        for artifact packing (feature spec 25). Paths that escape the
-        output root belong to the test tree and stay unpacked.
-    **/
-    function saveTreeFile(path:String, content:String):Void {
-        output.saveFile(path, content);
-        PackageArtifacts.record(path, content);
     }
 
     /**
