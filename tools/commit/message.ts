@@ -8,6 +8,8 @@
  * message without reading the standard.
  */
 
+import { scanText } from "../doc-style/check.ts";
+
 export type CommitIssue = {
   readonly line: number;
   readonly rule: string;
@@ -37,8 +39,8 @@ const HEADER_PATTERN = /^([a-z][a-z0-9-]*)(?:\(([a-z0-9][a-z0-9-]*)\))?(!)?: (.+
 const FOOTER_PATTERN = /^([A-Za-z][A-Za-z0-9-]*)(: | #)(.+)$/;
 // A line that starts like a trailer but may be malformed.
 const TRAILER_LIKE_PATTERN = /^[A-Za-z][A-Za-z0-9-]*[:#]/;
-// Co-author trailers are banned in every casing and spacing variant.
-const COAUTHOR_PATTERN = /^\s*co-authored-by\s*:/i;
+// Co-author attribution is banned in every form, casing, and position.
+const COAUTHOR_PATTERN = /\bco-?auth/i;
 
 type Paragraph = {
   readonly lines: string[];
@@ -85,7 +87,8 @@ export function usageText(): string {
   `- description: 1 to ${HEADER_MAX_LENGTH} characters, no trailing period`,
   `- body and footer lines stay within ${BODY_MAX_LENGTH} characters`,
   '- footers look like "Closes #123" or "BREAKING CHANGE: explanation"',
-  "- Co-Authored-By trailers are banned in every form",
+    "- Co-Authored-By trailers are banned in every form, and all CoAuth is forbidden",
+    "- language style rules apply to the header and the body",
     "",
     "Correct examples:",
     "",
@@ -144,7 +147,7 @@ export function validateCommitMessage(message: string): ReadonlyArray<CommitIssu
       issues.push({
         line: number,
         rule: "coauthor-ban",
-        problem: "Co-Authored-By trailers are banned in this repository; remove the trailer",
+        problem: "Co-Authored-By trailers and CoAuth attributions are banned in this repository; remove the trailer",
       });
     }
     if (line.length > BODY_MAX_LENGTH) {
@@ -154,6 +157,14 @@ export function validateCommitMessage(message: string): ReadonlyArray<CommitIssu
         problem: `line has ${line.length} characters; the limit is ${BODY_MAX_LENGTH}`,
       });
     }
+  }
+
+  for (const hit of scanText(normalized, "commit message")) {
+    issues.push({
+      line: hit.line,
+      rule: `style-${hit.tag}`,
+      problem: `violates language style (${hit.tag}): [${hit.token}] ${hit.text}`,
+    });
   }
 
   // Footers come after the body, so only the final paragraph carries

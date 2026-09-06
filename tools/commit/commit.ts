@@ -7,10 +7,10 @@
  *     bun tools/commit/commit.ts --check FILE              validate a message file
  *
  * The tool commits what is staged; it never stages or adds files. It rejects
- * messages that violate Conventional Commits v1.0.0 and messages that carry
- * a Co-Authored-By trailer. On every rejection it prints the rule and the
- * correct format. AGENT.md names this tool as the only permitted commit
- * entry point.
+ * messages that violate Conventional Commits v1.0.0, violate repository
+ * language style rules, or carry CoAuth attributions. On every rejection
+ * it prints the rule and the correct format. AGENT.md names this tool as
+ * the only permitted commit entry point.
  */
 
 import { $ } from "bun";
@@ -26,7 +26,18 @@ function reportIssues(issues: ReadonlyArray<CommitIssue>): void {
 }
 
 async function runCheck(path: string): Promise<number> {
-  const message = await Bun.file(path).text();
+  const raw = await Bun.file(path).text();
+  const nonCommentLines: string[] = [];
+  for (const line of raw.split("\n")) {
+    if (!line.startsWith("#")) {
+      nonCommentLines.push(line);
+    }
+  }
+  const message = nonCommentLines.join("\n").trim();
+  if (message.length === 0) {
+    console.error("commit message is empty");
+    return 1;
+  }
   const issues = validateCommitMessage(message);
   if (issues.length > 0) {
     reportIssues(issues);
