@@ -341,5 +341,28 @@ class PolicyQueries {
             case _: false;
         };
     }
+
+    public static function findStaticField(cls:ClassType, name:String):Null<ClassField> {
+        for (field in cls.statics.get())
+            if (field.name == name)
+                return field;
+        return null;
+    }
+
+    public static function findFunc(funcFields:Array<ClassFuncData>, name:String, missingError:String):ClassFuncData {
+        for (f in funcFields)
+            if (f.field.name == name)
+                return f;
+        Context.error(missingError, Context.currentPos());
+        return null;
+    }
+
+    public static function findConstructor(funcFields:Array<ClassFuncData>):Null<ClassFuncData> {
+        for (f in funcFields) {
+            if (f.field.name == "new")
+                return f;
+        }
+        return null;
+    }
 }
 #end
