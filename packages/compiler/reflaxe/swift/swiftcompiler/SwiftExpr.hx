@@ -12,6 +12,7 @@ import reflaxe.data.ClassFuncData;
 import ExpressionPredicates;
 import PolicyQueries;
 import PolicyQueries.IntervalCapability;
+import PolicyQueries.StdStringCategory;
 import FusionPlan;
 import FusionPlan.FusionStep;
 import ValueTypeSupport;
@@ -52,6 +53,7 @@ import ValueTypeSupport.ValueTypeOperator;
       `UInt32(Int32)` traps on a negative argument.
 **/
 class SwiftExpr {
+    // EnumCycleDetector classification is shared by PolicyQueries.
     final imports:SwiftImports;
     final types:SwiftType;
 
@@ -1820,45 +1822,41 @@ class SwiftExpr {
     }
 
     function stdStringType(t:Type, value:String, inConcat:Bool, origin:TypedExpr, depth:Int = 0):String {
-        return switch (Context.follow(t)) {
-            case TInst(c, _) if (c.get().name == "String"): value;
-            case TInst(c, [element]) if (c.get().name == "Array"):
+        return switch (PolicyQueries.stdStringCategory(t)) {
+            case IsString: value;
+            case IsArray(element):
                 final index = depth == 0 ? "i" : "i" + depth;
                 final item = stdStringType(element, value + "[" + index + "]", true, origin, depth + 1);
                 '{ () -> String in var out = "["; let n = ${value}.count; var ${index} = 0; while ${index} < n { if ${index} > 0 { out += ", "; }; out += ${item}; ${index} += 1; }; out += "]"; return out }()';
-            case TInst(c, [element]) if (c.get().module == "std.SortedSet"):
+            case IsSortedSet(element):
                 final index = depth == 0 ? "i" : "i" + depth;
                 final item = stdStringType(element, value + ".at(" + index + ")", true, origin, depth + 1);
                 '{ () -> String in var out = "["; let n = ${value}.size(); var ${index}: Int32 = 0; while ${index} < n { if ${index} > 0 { out += ", "; }; out += ${item}; ${index} += 1; }; out += "]"; return out }()';
-            case TInst(c, [key, val]) if (c.get().module == "std.SortedMap"):
+            case IsSortedMap(key, val):
                 final index = depth == 0 ? "i" : "i" + depth;
                 final itemKey = stdStringType(key, value + ".keyAt(" + index + ")", true, origin, depth + 1);
                 final itemVal = stdStringType(val, value + ".valueAt(" + index + ")", true, origin, depth + 1);
                 '{ () -> String in var out = "{"; let n = ${value}.size(); var ${index}: Int32 = 0; while ${index} < n { if ${index} > 0 { out += ", "; }; out += ${itemKey}; out += "="; out += ${itemVal}; ${index} += 1; }; out += "}"; return out }()';
-            case TInst(c, _) if (StaticFieldHelper.hasSelfConstructionStatic(c.get())
-                || c.get().meta.has(":dataClass")): value + ".toString()";
-            case TInst(c, _) if (hasInstanceToString(c.get())): value + ".toString()";
-            case TAbstract(a, _) if (ValueTypeSupport.isMarkedAbstract(a.get())):
-                final abs = a.get();
+            case IsRecordLike: value + ".toString()";
+            case IsInstanceToString: value + ".toString()";
+            case IsMarkedAbstract(abs):
                 ValueTypeSupport.memberField(abs, "toString") != null ? value + ".description" : "String(describing: "
                     + value
                     + "."
                     + ValueTypeSupport.representationFieldName(abs)
                     + ")";
-            case TAbstract(a, _) if (a.get().name == "Float"): depth > 0 ? "\"\\("
-                + value
-                + ")\"" : (inConcat ? value : "String(decoding: TestCore.formatFloat(" + value + "), as: UTF16.self)");
-            case TAbstract(a, _) if (a.get().name == "Int" || a.get().name == "Bool"): depth > 0 ? "\"\\("
-                + value
-                + ")\"" : (inConcat ? value : "String(" + value + ")");
-            case TInst(c, _) if (c.get().kind.match(KTypeParameter(_))):
+            case IsFloat: depth > 0 ? "\"\\(" + value + ")\"" : (inConcat ? value : "String(decoding: TestCore.formatFloat("
+                    + value
+                    + "), as: UTF16.self)");
+            case IsInt | IsBool: depth > 0 ? "\"\\(" + value + ")\"" : (inConcat ? value : "String(" + value + ")");
+            case IsTypeParameter:
                 types.resident ? "Array(String(describing: " + value + ").utf16)" : (inConcat ? value : "String(describing: " + value + ")");
-            case TAbstract(a, params) if (a.get().module == "std.ReadOnlyArray"):
-                stdStringType(haxe.macro.TypeTools.applyTypeParameters(a.get().type, a.get().params, params), value, inConcat, origin, depth);
-            case TEnum(en, _) if (isParameterlessEnum(en.get())): value + ".rawValue";
-            case TEnum(en, _) if (EnumCycleDetector.isCyclic(en.get())): cyclicEnumString(en.get(), value, inConcat, origin);
-            case TEnum(en, _): enumLabeledText(en.get(), value, origin);
-            case _:
+            case IsReadOnlyArray(underlying):
+                stdStringType(underlying, value, inConcat, origin, depth);
+            case IsParameterlessEnum(en): value + ".rawValue";
+            case IsCyclicEnum(en): cyclicEnumString(en, value, inConcat, origin);
+            case IsPayloadEnum(en): enumLabeledText(en, value, origin);
+            case IsNull | IsUnsupported:
                 Context.error("Std.string accepts scalars, enum values, records, and arrays of them only", origin.pos);
                 null;
         };
