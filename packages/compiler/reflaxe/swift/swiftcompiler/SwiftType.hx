@@ -6,7 +6,6 @@ import haxe.macro.Type;
 import StructuralKeyValidator;
 import PolicyQueries;
 
-
 /**
     Type mapping from the translatable Haxe subset to Swift, per
     docs/specs/features/07-numeric-tower.md and the stdlib rulings: Int is Int32 and
