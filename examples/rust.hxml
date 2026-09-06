@@ -101,6 +101,7 @@ tests.ArithmeticTests
 boring.DefaultArgsOps
 tests.DefaultArgsTests
 tests.KotlinNullabilityTests
+tests.NullArgsTests
 boring.UStringOps
 boring.StringUnitOps
 boring.GraphemeOps

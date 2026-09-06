@@ -2906,19 +2906,31 @@ class KotlinExpr {
         }
     }
 
-    function renderCallArgs(args:Array<TypedExpr>, params:Array<Type>):Array<String> {
+    function renderCallArgs(args:Array<TypedExpr>, params:Array<Type>, owner:Null<ClassType> = null, fieldName:Null<String> = null):Array<String> {
         return [
             for (i in 0...args.length) {
                 final a = args[i];
                 final text = expr(a);
                 final expected = i < params.length ? params[i] : null;
-                if (isNullType(a.t) && expected != null && !isNullType(expected) && !provenNonNull(a)) {
+                final registered = owner != null && fieldName != null ? DefaultArgExpander.defaultAt(owner, fieldName, i) : null;
+                if (registered != null && expected != null && isNullLiteral(a)) {
+                    defaultArgText(registered, expected);
+                } else if (registered != null && expected != null && isNullType(a.t)) {
+                    "(" + text + " ?: " + defaultArgText(registered, expected) + ")";
+                } else if (isNullType(a.t) && expected != null && !isNullType(expected) && !provenNonNull(a)) {
                     addProofExpr(a);
                     text + "!!";
                 } else if (isIntType(a.t) && isFloatExpectedType(expected)) "(" + text + ")." + (FloatPrecision.isF32() ? "toFloat()" : "toDouble()"); else
                     text;
             }
         ];
+    }
+
+    function isNullLiteral(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TConst(TNull): true;
+            case _: false;
+        };
     }
 
     function isFloatExpectedType(t:Null<Type>):Bool {
@@ -2936,7 +2948,12 @@ class KotlinExpr {
     }
 
     function localCallArgs(fn:TypedExpr, args:Array<TypedExpr>):String {
-        final rendered = renderCallArgs(args, paramsForCall(fn));
+        final target = switch (fn.expr) {
+            case TField(_, FInstance(c, _, cf)): {owner: c.get(), field: cf.get().name};
+            case TField(_, FStatic(c, cf)): {owner: c.get(), field: cf.get().name};
+            default: null;
+        };
+        final rendered = renderCallArgs(args, paramsForCall(fn), target == null ? null : target.owner, target == null ? null : target.field);
         switch (fn.expr) {
             case TLocal(v) if (currentClass != null && currentField != null):
                 final params = switch (Context.follow(fn.t)) {
@@ -2997,7 +3014,7 @@ class KotlinExpr {
         final valueType = ValueTypeSupport.markedAbstractOfClass(cls);
         if (valueType != null)
             return args.length == 0 ? valueType.name : valueType.name + "(" + expr(args[0]) + ")";
-        final renderedArgs = renderCallArgs(args, constructorParams(cls)).join(", ");
+        final renderedArgs = renderCallArgs(args, constructorParams(cls), cls, "new").join(", ");
         final path = cls.pack.length == 0 ? cls.name : cls.pack.join(".") + "." + cls.name;
         switch (path) {
             case "std.StringBuf" | "StringBuf":
