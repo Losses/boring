@@ -445,7 +445,8 @@ class TsDecl {
             if (field.name != propName || !isGetterOnlyProperty(field)) {
                 continue;
             }
-            final vis = field.isPublic ? "public" : "private";
+            // @:allow members omit TypeScript visibility so they are public.
+            final vis = field.isPublic ? "public" : (field.meta.has(":allow") ? "" : "private");
             return [
                 '  $vis get ${propName}(): ${types.of(field.type)} {',
                 '    return this.${f.field.name}();',
@@ -466,14 +467,16 @@ class TsDecl {
                 Context.error("static function fields require initializers", field.pos);
                 return [];
             }
-            final vis = field.isPublic ? "public " : "private ";
+            // @:allow members omit TypeScript visibility so they are public.
+            final vis = field.isPublic ? "public " : (field.meta.has(":allow") ? "" : "private ");
             return [
                 "  " + vis + "static " + field.name + ": " + types.of(field.type) + " = " + expr.rawExpression(initializer) + ";"
             ];
         }
         if (v.isStatic) {
             final init = StaticFieldHelper.validatedInitializer(field, cls);
-            final vis = field.isPublic ? "public" : "private";
+            // @:allow members omit TypeScript visibility so they are public.
+            final vis = field.isPublic ? "public" : (field.meta.has(":allow") ? "" : "private");
             final ro = field.isFinal ? "readonly " : "";
             return [
                 '  $vis static ${ro}${field.name}: ${types.of(field.type)} = ${expr.rawExpression(init)};'
@@ -482,7 +485,8 @@ class TsDecl {
         // The Haxe typer places instance field defaults in the
         // constructor, so the declaration stays bare and the
         // constructor body carries the assignments.
-        final vis = field.isPublic ? "public" : "private";
+        // @:allow members omit TypeScript visibility so they are public.
+        final vis = field.isPublic ? "public" : (field.meta.has(":allow") ? "" : "private");
         final ro = field.isFinal ? "readonly " : "";
         return ['  $vis ${ro}${field.name}: ${types.of(field.type)};'];
     }
@@ -514,7 +518,8 @@ class TsDecl {
         }
         final ret = types.of(f.ret);
         final body = decodeBoundaryBody(cls, f);
-        final vis = f.field.isPublic ? "public" : "private";
+        // @:allow members omit TypeScript visibility so they are public.
+        final vis = f.field.isPublic ? "public" : (f.field.meta.has(":allow") ? "" : "private");
         final stat = f.isStatic ? "static " : "";
         // A method's own type parameters (the resident builders'
         // factory functions) render as method generics; the class's own
