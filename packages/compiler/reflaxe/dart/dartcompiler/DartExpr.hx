@@ -1730,7 +1730,7 @@ class DartExpr {
         if (fromSource && nullable) {
             Context.error("Std.string does not accept Null<T> operands; compare against null first", arg.pos);
         }
-        return stdStringType(arg.t, !fromSource && nullable ? "(" + expr(arg) + ")!" : expr(arg), inConcat, arg);
+        return stdStringType(arg.t, !fromSource && nullable ? "(" + expr(arg) + ")!" : expr(arg), inConcat, arg, 0, !fromSource && nullable);
     }
 
     function stdIsOfType(args:Array<TypedExpr>):String {
@@ -1743,7 +1743,7 @@ class DartExpr {
         return known != null ? (known ? "true" : "false") : expr(args[0]) + " is " + expr(args[1]);
     }
 
-    function stdStringType(t:Type, value:String, inConcat:Bool, origin:TypedExpr, depth:Int = 0):String {
+    function stdStringType(t:Type, value:String, inConcat:Bool, origin:TypedExpr, depth:Int = 0, subjectUnwrapped:Bool = false):String {
         return switch (PolicyQueries.stdStringCategory(t)) {
             case IsString: value;
             case IsArray(element):
@@ -1772,8 +1772,8 @@ class DartExpr {
             case IsReadOnlyArray(underlying):
                 stdStringType(underlying, value, inConcat, origin, depth);
             case IsParameterlessEnum(en): value + ".label";
-            case IsCyclicEnum(en): cyclicEnumString(en, value, inConcat, origin);
-            case IsPayloadEnum(en): enumLabeledText(en, value, origin);
+            case IsCyclicEnum(en): cyclicEnumString(en, value, inConcat, origin, subjectUnwrapped);
+            case IsPayloadEnum(en): enumLabeledText(en, value, origin, isNullLeafType(t) && !subjectUnwrapped);
             case IsNull | IsUnsupported:
                 Context.error("Std.string accepts scalars, enum values, records, and arrays of them only", origin.pos);
                 null;
@@ -1784,12 +1784,12 @@ class DartExpr {
         return PolicyQueries.hasInstanceToString(cls);
     }
 
-    function cyclicEnumString(en:EnumType, value:String, inConcat:Bool, origin:TypedExpr):String {
+    function cyclicEnumString(en:EnumType, value:String, inConcat:Bool, origin:TypedExpr, subjectUnwrapped:Bool = false):String {
         final existing = enumStringNaming.existing(en);
         if (existing != null)
             return existing + "(" + value + ")";
         final name = enumStringNaming.open(en, "stdString" + en.name);
-        final body = enumLabeledText(en, "v", origin);
+        final body = enumLabeledText(en, "v", origin, !subjectUnwrapped && isNullLeafType(origin.t));
         enumStringNaming.close(en);
         return "(() { String " + name + "(dynamic v) { return " + body + "!; } return " + name + "(" + value + "); })()";
     }
@@ -1806,11 +1806,11 @@ class DartExpr {
         parameter names and interpolates each argument through its
         operand form; a parameterless arm returns the constructor name.
     **/
-    function enumLabeledText(en:EnumType, value:String, origin:TypedExpr):String {
+    function enumLabeledText(en:EnumType, value:String, origin:TypedExpr, subjectNullable:Bool):String {
         final constructs = [for (ef in en.constructs) ef];
         constructs.sort((a, b) -> Reflect.compare(a.index, b.index));
         final arms:Array<String> = [];
-        if (isNullLeafType(origin.t))
+        if (subjectNullable)
             arms.push("case null: return \"null\";");
         for (ef in constructs) {
             final args = switch (ef.type) {
