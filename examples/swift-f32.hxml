@@ -180,3 +180,6 @@ tests.PlatformModulesTests
 
 boring.EnumSortedKeysOps
 tests.EnumSortedKeysTests
+
+boring.PublicGetterProperty
+tests.PublicGetterPropertyTests
