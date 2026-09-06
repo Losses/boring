@@ -2834,6 +2834,9 @@ class SwiftExpr {
                 final cmpName = "compare" + cls.name;
                 imports.value(cls.module, cmpName);
                 cmpName;
+            case SwiftEnumKey(en):
+                imports.value(en.module, "compare" + en.name);
+                "compare" + en.name;
         };
     }
 

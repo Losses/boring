@@ -939,6 +939,8 @@ class DartDecl {
             lines.push("  final String label;");
             lines.push('  const ${en.name}(this.label);');
             lines.push("}");
+            lines.push("");
+            lines.push("int compare" + en.name + "(" + en.name + " a, " + en.name + " b) => a.index.compareTo(b.index);");
             final use = EnumQueryExpander.usage(en);
             if (use != null && use.lookup) {
                 final fn = EnumQueryExpander.lowerFirst(en.name) + "OfName";
