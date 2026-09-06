@@ -97,12 +97,14 @@ abstract class. Three pieces are missing:
    adds no restriction on variant class members beyond rules 2 and 3.
 
 5. When a variant switch occurs in a value position nested inside another
-   expression, including a conditional expression arm, Dart lowers it to an
-   immediately-invoked closure containing the same exhaustive native switch
-   statement used at return, initializer, assignment, and statement positions.
-   Each arm returns its value from the closure, so payload bindings and complex
-   arm expressions follow the existing arm-complexity rules without changing
-   the value or evaluation order.
+   expression, including a conditional expression arm, Dart and Swift lower it
+   to an immediately-invoked closure containing the same exhaustive native
+   switch statement used at return, initializer, assignment, and statement
+   positions. Swift annotates the closure with the switch expression's rendered
+   result type. Each arm returns its value from the closure, so payload bindings
+   and complex arm expressions follow the existing arm-complexity rules without
+   changing the value or evaluation order. Swift's initializer-position switch
+   remains direct and is not wrapped.
 
 ## Samples and tests
 
