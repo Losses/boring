@@ -3023,17 +3023,8 @@ class KotlinExpr {
     function scanLocals(e:TypedExpr):Void {
         switch (e.expr) {
             case TVar(v, init):
-                // A `_` local lowers to a generated name, so reserving
-                // the raw `_` in usedNames has no emitted name to guard.
-                if (v.name != "`" && v.name != "_") {
-                    usedNames.set(v.name, true);
-                }
-                if (init != null) {
-                    switch (stripWrap(init).expr) {
-                        case TCall(fn, _) if (isFpHelperInt64Call(fn)): fpInt64Halves.set(v.id, true);
-                        case _:
-                    }
-                }
+                PolicyQueries.noteDeclaredLocalName(v, usedNames, true);
+                PolicyQueries.noteFpInt64Init(v, init, fpInt64Halves);
             case TBinop(OpAssign, t, _) | TBinop(OpAssignOp(_), t, _):
                 switch (t.expr) {
                     case TLocal(v): mutated.set(v.id, true);

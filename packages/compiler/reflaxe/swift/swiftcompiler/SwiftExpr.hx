@@ -3775,18 +3775,11 @@ class SwiftExpr {
     function scanLocals(e:TypedExpr):Void {
         switch (e.expr) {
             case TVar(v, init):
-                if (v.name != "`") {
-                    usedNames.set(v.name, true);
-                }
+                PolicyQueries.noteDeclaredLocalName(v, usedNames, false);
                 if (init != null && isNullLeafType(init.t) && coalescingSiteFor(init) == null) {
                     optionalInferred.set(v.id, true);
                 }
-                if (init != null) {
-                    switch (stripWrap(init).expr) {
-                        case TCall(fn, _) if (isFpHelperInt64Call(fn)): fpInt64Halves.set(v.id, true);
-                        case _:
-                    }
-                }
+                PolicyQueries.noteFpInt64Init(v, init, fpInt64Halves);
             case TBinop(OpAssign, t, _) | TBinop(OpAssignOp(_), t, _):
                 switch (t.expr) {
                     case TLocal(v): markMutated(v);
