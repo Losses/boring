@@ -11,6 +11,8 @@ import haxe.macro.TypedExprTools;
 import reflaxe.data.ClassFuncData;
 import ExpressionPredicates;
 import PolicyQueries;
+import FusionPlan;
+import FusionPlan.FusionStep;
 import ValueTypeSupport;
 
 /**
@@ -1034,23 +1036,7 @@ class TsExpr {
         subject:TVar,
         name:String
     }>):Null<Array<String>> {
-        if (i + 1 >= stmts.length) {
-            return null;
-        }
-        final alloc:Null<{arr:TVar, elem:Type}> = switch (stmts[i].expr) {
-            case TVar(v, init) if (init != null):
-                switch (init.expr) {
-                    case TNew(c, params, args) if (args.length == 0):
-                        final cls = c.get();
-                        if (cls.pack.join(".") != "" || cls.name != "Array" || params.length != 1) {
-                            null;
-                        } else {
-                            {arr: v, elem: params[0]};
-                        }
-                    case _: null;
-                }
-            case _: null;
-        }
+        final alloc = FusionPlan.allocOf(stmts, i);
         if (alloc == null) {
             return null;
         }
@@ -1058,40 +1044,8 @@ class TsExpr {
         if (loop == null) {
             return null;
         }
-
-        var storeValue:Null<TypedExpr> = null;
-        var pushArg:Null<TypedExpr> = null;
-        var ok = true;
-        for (s in loop.body) {
-            final store = indexedStoreOf(s);
-            if (store != null) {
-                if (store.arr.id == alloc.arr.id && store.idx.id == loop.index.id) {
-                    if (storeValue != null) {
-                        ok = false;
-                    }
-                    storeValue = store.value;
-                } else {
-                    ok = false;
-                }
-                continue;
-            }
-            final push = pushOf(s);
-            if (push != null) {
-                if (push.arr.id == alloc.arr.id) {
-                    if (pushArg != null || storeValue != null) {
-                        ok = false;
-                    }
-                    pushArg = push.arg;
-                } else {
-                    ok = false;
-                }
-                continue;
-            }
-            if (mentionsLocal(s, alloc.arr)) {
-                ok = false;
-            }
-        }
-        if (!ok || (storeValue == null && pushArg == null)) {
+        final plan = FusionPlan.plan(alloc, loop);
+        if (plan == null) {
             return null;
         }
 
@@ -1116,33 +1070,16 @@ class TsExpr {
             + "; "
             + name
             + " += 1) {");
-        final nonStores:Array<TypedExpr> = [];
-        for (s in loop.body) {
-            final store = indexedStoreOf(s);
-            if (store != null && store.arr.id == alloc.arr.id && store.idx.id == loop.index.id) {
-                if (nonStores.length > 0) {
-                    for (l in blockLines(nonStores, depth + 1))
+        for (step in plan.steps) {
+            switch (step) {
+                case NonStoreBatch(batch):
+                    for (l in blockLines(batch, depth + 1))
                         out.push(l);
-                    nonStores.resize(0);
-                }
-                out.push(indent(depth + 1) + arrName + "[" + name + "] = " + fillValue(store.value) + ";");
-                continue;
+                case StoreValue(value):
+                    out.push(indent(depth + 1) + arrName + "[" + name + "] = " + fillValue(value) + ";");
+                case PushValue(arg):
+                    out.push(indent(depth + 1) + arrName + "[" + name + "] = " + fillValue(arg) + ";");
             }
-            final push = pushOf(s);
-            if (push != null && push.arr.id == alloc.arr.id) {
-                if (nonStores.length > 0) {
-                    for (l in blockLines(nonStores, depth + 1))
-                        out.push(l);
-                    nonStores.resize(0);
-                }
-                out.push(indent(depth + 1) + arrName + "[" + name + "] = " + fillValue(push.arg) + ";");
-                continue;
-            }
-            nonStores.push(s);
-        }
-        if (nonStores.length > 0) {
-            for (l in blockLines(nonStores, depth + 1))
-                out.push(l);
         }
         out.push(indent(depth) + "}");
         if (decodeBoundary) {
@@ -1177,16 +1114,6 @@ class TsExpr {
             case _:
                 return expr(value);
         }
-    }
-
-    /** `arr[idx] = value` matcher, wrapper-tolerant. */
-    function indexedStoreOf(s:TypedExpr):Null<{arr:TVar, idx:TVar, value:TypedExpr}> {
-        return PolicyQueries.indexedStoreOf(s);
-    }
-
-    /** `arr.push(arg)` matcher, wrapper-tolerant. */
-    function pushOf(s:TypedExpr):Null<{arr:TVar, arg:TypedExpr}> {
-        return PolicyQueries.pushOf(s);
     }
 
     // ------------------------------------------------------------------
@@ -2315,9 +2242,16 @@ class TsExpr {
             case EnumKey(en):
                 imports.value(en.module, en.name);
                 "(a, b) => { if (a === b) return 0; " + [
-                    for (ef in en.constructs) "if (a.kind === \"" + ef.name + "\") return " + ef.index + " - (b.kind === \"" + ef.name + "\" ? " + ef.index
-                        + " : 0);"
-                ].join(" ") + " return 0; }";
+                    for (ef in en.constructs)
+                        "if (a.kind === \""
+                        + ef.name
+                        + "\") return "
+                        + ef.index
+                        + " - (b.kind === \""
+                        + ef.name
+                        + "\" ? "
+                        + ef.index
+                        + " : 0);"].join(" ") + " return 0; }";
         };
     }
 
@@ -3082,10 +3016,6 @@ class TsExpr {
             case _:
         }
         TypedExprTools.iter(e, scanLocals);
-    }
-
-    function mentionsLocal(e:TypedExpr, v:TVar):Bool {
-        return PolicyQueries.mentionsLocal(e, v);
     }
 
     function localName(v:TVar):String {
