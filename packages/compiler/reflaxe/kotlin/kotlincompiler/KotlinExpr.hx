@@ -56,6 +56,19 @@ class KotlinExpr {
     /** Locals whose control-flow or normalization initializer proves non-null. */
     final nonNullLocals:Map<Int, Bool> = [];
 
+    /** Locals initialized from null retain nullable access semantics. */
+    final nullInitializedLocals:Map<Int, Bool> = [];
+
+    static final nullInitializedFields:Map<String, Bool> = [];
+
+    public static function registerNullInitializedField(key:String):Void {
+        nullInitializedFields.set(key, true);
+    }
+
+    public static function isNullInitializedField(key:String):Bool {
+        return nullInitializedFields.exists(key);
+    }
+
     /** Field reads proven non-null by a dominating null check. */
     final nonNullFields:Map<String, Bool> = [];
 
@@ -272,6 +285,7 @@ class KotlinExpr {
         currentField = f.field.name;
         currentLocalName = null;
         nonNullLocals.clear();
+        nullInitializedLocals.clear();
         nonNullFields.clear();
         enumVariants.clear();
         registerNonNullDefaultParams(cls, f);
@@ -348,6 +362,7 @@ class KotlinExpr {
         currentField = f.field.name;
         currentLocalName = null;
         nonNullLocals.clear();
+        nullInitializedLocals.clear();
         nonNullFields.clear();
         enumVariants.clear();
         registerNonNullDefaultParams(cls, f);
@@ -432,7 +447,14 @@ class KotlinExpr {
                         asListReturn.set(v.id, asListReturn.get(origV.id));
                     default:
                 }
+                final nullInitialized = switch (stripWrap(init).expr) {
+                    case TConst(TNull): isNullableReferenceType(v.t);
+                    default: false;
+                };
+                if (nullInitialized)
+                    nullInitializedLocals.set(v.id, true);
                 final typeAnn = switch (stripWrap(init).expr) {
+                    case TConst(TNull) if (nullInitialized): ": " + types.of(v.t) + "?";
                     case TConst(TNull): ": " + types.of(v.t);
                     default: "";
                 };
@@ -1589,6 +1611,28 @@ class KotlinExpr {
         };
     }
 
+    function isNullInitialized(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TLocal(v): nullInitializedLocals.exists(v.id);
+            case TField(_, FStatic(c, cf)): nullInitializedFields.exists(c.get().module + ":" + cf.get().name);
+            case _: false;
+        };
+    }
+
+    function isNullableType(e:TypedExpr):Bool {
+        return PolicyQueries.isNullableType(e.t) || isNullInitialized(e);
+    }
+
+    function isNullableReferenceType(t:Null<Type>):Bool {
+        if (t == null)
+            return false;
+        return switch (Context.follow(t)) {
+            case TInst(_, _): true;
+            case TAbstract(a, _) if (a.get().name != "Null" && a.get().name != "Int" && a.get().name != "Float" && a.get().name != "Bool"): true;
+            case _: false;
+        };
+    }
+
     function isNullType(t:Null<Type>):Bool {
         if (t == null)
             return false;
@@ -1809,7 +1853,7 @@ class KotlinExpr {
         // has already been normalized, or control flow proved the local is
         // non-null. Kotlin's smart casts then make `!!` redundant.
         final proven = provenNonNull(e);
-        if (isNullType(e.t) && !proven && parent != OpEq && parent != OpNotEq) {
+        if ((PolicyQueries.isNullableType(e.t) || isNullInitialized(e)) && !proven && parent != OpEq && parent != OpNotEq) {
             rendered += "!!";
             addProofExpr(e);
         }
@@ -1961,13 +2005,15 @@ class KotlinExpr {
                     }
                 }
                 if (name == "length") {
+                    final receiver = expr(subj) + (PolicyQueries.isNullableType(subj.t) || isNullInitialized(subj) ? "?." : ".");
                     if (isString(subj)) {
-                        return expr(subj) + ".length";
+                        return receiver + "length";
                     } else {
-                        return expr(subj) + ".size";
+                        return receiver + "size";
                     }
                 }
-                return expr(subj) + "." + KotlinNameEscape.escape(name);
+                return expr(subj) + (PolicyQueries.isNullableType(subj.t)
+                    || isNullInitialized(subj) ? "?." : ".") + KotlinNameEscape.escape(name);
             case FDynamic(name):
                 if ((name == "length" || name == "get_length") && isStringBuf(subj)) {
                     return expr(subj) + ".length";
@@ -2654,7 +2700,12 @@ class KotlinExpr {
                 if (name == "join") {
                     return expr(subj) + ".joinToString(" + renderedArgs + ")";
                 }
-                return expr(subj) + (isNullType(subj.t) && !provenNonNull(subj) ? "?." : ".") + name + "(" + renderedArgs + ")";
+                return expr(subj)
+                    + (PolicyQueries.isNullableType(subj.t) || isNullInitialized(subj) ? "?." : ".")
+                    + name
+                    + "("
+                    + renderedArgs
+                    + ")";
             case TField(_, FStatic(c, cf)):
                 final cls = c.get();
                 final name = cf.get().name;
@@ -2744,7 +2795,10 @@ class KotlinExpr {
                     defaultArgText(registered, expected);
                 } else if (registered != null && expected != null && isNullType(a.t)) {
                     "(" + text + " ?: " + defaultArgText(registered, expected) + ")";
-                } else if (isNullType(a.t) && expected != null && !isNullType(expected) && !provenNonNull(a)) {
+                } else if ((PolicyQueries.isNullableType(a.t) || isNullInitialized(a))
+                    && expected != null
+                    && !isNullType(expected)
+                    && !provenNonNull(a)) {
                     addProofExpr(a);
                     text + "!!";
                 } else if (isIntType(a.t) && isFloatExpectedType(expected)) "(" + text + ")." + (FloatPrecision.isF32() ? "toFloat()" : "toDouble()"); else
