@@ -86,12 +86,10 @@ class DartDecl {
             return lines.join("\n");
         }
 
-        if (cls.superClass != null) {
+        if (cls.superClass != null && PolicyQueries.exceptionDepth(cls) == 0) {
             final parent = cls.superClass.t.get();
             final parentPath = parent.pack.length == 0 ? parent.name : parent.pack.join(".") + "." + parent.name;
-            if (parentPath != "haxe.Exception") {
-                Context.error("super class has no Dart lowering in the subset: " + parentPath, cls.pos);
-            }
+            Context.error("super class has no Dart lowering in the subset: " + parentPath, cls.pos);
         }
 
         final module = cls.module;
@@ -159,7 +157,10 @@ class DartDecl {
             return extractedParts.length > 0 ? extractedParts.join("\n\n") + "\n\n" + classPart : classPart;
         }
 
-        final extendsClause = isException(cls) ? " extends " + runtimeBoringException() : "";
+        final depth = PolicyQueries.exceptionDepth(cls);
+        final extendsClause = depth == 1
+            ? " extends " + runtimeBoringException()
+            : depth >= 2 ? " extends " + qualifiedRef(cls.superClass.t.get().module, cls.superClass.t.get().name) : "";
         final implementsClauses:Array<String> = [];
         for (i in cls.interfaces) {
             final iface = i.t.get();
@@ -167,7 +168,9 @@ class DartDecl {
             implementsClauses.push(prefix.length > 0 ? prefix + "." + iface.name : iface.name);
         }
         final implementsClause = implementsClauses.length > 0 ? " implements " + implementsClauses.join(", ") : "";
-        lines.push("final class " + cls.name + classParamsOf(cls) + extendsClause + implementsClause + " {");
+        // Deeper exception classes extend their lowered parent; BoringException
+        // is inherited through that chain, so it must not be repeated here.
+        lines.push((depth >= 1 ? "class " : "final class ") + cls.name + classParamsOf(cls) + extendsClause + implementsClause + " {");
 
         // One blank line between members; none inside a member's body.
         // A coalescing constructor default assigns the field in the
@@ -511,14 +514,9 @@ class DartDecl {
         return true;
     }
 
-    /** A class extending haxe.Exception is one of the features/06 exception classes. */
+    /** A class whose super chain reaches haxe.Exception is an exception class. */
     static function isException(cls:ClassType):Bool {
-        if (cls.superClass == null) {
-            return false;
-        }
-        final parent = cls.superClass.t.get();
-        final parentPath = parent.pack.length == 0 ? parent.name : parent.pack.join(".") + "." + parent.name;
-        return parentPath == "haxe.Exception";
+        return PolicyQueries.exceptionDepth(cls) >= 1;
     }
 
     /** The exception base as this library references it. */
