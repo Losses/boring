@@ -195,11 +195,12 @@ machinery. TS, Swift, and Dart keep their current rendering.
 ### Getter-only property
 
 **P1: no storage; the target's property syntax beside the accessor.**
-Kotlin renders `val x: T get() = get_x()`; TS renders
-`get x(): T { return this.get_x(); }`; Swift renders `var x: T { get_x() }`;
-Dart renders `T get x => get_x();`. Rust has no property syntax: the
-`get_x()` method is the lowering, and the declaration contributes no
-storage (today it contributes a wrong `Default::default()` slot).
+Kotlin renders `val x: T get() = get_x()` and reads lower to `.x`; TS renders
+`get x(): T { return this.get_x(); }`; Swift renders `var x: T { get_x() }` and
+reads lower to `.x`; Dart renders `T get x => get_x();` and reads lower to `.x`.
+Rust has no property syntax: the `get_x()` method is the lowering, and the
+method visibility follows the getter-only property's field visibility; the
+declaration contributes no storage.
 
 - performance: the facade is one delegating call, inlined by the target
   compiler; the value is computed per read exactly as the source computes
