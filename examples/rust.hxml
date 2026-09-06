@@ -165,6 +165,9 @@ tests.NumberClassifyTests
 tests.MathMinMaxTests
 boring.InstanceDefaults
 tests.InstanceDefaultsTests
+boring.AllowHost
+boring.AllowGuest
+tests.AllowAccessTests
 tests.SwitchOpsTests
 tests.ArrayRootTests
 

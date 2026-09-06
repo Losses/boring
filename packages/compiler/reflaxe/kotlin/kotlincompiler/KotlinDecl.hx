@@ -242,7 +242,8 @@ class KotlinDecl {
                 }
             }
             if (hasInstanceGetter) {
-                final vis = field.isPublic ? "" : "private ";
+                // @:allow members use Kotlin module visibility so allowed cross-class calls compile.
+                final vis = field.isPublic ? "" : (field.meta.has(":allow") ? "internal " : "private ");
                 lines.push('    ${vis}val ${KotlinNameEscape.escape(field.name)}: ${types.of(field.type)} get() = get_${KotlinNameEscape.escape(field.name)}()');
             }
         }
@@ -441,7 +442,8 @@ class KotlinDecl {
                 args.push(name + (a.opt ? "?" : "") + ": " + type);
             }
             final ret = types.of(f.ret);
-            final vis = isOperator || f.field.isPublic ? "" : "private ";
+            // @:allow members use Kotlin module visibility so allowed cross-class calls compile.
+            final vis = isOperator || f.field.isPublic ? "" : (f.field.meta.has(":allow") ? "internal " : "private ");
             final name = isOperator ? kotlinOperatorName(op) : f.field.name;
             final overrideKw = f.field.name == "toString" ? "override " : "";
             lines.push("");
@@ -999,7 +1001,8 @@ class KotlinDecl {
             final initStr = StaticFieldHelper.isNonEmptyArrayLiteral(init)
                 && StaticFieldHelper.isReadOnlyArrayType(field.type) ? expr.rawArrayExpression(init, "listOf") : expr.rawExpression(init);
             final kw = field.isFinal && StaticFieldHelper.isConstValue(field) ? "const val" : (field.isFinal ? "val" : "var");
-            final vis = field.isPublic ? "" : "private ";
+            // @:allow members use Kotlin module visibility so allowed cross-class calls compile.
+            final vis = field.isPublic ? "" : (field.meta.has(":allow") ? "internal " : "private ");
             final jvmField = !field.isFinal ? ["    @JvmField"] : [];
             return jvmField.concat([
                 '    $vis$kw ${KotlinNameEscape.escape(field.name)}: ${types.of(field.type)} = $initStr'
@@ -1030,7 +1033,8 @@ class KotlinDecl {
     function classVarDecl(v:ClassVarData):Array<String> {
         final field = v.field;
         final kw = field.isFinal ? "val" : "var";
-        final vis = field.isPublic ? "" : "private ";
+        // @:allow members use Kotlin module visibility so allowed cross-class calls compile.
+        final vis = field.isPublic ? "" : (field.meta.has(":allow") ? "internal " : "private ");
         var initStr = "";
         switch (field.kind) {
             case FVar(_, _):
@@ -1076,7 +1080,8 @@ class KotlinDecl {
         ].join(", ");
         final retType = types.of(f.ret);
         final ret = retType == "Unit" ? "" : ": " + retType;
-        final vis = f.field.isPublic ? "" : "private ";
+        // @:allow members use Kotlin module visibility so allowed cross-class calls compile.
+        final vis = f.field.isPublic ? "" : (f.field.meta.has(":allow") ? "internal " : "private ");
         // A zero-argument toString overrides kotlin.Any's member; the
         // modifier is required even though Haxe models no Any root, so
         // no superclass link exists to derive it from (feature spec 27).
@@ -1117,7 +1122,8 @@ class KotlinDecl {
         ].join(", ");
         final retType = types.of(f.ret);
         final ret = retType == "Unit" ? "" : ": " + retType;
-        final vis = f.field.isPublic ? "" : "private ";
+        // @:allow members use Kotlin module visibility so allowed cross-class calls compile.
+        final vis = f.field.isPublic ? "" : (f.field.meta.has(":allow") ? "internal " : "private ");
         final methodParams = collectMethodTypeParams(cls, f);
         final genericStr = methodParams.length > 0 ? "<" + methodParams.join(", ") + "> " : "";
         final receiver = isExtension ? types.of(f.args[0].type) + "." : "";
