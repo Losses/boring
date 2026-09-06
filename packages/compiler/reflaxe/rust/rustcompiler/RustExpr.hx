@@ -68,6 +68,10 @@ class RustExpr {
     var inGenericFunction:Bool = false;
     final borrowedLoopVarIds:Map<Int, Bool> = [];
     final provenNonNullVarIds:Map<Int, Bool> = [];
+    // Option subjects narrowed by an immediately enclosing null guard. The
+    // rendered text is the key because guarded subjects may be fields.
+    final optionNarrowings:Array<{subjectText:String, name:String}> = [];
+    var optionNarrowingHit:Bool = false;
     final readsAfterDeclaration:Map<Int, Bool> = [];
     final unsignedLocals:Map<Int, Bool> = [];
     // Locals initialized from charCodeAt are collapsed from Option<u32> to a scalar.
@@ -661,6 +665,11 @@ class RustExpr {
                 out.push(indent(depth) + "}");
                 return out;
             case TIf(c, t, f):
+                if (f != null) {
+                    final guarded = guardedMatchStatements(c, t, f, depth);
+                    if (guarded != null)
+                        return guarded;
+                }
                 var condStr = expr(c);
                 while (StringTools.startsWith(condStr, "(") && StringTools.endsWith(condStr, ")") && matchingParens(condStr)) {
                     condStr = condStr.substr(1, condStr.length - 2);
@@ -2035,6 +2044,122 @@ class RustExpr {
     // Expressions
     // ------------------------------------------------------------------
 
+    function nullGuardOf(e:TypedExpr):Null<{subject:TypedExpr, noneWhenTrue:Bool}> {
+        switch (stripWrap(e).expr) {
+            case TBinop(OpEq, left, right) if (isNullType(left.t) && isTNull(right)):
+                return {subject: left, noneWhenTrue: true};
+            case TBinop(OpEq, left, right) if (isNullType(right.t) && isTNull(left)):
+                return {subject: right, noneWhenTrue: true};
+            case TBinop(OpNotEq, left, right) if (isNullType(left.t) && isTNull(right)):
+                return {subject: left, noneWhenTrue: false};
+            case TBinop(OpNotEq, left, right) if (isNullType(right.t) && isTNull(left)):
+                return {subject: right, noneWhenTrue: false};
+            case _:
+        }
+        return null;
+    }
+
+    function subjectTextOf(subject:TypedExpr):String {
+        return switch (stripWrap(subject).expr) {
+            case TLocal(v): subst.exists(v.id) ? subst.get(v.id) : RustImports.toSnakeCase(localName(v));
+            case TField(receiver, FInstance(_, _, cf)) | TField(receiver, FAnon(cf)):
+                expr(receiver) + "." + RustImports.toSnakeCase(cf.get().name);
+            case _: expr(subject);
+        };
+    }
+
+    function narrowedSubject(subject:TypedExpr):Null<String> {
+        final text = subjectTextOf(subject);
+        for (i in 0...optionNarrowings.length) {
+            final narrowing = optionNarrowings[optionNarrowings.length - 1 - i];
+            if (narrowing.subjectText == text)
+                return narrowing.name;
+        }
+        return null;
+    }
+
+    function guardedMatchExpression(guard:TypedExpr, ifTrue:TypedExpr, ifFalse:TypedExpr, resultType:Type):Null<String> {
+        final info = nullGuardOf(guard);
+        if (info == null)
+            return null;
+        final name = freshRegionName("__option");
+        final previousHit = optionNarrowingHit;
+        optionNarrowingHit = false;
+        optionNarrowings.push({subjectText: subjectTextOf(info.subject), name: name});
+        // The narrowed arm renders inside the narrowing scope so its
+        // subject reads substitute the match binding; the None arm
+        // renders after the scope because the binding does not exist
+        // there.
+        final narrowedBranch = info.noneWhenTrue ? ifFalse : ifTrue;
+        final noneBranch = info.noneWhenTrue ? ifTrue : ifFalse;
+        var narrowedText = conditionalBranchText(narrowedBranch, noneBranch, resultType);
+        final hit = optionNarrowingHit;
+        optionNarrowings.pop();
+        optionNarrowingHit = previousHit;
+        if (!hit)
+            return null;
+        // An arm that reads only the binding is a reference to the inner
+        // value while the sibling arm yields the value itself: the arm
+        // dereferences for Copy inners and clones for the owned kinds.
+        if (narrowedText == name) {
+            final innerType = getNullInnerType(info.subject.t);
+            narrowedText = isTypeCopy(innerType) ? "*" + name : "(*" + name + ").clone()";
+        }
+        final noneText = conditionalBranchText(noneBranch, narrowedBranch, resultType);
+        final subjectText = subjectTextOf(info.subject);
+        return info.noneWhenTrue ? "match (&("
+            + subjectText
+            + ")) { None => "
+            + noneText
+            + ", Some("
+            + name
+            + ") => "
+            + narrowedText
+            + " }" : "match (&("
+            + subjectText
+            + ")) { Some("
+            + name
+            + ") => "
+            + narrowedText
+            + ", None => "
+            + noneText
+            + " }";
+    }
+
+    function guardedMatchStatements(guard:TypedExpr, ifTrue:TypedExpr, ifFalse:TypedExpr, depth:Int):Null<Array<String>> {
+        final info = nullGuardOf(guard);
+        if (info == null)
+            return null;
+        final name = freshRegionName("__option");
+        final previousHit = optionNarrowingHit;
+        optionNarrowingHit = false;
+        optionNarrowings.push({subjectText: subjectTextOf(info.subject), name: name});
+        final narrowed = info.noneWhenTrue ? blockLines(statementsOf(ifFalse), depth + 2) : blockLines(statementsOf(ifTrue), depth + 2);
+        final hit = optionNarrowingHit;
+        optionNarrowings.pop();
+        optionNarrowingHit = previousHit;
+        if (!hit)
+            return null;
+        final other = info.noneWhenTrue ? blockLines(statementsOf(ifTrue), depth + 2) : blockLines(statementsOf(ifFalse), depth + 2);
+        final subjectText = expr(info.subject);
+        final out = [indent(depth) + "match (&(" + subjectText + ")) {"];
+        function arm(tag:String, lines:Array<String>):Void {
+            out.push(indent(depth + 1) + tag + " => {");
+            for (line in lines)
+                out.push(line);
+            out.push(indent(depth + 1) + "}");
+        }
+        if (info.noneWhenTrue) {
+            arm("None", other);
+            arm("Some(" + name + ")", narrowed);
+        } else {
+            arm("Some(" + name + ")", narrowed);
+            arm("None", other);
+        }
+        out.push(indent(depth) + "}");
+        return out;
+    }
+
     function expr(e:TypedExpr):String {
         final int64Expr = int64Expression(e);
         if (int64Expr != null)
@@ -2073,6 +2198,13 @@ class RustExpr {
                     case _: return fail(e, "constant has no Rust lowering");
                 }
             case TLocal(v):
+                if (optionNarrowings.length > 0) {
+                    final narrowed = narrowedSubject(e);
+                    if (narrowed != null) {
+                        optionNarrowingHit = true;
+                        return narrowed;
+                    }
+                }
                 if (subst.exists(v.id)) {
                     return subst.get(v.id);
                 }
@@ -2178,6 +2310,9 @@ class RustExpr {
                 final coalescing = coalescingSiteFor(e);
                 if (coalescing != null)
                     return expr(coalescing.valueExpr);
+                final guarded = guardedMatchExpression(c, t, f, e.t);
+                if (guarded != null)
+                    return guarded;
                 final optional = optionalIf(c, t, f, e.t);
                 if (optional != null)
                     return optional;
@@ -2987,6 +3122,16 @@ class RustExpr {
                 final right = borrowedStringLoopItem(r) != null ? "*" + expr(r) : expr(r);
                 return left + " " + symbolOf(op) + " " + right;
             case OpBoolAnd:
+                final guard = nullGuardOf(l);
+                if (guard != null && !guard.noneWhenTrue) {
+                    final name = freshRegionName("__option");
+                    optionNarrowings.push({subjectText: expr(guard.subject), name: name});
+                    final right = expr(r);
+                    final hit = narrowedSubject(guard.subject) != null;
+                    optionNarrowings.pop();
+                    if (hit)
+                        return "(match (&(" + expr(guard.subject) + ")) { Some(" + name + ") => " + right + ", None => false })";
+                }
                 final proven = provenNonNullLocal(l);
                 if (proven != null) {
                     provenNonNullVarIds.set(proven.id, true);
@@ -2995,6 +3140,18 @@ class RustExpr {
                     return expr(l) + " && " + right;
                 }
                 return expr(l) + " && " + expr(r);
+            case OpBoolOr:
+                final guard = nullGuardOf(l);
+                if (guard != null && guard.noneWhenTrue) {
+                    final name = freshRegionName("__option");
+                    optionNarrowings.push({subjectText: expr(guard.subject), name: name});
+                    final right = expr(r);
+                    final hit = narrowedSubject(guard.subject) != null;
+                    optionNarrowings.pop();
+                    if (hit)
+                        return "(match (&(" + expr(guard.subject) + ")) { None => true, Some(" + name + ") => " + right + " })";
+                }
+                return expr(l) + " || " + expr(r);
             case OpAssign:
                 final map = mapAssignment(l);
                 if (map != null) {
@@ -3597,6 +3754,14 @@ class RustExpr {
                 }
                 if (name == "length") {
                     if (isNullType(subj.t)) {
+                        // An enclosing null guard already collapsed the
+                        // Option: the binding references the collection
+                        // itself, so the length is a plain len() read.
+                        final narrowed = narrowedSubject(subj);
+                        if (narrowed != null) {
+                            optionNarrowingHit = true;
+                            return RustConversions.truncate(narrowed + ".len()", "u32");
+                        }
                         return "(" + expr(subj) + ").as_ref().map_or(0, |v| v.len())";
                     }
                     if (isStringBuf(subj)) {
@@ -3620,7 +3785,11 @@ class RustExpr {
                     return RustConversions.truncate(receiverText + ".len()", "u32");
                 }
                 final snake = RustImports.toSnakeCase(name);
-                final subjStr = if (isNullType(subj.t)) expr(subj) + ".as_ref().unwrap()" else expr(subj);
+                final subjText = expr(subj);
+                final narrowed = narrowedSubject(subj);
+                if (narrowed != null)
+                    optionNarrowingHit = true;
+                final subjStr = if (narrowed != null) narrowed else if (isNullType(subj.t)) subjText + ".as_ref().unwrap()" else subjText;
                 final access = subjStr + "." + snake;
                 if (name != "length" && isConstructedStaticRead(subj) && StaticFieldHelper.isStringType(cf.get().type))
                     return "(" + access + ").to_string()";
@@ -4537,7 +4706,11 @@ class RustExpr {
                 }
                 final isMethodFallible = isFallibleCallee(c, cf, false);
                 final q = isFallible ? (isMethodFallible ? errorPropagationSuffix(c, cf, false) : "") : (isMethodFallible ? ".unwrap()" : "");
-                final subjStr = isNullType(subj.t) ? expr(subj) + ".as_ref().unwrap()" : expr(subj);
+                final subjText = expr(subj);
+                final narrowed = narrowedSubject(subj);
+                if (narrowed != null)
+                    optionNarrowingHit = true;
+                final subjStr = narrowed != null ? narrowed : (isNullType(subj.t) ? subjText + ".as_ref().unwrap()" : subjText);
                 return subjStr + "." + snake + "(" + renderCallArgs(cf.get().type, args, null, 0, mutableParamPositions(cf.get())) + ")" + q;
             case TField(_, FStatic(c, cf)):
                 final cls = c.get();
@@ -5205,6 +5378,19 @@ class RustExpr {
             return rendered;
         final target = targetOverride != null ? targetOverride : types.of(expected, false);
         if (isNullType(actual.t)) {
+            // An enclosing null guard already collapsed the Option: the
+            // operand renders as the match binding, a reference to the
+            // inner scalar, so the null-to-zero bridge dereferences
+            // instead of unwrapping.
+            final narrowed = narrowedSubject(actual);
+            if (narrowed != null) {
+                optionNarrowingHit = true;
+                final deref = "*" + narrowed;
+                if ((target == "u32" || target == "i32") && (RuntimeResidents.isResident(imports.selfModule) ? "i32" : "u32") == target) {
+                    return deref;
+                }
+                return RustConversions.reinterpret("(" + deref + ")", target);
+            }
             final castAt = rendered.indexOf(" as ");
             final base = castAt >= 0 ? rendered.substr(0, castAt) : rendered;
             // A collapsed Null<Int> renders its inner scalar; when that
