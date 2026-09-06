@@ -1,16 +1,33 @@
 #!/usr/bin/env bash
 # boring commit-msg hook: the message must follow Conventional Commits
-# v1.0.0 and carry no Co-Authored-By trailer. Errors print the correct
-# format.
+# v1.0.0, comply with language style rules, and contain no CoAuth.
+# Rejects commits that violate language style or include CoAuth.
 set -euo pipefail
+
 MSG_FILE="${1:-}"
 if [ -z "$MSG_FILE" ] || [ ! -f "$MSG_FILE" ]; then
   echo "commit-msg: missing message file argument" >&2
   exit 1
 fi
+
 cd "$(git rev-parse --show-toplevel)"
 if ! command -v bun >/dev/null 2>&1; then
   echo "commit-msg: bun not found; run git inside 'nix develop' or install bun" >&2
   exit 1
 fi
+
+# Strip git comment lines to extract the real commit message (title and body)
+CLEAN_MSG="$(git stripspace --strip-comments < "$MSG_FILE")"
+if [ -z "$CLEAN_MSG" ]; then
+  echo "commit-msg: rejected: commit message is empty" >&2
+  exit 1
+fi
+
+# Check 1: Language style check directly via doc-style CLI on the commit message and title
+if ! bun tools/doc-style/check.ts --text "$CLEAN_MSG"; then
+  echo "commit-msg: rejected: commit message or title violates language style rules" >&2
+  exit 1
+fi
+
+# Check 2: Conventional Commits rules, CoAuth ban, and structure validation
 exec bun tools/commit/commit.ts --check "$MSG_FILE"

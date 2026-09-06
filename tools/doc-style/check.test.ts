@@ -3,7 +3,9 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
   extractComments,
+  main,
   matchedTerms,
+  parseCliArgs,
   readTargets,
   scanText,
 } from "./check.ts";
@@ -187,5 +189,45 @@ describe("readTargets", () => {
       "guide.md",
       "src/main.hx",
     ]);
+  });
+});
+
+describe("CLI support", () => {
+  test("parseCliArgs parses text, file, stdin, and paths", () => {
+    const parsedText = parseCliArgs(["--text", "hello world"]);
+    expect(parsedText.text).toBe("hello world");
+    expect(parsedText.file).toBeUndefined();
+    expect(parsedText.stdin).toBe(false);
+
+    const parsedFile = parseCliArgs(["-f", "message.txt"]);
+    expect(parsedFile.file).toBe("message.txt");
+
+    const parsedStdin = parseCliArgs(["--stdin"]);
+    expect(parsedStdin.stdin).toBe(true);
+
+    const parsedPaths = parseCliArgs(["path/a.md", "path/b.ts"]);
+    expect(parsedPaths.paths).toEqual(["path/a.md", "path/b.ts"]);
+  });
+
+  test("main accepts compliant text and returns 0", async () => {
+    const code = await main(["--text", "docs: update specification for decoder"]);
+    expect(code).toBe(0);
+  });
+
+  test("main rejects text with style violation and returns 1", async () => {
+    const code = await main(["--text", "feat: add robust writer"]);
+    expect(code).toBe(1);
+  });
+
+  test("main checks text file directly with --file", async () => {
+    const dir = mkdtempSync(resolve(import.meta.dir, ".cli-fixture-"));
+    temporaryPaths.push(dir);
+    const validFile = resolve(dir, "valid.txt");
+    const invalidFile = resolve(dir, "invalid.txt");
+    writeFileSync(validFile, "feat: implement bit reader\n");
+    writeFileSync(invalidFile, "feat: implement robust bit reader\n");
+
+    expect(await main(["--file", validFile])).toBe(0);
+    expect(await main(["--file", invalidFile])).toBe(1);
   });
 });
