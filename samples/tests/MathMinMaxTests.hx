@@ -35,4 +35,30 @@ class MathMinMaxTests {
     public static function absInt():Void {
         Test.equals(7.0, MathMinMaxOps.absOfInts(7));
     }
+
+    @:test("Math.pow raises the base to the exponent")
+    public static function powFloat():Void {
+        Test.equals(8.0, MathMinMaxOps.power(2.0, 3.0));
+        Test.equals(0.25, MathMinMaxOps.power(2.0, -2.0));
+        Test.equals(1.0, MathMinMaxOps.power(5.0, 0.0));
+    }
+
+    @:test("Math.pow accepts int operands through the float signature")
+    public static function powInt():Void {
+        Test.equals(9.0, MathMinMaxOps.powerOfInts(3, 2));
+    }
+
+    @:test("Math.round returns the nearest integer as an int")
+    public static function roundFloat():Void {
+        Test.equals(3, MathMinMaxOps.rounded(2.5));
+        Test.equals(2, MathMinMaxOps.rounded(2.4));
+        Test.equals(0, MathMinMaxOps.rounded(0.4));
+    }
+
+    @:test("Math.floor rounds down and Math.ceil rounds up as ints")
+    public static function floorCeil():Void {
+        Test.equals(2, MathMinMaxOps.floored(2.7));
+        Test.equals(3, MathMinMaxOps.ceiled(2.1));
+        Test.equals(0, MathMinMaxOps.floored(0.4));
+    }
 }

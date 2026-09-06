@@ -115,6 +115,8 @@ boring.StdStringOps
 tests.StdStringTests
 boring.NullableArrayOps
 tests.NullableArrayTests
+boring.NullableLocalOps
+tests.NullableLocalTests
 boring.StringConvOps
 tests.StringConvTests
 boring.FileLevelOps

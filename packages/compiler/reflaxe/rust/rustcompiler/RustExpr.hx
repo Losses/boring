@@ -600,17 +600,23 @@ class RustExpr {
                 }
                 // A String local owns its value; a literal initializer is
                 // a &str, so the empty literal declares String::new() and
-                // any other literal converts once at the declaration. A
-                // Null<String> local additionally wraps in Some.
+                // any other literal converts once at the declaration.
                 if (isStringType(v.t)) {
                     switch (stripWrap(init).expr) {
                         case TConst(TString(s)):
                             initStr = s.length == 0 ? "String::new()" : initStr + ".to_string()";
-                            if (isNullType(v.t)) {
-                                initStr = "Some(" + initStr + ")";
-                            }
                         case _:
                     }
+                }
+                // A nullable local holds an Option; a non-null initializer
+                // whose own type is not nullable is a bare value and wraps
+                // in Some once at the declaration. Null literals took the
+                // None branch above, already-nullable initializers (reads
+                // of other nullable locals) stay as they are, and a
+                // name-keyed enum lookup already emits from_name's Option.
+                final lookupInit = EnumQueryExpander.markerKind(init) == QLookup;
+                if (isNullType(v.t) && !isTNull(init) && !StaticFieldHelper.isNullableType(init.t) && !lookupInit) {
+                    initStr = "Some(" + initStr + ")";
                 }
                 // An empty array literal is an untyped `vec![]` in Rust; the
                 // element reads and writes of an array local infer through
@@ -818,11 +824,7 @@ class RustExpr {
         these mutations lower as statements only.
     **/
     function stringBufMutationParts(fn:TypedExpr):Null<{name:String, subj:TypedExpr}> {
-        return switch (fn.expr) {
-            case TField(subj, FInstance(_, _, cf)) if (isStringBuf(subj)): final n = cf.get()
-                    .name; n == "add" || n == "addChar" ? {name: n, subj: subj} : null;
-            case _: null;
-        };
+        return PolicyQueries.stringBufMutationParts(fn);
     }
 
     /** Statement lowering of the two buffer mutations (stdlib/08). */
@@ -2020,37 +2022,11 @@ class RustExpr {
     }
 
     function indexedStoreOf(s:TypedExpr):Null<{arr:TVar, idx:TVar, value:TypedExpr}> {
-        switch (stripWrap(s).expr) {
-            case TBinop(OpAssign, target, value):
-                switch (stripWrap(target).expr) {
-                    case TArray(arr, idx):
-                        final arrLocal = stripWrap(arr);
-                        final idxLocal = stripWrap(idx);
-                        switch [arrLocal.expr, idxLocal.expr] {
-                            case [TLocal(a), TLocal(ix)]: return {arr: a, idx: ix, value: value};
-                            case _:
-                        }
-                    case _:
-                }
-            case _:
-        }
-        return null;
+        return PolicyQueries.indexedStoreOf(s);
     }
 
     function pushOf(s:TypedExpr):Null<{arr:TVar, arg:TypedExpr}> {
-        switch (stripWrap(s).expr) {
-            case TCall(fn, args) if (args.length == 1):
-                switch (stripWrap(fn).expr) {
-                    case TField(subj, fa) if (fieldName(fa) == "push"):
-                        switch (stripWrap(subj).expr) {
-                            case TLocal(a): return {arr: a, arg: args[0]};
-                            case _:
-                        }
-                    case _:
-                }
-            case _:
-        }
-        return null;
+        return PolicyQueries.pushOf(s);
     }
 
     // ------------------------------------------------------------------
@@ -2320,17 +2296,7 @@ class RustExpr {
     }
 
     function valueTypeLocalValues(wrapper:TypedExpr):Map<Int, TypedExpr> {
-        final values:Map<Int, TypedExpr> = [];
-        switch (wrapper.expr) {
-            case TBlock(stmts):
-                for (stmt in stmts)
-                    switch (stmt.expr) {
-                        case TVar(v, init) if (init != null && !StringTools.startsWith(v.name, "this")): values.set(v.id, init);
-                        case _:
-                    }
-            case _:
-        }
-        return values;
+        return PolicyQueries.valueTypeLocalValues(wrapper);
     }
 
     function valueTypeOperand(value:TypedExpr, locals:Map<Int, TypedExpr>, ?abs:AbstractType, asRepresentation:Bool = false):String {
@@ -3573,11 +3539,7 @@ class RustExpr {
     }
 
     function isFpHelperInt64Call(fn:TypedExpr):Bool {
-        return switch (stripWrap(fn).expr) {
-            case TField(_, FStatic(classRef, fieldRef)): classRef.get()
-                    .module == "haxe.io.FPHelper" && (fieldRef.get().name == "doubleToI64" || fieldRef.get().name == "f32ToI64");
-            case _: false;
-        };
+        return PolicyQueries.isFpHelperInt64Call(fn);
     }
 
     function field(subj:TypedExpr, fa:FieldAccess):String {
@@ -4071,12 +4033,7 @@ class RustExpr {
     }
 
     function hasInstanceToString(cls:ClassType):Bool {
-        for (field in cls.fields.get())
-            if (field.name == "toString")
-                return true;
-        if (cls.superClass == null)
-            return false;
-        return hasInstanceToString(cls.superClass.t.get());
+        return PolicyQueries.hasInstanceToString(cls);
     }
 
     function cyclicEnumString(en:EnumType, value:String, inConcat:Bool, origin:TypedExpr):String {
@@ -4114,20 +4071,11 @@ class RustExpr {
     }
 
     function isParameterlessEnum(en:EnumType):Bool {
-        for (ef in en.constructs)
-            switch (ef.type) {
-                case TFun(args, _) if (args.length > 0):
-                    return false;
-                case _:
-            }
-        return true;
+        return PolicyQueries.isParameterlessEnum(en);
     }
 
     function stdStringArg(e:TypedExpr):Null<TypedExpr> {
-        return switch (stripWrap(e).expr) {
-            case TCall({expr: TField(_, FStatic(c, cf))}, args) if (c.get().module == "Std" && cf.get().name == "string" && args.length == 1): args[0];
-            case _: null;
-        };
+        return PolicyQueries.stdStringArg(e);
     }
 
     function stringToolsHex(args:Array<TypedExpr>):String {
@@ -4730,6 +4678,20 @@ class RustExpr {
                     return "(" + mathFloatArg(args[0]) + ").abs()";
                 if (cls.module == "Math" && (name == "min" || name == "max") && args.length == 2)
                     return staticRef(cls, name) + "(" + mathFloatArg(args[0]) + ", " + mathFloatArg(args[1]) + ")";
+                if (cls.module == "Math" && name == "pow" && args.length == 2) {
+                    // Rust names the power function powf; the f32
+                    // configuration reads it from f32 (feature spec 23).
+                    final real = FloatPrecision.isF32() ? "f32" : "f64";
+                    return real + "::powf(" + mathFloatArg(args[0]) + ", " + mathFloatArg(args[1]) + ")";
+                }
+                if (cls.module == "Math" && (name == "floor" || name == "ceil" || name == "round")) {
+                    // Haxe types floor, ceil, and round as Int; the Rust
+                    // methods return the real type, so the call site
+                    // truncates through the same conversion Std.int uses.
+                    final real = FloatPrecision.isF32() ? "f32" : "f64";
+                    final rounded = real + "::" + name + "(" + expr(args[0]) + ")";
+                    return RuntimeResidents.isResident(imports.selfModule) ? RustConversions.floatToI32(rounded) : RustConversions.floatToU32(rounded);
+                }
                 if (cls.module == "Std" && name == "parseFloat") {
                     final real = FloatPrecision.isF32() ? "f32" : "f64";
                     imports.require("crate::runtime::u_string");
@@ -5020,11 +4982,7 @@ class RustExpr {
     }
 
     function mapBackingReceiver(e:TypedExpr):Null<TypedExpr> {
-        return switch (stripWrap(e).expr) {
-            case TField(receiver, FInstance(_, _, cf)) if (cf.get().name == "h" && isMapBackingType(receiver.t)): receiver;
-            case TField(receiver, FAnon(cf)) if (cf.get().name == "h" && isMapBackingType(receiver.t)): receiver;
-            case _: null;
-        };
+        return PolicyQueries.mapBackingReceiver(e);
     }
 
     function isMapBackingType(t:Type):Bool {
@@ -5032,19 +4990,11 @@ class RustExpr {
     }
 
     function mapAssignment(e:TypedExpr):Null<{receiver:TypedExpr, key:TypedExpr}> {
-        return switch (stripWrap(e).expr) {
-            case TArray(arr, key):
-                final receiver = mapBackingReceiver(arr);
-                receiver == null ? null : {receiver: receiver, key: key};
-            case _: null;
-        };
+        return PolicyQueries.mapAssignment(e);
     }
 
     function isHasOwnPropertyValue(e:TypedExpr):Bool {
-        return switch (stripWrap(e).expr) {
-            case TField(_, FInstance(_, _, cf)) | TField(_, FAnon(cf)) if (cf.get().name == "hasOwnProperty"): true;
-            case _: false;
-        };
+        return PolicyQueries.isHasOwnPropertyValue(e);
     }
 
     function mapHasOwnPropertyCall(fn:TypedExpr, args:Array<TypedExpr>):Null<String> {
@@ -5627,17 +5577,7 @@ class RustExpr {
     }
 
     function mentionsLocal(e:TypedExpr, v:TVar):Bool {
-        var found = false;
-        function walk(x:TypedExpr) {
-            switch (x.expr) {
-                case TLocal(l) if (l.id == v.id):
-                    found = true;
-                case _:
-            }
-            TypedExprTools.iter(x, walk);
-        }
-        walk(e);
-        return found;
+        return PolicyQueries.mentionsLocal(e, v);
     }
 
     function localName(v:TVar):String {
@@ -5732,13 +5672,7 @@ class RustExpr {
     }
 
     function unwrapLambda(e:TypedExpr):Null<TFunc> {
-        if (e == null)
-            return null;
-        return switch (e.expr) {
-            case TFunction(f): f;
-            case TParenthesis(inner) | TCast(inner, _) | TMeta(_, inner): unwrapLambda(inner);
-            case _: null;
-        };
+        return PolicyQueries.unwrapLambda(e);
     }
 
     function lambdaBody(e:TypedExpr):TypedExpr {
@@ -6558,12 +6492,7 @@ class RustExpr {
     }
 
     function isStringBuf(e:TypedExpr):Bool {
-        if (e == null)
-            return false;
-        return switch (Context.follow(e.t)) {
-            case TInst(c, _): final cls = c.get(); (cls.pack.join(".") == "std" && cls.name == "StringBuf") || (cls.pack.length == 0 && cls.name == "StringBuf");
-            case _: false;
-        };
+        return PolicyQueries.isStringBuf(e);
     }
 
     function isTNull(e:TypedExpr):Bool {
