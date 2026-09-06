@@ -5538,13 +5538,11 @@ class RustExpr {
     function scanLocals(e:TypedExpr):Void {
         switch (e.expr) {
             case TVar(v, init):
+                PolicyQueries.noteDeclaredLocalName(v, usedNames, false);
                 if (v.name != "`" && init == null) {
                     // Deferred locals are assigned by control flow below; only
                     // mark them mutable when scanLocals observes such an assignment.
-                    usedNames.set(v.name, true);
                     deferredLocals.set(v.id, true);
-                } else if (v.name != "`") {
-                    usedNames.set(v.name, true);
                 }
                 if (init != null) {
                     // Wire reads and reader positions arrive as unsigned values;
