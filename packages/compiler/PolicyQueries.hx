@@ -631,6 +631,15 @@ class PolicyQueries {
         return out;
     }
 
+    public static function stringToolsHexArgs(args:Array<TypedExpr>):{value:TypedExpr, digits:Null<TypedExpr>} {
+        final value = args[0];
+        final digits = args.length > 1 && !ExpressionPredicates.isNullExpr(args[1]) ? args[1] : null;
+        if (ExpressionPredicates.isNegativeIntLiteral(value) || (digits != null && ExpressionPredicates.isNegativeIntLiteral(digits))) {
+            Context.error("StringTools.hex accepts non-negative arguments only", value.pos);
+        }
+        return {value: value, digits: digits};
+    }
+
     public static function isNullableType(t:Null<Type>):Bool {
         if (t == null) {
             return false;
@@ -672,6 +681,33 @@ class PolicyQueries {
                 collectTypeParamsInto(fun(), skip, found);
             case _:
         }
+    }
+}
+
+// Naming state for cyclic enum Std.string helpers. The cache maps
+// "module:TypeName" to the emitted helper name so a recursive Std.string
+// inside body generation resolves to the helper already being emitted;
+// open() mints the next name and registers it, close() unregisters on
+// every completed body path. Target emitters keep the helper body,
+// wrapper syntax, name conversion, and call spelling.
+final class EnumStringHelperNaming {
+    final cache:Map<String, String> = [];
+    var counter:Int = 0;
+
+    public function new() {}
+
+    public function existing(en:EnumType):Null<String> {
+        return cache.get(en.module + ":" + en.name);
+    }
+
+    public function open(en:EnumType, base:String):String {
+        final name = base + counter++;
+        cache.set(en.module + ":" + en.name, name);
+        return name;
+    }
+
+    public function close(en:EnumType):Void {
+        cache.remove(en.module + ":" + en.name);
     }
 }
 #end

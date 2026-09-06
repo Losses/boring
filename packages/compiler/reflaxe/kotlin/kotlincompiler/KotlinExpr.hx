@@ -49,9 +49,7 @@ class KotlinExpr {
     final hiddenNames:Map<Int, String> = [];
 
     /** Active runtime renderers for cyclic enum stringification. */
-    final enumStringHelpers:Map<String, String> = [];
-
-    var enumStringHelperCounter:Int = 0;
+    final enumStringNaming:EnumStringHelperNaming = new EnumStringHelperNaming();
 
     /** Locals whose control-flow or normalization initializer proves non-null. */
     final nonNullLocals:Map<Int, Bool> = [];
@@ -2284,12 +2282,10 @@ class KotlinExpr {
     }
 
     function cyclicEnumString(en:EnumType, value:String, inConcat:Bool, origin:TypedExpr):String {
-        final key = en.module + ":" + en.name;
-        final existing = enumStringHelpers.get(key);
+        final existing = enumStringNaming.existing(en);
         if (existing != null)
             return existing + "(" + value + ")";
-        final name = "stdString" + en.name + enumStringHelperCounter++;
-        enumStringHelpers.set(key, name);
+        final name = enumStringNaming.open(en, "stdString" + en.name);
         final arms:Array<String> = [];
         for (ef in en.constructs) {
             final args = switch (ef.type) {
@@ -2306,7 +2302,7 @@ class KotlinExpr {
                 arms.push("is " + en.name + "." + ef.name + " -> \"" + ef.name + "(\" + " + pieces.join(" + \", \" + ") + " + \")\"");
             }
         }
-        enumStringHelpers.remove(key);
+        enumStringNaming.close(en);
         return "run { fun "
             + name
             + "(v: "
@@ -2329,11 +2325,9 @@ class KotlinExpr {
     }
 
     function stringToolsHex(args:Array<TypedExpr>):String {
-        final value = args[0];
-        final digits = args.length > 1 && !isNullExpr(args[1]) ? args[1] : null;
-        if (isNegativeIntLiteral(value) || (digits != null && isNegativeIntLiteral(digits))) {
-            Context.error("StringTools.hex accepts non-negative arguments only", value.pos);
-        }
+        final validated = PolicyQueries.stringToolsHexArgs(args);
+        final value = validated.value;
+        final digits = validated.digits;
         final valueText = "(" + expr(value) + ")";
         final hex = valueText + ".toUInt().toString(16).uppercase()";
         return digits == null ? hex : hex + ".padStart(" + expr(digits) + ", '0')";
