@@ -599,17 +599,23 @@ class RustExpr {
                 }
                 // A String local owns its value; a literal initializer is
                 // a &str, so the empty literal declares String::new() and
-                // any other literal converts once at the declaration. A
-                // Null<String> local additionally wraps in Some.
+                // any other literal converts once at the declaration.
                 if (isStringType(v.t)) {
                     switch (stripWrap(init).expr) {
                         case TConst(TString(s)):
                             initStr = s.length == 0 ? "String::new()" : initStr + ".to_string()";
-                            if (isNullType(v.t)) {
-                                initStr = "Some(" + initStr + ")";
-                            }
                         case _:
                     }
+                }
+                // A nullable local holds an Option; a non-null initializer
+                // whose own type is not nullable is a bare value and wraps
+                // in Some once at the declaration. Null literals took the
+                // None branch above, already-nullable initializers (reads
+                // of other nullable locals) stay as they are, and a
+                // name-keyed enum lookup already emits from_name's Option.
+                final lookupInit = EnumQueryExpander.markerKind(init) == QLookup;
+                if (isNullType(v.t) && !isTNull(init) && !StaticFieldHelper.isNullableType(init.t) && !lookupInit) {
+                    initStr = "Some(" + initStr + ")";
                 }
                 // An empty array literal is an untyped `vec![]` in Rust; the
                 // element reads and writes of an array local infer through
