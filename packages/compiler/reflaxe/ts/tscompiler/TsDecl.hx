@@ -423,18 +423,7 @@ class TsDecl {
 
     /** Hop count up the super chain to haxe.Exception; 0 when the chain does not reach it. */
     function exceptionDepth(cls:ClassType):Int {
-        var depth = 0;
-        var current = cls;
-        while (current.superClass != null) {
-            final parent = current.superClass.t.get();
-            final parentPath = parent.pack.length == 0 ? parent.name : parent.pack.join(".") + "." + parent.name;
-            if (parentPath == "haxe.Exception") {
-                return depth + 1;
-            }
-            depth += 1;
-            current = parent;
-        }
-        return 0;
+        return PolicyQueries.exceptionDepth(cls);
     }
 
     /** A class whose super chain reaches haxe.Exception is one of the exception classes. */
