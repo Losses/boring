@@ -240,6 +240,13 @@ class PolicyQueries {
         return pack.length == 0 ? name : pack.join(".") + "." + name;
     }
 
+    public static function statementsOf(e:TypedExpr):Array<TypedExpr> {
+        return switch (e.expr) {
+            case TBlock(stmts): stmts;
+            case _: [e];
+        }
+    }
+
     public static function pushOf(s:TypedExpr):Null<{arr:TVar, arg:TypedExpr}> {
         switch (ExpressionPredicates.stripWrap(s).expr) {
             case TCall(fn, args) if (args.length == 1):
