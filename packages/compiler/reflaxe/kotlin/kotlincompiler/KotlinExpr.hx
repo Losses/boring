@@ -1682,9 +1682,34 @@ class KotlinExpr {
         }
         if (isNullType(subj.t) && !provenNonNull(subj) && !guardProofBefore(subj))
             return "?.";
+        // A safe-navigation hop widens the value produced by the whole
+        // receiver chain.  The typed AST records that widened intermediate
+        // field as non-null, so inspect the chain root as well; otherwise a
+        // later hop would incorrectly use a plain dot.
+        if (nullableChainHop(subj) && !guardProofBefore(subj))
+            return "?.";
         if (isNullType(subj.t))
             return "!!.";
         return ".";
+    }
+
+    function nullableChainHop(e:TypedExpr):Bool {
+        var current = stripWrap(e);
+        while (true) {
+            switch (current.expr) {
+                case TField(subject, _):
+                    if (isNullType(subject.t)) {
+                        // A dominating condition can prove the chain root even
+                        // when the intermediate field remains nullable in the
+                        // typed AST.  Do not replace that proof with ?. on a
+                        // later hop.
+                        return !provenNonNull(subject) && !guardProofBefore(subject);
+                    }
+                    current = stripWrap(subject);
+                case _:
+                    return false;
+            }
+        }
     }
 
     function isNullableReferenceType(t:Null<Type>):Bool {
