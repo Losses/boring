@@ -526,7 +526,8 @@ class RustDecl {
                 }
             ].join(", ");
             final allArgs = receiver ? (args.length > 0 ? "&self, " + args : "&self") : args;
-            final vis = f.field.isPublic ? "pub " : "";
+            // @:allow members use crate visibility so allowed cross-module references compile.
+            final vis = f.field.isPublic ? "pub " : (f.field.meta.has(":allow") ? "pub(crate) " : "");
             lines.push("");
             lines.push("    " + vis + "fn " + RustImports.toSnakeCase(f.field.name) + "(" + allArgs + ")" + ret + " {");
             final receiverName = isStringRepresentation(info.representation) && f.field.name == "toString" ? "self.0.clone()" : "self.0";
@@ -988,7 +989,8 @@ class RustDecl {
     }
 
     function renderRustDataTable(field:ClassField, elems:Array<Int>):String {
-        final vis = field.isPublic ? "pub " : "";
+        // @:allow members use crate visibility so allowed cross-module references compile.
+        final vis = field.isPublic ? "pub " : (field.meta.has(":allow") ? "pub(crate) " : "");
         // Resident runtime modules render Int as i32 (RuntimeResidents),
         // so their tables carry the same element type as the functions
         // that index them.
@@ -1028,7 +1030,8 @@ class RustDecl {
                 Context.error("static function fields accept capture-free initializers only", field.pos);
                 return [];
         }
-        final vis = field.isPublic ? "pub " : "";
+        // @:allow members use crate visibility so allowed cross-module references compile.
+        final vis = field.isPublic ? "pub " : (field.meta.has(":allow") ? "pub(crate) " : "");
         final name = RustImports.toScreamingSnakeCase(field.name);
         final initializerText = expr.rawFunctionInitializer(initializer);
         return [
@@ -1097,7 +1100,8 @@ class RustDecl {
                 case TInst(c, _) if (c.get().name == "String"): "&str";
                 case _: types.of(field.type);
             };
-            final vis = field.isPublic ? "pub " : "";
+            // @:allow members use crate visibility so allowed cross-module references compile.
+            final vis = field.isPublic ? "pub " : (field.meta.has(":allow") ? "pub(crate) " : "");
             final name = RustImports.toSnakeCase(field.name).toUpperCase();
             return ['    ${vis}const ${name}: ${typeStr} = $valStr;'];
         }
@@ -1114,7 +1118,8 @@ class RustDecl {
             return [];
         }
         final init = StaticFieldHelper.validatedInitializer(field, cls);
-        final vis = field.isPublic ? "pub " : "";
+        // @:allow members use crate visibility so allowed cross-module references compile.
+        final vis = field.isPublic ? "pub " : (field.meta.has(":allow") ? "pub(crate) " : "");
         final typeStr = types.of(field.type);
         final name = RustImports.toScreamingSnakeCase(field.name);
         if (field.isFinal && StaticFieldHelper.isNonEmptyArrayLiteral(init)) {
@@ -1258,7 +1263,8 @@ class RustDecl {
         }
         final retType = isFallible ? 'Result<$rawRetType, ${errOwner.name}>' : rawRetType;
         final ret = retType == "()" ? "" : " -> " + retType;
-        final vis = f.field.isPublic ? "pub " : "";
+        // @:allow members use crate visibility so allowed cross-module references compile.
+        final vis = f.field.isPublic ? "pub " : (f.field.meta.has(":allow") ? "pub(crate) " : "");
         final head = '    ${vis}fn ${snakeName}${methodGenericStr}($allArgs)$ret {';
         if (receiverMethod && f.args[0].tvar != null) {
             expr.bindLocalName(f.args[0].tvar, receiverBodyName(f.args[0].type));
@@ -1724,7 +1730,9 @@ class RustDecl {
         final rawRetType = methodReturnType(f.ret, f.field.name);
         final retType = isFallible ? 'Result<$rawRetType, ${errOwner.name}>' : rawRetType;
         final ret = retType == "()" ? "" : " -> " + retType;
-        final vis = (f.field.isPublic && !isTraitImpl) ? "pub " : "";
+        // @:allow members use crate visibility so allowed cross-module
+        // references compile; trait impls stay unmarked per Rust rules.
+        final vis = isTraitImpl ? "" : (f.field.isPublic ? "pub " : (f.field.meta.has(":allow") ? "pub(crate) " : ""));
         final methodParams = collectMethodTypeParams(f, [for (p in cls.params) p.name]);
         final methodGenericStr = methodParams.length > 0 ? "<" + methodParams.join(", ") + ">" : "";
         final head = '    ${vis}fn ${snakeName}${methodGenericStr}($allArgs)$ret {';
