@@ -61,6 +61,8 @@ class RustExpr {
     final rangeLoopVars:Map<Int, Bool> = [];
     final argTypes:Map<String, String> = [];
     final paramVarIds:Map<Int, Bool> = [];
+    // Actual constructor-call arguments used while materializing coalescing defaults.
+    final defaultParameterSubstitutions:Map<String, String> = [];
     final genericParamIds:Map<Int, Bool> = [];
     final closureParamIds:Map<Int, Bool> = [];
     var inGenericFunction:Bool = false;
@@ -214,7 +216,7 @@ class RustExpr {
                 final en = enumRef.get();
                 requireEnum(en.module, en.name);
                 en.name + "::" + enumField.name;
-            case CParameterRead(name): RustImports.toSnakeCase(name);
+            case CParameterRead(name): defaultParameterSubstitutions.exists(name) ? defaultParameterSubstitutions.get(name) : RustImports.toSnakeCase(name);
             case CInstanceFieldRead(name):
                 final fieldText = "self." + RustImports.toSnakeCase(name);
                 isTypeCopy(targetType) ? fieldText : "(" + fieldText + ").clone()";
@@ -5068,12 +5070,50 @@ class RustExpr {
             case TFun(pargs, _): [for (p in pargs) p.t];
             case _: [];
         } : [];
+        final paramNames = fnType != null ? switch (Context.follow(fnType)) {
+            case TFun(pargs, _): [for (p in pargs) p.name];
+            case _: [];
+        } : [];
         final out:Array<String> = [];
         for (i in 0...args.length) {
             final arg = args[i];
             final argStr = expr(arg);
             if (i < paramTypes.length) {
                 final pt = paramTypes[i];
+                final parameterName = i < paramNames.length ? paramNames[i] : null;
+                final coalescing = parameterName == null ? null : DefaultArgExpander.coalescingDefaultForParam(cls, "new", parameterName);
+                if (coalescing != null && isNullLiteral(arg)) {
+                    defaultParameterSubstitutions.clear();
+                    for (j in 0...args.length) {
+                        if (j < paramNames.length) {
+                            final prior = isNullLiteral(args[j]) ? DefaultArgExpander.defaultAt(cls, "new", j) : null;
+                            final priorText = prior == null ? (isNullType(paramTypes[j])
+                                && StringTools.startsWith(expr(args[j]),
+                                    "Some(") ? expr(args[j]).substr(5, expr(args[j]).length - 6) : expr(args[j])) : switch (prior) {
+                                    case VCoalescing(value): coalescingDefaultText(value, getNullInnerType(paramTypes[j]), false);
+                                    default: defaultArgText(prior, paramTypes[j]);
+                                };
+                            defaultParameterSubstitutions.set(paramNames[j], priorText);
+                        }
+                    }
+                    out.push(coalescingDefaultText(coalescing, getNullInnerType(pt), true));
+                    defaultParameterSubstitutions.clear();
+                    continue;
+                }
+                final registered = DefaultArgExpander.defaultAt(cls, "new", i);
+                if (registered != null && isNullLiteral(arg)) {
+                    if (isCoalescingDefault(registered)) {
+                        out.push(argStr);
+                        continue;
+                    }
+                    final d = defaultArgText(registered, pt);
+                    out.push(isNullType(pt) && !isCoalescingDefault(registered) ? "Some(" + d + ")" : d);
+                    continue;
+                }
+                if (registered != null && isNullType(arg.t) && !isNullType(pt) && !isCoalescingDefault(registered)) {
+                    out.push("(" + argStr + ").unwrap_or(" + defaultArgText(registered, getNullInnerType(pt)) + ")");
+                    continue;
+                }
                 if (isNullType(pt) && isStringType(getNullInnerType(pt)) && isNullType(arg.t)) {
                     out.push(argStr + ".clone()");
                     continue;
@@ -5082,15 +5122,15 @@ class RustExpr {
                     // A nullable constructor parameter takes an Option; a
                     // null literal already renders None, any other
                     // argument wraps.
-                    if (argStr != "None") {
-                        final inner = switch (stripWrap(arg).expr) {
-                            case TConst(TString(s)): quoteString(s) + ".to_string()";
-                            case _: isInterfaceType(getNullInnerType(pt)) && !isInterfaceType(arg.t) ? "Box::new(" + argStr + ")" : argStr;
-                        };
-                        out.push("Some(" + inner + ")");
+                    if (argStr == "None" || StringTools.startsWith(argStr, "Some(")) {
+                        out.push(argStr);
                         continue;
                     }
-                    out.push(argStr);
+                    final inner = switch (stripWrap(arg).expr) {
+                        case TConst(TString(s)): quoteString(s) + ".to_string()";
+                        case _: isInterfaceType(getNullInnerType(pt)) && !isInterfaceType(arg.t) ? "Box::new(" + argStr + ")" : argStr;
+                    };
+                    out.push("Some(" + inner + ")");
                     continue;
                 }
                 if (isInterfaceType(pt)) {
@@ -5130,6 +5170,35 @@ class RustExpr {
         }
         return out.join(", ");
     }
+
+    function isCoalescingDefaultAt(cls:ClassType, index:Int):Bool
+        return switch (DefaultArgExpander.defaultAt(cls, "new", index)) {
+            case VCoalescing(_): true;
+            case _: false;
+        };
+
+    function isCoalescingDefault(v:DefaultArgExpander.DefaultArgValue):Bool
+        return switch (v) {
+            case VCoalescing(_): true;
+            case _: false;
+        };
+
+    function isNullLiteral(e:TypedExpr):Bool
+        return switch (stripWrap(e).expr) {
+            case TConst(TNull): true;
+            case _: false;
+        };
+
+    function defaultArgText(v:DefaultArgExpander.DefaultArgValue, t:Type):String
+        return switch (v) {
+            case VInt(x): Std.string(x);
+            case VFloat(x): x;
+            case VString(x): quoteString(x) + ".to_string()";
+            case VBool(x): x ? "true" : "false";
+            case VNull: "None";
+            case VEnum(e, f): e.get().name + "::" + RustImports.toSnakeCase(f.name);
+            case VCoalescing(_): "None";
+        };
 
     function numericAssignmentValue(expected:Type, actual:TypedExpr, rendered:String, targetOverride:Null<String> = null):String {
         if (!isIntType(expected))
