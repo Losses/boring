@@ -4,6 +4,7 @@ import haxe.macro.Expr;
 import haxe.macro.Type;
 import haxe.macro.Type.TypedExpr;
 import haxe.macro.Type.TypedExprDef;
+import NameConversion;
 
 enum EnumQueryKind {
     QCollection;
@@ -112,8 +113,9 @@ class EnumQueryExpander {
         return out.toString();
     }
 
-    public static function lowerFirst(name:String):String
-        return name.charAt(0).toLowerCase() + name.substr(1);
+    public static function lowerFirst(name:String):String {
+        return NameConversion.lowerFirst(name);
+    }
 
     static function collectAliases(e:TypedExpr):Void {
         switch (e.expr) {
