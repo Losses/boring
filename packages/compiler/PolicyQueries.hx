@@ -341,5 +341,16 @@ class PolicyQueries {
             case _: false;
         };
     }
+
+    public static function isNullableType(t:Null<Type>):Bool {
+        if (t == null) {
+            return false;
+        }
+        return switch (t) {
+            case TAbstract(a, params) if (a.get().name == "Null" && params.length == 1): true;
+            case TLazy(f): isNullableType(f());
+            case _: false;
+        };
+    }
 }
 #end
