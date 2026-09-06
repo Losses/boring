@@ -247,6 +247,17 @@ class PolicyQueries {
         }
     }
 
+    public static function lambdaBody(e:TypedExpr):TypedExpr {
+        if (e == null)
+            return e;
+        return switch (e.expr) {
+            case TBlock(stmts) if (stmts.length > 0): lambdaBody(stmts[stmts.length - 1]);
+            case TReturn(ret) if (ret != null): lambdaBody(ret);
+            case TParenthesis(inner) | TCast(inner, _) | TMeta(_, inner): lambdaBody(inner);
+            case _: e;
+        }
+    }
+
     public static function pushOf(s:TypedExpr):Null<{arr:TVar, arg:TypedExpr}> {
         switch (ExpressionPredicates.stripWrap(s).expr) {
             case TCall(fn, args) if (args.length == 1):
