@@ -61,6 +61,8 @@ class RustExpr {
     final rangeLoopVars:Map<Int, Bool> = [];
     final argTypes:Map<String, String> = [];
     final paramVarIds:Map<Int, Bool> = [];
+    // Actual constructor-call arguments used while materializing coalescing defaults.
+    final defaultParameterSubstitutions:Map<String, String> = [];
     final genericParamIds:Map<Int, Bool> = [];
     final closureParamIds:Map<Int, Bool> = [];
     var inGenericFunction:Bool = false;
@@ -214,7 +216,7 @@ class RustExpr {
                 final en = enumRef.get();
                 requireEnum(en.module, en.name);
                 en.name + "::" + enumField.name;
-            case CParameterRead(name): RustImports.toSnakeCase(name);
+            case CParameterRead(name): defaultParameterSubstitutions.exists(name) ? defaultParameterSubstitutions.get(name) : RustImports.toSnakeCase(name);
             case CInstanceFieldRead(name):
                 final fieldText = "self." + RustImports.toSnakeCase(name);
                 isTypeCopy(targetType) ? fieldText : "(" + fieldText + ").clone()";
@@ -5068,12 +5070,36 @@ class RustExpr {
             case TFun(pargs, _): [for (p in pargs) p.t];
             case _: [];
         } : [];
+        final paramNames = fnType != null ? switch (Context.follow(fnType)) {
+            case TFun(pargs, _): [for (p in pargs) p.name];
+            case _: [];
+        } : [];
         final out:Array<String> = [];
         for (i in 0...args.length) {
             final arg = args[i];
             final argStr = expr(arg);
             if (i < paramTypes.length) {
                 final pt = paramTypes[i];
+                final parameterName = i < paramNames.length ? paramNames[i] : null;
+                final coalescing = parameterName == null ? null : DefaultArgExpander.coalescingDefaultForParam(cls, "new", parameterName);
+                if (coalescing != null && isNullLiteral(arg)) {
+                    defaultParameterSubstitutions.clear();
+                    for (j in 0...args.length) {
+                        if (j < paramNames.length) {
+                            final prior = isNullLiteral(args[j]) ? DefaultArgExpander.defaultAt(cls, "new", j) : null;
+                            final priorText = prior == null ? (isNullType(paramTypes[j])
+                                && StringTools.startsWith(expr(args[j]),
+                                    "Some(") ? expr(args[j]).substr(5, expr(args[j]).length - 6) : expr(args[j])) : switch (prior) {
+                                    case VCoalescing(value): coalescingDefaultText(value, getNullInnerType(paramTypes[j]), false);
+                                    default: defaultArgText(prior, paramTypes[j]);
+                                };
+                            defaultParameterSubstitutions.set(paramNames[j], priorText);
+                        }
+                    }
+                    out.push(coalescingDefaultText(coalescing, getNullInnerType(pt), true));
+                    defaultParameterSubstitutions.clear();
+                    continue;
+                }
                 final registered = DefaultArgExpander.defaultAt(cls, "new", i);
                 if (registered != null && isNullLiteral(arg)) {
                     if (isCoalescingDefault(registered)) {
@@ -5150,6 +5176,7 @@ class RustExpr {
             case VCoalescing(_): true;
             case _: false;
         };
+
     function isCoalescingDefault(v:DefaultArgExpander.DefaultArgValue):Bool
         return switch (v) {
             case VCoalescing(_): true;

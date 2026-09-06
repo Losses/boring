@@ -221,7 +221,7 @@ class RustDecl {
         for (v in varFields) {
             if (v.isStatic)
                 continue;
-            for (l in instanceVarDecl(v, hasLifetime, borrowedBytes))
+            for (l in instanceVarDecl(cls, v, hasLifetime, borrowedBytes))
                 lines.push(l);
         }
         lines.push("}\n");
@@ -1176,7 +1176,7 @@ class RustDecl {
         return PolicyQueries.isGetterOnlyProperty(field);
     }
 
-    function instanceVarDecl(v:ClassVarData, hasLifetime:Bool, borrowedBytes:Map<String, Bool>):Array<String> {
+    function instanceVarDecl(cls:ClassType, v:ClassVarData, hasLifetime:Bool, borrowedBytes:Map<String, Bool>):Array<String> {
         final field = v.field;
         // A `var x(get, never)` field renders no storage on this target;
         // the get_x() method is the lowering (feature spec 27).
@@ -1192,7 +1192,14 @@ class RustDecl {
             case TAbstract(a, _) if (a.get().name == "Int" && (field.name == "offset" || field.name == "length")):
                 "u32";
             case _:
-                types.of(field.type);
+                // A constructor coalescing normalization whose default
+                // cannot be null proves the field never stores null; the
+                // storage then narrows to the inner type through the same
+                // coalescingParameterType query the other targets apply to
+                // constructor parameters.
+                final localCoalescing = DefaultArgExpander.coalescingDefaultForLocalParam(cls, "new", field.name, field.name);
+                final coalescing = localCoalescing != null ? localCoalescing : DefaultArgExpander.coalescingDefaultForParam(cls, "new", field.name);
+                types.of(coalescing != null ? DefaultArgExpander.coalescingParameterType(coalescing, field.type) : field.type);
         };
         // Instance-field visibility follows the Haxe declaration. Public
         // fields are part of the generated crate's API; private fields stay
@@ -1650,9 +1657,12 @@ class RustDecl {
                 if (isStringParam) {
                     lines.push('            $sname: ${sname}.to_string(),');
                 } else if (isNullableStringParam) {
-                    final coalesced = DefaultArgExpander.coalescingDefaultForLocalParam(cls, f.field.name, a.name, a.name) != null
-                        || DefaultArgExpander.coalescingDefaultForParam(cls, f.field.name, a.name) != null;
-                    lines.push(coalesced ? '            $sname: Some($sname),' : '            $sname: match $sname { Some(v) => Some(v.to_string()), None => None },');
+                    final localCoalescing = DefaultArgExpander.coalescingDefaultForLocalParam(cls, f.field.name, a.name, a.name);
+                    final coalescing = localCoalescing != null ? localCoalescing : DefaultArgExpander.coalescingDefaultForParam(cls, f.field.name, a.name);
+                    // A coalescing parameter re-binds before the struct
+                    // initializer; the rebound local already carries the
+                    // narrowed field's exact type.
+                    lines.push(coalescing != null ? '            $sname: $sname,' : '            $sname: match $sname { Some(v) => Some(v.to_string()), None => None },');
                 } else {
                     lines.push('            $sname,');
                 }
