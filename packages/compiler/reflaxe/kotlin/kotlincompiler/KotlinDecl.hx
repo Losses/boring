@@ -972,20 +972,35 @@ class KotlinDecl {
         }
         if (v.isStatic) {
             final init = StaticFieldHelper.validatedInitializer(field, cls);
+            final nullInitialized = switch (init == null ? null : init.expr) {
+                case TConst(TNull): isNullableReferenceType(field.type);
+                default: false;
+            };
+            if (nullInitialized)
+                KotlinExpr.registerNullInitializedField(cls.module + ":" + field.name);
             final initStr = StaticFieldHelper.isNonEmptyArrayLiteral(init)
                 && StaticFieldHelper.isReadOnlyArrayType(field.type) ? expr.rawArrayExpression(init, "listOf") : expr.rawExpression(init);
             final kw = field.isFinal && StaticFieldHelper.isConstValue(field) ? "const val" : (field.isFinal ? "val" : "var");
             // @:allow members use Kotlin module visibility so allowed cross-class calls compile.
             final vis = field.isPublic ? "" : (field.meta.has(":allow") ? "internal " : "private ");
             final jvmField = !field.isFinal ? ["    @JvmField"] : [];
-            return jvmField.concat([
-                '    $vis$kw ${KotlinNameEscape.escape(field.name)}: ${types.of(field.type)} = $initStr'
-            ]);
+            final typeText = nullInitialized ? types.of(field.type) + "?" : types.of(field.type);
+            return jvmField.concat(['    $vis$kw ${KotlinNameEscape.escape(field.name)}: $typeText = $initStr']);
         }
         if (field.meta.has(":value")) {
             Context.error("instance field default has no lowering; assign it in the constructor", field.pos);
         }
         return ['    val ${KotlinNameEscape.escape(field.name)}: ${types.of(field.type)}'];
+    }
+
+    static function isNullableReferenceType(t:Null<Type>):Bool {
+        if (t == null)
+            return false;
+        return switch (Context.follow(t)) {
+            case TInst(_, _): true;
+            case TAbstract(a, _) if (a.get().name != "Null" && a.get().name != "Int" && a.get().name != "Float" && a.get().name != "Bool"): true;
+            case _: false;
+        };
     }
 
     function staticFunctionVarDecl(v:ClassVarData):Array<String> {
