@@ -826,10 +826,7 @@ class SwiftDecl {
         only keeps the boundary visible to the expression layer.
     **/
     function decodeBoundaryBody(cls:ClassType, f:ClassFuncData, depth:Int = 2):Array<String> {
-        final boundary = switch (f.ret) {
-            case TAbstract(a, _): final abs = a.get(); abs.pack.join(".") == "std" && abs.name == "ReadOnlyArray";
-            case _: false;
-        }
+        final boundary = StaticFieldHelper.isReadOnlyArrayType(f.ret);
         expr.setDecodeBoundary(boundary);
         final body = expr.functionBody(cls, f, depth);
         expr.setDecodeBoundary(false);

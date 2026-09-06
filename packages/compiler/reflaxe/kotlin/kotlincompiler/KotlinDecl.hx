@@ -1083,10 +1083,7 @@ class KotlinDecl {
         final genericStr = methodParams.length > 0 ? "<" + methodParams.join(", ") + "> " : "";
         final head = '    ${vis}${overrideStr}fun ${genericStr}${KotlinNameEscape.escape(f.field.name)}($args)$ret {';
 
-        final boundary = switch (f.ret) {
-            case TAbstract(a, _): final abs = a.get(); abs.pack.join(".") == "std" && abs.name == "ReadOnlyArray";
-            case _: false;
-        };
+        final boundary = StaticFieldHelper.isReadOnlyArrayType(f.ret);
         expr.setDecodeBoundary(boundary);
         final body = expr.functionBody(cls, f);
         expr.setDecodeBoundary(false);
@@ -1120,10 +1117,7 @@ class KotlinDecl {
         if (isExtension && f.args[0].tvar != null) {
             expr.bindLocalName(f.args[0].tvar, "this");
         }
-        final boundary = switch (f.ret) {
-            case TAbstract(a, _): final abs = a.get(); abs.pack.join(".") == "std" && abs.name == "ReadOnlyArray";
-            case _: false;
-        };
+        final boundary = StaticFieldHelper.isReadOnlyArrayType(f.ret);
         expr.setDecodeBoundary(boundary);
         final body = expr.functionBody(cls, f);
         expr.setDecodeBoundary(false);
