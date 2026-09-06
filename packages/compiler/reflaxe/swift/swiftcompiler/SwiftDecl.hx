@@ -841,12 +841,8 @@ class SwiftDecl {
     // ------------------------------------------------------------------
 
     public function enumDecl(en:EnumType, options:Array<EnumOptionData>):String {
-        final sorted = options.copy();
-        sorted.sort((a, b) -> Reflect.compare(a.field.index, b.field.index));
-        var valueEnum = true;
-        for (o in sorted)
-            if (o.args.length > 0)
-                valueEnum = false;
+        final sorted = PolicyQueries.sortedEnumOptions(options);
+        final valueEnum = PolicyQueries.isValueEnumOptions(sorted);
         if (valueEnum) {
             final lines = ['public enum ${en.name}: String, CaseIterable, Equatable {'];
             for (o in sorted)
@@ -898,8 +894,7 @@ class SwiftDecl {
     public function typedefDecl(def:DefType):String {
         switch (def.type) {
             case TAnonymous(anonRef):
-                final fields = anonRef.get().fields.copy();
-                fields.sort((a, b) -> Reflect.compare(Context.getPosInfos(a.pos).min, Context.getPosInfos(b.pos).min));
+                final fields = PolicyQueries.sortedAnonFields(anonRef);
                 // Equatable backs the generated test assertions; the
                 // field types of the subset (scalars, strings, arrays,
                 // optionals, nested records) synthesize the conformance.
