@@ -57,6 +57,9 @@ class KotlinExpr {
     /** Locals initialized from null retain nullable access semantics. */
     final nullInitializedLocals:Map<Int, Bool> = [];
 
+    /** Locals compared with null somewhere in the currently emitted statement block. */
+    var activeNullGuardLocals:Map<Int, Bool> = [];
+
     static final nullInitializedFields:Map<String, Bool> = [];
 
     public static function registerNullInitializedField(key:String):Void {
@@ -462,6 +465,7 @@ class KotlinExpr {
                 // once. The null-literal case keeps its declared-nullable
                 // annotation above.
                 final extractsAtDecl = !isNullType(v.t) && isNullType(init.t)
+                    && !activeNullGuardLocals.exists(v.id)
                     && switch (stripWrap(init).expr) {
                         case TConst(TNull): false;
                         case _: true;
@@ -796,6 +800,8 @@ class KotlinExpr {
         stmts = fuseUninitializedVars(stmts);
         stmts = regroupLoops(stmts);
         final out:Array<String> = [];
+        final previousNullGuards = activeNullGuardLocals;
+        activeNullGuardLocals = nullGuardLocalsInBlock(stmts);
 
         var i = 0;
         while (i < stmts.length) {
@@ -817,7 +823,30 @@ class KotlinExpr {
                 out.push(l);
             i += 1;
         }
+        activeNullGuardLocals = previousNullGuards;
         return out;
+    }
+
+    /** Finds locals whose nullable state is deliberately tested in this block.
+        Such locals must remain nullable at their declaration so the generated
+        null guard can observe the original Haxe value. */
+    function nullGuardLocalsInBlock(stmts:Array<TypedExpr>):Map<Int, Bool> {
+        final result:Map<Int, Bool> = [];
+        for (stmt in stmts) {
+            TypedExprTools.iter(stmt, function(node:TypedExpr):Void {
+                switch (stripWrap(node).expr) {
+                    case TBinop(OpEq, l, r) | TBinop(OpNotEq, l, r):
+                        final subject = isNullExpr(l) ? r : (isNullExpr(r) ? l : null);
+                        if (subject != null)
+                            switch (stripWrap(subject).expr) {
+                                case TLocal(v): result.set(v.id, true);
+                                case _:
+                            }
+                    case _:
+                }
+            });
+        }
+        return result;
     }
 
     // ------------------------------------------------------------------
