@@ -1934,7 +1934,14 @@ class KotlinExpr {
             case OpAdd if (isStringType(l.t) || isStringType(r.t)):
                 final leftStd = stdStringArg(l);
                 final rightStd = stdStringArg(r);
-                final leftText = leftStd == null ? operand(l, op, false) : stdString(leftStd, true);
+                // The typer types Std.string(x) as String while the
+                // rendered operand decides whether Kotlin's + resolves:
+                // only String carries plus. A non-String argument
+                // therefore renders through its standalone conversion
+                // spelling (inConcat false), which is itself a String
+                // expression; a bare inConcat spelling would leave
+                // Enum + String or Int + String unresolved.
+                final leftText = leftStd == null ? operand(l, op, false) : stdString(leftStd, isStringType(leftStd.t));
                 final rightText = rightStd == null ? operand(r, op, true) : stdString(rightStd, true);
                 if (!isStringType(l.t)) {
                     return "(" + leftText + ").toString() + " + rightText;
@@ -3423,6 +3430,7 @@ class KotlinExpr {
             case DataClassKey(cls, _):
                 imports.requireType(cls.module, "compare" + cls.name);
                 "::compare" + cls.name;
+            case EnumKey(en): "{ a, b -> a.ordinal - b.ordinal }";
         };
     }
 
