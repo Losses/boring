@@ -572,7 +572,7 @@ class DartDecl {
             final elems = DataTableHelper.getDataTableElements(field.expr());
             if (elems != null) {
                 return ["  static final List<int> "
-                    + claimTopLevel(field.isPublic ? field.name : "_" + field.name, field.pos)
+                    + claimTopLevel(dartMemberName(field), field.pos)
                     + " = ["
                     + renderDataTableElements(elems)
                     + "];"];
@@ -584,14 +584,14 @@ class DartDecl {
                 Context.error("static function fields require initializers", field.pos);
                 return [];
             }
-            final name = field.isPublic ? field.name : "_" + field.name;
+            final name = dartMemberName(field);
             return [
                 "  static final " + types.of(field.type) + " " + name + " = " + expr.rawExpression(initializer) + ";"
             ];
         }
         if (v.isStatic) {
             final init = StaticFieldHelper.validatedInitializer(field, cls);
-            final name = field.isPublic ? field.name : "_" + field.name;
+            final name = dartMemberName(field);
             final kw = field.isFinal ? "final " : "";
             final type = StaticFieldHelper.isSelfConstruction(field, cls, init) ? "" : types.of(field.type) + " ";
             return ["  static " + kw + type + name + " = " + expr.rawExpression(init) + ";"];
@@ -610,7 +610,7 @@ class DartDecl {
         // builders), and a Dart final pins exactly the reference, so the
         // keywords agree. A mutable field names its type; Dart spells
         // mutable without a keyword.
-        final name = field.isPublic ? field.name : "_" + field.name;
+        final name = dartMemberName(field);
         // A field the constructor initializes through a coalescing
         // body site declares late (late final on final fields);
         // definite-assignment analysis accepts no other body shape
@@ -620,6 +620,11 @@ class DartDecl {
             return ["  " + late + "final " + types.of(field.type) + " " + name + ";"];
         }
         return ["  " + late + types.of(field.type) + " " + name + ";"];
+    }
+
+    // @:allow members use a public Dart name so allowed cross-library references compile.
+    static function dartMemberName(field:ClassField):String {
+        return field.isPublic || field.meta.has(":allow") ? field.name : "_" + field.name;
     }
 
     static function isFunctionType(t:Null<Type>):Bool {
@@ -646,7 +651,7 @@ class DartDecl {
                 break;
             }
         }
-        final name = field.isPublic ? field.name : "_" + field.name;
+        final name = dartMemberName(field);
         return ["  " + types.of(field.type) + " get " + name + " => " + getter + "();"];
     }
 
@@ -661,11 +666,9 @@ class DartDecl {
             final elems = DataTableHelper.getDataTableElements(field.expr());
             if (elems != null) {
                 // Preserve Dart privacy when flattening private table statics.
-                return ["final List<int> "
-                    + claimTopLevel(field.isPublic ? field.name : "_" + field.name, field.pos)
-                    + " = ["
-                    + renderDataTableElements(elems)
-                    + "];"];
+                return [
+                    "final List<int> " + claimTopLevel(dartMemberName(field), field.pos) + " = [" + renderDataTableElements(elems) + "];"
+                ];
             }
         }
         if (v.isStatic && isFunctionType(field.type)) {
@@ -674,14 +677,14 @@ class DartDecl {
                 Context.error("static function fields require initializers", field.pos);
                 return [];
             }
-            final name = claimTopLevel(field.isPublic ? field.name : "_" + field.name, field.pos);
+            final name = claimTopLevel(dartMemberName(field), field.pos);
             return [
                 "final " + types.of(field.type) + " " + name + " = " + expr.rawExpression(initializer) + ";"
             ];
         }
         if (v.isStatic) {
             final init = StaticFieldHelper.validatedInitializer(field, cls);
-            final name = field.isPublic ? field.name : "_" + field.name;
+            final name = dartMemberName(field);
             final kw = field.isFinal ? "final " : "";
             final type = StaticFieldHelper.isSelfConstruction(field, cls, init) ? "" : types.of(field.type) + " ";
             return [kw + type + name + " = " + expr.rawExpression(init) + ";"];
@@ -746,7 +749,7 @@ class DartDecl {
         final genericStr = methodParams.length > 0 ? "<" + methodParams.join(", ") + ">" : "";
         // A private function renders under its `_`-prefixed Dart name
         // (feature spec 27), member and flattened top-level alike.
-        final name = f.field.isPublic ? f.field.name : "_" + f.field.name;
+        final name = dartMemberName(f.field);
         if (topLevel) {
             claimTopLevel(name, f.field.pos);
             final head = '${types.of(f.ret)} $name$genericStr${paramList(cls, f)} {';
@@ -775,7 +778,7 @@ class DartDecl {
             }
             final methodParams = collectMethodTypeParams(cls, f);
             final genericStr = methodParams.length > 0 ? "<" + methodParams.join(", ") + ">" : "";
-            final name = f.field.isPublic ? f.field.name : "_" + f.field.name;
+            final name = dartMemberName(f.field);
             final head = '  ${types.of(f.ret)} $name$genericStr${paramList(cls, f, 1)} {';
             if (f.args[0].tvar != null) {
                 expr.bindLocalName(f.args[0].tvar, "this");

@@ -546,7 +546,8 @@ class SwiftDecl {
             final array = StaticFieldHelper.isArrayType(field.type);
             final smallArray = field.isFinal && StaticFieldHelper.isNonEmptyArrayLiteral(init);
             final kw = smallArray ? "let" : (array || !field.isFinal ? "var" : "let");
-            final vis = field.isPublic ? "public " : "private ";
+            // @:allow members use Swift internal visibility so allowed cross-class calls compile.
+            final vis = field.isPublic ? "public " : (field.meta.has(":allow") ? "" : "private ");
             return ["    "
                 + vis
                 + "static "
@@ -576,7 +577,8 @@ class SwiftDecl {
         // Private fields render with Swift's private marker (feature
         // spec 27); public fields render public for the SwiftPM split
         // between the generated-code module and its consumers.
-        final vis = field.isPublic ? "public " : "private ";
+        // @:allow members use Swift internal visibility so allowed cross-class calls compile.
+        final vis = field.isPublic ? "public " : (field.meta.has(":allow") ? "" : "private ");
         return [
             "    " + vis + kw + " " + SwiftNameEscape.escape(field.name) + ": " + types.of(field.type)
         ];
@@ -598,7 +600,8 @@ class SwiftDecl {
         consuming Swift code.
     **/
     function propertyDecl(cls:ClassType, field:ClassField):Array<String> {
-        final vis = field.isPublic ? "public " : "private ";
+        // @:allow members use Swift internal visibility so allowed cross-class calls compile.
+        final vis = field.isPublic ? "public " : (field.meta.has(":allow") ? "" : "private ");
         final getter = "get_" + field.name;
         return [
             "    " + vis + "var " + SwiftNameEscape.escape(field.name) + ": " + types.of(field.type) + " { " + getter + "() }"
@@ -675,7 +678,8 @@ class SwiftDecl {
         final normLines = coalescingBodyNormalizationLines(cls, f);
         // Private functions render with Swift's private marker (feature
         // spec 27); public functions render public for the SwiftPM split.
-        final vis = f.field.isPublic ? "public " : "private ";
+        // @:allow members use Swift internal visibility so allowed cross-class calls compile.
+        final vis = f.field.isPublic ? "public " : (f.field.meta.has(":allow") ? "" : "private ");
         final head = '    $vis$stat' + 'func ${SwiftNameEscape.escape(f.field.name)}$genericStr${paramList(cls, f)}$throws -> $ret {';
         return withParamShadows([head], normLines.concat(body), cast f.args).concat(["    }"]);
     }
@@ -690,7 +694,8 @@ class SwiftDecl {
         final throws = SwiftFallibility.isThrowing(module, f.field.name, true) ? " throws" : "";
         final methodParams = collectMethodTypeParams(cls, f);
         final genericStr = methodParams.length > 0 ? "<" + methodParams.join(", ") + ">" : "";
-        final vis = f.field.isPublic ? "public " : "private ";
+        // @:allow members use Swift internal visibility so allowed cross-class calls compile.
+        final vis = f.field.isPublic ? "public " : (f.field.meta.has(":allow") ? "" : "private ");
         final receiverType = isExtension ? types.of(f.args[0].type) : "";
         final methodIndent = isExtension ? "    " : "";
         final head = methodIndent + vis + "func " + SwiftNameEscape.escape(f.field.name) + genericStr + paramList(cls, f, firstArg) + throws + " -> " + ret
