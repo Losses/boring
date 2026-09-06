@@ -2022,21 +2022,7 @@ class RustExpr {
     }
 
     function indexedStoreOf(s:TypedExpr):Null<{arr:TVar, idx:TVar, value:TypedExpr}> {
-        switch (stripWrap(s).expr) {
-            case TBinop(OpAssign, target, value):
-                switch (stripWrap(target).expr) {
-                    case TArray(arr, idx):
-                        final arrLocal = stripWrap(arr);
-                        final idxLocal = stripWrap(idx);
-                        switch [arrLocal.expr, idxLocal.expr] {
-                            case [TLocal(a), TLocal(ix)]: return {arr: a, idx: ix, value: value};
-                            case _:
-                        }
-                    case _:
-                }
-            case _:
-        }
-        return null;
+        return PolicyQueries.indexedStoreOf(s);
     }
 
     function pushOf(s:TypedExpr):Null<{arr:TVar, arg:TypedExpr}> {
@@ -3575,11 +3561,7 @@ class RustExpr {
     }
 
     function isFpHelperInt64Call(fn:TypedExpr):Bool {
-        return switch (stripWrap(fn).expr) {
-            case TField(_, FStatic(classRef, fieldRef)): classRef.get()
-                    .module == "haxe.io.FPHelper" && (fieldRef.get().name == "doubleToI64" || fieldRef.get().name == "f32ToI64");
-            case _: false;
-        };
+        return PolicyQueries.isFpHelperInt64Call(fn);
     }
 
     function field(subj:TypedExpr, fa:FieldAccess):String {
@@ -5011,11 +4993,7 @@ class RustExpr {
     }
 
     function mapBackingReceiver(e:TypedExpr):Null<TypedExpr> {
-        return switch (stripWrap(e).expr) {
-            case TField(receiver, FInstance(_, _, cf)) if (cf.get().name == "h" && isMapBackingType(receiver.t)): receiver;
-            case TField(receiver, FAnon(cf)) if (cf.get().name == "h" && isMapBackingType(receiver.t)): receiver;
-            case _: null;
-        };
+        return PolicyQueries.mapBackingReceiver(e);
     }
 
     function isMapBackingType(t:Type):Bool {
@@ -5023,19 +5001,11 @@ class RustExpr {
     }
 
     function mapAssignment(e:TypedExpr):Null<{receiver:TypedExpr, key:TypedExpr}> {
-        return switch (stripWrap(e).expr) {
-            case TArray(arr, key):
-                final receiver = mapBackingReceiver(arr);
-                receiver == null ? null : {receiver: receiver, key: key};
-            case _: null;
-        };
+        return PolicyQueries.mapAssignment(e);
     }
 
     function isHasOwnPropertyValue(e:TypedExpr):Bool {
-        return switch (stripWrap(e).expr) {
-            case TField(_, FInstance(_, _, cf)) | TField(_, FAnon(cf)) if (cf.get().name == "hasOwnProperty"): true;
-            case _: false;
-        };
+        return PolicyQueries.isHasOwnPropertyValue(e);
     }
 
     function mapHasOwnPropertyCall(fn:TypedExpr, args:Array<TypedExpr>):Null<String> {
