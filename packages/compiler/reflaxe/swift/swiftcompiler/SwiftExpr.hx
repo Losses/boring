@@ -2726,21 +2726,21 @@ class SwiftExpr {
             Context.error("sorted builder requires an explicit key type", pos);
         }
         return switch (SwiftType.classifyKey(kType, pos)) {
-            case SwiftIntKey:
+            case IntKey:
                 imports.runtime("SortedTable");
                 "SortedTable.compareInts";
-            case SwiftStringKey:
+            case StringKey:
                 imports.runtime("compareUnitOrder");
                 "compareUnitOrder";
-            case SwiftStructKey(def, _):
+            case StructKey(def, _):
                 final cmpName = "compare" + def.name;
                 imports.value(def.module, cmpName);
                 cmpName;
-            case SwiftDataClassKey(cls, _):
+            case DataClassKey(cls, _):
                 final cmpName = "compare" + cls.name;
                 imports.value(cls.module, cmpName);
                 cmpName;
-            case SwiftEnumKey(en):
+            case EnumKey(en):
                 imports.value(en.module, "compare" + en.name);
                 "compare" + en.name;
         };
