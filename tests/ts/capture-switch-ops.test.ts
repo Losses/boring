@@ -5,7 +5,10 @@ import * as path from "node:path";
 describe("capture switch generated trees", () => {
   const read = (target: string) => {
     const extension = target === "ts" ? "ts" : target === "kotlin" ? "kt" : target === "swift" ? "swift" : "dart";
-    return fs.readFileSync(path.resolve(__dirname, `../../reference/${target}/gen/boring/CaptureSwitchOps.${extension}`), "utf8");
+    const file = target === "dart"
+      ? "reference/dart/gen/lib/boring/capture_switch_ops.dart"
+      : `reference/${target}/gen/boring/CaptureSwitchOps.${extension}`;
+    return fs.readFileSync(path.resolve(__dirname, `../../${file}`), "utf8");
   };
 
   test("pins captured switch lowering in generated targets", () => {
