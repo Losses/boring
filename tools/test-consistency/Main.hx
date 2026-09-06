@@ -38,6 +38,70 @@ class Main {
         return Syntax.code("process.env[{0}] || null", key);
     }
 
+    static function checkMechanismCoverage(allIds:Array<String>):Bool {
+        final path = "tools/test-consistency/mechanism-coverage.json";
+        if (!exists(path)) {
+            printErr('Error: Missing mechanism coverage file: $path\\n');
+            return false;
+        }
+        final data:Dynamic = Json.parse(readFile(path));
+        final covered:Array<Dynamic> = data.covered;
+        final allowlisted:Array<Dynamic> = data.uncoveredAllowlist;
+        final allowlist = new Map<String, Bool>();
+        for (entry in allowlisted) {
+            if (entry.mechanism == null || entry.reason == null || StringTools.trim(entry.reason) == "") {
+                printErr("Error: Every uncovered mechanism requires a reason.\\n");
+                return false;
+            }
+            allowlist.set(entry.mechanism, true);
+        }
+        final mechanisms = ["ComparatorPlan", "DataTableHelper", "DataTables", "DefaultArgExpander", "EnumCycleDetector", "EnumQueryExpander", "ExpressionPredicates", "FloatPrecision", "FusionPlan", "Intercept", "NameConversion", "PackageArtifacts", "PackageShell", "PipelineExpander", "PolicyQueries", "RuntimeConfig", "RuntimeResidents", "SealedVariantHelper", "StaticFieldHelper", "StaticFunctionMarkers", "StaticReferenceScan", "StructuralKeyValidator", "TerminationAnalysis", "TestCollector", "TypeCheckHelper", "ValueTypeSupport"];
+        final coveredByName = new Map<String, Bool>();
+        for (entry in covered)
+            coveredByName.set(entry.mechanism, true);
+        final errors:Array<String> = [];
+        for (mechanism in mechanisms) {
+            if (!coveredByName.exists(mechanism) && !allowlist.exists(mechanism))
+                errors.push('$mechanism is missing from coverage data');
+        }
+        for (entry in allowlisted) {
+            if (coveredByName.exists(entry.mechanism))
+                errors.push('${entry.mechanism} is both covered and allowlisted');
+        }
+        var coveredCount = 0;
+        for (entry in covered) {
+            final mechanism:String = entry.mechanism;
+            if (allowlist.exists(mechanism)) {
+                errors.push('$mechanism is both covered and allowlisted');
+                continue;
+            }
+            final probes:Array<Dynamic> = entry.probes;
+            if (probes == null || probes.length == 0) {
+                errors.push('$mechanism has no probes');
+                continue;
+            }
+            coveredCount++;
+            for (probe in probes) {
+                final name:String = probe;
+                var found = false;
+                for (id in allIds) {
+                    if (id.indexOf(name) >= 0) {
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found)
+                    errors.push('$mechanism names nonexistent probe $name');
+            }
+        }
+        print('Mechanism coverage: covered $coveredCount / allowlisted ${allowlisted.length}');
+        if (errors.length > 0) {
+            printErr('Mechanism coverage check failed for: ${errors.join(", ")}\\n');
+            return false;
+        }
+        return true;
+    }
+
     public static function main() {
         var resultsDir = "out/test-results";
         var targets = ["kotlin", "haxe", "ts", "rust", "swift", "dart"];
@@ -194,7 +258,8 @@ class Main {
         }
 
         print("");
-        if (divergences.length == 0) {
+        final coverageOk = checkMechanismCoverage(allIds);
+        if (divergences.length == 0 && coverageOk) {
             print('All ${targets.length} targets (${targets.join(", ")}) are 100% consistent across ${allIds.length} tests.');
             exit(0);
         } else {
