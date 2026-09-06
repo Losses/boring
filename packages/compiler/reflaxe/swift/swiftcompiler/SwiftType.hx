@@ -6,13 +6,6 @@ import haxe.macro.Type;
 import StructuralKeyValidator;
 import PolicyQueries;
 
-enum SwiftKeyDomain {
-    SwiftIntKey;
-    SwiftStringKey;
-    SwiftStructKey(def:DefType, fields:Array<ClassField>);
-    SwiftDataClassKey(cls:ClassType, fields:Array<ClassField>);
-    SwiftEnumKey(en:EnumType);
-}
 
 /**
     Type mapping from the translatable Haxe subset to Swift, per
@@ -244,63 +237,8 @@ class SwiftType {
         return PolicyQueries.pathOf(pack, name);
     }
 
-    public static function classifyKey(t:Null<Type>, ?pos:haxe.macro.Expr.Position):SwiftKeyDomain {
-        if (t == null) {
-            final p = pos != null ? pos : Context.currentPos();
-            Context.error("sorted keyed tables support Int, String, structure, and dataClass keys; parameterless enums are supported; enums with payloads are not keys", p);
-            return SwiftIntKey;
-        }
-        final p = pos != null ? pos : Context.currentPos();
-        return switch (t) {
-            case TAbstract(a, _):
-                if (a.get().name == "Int") {
-                    SwiftIntKey;
-                } else {
-                    Context.error("sorted keyed tables support Int, String, structure, and dataClass keys; parameterless enums are supported; enums with payloads are not keys", p);
-                    SwiftIntKey;
-                }
-            case TInst(c, _):
-                final cls = c.get();
-                if (cls.name == "String") {
-                    SwiftStringKey;
-                } else if (cls.meta.has(":dataClass")) {
-                    final fields = [
-                        for (f in cls.fields.get())
-                            if (switch (f.kind) {
-                                    case FVar(read, write): !(read.match(AccCall) && write.match(AccNever));
-                                    case _: false;
-                                }) f
-                    ];
-                    for (f in fields)
-                        validateDataClassField(cls, f, f.name);
-                    SwiftDataClassKey(cls, fields);
-                } else {
-                    Context.error("sorted keyed tables support Int, String, structure, and dataClass keys; parameterless enums are supported; enums with payloads are not keys", p);
-                    SwiftIntKey;
-                }
-            case TEnum(e, _):
-                final en = e.get();
-                var parameterless = true;
-                for (ef in en.constructs)
-                    switch (Context.follow(ef.type)) {
-                        case TFun(args, _) if (args.length > 0): parameterless = false;
-                        case _:                    }
-                if (parameterless) {
-                    SwiftEnumKey(en);
-                } else {
-                    Context.error("sorted keyed tables support Int, String, structure, and dataClass keys; parameterless enums are supported; enums with payloads are not keys", p);
-                    SwiftIntKey;
-                }
-            case TType(defRef, _):
-                final def = defRef.get();
-                final fields = validateStructDef(def, p, [def.name]);
-                SwiftStructKey(def, fields);
-            case TLazy(f):
-                classifyKey(f(), p);
-            case _:
-                Context.error("sorted keyed tables support Int, String, structure, and dataClass keys; parameterless enums are supported; enums with payloads are not keys", p);
-                SwiftIntKey;
-        }
+    public static function classifyKey(t:Null<Type>, ?pos:haxe.macro.Expr.Position):KeyDomain {
+        return PolicyQueries.classifyKey(t, pos);
     }
 
     static function validateDataClassField(cls:ClassType, field:ClassField, path:String):Void {
