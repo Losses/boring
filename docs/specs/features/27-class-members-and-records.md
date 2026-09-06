@@ -314,6 +314,13 @@ storage (today it contributes a wrong `Default::default()` slot).
    `T get x => get_x();`. On Rust the `get_x()` method is the lowering
    and the declaration renders nothing. Custom accessor names and `set`
    accessors raise no error and render no facade; they await a consumer.
+5. **Public getter-only properties are read through the target facade.** When
+   a public Haxe property `var x(get, never)` is read from another module,
+   its private `get_x` implementation is not referenced directly. Dart
+   reads the generated public getter `x`, while the getter delegates to the
+   library-private accessor; this preserves Haxe visibility and Dart's
+   library-scoped privacy. The same rule applies when the typed expression
+   represents the property read as a zero-argument call to `get_x`.
 6. **No other construct moves.** Interfaces, companions, statics, enums,
    exception folding, anonymous records, and the test apparatus keep
    their current lowering. A test class carries `@:test` functions and
