@@ -13,6 +13,7 @@ import ExpressionPredicates;
 import PolicyQueries;
 import PolicyQueries.IntervalCapability;
 import PolicyQueries.StdStringCategory;
+import PolicyQueries.Int64Op;
 import FusionPlan;
 import FusionPlan.FusionStep;
 import ValueTypeSupport;
@@ -1997,41 +1998,37 @@ class KotlinExpr {
     }
 
     function int64Call(fn:TypedExpr, args:Array<TypedExpr>):Null<String> {
-        return switch (stripWrap(fn).expr) {
-            case TField(_, FStatic(classRef, fieldRef)) if (classRef.get().module == "haxe.Int64" && classRef.get().name == "Int64_Impl_"):
-                switch (fieldRef.get().name) {
-                    case "make" if (args.length == 2): "(("
-                        + int64LongOperand(args[0])
+        return switch (PolicyQueries.int64OpOf(fn, args)) {
+            case Make(high, low): "(("
+                        + int64LongOperand(high)
                         + " shl 32) or ("
-                        + int64LongOperand(args[1])
+                        + int64LongOperand(low)
                         + " and 0xFFFFFFFFL))";
-                    case "ofInt" if (args.length == 1): expr(args[0]) + ".toLong()";
-                    case "getHigh" | "get_high" if (args.length == 1): if (isFpHelperInt64Halves(args[0])) expr(args[0]) + ".high" else "(" + expr(args[0])
+            case OfInt(value): expr(value) + ".toLong()";
+            case GetHigh(value): if (isFpHelperInt64Halves(value)) expr(value) + ".high" else "(" + expr(value)
                             + " shr 32).toInt()";
-                    case "getLow" | "get_low" if (args.length == 1): if (isFpHelperInt64Halves(args[0])) expr(args[0]) + ".low" else expr(args[0]) + ".toInt()";
-                    case "add" if (args.length == 2): int64Operand(args[0], 7, false, true) + " + " + int64Operand(args[1], 7, true, true);
-                    case "sub" if (args.length == 2): int64Operand(args[0], 7, false, false) + " - " + int64Operand(args[1], 7, true, false);
-                    case "mul" if (args.length == 2): int64Operand(args[0], 8, false, true) + " * " + int64Operand(args[1], 8, true, true);
-                    case "mulInt" if (args.length == 2): int64Operand(args[0], 8, false, true)
+            case GetLow(value): if (isFpHelperInt64Halves(value)) expr(value) + ".low" else expr(value) + ".toInt()";
+            case Add(l, r): int64Operand(l, 7, false, true) + " + " + int64Operand(r, 7, true, true);
+            case Sub(l, r): int64Operand(l, 7, false, false) + " - " + int64Operand(r, 7, true, false);
+            case Mul(l, r): int64Operand(l, 8, false, true) + " * " + int64Operand(r, 8, true, true);
+            case MulInt(l, r): int64Operand(l, 8, false, true)
                         + " * ("
-                        + int64Operand(args[1], 100, false, true)
+                        + int64Operand(r, 100, false, true)
                         + ").toLong()";
-                    case "and" if (args.length == 2): "((" + expr(args[0]) + ") and (" + expr(args[1]) + "))";
-                    case "or" if (args.length == 2): "((" + expr(args[0]) + ") or (" + expr(args[1]) + "))";
-                    case "xor" if (args.length == 2): "((" + expr(args[0]) + ") xor (" + expr(args[1]) + "))";
-                    case "complement" if (args.length == 1): "(" + expr(args[0]) + ").inv()";
-                    case "shl" if (args.length == 2): "((" + expr(args[0]) + ") shl ((" + expr(args[1]) + ") and 63))";
-                    case "shr" if (args.length == 2): "((" + expr(args[0]) + ") shr ((" + expr(args[1]) + ") and 63))";
-                    case "ushr" if (args.length == 2): "((" + expr(args[0]) + ") ushr ((" + expr(args[1]) + ") and 63))";
-                    case "eq" if (args.length == 2): int64Operand(args[0], 4, false, false) + " == " + int64Operand(args[1], 4, true, false);
-                    case "neq" if (args.length == 2): int64Operand(args[0], 4, false, false) + " != " + int64Operand(args[1], 4, true, false);
-                    case "lt" if (args.length == 2): int64Operand(args[0], 5, false, false) + " < " + int64Operand(args[1], 5, true, false);
-                    case "gt" if (args.length == 2): int64Operand(args[0], 5, false, false) + " > " + int64Operand(args[1], 5, true, false);
-                    case "lte" if (args.length == 2): int64Operand(args[0], 5, false, false) + " <= " + int64Operand(args[1], 5, true, false);
-                    case "gte" if (args.length == 2): int64Operand(args[0], 5, false, false) + " >= " + int64Operand(args[1], 5, true, false);
-                    default: null;
-                }
-            default: null;
+            case And(l, r): "((" + expr(l) + ") and (" + expr(r) + "))";
+            case Or(l, r): "((" + expr(l) + ") or (" + expr(r) + "))";
+            case Xor(l, r): "((" + expr(l) + ") xor (" + expr(r) + "))";
+            case Complement(value): "(" + expr(value) + ").inv()";
+            case Shl(l, r): "((" + expr(l) + ") shl ((" + expr(r) + ") and 63))";
+            case Shr(l, r): "((" + expr(l) + ") shr ((" + expr(r) + ") and 63))";
+            case Ushr(l, r): "((" + expr(l) + ") ushr ((" + expr(r) + ") and 63))";
+            case Eq(l, r): int64Operand(l, 4, false, false) + " == " + int64Operand(r, 4, true, false);
+            case Neq(l, r): int64Operand(l, 4, false, false) + " != " + int64Operand(r, 4, true, false);
+            case Lt(l, r): int64Operand(l, 5, false, false) + " < " + int64Operand(r, 5, true, false);
+            case Gt(l, r): int64Operand(l, 5, false, false) + " > " + int64Operand(r, 5, true, false);
+            case Lte(l, r): int64Operand(l, 5, false, false) + " <= " + int64Operand(r, 5, true, false);
+            case Gte(l, r): int64Operand(l, 5, false, false) + " >= " + int64Operand(r, 5, true, false);
+            case null: null;
         };
     }
 
