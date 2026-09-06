@@ -34,7 +34,7 @@ class SemanticPassRegistry {
         var cache = new Map<String, String>();
         for (entry in consumers)
             for (target in entry.targets) {
-                final dir = Sys.getCwd() + "/packages/compiler/reflaxe/" + target;
+                final dir = SemanticExceptionLedger.repoRoot() + "/packages/compiler/reflaxe/" + target;
                 for (file in files(dir))
                     cache.set(file, File.getContent(file));
                 var count = 0;
