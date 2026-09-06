@@ -22,6 +22,29 @@ enum KeyDomain {
     EnumKey(en:EnumType);
 }
 
+/** The shared classification of a Std.string operand type. Each target
+    renders one category its own way; the arm order below mirrors the
+    order the five emitters already share. */
+enum StdStringCategory {
+    IsString;
+    IsArray(element:Type);
+    IsSortedSet(element:Type);
+    IsSortedMap(key:Type, value:Type);
+    IsRecordLike;
+    IsInstanceToString;
+    IsMarkedAbstract(abs:AbstractType);
+    IsNull;
+    IsFloat;
+    IsInt;
+    IsBool;
+    IsTypeParameter;
+    IsReadOnlyArray(underlying:Type);
+    IsParameterlessEnum(en:EnumType);
+    IsCyclicEnum(en:EnumType);
+    IsPayloadEnum(en:EnumType);
+    IsUnsupported;
+}
+
 /** Shared policy queries for declaration and field-key decisions. */
 class PolicyQueries {
     public static function canEmitDataClassComparator(cls:ClassType):Bool {
@@ -252,6 +275,31 @@ class PolicyQueries {
                 case _:
             }
         return true;
+    }
+
+    /** Classifies a Std.string operand type once for every target;
+        renderers keep their per-category emission. */
+    public static function stdStringCategory(t:Type):StdStringCategory {
+        return switch (Context.follow(t)) {
+            case TInst(c, _) if (c.get().name == "String"): IsString;
+            case TInst(c, [element]) if (c.get().name == "Array"): IsArray(element);
+            case TInst(c, [element]) if (c.get().module == "std.SortedSet"): IsSortedSet(element);
+            case TInst(c, [key, value]) if (c.get().module == "std.SortedMap"): IsSortedMap(key, value);
+            case TInst(c, _) if (StaticFieldHelper.hasSelfConstructionStatic(c.get()) || c.get().meta.has(":dataClass")): IsRecordLike;
+            case TInst(c, _) if (hasInstanceToString(c.get())): IsInstanceToString;
+            case TAbstract(a, _) if (ValueTypeSupport.isMarkedAbstract(a.get())): IsMarkedAbstract(a.get());
+            case TAbstract(a, [inner]) if (a.get().name == "Null"): IsNull;
+            case TAbstract(a, _) if (a.get().name == "Float"): IsFloat;
+            case TAbstract(a, _) if (a.get().name == "Int"): IsInt;
+            case TAbstract(a, _) if (a.get().name == "Bool"): IsBool;
+            case TInst(c, _) if (c.get().kind.match(KTypeParameter(_))): IsTypeParameter;
+            case TAbstract(a, params) if (a.get().module == "std.ReadOnlyArray"):
+                IsReadOnlyArray(haxe.macro.TypeTools.applyTypeParameters(a.get().type, a.get().params, params));
+            case TEnum(en, _) if (isParameterlessEnum(en.get())): IsParameterlessEnum(en.get());
+            case TEnum(en, _) if (EnumCycleDetector.isCyclic(en.get())): IsCyclicEnum(en.get());
+            case TEnum(en, _): IsPayloadEnum(en.get());
+            case _: IsUnsupported;
+        };
     }
 
     public static function hasInstanceToString(cls:ClassType):Bool {

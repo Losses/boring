@@ -12,6 +12,7 @@ import reflaxe.data.ClassFuncData;
 import ExpressionPredicates;
 import PolicyQueries;
 import PolicyQueries.IntervalCapability;
+import PolicyQueries.StdStringCategory;
 import FusionPlan;
 import FusionPlan.FusionStep;
 import ValueTypeSupport;
@@ -47,6 +48,7 @@ import ValueTypeSupport;
       helpers (stdlib/05).
 **/
 class TsExpr {
+    // EnumCycleDetector classification is shared by PolicyQueries.
     final imports:TsImports;
     final types:TsType;
 
@@ -1558,42 +1560,40 @@ class TsExpr {
     }
 
     function stdStringType(t:Type, value:String, inConcat:Bool, origin:TypedExpr, depth:Int = 0):String {
-        return switch (Context.follow(t)) {
-            case TInst(c, _) if (c.get().name == "String"): value;
-            case TInst(c, [element]) if (c.get().name == "Array"):
+        return switch (PolicyQueries.stdStringCategory(t)) {
+            case IsString: value;
+            case IsArray(element):
                 final index = depth == 0 ? "i" : "i" + depth;
                 final item = stdStringType(element, value + "[" + index + "]!", true, origin, depth + 1);
                 '(() => { let out = "["; const n = ${value}.length; for (let ${index} = 0; ${index} < n; ${index} += 1) { if (${index} > 0) { out += ", "; } out += ${item}; } out += "]"; return out; })()';
-            case TInst(c, [element]) if (c.get().module == "std.SortedSet"):
+            case IsSortedSet(element):
                 final index = depth == 0 ? "i" : "i" + depth;
                 final item = stdStringType(element, value + ".at(" + index + ")", true, origin, depth + 1);
                 '(() => { let out = "["; const n = ${value}.size(); for (let ${index} = 0; ${index} < n; ${index} += 1) { if (${index} > 0) { out += ", "; } out += ${item}; } out += "]"; return out; })()';
-            case TInst(c, [key, val]) if (c.get().module == "std.SortedMap"):
+            case IsSortedMap(key, val):
                 final index = depth == 0 ? "i" : "i" + depth;
                 final itemKey = stdStringType(key, value + ".keyAt(" + index + ")", true, origin, depth + 1);
                 final itemVal = stdStringType(val, value + ".valueAt(" + index + ")", true, origin, depth + 1);
                 final item = itemKey + " + \"=\" + " + itemVal;
                 '(() => { let out = "{"; const n = ${value}.size(); for (let ${index} = 0; ${index} < n; ${index} += 1) { if (${index} > 0) { out += ", "; } out += ${item}; } out += "}"; return out; })()';
-            case TInst(c, _) if (StaticFieldHelper.hasSelfConstructionStatic(c.get())
-                || c.get().meta.has(":dataClass")): value + ".toString()";
-            case TInst(c, _) if (hasInstanceToString(c.get())): value + ".toString()";
-            case TAbstract(a, _) if (ValueTypeSupport.isMarkedAbstract(a.get())):
-                final abs = a.get();
+            case IsRecordLike: value + ".toString()";
+            case IsInstanceToString: value + ".toString()";
+            case IsMarkedAbstract(abs):
                 final toString = ValueTypeSupport.memberField(abs, "toString");
                 toString == null ? (inConcat ? value : "String(" + value + ")") : imports.functionRef(abs.module, "toString", toString.isPublic)
                 + "("
                 + value
                 + ")";
-            case TAbstract(a, _) if (a.get().name == "Int" || a.get().name == "Float" || a.get().name == "Bool"):
+            case IsFloat | IsInt | IsBool:
                 inConcat ? value : "String(" + value + ")";
-            case TInst(c, _) if (c.get().kind.match(KTypeParameter(_))):
+            case IsTypeParameter:
                 inConcat ? value : "String(" + value + ")";
-            case TAbstract(a, params) if (a.get().module == "std.ReadOnlyArray"):
-                stdStringType(haxe.macro.TypeTools.applyTypeParameters(a.get().type, a.get().params, params), value, inConcat, origin, depth);
-            case TEnum(en, _) if (isParameterlessEnum(en.get())): value + ".kind";
-            case TEnum(en, _) if (EnumCycleDetector.isCyclic(en.get())): cyclicEnumString(en.get(), value, inConcat, origin);
-            case TEnum(en, _): payloadEnumString(en.get(), value, inConcat, origin);
-            case _:
+            case IsReadOnlyArray(underlying):
+                stdStringType(underlying, value, inConcat, origin, depth);
+            case IsParameterlessEnum(_): value + ".kind";
+            case IsCyclicEnum(en): cyclicEnumString(en, value, inConcat, origin);
+            case IsPayloadEnum(en): payloadEnumString(en, value, inConcat, origin);
+            case IsNull | IsUnsupported:
                 Context.error("Std.string accepts scalars, enum values, records, and arrays of them only", origin.pos);
                 null;
         };
