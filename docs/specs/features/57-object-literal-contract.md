@@ -58,9 +58,8 @@ universal.
 4. TypeScript's Boolean immutability parameter is a target-side policy, separate
    from the shared Haxe
    object-literal contract. The signature is explicitly `(fields, immutable:Bool)`
-   and the implementation applies the platform immutability operation recursively
-   operation
-   nested object literals at
+   and the implementation applies the platform immutability operation
+   recursively to nested object literals at
    `packages/compiler/reflaxe/ts/tscompiler/TsExpr.hx:2320-2345`. The tree
    shows the policy being requested by TypeScript decode-fill code at
    `:1015-1017`, while ordinary expression dispatch passes `false` at
