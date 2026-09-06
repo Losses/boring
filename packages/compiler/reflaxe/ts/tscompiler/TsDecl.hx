@@ -95,15 +95,10 @@ class TsDecl {
             return lines.join("\n");
         }
 
-        if (cls.superClass != null) {
+        if (cls.superClass != null && exceptionDepth(cls) == 0) {
             final parent = cls.superClass.t.get();
             final parentPath = parent.pack.length == 0 ? parent.name : parent.pack.join(".") + "." + parent.name;
-            if (parentPath == "haxe.Exception") {
-                // haxe.Exception lowers to the platform Error class; the
-                // name property is stamped by the constructor emitter.
-            } else {
-                Context.error("super class has no TypeScript lowering in the subset: " + parentPath, cls.pos);
-            }
+            Context.error("super class has no TypeScript lowering in the subset: " + parentPath, cls.pos);
         }
 
         final extractedFuncs = [for (f in funcFields) if (StaticFunctionMarkers.isMarked(f.field)) f];
@@ -139,7 +134,16 @@ class TsDecl {
         ];
         final ifaceStr = ifaces.length > 0 ? " implements " + ifaces.join(", ") : "";
         final classParams = cls.params.length > 0 ? "<" + [for (p in cls.params) p.name].join(", ") + ">" : "";
-        lines.push('export class ${cls.name}$classParams' + (isException(cls) ? " extends Error" : "") + ifaceStr + " {");
+        final depth = exceptionDepth(cls);
+        if (depth >= 2) {
+            // A deeper exception subclass extends its parent class, which
+            // this compilation already lowers; a cross-module parent needs
+            // its import recorded exactly like an interface reference.
+            final parent = cls.superClass.t.get();
+            imports.type(parent.module, parent.name);
+        }
+        final extendsClause = depth == 1 ? " extends Error" : depth >= 2 ? " extends " + cls.superClass.t.get().name : "";
+        lines.push('export class ${cls.name}$classParams' + extendsClause + ifaceStr + " {");
 
         var storageCount = 0;
         for (v in varFields) {
@@ -417,12 +421,25 @@ class TsDecl {
         return out.toString();
     }
 
-    function isException(cls:ClassType):Bool {
-        if (cls.superClass == null) {
-            return false;
+    /** Hop count up the super chain to haxe.Exception; 0 when the chain does not reach it. */
+    function exceptionDepth(cls:ClassType):Int {
+        var depth = 0;
+        var current = cls;
+        while (current.superClass != null) {
+            final parent = current.superClass.t.get();
+            final parentPath = parent.pack.length == 0 ? parent.name : parent.pack.join(".") + "." + parent.name;
+            if (parentPath == "haxe.Exception") {
+                return depth + 1;
+            }
+            depth += 1;
+            current = parent;
         }
-        final parent = cls.superClass.t.get();
-        return parent.pack.join(".") == "haxe" && parent.name == "Exception";
+        return 0;
+    }
+
+    /** A class whose super chain reaches haxe.Exception is one of the exception classes. */
+    function isException(cls:ClassType):Bool {
+        return exceptionDepth(cls) >= 1;
     }
 
     /** A `var x(get, never)` field renders no storage on this target (feature spec 27). */
