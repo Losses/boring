@@ -2093,6 +2093,16 @@ class RustDecl {
             }
         }
         lines.push("}");
+        if (allPlain) {
+            lines.push("");
+            lines.push("pub fn compare_" + RustImports.toSnakeCase(en.name) + "(a: &" + en.name + ", b: &" + en.name + ") -> i32 {");
+            lines.push("    if a == b { return 0; }");
+            lines.push("    fn rank(v: &" + en.name + ") -> i32 {");
+            lines.push("        match v {");
+            for (o in sorted) lines.push("            " + en.name + "::" + RustImports.toUpperCamelCase(o.name) + " => " + o.field.index + ",");
+            lines.push("        }"); lines.push("    }");
+            lines.push("    rank(a) - rank(b)"); lines.push("}");
+        }
         if (!allPlain) {
             lines.push("");
             lines.push("impl " + en.name + " {");

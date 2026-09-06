@@ -3512,6 +3512,7 @@ class KotlinExpr {
             case DataClassKey(cls, _):
                 imports.requireType(cls.module, "compare" + cls.name);
                 "::compare" + cls.name;
+            case EnumKey(en): "{ a, b -> a.ordinal - b.ordinal }";
         };
     }
 
