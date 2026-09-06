@@ -535,7 +535,8 @@ class TsExpr {
         switch (stmts[stmts.length - 1].expr) {
             case TReturn(_) | TThrow(_) | TVar(_, _) | TIf(_, _, _) | TWhile(_, _, _) | TFor(_, _, _) | TSwitch(_, _, _) | TTry(_, _) | TBlock(_) | TBreak |
                 TContinue | TBinop(OpAssign, _, _) | TBinop(OpAssignOp(_), _, _):
-                return fail(stmts[stmts.length - 1], "expression block must end in a value statement (features/43): " + Std.string(stmts[stmts.length - 1].expr));
+                return fail(stmts[stmts.length - 1],
+                    "expression block must end in a value statement (features/43): " + Std.string(stmts[stmts.length - 1].expr));
             case _:
         }
         final out = ["(() => {"];
@@ -1780,12 +1781,7 @@ class TsExpr {
     }
 
     function hasInstanceToString(cls:ClassType):Bool {
-        for (field in cls.fields.get())
-            if (field.name == "toString")
-                return true;
-        if (cls.superClass == null)
-            return false;
-        return hasInstanceToString(cls.superClass.t.get());
+        return PolicyQueries.hasInstanceToString(cls);
     }
 
     function cyclicEnumString(en:EnumType, value:String, inConcat:Bool, origin:TypedExpr):String {
@@ -1829,13 +1825,7 @@ class TsExpr {
     }
 
     function isParameterlessEnum(en:EnumType):Bool {
-        for (ef in en.constructs)
-            switch (ef.type) {
-                case TFun(args, _) if (args.length > 0):
-                    return false;
-                case _:
-            }
-        return true;
+        return PolicyQueries.isParameterlessEnum(en);
     }
 
     function stdStringArg(e:TypedExpr):Null<TypedExpr> {
@@ -2815,11 +2805,16 @@ class TsExpr {
     }
 
     function isSwitch(e:TypedExpr):Bool {
-        return switch (stripWrap(e).expr) { case TSwitch(_, _, _): true; case _: false; };
+        return switch (stripWrap(e).expr) {
+            case TSwitch(_, _, _): true;
+            case _: false;
+        };
     }
 
     function switchBindingLines(v:TVar, sw:TypedExpr, depth:Int):Array<String> {
-        return [indent(depth) + (mutated.exists(v.id) ? "let " : "const ") + localName(v) + " = " + switchExpression(sw) + ";"];
+        return [
+            indent(depth) + (mutated.exists(v.id) ? "let " : "const ") + localName(v) + " = " + switchExpression(sw) + ";"
+        ];
     }
 
     function switchStatement(sw:TypedExpr, depth:Int):Array<String> {
@@ -2860,7 +2855,8 @@ class TsExpr {
     function switchExpression(sw:TypedExpr):String {
         sw = stripWrap(sw);
         final out = ["(() => {"];
-        for (line in switchReturn(sw, 1)) out.push(line);
+        for (line in switchReturn(sw, 1))
+            out.push(line);
         out.push("})()");
         return out.join("\n");
     }
@@ -2894,7 +2890,8 @@ class TsExpr {
         }
         if (switchParts.def != null) {
             out.push(indent(depth) + "  default:");
-            for (l in armLines(switchParts.def, depth + 2)) out.push(l);
+            for (l in armLines(switchParts.def, depth + 2))
+                out.push(l);
         }
         out.push(indent(depth) + "}");
         return out;
@@ -3188,12 +3185,7 @@ class TsExpr {
     }
 
     function isStringBuf(e:TypedExpr):Bool {
-        if (e == null)
-            return false;
-        return switch (Context.follow(e.t)) {
-            case TInst(c, _): final cls = c.get(); (cls.pack.join(".") == "std" && cls.name == "StringBuf") || (cls.pack.length == 0 && cls.name == "StringBuf");
-            case _: false;
-        };
+        return PolicyQueries.isStringBuf(e);
     }
 
     function unwrapLambda(e:TypedExpr):Null<TFunc> {
