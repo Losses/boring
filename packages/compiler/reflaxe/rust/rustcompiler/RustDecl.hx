@@ -2079,8 +2079,7 @@ class RustDecl {
     // ------------------------------------------------------------------
 
     public function enumDecl(en:EnumType, options:Array<EnumOptionData>):String {
-        final sorted = options.copy();
-        sorted.sort((a, b) -> Reflect.compare(a.field.index, b.field.index));
+        final sorted = PolicyQueries.sortedEnumOptions(options);
         // A payload-free enum is a plain discriminant: every value is Copy,
         // so branches and helper parameters pass it by value.
         var allPlain = true;
@@ -2184,8 +2183,7 @@ class RustDecl {
     public function typedefDecl(def:DefType):String {
         switch (def.type) {
             case TAnonymous(anonRef):
-                final fields = anonRef.get().fields.copy();
-                fields.sort((a, b) -> Reflect.compare(Context.getPosInfos(a.pos).min, Context.getPosInfos(b.pos).min));
+                final fields = PolicyQueries.sortedAnonFields(anonRef);
                 final fieldLines = [
                     for (field in fields)
                         '    pub ${RustImports.toSnakeCase(field.name)}: ${types.of(field.type)},'
