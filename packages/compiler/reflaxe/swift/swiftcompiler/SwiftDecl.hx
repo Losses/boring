@@ -10,6 +10,7 @@ import ValueTypeSupport;
 import PolicyQueries;
 import ValueTypeSupport.ValueTypeInfo;
 import ValueTypeSupport.ValueTypeOperator;
+import NameConversion;
 
 /**
     Declaration lowering: classes, variant enums, and record typedefs
@@ -890,7 +891,7 @@ class SwiftDecl {
     }
 
     public static function lowerFirst(s:String):String {
-        return s.charAt(0).toLowerCase() + s.substr(1);
+        return NameConversion.lowerFirst(s);
     }
 
     // ------------------------------------------------------------------
@@ -974,7 +975,7 @@ class SwiftDecl {
     }
 
     static function upperFirst(s:String):String {
-        return s.charAt(0).toUpperCase() + s.substr(1);
+        return NameConversion.upperFirst(s);
     }
 
     function isStructKeyCandidate(fields:Array<ClassField>):Bool {
