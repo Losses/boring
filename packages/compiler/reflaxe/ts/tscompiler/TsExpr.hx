@@ -13,6 +13,7 @@ import ExpressionPredicates;
 import PolicyQueries;
 import PolicyQueries.IntervalCapability;
 import PolicyQueries.StdStringCategory;
+import PolicyQueries.Int64Op;
 import FusionPlan;
 import FusionPlan.FusionStep;
 import ValueTypeSupport;
@@ -1314,44 +1315,40 @@ class TsExpr {
     }
 
     function int64Call(fn:TypedExpr, args:Array<TypedExpr>):Null<String> {
-        return switch (stripWrap(fn).expr) {
-            case TField(_, FStatic(classRef, fieldRef)) if (classRef.get().module == "haxe.Int64" && classRef.get().name == "Int64_Impl_"):
-                switch (fieldRef.get().name) {
-                    case "make" if (args.length == 2):
+        return switch (PolicyQueries.int64OpOf(fn, args)) {
+            case Make(high, low):
                         "BigInt.asIntN(64, (BigInt("
-                        + expr(args[0])
+                        + expr(high)
                         + ") << 32n) | BigInt.asUintN(32, BigInt("
-                        + expr(args[1])
+                        + expr(low)
                         + ")))";
-                    case "ofInt" if (args.length == 1): "BigInt.asIntN(64, BigInt(" + expr(args[0]) + "))";
-                    case "getHigh" | "get_high" if (args.length == 1):
-                        if (isFpHelperInt64Halves(args[0])) expr(args[0]) + ".high" else "Number(BigInt.asIntN(32, " + expr(args[0]) + " >> 32n))";
-                    case "getLow" | "get_low" if (args.length == 1):
-                        if (isFpHelperInt64Halves(args[0])) expr(args[0]) + ".low" else "Number(BigInt.asIntN(32, " + expr(args[0]) + "))";
-                    case "add" if (args.length == 2): "BigInt.asIntN(64, " + expr(args[0]) + " + " + expr(args[1]) + ")";
-                    case "sub" if (args.length == 2): "BigInt.asIntN(64, " + expr(args[0]) + " - " + expr(args[1]) + ")";
-                    case "mul" if (args.length == 2): "BigInt.asIntN(64, " + expr(args[0]) + " * " + expr(args[1]) + ")";
-                    case "mulInt" if (args.length == 2): "BigInt.asIntN(64, " + expr(args[0]) + " * BigInt(" + expr(args[1]) + "))";
-                    case "and" if (args.length == 2): "BigInt.asIntN(64, " + expr(args[0]) + " & " + expr(args[1]) + ")";
-                    case "or" if (args.length == 2): "BigInt.asIntN(64, " + expr(args[0]) + " | " + expr(args[1]) + ")";
-                    case "xor" if (args.length == 2): "BigInt.asIntN(64, " + expr(args[0]) + " ^ " + expr(args[1]) + ")";
-                    case "complement" if (args.length == 1): "BigInt.asIntN(64, ~" + expr(args[0]) + ")";
-                    case "shl" if (args.length == 2): "BigInt.asIntN(64, " + expr(args[0]) + " << BigInt(" + expr(args[1]) + "))";
-                    case "shr" if (args.length == 2): "BigInt.asIntN(64, " + expr(args[0]) + " >> BigInt(" + expr(args[1]) + "))";
-                    case "ushr" if (args.length == 2): "BigInt.asIntN(64, BigInt.asUintN(64, "
-                        + expr(args[0])
+            case OfInt(value): "BigInt.asIntN(64, BigInt(" + expr(value) + "))";
+            case GetHigh(value):
+                        if (isFpHelperInt64Halves(value)) expr(value) + ".high" else "Number(BigInt.asIntN(32, " + expr(value) + " >> 32n))";
+            case GetLow(value):
+                        if (isFpHelperInt64Halves(value)) expr(value) + ".low" else "Number(BigInt.asIntN(32, " + expr(value) + "))";
+            case Add(l, r): "BigInt.asIntN(64, " + expr(l) + " + " + expr(r) + ")";
+            case Sub(l, r): "BigInt.asIntN(64, " + expr(l) + " - " + expr(r) + ")";
+            case Mul(l, r): "BigInt.asIntN(64, " + expr(l) + " * " + expr(r) + ")";
+            case MulInt(l, r): "BigInt.asIntN(64, " + expr(l) + " * BigInt(" + expr(r) + "))";
+            case And(l, r): "BigInt.asIntN(64, " + expr(l) + " & " + expr(r) + ")";
+            case Or(l, r): "BigInt.asIntN(64, " + expr(l) + " | " + expr(r) + ")";
+            case Xor(l, r): "BigInt.asIntN(64, " + expr(l) + " ^ " + expr(r) + ")";
+            case Complement(value): "BigInt.asIntN(64, ~" + expr(value) + ")";
+            case Shl(l, r): "BigInt.asIntN(64, " + expr(l) + " << BigInt(" + expr(r) + "))";
+            case Shr(l, r): "BigInt.asIntN(64, " + expr(l) + " >> BigInt(" + expr(r) + "))";
+            case Ushr(l, r): "BigInt.asIntN(64, BigInt.asUintN(64, "
+                        + expr(l)
                         + ") >> BigInt("
-                        + expr(args[1])
+                        + expr(r)
                         + "))";
-                    case "eq" if (args.length == 2): expr(args[0]) + " === " + expr(args[1]);
-                    case "neq" if (args.length == 2): expr(args[0]) + " !== " + expr(args[1]);
-                    case "lt" if (args.length == 2): expr(args[0]) + " < " + expr(args[1]);
-                    case "gt" if (args.length == 2): expr(args[0]) + " > " + expr(args[1]);
-                    case "lte" if (args.length == 2): expr(args[0]) + " <= " + expr(args[1]);
-                    case "gte" if (args.length == 2): expr(args[0]) + " >= " + expr(args[1]);
-                    default: null;
-                }
-            default: null;
+            case Eq(l, r): expr(l) + " === " + expr(r);
+            case Neq(l, r): expr(l) + " !== " + expr(r);
+            case Lt(l, r): expr(l) + " < " + expr(r);
+            case Gt(l, r): expr(l) + " > " + expr(r);
+            case Lte(l, r): expr(l) + " <= " + expr(r);
+            case Gte(l, r): expr(l) + " >= " + expr(r);
+            case null: null;
         };
     }
 
