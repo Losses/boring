@@ -1308,14 +1308,7 @@ class Compiler extends PluginCompiler<Compiler> {
     }
 
     function inSourceScope(pos:haxe.macro.Expr.Position):Bool {
-        final file = Context.getPosInfos(pos).file;
-        for (root in Intercept.sourceRoots()) {
-            final prefix = root.charAt(root.length - 1) == "/" ? root : root + "/";
-            if (StringTools.startsWith(file, prefix) || StringTools.startsWith(file, "./" + prefix) || file.indexOf("/" + prefix) >= 0) {
-                return true;
-            }
-        }
-        return false;
+        return PolicyQueries.inSourceScope(pos);
     }
 
     function isSyntheticImpl(name:String):Bool {
