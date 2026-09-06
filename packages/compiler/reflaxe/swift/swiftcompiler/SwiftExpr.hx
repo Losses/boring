@@ -16,6 +16,7 @@ import PolicyQueries.StdStringCategory;
 import PolicyQueries.Int64Op;
 import FusionPlan;
 import FusionPlan.FusionStep;
+import VarFusionPlan;
 import ValueTypeSupport;
 import ValueTypeSupport.ValueTypeOperator;
 
@@ -563,47 +564,38 @@ class SwiftExpr {
     }
 
     function fuseUninitializedVars(stmts:Array<TypedExpr>):Array<TypedExpr> {
+        final byDecl = new Map<Int, VarFusionPlan.VarFusionPlanEntry>();
+        final removed = new Map<Int, Bool>();
+        for (step in VarFusionPlan.plan(stmts, stripCast)) {
+            byDecl.set(step.declIdx, step);
+            removed.set(step.assignIdx, true);
+        }
+        final remaining = [for (i in 0...stmts.length) if (!removed.exists(i)) stmts[i]];
         final out:Array<TypedExpr> = [];
-        var i = 0;
-        while (i < stmts.length) {
-            switch (stmts[i].expr) {
-                case TVar(v, init) if (init == null):
-                    var assignIdx = -1;
-                    var rhsExpr:Null<TypedExpr> = null;
-                    for (j in (i + 1)...stmts.length) {
-                        switch (stripCast(stmts[j]).expr) {
-                            case TBinop(OpAssign, lhs, rhs):
-                                switch (stripCast(lhs).expr) {
-                                    case TLocal(assignedVar) if (assignedVar.id == v.id):
-                                        assignIdx = j;
-                                        rhsExpr = rhs;
-                                    case _:
-                                }
-                            case _:
-                        }
-                        if (assignIdx != -1)
-                            break;
-                    }
-                    if (assignIdx != -1 && rhsExpr != null) {
-                        out.push({expr: TVar(v, rhsExpr), pos: stmts[i].pos, t: stmts[i].t});
-                        stmts.splice(assignIdx, 1);
-                        var otherAssign = false;
-                        for (s in stmts) {
-                            if (isVarAssigned(s, v.id)) {
-                                otherAssign = true;
-                                break;
-                            }
-                        }
-                        if (!otherAssign) {
-                            mutated.remove(v.id);
-                        }
-                        i++;
-                        continue;
-                    }
-                case _:
+        for (i in 0...stmts.length) {
+            if (removed.exists(i))
+                continue;
+            final step = byDecl.get(i);
+            if (step == null) {
+                out.push(stmts[i]);
+                continue;
             }
-            out.push(stmts[i]);
-            i++;
+            switch (stmts[i].expr) {
+                case TVar(v, _):
+                    out.push({expr: TVar(v, step.rhs), pos: stmts[i].pos, t: stmts[i].t});
+                var otherAssign = false;
+                for (s in remaining) {
+                    if (isVarAssigned(s, v.id)) {
+                        otherAssign = true;
+                        break;
+                    }
+                }
+                if (!otherAssign) {
+                    mutated.remove(v.id);
+                }
+                case _:
+                    out.push(stmts[i]);
+            }
         }
         return out;
     }
