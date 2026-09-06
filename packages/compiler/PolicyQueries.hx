@@ -9,12 +9,6 @@ import RuntimeResidents;
 import ExpressionPredicates;
 import StructuralKeyValidator;
 
-enum IntervalCapability {
-    MatchesDoWhileLoops;
-    RequiresInitializedCounter;
-    UnwrapsBoundSubject;
-}
-
 enum KeyDomain {
     IntKey;
     StringKey;
@@ -640,7 +634,7 @@ class PolicyQueries {
         return null;
     }
 
-    public static function matchInterval(e:TypedExpr, caps:Array<IntervalCapability>):Null<{
+    public static function matchInterval(e:TypedExpr):Null<{
         index:TVar,
         start:TypedExpr,
         bound:TypedExpr,
@@ -650,7 +644,7 @@ class PolicyQueries {
             case TBlock(stmts) if (stmts.length == 3):
                 return intervalCore(stmts[0], stmts[1], stmts[2]);
             case TBlock(stmts) if (stmts.length == 2):
-                return intervalShort(stmts[0], stmts[1], caps);
+                return intervalShort(stmts[0], stmts[1]);
             case _:
                 return null;
         }
@@ -707,19 +701,17 @@ class PolicyQueries {
         }
     }
 
-    public static function intervalShort(counterDecl:TypedExpr, whileExpr:TypedExpr, caps:Array<IntervalCapability>):Null<{
+    public static function intervalShort(counterDecl:TypedExpr, whileExpr:TypedExpr):Null<{
         index:TVar,
         start:TypedExpr,
         bound:TypedExpr,
         body:Array<TypedExpr>
     }> {
-        final acceptDoWhile = caps.indexOf(MatchesDoWhileLoops) >= 0;
         switch [counterDecl.expr, whileExpr.expr] {
-            case [TVar(counter, start), TWhile(cond, body, normal)]
-                if ((normal || acceptDoWhile) && (start != null || caps.indexOf(RequiresInitializedCounter) < 0)):
+            case [TVar(counter, start), TWhile(cond, body, true)] if (start != null):
                 switch (ExpressionPredicates.stripWrap(cond).expr) {
                     case TBinop(OpLt, left, right):
-                        final subject = caps.indexOf(UnwrapsBoundSubject) >= 0 ? ExpressionPredicates.stripWrap(left) : left;
+                        final subject = ExpressionPredicates.stripParentheses(left);
                         switch (subject.expr) {
                             case TLocal(c) if (c.id == counter.id):
                                 final bodyStmts = statementsOf(body);
@@ -750,7 +742,7 @@ class PolicyQueries {
         return null;
     }
 
-    public static function regroupLoops(stmts:Array<TypedExpr>, caps:Array<IntervalCapability>):Array<TypedExpr> {
+    public static function regroupLoops(stmts:Array<TypedExpr>):Array<TypedExpr> {
         final out:Array<TypedExpr> = [];
         var i = 0;
         while (i < stmts.length) {
@@ -768,7 +760,7 @@ class PolicyQueries {
                 }
             }
             if (i + 1 < stmts.length) {
-                final loop = intervalShort(stmts[i], stmts[i + 1], caps);
+                final loop = intervalShort(stmts[i], stmts[i + 1]);
                 if (loop != null) {
                     final grouped:TypedExpr = {
                         expr: TBlock([stmts[i], stmts[i + 1]]),
