@@ -673,5 +673,29 @@ class PolicyQueries {
             case _:
         }
     }
+
+    // Marks a declared local's name as used so fresh-name minting avoids
+    // it. Kotlin lowers a `_` local to a generated name, so its scan
+    // passes excludeUnderscore; the other targets reserve the raw name.
+    public static function noteDeclaredLocalName(v:TVar, usedNames:Map<String, Bool>, excludeUnderscore:Bool):Void {
+        if (v.name != "`" && (!excludeUnderscore || v.name != "_")) {
+            usedNames.set(v.name, true);
+        }
+    }
+
+    // Records that a local's initializer is an Int64 helper call whose
+    // two parts the emitter must keep available. Shared by the four targets
+    // whose scanLocals keeps this as a standalone initializer check;
+    // Rust folds the same detection into a wider call scan.
+    public static function noteFpInt64Init(v:TVar, init:Null<TypedExpr>, fpInt64Halves:Map<Int, Bool>):Void {
+        if (init == null) {
+            return;
+        }
+        switch (ExpressionPredicates.stripWrap(init).expr) {
+            case TCall(fn, _) if (isFpHelperInt64Call(fn)):
+                fpInt64Halves.set(v.id, true);
+            case _:
+        }
+    }
 }
 #end
