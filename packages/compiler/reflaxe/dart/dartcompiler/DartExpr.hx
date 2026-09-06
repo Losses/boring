@@ -12,6 +12,8 @@ import reflaxe.data.ClassFuncData;
 import ExpressionPredicates;
 import PolicyQueries;
 import ExpressionBlockNorm;
+import AssignTargetPlan;
+import AssignTargetPlan.AssignTargetFieldKind;
 import PolicyQueries.IntervalCapability;
 import PolicyQueries.StdStringCategory;
 import PolicyQueries.Int64Op;
@@ -2647,24 +2649,18 @@ class DartExpr {
     }
 
     function assignTarget(e:TypedExpr):String {
-        switch (e.expr) {
-            case TArray(arr, idx):
-                return expr(arr) + "[" + expr(idx) + "]";
-            case TField(_, FStatic(c, cf)):
-                return staticRef(c.get(), cf.get().name);
-            case TField(subj, FInstance(owner, _, cf)):
-                // A private field assigns through its `_`-prefixed Dart
-                // name (feature spec 27).
-                return expr(subj) + "." + memberName(owner.get().module, cf, e.pos);
-            case TField(subj, FAnon(cf)):
-                return expr(subj) + "." + cf.get().name;
-            case TLocal(v):
-                return localName(v);
-            case TCast(inner, _) | TMeta(_, inner) | TParenthesis(inner):
-                return assignTarget(inner);
-            case _:
-                return fail(e, "assignment target has no Dart lowering");
-        }
+        return AssignTargetPlan.assignTarget(e,
+            (arr, idx) -> expr(arr) + "[" + expr(idx) + "]",
+            e -> switch (e.expr) {
+                case TField(_, FStatic(c, cf)): staticRef(c.get(), cf.get().name);
+                case _: fail(e, "assignment target has no Dart lowering");
+            },
+            (subj, kind, original) -> switch (kind) {
+                case Instance(owner, cf): expr(subj) + "." + memberName(owner.get().module, cf, original.pos);
+                case Anonymous(cf): expr(subj) + "." + cf.get().name;
+            },
+            v -> localName(v),
+            (e, _) -> fail(e, "assignment target has no Dart lowering"));
     }
 
     /**
