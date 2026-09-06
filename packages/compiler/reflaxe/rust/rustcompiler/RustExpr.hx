@@ -2409,10 +2409,7 @@ class RustExpr {
     // ------------------------------------------------------------------
 
     function isTryRegion(e:TypedExpr):Bool {
-        return switch (stripWrap(e).expr) {
-            case TTry(_, catches): catches.length == 1;
-            case _: false;
-        };
+        return PolicyQueries.isTryRegion(e);
     }
 
     /** True when the expression is an enum switch over variant indices. */
