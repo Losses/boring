@@ -57,9 +57,7 @@ class TsExpr {
     final subst:Map<Int, String> = [];
 
     /** Active runtime renderers for cyclic enum stringification. */
-    final enumStringHelpers:Map<String, String> = [];
-
-    var enumStringHelperCounter:Int = 0;
+    final enumStringNaming:EnumStringHelperNaming = new EnumStringHelperNaming();
 
     /** Hoisted bound names active for a statement range. */
     final boundSubst:Map<Int, String> = [];
@@ -1606,14 +1604,12 @@ class TsExpr {
     }
 
     function cyclicEnumString(en:EnumType, value:String, inConcat:Bool, origin:TypedExpr):String {
-        final key = en.module + ":" + en.name;
-        final existing = enumStringHelpers.get(key);
+        final existing = enumStringNaming.existing(en);
         if (existing != null)
             return existing + "(" + value + ")";
-        final name = "stdString" + en.name + enumStringHelperCounter++;
-        enumStringHelpers.set(key, name);
+        final name = enumStringNaming.open(en, "stdString" + en.name);
         final body = payloadEnumString(en, "v", false, origin);
-        enumStringHelpers.remove(key);
+        enumStringNaming.close(en);
         return '(() => { function ${name}(v: ${en.name}): string { return ${body}; } return ${name}(${value}); })()';
     }
 
@@ -1654,11 +1650,9 @@ class TsExpr {
     }
 
     function stringToolsHex(args:Array<TypedExpr>):String {
-        final value = args[0];
-        final digits = args.length > 1 && !isNullExpr(args[1]) ? args[1] : null;
-        if (isNegativeIntLiteral(value) || (digits != null && isNegativeIntLiteral(digits))) {
-            Context.error("StringTools.hex accepts non-negative arguments only", value.pos);
-        }
+        final validated = PolicyQueries.stringToolsHexArgs(args);
+        final value = validated.value;
+        final digits = validated.digits;
         final valueText = "(" + expr(value) + ")";
         final hex = "((" + valueText + ") >>> 0).toString(16).toUpperCase()";
         return digits == null ? hex : hex + ".padStart(" + expr(digits) + ", \"0\")";
