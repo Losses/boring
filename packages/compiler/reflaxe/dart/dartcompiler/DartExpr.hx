@@ -11,6 +11,8 @@ import haxe.macro.TypedExprTools;
 import reflaxe.data.ClassFuncData;
 import ExpressionPredicates;
 import PolicyQueries;
+import FusionPlan;
+import FusionPlan.FusionStep;
 import TerminationAnalysis;
 import ValueTypeSupport;
 import ValueTypeSupport.ValueTypeOperator;
@@ -1096,23 +1098,7 @@ class DartExpr {
         read-only wrapper are required.
     **/
     function fillFusion(stmts:Array<TypedExpr>, i:Int, depth:Int, flatLoop:Null<Array<TypedExpr>> = null):Null<Array<String>> {
-        if (i + 1 >= stmts.length) {
-            return null;
-        }
-        final alloc:Null<{arr:TVar, elem:Type}> = switch (stmts[i].expr) {
-            case TVar(v, init) if (init != null):
-                switch (init.expr) {
-                    case TNew(c, params, args) if (args.length == 0):
-                        final cls = c.get();
-                        if (cls.pack.join(".") != "" || cls.name != "Array" || params.length != 1) {
-                            null;
-                        } else {
-                            {arr: v, elem: params[0]};
-                        }
-                    case _: null;
-                }
-            case _: null;
-        };
+        final alloc = FusionPlan.allocOf(stmts, i);
         if (alloc == null) {
             return null;
         }
@@ -1120,64 +1106,12 @@ class DartExpr {
         if (loop == null) {
             return null;
         }
-
-        var storeValue:Null<TypedExpr> = null;
-        var pushArg:Null<TypedExpr> = null;
-        var ok = true;
-        for (s in loop.body) {
-            final store = indexedStoreOf(s);
-            if (store != null) {
-                if (store.arr.id == alloc.arr.id && store.idx.id == loop.index.id) {
-                    if (storeValue != null) {
-                        ok = false;
-                    }
-                    storeValue = store.value;
-                } else {
-                    ok = false;
-                }
-                continue;
-            }
-            final push = pushOf(s);
-            if (push != null) {
-                if (push.arr.id == alloc.arr.id) {
-                    if (pushArg != null || storeValue != null) {
-                        ok = false;
-                    }
-                    pushArg = push.arg;
-                } else {
-                    ok = false;
-                }
-                continue;
-            }
-            if (mentionsLocal(s, alloc.arr)) {
-                ok = false;
-            }
-        }
-        if (!ok || (storeValue == null && pushArg == null)) {
+        final plan = FusionPlan.plan(alloc, loop);
+        if (plan == null) {
             return null;
         }
 
         final arrName = localName(alloc.arr);
-        // The stores render as appends, so the loop variable survives
-        // only inside the interleaved non-store statements and the
-        // stored values.
-        var readsIndex = false;
-        for (s in loop.body) {
-            final store = indexedStoreOf(s);
-            final push = pushOf(s);
-            if (store != null) {
-                if (mentionsLocal(store.value, loop.index))
-                    readsIndex = true;
-            } else if (push != null) {
-                if (mentionsLocal(push.arg, loop.index))
-                    readsIndex = true;
-            } else if (mentionsLocal(s, loop.index)) {
-                readsIndex = true;
-            }
-            if (readsIndex) {
-                break;
-            }
-        }
         final out:Array<String> = [];
         out.push(indent(depth) + "final " + arrName + " = <" + types.of(alloc.elem) + ">[]");
         if (flatLoop != null) {
@@ -1204,49 +1138,23 @@ class DartExpr {
             out.push(indent(depth) + "while (" + localName(counter) + " < " + localName(boundVar) + ") {");
             out.push(indent(depth + 1) + "final " + localName(loop.index) + " = " + localName(counter) + "++");
         } else {
-            out.push(indent(depth) + "for (var " + (readsIndex ? localName(loop.index) : "_i") + " = " + expr(loop.start) + "; "
-                + (readsIndex ? localName(loop.index) : "_i") + " < " + expr(loop.bound) + "; " + (readsIndex ? localName(loop.index) : "_i") + "++) {");
+            out.push(indent(depth) + "for (var " + (plan.readsIndex ? localName(loop.index) : "_i") + " = " + expr(loop.start) + "; "
+                + (plan.readsIndex ? localName(loop.index) : "_i") + " < " + expr(loop.bound) + "; " + (plan.readsIndex ? localName(loop.index) : "_i")
+                + "++) {");
         }
-        final nonStores:Array<TypedExpr> = [];
-        for (s in loop.body) {
-            final store = indexedStoreOf(s);
-            if (store != null && store.arr.id == alloc.arr.id && store.idx.id == loop.index.id) {
-                if (nonStores.length > 0) {
-                    for (l in blockLines(nonStores, depth + 1))
+        for (step in plan.steps) {
+            switch (step) {
+                case NonStoreBatch(batch):
+                    for (l in blockLines(batch, depth + 1))
                         out.push(l);
-                    nonStores.resize(0);
-                }
-                out.push(indent(depth + 1) + arrName + ".add(" + expr(store.value) + ")");
-                continue;
+                case StoreValue(value):
+                    out.push(indent(depth + 1) + arrName + ".add(" + expr(value) + ")");
+                case PushValue(arg):
+                    out.push(indent(depth + 1) + arrName + ".add(" + expr(arg) + ")");
             }
-            final push = pushOf(s);
-            if (push != null && push.arr.id == alloc.arr.id) {
-                if (nonStores.length > 0) {
-                    for (l in blockLines(nonStores, depth + 1))
-                        out.push(l);
-                    nonStores.resize(0);
-                }
-                out.push(indent(depth + 1) + arrName + ".add(" + expr(push.arg) + ")");
-                continue;
-            }
-            nonStores.push(s);
-        }
-        if (nonStores.length > 0) {
-            for (l in blockLines(nonStores, depth + 1))
-                out.push(l);
         }
         out.push(indent(depth) + "}");
         return out;
-    }
-
-    /** `arr[idx] = value` matcher, wrapper-tolerant. */
-    function indexedStoreOf(s:TypedExpr):Null<{arr:TVar, idx:TVar, value:TypedExpr}> {
-        return PolicyQueries.indexedStoreOf(s);
-    }
-
-    /** `arr.push(arg)` matcher, wrapper-tolerant. */
-    function pushOf(s:TypedExpr):Null<{arr:TVar, arg:TypedExpr}> {
-        return PolicyQueries.pushOf(s);
     }
 
     // ------------------------------------------------------------------
