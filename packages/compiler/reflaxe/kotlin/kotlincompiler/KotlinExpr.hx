@@ -466,14 +466,14 @@ class KotlinExpr {
                 // initializer's nullable type, so the declaration extracts
                 // once. The null-literal case keeps its declared-nullable
                 // annotation above.
-                final extractsAtDecl = !isNullType(v.t) && isNullType(init.t)
-                    && !activeNullGuardLocals.exists(v.id)
-                    && switch (stripWrap(init).expr) {
-                        case TConst(TNull): false;
-                        case _: true;
-                    };
+                final extractsAtDecl = !isNullType(v.t) && isNullType(init.t) && !activeNullGuardLocals.exists(v.id) && switch (stripWrap(init).expr) {
+                    case TConst(TNull): false;
+                    case _: true;
+                };
                 updateLocalProof(v, init);
-                return [indent(depth) + '$kw ${localName(v)}$typeAnn = $initText' + (extractsAtDecl ? "!!" : "")];
+                return [
+                    indent(depth) + '$kw ${localName(v)}$typeAnn = $initText' + (extractsAtDecl ? "!!" : "")
+                ];
             case TVar(v, init) if (init == null):
                 // Deferred local declarations are initialized by later assignments;
                 // Kotlin's definite-assignment analysis checks every read.
@@ -2058,29 +2058,14 @@ class KotlinExpr {
                 }
                 imports.requireType(en.module, en.name);
                 return en.name + "." + ef.name;
-            case FInstance(_, _, cf) | FAnon(cf):
+            case FInstance(owner, _, cf):
                 final name = cf.get().name;
-                {
-                    final bound = catchPayloadAccess(subj, name);
-                    if (bound != null) {
-                        return bound;
-                    }
-                }
-                if (name == "message" || name == "get_message") {
-                    final folded = foldedExceptionMessage(subj);
-                    if (folded != null) {
-                        return folded;
-                    }
-                }
-                if (name == "length") {
-                    final receiver = expr(subj) + nullableAccess(subj);
-                    if (isString(subj)) {
-                        return receiver + "length";
-                    } else {
-                        return receiver + "size";
-                    }
-                }
-                return expr(subj) + nullableAccess(subj) + KotlinNameEscape.escape(name);
+                final getterProperty = getterOnlyPropertyName(owner.get(), name);
+                if (getterProperty != null)
+                    return expr(subj) + nullableAccess(subj) + KotlinNameEscape.escape(getterProperty);
+                return instanceField(subj, name);
+            case FAnon(cf):
+                return instanceField(subj, cf.get().name);
             case FDynamic(name):
                 if ((name == "length" || name == "get_length") && isStringBuf(subj)) {
                     return expr(subj) + ".length";
@@ -2089,6 +2074,35 @@ class KotlinExpr {
             case FClosure(_):
                 return fail(subj, "closure has no lowering");
         }
+    }
+
+    function instanceField(subj:TypedExpr, name:String):String {
+        {
+            final bound = catchPayloadAccess(subj, name);
+            if (bound != null)
+                return bound;
+        }
+        if (name == "message" || name == "get_message") {
+            final folded = foldedExceptionMessage(subj);
+            if (folded != null)
+                return folded;
+        }
+        if (name == "length") {
+            final receiver = expr(subj) + nullableAccess(subj);
+            return receiver + (isString(subj) ? "length" : "size");
+        }
+        return expr(subj) + nullableAccess(subj) + KotlinNameEscape.escape(name);
+    }
+
+    function getterOnlyPropertyName(owner:ClassType, accessorName:String):Null<String> {
+        if (!StringTools.startsWith(accessorName, "get_"))
+            return null;
+        final propertyName = accessorName.substring("get_".length);
+        for (field in owner.fields.get()) {
+            if (field.name == propertyName && PolicyQueries.isGetterOnlyProperty(field))
+                return field.name;
+        }
+        return null;
     }
 
     function staticRef(cls:ClassType, name:String):String {
@@ -2629,8 +2643,11 @@ class KotlinExpr {
                 return call(inner, args);
             case TField(subj, FDynamic(name)) if ((name == "length" || name == "get_length") && isStringBuf(subj)):
                 return expr(subj) + ".length";
-            case TField(subj, FInstance(_, _, cf)):
+            case TField(subj, FInstance(owner, _, cf)):
                 final name = cf.get().name;
+                final getterProperty = getterOnlyPropertyName(owner.get(), name);
+                if (getterProperty != null && args.length == 0)
+                    return expr(subj) + nullableAccess(subj) + KotlinNameEscape.escape(getterProperty);
                 if (isString(subj)) {
                     if (name == "toLowerCase")
                         return expr(subj) + ".lowercase()";
