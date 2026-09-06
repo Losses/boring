@@ -19,6 +19,7 @@ import FusionPlan;
 import FusionPlan.FusionStep;
 import VarFusionPlan;
 import ValueTypeSupport;
+import ValueTypePlan;
 import ValueTypeSupport.ValueTypeOperator;
 
 /**
@@ -1070,19 +1071,23 @@ class SwiftExpr {
 
     /** Lowers an abstract implementation block to a Swift value wrapper. */
     function valueTypeSynthetic(wrapper:TypedExpr, value:TypedExpr):String {
-        final abs = ValueTypeSupport.markedAbstractOfType(wrapper.t);
+        final plan = ValueTypePlan.planValueTypeSynthetic(wrapper, value, {
+            markedAbstractOfType: ValueTypeSupport.markedAbstractOfType,
+            localValues: valueTypeLocalValues,
+            activeAbstract: () -> currentClass == null ? null : ValueTypeSupport.markedAbstractOfClass(currentClass),
+            activeField: (a, n) -> n == null ? null : ValueTypeSupport.memberField(a, n),
+            activeFieldName: () -> currentField,
+            stripValue: stripWrap,
+            wrapNative: true
+        });
+        final abs = plan.abstractType;
         if (abs == null)
             return expr(value);
-        final locals = valueTypeLocalValues(wrapper);
-        final activeAbs = currentClass == null ? null : ValueTypeSupport.markedAbstractOfClass(currentClass);
-        final activeField = activeAbs != null && currentField != null ? ValueTypeSupport.memberField(activeAbs, currentField) : null;
-        final nativeOperator = activeAbs != null
-            && activeField != null
-            && ValueTypeSupport.sameAbstract(activeAbs, abs)
-            && ValueTypeSupport.operatorOf(abs, activeField) != null;
-        return switch (stripWrap(value).expr) {
-            case TBinop(op, left, right):
-                final field = ValueTypeSupport.binaryOperatorField(abs, op);
+        final locals = plan.locals;
+        final nativeOperator = plan.nativeOperator;
+        return switch (plan.kind) {
+            case ValueTypeBinary(op, left, right):
+                final field = plan.field;
                 if (field == null) expr(value) else {
                     final asRepresentation = nativeOperator && field.name == currentField;
                     final rendered = valueTypeOperand(left, locals, abs, asRepresentation) + " " + opStr(op, isIntTyped(left) && isIntTyped(right)) + " "
@@ -1090,8 +1095,8 @@ class SwiftExpr {
                     nativeOperator
                     && field.name == currentField ? abs.name + "(" + rendered + ")" : rendered;
                 }
-            case TUnop(op, _, subject):
-                final field = ValueTypeSupport.unaryOperatorField(abs, op);
+            case ValueTypeUnary(op, subject):
+                final field = plan.field;
                 if (field == null) expr(value) else {
                     final asRepresentation = nativeOperator && field.name == currentField;
                     final rendered = "-" + valueTypeOperand(subject, locals, abs, asRepresentation);
