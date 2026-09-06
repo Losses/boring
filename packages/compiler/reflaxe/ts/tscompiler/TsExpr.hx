@@ -2280,6 +2280,9 @@ class TsExpr {
                 final cmpName = "compare" + cls.name;
                 imports.value(cls.module, cmpName);
                 cmpName;
+            case EnumKey(en):
+                imports.value(en.module, en.name);
+                "(a, b) => { if (a === b) return 0; " + [for (ef in en.constructs) "if (a.kind === \"" + ef.name + "\") return " + ef.index + " - (b.kind === \"" + ef.name + "\" ? " + ef.index + " : 0);"].join(" ") + " return 0; }";
         };
     }
 

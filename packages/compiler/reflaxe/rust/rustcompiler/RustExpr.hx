@@ -1912,6 +1912,10 @@ class RustExpr {
                 imports.requireType(cls.module, cmpName);
                 imports.require("std::rc::Rc");
                 "Rc::new(" + cmpName + ")";
+            case EnumKey(en):
+                imports.requireType(en.module, "compare_" + RustImports.toSnakeCase(en.name));
+                imports.require("std::rc::Rc");
+                "Rc::new(compare_" + RustImports.toSnakeCase(en.name) + ")";
         };
     }
 
