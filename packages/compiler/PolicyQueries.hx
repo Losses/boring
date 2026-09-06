@@ -40,6 +40,28 @@ class PolicyQueries {
         };
     }
 
+    public static function validateDataClassField(root:ClassType, field:ClassField, path:String):Void {
+        if (switch (field.kind) {
+                case FVar(read, write): read.match(AccCall) && write.match(AccNever);
+                case _: false;
+            })
+            return;
+        if (!isDataClassFieldKey(field.type)) {
+            Context.error("dataClass key " + root.name + " field " + path + " has unsupported type " + field.type, field.pos);
+            return;
+        }
+        switch (Context.follow(field.type)) {
+            case TInst(c, _) if (c.get().meta.has(":dataClass")):
+                for (f in c.get().fields.get())
+                    if (switch (f.kind) {
+                            case FVar(read, write): !(read.match(AccCall) && write.match(AccNever));
+                            case _: false;
+                        })
+                        validateDataClassField(root, f, path + "." + f.name);
+            case _:
+        }
+    }
+
     public static function isStructKeyCandidate(fields:Array<ClassField>):Bool {
         for (f in fields) {
             if (!isFieldKeyCandidate(f.type))
