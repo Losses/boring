@@ -87,5 +87,24 @@ class PolicyQueries {
         return RuntimeResidents.externsOf("runtime.TestCore").indexOf(cls.module) >= 0
             || (cls.pack.join(".") == "std" && RuntimeResidents.testExternNativeFaces().indexOf(cls.name) >= 0);
     }
+
+    public static function isGetterOnlyProperty(field:ClassField):Bool {
+        switch (field.kind) {
+            case FVar(read, write):
+                return read.match(AccCall) && write.match(AccNever);
+            case _:
+                return false;
+        }
+    }
+
+    public static function isFunctionType(t:Null<Type>):Bool {
+        if (t == null) {
+            return false;
+        }
+        return switch (Context.follow(t)) {
+            case TFun(_, _): true;
+            case _: false;
+        };
+    }
 }
 #end
