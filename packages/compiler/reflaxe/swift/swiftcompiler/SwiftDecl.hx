@@ -82,12 +82,10 @@ class SwiftDecl {
             return lines.join("\n");
         }
 
-        if (cls.superClass != null) {
+        if (cls.superClass != null && exceptionDepth(cls) == 0) {
             final parent = cls.superClass.t.get();
             final parentPath = parent.pack.length == 0 ? parent.name : parent.pack.join(".") + "." + parent.name;
-            if (parentPath != "haxe.Exception") {
-                Context.error("super class has no Swift lowering in the subset: " + parentPath, cls.pos);
-            }
+            Context.error("super class has no Swift lowering in the subset: " + parentPath, cls.pos);
         }
 
         final module = cls.module;
@@ -104,22 +102,31 @@ class SwiftDecl {
         final staticsOnly = isStaticsOnly(varFields, ordinaryFuncs);
         final lines:Array<String> = [];
 
-        // A statics-only class lowers to a case-less enum namespace
-        // because Swift has no static members at file scope; an instance
-        // class lowers to a final class (the samples carry no
-        // subclassing outside haxe.Exception).
+        // A statics-only class lowers to a case-less enum namespace; an
+        // instance class lowers to a final class, except exception classes
+        // render open so deeper generations can subclass them.
         final classParams = cls.params.length > 0 ? "<" + [for (p in cls.params) p.name].join(", ") + ">" : "";
         if (staticsOnly) {
             lines.push("public enum " + cls.name + classParams + " {");
         } else {
+            final depth = exceptionDepth(cls);
             final conformances:Array<String> = [];
-            if (isException(cls)) {
+            if (depth == 1) {
                 conformances.push("BoringException");
+            } else if (depth >= 2) {
+                // A deeper exception subclass inherits from its parent
+                // class; BoringException arrives through that chain, and a
+                // repeated conformance is a Swift compile error.
+                conformances.push(cls.superClass.t.get().name);
             }
             for (i in cls.interfaces) {
                 conformances.push(i.t.get().name);
             }
-            lines.push("public final class " + cls.name + classParams + (conformances.length > 0 ? ": " + conformances.join(", ") : "") + " {");
+            lines.push((depth >= 1 ? "public class " : "public final class ")
+                + cls.name
+                + classParams
+                + (conformances.length > 0 ? ": " + conformances.join(", ") : "")
+                + " {");
         }
 
         // One blank line between members; none inside a member's body.
@@ -473,14 +480,25 @@ class SwiftDecl {
         return true;
     }
 
-    /** A class extending haxe.Exception is one of the features/06 exception classes. */
-    public static function isException(cls:ClassType):Bool {
-        if (cls.superClass == null) {
-            return false;
+    /** Hop count up the super chain to haxe.Exception; 0 when the chain does not reach it. */
+    public static function exceptionDepth(cls:ClassType):Int {
+        var depth = 0;
+        var current = cls;
+        while (current.superClass != null) {
+            final parent = current.superClass.t.get();
+            final parentPath = parent.pack.length == 0 ? parent.name : parent.pack.join(".") + "." + parent.name;
+            if (parentPath == "haxe.Exception") {
+                return depth + 1;
+            }
+            depth += 1;
+            current = parent;
         }
-        final parent = cls.superClass.t.get();
-        final parentPath = parent.pack.length == 0 ? parent.name : parent.pack.join(".") + "." + parent.name;
-        return parentPath == "haxe.Exception";
+        return 0;
+    }
+
+    /** A class whose super chain reaches haxe.Exception is one of the features/06 exception classes. */
+    public static function isException(cls:ClassType):Bool {
+        return exceptionDepth(cls) >= 1;
     }
 
     // ------------------------------------------------------------------

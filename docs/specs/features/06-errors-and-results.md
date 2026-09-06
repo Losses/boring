@@ -316,7 +316,17 @@ Failure identity is a closed variant set defined once per domain and shared by a
 - Rust: all fallible operations return `Result<T, DomainError>` with structured variants. Candidate 1.
 - Haxe: throw sites construct a `haxe.Exception` subclass that carries a Haxe enum instance naming the variant. The interception rejects throw expressions of any other shape, as ruled in `docs/specs/style/01-haxe-style-standard.md`.
 - TypeScript: throw sites construct one exception class carrying the error union value of `docs/specs/features/01-enums-and-pattern-matching.md`. Candidate 1. Catch sites narrow with `instanceof VectorException` and then branch on the discriminant; payload access after narrowing requires no cast.
+
+#### TypeScript exception inheritance
+
+A generated TypeScript class whose super chain reaches `haxe.Exception` is an exception class. The first generation extends the platform `Error` class and stamps its generated class name in the constructor. A deeper generation extends its immediately generated exception parent, preserving the nominal inheritance chain; the parent is imported when it is from another module. Classes whose super chain does not reach `haxe.Exception` remain outside this exception lowering subset.
+
 - Kotlin: throw sites construct the sealed exception hierarchy with one variant per failure mode. Candidate 1.
+
+#### Swift exception inheritance
+
+A generated Swift class whose super chain reaches `haxe.Exception` is an exception class. The first generation conforms to `BoringException`, while each deeper generation inherits from its immediately generated exception parent. Exception classes are rendered non-`final` so later generations can subclass them. A deeper-generation initializer calls its parent initializer with unlabeled arguments, matching the generated Swift initializer ABI; only the first generation uses the `message:` label required by `BoringException`.
+
 
 ### Catch-site lowering (`TTry`)
 
