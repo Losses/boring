@@ -12,6 +12,8 @@ import reflaxe.data.ClassFuncData;
 import ExpressionPredicates;
 import PolicyQueries;
 import ExpressionBlockNorm;
+import AssignTargetPlan;
+import AssignTargetPlan.AssignTargetFieldKind;
 import PolicyQueries.IntervalCapability;
 import PolicyQueries.StdStringCategory;
 import PolicyQueries.Int64Op;
@@ -3096,20 +3098,17 @@ class KotlinExpr {
     }
 
     function assignTarget(e:TypedExpr):String {
-        switch (e.expr) {
-            case TArray(arr, idx):
-                return expr(arr) + "[" + expr(idx) + "]";
-            case TField(_, FStatic(c, cf)):
-                return staticRef(c.get(), cf.get().name);
-            case TField(subj, FInstance(_, _, cf)) | TField(subj, FAnon(cf)):
-                return expr(subj) + "." + KotlinNameEscape.escape(cf.get().name);
-            case TLocal(v):
-                return localName(v);
-            case TCast(inner, _) | TMeta(_, inner) | TParenthesis(inner):
-                return assignTarget(inner);
-            case _:
-                return fail(e, "assignment target has no Kotlin lowering: " + Std.string(e.expr));
-        }
+        return AssignTargetPlan.assignTarget(e,
+            (arr, idx) -> expr(arr) + "[" + expr(idx) + "]",
+            e -> switch (e.expr) {
+                case TField(_, FStatic(c, cf)): staticRef(c.get(), cf.get().name);
+                case _: fail(e, "assignment target has no Kotlin lowering");
+            },
+            (subj, kind, _) -> switch (kind) {
+                case Instance(_, cf) | Anonymous(cf): expr(subj) + "." + KotlinNameEscape.escape(cf.get().name);
+            },
+            v -> localName(v),
+            (e, _) -> fail(e, "assignment target has no Kotlin lowering: " + Std.string(e.expr)));
     }
 
     function objectLiteral(e:TypedExpr, fields:Array<{name:String, expr:TypedExpr}>):String {

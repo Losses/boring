@@ -12,6 +12,8 @@ import reflaxe.data.ClassFuncData;
 import ExpressionPredicates;
 import PolicyQueries;
 import ExpressionBlockNorm;
+import AssignTargetPlan;
+import AssignTargetPlan.AssignTargetFieldKind;
 import PolicyQueries.IntervalCapability;
 import PolicyQueries.StdStringCategory;
 import PolicyQueries.Int64Op;
@@ -5442,21 +5444,20 @@ class RustExpr {
     }
 
     function assignTarget(e:TypedExpr):String {
-        switch (e.expr) {
-            case TArray(arr, idx):
-                return expr(arr) + "[" + castArg(idx, "usize") + "]";
-            case TField(_, FStatic(c, cf)):
+        return AssignTargetPlan.assignTarget(e,
+            (arr, idx) -> expr(arr) + "[" + castArg(idx, "usize") + "]",
+            e -> {
                 final target = staticAssignmentTarget(e);
-                return target != null ? target : staticRef(c.get(), cf.get().name);
-            case TField(subj, FInstance(_, _, cf)) | TField(subj, FAnon(cf)):
-                return expr(subj) + "." + RustImports.toSnakeCase(cf.get().name);
-            case TLocal(v):
-                return RustImports.toSnakeCase(localName(v));
-            case TCast(inner, _) | TMeta(_, inner) | TParenthesis(inner):
-                return assignTarget(inner);
-            case _:
-                return fail(e, "assignment target has no Rust lowering: " + Std.string(e.expr));
-        }
+                return switch (e.expr) {
+                    case TField(_, FStatic(c, cf)): target != null ? target : staticRef(c.get(), cf.get().name);
+                    case _: fail(e, "assignment target has no Rust lowering");
+                };
+            },
+            (subj, kind, _) -> switch (kind) {
+                case Instance(_, cf) | Anonymous(cf): expr(subj) + "." + RustImports.toSnakeCase(cf.get().name);
+            },
+            v -> RustImports.toSnakeCase(localName(v)),
+            (e, _) -> fail(e, "assignment target has no Rust lowering: " + Std.string(e.expr)));
     }
 
     function objectLiteral(e:TypedExpr, fields:Array<{name:String, expr:TypedExpr}>):String {
