@@ -7,6 +7,7 @@ import haxe.macro.Expr.Unop;
 import haxe.macro.Type;
 import haxe.macro.Type.TypedExpr;
 import haxe.macro.TypedExprTools;
+import NameConversion;
 
 /** The one representation kind accepted by `@:valueType`. */
 enum ValueTypeOperator {
@@ -166,7 +167,7 @@ class ValueTypeSupport {
     }
 
     public static function upperFirst(value:String):String {
-        return value.length == 0 ? value : value.charAt(0).toUpperCase() + value.substr(1);
+        return NameConversion.upperFirst(value);
     }
 
     public static function constructorField(abs:AbstractType):Null<ClassField> {

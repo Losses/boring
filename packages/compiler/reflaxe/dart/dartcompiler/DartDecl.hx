@@ -10,6 +10,7 @@ import ValueTypeSupport;
 import PolicyQueries;
 import ValueTypeSupport.ValueTypeInfo;
 import ValueTypeSupport.ValueTypeOperator;
+import NameConversion;
 
 /**
     Declaration lowering: classes, variant enums, and record typedefs
@@ -1008,7 +1009,7 @@ class DartDecl {
     }
 
     public static function lowerFirst(s:String):String {
-        return s.charAt(0).toLowerCase() + s.substr(1);
+        return NameConversion.lowerFirst(s);
     }
 
     // ------------------------------------------------------------------
@@ -1148,7 +1149,7 @@ class DartDecl {
     }
 
     static function upperFirst(s:String):String {
-        return s.charAt(0).toUpperCase() + s.substr(1);
+        return NameConversion.upperFirst(s);
     }
 
     /** The Dart file stem of a module: `pack.ModuleName` maps to `pack/module_name.dart`. */
