@@ -1673,7 +1673,7 @@ class KotlinExpr {
             case _:
         }
         if (isNullType(subj.t) && !provenNonNull(subj))
-            return "!!.";
+            return "?.";
         return ".";
     }
 
