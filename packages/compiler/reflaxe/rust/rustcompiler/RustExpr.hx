@@ -5333,8 +5333,8 @@ class RustExpr {
         if (isNullType(actual.t)) {
             // An enclosing null guard already collapsed the Option: the
             // operand renders as the match binding, a reference to the
-            // inner scalar, so the null-to-zero bridge dereferences
-            // instead of unwrapping.
+            // inner scalar, so the null-to-zero bridge dereferences the
+            // match binding.
             final narrowed = narrowedSubject(actual);
             if (narrowed != null) {
                 optionNarrowingHit = true;
