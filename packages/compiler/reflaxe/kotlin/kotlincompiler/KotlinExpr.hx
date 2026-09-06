@@ -3197,14 +3197,7 @@ class KotlinExpr {
     }
 
     function lambdaBody(e:TypedExpr):TypedExpr {
-        if (e == null)
-            return e;
-        return switch (e.expr) {
-            case TBlock(stmts) if (stmts.length > 0): lambdaBody(stmts[stmts.length - 1]);
-            case TReturn(ret) if (ret != null): lambdaBody(ret);
-            case TParenthesis(inner) | TCast(inner, _) | TMeta(_, inner): lambdaBody(inner);
-            case _: e;
-        };
+        return PolicyQueries.lambdaBody(e);
     }
 
     function stripCast(e:TypedExpr):TypedExpr {
