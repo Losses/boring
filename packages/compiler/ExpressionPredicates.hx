@@ -12,7 +12,7 @@ class ExpressionPredicates {
         };
     }
 
-    static function stripCast(e:TypedExpr):TypedExpr {
+    public static function stripCast(e:TypedExpr):TypedExpr {
         return switch (e.expr) {
             case TCast(inner, _): stripCast(inner);
             case _: e;
