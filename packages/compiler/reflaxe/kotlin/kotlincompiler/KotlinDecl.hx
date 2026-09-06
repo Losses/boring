@@ -353,9 +353,12 @@ class KotlinDecl {
                             _) | TInst(_,
                                 _): lines.push('    if (a.${f.name} != null && b.${f.name} != null) { cmp = a.${f.name}.compareTo(b.${f.name}); if (cmp != 0) return cmp }');
                         case _: lines.push('    if (a.${f.name} != null && b.${f.name} != null) { cmp = a.${f.name}.toString().compareTo(b.${f.name}.toString()); if (cmp != 0) return cmp }');
-                        case NullableArray(element):
-                            nullableArrayComparator(lines, cls, f.name, element);
                     }
+                    continue;
+                case NullableArray(element):
+                    lines.push('    if (a.${f.name} == null && b.${f.name} != null) return -1');
+                    lines.push('    if (a.${f.name} != null && b.${f.name} == null) return 1');
+                    nullableArrayComparator(lines, cls, f.name, element);
                     continue;
                 case ReadOnlyArrayField(element):
                     lines.push('    var idx${f.name} = 0');
