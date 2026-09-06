@@ -27,4 +27,12 @@ class SwitchOpsTests {
         Test.equals("empty", SwitchOps.defaulted(Empty));
         Test.equals("fallback", SwitchOps.defaulted(Other));
     }
+
+    @:test("switch inside a conditional arm lowers")
+    public static function testConditional():Void {
+        Test.equals("fallback", SwitchOps.conditional(Empty, true));
+        Test.equals("empty", SwitchOps.conditional(Empty, false));
+        Test.equals("number:3", SwitchOps.conditional(Number(3), false));
+        Test.equals("text:x", SwitchOps.conditional(Text("x"), false));
+    }
 }
