@@ -794,6 +794,58 @@ class PolicyQueries {
             case _: false;
         }
     }
+
+    /** Tests whether an expression is a StringBuf toString call. */
+    public static function isStringBufToStringCall(e:Null<TypedExpr>):Bool {
+        if (e == null)
+            return false;
+        return switch (ExpressionPredicates.stripWrap(e).expr) {
+            case TCall(fn, _):
+                switch (fn.expr) {
+                    case TField(subj, FInstance(_, _, cf)): cf.get().name == "toString" && isStringBuf(subj);
+                    case _: false;
+                }
+            case _: false;
+        };
+    }
+
+    /** Returns the receiver of a StringBuf toString call, or the call itself. */
+    public static function stringBufToStringSubject(call:TypedExpr):TypedExpr {
+        return switch (call.expr) {
+            case TCall(fn, _):
+                switch (fn.expr) {
+                    case TField(subj, _): subj;
+                    case _: call;
+                }
+            case _: call;
+        };
+    }
+
+    /** Tests whether an expression is a single-catch try region. */
+    public static function isTryRegion(e:Null<TypedExpr>):Bool {
+        if (e == null)
+            return false;
+        return switch (ExpressionPredicates.stripWrap(e).expr) {
+            case TTry(_, catches): catches.length == 1;
+            case _: false;
+        };
+    }
+
+    /** Returns the body and catch binding of a single-catch try region. */
+    public static function tryRegionParts(e:TypedExpr):Null<{body:TypedExpr, c:{v:TVar, expr:TypedExpr}}> {
+        return switch (ExpressionPredicates.stripWrap(e).expr) {
+            case TTry(body, catches) if (catches.length == 1): {body: body, c: catches[0]};
+            case _: null;
+        };
+    }
+
+    /** Returns the argument names carried by an enum field. */
+    public static function payloadNames(ef:EnumField):Array<String> {
+        return switch (ef.type) {
+            case TFun(args, _): [for (a in args) a.name];
+            case _: [];
+        };
+    }
 }
 
 // Naming state for cyclic enum Std.string helpers. The cache maps
