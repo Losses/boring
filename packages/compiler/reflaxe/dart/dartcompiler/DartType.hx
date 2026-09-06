@@ -6,7 +6,6 @@ import haxe.macro.Type;
 import StructuralKeyValidator;
 import PolicyQueries;
 
-
 /**
     Type mapping from the translatable Haxe subset to Dart, per
     docs/specs/stdlib/06-std-modules.md and the stdlib rulings: Int is `int` and
