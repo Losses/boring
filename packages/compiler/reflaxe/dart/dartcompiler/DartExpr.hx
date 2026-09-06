@@ -1232,38 +1232,12 @@ class DartExpr {
 
     /** `arr[idx] = value` matcher, wrapper-tolerant. */
     function indexedStoreOf(s:TypedExpr):Null<{arr:TVar, idx:TVar, value:TypedExpr}> {
-        switch (stripWrap(s).expr) {
-            case TBinop(OpAssign, target, value):
-                switch (stripWrap(target).expr) {
-                    case TArray(arr, idx):
-                        final arrLocal = stripWrap(arr);
-                        final idxLocal = stripWrap(idx);
-                        switch [arrLocal.expr, idxLocal.expr] {
-                            case [TLocal(a), TLocal(ix)]: return {arr: a, idx: ix, value: value};
-                            case _:
-                        }
-                    case _:
-                }
-            case _:
-        }
-        return null;
+        return PolicyQueries.indexedStoreOf(s);
     }
 
     /** `arr.push(arg)` matcher, wrapper-tolerant. */
     function pushOf(s:TypedExpr):Null<{arr:TVar, arg:TypedExpr}> {
-        switch (stripWrap(s).expr) {
-            case TCall(fn, args) if (args.length == 1):
-                switch (stripWrap(fn).expr) {
-                    case TField(subj, fa) if (fieldName(fa) == "push"):
-                        switch (stripWrap(subj).expr) {
-                            case TLocal(a): return {arr: a, arg: args[0]};
-                            case _:
-                        }
-                    case _:
-                }
-            case _:
-        }
-        return null;
+        return PolicyQueries.pushOf(s);
     }
 
     // ------------------------------------------------------------------
@@ -1395,17 +1369,7 @@ class DartExpr {
     }
 
     function valueTypeLocalValues(wrapper:TypedExpr):Map<Int, TypedExpr> {
-        final values:Map<Int, TypedExpr> = [];
-        switch (wrapper.expr) {
-            case TBlock(stmts):
-                for (stmt in stmts)
-                    switch (stmt.expr) {
-                        case TVar(v, init) if (init != null && !StringTools.startsWith(v.name, "this")): values.set(v.id, init);
-                        case _:
-                    }
-            case _:
-        }
-        return values;
+        return PolicyQueries.valueTypeLocalValues(wrapper);
     }
 
     function valueTypeOperand(value:TypedExpr, locals:Map<Int, TypedExpr>, ?abs:AbstractType, asRepresentation:Bool = false):String {
@@ -1686,11 +1650,7 @@ class DartExpr {
     }
 
     function isFpHelperInt64Call(fn:TypedExpr):Bool {
-        return switch (stripWrap(fn).expr) {
-            case TField(_, FStatic(classRef, fieldRef)): classRef.get()
-                    .module == "haxe.io.FPHelper" && (fieldRef.get().name == "doubleToI64" || fieldRef.get().name == "f32ToI64");
-            case _: false;
-        };
+        return PolicyQueries.isFpHelperInt64Call(fn);
     }
 
     function field(subj:TypedExpr, fa:FieldAccess):String {
@@ -2094,10 +2054,7 @@ class DartExpr {
     }
 
     function stdStringArg(e:TypedExpr):Null<TypedExpr> {
-        return switch (stripWrap(e).expr) {
-            case TCall({expr: TField(_, FStatic(c, cf))}, args) if (c.get().module == "Std" && cf.get().name == "string" && args.length == 1): args[0];
-            case _: null;
-        };
+        return PolicyQueries.stdStringArg(e);
     }
 
     function stringToolsHex(args:Array<TypedExpr>):String {
@@ -2728,18 +2685,12 @@ class DartExpr {
 
     /** The key type argument of a sorted builder factory call. */
     function kTypeOf(fn:TypedExpr):Null<Type> {
-        return switch (fn.t) {
-            case TFun(_, TInst(_, params)) if (params.length > 0): params[0];
-            case _: null;
-        };
+        return PolicyQueries.kTypeOf(fn);
     }
 
     /** The value type argument of a sorted map builder factory call. */
     function vTypeOf(fn:TypedExpr):Null<Type> {
-        return switch (fn.t) {
-            case TFun(_, TInst(_, params)) if (params.length > 1): params[1];
-            case _: null;
-        };
+        return PolicyQueries.vTypeOf(fn);
     }
 
     /**
@@ -2786,13 +2737,7 @@ class DartExpr {
     }
 
     static function isValueEnum(en:EnumType):Bool {
-        for (ef in en.constructs)
-            switch (Context.follow(ef.type)) {
-                case TFun(args, _) if (args.length > 0):
-                    return false;
-                case _:
-            }
-        return true;
+        return PolicyQueries.isValueEnum(en);
     }
 
     function newExpr(c:Ref<ClassType>, params:Array<Type>, args:Array<TypedExpr>):String {
@@ -2836,11 +2781,7 @@ class DartExpr {
     }
 
     function mapBackingReceiver(e:TypedExpr):Null<TypedExpr> {
-        return switch (stripWrap(e).expr) {
-            case TField(receiver, FInstance(_, _, cf)) if (cf.get().name == "h" && isMapBackingType(receiver.t)): receiver;
-            case TField(receiver, FAnon(cf)) if (cf.get().name == "h" && isMapBackingType(receiver.t)): receiver;
-            case _: null;
-        };
+        return PolicyQueries.mapBackingReceiver(e);
     }
 
     function isMapBackingType(t:Type):Bool {
@@ -2848,19 +2789,11 @@ class DartExpr {
     }
 
     function mapAssignment(e:TypedExpr):Null<{receiver:TypedExpr, key:TypedExpr}> {
-        return switch (stripWrap(e).expr) {
-            case TArray(arr, key):
-                final receiver = mapBackingReceiver(arr);
-                receiver == null ? null : {receiver: receiver, key: key};
-            case _: null;
-        };
+        return PolicyQueries.mapAssignment(e);
     }
 
     function isHasOwnPropertyValue(e:TypedExpr):Bool {
-        return switch (stripWrap(e).expr) {
-            case TField(_, FInstance(_, _, cf)) | TField(_, FAnon(cf)) if (cf.get().name == "hasOwnProperty"): true;
-            case _: false;
-        };
+        return PolicyQueries.isHasOwnPropertyValue(e);
     }
 
     function mapHasOwnPropertyCall(fn:TypedExpr, args:Array<TypedExpr>):Null<String> {
@@ -3156,11 +3089,7 @@ class DartExpr {
         NaN tail read in the TS implementation.
     **/
     function stringBufMutationParts(fn:TypedExpr):Null<{name:String, subj:TypedExpr}> {
-        return switch (fn.expr) {
-            case TField(subj, FInstance(_, _, cf)) if (isStringBuf(subj)): final n = cf.get()
-                    .name; n == "add" || n == "addChar" ? {name: n, subj: subj} : null;
-            case _: null;
-        };
+        return PolicyQueries.stringBufMutationParts(fn);
     }
 
     function isStringBufToStringCall(e:TypedExpr):Bool {
@@ -3612,13 +3541,7 @@ class DartExpr {
     }
 
     function flattenAdd(e:TypedExpr, into:Array<TypedExpr>):Void {
-        switch (e.expr) {
-            case TBinop(OpAdd, a, b):
-                flattenAdd(a, into);
-                into.push(b);
-            case _:
-                into.push(e);
-        }
+        return PolicyQueries.flattenAdd(e, into);
     }
 
     function provenNonNull(e:TypedExpr):Bool {
@@ -3729,17 +3652,7 @@ class DartExpr {
     }
 
     function mentionsLocal(e:TypedExpr, v:TVar):Bool {
-        var found = false;
-        function walk(x:TypedExpr) {
-            switch (x.expr) {
-                case TLocal(l) if (l.id == v.id):
-                    found = true;
-                case _:
-            }
-            TypedExprTools.iter(x, walk);
-        }
-        walk(e);
-        return found;
+        return PolicyQueries.mentionsLocal(e, v);
     }
 
     function localName(v:TVar):String {
@@ -3909,13 +3822,7 @@ class DartExpr {
     }
 
     function unwrapLambda(e:TypedExpr):Null<TFunc> {
-        if (e == null)
-            return null;
-        return switch (e.expr) {
-            case TFunction(f): f;
-            case TParenthesis(inner) | TCast(inner, _) | TMeta(_, inner): unwrapLambda(inner);
-            case _: null;
-        };
+        return PolicyQueries.unwrapLambda(e);
     }
 
     function lambdaBody(e:TypedExpr):TypedExpr {
@@ -3937,10 +3844,7 @@ class DartExpr {
     }
 
     function isStringSubject(e:TypedExpr):Bool {
-        return switch (Context.follow(stripCast(e).t)) {
-            case TInst(c, _): c.get().name == "String";
-            case _: false;
-        }
+        return PolicyQueries.isStringSubject(e);
     }
 
     /**
