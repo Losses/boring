@@ -444,12 +444,7 @@ class TsDecl {
 
     /** A `var x(get, never)` field renders no storage on this target (feature spec 27). */
     function isGetterOnlyProperty(field:ClassField):Bool {
-        switch (field.kind) {
-            case FVar(read, write):
-                return read.match(AccCall) && write.match(AccNever);
-            case _:
-                return false;
-        }
+        return PolicyQueries.isGetterOnlyProperty(field);
     }
 
     /**
@@ -510,13 +505,7 @@ class TsDecl {
     }
 
     static function isFunctionType(t:Null<Type>):Bool {
-        if (t == null) {
-            return false;
-        }
-        return switch (Context.follow(t)) {
-            case TFun(_, _): true;
-            case _: false;
-        };
+        return PolicyQueries.isFunctionType(t);
     }
 
     function funcDecl(cls:ClassType, f:ClassFuncData):Array<String> {
