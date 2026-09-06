@@ -1989,11 +1989,7 @@ class KotlinExpr {
     }
 
     function isFpHelperInt64Halves(e:TypedExpr):Bool {
-        return switch (stripWrap(e).expr) {
-            case TCall(fn, _): isFpHelperInt64Call(fn);
-            case TLocal(v): fpInt64Halves.exists(v.id);
-            case _: false;
-        };
+        return PolicyQueries.isFpHelperInt64Halves(e, fpInt64Halves);
     }
 
     function isFpHelperInt64Call(fn:TypedExpr):Bool {
