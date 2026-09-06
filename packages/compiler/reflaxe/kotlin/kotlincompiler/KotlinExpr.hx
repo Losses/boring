@@ -2312,7 +2312,12 @@ class KotlinExpr {
     }
 
     function stdString(arg:TypedExpr, inConcat:Bool):String {
-        return stdStringType(arg.t, expr(arg), inConcat, arg);
+        final fromSource = PolicyQueries.inSourceScope(arg.pos);
+        final nullable = PolicyQueries.isNullableType(arg.t);
+        if (fromSource && nullable) {
+            Context.error("Std.string does not accept Null<T> operands; compare against null first", arg.pos);
+        }
+        return stdStringType(arg.t, !fromSource && nullable ? "(" + expr(arg) + ")!!" : expr(arg), inConcat, arg);
     }
 
     function stdIsOfType(args:Array<TypedExpr>):String {
