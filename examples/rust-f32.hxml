@@ -85,7 +85,9 @@ boring.PrintedCustom
 boring.StringBufOps
 tests.StringBufTests
 boring.TryOps
+boring.SwitchOps
 tests.TryTests
+tests.SwitchOpsTests
 boring.ArithmeticOps
 tests.ArithmeticTests
 boring.DefaultArgsOps
