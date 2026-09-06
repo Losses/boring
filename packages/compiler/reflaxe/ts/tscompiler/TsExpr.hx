@@ -11,6 +11,7 @@ import haxe.macro.TypedExprTools;
 import reflaxe.data.ClassFuncData;
 import ExpressionPredicates;
 import PolicyQueries;
+import PolicyQueries.IntervalCapability;
 import FusionPlan;
 import FusionPlan.FusionStep;
 import ValueTypeSupport;
@@ -799,40 +800,10 @@ class TsExpr {
         while are three sibling statements with no wrapping block.
         Regrouping restores the block form the loop lowerings match on.
     **/
+    static final intervalCaps:Array<IntervalCapability> = [MatchesDoWhileLoops, UnwrapsBoundSubject];
+
     function regroupLoops(stmts:Array<TypedExpr>):Array<TypedExpr> {
-        final out:Array<TypedExpr> = [];
-        var i = 0;
-        while (i < stmts.length) {
-            if (i + 2 < stmts.length) {
-                final loop = intervalCore(stmts[i], stmts[i + 1], stmts[i + 2]);
-                if (loop != null) {
-                    final grouped:TypedExpr = {
-                        expr: TBlock([stmts[i], stmts[i + 1], stmts[i + 2]]),
-                        pos: stmts[i].pos,
-                        t: stmts[i + 2].t
-                    };
-                    out.push(grouped);
-                    i += 3;
-                    continue;
-                }
-            }
-            if (i + 1 < stmts.length) {
-                final shortLoop = intervalShort(stmts[i], stmts[i + 1]);
-                if (shortLoop != null) {
-                    final grouped:TypedExpr = {
-                        expr: TBlock([stmts[i], stmts[i + 1]]),
-                        pos: stmts[i].pos,
-                        t: stmts[i + 1].t
-                    };
-                    out.push(grouped);
-                    i += 2;
-                    continue;
-                }
-            }
-            out.push(stmts[i]);
-            i += 1;
-        }
-        return out;
+        return PolicyQueries.regroupLoops(stmts, intervalCaps);
     }
 
     function intervalCore(counterDecl:TypedExpr, boundDecl:TypedExpr, whileExpr:TypedExpr):Null<{
@@ -841,49 +812,7 @@ class TsExpr {
         bound:TypedExpr,
         body:Array<TypedExpr>
     }> {
-        switch [counterDecl.expr, boundDecl.expr, whileExpr.expr] {
-            case [TVar(counter, start), TVar(boundVar, bound), TWhile(cond, body, true)]:
-                final condOk = switch (stripWrap(cond).expr) {
-                    case TBinop(OpLt, l, r):
-                        final lc = stripWrap(l);
-                        final rc = stripWrap(r);
-                        switch [lc.expr, rc.expr] {
-                            case [TLocal(c), TLocal(b)]: c.id == counter.id && b.id == boundVar.id;
-                            case _: false;
-                        }
-                    case _: false;
-                }
-                if (!condOk) {
-                    return null;
-                }
-                final bodyStmts = statementsOf(body);
-                if (bodyStmts.length == 0) {
-                    return null;
-                }
-                switch (bodyStmts[0].expr) {
-                    case TVar(captured, inc):
-                        final captureOk = inc != null && switch (stripWrap(inc).expr) {
-                            case TUnop(OpIncrement, true, subj):
-                                switch (stripWrap(subj).expr) {
-                                    case TLocal(c): c.id == counter.id;
-                                    case _: false;
-                                }
-                            case _: false;
-                        } if (!captureOk) {
-                            return null;
-                        }
-                        return {
-                            index: captured,
-                            start: start,
-                            bound: bound,
-                            body: bodyStmts.slice(1)
-                        };
-                    case _:
-                        return null;
-                }
-            case _:
-                return null;
-        }
+        return PolicyQueries.intervalCore(counterDecl, boundDecl, whileExpr);
     }
 
     function matchInterval(e:TypedExpr):Null<{
@@ -892,14 +821,7 @@ class TsExpr {
         bound:TypedExpr,
         body:Array<TypedExpr>
     }> {
-        switch (e.expr) {
-            case TBlock(stmts) if (stmts.length == 3):
-                return intervalCore(stmts[0], stmts[1], stmts[2]);
-            case TBlock(stmts) if (stmts.length == 2):
-                return intervalShort(stmts[0], stmts[1]);
-            case _:
-                return null;
-        }
+        return PolicyQueries.matchInterval(e, intervalCaps);
     }
 
     function intervalShort(counterDecl:TypedExpr, whileExpr:TypedExpr):Null<{
@@ -908,44 +830,7 @@ class TsExpr {
         bound:TypedExpr,
         body:Array<TypedExpr>
     }> {
-        final counter = switch (counterDecl.expr) {
-            case TVar(v, start): {v: v, start: start};
-            case _: return null;
-        };
-        final loop = switch (whileExpr.expr) {
-            case TWhile(condition, body, _): {condition: condition, body: body};
-            case _: return null;
-        };
-        final condition = stripWrap(loop.condition);
-        final bound = switch (condition.expr) {
-            case TBinop(OpLt, left, right):
-                switch (stripWrap(left).expr) {
-                    case TLocal(value) if (value.id == counter.v.id): right;
-                    case _: return null;
-                }
-            case _: return null;
-        };
-        final bodyStmts = statementsOf(loop.body);
-        if (bodyStmts.length == 0)
-            return null;
-        final capture = switch (bodyStmts[0].expr) {
-            case TVar(value, init) if (init != null): {value: value, init: init};
-            case _: return null;
-        };
-        return switch (stripWrap(capture.init).expr) {
-            case TUnop(OpIncrement, true, subject):
-                switch (stripWrap(subject).expr) {
-                    case TLocal(value) if (value.id == counter.v.id):
-                        {
-                            index: capture.value,
-                            start: counter.start,
-                            bound: bound,
-                            body: bodyStmts.slice(1)
-                        };
-                    case _: null;
-                }
-            case _: null;
-        };
+        return PolicyQueries.intervalShort(counterDecl, whileExpr, intervalCaps);
     }
 
     function boundLengthSubject(bound:TypedExpr):Null<TVar> {
