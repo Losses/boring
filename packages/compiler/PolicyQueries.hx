@@ -4,6 +4,7 @@ import haxe.macro.TypedExprTools;
 import haxe.macro.Type;
 import reflaxe.data.ClassFuncData;
 import reflaxe.data.ClassVarData;
+import reflaxe.data.EnumOptionData;
 import RuntimeResidents;
 import ExpressionPredicates;
 import StructuralKeyValidator;
@@ -29,6 +30,28 @@ class PolicyQueries {
         their ordinal. */
     public static function freshTailName(counter:Int):String {
         return counter == 1 ? "tail" : "tail" + counter;
+    }
+
+    /** Options of one enum sorted by construct index, in a fresh array. */
+    public static function sortedEnumOptions(options:Array<EnumOptionData>):Array<EnumOptionData> {
+        final sorted = options.copy();
+        sorted.sort((a, b) -> Reflect.compare(a.field.index, b.field.index));
+        return sorted;
+    }
+
+    /** True when every option carries no payload (a parameterless enum). */
+    public static function isValueEnumOptions(sorted:Array<EnumOptionData>):Bool {
+        for (o in sorted)
+            if (o.args.length > 0)
+                return false;
+        return true;
+    }
+
+    /** Anonymous-structure fields sorted by source position, in a fresh array. */
+    public static function sortedAnonFields(anonRef:Ref<AnonType>):Array<ClassField> {
+        final fields = anonRef.get().fields.copy();
+        fields.sort((a, b) -> Reflect.compare(Context.getPosInfos(a.pos).min, Context.getPosInfos(b.pos).min));
+        return fields;
     }
 
     public static function canEmitDataClassComparator(cls:ClassType):Bool {

@@ -608,8 +608,7 @@ class TsDecl {
     // ------------------------------------------------------------------
 
     public function enumDecl(en:EnumType, options:Array<EnumOptionData>):String {
-        final sorted = options.copy();
-        sorted.sort((a, b) -> Reflect.compare(a.field.index, b.field.index));
+        final sorted = PolicyQueries.sortedEnumOptions(options);
         // Each variant is a named interface (the no-inline-types rule bans
         // object literals inside unions); the enum is the union of names.
         final blocks:Array<String> = [];
@@ -623,10 +622,7 @@ class TsDecl {
             blocks.push('export interface ${o.name} {\n' + members.join("\n") + "\n}");
         }
         blocks.push('export type ${en.name} =\n  | ' + names.join("\n  | ") + ";");
-        var valueEnum = true;
-        for (o in sorted)
-            if (o.args.length > 0)
-                valueEnum = false;
+        final valueEnum = PolicyQueries.isValueEnumOptions(sorted);
         if (valueEnum) {
             final members = [
                 for (o in sorted)
@@ -679,8 +675,7 @@ class TsDecl {
     public function typedefDecl(def:DefType):String {
         switch (def.type) {
             case TAnonymous(anonRef):
-                final fields = anonRef.get().fields.copy();
-                fields.sort((a, b) -> Reflect.compare(Context.getPosInfos(a.pos).min, Context.getPosInfos(b.pos).min));
+                final fields = PolicyQueries.sortedAnonFields(anonRef);
                 final fieldLines = [for (field in fields) '  ${field.name}: ${types.of(field.type)};'];
                 final interfaceStr = ['export interface ${def.name} {', fieldLines.join("\n"), "}"].join("\n");
 
