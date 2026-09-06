@@ -3569,6 +3569,7 @@ class SwiftExpr {
     }
 
     function switchReturn(sw:TypedExpr, depth:Int, reservedPayloadNames:Bool = false):Array<String> {
+        sw = stripWrap(sw);
         final switchParts = switch (sw.expr) {
             case TSwitch(subj, cases, def): {subj: subj, cases: cases, def: def};
             case _: return fail(sw, "not a switch");
