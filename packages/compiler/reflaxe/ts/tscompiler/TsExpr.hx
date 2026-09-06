@@ -94,6 +94,7 @@ class TsExpr {
 
     var currentField:Null<String> = null;
     var currentLocalName:Null<String> = null;
+    var currentFuncReturnsNullable:Bool = false;
 
     public function new(imports:TsImports, types:TsType) {
         this.imports = imports;
@@ -264,10 +265,33 @@ class TsExpr {
         currentClass = cls;
         currentField = f.field.name;
         currentLocalName = null;
+        currentFuncReturnsNullable = switch (f.field.type) {
+            case TFun(_, ret): PolicyQueries.isNullableType(ret);
+            case _: false;
+        };
         activeLoopParseHoists = null;
 
         scanLocals(f.expr);
         return blockLines(statementsOf(f.expr), 2);
+    }
+
+    /**
+        A non-nullable-returning function that returns a Null<T>-typed
+        expression appends the non-null assertion, mirroring the Swift
+        return narrowing; the nullable field keeps its faithful union
+        spelling (features/04).
+    **/
+    function returnValue(ret:TypedExpr):String {
+        switch (stripWrap(ret).expr) {
+            case TConst(TNull):
+                return expr(ret);
+            case _:
+        }
+        if (currentFuncReturnsNullable) {
+            return expr(ret);
+        }
+        final rendered = expr(ret);
+        return PolicyQueries.isNullableType(ret.t) && !StringTools.endsWith(rendered, "!") ? rendered + "!" : rendered;
     }
 
     /** Body lowering shared by value-wrapper member functions. */
@@ -293,6 +317,10 @@ class TsExpr {
         currentClass = cls;
         currentField = f.field.name;
         currentLocalName = null;
+        currentFuncReturnsNullable = switch (f.field.type) {
+            case TFun(_, ret): PolicyQueries.isNullableType(ret);
+            case _: false;
+        };
         if (f.args.length > 0)
             bindLocalName(f.args[0].tvar, f.args[0].name);
         scanLocals(f.expr);
@@ -326,6 +354,10 @@ class TsExpr {
         currentClass = cls;
         currentField = f.field.name;
         currentLocalName = null;
+        currentFuncReturnsNullable = switch (f.field.type) {
+            case TFun(_, ret): PolicyQueries.isNullableType(ret);
+            case _: false;
+        };
         scanLocals(f.expr);
         final stmts = statementsOf(f.expr);
         final out:Array<String> = [];
@@ -436,7 +468,7 @@ class TsExpr {
                     case TLocal(v) if (frozenFill.exists(v.id)):
                         return [indent(depth) + "return Object.freeze(" + localName(v) + ");"];
                     case _:
-                        return [indent(depth) + "return " + expr(ret) + ";"];
+                        return [indent(depth) + "return " + returnValue(ret) + ";"];
                 }
             case TThrow(x):
                 return [indent(depth) + "throw " + expr(x) + ";"];
@@ -2282,7 +2314,10 @@ class TsExpr {
                 cmpName;
             case EnumKey(en):
                 imports.value(en.module, en.name);
-                "(a, b) => { if (a === b) return 0; " + [for (ef in en.constructs) "if (a.kind === \"" + ef.name + "\") return " + ef.index + " - (b.kind === \"" + ef.name + "\" ? " + ef.index + " : 0);"].join(" ") + " return 0; }";
+                "(a, b) => { if (a === b) return 0; " + [
+                    for (ef in en.constructs) "if (a.kind === \"" + ef.name + "\") return " + ef.index + " - (b.kind === \"" + ef.name + "\" ? " + ef.index
+                        + " : 0);"
+                ].join(" ") + " return 0; }";
         };
     }
 
