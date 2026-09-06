@@ -1370,7 +1370,9 @@ class DefaultArgExpander {
                         if (rustTarget)
                             args.push(makeTypedConst(VNull, param.t, callExpr.pos));
                     default:
-                        args.push(makeTypedConst(defVal, param.t, callExpr.pos));
+                        // A materialized constant carries the unwrapped value
+                        // type; a Null<X> parameter makes the constant X.
+                        args.push(makeTypedConst(defVal, withoutNull(param.t), callExpr.pos));
                 }
             } else if (param.opt) {
                 args.push(makeTypedConst(VNull, param.t, callExpr.pos));
@@ -1835,7 +1837,8 @@ class DefaultArgExpander {
                         if (rustTarget)
                             args.push(makeTypedConst(VNull, param.t, newExpr.pos));
                     default:
-                        args.push(makeTypedConst(defVal, param.t, newExpr.pos));
+                        // Same unwrapping as the call-site completion above.
+                        args.push(makeTypedConst(defVal, withoutNull(param.t), newExpr.pos));
                 }
             } else if (param.opt) {
                 args.push(makeTypedConst(VNull, param.t, newExpr.pos));
