@@ -177,8 +177,8 @@ class SwiftExpr {
                 + swiftMethodName(methodName)
                 + "("
                 + [for (a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
-            case CStaticCall(fullPath, args):
-                coalescingStaticCallText(fullPath, args, targetType);
+            case CStaticCall(modulePath, className, methodName, args):
+                coalescingStaticCallText(modulePath, className, methodName, args, targetType);
             case CConditional(c, t, f):
                 "("
                 + coalescingDefaultText(c, targetType)
@@ -193,21 +193,43 @@ class SwiftExpr {
                 + opStr(op, isIntLeafType(targetType))
                 + " "
                 + coalescingDefaultText(right, targetType);
-            case CConstructorCall(classPath, args):
-                classPath.split(".").pop() + "(" + [for (a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
+            case CConstructorCall(modulePath, className, args):
+                imports.value(modulePath, className);
+                className
+                + "("
+                + completeCoalescingCallArgs(modulePath, "new", args, targetType).join(", ")
+                + ")";
         };
     }
 
-    function coalescingStaticCallText(path:String, args:Array<DefaultArgExpander.CoalescingDefaultValue>, targetType:Type):String {
-        final rendered = [for (a in args) coalescingDefaultText(a, targetType)].join(", ");
-        if (path == "std.SortedSet.builder") {
+    /** Explicit arguments plus the callee's omitted-parameter defaults; a swift signature carries no constant defaults. */
+    function completeCoalescingCallArgs(modulePath:String, fieldName:String, args:Array<DefaultArgExpander.CoalescingDefaultValue>,
+            targetType:Type):Array<String> {
+        final rendered = [for (a in args) coalescingDefaultText(a, targetType)];
+        final omitted = DefaultArgExpander.omittedCallDefaults(modulePath, fieldName, args.length);
+        if (omitted != null) {
+            for (o in omitted)
+                rendered.push(coalescingDefaultText(o.value, o.type));
+        }
+        return rendered;
+    }
+
+    function coalescingStaticCallText(modulePath:String, className:String, methodName:String, args:Array<DefaultArgExpander.CoalescingDefaultValue>,
+            targetType:Type):String {
+        if (modulePath == "std.SortedSet" && methodName == "builder") {
             imports.runtime("SortedTable");
             return "SortedTable.setBuilder(" + sortedComparator(switch (Context.follow(DefaultArgExpander.withoutNull(targetType))) {
                 case TInst(_, params) if (params.length > 0): params[0];
                 case _: null;
             }, Context.currentPos()) + ")";
         }
-        return path + "(" + rendered + ")";
+        imports.value(modulePath, className);
+        return className
+            + "."
+            + methodName
+            + "("
+            + completeCoalescingCallArgs(modulePath, methodName, args, targetType).join(", ")
+            + ")";
     }
 
     function coalescingStaticFieldText(path:String):String {
