@@ -2865,17 +2865,11 @@ class SwiftExpr {
         pattern binds the error only when the handler reads it.
     **/
     function isTryRegion(e:TypedExpr):Bool {
-        return switch (stripWrap(e).expr) {
-            case TTry(_, catches): catches.length == 1;
-            case _: false;
-        };
+        return PolicyQueries.isTryRegion(e);
     }
 
     function tryRegionParts(e:TypedExpr):Null<{body:TypedExpr, c:{v:TVar, expr:TypedExpr}}> {
-        return switch (stripWrap(e).expr) {
-            case TTry(body, catches) if (catches.length == 1): {body: body, c: catches[0]};
-            case _: null;
-        };
+        return PolicyQueries.tryRegionParts(e);
     }
 
     /** The emitted class name behind the catch pattern, with its reference registered. */
@@ -3118,25 +3112,11 @@ class SwiftExpr {
     }
 
     function isStringBufToStringCall(e:TypedExpr):Bool {
-        return switch (stripWrap(e).expr) {
-            case TCall(fn, _):
-                switch (fn.expr) {
-                    case TField(subj, FInstance(_, _, cf)): cf.get().name == "toString" && isStringBuf(subj);
-                    case _: false;
-                }
-            case _: false;
-        };
+        return PolicyQueries.isStringBufToStringCall(e);
     }
 
     function stringBufToStringSubject(call:TypedExpr):TypedExpr {
-        return switch (call.expr) {
-            case TCall(fn, _):
-                switch (fn.expr) {
-                    case TField(subj, _): subj;
-                    case _: call;
-                }
-            case _: call;
-        }
+        return PolicyQueries.stringBufToStringSubject(call);
     }
 
     function freshTailName():String {
@@ -3451,10 +3431,7 @@ class SwiftExpr {
     }
 
     function payloadNames(ef:EnumField):Array<String> {
-        return switch (ef.type) {
-            case TFun(args, _): [for (a in args) a.name];
-            case _: [];
-        };
+        return PolicyQueries.payloadNames(ef);
     }
 
     /**
@@ -4133,10 +4110,7 @@ class SwiftExpr {
     }
 
     function stripCast(e:TypedExpr):TypedExpr {
-        return switch (e.expr) {
-            case TCast(inner, _): stripCast(inner);
-            case _: e;
-        }
+        return ExpressionPredicates.stripCast(e);
     }
 
     function isStringSubject(e:TypedExpr):Bool {

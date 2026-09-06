@@ -584,25 +584,11 @@ class KotlinExpr {
     }
 
     function isStringBufToStringCall(e:TypedExpr):Bool {
-        return switch (stripWrap(e).expr) {
-            case TCall(fn, _):
-                switch (fn.expr) {
-                    case TField(subj, FInstance(_, _, cf)): cf.get().name == "toString" && isStringBuf(subj);
-                    case _: false;
-                }
-            case _: false;
-        };
+        return PolicyQueries.isStringBufToStringCall(e);
     }
 
     function stringBufToStringSubject(call:TypedExpr):TypedExpr {
-        return switch (call.expr) {
-            case TCall(fn, _):
-                switch (fn.expr) {
-                    case TField(subj, _): subj;
-                    case _: call;
-                }
-            case _: call;
-        };
+        return PolicyQueries.stringBufToStringSubject(call);
     }
 
     /** Flat check for binding and return positions: one bound tail read, then the fault. */
@@ -1406,10 +1392,7 @@ class KotlinExpr {
     }
 
     function isTryRegion(e:TypedExpr):Bool {
-        return switch (stripWrap(e).expr) {
-            case TTry(_, catches): catches.length == 1;
-            case _: false;
-        };
+        return PolicyQueries.isTryRegion(e);
     }
 
     /**
@@ -1432,10 +1415,7 @@ class KotlinExpr {
     }
 
     function tryRegionParts(e:TypedExpr):{body:TypedExpr, c:{v:TVar, expr:TypedExpr}} {
-        return switch (stripWrap(e).expr) {
-            case TTry(body, catches): {body: body, c: catches[0]};
-            case _: {body: e, c: null};
-        };
+        return PolicyQueries.tryRegionParts(e);
     }
 
     /**
@@ -3204,10 +3184,7 @@ class KotlinExpr {
     }
 
     function stripCast(e:TypedExpr):TypedExpr {
-        return switch (e.expr) {
-            case TCast(inner, _): stripCast(inner);
-            case _: e;
-        }
+        return ExpressionPredicates.stripCast(e);
     }
 
     function stripWrap(e:TypedExpr):TypedExpr {
