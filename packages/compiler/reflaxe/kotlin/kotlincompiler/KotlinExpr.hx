@@ -1426,13 +1426,7 @@ class KotlinExpr {
     }
 
     static function isValueEnum(en:EnumType):Bool {
-        for (ef in en.constructs)
-            switch (Context.follow(ef.type)) {
-                case TFun(args, _) if (args.length > 0):
-                    return false;
-                case _:
-            }
-        return true;
+        return PolicyQueries.isValueEnum(en);
     }
 
     /**

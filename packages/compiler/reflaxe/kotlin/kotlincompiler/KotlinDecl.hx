@@ -522,9 +522,7 @@ class KotlinDecl {
         typedefs through this signature.
     **/
     public static function structureSignature(anon:Ref<AnonType>):String {
-        final entries = [for (f in anon.get().fields) f.name + ":" + Std.string(f.type)];
-        entries.sort(Reflect.compare);
-        return entries.join(";");
+        return PolicyQueries.structureSignature(anon);
     }
 
     function payloadEnumOf(funcFields:Array<ClassFuncData>):Null<EnumType> {
