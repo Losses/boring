@@ -219,7 +219,9 @@ port carries its own query macros and expands them before boring runs.
    reports no unused constant and TypeScript ships no unused export. The name
    and lookup artifacts of Rust are emitted when `Type.enumConstructor` or
    `Type.createEnum` queries that enumeration, including query sites that
-   appear without a collection query.
+   appear without a collection query. The expander also walks the operand of
+   `Type.enumConstructor` before marking the enclosing query, so a nested
+   sanctioned query is expanded before a target renders the outer marker.
 
 8. **Costs.** Every query evaluation allocates nothing on every target: the
    collection is a shared constant, the name is a field or language member
