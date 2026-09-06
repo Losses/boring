@@ -1013,12 +1013,7 @@ class RustDecl {
     }
 
     function isFunctionType(t:Null<Type>):Bool {
-        if (t == null)
-            return false;
-        return switch (Context.follow(t)) {
-            case TFun(_, _): true;
-            case _: false;
-        };
+        return PolicyQueries.isFunctionType(t);
     }
 
     function isStaticFunctionField(v:ClassVarData):Bool {
@@ -1188,12 +1183,7 @@ class RustDecl {
 
     /** A `var x(get, never)` field renders no storage on this target (feature spec 27). */
     static function isGetterOnlyProperty(field:haxe.macro.Type.ClassField):Bool {
-        switch (field.kind) {
-            case FVar(read, write):
-                return read.match(AccCall) && write.match(AccNever);
-            case _:
-                return false;
-        }
+        return PolicyQueries.isGetterOnlyProperty(field);
     }
 
     function instanceVarDecl(v:ClassVarData, hasLifetime:Bool, borrowedBytes:Map<String, Bool>):Array<String> {
