@@ -11,7 +11,7 @@ source samples, tests, or compiler implementation in this document.
 
 | Mechanism | Current verification anchor | Current form |
 | --- | --- | --- |
-| Rust constructor calls | `packages/compiler/reflaxe/rust/rustcompiler/RustExpr.hx:2172-2175`, with `newExpr` routing at `:5024-5062` and argument policy at `:5152-5155` | `TNew` uses ordinary constructor arguments; a non-`Copy` value is not implicitly cloned. |
+| Rust constructor calls | `packages/compiler/reflaxe/rust/rustcompiler/RustExpr.hx:5021` (`newExpr` routes constructor calls), with argument policy at `:5156` (`ctorCallArgs`) | `TNew` uses ordinary constructor arguments; a non-`Copy` value is not implicitly cloned. |
 | Do-while gate | `packages/compiler/reflaxe/ts/tscompiler/TsExpr.hx:475`, and equivalent target emitters at Kotlin `:519`, Rust `:718`, Swift `:468`, and Dart `:698` | `TWhile(_, _, false)` is rejected with `do-while has no lowering in the subset`. |
 | Interval capabilities | `packages/compiler/reflaxe/ts/tscompiler/TsExpr.hx:803-806` and Kotlin `:857-860` | Interval recognition is capability-driven and separate from the emitter's do-while gate. |
 | Nullable counter | TypeScript `TsExpr.hx:818-837`, Kotlin `KotlinExpr.hx:872-887`, and Rust `RustExpr.hx:1488-1503` | Interval matching is attempted, but the nullable-counter probe remains a `while`; Kotlin emits `i!!` in the condition. |
