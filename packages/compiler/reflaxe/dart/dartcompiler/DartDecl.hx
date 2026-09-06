@@ -252,7 +252,6 @@ class DartDecl {
                                 + f.name + ") - " + orderName + "(bv" + f.name + "); if (cmp" + f.name + " != 0) return cmp" + f.name + "; }");
                         case _: lines.push("  if (av" + f.name + " != null && bv" + f.name + " != null) { final cmp" + f.name + " = av" + f.name
                                 + ".compareTo(bv" + f.name + "); if (cmp" + f.name + " != 0) return cmp" + f.name + "; }");
-                        case _:
                     }
                 case NullableArray(element):
                     lines.push("  final av" + f.name + " = a." + f.name + "; final bv" + f.name + " = b." + f.name + ";");
