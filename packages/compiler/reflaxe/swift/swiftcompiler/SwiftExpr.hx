@@ -2208,7 +2208,7 @@ class SwiftExpr {
         if (inlineMapCall != null) {
             return inlineMapCall;
         }
-        final renderedArgs = argTexts(fn, args);
+        final renderedArgs = callArgTexts(fn, args);
         final rendered = renderedArgs.join(", ");
         switch (fn.expr) {
             case TField(_, FStatic(c, cf)) if (c.get().module == "Std" && cf.get().name == "isOfType" && args.length == 2):
@@ -2862,9 +2862,61 @@ class SwiftExpr {
             + ")";
     }
 
+    function callArgTexts(fn:TypedExpr, args:Array<TypedExpr>):Array<String> {
+        final base = argTexts(fn, args);
+        final target = switch (fn.expr) {
+            case TField(_, FInstance(c, _, cf)) | TField(_, FStatic(c, cf)): {c: c.get(), n: cf.get().name, t: cf.get().type};
+            default: null;
+        };
+        final ps = target == null ? [] : switch (Context.follow(target.t)) {
+            case TFun(v, _): [for (x in v) x.t];
+            case _: [];
+        };
+        return [for (i in 0...args.length) {
+            final p = i < ps.length ? ps[i] : null;
+            final d = target == null ? null : DefaultArgExpander.defaultAt(target.c, target.n, i);
+            d != null
+            && p != null && isNullLiteral(args[i]) ? defaultArgText(d, p) : d != null && p != null && isNullLeafType(args[i].t) ? "(" + expr(args[i]) + " ?? " + defaultArgText(d,
+                p) + ")" : base[i];
+        }
+        ];
+    }
+
+    function constructorArgTexts(cls:ClassType, args:Array<TypedExpr>):Array<String> {
+        final ps = cls.constructor == null ? [] : switch (Context.follow(cls.constructor.get().type)) {
+            case TFun(v, _): [for (x in v) x.t];
+            case _: [];
+        };
+        return [for (i in 0...args.length) {
+            final p = i < ps.length ? ps[i] : null;
+            final d = DefaultArgExpander.defaultAt(cls, "new", i);
+            d != null
+            && p != null && isNullLiteral(args[i]) ? defaultArgText(d, p) : d != null && p != null && isNullLeafType(args[i].t) ? "(" + expr(args[i]) + " ?? " + defaultArgText(d,
+                p) + ")" : expr(args[i]);
+        }
+        ];
+    }
+
+    function isNullLiteral(e:TypedExpr):Bool
+        return switch (stripWrap(e).expr) {
+            case TConst(TNull): true;
+            case _: false;
+        };
+
+    function defaultArgText(v:DefaultArgExpander.DefaultArgValue, t:Type):String
+        return switch (v) {
+            case VInt(x): Std.string(x);
+            case VFloat(x): x;
+            case VString(x): quoteString(x);
+            case VBool(x): x ? "true" : "false";
+            case VNull: "nil";
+            case VEnum(e, f): types.of(Type.TEnum(e, [])) + "." + SwiftDecl.lowerFirst(f.name);
+            case VCoalescing(x): coalescingDefaultText(x, t);
+        };
+
     function newExpr(c:Ref<ClassType>, params:Array<Type>, args:Array<TypedExpr>):String {
         final cls = c.get();
-        final rendered = [for (a in args) expr(a)].join(", ");
+        final rendered = constructorArgTexts(cls, args).join(", ");
         final valueType = ValueTypeSupport.markedAbstractOfClass(cls);
         if (valueType != null)
             return valueType.name + "(" + rendered + ")";
