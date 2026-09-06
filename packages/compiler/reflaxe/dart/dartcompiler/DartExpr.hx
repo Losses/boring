@@ -13,6 +13,7 @@ import ExpressionPredicates;
 import PolicyQueries;
 import PolicyQueries.IntervalCapability;
 import PolicyQueries.StdStringCategory;
+import PolicyQueries.Int64Op;
 import FusionPlan;
 import FusionPlan.FusionStep;
 import TerminationAnalysis;
@@ -1444,35 +1445,31 @@ class DartExpr {
     }
 
     function int64Call(fn:TypedExpr, args:Array<TypedExpr>):Null<String> {
-        return switch (stripWrap(fn).expr) {
-            case TField(_, FStatic(classRef, fieldRef)) if (classRef.get().module == "haxe.Int64" && classRef.get().name == "Int64_Impl_"):
-                switch (fieldRef.get().name) {
-                    case "make" if (args.length == 2): "(((" + expr(args[0]) + ").toSigned(32) << 32) | ((" + expr(args[1]) + ").toUnsigned(32))).toSigned(64)";
-                    case "ofInt" if (args.length == 1): "(" + expr(args[0]) + ").toSigned(64)";
-                    case "getHigh" | "get_high" if (args.length == 1): if (isFpHelperInt64Halves(args[0])) expr(args[0]) + ".high" else "((" + expr(args[0])
+        return switch (PolicyQueries.int64OpOf(fn, args)) {
+                    case Make(high, low): "(((" + expr(high) + ").toSigned(32) << 32) | ((" + expr(low) + ").toUnsigned(32))).toSigned(64)";
+                    case OfInt(value): "(" + expr(value) + ").toSigned(64)";
+                    case GetHigh(value): if (isFpHelperInt64Halves(value)) expr(value) + ".high" else "((" + expr(value)
                             + " >> 32).toSigned(32))";
-                    case "getLow" | "get_low" if (args.length == 1): if (isFpHelperInt64Halves(args[0])) expr(args[0]) + ".low" else "(" + expr(args[0])
+                    case GetLow(value): if (isFpHelperInt64Halves(value)) expr(value) + ".low" else "(" + expr(value)
                             + ").toSigned(32)";
-                    case "add" if (args.length == 2): "(" + expr(args[0]) + " + " + expr(args[1]) + ").toSigned(64)";
-                    case "sub" if (args.length == 2): "(" + expr(args[0]) + " - " + expr(args[1]) + ").toSigned(64)";
-                    case "mul" if (args.length == 2): "(" + expr(args[0]) + " * " + expr(args[1]) + ").toSigned(64)";
-                    case "mulInt" if (args.length == 2): "(" + expr(args[0]) + " * " + expr(args[1]) + ").toSigned(64)";
-                    case "and" if (args.length == 2): "(" + expr(args[0]) + " & " + expr(args[1]) + ").toSigned(64)";
-                    case "or" if (args.length == 2): "(" + expr(args[0]) + " | " + expr(args[1]) + ").toSigned(64)";
-                    case "xor" if (args.length == 2): "(" + expr(args[0]) + " ^ " + expr(args[1]) + ").toSigned(64)";
-                    case "complement" if (args.length == 1): "(~" + expr(args[0]) + ").toSigned(64)";
-                    case "shl" if (args.length == 2): "(" + expr(args[0]) + " << (" + expr(args[1]) + " & 63)).toSigned(64)";
-                    case "shr" if (args.length == 2): "(" + expr(args[0]) + " >> (" + expr(args[1]) + " & 63)).toSigned(64)";
-                    case "ushr" if (args.length == 2): "(" + expr(args[0]) + " >>> (" + expr(args[1]) + " & 63)).toSigned(64)";
-                    case "eq" if (args.length == 2): expr(args[0]) + " == " + expr(args[1]);
-                    case "neq" if (args.length == 2): expr(args[0]) + " != " + expr(args[1]);
-                    case "lt" if (args.length == 2): expr(args[0]) + " < " + expr(args[1]);
-                    case "gt" if (args.length == 2): expr(args[0]) + " > " + expr(args[1]);
-                    case "lte" if (args.length == 2): expr(args[0]) + " <= " + expr(args[1]);
-                    case "gte" if (args.length == 2): expr(args[0]) + " >= " + expr(args[1]);
-                    default: null;
-                }
-            default: null;
+                    case Add(l, r): "(" + expr(l) + " + " + expr(r) + ").toSigned(64)";
+                    case Sub(l, r): "(" + expr(l) + " - " + expr(r) + ").toSigned(64)";
+                    case Mul(l, r): "(" + expr(l) + " * " + expr(r) + ").toSigned(64)";
+                    case MulInt(l, r): "(" + expr(l) + " * " + expr(r) + ").toSigned(64)";
+                    case And(l, r): "(" + expr(l) + " & " + expr(r) + ").toSigned(64)";
+                    case Or(l, r): "(" + expr(l) + " | " + expr(r) + ").toSigned(64)";
+                    case Xor(l, r): "(" + expr(l) + " ^ " + expr(r) + ").toSigned(64)";
+                    case Complement(value): "(~" + expr(value) + ").toSigned(64)";
+                    case Shl(l, r): "(" + expr(l) + " << (" + expr(r) + " & 63)).toSigned(64)";
+                    case Shr(l, r): "(" + expr(l) + " >> (" + expr(r) + " & 63)).toSigned(64)";
+                    case Ushr(l, r): "(" + expr(l) + " >>> (" + expr(r) + " & 63)).toSigned(64)";
+                    case Eq(l, r): expr(l) + " == " + expr(r);
+                    case Neq(l, r): expr(l) + " != " + expr(r);
+                    case Lt(l, r): expr(l) + " < " + expr(r);
+                    case Gt(l, r): expr(l) + " > " + expr(r);
+                    case Lte(l, r): expr(l) + " <= " + expr(r);
+                    case Gte(l, r): expr(l) + " >= " + expr(r);
+            case null: null;
         };
     }
 

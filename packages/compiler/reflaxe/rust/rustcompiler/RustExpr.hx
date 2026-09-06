@@ -13,6 +13,7 @@ import ExpressionPredicates;
 import PolicyQueries;
 import PolicyQueries.IntervalCapability;
 import PolicyQueries.StdStringCategory;
+import PolicyQueries.Int64Op;
 import FusionPlan;
 import FusionPlan.FusionStep;
 import TerminationAnalysis;
@@ -3548,36 +3549,32 @@ class RustExpr {
             return RustConversions.ofInt(expr(e));
         }
 
-        return switch (stripWrap(fn).expr) {
-            case TField(_, FStatic(classRef, fieldRef)) if (classRef.get().module == "haxe.Int64" && classRef.get().name == "Int64_Impl_"):
-                switch (fieldRef.get().name) {
-                    case "make" if (args.length == 2): widenI64(args[0]) + " << 32 | " + widenI64(args[1]);
-                    case "ofInt" if (args.length == 1): signExtendI64(args[0]);
-                    case "getHigh" | "get_high" if (args.length == 1): if (isFpHelperInt64Halves(args[0])) expr(args[0]) + ".high" else
+        return switch (PolicyQueries.int64OpOf(fn, args)) {
+                    case Make(high, low): widenI64(high) + " << 32 | " + widenI64(low);
+                    case OfInt(value): signExtendI64(value);
+                    case GetHigh(value): if (isFpHelperInt64Halves(value)) expr(value) + ".high" else
                             RustConversions.truncate("("
-                            + receiverOperand(args[0]) + " >> 32)", "u32");
-                    case "getLow" | "get_low" if (args.length == 1): if (isFpHelperInt64Halves(args[0])) expr(args[0]) + ".low" else
-                            RustConversions.truncate(expr(args[0]), "u32");
-                    case "add" if (args.length == 2): receiverOperand(args[0]) + ".wrapping_add(" + expr(args[1]) + ")";
-                    case "sub" if (args.length == 2): receiverOperand(args[0]) + ".wrapping_sub(" + expr(args[1]) + ")";
-                    case "mul" if (args.length == 2): "(" + expr(args[0]) + ").wrapping_mul(" + expr(args[1]) + ")";
-                    case "mulInt" if (args.length == 2): "(" + expr(args[0]) + ").wrapping_mul(i64::from(" + expr(args[1]) + "))";
-                    case "and" if (args.length == 2): infixOperand(args[0], 3) + " & " + infixOperand(args[1], 3);
-                    case "or" if (args.length == 2): infixOperand(args[0], 1) + " | " + infixOperand(args[1], 1);
-                    case "xor" if (args.length == 2): infixOperand(args[0], 2) + " ^ " + infixOperand(args[1], 2);
-                    case "complement" if (args.length == 1): "!" + expr(args[0]);
-                    case "shl" if (args.length == 2): receiverOperand(args[0]) + ".wrapping_shl(" + castShiftU32(args[1]) + ")";
-                    case "shr" if (args.length == 2): receiverOperand(args[0]) + ".wrapping_shr(" + castShiftU32(args[1]) + ")";
-                    case "ushr" if (args.length == 2): RustConversions.shrLogicalI64(expr(args[0]), castShiftU32(args[1]));
-                    case "eq" if (args.length == 2): expr(args[0]) + " == " + expr(args[1]);
-                    case "neq" if (args.length == 2): expr(args[0]) + " != " + expr(args[1]);
-                    case "lt" if (args.length == 2): expr(args[0]) + " < " + expr(args[1]);
-                    case "gt" if (args.length == 2): expr(args[0]) + " > " + expr(args[1]);
-                    case "lte" if (args.length == 2): expr(args[0]) + " <= " + expr(args[1]);
-                    case "gte" if (args.length == 2): expr(args[0]) + " >= " + expr(args[1]);
-                    default: null;
-                }
-            default: null;
+                            + receiverOperand(value) + " >> 32)", "u32");
+                    case GetLow(value): if (isFpHelperInt64Halves(value)) expr(value) + ".low" else
+                            RustConversions.truncate(expr(value), "u32");
+                    case Add(l, r): receiverOperand(l) + ".wrapping_add(" + expr(r) + ")";
+                    case Sub(l, r): receiverOperand(l) + ".wrapping_sub(" + expr(r) + ")";
+                    case Mul(l, r): "(" + expr(l) + ").wrapping_mul(" + expr(r) + ")";
+                    case MulInt(l, r): "(" + expr(l) + ").wrapping_mul(i64::from(" + expr(r) + "))";
+                    case And(l, r): infixOperand(l, 3) + " & " + infixOperand(r, 3);
+                    case Or(l, r): infixOperand(l, 1) + " | " + infixOperand(r, 1);
+                    case Xor(l, r): infixOperand(l, 2) + " ^ " + infixOperand(r, 2);
+                    case Complement(value): "!" + expr(value);
+                    case Shl(l, r): receiverOperand(l) + ".wrapping_shl(" + castShiftU32(r) + ")";
+                    case Shr(l, r): receiverOperand(l) + ".wrapping_shr(" + castShiftU32(r) + ")";
+                    case Ushr(l, r): RustConversions.shrLogicalI64(expr(l), castShiftU32(r));
+                    case Eq(l, r): expr(l) + " == " + expr(r);
+                    case Neq(l, r): expr(l) + " != " + expr(r);
+                    case Lt(l, r): expr(l) + " < " + expr(r);
+                    case Gt(l, r): expr(l) + " > " + expr(r);
+                    case Lte(l, r): expr(l) + " <= " + expr(r);
+                    case Gte(l, r): expr(l) + " >= " + expr(r);
+            case null: null;
         };
     }
 

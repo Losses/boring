@@ -23,6 +23,32 @@ enum KeyDomain {
     EnumKey(en:EnumType);
 }
 
+/** Shared classification of haxe.Int64 implementation calls. Each target
+    renders the classified operation its own way. */
+enum Int64Op {
+    Make(high:TypedExpr, low:TypedExpr);
+    OfInt(value:TypedExpr);
+    GetHigh(value:TypedExpr);
+    GetLow(value:TypedExpr);
+    Complement(value:TypedExpr);
+    Add(l:TypedExpr, r:TypedExpr);
+    Sub(l:TypedExpr, r:TypedExpr);
+    Mul(l:TypedExpr, r:TypedExpr);
+    MulInt(l:TypedExpr, r:TypedExpr);
+    And(l:TypedExpr, r:TypedExpr);
+    Or(l:TypedExpr, r:TypedExpr);
+    Xor(l:TypedExpr, r:TypedExpr);
+    Shl(l:TypedExpr, r:TypedExpr);
+    Shr(l:TypedExpr, r:TypedExpr);
+    Ushr(l:TypedExpr, r:TypedExpr);
+    Eq(l:TypedExpr, r:TypedExpr);
+    Neq(l:TypedExpr, r:TypedExpr);
+    Lt(l:TypedExpr, r:TypedExpr);
+    Gt(l:TypedExpr, r:TypedExpr);
+    Lte(l:TypedExpr, r:TypedExpr);
+    Gte(l:TypedExpr, r:TypedExpr);
+}
+
 /** The shared classification of a Std.string operand type. Each target
     renders one category its own way; the arm order below mirrors the
     order the five emitters already share. */
@@ -376,6 +402,45 @@ class PolicyQueries {
                     .module == "haxe.io.FPHelper" && (fieldRef.get().name == "doubleToI64" || fieldRef.get().name == "f32ToI64");
             case _: false;
         };
+    }
+
+    /** Classifies a haxe.Int64 implementation static call once; each
+        target renders the classified operation its own way. Arity
+        mismatches and unknown names return null exactly as the five
+        per-target dispatch tables did. */
+    /** Classifies a haxe.Int64 implementation static call once; each
+        target renders the classified operation its own way. Arity
+        mismatches and unknown names return null exactly as the five
+        per-target dispatch tables did. */
+    public static function int64OpOf(fn:TypedExpr, args:Array<TypedExpr>):Null<Int64Op> {
+        return switch (ExpressionPredicates.stripWrap(fn).expr) {
+            case TField(_, FStatic(classRef, fieldRef)) if (classRef.get().module == "haxe.Int64" && classRef.get().name == "Int64_Impl_"):
+                switch (fieldRef.get().name) {
+                    case "make" if (args.length == 2): Make(args[0], args[1]);
+                    case "ofInt" if (args.length == 1): OfInt(args[0]);
+                    case "getHigh" | "get_high" if (args.length == 1): GetHigh(args[0]);
+                    case "getLow" | "get_low" if (args.length == 1): GetLow(args[0]);
+                    case "complement" if (args.length == 1): Complement(args[0]);
+                    case "add" if (args.length == 2): Add(args[0], args[1]);
+                    case "sub" if (args.length == 2): Sub(args[0], args[1]);
+                    case "mul" if (args.length == 2): Mul(args[0], args[1]);
+                    case "mulInt" if (args.length == 2): MulInt(args[0], args[1]);
+                    case "and" if (args.length == 2): And(args[0], args[1]);
+                    case "or" if (args.length == 2): Or(args[0], args[1]);
+                    case "xor" if (args.length == 2): Xor(args[0], args[1]);
+                    case "shl" if (args.length == 2): Shl(args[0], args[1]);
+                    case "shr" if (args.length == 2): Shr(args[0], args[1]);
+                    case "ushr" if (args.length == 2): Ushr(args[0], args[1]);
+                    case "eq" if (args.length == 2): Eq(args[0], args[1]);
+                    case "neq" if (args.length == 2): Neq(args[0], args[1]);
+                    case "lt" if (args.length == 2): Lt(args[0], args[1]);
+                    case "gt" if (args.length == 2): Gt(args[0], args[1]);
+                    case "lte" if (args.length == 2): Lte(args[0], args[1]);
+                    case "gte" if (args.length == 2): Gte(args[0], args[1]);
+                    default: null;
+                }
+            default: null;
+        }
     }
 
     public static function isHasOwnPropertyValue(e:TypedExpr):Bool {

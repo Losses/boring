@@ -13,6 +13,7 @@ import ExpressionPredicates;
 import PolicyQueries;
 import PolicyQueries.IntervalCapability;
 import PolicyQueries.StdStringCategory;
+import PolicyQueries.Int64Op;
 import FusionPlan;
 import FusionPlan.FusionStep;
 import ValueTypeSupport;
@@ -1495,51 +1496,47 @@ class SwiftExpr {
     }
 
     function int64Call(fn:TypedExpr, args:Array<TypedExpr>):Null<String> {
-        return switch (stripWrap(fn).expr) {
-            case TField(_, FStatic(classRef, fieldRef)) if (classRef.get().module == "haxe.Int64" && classRef.get().name == "Int64_Impl_"):
-                switch (fieldRef.get().name) {
-                    case "make" if (args.length == 2): "Int64(bitPattern: (UInt64(UInt32(bitPattern: "
-                        + expr(args[0])
+        return switch (PolicyQueries.int64OpOf(fn, args)) {
+                    case Make(high, low): "Int64(bitPattern: (UInt64(UInt32(bitPattern: "
+                        + expr(high)
                         + ")) << 32) | UInt64(UInt32(bitPattern: "
-                        + expr(args[1])
+                        + expr(low)
                         + ")))";
-                    case "ofInt" if (args.length == 1): "Int64(" + expr(args[0]) + ")";
-                    case "getHigh" | "get_high" if (args.length == 1): if (isFpHelperInt64Halves(args[0])) expr(args[0]) +
+                    case OfInt(value): "Int64(" + expr(value) + ")";
+                    case GetHigh(value): if (isFpHelperInt64Halves(value)) expr(value) +
                             ".high" else "Int32(truncatingIfNeeded: "
-                            + expr(args[0]) + " >> 32)";
-                    case "getLow" | "get_low" if (args.length == 1): if (isFpHelperInt64Halves(args[0])) expr(args[0]) +
+                            + expr(value) + " >> 32)";
+                    case GetLow(value): if (isFpHelperInt64Halves(value)) expr(value) +
                             ".low" else "Int32(truncatingIfNeeded: "
-                            + expr(args[0]) + ")";
-                    case "add" if (args.length == 2): int64Operand(args[0], OpAdd, false) + " &+ " + int64Operand(args[1], OpAdd, true);
-                    case "sub" if (args.length == 2): int64Operand(args[0], OpSub, false) + " &- " + int64Operand(args[1], OpSub, true);
-                    case "mul" if (args.length == 2): int64Operand(args[0], OpMult, false) + " &* " + int64Operand(args[1], OpMult, true);
-                    case "mulInt" if (args.length == 2): int64Operand(args[0], OpMult, false) + " &* Int64(" + expr(args[1]) + ")";
-                    case "and" if (args.length == 2): int64Operand(args[0], OpAnd, false) + " & " + int64Operand(args[1], OpAnd, true);
-                    case "or" if (args.length == 2): int64Operand(args[0], OpOr, false) + " | " + int64Operand(args[1], OpOr, true);
-                    case "xor" if (args.length == 2): int64Operand(args[0], OpXor, false) + " ^ " + int64Operand(args[1], OpXor, true);
-                    case "complement" if (args.length == 1): "~" + int64Prefixed(args[0]);
-                    case "shl" if (args.length == 2): int64Operand(args[0], OpShl, false)
+                            + expr(value) + ")";
+                    case Add(l, r): int64Operand(l, OpAdd, false) + " &+ " + int64Operand(r, OpAdd, true);
+                    case Sub(l, r): int64Operand(l, OpSub, false) + " &- " + int64Operand(r, OpSub, true);
+                    case Mul(l, r): int64Operand(l, OpMult, false) + " &* " + int64Operand(r, OpMult, true);
+                    case MulInt(l, r): int64Operand(l, OpMult, false) + " &* Int64(" + expr(r) + ")";
+                    case And(l, r): int64Operand(l, OpAnd, false) + " & " + int64Operand(r, OpAnd, true);
+                    case Or(l, r): int64Operand(l, OpOr, false) + " | " + int64Operand(r, OpOr, true);
+                    case Xor(l, r): int64Operand(l, OpXor, false) + " ^ " + int64Operand(r, OpXor, true);
+                    case Complement(value): "~" + int64Prefixed(value);
+                    case Shl(l, r): int64Operand(l, OpShl, false)
                         + " &<< Int64("
-                        + int64Operand(args[1], OpAnd, false)
+                        + int64Operand(r, OpAnd, false)
                         + " & 63)";
-                    case "shr" if (args.length == 2): int64Operand(args[0], OpShr, false)
+                    case Shr(l, r): int64Operand(l, OpShr, false)
                         + " &>> Int64("
-                        + int64Operand(args[1], OpAnd, false)
+                        + int64Operand(r, OpAnd, false)
                         + " & 63)";
-                    case "ushr" if (args.length == 2): "Int64(bitPattern: UInt64(bitPattern: "
-                        + expr(args[0])
+                    case Ushr(l, r): "Int64(bitPattern: UInt64(bitPattern: "
+                        + expr(l)
                         + ") >> UInt64("
-                        + int64Operand(args[1], OpAnd, false)
+                        + int64Operand(r, OpAnd, false)
                         + " & 63))";
-                    case "eq" if (args.length == 2): expr(args[0]) + " == " + expr(args[1]);
-                    case "neq" if (args.length == 2): expr(args[0]) + " != " + expr(args[1]);
-                    case "lt" if (args.length == 2): expr(args[0]) + " < " + expr(args[1]);
-                    case "gt" if (args.length == 2): expr(args[0]) + " > " + expr(args[1]);
-                    case "lte" if (args.length == 2): expr(args[0]) + " <= " + expr(args[1]);
-                    case "gte" if (args.length == 2): expr(args[0]) + " >= " + expr(args[1]);
-                    default: null;
-                }
-            default: null;
+                    case Eq(l, r): expr(l) + " == " + expr(r);
+                    case Neq(l, r): expr(l) + " != " + expr(r);
+                    case Lt(l, r): expr(l) + " < " + expr(r);
+                    case Gt(l, r): expr(l) + " > " + expr(r);
+                    case Lte(l, r): expr(l) + " <= " + expr(r);
+                    case Gte(l, r): expr(l) + " >= " + expr(r);
+            case null: null;
         };
     }
 
