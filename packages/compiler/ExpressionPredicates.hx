@@ -73,6 +73,12 @@ class ExpressionPredicates {
         return found;
     }
 
+    /** Renders the folded writeAscii call for an already-rendered
+        receiver text; asciiFoldWord supplies the folded record. */
+    public static function asciiFoldCallText(subjText:String, folded:{word:Int, method:String, digits:Int}):String {
+        return subjText + "." + folded.method + "(0x" + StringTools.hex(folded.word, folded.digits) + ")";
+    }
+
     public static function asciiFoldWord(name:String, args:Array<TypedExpr>):Null<{word:Int, method:String, digits:Int}> {
         if (name != "writeAscii" || args.length != 1) {
             return null;
