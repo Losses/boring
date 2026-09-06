@@ -231,8 +231,8 @@ class RustExpr {
                 + rustMethodName(methodName)
                 + "("
                 + [for (a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
-            case CStaticCall(fullPath, args):
-                coalescingStaticCallText(fullPath, args, targetType);
+            case CStaticCall(modulePath, className, methodName, args):
+                coalescingStaticCallText(modulePath, className, methodName, args, targetType);
             case CConditional(c, t, f):
                 "if "
                 + coalescingDefaultText(c, targetType)
@@ -247,25 +247,40 @@ class RustExpr {
                 + opStr(op)
                 + " "
                 + coalescingDefaultText(right, targetType);
-            case CConstructorCall(classPath, args):
-                // Constructor parameters render in reference form (a String
-                // parameter is &str), so nested string literal arguments stay
-                // bare; only the top-level default needs the owned form.
-                classPath.split(".").pop() + "::new(" + [for (a in args) coalescingDefaultText(a, targetType, false, true)].join(", ") + ")";
+            case CConstructorCall(modulePath, className, args):
+                imports.requireType(modulePath, className);
+                className
+                + "::new("
+                + completeCoalescingCallArgs(modulePath, "new", args, targetType, true).join(", ")
+                + ")";
         };
         return asOption ? "Some(" + rendered + ")" : rendered;
     }
 
-    function coalescingStaticCallText(path:String, args:Array<DefaultArgExpander.CoalescingDefaultValue>, targetType:Type):String {
-        final rendered = [for (a in args) coalescingDefaultText(a, targetType)].join(", ");
-        if (path == "std.SortedSet.builder") {
-            imports.requireType("runtime.SortedTable", "SortedTable");
-            return "SortedTable::set_builder(" + rendered + ")";
+    /** Explicit arguments plus the callee's omitted-parameter defaults; a rust signature carries no defaults. */
+    function completeCoalescingCallArgs(modulePath:String, fieldName:String, args:Array<DefaultArgExpander.CoalescingDefaultValue>, targetType:Type,
+            nested:Bool = false):Array<String> {
+        final rendered = [for (a in args) coalescingDefaultText(a, targetType, false, nested)];
+        final omitted = DefaultArgExpander.omittedCallDefaults(modulePath, fieldName, args.length);
+        if (omitted != null) {
+            for (o in omitted)
+                rendered.push(coalescingDefaultText(o.value, o.type, false, nested));
         }
-        final parts = path.split(".");
-        return parts.length > 1 ? parts[0] + "::" + RustImports.toSnakeCase(parts[1]) + "(" + rendered + ")" : RustImports.toSnakeCase(path)
+        return rendered;
+    }
+
+    function coalescingStaticCallText(modulePath:String, className:String, methodName:String, args:Array<DefaultArgExpander.CoalescingDefaultValue>,
+            targetType:Type):String {
+        if (modulePath == "std.SortedSet" && methodName == "builder") {
+            imports.requireType("runtime.SortedTable", "SortedTable");
+            return "SortedTable::set_builder(" + [for (a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
+        }
+        imports.requireType(modulePath, className);
+        return className
+            + "::"
+            + RustImports.toSnakeCase(methodName)
             + "("
-            + rendered
+            + completeCoalescingCallArgs(modulePath, methodName, args, targetType).join(", ")
             + ")";
     }
 

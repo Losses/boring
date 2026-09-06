@@ -53,11 +53,18 @@ enum CoalescingDefaultValue {
     CLocalRead(localName:String);
     CFieldAccess(receiver:CoalescingDefaultValue, fieldName:String);
     CMethodCall(receiver:CoalescingDefaultValue, methodName:String, args:Array<CoalescingDefaultValue>);
-    CStaticCall(fullPath:String, args:Array<CoalescingDefaultValue>);
+    CStaticCall(modulePath:String, className:String, methodName:String, args:Array<CoalescingDefaultValue>);
     CConditional(condition:CoalescingDefaultValue, ifTrue:CoalescingDefaultValue, ifFalse:CoalescingDefaultValue);
     CBinaryOp(op:Binop, left:CoalescingDefaultValue, right:CoalescingDefaultValue);
-    CConstructorCall(classPath:String, args:Array<CoalescingDefaultValue>);
+    CConstructorCall(modulePath:String, className:String, args:Array<CoalescingDefaultValue>);
 }
+
+/** A resolved class reference: the class's own module path, its name, and its full type path. */
+typedef ResolvedClassRef = {
+    module:String,
+    name:String,
+    typePath:String
+};
 
 /**
  * Default argument expansion pass per docs/specs/features/22-default-argument-expansion.md.
@@ -249,9 +256,11 @@ class DefaultArgExpander {
         final cur = unwrapExpr(e);
         return switch (cur == null ? null : cur.expr) {
             case ExprDef.ENew(typePath, args):
-                final path = typePath.pack.length == 0 ? typePath.name : typePath.pack.join(".") + "." + typePath.name;
-                if (!isCompiledStaticType(path)) null else validateArgList(args, "", [], [],
-                    classType) == null ? null : CConstructorCall(path, validateArgList(args, "", [], [], classType));
+                final argValues = validateArgList(args, "", [], [], classType);
+                if (argValues == null) null else {
+                    final resolved = resolveClassRef(typePath.pack.length == 0 ? typePath.name : typePath.pack.join(".") + "." + typePath.name);
+                    resolved == null ? null : CConstructorCall(resolved.module, resolved.name, argValues);
+                }
             default: null;
         };
     }
@@ -647,8 +656,11 @@ class DefaultArgExpander {
             switch (cur.expr) {
                 case ExprDef.ENew(typePath, callArgs):
                     final argValues = validateArgList(callArgs, parameterName, earlierNames, allParamNames, classType);
-                    if (argValues != null)
-                        return CConstructorCall(typePath.pack.length == 0 ? typePath.name : typePath.pack.join(".") + "." + typePath.name, argValues);
+                    if (argValues != null) {
+                        final resolved = resolveClassRef(typePath.pack.length == 0 ? typePath.name : typePath.pack.join(".") + "." + typePath.name);
+                        if (resolved != null)
+                            return CConstructorCall(resolved.module, resolved.name, argValues);
+                    }
                 default:
             }
         }
@@ -668,17 +680,19 @@ class DefaultArgExpander {
                                         case ExprDef.EField(innerReceiver, typeName):
                                             // Static call: Outer.Inner.method(args)
                                             final fullTypePath = exprToDotted(innerClassField);
-                                            if (fullTypePath != null && isTypeName(fullTypePath)) {
+                                            final resolvedType = fullTypePath == null ? null : resolveClassRef(fullTypePath);
+                                            if (resolvedType != null) {
                                                 final argValues = validateArgList(callArgs, parameterName, earlierNames, allParamNames, classType);
                                                 if (argValues != null)
-                                                    return CStaticCall(fullTypePath + "." + methodName, argValues);
+                                                    return CStaticCall(resolvedType.module, resolvedType.name, methodName, argValues);
                                             }
                                         case ExprDef.EConst(AstConstant.CIdent(typeName)):
                                             // Static call: ClassName.method(args)
-                                            if (isTypeName(typeName) && isCompiledStaticType(typeName)) {
+                                            final resolvedType = resolveClassRef(typeName);
+                                            if (resolvedType != null) {
                                                 final argValues = validateArgList(callArgs, parameterName, earlierNames, allParamNames, classType);
                                                 if (argValues != null)
-                                                    return CStaticCall(typeName + "." + methodName, argValues);
+                                                    return CStaticCall(resolvedType.module, resolvedType.name, methodName, argValues);
                                             }
                                         default:
                                     }
@@ -697,8 +711,9 @@ class DefaultArgExpander {
                                 // Possible static call: funcName(args)
                                 if (earlierNames.indexOf(funcName) < 0) {
                                     final argValues = validateArgList(callArgs, parameterName, earlierNames, allParamNames, classType);
-                                    if (argValues != null)
-                                        return CStaticCall(classType.name + "." + funcName, argValues);
+                                    if (argValues != null) {
+                                        return CStaticCall(classType.module, classType.name, funcName, argValues);
+                                    }
                                 }
                             default:
                         }
@@ -739,15 +754,50 @@ class DefaultArgExpander {
         return null;
     }
 
-    static function isCompiledStaticType(path:String):Bool {
+    /**
+        Resolves a possibly-unqualified class reference the way the typer
+        would: the bare name, then the local module, the local class
+        package, and each import in scope (the resolveEnum ladder). The
+        module path and the name are kept apart because a module
+        sub-type's module differs from its full type path; printers
+        register imports against the module path.
+    **/
+    static function resolveClassRef(path:String):Null<ResolvedClassRef> {
+        final candidates = [path];
+        final mod = Context.getLocalModule();
+        if (mod != null && mod.length > 0)
+            candidates.push(mod + "." + path);
+        final localClass = Context.getLocalClass();
+        if (localClass != null) {
+            final pack = localClass.get().pack;
+            if (pack.length > 0)
+                candidates.push(pack.join(".") + "." + path);
+        }
         try {
-            switch (Context.getType(path)) {
-                case Type.TInst(ref, _):
-                    return true;
-                default:
-            }
+            final imports = Context.getLocalImports();
+            for (imp in imports)
+                candidates.push([for (p in imp.path) p.name].join(".") + "." + path);
         } catch (_:Dynamic) {}
-        return false;
+        for (candidate in candidates) {
+            try {
+                switch (Context.getType(candidate)) {
+                    case TInst(ref, _):
+                        final cls = ref.get();
+                        final moduleLast = cls.module.split(".").pop();
+                        final prefix = cls.pack.length == 0 ? "" : cls.pack.join(".") + ".";
+                        final typePath = cls.name == moduleLast ? prefix + cls.name : prefix + moduleLast + "." + cls.name;
+                        return {module: cls.module, name: cls.name, typePath: typePath};
+                    default:
+                }
+            } catch (_:Dynamic) {}
+        }
+        return null;
+    }
+
+    /** The fully-qualified type path of a class reference, for inline rendering. */
+    static function normalizeTypePath(path:String):Null<String> {
+        final resolved = resolveClassRef(path);
+        return resolved == null ? null : resolved.typePath;
     }
 
     static function validateArgList(args:Array<Expr>, parameterName:String, earlierNames:Array<String>, allParamNames:Array<String>,
@@ -930,10 +980,10 @@ class DefaultArgExpander {
             case CFieldAccess(CParameterRead(_), ""): false;
             case CFieldAccess(receiver, _): readsParameter(receiver);
             case CMethodCall(receiver, _, args): readsParameter(receiver) || argsHaveParameter(args);
-            case CStaticCall(_, args): argsHaveParameter(args);
+            case CStaticCall(_, _, _, args): argsHaveParameter(args);
             case CConditional(c, t, f): readsParameter(c) || readsParameter(t) || readsParameter(f);
             case CBinaryOp(_, l, r): readsParameter(l) || readsParameter(r);
-            case CConstructorCall(_, args): argsHaveParameter(args);
+            case CConstructorCall(_, _, args): argsHaveParameter(args);
             default: false;
         };
     }
@@ -1023,7 +1073,7 @@ class DefaultArgExpander {
                 collectParameterReadNames(receiver, out);
                 for (arg in args)
                     collectParameterReadNames(arg, out);
-            case CStaticCall(_, args):
+            case CStaticCall(_, _, _, args):
                 for (arg in args)
                     collectParameterReadNames(arg, out);
             case CConditional(condition, ifTrue, ifFalse):
@@ -1033,7 +1083,7 @@ class DefaultArgExpander {
             case CBinaryOp(_, left, right):
                 collectParameterReadNames(left, out);
                 collectParameterReadNames(right, out);
-            case CConstructorCall(_, args):
+            case CConstructorCall(_, _, args):
                 for (arg in args)
                     collectParameterReadNames(arg, out);
             default:
@@ -1457,6 +1507,72 @@ class DefaultArgExpander {
             case VCoalescing(value): value;
             default: null;
         };
+    }
+
+    /** The coalescing form of a registered default; constants convert, a coalescing value unwraps. */
+    public static function coalescingOf(value:DefaultArgValue):CoalescingDefaultValue {
+        return switch (value) {
+            case VInt(v): CInt(v);
+            case VFloat(s): CFloat(s);
+            case VString(s): CString(s);
+            case VBool(b): CBool(b);
+            case VNull: CNull;
+            case VEnum(enumRef, enumField): CEnum(enumRef, enumField);
+            case VCoalescing(coalescing): coalescing;
+        };
+    }
+
+    /**
+        Defaults a call into `modulePath` must materialize for parameters
+        omitted after `explicitCount` rendered arguments. Targets whose
+        signatures carry no defaults render every argument, so the callee's
+        registered defaults complete the call. Returns null when the callee,
+        its signature, or any omitted parameter's default is unavailable.
+    **/
+    public static function omittedCallDefaults(modulePath:String, fieldName:String, explicitCount:Int):Null<Array<{value:CoalescingDefaultValue, type:Type}>> {
+        if (modulePath == null || modulePath.length == 0 || explicitCount < 0)
+            return null;
+        var cls:Null<ClassType> = null;
+        try {
+            switch (Context.getType(modulePath)) {
+                case TInst(ref, _):
+                    cls = ref.get();
+                default:
+                    return null;
+            }
+        } catch (_:Dynamic) {
+            return null;
+        }
+        var funType:Null<Type> = null;
+        if (fieldName == "new") {
+            if (cls.constructor != null)
+                funType = cls.constructor.get().type;
+            else if (cls.init != null)
+                funType = cls.init.t;
+        } else {
+            for (f in cls.statics.get()) {
+                if (f.name == fieldName) {
+                    funType = f.type;
+                    break;
+                }
+            }
+        }
+        if (funType == null)
+            return null;
+        final args = switch (Context.follow(funType)) {
+            case TFun(values, _): values;
+            default: return null;
+        };
+        if (explicitCount >= args.length)
+            return null;
+        final out:Array<{value:CoalescingDefaultValue, type:Type}> = [];
+        for (i in explicitCount...args.length) {
+            final d = defaultAt(cls, fieldName, i);
+            if (d == null)
+                return null;
+            out.push({value: coalescingOf(d), type: args[i].t});
+        }
+        return out;
     }
 
     public static function defaultParameterType(value:DefaultArgValue, t:Type):Type {
