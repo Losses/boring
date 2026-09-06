@@ -2517,7 +2517,7 @@ class DartExpr {
         if (folded == null) {
             return null;
         }
-        return expr(subj) + "." + folded.method + "(0x" + StringTools.hex(folded.word, folded.digits) + ")";
+        return ExpressionPredicates.asciiFoldCallText(expr(subj), folded);
     }
 
     /** A variant construct renders as its generated subclass constructor, arguments positional. */
@@ -2961,7 +2961,7 @@ class DartExpr {
 
     function freshTailName():String {
         stringBufTailCounter += 1;
-        return stringBufTailCounter == 1 ? "tail" : "tail" + stringBufTailCounter;
+        return PolicyQueries.freshTailName(stringBufTailCounter);
     }
 
     /** The trailing-unit read every check opens with. */

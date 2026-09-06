@@ -2655,7 +2655,7 @@ class SwiftExpr {
         if (folded == null) {
             return null;
         }
-        return expr(subj) + "." + folded.method + "(0x" + StringTools.hex(folded.word, folded.digits) + ")";
+        return ExpressionPredicates.asciiFoldCallText(expr(subj), folded);
     }
 
     /** A variant construct renders fully qualified; labels carry the payload names. */
@@ -3150,7 +3150,7 @@ class SwiftExpr {
 
     function freshTailName():String {
         stringBufTailCounter += 1;
-        return stringBufTailCounter == 1 ? "tail" : "tail" + stringBufTailCounter;
+        return PolicyQueries.freshTailName(stringBufTailCounter);
     }
 
     /** The trailing-unit read every check opens with. */
