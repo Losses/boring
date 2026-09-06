@@ -55,9 +55,12 @@ test("payload enums are rejected as sorted keys", async () => {
     "import std.SortedSet;",
     "enum PayloadTier { Heavy(weight:Int); }",
     "class NegativePayloadKeys {",
-    "    static final bad:SortedSetBuilder<PayloadTier> = SortedSet.builder();",
-    "    static final used:Void = bad.put(Heavy(1));",
-    "    public static function main():Void {}",
+    "    public static function main():Void { trace(trigger()); }",
+    "    static function trigger():Int {",
+    "        final b:SortedSetBuilder<PayloadTier> = SortedSet.builder();",
+    "        b.put(Heavy(1));",
+    "        return b.build().size();",
+    "    }",
     "}",
   ].join("\n"));
   const proc = Bun.spawn(["haxe", "examples/ts.hxml", "-cp", tmp, "-main", "boring.NegativePayloadKeys", "--macro", "haxe.macro.Compiler.keep('boring.NegativePayloadKeys')"], {
