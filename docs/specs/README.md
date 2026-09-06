@@ -114,6 +114,9 @@ Every candidate translation is evaluated across four fixed axes:
 | 12 | [12-std-string.md](stdlib/12-std-string.md) | Complete | Std.string: call-site conversion of scalars, value enumerations, and arrays of them on the five targets, inside concatenation and standalone. |
 | 13 | [13-stringtools-conversions.md](stdlib/13-stringtools-conversions.md) | Planned | `StringTools.hex` and the String case conversions on the five targets: call-site native expressions, padding, and the non-negative domain error. |
 | 14 | [14-number-parsing.md](stdlib/14-number-parsing.md) | Planned | Complete-token `Std.parseFloat`, `Std.parseInt`, `Math.isNaN`, and `Math.isFinite` across ts, kotlin, swift, dart, and rust. |
+| 15 | [15-string-unit-operations.md](stdlib/15-string-unit-operations.md) | Planned | UTF-16 code-unit semantics for `String.length`, `charCodeAt`, and `split` across all five targets. |
+| 16 | [16-dataclass-sorted-keys.md](stdlib/16-dataclass-sorted-keys.md) | Planned | Lexicographic ordering and comparator eligibility for `@:dataClass` keys in sorted collections. |
+| 17 | [17-platform-modules.md](stdlib/17-platform-modules.md) | Planned | Host-backed filesystem, environment, process-argument, and path module routing on each target. |
 | 18 | [18-non-null-require.md](stdlib/18-non-null-require.md) | Complete | Narrowed Std.string operands: the member synthesis renders nullable fields through its null comparison with the target's non-null assertion. |
 
 ### Style specifications
