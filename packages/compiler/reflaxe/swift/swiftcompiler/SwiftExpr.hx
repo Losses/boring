@@ -85,9 +85,7 @@ class SwiftExpr {
     final usedNames:Map<String, Bool> = [];
 
     /** Active runtime renderers for cyclic enum stringification. */
-    final enumStringHelpers:Map<String, String> = [];
-
-    var enumStringHelperCounter:Int = 0;
+    final enumStringNaming:EnumStringHelperNaming = new EnumStringHelperNaming();
 
     /** Catch variables in scope, keyed by TVar id (features/06). */
     final catchVars:Map<Int, Bool> = [];
@@ -1867,14 +1865,12 @@ class SwiftExpr {
     }
 
     function cyclicEnumString(en:EnumType, value:String, inConcat:Bool, origin:TypedExpr):String {
-        final key = en.module + ":" + en.name;
-        final existing = enumStringHelpers.get(key);
+        final existing = enumStringNaming.existing(en);
         if (existing != null)
             return existing + "(" + value + ")";
-        final name = "stdString" + en.name + enumStringHelperCounter++;
-        enumStringHelpers.set(key, name);
+        final name = enumStringNaming.open(en, "stdString" + en.name);
         final body = enumLabeledText(en, "v", origin);
-        enumStringHelpers.remove(key);
+        enumStringNaming.close(en);
         return "{ () -> String in func "
             + name
             + "(_ v: "
@@ -1931,11 +1927,9 @@ class SwiftExpr {
     }
 
     function stringToolsHex(args:Array<TypedExpr>):String {
-        final value = args[0];
-        final digits = args.length > 1 && !isNullExpr(args[1]) ? args[1] : null;
-        if (isNegativeIntLiteral(value) || (digits != null && isNegativeIntLiteral(digits))) {
-            Context.error("StringTools.hex accepts non-negative arguments only", value.pos);
-        }
+        final validated = PolicyQueries.stringToolsHexArgs(args);
+        final value = validated.value;
+        final digits = validated.digits;
         final valueText = expr(value);
         // `hex` reads its argument as u32; a negative Int32 crosses
         // through the bit-pattern initializer to keep its bit pattern.

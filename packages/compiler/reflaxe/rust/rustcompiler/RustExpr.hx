@@ -56,9 +56,7 @@ class RustExpr {
     final usedNames:Map<String, Bool> = [];
 
     /** Active runtime renderers for cyclic enum stringification. */
-    final enumStringHelpers:Map<String, String> = [];
-
-    var enumStringHelperCounter:Int = 0;
+    final enumStringNaming:EnumStringHelperNaming = new EnumStringHelperNaming();
 
     final hiddenNames:Map<Int, String> = [];
     final rangeLoopVars:Map<Int, Bool> = [];
@@ -4129,14 +4127,12 @@ class RustExpr {
     }
 
     function cyclicEnumString(en:EnumType, value:String, inConcat:Bool, origin:TypedExpr):String {
-        final key = en.module + ":" + en.name;
-        final existing = enumStringHelpers.get(key);
+        final existing = enumStringNaming.existing(en);
         if (existing != null)
             return existing + "(&" + value + ")";
-        final name = RustImports.toSnakeCase("stdString" + en.name) + enumStringHelperCounter++;
-        enumStringHelpers.set(key, name);
+        final name = enumStringNaming.open(en, RustImports.toSnakeCase("stdString" + en.name));
         final body = payloadEnumString(en, "v", false, origin);
-        enumStringHelpers.remove(key);
+        enumStringNaming.close(en);
         return "{ fn " + name + "(v: &" + en.name + ") -> String { " + body + " } " + name + "(&" + value + ") }";
     }
 
@@ -4171,11 +4167,9 @@ class RustExpr {
     }
 
     function stringToolsHex(args:Array<TypedExpr>):String {
-        final value = args[0];
-        final digits = args.length > 1 && !isTNull(args[1]) ? args[1] : null;
-        if (isNegativeIntLiteral(value) || (digits != null && isNegativeIntLiteral(digits))) {
-            Context.error("StringTools.hex accepts non-negative arguments only", value.pos);
-        }
+        final validated = PolicyQueries.stringToolsHexArgs(args);
+        final value = validated.value;
+        final digits = validated.digits;
         final valueText = expr(value);
         if (digits == null) {
             return "format!(\"{:X}\", " + valueText + ")";
