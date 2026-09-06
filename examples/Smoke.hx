@@ -4,5 +4,5 @@
  * part of the codec test suites.
  */
 class Smoke {
-	static function main() {}
+    static function main() {}
 }
