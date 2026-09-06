@@ -55,7 +55,34 @@ class Main {
             }
             allowlist.set(entry.mechanism, true);
         }
-        final mechanisms = ["ComparatorPlan", "DataTableHelper", "DataTables", "DefaultArgExpander", "EnumCycleDetector", "EnumQueryExpander", "ExpressionPredicates", "FloatPrecision", "FusionPlan", "Intercept", "NameConversion", "PackageArtifacts", "PackageShell", "PipelineExpander", "PolicyQueries", "RuntimeConfig", "RuntimeResidents", "SealedVariantHelper", "StaticFieldHelper", "StaticFunctionMarkers", "StaticReferenceScan", "StructuralKeyValidator", "TerminationAnalysis", "TestCollector", "TypeCheckHelper", "ValueTypeSupport"];
+        final mechanisms = [
+            "ComparatorPlan",
+            "DataTableHelper",
+            "DataTables",
+            "DefaultArgExpander",
+            "EnumCycleDetector",
+            "EnumQueryExpander",
+            "ExpressionPredicates",
+            "FloatPrecision",
+            "FusionPlan",
+            "Intercept",
+            "NameConversion",
+            "PackageArtifacts",
+            "PackageShell",
+            "PipelineExpander",
+            "PolicyQueries",
+            "RuntimeConfig",
+            "RuntimeResidents",
+            "SealedVariantHelper",
+            "StaticFieldHelper",
+            "StaticFunctionMarkers",
+            "StaticReferenceScan",
+            "StructuralKeyValidator",
+            "TerminationAnalysis",
+            "TestCollector",
+            "TypeCheckHelper",
+            "ValueTypeSupport"
+        ];
         final coveredByName = new Map<String, Bool>();
         for (entry in covered)
             coveredByName.set(entry.mechanism, true);
