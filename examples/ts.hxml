@@ -205,6 +205,8 @@ tests.NoSuchElementTests
 tests.PosterShapeTests
 tests.ShapeTextTests
 tests.StringToolsTests
+boring.PublicGetterProperty
+tests.PublicGetterPropertyTests
 tests.RustUnionFaultTests
 tests.PlatformModulesTestSupport
 tests.PlatformModulesTests
