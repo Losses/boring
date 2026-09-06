@@ -74,6 +74,22 @@ enum StdStringCategory {
 
 /** Shared policy queries for declaration and field-key decisions. */
 class PolicyQueries {
+    /** Hop count up the super chain to haxe.Exception; 0 when the chain does not reach it. */
+    public static function exceptionDepth(cls:ClassType):Int {
+        var depth = 0;
+        var current = cls;
+        while (current.superClass != null) {
+            final parent = current.superClass.t.get();
+            final parentPath = parent.pack.length == 0 ? parent.name : parent.pack.join(".") + "." + parent.name;
+            if (parentPath == "haxe.Exception") {
+                return depth + 1;
+            }
+            depth += 1;
+            current = parent;
+        }
+        return 0;
+    }
+
     /** Tail-name scheme shared by the StringBuf trailing-unit checks
         (stdlib/08): the first probe reads `tail`, later probes append
         their ordinal. */
