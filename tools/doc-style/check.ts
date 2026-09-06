@@ -8,8 +8,11 @@
  * decorative adjectives.
  *
  * Usage:
- *     bun tools/doc-style/check.ts            # scan documents and comments
- *     bun tools/doc-style/check.ts FILE ...   # scan specific files or dirs
+ *     bun tools/doc-style/check.ts              # scan documents and comments
+ *     bun tools/doc-style/check.ts FILE ...     # scan specific files or dirs
+ *     bun tools/doc-style/check.ts --text "..." # scan text directly
+ *     bun tools/doc-style/check.ts --file FILE  # scan a file directly as text
+ *     bun tools/doc-style/check.ts --stdin      # scan text from stdin
  *
  * Exit status: 0 when no hits remain, 1 when hits remain after the allowlist.
  * Each hit is a candidate that requires manual judgment and may be accepted.
@@ -557,8 +560,47 @@ async function scanTargetDir(cwd: string): Promise<string[]> {
   return entries;
 }
 
+export type CliOptions = {
+  readonly text?: string;
+  readonly file?: string;
+  readonly stdin: boolean;
+  readonly paths: ReadonlyArray<string>;
+};
+
+export function parseCliArgs(args: ReadonlyArray<string>): CliOptions {
+  const paths: string[] = [];
+  let text: string | undefined;
+  let file: string | undefined;
+  let stdin = false;
+  let index = 0;
+  while (index < args.length) {
+    const arg = args[index];
+    if (arg === undefined) break;
+    if (arg === "--text" || arg === "-t") {
+      index += 1;
+      const next = args[index];
+      if (next !== undefined) {
+        text = text === undefined ? next : `${text}\n${next}`;
+      }
+    } else if (arg === "--file" || arg === "-f") {
+      index += 1;
+      const next = args[index];
+      if (next !== undefined) {
+        file = next;
+      }
+    } else if (arg === "--stdin") {
+      stdin = true;
+    } else {
+      paths.push(arg);
+    }
+    index += 1;
+  }
+  return { text, file, stdin, paths };
+}
+
 export async function readTargets(args: ReadonlyArray<string>): Promise<ReadonlyArray<TargetFile>> {
   const targets: string[] = [];
+  const explicitFiles: string[] = [];
   if (args.length > 0) {
     for (const arg of args) {
       const path = resolve(arg);
@@ -568,7 +610,7 @@ export async function readTargets(args: ReadonlyArray<string>): Promise<Readonly
         if (stat.isDirectory()) {
           targets.push(...(await scanTargetDir(path)));
         } else {
-          targets.push(path);
+          explicitFiles.push(path);
         }
       } catch {
         console.error(`skip ${path}: file not found`);
@@ -583,6 +625,9 @@ export async function readTargets(args: ReadonlyArray<string>): Promise<Readonly
     if (extension !== MARKDOWN_EXTENSION && !SOURCE_EXTENSIONS.has(extension)) continue;
     readable.push({ path, text: await Bun.file(path).text() });
   }
+  for (const path of [...new Set(explicitFiles)].sort()) {
+    readable.push({ path, text: await Bun.file(path).text() });
+  }
   return readable;
 }
 
@@ -592,16 +637,41 @@ function shownPath(path: string): string {
 }
 
 export async function main(args: ReadonlyArray<string>): Promise<number> {
+  const options = parseCliArgs(args);
   const hits: StyleHit[] = [];
-  for (const target of await readTargets(args)) {
-    const extension = extname(target.path);
-    const text = extension === MARKDOWN_EXTENSION
-      ? target.text
-      : extractComments(target.text, extension);
-    for (const hit of scanText(text, shownPath(target.path))) {
+
+  if (options.text !== undefined) {
+    for (const hit of scanText(options.text, "<text>")) {
       hits.push(hit);
     }
+  } else if (options.file !== undefined) {
+    const path = resolve(options.file);
+    try {
+      const content = await Bun.file(path).text();
+      for (const hit of scanText(content, shownPath(path))) {
+        hits.push(hit);
+      }
+    } catch {
+      console.error(`cannot read ${path}: file not found`);
+      return 2;
+    }
+  } else if (options.stdin) {
+    const content = await Bun.stdin.text();
+    for (const hit of scanText(content, "<stdin>")) {
+      hits.push(hit);
+    }
+  } else {
+    for (const target of await readTargets(options.paths)) {
+      const extension = extname(target.path);
+      const text = SOURCE_EXTENSIONS.has(extension)
+        ? extractComments(target.text, extension)
+        : target.text;
+      for (const hit of scanText(text, shownPath(target.path))) {
+        hits.push(hit);
+      }
+    }
   }
+
   for (const hit of hits) {
     console.log(`${hit.file}:${hit.line}: [${hit.tag}] ${hit.token}: ${hit.text}`);
   }

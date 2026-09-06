@@ -56,6 +56,39 @@ describe("validateCommitMessage", () => {
     expect(rules(`${base}\n\nCo-Authored-By: someone`)).toContain("coauthor-ban");
     expect(rules(`${base}\n\nco-authored-by: someone`)).toContain("coauthor-ban");
     expect(rules(`${base}\n\n  CO-AUTHORED-BY : someone`)).toContain("coauthor-ban");
+    expect(rules(`${base}\n\nCo-Author: someone`)).toContain("coauthor-ban");
+    expect(rules(`${base}\n\nCoAuth: someone`)).toContain("coauthor-ban");
+    expect(rules(`${base}\n\ncoauthor: someone`)).toContain("coauthor-ban");
+    expect(rules(`feat: add writer (co-author: someone)`)).toContain("coauthor-ban");
+  });
+
+  test("rejects style violations in the header title", () => {
+    expect(rules("feat(codec): robust f64 writer")).toContain("style-adjective");
+    expect(rules("feat: unlock cache performance")).toContain("style-jargon");
+    expect(rules("fix(ts): shoehorn error type")).toContain("style-metaphor");
+  });
+
+  test("rejects style violations in the commit body", () => {
+    const message = [
+      "feat(codec): add writer",
+      "",
+      "This is not a reader but a writer.",
+    ].join("\n");
+    expect(rules(message)).toContain("style-contrast");
+
+    const messageFiller = [
+      "feat(codec): add writer",
+      "",
+      "In other words, the record stays 44 bytes.",
+    ].join("\n");
+    expect(rules(messageFiller)).toContain("style-ai-filler");
+
+    const messageDash = [
+      "feat(codec): add writer",
+      "",
+      "The codec—when verified—passes tests.",
+    ].join("\n");
+    expect(rules(messageDash)).toContain("style-em-dash");
   });
 
   test("rejects a malformed footer line", () => {
