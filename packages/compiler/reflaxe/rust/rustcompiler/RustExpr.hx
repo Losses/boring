@@ -3956,6 +3956,14 @@ class RustExpr {
     }
 
     function stdString(arg:TypedExpr, inConcat:Bool):String {
+        final fromSource = PolicyQueries.inSourceScope(arg.pos);
+        final nullable = PolicyQueries.isNullableType(arg.t);
+        if (fromSource && nullable) {
+            Context.error("Std.string does not accept Null<T> operands; compare against null first", arg.pos);
+        }
+        // A synthesized nullable operand narrows structurally inside
+        // stdStringType (the Null match form); an assertion here would
+        // strip the Option before that match and break its typing.
         return stdStringType(arg.t, expr(arg), inConcat, arg);
     }
 
