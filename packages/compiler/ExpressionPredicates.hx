@@ -12,6 +12,13 @@ class ExpressionPredicates {
         };
     }
 
+    public static function stripParentheses(e:TypedExpr):TypedExpr {
+        return switch (e.expr) {
+            case TParenthesis(inner): stripParentheses(inner);
+            case _: e;
+        };
+    }
+
     public static function stripCast(e:TypedExpr):TypedExpr {
         return switch (e.expr) {
             case TCast(inner, _): stripCast(inner);
