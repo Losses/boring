@@ -158,5 +158,66 @@ class PolicyQueries {
             return false;
         return hasInstanceToString(cls.superClass.t.get());
     }
+
+    public static function indexedStoreOf(s:TypedExpr):Null<{arr:TVar, idx:TVar, value:TypedExpr}> {
+        switch (ExpressionPredicates.stripWrap(s).expr) {
+            case TBinop(OpAssign, target, value):
+                switch (ExpressionPredicates.stripWrap(target).expr) {
+                    case TArray(arr, idx):
+                        final arrLocal = ExpressionPredicates.stripWrap(arr);
+                        final idxLocal = ExpressionPredicates.stripWrap(idx);
+                        switch [arrLocal.expr, idxLocal.expr] {
+                            case [TLocal(a), TLocal(ix)]: return {arr: a, idx: ix, value: value};
+                            case _:
+                        }
+                    case _:
+                }
+            case _:
+        }
+        return null;
+    }
+
+    public static function inSourceScope(pos:haxe.macro.Expr.Position):Bool {
+        final file = Context.getPosInfos(pos).file;
+        for (root in Intercept.sourceRoots()) {
+            final prefix = root.charAt(root.length - 1) == "/" ? root : root + "/";
+            if (StringTools.startsWith(file, prefix) || StringTools.startsWith(file, "./" + prefix) || file.indexOf("/" + prefix) >= 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public static function isFpHelperInt64Call(fn:TypedExpr):Bool {
+        return switch (ExpressionPredicates.stripWrap(fn).expr) {
+            case TField(_, FStatic(classRef, fieldRef)): classRef.get()
+                    .module == "haxe.io.FPHelper" && (fieldRef.get().name == "doubleToI64" || fieldRef.get().name == "f32ToI64");
+            case _: false;
+        };
+    }
+
+    public static function isHasOwnPropertyValue(e:TypedExpr):Bool {
+        return switch (ExpressionPredicates.stripWrap(e).expr) {
+            case TField(_, FInstance(_, _, cf)) | TField(_, FAnon(cf)) if (cf.get().name == "hasOwnProperty"): true;
+            case _: false;
+        };
+    }
+
+    public static function mapAssignment(e:TypedExpr):Null<{receiver:TypedExpr, key:TypedExpr}> {
+        return switch (ExpressionPredicates.stripWrap(e).expr) {
+            case TArray(arr, key):
+                final receiver = mapBackingReceiver(arr);
+                receiver == null ? null : {receiver: receiver, key: key};
+            case _: null;
+        };
+    }
+
+    public static function mapBackingReceiver(e:TypedExpr):Null<TypedExpr> {
+        return switch (ExpressionPredicates.stripWrap(e).expr) {
+            case TField(receiver, FInstance(_, _, cf)) if (cf.get().name == "h" && isMapBackingType(receiver.t)): receiver;
+            case TField(receiver, FAnon(cf)) if (cf.get().name == "h" && isMapBackingType(receiver.t)): receiver;
+            case _: null;
+        };
+    }
 }
 #end
