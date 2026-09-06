@@ -47,4 +47,18 @@ class MathMinMaxTests {
     public static function powInt():Void {
         Test.equals(9.0, MathMinMaxOps.powerOfInts(3, 2));
     }
+
+    @:test("Math.round returns the nearest integer as an int")
+    public static function roundFloat():Void {
+        Test.equals(3, MathMinMaxOps.rounded(2.5));
+        Test.equals(2, MathMinMaxOps.rounded(2.4));
+        Test.equals(0, MathMinMaxOps.rounded(0.4));
+    }
+
+    @:test("Math.floor rounds down and Math.ceil rounds up as ints")
+    public static function floorCeil():Void {
+        Test.equals(2, MathMinMaxOps.floored(2.7));
+        Test.equals(3, MathMinMaxOps.ceiled(2.1));
+        Test.equals(0, MathMinMaxOps.floored(0.4));
+    }
 }
