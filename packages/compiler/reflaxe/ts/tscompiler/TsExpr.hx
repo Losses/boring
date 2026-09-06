@@ -1168,19 +1168,7 @@ class TsExpr {
 
     /** `arr.push(arg)` matcher, wrapper-tolerant. */
     function pushOf(s:TypedExpr):Null<{arr:TVar, arg:TypedExpr}> {
-        switch (stripWrap(s).expr) {
-            case TCall(fn, args) if (args.length == 1):
-                switch (stripWrap(fn).expr) {
-                    case TField(subj, fa) if (fieldName(fa) == "push"):
-                        switch (stripWrap(subj).expr) {
-                            case TLocal(a): return {arr: a, arg: args[0]};
-                            case _:
-                        }
-                    case _:
-                }
-            case _:
-        }
-        return null;
+        return PolicyQueries.pushOf(s);
     }
 
     // ------------------------------------------------------------------
@@ -1318,17 +1306,7 @@ class TsExpr {
     }
 
     function valueTypeLocalValues(wrapper:TypedExpr):Map<Int, TypedExpr> {
-        final values:Map<Int, TypedExpr> = [];
-        switch (wrapper.expr) {
-            case TBlock(stmts):
-                for (stmt in stmts)
-                    switch (stmt.expr) {
-                        case TVar(v, init) if (init != null && !StringTools.startsWith(v.name, "this")): values.set(v.id, init);
-                        case _:
-                    }
-            case _:
-        }
-        return values;
+        return PolicyQueries.valueTypeLocalValues(wrapper);
     }
 
     function valueTypeOperand(value:TypedExpr, locals:Map<Int, TypedExpr>):String {
@@ -1829,10 +1807,7 @@ class TsExpr {
     }
 
     function stdStringArg(e:TypedExpr):Null<TypedExpr> {
-        return switch (stripWrap(e).expr) {
-            case TCall({expr: TField(_, FStatic(c, cf))}, args) if (c.get().module == "Std" && cf.get().name == "string" && args.length == 1): args[0];
-            case _: null;
-        };
+        return PolicyQueries.stdStringArg(e);
     }
 
     function stringToolsHex(args:Array<TypedExpr>):String {
@@ -2667,11 +2642,7 @@ class TsExpr {
         lower at statement, binding, or return position only.
     **/
     function stringBufMutationParts(fn:TypedExpr):Null<{name:String, subj:TypedExpr}> {
-        return switch (fn.expr) {
-            case TField(subj, FInstance(_, _, cf)) if (isStringBuf(subj)): final n = cf.get()
-                    .name; n == "add" || n == "addChar" ? {name: n, subj: subj} : null;
-            case _: null;
-        };
+        return PolicyQueries.stringBufMutationParts(fn);
     }
 
     function isStringBufToStringCall(e:Null<TypedExpr>):Bool {
@@ -3061,17 +3032,7 @@ class TsExpr {
     }
 
     function mentionsLocal(e:TypedExpr, v:TVar):Bool {
-        var found = false;
-        function walk(x:TypedExpr) {
-            switch (x.expr) {
-                case TLocal(l) if (l.id == v.id):
-                    found = true;
-                case _:
-            }
-            TypedExprTools.iter(x, walk);
-        }
-        walk(e);
-        return found;
+        return PolicyQueries.mentionsLocal(e, v);
     }
 
     function localName(v:TVar):String {
@@ -3189,13 +3150,7 @@ class TsExpr {
     }
 
     function unwrapLambda(e:TypedExpr):Null<TFunc> {
-        if (e == null)
-            return null;
-        return switch (e.expr) {
-            case TFunction(f): f;
-            case TParenthesis(inner) | TCast(inner, _) | TMeta(_, inner): unwrapLambda(inner);
-            case _: null;
-        };
+        return PolicyQueries.unwrapLambda(e);
     }
 
     function lambdaBody(e:TypedExpr):TypedExpr {

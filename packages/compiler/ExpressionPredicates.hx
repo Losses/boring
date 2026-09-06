@@ -1,10 +1,11 @@
 #if (macro || reflaxe_runtime)
+import haxe.macro.Type.FieldAccess;
 import haxe.macro.Type.TypedExpr;
 import haxe.macro.TypedExprTools;
 
 /** Shared expression predicates and constant analyses. */
 class ExpressionPredicates {
-    static function stripWrap(e:TypedExpr):TypedExpr {
+    public static function stripWrap(e:TypedExpr):TypedExpr {
         return switch (e.expr) {
             case TParenthesis(inner) | TCast(inner, _) | TMeta(_, inner): stripWrap(inner);
             case _: e;
@@ -16,6 +17,17 @@ class ExpressionPredicates {
             case TCast(inner, _): stripCast(inner);
             case _: e;
         };
+    }
+
+    public static function fieldName(fa:FieldAccess):String {
+        return switch (fa) {
+            case FInstance(_, _, cf): cf.get().name;
+            case FStatic(_, cf): cf.get().name;
+            case FAnon(cf): cf.get().name;
+            case FDynamic(n): n;
+            case FClosure(_, cf): cf.get().name;
+            case FEnum(_, ef): ef.name;
+        }
     }
 
     public static function isNegativeIntLiteral(e:TypedExpr):Bool {
