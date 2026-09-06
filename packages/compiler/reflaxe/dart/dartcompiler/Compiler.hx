@@ -320,6 +320,9 @@ class Compiler extends PluginCompiler<Compiler> {
 
         final dartOutput = Context.definedValue("dart-output");
         final testOutput = Context.definedValue("dart-test-output");
+        if (testOutput == null) {
+            Context.error("The dartcompiler.Compiler compiler is enabled; however, the test output directory (-D dart-test-output) is not defined.", Context.currentPos());
+        }
         final testRel = relativeFromTo(dartOutput, testOutput);
 
         for (module in modules) {
