@@ -10,6 +10,7 @@ import haxe.macro.Type.TypedExpr;
 import haxe.macro.TypedExprTools;
 import reflaxe.data.ClassFuncData;
 import ExpressionPredicates;
+import PolicyQueries;
 import TerminationAnalysis;
 import ValueTypeSupport;
 import ValueTypeSupport.ValueTypeOperator;
@@ -3792,12 +3793,7 @@ class RustExpr {
     }
 
     function isFunctionType(t:Null<Type>):Bool {
-        if (t == null)
-            return false;
-        return switch (Context.follow(t)) {
-            case TFun(_, _): true;
-            case _: false;
-        };
+        return PolicyQueries.isFunctionType(t);
     }
 
     function staticFunctionName(name:String):String {
