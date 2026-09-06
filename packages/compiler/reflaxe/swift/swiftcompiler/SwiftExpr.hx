@@ -387,7 +387,11 @@ class SwiftExpr {
             for (l in stmtLines(stmts[superIdx], 2))
                 out.push(l);
         } else if (isException) {
-            out.push(indent(2) + "super.init(message: \"\")");
+            if (SwiftDecl.exceptionDepth(cls) >= 2) {
+                out.push(indent(2) + "super.init()");
+            } else {
+                out.push(indent(2) + "super.init(message: \"\")");
+            }
         }
         return out;
     }
@@ -2312,7 +2316,15 @@ class SwiftExpr {
             case TField(_, FEnum(en, ef)):
                 return enumConstruct(en.get().name, ef, args);
             case TConst(TSuper):
-                // The exception base initializes through its message.
+                // The exception base initializes through its message; a
+                // deeper exception subclass calls its parent class's own
+                // init, whose parameters carry no label.
+                if (currentClass != null && SwiftDecl.exceptionDepth(currentClass) >= 2) {
+                    if (args.length == 0) {
+                        return "super.init()";
+                    }
+                    return "super.init(" + rendered + ")";
+                }
                 if (args.length == 0) {
                     return "super.init(message: \"\")";
                 }
