@@ -83,9 +83,52 @@ class PolicyQueries {
         return StringTools.endsWith(name, "_Impl_");
     }
 
+    public static function isMapType(t:Type):Bool {
+        return switch (Context.follow(t)) {
+            case TInst(def, params) if (def.get().pack.join(".") == "haxe" && def.get().name == "IMap" && params.length == 2): true;
+            case TInst(def, _): isMapImplementation(def.get());
+            case TType(def, params): def.get().pack.length == 0 && def.get().name == "Map" && params.length == 2;
+            case TAbstract(def, params) if (def.get().pack.join(".") == "haxe.ds" && def.get().name == "Map" && params.length == 2): true;
+            case TAbstract(a, params) if (a.get().name == "Null" && params.length == 1): isMapType(params[0]);
+            case _: false;
+        };
+    }
+
+    public static function isMapImplementation(cls:ClassType):Bool {
+        return cls.pack.join(".") == "haxe.ds" && ["StringMap", "IntMap", "ObjectMap", "HashMap"].indexOf(cls.name) >= 0;
+    }
+
+    public static function isMapBackingType(t:Type):Bool {
+        return switch (Context.follow(t)) {
+            case TInst(def, _):
+                final cls = def.get();
+                isMapImplementation(cls);
+            case _: false;
+        };
+    }
+
     public static function isTestExtern(cls:ClassType):Bool {
         return RuntimeResidents.externsOf("runtime.TestCore").indexOf(cls.module) >= 0
             || (cls.pack.join(".") == "std" && RuntimeResidents.testExternNativeFaces().indexOf(cls.name) >= 0);
+    }
+
+    public static function isGetterOnlyProperty(field:ClassField):Bool {
+        switch (field.kind) {
+            case FVar(read, write):
+                return read.match(AccCall) && write.match(AccNever);
+            case _:
+                return false;
+        }
+    }
+
+    public static function isFunctionType(t:Null<Type>):Bool {
+        if (t == null) {
+            return false;
+        }
+        return switch (Context.follow(t)) {
+            case TFun(_, _): true;
+            case _: false;
+        };
     }
 }
 #end
