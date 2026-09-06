@@ -3550,30 +3550,30 @@ class RustExpr {
         }
 
         return switch (PolicyQueries.int64OpOf(fn, args)) {
-                    case Make(high, low): widenI64(high) + " << 32 | " + widenI64(low);
-                    case OfInt(value): signExtendI64(value);
-                    case GetHigh(value): if (isFpHelperInt64Halves(value)) expr(value) + ".high" else
+            case Make(high, low): widenI64(high) + " << 32 | " + widenI64(low);
+            case OfInt(value): signExtendI64(value);
+            case GetHigh(value): if (isFpHelperInt64Halves(value)) expr(value) + ".high" else
                             RustConversions.truncate("("
                             + receiverOperand(value) + " >> 32)", "u32");
-                    case GetLow(value): if (isFpHelperInt64Halves(value)) expr(value) + ".low" else
+            case GetLow(value): if (isFpHelperInt64Halves(value)) expr(value) + ".low" else
                             RustConversions.truncate(expr(value), "u32");
-                    case Add(l, r): receiverOperand(l) + ".wrapping_add(" + expr(r) + ")";
-                    case Sub(l, r): receiverOperand(l) + ".wrapping_sub(" + expr(r) + ")";
-                    case Mul(l, r): "(" + expr(l) + ").wrapping_mul(" + expr(r) + ")";
-                    case MulInt(l, r): "(" + expr(l) + ").wrapping_mul(i64::from(" + expr(r) + "))";
-                    case And(l, r): infixOperand(l, 3) + " & " + infixOperand(r, 3);
-                    case Or(l, r): infixOperand(l, 1) + " | " + infixOperand(r, 1);
-                    case Xor(l, r): infixOperand(l, 2) + " ^ " + infixOperand(r, 2);
-                    case Complement(value): "!" + expr(value);
-                    case Shl(l, r): receiverOperand(l) + ".wrapping_shl(" + castShiftU32(r) + ")";
-                    case Shr(l, r): receiverOperand(l) + ".wrapping_shr(" + castShiftU32(r) + ")";
-                    case Ushr(l, r): RustConversions.shrLogicalI64(expr(l), castShiftU32(r));
-                    case Eq(l, r): expr(l) + " == " + expr(r);
-                    case Neq(l, r): expr(l) + " != " + expr(r);
-                    case Lt(l, r): expr(l) + " < " + expr(r);
-                    case Gt(l, r): expr(l) + " > " + expr(r);
-                    case Lte(l, r): expr(l) + " <= " + expr(r);
-                    case Gte(l, r): expr(l) + " >= " + expr(r);
+            case Add(l, r): receiverOperand(l) + ".wrapping_add(" + expr(r) + ")";
+            case Sub(l, r): receiverOperand(l) + ".wrapping_sub(" + expr(r) + ")";
+            case Mul(l, r): "(" + expr(l) + ").wrapping_mul(" + expr(r) + ")";
+            case MulInt(l, r): "(" + expr(l) + ").wrapping_mul(i64::from(" + expr(r) + "))";
+            case And(l, r): infixOperand(l, 3) + " & " + infixOperand(r, 3);
+            case Or(l, r): infixOperand(l, 1) + " | " + infixOperand(r, 1);
+            case Xor(l, r): infixOperand(l, 2) + " ^ " + infixOperand(r, 2);
+            case Complement(value): "!" + expr(value);
+            case Shl(l, r): receiverOperand(l) + ".wrapping_shl(" + castShiftU32(r) + ")";
+            case Shr(l, r): receiverOperand(l) + ".wrapping_shr(" + castShiftU32(r) + ")";
+            case Ushr(l, r): RustConversions.shrLogicalI64(expr(l), castShiftU32(r));
+            case Eq(l, r): expr(l) + " == " + expr(r);
+            case Neq(l, r): expr(l) + " != " + expr(r);
+            case Lt(l, r): expr(l) + " < " + expr(r);
+            case Gt(l, r): expr(l) + " > " + expr(r);
+            case Lte(l, r): expr(l) + " <= " + expr(r);
+            case Gte(l, r): expr(l) + " >= " + expr(r);
             case null: null;
         };
     }

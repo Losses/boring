@@ -1446,29 +1446,29 @@ class DartExpr {
 
     function int64Call(fn:TypedExpr, args:Array<TypedExpr>):Null<String> {
         return switch (PolicyQueries.int64OpOf(fn, args)) {
-                    case Make(high, low): "(((" + expr(high) + ").toSigned(32) << 32) | ((" + expr(low) + ").toUnsigned(32))).toSigned(64)";
-                    case OfInt(value): "(" + expr(value) + ").toSigned(64)";
-                    case GetHigh(value): if (isFpHelperInt64Halves(value)) expr(value) + ".high" else "((" + expr(value)
+            case Make(high, low): "(((" + expr(high) + ").toSigned(32) << 32) | ((" + expr(low) + ").toUnsigned(32))).toSigned(64)";
+            case OfInt(value): "(" + expr(value) + ").toSigned(64)";
+            case GetHigh(value): if (isFpHelperInt64Halves(value)) expr(value) + ".high" else "((" + expr(value)
                             + " >> 32).toSigned(32))";
-                    case GetLow(value): if (isFpHelperInt64Halves(value)) expr(value) + ".low" else "(" + expr(value)
+            case GetLow(value): if (isFpHelperInt64Halves(value)) expr(value) + ".low" else "(" + expr(value)
                             + ").toSigned(32)";
-                    case Add(l, r): "(" + expr(l) + " + " + expr(r) + ").toSigned(64)";
-                    case Sub(l, r): "(" + expr(l) + " - " + expr(r) + ").toSigned(64)";
-                    case Mul(l, r): "(" + expr(l) + " * " + expr(r) + ").toSigned(64)";
-                    case MulInt(l, r): "(" + expr(l) + " * " + expr(r) + ").toSigned(64)";
-                    case And(l, r): "(" + expr(l) + " & " + expr(r) + ").toSigned(64)";
-                    case Or(l, r): "(" + expr(l) + " | " + expr(r) + ").toSigned(64)";
-                    case Xor(l, r): "(" + expr(l) + " ^ " + expr(r) + ").toSigned(64)";
-                    case Complement(value): "(~" + expr(value) + ").toSigned(64)";
-                    case Shl(l, r): "(" + expr(l) + " << (" + expr(r) + " & 63)).toSigned(64)";
-                    case Shr(l, r): "(" + expr(l) + " >> (" + expr(r) + " & 63)).toSigned(64)";
-                    case Ushr(l, r): "(" + expr(l) + " >>> (" + expr(r) + " & 63)).toSigned(64)";
-                    case Eq(l, r): expr(l) + " == " + expr(r);
-                    case Neq(l, r): expr(l) + " != " + expr(r);
-                    case Lt(l, r): expr(l) + " < " + expr(r);
-                    case Gt(l, r): expr(l) + " > " + expr(r);
-                    case Lte(l, r): expr(l) + " <= " + expr(r);
-                    case Gte(l, r): expr(l) + " >= " + expr(r);
+            case Add(l, r): "(" + expr(l) + " + " + expr(r) + ").toSigned(64)";
+            case Sub(l, r): "(" + expr(l) + " - " + expr(r) + ").toSigned(64)";
+            case Mul(l, r): "(" + expr(l) + " * " + expr(r) + ").toSigned(64)";
+            case MulInt(l, r): "(" + expr(l) + " * " + expr(r) + ").toSigned(64)";
+            case And(l, r): "(" + expr(l) + " & " + expr(r) + ").toSigned(64)";
+            case Or(l, r): "(" + expr(l) + " | " + expr(r) + ").toSigned(64)";
+            case Xor(l, r): "(" + expr(l) + " ^ " + expr(r) + ").toSigned(64)";
+            case Complement(value): "(~" + expr(value) + ").toSigned(64)";
+            case Shl(l, r): "(" + expr(l) + " << (" + expr(r) + " & 63)).toSigned(64)";
+            case Shr(l, r): "(" + expr(l) + " >> (" + expr(r) + " & 63)).toSigned(64)";
+            case Ushr(l, r): "(" + expr(l) + " >>> (" + expr(r) + " & 63)).toSigned(64)";
+            case Eq(l, r): expr(l) + " == " + expr(r);
+            case Neq(l, r): expr(l) + " != " + expr(r);
+            case Lt(l, r): expr(l) + " < " + expr(r);
+            case Gt(l, r): expr(l) + " > " + expr(r);
+            case Lte(l, r): expr(l) + " <= " + expr(r);
+            case Gte(l, r): expr(l) + " >= " + expr(r);
             case null: null;
         };
     }
