@@ -595,6 +595,13 @@ class DartExpr {
                 return tryBindingLines(v, init, depth);
             case TVar(v, init) if (init != null && isStringBufToStringCall(init)):
                 return stringBufToStringBindingLines(v, stripWrap(init), depth);
+            case TVar(v, init) if (init != null && isSwitch(init)):
+                final target:TypedExpr = {expr: TLocal(v), t: v.t, pos: init.pos};
+                // Definite initialization assigns it on every path before use.
+                final out = [indent(depth) + types.of(v.t) + " " + localName(v)];
+                for (l in switchAssign(target, init, depth))
+                    out.push(l);
+                return out;
             case TVar(v, init) if (init != null):
                 if (isNonNullNormalization(init) && !isNullLeafType(v.t))
                     nonNullLocals.set(v.id, true);
@@ -694,6 +701,10 @@ class DartExpr {
                 return stringBufMutationLines(fn, args, depth);
             case TMeta(_, inner):
                 return stmtLines(inner, depth);
+            case TSwitch(_, _, _):
+                return switchStatement(e, depth);
+            case TBinop(OpAssign, target, value) if (isSwitch(value)):
+                return switchAssign(target, value, depth);
             case TBinop(OpAssign, l, r):
                 final map = mapAssignment(l);
                 final target = map == null ? assignTarget(l) + " = " : expr(map.receiver) + "[" + expr(map.key) + "] = ";
@@ -1273,7 +1284,7 @@ class DartExpr {
             case TTry(_, _):
                 return fail(e, "try region lowers at statement, initializer, or return position");
             case TSwitch(_, _, _):
-                return fail(e, "variant switch lowers at return position");
+                return fail(e, "variant switch lowers at return, statement, initializer, or assign position");
             case TConst(c):
                 switch (c) {
                     case TInt(v): return Std.string(v);
@@ -3279,7 +3290,43 @@ class DartExpr {
         through `field: var name` subpatterns; the sealed hierarchy
         keeps the statement exhaustive with no default arm.
     **/
-    function switchReturn(sw:TypedExpr, depth:Int):Array<String> {
+    function switchStatement(sw:TypedExpr, depth:Int):Array<String> {
+        final lines = switchReturn(sw, depth, true);
+        final out:Array<String> = [];
+        for (line in lines) {
+            final marker = "return ";
+            final p = line.indexOf(marker);
+            if (p >= 0) {
+                out.push(line.substr(0, p) + line.substr(p + marker.length));
+                // Statement-position switch arms must not fall through to the
+                // next variant. Return-position arms retain their returns.
+                out.push(indent(depth + 2) + "break;");
+            } else {
+                out.push(line);
+            }
+        }
+        return out;
+    }
+
+    function switchAssign(target:TypedExpr, sw:TypedExpr, depth:Int):Array<String> {
+        final lines = switchReturn(sw, depth, true);
+        final prefix = indent(depth + 2) + "return ";
+        final out:Array<String> = [];
+        for (line in lines) {
+            if (StringTools.startsWith(line, prefix)) {
+                out.push(indent(depth + 2) + assignTarget(target) + " = " + line.substr(prefix.length));
+                // Statement-position switch arms must not fall through to the
+                // next variant. Return-position arms retain their returns.
+                out.push(indent(depth + 2) + "break;");
+            } else {
+                out.push(line);
+            }
+        }
+        return out;
+    }
+
+    function switchReturn(sw:TypedExpr, depth:Int, reservedPayloadNames:Bool = false):Array<String> {
+        sw = stripWrap(sw);
         final switchParts = switch (sw.expr) {
             case TSwitch(subj, cases, def): {subj: subj, cases: cases, def: def};
             case _: return fail(sw, "not a switch");
@@ -3305,7 +3352,7 @@ class DartExpr {
             final used = usedPayloadIndices(c.expr, info.field);
             final bindings = [
                 for (i in 0...names.length)
-                    if (used.indexOf(i) >= 0) names[i] + ": var " + names[i]
+                    if (used.indexOf(i) >= 0) names[i] + ": var " + (reservedPayloadNames ? payloadBindingName(info.field, i) : names[i])
             ];
             final cls = DartDecl.constructClassName(info.enumName, info.name);
             final pattern = bindings.length == 0
@@ -3313,7 +3360,7 @@ class DartExpr {
                     info.enumName) + "." + DartDecl.lowerFirst(info.name) : qualifiedRef(info.module,
                         cls) + (bindings.length > 0 ? "(" + bindings.join(", ") + ")" : "()");
             out.push(indent(depth + 1) + "case " + pattern + ":");
-            for (l in armLines(c.expr, depth + 2))
+            for (l in armLines(c.expr, depth + 2, reservedPayloadNames))
                 out.push(l);
         }
         if (switchParts.def != null) {
@@ -3323,7 +3370,7 @@ class DartExpr {
         return out;
     }
 
-    function armLines(e:TypedExpr, depth:Int):Array<String> {
+    function armLines(e:TypedExpr, depth:Int, reservedPayloadNames:Bool = false):Array<String> {
         final out:Array<String> = [];
         var value:Null<String> = null;
         function walk(stmts:Array<TypedExpr>) {
@@ -3335,7 +3382,7 @@ class DartExpr {
                         }
                         switch (stripWrap(init).expr) {
                             case TEnumParameter(se, ef, index):
-                                subst.set(v.id, payloadName(ef, index));
+                                subst.set(v.id, reservedPayloadNames ? payloadBindingName(ef, index) : payloadName(ef, index));
                             case TLocal(source) if (subst.exists(source.id)):
                                 // The typer binds the switch subject to a hidden
                                 // local before extracting the payload; forward
@@ -3393,6 +3440,10 @@ class DartExpr {
                 return fail(se, "variant switch subject is not a variant value");
         }
         return table;
+    }
+
+    function payloadBindingName(ef:EnumField, index:Int):String {
+        return "_p" + index;
     }
 
     function payloadNames(ef:EnumField):Array<String> {
@@ -3896,6 +3947,13 @@ class DartExpr {
             case TParenthesis(inner) | TCast(inner, _) | TMeta(_, inner): stripWrap(inner);
             case _: e;
         }
+    }
+
+    function isSwitch(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TSwitch(_, _, _): true;
+            case _: false;
+        };
     }
 
     function quoteString(s:String):String {
