@@ -465,11 +465,7 @@ class DartDecl {
     }
 
     function findFunc(funcFields:Array<ClassFuncData>, name:String):ClassFuncData {
-        for (f in funcFields)
-            if (f.field.name == name)
-                return f;
-        Context.error("value type member is missing: " + name, Context.currentPos());
-        return null;
+        return PolicyQueries.findFunc(funcFields, name, "value type member is missing: " + name);
     }
 
     function dartOperatorName(op:ValueTypeOperator):String {

@@ -593,11 +593,7 @@ class RustDecl {
     }
 
     function findFunc(funcFields:Array<ClassFuncData>, name:String):ClassFuncData {
-        for (f in funcFields)
-            if (f.field.name == name)
-                return f;
-        Context.error("value type member is missing: " + name, Context.currentPos());
-        return null;
+        return PolicyQueries.findFunc(funcFields, name, "value type member is missing: " + name);
     }
 
     function isStringRepresentation(t:Type):Bool {
@@ -986,11 +982,7 @@ class RustDecl {
     }
 
     function findConstructor(funcFields:Array<ClassFuncData>):Null<ClassFuncData> {
-        for (f in funcFields) {
-            if (f.field.name == "new")
-                return f;
-        }
-        return null;
+        return PolicyQueries.findConstructor(funcFields);
     }
 
     function renderRustDataTable(field:ClassField, elems:Array<Int>):String {

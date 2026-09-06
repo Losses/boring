@@ -1864,11 +1864,7 @@ class SwiftExpr {
     }
 
     function findStaticField(cls:ClassType, name:String):Null<ClassField> {
-        for (field in cls.statics.get()) {
-            if (field.name == name)
-                return field;
-        }
-        return null;
+        return PolicyQueries.findStaticField(cls, name);
     }
 
     function typeExpr(t:ModuleType):String {
