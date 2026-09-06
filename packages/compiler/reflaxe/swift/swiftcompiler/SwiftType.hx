@@ -11,6 +11,7 @@ enum SwiftKeyDomain {
     SwiftStringKey;
     SwiftStructKey(def:DefType, fields:Array<ClassField>);
     SwiftDataClassKey(cls:ClassType, fields:Array<ClassField>);
+    SwiftEnumKey(en:EnumType);
 }
 
 /**
@@ -246,7 +247,7 @@ class SwiftType {
     public static function classifyKey(t:Null<Type>, ?pos:haxe.macro.Expr.Position):SwiftKeyDomain {
         if (t == null) {
             final p = pos != null ? pos : Context.currentPos();
-            Context.error("sorted keyed tables support Int, String, structure, and dataClass keys in this implementation", p);
+            Context.error("sorted keyed tables support Int, String, structure, and dataClass keys; parameterless enums are supported; enums with payloads are not keys", p);
             return SwiftIntKey;
         }
         final p = pos != null ? pos : Context.currentPos();
@@ -255,7 +256,7 @@ class SwiftType {
                 if (a.get().name == "Int") {
                     SwiftIntKey;
                 } else {
-                    Context.error("sorted keyed tables support Int, String, structure, and dataClass keys in this implementation", p);
+                    Context.error("sorted keyed tables support Int, String, structure, and dataClass keys; parameterless enums are supported; enums with payloads are not keys", p);
                     SwiftIntKey;
                 }
             case TInst(c, _):
@@ -274,7 +275,20 @@ class SwiftType {
                         validateDataClassField(cls, f, f.name);
                     SwiftDataClassKey(cls, fields);
                 } else {
-                    Context.error("sorted keyed tables support Int, String, structure, and dataClass keys in this implementation", p);
+                    Context.error("sorted keyed tables support Int, String, structure, and dataClass keys; parameterless enums are supported; enums with payloads are not keys", p);
+                    SwiftIntKey;
+                }
+            case TEnum(e, _):
+                final en = e.get();
+                var parameterless = true;
+                for (ef in en.constructs)
+                    switch (Context.follow(ef.type)) {
+                        case TFun(args, _) if (args.length > 0): parameterless = false;
+                        case _:                    }
+                if (parameterless) {
+                    SwiftEnumKey(en);
+                } else {
+                    Context.error("sorted keyed tables support Int, String, structure, and dataClass keys; parameterless enums are supported; enums with payloads are not keys", p);
                     SwiftIntKey;
                 }
             case TType(defRef, _):
@@ -284,7 +298,7 @@ class SwiftType {
             case TLazy(f):
                 classifyKey(f(), p);
             case _:
-                Context.error("sorted keyed tables support Int, String, structure, and dataClass keys in this implementation", p);
+                Context.error("sorted keyed tables support Int, String, structure, and dataClass keys; parameterless enums are supported; enums with payloads are not keys", p);
                 SwiftIntKey;
         }
     }
