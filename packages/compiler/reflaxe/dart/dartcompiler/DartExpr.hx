@@ -1511,8 +1511,8 @@ class DartExpr {
                 }
                 // A public getter-only property is represented in the typed
                 // tree by its (possibly private) get_x accessor. Read the
-                // public Dart property facade; do not reference the
-                // reference the private accessor across libraries.
+                // public Dart property facade; do not reference the private
+                // accessor across libraries.
                 final property = getterOnlyPropertyName(owner.get(), name);
                 if (property != null) {
                     return receiverText(subj) + "." + property;
@@ -2262,8 +2262,8 @@ class DartExpr {
                         + "; return _i >= 0 && _i < _s.length ? _s.codeUnitAt(_i) : null; })()";
                 }
                 // Property reads are typed as calls to get_x. When the
-                // accessor is private, consume the public Dart getter facade
-                // use the public facade across Dart's library privacy boundary.
+                // accessor is private, use the public Dart getter facade
+                // across the library privacy boundary.
                 final property = getterOnlyPropertyName(owner.get(), name);
                 if (property != null && args.length == 0) {
                     return receiverText(subj) + "." + property;
