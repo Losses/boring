@@ -162,6 +162,8 @@ boring.MathMinMaxOps
 boring.SwitchOps
 tests.NumberClassifyTests
 tests.MathMinMaxTests
+boring.InstanceDefaults
+tests.InstanceDefaultsTests
 tests.SwitchOpsTests
 tests.ArrayRootTests
 

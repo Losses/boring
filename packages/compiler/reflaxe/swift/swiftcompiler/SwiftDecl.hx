@@ -559,9 +559,9 @@ class SwiftDecl {
                 + " = "
                 + expr.rawExpression(init)];
         }
-        if (field.meta.has(":value")) {
-            Context.error("instance field default has no lowering; assign it in the constructor", field.pos);
-        }
+        // The Haxe typer places instance field defaults in the
+        // constructor, so the declaration stays bare and the init
+        // body carries the assignments.
         // A final Haxe field keeps the reference binding while the array
         // contents remain mutable. Array fields therefore use var.
         // Swift let array forbids that, so array fields stay var.

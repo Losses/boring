@@ -496,9 +496,9 @@ class TsDecl {
                 '  $vis static ${ro}${field.name}: ${types.of(field.type)} = ${expr.rawExpression(init)};'
             ];
         }
-        if (field.meta.has(":value")) {
-            Context.error("instance field default has no lowering; assign it in the constructor", field.pos);
-        }
+        // The Haxe typer places instance field defaults in the
+        // constructor, so the declaration stays bare and the
+        // constructor body carries the assignments.
         final vis = field.isPublic ? "public" : "private";
         final ro = field.isFinal ? "readonly " : "";
         return ['  $vis ${ro}${field.name}: ${types.of(field.type)};'];
