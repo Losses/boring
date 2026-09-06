@@ -173,8 +173,8 @@ class TsExpr {
                 + methodName
                 + "("
                 + [for (a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
-            case CStaticCall(fullPath, args):
-                coalescingStaticCallText(fullPath, args, targetType);
+            case CStaticCall(modulePath, className, methodName, args):
+                coalescingStaticCallText(modulePath, className, methodName, args, targetType);
             case CConditional(c, t, f):
                 "("
                 + coalescingDefaultText(c, targetType)
@@ -189,17 +189,31 @@ class TsExpr {
                 + opStr(op)
                 + " "
                 + coalescingDefaultText(right, targetType);
-            case CConstructorCall(classPath, args):
+            case CConstructorCall(modulePath, className, args):
+                imports.value(modulePath, className);
                 "new "
-                + classPath.split(".").pop()
+                + className
                 + "("
-                + [for (a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
+                + completeCoalescingCallArgs(modulePath, "new", args, targetType).join(", ")
+                + ")";
         };
     }
 
-    function coalescingStaticCallText(path:String, args:Array<DefaultArgExpander.CoalescingDefaultValue>, targetType:Type):String {
-        final rendered = [for (a in args) coalescingDefaultText(a, targetType)].join(", ");
-        if (path == "std.SortedSet.builder") {
+    /** Explicit arguments plus the callee's omitted-parameter defaults; a ts signature carries no defaults. */
+    function completeCoalescingCallArgs(modulePath:String, fieldName:String, args:Array<DefaultArgExpander.CoalescingDefaultValue>,
+            targetType:Type):Array<String> {
+        final rendered = [for (a in args) coalescingDefaultText(a, targetType)];
+        final omitted = DefaultArgExpander.omittedCallDefaults(modulePath, fieldName, args.length);
+        if (omitted != null) {
+            for (o in omitted)
+                rendered.push(coalescingDefaultText(o.value, o.type));
+        }
+        return rendered;
+    }
+
+    function coalescingStaticCallText(modulePath:String, className:String, methodName:String, args:Array<DefaultArgExpander.CoalescingDefaultValue>,
+            targetType:Type):String {
+        if (modulePath == "std.SortedSet" && methodName == "builder") {
             final key = switch (Context.follow(DefaultArgExpander.withoutNull(targetType))) {
                 case TInst(_, params) if (params.length > 0): params[0];
                 case _: null;
@@ -207,7 +221,13 @@ class TsExpr {
             imports.runtime("SortedTable");
             return "SortedTable.setBuilder<" + types.of(key) + ">(" + sortedComparator(key, Context.currentPos()) + ")";
         }
-        return path + "(" + rendered + ")";
+        imports.value(modulePath, className);
+        return className
+            + "."
+            + methodName
+            + "("
+            + completeCoalescingCallArgs(modulePath, methodName, args, targetType).join(", ")
+            + ")";
     }
 
     function coalescingStaticFieldText(path:String):String {
@@ -2277,7 +2297,10 @@ class TsExpr {
                 cmpName;
             case EnumKey(en):
                 imports.value(en.module, en.name);
-                "(a, b) => { if (a === b) return 0; " + [for (ef in en.constructs) "if (a.kind === \"" + ef.name + "\") return " + ef.index + " - (b.kind === \"" + ef.name + "\" ? " + ef.index + " : 0);"].join(" ") + " return 0; }";
+                "(a, b) => { if (a === b) return 0; " + [
+                    for (ef in en.constructs) "if (a.kind === \"" + ef.name + "\") return " + ef.index + " - (b.kind === \"" + ef.name + "\" ? " + ef.index
+                        + " : 0);"
+                ].join(" ") + " return 0; }";
         };
     }
 
