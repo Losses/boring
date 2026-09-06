@@ -1,5 +1,6 @@
 #if (macro || reflaxe_runtime)
 import haxe.macro.Context;
+import reflaxe.output.OutputManager;
 
 /**
     Package artifact packing shared by the target compilers (feature
@@ -57,6 +58,16 @@ class PackageArtifacts {
         manager. Paths escaping the output root (the `../` paths of the
         test-output trees) belong to another tree and stay unpacked.
     **/
+    /**
+        Saves one file through the output manager and records the write
+        for artifact packing (feature spec 25). Paths that escape the
+        output root are recorded away by the filter below.
+    **/
+    public static function saveTreeFile(output:Null<OutputManager>, path:String, content:String):Void {
+        output.saveFile(path, content);
+        record(path, content);
+    }
+
     public static function record(path:String, content:String):Void {
         if (StringTools.startsWith(path, "../")) {
             return;
