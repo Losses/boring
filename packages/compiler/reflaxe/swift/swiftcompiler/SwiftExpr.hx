@@ -453,10 +453,10 @@ class SwiftExpr {
                 final initText = switch (init.expr) {
                     case TFunction(fn): functionLiteralNamed(v.name, fn);
                     default: {
-                            final rendered = expr(init);
-                            optionalValued(init)
-                        && !isNullLeafType(v.t) ? rendered + "!" : rendered;
-                        }
+                        final rendered = expr(init);
+                        optionalValued(init)
+                    && !isNullLeafType(v.t) ? rendered + "!" : rendered;
+                    }
                 };
                 return [indent(depth) + '$kw ${localName(v)}$annotation = $tryKw$initText'];
             case TVar(v, _):
@@ -1343,7 +1343,7 @@ class SwiftExpr {
             case TConst(TNull): expr(ret);
             case TCall(_, _) if (isNullLeafType(ret.t)): expr(ret);
             case TLocal(v) if (isNullLeafType(v.t) && !coalescingLocals.exists(v.id)):
-                currentFuncReturnsOptional ? expr(ret) : expr(ret) + "!";
+                currentFuncReturnsOptional || optionalInferred.exists(v.id) ? expr(ret) : expr(ret) + "!";
             case _:
                 currentFuncReturnsOptional ? expr(ret) : (optionalValued(ret) ? expr(ret) + "!" : expr(ret));
         };
