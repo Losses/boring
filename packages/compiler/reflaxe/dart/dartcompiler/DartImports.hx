@@ -24,6 +24,7 @@ class DartImports {
 
     final runtimeNames:Map<String, Bool> = [];
     final runtimeTestNames:Map<String, Bool> = [];
+    var testHelperUsed = false;
     var platformHostUsed = false;
 
     var dartMathUsed = false;
@@ -96,6 +97,16 @@ class DartImports {
     /** Records a reference to a symbol of the test host entry. */
     public function runtimeTest(name:String):Void {
         runtimeTestNames.set(name, true);
+    }
+
+    /** Whether this file references the generated composite assertion helper. */
+    public function usesTestHelper():Bool {
+        return testHelperUsed;
+    }
+
+    /** Records a generated composite assertion helper reference. */
+    public function useTestHelper():Void {
+        testHelperUsed = true;
     }
 
     /**
