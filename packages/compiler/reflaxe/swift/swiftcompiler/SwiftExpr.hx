@@ -449,11 +449,7 @@ class SwiftExpr {
                     || (FloatPrecision.isF32() && isFloatLeafType(v.t)) ? ": " + types.of(localType) : "";
                 final initText = switch (init.expr) {
                     case TFunction(fn): functionLiteralNamed(v.name, fn);
-                    default: {
-                            final rendered = expr(init);
-                            (optionalValued(init) || (isStringCharCodeAt(init) && !types.resident))
-                        && !isNullLeafType(v.t) ? rendered + "!" : rendered;
-                        }
+                    default: expr(init);
                 };
                 return [indent(depth) + '$kw ${localName(v)}$annotation = $tryKw$initText'];
             case TVar(v, _):
@@ -2311,7 +2307,7 @@ class SwiftExpr {
                         + receiverText(subj)
                         + ", "
                         + expr(args[0])
-                        + ")";
+                        + ")!";
                 }
                 return receiverText(subj) + "." + SwiftNameEscape.escape(name) + "(" + rendered + ")";
             case TField(_, FEnum(en, ef)):
