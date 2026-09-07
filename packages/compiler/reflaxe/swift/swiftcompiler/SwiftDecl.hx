@@ -686,9 +686,25 @@ class SwiftDecl {
         // Private functions render with Swift's private marker (feature
         // spec 27); public functions render public for the SwiftPM split.
         // @:allow members use Swift internal visibility so allowed cross-class calls compile.
-        final vis = f.field.isPublic ? "public " : (f.field.meta.has(":allow") ? "" : "private ");
+        // Swift requires a member satisfying a protocol requirement to be
+        // at least as accessible as the protocol, and protocols render
+        // public, so interface methods render public regardless of their
+        // Haxe visibility.
+        final vis = isInterfaceMethod(cls, f) ? "public " : (f.field.isPublic ? "public " : (f.field.meta.has(":allow") ? "" : "private "));
         final head = '    $vis$stat' + 'func ${SwiftNameEscape.escape(f.field.name)}$genericStr${paramList(cls, f)}$throws -> $ret {';
         return withParamShadows([head], normLines.concat(body), cast f.args).concat(["    }"]);
+    }
+
+    /** True when the function's name matches a field of an implemented interface. */
+    function isInterfaceMethod(cls:ClassType, f:ClassFuncData):Bool {
+        for (iface in cls.interfaces) {
+            final ifaceCls = iface.t.get();
+            for (field in ifaceCls.fields.get()) {
+                if (field.name == f.field.name)
+                    return true;
+            }
+        }
+        return false;
     }
 
     function extractedFuncDecl(module:String, cls:ClassType, f:ClassFuncData):Array<String> {
