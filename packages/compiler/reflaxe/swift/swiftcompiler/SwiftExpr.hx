@@ -454,7 +454,7 @@ class SwiftExpr {
                     case TFunction(fn): functionLiteralNamed(v.name, fn);
                     default: {
                             final rendered = expr(init);
-                            (optionalValued(init) || (isStringCharCodeAt(init) && !types.resident))
+                            optionalValued(init)
                         && !isNullLeafType(v.t) ? rendered + "!" : rendered;
                         }
                 };
@@ -1366,7 +1366,7 @@ class SwiftExpr {
     function optionalOperand(e:TypedExpr, parent:Binop, isRight:Bool):String {
         final rendered = switch (stripWrap(e).expr) {
             case TConst(TNull): expr(e);
-            case _: optionalValued(e) || (isStringCharCodeAt(e) && !types.resident) ? "(" + expr(e) + ")!" : expr(e);
+            case _: optionalValued(e) ? "(" + expr(e) + ")!" : expr(e);
         };
         return switch (stripWrap(e).expr) {
             case TBinop(op, _, _):
@@ -1780,7 +1780,6 @@ class SwiftExpr {
             return true;
         return switch (stripWrap(e).expr) {
             case TLocal(v): optionalInferred.exists(v.id);
-            case TCall(fn, _) if (isStringCharCodeAtFunction(fn) && !types.resident): true;
             case _: false;
         };
     }
