@@ -16,6 +16,8 @@ import AssignTargetPlan;
 import AssignTargetPlan.AssignTargetFieldKind;
 import PolicyQueries.StdStringCategory;
 import PolicyQueries.Int64Op;
+import PolicyQueries.VariantArmStep;
+import PolicyQueries.EnumQueryStep;
 import FusionPlan;
 import FusionPlan.FusionStep;
 import VarFusionPlan;
@@ -1208,37 +1210,21 @@ class KotlinExpr {
     }
 
     function enumQuery(e:TypedExpr):Null<String> {
-        switch (e.expr) {
-            case TField(subj, fa):
-                final name = switch (fa) {
-                    case FInstance(_, _, cf) | FAnon(cf): cf.get().name;
-                    case FDynamic(n): n;
-                    case _: "";
-                };
-                final en = EnumQueryExpander.collectionEnum(subj);
-                if (name == "length" && en != null)
-                    return Std.string(EnumQueryExpander.constructorCount(en));
-            case TArray(subj, index):
-                final en = EnumQueryExpander.collectionEnum(subj);
-                if (en != null) {
-                    if (EnumQueryExpander.aliasEnum(subj) != null)
-                        return expr(subj) + "[" + expr(index) + "]";
-                    imports.requireType(en.module, en.name);
-                    return en.name + ".entries[" + expr(index) + "]";
+        return switch (PolicyQueries.enumQueryPlan(e)) {
+            case null: null;
+            case LengthCount(count): Std.string(count);
+            case AliasIndex(subj, index): expr(subj) + "[" + expr(index) + "]";
+            case EntryIndex(en, index):
+                imports.requireType(en.module, en.name);
+                en.name + ".entries[" + expr(index) + "]";
+            case EnumKindQuery(kind, en, args):
+                imports.requireType(en.module, en.name);
+                switch (kind) {
+                    case QCollection: en.name + ".entries";
+                    case QName: expr(args[0]) + ".name";
+                    case QLookup: en.name + ".entries.firstOrNull { it.name == " + expr(args[1]) + " }";
                 }
-            case _:
         }
-        final kind = EnumQueryExpander.markerKind(e);
-        if (kind == null)
-            return null;
-        final en = EnumQueryExpander.enumOf(e);
-        final args = EnumQueryExpander.callArgs(e);
-        imports.requireType(en.module, en.name);
-        return switch (kind) {
-            case QCollection: en.name + ".entries";
-            case QName: expr(args[0]) + ".name";
-            case QLookup: en.name + ".entries.firstOrNull { it.name == " + expr(args[1]) + " }";
-        };
     }
 
     function functionLiteral(f:TFunc):String {
@@ -1332,31 +1318,24 @@ class KotlinExpr {
     function armLines(e:TypedExpr):Array<String> {
         final decls:Array<String> = [];
         var value:Null<String> = null;
-        function walk(stmts:Array<TypedExpr>) {
-            for (s in stmts) {
-                switch (s.expr) {
-                    case TVar(v, init):
-                        if (init == null) {
-                            Context.error("kotlin target: declaration without initializer has no lowering", s.pos);
-                        }
-                        switch (stripWrap(init).expr) {
-                            case TEnumParameter(se, ef, index):
-                                subst.set(v.id, expr(se) + "." + payloadName(ef, index));
-                            case TLocal(source) if (subst.exists(source.id)):
-                                subst.set(v.id, subst.get(source.id));
-                            case _:
-                                decls.push("val " + localName(v) + " = " + expr(init));
-                        }
-                    case TBlock(bs):
-                        walk(bs);
-                    case TMeta(_, inner):
-                        walk([inner]);
-                    case _:
-                        value = expr(s);
-                }
+        for (step in PolicyQueries.variantArmPlan(e)) {
+            switch (step) {
+                case PayloadCapture(v, subject, ef, index):
+                    subst.set(v.id, expr(subject) + "." + payloadName(ef, index));
+                case ForwardOrDecl(v, init, source):
+                    if (subst.exists(source.id)) {
+                        subst.set(v.id, subst.get(source.id));
+                    } else {
+                        decls.push("val " + localName(v) + " = " + expr(init));
+                    }
+                case PlainDecl(v, init):
+                    decls.push("val " + localName(v) + " = " + expr(init));
+                case OtherStatement(s, _, _):
+                    value = expr(s);
+                case MissingInit(s):
+                    Context.error("kotlin target: declaration without initializer has no lowering", s.pos);
             }
         }
-        walk(statementsOf(e));
         if (value == null) {
             return [fail(e, "variant switch arm has no value")];
         }
