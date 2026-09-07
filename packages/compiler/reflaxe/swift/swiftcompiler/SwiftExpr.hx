@@ -2927,26 +2927,14 @@ class SwiftExpr {
     }
 
     function blockValueLines(e:TypedExpr, depth:Int):{lines:Array<String>, value:Null<String>} {
-        final stmts = statementsOf(e);
-        var value:Null<String> = null;
-        var body = stmts;
-        if (stmts.length > 0) {
-            final last = stmts[stmts.length - 1];
-            if (isStringBufToStringCall(last)) {
-                final subj = stringBufToStringSubject(stripWrap(last));
-                final lines = blockLines(stmts.slice(0, stmts.length - 1), depth);
-                final checks = stringBufToStringCheckLines(subj, depth);
-                return {lines: lines.concat(checks), value: "String(decoding: " + expr(subj) + ", as: UTF16.self)"};
-            }
-            switch (last.expr) {
-                case TReturn(_) | TThrow(_) | TVar(_, _) | TIf(_, _, _) | TWhile(_, _, _) | TBlock(_) | TBreak | TContinue | TBinop(OpAssign, _, _) |
-                    TBinop(OpAssignOp(_), _, _):
-                case _:
-                    value = expr(last);
-                    body = stmts.slice(0, stmts.length - 1);
-            }
+        final parts = PolicyQueries.blockValueParts(e);
+        final subj = parts.stringBufSubject;
+        if (subj != null) {
+            final lines = blockLines(parts.body, depth);
+            final checks = stringBufToStringCheckLines(subj, depth);
+            return {lines: lines.concat(checks), value: "String(decoding: " + expr(subj) + ", as: UTF16.self)"};
         }
-        return {lines: blockLines(body, depth), value: value};
+        return {lines: blockLines(parts.body, depth), value: parts.value == null ? null : expr(parts.value)};
     }
 
     function catchHeaderLine(c:{v:TVar, expr:TypedExpr}, clsName:String, depth:Int):String {
