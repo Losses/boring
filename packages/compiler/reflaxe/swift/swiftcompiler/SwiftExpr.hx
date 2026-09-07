@@ -85,11 +85,15 @@ class SwiftExpr {
     **/
     final optionalInferred:Map<Int, Bool> = [];
 
+    /** Locals initialized from a character code call whose result is known non-optional. */
+    final nonOptionalInferred:Map<Int, Bool> = [];
+
     /** Rendered constructor arguments available to defaults that read parameters. */
     var constructorParameterValues:Null<Map<String, String>> = null;
 
     final coalescingLocals:Map<Int, Bool> = [];
     var currentFuncReturnsOptional:Bool = false;
+    var currentFuncReturnsFloat:Bool = false;
 
     /** Names used by parameters and locals; generated names avoid them. */
     final usedNames:Map<String, Bool> = [];
@@ -304,6 +308,10 @@ class SwiftExpr {
             case TFun(_, ret): isNullLeafType(ret);
             case _: false;
         };
+        currentFuncReturnsFloat = switch (f.field.type) {
+            case TFun(_, ret): isFloatLeafType(ret);
+            case _: false;
+        };
         // Depth 2: one level under the member's own indentation.
         scanLocals(f.expr);
         return blockLines(statementsOf(f.expr), depth);
@@ -342,6 +350,10 @@ class SwiftExpr {
         currentLocalName = null;
         currentFuncReturnsOptional = switch (f.field.type) {
             case TFun(_, ret): isNullLeafType(ret);
+            case _: false;
+        };
+        currentFuncReturnsFloat = switch (f.field.type) {
+            case TFun(_, ret): isFloatLeafType(ret);
             case _: false;
         };
         scanLocals(f.expr);
@@ -453,10 +465,10 @@ class SwiftExpr {
                 final initText = switch (init.expr) {
                     case TFunction(fn): functionLiteralNamed(v.name, fn);
                     default: {
-                        final rendered = expr(init);
-                        optionalValued(init)
-                    && !isNullLeafType(v.t) ? rendered + "!" : rendered;
-                    }
+                            final rendered = expr(init);
+                            optionalValued(init)
+                        && !isNullLeafType(v.t) ? rendered + "!" : rendered;
+                        }
                 };
                 return [indent(depth) + '$kw ${localName(v)}$annotation = $tryKw$initText'];
             case TVar(v, _):
@@ -1339,11 +1351,15 @@ class SwiftExpr {
     }
 
     function returnValue(ret:TypedExpr):String {
+        // Haxe Float is represented by Swift's Double, regardless of expression shape.
+        if (currentFuncReturnsFloat && !isFloatTyped(ret))
+            return realType() + "(" + expr(ret) + ")";
         return switch (stripWrap(ret).expr) {
             case TConst(TNull): expr(ret);
             case TCall(_, _) if (isNullLeafType(ret.t)): expr(ret);
-            case TLocal(v) if (isNullLeafType(v.t) && !coalescingLocals.exists(v.id)):
-                currentFuncReturnsOptional || optionalInferred.exists(v.id) ? expr(ret) : (StringTools.endsWith(expr(ret), "!") ? expr(ret) : expr(ret) + "!");
+            case TLocal(v) if (isNullLeafType(v.t) && !coalescingLocals.exists(v.id)): currentFuncReturnsOptional || optionalInferred.exists(v.id) || nonOptionalInferred.exists(v.id) ? expr(ret) : (StringTools.endsWith(expr(ret),
+                    "!") ? expr(ret) : expr(ret)
+                    + "!");
             case TLocal(_):
                 switch (Context.follow(ret.t)) {
                     case TAbstract(a, _) if (a.get().name == "Float"): "Double(" + expr(ret) + ")";
@@ -1355,6 +1371,13 @@ class SwiftExpr {
     }
 
     function isStringCharCodeAt(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TCall(fn, _) if (isStringCharCodeAtFunction(fn)): true;
+            case _: false;
+        };
+    }
+
+    function isNonOptionalStringCharCodeAt(e:TypedExpr):Bool {
         return switch (stripWrap(e).expr) {
             case TCall(fn, _) if (isStringCharCodeAtFunction(fn)): true;
             case _: false;
@@ -1784,7 +1807,7 @@ class SwiftExpr {
             })
             return true;
         return switch (stripWrap(e).expr) {
-            case TLocal(v): optionalInferred.exists(v.id);
+            case TLocal(v): optionalInferred.exists(v.id) && !nonOptionalInferred.exists(v.id);
             case _: false;
         };
     }
@@ -2315,7 +2338,11 @@ class SwiftExpr {
                     return "String(" + s + "[" + s + ".index(" + s + ".startIndex, offsetBy: Int(" + expr(args[0]) + "))])";
                 }
                 if (name == "charCodeAt" && isStringSubject(subj)) {
-                    final code = types.resident ? "Int32(" + receiverText(subj) + "[Int(" + expr(args[0]) + ")])" : "unitAtOptional(" + receiverText(subj) + ", " + expr(args[0]) + ")";
+                    final code = types.resident ? "Int32(" + receiverText(subj) + "[Int(" + expr(args[0]) + ")])" : "unitAtOptional("
+                        + receiverText(subj)
+                        + ", "
+                        + expr(args[0])
+                        + ")";
                     final optional = switch (Context.follow(fn.t)) {
                         case TFun(_, ret): isNullLeafType(ret);
                         case _: false;
@@ -2720,7 +2747,10 @@ class SwiftExpr {
         for (i in 0...args.length) {
             final p = i < ps.length ? ps[i] : null;
             final d = DefaultArgExpander.defaultAt(cls, "new", i);
-            final text = d != null && p != null && isNullLiteral(args[i]) ? defaultArgText(d, p) : d != null && p != null && isNullLeafType(args[i].t) ? "(" + expr(args[i]) + " ?? " + defaultArgText(d, p) + ")" : expr(args[i]);
+            final text = d != null
+                && p != null
+                && isNullLiteral(args[i]) ? defaultArgText(d, p) : d != null && p != null && isNullLeafType(args[i].t) ? "(" + expr(args[i]) + " ?? " + defaultArgText(d,
+                    p) + ")" : expr(args[i]);
             rendered.push(text);
             if (i < names.length)
                 constructorParameterValues.set(names[i], text);
@@ -3739,7 +3769,9 @@ class SwiftExpr {
         switch (e.expr) {
             case TVar(v, init):
                 PolicyQueries.noteDeclaredLocalName(v, usedNames, false);
-                if (init != null && isNullLeafType(init.t) && coalescingSiteFor(init) == null) {
+                if (init != null && isNonOptionalStringCharCodeAt(init)) {
+                    nonOptionalInferred.set(v.id, true);
+                } else if (init != null && isNullLeafType(init.t) && coalescingSiteFor(init) == null) {
                     optionalInferred.set(v.id, true);
                 }
                 PolicyQueries.noteFpInt64Init(v, init, fpInt64Halves);
