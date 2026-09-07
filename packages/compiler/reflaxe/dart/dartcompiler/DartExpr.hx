@@ -354,6 +354,13 @@ class DartExpr {
             case _: false;
         };
         nonNullLocals.clear();
+        // Coalescing defaults are materialized by every Dart call site. Their
+        // optional signature slots therefore carry a concrete value throughout
+        // the Haxe method body.
+        for (a in f.args) {
+            if (DefaultArgExpander.coalescingDefaultAt(cls, f.field.name, a.index) != null && a.tvar != null)
+                nonNullLocals.set(a.tvar.id, true);
+        }
 
         scanLocals(f.expr);
         final result = blockLines(statementsOf(f.expr), depth);
@@ -1133,7 +1140,7 @@ class DartExpr {
                 return localName(v);
             case TArray(arr, idx):
                 final mapReceiver = mapBackingReceiver(arr);
-                return mapReceiver == null ? expr(arr) + "[" + expr(idx) + "]" : expr(mapReceiver) + "[" + expr(idx) + "]";
+                return mapReceiver == null ? receiverText(arr) + "[" + expr(idx) + "]" : receiverText(mapReceiver) + "[" + expr(idx) + "]";
             case TBinop(op, l, r):
                 return binop(e, op, l, r);
             case TUnop(op, post, subj):
