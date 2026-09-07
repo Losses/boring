@@ -998,9 +998,12 @@ class KotlinDecl {
             };
             if (nullInitialized)
                 KotlinExpr.registerNullInitializedField(cls.module + ":" + field.name);
-            final initStr = StaticFieldHelper.isNonEmptyArrayLiteral(init)
+            final rawInit = StaticFieldHelper.isNonEmptyArrayLiteral(init)
                 && StaticFieldHelper.isReadOnlyArrayType(field.type) ? expr.rawArrayExpression(init, "listOf") : expr.rawExpression(init);
             final kw = field.isFinal && StaticFieldHelper.isConstValue(field) ? "const val" : (field.isFinal ? "val" : "var");
+            // For const val, Int initializers must be emitted as Float literals
+            // (e.g. 16 -> 16.0) because (16).toDouble() is not a compile-time constant.
+            final initStr = kw == "const val" && expr.isIntOrLongType(init.t) && expr.isFloatType(field.type) ? expr.constValFloatLiteral(rawInit) : rawInit;
             // @:allow members use Kotlin module visibility so allowed cross-class calls compile.
             final vis = field.isPublic ? "" : (field.meta.has(":allow") ? "internal " : "private ");
             final jvmField = !field.isFinal ? ["    @JvmField"] : [];

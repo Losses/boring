@@ -66,6 +66,14 @@ class SwiftDecl {
         return expr.rawExpression(e);
     }
 
+    /** Widen an Int const val initializer to Float when the field type is Float. */
+    function constValFloatInit(init:TypedExpr, fieldType:Type):String {
+        final text = expr.rawExpression(init);
+        if (expr.isIntType(expr.emittedType(init)) && expr.isFloatLeafType(fieldType))
+            return expr.intToFloatText(text);
+        return text;
+    }
+
     // ------------------------------------------------------------------
     // Classes
     // ------------------------------------------------------------------
@@ -546,7 +554,7 @@ class SwiftDecl {
                 + ": "
                 + types.of(field.type)
                 + " = "
-                + expr.rawExpression(initializer)];
+                + constValFloatInit(initializer, field.type)];
         }
         if (v.isStatic) {
             final init = StaticFieldHelper.validatedInitializer(field, cls);
@@ -564,7 +572,7 @@ class SwiftDecl {
                 + ": "
                 + types.of(field.type)
                 + " = "
-                + expr.rawExpression(init)];
+                + constValFloatInit(init, field.type)];
         }
         // The Haxe typer places instance field defaults in the
         // constructor, so the declaration stays bare and the init
