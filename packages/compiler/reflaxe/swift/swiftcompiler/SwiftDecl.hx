@@ -292,6 +292,14 @@ class SwiftDecl {
                         case null:
                             switch (Context.follow(params[0])) {
                                 case TAbstract(ia, _) if (ia.get().name == "Int"): lines.push("        if av != bv { return av - bv }");
+                                case TAbstract(ia, _) if (ia.get().name == "Float"):
+                                    lines.push("        if av < bv { return -1 }");
+                                    lines.push("        if av > bv { return 1 }");
+                                case TAbstract(ia, _) if (ia.get().name == "Bool"): lines.push("        if av != bv { return av ? 1 : -1 }");
+                                case TInst(sc,
+                                    _) if (sc.get()
+                                        .meta.has(":dataClass")): lines.push("        let cmp" + f.name + " = compare" + sc.get().name + "(av, bv); if cmp"
+                                        + f.name + " != 0 { return cmp" + f.name + " }");
                                 case TInst(sc,
                                     _) if (sc.get()
                                         .name == "String"): lines.push("        let cmp" + f.name + " = compareUnitOrder(av, bv); if cmp" + f.name

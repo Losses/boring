@@ -267,13 +267,13 @@ class SwiftType {
         comparison arm in SwiftDecl.dataClassComparator. The direct arms
         compare Int, Float, Bool, String, enums, and nested data classes;
         the ReadOnlyArray arm compares elements with an arm or an
-        Equatable scalar through `!=`; the Null arm's inner comparison
-        covers only Int, String, enums, and arrays. A class with a field
-        no arm covers gets no comparator, since the emitted body would
-        silently ignore that field, and a nested data class recurses with
-        a visited set so a rendered comparator never references a
-        comparator that was skipped; a reference cycle has no orderable
-        rendering and fails.
+        Equatable scalar through `!=`; the Null arm compares its inner
+        operand with the same arms, unwrapping an array shape before the
+        follow. A class with a field no arm covers gets no comparator,
+        since the emitted body would silently ignore that field, and a
+        nested data class recurses with a visited set so a rendered
+        comparator never references a comparator that was skipped; a
+        reference cycle has no orderable rendering and fails.
     **/
     static function comparatorFieldsSupported(cls:ClassType, visited:Array<String>):Bool {
         if (visited.indexOf(cls.module) >= 0) {
@@ -295,33 +295,16 @@ class SwiftType {
     static function comparatorFieldSupported(t:Type, visited:Array<String>):Bool {
         return switch (t) {
             case TAbstract(a, params) if (a.get().name == "Null" && params.length == 1):
-                comparatorNullInnerSupported(params[0], visited);
+                final inner = rawArrayElement(params[0]);
+                comparableOperandSupported(inner == null ? params[0] : inner, visited);
             case TAbstract(a, params) if (a.get().name == "ReadOnlyArray" && params.length == 1):
-                comparatorElementSupported(params[0], visited);
-            case _: comparatorScalarOrNestedSupported(t, visited);
+                comparableOperandSupported(params[0], visited);
+            case _: comparableOperandSupported(t, visited);
         };
     }
 
-    /** The Null arm's inner comparison covers Int, String, enums, and arrays; Float, Bool, and a bare nested data class have no inner arm. */
-    static function comparatorNullInnerSupported(t:Type, visited:Array<String>):Bool {
-        return switch (rawArrayElement(t)) {
-            case null:
-                switch (Context.follow(t)) {
-                    case TAbstract(a, _): a.get().name == "Int";
-                    case TInst(c, _): c.get().name == "String";
-                    case TEnum(_, _): true;
-                    case _: false;
-                }
-            case element: comparatorElementSupported(element, visited);
-        }
-    }
-
-    /** The ReadOnlyArray arm's element comparison covers the named arms plus Equatable scalars through the `!=` fallback. */
-    static function comparatorElementSupported(t:Type, visited:Array<String>):Bool {
-        return comparatorScalarOrNestedSupported(t, visited);
-    }
-
-    static function comparatorScalarOrNestedSupported(t:Type, visited:Array<String>):Bool {
+    /** One comparand of the comparison arms: a scalar with an arm, an enum, a String, or a nested data class whose own comparator is itself emittable. */
+    static function comparableOperandSupported(t:Type, visited:Array<String>):Bool {
         return switch (Context.follow(t)) {
             case TAbstract(a, _): a.get().name == "Int" || a.get().name == "Float" || a.get().name == "Bool";
             case TInst(c, _): c.get().name == "String" || comparatorDataClassSupported(c.get(), visited);
