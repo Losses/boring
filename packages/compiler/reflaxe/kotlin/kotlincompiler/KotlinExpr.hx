@@ -95,6 +95,9 @@ class KotlinExpr {
     var currentField:Null<String> = null;
     var currentLocalName:Null<String> = null;
 
+    /** Return type of the function currently being lowered; null outside function context. */
+    var currentReturnType:Null<Type> = null;
+
     public function new(imports:KotlinImports, types:KotlinType, state:KotlinEmissionState) {
         this.imports = imports;
         this.types = types;
@@ -154,7 +157,7 @@ class KotlinExpr {
 
     public function defaultArgText(value:DefaultArgExpander.DefaultArgValue, targetType:Type):String {
         return switch (value) {
-            case VInt(v): Std.string(v);
+            case VInt(v): isFloatExpectedType(targetType) ? intToFloatText(Std.string(v)) : Std.string(v);
             case VFloat(s): FloatPrecision.isF32() ? ((s.indexOf(".") >= 0 || s.indexOf("e") >= 0 || s.indexOf("E") >= 0) ? s : s + ".0") + "f" : s;
             case VString(s): quoteString(s);
             case VBool(b): b ? "true" : "false";
@@ -166,7 +169,7 @@ class KotlinExpr {
 
     public function coalescingDefaultText(value:DefaultArgExpander.CoalescingDefaultValue, targetType:Type):String {
         return switch (value) {
-            case CInt(v): Std.string(v);
+            case CInt(v): isFloatExpectedType(targetType) ? intToFloatText(Std.string(v)) : Std.string(v);
             case CFloat(s): FloatPrecision.isF32() ? ((s.indexOf(".") >= 0 || s.indexOf("e") >= 0 || s.indexOf("E") >= 0) ? s : s + ".0") + "f" : s;
             case CString(s): quoteString(s);
             case CBool(b): b ? "true" : "false";
@@ -291,6 +294,10 @@ class KotlinExpr {
         currentClass = cls;
         currentField = f.field.name;
         currentLocalName = null;
+        currentReturnType = switch (Context.follow(f.field.type)) {
+            case TFun(_, ret): ret;
+            case _: null;
+        };
         nonNullLocals.clear();
         nullInitializedLocals.clear();
         nonNullFields.clear();
@@ -304,7 +311,9 @@ class KotlinExpr {
         final fusedRoot = fuseWithin(f.expr);
         f.expr.expr = fusedRoot.expr;
         scanLocals(f.expr);
-        return blockLines(statementsOf(f.expr), 1);
+        final result = blockLines(statementsOf(f.expr), 1);
+        currentReturnType = null;
+        return result;
     }
 
     /** Body lowering for members declared on a value wrapper. */
@@ -465,10 +474,14 @@ class KotlinExpr {
                     case TConst(TNull): ": " + types.of(v.t);
                     default: "";
                 };
-                final initText = switch (init.expr) {
+                var initText = switch (init.expr) {
                     case TFunction(fn): functionLiteralNamed(v.name, fn);
                     default: expr(init);
                 };
+                // Haxe unifies Int and Float; widen Int initializers to Float
+                // when the variable's declared type is Float.
+                if (isIntOrLongType(emittedType(init)) && isFloatType(v.t))
+                    initText = intToFloatText(initText);
                 // Haxe permits binding a non-null local from a Null<T>
                 // initializer (an unsound assignment); Kotlin infers the
                 // initializer's nullable type, so the declaration extracts
@@ -544,7 +557,14 @@ class KotlinExpr {
                     case TLocal(v) if (asListReturn.exists(v.id)):
                         return [indent(depth) + "return " + localName(v) + "." + asListReturn.get(v.id)];
                     case _:
-                        return [indent(depth) + "return " + expr(ret)];
+                        var retText = expr(ret);
+                        // Haxe unifies Int and Float; widen Int return values to
+                        // Float when the function's return type is Float.
+                        // Use emittedType because the typed AST type is Float
+                        // (unified) while the generator emits Int text.
+                        if (isIntOrLongType(emittedType(ret)) && isFloatType(currentReturnType))
+                            retText = intToFloatText(retText);
+                        return [indent(depth) + "return " + retText];
                 }
             case TThrow(x):
                 return [indent(depth) + "throw " + throwExpr(x)];
@@ -1060,7 +1080,20 @@ class KotlinExpr {
                         "<" + types.of(params[0]) + ">";
                     case _: "";
                 };
-                return "mutableListOf" + typeArg + "(" + [for (x in elems) expr(x)].join(", ") + ")";
+                // Haxe unifies Int and Float; widen Int elements to Float when
+                // the array's element type is Float.
+                final elemType = switch (e.t) {
+                    case TInst(_, params) if (params.length > 0): params[0];
+                    case _: null;
+                };
+                final elemFloat = isFloatType(elemType);
+                final renderedElems = [for (x in elems) {
+                    var t = expr(x);
+                    if (elemFloat && isIntOrLongType(emittedType(x)))
+                        t = intToFloatText(t);
+                    t;
+                }];
+                return "mutableListOf" + typeArg + "(" + renderedElems.join(", ") + ")";
             case TCall(fn, args):
                 return call(fn, args);
             case TNew(c, params, args):
@@ -1503,7 +1536,11 @@ class KotlinExpr {
         switch (op) {
             case OpAssign:
                 final map = mapAssignment(l);
-                final value = expr(r);
+                var value = expr(r);
+                // Haxe unifies Int and Float; widen Int assignment values to
+                // Float when the target's type is Float.
+                if (map == null && isIntOrLongType(emittedType(r)) && isFloatType(l.t))
+                    value = intToFloatText(value);
                 if (map == null)
                     updateLocalProofTarget(l, r);
                 return map == null ? assignTarget(l) + " = " + value : expr(map.receiver) + ".put(" + expr(map.key) + ", " + value + ")";
@@ -1946,9 +1983,15 @@ class KotlinExpr {
                 addProofExpr(r);
                 final rightText = operand(r, op, true);
                 restoreProofs(saved);
-                return leftText + " " + symbolOf(op) + " " + rightText;
+                final leftFinal = isIntOrLongType(emittedType(l)) && isFloatType(emittedType(r)) ? intToFloatText(leftText) : leftText;
+                final rightFinal = isIntOrLongType(emittedType(r)) && isFloatType(emittedType(l)) ? intToFloatText(rightText) : rightText;
+                return leftFinal + " " + symbolOf(op) + " " + rightFinal;
             case OpAdd | OpSub | OpMult | OpDiv | OpMod | OpEq | OpNotEq:
-                return operand(l, op, false) + " " + symbolOf(op) + " " + operand(r, op, true);
+                final leftText = operand(l, op, false);
+                final rightText = operand(r, op, true);
+                final leftFinal = isIntOrLongType(emittedType(l)) && isFloatType(emittedType(r)) ? intToFloatText(leftText) : leftText;
+                final rightFinal = isIntOrLongType(emittedType(r)) && isFloatType(emittedType(l)) ? intToFloatText(rightText) : rightText;
+                return leftFinal + " " + symbolOf(op) + " " + rightFinal;
             case OpBoolOr:
                 // Kotlin's flow analysis treats a evaluated-false left
                 // operand as establishing the left null guard's else path,
@@ -2457,8 +2500,16 @@ class KotlinExpr {
                 if (abs == null)
                     return null;
                 final field = cf.get();
-                if (field.name == "_new")
-                    return args.length == 0 ? abs.name : abs.name + "(" + expr(args[0]) + ")";
+                if (field.name == "_new") {
+                    if (args.length == 0)
+                        return abs.name;
+                    var argText = expr(args[0]);
+                    // Haxe unifies Int and Float; widen Int arguments to Float
+                    // when the value type's representation is Float.
+                    if (isIntOrLongType(emittedType(args[0])) && ValueTypeSupport.isFloatRepresentation(abs))
+                        argText = intToFloatText(argText);
+                    return abs.name + "(" + argText + ")";
+                }
                 final op = ValueTypeSupport.operatorOf(abs, field);
                 if (op != null) {
                     return switch (op) {
@@ -2938,8 +2989,7 @@ class KotlinExpr {
                     if (!isNullInitialized(a))
                         addProofExpr(a);
                     text + "!!";
-                } else if (isIntType(a.t) && isFloatExpectedType(expected)) "(" + text + ")." + (FloatPrecision.isF32() ? "toFloat()" : "toDouble()"); else
-                    text;
+                } else if (isIntOrLongType(emittedType(a)) && isFloatExpectedType(expected)) intToFloatText(text); else text;
             }
         ];
     }
@@ -3030,8 +3080,18 @@ class KotlinExpr {
     function newExpr(c:Ref<ClassType>, params:Array<Type>, args:Array<TypedExpr>):String {
         final cls = c.get();
         final valueType = ValueTypeSupport.markedAbstractOfClass(cls);
-        if (valueType != null)
-            return args.length == 0 ? valueType.name : valueType.name + "(" + expr(args[0]) + ")";
+        if (valueType != null) {
+            if (args.length == 0)
+                return valueType.name;
+            var argText = expr(args[0]);
+            // Haxe unifies Int and Float; widen Int arguments to Float when
+            // the value type's representation is Float.
+            final emType = emittedType(args[0]);
+            final isFloat = ValueTypeSupport.isFloatRepresentation(valueType);
+            if (isIntOrLongType(emType) && isFloat)
+                argText = intToFloatText(argText);
+            return valueType.name + "(" + argText + ")";
+        }
         final renderedArgs = renderCallArgs(args, constructorParams(cls), cls, "new").join(", ");
         final path = cls.pack.length == 0 ? cls.name : cls.pack.join(".") + "." + cls.name;
         switch (path) {
@@ -3326,9 +3386,9 @@ class KotlinExpr {
     }
 
     function kotlinMathFloatArg(a:TypedExpr):String {
-        if (!isIntType(a.t))
+        if (!isIntOrLongType(a.t))
             return expr(a);
-        return "(" + expr(a) + ")." + (FloatPrecision.isF32() ? "toFloat()" : "toDouble()");
+        return intToFloatText(expr(a));
     }
 
     function isIntType(t:Null<Type>):Bool {
@@ -3338,6 +3398,89 @@ class KotlinExpr {
             case TAbstract(a, _): a.get().name == "Int";
             case _: false;
         };
+    }
+
+    /** Whether the type is a 32-bit or 64-bit integer (Int or haxe.Int64),
+        unwrapping Null<T> to inspect the inner type. */
+    public function isIntOrLongType(t:Null<Type>):Bool {
+        if (t == null)
+            return false;
+        final followed = Context.follow(t);
+        final base = isNullType(followed) ? switch (followed) {
+            case TAbstract(_, params) if (params.length == 1): params[0];
+            case _: followed;
+        } : followed;
+        return switch (Context.follow(base)) {
+            case TAbstract(a, _): final n = a.get().name; n == "Int" || n == "Int64";
+            case _: false;
+        };
+    }
+
+    /** Whether the type is Float (the unified Haxe Float abstract),
+        unwrapping Null<T> to inspect the inner type. */
+    public function isFloatType(t:Null<Type>):Bool {
+        if (t == null)
+            return false;
+        final followed = Context.follow(t);
+        final base = isNullType(followed) ? switch (followed) {
+            case TAbstract(_, params) if (params.length == 1): params[0];
+            case _: followed;
+        } : followed;
+        return switch (Context.follow(base)) {
+            case TAbstract(a, _): a.get().name == "Float";
+            case _: false;
+        };
+    }
+
+    /** Convert an integer expression text to Float/Double when the target expects Float. */
+    function intToFloatText(text:String):String {
+        return "(" + text + ")." + (FloatPrecision.isF32() ? "toFloat()" : "toDouble()");
+    }
+
+    /** Emit an integer literal as a Float/Double literal for const val initializers,
+        where (x).toDouble() is not a compile-time constant. */
+    public function constValFloatLiteral(text:String):String {
+        return text + (FloatPrecision.isF32() ? ".0f" : ".0");
+    }
+
+    /**
+        The "emitted" type of an expression: the type of the value the
+        generator will actually emit as text. For most expressions this is
+        the same as the typed AST type, but Haxe unification types Int-as-Float
+        contexts (return positions, comparisons, arithmetic) as Float while the
+        generator still emits Int text for the original Int sub-expression.
+        This walks the expression to find the type the generated text carries.
+    */
+    function emittedType(e:TypedExpr):Null<Type> {
+        switch (stripWrap(e).expr) {
+            case TConst(TInt(_)):
+                // An Int literal always emits Int text, even when the typer
+                // types it as Float due to unification. Tag it with the Int
+                // type so callers can widen it to Float.
+                return Context.getType("Int");
+            case TIf(_, t, f):
+                final tt = emittedType(t);
+                return tt != null ? tt : emittedType(f);
+            case TBinop(op, l, r):
+                switch (op) {
+                    case OpAdd | OpSub | OpMult | OpDiv | OpMod:
+                        final lt = emittedType(l);
+                        if (lt != null && isIntOrLongType(lt)) return lt;
+                        return emittedType(r);
+                    case OpEq | OpNotEq | OpGt | OpGte | OpLt | OpLte:
+                        final lt = emittedType(l);
+                        if (lt != null) return lt;
+                        return emittedType(r);
+                    case _:
+                }
+            case TLocal(v): return e.t;
+            case TField(_, _): return e.t;
+            case TCall(_, _): return e.t;
+            case TParenthesis(inner): return emittedType(inner);
+            case TCast(inner, _): return emittedType(inner);
+            case _:
+        }
+        return e.t;
     }
 
     /** Whether both operands of a division carry Int, so Kotlin
