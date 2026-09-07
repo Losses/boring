@@ -4745,11 +4745,11 @@ class RustExpr {
                     return "FPHelper::" + RustImports.toSnakeCase(targetName) + "(" + renderedArgs + ")";
                 }
                 if (cls.module == "Math" && name == "isNaN")
-                    return "(" + mathFloatArg(args[0]) + ").is_nan()";
+                    return "(" + mathFloatBindingArg(args[0]) + ").is_nan()";
                 if (cls.module == "Math" && name == "isFinite")
-                    return "(" + mathFloatArg(args[0]) + ").is_finite()";
+                    return "(" + mathFloatBindingArg(args[0]) + ").is_finite()";
                 if (cls.module == "Math" && name == "abs")
-                    return "(" + mathFloatArg(args[0]) + ").abs()";
+                    return "(" + mathFloatBindingArg(args[0]) + ").abs()";
                 if (cls.module == "Math" && (name == "min" || name == "max") && args.length == 2) {
                     // Rust's intrinsic min/max return the non-NaN operand,
                     // unlike the Haxe/JavaScript oracle. Bind first so the
@@ -4758,28 +4758,28 @@ class RustExpr {
                     final real = FloatPrecision.isF32() ? "f32" : "f64";
                     final a = mathFloatBindingArg(args[0]);
                     final b = mathFloatBindingArg(args[1]);
-                    final zeroResult = name == "min"
-                        ? "if a.is_sign_negative() { a } else { b }"
-                        : "if a.is_sign_negative() { b } else { a }";
-                    final ordered = name == "min"
-                        ? "if a < b { a } else if b < a { b } else if a == 0.0 && b == 0.0 { " + zeroResult + " } else { a }"
-                        : "if a > b { a } else if b > a { b } else if a == 0.0 && b == 0.0 { " + zeroResult + " } else { a }";
+                    final zeroResult = name == "min" ? "if a.is_sign_negative() { a } else { b }" : "if a.is_sign_negative() { b } else { a }";
+                    final ordered = name == "min" ? "if a < b { a } else if b < a { b } else if a == 0.0 && b == 0.0 { "
+                        + zeroResult
+                        + " } else { a }" : "if a > b { a } else if b > a { b } else if a == 0.0 && b == 0.0 { "
+                        + zeroResult
+                        + " } else { a }";
                     return "({ let a = " + a + "; let b = " + b + "; if a.is_nan() || b.is_nan() { " + real + "::NAN } else { " + ordered + " } })";
                 }
                 if (cls.module == "Math" && name == "pow" && args.length == 2) {
                     // Rust names the power function powf; the f32
                     // configuration reads it from f32 (feature spec 23).
                     final real = FloatPrecision.isF32() ? "f32" : "f64";
-                    return real + "::powf(" + mathFloatArg(args[0]) + ", " + mathFloatArg(args[1]) + ")";
+                    return real + "::powf(" + mathFloatBindingArg(args[0]) + ", " + mathFloatBindingArg(args[1]) + ")";
                 }
                 if (cls.module == "Math" && name == "sqrt")
-                    return "(" + mathFloatArg(args[0]) + ").sqrt()";
+                    return "(" + mathFloatBindingArg(args[0]) + ").sqrt()";
                 if (cls.module == "Math" && (name == "floor" || name == "ceil" || name == "round")) {
                     // Haxe types floor, ceil, and round as Int; the Rust
                     // methods return the real type, so the call site
                     // truncates through the same conversion Std.int uses.
                     final real = FloatPrecision.isF32() ? "f32" : "f64";
-                    final rounded = real + "::" + name + "(" + mathFloatArg(args[0]) + ")";
+                    final rounded = real + "::" + name + "(" + mathFloatBindingArg(args[0]) + ")";
                     return RuntimeResidents.isResident(imports.selfModule) ? rounded + " as i32" : RustConversions.floatToU32(rounded);
                 }
                 if (cls.module == "Std" && name == "parseFloat") {
@@ -4821,7 +4821,6 @@ class RustExpr {
                     // message renders as the empty string, which the canonical
                     // builder omits.
                     state.shimsUsed.set(RuntimeResidents.externsOf("runtime.TestCore")[0], true);
-                    imports.require("crate::runtime::test as testlib");
                     imports.require("crate::runtime::test_core");
                     final messageArg = function(idx:Int):String {
                         return (args.length > idx && !isTNull(args[idx])) ? "&(" + expr(args[idx]) + ")" : "\"\"";
@@ -4834,6 +4833,10 @@ class RustExpr {
                         return "test_core::TestCore::fail(&(" + expr(args[0]) + "))";
                     }
                     if (name == "run") {
+                        // Only run lowers to testlib text in this branch;
+                        // assertions stay on test_core, so a class without
+                        // a run call must not import testlib.
+                        imports.require("crate::runtime::test as testlib");
                         return "testlib::run(" + renderedArgs + ")";
                     }
                     if (name == "equals") {
