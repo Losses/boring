@@ -944,7 +944,9 @@ class SwiftExpr {
             case TConst(c):
                 switch (c) {
                     case TInt(v): return Std.string(v);
-                    case TFloat(f): return Std.string(f);
+                    case TFloat(f): return (f.length > 0 && f.charAt(0) == ".") ? "0" + f : (f.length > 2
+                            && f.charAt(0) == "-"
+                            && f.charAt(1) == "." ? "-0" + f.substr(1) : f);
                     case TString(s):
                         // The resident ABI carries strings as unit arrays
                         // (docs/specs/features/08-strings-and-unicode.md); business modules keep the
@@ -2055,8 +2057,21 @@ class SwiftExpr {
                     return residentCall("Graphemes", args, fn);
                 }
                 if (module == "Math") {
-                    if ((fName == "min" || fName == "max") && args.length == 2)
-                        return fName + "(" + mathFloatArg(args[0]) + ", " + mathFloatArg(args[1]) + ")";
+                    if ((fName == "min" || fName == "max") && args.length == 2) {
+                        // Swift's min/max do not propagate a NaN in the right
+                        // operand. Bind both widened arguments once and make
+                        // the Haxe/JavaScript semantics explicit.
+                        final real = FloatPrecision.isF32() ? "Float" : "Double";
+                        final a = mathFloatArg(args[0]);
+                        final b = mathFloatArg(args[1]);
+                        final zeroResult = fName == "min"
+                            ? "a.sign == .minus ? a : b"
+                            : "a.sign == .minus ? b : a";
+                        final ordered = fName == "min"
+                            ? "a < b ? a : (b < a ? b : (a == 0.0 && b == 0.0 ? " + zeroResult + " : a))"
+                            : "a > b ? a : (b > a ? b : (a == 0.0 && b == 0.0 ? " + zeroResult + " : a))";
+                        return "({ () -> " + real + " in let a = " + a + "; let b = " + b + "; if a.isNaN || b.isNaN { return " + real + ".nan }; return " + ordered + " })()";
+                    }
                     if (fName == "abs")
                         return "abs(" + mathFloatArg(args[0]) + ")";
                     if (fName == "pow" && args.length == 2) {
@@ -2064,21 +2079,21 @@ class SwiftExpr {
                         return "pow(" + mathFloatArg(args[0]) + ", " + mathFloatArg(args[1]) + ")";
                     }
                     if (fName == "isNaN")
-                        return "(" + expr(args[0]) + ").isNaN";
+                        return "(" + mathFloatArg(args[0]) + ").isNaN";
                     if (fName == "isFinite")
-                        return "(" + expr(args[0]) + ").isFinite";
+                        return "(" + mathFloatArg(args[0]) + ").isFinite";
                     // Members with no bare-function form lower onto the
                     // stdlib method or property of the argument.
                     switch (fName) {
                         // Haxe types floor, ceil, and round as Int (Int32
                         // here), so the Double-returning stdlib methods
                         // convert at the call site.
-                        case "floor": return "Int32((" + expr(args[0]) + ").rounded(.down))";
-                        case "ceil": return "Int32((" + expr(args[0]) + ").rounded(.up))";
+                        case "floor": return "Int32((" + mathFloatArg(args[0]) + ").rounded(.down))";
+                        case "ceil": return "Int32((" + mathFloatArg(args[0]) + ").rounded(.up))";
                         case "round": return "Int32((" + expr(args[0]) + ").rounded())";
-                        case "sqrt": return "(" + expr(args[0]) + ").squareRoot()";
-                        case "isNaN": return "(" + expr(args[0]) + ").isNaN";
-                        case "isFinite": return "(" + expr(args[0]) + ").isFinite";
+                        case "sqrt": return "(" + mathFloatArg(args[0]) + ").squareRoot()";
+                        case "isNaN": return "(" + mathFloatArg(args[0]) + ").isNaN";
+                        case "isFinite": return "(" + mathFloatArg(args[0]) + ").isFinite";
                         case _:
                     }
                 }

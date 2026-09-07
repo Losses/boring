@@ -98,8 +98,13 @@ boring.ToStringOps
 tests.ToStringTests
 boring.EnumQueriesOps
 boring.SwitchOps
+boring.MathIntWideningOps
+boring.MathNaNOps
+boring.MathNaNTestSupport
 tests.EnumQueriesTests
 tests.SwitchOpsTests
+tests.MathIntWideningOpsTests
+tests.MathNaNOpsTests
 tests.EnumQueriesProbes
 boring.StdStringOps
 tests.StdStringTests

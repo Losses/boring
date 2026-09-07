@@ -88,6 +88,8 @@ tests.StringBufTests
 boring.TryOps
 tests.TryTests
 tests.SwitchOpsTests
+tests.MathIntWideningOpsTests
+tests.MathNaNOpsTests
 boring.ArithmeticOps
 tests.ArithmeticTests
 boring.DefaultArgsOps
@@ -173,6 +175,9 @@ tests.RegistryParseArgsTests
 boring.ArrayIterationOps
 boring.CaptureSwitchOps
 boring.SwitchOps
+boring.MathIntWideningOps
+boring.MathNaNOps
+boring.MathNaNTestSupport
 boring.PlatformOps
 tests.CaptureSwitchOpsTests
 tests.ExpressionBlockTests
