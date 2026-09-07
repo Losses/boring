@@ -223,6 +223,24 @@ class KotlinExpr {
     function coalescingStaticCallText(modulePath:String, className:String, methodName:String, args:Array<DefaultArgExpander.CoalescingDefaultValue>,
             targetType:Type):String {
         final rendered = [for (a in args) coalescingDefaultText(a, targetType)].join(", ");
+        if (modulePath == "std.SortedMap" && methodName == "builder") {
+            final key = switch (Context.follow(DefaultArgExpander.withoutNull(targetType))) {
+                case TInst(_, params) if (params.length > 0): params[0];
+                case _: null;
+            };
+            final value = switch (Context.follow(DefaultArgExpander.withoutNull(targetType))) {
+                case TInst(_, params) if (params.length > 1): params[1];
+                case _: null;
+            };
+            imports.requireType("std.SortedMap", "SortedTable");
+            return "SortedTable.mapBuilder<"
+                + types.of(key)
+                + ", "
+                + types.of(value)
+                + ">("
+                + sortedComparator("std.SortedMap", key, Context.currentPos())
+                + ")";
+        }
         if (modulePath == "std.SortedSet" && methodName == "builder") {
             final key = switch (Context.follow(DefaultArgExpander.withoutNull(targetType))) {
                 case TInst(_, params) if (params.length > 0): params[0];
@@ -2175,7 +2193,10 @@ class KotlinExpr {
     function staticRef(cls:ClassType, name:String):String {
         final valueType = ValueTypeSupport.markedAbstractOfClass(cls);
         if (valueType != null) {
-            imports.requireType(valueType.module, valueType.name);
+            // Static members of a synthetic abstract implementation are
+            // emitted on the value class, whose declaration module is the
+            // class reference rather than the source abstract module.
+            imports.requireType(cls.module, valueType.name);
             return valueType.name + "." + name;
         }
         final markedField = findStaticField(cls, name);
