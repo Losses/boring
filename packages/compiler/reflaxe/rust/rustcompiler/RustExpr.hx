@@ -2892,7 +2892,7 @@ class RustExpr {
         }
         out.push("    " + valueText);
         out.push("}");
-        return out;
+        return [out.join("\n")];
     }
 
     function isStringType(t:Type):Bool {
@@ -3752,7 +3752,7 @@ class RustExpr {
     }
 
     function staticItemPath(cls:ClassType, name:String):String {
-        final itemName = RustImports.toScreamingSnakeCase(name);
+        final itemName = RustImports.toScreamingSnakeCase(cls.name + "_" + name);
         return cls.module == imports.selfModule ? itemName : "crate::" + RustImports.moduleToRustPath(cls.module) + "::" + itemName;
     }
 
