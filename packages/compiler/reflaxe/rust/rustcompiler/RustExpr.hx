@@ -4821,7 +4821,6 @@ class RustExpr {
                     // message renders as the empty string, which the canonical
                     // builder omits.
                     state.shimsUsed.set(RuntimeResidents.externsOf("runtime.TestCore")[0], true);
-                    imports.require("crate::runtime::test as testlib");
                     imports.require("crate::runtime::test_core");
                     final messageArg = function(idx:Int):String {
                         return (args.length > idx && !isTNull(args[idx])) ? "&(" + expr(args[idx]) + ")" : "\"\"";
@@ -4834,6 +4833,10 @@ class RustExpr {
                         return "test_core::TestCore::fail(&(" + expr(args[0]) + "))";
                     }
                     if (name == "run") {
+                        // Only run lowers to testlib text in this branch;
+                        // assertions stay on test_core, so a class without
+                        // a run call must not import testlib.
+                        imports.require("crate::runtime::test as testlib");
                         return "testlib::run(" + renderedArgs + ")";
                     }
                     if (name == "equals") {
