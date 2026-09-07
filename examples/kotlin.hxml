@@ -160,6 +160,7 @@ tests.NumberParsingTests
 boring.NumberClassifyOps
 boring.MathMinMaxOps
 boring.SwitchOps
+boring.MathIntWideningOps
 tests.NumberClassifyTests
 tests.MathMinMaxTests
 boring.InstanceDefaults
@@ -172,6 +173,7 @@ boring.AllowGuest
 tests.AllowAccessTests
 tests.ArrayRootTests
 tests.SwitchOpsTests
+tests.MathIntWideningOpsTests
 
 registry.Core
 registry.CoreFault
