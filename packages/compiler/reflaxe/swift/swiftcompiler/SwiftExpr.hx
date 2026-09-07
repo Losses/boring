@@ -152,7 +152,12 @@ class SwiftExpr {
         return expr(e);
     }
 
-    function coalescingSiteFor(e:TypedExpr):Null<{parameter:String, defaultExpr:TypedExpr, valueExpr:TypedExpr}> {
+    function coalescingSiteFor(e:TypedExpr):Null<{
+        parameter:String,
+        defaultExpr:TypedExpr,
+        valueExpr:TypedExpr,
+        value:DefaultArgExpander.CoalescingDefaultValue
+    }> {
         if (currentClass == null || currentField == null)
             return null;
         final site = DefaultArgExpander.coalescingSite(e);
@@ -161,7 +166,79 @@ class SwiftExpr {
         if (site == null || value == null) {
             return null;
         }
-        return site;
+        return {
+            parameter: site.parameter,
+            defaultExpr: site.defaultExpr,
+            valueExpr: site.valueExpr,
+            value: value
+        };
+    }
+
+    /**
+        Whether a sanctioned default needs the `try` marker anywhere, so it
+        cannot render in Swift's default-argument position (a default
+        argument expression cannot throw) nor on the right side of `??`
+        (that autoclosure cannot throw). The signature side and the body
+        side both read this one predicate over the value shape, so the
+        routing special cases cannot make them disagree. Static calls and
+        constructors route through the fallibility table the way call
+        sites do; an instance-method default carries no receiver class in
+        the value shape, so only its nested values are examined.
+    **/
+    public function coalescingDefaultThrows(value:DefaultArgExpander.CoalescingDefaultValue):Bool {
+        return switch (value) {
+            case CStaticCall(modulePath, className, methodName, args): coalescingStaticTargetThrows(modulePath, className,
+                    methodName) || coalescingArgsThrow(args);
+            case CConstructorCall(modulePath, _, args): SwiftFallibility.isThrowing(modulePath, "new", false) || coalescingArgsThrow(args);
+            case CMethodCall(receiver, _, args): coalescingDefaultThrows(receiver) || coalescingArgsThrow(args);
+            case CFieldAccess(receiver, _): coalescingDefaultThrows(receiver);
+            case CConditional(c, t, f): coalescingDefaultThrows(c) || coalescingDefaultThrows(t) || coalescingDefaultThrows(f);
+            case CBinaryOp(_, left, right): coalescingDefaultThrows(left) || coalescingDefaultThrows(right);
+            case _: false;
+        };
+    }
+
+    /**
+        Resolves the class a sanctioned static call names and asks the
+        same routing the call-site arm uses, so a default and its call
+        twin can never disagree on the `try` marker. The expander only
+        builds `CStaticCall` from a resolved class reference, so the
+        reconstructed path resolves; the fallback covers an unresolved
+        path without failing the build.
+    **/
+    function coalescingStaticTargetThrows(modulePath:String, className:String, methodName:String):Bool {
+        final resolved = try {
+            Context.getType(modulePath + "." + className);
+        } catch (_:Dynamic) {
+            null;
+        };
+        return switch (resolved) {
+            case TInst(c, _): SwiftFallibility.staticCallThrows(c.get(), methodName);
+            case TAbstract(a, _): SwiftFallibility.staticCallThrows(a.get(), methodName);
+            case _: SwiftFallibility.callThrows(SwiftFallibility.routedModule(modulePath, methodName), methodName, true);
+        };
+    }
+
+    /**
+        The body-side conditional for a throwing sanctioned default. The
+        `??` operator takes a non-throwing autoclosure on its right, so a
+        default that can throw renders as an explicit conditional; the
+        condition proves the local arm non-nil in the false branch, which
+        makes the force unwrap safe. The inner `try` covers the default
+        expression itself; a `try` marker the statement pipeline adds over
+        the same call is legal and stays.
+    **/
+    function throwingCoalescingText(value:DefaultArgExpander.CoalescingDefaultValue, valueText:String, targetType:Type):String {
+        return "(" + valueText + " == nil ? try " + coalescingDefaultText(value, targetType) + " : " + valueText + "!)";
+    }
+
+    function coalescingArgsThrow(args:Array<DefaultArgExpander.CoalescingDefaultValue>):Bool {
+        for (a in args) {
+            if (coalescingDefaultThrows(a)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Renders a sanctioned default in Swift's native parameter context. */
@@ -1032,8 +1109,12 @@ class SwiftExpr {
                 if (coalescing != null) {
                     if (currentLocalName != null && currentClass != null && currentField != null) {
                         final value = DefaultArgExpander.coalescingDefaultForLocalParam(currentClass, currentField, currentLocalName, coalescing.parameter);
-                        if (value != null)
+                        if (value != null) {
+                            if (coalescingDefaultThrows(value)) {
+                                return throwingCoalescingText(value, expr(coalescing.valueExpr), coalescing.valueExpr.t);
+                            }
                             return expr(coalescing.valueExpr) + " ?? " + coalescingDefaultText(value, coalescing.valueExpr.t);
+                        }
                     }
                     return expr(coalescing.valueExpr);
                 }
