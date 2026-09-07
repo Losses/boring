@@ -1352,22 +1352,15 @@ class TsExpr {
                 if (isValueEnum(enumDef))
                     imports.value(enumDef.module, enumDef.name);
                 return isValueEnum(enumDef) ? enumDef.name + "." + ef.name : "{ kind: \"" + ef.name + "\" }";
-            case FInstance(_, _, cf) | FAnon(cf):
+            case FInstance(owner, _, cf):
                 final name = cf.get().name;
-                final target = stripCast(subj);
-                if ((name == "high" || name == "low") && isFpHelperInt64Halves(target)) {
-                    return expr(target) + "." + name;
-                }
-                switch (target.expr) {
-                    case TLocal(v) if (name == "length" && boundSubst.exists(v.id)):
-                        return boundSubst.get(v.id);
-                    case _:
-                }
-                final folded = foldedExceptionMessage(target, name);
-                if (folded != null) {
-                    return folded;
-                }
-                return expr(subj) + "." + name;
+                final getterProperty = getterOnlyPropertyName(owner.get(), name);
+                if (getterProperty != null)
+                    return expr(subj) + "." + getterProperty;
+                return instanceFieldRead(subj, name);
+            case FAnon(cf):
+                final name = cf.get().name;
+                return instanceFieldRead(subj, name);
             case FDynamic(name):
                 if ((name == "length" || name == "get_length") && isStringBuf(subj)) {
                     return expr(subj) + ".length";
@@ -1376,6 +1369,32 @@ class TsExpr {
             case FClosure(_):
                 return fail(subj, "function value has no lowering (V08)");
         }
+    }
+
+    function instanceFieldRead(subj:TypedExpr, name:String):String {
+        final target = stripCast(subj);
+        if ((name == "high" || name == "low") && isFpHelperInt64Halves(target))
+            return expr(target) + "." + name;
+        switch (target.expr) {
+            case TLocal(v) if (name == "length" && boundSubst.exists(v.id)):
+                return boundSubst.get(v.id);
+            case _:
+        }
+        final folded = foldedExceptionMessage(target, name);
+        if (folded != null)
+            return folded;
+        return expr(subj) + "." + name;
+    }
+
+    function getterOnlyPropertyName(owner:ClassType, accessorName:String):Null<String> {
+        if (!StringTools.startsWith(accessorName, "get_"))
+            return null;
+        final propertyName = accessorName.substring("get_".length);
+        for (field in owner.fields.get()) {
+            if (field.name == propertyName && PolicyQueries.isGetterOnlyProperty(field))
+                return field.name;
+        }
+        return null;
     }
 
     function staticRef(cls:ClassType, name:String):String {
@@ -1836,8 +1855,11 @@ class TsExpr {
                 return call(inner, args);
             case TField(subj, FDynamic(name)) if ((name == "length" || name == "get_length") && isStringBuf(subj)):
                 return expr(subj) + ".length";
-            case TField(subj, FInstance(_, _, cf)):
+            case TField(subj, FInstance(owner, _, cf)):
                 final name = cf.get().name;
+                final getterProperty = getterOnlyPropertyName(owner.get(), name);
+                if (getterProperty != null && args.length == 0)
+                    return expr(subj) + "." + getterProperty;
                 if (isStringSubject(subj)) {
                     if (name == "toLowerCase")
                         return expr(subj) + ".toLowerCase()";
