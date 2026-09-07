@@ -16,6 +16,7 @@ import AssignTargetPlan;
 import AssignTargetPlan.AssignTargetFieldKind;
 import PolicyQueries.StdStringCategory;
 import PolicyQueries.Int64Op;
+import PolicyQueries.VariantArmStep;
 import FusionPlan;
 import FusionPlan.FusionStep;
 import VarFusionPlan;
@@ -2690,44 +2691,36 @@ class TsExpr {
     function armLines(e:TypedExpr, depth:Int):Array<String> {
         final out:Array<String> = [];
         var value:Null<String> = null;
-        function walk(stmts:Array<TypedExpr>) {
-            for (idx in 0...stmts.length) {
-                final s = stmts[idx];
-                switch (s.expr) {
-                    case TVar(v, init):
-                        if (init == null) {
-                            Context.error("ts target: declaration without initializer has no lowering", s.pos);
-                        }
-                        switch (stripWrap(init).expr) {
-                            case TEnumParameter(se, ef, index):
-                                subst.set(v.id, expr(se) + "." + payloadName(ef, index));
-                            case TLocal(source) if (subst.exists(source.id)):
-                                // The typer binds the switch subject to a hidden
-                                // local before extracting the payload; forward
-                                // the substitution through that chain.
-                                subst.set(v.id, subst.get(source.id));
-                            case _:
-                                out.push(indent(depth) + "const " + localName(v) + " = " + expr(init) + ";");
-                        }
-                    case TBlock(bs):
-                        walk(bs);
-                    case TMeta(_, inner):
-                        walk([inner]);
-                    case _:
-                        // A case body may carry statements before its value
-                        // expression (an argument check that throws, a
-                        // mutation); each renders before the branch value's
-                        // return, and the final expression is the value.
-                        if (idx == stmts.length - 1) {
-                            value = expr(s);
-                        } else {
-                            for (l in stmtLines(s, depth))
-                                out.push(l);
-                        }
-                }
+        for (step in PolicyQueries.variantArmPlan(e)) {
+            switch (step) {
+                case PayloadCapture(v, subject, ef, index):
+                    subst.set(v.id, expr(subject) + "." + payloadName(ef, index));
+                case ForwardOrDecl(v, init, source):
+                    // The typer binds the switch subject to a hidden local
+                    // before extracting the payload; forward the substitution
+                    // through that chain.
+                    if (subst.exists(source.id)) {
+                        subst.set(v.id, subst.get(source.id));
+                    } else {
+                        out.push(indent(depth) + "const " + localName(v) + " = " + expr(init) + ";");
+                    }
+                case PlainDecl(v, init):
+                    out.push(indent(depth) + "const " + localName(v) + " = " + expr(init) + ";");
+                case OtherStatement(s, _, isLast):
+                    // A case body may carry statements before its value
+                    // expression (an argument check that throws, a
+                    // mutation); each renders before the branch value's
+                    // return, and the final expression is the value.
+                    if (isLast) {
+                        value = expr(s);
+                    } else {
+                        for (l in stmtLines(s, depth))
+                            out.push(l);
+                    }
+                case MissingInit(s):
+                    Context.error("ts target: declaration without initializer has no lowering", s.pos);
             }
         }
-        walk(statementsOf(e));
         if (value == null) {
             return fail(e, "variant switch arm has no value");
         }
