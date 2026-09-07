@@ -7,6 +7,7 @@ import reflaxe.data.ClassVarData;
 import reflaxe.data.EnumOptionData;
 import RuntimeResidents;
 import ExpressionPredicates;
+import EnumQueryExpander;
 import StructuralKeyValidator;
 
 enum KeyDomain {
@@ -64,6 +65,52 @@ enum StdStringCategory {
     IsCyclicEnum(en:EnumType);
     IsPayloadEnum(en:EnumType);
     IsUnsupported;
+}
+
+/** One step of a variant switch arm walkthrough. The traversal and
+    classification are shared; each target renders a step its own way. */
+enum VariantArmStep {
+    /** `var v = <subject>.payload(index)` capture. The consumer renders the
+        reference text and writes it into its own subst map. */
+    PayloadCapture(v:TVar, subject:TypedExpr, ef:EnumField, index:Int);
+
+    /** `var v = source` chain. The consumer forwards the substitution when
+        its own subst map already holds `source`, and renders a plain
+        declaration otherwise. */
+    ForwardOrDecl(v:TVar, init:TypedExpr, source:TVar);
+
+    /** Plain local declaration. The consumer renders it with its own
+        keyword and indentation. */
+    PlainDecl(v:TVar, init:TypedExpr);
+
+    /** Any other statement. `returnValue` is the inner expression of a
+        non-void `return` (null otherwise); `isLast` is the position within
+        its own statement list. */
+    OtherStatement(s:TypedExpr, returnValue:Null<TypedExpr>, isLast:Bool);
+
+    /** `var` without initializer. The consumer reports its target error. */
+    MissingInit(s:TypedExpr);
+}
+
+/** One step of an enum-query expression classification. The kind
+    detection, subject walk, and argument extraction are shared; each
+    target renders the step with its own import calls and syntax. */
+enum EnumQueryStep {
+    /** `expr.length` on an enum collection: the constructor count. The
+        rendered text is identical in every target. */
+    LengthCount(count:Int);
+
+    /** `expr[index]` on an aliased enum collection. The consumer renders the
+        subject and index with its own indexing syntax. */
+    AliasIndex(subj:TypedExpr, index:TypedExpr);
+
+    /** `expr[index]` on the enum's own collection. The consumer imports
+        the enum and renders its collection-access syntax. */
+    EntryIndex(en:EnumType, index:TypedExpr);
+
+    /** A marker-based query. `args` come from `callArgs`; consumers use
+        `args[0]` for name queries and `args[1]` for lookups. */
+    EnumKindQuery(kind:EnumQueryKind, en:EnumType, args:Array<TypedExpr>);
 }
 
 /** Shared policy queries for declaration and field-key decisions. */
@@ -515,8 +562,8 @@ class PolicyQueries {
                 stringBufSubject: stringBufToStringSubject(ExpressionPredicates.stripWrap(last))
             };
         final value = switch (last.expr) {
-            case TReturn(_) | TThrow(_) | TVar(_, _) | TIf(_, _, _) | TWhile(_, _, _) | TBlock(_) | TBreak | TContinue | TBinop(OpAssign, _, _)
-                | TBinop(OpAssignOp(_), _, _): null;
+            case TReturn(_) | TThrow(_) | TVar(_, _) | TIf(_, _, _) | TWhile(_, _, _) | TBlock(_) | TBreak | TContinue | TBinop(OpAssign, _, _) |
+                TBinop(OpAssignOp(_), _, _): null;
             case _: last;
         };
         return {
@@ -524,6 +571,72 @@ class PolicyQueries {
             value: value,
             stringBufSubject: null
         };
+    }
+
+    /** Classifies the statements of one variant switch arm into shared steps.
+        Traversal covers payload captures, forwarding chains, nested
+        TBlock/TMeta, and the trailing value expression. The subst map,
+        rendered text, keywords, and indentation stay in each target. */
+    public static function variantArmPlan(e:TypedExpr):Array<VariantArmStep> {
+        final steps:Array<VariantArmStep> = [];
+        function walk(stmts:Array<TypedExpr>) {
+            for (idx in 0...stmts.length) {
+                final s = stmts[idx];
+                switch (s.expr) {
+                    case TVar(v, null):
+                        steps.push(MissingInit(s));
+                    case TVar(v, init):
+                        switch (ExpressionPredicates.stripWrap(init).expr) {
+                            case TEnumParameter(subject, ef, index):
+                                steps.push(PayloadCapture(v, subject, ef, index));
+                            case TLocal(source):
+                                steps.push(ForwardOrDecl(v, init, source));
+                            case _:
+                                steps.push(PlainDecl(v, init));
+                        }
+                    case TBlock(bs):
+                        walk(bs);
+                    case TMeta(_, inner):
+                        walk([inner]);
+                    case TReturn(r):
+                        steps.push(OtherStatement(s, r, idx == stmts.length - 1));
+                    case _:
+                        steps.push(OtherStatement(s, null, idx == stmts.length - 1));
+                }
+            }
+        }
+        walk(statementsOf(e));
+        return steps;
+    }
+
+    /** Classifies one enum-query expression into a shared step. Returns null
+        when the expression is not an enum query; the consumer then falls back
+        to its generic rendering. Import calls and target syntax stay in each
+        target. */
+    public static function enumQueryPlan(e:TypedExpr):Null<EnumQueryStep> {
+        switch (e.expr) {
+            case TField(subj, fa):
+                final name = switch (fa) {
+                    case FInstance(_, _, cf) | FAnon(cf): cf.get().name;
+                    case FDynamic(n): n;
+                    case _: "";
+                };
+                final en = EnumQueryExpander.collectionEnum(subj);
+                if (name == "length" && en != null)
+                    return LengthCount(EnumQueryExpander.constructorCount(en));
+            case TArray(subj, index):
+                final en = EnumQueryExpander.collectionEnum(subj);
+                if (en != null) {
+                    if (EnumQueryExpander.aliasEnum(subj) != null)
+                        return AliasIndex(subj, index);
+                    return EntryIndex(en, index);
+                }
+            case _:
+        }
+        final kind = EnumQueryExpander.markerKind(e);
+        if (kind == null)
+            return null;
+        return EnumKindQuery(kind, EnumQueryExpander.enumOf(e), EnumQueryExpander.callArgs(e));
     }
 
     public static function lambdaBody(e:TypedExpr):TypedExpr {

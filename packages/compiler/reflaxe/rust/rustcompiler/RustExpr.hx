@@ -11,6 +11,7 @@ import haxe.macro.TypedExprTools;
 import reflaxe.data.ClassFuncData;
 import ExpressionPredicates;
 import PolicyQueries;
+import PolicyQueries.EnumQueryStep;
 import ExpressionBlockNorm;
 import AssignTargetPlan;
 import AssignTargetPlan.AssignTargetFieldKind;
@@ -211,7 +212,7 @@ class RustExpr {
                 default:
             }
         final rendered = switch (value) {
-            case CInt(v): Std.string(v);
+            case CInt(v): isFloatType(targetType) ? intToFloatText(Std.string(v)) : Std.string(v);
             case CFloat(s):
                 final padded = s.indexOf(".") >= 0 || s.indexOf("e") >= 0 || s.indexOf("E") >= 0 ? s : s + ".0";
                 FloatPrecision.isF32() ? padded + "f32" : padded;
@@ -779,6 +780,18 @@ class RustExpr {
                     // wraps once at the boundary; Null-typed expressions
                     // already lower to Option and TNull renders None.
                     retStr = "Some(" + retStr + ")";
+                } else if (!StringTools.startsWith(returnTypeName, "Option<")) {
+                    switch (stripWrap(ret).expr) {
+                        case TLocal(v) if (provenNonNullVarIds.exists(v.id) && isNullType(ret.t)):
+                            // A null-checked Null<T> local returned as T
+                            // unwraps at the boundary: the guard proved the
+                            // Option holds Some, so `.unwrap()` yields the
+                            // inner value the return type expects. Option
+                            // returns keep the Option wrapper, so skip when
+                            // the return type is itself Option.
+                            retStr = "(" + retStr + ").unwrap()";
+                        case _:
+                    }
                 }
                 if (isFallible) {
                     final guard = staticGuardOf(ret);
@@ -968,8 +981,10 @@ class RustExpr {
     function fuseWithin(e:TypedExpr):TypedExpr {
         return switch (e.expr) {
             case TBlock(stmts):
-                final fused = fuseUninitializedVars([for (s in stmts) fuseWithin(s)]);
-                {expr: TBlock(fused), pos: e.pos, t: e.t};
+                final nested = [for (s in stmts) fuseWithin(s)];
+                final fused = fuseUninitializedVars(nested);
+                final deadMatchFused = DeadInitializerMatchFusion.fuseDeadInitializerMatch(fused, stripCast);
+                {expr: TBlock(deadMatchFused), pos: e.pos, t: e.t};
             case _:
                 TypedExprTools.map(e, fuseWithin);
         }
@@ -2133,9 +2148,10 @@ class RustExpr {
                 };
                 final isStringElem = elemType != null && isStringType(elemType);
                 final isNullableElem = elemType != null && StaticFieldHelper.isNullableType(elemType);
+                final elemFloat = isFloatType(elemType);
                 final rendered = [
                     for (x in elems) {
-                        final inner = if (isStringElem) {
+                        var inner = if (isStringElem) {
                             switch (stripWrap(x).expr) {
                                 case TConst(TString(_)):
                                     expr(x) + ".to_string()";
@@ -2147,6 +2163,7 @@ class RustExpr {
                         } else {
                             expr(x);
                         };
+                        if (elemFloat && isIntType(emittedType(x))) inner = intToFloatText(inner);
                         if (isNullableElem && !isTNull(x) && !StaticFieldHelper.isNullableType(x.t)) {
                             "Some(" + inner + ")";
                         } else {
@@ -2204,7 +2221,13 @@ class RustExpr {
                 final condStr = switch (stripWrap(c).expr) {
                     case _: expr(stripWrap(c));
                 };
-                return "if " + condStr + " { " + conditionalBranchText(t, f, e.t) + " } else { " + conditionalBranchText(f, t, e.t) + " }";
+                return "if "
+                    + condStr
+                    + " { "
+                    + wrapBranchForNullableResult(t, e.t, f)
+                    + " } else { "
+                    + wrapBranchForNullableResult(f, e.t, t)
+                    + " }";
             case TSwitch(_, _, _):
                 return matchExpression(e);
             case TTry(_, catches) if (catches.length != 1):
@@ -2359,37 +2382,21 @@ class RustExpr {
     }
 
     function enumQuery(e:TypedExpr):Null<String> {
-        switch (e.expr) {
-            case TField(subj, fa):
-                final name = switch (fa) {
-                    case FInstance(_, _, cf) | FAnon(cf): cf.get().name;
-                    case FDynamic(n): n;
-                    case _: "";
-                };
-                final en = EnumQueryExpander.collectionEnum(subj);
-                if (name == "length" && en != null)
-                    return Std.string(EnumQueryExpander.constructorCount(en));
-            case TArray(subj, index):
-                final en = EnumQueryExpander.collectionEnum(subj);
-                if (en != null) {
-                    if (EnumQueryExpander.aliasEnum(subj) != null)
-                        return expr(subj) + "[" + expr(index) + "]";
-                    requireEnum(en.module, en.name);
-                    return en.name + "::ALL[" + expr(index) + "]";
+        return switch (PolicyQueries.enumQueryPlan(e)) {
+            case null: null;
+            case LengthCount(count): Std.string(count);
+            case AliasIndex(subj, index): expr(subj) + "[" + expr(index) + "]";
+            case EntryIndex(en, index):
+                requireEnum(en.module, en.name);
+                en.name + "::ALL[" + expr(index) + "]";
+            case EnumKindQuery(kind, en, args):
+                requireEnum(en.module, en.name);
+                switch (kind) {
+                    case QCollection: en.name + "::ALL";
+                    case QName: expr(args[0]) + ".name()";
+                    case QLookup: en.name + "::from_name(&(" + expr(args[1]) + "))";
                 }
-            case _:
         }
-        final kind = EnumQueryExpander.markerKind(e);
-        if (kind == null)
-            return null;
-        final en = EnumQueryExpander.enumOf(e);
-        final args = EnumQueryExpander.callArgs(e);
-        requireEnum(en.module, en.name);
-        return switch (kind) {
-            case QCollection: en.name + "::ALL";
-            case QName: expr(args[0]) + ".name()";
-            case QLookup: en.name + "::from_name(&(" + expr(args[1]) + "))";
-        };
     }
 
     // ------------------------------------------------------------------
@@ -3195,8 +3202,14 @@ class RustExpr {
                 return "(" + leftText + ") " + symbolOf(op) + " (" + rightText + ")";
 
             case _:
-                final left = isInt64Type(l.t) ? "(" + expr(l) + ")" : operand(l, op, false);
-                final right = isInt64Type(r.t) ? "(" + expr(r) + ")" : operand(r, op, true);
+                var left = isInt64Type(l.t) ? "(" + expr(l) + ")" : operand(l, op, false);
+                var right = isInt64Type(r.t) ? "(" + expr(r) + ")" : operand(r, op, true);
+                // Haxe unifies Int and Float; widen Int comparison operands to
+                // Float when the other side is Float.
+                if (isIntType(emittedType(l)) && isFloatType(emittedType(r)))
+                    left = intToFloatText(left);
+                if (isIntType(emittedType(r)) && isFloatType(emittedType(l)))
+                    right = intToFloatText(right);
                 return left + " " + symbolOf(op) + " " + right;
         }
     }
@@ -3394,12 +3407,11 @@ class RustExpr {
         the parameter type, keeping existing trees unchanged.
     **/
     function mathFloatArg(a:TypedExpr):String {
-        if (!isIntType(a.t)) {
+        if (!isIntType(emittedType(a)))
             return expr(a);
-        }
         return switch (stripWrap(a).expr) {
             case TConst(TInt(_)): expr(a);
-            case _: "(" + expr(a) + " as " + (FloatPrecision.isF32() ? "f32" : "f64") + ")";
+            case _: intToFloatText(expr(a));
         };
     }
 
@@ -4745,11 +4757,11 @@ class RustExpr {
                     return "FPHelper::" + RustImports.toSnakeCase(targetName) + "(" + renderedArgs + ")";
                 }
                 if (cls.module == "Math" && name == "isNaN")
-                    return "(" + mathFloatArg(args[0]) + ").is_nan()";
+                    return "(" + mathFloatBindingArg(args[0]) + ").is_nan()";
                 if (cls.module == "Math" && name == "isFinite")
-                    return "(" + mathFloatArg(args[0]) + ").is_finite()";
+                    return "(" + mathFloatBindingArg(args[0]) + ").is_finite()";
                 if (cls.module == "Math" && name == "abs")
-                    return "(" + mathFloatArg(args[0]) + ").abs()";
+                    return "(" + mathFloatBindingArg(args[0]) + ").abs()";
                 if (cls.module == "Math" && (name == "min" || name == "max") && args.length == 2) {
                     // Rust's intrinsic min/max return the non-NaN operand,
                     // unlike the Haxe/JavaScript oracle. Bind first so the
@@ -4758,28 +4770,28 @@ class RustExpr {
                     final real = FloatPrecision.isF32() ? "f32" : "f64";
                     final a = mathFloatBindingArg(args[0]);
                     final b = mathFloatBindingArg(args[1]);
-                    final zeroResult = name == "min"
-                        ? "if a.is_sign_negative() { a } else { b }"
-                        : "if a.is_sign_negative() { b } else { a }";
-                    final ordered = name == "min"
-                        ? "if a < b { a } else if b < a { b } else if a == 0.0 && b == 0.0 { " + zeroResult + " } else { a }"
-                        : "if a > b { a } else if b > a { b } else if a == 0.0 && b == 0.0 { " + zeroResult + " } else { a }";
+                    final zeroResult = name == "min" ? "if a.is_sign_negative() { a } else { b }" : "if a.is_sign_negative() { b } else { a }";
+                    final ordered = name == "min" ? "if a < b { a } else if b < a { b } else if a == 0.0 && b == 0.0 { "
+                        + zeroResult
+                        + " } else { a }" : "if a > b { a } else if b > a { b } else if a == 0.0 && b == 0.0 { "
+                        + zeroResult
+                        + " } else { a }";
                     return "({ let a = " + a + "; let b = " + b + "; if a.is_nan() || b.is_nan() { " + real + "::NAN } else { " + ordered + " } })";
                 }
                 if (cls.module == "Math" && name == "pow" && args.length == 2) {
                     // Rust names the power function powf; the f32
                     // configuration reads it from f32 (feature spec 23).
                     final real = FloatPrecision.isF32() ? "f32" : "f64";
-                    return real + "::powf(" + mathFloatArg(args[0]) + ", " + mathFloatArg(args[1]) + ")";
+                    return real + "::powf(" + mathFloatBindingArg(args[0]) + ", " + mathFloatBindingArg(args[1]) + ")";
                 }
                 if (cls.module == "Math" && name == "sqrt")
-                    return "(" + mathFloatArg(args[0]) + ").sqrt()";
+                    return "(" + mathFloatBindingArg(args[0]) + ").sqrt()";
                 if (cls.module == "Math" && (name == "floor" || name == "ceil" || name == "round")) {
                     // Haxe types floor, ceil, and round as Int; the Rust
                     // methods return the real type, so the call site
                     // truncates through the same conversion Std.int uses.
                     final real = FloatPrecision.isF32() ? "f32" : "f64";
-                    final rounded = real + "::" + name + "(" + mathFloatArg(args[0]) + ")";
+                    final rounded = real + "::" + name + "(" + mathFloatBindingArg(args[0]) + ")";
                     return RuntimeResidents.isResident(imports.selfModule) ? rounded + " as i32" : RustConversions.floatToU32(rounded);
                 }
                 if (cls.module == "Std" && name == "parseFloat") {
@@ -4821,7 +4833,6 @@ class RustExpr {
                     // message renders as the empty string, which the canonical
                     // builder omits.
                     state.shimsUsed.set(RuntimeResidents.externsOf("runtime.TestCore")[0], true);
-                    imports.require("crate::runtime::test as testlib");
                     imports.require("crate::runtime::test_core");
                     final messageArg = function(idx:Int):String {
                         return (args.length > idx && !isTNull(args[idx])) ? "&(" + expr(args[idx]) + ")" : "\"\"";
@@ -4834,6 +4845,10 @@ class RustExpr {
                         return "test_core::TestCore::fail(&(" + expr(args[0]) + "))";
                     }
                     if (name == "run") {
+                        // Only run lowers to testlib text in this branch;
+                        // assertions stay on test_core, so a class without
+                        // a run call must not import testlib.
+                        imports.require("crate::runtime::test as testlib");
                         return "testlib::run(" + renderedArgs + ")";
                     }
                     if (name == "equals") {
@@ -5257,6 +5272,13 @@ class RustExpr {
                         continue;
                     }
                 }
+                if (i < paramTypes.length) {
+                    final pt = paramTypes[i];
+                    if (isFloatType(pt) && isIntType(emittedType(arg))) {
+                        out.push(intToFloatText(argStr));
+                        continue;
+                    }
+                }
             }
             out.push(argStr);
         }
@@ -5283,7 +5305,7 @@ class RustExpr {
 
     function defaultArgText(v:DefaultArgExpander.DefaultArgValue, t:Type):String
         return switch (v) {
-            case VInt(x): Std.string(x);
+            case VInt(x): isFloatType(t) ? intToFloatText(Std.string(x)) : Std.string(x);
             case VFloat(x): x;
             case VString(x): quoteString(x) + ".to_string()";
             case VBool(x): x ? "true" : "false";
@@ -6181,6 +6203,10 @@ class RustExpr {
     function renderValueForType(expected:Null<Type>, actual:TypedExpr, rendered:String):String {
         if (expected == null || actual == null)
             return rendered;
+        // Haxe unifies Int and Float; widen Int values to Float when the
+        // target slot expects Float.
+        if (isFloatType(expected) && isIntType(emittedType(actual)))
+            return intToFloatText(rendered);
         // Rust represents
         // concrete implementor therefore enters an interface slot through
         // the one sanctioned Box::new construction; an expression already
@@ -6550,7 +6576,7 @@ class RustExpr {
         return StringTools.contains(Std.string(Context.follow(t)), "Int64");
     }
 
-    function isFloatType(t:Type):Bool {
+    public function isFloatType(t:Type):Bool {
         if (t == null)
             return false;
         return switch (Context.follow(t)) {
@@ -6559,7 +6585,54 @@ class RustExpr {
         };
     }
 
-    function isIntType(t:Type):Bool {
+    /** Convert an integer expression text to Float (as f64 / as f32). */
+    public function intToFloatText(text:String):String {
+        return "(" + text + " as " + (FloatPrecision.isF32() ? "f32" : "f64") + ")";
+    }
+
+    /**
+        The "emitted" type of an expression: the type of the value the
+        generator will actually emit as text. Haxe unification types
+        Int-as-Float contexts as Float while the generator still emits
+        Int text for the original Int sub-expression.
+     */
+    public function emittedType(e:TypedExpr):Null<Type> {
+        switch (stripWrap(e).expr) {
+            case TConst(TInt(_)):
+                return Context.getType("Int");
+            case TIf(_, t, f):
+                final tt = emittedType(t);
+                return tt != null ? tt : emittedType(f);
+            case TBinop(op, l, r):
+                switch (op) {
+                    case OpAdd | OpSub | OpMult | OpDiv | OpMod:
+                        final lt = emittedType(l);
+                        if (lt != null && isIntType(lt))
+                            return lt;
+                        return emittedType(r);
+                    case OpEq | OpNotEq | OpGt | OpGte | OpLt | OpLte:
+                        final lt = emittedType(l);
+                        if (lt != null)
+                            return lt;
+                        return emittedType(r);
+                    case _:
+                }
+            case TLocal(v):
+                return e.t;
+            case TField(_, _):
+                return e.t;
+            case TCall(_, _):
+                return e.t;
+            case TParenthesis(inner):
+                return emittedType(inner);
+            case TCast(inner, _):
+                return emittedType(inner);
+            case _:
+        }
+        return e.t;
+    }
+
+    public function isIntType(t:Type):Bool {
         if (t == null)
             return false;
         return switch (Context.follow(t)) {
@@ -6687,6 +6760,32 @@ class RustExpr {
             || StringTools.endsWith(siblingText, ".to_string()?")
             || StringTools.endsWith(siblingText, ".to_string().unwrap()");
         return ownedStringCall ? text + ".to_string()" : text;
+    }
+
+    /** Renders an if-else branch, wrapping a non-null branch in Some(...) when
+        the result type is nullable, so both arms produce matching Option
+        values. Haxe's ternary type is the join of its arms; a non-null arm
+        joined with a nullable one is nullable, and Rust's if-else requires
+        matching arm types. Preserves the string conversions that
+        conditionalBranchText applies. **/
+    function wrapBranchForNullableResult(branch:TypedExpr, resultType:Null<Type>, sibling:TypedExpr):String {
+        final text = expr(branch);
+        if (resultType != null && isStringType(resultType)) {
+            if (StringTools.endsWith(text, ".to_string()") || StringTools.endsWith(text, ".clone()"))
+                return text;
+            return text + ".to_string()";
+        }
+        if (text.indexOf("u_string::count") >= 0 && resolveExprType(sibling) == "i32") {
+            return RustConversions.reinterpret(text, "i32");
+        }
+        if (resultType != null
+            && isNullType(resultType)
+            && !isNullType(branch.t)
+            && !isTNull(branch)
+            && !StaticFieldHelper.isNullableType(branch.t)) {
+            return "Some(" + text + ")";
+        }
+        return text;
     }
 
     function matchGroupByBody(body:Array<TypedExpr>):Null<{

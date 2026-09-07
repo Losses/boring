@@ -16,6 +16,8 @@ import AssignTargetPlan;
 import AssignTargetPlan.AssignTargetFieldKind;
 import PolicyQueries.StdStringCategory;
 import PolicyQueries.Int64Op;
+import PolicyQueries.VariantArmStep;
+import PolicyQueries.EnumQueryStep;
 import FusionPlan;
 import FusionPlan.FusionStep;
 import VarFusionPlan;
@@ -95,6 +97,9 @@ class KotlinExpr {
     var currentField:Null<String> = null;
     var currentLocalName:Null<String> = null;
 
+    /** Return type of the function currently being lowered; null outside function context. */
+    var currentReturnType:Null<Type> = null;
+
     public function new(imports:KotlinImports, types:KotlinType, state:KotlinEmissionState) {
         this.imports = imports;
         this.types = types;
@@ -154,7 +159,7 @@ class KotlinExpr {
 
     public function defaultArgText(value:DefaultArgExpander.DefaultArgValue, targetType:Type):String {
         return switch (value) {
-            case VInt(v): Std.string(v);
+            case VInt(v): isFloatExpectedType(targetType) ? intToFloatText(Std.string(v)) : Std.string(v);
             case VFloat(s): FloatPrecision.isF32() ? ((s.indexOf(".") >= 0 || s.indexOf("e") >= 0 || s.indexOf("E") >= 0) ? s : s + ".0") + "f" : s;
             case VString(s): quoteString(s);
             case VBool(b): b ? "true" : "false";
@@ -166,7 +171,7 @@ class KotlinExpr {
 
     public function coalescingDefaultText(value:DefaultArgExpander.CoalescingDefaultValue, targetType:Type):String {
         return switch (value) {
-            case CInt(v): Std.string(v);
+            case CInt(v): isFloatExpectedType(targetType) ? intToFloatText(Std.string(v)) : Std.string(v);
             case CFloat(s): FloatPrecision.isF32() ? ((s.indexOf(".") >= 0 || s.indexOf("e") >= 0 || s.indexOf("E") >= 0) ? s : s + ".0") + "f" : s;
             case CString(s): quoteString(s);
             case CBool(b): b ? "true" : "false";
@@ -291,6 +296,10 @@ class KotlinExpr {
         currentClass = cls;
         currentField = f.field.name;
         currentLocalName = null;
+        currentReturnType = switch (Context.follow(f.field.type)) {
+            case TFun(_, ret): ret;
+            case _: null;
+        };
         nonNullLocals.clear();
         nullInitializedLocals.clear();
         nonNullFields.clear();
@@ -304,7 +313,9 @@ class KotlinExpr {
         final fusedRoot = fuseWithin(f.expr);
         f.expr.expr = fusedRoot.expr;
         scanLocals(f.expr);
-        return blockLines(statementsOf(f.expr), 1);
+        final result = blockLines(statementsOf(f.expr), 1);
+        currentReturnType = null;
+        return result;
     }
 
     /** Body lowering for members declared on a value wrapper. */
@@ -465,10 +476,14 @@ class KotlinExpr {
                     case TConst(TNull): ": " + types.of(v.t);
                     default: "";
                 };
-                final initText = switch (init.expr) {
+                var initText = switch (init.expr) {
                     case TFunction(fn): functionLiteralNamed(v.name, fn);
                     default: expr(init);
                 };
+                // Haxe unifies Int and Float; widen Int initializers to Float
+                // when the variable's declared type is Float.
+                if (isIntOrLongType(emittedType(init)) && isFloatType(v.t))
+                    initText = intToFloatText(initText);
                 // Haxe permits binding a non-null local from a Null<T>
                 // initializer (an unsound assignment); Kotlin infers the
                 // initializer's nullable type, so the declaration extracts
@@ -478,9 +493,16 @@ class KotlinExpr {
                     case TConst(TNull): false;
                     case _: true;
                 };
+                // A non-null local whose initializer renders nullable (e.g. a
+                // field read off a nullable receiver) is inferred nullable by
+                // Kotlin; extract once at the declaration so later accesses
+                // use a plain dot. Computed before initText so the proof
+                // state still reflects the scope preceding the binding.
+                final initRendersNullable = rendersNullable(init);
+                final extractRenderedNullable = !isNullType(v.t) && !isNullType(init.t) && initRendersNullable;
                 updateLocalProof(v, init);
                 return [
-                    indent(depth) + '$kw ${localName(v)}$typeAnn = $initText' + (extractsAtDecl ? "!!" : "")
+                    indent(depth) + '$kw ${localName(v)}$typeAnn = $initText' + (extractsAtDecl || extractRenderedNullable ? "!!" : "")
                 ];
             case TVar(v, init) if (init == null):
                 // Deferred local declarations are initialized by later assignments;
@@ -544,7 +566,14 @@ class KotlinExpr {
                     case TLocal(v) if (asListReturn.exists(v.id)):
                         return [indent(depth) + "return " + localName(v) + "." + asListReturn.get(v.id)];
                     case _:
-                        return [indent(depth) + "return " + expr(ret)];
+                        var retText = expr(ret);
+                        // Haxe unifies Int and Float; widen Int return values to
+                        // Float when the function's return type is Float.
+                        // Use emittedType because the typed AST type is Float
+                        // (unified) while the generator emits Int text.
+                        if (isIntOrLongType(emittedType(ret)) && isFloatType(currentReturnType))
+                            retText = intToFloatText(retText);
+                        return [indent(depth) + "return " + retText];
                 }
             case TThrow(x):
                 return [indent(depth) + "throw " + throwExpr(x)];
@@ -951,11 +980,18 @@ class KotlinExpr {
                 final enumCollection = EnumQueryExpander.collectionEnum(subj);
                 if (enumCollection != null)
                     return Std.string(EnumQueryExpander.constructorCount(enumCollection));
-                if (isString(subj)) {
-                    return expr(subj) + ".length";
-                } else {
-                    return expr(subj) + ".size";
+                // The subject may render nullable (e.g. a field read off a
+                // nullable receiver or a nullable local); choose the suffix
+                // from the rendered nullability so safe-navigation is emitted
+                // when the value is nullable.
+                final suffix = isString(subj) ? "length" : "size";
+                if (isNullType(subj.t) && !provenNonNull(subj) && !guardProofBefore(subj)) {
+                    return expr(subj) + "?." + suffix;
                 }
+                if (nullableChainHop(subj) && !guardProofBefore(subj)) {
+                    return expr(subj) + "?." + suffix;
+                }
+                return expr(subj) + "." + suffix;
             case _:
                 return expr(bound);
         }
@@ -1041,7 +1077,17 @@ class KotlinExpr {
                 return localName(v);
             case TArray(arr, idx):
                 final mapReceiver = mapBackingReceiver(arr);
-                return mapReceiver == null ? expr(arr) + "[" + expr(idx) + "]" : expr(mapReceiver) + "[" + expr(idx) + "]";
+                // The array receiver may render nullable (e.g. a local bound
+                // from a nullable expression); emit safe array access when it
+                // is, and plain element access otherwise.
+                final receiver = mapReceiver == null ? arr : mapReceiver;
+                if (isNullType(receiver.t) && !provenNonNull(receiver) && !guardProofBefore(receiver)) {
+                    return expr(receiver) + "?." + "[" + expr(idx) + "]";
+                }
+                if (nullableChainHop(receiver) && !guardProofBefore(receiver)) {
+                    return expr(receiver) + "?." + "[" + expr(idx) + "]";
+                }
+                return expr(receiver) + "[" + expr(idx) + "]";
             case TBinop(op, l, r):
                 return binop(e, op, l, r);
             case TUnop(op, post, subj):
@@ -1060,7 +1106,20 @@ class KotlinExpr {
                         "<" + types.of(params[0]) + ">";
                     case _: "";
                 };
-                return "mutableListOf" + typeArg + "(" + [for (x in elems) expr(x)].join(", ") + ")";
+                // Haxe unifies Int and Float; widen Int elements to Float when
+                // the array's element type is Float.
+                final elemType = switch (e.t) {
+                    case TInst(_, params) if (params.length > 0): params[0];
+                    case _: null;
+                };
+                final elemFloat = isFloatType(elemType);
+                final renderedElems = [for (x in elems) {
+                    var t = expr(x);
+                    if (elemFloat && isIntOrLongType(emittedType(x)))
+                        t = intToFloatText(t);
+                    t;
+                }];
+                return "mutableListOf" + typeArg + "(" + renderedElems.join(", ") + ")";
             case TCall(fn, args):
                 return call(fn, args);
             case TNew(c, params, args):
@@ -1208,37 +1267,31 @@ class KotlinExpr {
     }
 
     function enumQuery(e:TypedExpr):Null<String> {
-        switch (e.expr) {
-            case TField(subj, fa):
-                final name = switch (fa) {
-                    case FInstance(_, _, cf) | FAnon(cf): cf.get().name;
-                    case FDynamic(n): n;
-                    case _: "";
-                };
-                final en = EnumQueryExpander.collectionEnum(subj);
-                if (name == "length" && en != null)
-                    return Std.string(EnumQueryExpander.constructorCount(en));
-            case TArray(subj, index):
-                final en = EnumQueryExpander.collectionEnum(subj);
-                if (en != null) {
-                    if (EnumQueryExpander.aliasEnum(subj) != null)
-                        return expr(subj) + "[" + expr(index) + "]";
-                    imports.requireType(en.module, en.name);
-                    return en.name + ".entries[" + expr(index) + "]";
+        return switch (PolicyQueries.enumQueryPlan(e)) {
+            case null: null;
+            case LengthCount(count): Std.string(count);
+            case AliasIndex(subj, index): expr(subj) + "[" + expr(index) + "]";
+            case EntryIndex(en, index):
+                imports.requireType(en.module, en.name);
+                en.name + ".entries[" + expr(index) + "]";
+            case EnumKindQuery(kind, en, args):
+                imports.requireType(en.module, en.name);
+                switch (kind) {
+                    case QCollection: en.name + ".entries";
+                    case QName:
+                        // The argument may render nullable (e.g. Type.enumConstructor
+                        // of a nullable expression); choose the separator from the
+                        // rendered nullability.
+                        final arg = args[0];
+                        final argText = expr(arg);
+                        final nullable = rendersNullable(arg)
+                            || (isNullType(arg.t) && !provenNonNull(arg) && !guardProofBefore(arg))
+                            || (nullableChainHop(arg) && !guardProofBefore(arg))
+                            || (StringTools.endsWith(argText, "}") && argText.indexOf("firstOrNull {") >= 0);
+                        argText + (nullable ? "?.name" : ".name");
+                    case QLookup: en.name + ".entries.firstOrNull { it.name == " + expr(args[1]) + " }";
                 }
-            case _:
         }
-        final kind = EnumQueryExpander.markerKind(e);
-        if (kind == null)
-            return null;
-        final en = EnumQueryExpander.enumOf(e);
-        final args = EnumQueryExpander.callArgs(e);
-        imports.requireType(en.module, en.name);
-        return switch (kind) {
-            case QCollection: en.name + ".entries";
-            case QName: expr(args[0]) + ".name";
-            case QLookup: en.name + ".entries.firstOrNull { it.name == " + expr(args[1]) + " }";
-        };
     }
 
     function functionLiteral(f:TFunc):String {
@@ -1332,31 +1385,24 @@ class KotlinExpr {
     function armLines(e:TypedExpr):Array<String> {
         final decls:Array<String> = [];
         var value:Null<String> = null;
-        function walk(stmts:Array<TypedExpr>) {
-            for (s in stmts) {
-                switch (s.expr) {
-                    case TVar(v, init):
-                        if (init == null) {
-                            Context.error("kotlin target: declaration without initializer has no lowering", s.pos);
-                        }
-                        switch (stripWrap(init).expr) {
-                            case TEnumParameter(se, ef, index):
-                                subst.set(v.id, expr(se) + "." + payloadName(ef, index));
-                            case TLocal(source) if (subst.exists(source.id)):
-                                subst.set(v.id, subst.get(source.id));
-                            case _:
-                                decls.push("val " + localName(v) + " = " + expr(init));
-                        }
-                    case TBlock(bs):
-                        walk(bs);
-                    case TMeta(_, inner):
-                        walk([inner]);
-                    case _:
-                        value = expr(s);
-                }
+        for (step in PolicyQueries.variantArmPlan(e)) {
+            switch (step) {
+                case PayloadCapture(v, subject, ef, index):
+                    subst.set(v.id, expr(subject) + "." + payloadName(ef, index));
+                case ForwardOrDecl(v, init, source):
+                    if (subst.exists(source.id)) {
+                        subst.set(v.id, subst.get(source.id));
+                    } else {
+                        decls.push("val " + localName(v) + " = " + expr(init));
+                    }
+                case PlainDecl(v, init):
+                    decls.push("val " + localName(v) + " = " + expr(init));
+                case OtherStatement(s, _, _):
+                    value = expr(s);
+                case MissingInit(s):
+                    Context.error("kotlin target: declaration without initializer has no lowering", s.pos);
             }
         }
-        walk(statementsOf(e));
         if (value == null) {
             return [fail(e, "variant switch arm has no value")];
         }
@@ -1503,7 +1549,11 @@ class KotlinExpr {
         switch (op) {
             case OpAssign:
                 final map = mapAssignment(l);
-                final value = expr(r);
+                var value = expr(r);
+                // Haxe unifies Int and Float; widen Int assignment values to
+                // Float when the target's type is Float.
+                if (map == null && isIntOrLongType(emittedType(r)) && isFloatType(l.t))
+                    value = intToFloatText(value);
                 if (map == null)
                     updateLocalProofTarget(l, r);
                 return map == null ? assignTarget(l) + " = " + value : expr(map.receiver) + ".put(" + expr(map.key) + ", " + value + ")";
@@ -1723,6 +1773,35 @@ class KotlinExpr {
             case TAbstract(a, _) if (a.get().name != "Null" && a.get().name != "Int" && a.get().name != "Float" && a.get().name != "Bool"): true;
             case _: false;
         };
+    }
+
+    /**
+        True when rendering `e` yields a Kotlin expression whose inferred type
+        is nullable even though the Haxe AST may type it non-null. This happens
+        when a sub-expression renders nullable (a nullable-typed arm of a
+        ternary, a field access on a nullable receiver, ...) and the enclosing
+        context does not widen it back to non-null.
+    **/
+    function rendersNullable(e:TypedExpr):Bool {
+        if (isNullType(e.t) && !provenNonNull(e) && !guardProofBefore(e))
+            return true;
+        if (isNullInitialized(e))
+            return true;
+        final inner = stripWrap(e);
+        // A cast/wrap may hide a nullable-typed inner expression; check the
+        // unwrapped type too.
+        if (inner != e && isNullType(inner.t) && !provenNonNull(inner) && !guardProofBefore(inner))
+            return true;
+        switch (inner.expr) {
+            case TIf(_, t, f):
+                return rendersNullable(t) || (f != null && rendersNullable(f));
+            case TField(subj, _):
+                return rendersNullable(subj);
+            case TParenthesis(pinner) | TCast(pinner, _):
+                return rendersNullable(pinner);
+            case _:
+                return false;
+        }
     }
 
     function isNullType(t:Null<Type>):Bool {
@@ -1946,9 +2025,15 @@ class KotlinExpr {
                 addProofExpr(r);
                 final rightText = operand(r, op, true);
                 restoreProofs(saved);
-                return leftText + " " + symbolOf(op) + " " + rightText;
+                final leftFinal = isIntOrLongType(emittedType(l)) && isFloatType(emittedType(r)) ? intToFloatText(leftText) : leftText;
+                final rightFinal = isIntOrLongType(emittedType(r)) && isFloatType(emittedType(l)) ? intToFloatText(rightText) : rightText;
+                return leftFinal + " " + symbolOf(op) + " " + rightFinal;
             case OpAdd | OpSub | OpMult | OpDiv | OpMod | OpEq | OpNotEq:
-                return operand(l, op, false) + " " + symbolOf(op) + " " + operand(r, op, true);
+                final leftText = operand(l, op, false);
+                final rightText = operand(r, op, true);
+                final leftFinal = isIntOrLongType(emittedType(l)) && isFloatType(emittedType(r)) ? intToFloatText(leftText) : leftText;
+                final rightFinal = isIntOrLongType(emittedType(r)) && isFloatType(emittedType(l)) ? intToFloatText(rightText) : rightText;
+                return leftFinal + " " + symbolOf(op) + " " + rightFinal;
             case OpBoolOr:
                 // Kotlin's flow analysis treats a evaluated-false left
                 // operand as establishing the left null guard's else path,
@@ -2114,9 +2199,9 @@ class KotlinExpr {
                 final getterProperty = getterOnlyPropertyName(owner.get(), name);
                 if (getterProperty != null)
                     return expr(subj) + nullableAccess(subj) + KotlinNameEscape.escape(getterProperty);
-                return instanceField(subj, name);
+                return instanceField(subj, name, cf);
             case FAnon(cf):
-                return instanceField(subj, cf.get().name);
+                return instanceField(subj, cf.get().name, cf);
             case FDynamic(name):
                 if ((name == "length" || name == "get_length") && isStringBuf(subj)) {
                     return expr(subj) + ".length";
@@ -2127,7 +2212,7 @@ class KotlinExpr {
         }
     }
 
-    function instanceField(subj:TypedExpr, name:String):String {
+    function instanceField(subj:TypedExpr, name:String, cf:Null<Ref<ClassField>> = null):String {
         {
             final bound = catchPayloadAccess(subj, name);
             if (bound != null)
@@ -2142,7 +2227,16 @@ class KotlinExpr {
             final receiver = expr(subj) + nullableAccess(subj);
             return receiver + (isString(subj) ? "length" : "size");
         }
-        return expr(subj) + nullableAccess(subj) + KotlinNameEscape.escape(name);
+        // A nullable subject accessing a non-null field needs `!!. ` (not `?.`)
+        // so the result type stays non-null; Haxe's typed AST types the field
+        // read as non-null even when the receiver is Null<T>.
+        final fieldType = cf != null ? cf.get().type : null;
+        final access = if (fieldType != null && !isNullType(fieldType) && isNullType(subj.t) && !provenNonNull(subj) && !guardProofBefore(subj)) {
+            "!!.";
+        } else {
+            nullableAccess(subj);
+        };
+        return expr(subj) + access + KotlinNameEscape.escape(name);
     }
 
     function getterOnlyPropertyName(owner:ClassType, accessorName:String):Null<String> {
@@ -2376,13 +2470,30 @@ class KotlinExpr {
                 inConcat ? value + ".toString()" : "(" + value + ").toString()";
             case IsReadOnlyArray(underlying):
                 stdStringType(underlying, value, inConcat, origin, depth);
-            case IsParameterlessEnum(en): value + (inConcat ? "" : ".name");
+            case IsParameterlessEnum(en):
+                // The rendered value may itself be nullable (e.g. Std.string of
+                // a field read off a nullable receiver); choose the suffix
+                // from the rendered nullability so safe-navigation is emitted
+                // when the value is nullable. An extracted value ends in "!!".
+                final suffix = if (StringTools.endsWith(value, "!!")) ".name" else nullableAccessEnumName(origin);
+                value + (inConcat ? "" : suffix);
             case IsCyclicEnum(en): cyclicEnumString(en, value, inConcat, origin);
             case IsPayloadEnum(_): inConcat ? value : value + ".toString()";
             case IsNull | IsUnsupported:
                 Context.error("Std.string accepts scalars, enum values, records, and arrays of them only", origin.pos);
                 null;
         };
+    }
+
+    /** Suffix for reading a parameterless enum value's name: ".name" when the
+        value is non-null, "?." prefixed otherwise. Mirrors nullableAccess but
+        emits the field name too. **/
+    function nullableAccessEnumName(subj:TypedExpr):String {
+        if (isNullType(subj.t) && !provenNonNull(subj) && !guardProofBefore(subj))
+            return "?.name";
+        if (nullableChainHop(subj) && !guardProofBefore(subj))
+            return "?.name";
+        return ".name";
     }
 
     function hasInstanceToString(cls:ClassType):Bool {
@@ -2457,8 +2568,16 @@ class KotlinExpr {
                 if (abs == null)
                     return null;
                 final field = cf.get();
-                if (field.name == "_new")
-                    return args.length == 0 ? abs.name : abs.name + "(" + expr(args[0]) + ")";
+                if (field.name == "_new") {
+                    if (args.length == 0)
+                        return abs.name;
+                    var argText = expr(args[0]);
+                    // Haxe unifies Int and Float; widen Int arguments to Float
+                    // when the value type's representation is Float.
+                    if (isIntOrLongType(emittedType(args[0])) && ValueTypeSupport.isFloatRepresentation(abs))
+                        argText = intToFloatText(argText);
+                    return abs.name + "(" + argText + ")";
+                }
                 final op = ValueTypeSupport.operatorOf(abs, field);
                 if (op != null) {
                     return switch (op) {
@@ -2554,7 +2673,14 @@ class KotlinExpr {
                     && cls.name == "StringTools"
                     && (name == "startsWith" || name == "endsWith")
                     && args.length == 2) {
-                    return nullableFirstArg(args[0]) + "." + name + "(" + expr(args[1]) + ")";
+                    // nullableFirstArg only appends "!!" for a null-typed
+                    // argument; a non-null-typed argument can still render
+                    // nullable (e.g. a field read off a nullable receiver), so
+                    // choose the separator from the argument's nullability.
+                    final firstArg = args[0];
+                    final nullable = (isNullType(firstArg.t) && !provenNonNull(firstArg) && !guardProofBefore(firstArg))
+                        || (nullableChainHop(firstArg) && !guardProofBefore(firstArg));
+                    return expr(firstArg) + (nullable ? "?." : ".") + name + "(" + expr(args[1]) + ")";
                 }
                 if (cls.pack.length == 0 && cls.name == "Lambda" && name == "has" && args.length == 2) {
                     return expr(args[0]) + ".contains(" + expr(args[1]) + ")";
@@ -2840,7 +2966,9 @@ class KotlinExpr {
                     return expr(subj) + ".add(" + renderedArgs + ")";
                 }
                 if (name == "join") {
-                    return expr(subj) + ".joinToString(" + renderedArgs + ")";
+                    // The receiver may render nullable (e.g. a Map.get result);
+                    // emit safe call when it is nullable.
+                    return expr(subj) + (rendersNullable(subj) ? "?." : ".") + "joinToString(" + renderedArgs + ")";
                 }
                 return expr(subj) + nullableAccess(subj) + name + "(" + renderedArgs + ")";
             case TField(_, FStatic(c, cf)):
@@ -2938,8 +3066,7 @@ class KotlinExpr {
                     if (!isNullInitialized(a))
                         addProofExpr(a);
                     text + "!!";
-                } else if (isIntType(a.t) && isFloatExpectedType(expected)) "(" + text + ")." + (FloatPrecision.isF32() ? "toFloat()" : "toDouble()"); else
-                    text;
+                } else if (isIntOrLongType(emittedType(a)) && isFloatExpectedType(expected)) intToFloatText(text); else text;
             }
         ];
     }
@@ -3030,8 +3157,18 @@ class KotlinExpr {
     function newExpr(c:Ref<ClassType>, params:Array<Type>, args:Array<TypedExpr>):String {
         final cls = c.get();
         final valueType = ValueTypeSupport.markedAbstractOfClass(cls);
-        if (valueType != null)
-            return args.length == 0 ? valueType.name : valueType.name + "(" + expr(args[0]) + ")";
+        if (valueType != null) {
+            if (args.length == 0)
+                return valueType.name;
+            var argText = expr(args[0]);
+            // Haxe unifies Int and Float; widen Int arguments to Float when
+            // the value type's representation is Float.
+            final emType = emittedType(args[0]);
+            final isFloat = ValueTypeSupport.isFloatRepresentation(valueType);
+            if (isIntOrLongType(emType) && isFloat)
+                argText = intToFloatText(argText);
+            return valueType.name + "(" + argText + ")";
+        }
         final renderedArgs = renderCallArgs(args, constructorParams(cls), cls, "new").join(", ");
         final path = cls.pack.length == 0 ? cls.name : cls.pack.join(".") + "." + cls.name;
         switch (path) {
@@ -3326,9 +3463,9 @@ class KotlinExpr {
     }
 
     function kotlinMathFloatArg(a:TypedExpr):String {
-        if (!isIntType(a.t))
+        if (!isIntOrLongType(a.t))
             return expr(a);
-        return "(" + expr(a) + ")." + (FloatPrecision.isF32() ? "toFloat()" : "toDouble()");
+        return intToFloatText(expr(a));
     }
 
     function isIntType(t:Null<Type>):Bool {
@@ -3338,6 +3475,89 @@ class KotlinExpr {
             case TAbstract(a, _): a.get().name == "Int";
             case _: false;
         };
+    }
+
+    /** Whether the type is a 32-bit or 64-bit integer (Int or haxe.Int64),
+        unwrapping Null<T> to inspect the inner type. */
+    public function isIntOrLongType(t:Null<Type>):Bool {
+        if (t == null)
+            return false;
+        final followed = Context.follow(t);
+        final base = isNullType(followed) ? switch (followed) {
+            case TAbstract(_, params) if (params.length == 1): params[0];
+            case _: followed;
+        } : followed;
+        return switch (Context.follow(base)) {
+            case TAbstract(a, _): final n = a.get().name; n == "Int" || n == "Int64";
+            case _: false;
+        };
+    }
+
+    /** Whether the type is Float (the unified Haxe Float abstract),
+        unwrapping Null<T> to inspect the inner type. */
+    public function isFloatType(t:Null<Type>):Bool {
+        if (t == null)
+            return false;
+        final followed = Context.follow(t);
+        final base = isNullType(followed) ? switch (followed) {
+            case TAbstract(_, params) if (params.length == 1): params[0];
+            case _: followed;
+        } : followed;
+        return switch (Context.follow(base)) {
+            case TAbstract(a, _): a.get().name == "Float";
+            case _: false;
+        };
+    }
+
+    /** Convert an integer expression text to Float/Double when the target expects Float. */
+    function intToFloatText(text:String):String {
+        return "(" + text + ")." + (FloatPrecision.isF32() ? "toFloat()" : "toDouble()");
+    }
+
+    /** Emit an integer literal as a Float/Double literal for const val initializers,
+        where (x).toDouble() is not a compile-time constant. */
+    public function constValFloatLiteral(text:String):String {
+        return text + (FloatPrecision.isF32() ? ".0f" : ".0");
+    }
+
+    /**
+        The "emitted" type of an expression: the type of the value the
+        generator will actually emit as text. For most expressions this is
+        the same as the typed AST type, but Haxe unification types Int-as-Float
+        contexts (return positions, comparisons, arithmetic) as Float while the
+        generator still emits Int text for the original Int sub-expression.
+        This walks the expression to find the type the generated text carries.
+    */
+    function emittedType(e:TypedExpr):Null<Type> {
+        switch (stripWrap(e).expr) {
+            case TConst(TInt(_)):
+                // An Int literal always emits Int text, even when the typer
+                // types it as Float due to unification. Tag it with the Int
+                // type so callers can widen it to Float.
+                return Context.getType("Int");
+            case TIf(_, t, f):
+                final tt = emittedType(t);
+                return tt != null ? tt : emittedType(f);
+            case TBinop(op, l, r):
+                switch (op) {
+                    case OpAdd | OpSub | OpMult | OpDiv | OpMod:
+                        final lt = emittedType(l);
+                        if (lt != null && isIntOrLongType(lt)) return lt;
+                        return emittedType(r);
+                    case OpEq | OpNotEq | OpGt | OpGte | OpLt | OpLte:
+                        final lt = emittedType(l);
+                        if (lt != null) return lt;
+                        return emittedType(r);
+                    case _:
+                }
+            case TLocal(v): return e.t;
+            case TField(_, _): return e.t;
+            case TCall(_, _): return e.t;
+            case TParenthesis(inner): return emittedType(inner);
+            case TCast(inner, _): return emittedType(inner);
+            case _:
+        }
+        return e.t;
     }
 
     /** Whether both operands of a division carry Int, so Kotlin
