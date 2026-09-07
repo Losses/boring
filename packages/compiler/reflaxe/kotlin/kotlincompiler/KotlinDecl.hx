@@ -861,8 +861,15 @@ class KotlinDecl {
 
     function parameterText(cls:ClassType, fieldName:String, a:ClassFuncArg, emitDefault:Bool = true, ?typeOverride:Null<Type>):String {
         final registered = DefaultArgExpander.defaultAt(cls, fieldName, a.index);
-        final parameterType = typeOverride != null ? typeOverride : (registered != null ? DefaultArgExpander.defaultParameterType(registered, a.type) : a.type);
+        var parameterType = typeOverride != null ? typeOverride : (registered != null ? DefaultArgExpander.defaultParameterType(registered, a.type) : a.type);
         final defaultText = registered != null && emitDefault ? " = " + expr.defaultArgText(registered, a.type) : "";
+        if (registered != null && !isNullType(parameterType)) {
+            switch (registered) {
+                case VNull:
+                    parameterType = types.makeNullable(parameterType);
+                case _:
+            }
+        }
         return KotlinNameEscape.escape(a.name) + ": " + types.of(parameterType) + defaultText;
     }
 
