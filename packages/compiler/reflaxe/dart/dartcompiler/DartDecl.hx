@@ -80,6 +80,26 @@ class DartDecl {
             // class names it in its implements clause.
             final lines:Array<String> = ["abstract class " + cls.name + classParamsOf(cls) + " {"];
             for (f in funcFields) {
+                // A getter-only property's accessor renders as an abstract
+                // getter declaration (feature spec 27). The call site reads
+                // the public Dart property facade (.x), so the interface
+                // must declare the getter; the accessor method itself is
+                // private in the implementation and is not part of the
+                // interface contract.
+                if (StringTools.startsWith(f.field.name, "get_")) {
+                    final propName = f.field.name.substring("get_".length);
+                    var matched:ClassField = null;
+                    for (field in cls.fields.get()) {
+                        if (field.name == propName && isGetterOnlyProperty(field)) {
+                            matched = field;
+                            break;
+                        }
+                    }
+                    if (matched != null) {
+                        lines.push("  " + types.of(f.ret) + " get " + dartMemberName(matched) + ";");
+                        continue;
+                    }
+                }
                 lines.push("  " + methodSignature(cls, f) + ";");
             }
             lines.push("}");
@@ -129,8 +149,7 @@ class DartDecl {
         // outside haxe.Exception). Resident modules always keep the
         // class: the runtime library merges several modules whose
         // top-level function names would collide.
-        if (flattenStatics(cls) && isStaticsOnly(varFields, ordinaryFuncs)
-            && !Compiler.keepStaticsClass(cls)) {
+        if (flattenStatics(cls) && isStaticsOnly(varFields, ordinaryFuncs) && !Compiler.keepStaticsClass(cls)) {
             // The data tables of a statics-only class become top-level
             // constants of its library (a top-level variable needs no
             // static keyword).
@@ -159,9 +178,8 @@ class DartDecl {
         }
 
         final depth = PolicyQueries.exceptionDepth(cls);
-        final extendsClause = depth == 1
-            ? " extends " + runtimeBoringException()
-            : depth >= 2 ? " extends " + qualifiedRef(cls.superClass.t.get().module, cls.superClass.t.get().name) : "";
+        final extendsClause = depth == 1 ? " extends " + runtimeBoringException() : depth >= 2 ? " extends "
+            + qualifiedRef(cls.superClass.t.get().module, cls.superClass.t.get().name) : "";
         final implementsClauses:Array<String> = [];
         for (i in cls.interfaces) {
             final iface = i.t.get();
