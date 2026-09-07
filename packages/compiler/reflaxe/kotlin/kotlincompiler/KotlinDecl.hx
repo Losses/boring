@@ -861,8 +861,7 @@ class KotlinDecl {
 
     function parameterText(cls:ClassType, fieldName:String, a:ClassFuncArg, emitDefault:Bool = true, ?typeOverride:Null<Type>):String {
         final registered = DefaultArgExpander.defaultAt(cls, fieldName, a.index);
-        final parameterType = typeOverride != null ? typeOverride
-            : (registered != null ? DefaultArgExpander.defaultParameterType(registered, a.type) : a.type);
+        final parameterType = typeOverride != null ? typeOverride : (registered != null ? DefaultArgExpander.defaultParameterType(registered, a.type) : a.type);
         final defaultText = registered != null && emitDefault ? " = " + expr.defaultArgText(registered, a.type) : "";
         return KotlinNameEscape.escape(a.name) + ": " + types.of(parameterType) + defaultText;
     }
@@ -889,8 +888,7 @@ class KotlinDecl {
             // the primary constructor (feature spec 27); a parameter without
             // a same-named field stays a plain parameter.
             final prefix = isField ? (isPublic ? "" : "private ") + (isFinal ? "val " : "var ") : "";
-            final typeOverride = isField && fieldType != null
-                && isNullType(a.type) && !isNullType(fieldType) ? fieldType : null;
+            final typeOverride = isField && fieldType != null && isNullType(a.type) && !isNullType(fieldType) ? fieldType : null;
             params.push(prefix + parameterText(cls, ctor.field.name, a, true, typeOverride));
         }
         return "(" + params.join(", ") + ")";
@@ -1084,13 +1082,15 @@ class KotlinDecl {
         ].join(", ");
         final retType = types.of(f.ret);
         final ret = retType == "Unit" ? "" : ": " + retType;
-        // @:allow members use Kotlin module visibility so allowed cross-class calls compile.
-        final vis = f.field.isPublic ? "" : (f.field.meta.has(":allow") ? "internal " : "private ");
         // A zero-argument toString overrides kotlin.Any's member; the
         // modifier is required even though Haxe models no Any root, so
         // no superclass link exists to derive it from (feature spec 27).
         final overridesAny = f.field.name == "toString" && f.args.length == 0;
         final overrideStr = (isInterfaceMethod(cls, f) || overridesAny) ? "override " : "";
+        // Kotlin requires override members to be at least as visible as the
+        // overridden member (interface members are public), so drop private/internal
+        // visibility when the override modifier is present.
+        final vis = overrideStr.length > 0 ? "" : (f.field.isPublic ? "" : (f.field.meta.has(":allow") ? "internal " : "private "));
         // A method's own type parameters (the resident builders'
         // factory functions) render as method generics; the class's own
         // parameters stay in the class header only.
