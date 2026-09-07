@@ -4734,8 +4734,22 @@ class RustExpr {
                     return "(" + mathFloatArg(args[0]) + ").is_finite()";
                 if (cls.module == "Math" && name == "abs")
                     return "(" + mathFloatArg(args[0]) + ").abs()";
-                if (cls.module == "Math" && (name == "min" || name == "max") && args.length == 2)
-                    return staticRef(cls, name) + "(" + mathFloatArg(args[0]) + ", " + mathFloatArg(args[1]) + ")";
+                if (cls.module == "Math" && (name == "min" || name == "max") && args.length == 2) {
+                    // Rust's intrinsic min/max return the non-NaN operand,
+                    // unlike the Haxe/JavaScript oracle. Bind first so the
+                    // explicit semantic check preserves left-to-right,
+                    // single evaluation of both arguments.
+                    final real = FloatPrecision.isF32() ? "f32" : "f64";
+                    final a = mathFloatArg(args[0]);
+                    final b = mathFloatArg(args[1]);
+                    final zeroResult = name == "min"
+                        ? "if a.is_sign_negative() { a } else { b }"
+                        : "if a.is_sign_negative() { b } else { a }";
+                    final ordered = name == "min"
+                        ? "if a < b { a } else if b < a { b } else if a == 0.0 && b == 0.0 { " + zeroResult + " } else { a }"
+                        : "if a > b { a } else if b > a { b } else if a == 0.0 && b == 0.0 { " + zeroResult + " } else { a }";
+                    return "({ let a = " + a + "; let b = " + b + "; if a.is_nan() || b.is_nan() { " + real + "::NAN } else { " + ordered + " } })";
+                }
                 if (cls.module == "Math" && name == "pow" && args.length == 2) {
                     // Rust names the power function powf; the f32
                     // configuration reads it from f32 (feature spec 23).
