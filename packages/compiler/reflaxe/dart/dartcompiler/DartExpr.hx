@@ -161,7 +161,7 @@ class DartExpr {
     function coalescingDefaultText(value:DefaultArgExpander.CoalescingDefaultValue, targetType:Type):String {
         return switch (value) {
             case CInt(v): isFloatType(targetType) ? intToFloatText(Std.string(v)) : Std.string(v);
-            case CFloat(s): s;
+            case CFloat(s): floatLiteral(s);
             case CString(s): quoteString(s);
             case CBool(b): b ? "true" : "false";
             case CNull: "null";
@@ -1118,7 +1118,7 @@ class DartExpr {
             case TConst(c):
                 switch (c) {
                     case TInt(v): return Std.string(v);
-                    case TFloat(f): return Std.string(f);
+                    case TFloat(f): return floatLiteral(Std.string(f));
                     case TString(s): return quoteString(s);
                     case TBool(b): return b ? "true" : "false";
                     case TNull: return "null";
@@ -3655,6 +3655,19 @@ class DartExpr {
             case TAbstract(a, _): a.get().name == "Float";
             case _: false;
         };
+    }
+
+    /** Render a Haxe float literal using Dart's required digits around the decimal point. */
+    function floatLiteral(text:String):String {
+        var rendered = text;
+        final dot = rendered.indexOf(".");
+        if (dot >= 0) {
+            if (dot == 0)
+                rendered = "0" + rendered;
+            if (rendered.charAt(rendered.length - 1) == ".")
+                rendered += "0";
+        }
+        return rendered;
     }
 
     /** Convert an integer expression text to Double. */
