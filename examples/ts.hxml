@@ -228,6 +228,8 @@ boring.FloatLiteralOps
 tests.FloatLiteralOpsTests
 boring.KnullInitNarrowing
 tests.KnullInitNarrowingTests
+boring.OptionalParamNull
+tests.OptionalParamNullTests
 tests.RustUnionFaultTests
 tests.PlatformModulesTestSupport
 tests.PlatformModulesTests

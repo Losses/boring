@@ -194,3 +194,5 @@ boring.FloatLiteralOps
 tests.FloatLiteralOpsTests
 boring.KnullInitNarrowing
 tests.KnullInitNarrowingTests
+boring.OptionalParamNull
+tests.OptionalParamNullTests
