@@ -3931,7 +3931,7 @@ class RustExpr {
                 imports.require("crate::runtime::test_core");
                 return "test_core::TestCore::" + staticMethodName(cls, name);
             case "std.UStringRT":
-                return uStringRef(name);
+                return uStringRef(cls, name);
             case "std.Graphemes":
                 // The extern fronts the resident runtime module
                 // runtime.Graphemes, compiled into graphemes.rs; the
@@ -3973,7 +3973,7 @@ class RustExpr {
                     return "test_core::TestCore::" + staticMethodName(cls, name);
                 }
                 if (cls.module == "std.UStringRT") {
-                    return uStringRef(name);
+                    return uStringRef(cls, name);
                 }
                 if (RustImports.isShimModule(cls.module)) {
                     final structName = RustImports.emittedTypeName(cls.name);
@@ -4044,7 +4044,7 @@ class RustExpr {
         free functions emitted beside the class, because Null and Array
         results have no call-site cast machinery (RuntimeResidents).
      */
-    function uStringRef(name:String):String {
+    function uStringRef(cls:ClassType, name:String):String {
         state.shimsUsed.set("std.UStringRT", true);
         if (RuntimeResidents.isResident(imports.selfModule)) {
             imports.requireType("runtime.UString", "UString");
