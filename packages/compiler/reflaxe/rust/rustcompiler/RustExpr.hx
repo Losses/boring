@@ -2062,7 +2062,16 @@ class RustExpr {
                         return Std.string(v);
                     case TFloat(f):
                         final s = Std.string(f);
-                        final padded = s.indexOf(".") >= 0 || s.indexOf("e") >= 0 || s.indexOf("E") >= 0 ? s : s + ".0";
+                        // Rust requires float literals to have an integer part; Haxe
+                        // permits `.001` and `-.1` which the AST carries verbatim,
+                        // so prepend the missing `0` before the decimal-point guard.
+                        final withIntPart = s.length > 0
+                            && s.charAt(0) == "." ? "0" + s : (s.length > 2
+                                && s.charAt(0) == "-"
+                                && s.charAt(1) == "." ? "-0" + s.substr(1) : s);
+                        final padded = withIntPart.indexOf(".") >= 0
+                            || withIntPart.indexOf("e") >= 0
+                            || withIntPart.indexOf("E") >= 0 ? withIntPart : withIntPart + ".0";
                         // The f32 configuration marks every literal so its width never
                         // depends on the inference context (feature spec 23).
                         return FloatPrecision.isF32() ? padded + "f32" : padded;
@@ -3390,8 +3399,15 @@ class RustExpr {
         }
         return switch (stripWrap(a).expr) {
             case TConst(TInt(_)): expr(a);
-            case _: RustConversions.intToFloat(expr(a), FloatPrecision.isF32() ? "f32" : "f64");
+            case _: "(" + expr(a) + " as " + (FloatPrecision.isF32() ? "f32" : "f64") + ")";
         };
+    }
+
+    function mathFloatBindingArg(a:TypedExpr):String {
+        final rendered = mathFloatArg(a);
+        if (rendered.length >= 2 && rendered.charAt(0) == "(" && rendered.charAt(rendered.length - 1) == ")")
+            return rendered.substr(1, rendered.length - 2);
+        return rendered;
     }
 
     /** Folds an integer-constant cast to a typed literal, else renders the runtime cast. */
@@ -4729,26 +4745,42 @@ class RustExpr {
                     return "FPHelper::" + RustImports.toSnakeCase(targetName) + "(" + renderedArgs + ")";
                 }
                 if (cls.module == "Math" && name == "isNaN")
-                    return "(" + expr(args[0]) + ").is_nan()";
+                    return "(" + mathFloatArg(args[0]) + ").is_nan()";
                 if (cls.module == "Math" && name == "isFinite")
-                    return "(" + expr(args[0]) + ").is_finite()";
+                    return "(" + mathFloatArg(args[0]) + ").is_finite()";
                 if (cls.module == "Math" && name == "abs")
                     return "(" + mathFloatArg(args[0]) + ").abs()";
-                if (cls.module == "Math" && (name == "min" || name == "max") && args.length == 2)
-                    return staticRef(cls, name) + "(" + mathFloatArg(args[0]) + ", " + mathFloatArg(args[1]) + ")";
+                if (cls.module == "Math" && (name == "min" || name == "max") && args.length == 2) {
+                    // Rust's intrinsic min/max return the non-NaN operand,
+                    // unlike the Haxe/JavaScript oracle. Bind first so the
+                    // explicit semantic check preserves left-to-right,
+                    // single evaluation of both arguments.
+                    final real = FloatPrecision.isF32() ? "f32" : "f64";
+                    final a = mathFloatBindingArg(args[0]);
+                    final b = mathFloatBindingArg(args[1]);
+                    final zeroResult = name == "min"
+                        ? "if a.is_sign_negative() { a } else { b }"
+                        : "if a.is_sign_negative() { b } else { a }";
+                    final ordered = name == "min"
+                        ? "if a < b { a } else if b < a { b } else if a == 0.0 && b == 0.0 { " + zeroResult + " } else { a }"
+                        : "if a > b { a } else if b > a { b } else if a == 0.0 && b == 0.0 { " + zeroResult + " } else { a }";
+                    return "({ let a = " + a + "; let b = " + b + "; if a.is_nan() || b.is_nan() { " + real + "::NAN } else { " + ordered + " } })";
+                }
                 if (cls.module == "Math" && name == "pow" && args.length == 2) {
                     // Rust names the power function powf; the f32
                     // configuration reads it from f32 (feature spec 23).
                     final real = FloatPrecision.isF32() ? "f32" : "f64";
                     return real + "::powf(" + mathFloatArg(args[0]) + ", " + mathFloatArg(args[1]) + ")";
                 }
+                if (cls.module == "Math" && name == "sqrt")
+                    return "(" + mathFloatArg(args[0]) + ").sqrt()";
                 if (cls.module == "Math" && (name == "floor" || name == "ceil" || name == "round")) {
                     // Haxe types floor, ceil, and round as Int; the Rust
                     // methods return the real type, so the call site
                     // truncates through the same conversion Std.int uses.
                     final real = FloatPrecision.isF32() ? "f32" : "f64";
-                    final rounded = real + "::" + name + "(" + expr(args[0]) + ")";
-                    return RuntimeResidents.isResident(imports.selfModule) ? RustConversions.floatToI32(rounded) : RustConversions.floatToU32(rounded);
+                    final rounded = real + "::" + name + "(" + mathFloatArg(args[0]) + ")";
+                    return RuntimeResidents.isResident(imports.selfModule) ? rounded + " as i32" : RustConversions.floatToU32(rounded);
                 }
                 if (cls.module == "Std" && name == "parseFloat") {
                     final real = FloatPrecision.isF32() ? "f32" : "f64";
