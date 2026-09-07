@@ -16,6 +16,7 @@ import AssignTargetPlan;
 import AssignTargetPlan.AssignTargetFieldKind;
 import PolicyQueries.StdStringCategory;
 import PolicyQueries.Int64Op;
+import PolicyQueries.VariantArmStep;
 import FusionPlan;
 import FusionPlan.FusionStep;
 import VarFusionPlan;
@@ -1332,31 +1333,24 @@ class KotlinExpr {
     function armLines(e:TypedExpr):Array<String> {
         final decls:Array<String> = [];
         var value:Null<String> = null;
-        function walk(stmts:Array<TypedExpr>) {
-            for (s in stmts) {
-                switch (s.expr) {
-                    case TVar(v, init):
-                        if (init == null) {
-                            Context.error("kotlin target: declaration without initializer has no lowering", s.pos);
-                        }
-                        switch (stripWrap(init).expr) {
-                            case TEnumParameter(se, ef, index):
-                                subst.set(v.id, expr(se) + "." + payloadName(ef, index));
-                            case TLocal(source) if (subst.exists(source.id)):
-                                subst.set(v.id, subst.get(source.id));
-                            case _:
-                                decls.push("val " + localName(v) + " = " + expr(init));
-                        }
-                    case TBlock(bs):
-                        walk(bs);
-                    case TMeta(_, inner):
-                        walk([inner]);
-                    case _:
-                        value = expr(s);
-                }
+        for (step in PolicyQueries.variantArmPlan(e)) {
+            switch (step) {
+                case PayloadCapture(v, subject, ef, index):
+                    subst.set(v.id, expr(subject) + "." + payloadName(ef, index));
+                case ForwardOrDecl(v, init, source):
+                    if (subst.exists(source.id)) {
+                        subst.set(v.id, subst.get(source.id));
+                    } else {
+                        decls.push("val " + localName(v) + " = " + expr(init));
+                    }
+                case PlainDecl(v, init):
+                    decls.push("val " + localName(v) + " = " + expr(init));
+                case OtherStatement(s, _, _):
+                    value = expr(s);
+                case MissingInit(s):
+                    Context.error("kotlin target: declaration without initializer has no lowering", s.pos);
             }
         }
-        walk(statementsOf(e));
         if (value == null) {
             return [fail(e, "variant switch arm has no value")];
         }

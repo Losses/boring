@@ -16,6 +16,7 @@ import AssignTargetPlan;
 import AssignTargetPlan.AssignTargetFieldKind;
 import PolicyQueries.StdStringCategory;
 import PolicyQueries.Int64Op;
+import PolicyQueries.VariantArmStep;
 import FusionPlan;
 import FusionPlan.FusionStep;
 import VarFusionPlan;
@@ -2064,13 +2065,14 @@ class SwiftExpr {
                         final real = FloatPrecision.isF32() ? "Float" : "Double";
                         final a = mathFloatArg(args[0]);
                         final b = mathFloatArg(args[1]);
-                        final zeroResult = fName == "min"
-                            ? "a.sign == .minus ? a : b"
-                            : "a.sign == .minus ? b : a";
-                        final ordered = fName == "min"
-                            ? "a < b ? a : (b < a ? b : (a == 0.0 && b == 0.0 ? " + zeroResult + " : a))"
-                            : "a > b ? a : (b > a ? b : (a == 0.0 && b == 0.0 ? " + zeroResult + " : a))";
-                        return "({ () -> " + real + " in let a = " + a + "; let b = " + b + "; if a.isNaN || b.isNaN { return " + real + ".nan }; return " + ordered + " })()";
+                        final zeroResult = fName == "min" ? "a.sign == .minus ? a : b" : "a.sign == .minus ? b : a";
+                        final ordered = fName == "min" ? "a < b ? a : (b < a ? b : (a == 0.0 && b == 0.0 ? "
+                            + zeroResult
+                            + " : a))" : "a > b ? a : (b > a ? b : (a == 0.0 && b == 0.0 ? "
+                            + zeroResult
+                            + " : a))";
+                        return "({ () -> " + real + " in let a = " + a + "; let b = " + b + "; if a.isNaN || b.isNaN { return " + real + ".nan }; return "
+                            + ordered + " })()";
                     }
                     if (fName == "abs")
                         return "abs(" + mathFloatArg(args[0]) + ")";
@@ -3340,36 +3342,27 @@ class SwiftExpr {
     function armLines(e:TypedExpr, depth:Int, reservedPayloadNames:Bool = false):Array<String> {
         final out:Array<String> = [];
         var value:Null<String> = null;
-        function walk(stmts:Array<TypedExpr>) {
-            for (s in stmts) {
-                switch (s.expr) {
-                    case TVar(v, init):
-                        if (init == null) {
-                            Context.error("swift target: declaration without initializer has no lowering", s.pos);
-                        }
-                        switch (stripWrap(init).expr) {
-                            case TEnumParameter(se, ef, index):
-                                subst.set(v.id, reservedPayloadNames ? payloadBindingName(ef, index) : payloadName(ef, index));
-                            case TLocal(source) if (subst.exists(source.id)):
-                                // The typer binds the switch subject to a hidden
-                                // local before extracting the payload; forward
-                                // the substitution through that chain.
-                                subst.set(v.id, subst.get(source.id));
-                            case _:
-                                out.push(indent(depth) + "let " + localName(v) + " = " + expr(init));
-                        }
-                    case TBlock(bs):
-                        walk(bs);
-                    case TMeta(_, inner):
-                        walk([inner]);
-                    case TReturn(r) if (r != null):
-                        value = expr(r);
-                    case _:
-                        value = expr(s);
-                }
+        for (step in PolicyQueries.variantArmPlan(e)) {
+            switch (step) {
+                case PayloadCapture(v, _, ef, index):
+                    subst.set(v.id, reservedPayloadNames ? payloadBindingName(ef, index) : payloadName(ef, index));
+                case ForwardOrDecl(v, init, source):
+                    // The typer binds the switch subject to a hidden local
+                    // before extracting the payload; forward the substitution
+                    // through that chain.
+                    if (subst.exists(source.id)) {
+                        subst.set(v.id, subst.get(source.id));
+                    } else {
+                        out.push(indent(depth) + "let " + localName(v) + " = " + expr(init));
+                    }
+                case PlainDecl(v, init):
+                    out.push(indent(depth) + "let " + localName(v) + " = " + expr(init));
+                case OtherStatement(s, returnValue, _):
+                    value = returnValue != null ? expr(returnValue) : expr(s);
+                case MissingInit(s):
+                    Context.error("swift target: declaration without initializer has no lowering", s.pos);
             }
         }
-        walk(statementsOf(e));
         if (value == null) {
             return fail(e, "variant switch arm has no value");
         }
