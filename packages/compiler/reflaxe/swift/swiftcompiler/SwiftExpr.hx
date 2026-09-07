@@ -85,6 +85,9 @@ class SwiftExpr {
     **/
     final optionalInferred:Map<Int, Bool> = [];
 
+    /** Rendered constructor arguments available to defaults that read parameters. */
+    var constructorParameterValues:Null<Map<String, String>> = null;
+
     final coalescingLocals:Map<Int, Bool> = [];
     var currentFuncReturnsOptional:Bool = false;
 
@@ -170,7 +173,7 @@ class SwiftExpr {
             case CPositiveInfinity: FloatPrecision.isF32() ? "Float.infinity" : "Double.infinity";
             case CNegativeInfinity: FloatPrecision.isF32() ? "-Float.infinity" : "-Double.infinity";
             case CEnum(enumRef, enumField): types.of(Type.TEnum(enumRef, [])) + "." + SwiftDecl.lowerFirst(enumField.name);
-            case CParameterRead(name): name;
+            case CParameterRead(name): constructorParameterValues != null && constructorParameterValues.exists(name) ? constructorParameterValues.get(name) : name;
             case CInstanceFieldRead(name): "self." + SwiftNameEscape.escape(name);
             case CLocalRead(name): name;
             case CFieldAccess(CParameterRead(staticPath), ""): coalescingStaticFieldText(staticPath);
@@ -2702,14 +2705,27 @@ class SwiftExpr {
             case TFun(v, _): [for (x in v) x.t];
             case _: [];
         };
-        return [for (i in 0...args.length) {
+        final names = cls.constructor == null ? [] : switch (Context.follow(cls.constructor.get().type)) {
+            case TFun(v, _): [for (x in v) x.name];
+            case _: [];
+        };
+        final prior = constructorParameterValues;
+        constructorParameterValues = [];
+        final rendered:Array<String> = [];
+        for (i in 0...args.length) {
             final p = i < ps.length ? ps[i] : null;
             final d = DefaultArgExpander.defaultAt(cls, "new", i);
-            d != null
-            && p != null && isNullLiteral(args[i]) ? defaultArgText(d, p) : d != null && p != null && isNullLeafType(args[i].t) ? "(" + expr(args[i]) + " ?? " + defaultArgText(d,
-                p) + ")" : expr(args[i]);
+            final text0 = d != null && p != null && isNullLiteral(args[i]) ? defaultArgText(d, p) : d != null && p != null && isNullLeafType(args[i].t) ? "(" + expr(args[i]) + " ?? " + defaultArgText(d, p) + ")" : expr(args[i]);
+            var text = text0;
+            for (j in 0...i)
+                if (j < names.length)
+                    text = StringTools.replace(text, names[j], rendered[j]);
+            rendered.push(text);
+            if (i < names.length)
+                constructorParameterValues.set(names[i], text);
         }
-        ];
+        constructorParameterValues = prior;
+        return rendered;
     }
 
     function isNullLiteral(e:TypedExpr):Bool

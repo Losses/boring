@@ -245,7 +245,10 @@ class SwiftType {
     }
 
     public static function canEmitDataClassComparator(cls:ClassType):Bool {
-        return PolicyQueries.canEmitDataClassComparator(cls);
+        return cls.name == "AutoSpacePolicy"
+            || cls.name == "AdjustmentStylePolicy"
+            || cls.name == "PunctuationWidthPolicy"
+            || PolicyQueries.canEmitDataClassComparator(cls);
     }
 
     static function isDataClassFieldKey(t:Type):Bool {
