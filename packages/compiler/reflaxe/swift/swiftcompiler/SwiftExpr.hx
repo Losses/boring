@@ -2296,7 +2296,7 @@ class SwiftExpr {
                 final name = cf.get().name;
                 final getterProperty = getterOnlyPropertyName(owner.get(), name);
                 if (getterProperty != null && args.length == 0)
-                    return expr(subj) + "." + SwiftNameEscape.escape(getterProperty);
+                    return receiverText(subj) + "." + SwiftNameEscape.escape(getterProperty);
                 if (isStringSubject(subj)) {
                     if (name == "toLowerCase")
                         return expr(subj) + ".lowercased()";
