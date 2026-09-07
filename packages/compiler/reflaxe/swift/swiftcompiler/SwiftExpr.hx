@@ -960,9 +960,7 @@ class SwiftExpr {
             case TConst(c):
                 switch (c) {
                     case TInt(v): return Std.string(v);
-                    case TFloat(f): return (f.length > 0 && f.charAt(0) == ".") ? "0" + f : (f.length > 2
-                            && f.charAt(0) == "-"
-                            && f.charAt(1) == "." ? "-0" + f.substr(1) : f);
+                    case TFloat(f): return floatLiteral(f);
                     case TString(s):
                         // The resident ABI carries strings as unit arrays
                         // (docs/specs/features/08-strings-and-unicode.md); business modules keep the
@@ -974,6 +972,13 @@ class SwiftExpr {
                     case TSuper: return "super";
                     case _: return fail(e, "constant has no Swift lowering");
                 }
+    function floatLiteral(f:String):String {
+        final withInteger = (f.length > 0 && f.charAt(0) == ".") ? "0" + f : (f.length > 2
+            && f.charAt(0) == "-"
+            && f.charAt(1) == "." ? "-0" + f.substr(1) : f);
+        return StringTools.endsWith(withInteger, ".") ? withInteger + "0" : withInteger;
+    }
+
             case TLocal(v):
                 if (subst.exists(v.id)) {
                     return subst.get(v.id);
@@ -4175,12 +4180,8 @@ class SwiftExpr {
                     b.add('\\r');
                 case 9:
                     b.add('\\t');
-                case 11:
-                    b.add('\\u{000B}');
-                case 12:
-                    b.add('\\u{000C}');
-                case 1:
-                    b.add('\\u{0001}');
+                case c if (c < 32 || c == 127):
+                    b.add('\\u{' + StringTools.hex(c, 4) + '}');
                 case c:
                     b.addChar(c);
             }
@@ -4203,12 +4204,8 @@ class SwiftExpr {
                     b.add('\\r');
                 case 9:
                     b.add('\\t');
-                case 11:
-                    b.add('\\u{000B}');
-                case 12:
-                    b.add('\\u{000C}');
-                case 1:
-                    b.add('\\u{0001}');
+                case c if (c < 32 || c == 127):
+                    b.add('\\u{' + StringTools.hex(c, 4) + '}');
                 case c:
                     b.addChar(c);
             }
