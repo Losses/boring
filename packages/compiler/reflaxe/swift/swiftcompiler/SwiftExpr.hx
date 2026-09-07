@@ -1343,9 +1343,12 @@ class SwiftExpr {
             case TConst(TNull): expr(ret);
             case TCall(_, _) if (isNullLeafType(ret.t)): expr(ret);
             case TLocal(v) if (isNullLeafType(v.t) && !coalescingLocals.exists(v.id)):
-                currentFuncReturnsOptional || optionalInferred.exists(v.id) ? expr(ret) : expr(ret) + "!";
-            case _:
-                currentFuncReturnsOptional ? expr(ret) : (optionalValued(ret) ? expr(ret) + "!" : expr(ret));
+                currentFuncReturnsOptional || optionalInferred.exists(v.id) ? expr(ret) : (StringTools.endsWith(expr(ret), "!") ? expr(ret) : expr(ret) + "!");
+            case TLocal(_):
+                switch (Context.follow(ret.t)) {
+                    case TAbstract(a, _) if (a.get().name == "Float"): "Double(" + expr(ret) + ")";
+                    case _: currentFuncReturnsOptional ? expr(ret) : (optionalValued(ret) ? expr(ret) + "!" : expr(ret));
+                }
         };
     }
 
@@ -2310,11 +2313,12 @@ class SwiftExpr {
                     return "String(" + s + "[" + s + ".index(" + s + ".startIndex, offsetBy: Int(" + expr(args[0]) + "))])";
                 }
                 if (name == "charCodeAt" && isStringSubject(subj)) {
-                    return types.resident ? "Int32(" + receiverText(subj) + "[Int(" + expr(args[0]) + ")])" : "unitAtOptional("
-                        + receiverText(subj)
-                        + ", "
-                        + expr(args[0])
-                        + ")";
+                    final code = types.resident ? "Int32(" + receiverText(subj) + "[Int(" + expr(args[0]) + ")])" : "unitAtOptional(" + receiverText(subj) + ", " + expr(args[0]) + ")";
+                    final optional = switch (Context.follow(fn.t)) {
+                        case TFun(_, ret): isNullLeafType(ret);
+                        case _: false;
+                    };
+                    return types.resident ? code : (optional ? code : code + "!");
                 }
                 return receiverText(subj) + "." + SwiftNameEscape.escape(name) + "(" + rendered + ")";
             case TField(_, FEnum(en, ef)):
