@@ -139,6 +139,11 @@ class RustImports {
 
     public static function toSnakeCase(s:String):String {
         final name = rawSnakeCase(s);
+        // A Haxe field can have a punctuation-only name. Never pass an empty
+        // result to Rust's declaration or import syntax.
+        if (name == null || name.length == 0) {
+            return "_invalid_identifier";
+        }
         // Rust reserves `self` even from raw identifier syntax.
         if (name == "self") {
             return "self_";
