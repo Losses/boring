@@ -192,3 +192,5 @@ boring.InterfaceGetterProperty
 tests.InterfaceGetterPropertyTests
 boring.FloatLiteralOps
 tests.FloatLiteralOpsTests
+boring.KnullInitNarrowing
+tests.KnullInitNarrowingTests

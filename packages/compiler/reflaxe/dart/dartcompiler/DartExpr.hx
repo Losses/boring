@@ -1474,13 +1474,13 @@ class DartExpr {
                 // accessor across libraries.
                 final property = getterOnlyPropertyName(owner.get(), name);
                 if (property != null) {
-                    return receiverText(subj) + "." + property;
+                    return instanceFieldReceiver(subj, cf) + "." + property;
                 }
                 // A private member renders under its `_`-prefixed Dart
                 // name (feature spec 27). String length is the UTF-16
                 // unit count natively; list length and the lowered
                 // buffer carry `.length` alike.
-                return receiverText(subj) + "." + memberName(owner.get().module, cf, subj.pos);
+                return instanceFieldReceiver(subj, cf) + "." + memberName(owner.get().module, cf, subj.pos);
             case FAnon(cf):
                 final name = cf.get().name;
                 final target = stripCast(subj);
@@ -1489,7 +1489,7 @@ class DartExpr {
                 }
                 // String length is the UTF-16 unit count natively; list
                 // length and the lowered buffer carry `.length` alike.
-                return receiverText(subj) + "." + name;
+                return instanceFieldReceiver(subj, cf) + "." + name;
             case FDynamic(name):
                 if ((name == "length" || name == "get_length") && isStringBuf(subj)) {
                     return expr(subj) + ".length";
@@ -1498,6 +1498,22 @@ class DartExpr {
             case FClosure(_):
                 return fail(subj, "function value has no lowering (V08)");
         }
+    }
+
+    /** Receiver text for an instance field access: appends `!` when the
+        subject is a nullable local accessing a non-null field, so the result
+        type stays non-null. Haxe's typed AST types the field read as non-null
+        even when the receiver is Null<T>. **/
+    function instanceFieldReceiver(subj:TypedExpr, cf:Ref<ClassField>):String {
+        final fieldType = cf.get().type;
+        if (PolicyQueries.isNullableType(subj.t) && !PolicyQueries.isNullableType(fieldType)) {
+            final base = expr(subj);
+            return switch (stripWrap(subj).expr) {
+                case TLocal(_): base + "!";
+                case _: "(" + base + ")!";
+            };
+        }
+        return receiverText(subj);
     }
 
     /**
