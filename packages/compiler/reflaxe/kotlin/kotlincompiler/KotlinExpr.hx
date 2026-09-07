@@ -160,7 +160,7 @@ class KotlinExpr {
     public function defaultArgText(value:DefaultArgExpander.DefaultArgValue, targetType:Type):String {
         return switch (value) {
             case VInt(v): isFloatExpectedType(targetType) ? intToFloatText(Std.string(v)) : Std.string(v);
-            case VFloat(s): FloatPrecision.isF32() ? ((s.indexOf(".") >= 0 || s.indexOf("e") >= 0 || s.indexOf("E") >= 0) ? s : s + ".0") + "f" : s;
+            case VFloat(s): floatLiteral(s);
             case VString(s): quoteString(s);
             case VBool(b): b ? "true" : "false";
             case VNull: "null";
@@ -172,7 +172,7 @@ class KotlinExpr {
     public function coalescingDefaultText(value:DefaultArgExpander.CoalescingDefaultValue, targetType:Type):String {
         return switch (value) {
             case CInt(v): isFloatExpectedType(targetType) ? intToFloatText(Std.string(v)) : Std.string(v);
-            case CFloat(s): FloatPrecision.isF32() ? ((s.indexOf(".") >= 0 || s.indexOf("e") >= 0 || s.indexOf("E") >= 0) ? s : s + ".0") + "f" : s;
+            case CFloat(s): floatLiteral(s);
             case CString(s): quoteString(s);
             case CBool(b): b ? "true" : "false";
             case CNull: "null";
@@ -187,7 +187,11 @@ class KotlinExpr {
             case CPositiveInfinity: FloatPrecision.isF32() ? "Float.POSITIVE_INFINITY" : "Double.POSITIVE_INFINITY";
             case CNegativeInfinity: FloatPrecision.isF32() ? "Float.NEGATIVE_INFINITY" : "Double.NEGATIVE_INFINITY";
             case CEnum(enumRef, enumField): types.of(Type.TEnum(enumRef, [])) + "." + enumField.name;
-            case CParameterRead(name): KotlinNameEscape.escape(name);
+            case CParameterRead(name):
+                // Kotlin default arguments cannot refer to a preceding
+                // constructor parameter. The coalescing expression instead
+                // belongs to the constructor's init lowering.
+                "null";
             case CInstanceFieldRead(name): "this." + KotlinNameEscape.escape(name);
             case CLocalRead(name): KotlinNameEscape.escape(name);
             case CFieldAccess(CParameterRead(staticPath), ""): coalescingStaticFieldText(staticPath);
@@ -224,6 +228,24 @@ class KotlinExpr {
     function coalescingStaticCallText(modulePath:String, className:String, methodName:String, args:Array<DefaultArgExpander.CoalescingDefaultValue>,
             targetType:Type):String {
         final rendered = [for (a in args) coalescingDefaultText(a, targetType)].join(", ");
+        if (modulePath == "std.SortedMap" && methodName == "builder") {
+            final key = switch (Context.follow(DefaultArgExpander.withoutNull(targetType))) {
+                case TInst(_, params) if (params.length > 0): params[0];
+                case _: null;
+            };
+            final value = switch (Context.follow(DefaultArgExpander.withoutNull(targetType))) {
+                case TInst(_, params) if (params.length > 1): params[1];
+                case _: null;
+            };
+            imports.requireType("std.SortedMap", "SortedTable");
+            return "SortedTable.mapBuilder<"
+                + types.of(key)
+                + ", "
+                + types.of(value)
+                + ">("
+                + sortedComparator("std.SortedMap", key, Context.currentPos())
+                + ")";
+        }
         if (modulePath == "std.SortedSet" && methodName == "builder") {
             final key = switch (Context.follow(DefaultArgExpander.withoutNull(targetType))) {
                 case TInst(_, params) if (params.length > 0): params[0];
@@ -1043,6 +1065,21 @@ class KotlinExpr {
     // Expressions
     // ------------------------------------------------------------------
 
+    function floatLiteral(source:String, addWidth:Bool = true):String {
+        var s = source;
+        final dot = s.indexOf(".");
+        if (dot >= 0 && dot + 1 < s.length) {
+            final next = s.charAt(dot + 1);
+            if (next == "e" || next == "E")
+                s = s.substring(0, dot + 1) + "0" + s.substring(dot + 1);
+        } else if (dot == s.length - 1) {
+            s += "0";
+        } else if (dot < 0 && s.indexOf("e") < 0 && s.indexOf("E") < 0) {
+            s += ".0";
+        }
+        return FloatPrecision.isF32() && addWidth ? s + "f" : s;
+    }
+
     function expr(e:TypedExpr):String {
         final int64Expr = int64Expression(e);
         if (int64Expr != null)
@@ -1059,10 +1096,7 @@ class KotlinExpr {
                     case TInt(v): return Std.string(v);
                     case TFloat(f):
                         final s = Std.string(f);
-                        final padded = (s.indexOf(".") >= 0 || s.indexOf("e") >= 0 || s.indexOf("E") >= 0) ? s : s + ".0";
-                        // The f32 configuration marks every literal so its width never
-                        // relies on the context's inference (feature spec 23).
-                        return FloatPrecision.isF32() ? padded + "f" : s;
+                        return floatLiteral(s);
                     case TString(s): return quoteString(s);
                     case TBool(b): return b ? "true" : "false";
                     case TNull: return "null";
@@ -1113,12 +1147,13 @@ class KotlinExpr {
                     case _: null;
                 };
                 final elemFloat = isFloatType(elemType);
-                final renderedElems = [for (x in elems) {
-                    var t = expr(x);
-                    if (elemFloat && isIntOrLongType(emittedType(x)))
-                        t = intToFloatText(t);
-                    t;
-                }];
+                final renderedElems = [
+                    for (x in elems) {
+                        var t = expr(x);
+                        if (elemFloat && isIntOrLongType(emittedType(x))) t = intToFloatText(t);
+                        t;
+                    }
+                ];
                 return "mutableListOf" + typeArg + "(" + renderedElems.join(", ") + ")";
             case TCall(fn, args):
                 return call(fn, args);
@@ -1205,6 +1240,7 @@ class KotlinExpr {
         final abs = plan.abstractType;
         if (abs == null)
             return expr(value);
+        imports.requireType(abs.module, abs.name);
         final locals = plan.locals;
         final nativeOperator = plan.nativeOperator;
         return switch (plan.kind) {
@@ -2253,7 +2289,10 @@ class KotlinExpr {
     function staticRef(cls:ClassType, name:String):String {
         final valueType = ValueTypeSupport.markedAbstractOfClass(cls);
         if (valueType != null) {
-            imports.requireType(valueType.module, valueType.name);
+            // Static members of a synthetic abstract implementation are
+            // emitted on the value class, so the class reference targets
+            // the value class module that declares them.
+            imports.requireType(cls.module, valueType.name);
             return valueType.name + "." + name;
         }
         final markedField = findStaticField(cls, name);
@@ -2616,11 +2655,7 @@ class KotlinExpr {
     function selfRenderedCallText(fn:TypedExpr, args:Array<TypedExpr>):Null<String> {
         switch (fn.expr) {
             case TField(subj, FInstance(owner, _, cf))
-                if (cf.get().name == "indexOf"
-                    && args.length == 2
-                    && isNullLiteral(args[1])
-                    && owner.get().pack.length == 0
-                    && owner.get().name == "Array"):
+                if (cf.get().name == "indexOf" && args.length == 2 && isNullLiteral(args[1]) && owner.get().pack.length == 0 && owner.get().name == "Array"):
                 // The haxe typer passes a synthesized null for the
                 // omitted ?fromIndex; the platform indexOf takes only
                 // the element, and a null fromIndex searches from the
@@ -2705,6 +2740,10 @@ class KotlinExpr {
                     return "(" + kotlinMathFloatArg(args[0]) + ").isNaN()";
                 if (cls.module == "Math" && name == "isFinite")
                     return "(" + kotlinMathFloatArg(args[0]) + ").isFinite()";
+                if (cls.module == "Math" && name == "pow" && args.length == 2) {
+                    imports.require("kotlin.math.pow");
+                    return "(" + kotlinMathFloatArg(args[0]) + ").pow(" + kotlinMathFloatArg(args[1]) + ")";
+                }
                 if (cls.module == "Math" && name == "sqrt")
                     return "kotlin.math.sqrt(" + kotlinMathFloatArg(args[0]) + ")";
                 if (cls.module == "Math" && (name == "floor" || name == "ceil" || name == "round")) {
@@ -2807,15 +2846,22 @@ class KotlinExpr {
                 if ((cls.name == "Functional"
                     || cls.name == "__functional_shim"
                     || cls.module == "std.Functional"
-                    || cls.pack.join(".") + "." + cls.name == "std.Functional")
-                    && name == "sortedBy") {
+                    || cls.pack.join(".") + "." + cls.name == "std.Functional")) {
                     final receiver = args[0];
-                    final lambda = args[1];
-                    final func = unwrapLambda(lambda);
-                    if (func != null && func.args.length == 1) {
-                        final paramName = KotlinNameEscape.escape(func.args[0].v.name);
-                        final keyExpr = expr(lambdaBody(func.expr));
-                        return expr(receiver) + ".toMutableList().apply { sortBy { " + paramName + " -> " + keyExpr + " } }";
+                    if (name == "sortedBy") {
+                        final lambda = args[1];
+                        final func = unwrapLambda(lambda);
+                        if (func != null && func.args.length == 1) {
+                            final paramName = KotlinNameEscape.escape(func.args[0].v.name);
+                            final keyExpr = expr(lambdaBody(func.expr));
+                            return expr(receiver) + ".toMutableList().apply { sortBy { " + paramName + " -> " + keyExpr + " } }";
+                        }
+                    }
+                    if (name == "sumOfFloat") {
+                        return expr(receiver) + ".sumOf { " + expr(args[1]) + ".toDouble() }.toFloat()";
+                    }
+                    if (name == "forEach") {
+                        return expr(receiver) + ".forEach(" + expr(args[1]) + ")";
                     }
                 }
             case _:
@@ -2977,6 +3023,31 @@ class KotlinExpr {
                         + expr(args[1])
                         + "; val _start = if (_pos < 0) maxOf(0, _s.length + _pos) else minOf(_pos, _s.length)"
                         + "; if (_len < 0) \"\" else { val _end = minOf(_s.length, _start + _len); _s.substring(_start, _end) } }";
+                }
+                final arrayReceiver = switch (Context.follow(subj.t)) {
+                    case TInst(c, _): c.get().name == "Array";
+                    case _: false;
+                };
+                if (arrayReceiver) {
+                    switch (name) {
+                        case "push": return expr(subj) + ".add(" + renderedArgs + ")";
+                        case "join": return expr(subj) + ".joinToString(" + renderedArgs + ")";
+                        case "concat": return "(" + expr(subj) + " + " + renderedArgs + ").toMutableList()";
+                        case "copy": return expr(subj) + ".toMutableList()";
+                        case "pop": return "if (" + expr(subj) + ".isEmpty()) null else " + expr(subj) + ".removeAt(" + expr(subj) + ".lastIndex)";
+                        case "shift": return "if (" + expr(subj) + ".isEmpty()) null else " + expr(subj) + ".removeAt(0)";
+                        case "unshift": return expr(subj) + ".add(0, " + renderedArgs + ")";
+                        case "insert": return expr(subj) + ".add(" + expr(args[0]) + ", " + expr(args[1]) + ")";
+                        case "splice": return "run { val _a = "
+                                + expr(subj)
+                                + "; val _i = "
+                                + expr(args[0])
+                                + "; val _n = "
+                                + expr(args[1])
+                                + "; val _r = _a.subList(_i, _i + _n).toMutableList(); _a.subList(_i, _i + _n).clear(); _r }";
+                        case "get_length" | "length": return expr(subj) + ".size";
+                        case _:
+                    }
                 }
                 if (name == "push") {
                     return expr(subj) + ".add(" + renderedArgs + ")";
@@ -3549,7 +3620,7 @@ class KotlinExpr {
         contexts (return positions, comparisons, arithmetic) as Float while the
         generator still emits Int text for the original Int sub-expression.
         This walks the expression to find the type the generated text carries.
-    */
+     */
     function emittedType(e:TypedExpr):Null<Type> {
         switch (stripWrap(e).expr) {
             case TConst(TInt(_)):
@@ -3564,19 +3635,26 @@ class KotlinExpr {
                 switch (op) {
                     case OpAdd | OpSub | OpMult | OpDiv | OpMod:
                         final lt = emittedType(l);
-                        if (lt != null && isIntOrLongType(lt)) return lt;
+                        if (lt != null && isIntOrLongType(lt))
+                            return lt;
                         return emittedType(r);
                     case OpEq | OpNotEq | OpGt | OpGte | OpLt | OpLte:
                         final lt = emittedType(l);
-                        if (lt != null) return lt;
+                        if (lt != null)
+                            return lt;
                         return emittedType(r);
                     case _:
                 }
-            case TLocal(v): return e.t;
-            case TField(_, _): return e.t;
-            case TCall(_, _): return e.t;
-            case TParenthesis(inner): return emittedType(inner);
-            case TCast(inner, _): return emittedType(inner);
+            case TLocal(v):
+                return e.t;
+            case TField(_, _):
+                return e.t;
+            case TCall(_, _):
+                return e.t;
+            case TParenthesis(inner):
+                return emittedType(inner);
+            case TCast(inner, _):
+                return emittedType(inner);
             case _:
         }
         return e.t;

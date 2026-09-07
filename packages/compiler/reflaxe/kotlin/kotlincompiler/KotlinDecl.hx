@@ -70,6 +70,24 @@ class KotlinDecl {
             final lines:Array<String> = [];
             final sealed = SealedVariantHelper.isSealedInterface(cls) ? "sealed " : "";
             lines.push(sealed + "interface " + cls.name + " {");
+            // Kotlin consumers use Haxe getter-only fields with property syntax.
+            // Keep the interface facade in sync with the class lowering below.
+            for (field in cls.fields.get()) {
+                if (!isGetterOnlyProperty(field)) {
+                    continue;
+                }
+                var hasInstanceGetter = false;
+                for (f in funcFields) {
+                    if (!f.isStatic && f.field.name == "get_" + field.name) {
+                        hasInstanceGetter = true;
+                        break;
+                    }
+                }
+                if (hasInstanceGetter) {
+                    final vis = field.isPublic ? "" : (field.meta.has(":allow") ? "internal " : "private ");
+                    lines.push('    ${vis}val ${KotlinNameEscape.escape(field.name)}: ${types.of(field.type)} get() = get_${KotlinNameEscape.escape(field.name)}()');
+                }
+            }
             for (f in funcFields) {
                 final args = [
                     for (a in f.args)
@@ -303,8 +321,7 @@ class KotlinDecl {
 
         lines.push("}");
         final result = withExtracted(extractedParts, lines.join("\n"));
-        return cls.meta.has(":dataClass")
-            && KotlinType.canEmitDataClassComparator(cls) ? result + "\n\n" + dataClassComparator(cls) : result;
+        return cls.meta.has(":dataClass") ? result + "\n\n" + dataClassComparator(cls) : result;
     }
 
     function dataClassComparator(cls:ClassType):String {
@@ -360,9 +377,10 @@ class KotlinDecl {
                     switch (Context.follow(inner)) {
                         case TEnum(e,
                             _): lines.push('    if (a.${f.name} != null && b.${f.name} != null) { cmp = ${cls.name}${f.name}Order(a.${f.name}).compareTo(${cls.name}${f.name}Order(b.${f.name})); if (cmp != 0) return cmp }');
-                        case TAbstract(_,
-                            _) | TInst(_,
-                                _): lines.push('    if (a.${f.name} != null && b.${f.name} != null) { cmp = a.${f.name}.compareTo(b.${f.name}); if (cmp != 0) return cmp }');
+                        case TInst(c, _) if (c.get().meta.has(":dataClass")):
+                            imports.requireType(c.get().module, "compare" + c.get().name);
+                            lines.push('    if (a.${f.name} != null && b.${f.name} != null) { cmp = compare${c.get().name}(a.${f.name}, b.${f.name}); if (cmp != 0) return cmp }');
+                        case TAbstract(_, _) | TInst(_, _): lines.push('    if (a.${f.name} != null && b.${f.name} != null) { cmp = a.${f.name}.toString().compareTo(b.${f.name}.toString()); if (cmp != 0) return cmp }');
                         case _: lines.push('    if (a.${f.name} != null && b.${f.name} != null) { cmp = a.${f.name}.toString().compareTo(b.${f.name}.toString()); if (cmp != 0) return cmp }');
                     }
                     continue;
