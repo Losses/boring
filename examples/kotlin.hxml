@@ -159,10 +159,15 @@ boring.NumberParsingOps
 tests.NumberParsingTests
 boring.NumberClassifyOps
 boring.MathMinMaxOps
+boring.MathNaNOps
+boring.MathNaNTestSupport
 boring.SwitchOps
 boring.MathIntWideningOps
+boring.MathNaNOps
+boring.MathNaNTestSupport
 tests.NumberClassifyTests
 tests.MathMinMaxTests
+tests.MathNaNOpsTests
 boring.InstanceDefaults
 boring.ImpWidget
 boring.ImpHost
@@ -174,6 +179,7 @@ tests.AllowAccessTests
 tests.ArrayRootTests
 tests.SwitchOpsTests
 tests.MathIntWideningOpsTests
+tests.MathNaNOpsTests
 
 registry.Core
 registry.CoreFault
