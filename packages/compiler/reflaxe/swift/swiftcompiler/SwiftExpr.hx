@@ -944,7 +944,9 @@ class SwiftExpr {
             case TConst(c):
                 switch (c) {
                     case TInt(v): return Std.string(v);
-                    case TFloat(f): return Std.string(f);
+                    case TFloat(f): return (f.length > 0 && f.charAt(0) == ".") ? "0" + f : (f.length > 2
+                            && f.charAt(0) == "-"
+                            && f.charAt(1) == "." ? "-0" + f.substr(1) : f);
                     case TString(s):
                         // The resident ABI carries strings as unit arrays
                         // (docs/specs/features/08-strings-and-unicode.md); business modules keep the
