@@ -188,5 +188,7 @@ tests.EnumSortedKeysTests
 
 boring.PublicGetterProperty
 tests.PublicGetterPropertyTests
+boring.InterfaceGetterProperty
+tests.InterfaceGetterPropertyTests
 boring.FloatLiteralOps
 tests.FloatLiteralOpsTests
