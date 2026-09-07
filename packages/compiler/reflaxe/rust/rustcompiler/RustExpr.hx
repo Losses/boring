@@ -11,6 +11,7 @@ import haxe.macro.TypedExprTools;
 import reflaxe.data.ClassFuncData;
 import ExpressionPredicates;
 import PolicyQueries;
+import PolicyQueries.EnumQueryStep;
 import ExpressionBlockNorm;
 import AssignTargetPlan;
 import AssignTargetPlan.AssignTargetFieldKind;
@@ -968,8 +969,10 @@ class RustExpr {
     function fuseWithin(e:TypedExpr):TypedExpr {
         return switch (e.expr) {
             case TBlock(stmts):
-                final fused = fuseUninitializedVars([for (s in stmts) fuseWithin(s)]);
-                {expr: TBlock(fused), pos: e.pos, t: e.t};
+                final nested = [for (s in stmts) fuseWithin(s)];
+                final fused = fuseUninitializedVars(nested);
+                final deadMatchFused = DeadInitializerMatchFusion.fuseDeadInitializerMatch(fused, stripCast);
+                {expr: TBlock(deadMatchFused), pos: e.pos, t: e.t};
             case _:
                 TypedExprTools.map(e, fuseWithin);
         }
@@ -2359,37 +2362,21 @@ class RustExpr {
     }
 
     function enumQuery(e:TypedExpr):Null<String> {
-        switch (e.expr) {
-            case TField(subj, fa):
-                final name = switch (fa) {
-                    case FInstance(_, _, cf) | FAnon(cf): cf.get().name;
-                    case FDynamic(n): n;
-                    case _: "";
-                };
-                final en = EnumQueryExpander.collectionEnum(subj);
-                if (name == "length" && en != null)
-                    return Std.string(EnumQueryExpander.constructorCount(en));
-            case TArray(subj, index):
-                final en = EnumQueryExpander.collectionEnum(subj);
-                if (en != null) {
-                    if (EnumQueryExpander.aliasEnum(subj) != null)
-                        return expr(subj) + "[" + expr(index) + "]";
-                    requireEnum(en.module, en.name);
-                    return en.name + "::ALL[" + expr(index) + "]";
+        return switch (PolicyQueries.enumQueryPlan(e)) {
+            case null: null;
+            case LengthCount(count): Std.string(count);
+            case AliasIndex(subj, index): expr(subj) + "[" + expr(index) + "]";
+            case EntryIndex(en, index):
+                requireEnum(en.module, en.name);
+                en.name + "::ALL[" + expr(index) + "]";
+            case EnumKindQuery(kind, en, args):
+                requireEnum(en.module, en.name);
+                switch (kind) {
+                    case QCollection: en.name + "::ALL";
+                    case QName: expr(args[0]) + ".name()";
+                    case QLookup: en.name + "::from_name(&(" + expr(args[1]) + "))";
                 }
-            case _:
         }
-        final kind = EnumQueryExpander.markerKind(e);
-        if (kind == null)
-            return null;
-        final en = EnumQueryExpander.enumOf(e);
-        final args = EnumQueryExpander.callArgs(e);
-        requireEnum(en.module, en.name);
-        return switch (kind) {
-            case QCollection: en.name + "::ALL";
-            case QName: expr(args[0]) + ".name()";
-            case QLookup: en.name + "::from_name(&(" + expr(args[1]) + "))";
-        };
     }
 
     // ------------------------------------------------------------------
@@ -4745,11 +4732,11 @@ class RustExpr {
                     return "FPHelper::" + RustImports.toSnakeCase(targetName) + "(" + renderedArgs + ")";
                 }
                 if (cls.module == "Math" && name == "isNaN")
-                    return "(" + mathFloatArg(args[0]) + ").is_nan()";
+                    return "(" + mathFloatBindingArg(args[0]) + ").is_nan()";
                 if (cls.module == "Math" && name == "isFinite")
-                    return "(" + mathFloatArg(args[0]) + ").is_finite()";
+                    return "(" + mathFloatBindingArg(args[0]) + ").is_finite()";
                 if (cls.module == "Math" && name == "abs")
-                    return "(" + mathFloatArg(args[0]) + ").abs()";
+                    return "(" + mathFloatBindingArg(args[0]) + ").abs()";
                 if (cls.module == "Math" && (name == "min" || name == "max") && args.length == 2) {
                     // Rust's intrinsic min/max return the non-NaN operand,
                     // unlike the Haxe/JavaScript oracle. Bind first so the
@@ -4758,28 +4745,28 @@ class RustExpr {
                     final real = FloatPrecision.isF32() ? "f32" : "f64";
                     final a = mathFloatBindingArg(args[0]);
                     final b = mathFloatBindingArg(args[1]);
-                    final zeroResult = name == "min"
-                        ? "if a.is_sign_negative() { a } else { b }"
-                        : "if a.is_sign_negative() { b } else { a }";
-                    final ordered = name == "min"
-                        ? "if a < b { a } else if b < a { b } else if a == 0.0 && b == 0.0 { " + zeroResult + " } else { a }"
-                        : "if a > b { a } else if b > a { b } else if a == 0.0 && b == 0.0 { " + zeroResult + " } else { a }";
+                    final zeroResult = name == "min" ? "if a.is_sign_negative() { a } else { b }" : "if a.is_sign_negative() { b } else { a }";
+                    final ordered = name == "min" ? "if a < b { a } else if b < a { b } else if a == 0.0 && b == 0.0 { "
+                        + zeroResult
+                        + " } else { a }" : "if a > b { a } else if b > a { b } else if a == 0.0 && b == 0.0 { "
+                        + zeroResult
+                        + " } else { a }";
                     return "({ let a = " + a + "; let b = " + b + "; if a.is_nan() || b.is_nan() { " + real + "::NAN } else { " + ordered + " } })";
                 }
                 if (cls.module == "Math" && name == "pow" && args.length == 2) {
                     // Rust names the power function powf; the f32
                     // configuration reads it from f32 (feature spec 23).
                     final real = FloatPrecision.isF32() ? "f32" : "f64";
-                    return real + "::powf(" + mathFloatArg(args[0]) + ", " + mathFloatArg(args[1]) + ")";
+                    return real + "::powf(" + mathFloatBindingArg(args[0]) + ", " + mathFloatBindingArg(args[1]) + ")";
                 }
                 if (cls.module == "Math" && name == "sqrt")
-                    return "(" + mathFloatArg(args[0]) + ").sqrt()";
+                    return "(" + mathFloatBindingArg(args[0]) + ").sqrt()";
                 if (cls.module == "Math" && (name == "floor" || name == "ceil" || name == "round")) {
                     // Haxe types floor, ceil, and round as Int; the Rust
                     // methods return the real type, so the call site
                     // truncates through the same conversion Std.int uses.
                     final real = FloatPrecision.isF32() ? "f32" : "f64";
-                    final rounded = real + "::" + name + "(" + mathFloatArg(args[0]) + ")";
+                    final rounded = real + "::" + name + "(" + mathFloatBindingArg(args[0]) + ")";
                     return RuntimeResidents.isResident(imports.selfModule) ? rounded + " as i32" : RustConversions.floatToU32(rounded);
                 }
                 if (cls.module == "Std" && name == "parseFloat") {
@@ -4821,7 +4808,6 @@ class RustExpr {
                     // message renders as the empty string, which the canonical
                     // builder omits.
                     state.shimsUsed.set(RuntimeResidents.externsOf("runtime.TestCore")[0], true);
-                    imports.require("crate::runtime::test as testlib");
                     imports.require("crate::runtime::test_core");
                     final messageArg = function(idx:Int):String {
                         return (args.length > idx && !isTNull(args[idx])) ? "&(" + expr(args[idx]) + ")" : "\"\"";
@@ -4834,6 +4820,10 @@ class RustExpr {
                         return "test_core::TestCore::fail(&(" + expr(args[0]) + "))";
                     }
                     if (name == "run") {
+                        // Only run lowers to testlib text in this branch;
+                        // assertions stay on test_core, so a class without
+                        // a run call must not import testlib.
+                        imports.require("crate::runtime::test as testlib");
                         return "testlib::run(" + renderedArgs + ")";
                     }
                     if (name == "equals") {

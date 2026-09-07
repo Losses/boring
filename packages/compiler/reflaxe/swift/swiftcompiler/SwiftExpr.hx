@@ -16,6 +16,8 @@ import AssignTargetPlan;
 import AssignTargetPlan.AssignTargetFieldKind;
 import PolicyQueries.StdStringCategory;
 import PolicyQueries.Int64Op;
+import PolicyQueries.VariantArmStep;
+import PolicyQueries.EnumQueryStep;
 import FusionPlan;
 import FusionPlan.FusionStep;
 import VarFusionPlan;
@@ -1146,37 +1148,21 @@ class SwiftExpr {
     }
 
     function enumQuery(e:TypedExpr):Null<String> {
-        switch (e.expr) {
-            case TField(subj, fa):
-                final name = switch (fa) {
-                    case FInstance(_, _, cf) | FAnon(cf): cf.get().name;
-                    case FDynamic(n): n;
-                    case _: "";
-                };
-                final en = EnumQueryExpander.collectionEnum(subj);
-                if (name == "length" && en != null)
-                    return Std.string(EnumQueryExpander.constructorCount(en));
-            case TArray(subj, index):
-                final en = EnumQueryExpander.collectionEnum(subj);
-                if (en != null) {
-                    if (EnumQueryExpander.aliasEnum(subj) != null)
-                        return expr(subj) + "[Int(" + expr(index) + ")]";
-                    imports.type(en.module, en.name);
-                    return en.name + ".allCases[Int(" + expr(index) + ")]";
+        return switch (PolicyQueries.enumQueryPlan(e)) {
+            case null: null;
+            case LengthCount(count): Std.string(count);
+            case AliasIndex(subj, index): expr(subj) + "[Int(" + expr(index) + ")]";
+            case EntryIndex(en, index):
+                imports.type(en.module, en.name);
+                en.name + ".allCases[Int(" + expr(index) + ")]";
+            case EnumKindQuery(kind, en, args):
+                imports.type(en.module, en.name);
+                switch (kind) {
+                    case QCollection: en.name + ".allCases";
+                    case QName: expr(args[0]) + ".rawValue";
+                    case QLookup: en.name + "(rawValue: " + expr(args[1]) + ")";
                 }
-            case _:
         }
-        final kind = EnumQueryExpander.markerKind(e);
-        if (kind == null)
-            return null;
-        final en = EnumQueryExpander.enumOf(e);
-        final args = EnumQueryExpander.callArgs(e);
-        imports.type(en.module, en.name);
-        return switch (kind) {
-            case QCollection: en.name + ".allCases";
-            case QName: expr(args[0]) + ".rawValue";
-            case QLookup: en.name + "(rawValue: " + expr(args[1]) + ")";
-        };
     }
 
     function functionLiteral(f:TFunc):String {
@@ -2064,13 +2050,14 @@ class SwiftExpr {
                         final real = FloatPrecision.isF32() ? "Float" : "Double";
                         final a = mathFloatArg(args[0]);
                         final b = mathFloatArg(args[1]);
-                        final zeroResult = fName == "min"
-                            ? "a.sign == .minus ? a : b"
-                            : "a.sign == .minus ? b : a";
-                        final ordered = fName == "min"
-                            ? "a < b ? a : (b < a ? b : (a == 0.0 && b == 0.0 ? " + zeroResult + " : a))"
-                            : "a > b ? a : (b > a ? b : (a == 0.0 && b == 0.0 ? " + zeroResult + " : a))";
-                        return "({ () -> " + real + " in let a = " + a + "; let b = " + b + "; if a.isNaN || b.isNaN { return " + real + ".nan }; return " + ordered + " })()";
+                        final zeroResult = fName == "min" ? "a.sign == .minus ? a : b" : "a.sign == .minus ? b : a";
+                        final ordered = fName == "min" ? "a < b ? a : (b < a ? b : (a == 0.0 && b == 0.0 ? "
+                            + zeroResult
+                            + " : a))" : "a > b ? a : (b > a ? b : (a == 0.0 && b == 0.0 ? "
+                            + zeroResult
+                            + " : a))";
+                        return "({ () -> " + real + " in let a = " + a + "; let b = " + b + "; if a.isNaN || b.isNaN { return " + real + ".nan }; return "
+                            + ordered + " })()";
                     }
                     if (fName == "abs")
                         return "abs(" + mathFloatArg(args[0]) + ")";
@@ -3340,36 +3327,27 @@ class SwiftExpr {
     function armLines(e:TypedExpr, depth:Int, reservedPayloadNames:Bool = false):Array<String> {
         final out:Array<String> = [];
         var value:Null<String> = null;
-        function walk(stmts:Array<TypedExpr>) {
-            for (s in stmts) {
-                switch (s.expr) {
-                    case TVar(v, init):
-                        if (init == null) {
-                            Context.error("swift target: declaration without initializer has no lowering", s.pos);
-                        }
-                        switch (stripWrap(init).expr) {
-                            case TEnumParameter(se, ef, index):
-                                subst.set(v.id, reservedPayloadNames ? payloadBindingName(ef, index) : payloadName(ef, index));
-                            case TLocal(source) if (subst.exists(source.id)):
-                                // The typer binds the switch subject to a hidden
-                                // local before extracting the payload; forward
-                                // the substitution through that chain.
-                                subst.set(v.id, subst.get(source.id));
-                            case _:
-                                out.push(indent(depth) + "let " + localName(v) + " = " + expr(init));
-                        }
-                    case TBlock(bs):
-                        walk(bs);
-                    case TMeta(_, inner):
-                        walk([inner]);
-                    case TReturn(r) if (r != null):
-                        value = expr(r);
-                    case _:
-                        value = expr(s);
-                }
+        for (step in PolicyQueries.variantArmPlan(e)) {
+            switch (step) {
+                case PayloadCapture(v, _, ef, index):
+                    subst.set(v.id, reservedPayloadNames ? payloadBindingName(ef, index) : payloadName(ef, index));
+                case ForwardOrDecl(v, init, source):
+                    // The typer binds the switch subject to a hidden local
+                    // before extracting the payload; forward the substitution
+                    // through that chain.
+                    if (subst.exists(source.id)) {
+                        subst.set(v.id, subst.get(source.id));
+                    } else {
+                        out.push(indent(depth) + "let " + localName(v) + " = " + expr(init));
+                    }
+                case PlainDecl(v, init):
+                    out.push(indent(depth) + "let " + localName(v) + " = " + expr(init));
+                case OtherStatement(s, returnValue, _):
+                    value = returnValue != null ? expr(returnValue) : expr(s);
+                case MissingInit(s):
+                    Context.error("swift target: declaration without initializer has no lowering", s.pos);
             }
         }
-        walk(statementsOf(e));
         if (value == null) {
             return fail(e, "variant switch arm has no value");
         }
