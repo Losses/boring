@@ -1359,7 +1359,7 @@ class SwiftExpr {
     function optionalOperand(e:TypedExpr, parent:Binop, isRight:Bool):String {
         final rendered = switch (stripWrap(e).expr) {
             case TConst(TNull): expr(e);
-            case _: optionalValued(e) ? "(" + expr(e) + ")!" : expr(e);
+            case _: optionalValued(e) || (isStringCharCodeAt(e) && !types.resident) ? "(" + expr(e) + ")!" : expr(e);
         };
         return switch (stripWrap(e).expr) {
             case TBinop(op, _, _):
@@ -2307,7 +2307,7 @@ class SwiftExpr {
                         + receiverText(subj)
                         + ", "
                         + expr(args[0])
-                        + ")!";
+                        + ")";
                 }
                 return receiverText(subj) + "." + SwiftNameEscape.escape(name) + "(" + rendered + ")";
             case TField(_, FEnum(en, ef)):
