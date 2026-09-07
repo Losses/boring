@@ -191,4 +191,6 @@ tests.PublicGetterPropertyTests
 boring.InterfaceGetterProperty
 tests.InterfaceGetterPropertyTests
 boring.FloatLiteralOps
+boring.SwiftLiteralSafetyOps
 tests.FloatLiteralOpsTests
+tests.SwiftLiteralSafetyOpsTests
