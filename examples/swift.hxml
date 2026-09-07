@@ -217,6 +217,8 @@ boring.PublicGetterProperty
 tests.PublicGetterPropertyTests
 boring.FloatLiteralOps
 tests.FloatLiteralOpsTests
+boring.OptionalParamNull
+tests.OptionalParamNullTests
 tests.RustUnionFaultTests
 tests.PlatformModulesTestSupport
 tests.PlatformModulesTests
