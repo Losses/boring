@@ -95,8 +95,14 @@ class SwiftDecl {
         for (f in extractedFuncs) {
             extractedParts.push(extractedFuncDecl(module, cls, f).join("\n"));
         }
+        final shouldEmitComparator = cls.meta.has(":dataClass")
+            && (SwiftType.canEmitDataClassComparator(cls)
+                || cls.name == "AutoSpacePolicy"
+                || cls.name == "AdjustmentStylePolicy"
+                || cls.name == "PunctuationWidthPolicy");
         if (varFields.length == 0 && ordinaryFuncs.length == 0) {
-            return extractedParts.join("\n\n");
+            final emptyClass = extractedParts.join("\n\n");
+            return shouldEmitComparator ? emptyClass + "\n\n" + dataClassComparator(cls) : emptyClass;
         }
 
         final staticsOnly = isStaticsOnly(varFields, ordinaryFuncs);
@@ -167,8 +173,7 @@ class SwiftDecl {
         lines.push("}");
         final classPart = lines.join("\n");
         final result = extractedParts.length > 0 ? extractedParts.join("\n\n") + "\n\n" + classPart : classPart;
-        return cls.meta.has(":dataClass")
-            && SwiftType.canEmitDataClassComparator(cls) ? result + "\n\n" + dataClassComparator(cls) : result;
+        return shouldEmitComparator ? result + "\n\n" + dataClassComparator(cls) : result;
     }
 
     /** Emits a marked abstract as a value-semantic Swift struct. */
@@ -348,6 +353,13 @@ class SwiftDecl {
             switch (Context.follow(f.type)) {
                 case TAbstract(a, _) if (a.get().name == "Int"):
                     lines.push("    if a." + f.name + " != b." + f.name + " { return a." + f.name + " - b." + f.name + " }");
+                case TAbstract(a, _) if (a.get().name == "Float"):
+                    lines.push("    if a." + f.name + " < b." + f.name + " { return -1 }");
+                    lines.push("    if a." + f.name + " > b." + f.name + " { return 1 }");
+                case TAbstract(a, _) if (a.get().name == "Bool"):
+                    lines.push("    if a." + f.name + " != b." + f.name + " { return a." + f.name + " ? 1 : -1 }");
+                case TInst(c, _) if (c.get().name == "AutoSpacePolicy" || c.get().name == "AdjustmentStylePolicy" || c.get().name == "PunctuationWidthPolicy"):
+                    lines.push("    let cmp" + f.name + " = compare" + c.get().name + "(a." + f.name + ", b." + f.name + "); if cmp" + f.name + " != 0 { return cmp" + f.name + " }");
                 case TEnum(e, _):
                     final en = e.get();
                     lines.push("    if a." + f.name + " != b." + f.name + " { return Int32(" + cls.name + f.name + "Order(a." + f.name + ") - " + cls.name
