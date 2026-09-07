@@ -206,6 +206,8 @@ tests.ShapeTextTests
 tests.StringToolsTests
 boring.PublicGetterProperty
 tests.PublicGetterPropertyTests
+boring.KnullInitNarrowing
+tests.KnullInitNarrowingTests
 tests.RustUnionFaultTests
 tests.PlatformModulesTestSupport
 tests.PlatformModulesTests
