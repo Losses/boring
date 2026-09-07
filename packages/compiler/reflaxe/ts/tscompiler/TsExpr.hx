@@ -2351,20 +2351,8 @@ class TsExpr {
         trailing value expression; control-flow tails carry no value.
     **/
     function blockValueLines(e:TypedExpr, depth:Int):{lines:Array<String>, value:Null<String>} {
-        final stmts = statementsOf(e);
-        var value:Null<String> = null;
-        var body = stmts;
-        if (stmts.length > 0) {
-            final last = stmts[stmts.length - 1];
-            switch (last.expr) {
-                case TReturn(_) | TThrow(_) | TVar(_, _) | TIf(_, _, _) | TWhile(_, _, _) | TBlock(_) | TBreak | TContinue | TBinop(OpAssign, _, _) |
-                    TBinop(OpAssignOp(_), _, _):
-                case _:
-                    value = expr(last);
-                    body = stmts.slice(0, stmts.length - 1);
-            }
-        }
-        return {lines: blockLines(body, depth), value: value};
+        final parts = PolicyQueries.blockValueParts(e);
+        return {lines: blockLines(parts.body, depth), value: parts.value == null ? null : expr(parts.value)};
     }
 
     function catchHeaderLines(c:{v:TVar, expr:TypedExpr}, clsName:String, depth:Int):Array<String> {
