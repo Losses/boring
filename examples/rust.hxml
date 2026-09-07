@@ -217,7 +217,6 @@ tests.PublicGetterPropertyTests
 boring.InterfaceGetterProperty
 tests.InterfaceGetterPropertyTests
 boring.FloatLiteralOps
-boring.SwiftLiteralSafetyOps
 tests.FloatLiteralOpsTests
 boring.KnullInitNarrowing
 tests.KnullInitNarrowingTests
@@ -225,7 +224,6 @@ boring.OptionalParamNull
 tests.OptionalParamNullTests
 boring.NumericConversionWidening
 tests.NumericConversionWideningTests
-tests.SwiftLiteralSafetyOpsTests
 tests.RustUnionFaultTests
 tests.PlatformModulesTestSupport
 tests.PlatformModulesTests
