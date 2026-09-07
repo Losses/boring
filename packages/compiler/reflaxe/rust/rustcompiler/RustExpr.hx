@@ -11,6 +11,7 @@ import haxe.macro.TypedExprTools;
 import reflaxe.data.ClassFuncData;
 import ExpressionPredicates;
 import PolicyQueries;
+import PolicyQueries.EnumQueryStep;
 import ExpressionBlockNorm;
 import AssignTargetPlan;
 import AssignTargetPlan.AssignTargetFieldKind;
@@ -2359,37 +2360,21 @@ class RustExpr {
     }
 
     function enumQuery(e:TypedExpr):Null<String> {
-        switch (e.expr) {
-            case TField(subj, fa):
-                final name = switch (fa) {
-                    case FInstance(_, _, cf) | FAnon(cf): cf.get().name;
-                    case FDynamic(n): n;
-                    case _: "";
-                };
-                final en = EnumQueryExpander.collectionEnum(subj);
-                if (name == "length" && en != null)
-                    return Std.string(EnumQueryExpander.constructorCount(en));
-            case TArray(subj, index):
-                final en = EnumQueryExpander.collectionEnum(subj);
-                if (en != null) {
-                    if (EnumQueryExpander.aliasEnum(subj) != null)
-                        return expr(subj) + "[" + expr(index) + "]";
-                    requireEnum(en.module, en.name);
-                    return en.name + "::ALL[" + expr(index) + "]";
+        return switch (PolicyQueries.enumQueryPlan(e)) {
+            case null: null;
+            case LengthCount(count): Std.string(count);
+            case AliasIndex(subj, index): expr(subj) + "[" + expr(index) + "]";
+            case EntryIndex(en, index):
+                requireEnum(en.module, en.name);
+                en.name + "::ALL[" + expr(index) + "]";
+            case EnumKindQuery(kind, en, args):
+                requireEnum(en.module, en.name);
+                switch (kind) {
+                    case QCollection: en.name + "::ALL";
+                    case QName: expr(args[0]) + ".name()";
+                    case QLookup: en.name + "::from_name(&(" + expr(args[1]) + "))";
                 }
-            case _:
         }
-        final kind = EnumQueryExpander.markerKind(e);
-        if (kind == null)
-            return null;
-        final en = EnumQueryExpander.enumOf(e);
-        final args = EnumQueryExpander.callArgs(e);
-        requireEnum(en.module, en.name);
-        return switch (kind) {
-            case QCollection: en.name + "::ALL";
-            case QName: expr(args[0]) + ".name()";
-            case QLookup: en.name + "::from_name(&(" + expr(args[1]) + "))";
-        };
     }
 
     // ------------------------------------------------------------------
