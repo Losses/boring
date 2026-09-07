@@ -176,7 +176,7 @@ class SwiftExpr {
             case CParameterRead(name): constructorParameterValues != null && constructorParameterValues.exists(name) ? constructorParameterValues.get(name) : name;
             case CInstanceFieldRead(name): "self." + SwiftNameEscape.escape(name);
             case CLocalRead(name): name;
-            case CFieldAccess(CParameterRead(staticPath), ""): coalescingStaticFieldText(staticPath);
+            case CFieldAccess(CParameterRead(staticPath), ""): constructorParameterValues != null && constructorParameterValues.exists(staticPath) ? constructorParameterValues.get(staticPath) : coalescingStaticFieldText(staticPath);
             case CFieldAccess(receiver, fieldName): fieldName == "length" ? "Int32("
                 + coalescingDefaultText(receiver, targetType)
                 + ".count)" : coalescingDefaultText(receiver, targetType)
