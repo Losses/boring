@@ -451,7 +451,7 @@ class SwiftExpr {
                     currentField, currentLocalName,
                     coalescing.parameter) : DefaultArgExpander.coalescingDefaultForParam(currentClass, currentField, coalescing.parameter));
                 final localType = coalescingValue != null ? DefaultArgExpander.coalescingLocalType(coalescingValue, v.t) : v.t;
-                final hasTypeAnnotation = localDeclarationNeedsTypeAnnotation(v.t, init);
+                final hasTypeAnnotation = localDeclarationNeedsTypeAnnotation(v.t, init, coalescing != null);
                 final annotation = hasTypeAnnotation ? ": " + types.of(localType) : "";
                 final unwrapNullableInitializer = isNullLeafType(init.t) && coalescing == null && !isNullLeafType(v.t) && hasTypeAnnotation;
                 var initText = switch (init.expr) {
@@ -3728,10 +3728,12 @@ class SwiftExpr {
         switch (e.expr) {
             case TVar(v, init):
                 PolicyQueries.noteDeclaredLocalName(v, usedNames, false);
-                if (init != null
-                    && isNullLeafType(init.t)
-                    && coalescingSiteFor(init) == null
-                    && (isNullLeafType(v.t) || !localDeclarationNeedsTypeAnnotation(v.t, init))) {
+                final coalescing = coalescingSiteFor(init);
+                final unwrapNullableInitializer = init != null && isNullLeafType(init.t)
+                    && coalescing == null
+                    && !isNullLeafType(v.t)
+                    && localDeclarationNeedsTypeAnnotation(v.t, init, false);
+                if (init != null && isNullLeafType(init.t) && coalescing == null && !unwrapNullableInitializer) {
                     optionalInferred.set(v.id, true);
                 }
                 PolicyQueries.noteFpInt64Init(v, init, fpInt64Halves);
@@ -3981,13 +3983,13 @@ class SwiftExpr {
         };
     }
 
-    function localDeclarationNeedsTypeAnnotation(t:Type, init:TypedExpr):Bool {
+    function localDeclarationNeedsTypeAnnotation(t:Type, init:TypedExpr, hasCoalescing:Bool = false):Bool {
         return isEmptyArrayDecl(init)
             || (isIntLeafType(t) && !mentionsRangeLoopVar(init))
             || isIntLiteralArrayDecl(init)
             || isBuilderCall(init)
             || isNullLeafType(t)
-            || coalescingSiteFor(init) != null
+            || hasCoalescing
             || (FloatPrecision.isF32() && isFloatLeafType(t));
     }
 
