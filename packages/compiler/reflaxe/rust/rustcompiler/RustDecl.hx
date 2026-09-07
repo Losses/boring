@@ -2051,6 +2051,9 @@ class RustDecl {
         expr.setReturnTypeName("()");
         final body = expr.functionBody(cls, f);
         final indented = body.map(l -> "    " + l);
+        // The wrapper below names testlib directly, so this decl owns the
+        // import; assertion lowering inside the body only adds test_core.
+        imports.require("crate::runtime::test as testlib");
         return [
             "#[test]",
             'fn $snake() {',
