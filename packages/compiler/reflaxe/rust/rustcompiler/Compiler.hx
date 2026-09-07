@@ -43,6 +43,7 @@ class Compiler extends PluginCompiler<Compiler> {
         // runtime-import define has no way to reference the runtime package.
         if (RuntimeConfig.importName() != null) {
             Context.getType("runtime.StringTools");
+            Context.getType("runtime.UString");
         }
         ReflectCompiler.AddCompiler(compiler, {
             fileOutputType: BaseCompilerFileOutputType.Manual,
