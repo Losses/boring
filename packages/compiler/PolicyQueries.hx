@@ -657,7 +657,7 @@ class PolicyQueries {
         body:Array<TypedExpr>
     }> {
         switch [counterDecl.expr, boundDecl.expr, whileExpr.expr] {
-            case [TVar(counter, start), TVar(boundVar, bound), TWhile(cond, body, true)]:
+            case [TVar(counter, start), TVar(boundVar, bound), TWhile(cond, body, true)] if (start != null && bound != null):
                 final condOk = switch (ExpressionPredicates.stripWrap(cond).expr) {
                     case TBinop(OpLt, l, r):
                         final lc = ExpressionPredicates.stripWrap(l);
