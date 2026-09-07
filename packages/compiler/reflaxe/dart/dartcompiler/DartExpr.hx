@@ -2379,6 +2379,7 @@ class DartExpr {
                     };
                 }
                 final tag = DartTestTypes.register(t);
+                imports.useTestHelper();
                 return "test_helper.assertEquals" + tag + "(" + expr(args[0]) + ", " + expr(args[1]) + ", " + message + ")";
             case _:
                 return fail(fn, "test extern." + fName + " has no Dart lowering");
