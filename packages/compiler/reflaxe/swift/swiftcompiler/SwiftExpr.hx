@@ -16,6 +16,8 @@ import AssignTargetPlan;
 import AssignTargetPlan.AssignTargetFieldKind;
 import PolicyQueries.StdStringCategory;
 import PolicyQueries.Int64Op;
+import PolicyQueries.VariantArmStep;
+import PolicyQueries.EnumQueryStep;
 import FusionPlan;
 import FusionPlan.FusionStep;
 import VarFusionPlan;
@@ -118,6 +120,9 @@ class SwiftExpr {
 
     var currentField:Null<String> = null;
     var currentLocalName:Null<String> = null;
+
+    /** Return type of the function currently being lowered; null outside function context. */
+    var currentReturnType:Null<Type> = null;
 
     public function new(imports:SwiftImports, types:SwiftType) {
         this.imports = imports;
@@ -253,7 +258,7 @@ class SwiftExpr {
     /** Renders a sanctioned default in Swift's native parameter context. */
     public function coalescingDefaultText(value:DefaultArgExpander.CoalescingDefaultValue, targetType:Type):String {
         return switch (value) {
-            case CInt(v): Std.string(v);
+            case CInt(v): isFloatLeafType(targetType) ? intToFloatText(Std.string(v)) : Std.string(v);
             case CFloat(s): s;
             case CString(s): quoteString(s);
             case CBool(b): b ? "true" : "false";
@@ -390,6 +395,10 @@ class SwiftExpr {
         currentClass = cls;
         currentField = f.field.name;
         currentLocalName = null;
+        currentReturnType = switch (Context.follow(f.field.type)) {
+            case TFun(_, ret): ret;
+            case _: null;
+        };
         currentFuncReturnsOptional = switch (f.field.type) {
             case TFun(_, ret): isNullLeafType(ret);
             case _: false;
@@ -400,7 +409,9 @@ class SwiftExpr {
         };
         // Depth 2: one level under the member's own indentation.
         scanLocals(f.expr);
-        return blockLines(statementsOf(f.expr), depth);
+        final result = blockLines(statementsOf(f.expr), depth);
+        currentReturnType = null;
+        return result;
     }
 
     /** Body lowering for a member declared on a value wrapper. */
@@ -548,7 +559,7 @@ class SwiftExpr {
                     || isNullLeafType(v.t)
                     || coalescing != null
                     || (FloatPrecision.isF32() && isFloatLeafType(v.t)) ? ": " + types.of(localType) : "";
-                final initText = switch (init.expr) {
+                var initText = switch (init.expr) {
                     case TFunction(fn): functionLiteralNamed(v.name, fn);
                     default: {
                             final rendered = expr(init);
@@ -556,6 +567,8 @@ class SwiftExpr {
                         && !isNullLeafType(v.t) ? rendered + "!" : rendered;
                         }
                 };
+                if (isIntType(emittedType(init)) && isFloatLeafType(v.t))
+                    initText = intToFloatText(initText);
                 return [indent(depth) + '$kw ${localName(v)}$annotation = $tryKw$initText'];
             case TVar(v, _):
                 // A declaration without initializer: definite
@@ -589,8 +602,11 @@ class SwiftExpr {
                     case TSwitch(_, _, _):
                         return switchReturn(inner, depth);
                     case _:
+                        var retText = returnValue(ret);
+                        if (isIntType(emittedType(ret)) && currentReturnType != null && isFloatLeafType(currentReturnType))
+                            retText = intToFloatText(retText);
                         final tryKw = containsThrowingCall(ret) ? "try " : "";
-                        return [indent(depth) + "return " + tryKw + returnValue(ret)];
+                        return [indent(depth) + "return " + tryKw + retText];
                 }
             case TThrow(x):
                 return [indent(depth) + "throw " + expr(x)];
@@ -1092,7 +1108,19 @@ class SwiftExpr {
             case TObjectDecl(fields):
                 return objectLiteral(e, fields);
             case TArrayDecl(elems):
-                return "[" + [for (x in elems) expr(x)].join(", ") + "]";
+                final elemType = switch (e.t) {
+                    case TInst(_, params) if (params.length > 0): params[0];
+                    case _: null;
+                };
+                final elemFloat = isFloatLeafType(elemType);
+                final renderedElems = [
+                    for (x in elems) {
+                        var t = expr(x);
+                        if (elemFloat && isIntType(emittedType(x))) t = intToFloatText(t);
+                        t;
+                    }
+                ];
+                return "[" + renderedElems.join(", ") + "]";
             case TCall(fn, args):
                 return call(fn, args);
             case TNew(c, params, args):
@@ -1260,37 +1288,21 @@ class SwiftExpr {
     }
 
     function enumQuery(e:TypedExpr):Null<String> {
-        switch (e.expr) {
-            case TField(subj, fa):
-                final name = switch (fa) {
-                    case FInstance(_, _, cf) | FAnon(cf): cf.get().name;
-                    case FDynamic(n): n;
-                    case _: "";
-                };
-                final en = EnumQueryExpander.collectionEnum(subj);
-                if (name == "length" && en != null)
-                    return Std.string(EnumQueryExpander.constructorCount(en));
-            case TArray(subj, index):
-                final en = EnumQueryExpander.collectionEnum(subj);
-                if (en != null) {
-                    if (EnumQueryExpander.aliasEnum(subj) != null)
-                        return expr(subj) + "[Int(" + expr(index) + ")]";
-                    imports.type(en.module, en.name);
-                    return en.name + ".allCases[Int(" + expr(index) + ")]";
+        return switch (PolicyQueries.enumQueryPlan(e)) {
+            case null: null;
+            case LengthCount(count): Std.string(count);
+            case AliasIndex(subj, index): expr(subj) + "[Int(" + expr(index) + ")]";
+            case EntryIndex(en, index):
+                imports.type(en.module, en.name);
+                en.name + ".allCases[Int(" + expr(index) + ")]";
+            case EnumKindQuery(kind, en, args):
+                imports.type(en.module, en.name);
+                switch (kind) {
+                    case QCollection: en.name + ".allCases";
+                    case QName: expr(args[0]) + ".rawValue";
+                    case QLookup: en.name + "(rawValue: " + expr(args[1]) + ")";
                 }
-            case _:
         }
-        final kind = EnumQueryExpander.markerKind(e);
-        if (kind == null)
-            return null;
-        final en = EnumQueryExpander.enumOf(e);
-        final args = EnumQueryExpander.callArgs(e);
-        imports.type(en.module, en.name);
-        return switch (kind) {
-            case QCollection: en.name + ".allCases";
-            case QName: expr(args[0]) + ".rawValue";
-            case QLookup: en.name + "(rawValue: " + expr(args[1]) + ")";
-        };
     }
 
     function functionLiteral(f:TFunc):String {
@@ -1359,11 +1371,11 @@ class SwiftExpr {
                 return floatAware(operand(l, op, false), l) + " / " + floatAware(operand(r, op, true), r);
             case OpEq | OpNotEq:
                 final nullSide = isNullConstant(l) || isNullConstant(r);
-                return (nullSide ? expr(l) : operand(l, op, false, true))
-                    + " "
-                    + symbolOf(op, l, r)
-                    + " "
-                    + (nullSide ? expr(r) : operand(r, op, true, true));
+                final lOperand = nullSide ? expr(l) : operand(l, op, false, true);
+                final rOperand = nullSide ? expr(r) : operand(r, op, true, true);
+                final lFinal = isIntType(emittedType(l)) && isFloatTyped(r) ? intToFloatText(lOperand) : lOperand;
+                final rFinal = isIntType(emittedType(r)) && isFloatTyped(l) ? intToFloatText(rOperand) : rOperand;
+                return lFinal + " " + symbolOf(op, l, r) + " " + rFinal;
             case _:
                 // Haxe mixes Int into Float arithmetic and comparison
                 // with promotion; Swift has no implicit conversion, so
@@ -1418,7 +1430,9 @@ class SwiftExpr {
         so mixed operators on one tier always wrap on the right.
     **/
     function assignmentValue(target:TypedExpr, value:TypedExpr):String {
-        final rendered = expr(value);
+        var rendered = expr(value);
+        if (isIntType(emittedType(value)) && isFloatTyped(target))
+            rendered = intToFloatText(rendered);
         return optionalValued(value) && !StringTools.endsWith(rendered, "!") && !isNullLeafType(target.t) ? rendered + "!" : rendered;
     }
 
@@ -1848,7 +1862,7 @@ class SwiftExpr {
                 final a = args[i];
                 final pt = i < paramTypes.length ? paramTypes[i] : null;
                 final demandsValue = pt != null && !isNullLeafType(pt);
-                if (SwiftInoutParams.isMutatingCallArg(fn, i)) {
+                var t = if (SwiftInoutParams.isMutatingCallArg(fn, i)) {
                     switch (stripWrap(a).expr) {
                         case TLocal(_) | TField(_):
                             "&" + expr(a);
@@ -1859,7 +1873,9 @@ class SwiftExpr {
                 } else {
                     demandsValue
                     && optionalValued(a) ? expr(a) + "!" : expr(a);
-                }
+                };
+                if (pt != null && isIntType(emittedType(a)) && isFloatLeafType(pt)) t = intToFloatText(t);
+                t;
             }
         ];
         switch (fn.expr) {
@@ -2072,8 +2088,14 @@ class SwiftExpr {
                 if (abs == null)
                     return null;
                 final field = cf.get();
-                if (field.name == "_new")
-                    return args.length == 0 ? abs.name + "()" : abs.name + "(" + expr(args[0]) + ")";
+                if (field.name == "_new") {
+                    if (args.length == 0)
+                        return abs.name + "()";
+                    var argText = expr(args[0]);
+                    if (isIntType(emittedType(args[0])) && ValueTypeSupport.isFloatRepresentation(abs))
+                        argText = intToFloatText(argText);
+                    return abs.name + "(" + argText + ")";
+                }
                 if (field.name == "toString" && args.length > 0)
                     return expr(args[0]) + ".description";
                 final op = ValueTypeSupport.operatorOf(abs, field);
@@ -2857,7 +2879,7 @@ class SwiftExpr {
 
     function defaultArgText(v:DefaultArgExpander.DefaultArgValue, t:Type):String
         return switch (v) {
-            case VInt(x): Std.string(x);
+            case VInt(x): isFloatLeafType(t) ? intToFloatText(Std.string(x)) : Std.string(x);
             case VFloat(x): x;
             case VString(x): quoteString(x);
             case VBool(x): x ? "true" : "false";
@@ -3488,36 +3510,27 @@ class SwiftExpr {
     function armLines(e:TypedExpr, depth:Int, reservedPayloadNames:Bool = false):Array<String> {
         final out:Array<String> = [];
         var value:Null<String> = null;
-        function walk(stmts:Array<TypedExpr>) {
-            for (s in stmts) {
-                switch (s.expr) {
-                    case TVar(v, init):
-                        if (init == null) {
-                            Context.error("swift target: declaration without initializer has no lowering", s.pos);
-                        }
-                        switch (stripWrap(init).expr) {
-                            case TEnumParameter(se, ef, index):
-                                subst.set(v.id, reservedPayloadNames ? payloadBindingName(ef, index) : payloadName(ef, index));
-                            case TLocal(source) if (subst.exists(source.id)):
-                                // The typer binds the switch subject to a hidden
-                                // local before extracting the payload; forward
-                                // the substitution through that chain.
-                                subst.set(v.id, subst.get(source.id));
-                            case _:
-                                out.push(indent(depth) + "let " + localName(v) + " = " + expr(init));
-                        }
-                    case TBlock(bs):
-                        walk(bs);
-                    case TMeta(_, inner):
-                        walk([inner]);
-                    case TReturn(r) if (r != null):
-                        value = expr(r);
-                    case _:
-                        value = expr(s);
-                }
+        for (step in PolicyQueries.variantArmPlan(e)) {
+            switch (step) {
+                case PayloadCapture(v, _, ef, index):
+                    subst.set(v.id, reservedPayloadNames ? payloadBindingName(ef, index) : payloadName(ef, index));
+                case ForwardOrDecl(v, init, source):
+                    // The typer binds the switch subject to a hidden local
+                    // before extracting the payload; forward the substitution
+                    // through that chain.
+                    if (subst.exists(source.id)) {
+                        subst.set(v.id, subst.get(source.id));
+                    } else {
+                        out.push(indent(depth) + "let " + localName(v) + " = " + expr(init));
+                    }
+                case PlainDecl(v, init):
+                    out.push(indent(depth) + "let " + localName(v) + " = " + expr(init));
+                case OtherStatement(s, returnValue, _):
+                    value = returnValue != null ? expr(returnValue) : expr(s);
+                case MissingInit(s):
+                    Context.error("swift target: declaration without initializer has no lowering", s.pos);
             }
         }
-        walk(statementsOf(e));
         if (value == null) {
             return fail(e, "variant switch arm has no value");
         }
@@ -4085,21 +4098,30 @@ class SwiftExpr {
         because the call context converts it.
     **/
     function mathFloatArg(a:TypedExpr):String {
-        if (!isIntTyped(a)) {
+        if (!isIntType(emittedType(a)))
             return expr(a);
-        }
         return switch (stripWrap(a).expr) {
             case TConst(TInt(_)): expr(a);
-            case _: (FloatPrecision.isF32() ? "Float(" : "Double(") + expr(a) + ")";
+            case _: intToFloatText(expr(a));
         };
     }
 
-    function isIntTyped(e:TypedExpr):Bool {
+    public function isIntTyped(e:TypedExpr):Bool {
         return switch (Context.follow(e.t)) {
             case TAbstract(a, _): a.get().name == "Int";
             case TLazy(f): isIntLeafType(f());
             case _: false;
         }
+    }
+
+    /** Whether the type is Int, taking a Type directly. */
+    public function isIntType(t:Null<Type>):Bool {
+        if (t == null)
+            return false;
+        return switch (Context.follow(t)) {
+            case TAbstract(a, _): a.get().name == "Int";
+            case _: false;
+        };
     }
 
     function isIntLeafType(t:Type):Bool {
@@ -4109,11 +4131,58 @@ class SwiftExpr {
         }
     }
 
-    function isFloatLeafType(t:Type):Bool {
+    public function isFloatLeafType(t:Type):Bool {
         return switch (Context.follow(t)) {
             case TAbstract(a, _): a.get().name == "Float";
             case _: false;
+        };
+    }
+
+    /** Convert an integer expression text to the module real (Float/Double). */
+    public function intToFloatText(text:String):String {
+        return (FloatPrecision.isF32() ? "Float(" : "Double(") + text + ")";
+    }
+
+    /**
+        The "emitted" type of an expression: the type of the value the
+        generator will actually emit as text. Haxe unification types
+        Int-as-Float contexts as Float while the generator still emits
+        Int text for the original Int sub-expression.
+     */
+    public function emittedType(e:TypedExpr):Null<Type> {
+        switch (stripWrap(e).expr) {
+            case TConst(TInt(_)):
+                return Context.getType("Int");
+            case TIf(_, t, f):
+                final tt = emittedType(t);
+                return tt != null ? tt : emittedType(f);
+            case TBinop(op, l, r):
+                switch (op) {
+                    case OpAdd | OpSub | OpMult | OpDiv | OpMod:
+                        final lt = emittedType(l);
+                        if (lt != null && isIntType(lt))
+                            return lt;
+                        return emittedType(r);
+                    case OpEq | OpNotEq | OpGt | OpGte | OpLt | OpLte:
+                        final lt = emittedType(l);
+                        if (lt != null)
+                            return lt;
+                        return emittedType(r);
+                    case _:
+                }
+            case TLocal(v):
+                return e.t;
+            case TField(_, _):
+                return e.t;
+            case TCall(_, _):
+                return e.t;
+            case TParenthesis(inner):
+                return emittedType(inner);
+            case TCast(inner, _):
+                return emittedType(inner);
+            case _:
         }
+        return e.t;
     }
 
     function isBytesType(e:TypedExpr):Bool {
