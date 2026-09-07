@@ -779,6 +779,18 @@ class RustExpr {
                     // wraps once at the boundary; Null-typed expressions
                     // already lower to Option and TNull renders None.
                     retStr = "Some(" + retStr + ")";
+                } else if (!StringTools.startsWith(returnTypeName, "Option<")) {
+                    switch (stripWrap(ret).expr) {
+                        case TLocal(v) if (provenNonNullVarIds.exists(v.id) && isNullType(ret.t)):
+                            // A null-checked Null<T> local returned as T
+                            // unwraps at the boundary: the guard proved the
+                            // Option holds Some, so `.unwrap()` yields the
+                            // inner value the return type expects. Option
+                            // returns keep the Option wrapper, so skip when
+                            // the return type is itself Option.
+                            retStr = "(" + retStr + ").unwrap()";
+                        case _:
+                    }
                 }
                 if (isFallible) {
                     final guard = staticGuardOf(ret);
@@ -4758,12 +4770,12 @@ class RustExpr {
                     final real = FloatPrecision.isF32() ? "f32" : "f64";
                     final a = mathFloatBindingArg(args[0]);
                     final b = mathFloatBindingArg(args[1]);
-                    final zeroResult = name == "min"
-                        ? "if a.is_sign_negative() { a } else { b }"
-                        : "if a.is_sign_negative() { b } else { a }";
-                    final ordered = name == "min"
-                        ? "if a < b { a } else if b < a { b } else if a == 0.0 && b == 0.0 { " + zeroResult + " } else { a }"
-                        : "if a > b { a } else if b > a { b } else if a == 0.0 && b == 0.0 { " + zeroResult + " } else { a }";
+                    final zeroResult = name == "min" ? "if a.is_sign_negative() { a } else { b }" : "if a.is_sign_negative() { b } else { a }";
+                    final ordered = name == "min" ? "if a < b { a } else if b < a { b } else if a == 0.0 && b == 0.0 { "
+                        + zeroResult
+                        + " } else { a }" : "if a > b { a } else if b > a { b } else if a == 0.0 && b == 0.0 { "
+                        + zeroResult
+                        + " } else { a }";
                     return "({ let a = " + a + "; let b = " + b + "; if a.is_nan() || b.is_nan() { " + real + "::NAN } else { " + ordered + " } })";
                 }
                 if (cls.module == "Math" && name == "pow" && args.length == 2) {
