@@ -283,10 +283,12 @@ class DartExpr {
             return Context.getType(path);
         } catch (_:Dynamic) {}
         if (currentClass != null) {
-            final pack = currentClass.pack.join(".");
-            if (pack.length > 0) {
+            final candidates = [currentClass.module + "." + path, currentClass.pack.join(".") + "." + path];
+            for (candidate in candidates) {
+                if (candidate.length == 0)
+                    continue;
                 try {
-                    return Context.getType(pack + "." + path);
+                    return Context.getType(candidate);
                 } catch (_:Dynamic) {}
             }
         }
@@ -1537,7 +1539,7 @@ class DartExpr {
     function staticRef(cls:ClassType, name:String):String {
         final valueType = ValueTypeSupport.markedAbstractOfClass(cls);
         if (valueType != null) {
-            return qualifiedRef(cls.module, valueType.name) + "." + name;
+            return qualifiedRef(valueType.module, valueType.name) + "." + name;
         }
         final markedField = findStaticField(cls, name);
         if (markedField != null && StaticFunctionMarkers.isMarked(markedField)) {
