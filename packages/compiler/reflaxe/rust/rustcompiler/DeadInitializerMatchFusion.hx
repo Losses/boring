@@ -16,19 +16,20 @@ class DeadInitializerMatchFusion {
             if (i + 1 < stmts.length) {
                 final declaration = stmts[i];
                 switch (declaration.expr) {
-                    case TVar(v, init) if (init != null):
+                    case TVar(v, init) if (init != null && isDiscardableInitializer(unwrap(init))):
                         final following = stmts[i + 1];
                         final assigned = assignmentTo(following, v.id, unwrap);
-                        if (assigned != null) {
+                        if (assigned != null && !readsLocal(assigned, v.id)) {
                             out.push({expr: TVar(v, assigned), pos: declaration.pos, t: declaration.t});
                             i += 2;
                             continue;
                         }
                         final match = switch (unwrap(following).expr) {
-                            case TSwitch(subj, cases, def) if (def == null):
-                                fusedCases(cases, v.id, unwrap) == null ? null : {
+                            case TSwitch(subj, cases, def) if (def == null && !readsLocal(subj, v.id)):
+                                final fused = fusedCases(cases, v.id, unwrap);
+                                fused == null ? null : {
                                     subj: subj,
-                                    cases: fusedCases(cases, v.id, unwrap),
+                                    cases: fused,
                                     t: v.t,
                                     pos: following.pos
                                 };
@@ -84,7 +85,7 @@ class DeadInitializerMatchFusion {
                         }
                     case _:
                         final assigned = assignmentTo(s, id, unwrap);
-                        if (assigned == null || value != null) {
+                        if (assigned == null || value != null || readsLocal(assigned, id)) {
                             valid = false;
                         } else {
                             value = assigned;
@@ -101,6 +102,34 @@ class DeadInitializerMatchFusion {
             result.push({values: c.values, expr: replacement});
         }
         return result;
+    }
+
+    /** Only constant initializers may be dropped. Any other initializer can
+        carry observable work or a value that later statements read through
+        the local before the match runs. */
+    static function isDiscardableInitializer(init:TypedExpr):Bool {
+        return switch (init.expr) {
+            case TConst(_): true;
+            case _: false;
+        };
+    }
+
+    /** The initializer is dropped by the fusion, so every consumed right
+        side must not read the local it initializes. */
+    static function readsLocal(e:TypedExpr, id:Int):Bool {
+        var found = false;
+        function scan(node:TypedExpr) {
+            switch (node.expr) {
+                case TLocal(v) if (v.id == id):
+                    found = true;
+                case _:
+            }
+            if (!found) {
+                TypedExprTools.iter(node, scan);
+            }
+        }
+        scan(e);
+        return found;
     }
 }
 #end
