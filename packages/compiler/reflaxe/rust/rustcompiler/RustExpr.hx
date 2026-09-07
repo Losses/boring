@@ -950,7 +950,23 @@ class RustExpr {
                 }
             case _:
         }
-        return errType + "::" + expr(payloadArg);
+        return payloadEnum == null
+            && state.errorName == null ? errType + "::new(" + expr(payloadArg) + ")" : errType + "::" + expr(payloadArg);
+    }
+
+    function stringConcatOperand(value:TypedExpr):String {
+        final std = stdStringArg(value);
+        return std != null ? stdString(std, true) : (isNullType(value.t) ? expr(value) + ".as_deref().unwrap_or(\"\")" : expr(value));
+    }
+
+    function collectStringConcatOperands(value:TypedExpr, out:Array<TypedExpr>):Void {
+        switch (stripWrap(value).expr) {
+            case TBinop(OpAdd, left, right) if (isStringType(left.t) || isStringType(right.t)):
+                collectStringConcatOperands(left, out);
+                collectStringConcatOperands(right, out);
+            case _:
+                out.push(value);
+        }
     }
 
     function errorPropagationSuffix(c:Ref<ClassType>, cf:Ref<ClassField>, isStatic:Bool):String {
@@ -3118,11 +3134,10 @@ class RustExpr {
                 }
                 return assignTarget(l) + " " + symbolOf(inner) + "= " + expr(r);
             case OpAdd if (isStringType(l.t) || isStringType(r.t)):
-                final leftStd = stdStringArg(l);
-                final rightStd = stdStringArg(r);
-                final lStr = leftStd != null ? stdString(leftStd, true) : (isNullType(l.t) ? expr(l) + ".as_deref().unwrap_or(\"\")" : expr(l));
-                final rStr = rightStd != null ? stdString(rightStd, true) : (isNullType(r.t) ? expr(r) + ".as_deref().unwrap_or(\"\")" : expr(r));
-                return "format!(\"{}{}\", " + lStr + ", " + rStr + ")";
+                final parts:Array<TypedExpr> = [];
+                collectStringConcatOperands(e, parts);
+                final slots = [for (_ in parts) "{}"];
+                return "format!(\"" + slots.join("") + "\", " + [for (part in parts) stringConcatOperand(part)].join(", ") + ")";
             case OpDiv if (StringTools.endsWith(operand(l, op, false), ".len()")):
                 // A length divided by a Haxe-Int divisor: the divisor widens to
                 // usize (T3, never truncates), the quotient is the target u32,
