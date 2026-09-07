@@ -17,6 +17,7 @@ import AssignTargetPlan.AssignTargetFieldKind;
 import PolicyQueries.StdStringCategory;
 import PolicyQueries.Int64Op;
 import PolicyQueries.VariantArmStep;
+import PolicyQueries.EnumQueryStep;
 import FusionPlan;
 import FusionPlan.FusionStep;
 import VarFusionPlan;
@@ -1156,41 +1157,25 @@ class TsExpr {
     }
 
     function enumQuery(e:TypedExpr):Null<String> {
-        switch (e.expr) {
-            case TField(subj, fa):
-                final name = switch (fa) {
-                    case FInstance(_, _, cf) | FAnon(cf): cf.get().name;
-                    case FDynamic(n): n;
-                    case _: "";
-                };
-                final en = EnumQueryExpander.collectionEnum(subj);
-                if (name == "length" && en != null)
-                    return Std.string(EnumQueryExpander.constructorCount(en));
-            case TArray(subj, index):
-                final en = EnumQueryExpander.collectionEnum(subj);
-                if (en != null) {
-                    if (EnumQueryExpander.aliasEnum(subj) != null)
-                        return expr(subj) + "[" + expr(index) + "]!";
-                    imports.value(en.module, EnumQueryExpander.upperSnake(en.name) + "_ALL");
-                    return EnumQueryExpander.upperSnake(en.name) + "_ALL[" + expr(index) + "]!";
-                }
-            case _:
-        }
-        final kind = EnumQueryExpander.markerKind(e);
-        if (kind == null)
-            return null;
-        final en = EnumQueryExpander.enumOf(e);
-        final args = EnumQueryExpander.callArgs(e);
-        return switch (kind) {
-            case QCollection:
+        return switch (PolicyQueries.enumQueryPlan(e)) {
+            case null: null;
+            case LengthCount(count): Std.string(count);
+            case AliasIndex(subj, index): expr(subj) + "[" + expr(index) + "]!";
+            case EntryIndex(en, index):
                 imports.value(en.module, EnumQueryExpander.upperSnake(en.name) + "_ALL");
-                EnumQueryExpander.upperSnake(en.name) + "_ALL";
-            case QName: expr(args[0]) + ".kind";
-            case QLookup:
-                final fn = EnumQueryExpander.lowerFirst(en.name) + "OfName";
-                imports.value(en.module, fn);
-                fn + "(" + expr(args[1]) + ")";
-        };
+                EnumQueryExpander.upperSnake(en.name) + "_ALL[" + expr(index) + "]!";
+            case EnumKindQuery(kind, en, args):
+                switch (kind) {
+                    case QCollection:
+                        imports.value(en.module, EnumQueryExpander.upperSnake(en.name) + "_ALL");
+                        EnumQueryExpander.upperSnake(en.name) + "_ALL";
+                    case QName: expr(args[0]) + ".kind";
+                    case QLookup:
+                        final fn = EnumQueryExpander.lowerFirst(en.name) + "OfName";
+                        imports.value(en.module, fn);
+                        fn + "(" + expr(args[1]) + ")";
+                }
+        }
     }
 
     function functionLiteral(f:TFunc):String {
