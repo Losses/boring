@@ -212,7 +212,7 @@ class RustExpr {
                 default:
             }
         final rendered = switch (value) {
-            case CInt(v): Std.string(v);
+            case CInt(v): isFloatType(targetType) ? intToFloatText(Std.string(v)) : Std.string(v);
             case CFloat(s):
                 final padded = s.indexOf(".") >= 0 || s.indexOf("e") >= 0 || s.indexOf("E") >= 0 ? s : s + ".0";
                 FloatPrecision.isF32() ? padded + "f32" : padded;
@@ -2148,9 +2148,10 @@ class RustExpr {
                 };
                 final isStringElem = elemType != null && isStringType(elemType);
                 final isNullableElem = elemType != null && StaticFieldHelper.isNullableType(elemType);
+                final elemFloat = isFloatType(elemType);
                 final rendered = [
                     for (x in elems) {
-                        final inner = if (isStringElem) {
+                        var inner = if (isStringElem) {
                             switch (stripWrap(x).expr) {
                                 case TConst(TString(_)):
                                     expr(x) + ".to_string()";
@@ -2162,6 +2163,7 @@ class RustExpr {
                         } else {
                             expr(x);
                         };
+                        if (elemFloat && isIntType(emittedType(x))) inner = intToFloatText(inner);
                         if (isNullableElem && !isTNull(x) && !StaticFieldHelper.isNullableType(x.t)) {
                             "Some(" + inner + ")";
                         } else {
@@ -3200,8 +3202,14 @@ class RustExpr {
                 return "(" + leftText + ") " + symbolOf(op) + " (" + rightText + ")";
 
             case _:
-                final left = isInt64Type(l.t) ? "(" + expr(l) + ")" : operand(l, op, false);
-                final right = isInt64Type(r.t) ? "(" + expr(r) + ")" : operand(r, op, true);
+                var left = isInt64Type(l.t) ? "(" + expr(l) + ")" : operand(l, op, false);
+                var right = isInt64Type(r.t) ? "(" + expr(r) + ")" : operand(r, op, true);
+                // Haxe unifies Int and Float; widen Int comparison operands to
+                // Float when the other side is Float.
+                if (isIntType(emittedType(l)) && isFloatType(emittedType(r)))
+                    left = intToFloatText(left);
+                if (isIntType(emittedType(r)) && isFloatType(emittedType(l)))
+                    right = intToFloatText(right);
                 return left + " " + symbolOf(op) + " " + right;
         }
     }
@@ -3399,12 +3407,11 @@ class RustExpr {
         the parameter type, keeping existing trees unchanged.
     **/
     function mathFloatArg(a:TypedExpr):String {
-        if (!isIntType(a.t)) {
+        if (!isIntType(emittedType(a)))
             return expr(a);
-        }
         return switch (stripWrap(a).expr) {
             case TConst(TInt(_)): expr(a);
-            case _: "(" + expr(a) + " as " + (FloatPrecision.isF32() ? "f32" : "f64") + ")";
+            case _: intToFloatText(expr(a));
         };
     }
 
@@ -5265,6 +5272,13 @@ class RustExpr {
                         continue;
                     }
                 }
+                if (i < paramTypes.length) {
+                    final pt = paramTypes[i];
+                    if (isFloatType(pt) && isIntType(emittedType(arg))) {
+                        out.push(intToFloatText(argStr));
+                        continue;
+                    }
+                }
             }
             out.push(argStr);
         }
@@ -5291,7 +5305,7 @@ class RustExpr {
 
     function defaultArgText(v:DefaultArgExpander.DefaultArgValue, t:Type):String
         return switch (v) {
-            case VInt(x): Std.string(x);
+            case VInt(x): isFloatType(t) ? intToFloatText(Std.string(x)) : Std.string(x);
             case VFloat(x): x;
             case VString(x): quoteString(x) + ".to_string()";
             case VBool(x): x ? "true" : "false";
@@ -6189,6 +6203,10 @@ class RustExpr {
     function renderValueForType(expected:Null<Type>, actual:TypedExpr, rendered:String):String {
         if (expected == null || actual == null)
             return rendered;
+        // Haxe unifies Int and Float; widen Int values to Float when the
+        // target slot expects Float.
+        if (isFloatType(expected) && isIntType(emittedType(actual)))
+            return intToFloatText(rendered);
         // Rust represents
         // concrete implementor therefore enters an interface slot through
         // the one sanctioned Box::new construction; an expression already
@@ -6558,7 +6576,7 @@ class RustExpr {
         return StringTools.contains(Std.string(Context.follow(t)), "Int64");
     }
 
-    function isFloatType(t:Type):Bool {
+    public function isFloatType(t:Type):Bool {
         if (t == null)
             return false;
         return switch (Context.follow(t)) {
@@ -6567,7 +6585,54 @@ class RustExpr {
         };
     }
 
-    function isIntType(t:Type):Bool {
+    /** Convert an integer expression text to Float (as f64 / as f32). */
+    public function intToFloatText(text:String):String {
+        return "(" + text + " as " + (FloatPrecision.isF32() ? "f32" : "f64") + ")";
+    }
+
+    /**
+        The "emitted" type of an expression: the type of the value the
+        generator will actually emit as text. Haxe unification types
+        Int-as-Float contexts as Float while the generator still emits
+        Int text for the original Int sub-expression.
+     */
+    public function emittedType(e:TypedExpr):Null<Type> {
+        switch (stripWrap(e).expr) {
+            case TConst(TInt(_)):
+                return Context.getType("Int");
+            case TIf(_, t, f):
+                final tt = emittedType(t);
+                return tt != null ? tt : emittedType(f);
+            case TBinop(op, l, r):
+                switch (op) {
+                    case OpAdd | OpSub | OpMult | OpDiv | OpMod:
+                        final lt = emittedType(l);
+                        if (lt != null && isIntType(lt))
+                            return lt;
+                        return emittedType(r);
+                    case OpEq | OpNotEq | OpGt | OpGte | OpLt | OpLte:
+                        final lt = emittedType(l);
+                        if (lt != null)
+                            return lt;
+                        return emittedType(r);
+                    case _:
+                }
+            case TLocal(v):
+                return e.t;
+            case TField(_, _):
+                return e.t;
+            case TCall(_, _):
+                return e.t;
+            case TParenthesis(inner):
+                return emittedType(inner);
+            case TCast(inner, _):
+                return emittedType(inner);
+            case _:
+        }
+        return e.t;
+    }
+
+    public function isIntType(t:Type):Bool {
         if (t == null)
             return false;
         return switch (Context.follow(t)) {

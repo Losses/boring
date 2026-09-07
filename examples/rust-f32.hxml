@@ -196,3 +196,5 @@ boring.KnullInitNarrowing
 tests.KnullInitNarrowingTests
 boring.OptionalParamNull
 tests.OptionalParamNullTests
+boring.NumericConversionWidening
+tests.NumericConversionWideningTests
