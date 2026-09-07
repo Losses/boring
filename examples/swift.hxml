@@ -220,6 +220,7 @@ tests.InterfaceGetterPropertyTests
 boring.FloatLiteralOps
 boring.SwiftLiteralSafetyOps
 tests.FloatLiteralOpsTests
+tests.SwiftLiteralSafetyOpsTests
 boring.KnullInitNarrowing
 tests.KnullInitNarrowingTests
 boring.OptionalParamNull
