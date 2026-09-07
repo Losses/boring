@@ -266,6 +266,10 @@ class DartExpr {
             switch (Context.getType(typePath)) {
                 case TInst(clsRef, _):
                     return staticRef(clsRef.get(), fieldName);
+                case TAbstract(absRef, _):
+                    final abs = absRef.get();
+                    final prefix = imports.value(abs.module, abs.name);
+                    return (prefix.length > 0 ? prefix + "." : "") + abs.name + "." + fieldName;
                 default:
             }
         } catch (_:Dynamic) {}
