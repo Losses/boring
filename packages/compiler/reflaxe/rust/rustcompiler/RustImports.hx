@@ -30,6 +30,10 @@ class RustImports {
 
     public final selfModule:String;
 
+    public static function isShimModule(module:String):Bool {
+        return SHIM_MODULES.exists(module);
+    }
+
     final state:RustEmissionState;
     final imports:Map<String, Bool> = [];
 
