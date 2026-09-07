@@ -46,30 +46,50 @@ describe("enum sorted key generated trees", () => {
   });
 });
 
+/**
+ * The pipeline only lowers classes whose source root is registered with
+ * Intercept.run, so a bare `-cp tmp` class never reaches the sorted-key
+ * classification. The isolated probe hxml follows the precedent in
+ * tests/ts/constructed-state.test.ts. The sample avoids trace(): the
+ * trace macro pulls the real standard library onto the std-shadow Bytes
+ * shadow and aborts the compile before generation.
+ */
 test("payload enums are rejected as sorted keys", async () => {
-  const repoRoot = path.resolve(__dirname, "../..");
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "enumkeys-negative-"));
-  fs.mkdirSync(path.join(tmp, "boring"));
-  fs.writeFileSync(path.join(tmp, "boring", "NegativePayloadKeys.hx"), [
-    "package boring;",
-    "import std.SortedSet;",
-    "enum PayloadTier { Heavy(weight:Int); }",
-    "class NegativePayloadKeys {",
-    "    public static function main():Void { trace(trigger()); }",
-    "    static function trigger():Int {",
-    "        final b:SortedSetBuilder<PayloadTier> = SortedSet.builder();",
-    "        b.put(Heavy(1));",
-    "        return b.build().size();",
-    "    }",
-    "}",
-  ].join("\n"));
-  const proc = Bun.spawn(["haxe", "examples/ts.hxml", "-cp", tmp, "-main", "boring.NegativePayloadKeys", "--macro", "haxe.macro.Compiler.keep('boring.NegativePayloadKeys')"], {
-    cwd: repoRoot,
-    stdout: "pipe",
-    stderr: "pipe",
-  });
-  const [exitCode, stderr] = await Promise.all([proc.exited, new Response(proc.stderr).text()]);
-  fs.rmSync(tmp, { recursive: true, force: true });
-  expect(exitCode).not.toBe(0);
-  expect(stderr).toContain("enums with payloads are not keys");
+  const root = path.resolve(__dirname, "../..");
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "enumkeys-negative-"));
+  const sourceRoot = path.join(dir, "src");
+  try {
+    fs.mkdirSync(path.join(sourceRoot, "boring"), { recursive: true });
+    fs.writeFileSync(path.join(sourceRoot, "boring", "NegativePayloadKeys.hx"), [
+      "package boring;",
+      "import std.SortedSet;",
+      "enum PayloadTier { Heavy(weight:Int); }",
+      "class NegativePayloadKeys {",
+      "    public static function describe():Int {",
+      "        final b:SortedSetBuilder<PayloadTier> = SortedSet.builder();",
+      "        b.put(Heavy(1));",
+      "        return b.build().size();",
+      "    }",
+      "}",
+    ].join("\n"));
+    const hxml = path.join(dir, "probe.hxml");
+    fs.writeFileSync(hxml, [
+      "-lib reflaxe", "-lib boring",
+      `-cp ${path.join(root, "packages/compiler/reflaxe/ts/std-shadow")}`,
+      `-cp ${path.join(root, "packages/compiler/reflaxe/ts")}`,
+      `-cp ${path.join(root, "samples")}`, `-cp ${sourceRoot}`,
+      `--macro Intercept.run(["${sourceRoot}"])`,
+      "--macro haxe.macro.Compiler.addGlobalMetadata('boring', '@:build(std.RecordMember.build())')",
+      "--macro tscompiler.Compiler.use()", `-D ts-output=${path.join(dir, "out")}`,
+      "-D", "runtime-import=@boring/runtime", `-D runtime-emit=${path.join(dir, "out")}`,
+      "-D", "package-shell=none",
+      "boring.NegativePayloadKeys", "",
+    ].join("\n"));
+    const proc = Bun.spawn(["haxe", hxml], { cwd: root, stdout: "pipe", stderr: "pipe" });
+    const [exitCode, stderr] = await Promise.all([proc.exited, new Response(proc.stderr).text()]);
+    expect(exitCode).not.toBe(0);
+    expect(stderr).toContain("enums with payloads are not keys");
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });

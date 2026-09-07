@@ -86,8 +86,13 @@ boring.StringBufOps
 tests.StringBufTests
 boring.TryOps
 boring.SwitchOps
+boring.MathIntWideningOps
+boring.MathNaNOps
+boring.MathNaNTestSupport
 tests.TryTests
 tests.SwitchOpsTests
+tests.MathIntWideningOpsTests
+tests.MathNaNOpsTests
 boring.ArithmeticOps
 tests.ArithmeticTests
 boring.DefaultArgsOps
@@ -185,3 +190,5 @@ boring.PublicGetterProperty
 tests.PublicGetterPropertyTests
 boring.InterfaceGetterProperty
 tests.InterfaceGetterPropertyTests
+boring.FloatLiteralOps
+tests.FloatLiteralOpsTests
