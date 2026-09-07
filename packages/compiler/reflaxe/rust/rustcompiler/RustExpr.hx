@@ -2207,7 +2207,13 @@ class RustExpr {
                 final condStr = switch (stripWrap(c).expr) {
                     case _: expr(stripWrap(c));
                 };
-                return "if " + condStr + " { " + conditionalBranchText(t, f, e.t) + " } else { " + conditionalBranchText(f, t, e.t) + " }";
+                return "if "
+                    + condStr
+                    + " { "
+                    + wrapBranchForNullableResult(t, e.t, f)
+                    + " } else { "
+                    + wrapBranchForNullableResult(f, e.t, t)
+                    + " }";
             case TSwitch(_, _, _):
                 return matchExpression(e);
             case TTry(_, catches) if (catches.length != 1):
@@ -6677,6 +6683,32 @@ class RustExpr {
             || StringTools.endsWith(siblingText, ".to_string()?")
             || StringTools.endsWith(siblingText, ".to_string().unwrap()");
         return ownedStringCall ? text + ".to_string()" : text;
+    }
+
+    /** Renders an if-else branch, wrapping a non-null branch in Some(...) when
+        the result type is nullable, so both arms produce matching Option
+        values. Haxe's ternary type is the join of its arms; a non-null arm
+        joined with a nullable one is nullable, and Rust's if-else requires
+        matching arm types. Preserves the string conversions that
+        conditionalBranchText applies. **/
+    function wrapBranchForNullableResult(branch:TypedExpr, resultType:Null<Type>, sibling:TypedExpr):String {
+        final text = expr(branch);
+        if (resultType != null && isStringType(resultType)) {
+            if (StringTools.endsWith(text, ".to_string()") || StringTools.endsWith(text, ".clone()"))
+                return text;
+            return text + ".to_string()";
+        }
+        if (text.indexOf("u_string::count") >= 0 && resolveExprType(sibling) == "i32") {
+            return RustConversions.reinterpret(text, "i32");
+        }
+        if (resultType != null
+            && isNullType(resultType)
+            && !isNullType(branch.t)
+            && !isTNull(branch)
+            && !StaticFieldHelper.isNullableType(branch.t)) {
+            return "Some(" + text + ")";
+        }
+        return text;
     }
 
     function matchGroupByBody(body:Array<TypedExpr>):Null<{

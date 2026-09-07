@@ -191,3 +191,5 @@ boring.PublicGetterProperty
 tests.PublicGetterPropertyTests
 boring.InterfaceGetterProperty
 tests.InterfaceGetterPropertyTests
+boring.KnullInitNarrowing
+tests.KnullInitNarrowingTests
