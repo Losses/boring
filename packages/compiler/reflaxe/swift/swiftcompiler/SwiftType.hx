@@ -245,10 +245,93 @@ class SwiftType {
     }
 
     public static function canEmitDataClassComparator(cls:ClassType):Bool {
-        return cls.name == "AutoSpacePolicy"
-            || cls.name == "AdjustmentStylePolicy"
-            || cls.name == "PunctuationWidthPolicy"
-            || PolicyQueries.canEmitDataClassComparator(cls);
+        return comparatorFieldsSupported(cls, []);
+    }
+
+    /**
+        The element type when `t` is a raw ReadOnlyArray (checked before
+        Context.follow, which erases the abstract to Array). Nullable
+        collections need this raw check: the Null arm's followed inner
+        type is Array and would otherwise lose the array shape.
+    **/
+    public static function rawArrayElement(t:Type):Null<Type> {
+        return switch (t) {
+            case TAbstract(a, params) if (a.get().name == "ReadOnlyArray" && params.length == 1): params[0];
+            case TLazy(f): rawArrayElement(f());
+            case _: null;
+        }
+    }
+
+    /**
+        Whether every non-computed field of the data class has a
+        comparison arm in SwiftDecl.dataClassComparator. The direct arms
+        compare Int, Float, Bool, String, enums, and nested data classes;
+        the ReadOnlyArray arm compares elements with an arm or an
+        Equatable scalar through `!=`; the Null arm's inner comparison
+        covers only Int, String, enums, and arrays. A class with a field
+        no arm covers gets no comparator, since the emitted body would
+        silently ignore that field, and a nested data class recurses with
+        a visited set so a rendered comparator never references a
+        comparator that was skipped; a reference cycle has no orderable
+        rendering and fails.
+    **/
+    static function comparatorFieldsSupported(cls:ClassType, visited:Array<String>):Bool {
+        if (visited.indexOf(cls.module) >= 0) {
+            return false;
+        }
+        visited.push(cls.module);
+        for (f in cls.fields.get()) {
+            final isStoredVar = switch (f.kind) {
+                case FVar(read, write): !(read.match(AccCall) && write.match(AccNever));
+                case _: false;
+            };
+            if (isStoredVar && !comparatorFieldSupported(f.type, visited)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    static function comparatorFieldSupported(t:Type, visited:Array<String>):Bool {
+        return switch (t) {
+            case TAbstract(a, params) if (a.get().name == "Null" && params.length == 1):
+                comparatorNullInnerSupported(params[0], visited);
+            case TAbstract(a, params) if (a.get().name == "ReadOnlyArray" && params.length == 1):
+                comparatorElementSupported(params[0], visited);
+            case _: comparatorScalarOrNestedSupported(t, visited);
+        };
+    }
+
+    /** The Null arm's inner comparison covers Int, String, enums, and arrays; Float, Bool, and a bare nested data class have no inner arm. */
+    static function comparatorNullInnerSupported(t:Type, visited:Array<String>):Bool {
+        return switch (rawArrayElement(t)) {
+            case null:
+                switch (Context.follow(t)) {
+                    case TAbstract(a, _): a.get().name == "Int";
+                    case TInst(c, _): c.get().name == "String";
+                    case TEnum(_, _): true;
+                    case _: false;
+                }
+            case element: comparatorElementSupported(element, visited);
+        }
+    }
+
+    /** The ReadOnlyArray arm's element comparison covers the named arms plus Equatable scalars through the `!=` fallback. */
+    static function comparatorElementSupported(t:Type, visited:Array<String>):Bool {
+        return comparatorScalarOrNestedSupported(t, visited);
+    }
+
+    static function comparatorScalarOrNestedSupported(t:Type, visited:Array<String>):Bool {
+        return switch (Context.follow(t)) {
+            case TAbstract(a, _): a.get().name == "Int" || a.get().name == "Float" || a.get().name == "Bool";
+            case TInst(c, _): c.get().name == "String" || comparatorDataClassSupported(c.get(), visited);
+            case TEnum(_, _): true;
+            case _: false;
+        }
+    }
+
+    static function comparatorDataClassSupported(cls:ClassType, visited:Array<String>):Bool {
+        return cls.meta.has(":dataClass") && comparatorFieldsSupported(cls, visited);
     }
 
     static function isDataClassFieldKey(t:Type):Bool {
