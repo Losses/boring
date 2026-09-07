@@ -120,6 +120,15 @@ class KotlinType {
         return PolicyQueries.pathOf(pack, name);
     }
 
+    /** Wraps a Haxe type in Null<T> so `of` renders it as a Kotlin nullable T?. */
+    public function makeNullable(t:Type):Type {
+        final nullAbst = switch (Context.getType("Null")) {
+            case TAbstract(a, _): a;
+            case _: return t;
+        };
+        return TAbstract(nullAbst, [t]);
+    }
+
     public static function classifyKey(t:Null<Type>, ?pos:haxe.macro.Expr.Position):KeyDomain {
         return PolicyQueries.classifyKey(t, pos);
     }

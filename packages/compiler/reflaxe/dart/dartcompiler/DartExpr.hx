@@ -16,6 +16,8 @@ import AssignTargetPlan;
 import AssignTargetPlan.AssignTargetFieldKind;
 import PolicyQueries.StdStringCategory;
 import PolicyQueries.Int64Op;
+import PolicyQueries.VariantArmStep;
+import PolicyQueries.EnumQueryStep;
 import FusionPlan;
 import FusionPlan.FusionStep;
 import VarFusionPlan;
@@ -113,6 +115,9 @@ class DartExpr {
     var currentField:Null<String> = null;
     var currentLocalName:Null<String> = null;
 
+    /** Return type of the function currently being lowered; null outside function context. */
+    var currentReturnType:Null<Type> = null;
+
     public function new(imports:DartImports, types:DartType) {
         this.imports = imports;
         this.types = types;
@@ -155,7 +160,7 @@ class DartExpr {
     /** Renders the sanctioned expression in Dart expression position. */
     function coalescingDefaultText(value:DefaultArgExpander.CoalescingDefaultValue, targetType:Type):String {
         return switch (value) {
-            case CInt(v): Std.string(v);
+            case CInt(v): isFloatType(targetType) ? intToFloatText(Std.string(v)) : Std.string(v);
             case CFloat(s): s;
             case CString(s): quoteString(s);
             case CBool(b): b ? "true" : "false";
@@ -315,6 +320,10 @@ class DartExpr {
         currentClass = cls;
         currentField = f.field.name;
         currentLocalName = null;
+        currentReturnType = switch (Context.follow(f.field.type)) {
+            case TFun(_, ret): ret;
+            case _: null;
+        };
         currentFunctionReturnsNullable = switch (Context.follow(f.field.type)) {
             case TFun(_, ret): isNullLeafType(ret);
             case _: false;
@@ -322,7 +331,9 @@ class DartExpr {
         nonNullLocals.clear();
 
         scanLocals(f.expr);
-        return blockLines(statementsOf(f.expr), depth);
+        final result = blockLines(statementsOf(f.expr), depth);
+        currentReturnType = null;
+        return result;
     }
 
     /** Body lowering for a member declared on a value wrapper. */
@@ -656,18 +667,22 @@ class DartExpr {
                     final localType = coalescingValue != null ? DefaultArgExpander.coalescingLocalType(coalescingValue, v.t) : v.t;
                     if (coalescing != null && !isNullLeafType(localType))
                         nonNullLocals.set(v.id, true);
-                    final initText = switch (init.expr) {
+                    var initText = switch (init.expr) {
                         case TFunction(fn): functionLiteralNamed(v.name, fn);
                         default: expr(init);
                     };
+                    if (isIntOrLongType(emittedType(init)) && isFloatType(v.t))
+                        initText = intToFloatText(initText);
                     return [
                         indent(depth) + head + types.of(localType) + " " + localName(v) + " = " + initText
                     ];
                 }
-                final initText = switch (init.expr) {
+                var initText = switch (init.expr) {
                     case TFunction(fn): functionLiteralNamed(v.name, fn);
                     default: expr(init);
                 };
+                if (isIntOrLongType(emittedType(init)) && isFloatType(v.t))
+                    initText = intToFloatText(initText);
                 return [indent(depth) + kw + " " + localName(v) + " = " + initText];
             case TVar(v, _):
                 // A declaration without initializer: definite
@@ -714,7 +729,9 @@ class DartExpr {
                     case TSwitch(_, _, _):
                         return switchReturn(inner, depth);
                     case _:
-                        final rendered = expr(ret);
+                        var rendered = expr(ret);
+                        if (isIntOrLongType(emittedType(ret)) && isFloatType(currentReturnType))
+                            rendered = intToFloatText(rendered);
                         final nonNullReturn = switch (inner.expr) {
                             case TLocal(v): nonNullLocals.exists(v.id);
                             case _: false;
@@ -746,8 +763,11 @@ class DartExpr {
                 return switchAssign(target, value, depth);
             case TBinop(OpAssign, l, r):
                 final map = mapAssignment(l);
+                var rText = expr(r);
+                if (map == null && isIntOrLongType(emittedType(r)) && isFloatType(l.t))
+                    rText = intToFloatText(rText);
                 final target = map == null ? assignTarget(l) + " = " : expr(map.receiver) + "[" + expr(map.key) + "] = ";
-                return [indent(depth) + target + expr(r)];
+                return [indent(depth) + target + rText];
             case TBinop(OpAssignOp(inner), l, r):
                 return [indent(depth) + assignTarget(l) + " " + symbolOf(inner) + "= " + expr(r)];
             case _:
@@ -1221,35 +1241,18 @@ class DartExpr {
     }
 
     function enumQuery(e:TypedExpr):Null<String> {
-        switch (e.expr) {
-            case TField(subj, fa):
-                final name = switch (fa) {
-                    case FInstance(_, _, cf) | FAnon(cf): cf.get().name;
-                    case FDynamic(n): n;
-                    case _: "";
-                };
-                final en = EnumQueryExpander.collectionEnum(subj);
-                if (name == "length" && en != null)
-                    return Std.string(EnumQueryExpander.constructorCount(en));
-            case TArray(subj, index):
-                final en = EnumQueryExpander.collectionEnum(subj);
-                if (en != null)
-                    return (EnumQueryExpander.aliasEnum(subj) != null ? expr(subj) : qualifiedRef(en.module, en.name) + ".values")
-                        + "["
-                        + expr(index)
-                        + "]";
-            case _:
+        return switch (PolicyQueries.enumQueryPlan(e)) {
+            case null: null;
+            case LengthCount(count): Std.string(count);
+            case AliasIndex(subj, index): expr(subj) + "[" + expr(index) + "]";
+            case EntryIndex(en, index): qualifiedRef(en.module, en.name) + ".values[" + expr(index) + "]";
+            case EnumKindQuery(kind, en, args):
+                switch (kind) {
+                    case QCollection: qualifiedRef(en.module, en.name) + ".values";
+                    case QName: expr(args[0]) + ".label";
+                    case QLookup: qualifiedRef(en.module, EnumQueryExpander.lowerFirst(en.name) + "OfName") + "(" + expr(args[1]) + ")";
+                }
         }
-        final kind = EnumQueryExpander.markerKind(e);
-        if (kind == null)
-            return null;
-        final en = EnumQueryExpander.enumOf(e);
-        final args = EnumQueryExpander.callArgs(e);
-        return switch (kind) {
-            case QCollection: qualifiedRef(en.module, en.name) + ".values";
-            case QName: expr(args[0]) + ".label";
-            case QLookup: qualifiedRef(en.module, EnumQueryExpander.lowerFirst(en.name) + "OfName") + "(" + expr(args[1]) + ")";
-        };
     }
 
     /**
@@ -1265,7 +1268,19 @@ class DartExpr {
             };
             return "<" + elem + ">[]";
         }
-        return "[" + [for (x in elems) expr(x)].join(", ") + "]";
+        final elemType = switch (e.t) {
+            case TInst(_, params) if (params.length > 0): params[0];
+            case _: null;
+        };
+        final elemFloat = isFloatType(elemType);
+        final renderedElems = [
+            for (x in elems) {
+                var t = expr(x);
+                if (elemFloat && isIntOrLongType(emittedType(x))) t = intToFloatText(t);
+                t;
+            }
+        ];
+        return "[" + renderedElems.join(", ") + "]";
     }
 
     function functionLiteral(f:TFunc):String {
@@ -1312,7 +1327,10 @@ class DartExpr {
         switch (op) {
             case OpAssign:
                 final map = mapAssignment(l);
-                return map == null ? assignTarget(l) + " = " + expr(r) : expr(map.receiver) + "[" + expr(map.key) + "] = " + expr(r);
+                var rText = expr(r);
+                if (map == null && isIntOrLongType(emittedType(r)) && isFloatType(l.t))
+                    rText = intToFloatText(rText);
+                return map == null ? assignTarget(l) + " = " + rText : expr(map.receiver) + "[" + expr(map.key) + "] = " + rText;
             case OpAssignOp(inner):
                 return assignTarget(l) + " " + symbolOf(inner) + "= " + expr(r);
             case OpBoolAnd:
@@ -1330,11 +1348,17 @@ class DartExpr {
                 if (isStringTyped(e)) {
                     return templateLiteral(l, r);
                 }
-                return operand(l, op, false) + " + " + operand(r, op, true);
-            case OpDiv:
-                // Dart `/` on two ints yields the double division Haxe
-                // `/` yields; no widening runs on either side.
-                return operand(l, op, false) + " / " + operand(r, op, true);
+                final addL = operand(l, op, false);
+                final addR = operand(r, op, true);
+                final addLFinal = isIntOrLongType(emittedType(l)) && isFloatType(emittedType(r)) ? intToFloatText(addL) : addL;
+                final addRFinal = isIntOrLongType(emittedType(r)) && isFloatType(emittedType(l)) ? intToFloatText(addR) : addR;
+                return addLFinal + " + " + addRFinal;
+            case OpSub | OpMult | OpDiv:
+                final lStr = operand(l, op, false);
+                final rStr = operand(r, op, true);
+                final lFinal = isIntOrLongType(emittedType(l)) && isFloatType(emittedType(r)) ? intToFloatText(lStr) : lStr;
+                final rFinal = isIntOrLongType(emittedType(r)) && isFloatType(emittedType(l)) ? intToFloatText(rStr) : rStr;
+                return lFinal + " " + symbolOf(op) + " " + rFinal;
             case OpShl:
                 // The i32 domain of features/14: Dart's int is a 64-bit
                 // word, so a shifted value can leave the domain the
@@ -1356,7 +1380,11 @@ class DartExpr {
                 };
                 return cmp + " " + cmpOp + " 0";
             case _:
-                return operand(l, op, false) + " " + symbolOf(op) + " " + operand(r, op, true);
+                final lStr = operand(l, op, false);
+                final rStr = operand(r, op, true);
+                final lFinal = isIntOrLongType(emittedType(l)) && isFloatType(emittedType(r)) ? intToFloatText(lStr) : lStr;
+                final rFinal = isIntOrLongType(emittedType(r)) && isFloatType(emittedType(l)) ? intToFloatText(rStr) : rStr;
+                return lFinal + " " + symbolOf(op) + " " + rFinal;
         }
     }
 
@@ -1489,13 +1517,13 @@ class DartExpr {
                 // accessor across libraries.
                 final property = getterOnlyPropertyName(owner.get(), name);
                 if (property != null) {
-                    return receiverText(subj) + "." + property;
+                    return instanceFieldReceiver(subj, cf) + "." + property;
                 }
                 // A private member renders under its `_`-prefixed Dart
                 // name (feature spec 27). String length is the UTF-16
                 // unit count natively; list length and the lowered
                 // buffer carry `.length` alike.
-                return receiverText(subj) + "." + memberName(owner.get().module, cf, subj.pos);
+                return instanceFieldReceiver(subj, cf) + "." + memberName(owner.get().module, cf, subj.pos);
             case FAnon(cf):
                 final name = cf.get().name;
                 final target = stripCast(subj);
@@ -1504,7 +1532,7 @@ class DartExpr {
                 }
                 // String length is the UTF-16 unit count natively; list
                 // length and the lowered buffer carry `.length` alike.
-                return receiverText(subj) + "." + name;
+                return instanceFieldReceiver(subj, cf) + "." + name;
             case FDynamic(name):
                 if ((name == "length" || name == "get_length") && isStringBuf(subj)) {
                     return expr(subj) + ".length";
@@ -1513,6 +1541,22 @@ class DartExpr {
             case FClosure(_):
                 return fail(subj, "function value has no lowering (V08)");
         }
+    }
+
+    /** Receiver text for an instance field access: appends `!` when the
+        subject is a nullable local accessing a non-null field, so the result
+        type stays non-null. Haxe's typed AST types the field read as non-null
+        even when the receiver is Null<T>. **/
+    function instanceFieldReceiver(subj:TypedExpr, cf:Ref<ClassField>):String {
+        final fieldType = cf.get().type;
+        if (PolicyQueries.isNullableType(subj.t) && !PolicyQueries.isNullableType(fieldType)) {
+            final base = expr(subj);
+            return switch (stripWrap(subj).expr) {
+                case TLocal(_): base + "!";
+                case _: "(" + base + ")!";
+            };
+        }
+        return receiverText(subj);
     }
 
     /**
@@ -1665,9 +1709,11 @@ class DartExpr {
                 final a = args[i];
                 final pt = i < paramTypes.length ? paramTypes[i] : null;
                 final demandsValue = pt != null && !isNullLeafType(pt);
-                (demandsValue && isNullLeafType(a.t)) ? requiredValueText(a) : (demandsValue
+                var t = (demandsValue && isNullLeafType(a.t)) ? requiredValueText(a) : (demandsValue
                     && optionalValued(a)
                     && !isLocalExpr(a) ? expr(a) + "!" : expr(a));
+                if (pt != null && isIntOrLongType(emittedType(a)) && isFloatType(pt)) t = intToFloatText(t);
+                t;
             }
         ];
         return rendered;
@@ -1681,12 +1727,11 @@ class DartExpr {
         the explicit toDouble.
     **/
     function mathFloatArg(a:TypedExpr):String {
-        if (!isIntLeafType(a.t)) {
+        if (!isIntOrLongType(emittedType(a)))
             return expr(a);
-        }
         return switch (stripWrap(a).expr) {
             case TConst(TInt(_)): expr(a);
-            case _: "(" + expr(a) + ").toDouble()";
+            case _: intToFloatText(expr(a));
         };
     }
 
@@ -1861,12 +1906,15 @@ class DartExpr {
                 if (field.name == "_new") {
                     if (args.length == 0)
                         return qualifiedRef(c.get().module, abs.name) + "()";
+                    var argText = expr(args[0]);
+                    if (isIntOrLongType(emittedType(args[0])) && ValueTypeSupport.isFloatRepresentation(abs))
+                        argText = intToFloatText(argText);
                     return ValueTypeSupport.constructorThrows(abs) ? qualifiedRef(c.get().module, ValueTypeSupport.constructorName(abs))
                         + "("
-                        + expr(args[0])
+                        + argText
                         + ")" : qualifiedRef(c.get().module, abs.name)
                         + "("
-                        + expr(args[0])
+                        + argText
                         + ")";
                 }
                 if (field.name == "toString" && args.length > 0)
@@ -2565,7 +2613,7 @@ class DartExpr {
 
     function defaultArgText(v:DefaultArgExpander.DefaultArgValue, t:Type):String
         return switch (v) {
-            case VInt(x): Std.string(x);
+            case VInt(x): isFloatType(t) ? intToFloatText(Std.string(x)) : Std.string(x);
             case VFloat(x): x;
             case VString(x): quoteString(x);
             case VBool(x): x ? "true" : "false";
@@ -3119,36 +3167,27 @@ class DartExpr {
     function armLines(e:TypedExpr, depth:Int, reservedPayloadNames:Bool = false):Array<String> {
         final out:Array<String> = [];
         var value:Null<String> = null;
-        function walk(stmts:Array<TypedExpr>) {
-            for (s in stmts) {
-                switch (s.expr) {
-                    case TVar(v, init):
-                        if (init == null) {
-                            Context.error("dart target: declaration without initializer has no lowering", s.pos);
-                        }
-                        switch (stripWrap(init).expr) {
-                            case TEnumParameter(se, ef, index):
-                                subst.set(v.id, reservedPayloadNames ? payloadBindingName(ef, index) : payloadName(ef, index));
-                            case TLocal(source) if (subst.exists(source.id)):
-                                // The typer binds the switch subject to a hidden
-                                // local before extracting the payload; forward
-                                // the substitution through that chain.
-                                subst.set(v.id, subst.get(source.id));
-                            case _:
-                                out.push(indent(depth) + "final " + localName(v) + " = " + expr(init));
-                        }
-                    case TBlock(bs):
-                        walk(bs);
-                    case TMeta(_, inner):
-                        walk([inner]);
-                    case TReturn(r) if (r != null):
-                        value = expr(r);
-                    case _:
-                        value = expr(s);
-                }
+        for (step in PolicyQueries.variantArmPlan(e)) {
+            switch (step) {
+                case PayloadCapture(v, _, ef, index):
+                    subst.set(v.id, reservedPayloadNames ? payloadBindingName(ef, index) : payloadName(ef, index));
+                case ForwardOrDecl(v, init, source):
+                    // The typer binds the switch subject to a hidden local
+                    // before extracting the payload; forward the substitution
+                    // through that chain.
+                    if (subst.exists(source.id)) {
+                        subst.set(v.id, subst.get(source.id));
+                    } else {
+                        out.push(indent(depth) + "final " + localName(v) + " = " + expr(init));
+                    }
+                case PlainDecl(v, init):
+                    out.push(indent(depth) + "final " + localName(v) + " = " + expr(init));
+                case OtherStatement(s, returnValue, _):
+                    value = returnValue != null ? expr(returnValue) : expr(s);
+                case MissingInit(s):
+                    Context.error("dart target: declaration without initializer has no lowering", s.pos);
             }
         }
-        walk(statementsOf(e));
         if (value == null) {
             return fail(e, "variant switch arm has no value");
         }
@@ -3554,6 +3593,85 @@ class DartExpr {
             case TLazy(f): isIntLeafType(f());
             case _: false;
         };
+    }
+
+    /** Whether the type is a 32-bit or 64-bit integer (Int or haxe.Int64),
+        unwrapping Null<T> to inspect the inner type. */
+    public function isIntOrLongType(t:Null<Type>):Bool {
+        if (t == null)
+            return false;
+        final followed = Context.follow(t);
+        final base = isNullLeafType(followed) ? switch (followed) {
+            case TAbstract(_, params) if (params.length == 1): params[0];
+            case _: followed;
+        } : followed;
+        return switch (Context.follow(base)) {
+            case TAbstract(a, _): final n = a.get().name; n == "Int" || n == "Int64";
+            case _: false;
+        };
+    }
+
+    /** Whether the type is Float, unwrapping Null<T> to inspect the inner type. */
+    public function isFloatType(t:Null<Type>):Bool {
+        if (t == null)
+            return false;
+        final followed = Context.follow(t);
+        final base = isNullLeafType(followed) ? switch (followed) {
+            case TAbstract(_, params) if (params.length == 1): params[0];
+            case _: followed;
+        } : followed;
+        return switch (Context.follow(base)) {
+            case TAbstract(a, _): a.get().name == "Float";
+            case _: false;
+        };
+    }
+
+    /** Convert an integer expression text to Double. */
+    public function intToFloatText(text:String):String {
+        return "(" + text + ").toDouble()";
+    }
+
+    /**
+        The "emitted" type of an expression: the type of the value the
+        generator will actually emit as text. For most expressions this is
+        the same as the typed AST type, but Haxe unification types Int-as-Float
+        contexts (return positions, comparisons, arithmetic) as Float while the
+        generator still emits Int text for the original Int sub-expression.
+     */
+    public function emittedType(e:TypedExpr):Null<Type> {
+        switch (stripWrap(e).expr) {
+            case TConst(TInt(_)):
+                return Context.getType("Int");
+            case TIf(_, t, f):
+                final tt = emittedType(t);
+                return tt != null ? tt : emittedType(f);
+            case TBinop(op, l, r):
+                switch (op) {
+                    case OpAdd | OpSub | OpMult | OpDiv | OpMod:
+                        final lt = emittedType(l);
+                        if (lt != null && isIntOrLongType(lt))
+                            return lt;
+                        return emittedType(r);
+                    case OpEq | OpNotEq | OpGt | OpGte | OpLt | OpLte:
+                        final lt = emittedType(l);
+                        if (lt != null)
+                            return lt;
+                        return emittedType(r);
+                    case _:
+                }
+            case TLocal(v):
+                return e.t;
+            case TField(_, _):
+                return e.t;
+            case TCall(_, _):
+                return e.t;
+            case TParenthesis(inner):
+                return emittedType(inner);
+            case TCast(inner, _):
+                return emittedType(inner);
+            case _:
+        }
+        return e.t;
     }
 
     function isBytes(t:Type):Bool {
