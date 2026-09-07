@@ -162,8 +162,8 @@ describe("default argument expansion generated tree", () => {
     expect(content).toContain("let offset = offset.unwrap_or_else(|| value + 1);");
     expect(content).toContain("pub fn instance_field_normalization(&self, p: Option<String>) -> String");
     expect(content).toContain("pub fn earlier_local_normalization(&self, seed: &str, q: Option<String>) -> String");
-    expect(content).toContain("let v = match p { None => self.fallback_count, Some(ref p) => p.clone() };");
-    expect(content).toContain("let w = match q { None => self.fallback_count, Some(ref q) => q.clone() };");
+    expect(content).toContain("let v = match &(p) { None => self.fallback_count, Some(__option4) => *__option4 };");
+    expect(content).toContain("let w = match &(q) { None => self.fallback_count, Some(__option5) => *__option5 };");
 
 
     // Rust has no default syntax: omission is completed to None and each
@@ -183,8 +183,8 @@ describe("default argument expansion generated tree", () => {
     expect(content).toContain("return DefaultArgsOps::configure(100, 20, 2.5, true);");
     expect(content).toContain("return DefaultArgsOps::configure(100, 10, 2.5, true);");
     expect(content).toContain('return ops.format_label(Some("item".to_string()), &"-");');
-    expect(content).toContain('return ops.format_label(None.clone(), &"-");');
-    expect(content).toContain('return DefaultArgsOps::describe_tag(&"alpha", None.clone());');
+    expect(content).toContain('return ops.format_label(None, &"-");');
+    expect(content).toContain('return DefaultArgsOps::describe_tag(&"alpha", None);');
     expect(content).toContain("return DefaultArgsOps::open_mode(1, Mode::Read);");
     expect(content).toContain("return DefaultArgsOps::adjust(20.0, -5.0);");
     expect(content).toContain("return local_add(x, 100);");
@@ -201,7 +201,7 @@ describe("default argument expansion generated tree", () => {
     // The static initializer completes omitted coalescing arguments to
     // None exactly as function-body call sites do, because the per-
     // function pass never visits initializers.
-    expect(content).toContain("pub static DEFAULT: LazyLock<CoalescingPreset> = LazyLock::new(|| CoalescingPreset::new(None, None));");
+    expect(content).toContain("pub static DEFAULT: LazyLock<CoalescingPreset> = LazyLock::new(|| CoalescingPreset::new(Some(0.125), Some(0.5)));");
     expect(content).not.toContain('return "CoalescingPreset".to_string();');
   });
 
