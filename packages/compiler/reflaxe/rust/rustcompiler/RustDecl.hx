@@ -1230,7 +1230,8 @@ class RustDecl {
         for (site in DefaultArgExpander.coalescingSitesForFunction(f.expr)) {
             coalescedParams.set(site.parameter, true);
         }
-        final snakeName = receiverMethod ? RustImports.toSnakeCase(f.field.name) : RustImports.toSnakeCase(cls.name + "_" + f.field.name);
+        final snakeName = receiverMethod
+            || StaticFunctionMarkers.isTopLevel(f.field) ? RustImports.toSnakeCase(f.field.name) : RustImports.toSnakeCase(cls.name + "_" + f.field.name);
         final args = [
             for (i in firstArg...f.args.length) {
                 final a = f.args[i];
