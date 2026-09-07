@@ -183,7 +183,9 @@ class DartExpr {
             case CNegativeInfinity: "-double.infinity";
             case CEnum(enumRef, enumField):
                 final en = enumRef.get();
-                isValueEnum(en) ? en.name + "." + DartDecl.lowerFirst(enumField.name) : en.name + enumField.name + "()";
+                final prefix = imports.value(en.module, en.name);
+                final head = prefix.length > 0 ? prefix + "." + en.name : en.name;
+                isValueEnum(en) ? head + "." + DartDecl.lowerFirst(enumField.name) : (prefix.length > 0 ? prefix + "." : "") + en.name + enumField.name + "()";
             case CParameterRead(name):
                 // Spec 22, Evaluation ordering: a read of an earlier coalescing
                 // parameter resolves through that parameter's own default, so
@@ -2561,7 +2563,7 @@ class DartExpr {
             case VEnum(e, f):
                 final enumDef = e.get();
                 final prefix = imports.value(enumDef.module, enumDef.name);
-                (prefix.length > 0 ? prefix + "." : "") + enumDef.name + "." + f.name;
+                (prefix.length > 0 ? prefix + "." : "") + enumDef.name + "." + DartDecl.lowerFirst(f.name);
             case VCoalescing(x): coalescingDefaultText(x, t);
         };
 
