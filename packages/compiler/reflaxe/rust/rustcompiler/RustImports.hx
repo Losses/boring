@@ -123,7 +123,7 @@ class RustImports {
     }
 
     public static function toScreamingSnakeCase(s:String):String {
-        return toSnakeCase(s).toUpperCase();
+        return rawSnakeCase(s).toUpperCase();
     }
 
     public static function emittedTypeName(s:String):String {
@@ -132,12 +132,70 @@ class RustImports {
 
     public static function toUpperCamelCase(s:String):String {
         return [
-            for (part in toSnakeCase(s).split("_"))
+            for (part in rawSnakeCase(s).split("_"))
                 if (part.length > 0) part.charAt(0).toUpperCase() + part.substr(1)
         ].join("");
     }
 
     public static function toSnakeCase(s:String):String {
+        final name = rawSnakeCase(s);
+        return RUST_KEYWORDS.exists(name) ? "r#" + name : name;
+    }
+
+    static final RUST_KEYWORDS:Map<String, Bool> = [
+        "as" => true,
+        "break" => true,
+        "const" => true,
+        "continue" => true,
+        "crate" => true,
+        "else" => true,
+        "enum" => true,
+        "extern" => true,
+        "false" => true,
+        "fn" => true,
+        "for" => true,
+        "if" => true,
+        "impl" => true,
+        "in" => true,
+        "let" => true,
+        "loop" => true,
+        "match" => true,
+        "mod" => true,
+        "move" => true,
+        "mut" => true,
+        "pub" => true,
+        "ref" => true,
+        "return" => true,
+        "self" => true,
+        "static" => true,
+        "struct" => true,
+        "super" => true,
+        "trait" => true,
+        "true" => true,
+        "type" => true,
+        "unsafe" => true,
+        "use" => true,
+        "where" => true,
+        "while" => true,
+        "async" => true,
+        "await" => true,
+        "dyn" => true,
+        "abstract" => true,
+        "become" => true,
+        "box" => true,
+        "do" => true,
+        "final" => true,
+        "macro" => true,
+        "override" => true,
+        "priv" => true,
+        "typeof" => true,
+        "unsized" => true,
+        "virtual" => true,
+        "yield" => true,
+        "try" => true
+    ];
+
+    static function rawSnakeCase(s:String):String {
         if (s == null || s.length == 0) {
             return s;
         }
