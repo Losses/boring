@@ -2986,6 +2986,12 @@ class KotlinExpr {
                     // emit safe call when it is nullable.
                     return expr(subj) + (rendersNullable(subj) ? "?." : ".") + "joinToString(" + renderedArgs + ")";
                 }
+                if (name == "slice" && args.length == 2 && owner.get().pack.length == 0 && owner.get().name == "Array") {
+                    // The haxe slice bounds are end-exclusive, so the
+                    // platform range overload receives the half-open
+                    // interval, like the Swift and Dart lowerings.
+                    return expr(subj) + nullableAccess(subj) + name + "(" + expr(args[0]) + " until " + expr(args[1]) + ")";
+                }
                 return expr(subj) + nullableAccess(subj) + name + "(" + renderedArgs + ")";
             case TField(_, FStatic(c, cf)):
                 final cls = c.get();
