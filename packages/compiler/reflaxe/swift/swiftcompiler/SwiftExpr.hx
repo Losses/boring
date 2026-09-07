@@ -2715,11 +2715,7 @@ class SwiftExpr {
         for (i in 0...args.length) {
             final p = i < ps.length ? ps[i] : null;
             final d = DefaultArgExpander.defaultAt(cls, "new", i);
-            final text0 = d != null && p != null && isNullLiteral(args[i]) ? defaultArgText(d, p) : d != null && p != null && isNullLeafType(args[i].t) ? "(" + expr(args[i]) + " ?? " + defaultArgText(d, p) + ")" : expr(args[i]);
-            var text = text0;
-            for (j in 0...i)
-                if (j < names.length)
-                    text = StringTools.replace(text, names[j], rendered[j]);
+            final text = d != null && p != null && isNullLiteral(args[i]) ? defaultArgText(d, p) : d != null && p != null && isNullLeafType(args[i].t) ? "(" + expr(args[i]) + " ?? " + defaultArgText(d, p) + ")" : expr(args[i]);
             rendered.push(text);
             if (i < names.length)
                 constructorParameterValues.set(names[i], text);
