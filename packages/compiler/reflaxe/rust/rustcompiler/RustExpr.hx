@@ -3880,8 +3880,12 @@ class RustExpr {
         return PolicyQueries.isFunctionType(t);
     }
 
-    function staticFunctionName(name:String):String {
-        return RustImports.toScreamingSnakeCase(name);
+    function staticFunctionName(cls:ClassType, name:String):String {
+        return RustImports.toScreamingSnakeCase(cls.name + "_" + name);
+    }
+
+    function staticMethodName(cls:ClassType, name:String):String {
+        return RustImports.isShimModule(cls.module) ? RustImports.toSnakeCase(name) : RustImports.toSnakeCase(cls.name + "_" + name);
     }
 
     function staticRef(cls:ClassType, name:String):String {
@@ -3923,7 +3927,7 @@ class RustExpr {
                     return "testlib::run";
                 }
                 imports.require("crate::runtime::test_core");
-                return "test_core::TestCore::" + RustImports.toSnakeCase(name);
+                return "test_core::TestCore::" + staticMethodName(cls, name);
             case "std.UStringRT":
                 return uStringRef(name);
             case "std.Graphemes":
@@ -3940,7 +3944,7 @@ class RustExpr {
                     return "graphemes::boundaries";
                 }
                 imports.requireType("runtime.Graphemes", "Graphemes");
-                return "Graphemes::" + RustImports.toSnakeCase(name);
+                return "Graphemes::" + staticMethodName(cls, name);
             case "StringTools":
                 // StringTools statics without a native Rust/String inline
                 // lowering (lpad, rpad, ltrim, rtrim, replace, ...) route
@@ -3952,7 +3956,7 @@ class RustExpr {
                 state.shimsUsed.set("StringTools", true);
                 if (RuntimeResidents.isResident(imports.selfModule)) {
                     imports.requireType("runtime.StringTools", "StringTools");
-                    return "StringTools::" + RustImports.toSnakeCase(name);
+                    return "StringTools::" + staticMethodName(cls, name);
                 }
                 imports.require("crate::runtime::string_tools");
                 return "string_tools::StringTools::" + RustImports.toSnakeCase(name);
@@ -3964,7 +3968,7 @@ class RustExpr {
                         return "testlib::run";
                     }
                     imports.require("crate::runtime::test_core");
-                    return "test_core::TestCore::" + RustImports.toSnakeCase(name);
+                    return "test_core::TestCore::" + staticMethodName(cls, name);
                 }
                 if (cls.module == "std.UStringRT") {
                     return uStringRef(name);
@@ -3979,11 +3983,11 @@ class RustExpr {
                         return "graphemes::boundaries";
                     }
                     imports.requireType("runtime.Graphemes", "Graphemes");
-                    return "Graphemes::" + RustImports.toSnakeCase(name);
+                    return "Graphemes::" + staticMethodName(cls, name);
                 }
                 for (field in cls.statics.get()) {
                     if (field.name == name && field.kind.match(FVar(_, _)) && isFunctionType(field.type)) {
-                        final targetName = RustImports.toScreamingSnakeCase(cls.name + "_" + name);
+                        final targetName = staticFunctionName(cls, name);
                         if (cls.module != imports.selfModule) {
                             imports.requireType(cls.module, targetName);
                         }

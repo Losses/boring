@@ -1105,7 +1105,7 @@ class RustDecl {
             };
             // @:allow members use crate visibility so allowed cross-module references compile.
             final vis = field.isPublic ? "pub " : (field.meta.has(":allow") ? "pub(crate) " : "");
-            final name = RustImports.toSnakeCase(field.name).toUpperCase();
+            final name = RustImports.toScreamingSnakeCase(cls.name + "_" + field.name);
             return ['    ${vis}const ${name}: ${typeStr} = $valStr;'];
         }
         return [];
