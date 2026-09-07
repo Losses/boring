@@ -276,19 +276,21 @@ class SwiftType {
         reference cycle has no orderable rendering and fails.
     **/
     static function comparatorFieldsSupported(cls:ClassType, visited:Array<String>):Bool {
-        if (visited.indexOf(cls.module) >= 0) {
+        if (visited.indexOf(cls.name) >= 0) {
             return false;
         }
-        visited.push(cls.module);
+        visited.push(cls.name);
         for (f in cls.fields.get()) {
             final isStoredVar = switch (f.kind) {
                 case FVar(read, write): !(read.match(AccCall) && write.match(AccNever));
                 case _: false;
             };
             if (isStoredVar && !comparatorFieldSupported(f.type, visited)) {
+                visited.pop();
                 return false;
             }
         }
+        visited.pop();
         return true;
     }
 
