@@ -212,6 +212,8 @@ tests.ShapeTextTests
 tests.StringToolsTests
 boring.PublicGetterProperty
 tests.PublicGetterPropertyTests
+boring.InterfaceGetterProperty
+tests.InterfaceGetterPropertyTests
 boring.FloatLiteralOps
 tests.FloatLiteralOpsTests
 tests.RustUnionFaultTests
