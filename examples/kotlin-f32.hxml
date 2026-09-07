@@ -105,11 +105,9 @@ tests.EnumQueriesTests
 tests.SwitchOpsTests
 tests.MathIntWideningOpsTests
 tests.MathNaNOpsTests
-boring.NumericConversionWidening
 tests.EnumQueriesTests
 tests.SwitchOpsTests
 tests.MathIntWideningOpsTests
-tests.NumericConversionWideningTests
 tests.EnumQueriesProbes
 boring.StdStringOps
 tests.StdStringTests

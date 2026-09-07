@@ -4,7 +4,6 @@ import boring.NumericConversionWidening;
 import std.Test;
 
 class NumericConversionWideningTests {
-    #if kotlin
     @:test("Numeric conversion widening compares Float and Int")
     public static function testComparison():Void {
         Test.equals(true, NumericConversionWidening.compareEqual(1.0, 1));
@@ -32,5 +31,4 @@ class NumericConversionWideningTests {
     public static function testParam():Void {
         Test.equals(9.0, NumericConversionWidening.callFloatParam());
     }
-    #end
 }
