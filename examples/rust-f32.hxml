@@ -185,3 +185,5 @@ tests.EnumSortedKeysTests
 
 boring.PublicGetterProperty
 tests.PublicGetterPropertyTests
+boring.KnullInitNarrowing
+tests.KnullInitNarrowingTests
