@@ -155,7 +155,7 @@ class KotlinExpr {
     public function defaultArgText(value:DefaultArgExpander.DefaultArgValue, targetType:Type):String {
         return switch (value) {
             case VInt(v): Std.string(v);
-            case VFloat(s): FloatPrecision.isF32() ? ((s.indexOf(".") >= 0 || s.indexOf("e") >= 0 || s.indexOf("E") >= 0) ? s : s + ".0") + "f" : s;
+            case VFloat(s): floatLiteral(s);
             case VString(s): quoteString(s);
             case VBool(b): b ? "true" : "false";
             case VNull: "null";
@@ -167,7 +167,7 @@ class KotlinExpr {
     public function coalescingDefaultText(value:DefaultArgExpander.CoalescingDefaultValue, targetType:Type):String {
         return switch (value) {
             case CInt(v): Std.string(v);
-            case CFloat(s): FloatPrecision.isF32() ? ((s.indexOf(".") >= 0 || s.indexOf("e") >= 0 || s.indexOf("E") >= 0) ? s : s + ".0") + "f" : s;
+            case CFloat(s): floatLiteral(s);
             case CString(s): quoteString(s);
             case CBool(b): b ? "true" : "false";
             case CNull: "null";
@@ -1011,6 +1011,21 @@ class KotlinExpr {
     // Expressions
     // ------------------------------------------------------------------
 
+    function floatLiteral(source:String, addWidth:Bool = true):String {
+        var s = source;
+        final dot = s.indexOf(".");
+        if (dot >= 0 && dot + 1 < s.length) {
+            final next = s.charAt(dot + 1);
+            if (next == "e" || next == "E")
+                s = s.substring(0, dot + 1) + "0" + s.substring(dot + 1);
+        } else if (dot == s.length - 1) {
+            s += "0";
+        } else if (dot < 0 && s.indexOf("e") < 0 && s.indexOf("E") < 0) {
+            s += ".0";
+        }
+        return FloatPrecision.isF32() && addWidth ? s + "f" : s;
+    }
+
     function expr(e:TypedExpr):String {
         final int64Expr = int64Expression(e);
         if (int64Expr != null)
@@ -1027,10 +1042,7 @@ class KotlinExpr {
                     case TInt(v): return Std.string(v);
                     case TFloat(f):
                         final s = Std.string(f);
-                        final padded = (s.indexOf(".") >= 0 || s.indexOf("e") >= 0 || s.indexOf("E") >= 0) ? s : s + ".0";
-                        // The f32 configuration marks every literal so its width never
-                        // relies on the context's inference (feature spec 23).
-                        return FloatPrecision.isF32() ? padded + "f" : s;
+                        return floatLiteral(s);
                     case TString(s): return quoteString(s);
                     case TBool(b): return b ? "true" : "false";
                     case TNull: return "null";
@@ -2567,6 +2579,10 @@ class KotlinExpr {
                     return "(" + kotlinMathFloatArg(args[0]) + ").isNaN()";
                 if (cls.module == "Math" && name == "isFinite")
                     return "(" + kotlinMathFloatArg(args[0]) + ").isFinite()";
+                if (cls.module == "Math" && name == "pow" && args.length == 2) {
+                    imports.require("kotlin.math.pow");
+                    return "(" + kotlinMathFloatArg(args[0]) + ").pow(" + kotlinMathFloatArg(args[1]) + ")";
+                }
                 if (cls.module == "Math" && name == "sqrt")
                     return "kotlin.math.sqrt(" + kotlinMathFloatArg(args[0]) + ")";
                 if (cls.module == "Math" && (name == "floor" || name == "ceil" || name == "round")) {
@@ -2861,7 +2877,13 @@ class KotlinExpr {
                         case "shift": return "if (" + expr(subj) + ".isEmpty()) null else " + expr(subj) + ".removeAt(0)";
                         case "unshift": return expr(subj) + ".add(0, " + renderedArgs + ")";
                         case "insert": return expr(subj) + ".add(" + expr(args[0]) + ", " + expr(args[1]) + ")";
-                        case "splice": return "run { val _a = " + expr(subj) + "; val _i = " + expr(args[0]) + "; val _n = " + expr(args[1]) + "; val _r = _a.subList(_i, _i + _n).toMutableList(); _a.subList(_i, _i + _n).clear(); _r }";
+                        case "splice": return "run { val _a = "
+                                + expr(subj)
+                                + "; val _i = "
+                                + expr(args[0])
+                                + "; val _n = "
+                                + expr(args[1])
+                                + "; val _r = _a.subList(_i, _i + _n).toMutableList(); _a.subList(_i, _i + _n).clear(); _r }";
                         case "get_length" | "length": return expr(subj) + ".size";
                         case _:
                     }
