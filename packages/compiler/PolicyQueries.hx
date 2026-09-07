@@ -858,20 +858,26 @@ class PolicyQueries {
                                 final bodyStmts = statementsOf(body);
                                 if (bodyStmts.length == 0)
                                     return null;
-                                switch (bodyStmts[0].expr) {
-                                    case TVar(captured, inc) if (inc != null):
-                                        switch (ExpressionPredicates.stripWrap(inc).expr) {
-                                            case TUnop(OpIncrement, true, {expr: TLocal(c)}) if (c.id == counter.id):
-                                                return {
-                                                    index: captured,
-                                                    start: start,
-                                                    bound: right,
-                                                    body: bodyStmts.slice(1)
-                                                };
-                                            case _:
-                                        }
-                                    case _:
-                                }
+                                var increment = -1;
+                                for (j in 0...bodyStmts.length)
+                                    switch (ExpressionPredicates.stripWrap(bodyStmts[j]).expr) {
+                                        case TBinop(OpAssignOp(OpAdd), {expr: TLocal(c)}, _) if (c.id == counter.id): increment = j;
+                                        case TUnop(OpIncrement, true, {expr: TLocal(c)}) if (c.id == counter.id): increment = j;
+                                        case TVar(_, inc) if (inc != null):
+                                            switch (ExpressionPredicates.stripWrap(inc).expr) {
+                                                case TUnop(OpIncrement, true, {expr: TLocal(c)}) if (c.id == counter.id): increment = j;
+                                                case _:
+                                            }
+                                        case _:
+                                    }
+                                if (increment < 0)
+                                    return null;
+                                return {
+                                    index: counter,
+                                    start: start,
+                                    bound: right,
+                                    body: [for (j in 0...bodyStmts.length) if (j != increment) bodyStmts[j]]
+                                };
                             case _:
                                 return null;
                         }
