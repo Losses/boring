@@ -263,17 +263,34 @@ class DartExpr {
         final fieldName = parts[parts.length - 1];
         final typePath = parts.slice(0, parts.length - 1).join(".");
         try {
-            switch (Context.getType(typePath)) {
-                case TInst(clsRef, _):
-                    return staticRef(clsRef.get(), fieldName);
-                case TAbstract(absRef, _):
-                    final abs = absRef.get();
-                    final prefix = imports.value(abs.module, abs.name);
-                    return (prefix.length > 0 ? prefix + "." : "") + abs.name + "." + fieldName;
-                default:
+            final resolvedPath = tryResolveTypePath(typePath);
+            if (resolvedPath != null) {
+                return switch (resolvedPath) {
+                    case TInst(clsRef, _): staticRef(clsRef.get(), fieldName);
+                    case TAbstract(absRef, _):
+                        final abs = absRef.get();
+                        final prefix = imports.value(abs.module, abs.name);
+                        (prefix.length > 0 ? prefix + "." : "") + abs.name + "." + fieldName;
+                    case _: path;
+                };
             }
         } catch (_:Dynamic) {}
         return path;
+    }
+
+    function tryResolveTypePath(path:String):Null<Type> {
+        try {
+            return Context.getType(path);
+        } catch (_:Dynamic) {}
+        if (currentClass != null) {
+            final pack = currentClass.pack.join(".");
+            if (pack.length > 0) {
+                try {
+                    return Context.getType(pack + "." + path);
+                } catch (_:Dynamic) {}
+            }
+        }
+        return null;
     }
 
     static function opStr(op:Binop):String {
