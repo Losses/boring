@@ -90,6 +90,9 @@ class SwiftExpr {
     /** Locals initialized from a character code call whose result is known non-optional. */
     final nonOptionalInferred:Map<Int, Bool> = [];
 
+    /** Locals whose emitted declaration annotation is optional. */
+    final optionalAnnotated:Map<Int, Bool> = [];
+
     /** Rendered constructor arguments available to defaults that read parameters. */
     var constructorParameterValues:Null<Map<String, String>> = null;
 
@@ -553,19 +556,21 @@ class SwiftExpr {
                     coalescing.parameter) : DefaultArgExpander.coalescingDefaultForParam(currentClass, currentField, coalescing.parameter));
                 final localType = coalescingValue != null ? DefaultArgExpander.coalescingLocalType(coalescingValue, v.t) : v.t;
                 final hasTypeAnnotation = localDeclarationNeedsTypeAnnotation(v.t, init, coalescing != null);
+                if (hasTypeAnnotation && isNullLeafType(localType))
+                    optionalAnnotated.set(v.id, true);
                 final annotation = hasTypeAnnotation ? ": " + types.of(localType) : "";
                 final unwrapNullableInitializer = isNullLeafType(init.t) && coalescing == null && !isNullLeafType(v.t) && hasTypeAnnotation;
                 var initText = switch (init.expr) {
                     case TFunction(fn): functionLiteralNamed(v.name, fn);
                     default: {
                             final rendered = expr(init);
-                            optionalValued(init)
+                            optionalValued(init) && hasTypeAnnotation
                         && !isNullLeafType(v.t) ? rendered + "!" : rendered;
                         }
                 };
                 if (isIntType(emittedType(init)) && isFloatLeafType(v.t))
                     initText = intToFloatText(initText);
-                if (unwrapNullableInitializer)
+                if (unwrapNullableInitializer && !StringTools.endsWith(initText, "!"))
                     initText += "!";
                 return [indent(depth) + '$kw ${localName(v)}$annotation = $tryKw$initText'];
             case TVar(v, _):
@@ -1197,6 +1202,19 @@ class SwiftExpr {
         return expr(valueExpr(value)) + " ?? " + expr(fallback);
     }
 
+    function nullCheckLocal(e:TypedExpr):Null<Int> {
+        return switch (stripWrap(e).expr) {
+            case TBinop(OpEq, left, right) | TBinop(OpNotEq, left, right):
+                if (isNullExpr(right)) switch (stripWrap(left).expr) {
+                    case TLocal(v): v.id;
+                    case _: null;
+                } else if (isNullExpr(left)) switch (stripWrap(right).expr) {
+                    case TLocal(v): v.id;
+                    case _: null;
+                } else null;
+            case _: null;
+        };
+    }
     function localBranchId(e:TypedExpr, id:Int):Bool {
         return switch (stripWrap(e).expr) {
             case TLocal(v) if (v.id == id): true;
@@ -1437,7 +1455,7 @@ class SwiftExpr {
     function optionalExpr(a:TypedExpr):String {
         return switch (stripWrap(a).expr) {
             case TConst(TNull): "nil";
-            case TLocal(v) if (optionalInferred.exists(v.id)): {
+            case TLocal(v) if (optionalAnnotated.exists(v.id) || optionalInferred.exists(v.id)): {
                     final text = expr(a);
                     StringTools.endsWith(text, "!") ? text : text + "!";
                 };
@@ -1459,12 +1477,14 @@ class SwiftExpr {
         return switch (stripWrap(ret).expr) {
             case TConst(TNull): expr(ret);
             case TCall(_, _) if (isNullLeafType(ret.t)): expr(ret);
-            case TLocal(v) if (isNullLeafType(v.t) && !coalescingLocals.exists(v.id)): currentFuncReturnsOptional || optionalInferred.exists(v.id) || nonOptionalInferred.exists(v.id) ? expr(ret) : (StringTools.endsWith(expr(ret),
-                    "!") ? expr(ret) : expr(ret)
-                    + "!");
+            case TLocal(v) if (currentFuncReturnsOptional): expr(ret);
+            case TLocal(v) if (optionalAnnotated.exists(v.id) || (optionalInferred.exists(v.id) && !nonOptionalInferred.exists(v.id))): {
+                final text = expr(ret);
+                StringTools.endsWith(text, "!") ? text : text + "!";
+            };
             case TLocal(_):
                 switch (Context.follow(ret.t)) {
-                    case TAbstract(a, _) if (a.get().name == "Float"): "Double(" + expr(ret) + ")";
+                    case TAbstract(a, _) if (a.get().name == "Float"): realType() + "(" + expr(ret) + ")";
                     case _: currentFuncReturnsOptional ? expr(ret) : (optionalValued(ret) ? expr(ret) + "!" : expr(ret));
                 }
             case _:
@@ -1869,8 +1889,7 @@ class SwiftExpr {
                             "&" + expr(a);
                     }
                 } else {
-                    demandsValue
-                    && optionalValued(a) ? expr(a) + "!" : expr(a);
+                    (optionalValued(a) || isNullLeafType(a.t)) && demandsValue ? expr(a) + "!" : expr(a);
                 };
                 if (pt != null && isIntType(emittedType(a)) && isFloatLeafType(pt)) t = intToFloatText(t);
                 t;
@@ -1893,7 +1912,7 @@ class SwiftExpr {
 
     /** A method receiver unwraps when the receiver expression is optional. */
     function receiverText(subj:TypedExpr):String {
-        if (!optionalValued(subj)) {
+        if (!optionalValued(subj) && !isNullLeafType(subj.t)) {
             return expr(subj);
         }
         final base = expr(subj);
@@ -1911,7 +1930,7 @@ class SwiftExpr {
             })
             return true;
         return switch (stripWrap(e).expr) {
-            case TLocal(v): optionalInferred.exists(v.id) && !nonOptionalInferred.exists(v.id);
+            case TLocal(v): optionalAnnotated.exists(v.id) || (optionalInferred.exists(v.id) && !nonOptionalInferred.exists(v.id));
             case _: false;
         };
     }
@@ -3871,10 +3890,16 @@ class SwiftExpr {
             case TVar(v, init):
                 PolicyQueries.noteDeclaredLocalName(v, usedNames, false);
                 final coalescing = coalescingSiteFor(init);
+                final coalescingValue = coalescing == null ? null : (currentLocalName != null ? DefaultArgExpander.coalescingDefaultForLocalParam(currentClass,
+                    currentField, currentLocalName, coalescing.parameter) : DefaultArgExpander.coalescingDefaultForParam(currentClass, currentField, coalescing.parameter));
+                final localType = coalescingValue != null ? DefaultArgExpander.coalescingLocalType(coalescingValue, v.t) : v.t;
+                final hasTypeAnnotation = init != null && localDeclarationNeedsTypeAnnotation(v.t, init, coalescing != null);
+                if (hasTypeAnnotation && isNullLeafType(localType))
+                    optionalAnnotated.set(v.id, true);
                 final unwrapNullableInitializer = init != null && isNullLeafType(init.t)
                     && coalescing == null
                     && !isNullLeafType(v.t)
-                    && localDeclarationNeedsTypeAnnotation(v.t, init, false);
+                    && hasTypeAnnotation;
                 if (init != null && isNonOptionalStringCharCodeAt(init)) {
                     nonOptionalInferred.set(v.id, true);
                 } else if (init != null && isNullLeafType(init.t) && coalescing == null && !unwrapNullableInitializer) {
