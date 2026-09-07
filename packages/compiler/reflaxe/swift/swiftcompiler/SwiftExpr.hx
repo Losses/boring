@@ -1349,6 +1349,8 @@ class SwiftExpr {
                     case TAbstract(a, _) if (a.get().name == "Float"): "Double(" + expr(ret) + ")";
                     case _: currentFuncReturnsOptional ? expr(ret) : (optionalValued(ret) ? expr(ret) + "!" : expr(ret));
                 }
+            case _:
+                currentFuncReturnsOptional ? expr(ret) : (optionalValued(ret) ? expr(ret) + "!" : expr(ret));
         };
     }
 
