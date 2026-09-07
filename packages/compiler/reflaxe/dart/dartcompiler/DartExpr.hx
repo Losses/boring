@@ -1990,7 +1990,7 @@ class DartExpr {
                         case "abs": return "(" + mathFloatArg(args[0]) + ").abs()";
                         case "sqrt":
                             imports.useDartMath();
-                            return "math.sqrt(" + expr(args[0]) + ")";
+                            return "math.sqrt(" + mathFloatArg(args[0]) + ")";
                         case "min":
                             imports.useDartMath();
                             return "math.min(" + mathFloatArg(args[0]) + ", " + mathFloatArg(args[1]) + ")";
@@ -2002,8 +2002,8 @@ class DartExpr {
                             // to the double the Haxe signature promises.
                             imports.useDartMath();
                             return "math.pow(" + mathFloatArg(args[0]) + ", " + mathFloatArg(args[1]) + ").toDouble()";
-                        case "isNaN": return "(" + expr(args[0]) + ").isNaN";
-                        case "isFinite": return "(" + expr(args[0]) + ").isFinite";
+                        case "isNaN": return "(" + mathFloatArg(args[0]) + ").isNaN";
+                        case "isFinite": return "(" + mathFloatArg(args[0]) + ").isFinite";
                         case _:
                     }
                 }
