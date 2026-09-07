@@ -22,6 +22,13 @@ class SwiftImports {
     /** Host-edge helpers this module references (stdlib/17). */
     final hostEdges:Map<String, Bool> = [];
 
+    /** Modules whose declarations are synthesized as target support. */
+    static final GUARANTEED_STD_MODULES:Map<String, Bool> = ["std.UStringException" => true, "std.UStringFault" => true,];
+
+    public static function isGuaranteedStdModule(module:String):Bool {
+        return GUARANTEED_STD_MODULES.exists(module);
+    }
+
     public function new(selfModule:String) {
         this.selfModule = selfModule;
         this.selfResident = RuntimeResidents.isResident(selfModule);
