@@ -926,6 +926,13 @@ class SwiftExpr {
     // Expressions
     // ------------------------------------------------------------------
 
+    function floatLiteral(f:String):String {
+        final withInteger = (f.length > 0 && f.charAt(0) == ".") ? "0" + f : (f.length > 2
+            && f.charAt(0) == "-"
+            && f.charAt(1) == "." ? "-0" + f.substr(1) : f);
+        return StringTools.endsWith(withInteger, ".") ? withInteger + "0" : withInteger;
+    }
+
     function expr(e:TypedExpr):String {
         final int64Expr = int64Expression(e);
         if (int64Expr != null)
@@ -956,13 +963,6 @@ class SwiftExpr {
                     case TSuper: return "super";
                     case _: return fail(e, "constant has no Swift lowering");
                 }
-    function floatLiteral(f:String):String {
-        final withInteger = (f.length > 0 && f.charAt(0) == ".") ? "0" + f : (f.length > 2
-            && f.charAt(0) == "-"
-            && f.charAt(1) == "." ? "-0" + f.substr(1) : f);
-        return StringTools.endsWith(withInteger, ".") ? withInteger + "0" : withInteger;
-    }
-
             case TLocal(v):
                 if (subst.exists(v.id)) {
                     return subst.get(v.id);
@@ -2069,13 +2069,14 @@ class SwiftExpr {
                         final real = FloatPrecision.isF32() ? "Float" : "Double";
                         final a = mathFloatArg(args[0]);
                         final b = mathFloatArg(args[1]);
-                        final zeroResult = fName == "min"
-                            ? "a.sign == .minus ? a : b"
-                            : "a.sign == .minus ? b : a";
-                        final ordered = fName == "min"
-                            ? "a < b ? a : (b < a ? b : (a == 0.0 && b == 0.0 ? " + zeroResult + " : a))"
-                            : "a > b ? a : (b > a ? b : (a == 0.0 && b == 0.0 ? " + zeroResult + " : a))";
-                        return "({ () -> " + real + " in let a = " + a + "; let b = " + b + "; if a.isNaN || b.isNaN { return " + real + ".nan }; return " + ordered + " })()";
+                        final zeroResult = fName == "min" ? "a.sign == .minus ? a : b" : "a.sign == .minus ? b : a";
+                        final ordered = fName == "min" ? "a < b ? a : (b < a ? b : (a == 0.0 && b == 0.0 ? "
+                            + zeroResult
+                            + " : a))" : "a > b ? a : (b > a ? b : (a == 0.0 && b == 0.0 ? "
+                            + zeroResult
+                            + " : a))";
+                        return "({ () -> " + real + " in let a = " + a + "; let b = " + b + "; if a.isNaN || b.isNaN { return " + real + ".nan }; return "
+                            + ordered + " })()";
                     }
                     if (fName == "abs")
                         return "abs(" + mathFloatArg(args[0]) + ")";
