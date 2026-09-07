@@ -1,7 +1,6 @@
 package boring;
 
 class NumericConversionWidening {
-    #if kotlin
     public static function compareEqual(a:Float, b:Int):Bool {
         return a == b;
     }
@@ -32,5 +31,4 @@ class NumericConversionWidening {
     public static function callFloatParam():Float {
         return floatParam(8);
     }
-    #end
 }

@@ -165,7 +165,6 @@ boring.SwitchOps
 boring.MathIntWideningOps
 boring.MathNaNOps
 boring.MathNaNTestSupport
-boring.NumericConversionWidening
 tests.NumberClassifyTests
 tests.MathMinMaxTests
 tests.MathNaNOpsTests
@@ -181,7 +180,6 @@ tests.ArrayRootTests
 tests.SwitchOpsTests
 tests.MathIntWideningOpsTests
 tests.MathNaNOpsTests
-tests.NumericConversionWideningTests
 
 registry.Core
 registry.CoreFault
@@ -218,6 +216,8 @@ boring.InterfaceGetterProperty
 tests.InterfaceGetterPropertyTests
 boring.FloatLiteralOps
 tests.FloatLiteralOpsTests
+boring.NumericConversionWidening
+tests.NumericConversionWideningTests
 tests.RustUnionFaultTests
 tests.PlatformModulesTestSupport
 tests.PlatformModulesTests
