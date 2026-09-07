@@ -1457,11 +1457,12 @@ class DartExpr {
                 // A construct without payload in value position: the
                 // generated subclass instance carries the identity.
                 final enumDef = en.get();
-                imports.type(enumDef.module, enumDef.name);
-                return isValueEnum(enumDef) ? qualifiedRef(enumDef.module, enumDef.name)
-                    + "."
-                    + DartDecl.lowerFirst(ef.name) : qualifiedRef(enumDef.module, DartDecl.constructClassName(enumDef.name, ef.name))
-                    + "()";
+                // Enum constructors are value-position references, so record
+                // the prefixed import used by the emitted value expression.
+                final enumPrefix = imports.value(enumDef.module, enumDef.name);
+                final enumHead = enumPrefix.length > 0 ? enumPrefix + "." + enumDef.name : enumDef.name;
+                return isValueEnum(enumDef) ? enumHead + "." + DartDecl.lowerFirst(ef.name) : (enumPrefix.length > 0 ? enumPrefix + "." : "")
+                    + DartDecl.constructClassName(enumDef.name, ef.name) + "()";
             case FInstance(owner, _, cf):
                 final name = cf.get().name;
                 final target = stripCast(subj);
@@ -1677,12 +1678,12 @@ class DartExpr {
 
     /** A method receiver unwraps when the receiver expression is optional. */
     function receiverText(subj:TypedExpr):String {
-        if (!optionalValued(subj)) {
+        if ((!isNullLeafType(subj.t) && !optionalValued(subj)) || provenNonNull(subj)) {
             return expr(subj);
         }
         final base = expr(subj);
         return switch (stripWrap(subj).expr) {
-            case TLocal(_): base;
+            case TLocal(_): base + "!";
             case _: "(" + base + ")!";
         };
     }
@@ -2496,11 +2497,13 @@ class DartExpr {
 
     /** A variant construct renders as its generated subclass constructor, arguments positional. */
     function enumConstruct(enumDef:EnumType, ef:EnumField, args:Array<TypedExpr>):String {
+        final enumPrefix = imports.value(enumDef.module, enumDef.name);
+        final enumHead = enumPrefix.length > 0 ? enumPrefix + "." + enumDef.name : enumDef.name;
         if (isValueEnum(enumDef))
-            return qualifiedRef(enumDef.module, enumDef.name) + "." + DartDecl.lowerFirst(ef.name);
+            return enumHead + "." + DartDecl.lowerFirst(ef.name);
         final parts = [for (a in args) expr(a)];
         final cls = DartDecl.constructClassName(enumDef.name, ef.name);
-        return qualifiedRef(enumDef.module, cls) + "(" + parts.join(", ") + ")";
+        return (enumPrefix.length > 0 ? enumPrefix + "." : "") + cls + "(" + parts.join(", ") + ")";
     }
 
     static function isValueEnum(en:EnumType):Bool {
@@ -2555,7 +2558,10 @@ class DartExpr {
             case VString(x): quoteString(x);
             case VBool(x): x ? "true" : "false";
             case VNull: "null";
-            case VEnum(e, f): qualifiedRef(e.get().module, e.get().name) + "." + f.name;
+            case VEnum(e, f):
+                final enumDef = e.get();
+                final prefix = imports.value(enumDef.module, enumDef.name);
+                (prefix.length > 0 ? prefix + "." : "") + enumDef.name + "." + f.name;
             case VCoalescing(x): coalescingDefaultText(x, t);
         };
 
