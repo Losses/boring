@@ -39,6 +39,12 @@ class BytesBuffer {
 }
 ";
 
+    public static final USTRING_SOURCE = "object UString {
+    fun count(s: String): Int = s.codePointCount(0, s.length)
+    fun at(s: String, index: Int): Int? = if (index < 0 || index >= s.codePointCount(0, s.length)) null else s.codePointAt(s.offsetByCodePoints(0, index))
+}
+";
+
     public static final FP_HELPER_SOURCE = "class Int64Halves(val high: Int, val low: Int)
 
 object FPHelper {
@@ -63,6 +69,9 @@ object FPHelper {
     fun i64ToF32(low: Int, high: Int): Float {
         return i64ToDouble(low, high).toFloat()
     }
+
+    fun floatToI32(value: Float): Int = value.toRawBits()
+    fun i32ToFloat(value: Int): Float = Float.fromBits(value)
 
     fun f32ToI64(value: Float): Int64Halves {
         return doubleToI64(value.toDouble())

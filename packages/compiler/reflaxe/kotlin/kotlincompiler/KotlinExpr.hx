@@ -182,7 +182,11 @@ class KotlinExpr {
             case CPositiveInfinity: FloatPrecision.isF32() ? "Float.POSITIVE_INFINITY" : "Double.POSITIVE_INFINITY";
             case CNegativeInfinity: FloatPrecision.isF32() ? "Float.NEGATIVE_INFINITY" : "Double.NEGATIVE_INFINITY";
             case CEnum(enumRef, enumField): types.of(Type.TEnum(enumRef, [])) + "." + enumField.name;
-            case CParameterRead(name): KotlinNameEscape.escape(name);
+            case CParameterRead(name):
+                // Kotlin default arguments cannot refer to a preceding
+                // constructor parameter. The coalescing expression instead
+                // belongs to the constructor's init lowering.
+                "null";
             case CInstanceFieldRead(name): "this." + KotlinNameEscape.escape(name);
             case CLocalRead(name): KotlinNameEscape.escape(name);
             case CFieldAccess(CParameterRead(staticPath), ""): coalescingStaticFieldText(staticPath);
@@ -2665,15 +2669,22 @@ class KotlinExpr {
                 if ((cls.name == "Functional"
                     || cls.name == "__functional_shim"
                     || cls.module == "std.Functional"
-                    || cls.pack.join(".") + "." + cls.name == "std.Functional")
-                    && name == "sortedBy") {
+                    || cls.pack.join(".") + "." + cls.name == "std.Functional")) {
                     final receiver = args[0];
-                    final lambda = args[1];
-                    final func = unwrapLambda(lambda);
-                    if (func != null && func.args.length == 1) {
-                        final paramName = KotlinNameEscape.escape(func.args[0].v.name);
-                        final keyExpr = expr(lambdaBody(func.expr));
-                        return expr(receiver) + ".toMutableList().apply { sortBy { " + paramName + " -> " + keyExpr + " } }";
+                    if (name == "sortedBy") {
+                        final lambda = args[1];
+                        final func = unwrapLambda(lambda);
+                        if (func != null && func.args.length == 1) {
+                            final paramName = KotlinNameEscape.escape(func.args[0].v.name);
+                            final keyExpr = expr(lambdaBody(func.expr));
+                            return expr(receiver) + ".toMutableList().apply { sortBy { " + paramName + " -> " + keyExpr + " } }";
+                        }
+                    }
+                    if (name == "sumOfFloat") {
+                        return expr(receiver) + ".sumOf { " + expr(args[1]) + ".toDouble() }.toFloat()";
+                    }
+                    if (name == "forEach") {
+                        return expr(receiver) + ".forEach(" + expr(args[1]) + ")";
                     }
                 }
             case _:
@@ -2835,6 +2846,25 @@ class KotlinExpr {
                         + expr(args[1])
                         + "; val _start = if (_pos < 0) maxOf(0, _s.length + _pos) else minOf(_pos, _s.length)"
                         + "; if (_len < 0) \"\" else { val _end = minOf(_s.length, _start + _len); _s.substring(_start, _end) } }";
+                }
+                final arrayReceiver = switch (Context.follow(subj.t)) {
+                    case TInst(c, _): c.get().name == "Array";
+                    case _: false;
+                };
+                if (arrayReceiver) {
+                    switch (name) {
+                        case "push": return expr(subj) + ".add(" + renderedArgs + ")";
+                        case "join": return expr(subj) + ".joinToString(" + renderedArgs + ")";
+                        case "concat": return "(" + expr(subj) + " + " + renderedArgs + ").toMutableList()";
+                        case "copy": return expr(subj) + ".toMutableList()";
+                        case "pop": return "if (" + expr(subj) + ".isEmpty()) null else " + expr(subj) + ".removeAt(" + expr(subj) + ".lastIndex)";
+                        case "shift": return "if (" + expr(subj) + ".isEmpty()) null else " + expr(subj) + ".removeAt(0)";
+                        case "unshift": return expr(subj) + ".add(0, " + renderedArgs + ")";
+                        case "insert": return expr(subj) + ".add(" + expr(args[0]) + ", " + expr(args[1]) + ")";
+                        case "splice": return "run { val _a = " + expr(subj) + "; val _i = " + expr(args[0]) + "; val _n = " + expr(args[1]) + "; val _r = _a.subList(_i, _i + _n).toMutableList(); _a.subList(_i, _i + _n).clear(); _r }";
+                        case "get_length" | "length": return expr(subj) + ".size";
+                        case _:
+                    }
                 }
                 if (name == "push") {
                     return expr(subj) + ".add(" + renderedArgs + ")";
