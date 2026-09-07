@@ -2177,9 +2177,9 @@ class KotlinExpr {
                 final getterProperty = getterOnlyPropertyName(owner.get(), name);
                 if (getterProperty != null)
                     return expr(subj) + nullableAccess(subj) + KotlinNameEscape.escape(getterProperty);
-                return instanceField(subj, name);
+                return instanceField(subj, name, cf);
             case FAnon(cf):
-                return instanceField(subj, cf.get().name);
+                return instanceField(subj, cf.get().name, cf);
             case FDynamic(name):
                 if ((name == "length" || name == "get_length") && isStringBuf(subj)) {
                     return expr(subj) + ".length";
@@ -2190,7 +2190,7 @@ class KotlinExpr {
         }
     }
 
-    function instanceField(subj:TypedExpr, name:String):String {
+    function instanceField(subj:TypedExpr, name:String, cf:Null<Ref<ClassField>> = null):String {
         {
             final bound = catchPayloadAccess(subj, name);
             if (bound != null)
@@ -2205,7 +2205,16 @@ class KotlinExpr {
             final receiver = expr(subj) + nullableAccess(subj);
             return receiver + (isString(subj) ? "length" : "size");
         }
-        return expr(subj) + nullableAccess(subj) + KotlinNameEscape.escape(name);
+        // A nullable subject accessing a non-null field needs `!!. ` (not `?.`)
+        // so the result type stays non-null; Haxe's typed AST types the field
+        // read as non-null even when the receiver is Null<T>.
+        final fieldType = cf != null ? cf.get().type : null;
+        final access = if (fieldType != null && !isNullType(fieldType) && isNullType(subj.t) && !provenNonNull(subj) && !guardProofBefore(subj)) {
+            "!!.";
+        } else {
+            nullableAccess(subj);
+        };
+        return expr(subj) + access + KotlinNameEscape.escape(name);
     }
 
     function getterOnlyPropertyName(owner:ClassType, accessorName:String):Null<String> {
