@@ -1123,8 +1123,7 @@ class RustDecl {
         final init = StaticFieldHelper.validatedInitializer(field, cls);
         // @:allow members use crate visibility so allowed cross-module references compile.
         final vis = field.isPublic ? "pub " : (field.meta.has(":allow") ? "pub(crate) " : "");
-        final typeStr = types.of(field.type);
-        final name = RustImports.toScreamingSnakeCase(field.name);
+        final name = RustImports.toScreamingSnakeCase(cls.name + "_" + field.name);
         if (field.isFinal && StaticFieldHelper.isNonEmptyArrayLiteral(init)) {
             if (StaticFieldHelper.isIntLiteralArray(init)) {
                 final elementType = types.of(StaticFieldHelper.arrayElementType(field.type));
