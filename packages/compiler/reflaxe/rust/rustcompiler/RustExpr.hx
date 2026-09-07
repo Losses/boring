@@ -286,12 +286,12 @@ class RustExpr {
             targetType:Type):String {
         if (modulePath == "std.SortedSet" && methodName == "builder") {
             imports.requireType("runtime.SortedTable", "SortedTable");
-            return "SortedTable::set_builder(" + [for (a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
+            return "SortedTable::sorted_table_set_builder(" + [for (a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
         }
         imports.requireType(modulePath, className);
         return className
             + "::"
-            + RustImports.toSnakeCase(methodName)
+            + (RustImports.isShimModule(modulePath) ? RustImports.toSnakeCase(methodName) : RustImports.toSnakeCase(className + "_" + methodName))
             + "("
             + completeCoalescingCallArgs(modulePath, methodName, args, targetType).join(", ")
             + ")";
@@ -1739,14 +1739,14 @@ class RustExpr {
         return switch (RustType.classifyKey(kType, pos)) {
             case IntKey:
                 imports.require("std::rc::Rc");
-                "Rc::new(|a, b| SortedTable::compare_ints("
+                "Rc::new(|a, b| SortedTable::sorted_table_compare_ints("
                 + RustConversions.reinterpret("(*a)", "i32")
                 + ", "
                 + RustConversions.reinterpret("(*b)", "i32")
                 + "))";
             case StringKey:
                 imports.require("std::rc::Rc");
-                "Rc::new(|a, b| SortedTable::compare_strings(a.as_str(), b.as_str()))";
+                "Rc::new(|a, b| SortedTable::sorted_table_compare_strings(a.as_str(), b.as_str()))";
             case StructKey(def, _):
                 final cmpName = "compare_" + RustImports.toSnakeCase(def.name);
                 imports.requireType(def.module, cmpName);
@@ -3885,7 +3885,9 @@ class RustExpr {
     }
 
     function staticMethodName(cls:ClassType, name:String):String {
-        return RustImports.isShimModule(cls.module) ? RustImports.toSnakeCase(name) : RustImports.toSnakeCase(cls.name + "_" + name);
+        final qualifiedRuntimeClass = cls.name == "TestCore" || cls.name == "SortedTable" || cls.name == "Graphemes" || cls.name == "StringTools"
+            || cls.name == "UString";
+        return qualifiedRuntimeClass ? RustImports.toSnakeCase(cls.name + "_" + name) : RustImports.toSnakeCase(name);
     }
 
     function staticRef(cls:ClassType, name:String):String {
@@ -3899,7 +3901,7 @@ class RustExpr {
         }
         final markedField = findStaticField(cls, name);
         if (markedField != null && StaticFunctionMarkers.isMarked(markedField)) {
-            final nativeName = RustImports.toSnakeCase(name);
+            final nativeName = StaticFunctionMarkers.isTopLevel(markedField) ? RustImports.toSnakeCase(name) : RustImports.toSnakeCase(cls.name + "_" + name);
             if (markedField.isPublic) {
                 imports.requireType(cls.module, nativeName);
             }
@@ -3973,6 +3975,11 @@ class RustExpr {
                 if (cls.module == "std.UStringRT") {
                     return uStringRef(name);
                 }
+                if (RustImports.isShimModule(cls.module)) {
+                    final structName = RustImports.emittedTypeName(cls.name);
+                    imports.requireType(cls.module, structName);
+                    return structName + "::" + RustImports.toSnakeCase(name);
+                }
                 if (cls.module == "std.Graphemes") {
                     state.shimsUsed.set("std.Graphemes", true);
                     if (name == "boundaries" && !RuntimeResidents.isResident(imports.selfModule)) {
@@ -4041,7 +4048,7 @@ class RustExpr {
         state.shimsUsed.set("std.UStringRT", true);
         if (RuntimeResidents.isResident(imports.selfModule)) {
             imports.requireType("runtime.UString", "UString");
-            return "UString::" + RustImports.toSnakeCase(name);
+            return "UString::" + staticMethodName(cls, name);
         }
         imports.require("crate::runtime::u_string");
         return "u_string::" + RustImports.toSnakeCase(name);
@@ -4140,7 +4147,7 @@ class RustExpr {
             case IsNull:
                 "match " + value + " { Some(v) => v.to_string(), None => \"null\".to_string() }";
             case IsFloat:
-                inConcat ? value : "crate::runtime::test_core::TestCore::format_float(" + value + ")";
+                inConcat ? value : "crate::runtime::test_core::TestCore::test_core_format_float(" + value + ")";
             case IsInt | IsBool: inConcat ? value : "(" + value + ").to_string()";
             case IsReadOnlyArray(underlying):
                 stdStringType(underlying, value, inConcat, origin, depth);
@@ -4862,13 +4869,13 @@ class RustExpr {
                     final vType = sortedValueType(fn);
                     state.shimsUsed.set("std.SortedMap", true);
                     imports.requireType("runtime.SortedTable", "SortedTable");
-                    return "SortedTable::map_builder::<" + types.of(kType) + ", " + types.of(vType) + ">(" + sortedComparator(kType, fn.pos) + ")";
+                    return "SortedTable::sorted_table_map_builder::<" + types.of(kType) + ", " + types.of(vType) + ">(" + sortedComparator(kType, fn.pos) + ")";
                 }
                 if ((path == "std.SortedSet" || cls.module == "std.SortedSet") && name == "builder") {
                     final kType = sortedKeyType(fn);
                     state.shimsUsed.set("std.SortedSet", true);
                     imports.requireType("runtime.SortedTable", "SortedTable");
-                    return "SortedTable::set_builder::<" + types.of(kType) + ">(" + sortedComparator(kType, fn.pos) + ")";
+                    return "SortedTable::sorted_table_set_builder::<" + types.of(kType) + ">(" + sortedComparator(kType, fn.pos) + ")";
                 }
 
                 if (RustTestBinding.isTestExtern(cls)) {
@@ -4884,10 +4891,10 @@ class RustExpr {
                     };
                     if (name == "ok") {
                         final cond = expr(args[0]);
-                        return "test_core::TestCore::ok(" + cond + ", " + messageArg(1) + ")";
+                        return "test_core::TestCore::test_core_ok(" + cond + ", " + messageArg(1) + ")";
                     }
                     if (name == "fail") {
-                        return "test_core::TestCore::fail(&(" + expr(args[0]) + "))";
+                        return "test_core::TestCore::test_core_fail(&(" + expr(args[0]) + "))";
                     }
                     if (name == "run") {
                         // Only run lowers to testlib text in this branch;
@@ -4921,17 +4928,19 @@ class RustExpr {
                             final scalarKind = scalarTypeKind(expectedArg.t);
                             switch (scalarKind) {
                                 case "Bool":
-                                    return "test_core::TestCore::equals_bool(" + expr(expectedArg) + ", " + expr(actualArg) + ", " + msg + ")";
+                                    return "test_core::TestCore::test_core_equals_bool(" + expr(expectedArg) + ", " + expr(actualArg) + ", " + msg + ")";
                                 case "Int":
                                     // Business Int renders u32, usize in loop heads;
                                     // the resident takes i32, so both sides
                                     // reinterpret once (T5). Literals fold to
                                     // their signed value first.
-                                    return "test_core::TestCore::equals_int(" + castSignedI32(expectedArg) + ", " + castSignedI32(actualArg) + ", " + msg + ")";
+                                    return "test_core::TestCore::test_core_equals_int(" + castSignedI32(expectedArg) + ", " + castSignedI32(actualArg)
+                                        + ", " + msg + ")";
                                 case "Float":
-                                    return "test_core::TestCore::equals_float(" + expr(expectedArg) + ", " + expr(actualArg) + ", " + msg + ")";
+                                    return "test_core::TestCore::test_core_equals_float(" + expr(expectedArg) + ", " + expr(actualArg) + ", " + msg + ")";
                                 case "String":
-                                    return "test_core::TestCore::equals_string(&(" + expr(expectedArg) + "), &(" + expr(actualArg) + "), " + msg + ")";
+                                    return "test_core::TestCore::test_core_equals_string(&(" + expr(expectedArg) + "), &(" + expr(actualArg) + "), " + msg
+                                        + ")";
                                 case _:
                             }
                         }
