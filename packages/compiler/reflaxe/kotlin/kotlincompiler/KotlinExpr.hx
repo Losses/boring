@@ -2615,6 +2615,22 @@ class KotlinExpr {
     **/
     function selfRenderedCallText(fn:TypedExpr, args:Array<TypedExpr>):Null<String> {
         switch (fn.expr) {
+            case TField(subj, FInstance(owner, _, cf))
+                if (cf.get().name == "indexOf"
+                    && args.length == 2
+                    && isNullLiteral(args[1])
+                    && owner.get().pack.length == 0
+                    && owner.get().name == "Array"):
+                // The haxe typer passes a synthesized null for the
+                // omitted ?fromIndex; the platform indexOf takes only
+                // the element, and a null fromIndex searches from the
+                // start like the omitted call (features/08 ruling 8),
+                // so the null argument is dropped from the rendered
+                // call. Rendering the element argument here keeps
+                // localCallArgs from registering a proof for the
+                // discarded null rendering.
+                final elementArg = renderCallArgs([args[0]], paramsForCall(fn), owner.get(), cf.get().name)[0];
+                return expr(subj) + nullableAccess(subj) + "indexOf(" + elementArg + ")";
             case TField(_, FStatic(c, cf)) if (c.get().module == "haxe.io.Bytes" && cf.get().name == "alloc" && args.length == 1):
                 return "ByteArray(" + expr(args[0]) + ")";
             case TField(_, FStatic(c, cf)) if (c.get().module == "haxe.io.Bytes" && cf.get().name == "ofString" && args.length == 1):
