@@ -162,7 +162,7 @@ class RustDecl {
         }
         final staticFunctionLines:Array<String> = [];
         for (v in varFields) {
-            for (l in staticFunctionDecl(v))
+            for (l in staticFunctionDecl(cls, v))
                 staticFunctionLines.push(l);
         }
         final prefixLines = tableLines.concat(moduleStaticLines).concat(staticFunctionLines);
@@ -1017,7 +1017,7 @@ class RustDecl {
         return v.isStatic && isFunctionType(v.field.type);
     }
 
-    function staticFunctionDecl(v:ClassVarData):Array<String> {
+    function staticFunctionDecl(cls:ClassType, v:ClassVarData):Array<String> {
         if (!isStaticFunctionField(v)) {
             return [];
         }
@@ -1035,8 +1035,7 @@ class RustDecl {
         }
         // @:allow members use crate visibility so allowed cross-module references compile.
         final vis = field.isPublic ? "pub " : (field.meta.has(":allow") ? "pub(crate) " : "");
-        final name = RustImports.toScreamingSnakeCase(field.name);
-        final initializerText = expr.rawFunctionInitializer(initializer);
+        final name = RustImports.toScreamingSnakeCase(cls.name + "_" + field.name);
         return [
             vis + "static " + name + ": " + types.staticFunctionOf(field.type) + " = " + initializerText + ";"
         ];
