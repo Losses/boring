@@ -160,8 +160,11 @@ boring.NumberParsingOps
 tests.NumberParsingTests
 boring.NumberClassifyOps
 boring.MathMinMaxOps
+boring.MathNaNOps
+boring.MathNaNTestSupport
 tests.NumberClassifyTests
 tests.MathMinMaxTests
+tests.MathNaNOpsTests
 boring.InstanceDefaults
 boring.ImpWidget
 boring.ImpHost
@@ -194,6 +197,8 @@ boring.SortedDataClassKeysOps
 boring.CaptureSwitchOps
 boring.SwitchOps
 boring.MathIntWideningOps
+boring.MathNaNOps
+boring.MathNaNTestSupport
 boring.PlatformOps
 tests.ExpressionBlockTests
 tests.FontIdTests
@@ -201,6 +206,7 @@ tests.GlyphClusterTests
 tests.CaptureSwitchOpsTests
 tests.SwitchOpsTests
 tests.MathIntWideningOpsTests
+tests.MathNaNOpsTests
 tests.NoSuchElementTests
 tests.PosterShapeTests
 tests.ShapeTextTests
