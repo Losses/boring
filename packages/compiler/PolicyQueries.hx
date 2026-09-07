@@ -816,25 +816,27 @@ class PolicyQueries {
                 if (bodyStmts.length == 0) {
                     return null;
                 }
-                var increment = -1;
-                for (j in 0...bodyStmts.length)
-                    switch (ExpressionPredicates.stripWrap(bodyStmts[j]).expr) {
-                        case TVar(_, inc) if (inc != null):
-                            switch (ExpressionPredicates.stripWrap(inc).expr) {
-                                case TUnop(OpIncrement, true, {expr: TLocal(c)}) if (c.id == counter.id): increment = j;
-                                case _:
-                            }
-                        case TUnop(OpIncrement, true, {expr: TLocal(c)}) if (c.id == counter.id): increment = j;
-                        case _:
-                    }
-                if (increment < 0)
-                    return null;
-                return {
-                    index: counter,
-                    start: start,
-                    bound: bound,
-                    body: [for (j in 0...bodyStmts.length) if (j != increment) bodyStmts[j]]
-                };
+                switch (bodyStmts[0].expr) {
+                    case TVar(captured, inc):
+                        final captureOk = inc != null && switch (ExpressionPredicates.stripWrap(inc).expr) {
+                            case TUnop(OpIncrement, true, subj):
+                                switch (ExpressionPredicates.stripWrap(subj).expr) {
+                                    case TLocal(c): c.id == counter.id;
+                                    case _: false;
+                                }
+                            case _: false;
+                        } if (!captureOk) {
+                            return null;
+                        }
+                        return {
+                            index: captured,
+                            start: start,
+                            bound: bound,
+                            body: bodyStmts.slice(1)
+                        };
+                    case _:
+                        return null;
+                }
             case _:
                 return null;
         }
