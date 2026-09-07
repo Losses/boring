@@ -62,6 +62,14 @@ class DartDecl {
         return seqEqualsNeeded;
     }
 
+    /** Widen an Int const val initializer to Float when the field type is Float. */
+    function constValFloatInit(init:TypedExpr, fieldType:Type):String {
+        final text = expr.rawExpression(init);
+        if (expr.isIntOrLongType(expr.emittedType(init)) && expr.isFloatType(fieldType))
+            return expr.intToFloatText(text);
+        return text;
+    }
+
     public function topLevelStatements(e:TypedExpr):String {
         return expr.topLevelStatements(e);
     }
@@ -472,7 +480,7 @@ class DartDecl {
             if (initializer == null)
                 Context.error("value type static field must have an initializer", v.field.pos);
             lines.push("");
-            lines.push("  static final " + info.name + " " + v.field.name + " = " + expr.rawExpression(initializer) + ";");
+            lines.push("  static final " + info.name + " " + v.field.name + " = " + constValFloatInit(initializer, v.field.type) + ";");
         }
         lines.push("}");
         final result = lines.copy();
@@ -696,7 +704,7 @@ class DartDecl {
             }
             final name = claimTopLevel(dartMemberName(field), field.pos);
             return [
-                "final " + types.of(field.type) + " " + name + " = " + expr.rawExpression(initializer) + ";"
+                "final " + types.of(field.type) + " " + name + " = " + constValFloatInit(initializer, field.type) + ";"
             ];
         }
         if (v.isStatic) {
@@ -704,7 +712,7 @@ class DartDecl {
             final name = dartMemberName(field);
             final kw = field.isFinal ? "final " : "";
             final type = StaticFieldHelper.isSelfConstruction(field, cls, init) ? "" : types.of(field.type) + " ";
-            return [kw + type + name + " = " + expr.rawExpression(init) + ";"];
+            return [kw + type + name + " = " + constValFloatInit(init, field.type) + ";"];
         }
         Context.error("a statics-only class carries data tables and inline constants only", field.pos);
         return [];

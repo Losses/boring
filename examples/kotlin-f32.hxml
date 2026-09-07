@@ -105,6 +105,9 @@ tests.EnumQueriesTests
 tests.SwitchOpsTests
 tests.MathIntWideningOpsTests
 tests.MathNaNOpsTests
+tests.EnumQueriesTests
+tests.SwitchOpsTests
+tests.MathIntWideningOpsTests
 tests.EnumQueriesProbes
 boring.StdStringOps
 tests.StdStringTests
@@ -187,3 +190,5 @@ boring.PublicGetterProperty
 tests.PublicGetterPropertyTests
 boring.InterfaceGetterProperty
 tests.InterfaceGetterPropertyTests
+boring.KnullInitNarrowing
+tests.KnullInitNarrowingTests
