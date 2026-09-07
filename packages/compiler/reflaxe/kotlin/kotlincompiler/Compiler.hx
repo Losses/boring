@@ -232,8 +232,8 @@ class Compiler extends PluginCompiler<Compiler> {
 
         for (module in modules) {
             if (state.payloadEnumOwners.exists(module)) {
-                // The sealed fold already carries these variants.
-                continue;
+                // The enum declaration is folded into the sealed exception;
+                // other declarations in the same module still need writing.
             }
             if (state.outOfScopeGuaranteedStd.exists(module) && !state.shimsUsed.exists(module)) {
                 // A consumer build whose generated output never named
@@ -258,6 +258,7 @@ class Compiler extends PluginCompiler<Compiler> {
             }
         }
 
+        emitShim("std.UStringRT", "UString.kt", KotlinRuntime.USTRING_SOURCE);
         emitShim("haxe.io.FPHelper", "FPHelper.kt", KotlinRuntime.FP_HELPER_SOURCE);
         emitShim("haxe.io.BytesBuffer", "BytesBuffer.kt", KotlinRuntime.BYTES_BUFFER_SOURCE);
         emitShim("std.Console", "Console.kt", KotlinRuntime.CONSOLE_SOURCE);
