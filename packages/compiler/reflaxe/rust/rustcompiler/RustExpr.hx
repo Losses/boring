@@ -969,8 +969,10 @@ class RustExpr {
     function fuseWithin(e:TypedExpr):TypedExpr {
         return switch (e.expr) {
             case TBlock(stmts):
-                final fused = fuseUninitializedVars([for (s in stmts) fuseWithin(s)]);
-                {expr: TBlock(fused), pos: e.pos, t: e.t};
+                final nested = [for (s in stmts) fuseWithin(s)];
+                final fused = fuseUninitializedVars(nested);
+                final deadMatchFused = DeadInitializerMatchFusion.fuseDeadInitializerMatch(fused, stripCast);
+                {expr: TBlock(deadMatchFused), pos: e.pos, t: e.t};
             case _:
                 TypedExprTools.map(e, fuseWithin);
         }
