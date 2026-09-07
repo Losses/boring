@@ -76,7 +76,10 @@ class SwiftDecl {
             // names it in its conformance clause.
             final lines:Array<String> = ["public protocol " + cls.name + " {"];
             for (f in funcFields) {
-                lines.push("    func " + f.field.name + paramList(cls, f) + " -> " + types.of(f.ret));
+                // A protocol method cannot declare a default argument, so
+                // the parameter list renders bare here; the implementing
+                // class carries the default.
+                lines.push("    func " + f.field.name + paramList(cls, f, 0, false) + " -> " + types.of(f.ret));
             }
             lines.push("}");
             return lines.join("\n");
@@ -753,11 +756,17 @@ class SwiftDecl {
         carry @escaping because the resident tables store their
         comparator.
     **/
-    function paramList(cls:ClassType, f:ClassFuncData, start:Int = 0):String {
+    function paramList(cls:ClassType, f:ClassFuncData, start:Int = 0, allowDefaults:Bool = true):String {
         return "(" + [
             for (i in start...f.args.length) {
                 final a = f.args[i];
-                final coalescing = DefaultArgExpander.coalescingDefaultAt(cls, f.field.name, a.index);
+                // The registered default covers every shape: a coalescing
+                // body pattern, an explicit constant, and an optional
+                // parameter's implicit null. Swift resolves an omitted
+                // argument through the signature default, so all three
+                // render; a constant converts through coalescingOf.
+                final registered = allowDefaults ? DefaultArgExpander.defaultAt(cls, f.field.name, a.index) : null;
+                final coalescing = registered == null ? null : DefaultArgExpander.coalescingOf(registered);
                 final readsParam = coalescing != null && DefaultArgExpander.coalescingReadsParamForParam(cls, f.field.name, a.name);
                 final throwsDefault = coalescing != null && expr.coalescingDefaultThrows(coalescing);
                 final baseType = coalescing != null ? DefaultArgExpander.coalescingParameterType(coalescing, a.type) : a.type;
