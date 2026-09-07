@@ -4135,23 +4135,26 @@ class RustExpr {
     function payloadEnumString(en:EnumType, value:String, inConcat:Bool, origin:TypedExpr):String {
         final fields = [for (ef in en.constructs) ef];
         fields.sort((a, b) -> Reflect.compare(a.index, b.index));
+        imports.require("std::fmt::Write");
         final arms:Array<String> = [];
         for (ef in fields) {
             final args = switch (ef.type) {
                 case TFun(a, _): a;
                 case _: [];
             };
+            final pattern = en.name + "::" + RustImports.toUpperCamelCase(ef.name);
             if (args.length == 0)
-                arms.push(en.name + "::" + RustImports.toUpperCamelCase(ef.name) + " => \"" + ef.name + "\".to_string()");
+                arms.push(pattern + " => out.push_str(\"" + ef.name + "\")");
             else {
-                var text = "format!(\"" + ef.name + "(";
+                var formatText = ef.name + "(";
                 for (i in 0...args.length)
-                    text += (i == 0 ? "" : ", ") + args[i].name + "={}";
-                text += ")\", " + [for (a in args) stdStringType(a.t, a.name, true, origin)].join(", ") + ")";
-                arms.push(en.name + "::" + RustImports.toUpperCamelCase(ef.name) + " { " + [for (a in args) a.name].join(", ") + " } => " + text);
+                    formatText += (i == 0 ? "" : ", ") + args[i].name + "={}";
+                formatText += ")";
+                arms.push(pattern + " { " + [for (a in args) a.name].join(", ") + " } => { let _ = write!(out, \"" + formatText + "\", "
+                    + [for (a in args) stdStringType(a.t, a.name, true, origin)].join(", ") + "); }");
             }
         }
-        return "match " + value + " { " + arms.join(", ") + " }";
+        return "{ let mut out = String::new(); match " + value + " { " + arms.join(", ") + " }; out }";
     }
 
     function isParameterlessEnum(en:EnumType):Bool {
