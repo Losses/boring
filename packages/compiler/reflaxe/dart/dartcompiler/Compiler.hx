@@ -526,7 +526,7 @@ class Compiler extends PluginCompiler<Compiler> {
         }
         if (ctx.imports.usesRuntimeTest()) {
             lines.push("import '" + importSpecifier(filePath, testOutput + "/test_host.dart") + "' as test_host;");
-            if (DartTestTypes.registered.length > 0) {
+            if (ctx.imports.usesTestHelper()) {
                 lines.push("import '" + importSpecifier(filePath, testOutput + "/test_helper.dart") + "' as test_helper;");
             }
         }
