@@ -498,6 +498,34 @@ class PolicyQueries {
         }
     }
 
+    /** Returns the statement prefix, value expression, and StringBuf receiver of a block. */
+    public static function blockValueParts(e:TypedExpr):{
+        body:Array<TypedExpr>,
+        value:Null<TypedExpr>,
+        stringBufSubject:Null<TypedExpr>
+    } {
+        final stmts = statementsOf(e);
+        if (stmts.length == 0)
+            return {body: [], value: null, stringBufSubject: null};
+        final last = stmts[stmts.length - 1];
+        if (isStringBufToStringCall(last))
+            return {
+                body: stmts.slice(0, stmts.length - 1),
+                value: null,
+                stringBufSubject: stringBufToStringSubject(ExpressionPredicates.stripWrap(last))
+            };
+        final value = switch (last.expr) {
+            case TReturn(_) | TThrow(_) | TVar(_, _) | TIf(_, _, _) | TWhile(_, _, _) | TBlock(_) | TBreak | TContinue | TBinop(OpAssign, _, _)
+                | TBinop(OpAssignOp(_), _, _): null;
+            case _: last;
+        };
+        return {
+            body: value == null ? stmts : stmts.slice(0, stmts.length - 1),
+            value: value,
+            stringBufSubject: null
+        };
+    }
+
     public static function lambdaBody(e:TypedExpr):TypedExpr {
         if (e == null)
             return e;
