@@ -95,11 +95,7 @@ class SwiftDecl {
         for (f in extractedFuncs) {
             extractedParts.push(extractedFuncDecl(module, cls, f).join("\n"));
         }
-        final shouldEmitComparator = cls.meta.has(":dataClass")
-            && (SwiftType.canEmitDataClassComparator(cls)
-                || cls.name == "AutoSpacePolicy"
-                || cls.name == "AdjustmentStylePolicy"
-                || cls.name == "PunctuationWidthPolicy");
+        final shouldEmitComparator = cls.meta.has(":dataClass") && SwiftType.canEmitDataClassComparator(cls);
         if (varFields.length == 0 && ordinaryFuncs.length == 0) {
             final emptyClass = extractedParts.join("\n\n");
             return shouldEmitComparator ? emptyClass + "\n\n" + dataClassComparator(cls) : emptyClass;
@@ -276,7 +272,7 @@ class SwiftDecl {
                     lines.push("    if a." + f.name + " == nil && b." + f.name + " != nil { return -1 }");
                     lines.push("    if a." + f.name + " != nil && b." + f.name + " == nil { return 1 }");
                     lines.push("    if let av = a." + f.name + ", let bv = b." + f.name + " {");
-                    switch (rawArrayElement(params[0])) {
+                    switch (SwiftType.rawArrayElement(params[0])) {
                         case null:
                             switch (Context.follow(params[0])) {
                                 case TAbstract(ia, _) if (ia.get().name == "Int"): lines.push("        if av != bv { return av - bv }");
@@ -358,8 +354,6 @@ class SwiftDecl {
                     lines.push("    if a." + f.name + " > b." + f.name + " { return 1 }");
                 case TAbstract(a, _) if (a.get().name == "Bool"):
                     lines.push("    if a." + f.name + " != b." + f.name + " { return a." + f.name + " ? 1 : -1 }");
-                case TInst(c, _) if (c.get().name == "AutoSpacePolicy" || c.get().name == "AdjustmentStylePolicy" || c.get().name == "PunctuationWidthPolicy"):
-                    lines.push("    let cmp" + f.name + " = compare" + c.get().name + "(a." + f.name + ", b." + f.name + "); if cmp" + f.name + " != 0 { return cmp" + f.name + " }");
                 case TEnum(e, _):
                     final en = e.get();
                     lines.push("    if a." + f.name + " != b." + f.name + " { return Int32(" + cls.name + f.name + "Order(a." + f.name + ") - " + cls.name
@@ -393,20 +387,6 @@ class SwiftDecl {
 
     function findFunc(funcFields:Array<ClassFuncData>, name:String):ClassFuncData {
         return PolicyQueries.findFunc(funcFields, name, "value type member is missing: " + name);
-    }
-
-    /**
-        The element type when `t` is a raw ReadOnlyArray (checked before
-        Context.follow, which erases the abstract to Array). Nullable
-        collections need this raw check: the Null arm's followed inner
-        type is Array and would otherwise lose the array shape.
-    **/
-    function rawArrayElement(t:Type):Null<Type> {
-        return switch (t) {
-            case TAbstract(a, params) if (a.get().name == "ReadOnlyArray" && params.length == 1): params[0];
-            case TLazy(f): rawArrayElement(f());
-            case _: null;
-        };
     }
 
     /**
