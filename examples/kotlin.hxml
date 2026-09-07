@@ -220,6 +220,8 @@ boring.KnullInitNarrowing
 tests.KnullInitNarrowingTests
 boring.OptionalParamNull
 tests.OptionalParamNullTests
+boring.NumericConversionWidening
+tests.NumericConversionWideningTests
 tests.RustUnionFaultTests
 tests.PlatformModulesTestSupport
 tests.PlatformModulesTests
