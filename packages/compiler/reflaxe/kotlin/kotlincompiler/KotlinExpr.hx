@@ -480,9 +480,16 @@ class KotlinExpr {
                     case TConst(TNull): false;
                     case _: true;
                 };
+                // A non-null local whose initializer renders nullable (e.g. a
+                // field read off a nullable receiver) is inferred nullable by
+                // Kotlin; extract once at the declaration so later accesses
+                // use a plain dot. Computed before initText so the proof
+                // state still reflects the scope preceding the binding.
+                final initRendersNullable = rendersNullable(init);
+                final extractRenderedNullable = !isNullType(v.t) && !isNullType(init.t) && initRendersNullable;
                 updateLocalProof(v, init);
                 return [
-                    indent(depth) + '$kw ${localName(v)}$typeAnn = $initText' + (extractsAtDecl ? "!!" : "")
+                    indent(depth) + '$kw ${localName(v)}$typeAnn = $initText' + (extractsAtDecl || extractRenderedNullable ? "!!" : "")
                 ];
             case TVar(v, init) if (init == null):
                 // Deferred local declarations are initialized by later assignments;
@@ -953,11 +960,18 @@ class KotlinExpr {
                 final enumCollection = EnumQueryExpander.collectionEnum(subj);
                 if (enumCollection != null)
                     return Std.string(EnumQueryExpander.constructorCount(enumCollection));
-                if (isString(subj)) {
-                    return expr(subj) + ".length";
-                } else {
-                    return expr(subj) + ".size";
+                // The subject may render nullable (e.g. a field read off a
+                // nullable receiver or a nullable local); choose the suffix
+                // from the rendered nullability so safe-navigation is emitted
+                // when the value is nullable.
+                final suffix = isString(subj) ? "length" : "size";
+                if (isNullType(subj.t) && !provenNonNull(subj) && !guardProofBefore(subj)) {
+                    return expr(subj) + "?." + suffix;
                 }
+                if (nullableChainHop(subj) && !guardProofBefore(subj)) {
+                    return expr(subj) + "?." + suffix;
+                }
+                return expr(subj) + "." + suffix;
             case _:
                 return expr(bound);
         }
@@ -1043,7 +1057,17 @@ class KotlinExpr {
                 return localName(v);
             case TArray(arr, idx):
                 final mapReceiver = mapBackingReceiver(arr);
-                return mapReceiver == null ? expr(arr) + "[" + expr(idx) + "]" : expr(mapReceiver) + "[" + expr(idx) + "]";
+                // The array receiver may render nullable (e.g. a local bound
+                // from a nullable expression); emit safe array access when it
+                // is, and plain element access otherwise.
+                final receiver = mapReceiver == null ? arr : mapReceiver;
+                if (isNullType(receiver.t) && !provenNonNull(receiver) && !guardProofBefore(receiver)) {
+                    return expr(receiver) + "?." + "[" + expr(idx) + "]";
+                }
+                if (nullableChainHop(receiver) && !guardProofBefore(receiver)) {
+                    return expr(receiver) + "?." + "[" + expr(idx) + "]";
+                }
+                return expr(receiver) + "[" + expr(idx) + "]";
             case TBinop(op, l, r):
                 return binop(e, op, l, r);
             case TUnop(op, post, subj):
@@ -1221,7 +1245,17 @@ class KotlinExpr {
                 imports.requireType(en.module, en.name);
                 switch (kind) {
                     case QCollection: en.name + ".entries";
-                    case QName: expr(args[0]) + ".name";
+                    case QName:
+                        // The argument may render nullable (e.g. Type.enumConstructor
+                        // of a nullable expression); choose the separator from the
+                        // rendered nullability.
+                        final arg = args[0];
+                        final argText = expr(arg);
+                        final nullable = rendersNullable(arg)
+                            || (isNullType(arg.t) && !provenNonNull(arg) && !guardProofBefore(arg))
+                            || (nullableChainHop(arg) && !guardProofBefore(arg))
+                            || (StringTools.endsWith(argText, "}") && argText.indexOf("firstOrNull {") >= 0);
+                        argText + (nullable ? "?.name" : ".name");
                     case QLookup: en.name + ".entries.firstOrNull { it.name == " + expr(args[1]) + " }";
                 }
         }
@@ -1704,6 +1738,35 @@ class KotlinExpr {
         };
     }
 
+    /**
+        True when rendering `e` yields a Kotlin expression whose inferred type
+        is nullable even though the Haxe AST may type it non-null. This happens
+        when a sub-expression renders nullable (a nullable-typed arm of a
+        ternary, a field access on a nullable receiver, ...) and the enclosing
+        context does not widen it back to non-null.
+    **/
+    function rendersNullable(e:TypedExpr):Bool {
+        if (isNullType(e.t) && !provenNonNull(e) && !guardProofBefore(e))
+            return true;
+        if (isNullInitialized(e))
+            return true;
+        final inner = stripWrap(e);
+        // A cast/wrap may hide a nullable-typed inner expression; check the
+        // unwrapped type too.
+        if (inner != e && isNullType(inner.t) && !provenNonNull(inner) && !guardProofBefore(inner))
+            return true;
+        switch (inner.expr) {
+            case TIf(_, t, f):
+                return rendersNullable(t) || (f != null && rendersNullable(f));
+            case TField(subj, _):
+                return rendersNullable(subj);
+            case TParenthesis(pinner) | TCast(pinner, _):
+                return rendersNullable(pinner);
+            case _:
+                return false;
+        }
+    }
+
     function isNullType(t:Null<Type>):Bool {
         if (t == null)
             return false;
@@ -2093,9 +2156,9 @@ class KotlinExpr {
                 final getterProperty = getterOnlyPropertyName(owner.get(), name);
                 if (getterProperty != null)
                     return expr(subj) + nullableAccess(subj) + KotlinNameEscape.escape(getterProperty);
-                return instanceField(subj, name);
+                return instanceField(subj, name, cf);
             case FAnon(cf):
-                return instanceField(subj, cf.get().name);
+                return instanceField(subj, cf.get().name, cf);
             case FDynamic(name):
                 if ((name == "length" || name == "get_length") && isStringBuf(subj)) {
                     return expr(subj) + ".length";
@@ -2106,7 +2169,7 @@ class KotlinExpr {
         }
     }
 
-    function instanceField(subj:TypedExpr, name:String):String {
+    function instanceField(subj:TypedExpr, name:String, cf:Null<Ref<ClassField>> = null):String {
         {
             final bound = catchPayloadAccess(subj, name);
             if (bound != null)
@@ -2121,7 +2184,16 @@ class KotlinExpr {
             final receiver = expr(subj) + nullableAccess(subj);
             return receiver + (isString(subj) ? "length" : "size");
         }
-        return expr(subj) + nullableAccess(subj) + KotlinNameEscape.escape(name);
+        // A nullable subject accessing a non-null field needs `!!. ` (not `?.`)
+        // so the result type stays non-null; Haxe's typed AST types the field
+        // read as non-null even when the receiver is Null<T>.
+        final fieldType = cf != null ? cf.get().type : null;
+        final access = if (fieldType != null && !isNullType(fieldType) && isNullType(subj.t) && !provenNonNull(subj) && !guardProofBefore(subj)) {
+            "!!.";
+        } else {
+            nullableAccess(subj);
+        };
+        return expr(subj) + access + KotlinNameEscape.escape(name);
     }
 
     function getterOnlyPropertyName(owner:ClassType, accessorName:String):Null<String> {
@@ -2355,13 +2427,30 @@ class KotlinExpr {
                 inConcat ? value + ".toString()" : "(" + value + ").toString()";
             case IsReadOnlyArray(underlying):
                 stdStringType(underlying, value, inConcat, origin, depth);
-            case IsParameterlessEnum(en): value + (inConcat ? "" : ".name");
+            case IsParameterlessEnum(en):
+                // The rendered value may itself be nullable (e.g. Std.string of
+                // a field read off a nullable receiver); choose the suffix
+                // from the rendered nullability so safe-navigation is emitted
+                // when the value is nullable. An extracted value ends in "!!".
+                final suffix = if (StringTools.endsWith(value, "!!")) ".name" else nullableAccessEnumName(origin);
+                value + (inConcat ? "" : suffix);
             case IsCyclicEnum(en): cyclicEnumString(en, value, inConcat, origin);
             case IsPayloadEnum(_): inConcat ? value : value + ".toString()";
             case IsNull | IsUnsupported:
                 Context.error("Std.string accepts scalars, enum values, records, and arrays of them only", origin.pos);
                 null;
         };
+    }
+
+    /** Suffix for reading a parameterless enum value's name: ".name" when the
+        value is non-null, "?." prefixed otherwise. Mirrors nullableAccess but
+        emits the field name too. **/
+    function nullableAccessEnumName(subj:TypedExpr):String {
+        if (isNullType(subj.t) && !provenNonNull(subj) && !guardProofBefore(subj))
+            return "?.name";
+        if (nullableChainHop(subj) && !guardProofBefore(subj))
+            return "?.name";
+        return ".name";
     }
 
     function hasInstanceToString(cls:ClassType):Bool {
@@ -2533,7 +2622,14 @@ class KotlinExpr {
                     && cls.name == "StringTools"
                     && (name == "startsWith" || name == "endsWith")
                     && args.length == 2) {
-                    return nullableFirstArg(args[0]) + "." + name + "(" + expr(args[1]) + ")";
+                    // nullableFirstArg only appends "!!" for a null-typed
+                    // argument; a non-null-typed argument can still render
+                    // nullable (e.g. a field read off a nullable receiver), so
+                    // choose the separator from the argument's nullability.
+                    final firstArg = args[0];
+                    final nullable = (isNullType(firstArg.t) && !provenNonNull(firstArg) && !guardProofBefore(firstArg))
+                        || (nullableChainHop(firstArg) && !guardProofBefore(firstArg));
+                    return expr(firstArg) + (nullable ? "?." : ".") + name + "(" + expr(args[1]) + ")";
                 }
                 if (cls.pack.length == 0 && cls.name == "Lambda" && name == "has" && args.length == 2) {
                     return expr(args[0]) + ".contains(" + expr(args[1]) + ")";
@@ -2819,7 +2915,9 @@ class KotlinExpr {
                     return expr(subj) + ".add(" + renderedArgs + ")";
                 }
                 if (name == "join") {
-                    return expr(subj) + ".joinToString(" + renderedArgs + ")";
+                    // The receiver may render nullable (e.g. a Map.get result);
+                    // emit safe call when it is nullable.
+                    return expr(subj) + (rendersNullable(subj) ? "?." : ".") + "joinToString(" + renderedArgs + ")";
                 }
                 return expr(subj) + nullableAccess(subj) + name + "(" + renderedArgs + ")";
             case TField(_, FStatic(c, cf)):
