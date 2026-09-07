@@ -139,6 +139,10 @@ class RustImports {
 
     public static function toSnakeCase(s:String):String {
         final name = rawSnakeCase(s);
+        // Rust reserves `self` even from raw identifier syntax.
+        if (name == "self") {
+            return "self_";
+        }
         return RUST_KEYWORDS.exists(name) ? "r#" + name : name;
     }
 
