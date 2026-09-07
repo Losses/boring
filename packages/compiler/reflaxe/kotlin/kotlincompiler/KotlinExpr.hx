@@ -1180,6 +1180,7 @@ class KotlinExpr {
         final abs = plan.abstractType;
         if (abs == null)
             return expr(value);
+        imports.requireType(abs.module, abs.name);
         final locals = plan.locals;
         final nativeOperator = plan.nativeOperator;
         return switch (plan.kind) {
