@@ -920,10 +920,11 @@ class RustExpr {
     function exceptionVariant(cls:ClassType, payloadArg:TypedExpr):String {
         // Name the payload enum from the thrown variant itself: each exception
         // class pairs with exactly one payload enum, and the enum is emitted
-        // inside the exception class's module file.
+        // inside the exception class's module file.  A message-only exception
+        // still needs its concrete class as the Result payload type.
         final arg = stripWrap(payloadArg);
         final payloadEnum = payloadEnumRef(arg);
-        final errType = payloadEnum != null ? payloadEnum.get().name : (state.errorName != null ? state.errorName : "");
+        final errType = payloadEnum != null ? payloadEnum.get().name : (state.errorName != null ? state.errorName : cls.name);
         final enumModule = payloadEnum != null ? payloadEnum.get().module : null;
         final emittedIn = enumModule != null
             && state.payloadEnumModules.exists(enumModule) ? state.payloadEnumModules.get(enumModule) : cls.module;
