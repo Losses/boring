@@ -2307,7 +2307,7 @@ class SwiftExpr {
                         + receiverText(subj)
                         + ", "
                         + expr(args[0])
-                        + ")";
+                        + ")!";
                 }
                 return receiverText(subj) + "." + SwiftNameEscape.escape(name) + "(" + rendered + ")";
             case TField(_, FEnum(en, ef)):
