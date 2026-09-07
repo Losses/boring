@@ -2064,21 +2064,21 @@ class SwiftExpr {
                         return "pow(" + mathFloatArg(args[0]) + ", " + mathFloatArg(args[1]) + ")";
                     }
                     if (fName == "isNaN")
-                        return "(" + expr(args[0]) + ").isNaN";
+                        return "(" + mathFloatArg(args[0]) + ").isNaN";
                     if (fName == "isFinite")
-                        return "(" + expr(args[0]) + ").isFinite";
+                        return "(" + mathFloatArg(args[0]) + ").isFinite";
                     // Members with no bare-function form lower onto the
                     // stdlib method or property of the argument.
                     switch (fName) {
                         // Haxe types floor, ceil, and round as Int (Int32
                         // here), so the Double-returning stdlib methods
                         // convert at the call site.
-                        case "floor": return "Int32((" + expr(args[0]) + ").rounded(.down))";
-                        case "ceil": return "Int32((" + expr(args[0]) + ").rounded(.up))";
+                        case "floor": return "Int32((" + mathFloatArg(args[0]) + ").rounded(.down))";
+                        case "ceil": return "Int32((" + mathFloatArg(args[0]) + ").rounded(.up))";
                         case "round": return "Int32((" + expr(args[0]) + ").rounded())";
-                        case "sqrt": return "(" + expr(args[0]) + ").squareRoot()";
-                        case "isNaN": return "(" + expr(args[0]) + ").isNaN";
-                        case "isFinite": return "(" + expr(args[0]) + ").isFinite";
+                        case "sqrt": return "(" + mathFloatArg(args[0]) + ").squareRoot()";
+                        case "isNaN": return "(" + mathFloatArg(args[0]) + ").isNaN";
+                        case "isFinite": return "(" + mathFloatArg(args[0]) + ").isFinite";
                         case _:
                     }
                 }

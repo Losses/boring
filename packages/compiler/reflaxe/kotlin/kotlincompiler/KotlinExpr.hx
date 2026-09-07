@@ -2560,9 +2560,11 @@ class KotlinExpr {
                     return expr(args[0]) + ".contains(" + expr(args[1]) + ")";
                 }
                 if (cls.module == "Math" && name == "isNaN")
-                    return "(" + expr(args[0]) + ").isNaN()";
+                    return "(" + kotlinMathFloatArg(args[0]) + ").isNaN()";
                 if (cls.module == "Math" && name == "isFinite")
-                    return "(" + expr(args[0]) + ").isFinite()";
+                    return "(" + kotlinMathFloatArg(args[0]) + ").isFinite()";
+                if (cls.module == "Math" && name == "sqrt")
+                    return "kotlin.math.sqrt(" + kotlinMathFloatArg(args[0]) + ")";
                 if (cls.module == "Math" && (name == "floor" || name == "ceil" || name == "round")) {
                     // Haxe types floor, ceil, and round as Int. floor and
                     // ceil convert through kotlin.math (Float and Double
@@ -2571,7 +2573,7 @@ class KotlinExpr {
                     // kotlin.math.round sends ties toward zero.
                     if (name == "round")
                         return FloatPrecision.isF32() ? "Math.round(" + expr(args[0]) + ")" : "Math.round(" + expr(args[0]) + ").toInt()";
-                    return "(kotlin.math." + name + "(" + expr(args[0]) + ")).toInt()";
+                    return "(kotlin.math." + name + "(" + kotlinMathFloatArg(args[0]) + ")).toInt()";
                 }
                 if (cls.module == "Std" && (name == "parseFloat" || name == "parseInt") && args.length == 1) {
                     final s = expr(args[0]);
@@ -2865,10 +2867,10 @@ class KotlinExpr {
                     }
                 }
                 if (cls.pack.length == 0 && cls.name == "Math" && name == "isNaN") {
-                    return "(" + expr(args[0]) + ").isNaN()";
+                    return "(" + kotlinMathFloatArg(args[0]) + ").isNaN()";
                 }
                 if (cls.pack.length == 0 && cls.name == "Math" && name == "isFinite") {
-                    return "(" + expr(args[0]) + ").isFinite()";
+                    return "(" + kotlinMathFloatArg(args[0]) + ").isFinite()";
                 }
                 if (cls.pack.length == 0 && cls.name == "Std" && name == "int") {
                     // toInt on an Int expression is the identity; the
@@ -3321,6 +3323,12 @@ class KotlinExpr {
                 c.get().name == "String";
             case _: false;
         };
+    }
+
+    function kotlinMathFloatArg(a:TypedExpr):String {
+        if (!isIntType(a.t))
+            return expr(a);
+        return "(" + expr(a) + ")." + (FloatPrecision.isF32() ? "toFloat()" : "toDouble()");
     }
 
     function isIntType(t:Null<Type>):Bool {
