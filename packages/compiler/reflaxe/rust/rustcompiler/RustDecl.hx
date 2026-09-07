@@ -45,6 +45,14 @@ class RustDecl {
         return expr.rawExpression(e);
     }
 
+    /** Widen an Int const val initializer to Float when the field type is Float. */
+    function constValFloatInit(init:TypedExpr, fieldType:Type):String {
+        final text = expr.rawExpression(init);
+        if (expr.isIntType(expr.emittedType(init)) && expr.isFloatType(fieldType))
+            return expr.intToFloatText(text);
+        return text;
+    }
+
     public function enumOperand(t:Type, value:String, depth:Int = 0):String {
         return switch (Context.follow(t)) {
             case TInst(c, [element]) if (c.get().name == "Array"):
@@ -553,13 +561,8 @@ class RustDecl {
             if (initializer == null)
                 Context.error("value type static field must have an initializer", v.field.pos);
             lines.push("");
-            lines.push("    pub const "
-                + RustImports.toScreamingSnakeCase(v.field.name)
-                + ": "
-                + info.name
-                + " = "
-                + expr.rawExpression(initializer)
-                + ";");
+            lines.push("    pub const " + RustImports.toScreamingSnakeCase(v.field.name) + ": " + info.name + " = "
+                + constValFloatInit(initializer, v.field.type) + ";");
         }
         lines.push("}");
 
@@ -1095,7 +1098,7 @@ class RustDecl {
         }
         if (v.isStatic && StaticFieldHelper.isConstValue(field)) {
             final init = StaticFieldHelper.validatedInitializer(field, cls);
-            final valStr = expr.rawExpression(init);
+            final valStr = constValFloatInit(init, field.type);
             final typeStr = switch (field.type) {
                 case TInst(c, _) if (c.get().name == "String"): "&str";
                 case _: types.of(field.type);
