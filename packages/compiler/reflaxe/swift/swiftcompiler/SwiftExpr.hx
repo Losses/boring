@@ -214,7 +214,16 @@ class SwiftExpr {
         };
         return switch (resolved) {
             case TInst(c, _): SwiftFallibility.staticCallThrows(c.get(), methodName);
-            case TAbstract(a, _): SwiftFallibility.staticCallThrows(a.get(), methodName);
+            case TAbstract(a, _):
+                // The expander builds `CStaticCall` from class references
+                // only, so an abstract is a defensive shape: a value type's
+                // constructor ask routes through its own metadata, anything
+                // else falls to the fallibility table under the routed module.
+                final abs = a.get();
+                if (ValueTypeSupport.isMarkedAbstract(abs) && methodName == ValueTypeSupport.constructorName(abs)) {
+                    return ValueTypeSupport.constructorThrows(abs);
+                }
+                SwiftFallibility.callThrows(SwiftFallibility.routedModule(modulePath, methodName), methodName, true);
             case _: SwiftFallibility.callThrows(SwiftFallibility.routedModule(modulePath, methodName), methodName, true);
         };
     }
