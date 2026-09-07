@@ -3887,7 +3887,7 @@ class RustExpr {
     function staticRef(cls:ClassType, name:String):String {
         final staticField = findStaticField(cls, name);
         final staticName = staticField != null
-            && staticField.isFinal ? RustImports.toSnakeCase(name).toUpperCase() : RustImports.toSnakeCase(cls.name + "_" + name);
+            && staticField.isFinal ? RustImports.toScreamingSnakeCase(cls.name + "_" + name) : RustImports.toSnakeCase(cls.name + "_" + name);
         final valueType = ValueTypeSupport.markedAbstractOfClass(cls);
         if (valueType != null) {
             imports.requireType(valueType.module, valueType.name);
@@ -3983,7 +3983,7 @@ class RustExpr {
                 }
                 for (field in cls.statics.get()) {
                     if (field.name == name && field.kind.match(FVar(_, _)) && isFunctionType(field.type)) {
-                        final targetName = staticFunctionName(name);
+                        final targetName = RustImports.toScreamingSnakeCase(cls.name + "_" + name);
                         if (cls.module != imports.selfModule) {
                             imports.requireType(cls.module, targetName);
                         }
