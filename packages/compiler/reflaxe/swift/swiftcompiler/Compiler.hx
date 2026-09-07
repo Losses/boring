@@ -54,6 +54,12 @@ class Compiler extends PluginCompiler<Compiler> {
         // Swift signatures carry `throws`, so emission needs every
         // function's fallibility up front.
         haxe.macro.Context.onAfterTyping(compiler.preScan);
+        // The stdlib/08 string-buffer fault checks synthesize references to
+        // std.UStringException even when the consumer source scope omits
+        // samples/. Force the support module through typing so its
+        // declarations are available to the emitter; `keep` cannot help
+        // because it only protects an already-typed module from DCE.
+        Context.getType("std.UStringException");
         // runtime.StringTools backs the StringTools statics that have no
         // inline lowering (lpad, rpad, ltrim, rtrim, replace, ...). The
         // target rewrites those static calls into the runtime module, which
@@ -119,7 +125,8 @@ class Compiler extends PluginCompiler<Compiler> {
             parts.get(classType.module).push(result);
             return result;
         }
-        if (classType.isExtern || (!isResident && !inSourceScope(classType.pos))) {
+        if (classType.isExtern
+            || (!isResident && !SwiftImports.isGuaranteedStdModule(classType.module) && !inSourceScope(classType.pos))) {
             return null;
         }
         SealedVariantHelper.validateClass(classType);
@@ -225,7 +232,7 @@ class Compiler extends PluginCompiler<Compiler> {
 
     public function compileEnumImpl(enumType:EnumType, options:Array<EnumOptionData>):Null<String> {
         final isResident = RuntimeResidents.isResident(enumType.module);
-        if (!isResident && !inSourceScope(enumType.pos)) {
+        if (!isResident && !SwiftImports.isGuaranteedStdModule(enumType.module) && !inSourceScope(enumType.pos)) {
             return null;
         }
         SealedVariantHelper.validateEnum(enumType);
@@ -245,7 +252,7 @@ class Compiler extends PluginCompiler<Compiler> {
             // (SwiftType.ofSubstituted), so no declaration renders.
             return null;
         }
-        if (!inSourceScope(def.pos)) {
+        if (!SwiftImports.isGuaranteedStdModule(def.module) && !inSourceScope(def.pos)) {
             return null;
         }
         SealedVariantHelper.validateTypedef(def);
