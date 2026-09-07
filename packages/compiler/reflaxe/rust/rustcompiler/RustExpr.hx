@@ -2062,7 +2062,16 @@ class RustExpr {
                         return Std.string(v);
                     case TFloat(f):
                         final s = Std.string(f);
-                        final padded = s.indexOf(".") >= 0 || s.indexOf("e") >= 0 || s.indexOf("E") >= 0 ? s : s + ".0";
+                        // Rust requires float literals to have an integer part; Haxe
+                        // permits `.001` and `-.1` which the AST carries verbatim,
+                        // so prepend the missing `0` before the decimal-point guard.
+                        final withIntPart = s.length > 0
+                            && s.charAt(0) == "." ? "0" + s : (s.length > 2
+                                && s.charAt(0) == "-"
+                                && s.charAt(1) == "." ? "-0" + s.substr(1) : s);
+                        final padded = withIntPart.indexOf(".") >= 0
+                            || withIntPart.indexOf("e") >= 0
+                            || withIntPart.indexOf("E") >= 0 ? withIntPart : withIntPart + ".0";
                         // The f32 configuration marks every literal so its width never
                         // depends on the inference context (feature spec 23).
                         return FloatPrecision.isF32() ? padded + "f32" : padded;
