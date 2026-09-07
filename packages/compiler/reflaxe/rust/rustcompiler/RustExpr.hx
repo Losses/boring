@@ -3394,6 +3394,13 @@ class RustExpr {
         };
     }
 
+    function mathFloatBindingArg(a:TypedExpr):String {
+        final rendered = mathFloatArg(a);
+        if (rendered.length >= 2 && rendered.charAt(0) == "(" && rendered.charAt(rendered.length - 1) == ")")
+            return rendered.substr(1, rendered.length - 2);
+        return rendered;
+    }
+
     /** Folds an integer-constant cast to a typed literal, else renders the runtime cast. */
     function castArg(e:TypedExpr, ty:String):String {
         final folded = constantCast(e, ty);
@@ -4740,8 +4747,8 @@ class RustExpr {
                     // explicit semantic check preserves left-to-right,
                     // single evaluation of both arguments.
                     final real = FloatPrecision.isF32() ? "f32" : "f64";
-                    final a = mathFloatArg(args[0]);
-                    final b = mathFloatArg(args[1]);
+                    final a = mathFloatBindingArg(args[0]);
+                    final b = mathFloatBindingArg(args[1]);
                     final zeroResult = name == "min"
                         ? "if a.is_sign_negative() { a } else { b }"
                         : "if a.is_sign_negative() { b } else { a }";
