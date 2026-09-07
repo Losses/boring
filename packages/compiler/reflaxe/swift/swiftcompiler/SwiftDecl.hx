@@ -759,16 +759,21 @@ class SwiftDecl {
                 final a = f.args[i];
                 final coalescing = DefaultArgExpander.coalescingDefaultAt(cls, f.field.name, a.index);
                 final readsParam = coalescing != null && DefaultArgExpander.coalescingReadsParamForParam(cls, f.field.name, a.name);
+                final throwsDefault = coalescing != null && expr.coalescingDefaultThrows(coalescing);
                 final baseType = coalescing != null ? DefaultArgExpander.coalescingParameterType(coalescing, a.type) : a.type;
-                // When the default reads an earlier parameter, Swift needs
-                // an Optional type so the default value can be nil.
-                final parameterType = readsParam ? makeOptional(baseType) : baseType;
+                // When the default reads an earlier parameter or can throw,
+                // Swift cannot carry the expression in the signature: a
+                // default argument expression cannot reference other
+                // parameters and cannot throw. The parameter takes an
+                // Optional type with a nil default and the body normalizes
+                // it (coalescingBodyNormalizationLines).
+                final parameterType = (readsParam || throwsDefault) ? makeOptional(baseType) : baseType;
                 final escaping = switch (Context.follow(a.type)) {
                     case TFun(_, _): "@escaping ";
                     case _: "";
                 };
                 final defaultText = if (coalescing != null) {
-                    if (readsParam)
+                    if (readsParam || throwsDefault)
                         " = nil"
                     else
                         " = " + expr.coalescingDefaultText(coalescing, a.type);
@@ -815,11 +820,13 @@ class SwiftDecl {
     }
 
     /**
-        Body normalization lines for coalescing defaults that read
-        earlier parameters. Swift cannot use a default argument
-        expression that references other parameters, so the parameter
-        takes `T? = nil` in the signature and the body assigns
-        `p = p ?? E;` at entry.
+        Body normalization lines for coalescing defaults that Swift cannot
+        carry in the signature: a default that reads an earlier parameter
+        takes `T? = nil` and the body assigns `p = p ?? E;` at entry; a
+        default that can throw renders as an explicit conditional instead,
+        because the right side of `??` is a non-throwing autoclosure. The
+        condition proves the parameter non-nil in the false branch, which
+        makes the force unwrap safe.
     **/
     function coalescingBodyNormalizationLines(cls:ClassType, f:ClassFuncData):Array<String> {
         final out:Array<String> = [];
@@ -827,6 +834,12 @@ class SwiftDecl {
             final coalescing = DefaultArgExpander.coalescingDefaultAt(cls, f.field.name, a.index);
             if (coalescing == null)
                 continue;
+            if (expr.coalescingDefaultThrows(coalescing)) {
+                out.push("        " + (expr.parameterIsMutated(a.name) ? "var" : "let") + " " + SwiftNameEscape.escape(a.name) + " = ("
+                    + SwiftNameEscape.escape(a.name) + " == nil ? try " + expr.coalescingDefaultText(coalescing, a.type) + " : "
+                    + SwiftNameEscape.escape(a.name) + "!);");
+                continue;
+            }
             if (!DefaultArgExpander.coalescingReadsParamForParam(cls, f.field.name, a.name))
                 continue;
             final defaultText = expr.coalescingDefaultText(coalescing, a.type);
