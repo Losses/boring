@@ -2892,7 +2892,7 @@ class RustExpr {
         }
         out.push("    " + valueText);
         out.push("}");
-        return out;
+        return [out.join("\n")];
     }
 
     function isStringType(t:Type):Bool {
@@ -3181,6 +3181,23 @@ class RustExpr {
             case OpSub:
                 return operand(l, op, false) + " - " + operand(r, op, true);
             case OpLt | OpLte | OpGt | OpGte:
+                // Haxe permits chained comparisons. Evaluate each operand once
+                // before combining the adjacent predicates; this also avoids
+                // Rust's chained-comparison parse error.
+                final chain = switch (stripWrap(l).expr) {
+                    case TBinop(inner, a, b) if (inner == OpLt || inner == OpLte || inner == OpGt || inner == OpGte): {a: a, b: b};
+                    case _: null;
+                };
+                if (chain != null) {
+                    final leftName = freshRegionName("__cmp_left");
+                    final middleName = freshRegionName("__cmp_middle");
+                    final rightName = freshRegionName("__cmp_right");
+                    return "{ let " + leftName + " = " + expr(chain.a) + "; let " + middleName + " = " + expr(chain.b) + "; let " + rightName + " = "
+                        + expr(r) + "; (" + leftName + " " + symbolOf(switch (stripWrap(l).expr) {
+                            case TBinop(inner, _, _): inner;
+                            case _: OpLt;
+                        }) + " " + middleName + ") && (" + middleName + " " + symbolOf(op) + " " + rightName + ") }";
+                }
                 // Rust std implements PartialOrd only between equal string
                 // types: String compares with &str through PartialEq but
                 // not PartialOrd, so an ordered string comparison moves
@@ -3752,7 +3769,7 @@ class RustExpr {
     }
 
     function staticItemPath(cls:ClassType, name:String):String {
-        final itemName = RustImports.toScreamingSnakeCase(name);
+        final itemName = RustImports.toScreamingSnakeCase(cls.name + "_" + name);
         return cls.module == imports.selfModule ? itemName : "crate::" + RustImports.moduleToRustPath(cls.module) + "::" + itemName;
     }
 
@@ -3854,7 +3871,7 @@ class RustExpr {
     function staticRef(cls:ClassType, name:String):String {
         final staticField = findStaticField(cls, name);
         final staticName = staticField != null
-            && staticField.isFinal ? RustImports.toSnakeCase(name).toUpperCase() : RustImports.toSnakeCase(name);
+            && staticField.isFinal ? RustImports.toSnakeCase(name).toUpperCase() : RustImports.toSnakeCase(cls.name + "_" + name);
         final valueType = ValueTypeSupport.markedAbstractOfClass(cls);
         if (valueType != null) {
             imports.requireType(valueType.module, valueType.name);
@@ -4135,23 +4152,31 @@ class RustExpr {
     function payloadEnumString(en:EnumType, value:String, inConcat:Bool, origin:TypedExpr):String {
         final fields = [for (ef in en.constructs) ef];
         fields.sort((a, b) -> Reflect.compare(a.index, b.index));
+        imports.require("std::fmt::Write");
         final arms:Array<String> = [];
         for (ef in fields) {
             final args = switch (ef.type) {
                 case TFun(a, _): a;
                 case _: [];
             };
+            final pattern = en.name + "::" + RustImports.toUpperCamelCase(ef.name);
             if (args.length == 0)
-                arms.push(en.name + "::" + RustImports.toUpperCamelCase(ef.name) + " => \"" + ef.name + "\".to_string()");
+                arms.push(pattern + " => out.push_str(\"" + ef.name + "\")");
             else {
-                var text = "format!(\"" + ef.name + "(";
+                var formatText = ef.name + "(";
                 for (i in 0...args.length)
-                    text += (i == 0 ? "" : ", ") + args[i].name + "={}";
-                text += ")\", " + [for (a in args) stdStringType(a.t, a.name, true, origin)].join(", ") + ")";
-                arms.push(en.name + "::" + RustImports.toUpperCamelCase(ef.name) + " { " + [for (a in args) a.name].join(", ") + " } => " + text);
+                    formatText += (i == 0 ? "" : ", ") + args[i].name + "={}";
+                formatText += ")";
+                arms.push(pattern
+                    + " { "
+                    + [for (a in args) a.name].join(", ")
+                        + " } => { let _ = write!(out, \""
+                        + formatText
+                        + "\", "
+                        + [for (a in args) stdStringType(a.t, a.name, true, origin)].join(", ") + "); }");
             }
         }
-        return "match " + value + " { " + arms.join(", ") + " }";
+        return "{ let mut out = String::new(); match " + value + " { " + arms.join(", ") + " }; out }";
     }
 
     function isParameterlessEnum(en:EnumType):Bool {
