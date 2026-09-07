@@ -87,8 +87,15 @@ class SwiftExpr {
     **/
     final optionalInferred:Map<Int, Bool> = [];
 
+    /** Locals initialized from a character code call whose result is known non-optional. */
+    final nonOptionalInferred:Map<Int, Bool> = [];
+
+    /** Rendered constructor arguments available to defaults that read parameters. */
+    var constructorParameterValues:Null<Map<String, String>> = null;
+
     final coalescingLocals:Map<Int, Bool> = [];
     var currentFuncReturnsOptional:Bool = false;
+    var currentFuncReturnsFloat:Bool = false;
 
     /** Names used by parameters and locals; generated names avoid them. */
     final usedNames:Map<String, Bool> = [];
@@ -150,7 +157,12 @@ class SwiftExpr {
         return expr(e);
     }
 
-    function coalescingSiteFor(e:TypedExpr):Null<{parameter:String, defaultExpr:TypedExpr, valueExpr:TypedExpr}> {
+    function coalescingSiteFor(e:TypedExpr):Null<{
+        parameter:String,
+        defaultExpr:TypedExpr,
+        valueExpr:TypedExpr,
+        value:DefaultArgExpander.CoalescingDefaultValue
+    }> {
         if (currentClass == null || currentField == null)
             return null;
         final site = DefaultArgExpander.coalescingSite(e);
@@ -159,7 +171,88 @@ class SwiftExpr {
         if (site == null || value == null) {
             return null;
         }
-        return site;
+        return {
+            parameter: site.parameter,
+            defaultExpr: site.defaultExpr,
+            valueExpr: site.valueExpr,
+            value: value
+        };
+    }
+
+    /**
+        Whether a sanctioned default needs the `try` marker anywhere, so it
+        cannot render in Swift's default-argument position (a default
+        argument expression cannot throw) nor on the right side of `??`
+        (that autoclosure cannot throw). The signature side and the body
+        side both read this one predicate over the value shape, so the
+        routing special cases cannot make them disagree. Static calls and
+        constructors route through the fallibility table the way call
+        sites do; an instance-method default carries no receiver class in
+        the value shape, so only its nested values are examined.
+    **/
+    public function coalescingDefaultThrows(value:DefaultArgExpander.CoalescingDefaultValue):Bool {
+        return switch (value) {
+            case CStaticCall(modulePath, className, methodName, args): coalescingStaticTargetThrows(modulePath, className,
+                    methodName) || coalescingArgsThrow(args);
+            case CConstructorCall(modulePath, _, args): SwiftFallibility.isThrowing(modulePath, "new", false) || coalescingArgsThrow(args);
+            case CMethodCall(receiver, _, args): coalescingDefaultThrows(receiver) || coalescingArgsThrow(args);
+            case CFieldAccess(receiver, _): coalescingDefaultThrows(receiver);
+            case CConditional(c, t, f): coalescingDefaultThrows(c) || coalescingDefaultThrows(t) || coalescingDefaultThrows(f);
+            case CBinaryOp(_, left, right): coalescingDefaultThrows(left) || coalescingDefaultThrows(right);
+            case _: false;
+        };
+    }
+
+    /**
+        Resolves the class a sanctioned static call names and asks the
+        same routing the call-site arm uses, so a default and its call
+        twin can never disagree on the `try` marker. The expander only
+        builds `CStaticCall` from a resolved class reference, so the
+        reconstructed path resolves; the fallback covers an unresolved
+        path without failing the build.
+    **/
+    function coalescingStaticTargetThrows(modulePath:String, className:String, methodName:String):Bool {
+        final resolved = try {
+            Context.getType(modulePath + "." + className);
+        } catch (_:Dynamic) {
+            null;
+        };
+        return switch (resolved) {
+            case TInst(c, _): SwiftFallibility.staticCallThrows(c.get(), methodName);
+            case TAbstract(a, _):
+                // The expander builds `CStaticCall` from class references
+                // only, so an abstract is a defensive shape: a value type's
+                // constructor ask routes through its own metadata, anything
+                // else falls to the fallibility table under the routed module.
+                final abs = a.get();
+                if (ValueTypeSupport.isMarkedAbstract(abs) && methodName == ValueTypeSupport.constructorName(abs)) {
+                    return ValueTypeSupport.constructorThrows(abs);
+                }
+                SwiftFallibility.callThrows(SwiftFallibility.routedModule(modulePath, methodName), methodName, true);
+            case _: SwiftFallibility.callThrows(SwiftFallibility.routedModule(modulePath, methodName), methodName, true);
+        };
+    }
+
+    /**
+        The body-side conditional for a throwing sanctioned default. The
+        `??` operator takes a non-throwing autoclosure on its right, so a
+        default that can throw renders as an explicit conditional; the
+        condition proves the local arm non-nil in the false branch, which
+        makes the force unwrap safe. The inner `try` covers the default
+        expression itself; a `try` marker the statement pipeline adds over
+        the same call is legal and stays.
+    **/
+    function throwingCoalescingText(value:DefaultArgExpander.CoalescingDefaultValue, valueText:String, targetType:Type):String {
+        return "(" + valueText + " == nil ? try " + coalescingDefaultText(value, targetType) + " : " + valueText + "!)";
+    }
+
+    function coalescingArgsThrow(args:Array<DefaultArgExpander.CoalescingDefaultValue>):Bool {
+        for (a in args) {
+            if (coalescingDefaultThrows(a)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Renders a sanctioned default in Swift's native parameter context. */
@@ -175,10 +268,10 @@ class SwiftExpr {
             case CPositiveInfinity: FloatPrecision.isF32() ? "Float.infinity" : "Double.infinity";
             case CNegativeInfinity: FloatPrecision.isF32() ? "-Float.infinity" : "-Double.infinity";
             case CEnum(enumRef, enumField): types.of(Type.TEnum(enumRef, [])) + "." + SwiftDecl.lowerFirst(enumField.name);
-            case CParameterRead(name): name;
+            case CParameterRead(name): constructorParameterValues != null && constructorParameterValues.exists(name) ? constructorParameterValues.get(name) : name;
             case CInstanceFieldRead(name): "self." + SwiftNameEscape.escape(name);
             case CLocalRead(name): name;
-            case CFieldAccess(CParameterRead(staticPath), ""): coalescingStaticFieldText(staticPath);
+            case CFieldAccess(CParameterRead(staticPath), ""): constructorParameterValues != null && constructorParameterValues.exists(staticPath) ? constructorParameterValues.get(staticPath) : coalescingStaticFieldText(staticPath);
             case CFieldAccess(receiver, fieldName): fieldName == "length" ? "Int32("
                 + coalescingDefaultText(receiver, targetType)
                 + ".count)" : coalescingDefaultText(receiver, targetType)
@@ -310,6 +403,10 @@ class SwiftExpr {
             case TFun(_, ret): isNullLeafType(ret);
             case _: false;
         };
+        currentFuncReturnsFloat = switch (f.field.type) {
+            case TFun(_, ret): isFloatLeafType(ret);
+            case _: false;
+        };
         // Depth 2: one level under the member's own indentation.
         scanLocals(f.expr);
         final result = blockLines(statementsOf(f.expr), depth);
@@ -350,6 +447,10 @@ class SwiftExpr {
         currentLocalName = null;
         currentFuncReturnsOptional = switch (f.field.type) {
             case TFun(_, ret): isNullLeafType(ret);
+            case _: false;
+        };
+        currentFuncReturnsFloat = switch (f.field.type) {
+            case TFun(_, ret): isFloatLeafType(ret);
             case _: false;
         };
         scanLocals(f.expr);
@@ -460,7 +561,11 @@ class SwiftExpr {
                     || (FloatPrecision.isF32() && isFloatLeafType(v.t)) ? ": " + types.of(localType) : "";
                 var initText = switch (init.expr) {
                     case TFunction(fn): functionLiteralNamed(v.name, fn);
-                    default: expr(init);
+                    default: {
+                            final rendered = expr(init);
+                            optionalValued(init)
+                        && !isNullLeafType(v.t) ? rendered + "!" : rendered;
+                        }
                 };
                 if (isIntType(emittedType(init)) && isFloatLeafType(v.t))
                     initText = intToFloatText(initText);
@@ -1041,8 +1146,12 @@ class SwiftExpr {
                 if (coalescing != null) {
                     if (currentLocalName != null && currentClass != null && currentField != null) {
                         final value = DefaultArgExpander.coalescingDefaultForLocalParam(currentClass, currentField, currentLocalName, coalescing.parameter);
-                        if (value != null)
+                        if (value != null) {
+                            if (coalescingDefaultThrows(value)) {
+                                return throwingCoalescingText(value, expr(coalescing.valueExpr), coalescing.valueExpr.t);
+                            }
                             return expr(coalescing.valueExpr) + " ?? " + coalescingDefaultText(value, coalescing.valueExpr.t);
+                        }
                     }
                     return expr(coalescing.valueExpr);
                 }
@@ -1346,17 +1455,33 @@ class SwiftExpr {
     }
 
     function returnValue(ret:TypedExpr):String {
+        // Haxe Float is represented by Swift's Double, regardless of expression shape.
+        if (currentFuncReturnsFloat && !isFloatTyped(ret))
+            return realType() + "(" + expr(ret) + ")";
         return switch (stripWrap(ret).expr) {
             case TConst(TNull): expr(ret);
             case TCall(_, _) if (isNullLeafType(ret.t)): expr(ret);
-            case TLocal(v) if (isNullLeafType(v.t) && !coalescingLocals.exists(v.id)):
-                currentFuncReturnsOptional ? expr(ret) : expr(ret) + "!";
+            case TLocal(v) if (isNullLeafType(v.t) && !coalescingLocals.exists(v.id)): currentFuncReturnsOptional || optionalInferred.exists(v.id) || nonOptionalInferred.exists(v.id) ? expr(ret) : (StringTools.endsWith(expr(ret),
+                    "!") ? expr(ret) : expr(ret)
+                    + "!");
+            case TLocal(_):
+                switch (Context.follow(ret.t)) {
+                    case TAbstract(a, _) if (a.get().name == "Float"): "Double(" + expr(ret) + ")";
+                    case _: currentFuncReturnsOptional ? expr(ret) : (optionalValued(ret) ? expr(ret) + "!" : expr(ret));
+                }
             case _:
                 currentFuncReturnsOptional ? expr(ret) : (optionalValued(ret) ? expr(ret) + "!" : expr(ret));
         };
     }
 
     function isStringCharCodeAt(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TCall(fn, _) if (isStringCharCodeAtFunction(fn)): true;
+            case _: false;
+        };
+    }
+
+    function isNonOptionalStringCharCodeAt(e:TypedExpr):Bool {
         return switch (stripWrap(e).expr) {
             case TCall(fn, _) if (isStringCharCodeAtFunction(fn)): true;
             case _: false;
@@ -1373,7 +1498,7 @@ class SwiftExpr {
     function optionalOperand(e:TypedExpr, parent:Binop, isRight:Bool):String {
         final rendered = switch (stripWrap(e).expr) {
             case TConst(TNull): expr(e);
-            case _: optionalValued(e) || (isStringCharCodeAt(e) && !types.resident) ? "(" + expr(e) + ")!" : expr(e);
+            case _: optionalValued(e) ? "(" + expr(e) + ")!" : expr(e);
         };
         return switch (stripWrap(e).expr) {
             case TBinop(op, _, _):
@@ -1788,7 +1913,7 @@ class SwiftExpr {
             })
             return true;
         return switch (stripWrap(e).expr) {
-            case TLocal(v): optionalInferred.exists(v.id);
+            case TLocal(v): optionalInferred.exists(v.id) && !nonOptionalInferred.exists(v.id);
             case _: false;
         };
     }
@@ -2193,7 +2318,7 @@ class SwiftExpr {
                 final name = cf.get().name;
                 final getterProperty = getterOnlyPropertyName(owner.get(), name);
                 if (getterProperty != null && args.length == 0)
-                    return expr(subj) + "." + SwiftNameEscape.escape(getterProperty);
+                    return receiverText(subj) + "." + SwiftNameEscape.escape(getterProperty);
                 if (isStringSubject(subj)) {
                     if (name == "toLowerCase")
                         return expr(subj) + ".lowercased()";
@@ -2325,11 +2450,16 @@ class SwiftExpr {
                     return "String(" + s + "[" + s + ".index(" + s + ".startIndex, offsetBy: Int(" + expr(args[0]) + "))])";
                 }
                 if (name == "charCodeAt" && isStringSubject(subj)) {
-                    return types.resident ? "Int32(" + receiverText(subj) + "[Int(" + expr(args[0]) + ")])" : "unitAtOptional("
+                    final code = types.resident ? "Int32(" + receiverText(subj) + "[Int(" + expr(args[0]) + ")])" : "unitAtOptional("
                         + receiverText(subj)
                         + ", "
                         + expr(args[0])
                         + ")";
+                    final optional = switch (Context.follow(fn.t)) {
+                        case TFun(_, ret): isNullLeafType(ret);
+                        case _: false;
+                    };
+                    return types.resident ? code : (optional ? code : code + "!");
                 }
                 return receiverText(subj) + "." + SwiftNameEscape.escape(name) + "(" + rendered + ")";
             case TField(_, FEnum(en, ef)):
@@ -2719,14 +2849,26 @@ class SwiftExpr {
             case TFun(v, _): [for (x in v) x.t];
             case _: [];
         };
-        return [for (i in 0...args.length) {
+        final names = cls.constructor == null ? [] : switch (Context.follow(cls.constructor.get().type)) {
+            case TFun(v, _): [for (x in v) x.name];
+            case _: [];
+        };
+        final prior = constructorParameterValues;
+        constructorParameterValues = [];
+        final rendered:Array<String> = [];
+        for (i in 0...args.length) {
             final p = i < ps.length ? ps[i] : null;
             final d = DefaultArgExpander.defaultAt(cls, "new", i);
-            d != null
-            && p != null && isNullLiteral(args[i]) ? defaultArgText(d, p) : d != null && p != null && isNullLeafType(args[i].t) ? "(" + expr(args[i]) + " ?? " + defaultArgText(d,
-                p) + ")" : expr(args[i]);
+            final text = d != null
+                && p != null
+                && isNullLiteral(args[i]) ? defaultArgText(d, p) : d != null && p != null && isNullLeafType(args[i].t) ? "(" + expr(args[i]) + " ?? " + defaultArgText(d,
+                    p) + ")" : expr(args[i]);
+            rendered.push(text);
+            if (i < names.length)
+                constructorParameterValues.set(names[i], text);
         }
-        ];
+        constructorParameterValues = prior;
+        return rendered;
     }
 
     function isNullLiteral(e:TypedExpr):Bool
@@ -3730,7 +3872,9 @@ class SwiftExpr {
         switch (e.expr) {
             case TVar(v, init):
                 PolicyQueries.noteDeclaredLocalName(v, usedNames, false);
-                if (init != null && isNullLeafType(init.t) && coalescingSiteFor(init) == null) {
+                if (init != null && isNonOptionalStringCharCodeAt(init)) {
+                    nonOptionalInferred.set(v.id, true);
+                } else if (init != null && isNullLeafType(init.t) && coalescingSiteFor(init) == null) {
                     optionalInferred.set(v.id, true);
                 }
                 PolicyQueries.noteFpInt64Init(v, init, fpInt64Halves);

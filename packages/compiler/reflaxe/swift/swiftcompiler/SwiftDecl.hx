@@ -84,7 +84,10 @@ class SwiftDecl {
             // names it in its conformance clause.
             final lines:Array<String> = ["public protocol " + cls.name + " {"];
             for (f in funcFields) {
-                lines.push("    func " + f.field.name + paramList(cls, f) + " -> " + types.of(f.ret));
+                // A protocol method cannot declare a default argument, so
+                // the parameter list renders bare here; the implementing
+                // class carries the default.
+                lines.push("    func " + f.field.name + paramList(cls, f, 0, false) + " -> " + types.of(f.ret));
             }
             lines.push("}");
             return lines.join("\n");
@@ -103,8 +106,10 @@ class SwiftDecl {
         for (f in extractedFuncs) {
             extractedParts.push(extractedFuncDecl(module, cls, f).join("\n"));
         }
+        final shouldEmitComparator = cls.meta.has(":dataClass") && SwiftType.canEmitDataClassComparator(cls);
         if (varFields.length == 0 && ordinaryFuncs.length == 0) {
-            return extractedParts.join("\n\n");
+            final emptyClass = extractedParts.join("\n\n");
+            return shouldEmitComparator ? emptyClass + "\n\n" + dataClassComparator(cls) : emptyClass;
         }
 
         final staticsOnly = isStaticsOnly(varFields, ordinaryFuncs);
@@ -175,8 +180,7 @@ class SwiftDecl {
         lines.push("}");
         final classPart = lines.join("\n");
         final result = extractedParts.length > 0 ? extractedParts.join("\n\n") + "\n\n" + classPart : classPart;
-        return cls.meta.has(":dataClass")
-            && SwiftType.canEmitDataClassComparator(cls) ? result + "\n\n" + dataClassComparator(cls) : result;
+        return shouldEmitComparator ? result + "\n\n" + dataClassComparator(cls) : result;
     }
 
     /** Emits a marked abstract as a value-semantic Swift struct. */
@@ -211,6 +215,22 @@ class SwiftDecl {
                 continue;
             final op = ValueTypeSupport.operatorOf(abs, f.field);
             final isOperator = op != null;
+            if (!isOperator && SwiftNameEscape.escape(f.field.name) == fieldName) {
+                // Swift cannot declare a method and a stored property with
+                // the same base name. An inline method carrying the stored
+                // field's name is the underlying-value accessor: Haxe
+                // expands every call in place, so no generated reference
+                // names it and the declaration is dropped. A non-inline
+                // collision would have generated callers, so it is
+                // rejected up front.
+                if (f.field.kind.match(FMethod(MethInline))) {
+                    continue;
+                }
+                Context.error("value type method "
+                    + f.field.name
+                    + " collides with the stored property name; make the method inline or rename the constructor parameter",
+                    f.field.pos);
+            }
             final receiver = ValueTypeSupport.hasReceiver(f.field);
             final start = isOperator ? 0 : (receiver ? 1 : 0);
             final name = isOperator ? swiftOperatorName(op) : f.field.name;
@@ -279,10 +299,18 @@ class SwiftDecl {
                     lines.push("    if a." + f.name + " == nil && b." + f.name + " != nil { return -1 }");
                     lines.push("    if a." + f.name + " != nil && b." + f.name + " == nil { return 1 }");
                     lines.push("    if let av = a." + f.name + ", let bv = b." + f.name + " {");
-                    switch (rawArrayElement(params[0])) {
+                    switch (SwiftType.rawArrayElement(params[0])) {
                         case null:
                             switch (Context.follow(params[0])) {
                                 case TAbstract(ia, _) if (ia.get().name == "Int"): lines.push("        if av != bv { return av - bv }");
+                                case TAbstract(ia, _) if (ia.get().name == "Float"):
+                                    lines.push("        if av < bv { return -1 }");
+                                    lines.push("        if av > bv { return 1 }");
+                                case TAbstract(ia, _) if (ia.get().name == "Bool"): lines.push("        if av != bv { return av ? 1 : -1 }");
+                                case TInst(sc,
+                                    _) if (sc.get()
+                                        .meta.has(":dataClass")): lines.push("        let cmp" + f.name + " = compare" + sc.get().name + "(av, bv); if cmp"
+                                        + f.name + " != 0 { return cmp" + f.name + " }");
                                 case TInst(sc,
                                     _) if (sc.get()
                                         .name == "String"): lines.push("        let cmp" + f.name + " = compareUnitOrder(av, bv); if cmp" + f.name
@@ -356,6 +384,11 @@ class SwiftDecl {
             switch (Context.follow(f.type)) {
                 case TAbstract(a, _) if (a.get().name == "Int"):
                     lines.push("    if a." + f.name + " != b." + f.name + " { return a." + f.name + " - b." + f.name + " }");
+                case TAbstract(a, _) if (a.get().name == "Float"):
+                    lines.push("    if a." + f.name + " < b." + f.name + " { return -1 }");
+                    lines.push("    if a." + f.name + " > b." + f.name + " { return 1 }");
+                case TAbstract(a, _) if (a.get().name == "Bool"):
+                    lines.push("    if a." + f.name + " != b." + f.name + " { return a." + f.name + " ? 1 : -1 }");
                 case TEnum(e, _):
                     final en = e.get();
                     lines.push("    if a." + f.name + " != b." + f.name + " { return Int32(" + cls.name + f.name + "Order(a." + f.name + ") - " + cls.name
@@ -389,20 +422,6 @@ class SwiftDecl {
 
     function findFunc(funcFields:Array<ClassFuncData>, name:String):ClassFuncData {
         return PolicyQueries.findFunc(funcFields, name, "value type member is missing: " + name);
-    }
-
-    /**
-        The element type when `t` is a raw ReadOnlyArray (checked before
-        Context.follow, which erases the abstract to Array). Nullable
-        collections need this raw check: the Null arm's followed inner
-        type is Array and would otherwise lose the array shape.
-    **/
-    function rawArrayElement(t:Type):Null<Type> {
-        return switch (t) {
-            case TAbstract(a, params) if (a.get().name == "ReadOnlyArray" && params.length == 1): params[0];
-            case TLazy(f): rawArrayElement(f());
-            case _: null;
-        };
     }
 
     /**
@@ -745,22 +764,33 @@ class SwiftDecl {
         carry @escaping because the resident tables store their
         comparator.
     **/
-    function paramList(cls:ClassType, f:ClassFuncData, start:Int = 0):String {
+    function paramList(cls:ClassType, f:ClassFuncData, start:Int = 0, allowDefaults:Bool = true):String {
         return "(" + [
             for (i in start...f.args.length) {
                 final a = f.args[i];
-                final coalescing = DefaultArgExpander.coalescingDefaultAt(cls, f.field.name, a.index);
+                // The registered default covers every shape: a coalescing
+                // body pattern, an explicit constant, and an optional
+                // parameter's implicit null. Swift resolves an omitted
+                // argument through the signature default, so all three
+                // render; a constant converts through coalescingOf.
+                final registered = allowDefaults ? DefaultArgExpander.defaultAt(cls, f.field.name, a.index) : null;
+                final coalescing = registered == null ? null : DefaultArgExpander.coalescingOf(registered);
                 final readsParam = coalescing != null && DefaultArgExpander.coalescingReadsParamForParam(cls, f.field.name, a.name);
+                final throwsDefault = coalescing != null && expr.coalescingDefaultThrows(coalescing);
                 final baseType = coalescing != null ? DefaultArgExpander.coalescingParameterType(coalescing, a.type) : a.type;
-                // When the default reads an earlier parameter, Swift needs
-                // an Optional type so the default value can be nil.
-                final parameterType = readsParam ? makeOptional(baseType) : baseType;
+                // When the default reads an earlier parameter or can throw,
+                // Swift cannot carry the expression in the signature: a
+                // default argument expression cannot reference other
+                // parameters and cannot throw. The parameter takes an
+                // Optional type with a nil default and the body normalizes
+                // it (coalescingBodyNormalizationLines).
+                final parameterType = (readsParam || throwsDefault) ? makeOptional(baseType) : baseType;
                 final escaping = switch (Context.follow(a.type)) {
                     case TFun(_, _): "@escaping ";
                     case _: "";
                 };
                 final defaultText = if (coalescing != null) {
-                    if (readsParam)
+                    if (readsParam || throwsDefault)
                         " = nil"
                     else
                         " = " + expr.coalescingDefaultText(coalescing, a.type);
@@ -807,11 +837,13 @@ class SwiftDecl {
     }
 
     /**
-        Body normalization lines for coalescing defaults that read
-        earlier parameters. Swift cannot use a default argument
-        expression that references other parameters, so the parameter
-        takes `T? = nil` in the signature and the body assigns
-        `p = p ?? E;` at entry.
+        Body normalization lines for coalescing defaults that Swift cannot
+        carry in the signature: a default that reads an earlier parameter
+        takes `T? = nil` and the body assigns `p = p ?? E;` at entry; a
+        default that can throw renders as an explicit conditional instead,
+        because the right side of `??` is a non-throwing autoclosure. The
+        condition proves the parameter non-nil in the false branch, which
+        makes the force unwrap safe.
     **/
     function coalescingBodyNormalizationLines(cls:ClassType, f:ClassFuncData):Array<String> {
         final out:Array<String> = [];
@@ -819,6 +851,12 @@ class SwiftDecl {
             final coalescing = DefaultArgExpander.coalescingDefaultAt(cls, f.field.name, a.index);
             if (coalescing == null)
                 continue;
+            if (expr.coalescingDefaultThrows(coalescing)) {
+                out.push("        " + (expr.parameterIsMutated(a.name) ? "var" : "let") + " " + SwiftNameEscape.escape(a.name) + " = ("
+                    + SwiftNameEscape.escape(a.name) + " == nil ? try " + expr.coalescingDefaultText(coalescing, a.type) + " : "
+                    + SwiftNameEscape.escape(a.name) + "!);");
+                continue;
+            }
             if (!DefaultArgExpander.coalescingReadsParamForParam(cls, f.field.name, a.name))
                 continue;
             final defaultText = expr.coalescingDefaultText(coalescing, a.type);
