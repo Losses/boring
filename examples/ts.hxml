@@ -100,6 +100,8 @@ boring.TryOps
 tests.TryTests
 tests.SwitchOpsTests
 tests.MathIntWideningOpsTests
+tests.MathNaNOpsTests
+tests.MathNaNOpsTests
 boring.ArithmeticOps
 tests.ArithmeticTests
 boring.DefaultArgsOps
@@ -110,6 +112,10 @@ boring.SortedDataClassKeysOps
 boring.CaptureSwitchOps
 boring.SwitchOps
 boring.MathIntWideningOps
+boring.MathNaNOps
+boring.MathNaNTestSupport
+boring.MathNaNOps
+boring.MathNaNTestSupport
 boring.UStringOps
 boring.StringUnitOps
 boring.GraphemeOps
@@ -169,8 +175,14 @@ boring.NumberParsingOps
 tests.NumberParsingTests
 boring.NumberClassifyOps
 boring.MathMinMaxOps
+boring.MathNaNOps
+boring.MathNaNTestSupport
+boring.MathNaNOps
+boring.MathNaNTestSupport
 tests.NumberClassifyTests
 tests.MathMinMaxTests
+tests.MathNaNOpsTests
+tests.MathNaNOpsTests
 boring.InstanceDefaults
 boring.ImpWidget
 boring.ImpHost
