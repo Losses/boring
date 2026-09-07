@@ -942,6 +942,13 @@ class SwiftExpr {
     // Expressions
     // ------------------------------------------------------------------
 
+    function floatLiteral(f:String):String {
+        final withInteger = (f.length > 0 && f.charAt(0) == ".") ? "0" + f : (f.length > 2
+            && f.charAt(0) == "-"
+            && f.charAt(1) == "." ? "-0" + f.substr(1) : f);
+        return StringTools.endsWith(withInteger, ".") ? withInteger + "0" : withInteger;
+    }
+
     function expr(e:TypedExpr):String {
         final int64Expr = int64Expression(e);
         if (int64Expr != null)
@@ -972,13 +979,6 @@ class SwiftExpr {
                     case TSuper: return "super";
                     case _: return fail(e, "constant has no Swift lowering");
                 }
-    function floatLiteral(f:String):String {
-        final withInteger = (f.length > 0 && f.charAt(0) == ".") ? "0" + f : (f.length > 2
-            && f.charAt(0) == "-"
-            && f.charAt(1) == "." ? "-0" + f.substr(1) : f);
-        return StringTools.endsWith(withInteger, ".") ? withInteger + "0" : withInteger;
-    }
-
             case TLocal(v):
                 if (subst.exists(v.id)) {
                     return subst.get(v.id);
