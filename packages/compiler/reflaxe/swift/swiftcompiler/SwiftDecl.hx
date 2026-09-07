@@ -204,6 +204,22 @@ class SwiftDecl {
                 continue;
             final op = ValueTypeSupport.operatorOf(abs, f.field);
             final isOperator = op != null;
+            if (!isOperator && SwiftNameEscape.escape(f.field.name) == fieldName) {
+                // Swift cannot declare a method and a stored property with
+                // the same base name. An inline method carrying the stored
+                // field's name is the underlying-value accessor: Haxe
+                // expands every call in place, so no generated reference
+                // names it and the declaration is dropped. A non-inline
+                // collision would have generated callers, so it is
+                // rejected up front.
+                if (f.field.kind.match(FMethod(MethInline))) {
+                    continue;
+                }
+                Context.error("value type method "
+                    + f.field.name
+                    + " collides with the stored property name; make the method inline or rename the constructor parameter",
+                    f.field.pos);
+            }
             final receiver = ValueTypeSupport.hasReceiver(f.field);
             final start = isOperator ? 0 : (receiver ? 1 : 0);
             final name = isOperator ? swiftOperatorName(op) : f.field.name;
