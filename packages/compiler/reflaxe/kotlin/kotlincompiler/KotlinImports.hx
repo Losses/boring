@@ -74,6 +74,12 @@ class KotlinImports {
         reach the output.
     **/
     public function requireType(module:String, name:String):Void {
+        // Sorted collections are represented by the single runtime resident;
+        // never leak the source extern names into generated imports.
+        if (module == "std.SortedMap" && (name == "SortedMap" || name == "SortedTable"))
+            name = "SortedTable";
+        if (module == "std.SortedSet" && (name == "SortedSet" || name == "SortedTable"))
+            name = "SortedTable";
         if (module == "Std" || module == "Math" || module == "String" || module == "haxe.Int64") {
             return;
         }
