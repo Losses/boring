@@ -780,6 +780,18 @@ class RustExpr {
                     // wraps once at the boundary; Null-typed expressions
                     // already lower to Option and TNull renders None.
                     retStr = "Some(" + retStr + ")";
+                } else if (!StringTools.startsWith(returnTypeName, "Option<")) {
+                    switch (stripWrap(ret).expr) {
+                        case TLocal(v) if (provenNonNullVarIds.exists(v.id) && isNullType(ret.t)):
+                            // A null-checked Null<T> local returned as T
+                            // unwraps at the boundary: the guard proved the
+                            // Option holds Some, so `.unwrap()` yields the
+                            // inner value the return type expects. Option
+                            // returns keep the Option wrapper, so skip when
+                            // the return type is itself Option.
+                            retStr = "(" + retStr + ").unwrap()";
+                        case _:
+                    }
                 }
                 if (isFallible) {
                     final guard = staticGuardOf(ret);
