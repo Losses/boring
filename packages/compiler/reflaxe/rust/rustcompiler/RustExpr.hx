@@ -2063,9 +2063,10 @@ class RustExpr {
                     case TFloat(f):
                         final s = Std.string(f);
                         // Rust requires float literals to have an integer part; Haxe
-                        // permits `.001` which the AST carries verbatim, so prepend
-                        // the missing `0` before the decimal-point guard runs.
-                        final withIntPart = s.length > 0 && s.charAt(0) == "." ? "0" + s : s;
+                        // permits `.001` and `-.1` which the AST carries verbatim,
+                        // so prepend the missing `0` before the decimal-point guard.
+                        final withIntPart = s.length > 1
+                            && s.charAt(1) == "." ? s.charAt(0) + "0" + s.substr(1) : (s.length > 0 && s.charAt(0) == "." ? "0" + s : s);
                         final padded = withIntPart.indexOf(".") >= 0
                             || withIntPart.indexOf("e") >= 0
                             || withIntPart.indexOf("E") >= 0 ? withIntPart : withIntPart + ".0";
