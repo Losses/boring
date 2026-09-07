@@ -2055,8 +2055,21 @@ class SwiftExpr {
                     return residentCall("Graphemes", args, fn);
                 }
                 if (module == "Math") {
-                    if ((fName == "min" || fName == "max") && args.length == 2)
-                        return fName + "(" + mathFloatArg(args[0]) + ", " + mathFloatArg(args[1]) + ")";
+                    if ((fName == "min" || fName == "max") && args.length == 2) {
+                        // Swift's min/max do not propagate a NaN in the right
+                        // operand. Bind both widened arguments once and make
+                        // the Haxe/JavaScript semantics explicit.
+                        final real = FloatPrecision.isF32() ? "Float" : "Double";
+                        final a = mathFloatArg(args[0]);
+                        final b = mathFloatArg(args[1]);
+                        final zeroResult = fName == "min"
+                            ? "a.sign == .minus ? a : b"
+                            : "a.sign == .minus ? b : a";
+                        final ordered = fName == "min"
+                            ? "a < b ? a : (b < a ? b : (a == 0.0 && b == 0.0 ? " + zeroResult + " : a))"
+                            : "a > b ? a : (b > a ? b : (a == 0.0 && b == 0.0 ? " + zeroResult + " : a))";
+                        return "({ () -> " + real + " in let a = " + a + "; let b = " + b + "; if a.isNaN || b.isNaN { return " + real + ".nan }; return " + ordered + " })()";
+                    }
                     if (fName == "abs")
                         return "abs(" + mathFloatArg(args[0]) + ")";
                     if (fName == "pow" && args.length == 2) {
