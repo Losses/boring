@@ -3390,7 +3390,7 @@ class RustExpr {
         }
         return switch (stripWrap(a).expr) {
             case TConst(TInt(_)): expr(a);
-            case _: RustConversions.intToFloat(expr(a), FloatPrecision.isF32() ? "f32" : "f64");
+            case _: "(" + expr(a) + " as " + (FloatPrecision.isF32() ? "f32" : "f64") + ")";
         };
     }
 
@@ -4729,9 +4729,9 @@ class RustExpr {
                     return "FPHelper::" + RustImports.toSnakeCase(targetName) + "(" + renderedArgs + ")";
                 }
                 if (cls.module == "Math" && name == "isNaN")
-                    return "(" + expr(args[0]) + ").is_nan()";
+                    return "(" + mathFloatArg(args[0]) + ").is_nan()";
                 if (cls.module == "Math" && name == "isFinite")
-                    return "(" + expr(args[0]) + ").is_finite()";
+                    return "(" + mathFloatArg(args[0]) + ").is_finite()";
                 if (cls.module == "Math" && name == "abs")
                     return "(" + mathFloatArg(args[0]) + ").abs()";
                 if (cls.module == "Math" && (name == "min" || name == "max") && args.length == 2)
@@ -4742,13 +4742,15 @@ class RustExpr {
                     final real = FloatPrecision.isF32() ? "f32" : "f64";
                     return real + "::powf(" + mathFloatArg(args[0]) + ", " + mathFloatArg(args[1]) + ")";
                 }
+                if (cls.module == "Math" && name == "sqrt")
+                    return "(" + mathFloatArg(args[0]) + ").sqrt()";
                 if (cls.module == "Math" && (name == "floor" || name == "ceil" || name == "round")) {
                     // Haxe types floor, ceil, and round as Int; the Rust
                     // methods return the real type, so the call site
                     // truncates through the same conversion Std.int uses.
                     final real = FloatPrecision.isF32() ? "f32" : "f64";
-                    final rounded = real + "::" + name + "(" + expr(args[0]) + ")";
-                    return RuntimeResidents.isResident(imports.selfModule) ? RustConversions.floatToI32(rounded) : RustConversions.floatToU32(rounded);
+                    final rounded = real + "::" + name + "(" + mathFloatArg(args[0]) + ")";
+                    return RuntimeResidents.isResident(imports.selfModule) ? rounded + " as i32" : RustConversions.floatToU32(rounded);
                 }
                 if (cls.module == "Std" && name == "parseFloat") {
                     final real = FloatPrecision.isF32() ? "f32" : "f64";

@@ -98,6 +98,7 @@ tests.StringBufTests
 boring.TryOps
 tests.TryTests
 tests.SwitchOpsTests
+tests.MathIntWideningOpsTests
 boring.ArithmeticOps
 tests.ArithmeticTests
 boring.DefaultArgsOps
@@ -196,6 +197,7 @@ boring.ArrayIterationOps
 boring.SortedDataClassKeysOps
 boring.CaptureSwitchOps
 boring.SwitchOps
+boring.MathIntWideningOps
 boring.PlatformOps
 tests.ExpressionBlockTests
 tests.FontIdTests
