@@ -451,19 +451,17 @@ class SwiftExpr {
                     currentField, currentLocalName,
                     coalescing.parameter) : DefaultArgExpander.coalescingDefaultForParam(currentClass, currentField, coalescing.parameter));
                 final localType = coalescingValue != null ? DefaultArgExpander.coalescingLocalType(coalescingValue, v.t) : v.t;
-                final annotation = isEmptyArrayDecl(init)
-                    || (isIntLeafType(v.t) && !mentionsRangeLoopVar(init))
-                    || isIntLiteralArrayDecl(init)
-                    || isBuilderCall(init)
-                    || isNullLeafType(v.t)
-                    || coalescing != null
-                    || (FloatPrecision.isF32() && isFloatLeafType(v.t)) ? ": " + types.of(localType) : "";
+                final hasTypeAnnotation = localDeclarationNeedsTypeAnnotation(v.t, init);
+                final annotation = hasTypeAnnotation ? ": " + types.of(localType) : "";
+                final unwrapNullableInitializer = isNullLeafType(init.t) && coalescing == null && !isNullLeafType(v.t) && hasTypeAnnotation;
                 var initText = switch (init.expr) {
                     case TFunction(fn): functionLiteralNamed(v.name, fn);
                     default: expr(init);
                 };
                 if (isIntType(emittedType(init)) && isFloatLeafType(v.t))
                     initText = intToFloatText(initText);
+                if (unwrapNullableInitializer)
+                    initText += "!";
                 return [indent(depth) + '$kw ${localName(v)}$annotation = $tryKw$initText'];
             case TVar(v, _):
                 // A declaration without initializer: definite
@@ -3730,7 +3728,10 @@ class SwiftExpr {
         switch (e.expr) {
             case TVar(v, init):
                 PolicyQueries.noteDeclaredLocalName(v, usedNames, false);
-                if (init != null && isNullLeafType(init.t) && coalescingSiteFor(init) == null) {
+                if (init != null
+                    && isNullLeafType(init.t)
+                    && coalescingSiteFor(init) == null
+                    && (isNullLeafType(v.t) || !localDeclarationNeedsTypeAnnotation(v.t, init))) {
                     optionalInferred.set(v.id, true);
                 }
                 PolicyQueries.noteFpInt64Init(v, init, fpInt64Halves);
@@ -3978,6 +3979,16 @@ class SwiftExpr {
             case TAbstract(a, _): a.get().name == "Int";
             case _: false;
         };
+    }
+
+    function localDeclarationNeedsTypeAnnotation(t:Type, init:TypedExpr):Bool {
+        return isEmptyArrayDecl(init)
+            || (isIntLeafType(t) && !mentionsRangeLoopVar(init))
+            || isIntLiteralArrayDecl(init)
+            || isBuilderCall(init)
+            || isNullLeafType(t)
+            || coalescingSiteFor(init) != null
+            || (FloatPrecision.isF32() && isFloatLeafType(t));
     }
 
     function isIntLeafType(t:Type):Bool {
