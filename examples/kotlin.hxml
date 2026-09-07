@@ -165,6 +165,7 @@ boring.SwitchOps
 boring.MathIntWideningOps
 boring.MathNaNOps
 boring.MathNaNTestSupport
+boring.NumericConversionWidening
 tests.NumberClassifyTests
 tests.MathMinMaxTests
 tests.MathNaNOpsTests
@@ -180,6 +181,7 @@ tests.ArrayRootTests
 tests.SwitchOpsTests
 tests.MathIntWideningOpsTests
 tests.MathNaNOpsTests
+tests.NumericConversionWideningTests
 
 registry.Core
 registry.CoreFault
