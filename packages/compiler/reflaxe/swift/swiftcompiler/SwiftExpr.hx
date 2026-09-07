@@ -3574,15 +3574,52 @@ class SwiftExpr {
             }
             return out;
         }
-        final b = new StringBuf();
-        b.addChar('"'.code);
+        final renderedLeaves:Array<Null<String>> = [];
+        var needsHoist = false;
         for (leaf in leaves) {
             switch (leaf.expr) {
+                case TConst(TString(_)):
+                    renderedLeaves.push(null);
+                case _:
+                    final stdArg = stdStringArg(leaf);
+                    final rendered = stdArg == null ? interpolationLeaf(leaf) : stdString(stdArg, true);
+                    renderedLeaves.push(rendered);
+                    if (rendered.indexOf("\n") >= 0)
+                        needsHoist = true;
+            }
+        }
+        // Keep statement-bodied closure operands outside the string literal:
+        // their physical newlines must not become string source newlines.
+        if (needsHoist) {
+            final declarations:Array<String> = [];
+            for (i in 0...leaves.length) {
+                switch (leaves[i].expr) {
+                    case TConst(TString(_)):
+                    case _:
+                        declarations.push("let p" + i + " = " + renderedLeaves[i]);
+                }
+            }
+            final literal = new StringBuf();
+            literal.addChar('"'.code);
+            for (i in 0...leaves.length) {
+                switch (leaves[i].expr) {
+                    case TConst(TString(s)):
+                        literal.add(escapeInterpolation(s));
+                    case _:
+                        literal.add("\\(p" + i + ")");
+                }
+            }
+            literal.addChar('"'.code);
+            return "{ " + declarations.join("; ") + "; return " + literal.toString() + " }()";
+        }
+        final b = new StringBuf();
+        b.addChar('"'.code);
+        for (i in 0...leaves.length) {
+            switch (leaves[i].expr) {
                 case TConst(TString(s)):
                     b.add(escapeInterpolation(s));
                 case _:
-                    final stdArg = stdStringArg(leaf);
-                    b.add("\\(" + (stdArg == null ? interpolationLeaf(leaf) : stdString(stdArg, true)) + ")");
+                    b.add("\\(" + renderedLeaves[i] + ")");
             }
         }
         b.addChar('"'.code);
