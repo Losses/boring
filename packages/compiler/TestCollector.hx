@@ -41,66 +41,68 @@ class TestCollector {
     public static function generate(outDir:String = "out/haxe", extraTestDirs:Array<String> = null, mainName:String = "TestMain"):Void {
         if (extraTestDirs == null)
             extraTestDirs = [];
-        final tests:Array<{
-            id:String,
-            name:String,
-            moduleName:String,
-            className:String,
-            fieldName:String
-        }> = [];
 
+        // Collection is deferred to after typing. During the --macro phase,
+        // Context.getModule forces lazy completion of modules and corrupts the
+        // typer cache for modules that read an interface (get, never) property
+        // (Haxe 4.3.7, "Could not resolve accessor"); the same failure mode the
+        // follow-based validation path avoids a few lines below. After the main
+        // typing pass, every module is already complete and getModule returns
+        // it without forcing a re-entry into the typer. The generated files are
+        // still written to disk before haxe exits, so the two-invocation
+        // contract (generate-main.hxml then test-main.hxml) is preserved.
         final testDirs = ["samples/tests"].concat(extraTestDirs);
-        for (testDir in testDirs) {
-            if (FileSystem.exists(testDir) && FileSystem.isDirectory(testDir)) {
-                final files = FileSystem.readDirectory(testDir);
-                files.sort(Reflect.compare);
-                for (file in files) {
-                    if (!StringTools.endsWith(file, ".hx")) {
-                        continue;
-                    }
-                    final baseName = file.substr(0, file.length - 3);
-                    final pkg = testDir.substr("samples/".length).split("/").join(".");
-                    final moduleName = pkg + "." + baseName;
-                    final types = try {
-                        Context.getModule(moduleName);
-                    } catch (e:Dynamic) {
-                        continue;
-                    }
+        Context.onAfterTyping(function(_modules:Array<ModuleType>) {
+            Context.onAfterTyping(function(_lateModules:Array<ModuleType>) {
+                final tests:Array<{
+                    id:String,
+                    name:String,
+                    moduleName:String,
+                    className:String,
+                    fieldName:String
+                }> = [];
 
-                    for (t in types) {
-                        switch (t) {
-                            case TInst(c, _):
-                                final cls = c.get();
-                                final statics = cls.statics.get().copy();
-                                statics.sort((a, b) -> Reflect.compare(Context.getPosInfos(a.pos).min, Context.getPosInfos(b.pos).min));
+                for (testDir in testDirs) {
+                    if (FileSystem.exists(testDir) && FileSystem.isDirectory(testDir)) {
+                        final files = FileSystem.readDirectory(testDir);
+                        files.sort(Reflect.compare);
+                        for (file in files) {
+                            if (!StringTools.endsWith(file, ".hx")) {
+                                continue;
+                            }
+                            final baseName = file.substr(0, file.length - 3);
+                            final pkg = testDir.substr("samples/".length).split("/").join(".");
+                            final moduleName = pkg + "." + baseName;
+                            final types = try {
+                                Context.getModule(moduleName);
+                            } catch (e:Dynamic) {
+                                continue;
+                            }
 
-                                for (field in statics) {
-                                    if (!field.meta.has(":test")) {
-                                        continue;
-                                    }
-                                    final id = cls.module + "." + field.name;
+                            for (t in types) {
+                                switch (t) {
+                                    case TInst(c, _):
+                                        final cls = c.get();
+                                        final statics = cls.statics.get().copy();
+                                        statics.sort((a, b) -> Reflect.compare(Context.getPosInfos(a.pos).min, Context.getPosInfos(b.pos).min));
 
-                                    // Validate public static Void -> Void.
-                                    // Match the declared signature directly: Context.follow during
-                                    // the --macro phase forces lazy completion of modules with
-                                    // @:build or static self-referencing initializers and corrupts
-                                    // the typer cache (Haxe 4.3.7), so follow is not used here.
-                                    if (!field.isPublic) {
-                                        Context.error("Test function " + id + " must be public", field.pos);
-                                    }
-
-                                    final ftype = field.type;
-                                    switch (ftype) {
-                                        case TFun(args, ret):
-                                            var isVoid = switch (ret) {
-                                                case TAbstract(a, _): a.get().name == "Void";
-                                                case _: false;
-                                            };
-                                            if (args.length != 0 || !isVoid) {
-                                                Context.error("Test function " + id + " must take no arguments and return Void", field.pos);
+                                        for (field in statics) {
+                                            if (!field.meta.has(":test")) {
+                                                continue;
                                             }
-                                        case TLazy(l):
-                                            switch (l()) {
+                                            final id = cls.module + "." + field.name;
+
+                                            // Validate public static Void -> Void.
+                                            // Match the declared signature directly: Context.follow during
+                                            // the --macro phase forces lazy completion of modules with
+                                            // @:build or static self-referencing initializers and corrupts
+                                            // the typer cache (Haxe 4.3.7), so follow is not used here.
+                                            if (!field.isPublic) {
+                                                Context.error("Test function " + id + " must be public", field.pos);
+                                            }
+
+                                            final ftype = field.type;
+                                            switch (ftype) {
                                                 case TFun(args, ret):
                                                     var isVoid = switch (ret) {
                                                         case TAbstract(a, _): a.get().name == "Void";
@@ -109,58 +111,67 @@ class TestCollector {
                                                     if (args.length != 0 || !isVoid) {
                                                         Context.error("Test function " + id + " must take no arguments and return Void", field.pos);
                                                     }
+                                                case TLazy(l):
+                                                    switch (l()) {
+                                                        case TFun(args, ret):
+                                                            var isVoid = switch (ret) {
+                                                                case TAbstract(a, _): a.get().name == "Void";
+                                                                case _: false;
+                                                            };
+                                                            if (args.length != 0 || !isVoid) {
+                                                                Context.error("Test function " + id + " must take no arguments and return Void", field.pos);
+                                                            }
+                                                        case _:
+                                                            Context.error("Test function " + id + " must be a function", field.pos);
+                                                    }
                                                 case _:
                                                     Context.error("Test function " + id + " must be a function", field.pos);
                                             }
-                                        case _:
-                                            Context.error("Test function " + id + " must be a function", field.pos);
-                                    }
 
-                                    var desc:Null<String> = null;
-                                    for (entry in field.meta.extract(":test")) {
-                                        if (entry.params != null && entry.params.length > 0) {
-                                            switch (entry.params[0].expr) {
-                                                case EConst(CString(sv)): desc = sv;
-                                                case _:
+                                            var desc:Null<String> = null;
+                                            for (entry in field.meta.extract(":test")) {
+                                                if (entry.params != null && entry.params.length > 0) {
+                                                    switch (entry.params[0].expr) {
+                                                        case EConst(CString(sv)): desc = sv;
+                                                        case _:
+                                                    }
+                                                }
                                             }
-                                        }
-                                    }
 
-                                    final runnerName = desc != null ? id + ": " + desc : id;
-                                    tests.push({
-                                        id: id,
-                                        name: runnerName,
-                                        moduleName: cls.module,
-                                        className: cls.name,
-                                        fieldName: field.name
-                                    });
+                                            final runnerName = desc != null ? id + ": " + desc : id;
+                                            tests.push({
+                                                id: id,
+                                                name: runnerName,
+                                                moduleName: cls.module,
+                                                className: cls.name,
+                                                fieldName: field.name
+                                            });
+                                        }
+                                    case _:
                                 }
-                            case _:
+                            }
                         }
                     }
                 }
-            }
-        }
+                if (!FileSystem.exists(outDir)) {
+                    FileSystem.createDirectory(outDir);
+                }
 
-        if (!FileSystem.exists(outDir)) {
-            FileSystem.createDirectory(outDir);
-        }
+                final testCallLines:Array<String> = [];
+                for (t in tests) {
+                    testCallLines.push('        try {');
+                    testCallLines.push('            std.Test.run("' + t.id + '", "' + escapeName(t.name) + '", function() { ' + t.moduleName + '.'
+                        + t.fieldName + '(); });');
+                    testCallLines.push('        } catch (e:haxe.Exception) {');
+                    testCallLines.push('            failures++;');
+                    testCallLines.push('            std.Console.log(e.message);');
+                    testCallLines.push('        } catch (e:Dynamic) {');
+                    testCallLines.push('            failures++;');
+                    testCallLines.push('            std.Console.log(Std.string(e));');
+                    testCallLines.push('        }');
+                }
 
-        final testCallLines:Array<String> = [];
-        for (t in tests) {
-            testCallLines.push('        try {');
-            testCallLines.push('            std.Test.run("' + t.id + '", "' + escapeName(t.name) + '", function() { ' + t.moduleName + '.' + t.fieldName
-                + '(); });');
-            testCallLines.push('        } catch (e:haxe.Exception) {');
-            testCallLines.push('            failures++;');
-            testCallLines.push('            std.Console.log(e.message);');
-            testCallLines.push('        } catch (e:Dynamic) {');
-            testCallLines.push('            failures++;');
-            testCallLines.push('            std.Console.log(Std.string(e));');
-            testCallLines.push('        }');
-        }
-
-        final runnerSource = 'package;
+                final runnerSource = 'package;
 
 import runtime.Graphemes;
 import runtime.SortedTable;
@@ -503,8 +514,8 @@ class $mainName {
     public static function main():Void {
         bootstrap();
 '
-            + testCallLines.join("\n")
-            + '
+                    + testCallLines.join("\n")
+                    + '
         if (failures > 0) {
             std.Process.exit(1);
         }
@@ -592,14 +603,16 @@ class StringBufOracle {
 }
 
 ';
-        File.saveContent(outDir + "/" + mainName + ".hx", runnerSource);
-        // The cursor platform is a tracked source file shared with the typed
-        // harness in tests/haxe; stage one compiles the copy next to TestMain
-        // and binds it under globalThis.std.UStringPlatform.
-        File.saveContent(outDir + "/UStringPlatform.hx", sys.io.File.getContent(Context.resolvePath("tests/haxe/UStringPlatform.hx")));
-        // The test host edges of runtime.TestCore: stage one binds this
-        // copy as globalThis.std.TestPlatform beside TestMain.
-        File.saveContent(outDir + "/TestPlatform.hx", sys.io.File.getContent(Context.resolvePath("tests/haxe/TestPlatform.hx")));
+                File.saveContent(outDir + "/" + mainName + ".hx", runnerSource);
+                // The cursor platform is a tracked source file shared with the typed
+                // harness in tests/haxe; stage one compiles the copy next to TestMain
+                // and binds it under globalThis.std.UStringPlatform.
+                File.saveContent(outDir + "/UStringPlatform.hx", sys.io.File.getContent(Context.resolvePath("tests/haxe/UStringPlatform.hx")));
+                // The test host edges of runtime.TestCore: stage one binds this
+                // copy as globalThis.std.TestPlatform beside TestMain.
+                File.saveContent(outDir + "/TestPlatform.hx", sys.io.File.getContent(Context.resolvePath("tests/haxe/TestPlatform.hx")));
+            });
+        });
     }
 }
 #end
