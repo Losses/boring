@@ -3181,6 +3181,23 @@ class RustExpr {
             case OpSub:
                 return operand(l, op, false) + " - " + operand(r, op, true);
             case OpLt | OpLte | OpGt | OpGte:
+                // Haxe permits chained comparisons. Evaluate each operand once
+                // before combining the adjacent predicates; this also avoids
+                // Rust's chained-comparison parse error.
+                final chain = switch (stripWrap(l).expr) {
+                    case TBinop(inner, a, b) if (inner == OpLt || inner == OpLte || inner == OpGt || inner == OpGte): {a: a, b: b};
+                    case _: null;
+                };
+                if (chain != null) {
+                    final leftName = freshRegionName("__cmp_left");
+                    final middleName = freshRegionName("__cmp_middle");
+                    final rightName = freshRegionName("__cmp_right");
+                    return "{ let " + leftName + " = " + expr(chain.a) + "; let " + middleName + " = " + expr(chain.b) + "; let " + rightName + " = "
+                        + expr(r) + "; (" + leftName + " " + symbolOf(switch (stripWrap(l).expr) {
+                            case TBinop(inner, _, _): inner;
+                            case _: OpLt;
+                        }) + " " + middleName + ") && (" + middleName + " " + symbolOf(op) + " " + rightName + ") }";
+                }
                 // Rust std implements PartialOrd only between equal string
                 // types: String compares with &str through PartialEq but
                 // not PartialOrd, so an ordered string comparison moves
@@ -4150,8 +4167,13 @@ class RustExpr {
                 for (i in 0...args.length)
                     formatText += (i == 0 ? "" : ", ") + args[i].name + "={}";
                 formatText += ")";
-                arms.push(pattern + " { " + [for (a in args) a.name].join(", ") + " } => { let _ = write!(out, \"" + formatText + "\", "
-                    + [for (a in args) stdStringType(a.t, a.name, true, origin)].join(", ") + "); }");
+                arms.push(pattern
+                    + " { "
+                    + [for (a in args) a.name].join(", ")
+                        + " } => { let _ = write!(out, \""
+                        + formatText
+                        + "\", "
+                        + [for (a in args) stdStringType(a.t, a.name, true, origin)].join(", ") + "); }");
             }
         }
         return "{ let mut out = String::new(); match " + value + " { " + arms.join(", ") + " }; out }";
