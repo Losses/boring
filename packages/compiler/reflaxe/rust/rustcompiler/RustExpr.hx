@@ -11,6 +11,7 @@ import haxe.macro.TypedExprTools;
 import reflaxe.data.ClassFuncData;
 import ExpressionPredicates;
 import PolicyQueries;
+import PolicyQueries.EnumQueryStep;
 import ExpressionBlockNorm;
 import AssignTargetPlan;
 import AssignTargetPlan.AssignTargetFieldKind;
@@ -2359,37 +2360,21 @@ class RustExpr {
     }
 
     function enumQuery(e:TypedExpr):Null<String> {
-        switch (e.expr) {
-            case TField(subj, fa):
-                final name = switch (fa) {
-                    case FInstance(_, _, cf) | FAnon(cf): cf.get().name;
-                    case FDynamic(n): n;
-                    case _: "";
-                };
-                final en = EnumQueryExpander.collectionEnum(subj);
-                if (name == "length" && en != null)
-                    return Std.string(EnumQueryExpander.constructorCount(en));
-            case TArray(subj, index):
-                final en = EnumQueryExpander.collectionEnum(subj);
-                if (en != null) {
-                    if (EnumQueryExpander.aliasEnum(subj) != null)
-                        return expr(subj) + "[" + expr(index) + "]";
-                    requireEnum(en.module, en.name);
-                    return en.name + "::ALL[" + expr(index) + "]";
+        return switch (PolicyQueries.enumQueryPlan(e)) {
+            case null: null;
+            case LengthCount(count): Std.string(count);
+            case AliasIndex(subj, index): expr(subj) + "[" + expr(index) + "]";
+            case EntryIndex(en, index):
+                requireEnum(en.module, en.name);
+                en.name + "::ALL[" + expr(index) + "]";
+            case EnumKindQuery(kind, en, args):
+                requireEnum(en.module, en.name);
+                switch (kind) {
+                    case QCollection: en.name + "::ALL";
+                    case QName: expr(args[0]) + ".name()";
+                    case QLookup: en.name + "::from_name(&(" + expr(args[1]) + "))";
                 }
-            case _:
         }
-        final kind = EnumQueryExpander.markerKind(e);
-        if (kind == null)
-            return null;
-        final en = EnumQueryExpander.enumOf(e);
-        final args = EnumQueryExpander.callArgs(e);
-        requireEnum(en.module, en.name);
-        return switch (kind) {
-            case QCollection: en.name + "::ALL";
-            case QName: expr(args[0]) + ".name()";
-            case QLookup: en.name + "::from_name(&(" + expr(args[1]) + "))";
-        };
     }
 
     // ------------------------------------------------------------------
@@ -4758,12 +4743,12 @@ class RustExpr {
                     final real = FloatPrecision.isF32() ? "f32" : "f64";
                     final a = mathFloatBindingArg(args[0]);
                     final b = mathFloatBindingArg(args[1]);
-                    final zeroResult = name == "min"
-                        ? "if a.is_sign_negative() { a } else { b }"
-                        : "if a.is_sign_negative() { b } else { a }";
-                    final ordered = name == "min"
-                        ? "if a < b { a } else if b < a { b } else if a == 0.0 && b == 0.0 { " + zeroResult + " } else { a }"
-                        : "if a > b { a } else if b > a { b } else if a == 0.0 && b == 0.0 { " + zeroResult + " } else { a }";
+                    final zeroResult = name == "min" ? "if a.is_sign_negative() { a } else { b }" : "if a.is_sign_negative() { b } else { a }";
+                    final ordered = name == "min" ? "if a < b { a } else if b < a { b } else if a == 0.0 && b == 0.0 { "
+                        + zeroResult
+                        + " } else { a }" : "if a > b { a } else if b > a { b } else if a == 0.0 && b == 0.0 { "
+                        + zeroResult
+                        + " } else { a }";
                     return "({ let a = " + a + "; let b = " + b + "; if a.is_nan() || b.is_nan() { " + real + "::NAN } else { " + ordered + " } })";
                 }
                 if (cls.module == "Math" && name == "pow" && args.length == 2) {

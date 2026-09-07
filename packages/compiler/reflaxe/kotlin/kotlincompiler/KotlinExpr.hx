@@ -17,6 +17,7 @@ import AssignTargetPlan.AssignTargetFieldKind;
 import PolicyQueries.StdStringCategory;
 import PolicyQueries.Int64Op;
 import PolicyQueries.VariantArmStep;
+import PolicyQueries.EnumQueryStep;
 import FusionPlan;
 import FusionPlan.FusionStep;
 import VarFusionPlan;
@@ -1209,37 +1210,21 @@ class KotlinExpr {
     }
 
     function enumQuery(e:TypedExpr):Null<String> {
-        switch (e.expr) {
-            case TField(subj, fa):
-                final name = switch (fa) {
-                    case FInstance(_, _, cf) | FAnon(cf): cf.get().name;
-                    case FDynamic(n): n;
-                    case _: "";
-                };
-                final en = EnumQueryExpander.collectionEnum(subj);
-                if (name == "length" && en != null)
-                    return Std.string(EnumQueryExpander.constructorCount(en));
-            case TArray(subj, index):
-                final en = EnumQueryExpander.collectionEnum(subj);
-                if (en != null) {
-                    if (EnumQueryExpander.aliasEnum(subj) != null)
-                        return expr(subj) + "[" + expr(index) + "]";
-                    imports.requireType(en.module, en.name);
-                    return en.name + ".entries[" + expr(index) + "]";
+        return switch (PolicyQueries.enumQueryPlan(e)) {
+            case null: null;
+            case LengthCount(count): Std.string(count);
+            case AliasIndex(subj, index): expr(subj) + "[" + expr(index) + "]";
+            case EntryIndex(en, index):
+                imports.requireType(en.module, en.name);
+                en.name + ".entries[" + expr(index) + "]";
+            case EnumKindQuery(kind, en, args):
+                imports.requireType(en.module, en.name);
+                switch (kind) {
+                    case QCollection: en.name + ".entries";
+                    case QName: expr(args[0]) + ".name";
+                    case QLookup: en.name + ".entries.firstOrNull { it.name == " + expr(args[1]) + " }";
                 }
-            case _:
         }
-        final kind = EnumQueryExpander.markerKind(e);
-        if (kind == null)
-            return null;
-        final en = EnumQueryExpander.enumOf(e);
-        final args = EnumQueryExpander.callArgs(e);
-        imports.requireType(en.module, en.name);
-        return switch (kind) {
-            case QCollection: en.name + ".entries";
-            case QName: expr(args[0]) + ".name";
-            case QLookup: en.name + ".entries.firstOrNull { it.name == " + expr(args[1]) + " }";
-        };
     }
 
     function functionLiteral(f:TFunc):String {

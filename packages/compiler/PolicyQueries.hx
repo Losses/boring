@@ -7,6 +7,7 @@ import reflaxe.data.ClassVarData;
 import reflaxe.data.EnumOptionData;
 import RuntimeResidents;
 import ExpressionPredicates;
+import EnumQueryExpander;
 import StructuralKeyValidator;
 
 enum KeyDomain {
@@ -89,6 +90,27 @@ enum VariantArmStep {
 
     /** `var` without initializer. The consumer reports its target error. */
     MissingInit(s:TypedExpr);
+}
+
+/** One step of an enum-query expression classification. The kind
+    detection, subject walk, and argument extraction are shared; each
+    target renders the step with its own import calls and syntax. */
+enum EnumQueryStep {
+    /** `expr.length` on an enum collection: the constructor count. The
+        rendered text is identical in every target. */
+    LengthCount(count:Int);
+
+    /** `expr[index]` on an aliased enum collection. The consumer renders the
+        subject and index with its own indexing syntax. */
+    AliasIndex(subj:TypedExpr, index:TypedExpr);
+
+    /** `expr[index]` on the enum's own collection. The consumer imports
+        the enum and renders its collection-access syntax. */
+    EntryIndex(en:EnumType, index:TypedExpr);
+
+    /** A marker-based query. `args` come from `callArgs`; consumers use
+        `args[0]` for name queries and `args[1]` for lookups. */
+    EnumKindQuery(kind:EnumQueryKind, en:EnumType, args:Array<TypedExpr>);
 }
 
 /** Shared policy queries for declaration and field-key decisions. */
@@ -585,6 +607,36 @@ class PolicyQueries {
         }
         walk(statementsOf(e));
         return steps;
+    }
+
+    /** Classifies one enum-query expression into a shared step. Returns null
+        when the expression is not an enum query; the consumer then falls back
+        to its generic rendering. Import calls and target syntax stay in each
+        target. */
+    public static function enumQueryPlan(e:TypedExpr):Null<EnumQueryStep> {
+        switch (e.expr) {
+            case TField(subj, fa):
+                final name = switch (fa) {
+                    case FInstance(_, _, cf) | FAnon(cf): cf.get().name;
+                    case FDynamic(n): n;
+                    case _: "";
+                };
+                final en = EnumQueryExpander.collectionEnum(subj);
+                if (name == "length" && en != null)
+                    return LengthCount(EnumQueryExpander.constructorCount(en));
+            case TArray(subj, index):
+                final en = EnumQueryExpander.collectionEnum(subj);
+                if (en != null) {
+                    if (EnumQueryExpander.aliasEnum(subj) != null)
+                        return AliasIndex(subj, index);
+                    return EntryIndex(en, index);
+                }
+            case _:
+        }
+        final kind = EnumQueryExpander.markerKind(e);
+        if (kind == null)
+            return null;
+        return EnumKindQuery(kind, EnumQueryExpander.enumOf(e), EnumQueryExpander.callArgs(e));
     }
 
     public static function lambdaBody(e:TypedExpr):TypedExpr {
