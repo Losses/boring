@@ -561,9 +561,10 @@ class RustDecl {
             final initializer = v.field.expr();
             if (initializer == null)
                 Context.error("value type static field must have an initializer", v.field.pos);
+            final initText = constValFloatInit(initializer, v.field.type);
+            final val = ValueTypeSupport.isBareRepresentationLiteral(initializer, info.representation) ? info.name + "(" + initText + ")" : initText;
             lines.push("");
-            lines.push("    pub const " + RustImports.toScreamingSnakeCase(v.field.name) + ": " + info.name + " = "
-                + constValFloatInit(initializer, v.field.type) + ";");
+            lines.push("    pub const " + RustImports.toScreamingSnakeCase(v.field.name) + ": " + info.name + " = " + val + ";");
         }
         lines.push("}");
 
