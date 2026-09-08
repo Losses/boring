@@ -231,6 +231,8 @@ tests.PlatformModulesTests
 
 boring.EnumSortedKeysOps
 tests.EnumSortedKeysTests
+boring.DartCharNullOps
+tests.DartCharNullTests
 
 boring.ProbeUnit
 boring.AbstractStaticDefault

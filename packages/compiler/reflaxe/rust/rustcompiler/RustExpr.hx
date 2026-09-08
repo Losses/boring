@@ -624,7 +624,11 @@ class RustExpr {
                 switch (stripWrap(init).expr) {
                     case TCall(fn, _) if (isStringCharCodeAt(fn)):
                         if (!nullableSensitiveLocals.exists(v.id)) {
-                            initStr += ".unwrap_or(0)";
+                            // renderValueForType already applies this fallback for
+                            // a nullable call entering a non-null declaration.
+                            // Preserve the local's non-null state without duplication.
+                            if (!StringTools.endsWith(initStr, ".unwrap_or(0)"))
+                                initStr += ".unwrap_or(0)";
                             nullableCollapsedLocals.set(v.id, true);
                         }
                     case TCall(ifn, iargs) if (isStringIndexOf(ifn) && iargs.length >= 1 && isIntType(v.t) && !isNullType(v.t)):
