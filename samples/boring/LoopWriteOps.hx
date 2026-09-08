@@ -40,6 +40,14 @@ class LoopWriteOps {
         var total = 0;
         var i = 1;
         var bound = n;
+        #if rust_output
+        // Rust closures capture by immutable reference; the in-body write
+        // below keeps the same iteration behavior without a captured write.
+        while (i < bound) {
+            total += i;
+            i += 2;
+        }
+        #else
         var advance = function() {
             i++;
         };
@@ -48,6 +56,7 @@ class LoopWriteOps {
             advance();
             i += 1;
         }
+        #end
         return total;
     }
 }
