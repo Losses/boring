@@ -1378,7 +1378,7 @@ class DefaultArgExpander {
             if (defVal != null) {
                 switch (defVal) {
                     case VCoalescing(coalescing):
-                        if (!kotlinTarget || !readsParameter(coalescing))
+                        if (rustTarget || !readsParameter(coalescing))
                             // Preserve the argument position when the target
                             // cannot retain the registered coalescing default.
                             args.push(makeTypedConst(VNull, param.t, callExpr.pos));
@@ -1859,7 +1859,7 @@ class DefaultArgExpander {
             if (defVal != null) {
                 switch (defVal) {
                     case VCoalescing(coalescing):
-                        if (!kotlinTarget || !readsParameter(coalescing))
+                        if (rustTarget || !readsParameter(coalescing))
                             // Preserve the argument position when the target
                             // cannot retain the registered coalescing default.
                             args.push(makeTypedConst(VNull, param.t, newExpr.pos));
