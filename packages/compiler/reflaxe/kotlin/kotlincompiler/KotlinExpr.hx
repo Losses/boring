@@ -103,10 +103,17 @@ class KotlinExpr {
     /** Return type of the function currently being lowered; null outside function context. */
     var currentReturnType:Null<Type> = null;
 
+    /** Whether bare returns are being lowered inside the synthesized test runner lambda. */
+    var inTestRunnerLambda:Bool = false;
+
     public function new(imports:KotlinImports, types:KotlinType, state:KotlinEmissionState) {
         this.imports = imports;
         this.types = types;
         this.state = state;
+    }
+
+    public function setTestRunnerLambda(enabled:Bool):Void {
+        inTestRunnerLambda = enabled;
     }
 
     public function reserveName(name:String):Void {
@@ -613,7 +620,7 @@ class KotlinExpr {
                 }
                 return tryLines(parts.body, parts.c, depth, "return ");
             case TReturn(ret) if (ret == null):
-                return [indent(depth) + "return"];
+                return [indent(depth) + (inTestRunnerLambda ? "return@run" : "return")];
             case TReturn(ret) if (isStringBufToStringCall(ret)):
                 return stringBufToStringReturnLines(stripWrap(ret), depth);
             case TReturn(ret) if (isVariantSwitch(ret)):
