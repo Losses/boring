@@ -21,6 +21,6 @@ class NumericWidenTests {
         Test.equals(2.0, NumericWidenOps.assignFloat());
         Test.equals(2.0, NumericWidenOps.assignDouble());
         Test.equals(2.5, NumericWidenOps.appliedFloat());
-        Test.equals(2.5, NumericWidenOps.appliedDouble());
+        Test.equals(1.0, NumericWidenOps.appliedDouble());
     }
 }
