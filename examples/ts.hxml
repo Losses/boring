@@ -247,6 +247,8 @@ tests.DartCharNullTests
 boring.RustCoalesceOps
 boring.SwitchMergeOps
 tests.RustCoalesceTests
+boring.LoopWriteOps
+tests.LoopWriteTests
 boring.UnderscoreParamOps
 tests.UnderscoreParamTests
 tests.EarlyReturnTests
