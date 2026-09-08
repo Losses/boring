@@ -35,11 +35,9 @@ class OverrideMemberOps {
     public static function hash(value:Int):Int {
         return new OverrideMemberRecord(value).hashCode();
     }
-    #if kotlin_output
     public static function ordinary():String {
         return "ordinary";
     }
-    #end
     public static function message(value:String):String {
         return new OverrideMemberException(Payload(value)).message;
     }
