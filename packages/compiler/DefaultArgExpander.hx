@@ -542,6 +542,9 @@ class DefaultArgExpander {
                                 switch (Context.getType(fullPath)) {
                                     case TInst(clsRef, _):
                                         return getClassKey(clsRef.get()) + "." + fieldName;
+                                    case TAbstract(absRef, _):
+                                        final abs = absRef.get();
+                                        return (abs.pack.length > 0 ? abs.pack.join(".") + "." : "") + abs.name + "." + fieldName;
                                     default:
                                 }
                             } catch (_:Dynamic) {}

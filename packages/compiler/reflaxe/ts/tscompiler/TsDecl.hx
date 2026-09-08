@@ -70,6 +70,11 @@ class TsDecl {
             final typeAliases:Array<String> = [];
             final members:Array<String> = [];
             for (f in funcFields) {
+                final getterOnlyProp = interfaceGetterOnlyProperty(cls, f);
+                if (getterOnlyProp != null) {
+                    members.push('  readonly ${getterOnlyProp.name}: ${types.of(getterOnlyProp.type)};');
+                    continue;
+                }
                 final capName = f.field.name.charAt(0).toUpperCase() + f.field.name.substr(1);
                 final aliasName = '${cls.name}${capName}Fn';
                 final args = [
@@ -434,6 +439,23 @@ class TsDecl {
     /** A `var x(get, never)` field renders no storage on this target (feature spec 27). */
     function isGetterOnlyProperty(field:ClassField):Bool {
         return PolicyQueries.isGetterOnlyProperty(field);
+    }
+
+    /**
+        For interface declarations, a funcField named `get_x` that corresponds
+        to a getter-only property `x` returns that property; the interface
+        then declares `readonly x: T` and omits the `readonly get_x: Fn`
+        entry.
+    **/
+    function interfaceGetterOnlyProperty(cls:ClassType, f:ClassFuncData):Null<{name:String, type:Type}> {
+        if (f.isStatic || !StringTools.startsWith(f.field.name, "get_"))
+            return null;
+        final propName = f.field.name.substring("get_".length);
+        for (field in cls.fields.get()) {
+            if (field.name == propName && isGetterOnlyProperty(field))
+                return {name: field.name, type: field.type};
+        }
+        return null;
     }
 
     /**

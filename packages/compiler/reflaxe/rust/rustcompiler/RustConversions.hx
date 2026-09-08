@@ -92,7 +92,8 @@ class RustConversions {
             if (balanced && depth == 0)
                 inner = inner.substr(1, inner.length - 2);
         }
-        return to + "::from_ne_bytes((" + inner + ").to_ne_bytes())";
+        final rustTarget = to.indexOf("<") >= 0 ? to.substr(0, to.indexOf("<")) + "::<" + to.substr(to.indexOf("<") + 1) : to;
+        return rustTarget + "::from_ne_bytes((" + inner + ").to_ne_bytes())";
     }
 
     /**
