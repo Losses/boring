@@ -60,6 +60,7 @@ class KotlinDecl {
     // ------------------------------------------------------------------
 
     public function classDecl(cls:ClassType, varFields:Array<ClassVarData>, funcFields:Array<ClassFuncData>):String {
+        expr.resetLocalNames();
         // Kotlin's data class already supplies the same printed form while
         // its parameter order matches the field declaration order. The
         // stage 1 build macro marks its synthetic member so this target can
@@ -1130,6 +1131,7 @@ class KotlinDecl {
     }
 
     function funcDecl(cls:ClassType, f:ClassFuncData, isObject:Bool):Array<String> {
+        expr.resetLocalNames();
         for (a in f.args) {
             expr.reserveName(a.name);
         }
@@ -1164,6 +1166,7 @@ class KotlinDecl {
     }
 
     function extractedFuncDecl(cls:ClassType, f:ClassFuncData):Array<String> {
+        expr.resetLocalNames();
         for (a in f.args) {
             expr.reserveName(a.name);
         }
@@ -1197,6 +1200,7 @@ class KotlinDecl {
     }
 
     public function testFuncDecl(cls:ClassType, f:ClassFuncData):Array<String> {
+        expr.resetLocalNames();
         final id = cls.module + "." + f.field.name;
         var desc:Null<String> = null;
         for (entry in f.field.meta.extract(":test")) {
