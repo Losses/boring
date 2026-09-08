@@ -277,3 +277,5 @@ tests.WidgetCoalescingTests
 boring.CfgTestProbe
 boring.ProbeChain
 tests.ProbeChainTests
+boring.CompareGateOps
+tests.CompareGateTests
