@@ -4142,6 +4142,9 @@ class RustExpr {
                 }
                 imports.require("crate::runtime::test_core");
                 return "test_core::TestCore::" + staticMethodName(cls, name);
+            case "std.Functional":
+                imports.requireType("std.Functional", "Functional");
+                return "Functional::" + staticMethodName(cls, name);
             case "std.UStringRT":
                 return uStringRef(cls, name);
             case "std.Graphemes":

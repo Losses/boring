@@ -14,6 +14,8 @@ class RustImports {
         "std.Env" => true,
         "std.Fs" => true,
         "std.Process" => true,
+        "std.Functional" => true,
+        "Lambda" => true,
         "std.SortedMap" => true,
         "std.SortedMapBuilder" => true,
         "std.SortedSet" => true,
