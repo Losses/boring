@@ -1437,7 +1437,7 @@ class DartExpr {
         var rendered = expr(e);
         // A normalized local, or one cleared by a null guard, is already
         // non-null in the generated Dart flow.
-        if (isNullLeafType(e.t) && !provenNonNull(e) && parent != OpEq && parent != OpNotEq) {
+        if ((isNullLeafType(e.t) || optionalValued(e)) && !provenNonNull(e) && parent != OpEq && parent != OpNotEq) {
             rendered += "!";
             switch (stripWrap(e).expr) {
                 case TLocal(v):
@@ -1760,8 +1760,7 @@ class DartExpr {
                 final pt = i < paramTypes.length ? paramTypes[i] : null;
                 final demandsValue = pt != null && !isNullLeafType(pt);
                 var t = (demandsValue && isNullLeafType(a.t)) ? requiredValueText(a) : (demandsValue
-                    && optionalValued(a)
-                    && !isLocalExpr(a) ? expr(a) + "!" : expr(a));
+                    && optionalValued(a) ? expr(a) + "!" : expr(a));
                 if (pt != null && isIntOrLongType(emittedType(a)) && isFloatType(pt)) t = intToFloatText(t);
                 t;
             }
