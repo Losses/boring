@@ -1370,8 +1370,10 @@ class DefaultArgExpander {
             if (defVal != null) {
                 switch (defVal) {
                     case VCoalescing(_):
-                        if (rustTarget)
-                            args.push(makeTypedConst(VNull, param.t, callExpr.pos));
+                        // Preserve the argument position for every target. Rust
+                        // also needs the typed null for its target-specific
+                        // coalescing completion.
+                        args.push(makeTypedConst(VNull, param.t, callExpr.pos));
                     default:
                         // A materialized constant carries the unwrapped value
                         // type; a Null<X> parameter makes the constant X.
@@ -1849,8 +1851,10 @@ class DefaultArgExpander {
             if (defVal != null) {
                 switch (defVal) {
                     case VCoalescing(_):
-                        if (rustTarget)
-                            args.push(makeTypedConst(VNull, param.t, newExpr.pos));
+                        // Preserve the argument position for every target. Rust
+                        // also needs the typed null for its target-specific
+                        // coalescing completion.
+                        args.push(makeTypedConst(VNull, param.t, newExpr.pos));
                     default:
                         // Same unwrapping as the call-site completion above.
                         args.push(makeTypedConst(defVal, withoutNull(param.t), newExpr.pos));
