@@ -245,6 +245,7 @@ class Compiler extends PluginCompiler<Compiler> {
 
         final packages:Map<String, Array<String>> = [];
         final packageChildren:Map<String, Array<String>> = [];
+        final testModuleLeaves:Map<String, Bool> = [];
 
         for (module in modules) {
             if (state.payloadEnumModules.exists(module)) {
@@ -267,6 +268,9 @@ class Compiler extends PluginCompiler<Compiler> {
             }
             final modName = moduleLeafName(module);
             packages.get(pack).push(modName);
+            if (isTest) {
+                testModuleLeaves.set(pack + "." + modName, true);
+            }
             registerPackagePath(pack, packageChildren);
         }
 
@@ -286,13 +290,19 @@ class Compiler extends PluginCompiler<Compiler> {
             final lines = ["#![allow(ambiguous_glob_reexports)]", ""];
             for (child in childNames)
                 lines.push("pub mod " + child + ";");
-            for (m in modNames)
+            for (m in modNames) {
+                if (testModuleLeaves.exists(pack + "." + m))
+                    lines.push("#[cfg(test)]");
                 lines.push("pub mod " + m + ";");
+            }
             lines.push("");
             for (child in childNames)
                 lines.push("pub use " + child + "::*;");
-            for (m in modNames)
+            for (m in modNames) {
+                if (testModuleLeaves.exists(pack + "." + m))
+                    lines.push("#[cfg(test)]");
                 lines.push("pub use " + m + "::*;");
+            }
             final modPath = pack.split(".").map(RustImports.toSnakeCase).join("/") + "/mod.rs";
             PackageArtifacts.saveTreeFile(output, modPath, lines.join("\n") + "\n");
         }
