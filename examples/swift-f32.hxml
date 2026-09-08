@@ -196,6 +196,8 @@ tests.RustCoalesceTests
 boring.UnderscoreParamOps
 tests.UnderscoreParamTests
 tests.SwitchMergeTests
+boring.JvmFieldPrivateOps
+tests.JvmFieldPrivateTests
 boring.ProbeChain
 tests.ProbeChainTests
 
