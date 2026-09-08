@@ -66,6 +66,12 @@ class RustEmissionState {
     **/
     public final funcErrorEnums:Map<String, {module:String, name:String}> = [];
 
+    public final interfaceMethodShapes:Map<String, {isFallible:Bool, isMutating:Bool, errorModule:Null<String>, errorName:Null<String>}> = [];
+
+    public static function interfaceMethodKey(module:String, name:String, method:String):String {
+        return module + "." + name + "." + method;
+    }
+
     /** Functions whose reachable error set requires a per-function union. */
     public final funcEnumConflicts:Map<String, Bool> = [];
 
