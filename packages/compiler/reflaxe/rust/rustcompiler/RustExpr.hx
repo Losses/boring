@@ -620,7 +620,14 @@ class RustExpr {
                 final kw = mutated.exists(v.id) || tryCapturedAssignments.exists(v.id) ? "let mut" : "let";
                 final name = RustImports.toSnakeCase(localName(v));
                 final explicitType = if (isFunctionType(v.t)) {
-                    ": " + types.functionReturnOf(v.t);
+                    final isStaticRef = switch (stripWrap(init).expr) {
+                        case TField(_, FStatic(_, _)): true;
+                        case _: false;
+                    };
+                    // Static method pointers are 'static; the trait-object
+                    // lifetime does not need the elided '_ that only binds
+                    // to an enclosing reference parameter.
+                    ": " + (isStaticRef ? types.of(v.t, false) : types.functionReturnOf(v.t));
                 } else switch (v.t) {
                     case TInst(c, _)
                         if (c.get().name == "SortedMapBuilder" || c.get().name == "SortedMap" || c.get().name == "SortedSetBuilder"
@@ -3845,6 +3852,7 @@ class RustExpr {
     function isGuardStaticField(cls:ClassType, name:String):Bool {
         final field = staticFieldOf(cls, name);
         return field != null
+            && !field.kind.match(FMethod(_))
             && ValueTypeSupport.markedAbstractOfClass(cls) == null
             && StaticFieldHelper.initializer(field) != null
             && !StaticFieldHelper.isConstValue(field)

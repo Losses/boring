@@ -197,6 +197,8 @@ boring.LoopWriteOps
 tests.LoopWriteTests
 boring.ArrayAccessOps
 tests.ArrayAccessTests
+boring.StaticRefOps
+tests.StaticRefTests
 boring.UnderscoreParamOps
 tests.UnderscoreParamTests
 tests.SwitchMergeTests
