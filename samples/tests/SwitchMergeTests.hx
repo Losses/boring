@@ -18,6 +18,7 @@ class SwitchMergeTests {
         Test.equals("second:2", SwitchMergeOps.single(SwitchMergeValue.Second(2)));
     }
 
+    @:test("grouped plain arms match without payload bindings")
     public static function groupedPlainMatches():Void {
         Test.equals("plain", SwitchMergeOps.groupedPlain(SwitchMergeValue.First(1)));
         Test.equals("plain", SwitchMergeOps.groupedPlain(SwitchMergeValue.Second(2)));
