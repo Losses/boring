@@ -191,6 +191,8 @@ boring.DartCharNullOps
 tests.DartCharNullTests
 boring.RustCoalesceOps
 tests.RustCoalesceTests
+boring.OverrideMemberOps
+tests.OverrideMemberTests
 boring.CfgTestProbe
 boring.ProbeChain
 tests.ProbeChainTests
