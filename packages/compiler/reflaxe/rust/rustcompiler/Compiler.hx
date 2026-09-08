@@ -248,7 +248,9 @@ class Compiler extends PluginCompiler<Compiler> {
         final testModuleLeaves:Map<String, Bool> = [];
 
         for (module in modules) {
-            if (state.payloadEnumModules.exists(module)) {
+            // A payload enum and its exception can share one Haxe module; that
+            // self-map must not suppress the module that owns both declarations.
+            if (state.payloadEnumModules.exists(module) && state.payloadEnumModules.get(module) != module) {
                 continue;
             }
             if (RuntimeResidents.isResident(module)) {
