@@ -245,7 +245,9 @@ tests.EnumSortedKeysTests
 boring.DartCharNullOps
 tests.DartCharNullTests
 boring.RustCoalesceOps
+boring.SwitchMergeOps
 tests.RustCoalesceTests
+tests.SwitchMergeTests
 
 boring.ProbeUnit
 boring.AbstractStaticDefault
