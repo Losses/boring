@@ -1,6 +1,5 @@
 package tests;
 
-#if rust_output
 import boring.CompareGateOps;
 import std.Test;
 
@@ -16,4 +15,3 @@ class CompareGateTests {
         Test.equals("a", CompareGateOps.safeNested().value.inner.label);
     }
 }
-#end
