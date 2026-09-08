@@ -1534,19 +1534,31 @@ class DefaultArgExpander {
         registered defaults complete the call. Returns null when the callee,
         its signature, or any omitted parameter's default is unavailable.
     **/
-    public static function omittedCallDefaults(modulePath:String, fieldName:String, explicitCount:Int):Null<Array<{value:CoalescingDefaultValue, type:Type}>> {
+    public static function omittedCallDefaults(modulePath:String, fieldName:String, explicitCount:Int,
+            ?className:String):Null<Array<{value:CoalescingDefaultValue, type:Type}>> {
         if (modulePath == null || modulePath.length == 0 || explicitCount < 0)
             return null;
         var cls:Null<ClassType> = null;
-        try {
-            switch (Context.getType(modulePath)) {
-                case TInst(ref, _):
-                    cls = ref.get();
-                default:
-                    return null;
+        if (className != null && className.length > 0) {
+            try {
+                switch (Context.getType(modulePath + "." + className)) {
+                    case TInst(ref, _):
+                        cls = ref.get();
+                    default:
+                }
+            } catch (_:Dynamic) {}
+        }
+        if (cls == null) {
+            try {
+                switch (Context.getType(modulePath)) {
+                    case TInst(ref, _):
+                        cls = ref.get();
+                    default:
+                        return null;
+                }
+            } catch (_:Dynamic) {
+                return null;
             }
-        } catch (_:Dynamic) {
-            return null;
         }
         var funType:Null<Type> = null;
         if (fieldName == "new") {
@@ -1782,7 +1794,7 @@ class DefaultArgExpander {
         };
     }
 
-    static function coalescingCanBeNull(value:CoalescingDefaultValue):Bool {
+    public static function coalescingCanBeNull(value:CoalescingDefaultValue):Bool {
         return switch (value) {
             case CNull: true;
             case CConditional(_, ifTrue, ifFalse): coalescingCanBeNull(ifTrue) || coalescingCanBeNull(ifFalse);

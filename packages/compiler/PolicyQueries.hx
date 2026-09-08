@@ -816,30 +816,67 @@ class PolicyQueries {
                 if (bodyStmts.length == 0) {
                     return null;
                 }
+                // A captured loop index is declared by the first statement and
+                // initialized by the counter increment. Otherwise the counter
+                // increment is an ordinary statement in the loop body.
                 switch (bodyStmts[0].expr) {
-                    case TVar(captured, inc):
-                        final captureOk = inc != null && switch (ExpressionPredicates.stripWrap(inc).expr) {
+                    case TVar(captured, inc) if (inc != null):
+                        final captureOk = switch (ExpressionPredicates.stripWrap(inc).expr) {
                             case TUnop(OpIncrement, true, subj):
                                 switch (ExpressionPredicates.stripWrap(subj).expr) {
                                     case TLocal(c): c.id == counter.id;
                                     case _: false;
                                 }
                             case _: false;
-                        } if (!captureOk) {
-                            return null;
-                        }
-                        return {
-                            index: captured,
-                            start: start,
-                            bound: bound,
-                            body: bodyStmts.slice(1)
                         };
+                        if (captureOk) {
+                            final capturedBody = bodyStmts.slice(1);
+                            // The typer introduces a temporary for some iterator
+                            // loops but the body can still read the counter. In
+                            // that shape the increment belongs to the counter,
+                            // not to the temporary loop index.
+                            final index = [
+                                for (stmt in capturedBody)
+                                    if (PolicyQueries.mentionsLocal(stmt, counter)) counter else captured
+                            ][0];
+                            return {
+                                index: index,
+                                start: start,
+                                bound: bound,
+                                body: capturedBody
+                            };
+                        }
                     case _:
-                        return null;
                 }
+                final increment = bodyStmts.length - 1;
+                final incrementOk = switch (ExpressionPredicates.stripWrap(bodyStmts[increment]).expr) {
+                    case TVar(_, inc) if (inc != null):
+                        switch (ExpressionPredicates.stripWrap(inc).expr) {
+                            case TUnop(OpIncrement, true, {expr: TLocal(c)}) if (c.id == counter.id): true;
+                            case _: false;
+                        }
+                    case TBinop(OpAssignOp(OpAdd), {expr: TLocal(c)}, rhs) if (c.id == counter.id && isOne(rhs)): true;
+                    case TUnop(OpIncrement, true, {expr: TLocal(c)}) if (c.id == counter.id): true;
+                    case _: false;
+                };
+                if (!incrementOk)
+                    return null;
+                return {
+                    index: counter,
+                    start: start,
+                    bound: bound,
+                    body: bodyStmts.slice(0, increment)
+                };
             case _:
                 return null;
         }
+    }
+
+    static function isOne(e:TypedExpr):Bool {
+        return switch (ExpressionPredicates.stripWrap(e).expr) {
+            case TConst(TInt(v)): v == 1;
+            case _: false;
+        };
     }
 
     public static function intervalShort(counterDecl:TypedExpr, whileExpr:TypedExpr):Null<{
@@ -848,8 +885,21 @@ class PolicyQueries {
         bound:TypedExpr,
         body:Array<TypedExpr>
     }> {
-        switch [counterDecl.expr, whileExpr.expr] {
-            case [TVar(counter, start), TWhile(cond, body, true)] if (start != null):
+        final counterAndStart = switch (counterDecl.expr) {
+            case TVar(counter, start) if (start != null): {counter: counter, start: start};
+            case TBinop(OpAssign, lhs, start):
+                switch (ExpressionPredicates.stripWrap(lhs).expr) {
+                    case TLocal(counter): {counter: counter, start: start};
+                    case _: null;
+                }
+            case _: null;
+        };
+        if (counterAndStart == null)
+            return null;
+        final counter = counterAndStart.counter;
+        final start = counterAndStart.start;
+        switch (whileExpr.expr) {
+            case TWhile(cond, body, true):
                 switch (ExpressionPredicates.stripWrap(cond).expr) {
                     case TBinop(OpLt, left, right):
                         final subject = ExpressionPredicates.stripParentheses(left);
@@ -860,18 +910,45 @@ class PolicyQueries {
                                     return null;
                                 switch (bodyStmts[0].expr) {
                                     case TVar(captured, inc) if (inc != null):
-                                        switch (ExpressionPredicates.stripWrap(inc).expr) {
-                                            case TUnop(OpIncrement, true, {expr: TLocal(c)}) if (c.id == counter.id):
-                                                return {
-                                                    index: captured,
-                                                    start: start,
-                                                    bound: right,
-                                                    body: bodyStmts.slice(1)
-                                                };
-                                            case _:
+                                        final captureOk = switch (ExpressionPredicates.stripWrap(inc).expr) {
+                                            case TUnop(OpIncrement, true, {expr: TLocal(c)}) if (c.id == counter.id): true;
+                                            case _: false;
+                                        };
+                                        if (captureOk) {
+                                            final capturedBody = bodyStmts.slice(1);
+                                            final index = [
+                                                for (stmt in capturedBody)
+                                                    if (PolicyQueries.mentionsLocal(stmt, counter)) counter else captured
+                                            ][0];
+                                            return {
+                                                index: index,
+                                                start: start,
+                                                bound: right,
+                                                body: capturedBody
+                                            };
                                         }
                                     case _:
                                 }
+                                var increment = -1;
+                                for (j in 0...bodyStmts.length)
+                                    switch (ExpressionPredicates.stripWrap(bodyStmts[j]).expr) {
+                                        case TBinop(OpAssignOp(OpAdd), {expr: TLocal(c)}, rhs) if (c.id == counter.id && isOne(rhs)): increment = j;
+                                        case TUnop(OpIncrement, true, {expr: TLocal(c)}) if (c.id == counter.id): increment = j;
+                                        case TVar(_, inc) if (inc != null):
+                                            switch (ExpressionPredicates.stripWrap(inc).expr) {
+                                                case TUnop(OpIncrement, true, {expr: TLocal(c)}) if (c.id == counter.id): increment = j;
+                                                case _:
+                                            }
+                                        case _:
+                                    }
+                                if (increment < 0)
+                                    return null;
+                                return {
+                                    index: counter,
+                                    start: start,
+                                    bound: right,
+                                    body: [for (j in 0...bodyStmts.length) if (j != increment) bodyStmts[j]]
+                                };
                             case _:
                                 return null;
                         }
@@ -883,32 +960,60 @@ class PolicyQueries {
         return null;
     }
 
+    public static function intervalSplit(counterDecl:TypedExpr, startAssign:TypedExpr, whileExpr:TypedExpr):Null<{
+        index:TVar,
+        start:TypedExpr,
+        bound:TypedExpr,
+        body:Array<TypedExpr>
+    }> {
+        final counter = switch (counterDecl.expr) {
+            case TVar(v, null): v;
+            case _: null;
+        };
+        if (counter == null)
+            return null;
+        final start = switch (ExpressionPredicates.stripWrap(startAssign).expr) {
+            case TBinop(OpAssign, {expr: TLocal(v)}, value) if (v.id == counter.id): value;
+            case _: null;
+        };
+        if (start == null)
+            return null;
+        return intervalShort({expr: TVar(counter, start), pos: counterDecl.pos, t: counterDecl.t}, whileExpr);
+    }
+
+    /** Whether a counted-loop counter is used after the loop in this block.
+        Such a counter must remain in the enclosing scope: consuming its TVar
+        in a target loop header would otherwise make later assignments refer
+        to a name that no longer exists. */
+    static function counterUsedAfter(stmts:Array<TypedExpr>, end:Int, counter:TVar):Bool {
+        for (j in end...stmts.length)
+            if (mentionsLocal(stmts[j], counter))
+                return true;
+        return false;
+    }
+
     public static function regroupLoops(stmts:Array<TypedExpr>):Array<TypedExpr> {
         final out:Array<TypedExpr> = [];
         var i = 0;
         while (i < stmts.length) {
             if (i + 2 < stmts.length) {
                 final loop = intervalCore(stmts[i], stmts[i + 1], stmts[i + 2]);
-                if (loop != null) {
-                    final grouped:TypedExpr = {
-                        expr: TBlock([stmts[i], stmts[i + 1], stmts[i + 2]]),
-                        pos: stmts[i].pos,
-                        t: stmts[i + 2].t
-                    };
-                    out.push(grouped);
+                if (loop != null && !counterUsedAfter(stmts, i + 3, loop.index)) {
+                    out.push({expr: TBlock([stmts[i], stmts[i + 1], stmts[i + 2]]), pos: stmts[i].pos, t: stmts[i + 2].t});
+                    i += 3;
+                    continue;
+                }
+                final split = intervalSplit(stmts[i], stmts[i + 1], stmts[i + 2]);
+                if (split != null && !counterUsedAfter(stmts, i + 3, split.index)) {
+                    out.push({expr: TBlock([stmts[i], stmts[i + 1], stmts[i + 2]]), pos: stmts[i].pos, t: stmts[i + 2].t});
                     i += 3;
                     continue;
                 }
             }
             if (i + 1 < stmts.length) {
                 final loop = intervalShort(stmts[i], stmts[i + 1]);
-                if (loop != null) {
-                    final grouped:TypedExpr = {
-                        expr: TBlock([stmts[i], stmts[i + 1]]),
-                        pos: stmts[i].pos,
-                        t: stmts[i + 1].t
-                    };
-                    out.push(grouped);
+                if (loop != null && !counterUsedAfter(stmts, i + 2, loop.index)) {
+                    out.push({expr: TBlock([stmts[i], stmts[i + 1]]), pos: stmts[i].pos, t: stmts[i + 1].t});
                     i += 2;
                     continue;
                 }
