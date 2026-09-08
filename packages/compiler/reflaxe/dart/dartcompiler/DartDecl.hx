@@ -479,8 +479,10 @@ class DartDecl {
             final initializer = v.field.expr();
             if (initializer == null)
                 Context.error("value type static field must have an initializer", v.field.pos);
+            final initText = constValFloatInit(initializer, v.field.type);
+            final val = ValueTypeSupport.isBareRepresentationLiteral(initializer, info.representation) ? info.name + "(" + initText + ")" : initText;
             lines.push("");
-            lines.push("  static final " + info.name + " " + v.field.name + " = " + constValFloatInit(initializer, v.field.type) + ";");
+            lines.push("  static final " + info.name + " " + v.field.name + " = " + val + ";");
         }
         lines.push("}");
         final result = lines.copy();
