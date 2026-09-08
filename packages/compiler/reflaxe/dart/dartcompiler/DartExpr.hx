@@ -97,6 +97,8 @@ class DartExpr {
     /** Optional parameters materialized by default expansion. */
     final nonNullOptionalParams:Map<Int, Bool> = [];
 
+    final nonNullParamNames:Map<String, Bool> = [];
+
     /** Names used by parameters and locals; generated names avoid them. */
     final usedNames:Map<String, Bool> = [];
 
@@ -366,6 +368,7 @@ class DartExpr {
             if (DefaultArgExpander.coalescingDefaultAt(cls, f.field.name, a.index) != null && a.tvar != null) {
                 nonNullLocals.set(a.tvar.id, true);
                 nonNullOptionalParams.set(a.tvar.id, true);
+                nonNullParamNames.set(a.name, true);
             }
         }
 
@@ -1144,11 +1147,14 @@ class DartExpr {
                 if (subst.exists(v.id)) {
                     return subst.get(v.id);
                 }
-                return localName(v);
+                // Default-expanded optional parameters and normalized locals
+                // are concrete values in the generated Dart body. Keep the
+                // assertion at the read site, including condition operands.
+                return (nonNullLocals.exists(v.id) || nonNullParamNames.exists(v.name)) ? localName(v) + "!" : localName(v);
             case TArray(arr, idx):
                 final mapReceiver = mapBackingReceiver(arr);
                 final arrayReceiver = mapReceiver == null ? receiverText(arr) : receiverText(mapReceiver);
-                return arrayReceiver + "[" + expr(idx) + "]";
+                return arrayReceiver + "[" + expr(idx) + "]" + "!";
             case TBinop(op, l, r):
                 return binop(e, op, l, r);
             case TUnop(op, post, subj):
@@ -1855,7 +1861,10 @@ class DartExpr {
             case IsRecordLike: value + ".toString()";
             case IsInstanceToString: value + ".toString()";
             case IsMarkedAbstract(abs):
-                ValueTypeSupport.memberField(abs, "toString") != null ? receiverText(origin) + ".toStringValue()" : value
+                ValueTypeSupport.memberField(abs, "toString") != null ? "("
+                    + receiverText(origin)
+                    + ")!"
+                    + ".toStringValue()" : value
                     + "."
                     + ValueTypeSupport.representationFieldName(abs)
                     + ".toString()";
