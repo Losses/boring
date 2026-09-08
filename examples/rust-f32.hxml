@@ -200,3 +200,7 @@ boring.OptionalParamNull
 tests.OptionalParamNullTests
 boring.NumericConversionWidening
 tests.NumericConversionWideningTests
+boring.WidgetKind
+boring.WidgetCart
+boring.WidgetAssembly
+tests.WidgetCoalescingTests

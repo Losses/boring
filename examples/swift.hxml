@@ -234,3 +234,7 @@ tests.PlatformModulesTests
 
 boring.EnumSortedKeysOps
 tests.EnumSortedKeysTests
+boring.WidgetKind
+boring.WidgetCart
+boring.WidgetAssembly
+tests.WidgetCoalescingTests
