@@ -1144,10 +1144,7 @@ class DartExpr {
                 if (subst.exists(v.id)) {
                     return subst.get(v.id);
                 }
-                // Default-expanded optional parameters and normalized locals
-                // are concrete values in the generated Dart body. Keep the
-                // assertion at the read site, including condition operands.
-                return nonNullLocals.exists(v.id) ? localName(v) + "!" : localName(v);
+                return localName(v);
             case TArray(arr, idx):
                 final mapReceiver = mapBackingReceiver(arr);
                 final arrayReceiver = mapReceiver == null ? receiverText(arr) : receiverText(mapReceiver);
