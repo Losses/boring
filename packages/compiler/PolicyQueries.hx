@@ -830,11 +830,20 @@ class PolicyQueries {
                             case _: false;
                         };
                         if (captureOk) {
+                            final capturedBody = bodyStmts.slice(1);
+                            // The typer introduces a temporary for some iterator
+                            // loops but the body can still read the counter. In
+                            // that shape the increment belongs to the counter,
+                            // not to the temporary loop index.
+                            final index = [
+                                for (stmt in capturedBody)
+                                    if (PolicyQueries.mentionsLocal(stmt, counter)) counter else captured
+                            ][0];
                             return {
-                                index: captured,
+                                index: index,
                                 start: start,
                                 bound: bound,
-                                body: bodyStmts.slice(1)
+                                body: capturedBody
                             };
                         }
                     case _:
@@ -869,8 +878,21 @@ class PolicyQueries {
         bound:TypedExpr,
         body:Array<TypedExpr>
     }> {
-        switch [counterDecl.expr, whileExpr.expr] {
-            case [TVar(counter, start), TWhile(cond, body, true)] if (start != null):
+        final counterAndStart = switch (counterDecl.expr) {
+            case TVar(counter, start) if (start != null): {counter: counter, start: start};
+            case TBinop(OpAssign, lhs, start):
+                switch (ExpressionPredicates.stripWrap(lhs).expr) {
+                    case TLocal(counter): {counter: counter, start: start};
+                    case _: null;
+                }
+            case _: null;
+        };
+        if (counterAndStart == null)
+            return null;
+        final counter = counterAndStart.counter;
+        final start = counterAndStart.start;
+        switch (whileExpr.expr) {
+            case TWhile(cond, body, true):
                 switch (ExpressionPredicates.stripWrap(cond).expr) {
                     case TBinop(OpLt, left, right):
                         final subject = ExpressionPredicates.stripParentheses(left);
