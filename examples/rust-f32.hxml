@@ -200,3 +200,7 @@ boring.OptionalParamNull
 tests.OptionalParamNullTests
 boring.NumericConversionWidening
 tests.NumericConversionWideningTests
+
+boring.ProbeUnit
+boring.AbstractStaticDefault
+tests.AbstractStaticDefaultTests

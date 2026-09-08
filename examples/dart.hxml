@@ -231,3 +231,7 @@ tests.PlatformModulesTests
 
 boring.EnumSortedKeysOps
 tests.EnumSortedKeysTests
+
+boring.ProbeUnit
+boring.AbstractStaticDefault
+tests.AbstractStaticDefaultTests

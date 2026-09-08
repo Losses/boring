@@ -195,3 +195,7 @@ boring.KnullInitNarrowing
 tests.KnullInitNarrowingTests
 boring.SwiftLiteralSafetyOps
 tests.SwiftLiteralSafetyOpsTests
+
+boring.ProbeUnit
+boring.AbstractStaticDefault
+tests.AbstractStaticDefaultTests
