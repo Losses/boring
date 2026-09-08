@@ -211,5 +211,7 @@ tests.KnullInitNarrowingTests
 
 boring.ProbeUnit
 boring.AbstractStaticDefault
+boring.CompareGateOps
+tests.CompareGateTests
 tests.AbstractStaticDefaultTests
 boring.CfgTestProbe

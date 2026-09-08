@@ -221,3 +221,5 @@ boring.WidgetKind
 boring.WidgetCart
 boring.WidgetAssembly
 tests.WidgetCoalescingTests
+boring.CompareGateOps
+tests.CompareGateTests
