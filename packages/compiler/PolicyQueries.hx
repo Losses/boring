@@ -855,7 +855,7 @@ class PolicyQueries {
                             case TUnop(OpIncrement, true, {expr: TLocal(c)}) if (c.id == counter.id): true;
                             case _: false;
                         }
-                    case TBinop(OpAssignOp(OpAdd), {expr: TLocal(c)}, _) if (c.id == counter.id): true;
+                    case TBinop(OpAssignOp(OpAdd), {expr: TLocal(c)}, rhs) if (c.id == counter.id && isOne(rhs)): true;
                     case TUnop(OpIncrement, true, {expr: TLocal(c)}) if (c.id == counter.id): true;
                     case _: false;
                 };
@@ -870,6 +870,13 @@ class PolicyQueries {
             case _:
                 return null;
         }
+    }
+
+    static function isOne(e:TypedExpr):Bool {
+        return switch (ExpressionPredicates.stripWrap(e).expr) {
+            case TConst(TInt(v)): v == 1;
+            case _: false;
+        };
     }
 
     public static function intervalShort(counterDecl:TypedExpr, whileExpr:TypedExpr):Null<{
@@ -925,7 +932,7 @@ class PolicyQueries {
                                 var increment = -1;
                                 for (j in 0...bodyStmts.length)
                                     switch (ExpressionPredicates.stripWrap(bodyStmts[j]).expr) {
-                                        case TBinop(OpAssignOp(OpAdd), {expr: TLocal(c)}, _) if (c.id == counter.id): increment = j;
+                                        case TBinop(OpAssignOp(OpAdd), {expr: TLocal(c)}, rhs) if (c.id == counter.id && isOne(rhs)): increment = j;
                                         case TUnop(OpIncrement, true, {expr: TLocal(c)}) if (c.id == counter.id): increment = j;
                                         case TVar(_, inc) if (inc != null):
                                             switch (ExpressionPredicates.stripWrap(inc).expr) {
