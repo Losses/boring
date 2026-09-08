@@ -494,8 +494,9 @@ class KotlinDecl {
                 final initializer = v.field.expr();
                 if (initializer == null)
                     Context.error("value type static field must have an initializer", v.field.pos);
-                lines.push("        " + (v.field.isPublic ? "" : "private ") + "val " + v.field.name + ": " + info.name + " = "
-                    + expr.rawExpression(initializer));
+                final initText = expr.rawExpression(initializer);
+                final val = ValueTypeSupport.isBareRepresentationLiteral(initializer, info.representation) ? info.name + "(" + initText + ")" : initText;
+                lines.push("        " + (v.field.isPublic ? "" : "private ") + "val " + v.field.name + ": " + info.name + " = " + val);
             }
             lines.push("    }");
         }
