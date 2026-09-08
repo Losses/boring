@@ -93,8 +93,11 @@ class RustDecl {
                     for (a in f.args)
                         RustImports.toSnakeCase(a.name) + ": " + types.of(a.type, true)
                 ].join(", ");
-                final selfPrefix = f.isStatic ? "" : "&self" + (f.args.length > 0 ? ", " : "");
-                final retType = types.of(f.ret, false);
+                final isMutating = !f.isStatic && isMethodMutating(f);
+                final selfPrefix = f.isStatic ? "" : (isMutating ? "&mut self" : "&self") + (f.args.length > 0 ? ", " : "");
+                final isFallible = funcIsFallible(f);
+                final rawRetType = methodReturnType(f.ret, f.field.name);
+                final retType = isFallible ? 'Result<$rawRetType, ${resolveErrorOwner(f, cls).name}>' : rawRetType;
                 final ret = retType == "()" ? "" : " -> " + retType;
                 lines.push('    fn ${RustImports.toSnakeCase(f.field.name)}($selfPrefix$paramList)$ret;');
             }
@@ -1889,7 +1892,7 @@ class RustDecl {
             || name == "writeU16" || name == "writeU32" || name == "writeF64" || name == "writeF32" || name == "writeF16" || name == "writeAscii") {
             return true;
         }
-        if (name == "finish") {
+        if (name == "finish" || name == "bump") {
             return true;
         }
         return bodyMutatesSelf(f.expr);
