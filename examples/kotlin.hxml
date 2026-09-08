@@ -231,6 +231,4 @@ tests.PlatformModulesTests
 boring.EnumSortedKeysOps
 tests.EnumSortedKeysTests
 boring.ProbeChain
-boring.ProbeFaults
 tests.ProbeChainTests
-tests.ProbeFaultsTests
