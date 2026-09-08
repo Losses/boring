@@ -236,3 +236,4 @@ boring.WidgetKind
 boring.WidgetCart
 boring.WidgetAssembly
 tests.WidgetCoalescingTests
+boring.CfgTestProbe
