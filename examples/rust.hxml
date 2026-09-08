@@ -238,6 +238,8 @@ boring.DartCharNullOps
 tests.DartCharNullTests
 boring.RustCoalesceOps
 tests.RustCoalesceTests
+boring.StaticRefOps
+tests.StaticRefTests
 boring.UnderscoreParamOps
 tests.UnderscoreParamTests
 
