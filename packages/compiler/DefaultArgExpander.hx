@@ -252,6 +252,41 @@ class DefaultArgExpander {
         rewriteCrossSiteReads(func.expr, sites);
     }
 
+    static function coalescingConstructorOmission(value:DefaultArgValue, parameterType:Type):CoalescingDefaultValue {
+        return switch (value) {
+            case VNull:
+                switch (Context.follow(withoutNull(parameterType))) {
+                    case TInst(c, _) if (c.get().name == "Array"): CEmptyArray;
+                    default: CNull;
+                };
+            default: coalescingOf(value);
+        };
+    }
+    static function alignConstructorDefaults(resolved:ResolvedClassRef, args:Array<CoalescingDefaultValue>):Array<CoalescingDefaultValue> {
+        var aligned = args;
+        try {
+            switch (Context.getType(resolved.typePath)) {
+                case TInst(ref, _):
+                    final target = ref.get();
+                    final defaults = lookupFieldDefaultsExact(target, "new");
+                    final constructor = target.constructor == null ? null : target.constructor.get();
+                    final parameters = constructor == null ? null : switch (Context.follow(constructor.type)) {
+                        case TFun(values, _): values;
+                        default: null;
+                    };
+                    if (defaults != null && parameters != null && aligned.length < parameters.length) {
+                        final missingCount = parameters.length - aligned.length;
+                        for (i in 0...missingCount) {
+                            final missing = i < defaults.length ? defaults[i] : null;
+                            if (missing != null)
+                                aligned.insert(i, coalescingConstructorOmission(missing, parameters[i].t));
+                        }
+                    }
+                default:
+            }
+        } catch (_:Dynamic) {}
+        return aligned;
+    }
     static function constructorDefaultValue(e:Expr, classType:ClassType):Null<CoalescingDefaultValue> {
         final cur = unwrapExpr(e);
         return switch (cur == null ? null : cur.expr) {
@@ -259,7 +294,7 @@ class DefaultArgExpander {
                 final argValues = validateArgList(args, "", [], [], classType);
                 if (argValues == null) null else {
                     final resolved = resolveClassRef(typePath.pack.length == 0 ? typePath.name : typePath.pack.join(".") + "." + typePath.name);
-                    resolved == null ? null : CConstructorCall(resolved.module, resolved.name, argValues);
+                    resolved == null ? null : CConstructorCall(resolved.module, resolved.name, alignConstructorDefaults(resolved, argValues));
                 }
             default: null;
         };
@@ -662,7 +697,7 @@ class DefaultArgExpander {
                     if (argValues != null) {
                         final resolved = resolveClassRef(typePath.pack.length == 0 ? typePath.name : typePath.pack.join(".") + "." + typePath.name);
                         if (resolved != null)
-                            return CConstructorCall(resolved.module, resolved.name, argValues);
+                            return CConstructorCall(resolved.module, resolved.name, alignConstructorDefaults(resolved, argValues));
                     }
                 default:
             }
@@ -1385,7 +1420,7 @@ class DefaultArgExpander {
                     default:
                         // A materialized constant carries the unwrapped value
                         // type; a Null<X> parameter makes the constant X.
-                        args.push(makeTypedConst(defVal, withoutNull(param.t), callExpr.pos));
+                        args.insert(i, makeTypedConst(defVal, withoutNull(param.t), callExpr.pos));
                 }
             } else if (param.opt) {
                 args.push(makeTypedConst(VNull, param.t, callExpr.pos));
@@ -1560,6 +1595,19 @@ class DefaultArgExpander {
         }
         if (cls == null) {
             try {
+                for (moduleType in Context.getModule(modulePath)) {
+                    switch (moduleType) {
+                        case TInst(ref, _) if (className == null || ref.get().name == className):
+                            cls = ref.get();
+                        default:
+                    }
+                    if (cls != null)
+                        break;
+                }
+            } catch (_:Dynamic) {}
+        }
+        if (cls == null) {
+            try {
                 switch (Context.getType(modulePath)) {
                     case TInst(ref, _):
                         cls = ref.get();
@@ -1595,9 +1643,20 @@ class DefaultArgExpander {
         final out:Array<{value:CoalescingDefaultValue, type:Type}> = [];
         for (i in explicitCount...args.length) {
             final d = defaultAt(cls, fieldName, i);
-            if (d == null)
+            if (d != null) {
+                out.push({value: coalescingOf(d), type: args[i].t});
+                continue;
+            }
+            if (!args[i].opt)
                 return null;
-            out.push({value: coalescingOf(d), type: args[i].t});
+            // An optional parameter without an explicit Haxe default still
+            // has a target default. Arrays use the target's empty value;
+            // nullable scalar slots use null and let the callee coalesce.
+            final value = switch (Context.follow(withoutNull(args[i].t))) {
+                case TInst(c, _) if (c.get().name == "Array"): CEmptyArray;
+                default: CNull;
+            };
+            out.push({value: value, type: args[i].t});
         }
         return out;
     }
@@ -1865,7 +1924,7 @@ class DefaultArgExpander {
                             args.push(makeTypedConst(VNull, param.t, newExpr.pos));
                     default:
                         // Same unwrapping as the call-site completion above.
-                        args.push(makeTypedConst(defVal, withoutNull(param.t), newExpr.pos));
+                        args.insert(i, makeTypedConst(defVal, withoutNull(param.t), newExpr.pos));
                 }
             } else if (param.opt) {
                 args.push(makeTypedConst(VNull, param.t, newExpr.pos));
