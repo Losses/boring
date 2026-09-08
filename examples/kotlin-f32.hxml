@@ -190,5 +190,9 @@ boring.PublicGetterProperty
 tests.PublicGetterPropertyTests
 boring.InterfaceGetterProperty
 tests.InterfaceGetterPropertyTests
+boring.WidgetKind
+boring.WidgetCart
+boring.WidgetAssembly
+tests.WidgetCoalescingTests
 boring.KnullInitNarrowing
 tests.KnullInitNarrowingTests
