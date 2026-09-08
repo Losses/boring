@@ -187,11 +187,7 @@ class KotlinExpr {
             case CPositiveInfinity: FloatPrecision.isF32() ? "Float.POSITIVE_INFINITY" : "Double.POSITIVE_INFINITY";
             case CNegativeInfinity: FloatPrecision.isF32() ? "Float.NEGATIVE_INFINITY" : "Double.NEGATIVE_INFINITY";
             case CEnum(enumRef, enumField): types.of(Type.TEnum(enumRef, [])) + "." + enumField.name;
-            case CParameterRead(name):
-                // Kotlin default arguments cannot refer to a preceding
-                // constructor parameter. The coalescing expression instead
-                // belongs to the constructor's init lowering.
-                "null";
+            case CParameterRead(name): KotlinNameEscape.escape(name);
             case CInstanceFieldRead(name): "this." + KotlinNameEscape.escape(name);
             case CLocalRead(name): KotlinNameEscape.escape(name);
             case CFieldAccess(CParameterRead(staticPath), ""): coalescingStaticFieldText(staticPath);
