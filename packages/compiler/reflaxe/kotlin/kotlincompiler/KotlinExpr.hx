@@ -1705,7 +1705,10 @@ class KotlinExpr {
             case OpAssignOp(inner):
                 switch (inner) {
                     case OpAdd | OpSub | OpMult | OpDiv | OpMod:
-                        return assignTarget(l) + " " + symbolOf(inner) + "= " + expr(r);
+                        var appliedValue = expr(r);
+                        if (isIntOrLongType(emittedType(r)) && isFloatType(l.t))
+                            appliedValue = intToFloatText(appliedValue);
+                        return assignTarget(l) + " " + symbolOf(inner) + "= " + appliedValue;
                     case _:
                         return assignTarget(l) + " = " + binopCore(inner, l, r);
                 }
