@@ -37,6 +37,12 @@ class KotlinExpr {
     /** True while emitting a function whose return type is ReadOnlyArray. */
     var decodeBoundary:Bool = false;
 
+    /** True while rendering an expression used to initialize a writable array. */
+    var mutableArrayAccess:Bool = false;
+
+    /** Locals whose array values are modified through indexed assignment. */
+    final mutableArrayLocals:Map<Int, Bool> = [];
+
     /** Enum-capture locals mapped to the payload expression they stand for. */
     final subst:Map<Int, String> = [];
 
@@ -539,7 +545,12 @@ class KotlinExpr {
                 };
                 var initText = switch (init.expr) {
                     case TFunction(fn): functionLiteralNamed(v.name, fn);
-                    default: expr(init);
+                    default:
+                        final previous = mutableArrayAccess;
+                        mutableArrayAccess = mutableArrayLocals.exists(v.id);
+                        final rendered = expr(init);
+                        mutableArrayAccess = previous;
+                        rendered;
                 };
                 // Haxe unifies Int and Float; widen Int initializers to Float
                 // when the variable's declared type is Float.
@@ -761,7 +772,7 @@ class KotlinExpr {
         final tail = freshTailName();
         final lines = [indent(depth) + "val " + tail + " = " + stringBufTailRead(parts.subj)];
         if (parts.name == "add") {
-            final part = expr(args[0]);
+            final part = stringBufPartText(args[0]);
             lines.push(indent(depth) + "if (" + stringBufLeadCond(tail) + " && " + part + ".length > 0" + " && !(" + part + "[0].code >= 56320 && " + part
                 + "[0].code <= 57343)) {");
             lines.push(indent(depth + 1) + "throw " + stringBufFaultConstructor(tail));
@@ -779,6 +790,14 @@ class KotlinExpr {
             lines.push(indent(depth) + buf + ".append((" + u + ").toChar())");
         }
         return lines;
+    }
+
+    function stringBufPartText(part:TypedExpr):String {
+        final rendered = expr(part);
+        return switch (stripWrap(part).expr) {
+            case TLocal(_) | TConst(_): rendered;
+            case _: "(" + rendered + ")";
+        };
     }
 
     /** Renders `Owner.Variant` or `Owner.Variant(args)` for an exception construction over its payload enum. */
@@ -1642,9 +1661,20 @@ class KotlinExpr {
                 // Float when the target's type is Float.
                 if (map == null && isIntOrLongType(emittedType(r)) && isFloatType(l.t))
                     value = intToFloatText(value);
-                if (map == null)
-                    updateLocalProofTarget(l, r);
-                return map == null ? assignTarget(l) + " = " + value : expr(map.receiver) + ".put(" + expr(map.key) + ", " + value + ")";
+                if (map == null) {
+                    final previous = mutableArrayAccess;
+                    mutableArrayAccess = switch (stripWrap(l).expr) {
+                        case TArray(arr, _): switch (stripWrap(arr).expr) {
+                            case TLocal(v): mutableArrayLocals.exists(v.id);
+                            case _: false;
+                        }
+                        case _: false;
+                    };
+                    final target = assignTarget(l);
+                    mutableArrayAccess = previous;
+                    return target + " = " + value;
+                }
+                return expr(map.receiver) + ".put(" + expr(map.key) + ", " + value + ")";
             case OpAssignOp(inner):
                 switch (inner) {
                     case OpAdd | OpSub | OpMult | OpDiv | OpMod:
@@ -3114,6 +3144,8 @@ class KotlinExpr {
                     // interval, like the Swift and Dart lowerings.
                     return expr(subj) + nullableAccess(subj) + name + "(" + expr(args[0]) + " until " + expr(args[1]) + ")";
                 }
+                if (name == "split" && mutableArrayAccess && isString(stripCast(subj)))
+                    return expr(subj) + ".split(" + renderedArgs + ").toMutableList()";
                 return expr(subj) + nullableAccess(subj) + name + "(" + renderedArgs + ")";
             case TField(_, FStatic(c, cf)):
                 final cls = c.get();
@@ -3422,6 +3454,11 @@ class KotlinExpr {
             case TBinop(OpAssign, t, _) | TBinop(OpAssignOp(_), t, _):
                 switch (t.expr) {
                     case TLocal(v): mutated.set(v.id, true);
+                    case TArray(arr, _):
+                        switch (stripWrap(arr).expr) {
+                            case TLocal(v): mutableArrayLocals.set(v.id, true);
+                            case _: 
+                        }
                     case _:
                 }
             // An increment or decrement reassigns the local, so the
