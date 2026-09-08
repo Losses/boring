@@ -1311,6 +1311,13 @@ class DefaultArgExpander {
         completeExpr(getClassKey(classType), fieldName, root, false);
     }
 
+    /** Kotlin retains native default-argument calls and does not materialize omissions. */
+    public static function completeRootExprForKotlin(classType:ClassType, fieldName:String, root:TypedExpr):Void {
+        if (root == null)
+            return;
+        completeExpr(getClassKey(classType), fieldName, root, false, true);
+    }
+
     /** Rust has no parameter-default syntax, so coalescing omissions become None. */
     public static function completeRootExprForRust(classType:ClassType, fieldName:String, root:TypedExpr):Void {
         if (root == null)
@@ -1331,25 +1338,26 @@ class DefaultArgExpander {
         completeExpr(getClassKey(classType), fieldName, init, true);
     }
 
-    static function completeExpr(classKey:String, fieldName:String, e:TypedExpr, rustTarget:Bool):Void {
+    static function completeExpr(classKey:String, fieldName:String, e:TypedExpr, rustTarget:Bool, kotlinTarget:Bool = false):Void {
         if (e == null)
             return;
         switch (e.expr) {
             case TypedExprDef.TFunction(f):
-                completeExpr(classKey, fieldName, f.expr, rustTarget);
+                completeExpr(classKey, fieldName, f.expr, rustTarget, kotlinTarget);
             default:
-                haxe.macro.TypedExprTools.iter(e, child -> completeExpr(classKey, fieldName, child, rustTarget));
+                haxe.macro.TypedExprTools.iter(e, child -> completeExpr(classKey, fieldName, child, rustTarget, kotlinTarget));
         }
         switch (e.expr) {
             case TypedExprDef.TCall(callee, args):
-                completeCall(classKey, fieldName, e, callee, args, rustTarget);
+                completeCall(classKey, fieldName, e, callee, args, rustTarget, kotlinTarget);
             case TypedExprDef.TNew(c, _, args):
-                completeNew(e, c.get(), args, rustTarget);
+                completeNew(e, c.get(), args, rustTarget, kotlinTarget);
             default:
         }
     }
 
-    static function completeCall(classKey:String, fieldName:String, callExpr:TypedExpr, callee:TypedExpr, args:Array<TypedExpr>, rustTarget:Bool):Void {
+    static function completeCall(classKey:String, fieldName:String, callExpr:TypedExpr, callee:TypedExpr, args:Array<TypedExpr>, rustTarget:Bool,
+            kotlinTarget:Bool):Void {
         if (callee == null)
             return;
         final followed = Context.follow(callee.t);
@@ -1369,8 +1377,10 @@ class DefaultArgExpander {
 
             if (defVal != null) {
                 switch (defVal) {
-                    case VCoalescing(_):
-                        if (rustTarget)
+                    case VCoalescing(coalescing):
+                        if (rustTarget || !readsParameter(coalescing))
+                            // Preserve the argument position when the target
+                            // cannot retain the registered coalescing default.
                             args.push(makeTypedConst(VNull, param.t, callExpr.pos));
                     default:
                         // A materialized constant carries the unwrapped value
@@ -1825,7 +1835,7 @@ class DefaultArgExpander {
         };
     }
 
-    static function completeNew(newExpr:TypedExpr, cls:ClassType, args:Array<TypedExpr>, rustTarget:Bool):Void {
+    static function completeNew(newExpr:TypedExpr, cls:ClassType, args:Array<TypedExpr>, rustTarget:Bool, kotlinTarget:Bool):Void {
         var params:Null<Array<{name:String, opt:Bool, t:Type}>> = null;
         if (cls.constructor != null) {
             final ctorField = cls.constructor.get();
@@ -1848,8 +1858,10 @@ class DefaultArgExpander {
             final defVal:Null<DefaultArgValue> = (i < defaults.length) ? defaults[i] : null;
             if (defVal != null) {
                 switch (defVal) {
-                    case VCoalescing(_):
-                        if (rustTarget)
+                    case VCoalescing(coalescing):
+                        if (rustTarget || !readsParameter(coalescing))
+                            // Preserve the argument position when the target
+                            // cannot retain the registered coalescing default.
                             args.push(makeTypedConst(VNull, param.t, newExpr.pos));
                     default:
                         // Same unwrapping as the call-site completion above.

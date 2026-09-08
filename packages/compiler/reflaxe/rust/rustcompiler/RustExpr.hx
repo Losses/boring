@@ -264,7 +264,7 @@ class RustExpr {
                 imports.requireType(modulePath, className);
                 className
                 + "::new("
-                + completeCoalescingCallArgs(modulePath, "new", args, targetType, true).join(", ")
+                + completeCoalescingCallArgs(modulePath, "new", args, targetType, true, className).join(", ")
                 + ")";
         };
         return asOption ? "Some(" + rendered + ")" : rendered;
@@ -272,14 +272,35 @@ class RustExpr {
 
     /** Explicit arguments plus the callee's omitted-parameter defaults; a rust signature carries no defaults. */
     function completeCoalescingCallArgs(modulePath:String, fieldName:String, args:Array<DefaultArgExpander.CoalescingDefaultValue>, targetType:Type,
-            nested:Bool = false):Array<String> {
-        final rendered = [for (a in args) coalescingDefaultText(a, targetType, false, nested)];
-        final omitted = DefaultArgExpander.omittedCallDefaults(modulePath, fieldName, args.length);
+            nested:Bool = false, ?className:String):Array<String> {
+        final rendered = [for (i in 0...args.length) coalescingDefaultText(args[i], coalescingCallArgType(modulePath, fieldName, i, className),
+            isNullType(coalescingCallArgType(modulePath, fieldName, i, className)), nested)];
+        final omitted = DefaultArgExpander.omittedCallDefaults(modulePath, fieldName, args.length, className);
         if (omitted != null) {
             for (o in omitted)
-                rendered.push(coalescingDefaultText(o.value, o.type, false, nested));
+                rendered.push(coalescingDefaultText(o.value, o.type, isNullType(o.type), nested));
         }
         return rendered;
+    }
+
+    function coalescingCallArgType(modulePath:String, fieldName:String, index:Int, ?className:String):Null<Type> {
+        try {
+            final cls = if (className != null) switch (Context.getType(modulePath + "." + className)) {
+                case TInst(ref, _): ref.get();
+                default: null;
+            } else switch (Context.getType(modulePath)) {
+                case TInst(ref, _): ref.get();
+                default: null;
+            };
+            if (cls != null) {
+                final ft = fieldName == "new" && cls.constructor != null ? cls.constructor.get().type : null;
+                if (ft != null) switch (Context.follow(ft)) {
+                    case TFun(values, _) if (index < values.length): return values[index].t;
+                    default:
+                }
+            }
+        } catch (_:Dynamic) {}
+        return null;
     }
 
     function coalescingStaticCallText(modulePath:String, className:String, methodName:String, args:Array<DefaultArgExpander.CoalescingDefaultValue>,
@@ -293,7 +314,7 @@ class RustExpr {
             + "::"
             + (RustImports.isShimModule(modulePath) ? RustImports.toSnakeCase(methodName) : RustImports.toSnakeCase(className + "_" + methodName))
             + "("
-            + completeCoalescingCallArgs(modulePath, methodName, args, targetType).join(", ")
+            + completeCoalescingCallArgs(modulePath, methodName, args, targetType, false, className).join(", ")
             + ")";
     }
 
