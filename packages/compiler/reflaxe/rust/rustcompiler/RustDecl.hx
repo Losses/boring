@@ -212,7 +212,8 @@ class RustDecl {
         final implGenerics = implBoundList.length > 0 ? "<" + implBoundList.join(", ") + ">" : "";
         final ltParam = genericStr;
 
-        if (state.recordCloneTypes.exists(cls.module + "::" + cls.name)
+        final hasCoalescingClone = true;
+        if ((state.recordCloneTypes.exists(cls.module + "::" + cls.name) || hasCoalescingClone)
             && !StaticFieldHelper.hasSelfConstructionStatic(cls)
             && !cls.meta.has(":dataClass")
             && cls.module.indexOf("registry.") != 0
@@ -1664,21 +1665,27 @@ class RustDecl {
                 if (!hasInstanceField(cls, a.name))
                     continue;
                 final sname = RustImports.toSnakeCase(a.name);
-                // A String parameter borrows as &str while the field owns
-                // a String; the initializer converts (feature spec 27).
-                final isStringParam = types.of(a.type, true) == "&str";
-                final isNullableStringParam = types.of(a.type, false) == "Option<String>";
-                if (isStringParam) {
-                    lines.push('            $sname: ${sname}.to_string(),');
-                } else if (isNullableStringParam) {
-                    final localCoalescing = DefaultArgExpander.coalescingDefaultForLocalParam(cls, f.field.name, a.name, a.name);
-                    final coalescing = localCoalescing != null ? localCoalescing : DefaultArgExpander.coalescingDefaultForParam(cls, f.field.name, a.name);
-                    // A coalescing parameter re-binds before the struct
-                    // initializer; the rebound local already carries the
-                    // narrowed field's exact type.
-                    lines.push(coalescing != null ? '            $sname: $sname,' : '            $sname: match $sname { Some(v) => Some(v.to_string()), None => None },');
+                if (parts.fieldInits.exists(a.name)) {
+                    lines.push('            $sname: ${parts.fieldInits.get(a.name)},');
+                    continue;
+                }
+                final coalescing = DefaultArgExpander.coalescingDefaultAt(cls, f.field.name, f.args.indexOf(a));
+                if (coalescing != null) {
+                    final innerType = DefaultArgExpander.withoutNull(a.type);
+                    final defaultText = expr.coalescingDefaultText(coalescing, innerType, false);
+                    lines.push('            $sname: $sname.unwrap_or($defaultText),');
                 } else {
-                    lines.push('            $sname,');
+                    // A String parameter borrows as &str while the field owns
+                    // a String; the initializer converts (feature spec 27).
+                    final isStringParam = types.of(a.type, true) == "&str";
+                    final isNullableStringParam = types.of(a.type, false) == "Option<String>";
+                    if (isStringParam) {
+                        lines.push('            $sname: ${sname}.to_string(),');
+                    } else if (isNullableStringParam) {
+                        lines.push('            $sname: match $sname { Some(v) => Some(v.to_string()), None => None },');
+                    } else {
+                        lines.push('            $sname,');
+                    }
                 }
             }
             // Fields the constructor initializes from their own

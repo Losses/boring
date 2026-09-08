@@ -198,7 +198,7 @@ class RustExpr {
     }
 
     /** Renders the sanctioned expression in Rust's normalization closure. */
-    function coalescingDefaultText(value:DefaultArgExpander.CoalescingDefaultValue, targetType:Type, asOption:Bool = false, nested:Bool = false):String {
+    public function coalescingDefaultText(value:DefaultArgExpander.CoalescingDefaultValue, targetType:Type, asOption:Bool = false, nested:Bool = false):String {
         // Null conditionals already produce an Option-valued expression; their
         // branches must be rendered in that same domain. The whole conditional is not
         // wrapped in Some(...).
@@ -468,6 +468,7 @@ class RustExpr {
                             final fieldName = cf.get().name;
                             final coalescing = coalescingSiteFor(value);
                             if (coalescing != null) {
+                                fieldInits.set(fieldName, renderValueForType(cf.get().type, value, expr(value)));
                                 continue;
                             }
                             final isParam = switch (stripWrap(value).expr) {
