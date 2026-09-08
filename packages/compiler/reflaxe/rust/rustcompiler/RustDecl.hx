@@ -1113,7 +1113,13 @@ class RustDecl {
         return [];
     }
 
-    /** A mutable or container static lives outside the associated impl. */
+    function isNonSendStaticType(typeStr:String):Bool {
+        // Trait objects and Rc-backed function values are not Sync-safe in a
+        // process-wide Rust static. Keep this conservative until a stronger
+        // ownership proof is available.
+        return typeStr.indexOf("Rc<dyn") >= 0 || typeStr.indexOf("Box<dyn") >= 0;
+    }
+
     function moduleStaticVarDecl(cls:ClassType, v:ClassVarData):Array<String> {
         final field = v.field;
         if (isStaticFunctionField(v)) {
@@ -1151,6 +1157,14 @@ class RustDecl {
             imports.require("std::sync::LazyLock");
             return [
                 '${vis}static ${name}: LazyLock<${typeStr}> = LazyLock::new(|| ${expr.rawExpression(init)});'
+            ];
+        }
+        if (isNonSendStaticType(typeStr)) {
+            imports.require("std::cell::RefCell");
+            return [
+                'thread_local! {',
+                '    ${vis}static ${name}: RefCell<${typeStr}> = RefCell::new(${expr.rawExpression(init)});',
+                '}'
             ];
         }
         imports.require("std::sync::Mutex");
