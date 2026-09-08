@@ -219,7 +219,9 @@ tests.PublicGetterPropertyTests
 boring.InterfaceGetterProperty
 tests.InterfaceGetterPropertyTests
 boring.KnullInitNarrowing
+boring.NumericConversionWidening
 tests.KnullInitNarrowingTests
+tests.NumericConversionWideningTests
 boring.SwiftLiteralSafetyOps
 tests.SwiftLiteralSafetyOpsTests
 
