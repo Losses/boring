@@ -405,7 +405,7 @@ class RustDecl {
                         // use without its let binding (E0425).
                         lines.push('    let cmp_$fn = if a.$fn < b.$fn { -1 } else if a.$fn > b.$fn { 1 } else { 0 };');
                     case TInst(c, _) if (c.get().name == "String"):
-                        lines.push('    let cmp_$fn = SortedTable::compare_strings(a.$fn.as_str(), b.$fn.as_str());');
+                        lines.push('    let cmp_$fn = SortedTable::sorted_table_compare_strings(a.$fn.as_str(), b.$fn.as_str());');
                     case TInst(c, _) if (c.get().meta.has(":dataClass")):
                         importElementComparator(c.get());
                         lines.push('    let cmp_$fn = compare_${RustImports.toSnakeCase(c.get().name)}(&a.$fn, &b.$fn);');
@@ -1105,7 +1105,7 @@ class RustDecl {
             };
             // @:allow members use crate visibility so allowed cross-module references compile.
             final vis = field.isPublic ? "pub " : (field.meta.has(":allow") ? "pub(crate) " : "");
-            final name = RustImports.toSnakeCase(field.name).toUpperCase();
+            final name = RustImports.toScreamingSnakeCase(cls.name + "_" + field.name);
             return ['    ${vis}const ${name}: ${typeStr} = $valStr;'];
         }
         return [];
@@ -1230,7 +1230,10 @@ class RustDecl {
         for (site in DefaultArgExpander.coalescingSitesForFunction(f.expr)) {
             coalescedParams.set(site.parameter, true);
         }
-        final snakeName = RustImports.toSnakeCase(f.field.name);
+        final snakeName = receiverMethod
+            || StaticFunctionMarkers.isTopLevel(f.field)
+            || cls.name == "VectorCodec"
+            || cls.name == "VectorSort" ? RustImports.toSnakeCase(f.field.name) : RustImports.toSnakeCase(cls.name + "_" + f.field.name);
         final args = [
             for (i in firstArg...f.args.length) {
                 final a = f.args[i];
@@ -2217,7 +2220,7 @@ class RustDecl {
                             case TInst(c, _) if (c.get().name == "String"):
                                 state.shimsUsed.set("std.SortedMap", true);
                                 imports.requireType("runtime.SortedTable", "SortedTable");
-                                cmpLines.push('    let cmp_$fieldSnake = SortedTable::compare_strings(a.$fieldSnake.as_str(), b.$fieldSnake.as_str());');
+                                cmpLines.push('    let cmp_$fieldSnake = SortedTable::sorted_table_compare_strings(a.$fieldSnake.as_str(), b.$fieldSnake.as_str());');
                                 cmpLines.push('    if cmp_$fieldSnake != 0 { return cmp_$fieldSnake; }');
                             case _:
                                 switch (f.type) {
