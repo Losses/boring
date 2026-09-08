@@ -299,7 +299,7 @@ impl Fs {
         '',
         'fn record_result(id: &str, name: &str, verdict: &str, message: Option<&str>) {',
         '    // The resident builds the record line; this module only writes it.',
-        '    let json_line = crate::runtime::test_core::TestCore::result_line(',
+        '    let json_line = crate::runtime::test_core::TestCore::test_core_result_line(',
         '        id,',
         '        name,',
         '        verdict == "fail",',
@@ -332,7 +332,7 @@ impl Fs {
 // of their clamping contract. The class lives in this same module, so
 // the adapters name it directly without an import.
 pub fn count(s: &str) -> u32 {
-    u32::try_from(UString::count(s)).unwrap_or(0)
+    u32::try_from(UString::u_string_count(s)).unwrap_or(0)
 }
 
 pub fn at(s: &str, index: u32) -> Option<u32> {
@@ -373,19 +373,19 @@ pub fn split(s: &str, separator: &str) -> Vec<String> {
 }
 
 pub fn slice(s: &str, from: i32, to: i32) -> String {
-    UString::slice(s, from, to)
+    UString::u_string_slice(s, from, to)
 }
 
 pub fn to_code_points(s: &str) -> Vec<u32> {
     let mut out = Vec::new();
-    for code in UString::to_code_points(s) {
+    for code in UString::u_string_to_code_points(s) {
         out.push(u32::try_from(code).unwrap_or(0));
     }
     out
 }
 
 pub fn from_code_point(code: u32) -> String {
-    UString::from_code_point(i32::try_from(code).unwrap_or(0))
+    UString::u_string_from_code_point(i32::try_from(code).unwrap_or(0))
 }
 
 pub fn from_code_points(codes: &Vec<u32>) -> String {
@@ -393,7 +393,7 @@ pub fn from_code_points(codes: &Vec<u32>) -> String {
     for index in 0..codes.len() {
         inner.push(i32::try_from(codes[index]).unwrap_or(0));
     }
-    UString::from_code_points(&mut inner)
+    UString::u_string_from_code_points(&mut inner)
 }
 
 // substring keeps i32 bounds for the same clamping reason as slice:
@@ -583,7 +583,7 @@ fn unit_index(s: &str, unit: u32, round_up: bool) -> usize {
 // call-site cast and does not pass through here.
 pub fn boundaries(s: &str) -> Vec<u32> {
     let mut out = Vec::new();
-    for unit in Graphemes::boundaries(s) {
+    for unit in Graphemes::graphemes_boundaries(s) {
         out.push(u32::try_from(unit).unwrap_or(0));
     }
     out
