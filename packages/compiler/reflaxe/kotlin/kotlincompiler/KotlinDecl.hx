@@ -712,17 +712,17 @@ class KotlinDecl {
                     if (c.values.length == 0) {
                         continue;
                     }
-                    final name = caseConstructorName(c.values[0], options);
-                    if (name == null) {
-                        continue;
-                    }
-                    bindPatternLocals(c.expr);
-                    final body = unwrapReturn(c.expr);
-                    switch (body.expr) {
-                        case TConst(TString(s)):
-                            out.set(name, '"' + s + '"');
-                        case _:
-                            out.set(name, expr.rawExpression(body));
+                    for (value in c.values) {
+                        final name = caseConstructorName(value, options);
+                        if (name != null) {
+                            bindPatternLocals(c.expr);
+                            final body = unwrapReturn(c.expr);
+                            final message = switch (body.expr) {
+                                case TConst(TString(s)): '"' + s + '"';
+                                case _: expr.rawExpression(body);
+                            };
+                            out.set(name, message);
+                        }
                     }
                 }
             case _:
