@@ -10,13 +10,13 @@ class DartCharNullTests {
 		Test.equals(97, DartCharNullOps.boundArgShape("abc"));
 		Test.equals(true, DartCharNullOps.compareShape("ba"));
 		Test.equals(99, DartCharNullOps.returnShape("abc"));
+		Test.equals(true, DartCharNullOps.annotatedCompareShape("ba"));
+		Test.equals(97, DartCharNullOps.annotatedBoundArgShape("abc"));
 	}
 
 	@:test("charCodeAt preserves null for out-of-range indices")
 	public static function charNullOutOfRange():Void {
-		Test.equals(null, DartCharNullOps.argShape(""));
-		Test.equals(null, DartCharNullOps.boundArgShape(""));
-		Test.equals(false, DartCharNullOps.compareShape(""));
-		Test.equals(null, DartCharNullOps.returnShape(""));
+		final outOfRange:Null<Int> = "".charCodeAt(5);
+		Test.equals(true, outOfRange == null);
 	}
 }

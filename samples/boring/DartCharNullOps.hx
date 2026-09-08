@@ -23,4 +23,15 @@ class DartCharNullOps {
 	public static function returnShape(s:String):Int {
 		return s.charCodeAt(2);
 	}
+
+	public static function annotatedCompareShape(s:String):Bool {
+		final high:Int = s.charCodeAt(1);
+		final low:Int = s.charCodeAt(0);
+		return high < low;
+	}
+
+	public static function annotatedBoundArgShape(s:String):Int {
+		final code:Int = s.charCodeAt(0);
+		return clamp(code);
+	}
 }
