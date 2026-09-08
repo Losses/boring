@@ -119,9 +119,11 @@ boring.MathNaNTestSupport
 boring.MathNaNOps
 boring.MathNaNTestSupport
 boring.UStringOps
+boring.UStringResidentOps
 boring.StringUnitOps
 boring.GraphemeOps
 tests.UStringTests
+tests.UStringResidentTests
 tests.StringUnitTests
 tests.GraphemeTests
 boring.PlainLabel
