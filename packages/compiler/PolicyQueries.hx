@@ -534,6 +534,31 @@ class PolicyQueries {
         return found;
     }
 
+    public static function writesLocal(stmts:Array<TypedExpr>, v:TVar):Bool {
+        var found = false;
+        function walk(x:TypedExpr) {
+            switch (ExpressionPredicates.stripWrap(x).expr) {
+                case TBinop(OpAssign, lhs, _) | TBinop(OpAssignOp(_), lhs, _):
+                    switch (ExpressionPredicates.stripWrap(lhs).expr) {
+                        case TLocal(l) if (l.id == v.id): found = true;
+                        case _:
+                    }
+                case TUnop(OpIncrement, _, subject) | TUnop(OpDecrement, _, subject):
+                    switch (ExpressionPredicates.stripWrap(subject).expr) {
+                        case TLocal(l) if (l.id == v.id): found = true;
+                        case _:
+                    }
+                case _:
+            }
+            if (!found)
+                TypedExprTools.iter(x, walk);
+        }
+        for (stmt in stmts)
+            if (!found)
+                walk(stmt);
+        return found;
+    }
+
     public static function pathOf(pack:Array<String>, name:String):String {
         return pack.length == 0 ? name : pack.join(".") + "." + name;
     }
@@ -831,6 +856,8 @@ class PolicyQueries {
                         };
                         if (captureOk) {
                             final capturedBody = bodyStmts.slice(1);
+                            if (PolicyQueries.writesLocal(capturedBody, counter))
+                                return null;
                             // The typer introduces a temporary for some iterator
                             // loops but the body can still read the counter. In
                             // that shape the increment belongs to the counter,
@@ -861,11 +888,14 @@ class PolicyQueries {
                 };
                 if (!incrementOk)
                     return null;
+                final loopBody = bodyStmts.slice(0, increment);
+                if (PolicyQueries.writesLocal(loopBody, counter))
+                    return null;
                 return {
                     index: counter,
                     start: start,
                     bound: bound,
-                    body: bodyStmts.slice(0, increment)
+                    body: loopBody
                 };
             case _:
                 return null;
@@ -916,6 +946,8 @@ class PolicyQueries {
                                         };
                                         if (captureOk) {
                                             final capturedBody = bodyStmts.slice(1);
+                                            if (PolicyQueries.writesLocal(capturedBody, counter))
+                                                return null;
                                             final index = [
                                                 for (stmt in capturedBody)
                                                     if (PolicyQueries.mentionsLocal(stmt, counter)) counter else captured
@@ -943,11 +975,14 @@ class PolicyQueries {
                                     }
                                 if (increment < 0)
                                     return null;
+                                final remainingBody = [for (j in 0...bodyStmts.length) if (j != increment) bodyStmts[j]];
+                                if (PolicyQueries.writesLocal(remainingBody, counter))
+                                    return null;
                                 return {
                                     index: counter,
                                     start: start,
                                     bound: right,
-                                    body: [for (j in 0...bodyStmts.length) if (j != increment) bodyStmts[j]]
+                                    body: remainingBody
                                 };
                             case _:
                                 return null;
