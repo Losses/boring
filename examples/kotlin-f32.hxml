@@ -192,3 +192,4 @@ boring.InterfaceGetterProperty
 tests.InterfaceGetterPropertyTests
 boring.KnullInitNarrowing
 tests.KnullInitNarrowingTests
+boring.CfgTestProbe

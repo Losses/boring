@@ -4,7 +4,7 @@
 -cp tests/haxe
 -cp packages/registry/src
 --macro haxe.macro.Compiler.addGlobalMetadata('boring', '@:build(std.RecordMember.build())')
---macro TestCollector.generate('out/haxe', ['samples/tests/f32'], 'TestMainF32')
+--macro TestCollector.generate('out/haxe', ['samples/tests/f32', 'samples/boring'], 'TestMainF32')
 -main GenerateMain
 -js out/haxe/generate-main-f32.js
 -D boring_oracle
