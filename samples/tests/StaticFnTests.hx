@@ -6,7 +6,7 @@ import std.Test;
 class StaticFnTests {
     @:test("static function values can be called")
     public static function testFunctionStatic():Void {
-        Test.equals(8, StaticFnOps.apply(7));
+        Test.equals("ok!", StaticFnOps.apply("ok"));
     }
 
     @:test("ordinary mutable static remains shared")
