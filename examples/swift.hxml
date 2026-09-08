@@ -242,6 +242,7 @@ boring.RustCoalesceOps
 tests.RustCoalesceTests
 boring.UnderscoreParamOps
 tests.UnderscoreParamTests
+tests.EarlyReturnTests
 
 boring.ProbeUnit
 boring.AbstractStaticDefault
