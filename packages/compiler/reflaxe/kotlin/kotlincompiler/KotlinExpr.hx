@@ -1417,27 +1417,32 @@ class KotlinExpr {
         }
         final out = ["when (" + subjStr + ") {"];
         for (c in parts.cases) {
-            final index = switch (c.values[0].expr) {
-                case TConst(TInt(v)): v;
-                case _: return fail(sw, "variant switch case is not a constant index");
+            final fields:Array<EnumField> = [];
+            for (value in c.values) {
+                final index = switch (value.expr) {
+                    case TConst(TInt(v)): v;
+                    case _: return fail(sw, "variant switch case is not a constant index");
+                }
+                final ef = table.get(index);
+                if (ef == null) {
+                    return fail(sw, "variant switch case index has no construct");
+                }
+                fields.push(ef);
+                switch (stripWrap(se).expr) {
+                    case TLocal(v):
+                        enumVariants.set(v.id, ef.name);
+                    case _:
+                }
+                final variantKey = enumVariantKey(se);
+                if (variantKey != null)
+                    enumVariantExpressions.set(variantKey, ef.name);
             }
-            final ef = table.get(index);
-            if (ef == null) {
-                return fail(sw, "variant switch case index has no construct");
-            }
-            switch (stripWrap(se).expr) {
-                case TLocal(v):
-                    enumVariants.set(v.id, ef.name);
-                case _:
-            }
-            final variantKey = enumVariantKey(se);
-            if (variantKey != null)
-                enumVariantExpressions.set(variantKey, ef.name);
             final arm = armLines(c.expr);
             // The `is` pattern smart-casts the subject to the variant, so
             // payload captures read as properties on it. Arms separate by
             // newline; Kotlin `when` takes no comma between arms.
-            out.push("    " + (isValueEnum(en) ? "" : "is ") + receiver + "." + ef.name + " -> " + arm[0]);
+            final patterns = [for (ef in fields) (isValueEnum(en) ? "" : "is ") + receiver + "." + ef.name];
+            out.push("    " + patterns.join(", ") + " -> " + arm[0]);
             for (i in 1...arm.length) {
                 out.push("    " + arm[i]);
             }
