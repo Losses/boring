@@ -65,6 +65,10 @@ class KotlinExpr {
 
     final hiddenNames:Map<Int, String> = [];
 
+    /** Rendered local names already assigned in the current function. */
+    final localNames:Map<Int, String> = [];
+    final emittedLocalNames:Map<String, Int> = [];
+
     /** Active runtime renderers for cyclic enum stringification. */
     final enumStringNaming:EnumStringHelperNaming = new EnumStringHelperNaming();
 
@@ -136,6 +140,12 @@ class KotlinExpr {
     /** The rendered name of a local, if a binding was recorded. */
     public function boundNameOf(v:TVar):Null<String> {
         return subst.get(v.id);
+    }
+
+    public function resetLocalNames():Void {
+        hiddenNames.clear();
+        localNames.clear();
+        emittedLocalNames.clear();
     }
 
     public function setDecodeBoundary(value:Bool):Void {
@@ -3517,8 +3527,22 @@ class KotlinExpr {
         // UnnamedLocalVariables flag. Haxe treats `_` as a readable
         // identifier, so it goes through the same generated-name path
         // as the compiler's ` temporaries.
+        if (localNames.exists(v.id)) {
+            return localNames.get(v.id);
+        }
         if (v.name != "`" && !~/^_+$/.match(v.name)) {
-            return KotlinNameEscape.escape(v.name);
+            var name = KotlinNameEscape.escape(v.name);
+            if (emittedLocalNames.exists(name) && emittedLocalNames.get(name) != v.id) {
+                var suffix = 2;
+                final base = name;
+                while (emittedLocalNames.exists(name)) {
+                    name = base + "_" + suffix;
+                    suffix += 1;
+                }
+            }
+            localNames.set(v.id, name);
+            emittedLocalNames.set(name, v.id);
+            return name;
         }
         if (hiddenNames.exists(v.id)) {
             return hiddenNames.get(v.id);
@@ -3530,12 +3554,16 @@ class KotlinExpr {
         for (c in candidates) {
             if (!usedNames.exists(c) && !taken.exists(c)) {
                 hiddenNames.set(v.id, c);
+                localNames.set(v.id, c);
+                emittedLocalNames.set(c, v.id);
                 return c;
             }
         }
         hiddenCounter += 1;
         final generated = "t" + hiddenCounter;
         hiddenNames.set(v.id, generated);
+        localNames.set(v.id, generated);
+        emittedLocalNames.set(generated, v.id);
         return generated;
     }
 
