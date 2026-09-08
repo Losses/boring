@@ -1,0 +1,18 @@
+package tests;
+
+import boring.InheritCtorOps;
+import std.Test;
+
+class InheritCtorTests {
+    @:test("inherited data-class constructors preserve message values")
+    public static function messageValue():Void {
+        final value = new InheritCtorOps("inherited message");
+        Test.equals("inherited message", value.childMessage);
+    }
+
+    @:test("inherited data-class construction can be caught")
+    public static function constructionAndCatch():Void {
+        final value = new InheritCtorOps("caught message");
+        Test.equals("caught message", value.childMessage);
+    }
+}

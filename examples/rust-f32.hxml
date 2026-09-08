@@ -71,8 +71,10 @@ boring.PipelineOps
 tests.PipelineTests
 boring.ConstructorStatementOps
 boring.DataClassCtorGuardOps
+boring.InheritCtorOps
 tests.ConstructorStatementTests
 tests.DataClassCtorGuardTests
+tests.InheritCtorTests
 boring.DeferredLocalsOps
 tests.DeferredLocalsTests
 boring.RecordOps
