@@ -207,9 +207,11 @@ tests.WidgetCoalescingTests
 boring.KnullInitNarrowing
 boring.NumericConversionWidening
 boring.NumericWidenOps
+boring.NumericConversionWidening
 tests.KnullInitNarrowingTests
 tests.NumericConversionWideningTests
 tests.NumericWidenTests
+tests.NumericConversionWideningTests
 
 boring.ProbeUnit
 boring.AbstractStaticDefault
