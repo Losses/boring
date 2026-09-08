@@ -318,6 +318,7 @@ class Compiler extends PluginCompiler<Compiler> {
         // Emit runtime shims
         emitShim("haxe.io.FPHelper", "fp_helper.rs", RustRuntime.FP_HELPER_SOURCE);
         emitShim("haxe.io.BytesBuffer", "bytes_buffer.rs", RustRuntime.BYTES_BUFFER_SOURCE);
+        emitShim("haxe.Exception", "exception.rs", RustRuntime.EXCEPTION_SOURCE);
         emitShim("std.Console", "console.rs", RustRuntime.CONSOLE_SOURCE);
         emitShim("std.Env", "env.rs", RustRuntime.ENV_SOURCE);
         emitShim("std.Fs", "fs.rs", RustRuntime.FS_SOURCE);
@@ -331,6 +332,8 @@ class Compiler extends PluginCompiler<Compiler> {
                 runtimeMods.push("fp_helper");
             if (state.shimsUsed.exists("haxe.io.BytesBuffer"))
                 runtimeMods.push("bytes_buffer");
+            if (state.shimsUsed.exists("haxe.Exception"))
+                runtimeMods.push("exception");
             if (state.shimsUsed.exists("std.Console"))
                 runtimeMods.push("console");
             if (state.shimsUsed.exists("std.Env"))
