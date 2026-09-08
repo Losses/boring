@@ -17,10 +17,10 @@ class SwitchMergeTests {
         Test.equals("first:1", SwitchMergeOps.single(SwitchMergeValue.First(1)));
         Test.equals("second:2", SwitchMergeOps.single(SwitchMergeValue.Second(2)));
     }
-}
 
     public static function groupedPlainMatches():Void {
         Test.equals("plain", SwitchMergeOps.groupedPlain(SwitchMergeValue.First(1)));
         Test.equals("plain", SwitchMergeOps.groupedPlain(SwitchMergeValue.Second(2)));
         Test.equals("third", SwitchMergeOps.groupedPlain(SwitchMergeValue.Third));
     }
+}
