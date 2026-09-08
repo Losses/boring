@@ -235,9 +235,7 @@ tests.KnullInitNarrowingTests
 boring.OptionalParamNull
 tests.OptionalParamNullTests
 boring.NumericConversionWidening
-boring.NumericWidenOps
 tests.NumericConversionWideningTests
-tests.NumericWidenTests
 tests.RustUnionFaultTests
 tests.PlatformModulesTestSupport
 tests.PlatformModulesTests

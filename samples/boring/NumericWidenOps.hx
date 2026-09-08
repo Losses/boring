@@ -32,4 +32,16 @@ class NumericWidenOps {
         value = (intExpr());
         return value;
     }
+
+    public static function appliedFloat():Float {
+        var value:Float = 0.5;
+        value += intExpr();
+        return value;
+    }
+
+    public static function appliedDouble():Float {
+        var value:Float = 0.5;
+        value *= intExpr();
+        return value;
+    }
 }
