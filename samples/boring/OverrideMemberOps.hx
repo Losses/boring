@@ -29,6 +29,9 @@ class OverrideMemberRecord {
     }
 }
 #else
+// Other targets reject a hashCode member (Dart conflicts with the Object
+// hash getter) or lack the exception lowering used above; the plain shapes
+// keep the same observable behavior.
 @:dataClass
 class OverrideMemberRecord {
     public final value:Int;
