@@ -194,6 +194,8 @@ boring.SwitchMergeOps
 tests.RustCoalesceTests
 boring.ArrayAccessOps
 tests.ArrayAccessTests
+boring.StaticRefOps
+tests.StaticRefTests
 boring.UnderscoreParamOps
 tests.UnderscoreParamTests
 tests.SwitchMergeTests
