@@ -103,9 +103,11 @@ tests.DefaultArgsTests
 tests.KotlinNullabilityTests
 tests.NullArgsTests
 boring.UStringOps
+boring.UStringResidentOps
 boring.StringUnitOps
 boring.GraphemeOps
 tests.UStringTests
+tests.UStringResidentTests
 tests.StringUnitTests
 tests.GraphemeTests
 boring.PlainLabel
