@@ -6723,7 +6723,12 @@ class RustExpr {
 
     /** Convert an integer expression text to Float (as f64 / as f32). */
     public function intToFloatText(text:String):String {
-        return "(" + text + " as " + (FloatPrecision.isF32() ? "f32" : "f64") + ")";
+        final precision = FloatPrecision.isF32() ? "f32" : "f64";
+        // Call-site rendering may already parenthesize integer literals. Avoid
+        // producing redundant parentheses around the resulting cast.
+        if (~/^\(-?[0-9]+\)$/.match(text))
+            return text.substr(1, text.length - 2) + " as " + precision;
+        return "(" + text + " as " + precision + ")";
     }
 
     /**
