@@ -210,7 +210,9 @@ tests.KnullInitNarrowingTests
 boring.OptionalParamNull
 tests.OptionalParamNullTests
 boring.NumericConversionWidening
+boring.NumericWidenOps
 tests.NumericConversionWideningTests
+tests.NumericWidenTests
 
 boring.ProbeUnit
 boring.AbstractStaticDefault
