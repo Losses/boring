@@ -1985,9 +1985,9 @@ class SwiftExpr {
                     + "."
                     + ValueTypeSupport.representationFieldName(abs)
                     + ")";
-            case IsFloat: depth > 0 ? "\"\\(" + value + ")\"" : (inConcat ? value : "String(decoding: TestCore.formatFloat("
+            case IsFloat: depth > 0 ? "\"\\(" + value + ")\"" : "String(decoding: TestCore.formatFloat("
                     + value
-                    + "), as: UTF16.self)");
+                    + "), as: UTF16.self)";
             case IsInt | IsBool: depth > 0 ? "\"\\(" + value + ")\"" : (inConcat ? value : "String(" + value + ")");
             case IsTypeParameter:
                 types.resident ? "Array(String(describing: " + value + ").utf16)" : (inConcat ? value : "String(describing: " + value + ")");
