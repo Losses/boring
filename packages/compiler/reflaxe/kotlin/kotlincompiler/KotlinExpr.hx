@@ -308,7 +308,7 @@ class KotlinExpr {
         if (f.expr == null) {
             Context.error("function field has no body to lower", f.field.pos);
         }
-        DefaultArgExpander.completeRootExpr(cls, f.field.name, f.expr);
+        DefaultArgExpander.completeRootExprForKotlin(cls, f.field.name, f.expr);
         PipelineExpander.expandRootExpr(f.expr);
         EnumQueryExpander.expandRootExpr(f.expr);
         currentClass = cls;
@@ -354,7 +354,7 @@ class KotlinExpr {
     public function valueTypeConstructorBody(cls:ClassType, f:ClassFuncData):Array<String> {
         if (f.expr == null)
             Context.error("value type constructor has no body to lower", f.field.pos);
-        DefaultArgExpander.completeRootExpr(cls, f.field.name, f.expr);
+        DefaultArgExpander.completeRootExprForKotlin(cls, f.field.name, f.expr);
         PipelineExpander.expandRootExpr(f.expr);
         EnumQueryExpander.expandRootExpr(f.expr);
         currentClass = cls;
@@ -388,7 +388,7 @@ class KotlinExpr {
         if (f.expr == null) {
             return {lines: [], assigned: []};
         }
-        DefaultArgExpander.completeRootExpr(cls, f.field.name, f.expr);
+        DefaultArgExpander.completeRootExprForKotlin(cls, f.field.name, f.expr);
         PipelineExpander.expandRootExpr(f.expr);
         EnumQueryExpander.expandRootExpr(f.expr);
         for (a in f.args) {
@@ -450,8 +450,11 @@ class KotlinExpr {
                                     }
                                 case _: false;
                             };
-                            if (directCoalescing) {
+                            if (directCoalescing && !requiredNullableConstructorField(currentClass, f, name)) {
                                 return {render: false, initialized: null};
+                            }
+                            if (directCoalescing) {
+                                return {render: true, initialized: name};
                             }
                             final fromParam = switch (value.expr) {
                                 case TLocal(v): v.name == name;
@@ -474,6 +477,16 @@ class KotlinExpr {
             case _:
         }
         return {render: true, initialized: null};
+    }
+
+    function requiredNullableConstructorField(cls:ClassType, f:ClassFuncData, name:String):Bool {
+        final arg = Lambda.find(f.args, a -> a.name == name);
+        if (arg == null || !isNullType(arg.type))
+            return false;
+        for (field in cls.fields.get())
+            if (field.name == name)
+                return !isNullType(field.type) && DefaultArgExpander.defaultAt(cls, f.field.name, arg.index) == null;
+        return false;
     }
 
     // ------------------------------------------------------------------

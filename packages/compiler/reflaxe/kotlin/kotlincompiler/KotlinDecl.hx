@@ -241,7 +241,12 @@ class KotlinDecl {
             if (v.isStatic) {
                 continue;
             }
-            if (constructorArgNames.exists(v.field.name) || isGetterOnlyProperty(v.field)) {
+            final boundary = constructorFunc != null && Lambda.exists(constructorFunc.args, a -> a.name == v.field.name)
+                && isNullType(Lambda.find(constructorFunc.args, a -> a.name == v.field.name).type)
+                && !isNullType(v.field.type)
+                && DefaultArgExpander.defaultAt(cls, constructorFunc.field.name,
+                    Lambda.find(constructorFunc.args, a -> a.name == v.field.name).index) == null;
+            if ((constructorArgNames.exists(v.field.name) && !boundary) || isGetterOnlyProperty(v.field)) {
                 continue;
             }
             if (ctorInit.assigned.indexOf(v.field.name) >= 0) {
@@ -916,11 +921,16 @@ class KotlinDecl {
                     break;
                 }
             }
-            // A constructor-parameter field keeps its declared visibility in
-            // the primary constructor (feature spec 27); a parameter without
-            // a same-named field stays a plain parameter.
-            final prefix = isField ? (isPublic ? "" : "private ") + (isFinal ? "val " : "var ") : "";
-            final typeOverride = isField && fieldType != null && isNullType(a.type) && !isNullType(fieldType) ? fieldType : null;
+            final boundary = isField
+                && fieldType != null
+                && !isNullType(fieldType)
+                && isNullType(a.type)
+                && DefaultArgExpander.defaultAt(cls, ctor.field.name, a.index) == null;
+            // A required Null<T> constructor parameter cannot be a Kotlin
+            // property parameter when the stored field is non-null. Keep the
+            // nullable boundary parameter separate from the initialized field.
+            final prefix = isField && !boundary ? (isPublic ? "" : "private ") + (isFinal ? "val " : "var ") : "";
+            final typeOverride = isField && !boundary && fieldType != null && isNullType(a.type) && !isNullType(fieldType) ? fieldType : null;
             params.push(prefix + parameterText(cls, ctor.field.name, a, true, typeOverride));
         }
         return "(" + params.join(", ") + ")";
