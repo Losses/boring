@@ -251,6 +251,14 @@ class TsExpr {
             switch (Context.getType(typePath)) {
                 case TInst(clsRef, _):
                     return staticRef(clsRef.get(), fieldName);
+                case TAbstract(a, _):
+                    final abs = a.get();
+                    if (ValueTypeSupport.isMarkedAbstract(abs)) {
+                        final field = ValueTypeSupport.memberField(abs, fieldName);
+                        return field == null ? fieldName : imports.functionRef(abs.module, fieldName, field.isPublic);
+                    }
+                    imports.value(abs.module, abs.name);
+                    return abs.name + "." + fieldName;
                 default:
             }
         } catch (_:Dynamic) {}
