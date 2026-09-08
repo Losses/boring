@@ -205,7 +205,11 @@ boring.WidgetCart
 boring.WidgetAssembly
 tests.WidgetCoalescingTests
 boring.KnullInitNarrowing
+boring.NumericConversionWidening
+boring.NumericWidenOps
 tests.KnullInitNarrowingTests
+tests.NumericConversionWideningTests
+tests.NumericWidenTests
 
 boring.ProbeUnit
 boring.AbstractStaticDefault

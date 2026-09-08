@@ -228,7 +228,9 @@ tests.KnullInitNarrowingTests
 boring.OptionalParamNull
 tests.OptionalParamNullTests
 boring.NumericConversionWidening
+boring.NumericWidenOps
 tests.NumericConversionWideningTests
+tests.NumericWidenTests
 tests.SwiftLiteralSafetyOpsTests
 tests.RustUnionFaultTests
 tests.PlatformModulesTestSupport
