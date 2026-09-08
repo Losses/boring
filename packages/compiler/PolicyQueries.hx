@@ -932,6 +932,27 @@ class PolicyQueries {
         return null;
     }
 
+    public static function intervalSplit(counterDecl:TypedExpr, startAssign:TypedExpr, whileExpr:TypedExpr):Null<{
+        index:TVar,
+        start:TypedExpr,
+        bound:TypedExpr,
+        body:Array<TypedExpr>
+    }> {
+        final counter = switch (counterDecl.expr) {
+            case TVar(v, null): v;
+            case _: null;
+        };
+        if (counter == null)
+            return null;
+        final start = switch (ExpressionPredicates.stripWrap(startAssign).expr) {
+            case TBinop(OpAssign, {expr: TLocal(v)}, value) if (v.id == counter.id): value;
+            case _: null;
+        };
+        if (start == null)
+            return null;
+        return intervalShort({expr: TVar(counter, start), pos: counterDecl.pos, t: counterDecl.t}, whileExpr);
+    }
+
     public static function regroupLoops(stmts:Array<TypedExpr>):Array<TypedExpr> {
         final out:Array<TypedExpr> = [];
         var i = 0;
@@ -939,12 +960,13 @@ class PolicyQueries {
             if (i + 2 < stmts.length) {
                 final loop = intervalCore(stmts[i], stmts[i + 1], stmts[i + 2]);
                 if (loop != null) {
-                    final grouped:TypedExpr = {
-                        expr: TBlock([stmts[i], stmts[i + 1], stmts[i + 2]]),
-                        pos: stmts[i].pos,
-                        t: stmts[i + 2].t
-                    };
-                    out.push(grouped);
+                    out.push({expr: TBlock([stmts[i], stmts[i + 1], stmts[i + 2]]), pos: stmts[i].pos, t: stmts[i + 2].t});
+                    i += 3;
+                    continue;
+                }
+                final split = intervalSplit(stmts[i], stmts[i + 1], stmts[i + 2]);
+                if (split != null) {
+                    out.push({expr: TBlock([stmts[i], stmts[i + 1], stmts[i + 2]]), pos: stmts[i].pos, t: stmts[i + 2].t});
                     i += 3;
                     continue;
                 }
@@ -952,12 +974,7 @@ class PolicyQueries {
             if (i + 1 < stmts.length) {
                 final loop = intervalShort(stmts[i], stmts[i + 1]);
                 if (loop != null) {
-                    final grouped:TypedExpr = {
-                        expr: TBlock([stmts[i], stmts[i + 1]]),
-                        pos: stmts[i].pos,
-                        t: stmts[i + 1].t
-                    };
-                    out.push(grouped);
+                    out.push({expr: TBlock([stmts[i], stmts[i + 1]]), pos: stmts[i].pos, t: stmts[i + 1].t});
                     i += 2;
                     continue;
                 }
