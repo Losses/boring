@@ -37,6 +37,9 @@ class KotlinExpr {
     /** True while emitting a function whose return type is ReadOnlyArray. */
     var decodeBoundary:Bool = false;
 
+    /** True while lowering a value position that expects a function type. */
+    var functionTypeExpected:Bool = false;
+
     /** Enum-capture locals mapped to the payload expression they stand for. */
     final subst:Map<Int, String> = [];
 
@@ -125,6 +128,10 @@ class KotlinExpr {
 
     public function setDecodeBoundary(value:Bool):Void {
         decodeBoundary = value;
+    }
+
+    public function setFunctionTypeExpected(value:Bool):Void {
+        functionTypeExpected = value;
     }
 
     public function expressionOf(e:TypedExpr):String {
@@ -532,7 +539,12 @@ class KotlinExpr {
                 };
                 var initText = switch (init.expr) {
                     case TFunction(fn): functionLiteralNamed(v.name, fn);
-                    default: expr(init);
+                    default:
+                        final wasFunctionTypeExpected = functionTypeExpected;
+                        functionTypeExpected = PolicyQueries.isFunctionType(v.t);
+                        final t = expr(init);
+                        functionTypeExpected = wasFunctionTypeExpected;
+                        t;
                 };
                 // Haxe unifies Int and Float; widen Int initializers to Float
                 // when the variable's declared type is Float.
@@ -624,7 +636,10 @@ class KotlinExpr {
                     case TLocal(v) if (asListReturn.exists(v.id)):
                         return [indent(depth) + "return " + localName(v) + "." + asListReturn.get(v.id)];
                     case _:
+                        final wasFunctionTypeExpected = functionTypeExpected;
+                        functionTypeExpected = PolicyQueries.isFunctionType(currentReturnType);
                         var retText = expr(ret);
+                        functionTypeExpected = wasFunctionTypeExpected;
                         if (rendersNullable(ret) && !isNullType(currentReturnType))
                             retText += "!!";
                         // Haxe unifies Int and Float; widen Int return values to
@@ -1625,7 +1640,10 @@ class KotlinExpr {
         switch (op) {
             case OpAssign:
                 final map = mapAssignment(l);
+                final wasFunctionTypeExpected = functionTypeExpected;
+                functionTypeExpected = PolicyQueries.isFunctionType(l.t);
                 var value = expr(r);
+                functionTypeExpected = wasFunctionTypeExpected;
                 // Haxe unifies Int and Float; widen Int assignment values to
                 // Float when the target's type is Float.
                 if (map == null && isIntOrLongType(emittedType(r)) && isFloatType(l.t))
@@ -2259,8 +2277,17 @@ class KotlinExpr {
         switch (fa) {
             case FStatic(c, cf):
                 final cls = c.get();
-                final rendered = staticRef(cls, cf.get().name);
-                return DataTableHelper.isDataTableField(cf.get()) ? rendered + ".toMutableList()" : rendered;
+                final field = cf.get();
+                final rendered = staticRef(cls, field.name);
+                if (DataTableHelper.isDataTableField(field))
+                    return rendered + ".toMutableList()";
+                // Static methods referenced as function values need a Kotlin
+                // callable reference (::); kotlinc rejects property-access (.)
+                // with "function invocation 'X' expected". Static vars (FVar)
+                // keep dot access; only methods become references.
+                if (functionTypeExpected && !field.kind.match(FVar(_, _)))
+                    return referencePath(rendered);
+                return rendered;
             case FEnum(e, ef):
                 final en = e.get();
                 final owner = state.payloadEnumOwners.get(en.module);
@@ -2456,6 +2483,12 @@ class KotlinExpr {
 
     function findStaticField(cls:ClassType, name:String):Null<ClassField> {
         return PolicyQueries.findStaticField(cls, name);
+    }
+
+    /** Converts a dot-separated class reference into a Kotlin callable reference. */
+    function referencePath(rendered:String):String {
+        final dotIdx = rendered.lastIndexOf(".");
+        return dotIdx >= 0 ? rendered.substring(0, dotIdx) + "::" + rendered.substring(dotIdx + 1) : "::" + rendered;
     }
 
     function typeExpr(t:ModuleType):String {
@@ -3185,9 +3218,12 @@ class KotlinExpr {
         return [
             for (i in 0...args.length) {
                 final a = args[i];
-                final text = expr(a);
                 final expected = i < params.length ? params[i] : null;
                 final registered = owner != null && fieldName != null ? DefaultArgExpander.defaultAt(owner, fieldName, i) : null;
+                final wasFunctionTypeExpected = functionTypeExpected;
+                functionTypeExpected = PolicyQueries.isFunctionType(expected);
+                final text = expr(a);
+                functionTypeExpected = wasFunctionTypeExpected;
                 if (registered != null && expected != null && isNullLiteral(a)) {
                     defaultArgText(registered, expected);
                 } else if (registered != null && expected != null && isNullType(a.t)) {

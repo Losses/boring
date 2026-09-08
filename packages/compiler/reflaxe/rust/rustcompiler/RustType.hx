@@ -176,7 +176,16 @@ class RustType {
         return switch (Context.follow(t)) {
             case TFun(args, ret):
                 imports.require("std::rc::Rc");
-                "Rc<dyn Fn(" + [for (arg in args) of(arg.t, true)].join(", ") + ") -> " + of(ret, false) + " + '_>";
+                final argStrs = [for (arg in args) of(arg.t, true)];
+                // A function value with no reference parameters cannot
+                // borrow from the enclosing scope, so the trait-object
+                // lifetime is 'static; the elided '_ form that needs an
+                // enclosing reference parameter to bind to is skipped.
+                var hasRef = false;
+                for (s in argStrs)
+                    if (s.indexOf("&") >= 0)
+                        hasRef = true;
+                "Rc<dyn Fn(" + argStrs.join(", ") + ") -> " + of(ret, false) + (hasRef ? " + '_>" : " + 'static>");
             case _:
                 of(t, false);
         }
