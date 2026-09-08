@@ -562,16 +562,14 @@ class KotlinExpr {
                 var initText = switch (init.expr) {
                     case TFunction(fn): functionLiteralNamed(v.name, fn);
                     default:
-                        final previous = mutableArrayAccess;
-                        mutableArrayAccess = mutableArrayLocals.exists(v.id);
-                        final rendered = expr(init);
-                        mutableArrayAccess = previous;
-                        rendered;
+                        final previousMutableArrayAccess = mutableArrayAccess;
                         final wasFunctionTypeExpected = functionTypeExpected;
+                        mutableArrayAccess = mutableArrayLocals.exists(v.id);
                         functionTypeExpected = PolicyQueries.isFunctionType(v.t);
-                        final t = expr(init);
+                        final rendered = expr(init);
                         functionTypeExpected = wasFunctionTypeExpected;
-                        t;
+                        mutableArrayAccess = previousMutableArrayAccess;
+                        rendered;
                 };
                 // Haxe unifies Int and Float; widen Int initializers to Float
                 // when the variable's declared type is Float.
