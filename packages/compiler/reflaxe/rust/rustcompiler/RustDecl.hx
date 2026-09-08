@@ -212,7 +212,8 @@ class RustDecl {
         final implGenerics = implBoundList.length > 0 ? "<" + implBoundList.join(", ") + ">" : "";
         final ltParam = genericStr;
 
-        if (state.recordCloneTypes.exists(cls.module + "::" + cls.name)
+        final hasCoalescingClone = true;
+        if ((state.recordCloneTypes.exists(cls.module + "::" + cls.name) || hasCoalescingClone)
             && !StaticFieldHelper.hasSelfConstructionStatic(cls)
             && !cls.meta.has(":dataClass")
             && cls.module.indexOf("registry.") != 0
@@ -1673,6 +1674,17 @@ class RustDecl {
                 if (!hasInstanceField(cls, a.name))
                     continue;
                 final sname = RustImports.toSnakeCase(a.name);
+                if (parts.fieldInits.exists(a.name)) {
+                    lines.push('            $sname: ${parts.fieldInits.get(a.name)},');
+                    continue;
+                }
+                final coalescingAt = DefaultArgExpander.coalescingDefaultAt(cls, f.field.name, f.args.indexOf(a));
+                if (coalescingAt != null) {
+                    final innerType = DefaultArgExpander.withoutNull(a.type);
+                    final defaultText = expr.coalescingDefaultText(coalescingAt, innerType, false);
+                    lines.push('            $sname: $sname.unwrap_or($defaultText),');
+                    continue;
+                }
                 // A String parameter borrows as &str while the field owns
                 // a String; the initializer converts (feature spec 27).
                 final isStringParam = types.of(a.type, true) == "&str";
