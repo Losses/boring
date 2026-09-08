@@ -41,7 +41,18 @@ class BytesBuffer {
 
     public static final USTRING_SOURCE = "object UString {
     fun count(s: String): Int = s.codePointCount(0, s.length)
-    fun at(s: String, index: Int): Int? = if (index < 0 || index >= s.codePointCount(0, s.length)) null else s.codePointAt(s.offsetByCodePoints(0, index))
+    fun at(s: String, index: Int): Int? = if (index < 0 || index >= count(s)) null else s.codePointAt(s.offsetByCodePoints(0, index))
+    fun slice(s: String, start: Int, end: Int? = null): String {
+        val length = count(s)
+        val from = start.coerceIn(0, length)
+        val until = (end ?: length).coerceIn(0, length)
+        return if (until <= from) \"\" else s.substring(s.offsetByCodePoints(0, from), s.offsetByCodePoints(0, until))
+    }
+    fun fromCodePoint(codePoint: Int): String = String(Character.toChars(codePoint))
+    fun fromCodePoints(codePoints: Array<Int>): String = codePoints.joinToString(\"\") { fromCodePoint(it) }
+    fun fromCodePoints(codePoints: List<Int>): String = codePoints.joinToString(\"\") { fromCodePoint(it) }
+    fun toCodePoints(s: String): Array<Int> = s.codePoints().toArray().toTypedArray()
+    fun compareTo(a: String, b: String): Int = a.compareTo(b)
 }
 ";
 

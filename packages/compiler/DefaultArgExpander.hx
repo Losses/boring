@@ -1782,7 +1782,7 @@ class DefaultArgExpander {
         };
     }
 
-    static function coalescingCanBeNull(value:CoalescingDefaultValue):Bool {
+    public static function coalescingCanBeNull(value:CoalescingDefaultValue):Bool {
         return switch (value) {
             case CNull: true;
             case CConditional(_, ifTrue, ifFalse): coalescingCanBeNull(ifTrue) || coalescingCanBeNull(ifFalse);
