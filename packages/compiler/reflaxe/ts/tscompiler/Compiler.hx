@@ -65,6 +65,12 @@ class Compiler extends PluginCompiler<Compiler> {
         // the Kotlin target forces runtime.TestCore. A build without a
         // runtime-import define has no way to reference the runtime package.
         if (RuntimeConfig.importName() != null) {
+            // runtime.TestCore is a resident test module: the emitted
+            // runtime/test.ts references it and the file append draws on
+            // its compiled parts. A consumer build whose entry list
+            // omits runtime.* never types it, so force it here exactly
+            // like the Kotlin target does.
+            Context.getType("runtime.TestCore");
             Context.getType("runtime.StringTools");
         }
         ReflectCompiler.AddCompiler(new Compiler(), {
