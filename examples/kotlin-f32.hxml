@@ -90,9 +90,11 @@ tests.ArithmeticTests
 boring.DefaultArgsOps
 tests.DefaultArgsTests
 boring.UStringOps
+boring.UStringResidentOps
 boring.StringUnitOps
 boring.GraphemeOps
 tests.UStringTests
+tests.UStringResidentTests
 tests.StringUnitTests
 tests.GraphemeTests
 boring.PlainLabel
