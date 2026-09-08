@@ -459,6 +459,9 @@ class RustExpr {
         scanLocals(f.expr);
         final argNames = [for (a in f.args) a.name];
         final fieldInits = new Map<String, String>();
+        final fallbackBindings:Array<String> = [];
+        final fallbackBoundFields:Map<String, Bool> = [];
+        final fallbackVars:Map<String, TVar> = [];
         final stmts:Array<TypedExpr> = [];
         for (stmt in statementsOf(f.expr)) {
             switch (stmt.expr) {
@@ -504,9 +507,34 @@ class RustExpr {
                 case TField({expr: TConst(TThis)}, FInstance(_, _, cf)) if (!assignmentTarget):
                     final fieldName = RustImports.toSnakeCase(cf.get().name);
                     final local = thisFieldArgs.get(fieldName);
-                    if (local == null)
-                        Context.error("unsupported this-field read in data-class constructor", node.pos);
-                    node.expr = TLocal(local);
+                    if (local == null) {
+                        // A non-parameter field assignment is emitted in the tail
+                        // Self literal. Bind that same initializer before the
+                        // validation statements so reads do not become `self.*`
+                        // in the associated constructor function.
+                        if (!fieldInits.exists(cf.get().name))
+                            Context.error("unsupported this-field read in data-class constructor: field has no initializer", node.pos);
+                        final bindingName = fieldName;
+                        if (!fallbackBoundFields.exists(cf.get().name)) {
+                            fallbackBindings.push("let " + bindingName + " = " + fieldInits.get(cf.get().name) + ";");
+                            fallbackBoundFields.set(cf.get().name, true);
+                            fieldInits.set(cf.get().name, bindingName);
+                        }
+                        final binding = fallbackVars.exists(cf.get().name) ? fallbackVars.get(cf.get().name) : {
+                            id: -1000000 - fallbackBindings.length,
+                            name: bindingName,
+                            t: cf.get().type,
+                            capture: false,
+                            extra: null,
+                            meta: null,
+                            isStatic: false
+                        };
+                        if (!fallbackVars.exists(cf.get().name))
+                            fallbackVars.set(cf.get().name, binding);
+                        node.expr = TLocal(binding);
+                    } else {
+                        node.expr = TLocal(local);
+                    }
                 case TBinop(OpAssign, target, value):
                     bindThisFieldReads(target, true);
                     bindThisFieldReads(value);
@@ -522,7 +550,7 @@ class RustExpr {
         // fallible void closer `Ok(())` after the validation statements.
         final lines = stmts.length > 0 ? blockLines(stmts, 1, false) : [];
         final normalized = coalescingNormalizationLines(f.expr, 1, [for (a in f.args) a.name]);
-        return {statementLines: normalized.concat(lines), fieldInits: fieldInits};
+        return {statementLines: normalized.concat(fallbackBindings).concat(lines), fieldInits: fieldInits};
     }
 
     function coalescingNormalizationLines(root:TypedExpr, depth:Int, parameterOrder:Null<Array<String>> = null):Array<String> {
