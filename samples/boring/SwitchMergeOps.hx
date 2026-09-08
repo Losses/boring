@@ -15,6 +15,15 @@ class SwitchMergeOps {
         };
     }
 
+    /** Grouped arm without payload bindings: the typer keeps one case with
+        multiple values, which is the consumer-tree shape. */
+    public static function groupedPlain(value:SwitchMergeValue):String {
+        return switch (value) {
+            case First(_) | Second(_): "plain";
+            case Third: "third";
+        };
+    }
+
     public static function single(value:SwitchMergeValue):String {
         return switch (value) {
             case First(payload): "first:" + payload;
