@@ -1858,7 +1858,7 @@ class DartExpr {
                     + "."
                     + ValueTypeSupport.representationFieldName(abs)
                     + ".toString()";
-            case IsFloat: inConcat && depth == 0 ? value : runtimeQualified("formatFloat") + "(" + value + ")";
+            case IsFloat: runtimeQualified("formatFloat") + "(" + value + ")";
             case IsInt | IsBool: inConcat && depth == 0 ? value : "'${" + value + "}'";
             case IsTypeParameter: inConcat ? value : "'${" + value + "}'";
             case IsReadOnlyArray(underlying):
