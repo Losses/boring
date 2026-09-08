@@ -246,7 +246,7 @@ class Compiler extends PluginCompiler<Compiler> {
             }
             final decl = contexts.get(module);
             final imports = decl.renderImports();
-            final body = parts.get(module).join("\n\n");
+            final body = assembleModuleBody(module, parts.get(module));
             final content = imports + (imports.length > 0 ? "\n" : "") + body + "\n";
 
             if (state.testClasses.exists(module)) {
@@ -285,6 +285,86 @@ class Compiler extends PluginCompiler<Compiler> {
             PackageArtifacts.requireShell();
             PackageArtifacts.emitMaven(kotlinOutput);
         }
+    }
+
+    /**
+        Reassembles a module's declaration parts, nesting file-private
+        top-level classes into the module's primary type.
+
+        Haxe file-private (module-private) classes share their name across
+        modules, but Kotlin rejects same-named top-level `private` classes
+        across files within one package: kotlinc reports redeclaration even
+        for file-private top-levels. Lower each file-private top-level class
+        into its module's primary type as a private nested class, which is the
+        Kotlin idiom for a file-local helper and keeps the name private and
+        distinct without altering other output. Only modules that contain
+        file-private top-level classes are restructured; every other module is
+        joined exactly as before.
+    **/
+    static function assembleModuleBody(module:String, moduleParts:Array<String>):String {
+        final privateParts = [for (p in moduleParts) if (isFilePrivateClassPart(p)) p];
+        if (privateParts.length == 0) {
+            return moduleParts.join("\n\n");
+        }
+        final leaf = module.split(".").pop();
+        var primaryIndex = -1;
+        for (i in 0...moduleParts.length) {
+            if (!isFilePrivateClassPart(moduleParts[i]) && isPrimaryTypePart(moduleParts[i], leaf)) {
+                primaryIndex = i;
+                break;
+            }
+        }
+        if (primaryIndex < 0) {
+            // No primary type to host the nesting; keep the current
+            // top-level shape. This only hits modules made up solely of
+            // file-private classes, which are not exercised here.
+            return moduleParts.join("\n\n");
+        }
+        final indented = [for (p in privateParts) indentLines(p, 4)].join("\n");
+        final out = [];
+        for (i in 0...moduleParts.length) {
+            final p = moduleParts[i];
+            if (isFilePrivateClassPart(p)) {
+                continue;
+            }
+            if (i == primaryIndex) {
+                out.push(nestIntoPrimary(p, indented));
+            } else {
+                out.push(p);
+            }
+        }
+        return out.join("\n\n");
+    }
+
+    static function isFilePrivateClassPart(part:String):Bool {
+        return StringTools.startsWith(part, "private class ") || StringTools.startsWith(part, "private data class ");
+    }
+
+    static function isPrimaryTypePart(part:String, leaf:String):Bool {
+        if (!StringTools.endsWith(StringTools.rtrim(part), "}")) {
+            return false;
+        }
+        final firstLine = part.split("\n")[0];
+        final headers = ["object ", "class ", "sealed class ", "sealed interface ", "interface ", "data class ", "final class ", "abstract class "];
+        for (h in headers) {
+            final candidate = h + leaf;
+            if (StringTools.startsWith(firstLine, candidate)) {
+                final rest = firstLine.substr(candidate.length);
+                return rest.length == 0 || rest.charAt(0) == " " || rest.charAt(0) == "{" || rest.charAt(0) == "<" || rest.charAt(0) == "(";
+            }
+        }
+        return false;
+    }
+
+    static function indentLines(part:String, indent:Int):String {
+        final pad = StringTools.rpad("", " ", indent);
+        return [for (line in part.split("\n")) pad + line].join("\n");
+    }
+
+    static function nestIntoPrimary(primaryPart:String, nested:String):String {
+        final head = StringTools.rtrim(primaryPart);
+        final body = head.substr(0, head.length - 1);
+        return body + nested + "\n}";
     }
 
     /**

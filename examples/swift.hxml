@@ -249,6 +249,9 @@ boring.StaticRefOps
 tests.StaticRefTests
 boring.LocalShadowOps
 tests.LocalShadowTests
+boring.PrivateClassOps
+boring.PrivateClassPeerOps
+tests.PrivateClassTests
 boring.UnderscoreParamOps
 tests.UnderscoreParamTests
 tests.EarlyReturnTests
