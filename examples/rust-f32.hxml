@@ -191,6 +191,8 @@ boring.DartCharNullOps
 tests.DartCharNullTests
 boring.RustCoalesceOps
 tests.RustCoalesceTests
+boring.LoopWriteOps
+tests.LoopWriteTests
 boring.UnderscoreParamOps
 tests.UnderscoreParamTests
 boring.CfgTestProbe
