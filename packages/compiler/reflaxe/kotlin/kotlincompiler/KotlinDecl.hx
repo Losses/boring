@@ -1214,7 +1214,9 @@ class KotlinDecl {
         // names std.Test, so the reference itself marks the test host
         // entry and the runtime.TestCore resident as used.
         state.shimsUsed.set(RuntimeResidents.externsOf("runtime.TestCore")[0], true);
+        expr.setTestRunnerLambda(true);
         final body = expr.functionBody(cls, f);
+        expr.setTestRunnerLambda(false);
         final indented = body.map(l -> "            " + l);
         return [
             "    @kotlin.test.Test",
