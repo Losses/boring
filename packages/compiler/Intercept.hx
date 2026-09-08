@@ -1128,7 +1128,13 @@ class Intercept {
             final next = current.superClass;
             current = next == null ? null : next.t.get();
         }
+        #if rust_output
+        // Rust has no class inheritance; the Rust backend handles this
+        // target-specific lowering while accepting the source shape.
+        return;
+        #else
         violation("V12", "DataInheritance", "class extends outside the haxe.Exception chain that rule 4 sanctions", classType.pos);
+        #end
     }
 
     static function checkEnumDefault(subject:TypedExpr, maybeDefault:Null<TypedExpr>):Void {

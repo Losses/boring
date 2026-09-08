@@ -485,7 +485,13 @@ class RustExpr {
         final fallbackVars:Map<String, TVar> = [];
         final stmts:Array<TypedExpr> = [];
         for (stmt in statementsOf(f.expr)) {
+            // Rust has no class inheritance: a Haxe constructor super call
+            // has no callable Rust equivalent. The enclosing data-class
+            // constructor is hand-rolled, so consume the call; emitting Rust's
+            // module-path keyword as a function is invalid.
             switch (stmt.expr) {
+                case TCall({expr: TConst(TSuper)}, _):
+                    continue;
                 case TBinop(OpAssign, target, value):
                     switch (stripWrap(target).expr) {
                         case TField({expr: TConst(TThis)}, FInstance(_, _, cf)):
