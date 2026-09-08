@@ -93,10 +93,20 @@ class RustDecl {
                     for (a in f.args)
                         RustImports.toSnakeCase(a.name) + ": " + types.of(a.type, true)
                 ].join(", ");
-                final selfPrefix = f.isStatic ? "" : "&self" + (f.args.length > 0 ? ", " : "");
-                final retType = types.of(f.ret, false);
+                final shape = state.interfaceMethodShapes.get(RustEmissionState.interfaceMethodKey(cls.module, cls.name, f.field.name));
+                final isMutating = shape != null ? shape.isMutating : (!f.isStatic && isMethodMutating(f));
+                final selfPrefix = f.isStatic ? "" : (isMutating ? "&mut self" : "&self") + (f.args.length > 0 ? ", " : "");
+                final isFallible = shape != null ? shape.isFallible : funcIsFallible(f);
+                final errOwner = isFallible ? resolveErrorOwner(f, cls) : null;
+                if (errOwner != null)
+                    imports.requireType(errOwner.module, errOwner.name);
+                final rawRetType = methodReturnType(f.ret, f.field.name);
+                final errorName = shape != null && shape.errorName != null ? shape.errorName : (errOwner != null ? errOwner.name : null);
+                final retType = isFallible ? 'Result<$rawRetType, $errorName>' : rawRetType;
                 final ret = retType == "()" ? "" : " -> " + retType;
-                lines.push('    fn ${RustImports.toSnakeCase(f.field.name)}($selfPrefix$paramList)$ret;');
+                final methodParams = collectMethodTypeParams(f, [for (p in cls.params) p.name]);
+                final methodGenericStr = methodParams.length > 0 ? "<" + methodParams.join(", ") + ">" : "";
+                lines.push('    fn ${RustImports.toSnakeCase(f.field.name)}$methodGenericStr($selfPrefix$paramList)$ret;');
             }
             lines.push("}");
             return lines.join("\n");
@@ -310,11 +320,18 @@ class RustDecl {
                         break;
                     }
                 }
+                if (!inIface)
+                    for (ifField in ifaceCls.statics.get()) {
+                        if (ifField.name == f.field.name) {
+                            inIface = true;
+                            break;
+                        }
+                    }
                 if (inIface) {
                     if (ifaceSep)
                         lines.push("");
                     ifaceSep = true;
-                    for (l in instanceFuncDecl(cls, f, hasLifetime, true))
+                    for (l in instanceFuncDecl(cls, f, hasLifetime, true, ifaceCls.module, ifaceCls.name))
                         lines.push(l);
                 }
             }
@@ -1620,7 +1637,7 @@ class RustDecl {
         return false;
     }
 
-    function instanceFuncDecl(cls:ClassType, f:ClassFuncData, hasLifetime:Bool, isTraitImpl:Bool = false):Array<String> {
+    function instanceFuncDecl(cls:ClassType, f:ClassFuncData, hasLifetime:Bool, isTraitImpl:Bool = false, interfaceModule:Null<String> = null, interfaceName:Null<String> = null):Array<String> {
         final isConstructor = f.field.name == "new";
         final snakeName = isConstructor ? "new" : RustImports.toSnakeCase(f.field.name);
 
@@ -1735,12 +1752,16 @@ class RustDecl {
             return lines;
         }
 
-        final isMutating = isMethodMutating(f);
+        final interfaceShape = isTraitImpl ? state.interfaceMethodShapes.get(RustEmissionState.interfaceMethodKey(
+            interfaceModule != null ? interfaceModule : f.classType.module,
+            interfaceName != null ? interfaceName : cls.name,
+            f.field.name)) : null;
+        final isMutating = interfaceShape != null ? interfaceShape.isMutating : isMethodMutating(f);
         // The sorted-table builder transfers its boxed comparator into the
         // immutable table, so its build method consumes the builder instead
         // of moving that box out of a shared borrow.
         final consumesSelf = cls.module == "runtime.SortedTable" && f.field.name == "build";
-        final selfParam = consumesSelf ? "self" : (isMutating ? "&mut self" : "&self");
+        final selfParam = f.isStatic && isTraitImpl ? "" : (consumesSelf ? "self" : (isMutating ? "&mut self" : "&self"));
         final otherArgs = [
             for (a in f.args) {
                 var pType = paramType(a.type, f.field.name, a.name);
@@ -1749,9 +1770,9 @@ class RustDecl {
                 RustImports.toSnakeCase(a.name) + ": " + pType;
             }
         ].join(", ");
-        final allArgs = otherArgs.length > 0 ? selfParam + ", " + otherArgs : selfParam;
+        final allArgs = selfParam.length == 0 ? otherArgs : (otherArgs.length > 0 ? selfParam + ", " + otherArgs : selfParam);
 
-        final isFallible = funcIsFallible(f);
+        final isFallible = interfaceShape != null ? interfaceShape.isFallible : funcIsFallible(f);
         final errOwner = isFallible ? resolveErrorOwner(f, cls) : null;
         if (isFallible && errOwner != null) {
             imports.requireType(errOwner.module, errOwner.name);
@@ -1889,7 +1910,7 @@ class RustDecl {
             || name == "writeU16" || name == "writeU32" || name == "writeF64" || name == "writeF32" || name == "writeF16" || name == "writeAscii") {
             return true;
         }
-        if (name == "finish") {
+        if (name == "finish" || name == "bump") {
             return true;
         }
         return bodyMutatesSelf(f.expr);
