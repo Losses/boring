@@ -15,14 +15,24 @@ class ArrayAccessOps {
     }
 
     public static function compositeStringBufPart(value:String):Int {
+#if kotlin_output
         final buffer = new StringBuf();
         buffer.add("" + value);
-        return buffer.toString().charCodeAt(0);
+        final rendered = buffer.toString();
+        return rendered.charCodeAt(0);
+#else
+        return value.charCodeAt(0);
+#end
     }
 
     public static function simpleStringBufPart(value:String):Int {
+#if kotlin_output
         final buffer = new StringBuf();
         buffer.add(value);
-        return buffer.toString().charCodeAt(0);
+        final rendered = buffer.toString();
+        return rendered.charCodeAt(0);
+#else
+        return value.charCodeAt(0);
+#end
     }
 }
