@@ -66,6 +66,9 @@ class KotlinExpr {
     /** Locals initialized from null retain nullable access semantics. */
     final nullInitializedLocals:Map<Int, Bool> = [];
 
+    /** Locals whose inferred Kotlin initializer remains nullable. */
+    final nullableRenderedLocals:Map<Int, Bool> = [];
+
     /** Locals compared with null somewhere in the currently emitted statement block. */
     var activeNullGuardLocals:Map<Int, Bool> = [];
 
@@ -320,6 +323,7 @@ class KotlinExpr {
         };
         nonNullLocals.clear();
         nullInitializedLocals.clear();
+        nullableRenderedLocals.clear();
         nonNullFields.clear();
         enumVariants.clear();
         registerNonNullDefaultParams(cls, f);
@@ -399,6 +403,7 @@ class KotlinExpr {
         currentLocalName = null;
         nonNullLocals.clear();
         nullInitializedLocals.clear();
+        nullableRenderedLocals.clear();
         nonNullFields.clear();
         enumVariants.clear();
         registerNonNullDefaultParams(cls, f);
@@ -536,6 +541,10 @@ class KotlinExpr {
                 // state still reflects the scope preceding the binding.
                 final initRendersNullable = rendersNullable(init);
                 final extractRenderedNullable = !isNullType(v.t) && !isNullType(init.t) && initRendersNullable;
+                if (initRendersNullable && !extractsAtDecl && !extractRenderedNullable)
+                    nullableRenderedLocals.set(v.id, true);
+                else
+                    nullableRenderedLocals.remove(v.id);
                 updateLocalProof(v, init);
                 return [
                     indent(depth) + '$kw ${localName(v)}$typeAnn = $initText' + (extractsAtDecl || extractRenderedNullable ? "!!" : "")
@@ -603,6 +612,8 @@ class KotlinExpr {
                         return [indent(depth) + "return " + localName(v) + "." + asListReturn.get(v.id)];
                     case _:
                         var retText = expr(ret);
+                        if (rendersNullable(ret) && !isNullType(currentReturnType))
+                            retText += "!!";
                         // Haxe unifies Int and Float; widen Int return values to
                         // Float when the function's return type is Float.
                         // Use emittedType because the typed AST type is Float
@@ -1757,7 +1768,7 @@ class KotlinExpr {
 
     function isNullInitialized(e:TypedExpr):Bool {
         return switch (stripWrap(e).expr) {
-            case TLocal(v): nullInitializedLocals.exists(v.id);
+            case TLocal(v): nullInitializedLocals.exists(v.id) || nullableRenderedLocals.exists(v.id);
             case TField(_, FStatic(c, cf)): nullInitializedFields.exists(c.get().module + ":" + cf.get().name);
             case _: false;
         };
@@ -2122,7 +2133,7 @@ class KotlinExpr {
         // loops and branches.
         final proven = provenNonNull(e) || guardProofBefore(e);
         final nullInit = isNullInitialized(e);
-        if (((isNullType(e.t) && !proven) || nullInit) && parent != OpEq && parent != OpNotEq) {
+        if (((isNullType(e.t) && !proven) || nullInit || rendersNullable(e)) && parent != OpEq && parent != OpNotEq) {
             rendered += "!!";
             if (!nullInit)
                 addProofExpr(e);
