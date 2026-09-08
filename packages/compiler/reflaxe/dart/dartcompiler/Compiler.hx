@@ -431,16 +431,19 @@ class Compiler extends PluginCompiler<Compiler> {
 
         for (module in modules) {
             if (RuntimeResidents.isResident(module)) {
-                // Resident modules append into runtime.dart below, but
-                // when they are force-compiled (not listed in the
-                // consumer's hxml) the generated imports may reference
-                // them as separate files under the emit directory.
-                final moduleParts = parts.get(module);
-                if (moduleParts != null && moduleParts.length > 0 && emitDir != null) {
-                    final fileName = DartImports.libraryPathOf(module);
-                    final content = GENERATED_HEADER + "\n" + moduleParts.join("\n\n") + "\n";
-                    PackageArtifacts.saveTreeFile(output, "lib/" + RuntimeConfig.emitPath(emitDir, fileName), content);
-                }
+                // Resident modules append into the combined runtime library
+                // (runtime.dart for std residents, test_host.dart for the
+                // test resident) further below. They must not also emit as
+                // standalone libraries: they share library-private helpers
+                // (_codePointAt in the std library, and TestFailure /
+                // _currentTestId in the test host) and bare resident type
+                // references (UString, GraphemeWalk, Graphemes) that
+                // resolve only within that merged library. No generated
+                // import ever names a resident file. Every resident call
+                // lowers through the runtime-qualified runtime prefix, so
+                // a standalone file would be an orphaned, unresolved
+                // duplicate. Only the merged append is emitted, even when
+                // force-compiled.
                 continue;
             }
             final isTest = testModules.exists(module);
