@@ -94,6 +94,9 @@ class DartExpr {
 
     final nonNullLocals:Map<Int, Bool> = [];
 
+    /** Optional parameters materialized by default expansion. */
+    final nonNullOptionalParams:Map<Int, Bool> = [];
+
     /** Names used by parameters and locals; generated names avoid them. */
     final usedNames:Map<String, Bool> = [];
 
@@ -354,12 +357,16 @@ class DartExpr {
             case _: false;
         };
         nonNullLocals.clear();
+        nonNullOptionalParams.clear();
         // Coalescing defaults are materialized by every Dart call site. Their
         // optional signature slots therefore carry a concrete value throughout
-        // the Haxe method body.
+        // the Haxe method body, even when the typed read has already lost the
+        // Null wrapper.
         for (a in f.args) {
-            if (DefaultArgExpander.coalescingDefaultAt(cls, f.field.name, a.index) != null && a.tvar != null)
+            if (DefaultArgExpander.coalescingDefaultAt(cls, f.field.name, a.index) != null && a.tvar != null) {
                 nonNullLocals.set(a.tvar.id, true);
+                nonNullOptionalParams.set(a.tvar.id, true);
+            }
         }
 
         scanLocals(f.expr);
@@ -1137,10 +1144,14 @@ class DartExpr {
                 if (subst.exists(v.id)) {
                     return subst.get(v.id);
                 }
-                return localName(v);
+                // Default-expanded optional parameters and normalized locals
+                // are concrete values in the generated Dart body. Keep the
+                // assertion at the read site, including condition operands.
+                return nonNullLocals.exists(v.id) ? localName(v) + "!" : localName(v);
             case TArray(arr, idx):
                 final mapReceiver = mapBackingReceiver(arr);
-                return mapReceiver == null ? receiverText(arr) + "[" + expr(idx) + "]" : receiverText(mapReceiver) + "[" + expr(idx) + "]";
+                final arrayReceiver = mapReceiver == null ? receiverText(arr) : receiverText(mapReceiver);
+                return arrayReceiver + "[" + expr(idx) + "]";
             case TBinop(op, l, r):
                 return binop(e, op, l, r);
             case TUnop(op, post, subj):
@@ -1582,7 +1593,16 @@ class DartExpr {
         even when the receiver is Null<T>. **/
     function instanceFieldReceiver(subj:TypedExpr, cf:Ref<ClassField>):String {
         final fieldType = cf.get().type;
-        if (PolicyQueries.isNullableType(subj.t) && !PolicyQueries.isNullableType(fieldType)) {
+        // A nullable Haxe field is emitted as a nullable Dart field even when
+        // the typed AST has already unwrapped it for indexing/member access.
+        // Dart does not promote repeated field reads, so assert at the
+        // receiver boundary; a preceding field guard is insufficient.
+        final nullableSubject = PolicyQueries.isNullableType(subj.t) || switch (stripWrap(subj).expr) {
+            case TField(_, FInstance(_, _, ownerField)) | TField(_, FAnon(ownerField)):
+                PolicyQueries.isNullableType(ownerField.get().type);
+            case _: false;
+        };
+        if (nullableSubject && !PolicyQueries.isNullableType(fieldType)) {
             final base = expr(subj);
             return switch (stripWrap(subj).expr) {
                 case TLocal(_): base + "!";
@@ -1770,7 +1790,11 @@ class DartExpr {
 
     /** A method receiver unwraps when the receiver expression is optional. */
     function receiverText(subj:TypedExpr):String {
-        if ((!isNullLeafType(subj.t) && !optionalValued(subj)) || provenNonNull(subj)) {
+        final nullableField = switch (stripWrap(subj).expr) {
+            case TField(_, FInstance(_, _, cf)) | TField(_, FAnon(cf)): PolicyQueries.isNullableType(cf.get().type);
+            case _: false;
+        };
+        if ((!isNullLeafType(subj.t) && !optionalValued(subj) && !nullableField) || provenNonNull(subj)) {
             return expr(subj);
         }
         final base = expr(subj);
@@ -1834,7 +1858,7 @@ class DartExpr {
             case IsRecordLike: value + ".toString()";
             case IsInstanceToString: value + ".toString()";
             case IsMarkedAbstract(abs):
-                ValueTypeSupport.memberField(abs, "toString") != null ? value + ".toStringValue()" : value
+                ValueTypeSupport.memberField(abs, "toString") != null ? receiverText(origin) + ".toStringValue()" : value
                     + "."
                     + ValueTypeSupport.representationFieldName(abs)
                     + ".toString()";
@@ -1969,7 +1993,7 @@ class DartExpr {
                 if (abs == null)
                     return null;
                 final name = cf.get().name == "toString" ? "toStringValue" : cf.get().name;
-                return expr(subj) + "." + name + "(" + [for (a in args) expr(a)].join(", ") + ")";
+                return receiverText(subj) + "." + name + "(" + [for (a in args) expr(a)].join(", ") + ")";
             case _:
         }
         return null;
