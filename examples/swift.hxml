@@ -247,6 +247,8 @@ boring.ArrayAccessOps
 tests.ArrayAccessTests
 boring.StaticRefOps
 tests.StaticRefTests
+boring.LocalShadowOps
+tests.LocalShadowTests
 boring.UnderscoreParamOps
 tests.UnderscoreParamTests
 tests.EarlyReturnTests
