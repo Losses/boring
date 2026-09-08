@@ -205,19 +205,20 @@ class TsExpr {
                 "new "
                 + className
                 + "("
-                + completeCoalescingCallArgs(modulePath, "new", args, targetType).join(", ")
+                + completeCoalescingCallArgs(modulePath, "new", className, args, targetType).join(", ")
                 + ")";
         };
     }
 
     /** Explicit arguments plus the callee's omitted-parameter defaults; a ts signature carries no defaults. */
-    function completeCoalescingCallArgs(modulePath:String, fieldName:String, args:Array<DefaultArgExpander.CoalescingDefaultValue>,
+    function completeCoalescingCallArgs(modulePath:String, fieldName:String, className:Null<String>, args:Array<DefaultArgExpander.CoalescingDefaultValue>,
             targetType:Type):Array<String> {
         final rendered = [for (a in args) coalescingDefaultText(a, targetType)];
-        final omitted = DefaultArgExpander.omittedCallDefaults(modulePath, fieldName, args.length);
+        final omitted = DefaultArgExpander.omittedCallDefaults(modulePath, fieldName, args.length, className);
         if (omitted != null) {
-            for (o in omitted)
-                rendered.push(coalescingDefaultText(o.value, o.type));
+            final omitted = DefaultArgExpander.omittedCallDefaults(modulePath, "new", 0, className);
+            final prefix = omitted == null ? [] : [for (o in omitted) o.value].slice(0, omitted.length - args.length);
+            return [for (o in prefix) coalescingDefaultText(o, targetType)].concat(rendered);
         }
         return rendered;
     }
@@ -237,7 +238,7 @@ class TsExpr {
             + "."
             + methodName
             + "("
-            + completeCoalescingCallArgs(modulePath, methodName, args, targetType).join(", ")
+            + completeCoalescingCallArgs(modulePath, methodName, className, args, targetType).join(", ")
             + ")";
     }
 

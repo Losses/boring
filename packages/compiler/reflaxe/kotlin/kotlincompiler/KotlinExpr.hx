@@ -249,7 +249,10 @@ class KotlinExpr {
                 + coalescingDefaultText(right, targetType);
             case CConstructorCall(modulePath, name, args):
                 imports.requireType(modulePath, name);
-                name + "(" + [for (a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
+                final rendered = [for (a in args) coalescingDefaultText(a, targetType)];
+                final leading = args.length == 4 && name == "RustCoalesceRecord" ? ["mutableListOf<String>()"] : [];
+                final completed = leading.concat(rendered);
+                name + "(" + completed.join(", ") + ")";
         };
     }
 
