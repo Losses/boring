@@ -198,7 +198,7 @@ class RustExpr {
     }
 
     /** Renders the sanctioned expression in Rust's normalization closure. */
-    function coalescingDefaultText(value:DefaultArgExpander.CoalescingDefaultValue, targetType:Type, asOption:Bool = false, nested:Bool = false):String {
+    public function coalescingDefaultText(value:DefaultArgExpander.CoalescingDefaultValue, targetType:Type, asOption:Bool = false, nested:Bool = false):String {
         // Null conditionals already produce an Option-valued expression; their
         // branches must be rendered in that same domain. The whole conditional is not
         // wrapped in Some(...).
@@ -468,17 +468,23 @@ class RustExpr {
                             final fieldName = cf.get().name;
                             final coalescing = coalescingSiteFor(value);
                             if (coalescing != null) {
+                                fieldInits.set(fieldName, renderValueForType(cf.get().type, value, expr(value)));
                                 continue;
                             }
-                            final isParam = switch (stripWrap(value).expr) {
-                                case TLocal(v): argNames.indexOf(v.name) >= 0;
-                                case _: false;
+                            final paramLocal = switch (stripWrap(value).expr) {
+                                case TLocal(v) if (argNames.indexOf(v.name) >= 0): v;
+                                case _: null;
                             };
                             // The parameter name is a local binding. It is not necessarily the
                             // target field name (Haxe permits constructor shorthand such
                             // as `owner = o`). Preserve the typed field assignment so the
                             // declaration pass can emit the real Rust field name.
-                            fieldInits.set(fieldName, renderValueForType(cf.get().type, value, expr(value)));
+                            // A like-named parameter (this.x = x) records nothing: the
+                            // declaration-side initializer branches own its conversions
+                            // (String borrow, recursive-class Box wrap, shorthand move).
+                            if (paramLocal == null || RustImports.toSnakeCase(paramLocal.name) != RustImports.toSnakeCase(fieldName)) {
+                                fieldInits.set(fieldName, renderValueForType(cf.get().type, value, expr(value)));
+                            }
                         case _:
                             stmts.push(stmt);
                     }
