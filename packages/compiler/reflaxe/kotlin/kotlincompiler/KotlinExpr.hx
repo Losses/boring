@@ -327,6 +327,10 @@ class KotlinExpr {
         currentClass = cls;
         currentField = f.field.name;
         currentLocalName = null;
+        currentReturnType = switch (Context.follow(f.field.type)) {
+            case TFun(_, ret): ret;
+            case _: null;
+        };
         nonNullLocals.clear();
         nullInitializedLocals.clear();
         nullableRenderedLocals.clear();
@@ -404,7 +408,6 @@ class KotlinExpr {
         for (a in f.args) {
             reserveName(a.name);
         }
-        currentClass = cls;
         currentClass = cls;
         currentField = f.field.name;
         currentLocalName = null;
