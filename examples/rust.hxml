@@ -236,6 +236,8 @@ boring.DartCharNullOps
 tests.DartCharNullTests
 boring.RustCoalesceOps
 tests.RustCoalesceTests
+boring.JvmFieldPrivateOps
+tests.JvmFieldPrivateTests
 
 boring.ProbeUnit
 boring.AbstractStaticDefault
