@@ -914,6 +914,7 @@ class Compiler extends PluginCompiler<Compiler> {
         }
         function recordModule(t:Type):Null<String> {
             return switch (Context.follow(t)) {
+                case TAbstract(a, params) if (a.get().name == "Null" && params.length == 1): recordModule(params[0]);
                 case TInst(c, _) if (!c.get().isInterface): c.get().module + "::" + c.get().name;
                 case TType(d, _): recordModule(d.get().type);
                 case _: null;
@@ -1008,6 +1009,35 @@ class Compiler extends PluginCompiler<Compiler> {
                                                 if (pair != null) {
                                                     mergeEnum(key, pair);
                                                 }
+                                            }
+                                            descend();
+                                        case TIf(condition, ifTrue, ifFalse):
+                                            switch (condition.expr) {
+                                                case TBinop(OpEq | OpNotEq, left, right):
+                                                    final leftClean = stripDecorations(left);
+                                                    final rightClean = stripDecorations(right);
+                                                    final candidate = switch (leftClean.expr) {
+                                                        case TLocal(v) if (rightClean.expr.match(TConst(TNull))): v;
+                                                        case _: switch (rightClean.expr) {
+                                                                case TLocal(v) if (leftClean.expr.match(TConst(TNull))): v;
+                                                                case _: null;
+                                                            }
+                                                    };
+                                                    if (candidate != null) {
+                                                        final selected = switch (ifTrue.expr) {
+                                                            case TLocal(v) if (v.id == candidate.id): true;
+                                                            case _: ifFalse != null ? switch (ifFalse.expr) {
+                                                                    case TLocal(v) if (v.id == candidate.id): true;
+                                                                    case _: false;
+                                                                } : false;
+                                                        };
+                                                        if (selected) {
+                                                            final module = recordModule(candidate.t);
+                                                            if (module != null)
+                                                                state.recordCloneTypes.set(module, true);
+                                                        }
+                                                    }
+                                                case _:
                                             }
                                             descend();
                                         case TCall(fn, callArgs):

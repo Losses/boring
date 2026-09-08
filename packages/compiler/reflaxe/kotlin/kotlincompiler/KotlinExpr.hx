@@ -435,6 +435,24 @@ class KotlinExpr {
                             if (coalescing != null && coalescing.parameter == name) {
                                 return {render: false, initialized: null};
                             }
+                            final registered = DefaultArgExpander.coalescingDefaultForParam(currentClass, f.field.name, name);
+                            if (registered != null) {
+                                return {render: false, initialized: null};
+                            }
+                            final directCoalescing = switch (value.expr) {
+                                case TIf(_, t, f) if (t != null || f != null):
+                                    switch (t.expr) {
+                                        case TLocal(v) if (v.name == name): true;
+                                        case _: switch (f.expr) {
+                                                case TLocal(v) if (v.name == name): true;
+                                                case _: false;
+                                            }
+                                    }
+                                case _: false;
+                            };
+                            if (directCoalescing) {
+                                return {render: false, initialized: null};
+                            }
                             final fromParam = switch (value.expr) {
                                 case TLocal(v): v.name == name;
                                 case _: false;
