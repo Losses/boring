@@ -65,6 +65,15 @@ class Compiler extends PluginCompiler<Compiler> {
     /** Classes whose flattened public statics would share a library name. */
     public static final collidingStaticsClasses:Map<String, Bool> = [];
 
+    /**
+        Modules whose resident or std source files must be compiled even
+        though they sit outside the intercepted source roots.  A consumer
+        build may reference these modules through business code without
+        listing them in its hxml module list; the generated Dart imports
+        still expect the files to exist.
+    **/
+    public static final forceCompileModules:Map<String, Bool> = [];
+
     public static function use() {
         // Dart has one storage width for reals (double) with no binary32
         // alias in the language, so the f32 configuration has no faithful Dart
@@ -119,6 +128,53 @@ class Compiler extends PluginCompiler<Compiler> {
                 case _:
             }
         }
+        // When runtime-import is configured, mark every typed module that
+        // lives outside the intercepted source roots for force-compilation.
+        // The consumer's generated code may import these modules' Dart files
+        // even though the consumer never lists them in its hxml module list.
+        //
+        // The whitelist keeps the scan from pulling in Haxe
+        // standard-library modules whose AST the Dart target cannot
+        // lower (e.g. anonymous object literals in haxe.Exception).
+        if (RuntimeConfig.importName() != null) {
+            for (mt in mtypes) {
+                switch (mt) {
+                    case TClassDecl(c):
+                        final cls = c.get();
+                        if (cls.isExtern || inSourceScope(cls.pos)) {
+                            continue;
+                        }
+                        // Only force-compile std.* and runtime.* modules that
+                        // the Dart import table may reference.  Skip haxe.*
+                        // and other stdlib modules that contain AST patterns
+                        // the Dart target cannot lower.
+                        final mod = cls.module;
+                        if (StringTools.startsWith(mod, "std.") || RuntimeResidents.isResident(mod)) {
+                            forceCompileModules.set(mod, true);
+                        }
+                    case TEnumDecl(e):
+                        final enm = e.get();
+                        if (inSourceScope(enm.pos)) {
+                            continue;
+                        }
+                        final mod = enm.module;
+                        if (StringTools.startsWith(mod, "std.") || RuntimeResidents.isResident(mod)) {
+                            forceCompileModules.set(mod, true);
+                        }
+                    case TTypeDecl(d):
+                        final def = d.get();
+                        if (inSourceScope(def.pos)) {
+                            continue;
+                        }
+                        final mod = def.module;
+                        if (StringTools.startsWith(mod, "std.") || RuntimeResidents.isResident(mod)) {
+                            forceCompileModules.set(mod, true);
+                        }
+                    case _:
+                }
+            }
+            forceCompileModules.set("runtime.StringTools", true);
+        }
         referencedStatics.clear();
         collidingStaticsClasses.clear();
         final staticNames = new Map<String, Array<{cls:ClassType, names:Map<String, Bool>}>>();
@@ -126,28 +182,36 @@ class Compiler extends PluginCompiler<Compiler> {
             switch (mt) {
                 case TClassDecl(c):
                     final cls = c.get();
-                    if (cls.isExtern || RuntimeResidents.isResident(cls.module) || !inSourceScope(cls.pos)
-                        || cls.isInterface || cls.superClass != null || cls.interfaces.length > 0
-                        || cls.constructor != null || cls.fields.get().length > 0) {
+                    if (cls.isExtern
+                        || RuntimeResidents.isResident(cls.module)
+                        || !inSourceScope(cls.pos)
+                        || cls.isInterface
+                        || cls.superClass != null
+                        || cls.interfaces.length > 0
+                        || cls.constructor != null
+                        || cls.fields.get().length > 0) {
                         continue;
                     }
                     final names:Map<String, Bool> = [];
                     for (f in cls.statics.get()) {
                         names.set(f.isPublic ? f.name : "_" + f.name, true);
                     }
-                    if (!staticNames.exists(cls.module)) staticNames.set(cls.module, []);
+                    if (!staticNames.exists(cls.module))
+                        staticNames.set(cls.module, []);
                     staticNames.get(cls.module).push({cls: cls, names: names});
                 case _:
             }
         }
         for (module in staticNames.keys()) {
             final entries = staticNames.get(module);
-            for (i in 0...entries.length) for (j in i + 1...entries.length) {
-                for (name in entries[i].names.keys()) if (entries[j].names.exists(name)) {
-                    collidingStaticsClasses.set(module + "." + entries[i].cls.name, true);
-                    collidingStaticsClasses.set(module + "." + entries[j].cls.name, true);
+            for (i in 0...entries.length)
+                for (j in i + 1...entries.length) {
+                    for (name in entries[i].names.keys())
+                        if (entries[j].names.exists(name)) {
+                            collidingStaticsClasses.set(module + "." + entries[i].cls.name, true);
+                            collidingStaticsClasses.set(module + "." + entries[j].cls.name, true);
+                        }
                 }
-            }
         }
         final referenced = StaticReferenceScan.scan(mtypes, cls -> !cls.isExtern
             && (RuntimeResidents.isResident(cls.module) || inSourceScope(cls.pos)));
@@ -163,6 +227,8 @@ class Compiler extends PluginCompiler<Compiler> {
         // Resident runtime modules sit under src/runtime, outside the
         // sample source roots, but compile through this same pipeline.
         final isResident = RuntimeResidents.isResident(classType.module);
+        final inScope = inSourceScope(classType.pos);
+        final isForce = forceCompileModules.exists(classType.module);
         final valueType = ValueTypeSupport.infoOfClass(classType);
         if (valueType != null) {
             if (!ValueTypeSupport.isValidAbstract(valueType.abstractType)) {
@@ -174,7 +240,7 @@ class Compiler extends PluginCompiler<Compiler> {
             parts.get(classType.module).push(result);
             return result;
         }
-        if (classType.isExtern || (!isResident && !inSourceScope(classType.pos))) {
+        if (classType.isExtern || (!isResident && !isForce && !inScope)) {
             return null;
         }
         SealedVariantHelper.validateClass(classType);
@@ -297,7 +363,7 @@ class Compiler extends PluginCompiler<Compiler> {
 
     public function compileEnumImpl(enumType:EnumType, options:Array<EnumOptionData>):Null<String> {
         final isResident = RuntimeResidents.isResident(enumType.module);
-        if (!isResident && !inSourceScope(enumType.pos)) {
+        if (!isResident && !forceCompileModules.exists(enumType.module) && !inSourceScope(enumType.pos)) {
             return null;
         }
         SealedVariantHelper.validateEnum(enumType);
@@ -317,7 +383,7 @@ class Compiler extends PluginCompiler<Compiler> {
             // (DartType.ofSubstituted), so no declaration renders.
             return null;
         }
-        if (!inSourceScope(def.pos)) {
+        if (!forceCompileModules.exists(def.module) && !inSourceScope(def.pos)) {
             return null;
         }
         SealedVariantHelper.validateTypedef(def);
@@ -357,14 +423,24 @@ class Compiler extends PluginCompiler<Compiler> {
         final dartOutput = Context.definedValue("dart-output");
         final testOutput = Context.definedValue("dart-test-output");
         if (testOutput == null) {
-            Context.error("The dartcompiler.Compiler compiler is enabled; however, the test output directory (-D dart-test-output) is not defined.", Context.currentPos());
+            Context.error("The dartcompiler.Compiler compiler is enabled; however, the test output directory (-D dart-test-output) is not defined.",
+                Context.currentPos());
         }
         final testRel = relativeFromTo(dartOutput, testOutput);
+        final emitDir = RuntimeConfig.emitDir();
 
         for (module in modules) {
             if (RuntimeResidents.isResident(module)) {
-                // Resident modules append into runtime.dart below, not
-                // into the business tree.
+                // Resident modules append into runtime.dart below, but
+                // when they are force-compiled (not listed in the
+                // consumer's hxml) the generated imports may reference
+                // them as separate files under the emit directory.
+                final moduleParts = parts.get(module);
+                if (moduleParts != null && moduleParts.length > 0 && emitDir != null) {
+                    final fileName = DartImports.libraryPathOf(module);
+                    final content = GENERATED_HEADER + "\n" + moduleParts.join("\n\n") + "\n";
+                    PackageArtifacts.saveTreeFile(output, "lib/" + RuntimeConfig.emitPath(emitDir, fileName), content);
+                }
                 continue;
             }
             final isTest = testModules.exists(module);
@@ -379,8 +455,33 @@ class Compiler extends PluginCompiler<Compiler> {
             PackageArtifacts.saveTreeFile(output, savedPath, content);
         }
 
-        final emitDir = RuntimeConfig.emitDir();
-        if (emitDir != null && anyRuntimeUsed()) {
+        // Write stub files for modules that are referenced by imports but
+        // produce no output (e.g. extern-only std modules like SortedMap).
+        final referencedModules = new Map<String, Bool>();
+        for (ctx in contexts.iterator()) {
+            for (entry in ctx.imports.moduleList()) {
+                if (!referencedModules.exists(entry.module)) {
+                    referencedModules.set(entry.module, true);
+                }
+            }
+        }
+        for (refMod in referencedModules.keys()) {
+            if (RuntimeResidents.isResident(refMod)) {
+                continue;
+            }
+            if (parts.exists(refMod)) {
+                continue;
+            }
+            final savedPath = "lib/" + DartImports.libraryPathOf(refMod);
+            final content = GENERATED_HEADER + "\n";
+            PackageArtifacts.saveTreeFile(output, savedPath, content);
+        }
+
+        // Write the self-contained runtime library when any business code
+        // uses the runtime, or when force-compiled residents produced parts
+        // that need to live inside runtime.dart.
+        final needRuntime = emitDir != null && (anyRuntimeUsed() || anyResidentCompiled());
+        if (needRuntime) {
             // Resident modules compile through the normal pipeline and
             // append after the runtime source, so runtime.dart stays one
             // self-contained library.
@@ -547,6 +648,17 @@ class Compiler extends PluginCompiler<Compiler> {
     function anyRuntimeUsed():Bool {
         for (decl in contexts.iterator()) {
             if (decl.usesRuntime()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Whether any resident module produced compiled parts (force-compiled or otherwise). */
+    function anyResidentCompiled():Bool {
+        for (resident in RuntimeResidents.MODULES) {
+            final moduleParts = parts.get(resident);
+            if (moduleParts != null && moduleParts.length > 0) {
                 return true;
             }
         }
