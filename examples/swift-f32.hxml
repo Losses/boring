@@ -188,6 +188,8 @@ boring.EnumSortedKeysOps
 tests.EnumSortedKeysTests
 boring.DartCharNullOps
 tests.DartCharNullTests
+boring.RustCoalesceOps
+tests.RustCoalesceTests
 boring.ProbeChain
 tests.ProbeChainTests
 
