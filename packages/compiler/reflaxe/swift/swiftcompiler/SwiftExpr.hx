@@ -1476,7 +1476,7 @@ class SwiftExpr {
             return realType() + "(" + expr(ret) + ")";
         return switch (stripWrap(ret).expr) {
             case TConst(TNull): expr(ret);
-            case TCall(_, _) if (isNullLeafType(ret.t)): expr(ret);
+            case TCall(_, _) if (isNullLeafType(ret.t)): currentFuncReturnsOptional ? expr(ret) : expr(ret) + "!";
             case TLocal(v) if (currentFuncReturnsOptional): expr(ret);
             case TLocal(v) if (optionalAnnotated.exists(v.id) || (optionalInferred.exists(v.id) && !nonOptionalInferred.exists(v.id))): {
                 final text = expr(ret);
