@@ -50,6 +50,7 @@ class BytesBuffer {
     }
     fun fromCodePoint(codePoint: Int): String = String(Character.toChars(codePoint))
     fun fromCodePoints(codePoints: Array<Int>): String = codePoints.joinToString(\"\") { fromCodePoint(it) }
+    fun fromCodePoints(codePoints: List<Int>): String = codePoints.joinToString(\"\") { fromCodePoint(it) }
     fun toCodePoints(s: String): Array<Int> = s.codePoints().toArray().toTypedArray()
     fun compareTo(a: String, b: String): Int = a.compareTo(b)
 }

@@ -910,7 +910,8 @@ class PolicyQueries {
                                         if (captureOk) {
                                             final capturedBody = bodyStmts.slice(1);
                                             final index = [
-                                                for (stmt in capturedBody) if (PolicyQueries.mentionsLocal(stmt, counter)) counter else captured
+                                                for (stmt in capturedBody)
+                                                    if (PolicyQueries.mentionsLocal(stmt, counter)) counter else captured
                                             ][0];
                                             return {
                                                 index: index,
@@ -973,19 +974,30 @@ class PolicyQueries {
         return intervalShort({expr: TVar(counter, start), pos: counterDecl.pos, t: counterDecl.t}, whileExpr);
     }
 
+    /** Whether a counted-loop counter is used after the loop in this block.
+        Such a counter must remain in the enclosing scope: consuming its TVar
+        in a target loop header would otherwise make later assignments refer
+        to a name that no longer exists. */
+    static function counterUsedAfter(stmts:Array<TypedExpr>, end:Int, counter:TVar):Bool {
+        for (j in end...stmts.length)
+            if (mentionsLocal(stmts[j], counter))
+                return true;
+        return false;
+    }
+
     public static function regroupLoops(stmts:Array<TypedExpr>):Array<TypedExpr> {
         final out:Array<TypedExpr> = [];
         var i = 0;
         while (i < stmts.length) {
             if (i + 2 < stmts.length) {
                 final loop = intervalCore(stmts[i], stmts[i + 1], stmts[i + 2]);
-                if (loop != null) {
+                if (loop != null && !counterUsedAfter(stmts, i + 3, loop.index)) {
                     out.push({expr: TBlock([stmts[i], stmts[i + 1], stmts[i + 2]]), pos: stmts[i].pos, t: stmts[i + 2].t});
                     i += 3;
                     continue;
                 }
                 final split = intervalSplit(stmts[i], stmts[i + 1], stmts[i + 2]);
-                if (split != null) {
+                if (split != null && !counterUsedAfter(stmts, i + 3, split.index)) {
                     out.push({expr: TBlock([stmts[i], stmts[i + 1], stmts[i + 2]]), pos: stmts[i].pos, t: stmts[i + 2].t});
                     i += 3;
                     continue;
@@ -993,7 +1005,7 @@ class PolicyQueries {
             }
             if (i + 1 < stmts.length) {
                 final loop = intervalShort(stmts[i], stmts[i + 1]);
-                if (loop != null) {
+                if (loop != null && !counterUsedAfter(stmts, i + 2, loop.index)) {
                     out.push({expr: TBlock([stmts[i], stmts[i + 1]]), pos: stmts[i].pos, t: stmts[i + 1].t});
                     i += 2;
                     continue;

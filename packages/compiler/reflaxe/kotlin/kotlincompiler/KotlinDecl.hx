@@ -85,7 +85,8 @@ class KotlinDecl {
                 }
                 if (hasInstanceGetter) {
                     final vis = field.isPublic ? "" : (field.meta.has(":allow") ? "internal " : "private ");
-                    lines.push('    ${vis}val ${KotlinNameEscape.escape(field.name)}: ${types.of(field.type)} get() = get_${KotlinNameEscape.escape(field.name)}()');
+                    final overrideStr = hasGetterPropertyInInterface(cls, field.name) ? "override " : "";
+                    lines.push('    ${vis}${overrideStr}val ${KotlinNameEscape.escape(field.name)}: ${types.of(field.type)} get() = get_${KotlinNameEscape.escape(field.name)}()');
                 }
             }
             for (f in funcFields) {
@@ -272,7 +273,8 @@ class KotlinDecl {
             if (hasInstanceGetter) {
                 // @:allow members use Kotlin module visibility so allowed cross-class calls compile.
                 final vis = field.isPublic ? "" : (field.meta.has(":allow") ? "internal " : "private ");
-                lines.push('    ${vis}val ${KotlinNameEscape.escape(field.name)}: ${types.of(field.type)} get() = get_${KotlinNameEscape.escape(field.name)}()');
+                final overrideStr = hasGetterPropertyInInterface(cls, field.name) ? "override " : "";
+                lines.push('    ${vis}${overrideStr}val ${KotlinNameEscape.escape(field.name)}: ${types.of(field.type)} get() = get_${KotlinNameEscape.escape(field.name)}()');
             }
         }
 
@@ -380,7 +382,9 @@ class KotlinDecl {
                         case TInst(c, _) if (c.get().meta.has(":dataClass")):
                             imports.requireType(c.get().module, "compare" + c.get().name);
                             lines.push('    if (a.${f.name} != null && b.${f.name} != null) { cmp = compare${c.get().name}(a.${f.name}, b.${f.name}); if (cmp != 0) return cmp }');
-                        case TAbstract(_, _) | TInst(_, _): lines.push('    if (a.${f.name} != null && b.${f.name} != null) { cmp = a.${f.name}.toString().compareTo(b.${f.name}.toString()); if (cmp != 0) return cmp }');
+                        case TAbstract(_,
+                            _) | TInst(_,
+                                _): lines.push('    if (a.${f.name} != null && b.${f.name} != null) { cmp = a.${f.name}.toString().compareTo(b.${f.name}.toString()); if (cmp != 0) return cmp }');
                         case _: lines.push('    if (a.${f.name} != null && b.${f.name} != null) { cmp = a.${f.name}.toString().compareTo(b.${f.name}.toString()); if (cmp != 0) return cmp }');
                     }
                     continue;
@@ -885,6 +889,8 @@ class KotlinDecl {
             switch (registered) {
                 case VNull:
                     parameterType = types.makeNullable(parameterType);
+                case VCoalescing(value) if (DefaultArgExpander.coalescingCanBeNull(value)):
+                    parameterType = types.makeNullable(parameterType);
                 case _:
             }
         }
@@ -929,6 +935,15 @@ class KotlinDecl {
             return [];
         }
         return ["    init {"].concat(body).concat(["    }"]);
+    }
+
+    function hasGetterPropertyInInterface(cls:ClassType, name:String):Bool {
+        for (iface in cls.interfaces) {
+            for (field in iface.t.get().fields.get())
+                if (field.name == name && isGetterOnlyProperty(field))
+                    return true;
+        }
+        return false;
     }
 
     /** A `var x(get, never)` field renders no storage on this target (feature spec 27). */
@@ -1021,7 +1036,9 @@ class KotlinDecl {
             final kw = field.isFinal && StaticFieldHelper.isConstValue(field) ? "const val" : (field.isFinal ? "val" : "var");
             // For const val, Int initializers must be emitted as Float literals
             // (e.g. 16 -> 16.0) because (16).toDouble() is not a compile-time constant.
-            final initStr = kw == "const val" && expr.isIntOrLongType(init.t) && expr.isFloatType(field.type) ? expr.constValFloatLiteral(rawInit) : rawInit;
+            final initStr = kw == "const val"
+                && expr.isIntOrLongType(init.t)
+                && expr.isFloatType(field.type) ? expr.constValFloatLiteral(rawInit) : rawInit;
             // @:allow members use Kotlin module visibility so allowed cross-class calls compile.
             final vis = field.isPublic ? "" : (field.meta.has(":allow") ? "internal " : "private ");
             final jvmField = !field.isFinal ? ["    @JvmField"] : [];
