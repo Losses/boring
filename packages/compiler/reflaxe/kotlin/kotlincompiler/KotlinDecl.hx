@@ -1052,7 +1052,7 @@ class KotlinDecl {
                 && expr.isFloatType(field.type) ? expr.constValFloatLiteral(rawInit) : rawInit;
             // @:allow members use Kotlin module visibility so allowed cross-class calls compile.
             final vis = field.isPublic ? "" : (field.meta.has(":allow") ? "internal " : "private ");
-            final jvmField = !field.isFinal ? ["    @JvmField"] : [];
+            final jvmField = !field.isFinal && (field.isPublic || field.meta.has(":allow")) ? ["    @JvmField"] : [];
             final typeText = nullInitialized ? types.of(field.type) + "?" : types.of(field.type);
             return jvmField.concat(['    $vis$kw ${KotlinNameEscape.escape(field.name)}: $typeText = $initStr']);
         }
