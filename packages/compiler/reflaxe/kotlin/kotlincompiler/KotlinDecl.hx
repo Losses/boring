@@ -900,7 +900,8 @@ class KotlinDecl {
                 case _:
             }
         }
-        return KotlinNameEscape.escape(a.name) + ": " + types.of(parameterType) + defaultText;
+        final renderedName = a.tvar != null ? expr.localName(a.tvar) : KotlinNameEscape.escape(a.name);
+        return renderedName + ": " + types.of(parameterType) + defaultText;
     }
 
     function buildPrimaryConstructor(cls:ClassType, ctor:ClassFuncData, varFields:Array<ClassVarData>):String {
@@ -1174,7 +1175,7 @@ class KotlinDecl {
                 final registered = DefaultArgExpander.defaultAt(cls, f.field.name, a.index);
                 final parameterType = registered != null ? DefaultArgExpander.defaultParameterType(registered, a.type) : a.type;
                 final defaultText = registered != null ? " = " + expr.defaultArgText(registered, a.type) : "";
-                '${KotlinNameEscape.escape(a.name)}: ${types.of(parameterType)}$defaultText';
+                '${a.tvar != null ? expr.localName(a.tvar) : KotlinNameEscape.escape(a.name)}: ${types.of(parameterType)}$defaultText';
             }
         ].join(", ");
         final retType = types.of(f.ret);

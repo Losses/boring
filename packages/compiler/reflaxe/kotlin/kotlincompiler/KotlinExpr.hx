@@ -1369,7 +1369,9 @@ class KotlinExpr {
     }
 
     function functionLiteral(f:TFunc):String {
-        final params = [for (a in f.args) '${KotlinNameEscape.escape(a.v.name)}: ${types.of(a.v.t)}'].join(", ");
+        for (a in f.args)
+            reserveName(a.v.name);
+        final params = [for (a in f.args) '${localName(a.v)}: ${types.of(a.v.t)}'].join(", ");
         final ret = types.of(f.t);
         final retStr = ret == "Unit" ? "" : ": " + ret;
         return 'fun($params)$retStr {\n' + blockLines(statementsOf(f.expr), 1).join("\n") + '\n}';
@@ -3426,12 +3428,12 @@ class KotlinExpr {
         return PolicyQueries.mentionsLocal(e, v);
     }
 
-    function localName(v:TVar):String {
+    public function localName(v:TVar):String {
         // Kotlin gates a `_` local behind the experimental
         // UnnamedLocalVariables flag. Haxe treats `_` as a readable
         // identifier, so it goes through the same generated-name path
         // as the compiler's ` temporaries.
-        if (v.name != "`" && v.name != "_") {
+        if (v.name != "`" && !~/^_+$/.match(v.name)) {
             return KotlinNameEscape.escape(v.name);
         }
         if (hiddenNames.exists(v.id)) {
