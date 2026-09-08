@@ -816,27 +816,47 @@ class PolicyQueries {
                 if (bodyStmts.length == 0) {
                     return null;
                 }
+                // A captured loop index is declared by the first statement and
+                // initialized by the counter increment. Otherwise the counter
+                // increment is an ordinary statement in the loop body.
                 switch (bodyStmts[0].expr) {
-                    case TVar(captured, inc):
-                        final captureOk = inc != null && switch (ExpressionPredicates.stripWrap(inc).expr) {
+                    case TVar(captured, inc) if (inc != null):
+                        final captureOk = switch (ExpressionPredicates.stripWrap(inc).expr) {
                             case TUnop(OpIncrement, true, subj):
                                 switch (ExpressionPredicates.stripWrap(subj).expr) {
                                     case TLocal(c): c.id == counter.id;
                                     case _: false;
                                 }
                             case _: false;
-                        } if (!captureOk) {
-                            return null;
-                        }
-                        return {
-                            index: captured,
-                            start: start,
-                            bound: bound,
-                            body: bodyStmts.slice(1)
                         };
+                        if (captureOk) {
+                            return {
+                                index: captured,
+                                start: start,
+                                bound: bound,
+                                body: bodyStmts.slice(1)
+                            };
+                        }
                     case _:
-                        return null;
                 }
+                final increment = bodyStmts.length - 1;
+                final incrementOk = switch (ExpressionPredicates.stripWrap(bodyStmts[increment]).expr) {
+                    case TVar(_, inc) if (inc != null):
+                        switch (ExpressionPredicates.stripWrap(inc).expr) {
+                            case TUnop(OpIncrement, true, {expr: TLocal(c)}) if (c.id == counter.id): true;
+                            case _: false;
+                        }
+                    case TUnop(OpIncrement, true, {expr: TLocal(c)}) if (c.id == counter.id): true;
+                    case _: false;
+                };
+                if (!incrementOk)
+                    return null;
+                return {
+                    index: counter,
+                    start: start,
+                    bound: bound,
+                    body: bodyStmts.slice(0, increment)
+                };
             case _:
                 return null;
         }
