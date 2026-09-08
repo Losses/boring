@@ -186,6 +186,8 @@ tests.PlatformModulesTests
 
 boring.EnumSortedKeysOps
 tests.EnumSortedKeysTests
+boring.DartCharNullOps
+tests.DartCharNullTests
 boring.ProbeChain
 tests.ProbeChainTests
 
