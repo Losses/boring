@@ -292,6 +292,50 @@ class ValueTypeSupport {
         };
     }
 
+    /**
+        True when a value type static initializer is a bare representation
+        literal: after stripping decorations it is a constant whose type
+        follows to the representation. That shape reaches each target emitter
+        as a raw literal the target compiler won't assign to the wrapper, so
+        the emit sites wrap it in the constructor. Constructor calls and any
+        non-constant expression return false and keep their existing render.
+    **/
+    public static function isBareRepresentationLiteral(e:TypedExpr, representation:Type):Bool {
+        return switch (unwrapDecorations(e).expr) {
+            case TConst(c):
+                switch (c) {
+                    case TInt(_) | TFloat(_) | TBool(_) | TString(_):
+                        sameType(stripAbstract(e.t), representation);
+                    case _: false;
+                };
+            case _: false;
+        };
+    }
+
+    static function stripAbstract(t:Type):Type {
+        return switch (Context.follow(t)) {
+            case TAbstract(a, _):
+                final u = a.get().type;
+                final fu = Context.follow(u);
+                Std.string(fu) == Std.string(t) ? t : stripAbstract(u);
+            case _: t;
+        };
+    }
+
+    static function sameType(a:Type, b:Type):Bool {
+        return switch (a) {
+            case TAbstract(x, _): switch (b) {
+                case TAbstract(y, _): x.get().name == y.get().name;
+                case _: false;
+            };
+            case TInst(cx, _): switch (b) {
+                case TInst(cy, _): cx.get().name == cy.get().name && cx.get().pack.join(".") == cy.get().pack.join(".");
+                case _: false;
+            };
+            case _: false;
+        };
+    }
+
     public static function expressionContainsThrow(e:Null<TypedExpr>):Bool {
         if (e == null)
             return false;
