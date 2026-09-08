@@ -1,6 +1,5 @@
 package boring;
 
-#if rust_output
 /** Regression fixture for nested data-class comparator references. */
 @:dataClass
 class CompareGateBoolInner {
@@ -67,4 +66,3 @@ class CompareGateOps {
         return new CompareGateSafeGrand(new CompareGateSafeOuter(new CompareGateSafeInner(1, "a")));
     }
 }
-#end
