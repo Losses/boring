@@ -2330,14 +2330,14 @@ class DartExpr {
                     return receiverText(subj) + "[" + expr(args[0]) + "]";
                 }
                 if (name == "charCodeAt" && isStringSubject(subj)) {
-                    // stdlib/15: evaluate receiver and index once. The typed Haxe
-                    // call has an Int result, so keep that contract at this
-                    // boundary and do not expose Dart's nullable safe-index result.
+                    // stdlib/15: evaluate receiver and index once. An out-of-range
+                    // index returns null, matching String.charCodeAt on the Haxe
+                    // target.
                     return "(() { final _s = "
                         + receiverText(subj)
                         + "; final _i = "
                         + expr(args[0])
-                        + "; return (_i >= 0 && _i < _s.length ? _s.codeUnitAt(_i) : null)!; })()";
+                        + "; return _i >= 0 && _i < _s.length ? _s.codeUnitAt(_i) : null; })()";
                 }
                 // Property reads are typed as calls to get_x. When the
                 // accessor is private, use the public Dart getter facade
