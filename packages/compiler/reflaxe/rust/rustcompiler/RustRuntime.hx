@@ -6,6 +6,10 @@ package rustcompiler;
     demand under the configured runtime package.
 **/
 class RustRuntime {
+    public static final EXCEPTION_SOURCE = '
+pub struct Exception;
+';
+
     public static final BYTES_BUFFER_SOURCE = '
 pub struct BytesBuffer {
     bytes: Vec<u8>,
