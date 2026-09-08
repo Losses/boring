@@ -251,6 +251,8 @@ boring.UnderscoreParamOps
 tests.UnderscoreParamTests
 tests.EarlyReturnTests
 tests.SwitchMergeTests
+boring.JvmFieldPrivateOps
+tests.JvmFieldPrivateTests
 
 boring.ProbeUnit
 boring.AbstractStaticDefault
