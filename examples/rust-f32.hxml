@@ -185,6 +185,8 @@ tests.PlatformModulesTests
 
 boring.EnumSortedKeysOps
 tests.EnumSortedKeysTests
+boring.RustCoalesceOps
+tests.RustCoalesceTests
 boring.CfgTestProbe
 boring.ProbeChain
 tests.ProbeChainTests
