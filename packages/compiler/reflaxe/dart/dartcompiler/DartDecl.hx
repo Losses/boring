@@ -280,6 +280,10 @@ class DartDecl {
                             ].join("\n") + "\n  return 0;\n}");
                             lines.push("  if (av" + f.name + " != null && bv" + f.name + " != null) { final cmp" + f.name + " = " + orderName + "(av"
                                 + f.name + ") - " + orderName + "(bv" + f.name + "); if (cmp" + f.name + " != 0) return cmp" + f.name + "; }");
+                        case TInst(c, _) if (c.get().meta.has(":dataClass")):
+                            if (DartType.canEmitDataClassComparator(c.get()))
+                                lines.push("  if (av" + f.name + " != null && bv" + f.name + " != null) { final cmp" + f.name + " = " + comparatorRef(c.get())
+                                    + "(av" + f.name + ", bv" + f.name + "); if (cmp" + f.name + " != 0) return cmp" + f.name + "; }");
                         case _: lines.push("  if (av" + f.name + " != null && bv" + f.name + " != null) { final cmp" + f.name + " = av" + f.name
                                 + ".compareTo(bv" + f.name + "); if (cmp" + f.name + " != 0) return cmp" + f.name + "; }");
                     }
@@ -308,9 +312,11 @@ class DartDecl {
                                 + "(a." + f.name + "[i]) - " + orderName + "(b." + f.name + "[i]); if (cmp != 0) return cmp; }");
                         case TInst(c,
                             _) if (c.get()
-                                .meta.has(":dataClass")): lines.push("  for (var i = 0; i < a." + f.name + ".length && i < b." + f.name
-                                + ".length; i++) { final cmp = " + comparatorRef(c.get()) + "(a." + f.name + "[i], b." + f.name
-                                + "[i]); if (cmp != 0) return cmp; }");
+                                .meta.has(":dataClass")):
+                            if (DartType.canEmitDataClassComparator(c.get()))
+                                lines.push("  for (var i = 0; i < a." + f.name + ".length && i < b." + f.name
+                                    + ".length; i++) { final cmp = " + comparatorRef(c.get()) + "(a." + f.name + "[i], b." + f.name
+                                    + "[i]); if (cmp != 0) return cmp; }");
                         case _: lines.push("  for (var i = 0; i < a." + f.name + ".length && i < b." + f.name + ".length; i++) { final cmp = a." + f.name
                                 + "[i].compareTo(b." + f.name + "[i]); if (cmp != 0) return cmp; }");
                     }
@@ -324,8 +330,9 @@ class DartDecl {
                             lines.push("  final cmp" + f.name + " = a." + f.name + ".compareTo(b." + f.name + "); if (cmp" + f.name + " != 0) return cmp"
                                 + f.name + ";");
                         case TInst(c, _) if (c.get().meta.has(":dataClass")):
-                            lines.push("  final cmp" + f.name + " = " + comparatorRef(c.get()) + "(a." + f.name + ", b." + f.name + "); if (cmp" + f.name
-                                + " != 0) return cmp" + f.name + ";");
+                            if (DartType.canEmitDataClassComparator(c.get()))
+                                lines.push("  final cmp" + f.name + " = " + comparatorRef(c.get()) + "(a." + f.name + ", b." + f.name + "); if (cmp" + f.name
+                                    + " != 0) return cmp" + f.name + ";");
                         case TEnum(e, _):
                             final en = e.get();
                             if (enumHasPayload(en)) {
@@ -409,8 +416,9 @@ class DartDecl {
                 lines.push("    for (var i = 0; i < av" + field + ".length && i < bv" + field + ".length; i++) { final cmp = " + orderName + "(av" + field
                     + "[i]) - " + orderName + "(bv" + field + "[i]); if (cmp != 0) return cmp; }");
             case TInst(c, _) if (c.get().meta.has(":dataClass")):
-                lines.push("    for (var i = 0; i < av" + field + ".length && i < bv" + field + ".length; i++) { final cmp = compare" + c.get().name + "(av"
-                    + field + "[i], bv" + field + "[i]); if (cmp != 0) return cmp; }");
+                if (DartType.canEmitDataClassComparator(c.get()))
+                    lines.push("    for (var i = 0; i < av" + field + ".length && i < bv" + field + ".length; i++) { final cmp = compare" + c.get().name + "(av"
+                        + field + "[i], bv" + field + "[i]); if (cmp != 0) return cmp; }");
             case _:
                 lines.push("    for (var i = 0; i < av" + field + ".length && i < bv" + field + ".length; i++) { final cmp = av" + field
                     + "[i].compareTo(bv" + field + "[i]); if (cmp != 0) return cmp; }");
