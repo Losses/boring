@@ -205,11 +205,13 @@ tests.RegistryParseArgsTests
 boring.ArrayIterationOps
 boring.SortedDataClassKeysOps
 boring.CaptureSwitchOps
+boring.PayloadSelfMapOps
 boring.PlatformOps
 tests.ExpressionBlockTests
 tests.FontIdTests
 tests.GlyphClusterTests
 tests.CaptureSwitchOpsTests
+tests.PayloadSelfMapOpsTests
 tests.NoSuchElementTests
 tests.PosterShapeTests
 tests.ShapeTextTests
