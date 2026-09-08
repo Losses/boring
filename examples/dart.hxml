@@ -201,6 +201,7 @@ tests.RegistryParseArgsTests
 boring.ArrayIterationOps
 boring.SortedDataClassKeysOps
 boring.CaptureSwitchOps
+boring.PayloadSelfMapOps
 boring.SwitchOps
 boring.MathIntWideningOps
 boring.MathNaNOps
@@ -210,6 +211,7 @@ tests.ExpressionBlockTests
 tests.FontIdTests
 tests.GlyphClusterTests
 tests.CaptureSwitchOpsTests
+tests.PayloadSelfMapOpsTests
 tests.SwitchOpsTests
 tests.MathIntWideningOpsTests
 tests.MathNaNOpsTests
