@@ -492,6 +492,31 @@ class RustExpr {
                     stmts.push(stmt);
             }
         }
+        final thisFieldArgs:Map<String, TVar> = [];
+        for (a in f.args) {
+            if (a.tvar != null)
+                thisFieldArgs.set(RustImports.toSnakeCase(a.name), a.tvar);
+        }
+        function bindThisFieldReads(node:TypedExpr, assignmentTarget:Bool = false):Void {
+            if (node == null)
+                return;
+            switch (node.expr) {
+                case TField({expr: TConst(TThis)}, FInstance(_, _, cf)) if (!assignmentTarget):
+                    final fieldName = RustImports.toSnakeCase(cf.get().name);
+                    final local = thisFieldArgs.get(fieldName);
+                    if (local == null)
+                        Context.error("unsupported this-field read in data-class constructor", node.pos);
+                    node.expr = TLocal(local);
+                case TBinop(OpAssign, target, value):
+                    bindThisFieldReads(target, true);
+                    bindThisFieldReads(value);
+                    return;
+                case _:
+            }
+            TypedExprTools.iter(node, child -> bindThisFieldReads(child));
+        }
+        for (stmt in stmts)
+            bindThisFieldReads(stmt);
         // tailScope stays off: the constructor's tail is the Ok(Self { ... })
         // literal assembled by the caller, so blockLines must not append the
         // fallible void closer `Ok(())` after the validation statements.
