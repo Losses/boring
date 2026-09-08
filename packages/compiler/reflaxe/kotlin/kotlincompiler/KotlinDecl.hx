@@ -96,7 +96,7 @@ class KotlinDecl {
                 ].join(", ");
                 final retType = types.of(f.ret);
                 final ret = retType == "Unit" ? "" : ": " + retType;
-                final overridesAny = f.field.name == "toString" && f.args.length == 0;
+                final overridesAny = (f.field.name == "toString" || f.field.name == "hashCode") && f.args.length == 0;
                 final overrideStr = overridesAny ? "override " : "";
                 lines.push('    ${overrideStr}fun ${KotlinNameEscape.escape(f.field.name)}($args)$ret');
             }
@@ -629,7 +629,7 @@ class KotlinDecl {
             } else {
                 final params = [
                     for (arg in args)
-                        'val ${KotlinNameEscape.escape(arg.name)}: ${types.of(arg.type)}'
+                        '${arg.name == "message" ? "override " : ""}val ${KotlinNameEscape.escape(arg.name)}: ${types.of(arg.type)}'
                 ].join(", ");
                 lines.push('    data class ${o.name}($params) :');
                 lines.push('        ${cls.name}(${message})');
@@ -1138,10 +1138,10 @@ class KotlinDecl {
         ].join(", ");
         final retType = types.of(f.ret);
         final ret = retType == "Unit" ? "" : ": " + retType;
-        // A zero-argument toString overrides kotlin.Any's member; the
-        // modifier is required even though Haxe models no Any root, so
+        // Zero-argument toString and hashCode override kotlin.Any's members;
+        // the modifier is required even though Haxe models no Any root, so
         // no superclass link exists to derive it from (feature spec 27).
-        final overridesAny = f.field.name == "toString" && f.args.length == 0;
+        final overridesAny = (f.field.name == "toString" || f.field.name == "hashCode") && f.args.length == 0;
         final overrideStr = (isInterfaceMethod(cls, f) || overridesAny) ? "override " : "";
         // Kotlin requires override members to be at least as visible as the
         // overridden member (interface members are public), so drop private/internal
