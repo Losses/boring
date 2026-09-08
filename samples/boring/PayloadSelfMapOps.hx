@@ -23,4 +23,21 @@ class PayloadSelfMapException extends haxe.Exception {
         return new PayloadSelfMapException(PayloadSelfMapError.Missing);
     }
 }
+#else
+enum PayloadSelfMapError {
+    Missing;
+}
+
+@:dataClass
+class PayloadSelfMapException {
+    public final error:PayloadSelfMapError;
+
+    public function new(error:PayloadSelfMapError) {
+        this.error = error;
+    }
+
+    public static function make():PayloadSelfMapException {
+        return new PayloadSelfMapException(PayloadSelfMapError.Missing);
+    }
+}
 #end
