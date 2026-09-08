@@ -901,6 +901,26 @@ class PolicyQueries {
                                 final bodyStmts = statementsOf(body);
                                 if (bodyStmts.length == 0)
                                     return null;
+                                switch (bodyStmts[0].expr) {
+                                    case TVar(captured, inc) if (inc != null):
+                                        final captureOk = switch (ExpressionPredicates.stripWrap(inc).expr) {
+                                            case TUnop(OpIncrement, true, {expr: TLocal(c)}) if (c.id == counter.id): true;
+                                            case _: false;
+                                        };
+                                        if (captureOk) {
+                                            final capturedBody = bodyStmts.slice(1);
+                                            final index = [
+                                                for (stmt in capturedBody) if (PolicyQueries.mentionsLocal(stmt, counter)) counter else captured
+                                            ][0];
+                                            return {
+                                                index: index,
+                                                start: start,
+                                                bound: right,
+                                                body: capturedBody
+                                            };
+                                        }
+                                    case _:
+                                }
                                 var increment = -1;
                                 for (j in 0...bodyStmts.length)
                                     switch (ExpressionPredicates.stripWrap(bodyStmts[j]).expr) {
