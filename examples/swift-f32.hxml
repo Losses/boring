@@ -71,7 +71,9 @@ tests.SortedKeyDomainTests
 boring.PipelineOps
 tests.PipelineTests
 boring.ConstructorStatementOps
+boring.DataClassCtorGuardOps
 tests.ConstructorStatementTests
+tests.DataClassCtorGuardTests
 boring.DeferredLocalsOps
 tests.DeferredLocalsTests
 boring.RecordOps
