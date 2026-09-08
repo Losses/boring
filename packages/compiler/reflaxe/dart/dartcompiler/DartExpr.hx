@@ -242,6 +242,9 @@ class DartExpr {
         final rendered = [for (a in args) coalescingDefaultText(a, targetType)];
         final omitted = DefaultArgExpander.omittedCallDefaults(modulePath, fieldName, args.length, className);
         if (omitted != null) {
+            final prefix = fieldName == "new" ? [for (o in omitted) coalescingDefaultText(o.value, o.type)] : [];
+            if (fieldName == "new")
+                return prefix.concat(rendered);
             for (o in omitted)
                 rendered.push(coalescingDefaultText(o.value, o.type));
         }
