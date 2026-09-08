@@ -186,6 +186,8 @@ tests.PlatformModulesTests
 
 boring.EnumSortedKeysOps
 tests.EnumSortedKeysTests
+boring.ProbeChain
+tests.ProbeChainTests
 
 boring.PublicGetterProperty
 tests.PublicGetterPropertyTests
@@ -199,3 +201,8 @@ tests.SwiftLiteralSafetyOpsTests
 boring.ProbeUnit
 boring.AbstractStaticDefault
 tests.AbstractStaticDefaultTests
+boring.WidgetKind
+boring.WidgetCart
+boring.WidgetAssembly
+tests.WidgetCoalescingTests
+boring.CfgTestProbe

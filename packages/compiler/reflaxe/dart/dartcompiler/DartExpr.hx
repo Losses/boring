@@ -231,16 +231,16 @@ class DartExpr {
                 (prefix.length > 0 ? prefix + "." : "")
                     + className
                     + "("
-                    + completeCoalescingCallArgs(modulePath, "new", args, targetType).join(", ")
+                    + completeCoalescingCallArgs(modulePath, "new", className, args, targetType).join(", ")
                     + ")";
         };
     }
 
     /** Explicit arguments plus the callee's omitted-parameter defaults; a dart signature carries no defaults. */
-    function completeCoalescingCallArgs(modulePath:String, fieldName:String, args:Array<DefaultArgExpander.CoalescingDefaultValue>,
+    function completeCoalescingCallArgs(modulePath:String, fieldName:String, className:Null<String>, args:Array<DefaultArgExpander.CoalescingDefaultValue>,
             targetType:Type):Array<String> {
         final rendered = [for (a in args) coalescingDefaultText(a, targetType)];
-        final omitted = DefaultArgExpander.omittedCallDefaults(modulePath, fieldName, args.length);
+        final omitted = DefaultArgExpander.omittedCallDefaults(modulePath, fieldName, args.length, className);
         if (omitted != null) {
             for (o in omitted)
                 rendered.push(coalescingDefaultText(o.value, o.type));
@@ -258,7 +258,7 @@ class DartExpr {
             + "."
             + methodName
             + "("
-            + completeCoalescingCallArgs(modulePath, methodName, args, targetType).join(", ")
+            + completeCoalescingCallArgs(modulePath, methodName, className, args, targetType).join(", ")
             + ")";
     }
 
@@ -2330,14 +2330,14 @@ class DartExpr {
                     return receiverText(subj) + "[" + expr(args[0]) + "]";
                 }
                 if (name == "charCodeAt" && isStringSubject(subj)) {
-                    // stdlib/15: evaluate receiver and index once. The typed Haxe
-                    // call has an Int result, so keep that contract at this
-                    // boundary and do not expose Dart's nullable safe-index result.
+                    // stdlib/15: evaluate receiver and index once. An out-of-range
+                    // index returns null, matching String.charCodeAt on the Haxe
+                    // target.
                     return "(() { final _s = "
                         + receiverText(subj)
                         + "; final _i = "
                         + expr(args[0])
-                        + "; return (_i >= 0 && _i < _s.length ? _s.codeUnitAt(_i) : null)!; })()";
+                        + "; return _i >= 0 && _i < _s.length ? _s.codeUnitAt(_i) : null; })()";
                 }
                 // Property reads are typed as calls to get_x. When the
                 // accessor is private, use the public Dart getter facade

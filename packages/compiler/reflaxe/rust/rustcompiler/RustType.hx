@@ -27,6 +27,17 @@ class RustType {
         };
     }
 
+    public function recursiveClassField(t:Type, root:ClassType):String {
+        return switch (t) {
+            case TAbstract(a, params) if (a.get().name == "Null" && params.length == 1): "Option<" + recursiveClassField(params[0], root) + ">";
+            case _:
+                switch (Context.follow(t)) {
+                    case TInst(c, _) if (c.get().module == root.module && c.get().name == root.name): "Box<" + root.name + ">";
+                    case _: of(t);
+                }
+        };
+    }
+
     public function of(t:Null<Type>, isParam:Bool = false):String {
         if (t == null) {
             return "()";
