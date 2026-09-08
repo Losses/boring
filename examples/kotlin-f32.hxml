@@ -196,3 +196,4 @@ boring.WidgetAssembly
 tests.WidgetCoalescingTests
 boring.KnullInitNarrowing
 tests.KnullInitNarrowingTests
+boring.CfgTestProbe
