@@ -5320,7 +5320,7 @@ class RustExpr {
         final out:Array<String> = [];
         for (i in 0...args.length) {
             final arg = args[i];
-            final argStr = expr(arg);
+            var argStr = expr(arg);
             if (i < paramTypes.length) {
                 final pt = paramTypes[i];
                 final parameterName = i < paramNames.length ? paramNames[i] : null;
