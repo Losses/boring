@@ -190,9 +190,11 @@ tests.EnumSortedKeysTests
 boring.DartCharNullOps
 tests.DartCharNullTests
 boring.RustCoalesceOps
+boring.SwitchMergeOps
 tests.RustCoalesceTests
 boring.UnderscoreParamOps
 tests.UnderscoreParamTests
+tests.SwitchMergeTests
 boring.CfgTestProbe
 boring.ProbeChain
 tests.ProbeChainTests
