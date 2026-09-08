@@ -2103,7 +2103,7 @@ class RustExpr {
                                 && s.charAt(1) == "." ? "-0" + s.substr(1) : s);
                         final padded = withIntPart.indexOf(".") >= 0
                             || withIntPart.indexOf("e") >= 0
-                            || withIntPart.indexOf("E") >= 0 ? withIntPart : withIntPart + ".0";
+                            || withIntPart.indexOf("E") >= 0 ? (StringTools.endsWith(withIntPart, ".") ? withIntPart + "0" : withIntPart) : withIntPart + ".0";
                         // The f32 configuration marks every literal so its width never
                         // depends on the inference context (feature spec 23).
                         return FloatPrecision.isF32() ? padded + "f32" : padded;
@@ -3885,15 +3885,19 @@ class RustExpr {
     }
 
     function staticMethodName(cls:ClassType, name:String):String {
-        final qualifiedRuntimeClass = cls.name == "TestCore" || cls.name == "SortedTable" || cls.name == "Graphemes" || cls.name == "StringTools"
-            || cls.name == "UString";
-        return qualifiedRuntimeClass ? RustImports.toSnakeCase(cls.name + "_" + name) : RustImports.toSnakeCase(name);
+        final runtimeClassName = cls.name == "UStringRT" ? "UString" : cls.name;
+        final qualifiedRuntimeClass = runtimeClassName == "TestCore" || runtimeClassName == "SortedTable" || runtimeClassName == "Graphemes"
+            || runtimeClassName == "StringTools" || runtimeClassName == "UString";
+        if (cls.name == "VectorCodec" || cls.name == "VectorSort")
+            return RustImports.toSnakeCase(name);
+        return qualifiedRuntimeClass ? RustImports.toSnakeCase(runtimeClassName + "_" + name) : RustImports.toSnakeCase(name);
     }
 
     function staticRef(cls:ClassType, name:String):String {
         final staticField = findStaticField(cls, name);
-        final staticName = staticField != null
-            && staticField.isFinal ? RustImports.toScreamingSnakeCase(cls.name + "_" + name) : RustImports.toSnakeCase(cls.name + "_" + name);
+        final staticName = cls.name == "VectorCodec"
+            || cls.name == "VectorSort" ? RustImports.toSnakeCase(name) : staticField != null
+                && staticField.isFinal ? RustImports.toScreamingSnakeCase(cls.name + "_" + name) : RustImports.toSnakeCase(cls.name + "_" + name);
         final valueType = ValueTypeSupport.markedAbstractOfClass(cls);
         if (valueType != null) {
             imports.requireType(valueType.module, valueType.name);
@@ -3961,7 +3965,7 @@ class RustExpr {
                     return "StringTools::" + staticMethodName(cls, name);
                 }
                 imports.require("crate::runtime::string_tools");
-                return "string_tools::StringTools::" + RustImports.toSnakeCase(name);
+                return "string_tools::StringTools::" + RustImports.toSnakeCase(cls.name + "_" + name);
             case _:
                 if (RustTestBinding.isTestExtern(cls)) {
                     state.shimsUsed.set(RuntimeResidents.externsOf("runtime.TestCore")[0], true);
@@ -4048,7 +4052,7 @@ class RustExpr {
         state.shimsUsed.set("std.UStringRT", true);
         if (RuntimeResidents.isResident(imports.selfModule)) {
             imports.requireType("runtime.UString", "UString");
-            return "UString::" + staticMethodName(cls, name);
+            return "UString::" + RustImports.toSnakeCase("UString_" + name);
         }
         imports.require("crate::runtime::u_string");
         return "u_string::" + RustImports.toSnakeCase(name);
