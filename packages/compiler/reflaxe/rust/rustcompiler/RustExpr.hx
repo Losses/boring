@@ -5416,7 +5416,6 @@ class RustExpr {
                             case TConst(TInt(v)): Std.string(v) + " as " + precision;
                             case _: intToFloatText(argStr);
                         };
-                        continue;
                     }
                 }
             }
