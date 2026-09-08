@@ -232,3 +232,4 @@ tests.PlatformModulesTests
 
 boring.EnumSortedKeysOps
 tests.EnumSortedKeysTests
+boring.CfgTestProbe
