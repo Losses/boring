@@ -163,11 +163,25 @@ class PolicyQueries {
     public static function canEmitDataClassComparator(cls:ClassType):Bool {
         for (f in cls.fields.get())
             if (switch (f.kind) {
-                    case FVar(read, write): !(read.match(AccCall) && write.match(AccNever)) && !isDataClassFieldKey(f.type);
+                    case FVar(read, write):
+                        if (read.match(AccCall) && write.match(AccNever)) false else !canEmitDataClassFieldComparator(f.type);
                     case _: false;
                 })
                 return false;
         return true;
+    }
+
+    static function canEmitDataClassFieldComparator(t:Type):Bool {
+        return switch (t) {
+            case TAbstract(a, params) if (a.get().name == "Null" && params.length == 1):
+                canEmitDataClassFieldComparator(params[0]);
+            case TAbstract(a, params) if (a.get().pack.join(".") == "std" && a.get().name == "ReadOnlyArray" && params.length == 1):
+                canEmitDataClassFieldComparator(params[0]);
+            case TInst(c, _) if (c.get().meta.has(":dataClass")):
+                canEmitDataClassComparator(c.get());
+            case _:
+                isDataClassFieldKey(t);
+        };
     }
 
     public static function isDataClassFieldKey(t:Type):Bool {
