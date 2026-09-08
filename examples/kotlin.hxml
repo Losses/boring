@@ -247,6 +247,8 @@ tests.EarlyReturnTests
 tests.SwitchMergeTests
 boring.JvmFieldPrivateOps
 tests.JvmFieldPrivateTests
+boring.OverrideMemberOps
+tests.OverrideMemberTests
 
 boring.ProbeUnit
 boring.AbstractStaticDefault
