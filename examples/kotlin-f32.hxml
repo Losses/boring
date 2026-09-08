@@ -191,6 +191,8 @@ boring.DartCharNullOps
 tests.DartCharNullTests
 boring.RustCoalesceOps
 tests.RustCoalesceTests
+boring.LocalShadowOps
+tests.LocalShadowTests
 boring.UnderscoreParamOps
 tests.UnderscoreParamTests
 boring.ProbeChain
