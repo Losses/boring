@@ -234,6 +234,8 @@ tests.PlatformModulesTests
 
 boring.EnumSortedKeysOps
 tests.EnumSortedKeysTests
+boring.RustCoalesceOps
+tests.RustCoalesceTests
 
 boring.ProbeUnit
 boring.AbstractStaticDefault
