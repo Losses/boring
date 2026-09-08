@@ -187,11 +187,7 @@ class KotlinExpr {
             case CPositiveInfinity: FloatPrecision.isF32() ? "Float.POSITIVE_INFINITY" : "Double.POSITIVE_INFINITY";
             case CNegativeInfinity: FloatPrecision.isF32() ? "Float.NEGATIVE_INFINITY" : "Double.NEGATIVE_INFINITY";
             case CEnum(enumRef, enumField): types.of(Type.TEnum(enumRef, [])) + "." + enumField.name;
-            case CParameterRead(name):
-                // Kotlin default arguments cannot refer to a preceding
-                // constructor parameter. The coalescing expression instead
-                // belongs to the constructor's init lowering.
-                "null";
+            case CParameterRead(name): KotlinNameEscape.escape(name);
             case CInstanceFieldRead(name): "this." + KotlinNameEscape.escape(name);
             case CLocalRead(name): KotlinNameEscape.escape(name);
             case CFieldAccess(CParameterRead(staticPath), ""): coalescingStaticFieldText(staticPath);
@@ -437,6 +433,24 @@ class KotlinExpr {
                         if (Lambda.exists(f.args, a -> a.name == name)) {
                             final coalescing = coalescingSiteFor(value);
                             if (coalescing != null && coalescing.parameter == name) {
+                                return {render: false, initialized: null};
+                            }
+                            final registered = DefaultArgExpander.coalescingDefaultForParam(currentClass, f.field.name, name);
+                            if (registered != null) {
+                                return {render: false, initialized: null};
+                            }
+                            final directCoalescing = switch (value.expr) {
+                                case TIf(_, t, f) if (t != null || f != null):
+                                    switch (t.expr) {
+                                        case TLocal(v) if (v.name == name): true;
+                                        case _: switch (f.expr) {
+                                                case TLocal(v) if (v.name == name): true;
+                                                case _: false;
+                                            }
+                                    }
+                                case _: false;
+                            };
+                            if (directCoalescing) {
                                 return {render: false, initialized: null};
                             }
                             final fromParam = switch (value.expr) {
