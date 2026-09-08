@@ -846,6 +846,7 @@ class PolicyQueries {
                             case TUnop(OpIncrement, true, {expr: TLocal(c)}) if (c.id == counter.id): true;
                             case _: false;
                         }
+                    case TBinop(OpAssignOp(OpAdd), {expr: TLocal(c)}, _) if (c.id == counter.id): true;
                     case TUnop(OpIncrement, true, {expr: TLocal(c)}) if (c.id == counter.id): true;
                     case _: false;
                 };
