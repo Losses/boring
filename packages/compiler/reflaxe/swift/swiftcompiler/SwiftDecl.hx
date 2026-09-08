@@ -271,13 +271,10 @@ class SwiftDecl {
             final initializer = v.field.expr();
             if (initializer == null)
                 Context.error("value type static field must have an initializer", v.field.pos);
+            final initText = expr.rawExpression(initializer);
+            final val = ValueTypeSupport.isBareRepresentationLiteral(initializer, info.representation) ? info.name + "(" + initText + ")" : initText;
             lines.push("");
-            lines.push("    public static let "
-                + SwiftNameEscape.escape(v.field.name)
-                + ": "
-                + info.name
-                + " = "
-                + expr.rawExpression(initializer));
+            lines.push("    public static let " + SwiftNameEscape.escape(v.field.name) + ": " + info.name + " = " + val);
         }
         lines.push("}");
         return lines.join("\n");
