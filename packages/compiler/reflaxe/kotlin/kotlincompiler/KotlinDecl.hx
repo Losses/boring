@@ -224,7 +224,7 @@ class KotlinDecl {
                 }
             }
         }
-        lines.push((isDataClass ? "data " : "") + "class " + cls.name + classParams + ctorHeader + ifaceStr + " {");
+        lines.push((isDataClass ? "data " : "") + (cls.isPrivate ? "private " : "") + "class " + cls.name + classParams + ctorHeader + ifaceStr + " {");
 
         // Constructor body renders into one init block (feature spec 27).
         // Parameter self-assignments are implicit in the primary
