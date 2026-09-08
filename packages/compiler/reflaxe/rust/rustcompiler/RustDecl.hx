@@ -362,7 +362,7 @@ class RustDecl {
                                             ' => ${ef.index},'
                                     ].join("\n") + '\n    }\n}');
                                     presentCompare = cmpToI32('$orderName(av).cmp(&$orderName(bv))');
-                                case TInst(c, _) if (c.get().meta.has(":dataClass")):
+                                case TInst(c, _) if (c.get().meta.has(":dataClass") && RustType.canEmitDataClassComparator(c.get())):
                                     importElementComparator(c.get());
                                     presentCompare = 'compare_${RustImports.toSnakeCase(c.get().name)}(av, bv)';
                                 case _:
@@ -389,7 +389,7 @@ class RustDecl {
                                     '        ${en.name}::${RustImports.toUpperCamelCase(ef.name)}' + (enumHasPayload(ef) ? ' { .. }' : '') + ' => ${ef.index},'
                             ].join("\n") + '\n    }\n}');
                             elementCompare = cmpToI32('$orderName(av).cmp(&$orderName(bv))');
-                        case TInst(c, _) if (c.get().meta.has(":dataClass")):
+                        case TInst(c, _) if (c.get().meta.has(":dataClass") && RustType.canEmitDataClassComparator(c.get())):
                             importElementComparator(c.get());
                             elementCompare = 'compare_${RustImports.toSnakeCase(c.get().name)}(av, bv)';
                         case _:
@@ -407,7 +407,7 @@ class RustDecl {
                         lines.push('    let cmp_$fn = if a.$fn < b.$fn { -1 } else if a.$fn > b.$fn { 1 } else { 0 };');
                     case TInst(c, _) if (c.get().name == "String"):
                         lines.push('    let cmp_$fn = SortedTable::sorted_table_compare_strings(a.$fn.as_str(), b.$fn.as_str());');
-                    case TInst(c, _) if (c.get().meta.has(":dataClass")):
+                    case TInst(c, _) if (c.get().meta.has(":dataClass") && RustType.canEmitDataClassComparator(c.get())):
                         importElementComparator(c.get());
                         lines.push('    let cmp_$fn = compare_${RustImports.toSnakeCase(c.get().name)}(&a.$fn, &b.$fn);');
                     case TEnum(e, _):
@@ -467,7 +467,7 @@ class RustDecl {
                         '        ${en.name}::${RustImports.toUpperCamelCase(ef.name)}' + (enumHasPayload(ef) ? ' { .. }' : '') + ' => ${ef.index},'
                 ].join("\n") + '\n    }\n}');
                 cmpToI32('$orderName(av).cmp(&$orderName(bv))');
-            case TInst(c, _) if (c.get().meta.has(":dataClass")):
+            case TInst(c, _) if (c.get().meta.has(":dataClass") && RustType.canEmitDataClassComparator(c.get())):
                 'compare_${RustImports.toSnakeCase(c.get().name)}(av, bv)';
             case _:
                 cmpToI32("av.cmp(bv)");
