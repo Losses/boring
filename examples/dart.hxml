@@ -235,3 +235,10 @@ tests.EnumSortedKeysTests
 boring.ProbeUnit
 boring.AbstractStaticDefault
 tests.AbstractStaticDefaultTests
+boring.WidgetKind
+boring.WidgetCart
+boring.WidgetAssembly
+tests.WidgetCoalescingTests
+boring.CfgTestProbe
+boring.ProbeChain
+tests.ProbeChainTests

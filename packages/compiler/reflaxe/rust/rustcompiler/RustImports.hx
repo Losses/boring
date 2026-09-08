@@ -9,6 +9,7 @@ class RustImports {
     static final SHIM_MODULES:Map<String, Bool> = [
         "haxe.io.FPHelper" => true,
         "haxe.io.BytesBuffer" => true,
+        "haxe.Exception" => true,
         "std.Console" => true,
         "std.Env" => true,
         "std.Fs" => true,
