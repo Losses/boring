@@ -5286,7 +5286,7 @@ class RustExpr {
                         continue;
                     }
                     final d = defaultArgText(registered, pt);
-                    out.push(isNullType(pt) && !isCoalescingDefault(registered) ? "Some(" + d + ")" : d);
+                    out.push(isNullType(pt) && !isCoalescingDefault(registered) && registered != VNull ? "Some(" + d + ")" : d);
                     continue;
                 }
                 if (registered != null && isNullType(arg.t) && !isNullType(pt) && !isCoalescingDefault(registered)) {
