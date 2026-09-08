@@ -1,7 +1,7 @@
 package boring;
 
 class UnderscoreParamOps {
-    #if kotlin
+    #if kotlin_output
     public static function resolve(_:Int):Int {
         return _ + 1;
     }
