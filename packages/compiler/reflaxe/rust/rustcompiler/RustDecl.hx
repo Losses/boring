@@ -1209,7 +1209,8 @@ class RustDecl {
                 // constructor parameters.
                 final localCoalescing = DefaultArgExpander.coalescingDefaultForLocalParam(cls, "new", field.name, field.name);
                 final coalescing = localCoalescing != null ? localCoalescing : DefaultArgExpander.coalescingDefaultForParam(cls, "new", field.name);
-                types.of(coalescing != null ? DefaultArgExpander.coalescingParameterType(coalescing, field.type) : field.type);
+                final fieldType = coalescing != null ? DefaultArgExpander.coalescingParameterType(coalescing, field.type) : field.type;
+                types.recursiveClassField(fieldType, cls);
         };
         // Instance-field visibility follows the Haxe declaration. Public
         // fields are part of the generated crate's API; private fields stay
@@ -1609,6 +1610,14 @@ class RustDecl {
         };
     }
 
+    function isRecursiveClassField(cls:ClassType, name:String):Bool {
+        for (field in cls.fields.get()) {
+            if (field.name == name)
+                return types.recursiveClassField(field.type, cls) != types.of(field.type);
+        }
+        return false;
+    }
+
     function instanceFuncDecl(cls:ClassType, f:ClassFuncData, hasLifetime:Bool, isTraitImpl:Bool = false):Array<String> {
         final isConstructor = f.field.name == "new";
         final snakeName = isConstructor ? "new" : RustImports.toSnakeCase(f.field.name);
@@ -1677,6 +1686,10 @@ class RustDecl {
                     // initializer; the rebound local already carries the
                     // narrowed field's exact type.
                     lines.push(coalescing != null ? '            $sname: $sname,' : '            $sname: match $sname { Some(v) => Some(v.to_string()), None => None },');
+                } else if (isRecursiveClassField(cls, a.name)) {
+                    final argType = types.of(a.type, false);
+                    lines.push(StringTools.startsWith(argType,
+                        "Option<") ? '            $sname: $sname.map(Box::new),' : '            $sname: Box::new($sname),');
                 } else {
                     lines.push('            $sname,');
                 }

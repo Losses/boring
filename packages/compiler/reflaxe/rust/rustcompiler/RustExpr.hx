@@ -3621,6 +3621,18 @@ class RustExpr {
         return PolicyQueries.isFpHelperInt64Call(fn);
     }
 
+    function isRecursiveField(subj:TypedExpr, name:String):Bool {
+        return switch (Context.follow(subj.t)) {
+            case TInst(c, _):
+                final owner = c.get();
+                for (field in owner.fields.get())
+                    if (field.name == name)
+                        return types.recursiveClassField(field.type, owner) != types.of(field.type);
+                false;
+            case _: false;
+        };
+    }
+
     function field(subj:TypedExpr, fa:FieldAccess):String {
         switch (fa) {
             case FStatic(c, cf):
@@ -3718,6 +3730,8 @@ class RustExpr {
                     if (isNullType(subj.t)) subjText
                     + ".as_ref().unwrap()" else subjText;
                 final access = subjStr + "." + snake;
+                if (name != "length" && isRecursiveField(subj, name))
+                    return "(" + access + ").as_ref()";
                 if (name != "length" && isConstructedStaticRead(subj) && StaticFieldHelper.isStringType(cf.get().type))
                     return "(" + access + ").to_string()";
                 if (name != "length" && isConstructedStaticRead(subj) && !isTypeCopy(cf.get().type))
