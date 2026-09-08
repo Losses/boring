@@ -5411,7 +5411,11 @@ class RustExpr {
                 if (i < paramTypes.length) {
                     final pt = paramTypes[i];
                     if (isFloatType(pt) && isIntType(emittedType(arg))) {
-                        out.push(intToFloatText(argStr));
+                        final precision = FloatPrecision.isF32() ? "f32" : "f64";
+                        argStr = switch (stripWrap(arg).expr) {
+                            case TConst(TInt(v)): Std.string(v) + " as " + precision;
+                            case _: intToFloatText(argStr);
+                        };
                         continue;
                     }
                 }
