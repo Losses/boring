@@ -207,6 +207,8 @@ tests.LocalShadowTests
 boring.PrivateClassOps
 boring.PrivateClassPeerOps
 tests.PrivateClassTests
+boring.NumericWidenOps
+tests.NumericWidenTests
 boring.UnderscoreParamOps
 tests.UnderscoreParamTests
 tests.SwitchMergeTests
