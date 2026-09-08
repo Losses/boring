@@ -443,8 +443,9 @@ class TsDecl {
 
     /**
         For interface declarations, a funcField named `get_x` that corresponds
-        to a getter-only property `x` returns that property so the interface
-        can expose `readonly x: T` instead of `readonly get_x: Fn`.
+        to a getter-only property `x` returns that property; the interface
+        then declares `readonly x: T` and omits the `readonly get_x: Fn`
+        entry.
     **/
     function interfaceGetterOnlyProperty(cls:ClassType, f:ClassFuncData):Null<{name:String, type:Type}> {
         if (f.isStatic || !StringTools.startsWith(f.field.name, "get_"))
