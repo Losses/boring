@@ -40,6 +40,20 @@ double i64ToDouble(int low, int high) {
   return bytes.getFloat64(0, Endian.little);
 }
 
+/// The bit pattern of a float as a signed 32-bit integer (stdlib/05).
+int floatToI32(double value) {
+  final bytes = ByteData(4);
+  bytes.setFloat32(0, value, Endian.little);
+  return bytes.getInt32(0, Endian.little);
+}
+
+/// The float from a signed 32-bit raw bit pattern (stdlib/05).
+double i32ToFloat(int bits) {
+  final bytes = ByteData(4);
+  bytes.setInt32(0, bits, Endian.little);
+  return bytes.getFloat32(0, Endian.little);
+}
+
 /// Base class of the exception classes features/06 lowers; the caught
 /// side reads the display message through it.
 class BoringException implements Exception {
