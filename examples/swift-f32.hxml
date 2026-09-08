@@ -180,12 +180,14 @@ tests.RegistryPipelineTests
 tests.RegistryParseArgsTests
 boring.ArrayIterationOps
 boring.CaptureSwitchOps
+boring.PayloadSelfMapOps
 boring.SwitchOps
 boring.MathIntWideningOps
 boring.MathNaNOps
 boring.MathNaNTestSupport
 boring.PlatformOps
 tests.CaptureSwitchOpsTests
+tests.PayloadSelfMapOpsTests
 tests.ExpressionBlockTests
 tests.PlatformModulesTestSupport
 tests.PlatformModulesTests

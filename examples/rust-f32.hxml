@@ -183,8 +183,10 @@ tests.RegistryPipelineTests
 tests.RegistryParseArgsTests
 boring.ArrayIterationOps
 boring.CaptureSwitchOps
+boring.PayloadSelfMapOps
 boring.PlatformOps
 tests.CaptureSwitchOpsTests
+tests.PayloadSelfMapOpsTests
 tests.ExpressionBlockTests
 tests.PlatformModulesTestSupport
 tests.PlatformModulesTests
