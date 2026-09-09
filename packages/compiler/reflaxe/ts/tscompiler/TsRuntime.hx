@@ -37,6 +37,8 @@ export function floatToI32(value: number): number {
 export function i32ToFloat(bits: number): number {
   FLOAT_SCRATCH.setInt32(0, bits);
   return FLOAT_SCRATCH.getFloat32(0);
+}
+
 export function formatFloatRuntime(v: number): string {
   if (Number.isNaN(v)) return "NaN";
   if (v === Infinity) return "Infinity";
