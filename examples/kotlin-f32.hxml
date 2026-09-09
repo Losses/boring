@@ -223,6 +223,8 @@ tests.UnderscoreParamTests
 tests.SwitchMergeTests
 boring.JvmFieldPrivateOps
 tests.JvmFieldPrivateTests
+boring.HaxeExceptionOps
+tests.HaxeExceptionTests
 boring.OverrideMemberOps
 tests.OverrideMemberTests
 boring.ProbeChain

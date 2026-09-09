@@ -258,6 +258,8 @@ boring.SwitchMergeOps
 tests.RustCoalesceTests
 boring.LoopWriteOps
 tests.LoopWriteTests
+boring.HaxeExceptionOps
+tests.HaxeExceptionTests
 boring.ArrayAccessOps
 tests.ArrayAccessTests
 boring.StaticRefOps
