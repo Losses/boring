@@ -330,6 +330,12 @@ class RustExpr {
                     final rendered = staticRef(clsRef.get(), fieldName);
                     return isStringType(targetType)
                         && !StringTools.endsWith(rendered, ".to_string()") ? rendered + ".to_string()" : rendered;
+                case TAbstract(absRef, _):
+                    final abs = absRef.get();
+                    imports.requireType(abs.module, abs.name);
+                    final rendered = abs.name + "::" + RustImports.toScreamingSnakeCase(fieldName);
+                    return isStringType(targetType)
+                        && !StringTools.endsWith(rendered, ".to_string()") ? rendered + ".to_string()" : rendered;
                 default:
             }
         } catch (_:Dynamic) {}
