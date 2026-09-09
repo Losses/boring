@@ -274,12 +274,19 @@ class DefaultArgExpander {
                         case TFun(values, _): values;
                         default: null;
                     };
-                    if (defaults != null && parameters != null && aligned.length < parameters.length) {
+                    if (parameters != null && aligned.length < parameters.length) {
                         final missingCount = parameters.length - aligned.length;
                         for (i in 0...missingCount) {
-                            final missing = i < defaults.length ? defaults[i] : null;
+                            final missing = defaults == null || i >= defaults.length ? null : defaults[i];
                             if (missing != null)
                                 aligned.insert(i, coalescingConstructorOmission(missing, parameters[i].t));
+                            else if (parameters[i].opt)
+                                aligned.insert(i, switch (Context.follow(withoutNull(parameters[i].t))) {
+                                    case TInst(c, _) if (c.get().name == "Array"): CEmptyArray;
+                                    default: CNull;
+                                });
+                            else
+                                return aligned;
                         }
                     }
                 default:
@@ -1659,6 +1666,37 @@ class DefaultArgExpander {
             out.push({value: value, type: args[i].t});
         }
         return out;
+    }
+
+    /** Defaults for the leading constructor slots omitted by Haxe's suffix form. */
+    public static function constructorPrefixDefaultsForClass(cls:ClassType, explicitCount:Int):Null<Array<{value:CoalescingDefaultValue, type:Type}>> {
+        if (cls == null || cls.constructor == null || explicitCount < 0)
+            return null;
+        final parameters = switch (Context.follow(cls.constructor.get().type)) {
+            case TFun(values, _): values;
+            default: null;
+        };
+        if (parameters == null || explicitCount > parameters.length)
+            return null;
+        final out:Array<{value:CoalescingDefaultValue, type:Type}> = [];
+        for (i in 0...(parameters.length - explicitCount)) {
+            final d = defaultAt(cls, "new", i);
+            if (d == null)
+                return null;
+            out.push({value: coalescingConstructorOmission(d, parameters[i].t), type: parameters[i].t});
+        }
+        return out;
+    }
+
+    public static function constructorPrefixDefaults(modulePath:String, className:String, explicitCount:Int):Null<Array<{value:CoalescingDefaultValue, type:Type}>> {
+        var cls:ClassType = null;
+        try {
+            switch (Context.getType(modulePath + "." + className)) {
+                case TInst(ref, _): cls = ref.get();
+                default:
+            }
+        } catch (_:Dynamic) {}
+        return constructorPrefixDefaultsForClass(cls, explicitCount);
     }
 
     public static function defaultParameterType(value:DefaultArgValue, t:Type):Type {
