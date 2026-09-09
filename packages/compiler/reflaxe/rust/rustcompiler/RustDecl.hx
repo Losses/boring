@@ -231,8 +231,11 @@ class RustDecl {
             && classParams.length == 0) {
             lines.push("#[derive(Clone)]");
         }
+        // Call sites clone every non-Copy data-class value. Keep the derive
+        // gate aligned with that ownership rule so data classes can satisfy
+        // those reads even when their fields are not Copy.
         if ((StaticFieldHelper.hasSelfConstructionStatic(cls) || cls.meta.has(":dataClass") || classParams.length > 0)
-            && (classParams.length > 0 || isAllClone(varFields))) {
+            && (classParams.length > 0 || cls.meta.has(":dataClass") || isAllClone(varFields))) {
             lines.push("#[derive(Clone)]");
         }
         if (cls.module.indexOf("registry.") == 0) {
