@@ -211,6 +211,8 @@ boring.RustCoalesceOps
 boring.SwitchMergeOps
 tests.RustCoalesceTests
 boring.LoopWriteOps
+boring.HaxeExceptionOps
+tests.HaxeExceptionTests
 tests.LoopWriteTests
 boring.HaxeExceptionOps
 tests.HaxeExceptionTests
