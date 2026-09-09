@@ -296,3 +296,6 @@ boring.ProbeChain
 tests.ProbeChainTests
 boring.CompareGateOps
 tests.CompareGateTests
+
+boring.RuntimeExportOps
+tests.RuntimeExportTests

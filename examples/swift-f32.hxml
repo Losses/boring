@@ -261,3 +261,6 @@ tests.WidgetCoalescingTests
 boring.CompareGateOps
 tests.CompareGateTests
 boring.CfgTestProbe
+
+boring.RuntimeExportOps
+tests.RuntimeExportTests
