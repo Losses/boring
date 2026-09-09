@@ -234,8 +234,11 @@ class RustDecl {
         // Call sites clone every non-Copy data-class value. Keep the derive
         // gate aligned with that ownership rule so data classes can satisfy
         // those reads even when their fields are not Copy.
+        // Interface-typed fields lower to Box<dyn Trait>, which cannot
+        // satisfy Clone; keep the isAllClone gate for every shape so the
+        // derive only lands where the lowered fields are cloneable.
         if ((StaticFieldHelper.hasSelfConstructionStatic(cls) || cls.meta.has(":dataClass") || classParams.length > 0)
-            && (classParams.length > 0 || cls.meta.has(":dataClass") || isAllClone(varFields))) {
+            && isAllClone(varFields)) {
             lines.push("#[derive(Clone)]");
         }
         if (cls.module.indexOf("registry.") == 0) {
