@@ -6562,7 +6562,8 @@ class RustExpr {
             if (pt != null && isIntType(pt)) {
                 final targetType = types.of(pt, false);
                 final sourceType = resolveExprType(arg);
-                if (sourceType == "i32" && targetType == "u32") {
+                final signedSource = sourceType == "i32" || i32LocalDomain(arg);
+                if (signedSource && targetType == "u32") {
                     argStr = RustConversions.reinterpret(argStr, "u32");
                 } else if (sourceType == "u32" && targetType == "i32") {
                     argStr = RustConversions.reinterpret(argStr, "i32");
