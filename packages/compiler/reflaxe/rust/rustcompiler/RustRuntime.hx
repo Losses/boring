@@ -104,6 +104,7 @@ impl FPHelper {
         Self::format_float(v as f64)
     }
 
+    pub fn i64_to_double(low: u32, high: u32) -> f64 {
         let h = high.to_be_bytes();
         let l = low.to_be_bytes();
         let bits = u64::from_be_bytes([h[0], h[1], h[2], h[3], l[0], l[1], l[2], l[3]]);
