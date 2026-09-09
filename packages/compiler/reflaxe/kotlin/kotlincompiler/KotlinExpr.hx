@@ -2620,14 +2620,11 @@ class KotlinExpr {
                     inConcat ? representation : "(" + representation + ").toString()";
                 }
             case IsFloat:
-                final runtimePackage = RuntimeConfig.requireImportName("module test extern");
-                imports.require(runtimePackage + ".test.TestCore");
-                // The formatFloat call is emitter-synthesized: no
-                // consumer source names std.Test, so the reference
-                // itself marks the TestCore resident as used.
-                state.shimsUsed.set(RuntimeResidents.externsOf("runtime.TestCore")[0], true);
+                final runtimePackage = RuntimeConfig.requireImportName("module haxe.io.FPHelper");
+                imports.require(runtimePackage + ".FPHelper");
+                state.shimsUsed.set("haxe.io.FPHelper", true);
                 runtimePackage
-                + ".test.TestCore.formatFloat("
+                + ".FPHelper.formatFloat("
                 + value
                 + ")";
             case IsInt | IsBool:

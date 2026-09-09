@@ -37,6 +37,13 @@ export function floatToI32(value: number): number {
 export function i32ToFloat(bits: number): number {
   FLOAT_SCRATCH.setInt32(0, bits);
   return FLOAT_SCRATCH.getFloat32(0);
+export function formatFloatRuntime(v: number): string {
+  if (Number.isNaN(v)) return "NaN";
+  if (v === Infinity) return "Infinity";
+  if (v === -Infinity) return "-Infinity";
+  if (Object.is(v, -0) || v === 0) return "0";
+  let text = String(v).replace("E", "e");
+  return text.replace(".0e", "e");
 }
 
 export function readUnit(text: string, index: number): number | null {
