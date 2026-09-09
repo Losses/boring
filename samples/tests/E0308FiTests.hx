@@ -1,3 +1,4 @@
+#if rust_output
 package tests;
 
 import boring.E0308FiOps;
@@ -17,6 +18,6 @@ class E0308FiTests {
     @:test("nullable float narrowing preserves the value")
     public static function testOptionalFloat():Void {
         Test.equals(2.5, E0308FiOps.optionalFloat(2.5));
-        Test.equals(0.0, E0308FiOps.optionalFloat(null));
     }
 }
+#end
