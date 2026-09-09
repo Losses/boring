@@ -1001,6 +1001,14 @@ class RustExpr {
                 return [indent(depth) + "continue;"];
             case TCall(fn, args) if (stringBufMutationParts(fn) != null):
                 return stringBufMutationLines(fn, args, depth);
+            case TCall(fn, args) if (isDiscardedUnitResultCall(e, fn)):
+                // A discarded fallible call still has a Result expression in
+                // Rust.  Keep the call in statement position, but make the
+                // discarded value explicit so expression/block contexts do
+                // not require the Result to be unit.  The propagated `?` (or
+                // infallible unwrap) remains owned by expr(call), preserving
+                // try-region and exception behavior.
+                return [indent(depth) + "let _ = " + expr(e) + ";"];
             case TMeta(_, inner):
                 return stmtLines(inner, depth);
             case TUnop(OpIncrement, _, subj):
@@ -5319,6 +5327,18 @@ class RustExpr {
         return state.funcErrorEnums.exists(RustEmissionState.funcKey(c.get().module, name, isStatic));
     }
 
+    function isDiscardedUnitResultCall(e:TypedExpr, fn:TypedExpr):Bool {
+        if (!isVoidType(e.t))
+            return false;
+        return switch (stripWrap(fn).expr) {
+            case TField(_, FInstance(c, _, cf)):
+                isFallibleCallee(c, cf, false);
+            case TField(_, FStatic(c, cf)):
+                isFallibleCallee(c, cf, true);
+            case _: false;
+        };
+    }
+
     function isFallibleConstructor(e:TypedExpr):Bool {
         return switch (stripWrap(e).expr) {
             case TNew(c, _, _):
@@ -6556,7 +6576,12 @@ class RustExpr {
         if (isInterfaceType(expected) && !isInterfaceType(actual.t)) {
             return "Box::new(" + normalizeConstructorResult(actual, rendered) + ")";
         }
-        if (!isInterfaceType(expected) && isFallibleConstructor(actual)) {
+        if (isNullType(expected) && isInterfaceType(getNullInnerType(expected)) && !isNullType(actual.t)) {
+            if (rendered == "None" || StringTools.startsWith(rendered, "Some("))
+                return rendered;
+            return "Some(Box::new(" + normalizeConstructorResult(actual, rendered) + "))";
+        }
+        if (!isInterfaceType(expected) && !isNullType(expected) && isFallibleConstructor(actual)) {
             return normalizeConstructorResult(actual, rendered);
         }
         // Static methods and static function fields are emitted as callable
