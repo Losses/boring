@@ -75,14 +75,14 @@ impl FPHelper {
         if v == f64::INFINITY { return "Infinity".to_string(); }
         if v == f64::NEG_INFINITY { return "-Infinity".to_string(); }
         if v == 0.0 { return "0".to_string(); }
-        let mut text = v.to_string().replace('E', "e");
+        let mut text = v.to_string().replace("E", "e");
         let negative = text.starts_with('-');
         if negative { text = text[1..].to_string(); }
         let parts: Vec<&str> = text.split('e').collect();
         let mut mantissa = parts[0].to_string();
         let exponent: i32 = if parts.len() == 2 { parts[1].parse().unwrap_or(0) } else { 0 };
         let dot = mantissa.find('.').unwrap_or(mantissa.len());
-        let mut digits = mantissa.replace('.', "");
+        let mut digits = mantissa.replace(".", "");
         let mut position = dot as i32 + exponent;
         while digits.len() > 1 && digits.starts_with('0') { digits.remove(0); position -= 1; }
         if position >= -5 && position <= 21 {
