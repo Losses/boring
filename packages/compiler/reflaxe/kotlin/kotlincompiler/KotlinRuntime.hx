@@ -90,7 +90,7 @@ object FPHelper {
 
     fun formatFloat(value: Double): String = formatFloatText(value.toString())
 
-    fun formatFloat(value: Float): String = formatFloatText(value.toString())
+    fun formatFloat(value: Float): String = formatFloatText(java.lang.Float.toString(value))
 
     private fun formatFloatText(raw: String): String {
         var text = raw.replace('E', 'e')
