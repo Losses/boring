@@ -70,6 +70,7 @@ boring.ClusterTags
 tests.SortedKeyDomainTests
 boring.PipelineOps
 boring.FunctionalOps
+boring.FloatArrayAnnoOps
 tests.PipelineTests
 boring.ConstructorStatementOps
 boring.DataClassCtorGuardOps
