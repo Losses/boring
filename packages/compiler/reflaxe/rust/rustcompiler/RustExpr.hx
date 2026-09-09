@@ -6559,15 +6559,21 @@ class RustExpr {
             // An i32-domain argument crossing into a u32 business parameter
             // reinterprets bits (T5); a same-domain pass (a resident runtime
             // calling another resident runtime) needs no cast.
-            if (pt != null && isIntType(pt) && i32LocalDomain(arg) && types.of(pt, false) == "u32") {
-                argStr = RustConversions.reinterpret(argStr, "u32");
+            if (pt != null && isIntType(pt)) {
+                final targetType = types.of(pt, false);
+                final sourceType = resolveExprType(arg);
+                if (sourceType == "i32" && targetType == "u32") {
+                    argStr = RustConversions.reinterpret(argStr, "u32");
+                } else if (sourceType == "u32" && targetType == "i32") {
+                    argStr = RustConversions.reinterpret(argStr, "i32");
+                }
             }
             if (paramIndex < paramTypes.length) {
                 if (isNullType(pt) && isStringType(getNullInnerType(pt)) && isNullType(arg.t)) {
                     argStr = argStr + ".clone()";
                 } else if (isNullType(pt) && !isNullType(arg.t)) {
-                    if (argStr == "None") {
-                        // already None
+                    if (argStr == "None" || StringTools.startsWith(argStr, "Some(")) {
+                        // already None or Some(...)
                     } else {
                         final inner = switch (stripWrap(arg).expr) {
                             case TConst(TString(s)): quoteString(s) + ".to_string()";
