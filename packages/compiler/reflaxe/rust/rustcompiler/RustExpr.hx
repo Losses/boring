@@ -4373,7 +4373,8 @@ class RustExpr {
             case IsNull:
                 "match " + value + " { Some(v) => v.to_string(), None => \"null\".to_string() }";
             case IsFloat:
-                inConcat ? value : "crate::runtime::test_core::TestCore::test_core_format_float(" + value + ")";
+                imports.requireType("haxe.io.FPHelper", "FPHelper");
+                inConcat ? value : "crate::runtime::fp_helper::FPHelper::format_float(" + value + ")";
             case IsInt | IsBool: inConcat ? value : "(" + value + ").to_string()";
             case IsReadOnlyArray(underlying):
                 stdStringType(underlying, value, inConcat, origin, depth);

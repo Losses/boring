@@ -1578,7 +1578,8 @@ class TsExpr {
                 + "("
                 + value
                 + ")";
-            case IsFloat | IsInt | IsBool:
+            case IsFloat: runtimeFloatString(value, inConcat);
+            case IsInt | IsBool:
                 inConcat ? value : "String(" + value + ")";
             case IsTypeParameter:
                 inConcat ? value : "String(" + value + ")";
@@ -1591,6 +1592,11 @@ class TsExpr {
                 Context.error("Std.string accepts scalars, enum values, records, and arrays of them only", origin.pos);
                 null;
         };
+    }
+
+    function runtimeFloatString(value:String, inConcat:Bool):String {
+        imports.runtime("formatFloatRuntime");
+        return inConcat ? value : "formatFloatRuntime(" + value + ")";
     }
 
     function hasInstanceToString(cls:ClassType):Bool {
