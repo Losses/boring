@@ -6765,6 +6765,10 @@ class RustExpr {
         // producing redundant parentheses around the resulting cast.
         if (~/^\(-?[0-9]+\)$/.match(text))
             return text.substr(1, text.length - 2) + " as " + precision;
+        // Literal call arguments are already parenthesized by expression
+        // lowering; normalize the cast itself so `(8 as f64)` is avoided.
+        if (~/^-?[0-9]+$/.match(text))
+            return text + " as " + precision;
         return "(" + text + " as " + precision + ")";
     }
 
