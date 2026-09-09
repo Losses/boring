@@ -628,7 +628,7 @@ class RustExpr {
                         // validation statements so reads do not become `self.*`
                         // in the associated constructor function.
                         if (!fieldInits.exists(cf.get().name) && !branchAssignedFields.exists(cf.get().name))
-                            Context.error("unsupported this-field read in data-class constructor: field has no initializer", node.pos);
+                            Context.error("unsupported this-field read in data-class constructor: field has no initializer [" + cf.get().name + "]", node.pos);
                         final bindingName = fieldName;
                         if (!fallbackBoundFields.exists(cf.get().name)) {
                             final initialValue = branchAssignedFields.exists(cf.get().name)
