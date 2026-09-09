@@ -87,7 +87,7 @@ class NumericWidenOps {
         #if rust_output
         return useFloat ? 1.5 : intExpr();
         #else
-        return 1.5;
+        return useFloat ? 1.5 : 2.0;
         #end
     }
 
@@ -99,7 +99,11 @@ class NumericWidenOps {
             case Third: 0.5;
         };
         #else
-        return 0.5;
+        return switch (value) {
+            case First(_): 1.5;
+            case Second(_): 2.0;
+            case Third: 0.5;
+        };
         #end
     }
 }
