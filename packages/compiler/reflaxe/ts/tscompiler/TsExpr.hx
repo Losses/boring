@@ -2250,12 +2250,6 @@ class TsExpr {
         final cls = c.get();
         final rendered = constructorArgTexts(cls, args).join(", ");
         final path = cls.pack.length == 0 ? cls.name : cls.pack.join(".") + "." + cls.name;
-        // A coalescing omission carries the trailing defaults as explicit
-        // arguments; the leading slots must be prepended from the class's
-        // own constructor, the same completion the Kotlin target proved.
-        final prefixDefaults = DefaultArgExpander.constructorPrefixDefaultsForClass(cls, args.length);
-        final completed = prefixDefaults == null || prefixDefaults.length == 0 ? rendered
-            : [for (o in prefixDefaults) coalescingDefaultText(o.value, o.type)].join(", ") + ", " + rendered;
         switch (path) {
             case "std.StringBuf" | "StringBuf":
                 return '""';
@@ -2268,7 +2262,7 @@ class TsExpr {
                 return "new Array<" + types.of(params[0]) + ">(" + rendered + ")";
             case _:
                 imports.value(cls.module, cls.name);
-                return "new " + cls.name + "(" + completed + ")";
+                return "new " + cls.name + "(" + rendered + ")";
         }
     }
 

@@ -1985,10 +1985,27 @@ class DefaultArgExpander {
             if (defVal != null) {
                 switch (defVal) {
                     case VCoalescing(coalescing):
-                        if (rustTarget)
+                        if (rustTarget) {
                             // Preserve the argument position when the target
                             // cannot retain the registered coalescing default.
                             args.push(makeTypedConst(VNull, param.t, newExpr.pos));
+                        } else switch (coalescing) {
+                            // A constant coalescing default is renderable at
+                            // the call site on every target; materialize it so
+                            // later inserted constants keep their slots. Any
+                            // other shape stays omitted (its value reads the
+                            // constructor scope or throws).
+                            case CEmptyArray:
+                                // The parameter type already carries the
+                                // element; the declaration is an empty array
+                                // literal of exactly that type.
+                                args.push({
+                                    expr: TypedExprDef.TArrayDecl([]),
+                                    pos: newExpr.pos,
+                                    t: withoutNull(param.t)
+                                });
+                            default:
+                        }
                     default:
                         // Same unwrapping as the call-site completion above.
                         args.insert(i, makeTypedConst(defVal, withoutNull(param.t), newExpr.pos));

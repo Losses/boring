@@ -2918,12 +2918,6 @@ class SwiftExpr {
     function newExpr(c:Ref<ClassType>, params:Array<Type>, args:Array<TypedExpr>):String {
         final cls = c.get();
         final rendered = constructorArgTexts(cls, args).join(", ");
-        // A coalescing omission carries the trailing defaults as explicit
-        // arguments; the leading slots must be prepended from the class's
-        // own constructor, the same completion the Kotlin target proved.
-        final prefixDefaults = DefaultArgExpander.constructorPrefixDefaultsForClass(cls, args.length);
-        final completed = prefixDefaults == null || prefixDefaults.length == 0 ? rendered
-            : [for (o in prefixDefaults) coalescingDefaultText(o.value, o.type)].join(", ") + ", " + rendered;
         final valueType = ValueTypeSupport.markedAbstractOfClass(cls);
         if (valueType != null)
             return valueType.name + "(" + rendered + ")";
@@ -2940,7 +2934,7 @@ class SwiftExpr {
                 return "[" + types.of(params[0]) + "]()";
             case _:
                 imports.value(cls.module, cls.name);
-                return cls.name + "(" + completed + ")";
+                return cls.name + "(" + rendered + ")";
         }
     }
 
