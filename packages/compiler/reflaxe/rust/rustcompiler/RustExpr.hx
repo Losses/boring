@@ -4265,7 +4265,7 @@ class RustExpr {
             case IsRecordLike: value + ".to_string()";
             case IsInstanceToString: value + ".to_string()";
             case IsMarkedAbstract(abs):
-                ValueTypeSupport.memberField(abs, "toString") != null ? value + ".to_string()" : value + ".0.to_string()";
+                value + ".0.to_string()";
             case IsNull:
                 "match " + value + " { Some(v) => v.to_string(), None => \"null\".to_string() }";
             case IsFloat:
