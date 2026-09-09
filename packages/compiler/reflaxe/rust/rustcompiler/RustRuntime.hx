@@ -78,7 +78,7 @@ impl FPHelper {
         let mut text = v.to_string().replace("E", "e");
         let negative = text.starts_with('-');
         if negative { text = text[1..].to_string(); }
-        let parts: Vec<&str> = text.split('e').collect();
+        let parts: Vec<&str> = text.split("e").collect();
         let mut mantissa = parts[0].to_string();
         let exponent: i32 = if parts.len() == 2 { parts[1].parse().unwrap_or(0) } else { 0 };
         let dot = mantissa.find('.').unwrap_or(mantissa.len());
