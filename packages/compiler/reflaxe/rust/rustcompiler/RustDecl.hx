@@ -901,14 +901,22 @@ class RustDecl {
                     case _: "";
                 };
                 final rStr = switch (r.expr) {
-                    case TLocal(_): "{}";
+                    case TLocal(_): rustDisplayFormat(r);
                     case TConst(TString(s)): StringTools.replace(StringTools.replace(s, "{", "{{"), "}", "}}");
-                    case _: "{}";
+                    case _: rustDisplayFormat(r);
                 };
                 return '"' + lStr + rStr + '"';
             case _:
                 return expr.rawExpression(e);
         }
+    }
+
+    function rustDisplayFormat(e:TypedExpr):String {
+        return switch (Context.follow(e.t)) {
+            case TAbstract(a, _) if (ValueTypeSupport.isMarkedAbstract(a.get())):
+                ValueTypeSupport.memberField(a.get(), "toString") != null ? "{}" : "{:?}";
+            case _: "{}";
+        };
     }
 
     function bindPatternLocals(e:TypedExpr):Void {
