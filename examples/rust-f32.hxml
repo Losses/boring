@@ -240,7 +240,9 @@ boring.NumericConversionWidening
 tests.NumericConversionWideningTests
 
 boring.ProbeUnit
+boring.SwiftDefaultOps
 boring.AbstractStaticDefault
+tests.SwiftDefaultTests
 tests.AbstractStaticDefaultTests
 boring.WidgetKind
 boring.WidgetCart

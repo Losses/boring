@@ -351,6 +351,8 @@ class SwiftExpr {
             switch (Context.getType(typePath)) {
                 case TInst(clsRef, _):
                     return staticRef(clsRef.get(), fieldName);
+                case TAbstract(absRef, _) if (ValueTypeSupport.isMarkedAbstract(absRef.get()) && absRef.get().impl != null):
+                    return staticRef(absRef.get().impl.get(), fieldName);
                 default:
             }
         } catch (_:Dynamic) {}
