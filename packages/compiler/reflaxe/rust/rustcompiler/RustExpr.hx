@@ -462,6 +462,11 @@ class RustExpr {
         final fallbackBindings:Array<String> = [];
         final fallbackBoundFields:Map<String, Bool> = [];
         final fallbackVars:Map<String, TVar> = [];
+        // Assignments nested in the constructor body cannot become struct
+        // literal initializers.  Treat their fields as locals for the whole
+        // constructor instead; the Haxe constructor's control flow is trusted
+        // to assign the final field on every path.
+        final branchAssignedFields:Map<String, Bool> = [];
         final stmts:Array<TypedExpr> = [];
         for (stmt in statementsOf(f.expr)) {
             switch (stmt.expr) {
@@ -500,11 +505,64 @@ class RustExpr {
             if (a.tvar != null)
                 thisFieldArgs.set(RustImports.toSnakeCase(a.name), a.tvar);
         }
+        // Nested assignments stay as statements, but their fields use a local
+        // slot so the final Self literal can consume the value.
+        function collectNestedFieldAssignments(node:TypedExpr, root:Bool = true):Void {
+            if (node == null)
+                return;
+            switch (node.expr) {
+                case TBinop(OpAssign, target, _):
+                    switch (stripWrap(target).expr) {
+                        case TField({expr: TConst(TThis)}, FInstance(_, _, cf)) if (!root):
+                            branchAssignedFields.set(cf.get().name, true);
+                        case _:
+                    }
+                case _:
+            }
+            TypedExprTools.iter(node, child -> collectNestedFieldAssignments(child, false));
+        }
+        for (stmt in stmts)
+            collectNestedFieldAssignments(stmt);
+
+        function defaultConstructorFieldValue(t:Type):String {
+            return switch (Context.follow(t)) {
+                case TAbstract(a, _) if (a.get().name == "Bool"): "false";
+                case TAbstract(a, _) if (a.get().name == "Int" || a.get().name == "Float"): "0";
+                case TInst(c, _) if (c.get().name == "String"): "String::new()";
+                case TAbstract(a, _) if (a.get().name == "Null"): "None";
+                case TType(_, _): "None";
+                case _: "None";
+            };
+        }
+        for (fieldName in branchAssignedFields.keys()) {
+            var field:Null<ClassField> = null;
+            for (candidate in cls.fields.get())
+                if (candidate.name == fieldName) {
+                    field = candidate;
+                    break;
+                }
+            if (field == null)
+                continue;
+            final bindingName = RustImports.toSnakeCase(fieldName);
+            fallbackBindings.push("let mut " + bindingName + " = " + defaultConstructorFieldValue(field.type) + ";");
+            fallbackBoundFields.set(fieldName, true);
+            fieldInits.set(fieldName, bindingName);
+            fallbackVars.set(fieldName, {
+                id: -1000000 - fallbackBindings.length,
+                name: bindingName,
+                t: field.type,
+                capture: false,
+                extra: null,
+                meta: null,
+                isStatic: false
+            });
+        }
+
         function bindThisFieldReads(node:TypedExpr, assignmentTarget:Bool = false):Void {
             if (node == null)
                 return;
             switch (node.expr) {
-                case TField({expr: TConst(TThis)}, FInstance(_, _, cf)) if (!assignmentTarget):
+                case TField({expr: TConst(TThis)}, FInstance(_, _, cf)) if (!assignmentTarget || branchAssignedFields.exists(cf.get().name)):
                     final fieldName = RustImports.toSnakeCase(cf.get().name);
                     final local = thisFieldArgs.get(fieldName);
                     if (local == null) {
@@ -512,11 +570,14 @@ class RustExpr {
                         // Self literal. Bind that same initializer before the
                         // validation statements so reads do not become `self.*`
                         // in the associated constructor function.
-                        if (!fieldInits.exists(cf.get().name))
+                        if (!fieldInits.exists(cf.get().name) && !branchAssignedFields.exists(cf.get().name))
                             Context.error("unsupported this-field read in data-class constructor: field has no initializer", node.pos);
                         final bindingName = fieldName;
                         if (!fallbackBoundFields.exists(cf.get().name)) {
-                            fallbackBindings.push("let " + bindingName + " = " + fieldInits.get(cf.get().name) + ";");
+                            final initialValue = branchAssignedFields.exists(cf.get().name)
+                                ? defaultConstructorFieldValue(cf.get().type)
+                                : fieldInits.get(cf.get().name);
+                            fallbackBindings.push("let mut " + bindingName + " = " + initialValue + ";");
                             fallbackBoundFields.set(cf.get().name, true);
                             fieldInits.set(cf.get().name, bindingName);
                         }
