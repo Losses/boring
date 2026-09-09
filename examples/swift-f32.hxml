@@ -236,7 +236,9 @@ boring.SwiftLiteralSafetyOps
 tests.SwiftLiteralSafetyOpsTests
 
 boring.ProbeUnit
+boring.SwiftDefaultOps
 boring.AbstractStaticDefault
+tests.SwiftDefaultTests
 tests.AbstractStaticDefaultTests
 boring.WidgetKind
 boring.WidgetCart
