@@ -339,7 +339,8 @@ class RustExpr {
                     if (member == null)
                         return fieldName;
                     imports.requireType(abs.module, abs.name);
-                    return abs.name + "::" + RustImports.toScreamingSnakeCase(fieldName);
+                    final rendered = abs.name + "::" + RustImports.toScreamingSnakeCase(fieldName);
+                    return isStringType(targetType) ? rendered + ".to_string()" : rendered;
                 case TAbstract(absRef, _):
                     final abs = absRef.get();
                     imports.requireType(abs.module, abs.name);
@@ -1147,7 +1148,7 @@ class RustExpr {
 
     function stringConcatOperand(value:TypedExpr):String {
         final std = stdStringArg(value);
-        return std != null ? stdString(std, true) : (isNullType(value.t) ? expr(value) + ".as_deref().unwrap_or(\"\")" : expr(value));
+        return std != null ? stdString(std, true) : stdStringType(value.t, expr(value), true, value);
     }
 
     function collectStringConcatOperands(value:TypedExpr, out:Array<TypedExpr>):Void {
