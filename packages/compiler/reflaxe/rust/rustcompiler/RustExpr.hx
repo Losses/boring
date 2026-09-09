@@ -3842,7 +3842,9 @@ class RustExpr {
                     return staticItemPath(cls, name) + ".clone()";
                 }
                 if (isLazyStaticField(cls, name) && !StaticFieldHelper.isSelfConstruction(cf.get(), cls)) {
-                    return "&*" + staticItemPath(cls, name);
+                    return isLazyArrayStaticField(cf.get())
+                        ? staticItemPath(cls, name) + ".clone()"
+                        : "&*" + staticItemPath(cls, name);
                 }
                 if (isGuardStaticField(cls, name)) {
                     if (StaticFieldHelper.isConstruction(cf.get().expr()) && !StaticFieldHelper.isSelfConstruction(cf.get(), cls)) {
