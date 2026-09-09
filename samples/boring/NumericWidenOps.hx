@@ -1,5 +1,7 @@
 package boring;
 
+import boring.SwitchMergeOps.SwitchMergeValue;
+
 class NumericWidenOps {
     static function intExpr():Int {
         return 2;
@@ -79,5 +81,29 @@ class NumericWidenOps {
         value *= intExpr();
         #end
         return value;
+    }
+
+    public static function conditionalMerge(useFloat:Bool):Float {
+        #if rust_output
+        return useFloat ? 1.5 : intExpr();
+        #else
+        return useFloat ? 1.5 : 2.0;
+        #end
+    }
+
+    public static function switchMerge(value:SwitchMergeValue):Float {
+        #if rust_output
+        return switch (value) {
+            case First(_): 1.5;
+            case Second(_): intExpr();
+            case Third: 0.5;
+        };
+        #else
+        return switch (value) {
+            case First(_): 1.5;
+            case Second(_): 2.0;
+            case Third: 0.5;
+        };
+        #end
     }
 }
