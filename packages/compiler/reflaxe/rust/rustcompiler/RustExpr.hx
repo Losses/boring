@@ -3838,6 +3838,9 @@ class RustExpr {
                     imports.requireType(valueType.module, valueType.name);
                     return valueType.name + "::" + RustImports.toScreamingSnakeCase(name);
                 }
+                if (StaticFieldHelper.isConstruction(cf.get().expr()) && !StaticFieldHelper.isSelfConstruction(cf.get(), cls)) {
+                    return staticItemPath(cls, name) + ".clone()";
+                }
                 if (isLazyStaticField(cls, name) && !StaticFieldHelper.isSelfConstruction(cf.get(), cls)) {
                     return "&*" + staticItemPath(cls, name);
                 }
@@ -4230,7 +4233,8 @@ class RustExpr {
                         }
                     }
                 }
-                if (markedField != null && (isDirectArrayStaticField(markedField) || isLazyArrayStaticField(markedField))) {
+                if (markedField != null && (isDirectArrayStaticField(markedField) || isLazyArrayStaticField(markedField)
+                    || (StaticFieldHelper.isConstruction(markedField.expr()) && !StaticFieldHelper.isSelfConstruction(markedField, cls)))) {
                     return staticItemPath(cls, name);
                 }
                 // The typer renders an @:native extern class under its
