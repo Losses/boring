@@ -229,7 +229,10 @@ class RustExpr {
                 final en = enumRef.get();
                 requireEnum(en.module, en.name);
                 en.name + "::" + enumField.name;
-            case CParameterRead(name): defaultParameterSubstitutions.exists(name) ? defaultParameterSubstitutions.get(name) : RustImports.toSnakeCase(name);
+            case CParameterRead(name):
+                if (defaultParameterSubstitutions.exists(name)) defaultParameterSubstitutions.get(name)
+                else if (name.indexOf(".") >= 0) coalescingStaticFieldText(name, targetType)
+                else RustImports.toSnakeCase(name);
             case CInstanceFieldRead(name):
                 final fieldText = "self." + RustImports.toSnakeCase(name);
                 isTypeCopy(targetType) ? fieldText : "(" + fieldText + ").clone()";
@@ -330,15 +333,36 @@ class RustExpr {
                     final rendered = staticRef(clsRef.get(), fieldName);
                     return isStringType(targetType)
                         && !StringTools.endsWith(rendered, ".to_string()") ? rendered + ".to_string()" : rendered;
+                case TAbstract(absRef, _) if (ValueTypeSupport.isMarkedAbstract(absRef.get())):
+                    final abs = absRef.get();
+                    final member = ValueTypeSupport.memberField(abs, fieldName);
+                    if (member == null)
+                        return fieldName;
+                    imports.requireType(abs.module, abs.name);
+                    return abs.name + "::" + RustImports.toScreamingSnakeCase(fieldName);
                 case TAbstract(absRef, _):
                     final abs = absRef.get();
                     imports.requireType(abs.module, abs.name);
                     final rendered = abs.name + "::" + RustImports.toScreamingSnakeCase(fieldName);
-                    return isStringType(targetType)
-                        && !StringTools.endsWith(rendered, ".to_string()") ? rendered + ".to_string()" : rendered;
                 default:
             }
         } catch (_:Dynamic) {}
+        // Abstract implementations are represented as TInst at some typed
+        // sites, but the original dotted path still identifies the abstract.
+        final parts = typePath.split(".");
+        if (parts.length > 0) {
+            try {
+                switch (Context.getType(typePath)) {
+                    case TAbstract(absRef, _) if (ValueTypeSupport.isMarkedAbstract(absRef.get())):
+                        final abs = absRef.get();
+                        if (ValueTypeSupport.memberField(abs, fieldName) != null) {
+                            imports.requireType(abs.module, abs.name);
+                            return abs.name + "::" + RustImports.toScreamingSnakeCase(fieldName);
+                        }
+                    default:
+                }
+            } catch (_:Dynamic) {}
+        }
         return path;
     }
 
@@ -3802,6 +3826,11 @@ class RustExpr {
             case FStatic(c, cf):
                 final cls = c.get();
                 final name = cf.get().name;
+                final valueType = ValueTypeSupport.markedAbstractOfClass(cls);
+                if (valueType != null) {
+                    imports.requireType(valueType.module, valueType.name);
+                    return valueType.name + "::" + RustImports.toScreamingSnakeCase(name);
+                }
                 if (isLazyStaticField(cls, name) && !StaticFieldHelper.isSelfConstruction(cf.get(), cls)) {
                     return "&*" + staticItemPath(cls, name);
                 }
