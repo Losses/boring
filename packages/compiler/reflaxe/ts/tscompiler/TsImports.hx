@@ -106,6 +106,16 @@ class TsImports {
     ];
 
     function add(into:Map<String, Map<String, Bool>>, module:String, name:String):Void {
+        if (!selfResident && RuntimeResidents.isResident(module)) {
+            // A business module may name a resident module directly. Its
+            // declarations live in the single runtime entry and the
+            // importing business file uses the runtime binding path.
+            // lowered runtime calls.
+            if (into == valueNames) {
+                runtime(name);
+            }
+            return;
+        }
         if (module == selfModule || module == "Math" || module == "String" || module == "Std" || module == "haxe.Int64" || module == "haxe.io.Bytes"
             || runtimeProvidedModules.exists(module)) {
             return;
