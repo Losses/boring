@@ -6632,6 +6632,13 @@ class RustExpr {
         // target slot expects Float.
         if (isFloatType(expected) && isIntType(emittedType(actual)))
             return intToFloatText(rendered);
+        // Methods returning an owned class value cannot leak the borrowed
+        // `self` receiver into the return slot.
+        if (!isTypeCopy(expected) && switch (stripWrap(actual).expr) {
+            case TConst(TThis): true;
+            case _: false;
+        })
+            return "(" + rendered + ").clone()";
         // Rust represents
         // concrete implementor therefore enters an interface slot through
         // the one sanctioned Box::new construction; an expression already
