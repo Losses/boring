@@ -145,6 +145,8 @@ tests.FnValuesTests
 boring.ValueTypeOps
 boring.ValueTypeConsumer
 tests.ValueTypeTests
+boring.ValueTypeClashOps
+tests.ValueTypeClashTests
 boring.PrintedCollection
 tests.PrintedCollectionTests
 boring.PrintedEnumOps
