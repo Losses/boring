@@ -1678,14 +1678,43 @@ class DefaultArgExpander {
         };
         if (parameters == null || explicitCount > parameters.length)
             return null;
+        final parameterNames = [for (parameter in parameters) parameter.name];
         final out:Array<{value:CoalescingDefaultValue, type:Type}> = [];
         for (i in 0...(parameters.length - explicitCount)) {
             final d = defaultAt(cls, "new", i);
             if (d == null)
                 return null;
-            out.push({value: coalescingConstructorOmission(d, parameters[i].t), type: parameters[i].t});
+            final value = coalescingConstructorOmission(d, parameters[i].t);
+            // A prefix default is rendered at the call site, where constructor
+            // parameter locals do not exist. Leave the whole prefix alone when
+            // any of its expressions refers to a sibling constructor parameter;
+            // the target constructor must evaluate that default in its own scope.
+            if (coalescingReadsAnyParameter(value, [for (j in 0...parameterNames.length) if (j != i) parameterNames[j]]))
+                return [];
+            out.push({value: value, type: parameters[i].t});
         }
         return out;
+    }
+
+    static function coalescingReadsAnyParameter(value:CoalescingDefaultValue, names:Array<String>):Bool {
+        return switch (value) {
+            case CParameterRead(name): names.indexOf(name) >= 0;
+            case CFieldAccess(receiver, _): coalescingReadsAnyParameter(receiver, names);
+            case CMethodCall(receiver, _, args): coalescingReadsAnyParameter(receiver, names) || argsHaveAnyParameter(args, names);
+            case CStaticCall(_, _, _, args): argsHaveAnyParameter(args, names);
+            case CConditional(condition, ifTrue, ifFalse): coalescingReadsAnyParameter(condition, names)
+                || coalescingReadsAnyParameter(ifTrue, names) || coalescingReadsAnyParameter(ifFalse, names);
+            case CBinaryOp(_, left, right): coalescingReadsAnyParameter(left, names) || coalescingReadsAnyParameter(right, names);
+            case CConstructorCall(_, _, args): argsHaveAnyParameter(args, names);
+            default: false;
+        };
+    }
+
+    static function argsHaveAnyParameter(args:Array<CoalescingDefaultValue>, names:Array<String>):Bool {
+        for (arg in args)
+            if (coalescingReadsAnyParameter(arg, names))
+                return true;
+        return false;
     }
 
     public static function constructorPrefixDefaults(modulePath:String, className:String, explicitCount:Int):Null<Array<{value:CoalescingDefaultValue, type:Type}>> {
