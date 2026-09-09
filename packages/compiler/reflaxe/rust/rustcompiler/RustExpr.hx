@@ -1014,6 +1014,9 @@ class RustExpr {
     function throwVariant(x:TypedExpr):String {
         final inner = stripWrap(x);
         final raw = switch (inner.expr) {
+            case TNew(c, _, args) if (args.length == 1 && state.messageOnlyExceptions.exists(c.get().module)):
+                imports.requireType(c.get().module, c.get().name);
+                c.get().name + "::new(" + expr(args[0]) + ")";
             case TNew(c, _, args) if (args.length == 1): exceptionVariant(c.get(), args[0]);
             case _: expr(x);
         };
@@ -2697,6 +2700,9 @@ class RustExpr {
     function caughtPayloadEnum(c:{v:TVar, expr:TypedExpr}):Null<{name:String, module:String}> {
         switch (Context.follow(c.v.t)) {
             case TInst(cls, _):
+                final messageOnly = state.messageOnlyExceptions.get(cls.get().module);
+                if (messageOnly != null)
+                    return {name: messageOnly, module: cls.get().module};
                 final enumModule = state.exceptionPayloads.get(cls.get().module);
                 if (enumModule == null) {
                     return null;
@@ -5329,6 +5335,10 @@ class RustExpr {
             case "Array":
                 return "Vec::new()";
             case _:
+                if (args.length == 1 && state.messageOnlyExceptions.exists(cls.module)) {
+                    imports.requireType(cls.module, cls.name);
+                    return cls.name + "::new(" + expr(args[0]) + ")";
+                }
                 if (args.length == 1 && state.exceptionPayloads.exists(cls.module)) {
                     return exceptionVariant(cls, args[0]);
                 }
