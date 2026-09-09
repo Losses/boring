@@ -6472,7 +6472,9 @@ class RustExpr {
                 if (c.get().name == "Array"
                     || c.get().name == "Bytes"
                     || (c.get().pack.join(".") == "haxe.io" && c.get().name == "Bytes")
-                    || c.get().name == "String"): true;
+                    || c.get().name == "String"
+                    || c.get().name == "StringBuf"
+                    || (c.get().module == "std" && c.get().name == "StringBuf")): true;
             case _: false;
         };
     }
@@ -6493,6 +6495,24 @@ class RustExpr {
         // target slot expects Float.
         if (isFloatType(expected) && isIntType(emittedType(actual)))
             return intToFloatText(rendered);
+        // Null<T> is Option<T> in Rust. Keep this adaptation at the shared
+        // value boundary so constructor, field, and ordinary call paths all
+        // agree on one Some(...) layer.
+        if (isNullType(expected) && !isNullType(actual.t)) {
+            if (rendered == "None" || StringTools.startsWith(rendered, "Some("))
+                return rendered;
+            final inner = switch (stripWrap(actual).expr) {
+                case TConst(TString(_)): rendered + ".to_string()";
+                case _: isInterfaceType(getNullInnerType(expected)) && !isInterfaceType(actual.t) ? "Box::new(" + rendered + ")" : rendered;
+            };
+            return "Some(" + inner + ")";
+        }
+        // A borrowed Copy value is still a value at a non-borrowing slot.
+        // Dereference it instead of passing &T to the Rust callee.
+        if (!isNullType(expected) && !isNullType(actual.t)
+            && isTypeCopy(actual.t) && StringTools.startsWith(rendered, "&")) {
+            return rendered.substr(0, 5) == "&mut " ? "*" + rendered.substr(5) : "*" + rendered.substr(1);
+        }
         // Rust represents
         // concrete implementor therefore enters an interface slot through
         // the one sanctioned Box::new construction; an expression already
