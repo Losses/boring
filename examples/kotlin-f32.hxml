@@ -235,8 +235,10 @@ tests.NumericWidenTests
 tests.NumericConversionWideningTests
 
 boring.ProbeUnit
+boring.SwiftDefaultOps
 boring.AbstractStaticDefault
 boring.CompareGateOps
 tests.CompareGateTests
+tests.SwiftDefaultTests
 tests.AbstractStaticDefaultTests
 boring.CfgTestProbe
