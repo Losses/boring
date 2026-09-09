@@ -94,28 +94,28 @@ object FPHelper {
 
     private fun formatFloatText(raw: String): String {
         var text = raw.replace('E', 'e')
-        if (text == "0.0" || text == "-0.0") return "0"
-        var negative = text.startsWith("-")
+        if (text == \"0.0\" || text == \"-0.0\") return \"0\"
+        var negative = text.startsWith(\"-\")
         if (negative) text = text.substring(1)
         val parts = text.split('e')
-        var digits = parts[0].replace(".", "")
+        var digits = parts[0].replace(\".\", \"\")
         var position = parts[0].indexOf('.').let { if (it < 0) parts[0].length else it }
         if (parts.size == 2) position += parts[1].toIntOrNull() ?: 0
-        while (digits.length > 1 && digits.startsWith("0")) { digits = digits.substring(1); position-- }
+        while (digits.length > 1 && digits.startsWith(\"0\")) { digits = digits.substring(1); position-- }
         if (position >= -5 && position <= 21) {
             var plain = when {
-                position <= 0 -> "0." + "0".repeat(-position) + digits
-                position >= digits.length -> digits + "0".repeat(position - digits.length)
-                else -> digits.substring(0, position) + "." + digits.substring(position)
+                position <= 0 -> \"0.\" + \"0\".repeat(-position) + digits
+                position >= digits.length -> digits + \"0\".repeat(position - digits.length)
+                else -> digits.substring(0, position) + \".\" + digits.substring(position)
             }
             while (plain.contains('.') && plain.endsWith('0')) plain = plain.dropLast(1)
             if (plain.endsWith('.')) plain = plain.dropLast(1)
-            return (if (negative) "-" else "") + plain
+            return (if (negative) \"-\" else \"\") + plain
         }
-        while (digits.length > 1 && digits.endsWith("0")) digits = digits.dropLast(1)
+        while (digits.length > 1 && digits.endsWith(\"0\")) digits = digits.dropLast(1)
         val exponent = position - 1
-        val mantissa = if (digits.length == 1) digits else digits.substring(0, 1) + "." + digits.substring(1)
-        return (if (negative) "-" else "") + mantissa + "e" + (if (exponent >= 0) "+" else "") + exponent
+        val mantissa = if (digits.length == 1) digits else digits.substring(0, 1) + \".\" + digits.substring(1)
+        return (if (negative) \"-\" else \"\") + mantissa + \"e\" + (if (exponent >= 0) \"+\" else \"\") + exponent
     }
 }
 
