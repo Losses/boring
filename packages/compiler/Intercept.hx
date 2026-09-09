@@ -769,7 +769,7 @@ class Intercept {
                     violation("V14", "DynamicCatch", "catch variable is typed Dynamic; catch clauses name the exception type", region.pos);
                 case Type.TInst(classRef, _):
                     final cls = classRef.get();
-                    if (!isEnumCarryingException(cls)) {
+                    if (!isEnumCarryingException(cls) && !isMessageOnlyException(cls)) {
                         violation("V20", "TryRegionMixedDomains", "try region catch type carries no payload enum", region.pos);
                     } else {
                         checkRegionDomains(body, cls.module, []);
@@ -872,12 +872,24 @@ class Intercept {
     static function checkThrow(inner:TypedExpr):Void {
         switch (inner.t) {
             case Type.TInst(classRef, _):
-                if (!isEnumCarryingException(classRef.get())) {
+                if (!isEnumCarryingException(classRef.get()) && !isMessageOnlyException(classRef.get())) {
                     violation("V04", "UntypedThrow", "throw constructs an enum-carrying haxe.Exception subclass", inner.pos);
                 }
             default:
                 violation("V04", "UntypedThrow", "throw constructs an enum-carrying haxe.Exception subclass", inner.pos);
         }
+    }
+
+    static function isMessageOnlyException(classType:ClassType):Bool {
+        if (classType.constructor == null) return false;
+        return switch (classType.constructor.get().type) {
+            case Type.TFun(args, _) if (args.length == 1):
+                switch (args[0].t) {
+                    case Type.TInst(c, _): c.get().name == "String";
+                    case _: false;
+                }
+            case _: false;
+        };
     }
 
     static function isEnumCarryingException(start:ClassType):Bool {

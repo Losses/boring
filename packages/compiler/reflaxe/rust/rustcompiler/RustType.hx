@@ -87,7 +87,10 @@ class RustType {
                 // Rust.  Keeping the Haxe wrapper name here creates imports for
                 // a type that is intentionally not emitted (and leaves callers
                 // trying to return `SemverException` at a location that returns `SemverFault`).
-                if (RustDecl.isExceptionSubclass(cls) && state.exceptionPayloads.exists(cls.module)) {
+                if (RustDecl.isExceptionSubclass(cls) && state.messageOnlyExceptions.exists(cls.module)) {
+                    imports.requireType(cls.module, cls.name);
+                    cls.name;
+                } else if (RustDecl.isExceptionSubclass(cls) && state.exceptionPayloads.exists(cls.module)) {
                     final payloadModule = state.exceptionPayloads.get(cls.module);
                     final payloadName = payloadModule.split(".").pop();
                     final emittedIn = state.payloadEnumModules.exists(payloadModule) ? state.payloadEnumModules.get(payloadModule) : cls.module;

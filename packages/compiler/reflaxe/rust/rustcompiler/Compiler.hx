@@ -829,16 +829,18 @@ class Compiler extends PluginCompiler<Compiler> {
                         if (ctor != null) {
                             switch (ctor.type) {
                                 case TFun(args, _):
-                                    for (a in args) {
-                                        switch (a.t) {
-                                            case TEnum(e, _):
-                                                final payload = e.get();
-                                                state.payloadEnumModules.set(payload.module, cls.module);
-                                                state.payloadEnumOwners.set(payload.module, cls.name);
-                                                state.exceptionPayloads.set(cls.module, payload.module);
-                                            case _:
-                                        }
+                                    var hasPayload = false;
+                                    for (a in args) switch (a.t) {
+                                        case TEnum(e, _):
+                                            hasPayload = true;
+                                            final payload = e.get();
+                                            state.payloadEnumModules.set(payload.module, cls.module);
+                                            state.payloadEnumOwners.set(payload.module, cls.name);
+                                            state.exceptionPayloads.set(cls.module, payload.module);
+                                        case _:
                                     }
+                                    if (!hasPayload && RustDecl.isMessageOnlyException(cls))
+                                        state.messageOnlyExceptions.set(cls.module, cls.name);
                                 case _:
                             }
                         }
@@ -1385,18 +1387,17 @@ class Compiler extends PluginCompiler<Compiler> {
 
     function thrownPayloadEnum(thrown:TypedExpr):Null<{module:String, name:String}> {
         return switch (thrown.expr) {
-            case TNew(c, _, args) if (args.length > 0 && state.exceptionPayloads.exists(c.get().module)):
-                switch (stripDecorations(args[0]).expr) {
-                    case TField(_, FEnum(en, _)):
-                        {module: en.get().module, name: en.get().name};
-                    case TCall(fn, _):
-                        switch (stripDecorations(fn).expr) {
-                            case TField(_, FEnum(en, _)):
-                                {module: en.get().module, name: en.get().name};
-                            case _: null;
-                        }
+            case TNew(c, _, args) if (args.length > 0):
+                if (state.messageOnlyExceptions.exists(c.get().module))
+                    {module: c.get().module, name: c.get().name}
+                else if (state.exceptionPayloads.exists(c.get().module)) switch (stripDecorations(args[0]).expr) {
+                    case TField(_, FEnum(en, _)): {module: en.get().module, name: en.get().name};
+                    case TCall(fn, _): switch (stripDecorations(fn).expr) {
+                        case TField(_, FEnum(en, _)): {module: en.get().module, name: en.get().name};
+                        case _: null;
+                    }
                     case _: null;
-                }
+                } else null;
             case _: null;
         }
     }

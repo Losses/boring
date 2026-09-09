@@ -24,6 +24,9 @@ class RustEmissionState {
     /** Maps exception class module path to its payload enum module path. */
     public final exceptionPayloads:Map<String, String> = [];
 
+    /** Message-only exception classes are represented by their own Rust error enum. */
+    public final messageOnlyExceptions:Map<String, String> = [];
+
     /** Maps anonymous structure signatures to their defining typedef name and module. */
     public final structTypedefs:Map<String, {module:String, name:String}> = [];
 
