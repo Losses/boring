@@ -1,16 +1,16 @@
 package boring;
 
-import boring.ValueTypeOps.Ic;
+import boring.ProbeUnit;
 
 /** Regression coverage for data-class defaults materialized in Rust. */
 @:dataClass
 class InlineDefaultOps {
-    public final marker:Ic;
-    public final region:Null<Int>;
-    public final count:Null<Int>;
+    public final marker:Int;
+    public final region:Int;
+    public final count:Int;
 
-    public function new(?marker:Null<Ic>, ?region:Null<Int>, ?count:Null<Int>) {
-        this.marker = marker == null ? Ic.ZERO : marker;
+    public function new(?marker:Null<Int>, region:Int, ?count:Null<Int>) {
+        this.marker = marker == null ? ProbeUnit.ZERO_INT : marker;
         this.region = region;
         this.count = count == null ? region : count;
     }
