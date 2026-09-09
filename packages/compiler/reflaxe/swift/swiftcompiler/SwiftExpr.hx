@@ -1995,7 +1995,7 @@ class SwiftExpr {
                     + "."
                     + ValueTypeSupport.representationFieldName(abs)
                     + ")";
-            case IsFloat: depth > 0 ? "\"\\(" + value + ")\"" : "String(decoding: TestCore.formatFloat("
+            case IsFloat: imports.runtime("formatFloatRuntime"); depth > 0 ? "\"\\(" + value + ")\"" : "String(decoding: formatFloatRuntime("
                     + value
                     + "), as: UTF16.self)";
             case IsInt | IsBool: depth > 0 ? "\"\\(" + value + ")\"" : (inConcat ? value : "String(" + value + ")");
