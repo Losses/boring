@@ -236,9 +236,11 @@ class RustDecl {
         // those reads even when their fields are not Copy.
         // Interface-typed fields lower to Box<dyn Trait>, which cannot
         // satisfy Clone; keep the isAllClone gate for every shape so the
-        // derive is emitted only when the lowered fields are cloneable.
-        if ((StaticFieldHelper.hasSelfConstructionStatic(cls) || cls.meta.has(":dataClass") || classParams.length > 0)
-            && isAllClone(varFields)) {
+        // the derive is emitted only when the lowered fields are cloneable.
+        final isSortedTableResident = cls.module == "runtime.SortedTable"
+            && (cls.name == "SortedMapTable" || cls.name == "SortedSetTable");
+        if ((StaticFieldHelper.hasSelfConstructionStatic(cls) || cls.meta.has(":dataClass") || classParams.length > 0 || isSortedTableResident)
+            && (isAllClone(varFields) || isSortedTableResident)) {
             lines.push("#[derive(Clone)]");
         }
         if (cls.module.indexOf("registry.") == 0) {
