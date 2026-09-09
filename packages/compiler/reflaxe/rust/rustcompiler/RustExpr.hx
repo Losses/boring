@@ -2198,7 +2198,12 @@ class RustExpr {
             final innerType = getNullInnerType(info.subject.t);
             narrowedText = isTypeCopy(innerType) ? "*" + name : "(*" + name + ").clone()";
         }
-        final noneText = conditionalBranchText(noneBranch, narrowedBranch, resultType);
+        var noneText = conditionalBranchText(noneBranch, narrowedBranch, resultType);
+        final branchTarget = conditionalNumericTarget(narrowedBranch, noneBranch, resultType);
+        if (branchTarget != null) {
+            narrowedText = normalizeNumericBranch(narrowedBranch, branchTarget, narrowedText);
+            noneText = normalizeNumericBranch(noneBranch, branchTarget, noneText);
+        }
         final subjectText = subjectTextOf(info.subject);
         return info.noneWhenTrue ? "match &("
             + subjectText
@@ -2430,12 +2435,13 @@ class RustExpr {
                 final condStr = switch (stripWrap(c).expr) {
                     case _: expr(stripWrap(c));
                 };
+                final branchTarget = conditionalNumericTarget(t, f, e.t);
                 return "if "
                     + condStr
                     + " { "
-                    + wrapBranchForNullableResult(t, e.t, f)
+                    + conditionalNumericBranch(t, f, e.t, branchTarget, wrapBranchForNullableResult(t, e.t, f))
                     + " } else { "
-                    + wrapBranchForNullableResult(f, e.t, t)
+                    + conditionalNumericBranch(f, t, e.t, branchTarget, wrapBranchForNullableResult(f, e.t, t))
                     + " }";
             case TSwitch(_, _, _):
                 return matchExpression(e);
@@ -2908,6 +2914,81 @@ class RustExpr {
         return out;
     }
 
+    function numericBranchType(e:TypedExpr):String {
+        final t = isNullType(e.t) ? getNullInnerType(e.t) : e.t;
+        if (isFloatType(t))
+            return FloatPrecision.isF32() ? "f32" : "f64";
+        if (isNegativeIntLiteral(e))
+            return "i32";
+        return resolveExprType(e);
+    }
+
+    function numericTargetForBranches(first:TypedExpr, second:TypedExpr, resultType:Null<Type>):Null<String> {
+        final firstInner = isNullType(first.t) ? getNullInnerType(first.t) : first.t;
+        final secondInner = isNullType(second.t) ? getNullInnerType(second.t) : second.t;
+        if (!isIntType(firstInner) && !isFloatType(firstInner)
+            && !isIntType(secondInner) && !isFloatType(secondInner))
+            return null;
+        if (isFloatType(firstInner) || isFloatType(secondInner))
+            return FloatPrecision.isF32() ? "f32" : "f64";
+        return null;
+    }
+
+    function conditionalNumericTarget(first:TypedExpr, second:TypedExpr, resultType:Null<Type>):Null<String> {
+        return numericTargetForBranches(first, second, resultType);
+    }
+
+    function containsNegativeInt(e:TypedExpr):Bool {
+        var found = false;
+        function scan(x:TypedExpr) {
+            if (isNegativeIntLiteral(x))
+                found = true;
+            if (!found)
+                TypedExprTools.iter(x, scan);
+        }
+        scan(e);
+        return found;
+    }
+
+    function matchNumericTarget(cases:Array<Dynamic>, resultType:Null<Type>):Null<String> {
+        if (cases.length == 0)
+            return null;
+        var target:Null<String> = null;
+        var sawFloat = false;
+        var sawNegative = false;
+        for (c in cases) {
+            final t:Type = c.expr.t;
+            final inner = isNullType(t) ? getNullInnerType(t) : t;
+            if (isFloatType(inner))
+                sawFloat = true;
+            if (containsNegativeInt(c.expr))
+                sawNegative = true;
+            if (target == null && (isIntType(inner) || isFloatType(inner)))
+                target = numericBranchType(c.expr);
+        }
+        if (sawFloat)
+            return FloatPrecision.isF32() ? "f32" : "f64";
+        return null;
+    }
+
+    function normalizeNumericBranch(branch:TypedExpr, target:String, text:String):String {
+        final nullable = isNullType(branch.t);
+        final inner = nullable ? getNullInnerType(branch.t) : branch.t;
+        if (StringTools.startsWith(text, "Some(") && StringTools.endsWith(text, ")")) {
+            final payload = text.substr(5, text.length - 6);
+            if (isIntType(inner) && (target == "f32" || target == "f64"))
+                return "Some(" + intToFloatText(payload) + ")";
+            return text;
+        }
+        if (isIntType(inner) && (target == "f32" || target == "f64"))
+            return intToFloatText(text);
+        return text;
+    }
+
+    function conditionalNumericBranch(branch:TypedExpr, sibling:TypedExpr, resultType:Null<Type>, target:Null<String>, text:String):String {
+        return target == null ? text : normalizeNumericBranch(branch, target, text);
+    }
+
     /**
         Renders an enum switch as a `match` expression. The typer hands the
         switch over with the subject wrapped in TEnumIndex and case values as
@@ -3035,7 +3116,8 @@ class RustExpr {
                 }
                 pattern += " { " + bindings.join(", ") + " }";
             }
-            final arm = armBlock(c.expr);
+            final armTarget = matchNumericTarget(parts.cases, sw.t);
+            final arm = armBlock(c.expr, armTarget);
             for (i in 0...arm.length) {
                 final suffix = i == arm.length - 1 ? "," : "";
                 out.push("    " + pattern + " => " + arm[i] + suffix);
@@ -3052,7 +3134,7 @@ class RustExpr {
         single-expression arm renders inline, anything longer renders as a
         block.
     **/
-    function armBlock(e:TypedExpr):Array<String> {
+    function armBlock(e:TypedExpr, numericTarget:Null<String> = null):Array<String> {
         final decls:Array<String> = [];
         var value:Null<String> = null;
         var sawReturn = false;
@@ -3095,6 +3177,8 @@ class RustExpr {
         if (value != null && isStringType(e.t) && isStringLiteral(e)) {
             valueText = value + ".to_string()";
         }
+        if (valueText != null && numericTarget != null)
+            valueText = normalizeNumericBranch(e, numericTarget, valueText);
         if (decls.length == 0) {
             return [valueText];
         }
