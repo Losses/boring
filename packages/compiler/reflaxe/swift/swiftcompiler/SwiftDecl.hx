@@ -124,6 +124,9 @@ class SwiftDecl {
         } else {
             final depth = exceptionDepth(cls);
             final conformances:Array<String> = [];
+            if (shouldEmitComparator) {
+                conformances.push("Equatable");
+            }
             if (depth == 1) {
                 conformances.push("BoringException");
             } else if (depth >= 2) {
@@ -177,6 +180,14 @@ class SwiftDecl {
             }
         }
 
+        if (shouldEmitComparator && !staticsOnly) {
+            // Swift classes do not receive synthesized Equatable conformance;
+            // route the native operator through the generated value comparator.
+            lines.push("");
+            lines.push("    public static func == (lhs: " + cls.name + ", rhs: " + cls.name + ") -> Bool {");
+            lines.push("        return compare" + cls.name + "(lhs, rhs) == 0");
+            lines.push("    }");
+        }
         lines.push("}");
         final classPart = lines.join("\n");
         final result = extractedParts.length > 0 ? extractedParts.join("\n\n") + "\n\n" + classPart : classPart;
