@@ -306,20 +306,20 @@ class SwiftExpr {
                 imports.value(modulePath, className);
                 className
                 + "("
-                + completeCoalescingCallArgs(modulePath, "new", args, targetType).join(", ")
+                                + completeCoalescingCallArgs(modulePath, "new", className, args, targetType).join(", ")
                 + ")";
         };
     }
 
     /** Explicit arguments plus the callee's omitted-parameter defaults; a swift signature carries no constant defaults. */
-    function completeCoalescingCallArgs(modulePath:String, fieldName:String, args:Array<DefaultArgExpander.CoalescingDefaultValue>,
+    function completeCoalescingCallArgs(modulePath:String, fieldName:String, className:Null<String>, args:Array<DefaultArgExpander.CoalescingDefaultValue>,
             targetType:Type):Array<String> {
         final rendered = [for (a in args) coalescingDefaultText(a, targetType)];
         final omitted = DefaultArgExpander.omittedCallDefaults(modulePath, fieldName, args.length);
         if (omitted != null) {
-            final prefix = fieldName == "new" ? [for (o in omitted) coalescingDefaultText(o.value, o.type)] : [];
-            if (fieldName == "new")
-                return prefix.concat(rendered);
+            final prefix = DefaultArgExpander.constructorPrefixDefaults(modulePath, className, args.length);
+            if (prefix != null)
+                return [for (o in prefix) coalescingDefaultText(o.value, o.type)].concat(rendered);
             for (o in omitted)
                 rendered.push(coalescingDefaultText(o.value, o.type));
         }
@@ -340,7 +340,7 @@ class SwiftExpr {
             + "."
             + methodName
             + "("
-            + completeCoalescingCallArgs(modulePath, methodName, args, targetType).join(", ")
+            + completeCoalescingCallArgs(modulePath, methodName, null, args, targetType).join(", ")
             + ")";
     }
 
