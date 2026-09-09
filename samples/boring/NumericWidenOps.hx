@@ -91,6 +91,10 @@ class NumericWidenOps {
         #end
     }
 
+    public static function nullableConditional(value:Null<Float>):Float {
+        return value != null ? value : 0;
+    }
+
     public static function switchMerge(value:SwitchMergeValue):Float {
         #if rust_output
         return switch (value) {
