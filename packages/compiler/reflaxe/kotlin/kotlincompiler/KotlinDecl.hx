@@ -108,6 +108,8 @@ class KotlinDecl {
         if (isExceptionSubclass(cls)) {
             final payload = payloadEnumOf(funcFields);
             if (payload == null) {
+                if (isMessageOnlyException(cls))
+                    return messageOnlyExceptionDecl(cls);
                 Context.error("exception subclass without a payload enum constructor has no Kotlin lowering", cls.pos);
                 return null;
             }
@@ -557,6 +559,22 @@ class KotlinDecl {
     **/
     public static function structureSignature(anon:Ref<AnonType>):String {
         return PolicyQueries.structureSignature(anon);
+    }
+
+    function messageOnlyExceptionDecl(cls:ClassType):String {
+        return 'class ${cls.name}(override val message: String) : RuntimeException(message)';
+    }
+
+    public static function isMessageOnlyException(cls:ClassType):Bool {
+        if (!isExceptionSubclass(cls) || cls.constructor == null) return false;
+        return switch (Context.follow(cls.constructor.get().type)) {
+            case TFun(args, _) if (args.length == 1):
+                switch (Context.follow(args[0].t)) {
+                    case TInst(c, _): c.get().pack.length == 0 && c.get().name == "String";
+                    case _: false;
+                }
+            case _: false;
+        };
     }
 
     function payloadEnumOf(funcFields:Array<ClassFuncData>):Null<EnumType> {

@@ -881,11 +881,16 @@ class Intercept {
     }
 
     static function isMessageOnlyException(classType:ClassType):Bool {
-        if (classType.constructor == null) return false;
-        return switch (classType.constructor.get().type) {
+        var constructor = classType.constructor;
+        if (constructor == null) {
+            return false;
+        }
+        return switch (Context.follow(constructor.get().type)) {
             case Type.TFun(args, _) if (args.length == 1):
-                switch (args[0].t) {
-                    case Type.TInst(c, _): c.get().name == "String";
+                switch (Context.follow(args[0].t)) {
+                    case Type.TInst(classRef, _):
+                        final argClass = classRef.get();
+                        argClass.pack.length == 0 && argClass.name == "String";
                     case _: false;
                 }
             case _: false;
@@ -893,18 +898,7 @@ class Intercept {
     }
 
     static function isEnumCarryingException(start:ClassType):Bool {
-        var current:Null<ClassType> = start;
-        while (current != null) {
-            if (current.pack.join(".") == "haxe" && current.name == "Exception") {
-                return false;
-            }
-            if (declaresEnumField(current)) {
-                return true;
-            }
-            final parent = current.superClass;
-            current = parent == null ? null : parent.t.get();
-        }
-        return false;
+        return declaresEnumField(start) || isMessageOnlyException(start);
     }
 
     static function declaresEnumField(classType:ClassType):Bool {
