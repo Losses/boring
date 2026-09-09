@@ -606,14 +606,15 @@ class RustDecl {
             lines.push("}");
         }
 
-        if (ValueTypeSupport.memberField(abs, "toString") != null) {
-            lines.push("");
-            lines.push("impl std::fmt::Display for " + info.name + " {");
-            lines.push("    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {");
+        lines.push("");
+        lines.push("impl std::fmt::Display for " + info.name + " {");
+        lines.push("    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {");
+        if (ValueTypeSupport.memberField(abs, "toString") != null)
             lines.push("        write!(formatter, \"{}\", self.to_string_value())");
-            lines.push("    }");
-            lines.push("}");
-        }
+        else
+            lines.push("        write!(formatter, \"{}\", self.0)");
+        lines.push("    }");
+        lines.push("}");
         return lines.join("\n");
     }
 
