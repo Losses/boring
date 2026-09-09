@@ -7,9 +7,17 @@ class StaticLazyDefaultOps {
         return consume(SomeStruct.DEFAULT_POLICY);
     }
 
+    public static function readLazyValues():Array<String> {
+        return StaticLazyAlias.DEFAULT_VALUES;
+    }
+
     private static function consume(policy:SomeStruct):SomeStruct {
         return policy;
     }
+}
+
+class StaticLazyAlias {
+    public static final DEFAULT_VALUES:Array<String> = ["default"];
 }
 
 class SomeStruct {
