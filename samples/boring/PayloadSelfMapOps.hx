@@ -4,18 +4,14 @@ enum PayloadSelfMapError {
     Missing;
 }
 
-class PayloadSelfMapException extends haxe.Exception {
+@:dataClass
+class PayloadSelfMapException {
     public final error:PayloadSelfMapError;
+    public final message:String;
 
     public function new(error:PayloadSelfMapError) {
         this.error = error;
-        super(describe(error));
-    }
-
-    public static function describe(error:PayloadSelfMapError):String {
-        return switch (error) {
-            case Missing: "payload self-map";
-        };
+        this.message = "payload self-map";
     }
 
     public static function make():PayloadSelfMapException {
