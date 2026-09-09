@@ -67,6 +67,7 @@ tests.SortedTableTests
 boring.ScriptNames
 boring.ClusterTags
 tests.SortedKeyDomainTests
+tests.DataClassRangeEqTests
 boring.PipelineOps
 boring.FunctionalOps
 boring.FloatArrayAnnoOps

@@ -78,6 +78,7 @@ tests.SortedTableTests
 boring.ScriptNames
 boring.ClusterTags
 tests.SortedKeyDomainTests
+tests.DataClassRangeEqTests
 boring.PipelineOps
 boring.FunctionalOps
 boring.FloatArrayAnnoOps
@@ -216,6 +217,7 @@ tests.RegistryPipelineTests
 tests.RegistryParseArgsTests
 boring.ArrayIterationOps
 boring.SortedDataClassKeysOps
+boring.DataClassRangeEqOps
 boring.CaptureSwitchOps
 boring.PayloadSelfMapOps
 boring.SwitchOps
