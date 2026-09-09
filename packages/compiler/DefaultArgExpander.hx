@@ -262,38 +262,6 @@ class DefaultArgExpander {
             default: coalescingOf(value);
         };
     }
-    static function alignConstructorDefaults(resolved:ResolvedClassRef, args:Array<CoalescingDefaultValue>):Array<CoalescingDefaultValue> {
-        var aligned = args;
-        try {
-            switch (Context.getType(resolved.typePath)) {
-                case TInst(ref, _):
-                    final target = ref.get();
-                    final defaults = lookupFieldDefaultsExact(target, "new");
-                    final constructor = target.constructor == null ? null : target.constructor.get();
-                    final parameters = constructor == null ? null : switch (Context.follow(constructor.type)) {
-                        case TFun(values, _): values;
-                        default: null;
-                    };
-                    if (parameters != null && aligned.length < parameters.length) {
-                        final missingCount = parameters.length - aligned.length;
-                        for (i in 0...missingCount) {
-                            final missing = defaults == null || i >= defaults.length ? null : defaults[i];
-                            if (missing != null)
-                                aligned.insert(i, coalescingConstructorOmission(missing, parameters[i].t));
-                            else if (parameters[i].opt)
-                                aligned.insert(i, switch (Context.follow(withoutNull(parameters[i].t))) {
-                                    case TInst(c, _) if (c.get().name == "Array"): CEmptyArray;
-                                    default: CNull;
-                                });
-                            else
-                                return aligned;
-                        }
-                    }
-                default:
-            }
-        } catch (_:Dynamic) {}
-        return aligned;
-    }
     static function constructorDefaultValue(e:Expr, classType:ClassType):Null<CoalescingDefaultValue> {
         final cur = unwrapExpr(e);
         return switch (cur == null ? null : cur.expr) {
@@ -301,7 +269,7 @@ class DefaultArgExpander {
                 final argValues = validateArgList(args, "", [], [], classType);
                 if (argValues == null) null else {
                     final resolved = resolveClassRef(typePath.pack.length == 0 ? typePath.name : typePath.pack.join(".") + "." + typePath.name);
-                    resolved == null ? null : CConstructorCall(resolved.module, resolved.name, alignConstructorDefaults(resolved, argValues));
+                    resolved == null ? null : CConstructorCall(resolved.module, resolved.name, argValues);
                 }
             default: null;
         };
@@ -704,7 +672,7 @@ class DefaultArgExpander {
                     if (argValues != null) {
                         final resolved = resolveClassRef(typePath.pack.length == 0 ? typePath.name : typePath.pack.join(".") + "." + typePath.name);
                         if (resolved != null)
-                            return CConstructorCall(resolved.module, resolved.name, alignConstructorDefaults(resolved, argValues));
+                            return CConstructorCall(resolved.module, resolved.name, argValues);
                     }
                 default:
             }
