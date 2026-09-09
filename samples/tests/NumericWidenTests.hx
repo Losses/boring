@@ -25,6 +25,12 @@ class NumericWidenTests {
         Test.equals(1.0, NumericWidenOps.appliedDouble());
     }
 
+    @:test("Nullable conditional arms widen for Float results")
+    public static function testNullableConditional():Void {
+        Test.equals(2.5, NumericWidenOps.nullableConditional(2.5));
+        Test.equals(0.0, NumericWidenOps.nullableConditional(null));
+    }
+
     @:test("Conditional and switch arms widen for Float results")
     public static function testBranchMerges():Void {
         Test.equals(1.5, NumericWidenOps.conditionalMerge(true));
