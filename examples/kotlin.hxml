@@ -98,6 +98,10 @@ boring.RecordOrderOps
 tests.RecordOrderTests
 boring.ComparatorGateOps
 tests.ComparatorGateTests
+boring.DartLocalNameFixOps
+tests.DartLocalNameFixTests
+boring.DartEmptyArrayFixOps
+tests.DartEmptyArrayFixTests
 boring.PrintedCustom
 boring.StringBufOps
 tests.StringBufTests
