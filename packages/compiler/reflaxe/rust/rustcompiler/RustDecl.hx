@@ -236,7 +236,7 @@ class RustDecl {
         // those reads even when their fields are not Copy.
         // Interface-typed fields lower to Box<dyn Trait>, which cannot
         // satisfy Clone; keep the isAllClone gate for every shape so the
-        // derive only lands where the lowered fields are cloneable.
+        // derive is emitted only when the lowered fields are cloneable.
         if ((StaticFieldHelper.hasSelfConstructionStatic(cls) || cls.meta.has(":dataClass") || classParams.length > 0)
             && isAllClone(varFields)) {
             lines.push("#[derive(Clone)]");
@@ -2338,8 +2338,13 @@ class RustDecl {
             case TInst(c, params):
                 final cls = c.get();
                 final n = cls.name;
-                if (n == "String" || n == "SortedSet" || n == "SortedMap") true else if (n == "Array") params.length == 1 && isCloneType(params[0]) else if (cls.meta.has(":dataClass"))
+                // A type parameter carries the Clone bound the generic
+                // impl block puts on every class parameter, and a function
+                // type lowers to an Rc closure, which is always Clone.
+                if (cls.kind.match(KTypeParameter(_))) true else if (n == "String" || n == "SortedSet" || n == "SortedMap") true else if (n == "Array") params.length == 1 && isCloneType(params[0]) else if (cls.meta.has(":dataClass"))
                     dataClassFieldsAllClone(cls, 0) else false;
+            case TFun(_):
+                true;
             case TType(d, params): isCloneType(haxe.macro.TypeTools.applyTypeParameters(d.get().type, d.get().params, params));
             case TAnonymous(anon):
                 var all = true;
