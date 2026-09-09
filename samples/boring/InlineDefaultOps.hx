@@ -1,7 +1,5 @@
 package boring;
 
-import boring.ProbeUnit;
-
 /** Regression coverage for data-class defaults materialized in Rust. */
 @:dataClass
 class InlineDefaultOps {
@@ -10,13 +8,10 @@ class InlineDefaultOps {
     public final count:Int;
 
     public function new(?marker:Null<Int>, region:Int, ?count:Null<Int>) {
-        #if rust_output
-        this.marker = marker == null ? ProbeUnit.ZERO_INT : marker;
-        #else
-        // ProbeUnit's value-type default lowering is rust-only coverage;
-        // other targets use a plain literal default.
-        this.marker = marker == null ? 7 : marker;
-        #end
+        // The abstract-static-default path through ProbeUnit.ZERO_INT is
+        // exercised by the ProbeUnit sample; this sample covers the plain
+        // int default and the parameter-read default (count = region).
+        this.marker = marker == null ? 0 : marker;
         this.region = region;
         this.count = count == null ? region : count;
     }
