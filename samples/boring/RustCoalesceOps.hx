@@ -34,6 +34,12 @@ class RustCoalesceHolder {
 }
 
 class RustCoalesceOps {
+    #if rust_output
+    public static function rustOutputStringDefault():String {
+        return new RustCoalesceRecord(null, null, null, null, null).locale;
+    }
+    #end
+
     public static function resolve(?value:RustCoalesceRecord):String {
         return new RustCoalesceHolder(value).describe();
     }

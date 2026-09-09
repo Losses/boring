@@ -5530,7 +5530,10 @@ class RustExpr {
                 }
                 if (isStringType(pt) && isStringType(arg.t)) {
                     out.push(switch (stripWrap(arg).expr) {
-                        case TConst(TString(_)): argStr;
+                        // A string literal is emitted as a Rust &str literal by
+                        // the expression renderer; constructor/default paths
+                        // entering an owned String slot must materialize it.
+                        case TConst(TString(_)): argStr + ".to_string()";
                         case TLocal(v) if (paramVarIds.get(v.id) == true): argStr;
                         case _: argStr + ".as_str()";
                     });
@@ -5559,11 +5562,7 @@ class RustExpr {
                 if (i < paramTypes.length) {
                     final pt = paramTypes[i];
                     if (isFloatType(pt) && isIntType(emittedType(arg))) {
-                        final precision = FloatPrecision.isF32() ? "f32" : "f64";
-                        argStr = switch (stripWrap(arg).expr) {
-                            case TConst(TInt(v)): Std.string(v) + " as " + precision;
-                            case _: intToFloatText(argStr);
-                        };
+                        argStr = numericAssignmentValue(pt, arg, argStr);
                     }
                 }
             }
@@ -5602,6 +5601,8 @@ class RustExpr {
         };
 
     function numericAssignmentValue(expected:Type, actual:TypedExpr, rendered:String, targetOverride:Null<String> = null):String {
+        if (isFloatType(expected) && isIntType(emittedType(actual)))
+            return intToFloatText(rendered);
         if (!isIntType(expected))
             return rendered;
         final target = targetOverride != null ? targetOverride : types.of(expected, false);
