@@ -315,9 +315,14 @@ class SwiftExpr {
     function completeCoalescingCallArgs(modulePath:String, fieldName:String, className:Null<String>, args:Array<DefaultArgExpander.CoalescingDefaultValue>,
             targetType:Type):Array<String> {
         final rendered = [for (a in args) coalescingDefaultText(a, targetType)];
-        final omitted = DefaultArgExpander.omittedCallDefaults(modulePath, fieldName, args.length);
+        final omitted = DefaultArgExpander.omittedCallDefaults(modulePath, fieldName, args.length, className);
         if (omitted != null) {
-            final prefix = DefaultArgExpander.constructorPrefixDefaults(modulePath, className, args.length);
+            // The class a coalescing constructor call names lives in a module
+            // whose own name differs; omittedCallDefaults carries the same
+            // module-and-class resolution the Kotlin path proved, so slice
+            // the leading slots from its full default list.
+            final allDefaults = DefaultArgExpander.omittedCallDefaults(modulePath, "new", 0, className);
+            final prefix = allDefaults == null ? null : allDefaults.slice(0, allDefaults.length - args.length);
             if (prefix != null)
                 return [for (o in prefix) coalescingDefaultText(o.value, o.type)].concat(rendered);
             for (o in omitted)
@@ -2913,6 +2918,12 @@ class SwiftExpr {
     function newExpr(c:Ref<ClassType>, params:Array<Type>, args:Array<TypedExpr>):String {
         final cls = c.get();
         final rendered = constructorArgTexts(cls, args).join(", ");
+        // A coalescing omission carries the trailing defaults as explicit
+        // arguments; the leading slots must be prepended from the class's
+        // own constructor, the same completion the Kotlin target proved.
+        final prefixDefaults = DefaultArgExpander.constructorPrefixDefaultsForClass(cls, args.length);
+        final completed = prefixDefaults == null || prefixDefaults.length == 0 ? rendered
+            : [for (o in prefixDefaults) coalescingDefaultText(o.value, o.type)].join(", ") + ", " + rendered;
         final valueType = ValueTypeSupport.markedAbstractOfClass(cls);
         if (valueType != null)
             return valueType.name + "(" + rendered + ")";
@@ -2929,7 +2940,7 @@ class SwiftExpr {
                 return "[" + types.of(params[0]) + "]()";
             case _:
                 imports.value(cls.module, cls.name);
-                return cls.name + "(" + rendered + ")";
+                return cls.name + "(" + completed + ")";
         }
     }
 
