@@ -229,7 +229,7 @@ class DartType {
 
     /** Optional rendering: a trailing question mark on the whole type. */
     function wrapOptional(inner:String):String {
-        return inner + "?";
+        return StringTools.endsWith(inner, "?") ? inner : inner + "?";
     }
 
     function pathOf(pack:Array<String>, name:String):String {
