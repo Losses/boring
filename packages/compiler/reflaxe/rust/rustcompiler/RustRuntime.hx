@@ -70,6 +70,36 @@ pub struct Int64Halves {
 }
 
 impl FPHelper {
+    pub fn format_float(v: f64) -> String {
+        if v.is_nan() { return "NaN".to_string(); }
+        if v == f64::INFINITY { return "Infinity".to_string(); }
+        if v == f64::NEG_INFINITY { return "-Infinity".to_string(); }
+        if v == 0.0 { return "0".to_string(); }
+        let mut text = v.to_string().replace('E', "e");
+        let negative = text.starts_with('-');
+        if negative { text = text[1..].to_string(); }
+        let parts: Vec<&str> = text.split('e').collect();
+        let mut mantissa = parts[0].to_string();
+        let exponent: i32 = if parts.len() == 2 { parts[1].parse().unwrap_or(0) } else { 0 };
+        let dot = mantissa.find('.').unwrap_or(mantissa.len());
+        let mut digits = mantissa.replace('.', "");
+        let mut position = dot as i32 + exponent;
+        while digits.len() > 1 && digits.starts_with('0') { digits.remove(0); position -= 1; }
+        if position >= -5 && position <= 21 {
+            let mut plain = if position <= 0 { format!("0.{}{}", "0".repeat((-position) as usize), digits) }
+                else if position as usize >= digits.len() { format!("{}{}", digits, "0".repeat(position as usize - digits.len())) }
+                else { format!("{}.{}", &digits[..position as usize], &digits[position as usize..]) };
+            while plain.contains('.') && plain.ends_with('0') { plain.pop(); }
+            if plain.ends_with('.') { plain.pop(); }
+            return if negative { format!("-{}", plain) } else { plain };
+        }
+        while digits.len() > 1 && digits.ends_with('0') { digits.pop(); }
+        let sci = position - 1;
+        let mantissa = if digits.len() == 1 { digits } else { format!("{}.{}", &digits[..1], &digits[1..]) };
+        if negative { format!("-{}e{}{}", mantissa, if sci >= 0 { "+" } else { "" }, sci) }
+        else { format!("{}e{}{}", mantissa, if sci >= 0 { "+" } else { "" }, sci) }
+    }
+
     pub fn i64_to_double(low: u32, high: u32) -> f64 {
         let h = high.to_be_bytes();
         let l = low.to_be_bytes();

@@ -87,7 +87,39 @@ object FPHelper {
     fun f32ToI64(value: Float): Int64Halves {
         return doubleToI64(value.toDouble())
     }
+
+    fun formatFloat(value: Double): String {
+        if (value.isNaN()) return \"NaN\"
+        if (value == Double.POSITIVE_INFINITY) return \"Infinity\"
+        if (value == Double.NEGATIVE_INFINITY) return \"-Infinity\"
+        if (value == 0.0) return \"0\"
+        var text = value.toString().replace('E', 'e')
+        var negative = text.startsWith(\"-\")
+        if (negative) text = text.substring(1)
+        val parts = text.split('e')
+        var digits = parts[0].replace(\".\", \"\")
+        var position = parts[0].indexOf('.').let { if (it < 0) parts[0].length else it }
+        if (parts.size == 2) position += parts[1].toIntOrNull() ?: 0
+        while (digits.length > 1 && digits.startsWith(\"0\")) { digits = digits.substring(1); position-- }
+        if (position >= -5 && position <= 21) {
+            var plain = when {
+                position <= 0 -> \"0.\" + \"0\".repeat(-position) + digits
+                position >= digits.length -> digits + \"0\".repeat(position - digits.length)
+                else -> digits.substring(0, position) + \".\" + digits.substring(position)
+            }
+            while (plain.contains('.') && plain.endsWith('0')) plain = plain.dropLast(1)
+            if (plain.endsWith('.')) plain = plain.dropLast(1)
+            return (if (negative) \"-\" else \"\") + plain
+        }
+        while (digits.length > 1 && digits.endsWith(\"0\")) digits = digits.dropLast(1)
+        val exponent = position - 1
+        val mantissa = if (digits.length == 1) digits else digits.substring(0, 1) + \".\" + digits.substring(1)
+        return (if (negative) \"-\" else \"\") + mantissa + \"e\" + (if (exponent >= 0) \"+\" else \"\") + exponent
+    }
+
+    fun formatFloat(value: Float): String = formatFloat(value.toDouble())
 }
+
 ";
 
     public static final CONSOLE_SOURCE = "object Console {
@@ -157,6 +189,7 @@ object Process {
         final real = FloatPrecision.isF32() ? "Float" : "Double";
         return 'import java.io.File
 import java.io.FileWriter
+import ${RuntimeConfig.requireImportName("module haxe.io.FPHelper")}.FPHelper
 
 object Test {
     private var currentTestId: String? = null
@@ -240,7 +273,7 @@ object Test {
     fun formatValue(v: String?): String = if (v == null) "null" else "\\"\" + TestCore.escapeJson(v) + "\\"\"
     fun formatValue(v: ByteArray): String = TestCore.formatBytes(v)
 
-    fun formatFloat(v: ${real}): String = TestCore.formatFloat(v)
+    fun formatFloat(v: ${real}): String = FPHelper.formatFloat(v)
 
     fun formatBytes(b: ByteArray): String = TestCore.formatBytes(b)
 
