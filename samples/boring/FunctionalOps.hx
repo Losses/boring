@@ -37,10 +37,9 @@ class FunctionalOps {
     }
 
     public static function verify():Bool {
-        final floats = [1.5, 2.0, 3.5];
         final ints = [1, 2, 3, 4];
-        return lambdaSum(floats) == 7.0
-            && functionalSum(floats) == 7.0
+        return lambdaSum([1.5, 2.0, 3.5]) == 7.0
+            && functionalSum([1.5, 2.0, 3.5]) == 7.0
             && lambdaIter(ints) == 10
             && functionalForEach(ints) == 10;
     }
