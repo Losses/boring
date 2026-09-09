@@ -939,6 +939,11 @@ class RustExpr {
                 }
                 // A parameter-typed read clones at the boundary: the
                 // element stays owned by its array.
+                switch (stripWrap(ret).expr) {
+                    case TConst(TThis) if (!isTypeCopy(ret.t)):
+                        retStr = "(" + retStr + ").clone()";
+                    case _:
+                }
                 if (RustType.isTypeParam(ret.t)) {
                     switch (stripWrap(ret).expr) {
                         case TArray(_, _) | TField(_, _) | TLocal(_):
@@ -5369,6 +5374,13 @@ class RustExpr {
         returnTypeName = functionReturn == null ? null : types.of(functionReturn, false);
         currentReturnType = functionReturn;
         final previousGeneric = inGenericFunction;
+        final previousFallible = isFallible;
+        final previousErrorTypeName = errorTypeName;
+        // A local function has its own return boundary. Do not inherit the
+        // enclosing function's Result wrapper because the closure is
+        // emitted while lowering a fallible method.
+        isFallible = false;
+        errorTypeName = null;
         inGenericFunction = true;
         genericParamIds.clear();
         closureParamIds.clear();
@@ -5381,6 +5393,8 @@ class RustExpr {
         returnUnsigned = previousReturnUnsigned;
         returnTypeName = previousReturnTypeName;
         currentReturnType = previousReturnType;
+        isFallible = previousFallible;
+        errorTypeName = previousErrorTypeName;
         inGenericFunction = previousGeneric;
         return 'move |$params| {\n' + body.join("\n") + '\n}';
     }
