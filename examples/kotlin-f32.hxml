@@ -91,6 +91,9 @@ boring.ArithmeticOps
 tests.ArithmeticTests
 boring.DefaultArgsOps
 tests.DefaultArgsTests
+boring.ValueTypeOps
+boring.InlineDefaultOps
+tests.InlineDefaultTests
 boring.UStringOps
 boring.UStringResidentOps
 boring.StringUnitOps
