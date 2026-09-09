@@ -15,7 +15,7 @@ class DartEmptyArrayFixOptional {
     final values:std.ReadOnlyArray<String>;
 
     public function new(?values:std.ReadOnlyArray<String>) {
-        this.values = values;
+        this.values = values == null ? [] : values;
     }
 
     public function count():Int {

@@ -106,6 +106,9 @@ class DartExpr {
     /** Number of bindings assigned to each source name in the active function. */
     final scopedNameCounts:Map<String, Int> = [];
 
+    /** Top-level declarations whose names must not be used by locals. */
+    final reservedTopLevelNames:Map<String, Bool> = [];
+
     /** Active runtime renderers for cyclic enum stringification. */
     final enumStringNaming:EnumStringHelperNaming = new EnumStringHelperNaming();
 
@@ -134,6 +137,10 @@ class DartExpr {
 
     public function reserveName(name:String):Void {
         usedNames.set(name, true);
+    }
+
+    public function reserveTopLevelName(name:String):Void {
+        reservedTopLevelNames.set(name, true);
     }
 
     /** Binds a declaration parameter to its native extension receiver name. */
@@ -1331,6 +1338,7 @@ class DartExpr {
         if (elems.length == 0) {
             final elem = switch (Context.follow(e.t)) {
                 case TInst(_, params) if (params.length > 0): types.of(params[0]);
+                case TAbstract(a, params) if (a.get().name == "ReadOnlyArray" && params.length > 0): types.of(params[0]);
                 case _: "dynamic";
             };
             return "<" + elem + ">[]";
@@ -2681,7 +2689,7 @@ class DartExpr {
         return [for (i in 0...args.length) {
             final p = i < ps.length ? ps[i] : null;
             final d = DefaultArgExpander.defaultAt(cls, "new", i);
-            if (p != null && isNullLiteral(args[i]) && isArrayType(p)) {
+            if (d != null && p != null && isNullLiteral(args[i]) && isArrayType(p)) {
                 emptyArrayText(p);
             } else if (d != null && p != null && isNullLiteral(args[i])) {
                 defaultArgText(d, p);
@@ -2703,6 +2711,7 @@ class DartExpr {
     function emptyArrayText(t:Type):String {
         return switch (Context.follow(DefaultArgExpander.withoutNull(t))) {
             case TInst(_, params) if (params.length > 0): "<" + types.of(params[0]) + ">[]";
+            case TAbstract(a, params) if (a.get().name == "ReadOnlyArray" && params.length > 0): "<" + types.of(params[0]) + ">[]";
             case _: "<dynamic>[]";
         };
     }
@@ -3624,6 +3633,8 @@ class DartExpr {
         final count = scopedNameCounts.exists(v.name) ? scopedNameCounts.get(v.name) + 1 : 1;
         scopedNameCounts.set(v.name, count);
         scopedLocalNames.set(v.id, count == 1 ? v.name : v.name + count);
+        final reserved = reservedTopLevelNames.exists(v.name);
+        scopedLocalNames.set(v.id, count == 1 && !reserved ? v.name : v.name + (count + (reserved ? 1 : 0)));
     }
 
     function localName(v:TVar):String {

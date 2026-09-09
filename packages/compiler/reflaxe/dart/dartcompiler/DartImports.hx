@@ -18,6 +18,7 @@ class DartImports {
 
     /** Module path to its import prefix, in first-reference order. */
     final modules:Map<String, String> = [];
+    final reservedNames:Map<String, Bool> = [];
 
     /** Modules whose unnamed extensions must be imported without a prefix. */
     final extensionModules:Map<String, Bool> = [];
@@ -170,6 +171,10 @@ class DartImports {
         return prefixOf(module);
     }
 
+    public function reserveName(name:String):Void {
+        reservedNames.set(name, true);
+    }
+
     /** Records an extension library import, which must remain unprefixed. */
     public function useExtension(module:String):Void {
         checkPurity(module);
@@ -216,7 +221,12 @@ class DartImports {
         if (existing != null) {
             return existing;
         }
-        final prefix = importPrefixOf(module);
+        var prefix = importPrefixOf(module);
+        var suffix = 2;
+        while (reservedNames.exists(prefix)) {
+            prefix = importPrefixOf(module) + suffix;
+            suffix += 1;
+        }
         for (other => taken in modules) {
             if (taken == prefix) {
                 Context.error("modules " + other + " and " + module + " share one import prefix in " + selfModule, Context.currentPos());
