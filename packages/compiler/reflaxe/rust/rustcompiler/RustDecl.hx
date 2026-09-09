@@ -115,6 +115,8 @@ class RustDecl {
         if (isExceptionSubclass(cls)) {
             final payload = payloadEnumOf(funcFields);
             if (payload == null) {
+                if (isMessageOnlyException(cls))
+                    return messageOnlyExceptionDecl(cls);
                 Context.error("exception subclass without a payload enum constructor has no Rust lowering", cls.pos);
                 return null;
             }
@@ -675,8 +677,34 @@ class RustDecl {
         if (cls.superClass == null) {
             return false;
         }
-        final parent = cls.superClass.t.get();
-        return parent.pack.join(".") == "haxe" && parent.name == "Exception";
+        var parent = cls.superClass.t.get();
+        while (parent != null) {
+            if (parent.pack.join(".") == "haxe" && parent.name == "Exception")
+                return true;
+            parent = parent.superClass == null ? null : parent.superClass.t.get();
+        }
+        return false;
+    }
+
+    public static function isMessageOnlyException(cls:ClassType):Bool {
+        if (!isExceptionSubclass(cls) || cls.constructor == null)
+            return false;
+        return switch (Context.follow(cls.constructor.get().type)) {
+            case TFun(args, _) if (args.length == 1):
+                switch (Context.follow(args[0].t)) {
+                    case TInst(c, _): c.get().name == "String";
+                    case _: false;
+                }
+            case _: false;
+        };
+    }
+
+    function messageOnlyExceptionDecl(cls:ClassType):String {
+        final name = RustImports.emittedTypeName(cls.name);
+        return ["#[derive(Debug, Clone, PartialEq)]", "pub struct " + name + " {", "    pub message: String,", "}",
+            "impl " + name + " {", "    pub fn new(message: &str) -> Self {", "        Self { message: message.to_string() }", "    }", "}",
+            "impl std::fmt::Display for " + name + " {", "    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {", "        write!(formatter, \"{}\", self.message)", "    }", "}",
+            "impl std::error::Error for " + name + " {}"].join("\n");
     }
 
     public static function structureSignature(anon:Ref<AnonType>):String {
@@ -1601,18 +1629,20 @@ class RustDecl {
                 haxe.macro.TypedExprTools.iter(x, function(child) walk(child, absorbed));
             }
             switch (x.expr) {
-                case TThrow(t):
-                    switch (stripDecorations(t).expr) {
-                        case TNew(c, _, args) if (args.length > 0):
-                            final en = payloadEnumOfArg(args[0]);
-                            if (en != null && state.exceptionPayloads.exists(c.get().module)) {
-                                if (absorbed.indexOf(en.get().module) < 0) {
-                                    out.push({name: en.get().name, module: en.get().module});
-                                }
+                        case TThrow(t):
+                            switch (stripDecorations(t).expr) {
+                                case TNew(c, _, args) if (args.length > 0):
+                                    final en = payloadEnumOfArg(args[0]);
+                                    final messageOnly = state.messageOnlyExceptions.get(c.get().module);
+                                    if (messageOnly != null && absorbed.indexOf(c.get().module) < 0)
+                                        out.push({name: messageOnly, module: c.get().module});
+                                    else if (en != null && state.exceptionPayloads.exists(c.get().module)) {
+                                        if (absorbed.indexOf(en.get().module) < 0)
+                                            out.push({name: en.get().name, module: en.get().module});
+                                    }
+                                case _:
                             }
-                        case _:
-                    }
-                    descend();
+                            descend();
                 case TTry(regionBody, regionCatches):
                     final caught = [for (c in regionCatches) caughtPayloadEnumModuleOf(c.v)];
                     final absorbedBody = absorbed.concat([for (m in caught) if (m != null) m]);
@@ -2014,13 +2044,16 @@ class RustDecl {
                     switch (stripDecorations(t).expr) {
                         case TNew(c, _, args) if (args.length > 0):
                             final en = payloadEnumOfArg(args[0]);
-                            if (en != null && state.exceptionPayloads.exists(c.get().module)) {
+                            final messageOnly = state.messageOnlyExceptions.get(c.get().module);
+                            if (messageOnly != null) {
+                                if (absorbed.indexOf(c.get().module) < 0) {
+                                    throwsOrCallsFallible = true;
+                                }
+                            } else if (en != null && state.exceptionPayloads.exists(c.get().module)) {
                                 if (absorbed.indexOf(en.get().module) < 0) {
                                     throwsOrCallsFallible = true;
                                 }
                             } else if (!state.exceptionPayloads.exists(c.get().module)) {
-                                // A throw the subset cannot resolve still
-                                // escapes the signature; stay fallible.
                                 throwsOrCallsFallible = true;
                             }
                         case _:
