@@ -2326,7 +2326,11 @@ class RustDecl {
             case TAbstract(a, params): // `follow` unwraps Null<T> but keeps plain abstracts, so
                 // ReadOnlyArray must recurse into its element type here.
                 (["Int", "Bool", "Float"].indexOf(a.get().name) >= 0
-                    && params.length == 0) || (a.get().name == "ReadOnlyArray" && params.length == 1 && isCloneType(params[0]));
+                    && params.length == 0) || (a.get().name == "ReadOnlyArray" && params.length == 1 && isCloneType(params[0]))
+                    || ((a.get().name == "SortedSet" || a.get().name == "SortedMap") && params.length >= 1 && (function() {
+                        for (p in params) if (!isCloneType(p)) return false;
+                        return true;
+                    })());
             case TEnum(_):
                 // Every generated enum derives Clone at its declaration
                 // site, so an enum-typed field keeps its owner's derive.
