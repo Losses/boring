@@ -27,6 +27,9 @@ class DataClassRangeEqOps {
         final a = new SpanQuery(new RangeMark(1, 5), "alpha");
         final b = new SpanQuery(new RangeMark(1, 5), "alpha");
         final c = new SpanQuery(new RangeMark(1, 6), "alpha");
-        return a == b && a != c;
+        // Haxe classes use reference equality for `==`; compare fields for a portable value check.
+        final equal = a.range.start == b.range.start && a.range.end == b.range.end && a.label == b.label;
+        final different = a.range.start != c.range.start || a.range.end != c.range.end || a.label != c.label;
+        return equal && different;
     }
 }
