@@ -100,6 +100,12 @@ class DartExpr {
     /** Names used by parameters and locals; generated names avoid them. */
     final usedNames:Map<String, Bool> = [];
 
+    /** Dart names assigned to the parameters and locals of the active function. */
+    final scopedLocalNames:Map<Int, String> = [];
+
+    /** Number of bindings assigned to each source name in the active function. */
+    final scopedNameCounts:Map<String, Int> = [];
+
     /** Active runtime renderers for cyclic enum stringification. */
     final enumStringNaming:EnumStringHelperNaming = new EnumStringHelperNaming();
 
@@ -366,6 +372,7 @@ class DartExpr {
         };
         nonNullLocals.clear();
         nonNullOptionalParams.clear();
+        assignScopedLocalNames(f);
         // Coalescing defaults are materialized by every Dart call site. Their
         // optional signature slots therefore carry a concrete value throughout
         // the Haxe method body, even when the typed read has already lost the
@@ -409,6 +416,7 @@ class DartExpr {
         currentField = f.field.name;
         currentLocalName = null;
         nonNullLocals.clear();
+        assignScopedLocalNames(f);
         scanLocals(f.expr);
         final out:Array<String> = [];
         for (stmt in statementsOf(f.expr)) {
@@ -441,6 +449,7 @@ class DartExpr {
         currentClass = cls;
         currentField = f.field.name;
         currentLocalName = null;
+        assignScopedLocalNames(f);
         DefaultArgExpander.completeRootExpr(cls, f.field.name, f.expr);
         PipelineExpander.expandRootExpr(f.expr);
         EnumQueryExpander.expandRootExpr(f.expr);
@@ -2672,11 +2681,30 @@ class DartExpr {
         return [for (i in 0...args.length) {
             final p = i < ps.length ? ps[i] : null;
             final d = DefaultArgExpander.defaultAt(cls, "new", i);
-            d != null
-            && p != null && isNullLiteral(args[i]) ? defaultArgText(d, p) : d != null && p != null && isNullLeafType(args[i].t) ? "(" + expr(args[i]) + " ?? " + defaultArgText(d,
-                p) + ")" : expr(args[i]);
-        }
-        ];
+            if (p != null && isNullLiteral(args[i]) && isArrayType(p)) {
+                emptyArrayText(p);
+            } else if (d != null && p != null && isNullLiteral(args[i])) {
+                defaultArgText(d, p);
+            } else if (d != null && p != null && isNullLeafType(args[i].t)) {
+                "(" + expr(args[i]) + " ?? " + defaultArgText(d, p) + ")";
+            } else {
+                expr(args[i]);
+            }
+        }];
+    }
+
+    function isArrayType(t:Type):Bool {
+        return switch (Context.follow(DefaultArgExpander.withoutNull(t))) {
+            case TInst(c, _) if (c.get().name == "Array"): true;
+            case _: false;
+        };
+    }
+
+    function emptyArrayText(t:Type):String {
+        return switch (Context.follow(DefaultArgExpander.withoutNull(t))) {
+            case TInst(_, params) if (params.length > 0): "<" + types.of(params[0]) + ">[]";
+            case _: "<dynamic>[]";
+        };
     }
 
     function isNullLiteral(e:TypedExpr):Bool
@@ -3572,6 +3600,32 @@ class DartExpr {
         return PolicyQueries.mentionsLocal(e, v);
     }
 
+    function assignScopedLocalNames(f:ClassFuncData):Void {
+        scopedLocalNames.clear();
+        scopedNameCounts.clear();
+        for (a in f.args) {
+            if (a.tvar != null)
+                assignScopedLocalName(a.tvar);
+        }
+        function walk(e:TypedExpr):Void {
+            switch (e.expr) {
+                case TVar(v, _): assignScopedLocalName(v);
+                case TFunction(_): return;
+                case _:
+            }
+            TypedExprTools.iter(e, walk);
+        }
+        walk(f.expr);
+    }
+
+    function assignScopedLocalName(v:TVar):Void {
+        if (v.name == "`" || v.name == "_")
+            return;
+        final count = scopedNameCounts.exists(v.name) ? scopedNameCounts.get(v.name) + 1 : 1;
+        scopedNameCounts.set(v.name, count);
+        scopedLocalNames.set(v.id, count == 1 ? v.name : v.name + count);
+    }
+
     function localName(v:TVar):String {
         // A bare underscore is not a name Dart binds (the wildcard
         // marker); loop counters written `_` render as `_i`.
@@ -3579,7 +3633,7 @@ class DartExpr {
             return "_i";
         }
         if (v.name != "`") {
-            return v.name;
+            return scopedLocalNames.exists(v.id) ? scopedLocalNames.get(v.id) : v.name;
         }
         if (hiddenNames.exists(v.id)) {
             return hiddenNames.get(v.id);
