@@ -1,9 +1,7 @@
 package boring;
 
-typedef StaticTransform = String->String;
-
 class StaticFnOps {
-    public static var transform:StaticTransform = function(value:String):String {
+    public static var transform:String->String = function(value:String):String {
         return value + "!";
     };
 
