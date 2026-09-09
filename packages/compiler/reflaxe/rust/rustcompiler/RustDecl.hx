@@ -1761,9 +1761,18 @@ class RustDecl {
                 }
                 final coalescingAt = DefaultArgExpander.coalescingDefaultAt(cls, f.field.name, f.args.indexOf(a));
                 if (coalescingAt != null) {
-                    final innerType = DefaultArgExpander.withoutNull(a.type);
-                    final defaultText = expr.coalescingDefaultText(coalescingAt, innerType, false);
-                    lines.push('            $sname: $sname.unwrap_or($defaultText),');
+                    // A sanctioned null default does not narrow the field: the
+                    // normalized constructor parameter is still Option<T>.
+                    // Only unwrap when the default proves that null cannot be
+                    // stored (feature spec 27).
+                    final keepsNull = DefaultArgExpander.coalescingCanBeNull(coalescingAt);
+                    if (keepsNull) {
+                        lines.push('            $sname: $sname,');
+                    } else {
+                        final innerType = DefaultArgExpander.withoutNull(a.type);
+                        final defaultText = expr.coalescingDefaultText(coalescingAt, innerType, false);
+                        lines.push('            $sname: $sname.unwrap_or($defaultText),');
+                    }
                     continue;
                 }
                 // A String parameter borrows as &str while the field owns
