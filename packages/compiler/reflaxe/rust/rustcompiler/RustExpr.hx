@@ -5319,6 +5319,20 @@ class RustExpr {
         return state.funcErrorEnums.exists(RustEmissionState.funcKey(c.get().module, name, isStatic));
     }
 
+    function isFallibleConstructor(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TNew(c, _, _):
+                state.funcErrorEnums.exists(RustEmissionState.funcKey(c.get().module, "new", false));
+            case _: false;
+        };
+    }
+
+    function normalizeConstructorResult(e:TypedExpr, rendered:String):String {
+        if (!isFallibleConstructor(e) || StringTools.endsWith(rendered, "?") || StringTools.endsWith(rendered, ".unwrap()"))
+            return rendered;
+        return isFallible ? rendered + "?" : "(" + rendered + ").unwrap()";
+    }
+
     function newExpr(c:Ref<ClassType>, params:Array<Type>, args:Array<TypedExpr>):String {
         final cls = c.get();
         final valueType = ValueTypeSupport.markedAbstractOfClass(cls);
@@ -5483,6 +5497,10 @@ class RustExpr {
             var argStr = expr(arg);
             if (i < paramTypes.length) {
                 final pt = paramTypes[i];
+                // A fallible constructor used as an argument must resolve its
+                // Result before the value reaches the parameter. Interface
+                // parameters then box the successful concrete value below.
+                argStr = normalizeConstructorResult(arg, argStr);
                 final parameterName = i < paramNames.length ? paramNames[i] : null;
                 final coalescing = parameterName == null ? null : DefaultArgExpander.coalescingDefaultForParam(cls, "new", parameterName);
                 if (coalescing != null && isNullLiteral(arg)) {
@@ -6536,7 +6554,10 @@ class RustExpr {
             return rendered + ".unwrap_or(0)";
         }
         if (isInterfaceType(expected) && !isInterfaceType(actual.t)) {
-            return "Box::new(" + rendered + ")";
+            return "Box::new(" + normalizeConstructorResult(actual, rendered) + ")";
+        }
+        if (!isInterfaceType(expected) && isFallibleConstructor(actual)) {
+            return normalizeConstructorResult(actual, rendered);
         }
         // Static methods and static function fields are emitted as callable
         // items/pointers, while every non-static function value is already an
