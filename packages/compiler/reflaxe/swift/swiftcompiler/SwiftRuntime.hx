@@ -117,30 +117,32 @@ public func formatFloatRuntime(_ v: Double) -> [UInt16] {
     if v == Double.infinity { return Array("Infinity".utf16) }
     if v == -Double.infinity { return Array("-Infinity".utf16) }
     if v == 0.0 { return Array("0".utf16) }
-    var text = String(v)
-    var negative = text.charAt(0) == "-"
-    if (negative) text = text.substring(1)
+    var chars = Array(String(v))
+    let negative = chars.first == "-"
+    if negative { chars.removeFirst() }
+    let marker = chars.firstIndex(where: { $0 == "e" || $0 == "E" })
     var exponent = 0
-    var epos = text.indexOf("E")
-    if (epos < 0) epos = text.indexOf("e")
-    if (epos >= 0) {
-        exponent = Int(text.substring(epos + 1)) ?? 0
-        text = text.substring(0, epos)
+    if let marker {
+        exponent = Int(String(chars[(marker + 1)...])) ?? 0
+        chars.removeSubrange(marker...)
     }
-    var dot = text.indexOf(".")
-    var digits = dot >= 0 ? text.substring(0, dot) + text.substring(dot + 1) : text
-    var position = (dot >= 0 ? dot : text.length) + exponent
-    while (digits.length > 1 && digits.charAt(0) == "0") { digits = digits.substring(1); position -= 1 }
-    if (position >= -5 && position <= 21) {
-        var plain = position <= 0 ? "0." + StringTools.lpad("", "0", -position) + digits : position >= digits.length ? digits + StringTools.lpad("", "0", position - digits.length) : digits.substring(0, position) + "." + digits.substring(position)
-        while (plain.indexOf(".") >= 0 && plain.charAt(plain.length - 1) == "0") plain = plain.substring(0, plain.length - 1)
-        if (plain.charAt(plain.length - 1) == ".") plain = plain.substring(0, plain.length - 1)
-        return Array((negative ? "-" : "") + plain.utf16)
+    let dot = chars.firstIndex(of: ".") ?? chars.count
+    var digits = chars.filter { $0 != "." }
+    var position = dot + exponent
+    while digits.count > 1 && digits.first == "0" { digits.removeFirst(); position -= 1 }
+    if position >= -5 && position <= 21 {
+        var plain: String
+        if position <= 0 { plain = "0." + String(repeating: "0", count: -position) + String(digits) }
+        else if position >= digits.count { plain = String(digits) + String(repeating: "0", count: position - digits.count) }
+        else { plain = String(digits[..<position]) + "." + String(digits[position...]) }
+        while plain.contains(".") && plain.last == "0" { plain.removeLast() }
+        if plain.last == "." { plain.removeLast() }
+        return Array(((negative ? "-" : "") + plain).utf16)
     }
-    while (digits.length > 1 && digits.charAt(digits.length - 1) == "0") digits = digits.substring(0, digits.length - 1)
-    var sci = position - 1
-    var mantissa = digits.length == 1 ? digits : digits.substring(0, 1) + "." + digits.substring(1)
-    return Array(((negative ? "-" : "") + mantissa + "e" + (sci >= 0 ? "+" : "") + sci).utf16)
+    while digits.count > 1 && digits.last == "0" { digits.removeLast() }
+    let sci = position - 1
+    let mantissa = digits.count == 1 ? String(digits) : String(digits[0]) + "." + String(digits.dropFirst())
+    return Array(((negative ? "-" : "") + mantissa + "e" + (sci >= 0 ? "+" : "") + String(sci)).utf16)
 }
 
 public func formatFloatRuntime(_ v: Float) -> [UInt16] {
