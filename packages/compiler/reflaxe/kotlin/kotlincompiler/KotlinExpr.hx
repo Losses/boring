@@ -610,7 +610,7 @@ class KotlinExpr {
                 out.push(indent(depth) + "}");
                 return out;
             case TIf(c, t, f):
-                final condition = expr(c);
+                final condition = expr(c) + (rendersNullable(c) ? " == true" : "");
                 final base = proofSnapshot();
                 addProofs(conditionProofs(c).thenPath);
                 final out = [indent(depth) + "if (" + condition + ") {"];
@@ -1205,10 +1205,10 @@ class KotlinExpr {
                 // is, and plain element access otherwise.
                 final receiver = mapReceiver == null ? arr : mapReceiver;
                 if (isNullType(receiver.t) && !provenNonNull(receiver) && !guardProofBefore(receiver)) {
-                    return expr(receiver) + "?." + "[" + expr(idx) + "]";
+                    return expr(receiver) + "?.get(" + expr(idx) + ")";
                 }
                 if (nullableChainHop(receiver) && !guardProofBefore(receiver)) {
-                    return expr(receiver) + "?." + "[" + expr(idx) + "]";
+                    return expr(receiver) + "?.get(" + expr(idx) + ")";
                 }
                 return expr(receiver) + "[" + expr(idx) + "]";
             case TBinop(op, l, r):
@@ -3095,6 +3095,9 @@ class KotlinExpr {
                 }
                 if (name == "indexOf" && isString(stripCast(subj)) && args.length >= 1) {
                     return expr(subj) + ".indexOf(" + expr(args[0]) + ")";
+                }
+                if (name == "lastIndexOf" && isString(stripCast(subj)) && args.length >= 1) {
+                    return expr(subj) + ".lastIndexOf(" + expr(args[0]) + ")";
                 }
                 if (name == "substring" && isString(stripCast(subj))) {
                     // The haxe typer passes a synthesized null for an
