@@ -704,7 +704,11 @@ class RustExpr {
                 continue;
             }
             seen.set(site.parameter, true);
-            final defaultIsNull = isNullType(site.valueExpr.t) && containsNullDefault(value);
+            // Optional parameters whose default is null may be typed by the
+            // Haxe typer as the already-unwrapped payload at this site.  The
+            // default value is authoritative: null defaults retain the
+            // Option and avoid calling unwrap_or_else with a None payload.
+            final defaultIsNull = containsNullDefault(value);
             final rawDefaultText = value != null ? coalescingDefaultText(value, DefaultArgExpander.withoutNull(site.valueExpr.t),
                 defaultIsNull) : expr(site.defaultExpr);
             // When a string parameter read appears inside unwrap_or_else, Rust needs
