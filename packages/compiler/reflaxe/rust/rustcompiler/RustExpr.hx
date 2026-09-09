@@ -619,7 +619,7 @@ class RustExpr {
             if (node == null)
                 return;
             switch (node.expr) {
-                case TField({expr: TConst(TThis)}, FInstance(_, _, cf)) if (!assignmentTarget || branchAssignedFields.exists(cf.get().name)):
+                case TField({expr: TConst(TThis)}, FInstance(_, _, cf)) if ((!assignmentTarget || branchAssignedFields.exists(cf.get().name)) && cf.get().kind.match(FieldKind.FVar(_))):
                     final fieldName = RustImports.toSnakeCase(cf.get().name);
                     final local = thisFieldArgs.get(fieldName);
                     if (local == null) {
