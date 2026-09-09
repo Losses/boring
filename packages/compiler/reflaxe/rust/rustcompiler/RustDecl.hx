@@ -2338,7 +2338,7 @@ class RustDecl {
             case TInst(c, params):
                 final cls = c.get();
                 final n = cls.name;
-                if (n == "String") true else if (n == "Array") params.length == 1 && isCloneType(params[0]) else if (cls.meta.has(":dataClass"))
+                if (n == "String" || n == "SortedSet" || n == "SortedMap") true else if (n == "Array") params.length == 1 && isCloneType(params[0]) else if (cls.meta.has(":dataClass"))
                     dataClassFieldsAllClone(cls, 0) else false;
             case TType(d, params): isCloneType(haxe.macro.TypeTools.applyTypeParameters(d.get().type, d.get().params, params));
             case TAnonymous(anon):
