@@ -269,3 +269,5 @@ boring.CfgTestProbe
 boring.RuntimeExportOps
 tests.RuntimeExportTests
 
+boring.ResidentModuleImportOps
+tests.ResidentModuleImportTests
