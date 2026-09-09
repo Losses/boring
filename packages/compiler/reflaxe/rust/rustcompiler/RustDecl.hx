@@ -239,11 +239,13 @@ class RustDecl {
         // Interface-typed fields lower to Box<dyn Trait>, which cannot
         // satisfy Clone; keep the isAllClone gate for every shape so the
         // the derive is emitted only when the lowered fields are cloneable.
+        // When every field also implements PartialEq, add that derive so
+        // containing structs can derive PartialEq over the data class.
         final isSortedTableResident = cls.module == "runtime.SortedTable"
             && (cls.name == "SortedMapTable" || cls.name == "SortedSetTable");
         if ((StaticFieldHelper.hasSelfConstructionStatic(cls) || cls.meta.has(":dataClass") || classParams.length > 0 || isSortedTableResident)
             && (isAllClone(varFields) || isSortedTableResident)) {
-            lines.push("#[derive(Clone)]");
+            lines.push(isAllPartialEq(varFields) ? "#[derive(Clone, PartialEq)]" : "#[derive(Clone)]");
         }
         if (cls.module.indexOf("registry.") == 0) {
             lines.push("#[derive(Debug, Clone, PartialEq)]");
@@ -2415,6 +2417,56 @@ class RustDecl {
                 case _:
             }
             if (!isCloneType(f.type))
+                return false;
+        }
+        return true;
+    }
+
+    /**
+        Whether a lowered type implements PartialEq. The key difference from
+        isCloneType is that Float (f64) does not implement PartialEq, and
+        the sorted containers only derive Clone.
+    **/
+    function isPartialEqType(t:Type):Bool {
+        return switch (Context.follow(t)) {
+            case TAbstract(a, params):
+                (["Int", "Bool"].indexOf(a.get().name) >= 0
+                    && params.length == 0) || (a.get().name == "ReadOnlyArray" && params.length == 1 && isPartialEqType(params[0]));
+            case TEnum(_):
+                true;
+            case TInst(c, params):
+                final cls = c.get();
+                final n = cls.name;
+                if (cls.kind.match(KTypeParameter(_))) true else if (n == "String") true else if (n == "Array") params.length == 1 && isPartialEqType(params[0]) else if (cls.meta.has(":dataClass"))
+                    dataClassFieldsAllPartialEq(cls, 0) else false;
+            case TType(d, params): isPartialEqType(haxe.macro.TypeTools.applyTypeParameters(d.get().type, d.get().params, params));
+            case TAnonymous(anon):
+                var all = true;
+                for (f in anon.get().fields)
+                    if (!isPartialEqType(f.type))
+                        all = false;
+                all;
+            case _: false;
+        };
+    }
+
+    function isAllPartialEq(fields:Array<ClassVarData>):Bool {
+        for (f in fields)
+            if (!f.isStatic && !isPartialEqType(f.field.type))
+                return false;
+        return true;
+    }
+
+    function dataClassFieldsAllPartialEq(cls:ClassType, depth:Int):Bool {
+        if (depth > 8)
+            return false;
+        for (f in cls.fields.get()) {
+            switch (f.kind) {
+                case FMethod(_):
+                    continue;
+                case _:
+            }
+            if (!isPartialEqType(f.type))
                 return false;
         }
         return true;
