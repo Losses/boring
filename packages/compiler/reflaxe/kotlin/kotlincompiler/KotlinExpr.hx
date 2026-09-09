@@ -697,6 +697,9 @@ class KotlinExpr {
     function throwExpr(x:TypedExpr):String {
         final inner = stripWrap(x);
         switch (inner.expr) {
+            case TNew(c, _, args) if (args.length == 1 && KotlinDecl.isMessageOnlyException(c.get())):
+                imports.requireType(c.get().module, c.get().name);
+                return c.get().name + "(" + expr(args[0]) + ")";
             case TNew(c, _, args) if (args.length == 1 && state.exceptionPayloads.exists(c.get().module)):
                 return exceptionVariant(c.get(), args[0]);
             case _:
