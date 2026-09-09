@@ -111,6 +111,42 @@ public func compareUnitOrder(_ a: [UInt16], _ b: [UInt16]) -> Int32 {
     return unitOrderCompare(a, b)
 }
 
+/// Canonical float spelling used by generated business modules.
+public func formatFloatRuntime(_ v: Double) -> [UInt16] {
+    if v.isNaN { return Array("NaN".utf16) }
+    if v == Double.infinity { return Array("Infinity".utf16) }
+    if v == -Double.infinity { return Array("-Infinity".utf16) }
+    if v == 0.0 { return Array("0".utf16) }
+    var text = String(v)
+    var negative = text.charAt(0) == "-"
+    if (negative) text = text.substring(1)
+    var exponent = 0
+    var epos = text.indexOf("E")
+    if (epos < 0) epos = text.indexOf("e")
+    if (epos >= 0) {
+        exponent = Int(text.substring(epos + 1)) ?? 0
+        text = text.substring(0, epos)
+    }
+    var dot = text.indexOf(".")
+    var digits = dot >= 0 ? text.substring(0, dot) + text.substring(dot + 1) : text
+    var position = (dot >= 0 ? dot : text.length) + exponent
+    while (digits.length > 1 && digits.charAt(0) == "0") { digits = digits.substring(1); position -= 1 }
+    if (position >= -5 && position <= 21) {
+        var plain = position <= 0 ? "0." + StringTools.lpad("", "0", -position) + digits : position >= digits.length ? digits + StringTools.lpad("", "0", position - digits.length) : digits.substring(0, position) + "." + digits.substring(position)
+        while (plain.indexOf(".") >= 0 && plain.charAt(plain.length - 1) == "0") plain = plain.substring(0, plain.length - 1)
+        if (plain.charAt(plain.length - 1) == ".") plain = plain.substring(0, plain.length - 1)
+        return Array((negative ? "-" : "") + plain.utf16)
+    }
+    while (digits.length > 1 && digits.charAt(digits.length - 1) == "0") digits = digits.substring(0, digits.length - 1)
+    var sci = position - 1
+    var mantissa = digits.length == 1 ? digits : digits.substring(0, 1) + "." + digits.substring(1)
+    return Array(((negative ? "-" : "") + mantissa + "e" + (sci >= 0 ? "+" : "") + sci).utf16)
+}
+
+public func formatFloatRuntime(_ v: Float) -> [UInt16] {
+    return formatFloatRuntime(Double(v))
+}
+
 /// Std.parseInt checked Haxe semantics, kept named so the Swift type
 /// checker does not have to solve the complete parser at every call site.
 public func parseIntRuntime(_ s: String) -> Int32? {

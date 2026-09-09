@@ -489,7 +489,7 @@ class Compiler extends PluginCompiler<Compiler> {
             "}",
             "",
             'pub fn equals_$real(a: &$real, b: &$real) -> bool { *a == *b }',
-            'pub fn format_$real(v: &$real) -> String { test_core::TestCore::test_core_format_float(*v) }',
+            'pub fn format_$real(v: &$real) -> String { crate::runtime::fp_helper::FPHelper::format_float(*v) }',
             'pub fn assert_equals_$real(expected: &$real, actual: &$real, message: &str) {',
             '    if !equals_$real(expected, actual) {',
             '        test_core::TestCore::test_core_report_failure(message, &format_$real(expected), &format_$real(actual));',
