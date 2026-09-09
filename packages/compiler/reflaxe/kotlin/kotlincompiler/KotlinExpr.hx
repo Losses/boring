@@ -1301,7 +1301,12 @@ class KotlinExpr {
                 final elseText = expr(f);
                 final afterElse = proofSnapshot();
                 restoreProofs(intersectProofs(base, afterThen, afterElse));
-                return "(if (" + condition + ") " + thenText + " else " + elseText + ")";
+                // Haxe promotes nullable Float branches with integer literals
+                // to Float. Kotlin otherwise infers their common type as
+                // Number & Comparable<*>, which cannot satisfy a Float result.
+                final branchThen = isFloatType(e.t) && isIntOrLongType(emittedType(t)) ? intToFloatText(thenText) : thenText;
+                final branchElse = isFloatType(e.t) && isIntOrLongType(emittedType(f)) ? intToFloatText(elseText) : elseText;
+                return "(if (" + condition + ") " + branchThen + " else " + branchElse + ")";
             case TSwitch(_, _, _):
                 return switchExpression(e);
             case TTry(body, catches) if (catches.length == 1):
