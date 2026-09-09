@@ -304,3 +304,6 @@ tests.DartEmptyArrayFixTests
 
 boring.RuntimeExportOps
 tests.RuntimeExportTests
+
+boring.ResidentModuleImportOps
+tests.ResidentModuleImportTests
