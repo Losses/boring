@@ -5449,9 +5449,18 @@ class RustExpr {
                 text += ".to_string()";
             return text;
         }
-        if (!isTypeCopy(expected) && (StringTools.startsWith(text, "&") || isPassByRef(expected))) {
+        // ReadOnlyArray literals and direct static arrays are emitted as Rust
+        // arrays, while an owned constructor slot is Vec<T>.
+        if (StaticFieldHelper.isArrayType(expected) && StaticFieldHelper.isArrayType(arg.t)) {
+            if (!StringTools.endsWith(text, ".to_vec()"))
+                return text + ".to_vec()";
+        }
+        // A value expression can still be rendered as a borrow after a
+        // field or parameter read. Clone the referent to produce the
+        // requested owned type.
+        if (!isTypeCopy(expected) && StringTools.startsWith(text, "&")) {
             if (!StringTools.endsWith(text, ".clone()") && !StringTools.endsWith(text, ".to_vec()"))
-                text = "(" + text + ").clone()";
+                text = "(*" + text + ").clone()";
         }
         return text;
     }
@@ -5564,7 +5573,13 @@ class RustExpr {
                     }
                 }
             }
-            out.push(argStr);
+            // Constructor parameters are value slots unless their declared
+            // type explicitly lowers to a borrow.  Keep this final boundary
+            // adaptation here so record/Vec reads do not leak `&T` into a T.
+            if (i < paramTypes.length)
+                out.push(numericAssignmentValue(paramTypes[i], arg, ownedConstructorArg(paramTypes[i], arg)));
+            else
+                out.push(argStr);
         }
         return out.join(", ");
     }
@@ -6645,7 +6660,7 @@ class RustExpr {
                     case TLocal(_): true;
                     case _: false;
                     }) {
-                    argStr = "(" + argStr + ").clone()";
+                    argStr = StringTools.startsWith(argStr, "&") ? "(*" + argStr + ").clone()" : "(" + argStr + ").clone()";
                     } else if (!isPassByRef(pt)
                     && !isTypeCopy(arg.t)
                     && !isTemporaryOwnedExpr(arg)
@@ -6660,7 +6675,7 @@ class RustExpr {
                     if (provenEnum)
                         argStr = expr(arg) + ".unwrap()";
                     else
-                        argStr = "(" + argStr + ").clone()";
+                        argStr = StringTools.startsWith(argStr, "&") ? "(*" + argStr + ").clone()" : "(" + argStr + ").clone()";
                 }
                 // A collection length is usize in Rust while a Haxe Int
                 // function parameter is u32 in business modules. The
