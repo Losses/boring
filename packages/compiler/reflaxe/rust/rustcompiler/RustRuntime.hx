@@ -74,12 +74,23 @@ impl FPHelper {
         if v.is_nan() { return "NaN".to_string(); }
         if v == f64::INFINITY { return "Infinity".to_string(); }
         if v == f64::NEG_INFINITY { return "-Infinity".to_string(); }
-        if v == 0.0 { return "0".to_string(); }
-        let mut text = v.to_string().replace("E", "e");
+        Self::format_float_text(v.to_string())
+    }
+
+    pub fn format_float_f32(v: f32) -> String {
+        if v.is_nan() { return "NaN".to_string(); }
+        if v == f32::INFINITY { return "Infinity".to_string(); }
+        if v == f32::NEG_INFINITY { return "-Infinity".to_string(); }
+        Self::format_float_text(v.to_string())
+    }
+
+    fn format_float_text(mut text: String) -> String {
+        if text == "0" || text == "-0" { return "0".to_string(); }
+        text = text.replace("E", "e");
         let negative = text.starts_with("-");
         if negative { text = text[1..].to_string(); }
         let parts: Vec<&str> = text.split("e").collect();
-        let mut mantissa = parts[0].to_string();
+        let mantissa = parts[0].to_string();
         let exponent: i32 = if parts.len() == 2 { parts[1].parse().unwrap_or(0) } else { 0 };
         let dot = mantissa.find(".").unwrap_or(mantissa.len());
         let mut digits = mantissa.replace(".", "");
@@ -98,10 +109,6 @@ impl FPHelper {
         let mantissa = if digits.len() == 1 { digits } else { format!("{}.{}", &digits[..1], &digits[1..]) };
         if negative { format!("-{}e{}{}", mantissa, if sci >= 0 { "+" } else { "" }, sci) }
         else { format!("{}e{}{}", mantissa, if sci >= 0 { "+" } else { "" }, sci) }
-    }
-
-    pub fn format_float_f32(v: f32) -> String {
-        Self::format_float(v as f64)
     }
 
     pub fn i64_to_double(low: u32, high: u32) -> f64 {
