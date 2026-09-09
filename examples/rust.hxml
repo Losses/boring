@@ -148,8 +148,8 @@ tests.StaticExtensionTests
 boring.StaticStateOps
 boring.StaticCollisionOps
 boring.StaticFnOps
-tests.StaticStateTests
 tests.StaticFnTests
+tests.StaticStateTests
 boring.FnValuesOps
 tests.FnValuesTests
 boring.ValueTypeOps
