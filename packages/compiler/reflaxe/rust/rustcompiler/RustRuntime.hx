@@ -84,7 +84,7 @@ impl FPHelper {
         let dot = mantissa.find(".").unwrap_or(mantissa.len());
         let mut digits = mantissa.replace(".", "");
         let mut position = dot as i32 + exponent;
-        while digits.len() > 1 && digits.starts_with('0') { digits.remove(0); position -= 1; }
+        while digits.len() > 1 && digits.starts_with("0") { digits.remove(0); position -= 1; }
         if position >= -5 && position <= 21 {
             let mut plain = if position <= 0 { format!("0.{}{}", "0".repeat((-position) as usize), digits) }
                 else if position as usize >= digits.len() { format!("{}{}", digits, "0".repeat(position as usize - digits.len())) }
