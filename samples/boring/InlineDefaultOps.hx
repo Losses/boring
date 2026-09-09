@@ -7,7 +7,7 @@ class InlineDefaultOps {
     public final region:Int;
     public final count:Int;
 
-    public function new(?marker:Null<Int>, region:Int, ?count:Null<Int>) {
+    public function new(region:Int, ?marker:Null<Int>, ?count:Null<Int>) {
         // The abstract-static-default path through ProbeUnit.ZERO_INT is
         // exercised by the ProbeUnit sample; this sample covers the plain
         // int default and the parameter-read default (count = region).
