@@ -5530,10 +5530,7 @@ class RustExpr {
                 }
                 if (isStringType(pt) && isStringType(arg.t)) {
                     out.push(switch (stripWrap(arg).expr) {
-                        // A string literal is emitted as a Rust &str literal by
-                        // the expression renderer; constructor/default paths
-                        // entering an owned String slot must materialize it.
-                        case TConst(TString(_)): StringTools.endsWith(argStr, ".to_string()") ? argStr : argStr + ".to_string()";
+                        case TConst(TString(_)): argStr;
                         case TLocal(v) if (paramVarIds.get(v.id) == true): argStr;
                         case _: argStr + ".as_str()";
                     });
