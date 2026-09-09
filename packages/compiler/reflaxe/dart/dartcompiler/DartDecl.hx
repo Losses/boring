@@ -425,7 +425,7 @@ class DartDecl {
         final first = ctor == null ? null : ValueTypeSupport.firstArgument(ctor);
         if (first == null)
             Context.error("value type constructor must take its representation", cls.pos);
-        final fieldName = first.name;
+        final fieldName = valueTypeFieldName(abs, [for (f in funcFields) f.field]);
         final lines:Array<String> = [
             "extension type " + info.name + "(" + types.of(info.representation) + " " + fieldName + ") {"
         ];
@@ -499,6 +499,52 @@ class DartDecl {
 
     function findFunc(funcFields:Array<ClassFuncData>, name:String):ClassFuncData {
         return PolicyQueries.findFunc(funcFields, name, "value type member is missing: " + name);
+    }
+
+    /**
+        The representation field name of a value type on this target. The
+        extension type member namespace holds the representation field
+        beside the instance methods, so a constructor parameter sharing a
+        rendered member name moves to `representation` (suffixed while that
+        name also collides). Wrappers without a clash keep the constructor
+        parameter name, leaving their output byte-identical.
+    **/
+    public static function valueTypeFieldName(abs:AbstractType, fields:Array<ClassField>):String {
+        final ctor = ValueTypeSupport.constructorField(abs);
+        final first = ctor == null ? null : ValueTypeSupport.firstArgument(ctor);
+        final base = first == null ? "value" : first.name;
+        final rendered = renderedValueTypeMemberNames(abs, fields);
+        if (rendered.indexOf(base) < 0)
+            return base;
+        var candidate = "representation";
+        var suffix = 0;
+        while (rendered.indexOf(candidate) >= 0) {
+            suffix++;
+            candidate = "representation" + suffix;
+        }
+        return candidate;
+    }
+
+    /**
+        Every member name the declaration renders for a value type: the
+        members the `continue` filter keeps (operator implementations
+        included under their source names) plus `toString`, which the loop
+        skips but the `toStringValue` declaration still renders.
+    **/
+    static function renderedValueTypeMemberNames(abs:AbstractType, fields:Array<ClassField>):Array<String> {
+        final out:Array<String> = [];
+        for (field in fields) {
+            if (field.name == "_new"
+                || field.name == "toString"
+                || (ValueTypeSupport.isInlineHelper(field) && ValueTypeSupport.operatorOf(abs, field) == null))
+                continue;
+            out.push(field.name);
+        }
+        if (ValueTypeSupport.memberField(abs, "toString") != null) {
+            out.push("toString");
+            out.push("toStringValue");
+        }
+        return out;
     }
 
     function dartOperatorName(op:ValueTypeOperator):String {
