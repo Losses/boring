@@ -1247,6 +1247,16 @@ class DartExpr {
         return PolicyQueries.valueTypeLocalValues(wrapper);
     }
 
+    /**
+        The implementation statics backing a value type, for the
+        declaration's rendered-name set when body lowering runs without
+        declaration context. The set matches the declaration site, so
+        renamed representation references stay consistent there too.
+    **/
+    function implStaticFields(abs:AbstractType):Array<ClassField> {
+        return abs.impl == null ? [] : abs.impl.get().statics.get();
+    }
+
     function valueTypeOperand(value:TypedExpr, locals:Map<Int, TypedExpr>, ?abs:AbstractType, asRepresentation:Bool = false):String {
         var source = value;
         var wrapperOperand = false;
@@ -1272,7 +1282,7 @@ class DartExpr {
             case _:
         }
         final rendered = expr(value);
-        final fieldName = abs == null ? "" : ValueTypeSupport.representationFieldName(abs);
+        final fieldName = abs == null ? "" : DartDecl.valueTypeFieldName(abs, implStaticFields(abs));
         final alreadyRepresentation = switch (stripWrap(value).expr) {
             case TLocal(v) if (subst.exists(v.id) && subst.get(v.id) == fieldName): true;
             case _: false;
@@ -1856,7 +1866,7 @@ class DartExpr {
             case IsMarkedAbstract(abs):
                 ValueTypeSupport.memberField(abs, "toString") != null ? receiverText(origin) + ".toStringValue()" : value
                     + "."
-                    + ValueTypeSupport.representationFieldName(abs)
+                    + DartDecl.valueTypeFieldName(abs, implStaticFields(abs))
                     + ".toString()";
             case IsFloat: runtimeQualified("formatFloat") + "(" + value + ")";
             case IsInt | IsBool: inConcat && depth == 0 ? value : "'${" + value + "}'";
