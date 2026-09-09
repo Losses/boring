@@ -850,6 +850,7 @@ class PipelineExpander {
                         final name = cf.get().name;
                         final cls = c.get();
                         final isFunctional = cls.name == "Functional"
+                            || cls.name == "Lambda"
                             || cls.pack.join(".") == "std.Functional"
                             || cls.module == "std.Functional";
                         if (isFunctional && isClosedListStatic(name)) {
@@ -857,8 +858,9 @@ class PipelineExpander {
                                 Context.fatalError("collection pipeline methods accept inline function literals only", e.pos);
                             }
                             if (isArrayType(args[0].t)) {
+                                final kind = cls.name == "Lambda" && name == "iter" ? "forEach" : name;
                                 return {
-                                    kind: name,
+                                    kind: kind,
                                     receiver: args[0],
                                     lambdaExpr: args[1],
                                     callExpr: e,
@@ -875,7 +877,7 @@ class PipelineExpander {
     }
 
     static function isClosedListStatic(name:String):Bool {
-        return name == "forEach" || name == "associate" || name == "sortedBy" || name == "any" || name == "all" || name == "firstOrNull"
+        return name == "forEach" || name == "iter" || name == "associate" || name == "sortedBy" || name == "any" || name == "all" || name == "firstOrNull"
             || name == "sumOfInt" || name == "sumOfFloat" || name == "mapNotNull" || name == "flatMap" || name == "groupBy";
     }
 
