@@ -6615,7 +6615,9 @@ class RustExpr {
                 if (c.get().name == "Array"
                     || c.get().name == "Bytes"
                     || (c.get().pack.join(".") == "haxe.io" && c.get().name == "Bytes")
-                    || c.get().name == "String"): true;
+                    || c.get().name == "String"
+                    || c.get().name == "StringBuf"
+                    || (c.get().module == "std" && c.get().name == "StringBuf")): true;
             case _: false;
         };
     }
@@ -6643,6 +6645,12 @@ class RustExpr {
             case _: false;
         })
             return "(" + rendered + ").clone()";
+        // A borrowed Copy value becomes a scalar at a value slot.
+        // Dereference the generated reference before the Rust call.
+        if (!isNullType(expected) && !isNullType(actual.t)
+            && isTypeCopy(actual.t) && StringTools.startsWith(rendered, "&")) {
+            return rendered.substr(0, 5) == "&mut " ? "*" + rendered.substr(5) : "*" + rendered.substr(1);
+        }
         // Rust represents
         // concrete implementor therefore enters an interface slot through
         // the one sanctioned Box::new construction; an expression already
@@ -6776,15 +6784,20 @@ class RustExpr {
                             case TField(_, FStatic(_, tableField)): DataTableHelper.isDataTableField(tableField.get());
                             case _: false;
                         };
-                        final prefix = if (isArray
-                            && !isTableArg
-                            && (mutablePositions != null && mutablePositions.indexOf(paramIndex) >= 0)) {
+                        final isMutableBuffer = switch (Context.follow(pt)) {
+                            case TInst(c, _): c.get().name == "StringBuf";
+                            case _: false;
+                        };
+                        final prefix = if (isMutableBuffer
+                            || (isArray
+                                && !isTableArg
+                                && (mutablePositions != null && mutablePositions.indexOf(paramIndex) >= 0))) {
                             switch (stripWrap(arg).expr) {
                                 case TLocal(v) if (isBorrowedLocal(v)): "&mut *";
                                 case _: "&mut ";
                             }
                         } else "&";
-                        if (isArray && !isTableArg && mutablePositions != null && mutablePositions.indexOf(paramIndex) >= 0) {
+                        if (isMutableBuffer || (isArray && !isTableArg && mutablePositions != null && mutablePositions.indexOf(paramIndex) >= 0)) {
                             final borrowedArg = switch (stripWrap(arg).expr) {
                                 case TLocal(v): isBorrowedLocal(v);
                                 case _: false;
@@ -6798,6 +6811,13 @@ class RustExpr {
                         } else if (!StringTools.startsWith(argStr, "&")) {
                             argStr = prefix + argStr;
                         }
+                    }
+                    if (isStringType(pt) && isStringType(arg.t)) {
+                        argStr = switch (stripWrap(arg).expr) {
+                            case TConst(TString(_)): argStr;
+                            case TLocal(v) if (paramVarIds.get(v.id) == true): expr(arg);
+                            case _: expr(arg) + ".as_str()";
+                        };
                     }
                 } else if (isRecordValueType(arg.t) && switch (stripWrap(arg).expr) {
                     case TLocal(_): true;
