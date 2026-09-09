@@ -1,6 +1,7 @@
 package tests;
 
 import boring.NumericWidenOps;
+import boring.SwitchMergeOps.SwitchMergeValue;
 import std.Test;
 
 class NumericWidenTests {
@@ -22,5 +23,14 @@ class NumericWidenTests {
         Test.equals(2.0, NumericWidenOps.assignDouble());
         Test.equals(2.5, NumericWidenOps.appliedFloat());
         Test.equals(1.0, NumericWidenOps.appliedDouble());
+    }
+
+    @:test("Conditional and switch arms widen for Float results")
+    public static function testBranchMerges():Void {
+        Test.equals(1.5, NumericWidenOps.conditionalMerge(true));
+        Test.equals(2.0, NumericWidenOps.conditionalMerge(false));
+        Test.equals(1.5, NumericWidenOps.switchMerge(SwitchMergeValue.First(1)));
+        Test.equals(2.0, NumericWidenOps.switchMerge(SwitchMergeValue.Second(1)));
+        Test.equals(0.5, NumericWidenOps.switchMerge(SwitchMergeValue.Third));
     }
 }
