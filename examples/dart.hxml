@@ -297,6 +297,10 @@ boring.ProbeChain
 tests.ProbeChainTests
 boring.CompareGateOps
 tests.CompareGateTests
+boring.DartLocalNameFixOps
+tests.DartLocalNameFixTests
+boring.DartEmptyArrayFixOps
+tests.DartEmptyArrayFixTests
 
 boring.RuntimeExportOps
 tests.RuntimeExportTests
