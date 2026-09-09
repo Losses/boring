@@ -4210,14 +4210,18 @@ class SwiftExpr {
             || (FloatPrecision.isF32() && isFloatLiteralArrayDecl(init) && containsFloatType(t));
     }
 
-    function isIntLeafType(t:Type):Bool {
+    function isIntLeafType(t:Null<Type>):Bool {
+        if (t == null)
+            return false;
         return switch (Context.follow(t)) {
             case TAbstract(a, _): a.get().name == "Int";
             case _: false;
         }
     }
 
-    public function isFloatLeafType(t:Type):Bool {
+    public function isFloatLeafType(t:Null<Type>):Bool {
+        if (t == null)
+            return false;
         return switch (Context.follow(t)) {
             case TAbstract(a, _): a.get().name == "Float";
             case _: false;
