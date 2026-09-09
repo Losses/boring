@@ -898,7 +898,18 @@ class Intercept {
     }
 
     static function isEnumCarryingException(start:ClassType):Bool {
-        return declaresEnumField(start) || isMessageOnlyException(start);
+        var current:Null<ClassType> = start;
+        while (current != null) {
+            if (current.pack.join(".") == "haxe" && current.name == "Exception") {
+                return false;
+            }
+            if (declaresEnumField(current)) {
+                return true;
+            }
+            final parent = current.superClass;
+            current = parent == null ? null : parent.t.get();
+        }
+        return false;
     }
 
     static function declaresEnumField(classType:ClassType):Bool {
