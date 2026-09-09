@@ -250,8 +250,9 @@ class KotlinExpr {
             case CConstructorCall(modulePath, name, args):
                 imports.requireType(modulePath, name);
                 final rendered = [for (a in args) coalescingDefaultText(a, targetType)];
-                final leading = args.length == 4 && name == "RustCoalesceRecord" ? ["mutableListOf<String>()"] : [];
-                final completed = leading.concat(rendered);
+                final allDefaults = DefaultArgExpander.omittedCallDefaults(modulePath, "new", 0, name);
+                final prefix = allDefaults == null ? null : allDefaults.slice(0, allDefaults.length - args.length);
+                final completed = prefix == null ? rendered : [for (o in prefix) coalescingDefaultText(o.value, o.type)].concat(rendered);
                 name + "(" + completed.join(", ") + ")";
         };
     }
@@ -3397,7 +3398,10 @@ class KotlinExpr {
                 argText = intToFloatText(argText);
             return valueType.name + "(" + argText + ")";
         }
-        final renderedArgs = renderCallArgs(args, constructorParams(cls), cls, "new").join(", ");
+        final renderedArgs = renderCallArgs(args, constructorParams(cls), cls, "new");
+        final prefixDefaults = DefaultArgExpander.constructorPrefixDefaultsForClass(cls, args.length);
+        final completedArgs = prefixDefaults == null ? renderedArgs : [for (o in prefixDefaults) coalescingDefaultText(o.value, o.type)].concat(renderedArgs);
+        final renderedText = completedArgs.join(", ");
         final path = cls.pack.length == 0 ? cls.name : cls.pack.join(".") + "." + cls.name;
         switch (path) {
             case "std.StringBuf" | "StringBuf":
@@ -3406,16 +3410,16 @@ class KotlinExpr {
                 return "mutableMapOf()";
             case "haxe.io.BytesBuffer":
                 imports.requireType(path, "BytesBuffer");
-                return "BytesBuffer(" + renderedArgs + ")";
+                return "BytesBuffer(" + renderedText + ")";
             case "Array":
                 imports.require("java.util.ArrayList");
-                return "ArrayList<" + types.of(params[0]) + ">(" + renderedArgs + ")";
+                return "ArrayList<" + types.of(params[0]) + ">(" + renderedText + ")";
             case _:
                 if (args.length == 1 && state.exceptionPayloads.exists(cls.module)) {
                     return exceptionVariant(cls, args[0]);
                 }
                 imports.requireType(cls.module, cls.name);
-                return cls.name + "(" + renderedArgs + ")";
+                return cls.name + "(" + renderedText + ")";
         }
     }
 
