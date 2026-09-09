@@ -243,7 +243,10 @@ class DartExpr {
         final omitted = DefaultArgExpander.omittedCallDefaults(modulePath, fieldName, args.length, className);
         if (omitted != null) {
             if (fieldName == "new") {
-                final prefix = DefaultArgExpander.constructorPrefixDefaults(modulePath, className, args.length);
+                // Slice the leading slots from omittedCallDefaults' full list;
+                // its module-and-class resolution is the proven Kotlin shape.
+                final allDefaults = DefaultArgExpander.omittedCallDefaults(modulePath, "new", 0, className);
+                final prefix = allDefaults == null ? null : allDefaults.slice(0, allDefaults.length - args.length);
                 if (prefix != null)
                     return [for (o in prefix) coalescingDefaultText(o.value, o.type)].concat(rendered);
             }
@@ -2700,6 +2703,12 @@ class DartExpr {
         final cls = c.get();
         final rendered = constructorArgTexts(cls, args).join(", ");
         final valueType = ValueTypeSupport.markedAbstractOfClass(cls);
+        // A coalescing omission carries the trailing defaults as explicit
+        // arguments; the leading slots must be prepended from the class's
+        // own constructor, the same completion the Kotlin target proved.
+        final prefixDefaults = DefaultArgExpander.constructorPrefixDefaultsForClass(cls, args.length);
+        final completed = prefixDefaults == null || prefixDefaults.length == 0 ? rendered
+            : [for (o in prefixDefaults) coalescingDefaultText(o.value, o.type)].join(", ") + ", " + rendered;
         if (valueType != null) {
             return ValueTypeSupport.constructorThrows(valueType) ? qualifiedRef(cls.module, ValueTypeSupport.constructorName(valueType))
                 + "("
@@ -2724,7 +2733,7 @@ class DartExpr {
                 // The type arguments ride on the constructor so the call
                 // needs no inference to bind them.
                 final head = qualifiedRef(cls.module, cls.name);
-                return (params.length > 0 ? head + "<" + [for (p in params) types.of(p)].join(", ") + ">" : head) + "(" + rendered + ")";
+                return (params.length > 0 ? head + "<" + [for (p in params) types.of(p)].join(", ") + ">" : head) + "(" + completed + ")";
         }
     }
 
