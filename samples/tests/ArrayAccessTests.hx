@@ -14,6 +14,8 @@ class ArrayAccessTests {
         Test.equals("a", ArrayAccessOps.readSplit("a,b"));
     }
 
+
+
     @:test("composite StringBuf part can read its first character")
     public static function testCompositePart():Void {
         Test.equals(65, ArrayAccessOps.compositeStringBufPart("A"));
