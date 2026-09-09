@@ -256,3 +256,6 @@ tests.CompareGateTests
 tests.SwiftDefaultTests
 tests.AbstractStaticDefaultTests
 boring.CfgTestProbe
+
+boring.RuntimeExportOps
+tests.RuntimeExportTests
