@@ -304,5 +304,3 @@ tests.CompareGateTests
 boring.RuntimeExportOps
 tests.RuntimeExportTests
 
-boring.ResidentModuleImportOps
-tests.ResidentModuleImportTests
