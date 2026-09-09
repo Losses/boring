@@ -252,13 +252,18 @@ class DefaultArgExpander {
         rewriteCrossSiteReads(func.expr, sites);
     }
 
+    static function isArrayType(t:Type):Bool {
+        return switch (Context.follow(withoutNull(t))) {
+            case TInst(c, _): c.get().name == "Array";
+            case TAbstract(a, _): a.get().name == "ReadOnlyArray";
+            case _: false;
+        };
+    }
+
     static function coalescingConstructorOmission(value:DefaultArgValue, parameterType:Type):CoalescingDefaultValue {
         return switch (value) {
             case VNull:
-                switch (Context.follow(withoutNull(parameterType))) {
-                    case TInst(c, _) if (c.get().name == "Array"): CEmptyArray;
-                    default: CNull;
-                };
+                isArrayType(parameterType) ? CEmptyArray : CNull;
             default: coalescingOf(value);
         };
     }
@@ -1627,10 +1632,7 @@ class DefaultArgExpander {
             // An optional parameter without an explicit Haxe default still
             // has a target default. Arrays use the target's empty value;
             // nullable scalar slots use null and let the callee coalesce.
-            final value = switch (Context.follow(withoutNull(args[i].t))) {
-                case TInst(c, _) if (c.get().name == "Array"): CEmptyArray;
-                default: CNull;
-            };
+            final value = isArrayType(args[i].t) ? CEmptyArray : CNull;
             out.push({value: value, type: args[i].t});
         }
         return out;

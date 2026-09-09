@@ -121,6 +121,13 @@ class DartDecl {
         }
 
         final module = cls.module;
+        for (f in funcFields) {
+            if (StaticFunctionMarkers.isMarked(f.field) || f.isStatic) {
+                final name = dartMemberName(f.field);
+                expr.reserveTopLevelName(name);
+                imports.reserveName(name);
+            }
+        }
         final extractedFuncs = [for (f in funcFields) if (StaticFunctionMarkers.isMarked(f.field)) f];
         final ordinaryFuncs = [for (f in funcFields) if (!StaticFunctionMarkers.isMarked(f.field)) f];
         // One extension name covers every function over the same receiver:
