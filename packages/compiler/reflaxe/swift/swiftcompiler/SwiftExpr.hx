@@ -4198,7 +4198,8 @@ class SwiftExpr {
             || isBuilderCall(init)
             || isNullLeafType(t)
             || hasCoalescing
-            || (FloatPrecision.isF32() && isFloatLeafType(t));
+            || (FloatPrecision.isF32() && isFloatLeafType(t))
+            || (FloatPrecision.isF32() && isFloatLiteralArrayDecl(init) && containsFloatType(t));
     }
 
     function isIntLeafType(t:Type):Bool {
@@ -4211,6 +4212,59 @@ class SwiftExpr {
     public function isFloatLeafType(t:Type):Bool {
         return switch (Context.follow(t)) {
             case TAbstract(a, _): a.get().name == "Float";
+            case _: false;
+        };
+    }
+
+    /**
+        Whether the initializer is an array literal whose elements are
+        float literals (a float literal, or a nested array of them).
+        On the f32 configuration Swift infers such a literal as [Double];
+        the declaration annotation pins [Float] instead.
+    **/
+    function isFloatLiteralArrayDecl(init:TypedExpr):Bool {
+        return switch (stripWrap(init).expr) {
+            case TArrayDecl(elems):
+                for (el in elems) {
+                    if (!isFloatLiteralElement(el)) {
+                        return false;
+                    }
+                }
+                true;
+            case _: false;
+        };
+    }
+
+    function isFloatLiteralElement(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TConst(c):
+                switch (c) {
+                    case TFloat(_): true;
+                    case _: false;
+                }
+            case TArrayDecl(_): isFloatLiteralArrayDecl(e);
+            case _: false;
+        };
+    }
+
+    /**
+        Whether a type contains Float at any nesting level (e.g. Float,
+        Array<Float>, Array<Array<Float>>).
+    **/
+    function containsFloatType(t:Type):Bool {
+        return switch (Context.follow(t)) {
+            case TAbstract(a, _): a.get().name == "Float";
+            case TInst(_, params):
+                for (p in params) {
+                    if (containsFloatType(p)) return true;
+                }
+                false;
+            case TEnum(_, params):
+                for (p in params) {
+                    if (containsFloatType(p)) return true;
+                }
+                false;
+            case TLazy(f): containsFloatType(f());
             case _: false;
         };
     }
