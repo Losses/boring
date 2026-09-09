@@ -10,17 +10,10 @@ import runtime.SortedTable;
     into the single runtime entry (docs/specs/features/14).
 **/
 class ResidentModuleImportOps {
-	#if ts_output
 	/** A round-trip map lookup through the directly imported resident. */
 	public static function mapLookup():Null<Int> {
 		final builder:SortedMapTableBuilder<Int, Int> = SortedTable.mapBuilder(SortedTable.compareInts);
 		builder.put(7, 100);
 		return builder.build().get(7);
 	}
-	#else
-	/** Non-TypeScript targets keep the resident off the module path. */
-	public static function mapLookup():Null<Int> {
-		return null;
-	}
-	#end
 }
