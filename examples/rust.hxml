@@ -147,6 +147,7 @@ boring.GlyphClusterReader
 tests.StaticExtensionProbes
 tests.StaticExtensionTests
 boring.StaticStateOps
+boring.StaticLazyDefaultOps
 boring.StaticCollisionOps
 boring.StaticFnOps
 tests.StaticFnTests
