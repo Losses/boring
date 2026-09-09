@@ -4,12 +4,14 @@ package tscompiler;
 /**
     Source of the runtime module emitted next to the generated files.
     It only hosts what the translatable subset cannot express inline:
-    the Int64 bit representation (stdlib/05) and the growable byte
-    sink behind haxe.io.BytesBuffer (stdlib/02).
+    the Int64 bit representation and the binary32 float edge of
+    stdlib/05, and the growable byte sink behind haxe.io.BytesBuffer
+    (stdlib/02).
 **/
 class TsRuntime {
     public static final SOURCE = '
 const DOUBLE_SCRATCH = new DataView(new ArrayBuffer(8));
+const FLOAT_SCRATCH = new DataView(new ArrayBuffer(4));
 
 export interface Int64Halves {
   readonly high: number;
@@ -25,6 +27,16 @@ export function i64ToDouble(low: number, high: number): number {
   DOUBLE_SCRATCH.setUint32(0, high);
   DOUBLE_SCRATCH.setUint32(4, low);
   return DOUBLE_SCRATCH.getFloat64(0);
+}
+
+export function floatToI32(value: number): number {
+  FLOAT_SCRATCH.setFloat32(0, value);
+  return FLOAT_SCRATCH.getInt32(0);
+}
+
+export function i32ToFloat(bits: number): number {
+  FLOAT_SCRATCH.setInt32(0, bits);
+  return FLOAT_SCRATCH.getFloat32(0);
 }
 
 export function readUnit(text: string, index: number): number | null {
