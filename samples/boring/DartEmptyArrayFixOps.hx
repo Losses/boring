@@ -12,9 +12,9 @@ class DartEmptyArrayFixOps {
 
 #if dart_output
 class DartEmptyArrayFixOptional {
-    final values:Array<String>;
+    final values:std.ReadOnlyArray<String>;
 
-    public function new(?values:Array<String>) {
+    public function new(?values:std.ReadOnlyArray<String>) {
         this.values = values;
     }
 
