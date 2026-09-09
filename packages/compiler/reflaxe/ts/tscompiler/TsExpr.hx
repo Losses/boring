@@ -217,7 +217,10 @@ class TsExpr {
         final omitted = DefaultArgExpander.omittedCallDefaults(modulePath, fieldName, args.length, className);
         if (omitted != null) {
             if (fieldName == "new") {
-                final prefix = DefaultArgExpander.constructorPrefixDefaults(modulePath, className, args.length);
+                // Slice the leading slots from omittedCallDefaults' full list;
+                // its module-and-class resolution is the proven Kotlin shape.
+                final allDefaults = DefaultArgExpander.omittedCallDefaults(modulePath, "new", 0, className);
+                final prefix = allDefaults == null ? null : allDefaults.slice(0, allDefaults.length - args.length);
                 if (prefix != null)
                     return [for (o in prefix) coalescingDefaultText(o.value, o.type)].concat(rendered);
             }
@@ -2247,6 +2250,12 @@ class TsExpr {
         final cls = c.get();
         final rendered = constructorArgTexts(cls, args).join(", ");
         final path = cls.pack.length == 0 ? cls.name : cls.pack.join(".") + "." + cls.name;
+        // A coalescing omission carries the trailing defaults as explicit
+        // arguments; the leading slots must be prepended from the class's
+        // own constructor, the same completion the Kotlin target proved.
+        final prefixDefaults = DefaultArgExpander.constructorPrefixDefaultsForClass(cls, args.length);
+        final completed = prefixDefaults == null || prefixDefaults.length == 0 ? rendered
+            : [for (o in prefixDefaults) coalescingDefaultText(o.value, o.type)].join(", ") + ", " + rendered;
         switch (path) {
             case "std.StringBuf" | "StringBuf":
                 return '""';
@@ -2259,7 +2268,7 @@ class TsExpr {
                 return "new Array<" + types.of(params[0]) + ">(" + rendered + ")";
             case _:
                 imports.value(cls.module, cls.name);
-                return "new " + cls.name + "(" + rendered + ")";
+                return "new " + cls.name + "(" + completed + ")";
         }
     }
 
