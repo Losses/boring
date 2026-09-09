@@ -216,9 +216,13 @@ class TsExpr {
         final rendered = [for (a in args) coalescingDefaultText(a, targetType)];
         final omitted = DefaultArgExpander.omittedCallDefaults(modulePath, fieldName, args.length, className);
         if (omitted != null) {
-            final omitted = DefaultArgExpander.omittedCallDefaults(modulePath, "new", 0, className);
-            final prefix = omitted == null ? [] : [for (o in omitted) o.value].slice(0, omitted.length - args.length);
-            return [for (o in prefix) coalescingDefaultText(o, targetType)].concat(rendered);
+            if (fieldName == "new") {
+                final prefix = DefaultArgExpander.constructorPrefixDefaults(modulePath, className, args.length);
+                if (prefix != null)
+                    return [for (o in prefix) coalescingDefaultText(o.value, o.type)].concat(rendered);
+            }
+            for (o in omitted)
+                rendered.push(coalescingDefaultText(o.value, o.type));
         }
         return rendered;
     }
