@@ -273,8 +273,10 @@ tests.EnumSortedKeysTests
 boring.DartCharNullOps
 tests.DartCharNullTests
 boring.RustCoalesceOps
+boring.CloneDeriveGapOps
 boring.SwitchMergeOps
 tests.RustCoalesceTests
+tests.CloneDeriveGapTests
 boring.LoopWriteOps
 boring.HaxeExceptionOps
 tests.HaxeExceptionTests
