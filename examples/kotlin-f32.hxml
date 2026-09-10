@@ -93,6 +93,7 @@ boring.DartEmptyArrayFixOps
 tests.DartEmptyArrayFixTests
 boring.Ts2448Ops
 boring.SwitchCaseScopeOps
+boring.RustIterOps
 tests.SwitchCaseScopeTests
 tests.Ts2448Tests
 boring.PrintedCustom
