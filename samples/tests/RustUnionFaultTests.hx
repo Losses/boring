@@ -16,7 +16,7 @@ class RustUnionFaultTests {
         try {
             RustUnionFaultSupport.directBoth(true);
         } catch (e:VectorException) {
-            Test.equals("BadMagic", Std.string(e.error));
+            Test.equals(11, TryOps.classifyFault(e.error));
         }
     }
 }
