@@ -4831,7 +4831,7 @@ class RustExpr {
                     return "u_string::substring(&" + expr(subj) + ", " + castSignedI32(args[0]) + ", i32::wrapping_add(" + castSignedI32(args[0]) + ", 1)"
                         + ")";
                 }
-                if (name == "indexOf" && isString(stripCast(subj)) && args.length >= 1) {
+                if ((name == "indexOf" || name == "index_of") && isString(stripCast(subj)) && args.length >= 1) {
                     return "match ("
                         + expr(subj)
                         + ").find("
@@ -4840,7 +4840,7 @@ class RustExpr {
                         + RustConversions.narrowI32("v")
                         + ", None => -1 }";
                 }
-                if (name == "charCodeAt" && isString(stripCast(subj))) {
+                if ((name == "charCodeAt" || name == "char_code_at") && isString(stripCast(subj))) {
                     state.shimsUsed.set("std.UStringRT", true);
                     imports.require("crate::runtime::u_string");
                     // The call site's own expression decides: a Null<Int>
@@ -4862,7 +4862,13 @@ class RustExpr {
                     imports.require("crate::runtime::u_string");
                     return "u_string::split(&" + expr(subj) + ", &" + expr(args[0]) + ")";
                 }
-                if (name == "substring" && isString(stripCast(subj))) {
+                if ((name == "lastIndexOf" || name == "last_index_of") && isString(stripCast(subj)) && args.length >= 1) {
+                    return "match (" + expr(subj) + ").rfind(" + expr(args[0]) + ") { Some(v) => " + RustConversions.narrowI32("v") + ", None => -1 }";
+                }
+                if ((name == "startsWith" || name == "starts_with") && isString(stripCast(subj)) && args.length >= 1) {
+                    return "(" + expr(subj) + ").starts_with(" + expr(args[0]) + ")";
+                }
+                if ((name == "substring" || name == "sub_string") && isString(stripCast(subj))) {
                     // Member-call lowering into the u_string runtime: the
                     // bounds are UTF-16 units on every target, so the call
                     // converts them to byte boundaries. The runtime keeps
@@ -4975,6 +4981,9 @@ class RustExpr {
                 // implements under another operation.
                 if (name == "copy" && isVecType(subj)) {
                     return expr(subj) + ".clone()";
+                }
+                if ((name == "concat" || name == "concat_array") && isVecType(subj) && args.length == 1) {
+                    return "{ let mut result = " + expr(subj) + ".clone(); result.extend(" + expr(args[0]) + ".iter().cloned()); result }";
                 }
                 if (name == "shift" && isVecType(subj)) {
                     return "{ if " + expr(subj) + ".is_empty() { None } else { Some(" + expr(subj) + ".remove(0)) } }";
