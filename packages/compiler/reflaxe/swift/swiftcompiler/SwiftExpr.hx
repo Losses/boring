@@ -103,6 +103,13 @@ class SwiftExpr {
     /** Names used by parameters and locals; generated names avoid them. */
     final usedNames:Map<String, Bool> = [];
 
+    /** Local declarations that `localName` may rename; parameters stay raw. */
+    final localDeclIds:Map<Int, Bool> = [];
+
+    /** Swift name chosen for each local; a duplicate Haxe name mints a
+        distinct Swift name here. */
+    final assignedLocalNames:Map<Int, String> = [];
+
     /** Active runtime renderers for cyclic enum stringification. */
     final enumStringNaming:EnumStringHelperNaming = new EnumStringHelperNaming();
 
@@ -152,6 +159,7 @@ class SwiftExpr {
 
     /** Entry at statement scope for framework-initiated compiles. */
     public function topLevelStatements(e:TypedExpr):String {
+        beginLocalScope();
         scanLocals(e);
         return blockLines(statementsOf(e), 0).join("\n");
     }
@@ -421,6 +429,7 @@ class SwiftExpr {
             case _: false;
         };
         // Depth 2: one level under the member's own indentation.
+        beginLocalScope();
         scanLocals(f.expr);
         final result = blockLines(statementsOf(f.expr), depth);
         currentReturnType = null;
@@ -466,6 +475,7 @@ class SwiftExpr {
             case TFun(_, ret): isFloatLeafType(ret);
             case _: false;
         };
+        beginLocalScope();
         scanLocals(f.expr);
         final out:Array<String> = [];
         for (stmt in statementsOf(f.expr)) {
@@ -497,6 +507,7 @@ class SwiftExpr {
         DefaultArgExpander.completeRootExpr(cls, f.field.name, f.expr);
         PipelineExpander.expandRootExpr(f.expr);
         EnumQueryExpander.expandRootExpr(f.expr);
+        beginLocalScope();
         scanLocals(f.expr);
         final stmts = statementsOf(f.expr);
         final out:Array<String> = [];
@@ -3939,6 +3950,7 @@ class SwiftExpr {
     function scanLocals(e:TypedExpr):Void {
         switch (e.expr) {
             case TVar(v, init):
+                localDeclIds.set(v.id, true);
                 PolicyQueries.noteDeclaredLocalName(v, usedNames, false);
                 final coalescing = coalescingSiteFor(init);
                 final coalescingValue = coalescing == null ? null : (currentLocalName != null ? DefaultArgExpander.coalescingDefaultForLocalParam(currentClass,
@@ -4084,9 +4096,43 @@ class SwiftExpr {
         return PolicyQueries.mentionsLocal(e, v);
     }
 
+    /** Starts a function's local scope so duplicate Haxe names mint distinct Swift names. */
+    function beginLocalScope():Void {
+        localDeclIds.clear();
+        assignedLocalNames.clear();
+    }
+
+    function localNameAssigned(name:String):Bool {
+        for (existing in assignedLocalNames) {
+            if (existing == name) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     function localName(v:TVar):String {
         if (v.name != "`") {
-            return SwiftNameEscape.escape(v.name);
+            if (!localDeclIds.exists(v.id)) {
+                return SwiftNameEscape.escape(v.name);
+            }
+            if (assignedLocalNames.exists(v.id)) {
+                return assignedLocalNames.get(v.id);
+            }
+            final base = SwiftNameEscape.escape(v.name);
+            if (!localNameAssigned(base)) {
+                assignedLocalNames.set(v.id, base);
+                return base;
+            }
+            var suffix = 1;
+            var candidate = base + suffix;
+            while (usedNames.exists(candidate) || localNameAssigned(candidate)) {
+                suffix += 1;
+                candidate = base + suffix;
+            }
+            assignedLocalNames.set(v.id, candidate);
+            usedNames.set(candidate, true);
+            return candidate;
         }
         if (hiddenNames.exists(v.id)) {
             return hiddenNames.get(v.id);
