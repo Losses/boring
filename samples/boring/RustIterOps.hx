@@ -1,56 +1,25 @@
 package boring;
 
-import std.SortedMap;
-
-class RustIterOps {
-    public static function iterMapValues(map:SortedMap<String, Int>):Int {
-        var total = 0;
-        for (v in map) {
-            total += v;
-        }
-        return total;
-    }
-
-    public static function filterAndCollect(values:Array<Int>):Array<Int> {
-        var result:Array<Int> = [];
-        for (v in values) {
-            if (v > 0) {
-                result.push(v);
-            }
-        }
-        return result;
-    }
-
-    public static function spliceAndShift(arr:Array<Int>):Array<Int> {
-        arr.splice(0, 1);
-        arr.push(42);
-        return arr;
-    }
-
-    public static function optionalFieldCtor(opt:Null<Int>):OptionalHolder {
-        return new OptionalHolder(opt);
-    }
-
-    public static function matchArmIter(items:Array<Int>):Int {
-        var total = 0;
-        var maybeArr:Null<Array<Int>> = items;
-        switch (maybeArr) {
-            case Some(arr):
-                for (v in arr) {
-                    total += v;
-                }
-            case None:
-        }
-        return total;
+class IterItem {
+    public var index:Int;
+    public function new(index:Int) {
+        this.index = index;
     }
 }
 
-class OptionalHolder {
-    public final value:Int;
-    public final extra:Null<Int>;
+class IterPrep {
+    public var items:Array<IterItem>;
+    public function new(items:Array<IterItem>) {
+        this.items = items;
+    }
+}
 
-    public function new(value:Int, extra:Null<Int> = null) {
-        this.value = value;
-        this.extra = extra;
+class RustIterOps {
+    public static function sumItems(prep:IterPrep):Int {
+        var total = 0;
+        for (item in prep.items) {
+            total += item.index;
+        }
+        return total;
     }
 }
