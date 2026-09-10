@@ -2717,7 +2717,10 @@ class DartExpr {
             } else if (d != null && p != null && isNullLeafType(args[i].t)) {
                 "(" + expr(args[i]) + " ?? " + ((cls.name == "RubySpan" || cls.name == "Cluster") ? constructorDefaultText(d, p, cls, args) : defaultArgText(d, p)) + ")";
             } else {
-                expr(args[i]);
+                var rendered = expr(args[i]);
+                if (p != null && !isNullLiteral(args[i]) && nullableValue(args[i]) && !isNullLeafType(p))
+                    rendered = requiredValueText(args[i]);
+                isIntOrLongType(emittedType(args[i])) && p != null && isFloatType(p) ? intToFloatText(rendered) : rendered;
             }
         }];
     }
