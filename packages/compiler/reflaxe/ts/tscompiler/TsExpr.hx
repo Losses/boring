@@ -83,6 +83,12 @@ class TsExpr {
     /** Names used by parameters and locals; generated names avoid them. */
     final usedNames:Map<String, Bool> = [];
 
+    /** Target names assigned to locals in the active function. */
+    final scopedLocalNames:Map<Int, String> = [];
+
+    /** Number of locals assigned to each source name in the active function. */
+    final scopedNameCounts:Map<String, Int> = [];
+
     /** Locals backed by the FPHelper high/low boundary object. */
     final fpInt64Halves:Map<Int, Bool> = [];
 
@@ -134,7 +140,7 @@ class TsExpr {
 
     /** Entry at statement scope for framework-initiated compiles. */
     public function topLevelStatements(e:TypedExpr):String {
-        scanLocals(e);
+        prepareLocals(e);
         return blockLines(statementsOf(e), 0).join("\n");
     }
 
@@ -317,7 +323,7 @@ class TsExpr {
         };
         activeLoopParseHoists = null;
 
-        scanLocals(f.expr);
+        prepareLocals(f.expr);
         return blockLines(statementsOf(f.expr), 2);
     }
 
@@ -369,7 +375,7 @@ class TsExpr {
         };
         if (f.args.length > 0)
             bindLocalName(f.args[0].tvar, f.args[0].name);
-        scanLocals(f.expr);
+        prepareLocals(f.expr);
         final out:Array<String> = [];
         for (stmt in statementsOf(f.expr)) {
             if (ValueTypeSupport.isThisDeclaration(stmt) || ValueTypeSupport.isThisAssignment(stmt) || ValueTypeSupport.isThisReturn(stmt))
@@ -404,7 +410,7 @@ class TsExpr {
             case TFun(_, ret): PolicyQueries.isNullableType(ret);
             case _: false;
         };
-        scanLocals(f.expr);
+        prepareLocals(f.expr);
         final stmts = statementsOf(f.expr);
         final out:Array<String> = [];
         var superIdx = -1;
@@ -849,7 +855,7 @@ class TsExpr {
     }
 
     function loopLines(loop, depth:Int, fold:Null<String>):Array<String> {
-        final name = loop.index.name;
+        final name = localName(loop.index);
         final boundText = expr(loop.bound);
         // Member reads and pure collection-size calls must be evaluated once
         // before the loop. A literal bound needs no hoist; hoisting it would
@@ -959,7 +965,7 @@ class TsExpr {
         final sizeHoist = isSortedSetSizeBound(loop.bound);
         final allocBound = hoistName != null ? hoistName : (sizeHoist ? "Math.max(count, 0)" : allocationBound(loop.bound));
         final condBound = hoistName != null ? hoistName : (sizeHoist ? "count" : expr(loop.bound));
-        final name = loop.index.name;
+        final name = localName(loop.index);
         final out:Array<String> = [];
         if (sizeHoist)
             out.push(indent(depth) + "const count = " + expr(loop.bound) + ";");
@@ -2822,10 +2828,21 @@ class TsExpr {
     // Local analysis
     // ------------------------------------------------------------------
 
+    function prepareLocals(e:TypedExpr):Void {
+        scopedLocalNames.clear();
+        scopedNameCounts.clear();
+        scanLocals(e);
+    }
+
     function scanLocals(e:TypedExpr):Void {
         switch (e.expr) {
             case TVar(v, init):
                 PolicyQueries.noteDeclaredLocalName(v, usedNames, false);
+                if (v.name != "`" && v.name != "_") {
+                    final count = scopedNameCounts.exists(v.name) ? scopedNameCounts.get(v.name) + 1 : 1;
+                    scopedNameCounts.set(v.name, count);
+                    scopedLocalNames.set(v.id, count == 1 ? v.name : v.name + count);
+                }
                 PolicyQueries.noteFpInt64Init(v, init, fpInt64Halves);
             case TBinop(OpAssign, t, _) | TBinop(OpAssignOp(_), t, _):
                 switch (t.expr) {
@@ -2861,7 +2878,7 @@ class TsExpr {
             return localAliases.get(v.id);
         }
         if (v.name != "`") {
-            return v.name;
+            return scopedLocalNames.exists(v.id) ? scopedLocalNames.get(v.id) : v.name;
         }
         if (hiddenNames.exists(v.id)) {
             return hiddenNames.get(v.id);
