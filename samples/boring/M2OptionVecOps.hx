@@ -42,18 +42,18 @@ class M2OptionVecOps {
         return index.get(k) == "v";
     }
 
-    public static function copyArray(src:Array<Int>):String {
+    public static function copyArray(src:Array<String>):String {
         final copy = src.copy();
         return copy.join(",");
     }
 
-    public static function shiftArray(src:Array<Int>):String {
+    public static function shiftArray(src:Array<String>):String {
         final shifted = src.shift();
         if (shifted == null) return ":" + src.join(",");
         return shifted + ":" + src.join(",");
     }
 
-    public static function unshiftArray(src:Array<Int>, v:Int):String {
+    public static function unshiftArray(src:Array<String>, v:String):String {
         src.unshift(v);
         return src.join(",");
     }
