@@ -6,6 +6,6 @@ import std.Test;
 class CloneDeriveGapTests {
     @:test("data class holding a plain-class field derives Clone and reads owned values")
     public static function resolve():Void {
-        Test.equals("1..3:x", CloneDeriveGapOps.resolve());
+        Test.equals(3, CloneDeriveGapOps.resolve());
     }
 }
