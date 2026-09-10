@@ -2711,16 +2711,44 @@ class TsExpr {
                 return fail(sw, "variant switch case index has no construct");
             }
             out.push(indent(depth) + '  case "${info.name}":');
-            for (l in armLines(c.expr, depth + 2))
-                out.push(l);
+            if (armHasDeclarations(c.expr)) {
+                out.push(indent(depth + 1) + "{");
+                for (l in armLines(c.expr, depth + 2))
+                    out.push(l);
+                out.push(indent(depth + 1) + "}");
+            } else {
+                for (l in armLines(c.expr, depth + 2))
+                    out.push(l);
+            }
         }
         if (switchParts.def != null) {
             out.push(indent(depth) + "  default:");
-            for (l in armLines(switchParts.def, depth + 2))
-                out.push(l);
+            if (armHasDeclarations(switchParts.def)) {
+                out.push(indent(depth + 1) + "{");
+                for (l in armLines(switchParts.def, depth + 2))
+                    out.push(l);
+                out.push(indent(depth + 1) + "}");
+            } else {
+                for (l in armLines(switchParts.def, depth + 2))
+                    out.push(l);
+            }
         }
         out.push(indent(depth) + "}");
         return out;
+    }
+
+    /** True if a variant switch arm declares locals that would collide with
+        sibling arms under TypeScript's shared switch scope. Wrapping such an
+        arm in a block gives each its own lexical scope. **/
+    function armHasDeclarations(e:TypedExpr):Bool {
+        for (step in PolicyQueries.variantArmPlan(e)) {
+            switch (step) {
+                case ForwardOrDecl(v, _, source): if (!subst.exists(source.id)) return true;
+                case PlainDecl(_, _): return true;
+                case _:
+            }
+        }
+        return false;
     }
 
     function armLines(e:TypedExpr, depth:Int):Array<String> {
