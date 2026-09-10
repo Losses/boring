@@ -168,6 +168,26 @@ class Compiler extends PluginCompiler<Compiler> {
                         lines.push("    " + variant + "(crate::" + RustImports.moduleToRustPath(emitted) + "::" + item.name + "),");
                     }
                     lines.push("}");
+                    // A typed catch may surround a body whose fallibility
+                    // analysis synthesized a wider union. The closure's `?`
+                    // then converts that union back to the caught payload.
+                    // Keep the matching payload intact; a sibling cannot be
+                    // caught by this Haxe clause and remains a failed boundary.
+                    for (target in u.members) {
+                        final targetEmitted = state.payloadEnumModules.exists(target.module) ? state.payloadEnumModules.get(target.module) : target.module;
+                        final targetPath = "crate::" + RustImports.moduleToRustPath(targetEmitted) + "::" + target.name;
+                        final targetVariant = variants != null
+                            && variants.exists(target.module + "::" + target.name) ? variants.get(target.module + "::" + target.name) : target.name + "Fault";
+                        lines.push("");
+                        lines.push("impl From<" + u.name + "> for " + targetPath + " {");
+                        lines.push("    fn from(value: " + u.name + ") -> Self {");
+                        lines.push("        match value {");
+                        lines.push("            " + u.name + "::" + targetVariant + "(value) => value,");
+                        lines.push("            _ => panic!(\"fault union converted to an unrelated fault\"),");
+                        lines.push("        }");
+                        lines.push("    }");
+                        lines.push("}");
+                    }
                     // `?` in generated closures uses Rust's standard error
                     // conversion hook.  Synthetic fault unions are the
                     // lowering's conversion boundary, so make every direct
