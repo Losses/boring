@@ -1711,6 +1711,17 @@ class RustDecl {
         return null;
     }
 
+    function getFieldType(cls:ClassType, name:String):Null<Type> {
+        for (field in cls.fields.get()) {
+            switch (field.kind) {
+                case FVar(_, _) if (field.name == name):
+                    return field.type;
+                case _:
+            }
+        }
+        return null;
+    }
+
     function instanceFuncDecl(cls:ClassType, f:ClassFuncData, hasLifetime:Bool, isTraitImpl:Bool = false, interfaceModule:Null<String> = null, interfaceName:Null<String> = null):Array<String> {
         final isConstructor = f.field.name == "new";
         final snakeName = isConstructor ? "new" : RustImports.toSnakeCase(f.field.name);
@@ -1813,7 +1824,13 @@ class RustDecl {
                     lines.push(StringTools.startsWith(argType,
                         "Option<") ? '            $sname: $sname.map(Box::new),' : '            $sname: Box::new($sname),');
                 } else {
-                    lines.push('            $sname,');
+                    final argTypeStr = types.of(a.type, false);
+                    final fieldTypeStr = types.of(getFieldType(cls, a.name));
+                    if (StringTools.startsWith(argTypeStr, "Option<") && !StringTools.startsWith(fieldTypeStr, "Option<")) {
+                        lines.push('            $sname: $sname.unwrap_or_default(),');
+                    } else {
+                        lines.push('            $sname,');
+                    }
                 }
             }
             // Fields the constructor initializes from their own
