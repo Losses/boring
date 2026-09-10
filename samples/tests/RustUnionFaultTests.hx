@@ -11,6 +11,13 @@ class RustUnionFaultTests {
     public static function unionFaults():Void {
         var text = "direct|edge|cascade";
         Test.equals("direct|edge|cascade", text);
+        // Keep the mixed exception edge reachable: Rust must lower the two
+        // payload families through the synthetic fault union.
+        try {
+            RustUnionFaultSupport.directBoth(true);
+        } catch (e:VectorException) {
+            Test.equals("BadMagic", Std.string(e.error));
+        }
     }
 }
 

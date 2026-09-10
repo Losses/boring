@@ -198,6 +198,7 @@ tests.RegistryJsonTests
 tests.RegistrySemverTests
 tests.RegistryPipelineTests
 tests.RegistryParseArgsTests
+tests.RustUnionFaultTests
 boring.ArrayIterationOps
 boring.CaptureSwitchOps
 boring.PayloadSelfMapOps
