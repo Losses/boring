@@ -2075,6 +2075,11 @@ class DartExpr {
         final renderedArgs = callArgTexts(fn, args);
         final rendered = renderedArgs.join(", ");
         switch (fn.expr) {
+            case TField(subj, FInstance(_, _, cf)) if (cf.get().name == "copy" && isArrayType(subj.t)):
+                return receiverText(subj) + ".toList()";
+            default:
+        }
+        switch (fn.expr) {
             case TField(_, FStatic(c, cf)) if (c.get().module == "Std" && cf.get().name == "isOfType" && args.length == 2):
                 return stdIsOfType(args);
             case TField(subj, FInstance(_, _, cf)) if (cf.get().name == "get_message" && args.length == 0):
