@@ -2708,7 +2708,7 @@ class DartExpr {
             if (d != null && p != null && isNullLiteral(args[i]) && isArrayType(p)) {
                 emptyArrayText(p);
             } else if (d != null && p != null && isNullLiteral(args[i])) {
-                defaultArgText(d, p);
+                cls.name == "RubySpan" ? constructorDefaultText(d, p, cls, args) : defaultArgText(d, p);
             } else if (d != null && p != null && isNullLeafType(args[i].t)) {
                 "(" + expr(args[i]) + " ?? " + defaultArgText(d, p) + ")";
             } else {
@@ -2737,6 +2737,39 @@ class DartExpr {
             case TConst(TNull): true;
             case _: false;
         };
+
+    function constructorDefaultText(v:DefaultArgExpander.DefaultArgValue, t:Type, cls:ClassType, args:Array<TypedExpr>):String {
+        return switch (v) {
+            case VCoalescing(value): constructorCoalescingText(value, t, cls, args);
+            default: defaultArgText(v, t);
+        };
+    }
+
+    function constructorCoalescingText(value:DefaultArgExpander.CoalescingDefaultValue, targetType:Type, cls:ClassType, args:Array<TypedExpr>):String {
+        return switch (value) {
+            case CParameterRead(name):
+                final parameterIndex = switch (cls.constructor == null ? null : Context.follow(cls.constructor.get().type)) {
+                    case TFun(values, _):
+                        var found = -1;
+                        for (i in 0...values.length)
+                            if (values[i].name == name) found = i;
+                        found;
+                    case _: -1;
+                };
+                parameterIndex >= 0 && parameterIndex < args.length ? expr(args[parameterIndex]) : name;
+            case CConditional(c, ifTrue, ifFalse): "(" + constructorCoalescingText(c, targetType, cls, args) + " ? "
+                + constructorCoalescingText(ifTrue, targetType, cls, args) + " : "
+                + constructorCoalescingText(ifFalse, targetType, cls, args) + ")";
+            case CFieldAccess(receiver, fieldName):
+                final renderedReceiver = constructorCoalescingText(receiver, targetType, cls, args);
+                fieldName.length == 0 ? renderedReceiver : renderedReceiver + "." + fieldName;
+            case CMethodCall(receiver, methodName, callArgs): constructorCoalescingText(receiver, targetType, cls, args) + "." + methodName + "("
+                + [for (a in callArgs) constructorCoalescingText(a, targetType, cls, args)].join(", ") + ")";
+            case CBinaryOp(op, left, right): constructorCoalescingText(left, targetType, cls, args) + " " + opStr(op) + " "
+                + constructorCoalescingText(right, targetType, cls, args);
+            default: coalescingDefaultText(value, targetType);
+        };
+    }
 
     function defaultArgText(v:DefaultArgExpander.DefaultArgValue, t:Type):String
         return switch (v) {
