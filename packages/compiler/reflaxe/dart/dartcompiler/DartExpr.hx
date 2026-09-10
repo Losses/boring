@@ -1003,6 +1003,10 @@ class DartExpr {
         return PolicyQueries.intervalShort(counterDecl, whileExpr);
     }
 
+    function iterableText(array:TypedExpr):String {
+        return isNullLeafType(array.t) ? "(" + expr(array) + " ?? <dynamic>[])" : expr(array);
+    }
+
     function loopLines(loop:{
         index:TVar,
         start:TypedExpr,
@@ -1030,7 +1034,7 @@ class DartExpr {
                                     }
                                 }
                                 if (!readsIndex) {
-                                    final out = [indent(depth) + "for (var " + localName(item) + " in " + expr(array) + ") {"];
+                                    final out = [indent(depth) + "for (var " + localName(item) + " in " + iterableText(array) + ") {"];
                                     for (l in blockLines(loop.body.slice(1), depth + 1))
                                         out.push(l);
                                     out.push(indent(depth) + "}");
