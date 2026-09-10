@@ -25,6 +25,11 @@ class ValueTypeTests {
         Test.equals(true, ValueTypeConsumer.blankRejected());
     }
 
+    @:test("nullable value wrapper field preserves its presence")
+    public static function testOptionalIc():Void {
+        Test.equals(2.0, ValueTypeConsumer.optionalIcPresent());
+    }
+
     @:test("declared wrapper toString returns its representation")
     public static function testRenderedString():Void {
         Test.equals("face", ValueTypeConsumer.renderedId());
