@@ -946,7 +946,7 @@ class DartDecl {
         var optionalStarted = false;
         for (i in start...f.args.length) {
             final a = f.args[i];
-            final part = types.of(a.type) + " " + a.name;
+            final part = types.of(a.type) + " " + expr.parameterName(a.tvar, a.name);
             if (DefaultArgExpander.coalescingDefaultAt(cls, f.field.name, a.index) != null) {
                 optionalStarted = true;
             }
@@ -970,7 +970,7 @@ class DartDecl {
         final optional:Array<String> = [];
         var optionalStarted = false;
         for (a in f.args) {
-            final part = formalFields.exists(a.name) ? "this." + formalFields.get(a.name) : types.of(a.type) + " " + a.name;
+            final part = formalFields.exists(a.name) ? "this." + formalFields.get(a.name) : types.of(a.type) + " " + expr.parameterName(a.tvar, a.name);
             if (DefaultArgExpander.coalescingDefaultAt(cls, f.field.name, a.index) != null) {
                 optionalStarted = true;
             }
