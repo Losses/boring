@@ -2,6 +2,7 @@ package tests;
 
 import boring.VectorError;
 import boring.VectorException;
+import boring.TryOps;
 import registry.CoreException;
 import registry.CoreFault;
 import std.Test;
