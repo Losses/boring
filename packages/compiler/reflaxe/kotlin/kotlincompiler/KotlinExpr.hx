@@ -2987,7 +2987,13 @@ class KotlinExpr {
                         }
                     }
                     if (name == "sumOfFloat") {
-                        return expr(receiver) + ".sumOf { " + expr(args[1]) + ".toDouble() }.toFloat()";
+                        final func = unwrapLambda(args[1]);
+                        if (func != null && func.args.length == 1) {
+                            final paramName = KotlinNameEscape.escape(func.args[0].v.name);
+                            final valueExpr = expr(lambdaBody(func.expr));
+                            return expr(receiver) + ".sumOf { " + paramName + " -> " + valueExpr + " }";
+                        }
+                        return fail(fn, "sumOfFloat requires a one-argument lambda");
                     }
                     if (name == "forEach") {
                         return expr(receiver) + ".forEach(" + expr(args[1]) + ")";
