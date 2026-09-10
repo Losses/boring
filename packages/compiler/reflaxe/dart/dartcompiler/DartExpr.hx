@@ -2708,7 +2708,7 @@ class DartExpr {
             if (d != null && p != null && isNullLiteral(args[i]) && isArrayType(p)) {
                 emptyArrayText(p);
             } else if (d != null && p != null && isNullLiteral(args[i])) {
-                cls.name == "RubySpan" ? constructorDefaultText(d, p, cls, args) : defaultArgText(d, p);
+                (cls.name == "RubySpan" || cls.name == "Cluster") ? constructorDefaultText(d, p, cls, args) : defaultArgText(d, p);
             } else if (d != null && p != null && isNullLeafType(args[i].t)) {
                 "(" + expr(args[i]) + " ?? " + defaultArgText(d, p) + ")";
             } else {
