@@ -30,8 +30,12 @@ class CloneDeriveResult {
 }
 
 class CloneDeriveGapOps {
-    public static function resolve():String {
-        final r = new CloneDeriveResult(new CloneDeriveRange(1, 3), "x");
-        return r.range.toString() + ":" + r.label;
+    // Indexing a Haxe Array reads its element with Haxe value semantics; the
+    // generator clones a non-Copy element out of the Vec. That clone needs
+    // CloneDeriveResult to carry #[derive(Clone)].
+    public static function resolve():Int {
+        final results:Array<CloneDeriveResult> = [new CloneDeriveResult(new CloneDeriveRange(1, 3), "x")];
+        final r = results[0];
+        return r.range.end;
     }
 }
