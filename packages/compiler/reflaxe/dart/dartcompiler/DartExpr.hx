@@ -2325,8 +2325,11 @@ class DartExpr {
                 if (name == "slice") {
                     return receiverText(subj) + ".sublist(" + expr(args[0]) + ", " + expr(args[1]) + ")";
                 }
-                if (name == "indexOf" && isStringSubject(subj) && args.length >= 1) {
-                    return receiverText(subj) + ".indexOf(" + renderedArgs[0] + ")";
+                if (name == "indexOf" && args.length >= 1) {
+                    if (isStringSubject(subj))
+                        return receiverText(subj) + ".indexOf(" + renderedArgs[0] + ")";
+                    final end = args.length >= 2 && isNullLiteral(args[1]) ? 1 : renderedArgs.length;
+                    return receiverText(subj) + ".indexOf(" + renderedArgs.slice(0, end).join(", ") + ")";
                 }
                 if (name == "substring" && isStringSubject(subj)) {
                     // The haxe typer passes a synthesized null for an
