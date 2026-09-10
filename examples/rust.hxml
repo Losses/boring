@@ -314,3 +314,6 @@ tests.RuntimeExportTests
 
 boring.ResidentModuleImportOps
 tests.ResidentModuleImportTests
+
+boring.M2OptionVecOps
+tests.M2OptionVecTests
