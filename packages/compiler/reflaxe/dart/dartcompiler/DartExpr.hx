@@ -775,7 +775,7 @@ class DartExpr {
                     nonNullLocals.set(guarded.id, true);
                 return lines;
             case TWhile(c, b, true):
-                final out = [indent(depth) + "while (" + expr(c) + ") {"];
+                final out = [indent(depth) + "while (" + conditionText(c) + ") {"];
                 for (l in blockLines(statementsOf(b), depth + 1))
                     out.push(l);
                 out.push(indent(depth) + "}");
@@ -840,8 +840,14 @@ class DartExpr {
         }
     }
 
+    function conditionText(c:TypedExpr):String {
+        if (isNullLeafType(c.t))
+            return "(" + expr(c) + ") ?? false";
+        return expr(c);
+    }
+
     function ifLines(c:TypedExpr, t:TypedExpr, f:Null<TypedExpr>, depth:Int):Array<String> {
-        final out = [indent(depth) + "if (" + expr(c) + ") {"];
+        final out = [indent(depth) + "if (" + conditionText(c) + ") {"];
         for (l in blockLines(statementsOf(t), depth + 1))
             out.push(l);
         if (f != null) {
