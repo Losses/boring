@@ -1640,7 +1640,7 @@ class DefaultArgExpander {
 
     /** Defaults for the leading constructor slots omitted by Haxe's suffix form. */
     public static function constructorPrefixDefaultsForClass(cls:ClassType, explicitCount:Int):Null<Array<{value:CoalescingDefaultValue, type:Type}>> {
-        if (cls == null || cls.constructor == null || explicitCount < 0)
+        if (cls == null || cls.constructor == null || explicitCount <= 0)
             return null;
         final parameters = switch (Context.follow(cls.constructor.get().type)) {
             case TFun(values, _): values;
@@ -1652,8 +1652,13 @@ class DefaultArgExpander {
         final out:Array<{value:CoalescingDefaultValue, type:Type}> = [];
         for (i in 0...(parameters.length - explicitCount)) {
             final d = defaultAt(cls, "new", i);
-            if (d == null)
+            if (d == null) {
+                if (parameters[i].opt) {
+                    out.push({value: CNull, type: parameters[i].t});
+                    continue;
+                }
                 return null;
+            }
             final value = coalescingConstructorOmission(d, parameters[i].t);
             // A prefix default is rendered at the call site, where constructor
             // parameter locals do not exist. Leave the whole prefix alone when
@@ -1958,7 +1963,7 @@ class DefaultArgExpander {
                         if (rustTarget) {
                             // Preserve the argument position when the target
                             // cannot retain the registered coalescing default.
-                            args.push(makeTypedConst(VNull, param.t, newExpr.pos));
+                            args.insert(i, makeTypedConst(VNull, param.t, newExpr.pos));
                         } else switch (coalescing) {
                             // A constant coalescing default is renderable at
                             // the call site on every target; materialize it so
@@ -1969,19 +1974,22 @@ class DefaultArgExpander {
                                 // The parameter type already carries the
                                 // element; the declaration is an empty array
                                 // literal of exactly that type.
-                                args.push({
+                                args.insert(i, {
                                     expr: TypedExprDef.TArrayDecl([]),
                                     pos: newExpr.pos,
                                     t: withoutNull(param.t)
                                 });
                             default:
+                                // Preserve the omitted slot; the constructor
+                                // body evaluates this default in its own scope.
+                                args.insert(i, makeTypedConst(VNull, param.t, newExpr.pos));
                         }
                     default:
                         // Same unwrapping as the call-site completion above.
                         args.insert(i, makeTypedConst(defVal, withoutNull(param.t), newExpr.pos));
                 }
             } else if (param.opt) {
-                args.push(makeTypedConst(VNull, param.t, newExpr.pos));
+                args.insert(i, makeTypedConst(VNull, param.t, newExpr.pos));
             }
         }
     }
