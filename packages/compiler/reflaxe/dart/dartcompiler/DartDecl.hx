@@ -74,6 +74,28 @@ class DartDecl {
         return expr.topLevelStatements(e);
     }
 
+    /** Reserve flattened static helper names before test bodies allocate imports. */
+    function reserveFlattenedNames(cls:ClassType):Void {
+        if (cls == null || cls.constructor != null || cls.superClass != null || cls.interfaces.length > 0 || cls.fields.get().length > 0)
+            return;
+        for (field in cls.statics.get()) {
+            if (field.name != "new") {
+                final name = dartMemberName(field);
+                expr.reserveTopLevelName(name);
+                imports.reserveName(name);
+            }
+        }
+    }
+
+    function reserveModuleFlattenedNames():Void {
+        for (moduleType in Context.getModule(imports.selfModule)) {
+            switch (moduleType) {
+                case TInst(ref, _): reserveFlattenedNames(ref.get());
+                default:
+            }
+        }
+    }
+
     public function rawExpression(e:TypedExpr):String {
         return expr.rawExpression(e);
     }
@@ -130,6 +152,13 @@ class DartDecl {
         }
         final extractedFuncs = [for (f in funcFields) if (StaticFunctionMarkers.isMarked(f.field)) f];
         final ordinaryFuncs = [for (f in funcFields) if (!StaticFunctionMarkers.isMarked(f.field)) f];
+        if (flattenStatics(cls) && isStaticsOnly(varFields, ordinaryFuncs) && !Compiler.keepStaticsClass(cls)) {
+            for (f in ordinaryFuncs) {
+                final name = dartMemberName(f.field);
+                expr.reserveTopLevelName(name);
+                imports.reserveName(name);
+            }
+        }
         // One extension name covers every function over the same receiver:
         // Dart rejects a second extension of the same name in a library,
         // so same-receiver functions share one declaration (spec 10).
@@ -165,6 +194,13 @@ class DartDecl {
         // class: the runtime library merges several modules whose
         // top-level function names would collide.
         if (flattenStatics(cls) && isStaticsOnly(varFields, ordinaryFuncs) && !Compiler.keepStaticsClass(cls)) {
+            // Reserve flattened function names before rendering bodies. Imports
+            // and local-name allocation both need the complete library scope.
+            for (f in ordinaryFuncs) {
+                final name = dartMemberName(f.field);
+                expr.reserveTopLevelName(name);
+                imports.reserveName(name);
+            }
             // The data tables of a statics-only class become top-level
             // constants of its library (a top-level variable needs no
             // static keyword).
@@ -799,6 +835,7 @@ class DartDecl {
         main.dart.
     **/
     public function testFuncDecl(cls:ClassType, f:ClassFuncData):Array<String> {
+        reserveModuleFlattenedNames();
         for (a in f.args) {
             expr.reserveName(a.name);
         }
