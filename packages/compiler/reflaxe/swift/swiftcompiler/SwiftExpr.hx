@@ -1407,8 +1407,9 @@ class SwiftExpr {
                 }
                 return floatAware(operand(l, op, false), l) + " / " + floatAware(operand(r, op, true), r);
             case OpEq | OpNotEq:
-                if (op == OpNotEq && !isNullConstant(l) && !isNullConstant(r) && types.usesIdentityEquality(l.t) && types.usesIdentityEquality(r.t)) {
-                    return operand(l, op, false, true) + " !== " + operand(r, op, true, true);
+                if (!isNullConstant(l) && !isNullConstant(r) && types.usesIdentityEquality(l.t) && types.usesIdentityEquality(r.t)) {
+                    final identity = op == OpEq ? "===" : "!==";
+                    return operand(l, op, false, true) + " " + identity + " " + operand(r, op, true, true);
                 }
                 final nullSide = isNullConstant(l) || isNullConstant(r);
                 final lOperand = nullSide ? expr(l) : operand(l, op, false, true);
