@@ -971,7 +971,7 @@ class DartDecl {
         var optionalStarted = false;
         for (a in f.args) {
             final part = formalFields.exists(a.name) ? "this." + formalFields.get(a.name) : types.of(a.type) + " " + expr.parameterName(a.tvar, a.name);
-            if (DefaultArgExpander.coalescingDefaultAt(cls, f.field.name, a.index) != null || a.opt) {
+            if (DefaultArgExpander.coalescingDefaultAt(cls, f.field.name, a.index) != null) {
                 optionalStarted = true;
             }
             if (optionalStarted) {
