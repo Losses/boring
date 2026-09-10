@@ -824,7 +824,7 @@ class SwiftExpr {
     function strideValue(e:TypedExpr):String {
         return switch (stripWrap(e).expr) {
             case TConst(TInt(_)): "Int32(" + expr(e) + ")";
-            case TField(subj, fa) if (fieldName(fa) == "length"): "Int32(" + expr(subj) + ".count)";
+            case TField(subj, fa) if (fieldName(fa) == "length"): "Int32(" + receiverText(subj) + ".count)";
             case _: expr(e);
         };
     }
@@ -1104,7 +1104,7 @@ class SwiftExpr {
                 return localName(v);
             case TArray(arr, idx):
                 final mapReceiver = mapBackingReceiver(arr);
-                final read = mapReceiver == null ? expr(arr) + "[Int(" + expr(idx) + ")]" : expr(mapReceiver) + "[" + expr(idx) + "]";
+                final read = mapReceiver == null ? receiverText(arr) + "[Int(" + expr(idx) + ")]" : expr(mapReceiver) + "[" + expr(idx) + "]";
                 // haxe.io.Bytes reads carry UInt8 elements; the Haxe
                 // access widens to Int.
                 return mapReceiver == null && isBytesType(arr) ? "Int32(" + read + ")" : read;
@@ -1925,11 +1925,12 @@ class SwiftExpr {
 
     /** A method receiver unwraps when the receiver expression is optional. */
     function receiverText(subj:TypedExpr):String {
-        if (!optionalValued(subj) && !isNullLeafType(subj.t)) {
+        final inner = stripWrap(subj);
+        if (!optionalValued(subj) && !isNullLeafType(subj.t) && !optionalValued(inner) && !isNullLeafType(inner.t)) {
             return expr(subj);
         }
         final base = expr(subj);
-        return switch (stripWrap(subj).expr) {
+        return switch (inner.expr) {
             case TLocal(_): base + "!";
             case _: "(" + base + ")!";
         };
