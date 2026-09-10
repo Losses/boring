@@ -3468,7 +3468,9 @@ class RustExpr {
                 if (isMask255) {
                     final byteExt = tryMatchByteExtract(l);
                     if (byteExt != null) {
-                        return byteExt;
+                        // Byte extraction is emitted as u8, while Haxe Int
+                        // arithmetic remains in the module's u32 domain.
+                        return types.of(e.t) == "u32" ? "u32::from(" + byteExt + ")" : byteExt;
                     }
                 }
                 return (isInt64Type(l.t)
