@@ -1700,6 +1700,17 @@ class RustDecl {
         return false;
     }
 
+    function getFieldOptType(cls:ClassType, name:String):Null<String> {
+        for (field in cls.fields.get()) {
+            switch (field.kind) {
+                case FVar(_, _) if (field.name == name):
+                    return types.of(field.type);
+                case _:
+            }
+        }
+        return null;
+    }
+
     function instanceFuncDecl(cls:ClassType, f:ClassFuncData, hasLifetime:Bool, isTraitImpl:Bool = false, interfaceModule:Null<String> = null, interfaceName:Null<String> = null):Array<String> {
         final isConstructor = f.field.name == "new";
         final snakeName = isConstructor ? "new" : RustImports.toSnakeCase(f.field.name);
@@ -1756,7 +1767,16 @@ class RustDecl {
                     continue;
                 final sname = RustImports.toSnakeCase(a.name);
                 if (parts.fieldInits.exists(a.name)) {
-                    lines.push('            $sname: ${parts.fieldInits.get(a.name)},');
+                    final fieldType = getFieldOptType(cls, a.name);
+                    final argType = types.of(a.type, false);
+                    final value = parts.fieldInits.get(a.name);
+                    if (fieldType != null && StringTools.startsWith(fieldType, "Option<")
+                        && !StringTools.startsWith(argType, "Option<")
+                        && value != "None" && !StringTools.startsWith(value, "Some(")) {
+                        lines.push('            $sname: Some($value),');
+                    } else {
+                        lines.push('            $sname: $value,');
+                    }
                     continue;
                 }
                 final coalescingAt = DefaultArgExpander.coalescingDefaultAt(cls, f.field.name, f.args.indexOf(a));
