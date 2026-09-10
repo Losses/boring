@@ -273,14 +273,16 @@ class DartExpr {
             targetType:Type):String {
         if (modulePath == "std.SortedSet" && methodName == "builder")
             return runtimeQualified("SortedTable.setBuilder") + "(" + [for (a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
+        final resolved = tryResolveTypePath(modulePath + "." + className);
+        final target = switch (resolved) {
+            case TInst(clsRef, _): staticRef(clsRef.get(), methodName);
+            case _: null;
+        };
+        if (target != null)
+            return target + "(" + completeCoalescingCallArgs(modulePath, methodName, className, args, targetType).join(", ") + ")";
         final prefix = imports.value(modulePath, className);
-        return (prefix.length > 0 ? prefix + "." : "")
-            + className
-            + "."
-            + methodName
-            + "("
-            + completeCoalescingCallArgs(modulePath, methodName, className, args, targetType).join(", ")
-            + ")";
+        return (prefix.length > 0 ? prefix + "." : "") + className + "." + methodName + "("
+            + completeCoalescingCallArgs(modulePath, methodName, className, args, targetType).join(", ") + ")";
     }
 
     function coalescingStaticFieldText(path:String):String {
