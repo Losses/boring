@@ -158,8 +158,8 @@ class RustType {
                 imports.requireType(en.module, en.name);
                 en.name;
             case TFun(args, ret):
-                imports.require("std::rc::Rc");
-                "Rc<dyn Fn(" + [for (arg in args) of(arg.t, true)].join(", ") + ") -> " + of(ret, false) + ">";
+                imports.require("std::sync::Arc");
+                "Arc<dyn Fn(" + [for (arg in args) of(arg.t, true)].join(", ") + ") -> " + of(ret, false) + ">";
             case TAnonymous(_):
                 Context.error("anonymous structure types must be named typedefs before translation", Context.currentPos());
                 null;
@@ -178,7 +178,7 @@ class RustType {
     public function functionReturnOf(t:Null<Type>):String {
         return switch (Context.follow(t)) {
             case TFun(args, ret):
-                imports.require("std::rc::Rc");
+                imports.require("std::sync::Arc");
                 final argStrs = [for (arg in args) of(arg.t, true)];
                 // A function value with no reference parameters cannot
                 // borrow from the enclosing scope, so the trait-object
@@ -188,7 +188,7 @@ class RustType {
                 for (s in argStrs)
                     if (s.indexOf("&") >= 0)
                         hasRef = true;
-                "Rc<dyn Fn(" + argStrs.join(", ") + ") -> " + of(ret, false) + (hasRef ? " + '_>" : " + 'static>");
+                "Arc<dyn Fn(" + argStrs.join(", ") + ") -> " + of(ret, false) + (hasRef ? " + '_>" : " + 'static>");
             case _:
                 of(t, false);
         }
