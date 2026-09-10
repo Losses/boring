@@ -168,6 +168,23 @@ class Compiler extends PluginCompiler<Compiler> {
                         lines.push("    " + variant + "(crate::" + RustImports.moduleToRustPath(emitted) + "::" + item.name + "),");
                     }
                     lines.push("}");
+                    // `?` in generated closures uses Rust's standard error
+                    // conversion hook.  Synthetic fault unions are the
+                    // lowering's conversion boundary, so make every direct
+                    // and nested member constructible with `From` rather
+                    // than relying on callers to recognize the union.
+                    for (item in u.members) {
+                        final emitted = state.payloadEnumModules.exists(item.module) ? state.payloadEnumModules.get(item.module) : item.module;
+                        final variant = variants != null
+                            && variants.exists(item.module + "::" + item.name) ? variants.get(item.module + "::" + item.name) : item.name + "Fault";
+                        final memberPath = "crate::" + RustImports.moduleToRustPath(emitted) + "::" + item.name;
+                        lines.push("");
+                        lines.push("impl From<" + memberPath + "> for " + u.name + " {");
+                        lines.push("    fn from(value: " + memberPath + ") -> Self {");
+                        lines.push("        " + u.name + "::" + variant + "(value)");
+                        lines.push("    }");
+                        lines.push("}");
+                    }
                     lines.join("\n");
                 }
             ];
