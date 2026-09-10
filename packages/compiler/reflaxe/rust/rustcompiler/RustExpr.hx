@@ -1947,29 +1947,29 @@ class RustExpr {
         }
         return switch (RustType.classifyKey(kType, pos)) {
             case IntKey:
-                imports.require("std::rc::Rc");
-                "Rc::new(|a, b| SortedTable::sorted_table_compare_ints("
+                imports.require("std::sync::Arc");
+                "Arc::new(|a, b| SortedTable::sorted_table_compare_ints("
                 + RustConversions.reinterpret("(*a)", "i32")
                 + ", "
                 + RustConversions.reinterpret("(*b)", "i32")
                 + "))";
             case StringKey:
-                imports.require("std::rc::Rc");
-                "Rc::new(|a, b| SortedTable::sorted_table_compare_strings(a.as_str(), b.as_str()))";
+                imports.require("std::sync::Arc");
+                "Arc::new(|a, b| SortedTable::sorted_table_compare_strings(a.as_str(), b.as_str()))";
             case StructKey(def, _):
                 final cmpName = "compare_" + RustImports.toSnakeCase(def.name);
                 imports.requireType(def.module, cmpName);
-                imports.require("std::rc::Rc");
-                "Rc::new(" + cmpName + ")";
+                imports.require("std::sync::Arc");
+                "Arc::new(" + cmpName + ")";
             case DataClassKey(cls, _):
                 final cmpName = "compare_" + RustImports.toSnakeCase(cls.name);
                 imports.requireType(cls.module, cmpName);
-                imports.require("std::rc::Rc");
-                "Rc::new(" + cmpName + ")";
+                imports.require("std::sync::Arc");
+                "Arc::new(" + cmpName + ")";
             case EnumKey(en):
                 imports.requireType(en.module, "compare_" + RustImports.toSnakeCase(en.name));
-                imports.require("std::rc::Rc");
-                "Rc::new(compare_" + RustImports.toSnakeCase(en.name) + ")";
+                imports.require("std::sync::Arc");
+                "Arc::new(compare_" + RustImports.toSnakeCase(en.name) + ")";
         };
     }
 
@@ -5400,8 +5400,8 @@ class RustExpr {
     }
 
     function functionValueLiteral(f:TFunc, functionType:Null<Type>):String {
-        imports.require("std::rc::Rc");
-        return "Rc::new(" + functionLiteral(f, functionType) + ")";
+        imports.require("std::sync::Arc");
+        return "Arc::new(" + functionLiteral(f, functionType) + ")";
     }
 
     function functionLiteralNamed(name:String, f:TFunc, functionType:Null<Type>):String {
@@ -6703,11 +6703,11 @@ class RustExpr {
         }
         // Static methods and static function fields are emitted as callable
         // items/pointers, while every non-static function value is already an
-        // Rc at its declaration site. Adapt the former only when a ruled
-        // Rc-held function slot receives it.
+        // Arc at its declaration site. Adapt the former only when a ruled
+        // Arc-held function slot receives it.
         if (isFunctionType(expected) && isFunctionType(actual.t) && !isBoxedFunctionExpr(actual)) {
-            imports.require("std::rc::Rc");
-            return "Rc::new(" + rendered + ")";
+            imports.require("std::sync::Arc");
+            return "Arc::new(" + rendered + ")";
         }
         return rendered;
     }
