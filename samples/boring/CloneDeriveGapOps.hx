@@ -12,6 +12,10 @@ class CloneDeriveRange {
         this.start = start;
         this.end = end;
     }
+
+    public function toString():String {
+        return start + ".." + end;
+    }
 }
 
 // A @:dataClass whose instance fields are all Clone-capable once the plain
@@ -33,9 +37,9 @@ class CloneDeriveGapOps {
     // Indexing a Haxe Array reads its element with Haxe value semantics; the
     // generator clones a non-Copy element out of the Vec. That clone needs
     // CloneDeriveResult to carry #[derive(Clone)].
-    public static function resolve():Int {
+    public static function resolve():String {
         final results:Array<CloneDeriveResult> = [new CloneDeriveResult(new CloneDeriveRange(1, 3), "x")];
         final r = results[0];
-        return r.range.end;
+        return r.range.toString() + ":" + r.label;
     }
 }
