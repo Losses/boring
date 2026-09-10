@@ -1774,9 +1774,26 @@ class DartExpr {
         argument as rendered.
     **/
     function requiredValueText(e:TypedExpr):String {
-        if (!isNullLeafType(e.t) || provenNonNull(e))
+        if (!nullableValue(e) || provenNonNull(e))
             return expr(e);
-        return expr(e) + "!";
+        final text = expr(e);
+        return switch (stripWrap(e).expr) {
+            case TLocal(_): text + "!";
+            case _: "(" + text + ")!";
+        };
+    }
+
+    /** Whether an emitted expression can still contain a nullable value even
+        when Haxe has unified its enclosing expression with a required type. */
+    function nullableValue(e:TypedExpr):Bool {
+        if (isNullLeafType(e.t) || optionalValued(e))
+            return true;
+        return switch (stripWrap(e).expr) {
+            case TIf(_, t, f) if (f != null): nullableValue(t) || nullableValue(f);
+            case TField(_, FInstance(_, _, cf)) | TField(_, FAnon(cf)): isNullLeafType(cf.get().type);
+            case TParenthesis(inner) | TCast(inner, _) | TMeta(_, inner): nullableValue(inner);
+            case _: false;
+        };
     }
 
     function argTexts(fn:TypedExpr, args:Array<TypedExpr>):Array<String> {
@@ -1794,8 +1811,7 @@ class DartExpr {
                 final a = args[i];
                 final pt = i < paramTypes.length ? paramTypes[i] : null;
                 final demandsValue = pt != null && !isNullLeafType(pt);
-                var t = (demandsValue && isNullLeafType(a.t)) ? requiredValueText(a) : (demandsValue
-                    && optionalValued(a) ? expr(a) + "!" : expr(a));
+                var t = (demandsValue && nullableValue(a)) ? requiredValueText(a) : expr(a);
                 if (pt != null && isIntOrLongType(emittedType(a)) && isFloatType(pt)) t = intToFloatText(t);
                 t;
             }
