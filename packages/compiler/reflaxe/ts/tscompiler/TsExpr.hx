@@ -1990,6 +1990,11 @@ class TsExpr {
                         return expr(subj) + ".substr(" + expr(args[0]) + ")";
                     }
                 }
+                if (name == "copy" && isArraySubject(subj) && args.length == 0) {
+                    // Haxe Array.copy has no JavaScript prototype equivalent;
+                    // slice preserves a shallow copy and its mutable array type.
+                    return expr(subj) + ".slice()";
+                }
                 if (name == "indexOf" && (isStringSubject(subj) || isArraySubject(subj)) && args.length == 2) {
                     // The same synthesized null arrives for an omitted
                     // ?pos, on String and on Array; both prototype
