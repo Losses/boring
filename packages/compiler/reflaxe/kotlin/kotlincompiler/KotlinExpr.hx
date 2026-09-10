@@ -2991,7 +2991,7 @@ class KotlinExpr {
                         if (func != null && func.args.length == 1) {
                             final paramName = KotlinNameEscape.escape(func.args[0].v.name);
                             final valueExpr = expr(lambdaBody(func.expr));
-                            return expr(receiver) + ".sumOf { " + paramName + " -> " + valueExpr + " }";
+                            return expr(receiver) + ".sumOf { " + paramName + " -> (" + valueExpr + ").toDouble() }.toFloat()";
                         }
                         return fail(fn, "sumOfFloat requires a one-argument lambda");
                     }
