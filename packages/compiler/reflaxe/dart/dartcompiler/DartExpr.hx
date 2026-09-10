@@ -1362,7 +1362,7 @@ class DartExpr {
         final elemFloat = isFloatType(elemType);
         final renderedElems = [
             for (x in elems) {
-                var t = expr(x);
+                var t = (elemType != null && !isNullLeafType(elemType) && nullableValue(x)) ? requiredValueText(x) : expr(x);
                 if (elemFloat && isIntOrLongType(emittedType(x))) t = intToFloatText(t);
                 t;
             }
