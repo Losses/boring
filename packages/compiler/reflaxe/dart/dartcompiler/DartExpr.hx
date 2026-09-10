@@ -3690,6 +3690,10 @@ class DartExpr {
         scopedLocalNames.set(v.id, count == 1 && !reserved ? v.name : v.name + (count + (reserved ? 1 : 0)));
     }
 
+    public function parameterName(v:Null<TVar>, fallback:String):String {
+        return v == null ? fallback : localName(v);
+    }
+
     function localName(v:TVar):String {
         // A bare underscore is not a name Dart binds (the wildcard
         // marker); loop counters written `_` render as `_i`.
