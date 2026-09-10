@@ -3225,17 +3225,46 @@ class RustExpr {
     }
 
     function isSortedBuilder(subj:TypedExpr):Bool {
-        return switch (Context.follow(subj.t)) {
+        final t = methodSubjectType(subj);
+        return switch (Context.follow(t)) {
             case TInst(c, _): final n = c.get().name; n == "SortedMapBuilder" || n == "SortedSetBuilder";
             case _: false;
         };
     }
 
     function isSortedTable(subj:TypedExpr):Bool {
-        return switch (Context.follow(subj.t)) {
+        final t = methodSubjectType(subj);
+        return switch (Context.follow(t)) {
             case TInst(c, _): final n = c.get().name; n == "SortedMap" || n == "SortedSet";
             case _: false;
         };
+    }
+
+    // The type a method-call receiver dispatches on: a nullable subject
+    // (Option<T>) calls methods on its inner value, so the collection and
+    // string classifiers look through the Null wrapper.
+    function methodSubjectType(subj:TypedExpr):Type {
+        return isNullType(subj.t) ? getNullInnerType(subj.t) : subj.t;
+    }
+
+    // A Haxe Array receiver lowers to a Rust Vec; the classifier also looks
+    // through a Null wrapper so a nullable Vec field dispatches correctly.
+    function isVecType(subj:TypedExpr):Bool {
+        final t = methodSubjectType(subj);
+        return switch (Context.follow(t)) {
+            case TInst(c, _): c.get().name == "Array";
+            case _: false;
+        };
+    }
+
+    // A nullable receiver calls its method on the inner value. Mutable
+    // collection mutations (push, put, shift, ...) borrow the inner storage
+    // mutably; reads borrow it immutably.
+    function nullableMethodReceiver(subj:TypedExpr, mutable:Bool):String {
+        if (!isNullType(subj.t))
+            return expr(subj);
+        final base = expr(subj);
+        return mutable ? "(" + base + ").as_mut().unwrap()" : "(" + base + ").as_ref().unwrap()";
     }
 
     function isRecordValueType(t:Type):Bool {
@@ -4822,12 +4851,6 @@ class RustExpr {
                         case _:
                     }
                     final nullableResult = callRet != null && isNullType(callRet);
-                    var callRet:Null<Type> = null;
-                    switch (Context.follow(fn.t)) {
-                        case TFun(_, r): callRet = r;
-                        case _:
-                    }
-                    final nullableResult = callRet != null && isNullType(callRet);
                     return nullableResult ? "u_string::at(&" + expr(subj) + ", " + castShiftU32(args[0]) + ")" : "u_string::at(&"
                         + expr(subj)
                         + ", "
@@ -4879,20 +4902,21 @@ class RustExpr {
                 if (name == "put" && isSortedBuilder(subj)) {
                     // Builder puts borrow every argument; the resident
                     // clones into storage, so the call-site expressions
-                    // stay alive.
+                    // stay alive. A nullable receiver unwraps its inner
+                    // builder mutably before the put.
                     final putArgs = [for (a in args) sortedRefArg(a)];
-                    return expr(subj) + ".put(" + putArgs.join(", ") + ")";
+                    return nullableMethodReceiver(subj, true) + ".put(" + putArgs.join(", ") + ")";
                 }
                 if ((name == "get" || name == "has") && (isSortedTable(subj) || isSortedBuilder(subj))) {
-                    return expr(subj) + "." + name + "(" + sortedRefArg(args[0]) + ")";
+                    return nullableMethodReceiver(subj, false) + "." + name + "(" + sortedRefArg(args[0]) + ")";
                 }
                 if (name == "size" && isSortedTable(subj)) {
                     // The resident counts in its signed Int domain; the business
                     // domain is unsigned, so the read reinterprets the raw i32.
-                    return RustConversions.reinterpret(expr(subj) + ".size()", "u32");
+                    return RustConversions.reinterpret(nullableMethodReceiver(subj, false) + ".size()", "u32");
                 }
                 if ((name == "keyAt" || name == "valueAt" || name == "at") && isSortedTable(subj)) {
-                    return expr(subj) + "." + RustImports.toSnakeCase(name) + "(" + castSignedI32(args[0]) + ")";
+                    return nullableMethodReceiver(subj, false) + "." + RustImports.toSnakeCase(name) + "(" + castSignedI32(args[0]) + ")";
                 }
                 if (name == "put" && isSortedBuilder(subj)) {
                     final kExpr = switch (args[0].expr) {
@@ -4914,9 +4938,9 @@ class RustExpr {
                         } else {
                             expr(args[1]);
                         };
-                        return expr(subj) + ".put(" + kExpr + ", " + vExpr + ")";
+                        return nullableMethodReceiver(subj, true) + ".put(" + kExpr + ", " + vExpr + ")";
                     } else {
-                        return expr(subj) + ".put(" + kExpr + ")";
+                        return nullableMethodReceiver(subj, true) + ".put(" + kExpr + ")";
                     }
                 }
                 if ((name == "get" || name == "has") && (isSortedTable(subj) || isSortedBuilder(subj))) {
@@ -4933,13 +4957,13 @@ class RustExpr {
                     } else {
                         expr(args[0]);
                     };
-                    return expr(subj) + "." + name + "(" + kExpr + ")";
+                    return nullableMethodReceiver(subj, false) + "." + name + "(" + kExpr + ")";
                 }
                 if (name == "push") {
-                    return expr(subj) + ".push(" + renderPushArg(args[0]) + ")";
+                    return nullableMethodReceiver(subj, true) + ".push(" + renderPushArg(args[0]) + ")";
                 }
                 if (name == "join") {
-                    return expr(subj) + ".join(" + renderedArgs + ")";
+                    return nullableMethodReceiver(subj, false) + ".join(" + renderedArgs + ")";
                 }
                 if (name == "addByte") {
                     return expr(subj) + ".add_byte(" + RustConversions.truncate(expr(args[0]), "u8") + ")";
