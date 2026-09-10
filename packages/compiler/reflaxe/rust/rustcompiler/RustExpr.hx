@@ -4963,7 +4963,32 @@ class RustExpr {
                     return nullableMethodReceiver(subj, true) + ".push(" + renderPushArg(args[0]) + ")";
                 }
                 if (name == "join") {
+                    if (isVecType(subj)) {
+                        return nullableMethodReceiver(subj, false)
+                            + ".iter().map(|v| v.to_string()).collect::<Vec<_>>().join("
+                            + renderedArgs
+                            + ")";
+                    }
                     return nullableMethodReceiver(subj, false) + ".join(" + renderedArgs + ")";
+                }
+                // Haxe Array methods that Rust's Vec names differently or
+                // implements under another operation.
+                if (name == "copy" && isVecType(subj)) {
+                    return expr(subj) + ".clone()";
+                }
+                if (name == "shift" && isVecType(subj)) {
+                    return "{ if " + expr(subj) + ".is_empty() { None } else { Some(" + expr(subj) + ".remove(0)) } }";
+                }
+                if (name == "unshift" && isVecType(subj) && args.length == 1) {
+                    return expr(subj) + ".insert(0, " + renderPushArg(args[0]) + ")";
+                }
+                if (name == "indexOf" && isVecType(subj) && args.length >= 1) {
+                    final needle = expr(args[0]);
+                    return "match "
+                        + expr(subj)
+                        + ".iter().position(|e| e == "
+                        + needle
+                        + ") { Some(v) => i32::from_ne_bytes(u32::try_from(v).unwrap_or(0).to_ne_bytes()), None => -1 }";
                 }
                 if (name == "addByte") {
                     return expr(subj) + ".add_byte(" + RustConversions.truncate(expr(args[0]), "u8") + ")";
