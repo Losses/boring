@@ -111,6 +111,14 @@ impl FPHelper {
         else { format!("{}e{}{}", mantissa, if sci >= 0 { "+" } else { "" }, sci) }
     }
 
+    pub fn float_to_i32(v: f64) -> i32 {
+        v as i32
+    }
+
+    pub fn i32_to_float(v: i32) -> f64 {
+        v as f64
+    }
+
     pub fn i64_to_double(low: u32, high: u32) -> f64 {
         let h = high.to_be_bytes();
         let l = low.to_be_bytes();
