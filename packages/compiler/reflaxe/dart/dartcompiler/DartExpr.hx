@@ -3603,6 +3603,8 @@ class DartExpr {
         switch (e.expr) {
             case TVar(v, init):
                 PolicyQueries.noteDeclaredLocalName(v, usedNames, false);
+                if (v.name != "`" && v.name != "_")
+                    imports.reserveName(v.name);
                 if (init != null && isNullLeafType(init.t)) {
                     optionalInferred.set(v.id, true);
                 }
