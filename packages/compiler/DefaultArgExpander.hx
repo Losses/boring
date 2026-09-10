@@ -1971,10 +1971,19 @@ class DefaultArgExpander {
                             // other shape stays omitted (its value reads the
                             // constructor scope or throws).
                             case CEmptyArray:
+                                // A later explicit empty array needs every
+                                // omitted optional slot before it preserved.
+                                // Haxe permits suffix omission, whereas Dart
+                                // positional arguments cannot skip profileId
+                                // to reach decorations (or later lists).
+                                while (args.length < i) {
+                                    final skipped = params[args.length];
+                                    args.push(makeTypedConst(VNull, skipped.t, newExpr.pos));
+                                }
                                 // The parameter type already carries the
                                 // element; the declaration is an empty array
                                 // literal of exactly that type.
-                                args.insert(i, {
+                                args.push({
                                     expr: TypedExprDef.TArrayDecl([]),
                                     pos: newExpr.pos,
                                     t: withoutNull(param.t)
