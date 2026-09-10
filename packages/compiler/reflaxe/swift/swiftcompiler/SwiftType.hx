@@ -249,6 +249,30 @@ class SwiftType {
     }
 
     /**
+        Whether `t` renders as a Swift class whose `==` is not
+        synthesized. Ordinary classes and runtime collection classes
+        compare by reference in Haxe; a data class carries an emitted
+        comparator and a value type uses its own `==`, so those keep the
+        native operator.
+    **/
+    public function usesIdentityEquality(t:Null<Type>):Bool {
+        if (t == null) {
+            return false;
+        }
+        return switch (Context.follow(t)) {
+            case TInst(c, _):
+                final cls = c.get();
+                if (cls.kind != KNormal) {
+                    false;
+                } else switch (pathOf(cls.pack, cls.name)) {
+                    case "String" | "std.StringBuf" | "StringBuf" | "Array" | "haxe.io.Bytes": false;
+                    case _: !(cls.meta.has(":dataClass") && canEmitDataClassComparator(cls));
+                }
+            case _: false;
+        };
+    }
+
+    /**
         The element type when `t` is a raw ReadOnlyArray (checked before
         Context.follow, which erases the abstract to Array). Nullable
         collections need this raw check: the Null arm's followed inner
