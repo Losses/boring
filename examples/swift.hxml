@@ -106,6 +106,8 @@ tests.DartLocalNameFixTests
 boring.DartEmptyArrayFixOps
 tests.DartEmptyArrayFixTests
 boring.Ts2448Ops
+boring.SwitchCaseScopeOps
+tests.SwitchCaseScopeTests
 tests.Ts2448Tests
 boring.PrintedCustom
 boring.StringBufOps
