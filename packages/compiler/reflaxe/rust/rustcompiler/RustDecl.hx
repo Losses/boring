@@ -1834,7 +1834,11 @@ class RustDecl {
                                 case TInst(c, _) if (c.get().name == "String" && StringTools.startsWith(init, "\"")): init + ".to_string()";
                                 case _: init;
                             };
-                            lines.push('            $sname: $ownedInit,');
+                            final fieldType = types.of(field.type);
+                            final wrappedInit = StringTools.startsWith(fieldType, "Option<")
+                                && init != "None" && !StringTools.startsWith(ownedInit, "Some(")
+                                && !StringTools.startsWith(ownedInit, "match ") ? "Some(" + ownedInit + ")" : ownedInit;
+                            lines.push('            $sname: $wrappedInit,');
                         }
                     case _:
                 }
