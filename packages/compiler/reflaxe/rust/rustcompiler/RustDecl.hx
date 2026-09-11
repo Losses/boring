@@ -2487,7 +2487,7 @@ class RustDecl {
             return false;
         // Only business classes join the plain-class descent; std/haxe
         // wrappers keep their explicit Clone list above.
-        if (cls.pack.indexOf("org.tiqian") != 0 && cls.pack.indexOf("boring") != 0)
+        if (cls.module.indexOf("org.tiqian.") != 0 && cls.module.indexOf("boring.") != 0)
             return false;
         if (cls.params.length > 0 || StaticFieldHelper.hasSelfConstructionStatic(cls))
             return false;
