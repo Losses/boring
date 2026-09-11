@@ -1548,6 +1548,16 @@ class DefaultArgExpander {
         };
     }
 
+    /** Whether a parameter carries an optional default (a plain `?param`
+        VNull or an explicit coalescing default). Dart renders such a
+        parameter in the optional positional group. */
+    public static function isOptionalDefaultAt(classType:ClassType, fieldName:String, index:Int):Bool {
+        return switch (defaultAt(classType, fieldName, index)) {
+            case VNull | VCoalescing(_): true;
+            default: false;
+        };
+    }
+
     /** The coalescing form of a registered default; constants convert, a coalescing value unwraps. */
     public static function coalescingOf(value:DefaultArgValue):CoalescingDefaultValue {
         return switch (value) {

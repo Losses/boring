@@ -941,13 +941,18 @@ class DartDecl {
         at every call site and remain required parameters.
     **/
     function paramList(cls:ClassType, f:ClassFuncData, start:Int = 0):String {
+        // A parameter renders in the optional positional group only when
+        // every parameter from it to the end is optional (VNull nullable
+        // or VCoalescing). Dart requires optional positionals to be a
+        // trailing group, so a required parameter after an optional one
+        // forces the whole tail to stay required.
         final required:Array<String> = [];
         final optional:Array<String> = [];
         var optionalStarted = false;
         for (i in start...f.args.length) {
             final a = f.args[i];
             final part = types.of(a.type) + " " + expr.parameterName(a.tvar, a.name);
-            if (DefaultArgExpander.coalescingDefaultAt(cls, f.field.name, a.index) != null) {
+            if (!optionalStarted && isTrailingOptionalGroup(cls, f, i)) {
                 optionalStarted = true;
             }
             if (optionalStarted) {
@@ -963,6 +968,16 @@ class DartDecl {
         return "(" + groups.join(", ") + ")";
     }
 
+    /** Whether every parameter from `fromIndex` to the end is optional. */
+    function isTrailingOptionalGroup(cls:ClassType, f:ClassFuncData, fromIndex:Int):Bool {
+        for (i in fromIndex...f.args.length) {
+            if (!DefaultArgExpander.isOptionalDefaultAt(cls, f.field.name, f.args[i].index)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     /** Constructor parameters use the same optional positional group, while
         retaining Dart's initializing-formal spelling for direct assignments. */
     function constructorParamList(cls:ClassType, f:ClassFuncData, formalFields:Map<String, String>):String {
@@ -971,7 +986,7 @@ class DartDecl {
         var optionalStarted = false;
         for (a in f.args) {
             final part = formalFields.exists(a.name) ? "this." + formalFields.get(a.name) : types.of(a.type) + " " + expr.parameterName(a.tvar, a.name);
-            if (DefaultArgExpander.coalescingDefaultAt(cls, f.field.name, a.index) != null) {
+            if (!optionalStarted && isTrailingOptionalGroup(cls, f, a.index)) {
                 optionalStarted = true;
             }
             if (optionalStarted) {
