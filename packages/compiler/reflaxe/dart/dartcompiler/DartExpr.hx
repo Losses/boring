@@ -2385,6 +2385,28 @@ class DartExpr {
                     final end = args.length >= 2 && isNullLiteral(args[1]) ? 1 : renderedArgs.length;
                     return receiverText(subj) + ".indexOf(" + renderedArgs.slice(0, end).join(", ") + ")";
                 }
+                // Haxe Array members Dart's List names differently or
+                // implements under another operation; pop and shift
+                // answer null on an empty list like the other targets.
+                if (isArrayType(subj.t)) {
+                    switch (name) {
+                        case "concat" if (args.length == 1):
+                            return "(" + receiverText(subj) + " + " + expr(args[0]) + ")";
+                        case "splice" if (args.length == 2):
+                            return "(() { final _a = " + receiverText(subj) + "; final _i = " + expr(args[0]) + "; final _n = " + expr(args[1])
+                                + "; final _r = _a.sublist(_i, _i + _n); _a.removeRange(_i, _i + _n); return _r; })()";
+                        case "reverse" if (args.length == 0):
+                            final r = receiverText(subj);
+                            return r + ".setAll(0, " + r + ".reversed.toList())";
+                        case "unshift" if (args.length == 1):
+                            return receiverText(subj) + ".insert(0, " + rendered + ")";
+                        case "pop" if (args.length == 0):
+                            return "(() { final _a = " + receiverText(subj) + "; return _a.isEmpty ? null : _a.removeLast(); })()";
+                        case "shift" if (args.length == 0):
+                            return "(() { final _a = " + receiverText(subj) + "; return _a.isEmpty ? null : _a.removeAt(0); })()";
+                        case _:
+                    }
+                }
                 if (name == "substring" && isStringSubject(subj)) {
                     // The haxe typer passes a synthesized null for an
                     // omitted ?endIndex; the native suffix overload
@@ -3990,10 +4012,11 @@ class DartExpr {
                             return lt;
                         return emittedType(r);
                     case OpEq | OpNotEq | OpGt | OpGte | OpLt | OpLte:
-                        final lt = emittedType(l);
-                        if (lt != null)
-                            return lt;
-                        return emittedType(r);
+                        // A comparison emits bool text whatever its
+                        // operands are; reporting the left operand's
+                        // numeric type mislabels the value and widens a
+                        // bool condition with toDouble.
+                        return Context.getType("Bool");
                     case _:
                 }
             case TLocal(v):
