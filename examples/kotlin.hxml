@@ -290,6 +290,8 @@ boring.PrivateClassPeerOps
 tests.PrivateClassTests
 boring.PrivateStaticCallOps
 tests.PrivateStaticCallTests
+boring.OptionalCtorOps
+tests.OptionalCtorTests
 boring.UnderscoreParamOps
 tests.UnderscoreParamTests
 tests.EarlyReturnTests
