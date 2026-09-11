@@ -78,6 +78,28 @@ class SwiftDecl {
     // Classes
     // ------------------------------------------------------------------
 
+    /**
+        Visibility for a below-public member. @:allow members use Swift
+        internal unconditionally. Members of a class named by a class level
+        @:access grant (or by a cross-module synthesized default) widen to
+        internal, unless their signature names a module-private type (a
+        same-name type in another file would turn ambiguous), so those stay
+        file-scoped with fileprivate, which still admits same-file peers.
+        Everything else stays private.
+    **/
+    static function grantedVis(isPublic:Bool, meta:MetaAccess, cls:ClassType, memberType:Type):String {
+        if (isPublic) {
+            return "public ";
+        }
+        if (meta.has(":allow")) {
+            return "";
+        }
+        if (AccessGrants.has(cls.module + "." + cls.name)) {
+            return AccessGrants.mentionsPrivateType(memberType) ? "fileprivate " : "";
+        }
+        return "private ";
+    }
+
     public function classDecl(cls:ClassType, varFields:Array<ClassVarData>, funcFields:Array<ClassFuncData>):String {
         if (cls.isInterface) {
             // An interface lowers to a protocol; the implementing class
@@ -605,7 +627,7 @@ class SwiftDecl {
             final smallArray = field.isFinal && StaticFieldHelper.isNonEmptyArrayLiteral(init);
             final kw = smallArray ? "let" : (array || !field.isFinal ? "var" : "let");
             // @:allow members use Swift internal visibility so allowed cross-class calls compile.
-            final vis = field.isPublic ? "public " : (field.meta.has(":allow") ? "" : "private ");
+            final vis = grantedVis(field.isPublic, field.meta, cls, field.type);
             final initText = constValFloatInit(init, field.type);
             // Swift forbids a throw from a global/static stored initializer;
             // the value is a compile-time fixture, so force the fault and
@@ -650,7 +672,7 @@ class SwiftDecl {
         // spec 27); public fields render public for the SwiftPM split
         // between the generated-code module and its consumers.
         // @:allow members use Swift internal visibility so allowed cross-class calls compile.
-        final vis = field.isPublic ? "public " : (field.meta.has(":allow") ? "" : "private ");
+        final vis = grantedVis(field.isPublic, field.meta, cls, field.type);
         return [
             "    " + vis + kw + " " + SwiftNameEscape.escape(field.name) + ": " + types.of(field.type)
         ];
@@ -673,7 +695,7 @@ class SwiftDecl {
     **/
     function propertyDecl(cls:ClassType, field:ClassField):Array<String> {
         // @:allow members use Swift internal visibility so allowed cross-class calls compile.
-        final vis = field.isPublic ? "public " : (field.meta.has(":allow") ? "" : "private ");
+        final vis = grantedVis(field.isPublic, field.meta, cls, field.type);
         final getter = "get_" + field.name;
         // A Swift computed property cannot rethrow; the backing getter is a
         // compile-time fixture accessor, so force the fault at the access.
@@ -758,7 +780,7 @@ class SwiftDecl {
         // at least as accessible as the protocol, and protocols render
         // public, so interface methods render public regardless of their
         // Haxe visibility.
-        final vis = isInterfaceMethod(cls, f) ? "public " : (f.field.isPublic ? "public " : (f.field.meta.has(":allow") ? "" : "private "));
+        final vis = isInterfaceMethod(cls, f) ? "public " : grantedVis(f.field.isPublic, f.field.meta, cls, f.field.type);
         final head = '    $vis$stat' + 'func ${SwiftNameEscape.escape(f.field.name)}$genericStr${paramList(cls, f)}$throws -> $ret {';
         return withParamShadows([head], normLines.concat(body), cast f.args).concat(["    }"]);
     }
@@ -786,7 +808,7 @@ class SwiftDecl {
         final methodParams = collectMethodTypeParams(cls, f);
         final genericStr = methodParams.length > 0 ? "<" + methodParams.join(", ") + ">" : "";
         // @:allow members use Swift internal visibility so allowed cross-class calls compile.
-        final vis = f.field.isPublic ? "public " : (f.field.meta.has(":allow") ? "" : "private ");
+        final vis = grantedVis(f.field.isPublic, f.field.meta, cls, f.field.type);
         final receiverType = isExtension ? types.of(f.args[0].type) : "";
         final methodIndent = isExtension ? "    " : "";
         final head = methodIndent + vis + "func " + SwiftNameEscape.escape(f.field.name) + genericStr + paramList(cls, f, firstArg) + throws + " -> " + ret
