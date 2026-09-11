@@ -51,4 +51,11 @@ class EnumQueriesOps {
         final first:Null<QueryMode> = Type.createEnum(QueryMode, Type.enumConstructor(modes[0]));
         return (first == modes[0] ? Type.enumConstructor(modes[0]) : "bad") + "," + Type.enumConstructor(modes[1]);
     }
+
+    public static function lookupName():String {
+        // enumConstructor on a createEnum result: the lookup returns a
+        // nullable enum, and the name read must unwrap it.
+        final modes = Type.allEnums(QueryMode);
+        return Type.enumConstructor(Type.createEnum(QueryMode, Type.enumConstructor(modes[0])));
+    }
 }
