@@ -1448,6 +1448,14 @@ class SwiftExpr {
                     for (x in elems) {
                         var t = expr(x);
                         if (elemFloat && isIntType(emittedType(x))) t = intToFloatText(t);
+                        // A non-optional element type rejects a nullable
+                        // element; the element unwraps at the literal.
+                        if (elemType != null && !isNullLeafType(elemType) && optionalValued(x) && !StringTools.endsWith(t, "!"))
+                            t = switch (stripWrap(x).expr) {
+                                case TLocal(_): t + "!";
+                                case TField(_, _): "(" + t + ")!";
+                                case _: t;
+                            };
                         t;
                     }
                 ];
