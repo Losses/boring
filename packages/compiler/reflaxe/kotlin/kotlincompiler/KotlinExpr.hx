@@ -3020,6 +3020,11 @@ class KotlinExpr {
                     // The node:fs extern has no JVM face; the test-trace
                     // golden writer lowers to java.nio.file so the generated
                     // Kotlin compiles and keeps writing trace files.
+                    return nodeFsCall(name, args, fn);
+                if (cls.module == "org.tiqian.test.trace.TestTracePlatform" && cls.name == "NodeFileSystem") {
+                    // The node:fs extern has no JVM face; the test-trace
+                    // golden writer lowers to java.nio.file so the generated
+                    // Kotlin compiles and keeps writing trace files.
                     if (name == "mkdirSync" && args.length >= 1) {
                         return "java.nio.file.Files.createDirectories(java.nio.file.Paths.get(" + expr(args[0]) + "))";
                     }
