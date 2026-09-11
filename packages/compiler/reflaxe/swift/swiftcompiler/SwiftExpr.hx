@@ -280,7 +280,7 @@ class SwiftExpr {
             case CFloat(s): s;
             case CString(s): quoteString(s);
             case CBool(b): b ? "true" : "false";
-            case CNull: "nil";
+            case CNull: types.optionalNone(targetType);
             case CEmptyArray: "[]";
             case CEmptyMap: "[:]";
             case CPositiveInfinity: FloatPrecision.isF32() ? "Float.infinity" : "Double.infinity";
@@ -2946,7 +2946,7 @@ class SwiftExpr {
             case VFloat(x): x;
             case VString(x): quoteString(x);
             case VBool(x): x ? "true" : "false";
-            case VNull: "nil";
+            case VNull: types.optionalNone(t);
             case VEnum(e, f): types.of(Type.TEnum(e, [])) + "." + SwiftDecl.lowerFirst(f.name);
             case VCoalescing(x): coalescingDefaultText(x, t);
         };
