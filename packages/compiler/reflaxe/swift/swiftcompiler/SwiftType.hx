@@ -91,10 +91,14 @@ class SwiftType {
                         "BytesBuffer";
                     case "std.SortedMap":
                         imports.runtime("SortedMapTable");
-                        "SortedMapTable<" + of(params[0]) + ", " + of(params[1]) + ">";
+                        // Haxe folds Null<Null<V>> into Null<V>, and the runtime
+                        // get returns Null<V>; keeping the inner Null in the value
+                        // parameter would make get return V??. One optional layer
+                        // stays, carried by get.
+                        "SortedMapTable<" + of(params[0]) + ", " + of(DefaultArgExpander.withoutNull(params[1])) + ">";
                     case "std.SortedMapBuilder":
                         imports.runtime("SortedMapTableBuilder");
-                        "SortedMapTableBuilder<" + of(params[0]) + ", " + of(params[1]) + ">";
+                        "SortedMapTableBuilder<" + of(params[0]) + ", " + of(DefaultArgExpander.withoutNull(params[1])) + ">";
                     case "std.SortedSet":
                         imports.runtime("SortedSetTable");
                         "SortedSetTable<" + of(params[0]) + ">";
