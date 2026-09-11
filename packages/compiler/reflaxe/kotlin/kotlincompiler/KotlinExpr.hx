@@ -1426,8 +1426,10 @@ class KotlinExpr {
     }
 
     function functionLiteral(f:TFunc):String {
-        for (a in f.args)
+        for (a in f.args) {
             reserveName(a.v.name);
+            localNames.set(a.v.id, KotlinNameEscape.escape(a.v.name));
+        }
         final params = [for (a in f.args) '${localName(a.v)}: ${types.of(a.v.t)}'].join(", ");
         final ret = types.of(f.t);
         final retStr = ret == "Unit" ? "" : ": " + ret;
