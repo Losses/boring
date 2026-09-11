@@ -16,7 +16,11 @@ class MutableBufFieldTests {
         ops.append("b");
         Test.equals(4, ops.length());
 
-        Test.equals("1,2,3", ArrayInsertOps.insertAt([1, 3], 1, 2));
+        final inserted = ArrayInsertOps.insertAt([1, 3], 1, 2);
+        Test.equals(3, inserted.length);
+        Test.equals(1, inserted[0]);
+        Test.equals(2, inserted[1]);
+        Test.equals(3, inserted[2]);
         #else
         Test.equals(true, true);
         #end

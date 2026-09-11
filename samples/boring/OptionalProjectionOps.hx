@@ -22,7 +22,14 @@ class OptionalProjectionOps {
     }
 
     public static function trimDetail(status:Null<String>, detail:Null<String>):String {
-        return status == null ? "none" : (detail == null || StringTools.trim(detail) == "" ? status : status + ":" + detail);
+        if (status == null)
+            return "none";
+        if (detail == null)
+            return status;
+        final trimmed = StringTools.trim(detail);
+        if (trimmed == "")
+            return status;
+        return status + ":" + trimmed;
     }
 }
 
