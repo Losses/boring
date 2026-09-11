@@ -359,3 +359,6 @@ tests.NarrowLocalSwitchTests
 boring.PrivateCollisionAlpha
 boring.PrivateCollisionBeta
 tests.PrivateCollisionTests
+
+boring.OptionalMemberOps
+tests.OptionalMemberTests
