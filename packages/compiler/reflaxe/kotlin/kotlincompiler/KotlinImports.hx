@@ -80,7 +80,7 @@ class KotlinImports {
             name = "SortedTable";
         if (module == "std.SortedSet" && (name == "SortedSet" || name == "SortedTable"))
             name = "SortedTable";
-        if (module == "Std" || module == "Math" || module == "String" || module == "haxe.Int64") {
+        if (module == "Std" || module == "Math" || module == "String" || module == "haxe.Int64" || module == "haxe.Exception") {
             return;
         }
         if (SHIM_MODULES.exists(module)) {
