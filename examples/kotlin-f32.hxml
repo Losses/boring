@@ -265,10 +265,12 @@ tests.WidgetCoalescingTests
 boring.KnullInitNarrowing
 boring.NumericConversionWidening
 boring.NumericWidenOps
+boring.NumericDomainOps
 boring.NumericConversionWidening
 tests.KnullInitNarrowingTests
 tests.NumericConversionWideningTests
 tests.NumericWidenTests
+tests.NumericDomainTests
 tests.NumericConversionWideningTests
 
 boring.ProbeUnit

@@ -294,7 +294,9 @@ tests.PrivateStaticCallTests
 boring.OptionalCtorOps
 tests.OptionalCtorTests
 boring.NumericWidenOps
+boring.NumericDomainOps
 tests.NumericWidenTests
+tests.NumericDomainTests
 boring.UnderscoreParamOps
 tests.UnderscoreParamTests
 tests.EarlyReturnTests
