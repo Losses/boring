@@ -408,3 +408,7 @@ tests.NilContextTests
 boring.NullabilityOps
 tests.NullabilityTests
 boring.NullableReceiver
+boring.NullableCallOps2
+boring.NullableCallOps
+tests.NullableCallTests
+tests.KotlinNullabilityTests
