@@ -242,6 +242,9 @@ boring.OverrideMemberOps
 tests.OverrideMemberTests
 boring.ProbeChain
 tests.ProbeChainTests
+boring.ExceptionCatchOps
+tests.ProbeShareTests
+tests.ExceptionCatchTests
 
 boring.PublicGetterProperty
 tests.PublicGetterPropertyTests
