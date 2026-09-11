@@ -412,3 +412,5 @@ boring.NullableCallOps2
 boring.NullableCallOps
 tests.NullableCallTests
 tests.KotlinNullabilityTests
+boring.InterfaceIdentityOps
+tests.InterfaceIdentityTests
