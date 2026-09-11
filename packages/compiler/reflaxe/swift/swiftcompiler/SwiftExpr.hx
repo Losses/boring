@@ -586,17 +586,26 @@ class SwiftExpr {
                     currentField, currentLocalName,
                     coalescing.parameter) : DefaultArgExpander.coalescingDefaultForParam(currentClass, currentField, coalescing.parameter));
                 final localType = coalescingValue != null ? DefaultArgExpander.coalescingLocalType(coalescingValue, v.t) : v.t;
-                final hasTypeAnnotation = localDeclarationNeedsTypeAnnotation(v.t, init, coalescing != null);
-                if (hasTypeAnnotation && isNullLeafType(localType))
+                // A local declared with a plain type and bound to a bare
+                // nil carries no Swift context on the right side, so the
+                // annotation turns the declaration optional instead.
+                final nullLiteralInit = switch (init.expr) {
+                    case TConst(TNull): true;
+                    case _: false;
+                };
+                final optionalNullAnnotation = nullLiteralInit && coalescing == null && !isNullLeafType(localType);
+                final hasTypeAnnotation = localDeclarationNeedsTypeAnnotation(v.t, init, coalescing != null) || optionalNullAnnotation;
+                if (hasTypeAnnotation && (isNullLeafType(localType) || optionalNullAnnotation))
                     optionalAnnotated.set(v.id, true);
-                final annotation = hasTypeAnnotation ? ": " + types.of(localType) : "";
-                final unwrapNullableInitializer = isNullLeafType(init.t) && coalescing == null && !isNullLeafType(v.t) && hasTypeAnnotation;
+                final annotation = hasTypeAnnotation ? ": " + (optionalNullAnnotation ? types.of(localType) + "?" : types.of(localType)) : "";
+                final unwrapNullableInitializer = isNullLeafType(init.t) && coalescing == null && !isNullLeafType(v.t) && hasTypeAnnotation
+                    && !optionalNullAnnotation;
                 var initText = switch (init.expr) {
                     case TFunction(fn): functionLiteralNamed(v.name, fn);
                     default: {
                             final rendered = expr(init);
                             optionalValued(init) && hasTypeAnnotation
-                        && !isNullLeafType(v.t) ? rendered + "!" : rendered;
+                        && !isNullLeafType(v.t) && !optionalNullAnnotation ? rendered + "!" : rendered;
                         }
                 };
                 if (isIntType(emittedType(init)) && isFloatLeafType(v.t))

@@ -291,3 +291,6 @@ tests.ExceptionTypeOpsTests
 
 boring.LocalThrowOps
 tests.LocalThrowTests
+
+boring.NullInitLocalOps
+tests.NullInitLocalTests
