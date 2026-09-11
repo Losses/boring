@@ -2855,8 +2855,11 @@ class SwiftExpr {
                             + " : a))" : "a > b ? a : (b > a ? b : (a == 0.0 && b == 0.0 ? "
                             + zeroResult
                             + " : a))";
-                        return "({ () -> " + real + " in let a = " + a + "; let b = " + b + "; if a.isNaN || b.isNaN { return " + real + ".nan }; return "
-                            + ordered + " })()";
+                        // Bind the widened arguments at the call site so a
+                        // Haxe local named `a`/`b` in either argument is
+                        // evaluated outside the closure and cannot be shadowed.
+                        return "({ (a: " + real + ", b: " + real + ") -> " + real + " in if a.isNaN || b.isNaN { return " + real + ".nan }; return "
+                            + ordered + " })(" + a + ", " + b + ")";
                     }
                     if (fName == "abs")
                         return "abs(" + mathFloatArg(args[0]) + ")";

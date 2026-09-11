@@ -483,3 +483,5 @@ boring.TernaryOptionalOps
 tests.TernaryOptionalTests
 boring.NullableArrayElemOps
 tests.NullableArrayElemTests
+boring.MathMinShadowOps
+tests.MathMinShadowTests
