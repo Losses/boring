@@ -447,3 +447,6 @@ boring.IntToFloatCtorOps
 tests.IntToFloatCtorTests
 boring.NilContextOps
 tests.NilContextTests
+boring.NullabilityOps
+tests.NullabilityTests
+boring.NullableReceiver
