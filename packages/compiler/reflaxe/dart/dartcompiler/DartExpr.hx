@@ -2728,9 +2728,9 @@ class DartExpr {
             if (d != null && p != null && isNullLiteral(args[i]) && isArrayType(p)) {
                 emptyArrayText(p);
             } else if (d != null && p != null && isNullLiteral(args[i])) {
-                (cls.name == "RubySpan" || cls.name == "Cluster") ? constructorDefaultText(d, p, cls, args) : defaultArgText(d, p);
+                constructorDefaultText(d, p, cls, args);
             } else if (d != null && p != null && isNullLeafType(args[i].t)) {
-                "(" + expr(args[i]) + " ?? " + ((cls.name == "RubySpan" || cls.name == "Cluster") ? constructorDefaultText(d, p, cls, args) : defaultArgText(d, p)) + ")";
+                "(" + expr(args[i]) + " ?? " + constructorDefaultText(d, p, cls, args) + ")";
             } else {
                 var rendered = expr(args[i]);
                 if (p != null && !isNullLiteral(args[i]) && nullableValue(args[i]) && !isNullLeafType(p))
@@ -2790,8 +2790,33 @@ class DartExpr {
                 + [for (a in callArgs) constructorCoalescingText(a, targetType, cls, args)].join(", ") + ")";
             case CBinaryOp(op, left, right): constructorCoalescingText(left, targetType, cls, args) + " " + opStr(op) + " "
                 + constructorCoalescingText(right, targetType, cls, args);
+            case CStaticCall(modulePath, className, methodName, callArgs):
+                constructorStaticCallText(modulePath, className, methodName, callArgs, targetType, cls, args);
             default: coalescingDefaultText(value, targetType);
         };
+    }
+
+    /**
+        Static-call rendering inside a constructor coalescing default. Mirrors
+        coalescingStaticCallText but resolves the call's own arguments through
+        constructorCoalescingText so a parameter read (e.g. `region` in
+        `PunctuationGluePlacements.forRegion(region)`) substitutes the actual
+        constructor argument.
+     */
+    function constructorStaticCallText(modulePath:String, className:String, methodName:String, args:Array<DefaultArgExpander.CoalescingDefaultValue>,
+            targetType:Type, cls:ClassType, ctorArgs:Array<TypedExpr>):String {
+        if (modulePath == "std.SortedSet" && methodName == "builder")
+            return runtimeQualified("SortedTable.setBuilder") + "(" + [for (a in args) constructorCoalescingText(a, targetType, cls, ctorArgs)].join(", ") + ")";
+        final resolved = tryResolveTypePath(modulePath + "." + className);
+        final target = switch (resolved) {
+            case TInst(clsRef, _): staticRef(clsRef.get(), methodName);
+            case _: null;
+        };
+        if (target != null)
+            return target + "(" + [for (a in args) constructorCoalescingText(a, targetType, cls, ctorArgs)].join(", ") + ")";
+        final prefix = imports.value(modulePath, className);
+        return (prefix.length > 0 ? prefix + "." : "") + className + "." + methodName + "("
+            + [for (a in args) constructorCoalescingText(a, targetType, cls, ctorArgs)].join(", ") + ")";
     }
 
     function defaultArgText(v:DefaultArgExpander.DefaultArgValue, t:Type):String

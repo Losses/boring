@@ -289,6 +289,67 @@ class KotlinExpr {
         return className + "." + methodName + "(" + rendered + ")";
     }
 
+    /**
+        Renders a sanctioned coalescing default in a constructor-call context,
+        resolving reads of earlier constructor parameters against the actual
+        call arguments (mirrors Dart's constructorCoalescingText). A bare
+        parameter read like `kind` in `locale = if (kind == Bopomofo) ...`
+        is only in scope inside the class, so the call site substitutes
+        the argument actually passed for that parameter.
+     */
+    function constructorCoalescingText(value:DefaultArgExpander.CoalescingDefaultValue, targetType:Type, cls:ClassType, args:Array<TypedExpr>):String {
+        return switch (value) {
+            case CParameterRead(name):
+                final parameterIndex = switch (cls.constructor == null ? null : Context.follow(cls.constructor.get().type)) {
+                    case TFun(values, _):
+                        var found = -1;
+                        for (i in 0...values.length)
+                            if (values[i].name == name) found = i;
+                        found;
+                    case _: -1;
+                };
+                parameterIndex >= 0 && parameterIndex < args.length ? expr(args[parameterIndex]) : KotlinNameEscape.escape(name);
+            case CConditional(c, ifTrue, ifFalse):
+                "if ("
+                + constructorCoalescingText(c, targetType, cls, args)
+                + ") "
+                + constructorCoalescingText(ifTrue, targetType, cls, args)
+                + " else "
+                + constructorCoalescingText(ifFalse, targetType, cls, args);
+            case CFieldAccess(CParameterRead(staticPath), ""):
+                coalescingStaticFieldText(staticPath);
+            case CFieldAccess(receiver, fieldName):
+                final renderedReceiver = constructorCoalescingText(receiver, targetType, cls, args);
+                fieldName.length == 0 ? renderedReceiver : renderedReceiver + "." + KotlinNameEscape.escape(fieldName == "length" ? "size" : fieldName);
+            case CMethodCall(receiver, methodName, callArgs):
+                constructorCoalescingText(receiver, targetType, cls, args)
+                + "."
+                + KotlinNameEscape.escape(kotlinMethodName(methodName))
+                + "("
+                + [for (a in callArgs) constructorCoalescingText(a, targetType, cls, args)].join(", ")
+                + ")";
+            case CBinaryOp(op, left, right):
+                constructorCoalescingText(left, targetType, cls, args)
+                + " "
+                + opStr(op)
+                + " "
+                + constructorCoalescingText(right, targetType, cls, args);
+            case CConstructorCall(modulePath, name, callArgs):
+                imports.requireType(modulePath, name);
+                name + "(" + [for (a in callArgs) constructorCoalescingText(a, targetType, cls, args)].join(", ") + ")";
+            case CStaticCall(modulePath, className, methodName, callArgs):
+                constructorStaticCallText(modulePath, className, methodName, callArgs, targetType, cls, args);
+            default: coalescingDefaultText(value, targetType);
+        };
+    }
+
+    function constructorDefaultText(value:DefaultArgExpander.DefaultArgValue, targetType:Type, cls:ClassType, args:Array<TypedExpr>):String {
+        return switch (value) {
+            case VCoalescing(coalescing): constructorCoalescingText(coalescing, targetType, cls, args);
+            default: defaultArgText(value, targetType);
+        };
+    }
+
     function coalescingStaticFieldText(path:String):String {
         final parts = path.split(".");
         if (parts.length < 2)
@@ -303,6 +364,46 @@ class KotlinExpr {
             }
         } catch (_:Dynamic) {}
         return path;
+    }
+
+    /**
+        Static-call rendering inside a constructor coalescing default. Mirrors
+        coalescingStaticCallText but resolves the call's own arguments through
+        constructorCoalescingText so a parameter read (e.g. `region` in
+        `PunctuationGluePlacements.forRegion(region)`) substitutes the actual
+        constructor argument.
+     */
+    function constructorStaticCallText(modulePath:String, className:String, methodName:String, args:Array<DefaultArgExpander.CoalescingDefaultValue>,
+            targetType:Type, cls:ClassType, ctorArgs:Array<TypedExpr>):String {
+        final rendered = [for (a in args) constructorCoalescingText(a, targetType, cls, ctorArgs)].join(", ");
+        if (modulePath == "std.SortedMap" && methodName == "builder") {
+            final key = switch (Context.follow(DefaultArgExpander.withoutNull(targetType))) {
+                case TInst(_, params) if (params.length > 0): params[0];
+                case _: null;
+            };
+            final value = switch (Context.follow(DefaultArgExpander.withoutNull(targetType))) {
+                case TInst(_, params) if (params.length > 1): params[1];
+                case _: null;
+            };
+            imports.requireType("std.SortedMap", "SortedTable");
+            return "SortedTable.mapBuilder<"
+                + types.of(key)
+                + ", "
+                + types.of(value)
+                + ">("
+                + sortedComparator("std.SortedMap", key, Context.currentPos())
+                + ")";
+        }
+        if (modulePath == "std.SortedSet" && methodName == "builder") {
+            final key = switch (Context.follow(DefaultArgExpander.withoutNull(targetType))) {
+                case TInst(_, params) if (params.length > 0): params[0];
+                case _: null;
+            };
+            imports.requireType("std.SortedSet", "SortedTable");
+            return "SortedTable.setBuilder<" + types.of(key) + ">(" + sortedComparator("std.SortedSet", key, Context.currentPos()) + ")";
+        }
+        imports.requireType(modulePath, className);
+        return className + "." + methodName + "(" + rendered + ")";
     }
 
     static function kotlinMethodName(name:String):String {
@@ -3323,6 +3424,41 @@ class KotlinExpr {
         } else if (isIntOrLongType(emittedType(a)) && isFloatExpectedType(expected)) return intToFloatText(text); else return text;
     }
 
+    /**
+        Constructor-call argument renderer. Identical to renderCallArgs except
+        that a coalescing default which reads an earlier constructor parameter
+        (e.g. `locale = if (kind == Bopomofo) "zh-TW" else null`) resolves the
+        read against the argument actually passed for that parameter. The bare
+        parameter name is out of scope at the call site.
+     */
+    function renderConstructorArgs(cls:ClassType, args:Array<TypedExpr>):Array<String> {
+        final params = constructorParams(cls);
+        return [
+            for (i in 0...args.length) {
+                final a = args[i];
+                final expected = i < params.length ? params[i] : null;
+                final registered = DefaultArgExpander.defaultAt(cls, "new", i);
+                final wasFunctionTypeExpected = functionTypeExpected;
+                functionTypeExpected = PolicyQueries.isFunctionType(expected);
+                final text = expr(a);
+                functionTypeExpected = wasFunctionTypeExpected;
+                if (registered != null && expected != null && isNullLiteral(a)) {
+                    constructorDefaultText(registered, expected, cls, args);
+                } else if (registered != null && expected != null && isNullType(a.t)) {
+                    "(" + text + " ?: " + constructorDefaultText(registered, expected, cls, args) + ")";
+                } else if (expected != null && !isNullType(expected) &&
+                    ((PolicyQueries.isNullableType(a.t) && !provenNonNull(a) && !guardProofBefore(a)) || isNullInitialized(a) || nullableChainHop(a))) {
+                    if (!isNullInitialized(a))
+                        addProofExpr(a);
+                    if (provenNonNull(a) || guardProofBefore(a))
+                        text + "!!";
+                    else
+                        text + " ?: throw IllegalArgumentException(\"argument is null\")";
+                } else if (isIntOrLongType(emittedType(a)) && isFloatExpectedType(expected)) intToFloatText(text); else text;
+            }
+        ];
+    }
+
     function isNullLiteral(e:TypedExpr):Bool {
         return switch (stripWrap(e).expr) {
             case TConst(TNull): true;
@@ -3421,22 +3557,7 @@ class KotlinExpr {
                 argText = intToFloatText(argText);
             return valueType.name + "(" + argText + ")";
         }
-        final prior = constructorParameterValues;
-        constructorParameterValues = [];
-        final renderedArgs:Array<String> = [];
-        final ctorNames = cls.constructor == null ? [] : switch (Context.follow(cls.constructor.get().type)) {
-            case TFun(values, _): [for (v in values) v.name];
-            case _: [];
-        };
-        final ctorParams = constructorParams(cls);
-        for (i in 0...args.length) {
-            final rendered = renderCallArg(args[i], i, ctorParams, cls, "new");
-            renderedArgs.push(rendered);
-            if (i < ctorNames.length)
-                constructorParameterValues.set(ctorNames[i], rendered);
-        }
-        constructorParameterValues = prior;
-        final renderedArgsText = renderedArgs.join(", ");
+        final renderedArgs = renderConstructorArgs(cls, args).join(", ");
         final path = cls.pack.length == 0 ? cls.name : cls.pack.join(".") + "." + cls.name;
         switch (path) {
             case "std.StringBuf" | "StringBuf":
