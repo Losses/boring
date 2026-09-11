@@ -227,6 +227,14 @@ class DartImports {
                 return "";
             }
         }
+        // A business or test module references a resident through the
+        // combined runtime library, never a per-module file (the runtime
+        // merges every resident into one emitted library). The runtime
+        // import is recorded separately by runtimePrefix(); do not add a
+        // per-module import.
+        if (RuntimeResidents.isResident(module) && !RuntimeResidents.isResident(selfModule)) {
+            return runtimePrefix();
+        }
         final existing = modules.get(module);
         if (existing != null) {
             return existing;
