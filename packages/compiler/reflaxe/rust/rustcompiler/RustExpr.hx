@@ -94,6 +94,12 @@ class RustExpr {
     // choice is safe anywhere inside the initializer.
     var i32ComparisonTarget = false;
     var i32InitializerTarget = false;
+    // Locals whose declaration renders an i32 binding (a wrapping-binop
+    // initializer under i32InitializerTarget). Assignments to them keep the
+    // i32 target override; every other i32-domain local binds u32 (a
+    // constant or u32-source initializer) and its assignments must render
+    // in the binding's u32 domain.
+    final i32BindingLocals:Map<Int, Bool> = [];
     // Downward loops the renderer shifts to an unsigned guard
     // (transformCountdownLoops): their variable keeps the u32 domain.
     final countdownShiftedVars:Map<Int, Bool> = [];
@@ -409,6 +415,7 @@ class RustExpr {
         nullableCollapsedLocals.clear();
         nullableSensitiveLocals.clear();
         i32Locals.clear();
+        i32BindingLocals.clear();
         countdownShiftedVars.clear();
         mutated.clear();
         deferredLocals.clear();
@@ -780,6 +787,7 @@ class RustExpr {
                             case _: false;
                         };
                         if (wrapInit) {
+                            i32BindingLocals.set(v.id, true);
                             i32InitializerTarget = true;
                             final text = expr(init);
                             i32InitializerTarget = false;
@@ -2013,6 +2021,10 @@ class RustExpr {
 
     function renderPushArg(arg:TypedExpr):String {
         var argStr = expr(arg);
+        // An i32-domain value pushed into a business u32 array reinterprets
+        // its bits; the element slot is the u32 domain.
+        if (!isNullType(arg.t) && !RuntimeResidents.isResident(imports.selfModule) && i32LocalDomain(arg))
+            argStr = RustConversions.reinterpret(argStr, "u32");
         // A narrowed read already lowers to the match binding, a reference
         // to the inner value: the push dereferences it for Copy inners and
         // clones for the owned kinds, with no Option left to unwrap.
@@ -2396,6 +2408,10 @@ class RustExpr {
                             expr(x);
                         };
                         if (elemFloat && isIntType(emittedType(x))) inner = intToFloatText(inner);
+                        // An i32-domain element in a business u32 array
+                        // reinterprets its bits at the literal boundary.
+                        if (!elemFloat && elemType != null && isIntType(elemType) && types.of(elemType, false) == "u32"
+                            && i32LocalDomain(x) && !isNullType(x.t)) inner = RustConversions.reinterpret(inner, "u32");
                         if (isNullableElem && !isTNull(x) && !StaticFieldHelper.isNullableType(x.t)) {
                             "Some(" + inner + ")";
                         } else {
@@ -3426,7 +3442,7 @@ class RustExpr {
                         default: expr(r);
                     }
                 } else {
-                    numericAssignmentValue(l.t, r, renderValueForType(l.t, r, expr(r)), i32LocalDomain(l) ? "i32" : null);
+                    numericAssignmentValue(l.t, r, renderValueForType(l.t, r, expr(r)), i32BindingLocals.exists(stripAssignTargetLocal(l)) ? "i32" : null);
                 };
                 return assignTarget(l) + " = " + rhs;
             case OpAssignOp(inner):
@@ -3577,6 +3593,14 @@ class RustExpr {
                     left = intToFloatText(left);
                 if (isIntType(emittedType(r)) && isFloatType(emittedType(l)))
                     right = intToFloatText(right);
+                // An i32-domain operand compared with a business u32 operand
+                // reinterprets its bits so both sides share the u32 domain.
+                if (isIntType(emittedType(l)) && isIntType(emittedType(r)) && !isFloatType(e.t)) {
+                    if (i32LocalDomain(l) && !i32LocalDomain(r))
+                        left = RustConversions.reinterpret(left, "u32");
+                    else if (i32LocalDomain(r) && !i32LocalDomain(l))
+                        right = RustConversions.reinterpret(right, "u32");
+                }
                 return left + " " + symbolOf(op) + " " + right;
         }
     }
@@ -3856,6 +3880,10 @@ class RustExpr {
         if (folded != null)
             return folded;
         if (RuntimeResidents.isResident(imports.selfModule))
+            return RustConversions.reinterpret(expr(e), "u32");
+        // An i32-domain index reaching the u32 charCodeAt slot reinterprets
+        // its bits; the slot is the business u32 domain.
+        if (i32LocalDomain(e) && !isNullType(e.t))
             return RustConversions.reinterpret(expr(e), "u32");
         return expr(e);
     }
@@ -5950,7 +5978,7 @@ class RustExpr {
                 return text;
             return RustConversions.reinterpret(text, wrapDomain);
         }
-        if (i32ComparisonTarget || i32OperandDomain(e))
+        if (i32OperandDomain(e))
             return text;
         switch (stripWrap(e).expr) {
             case TConst(TInt(_)):
@@ -5994,8 +6022,11 @@ class RustExpr {
 
     function i32LocalDomain(e:TypedExpr):Bool {
         return switch (stripWrap(e).expr) {
-            case TLocal(v): i32Locals.exists(v.id) && !paramVarIds.exists(v.id);
-            case TBinop(OpAdd | OpSub | OpMult, left, right): i32LocalDomain(left) || i32LocalDomain(right);
+            // A range loop variable renders as the u32 loop counter
+            // (`for m in 0..bound`); the underflow-prone bound comparison
+            // that marked it i32 must not leak into its arithmetic.
+            case TLocal(v): i32Locals.exists(v.id) && !paramVarIds.exists(v.id) && !rangeLoopVars.exists(v.id);
+            case TBinop(OpAdd | OpSub | OpMult | OpMod, left, right): i32LocalDomain(left) || i32LocalDomain(right);
             case _: false;
         };
     }
@@ -6004,7 +6035,7 @@ class RustExpr {
         return switch (stripWrap(e).expr) {
             case TLocal(v) if (paramVarIds.exists(v.id)): types.of(e.t) == "i32";
             case TLocal(_): i32LocalDomain(e);
-            case TBinop(OpAdd | OpSub | OpMult, left, right): i32OperandDomain(left) || i32OperandDomain(right);
+            case TBinop(OpAdd | OpSub | OpMult | OpMod, left, right): i32OperandDomain(left) || i32OperandDomain(right);
             case _: false;
         };
     }
@@ -6023,6 +6054,14 @@ class RustExpr {
             case TLocal(_): true;
             case TField(subj, FInstance(_, _, _)) | TField(subj, FAnon(_)): isLocalOrFieldTarget(subj);
             default: false;
+        };
+    }
+
+    /** The local variable id of a plain local assignment target, else -1. */
+    function stripAssignTargetLocal(e:TypedExpr):Int {
+        return switch (stripWrap(e).expr) {
+            case TLocal(v): v.id;
+            case _: -1;
         };
     }
 
@@ -6132,14 +6171,20 @@ class RustExpr {
                 };
                 if (local != null)
                     nullableSensitiveLocals.set(local.id, true);
-            case TBinop(OpLte | OpLt | OpGt | OpGte, left, right):
-                // A comparison against literal zero, or against an expression
-                // which can underflow below zero, contemplates negative values;
-                // the local keeps the signed i32 Int domain.
+            case TBinop(cmpOp, left, right) if (cmpOp == OpLte || cmpOp == OpLt || cmpOp == OpGt || cmpOp == OpGte):
+                // A comparison that contemplates negative values keeps the
+                // local in the signed i32 Int domain: `>= 0`, `< 0`, and
+                // `<= 0` can all observe a negative value, and a comparison
+                // against an expression that can underflow below zero does
+                // too. A bare `> 0` is a positive check on a business u32
+                // index and never needs the signed domain, so it leaves the
+                // local unsigned.
                 switch ([stripWrap(left).expr, stripWrap(right).expr]) {
-                    case [TLocal(v), _] if (isZero(right) || isUnderflowProneIntExpr(right)):
+                    case [TLocal(v), _] if (isUnderflowProneIntExpr(right)
+                        || ((cmpOp == OpLte || cmpOp == OpLt || cmpOp == OpGte) && isZero(right))):
                         if (isIntType(v.t) && !isNullType(v.t) && !unsignedLocals.exists(v.id) && !countdownShiftedVars.exists(v.id)) i32Locals.set(v.id, true);
-                    case [_, TLocal(v)] if (isZero(left) || isUnderflowProneIntExpr(left)):
+                    case [_, TLocal(v)] if (isUnderflowProneIntExpr(left)
+                        || ((cmpOp == OpLte || cmpOp == OpGt || cmpOp == OpGte) && isZero(left))):
                         if (isIntType(v.t) && !isNullType(v.t) && !unsignedLocals.exists(v.id) && !countdownShiftedVars.exists(v.id)) i32Locals.set(v.id, true);
                     case _:
                 }

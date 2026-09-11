@@ -264,8 +264,10 @@ boring.OptionalParamNull
 tests.OptionalParamNullTests
 boring.NumericConversionWidening
 boring.NumericWidenOps
+boring.NumericDomainOps
 tests.NumericConversionWideningTests
 tests.NumericWidenTests
+tests.NumericDomainTests
 tests.RustUnionFaultTests
 tests.PlatformModulesTestSupport
 tests.PlatformModulesTests
