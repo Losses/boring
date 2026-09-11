@@ -4,6 +4,7 @@ import std.Test;
 
 #if swift_output
 import boring.OptionalProjectionOps;
+import boring.ValueTypeOps.FontFaceId;
 import boring.ValueTypeOps.Ic;
 #end
 
@@ -18,7 +19,9 @@ class OptionalProjectionTests {
         Test.equals("base:pad", OptionalProjectionOps.trimDetail("base", " pad "));
         Test.equals("none", OptionalProjectionOps.trimDetail(null, "pad"));
 
-        final text = OptionalProjectionOps.recordText("primary", ["fallback", null]);
+        final primary = new FontFaceId("primary");
+        final fallback = new FontFaceId("fallback");
+        final text = OptionalProjectionOps.recordText(primary, [fallback]);
         Test.equals(true, text.indexOf("ProjectionRecord") >= 0);
         #else
         Test.equals(true, true);

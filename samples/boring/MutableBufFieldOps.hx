@@ -29,9 +29,9 @@ class MutableBufFieldOps {
 }
 
 class ArrayInsertOps {
-    public static function insertAt(values:Array<Int>, pos:Int, value:Int):String {
+    public static function insertAt(values:Array<Int>, pos:Int, value:Int):Array<Int> {
         values.insert(pos, value);
-        return values.join(",");
+        return values;
     }
 }
 #else
