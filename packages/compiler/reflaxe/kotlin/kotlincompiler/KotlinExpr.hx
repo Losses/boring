@@ -3006,6 +3006,19 @@ class KotlinExpr {
             case TField(subj, FStatic(c, cf)):
                 final cls = c.get();
                 final name = cf.get().name;
+                if (cls.name == "NodeFileSystem")
+                    Sys.println("KF1DEBUG NodeFS call name=" + name + " pack=" + cls.pack.join(".") + " module=" + cls.module + " fnExpr=" + Type.enumConstructor(fn.expr));
+                if (cls.module == "org.tiqian.test.trace.TestTracePlatform" && cls.name == "_TestTracePlatform") {
+                    // The node:fs extern has no JVM face; the test-trace
+                    // golden writer lowers to java.nio.file so the generated
+                    // Kotlin compiles and keeps writing trace files.
+                    if (name == "mkdirSync" && args.length >= 1) {
+                        return "java.nio.file.Files.createDirectories(java.nio.file.Paths.get(" + expr(args[0]) + "))";
+                    }
+                    if (name == "writeFileSync" && args.length >= 2) {
+                        return "java.nio.file.Files.writeString(java.nio.file.Paths.get(" + expr(args[0]) + "), " + expr(args[1]) + ")";
+                    }
+                }
                 if (cls.pack.length == 0 && cls.name == "StringTools" && name == "hex") {
                     return stringToolsHex(args);
                 }
@@ -3258,11 +3271,14 @@ class KotlinExpr {
                 if (name == "charAt" && isString(stripCast(subj))) {
                     return expr(subj) + "[" + expr(args[0]) + "].toString()";
                 }
-                if (name == "charCodeAt" && isString(stripCast(subj))) {
+                if (name == "charCodeAt" && (isString(stripCast(subj)) || isNullStringReceiver(subj))) {
                     // stdlib/15: capture both operands once, then make the
                     // platform bounds check explicit so the result is Null<Int>.
+                    // A Null<String> receiver renders with a forced unwrap so
+                    // the captured `_s` is a plain String.
+                    final receiver = expr(subj) + (isNullStringReceiver(subj) ? "!!" : "");
                     return "run { val _s = "
-                        + expr(subj)
+                        + receiver
                         + "; val _i = "
                         + expr(args[0])
                         + "; if (_i >= 0 && _i < _s.length) _s[_i].code else null }";
@@ -3615,6 +3631,13 @@ class KotlinExpr {
                 imports.requireType(path, "BytesBuffer");
                 return "BytesBuffer(" + renderedArgsText + ")";
             case "Array":
+                // The declared Kotlin type for Haxe Array is MutableList<T>;
+                // a zero-arg construction must also be MutableList so later
+                // assignments of MutableList results type-check. Sized
+                // construction (new Array(n)) keeps ArrayList, which is the
+                // only Kotlin shape carrying an initial capacity.
+                if (args.length == 0)
+                    return "mutableListOf<" + types.of(params[0]) + ">()";
                 imports.require("java.util.ArrayList");
                 return "ArrayList<" + types.of(params[0]) + ">(" + renderedArgsText + ")";
             case _:
@@ -3853,6 +3876,14 @@ class KotlinExpr {
 
     function isString(e:TypedExpr):Bool {
         return switch (e.t) {
+            case TInst(c, _): final cls = c.get(); cls.pack.join(".") == "" && cls.name == "String";
+            case _: false;
+        }
+    }
+
+    /** True when the expression's type is `Null<String>` (or `String`). */
+    function isNullStringReceiver(e:TypedExpr):Bool {
+        return switch (Context.follow(e.t)) {
             case TInst(c, _): final cls = c.get(); cls.pack.join(".") == "" && cls.name == "String";
             case _: false;
         }
