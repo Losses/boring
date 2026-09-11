@@ -278,9 +278,10 @@ class DartExpr {
             case TInst(clsRef, _):
                 final cls = clsRef.get();
                 // A private static lowers under its `_`-prefixed Dart name
-                // (feature spec 27); the coalescing default inlines the
-                // reference at the call site, so it must carry the same
-                // Dart name as the declaration.
+                // (feature spec 27). Cross-library inlining of a private
+                // static is skipped by the caller (the value passes
+                // through), so this path only renders same-module or
+                // public references where the underscored name is valid.
                 final field = findStaticField(cls, methodName);
                 final dartName = (field != null && !field.isPublic && !field.meta.has(":allow"))
                     ? "_" + methodName : methodName;
@@ -2739,7 +2740,19 @@ class DartExpr {
             } else if (d != null && p != null && isNullLiteral(args[i])) {
                 constructorDefaultText(d, p, cls, args);
             } else if (d != null && p != null && isNullLeafType(args[i].t)) {
-                "(" + expr(args[i]) + " ?? " + constructorDefaultText(d, p, cls, args) + ")";
+                // A coalescing default that references a private static of
+                // another module cannot be inlined cross-library; pass the
+                // nullable value through and let the callee apply the
+                // default internally.
+                final skipInline = switch (d) {
+                    case VCoalescing(value): coalescingReferencesPrivateStatic(value);
+                    default: false;
+                };
+                if (skipInline) {
+                    expr(args[i]);
+                } else {
+                    "(" + expr(args[i]) + " ?? " + ((cls.name == "RubySpan" || cls.name == "Cluster") ? constructorDefaultText(d, p, cls, args) : defaultArgText(d, p)) + ")";
+                }
             } else {
                 var rendered = expr(args[i]);
                 if (p != null && !isNullLiteral(args[i]) && nullableValue(args[i]) && !isNullLeafType(p))
@@ -2753,6 +2766,30 @@ class DartExpr {
         return switch (Context.follow(DefaultArgExpander.withoutNull(t))) {
             case TInst(c, _) if (c.get().name == "Array"): true;
             case _: false;
+        };
+    }
+
+    /** Whether a coalescing default references a private static of another
+        module. Such a default cannot be inlined at a cross-library call
+        site (the `_`-prefixed Dart name is library-private); the call site
+        passes the nullable value through and the callee applies the
+        default internally. */
+    function coalescingReferencesPrivateStatic(value:DefaultArgExpander.CoalescingDefaultValue):Bool {
+        return switch (value) {
+            case CStaticCall(modulePath, className, methodName, _):
+                final resolved = tryResolveTypePath(modulePath + "." + className);
+                final field = switch (resolved) {
+                    case TInst(clsRef, _): findStaticField(clsRef.get(), methodName);
+                    case _: null;
+                };
+                field != null && !field.isPublic && !field.meta.has(":allow") && modulePath != imports.selfModule;
+            case CMethodCall(receiver, _, args):
+                coalescingReferencesPrivateStatic(receiver) || Lambda.exists(args, coalescingReferencesPrivateStatic);
+            case CFieldAccess(receiver, _): coalescingReferencesPrivateStatic(receiver);
+            case CConditional(c, t, f): coalescingReferencesPrivateStatic(c) || coalescingReferencesPrivateStatic(t) || coalescingReferencesPrivateStatic(f);
+            case CBinaryOp(_, l, r): coalescingReferencesPrivateStatic(l) || coalescingReferencesPrivateStatic(r);
+            case CConstructorCall(_, _, args): Lambda.exists(args, coalescingReferencesPrivateStatic);
+            default: false;
         };
     }
 
