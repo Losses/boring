@@ -3688,11 +3688,11 @@ class DartExpr {
         scopedNameCounts.clear();
         for (a in f.args) {
             if (a.tvar != null)
-                assignScopedLocalName(a.tvar);
+                assignScopedLocalName(a.tvar, false);
         }
         function walk(e:TypedExpr):Void {
             switch (e.expr) {
-                case TVar(v, _): assignScopedLocalName(v);
+                case TVar(v, _): assignScopedLocalName(v, true);
                 case TFunction(_): return;
                 case _:
             }
@@ -3701,13 +3701,13 @@ class DartExpr {
         walk(f.expr);
     }
 
-    function assignScopedLocalName(v:TVar):Void {
+    function assignScopedLocalName(v:TVar, isLocal:Bool):Void {
         if (v.name == "`" || v.name == "_")
             return;
         final count = scopedNameCounts.exists(v.name) ? scopedNameCounts.get(v.name) + 1 : 1;
         scopedNameCounts.set(v.name, count);
         scopedLocalNames.set(v.id, count == 1 ? v.name : v.name + count);
-        final reserved = reservedTopLevelNames.exists(v.name);
+        final reserved = reservedTopLevelNames.exists(v.name) || (isLocal && imports.hasPrefix(v.name));
         scopedLocalNames.set(v.id, count == 1 && !reserved ? v.name : v.name + (count + (reserved ? 1 : 0)));
     }
 
