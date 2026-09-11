@@ -93,6 +93,13 @@ class SwiftExpr {
     /** Locals whose emitted declaration annotation is optional. */
     final optionalAnnotated:Map<Int, Bool> = [];
 
+    /**
+        Parameters whose Swift signature is plain despite a Null-typed Haxe
+        parameter: a constant default supplies the value, so the optional
+        wrapper never reaches the signature and value uses must not unwrap.
+    **/
+    final nonOptionalDeclared:Map<Int, Bool> = [];
+
     /** Locals proven non-null by an enclosing guard; value uses unwrap. */
     final narrowedLocals:Map<Int, Bool> = [];
 
@@ -450,6 +457,7 @@ class SwiftExpr {
         };
         // Depth 2: one level under the member's own indentation.
         beginLocalScope();
+        markNonOptionalParams(cls, f);
         scanLocals(f.expr);
         resolveLocalFunctionThrows();
         final result = blockLines(statementsOf(f.expr), depth);
@@ -497,6 +505,7 @@ class SwiftExpr {
             case _: false;
         };
         beginLocalScope();
+        markNonOptionalParams(cls, f);
         scanLocals(f.expr);
         resolveLocalFunctionThrows();
         final out:Array<String> = [];
@@ -530,6 +539,7 @@ class SwiftExpr {
         PipelineExpander.expandRootExpr(f.expr);
         EnumQueryExpander.expandRootExpr(f.expr);
         beginLocalScope();
+        markNonOptionalParams(cls, f);
         scanLocals(f.expr);
         resolveLocalFunctionThrows();
         final stmts = statementsOf(f.expr);
@@ -1951,7 +1961,15 @@ class SwiftExpr {
 
     function isLocalOptional(e:TypedExpr):Bool {
         return switch (stripWrap(e).expr) {
-            case TLocal(v): isNullLeafType(e.t) && !coalescingLocals.exists(v.id);
+            case TLocal(v): isNullLeafType(e.t) && !coalescingLocals.exists(v.id) && !nonOptionalDeclared.exists(v.id);
+            case _: false;
+        };
+    }
+
+    /** Whether a value's Swift declaration is plain despite a Null Haxe type. */
+    function isNonOptionalDeclared(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TLocal(v): nonOptionalDeclared.exists(v.id);
             case _: false;
         };
     }
@@ -2298,7 +2316,7 @@ class SwiftExpr {
                             "&" + expr(a);
                     }
                 } else {
-                    (optionalValued(a) || isNullLeafType(a.t)) && demandsValue ? expr(a) + "!" : expr(a);
+                    (optionalValued(a) || (isNullLeafType(a.t) && !isNonOptionalDeclared(a))) && demandsValue ? expr(a) + "!" : expr(a);
                 };
                 if (pt != null && isIntType(emittedType(a)) && isFloatLeafType(pt)) t = intToFloatText(t);
                 t;
@@ -2335,7 +2353,7 @@ class SwiftExpr {
     /** Whether a value-position expression carries an optional at runtime. */
     function optionalValued(e:TypedExpr):Bool {
         if (isNullLeafType(e.t) && !switch (stripWrap(e).expr) {
-                case TLocal(v): coalescingLocals.exists(v.id);
+                case TLocal(v): coalescingLocals.exists(v.id) || nonOptionalDeclared.exists(v.id);
                 case _: false;
             })
             return true;
@@ -4628,6 +4646,28 @@ class SwiftExpr {
     }
 
     /** Starts a function's local scope so duplicate Haxe names mint distinct Swift names. */
+    /**
+        Optional parameters that carry a constant default render as plain
+        Swift parameters: the default supplies the value and Haxe's Null
+        wrapper never reaches the signature. Record their locals as
+        non-optional inferred so value uses do not force-unwrap a type
+        that is already plain in Swift.
+    **/
+    function markNonOptionalParams(cls:ClassType, f:ClassFuncData):Void {
+        for (a in f.args) {
+            if (a.tvar == null)
+                continue;
+            final registered = DefaultArgExpander.defaultAt(cls, f.field.name, a.index);
+            if (registered == null)
+                continue;
+            final coalescing = DefaultArgExpander.coalescingOf(registered);
+            if (DefaultArgExpander.coalescingReadsParamForParam(cls, f.field.name, a.name) || coalescingDefaultThrows(coalescing))
+                continue;
+            if (!isNullLeafType(DefaultArgExpander.coalescingParameterType(coalescing, a.type)))
+                nonOptionalDeclared.set(a.tvar.id, true);
+        }
+    }
+
     function beginLocalScope():Void {
         localDeclIds.clear();
         assignedLocalNames.clear();

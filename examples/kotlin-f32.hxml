@@ -365,3 +365,6 @@ tests.OptionalMemberTests
 
 boring.ForInOptionalOps
 tests.ForInOptionalTests
+
+boring.DefaultParamUnwrapOps
+tests.DefaultParamUnwrapTests
