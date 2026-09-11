@@ -471,3 +471,7 @@ boring.IntFloatAddOps
 tests.IntFloatAddTests
 boring.InterfaceArrayLiteralOps
 tests.InterfaceArrayLiteralTests
+boring.DartCoalesceStaticOps
+boring.DartCoalesceReceiver
+boring.DartCoalesceKind
+tests.DartCoalesceStaticTests
