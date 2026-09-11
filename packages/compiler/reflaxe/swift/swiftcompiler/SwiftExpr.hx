@@ -2469,7 +2469,10 @@ class SwiftExpr {
     /** A method receiver unwraps when the receiver expression is optional. */
     function receiverText(subj:TypedExpr):String {
         final inner = stripWrap(subj);
-        if (!optionalValued(subj) && !isNullLeafType(subj.t) && !optionalValued(inner) && !isNullLeafType(inner.t)) {
+        // A Haxe flow-narrowed local's expression type is already non-null
+        // while its Swift declaration stays optional, so a narrowed subject
+        // still unwraps.
+        if (!optionalValued(subj) && !isNullLeafType(subj.t) && !optionalValued(inner) && !isNullLeafType(inner.t) && !isNarrowed(subj)) {
             return expr(subj);
         }
         final base = expr(subj);
@@ -2506,7 +2509,17 @@ class SwiftExpr {
             case TEnum(en, _): !isParameterlessEnum(en.get()) && !EnumCycleDetector.isCyclic(en.get());
             case _: false;
         };
-        return stdStringType(arg.t, !fromSource && nullable && !narrowsInSwitch ? "(" + expr(arg) + ")!" : expr(arg), inConcat, arg);
+        final rendered = expr(arg);
+        // A local declared with a non-null Haxe type but a nil initializer
+        // binds an optional Swift value; `optionalValued` sees the annotation
+        // even though the Haxe flow type stays plain.
+        final unwrap = !narrowsInSwitch && !StringTools.endsWith(rendered, "!")
+            && ((!fromSource && nullable) || (optionalValued(arg) && !isNullLeafType(arg.t)));
+        final value = !unwrap ? rendered : switch (stripWrap(arg).expr) {
+            case TLocal(_): rendered + "!";
+            case _: "(" + rendered + ")!";
+        };
+        return stdStringType(arg.t, value, inConcat, arg);
     }
 
     function stdIsOfType(args:Array<TypedExpr>):String {
