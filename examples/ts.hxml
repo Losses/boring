@@ -496,3 +496,5 @@ boring.StringAppendOps
 tests.StringAppendTests
 boring.EnumLookupOps
 tests.EnumLookupTests
+boring.TernaryInterfaceOps
+tests.TernaryInterfaceTests
