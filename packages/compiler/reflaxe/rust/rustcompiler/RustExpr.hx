@@ -7343,6 +7343,24 @@ class RustExpr {
         conditionalBranchText applies. **/
     function wrapBranchForNullableResult(branch:TypedExpr, resultType:Null<Type>, sibling:TypedExpr):String {
         final text = expr(branch);
+        if (resultType != null && isNullType(resultType)) {
+            // A null-literal arm of a nullable result renders as None; an
+            // already-nullable arm keeps its Option shape; any other arm
+            // wraps in Some(...) with the string coercion applied inside.
+            if (isTNull(branch))
+                return "None";
+            if (isNullType(branch.t) || StaticFieldHelper.isNullableType(branch.t))
+                return text;
+            final coerced = coerceBranchText(text, resultType, sibling);
+            return "Some(" + coerced + ")";
+        }
+        return coerceBranchText(text, resultType, sibling);
+    }
+
+    /** The non-nullable arm coercions: owned-string conversion and the
+        u_string count reinterpret, applied unchanged for both result
+        shapes. **/
+    function coerceBranchText(text:String, resultType:Null<Type>, sibling:TypedExpr):String {
         if (resultType != null && isStringType(resultType)) {
             if (StringTools.endsWith(text, ".to_string()") || StringTools.endsWith(text, ".clone()"))
                 return text;
@@ -7350,13 +7368,6 @@ class RustExpr {
         }
         if (text.indexOf("u_string::count") >= 0 && resolveExprType(sibling) == "i32") {
             return RustConversions.reinterpret(text, "i32");
-        }
-        if (resultType != null
-            && isNullType(resultType)
-            && !isNullType(branch.t)
-            && !isTNull(branch)
-            && !StaticFieldHelper.isNullableType(branch.t)) {
-            return "Some(" + text + ")";
         }
         return text;
     }
