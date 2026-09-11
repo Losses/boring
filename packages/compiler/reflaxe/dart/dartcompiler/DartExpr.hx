@@ -275,7 +275,16 @@ class DartExpr {
             return runtimeQualified("SortedTable.setBuilder") + "(" + [for (a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
         final resolved = tryResolveTypePath(modulePath + "." + className);
         final target = switch (resolved) {
-            case TInst(clsRef, _): staticRef(clsRef.get(), methodName);
+            case TInst(clsRef, _):
+                final cls = clsRef.get();
+                // A private static lowers under its `_`-prefixed Dart name
+                // (feature spec 27); the coalescing default inlines the
+                // reference at the call site, so it must carry the same
+                // Dart name as the declaration.
+                final field = findStaticField(cls, methodName);
+                final dartName = (field != null && !field.isPublic && !field.meta.has(":allow"))
+                    ? "_" + methodName : methodName;
+                staticRef(cls, dartName);
             case _: null;
         };
         if (target != null)

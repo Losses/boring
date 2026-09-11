@@ -292,6 +292,8 @@ tests.LocalShadowTests
 boring.PrivateClassOps
 boring.PrivateClassPeerOps
 tests.PrivateClassTests
+boring.PrivateStaticCallOps
+tests.PrivateStaticCallTests
 boring.NumericWidenOps
 tests.NumericWidenTests
 boring.UnderscoreParamOps
