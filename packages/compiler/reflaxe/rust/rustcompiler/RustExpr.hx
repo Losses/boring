@@ -2626,7 +2626,7 @@ class RustExpr {
                 requireEnum(en.module, en.name);
                 switch (kind) {
                     case QCollection: en.name + "::ALL";
-                    case QName: expr(args[0]) + ".name()";
+                    case QName: expr(args[0]) + ".name().to_string()";
                     case QLookup: en.name + "::from_name(&(" + expr(args[1]) + "))";
                 }
         }
