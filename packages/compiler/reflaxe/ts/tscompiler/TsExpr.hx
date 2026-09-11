@@ -95,6 +95,9 @@ class TsExpr {
     /** Catch variables in scope, keyed by TVar id (features/06). */
     final catchVars:Map<Int, Bool> = [];
 
+    /** Variables whose init is nullable but should be narrowed with ! */
+    final nullableBindings:Map<Int, Bool> = [];
+
     final hiddenNames:Map<Int, String> = [];
     var hiddenCounter:Int = 0;
     var hoistCounter:Int = 0;
@@ -463,6 +466,10 @@ class TsExpr {
                     case TFunction(fn): functionLiteralNamed(v.name, fn);
                     default: expr(init);
                 };
+                // Add non-null assertion when init is nullable but variable type is not
+                if (nullableBindings.exists(v.id)) {
+                    initText = initText + "!";
+                }
                 return [
                     indent(depth) + '$kw ${localName(v)}${localTypeAnnotation(v, cast init)} = $initText;'
                 ];
@@ -2228,9 +2235,19 @@ class TsExpr {
         return [for (i in 0...args.length) {
             final d = DefaultArgExpander.defaultAt(cls, "new", i);
             final p = i < ps.length ? ps[i] : null;
-            d != null
-            && p != null && isNullLiteral(args[i]) ? defaultArgText(d, p) : d != null && p != null && isNullType(args[i].t) ? "(" + expr(args[i]) + " ?? " + defaultArgText(d,
-                p) + ")" : expr(args[i]);
+            // When the argument is explicitly null and the default is a coalescing
+            // default, preserve null because coalescing defaults apply only to
+            // omitted arguments.
+            if (d != null && p != null && isNullLiteral(args[i])) {
+                switch (d) {
+                    case VCoalescing(_): expr(args[i]);
+                    default: defaultArgText(d, p);
+                }
+            } else if (d != null && p != null && isNullType(args[i].t)) {
+                "(" + expr(args[i]) + " ?? " + defaultArgText(d, p) + ")";
+            } else {
+                expr(args[i]);
+            }
         }
         ];
     }
@@ -2877,6 +2894,10 @@ class TsExpr {
                     scopedLocalNames.set(v.id, count == 1 ? v.name : v.name + count);
                 }
                 PolicyQueries.noteFpInt64Init(v, init, fpInt64Halves);
+                // Mark nullable bindings for non-null assertion
+                if (init != null && PolicyQueries.isNullableType(stripWrap(init).t) && !PolicyQueries.isNullableType(v.t)) {
+                    nullableBindings.set(v.id, true);
+                }
             case TBinop(OpAssign, t, _) | TBinop(OpAssignOp(_), t, _):
                 switch (t.expr) {
                     case TLocal(v): mutated.set(v.id, true);
