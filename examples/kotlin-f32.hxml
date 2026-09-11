@@ -298,3 +298,6 @@ tests.FusedPushThrowTests
 
 boring.SwiftGlobalThrowOps
 tests.SwiftGlobalThrowTests
+
+boring.ArrayMethodSwiftOps
+tests.ArrayMethodSwiftTests

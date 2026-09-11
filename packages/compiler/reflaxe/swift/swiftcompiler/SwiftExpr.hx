@@ -2437,6 +2437,14 @@ class SwiftExpr {
                     return "String(decoding: " + receiverText(subj) + "[Int(" + expr(args[0]) + ")..<Int(" + expr(args[0]) + " + " + expr(args[1])
                         + ")], as: UTF8.self)";
                 }
+                if (name == "indexOf" && isUnitArrayTyped(subj) && !isStringSubject(subj) && args.length >= 1
+                    && (args.length == 1 || isNullLiteral(args[1]))) {
+                    // Haxe Array.indexOf has no Swift member; lower onto
+                    // firstIndex(of:) and report the -1 miss the subset uses.
+                    final s = receiverText(subj);
+                    return "Int32({ () -> Int in if let i = " + s + ".firstIndex(of: " + expr(args[0]) + ") { return " + s + ".distance(from: " + s
+                        + ".startIndex, to: i) }; return -1 }())";
+                }
                 if (name == "indexOf" && isStringSubject(subj) && args.length >= 1) {
                     final s = receiverText(subj);
                     return "Int32({ () -> Int in if let i = " + s + ".firstIndex(of: " + expr(args[0]) + ".first!) { return " + s + ".distance(from: " + s
@@ -2453,6 +2461,35 @@ class SwiftExpr {
                 }
                 if (name == "push") {
                     return receiverText(subj) + ".append(" + optionalExpr(args[0]) + ")";
+                }
+                if (name == "pop" && isUnitArrayTyped(subj)) {
+                    return receiverText(subj) + ".popLast()";
+                }
+                if (name == "shift" && isUnitArrayTyped(subj)) {
+                    // Haxe shift returns null on an empty array while Swift's
+                    // removeFirst traps, so the emptiness guard names the
+                    // optional result.
+                    final s = receiverText(subj);
+                    return "(" + s + ".isEmpty ? nil : " + s + ".removeFirst())";
+                }
+                if (name == "unshift" && isUnitArrayTyped(subj)) {
+                    // Haxe unshift returns the new length; Swift insert is Void.
+                    final s = receiverText(subj);
+                    return "({ () -> Int32 in " + s + ".insert(" + expr(args[0]) + ", at: 0); return Int32(" + s + ".count) }())";
+                }
+                if (name == "concat" && isUnitArrayTyped(subj) && args.length == 1) {
+                    return receiverText(subj) + " + " + expr(args[0]);
+                }
+                if (name == "copy" && isUnitArrayTyped(subj) && args.length == 0) {
+                    return "Array(" + receiverText(subj) + ")";
+                }
+                if (name == "splice" && isUnitArrayTyped(subj) && args.length >= 2) {
+                    // Haxe splice mutates and returns the removed sub-array.
+                    final s = receiverText(subj);
+                    final start = "Int(" + expr(args[0]) + ")";
+                    final len = "Int(" + expr(args[1]) + ")";
+                    return "({ () in let removed = Array(" + s + "[" + start + "..<(" + start + " + " + len + ")]); " + s + ".removeSubrange(" + start
+                        + "..<(" + start + " + " + len + ")); return removed }())";
                 }
                 if (name == "join") {
                     // The split/join pair in the resident StringTools
@@ -4050,7 +4087,8 @@ class SwiftExpr {
                 switch (fn.expr) {
                     case TField(subj, FInstance(_, _, cf)):
                         final n = cf.get().name;
-                        final mutates = (isStringBuf(subj) && (n == "add" || n == "addChar")) || n == "push" || n == "set";
+                        final mutates = (isStringBuf(subj) && (n == "add" || n == "addChar"))
+                            || n == "push" || n == "pop" || n == "shift" || n == "unshift" || n == "splice" || n == "set";
                         if (mutates) {
                             switch (stripWrap(subj).expr) {
                                 case TLocal(v): markMutated(v);
