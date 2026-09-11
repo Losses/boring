@@ -337,3 +337,6 @@ tests.NullInitLocalTests
 
 boring.FusedPushThrowOps
 tests.FusedPushThrowTests
+
+boring.SwiftGlobalThrowOps
+tests.SwiftGlobalThrowTests
