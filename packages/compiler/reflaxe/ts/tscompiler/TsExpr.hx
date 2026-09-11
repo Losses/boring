@@ -2262,10 +2262,88 @@ class TsExpr {
             final d = DefaultArgExpander.defaultAt(cls, "new", i);
             final p = i < ps.length ? ps[i] : null;
             d != null
-            && p != null && isNullLiteral(args[i]) ? defaultArgText(d, p) : d != null && p != null && isNullType(args[i].t) ? "(" + expr(args[i]) + " ?? " + defaultArgText(d,
-                p) + ")" : expr(args[i]);
+            && p != null && isNullLiteral(args[i]) ? constructorDefaultText(d, p, cls, args) : d != null && p != null && isNullType(args[i].t) ? "(" + expr(args[i]) + " ?? " + constructorDefaultText(d, p, cls, args) + ")" : expr(args[i]);
         }
         ];
+    }
+
+    /**
+        Renders a sanctioned coalescing default in a constructor-call context,
+        resolving reads of earlier constructor parameters against the actual
+        call arguments. A bare parameter read like `kind` in
+        `locale = kind === Bopomofo ? "zh-TW" : null` is only in scope inside
+        the class, so the call site substitutes the argument passed for it.
+     */
+    function constructorCoalescingText(value:DefaultArgExpander.CoalescingDefaultValue, targetType:Type, cls:ClassType, args:Array<TypedExpr>):String {
+        return switch (value) {
+            case CParameterRead(name):
+                final parameterIndex = switch (cls.constructor == null ? null : Context.follow(cls.constructor.get().type)) {
+                    case TFun(values, _):
+                        var found = -1;
+                        for (i in 0...values.length)
+                            if (values[i].name == name) found = i;
+                        found;
+                    case _: -1;
+                };
+                parameterIndex >= 0 && parameterIndex < args.length ? expr(args[parameterIndex]) : name;
+            case CConditional(c, ifTrue, ifFalse):
+                "("
+                + constructorCoalescingText(c, targetType, cls, args)
+                + " ? "
+                + constructorCoalescingText(ifTrue, targetType, cls, args)
+                + " : "
+                + constructorCoalescingText(ifFalse, targetType, cls, args)
+                + ")";
+            case CFieldAccess(CParameterRead(staticPath), ""):
+                coalescingStaticFieldText(staticPath);
+            case CFieldAccess(receiver, fieldName):
+                final renderedReceiver = constructorCoalescingText(receiver, targetType, cls, args);
+                fieldName.length == 0 ? renderedReceiver : renderedReceiver + "." + fieldName;
+            case CMethodCall(receiver, methodName, callArgs):
+                constructorCoalescingText(receiver, targetType, cls, args)
+                + "."
+                + methodName
+                + "("
+                + [for (a in callArgs) constructorCoalescingText(a, targetType, cls, args)].join(", ")
+                + ")";
+            case CBinaryOp(op, left, right):
+                constructorCoalescingText(left, targetType, cls, args)
+                + " "
+                + opStr(op)
+                + " "
+                + constructorCoalescingText(right, targetType, cls, args);
+            case CConstructorCall(modulePath, className, callArgs):
+                imports.value(modulePath, className);
+                "new "
+                + className
+                + "("
+                + completeCoalescingCallArgs(modulePath, "new", className, callArgs, targetType).join(", ")
+                + ")";
+            case CStaticCall(modulePath, className, methodName, callArgs):
+                constructorStaticCallText(modulePath, className, methodName, callArgs, targetType, cls, args);
+            default: coalescingDefaultText(value, targetType);
+        };
+    }
+
+    /**
+        Static-call rendering inside a constructor coalescing default. Mirrors
+        coalescingStaticCallText but resolves the call's own arguments through
+        constructorCoalescingText so a parameter read (e.g. `region` in
+        `PunctuationGluePlacements.forRegion(region)`) substitutes the actual
+        constructor argument.
+     */
+    function constructorStaticCallText(modulePath:String, className:String, methodName:String, args:Array<DefaultArgExpander.CoalescingDefaultValue>,
+            targetType:Type, cls:ClassType, ctorArgs:Array<TypedExpr>):String {
+        final rendered = [for (a in args) constructorCoalescingText(a, targetType, cls, ctorArgs)].join(", ");
+        imports.value(modulePath, className);
+        return className + "." + methodName + "(" + rendered + ")";
+    }
+
+    function constructorDefaultText(value:DefaultArgExpander.DefaultArgValue, targetType:Type, cls:ClassType, args:Array<TypedExpr>):String {
+        return switch (value) {
+            case VCoalescing(coalescing): constructorCoalescingText(coalescing, targetType, cls, args);
+            default: defaultArgText(value, targetType);
+        };
     }
 
     function isNullLiteral(e:TypedExpr):Bool

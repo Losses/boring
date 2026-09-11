@@ -361,3 +361,48 @@ class BareFieldProbe {
         return v + w;
     }
 }
+
+/**
+    The RubySpan shape of the engine port: a later constructor parameter's
+    coalescing default reads an earlier parameter (`kind`). A call site that
+    passes an explicit null for the later parameter must resolve the read
+    against the argument actually passed for the earlier parameter; the bare
+    parameter name is out of scope at the call site.
+ */
+enum ParamReadKind {
+    Pinyin;
+    Bopomofo;
+}
+
+class ParamReadSpan {
+    public final kind:ParamReadKind;
+    public final locale:Null<String>;
+
+    public function new(kind:ParamReadKind, ?locale:Null<String>) {
+        this.kind = kind;
+        this.locale = locale == null ? (kind == ParamReadKind.Bopomofo ? "zh-TW" : null) : locale;
+    }
+}
+
+/** Static-call helper used by a constructor coalescing default. */
+class GluePlacements {
+    public static function forRegion(region:ParamReadKind):String {
+        return region == ParamReadKind.Bopomofo ? "bopo" : "pinyin";
+    }
+}
+
+/**
+    The ClreqProfile shape of the engine port: a constructor coalescing default
+    that calls a static helper with an earlier constructor parameter
+    (`forRegion(region)`). A call site passing explicit null for the defaulted
+    parameter must resolve `region` against the actual argument.
+ */
+class RegionProfile {
+    public final region:ParamReadKind;
+    public final gluePlacement:String;
+
+    public function new(region:ParamReadKind, ?gluePlacement:Null<String>) {
+        this.region = region;
+        this.gluePlacement = gluePlacement == null ? GluePlacements.forRegion(region) : gluePlacement;
+    }
+}
