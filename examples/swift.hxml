@@ -484,3 +484,5 @@ boring.NullableArrayElemOps
 tests.NullableArrayElemTests
 boring.MathMinShadowOps
 tests.MathMinShadowTests
+boring.ArrayJoinOps
+tests.ArrayJoinTests

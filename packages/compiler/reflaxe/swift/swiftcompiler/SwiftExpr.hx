@@ -3086,7 +3086,16 @@ class SwiftExpr {
                     // join must re-fold that into [UInt16], which
                     // `.joined(separator:)` alone does not type as.
                     final joined = receiverText(subj) + ".joined(separator: " + rendered + ")";
-                    return types.resident ? "Array(" + joined + ")" : joined;
+                    if (types.resident) {
+                        return "Array(" + joined + ")";
+                    }
+                    // Swift's joined(separator:) is String-only; a non-string
+                    // element array maps each value through its Haxe string
+                    // form first.
+                    final elemType = arrayElementType(subj.t);
+                    if (elemType != null && !isStringLeafType(elemType))
+                        return receiverText(subj) + ".map { " + stdStringType(elemType, "$0", false, subj) + " }.joined(separator: " + rendered + ")";
+                    return joined;
                 }
                 if (name == "slice") {
                     return "Array(" + receiverText(subj) + "[Int(" + expr(args[0]) + ")..<Int(" + expr(args[1]) + ")])";
@@ -4449,6 +4458,17 @@ class SwiftExpr {
             case TAbstract(a, _) if (a.get().module == "std.ReadOnlyArray"): true;
             case TInst(c, [_]): c.get().name == "Array";
             case _: false;
+        };
+    }
+
+    /** The element type of an Array or ReadOnlyArray type, when known. */
+    function arrayElementType(t:Null<Type>):Null<Type> {
+        if (t == null)
+            return null;
+        return switch (Context.follow(t)) {
+            case TAbstract(a, params) if (a.get().module == "std.ReadOnlyArray" && params.length > 0): params[0];
+            case TInst(c, params) if (params.length > 0 && c.get().name == "Array"): params[0];
+            case _: null;
         };
     }
 
