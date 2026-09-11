@@ -413,3 +413,6 @@ tests.DefaultParamUnwrapTests
 
 boring.PrivateDefaultOps
 tests.PrivateDefaultTests
+
+boring.OptionalProjectionOps
+tests.OptionalProjectionTests
