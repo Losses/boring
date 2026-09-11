@@ -1294,7 +1294,12 @@ class DartExpr {
                     nativeOperator
                     && field.name == currentField ? wrapperName + "(" + rendered + ")" : rendered;
                 }
-            case _: wrapperName + "(" + expr(value) + ")";
+            case _:
+                // The value-type constructor takes the representation; an
+                // Int argument to a Float representation widens explicitly
+                // (Dart's extension-type constructor has no implicit widening).
+                final rendered = isIntOrLongType(emittedType(value)) && ValueTypeSupport.isFloatRepresentation(abs) ? intToFloatText(expr(value)) : expr(value);
+                wrapperName + "(" + rendered + ")";
         };
     }
 
@@ -1615,7 +1620,7 @@ class DartExpr {
                 // the prefixed import used by the emitted value expression.
                 final enumPrefix = imports.value(enumDef.module, enumDef.name);
                 final enumHead = enumPrefix.length > 0 ? enumPrefix + "." + enumDef.name : enumDef.name;
-                return isValueEnum(enumDef) ? enumHead + "." + DartDecl.lowerFirst(ef.name) : (enumPrefix.length > 0 ? enumPrefix + "." : "")
+                return isValueEnum(enumDef) ? enumHead + "." + DartDecl.dartSafeName(DartDecl.lowerFirst(ef.name)) : (enumPrefix.length > 0 ? enumPrefix + "." : "")
                     + DartDecl.constructClassName(enumDef.name, ef.name) + "()";
             case FInstance(owner, _, cf):
                 final name = cf.get().name;
@@ -1864,7 +1869,7 @@ class DartExpr {
     **/
     function mathFloatArg(a:TypedExpr):String {
         if (!isIntOrLongType(emittedType(a)))
-            return expr(a);
+            return nullableValue(a) && !provenNonNull(a) ? requiredValueText(a) : expr(a);
         return switch (stripWrap(a).expr) {
             case TConst(TInt(_)): expr(a);
             case _: intToFloatText(expr(a));
@@ -2733,7 +2738,7 @@ class DartExpr {
         final enumPrefix = imports.value(enumDef.module, enumDef.name);
         final enumHead = enumPrefix.length > 0 ? enumPrefix + "." + enumDef.name : enumDef.name;
         if (isValueEnum(enumDef))
-            return enumHead + "." + DartDecl.lowerFirst(ef.name);
+            return enumHead + "." + DartDecl.dartSafeName(DartDecl.lowerFirst(ef.name));
         final parts = [for (a in args) expr(a)];
         final cls = DartDecl.constructClassName(enumDef.name, ef.name);
         return (enumPrefix.length > 0 ? enumPrefix + "." : "") + cls + "(" + parts.join(", ") + ")";
@@ -3299,7 +3304,7 @@ class DartExpr {
                 + ".codeUnitAt(0) >= 56320 && " + part + ".codeUnitAt(0) <= 57343)) {");
             lines.push(stringBufFaultThrow(depth + 1, tail));
             lines.push(indent(depth) + "}");
-            lines.push(indent(depth) + buf + ".addAll(" + part + ".codeUnits)");
+            lines.push(indent(depth) + buf + ".addAll(" + partParen + ".codeUnits)");
         } else {
             final u = expr(args[0]);
             lines.push(indent(depth) + "if (" + u + " >= 56320 && " + u + " <= 57343) {");
