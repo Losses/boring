@@ -1176,7 +1176,7 @@ class SwiftExpr {
             case TMeta(_, inner):
                 return expr(inner);
             case TCast(inner, _):
-                return expr(inner);
+                return castText(inner, e.t);
             case TEnumParameter(se, ef, index):
                 final en = switch (Context.follow(se.t)) {
                     case TEnum(r, _) if (Lambda.count(r.get().constructs) == 1): r.get();
@@ -1517,6 +1517,26 @@ class SwiftExpr {
                 }
                 return operand(l, op, false) + " " + symbolOf(op, l, r) + " " + operand(r, op, true);
         }
+    }
+
+    /**
+        A checked Haxe cast renders as a Swift force-cast only when the
+        target is not already an accepted form of the source; upcasts and
+        coercions stay transparent.
+    **/
+    function castText(inner:TypedExpr, target:Type):String {
+        final rendered = expr(inner);
+        if (Context.unify(inner.t, target)) {
+            return rendered;
+        }
+        return switch (Context.follow(target)) {
+            case TInst(_, _):
+                switch (Context.follow(inner.t)) {
+                    case TInst(_, _) | TDynamic(_) | TMono(_): "(" + rendered + " as! " + types.of(target) + ")";
+                    case _: rendered;
+                }
+            case _: rendered;
+        };
     }
 
     /** The module real's Swift name; Int sides of Float operations widen to it. */
