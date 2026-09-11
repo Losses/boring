@@ -93,6 +93,12 @@ class SwiftExpr {
     /** Locals whose emitted declaration annotation is optional. */
     final optionalAnnotated:Map<Int, Bool> = [];
 
+    /** Locals proven non-null by an enclosing guard; value uses unwrap. */
+    final narrowedLocals:Map<Int, Bool> = [];
+
+    /** Guard-proven non-null member paths, for narrowing derived locals. */
+    var narrowedAccess:Array<TypedExpr> = [];
+
     /** Rendered constructor arguments available to defaults that read parameters. */
     var constructorParameterValues:Null<Map<String, String>> = null;
 
@@ -627,8 +633,11 @@ class SwiftExpr {
                 return ifLines(c, t, f, depth);
             case TWhile(c, b, true):
                 final out = [indent(depth) + "while " + conditionText(c) + " {"];
+                final snapshot = saveNarrowed();
+                applyNarrowed(c, true);
                 for (l in blockLines(statementsOf(b), depth + 1))
                     out.push(l);
+                restoreNarrowed(snapshot);
                 out.push(indent(depth) + "}");
                 return out;
             case TWhile(_, _, false):
@@ -702,15 +711,21 @@ class SwiftExpr {
 
     function ifLines(c:TypedExpr, t:TypedExpr, f:Null<TypedExpr>, depth:Int):Array<String> {
         final out = [indent(depth) + "if " + conditionText(c) + " {"];
+        final trueSnapshot = saveNarrowed();
+        applyNarrowed(c, true);
         for (l in blockLines(statementsOf(t), depth + 1))
             out.push(l);
+        restoreNarrowed(trueSnapshot);
         if (f != null) {
             final elseStmts = statementsOf(f);
             if (elseStmts.length == 1) {
                 switch (stripWrap(elseStmts[0]).expr) {
                     case TIf(_, _, _):
                         // A sole nested else-if chains onto the brace.
+                        final elseSnapshot = saveNarrowed();
+                        applyNarrowed(c, false);
                         final inner = stmtLines(elseStmts[0], depth);
+                        restoreNarrowed(elseSnapshot);
                         out.push(indent(depth) + "} else " + StringTools.ltrim(inner[0]));
                         for (i in 1...inner.length)
                             out.push(inner[i]);
@@ -719,8 +734,11 @@ class SwiftExpr {
                 }
             }
             out.push(indent(depth) + "} else {");
+            final elseSnapshot = saveNarrowed();
+            applyNarrowed(c, false);
             for (l in blockLines(elseStmts, depth + 1))
                 out.push(l);
+            restoreNarrowed(elseSnapshot);
         }
         out.push(indent(depth) + "}");
         return out;
@@ -734,6 +752,130 @@ class SwiftExpr {
         // lowering) would let Swift read the `{` as the statement body, so
         // the whole condition carries its own parentheses.
         return StringTools.startsWith(rendered, "{") ? "(" + text + ")" : text;
+    }
+
+    /**
+        Null narrowing within a condition or a guarded block. Haxe keeps a
+        `Null<T>` local nullable after a `x != null` test; Swift rejects the
+        unbounded read, so the emitter records the locals a guard proves
+        non-null and force-unwraps their value uses in that scope.
+    **/
+    function saveNarrowed():{locals:Map<Int, Bool>, access:Array<TypedExpr>} {
+        return {locals: narrowedLocals.copy(), access: narrowedAccess.copy()};
+    }
+
+    function restoreNarrowed(snapshot:{locals:Map<Int, Bool>, access:Array<TypedExpr>}):Void {
+        narrowedLocals.clear();
+        for (k in snapshot.locals.keys())
+            narrowedLocals.set(k, snapshot.locals.get(k));
+        narrowedAccess = snapshot.access;
+    }
+
+    /** The non-null targets a condition proves when it evaluates to `whenTrue`. */
+    function truthFacts(c:TypedExpr, whenTrue:Bool):Array<TypedExpr> {
+        final out:Array<TypedExpr> = [];
+        collectTruthFacts(stripWrap(c), whenTrue, out);
+        return out;
+    }
+
+    function collectTruthFacts(c:TypedExpr, whenTrue:Bool, out:Array<TypedExpr>):Void {
+        switch (c.expr) {
+            case TUnop(OpNot, _, subj):
+                collectTruthFacts(stripWrap(subj), !whenTrue, out);
+            case TBinop(OpBoolAnd, l, r) if (whenTrue):
+                collectTruthFacts(stripWrap(l), true, out);
+                collectTruthFacts(stripWrap(r), true, out);
+            case TBinop(OpBoolOr, l, r) if (!whenTrue):
+                collectTruthFacts(stripWrap(l), false, out);
+                collectTruthFacts(stripWrap(r), false, out);
+            case TBinop(OpNotEq, l, r) if (whenTrue):
+                addNullTarget(l, r, out);
+                addNullTarget(r, l, out);
+            case TBinop(OpEq, l, r) if (!whenTrue):
+                addNullTarget(l, r, out);
+                addNullTarget(r, l, out);
+            case _:
+        }
+    }
+
+    function addNullTarget(target:TypedExpr, other:TypedExpr, out:Array<TypedExpr>):Void {
+        if (!isNullExpr(other))
+            return;
+        switch (stripWrap(target).expr) {
+            case TLocal(_) | TField(_, _): out.push(stripWrap(target));
+            case _:
+        }
+    }
+
+    function applyNarrowed(c:TypedExpr, whenTrue:Bool):Void {
+        for (f in truthFacts(c, whenTrue))
+            addNarrowedFact(f);
+    }
+
+    function addNarrowedFact(f:TypedExpr):Void {
+        final inner = stripWrap(f);
+        switch (inner.expr) {
+            case TLocal(v): narrowedLocals.set(v.id, true);
+            case _:
+                for (a in narrowedAccess) {
+                    if (sameAccess(a, inner))
+                        return;
+                }
+                narrowedAccess.push(inner);
+        }
+    }
+
+    /** A guard clause that leaves the block keeps its negated facts after it. */
+    function absorbNarrowing(s:TypedExpr):Void {
+        switch (stripWrap(s).expr) {
+            case TIf(c, body, els) if (els == null && escapesBlock(body)):
+                for (f in truthFacts(c, false))
+                    addNarrowedFact(f);
+            case TVar(v, init) if (init != null && matchNarrowedAccess(init) && isNullableLocal(v)):
+                narrowedLocals.set(v.id, true);
+            case TBinop(OpAssign, {expr: TLocal(v)}, r) if (matchNarrowedAccess(r) && isNullableLocal(v)):
+                narrowedLocals.set(v.id, true);
+            case _:
+        }
+    }
+
+    function escapesBlock(e:TypedExpr):Bool {
+        final stmts = statementsOf(e);
+        if (stmts.length == 0)
+            return false;
+        return switch (stmts[stmts.length - 1].expr) {
+            case TReturn(_) | TBreak | TContinue | TThrow(_): true;
+            case _: false;
+        };
+    }
+
+    function isNullableLocal(v:TVar):Bool {
+        return isNullLeafType(v.t) || optionalAnnotated.exists(v.id) || optionalInferred.exists(v.id);
+    }
+
+    function matchNarrowedAccess(e:TypedExpr):Bool {
+        for (a in narrowedAccess) {
+            if (sameAccess(a, stripWrap(e)))
+                return true;
+        }
+        return false;
+    }
+
+    /** Whether a value use refers to a local or member a guard proved non-null. */
+    function isNarrowed(e:TypedExpr):Bool {
+        final inner = stripWrap(e);
+        return switch (inner.expr) {
+            case TLocal(v): narrowedLocals.exists(v.id) && isNullableLocal(v);
+            case TField(_, _): optionalValued(inner) && matchNarrowedAccess(inner);
+            case _: false;
+        };
+    }
+
+    function narrowedText(e:TypedExpr):String {
+        final rendered = expr(e);
+        if (!isNarrowed(e) || StringTools.endsWith(rendered, "!"))
+            return rendered;
+        return rendered + "!";
     }
 
     function isVarAssigned(e:TypedExpr, varId:Int):Bool {
@@ -796,6 +938,7 @@ class SwiftExpr {
     function blockLines(stmts:Array<TypedExpr>, depth:Int):Array<String> {
         stmts = fuseUninitializedVars(stmts);
         stmts = regroupLoops(stmts);
+        final snapshot = saveNarrowed();
         final out:Array<String> = [];
         var i = 0;
         while (i < stmts.length) {
@@ -815,8 +958,10 @@ class SwiftExpr {
             }
             for (l in stmtLines(stmts[i], depth))
                 out.push(l);
+            absorbNarrowing(stmts[i]);
             i += 1;
         }
+        restoreNarrowed(snapshot);
         return out;
     }
 
@@ -1144,7 +1289,7 @@ class SwiftExpr {
                 return localName(v);
             case TArray(arr, idx):
                 final mapReceiver = mapBackingReceiver(arr);
-                final read = mapReceiver == null ? receiverText(arr) + "[Int(" + expr(idx) + ")]" : expr(mapReceiver) + "[" + expr(idx) + "]";
+                final read = mapReceiver == null ? receiverText(arr) + "[Int(" + narrowedText(idx) + ")]" : expr(mapReceiver) + "[" + narrowedText(idx) + "]";
                 // haxe.io.Bytes reads carry UInt8 elements; the Haxe
                 // access widens to Int.
                 return mapReceiver == null && isBytesType(arr) ? "Int32(" + read + ")" : read;
@@ -1214,7 +1359,16 @@ class SwiftExpr {
                 final guarded = guardedLookupIf(c, t, f);
                 if (guarded != null)
                     return guarded;
-                return "(" + expr(c) + " ? " + expr(t) + " : " + expr(f) + ")";
+                final condition = expr(c);
+                final trueSnapshot = saveNarrowed();
+                applyNarrowed(c, true);
+                final trueText = expr(t);
+                restoreNarrowed(trueSnapshot);
+                final falseSnapshot = saveNarrowed();
+                applyNarrowed(c, false);
+                final falseText = expr(f);
+                restoreNarrowed(falseSnapshot);
+                return "(" + condition + " ? " + trueText + " : " + falseText + ")";
             case TBlock(stmts):
                 return blockExpression(stmts);
             case _:
@@ -1471,6 +1625,20 @@ class SwiftExpr {
 
     function binop(e:TypedExpr, op:Binop, l:TypedExpr, r:TypedExpr):String {
         switch (op) {
+            case OpBoolAnd:
+                final left = operand(l, op, false);
+                final snapshot = saveNarrowed();
+                applyNarrowed(l, true);
+                final right = operand(r, op, true);
+                restoreNarrowed(snapshot);
+                return left + " && " + right;
+            case OpBoolOr:
+                final left = operand(l, op, false);
+                final snapshot = saveNarrowed();
+                applyNarrowed(l, false);
+                final right = operand(r, op, true);
+                restoreNarrowed(snapshot);
+                return left + " || " + right;
             case OpAssign:
                 final map = mapAssignment(l);
                 final rhs = assignmentValue(l, r);
