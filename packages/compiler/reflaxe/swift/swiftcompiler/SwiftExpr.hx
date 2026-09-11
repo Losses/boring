@@ -1645,16 +1645,30 @@ class SwiftExpr {
         final params = [for (a in f.args) a.v.name + ": " + types.of(a.v.t)].join(", ");
         // TFunc.t is the declared return type of the literal.
         final ret = types.of(f.t);
+        // A zero-argument Void literal is the thunk shape the harness
+        // passes around; a throwing body must say so to match the
+        // parameter's `() throws -> Void` type.
+        final throwsKw = f.args.length == 0 && isVoidReturnType(f.t) && containsThrowingCall(f.expr) ? "throws " : "";
+        final head = "{ (" + params + ") " + throwsKw + "-> " + ret + " in";
         final bodyStmts = statementsOf(f.expr);
         if (bodyStmts.length == 1) {
             switch (bodyStmts[0].expr) {
                 case TReturn(r) if (r != null):
                     final tryKw = containsThrowingCall(r) ? "try " : "";
-                    return "{ (" + params + ") -> " + ret + " in " + tryKw + expr(r) + " }";
+                    return head + " " + tryKw + expr(r) + " }";
                 case _:
             }
         }
-        return "{ (" + params + ") -> " + ret + " in\n" + blockLines(bodyStmts, 1).join("\n") + "\n}";
+        return head + "\n" + blockLines(bodyStmts, 1).join("\n") + "\n}";
+    }
+
+    function isVoidReturnType(t:Null<Type>):Bool {
+        if (t == null)
+            return true;
+        return switch (Context.follow(t)) {
+            case TAbstract(a, _): a.get().name == "Void";
+            case _: false;
+        };
     }
 
     function functionLiteralNamed(name:String, f:TFunc):String {
@@ -4400,8 +4414,11 @@ class SwiftExpr {
                 return SwiftFallibility.isThrowing(c.get().module, c.get().name, name, false);
             case TLocal(v):
                 // A local function closure is not a class field, so its
-                // fallibility comes from the per-body resolution.
-                return localFunctionThrows.exists(v.id);
+                // fallibility comes from the per-body resolution. A
+                // parameter of the thunk type carries the harness callback
+                // fault instead; the emitted type is `() throws -> Void`.
+                return localFunctionThrows.exists(v.id)
+                    || (!localFunctions.exists(v.id) && SwiftType.isThrowingThunk(v.t));
             case _:
                 return false;
         }
