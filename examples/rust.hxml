@@ -46,7 +46,6 @@ boring.VectorSort
 boring.ScriptEvidenceTable
 boring.DivTableOps
 boring.CtorOmitOps
-boring.FieldGuardOps
 boring.WordCharacterTable
 boring.PayloadTextTable
 boring.CodePointNames
@@ -78,7 +77,6 @@ tests.Fp16Tests
 tests.DataTableTests
 tests.DivTableTests
 tests.CtorOmitTests
-tests.FieldGuardTests
 tests.SortedTableTests
 boring.ScriptNames
 boring.ClusterTags
