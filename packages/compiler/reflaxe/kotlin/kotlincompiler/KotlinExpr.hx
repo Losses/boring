@@ -3296,9 +3296,8 @@ class KotlinExpr {
                     defaultArgText(registered, expected);
                 } else if (registered != null && expected != null && isNullType(a.t)) {
                     "(" + text + " ?: " + defaultArgText(registered, expected) + ")";
-                } else if (((isNullType(a.t) && !provenNonNull(a) && !guardProofBefore(a)) || isNullInitialized(a))
-                    && expected != null
-                    && !isNullType(expected)) {
+                } else if (expected != null && !isNullType(expected) &&
+                    ((PolicyQueries.isNullableType(a.t) && !provenNonNull(a) && !guardProofBefore(a)) || isNullInitialized(a) || nullableChainHop(a))) {
                     if (!isNullInitialized(a))
                         addProofExpr(a);
                     text + "!!";
