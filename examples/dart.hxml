@@ -347,3 +347,8 @@ tests.FunctionalLocalTests
 
 boring.SwitchNullArmOps
 tests.SwitchNullArmTests
+
+boring.NullGuardFieldMetrics
+boring.NullGuardFieldOps
+tests.NullGuardFieldTests
+
