@@ -1820,11 +1820,15 @@ class SwiftExpr {
     function optionalExpr(a:TypedExpr):String {
         return switch (stripWrap(a).expr) {
             case TConst(TNull): "nil";
-            case TLocal(v) if (optionalAnnotated.exists(v.id) || optionalInferred.exists(v.id)): {
+            case _: {
                     final text = expr(a);
-                    StringTools.endsWith(text, "!") ? text : text + "!";
+                    if (!optionalValued(a) || StringTools.endsWith(text, "!"))
+                        text;
+                    else switch (stripWrap(a).expr) {
+                        case TLocal(_): text + "!";
+                        case _: "(" + text + ")!";
+                    }
                 };
-            case _: expr(a);
         };
     }
 
@@ -2450,14 +2454,14 @@ class SwiftExpr {
         final validated = PolicyQueries.stringToolsHexArgs(args);
         final value = validated.value;
         final digits = validated.digits;
-        final valueText = expr(value);
+        final valueText = optionalExpr(value);
         // `hex` reads its argument as u32; a negative Int32 crosses
         // through the bit-pattern initializer to keep its bit pattern.
         final hex = "String(UInt32(bitPattern: " + valueText + "), radix: 16, uppercase: true)";
         if (digits == null) {
             return hex;
         }
-        final digitsText = "Int(" + expr(digits) + ")";
+        final digitsText = "Int(" + optionalExpr(digits) + ")";
         return "{ let s = "
             + hex
             + "; return s.count < "
@@ -2785,12 +2789,12 @@ class SwiftExpr {
                     // Haxe Array.indexOf has no Swift member; lower onto
                     // firstIndex(of:) and report the -1 miss the subset uses.
                     final s = receiverText(subj);
-                    return "Int32({ () -> Int in if let i = " + s + ".firstIndex(of: " + expr(args[0]) + ") { return " + s + ".distance(from: " + s
+                    return "Int32({ () -> Int in if let i = " + s + ".firstIndex(of: " + optionalExpr(args[0]) + ") { return " + s + ".distance(from: " + s
                         + ".startIndex, to: i) }; return -1 }())";
                 }
                 if (name == "indexOf" && isStringSubject(subj) && args.length >= 1) {
                     final s = receiverText(subj);
-                    return "Int32({ () -> Int in if let i = " + s + ".firstIndex(of: " + expr(args[0]) + ".first!) { return " + s + ".distance(from: " + s
+                    return "Int32({ () -> Int in if let i = " + s + ".firstIndex(of: " + optionalExpr(args[0]) + ".first!) { return " + s + ".distance(from: " + s
                         + ".startIndex, to: i) }; return -1 }())";
                 }
                 if (name == "split" && isStringSubject(subj)) {
@@ -3807,7 +3811,13 @@ class SwiftExpr {
         final tail = tailRead.name;
         final tryKw = containsThrowingCall(args[0]) ? "try " : "";
         if (parts.name == "add") {
-            final part = expr(args[0]);
+            final partText = optionalExpr(args[0]);
+            // `.utf16` binds tighter than a concatenation, so a joined
+            // part keeps its own parentheses before the view is taken.
+            final part = switch (stripWrap(args[0]).expr) {
+                case TBinop(_, _, _): "(" + partText + ")";
+                case _: partText;
+            };
             // The added string starts with a trail unit or the held lead
             // stays paired: only the unpaired case faults. The added value
             // may itself throw, so the guard condition and the append carry
@@ -3818,7 +3828,7 @@ class SwiftExpr {
             lines.push(indent(depth) + "}");
             lines.push(indent(depth) + buf + " += " + tryKw + "Array(" + part + ".utf16)");
         } else {
-            final u = expr(args[0]);
+            final u = optionalExpr(args[0]);
             lines.push(indent(depth) + "if " + tryKw + u + " >= 56320 && " + u + " <= 57343 {");
             lines.push(indent(depth + 1) + "if !(" + tail + " >= 55296 && " + tail + " <= 56319) {");
             lines.push(stringBufFaultThrow(depth + 2, tryKw + u));
