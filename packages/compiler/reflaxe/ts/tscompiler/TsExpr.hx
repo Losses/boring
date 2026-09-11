@@ -2221,7 +2221,12 @@ class TsExpr {
                 parts.push(pname + ": " + expr(args[i]));
             }
         }
-        return "{ " + parts.join(", ") + " }";
+        // Object literals widen string members when they occur as call
+        // arguments.  Keep the enum's discriminated-union type at the
+        // construction boundary, without relying on an absent contextual
+        // type to preserve `kind` as its literal.
+        imports.value(en.module, en.name);
+        return "({ " + parts.join(", ") + " } as " + en.name + ")";
     }
 
     function callArgTexts(fn:TypedExpr, args:Array<TypedExpr>):Array<String> {
