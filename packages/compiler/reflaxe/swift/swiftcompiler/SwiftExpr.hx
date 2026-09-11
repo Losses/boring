@@ -1500,11 +1500,11 @@ class SwiftExpr {
                 final condition = expr(c);
                 final trueSnapshot = saveNarrowed();
                 applyNarrowed(c, true);
-                final trueText = expr(t);
+                final trueText = ternaryBranch(t, e);
                 restoreNarrowed(trueSnapshot);
                 final falseSnapshot = saveNarrowed();
                 applyNarrowed(c, false);
-                final falseText = expr(f);
+                final falseText = ternaryBranch(f, e);
                 restoreNarrowed(falseSnapshot);
                 return "(" + condition + " ? " + trueText + " : " + falseText + ")";
             case TBlock(stmts):
@@ -1512,6 +1512,23 @@ class SwiftExpr {
             case _:
                 return fail(e, "expression has no Swift lowering in the subset");
         }
+    }
+
+    /**
+        A ternary branch must match its sibling's Swift type. When the
+        ternary itself is non-optional, an optional branch is unwrapped.
+    **/
+    function ternaryBranch(b:TypedExpr, whole:TypedExpr):String {
+        final text = expr(b);
+        if (optionalValued(whole) || !optionalValued(b) || StringTools.endsWith(text, "!"))
+            return text;
+        // Only a bare value read is unwrapped; a compound branch (an
+        // arithmetic expression) already unwraps its own optional operands.
+        return switch (stripWrap(b).expr) {
+            case TLocal(_): text + "!";
+            case TField(_, _): "(" + text + ")!";
+            case _: text;
+        };
     }
 
     function optionalIf(c:TypedExpr, ifTrue:TypedExpr, ifFalse:TypedExpr):Null<String> {
