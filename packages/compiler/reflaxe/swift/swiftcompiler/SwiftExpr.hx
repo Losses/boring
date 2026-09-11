@@ -1215,55 +1215,65 @@ class SwiftExpr {
     }
 
     function optionalIf(c:TypedExpr, ifTrue:TypedExpr, ifFalse:TypedExpr):Null<String> {
-        var value:Null<TVar> = null;
+        var target:Null<TypedExpr> = null;
         switch (stripWrap(c).expr) {
             case TBinop(OpEq, left, right) | TBinop(OpNotEq, left, right):
                 if (isNullExpr(right)) {
-                    switch (stripWrap(left).expr) {
-                        case TLocal(v): value = v;
-                        case _:
-                    }
+                    target = optionalGuardTarget(left);
                 } else if (isNullExpr(left)) {
-                    switch (stripWrap(right).expr) {
-                        case TLocal(v): value = v;
-                        case _:
-                    }
+                    target = optionalGuardTarget(right);
                 }
             case _:
         }
-        if (value == null) {
+        if (target == null) {
             return null;
         }
-        final trueLocal = localBranchId(ifTrue, value.id);
-        final falseLocal = localBranchId(ifFalse, value.id);
-        // Only the optional-local shape is lowered here.  Check it before
-        // the default-argument provenance guard: an ordinary null guard can
-        // also be recognized as a coalescing site by the expander, but must
-        // not be left as a Swift ternary with an optional else arm.
-        if (trueLocal == falseLocal) {
+        final trueMatches = branchIsTarget(ifTrue, target);
+        final falseMatches = branchIsTarget(ifFalse, target);
+        // Only the exactly-one-matching-arm shape is a coalescing site: two
+        // matching arms are a redundant compare, no matching arm is not a
+        // narrow at all.  Check the shape before the default-argument
+        // provenance guard: an ordinary null guard can also be recognized as
+        // a coalescing site by the expander, but must not be left as a Swift
+        // ternary with an optional arm.
+        if (trueMatches == falseMatches) {
             return null;
         }
-        final fallback = trueLocal ? ifFalse : ifTrue;
-        return expr(valueExpr(value)) + " ?? " + expr(fallback);
+        final fallback = trueMatches ? ifFalse : ifTrue;
+        return expr(target) + " ?? " + expr(fallback);
     }
 
-    function nullCheckLocal(e:TypedExpr):Null<Int> {
+    /**
+        The operand of a null comparison whose matched arm can be proven
+        non-optional. Locals and member chains are stable (no side effects)
+        and render the same in the condition and the arm.
+    **/
+    function optionalGuardTarget(e:TypedExpr):Null<TypedExpr> {
         return switch (stripWrap(e).expr) {
-            case TBinop(OpEq, left, right) | TBinop(OpNotEq, left, right):
-                if (isNullExpr(right)) switch (stripWrap(left).expr) {
-                    case TLocal(v): v.id;
-                    case _: null;
-                } else if (isNullExpr(left)) switch (stripWrap(right).expr) {
-                    case TLocal(v): v.id;
-                    case _: null;
-                } else null;
+            case TLocal(v): valueExpr(v);
+            case TField(_, _): stripWrap(e);
             case _: null;
         };
     }
-    function localBranchId(e:TypedExpr, id:Int):Bool {
+
+    function branchIsTarget(e:TypedExpr, target:TypedExpr):Bool {
         return switch (stripWrap(e).expr) {
-            case TLocal(v) if (v.id == id): true;
-            case TBlock([single]): localBranchId(single, id);
+            case TBlock([single]): branchIsTarget(single, target);
+            case _: sameAccess(e, target);
+        };
+    }
+
+    /**
+        Structural identity for the stable access shapes a null guard can
+        narrow: locals and member chains. Rendered text is not compared
+        because the same node can render differently under a wrapper.
+    **/
+    function sameAccess(a:TypedExpr, b:TypedExpr):Bool {
+        return switch [stripWrap(a).expr, stripWrap(b).expr] {
+            case [TLocal(va), TLocal(vb)]: va.id == vb.id;
+            case [TField(sa, fa), TField(sb, fb)]: fieldName(fa) == fieldName(fb) && sameAccess(sa, sb);
+            case [TIdent(na), TIdent(nb)]: na == nb;
+            case [TConst(ca), TConst(cb)]: Type.enumEq(ca, cb);
             case _: false;
         };
     }
