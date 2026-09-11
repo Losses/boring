@@ -326,3 +326,6 @@ tests.FPHelperSwiftTests
 
 boring.MultiPatternSwitchOps
 tests.MultiPatternSwitchTests
+
+boring.InterfaceThrowOps
+tests.InterfaceThrowTests

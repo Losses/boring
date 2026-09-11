@@ -212,7 +212,7 @@ class SwiftExpr {
         return switch (value) {
             case CStaticCall(modulePath, className, methodName, args): coalescingStaticTargetThrows(modulePath, className,
                     methodName) || coalescingArgsThrow(args);
-            case CConstructorCall(modulePath, _, args): SwiftFallibility.isThrowing(modulePath, "new", false) || coalescingArgsThrow(args);
+            case CConstructorCall(modulePath, className, args): SwiftFallibility.isThrowing(modulePath, className, "new", false) || coalescingArgsThrow(args);
             case CMethodCall(receiver, _, args): coalescingDefaultThrows(receiver) || coalescingArgsThrow(args);
             case CFieldAccess(receiver, _): coalescingDefaultThrows(receiver);
             case CConditional(c, t, f): coalescingDefaultThrows(c) || coalescingDefaultThrows(t) || coalescingDefaultThrows(f);
@@ -246,8 +246,8 @@ class SwiftExpr {
                 if (ValueTypeSupport.isMarkedAbstract(abs) && methodName == ValueTypeSupport.constructorName(abs)) {
                     return ValueTypeSupport.constructorThrows(abs);
                 }
-                SwiftFallibility.callThrows(SwiftFallibility.routedModule(modulePath, methodName), methodName, true);
-            case _: SwiftFallibility.callThrows(SwiftFallibility.routedModule(modulePath, methodName), methodName, true);
+                SwiftFallibility.routedCallThrows(modulePath, className, methodName, true);
+            case _: SwiftFallibility.routedCallThrows(modulePath, className, methodName, true);
         };
     }
 
@@ -4101,7 +4101,7 @@ class SwiftExpr {
                     // marker at its statement (feature spec 27).
                     final valueType = ValueTypeSupport.markedAbstractOfClass(c.get());
                     if ((valueType != null && ValueTypeSupport.constructorThrows(valueType))
-                        || SwiftFallibility.isThrowing(c.get().module, "new", false)) {
+                        || SwiftFallibility.isThrowing(c.get().module, c.get().name, "new", false)) {
                         found = true;
                         return;
                     }
@@ -4128,7 +4128,7 @@ class SwiftExpr {
                 if (SwiftFallibility.isStringBufMethodCall(subj, name)) {
                     return false;
                 }
-                return SwiftFallibility.isThrowing(c.get().module, name, false);
+                return SwiftFallibility.isThrowing(c.get().module, c.get().name, name, false);
             case TLocal(v):
                 // A local function closure is not a class field, so its
                 // fallibility comes from the per-body resolution.
@@ -4358,7 +4358,7 @@ class SwiftExpr {
                 case TNew(c, _, _):
                     final valueType = ValueTypeSupport.markedAbstractOfClass(c.get());
                     if ((valueType != null && ValueTypeSupport.constructorThrows(valueType))
-                        || SwiftFallibility.isThrowing(c.get().module, "new", false)) {
+                        || SwiftFallibility.isThrowing(c.get().module, c.get().name, "new", false)) {
                         found = true;
                         return;
                     }
