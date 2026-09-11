@@ -367,3 +367,6 @@ tests.MapHasGetTests
 
 boring.FPHelperSwiftOps
 tests.FPHelperSwiftTests
+
+boring.MultiPatternSwitchOps
+tests.MultiPatternSwitchTests
