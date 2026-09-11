@@ -250,6 +250,21 @@ class SwiftType {
         };
     }
 
+    /**
+        A standalone Swift nil must carry its optional payload type. Haxe's
+        TNull expression retains that payload in its type, but Swift cannot
+        infer it in conditional expressions and a few synthesized argument
+        positions. Keep the spelling explicit at those boundaries.
+    **/
+    public function optionalNone(t:Null<Type>):String {
+        return switch (t) {
+            case TAbstract(a, params) if (a.get().name == "Null" && params.length == 1):
+                "Optional<" + of(params[0]) + ">.none";
+            case TLazy(f): optionalNone(f());
+            case _: "nil";
+        };
+    }
+
     function pathOf(pack:Array<String>, name:String):String {
         return PolicyQueries.pathOf(pack, name);
     }
