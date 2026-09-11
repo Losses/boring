@@ -46,6 +46,8 @@ boring.ValueRecord
 boring.PrivateHolder
 boring.VectorSort
 boring.ScriptEvidenceTable
+boring.DivTableOps
+boring.CtorOmitOps
 boring.WordCharacterTable
 boring.PayloadTextTable
 boring.CodePointNames
@@ -75,6 +77,8 @@ tests.VectorCodecTests
 tests.Fp32Tests
 tests.Fp16Tests
 tests.DataTableTests
+tests.DivTableTests
+tests.CtorOmitTests
 tests.SortedTableTests
 boring.ScriptNames
 boring.ClusterTags
