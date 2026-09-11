@@ -1251,7 +1251,12 @@ class DartExpr {
                 final coalescing = coalescingSiteFor(e);
                 if (coalescing != null)
                     return expr(coalescing.valueExpr) + " ?? " + coalescingDefaultTextFor(coalescing);
-                return "(" + expr(c) + " ? " + expr(t) + " : " + expr(f) + ")";
+                // A Float-typed ternary with an int literal branch types
+                // as num in Dart; Haxe's Float unification promises
+                // double, so widen the int branch.
+                final tText = isFloatType(e.t) && isIntOrLongType(emittedType(t)) ? intToFloatText(expr(t)) : expr(t);
+                final fText = isFloatType(e.t) && isIntOrLongType(emittedType(f)) ? intToFloatText(expr(f)) : expr(f);
+                return "(" + expr(c) + " ? " + tText + " : " + fText + ")";
             case TBlock(stmts):
                 return blockExpression(stmts);
             case _:
@@ -1515,11 +1520,6 @@ class DartExpr {
         // non-null in the generated Dart flow.
         if ((isNullLeafType(e.t) || optionalValued(e)) && !provenNonNull(e) && parent != OpEq && parent != OpNotEq) {
             rendered += "!";
-            switch (stripWrap(e).expr) {
-                case TLocal(v):
-                    nonNullLocals.set(v.id, true);
-                case _:
-            }
         }
         switch (stripWrap(e).expr) {
             case TBinop(op, _, _):
@@ -2105,6 +2105,11 @@ class DartExpr {
         if (inlineMapCall != null) {
             return inlineMapCall;
         }
+        // callArgTexts pre-renders every argument to resolve defaults,
+        // which marks nullable locals non-null in the flow. Members that
+        // re-render their operands (Math) must see the pre-call flow so
+        // the `!` a fresh render needs is not suppressed.
+        final savedNonNull = nonNullLocals.copy();
         final renderedArgs = callArgTexts(fn, args);
         final rendered = renderedArgs.join(", ");
         switch (fn.expr) {
@@ -2179,6 +2184,12 @@ class DartExpr {
                     return runtimeQualified("Graphemes." + fName) + "(" + rendered + ")";
                 }
                 if (module == "Math") {
+                    // callArgTexts marked the nullable operands non-null
+                    // while resolving defaults; restore the pre-call flow
+                    // so a fresh render keeps the `!` it needs.
+                    nonNullLocals.clear();
+                    for (k in savedNonNull.keys())
+                        nonNullLocals.set(k, savedNonNull.get(k));
                     // Members with no bare-function form lower onto the
                     // core member of the argument.
                     switch (fName) {
@@ -2190,11 +2201,15 @@ class DartExpr {
                             imports.useDartMath();
                             return "math.sqrt(" + mathFloatArg(args[0]) + ")";
                         case "min":
+                            // Dart's math.min returns num when an int
+                            // literal meets a double operand; Haxe's
+                            // Math.min(a:Float,b:Float):Float always
+                            // promises double, so narrow the result.
                             imports.useDartMath();
-                            return "math.min(" + mathFloatArg(args[0]) + ", " + mathFloatArg(args[1]) + ")";
+                            return "math.min(" + mathFloatArg(args[0]) + ", " + mathFloatArg(args[1]) + ").toDouble()";
                         case "max":
                             imports.useDartMath();
-                            return "math.max(" + mathFloatArg(args[0]) + ", " + mathFloatArg(args[1]) + ")";
+                            return "math.max(" + mathFloatArg(args[0]) + ", " + mathFloatArg(args[1]) + ").toDouble()";
                         case "pow":
                             // math.pow returns num; the call site narrows
                             // to the double the Haxe signature promises.
@@ -3467,7 +3482,7 @@ class DartExpr {
                     info.enumName) + "." + DartDecl.lowerFirst(info.name) : qualifiedRef(info.module,
                         cls) + (bindings.length > 0 ? "(" + bindings.join(", ") + ")" : "()");
             out.push(indent(depth + 1) + "case " + pattern + ":");
-            for (l in armLines(c.expr, depth + 2, reservedPayloadNames))
+            for (l in armLines(c.expr, depth + 2, reservedPayloadNames, sw.t))
                 out.push(l);
         }
         if (switchParts.def != null) {
@@ -3477,7 +3492,7 @@ class DartExpr {
         return out;
     }
 
-    function armLines(e:TypedExpr, depth:Int, reservedPayloadNames:Bool = false):Array<String> {
+    function armLines(e:TypedExpr, depth:Int, reservedPayloadNames:Bool = false, ?switchType:Type):Array<String> {
         final out:Array<String> = [];
         var value:Null<String> = null;
         for (step in PolicyQueries.variantArmPlan(e)) {
@@ -3496,7 +3511,12 @@ class DartExpr {
                 case PlainDecl(v, init):
                     out.push(indent(depth) + "final " + localName(v) + " = " + expr(init));
                 case OtherStatement(s, returnValue, _):
-                    value = returnValue != null ? expr(returnValue) : expr(s);
+                    // A Float-typed switch with an int literal arm types as
+                    // num in Dart; Haxe's Float unification promises double,
+                    // so widen the int arm.
+                    final armValue = returnValue != null ? returnValue : s;
+                    value = if (switchType != null && isFloatType(switchType) && isIntOrLongType(emittedType(armValue)))
+                        intToFloatText(expr(armValue)) else (returnValue != null ? expr(returnValue) : expr(s));
                 case MissingInit(s):
                     Context.error("dart target: declaration without initializer has no lowering", s.pos);
             }
