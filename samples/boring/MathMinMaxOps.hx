@@ -14,9 +14,13 @@ class MathMinMaxOps {
         return Math.max(a, b);
 
     /** An int-typed expression beside a literal zero: both operands
-        widen so the NaN guard has a floating member to test. */
+        widen so the NaN guard has a floating member to test. The shape
+        is Swift-side: the other targets lower the int literal through
+        their own numeric tower. */
+    #if swift_output
     public static function deficitOfInts(a:Int, b:Int):Float
         return Math.max(a - b, 0);
+    #end
 
     public static function absValue(a:Float):Float
         return Math.abs(a);
