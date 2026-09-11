@@ -2115,6 +2115,7 @@ class KotlinExpr {
         function scan(e:TypedExpr):Void {
             if (found)
                 return;
+            var scanChildren = true;
             switch (e.expr) {
                 case TReturn(inner):
                     if (inner != null) {
@@ -2128,9 +2129,13 @@ class KotlinExpr {
                             case _:
                         }
                     }
+                case TFunction(_):
+                    // Nested returns belong to the nested function and cannot
+                    // widen the declaration currently being analyzed.
+                    scanChildren = false;
                 case _:
             }
-            if (!found)
+            if (!found && scanChildren)
                 TypedExprTools.iter(e, scan);
         }
         if (f.expr != null)
