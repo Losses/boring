@@ -728,7 +728,12 @@ class SwiftExpr {
 
     /** A condition with its try marker, when the test itself can throw. */
     function conditionText(c:TypedExpr):String {
-        return containsThrowingCall(c) ? "try " + expr(c) : expr(c);
+        final rendered = expr(c);
+        final text = containsThrowingCall(c) ? "try " + rendered : rendered;
+        // A condition that opens with a closure literal (the post-increment
+        // lowering) would let Swift read the `{` as the statement body, so
+        // the whole condition carries its own parentheses.
+        return StringTools.startsWith(rendered, "{") ? "(" + text + ")" : text;
     }
 
     function isVarAssigned(e:TypedExpr, varId:Int):Bool {
