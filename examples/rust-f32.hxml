@@ -445,3 +445,5 @@ boring.NullableToStringOps
 tests.NullableToStringTests
 boring.NullableIndexOps
 tests.NullableIndexTests
+boring.TernaryOptionalOps
+tests.TernaryOptionalTests
