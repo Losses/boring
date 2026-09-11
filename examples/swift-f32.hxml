@@ -439,3 +439,5 @@ boring.DartCoalesceKind
 tests.DartCoalesceStaticTests
 boring.NullableToStringOps
 tests.NullableToStringTests
+boring.NullableIndexOps
+tests.NullableIndexTests

@@ -980,9 +980,18 @@ class SwiftExpr {
 
     function narrowedText(e:TypedExpr):String {
         final rendered = expr(e);
-        if (!isNarrowed(e) || StringTools.endsWith(rendered, "!"))
+        if (StringTools.endsWith(rendered, "!"))
             return rendered;
-        return rendered + "!";
+        if (isNarrowed(e))
+            return rendered + "!";
+        // An optional read used where Swift needs a plain value (an array
+        // index, a unary operand) unwraps as well.
+        if (optionalValued(e))
+            return switch (stripWrap(e).expr) {
+                case TLocal(_): rendered + "!";
+                case _: "(" + rendered + ")!";
+            };
+        return rendered;
     }
 
     /** Whether a value read is a narrowed local whose Swift type is optional. */
