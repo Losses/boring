@@ -2650,10 +2650,14 @@ class TsExpr {
         }
         switch (Context.follow(subj.t)) {
             case TInst(c, _):
-                if (c.get().superClass == null) {
+                final cls = c.get();
+                if (cls.pack.join(".") == "haxe" && cls.name == "Exception") {
+                    return expr(stripCast(subj)) + ".message";
+                }
+                if (cls.superClass == null) {
                     return null;
                 }
-                final parent = c.get().superClass.t.get();
+                final parent = cls.superClass.t.get();
                 if (parent.pack.join(".") != "haxe" || parent.name != "Exception") {
                     return null;
                 }

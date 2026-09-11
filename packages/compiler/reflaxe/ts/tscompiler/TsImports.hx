@@ -115,7 +115,7 @@ class TsImports {
             runtime(name);
             return;
         }
-        if (module == selfModule || module == "Math" || module == "String" || module == "Std" || module == "haxe.Int64" || module == "haxe.io.Bytes"
+        if (module == selfModule || module == "Math" || module == "String" || module == "Std" || module == "haxe.Int64" || module == "haxe.Exception" || module == "haxe.io.Bytes"
             || runtimeProvidedModules.exists(module)) {
             return;
         }
@@ -223,7 +223,8 @@ class TsImports {
         return lines.length == 0 ? "" : lines.join("\n") + "\n";
     }
 
-    public function renderTestImports(testOutputDir:String, mainOutputDir:String, testRunner:String):String {
+    public function renderTestImports(testOutputDir:String, mainOutputDir:String, testRunner:String, testModules:Map<String, Bool>):String {
+        final testSuffix = testRunner == "deno" ? "_test.ts" : ".test.ts";
         final lines = [];
         if (testRunner == "bun") {
             lines.push('import { test } from "bun:test";');
@@ -274,7 +275,11 @@ class TsImports {
                 names.push(name);
             names.sort(Reflect.compare);
 
-            final toFile = mainOutputDir + "/" + module.split(".").join("/") + ".ts";
+            final toFile = if (testModules.exists(module)) {
+                testOutputDir + "/" + module.split(".").join("/") + testSuffix;
+            } else {
+                mainOutputDir + "/" + module.split(".").join("/") + ".ts";
+            };
             final relPath = computeRelativePath(fromDir, toFile);
             lines.push('import { ${names.join(", ")} } from "' + relPath + '";');
         }
@@ -334,16 +339,22 @@ class TsImports {
         file already sits there).
     **/
     static function runtimeSpecifierFrom(fromDir:String, toRoot:String, test:Bool):String {
+        final emitDir = RuntimeConfig.emitDir();
+        if (emitDir != null) {
+            // runtime-emit set: the runtime files are emitted as part of the
+            // output tree, so imports resolve against them with a relative
+            // path. A by-name runtime-import that is not a relative
+            // specifier would otherwise emit a package name that does not
+            // resolve against the locally-emitted files.
+            final entry = test ? RuntimeConfig.emitPath(emitDir, "runtime/test.ts") : RuntimeConfig.emitPath(emitDir, "runtime.ts");
+            return computeRelativePath(fromDir, toRoot == "" ? entry : toRoot + "/" + entry);
+        }
         final name = RuntimeConfig.importName();
         if (!isRelativeSpecifier(name)) {
             return test ? name + "/test" : name;
         }
-        final emitDir = RuntimeConfig.emitDir();
-        if (emitDir == null) {
-            Context.error("relative runtime-import requires runtime-emit: the compiler must know where it wrote the runtime files", Context.currentPos());
-        }
-        final entry = test ? RuntimeConfig.emitPath(emitDir, "runtime/test.ts") : RuntimeConfig.emitPath(emitDir, "runtime.ts");
-        return computeRelativePath(fromDir, toRoot == "" ? entry : toRoot + "/" + entry);
+        Context.error("relative runtime-import requires runtime-emit: the compiler must know where it wrote the runtime files", Context.currentPos());
+        return "";
     }
 
     /** The output-root-relative directory holding one module's file. */
