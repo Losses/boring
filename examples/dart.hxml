@@ -423,3 +423,6 @@ tests.NullStaticMapTests
 
 boring.SubstringDefaultOps
 tests.SubstringDefaultTests
+
+boring.TableBuilderInferOps
+tests.TableBuilderInferTests
