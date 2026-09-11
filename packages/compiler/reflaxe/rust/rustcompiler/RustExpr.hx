@@ -4086,7 +4086,6 @@ class RustExpr {
                 // When the complete access is the narrowed value, this read
                 // is the match binding. The binding is a reference, so clone
                 // the non-Copy referent.
-                }
                 final narrowed = narrowedSubject(subj);
                 if (narrowed != null)
                     optionNarrowingHit = true;
