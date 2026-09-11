@@ -392,3 +392,6 @@ tests.OptionalValueUseTests
 
 boring.ThrowingClosureOps
 tests.ThrowingClosureTests
+
+boring.StringCodeOptionalOps
+tests.StringCodeOptionalTests
