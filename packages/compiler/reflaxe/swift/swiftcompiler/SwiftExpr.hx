@@ -2957,6 +2957,11 @@ class SwiftExpr {
                     final s = receiverText(subj);
                     return "({ () -> Int32 in " + s + ".insert(" + expr(args[0]) + ", at: 0); return Int32(" + s + ".count) }())";
                 }
+                if (name == "insert" && isUnitArrayTyped(subj) && args.length == 2) {
+                    // Haxe Array.insert(pos, x): Swift names the position
+                    // with `at:` and the index is an Int.
+                    return receiverText(subj) + ".insert(" + expr(args[1]) + ", at: Int(" + expr(args[0]) + "))";
+                }
                 if (name == "concat" && isUnitArrayTyped(subj) && args.length == 1) {
                     return receiverText(subj) + " + " + expr(args[0]);
                 }
@@ -4651,7 +4656,7 @@ class SwiftExpr {
                     case TField(subj, FInstance(_, _, cf)):
                         final n = cf.get().name;
                         final mutates = (isStringBuf(subj) && (n == "add" || n == "addChar"))
-                            || n == "push" || n == "pop" || n == "shift" || n == "unshift" || n == "splice" || n == "set";
+                            || n == "push" || n == "pop" || n == "shift" || n == "unshift" || n == "splice" || n == "set" || n == "insert";
                         if (mutates) {
                             switch (stripWrap(subj).expr) {
                                 case TLocal(v): markMutated(v);
