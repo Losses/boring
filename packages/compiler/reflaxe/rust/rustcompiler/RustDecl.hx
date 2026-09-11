@@ -2417,13 +2417,17 @@ class RustDecl {
     }
 
     function isCloneType(t:Type):Bool {
+        return isCloneTypeDepth(t, 0);
+    }
+
+    function isCloneTypeDepth(t:Type, depth:Int):Bool {
         return switch (Context.follow(t)) {
             case TAbstract(a, params): // `follow` unwraps Null<T> but keeps plain abstracts, so
                 // ReadOnlyArray must recurse into its element type here.
                 (["Int", "Bool", "Float"].indexOf(a.get().name) >= 0
-                    && params.length == 0) || (a.get().name == "ReadOnlyArray" && params.length == 1 && isCloneType(params[0]))
+                    && params.length == 0) || (a.get().name == "ReadOnlyArray" && params.length == 1 && isCloneTypeDepth(params[0], depth))
                     || ((a.get().name == "SortedSet" || a.get().name == "SortedMap") && params.length >= 1 && (function() {
-                        for (p in params) if (!isCloneType(p)) return false;
+                        for (p in params) if (!isCloneTypeDepth(p, depth)) return false;
                         return true;
                     })());
             case TEnum(_):
@@ -2436,15 +2440,15 @@ class RustDecl {
                 // A type parameter carries the Clone bound the generic
                 // impl block puts on every class parameter, and a function
                 // type lowers to an Rc closure, which is always Clone.
-                if (cls.kind.match(KTypeParameter(_))) true else if (n == "String" || n == "SortedSet" || n == "SortedMap") true else if (n == "Array") params.length == 1 && isCloneType(params[0]) else if (cls.meta.has(":dataClass"))
-                    dataClassFieldsAllClone(cls, 0) else false;
+                if (cls.kind.match(KTypeParameter(_))) true else if (n == "String" || n == "SortedSet" || n == "SortedMap") true else if (n == "Array") params.length == 1 && isCloneTypeDepth(params[0], depth) else if (cls.isInterface) false else if (cls.meta.has(":dataClass"))
+                    dataClassFieldsAllClone(cls, depth) else plainClassAllClone(cls, depth);
             case TFun(_):
                 true;
-            case TType(d, params): isCloneType(haxe.macro.TypeTools.applyTypeParameters(d.get().type, d.get().params, params));
+            case TType(d, params): isCloneTypeDepth(haxe.macro.TypeTools.applyTypeParameters(d.get().type, d.get().params, params), depth);
             case TAnonymous(anon):
                 var all = true;
                 for (f in anon.get().fields)
-                    if (!isCloneType(f.type))
+                    if (!isCloneTypeDepth(f.type, depth + 1))
                         all = false;
                 all;
             case _: false;
@@ -2466,7 +2470,35 @@ class RustDecl {
                     continue;
                 case _:
             }
-            if (!isCloneType(f.type))
+            if (!isCloneTypeDepth(f.type, depth + 1))
+                return false;
+        }
+        return true;
+    }
+
+    /**
+        A plain class lowers to a struct that derives Clone when its instance
+        fields are Clone-capable and it carries no class params and no
+        self-construction static. Mirror that gate here so a @:dataClass or
+        array holding a plain-class value keeps the derive that the read-site
+        `.clone()` calls depend on.
+    **/
+    function plainClassAllClone(cls:ClassType, depth:Int):Bool {
+        if (depth > 8)
+            return false;
+        // Only business classes join the plain-class descent; std/haxe
+        // wrappers keep their explicit Clone list above.
+        if (cls.pack.indexOf("org.tiqian") != 0 && cls.pack.indexOf("boring") != 0)
+            return false;
+        if (cls.params.length > 0 || StaticFieldHelper.hasSelfConstructionStatic(cls))
+            return false;
+        for (f in cls.fields.get()) {
+            switch (f.kind) {
+                case FMethod(_):
+                    continue;
+                case _:
+            }
+            if (!isCloneTypeDepth(f.type, depth + 1))
                 return false;
         }
         return true;

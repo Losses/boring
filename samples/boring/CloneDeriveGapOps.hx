@@ -35,10 +35,11 @@ class CloneDeriveResult {
 
 class CloneDeriveGapOps {
     // Indexing a Haxe Array reads its element with Haxe value semantics; the
-    // generator clones a non-Copy element out of the Vec. That clone needs
+    // generator clones a non-Copy element out of the Vec. Passing the array in
+    // as a parameter stops the constant folder from turning the index into a
+    // local move, so the read site appends `.clone()`, which requires
     // CloneDeriveResult to carry #[derive(Clone)].
-    public static function resolve():String {
-        final results:Array<CloneDeriveResult> = [new CloneDeriveResult(new CloneDeriveRange(1, 3), "x")];
+    public static function resolve(results:Array<CloneDeriveResult>):String {
         final r = results[0];
         return r.range.toString() + ":" + r.label;
     }
