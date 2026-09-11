@@ -2307,6 +2307,16 @@ class SwiftExpr {
             case "std.SortedSet":
                 imports.runtime("SortedTable");
                 return "SortedTable." + (name == "builder" ? "setBuilder" : name);
+            case "runtime.SortedTable":
+                // The business ABI carries native String, so the resident
+                // unit-array string comparator does not fit; the overloaded
+                // prelude helper covers both shapes.
+                if (name == "compareStrings" && !types.resident) {
+                    imports.runtime("compareUnitOrder");
+                    return "compareUnitOrder";
+                }
+                imports.runtime("SortedTable");
+                return "SortedTable." + SwiftNameEscape.escape(name);
             case _:
                 if (cls.module != "" && StringTools.endsWith(cls.name, "_Impl_")) {
                     // A sub-type abstract's non-inline static (for example
@@ -4968,10 +4978,30 @@ class SwiftExpr {
             || (isIntLeafType(t) && !mentionsRangeLoopVar(init))
             || isIntLiteralArrayDecl(init)
             || isBuilderCall(init)
+            || isSortedTableType(t)
             || isNullLeafType(t)
             || hasCoalescing
             || (FloatPrecision.isF32() && isFloatLeafType(t))
             || (FloatPrecision.isF32() && isFloatLiteralArrayDecl(init) && containsFloatType(t));
+    }
+
+    /**
+        Sorted map/set and builder types carry a value parameter Swift
+        cannot infer from the comparator alone; a local declaration pins
+        the full type.
+    **/
+    function isSortedTableType(t:Null<Type>):Bool {
+        if (t == null)
+            return false;
+        return switch (Context.follow(t)) {
+            case TInst(c, _):
+                switch (c.get().name) {
+                    case "SortedMap" | "SortedMapBuilder" | "SortedSet" | "SortedSetBuilder"
+                        | "SortedMapTable" | "SortedMapTableBuilder" | "SortedSetTable" | "SortedSetTableBuilder": true;
+                    case _: false;
+                };
+            case _: false;
+        };
     }
 
     function isIntLeafType(t:Null<Type>):Bool {
