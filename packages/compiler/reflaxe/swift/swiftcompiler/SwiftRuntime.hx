@@ -45,6 +45,17 @@ public func f32ToI64(_ value: Float) -> Int64Halves {
     return doubleToI64(Double(value))
 }
 
+/// The binary32 bit pattern of a float as a signed 32-bit integer, and
+/// its inverse (stdlib/05). The Haxe FPHelper edges are binary32 even
+/// on the f64 lane, so the same pair serves both configurations.
+public func floatToI32(_ value: Double) -> Int32 {
+    return Int32(bitPattern: Float(value).bitPattern)
+}
+
+public func i32ToFloat(_ bits: Int32) -> Double {
+    return Double(Float(bitPattern: UInt32(bitPattern: bits)))
+}
+
 /// The growable byte sink behind haxe.io.BytesBuffer (stdlib/02).
 /// Array value semantics make the slice returned by getBytes immune to
 /// later appends through copy-on-write, so no defensive copy runs.
