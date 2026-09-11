@@ -410,3 +410,6 @@ tests.ForInOptionalTests
 
 boring.DefaultParamUnwrapOps
 tests.DefaultParamUnwrapTests
+
+boring.PrivateDefaultOps
+tests.PrivateDefaultTests
