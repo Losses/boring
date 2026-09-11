@@ -106,6 +106,9 @@ class KotlinExpr {
     /** Fresh names for the trailing-unit reads of stdlib/08 checks. */
     var stringBufTailCounter:Int = 0;
 
+    /** Constructor parameter name -> rendered argument, for coalescing defaults that read an earlier parameter. */
+    var constructorParameterValues:Null<Map<String, String>> = null;
+
     /** Function context used to distinguish a sanctioned coalescing site. */
     var currentClass:Null<ClassType> = null;
 
@@ -219,10 +222,10 @@ class KotlinExpr {
             case CPositiveInfinity: FloatPrecision.isF32() ? "Float.POSITIVE_INFINITY" : "Double.POSITIVE_INFINITY";
             case CNegativeInfinity: FloatPrecision.isF32() ? "Float.NEGATIVE_INFINITY" : "Double.NEGATIVE_INFINITY";
             case CEnum(enumRef, enumField): types.of(Type.TEnum(enumRef, [])) + "." + enumField.name;
-            case CParameterRead(name): KotlinNameEscape.escape(name);
+            case CParameterRead(name): constructorParameterValues != null && constructorParameterValues.exists(name) ? constructorParameterValues.get(name) : KotlinNameEscape.escape(name);
             case CInstanceFieldRead(name): "this." + KotlinNameEscape.escape(name);
             case CLocalRead(name): KotlinNameEscape.escape(name);
-            case CFieldAccess(CParameterRead(staticPath), ""): coalescingStaticFieldText(staticPath);
+            case CFieldAccess(CParameterRead(staticPath), ""): constructorParameterValues != null && constructorParameterValues.exists(staticPath) ? constructorParameterValues.get(staticPath) : coalescingStaticFieldText(staticPath);
             case CFieldAccess(receiver, fieldName): coalescingDefaultText(receiver, targetType)
                 + "."
                 + KotlinNameEscape.escape(fieldName == "length" ? "size" : fieldName);
@@ -3295,30 +3298,29 @@ class KotlinExpr {
     }
 
     function renderCallArgs(args:Array<TypedExpr>, params:Array<Type>, owner:Null<ClassType> = null, fieldName:Null<String> = null):Array<String> {
-        return [
-            for (i in 0...args.length) {
-                final a = args[i];
-                final expected = i < params.length ? params[i] : null;
-                final registered = owner != null && fieldName != null ? DefaultArgExpander.defaultAt(owner, fieldName, i) : null;
-                final wasFunctionTypeExpected = functionTypeExpected;
-                functionTypeExpected = PolicyQueries.isFunctionType(expected);
-                final text = expr(a);
-                functionTypeExpected = wasFunctionTypeExpected;
-                if (registered != null && expected != null && isNullLiteral(a)) {
-                    defaultArgText(registered, expected);
-                } else if (registered != null && expected != null && isNullType(a.t)) {
-                    "(" + text + " ?: " + defaultArgText(registered, expected) + ")";
-                } else if (expected != null && !isNullType(expected) &&
-                    ((PolicyQueries.isNullableType(a.t) && !provenNonNull(a) && !guardProofBefore(a)) || isNullInitialized(a) || nullableChainHop(a))) {
-                    if (!isNullInitialized(a))
-                        addProofExpr(a);
-                    if (provenNonNull(a) || guardProofBefore(a))
-                        text + "!!";
-                    else
-                        text + " ?: throw IllegalArgumentException(\"argument is null\")";
-                } else if (isIntOrLongType(emittedType(a)) && isFloatExpectedType(expected)) intToFloatText(text); else text;
-            }
-        ];
+        return [for (i in 0...args.length) renderCallArg(args[i], i, params, owner, fieldName)];
+    }
+
+    function renderCallArg(a:TypedExpr, i:Int, params:Array<Type>, owner:Null<ClassType>, fieldName:Null<String>):String {
+        final expected = i < params.length ? params[i] : null;
+        final registered = owner != null && fieldName != null ? DefaultArgExpander.defaultAt(owner, fieldName, i) : null;
+        final wasFunctionTypeExpected = functionTypeExpected;
+        functionTypeExpected = PolicyQueries.isFunctionType(expected);
+        final text = expr(a);
+        functionTypeExpected = wasFunctionTypeExpected;
+        if (registered != null && expected != null && isNullLiteral(a)) {
+            return defaultArgText(registered, expected);
+        } else if (registered != null && expected != null && isNullType(a.t)) {
+            return "(" + text + " ?: " + defaultArgText(registered, expected) + ")";
+        } else if (expected != null && !isNullType(expected) &&
+            ((PolicyQueries.isNullableType(a.t) && !provenNonNull(a) && !guardProofBefore(a)) || isNullInitialized(a) || nullableChainHop(a))) {
+            if (!isNullInitialized(a))
+                addProofExpr(a);
+            if (provenNonNull(a) || guardProofBefore(a))
+                return text + "!!";
+            else
+                return text + " ?: throw IllegalArgumentException(\"argument is null\")";
+        } else if (isIntOrLongType(emittedType(a)) && isFloatExpectedType(expected)) return intToFloatText(text); else return text;
     }
 
     function isNullLiteral(e:TypedExpr):Bool {
@@ -3419,7 +3421,22 @@ class KotlinExpr {
                 argText = intToFloatText(argText);
             return valueType.name + "(" + argText + ")";
         }
-        final renderedArgs = renderCallArgs(args, constructorParams(cls), cls, "new").join(", ");
+        final prior = constructorParameterValues;
+        constructorParameterValues = [];
+        final renderedArgs:Array<String> = [];
+        final ctorNames = cls.constructor == null ? [] : switch (Context.follow(cls.constructor.get().type)) {
+            case TFun(values, _): [for (v in values) v.name];
+            case _: [];
+        };
+        final ctorParams = constructorParams(cls);
+        for (i in 0...args.length) {
+            final rendered = renderCallArg(args[i], i, ctorParams, cls, "new");
+            renderedArgs.push(rendered);
+            if (i < ctorNames.length)
+                constructorParameterValues.set(ctorNames[i], rendered);
+        }
+        constructorParameterValues = prior;
+        final renderedArgsText = renderedArgs.join(", ");
         final path = cls.pack.length == 0 ? cls.name : cls.pack.join(".") + "." + cls.name;
         switch (path) {
             case "std.StringBuf" | "StringBuf":
@@ -3428,16 +3445,16 @@ class KotlinExpr {
                 return "mutableMapOf()";
             case "haxe.io.BytesBuffer":
                 imports.requireType(path, "BytesBuffer");
-                return "BytesBuffer(" + renderedArgs + ")";
+                return "BytesBuffer(" + renderedArgsText + ")";
             case "Array":
                 imports.require("java.util.ArrayList");
-                return "ArrayList<" + types.of(params[0]) + ">(" + renderedArgs + ")";
+                return "ArrayList<" + types.of(params[0]) + ">(" + renderedArgsText + ")";
             case _:
                 if (args.length == 1 && state.exceptionPayloads.exists(cls.module)) {
                     return exceptionVariant(cls, args[0]);
                 }
                 imports.requireType(cls.module, cls.name);
-                return cls.name + "(" + renderedArgs + ")";
+                return cls.name + "(" + renderedArgsText + ")";
         }
     }
 
