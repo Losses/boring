@@ -1345,7 +1345,12 @@ class DartExpr {
             case EnumKindQuery(kind, en, args):
                 switch (kind) {
                     case QCollection: qualifiedRef(en.module, en.name) + ".values";
-                    case QName: expr(args[0]) + ".label";
+                    case QName:
+                    // A name read on a createEnum result unwraps the
+                    // nullable lookup helper the lowering emits.
+                    final subject = args[0];
+                    final unwrap = isNullLeafType(subject.t) || EnumQueryExpander.markerKind(subject) == QLookup;
+                    expr(subject) + (unwrap ? "!" : "") + ".label";
                     case QLookup: qualifiedRef(en.module, EnumQueryExpander.lowerFirst(en.name) + "OfName") + "(" + expr(args[1]) + ")";
                 }
         }
