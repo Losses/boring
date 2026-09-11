@@ -24,6 +24,12 @@ class MathMinMaxTests {
         Test.equals(9.0, MathMinMaxOps.largerOfInts(4, 9));
     }
 
+    @:test("Math.max widens an int expression against a literal zero")
+    public static function intExpression():Void {
+        Test.equals(2.0, MathMinMaxOps.deficitOfInts(5, 3));
+        Test.equals(0.0, MathMinMaxOps.deficitOfInts(3, 5));
+    }
+
     @:test("Math.abs returns the absolute value of the float operand")
     public static function absFloat():Void {
         Test.equals(2.5, MathMinMaxOps.absValue(-2.5));

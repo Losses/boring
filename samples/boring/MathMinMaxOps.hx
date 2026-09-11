@@ -13,6 +13,11 @@ class MathMinMaxOps {
     public static function largerOfInts(a:Int, b:Int):Float
         return Math.max(a, b);
 
+    /** An int-typed expression beside a literal zero: both operands
+        widen so the NaN guard has a floating member to test. */
+    public static function deficitOfInts(a:Int, b:Int):Float
+        return Math.max(a - b, 0);
+
     public static function absValue(a:Float):Float
         return Math.abs(a);
 
