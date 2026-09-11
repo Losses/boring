@@ -788,6 +788,11 @@ class SwiftExpr {
                 return [indent(depth) + target + tryKw + assignmentValue(l, r)];
             case TBinop(OpAssignOp(inner), l, r):
                 final tryKw = containsThrowingCall(r) ? "try " : "";
+                // Haxe appends any value to a String with its string form;
+                // Swift's `+=` needs the converted right side.
+                if (inner == OpAdd && isStringTyped(l)) {
+                    return [indent(depth) + assignTarget(l) + " += " + tryKw + stdString(r, false)];
+                }
                 // Only a bare optional read unwraps; a compound right side
                 // (a coalescing ternary) would bind the `!` to its tail.
                 final rhs = switch (stripWrap(r).expr) {
@@ -1849,6 +1854,10 @@ class SwiftExpr {
                 final map = mapAssignment(l);
                 final rhs = assignmentValue(l, r);
                 return map == null ? assignTarget(l) + " = " + rhs : expr(map.receiver) + "[" + expr(map.key) + "] = " + rhs;
+            case OpAssignOp(OpAdd) if (isStringTyped(l)):
+                // Haxe appends any value to a String with its string form;
+                // Swift's `+=` needs the converted right side.
+                return assignTarget(l) + " += " + stdString(r, false);
             case OpAssignOp(inner):
                 return assignTarget(l) + " " + symbolOf(inner, l, r) + "= " + expr(r);
             case OpAdd:
