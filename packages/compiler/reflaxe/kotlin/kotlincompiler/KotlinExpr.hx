@@ -1462,6 +1462,16 @@ class KotlinExpr {
                     && field.name == currentField ? abs.name + "(" + rendered + ")" : rendered;
                 }
             case _: abs.name + "(" + valueTypeOperand(value, locals, abs) + ")";
+            case _:
+                // The inline constructor expansion assigns the argument to a
+                // synthetic local named after the constructor parameter; the
+                // plan's locals map resolves that local back to the original
+                // argument expression (features/23 value-type lowering).
+                final fallbackValue = switch (stripWrap(value).expr) {
+                    case TLocal(v) if (locals.exists(v.id)): locals.get(v.id);
+                    case _: value;
+                };
+                abs.name + "(" + expr(fallbackValue) + ")";
         };
     }
 
