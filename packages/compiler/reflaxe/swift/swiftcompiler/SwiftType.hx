@@ -289,7 +289,10 @@ class SwiftType {
     public function optionalNone(t:Null<Type>):String {
         return switch (t) {
             case TAbstract(a, params) if (a.get().name == "Null" && params.length == 1):
-                "Optional<" + of(params[0]) + ">.none";
+                switch (Context.follow(params[0])) {
+                    case TMono(_): "nil";
+                    case _: "Optional<" + of(params[0]) + ">.none";
+                };
             case TLazy(f): optionalNone(f());
             case _: "nil";
         };
