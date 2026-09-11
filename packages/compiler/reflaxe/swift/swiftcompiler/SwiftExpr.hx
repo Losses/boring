@@ -4326,10 +4326,10 @@ class SwiftExpr {
     function mathFloatArg(a:TypedExpr):String {
         if (!isIntType(emittedType(a)))
             return expr(a);
-        return switch (stripWrap(a).expr) {
-            case TConst(TInt(_)): expr(a);
-            case _: intToFloatText(expr(a));
-        };
+        // Every int-typed operand widens, including a bare literal: the
+        // Swift binding `let b = 0` infers the 64-bit Int, and the NaN
+        // guard's `.isNaN` then has no member on the integer domain.
+        return intToFloatText(expr(a));
     }
 
     public function isIntTyped(e:TypedExpr):Bool {
