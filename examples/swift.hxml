@@ -344,3 +344,6 @@ tests.SwiftGlobalThrowTests
 
 boring.ArrayMethodSwiftOps
 tests.ArrayMethodSwiftTests
+
+boring.FunctionalLocalOps
+tests.FunctionalLocalTests
