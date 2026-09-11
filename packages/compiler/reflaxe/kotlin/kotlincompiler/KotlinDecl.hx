@@ -1157,7 +1157,12 @@ class KotlinDecl {
             for (a in f.args)
                 parameterText(cls, f.field.name, a, !isInterfaceMethod(cls, f))
         ].join(", ");
-        final retType = types.of(f.ret);
+        var retType = types.of(f.ret);
+        // A body whose returns call a method on an unproven nullable receiver
+        // renders with the safe-call form, so the kotlin result is nullable
+        // even though the Haxe signature is not; widen the rendered return.
+        if (expr.bodyUsesSafeCallReturns(f) && !StringTools.endsWith(retType, "?"))
+            retType = retType + "?";
         final ret = retType == "Unit" ? "" : ": " + retType;
         // Zero-argument toString and hashCode override kotlin.Any's members;
         // the modifier is required even though Haxe models no Any root, so
