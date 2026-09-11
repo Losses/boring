@@ -2091,6 +2091,9 @@ class KotlinExpr {
                             case TCall(subj, _):
                                 if (isNullType(receiverBase(subj).t) && !provenNonNull(receiverBase(subj)))
                                     found = true;
+                            case TBinop(OpAdd, l, r):
+                                if ((isStringType(l.t) || isStringType(r.t)) && isNullType(receiverBase(l).t) && !provenNonNull(receiverBase(l)))
+                                    found = true;
                             case _:
                         }
                     }
@@ -2315,6 +2318,12 @@ class KotlinExpr {
                 // Enum + String or Int + String unresolved.
                 final leftText = leftStd == null ? operand(l, op, false) : stdString(leftStd, isStringType(leftStd.t));
                 final rightText = rightStd == null ? operand(r, op, true) : stdString(rightStd, true);
+                // A nullable safe-call left operand propagates null through
+                // the concatenation: plus on the nullable receiver yields
+                // null; a plain + would coerce to the "null" string.
+                if ((isStringType(l.t) || isStringType(r.t)) && isNullType(receiverBase(l).t) && !provenNonNull(receiverBase(l))) {
+                    return leftText + "?.plus(" + rightText + ")";
+                }
                 if (!isStringType(l.t)) {
                     return "(" + leftText + ").toString() + " + rightText;
                 }
