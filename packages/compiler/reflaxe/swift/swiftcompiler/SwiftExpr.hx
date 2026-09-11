@@ -1532,27 +1532,15 @@ class SwiftExpr {
         ternary itself is non-optional, an optional branch is unwrapped.
     **/
     function ternaryBranch(b:TypedExpr, whole:TypedExpr):String {
-        var text = expr(b);
-        if (!optionalValued(whole) && optionalValued(b) && !StringTools.endsWith(text, "!")) {
-            text = switch (stripWrap(b).expr) {
-                case TLocal(_): text + "!";
-                case TField(_, _): "(" + text + ")!";
-                case _: text;
-            };
-        }
-        // Swift needs both arms to share a type; a concrete branch widens to
-        // the interface the Haxe ternary unified on.
-        if (isInterfaceType(whole.t) && isNamedRefType(b.t) && types.of(b.t) != types.of(whole.t))
-            text = "(" + text + " as " + types.of(whole.t) + ")";
-        return text;
-    }
-
-    function isNamedRefType(t:Null<Type>):Bool {
-        if (t == null)
-            return false;
-        return switch (Context.follow(t)) {
-            case TInst(_, _): true;
-            case _: false;
+        final text = expr(b);
+        if (optionalValued(whole) || !optionalValued(b) || StringTools.endsWith(text, "!"))
+            return text;
+        // Only a bare value read is unwrapped; a compound branch (an
+        // arithmetic expression) already unwraps its own optional operands.
+        return switch (stripWrap(b).expr) {
+            case TLocal(_): text + "!";
+            case TField(_, _): "(" + text + ")!";
+            case _: text;
         };
     }
 
