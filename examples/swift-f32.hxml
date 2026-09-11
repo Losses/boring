@@ -351,3 +351,6 @@ tests.ThrowingClosureTests
 
 boring.StringCodeOptionalOps
 tests.StringCodeOptionalTests
+
+boring.DefaultBuilderOps
+tests.DefaultBuilderTests
