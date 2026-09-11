@@ -3981,9 +3981,10 @@ class RustExpr {
                     return "(*" + staticItemPath(cls, name) + ").clone()";
                 }
                 if (isLazyStaticField(cls, name) && !StaticFieldHelper.isSelfConstruction(cf.get(), cls)) {
-                    return isLazyArrayStaticField(cf.get())
-                        ? "(*" + staticItemPath(cls, name) + ").clone()"
-                        : "&*" + staticItemPath(cls, name);
+                    // LazyLock owns its value. Static reads cross Haxe value
+                    // boundaries, so clone the referent before passing it
+                    // to constructors.
+                    return "(*" + staticItemPath(cls, name) + ").clone()";
                 }
                 if (isGuardStaticField(cls, name)) {
                     if (StaticFieldHelper.isConstruction(cf.get().expr()) && !StaticFieldHelper.isSelfConstruction(cf.get(), cls)) {
