@@ -168,6 +168,15 @@ class DefaultArgExpander {
         return (classType.pack.length > 0 ? classType.pack.join(".") + "." : "") + classType.name;
     }
 
+    /**
+        A path `Context.getType` can resolve: a secondary type must carry
+        its module, because its package path does not name a module.
+    **/
+    static function resolvableTypePath(classType:ClassType):String {
+        final key = getClassKey(classType);
+        return classType.module == key ? key : classType.module + "." + classType.name;
+    }
+
     static function walkLocalFunctions(e:Expr, classType:ClassType, fieldName:String):Void {
         if (e == null)
             return;
@@ -556,7 +565,7 @@ class DefaultArgExpander {
                             try {
                                 switch (Context.getType(fullPath)) {
                                     case TInst(clsRef, _):
-                                        return getClassKey(clsRef.get()) + "." + fieldName;
+                                        return resolvableTypePath(clsRef.get()) + "." + fieldName;
                                     case TAbstract(absRef, _):
                                         final abs = absRef.get();
                                         return (abs.pack.length > 0 ? abs.pack.join(".") + "." : "") + abs.name + "." + fieldName;
@@ -583,7 +592,7 @@ class DefaultArgExpander {
                                     final cls = clsRef.get();
                                     for (f in cls.statics.get()) {
                                         if (f.name == name)
-                                            return getClassKey(cls) + "." + name;
+                                            return resolvableTypePath(cls) + "." + name;
                                     }
                                 default:
                             }
