@@ -389,3 +389,6 @@ tests.TableBuilderInferTests
 
 boring.MutableBufFieldOps
 tests.MutableBufFieldTests
+
+boring.FloatModOps
+tests.FloatModTests

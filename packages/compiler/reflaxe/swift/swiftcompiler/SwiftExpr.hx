@@ -1830,6 +1830,9 @@ class SwiftExpr {
                     return realType() + "(" + expr(l) + ") / " + right;
                 }
                 return floatAware(operand(l, op, false), l) + " / " + floatAware(operand(r, op, true), r);
+            case OpMod if (isFloatTyped(l) || isFloatTyped(r)):
+                // Swift has no `%` for a floating point operand.
+                return floatAware(operand(l, op, false), l) + ".truncatingRemainder(dividingBy: " + floatAware(operand(r, op, true), r) + ")";
             case OpEq | OpNotEq:
                 if (!isNullConstant(l) && !isNullConstant(r) && types.usesIdentityEquality(l.t) && types.usesIdentityEquality(r.t)) {
                     final identity = op == OpEq ? "===" : "!==";
