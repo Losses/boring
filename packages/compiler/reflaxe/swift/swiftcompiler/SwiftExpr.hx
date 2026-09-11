@@ -3346,25 +3346,28 @@ class SwiftExpr {
         final tailRead = stringBufTailLines(parts.subj, depth);
         final lines = tailRead.lines;
         final tail = tailRead.name;
+        final tryKw = containsThrowingCall(args[0]) ? "try " : "";
         if (parts.name == "add") {
             final part = expr(args[0]);
             // The added string starts with a trail unit or the held lead
-            // stays paired: only the unpaired case faults.
-            lines.push(indent(depth) + "if " + tail + " >= 55296 && " + tail + " <= 56319 && !(Array(" + part + ".utf16).count > 0 && Array(" + part
+            // stays paired: only the unpaired case faults. The added value
+            // may itself throw, so the guard condition and the append carry
+            // the try marker.
+            lines.push(indent(depth) + "if " + tryKw + tail + " >= 55296 && " + tail + " <= 56319 && !(Array(" + part + ".utf16).count > 0 && Array(" + part
                 + ".utf16)[0] >= 56320 && Array(" + part + ".utf16)[0] <= 57343) {");
             lines.push(stringBufFaultThrow(depth + 1, tail));
             lines.push(indent(depth) + "}");
-            lines.push(indent(depth) + buf + " += Array(" + part + ".utf16)");
+            lines.push(indent(depth) + buf + " += " + tryKw + "Array(" + part + ".utf16)");
         } else {
             final u = expr(args[0]);
-            lines.push(indent(depth) + "if " + u + " >= 56320 && " + u + " <= 57343 {");
+            lines.push(indent(depth) + "if " + tryKw + u + " >= 56320 && " + u + " <= 57343 {");
             lines.push(indent(depth + 1) + "if !(" + tail + " >= 55296 && " + tail + " <= 56319) {");
-            lines.push(stringBufFaultThrow(depth + 2, u));
+            lines.push(stringBufFaultThrow(depth + 2, tryKw + u));
             lines.push(indent(depth + 1) + "}");
             lines.push(indent(depth) + "} else if " + tail + " >= 55296 && " + tail + " <= 56319 {");
             lines.push(stringBufFaultThrow(depth + 1, tail));
             lines.push(indent(depth) + "}");
-            lines.push(indent(depth) + buf + ".append(UInt16(bitPattern: Int16(truncatingIfNeeded: " + u + ")))");
+            lines.push(indent(depth) + buf + ".append(UInt16(bitPattern: Int16(truncatingIfNeeded: " + tryKw + u + ")))");
         }
         return lines;
     }
