@@ -50,6 +50,10 @@ class DartType {
                 final cls = c.get();
                 switch (pathOf(cls.pack, cls.name)) {
                     case "String": "String";
+                    // The bare haxe.Exception base maps to the runtime
+                    // BoringException; subclasses lower through DartDecl's
+                    // exception chain and never reach this case.
+                    case "haxe.Exception": runtimeExceptionTypeRef();
                     case "std.StringBuf" | "StringBuf": "List<int>";
                     case "Array": "List<" + of(params[0]) + ">";
                     case "haxe.io.Bytes":
@@ -109,6 +113,12 @@ class DartType {
         final prefix = imports.runtimePrefix();
         final head = prefix.length > 0 ? prefix + "." + name : name;
         return head + "<" + [for (p in params) of(p)].join(", ") + ">";
+    }
+
+    /** The bare haxe.Exception base as the runtime BoringException type. */
+    function runtimeExceptionTypeRef():String {
+        final prefix = imports.runtimePrefix();
+        return prefix.length > 0 ? prefix + ".BoringException" : "BoringException";
     }
 
     /**

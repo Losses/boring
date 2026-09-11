@@ -1650,10 +1650,18 @@ class KotlinExpr {
     function foldedExceptionMessage(subj:TypedExpr):Null<String> {
         switch (Context.follow(subj.t)) {
             case TInst(c, _):
-                if (!KotlinDecl.isExceptionSubclass(c.get())) {
-                    return null;
+                final cls = c.get();
+                if (KotlinDecl.isExceptionSubclass(cls)) {
+                    return expr(subj) + ".message";
                 }
-                return expr(subj) + ".message";
+                // The bare haxe.Exception base maps to RuntimeException, whose
+                // platform message is nullable. Haxe's message is a non-null
+                // String, so a null platform message realizes as the empty
+                // string (features/06 message lowering).
+                if (cls.pack.join(".") == "haxe" && cls.name == "Exception") {
+                    return "(" + expr(subj) + ".message ?: \"\")";
+                }
+                return null;
             case _:
                 return null;
         }
