@@ -1396,7 +1396,7 @@ class SwiftExpr {
                         // native literal.
                         return types.resident ? "Array(" + quoteString(s) + ".utf16)" : quoteString(s);
                     case TBool(b): return b ? "true" : "false";
-                    case TNull: return types.optionalNone(e.t);
+                    case TNull: return "nil";
                     case TThis: return "self";
                     case TSuper: return "super";
                     case _: return fail(e, "constant has no Swift lowering");
@@ -1841,8 +1841,8 @@ class SwiftExpr {
                     return operand(l, op, false, true) + " " + identity + " " + operand(r, op, true, true);
                 }
                 final nullSide = isNullConstant(l) || isNullConstant(r);
-                final lOperand = nullSide ? (isNullConstant(l) ? "nil" : expr(l)) : operand(l, op, false, true);
-                final rOperand = nullSide ? (isNullConstant(r) ? "nil" : expr(r)) : operand(r, op, true, true);
+                final lOperand = nullSide ? expr(l) : operand(l, op, false, true);
+                final rOperand = nullSide ? expr(r) : operand(r, op, true, true);
                 final lFinal = isIntType(emittedType(l)) && isFloatTyped(r) ? intToFloatText(lOperand) : lOperand;
                 final rFinal = isIntType(emittedType(r)) && isFloatTyped(l) ? intToFloatText(rOperand) : rOperand;
                 return lFinal + " " + symbolOf(op, l, r) + " " + rFinal;
@@ -1932,7 +1932,7 @@ class SwiftExpr {
 
     function optionalExpr(a:TypedExpr):String {
         return switch (stripWrap(a).expr) {
-            case TConst(TNull): types.optionalNone(a.t);
+            case TConst(TNull): "nil";
             case _: {
                     final text = expr(a);
                     if (!optionalValued(a) || StringTools.endsWith(text, "!"))
@@ -2413,7 +2413,7 @@ class SwiftExpr {
                         case TFun(values, _): values[i].name;
                         case _: "";
                     }) != null) {
-                        rendered.push(types.optionalNone(paramTypes[i]));
+                        rendered.push("nil");
                     }
                 }
             default:
