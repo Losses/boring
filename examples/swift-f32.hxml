@@ -332,3 +332,6 @@ tests.InterfaceThrowTests
 
 boring.DowncastOps
 tests.DowncastTests
+
+boring.PostIncConditionOps
+tests.PostIncConditionTests
