@@ -349,3 +349,6 @@ tests.StringCodeOptionalTests
 
 boring.DefaultBuilderOps
 tests.DefaultBuilderTests
+
+boring.IntFloatCtorOps
+tests.IntFloatCtorTests
