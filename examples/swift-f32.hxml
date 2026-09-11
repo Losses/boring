@@ -264,6 +264,8 @@ tests.NumericConversionWideningTests
 boring.SwiftLiteralSafetyOps
 tests.SwiftLiteralSafetyOpsTests
 
+boring.NilContextOps
+tests.NilContextTests
 boring.ProbeUnit
 boring.SwiftDefaultOps
 boring.AbstractStaticDefault
