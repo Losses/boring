@@ -423,3 +423,6 @@ tests.MapValueOptionalTests
 
 boring.NullStaticMapOps
 tests.NullStaticMapTests
+
+boring.SubstringDefaultOps
+tests.SubstringDefaultTests
