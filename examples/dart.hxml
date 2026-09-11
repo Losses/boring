@@ -395,3 +395,7 @@ tests.IntFloatCtorTests
 
 boring.NarrowLocalSwitchOps
 tests.NarrowLocalSwitchTests
+
+boring.PrivateCollisionAlpha
+boring.PrivateCollisionBeta
+tests.PrivateCollisionTests
