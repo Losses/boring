@@ -2351,8 +2351,19 @@ class SwiftExpr {
                 if (SwiftTestBinding.isTestExtern(cls)) {
                     return testCall(fName, args, fn);
                 }
-                if ((cls.name == "Functional" || cls.name == "__functional_shim" || module == "std.Functional") && fName == "sortedBy") {
-                    return sortedByCall(args, fn);
+                if (cls.name == "Functional" || cls.name == "__functional_shim" || module == "std.Functional") {
+                    switch (fName) {
+                        case "sortedBy":
+                            return sortedByCall(args, fn);
+                        case "sumOfFloat":
+                            return sumOfFloatCall(args, fn);
+                        case "sumOfInt":
+                            return sumOfIntCall(args, fn);
+                        case "forEach":
+                            if (args.length == 2)
+                                return expr(args[0]) + ".forEach(" + expr(args[1]) + ")";
+                        case _:
+                    }
                 }
                 if (module == "std.SortedMap" && fName == "builder") {
                     // Swift call sites never spell generic arguments; the
@@ -2854,6 +2865,43 @@ class SwiftExpr {
             return expr(receiver) + ".sorted { _a, _b in " + comparator + " }";
         }
         return fail(fn, "sortedBy requires a single-parameter key function");
+    }
+
+    /**
+        std.Functional.sumOfFloat survived pipeline expansion (an open
+        receiver or a side-effecting body): lower onto a reduce over the
+        float domain the Haxe signature names.
+    **/
+    function sumOfFloatCall(args:Array<TypedExpr>, fn:TypedExpr):String {
+        if (args.length == 2) {
+            final func = unwrapLambda(args[1]);
+            if (func != null && func.args.length == 1) {
+                final param = func.args[0].v;
+                final body = lambdaBody(func.expr);
+                subst.set(param.id, "_v");
+                final value = expr(body);
+                subst.remove(param.id);
+                final zero = FloatPrecision.isF32() ? "Float(0)" : "Double(0)";
+                return expr(args[0]) + ".reduce(" + zero + ") { _acc, _v in _acc + (" + value + ") }";
+            }
+        }
+        return fail(fn, "sumOfFloat requires a single-argument key function");
+    }
+
+    /** The Int-domain twin of sumOfFloat. **/
+    function sumOfIntCall(args:Array<TypedExpr>, fn:TypedExpr):String {
+        if (args.length == 2) {
+            final func = unwrapLambda(args[1]);
+            if (func != null && func.args.length == 1) {
+                final param = func.args[0].v;
+                final body = lambdaBody(func.expr);
+                subst.set(param.id, "_v");
+                final value = expr(body);
+                subst.remove(param.id);
+                return expr(args[0]) + ".reduce(Int32(0)) { _acc, _v in _acc + (" + value + ") }";
+            }
+        }
+        return fail(fn, "sumOfInt requires a single-argument key function");
     }
 
     /** The key type argument of a sorted builder factory call. */
