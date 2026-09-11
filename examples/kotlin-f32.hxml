@@ -330,3 +330,6 @@ tests.DowncastTests
 
 boring.PostIncConditionOps
 tests.PostIncConditionTests
+
+boring.CtorOptArgOps
+tests.CtorOptArgTests
