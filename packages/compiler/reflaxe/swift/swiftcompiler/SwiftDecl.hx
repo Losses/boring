@@ -87,7 +87,8 @@ class SwiftDecl {
                 // A protocol method cannot declare a default argument, so
                 // the parameter list renders bare here; the implementing
                 // class carries the default.
-                lines.push("    func " + f.field.name + paramList(cls, f, 0, false) + " -> " + types.of(f.ret));
+                final throws = SwiftFallibility.isThrowing(cls.module, cls.name, f.field.name, f.isStatic) ? " throws" : "";
+                lines.push("    func " + f.field.name + paramList(cls, f, 0, false) + throws + " -> " + types.of(f.ret));
             }
             lines.push("}");
             return lines.join("\n");
@@ -652,7 +653,7 @@ class SwiftDecl {
         final getter = "get_" + field.name;
         // A Swift computed property cannot rethrow; the backing getter is a
         // compile-time fixture accessor, so force the fault at the access.
-        final getterThrows = SwiftFallibility.isThrowing(cls.module, getter, false);
+        final getterThrows = SwiftFallibility.isThrowing(cls.module, cls.name, getter, false);
         return [
             "    " + vis + "var " + SwiftNameEscape.escape(field.name) + ": " + types.of(field.type) + " { " + (getterThrows ? "try! " : "") + getter + "() }"
         ];
@@ -679,7 +680,7 @@ class SwiftDecl {
         for (a in f.args) {
             expr.reserveName(a.name);
         }
-        final throws = SwiftFallibility.isThrowing(cls.module, f.field.name, true) ? " throws" : "";
+        final throws = SwiftFallibility.isThrowing(cls.module, cls.name, f.field.name, true) ? " throws" : "";
         final body = expr.functionBody(cls, f);
         return [
             "    public static func " + SwiftNameEscape.escape(f.field.name) + "()" + throws + " -> Void {"
@@ -704,7 +705,7 @@ class SwiftDecl {
             // A throwing constructor declares throws (feature spec 27);
             // construction sites pick up the try marker from the
             // fallibility machinery.
-            final ctorThrows = SwiftFallibility.isThrowing(module, "new", false) ? " throws" : "";
+            final ctorThrows = SwiftFallibility.isThrowing(module, cls.name, "new", false) ? " throws" : "";
             // A constructor parameter whose coalescing default reads an
             // earlier parameter carries `T? = nil` in the parameter list
             // (paramList), so the body needs the same entry shadow the
@@ -718,7 +719,7 @@ class SwiftDecl {
         }
         final ret = types.of(f.ret);
         final stat = f.isStatic ? "static " : "";
-        final throws = SwiftFallibility.isThrowing(module, f.field.name, f.isStatic) ? " throws" : "";
+        final throws = SwiftFallibility.isThrowing(module, cls.name, f.field.name, f.isStatic) ? " throws" : "";
         // A method's own type parameters (the resident builders'
         // factory functions) render as method generics; the class's own
         // parameters stay in the class header only.
@@ -757,7 +758,7 @@ class SwiftDecl {
         final isExtension = StaticFunctionMarkers.isExtension(f.field);
         final firstArg = isExtension ? 1 : 0;
         final ret = types.of(f.ret);
-        final throws = SwiftFallibility.isThrowing(module, f.field.name, true) ? " throws" : "";
+        final throws = SwiftFallibility.isThrowing(module, cls.name, f.field.name, true) ? " throws" : "";
         final methodParams = collectMethodTypeParams(cls, f);
         final genericStr = methodParams.length > 0 ? "<" + methodParams.join(", ") + ">" : "";
         // @:allow members use Swift internal visibility so allowed cross-class calls compile.
