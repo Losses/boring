@@ -361,6 +361,13 @@ class SwiftExpr {
                 case _: null;
             }, Context.currentPos()) + ")";
         }
+        if (modulePath == "std.SortedMap" && methodName == "builder") {
+            imports.runtime("SortedTable");
+            return "SortedTable.mapBuilder(" + sortedComparator(switch (Context.follow(DefaultArgExpander.withoutNull(targetType))) {
+                case TInst(_, params) if (params.length > 0): params[0];
+                case _: null;
+            }, Context.currentPos()) + ")";
+        }
         imports.value(modulePath, className);
         return className
             + "."
