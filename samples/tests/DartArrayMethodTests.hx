@@ -11,7 +11,7 @@ class DartArrayMethodTests {
     public static function testConcatSplice():Void {
         #if dart_output
         Test.equals(1, DartArrayMethodOps.merge([1, 2], [3, 4])[0]);
-        Test.equals(3, DartArrayMethodOps.cutAt([7, 8, 9], 1)[0]);
+        Test.equals(8, DartArrayMethodOps.cutAt([7, 8, 9], 1)[0]);
         #else
         Test.equals(true, true);
         #end
