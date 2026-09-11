@@ -324,3 +324,6 @@ tests.MultiPatternSwitchTests
 
 boring.InterfaceThrowOps
 tests.InterfaceThrowTests
+
+boring.DowncastOps
+tests.DowncastTests
