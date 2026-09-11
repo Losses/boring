@@ -23,7 +23,7 @@ describe("constructed static initializer trees", () => {
     expect(rust).toContain("LazyLock<FramePolicy>");
     expect(rust).toContain("LazyLock::new");
     expect(rust).not.toContain("#[allow(non_upper_case_globals)]");
-    expect(rust).toContain("&*WEIGHTED");
+    expect(rust).toContain("(*FRAME_POLICY_WEIGHTED).clone()");
   });
 });
 
