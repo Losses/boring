@@ -175,6 +175,16 @@ class DartImports {
         reservedNames.set(name, true);
     }
 
+    /** Whether a name is already assigned as a cross-module import prefix. */
+    public function hasPrefix(name:String):Bool {
+        for (other => taken in modules) {
+            if (taken == name) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** Records an extension library import, which must remain unprefixed. */
     public function useExtension(module:String):Void {
         checkPurity(module);
