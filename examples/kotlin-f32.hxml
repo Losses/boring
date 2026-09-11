@@ -418,3 +418,11 @@ boring.InterfaceFieldRecordOps
 tests.InterfaceFieldRecordTests
 boring.DartArrayMethodOps
 tests.DartArrayMethodTests
+boring.InterfaceArrayLiteralOps
+tests.InterfaceArrayLiteralTests
+boring.TypeAliasLocalOps
+tests.TypeAliasLocalTests
+boring.StringIndexOfShadowOps
+tests.StringIndexOfShadowTests
+boring.IntFloatAddOps
+tests.IntFloatAddTests
