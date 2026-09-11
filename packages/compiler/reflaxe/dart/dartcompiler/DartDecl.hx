@@ -1041,7 +1041,7 @@ class DartDecl {
             final lines = ['enum ${claimTopLevel(en.name, en.pos)} {'];
             for (i in 0...sorted.length) {
                 final o = sorted[i];
-                lines.push('  ${lowerFirst(o.name)}("${o.name}")' + (i == sorted.length - 1 ? ";" : ","));
+                lines.push('  ${dartSafeName(lowerFirst(o.name))}("${o.name}")' + (i == sorted.length - 1 ? ";" : ","));
             }
             lines.push("");
             lines.push("  final String label;");
@@ -1055,7 +1055,7 @@ class DartDecl {
                 lines.push("");
                 lines.push('${en.name}? $fn(String name) {');
                 for (o in sorted)
-                    lines.push('  if (name == "${o.name}") return ${en.name}.${lowerFirst(o.name)};');
+                    lines.push('  if (name == "${o.name}") return ${en.name}.${dartSafeName(lowerFirst(o.name))};');
                 lines.push("  return null;");
                 lines.push("}");
             }
@@ -1121,6 +1121,22 @@ class DartDecl {
 
     public static function lowerFirst(s:String):String {
         return NameConversion.lowerFirst(s);
+    }
+
+    /** Dart reserved words that cannot name an enum member or field. */
+    static final dartKeywords:Array<String> = [
+        "abstract", "as", "assert", "async", "await", "base", "break", "case", "catch", "class", "const", "continue",
+        "covariant", "default", "deferred", "do", "dynamic", "else", "enum", "export", "extends", "extension", "external",
+        "factory", "false", "final", "finally", "for", "function", "get", "hide", "if", "implements", "import", "in",
+        "interface", "is", "late", "library", "mixin", "new", "null", "on", "operator", "part", "required", "rethrow",
+        "return", "sealed", "set", "show", "static", "super", "switch", "sync", "this", "throw", "true", "try", "typedef",
+        "var", "void", "when", "while", "with", "yield"
+    ];
+
+    /** A Dart identifier safe for enum members and fields: keywords get a
+        trailing underscore (the same convention as generated locals). */
+    public static function dartSafeName(name:String):String {
+        return dartKeywords.indexOf(name) >= 0 ? name + "_" : name;
     }
 
     // ------------------------------------------------------------------
