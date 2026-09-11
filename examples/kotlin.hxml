@@ -425,3 +425,6 @@ tests.SubstringDefaultTests
 
 boring.TableBuilderInferOps
 tests.TableBuilderInferTests
+
+boring.MutableBufFieldOps
+tests.MutableBufFieldTests
