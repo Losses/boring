@@ -376,6 +376,9 @@ tests.NarrowLocalSwitchTests
 boring.PrivateCollisionAlpha
 boring.PrivateCollisionBeta
 tests.PrivateCollisionTests
+boring.AccessTarget
+boring.AccessPeer
+tests.AccessGrantTests
 
 boring.OptionalMemberOps
 tests.OptionalMemberTests
