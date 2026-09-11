@@ -84,6 +84,17 @@ class SwiftDecl {
             // names it in its conformance clause.
             final lines:Array<String> = ["public protocol " + cls.name + " {"];
             for (f in funcFields) {
+                // A getter-only property is also a protocol property
+                // requirement: consuming Swift code reads it by name through
+                // the existential, which only the `var` requirement admits.
+                if (!f.isStatic && StringTools.startsWith(f.field.name, "get_")) {
+                    final propName = f.field.name.substring("get_".length);
+                    for (field in cls.fields.get()) {
+                        if (field.name == propName && isGetterOnlyProperty(field)) {
+                            lines.push("    var " + SwiftNameEscape.escape(propName) + ": " + types.of(field.type) + " { get }");
+                        }
+                    }
+                }
                 // A protocol method cannot declare a default argument, so
                 // the parameter list renders bare here; the implementing
                 // class carries the default.
