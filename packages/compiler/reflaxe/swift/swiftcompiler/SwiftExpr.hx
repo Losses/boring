@@ -1677,7 +1677,9 @@ class SwiftExpr {
                     nativeOperator
                     && field.name == currentField ? abs.name + "(" + rendered + ")" : rendered;
                 }
-            case _: abs.name + "(" + expr(value) + ")";
+            case _:
+                final text = expr(value);
+                abs.name + "(" + (isIntType(emittedType(value)) && ValueTypeSupport.isFloatRepresentation(abs) ? intToFloatText(text) : text) + ")";
         };
     }
 
@@ -1862,6 +1864,10 @@ class SwiftExpr {
     **/
     function castText(inner:TypedExpr, target:Type):String {
         final rendered = expr(inner);
+        // Haxe unifies Int with Float, so an Int operand in a Float cast is
+        // transparent; Swift needs the explicit conversion.
+        if (isFloatLeafType(target) && isIntType(emittedType(inner)) && !isFloatTyped(inner))
+            return intToFloatText(rendered);
         if (Context.unify(inner.t, target)) {
             return rendered;
         }
@@ -3528,10 +3534,20 @@ class SwiftExpr {
 
     function newExpr(c:Ref<ClassType>, params:Array<Type>, args:Array<TypedExpr>):String {
         final cls = c.get();
-        final rendered = constructorArgTexts(cls, args).join(", ");
         final valueType = ValueTypeSupport.markedAbstractOfClass(cls);
-        if (valueType != null)
-            return valueType.name + "(" + rendered + ")";
+        if (valueType != null) {
+            // A value-type constructor is the abstract's `_new`; Haxe unifies
+            // an Int argument with a Float representation, so widen it the
+            // same way the `_new` call path does.
+            final widened = [
+                for (a in args) {
+                    final text = expr(a);
+                    isIntType(emittedType(a)) && ValueTypeSupport.isFloatRepresentation(valueType) ? intToFloatText(text) : text;
+                }
+            ];
+            return valueType.name + "(" + widened.join(", ") + ")";
+        }
+        final rendered = constructorArgTexts(cls, args).join(", ");
         final path = cls.pack.length == 0 ? cls.name : cls.pack.join(".") + "." + cls.name;
         switch (path) {
             case "std.StringBuf" | "StringBuf":
