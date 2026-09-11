@@ -521,9 +521,9 @@ class KotlinExpr {
         assignment to a parameter field from any other expression stops
         the compilation.
     **/
-    public function initBlockStatements(cls:ClassType, f:ClassFuncData):{lines:Array<String>, assigned:Array<String>} {
+    public function initBlockStatements(cls:ClassType, f:ClassFuncData):{lines:Array<String>, assigned:Array<String>, superDelegation:Null<String>} {
         if (f.expr == null) {
-            return {lines: [], assigned: []};
+            return {lines: [], assigned: [], superDelegation: null};
         }
         DefaultArgExpander.completeRootExprForKotlin(cls, f.field.name, f.expr);
         PipelineExpander.expandRootExpr(f.expr);
@@ -546,17 +546,30 @@ class KotlinExpr {
         final out:Array<String> = [];
         final assigned:Array<String> = [];
         final renderable:Array<TypedExpr> = [];
+        var superDelegation:Null<String> = null;
         for (s in statementsOf(f.expr)) {
             final info = ctorStmtInfo(s, f);
-            if (info.render)
+            if (info.render) {
+                // Detect super() calls and extract delegation args instead
+                // of rendering them as init-block statements.  Kotlin
+                // requires constructor delegation in the class header, not
+                // in the init block.
+                switch (s.expr) {
+                    case TCall({expr: TConst(TSuper)}, args) if (superDelegation == null):
+                        final renderedArgs = [for (a in args) expr(a)];
+                        superDelegation = "(" + renderedArgs.join(", ") + ")";
+                        continue;
+                    case _:
+                }
                 renderable.push(s);
+            }
             if (info.initialized != null && assigned.indexOf(info.initialized) < 0) {
                 assigned.push(info.initialized);
             }
         }
         for (l in blockLines(renderable, 1))
             out.push(l);
-        return {lines: out, assigned: assigned};
+        return {lines: out, assigned: assigned, superDelegation: superDelegation};
     }
 
     /**
@@ -1664,10 +1677,10 @@ class KotlinExpr {
             return [fail(e, "variant switch arm has no value")];
         }
         // Haxe unifies Int and Float; widen Int arm values to Float when the
-        // switch's unified type is Float. The typed AST types each arm as
-        // Float, so use emittedType to recover the Int text the generator
-        // produced for an Int literal or expression.
-        if (isFloatType(switchType) && valueExpr != null && isIntOrLongType(emittedType(valueExpr)))
+        // switch's unified type is Float, or when the enclosing function
+        // expects a Float return.
+        final effectiveType = isFloatType(switchType) ? switchType : currentReturnType;
+        if (isFloatType(effectiveType) && valueExpr != null && isIntOrLongType(emittedType(valueExpr)))
             value = intToFloatText(value);
         if (decls.length == 0) {
             return [value];
@@ -3299,6 +3312,16 @@ class KotlinExpr {
                         + expr(args[0])
                         + "; if (_i >= 0 && _i < _s.length) _s[_i].code else null }";
                 }
+                if (name == "charCodeAt") {
+                    // Fallback: treat charCodeAt on any receiver the same way
+                    // when the type-checking didn't recognise a String type.
+                    final receiver = expr(subj) + (rendersNullable(subj) ? "!!" : "");
+                    return "run { val _s = "
+                        + receiver
+                        + "; val _i = "
+                        + expr(args[0])
+                        + "; if (_i >= 0 && _i < _s.length) _s[_i].code else null }";
+                }
                 if (name == "indexOf" && isString(stripCast(subj)) && args.length >= 1) {
                     return expr(subj) + ".indexOf(" + expr(args[0]) + ")";
                 }
@@ -3443,6 +3466,17 @@ class KotlinExpr {
                     return "(" + expr(args[0]) + ").toInt()";
                 }
                 if (cls.pack.join(".") == "std" && cls.name == "SortedMap" && name == "builder") {
+                    final kType = switch (fn.t) {
+                        case TFun(_, TInst(_, params)) if (params.length > 0): params[0];
+                        case _: null;
+                    };
+                    final vType = switch (fn.t) {
+                        case TFun(_, TInst(_, params)) if (params.length > 1): params[1];
+                        case _: null;
+                    };
+                    return "SortedTable.mapBuilder<" + types.of(kType) + ", " + types.of(vType) + ">(" + sortedComparator("std.SortedMap", kType, fn.pos) + ")";
+                }
+                if (cls.module == "runtime.SortedTable" && name == "mapBuilder") {
                     final kType = switch (fn.t) {
                         case TFun(_, TInst(_, params)) if (params.length > 0): params[0];
                         case _: null;
