@@ -443,3 +443,5 @@ boring.NullableIndexOps
 tests.NullableIndexTests
 boring.TernaryOptionalOps
 tests.TernaryOptionalTests
+boring.NullableArrayElemOps
+tests.NullableArrayElemTests
