@@ -1206,6 +1206,9 @@ class SwiftExpr {
                 final optional = optionalIf(c, t, f);
                 if (optional != null)
                     return optional;
+                final guarded = guardedLookupIf(c, t, f);
+                if (guarded != null)
+                    return guarded;
                 return "(" + expr(c) + " ? " + expr(t) + " : " + expr(f) + ")";
             case TBlock(stmts):
                 return blockExpression(stmts);
@@ -1275,6 +1278,59 @@ class SwiftExpr {
             case [TIdent(na), TIdent(nb)]: na == nb;
             case [TConst(ca), TConst(cb)]: Type.enumEq(ca, cb);
             case _: false;
+        };
+    }
+
+    /**
+        `map.has(k) ? map.get(k) : fallback`: the guard proves the lookup is
+        present, so nil-coalescing both keeps the check and drops the optional
+        arm Swift rejects in a non-optional context.
+    **/
+    function guardedLookupIf(c:TypedExpr, ifTrue:TypedExpr, ifFalse:TypedExpr):Null<String> {
+        final guard = mapHasKey(c);
+        if (guard == null) {
+            return null;
+        }
+        final trueGet = matchingMapGet(ifTrue, guard);
+        final falseGet = matchingMapGet(ifFalse, guard);
+        // Exactly one arm may be the guarded lookup; both is a redundant
+        // comparison and neither is not a guarded lookup at all.
+        if ((trueGet == null) == (falseGet == null)) {
+            return null;
+        }
+        final getCall = trueGet != null ? trueGet : falseGet;
+        final fallback = trueGet != null ? ifFalse : ifTrue;
+        // `get(k) ?? nil` would infer the double-optional overload of `??`,
+        // so the nil fallback renders as the lookup itself: `get` already
+        // returns nil when the key is absent.
+        if (isNullExpr(fallback)) {
+            return expr(getCall);
+        }
+        return expr(getCall) + " ?? " + expr(fallback);
+    }
+
+    function mapHasKey(e:TypedExpr):Null<{subject:TypedExpr, key:TypedExpr}> {
+        return switch (stripWrap(e).expr) {
+            case TCall(fn, [key]):
+                switch (stripWrap(fn).expr) {
+                    case TField(subject, fa) if (fieldName(fa) == "has"):
+                        {subject: subject, key: key};
+                    case _: null;
+                }
+            case _: null;
+        };
+    }
+
+    function matchingMapGet(e:TypedExpr, guard:{subject:TypedExpr, key:TypedExpr}):Null<TypedExpr> {
+        return switch (stripWrap(e).expr) {
+            case TCall(fn, [key]):
+                switch (stripWrap(fn).expr) {
+                    case TField(subject, fa) if (fieldName(fa) == "get"
+                            && sameAccess(subject, guard.subject) && sameAccess(key, guard.key)):
+                        stripWrap(e);
+                    case _: null;
+                }
+            case _: null;
         };
     }
 
