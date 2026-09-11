@@ -1023,6 +1023,52 @@ class DefaultArgExpander {
         return false;
     }
 
+    /**
+        Calls `visit` for every class whose private static a registered
+        coalescing default may inline at a cross-module call site. Lets
+        consumers (such as the Swift access-grant scan) widen exactly those
+        statics without matching on the module-private value constructors.
+    **/
+    public static function visitDefaultStaticTargets(visit:(modulePath:String, className:String, methodName:String) -> Void):Void {
+        for (key in fieldCoalescing.keys()) {
+            visitStaticCalls(fieldCoalescing.get(key), visit);
+        }
+    }
+
+    /**
+        Calls `visit` for every CStaticCall node in a coalescing value tree.
+        Lets consumers (such as the Swift access-grant scan) find private
+        statics a default may inline at cross-module call sites without
+        matching on the module-private value constructors themselves.
+    **/
+    public static function visitStaticCalls(value:CoalescingDefaultValue, visit:(modulePath:String, className:String, methodName:String) -> Void):Void {
+        switch (value) {
+            case CStaticCall(modulePath, className, methodName, args):
+                visit(modulePath, className, methodName);
+                for (a in args) {
+                    visitStaticCalls(a, visit);
+                }
+            case CMethodCall(receiver, _, args):
+                visitStaticCalls(receiver, visit);
+                for (a in args) {
+                    visitStaticCalls(a, visit);
+                }
+            case CFieldAccess(receiver, _): visitStaticCalls(receiver, visit);
+            case CConditional(c, t, f):
+                visitStaticCalls(c, visit);
+                visitStaticCalls(t, visit);
+                visitStaticCalls(f, visit);
+            case CBinaryOp(_, l, r):
+                visitStaticCalls(l, visit);
+                visitStaticCalls(r, visit);
+            case CConstructorCall(_, _, args):
+                for (a in args) {
+                    visitStaticCalls(a, visit);
+                }
+            case _:
+        }
+    }
+
     static function recordCoalescingSource(pos:Position):Void {
         final infos = Context.getPosInfos(pos);
         coalescingSourceRanges.push({file: infos.file, min: infos.min, max: infos.max});
