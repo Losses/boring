@@ -3114,7 +3114,7 @@ class SwiftExpr {
             final text = d != null
                 && p != null
                 && isNullLiteral(args[i]) ? defaultArgText(d, p) : d != null && p != null && isNullLeafType(args[i].t) ? "(" + expr(args[i]) + " ?? " + defaultArgText(d,
-                    p) + ")" : expr(args[i]);
+                    p) + ")" : p != null && !isNullLeafType(p) && optionalValued(args[i]) ? expr(args[i]) + "!" : expr(args[i]);
             rendered.push(text);
             if (i < names.length)
                 constructorParameterValues.set(names[i], text);
@@ -3128,6 +3128,7 @@ class SwiftExpr {
             case TConst(TNull): true;
             case _: false;
         };
+
 
     function defaultArgText(v:DefaultArgExpander.DefaultArgValue, t:Type):String
         return switch (v) {
