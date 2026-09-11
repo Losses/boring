@@ -405,3 +405,6 @@ tests.PrivateCollisionTests
 
 boring.OptionalMemberOps
 tests.OptionalMemberTests
+
+boring.ForInOptionalOps
+tests.ForInOptionalTests
