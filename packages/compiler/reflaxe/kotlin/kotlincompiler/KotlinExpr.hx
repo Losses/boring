@@ -3557,7 +3557,7 @@ class KotlinExpr {
                 argText = intToFloatText(argText);
             return valueType.name + "(" + argText + ")";
         }
-        final renderedArgs = renderConstructorArgs(cls, args).join(", ");
+        final renderedArgsText = renderConstructorArgs(cls, args).join(", ");
         final path = cls.pack.length == 0 ? cls.name : cls.pack.join(".") + "." + cls.name;
         switch (path) {
             case "std.StringBuf" | "StringBuf":
