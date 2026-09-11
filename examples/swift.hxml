@@ -323,3 +323,6 @@ tests.M2OptionVecTests
 
 boring.StringBufThrowOps
 tests.StringBufThrowTests
+
+boring.ExceptionTypeOps
+tests.ExceptionTypeOpsTests
