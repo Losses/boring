@@ -661,6 +661,11 @@ class SwiftExpr {
                 return tryStatementLines(body, catches[0], depth);
             case TTry(_, _):
                 return fail(e, "try region handles exactly one exception domain");
+            case TConst(TNull):
+                // A bare `null;` statement is a no-op; Swift rejects a
+                // context-free `nil`, and a switch case body may not be
+                // empty, so emit the unit value instead.
+                return [indent(depth) + "()"];
             case TBreak:
                 return [indent(depth) + "break"];
             case TContinue:
@@ -3550,8 +3555,14 @@ class SwiftExpr {
         final lines = switchReturn(sw, depth, true);
         for (i in 0...lines.length) {
             final p = lines[i].indexOf("return ");
-            if (p >= 0)
-                lines[i] = lines[i].substr(0, p) + lines[i].substr(p + 7);
+            if (p >= 0) {
+                final value = StringTools.trim(lines[i].substr(p + 7));
+                // A statement-position variant arm whose value is the bare
+                // nil constant has no type context once the return is
+                // stripped; the unit value keeps the required non-empty
+                // case body.
+                lines[i] = value == "nil" ? lines[i].substr(0, p) + "()" : lines[i].substr(0, p) + lines[i].substr(p + 7);
+            }
         }
         return lines;
     }

@@ -343,3 +343,6 @@ tests.ArrayMethodSwiftTests
 
 boring.FunctionalLocalOps
 tests.FunctionalLocalTests
+
+boring.SwitchNullArmOps
+tests.SwitchNullArmTests
