@@ -1461,16 +1461,7 @@ class KotlinExpr {
                     nativeOperator
                     && field.name == currentField ? abs.name + "(" + rendered + ")" : rendered;
                 }
-            case _:
-                // The inline constructor expansion assigns the argument to a
-                // synthetic local named after the constructor parameter; the
-                // plan's locals map resolves that local back to the original
-                // argument expression (features/23 value-type lowering).
-                final fallbackValue = switch (stripWrap(value).expr) {
-                    case TLocal(v) if (locals.exists(v.id)): locals.get(v.id);
-                    case _: value;
-                };
-                abs.name + "(" + expr(fallbackValue) + ")";
+            case _: abs.name + "(" + valueTypeOperand(value, locals, abs) + ")";
         };
     }
 
@@ -4193,7 +4184,26 @@ class KotlinExpr {
         inline at the call site; no runtime module implements std.Fs. Host
         failures raise the native exception, which the target's exception
         mapping carries.
+
+        A NodeFileSystem extern static call (the consumer test harness's
+        node:fs binding). The Kotlin/JVM target has no node runtime, so the
+        two members lower to java.nio.file calls: mkdirSync creates the
+        directory tree and writeFileSync writes UTF-8 text.
     **/
+    function nodeFsCall(name:String, args:Array<TypedExpr>, fn:TypedExpr):String {
+        imports.require("java.nio.file.Files");
+        imports.require("java.nio.file.Paths");
+        return switch (name) {
+            case "mkdirSync":
+                "Files.createDirectories(Paths.get(" + expr(args[0]) + "))";
+            case "writeFileSync":
+                "Files.writeString(Paths.get(" + expr(args[0]) + "), " + expr(args[1]) + ", Charsets.UTF_8)";
+            case _:
+                Context.error("NodeFileSystem has no lowering for member " + name, fn.pos);
+                "null";
+        }
+    }
+
     function fsCall(name:String, args:Array<TypedExpr>, fn:TypedExpr):String {
         imports.require("java.nio.file.Files");
         imports.require("java.nio.file.Paths");
