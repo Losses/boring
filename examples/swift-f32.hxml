@@ -317,3 +317,6 @@ boring.NullGuardFieldMetrics
 boring.NullGuardFieldOps
 tests.NullGuardFieldTests
 
+
+boring.MapHasGetOps
+tests.MapHasGetTests
