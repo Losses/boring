@@ -2074,6 +2074,44 @@ class KotlinExpr {
         }
     }
 
+    /** True when any return statement calls a method on an unproven nullable
+        receiver, whose kotlin rendering is the safe-call form and therefore
+        produces a nullable value. */
+    public function bodyUsesSafeCallReturns(f:ClassFuncData):Bool {
+        if (f.expr == null)
+            return false;
+        var found = false;
+        function scan(e:TypedExpr):Void {
+            if (found)
+                return;
+            switch (e.expr) {
+                case TReturn(inner):
+                    if (inner != null) {
+                        switch (stripWrap(inner).expr) {
+                            case TCall(subj, _):
+                                if (isNullType(receiverBase(subj).t) && !provenNonNull(receiverBase(subj)))
+                                    found = true;
+                            case _:
+                        }
+                    }
+                case _:
+            }
+            if (!found)
+                TypedExprTools.iter(e, scan);
+        }
+        if (f.expr != null)
+            scan(f.expr);
+        return found;
+    }
+
+    function receiverBase(e:TypedExpr):TypedExpr {
+        return switch (e.expr) {
+            case TField(subj, _) | TCall(subj, _): receiverBase(subj);
+            case TParenthesis(inner) | TCast(inner, _) | TMeta(_, inner): receiverBase(inner);
+            case _: e;
+        };
+    }
+
     function isNullType(t:Null<Type>):Bool {
         if (t == null)
             return false;
