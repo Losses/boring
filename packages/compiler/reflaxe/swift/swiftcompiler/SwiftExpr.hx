@@ -1082,7 +1082,7 @@ class SwiftExpr {
                     case [TField(array, fa), TVar(item, init)] if (fieldName(fa) == "length" && init != null):
                         switch (stripWrap(init).expr) {
                             case TArray(_, {expr: TLocal(index)}) if (index.id == loop.index.id):
-                                final out = [indent(depth) + "for " + localName(item) + " in " + expr(array) + " {"];
+                                final out = [indent(depth) + "for " + localName(item) + " in " + optionalExpr(array) + " {"];
                                 final gb = matchGroupByBody(loop.body.slice(1));
                                 if (gb != null) {
                                     for (l in blockLines(gb.prefix, depth + 1))
