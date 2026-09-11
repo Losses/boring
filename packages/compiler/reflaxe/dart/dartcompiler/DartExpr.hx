@@ -2245,8 +2245,13 @@ class DartExpr {
                 if (module == "std.SortedMap" && fName == "builder") {
                     // The factory fixes only the comparator's key, so the
                     // value argument cannot infer; the call spells both.
-                    return runtimeQualified("SortedTable.mapBuilder") + "<" + types.of(kTypeOf(fn)) + ", " + types.of(vTypeOf(fn)) + ">("
-                        + sortedComparator(kTypeOf(fn), fn.pos) + ")";
+                    // Haxe's builder inference types the value as Null<V>
+                    // when the source reads through get() before put(); the
+                    // runtime table stores V and its get returns V?, so the
+                    // nullable wrapper is a type-parameter artifact that
+                    // breaks Dart's invariant generics at non-null params.
+                    return runtimeQualified("SortedTable.mapBuilder") + "<" + types.of(kTypeOf(fn)) + ", " + types.of(DefaultArgExpander.withoutNull(
+                        vTypeOf(fn))) + ">(" + sortedComparator(kTypeOf(fn), fn.pos) + ")";
                 }
                 if (module == "std.SortedSet" && fName == "builder") {
                     return runtimeQualified("SortedTable.setBuilder")
@@ -3300,8 +3305,12 @@ class DartExpr {
             // stays paired: only the unpaired case faults. codeUnits is
             // the unit view of the native string; the argument
             // expressions are pure (locals, parameters, literals).
-            lines.push(indent(depth) + "if (" + tail + " >= 55296 && " + tail + " <= 56319 && !(" + part + ".length > 0 && " + part
-                + ".codeUnitAt(0) >= 56320 && " + part + ".codeUnitAt(0) <= 57343)) {");
+            // The added part may be a string concatenation; parenthesize
+            // before appending the unit-view reads so `.length` binds to
+            // the whole part.
+            final partParen = "(" + part + ")";
+            lines.push(indent(depth) + "if (" + tail + " >= 55296 && " + tail + " <= 56319 && !(" + partParen + ".length > 0 && " + partParen
+                + ".codeUnitAt(0) >= 56320 && " + partParen + ".codeUnitAt(0) <= 57343)) {");
             lines.push(stringBufFaultThrow(depth + 1, tail));
             lines.push(indent(depth) + "}");
             lines.push(indent(depth) + buf + ".addAll(" + partParen + ".codeUnits)");
