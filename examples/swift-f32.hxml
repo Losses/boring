@@ -449,3 +449,5 @@ boring.MathMinShadowOps
 tests.MathMinShadowTests
 boring.ArrayJoinOps
 tests.ArrayJoinTests
+boring.StringAppendOps
+tests.StringAppendTests
