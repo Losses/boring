@@ -19,3 +19,10 @@ class InterfaceGetterPropertyImpl implements InterfaceGetterProperty {
         return _value;
     }
 }
+
+/** Reads the getter-only property through a protocol-typed receiver. */
+class InterfaceGetterPropertyUse {
+    public static function nameOf(value:InterfaceGetterProperty):String {
+        return value.name;
+    }
+}
