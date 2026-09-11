@@ -494,3 +494,5 @@ boring.ArrayJoinOps
 tests.ArrayJoinTests
 boring.StringAppendOps
 tests.StringAppendTests
+boring.EnumLookupOps
+tests.EnumLookupTests

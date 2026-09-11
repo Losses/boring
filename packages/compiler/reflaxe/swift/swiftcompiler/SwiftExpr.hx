@@ -1782,7 +1782,12 @@ class SwiftExpr {
                 imports.type(en.module, en.name);
                 switch (kind) {
                     case QCollection: en.name + ".allCases";
-                    case QName: expr(args[0]) + ".rawValue";
+                    case QName:
+                        // A name read on a createEnum result unwraps the
+                        // failable raw-value initializer the lookup emits.
+                        final subject = args[0];
+                        final unwrap = isNullLeafType(subject.t) || EnumQueryExpander.markerKind(subject) == QLookup;
+                        expr(subject) + (unwrap ? "!" : "") + ".rawValue";
                     case QLookup: en.name + "(rawValue: " + expr(args[1]) + ")";
                 }
         }
