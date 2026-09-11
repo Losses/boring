@@ -590,6 +590,11 @@ class SwiftDecl {
             final kw = smallArray ? "let" : (array || !field.isFinal ? "var" : "let");
             // @:allow members use Swift internal visibility so allowed cross-class calls compile.
             final vis = field.isPublic ? "public " : (field.meta.has(":allow") ? "" : "private ");
+            final initText = constValFloatInit(init, field.type);
+            // Swift forbids a throw from a global/static stored initializer;
+            // the value is a compile-time fixture, so force the fault and
+            // let a failure trap at load (stdlib/08/27).
+            final rendered = expr.containsThrowingCall(init) ? "try! " + initText : initText;
             return ["    "
                 + vis
                 + "static "
@@ -599,7 +604,7 @@ class SwiftDecl {
                 + ": "
                 + types.of(field.type)
                 + " = "
-                + constValFloatInit(init, field.type)];
+                + rendered];
         }
         // The Haxe typer places instance field defaults in the
         // constructor, so the declaration stays bare and the init
@@ -645,8 +650,11 @@ class SwiftDecl {
         // @:allow members use Swift internal visibility so allowed cross-class calls compile.
         final vis = field.isPublic ? "public " : (field.meta.has(":allow") ? "" : "private ");
         final getter = "get_" + field.name;
+        // A Swift computed property cannot rethrow; the backing getter is a
+        // compile-time fixture accessor, so force the fault at the access.
+        final getterThrows = SwiftFallibility.isThrowing(cls.module, getter, false);
         return [
-            "    " + vis + "var " + SwiftNameEscape.escape(field.name) + ": " + types.of(field.type) + " { " + getter + "() }"
+            "    " + vis + "var " + SwiftNameEscape.escape(field.name) + ": " + types.of(field.type) + " { " + (getterThrows ? "try! " : "") + getter + "() }"
         ];
     }
 
