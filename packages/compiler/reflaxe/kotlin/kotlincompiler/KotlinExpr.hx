@@ -426,7 +426,8 @@ class KotlinExpr {
         EnumQueryExpander.expandRootExpr(f.expr);
         for (a in f.args) {
             reserveName(a.name);
-            localName(a.v);
+            if (a.tvar != null)
+                localName(a.tvar);
         }
         currentClass = cls;
         currentField = f.field.name;
