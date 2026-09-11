@@ -457,3 +457,5 @@ boring.InterfaceIdentityOps
 tests.InterfaceIdentityTests
 boring.InterfaceFieldRecordOps
 tests.InterfaceFieldRecordTests
+boring.DartArrayMethodOps
+tests.DartArrayMethodTests
