@@ -455,3 +455,5 @@ boring.EnumLookupOps
 tests.EnumLookupTests
 boring.TernaryInterfaceOps
 tests.TernaryInterfaceTests
+boring.ThrowingIndexOfOps
+tests.ThrowingIndexOfTests

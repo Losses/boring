@@ -3057,7 +3057,10 @@ class SwiftExpr {
                 }
                 if (name == "indexOf" && isStringSubject(subj) && args.length >= 1) {
                     final s = receiverText(subj);
-                    return "Int32(" + s + ".firstIndex(of: " + optionalExpr(args[0]) + ".first!).map { " + s + ".distance(from: " + s
+                    // The match index rides in a closure; a throwing receiver
+                    // needs its own `try` inside that closure.
+                    final tryKw = containsThrowingCall(subj) ? "try " : "";
+                    return "Int32(" + s + ".firstIndex(of: " + optionalExpr(args[0]) + ".first!).map { " + tryKw + s + ".distance(from: " + s
                         + ".startIndex, to: $0) } ?? -1)";
                 }
                 if (name == "split" && isStringSubject(subj)) {
