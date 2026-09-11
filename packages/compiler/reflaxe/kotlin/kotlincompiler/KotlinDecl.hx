@@ -226,8 +226,6 @@ class KotlinDecl {
                 }
             }
         }
-        lines.push((isDataClass ? "data " : "") + (cls.isPrivate ? "private " : "") + "class " + cls.name + classParams + ctorHeader + ifaceStr + " {");
-
         // Constructor body renders into one init block (feature spec 27).
         // Parameter self-assignments are implicit in the primary
         // constructor and drop out; assignments to fields the constructor
@@ -236,7 +234,23 @@ class KotlinDecl {
         // stored-property declarations to precede the init block's
         // assignments, so the block follows the declarations.
         final ctorInit = constructorFunc != null
-            && constructorFunc.expr != null ? expr.initBlockStatements(cls, constructorFunc) : {lines: [], assigned: []};
+            && constructorFunc.expr != null ? expr.initBlockStatements(cls, constructorFunc) : {lines: [], assigned: [], superDelegation: null};
+
+        // When a constructor contains a super(...) call, Kotlin requires
+        // it as a delegation in the class header and forbids it as a
+        // statement inside the init block.  Extract the delegation and
+        // append it after the interface clause.
+        var superDecl:String = "";
+        if (ctorInit.superDelegation != null) {
+            if (cls.superClass != null) {
+                final parent = cls.superClass.t.get();
+                imports.requireType(parent.module, parent.name);
+                superDecl = " : " + parent.name + ctorInit.superDelegation;
+            }
+        }
+
+        final ifaceAndSuper = ifaceStr + superDecl;
+        lines.push((isDataClass ? "data " : "") + (cls.isPrivate ? "private " : "") + "class " + cls.name + classParams + ctorHeader + ifaceAndSuper + " {");
 
         // Stored properties without a constructor parameter; getter-only
         // properties keep no storage (feature spec 27).
