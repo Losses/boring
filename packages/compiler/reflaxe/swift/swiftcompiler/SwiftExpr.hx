@@ -1553,15 +1553,6 @@ class SwiftExpr {
         return switch (Context.follow(t)) {
             case TInst(_, _): true;
             case _: false;
-        final text = expr(b);
-        if (optionalValued(whole) || !optionalValued(b) || StringTools.endsWith(text, "!"))
-            return text;
-        // Only a bare value read is unwrapped; a compound branch (an
-        // arithmetic expression) already unwraps its own optional operands.
-        return switch (stripWrap(b).expr) {
-            case TLocal(_): text + "!";
-            case TField(_, _): "(" + text + ")!";
-            case _: text;
         };
     }
 
@@ -3066,10 +3057,7 @@ class SwiftExpr {
                 }
                 if (name == "indexOf" && isStringSubject(subj) && args.length >= 1) {
                     final s = receiverText(subj);
-                    // The match index rides in a closure; a throwing receiver
-                    // needs its own `try` inside that closure.
-                    final tryKw = containsThrowingCall(subj) ? "try " : "";
-                    return "Int32(" + s + ".firstIndex(of: " + optionalExpr(args[0]) + ".first!).map { " + tryKw + s + ".distance(from: " + s
+                    return "Int32(" + s + ".firstIndex(of: " + optionalExpr(args[0]) + ".first!).map { " + s + ".distance(from: " + s
                         + ".startIndex, to: $0) } ?? -1)";
                 }
                 if (name == "split" && isStringSubject(subj)) {
