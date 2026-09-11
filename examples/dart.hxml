@@ -475,3 +475,5 @@ boring.DartCoalesceStaticOps
 boring.DartCoalesceReceiver
 boring.DartCoalesceKind
 tests.DartCoalesceStaticTests
+boring.NullableToStringOps
+tests.NullableToStringTests
