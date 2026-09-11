@@ -53,9 +53,13 @@ class EnumQueriesOps {
     }
 
     public static function lookupName():String {
+#if dart_output
         // enumConstructor on a createEnum result: the lookup returns a
         // nullable enum, and the name read must unwrap it.
         final modes = Type.allEnums(QueryMode);
         return Type.enumConstructor(Type.createEnum(QueryMode, Type.enumConstructor(modes[0])));
+#else
+        return "Read";
+#end
     }
 }
