@@ -3556,8 +3556,14 @@ class RustExpr {
                 final signedComparison = i32LocalDomain(l) || i32LocalDomain(r);
                 if (signedComparison)
                     i32ComparisonTarget = true;
-                final leftText = operand(l, op, false);
-                final rightText = operand(r, op, true);
+                var leftText = operand(l, op, false);
+                var rightText = operand(r, op, true);
+                // Rust does not implicitly widen integer literals or Haxe
+                // Int expressions when the other comparison operand is Float.
+                if (isIntType(emittedType(l)) && isFloatType(emittedType(r)))
+                    leftText = intToFloatText(leftText);
+                if (isIntType(emittedType(r)) && isFloatType(emittedType(l)))
+                    rightText = intToFloatText(rightText);
                 if (signedComparison)
                     i32ComparisonTarget = false;
                 return "(" + leftText + ") " + symbolOf(op) + " (" + rightText + ")";
