@@ -414,3 +414,5 @@ tests.NullableCallTests
 tests.KotlinNullabilityTests
 boring.InterfaceIdentityOps
 tests.InterfaceIdentityTests
+boring.InterfaceFieldRecordOps
+tests.InterfaceFieldRecordTests

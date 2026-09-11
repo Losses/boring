@@ -452,3 +452,5 @@ boring.NilContextOps
 tests.NilContextTests
 boring.InterfaceIdentityOps
 tests.InterfaceIdentityTests
+boring.InterfaceFieldRecordOps
+tests.InterfaceFieldRecordTests

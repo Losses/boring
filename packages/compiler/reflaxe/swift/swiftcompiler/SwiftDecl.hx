@@ -993,7 +993,11 @@ class SwiftDecl {
                 // Equatable backs the generated test assertions; the
                 // field types of the subset (scalars, strings, arrays,
                 // optionals, nested records) synthesize the conformance.
-                final lines:Array<String> = ["public struct " + def.name + ": Equatable {"];
+                // A field that cannot synthesize it (an interface lowers to
+                // a protocol existential) makes the struct drop the
+                // conformance; Swift cannot synthesize it for such a field.
+                final equatable = recordFieldsSupportEquatable(fields) ? ": Equatable" : "";
+                final lines:Array<String> = ["public struct " + def.name + equatable + " {"];
                 for (field in fields) {
                     lines.push("    public var " + field.name + ": " + types.of(field.type));
                 }
@@ -1016,6 +1020,47 @@ class SwiftDecl {
                 Context.error("typedef alias has no lowering; name the structure instead", def.pos);
                 return null;
         }
+    }
+
+    /**
+        Whether every field of a record typedef has a Swift type that
+        synthesizes `Equatable`: scalars, strings, arrays and optionals of
+        those, nested records, and enums. A class or interface field does
+        not, so the record must drop the conformance.
+    **/
+    function recordFieldsSupportEquatable(fields:Array<{type:Type}>):Bool {
+        for (field in fields) {
+            if (!fieldTypeSupportsEquatable(field.type)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    function fieldTypeSupportsEquatable(t:Null<Type>):Bool {
+        if (t == null) {
+            return false;
+        }
+        return switch (Context.follow(t)) {
+            case TAbstract(a, params):
+                switch (a.get().name) {
+                    case "Int" | "Float" | "Bool": true;
+                    case "Null" if (params.length == 1): fieldTypeSupportsEquatable(params[0]);
+                    case _: false;
+                }
+            case TInst(c, params):
+                final cls = c.get();
+                if (cls.isInterface || cls.kind != KNormal) {
+                    false;
+                } else switch (cls.name) {
+                    case "String": true;
+                    case "Array": params.length == 1 && fieldTypeSupportsEquatable(params[0]);
+                    case _: false;
+                }
+            case TEnum(_, _): true;
+            case TAnonymous(anon): recordFieldsSupportEquatable([for (f in anon.get().fields) f]);
+            case _: false;
+        };
     }
 
     /**
