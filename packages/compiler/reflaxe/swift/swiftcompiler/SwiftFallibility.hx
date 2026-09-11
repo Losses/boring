@@ -42,6 +42,9 @@ class SwiftFallibility {
     /** Class-method key to the interface-method key it satisfies. */
     static final interfaceEdges:Array<{ifaceKey:String, implKey:String}> = [];
 
+    /** Var ids bound to a function literal; a call through one is a local edge. */
+    static final localFunctionIds:Map<Int, Bool> = [];
+
     /** The unique key of one function; the subset has no overloads. A null
         class name keys the shared table (resident and extern faces). */
     public static function funcKey(module:String, className:Null<String>, name:String, isStatic:Bool):String {
@@ -187,6 +190,9 @@ class SwiftFallibility {
                     }
                 }
                 TypedExprTools.iter(e, x -> scanExpr(x, absorbed, infections));
+            case TVar(v, {expr: TFunction(_)}):
+                localFunctionIds.set(v.id, true);
+                TypedExprTools.iter(e, x -> scanExpr(x, absorbed, infections));
             case _:
                 TypedExprTools.iter(e, x -> scanExpr(x, absorbed, infections));
         }
@@ -229,6 +235,13 @@ class SwiftFallibility {
                     for (domain in callee.keys()) {
                         infect(infections, absorbed, domain);
                     }
+                }
+            case TLocal(v):
+                // A parameter of the zero-argument `Void` thunk type is the
+                // harness callback; the emitted type is `() throws -> Void`,
+                // so invoking it escapes its closure's fault.
+                if (!localFunctionIds.exists(v.id) && SwiftType.isThrowingThunk(v.t)) {
+                    infect(infections, absorbed, RETHROWN);
                 }
             case _:
         }
