@@ -426,3 +426,5 @@ boring.StringIndexOfShadowOps
 tests.StringIndexOfShadowTests
 boring.IntFloatAddOps
 tests.IntFloatAddTests
+boring.InterfaceArrayLiteralOps
+tests.InterfaceArrayLiteralTests

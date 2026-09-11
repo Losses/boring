@@ -1442,7 +1442,12 @@ class SwiftExpr {
                         t;
                     }
                 ];
-                return "[" + renderedElems.join(", ") + "]";
+                final body = "[" + renderedElems.join(", ") + "]";
+                // A Swift array literal of concrete implementations infers
+                // `[Any]` when the Haxe element type is an interface, losing
+                // the protocol members; the interface element type is carried
+                // explicitly so the existential stays in the array.
+                return isInterfaceType(elemType) ? "(" + body + " as [" + types.of(elemType) + "])" : body;
             case TCall(fn, args):
                 return call(fn, args);
             case TNew(c, params, args):
