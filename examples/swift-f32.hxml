@@ -338,3 +338,5 @@ tests.PostIncConditionTests
 
 boring.CtorOptArgOps
 tests.CtorOptArgTests
+boring.NullGuardNarrowOps
+tests.NullGuardNarrowTests
