@@ -462,7 +462,7 @@ class TsExpr {
                 return switchBindingLines(v, init, depth);
             case TVar(v, init) if (init != null):
                 final kw = mutated.exists(v.id) ? "let" : "const";
-                final initText = switch (init.expr) {
+                var initText = switch (init.expr) {
                     case TFunction(fn): functionLiteralNamed(v.name, fn);
                     default: expr(init);
                 };
