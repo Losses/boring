@@ -1461,7 +1461,16 @@ class KotlinExpr {
                     nativeOperator
                     && field.name == currentField ? abs.name + "(" + rendered + ")" : rendered;
                 }
-            case _: abs.name + "(" + expr(value) + ")";
+            case _:
+                // The inline constructor expansion assigns the argument to a
+                // synthetic local named after the constructor parameter; the
+                // plan's locals map resolves that local back to the original
+                // argument expression (features/23 value-type lowering).
+                final fallbackValue = switch (stripWrap(value).expr) {
+                    case TLocal(v) if (locals.exists(v.id)): locals.get(v.id);
+                    case _: value;
+                };
+                abs.name + "(" + expr(fallbackValue) + ")";
         };
     }
 
@@ -1603,7 +1612,7 @@ class KotlinExpr {
                 if (variantKey != null)
                     enumVariantExpressions.set(variantKey, ef.name);
             }
-            final arm = armLines(c.expr);
+            final arm = armLines(c.expr, sw.t);
             // The `is` pattern smart-casts the subject to the variant, so
             // payload captures read as properties on it. Arms separate by
             // newline; Kotlin `when` takes no comma between arms.
@@ -1627,9 +1636,10 @@ class KotlinExpr {
         arm value. A single-expression arm renders inline, anything longer
         renders as a block.
     **/
-    function armLines(e:TypedExpr):Array<String> {
+    function armLines(e:TypedExpr, switchType:Null<Type>):Array<String> {
         final decls:Array<String> = [];
         var value:Null<String> = null;
+        var valueExpr:Null<TypedExpr> = null;
         for (step in PolicyQueries.variantArmPlan(e)) {
             switch (step) {
                 case PayloadCapture(v, subject, ef, index):
@@ -1644,6 +1654,7 @@ class KotlinExpr {
                     decls.push("val " + localName(v) + " = " + expr(init));
                 case OtherStatement(s, _, _):
                     value = expr(s);
+                    valueExpr = s;
                 case MissingInit(s):
                     Context.error("kotlin target: declaration without initializer has no lowering", s.pos);
             }
@@ -1651,6 +1662,12 @@ class KotlinExpr {
         if (value == null) {
             return [fail(e, "variant switch arm has no value")];
         }
+        // Haxe unifies Int and Float; widen Int arm values to Float when the
+        // switch's unified type is Float. The typed AST types each arm as
+        // Float, so use emittedType to recover the Int text the generator
+        // produced for an Int literal or expression.
+        if (isFloatType(switchType) && valueExpr != null && isIntOrLongType(emittedType(valueExpr)))
+            value = intToFloatText(value);
         if (decls.length == 0) {
             return [value];
         }
