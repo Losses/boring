@@ -391,3 +391,6 @@ tests.DefaultBuilderTests
 
 boring.IntFloatCtorOps
 tests.IntFloatCtorTests
+
+boring.NarrowLocalSwitchOps
+tests.NarrowLocalSwitchTests

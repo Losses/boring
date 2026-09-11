@@ -616,9 +616,14 @@ class SwiftExpr {
                 var initText = switch (init.expr) {
                     case TFunction(fn): functionLiteralNamed(v.name, fn);
                     default: {
-                            final rendered = expr(init);
-                            optionalValued(init) && hasTypeAnnotation
-                        && !isNullLeafType(v.t) && !optionalNullAnnotation ? rendered + "!" : rendered;
+                            final narrowedInit = isNarrowedLocalRead(init);
+                            if (narrowedInit)
+                                nonOptionalInferred.set(v.id, true);
+                            var rendered = narrowedInit ? narrowedLocalText(init) : expr(init);
+                            if (optionalValued(init) && hasTypeAnnotation && !narrowedInit
+                                && !isNullLeafType(v.t) && !optionalNullAnnotation && !StringTools.endsWith(rendered, "!"))
+                                rendered += "!";
+                            rendered;
                         }
                 };
                 if (isIntType(emittedType(init)) && isFloatLeafType(v.t))
@@ -898,6 +903,23 @@ class SwiftExpr {
         if (!isNarrowed(e) || StringTools.endsWith(rendered, "!"))
             return rendered;
         return rendered + "!";
+    }
+
+    /** Whether a value read is a narrowed local whose Swift type is optional. */
+    function isNarrowedLocalRead(e:TypedExpr):Bool {
+        final inner = stripWrap(e);
+        return switch (inner.expr) {
+            case TLocal(v): narrowedLocals.exists(v.id) && (isNullLeafType(inner.t) || optionalAnnotated.exists(v.id));
+            case _: false;
+        };
+    }
+
+    /** A narrowed local read force-unwraps so its binding types as a value. */
+    function narrowedLocalText(e:TypedExpr):String {
+        final text = expr(e);
+        if (!isNarrowedLocalRead(e) || StringTools.endsWith(text, "!"))
+            return text;
+        return text + "!";
     }
 
     function isVarAssigned(e:TypedExpr, varId:Int):Bool {
