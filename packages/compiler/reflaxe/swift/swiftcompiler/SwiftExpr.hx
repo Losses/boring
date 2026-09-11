@@ -3912,7 +3912,7 @@ class SwiftExpr {
         with `try`. Regions and closures lower their own bodies, so their
         subtrees never mark the enclosing statement.
     **/
-    function containsThrowingCall(e:TypedExpr):Bool {
+    public function containsThrowingCall(e:TypedExpr):Bool {
         var found = false;
         function walk(x:TypedExpr) {
             if (found) {
