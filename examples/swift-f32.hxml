@@ -397,3 +397,6 @@ tests.MutableBufFieldTests
 
 boring.FloatModOps
 tests.FloatModTests
+
+boring.IntToFloatCtorOps
+tests.IntToFloatCtorTests
