@@ -739,7 +739,13 @@ class DartExpr {
                     final coalescingValue = coalescing == null ? null : (currentLocalName != null ? DefaultArgExpander.coalescingDefaultForLocalParam(currentClass,
                         currentField, currentLocalName,
                         coalescing.parameter) : DefaultArgExpander.coalescingDefaultForParam(currentClass, currentField, coalescing.parameter));
-                    final localType = coalescingValue != null ? DefaultArgExpander.coalescingLocalType(coalescingValue, v.t) : v.t;
+                    // A coalescing site with a non-null default (a
+                    // normalization source or a registered field default)
+                    // yields a non-null value; narrow the local so Dart
+                    // accepts it where a String is demanded.
+                    final localType = if (coalescing != null && coalescingValue == null && !isNullLeafType(coalescing.defaultExpr.t))
+                        DefaultArgExpander.withoutNull(v.t) else (coalescingValue != null ? DefaultArgExpander.coalescingLocalType(coalescingValue,
+                            v.t) : v.t);
                     if (coalescing != null && !isNullLeafType(localType))
                         nonNullLocals.set(v.id, true);
                     var initText = switch (init.expr) {
@@ -1194,7 +1200,10 @@ class DartExpr {
             case TArray(arr, idx):
                 final mapReceiver = mapBackingReceiver(arr);
                 final arrayReceiver = mapReceiver == null ? receiverText(arr) : receiverText(mapReceiver);
-                return arrayReceiver + "[" + expr(idx) + "]";
+                // A guard-narrowed nullable index (a local assigned from a
+                // null-checked field) still carries its nullable type in
+                // Dart; Haxe only admits Int indices, so unwrap.
+                return arrayReceiver + "[" + (isNullLeafType(idx.t) || optionalValued(idx) ? requiredValueText(idx) : expr(idx)) + "]";
             case TBinop(op, l, r):
                 return binop(e, op, l, r);
             case TUnop(op, post, subj):
@@ -3652,14 +3661,14 @@ class DartExpr {
         return switch (stripWrap(leaf).expr) {
             case TBinop(OpAdd, _, _): expr(leaf);
             case TBinop(_, _, _): "(" + expr(leaf) + ")";
-            case TLocal(_) if (optionalStringLeaf(leaf)): expr(leaf);
-            case _: optionalStringLeaf(leaf) ? expr(leaf) + "!" : expr(leaf);
+            case TLocal(_) if (optionalValued(leaf)): expr(leaf);
+            case _: nullableStringLeaf(leaf) ? expr(leaf) + "!" : expr(leaf);
         };
     }
 
-    /** Whether a concat leaf is an optional string a guard has cleared. */
-    function optionalStringLeaf(leaf:TypedExpr):Bool {
-        if (!optionalValued(leaf)) {
+    /** Whether a concat leaf is a nullable String that needs unwrapping. */
+    function nullableStringLeaf(leaf:TypedExpr):Bool {
+        if (!isNullLeafType(leaf.t) && !optionalValued(leaf)) {
             return false;
         }
         return switch (Context.follow(leaf.t)) {
