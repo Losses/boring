@@ -1553,6 +1553,15 @@ class SwiftExpr {
         return switch (Context.follow(t)) {
             case TInst(_, _): true;
             case _: false;
+        final text = expr(b);
+        if (optionalValued(whole) || !optionalValued(b) || StringTools.endsWith(text, "!"))
+            return text;
+        // Only a bare value read is unwrapped; a compound branch (an
+        // arithmetic expression) already unwraps its own optional operands.
+        return switch (stripWrap(b).expr) {
+            case TLocal(_): text + "!";
+            case TField(_, _): "(" + text + ")!";
+            case _: text;
         };
     }
 
