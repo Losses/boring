@@ -1933,7 +1933,7 @@ class SwiftExpr {
     function optionalExpr(a:TypedExpr):String {
         return switch (stripWrap(a).expr) {
             case TConst(TNull): types.optionalNone(a.t);
-            case TLocal(v) if (optionalAnnotated.exists(v.id) || optionalInferred.exists(v.id)): {
+            case _: {
                     final text = expr(a);
                     if (!optionalValued(a) || StringTools.endsWith(text, "!"))
                         text;
