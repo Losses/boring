@@ -2439,6 +2439,17 @@ class SwiftExpr {
     }
 
     function stdStringType(t:Type, value:String, inConcat:Bool, origin:TypedExpr, depth:Int = 0):String {
+        // A Null-typed value reaches the category lowerings through the
+        // array/set/map element recursion, where no caller unwrapped it.
+        // Assert it here unless a payload-enum switch performs the
+        // narrowing itself; the top-level caller already asserts and
+        // passes a `!`-terminated value.
+        if (isNullLeafType(t) && !StringTools.endsWith(value, "!") && !(isNullLeafType(t) && switch (Context.follow(t)) {
+            case TEnum(en, _): !isParameterlessEnum(en.get()) && !EnumCycleDetector.isCyclic(en.get());
+            case _: false;
+        })) {
+            value = "(" + value + ")!";
+        }
         return switch (PolicyQueries.stdStringCategory(t)) {
             case IsString: value;
             case IsArray(element):
@@ -2591,16 +2602,16 @@ class SwiftExpr {
                     return abs.name + "(" + argText + ")";
                 }
                 if (field.name == "toString" && args.length > 0)
-                    return expr(args[0]) + ".description";
+                    return receiverText(args[0]) + ".description";
                 final op = ValueTypeSupport.operatorOf(abs, field);
                 if (op != null) {
                     return switch (op) {
-                        case Binary(_): args.length >= 2 ? expr(args[0]) + " " + opStrForValue(op) + " " + expr(args[1]) : abs.name;
-                        case Unary(_): args.length > 0 ? "-" + expr(args[0]) : abs.name;
+                        case Binary(_): args.length >= 2 ? receiverText(args[0]) + " " + opStrForValue(op) + " " + expr(args[1]) : abs.name;
+                        case Unary(_): args.length > 0 ? "-" + receiverText(args[0]) : abs.name;
                     };
                 }
                 if (ValueTypeSupport.hasReceiver(field) && args.length > 0) {
-                    return expr(args[0]) + "." + field.name + "(" + [for (i in 1...args.length) expr(args[i])].join(", ") + ")";
+                    return receiverText(args[0]) + "." + field.name + "(" + [for (i in 1...args.length) expr(args[i])].join(", ") + ")";
                 }
                 return abs.name + "." + field.name + "(" + [for (a in args) expr(a)].join(", ") + ")";
             case TField(subj, FInstance(_, _, cf)) | TField(subj, FAnon(cf)):
@@ -2609,8 +2620,8 @@ class SwiftExpr {
                     return null;
                 final field = cf.get();
                 if (field.name == "toString")
-                    return expr(subj) + ".description";
-                return expr(subj) + "." + field.name + "(" + [for (a in args) expr(a)].join(", ") + ")";
+                    return receiverText(subj) + ".description";
+                return receiverText(subj) + "." + field.name + "(" + [for (a in args) expr(a)].join(", ") + ")";
             case _:
         }
         return null;
@@ -2652,7 +2663,7 @@ class SwiftExpr {
                     return stringToolsHex(args);
                 }
                 if (cls.pack.length == 0 && cls.name == "StringTools" && fName == "trim") {
-                    final source = expr(args[0]);
+                    final source = receiverText(args[0]);
                     return "({ () -> String in var start = " + source + ".startIndex; var end = " + source + ".endIndex; while start < end && " + source
                         + "[start].isWhitespace { start = " + source + ".index(after: start) }; while start < end && " + source + "[" + source
                         + ".index(before: end)].isWhitespace { end = " + source + ".index(before: end) }; return String(" + source + "[start..<end]) }())";
