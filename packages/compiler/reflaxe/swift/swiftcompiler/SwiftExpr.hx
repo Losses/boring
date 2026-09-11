@@ -1936,6 +1936,14 @@ class SwiftExpr {
                         imports.runtime("f32ToI64");
                         return "f32ToI64";
                     }
+                    if (name == "floatToI32") {
+                        imports.runtime("floatToI32F32");
+                        return "floatToI32F32";
+                    }
+                    if (name == "i32ToFloat") {
+                        imports.runtime("i32ToFloatF32");
+                        return "i32ToFloatF32";
+                    }
                 }
                 imports.runtime(name);
                 return name;
