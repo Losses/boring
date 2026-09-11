@@ -139,7 +139,11 @@ class SwiftDecl {
             for (i in cls.interfaces) {
                 conformances.push(i.t.get().name);
             }
-            lines.push((depth >= 1 ? "public class " : "public final class ")
+            // A Haxe module-private type stays file-scoped in Swift; the
+            // same type name declared in another module would otherwise
+            // make every bare reference ambiguous.
+            final access = cls.isPrivate ? "private " : "public ";
+            lines.push((depth >= 1 ? access + "class " : access + "final class ")
                 + cls.name
                 + classParams
                 + (conformances.length > 0 ? ": " + conformances.join(", ") : "")
