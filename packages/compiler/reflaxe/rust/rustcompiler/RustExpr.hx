@@ -5786,6 +5786,14 @@ class RustExpr {
             else
                 out.push(argStr);
         }
+        // A Haxe constructor call may omit trailing optional parameters; the
+        // Rust signature carries no defaults, so the callee's registered
+        // defaults must be materialized here at the call site.
+        final omitted = DefaultArgExpander.omittedCallDefaults(cls.module, "new", args.length, cls.name);
+        if (omitted != null) {
+            for (o in omitted)
+                out.push(coalescingDefaultText(o.value, o.type, isNullType(o.type)));
+        }
         return out.join(", ");
     }
 
@@ -5949,7 +5957,13 @@ class RustExpr {
 
     function wrappingArg(e:TypedExpr, parent:Binop, isRight:Bool):String {
         final value = operand(e, parent, isRight);
-        return StringTools.startsWith(value, "(") && StringTools.endsWith(value, ")") ? value.substr(1, value.length - 2) : value;
+        // Only strip an outer grouping when the parens actually delimit the
+        // whole rendered source. A compound operand such as a length division
+        // `(RANGES.to_vec().len()) / (3)` starts and ends with parens but the
+        // outer pair does not wrap the entire expression; stripping them
+        // would corrupt the text and glue the sibling wrapping argument into
+        // a tuple.
+        return StringTools.startsWith(value, "(") && StringTools.endsWith(value, ")") && matchingParens(value) ? value.substr(1, value.length - 2) : value;
     }
 
     function isClosureParam(e:TypedExpr):Bool {
