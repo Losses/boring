@@ -325,3 +325,6 @@ tests.StringBufThrowTests
 
 boring.ExceptionTypeOps
 tests.ExceptionTypeOpsTests
+
+boring.LocalThrowOps
+tests.LocalThrowTests

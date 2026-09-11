@@ -106,6 +106,12 @@ class SwiftExpr {
     /** Local declarations that `localName` may rename; parameters stay raw. */
     final localDeclIds:Map<Int, Bool> = [];
 
+    /** Local function bodies by variable id, for call-site fallibility. */
+    final localFunctions:Map<Int, TypedExpr> = [];
+
+    /** Local function variable ids whose body can throw. */
+    final localFunctionThrows:Map<Int, Bool> = [];
+
     /** Swift name chosen for each local; a duplicate Haxe name mints a
         distinct Swift name here. */
     final assignedLocalNames:Map<Int, String> = [];
@@ -161,6 +167,7 @@ class SwiftExpr {
     public function topLevelStatements(e:TypedExpr):String {
         beginLocalScope();
         scanLocals(e);
+        resolveLocalFunctionThrows();
         return blockLines(statementsOf(e), 0).join("\n");
     }
 
@@ -431,6 +438,7 @@ class SwiftExpr {
         // Depth 2: one level under the member's own indentation.
         beginLocalScope();
         scanLocals(f.expr);
+        resolveLocalFunctionThrows();
         final result = blockLines(statementsOf(f.expr), depth);
         currentReturnType = null;
         return result;
@@ -477,6 +485,7 @@ class SwiftExpr {
         };
         beginLocalScope();
         scanLocals(f.expr);
+        resolveLocalFunctionThrows();
         final out:Array<String> = [];
         for (stmt in statementsOf(f.expr)) {
             if (ValueTypeSupport.isThisDeclaration(stmt) || ValueTypeSupport.isThisAssignment(stmt) || ValueTypeSupport.isThisReturn(stmt))
@@ -509,6 +518,7 @@ class SwiftExpr {
         EnumQueryExpander.expandRootExpr(f.expr);
         beginLocalScope();
         scanLocals(f.expr);
+        resolveLocalFunctionThrows();
         final stmts = statementsOf(f.expr);
         final out:Array<String> = [];
         var superIdx = -1;
@@ -1358,7 +1368,8 @@ class SwiftExpr {
         if (bodyStmts.length == 1) {
             switch (bodyStmts[0].expr) {
                 case TReturn(r) if (r != null):
-                    return "{ (" + params + ") -> " + ret + " in " + expr(r) + " }";
+                    final tryKw = containsThrowingCall(r) ? "try " : "";
+                    return "{ (" + params + ") -> " + ret + " in " + tryKw + expr(r) + " }";
                 case _:
             }
         }
@@ -3942,6 +3953,10 @@ class SwiftExpr {
                     return false;
                 }
                 return SwiftFallibility.isThrowing(c.get().module, name, false);
+            case TLocal(v):
+                // A local function closure is not a class field, so its
+                // fallibility comes from the per-body resolution.
+                return localFunctionThrows.exists(v.id);
             case _:
                 return false;
         }
@@ -3955,6 +3970,12 @@ class SwiftExpr {
         switch (e.expr) {
             case TVar(v, init):
                 localDeclIds.set(v.id, true);
+                if (init != null) {
+                    switch (init.expr) {
+                        case TFunction(fn): localFunctions.set(v.id, fn.expr);
+                        case _:
+                    }
+                }
                 PolicyQueries.noteDeclaredLocalName(v, usedNames, false);
                 final coalescing = coalescingSiteFor(init);
                 final coalescingValue = coalescing == null ? null : (currentLocalName != null ? DefaultArgExpander.coalescingDefaultForLocalParam(currentClass,
@@ -4104,6 +4125,73 @@ class SwiftExpr {
     function beginLocalScope():Void {
         localDeclIds.clear();
         assignedLocalNames.clear();
+        localFunctions.clear();
+        localFunctionThrows.clear();
+    }
+
+    /**
+        Settles which local functions can throw. A local function body is
+        not a class field, so the fallibility table never sees it; the
+        call sites read this set instead, and the enclosing signature
+        already carries `throws` because the body scan walks nested
+        function literals.
+    **/
+    function resolveLocalFunctionThrows():Void {
+        localFunctionThrows.clear();
+        var changed = true;
+        while (changed) {
+            changed = false;
+            for (id in localFunctions.keys()) {
+                if (localFunctionThrows.exists(id)) {
+                    continue;
+                }
+                if (localBodyThrows(localFunctions.get(id))) {
+                    localFunctionThrows.set(id, true);
+                    changed = true;
+                }
+            }
+        }
+    }
+
+    /**
+        Whether a local function body can throw: a direct throw, a call to
+        a throwing target, or a construction through a throwing
+        constructor. Nested try regions and nested function literals lower
+        their own throws, so the walk stops at both.
+    **/
+    function localBodyThrows(e:TypedExpr):Bool {
+        var found = false;
+        function walk(x:TypedExpr) {
+            if (found) {
+                return;
+            }
+            switch (x.expr) {
+                case TThrow(_):
+                    found = true;
+                case TTry(_, _):
+                    return;
+                case TFunction(_):
+                    return;
+                case TCall(fn, _):
+                    if (callTargetThrows(fn)) {
+                        found = true;
+                        return;
+                    }
+                    TypedExprTools.iter(x, walk);
+                case TNew(c, _, _):
+                    final valueType = ValueTypeSupport.markedAbstractOfClass(c.get());
+                    if ((valueType != null && ValueTypeSupport.constructorThrows(valueType))
+                        || SwiftFallibility.isThrowing(c.get().module, "new", false)) {
+                        found = true;
+                        return;
+                    }
+                    TypedExprTools.iter(x, walk);
+                case _:
+                    TypedExprTools.iter(x, walk);
+            }
+        }
+        walk(e);
+        return found;
     }
 
     function localNameAssigned(name:String):Bool {
