@@ -1779,10 +1779,9 @@ class RustDecl {
                 final sname = RustImports.toSnakeCase(a.name);
                 if (parts.fieldInits.exists(a.name)) {
                     final fieldType = getFieldOptType(cls, a.name);
-                    final argType = types.of(a.type, false);
                     final value = parts.fieldInits.get(a.name);
                     if (fieldType != null && StringTools.startsWith(fieldType, "Option<")
-                        && !StringTools.startsWith(argType, "Option<")
+                        && !StringTools.startsWith(types.of(a.type, false), "Option<")
                         && value != "None" && !StringTools.startsWith(value, "Some(")) {
                         lines.push('            $sname: Some($value),');
                     } else {
