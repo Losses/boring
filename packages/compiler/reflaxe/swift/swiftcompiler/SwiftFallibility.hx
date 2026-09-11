@@ -39,9 +39,14 @@ class SwiftFallibility {
 
     static final bodies:Array<{key:String, body:TypedExpr}> = [];
 
-    /** The unique key of one function; the subset has no overloads. */
-    public static function funcKey(module:String, name:String, isStatic:Bool):String {
-        return module + "." + name + (isStatic ? ":static" : ":instance");
+    /** Class-method key to the interface-method key it satisfies. */
+    static final interfaceEdges:Array<{ifaceKey:String, implKey:String}> = [];
+
+    /** The unique key of one function; the subset has no overloads. A null
+        class name keys the shared table (resident and extern faces). */
+    public static function funcKey(module:String, className:Null<String>, name:String, isStatic:Bool):String {
+        final base = className == null ? module : module + "." + className;
+        return base + "." + name + (isStatic ? ":static" : ":instance");
     }
 
     /**
@@ -61,10 +66,10 @@ class SwiftFallibility {
                         continue;
                     }
                     for (field in cls.statics.get()) {
-                        addBody(cls.module, field, true);
+                        addBody(cls.module, cls.name, field, true);
                     }
                     for (field in cls.fields.get()) {
-                        addBody(cls.module, field, false);
+                        addBody(cls.module, cls.name, field, false);
                     }
                     // The constructor sits outside `fields` on
                     // `cls.constructor`; its body joins the analysis so a
@@ -72,7 +77,16 @@ class SwiftFallibility {
                     // spec 27).
                     final ctor = cls.constructor;
                     if (ctor != null) {
-                        addBody(cls.module, ctor.get(), false);
+                        addBody(cls.module, cls.name, ctor.get(), false);
+                    }
+                    for (iface in cls.interfaces) {
+                        final ifaceCls = iface.t.get();
+                        for (field in ifaceCls.fields.get()) {
+                            interfaceEdges.push({
+                                ifaceKey: funcKey(ifaceCls.module, ifaceCls.name, field.name, false),
+                                implKey: funcKey(cls.module, cls.name, field.name, false)
+                            });
+                        }
                     }
                 case _:
             }
@@ -80,12 +94,12 @@ class SwiftFallibility {
         resolve();
     }
 
-    static function addBody(module:String, field:ClassField, isStatic:Bool):Void {
+    static function addBody(module:String, className:String, field:ClassField, isStatic:Bool):Void {
         switch (field.kind) {
             case FMethod(_):
                 final expr = field.expr();
                 if (expr != null) {
-                    bodies.push({key: funcKey(module, field.name, isStatic), body: expr});
+                    bodies.push({key: funcKey(module, className, field.name, isStatic), body: expr});
                 }
             case _:
         }
@@ -107,6 +121,23 @@ class SwiftFallibility {
                     }
                 }
                 escaping.set(entry.key, current);
+            }
+            // A class method proving the interface method may throw lifts
+            // that fault onto every call through the interface type, so the
+            // protocol requirement and its call sites agree.
+            for (edge in interfaceEdges) {
+                final from = escaping.get(edge.implKey);
+                if (from == null) {
+                    continue;
+                }
+                final to = escaping.exists(edge.ifaceKey) ? escaping.get(edge.ifaceKey) : new Map<String, Bool>();
+                for (domain in from.keys()) {
+                    if (!to.exists(domain)) {
+                        to.set(domain, true);
+                        changed = true;
+                    }
+                }
+                escaping.set(edge.ifaceKey, to);
             }
         }
     }
@@ -149,7 +180,7 @@ class SwiftFallibility {
                 // A construction is a call edge into the class constructor
                 // (feature spec 27); the constructor's escaping domains
                 // infect the calling function.
-                final ctor = escaping.exists(funcKey(c.get().module, "new", false)) ? escaping.get(funcKey(c.get().module, "new", false)) : null;
+                final ctor = escaping.exists(funcKey(c.get().module, c.get().name, "new", false)) ? escaping.get(funcKey(c.get().module, c.get().name, "new", false)) : null;
                 if (ctor != null) {
                     for (domain in ctor.keys()) {
                         infect(infections, absorbed, domain);
@@ -180,7 +211,7 @@ class SwiftFallibility {
                     infect(infections, absorbed, "haxe.Exception");
                     return;
                 }
-                final callee = escaping.exists(routedFuncKey(cls.module, name, true)) ? escaping.get(routedFuncKey(cls.module, name, true)) : null;
+                final callee = escaping.exists(routedFuncKey(cls.module, cls.name, name, true)) ? escaping.get(routedFuncKey(cls.module, cls.name, name, true)) : null;
                 if (callee != null) {
                     for (domain in callee.keys()) {
                         infect(infections, absorbed, domain);
@@ -193,7 +224,7 @@ class SwiftFallibility {
                     infect(infections, absorbed, INFECTION_SOURCE);
                     return;
                 }
-                final callee = escaping.exists(funcKey(owner.module, name, false)) ? escaping.get(funcKey(owner.module, name, false)) : null;
+                final callee = escaping.exists(funcKey(owner.module, owner.name, name, false)) ? escaping.get(funcKey(owner.module, owner.name, name, false)) : null;
                 if (callee != null) {
                     for (domain in callee.keys()) {
                         infect(infections, absorbed, domain);
@@ -214,8 +245,22 @@ class SwiftFallibility {
         emission actually calls: the resident extern fronts route into
         the runtime package, everything else keeps its own module.
     **/
-    public static function routedFuncKey(module:String, name:String, isStatic:Bool):String {
-        return funcKey(routedModule(module, name), name, isStatic);
+    public static function routedFuncKey(module:String, className:String, name:String, isStatic:Bool):String {
+        final routed = routedModule(module, name);
+        final cname = routed == module ? className : residentClassName(routed);
+        return funcKey(routed, cname, name, isStatic);
+    }
+
+    /** The class name of a resident module (its single class). */
+    public static function residentClassName(module:String):String {
+        return module.substr(module.lastIndexOf(".") + 1);
+    }
+
+    /** The fallibility of a routed static call (resident extern or same module). */
+    public static function routedCallThrows(module:String, className:String, name:String, isStatic:Bool):Bool {
+        final routed = routedModule(module, name);
+        final cname = routed == module ? className : residentClassName(routed);
+        return isThrowing(routed, cname, name, isStatic);
     }
 
     public static function routedModule(module:String, name:String):String {
@@ -247,7 +292,9 @@ class SwiftFallibility {
         if (cls.module == "std.Fs") {
             return THROWING_FS_OPS.indexOf(name) >= 0;
         }
-        return isThrowing(routedModule(cls.module, name), name, true);
+        final routed = routedModule(cls.module, name);
+        final cname = routed == cls.module ? cls.name : residentClassName(routed);
+        return isThrowing(routed, cname, name, true);
     }
 
     public static function isStringBufMethodCall(subj:TypedExpr, name:String):Bool {
@@ -298,14 +345,14 @@ class SwiftFallibility {
     }
 
     /** Whether a function can throw anything that escapes it. */
-    public static function isThrowing(module:String, name:String, isStatic:Bool):Bool {
-        final set = escaping.get(funcKey(module, name, isStatic));
+    public static function isThrowing(module:String, className:Null<String>, name:String, isStatic:Bool):Bool {
+        final set = escaping.get(funcKey(module, className, name, isStatic));
         return set != null && hasAnyKey(set);
     }
 
     /** Whether a call to the named function needs the `try` marker. */
-    public static function callThrows(module:String, name:String, isStatic:Bool):Bool {
-        return isThrowing(module, name, isStatic);
+    public static function callThrows(module:String, className:Null<String>, name:String, isStatic:Bool):Bool {
+        return isThrowing(module, className, name, isStatic);
     }
 
     static function inScope(pos:haxe.macro.Expr.Position):Bool {
