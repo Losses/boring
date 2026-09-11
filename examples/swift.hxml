@@ -253,6 +253,8 @@ tests.FloatLiteralOpsTests
 tests.SwiftLiteralSafetyOpsTests
 boring.KnullInitNarrowing
 tests.KnullInitNarrowingTests
+boring.NilContextOps
+tests.NilContextTests
 boring.OptionalParamNull
 tests.OptionalParamNullTests
 boring.NumericConversionWidening
