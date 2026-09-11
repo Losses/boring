@@ -2235,19 +2235,9 @@ class TsExpr {
         return [for (i in 0...args.length) {
             final d = DefaultArgExpander.defaultAt(cls, "new", i);
             final p = i < ps.length ? ps[i] : null;
-            // When the argument is explicitly null and the default is a coalescing
-            // default, preserve null because coalescing defaults apply only to
-            // omitted arguments.
-            if (d != null && p != null && isNullLiteral(args[i])) {
-                switch (d) {
-                    case VCoalescing(_): expr(args[i]);
-                    default: defaultArgText(d, p);
-                }
-            } else if (d != null && p != null && isNullType(args[i].t)) {
-                "(" + expr(args[i]) + " ?? " + defaultArgText(d, p) + ")";
-            } else {
-                expr(args[i]);
-            }
+            d != null
+            && p != null && isNullLiteral(args[i]) ? defaultArgText(d, p) : d != null && p != null && isNullType(args[i].t) ? "(" + expr(args[i]) + " ?? " + defaultArgText(d,
+                p) + ")" : expr(args[i]);
         }
         ];
     }
