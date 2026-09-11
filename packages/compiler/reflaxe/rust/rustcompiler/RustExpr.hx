@@ -216,7 +216,7 @@ class RustExpr {
             case CFloat(s):
                 final padded = s.indexOf(".") >= 0 || s.indexOf("e") >= 0 || s.indexOf("E") >= 0 ? s : s + ".0";
                 FloatPrecision.isF32() ? padded + "f32" : padded;
-            case CString(s): quoteString(s) + (nested ? "" : ".to_string()");
+            case CString(s): quoteString(s) + (asOption || !nested ? ".to_string()" : "");
             case CBool(b): b ? "true" : "false";
             case CNull: "None";
             case CEmptyArray: "vec![]";
@@ -970,6 +970,7 @@ class RustExpr {
                 } else if (StringTools.startsWith(returnTypeName, "Option<") && !isNullType(ret.t) && !isTNull(ret)) {
                     final payload = switch (stripWrap(ret).expr) {
                         case TLocal(v) if (borrowedLoopVarIds.exists(v.id)): "(" + retStr + ").clone()";
+                        case TConst(TString(_)): retStr + ".to_string()";
                         case _: retStr;
                     };
                     retStr = "Some(" + payload + ")";
@@ -5731,6 +5732,8 @@ class RustExpr {
                     }
                     final inner = switch (stripWrap(arg).expr) {
                         case TConst(TString(s)): quoteString(s) + ".to_string()";
+                        case _ if (isStringType(getNullInnerType(pt)) && isStringType(arg.t)):
+                            StringTools.endsWith(argStr, ".to_string()") ? argStr : "(" + argStr + ").to_string()";
                         case _: isInterfaceType(getNullInnerType(pt)) && !isInterfaceType(arg.t) ? "Box::new(" + argStr + ")" : argStr;
                     };
                     out.push("Some(" + inner + ")");
@@ -6819,6 +6822,8 @@ class RustExpr {
                     } else {
                         final inner = switch (stripWrap(arg).expr) {
                             case TConst(TString(s)): quoteString(s) + ".to_string()";
+                            case _ if (isStringType(getNullInnerType(pt)) && isStringType(arg.t)):
+                                StringTools.endsWith(argStr, ".to_string()") ? argStr : "(" + argStr + ").to_string()";
                             case _: isInterfaceType(getNullInnerType(pt)) && !isInterfaceType(arg.t) ? "Box::new(" + argStr + ")" : argStr;
                         };
                         argStr = "Some(" + inner + ")";
