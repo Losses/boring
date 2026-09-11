@@ -2003,8 +2003,12 @@ class KotlinExpr {
                 return "!!.";
             case _:
         }
+        // A Haxe method call on a Null receiver throws on null; there is no
+        // safe-call in the source semantics, so an unproven nullable receiver
+        // lowers to the unsafe !!. form. The safe ?. form stays reserved for
+        // chain hops and explicit null-guard shapes below.
         if (isNullType(subj.t) && !provenNonNull(subj) && !guardProofBefore(subj))
-            return "?.";
+            return "!!.";
         // A safe-navigation hop widens the value produced by the whole
         // receiver chain.  The typed AST records that widened intermediate
         // field as non-null, so inspect the chain root as well; otherwise a
