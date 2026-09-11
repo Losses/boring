@@ -696,8 +696,14 @@ class SwiftExpr {
                 return [indent(depth) + target + tryKw + assignmentValue(l, r)];
             case TBinop(OpAssignOp(inner), l, r):
                 final tryKw = containsThrowingCall(r) ? "try " : "";
+                // Only a bare optional read unwraps; a compound right side
+                // (a coalescing ternary) would bind the `!` to its tail.
+                final rhs = switch (stripWrap(r).expr) {
+                    case TLocal(_) | TField(_, _): assignmentValue(l, r);
+                    case _: expr(r);
+                };
                 return [
-                    indent(depth) + assignTarget(l) + " " + symbolOf(inner, l, r) + "= " + tryKw + expr(r)
+                    indent(depth) + assignTarget(l) + " " + symbolOf(inner, l, r) + "= " + tryKw + rhs
                 ];
             case _:
                 final tryKw = containsThrowingCall(e) ? "try " : "";
@@ -747,11 +753,20 @@ class SwiftExpr {
     /** A condition with its try marker, when the test itself can throw. */
     function conditionText(c:TypedExpr):String {
         final rendered = expr(c);
-        final text = containsThrowingCall(c) ? "try " + rendered : rendered;
+        // Haxe treats a null Bool as false; Swift rejects an optional test,
+        // so the condition coalesces it to the same falsy default.
+        final text = isOptionalBool(c) ? "(" + rendered + " ?? false)" : (containsThrowingCall(c) ? "try " + rendered : rendered);
         // A condition that opens with a closure literal (the post-increment
         // lowering) would let Swift read the `{` as the statement body, so
         // the whole condition carries its own parentheses.
         return StringTools.startsWith(rendered, "{") ? "(" + text + ")" : text;
+    }
+
+    function isOptionalBool(e:TypedExpr):Bool {
+        return optionalValued(e) && switch (Context.follow(e.t)) {
+            case TAbstract(a, _): a.get().name == "Bool";
+            case _: false;
+        };
     }
 
     /**
@@ -1414,7 +1429,24 @@ class SwiftExpr {
         return switch (stripWrap(e).expr) {
             case TLocal(v): valueExpr(v);
             case TField(_, _): stripWrap(e);
+            case TCall(fn, _) if (isStableLookupCall(fn)): stripWrap(e);
             case _: null;
+        };
+    }
+
+    /** A `receiver.get(k)`/`receiver.at(i)` lookup is stable across a guard and its arm. */
+    function isStableLookupCall(fn:TypedExpr):Bool {
+        return switch (stripWrap(fn).expr) {
+            case TField(subj, FInstance(_, _, cf)):
+                (cf.get().name == "get" || cf.get().name == "at") && isStableAccess(subj);
+            case _: false;
+        };
+    }
+
+    function isStableAccess(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TLocal(_) | TField(_, _): true;
+            case _: false;
         };
     }
 
@@ -1436,8 +1468,18 @@ class SwiftExpr {
             case [TField(sa, fa), TField(sb, fb)]: fieldName(fa) == fieldName(fb) && sameAccess(sa, sb);
             case [TIdent(na), TIdent(nb)]: na == nb;
             case [TConst(ca), TConst(cb)]: Type.enumEq(ca, cb);
+            case [TCall(fa, aa), TCall(fb, ab)]:
+                isStableLookupCall(fa) && aa.length == ab.length && sameAccess(fa, fb) && sameAccessAll(aa, ab);
             case _: false;
         };
+    }
+
+    function sameAccessAll(a:Array<TypedExpr>, b:Array<TypedExpr>):Bool {
+        for (i in 0...a.length) {
+            if (!sameAccess(a[i], b[i]))
+                return false;
+        }
+        return true;
     }
 
     /**
@@ -1843,7 +1885,7 @@ class SwiftExpr {
     function operand(e:TypedExpr, parent:Binop, isRight:Bool, suppressUnwrap:Bool = false):String {
         final rendered = switch (stripWrap(e).expr) {
             case TConst(TNull): expr(e);
-            case _: !suppressUnwrap && (isLocalOptional(e)
+            case _: !suppressUnwrap && (isLocalOptional(e) || isNarrowed(e)
                     || (isStringCharCodeAt(e) && !types.resident)) ? "(" + expr(e) + ")!" : expr(e);
         };
         switch (stripWrap(e).expr) {
@@ -1868,7 +1910,10 @@ class SwiftExpr {
     }
 
     function unop(e:TypedExpr, op:Unop, post:Bool, subj:TypedExpr):String {
-        final inner = expr(subj);
+        final inner = switch (op) {
+            case OpNeg | OpNegBits: narrowedText(subj);
+            case _: expr(subj);
+        };
         final wrapped = switch (stripWrap(subj).expr) {
             case TBinop(_, _, _): "(" + inner + ")";
             case _: inner;
@@ -2249,6 +2294,7 @@ class SwiftExpr {
             return true;
         return switch (stripWrap(e).expr) {
             case TLocal(v): optionalAnnotated.exists(v.id) || (optionalInferred.exists(v.id) && !nonOptionalInferred.exists(v.id));
+            case TIf(_, t, f) if (f != null): isNullExpr(t) || isNullExpr(f);
             case _: false;
         };
     }
@@ -3229,7 +3275,15 @@ class SwiftExpr {
 
     /** A variant construct renders fully qualified; labels carry the payload names. */
     function enumConstruct(enumName:String, ef:EnumField, args:Array<TypedExpr>):String {
-        final parts = [for (a in args) expr(a)];
+        final paramTypes:Array<Null<Type>> = switch (Context.follow(ef.type)) {
+            case TFun(fargs, _): [for (a in fargs) a.t];
+            case _: [for (_ in args) null];
+        };
+        final parts = [for (i in 0...args.length) {
+            final a = args[i];
+            final pt = i < paramTypes.length ? paramTypes[i] : null;
+            pt != null && !isNullLeafType(pt) && optionalValued(a) ? expr(a) + "!" : expr(a);
+        }];
         final names = payloadNames(ef);
         final labeled = [];
         for (i in 0...parts.length) {
@@ -3403,7 +3457,9 @@ class SwiftExpr {
             if (value == null) {
                 return fail(e, "record literal misses field " + name);
             }
-            parts.push(name + ": " + expr(value));
+            final fieldType = recordFieldType(def, name);
+            final text = fieldType != null && !isNullLeafType(fieldType) && optionalValued(value) ? expr(value) + "!" : expr(value);
+            parts.push(name + ": " + text);
         }
         return def.name + "(" + parts.join(", ") + ")";
     }
@@ -3434,6 +3490,17 @@ class SwiftExpr {
             case _:
                 Context.error("record typedef must be a structure", def.pos);
                 [];
+        }
+    }
+
+    /** A record field's declared type, alias chains followed. */
+    function recordFieldType(def:DefType, name:String):Null<Type> {
+        return switch (def.type) {
+            case TAnonymous(anon):
+                final field = Lambda.find(anon.get().fields, f -> f.name == name);
+                field == null ? null : field.type;
+            case TType(inner, _): recordFieldType(inner.get(), name);
+            case _: null;
         }
     }
 
@@ -4102,7 +4169,7 @@ class SwiftExpr {
         flattenAdd(e, leaves);
         final declarations = [
             for (i in 0...leaves.length)
-                "let p" + i + " = " + (containsThrowingCall(leaves[i]) ? "try " : "") + expr(leaves[i])
+                "let p" + i + " = " + (containsThrowingCall(leaves[i]) ? "try " : "") + optionalExpr(leaves[i])
         ].join("; ");
         return "{ " + declarations + "; return " + [for (i in 0...leaves.length) "p" + i].join(" + ") + " }()";
     }
@@ -4140,7 +4207,7 @@ class SwiftExpr {
         if (allStrings && leaves.length >= 4) {
             final declarations = [
                 for (i in 0...leaves.length)
-                    "let p" + i + " = " + (containsThrowingCall(leaves[i]) ? "try " : "") + expr(leaves[i])
+                    "let p" + i + " = " + (containsThrowingCall(leaves[i]) ? "try " : "") + templateLeaf(leaves[i])
             ].join("; ");
             return "{ " + declarations + "; return " + [for (i in 0...leaves.length) "p" + i].join(" + ") + " }()";
         }
