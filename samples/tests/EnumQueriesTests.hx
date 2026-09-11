@@ -23,4 +23,8 @@ class EnumQueriesTests {
     @:test("enum queries cover a second value enumeration")
     public static function second():Void
         Test.equals("Read,Write", EnumQueriesOps.secondEnum());
+
+    @:test("enumConstructor on a createEnum result unwraps the nullable lookup")
+    public static function lookupName():Void
+        Test.equals("Read", EnumQueriesOps.lookupName());
 }
