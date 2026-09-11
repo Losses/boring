@@ -2871,9 +2871,37 @@ class TsExpr {
         return false;
     }
 
+    /**
+        Pattern payload declarations are normally statement-shaped, but the
+        typer can retain one below a conditional or an expression block.  The
+        arm renderer still visits that expression through `expr`, so seed the
+        substitution map from the complete typed subtree before rendering any
+        arm value.  Without this prepass a payload used in such a nested
+        expression falls through to its source name (for example `kind`),
+        although no TypeScript local was emitted for it.
+    **/
+    function seedNestedPatternBindings(e:TypedExpr):Void {
+        function walk(x:TypedExpr):Void {
+            switch (x.expr) {
+                case TVar(v, init) if (init != null):
+                    switch (stripWrap(init).expr) {
+                        case TEnumParameter(subject, ef, index):
+                            subst.set(v.id, expr(subject) + "." + payloadName(ef, index));
+                        case TLocal(source) if (subst.exists(source.id)):
+                            subst.set(v.id, subst.get(source.id));
+                        case _:
+                    }
+                case _:
+            }
+            TypedExprTools.iter(x, walk);
+        }
+        walk(e);
+    }
+
     function armLines(e:TypedExpr, depth:Int):Array<String> {
         final out:Array<String> = [];
         var value:Null<String> = null;
+        seedNestedPatternBindings(e);
         for (step in PolicyQueries.variantArmPlan(e)) {
             switch (step) {
                 case PayloadCapture(v, subject, ef, index):
