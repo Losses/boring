@@ -1814,6 +1814,11 @@ class SwiftExpr {
                 if (isStringTyped(e)) {
                     return templateLiteral(l, r);
                 }
+                // Haxe promotes Int into Float addition; Swift does not, so
+                // the Int side widens exactly as in the generic arithmetic.
+                if ((isFloatTyped(l) || isFloatTyped(r)) && (isFloatTyped(l) != isFloatTyped(r))) {
+                    return floatAware(operand(l, op, false), l) + " " + symbolOf(op, l, r) + " " + floatAware(operand(r, op, true), r);
+                }
                 return optionalOperand(l, op, false) + " " + symbolOf(op, l, r) + " " + optionalOperand(r, op, true);
             case OpUShr:
                 // `>>>` reinterprets the bits: UInt32(Int32) traps on a
