@@ -627,9 +627,9 @@ class SwiftDecl {
         // contents remain mutable. Array fields therefore use var.
         // Swift let array forbids that, so array fields stay var.
         final isArrayField = switch (field.type) {
-            case TInst(c, _): c.get().name == "Array";
+            case TInst(c, _): c.get().name == "Array" || c.get().name == "StringBuf";
             case TLazy(f): switch (f()) {
-                    case TInst(c, _): c.get().name == "Array";
+                    case TInst(c, _): c.get().name == "Array" || c.get().name == "StringBuf";
                     case _: false;
                 };
             case _: false;
