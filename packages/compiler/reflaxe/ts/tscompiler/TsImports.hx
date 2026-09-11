@@ -110,10 +110,9 @@ class TsImports {
             // A business module may name a resident module directly. Its
             // declarations live in the single runtime entry and the
             // importing business file uses the runtime binding path.
-            // lowered runtime calls.
-            if (into == valueNames) {
-                runtime(name);
-            }
+            // Both value and type references must route there: omitting
+            // the type reference leaves generic inference at `unknown`.
+            runtime(name);
             return;
         }
         if (module == selfModule || module == "Math" || module == "String" || module == "Std" || module == "haxe.Int64" || module == "haxe.io.Bytes"
