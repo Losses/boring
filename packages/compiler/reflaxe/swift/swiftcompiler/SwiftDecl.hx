@@ -805,13 +805,13 @@ class SwiftDecl {
                 // parameters and cannot throw. The parameter takes an
                 // Optional type with a nil default and the body normalizes
                 // it (coalescingBodyNormalizationLines).
-                final parameterType = (readsParam || throwsDefault) ? makeOptional(baseType) : baseType;
+                final parameterType = (readsParam || throwsDefault || (coalescing != null && expr.coalescingDefaultReferencesPrivate(coalescing))) ? makeOptional(baseType) : baseType;
                 final escaping = switch (Context.follow(a.type)) {
                     case TFun(_, _): "@escaping ";
                     case _: "";
                 };
                 final defaultText = if (coalescing != null) {
-                    if (readsParam || throwsDefault)
+                    if (readsParam || throwsDefault || expr.coalescingDefaultReferencesPrivate(coalescing))
                         " = nil"
                     else
                         " = " + expr.coalescingDefaultText(coalescing, a.type);
@@ -876,6 +876,12 @@ class SwiftDecl {
                 out.push("        " + (expr.parameterIsMutated(a.name) ? "var" : "let") + " " + SwiftNameEscape.escape(a.name) + " = ("
                     + SwiftNameEscape.escape(a.name) + " == nil ? try " + expr.coalescingDefaultText(coalescing, a.type) + " : "
                     + SwiftNameEscape.escape(a.name) + "!);");
+                continue;
+            }
+            if (expr.coalescingDefaultReferencesPrivate(coalescing)) {
+                final keyword = expr.parameterIsMutated(a.name) ? "var" : "let";
+                out.push("        " + keyword + " " + SwiftNameEscape.escape(a.name) + " = " + SwiftNameEscape.escape(a.name) + " ?? "
+                    + expr.coalescingDefaultText(coalescing, a.type) + ";");
                 continue;
             }
             if (!DefaultArgExpander.coalescingReadsParamForParam(cls, f.field.name, a.name))

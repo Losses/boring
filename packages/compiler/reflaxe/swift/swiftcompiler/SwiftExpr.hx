@@ -235,6 +235,54 @@ class SwiftExpr {
     }
 
     /**
+        Whether a sanctioned default mentions a private static member.
+        Swift requires a default argument value to be at least as
+        accessible as the function that carries it, so a public signature
+        may not reference a private helper. Such defaults move into the
+        body, where the private access is legal.
+    **/
+    public function coalescingDefaultReferencesPrivate(value:DefaultArgExpander.CoalescingDefaultValue):Bool {
+        return switch (value) {
+            case CStaticCall(modulePath, className, methodName, args):
+                coalescingStaticTargetPrivate(modulePath, className, methodName) || coalescingArgsPrivate(args);
+            case CConstructorCall(_, _, args): coalescingArgsPrivate(args);
+            case CMethodCall(receiver, _, args): coalescingDefaultReferencesPrivate(receiver) || coalescingArgsPrivate(args);
+            case CFieldAccess(receiver, _): coalescingDefaultReferencesPrivate(receiver);
+            case CConditional(c, t, f): coalescingDefaultReferencesPrivate(c) || coalescingDefaultReferencesPrivate(t) || coalescingDefaultReferencesPrivate(f);
+            case CBinaryOp(_, left, right): coalescingDefaultReferencesPrivate(left) || coalescingDefaultReferencesPrivate(right);
+            case _: false;
+        };
+    }
+
+    function coalescingArgsPrivate(args:Array<DefaultArgExpander.CoalescingDefaultValue>):Bool {
+        for (a in args) {
+            if (coalescingDefaultReferencesPrivate(a))
+                return true;
+        }
+        return false;
+    }
+
+    function coalescingStaticTargetPrivate(modulePath:String, className:String, methodName:String):Bool {
+        final resolved = try {
+            Context.getType(modulePath + "." + className);
+        } catch (_:Dynamic) {
+            null;
+        };
+        return switch (resolved) {
+            case TInst(c, _):
+                var found = false;
+                for (f in c.get().statics.get()) {
+                    if (f.name == methodName) {
+                        found = !f.isPublic && !f.meta.has(":allow");
+                        break;
+                    }
+                }
+                found;
+            case _: false;
+        };
+    }
+
+    /**
         Resolves the class a sanctioned static call names and asks the
         same routing the call-site arm uses, so a default and its call
         twin can never disagree on the `try` marker. The expander only
