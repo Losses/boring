@@ -45,6 +45,7 @@ class TsType {
                 switch (pathOf(cls.pack, cls.name)) {
                     case "String" | "std.StringBuf" | "StringBuf": "string";
                     case "Array": arrayElement(params[0]) + "[]";
+                    case "haxe.Exception": "Error";
                     case "haxe.io.Bytes": "Uint8Array";
                     case "haxe.io.BytesBuffer":
                         imports.runtime("BytesBuffer");
