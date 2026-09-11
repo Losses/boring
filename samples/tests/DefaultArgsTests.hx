@@ -165,4 +165,24 @@ class DefaultArgsTests {
         Test.equals(7, KeywordNameOps.clampVal(7, 5, 10));
         Test.equals(8, KeywordNameOps.localKeywordRead());
     }
+
+    @:test("constructor coalescing default reading an earlier parameter resolves at the call site")
+    public static function ctorParamReadDefault():Void {
+        final bopomofo = new ParamReadSpan(ParamReadKind.Bopomofo, null);
+        Test.equals("zh-TW", bopomofo.locale);
+        final pinyin = new ParamReadSpan(ParamReadKind.Pinyin, null);
+        Test.equals(null, pinyin.locale);
+        final given = new ParamReadSpan(ParamReadKind.Pinyin, "zh-Latn");
+        Test.equals("zh-Latn", given.locale);
+    }
+
+    @:test("constructor coalescing default calling a static helper with an earlier parameter")
+    public static function ctorStaticCallParamReadDefault():Void {
+        final bopo = new RegionProfile(ParamReadKind.Bopomofo, null);
+        Test.equals("bopo", bopo.gluePlacement);
+        final pinyin = new RegionProfile(ParamReadKind.Pinyin, null);
+        Test.equals("pinyin", pinyin.gluePlacement);
+        final given = new RegionProfile(ParamReadKind.Pinyin, "custom");
+        Test.equals("custom", given.gluePlacement);
+    }
 }
