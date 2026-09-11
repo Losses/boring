@@ -426,6 +426,7 @@ class KotlinExpr {
         EnumQueryExpander.expandRootExpr(f.expr);
         for (a in f.args) {
             reserveName(a.name);
+            localName(a.v);
         }
         currentClass = cls;
         currentField = f.field.name;
@@ -3300,7 +3301,10 @@ class KotlinExpr {
                     ((PolicyQueries.isNullableType(a.t) && !provenNonNull(a) && !guardProofBefore(a)) || isNullInitialized(a) || nullableChainHop(a))) {
                     if (!isNullInitialized(a))
                         addProofExpr(a);
-                    text + "!!";
+                    if (provenNonNull(a) || guardProofBefore(a))
+                        text + "!!";
+                    else
+                        text + " ?: throw IllegalArgumentException(\"argument is null\")";
                 } else if (isIntOrLongType(emittedType(a)) && isFloatExpectedType(expected)) intToFloatText(text); else text;
             }
         ];
