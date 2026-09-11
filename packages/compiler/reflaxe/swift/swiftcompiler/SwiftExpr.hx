@@ -356,6 +356,23 @@ class SwiftExpr {
                 + ".count)" : coalescingDefaultText(receiver, targetType)
                 + "."
                 + SwiftNameEscape.escape(fieldName);
+            case CMethodCall(receiver, "substring", args) if (args.length == 2):
+                // Swift String has no two-index substring; the sanctioned
+                // default lowers through the same UTF-16 helper the
+                // expression path uses. The typer passes a synthesized null
+                // for an omitted end index.
+                final s = coalescingDefaultText(receiver, targetType);
+                final start = coalescingDefaultText(args[0], targetType);
+                final endOmitted = switch (args[1]) {
+                    case CNull: true;
+                    case _: false;
+                };
+                if (endOmitted)
+                    types.resident ? "Array(" + s + "[max(0, Int(" + start + "))...])" : "String(decoding: " + s + ".utf16.dropFirst(Int(max(0, " + start + "))), as: UTF16.self)";
+                else if (types.resident)
+                    "Array(" + s + "[Int(" + start + ")..<Int(" + coalescingDefaultText(args[1], targetType) + ")])";
+                else
+                    "substringUnits(" + s + ", " + start + ", " + coalescingDefaultText(args[1], targetType) + ")";
             case CMethodCall(receiver, methodName, args):
                 coalescingDefaultText(receiver, targetType)
                 + "."
