@@ -344,3 +344,8 @@ boring.CtorOptArgOps
 tests.CtorOptArgTests
 boring.NullGuardNarrowOps
 tests.NullGuardNarrowTests
+
+boring.OptionalValueUseMetrics
+boring.OptionalValueUseHolder
+boring.OptionalValueUseOps
+tests.OptionalValueUseTests
