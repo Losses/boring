@@ -460,3 +460,5 @@ boring.NullableReceiver
 boring.NullableCallOps2
 boring.NullableCallOps
 tests.NullableCallTests
+boring.InterfaceIdentityOps
+tests.InterfaceIdentityTests

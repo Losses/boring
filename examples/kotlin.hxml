@@ -450,3 +450,5 @@ boring.IntToFloatCtorOps
 tests.IntToFloatCtorTests
 boring.NilContextOps
 tests.NilContextTests
+boring.InterfaceIdentityOps
+tests.InterfaceIdentityTests
