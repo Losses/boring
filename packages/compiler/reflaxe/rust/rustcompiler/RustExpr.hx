@@ -2123,6 +2123,17 @@ class RustExpr {
         return null;
     }
 
+    /** Whether a null guard narrowed the full `subj.field` access path. */
+    function narrowedFieldPath(subj:TypedExpr, fieldSnake:String):Null<String> {
+        final text = subjectTextOf(subj) + "." + fieldSnake;
+        for (i in 0...optionNarrowings.length) {
+            final narrowing = optionNarrowings[optionNarrowings.length - 1 - i];
+            if (narrowing.subjectText == text)
+                return narrowing.name;
+        }
+        return null;
+    }
+
     /** The owned inner value a `Null<T>` assignment receives from a `T` right side. */
     function ownedNullAssignValue(r:TypedExpr):String {
         if (isTypeCopy(r.t))
@@ -2206,7 +2217,9 @@ class RustExpr {
         var narrowedText = conditionalBranchText(narrowedBranch, noneBranch, resultType);
         final hit = optionNarrowingHit;
         optionNarrowings.pop();
-        optionNarrowingHit = previousHit;
+        // A nested expression's body may use an enclosing match's narrowing;
+        // keep the outer flag OR'd with this match's own hit.
+        optionNarrowingHit = previousHit || hit;
         if (!hit)
             return null;
         // An arm that reads only the binding is a reference to the inner
@@ -2259,7 +2272,12 @@ class RustExpr {
         final narrowed = blockLines(statementsOf(narrowedBranch), depth + 2);
         final hit = optionNarrowingHit;
         optionNarrowings.pop();
-        optionNarrowingHit = previousHit;
+        // A nested match's body may use an enclosing match's narrowing (e.g.
+        // a `final x:Rect = glyph.bounds;` read inside an inner `if
+        // (cluster != null)` block). Restore the outer flag OR'd with this
+        // match's own hit so the enclosing match still sees that its
+        // narrowing was used.
+        optionNarrowingHit = previousHit || hit;
         if (!hit)
             return null;
         final otherBranch = info.noneWhenTrue ? ifTrue : ifFalse;
@@ -3470,7 +3488,7 @@ class RustExpr {
                 // narrowed by the T4 mask.
                 final lenDiv = "((" + operand(l, op, false) + ") / " + usizeIndex(operand(r, op, true)) + ")";
                 return RustConversions.truncate(lenDiv, "u32");
-            case OpMult | OpAdd | OpSub
+            case OpMult | OpAdd | OpSub | OpDiv
                 if (isIntType(e.t)
                     && !inGenericFunction
                     && !isGenericLocal(l)
@@ -4063,6 +4081,12 @@ class RustExpr {
                 }
                 final snake = RustImports.toSnakeCase(name);
                 final subjText = expr(subj);
+                // A null guard narrows the complete field path. For example,
+                // `glyph.bounds` is narrowed as one access path.
+                // When the complete access is the narrowed value, this read
+                // is the match binding. The binding is a reference, so clone
+                // the non-Copy referent.
+                }
                 final narrowed = narrowedSubject(subj);
                 if (narrowed != null)
                     optionNarrowingHit = true;
@@ -6009,6 +6033,7 @@ class RustExpr {
             case OpAdd: "wrapping_add";
             case OpSub: "wrapping_sub";
             case OpMult: "wrapping_mul";
+            case OpDiv: "wrapping_div";
             case _: "";
         };
     }
