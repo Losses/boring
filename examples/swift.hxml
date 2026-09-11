@@ -456,3 +456,5 @@ boring.NullableCallOps
 tests.NullableCallTests
 boring.InterfaceIdentityOps
 tests.InterfaceIdentityTests
+boring.InterfaceFieldRecordOps
+tests.InterfaceFieldRecordTests
