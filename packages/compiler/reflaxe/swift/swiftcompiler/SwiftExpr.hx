@@ -1838,7 +1838,7 @@ class SwiftExpr {
             case OpEq | OpNotEq:
                 if (!isNullConstant(l) && !isNullConstant(r) && types.usesIdentityEquality(l.t) && types.usesIdentityEquality(r.t)) {
                     final identity = op == OpEq ? "===" : "!==";
-                    return operand(l, op, false, true) + " " + identity + " " + operand(r, op, true, true);
+                    return identityOperand(l, op, false) + " " + identity + " " + identityOperand(r, op, true);
                 }
                 final nullSide = isNullConstant(l) || isNullConstant(r);
                 final lOperand = nullSide ? expr(l) : operand(l, op, false, true);
@@ -1855,6 +1855,27 @@ class SwiftExpr {
                 }
                 return operand(l, op, false) + " " + symbolOf(op, l, r) + " " + operand(r, op, true);
         }
+    }
+
+    /**
+        An operand of a Swift identity comparison. A Haxe interface lowers
+        to a protocol, so its existential (`any P`) is not class-constrained
+        and `===`/`!==` reject it; the reference is recovered through an
+        `AnyObject` coercion. Concrete class operands pass unchanged.
+    **/
+    function identityOperand(e:TypedExpr, parent:Binop, isRight:Bool):String {
+        final text = operand(e, parent, isRight, true);
+        return isInterfaceType(e.t) ? "(" + text + " as AnyObject)" : text;
+    }
+
+    function isInterfaceType(t:Null<Type>):Bool {
+        if (t == null) {
+            return false;
+        }
+        return switch (Context.follow(t)) {
+            case TInst(c, _): c.get().isInterface;
+            case _: false;
+        };
     }
 
     /**
