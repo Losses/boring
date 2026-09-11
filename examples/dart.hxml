@@ -443,3 +443,5 @@ tests.FloatModTests
 
 boring.IntToFloatCtorOps
 tests.IntToFloatCtorTests
+boring.NilContextOps
+tests.NilContextTests
