@@ -604,14 +604,24 @@ class Compiler extends PluginCompiler<Compiler> {
             lines.push("import 'dart:convert';");
         }
         for (entry in ctx.imports.moduleList()) {
+            // A module with test functions is emitted into the test output
+            // tree, so the import walks to that tree. The emission loop
+            // routes by the same testModules map. A helper class sharing a
+            // module with a test class follows the module routing.
+            final entryPath = testModules.exists(entry.module)
+                ? testOutput + "/" + DartImports.libraryPathOf(entry.module)
+                : dartOutput + "/lib/" + DartImports.libraryPathOf(entry.module);
             lines.push("import '"
-                + importSpecifier(filePath, dartOutput + "/lib/" + DartImports.libraryPathOf(entry.module))
+                + importSpecifier(filePath, entryPath)
                 + "' as "
                 + entry.prefix
                 + ";");
         }
         for (module in ctx.imports.extensionModuleList()) {
-            lines.push("import '" + importSpecifier(filePath, dartOutput + "/lib/" + DartImports.libraryPathOf(module)) + "';");
+            final extPath = testModules.exists(module)
+                ? testOutput + "/" + DartImports.libraryPathOf(module)
+                : dartOutput + "/lib/" + DartImports.libraryPathOf(module);
+            lines.push("import '" + importSpecifier(filePath, extPath) + "';");
         }
         if (ctx.imports.usesPlatformHost()) {
             // The synthesized platform host of stdlib/17 sits beside the
