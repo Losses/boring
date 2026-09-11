@@ -152,8 +152,14 @@ class TestCollector {
 
             final testCallLines:Array<String> = [];
             for (t in tests) {
+                // The call target is the class path: a module name resolves
+                // only its main class, so a test on a secondary class of the
+                // module needs the full package-qualified class name.
+                final lastDot = t.moduleName.lastIndexOf(".");
+                final modulePrefix = lastDot < 0 ? "" : t.moduleName.substr(0, lastDot + 1);
+                final callTarget = t.moduleName == t.className ? t.moduleName : modulePrefix + t.className;
                 testCallLines.push('        try {');
-                testCallLines.push('            std.Test.run("' + t.id + '", "' + escapeName(t.name) + '", function() { ' + t.moduleName + '.' + t.fieldName
+                testCallLines.push('            std.Test.run("' + t.id + '", "' + escapeName(t.name) + '", function() { ' + callTarget + '.' + t.fieldName
                     + '(); });');
                 testCallLines.push('        } catch (e:haxe.Exception) {');
                 testCallLines.push('            failures++;');
