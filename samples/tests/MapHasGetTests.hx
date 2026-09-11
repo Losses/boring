@@ -26,6 +26,10 @@ class MapHasGetTests {
         final rows = rowsBuilder.build();
         Test.equals(true, MapHasGetOps.nested(rows, "a", 2) == 1.5);
         Test.equals(true, MapHasGetOps.nested(rows, "a", 3) == 0.0);
+
+        final budgets = MapHasGetOps.sampleBudget();
+        Test.equals(true, MapHasGetOps.budget(budgets, 4) == 3.25);
+        Test.equals(true, MapHasGetOps.budget(budgets, 5) == 0.0);
         #else
         Test.equals(true, true);
         #end
