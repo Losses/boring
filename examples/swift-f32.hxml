@@ -382,3 +382,6 @@ tests.OptionalProjectionTests
 
 boring.MapValueOptionalOps
 tests.MapValueOptionalTests
+
+boring.NullStaticMapOps
+tests.NullStaticMapTests

@@ -600,6 +600,15 @@ class SwiftDecl {
             // the value is a compile-time fixture, so force the fault and
             // let a failure trap at load (stdlib/08/27).
             final rendered = expr.containsThrowingCall(init) ? "try! " + initText : initText;
+            // A non-null Haxe field initialized to null becomes an implicitly
+            // unwrapped optional: the declaration admits the nil start while
+            // reads stay plain, matching the Haxe null-until-assigned idiom.
+            final declaredType = types.of(field.type);
+            final nullInit = switch (init.expr) {
+                case TConst(TNull): true;
+                case _: false;
+            };
+            final typeText = nullInit && !StringTools.endsWith(declaredType, "?") ? declaredType + "!" : declaredType;
             return ["    "
                 + vis
                 + "static "
@@ -607,7 +616,7 @@ class SwiftDecl {
                 + " "
                 + SwiftNameEscape.escape(field.name)
                 + ": "
-                + types.of(field.type)
+                + typeText
                 + " = "
                 + rendered];
         }
