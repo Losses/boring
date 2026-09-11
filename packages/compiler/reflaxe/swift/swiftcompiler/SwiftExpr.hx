@@ -3358,10 +3358,14 @@ class SwiftExpr {
         for (i in 0...args.length) {
             final p = i < ps.length ? ps[i] : null;
             final d = DefaultArgExpander.defaultAt(cls, "new", i);
-            final text = d != null
+            var text = d != null
                 && p != null
                 && isNullLiteral(args[i]) ? defaultArgText(d, p) : d != null && p != null && isNullLeafType(args[i].t) ? "(" + expr(args[i]) + " ?? " + defaultArgText(d,
                     p) + ")" : p != null && !isNullLeafType(p) && optionalValued(args[i]) ? expr(args[i]) + "!" : expr(args[i]);
+            // Haxe promotes an Int argument into a Float field without an
+            // explicit cast; Swift needs the widening conversion.
+            if (p != null && isIntType(emittedType(args[i])) && isFloatLeafType(p))
+                text = intToFloatText(text);
             rendered.push(text);
             if (i < names.length)
                 constructorParameterValues.set(names[i], text);
