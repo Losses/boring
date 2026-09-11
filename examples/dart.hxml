@@ -414,3 +414,6 @@ tests.PrivateDefaultTests
 
 boring.OptionalProjectionOps
 tests.OptionalProjectionTests
+
+boring.MapValueOptionalOps
+tests.MapValueOptionalTests
