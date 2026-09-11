@@ -5734,7 +5734,7 @@ class RustExpr {
                         case TConst(TString(s)): quoteString(s) + ".to_string()";
                         case _ if (isStringType(getNullInnerType(pt)) && isStringType(arg.t)):
                             StringTools.endsWith(argStr, ".to_string()") ? argStr : "(" + argStr + ").to_string()";
-                        case _: isInterfaceType(getNullInnerType(pt)) && !isInterfaceType(arg.t) ? "Box::new(" + argStr + ")" : argStr;
+                        case _: isInterfaceType(getNullInnerType(pt)) && !isInterfaceType(arg.t) ? renderValueForType(getNullInnerType(pt), arg, argStr) : argStr;
                     };
                     out.push("Some(" + inner + ")");
                     continue;
@@ -6824,7 +6824,7 @@ class RustExpr {
                             case TConst(TString(s)): quoteString(s) + ".to_string()";
                             case _ if (isStringType(getNullInnerType(pt)) && isStringType(arg.t)):
                                 StringTools.endsWith(argStr, ".to_string()") ? argStr : "(" + argStr + ").to_string()";
-                            case _: isInterfaceType(getNullInnerType(pt)) && !isInterfaceType(arg.t) ? "Box::new(" + argStr + ")" : argStr;
+                            case _: isInterfaceType(getNullInnerType(pt)) && !isInterfaceType(arg.t) ? renderValueForType(getNullInnerType(pt), arg, argStr) : argStr;
                         };
                         argStr = "Some(" + inner + ")";
                     }
