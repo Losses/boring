@@ -43,7 +43,7 @@ class SwiftType {
                     case "Float": FloatPrecision.isF32() ? "Float" : "Double";
                     case "Bool": "Bool";
                     case "Void": "Void";
-                    case "Null": wrapOptional(of(params[0]));
+                    case "Null": nullOptional(params[0], of);
                     case "haxe.ds.Map" if (params.length == 2): "[" + of(params[0]) + ": " + of(params[1]) + "]";
                     case "std.ReadOnlyArray": "[" + of(params[0]) + "]";
                     case "haxe.Int64": "Int64";
@@ -136,7 +136,7 @@ class SwiftType {
                     case "Float": FloatPrecision.isF32() ? "Float" : "Double";
                     case "Bool": "Bool";
                     case "Void": "Void";
-                    case "Null": wrapOptional(ofSubstituted(params2[0], params, args));
+                    case "Null": nullOptional(params2[0], t -> ofSubstituted(t, params, args));
                     case "std.ReadOnlyArray": "[" + ofSubstituted(params2[0], params, args) + "]";
                     case _: ofSubstituted(abs.type, params, args);
                 }
@@ -235,6 +235,19 @@ class SwiftType {
     **/
     function wrapOptional(inner:String):String {
         return inner + "?";
+    }
+
+    /**
+        Haxe's ternary and map inference can nest the Null wrapper
+        (`Null<Null<T>>`); one `?` is enough, and a doubled Swift
+        `T??` changes what a later force unwrap reads.
+    **/
+    function nullOptional(inner:Type, render:Type->String):String {
+        return switch (inner) {
+            case TAbstract(a, _) if (a.get().name == "Null"): render(inner);
+            case TLazy(f): nullOptional(f(), render);
+            case _: wrapOptional(render(inner));
+        };
     }
 
     function pathOf(pack:Array<String>, name:String):String {
