@@ -292,3 +292,6 @@ tests.LocalThrowTests
 
 boring.NullInitLocalOps
 tests.NullInitLocalTests
+
+boring.FusedPushThrowOps
+tests.FusedPushThrowTests
