@@ -52,6 +52,11 @@ class SwiftType {
             case TInst(c, params):
                 final cls = c.get();
                 switch (pathOf(cls.pack, cls.name)) {
+                    // The shared exception base maps to the runtime class the
+                    // generated exception subclasses extend (features/06).
+                    case "haxe.Exception":
+                        imports.runtime("BoringException");
+                        "BoringException";
                     case "String": resident ? "[UInt16]" : "String";
                     case "std.StringBuf" | "StringBuf": "[UInt16]";
                     case "Array": "[" + of(params[0]) + "]";
