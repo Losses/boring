@@ -2020,6 +2020,12 @@ class TsExpr {
                 final cls = c.get();
                 final fName = cf.get().name;
 
+                if (cls.module == "runtime.SortedTable" && fName == "mapBuilder") {
+                    return "SortedTable.mapBuilder<" + types.of(kTypeOf(fn)) + ", " + types.of(vTypeOf(fn)) + ">(" + rendered + ")";
+                }
+                if (cls.module == "runtime.SortedTable" && fName == "setBuilder") {
+                    return "SortedTable.setBuilder<" + types.of(kTypeOf(fn)) + ">(" + rendered + ")";
+                }
                 if ((cls.module == "std.SortedMap" || cls.pack.join(".") + "." + cls.name == "std.SortedMap") && fName == "builder") {
                     // Explicit type arguments: the annotated Haxe local
                     // does not reach the emitted declaration.
@@ -2041,12 +2047,27 @@ class TsExpr {
 
     /** The key type argument of a sorted builder factory call. */
     function kTypeOf(fn:TypedExpr):Null<Type> {
-        return PolicyQueries.kTypeOf(fn);
+        // The call node may retain a lazy/aliased function type. Follow it
+        // before inspecting the builder result; otherwise the generic
+        // arguments disappear and TS infers mapBuilder's result as unknown.
+        return switch (Context.follow(fn.t)) {
+            case TFun(_, result): switch (Context.follow(result)) {
+                case TInst(_, params) if (params.length > 0): params[0];
+                case _: null;
+            };
+            case _: null;
+        };
     }
 
     /** The value type argument of a sorted map builder factory call. */
     function vTypeOf(fn:TypedExpr):Null<Type> {
-        return PolicyQueries.vTypeOf(fn);
+        return switch (Context.follow(fn.t)) {
+            case TFun(_, result): switch (Context.follow(result)) {
+                case TInst(_, params) if (params.length > 1): params[1];
+                case _: null;
+            };
+            case _: null;
+        };
     }
 
     // ------------------------------------------------------------------
