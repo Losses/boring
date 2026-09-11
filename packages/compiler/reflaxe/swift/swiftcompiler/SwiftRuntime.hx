@@ -56,13 +56,13 @@ public func i32ToFloat(_ bits: Int32) -> Double {
     return Double(Float(bitPattern: UInt32(bitPattern: bits)))
 }
 
-/// The f32 lane module real is already binary32, so its bit edges read
-/// the native pattern without a narrowing step.
-public func floatToI32(_ value: Float) -> Int32 {
+/// The f32 module real is already binary32, so its bit edges read the
+/// native pattern without a narrowing step.
+public func floatToI32F32(_ value: Float) -> Int32 {
     return Int32(bitPattern: value.bitPattern)
 }
 
-public func i32ToFloat(_ bits: Int32) -> Float {
+public func i32ToFloatF32(_ bits: Int32) -> Float {
     return Float(bitPattern: UInt32(bitPattern: bits))
 }
 
