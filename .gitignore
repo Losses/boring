@@ -25,3 +25,6 @@ reference/swift-f32/gen-tests/
 reference/dart/gen/
 reference/dart/gen-tests/
 .build/
+
+boring-*.report.md
+boring-*.stuck.md
