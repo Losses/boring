@@ -27,6 +27,31 @@ class SwiftType {
         this.resident = RuntimeResidents.isResident(imports.selfModule);
     }
 
+    /**
+        A zero-argument `Void` callback is the thunk shape the test harness
+        passes around; Haxe function types carry no throw bit, so the
+        emitted type always admits a throwing closure body.
+    **/
+    public static function isThrowingThunk(t:Null<Type>):Bool {
+        if (t == null)
+            return false;
+        return switch (Context.follow(t)) {
+            case TFun(args, ret): isThrowingThunkType(args.length, ret);
+            case _: false;
+        };
+    }
+
+    static function isThrowingThunkType(argCount:Int, ret:Type):Bool {
+        return argCount == 0 && isVoidType(ret);
+    }
+
+    static function isVoidType(t:Type):Bool {
+        return switch (Context.follow(t)) {
+            case TAbstract(a, _): a.get().name == "Void";
+            case _: false;
+        };
+    }
+
     public function of(t:Null<Type>):String {
         if (t == null) {
             return "Void";
@@ -105,7 +130,7 @@ class SwiftType {
                 imports.type(en.module, en.name);
                 en.name;
             case TFun(args, ret):
-                "(" + [for (arg in args) of(arg.t)].join(", ") + ") -> " + of(ret);
+                "(" + [for (arg in args) of(arg.t)].join(", ") + ")" + (isThrowingThunkType(args.length, ret) ? " throws" : "") + " -> " + of(ret);
             case TAnonymous(_):
                 Context.error("anonymous structure types must be named typedefs before translation", Context.currentPos());
                 null;
@@ -173,7 +198,8 @@ class SwiftType {
                 imports.type(en.module, en.name);
                 en.name;
             case TFun(args2, ret):
-                "(" + [for (arg in args2) ofSubstituted(arg.t, params, args)].join(", ") + ") -> " + ofSubstituted(ret, params, args);
+                "(" + [for (arg in args2) ofSubstituted(arg.t, params, args)].join(", ") + ")"
+                    + (isThrowingThunkType(args2.length, ret) ? " throws" : "") + " -> " + ofSubstituted(ret, params, args);
             case TLazy(f): ofSubstituted(f(), params, args);
             case _: fail(t);
         }

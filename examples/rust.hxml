@@ -382,3 +382,6 @@ boring.OptionalValueUseMetrics
 boring.OptionalValueUseHolder
 boring.OptionalValueUseOps
 tests.OptionalValueUseTests
+
+boring.ThrowingClosureOps
+tests.ThrowingClosureTests
