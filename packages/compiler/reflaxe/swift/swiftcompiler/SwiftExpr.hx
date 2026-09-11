@@ -3710,23 +3710,28 @@ class SwiftExpr {
         final table = enumTable(se);
         final out = [indent(depth) + "switch " + subjRendered + " {"];
         for (c in switchParts.cases) {
-            final index = switch (c.values[0].expr) {
-                case TConst(TInt(v)): v;
-                case _: return fail(sw, "variant switch case is not a constant index");
+            // A Haxe arm may list several patterns with `|`; each pattern
+            // needs its own Swift label, and the body repeats under each
+            // because Swift rejects one label list whose bindings differ.
+            for (value in c.values) {
+                final index = switch (value.expr) {
+                    case TConst(TInt(v)): v;
+                    case _: return fail(sw, "variant switch case is not a constant index");
+                }
+                final info = table.get(index);
+                if (info == null) {
+                    return fail(sw, "variant switch case index has no construct");
+                }
+                final names = payloadNames(info.field);
+                final used = usedPayloadIndices(c.expr, info.field);
+                final bindings = [
+                    for (i in 0...names.length)
+                        used.indexOf(i) >= 0 ? "let " + (reservedPayloadNames ? payloadBindingName(info.field, i) : names[i]) : "_"
+                ].join(", ");
+                out.push(indent(depth + 1) + "case ." + SwiftDecl.lowerFirst(info.name) + (names.length > 0 ? "(" + bindings + ")" : "") + ":");
+                for (l in armLines(c.expr, depth + 2, reservedPayloadNames))
+                    out.push(l);
             }
-            final info = table.get(index);
-            if (info == null) {
-                return fail(sw, "variant switch case index has no construct");
-            }
-            final names = payloadNames(info.field);
-            final used = usedPayloadIndices(c.expr, info.field);
-            final bindings = [
-                for (i in 0...names.length)
-                    used.indexOf(i) >= 0 ? "let " + (reservedPayloadNames ? payloadBindingName(info.field, i) : names[i]) : "_"
-            ].join(", ");
-            out.push(indent(depth + 1) + "case ." + SwiftDecl.lowerFirst(info.name) + (names.length > 0 ? "(" + bindings + ")" : "") + ":");
-            for (l in armLines(c.expr, depth + 2, reservedPayloadNames))
-                out.push(l);
         }
         if (switchParts.def != null) {
             return fail(sw, "variant switch carries a default arm (V15)");
