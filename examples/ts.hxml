@@ -364,3 +364,6 @@ tests.NullGuardFieldTests
 
 boring.MapHasGetOps
 tests.MapHasGetTests
+
+boring.FPHelperSwiftOps
+tests.FPHelperSwiftTests
