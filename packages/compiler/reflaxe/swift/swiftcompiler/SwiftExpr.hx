@@ -1077,9 +1077,9 @@ class SwiftExpr {
                     for (l in blockLines(batch, depth + 1))
                         out.push(l);
                 case StoreValue(value):
-                    out.push(indent(depth + 1) + arrName + ".append(" + expr(value) + ")");
+                    out.push(indent(depth + 1) + arrName + ".append(" + (containsThrowingCall(value) ? "try " : "") + expr(value) + ")");
                 case PushValue(arg):
-                    out.push(indent(depth + 1) + arrName + ".append(" + expr(arg) + ")");
+                    out.push(indent(depth + 1) + arrName + ".append(" + (containsThrowingCall(arg) ? "try " : "") + expr(arg) + ")");
             }
         }
         out.push(indent(depth) + "}");
