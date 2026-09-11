@@ -653,6 +653,11 @@ class SwiftExpr {
                 return stringBufToStringBindingLines(v, stripWrap(init), depth);
             case TVar(v, init) if (init != null && isSwitch(init)):
                 return switchBindingLines(v, init, depth);
+            case TVar(v, init) if (init != null && isTypeReference(init)):
+                // A Haxe local bound to a class reference is a compile-time
+                // alias for the type. Swift has no class values, so it lowers
+                // to a local typealias that keeps `S.staticMember` resolving.
+                return [indent(depth) + "typealias " + localName(v) + " = " + expr(init)];
             case TVar(v, init) if (init != null):
                 final coalescing = coalescingSiteFor(init);
                 if (coalescing != null)
@@ -4096,6 +4101,14 @@ class SwiftExpr {
     function isSwitch(e:TypedExpr):Bool {
         return switch (stripWrap(e).expr) {
             case TSwitch(_, _, _): true;
+            case _: false;
+        };
+    }
+
+    /** Whether an initializer is a bare class/enum reference. */
+    function isTypeReference(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TTypeExpr(_): true;
             case _: false;
         };
     }
