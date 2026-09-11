@@ -2595,7 +2595,7 @@ class SwiftExpr {
                     && cls.name == "StringTools"
                     && (fName == "startsWith" || fName == "endsWith")
                     && args.length == 2) {
-                    return expr(args[0]) + ".has" + (fName == "startsWith" ? "Prefix" : "Suffix") + "(" + expr(args[1]) + ")";
+                    return receiverText(args[0]) + ".has" + (fName == "startsWith" ? "Prefix" : "Suffix") + "(" + optionalExpr(args[1]) + ")";
                 }
                 if (cls.pack.length == 0 && cls.name == "StringTools") {
                     // StringTools statics without a native Swift/String
@@ -4822,7 +4822,7 @@ class SwiftExpr {
     **/
     function mathFloatArg(a:TypedExpr):String {
         if (!isIntType(emittedType(a)))
-            return expr(a);
+            return optionalExpr(a);
         // Every int-typed operand widens, including a bare literal: the
         // Swift binding `let b = 0` infers the 64-bit Int, and the NaN
         // guard's `.isNaN` then has no member on the integer domain.
