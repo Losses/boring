@@ -577,6 +577,13 @@ class DartExpr {
                             final valueText = expr(value);
                             if (param != null && parameterFields.exists(param) && parameterFields.get(param).length == 1) {
                                 formalFields.set(param, field);
+                                // The initializing formal `this.field` makes
+                                // the field name the body's binding for the
+                                // parameter, so body references render the
+                                // field name (feature spec 27 privacy).
+                                final tvar = paramTvarOf(param, f);
+                                if (tvar != null)
+                                    bindLocalName(tvar, field);
                             } else if (param != null && parameterFields.exists(param) && parameterFields.get(param).length > 1) {
                                 fieldInits.push(field + " = " + valueText);
                             } else if (mentionsConstructorLocalExpr(value, constructorLocals)) {
@@ -694,6 +701,16 @@ class DartExpr {
                 null;
             case _: null;
         };
+    }
+
+    /** The TVar of the parameter named `name`, or null when absent. */
+    function paramTvarOf(name:String, f:ClassFuncData):Null<TVar> {
+        for (a in f.args) {
+            if (a.name == name) {
+                return a.tvar;
+            }
+        }
+        return null;
     }
 
     // ------------------------------------------------------------------
