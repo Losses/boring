@@ -2423,12 +2423,19 @@ class RustDecl {
         return switch (Context.follow(t)) {
             case TAbstract(a, params): // `follow` unwraps Null<T> but keeps plain abstracts, so
                 // ReadOnlyArray must recurse into its element type here.
-                (["Int", "Bool", "Float"].indexOf(a.get().name) >= 0
-                    && params.length == 0) || (a.get().name == "ReadOnlyArray" && params.length == 1 && isCloneTypeDepth(params[0], depth))
-                    || ((a.get().name == "SortedSet" || a.get().name == "SortedMap") && params.length >= 1 && (function() {
+                // A @:valueType abstract lowers to a single-field tuple struct
+                // that always derives Clone (RustDecl.valueTypeDecl), so a
+                // value-type field keeps its owner's derive.
+                if (ValueTypeSupport.isMarkedAbstract(a.get()))
+                    true
+                else if (["Int", "Bool", "Float"].indexOf(a.get().name) >= 0
+                    && params.length == 0) true
+                else if (a.get().name == "ReadOnlyArray" && params.length == 1 && isCloneTypeDepth(params[0], depth)) true
+                else if ((a.get().name == "SortedSet" || a.get().name == "SortedMap") && params.length >= 1 && (function() {
                         for (p in params) if (!isCloneTypeDepth(p, depth)) return false;
                         return true;
-                    })());
+                    })()) true
+                else false;
             case TEnum(_):
                 // Every generated enum derives Clone at its declaration
                 // site, so an enum-typed field keeps its owner's derive.
