@@ -852,6 +852,43 @@ class Compiler extends PluginCompiler<Compiler> {
     // ------------------------------------------------------------------
 
     function preScan(mtypes:Array<haxe.macro.Type.ModuleType>):Void {
+        // A sealed interface whose implementors all derive Clone gets a
+        // Clone supertrait so a Box<dyn Trait> field keeps its owner's
+        // derive. Collect the implementor set first, then mark the sealed
+        // interfaces whose whole set is Clone-capable.
+        final sealedImplementors:Map<String, Array<ClassType>> = [];
+        final sealedCloneable:Map<String, Bool> = [];
+        for (mt in mtypes) switch (mt) {
+            case TClassDecl(c):
+                final cls = c.get();
+                if (cls.isExtern || !inSourceScope(cls.pos))
+                    continue;
+                if (cls.meta.has(":sealed")) {
+                    sealedImplementors.set(cls.module + "::" + cls.name, []);
+                    sealedCloneable.set(cls.module + "::" + cls.name, true);
+                }
+                for (ifaceRef in cls.interfaces) {
+                    final iface = ifaceRef.t.get();
+                    if (!iface.meta.has(":sealed"))
+                        continue;
+                    final key = iface.module + "::" + iface.name;
+                    if (!sealedImplementors.exists(key))
+                        sealedImplementors.set(key, []);
+                    sealedImplementors.get(key).push(cls);
+                }
+            case _:
+        }
+        for (key in sealedImplementors.keys()) {
+            var allClone = true;
+            for (impl in sealedImplementors.get(key)) {
+                if (!RustDecl.isCloneableClass(impl, state.sealedCloneInterfaces)) {
+                    allClone = false;
+                    break;
+                }
+            }
+            if (allClone)
+                state.sealedCloneInterfaces.set(key, true);
+        }
         for (mt in mtypes) {
             switch (mt) {
                 case TClassDecl(c):
