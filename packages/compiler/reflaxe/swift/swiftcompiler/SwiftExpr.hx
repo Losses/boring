@@ -1924,6 +1924,13 @@ class SwiftExpr {
                 // Swift has no `%` for a floating point operand.
                 return floatAware(operand(l, op, false), l) + ".truncatingRemainder(dividingBy: " + floatAware(operand(r, op, true), r) + ")";
             case OpEq | OpNotEq:
+                if (!isNullConstant(l) && !isNullConstant(r) && (isTypeParameterType(l.t) || isTypeParameterType(r.t))) {
+                    // A bare generic operand has no Equatable constraint, so the
+                    // comparison renders through the value description, the same
+                    // route the test-helper comparators use.
+                    final compare = op == OpEq ? "==" : "!=";
+                    return "String(describing: " + expr(l) + ") " + compare + " String(describing: " + expr(r) + ")";
+                }
                 if (!isNullConstant(l) && !isNullConstant(r) && types.usesIdentityEquality(l.t) && types.usesIdentityEquality(r.t)) {
                     final identity = op == OpEq ? "===" : "!==";
                     return identityOperand(l, op, false) + " " + identity + " " + identityOperand(r, op, true);
@@ -5167,6 +5174,16 @@ class SwiftExpr {
             return false;
         return switch (Context.follow(t)) {
             case TAbstract(a, _): a.get().name == "Int";
+            case _: false;
+        };
+    }
+
+    /** Whether the type is an unconstrained function type parameter. */
+    function isTypeParameterType(t:Null<Type>):Bool {
+        if (t == null)
+            return false;
+        return switch (Context.follow(t)) {
+            case TInst(c, _): c.get().kind.match(KTypeParameter(_));
             case _: false;
         };
     }
