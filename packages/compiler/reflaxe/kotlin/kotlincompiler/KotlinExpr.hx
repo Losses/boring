@@ -3020,8 +3020,8 @@ class KotlinExpr {
         switch (t) {
             case TClassDecl(c):
                 final cls = c.get();
-                if (cls.pack.length == 0 && (cls.name == "String" || cls.name == "Math")) {
-                    return cls.name;
+                if (cls.pack.length == 1 && cls.pack[0] == "haxe" && cls.name == "Exception") {
+                    return "RuntimeException";
                 }
                 if (KotlinTestBinding.isTestExtern(cls)) {
                     final runtimePackage = RuntimeConfig.requireImportName("module test extern");
@@ -4002,6 +4002,9 @@ class KotlinExpr {
         }
         final renderedArgsText = renderConstructorArgs(cls, args).join(", ");
         final path = cls.pack.length == 0 ? cls.name : cls.pack.join(".") + "." + cls.name;
+        if (path == "haxe.Exception") {
+            return "RuntimeException(" + renderedArgsText + ")";
+        }
         switch (path) {
             case "std.StringBuf" | "StringBuf":
                 return "StringBuilder()";
