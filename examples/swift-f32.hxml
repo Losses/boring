@@ -422,6 +422,7 @@ boring.NullableCallOps2
 boring.NullableCallOps
 tests.NullableCallTests
 tests.KotlinNullabilityTests
+tests.SealedChildTests
 boring.InterfaceIdentityOps
 tests.InterfaceIdentityTests
 boring.InterfaceFieldRecordOps

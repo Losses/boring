@@ -233,6 +233,7 @@ tests.SwitchOpsTests
 tests.MathIntWideningOpsTests
 tests.MathNaNOpsTests
 tests.NoSuchElementTests
+tests.SealedChildTests
 tests.PosterShapeTests
 tests.ShapeTextTests
 tests.StringToolsTests
