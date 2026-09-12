@@ -976,11 +976,15 @@ class RustExpr {
                         case _:
                     }
                 } else if (StringTools.startsWith(returnTypeName, "Option<") && !isNullType(ret.t) && !isTNull(ret)) {
-                    final payload = switch (stripWrap(ret).expr) {
+                    var payload = switch (stripWrap(ret).expr) {
                         case TLocal(v) if (borrowedLoopVarIds.exists(v.id)): "(" + retStr + ").clone()";
                         case TConst(TString(_)): retStr + ".to_string()";
                         case _: retStr;
                     };
+                    // Rust does not infer an integer literal inside Some from
+                    // an Option<f64> return slot, so widen at this boundary.
+                    if (StringTools.startsWith(returnTypeName, "Option<f") && isIntType(emittedType(ret)))
+                        payload = intToFloatText(payload);
                     retStr = "Some(" + payload + ")";
                 } else if (StringTools.startsWith(returnTypeName, "Option<") && isIntType(ret.t) && !isNullType(ret.t) && !isTNull(ret)) {
                     // An Int expression returned from a Null<Int> function
@@ -5800,6 +5804,13 @@ class RustExpr {
                         case TConst(TString(s)): quoteString(s) + ".to_string()";
                         case _ if (isStringType(getNullInnerType(pt)) && isStringType(arg.t)):
                             StringTools.endsWith(argStr, ".to_string()") ? argStr : "(" + argStr + ").to_string()";
+                        case _ if (isFloatType(getNullInnerType(pt)) && isIntType(emittedType(arg))):
+                            intToFloatText(argStr);
+                        case _ if (StaticFieldHelper.isArrayType(getNullInnerType(pt)) && isDirectArrayStaticRead(arg)):
+                            // A direct array static is a Rust array; the
+                            // nullable Vec slot owns its elements, so the
+                            // Some payload converts once at the boundary.
+                            argStr + ".to_vec()";
                         case _: isInterfaceType(getNullInnerType(pt)) && !isInterfaceType(arg.t) ? renderValueForType(getNullInnerType(pt), arg, argStr) : argStr;
                     };
                     out.push("Some(" + inner + ")");
@@ -6837,6 +6848,9 @@ class RustExpr {
             if (borrowedParam)
                 return rendered + ".to_string()";
         }
+        if (isNullType(expected) && !isNullType(actual.t)
+            && isFloatType(getNullInnerType(expected)) && isIntType(emittedType(actual)))
+            return "Some(" + intToFloatText(rendered) + ")";
         if (isNullType(expected) && isNullType(actual.t) && isStringType(getNullInnerType(expected))) {
             final borrowedParam = switch (stripWrap(actual).expr) {
                 case TLocal(v): paramVarIds.get(v.id) == true;
@@ -6921,6 +6935,10 @@ class RustExpr {
                             case TConst(TString(s)): quoteString(s) + ".to_string()";
                             case _ if (isStringType(getNullInnerType(pt)) && isStringType(arg.t)):
                                 StringTools.endsWith(argStr, ".to_string()") ? argStr : "(" + argStr + ").to_string()";
+                            case _ if (isFloatType(getNullInnerType(pt)) && isIntType(emittedType(arg))):
+                                intToFloatText(argStr);
+                            case _ if (StaticFieldHelper.isArrayType(getNullInnerType(pt)) && isDirectArrayStaticRead(arg)):
+                                argStr + ".to_vec()";
                             case _: isInterfaceType(getNullInnerType(pt)) && !isInterfaceType(arg.t) ? renderValueForType(getNullInnerType(pt), arg, argStr) : argStr;
                         };
                         argStr = "Some(" + inner + ")";
