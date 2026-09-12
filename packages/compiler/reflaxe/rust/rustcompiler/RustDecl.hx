@@ -1520,25 +1520,54 @@ class RustDecl {
         calls that class's impl inside its body, and the impl carries the
         class-parameter Clone bounds. The method's own type parameters
         take the same bound when they reach the instantiation, so the
-        body resolves against the impl.
+        body resolves against the impl. A type parameter read at a value
+        boundary also clones (array element reads, returns), so the bound
+        follows any such read in the body.
      */
     function staticParamBounds(f:ClassFuncData, methodParams:Array<String>):Array<String> {
-        if (methodParams.length == 0 || f.ret == null)
+        if (methodParams.length == 0)
             return methodParams;
         final reached:Array<String> = [];
-        switch (Context.follow(f.ret)) {
-            case TInst(c, ps) if (c.get().params.length > 0 && c.get().name != "Array"):
-                for (p in ps) {
-                    switch (Context.follow(p)) {
-                        case TInst(pc, _):
-                            final pn = pc.get();
-                            if (pn.kind.match(KTypeParameter(_)) && methodParams.indexOf(pn.name) >= 0) {
-                                reached.push(pn.name);
-                            }
-                        case _:
+        if (f.ret != null) {
+            switch (Context.follow(f.ret)) {
+                case TInst(c, ps) if (c.get().params.length > 0 && c.get().name != "Array"):
+                    for (p in ps) {
+                        switch (Context.follow(p)) {
+                            case TInst(pc, _):
+                                final pn = pc.get();
+                                if (pn.kind.match(KTypeParameter(_)) && methodParams.indexOf(pn.name) >= 0) {
+                                    reached.push(pn.name);
+                                }
+                            case _:
+                        }
                     }
+                case _:
+            }
+        }
+        // A type-parameter value read clones at the boundary (array element,
+        // return, push), so the parameter needs the Clone bound the emitter
+        // relies on. Walk the body for any value-producing node whose type is
+        // the parameter and add that parameter's name.
+        if (f.expr != null) {
+            function typeParamName(t:Type):Null<String> {
+                return switch (Context.follow(t)) {
+                    case TInst(c, _):
+                        final cls = c.get();
+                        cls.kind.match(KTypeParameter(_)) ? cls.name : null;
+                    case _: null;
+                };
+            }
+            function walk(e:TypedExpr):Void {
+                switch (e.expr) {
+                    case TLocal(_) | TArray(_, _) | TField(_, _):
+                        final pn = typeParamName(e.t);
+                        if (pn != null && methodParams.indexOf(pn) >= 0 && reached.indexOf(pn) < 0)
+                            reached.push(pn);
+                    case _:
                 }
-            case _:
+                haxe.macro.TypedExprTools.iter(e, walk);
+            }
+            walk(f.expr);
         }
         return [for (n in methodParams) reached.indexOf(n) >= 0 ? n + ": Clone" : n];
     }
