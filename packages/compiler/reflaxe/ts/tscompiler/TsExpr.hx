@@ -2293,7 +2293,8 @@ class TsExpr {
                 final expected = i < typesOf.length ? typesOf[i] : null;
                 final d = target != null ? DefaultArgExpander.defaultAt(target.owner, target.name, i) : null;
                 if (d != null && expected != null && isNullLiteral(args[i])) defaultArgText(d,
-                    expected) else if (d != null && expected != null && isNullType(args[i].t)) "("
+                    expected) else if (d != null && expected != null && isNullType(args[i].t)
+                    && !isNullDefault(d) && !provablyNonNull(args[i])) "("
                     + expr(args[i])
                     + " ?? "
                     + defaultArgText(d, expected)
@@ -2311,7 +2312,8 @@ class TsExpr {
             final d = DefaultArgExpander.defaultAt(cls, "new", i);
             final p = i < ps.length ? ps[i] : null;
             d != null
-            && p != null && isNullLiteral(args[i]) ? constructorDefaultText(d, p, cls, args) : d != null && p != null && isNullType(args[i].t) ? "(" + expr(args[i]) + " ?? " + constructorDefaultText(d, p, cls, args) + ")" : expr(args[i]);
+            && p != null && isNullLiteral(args[i]) ? constructorDefaultText(d, p, cls, args) : d != null && p != null && isNullType(args[i].t)
+            && !isNullDefault(d) && !provablyNonNull(args[i]) ? "(" + expr(args[i]) + " ?? " + constructorDefaultText(d, p, cls, args) + ")" : expr(args[i]);
         }
         ];
     }
@@ -2400,6 +2402,24 @@ class TsExpr {
             case TConst(TNull): true;
             case _: false;
         };
+
+    /** True when the registered default renders as the null literal, making a `?? null` wrap a semantic no-op. */
+    function isNullDefault(d:DefaultArgExpander.DefaultArgValue):Bool
+        return switch (d) {
+            case VNull: true;
+            case VCoalescing(DefaultArgExpander.CoalescingDefaultValue.CNull): true;
+            case _: false;
+        };
+
+    /** True when an expression is provably non-null at runtime, so a `?? default` wrap is unreachable. */
+    function provablyNonNull(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TConst(TInt(_)) | TConst(TFloat(_)) | TConst(TString(_)) | TConst(TBool(_)): true;
+            case TNew(_, _, _) | TArrayDecl(_) | TObjectDecl(_): true;
+            case TIf(_, t, f) if (f != null): provablyNonNull(t) && provablyNonNull(f);
+            case _: false;
+        };
+    }
 
     function isNullType(t:Null<Type>):Bool
         return t != null && switch (t) {
