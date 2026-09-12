@@ -2123,6 +2123,12 @@ class KotlinExpr {
         arithmetic and assignment contexts. A proven subject takes `.`.
     **/
     function nullableAccess(subj:TypedExpr):String {
+        final renderedNullableLocal = switch (stripWrap(subj).expr) {
+            case TLocal(v): nullableRenderedLocals.exists(v.id);
+            case _: false;
+        };
+        if (renderedNullableLocal && !provenNonNull(subj) && !guardProofBefore(subj))
+            return "?.";
         if (isNullInitialized(subj))
             return "!!.";
         // The typer wraps an implicit Null<T> unwrap in TCast; the cast's
@@ -2130,7 +2136,7 @@ class KotlinExpr {
         // deciding.
         switch (subj.expr) {
             case TCast(inner, _) if (isNullType(inner.t) && !provenNonNull(inner)):
-                return "!!.";
+                return "?.";
             case _:
         }
         if (!provenNonNull(subj) && !guardProofBefore(subj) && !guardedNonNullTernary(subj)
@@ -2755,6 +2761,13 @@ class KotlinExpr {
                 return en.name + "." + ef.name;
             case FInstance(owner, _, cf):
                 final name = cf.get().name;
+                final methodOnNullableCast = switch (subj.expr) {
+                    case TCast(inner, _) if (!cf.get().kind.match(FVar(_, _)) && isNullType(inner.t)
+                        && !provenNonNull(inner) && !guardProofBefore(inner)): true;
+                    case _: false;
+                };
+                if (methodOnNullableCast)
+                    return expr(subj) + "?." + KotlinNameEscape.escape(name);
                 final getterProperty = getterOnlyPropertyName(owner.get(), name);
                 if (getterProperty != null)
                     return expr(subj) + nullableAccess(subj) + KotlinNameEscape.escape(getterProperty);
@@ -2790,7 +2803,16 @@ class KotlinExpr {
         // so the result type stays non-null; Haxe's typed AST types the field
         // read as non-null even when the receiver is Null<T>.
         final fieldType = cf != null ? cf.get().type : null;
-        final access = if (fieldType != null && !isNullType(fieldType) && isNullType(subj.t) && !provenNonNull(subj) && !guardProofBefore(subj)) {
+        // Nullable receivers call methods safely. A nullable receiver reading
+        // a non-null property still needs extraction so the property access
+        // keeps its declared Kotlin type. This distinction covers Null<T>
+        // toString calls without weakening ordinary field contracts.
+        final isProperty = cf != null && switch (cf.get().kind) {
+            case FVar(_, _): true;
+            case _: false;
+        };
+        final access = if (isProperty && fieldType != null && !isNullType(fieldType)
+            && isNullType(subj.t) && !provenNonNull(subj) && !guardProofBefore(subj)) {
             "!!.";
         } else {
             nullableAccess(subj);
@@ -3453,6 +3475,13 @@ class KotlinExpr {
                 return expr(subj) + ".length";
             case TField(subj, FInstance(owner, _, cf)):
                 final name = cf.get().name;
+                final methodOnNullableCast = switch (subj.expr) {
+                    case TCast(inner, _) if (!cf.get().kind.match(FVar(_, _)) && isNullType(inner.t)
+                        && !provenNonNull(inner) && !guardProofBefore(inner)): true;
+                    case _: false;
+                };
+                if (methodOnNullableCast && args.length == 0)
+                    return expr(subj) + "?." + KotlinNameEscape.escape(name) + "()";
                 final getterProperty = getterOnlyPropertyName(owner.get(), name);
                 if (getterProperty != null && args.length == 0)
                     return expr(subj) + nullableAccess(subj) + KotlinNameEscape.escape(getterProperty);
