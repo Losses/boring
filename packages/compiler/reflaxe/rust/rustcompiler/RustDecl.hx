@@ -2457,7 +2457,7 @@ class RustDecl {
 
     function isAllClone(fields:Array<ClassVarData>, root:Null<ClassType> = null):Bool {
         for (f in fields)
-            if (!f.isStatic && !isCloneTypeDepth(f.field.type, 0, root, state.sealedCloneInterfaces))
+            if (!f.isStatic && !isCloneTypeDepth(f.field.type, 0, root, state.sealedCloneInterfaces, null))
                 return false;
         return true;
     }
@@ -2468,7 +2468,7 @@ class RustDecl {
         the compiler pre-scan to decide whether a sealed interface's whole
         implementor set can take a Clone supertrait.
     **/
-    public static function isCloneableClass(cls:ClassType, sealedCloneInterfaces:Map<String, Bool>):Bool {
+    public static function isCloneableClass(cls:ClassType, sealedCloneInterfaces:Map<String, Bool>, selfIfaceKey:Null<String> = null):Bool {
         if (cls.params.length > 0)
             return false;
         for (f in cls.fields.get()) {
@@ -2477,17 +2477,17 @@ class RustDecl {
                     continue;
                 case _:
             }
-            if (!isCloneTypeDepth(f.type, 0, cls, sealedCloneInterfaces))
+            if (!isCloneTypeDepth(f.type, 0, cls, sealedCloneInterfaces, selfIfaceKey))
                 return false;
         }
         return true;
     }
 
     function isCloneType(t:Type):Bool {
-        return isCloneTypeDepth(t, 0, null, state.sealedCloneInterfaces);
+        return isCloneTypeDepth(t, 0, null, state.sealedCloneInterfaces, null);
     }
 
-    static function isCloneTypeDepth(t:Type, depth:Int, root:Null<ClassType>, sealedCloneInterfaces:Map<String, Bool>):Bool {
+    static function isCloneTypeDepth(t:Type, depth:Int, root:Null<ClassType>, sealedCloneInterfaces:Map<String, Bool>, selfIfaceKey:Null<String>):Bool {
         return switch (Context.follow(t)) {
             case TAbstract(a, params): // `follow` unwraps Null<T> but keeps plain abstracts, so
                 // ReadOnlyArray must recurse into its element type here.
@@ -2498,9 +2498,9 @@ class RustDecl {
                     true
                 else if (["Int", "Bool", "Float"].indexOf(a.get().name) >= 0
                     && params.length == 0) true
-                else if (a.get().name == "ReadOnlyArray" && params.length == 1 && isCloneTypeDepth(params[0], depth, root, sealedCloneInterfaces)) true
+                else if (a.get().name == "ReadOnlyArray" && params.length == 1 && isCloneTypeDepth(params[0], depth, root, sealedCloneInterfaces, selfIfaceKey)) true
                 else if ((a.get().name == "SortedSet" || a.get().name == "SortedMap") && params.length >= 1 && (function() {
-                        for (p in params) if (!isCloneTypeDepth(p, depth, root, sealedCloneInterfaces)) return false;
+                        for (p in params) if (!isCloneTypeDepth(p, depth, root, sealedCloneInterfaces, selfIfaceKey)) return false;
                         return true;
                     })()) true
                 else false;
@@ -2516,16 +2516,21 @@ class RustDecl {
                 // recursing to the depth cap.
                 if (root != null && cls.module == root.module && cls.name == root.name)
                     true
-                else if (cls.kind.match(KTypeParameter(_))) true else if (n == "String" || n == "SortedSet" || n == "SortedMap" || n == "StringBuf") true else if (n == "Array") params.length == 1 && isCloneTypeDepth(params[0], depth, root, sealedCloneInterfaces) else if (cls.isInterface)
-                    sealedCloneInterfaces.exists(cls.module + "::" + cls.name) else if (cls.meta.has(":dataClass"))
-                    dataClassFieldsAllClone(cls, depth, root, sealedCloneInterfaces) else plainClassAllClone(cls, depth, root, sealedCloneInterfaces);
+                else if (cls.kind.match(KTypeParameter(_))) true else if (n == "String" || n == "SortedSet" || n == "SortedMap" || n == "StringBuf") true else if (n == "SortedMapTable" || n == "SortedSetTable") (function() {
+                    // The resident sorted tables derive Clone when their
+                    // key and value params are Clone-capable.
+                    for (p in params) if (!isCloneTypeDepth(p, depth, root, sealedCloneInterfaces, selfIfaceKey)) return false;
+                    return true;
+                })() else if (n == "Array") params.length == 1 && isCloneTypeDepth(params[0], depth, root, sealedCloneInterfaces, selfIfaceKey) else if (cls.isInterface)
+                    sealedCloneInterfaces.exists(cls.module + "::" + cls.name) || (selfIfaceKey != null && selfIfaceKey == cls.module + "::" + cls.name) else if (cls.meta.has(":dataClass"))
+                    dataClassFieldsAllClone(cls, depth, root, sealedCloneInterfaces, selfIfaceKey) else plainClassAllClone(cls, depth, root, sealedCloneInterfaces, selfIfaceKey);
             case TFun(_):
                 true;
-            case TType(d, params): isCloneTypeDepth(haxe.macro.TypeTools.applyTypeParameters(d.get().type, d.get().params, params), depth, root, sealedCloneInterfaces);
+            case TType(d, params): isCloneTypeDepth(haxe.macro.TypeTools.applyTypeParameters(d.get().type, d.get().params, params), depth, root, sealedCloneInterfaces, selfIfaceKey);
             case TAnonymous(anon):
                 var all = true;
                 for (f in anon.get().fields)
-                    if (!isCloneTypeDepth(f.type, depth + 1, root, sealedCloneInterfaces))
+                    if (!isCloneTypeDepth(f.type, depth + 1, root, sealedCloneInterfaces, selfIfaceKey))
                         all = false;
                 all;
             case _: false;
@@ -2537,7 +2542,7 @@ class RustDecl {
         instance fields are Clone-capable; the depth cap keeps a cyclic
         alias chain from recursing forever.
     **/
-    static function dataClassFieldsAllClone(cls:ClassType, depth:Int, root:Null<ClassType>, sealedCloneInterfaces:Map<String, Bool>):Bool {
+    static function dataClassFieldsAllClone(cls:ClassType, depth:Int, root:Null<ClassType>, sealedCloneInterfaces:Map<String, Bool>, selfIfaceKey:Null<String>):Bool {
         if (depth > 8)
             return false;
         // `fields` lists instance members only; statics live on `statics`.
@@ -2547,7 +2552,7 @@ class RustDecl {
                     continue;
                 case _:
             }
-            if (!isCloneTypeDepth(f.type, depth + 1, root, sealedCloneInterfaces))
+            if (!isCloneTypeDepth(f.type, depth + 1, root, sealedCloneInterfaces, selfIfaceKey))
                 return false;
         }
         return true;
@@ -2560,7 +2565,7 @@ class RustDecl {
         array holding a plain-class value keeps the derive that the read-site
         `.clone()` calls depend on.
     **/
-    static function plainClassAllClone(cls:ClassType, depth:Int, root:Null<ClassType>, sealedCloneInterfaces:Map<String, Bool>):Bool {
+    static function plainClassAllClone(cls:ClassType, depth:Int, root:Null<ClassType>, sealedCloneInterfaces:Map<String, Bool>, selfIfaceKey:Null<String>):Bool {
         if (depth > 8)
             return false;
         // Only business classes join the plain-class descent; std/haxe
@@ -2575,7 +2580,7 @@ class RustDecl {
                     continue;
                 case _:
             }
-            if (!isCloneTypeDepth(f.type, depth + 1, root, sealedCloneInterfaces))
+            if (!isCloneTypeDepth(f.type, depth + 1, root, sealedCloneInterfaces, selfIfaceKey))
                 return false;
         }
         return true;
