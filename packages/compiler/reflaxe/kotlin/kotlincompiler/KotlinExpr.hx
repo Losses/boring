@@ -2242,6 +2242,9 @@ class KotlinExpr {
         // relies on; the later functionBody call re-scans harmlessly.
         scanLocals(f.expr);
         final saved = proofSnapshot();
+        final savedGuardPositions = activeNullGuardPositions;
+        activeNullGuardPositions = [];
+        scanNullGuards(f.expr);
         function collect(e:TypedExpr):Void {
             switch (e.expr) {
                 case TVar(v, init) if (init != null && !mutated.exists(v.id) && (!isNullType(init.t) || isNonNullNormalization(init))):
@@ -2271,6 +2274,7 @@ class KotlinExpr {
                                 final receiver = receiverBase(callee);
                                 if ((isNullType(receiver.t) || isNullableRenderedField(callReceiver))
                                     && !provenNonNull(receiver)
+                                    && !guardProofBefore(receiver)
                                     && !guardedNonNullTernary(receiver))
                                     found = true;
                             case TBinop(OpAdd, l, r):
@@ -2278,6 +2282,7 @@ class KotlinExpr {
                                 if ((isStringType(l.t) || isStringType(r.t))
                                     && (isNullType(receiver.t) || isNullableRenderedField(l))
                                     && !provenNonNull(receiver)
+                                    && !guardProofBefore(receiver)
                                     && !guardedNonNullTernary(receiver))
                                     found = true;
                             case _:
@@ -2294,7 +2299,40 @@ class KotlinExpr {
         }
         scan(f.expr);
         restoreProofs(saved);
+        activeNullGuardPositions = savedGuardPositions;
         return found;
+    }
+
+    /**
+        Records every null comparison in the body as a guard position, so
+        guardProofBefore observes the same dominating checks the renderer
+        holds while the body renders. A comparison inside a nested function
+        literal belongs to that literal, matching the scan boundary below.
+    **/
+    function scanNullGuards(root:TypedExpr):Void {
+        function walk(e:TypedExpr):Void {
+            switch (stripWrap(e).expr) {
+                case TFunction(_):
+                    return;
+                case TBinop(OpEq, l, r) | TBinop(OpNotEq, l, r):
+                    final subject = isNullExpr(l) ? r : (isNullExpr(r) ? l : null);
+                    if (subject != null)
+                        switch (stripWrap(subject).expr) {
+                            case TLocal(v):
+                                final p = Context.getPosInfos(e.pos);
+                                var entries = activeNullGuardPositions.get(v.id);
+                                if (entries == null) {
+                                    entries = [];
+                                    activeNullGuardPositions.set(v.id, entries);
+                                }
+                                entries.push({file: p.file, min: p.min, max: p.max});
+                            case _:
+                        }
+                case _:
+            }
+            TypedExprTools.iter(e, walk);
+        }
+        walk(root);
     }
 
     function receiverBase(e:TypedExpr):TypedExpr {
@@ -2320,9 +2358,14 @@ class KotlinExpr {
             case TIf(c, t, f) if (f != null): final guard = nullGuardLocal(c); // A proven guard decides the condition statically: the
                 // rendered branch is the guard itself (or a non-null
                 // default), so the ternary yields a non-null value.
-                guard != null && (nonNullLocals.exists(guard.id) || !isNullType(t.t) || provenNonNull(branchValue(t)));
+                guard != null && (nonNullLocals.exists(guard.id) || guardProofBefore(guardedLocalExpr(guard, c.pos)) || !isNullType(t.t) || provenNonNull(branchValue(t)));
             case _: false;
         };
+    }
+
+    /** A local as an expression, for guard-position proofs of its own name. */
+    function guardedLocalExpr(v:TVar, pos:haxe.macro.Expr.Position):TypedExpr {
+        return {expr: TLocal(v), pos: pos, t: v.t};
     }
 
     /** The value a branch contributes: a block stands for its last statement. */
