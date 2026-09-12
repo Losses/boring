@@ -64,8 +64,7 @@ class SwiftFallibility {
                     final cls = c.get();
                     final resident = RuntimeResidents.isResident(cls.module);
                     if (cls.isExtern
-                        || (!resident && !inScope(cls.pos))
-                        || (StringTools.endsWith(cls.name, "_Impl_") && ValueTypeSupport.markedAbstractOfClass(cls) == null)) {
+                        || (!resident && !inScope(cls.pos))) {
                         continue;
                     }
                     for (field in cls.statics.get()) {
