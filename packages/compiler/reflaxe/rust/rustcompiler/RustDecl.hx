@@ -1885,8 +1885,12 @@ class RustDecl {
                     lines.push(coalescing != null ? '            $sname: $sname,' : '            $sname: match $sname { Some(v) => Some(v.to_string()), None => None },');
                 } else if (isRecursiveClassField(cls, a.name)) {
                     final argType = types.of(a.type, false);
+                    // The iterator spec records no callback-driven call sites
+                    // in generated trees, so the optional box wrap renders as
+                    // a match.
                     lines.push(StringTools.startsWith(argType,
-                        "Option<") ? '            $sname: $sname.map(Box::new),' : '            $sname: Box::new($sname),');
+                        "Option<") ? '            $sname: match $sname { Some(v) => Some(Box::new(v)), None => None },'
+                        : '            $sname: Box::new($sname),');
                 } else {
                     final argTypeStr = types.of(a.type, false);
                     final fieldTypeStr = types.of(getFieldType(cls, a.name));
