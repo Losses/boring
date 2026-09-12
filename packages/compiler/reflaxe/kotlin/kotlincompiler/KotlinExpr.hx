@@ -2021,6 +2021,55 @@ class KotlinExpr {
     }
 
     /**
+        True when an instance field is emitted as a nullable Kotlin property
+        while its Haxe type is non-null. The primary constructor decides the
+        property type the same way `parameterText` does: a `Null<T>` argument
+        becomes nullable unless a registered default keeps the property plain,
+        and a required `Null<T>` argument keeps the field as a separate
+        non-null declaration. Member access on the nullable property needs the
+        safe call even though the Haxe field type is plain.
+    **/
+    function nullableRenderedField(cls:ClassType, field:ClassField):Bool {
+        if (isNullType(field.type))
+            return false;
+        final ctor = cls.constructor;
+        if (ctor == null)
+            return false;
+        final ctorField = ctor.get();
+        final args = switch (ctorField.type) {
+            case TFun(args, _): args;
+            case _: return false;
+        };
+        for (i in 0...args.length) {
+            final a = args[i];
+            if (a.name != field.name)
+                continue;
+            final registered = DefaultArgExpander.defaultAt(cls, ctorField.name, i);
+            // A required Null<T> argument keeps the field separate and plain.
+            if (isNullType(a.t) && registered == null)
+                return false;
+            final typeOverride = isNullType(a.t) ? field.type : null;
+            var parameterType = typeOverride != null ? typeOverride : (registered != null ? DefaultArgExpander.defaultParameterType(registered, a.t) : a.t);
+            if (registered != null && !isNullType(parameterType)) {
+                switch (registered) {
+                    case VNull: return true;
+                    case VCoalescing(value): return DefaultArgExpander.coalescingCanBeNull(value);
+                    case _:
+                }
+            }
+            return isNullType(parameterType);
+        }
+        return false;
+    }
+
+    function isNullableRenderedField(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TField(_, FInstance(c, _, cf)): nullableRenderedField(c.get(), cf.get());
+            case _: false;
+        };
+    }
+
+    /**
         The member-access separator rendered after a subject. A subject
         whose Haxe type is nullable takes `?.` until a dominating proof
         narrows it. A null-initialized subject declares a non-null Haxe
@@ -2040,7 +2089,8 @@ class KotlinExpr {
                 return "!!.";
             case _:
         }
-        if (isNullType(subj.t) && !provenNonNull(subj) && !guardProofBefore(subj) && !guardedNonNullTernary(subj))
+        if (!provenNonNull(subj) && !guardProofBefore(subj) && !guardedNonNullTernary(subj)
+            && (isNullType(subj.t) || isNullableRenderedField(subj)))
             return "?.";
         // A safe-navigation hop widens the value produced by the whole
         // receiver chain.  The typed AST records that widened intermediate
@@ -2080,7 +2130,7 @@ class KotlinExpr {
         while (true) {
             switch (current.expr) {
                 case TField(subject, _):
-                    if (isNullType(subject.t)) {
+                    if (isNullType(subject.t) || isNullableRenderedField(subject)) {
                         // A dominating condition can prove the chain root even
                         // when the intermediate field remains nullable in the
                         // typed AST.  Do not replace that proof with ?. on a
@@ -2115,6 +2165,8 @@ class KotlinExpr {
         if (isNullType(e.t) && !provenNonNull(e) && !guardProofBefore(e))
             return true;
         if (isNullInitialized(e))
+            return true;
+        if (isNullableRenderedField(e) && !provenNonNull(e) && !guardProofBefore(e))
             return true;
         final inner = stripWrap(e);
         // A cast/wrap may hide a nullable-typed inner expression; check the
@@ -2164,13 +2216,25 @@ class KotlinExpr {
                 case TReturn(inner):
                     if (inner != null) {
                         switch (stripWrap(inner).expr) {
-                            case TCall(subj, _):
-                                final receiver = receiverBase(subj);
-                                if (isNullType(receiver.t) && !provenNonNull(receiver) && !guardedNonNullTernary(receiver))
+                            case TCall(callee, _):
+                                // The callee names the called member; its subject
+                                // is the receiver whose separator decides whether
+                                // the call result is nullable.
+                                final callReceiver = switch (stripWrap(callee).expr) {
+                                    case TField(r, _) | TCall(r, _): r;
+                                    case _: callee;
+                                };
+                                final receiver = receiverBase(callee);
+                                if ((isNullType(receiver.t) || isNullableRenderedField(callReceiver))
+                                    && !provenNonNull(receiver)
+                                    && !guardedNonNullTernary(receiver))
                                     found = true;
                             case TBinop(OpAdd, l, r):
                                 final receiver = receiverBase(l);
-                                if ((isStringType(l.t) || isStringType(r.t)) && isNullType(receiver.t) && !provenNonNull(receiver) && !guardedNonNullTernary(receiver))
+                                if ((isStringType(l.t) || isStringType(r.t))
+                                    && (isNullType(receiver.t) || isNullableRenderedField(l))
+                                    && !provenNonNull(receiver)
+                                    && !guardedNonNullTernary(receiver))
                                     found = true;
                             case _:
                         }
@@ -3296,9 +3360,9 @@ class KotlinExpr {
                     return expr(subj) + nullableAccess(subj) + KotlinNameEscape.escape(getterProperty);
                 if (isString(subj)) {
                     if (name == "toLowerCase")
-                        return expr(subj) + ".lowercase()";
+                        return expr(subj) + nullableAccess(subj) + "lowercase()";
                     if (name == "toUpperCase")
-                        return expr(subj) + ".uppercase()";
+                        return expr(subj) + nullableAccess(subj) + "uppercase()";
                 }
                 if (name == "toChar" && isNullType(subj.t))
                     return "(" + expr(subj) + ")!!.toChar()";
