@@ -2034,7 +2034,7 @@ class KotlinExpr {
                 return "!!.";
             case _:
         }
-        if (isNullType(subj.t) && !provenNonNull(subj) && !guardProofBefore(subj))
+        if (isNullType(subj.t) && !provenNonNull(subj) && !guardProofBefore(subj) && !guardedNonNullTernary(subj))
             return "?.";
         // A safe-navigation hop widens the value produced by the whole
         // receiver chain.  The typed AST records that widened intermediate
@@ -2045,6 +2045,28 @@ class KotlinExpr {
         if (isNullType(subj.t))
             return "!!.";
         return ".";
+    }
+
+    /**
+        True when a ternary renders non-null because both arms render non-null
+        under the arm's own condition proof. Haxe joins a guarded nullable read
+        into a nullable type, while Kotlin's `if` expression smart-casts the
+        read and keeps the whole arm non-null. A method-call read is not a
+        stable value, so the arm stays nullable and this returns false.
+    **/
+    function guardedNonNullTernary(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TIf(c, t, f) if (f != null):
+                final base = proofSnapshot();
+                addProofs(conditionProofs(c).thenPath);
+                final thenNullable = rendersNullable(t);
+                restoreProofs(base);
+                addProofs(conditionProofs(c).elsePath);
+                final elseNullable = rendersNullable(f);
+                restoreProofs(base);
+                !thenNullable && !elseNullable;
+            case _: false;
+        };
     }
 
     function nullableChainHop(e:TypedExpr):Bool {
@@ -2137,10 +2159,12 @@ class KotlinExpr {
                     if (inner != null) {
                         switch (stripWrap(inner).expr) {
                             case TCall(subj, _):
-                                if (isNullType(receiverBase(subj).t) && !provenNonNull(receiverBase(subj)))
+                                final receiver = receiverBase(subj);
+                                if (isNullType(receiver.t) && !provenNonNull(receiver) && !guardedNonNullTernary(receiver))
                                     found = true;
                             case TBinop(OpAdd, l, r):
-                                if ((isStringType(l.t) || isStringType(r.t)) && isNullType(receiverBase(l).t) && !provenNonNull(receiverBase(l)))
+                                final receiver = receiverBase(l);
+                                if ((isStringType(l.t) || isStringType(r.t)) && isNullType(receiver.t) && !provenNonNull(receiver) && !guardedNonNullTernary(receiver))
                                     found = true;
                             case _:
                         }
