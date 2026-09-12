@@ -510,3 +510,5 @@ boring.FloatTernaryArmOps
 tests.FloatTernaryArmTests
 boring.ValueTypeCtorBindingOps
 tests.ValueTypeCtorBindingTests
+boring.RangeParameterOps
+tests.RangeParameterTests
