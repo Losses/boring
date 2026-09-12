@@ -4157,8 +4157,15 @@ class KotlinExpr {
         };
     }
 
+    /**
+        Math-module Float widening for Kotlin calls. Haxe unifies Int and
+        Float, so an Int-typed argument renders Int text while the
+        kotlin.math overload takes Float or Double; the argument widens.
+        Both the declared type and the emitted type are read because
+        unification may already type the expression Float.
+    */
     function kotlinMathFloatArg(a:TypedExpr):String {
-        if (!isIntOrLongType(a.t))
+        if (!isIntOrLongType(a.t) && !isIntOrLongType(emittedType(a)))
             return expr(a);
         return intToFloatText(expr(a));
     }
