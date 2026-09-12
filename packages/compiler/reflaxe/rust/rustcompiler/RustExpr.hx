@@ -314,6 +314,23 @@ class RustExpr {
 
     function coalescingStaticCallText(modulePath:String, className:String, methodName:String, args:Array<DefaultArgExpander.CoalescingDefaultValue>,
             targetType:Type):String {
+        if (modulePath == "std.SortedMap" && methodName == "builder") {
+            // The omitted map default carries its key and value types on
+            // the receiving parameter, so the builder binds the same
+            // comparator the direct call path binds (stdlib/07).
+            final followed = Context.follow(getNullInnerType(targetType));
+            final keyType = switch (followed) {
+                case TInst(_, params) if (params.length > 0): params[0];
+                case _: null;
+            };
+            final valueType = switch (followed) {
+                case TInst(_, params) if (params.length > 1): params[1];
+                case _: null;
+            };
+            imports.requireType("runtime.SortedTable", "SortedTable");
+            final comparator = sortedComparator(keyType, Context.currentPos());
+            return "SortedTable::sorted_table_map_builder::<" + types.of(keyType) + ", " + types.of(valueType) + ">(" + comparator + ")";
+        }
         if (modulePath == "std.SortedSet" && methodName == "builder") {
             imports.requireType("runtime.SortedTable", "SortedTable");
             return "SortedTable::sorted_table_set_builder(" + [for (a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
