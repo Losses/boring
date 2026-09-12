@@ -3684,12 +3684,7 @@ class SwiftExpr {
             // A value-type constructor is the abstract's `_new`; Haxe unifies
             // an Int argument with a Float representation, so widen it the
             // same way the `_new` call path does.
-            final widened = [
-                for (a in args) {
-                    final text = expr(a);
-                    isIntType(emittedType(a)) && ValueTypeSupport.isFloatRepresentation(valueType) ? intToFloatText(text) : text;
-                }
-            ];
+            final widened = constructorArgTexts(cls, args);
             return valueType.name + "(" + widened.join(", ") + ")";
         }
         final rendered = constructorArgTexts(cls, args).join(", ");
