@@ -115,6 +115,15 @@ class TsExpr {
     var currentLocalName:Null<String> = null;
     var currentFuncReturnsNullable:Bool = false;
 
+    /**
+        Variant switch arms narrow their subject to one variant; a nested
+        `Std.string(subject)` then re-checks `kind` against every variant,
+        which TypeScript flags as TS2367 (no overlap) and narrows the chain
+        tail to never (TS2339). Each active arm records the subject local id
+        and the variant name; the stringifier emits only that variant's arm.
+    **/
+    final narrowedVariants:Array<{id:Int, variant:String}> = [];
+
     public function new(imports:TsImports, types:TsType) {
         this.imports = imports;
         this.types = types;
@@ -1672,9 +1681,17 @@ class TsExpr {
     function payloadEnumString(en:EnumType, value:String, inConcat:Bool, origin:TypedExpr):String {
         final fields = [for (ef in en.constructs) ef];
         fields.sort((a, b) -> Reflect.compare(a.index, b.index));
+        // A switch arm has already narrowed the value to one variant; a full
+        // `kind ===` chain would compare the narrowed literal against every
+        // other variant (TS2367) and narrow the tail to never (TS2339).
+        // Emit only the active variant's arm.
+        final narrowed = narrowedVariantFor(origin);
         var out = "";
+        var emitted = false;
         for (i in 0...fields.length) {
             final ef = fields[i];
+            if (narrowed != null && ef.name != narrowed)
+                continue;
             final args = switch (ef.type) {
                 case TFun(a, _): a;
                 case _: [];
@@ -1692,7 +1709,8 @@ class TsExpr {
                         + stdStringType(args[j].t, "(" + value + " as " + ef.name + ")." + args[j].name, true, origin, 0);
                 arm = "(" + body + ' + ")")';
             }
-            out = i == 0 ? arm : value + '.kind === "${ef.name}" ? ${arm} : ${out}';
+            out = emitted ? value + '.kind === "${ef.name}" ? ${arm} : ${out}' : arm;
+            emitted = true;
         }
         return out;
     }
@@ -2924,6 +2942,34 @@ class TsExpr {
         return out.join("\n");
     }
 
+    /** Records the variant a switch arm narrows its subject to. */
+    function pushNarrowedVariant(subject:TypedExpr, variant:String):Void {
+        switch (stripWrap(subject).expr) {
+            case TLocal(v):
+                narrowedVariants.push({id: v.id, variant: variant});
+            case _:
+        }
+    }
+
+    function popNarrowedVariant():Void {
+        if (narrowedVariants.length > 0)
+            narrowedVariants.pop();
+    }
+
+    /** The variant an expression is narrowed to by an enclosing switch arm, or null. */
+    function narrowedVariantFor(e:TypedExpr):Null<String> {
+        switch (stripWrap(e).expr) {
+            case TLocal(v):
+                for (i in 0...narrowedVariants.length) {
+                    final n = narrowedVariants[narrowedVariants.length - 1 - i];
+                    if (n.id == v.id)
+                        return n.variant;
+                }
+            case _:
+        }
+        return null;
+    }
+
     function switchReturn(sw:TypedExpr, depth:Int):Array<String> {
         sw = stripWrap(sw);
         final switchParts = switch (sw.expr) {
@@ -2948,6 +2994,7 @@ class TsExpr {
                 return fail(sw, "variant switch case index has no construct");
             }
             out.push(indent(depth) + '  case "${info.name}":');
+            pushNarrowedVariant(se, info.name);
             if (armHasDeclarations(c.expr)) {
                 out.push(indent(depth + 1) + "{");
                 for (l in armLines(c.expr, depth + 2))
@@ -2957,6 +3004,7 @@ class TsExpr {
                 for (l in armLines(c.expr, depth + 2))
                     out.push(l);
             }
+            popNarrowedVariant();
         }
         if (switchParts.def != null) {
             out.push(indent(depth) + "  default:");
