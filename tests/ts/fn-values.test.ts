@@ -44,14 +44,14 @@ describe("first-class function value generated trees", () => {
 
   test("Rust uses one boxed representation and adapts indirect lengths", () => {
     const rust = read("reference/rust-gen/src/boring/fn_values_ops.rs");
-    expect(rust).toContain("pub style_at: Rc<dyn Fn(u32) -> String>");
+    expect(rust).toContain("pub style_at: Arc<dyn Fn(u32) -> String>");
     expect(rust).toContain("pub resolver: Box<dyn NameResolver>");
-    expect(rust).toContain("pub fn new(style_at: Rc<dyn Fn(u32) -> String>, resolver: Box<dyn NameResolver>)");
-    expect(rust).toContain("pub fn apply_picker(values: &Vec<String>, pick: Rc<dyn Fn(u32) -> String>)");
+    expect(rust).toContain("pub fn new(style_at: Arc<dyn Fn(u32) -> String>, resolver: Box<dyn NameResolver>)");
+    expect(rust).toContain("pub fn fn_values_ops_apply_picker(values: &Vec<String>, pick: Arc<dyn Fn(u32) -> String>)");
     expect(rust).toContain("return pick(u32::wrapping_sub(u32::try_from((values.len()) & 0xFFFF_FFFF).unwrap_or(0), 1));");
-    expect(rust).toContain("pub fn make_prefixer(prefix: &str) -> Rc<dyn");
-    expect(rust).toContain("Rc::new(move |suffix|");
-    expect(rust).toContain("pub static DEFAULT_TAG: fn(i32) -> String =");
+    expect(rust).toContain("pub fn fn_values_ops_make_prefixer(prefix: &str) -> Arc<dyn");
+    expect(rust).toContain("Arc::new(move |suffix|");
+    expect(rust).toContain("pub static FN_VALUES_OPS_DEFAULT_TAG: fn(i32) -> String =");
     expect(rust).not.toMatch(/(?:style_at|resolver): NameResolver/);
 
     const rustTests = read("reference/rust-gen/src/tests/fn_values_tests.rs");
@@ -60,10 +60,10 @@ describe("first-class function value generated trees", () => {
 
   test("Rust's f32 tree carries the same function-value lowering", () => {
     const rust = read("reference/rust-f32-gen/src/boring/fn_values_ops.rs");
-    expect(rust).toContain("Rc<dyn Fn(u32) -> String>");
+    expect(rust).toContain("Arc<dyn Fn(u32) -> String>");
     expect(rust).toContain("Box<dyn NameResolver>");
-    expect(rust).toContain("Rc::new(move |suffix|");
-    expect(rust).toContain("pub static DEFAULT_TAG: fn(i32) -> String =");
+    expect(rust).toContain("Arc::new(move |suffix|");
+    expect(rust).toContain("pub static FN_VALUES_OPS_DEFAULT_TAG: fn(i32) -> String =");
     expect(rust).toContain("u32::wrapping_sub(u32::try_from((values.len()) & 0xFFFF_FFFF).unwrap_or(0), 1)");
   });
 });

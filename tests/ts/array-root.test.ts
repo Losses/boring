@@ -23,8 +23,8 @@ describe("small static array initializer trees", () => {
     );
 
     const rust = read("reference/rust-gen/src/boring/array_root_state_ops.rs");
-    expect(rust).toMatch(/pub static READ_ONLY_INTS: \[(?:u32|i32); 3\] = \[10, 20, 30\];/);
-    expect(rust).toContain("pub static MUTABLE_INTS: [u32; 2] = [40, 50];");
+    expect(rust).toMatch(/pub static ARRAY_ROOT_STATE_OPS_READ_ONLY_INTS: \[(?:u32|i32); 3\] = \[10, 20, 30\];/);
+    expect(rust).toContain("pub static ARRAY_ROOT_STATE_OPS_MUTABLE_INTS: [u32; 2] = [40, 50];");
     expect(rust).toContain("LazyLock<Vec<String>>");
     expect(rust).toContain("LazyLock<Vec<ArrayRootKind>>");
     expect(rust).toContain("LazyLock::new");
