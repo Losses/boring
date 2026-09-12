@@ -801,6 +801,12 @@ class RustExpr {
                     nullableType = ": " + types.of(v.t, false);
                 initStr = renderValueForType(v.t, init, initStr);
                 switch (stripWrap(init).expr) {
+                    case TIf(cond, _, _) if (nullGuardOf(cond) != null):
+                        // A null-coalescing ternary initializer materializes
+                        // the inner value into the local, so later reads of
+                        // the local must not re-apply the as_ref forcing read.
+                        // Covers NullableCallOps2.normalizedToStringResult.
+                        nullableCollapsedLocals.set(v.id, true);
                     case TField(subj, FInstance(_, _, cf)) | TField(subj, FAnon(cf)):
                         switch (stripWrap(subj).expr) {
                             case TLocal(item) if ((borrowedLoopVarIds.exists(item.id) || readsAfterDeclaration.exists(item.id))
