@@ -2596,7 +2596,15 @@ class RustExpr {
                         + rendered
                         + ")" : rendered;
                 }
-            case _: wrapperName + "(" + expr(value) + ")";
+            case _:
+                // A value-type constructor whose representation is Float can
+                // receive an Int after Haxe's numeric unification. The Rust
+                // tuple struct stores the module real, so convert this
+                // representation boundary explicitly.
+                final valueText = ValueTypeSupport.isFloatRepresentation(abs) && isIntType(emittedType(value))
+                    ? intToFloatText(expr(value))
+                    : expr(value);
+                wrapperName + "(" + valueText + ")";
         };
     }
 
