@@ -3294,11 +3294,16 @@ class RustExpr {
 
     // A nullable receiver calls its method on the inner value. Mutable
     // collection mutations (push, put, shift, ...) borrow the inner storage
-    // mutably; reads borrow it immutably.
+    // mutably; reads borrow it immutably. Some Haxe Null<T> types are emitted
+    // as a plain Rust struct without an Option<T> wrapper, so only unwrap an
+    // actual Rust fallible wrapper.
     function nullableMethodReceiver(subj:TypedExpr, mutable:Bool):String {
         if (!isNullType(subj.t))
             return expr(subj);
         final base = expr(subj);
+        final rustType = types.of(subj.t, false);
+        if (!StringTools.startsWith(rustType, "Option<") && !StringTools.startsWith(rustType, "Result<"))
+            return base;
         return mutable ? "(" + base + ").as_mut().unwrap()" : "(" + base + ").as_ref().unwrap()";
     }
 
