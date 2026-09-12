@@ -3446,7 +3446,10 @@ class KotlinExpr {
                 if (arrayReceiver) {
                     switch (name) {
                         case "push": return expr(subj) + ".add(" + renderedArgs + ")";
-                        case "join": return expr(subj) + ".joinToString(" + renderedArgs + ")";
+                        // No join case here. Context.follow unwraps Null on a
+                        // reference array type, so a nullable array receiver
+                        // reaches this branch. The general join handler below
+                        // keeps the safe call for that receiver.
                         case "concat": return "(" + expr(subj) + " + " + renderedArgs + ").toMutableList()";
                         case "copy": return expr(subj) + ".toMutableList()";
                         case "pop": return "if (" + expr(subj) + ".isEmpty()) null else " + expr(subj) + ".removeAt(" + expr(subj) + ".lastIndex)";
