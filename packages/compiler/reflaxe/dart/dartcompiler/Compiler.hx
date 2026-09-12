@@ -499,12 +499,16 @@ class Compiler extends PluginCompiler<Compiler> {
             final runtimeSource = GENERATED_HEADER + "\nimport 'dart:typed_data';\n" + StringTools.trim(DartRuntime.SOURCE) + "\n"
                 + residentParts.join("\n\n") + "\n";
             PackageArtifacts.saveTreeFile(output, RuntimeConfig.emitPath(emitDir, "runtime.dart"), runtimeSource);
-            if (anyRuntimeTestUsed()) {
-                // The test host holds the failure type, the runner state,
-                // and the stdout edge; TestCore compiles through the
-                // normal pipeline and appends here. The runtime import is
-                // prepended by hand because its relative path depends on
-                // the two output defines.
+            // The test host holds the failure type, the runner state, and
+            // the stdout edge; TestCore compiles through the normal
+            // pipeline and appends here. It is emitted whenever the test
+            // runner is: main.dart imports and calls test_host.run for
+            // every entry, even when no generated module references
+            // TestCore directly (a consumer's traced assertions lower to
+            // plain top-level fails).
+            if (testEntries.length > 0 || anyRuntimeTestUsed()) {
+                // The runtime import is prepended by hand because its
+                // relative path depends on the two output defines.
                 final testResidentParts:Array<String> = [];
                 for (resident in RuntimeResidents.TEST_MODULES) {
                     final moduleParts = parts.get(resident);
