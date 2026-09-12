@@ -3451,19 +3451,18 @@ class KotlinExpr {
                 }
                 if (KotlinTestBinding.isTestExtern(cls)) {
                     if (name == "equals") {
-                        final renderedTestArgs = renderCallArgs(args, paramsForCall(fn));
-                        final expectedArg = renderedTestArgs[0];
-                        final actualArg = renderedTestArgs[1];
-                        final msgArg = args.length > 2 ? renderedTestArgs[2] : null;
-                        if (isScalarType(args[0].t)) {
+                        final expectedArg = args[0];
+                        final actualArg = args[1];
+                        final msgArg = args.length > 2 ? expr(args[2]) : null;
+                        if (isScalarType(expectedArg.t)) {
                             final runtimePackage = RuntimeConfig.requireImportName("module test extern");
                             state.shimsUsed.set(RuntimeResidents.externsOf("runtime.TestCore")[0], true);
                             imports.require(runtimePackage + ".test.Test");
-                            return "Test.equals(" + expectedArg + ", " + actualArg + (msgArg != null ? ", " + msgArg : "") + ")";
+                            return "Test.equals(" + expr(expectedArg) + ", " + expr(actualArg) + (msgArg != null ? ", " + msgArg : "") + ")";
                         } else {
-                            recordAggregateType(args[0].t);
+                            recordAggregateType(expectedArg.t);
                             imports.require("tests.TestHelper");
-                            return "TestHelper.assertEquals(" + expectedArg + ", " + actualArg + (msgArg != null ? ", " + msgArg : "") + ")";
+                            return "TestHelper.assertEquals(" + expr(expectedArg) + ", " + expr(actualArg) + (msgArg != null ? ", " + msgArg : "") + ")";
                         }
                     }
                 }
@@ -3549,7 +3548,8 @@ class KotlinExpr {
         } else if (registered != null && expected != null && isNullType(a.t)) {
             return "(" + text + " ?: " + defaultArgText(registered, expected) + ")";
         } else if (expected != null && !isNullType(expected) &&
-            ((isNullType(a.t) && !provenNonNull(a) && !guardProofBefore(a)) || (PolicyQueries.isNullableType(a.t) && !provenNonNull(a) && !guardProofBefore(a)) || isNullInitialized(a) || nullableChainHop(a))) {
+            ((PolicyQueries.isNullableType(a.t) && !provenNonNull(a) && !guardProofBefore(a)) || isNullInitialized(a) || nullableChainHop(a))) {
+            if (!isNullInitialized(a))
                 addProofExpr(a);
             if (provenNonNull(a) || guardProofBefore(a))
                 return text + "!!";
@@ -3581,7 +3581,8 @@ class KotlinExpr {
                 } else if (registered != null && expected != null && isNullType(a.t)) {
                     "(" + text + " ?: " + constructorDefaultText(registered, expected, cls, args) + ")";
                 } else if (expected != null && !isNullType(expected) &&
-                    ((isNullType(a.t) && !provenNonNull(a) && !guardProofBefore(a)) || (PolicyQueries.isNullableType(a.t) && !provenNonNull(a) && !guardProofBefore(a)) || isNullInitialized(a) || nullableChainHop(a))) {
+                    ((PolicyQueries.isNullableType(a.t) && !provenNonNull(a) && !guardProofBefore(a)) || isNullInitialized(a) || nullableChainHop(a))) {
+                    if (!isNullInitialized(a))
                         addProofExpr(a);
                     if (provenNonNull(a) || guardProofBefore(a))
                         text + "!!";
