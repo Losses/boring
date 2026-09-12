@@ -56,7 +56,18 @@ class BytesBuffer {
 }
 ";
 
-    public static final FP_HELPER_SOURCE = "class Int64Halves(val high: Int, val low: Int)
+    public static function fpHelperSource():String {
+        // The binary32 value edges follow the module real of the
+        // compilation (feature spec 23): Haxe Float is binary32 under
+        // float-precision=f32 and binary64 otherwise, but floatToI32 and
+        // i32ToFloat always operate on the binary32 bit pattern. The f32
+        // configuration passes the Float real directly; the f64
+        // configuration passes the widened Double and narrows through
+        // Float for the bit conversion, matching the Haxe std
+        // implementation which rounds to binary32 before reading the bits.
+        final real = FloatPrecision.isF32() ? "Float" : "Double";
+        final i32ToFloatBody = FloatPrecision.isF32() ? "Float.fromBits(value)" : "Float.fromBits(value).toDouble()";
+        return StringTools.replace(StringTools.replace("class Int64Halves(val high: Int, val low: Int)
 
 object FPHelper {
     fun doubleToI64(value: Double): Int64Halves {
@@ -75,14 +86,13 @@ object FPHelper {
 
     // Binary32 variants of the two value edges: the same 8 wire bytes
     // decode to the f64 value, then round once to the module real; the
-    // reverse widens losslessly before the bit conversion. Only the
-    // float-precision=f32 lane references them (feature spec 23).
+    // reverse widens losslessly before the bit conversion (feature spec 23).
     fun i64ToF32(low: Int, high: Int): Float {
         return i64ToDouble(low, high).toFloat()
     }
 
-    fun floatToI32(value: Float): Int = value.toRawBits()
-    fun i32ToFloat(value: Int): Float = Float.fromBits(value)
+    fun floatToI32(value: __REAL__): Int = value.toFloat().toRawBits()
+    fun i32ToFloat(value: Int): __REAL__ = __I32TOFLOAT__
 
     fun f32ToI64(value: Float): Int64Halves {
         return doubleToI64(value.toDouble())
@@ -119,7 +129,8 @@ object FPHelper {
     }
 }
 
-";
+", "__REAL__", real), "__I32TOFLOAT__", i32ToFloatBody);
+    }
 
     public static final CONSOLE_SOURCE = "object Console {
     fun log(message: String) {
