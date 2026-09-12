@@ -870,6 +870,11 @@ class DartDecl {
         for (a in f.args) {
             expr.reserveName(a.name);
         }
+        // Scoped names must be assigned before the parameter list renders:
+        // a parameter colliding with a top-level function or an import
+        // prefix renames in the body, and the signature must use the same
+        // name. functionBody re-runs the assignment, which is idempotent.
+        expr.assignScopedLocalNames(f);
         final methodParams = collectMethodTypeParams(cls, f);
         final genericStr = methodParams.length > 0 ? "<" + methodParams.join(", ") + ">" : "";
         // A private function renders under its `_`-prefixed Dart name
@@ -901,6 +906,9 @@ class DartDecl {
             for (a in f.args) {
                 expr.reserveName(a.name);
             }
+            // Scoped names must precede the parameter list so a colliding
+            // parameter renames in both the signature and the body.
+            expr.assignScopedLocalNames(f);
             final methodParams = collectMethodTypeParams(cls, f);
             final genericStr = methodParams.length > 0 ? "<" + methodParams.join(", ") + ">" : "";
             final name = dartMemberName(f.field);

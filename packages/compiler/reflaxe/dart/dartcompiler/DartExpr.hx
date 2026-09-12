@@ -3920,7 +3920,7 @@ class DartExpr {
         return PolicyQueries.mentionsLocal(e, v);
     }
 
-    function assignScopedLocalNames(f:ClassFuncData):Void {
+    public function assignScopedLocalNames(f:ClassFuncData):Void {
         scopedLocalNames.clear();
         scopedNameCounts.clear();
         for (a in f.args) {
