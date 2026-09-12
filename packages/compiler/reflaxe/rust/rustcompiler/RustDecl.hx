@@ -229,7 +229,7 @@ class RustDecl {
             && !StaticFieldHelper.hasSelfConstructionStatic(cls)
             && !cls.meta.has(":dataClass")
             && cls.module.indexOf("registry.") != 0
-            && isAllClone(varFields)
+            && isAllClone(varFields, cls)
             && classParams.length == 0) {
             lines.push("#[derive(Clone)]");
         }
@@ -244,7 +244,7 @@ class RustDecl {
         final isSortedTableResident = cls.module == "runtime.SortedTable"
             && (cls.name == "SortedMapTable" || cls.name == "SortedSetTable");
         if ((StaticFieldHelper.hasSelfConstructionStatic(cls) || cls.meta.has(":dataClass") || classParams.length > 0 || isSortedTableResident)
-            && (isAllClone(varFields) || isSortedTableResident)) {
+            && (isAllClone(varFields, cls) || isSortedTableResident)) {
             lines.push(isAllPartialEq(varFields) ? "#[derive(Clone, PartialEq)]" : "#[derive(Clone)]");
         }
         if (cls.module.indexOf("registry.") == 0) {
@@ -2408,18 +2408,18 @@ class RustDecl {
         }
     }
 
-    function isAllClone(fields:Array<ClassVarData>):Bool {
+    function isAllClone(fields:Array<ClassVarData>, root:Null<ClassType> = null):Bool {
         for (f in fields)
-            if (!f.isStatic && !isCloneType(f.field.type))
+            if (!f.isStatic && !isCloneTypeDepth(f.field.type, 0, root))
                 return false;
         return true;
     }
 
     function isCloneType(t:Type):Bool {
-        return isCloneTypeDepth(t, 0);
+        return isCloneTypeDepth(t, 0, null);
     }
 
-    function isCloneTypeDepth(t:Type, depth:Int):Bool {
+    function isCloneTypeDepth(t:Type, depth:Int, root:Null<ClassType>):Bool {
         return switch (Context.follow(t)) {
             case TAbstract(a, params): // `follow` unwraps Null<T> but keeps plain abstracts, so
                 // ReadOnlyArray must recurse into its element type here.
@@ -2430,9 +2430,9 @@ class RustDecl {
                     true
                 else if (["Int", "Bool", "Float"].indexOf(a.get().name) >= 0
                     && params.length == 0) true
-                else if (a.get().name == "ReadOnlyArray" && params.length == 1 && isCloneTypeDepth(params[0], depth)) true
+                else if (a.get().name == "ReadOnlyArray" && params.length == 1 && isCloneTypeDepth(params[0], depth, root)) true
                 else if ((a.get().name == "SortedSet" || a.get().name == "SortedMap") && params.length >= 1 && (function() {
-                        for (p in params) if (!isCloneTypeDepth(p, depth)) return false;
+                        for (p in params) if (!isCloneTypeDepth(p, depth, root)) return false;
                         return true;
                     })()) true
                 else false;
@@ -2443,18 +2443,20 @@ class RustDecl {
             case TInst(c, params):
                 final cls = c.get();
                 final n = cls.name;
-                // A type parameter carries the Clone bound the generic
-                // impl block puts on every class parameter, and a function
-                // type lowers to an Rc closure, which is always Clone.
-                if (cls.kind.match(KTypeParameter(_))) true else if (n == "String" || n == "SortedSet" || n == "SortedMap" || n == "StringBuf") true else if (n == "Array") params.length == 1 && isCloneTypeDepth(params[0], depth) else if (cls.isInterface) false else if (cls.meta.has(":dataClass"))
-                    dataClassFieldsAllClone(cls, depth) else plainClassAllClone(cls, depth);
+                // A recursive self-reference lowers to Box<Self>, which is
+                // always Clone, so it keeps the owner's derive without
+                // recursing to the depth cap.
+                if (root != null && cls.module == root.module && cls.name == root.name)
+                    true
+                else if (cls.kind.match(KTypeParameter(_))) true else if (n == "String" || n == "SortedSet" || n == "SortedMap" || n == "StringBuf") true else if (n == "Array") params.length == 1 && isCloneTypeDepth(params[0], depth, root) else if (cls.isInterface) false else if (cls.meta.has(":dataClass"))
+                    dataClassFieldsAllClone(cls, depth, root) else plainClassAllClone(cls, depth, root);
             case TFun(_):
                 true;
-            case TType(d, params): isCloneTypeDepth(haxe.macro.TypeTools.applyTypeParameters(d.get().type, d.get().params, params), depth);
+            case TType(d, params): isCloneTypeDepth(haxe.macro.TypeTools.applyTypeParameters(d.get().type, d.get().params, params), depth, root);
             case TAnonymous(anon):
                 var all = true;
                 for (f in anon.get().fields)
-                    if (!isCloneTypeDepth(f.type, depth + 1))
+                    if (!isCloneTypeDepth(f.type, depth + 1, root))
                         all = false;
                 all;
             case _: false;
@@ -2466,7 +2468,7 @@ class RustDecl {
         instance fields are Clone-capable; the depth cap keeps a cyclic
         alias chain from recursing forever.
     **/
-    function dataClassFieldsAllClone(cls:ClassType, depth:Int):Bool {
+    function dataClassFieldsAllClone(cls:ClassType, depth:Int, root:Null<ClassType>):Bool {
         if (depth > 8)
             return false;
         // `fields` lists instance members only; statics live on `statics`.
@@ -2476,7 +2478,7 @@ class RustDecl {
                     continue;
                 case _:
             }
-            if (!isCloneTypeDepth(f.type, depth + 1))
+            if (!isCloneTypeDepth(f.type, depth + 1, root))
                 return false;
         }
         return true;
@@ -2489,7 +2491,7 @@ class RustDecl {
         array holding a plain-class value keeps the derive that the read-site
         `.clone()` calls depend on.
     **/
-    function plainClassAllClone(cls:ClassType, depth:Int):Bool {
+    function plainClassAllClone(cls:ClassType, depth:Int, root:Null<ClassType>):Bool {
         if (depth > 8)
             return false;
         // Only business classes join the plain-class descent; std/haxe
@@ -2504,7 +2506,7 @@ class RustDecl {
                     continue;
                 case _:
             }
-            if (!isCloneTypeDepth(f.type, depth + 1))
+            if (!isCloneTypeDepth(f.type, depth + 1, root))
                 return false;
         }
         return true;
