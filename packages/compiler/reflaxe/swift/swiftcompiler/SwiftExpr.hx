@@ -1744,8 +1744,16 @@ class SwiftExpr {
                     && field.name == currentField ? abs.name + "(" + rendered + ")" : rendered;
                 }
             case _:
-                final text = expr(value);
-                abs.name + "(" + (isIntType(emittedType(value)) && ValueTypeSupport.isFloatRepresentation(abs) ? intToFloatText(text) : text) + ")";
+                // An inline wrapper constructor binds its argument to a local
+                // named after the parameter; that binding is a synthetic local
+                // of the wrapper block, so the representation value resolves
+                // through it exactly like a binary operator operand.
+                final resolved = switch (stripWrap(value).expr) {
+                    case TLocal(v) if (locals.exists(v.id)): locals.get(v.id);
+                    case _: value;
+                };
+                final text = optionalExpr(resolved);
+                abs.name + "(" + (isIntType(emittedType(resolved)) && ValueTypeSupport.isFloatRepresentation(abs) ? intToFloatText(text) : text) + ")";
         };
     }
 
