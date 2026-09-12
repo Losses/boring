@@ -766,8 +766,11 @@ class DartDecl {
     }
 
     // @:allow members use a public Dart name so allowed cross-library references compile.
+    // Dart's Object.hashCode is a getter, so a source method with that name
+    // must use a distinct Dart member name to avoid a method and getter clash.
     static function dartMemberName(field:ClassField):String {
-        return field.isPublic || field.meta.has(":allow") ? field.name : "_" + field.name;
+        final base = field.name == "hashCode" ? "hashCodeValue" : field.name;
+        return field.isPublic || field.meta.has(":allow") ? base : "_" + base;
     }
 
     static function isFunctionType(t:Null<Type>):Bool {
