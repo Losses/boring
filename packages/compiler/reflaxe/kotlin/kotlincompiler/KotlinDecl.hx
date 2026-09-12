@@ -1197,7 +1197,12 @@ class KotlinDecl {
         // A body whose returns call a method on an unproven nullable receiver
         // renders with the safe-call form, so the kotlin result is nullable
         // even though the Haxe signature is not; widen the rendered return.
-        if (expr.bodyUsesSafeCallReturns(f) && !StringTools.endsWith(retType, "?"))
+        // An interface method has a fixed Kotlin return contract. Its Haxe
+        // body may contain a nullable receiver whose fallback is proven
+        // non-null by the expression renderer, so widening the override
+        // would violate Kotlin's invariant return type rule.
+        final mayWidenSafeCallReturn = !isInterfaceMethod(cls, f);
+        if (mayWidenSafeCallReturn && expr.bodyUsesSafeCallReturns(f) && !StringTools.endsWith(retType, "?"))
             retType = retType + "?";
         final ret = retType == "Unit" ? "" : ": " + retType;
         // Zero-argument toString and hashCode override kotlin.Any's members;
