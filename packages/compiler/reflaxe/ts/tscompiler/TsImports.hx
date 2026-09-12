@@ -115,7 +115,17 @@ class TsImports {
             runtime(name);
             return;
         }
-        if (module == selfModule || module == "Math" || module == "String" || module == "Std" || module == "haxe.Int64" || module == "haxe.Exception" || module == "haxe.io.Bytes"
+        if (module == selfModule) {
+            // A same-module extern (e.g. a private @:jsRequire class used
+            // by a sibling in the same file) needs its binding appended to
+            // this module's own file. The early return below would drop the
+            // note and leave the reference name unbound.
+            if (into == valueNames) {
+                ExternBindings.note(module, name);
+            }
+            return;
+        }
+        if (module == "Math" || module == "String" || module == "Std" || module == "haxe.Int64" || module == "haxe.Exception" || module == "haxe.io.Bytes"
             || runtimeProvidedModules.exists(module)) {
             return;
         }
