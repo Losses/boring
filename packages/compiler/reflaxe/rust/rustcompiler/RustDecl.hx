@@ -86,8 +86,11 @@ class RustDecl {
         final emittedName = RustImports.emittedTypeName(cls.name);
         if (cls.isInterface) {
             final lines:Array<String> = [];
+            final isCloneIface = state.sealedCloneInterfaces.exists(cls.module + "::" + cls.name);
             lines.push("pub trait " + emittedName + " {");
             lines.push("    fn __haxe_type_name(&self) -> &'static str;");
+            if (isCloneIface)
+                lines.push("    fn clone_box(&self) -> Box<dyn " + emittedName + ">;");
             for (f in funcFields) {
                 final paramList = [
                     for (a in f.args)
@@ -109,6 +112,14 @@ class RustDecl {
                 lines.push('    fn ${RustImports.toSnakeCase(f.field.name)}$methodGenericStr($selfPrefix$paramList)$ret;');
             }
             lines.push("}");
+            if (isCloneIface) {
+                lines.push("");
+                lines.push("impl Clone for Box<dyn " + emittedName + "> {");
+                lines.push('    fn clone(&self) -> Self {');
+                lines.push("        self.clone_box()");
+                lines.push("    }");
+                lines.push("}");
+            }
             return lines.join("\n");
         }
 
@@ -317,11 +328,18 @@ class RustDecl {
             // here, exactly like a field-type reference does; a
             // same-module interface needs no import.
             imports.requireType(ifaceCls.module, ifaceCls.name);
+            final ifaceCloneable = state.sealedCloneInterfaces.exists(ifaceCls.module + "::" + ifaceCls.name);
             lines.push("\nimpl" + implGenerics + " " + ifaceCls.name + " for " + cls.name + genericStr + " {");
             lines.push('    fn __haxe_type_name(&self) -> &\'static str {');
             lines.push('        "${cls.module}.${cls.name}"');
             lines.push("    }");
             var ifaceSep = false;
+            if (ifaceCloneable) {
+                lines.push('    fn clone_box(&self) -> Box<dyn ${ifaceCls.name}> {');
+                lines.push('        Box::new(self.clone())');
+                lines.push("    }");
+                ifaceSep = true;
+            }
             for (f in ordinaryFuncs) {
                 if (f.field.name == "new")
                     continue;
@@ -2439,16 +2457,37 @@ class RustDecl {
 
     function isAllClone(fields:Array<ClassVarData>, root:Null<ClassType> = null):Bool {
         for (f in fields)
-            if (!f.isStatic && !isCloneTypeDepth(f.field.type, 0, root))
+            if (!f.isStatic && !isCloneTypeDepth(f.field.type, 0, root, state.sealedCloneInterfaces))
                 return false;
         return true;
     }
 
-    function isCloneType(t:Type):Bool {
-        return isCloneTypeDepth(t, 0, null);
+    /**
+        Whether a class lowers to a struct that derives Clone: every instance
+        field is Clone-capable and the class carries no class params. Used by
+        the compiler pre-scan to decide whether a sealed interface's whole
+        implementor set can take a Clone supertrait.
+    **/
+    public static function isCloneableClass(cls:ClassType, sealedCloneInterfaces:Map<String, Bool>):Bool {
+        if (cls.params.length > 0)
+            return false;
+        for (f in cls.fields.get()) {
+            switch (f.kind) {
+                case FMethod(_):
+                    continue;
+                case _:
+            }
+            if (!isCloneTypeDepth(f.type, 0, cls, sealedCloneInterfaces))
+                return false;
+        }
+        return true;
     }
 
-    function isCloneTypeDepth(t:Type, depth:Int, root:Null<ClassType>):Bool {
+    function isCloneType(t:Type):Bool {
+        return isCloneTypeDepth(t, 0, null, state.sealedCloneInterfaces);
+    }
+
+    static function isCloneTypeDepth(t:Type, depth:Int, root:Null<ClassType>, sealedCloneInterfaces:Map<String, Bool>):Bool {
         return switch (Context.follow(t)) {
             case TAbstract(a, params): // `follow` unwraps Null<T> but keeps plain abstracts, so
                 // ReadOnlyArray must recurse into its element type here.
@@ -2459,9 +2498,9 @@ class RustDecl {
                     true
                 else if (["Int", "Bool", "Float"].indexOf(a.get().name) >= 0
                     && params.length == 0) true
-                else if (a.get().name == "ReadOnlyArray" && params.length == 1 && isCloneTypeDepth(params[0], depth, root)) true
+                else if (a.get().name == "ReadOnlyArray" && params.length == 1 && isCloneTypeDepth(params[0], depth, root, sealedCloneInterfaces)) true
                 else if ((a.get().name == "SortedSet" || a.get().name == "SortedMap") && params.length >= 1 && (function() {
-                        for (p in params) if (!isCloneTypeDepth(p, depth, root)) return false;
+                        for (p in params) if (!isCloneTypeDepth(p, depth, root, sealedCloneInterfaces)) return false;
                         return true;
                     })()) true
                 else false;
@@ -2477,15 +2516,16 @@ class RustDecl {
                 // recursing to the depth cap.
                 if (root != null && cls.module == root.module && cls.name == root.name)
                     true
-                else if (cls.kind.match(KTypeParameter(_))) true else if (n == "String" || n == "SortedSet" || n == "SortedMap" || n == "StringBuf") true else if (n == "Array") params.length == 1 && isCloneTypeDepth(params[0], depth, root) else if (cls.isInterface) false else if (cls.meta.has(":dataClass"))
-                    dataClassFieldsAllClone(cls, depth, root) else plainClassAllClone(cls, depth, root);
+                else if (cls.kind.match(KTypeParameter(_))) true else if (n == "String" || n == "SortedSet" || n == "SortedMap" || n == "StringBuf") true else if (n == "Array") params.length == 1 && isCloneTypeDepth(params[0], depth, root, sealedCloneInterfaces) else if (cls.isInterface)
+                    sealedCloneInterfaces.exists(cls.module + "::" + cls.name) else if (cls.meta.has(":dataClass"))
+                    dataClassFieldsAllClone(cls, depth, root, sealedCloneInterfaces) else plainClassAllClone(cls, depth, root, sealedCloneInterfaces);
             case TFun(_):
                 true;
-            case TType(d, params): isCloneTypeDepth(haxe.macro.TypeTools.applyTypeParameters(d.get().type, d.get().params, params), depth, root);
+            case TType(d, params): isCloneTypeDepth(haxe.macro.TypeTools.applyTypeParameters(d.get().type, d.get().params, params), depth, root, sealedCloneInterfaces);
             case TAnonymous(anon):
                 var all = true;
                 for (f in anon.get().fields)
-                    if (!isCloneTypeDepth(f.type, depth + 1, root))
+                    if (!isCloneTypeDepth(f.type, depth + 1, root, sealedCloneInterfaces))
                         all = false;
                 all;
             case _: false;
@@ -2497,7 +2537,7 @@ class RustDecl {
         instance fields are Clone-capable; the depth cap keeps a cyclic
         alias chain from recursing forever.
     **/
-    function dataClassFieldsAllClone(cls:ClassType, depth:Int, root:Null<ClassType>):Bool {
+    static function dataClassFieldsAllClone(cls:ClassType, depth:Int, root:Null<ClassType>, sealedCloneInterfaces:Map<String, Bool>):Bool {
         if (depth > 8)
             return false;
         // `fields` lists instance members only; statics live on `statics`.
@@ -2507,7 +2547,7 @@ class RustDecl {
                     continue;
                 case _:
             }
-            if (!isCloneTypeDepth(f.type, depth + 1, root))
+            if (!isCloneTypeDepth(f.type, depth + 1, root, sealedCloneInterfaces))
                 return false;
         }
         return true;
@@ -2520,7 +2560,7 @@ class RustDecl {
         array holding a plain-class value keeps the derive that the read-site
         `.clone()` calls depend on.
     **/
-    function plainClassAllClone(cls:ClassType, depth:Int, root:Null<ClassType>):Bool {
+    static function plainClassAllClone(cls:ClassType, depth:Int, root:Null<ClassType>, sealedCloneInterfaces:Map<String, Bool>):Bool {
         if (depth > 8)
             return false;
         // Only business classes join the plain-class descent; std/haxe
@@ -2535,7 +2575,7 @@ class RustDecl {
                     continue;
                 case _:
             }
-            if (!isCloneTypeDepth(f.type, depth + 1, root))
+            if (!isCloneTypeDepth(f.type, depth + 1, root, sealedCloneInterfaces))
                 return false;
         }
         return true;
