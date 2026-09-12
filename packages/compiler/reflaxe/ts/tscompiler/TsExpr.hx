@@ -179,15 +179,14 @@ class TsExpr {
             case CNegativeInfinity: "-Infinity";
             case CEnum(enumRef, enumField):
                 final en = enumRef.get();
-                if (isValueEnum(en))
-                    imports.value(en.module, en.name);
-                // A payload-enum constant is a frozen variant object whose
+                imports.value(en.module, en.name);
+                // An enum constant is a frozen variant object whose
                 // TypeScript type is the single variant (e.g. `Bopomofo`).
                 // Comparing two such constants narrows each side to its
                 // literal variant, so `A === B` trips TS2367 (no overlap).
                 // Widening the constant to the enum union keeps the
                 // comparison legal; the cast is erased at runtime.
-                isValueEnum(en) ? en.name + "." + enumField.name : "(" + en.name + "." + enumField.name + " as " + en.name + ")";
+                "(" + en.name + "." + enumField.name + " as " + en.name + ")";
             case CParameterRead(name): name;
             case CInstanceFieldRead(name): "this." + name;
             case CLocalRead(name): name;
@@ -298,14 +297,14 @@ class TsExpr {
                     final en = enRef.get();
                     if (en.constructs.exists(fieldName)) {
                         imports.value(en.module, en.name);
-                        // A payload-enum constant is a frozen variant object
-                        // whose TypeScript type is the single variant (e.g.
+                        // An enum constant is a frozen variant object whose
+                        // TypeScript type is the single variant (e.g.
                         // `Bopomofo`). Comparing two such constants narrows
                         // each side to its literal variant, so `A === B`
                         // trips TS2367 (no overlap). Widening the constant
                         // to the enum union keeps the comparison legal; the
                         // cast is erased at runtime.
-                        return isValueEnum(en) ? en.name + "." + fieldName : "(" + en.name + "." + fieldName + " as " + en.name + ")";
+                        return "(" + en.name + "." + fieldName + " as " + en.name + ")";
                     }
                     return path;
                 default:
