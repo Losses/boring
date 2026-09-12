@@ -805,7 +805,7 @@ class RustExpr {
                         // A null-coalescing ternary initializer materializes
                         // the inner value into the local, so later reads of
                         // the local must not re-apply the as_ref forcing read.
-                        // Covers NullableCallOps2.normalizedToStringResult.
+                        // Covers the null-coalescing ternary initializer family.
                         nullableCollapsedLocals.set(v.id, true);
                     case TField(subj, FInstance(_, _, cf)) | TField(subj, FAnon(cf)):
                         switch (stripWrap(subj).expr) {
@@ -3306,7 +3306,7 @@ class RustExpr {
     // Whether the Rust rendering of a Haxe Null<T> is a fallible wrapper
     // (Option or Result). Null<Struct> renders as the plain struct, so the
     // as_ref/unwrap forcing read only applies to wrapper-backed types.
-    // Covers the NullableCallOps2 plain-struct receiver family.
+    // Covers the plain-struct nullable receiver family.
     function rendersRustFallibleWrapper(t:Type):Bool {
         final rustType = types.of(t, false);
         return StringTools.startsWith(rustType, "Option<") || StringTools.startsWith(rustType, "Result<");
@@ -3316,7 +3316,7 @@ class RustExpr {
     // method and field boundaries: a wrapper-backed Null<T> that the body
     // pre-pass has not collapsed to a plain local. A collapsed local already
     // holds the inner value, so the as_ref forcing read must not re-apply.
-    // Covers the NullableCallOps2 collapsed-parameter family.
+    // Covers the collapsed-parameter receiver family.
     function receiverCarriesFallibleWrapper(subj:TypedExpr):Bool {
         return isNullType(subj.t) && rendersRustFallibleWrapper(subj.t) && !isNullableCollapsedLocal(subj);
     }
