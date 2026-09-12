@@ -850,6 +850,11 @@ class DartDecl {
         `static` on statics.
     **/
     function funcDecl(module:String, cls:ClassType, f:ClassFuncData, topLevel:Bool):Array<String> {
+        // Assign the scoped parameter/local names before the signature
+        // renders so the parameter list and the body agree on every name
+        // (a parameter colliding with a reserved top-level name or an
+        // import prefix renders suffixed in both).
+        expr.assignScopedLocalNames(f);
         // Haxe types constructors as FMethod(MethNormal) with field name
         // "new"; the name is the constructor marker. Dart initializes
         // fields through the parameter list and the initializer list,
