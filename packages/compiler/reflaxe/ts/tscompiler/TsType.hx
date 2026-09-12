@@ -124,6 +124,7 @@ class TsType {
     function arrayElement(elem:Type):String {
         return switch (elem) {
             case TAbstract(a, _) if (pathOf(a.get().pack, a.get().name) == "Null"): "(" + of(elem) + ")";
+            case TAbstract(a, _) if (pathOf(a.get().pack, a.get().name) == "std.ReadOnlyArray"): "(" + of(elem) + ")";
             case _: of(elem);
         }
     }
