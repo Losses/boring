@@ -475,6 +475,12 @@ class Compiler extends PluginCompiler<Compiler> {
         }
         lines.push('edition = "2024"');
         lines.push('autotests = false');
+        // Quality control rides with the package: every consumer build
+        // rejects numeric `as` casts at compile time, so conversions must
+        // go through the typed helpers (try_from, masks, reinterpret).
+        lines.push('');
+        lines.push('[lints.clippy]');
+        lines.push('as-conversions = "deny"');
         lines.push("");
         lines.push("[lib]");
         lines.push('path = "lib.rs"');
