@@ -4175,6 +4175,13 @@ class RustExpr {
         };
     }
 
+    function isDirectArrayStaticRead(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TField(_, FStatic(_, cf)): isDirectArrayStaticField(cf.get());
+            case _: false;
+        };
+    }
+
     function isGuardStaticField(cls:ClassType, name:String):Bool {
         final field = staticFieldOf(cls, name);
         return field != null
