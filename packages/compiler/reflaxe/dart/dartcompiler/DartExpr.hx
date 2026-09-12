@@ -3669,26 +3669,33 @@ class DartExpr {
         final table = enumTable(se);
         final out = [indent(depth) + "switch (" + subjRendered + ") {"];
         for (c in switchParts.cases) {
-            final index = switch (c.values[0].expr) {
-                case TConst(TInt(v)): v;
-                case _: return fail(sw, "variant switch case is not a constant index");
-            }
-            final info = table.get(index);
-            if (info == null) {
-                return fail(sw, "variant switch case index has no construct");
-            }
-            final names = payloadNames(info.field);
-            final used = usedPayloadIndices(c.expr, info.field);
-            final bindings = [
-                for (i in 0...names.length)
-                    if (used.indexOf(i) >= 0) names[i] + ": var " + (reservedPayloadNames ? payloadBindingName(info.field, i) : names[i])
+            // A Haxe case may list several constructors sharing one arm
+            // (`case CjkText | CjkPunctuation:`). Dart spells each as its
+            // own consecutive case label over the same body.
+            final patterns = [
+                for (v in c.values)
+                    switch (v.expr) {
+                        case TConst(TInt(idx)):
+                            final info = table.get(idx);
+                            if (info == null) {
+                                return fail(sw, "variant switch case index has no construct");
+                            }
+                            final names = payloadNames(info.field);
+                            final used = usedPayloadIndices(c.expr, info.field);
+                            final bindings = [
+                                for (i in 0...names.length)
+                                    if (used.indexOf(i) >= 0) names[i] + ": var " + (reservedPayloadNames ? payloadBindingName(info.field, i) : names[i])
+                            ];
+                            final cls = DartDecl.constructClassName(info.enumName, info.name);
+                            bindings.length == 0
+                                && info.valueEnum ? qualifiedRef(info.module,
+                                    info.enumName) + "." + DartDecl.lowerFirst(info.name) : qualifiedRef(info.module,
+                                        cls) + (bindings.length > 0 ? "(" + bindings.join(", ") + ")" : "()");
+                        case _: return fail(sw, "variant switch case is not a constant index");
+                    }
             ];
-            final cls = DartDecl.constructClassName(info.enumName, info.name);
-            final pattern = bindings.length == 0
-                && info.valueEnum ? qualifiedRef(info.module,
-                    info.enumName) + "." + DartDecl.lowerFirst(info.name) : qualifiedRef(info.module,
-                        cls) + (bindings.length > 0 ? "(" + bindings.join(", ") + ")" : "()");
-            out.push(indent(depth + 1) + "case " + pattern + ":");
+            for (p in patterns)
+                out.push(indent(depth + 1) + "case " + p + ":");
             for (l in armLines(c.expr, depth + 2, reservedPayloadNames, sw.t))
                 out.push(l);
         }
