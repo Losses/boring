@@ -2111,6 +2111,22 @@ class KotlinExpr {
     public function bodyUsesSafeCallReturns(f:ClassFuncData):Bool {
         if (f.expr == null)
             return false;
+        // The body renderer proves a local non-null when its initializer is
+        // non-null and the local is never reassigned. Reproduce that proof
+        // here so a final local bound to a non-null value does not widen the
+        // rendered return type. scanLocals fills the mutation set the renderer
+        // relies on; the later functionBody call re-scans harmlessly.
+        scanLocals(f.expr);
+        final saved = proofSnapshot();
+        function collect(e:TypedExpr):Void {
+            switch (e.expr) {
+                case TVar(v, init) if (init != null && !mutated.exists(v.id) && (!isNullType(init.t) || isNonNullNormalization(init))):
+                    nonNullLocals.set(v.id, true);
+                case _:
+            }
+            TypedExprTools.iter(e, collect);
+        }
+        collect(f.expr);
         var found = false;
         function scan(e:TypedExpr):Void {
             if (found)
@@ -2138,8 +2154,8 @@ class KotlinExpr {
             if (!found && scanChildren)
                 TypedExprTools.iter(e, scan);
         }
-        if (f.expr != null)
-            scan(f.expr);
+        scan(f.expr);
+        restoreProofs(saved);
         return found;
     }
 
