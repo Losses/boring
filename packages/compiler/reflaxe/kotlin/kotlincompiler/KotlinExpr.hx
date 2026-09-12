@@ -556,7 +556,7 @@ class KotlinExpr {
                 // in the init block.
                 switch (s.expr) {
                     case TCall({expr: TConst(TSuper)}, args) if (superDelegation == null):
-                        final renderedArgs = [for (a in args) expr(a)];
+                        final renderedArgs = [for (a in args) foldedSuperMessage(cls, a)];
                         superDelegation = "(" + renderedArgs.join(", ") + ")";
                         continue;
                     case _:
@@ -570,6 +570,30 @@ class KotlinExpr {
         for (l in blockLines(renderable, 1))
             out.push(l);
         return {lines: out, assigned: assigned, superDelegation: superDelegation};
+    }
+
+    /**
+        Super-delegation argument into a folded sealed parent (features/06):
+        the sealed parent constructor takes the message String, so a super
+        argument typed as the parent payload enum renders as the constructed
+        variant with its carried message read off. Any other argument
+        renders unchanged.
+    **/
+    function foldedSuperMessage(cls:ClassType, a:TypedExpr):String {
+        if (cls.superClass != null) {
+            final parent = cls.superClass.t.get();
+            final payloadModule = state.exceptionPayloads.get(parent.module);
+            if (payloadModule != null) {
+                switch (Context.follow(a.t)) {
+                    case TEnum(e, _):
+                        if (e.get().module == payloadModule) {
+                            return expr(a) + ".message";
+                        }
+                    case _:
+                }
+            }
+        }
+        return expr(a);
     }
 
     /**

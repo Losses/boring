@@ -246,6 +246,11 @@ boring.JvmFieldPrivateOps
 tests.JvmFieldPrivateTests
 boring.HaxeExceptionOps
 tests.HaxeExceptionTests
+boring.SealedChildCause
+boring.SealedChildParent
+boring.SealedChildException
+boring.SealedChildOps
+tests.SealedChildTests
 boring.OverrideMemberOps
 tests.OverrideMemberTests
 boring.ProbeChain
