@@ -3297,12 +3297,20 @@ class RustExpr {
     // mutably; reads borrow it immutably. Some Haxe Null<T> types are emitted
     // as a plain Rust struct without an Option<T> wrapper, so only unwrap an
     // actual Rust fallible wrapper.
+    // Whether the Rust rendering of a Haxe Null<T> is a fallible wrapper
+    // (Option or Result). Null<Struct> renders as the plain struct, so the
+    // as_ref/unwrap forcing read only applies to wrapper-backed types.
+    // Covers the NullableCallOps2 plain-struct receiver family.
+    function rendersRustFallibleWrapper(t:Type):Bool {
+        final rustType = types.of(t, false);
+        return StringTools.startsWith(rustType, "Option<") || StringTools.startsWith(rustType, "Result<");
+    }
+
     function nullableMethodReceiver(subj:TypedExpr, mutable:Bool):String {
         if (!isNullType(subj.t))
             return expr(subj);
         final base = expr(subj);
-        final rustType = types.of(subj.t, false);
-        if (!StringTools.startsWith(rustType, "Option<") && !StringTools.startsWith(rustType, "Result<"))
+        if (!rendersRustFallibleWrapper(subj.t))
             return base;
         return mutable ? "(" + base + ").as_mut().unwrap()" : "(" + base + ").as_ref().unwrap()";
     }
@@ -4133,7 +4141,7 @@ class RustExpr {
                 // fill, which never happens after the guard.
                 final filled = narrowed == null && isNullType(subj.t) ? filledSubjectOf(subj) : null;
                 final subjStr = if (narrowed != null) narrowed else if (filled != null) subjText + ".get_or_insert_with(|| " + filled + ")" else
-                    if (isNullType(subj.t)) subjText
+                    if (isNullType(subj.t) && rendersRustFallibleWrapper(subj.t)) subjText
                     + ".as_ref().unwrap()" else subjText;
                 final access = subjStr + "." + snake;
                 if (name != "length" && isRecursiveField(subj, name))
@@ -5143,7 +5151,8 @@ class RustExpr {
                 final narrowed = narrowedSubject(subj);
                 if (narrowed != null)
                     optionNarrowingHit = true;
-                final subjStr = narrowed != null ? narrowed : (isNullType(subj.t) ? subjText + ".as_ref().unwrap()" : subjText);
+                final subjStr = narrowed != null ? narrowed
+                    : (isNullType(subj.t) && rendersRustFallibleWrapper(subj.t) ? subjText + ".as_ref().unwrap()" : subjText);
                 return subjStr + "." + snake + "(" + renderCallArgs(cf.get().type, args, null, 0, mutableParamPositions(cf.get())) + ")" + q;
             case TField(_, FStatic(c, cf)):
                 final cls = c.get();
