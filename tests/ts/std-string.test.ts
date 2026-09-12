@@ -30,7 +30,7 @@ describe("Std.string lowering", () => {
     const content = fs.readFileSync(path.join(root, "reference/kotlin/gen/boring/StdStringOps.kt"), "utf8");
     expect(content).toContain('return "string=" + value');
     expect(content).toContain('return "int=" + value');
-    expect(content).toContain('return "float=" + value');
+    expect(content).toContain('return "float=" + boring.runtime.FPHelper.formatFloat(value)');
     expect(content).toContain('return "bool=" + value');
     expect(content).not.toContain('"string=" + (value).toString()');
   });
@@ -51,7 +51,7 @@ describe("Std.string lowering", () => {
 
   test("Rust standalone scalars use to_string", () => {
     const content = fs.readFileSync(path.join(root, "reference/rust-gen/src/boring/std_string_ops.rs"), "utf8");
-    expect(content).toContain("pub fn int_value(value: u32) -> String {\n        return (value).to_string();");
+    expect(content).toContain("pub fn std_string_ops_int_value(value: u32) -> String {\n        return (value).to_string();");
   });
 
   test("array operands use one single-pass builder in every target", () => {
