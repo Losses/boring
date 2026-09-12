@@ -288,6 +288,19 @@ class DartExpr {
             targetType:Type):String {
         if (modulePath == "std.SortedSet" && methodName == "builder")
             return runtimeQualified("SortedTable.setBuilder") + "(" + [for (a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
+        if (modulePath == "std.SortedMap" && methodName == "builder") {
+            // The builder factory cannot infer its value parameter from the
+            // comparator; spell both from the coalescing target's map type.
+            final params = switch (DefaultArgExpander.withoutNull(targetType)) {
+                case TInst(c, ps) if (ps.length == 2 && (c.get().name == "SortedMap" || c.get().name == "SortedMapBuilder")): ps;
+                case _: [];
+            };
+            return runtimeQualified("SortedTable.mapBuilder")
+                + (params.length == 2 ? "<" + types.of(params[0]) + ", " + types.of(DefaultArgExpander.withoutNull(params[1])) + ">" : "")
+                + "("
+                + [for (a in args) coalescingDefaultText(a, targetType)].join(", ")
+                + ")";
+        }
         final resolved = tryResolveTypePath(modulePath + "." + className);
         final target = switch (resolved) {
             case TInst(clsRef, _):
@@ -890,6 +903,12 @@ class DartExpr {
                 var rText = expr(r);
                 if (map == null && isIntOrLongType(emittedType(r)) && isFloatType(l.t))
                     rText = intToFloatText(rText);
+                // A nullable value assigned to a non-nullable target (an
+                // array element or a field) unwraps; Haxe narrowed the
+                // value in the enclosing branch, but Dart does not promote
+                // a field access across the null check.
+                if (map == null && nullableValue(r) && !isNullLeafType(l.t))
+                    rText = requiredValueText(r);
                 final target = map == null ? assignTarget(l) + " = " : expr(map.receiver) + "[" + expr(map.key) + "] = ";
                 return [indent(depth) + target + rText];
             case TBinop(OpAssignOp(OpAdd), l, r) if (isStringTyped(l)):
