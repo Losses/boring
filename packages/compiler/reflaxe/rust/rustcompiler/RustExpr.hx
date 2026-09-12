@@ -5082,10 +5082,16 @@ class RustExpr {
                 }
                 if (name == "join") {
                     if (isVecType(subj)) {
-                        return nullableMethodReceiver(subj, false)
-                            + ".iter().map(|v| v.to_string()).collect::<Vec<_>>().join("
-                            + renderedArgs
-                            + ")";
+                        // The iterator spec records no callback-driven call
+                        // sites or closures in a loop body, so the Vec join
+                        // renders as the ruled single-pass builder.
+                        imports.require("std::fmt::Write");
+                        final joined = freshRegionName("joined");
+                        final index = freshRegionName("index");
+                        return "{ let " + joined + " = " + nullableMethodReceiver(subj, false) + "; let mut out = String::new(); let n = "
+                            + joined + ".len(); let mut " + index + " = 0usize; while " + index + " < n { if " + index
+                            + " > 0 { out.push_str(&(" + renderedArgs + ")); } let _ = write!(out, \"{}\", " + joined + "[" + index + "]); "
+                            + index + " += 1; } out }";
                     }
                     return nullableMethodReceiver(subj, false) + ".join(" + renderedArgs + ")";
                 }
