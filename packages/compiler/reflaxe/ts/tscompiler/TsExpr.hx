@@ -181,7 +181,13 @@ class TsExpr {
                 final en = enumRef.get();
                 if (isValueEnum(en))
                     imports.value(en.module, en.name);
-                isValueEnum(en) ? en.name + "." + enumField.name : "{ kind: \"" + enumField.name + "\" }";
+                // A payload-enum constant is a frozen variant object whose
+                // TypeScript type is the single variant (e.g. `Bopomofo`).
+                // Comparing two such constants narrows each side to its
+                // literal variant, so `A === B` trips TS2367 (no overlap).
+                // Widening the constant to the enum union keeps the
+                // comparison legal; the cast is erased at runtime.
+                isValueEnum(en) ? en.name + "." + enumField.name : "(" + en.name + "." + enumField.name + " as " + en.name + ")";
             case CParameterRead(name): name;
             case CInstanceFieldRead(name): "this." + name;
             case CLocalRead(name): name;
@@ -288,6 +294,20 @@ class TsExpr {
                     }
                     imports.value(abs.module, abs.name);
                     return abs.name + "." + fieldName;
+                case TEnum(enRef, _):
+                    final en = enRef.get();
+                    if (en.constructs.exists(fieldName)) {
+                        imports.value(en.module, en.name);
+                        // A payload-enum constant is a frozen variant object
+                        // whose TypeScript type is the single variant (e.g.
+                        // `Bopomofo`). Comparing two such constants narrows
+                        // each side to its literal variant, so `A === B`
+                        // trips TS2367 (no overlap). Widening the constant
+                        // to the enum union keeps the comparison legal; the
+                        // cast is erased at runtime.
+                        return isValueEnum(en) ? en.name + "." + fieldName : "(" + en.name + "." + fieldName + " as " + en.name + ")";
+                    }
+                    return path;
                 default:
             }
         } catch (_:Dynamic) {}
