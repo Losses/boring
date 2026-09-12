@@ -223,6 +223,14 @@ class StaticFieldHelper {
         };
     }
 
+    /** Whether an initializer is a bare null literal. */
+    public static function isNullInitializer(e:Null<TypedExpr>):Bool {
+        return e != null && switch (stripDecorations(e).expr) {
+            case TConst(TNull): true;
+            case _: false;
+        };
+    }
+
     public static function isConstValue(field:ClassField):Bool {
         if (field == null || !field.isFinal || !isScalarOrString(field.type)) {
             return false;
