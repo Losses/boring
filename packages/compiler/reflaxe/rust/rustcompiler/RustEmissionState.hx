@@ -114,6 +114,14 @@ class RustEmissionState {
 
     public final recordCloneTypes:Map<String, Bool> = [];
 
+    /**
+        Sealed interfaces whose implementors all derive Clone, keyed by
+        "<module>::<name>". A data class holding such an interface lowers the
+        field to Box<dyn Trait>; emitting the trait with a Clone supertrait
+        makes that Box Clone so the data class can derive Clone.
+    **/
+    public final sealedCloneInterfaces:Map<String, Bool> = [];
+
     public static function funcKey(module:String, name:String, isStatic:Bool):String {
         return module + "::" + (isStatic ? "s." : "i.") + name;
     }
