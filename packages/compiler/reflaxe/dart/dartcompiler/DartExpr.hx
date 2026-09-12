@@ -4362,14 +4362,15 @@ class DartExpr {
 
     function memberName(ownerModule:String, cf:Ref<ClassField>, pos:haxe.macro.Expr.Position):String {
         final field = cf.get();
+        final base = field.name == "hashCode" ? "hashCodeValue" : field.name;
         if (field.isPublic || field.meta.has(":allow")) {
             // @:allow members use a public Dart name across libraries.
-            return field.name;
+            return base;
         }
         if (ownerModule != imports.selfModule) {
             Context.error("private member " + field.name + " of " + ownerModule + " has no Dart lowering outside its library", pos);
         }
-        return "_" + field.name;
+        return "_" + base;
     }
 
     function isStringBuf(e:TypedExpr):Bool {
