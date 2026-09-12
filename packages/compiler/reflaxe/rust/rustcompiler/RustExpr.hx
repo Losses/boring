@@ -2347,6 +2347,11 @@ class RustExpr {
                     final narrowed = narrowedSubject(e);
                     if (narrowed != null) {
                         optionNarrowingHit = true;
+                        // match &(opt) { Some(name) => ... } binds name as
+                        // &T; dereference Copy inners so index and arithmetic
+                        // expressions receive the owned scalar.
+                        if (isTypeCopy(getNullInnerType(e.t)))
+                            return "*" + narrowed;
                         return narrowed;
                     }
                 }
