@@ -1879,6 +1879,11 @@ class DartExpr {
         switch (t) {
             case TClassDecl(c):
                 final cls = c.get();
+                if (cls.pack.length == 1 && cls.pack[0] == "haxe" && cls.name == "Exception") {
+                    imports.runtime("BoringException");
+                    final prefix = imports.runtimePrefix();
+                    return prefix.length > 0 ? prefix + ".BoringException" : "BoringException";
+                }
                 return qualifiedRef(cls.module, cls.name);
             case TEnumDecl(en):
                 final enumDef = en.get();
@@ -3116,6 +3121,10 @@ class DartExpr {
                 + ")";
         }
         final path = cls.pack.length == 0 ? cls.name : cls.pack.join(".") + "." + cls.name;
+        if (path == "haxe.Exception") {
+            imports.runtime("BoringException");
+            return "BoringException(" + rendered + ")";
+        }
         switch (path) {
             case "std.StringBuf" | "StringBuf":
                 return "<int>[]";
