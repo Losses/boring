@@ -5270,7 +5270,7 @@ class RustExpr {
                         + " } else { a }" : "if a > b { a } else if b > a { b } else if a == 0.0 && b == 0.0 { "
                         + zeroResult
                         + " } else { a }";
-                    return "({ let a = " + a + "; let b = " + b + "; if a.is_nan() || b.is_nan() { " + real + "::NAN } else { " + ordered + " } })";
+                    return "({ let a = (" + a + ") as " + real + "; let b = (" + b + ") as " + real + "; if a.is_nan() || b.is_nan() { " + real + "::NAN } else { " + ordered + " } })";
                 }
                 if (cls.module == "Math" && name == "pow" && args.length == 2) {
                     // Rust names the power function powf; the f32
