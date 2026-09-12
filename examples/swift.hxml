@@ -500,3 +500,5 @@ boring.TernaryInterfaceOps
 tests.TernaryInterfaceTests
 boring.ThrowingIndexOfOps
 tests.ThrowingIndexOfTests
+boring.FloatTernaryArmOps
+tests.FloatTernaryArmTests
