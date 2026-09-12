@@ -162,6 +162,10 @@ class GraphemeData {
             if (code != 0 || output.length == 0) {
                 Context.fatalError("download failed for " + entry.name + " " + version + " (curl exit " + code + "): " + entry.url, Context.currentPos());
             }
+            // A fresh checkout has no data directory yet; saveContent does not
+            // create intermediate directories, so the fetch bootstrap must.
+            if (!sys.FileSystem.exists(dataDir()))
+                sys.FileSystem.createDirectory(dataDir());
             sys.io.File.saveContent(dataDir() + "/" + entry.name + "-" + version + ".txt", output);
         }
     }
