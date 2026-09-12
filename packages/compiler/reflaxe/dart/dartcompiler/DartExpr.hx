@@ -875,6 +875,12 @@ class DartExpr {
                     rText = intToFloatText(rText);
                 final target = map == null ? assignTarget(l) + " = " : expr(map.receiver) + "[" + expr(map.key) + "] = ";
                 return [indent(depth) + target + rText];
+            case TBinop(OpAssignOp(OpAdd), l, r) if (isStringTyped(l)):
+                // Dart has no String += with a non-string operand; a
+                // String accumulator appending a number (s += i) must
+                // interpolate the right side. The left stays a plain
+                // `s = s + ...` so the accumulator's type is preserved.
+                return [indent(depth) + assignTarget(l) + " = " + templateLiteral(l, r)];
             case TBinop(OpAssignOp(inner), l, r):
                 return [indent(depth) + assignTarget(l) + " " + symbolOf(inner) + "= " + expr(r)];
             case _:
