@@ -15,5 +15,9 @@ class SealedChildOps {
     }
 }
 #else
-class SealedChildOps {}
+class SealedChildOps {
+    public static function childMessage(message:String):String {
+        return message;
+    }
+}
 #end
