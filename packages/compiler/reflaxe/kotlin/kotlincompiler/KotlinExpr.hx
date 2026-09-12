@@ -2159,7 +2159,11 @@ class KotlinExpr {
         // the typed receiver is recorded as a non-null String (for example
         // `value?.toString()?.plus(...)`). Preserve that nullability for the
         // next hop while retaining the intermediate nullable result.
-        if (rendersNullable(subj))
+        final safeCallResult = switch (stripWrap(subj).expr) {
+            case TCall(_, _): rendersNullable(subj);
+            case _: false;
+        };
+        if (safeCallResult)
             return "?.";
         if (isNullType(subj.t))
             return "!!.";
@@ -3770,7 +3774,7 @@ class KotlinExpr {
                         final expectedArg = args[0];
                         final actualArg = args[1];
                         final msgArg = args.length > 2 ? expr(args[2]) : null;
-                        final renderedTestArgs = renderCallArgs(args, paramsForCall(fn), cls, name, true);
+                        final renderedTestArgs = [for (a in args) expr(a)];
                         if (isScalarType(expectedArg.t)) {
                             final runtimePackage = RuntimeConfig.requireImportName("module test extern");
                             state.shimsUsed.set(RuntimeResidents.externsOf("runtime.TestCore")[0], true);
