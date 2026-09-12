@@ -2446,7 +2446,7 @@ class RustDecl {
                 // A type parameter carries the Clone bound the generic
                 // impl block puts on every class parameter, and a function
                 // type lowers to an Rc closure, which is always Clone.
-                if (cls.kind.match(KTypeParameter(_))) true else if (n == "String" || n == "SortedSet" || n == "SortedMap") true else if (n == "Array") params.length == 1 && isCloneTypeDepth(params[0], depth) else if (cls.isInterface) false else if (cls.meta.has(":dataClass"))
+                if (cls.kind.match(KTypeParameter(_))) true else if (n == "String" || n == "SortedSet" || n == "SortedMap" || n == "StringBuf") true else if (n == "Array") params.length == 1 && isCloneTypeDepth(params[0], depth) else if (cls.isInterface) false else if (cls.meta.has(":dataClass"))
                     dataClassFieldsAllClone(cls, depth) else plainClassAllClone(cls, depth);
             case TFun(_):
                 true;
