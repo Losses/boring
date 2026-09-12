@@ -690,10 +690,6 @@ class KotlinExpr {
                         mutableArrayAccess = previousMutableArrayAccess;
                         rendered;
                 };
-                // Haxe unifies Int and Float; widen Int initializers to Float
-                // when the variable's declared type is Float.
-                if (isIntOrLongType(emittedType(init)) && isFloatType(v.t))
-                    initText = intToFloatText(initText);
                 // Haxe permits binding a non-null local from a Null<T>
                 // initializer (an unsound assignment); Kotlin infers the
                 // initializer's nullable type, so the declaration extracts
@@ -715,8 +711,18 @@ class KotlinExpr {
                 else
                     nullableRenderedLocals.remove(v.id);
                 updateLocalProof(v, init);
+                final extractAtDecl = extractsAtDecl || extractRenderedNullable;
+                // Haxe unifies Int and Float; widen Int initializers to Float
+                // when the variable's declared type is Float. When the
+                // initializer is also extracted to non-null, the widening
+                // must follow the extraction; a widening call placed first
+                // would apply to the nullable initializer receiver.
+                if (isIntOrLongType(emittedType(init)) && isFloatType(v.t)) {
+                    initText = extractAtDecl ? intToFloatText("(" + initText + ")!!") : intToFloatText(initText);
+                    return [indent(depth) + '$kw ${localName(v)}$typeAnn = $initText'];
+                }
                 return [
-                    indent(depth) + '$kw ${localName(v)}$typeAnn = $initText' + (extractsAtDecl || extractRenderedNullable ? "!!" : "")
+                    indent(depth) + '$kw ${localName(v)}$typeAnn = $initText' + (extractAtDecl ? "!!" : "")
                 ];
             case TVar(v, init) if (init == null):
                 // Deferred local declarations are initialized by later assignments;
