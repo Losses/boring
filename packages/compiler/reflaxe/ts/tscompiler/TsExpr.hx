@@ -2071,6 +2071,11 @@ class TsExpr {
                     // slice preserves a shallow copy and its mutable array type.
                     return expr(subj) + ".slice()";
                 }
+                if (name == "insert" && isArraySubject(subj) && args.length == 2) {
+                    // Haxe Array.insert(pos, x) has no JS prototype
+                    // equivalent; splice inserts in place.
+                    return expr(subj) + ".splice(" + expr(args[0]) + ", 0, " + expr(args[1]) + ")";
+                }
                 if (name == "indexOf" && (isStringSubject(subj) || isArraySubject(subj)) && args.length == 2) {
                     // The same synthesized null arrives for an omitted
                     // ?pos, on String and on Array; both prototype
