@@ -3932,6 +3932,11 @@ class DartExpr {
         return PolicyQueries.mentionsLocal(e, v);
     }
 
+    /** Assigns the Dart names parameters and locals render under, so the
+        signature and the body agree. Runs before a signature renders so
+        `paramList` sees the same renames the body applies (a parameter
+        whose name collides with a reserved top-level name or an import
+        prefix renders suffixed in both). */
     public function assignScopedLocalNames(f:ClassFuncData):Void {
         scopedLocalNames.clear();
         scopedNameCounts.clear();
