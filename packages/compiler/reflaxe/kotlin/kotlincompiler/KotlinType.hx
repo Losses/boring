@@ -5,6 +5,7 @@ import haxe.macro.Context;
 import haxe.macro.Type;
 import StructuralKeyValidator;
 import PolicyQueries;
+import DefaultArgExpander;
 
 /**
     Type mapping from the translatable Haxe subset to Kotlin, per
@@ -60,10 +61,10 @@ class KotlinType {
                         "BytesBuffer";
                     case "std.SortedMap":
                         imports.requireType(cls.module, "SortedMapTable");
-                        "SortedMapTable<" + of(params[0]) + ", " + of(params[1]) + ">";
+                        "SortedMapTable<" + of(params[0]) + ", " + of(DefaultArgExpander.withoutNull(Context.follow(params[1]))) + ">";
                     case "std.SortedMapBuilder":
                         imports.requireType(cls.module, "SortedMapTableBuilder");
-                        "SortedMapTableBuilder<" + of(params[0]) + ", " + of(params[1]) + ">";
+                        "SortedMapTableBuilder<" + of(params[0]) + ", " + of(DefaultArgExpander.withoutNull(Context.follow(params[1]))) + ">";
                     case "std.SortedSet":
                         imports.requireType(cls.module, "SortedSetTable");
                         "SortedSetTable<" + of(params[0]) + ">";
