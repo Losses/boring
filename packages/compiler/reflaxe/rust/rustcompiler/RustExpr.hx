@@ -3306,11 +3306,20 @@ class RustExpr {
         return StringTools.startsWith(rustType, "Option<") || StringTools.startsWith(rustType, "Result<");
     }
 
+    // Whether a receiver still renders as a Rust fallible wrapper at the
+    // method and field boundaries: a wrapper-backed Null<T> that the body
+    // pre-pass has not collapsed to a plain local. A collapsed local already
+    // holds the inner value, so the as_ref forcing read must not re-apply.
+    // Covers the NullableCallOps2 collapsed-parameter family.
+    function receiverCarriesFallibleWrapper(subj:TypedExpr):Bool {
+        return isNullType(subj.t) && rendersRustFallibleWrapper(subj.t) && !isNullableCollapsedLocal(subj);
+    }
+
     function nullableMethodReceiver(subj:TypedExpr, mutable:Bool):String {
         if (!isNullType(subj.t))
             return expr(subj);
         final base = expr(subj);
-        if (!rendersRustFallibleWrapper(subj.t))
+        if (!receiverCarriesFallibleWrapper(subj))
             return base;
         return mutable ? "(" + base + ").as_mut().unwrap()" : "(" + base + ").as_ref().unwrap()";
     }
@@ -4141,7 +4150,7 @@ class RustExpr {
                 // fill, which never happens after the guard.
                 final filled = narrowed == null && isNullType(subj.t) ? filledSubjectOf(subj) : null;
                 final subjStr = if (narrowed != null) narrowed else if (filled != null) subjText + ".get_or_insert_with(|| " + filled + ")" else
-                    if (isNullType(subj.t) && rendersRustFallibleWrapper(subj.t)) subjText
+                    if (receiverCarriesFallibleWrapper(subj)) subjText
                     + ".as_ref().unwrap()" else subjText;
                 final access = subjStr + "." + snake;
                 if (name != "length" && isRecursiveField(subj, name))
@@ -5152,7 +5161,7 @@ class RustExpr {
                 if (narrowed != null)
                     optionNarrowingHit = true;
                 final subjStr = narrowed != null ? narrowed
-                    : (isNullType(subj.t) && rendersRustFallibleWrapper(subj.t) ? subjText + ".as_ref().unwrap()" : subjText);
+                    : (receiverCarriesFallibleWrapper(subj) ? subjText + ".as_ref().unwrap()" : subjText);
                 return subjStr + "." + snake + "(" + renderCallArgs(cf.get().type, args, null, 0, mutableParamPositions(cf.get())) + ")" + q;
             case TField(_, FStatic(c, cf)):
                 final cls = c.get();
