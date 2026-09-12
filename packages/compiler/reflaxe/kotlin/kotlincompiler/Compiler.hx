@@ -264,7 +264,7 @@ class Compiler extends PluginCompiler<Compiler> {
         emitShim("std.Console", "Console.kt", KotlinRuntime.CONSOLE_SOURCE);
         emitShim("std.Env", "Env.kt", KotlinRuntime.ENV_SOURCE);
         emitShim("std.Process", "Process.kt", KotlinRuntime.PROCESS_SOURCE);
-        emitShim(RuntimeResidents.externsOf("runtime.TestCore")[0], "test/Test.kt", KotlinRuntime.testSource(), "test");
+        emitTestHostShim();
         // std.SortedMap and std.SortedSet no longer emit shims: the
         // sorted tables compile from the runtime.SortedTable resident,
         // gated through the extern usage flags these modules still set.
@@ -597,6 +597,21 @@ class Compiler extends PluginCompiler<Compiler> {
         final pkg = subPackage.length > 0 ? runtimePackage + "." + subPackage : runtimePackage;
         final path = RuntimeConfig.emitPath(dir, fileName);
         PackageArtifacts.saveTreeFile(output, path, "package " + pkg + "\n\n" + StringTools.trim(source) + "\n");
+    }
+
+    /**
+        Writes the test host entry beside the test runtime. The host
+        source names the runtime package, so rendering it requires the
+        runtime-import define; call-site arguments render eagerly, so
+        the call itself gates on the test extern usage flag and a build
+        that never references the test extern compiles without it.
+    **/
+    function emitTestHostShim():Void {
+        final externModule = RuntimeResidents.externsOf("runtime.TestCore")[0];
+        if (!state.shimsUsed.exists(externModule)) {
+            return;
+        }
+        emitShim(externModule, "test/Test.kt", KotlinRuntime.testSource(), "test");
     }
 
     /**
