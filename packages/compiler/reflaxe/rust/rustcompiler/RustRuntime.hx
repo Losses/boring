@@ -129,6 +129,14 @@ impl FPHelper {
         v as f64
     }
 
+    pub fn f32_to_i32(v: f32) -> i32 {
+        v as i32
+    }
+
+    pub fn i32_to_f32(v: i32) -> f32 {
+        v as f32
+    }
+
     pub fn i64_to_double(low: u32, high: u32) -> f64 {
         let h = high.to_be_bytes();
         let l = low.to_be_bytes();
