@@ -1324,7 +1324,13 @@ class DartExpr {
                 // double, so widen the int branch.
                 final tText = isFloatType(e.t) && isIntOrLongType(emittedType(t)) ? intToFloatText(expr(t)) : expr(t);
                 final fText = isFloatType(e.t) && isIntOrLongType(emittedType(f)) ? intToFloatText(expr(f)) : expr(f);
-                return "(" + expr(c) + " ? " + tText + " : " + fText + ")";
+                // A null-guard ternary (`A == null ? default : A`) proves
+                // the guarded branch non-null; Dart still sees the nullable
+                // type, so unwrap the branch the guard protects.
+                final guarded = nullGuardExpr(c);
+                final tFinal = guarded != null && isNotNullGuard(c) && structurallySame(t, guarded) ? requiredValueText(t) : tText;
+                final fFinal = guarded != null && !isNotNullGuard(c) && structurallySame(f, guarded) ? requiredValueText(f) : fText;
+                return "(" + conditionText(c) + " ? " + tFinal + " : " + fFinal + ")";
             case TBlock(stmts):
                 return blockExpression(stmts);
             case _:
@@ -2154,7 +2160,7 @@ class DartExpr {
                         + ")";
                 }
                 if (field.name == "toString" && args.length > 0)
-                    return expr(args[0]) + ".toStringValue()";
+                    return receiverText(args[0]) + ".toStringValue()";
                 final op = ValueTypeSupport.operatorOf(abs, field);
                 if (op != null) {
                     return switch (op) {
@@ -3908,6 +3914,34 @@ class DartExpr {
                 }
             case _: null;
         };
+    }
+
+    /**
+        The non-null operand of a null comparison, or null when the
+        comparison does not guard a single expression. Unlike
+        nullGuardLocal this accepts any expression shape (a method call
+        like `map.get(k)`), so the ternary renderer can unwrap the branch
+        the guard protects.
+    **/
+    function nullGuardExpr(e:Null<TypedExpr>):Null<TypedExpr> {
+        if (e == null)
+            return null;
+        return switch (stripWrap(e).expr) {
+            case TBinop(OpEq, l, r) | TBinop(OpNotEq, l, r):
+                switch (stripWrap(r).expr) {
+                    case TConst(TNull): l;
+                    case _: switch (stripWrap(l).expr) {
+                            case TConst(TNull): r;
+                            case _: null;
+                        }
+                }
+            case _: null;
+        };
+    }
+
+    /** Whether two expressions render to the same Dart text. */
+    function structurallySame(a:TypedExpr, b:TypedExpr):Bool {
+        return expr(a) == expr(b);
     }
 
     function scanLocals(e:TypedExpr):Void {
