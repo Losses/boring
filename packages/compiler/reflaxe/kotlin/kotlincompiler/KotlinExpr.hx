@@ -1504,7 +1504,7 @@ class KotlinExpr {
                     nativeOperator
                     && field.name == currentField ? abs.name + "(" + rendered + ")" : rendered;
                 }
-            case _: abs.name + "(" + valueTypeOperand(value, locals, abs) + ")";
+            case _: abs.name + "(" + valueTypeCtorArg(value, locals, abs) + ")";
             case _:
                 // The inline constructor expansion assigns the argument to a
                 // synthetic local named after the constructor parameter; the
@@ -1514,8 +1514,28 @@ class KotlinExpr {
                     case TLocal(v) if (locals.exists(v.id)): locals.get(v.id);
                     case _: value;
                 };
-                abs.name + "(" + expr(fallbackValue) + ")";
+                abs.name + "(" + valueTypeCtorArg(fallbackValue, locals, abs) + ")";
         };
+    }
+
+    /**
+        Value-type constructor argument widening for Kotlin calls. Haxe
+        unifies Int and Float, so an Int argument to a Float-backed value
+        wrapper renders Int text; the wrapper constructor takes the Float
+        representation, so the argument widens. The plan locals map resolves
+        the inline constructor's synthetic parameter local back to the
+        original argument before the check.
+    */
+    function valueTypeCtorArg(value:TypedExpr, locals:Map<Int, TypedExpr>, abs:AbstractType):String {
+        final resolved = switch (stripWrap(value).expr) {
+            case TLocal(v) if (locals.exists(v.id)): locals.get(v.id);
+            case _: value;
+        };
+        final text = expr(value);
+        if (ValueTypeSupport.isFloatRepresentation(abs)
+            && (isIntOrLongType(resolved.t) || isIntOrLongType(emittedType(resolved))))
+            return intToFloatText(text);
+        return text;
     }
 
     function valueTypeLocalValues(wrapper:TypedExpr):Map<Int, TypedExpr> {
