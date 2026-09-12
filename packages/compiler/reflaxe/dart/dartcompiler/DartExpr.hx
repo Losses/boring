@@ -1937,6 +1937,9 @@ class DartExpr {
     function receiverText(subj:TypedExpr):String {
         final nullableField = switch (stripWrap(subj).expr) {
             case TField(_, FInstance(_, _, cf)) | TField(_, FAnon(cf)): PolicyQueries.isNullableType(cf.get().type);
+            // A static field declared nullable (a mutable static
+            // initialized with null) unwraps at the receiver.
+            case TField(_, FStatic(_, cf)): isNullableStaticField(cf.get());
             case _: false;
         };
         if ((!isNullLeafType(subj.t) && !optionalValued(subj) && !nullableField) || provenNonNull(subj)) {
@@ -2942,6 +2945,15 @@ class DartExpr {
             case TConst(TNull): true;
             case _: false;
         };
+
+    /** Whether a static field declares nullable: a mutable static
+        initialized with null (Haxe `var x:T = null`). */
+    function isNullableStaticField(field:ClassField):Bool {
+        if (field.isFinal)
+            return false;
+        final init = StaticFieldHelper.validatedInitializer(field);
+        return StaticFieldHelper.isNullInitializer(init);
+    }
 
     function constructorDefaultText(v:DefaultArgExpander.DefaultArgValue, t:Type, cls:ClassType, args:Array<TypedExpr>):String {
         return switch (v) {
