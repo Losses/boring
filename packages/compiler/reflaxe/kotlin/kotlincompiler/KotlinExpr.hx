@@ -2228,6 +2228,8 @@ class KotlinExpr {
             return true;
         if (isNullableRenderedField(e) && !provenNonNull(e) && !guardProofBefore(e))
             return true;
+        if (nullableChainHop(e) && !guardProofBefore(e))
+            return true;
         final inner = stripWrap(e);
         // A cast/wrap may hide a nullable-typed inner expression; check the
         // unwrapped type too.
@@ -2247,6 +2249,24 @@ class KotlinExpr {
             case _:
                 return false;
         }
+    }
+
+    /**
+        Whether a call result is nullable because Kotlin renders its receiver
+        with a safe call. StringTools startsWith and endsWith lower from static
+        Haxe helpers to receiver calls, so their first argument is the receiver.
+    **/
+    function callRendersNullable(fn:TypedExpr, args:Array<TypedExpr>):Bool {
+        return switch (stripWrap(fn).expr) {
+            case TField(receiver, FInstance(_, _, _)) | TField(receiver, FAnon(_)):
+                rendersNullable(receiver);
+            case TField(_, FStatic(cls, field))
+                if (cls.get().pack.length == 0 && cls.get().name == "StringTools"
+                    && (field.get().name == "startsWith" || field.get().name == "endsWith") && args.length > 0):
+                rendersNullable(args[0]);
+            case _:
+                rendersNullable(fn);
+        };
     }
 
     /** True when any return statement calls a method on an unproven nullable
@@ -3805,10 +3825,9 @@ class KotlinExpr {
         functionTypeExpected = wasFunctionTypeExpected;
         if (registered != null && expected != null && isNullLiteral(a)) {
             return defaultArgText(registered, expected);
-        } else if (registered != null && expected != null && isNullType(a.t)) {
+        } else if (registered != null && expected != null && requiresNonNullCallArgument(a, text)) {
             return "(" + text + " ?: " + defaultArgText(registered, expected) + ")";
-        } else if (expected != null && !isNullType(expected) &&
-            ((PolicyQueries.isNullableType(a.t) && !provenNonNull(a) && !guardProofBefore(a)) || isNullInitialized(a) || nullableChainHop(a))) {
+        } else if (expected != null && !isNullType(expected) && requiresNonNullCallArgument(a, text)) {
             if (!isNullInitialized(a))
                 addProofExpr(a);
             if (provenNonNull(a) || guardProofBefore(a))
@@ -3838,10 +3857,9 @@ class KotlinExpr {
                 functionTypeExpected = wasFunctionTypeExpected;
                 if (registered != null && expected != null && isNullLiteral(a)) {
                     constructorDefaultText(registered, expected, cls, args);
-                } else if (registered != null && expected != null && isNullType(a.t)) {
+                } else if (registered != null && expected != null && requiresNonNullCallArgument(a, text)) {
                     "(" + text + " ?: " + constructorDefaultText(registered, expected, cls, args) + ")";
-                } else if (expected != null && !isNullType(expected) &&
-                    ((PolicyQueries.isNullableType(a.t) && !provenNonNull(a) && !guardProofBefore(a)) || isNullInitialized(a) || nullableChainHop(a))) {
+                } else if (expected != null && !isNullType(expected) && requiresNonNullCallArgument(a, text)) {
                     if (!isNullInitialized(a))
                         addProofExpr(a);
                     if (provenNonNull(a) || guardProofBefore(a))
@@ -3861,8 +3879,12 @@ class KotlinExpr {
         Haxe AST does not retain the nullable receiver edge.
     **/
     function requiresNonNullCallArgument(e:TypedExpr, rendered:String):Bool {
+<<<<<<< HEAD
         return (isNullType(e.t) && !provenNonNull(e) && !guardProofBefore(e))
             || (PolicyQueries.isNullableType(e.t) && !provenNonNull(e) && !guardProofBefore(e))
+=======
+        return (PolicyQueries.isNullableType(e.t) && !provenNonNull(e) && !guardProofBefore(e))
+>>>>>>> 8ede2a84 (fix(kotlin): normalize nullable call arguments)
             || isNullInitialized(e)
             || nullableChainHop(e)
             || rendersNullable(e)
