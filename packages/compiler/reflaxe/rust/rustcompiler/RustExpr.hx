@@ -832,6 +832,8 @@ class RustExpr {
                             || c.get().name == "SortedSet"):
                         ": "
                         + types.of(v.t, false);
+                    case _ if (isIntType(v.t)):
+                        ": " + types.of(v.t, false);
                     case _: "";
                 };
                 var explicitNullableNone = false;
@@ -855,6 +857,8 @@ class RustExpr {
                 }
                 var initStr = switch (init.expr) {
                     case TFunction(fn): functionValueLiteralNamed(v.name, fn, init.t);
+                    case TConst(TInt(value)) if (isIntType(v.t)):
+                        integerBindingLiteral(value);
                     case TConst(TNull) if (isNullType(v.t)):
                         explicitNullableNone = true;
                         "None";
@@ -4126,17 +4130,22 @@ class RustExpr {
         A bare int literal stays as written because rust infers it into
         the parameter type, keeping existing trees unchanged.
     **/
+    /** Types an integer literal used to initialize an Int local before method use. */
+    function integerBindingLiteral(value:Int):String {
+        if (value < 0 && !RuntimeResidents.isResident(imports.selfModule))
+            return Std.string(value + 4294967296) + "u32";
+        return Std.string(value) + (RuntimeResidents.isResident(imports.selfModule) ? "i32" : "u32");
+    }
+
     function mathFloatArg(a:TypedExpr):String {
-        if (!isIntType(emittedType(a)))
-            return expr(a);
         return switch (stripWrap(a).expr) {
             case TConst(TInt(v)):
-                // A literal is otherwise emitted in the Haxe Int domain. Math
-                // receives Float, so spell the target width at this boundary;
-                // this also prevents E0689 in a binding whose first use is
-                // is_nan/is_sign_negative.
+                // Math arguments are Float even when the typed AST retains the
+                // original Int constant. Suffixing this literal prevents Rust
+                // method calls from leaving its numeric type ambiguous.
                 Std.string(v) + ".0" + (FloatPrecision.isF32() ? "f32" : "f64");
-            case _: intToFloatText(expr(a));
+            case _ if (isIntType(emittedType(a))): intToFloatText(expr(a));
+            case _: expr(a);
         };
     }
 
@@ -4205,6 +4214,12 @@ class RustExpr {
         if (genericStaticCallArg(e)) {
             return "{ let v: u32 = " + expr(e) + "; i32::from_ne_bytes(v.to_ne_bytes()) }";
         }
+        final literal = switch (stripWrap(e).expr) {
+            case TConst(TInt(v)): true;
+            default: false;
+        };
+        if (literal)
+            return RustConversions.reinterpret(types.of(e.t, false) == "u32" ? expr(e) : "0u32", "i32");
         return RustConversions.reinterpret(expr(e), "i32");
     }
 
