@@ -515,8 +515,20 @@ class TsDecl {
         // constructor body carries the assignments.
         // @:allow members omit TypeScript visibility so they are public.
         final vis = field.isPublic ? "public" : (field.meta.has(":allow") ? "" : "private");
-        final ro = field.isFinal ? "readonly " : "";
+        // A `final StringBuf` is still mutable: StringBuf erases to string
+        // and `.add` lowers to `+=`, which reassigns the field. Marking it
+        // readonly would reject every append.
+        final ro = field.isFinal && !isStringBufType(field.type) ? "readonly " : "";
         return ['  $vis ${ro}${field.name}: ${types.of(field.type)};'];
+    }
+
+    static function isStringBufType(t:Null<Type>):Bool {
+        if (t == null)
+            return false;
+        return switch (Context.follow(t)) {
+            case TInst(c, _): final cls = c.get(); (cls.pack.join(".") == "std" && cls.name == "StringBuf") || (cls.pack.length == 0 && cls.name == "StringBuf");
+            case _: false;
+        };
     }
 
     static function isFunctionType(t:Null<Type>):Bool {
