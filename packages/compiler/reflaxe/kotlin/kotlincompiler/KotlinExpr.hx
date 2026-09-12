@@ -118,6 +118,9 @@ class KotlinExpr {
     /** Return type of the function currently being lowered; null outside function context. */
     var currentReturnType:Null<Type> = null;
 
+    /** Whether the declaration was widened because its body preserves a safe-call result. */
+    var currentReturnAllowsNullable:Bool = false;
+
     /** Whether bare returns are being lowered inside the synthesized test runner lambda. */
     var inTestRunnerLambda:Bool = false;
 
@@ -454,6 +457,11 @@ class KotlinExpr {
             case TFun(_, ret): ret;
             case _: null;
         };
+        // Keep the expression nullable when the declaration was widened for a
+        // safe-call return.  The old independent `rendersNullable` assertion
+        // pass appended `!!` here, defeating `?.` and turning a valid null
+        // result into an exception.
+        currentReturnAllowsNullable = bodyUsesSafeCallReturns(f);
         nonNullLocals.clear();
         nullInitializedLocals.clear();
         nullableRenderedLocals.clear();
@@ -470,6 +478,7 @@ class KotlinExpr {
         scanLocals(f.expr);
         final result = blockLines(statementsOf(f.expr), 1);
         currentReturnType = null;
+        currentReturnAllowsNullable = false;
         return result;
     }
 
@@ -814,7 +823,7 @@ class KotlinExpr {
                         functionTypeExpected = PolicyQueries.isFunctionType(currentReturnType);
                         var retText = expr(ret);
                         functionTypeExpected = wasFunctionTypeExpected;
-                        if (rendersNullable(ret) && !isNullType(currentReturnType))
+                        if (rendersNullable(ret) && !isNullType(currentReturnType) && !currentReturnAllowsNullable)
                             retText += "!!";
                         // Haxe unifies Int and Float; widen Int return values to
                         // Float when the function's return type is Float.
@@ -2138,6 +2147,12 @@ class KotlinExpr {
         // later hop would incorrectly use a plain dot.
         if (nullableChainHop(subj) && !guardProofBefore(subj))
             return "?.";
+        // A preceding safe-call can make a call result nullable even though
+        // the typed receiver is recorded as a non-null String (for example
+        // `value?.toString()?.plus(...)`). Preserve that nullability for the
+        // next hop while retaining the intermediate nullable result.
+        if (rendersNullable(subj))
+            return "?.";
         if (isNullType(subj.t))
             return "!!.";
         return ".";
@@ -2618,7 +2633,14 @@ class KotlinExpr {
         // loops and branches.
         final proven = provenNonNull(e) || guardProofBefore(e);
         final nullInit = isNullInitialized(e);
-        if (((isNullType(e.t) && !proven) || nullInit || rendersNullable(e)) && parent != OpEq && parent != OpNotEq) {
+        // A value already carrying safe-navigation is part of a nullable
+        // chain. Extracting it here would turn `value?.toString()` into
+        // `value?.toString()!!`, preventing a following `?.` hop from
+        // preserving the null result.
+        final preservesSafeCall = rendered.indexOf("?.") >= 0;
+        if (!isNullLiteral(e) && !preservesSafeCall
+            && ((isNullType(e.t) && !proven) || nullInit || rendersNullable(e))
+            && parent != OpEq && parent != OpNotEq) {
             rendered += "!!";
             if (!nullInit)
                 addProofExpr(e);
@@ -3682,15 +3704,16 @@ class KotlinExpr {
                         final expectedArg = args[0];
                         final actualArg = args[1];
                         final msgArg = args.length > 2 ? expr(args[2]) : null;
+                        final renderedTestArgs = renderCallArgs(args, paramsForCall(fn), cls, name);
                         if (isScalarType(expectedArg.t)) {
                             final runtimePackage = RuntimeConfig.requireImportName("module test extern");
                             state.shimsUsed.set(RuntimeResidents.externsOf("runtime.TestCore")[0], true);
                             imports.require(runtimePackage + ".test.Test");
-                            return "Test.equals(" + expr(expectedArg) + ", " + expr(actualArg) + (msgArg != null ? ", " + msgArg : "") + ")";
+                            return "Test.equals(" + renderedTestArgs.join(", ") + ")";
                         } else {
                             recordAggregateType(expectedArg.t);
                             imports.require("tests.TestHelper");
-                            return "TestHelper.assertEquals(" + expr(expectedArg) + ", " + expr(actualArg) + (msgArg != null ? ", " + msgArg : "") + ")";
+                            return "TestHelper.assertEquals(" + renderedTestArgs.join(", ") + ")";
                         }
                     }
                 }
