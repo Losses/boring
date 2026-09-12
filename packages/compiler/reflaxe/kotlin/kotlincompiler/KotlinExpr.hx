@@ -4210,19 +4210,18 @@ class KotlinExpr {
                 final tt = emittedType(t);
                 return tt != null ? tt : emittedType(f);
             case TBinop(op, l, r):
-                switch (op) {
+                // EmittedNumericComparisonWidening: retain the operand's
+                // rendered numeric type so Int literals are widened for both
+                // float-precision=f32 and float-precision=f64 comparisons.
+                return switch (op) {
                     case OpAdd | OpSub | OpMult | OpDiv | OpMod:
                         final lt = emittedType(l);
-                        if (lt != null && isIntOrLongType(lt))
-                            return lt;
-                        return emittedType(r);
+                        lt != null ? lt : emittedType(r);
                     case OpEq | OpNotEq | OpGt | OpGte | OpLt | OpLte:
                         final lt = emittedType(l);
-                        if (lt != null)
-                            return lt;
-                        return emittedType(r);
-                    case _:
-                }
+                        lt != null ? lt : emittedType(r);
+                    case _: e.t;
+                };
             case TLocal(v):
                 return e.t;
             case TField(_, _):
