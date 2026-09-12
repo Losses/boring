@@ -2265,6 +2265,19 @@ class DartExpr {
                 if (module == "std.Fs") {
                     return fsCall(fName, args, fn);
                 }
+                if (cls.name == "NodeFileSystem" && module == "org.tiqian.test.trace.TestTracePlatform") {
+                    // The consumer test harness's node:fs extern has no Dart
+                    // node runtime; the two members lower to the dart:io
+                    // calls the std.Fs face uses, mirroring the Kotlin and
+                    // Swift targets.
+                    imports.useDartIo();
+                    final p = expr(args[0]);
+                    return switch (fName) {
+                        case "mkdirSync": "Directory(" + p + ").createSync(recursive: true)";
+                        case "writeFileSync": "File(" + p + ").writeAsStringSync(" + expr(args[1]) + ")";
+                        case _: fail(fn, "NodeFileSystem has no lowering for member " + fName);
+                    };
+                }
                 if (module == "std.Env") {
                     return envCall(fName, args, fn);
                 }
