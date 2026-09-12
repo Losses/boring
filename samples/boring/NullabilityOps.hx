@@ -14,5 +14,23 @@ class NullabilityOps {
         final value:Float = values[index] == null ? 0 : values[index];
         return value;
     }
+
+    public static function ctorFieldLabel(label:Null<String>):Null<String> {
+        return new NullableLabelHolder(label).render();
+    }
     #end
 }
+
+#if kotlin_output
+class NullableLabelHolder {
+    private final label:String;
+
+    public function new(?label:String) {
+        this.label = label;
+    }
+
+    public function render():String {
+        return this.label.toUpperCase();
+    }
+}
+#end
