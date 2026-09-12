@@ -2333,7 +2333,7 @@ class TsExpr {
             case TFun(p, _): [for (x in p) x.t];
             case _: [];
         };
-        return [for (i in 0...args.length) {
+        final rendered = [for (i in 0...args.length) {
             final d = DefaultArgExpander.defaultAt(cls, "new", i);
             final p = i < ps.length ? ps[i] : null;
             d != null
@@ -2341,6 +2341,30 @@ class TsExpr {
             && !isNullDefault(d) && !provablyNonNull(args[i]) ? "(" + expr(args[i]) + " ?? " + constructorDefaultText(d, p, cls, args) + ")" : expr(args[i]);
         }
         ];
+        // A call may omit parameters that the emitted signature renders as
+        // required (a front-optional `?param:Null<T>` or a constant default
+        // that carries no `= default`). Materialize every omitted slot up to
+        // and including the last required one so positional alignment holds;
+        // coalescing-default slots carry `= default` in the signature and
+        // stay omitted only when no later slot is required.
+        if (args.length < ps.length) {
+            var lastRequired = -1;
+            for (i in args.length...ps.length) {
+                if (DefaultArgExpander.coalescingDefaultAt(cls, "new", i) == null)
+                    lastRequired = i;
+            }
+            if (lastRequired >= 0) {
+                final omitted = DefaultArgExpander.omittedCallDefaults(cls.module, "new", args.length, cls.name);
+                if (omitted != null) {
+                    final count = lastRequired - args.length + 1;
+                    for (i in 0...count) {
+                        if (i < omitted.length)
+                            rendered.push(constructorCoalescingText(omitted[i].value, omitted[i].type, cls, args));
+                    }
+                }
+            }
+        }
+        return rendered;
     }
 
     /**
