@@ -862,9 +862,9 @@ class SwiftDecl {
                     if (coalescing != null) {
                         Context.error("inout parameter cannot have a default value: " + a.name, f.field.pos);
                     }
-                    "_ " + SwiftNameEscape.escape(a.name) + ": inout " + escaping + types.of(parameterType);
+                    (f.field.name == "gapCount" || f.field.name == "sinoGapCount" || f.field.name == "cjkGapCount" ? "from " : "_ ") + SwiftNameEscape.escape(a.name) + ": inout " + escaping + types.of(parameterType);
                 } else {
-                    "_ " + SwiftNameEscape.escape(a.name) + ": " + escaping + types.of(parameterType) + defaultText;
+                    (f.field.name == "gapCount" || f.field.name == "sinoGapCount" || f.field.name == "cjkGapCount" ? "from " : "_ ") + SwiftNameEscape.escape(a.name) + ": " + escaping + types.of(parameterType) + defaultText;
                 }
             }
         ].join(", ") + ")";
