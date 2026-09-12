@@ -95,11 +95,23 @@ class RustExpr {
     var i32ComparisonTarget = false;
     var i32InitializerTarget = false;
     // Locals whose declaration renders an i32 binding (a wrapping-binop
-    // initializer under i32InitializerTarget). Assignments to them keep the
-    // i32 target override; every other i32-domain local binds u32 (a
-    // constant or u32-source initializer) and its assignments must render
-    // in the binding's u32 domain.
+    // initializer under i32InitializerTarget, or a String.indexOf result).
+    // Assignments to them keep the i32 target override; every other
+    // i32-domain local binds u32 (a constant or u32-source initializer)
+    // and its assignments must render in the binding's u32 domain.
     final i32BindingLocals:Map<Int, Bool> = [];
+    // Int locals whose declaration renders in the business u32 domain (a
+    // constant or u32-source initializer). The comparison sentinel
+    // heuristic consults this declaration fact so a signed-looking
+    // comparison cannot override a u32 binding; a countdown loop variable
+    // (decremented under a `>= 0` guard) stays eligible for the signed
+    // domain because its loop exits only when the value goes negative.
+    final declaredUnsignedIntLocals:Map<Int, Bool> = [];
+    // Countdown loop variables whose guard is `>= 0` with a non-unit step
+    // (transformCountdownLoops only shifts unit steps): the loop exits
+    // when the value goes negative, so the signed domain is required even
+    // though the declaration renders u32.
+    final signedCountdownVars:Map<Int, Bool> = [];
     // Downward loops the renderer shifts to an unsigned guard
     // (transformCountdownLoops): their variable keeps the u32 domain.
     final countdownShiftedVars:Map<Int, Bool> = [];
@@ -433,6 +445,8 @@ class RustExpr {
         nullableSensitiveLocals.clear();
         i32Locals.clear();
         i32BindingLocals.clear();
+        declaredUnsignedIntLocals.clear();
+        signedCountdownVars.clear();
         countdownShiftedVars.clear();
         mutated.clear();
         deferredLocals.clear();
@@ -847,6 +861,12 @@ class RustExpr {
                         }
                     case TCall(ifn, iargs) if (isStringIndexOf(ifn) && iargs.length >= 1 && isIntType(v.t) && !isNullType(v.t)):
                         i32Locals.set(v.id, true);
+                        // The indexOf lowering renders an i32 binding
+                        // (narrowI32 on the found offset, -1 for absent);
+                        // later assignments to the local keep the i32
+                        // target override so they do not diverge from the
+                        // declaration's domain.
+                        i32BindingLocals.set(v.id, true);
                     case _:
                 }
                 // A String local owns its value; a literal initializer is
@@ -965,6 +985,13 @@ class RustExpr {
                 } else {
                     renderValueForType(currentReturnType, ret, expr(ret));
                 };
+                // An i32-domain local (String.indexOf result, wrapping
+                // binop) returned from a business u32 Int function
+                // reinterprets its bits at the boundary; the return slot is
+                // the module u32 domain.
+                if (returnUnsigned && isIntType(ret.t) && !isNullType(ret.t) && i32LocalDomain(ret) && !isUsizeExpr(ret)) {
+                    retStr = RustConversions.reinterpret(retStr, "u32");
+                }
                 while (StringTools.startsWith(retStr, "(") && StringTools.endsWith(retStr, ")") && matchingParens(retStr)) {
                     retStr = retStr.substr(1, retStr.length - 2);
                 }
@@ -1644,6 +1671,31 @@ class RustExpr {
                     case TBinop(OpAssign, l, r) if (isTargetVar(l, varId)):
                         switch (stripWrap(r).expr) {
                             case TBinop(OpSub, subTarget, sub) if (isTargetVar(subTarget, varId) && isLiteralOne(sub)):
+                                found = true;
+                            case _:
+                        }
+                    case TUnop(OpDecrement, _, subj) if (isTargetVar(subj, varId)):
+                        found = true;
+                    case _:
+                }
+                TypedExprTools.iter(x, walk);
+            }
+            walk(s);
+        }
+        return found;
+    }
+
+    /** Whether the loop body decrements the variable by any step. */
+    function mentionsAnyDecrement(stmts:Array<TypedExpr>, varId:Int):Bool {
+        var found = false;
+        for (s in stmts) {
+            function walk(x:TypedExpr) {
+                switch (x.expr) {
+                    case TBinop(OpAssignOp(OpSub), l, _) if (isTargetVar(l, varId)):
+                        found = true;
+                    case TBinop(OpAssign, l, r) if (isTargetVar(l, varId)):
+                        switch (stripWrap(r).expr) {
+                            case TBinop(OpSub, subTarget, _) if (isTargetVar(subTarget, varId)):
                                 found = true;
                             case _:
                         }
@@ -3714,6 +3766,26 @@ class RustExpr {
         };
     }
 
+    /**
+        Whether an Int declaration's initializer renders in the signed i32
+        domain. A String.indexOf call lowers to a match that yields i32
+        (narrowI32 on the found offset, -1 for the absent case); a wrapping
+        binop under i32InitializerTarget renders i32. Every other Int
+        initializer renders in the business u32 domain.
+    **/
+    function declarationRendersI32(init:TypedExpr):Bool {
+        return switch (stripWrap(init).expr) {
+            case TCall(fn, _) if (isStringIndexOf(fn)): true;
+            case TBinop(OpAdd | OpSub | OpMult, _, _): true;
+            case _: false;
+        };
+    }
+
+    /** True when the local is a countdown loop variable with a `>= 0` guard. */
+    function isSignedCountdownVar(v:TVar):Bool {
+        return signedCountdownVars.exists(v.id);
+    }
+
     function isUnderflowProneIntExpr(e:TypedExpr):Bool {
         return switch (stripWrap(e).expr) {
             case TBinop(OpSub, value, amount):
@@ -5344,6 +5416,10 @@ class RustExpr {
                             "i64ToF32"
                         else if (name == "doubleToI64")
                             "f32ToI64"
+                        else if (name == "i32ToFloat")
+                            "i32ToF32"
+                        else if (name == "floatToI32")
+                            "f32ToI32"
                         else
                             name;
                     } else {
@@ -6268,6 +6344,16 @@ class RustExpr {
                             }
                         case _:
                     }
+                    // The declaration decides the binding domain: an Int
+                    // initializer that renders in the business u32 domain (a
+                    // constant, a u32-source read, a length) keeps that domain
+                    // even when a later comparison looks signed. A wrapping
+                    // binop or String.indexOf initializer renders i32 and is
+                    // exempt. The comparison heuristic consults this fact so
+                    // the sentinel exemption cannot override a u32 binding.
+                    if (isIntType(v.t) && !isNullType(v.t) && !declarationRendersI32(init)) {
+                        declaredUnsignedIntLocals.set(v.id, true);
+                    }
                 }
             case TTry(body, _):
                 collectTryAssignments(body);
@@ -6280,6 +6366,27 @@ class RustExpr {
                         final cd = matchCountdownLoop(stmts[i], stmts[i + 1]);
                         if (cd != null)
                             countdownShiftedVars.set(cd.readVar.id, true);
+                    }
+                }
+                // A countdown loop whose guard is `>= 0` but whose step is
+                // not a unit (transformCountdownLoops only shifts unit
+                // steps) exits only when the value goes negative, so the
+                // signed domain is required even though the declaration
+                // renders u32. Record it so the sentinel heuristic keeps
+                // the i32 exemption for these variables.
+                for (i in 0...stmts.length) {
+                    if (i + 1 < stmts.length) {
+                        final cd = matchCountdownLoop(stmts[i], stmts[i + 1]);
+                        if (cd == null) {
+                            switch [stmts[i].expr, stmts[i + 1].expr] {
+                                case [TVar(readVar, init), TWhile(cond, body, true)] if (init != null && isIntType(init.t)):
+                                    if (hasGteZeroCheck(cond, readVar.id)
+                                        && !mentionsUnitDecrement(statementsOf(body), readVar.id)
+                                        && mentionsAnyDecrement(statementsOf(body), readVar.id))
+                                        signedCountdownVars.set(readVar.id, true);
+                                case _:
+                            }
+                        }
                     }
                 }
             case TBinop(OpEq | OpNotEq, left, right):
@@ -6297,14 +6404,39 @@ class RustExpr {
                 // against an expression that can underflow below zero does
                 // too. A bare `> 0` is a positive check on a business u32
                 // index and never needs the signed domain, so it leaves the
-                // local unsigned.
+                // local unsigned. The declaration decides the binding
+                // domain: a local whose initializer renders u32 (a constant
+                // or u32-source read) keeps that domain even under a
+                // signed-looking comparison, so the sentinel exemption
+                // cannot override the u32 binding. A countdown loop
+                // variable (decremented under a `>= 0` guard with a
+                // non-unit step) is the exception: its loop exits only when
+                // the value goes negative, so it keeps the signed domain.
+                // A comparison against an expression that can underflow
+                // below zero (`x <= length - k`) needs the signed domain
+                // regardless of the declaration: the bound goes
+                // negative when the length is short, and an unsigned
+                // wrapping bound would keep the loop running past the end.
                 switch ([stripWrap(left).expr, stripWrap(right).expr]) {
-                    case [TLocal(v), _] if (isUnderflowProneIntExpr(right)
-                        || ((cmpOp == OpLte || cmpOp == OpLt || cmpOp == OpGte) && isZero(right))):
+                    case [TLocal(v), _] if (isUnderflowProneIntExpr(right)):
                         if (isIntType(v.t) && !isNullType(v.t) && !unsignedLocals.exists(v.id) && !countdownShiftedVars.exists(v.id)) i32Locals.set(v.id, true);
-                    case [_, TLocal(v)] if (isUnderflowProneIntExpr(left)
-                        || ((cmpOp == OpLte || cmpOp == OpGt || cmpOp == OpGte) && isZero(left))):
+                    case [_, TLocal(v)] if (isUnderflowProneIntExpr(left)):
                         if (isIntType(v.t) && !isNullType(v.t) && !unsignedLocals.exists(v.id) && !countdownShiftedVars.exists(v.id)) i32Locals.set(v.id, true);
+                    case _:
+                }
+                // A sentinel comparison against literal zero (`< 0`,
+                // `>= 0`, `<= 0`) follows the declaration's domain: a
+                // local whose initializer renders u32 (a constant or
+                // u32-source read) keeps that domain, so the sentinel
+                // exemption cannot override the u32 binding. A countdown
+                // loop variable (decremented under a `>= 0` guard with a
+                // non-unit step) is the exception: its loop exits only when
+                // the value goes negative, so it keeps the signed domain.
+                switch ([stripWrap(left).expr, stripWrap(right).expr]) {
+                    case [TLocal(v), _] if ((cmpOp == OpLte || cmpOp == OpLt || cmpOp == OpGte) && isZero(right)):
+                        if (isIntType(v.t) && !isNullType(v.t) && (!declaredUnsignedIntLocals.exists(v.id) || signedCountdownVars.exists(v.id)) && !unsignedLocals.exists(v.id) && !countdownShiftedVars.exists(v.id)) i32Locals.set(v.id, true);
+                    case [_, TLocal(v)] if ((cmpOp == OpLte || cmpOp == OpGt || cmpOp == OpGte) && isZero(left)):
+                        if (isIntType(v.t) && !isNullType(v.t) && (!declaredUnsignedIntLocals.exists(v.id) || signedCountdownVars.exists(v.id)) && !unsignedLocals.exists(v.id) && !countdownShiftedVars.exists(v.id)) i32Locals.set(v.id, true);
                     case _:
                 }
             case TBinop(OpAssign, t, _) | TBinop(OpAssignOp(_), t, _):
