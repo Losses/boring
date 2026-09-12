@@ -2348,6 +2348,37 @@ class DartExpr {
                 if ((cls.name == "Functional" || cls.name == "__functional_shim" || module == "std.Functional") && fName == "sortedBy") {
                     return sortedByCall(args, fn);
                 }
+                if ((cls.name == "Functional" || cls.name == "__functional_shim" || module == "std.Functional") && fName == "sumOfFloat" && args.length == 2) {
+                    // A closed-list call that survived pipeline expansion
+                    // (a closure body or a non-Array receiver) lowers onto
+                    // a reduce over the float domain the Haxe signature
+                    // names, mirroring the Kotlin and Swift targets.
+                    final func = unwrapLambda(args[1]);
+                    if (func != null && func.args.length == 1) {
+                        final param = func.args[0].v;
+                        final body = lambdaBody(func.expr);
+                        subst.set(param.id, "_v");
+                        final value = expr(body);
+                        subst.remove(param.id);
+                        return expr(args[0]) + ".fold(0.0, (_acc, _v) => _acc + " + value + ")";
+                    }
+                    return fail(fn, "sumOfFloat requires a single-argument key function");
+                }
+                if ((cls.name == "Functional" || cls.name == "__functional_shim" || module == "std.Functional") && fName == "sumOfInt" && args.length == 2) {
+                    final func = unwrapLambda(args[1]);
+                    if (func != null && func.args.length == 1) {
+                        final param = func.args[0].v;
+                        final body = lambdaBody(func.expr);
+                        subst.set(param.id, "_v");
+                        final value = expr(body);
+                        subst.remove(param.id);
+                        return expr(args[0]) + ".fold(0, (_acc, _v) => _acc + " + value + ")";
+                    }
+                    return fail(fn, "sumOfInt requires a single-argument key function");
+                }
+                if ((cls.name == "Functional" || cls.name == "__functional_shim" || module == "std.Functional") && fName == "forEach" && args.length == 2) {
+                    return expr(args[0]) + ".forEach(" + expr(args[1]) + ")";
+                }
                 if (module == "std.SortedMap" && fName == "builder") {
                     // The factory fixes only the comparator's key, so the
                     // value argument cannot infer; the call spells both.
