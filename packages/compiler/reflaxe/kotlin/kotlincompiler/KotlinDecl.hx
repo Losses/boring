@@ -1151,12 +1151,34 @@ class KotlinDecl {
         return cls.pack.join(".") == packDot && cls.name == name;
     }
 
+    /**
+        InterfaceOverrideReturnContract preserves the interface return type for
+        an implementation reached through an inherited class or interface.
+        Safe-call bodies can render nullable expressions, but Kotlin override
+        declarations must retain their inherited non-null contract.
+    **/
     function isInterfaceMethod(cls:ClassType, f:ClassFuncData):Bool {
+        return inheritsInterfaceMethod(cls, f.field.name);
+    }
+
+    function inheritsInterfaceMethod(cls:ClassType, name:String):Bool {
         for (iface in cls.interfaces) {
-            final ifaceCls = iface.t.get();
-            for (field in ifaceCls.fields.get()) {
-                if (field.name == f.field.name)
-                    return true;
+            if (interfaceDeclaresMethod(iface.t.get(), name)) {
+                return true;
+            }
+        }
+        return cls.superClass != null && inheritsInterfaceMethod(cls.superClass.t.get(), name);
+    }
+
+    function interfaceDeclaresMethod(iface:ClassType, name:String):Bool {
+        for (field in iface.fields.get()) {
+            if (field.name == name) {
+                return true;
+            }
+        }
+        for (parent in iface.interfaces) {
+            if (interfaceDeclaresMethod(parent.t.get(), name)) {
+                return true;
             }
         }
         return false;
