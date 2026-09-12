@@ -465,3 +465,5 @@ boring.ThrowingIndexOfOps
 tests.ThrowingIndexOfTests
 boring.FloatTernaryArmOps
 tests.FloatTernaryArmTests
+boring.ValueTypeCtorBindingOps
+tests.ValueTypeCtorBindingTests
