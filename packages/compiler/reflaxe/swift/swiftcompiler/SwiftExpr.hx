@@ -2847,6 +2847,14 @@ class SwiftExpr {
                     }
                     return nativeName + "(" + rendered + ")";
                 }
+                if (module == "org.tiqian.test.trace.TestTracePlatform" && cls.name == "NodeFileSystem") {
+                    if (fName == "mkdirSync" && args.length >= 1) {
+                        return "try! FileManager.default.createDirectory(atPath: " + expr(args[0]) + ", withIntermediateDirectories: true)";
+                    }
+                    if (fName == "writeFileSync" && args.length >= 2) {
+                        return "try! (" + expr(args[1]) + ").write(toFile: " + expr(args[0]) + ", atomically: true, encoding: .utf8)";
+                    }
+                }
                 if (module == "std.Env" || module == "std.Fs") {
                     return platformModuleCall(module, fName, args, fn);
                 }
@@ -3054,6 +3062,10 @@ class SwiftExpr {
                     final s = receiverText(subj);
                     return "Int32({ () -> Int in if let i = " + s + ".firstIndex(of: " + optionalExpr(args[0]) + ") { return " + s + ".distance(from: " + s
                         + ".startIndex, to: i) }; return -1 }())";
+                }
+                if (name == "lastIndexOf" && isStringSubject(subj) && args.length >= 1) {
+                    final s = receiverText(subj);
+                    return "Int32(" + s + ".lastIndex(of: " + optionalExpr(args[0]) + ".first!).map { " + s + ".distance(from: " + s + ".startIndex, to: $0) } ?? -1)";
                 }
                 if (name == "indexOf" && isStringSubject(subj) && args.length >= 1) {
                     final s = receiverText(subj);
