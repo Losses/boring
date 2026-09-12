@@ -1407,10 +1407,25 @@ class TsExpr {
         return PolicyQueries.isFpHelperInt64Call(fn);
     }
 
+    /**
+        Records a cross-class private access: when the current class differs
+        from the owner and the member is private, the emitted member must be
+        public so the reference resolves (Haxe same-module private access).
+    **/
+    function notePrivateAccess(owner:ClassType, cf:ClassField):Void {
+        if (currentClass == null || cf.isPublic || cf.meta.has(":allow"))
+            return;
+        final cur = currentClass;
+        if (cur.module == owner.module && cur.name != owner.name) {
+            Compiler.noteCrossClassPrivateAccess(owner.module, owner.name, cf.name);
+        }
+    }
+
     function field(subj:TypedExpr, fa:FieldAccess):String {
         switch (fa) {
             case FStatic(c, cf):
                 final cls = c.get();
+                notePrivateAccess(cls, cf.get());
                 final rendered = staticRef(cls, cf.get().name);
                 return DataTableHelper.isDataTableField(cf.get())
                     && !RuntimeResidents.isResident(cls.module) ? "Array.from(" + rendered + ")" : rendered;
@@ -1421,6 +1436,7 @@ class TsExpr {
                 return isValueEnum(enumDef) ? enumDef.name + "." + ef.name : "{ kind: \"" + ef.name + "\" }";
             case FInstance(owner, _, cf):
                 final name = cf.get().name;
+                notePrivateAccess(owner.get(), cf.get());
                 final getterProperty = getterOnlyPropertyName(owner.get(), name);
                 if (getterProperty != null)
                     return expr(subj) + "." + getterProperty;

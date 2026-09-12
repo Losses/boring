@@ -3,6 +3,7 @@ package tscompiler;
 #if (macro || reflaxe_runtime)
 import haxe.macro.Context;
 import haxe.macro.Type;
+import haxe.macro.TypedExprTools;
 import PolicyQueries;
 import reflaxe.BaseCompiler.BaseCompilerFileOutputType;
 import reflaxe.PluginCompiler;
@@ -42,6 +43,171 @@ class Compiler extends PluginCompiler<Compiler> {
     **/
     public static final referencedImplModules:Map<String, Bool> = [];
 
+    /**
+        Private members (fields or methods) that another class in the same
+        module reads or calls. Haxe allows a private class or a sibling in
+        the same module to access another class's private members; the
+        TypeScript target emits such members as public so the cross-class
+        reference resolves. Keyed by `ownerModule + ":" + ownerName + ":" +
+        memberName`.
+    **/
+    public static final crossClassPrivateAccess:Map<String, Bool> = [];
+
+    public static function noteCrossClassPrivateAccess(ownerModule:String, ownerName:String, memberName:String):Void {
+        crossClassPrivateAccess.set(ownerModule + ":" + ownerName + ":" + memberName, true);
+    }
+
+    public static function hasCrossClassPrivateAccess(ownerModule:String, ownerName:String, memberName:String):Bool {
+        return crossClassPrivateAccess.exists(ownerModule + ":" + ownerName + ":" + memberName);
+    }
+
+    /**
+        Pre-scan every typed class body and record accesses to a private
+        member of another class in the same module. Haxe permits same-module
+        private access (a private class or sibling reading another class's
+        private members); the TypeScript target must emit such members as
+        public. This runs after typing and before emission so the owner's
+        declaration already knows every cross-class reader.
+    **/
+    static function scanCrossClassPrivateAccess(moduleTypes:Array<ModuleType>):Void {
+        for (mt in moduleTypes) {
+            switch (mt) {
+                case TClassDecl(clsRef):
+                    final cls = clsRef.get();
+                    for (field in cls.fields.get()) {
+                        final expr = switch (field.kind) {
+                            case FMethod(_): field.expr();
+                            case FVar(_, _): field.expr();
+                            default: null;
+                        };
+                        if (expr != null)
+                            scanExprForPrivateAccess(expr, cls);
+                        // Coalescing defaults (e.g. a constructor default
+                        // `x == null ? LineCandidate.emptyHanging() : x`)
+                        // reference private members outside the typed body.
+                        switch (field.kind) {
+                            case FMethod(_):
+                                final args = switch (Context.follow(field.type)) {
+                                    case TFun(p, _): p;
+                                    default: [];
+                                };
+                                for (i in 0...args.length) {
+                                    final d = DefaultArgExpander.defaultAt(cls, field.name, i);
+                                    if (d != null)
+                                        scanDefaultArgForPrivateAccess(d, cls);
+                                }
+                            default:
+                        }
+                    }
+                    // The `new` constructor is not in `cls.fields`; scan its
+                    // defaults separately (they materialize at every call site).
+                    if (cls.constructor != null) {
+                        final ctorParams = switch (Context.follow(cls.constructor.get().type)) {
+                            case TFun(p, _): p;
+                            default: [];
+                        };
+                        for (i in 0...ctorParams.length) {
+                            final d = DefaultArgExpander.defaultAt(cls, "new", i);
+                            if (d != null)
+                                scanDefaultArgForPrivateAccess(d, cls);
+                        }
+                    }
+                case _:
+            }
+        }
+    }
+
+    static function scanDefaultArgForPrivateAccess(d:DefaultArgExpander.DefaultArgValue, accessingClass:ClassType):Void {
+        switch (d) {
+            case VCoalescing(value): scanCoalescingForPrivateAccess(value, accessingClass);
+            default:
+        }
+    }
+
+    static function scanCoalescingForPrivateAccess(v:DefaultArgExpander.CoalescingDefaultValue, accessingClass:ClassType):Void {
+        switch (v) {
+            case CStaticCall(modulePath, className, methodName, args):
+                noteCoalescingStatic(modulePath, className, methodName, accessingClass);
+                for (a in args)
+                    scanCoalescingForPrivateAccess(a, accessingClass);
+            case CMethodCall(receiver, methodName, args):
+                scanCoalescingForPrivateAccess(receiver, accessingClass);
+                for (a in args)
+                    scanCoalescingForPrivateAccess(a, accessingClass);
+            case CFieldAccess(receiver, _):
+                scanCoalescingForPrivateAccess(receiver, accessingClass);
+            case CConditional(c, t, f):
+                scanCoalescingForPrivateAccess(c, accessingClass);
+                scanCoalescingForPrivateAccess(t, accessingClass);
+                scanCoalescingForPrivateAccess(f, accessingClass);
+            case CBinaryOp(_, l, r):
+                scanCoalescingForPrivateAccess(l, accessingClass);
+                scanCoalescingForPrivateAccess(r, accessingClass);
+            case CConstructorCall(modulePath, className, args):
+                for (a in args)
+                    scanCoalescingForPrivateAccess(a, accessingClass);
+            default:
+        }
+    }
+
+    static function noteCoalescingStatic(modulePath:String, className:String, memberName:String, accessingClass:ClassType):Void {
+        try {
+            for (mt in Context.getModule(modulePath)) {
+                switch (mt) {
+                    case TInst(ref, _) if (ref.get().name == className):
+                        final owner = ref.get();
+                        for (f in owner.fields.get()) {
+                            if (f.name == memberName && !f.isPublic && !f.meta.has(":allow"))
+                                noteCrossClassPrivateAccess(owner.module, owner.name, memberName);
+                        }
+                        for (f in owner.statics.get()) {
+                            if (f.name == memberName && !f.isPublic && !f.meta.has(":allow"))
+                                noteCrossClassPrivateAccess(owner.module, owner.name, memberName);
+                        }
+                    default:
+                }
+            }
+        } catch (_:Dynamic) {}
+    }
+
+    static function scanExprForPrivateAccess(e:TypedExpr, accessingClass:ClassType):Void {
+        if (e == null)
+            return;
+        switch (e.expr) {
+            case TField(subj, fa):
+                switch (fa) {
+                    case FStatic(c, cf):
+                        final owner = c.get();
+                        final f = cf.get();
+                        if (!f.isPublic && !f.meta.has(":allow") && owner.module == accessingClass.module && owner.name != accessingClass.name)
+                            noteCrossClassPrivateAccess(owner.module, owner.name, f.name);
+                    case FInstance(ownerRef, _, cf):
+                        final owner = ownerRef.get();
+                        final f = cf.get();
+                        if (!f.isPublic && !f.meta.has(":allow") && owner.module == accessingClass.module && owner.name != accessingClass.name)
+                            noteCrossClassPrivateAccess(owner.module, owner.name, f.name);
+                    default:
+                }
+            case TNew(c, _, args):
+                final cls = c.get();
+                if (cls.constructor != null) {
+                    final params = switch (Context.follow(cls.constructor.get().type)) {
+                        case TFun(p, _): p;
+                        default: [];
+                    };
+                    if (args.length < params.length) {
+                        final omitted = DefaultArgExpander.omittedCallDefaults(cls.module, "new", args.length, cls.name);
+                        if (omitted != null) {
+                            for (o in omitted)
+                                scanCoalescingForPrivateAccess(o.value, accessingClass);
+                        }
+                    }
+                }
+            default:
+        }
+        TypedExprTools.iter(e, child -> scanExprForPrivateAccess(child, accessingClass));
+    }
+
     public static function use() {
         // number is binary64 with no binary32 alias in the language, so
         // the f32 configuration has no faithful TypeScript lowering; reject at
@@ -52,6 +218,7 @@ class Compiler extends PluginCompiler<Compiler> {
                 Context.currentPos());
         }
         Context.onAfterTyping(ValueTypeSupport.validateModules);
+        Context.onAfterTyping(scanCrossClassPrivateAccess);
         // The stdlib/08 string-buffer fault checks synthesize references to
         // std.UStringException even when the consumer source scope omits
         // samples/. Force the support module through typing so its
