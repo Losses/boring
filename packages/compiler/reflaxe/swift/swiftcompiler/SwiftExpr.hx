@@ -2862,9 +2862,11 @@ class SwiftExpr {
                 }
                 if (module == "org.tiqian.test.trace.TestTracePlatform" && cls.name == "NodeFileSystem") {
                     if (fName == "mkdirSync" && args.length >= 1) {
+                        imports.foundation();
                         return "try! FileManager.default.createDirectory(atPath: " + expr(args[0]) + ", withIntermediateDirectories: true)";
                     }
                     if (fName == "writeFileSync" && args.length >= 2) {
+                        imports.foundation();
                         return "try! (" + expr(args[1]) + ").write(toFile: " + expr(args[0]) + ", atomically: true, encoding: .utf8)";
                     }
                 }
