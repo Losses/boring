@@ -1352,7 +1352,9 @@ class DartExpr {
                 // The value-type constructor takes the representation; an
                 // Int argument to a Float representation widens explicitly
                 // (Dart's extension-type constructor has no implicit widening).
-                final rendered = isIntOrLongType(emittedType(value)) && ValueTypeSupport.isFloatRepresentation(abs) ? intToFloatText(expr(value)) : expr(value);
+                // A synthetic local argument resolves through the local map,
+                // so the constructor receives the local's initializer.
+                final rendered = isIntOrLongType(emittedType(value)) && ValueTypeSupport.isFloatRepresentation(abs) ? intToFloatText(valueTypeOperand(value, locals, abs)) : valueTypeOperand(value, locals, abs);
                 wrapperName + "(" + rendered + ")";
         };
     }
@@ -3091,7 +3093,13 @@ class DartExpr {
 
     function assignTarget(e:TypedExpr):String {
         return AssignTargetPlan.assignTarget(e, (arr, idx) -> expr(arr) + "[" + expr(idx) + "]", e -> switch (e.expr) {
-            case TField(_, FStatic(c, cf)): staticRef(c.get(), cf.get().name);
+            case TField(_, FStatic(c, cf)):
+                // A private static writes under its `_`-prefixed Dart name
+                // (feature spec 27), matching the read path and the
+                // declaration.
+                final cls = c.get();
+                final ownerModule = cls.module != "" ? cls.module : (cls.pack.length == 0 ? cls.name : cls.pack.join(".") + "." + cls.name);
+                staticRef(cls, memberName(ownerModule, cf, e.pos));
             case _: fail(e, "assignment target has no Dart lowering");
         }, (subj, kind, original) -> switch (kind) {
             case Instance(owner, cf): expr(subj) + "." + memberName(owner.get().module, cf, original.pos);
