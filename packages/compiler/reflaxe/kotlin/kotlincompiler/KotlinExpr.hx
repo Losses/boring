@@ -3098,8 +3098,19 @@ class KotlinExpr {
                         return staticRef(c.get(), cf.get().name) + "(" + helperArg
                             + (args.length > 1 ? ", " + renderCallArgs(args.slice(1), paramsForCall(fn)).join(", ") : "") + ")";
                     }
-                    if (c.get().name == "IntIc" && cf.get().name == "ic" && args.length == 1)
-                        return staticRef(c.get(), cf.get().name) + "(" + intToFloatText(expr(args[0])) + ")";
+                    if ((c.get().name == "IntIc" || c.get().name == "FloatIc") && cf.get().name == "ic" && args.length == 1) {
+                        final icArg = expr(args[0]);
+                        // Haxe unifies Int and Float; an Int argument renders
+                        // unchanged for the Int-taking helper, while a
+                        // Float-typed non-Int argument to a Float-taking
+                        // helper with the same name widens to the parameter.
+                        final takesFloat = switch (Context.follow(cf.get().type)) {
+                            case TFun(values, _) if (values.length > 0): isFloatType(values[0].t);
+                            case _: false;
+                        };
+                        final floatArg = isFloatType(args[0].t) && !isIntOrLongType(emittedType(args[0]));
+                        return staticRef(c.get(), cf.get().name) + "(" + (takesFloat && floatArg ? intToFloatText(icArg) : icArg) + ")";
+                    }
                     return null;
                 }
                 final field = cf.get();
@@ -3925,7 +3936,28 @@ class KotlinExpr {
 
     function objectLiteral(e:TypedExpr, fields:Array<{name:String, expr:TypedExpr}>):String {
         final typeName = resolveTypeName(e.t);
-        final parts = [for (f in fields) f.name + " = " + expr(f.expr)];
+        final fieldTypes = switch (Context.follow(e.t)) {
+            case TType(def, _):
+                final anon = switch (Context.follow(def.get().type)) {
+                    case TAnonymous(a): a.get();
+                    case _: null;
+                };
+                anon == null ? null : [for (f in anon.fields) f.name => f.type];
+            case TAnonymous(anon):
+                [for (f in anon.get().fields) f.name => f.type];
+            case _: null;
+        };
+        final parts = [
+            for (f in fields) {
+                final fieldType = fieldTypes == null ? null : fieldTypes.get(f.name);
+                final valText = expr(f.expr);
+                // Haxe unifies Int and Float; widen Int fields to Float when
+                // the record type declares the field Float.
+                final widen = fieldType != null && isFloatType(fieldType)
+                    && (isIntOrLongType(f.expr.t) || isIntOrLongType(emittedType(f.expr)));
+                f.name + " = " + (widen ? intToFloatText(valText) : valText);
+            }
+        ];
         return typeName + "(" + parts.join(", ") + ")";
     }
 
