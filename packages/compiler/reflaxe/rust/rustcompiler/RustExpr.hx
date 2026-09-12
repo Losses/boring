@@ -4824,6 +4824,23 @@ class RustExpr {
                 return expr(args[0]) + ".as_bytes().to_vec()";
             case TField(_, FStatic(c, cf)) if (c.get().module == "haxe.io.Bytes" && cf.get().name == "concat" && args.length == 2):
                 return "{ let mut v = " + expr(args[0]) + ".to_vec(); v.extend_from_slice(&" + expr(args[1]) + "); v }";
+            case TField(_, FStatic(c, cf))
+                if (c.get().module == "org.tiqian.test.trace.TestTracePlatform" && c.get().name == "NodeFileSystem"):
+                // The trace writer's file extern binds node:fs, which has
+                // no rust face; both members lower to the resident file
+                // edge, which carries the same create-parents and
+                // utf-8 write behavior with the host failure mapping.
+                state.shimsUsed.set("std.Fs", true);
+                imports.requireType("std.Fs", "Fs");
+                final fsName = cf.get().name;
+                if (fsName == "mkdirSync" && args.length >= 1) {
+                    return "Fs::make_dirs(" + expr(args[0]) + ")";
+                }
+                if (fsName == "writeFileSync" && args.length >= 2) {
+                    return "Fs::write_text(" + expr(args[0]) + ", " + expr(args[1]) + ")";
+                }
+                Context.error("file extern has no lowering for member " + fsName, fn.pos);
+                return "null";
             case TCast(inner, _):
                 return call(inner, args);
             case TField(subj, FDynamic(name)) if ((name == "length" || name == "get_length") && isStringBuf(subj)):
