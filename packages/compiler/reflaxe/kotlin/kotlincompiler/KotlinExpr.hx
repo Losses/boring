@@ -272,7 +272,7 @@ class KotlinExpr {
             return "SortedTable.mapBuilder<"
                 + types.of(key)
                 + ", "
-                + types.of(value)
+                + types.of(DefaultArgExpander.withoutNull(value))
                 + ">("
                 + sortedComparator("std.SortedMap", key, Context.currentPos())
                 + ")";
@@ -389,7 +389,7 @@ class KotlinExpr {
             return "SortedTable.mapBuilder<"
                 + types.of(key)
                 + ", "
-                + types.of(value)
+                + types.of(DefaultArgExpander.withoutNull(value))
                 + ">("
                 + sortedComparator("std.SortedMap", key, Context.currentPos())
                 + ")";
@@ -3630,7 +3630,7 @@ class KotlinExpr {
                         case TFun(_, TInst(_, params)) if (params.length > 1): params[1];
                         case _: null;
                     };
-                    return "SortedTable.mapBuilder<" + types.of(kType) + ", " + types.of(vType) + ">(" + sortedComparator("std.SortedMap", kType, fn.pos) + ")";
+                    return "SortedTable.mapBuilder<" + types.of(kType) + ", " + types.of(DefaultArgExpander.withoutNull(vType)) + ">(" + sortedComparator("std.SortedMap", kType, fn.pos) + ")";
                 }
                 if (cls.module == "runtime.SortedTable" && name == "mapBuilder") {
                     final kType = switch (fn.t) {
@@ -3641,7 +3641,7 @@ class KotlinExpr {
                         case TFun(_, TInst(_, params)) if (params.length > 1): params[1];
                         case _: null;
                     };
-                    return "SortedTable.mapBuilder<" + types.of(kType) + ", " + types.of(vType) + ">(" + sortedComparator("std.SortedMap", kType, fn.pos) + ")";
+                    return "SortedTable.mapBuilder<" + types.of(kType) + ", " + types.of(DefaultArgExpander.withoutNull(vType)) + ">(" + sortedComparator("std.SortedMap", kType, fn.pos) + ")";
                 }
                 if (cls.pack.join(".") == "std" && cls.name == "SortedSet" && name == "builder") {
                     final kType = switch (fn.t) {
