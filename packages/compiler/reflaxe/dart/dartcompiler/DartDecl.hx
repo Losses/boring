@@ -829,7 +829,12 @@ class DartDecl {
             final init = StaticFieldHelper.validatedInitializer(field, cls);
             final name = dartMemberName(field);
             final kw = field.isFinal ? "final " : "";
-            final type = StaticFieldHelper.isSelfConstruction(field, cls, init) ? "" : types.of(field.type) + " ";
+            // A mutable static initialized with null (Haxe `var x:T = null`)
+            // declares a nullable Dart field; Haxe permits the null even
+            // though the declared type is non-nullable, and the field is
+            // assigned a real value before any read.
+            final nullable = !field.isFinal && init != null && StaticFieldHelper.isNullInitializer(init) && !StaticFieldHelper.isNullableType(field.type);
+            final type = StaticFieldHelper.isSelfConstruction(field, cls, init) ? "" : types.of(field.type) + (nullable ? "?" : "") + " ";
             return [kw + type + name + " = " + constValFloatInit(init, field.type) + ";"];
         }
         Context.error("a statics-only class carries data tables and inline constants only", field.pos);
