@@ -507,3 +507,5 @@ boring.ValueTypeCtorBindingOps
 tests.ValueTypeCtorBindingTests
 boring.RangeParameterOps
 tests.RangeParameterTests
+boring.TypeParameterCompareOps
+tests.TypeParameterCompareTests
