@@ -79,7 +79,7 @@ class SwiftTestHelper {
     static function assertDecl(types:SwiftType, entry:{tag:String, type:Type}):String {
         final t = types.of(nominalTypeOf(entry.type));
         return ["func assertEquals" + entry.tag + "(_ expected: " + t + ", _ actual: " + t + ", _ message: [UInt16]) throws -> Void {",
-            "    if expected != actual {",
+            "    if String(describing: expected) != String(describing: actual) {",
             "        throw TestFailure(message: TestCore.formatCanonicalMessage(Test.currentTestIdState(), message, format"
             + entry.tag
             + "(expected), format"
