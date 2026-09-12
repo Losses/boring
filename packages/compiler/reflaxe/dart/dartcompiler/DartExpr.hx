@@ -2268,6 +2268,12 @@ class DartExpr {
                     return runtimeQualified("SortedTable.mapBuilder") + "<" + types.of(kTypeOf(fn)) + ", " + types.of(DefaultArgExpander.withoutNull(
                         vTypeOf(fn))) + ">(" + sortedComparator(kTypeOf(fn), fn.pos) + ")";
                 }
+                if (module == "runtime.SortedTable" && (fName == "mapBuilder" || fName == "builder")) {
+                    // The map flavor fixes only the comparator's key, so
+                    // the value argument cannot infer; the call spells both.
+                    return runtimeQualified("SortedTable.mapBuilder") + "<" + types.of(kTypeOf(fn)) + ", " + types.of(vTypeOf(fn)) + ">("
+                        + sortedComparator(kTypeOf(fn), fn.pos) + ")";
+                }
                 if (module == "std.SortedSet" && fName == "builder") {
                     return runtimeQualified("SortedTable.setBuilder")
                         + "<"
