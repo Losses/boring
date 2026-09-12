@@ -2331,9 +2331,10 @@ class RustExpr {
                         final padded = withIntPart.indexOf(".") >= 0
                             || withIntPart.indexOf("e") >= 0
                             || withIntPart.indexOf("E") >= 0 ? (StringTools.endsWith(withIntPart, ".") ? withIntPart + "0" : withIntPart) : withIntPart + ".0";
-                        // The f32 configuration marks every literal so its width never
-                        // depends on the inference context (feature spec 23).
-                        return FloatPrecision.isF32() ? padded + "f32" : padded;
+                        // Mark both precision configurations so method calls on a
+                        // literal (for example `is_nan`) never leave its
+                        // type to Rust inference.
+                        return padded + (FloatPrecision.isF32() ? "f32" : "f64");
                     case TString(s): return quoteString(s);
                     case TBool(b): return b ? "true" : "false";
                     case TNull: return "None";
@@ -3801,7 +3802,12 @@ class RustExpr {
         if (!isIntType(emittedType(a)))
             return expr(a);
         return switch (stripWrap(a).expr) {
-            case TConst(TInt(_)): expr(a);
+            case TConst(TInt(v)):
+                // A literal is otherwise emitted in the Haxe Int domain. Math
+                // receives Float, so spell the target width at this boundary;
+                // this also prevents E0689 in a binding whose first use is
+                // is_nan/is_sign_negative.
+                Std.string(v) + ".0" + (FloatPrecision.isF32() ? "f32" : "f64");
             case _: intToFloatText(expr(a));
         };
     }
