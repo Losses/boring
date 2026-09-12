@@ -2477,6 +2477,10 @@ class SwiftExpr {
                     imports.runtimeTest("Test");
                     return "Test";
                 }
+                if (cls.pack.length == 1 && cls.pack[0] == "haxe" && cls.name == "Exception") {
+                    imports.runtime("BoringException");
+                    return "BoringException";
+                }
                 imports.value(cls.module, cls.name);
                 return cls.name;
             case TEnumDecl(en):
@@ -3711,6 +3715,10 @@ class SwiftExpr {
         }
         final rendered = constructorArgTexts(cls, args).join(", ");
         final path = cls.pack.length == 0 ? cls.name : cls.pack.join(".") + "." + cls.name;
+        if (path == "haxe.Exception") {
+            imports.runtime("BoringException");
+            return "BoringException(message: " + rendered + ")";
+        }
         switch (path) {
             case "std.StringBuf" | "StringBuf":
                 return "[UInt16]()";
