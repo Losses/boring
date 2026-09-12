@@ -568,11 +568,21 @@ class PipelineExpander {
                     consumed = 2;
                 }
                 if (lowered != null) {
-                    stmts.splice(i, consumed);
-                    for (j in 0...lowered.length)
-                        stmts.insert(i + j, lowered[j]);
-                    i += lowered.length;
-                    continue;
+                    // The rewrite drops the loop counter. When the counter
+                    // is read again after the loop (a later loop reusing
+                    // the same variable), keep the original form so the
+                    // later reference still resolves.
+                    final counterVar = switch (stmts[i].expr) {
+                        case TVar(v, _): v;
+                        case _: null;
+                    };
+                    if (counterVar == null || !PolicyQueries.counterUsedAfter(stmts, i + consumed, counterVar)) {
+                        stmts.splice(i, consumed);
+                        for (j in 0...lowered.length)
+                            stmts.insert(i + j, lowered[j]);
+                        i += lowered.length;
+                        continue;
+                    }
                 }
             }
             final iteration = expandArrayIteration(stmt, usedNames);

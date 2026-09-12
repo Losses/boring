@@ -1042,7 +1042,7 @@ class PolicyQueries {
         Such a counter must remain in the enclosing scope: consuming its TVar
         in a target loop header would otherwise make later assignments refer
         to a name that no longer exists. */
-    static function counterUsedAfter(stmts:Array<TypedExpr>, end:Int, counter:TVar):Bool {
+    public static function counterUsedAfter(stmts:Array<TypedExpr>, end:Int, counter:TVar):Bool {
         for (j in end...stmts.length)
             if (mentionsLocal(stmts[j], counter))
                 return true;
