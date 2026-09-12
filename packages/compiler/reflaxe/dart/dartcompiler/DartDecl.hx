@@ -105,6 +105,25 @@ class DartDecl {
     // ------------------------------------------------------------------
 
     public function classDecl(cls:ClassType, varFields:Array<ClassVarData>, funcFields:Array<ClassFuncData>):String {
+        // Reserve every member name before any import prefix is assigned,
+        // so a member (a getter-only property, a field, a method) never
+        // collides with a cross-module import prefix it references inside
+        // the class body. Dart shadows an import prefix with a same-named
+        // class member, breaking the prefixed reference.
+        for (v in varFields)
+            imports.reserveName(dartMemberName(v.field));
+        for (f in funcFields)
+            imports.reserveName(dartMemberName(f.field));
+        for (f in funcFields) {
+            if (StringTools.startsWith(f.field.name, "get_")) {
+                final propName = f.field.name.substring("get_".length);
+                for (field in cls.fields.get()) {
+                    if (field.name == propName && isGetterOnlyProperty(field)) {
+                        imports.reserveName(propName);
+                    }
+                }
+            }
+        }
         if (cls.isInterface) {
             // An interface lowers to an abstract class; the implementing
             // class names it in its implements clause.
