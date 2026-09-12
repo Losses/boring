@@ -42,12 +42,12 @@ describe("static fields generated trees", () => {
 
 	test("Rust uses Mutex guards and the direct constant lane", () => {
 		const content = read("reference/rust-gen/src/boring/static_state_ops.rs");
-		expect(content).toContain("pub static CURRENT: Mutex<Option<String>> = Mutex::new(None);");
-		expect(content).toContain("static SECTIONS: Mutex<Vec<String>> = Mutex::new(vec![]);");;
-		expect(content).toContain("pub const LIMIT: u32 = 4096;");
-		expect(content).toContain("CURRENT.lock().unwrap_or_else(|e| e.into_inner())");;
-		expect(content).toContain("*CURRENT.lock().unwrap_or_else(|e| e.into_inner()) = Some(value.to_string());");;
-		expect(content).toContain("SECTIONS.lock().unwrap_or_else(|e| e.into_inner()).push(section.to_string());");;
+		expect(content).toContain("pub static STATIC_STATE_OPS_CURRENT: Mutex<Option<String>> = Mutex::new(None);");
+		expect(content).toContain("static STATIC_STATE_OPS_SECTIONS: Mutex<Vec<String>> = Mutex::new(vec![]);");;
+		expect(content).toContain("pub const STATIC_STATE_OPS_LIMIT: u32 = 4096;");
+		expect(content).toContain("STATIC_STATE_OPS_CURRENT.lock().unwrap_or_else(|e| e.into_inner())");;
+		expect(content).toContain("*STATIC_STATE_OPS_CURRENT.lock().unwrap_or_else(|e| e.into_inner()) = Some(value.to_string());");;
+		expect(content).toContain("STATIC_STATE_OPS_SECTIONS.lock().unwrap_or_else(|e| e.into_inner()).push(section.to_string());");;
 		expect(content).not.toContain("unwrap()");
 		expect(content).not.toContain("expect(");
 		expect(content).not.toContain(" as ");

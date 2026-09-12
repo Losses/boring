@@ -141,24 +141,24 @@ describe("default argument expansion generated tree", () => {
     const content = fs.readFileSync(rsFile, "utf8");
 
     // Method signatures carry clean typed parameter lists
-    expect(content).toContain("pub fn greet(name: &str, prefix: &str) -> String");
-    expect(content).toContain("pub fn configure(base: u32, offset: u32, scale: f64, flag: bool) -> f64");
+    expect(content).toContain("pub fn default_args_ops_greet(name: &str, prefix: &str) -> String");
+    expect(content).toContain("pub fn default_args_ops_configure(base: u32, offset: u32, scale: f64, flag: bool) -> f64");
     expect(content).toContain("pub fn format_label(&self, label: Option<String>, sep: &str) -> String");
-    expect(content).toContain("pub fn describe_tag(tag: &str, detail: Option<String>) -> String");
-    expect(content).toContain("pub fn open_mode(id: u32, mode: Mode) -> String");
-    expect(content).toContain("pub fn adjust(value: f64, step: f64) -> f64");
+    expect(content).toContain("pub fn default_args_ops_describe_tag(tag: &str, detail: Option<String>) -> String");
+    expect(content).toContain("pub fn default_args_ops_open_mode(id: u32, mode: Mode) -> String");
+    expect(content).toContain("pub fn default_args_ops_adjust(value: f64, step: f64) -> f64");
 
     // Rust normalizes parameter-reading defaults at entry in declaration order.
-    expect(content).toContain("pub fn greet_with_prefix(name: &str, prefix: Option<String>) -> String");
+    expect(content).toContain("pub fn default_args_ops_greet_with_prefix(name: &str, prefix: Option<String>) -> String");
     expect(content).toContain("let prefix = prefix.unwrap_or_else(|| name.to_string());");
-    expect(content).toContain("pub fn field_access_sample(items: &Vec<String>, count: Option<u32>) -> u32");
+    expect(content).toContain("pub fn default_args_ops_field_access_sample(items: &Vec<String>, count: Option<u32>) -> u32");
     expect(content).toContain("let count = count.unwrap_or_else(|| match u32::try_from((items).len())");
     expect(content).toContain("let fallback = fallback.unwrap_or_else(|| if lang == \"en\".to_string() { \"English\".to_string() } else { \"Other\".to_string() });");
     expect(content).toContain("let normalized = normalized.unwrap_or_else(|| text.to_uppercase());");
-    expect(content).toContain("let clamped = clamped.unwrap_or_else(|| DefaultArgsOps::clamp_base(value));");
-    expect(content).toContain("SortedTable::set_builder::<u32>");
-    expect(content).toContain("pub fn static_field_sample(value: u32, bound: Option<u32>) -> u32");
-    expect(content).toContain("let bound = bound.unwrap_or_else(|| StaticStateOps::LIMIT);");
+    expect(content).toContain("let clamped = clamped.unwrap_or_else(|| DefaultArgsOps::default_args_ops_clamp_base(value));");
+    expect(content).toContain("SortedTable::sorted_table_set_builder::<u32>");
+    expect(content).toContain("pub fn default_args_ops_static_field_sample(value: u32, bound: Option<u32>) -> u32");
+    expect(content).toContain("let bound = bound.unwrap_or_else(|| StaticStateOps::STATIC_STATE_OPS_LIMIT);");
     expect(content).toContain("let offset = offset.unwrap_or_else(|| value + 1);");
     expect(content).toContain("pub fn instance_field_normalization(&self, p: Option<String>) -> String");
     expect(content).toContain("pub fn earlier_local_normalization(&self, seed: &str, q: Option<String>) -> String");
@@ -170,30 +170,30 @@ describe("default argument expansion generated tree", () => {
     // entry point evaluates its sanctioned expression lazily.
     expect(content).toContain("pub fn new(family_names: Option<Vec<String>>) -> Self");
     expect(content).toContain("let family_names = family_names.unwrap_or_else(|| vec![]);");
-    expect(content).toContain("pub fn infinity_default(value: Option<f64>) -> f64");
+    expect(content).toContain("pub fn default_args_ops_infinity_default(value: Option<f64>) -> f64");
     expect(content).toContain("let value = value.unwrap_or_else(|| f64::INFINITY);");
-    expect(content).toContain("pub fn map_default(value: Option<HashMap<String, u32>>) -> HashMap<String, u32>");
+    expect(content).toContain("pub fn default_args_ops_map_default(value: Option<HashMap<String, u32>>) -> HashMap<String, u32>");
     expect(content).toContain("let value = value.unwrap_or_else(|| HashMap::new());");
-    expect(content).toContain("return DefaultArgsOps::infinity_default(None);");
-    expect(content).toContain("return DefaultArgsOps::map_default((None).clone());");
+    expect(content).toContain("return DefaultArgsOps::default_args_ops_infinity_default(None);");
+    expect(content).toContain("return DefaultArgsOps::default_args_ops_map_default((None).clone());");
 
     // Call sites are fully expanded to full arity
-    expect(content).toContain('return DefaultArgsOps::greet(&"Ada", &"Hello");');
-    expect(content).toContain("return DefaultArgsOps::configure(100, 20, 1.5, true);");
-    expect(content).toContain("return DefaultArgsOps::configure(100, 20, 2.5, true);");
-    expect(content).toContain("return DefaultArgsOps::configure(100, 10, 2.5, true);");
+    expect(content).toContain('return DefaultArgsOps::default_args_ops_greet(&"Ada", &"Hello");');
+    expect(content).toContain("return DefaultArgsOps::default_args_ops_configure(100, 20, 1.5f64, true);");
+    expect(content).toContain("return DefaultArgsOps::default_args_ops_configure(100, 20, 2.5f64, true);");
+    expect(content).toContain("return DefaultArgsOps::default_args_ops_configure(100, 10, 2.5f64, true);");
     expect(content).toContain('return ops.format_label(Some("item".to_string()), &"-");');
     expect(content).toContain('return ops.format_label(None, &"-");');
-    expect(content).toContain('return DefaultArgsOps::describe_tag(&"alpha", None);');
-    expect(content).toContain("return DefaultArgsOps::open_mode(1, Mode::Read);");
-    expect(content).toContain("return DefaultArgsOps::adjust(20.0, -5.0);");
+    expect(content).toContain('return DefaultArgsOps::default_args_ops_describe_tag(&"alpha", None);');
+    expect(content).toContain("return DefaultArgsOps::default_args_ops_open_mode(1, Mode::Read);");
+    expect(content).toContain("return DefaultArgsOps::default_args_ops_adjust(20.0f64, -5.0f64);");
     expect(content).toContain("return local_add(x, 100);");
     expect(content).toContain("return local_add(x, 200);");
     expect(content).toContain('return greeter.say(&"Sam", &"User");');
 
     // A coalescing default reading an earlier coalescing parameter enters
     // after the earlier parameter's entry binding.
-    expect(content).toContain("pub fn chained_coalescing(fallback: Option<f64>, value: Option<f64>) -> f64");
+    expect(content).toContain("pub fn default_args_ops_chained_coalescing(fallback: Option<f64>, value: Option<f64>) -> f64");
     expect(content).toContain("let fallback = fallback.unwrap_or_else(|| 2.5);");
     expect(content).toContain("let value = value.unwrap_or_else(|| fallback);");
     expect(content).toContain("let follow_radius = follow_radius.unwrap_or_else(|| radius);");
@@ -201,7 +201,7 @@ describe("default argument expansion generated tree", () => {
     // The static initializer completes omitted coalescing arguments to
     // None exactly as function-body call sites do, because the per-
     // function pass never visits initializers.
-    expect(content).toContain("pub static DEFAULT: LazyLock<CoalescingPreset> = LazyLock::new(|| CoalescingPreset::new(Some(0.125), Some(0.5)));");
+    expect(content).toContain("pub static COALESCING_PRESET_DEFAULT: LazyLock<CoalescingPreset> = LazyLock::new(|| CoalescingPreset::new(Some(0.125), Some(0.5)));");
     expect(content).not.toContain('return "CoalescingPreset".to_string();');
   });
 
