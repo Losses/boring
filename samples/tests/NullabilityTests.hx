@@ -31,4 +31,14 @@ class NullabilityTests {
         Test.equals(true, true);
         #end
     }
+
+    @:test("a nullable constructor argument reaches a nullable property")
+    public static function testCtorFieldLabel():Void {
+        #if kotlin_output
+        Test.equals("HI", NullabilityOps.ctorFieldLabel("hi"));
+        Test.equals(null, NullabilityOps.ctorFieldLabel(null));
+        #else
+        Test.equals(true, true);
+        #end
+    }
 }
