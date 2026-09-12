@@ -115,6 +115,21 @@ class DartExpr {
     /** Catch variables in scope, keyed by TVar id (features/06). */
     final catchVars:Map<Int, Bool> = [];
 
+    /**
+        Locals bound to a statics-only class value (a typing-time alias
+        whose every use lowers through the flattened top-level function
+        names). Tracked during scanLocals so a binding that is only used
+        as a static-field receiver can drop; a bare value read keeps it.
+    **/
+    final classValueAliasLocals:Map<Int, Bool> = [];
+
+    /**
+        Class-value-alias locals read as a bare value (not as a static
+        field receiver). A bare read has no Dart lowering, so such a
+        binding must not drop.
+    **/
+    final classValueAliasReadAsValue:Map<Int, Bool> = [];
+
     final hiddenNames:Map<Int, String> = [];
     var hiddenCounter:Int = 0;
 
@@ -391,6 +406,8 @@ class DartExpr {
         };
         nonNullLocals.clear();
         nonNullOptionalParams.clear();
+        classValueAliasLocals.clear();
+        classValueAliasReadAsValue.clear();
         assignScopedLocalNames(f);
         // Coalescing defaults are materialized by every Dart call site. Their
         // optional signature slots therefore carry a concrete value throughout
@@ -404,6 +421,7 @@ class DartExpr {
         }
 
         scanLocals(f.expr);
+        scanClassValueAliasReads(f.expr);
         final result = blockLines(statementsOf(f.expr), depth);
         currentReturnType = null;
         return result;
@@ -717,6 +735,14 @@ class DartExpr {
                 return tryBindingLines(v, init, depth);
             case TVar(v, init) if (init != null && isStringBufToStringCall(init)):
                 return stringBufToStringBindingLines(v, stripWrap(init), depth);
+            case TVar(v, init) if (init != null && isDeadClassValueBinding(v, init)):
+                // A statics-only class lowers to top-level functions of
+                // its library; a local bound to the class value is a
+                // typing-time alias whose every use lowers through the
+                // flattened function names. The binding itself has no
+                // Dart lowering (there is no class object to name), so
+                // it drops.
+                return [];
             case TVar(v, init) if (init != null && isSwitch(init)):
                 final target:TypedExpr = {expr: TLocal(v), t: v.t, pos: init.pos};
                 // Definite initialization assigns it on every path before use.
@@ -2038,6 +2064,18 @@ class DartExpr {
 
     function isNullExpr(e:TypedExpr):Bool {
         return ExpressionPredicates.isNullExpr(e);
+    }
+
+    /**
+        Whether a local binding is a typing-time alias to a statics-only
+        class value. Such a class lowers to top-level functions of its
+        library; every use of the alias lowers through the flattened
+        function names (S.c -> c), so the binding has no Dart lowering
+        and drops. The alias must not be read as a bare value or passed
+        around, only used as a static-field receiver.
+    **/
+    function isDeadClassValueBinding(v:TVar, init:TypedExpr):Bool {
+        return isStaticsOnlyClassValue(init) && !classValueAliasReadAsValue.exists(v.id);
     }
 
     /** Routes calls on a marked abstract implementation to extension members. */
@@ -3783,6 +3821,9 @@ class DartExpr {
                     optionalInferred.set(v.id, true);
                 }
                 PolicyQueries.noteFpInt64Init(v, init, fpInt64Halves);
+                if (init != null && isStaticsOnlyClassValue(init)) {
+                    classValueAliasLocals.set(v.id, true);
+                }
             case TBinop(OpAssign, t, _) | TBinop(OpAssignOp(_), t, _):
                 switch (t.expr) {
                     case TLocal(v):
@@ -3830,6 +3871,49 @@ class DartExpr {
         if (v.name != "`") {
             mutatedNames.set(v.name, true);
         }
+    }
+
+    /**
+        Whether a local's initializer is a statics-only class value (a
+        typing-time alias). Such a class lowers to top-level functions of
+        its library; the alias's uses lower through the flattened names.
+    **/
+    function isStaticsOnlyClassValue(init:TypedExpr):Bool {
+        return switch (stripWrap(init).expr) {
+            case TTypeExpr(TClassDecl(c)):
+                final cls = c.get();
+                isStaticsOnlyClass(cls) && !RuntimeResidents.isResident(cls.module) && !Compiler.keepStaticsClass(cls);
+            case _: false;
+        };
+    }
+
+    /**
+        Records every class-value alias read as a bare value (not as a
+        static-field receiver). A bare read has no Dart lowering, so a
+        binding with one must not drop; a receiver-only alias drops.
+    **/
+    function scanClassValueAliasReads(e:TypedExpr):Void {
+        function walk(x:TypedExpr):Void {
+            switch (x.expr) {
+                case TField(subj, _):
+                    // A static-field receiver read is fine; the field
+                    // accessor lowers through the flattened names. Do not
+                    // descend into the receiver.
+                    switch (stripWrap(subj).expr) {
+                        case TLocal(_):
+                            // Receiver only; nothing to scan beneath.
+                        case _:
+                            TypedExprTools.iter(subj, walk);
+                    }
+                case TLocal(v):
+                    if (classValueAliasLocals.exists(v.id)) {
+                        classValueAliasReadAsValue.set(v.id, true);
+                    }
+                case _:
+                    TypedExprTools.iter(x, walk);
+            }
+        }
+        walk(e);
     }
 
     function mentionsLocal(e:TypedExpr, v:TVar):Bool {
