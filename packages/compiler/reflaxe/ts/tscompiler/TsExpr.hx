@@ -1180,7 +1180,7 @@ class TsExpr {
                 } else {
                     imports.functionRef(abs.module, field.name, true) + "(" + valueTypeOperand(subject, localValues) + ")";
                 }
-            case _: expr(value);
+            case _: valueTypeOperand(value, localValues);
         };
     }
 
