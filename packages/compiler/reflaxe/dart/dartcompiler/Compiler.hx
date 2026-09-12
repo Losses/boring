@@ -92,9 +92,15 @@ class Compiler extends PluginCompiler<Compiler> {
         // Haxe never types from a business reference, so force it here like
         // the Kotlin target forces runtime.TestCore. A build without a
         // runtime-import define has no way to reference the runtime package.
+        // runtime.TestCore is the test resident the emitted test host entry
+        // calls (TestCore.resultLine and the assertion helpers); a consumer
+        // whose entry list omits it (no std.Test reference) still gets a
+        // test host that names it, so force its typing exactly like the
+        // Kotlin target does.
         if (RuntimeConfig.importName() != null) {
             Context.getType("runtime.StringTools");
             Context.getType("runtime.UString");
+            Context.getType("runtime.TestCore");
         }
         ReflectCompiler.AddCompiler(compiler, {
             fileOutputType: BaseCompilerFileOutputType.Manual,
