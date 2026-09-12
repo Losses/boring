@@ -1540,6 +1540,11 @@ class SwiftExpr {
                 case _: text;
             };
         }
+        // Haxe unifies an Int arm with a Float sibling, so the ternary's Haxe
+        // type is the module real while that arm still renders as an integer.
+        // Widen the arm here so both Swift arms share one type.
+        if (isFloatLeafType(whole.t) && isIntType(emittedType(b)))
+            text = intToFloatText(text);
         // Swift needs both arms to share a type; a concrete branch widens to
         // the interface the Haxe ternary unified on.
         if (isInterfaceType(whole.t) && isNamedRefType(b.t) && types.of(b.t) != types.of(whole.t))
