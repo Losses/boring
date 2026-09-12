@@ -1033,6 +1033,21 @@ class RustDecl {
         };
     }
 
+    /**
+        A marked static emits as a free function when it carries
+        `@:topLevel`, or when its `@:extension` receiver type lives
+        outside the crate family. The free form keeps the plain function
+        name.
+    **/
+    public static function usesFreeFunctionForm(ownerModule:String, field:ClassField, receiverType:Null<Type>):Bool {
+        if (StaticFunctionMarkers.isTopLevel(field)) {
+            return true;
+        }
+        return StaticFunctionMarkers.isExtension(field)
+            && receiverType != null
+            && !isCrateOwnedReceiver(ownerModule, receiverType);
+    }
+
     static function isForeignReceiverModule(module:String):Bool {
         if (module == "String" || module == "Array" || module == "Map" || module == "Std" || module == "Math") {
             return true;
@@ -1329,8 +1344,11 @@ class RustDecl {
         for (site in DefaultArgExpander.coalescingSitesForFunction(f.expr)) {
             coalescedParams.set(site.parameter, true);
         }
+        final freeForm = f.args.length > 0
+            ? usesFreeFunctionForm(cls.module, f.field, f.args[0].type)
+            : StaticFunctionMarkers.isTopLevel(f.field);
         final snakeName = receiverMethod
-            || StaticFunctionMarkers.isTopLevel(f.field)
+            || freeForm
             || cls.name == "VectorCodec"
             || cls.name == "VectorSort" ? RustImports.toSnakeCase(f.field.name) : RustImports.toSnakeCase(cls.name + "_" + f.field.name);
         final args = [
@@ -1519,7 +1537,7 @@ class RustDecl {
     }
 
     function extractedFuncDecl(cls:ClassType, f:ClassFuncData):Array<String> {
-        if (StaticFunctionMarkers.isTopLevel(f.field) || !isCrateOwnedReceiver(cls.module, f.args[0].type)) {
+        if (usesFreeFunctionForm(cls.module, f.field, f.args.length > 0 ? f.args[0].type : null)) {
             return unindentRustFunction(staticFuncDecl(cls, f));
         }
         final receiverType = types.of(f.args[0].type, false);
