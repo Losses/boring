@@ -502,7 +502,8 @@ class TsDecl {
         if (v.isStatic) {
             final init = StaticFieldHelper.validatedInitializer(field, cls);
             // @:allow members omit TypeScript visibility so they are public.
-            final vis = field.isPublic ? "public" : (field.meta.has(":allow") ? "" : "private");
+            final vis = field.isPublic ? "public"
+                : (field.meta.has(":allow") || Compiler.hasCrossClassPrivateAccess(cls.module, cls.name, field.name)) ? "" : "private";
             final ro = field.isFinal ? "readonly " : "";
             return [
                 '  $vis static ${ro}${field.name}: ${types.of(field.type)} = ${expr.rawExpression(init)};'
@@ -512,7 +513,8 @@ class TsDecl {
         // constructor, so the declaration stays bare and the
         // constructor body carries the assignments.
         // @:allow members omit TypeScript visibility so they are public.
-        final vis = field.isPublic ? "public" : (field.meta.has(":allow") ? "" : "private");
+        final vis = field.isPublic ? "public"
+            : (field.meta.has(":allow") || Compiler.hasCrossClassPrivateAccess(cls.module, cls.name, field.name)) ? "" : "private";
         // A `final StringBuf` is still mutable: StringBuf erases to string
         // and `.add` lowers to `+=`, which reassigns the field. Marking it
         // readonly would reject every append.
@@ -583,7 +585,10 @@ class TsDecl {
         final ret = types.of(f.ret);
         final body = decodeBoundaryBody(cls, f);
         // @:allow members omit TypeScript visibility so they are public.
-        final vis = f.field.isPublic ? "public" : (f.field.meta.has(":allow") ? "" : "private");
+        // A private member another class in the same module accesses (Haxe
+        // same-module private access) also emits public.
+        final vis = f.field.isPublic ? "public"
+            : (f.field.meta.has(":allow") || Compiler.hasCrossClassPrivateAccess(cls.module, cls.name, f.field.name)) ? "" : "private";
         final stat = f.isStatic ? "static " : "";
         // A method's own type parameters (the resident builders'
         // factory functions) render as method generics; the class's own
