@@ -852,10 +852,10 @@ class Compiler extends PluginCompiler<Compiler> {
     // ------------------------------------------------------------------
 
     function preScan(mtypes:Array<haxe.macro.Type.ModuleType>):Void {
-        // A sealed interface whose implementors all derive Clone gets a
-        // Clone supertrait so a Box<dyn Trait> field keeps its owner's
-        // derive. Collect the implementor set first, then mark the sealed
-        // interfaces whose whole set is Clone-capable.
+        // An interface whose implementors all derive Clone gets a clone_box
+        // hook so a Box<dyn Trait> field keeps its owner's derive. Collect
+        // the implementor set first, then mark the interfaces whose whole
+        // set is Clone-capable.
         final sealedImplementors:Map<String, Array<ClassType>> = [];
         final sealedCloneable:Map<String, Bool> = [];
         for (mt in mtypes) switch (mt) {
@@ -863,14 +863,10 @@ class Compiler extends PluginCompiler<Compiler> {
                 final cls = c.get();
                 if (cls.isExtern || !inSourceScope(cls.pos))
                     continue;
-                if (cls.meta.has(":sealed")) {
-                    sealedImplementors.set(cls.module + "::" + cls.name, []);
-                    sealedCloneable.set(cls.module + "::" + cls.name, true);
-                }
+                if (cls.isInterface)
+                    continue;
                 for (ifaceRef in cls.interfaces) {
                     final iface = ifaceRef.t.get();
-                    if (!iface.meta.has(":sealed"))
-                        continue;
                     final key = iface.module + "::" + iface.name;
                     if (!sealedImplementors.exists(key))
                         sealedImplementors.set(key, []);
@@ -881,13 +877,35 @@ class Compiler extends PluginCompiler<Compiler> {
         for (key in sealedImplementors.keys()) {
             var allClone = true;
             for (impl in sealedImplementors.get(key)) {
-                if (!RustDecl.isCloneableClass(impl, state.sealedCloneInterfaces)) {
+                if (!RustDecl.isCloneableClass(impl, state.sealedCloneInterfaces, key)) {
                     allClone = false;
                     break;
                 }
             }
             if (allClone)
                 state.sealedCloneInterfaces.set(key, true);
+        }
+        // A recursive interface (an implementor holding a Box<dyn SameTrait>)
+        // only becomes Clone-capable once its own clone_box is decided, so
+        // re-scan until no new interface joins the set.
+        var changed = true;
+        while (changed) {
+            changed = false;
+            for (key in sealedImplementors.keys()) {
+                if (state.sealedCloneInterfaces.exists(key))
+                    continue;
+                var allClone = true;
+                for (impl in sealedImplementors.get(key)) {
+                    if (!RustDecl.isCloneableClass(impl, state.sealedCloneInterfaces, key)) {
+                        allClone = false;
+                        break;
+                    }
+                }
+                if (allClone) {
+                    state.sealedCloneInterfaces.set(key, true);
+                    changed = true;
+                }
+            }
         }
         for (mt in mtypes) {
             switch (mt) {
