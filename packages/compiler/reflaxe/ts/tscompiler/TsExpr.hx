@@ -514,7 +514,7 @@ class TsExpr {
                 activeLoopParseHoists = outerParseHoists;
                 if (parseHoists != null) {
                     for (h in parseHoists)
-                        out.insert(0, indent(depth) + h.declaration);
+                        out.push(indent(depth + 1) + h.declaration);
                 }
                 for (l in bodyLines)
                     out.push(l);
@@ -910,7 +910,7 @@ class TsExpr {
         activeLoopParseHoists = outerParseHoists;
         if (parseHoists != null) {
             for (h in parseHoists)
-                out.insert(out.length - 1, indent(depth) + h.declaration);
+                out.push(indent(depth + 1) + h.declaration);
         }
         for (l in bodyLines)
             out.push(l);
