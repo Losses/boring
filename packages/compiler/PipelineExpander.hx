@@ -629,6 +629,12 @@ class PipelineExpander {
                     transformInnerBlocks(def, usedNames);
             case TFunction(f):
                 transformInnerBlocks(f.expr, usedNames);
+            case TVar(v, init):
+                if (init != null)
+                    transformInnerBlocks(init, usedNames);
+            case TReturn(ret):
+                if (ret != null)
+                    transformInnerBlocks(ret, usedNames);
             default:
         }
     }
