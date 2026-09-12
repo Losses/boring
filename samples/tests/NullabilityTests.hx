@@ -20,4 +20,15 @@ class NullabilityTests {
         Test.equals(null, NullabilityOps.nullableToStringWithParam(null, "!"));
         #end
     }
+
+    @:test("a guarded nullable Float read widens after extraction")
+    public static function testNarrowedFloat():Void {
+        #if kotlin_output
+        final values:Array<Null<Float>> = [1.5, null];
+        Test.equals(1.5, NullabilityOps.narrowedFloat(values, 0));
+        Test.equals(0.0, NullabilityOps.narrowedFloat(values, 1));
+        #else
+        Test.equals(true, true);
+        #end
+    }
 }
