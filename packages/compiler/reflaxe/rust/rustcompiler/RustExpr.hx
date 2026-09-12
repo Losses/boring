@@ -4344,6 +4344,19 @@ class RustExpr {
         return qualifiedRuntimeClass ? RustImports.toSnakeCase(runtimeClassName + "_" + name) : RustImports.toSnakeCase(name);
     }
 
+    /**
+        Whether a marked static field emits as a free function and so
+        carries its plain snake name.
+    **/
+    function markedFieldUsesFreeName(cls:ClassType, field:ClassField):Bool {
+        switch (field.type) {
+            case TFun(args, _) if (args.length > 0):
+                return RustDecl.usesFreeFunctionForm(cls.module, field, args[0].t);
+            case _:
+        }
+        return StaticFunctionMarkers.isTopLevel(field);
+    }
+
     function staticRef(cls:ClassType, name:String):String {
         final staticField = findStaticField(cls, name);
         final staticName = cls.name == "VectorCodec"
@@ -4356,7 +4369,7 @@ class RustExpr {
         }
         final markedField = findStaticField(cls, name);
         if (markedField != null && StaticFunctionMarkers.isMarked(markedField)) {
-            final nativeName = StaticFunctionMarkers.isTopLevel(markedField) ? RustImports.toSnakeCase(name) : RustImports.toSnakeCase(cls.name + "_" + name);
+            final nativeName = markedFieldUsesFreeName(cls, markedField) ? RustImports.toSnakeCase(name) : RustImports.toSnakeCase(cls.name + "_" + name);
             if (markedField.isPublic) {
                 imports.requireType(cls.module, nativeName);
             }
