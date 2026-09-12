@@ -249,6 +249,18 @@ class TsExpr {
             imports.runtime("SortedTable");
             return "SortedTable.setBuilder<" + types.of(key) + ">(" + sortedComparator(key, Context.currentPos()) + ")";
         }
+        if (modulePath == "std.SortedMap" && methodName == "builder") {
+            final key = switch (Context.follow(DefaultArgExpander.withoutNull(targetType))) {
+                case TInst(_, params) if (params.length > 0): params[0];
+                case _: null;
+            };
+            final value = switch (Context.follow(DefaultArgExpander.withoutNull(targetType))) {
+                case TInst(_, params) if (params.length > 1): params[1];
+                case _: null;
+            };
+            imports.runtime("SortedTable");
+            return "SortedTable.mapBuilder<" + types.of(key) + ", " + types.of(value) + ">(" + sortedComparator(key, Context.currentPos()) + ")";
+        }
         imports.value(modulePath, className);
         return className
             + "."
@@ -1863,6 +1875,31 @@ class TsExpr {
                         return expr(receiver) + ".slice().sort((_a, _b) => { const _ka = " + keyA + "; const _kb = " + keyB
                             + "; return _ka < _kb ? -1 : (_ka > _kb ? 1 : 0); })";
                     }
+                }
+                if ((cls.name == "Functional"
+                    || cls.name == "__functional_shim"
+                    || cls.module == "std.Functional"
+                    || cls.pack.join(".") + "." + cls.name == "std.Functional")
+                    && fName == "sumOfFloat"
+                    && args.length == 2) {
+                    final receiver = args[0];
+                    final func = unwrapLambda(args[1]);
+                    if (func != null && func.args.length == 1) {
+                        final paramVar = func.args[0].v;
+                        final bodyExpr = lambdaBody(func.expr);
+                        subst.set(paramVar.id, "_acc");
+                        final valueExpr = expr(bodyExpr);
+                        subst.remove(paramVar.id);
+                        return expr(receiver) + ".reduce((_sum, _acc) => _sum + " + valueExpr + ", 0)";
+                    }
+                }
+                if ((cls.name == "Functional"
+                    || cls.name == "__functional_shim"
+                    || cls.module == "std.Functional"
+                    || cls.pack.join(".") + "." + cls.name == "std.Functional")
+                    && fName == "forEach"
+                    && args.length == 2) {
+                    return expr(args[0]) + ".forEach(" + expr(args[1]) + ")";
                 }
             case _:
         }
