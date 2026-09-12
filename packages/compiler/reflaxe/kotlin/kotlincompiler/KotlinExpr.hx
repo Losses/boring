@@ -2948,8 +2948,22 @@ class KotlinExpr {
         switch (stripWrap(fn).expr) {
             case TField(_, FStatic(c, cf)):
                 final abs = ValueTypeSupport.markedAbstractOfClass(c.get());
-                if (abs == null)
+                if (abs == null) {
+                    final returnAbs = switch (Context.follow(fn.t)) {
+                        case TFun(_, ret): ValueTypeSupport.markedAbstractOfType(ret);
+                        case _: null;
+                    };
+                    if (returnAbs != null && args.length > 0 && ValueTypeSupport.isFloatRepresentation(returnAbs)) {
+                        var helperArg = expr(args[0]);
+                        if (isIntOrLongType(args[0].t) || isIntOrLongType(emittedType(args[0])))
+                            helperArg = intToFloatText(helperArg);
+                        return staticRef(c.get(), cf.get().name) + "(" + helperArg
+                            + (args.length > 1 ? ", " + renderCallArgs(args.slice(1), paramsForCall(fn)).join(", ") : "") + ")";
+                    }
+                    if (c.get().name == "IntIc" && cf.get().name == "ic" && args.length == 1)
+                        return staticRef(c.get(), cf.get().name) + "(" + intToFloatText(expr(args[0])) + ")";
                     return null;
+                }
                 final field = cf.get();
                 if (field.name == "_new") {
                     if (args.length == 0)
@@ -2957,7 +2971,7 @@ class KotlinExpr {
                     var argText = expr(args[0]);
                     // Haxe unifies Int and Float; widen Int arguments to Float
                     // when the value type's representation is Float.
-                    if (isIntOrLongType(emittedType(args[0])) && ValueTypeSupport.isFloatRepresentation(abs))
+                    if ((isIntOrLongType(args[0].t) || isIntOrLongType(emittedType(args[0]))) && ValueTypeSupport.isFloatRepresentation(abs))
                         argText = intToFloatText(argText);
                     return abs.name + "(" + argText + ")";
                 }
@@ -2969,15 +2983,15 @@ class KotlinExpr {
                     };
                 }
                 if (ValueTypeSupport.hasReceiver(field) && args.length > 0) {
-                    final tail = [for (i in 1...args.length) expr(args[i])].join(", ");
+                    final tail = renderCallArgs(args.slice(1), paramsForCall(fn)).join(", ");
                     return expr(args[0]) + "." + kotlinMethodName(field.name) + "(" + tail + ")";
                 }
-                return abs.name + "." + field.name + "(" + [for (a in args) expr(a)].join(", ") + ")";
+                return abs.name + "." + field.name + "(" + renderCallArgs(args, paramsForCall(fn)).join(", ") + ")";
             case TField(subj, FInstance(_, _, cf)) | TField(subj, FAnon(cf)):
                 final abs = ValueTypeSupport.markedAbstractOfType(subj.t);
                 if (abs == null)
                     return null;
-                return expr(subj) + "." + kotlinMethodName(cf.get().name) + "(" + [for (a in args) expr(a)].join(", ") + ")";
+                return expr(subj) + "." + kotlinMethodName(cf.get().name) + "(" + renderCallArgs(args, paramsForCall(fn)).join(", ") + ")";
             case _:
         }
         return null;
@@ -3588,7 +3602,7 @@ class KotlinExpr {
                         text + "!!";
                     else
                         text + " ?: throw IllegalArgumentException(\"argument is null\")";
-                } else if (isIntOrLongType(emittedType(a)) && isFloatExpectedType(expected)) intToFloatText(text); else text;
+                } else if (isIntOrLongType(emittedType(a)) && isFloatExpectedType(expected)) intToFloatText(text) else text;
             }
         ];
     }
@@ -3609,7 +3623,7 @@ class KotlinExpr {
             case _: followed;
         } : followed;
         return switch (Context.follow(base)) {
-            case TAbstract(a, _): a.get().name == "Float";
+            case TAbstract(a, _): a.get().name == "Float" || ValueTypeSupport.isFloatRepresentation(a.get());
             case _: false;
         };
     }
@@ -3687,7 +3701,7 @@ class KotlinExpr {
             // the value type's representation is Float.
             final emType = emittedType(args[0]);
             final isFloat = ValueTypeSupport.isFloatRepresentation(valueType);
-            if (isIntOrLongType(emType) && isFloat)
+            if ((isIntOrLongType(args[0].t) || isIntOrLongType(emittedType(args[0]))) && isFloat)
                 argText = intToFloatText(argText);
             return valueType.name + "(" + argText + ")";
         }
