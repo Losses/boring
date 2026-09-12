@@ -801,10 +801,22 @@ class TsExpr {
         subject:TVar,
         name:String
     }>, at:Int):Void {
-        for (h in hoists) {
+        var i = 0;
+        while (i < hoists.length) {
+            final h = hoists[i];
             if (h.loopAt == at) {
                 boundSubst.remove(h.subject.id);
+                // A hoist folded into a for-init (firstUse == loopAt) is
+                // scoped to that loop only; dropping it from the array keeps
+                // a later loop on the same subject from reusing the now
+                // out-of-scope name. A block-const hoist (firstUse < loopAt)
+                // stays live for later loops in this block.
+                if (h.firstUse == h.loopAt) {
+                    hoists.splice(i, 1);
+                    continue;
+                }
             }
+            i++;
         }
     }
 
