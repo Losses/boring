@@ -1398,6 +1398,11 @@ class KotlinExpr {
                     for (x in elems) {
                         var t = expr(x);
                         if (elemFloat && isIntOrLongType(emittedType(x))) t = intToFloatText(t);
+                        if (elemType != null && !isNullType(elemType) && requiresNonNullCallArgument(x, t)) {
+                            if (!isNullInitialized(x))
+                                addProofExpr(x);
+                            t = (provenNonNull(x) || guardProofBefore(x)) ? t + "!!" : t + " ?: throw IllegalArgumentException(\"argument is null\")";
+                        }
                         t;
                     }
                 ];
@@ -2233,6 +2238,10 @@ class KotlinExpr {
                 return rendersNullable(t) || (f != null && rendersNullable(f));
             case TField(subj, _):
                 return rendersNullable(subj);
+            case TArray(receiver, _):
+                return rendersNullable(receiver);
+            case TCall(fn, args):
+                return callRendersNullable(fn, args);
             case TParenthesis(pinner) | TCast(pinner, _):
                 return rendersNullable(pinner);
             case _:
@@ -3379,9 +3388,9 @@ class KotlinExpr {
                 final markedField = findStaticField(cls, name);
                 if (markedField != null && StaticFunctionMarkers.isMarked(markedField)) {
                     final nativeName = staticRef(cls, name);
-                    final rendered = [for (a in args) expr(a)];
+                    final rendered = renderCallArgs(args, paramsForCall(fn), cls, name);
                     if (StaticFunctionMarkers.isExtension(markedField)) {
-                        return expr(args[0]) + "." + nativeName + "(" + rendered.slice(1).join(", ") + ")";
+                        return rendered[0] + "." + nativeName + "(" + rendered.slice(1).join(", ") + ")";
                     }
                     return nativeName + "(" + rendered.join(", ") + ")";
                 }
@@ -3842,6 +3851,22 @@ class KotlinExpr {
                 } else if (isIntOrLongType(emittedType(a)) && isFloatExpectedType(expected)) intToFloatText(text) else text;
             }
         ];
+    }
+
+    /**
+        Whether a call argument renders as nullable at a Kotlin non-null
+        parameter boundary. This covers both explicit Null<T> values and
+        non-null Haxe expressions widened by Kotlin safe-call rendering.
+        The rendered-safe-call check covers enum reflection lowerings whose
+        Haxe AST does not retain the nullable receiver edge.
+    **/
+    function requiresNonNullCallArgument(e:TypedExpr, rendered:String):Bool {
+        return (isNullType(e.t) && !provenNonNull(e) && !guardProofBefore(e))
+            || (PolicyQueries.isNullableType(e.t) && !provenNonNull(e) && !guardProofBefore(e))
+            || isNullInitialized(e)
+            || nullableChainHop(e)
+            || rendersNullable(e)
+            || rendered.indexOf("?.") >= 0;
     }
 
     function isNullLiteral(e:TypedExpr):Bool {
