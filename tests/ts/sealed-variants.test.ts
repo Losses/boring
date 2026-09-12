@@ -241,7 +241,7 @@ test("sealed variant sample trees carry the ruled declaration and printed forms"
   expect(dart).toContain("DotDrawKind(dotDiameter=");
 
   expect(rust).not.toContain("#[allow(non_upper_case_globals)]");
-  expect(rust).toContain("pub static INSTANCE: Mutex<NoneDrawKind> = Mutex::new(NoneDrawKind::new());");;
+  expect(rust).toContain("pub static NONE_DRAW_KIND_INSTANCE: Mutex<NoneDrawKind> = Mutex::new(NoneDrawKind::new());");;
   expect(rust).toContain('return "NoneDrawKind".to_string();');
   expect(rust).toContain('"StripeDrawKind("');
   expect(rust).toContain('"DotDrawKind("');
