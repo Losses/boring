@@ -4,6 +4,7 @@ package tscompiler;
 import haxe.macro.Context;
 import haxe.macro.Type;
 import reflaxe.data.ClassFuncData;
+import reflaxe.data.ClassFuncArg;
 import reflaxe.data.ClassVarData;
 import reflaxe.data.EnumOptionData;
 import ValueTypeSupport;
@@ -78,10 +79,7 @@ class TsDecl {
                 final capName = f.field.name.charAt(0).toUpperCase() + f.field.name.substr(1);
                 final aliasName = '${cls.name}${capName}Fn';
                 final args = [
-                    for (a in f.args) {
-                        final coalescing = DefaultArgExpander.coalescingDefaultAt(cls, f.field.name, a.index);
-                        coalescing != null ? '${a.name}?: ${types.of(DefaultArgExpander.coalescingParameterType(coalescing, a.type))}' : '${a.name}: ${types.of(a.type)}';
-                    }
+                    for (a in f.args) paramText(cls, f, a)
                 ].join(", ");
                 final ret = types.of(f.ret);
                 typeAliases.push('export type $aliasName = ($args) => $ret;');
@@ -535,14 +533,40 @@ class TsDecl {
         return PolicyQueries.isFunctionType(t);
     }
 
+    /**
+        Renders one function parameter. A coalescing default carries `= default`
+        (optional). A plain `?param:Null<T>` with no explicit default renders
+        `?` when it forms a trailing optional group; a front-optional one stays
+        required because TypeScript forbids a required parameter after an
+        optional one, and callers always pass it. Constant defaults
+        (VEnum/VInt/VFloat) materialize at every call site and stay required.
+    **/
+    function paramText(cls:ClassType, f:ClassFuncData, a:ClassFuncArg):String {
+        final coalescing = DefaultArgExpander.coalescingDefaultAt(cls, f.field.name, a.index);
+        if (coalescing != null) {
+            // An initializer already makes the parameter optional; a `?`
+            // marker would be a TS1015 error.
+            return '${a.name}: ${types.of(DefaultArgExpander.coalescingParameterType(coalescing, a.type))} = ${expr.coalescingDefaultText(coalescing, a.type)}';
+        }
+        if (isTrailingOptional(cls, f, a.index)) {
+            return '${a.name}?: ${types.of(a.type)}';
+        }
+        return '${a.name}: ${types.of(a.type)}';
+    }
+
+    /** Whether every parameter from `fromIndex` to the end is optional. */
+    function isTrailingOptional(cls:ClassType, f:ClassFuncData, fromIndex:Int):Bool {
+        for (i in fromIndex...f.args.length) {
+            if (!DefaultArgExpander.isOptionalDefaultAt(cls, f.field.name, f.args[i].index)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     function funcDecl(cls:ClassType, f:ClassFuncData):Array<String> {
         final args = [
-            for (a in f.args) {
-                final coalescing = DefaultArgExpander.coalescingDefaultAt(cls, f.field.name, a.index);
-                final argType = coalescing != null ? types.of(DefaultArgExpander.coalescingParameterType(coalescing, a.type)) : types.of(a.type);
-                final defaultText = coalescing != null ? " = " + expr.coalescingDefaultText(coalescing, a.type) : "";
-                '${a.name}: $argType$defaultText';
-            }
+            for (a in f.args) paramText(cls, f, a)
         ].join(", ");
         // Haxe types constructors as FMethod(MethNormal) with field name
         // "new"; the name is the constructor marker.
@@ -575,12 +599,7 @@ class TsDecl {
             expr.reserveName(a.name);
         }
         final args = [
-            for (a in f.args) {
-                final coalescing = DefaultArgExpander.coalescingDefaultAt(cls, f.field.name, a.index);
-                final argType = coalescing != null ? types.of(DefaultArgExpander.coalescingParameterType(coalescing, a.type)) : types.of(a.type);
-                final defaultText = coalescing != null ? " = " + expr.coalescingDefaultText(coalescing, a.type) : "";
-                '${a.name}: $argType$defaultText';
-            }
+            for (a in f.args) paramText(cls, f, a)
         ].join(", ");
         final ret = types.of(f.ret);
         final methodParams = collectMethodTypeParams(cls, f);
