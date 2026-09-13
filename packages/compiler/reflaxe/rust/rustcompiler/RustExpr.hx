@@ -249,8 +249,13 @@ class RustExpr {
                 requireEnum(en.module, en.name);
                 en.name + "::" + enumField.name;
             case CParameterRead(name):
-                if (defaultParameterSubstitutions.exists(name)) defaultParameterSubstitutions.get(name)
-                else if (name.indexOf(".") >= 0) coalescingStaticFieldText(name, targetType)
+                if (defaultParameterSubstitutions.exists(name)) {
+                    final sub = defaultParameterSubstitutions.get(name);
+                    // A prior string-literal argument substitutes as a &str;
+                    // an owned String payload (the Some of a nullable
+                    // parameter) converts it once at the substitution site.
+                    return asOption && isStringType(targetType) && isStringLiteralText(sub) ? sub + ".to_string()" : sub;
+                } else if (name.indexOf(".") >= 0) coalescingStaticFieldText(name, targetType)
                 else RustImports.toSnakeCase(name);
             case CInstanceFieldRead(name):
                 final fieldText = "self." + RustImports.toSnakeCase(name);
@@ -5002,10 +5007,10 @@ class RustExpr {
         // before the follow.
         switch (t) {
             case TAbstract(a, [inner]) if (a.get().name == "Null"):
-                // A narrowed subject is already the scalar binding (the
-                // option-narrowing match dereferences it); render the inner
-                // string directly, skipping the Option match form.
-                if (narrowedSubject(origin) != null)
+                // A narrowed subject or a null-coalescing-collapsed local is
+                // already the scalar binding; render the inner string
+                // directly, skipping the Option match form.
+                if (narrowedSubject(origin) != null || isNullableCollapsedLocal(origin))
                     return stdStringType(inner, value, inConcat, origin, depth + 1);
                 return "match "
                     + value
@@ -6176,6 +6181,11 @@ class RustExpr {
             case TConst(TString(_)): true;
             case _: false;
         };
+    }
+
+    /** Whether rendered text is a bare Rust string literal. */
+    function isStringLiteralText(text:String):Bool {
+        return StringTools.startsWith(text, "\"") && StringTools.endsWith(text, "\"");
     }
 
     function rustMapValue(e:TypedExpr):String {
