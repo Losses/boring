@@ -818,7 +818,8 @@ class PolicyQueries {
         index:TVar,
         start:TypedExpr,
         bound:TypedExpr,
-        body:Array<TypedExpr>
+        body:Array<TypedExpr>,
+        counter:TVar
     }> {
         switch (e.expr) {
             case TBlock(stmts) if (stmts.length == 3):
@@ -834,7 +835,8 @@ class PolicyQueries {
         index:TVar,
         start:TypedExpr,
         bound:TypedExpr,
-        body:Array<TypedExpr>
+        body:Array<TypedExpr>,
+        counter:TVar
     }> {
         switch [counterDecl.expr, boundDecl.expr, whileExpr.expr] {
             case [TVar(counter, start), TVar(boundVar, bound), TWhile(cond, body, true)] if (start != null && bound != null):
@@ -884,7 +886,8 @@ class PolicyQueries {
                                 index: index,
                                 start: start,
                                 bound: bound,
-                                body: capturedBody
+                                body: capturedBody,
+                                counter: counter
                             };
                         }
                     case _:
@@ -909,7 +912,8 @@ class PolicyQueries {
                     index: counter,
                     start: start,
                     bound: bound,
-                    body: loopBody
+                    body: loopBody,
+                    counter: counter
                 };
             case _:
                 return null;
@@ -927,7 +931,8 @@ class PolicyQueries {
         index:TVar,
         start:TypedExpr,
         bound:TypedExpr,
-        body:Array<TypedExpr>
+        body:Array<TypedExpr>,
+        counter:TVar
     }> {
         final counterAndStart = switch (counterDecl.expr) {
             case TVar(counter, start) if (start != null): {counter: counter, start: start};
@@ -970,7 +975,8 @@ class PolicyQueries {
                                                 index: index,
                                                 start: start,
                                                 bound: right,
-                                                body: capturedBody
+                                                body: capturedBody,
+                                                counter: counter
                                             };
                                         }
                                     case _:
@@ -996,7 +1002,8 @@ class PolicyQueries {
                                     index: counter,
                                     start: start,
                                     bound: right,
-                                    body: remainingBody
+                                    body: remainingBody,
+                                    counter: counter
                                 };
                             case _:
                                 return null;
@@ -1013,7 +1020,8 @@ class PolicyQueries {
         index:TVar,
         start:TypedExpr,
         bound:TypedExpr,
-        body:Array<TypedExpr>
+        body:Array<TypedExpr>,
+        counter:TVar
     }> {
         final counter = switch (counterDecl.expr) {
             case TVar(v, null): v;
@@ -1047,13 +1055,13 @@ class PolicyQueries {
         while (i < stmts.length) {
             if (i + 2 < stmts.length) {
                 final loop = intervalCore(stmts[i], stmts[i + 1], stmts[i + 2]);
-                if (loop != null && !counterUsedAfter(stmts, i + 3, loop.index)) {
+                if (loop != null && !loopUsedAfter(stmts, i + 3, loop.index, loop.counter)) {
                     out.push({expr: TBlock([stmts[i], stmts[i + 1], stmts[i + 2]]), pos: stmts[i].pos, t: stmts[i + 2].t});
                     i += 3;
                     continue;
                 }
                 final split = intervalSplit(stmts[i], stmts[i + 1], stmts[i + 2]);
-                if (split != null && !counterUsedAfter(stmts, i + 3, split.index)) {
+                if (split != null && !loopUsedAfter(stmts, i + 3, split.index, split.counter)) {
                     out.push({expr: TBlock([stmts[i], stmts[i + 1], stmts[i + 2]]), pos: stmts[i].pos, t: stmts[i + 2].t});
                     i += 3;
                     continue;
@@ -1061,7 +1069,7 @@ class PolicyQueries {
             }
             if (i + 1 < stmts.length) {
                 final loop = intervalShort(stmts[i], stmts[i + 1]);
-                if (loop != null && !counterUsedAfter(stmts, i + 2, loop.index)) {
+                if (loop != null && !loopUsedAfter(stmts, i + 2, loop.index, loop.counter)) {
                     out.push({expr: TBlock([stmts[i], stmts[i + 1]]), pos: stmts[i].pos, t: stmts[i + 1].t});
                     i += 2;
                     continue;
@@ -1071,6 +1079,20 @@ class PolicyQueries {
             i += 1;
         }
         return out;
+    }
+
+    /**
+        Whether the loop index or the original counter is used after the
+        loop in this block. The capture pattern may select a temporary as
+        the loop index, leaving the original counter reachable by later
+        statements; both must be free.
+    **/
+    static function loopUsedAfter(stmts:Array<TypedExpr>, end:Int, index:TVar, counter:TVar):Bool {
+        if (counterUsedAfter(stmts, end, index))
+            return true;
+        if (index.id != counter.id && counterUsedAfter(stmts, end, counter))
+            return true;
+        return false;
     }
 
     public static function stringToolsHexArgs(args:Array<TypedExpr>):{value:TypedExpr, digits:Null<TypedExpr>} {
