@@ -397,55 +397,8 @@ class RustDecl {
 
         final classPart = prefixLines.length > 0 ? prefixLines.join("\n\n") + "\n\n" + lines.join("\n") : lines.join("\n");
         final result = extractedParts.length > 0 ? extractedParts.join("\n\n") + "\n\n" + classPart : classPart;
-        final tableEq = sortedTableEquality(cls, classParams);
-        final withTableEq = tableEq == null ? result : result + "\n\n" + tableEq;
         return cls.meta.has(":dataClass")
-            && RustType.canEmitDataClassComparator(cls) ? withTableEq + "\n\n" + dataClassComparator(cls) : withTableEq;
-    }
-
-    /**
-        Entry-wise PartialEq for the resident sorted tables
-        (SortedTableEntryEquality): two tables compare equal when their
-        entry vectors compare equal. The comparator function is excluded:
-        Arc<dyn Fn> never implements PartialEq, and entry identity already
-        determines table identity because builders sort by that comparator.
-        The impl carries K: PartialEq (plus V: PartialEq for maps) so a
-        table only compares when its entries can.
-    **/
-    function sortedTableEquality(cls:ClassType, classParams:Array<String>):Null<String> {
-        if (cls.module != "runtime.SortedTable")
-            return null;
-        final boundList = [for (n in classParams) n + ": PartialEq"];
-        final bounds = boundList.length > 0 ? "<" + boundList.join(", ") + ">" : "";
-        final generics = classParams.length > 0 ? "<" + classParams.join(", ") + ">" : "";
-        return switch (cls.name) {
-            case "SortedMapTable":
-                "impl" + bounds + " PartialEq for SortedMapTable" + generics + " {\n"
-                    + "    fn eq(&self, other: &Self) -> bool {\n"
-                    + "        self.keys == other.keys && self.values == other.values\n"
-                    + "    }\n"
-                    + "}";
-            case "SortedSetTable":
-                "impl" + bounds + " PartialEq for SortedSetTable" + generics + " {\n"
-                    + "    fn eq(&self, other: &Self) -> bool {\n"
-                    + "        self.keys == other.keys\n"
-                    + "    }\n"
-                    + "}";
-            case "SortedMapTableBuilder":
-                "impl" + bounds + " PartialEq for SortedMapTableBuilder" + generics + " {\n"
-                    + "    fn eq(&self, other: &Self) -> bool {\n"
-                    + "        self.keys == other.keys && self.values == other.values\n"
-                    + "    }\n"
-                    + "}";
-            case "SortedSetTableBuilder":
-                "impl" + bounds + " PartialEq for SortedSetTableBuilder" + generics + " {\n"
-                    + "    fn eq(&self, other: &Self) -> bool {\n"
-                    + "        self.keys == other.keys\n"
-                    + "    }\n"
-                    + "}";
-            case _:
-                null;
-        };
+            && RustType.canEmitDataClassComparator(cls) ? result + "\n\n" + dataClassComparator(cls) : result;
     }
 
     function dataClassComparator(cls:ClassType):String {
@@ -684,9 +637,10 @@ class RustDecl {
                 Context.error("value type static field must have an initializer", v.field.pos);
             final initText = constValFloatInit(initializer, v.field.type);
             final val = ValueTypeSupport.isBareRepresentationLiteral(initializer, info.representation) ? info.name + "(" + initText + ")" : initText;
-            final staticName = RustImports.toScreamingSnakeCase(v.field.name);
+            final isConst = StaticFieldHelper.isConstValue(v.field);
+            final staticName = isConst ? RustImports.toScreamingSnakeCase(v.field.name) : RustImports.toSnakeCase(v.field.name);
             lines.push("");
-            if (StaticFieldHelper.isConstValue(v.field)) {
+            if (isConst) {
                 lines.push("    pub const " + staticName + ": " + info.name + " = " + val + ";");
             } else {
                 // Non-constant value-type members use a function because Rust
