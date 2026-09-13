@@ -285,6 +285,10 @@ tests.CloneDeriveGapTests
 boring.LoopWriteOps
 boring.HaxeExceptionOps
 tests.HaxeExceptionTests
+boring.MutatingCounterOps
+tests.MutatingCounterTests
+boring.NullableBufFieldOps
+tests.NullableBufFieldTests
 boring.ExceptionChainProbe
 tests.ExceptionChainProbeTests
 tests.LoopWriteTests
