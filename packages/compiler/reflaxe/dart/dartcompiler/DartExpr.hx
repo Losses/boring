@@ -2986,7 +2986,14 @@ class DartExpr {
                         // apply the null assertion instead.
                         requiredValueText(args[i]);
                     } else {
-                        "(" + expr(args[i]) + " ?? " + ((cls.name == "RubySpan" || cls.name == "Cluster") ? constructorDefaultText(d, p, cls, args) : defaultArgText(d, p)) + ")";
+                        // DartCtorCallSiblingDefault: a call-site wrapper applies
+                        // the callee default to the passed argument. A default
+                        // that reads a sibling parameter resolves to the
+                        // argument passed for that sibling slot, so a static
+                        // caller with differently named locals never emits the
+                        // callee parameter name unbound. No configuration
+                        // switch; the report maps this rule to its test.
+                        "(" + expr(args[i]) + " ?? " + constructorDefaultText(d, p, cls, args) + ")";
                     }
                 }
             } else {
