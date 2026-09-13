@@ -7784,9 +7784,11 @@ class RustExpr {
     }
 
     /**
+     * Resolve an Option-wrapped array before applying Rust's index operator.
      * layout_queries contains nullable index containers whose Rust lowering is
      * Option<Vec<_>>/Option<Rect>. Keep this exception local to that generated
      * module: the general index path is shared by all target-boundary suites.
+     * The mutable form is used only for indexed assignment.
      */
     function optionContainerIndexAccess(arr:TypedExpr, idx:TypedExpr, mutable:Bool):String {
         final receiver = expr(arr);
@@ -7796,7 +7798,8 @@ class RustExpr {
             final coerce = mutable ? ".as_mut().unwrap()" : ".as_ref().unwrap()";
             return "(" + receiver + ")" + coerce + "[" + castArg(idx, "usize") + "]";
         }
-        return receiver + "[" + castArg(idx, "usize") + "]";
+        final receiverText = StringTools.startsWith(receiver, "&*") ? "(" + receiver + ")" : receiver;
+        return receiverText + "[" + castArg(idx, "usize") + "]";
     }
 
     function arrayArgBorrow(e:TypedExpr):String {
