@@ -20,4 +20,10 @@ class NullArgsTests {
         Test.equals("none", NullArgsOps.conditionalArg(null));
         Test.equals("x", NullArgsOps.conditionalArg("x"));
     }
+
+    @:test("null default keeps the nullable parameter in the Option domain")
+    public static function testNullDefault():Void {
+        Test.equals("null", NullArgsOps.nullDefaultAbsent());
+        Test.equals("set", NullArgsOps.nullDefaultPresent());
+    }
 }
