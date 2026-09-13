@@ -1020,13 +1020,13 @@ class Compiler extends PluginCompiler<Compiler> {
                         var impl:haxe.macro.Type.ClassField = null;
                         for (field in cls.statics.get()) if (field.name == ifField.name) impl = field;
                         if (impl == null) continue;
-                        final key = RustEmissionState.funcKey(cls.module, impl.name, true);
-                        final error = state.funcErrorTypes.get(key);
+                        final interfaceKey = RustEmissionState.funcKey(iface.module, ifField.name, true);
+                        final error = state.funcErrorTypes.get(interfaceKey);
                         state.interfaceMethodShapes.set(RustEmissionState.interfaceMethodKey(iface.module, iface.name, ifField.name), {
-                            isFallible: error != null || state.funcErrorEnums.exists(key),
+                            isFallible: state.funcErrorEnums.exists(interfaceKey) || error != null,
                             isMutating: false,
-                            errorModule: error != null ? error.module : null,
-                            errorName: error != null ? error.name : null
+                            errorModule: error != null ? error.module : state.errorModule,
+                            errorName: error != null ? error.name : state.errorName
                         });
                     }
                 }
