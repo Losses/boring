@@ -2325,6 +2325,11 @@ class SwiftExpr {
         final folded = foldedExceptionMessage(target, name);
         if (folded != null)
             return folded;
+        if (name == "previous" || name == "get_previous") {
+            final previous = foldedExceptionPrevious(target);
+            if (previous != null)
+                return previous;
+        }
         if (name == "length") {
             if (isStringBuf(subj))
                 return "Int32(" + receiverText(subj) + ".count)";
@@ -2827,6 +2832,11 @@ class SwiftExpr {
                 if (folded != null) {
                     return folded;
                 }
+            case TField(subj, FInstance(_, _, cf)) if (cf.get().name == "get_previous" && args.length == 0):
+                final folded = foldedExceptionPrevious(stripCast(subj));
+                if (folded != null) {
+                    return folded;
+                }
             case TField(subj, FStatic(c, cf)):
                 final cls = c.get();
                 final fName = cf.get().name;
@@ -3236,7 +3246,10 @@ class SwiftExpr {
                 if (args.length == 0) {
                     return "super.init(message: \"\")";
                 }
-                return "super.init(message: " + rendered + ")";
+                if (args.length == 1) {
+                    return "super.init(message: " + rendered + ")";
+                }
+                return "super.init(message: " + expr(args[0]) + ", cause: " + expr(args[1]) + ")";
             case _:
                 return expr(fn) + "(" + rendered + ")";
         }
@@ -3711,6 +3724,9 @@ class SwiftExpr {
         final path = cls.pack.length == 0 ? cls.name : cls.pack.join(".") + "." + cls.name;
         if (path == "haxe.Exception") {
             imports.runtime("BoringException");
+            if (args.length > 1) {
+                return "BoringException(message: " + expr(args[0]) + ", cause: " + expr(args[1]) + ")";
+            }
             return "BoringException(message: " + rendered + ")";
         }
         switch (path) {
@@ -4208,6 +4224,23 @@ class SwiftExpr {
                     return null;
                 }
                 return expr(stripCast(subj)) + ".message";
+            case _:
+                return null;
+        }
+    }
+
+    /**
+        A previous read on a folded exception uses the Swift runtime's
+        nullable cause link, preserving the Haxe chaining contract for the generated
+        exception class (features/06 previous chaining).
+    **/
+    function foldedExceptionPrevious(subj:TypedExpr):Null<String> {
+        switch (Context.follow(subj.t)) {
+            case TInst(c, _):
+                if (SwiftDecl.isException(c.get())) {
+                    return expr(stripCast(subj)) + ".cause";
+                }
+                return null;
             case _:
                 return null;
         }

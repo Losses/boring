@@ -93,13 +93,11 @@ public final class BytesBuffer {
 /// because the generated exception classes subclass it.
 public class BoringException: Error {
     public let message: String
+    public let cause: BoringException?
 
-    /// The chained previous exception (features/06 previous chaining).
-    public let previous: BoringException?
-
-    public init(message: String, previous: BoringException? = nil) {
+    public init(message: String, cause: BoringException? = nil) {
         self.message = message
-        self.previous = previous
+        self.cause = cause
     }
 }
 
