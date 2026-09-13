@@ -2223,7 +2223,10 @@ class RustExpr {
     }
 
     function narrowedSubject(subject:TypedExpr):Null<String> {
-        final text = subjectTextOf(subject);
+        return narrowedText(subjectTextOf(subject));
+    }
+
+    function narrowedText(text:String):Null<String> {
         for (i in 0...optionNarrowings.length) {
             final narrowing = optionNarrowings[optionNarrowings.length - 1 - i];
             if (narrowing.subjectText == text)
@@ -2312,7 +2315,15 @@ class RustExpr {
         // there.
         final narrowedBranch = info.noneWhenTrue ? ifFalse : ifTrue;
         final noneBranch = info.noneWhenTrue ? ifTrue : ifFalse;
-        var narrowedText = conditionalBranchText(narrowedBranch, noneBranch, resultType);
+        // A nullable result wraps both arms only when a sibling branch is
+        // the null literal, so the arms reach the Option result shape. A
+        // non-null sibling branch keeps the unwrapped value shape for both
+        // arms. Wrapping runs inside the narrowing scope so a narrowed read
+        // still binds the match name.
+        final nullableResult = resultType != null && isNullType(resultType)
+            && (isTNull(narrowedBranch) || isTNull(noneBranch));
+        var narrowedText = nullableResult ? wrapBranchForNullableResult(narrowedBranch, resultType, noneBranch)
+            : conditionalBranchText(narrowedBranch, noneBranch, resultType);
         final hit = optionNarrowingHit;
         optionNarrowings.pop();
         optionNarrowingHit = previousHit;
@@ -2325,7 +2336,8 @@ class RustExpr {
             final innerType = getNullInnerType(info.subject.t);
             narrowedText = isTypeCopy(innerType) ? "*" + name : "(*" + name + ").clone()";
         }
-        var noneText = conditionalBranchText(noneBranch, narrowedBranch, resultType);
+        var noneText = nullableResult ? wrapBranchForNullableResult(noneBranch, resultType, narrowedBranch)
+            : conditionalBranchText(noneBranch, narrowedBranch, resultType);
         final branchTarget = conditionalNumericTarget(narrowedBranch, noneBranch, resultType);
         if (branchTarget != null) {
             narrowedText = normalizeNumericBranch(narrowedBranch, branchTarget, narrowedText);
@@ -2698,11 +2710,35 @@ class RustExpr {
                 // receive an Int after Haxe's numeric unification. The Rust
                 // tuple struct stores the module real, so convert this
                 // representation boundary explicitly.
+                final narrowedOperand = valueTypeNarrowedInlineValue(value, locals);
+                final operand = narrowedOperand != null ? narrowedOperand : valueTypeOperand(value, locals, abs);
                 final valueText = ValueTypeSupport.isFloatRepresentation(abs) && isIntType(emittedType(value))
-                    ? intToFloatText(expr(value))
-                    : expr(value);
+                    ? intToFloatText(operand)
+                    : operand;
                 wrapperName + "(" + valueText + ")";
         };
+    }
+
+    /**
+        The call-site value of an inline value-type constructor parameter that
+        an enclosing null guard narrowed. The typer drops the inline local and
+        keeps the narrowed parameter type, so the wrapper would otherwise read
+        the missing local name. Resolving the initializer to the guard's match
+        binding keeps the value in scope at the call site.
+    **/
+    function valueTypeNarrowedInlineValue(value:TypedExpr, locals:Map<Int, TypedExpr>):Null<String> {
+        final resolved = switch (stripWrap(value).expr) {
+            case TLocal(v) if (locals.exists(v.id)): locals.get(v.id);
+            case _: null;
+        };
+        if (resolved == null || isNullType(value.t) || !isNullType(resolved.t))
+            return null;
+        final binding = narrowedText(subjectTextOf(resolved));
+        if (binding == null)
+            return null;
+        optionNarrowingHit = true;
+        final inner = getNullInnerType(resolved.t);
+        return isTypeCopy(inner) ? "*" + binding : "(*" + binding + ").clone()";
     }
 
     function valueTypeLocalValues(wrapper:TypedExpr):Map<Int, TypedExpr> {
