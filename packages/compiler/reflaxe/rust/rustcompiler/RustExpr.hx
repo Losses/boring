@@ -5930,6 +5930,37 @@ class RustExpr {
         return text;
     }
 
+    /**
+        Materializes a coalescing default at a constructor call site. The
+        default expression may read earlier constructor parameters, so each
+        rendered argument text is registered by parameter name for the
+        duration of the default. A nested constructor argument renders its own
+        defaults and restores this table around itself, so the enclosing site
+        keeps every earlier parameter resolvable.
+    **/
+    function constructorDefaultAtCall(cls:ClassType, args:Array<TypedExpr>, paramTypes:Array<Type>, paramNames:Array<String>,
+            coalescing:DefaultArgExpander.CoalescingDefaultValue, parameterType:Type):String {
+        final savedSubstitutions = defaultParameterSubstitutions.copy();
+        defaultParameterSubstitutions.clear();
+        for (j in 0...args.length) {
+            if (j >= paramNames.length)
+                continue;
+            final prior = isNullLiteral(args[j]) ? DefaultArgExpander.defaultAt(cls, "new", j) : null;
+            final argText = expr(args[j]);
+            final priorText = prior == null ? (isNullType(paramTypes[j]) && StringTools.startsWith(argText, "Some(")
+                ? argText.substr(5, argText.length - 6) : argText) : switch (prior) {
+                case VCoalescing(value): coalescingDefaultText(value, getNullInnerType(paramTypes[j]), false);
+                default: defaultArgText(prior, paramTypes[j]);
+            };
+            defaultParameterSubstitutions.set(paramNames[j], priorText);
+        }
+        final rendered = coalescingDefaultText(coalescing, getNullInnerType(parameterType), true);
+        defaultParameterSubstitutions.clear();
+        for (name => text in savedSubstitutions)
+            defaultParameterSubstitutions.set(name, text);
+        return rendered;
+    }
+
     function ctorCallArgs(cls:ClassType, args:Array<TypedExpr>):String {
         final fnType = cls.constructor != null ? cls.constructor.get().type : null;
         final paramTypes = fnType != null ? switch (Context.follow(fnType)) {
@@ -5953,21 +5984,7 @@ class RustExpr {
                 final parameterName = i < paramNames.length ? paramNames[i] : null;
                 final coalescing = parameterName == null ? null : DefaultArgExpander.coalescingDefaultForParam(cls, "new", parameterName);
                 if (coalescing != null && isNullLiteral(arg)) {
-                    defaultParameterSubstitutions.clear();
-                    for (j in 0...args.length) {
-                        if (j < paramNames.length) {
-                            final prior = isNullLiteral(args[j]) ? DefaultArgExpander.defaultAt(cls, "new", j) : null;
-                            final priorText = prior == null ? (isNullType(paramTypes[j])
-                                && StringTools.startsWith(expr(args[j]),
-                                    "Some(") ? expr(args[j]).substr(5, expr(args[j]).length - 6) : expr(args[j])) : switch (prior) {
-                                    case VCoalescing(value): coalescingDefaultText(value, getNullInnerType(paramTypes[j]), false);
-                                    default: defaultArgText(prior, paramTypes[j]);
-                                };
-                            defaultParameterSubstitutions.set(paramNames[j], priorText);
-                        }
-                    }
-                    out.push(coalescingDefaultText(coalescing, getNullInnerType(pt), true));
-                    defaultParameterSubstitutions.clear();
+                    out.push(constructorDefaultAtCall(cls, args, paramTypes, paramNames, coalescing, pt));
                     continue;
                 }
                 final registered = DefaultArgExpander.defaultAt(cls, "new", i);
