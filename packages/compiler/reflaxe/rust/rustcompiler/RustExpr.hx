@@ -4337,7 +4337,9 @@ class RustExpr {
                 final valueType = ValueTypeSupport.markedAbstractOfClass(cls);
                 if (valueType != null) {
                     imports.requireType(valueType.module, valueType.name);
-                    return valueType.name + "::" + RustImports.toScreamingSnakeCase(name);
+                    final field = cf.get();
+                    final item = valueType.name + "::" + RustImports.toScreamingSnakeCase(name);
+                    return !StaticFieldHelper.isConstValue(field) ? item + "()" : item;
                 }
                 if (StaticFieldHelper.isConstruction(cf.get().expr()) && !StaticFieldHelper.isSelfConstruction(cf.get(), cls)) {
                     return "(*" + staticItemPath(cls, name) + ").clone()";
@@ -4653,7 +4655,11 @@ class RustExpr {
         final valueType = ValueTypeSupport.markedAbstractOfClass(cls);
         if (valueType != null) {
             imports.requireType(valueType.module, valueType.name);
-            return valueType.name + "::" + RustImports.toScreamingSnakeCase(name);
+            final field = findStaticField(cls, name);
+            final item = valueType.name + "::" + RustImports.toScreamingSnakeCase(name);
+            if (field != null && !StaticFieldHelper.isConstValue(field))
+                return item + "()";
+            return item;
         }
         final markedField = findStaticField(cls, name);
         if (markedField != null && StaticFunctionMarkers.isMarked(markedField)) {
@@ -4866,6 +4872,18 @@ class RustExpr {
     }
 
     function stdStringType(t:Type, value:String, inConcat:Bool, origin:TypedExpr, depth:Int = 0):String {
+        // Context.follow may expose the wrapped value type of Null<T> before
+        // the category classifier runs. Preserve the Option match whenever
+        // the wrapped type is a marked value wrapper.
+        switch (t) {
+            case TAbstract(a, [inner]) if (a.get().name == "Null" && ValueTypeSupport.markedAbstractOfType(inner) != null):
+                return "match "
+                    + value
+                    + " { Some(ref v) => "
+                    + stdStringType(inner, "v", false, origin, depth + 1)
+                    + ", None => \"null\".to_string() }";
+            case _:
+        }
         // Context.follow unwraps Null<T> into T, so the switch below never
         // sees the wrapper; a nullable operand takes the match form here,
         // before the follow.
