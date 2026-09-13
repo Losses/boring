@@ -2169,7 +2169,7 @@ class RustDecl {
         var mutates = false;
         function walk(e:TypedExpr) {
             switch (e.expr) {
-                case TBinop(OpAssign, lhs, _):
+                case TBinop(OpAssign, lhs, _) | TBinop(OpAssignOp(_), lhs, _) | TUnop(OpIncrement | OpDecrement, _, lhs):
                     if (ownFieldRoot(lhs)) {
                         mutates = true;
                     }
