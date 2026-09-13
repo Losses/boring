@@ -5199,7 +5199,7 @@ class RustExpr {
                 if ((name == "indexOf" || name == "index_of") && isString(stripCast(subj)) && args.length >= 1) {
                     return "match ("
                         + expr(subj)
-                        + ").find("
+                        + ").find(&"
                         + expr(args[0])
                         + ") { Some(v) => "
                         + RustConversions.narrowI32("v")
@@ -5228,10 +5228,14 @@ class RustExpr {
                     return "u_string::split(&" + expr(subj) + ", &" + expr(args[0]) + ")";
                 }
                 if ((name == "lastIndexOf" || name == "last_index_of") && isString(stripCast(subj)) && args.length >= 1) {
-                    return "match (" + expr(subj) + ").rfind(" + expr(args[0]) + ") { Some(v) => " + RustConversions.narrowI32("v") + ", None => -1 }";
+                    // String method arguments render as owned String values;
+                    // borrow the pattern for Rust's str Pattern implementation.
+                    return "match (" + expr(subj) + ").rfind(&" + expr(args[0]) + ") { Some(v) => " + RustConversions.narrowI32("v") + ", None => -1 }";
                 }
                 if ((name == "startsWith" || name == "starts_with") && isString(stripCast(subj)) && args.length >= 1) {
-                    return "(" + expr(subj) + ").starts_with(" + expr(args[0]) + ")";
+                    // String method arguments render as owned String values;
+                    // borrow the pattern for Rust's str Pattern implementation.
+                    return "(" + expr(subj) + ").starts_with(&" + expr(args[0]) + ")";
                 }
                 if ((name == "substring" || name == "sub_string") && isString(stripCast(subj))) {
                     // Member-call lowering into the u_string runtime: the
