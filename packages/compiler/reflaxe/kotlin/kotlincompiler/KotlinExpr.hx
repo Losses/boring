@@ -1859,6 +1859,29 @@ class KotlinExpr {
         }
     }
 
+    /**
+        A `previous` or `get_previous` read on a folded exception: the
+        sealed class and the bare haxe.Exception base both map to a Kotlin
+        Throwable, whose native chaining is the nullable `cause` property.
+        Haxe's `previous` is `Null<Exception>`, so the nullable `cause`
+        maps directly (features/06 previous chaining).
+    **/
+    function foldedExceptionPrevious(subj:TypedExpr):Null<String> {
+        switch (Context.follow(subj.t)) {
+            case TInst(c, _):
+                final cls = c.get();
+                if (KotlinDecl.isExceptionSubclass(cls)) {
+                    return expr(subj) + ".cause";
+                }
+                if (cls.pack.join(".") == "haxe" && cls.name == "Exception") {
+                    return expr(subj) + ".cause";
+                }
+                return null;
+            case _:
+                return null;
+        }
+    }
+
     function catchPayloadAccess(subj:TypedExpr, name:String):Null<String> {
         switch (stripWrap(subj).expr) {
             case TLocal(v) if (catchVars.exists(v.id)):
@@ -2850,6 +2873,11 @@ class KotlinExpr {
             if (folded != null)
                 return folded;
         }
+        if (name == "previous" || name == "get_previous") {
+            final folded = foldedExceptionPrevious(subj);
+            if (folded != null)
+                return folded;
+        }
         if (name == "length") {
             final receiver = expr(subj) + nullableAccess(subj);
             return receiver + (isString(subj) ? "length" : "size");
@@ -3362,6 +3390,11 @@ class KotlinExpr {
                 return stdIsOfType(args);
             case TField(subj, FInstance(_, _, cf)) if (cf.get().name == "get_message" && args.length == 0):
                 final folded = foldedExceptionMessage(subj);
+                if (folded != null) {
+                    return folded;
+                }
+            case TField(subj, FInstance(_, _, cf)) if (cf.get().name == "get_previous" && args.length == 0):
+                final folded = foldedExceptionPrevious(subj);
                 if (folded != null) {
                     return folded;
                 }
