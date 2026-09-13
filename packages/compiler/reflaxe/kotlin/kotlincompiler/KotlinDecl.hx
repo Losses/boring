@@ -1213,7 +1213,11 @@ class KotlinDecl {
         // Kotlin requires override members to be at least as visible as the
         // overridden member (interface members are public), so drop private/internal
         // visibility when the override modifier is present.
-        final vis = overrideStr.length > 0 ? "" : (f.field.isPublic ? "" : (f.field.meta.has(":allow") ? "internal " : "private "));
+        // @:allow members and members a parameter default inlines at call
+        // sites use Kotlin module visibility so the cross-class references
+        // compile.
+        final vis = overrideStr.length > 0 ? "" : (f.field.isPublic ? "" : (f.field.meta.has(":allow")
+            || KotlinAccessGrants.isWidened(cls, f.field.name) ? "internal " : "private "));
         // A method's own type parameters (the resident builders'
         // factory functions) render as method generics; the class's own
         // parameters stay in the class header only.
