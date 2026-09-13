@@ -1187,6 +1187,22 @@ class RustExpr {
         return PolicyQueries.stringBufMutationParts(fn);
     }
 
+    /**
+        A StringBuf mutation writes through its receiver, so the receiver
+        must be a mutable place. A field subject owned by a nullable
+        wrapper opens the wrapper with `as_mut`; the plain field read
+        renders through `as_ref` and cannot borrow the unit storage
+        mutably. Covers the nullable buffer field mutation family. The
+        owner's binding is marked mutable by scanLocals.
+    **/
+    function nullableBufferFieldMutationSubject(subj:TypedExpr):String {
+        return switch (stripWrap(subj).expr) {
+            case TField(base, FInstance(_, _, cf)) | TField(base, FAnon(cf)) if (isNullType(base.t) && receiverCarriesFallibleWrapper(base)):
+                "(" + expr(base) + ").as_mut().unwrap()." + RustImports.toSnakeCase(cf.get().name);
+            case _: expr(subj);
+        }
+    }
+
     /** Statement lowering of the two buffer mutations (stdlib/08). */
     function stringBufMutationLines(fn:TypedExpr, args:Array<TypedExpr>, depth:Int):Array<String> {
         final parts = stringBufMutationParts(fn);
@@ -1205,7 +1221,7 @@ class RustExpr {
                 fail(fn, "string buffer checks require std.UStringException in the module set (stdlib/08)")
             ];
         }
-        final buf = expr(parts.subj);
+        final buf = nullableBufferFieldMutationSubject(parts.subj);
         final out:Array<String> = [];
         if (parts.name == "add") {
             final part = expr(args[0]);
@@ -6650,11 +6666,22 @@ class RustExpr {
                             // mutating sequence operations the emitter renders
                             // as owned updates; `insert` and `unshift` belong
                             // with `push` because each extends the receiver
-                            // in place. Covers the receiver sequence-update family.
-                            switch (stripWrap(subj).expr) {
-                                case TLocal(v):
-                                    mutated.set(v.id, true);
-                                case _:
+                            // in place. A field-chain receiver marks its root
+                            // binding for the same reason as a field
+                            // assignment. Covers the receiver sequence-update
+                            // family and the receiver-sequence field-root
+                            // family.
+                            var receiver = subj;
+                            while (true) {
+                                switch (stripWrap(receiver).expr) {
+                                    case TLocal(v):
+                                        mutated.set(v.id, true);
+                                        break;
+                                    case TField(inner, _):
+                                        receiver = inner;
+                                    case _:
+                                        break;
+                                }
                             }
                         } else {
                             // A call through a receiver-writing method mutates
