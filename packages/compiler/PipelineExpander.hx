@@ -597,6 +597,72 @@ class PipelineExpander {
         flattenBlockExprs(stmts);
     }
 
+    // A pipeline whose subtree contains a function value must not be
+    // expanded from local initializer or return positions: the expansion
+    // would place the function value in a lowering context the emitter
+    // rejects (V08), so the subtree stays unexpanded.
+    static function containsFunctionValue(e:TypedExpr):Bool {
+        if (e == null)
+            return false;
+        var found = false;
+        switch (e.expr) {
+            case TFunction(_):
+                return true;
+            case TBlock(stmts):
+                for (s in stmts)
+                    if (containsFunctionValue(s))
+                        found = true;
+            case TIf(cond, ifExpr, elseExpr):
+                found = containsFunctionValue(cond) || containsFunctionValue(ifExpr)
+                    || (elseExpr != null && containsFunctionValue(elseExpr));
+            case TWhile(cond, body, _):
+                found = containsFunctionValue(cond) || containsFunctionValue(body);
+            case TFor(v, it, body):
+                found = containsFunctionValue(it) || containsFunctionValue(body);
+            case TTry(body, catches):
+                found = containsFunctionValue(body);
+                if (!found)
+                    for (c in catches)
+                        if (containsFunctionValue(c.expr))
+                            found = true;
+            case TSwitch(subj, cases, def):
+                found = containsFunctionValue(subj);
+                if (!found)
+                    for (c in cases) {
+                        for (v in c.values)
+                            if (containsFunctionValue(v))
+                                found = true;
+                        if (containsFunctionValue(c.expr))
+                            found = true;
+                    }
+                if (!found && def != null)
+                    found = containsFunctionValue(def);
+            case TCall(fn, args):
+                found = containsFunctionValue(fn);
+                if (!found)
+                    for (a in args)
+                        if (containsFunctionValue(a))
+                            found = true;
+            case TArrayDecl(vals):
+                for (v in vals)
+                    if (containsFunctionValue(v))
+                        found = true;
+            case TBinop(_, a, b):
+                found = containsFunctionValue(a) || containsFunctionValue(b);
+            case TField(a, _):
+                found = containsFunctionValue(a);
+            case TUnop(_, _, a) | TParenthesis(a) | TMeta(_, a):
+                found = containsFunctionValue(a);
+            case TCast(a, _) | TEnumParameter(a, _, _) | TEnumIndex(a):
+                found = containsFunctionValue(a);
+            case TLocal(_) | TConst(_) | TTypeExpr(_):
+                found = false;
+            case _:
+                found = false;
+        }
+        return found;
+    }
+
     static function transformInnerBlocks(e:TypedExpr, usedNames:Map<String, Bool>):Void {
         if (e == null)
             return;
@@ -630,10 +696,10 @@ class PipelineExpander {
             case TFunction(f):
                 transformInnerBlocks(f.expr, usedNames);
             case TVar(v, init):
-                if (init != null)
+                if (init != null && !containsFunctionValue(init))
                     transformInnerBlocks(init, usedNames);
             case TReturn(ret):
-                if (ret != null)
+                if (ret != null && !containsFunctionValue(ret))
                     transformInnerBlocks(ret, usedNames);
             default:
         }
