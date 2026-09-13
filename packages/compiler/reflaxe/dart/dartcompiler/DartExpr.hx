@@ -1526,7 +1526,15 @@ class DartExpr {
         if (bodyStmts.length == 1) {
             switch (bodyStmts[0].expr) {
                 case TReturn(r) if (r != null):
-                    return "(" + params + ") => " + expr(r);
+                    // A closure returning a nullable value into a non-null
+                    // function type must unwrap (Dart infers the closure's
+                    // return from context). Haxe narrowed the value on the
+                    // return path; Dart needs the explicit `!`.
+                    final retText = expr(r);
+                    final unwrapped = (!optionalValued(r) && nullableValue(r) && !provenNonNull(r) && !isNullLeafType(f.t))
+                        ? requiredValueText(r)
+                        : retText;
+                    return "(" + params + ") => " + unwrapped;
                 case _:
             }
         }
