@@ -6040,6 +6040,21 @@ class RustExpr {
             if (!StringTools.endsWith(text, ".clone()") && !StringTools.endsWith(text, ".to_vec()"))
                 text = "(*" + text + ").clone()";
         }
+        // Haxe constructor arguments are evaluated as reads from shared
+        // object state. Rust's value slots would otherwise move a non-Copy
+        // local or field, making a later argument (or a later loop iteration)
+        // use the moved value. Clone only direct reusable reads; temporary
+        // producers already have fresh ownership and must remain untouched.
+        if (!isTypeCopy(expected) && !isTemporaryOwnedExpr(arg)
+            && !StringTools.startsWith(text, "&")
+            && !StringTools.endsWith(text, ".clone()")
+            && !StringTools.endsWith(text, ".to_vec()")
+            && !StringTools.endsWith(text, ".to_string()")) {
+            switch (stripWrap(arg).expr) {
+                case TLocal(_) | TField(_, _): text = "(" + text + ").clone()";
+                case _:
+            }
+        }
         return text;
     }
 
