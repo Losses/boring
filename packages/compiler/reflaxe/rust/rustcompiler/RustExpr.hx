@@ -805,6 +805,24 @@ class RustExpr {
                     case _: "";
                 };
                 var explicitNullableNone = false;
+                // A local declared with a non-nullable type but initialized
+                // from the path an enclosing null guard proves present holds
+                // the inner value: Haxe implicitly unwraps at the
+                // declaration. Render the initializer from the guard's match
+                // binding so later field reads do not address the Option
+                // itself.
+                // Covers the guarded-copy local family.
+                final narrowedCopy = switch (stripWrap(init).expr) {
+                    case TLocal(_) | TField(_, _):
+                        isNullType(init.t) && !isNullType(v.t) ? narrowedSubject(init) : null;
+                    case _: null;
+                };
+                if (narrowedCopy != null) {
+                    optionNarrowingHit = true;
+                    final inner = getNullInnerType(init.t);
+                    final owned = isTypeCopy(inner) ? "*" + narrowedCopy : "(*" + narrowedCopy + ").clone()";
+                    return [indent(depth) + kw + " " + name + explicitType + " = " + owned + ";"];
+                }
                 var initStr = switch (init.expr) {
                     case TFunction(fn): functionValueLiteralNamed(v.name, fn, init.t);
                     case TConst(TNull) if (isNullType(v.t)):
@@ -3759,6 +3777,21 @@ class RustExpr {
         };
     }
 
+    /**
+        The forcing read of a proven non-null local subject: the guard proved
+        the local is Some, so the read opens the local directly through a
+        borrow. A non-proven subject renders nothing.
+    **/
+    function provenNonNullLocalSubject(subj:TypedExpr):Null<String> {
+        final local = switch (stripWrap(subj).expr) {
+            case TLocal(v): v;
+            case _: null;
+        };
+        if (local == null || !provenNonNullVarIds.exists(local.id) || !receiverCarriesFallibleWrapper(subj))
+            return null;
+        return "(" + expr(subj) + ").as_ref().unwrap()";
+    }
+
     function isZero(e:TypedExpr):Bool {
         return switch (stripWrap(e).expr) {
             case TConst(TInt(0)): true;
@@ -4239,13 +4272,18 @@ class RustExpr {
                 final narrowed = narrowedSubject(subj);
                 if (narrowed != null)
                     optionNarrowingHit = true;
+                // A proven guard subject is Some at this read: the forcing
+                // read opens the guarded local directly through the borrow,
+                // with no match binding in the path.
+                // Covers the proven-subject direct read family.
+                final proven = narrowed == null ? provenNonNullLocalSubject(subj) : null;
                 // A preceding fill guard guarantees the local holds Some: the
                 // forcing read reuses the fill as the get_or_insert_with
                 // closure body. The closure runs only when the guard did not
                 // fill, which never happens after the guard.
-                final filled = narrowed == null && isNullType(subj.t) ? filledSubjectOf(subj) : null;
-                final subjStr = if (narrowed != null) narrowed else if (filled != null) subjText + ".get_or_insert_with(|| " + filled + ")" else
-                    if (receiverCarriesFallibleWrapper(subj)) subjText
+                final filled = narrowed == null && proven == null && isNullType(subj.t) ? filledSubjectOf(subj) : null;
+                final subjStr = if (narrowed != null) narrowed else if (proven != null) proven else if (filled != null) subjText
+                    + ".get_or_insert_with(|| " + filled + ")" else if (receiverCarriesFallibleWrapper(subj)) subjText
                     + ".as_ref().unwrap()" else subjText;
                 final access = subjStr + "." + snake;
                 if (name != "length" && isRecursiveField(subj, name))
