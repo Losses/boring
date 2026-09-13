@@ -296,11 +296,14 @@ class DartExpr {
                 case TInst(c, ps) if (ps.length == 2 && (c.get().name == "SortedMap" || c.get().name == "SortedMapBuilder")): ps;
                 case _: [];
             };
-            final kType = params.length == 2 ? params[0] : null;
-            final cmp = args.length > 0 ? [for (a in args) coalescingDefaultText(a, targetType)].join(", ") : sortedComparator(kType, Context.currentPos());
+            final renderedArgs = [for (a in args) coalescingDefaultText(a, targetType)];
+            if (renderedArgs.length == 0 && params.length == 2)
+                renderedArgs.push(sortedComparator(params[0], Context.currentPos()));
             return runtimeQualified("SortedTable.mapBuilder")
                 + (params.length == 2 ? "<" + types.of(params[0]) + ", " + types.of(DefaultArgExpander.withoutNull(params[1])) + ">" : "")
-                + "(" + cmp + ")";
+                + "("
+                + renderedArgs.join(", ")
+                + ")";
         }
         final resolved = tryResolveTypePath(modulePath + "." + className);
         final target = switch (resolved) {
@@ -648,24 +651,38 @@ class DartExpr {
             }
             final constructorLocals = constructorLocalNames(f.expr, f);
             for (stmt in statementsOf(f.expr)) {
-                switch (stmt.expr) {
-                    case TBinop(OpAssign, target, value):
-                        switch (stripWrap(target).expr) {
-                            case TField({expr: TConst(TThis)}, FInstance(_, _, cf)):
-                                if (coalescingSiteFor(value) != null
-                                    || (paramLocalOf(value, f) == null && mentionsConstructorLocalExpr(value, constructorLocals))) {
-                                    out.set(cf.get().name, true);
-                                }
-                            case _:
-                        }
-                    case _:
-                }
+                coalescedBodyFieldsWalk(stmt, f, constructorLocals, out);
             }
         }
         currentClass = savedClass;
         currentField = savedField;
         currentLocalName = savedLocal;
         return out;
+    }
+
+    /**
+        Recursively walk constructor-body statements to find field
+        assignments inside control flow (TIf, TBlock). The top-level
+        switch in coalescedBodyFields only matches TBinop; default-arg
+        expansion emits TIf blocks whose branches assign fields into the
+        constructor body (feature spec 22).
+    **/
+    function coalescedBodyFieldsWalk(stmt:TypedExpr, cf:ClassFuncData, constructorLocals:Map<String, Bool>, out:Map<String, Bool>):Void {
+        switch (stmt.expr) {
+            case TBinop(OpAssign, target, value):
+                switch (stripWrap(target).expr) {
+                    case TField({expr: TConst(TThis)}, FInstance(_, _, fieldRef)):
+                        out.set(fieldRef.get().name, true);
+                    case _:
+                }
+            case TIf(_, t, el):
+                if (t != null) coalescedBodyFieldsWalk(t, cf, constructorLocals, out);
+                if (el != null) coalescedBodyFieldsWalk(el, cf, constructorLocals, out);
+            case TBlock(stmts):
+                for (inner in stmts)
+                    coalescedBodyFieldsWalk(inner, cf, constructorLocals, out);
+            case _:
+        }
     }
 
     /** Collect names declared in the constructor, including pipeline temporaries. */
@@ -2359,7 +2376,7 @@ class DartExpr {
                         return "(() { final s = "
                             + s
                             +
-                            "; var a = 0, b = s.length; bool sp(String c) => c == ' ' || c == '\\t' || c == '\\n' || c == '\\v' || c == '\\f' || c == '\\r'; while (a < b && sp(s[a])) a++; while (b > a && sp(s[b - 1])) b--; final t = s.substring(a, b); final neg = t.startsWith('-'); final p = (neg || t.startsWith('+')) ? 1 : 0; final d = t.substring(p); final hex = d.startsWith('0x') || d.startsWith('0X'); final q = hex ? d.substring(2) : d; if (q.isEmpty) return null; var i = 0; while (i < q.length && ((q.codeUnitAt(i) >= 48 && q.codeUnitAt(i) <= 57) || (hex && ((q.codeUnitAt(i) >= 65 && q.codeUnitAt(i) <= 70) || (q.codeUnitAt(i) >= 97 && q.codeUnitAt(i) <= 102))))) i++; if (i != q.length) return null; final n = int.tryParse(hex ? q : d, radix: hex ? 16 : 10); if (n == null) return null; final v = neg ? -n : n; return v >= -2147483648 && v <= 2147483647 ? v : null; })()";
+                            "; var a = 0, b = s.length; bool sp(String c) => c == ' ' || c == '\\t' || c == '\\n' || c == '\\v' || c == '\\f' || c == '\\r'; while (a < b && sp(s[a])) a++; while (b > a && sp(s[b - 1])) b--; final t = s.substring(a, b); final neg = t.startsWith('-'); final p = (neg || t.startsWith('+')) ? 1 : 0; final d = t.substring(p); final isHex = d.startsWith('0x') || d.startsWith('0X'); final q = isHex ? d.substring(2) : d; if (q.isEmpty) return null; var i = 0; while (i < q.length && ((q.codeUnitAt(i) >= 48 && q.codeUnitAt(i) <= 57) || (isHex && ((q.codeUnitAt(i) >= 65 && q.codeUnitAt(i) <= 70) || (q.codeUnitAt(i) >= 97 && q.codeUnitAt(i) <= 102))))) i++; if (i != q.length) return null; final n = int.tryParse(isHex ? q : d, radix: isHex ? 16 : 10); if (n == null) return null; final v = neg ? -n : n; return v >= -2147483648 && v <= 2147483647 ? v : null; })()";
                     if (fName == "int") {
                         final arg = stripWrap(args[0]);
                         switch (arg.expr) {
@@ -3112,16 +3129,18 @@ class DartExpr {
         if (modulePath == "std.SortedSet" && methodName == "builder")
             return runtimeQualified("SortedTable.setBuilder") + "(" + [for (a in args) constructorCoalescingText(a, targetType, cls, ctorArgs)].join(", ") + ")";
         if (modulePath == "std.SortedMap" && methodName == "builder") {
-            // The builder factory cannot infer its value parameter from the
-            // comparator; spell both from the coalescing target's map type.
+
             final params = switch (DefaultArgExpander.withoutNull(targetType)) {
                 case TInst(c, ps) if (ps.length == 2 && (c.get().name == "SortedMap" || c.get().name == "SortedMapBuilder")): ps;
                 case _: [];
             };
+            final renderedArgs = [for (a in args) constructorCoalescingText(a, targetType, cls, ctorArgs)];
+            if (renderedArgs.length == 0 && params.length == 2)
+                renderedArgs.push(sortedComparator(params[0], Context.currentPos()));
             return runtimeQualified("SortedTable.mapBuilder")
                 + (params.length == 2 ? "<" + types.of(params[0]) + ", " + types.of(DefaultArgExpander.withoutNull(params[1])) + ">" : "")
                 + "("
-                + [for (a in args) constructorCoalescingText(a, targetType, cls, ctorArgs)].join(", ")
+                + renderedArgs.join(", ")
                 + ")";
         }
         final resolved = tryResolveTypePath(modulePath + "." + className);
