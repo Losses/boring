@@ -3692,6 +3692,13 @@ class RustExpr {
             // to a predicate call: Option equality against None would
             // require PartialEq on the inner type, which the emitted
             // structs do not carry.
+            case OpEq | OpNotEq if (isNullType(l.t) && !isNullType(r.t) && !isTNull(r) && narrowedSubject(l) != null):
+                // Inside an option-narrowing match the nullable operand is
+                // substituted by its scalar binding; the comparison uses the
+                // bare value on both sides.
+                return expr(l) + " " + symbolOf(op) + " " + expr(r);
+            case OpEq | OpNotEq if (isNullType(r.t) && !isNullType(l.t) && !isTNull(l) && narrowedSubject(r) != null):
+                return expr(r) + " " + symbolOf(op) + " " + expr(l);
             case OpEq | OpNotEq if (isNullType(l.t) && !isNullType(r.t) && !isTNull(r)):
                 return expr(l) + " " + symbolOf(op) + " Some(" + optionSomeInner(r) + ")";
             case OpEq | OpNotEq if (isNullType(r.t) && !isNullType(l.t) && !isTNull(l)):
@@ -3760,8 +3767,13 @@ class RustExpr {
                     }
                     return staticTarget + " = " + staticValue;
                 }
-                final rhs = if (isNullType(l.t) && !isNullType(r.t) && !isTNull(r)) {
+                final rhs = if (isNullType(l.t) && !isNullType(r.t) && !isTNull(r) && !isNullableCollapsedLocal(l)) {
                     "Some(" + ownedNullAssignValue(r) + ")";
+                } else if (isNullableCollapsedLocal(l)) {
+                    // A charCodeAt-collapsed local binds a scalar (u32);
+                    // its assignments stay in that domain and must not
+                    // re-wrap in Some(...).
+                    numericAssignmentValue(l.t, r, renderValueForType(l.t, r, expr(r)), i32BindingLocals.exists(stripAssignTargetLocal(l)) ? "i32" : null);
                 } else if (isStringType(l.t) && !isNullType(l.t)) {
                     switch (stripWrap(r).expr) {
                         case TConst(TString(_)): expr(r) + ".to_string()";
