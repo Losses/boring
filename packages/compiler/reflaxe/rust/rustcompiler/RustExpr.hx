@@ -832,8 +832,6 @@ class RustExpr {
                             || c.get().name == "SortedSet"):
                         ": "
                         + types.of(v.t, false);
-                    case _ if (isIntType(v.t)):
-                        ": " + types.of(v.t, false);
                     case _: "";
                 };
                 var explicitNullableNone = false;
@@ -858,7 +856,7 @@ class RustExpr {
                 var initStr = switch (init.expr) {
                     case TFunction(fn): functionValueLiteralNamed(v.name, fn, init.t);
                     case TConst(TInt(value)) if (isIntType(v.t)):
-                        integerBindingLiteral(value);
+                        integerBindingLiteral(value, v.id);
                     case TConst(TNull) if (isNullType(v.t)):
                         explicitNullableNone = true;
                         "None";
@@ -4131,7 +4129,17 @@ class RustExpr {
         the parameter type, keeping existing trees unchanged.
     **/
     /** Types an integer literal used to initialize an Int local before method use. */
-    function integerBindingLiteral(value:Int):String {
+    function integerBindingLiteral(value:Int, localId:Int = -1):String {
+        // An i32-domain local keeps the bare literal rendering: a negative
+        // value carries the wrapped u32 decimal and a positive value stays
+        // bare so its uses (wrapping arithmetic, comparisons) infer the
+        // signed domain. The suffix would pin the wrong width and break
+        // those uses.
+        if (i32Locals.exists(localId)) {
+            if (value < 0 && !RuntimeResidents.isResident(imports.selfModule))
+                return Std.string(value + 4294967296) + "u32";
+            return Std.string(value);
+        }
         if (value < 0 && !RuntimeResidents.isResident(imports.selfModule))
             return Std.string(value + 4294967296) + "u32";
         return Std.string(value) + (RuntimeResidents.isResident(imports.selfModule) ? "i32" : "u32");
