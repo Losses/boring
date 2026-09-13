@@ -3729,6 +3729,18 @@ class RustExpr {
                     provenNonNullVarIds.remove(proven.id);
                     return expr(l) + " && " + right;
                 }
+                // A `&&` chain of `!= null` checks proves every checked
+                // local for the right operand; the single-local form above
+                // covers the common case, this covers the chain.
+                final provenChain = provenNonNullLocals(l);
+                if (provenChain.length > 0) {
+                    for (v in provenChain)
+                        provenNonNullVarIds.set(v.id, true);
+                    final right = expr(r);
+                    for (v in provenChain)
+                        provenNonNullVarIds.remove(v.id);
+                    return expr(l) + " && " + right;
+                }
                 return expr(l) + " && " + expr(r);
             case OpBoolOr:
                 final guard = nullGuardOf(l);
@@ -3999,6 +4011,22 @@ class RustExpr {
         if (local == null || !provenNonNullVarIds.exists(local.id) || !receiverCarriesFallibleWrapper(subj))
             return null;
         return "(" + expr(subj) + ").as_ref().unwrap()";
+    }
+
+    /** Every local a `&&` chain of `!= null` checks proves non-null. */
+    function provenNonNullLocals(e:TypedExpr):Array<TVar> {
+        final inner = stripWrap(e);
+        return switch (inner.expr) {
+            case TBinop(OpBoolAnd, l, r):
+                provenNonNullLocals(l).concat(provenNonNullLocals(r));
+            case TBinop(OpNotEq, left, right):
+                switch [stripWrap(left).expr, stripWrap(right).expr] {
+                    case [TLocal(v), _] if (isTNull(right)): [v];
+                    case [_, TLocal(v)] if (isTNull(left)): [v];
+                    case _: [];
+                };
+            case _: [];
+        };
     }
 
     function isZero(e:TypedExpr):Bool {
