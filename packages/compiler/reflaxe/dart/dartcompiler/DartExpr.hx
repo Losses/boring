@@ -2977,13 +2977,42 @@ class DartExpr {
             case TFun(v, _): [for (x in v) x.t];
             case _: [];
         };
-        return [for (i in 0...args.length) {
-            final p = i < ps.length ? ps[i] : null;
+        // Render every slot up to the full parameter list. A Haxe call may
+        // omit trailing parameters that carry a default; Dart's constructor
+        // signature keeps such a slot required when a later non-optional
+        // parameter follows (e.g. a constant-default `kind` before an
+        // optional `locale`), so the call site must supply the default
+        // explicitly. The padded texts are threaded into sibling-default
+        // resolution so a later default reading an earlier omitted slot
+        // resolves to that slot's padded value.
+        final padded:Array<String> = [];
+        for (i in 0...ps.length) {
+            if (i >= args.length) {
+                final d = DefaultArgExpander.defaultAt(cls, "new", i);
+                if (d == null) {
+                    Context.error("omitted constructor parameter has no default", Context.currentPos());
+                }
+                final skipInline = switch (d) {
+                    case VCoalescing(value): coalescingReferencesPrivateStatic(value);
+                    default: false;
+                };
+                padded.push(skipInline ? "null" : constructorDefaultText(d, ps[i], cls, args, padded));
+            } else {
+                padded.push(expr(args[i]));
+            }
+        }
+        final out:Array<String> = [];
+        for (i in 0...ps.length) {
+            final p = ps[i];
+            if (i >= args.length) {
+                out.push(padded[i]);
+                continue;
+            }
             final d = DefaultArgExpander.defaultAt(cls, "new", i);
             if (d != null && p != null && isNullLiteral(args[i]) && isArrayType(p)) {
-                emptyArrayText(p);
+                out.push(emptyArrayText(p));
             } else if (d != null && p != null && isNullLiteral(args[i])) {
-                constructorDefaultText(d, p, cls, args);
+                out.push(constructorDefaultText(d, p, cls, args, padded));
             } else if (d != null && p != null && isNullLeafType(args[i].t)) {
                 // A coalescing default that references a private static of
                 // another module cannot be inlined cross-library; pass the
@@ -2994,7 +3023,7 @@ class DartExpr {
                     default: false;
                 };
                 if (skipInline) {
-                    expr(args[i]);
+                    out.push(expr(args[i]));
                 } else {
                     final isVNull = switch (d) { case VNull: true; default: false; };
                     if (isVNull && !isNullLeafType(p)) {
@@ -3010,16 +3039,17 @@ class DartExpr {
                         // caller with differently named locals never emits the
                         // callee parameter name unbound. No configuration
                         // switch; the report maps this rule to its test.
-                        "(" + expr(args[i]) + " ?? " + constructorDefaultText(d, p, cls, args) + ")";
+                        out.push("(" + expr(args[i]) + " ?? " + constructorDefaultText(d, p, cls, args, padded) + ")");
                     }
                 }
             } else {
                 var rendered = expr(args[i]);
                 if (p != null && !isNullLiteral(args[i]) && nullableValue(args[i]) && !isNullLeafType(p))
                     rendered = requiredValueText(args[i]);
-                isIntOrLongType(emittedType(args[i])) && p != null && isFloatType(p) ? intToFloatText(rendered) : rendered;
+                out.push(isIntOrLongType(emittedType(args[i])) && p != null && isFloatType(p) ? intToFloatText(rendered) : rendered);
             }
-        }];
+        }
+        return out;
     }
 
     function isArrayType(t:Type):Bool {
@@ -3076,14 +3106,14 @@ class DartExpr {
         return StaticFieldHelper.isNullInitializer(init);
     }
 
-    function constructorDefaultText(v:DefaultArgExpander.DefaultArgValue, t:Type, cls:ClassType, args:Array<TypedExpr>):String {
+    function constructorDefaultText(v:DefaultArgExpander.DefaultArgValue, t:Type, cls:ClassType, args:Array<TypedExpr>, renderedArgs:Array<String>):String {
         return switch (v) {
-            case VCoalescing(value): constructorCoalescingText(value, t, cls, args);
+            case VCoalescing(value): constructorCoalescingText(value, t, cls, args, renderedArgs);
             default: defaultArgText(v, t);
         };
     }
 
-    function constructorCoalescingText(value:DefaultArgExpander.CoalescingDefaultValue, targetType:Type, cls:ClassType, args:Array<TypedExpr>):String {
+    function constructorCoalescingText(value:DefaultArgExpander.CoalescingDefaultValue, targetType:Type, cls:ClassType, args:Array<TypedExpr>, renderedArgs:Array<String>):String {
         return switch (value) {
             case CParameterRead(name):
                 final parameterIndex = switch (cls.constructor == null ? null : Context.follow(cls.constructor.get().type)) {
@@ -3094,25 +3124,31 @@ class DartExpr {
                         found;
                     case _: -1;
                 };
-                parameterIndex >= 0 && parameterIndex < args.length ? expr(args[parameterIndex]) : name;
+                if (parameterIndex >= 0 && parameterIndex < args.length) {
+                    expr(args[parameterIndex]);
+                } else if (parameterIndex >= 0 && parameterIndex < renderedArgs.length) {
+                    renderedArgs[parameterIndex];
+                } else {
+                    name;
+                }
             case CFieldAccess(CParameterRead(staticPath), ""):
                 // A static-field root: the "parameter" carries the Haxe
                 // dotted path of the constant; the call-site render must
                 // resolve it like the expression-position renderer does,
                 // never printing the raw path.
                 coalescingStaticFieldText(staticPath);
-            case CConditional(c, ifTrue, ifFalse): "(" + constructorCoalescingText(c, targetType, cls, args) + " ? "
-                + constructorCoalescingText(ifTrue, targetType, cls, args) + " : "
-                + constructorCoalescingText(ifFalse, targetType, cls, args) + ")";
+            case CConditional(c, ifTrue, ifFalse): "(" + constructorCoalescingText(c, targetType, cls, args, renderedArgs) + " ? "
+                + constructorCoalescingText(ifTrue, targetType, cls, args, renderedArgs) + " : "
+                + constructorCoalescingText(ifFalse, targetType, cls, args, renderedArgs) + ")";
             case CFieldAccess(receiver, fieldName):
-                final renderedReceiver = constructorCoalescingText(receiver, targetType, cls, args);
+                final renderedReceiver = constructorCoalescingText(receiver, targetType, cls, args, renderedArgs);
                 fieldName.length == 0 ? renderedReceiver : renderedReceiver + "." + fieldName;
-            case CMethodCall(receiver, methodName, callArgs): constructorCoalescingText(receiver, targetType, cls, args) + "." + methodName + "("
-                + [for (a in callArgs) constructorCoalescingText(a, targetType, cls, args)].join(", ") + ")";
-            case CBinaryOp(op, left, right): constructorCoalescingText(left, targetType, cls, args) + " " + opStr(op) + " "
-                + constructorCoalescingText(right, targetType, cls, args);
+            case CMethodCall(receiver, methodName, callArgs): constructorCoalescingText(receiver, targetType, cls, args, renderedArgs) + "." + methodName + "("
+                + [for (a in callArgs) constructorCoalescingText(a, targetType, cls, args, renderedArgs)].join(", ") + ")";
+            case CBinaryOp(op, left, right): constructorCoalescingText(left, targetType, cls, args, renderedArgs) + " " + opStr(op) + " "
+                + constructorCoalescingText(right, targetType, cls, args, renderedArgs);
             case CStaticCall(modulePath, className, methodName, callArgs):
-                constructorStaticCallText(modulePath, className, methodName, callArgs, targetType, cls, args);
+                constructorStaticCallText(modulePath, className, methodName, callArgs, targetType, cls, args, renderedArgs);
             default: coalescingDefaultText(value, targetType);
         };
     }
@@ -3125,22 +3161,22 @@ class DartExpr {
         constructor argument.
      */
     function constructorStaticCallText(modulePath:String, className:String, methodName:String, args:Array<DefaultArgExpander.CoalescingDefaultValue>,
-            targetType:Type, cls:ClassType, ctorArgs:Array<TypedExpr>):String {
+            targetType:Type, cls:ClassType, ctorArgs:Array<TypedExpr>, renderedArgs:Array<String>):String {
         if (modulePath == "std.SortedSet" && methodName == "builder")
-            return runtimeQualified("SortedTable.setBuilder") + "(" + [for (a in args) constructorCoalescingText(a, targetType, cls, ctorArgs)].join(", ") + ")";
+            return runtimeQualified("SortedTable.setBuilder") + "(" + [for (a in args) constructorCoalescingText(a, targetType, cls, ctorArgs, renderedArgs)].join(", ") + ")";
         if (modulePath == "std.SortedMap" && methodName == "builder") {
 
             final params = switch (DefaultArgExpander.withoutNull(targetType)) {
                 case TInst(c, ps) if (ps.length == 2 && (c.get().name == "SortedMap" || c.get().name == "SortedMapBuilder")): ps;
                 case _: [];
             };
-            final renderedArgs = [for (a in args) constructorCoalescingText(a, targetType, cls, ctorArgs)];
-            if (renderedArgs.length == 0 && params.length == 2)
-                renderedArgs.push(sortedComparator(params[0], Context.currentPos()));
+            final renderedArgs2 = [for (a in args) constructorCoalescingText(a, targetType, cls, ctorArgs, renderedArgs)];
+            if (renderedArgs2.length == 0 && params.length == 2)
+                renderedArgs2.push(sortedComparator(params[0], Context.currentPos()));
             return runtimeQualified("SortedTable.mapBuilder")
                 + (params.length == 2 ? "<" + types.of(params[0]) + ", " + types.of(DefaultArgExpander.withoutNull(params[1])) + ">" : "")
                 + "("
-                + renderedArgs.join(", ")
+                + renderedArgs2.join(", ")
                 + ")";
         }
         final resolved = tryResolveTypePath(modulePath + "." + className);
@@ -3158,10 +3194,10 @@ class DartExpr {
             case _: null;
         };
         if (target != null)
-            return target + "(" + [for (a in args) constructorCoalescingText(a, targetType, cls, ctorArgs)].join(", ") + ")";
+            return target + "(" + [for (a in args) constructorCoalescingText(a, targetType, cls, ctorArgs, renderedArgs)].join(", ") + ")";
         final prefix = imports.value(modulePath, className);
         return (prefix.length > 0 ? prefix + "." : "") + className + "." + methodName + "("
-            + [for (a in args) constructorCoalescingText(a, targetType, cls, ctorArgs)].join(", ") + ")";
+            + [for (a in args) constructorCoalescingText(a, targetType, cls, ctorArgs, renderedArgs)].join(", ") + ")";
     }
 
     function defaultArgText(v:DefaultArgExpander.DefaultArgValue, t:Type):String
