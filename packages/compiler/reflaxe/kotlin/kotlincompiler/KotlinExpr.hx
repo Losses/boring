@@ -2595,8 +2595,8 @@ class KotlinExpr {
                 // spelling (inConcat false), which is itself a String
                 // expression; a bare inConcat spelling would leave
                 // Enum + String or Int + String unresolved.
-                final leftText = leftStd == null ? operand(l, op, false) : stdString(leftStd, isStringType(leftStd.t));
-                final rightText = rightStd == null ? operand(r, op, true) : stdString(rightStd, true);
+                final leftText = leftStd == null ? operand(l, op, false, true) : stdString(leftStd, isStringType(leftStd.t));
+                final rightText = rightStd == null ? operand(r, op, true, true) : stdString(rightStd, true);
                 // A nullable safe-call left operand propagates null through
                 // the concatenation: plus on the nullable receiver yields
                 // null; a plain + would coerce to the "null" string.
@@ -2657,7 +2657,7 @@ class KotlinExpr {
         }
     }
 
-    function operand(e:TypedExpr, parent:Binop, isRight:Bool):String {
+    function operand(e:TypedExpr, parent:Binop, isRight:Bool, keepSafeCall:Bool = false):String {
         var rendered = expr(e);
         // Nullable values still need extraction unless the Haxe expression
         // has already been normalized, or control flow proved the local is
@@ -2668,11 +2668,12 @@ class KotlinExpr {
         // loops and branches.
         final proven = provenNonNull(e) || guardProofBefore(e);
         final nullInit = isNullInitialized(e);
-        // A value already carrying safe-navigation is part of a nullable
-        // chain. Extracting it here would turn `value?.toString()` into
-        // `value?.toString()!!`, preventing a following `?.` hop from
-        // preserving the null result.
-        final preservesSafeCall = rendered.indexOf("?.") >= 0;
+        // Preserving a safe-navigation chain keeps the null result for a
+        // caller that propagates it (the string concatenation lowering).
+        // Every other operator reads a concrete operand, so a nullable
+        // chain still extracts; skipping the extraction there left the
+        // nullable receiver on a Kotlin operator call (ConcreteOperatorOperand).
+        final preservesSafeCall = keepSafeCall && rendered.indexOf("?.") >= 0;
         if (!isNullLiteral(e) && !preservesSafeCall
             && ((isNullType(e.t) && !proven) || nullInit || rendersNullable(e))
             && parent != OpEq && parent != OpNotEq) {
