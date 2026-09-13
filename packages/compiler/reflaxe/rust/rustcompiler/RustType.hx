@@ -23,13 +23,23 @@ class RustType {
     **/
     static final FUNCTION_VALUE_BOUNDS = " + Send + Sync";
 
+    /**
+        Thread-safe function-value rule: every owned closure trait object has
+        Send and Sync bounds. Function values can enter resident statics through
+        fields and call parameters, where Arc requires both auto traits for the
+        containing value to remain thread-safe. The function-value parameter
+        suites and generated rust census cover ordinary, resident, and return
+        positions under both precision settings.
+    **/
+    function functionValueOf(args:Array<{name:String, opt:Bool, t:Type}>, ret:Type, lifetime:String = ""):String {
+        imports.require("std::sync::Arc");
+        return "Arc<dyn Fn(" + [for (arg in args) of(arg.t, true)].join(", ") + ") -> " + of(ret, false) + FUNCTION_VALUE_BOUNDS + lifetime + ">";
+    }
+
     function residentFunctionValueOf(t:Type):String {
         return switch (Context.follow(t)) {
-            case TFun(args, ret):
-                imports.require("std::sync::Arc");
-                "Arc<dyn Fn(" + [for (arg in args) of(arg.t, true)].join(", ") + ") -> " + of(ret, false) + FUNCTION_VALUE_BOUNDS + ">";
-            case _:
-                of(t);
+            case TFun(args, ret): functionValueOf(args, ret);
+            case _: of(t);
         };
     }
 
@@ -181,8 +191,7 @@ class RustType {
                 imports.requireType(en.module, en.name);
                 en.name;
             case TFun(args, ret):
-                imports.require("std::sync::Arc");
-                "Arc<dyn Fn(" + [for (arg in args) of(arg.t, true)].join(", ") + ") -> " + of(ret, false) + ">";
+                functionValueOf(args, ret);
             case TAnonymous(_):
                 Context.error("anonymous structure types must be named typedefs before translation", Context.currentPos());
                 null;
@@ -211,7 +220,7 @@ class RustType {
                 for (s in argStrs)
                     if (s.indexOf("&") >= 0)
                         hasRef = true;
-                "Arc<dyn Fn(" + argStrs.join(", ") + ") -> " + of(ret, false) + (hasRef ? " + '_>" : " + 'static>");
+                "Arc<dyn Fn(" + argStrs.join(", ") + ") -> " + of(ret, false) + FUNCTION_VALUE_BOUNDS + (hasRef ? " + '_>" : " + 'static>");
             case _:
                 of(t, false);
         }
