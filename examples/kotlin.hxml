@@ -133,6 +133,8 @@ boring.InlineDefaultOps
 tests.InlineDefaultTests
 tests.KotlinNullabilityTests
 tests.NullArgsTests
+boring.DartCoalesceSiblingOps
+tests.DartCoalesceSiblingTests
 boring.UStringOps
 boring.UStringResidentOps
 boring.StringUnitOps
