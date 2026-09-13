@@ -7,7 +7,9 @@ import std.SortedSet;
 /**
  * Reproduces two rust E0599 families: methods called on nullable (Option)
  * receivers, and Haxe Array methods that Rust Vec names differently
- * (copy/shift/unshift/indexOf).
+ * (copy/shift/unshift/indexOf). A local declared with a non-nullable type
+ * but initialized from a null-guarded path holds the proven inner value
+ * (guarded-copy local family), so field reads must not address the Option.
  */
 class M2OptionVecOps {
     public var tags:Null<Array<String>>;
@@ -61,5 +63,38 @@ class M2OptionVecOps {
     public static function indexOfArray(src:Array<String>, needle:String):String {
         return Std.string(src.indexOf(needle));
     }
+
+    public static function guardedCopyWidth(rect:Null<GuardedRect>):Float {
+        if (rect != null) {
+            final r:GuardedRect = rect;
+            return r.left + r.top;
+        }
+        return 0.0;
+    }
+
+    public static function guardedCopyFieldWidth(box:GuardedBox):Float {
+        if (box.rect != null) {
+            final r:GuardedRect = box.rect;
+            return r.left + r.top;
+        }
+        return 0.0;
+    }
+
+    public static function guardedAndSpan(pair:Null<GuardedRect>, end:Float):Float {
+        if (pair != null && pair.left < end) {
+            return pair.left + 1.0;
+        }
+        return 0.0;
+    }
+
+    public static function guardedHolderSpan(box:GuardedBox):Float {
+        if (box.rect != null) {
+            final r:GuardedRect = box.rect;
+            return r.left + r.top;
+        }
+        return 0.0;
+    }
 }
+#else
+class M2OptionVecOps {}
 #end

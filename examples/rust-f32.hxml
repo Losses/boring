@@ -298,6 +298,8 @@ boring.ResidentModuleImportOps
 tests.ResidentModuleImportTests
 
 boring.M2OptionVecOps
+boring.GuardedRect
+boring.GuardedBox
 tests.M2OptionVecTests
 
 boring.StringBufThrowOps
