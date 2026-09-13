@@ -2226,6 +2226,10 @@ class DartExpr {
                 // Property getter on an exception: the native message
                 // field (features/06: messages are display text).
                 return receiverText(subj) + ".message";
+            case TField(subj, FInstance(_, _, cf)) if (cf.get().name == "get_previous" && args.length == 0):
+                // Property getter on an exception: the chained previous
+                // exception (features/06 previous chaining).
+                return receiverText(subj) + ".previous";
             case TField(subj, FStatic(c, cf)):
                 final cls = c.get();
                 final fName = cf.get().name;

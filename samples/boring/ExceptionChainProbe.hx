@@ -1,6 +1,6 @@
 package boring;
 
-#if kotlin_output
+#if dart_output
 class ExceptionChainProbe {
     public static function previousMessage(cause:Null<haxe.Exception>):String {
         if (cause == null) {
