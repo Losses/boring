@@ -1173,8 +1173,7 @@ class KotlinExpr {
         index:TVar,
         start:TypedExpr,
         bound:TypedExpr,
-        body:Array<TypedExpr>,
-        counter:TVar
+        body:Array<TypedExpr>
     }> {
         return PolicyQueries.intervalCore(counterDecl, boundDecl, whileExpr);
     }
@@ -1183,8 +1182,7 @@ class KotlinExpr {
         index:TVar,
         start:TypedExpr,
         bound:TypedExpr,
-        body:Array<TypedExpr>,
-        counter:TVar
+        body:Array<TypedExpr>
     }> {
         return PolicyQueries.matchInterval(e);
     }
@@ -1193,8 +1191,7 @@ class KotlinExpr {
         index:TVar,
         start:TypedExpr,
         bound:TypedExpr,
-        body:Array<TypedExpr>,
-        counter:TVar
+        body:Array<TypedExpr>
     }> {
         return PolicyQueries.intervalShort(counterDecl, whileExpr);
     }
