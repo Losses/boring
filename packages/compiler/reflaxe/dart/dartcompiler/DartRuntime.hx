@@ -59,7 +59,10 @@ double i32ToFloat(int bits) {
 class BoringException implements Exception {
   final String message;
 
-  BoringException(this.message);
+  /// The chained previous exception (features/06 previous chaining).
+  final BoringException? previous;
+
+  BoringException(this.message, {this.previous});
 }
 
 /// UTF-16 code-unit ordering of two strings, the order stdlib/07 rules
