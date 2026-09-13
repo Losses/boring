@@ -3490,7 +3490,24 @@ class RustExpr {
         final base = expr(subj);
         if (!receiverCarriesFallibleWrapper(subj))
             return base;
+        // A borrowed static/container expression is already the inner table
+        // view. Calling as_ref on it asks Rust to find AsRef for
+        // &SortedMapTable/&SortedSetTable and produces E0599. Keep the
+        // existing wrapper extraction for value-shaped Option receivers
+        // (BorrowedSortedTableReceiver).
+        if (borrowedSortedTableReceiver(base))
+            return base;
         return mutable ? "(" + base + ").as_mut().unwrap()" : "(" + base + ").as_ref().unwrap()";
+    }
+
+    /**
+        A static sorted table is rendered through a borrowed LazyLock value,
+        so its receiver already has the inner table reference type. This
+        avoids the E0599 `as_ref` family while leaving Option receivers on
+        the wrapper extraction path.
+    **/
+    function borrowedSortedTableReceiver(base:String):Bool {
+        return base.indexOf("&*") >= 0;
     }
 
     function isRecordValueType(t:Type):Bool {
