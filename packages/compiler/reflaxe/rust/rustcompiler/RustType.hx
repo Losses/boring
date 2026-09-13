@@ -10,6 +10,27 @@ import PolicyQueries;
     Type mapping from the translatable Haxe subset to Rust.
 **/
 class RustType {
+    /**
+        Thread-safe comparator rule: a resident function typedef lowers to
+        `Arc<dyn Fn(..) -> R + Send + Sync>`. The sorted-table comparators are
+        bound at builder creation, and the built tables are retained in static
+        caches guarded by a mutex; a bare `dyn Fn` trait object would leave
+        those caches non-Sync. The bound holds under both float-precision
+        settings, and the generated comparator suites plus the consumer rust
+        census cover the emission.
+    **/
+    static final FUNCTION_VALUE_BOUNDS = " + Send + Sync";
+
+    function residentFunctionValueOf(t:Type):String {
+        return switch (Context.follow(t)) {
+            case TFun(args, ret):
+                imports.require("std::sync::Arc");
+                "Arc<dyn Fn(" + [for (arg in args) of(arg.t, true)].join(", ") + ") -> " + of(ret, false) + FUNCTION_VALUE_BOUNDS + ">";
+            case _:
+                of(t);
+        };
+    }
+
     final imports:RustImports;
     final state:RustEmissionState;
 
@@ -146,7 +167,7 @@ class RustType {
                     // TypeScript alias; the Rust target renders the
                     // underlying fn type with the reference-site
                     // arguments applied.
-                    of(haxe.macro.TypeTools.applyTypeParameters(d.type, d.params, params));
+                    residentFunctionValueOf(haxe.macro.TypeTools.applyTypeParameters(d.type, d.params, params));
                 } else if (params.length == 0) {
                     imports.requireType(d.module, d.name);
                     d.name;
