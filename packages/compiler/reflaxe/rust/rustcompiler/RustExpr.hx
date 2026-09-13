@@ -1188,6 +1188,19 @@ class RustExpr {
     }
 
     /**
+        The Err payload for a string-buffer pairing check. The buffer
+        reports through its own payload enum (UStringFault); a function
+        whose error enum differs converts the payload into its
+        UStringFaultFault variant (the same rule throwVariant applies to
+        thrown payloads).
+    **/
+    function stringBufErrPayload(fault:String, payload:String):String {
+        if (errorTypeName != null && errorTypeName != fault && StringTools.endsWith(errorTypeName, "Fault"))
+            return errorTypeName + "::" + fault + "Fault(" + payload + ")";
+        return payload;
+    }
+
+    /**
         Recognizes `buf.add(part)` and `buf.addChar(unit)` on std.StringBuf;
         the pairing checks end the fallible owner through `return Err`, so
         these mutations lower as statements only.
