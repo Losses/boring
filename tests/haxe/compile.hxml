@@ -1,6 +1,8 @@
 # Compile the Haxe test entry to JavaScript and run it with bun
 # (`bun run test:haxe`). The library sources live in samples and the
 # typed test runner in tests/haxe.
+-lib reflaxe
+-lib boring
 -cp packages/compiler
 -cp samples
 -cp tests/haxe
