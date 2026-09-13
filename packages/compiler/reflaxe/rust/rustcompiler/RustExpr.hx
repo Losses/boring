@@ -6199,7 +6199,14 @@ class RustExpr {
                     continue;
                 }
                 if (isNullType(pt) && isStringType(getNullInnerType(pt)) && isNullType(arg.t)) {
-                    out.push(argStr + ".clone()");
+                    // A nullable-typed conditional whose arms are both
+                    // non-null renders a plain String; wrap in Some at the
+                    // Option parameter boundary. A nullable local or field
+                    // keeps its Option shape and clones.
+                    if (isNonNullRenderedConditional(arg))
+                        out.push("Some(" + argStr + ")");
+                    else
+                        out.push(argStr + ".clone()");
                     continue;
                 }
                 if (isNullType(pt) && !isNullType(arg.t)) {
@@ -7441,7 +7448,16 @@ class RustExpr {
             }
             if (paramIndex < paramTypes.length) {
                 if (isNullType(pt) && isStringType(getNullInnerType(pt)) && isNullType(arg.t)) {
-                    argStr = argStr + ".clone()";
+                    // A nullable-typed conditional whose arms are both
+                    // non-null renders a plain String (guardedMatchExpression
+                    // leaves both arms unwrapped when neither is a null
+                    // literal); such a value must wrap in Some at the Option
+                    // parameter boundary. A nullable local or field renders
+                    // as an Option and keeps the clone.
+                    if (isNonNullRenderedConditional(arg))
+                        argStr = "Some(" + argStr + ")";
+                    else
+                        argStr = argStr + ".clone()";
                 } else if (isNullType(pt) && !isNullType(arg.t)) {
                     if (argStr == "None" || StringTools.startsWith(argStr, "Some(")) {
                         // already None or Some(...)
@@ -7938,6 +7954,33 @@ class RustExpr {
         return switch (stripWrap(e).expr) {
             case TConst(TNull): true;
             default: false;
+        };
+    }
+
+    /**
+        A nullable-typed null-guard conditional (`x == null ? A : B` or
+        `x != null ? A : B`) over a local subject whose arms are both
+        non-null renders as a plain value: guardedMatchExpression narrows
+        the local to its match binding and leaves both arms unwrapped when
+        neither is a null literal, so the match yields the inner type
+        while the result type stays nullable. Such an argument must wrap in
+        Some at an Option parameter boundary. A field subject keeps its
+        Option shape and a nullable local or field keeps its Option shape.
+    **/
+    function isNonNullRenderedConditional(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TIf(cond, ifTrue, ifFalse) if (ifFalse != null):
+                final guard = nullGuardOf(cond);
+                guard != null && isLocalSubject(guard.subject)
+                    && !isTNull(ifTrue) && !isTNull(ifFalse);
+            case _: false;
+        };
+    }
+
+    function isLocalSubject(subject:TypedExpr):Bool {
+        return switch (stripWrap(subject).expr) {
+            case TLocal(_): true;
+            case _: false;
         };
     }
 
