@@ -2581,7 +2581,13 @@ class RustExpr {
                 }
                 final receiver = expr(arr);
                 final receiverText = StringTools.startsWith(receiver, "&*") ? "(" + receiver + ")" : receiver;
-                final base = receiverText + "[" + castArg(idx, "usize") + "]";
+                // When the container is Option-wrapped (Null<Array<T>>),
+                // coerce through as_ref().unwrap() before indexing: Option
+                // does not implement Index (E0608).
+                final indexBase = receiverCarriesFallibleWrapper(arr)
+                    ? "(" + receiverText + ").as_ref().unwrap()"
+                    : receiverText;
+                final base = indexBase + "[" + castArg(idx, "usize") + "]";
                 // Reading a String element moves it out of the Vec, so a
                 // value read renders as a clone. Borrow consumers go
                 // through arrayArgBorrow and skip the copy.
@@ -6516,7 +6522,7 @@ class RustExpr {
     }
 
     function assignTarget(e:TypedExpr):String {
-        return AssignTargetPlan.assignTarget(e, (arr, idx) -> expr(arr) + "[" + castArg(idx, "usize") + "]", e -> {
+        return AssignTargetPlan.assignTarget(e, (arr, idx) -> optionContainerIndexAccess(arr, idx, true), e -> {
             final target = staticAssignmentTarget(e);
             return switch (e.expr) {
                 case TField(_, FStatic(c, cf)): target != null ? target : staticRef(c.get(), cf.get().name);
@@ -7721,11 +7727,26 @@ class RustExpr {
         };
     }
 
+    /**
+     * Emit an index access on a container that may be Option-wrapped.
+     * Null<Array<T>> renders as Option<Vec<T>> in Rust, which does not
+     * implement Index. The as_ref/as_mut + unwrap coercion pattern
+     * resolves the inner container before the index operator (E0608).
+     */
+    function optionContainerIndexAccess(arr:TypedExpr, idx:TypedExpr, mutable:Bool):String {
+        final receiver = expr(arr);
+        if (receiverCarriesFallibleWrapper(arr)) {
+            final coerce = mutable ? ".as_mut().unwrap()" : ".as_ref().unwrap()";
+            return "(" + receiver + ")" + coerce + "[" + castArg(idx, "usize") + "]";
+        }
+        return receiver + "[" + castArg(idx, "usize") + "]";
+    }
+
     function arrayArgBorrow(e:TypedExpr):String {
         // A direct array access can be borrowed without the value-read
         // clone; the borrow consumers above do not need the copy.
         return switch (e.expr) {
-            case TArray(arr, idx): expr(arr) + "[" + castArg(idx, "usize") + "]";
+            case TArray(arr, idx): optionContainerIndexAccess(arr, idx, false);
             case _: expr(e);
         };
     }
