@@ -990,27 +990,11 @@ class Compiler extends PluginCompiler<Compiler> {
         fields have no bodies, so this must run after the fallibility scan.
     **/
     function scanInterfaceMethodShapes(mtypes:Array<haxe.macro.Type.ModuleType>):Void {
-        function mutates(body:Null<TypedExpr>):Bool {
-            if (body == null) return false;
-            var result = false;
-            function rooted(e:TypedExpr):Bool return switch (e.expr) {
-                case TConst(TThis): true;
-                case TField(s, _): rooted(s);
-                case TArray(s, _): rooted(s);
-                case TParenthesis(s): rooted(s);
-                case TMeta(_, s): rooted(s);
-                case _: false;
-            };
-            function walk(e:TypedExpr):Void {
-                switch (e.expr) {
-                    case TBinop(OpAssign, lhs, _): if (rooted(lhs)) result = true;
-                    case _:
-                }
-                haxe.macro.TypedExprTools.iter(e, walk);
-            }
-            walk(body);
-            return result;
-        }
+        // The receiver mutability of an interface method is the union over
+        // its implementing classes: the trait and every impl must agree on
+        // one receiver form, and any impl that writes through the receiver
+        // forces the mutable form. A later implementor that does not write
+        // keeps an already-mutating entry, so this walk never clears it.
         for (mt in mtypes) switch (mt) {
             case TClassDecl(c):
                 final cls = c.get();
@@ -1023,9 +1007,11 @@ class Compiler extends PluginCompiler<Compiler> {
                         if (impl == null) continue;
                         final key = RustEmissionState.funcKey(cls.module, impl.name, false);
                         final error = state.funcErrorTypes.get(key);
-                        state.interfaceMethodShapes.set(RustEmissionState.interfaceMethodKey(iface.module, iface.name, ifField.name), {
+                        final shapeKey = RustEmissionState.interfaceMethodKey(iface.module, iface.name, ifField.name);
+                        final previous = state.interfaceMethodShapes.get(shapeKey);
+                        state.interfaceMethodShapes.set(shapeKey, {
                             isFallible: error != null || state.funcErrorEnums.exists(key),
-                            isMutating: mutates(impl.expr()),
+                            isMutating: RustDecl.fieldWritesReceiver(impl) || (previous != null && previous.isMutating),
                             errorModule: error != null ? error.module : null,
                             errorName: error != null ? error.name : null
                         });
