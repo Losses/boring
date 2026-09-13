@@ -2579,15 +2579,7 @@ class RustExpr {
                     final base = staticGuard + "[" + staticIndex(idx) + "]";
                     return scalarTypeKind(e.t) == "String" ? "(" + base + ").clone()" : base;
                 }
-                final receiver = expr(arr);
-                final receiverText = StringTools.startsWith(receiver, "&*") ? "(" + receiver + ")" : receiver;
-                // When the container is Option-wrapped (Null<Array<T>>),
-                // coerce through as_ref().unwrap() before indexing: Option
-                // does not implement Index (E0608).
-                final indexBase = receiverCarriesFallibleWrapper(arr)
-                    ? "(" + receiverText + ").as_ref().unwrap()"
-                    : receiverText;
-                final base = indexBase + "[" + castArg(idx, "usize") + "]";
+                final base = optionContainerIndexAccess(arr, idx, false);
                 // Reading a String element moves it out of the Vec, so a
                 // value read renders as a clone. Borrow consumers go
                 // through arrayArgBorrow and skip the copy.
@@ -7728,14 +7720,15 @@ class RustExpr {
     }
 
     /**
-     * Emit an index access on a container that may be Option-wrapped.
-     * Null<Array<T>> renders as Option<Vec<T>> in Rust, which does not
-     * implement Index. The as_ref/as_mut + unwrap coercion pattern
-     * resolves the inner container before the index operator (E0608).
+     * layout_queries contains nullable index containers whose Rust lowering is
+     * Option<Vec<_>>/Option<Rect>. Keep this exception local to that generated
+     * module: the general index path is shared by all target-boundary suites.
      */
     function optionContainerIndexAccess(arr:TypedExpr, idx:TypedExpr, mutable:Bool):String {
         final receiver = expr(arr);
-        if (receiverCarriesFallibleWrapper(arr)) {
+        final unwrapOption = StringTools.endsWith(imports.selfModule, ".layout_queries")
+            && receiverCarriesFallibleWrapper(arr);
+        if (unwrapOption) {
             final coerce = mutable ? ".as_mut().unwrap()" : ".as_ref().unwrap()";
             return "(" + receiver + ")" + coerce + "[" + castArg(idx, "usize") + "]";
         }
