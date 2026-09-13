@@ -1423,8 +1423,12 @@ class DartExpr {
                 // Int argument to a Float representation widens explicitly
                 // (Dart's extension-type constructor has no implicit widening).
                 // A synthetic local argument resolves through the local map,
-                // so the constructor receives the local's initializer.
-                final rendered = isIntOrLongType(emittedType(value)) && ValueTypeSupport.isFloatRepresentation(abs) ? intToFloatText(valueTypeOperand(value, locals, abs)) : valueTypeOperand(value, locals, abs);
+                // so the constructor receives the local's initializer. A
+                // nullable value into a non-null representation unwraps
+                // (Haxe flowed Null<T> into T; Dart needs the explicit `!`).
+                var rendered = isIntOrLongType(emittedType(value)) && ValueTypeSupport.isFloatRepresentation(abs) ? intToFloatText(valueTypeOperand(value, locals, abs)) : valueTypeOperand(value, locals, abs);
+                if (nullableValue(value) && !isNullLeafType(abs.type))
+                    rendered = rendered + "!";
                 wrapperName + "(" + rendered + ")";
         };
     }
@@ -2207,6 +2211,11 @@ class DartExpr {
                     if (args.length == 0)
                         return qualifiedRef(c.get().module, abs.name) + "()";
                     var argText = expr(args[0]);
+                    // A nullable argument into a non-null value-type
+                    // representation unwraps (Haxe flowed Null<T> into T;
+                    // Dart needs the explicit `!`).
+                    if (nullableValue(args[0]) && !isNullLeafType(abs.type))
+                        argText = requiredValueText(args[0]);
                     if (isIntOrLongType(emittedType(args[0])) && ValueTypeSupport.isFloatRepresentation(abs))
                         argText = intToFloatText(argText);
                     return ValueTypeSupport.constructorThrows(abs) ? qualifiedRef(c.get().module, ValueTypeSupport.constructorName(abs))
