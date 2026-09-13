@@ -2815,9 +2815,9 @@ class KotlinExpr {
                 };
                 if (methodOnNullableCast)
                     return expr(subj) + "?." + KotlinNameEscape.escape(name);
-                final getterProperty = getterOnlyPropertyName(owner.get(), name);
+                final getterProperty = getterOnlyProperty(owner.get(), name);
                 if (getterProperty != null)
-                    return expr(subj) + nullableAccess(subj) + KotlinNameEscape.escape(getterProperty);
+                    return getterPropertyAccess(subj, getterProperty);
                 return instanceField(subj, name, cf);
             case FAnon(cf):
                 return instanceField(subj, cf.get().name, cf);
@@ -2867,15 +2867,30 @@ class KotlinExpr {
         return expr(subj) + access + KotlinNameEscape.escape(name);
     }
 
-    function getterOnlyPropertyName(owner:ClassType, accessorName:String):Null<String> {
+    function getterOnlyProperty(owner:ClassType, accessorName:String):Null<ClassField> {
         if (!StringTools.startsWith(accessorName, "get_"))
             return null;
         final propertyName = accessorName.substring("get_".length);
         for (field in owner.fields.get()) {
             if (field.name == propertyName && PolicyQueries.isGetterOnlyProperty(field))
-                return field.name;
+                return field;
         }
         return null;
+    }
+
+    /**
+        Access text for a getter-only property. A nullable receiver reading a
+        non-null property extracts with `!!.` so the property keeps its
+        declared Kotlin type, matching instanceField. The `?.` form would
+        widen every read into a nullable value and break arithmetic and
+        argument boundaries that Haxe types as non-null
+        (NonNullGetterPropertyRead).
+    **/
+    function getterPropertyAccess(subj:TypedExpr, property:ClassField):String {
+        final fieldType = property.type;
+        final access = (fieldType != null && !isNullType(fieldType)
+            && isNullType(subj.t) && !provenNonNull(subj) && !guardProofBefore(subj)) ? "!!." : nullableAccess(subj);
+        return expr(subj) + access + KotlinNameEscape.escape(property.name);
     }
 
     function staticRef(cls:ClassType, name:String):String {
@@ -3529,9 +3544,9 @@ class KotlinExpr {
                 };
                 if (methodOnNullableCast && args.length == 0)
                     return expr(subj) + "?." + KotlinNameEscape.escape(name) + "()";
-                final getterProperty = getterOnlyPropertyName(owner.get(), name);
+                final getterProperty = getterOnlyProperty(owner.get(), name);
                 if (getterProperty != null && args.length == 0)
-                    return expr(subj) + nullableAccess(subj) + KotlinNameEscape.escape(getterProperty);
+                    return getterPropertyAccess(subj, getterProperty);
                 if (isString(subj)) {
                     if (name == "toLowerCase")
                         return expr(subj) + nullableAccess(subj) + "lowercase()";
