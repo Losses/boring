@@ -290,16 +290,17 @@ class DartExpr {
             return runtimeQualified("SortedTable.setBuilder") + "(" + [for (a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
         if (modulePath == "std.SortedMap" && methodName == "builder") {
             // The builder factory cannot infer its value parameter from the
-            // comparator; spell both from the coalescing target's map type.
+            // comparator; spell both from the coalescing target's map type
+            // and synthesize the comparator from the key type.
             final params = switch (DefaultArgExpander.withoutNull(targetType)) {
                 case TInst(c, ps) if (ps.length == 2 && (c.get().name == "SortedMap" || c.get().name == "SortedMapBuilder")): ps;
                 case _: [];
             };
+            final kType = params.length == 2 ? params[0] : null;
+            final cmp = args.length > 0 ? [for (a in args) coalescingDefaultText(a, targetType)].join(", ") : sortedComparator(kType, Context.currentPos());
             return runtimeQualified("SortedTable.mapBuilder")
                 + (params.length == 2 ? "<" + types.of(params[0]) + ", " + types.of(DefaultArgExpander.withoutNull(params[1])) + ">" : "")
-                + "("
-                + [for (a in args) coalescingDefaultText(a, targetType)].join(", ")
-                + ")";
+                + "(" + cmp + ")";
         }
         final resolved = tryResolveTypePath(modulePath + "." + className);
         final target = switch (resolved) {
@@ -1064,7 +1065,8 @@ class DartExpr {
         index:TVar,
         start:TypedExpr,
         bound:TypedExpr,
-        body:Array<TypedExpr>
+        body:Array<TypedExpr>,
+        counter:TVar
     }> {
         return PolicyQueries.intervalCore(counterDecl, boundDecl, whileExpr);
     }
@@ -1073,7 +1075,8 @@ class DartExpr {
         index:TVar,
         start:TypedExpr,
         bound:TypedExpr,
-        body:Array<TypedExpr>
+        body:Array<TypedExpr>,
+        counter:TVar
     }> {
         return PolicyQueries.matchInterval(e);
     }
@@ -1082,7 +1085,8 @@ class DartExpr {
         index:TVar,
         start:TypedExpr,
         bound:TypedExpr,
-        body:Array<TypedExpr>
+        body:Array<TypedExpr>,
+        counter:TVar
     }> {
         return PolicyQueries.intervalShort(counterDecl, whileExpr);
     }
@@ -2937,9 +2941,16 @@ class DartExpr {
         return [for (i in 0...args.length) {
             final p = i < ps.length ? ps[i] : null;
             final d = target == null ? null : DefaultArgExpander.defaultAt(target.c, target.n, i);
-            d != null
-            && p != null && isNullLiteral(args[i]) ? defaultArgText(d, p) : d != null && p != null && isNullLeafType(args[i].t) ? "(" + expr(args[i]) + " ?? " + defaultArgText(d,
-                p) + ")" : base[i];
+            if (d != null && p != null && isNullLiteral(args[i]))
+                defaultArgText(d, p);
+            else if (d != null && p != null && isNullLeafType(args[i].t)) {
+                final isVNull = switch (d) { case VNull: true; default: false; };
+                if (isVNull && !isNullLeafType(p))
+                    requiredValueText(args[i]);
+                else
+                    "(" + expr(args[i]) + " ?? " + defaultArgText(d, p) + ")";
+            } else
+                base[i];
         }
         ];
     }
@@ -2968,7 +2979,15 @@ class DartExpr {
                 if (skipInline) {
                     expr(args[i]);
                 } else {
-                    "(" + expr(args[i]) + " ?? " + ((cls.name == "RubySpan" || cls.name == "Cluster") ? constructorDefaultText(d, p, cls, args) : defaultArgText(d, p)) + ")";
+                    final isVNull = switch (d) { case VNull: true; default: false; };
+                    if (isVNull && !isNullLeafType(p)) {
+                        // When the default is null and the parameter type is
+                        // non-nullable, coalescing to null is a no-op in Dart;
+                        // apply the null assertion instead.
+                        requiredValueText(args[i]);
+                    } else {
+                        "(" + expr(args[i]) + " ?? " + ((cls.name == "RubySpan" || cls.name == "Cluster") ? constructorDefaultText(d, p, cls, args) : defaultArgText(d, p)) + ")";
+                    }
                 }
             } else {
                 var rendered = expr(args[i]);
@@ -3085,6 +3104,19 @@ class DartExpr {
             targetType:Type, cls:ClassType, ctorArgs:Array<TypedExpr>):String {
         if (modulePath == "std.SortedSet" && methodName == "builder")
             return runtimeQualified("SortedTable.setBuilder") + "(" + [for (a in args) constructorCoalescingText(a, targetType, cls, ctorArgs)].join(", ") + ")";
+        if (modulePath == "std.SortedMap" && methodName == "builder") {
+            // The builder factory cannot infer its value parameter from the
+            // comparator; spell both from the coalescing target's map type.
+            final params = switch (DefaultArgExpander.withoutNull(targetType)) {
+                case TInst(c, ps) if (ps.length == 2 && (c.get().name == "SortedMap" || c.get().name == "SortedMapBuilder")): ps;
+                case _: [];
+            };
+            return runtimeQualified("SortedTable.mapBuilder")
+                + (params.length == 2 ? "<" + types.of(params[0]) + ", " + types.of(DefaultArgExpander.withoutNull(params[1])) + ">" : "")
+                + "("
+                + [for (a in args) constructorCoalescingText(a, targetType, cls, ctorArgs)].join(", ")
+                + ")";
+        }
         final resolved = tryResolveTypePath(modulePath + "." + className);
         final target = switch (resolved) {
             case TInst(clsRef, _): staticRef(clsRef.get(), methodName);
