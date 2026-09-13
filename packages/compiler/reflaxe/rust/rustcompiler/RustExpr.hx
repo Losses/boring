@@ -476,6 +476,7 @@ class RustExpr {
             Context.error("function field has no body to lower", f.field.pos);
         }
         DefaultArgExpander.completeRootExprForRust(cls, f.field.name, f.expr);
+        LoopCounterGuard.prepare(f.expr);
         PipelineExpander.expandRootExpr(f.expr);
         EnumQueryExpander.expandRootExpr(f.expr);
         currentClass = cls;
@@ -539,6 +540,7 @@ class RustExpr {
         if (f.expr == null)
             Context.error("value type constructor has no body to lower", f.field.pos);
         DefaultArgExpander.completeRootExprForRust(cls, f.field.name, f.expr);
+        LoopCounterGuard.prepare(f.expr);
         PipelineExpander.expandRootExpr(f.expr);
         EnumQueryExpander.expandRootExpr(f.expr);
         currentClass = cls;
@@ -575,6 +577,7 @@ class RustExpr {
             Context.error("constructor has no body to lower", f.field.pos);
         }
         DefaultArgExpander.completeRootExprForRust(cls, f.field.name, f.expr);
+        LoopCounterGuard.prepare(f.expr);
         PipelineExpander.expandRootExpr(f.expr);
         EnumQueryExpander.expandRootExpr(f.expr);
         currentClass = cls;
