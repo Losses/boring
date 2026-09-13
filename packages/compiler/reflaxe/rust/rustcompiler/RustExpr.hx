@@ -2450,7 +2450,7 @@ class RustExpr {
             noneText = normalizeNumericBranch(noneBranch, branchTarget, noneText);
         }
         final subjectText = subjectTextOf(info.subject);
-        return info.noneWhenTrue ? "match &("
+        final matchText = info.noneWhenTrue ? "match &("
             + subjectText
             + ") { None => "
             + noneText
@@ -2467,6 +2467,14 @@ class RustExpr {
             + ", None => "
             + noneText
             + " }";
+        // A nullable result wraps the whole match in Some(...) when both
+        // arms are non-null values (the same rule
+        // wrapBranchForNullableResult applies to plain ternaries); an arm
+        // that already yields None/Some keeps the Option shape.
+        if (isNullType(resultType) && !isNullType(narrowedBranch.t) && !StaticFieldHelper.isNullableType(narrowedBranch.t)
+            && !isNullType(noneBranch.t) && !StaticFieldHelper.isNullableType(noneBranch.t))
+            return "Some(" + matchText + ")";
+        return matchText;
     }
 
     function guardedMatchStatements(guard:TypedExpr, ifTrue:TypedExpr, ifFalse:Null<TypedExpr>, depth:Int):Null<Array<String>> {
@@ -3402,7 +3410,7 @@ class RustExpr {
                 pattern += " { " + bindings.join(", ") + " }";
             }
             final armTarget = matchNumericTarget(parts.cases, sw.t);
-            final arm = armBlock(c.expr, armTarget);
+            final arm = armBlock(c.expr, armTarget, sw.t);
             for (i in 0...arm.length) {
                 var armText = arm[i];
                 // A match whose result type is nullable (Null<T>) must wrap
@@ -3429,7 +3437,7 @@ class RustExpr {
         single-expression arm renders inline, anything longer renders as a
         block.
     **/
-    function armBlock(e:TypedExpr, numericTarget:Null<String> = null):Array<String> {
+    function armBlock(e:TypedExpr, numericTarget:Null<String> = null, resultType:Null<Type> = null):Array<String> {
         final decls:Array<String> = [];
         var value:Null<String> = null;
         var sawReturn = false;
@@ -3474,6 +3482,14 @@ class RustExpr {
         }
         if (valueText != null && numericTarget != null)
             valueText = normalizeNumericBranch(e, numericTarget, valueText);
+        if (valueText != null && resultType != null && isNullType(resultType)) {
+            // A nullable match result wraps a non-null arm value in
+            // Some(...) so every arm produces the same Option shape (the
+            // same rule wrapBranchForNullableResult applies to if-else
+            // branches).
+            if (!isTNull(e) && !isNullType(e.t) && !StaticFieldHelper.isNullableType(e.t))
+                valueText = "Some(" + valueText + ")";
+        }
         if (decls.length == 0) {
             return [valueText];
         }
