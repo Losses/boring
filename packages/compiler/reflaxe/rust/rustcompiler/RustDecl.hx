@@ -1226,6 +1226,15 @@ class RustDecl {
             return [];
         }
         final init = StaticFieldHelper.validatedInitializer(field, cls);
+        // Static initializer default completion: the per-function default
+        // completion never visits static initializers, so every construction
+        // nested anywhere in the initializer (a direct construction, an array
+        // of constructions, a call argument) completes its omitted
+        // coalescing-default arguments to None before the initializer is
+        // rendered. Completing only the direct-construction shape leaves a
+        // nested call rendering an omitted default whose parameter read is
+        // out of scope at the static site.
+        DefaultArgExpander.completeStaticInitializerForRust(cls, field.name, init);
         // @:allow members use crate visibility so allowed cross-module references compile.
         final vis = field.isPublic ? "pub " : (field.meta.has(":allow") ? "pub(crate) " : "");
         final typeStr = types.of(field.type);
@@ -1247,10 +1256,6 @@ class RustDecl {
             ];
         }
         if (StaticFieldHelper.isConstruction(init) && !StaticFieldHelper.isSelfConstruction(field, cls, init)) {
-            // The per-function default completion never visits static
-            // initializers, so a construction over coalescing-default
-            // parameters completes its omitted arguments to None here.
-            DefaultArgExpander.completeStaticInitializerForRust(cls, field.name, init);
             imports.require("std::sync::LazyLock");
             return [
                 '${vis}static ${name}: LazyLock<${typeStr}> = LazyLock::new(|| ${expr.rawExpression(init)});'
