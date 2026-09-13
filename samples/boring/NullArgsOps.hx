@@ -18,4 +18,8 @@ class NullArgsOps {
     public static function nullableVariable(v:Null<String>):String {
         return new NullArgsSpan("a", v).extra;
     }
+
+    public static function conditionalArg(v:Null<String>):String {
+        return new NullArgsSpan("a", v == null ? "none" : v).extra;
+    }
 }
