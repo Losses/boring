@@ -3443,7 +3443,6 @@ class RustExpr {
     function receiverCarriesFallibleWrapper(subj:TypedExpr):Bool {
         return isNullType(subj.t) && rendersRustFallibleWrapper(subj.t) && !isNullableCollapsedLocal(subj);
     }
-
     function nullableMethodReceiver(subj:TypedExpr, mutable:Bool):String {
         if (!isNullType(subj.t))
             return expr(subj);
