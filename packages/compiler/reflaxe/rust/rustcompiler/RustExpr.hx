@@ -216,7 +216,8 @@ class RustExpr {
     }
 
     /** Renders the sanctioned expression in Rust's normalization closure. */
-    public function coalescingDefaultText(value:DefaultArgExpander.CoalescingDefaultValue, targetType:Type, asOption:Bool = false, nested:Bool = false):String {
+    public function coalescingDefaultText(value:DefaultArgExpander.CoalescingDefaultValue, targetType:Type, asOption:Bool = false, nested:Bool = false,
+            inClosure:Bool = false):String {
         // Null conditionals already produce an Option-valued expression; their
         // branches must be rendered in that same domain. The whole conditional is not
         // wrapped in Some(...).
@@ -225,8 +226,8 @@ class RustExpr {
                 case CNull:
                     return "None";
                 case CConditional(c, t, f):
-                    return "if " + coalescingDefaultText(c, targetType, false, nested) + " { " + coalescingDefaultText(t, targetType, true, nested)
-                        + " } else { " + coalescingDefaultText(f, targetType, true, nested) + " }";
+                    return "if " + coalescingDefaultText(c, targetType, false, nested, inClosure) + " { " + coalescingDefaultText(t, targetType, true, nested,
+                        inClosure) + " } else { " + coalescingDefaultText(f, targetType, true, nested, inClosure) + " }";
                 default:
             }
         final rendered = switch (value) {
@@ -258,48 +259,64 @@ class RustExpr {
             case CFieldAccess(CParameterRead(staticPath), ""): coalescingStaticFieldText(staticPath, targetType);
             case CFieldAccess(receiver, fieldName):
                 fieldName == "length" ? rustU32Length("(" + coalescingDefaultText(receiver,
-                    targetType) + ").len()") : coalescingDefaultText(receiver, targetType) + "." + RustImports.toSnakeCase(fieldName);
+                    targetType, false, nested, inClosure) + ").len()") : coalescingDefaultText(receiver, targetType, false, nested, inClosure) + "."
+                    + RustImports.toSnakeCase(fieldName);
             case CMethodCall(receiver, methodName, args):
-                coalescingDefaultText(receiver, targetType)
+                coalescingDefaultText(receiver, targetType, false, nested, inClosure)
                 + "."
                 + rustMethodName(methodName)
                 + "("
-                + [for (a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
+                + [for (a in args) coalescingDefaultText(a, targetType, false, nested, inClosure)].join(", ") + ")";
             case CStaticCall(modulePath, className, methodName, args):
-                coalescingStaticCallText(modulePath, className, methodName, args, targetType);
+                coalescingStaticCallText(modulePath, className, methodName, args, targetType, inClosure);
             case CConditional(c, t, f):
                 "if "
-                + coalescingDefaultText(c, targetType)
+                + coalescingDefaultText(c, targetType, false, nested, inClosure)
                 + " { "
-                + coalescingDefaultText(t, targetType)
+                + coalescingDefaultText(t, targetType, false, nested, inClosure)
                 + " } else { "
-                + coalescingDefaultText(f, targetType)
+                + coalescingDefaultText(f, targetType, false, nested, inClosure)
                 + " }";
             case CBinaryOp(op, left, right):
-                coalescingDefaultText(left, targetType)
+                coalescingDefaultText(left, targetType, false, nested, inClosure)
                 + " "
                 + opStr(op)
                 + " "
-                + coalescingDefaultText(right, targetType);
+                + coalescingDefaultText(right, targetType, false, nested, inClosure);
             case CConstructorCall(modulePath, className, args):
                 imports.requireType(modulePath, className);
-                className
-                + "::new("
-                + completeCoalescingCallArgs(modulePath, "new", args, targetType, true, className).join(", ")
-                + ")";
+                var constructed = className
+                    + "::new("
+                    + completeCoalescingCallArgs(modulePath, "new", args, targetType, true, className, true, inClosure).join(", ")
+                    + ")";
+                // A throwing constructor default resolves its Result before
+                // the value enters the slot; the ordinary call path applies
+                // the same unwrap through normalizeConstructorResult. Inside
+                // an unwrap_or_else closure the closure returns the concrete
+                // value, so `?` cannot propagate there.
+                if (state.funcErrorEnums.exists(RustEmissionState.funcKey(modulePath, "new", false)))
+                    constructed += inClosure ? ".unwrap()" : (isFallible ? "?" : ".unwrap()");
+                // A concrete implementor default entering an interface slot
+                // boxes through the same sanctioned construction the
+                // ordinary call path uses; the interface default is
+                // otherwise emitted bare and fails the dyn cast.
+                if (isInterfaceType(targetType))
+                    "Box::new(" + constructed + ")";
+                else
+                    constructed;
         };
         return asOption ? "Some(" + rendered + ")" : rendered;
     }
 
     /** Explicit arguments plus the callee's omitted-parameter defaults; a rust signature carries no defaults. */
     function completeCoalescingCallArgs(modulePath:String, fieldName:String, args:Array<DefaultArgExpander.CoalescingDefaultValue>, targetType:Type,
-            nested:Bool = false, ?className:String):Array<String> {
+            nested:Bool = false, ?className:String, nestedArg:Bool = false, inClosure:Bool = false):Array<String> {
         final rendered = [for (i in 0...args.length) coalescingDefaultText(args[i], coalescingCallArgType(modulePath, fieldName, i, className),
-            isNullType(coalescingCallArgType(modulePath, fieldName, i, className)), nested)];
+            isNullType(coalescingCallArgType(modulePath, fieldName, i, className)), nestedArg, inClosure)];
         final omitted = DefaultArgExpander.omittedCallDefaults(modulePath, fieldName, args.length, className);
         if (omitted != null) {
             for (o in omitted)
-                rendered.push(coalescingDefaultText(o.value, o.type, isNullType(o.type), nested));
+                rendered.push(coalescingDefaultText(o.value, o.type, isNullType(o.type), nestedArg, inClosure));
         }
         return rendered;
     }
@@ -325,7 +342,7 @@ class RustExpr {
     }
 
     function coalescingStaticCallText(modulePath:String, className:String, methodName:String, args:Array<DefaultArgExpander.CoalescingDefaultValue>,
-            targetType:Type):String {
+            targetType:Type, inClosure:Bool = false):String {
         if (modulePath == "std.SortedMap" && methodName == "builder") {
             // The omitted map default carries its key and value types on
             // the receiving parameter, so the builder binds the same
@@ -345,15 +362,22 @@ class RustExpr {
         }
         if (modulePath == "std.SortedSet" && methodName == "builder") {
             imports.requireType("runtime.SortedTable", "SortedTable");
-            return "SortedTable::sorted_table_set_builder(" + [for (a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
+            return "SortedTable::sorted_table_set_builder(" + [for (a in args) coalescingDefaultText(a, targetType, false, false, inClosure)].join(", ") + ")";
         }
         imports.requireType(modulePath, className);
-        return className
+        var rendered = className
             + "::"
             + (RustImports.isShimModule(modulePath) ? RustImports.toSnakeCase(methodName) : RustImports.toSnakeCase(className + "_" + methodName))
             + "("
-            + completeCoalescingCallArgs(modulePath, methodName, args, targetType, false, className).join(", ")
+            + completeCoalescingCallArgs(modulePath, methodName, args, targetType, false, className, false, inClosure).join(", ")
             + ")";
+        // A throwing static default resolves its Result before the value
+        // enters the slot, mirroring the constructor default handling.
+        // Inside an unwrap_or_else closure the closure returns the concrete
+        // value, so `?` cannot propagate there.
+        if (state.funcErrorEnums.exists(RustEmissionState.funcKey(modulePath, methodName, true)))
+            rendered += inClosure ? ".unwrap()" : (isFallible ? "?" : ".unwrap()");
+        return rendered;
     }
 
     function coalescingStaticFieldText(path:String, targetType:Type):String {
@@ -365,7 +389,11 @@ class RustExpr {
         try {
             switch (Context.getType(typePath)) {
                 case TInst(clsRef, _):
-                    final rendered = staticRef(clsRef.get(), fieldName);
+                    final cls = clsRef.get();
+                    final rendered = if (isLazyStaticField(cls, fieldName) && !StaticFieldHelper.isSelfConstruction(findStaticField(cls, fieldName), cls))
+                        "(*" + staticItemPath(cls, fieldName) + ").clone()"
+                    else
+                        staticRef(cls, fieldName);
                     return isStringType(targetType)
                         && !StringTools.endsWith(rendered, ".to_string()") ? rendered + ".to_string()" : rendered;
                 case TAbstract(absRef, _) if (ValueTypeSupport.isMarkedAbstract(absRef.get())):
@@ -748,7 +776,7 @@ class RustExpr {
             // Option and avoid calling unwrap_or_else with a None payload.
             final defaultIsNull = containsNullDefault(value);
             final rawDefaultText = value != null ? coalescingDefaultText(value, DefaultArgExpander.withoutNull(site.valueExpr.t),
-                defaultIsNull) : expr(site.defaultExpr);
+                defaultIsNull, false, true) : expr(site.defaultExpr);
             // When a string parameter read appears inside unwrap_or_else, Rust needs
             // the owned form (&str → String).
             final isStringDefault = switch (value) {
