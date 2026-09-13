@@ -1,6 +1,8 @@
 package tests;
 
 import boring.M2OptionVecOps;
+import boring.GuardedBox;
+import boring.GuardedRect;
 import std.Test;
 
 class M2OptionVecTests {
@@ -59,6 +61,37 @@ class M2OptionVecTests {
         #if rust_output
         Test.equals("1", M2OptionVecOps.indexOfArray(["a", "b", "c"], "b"));
         Test.equals("-1", M2OptionVecOps.indexOfArray(["a", "b", "c"], "z"));
+        #end
+    }
+
+    @:test("guarded-copy local reads fields of the proven inner value")
+    public static function guardedCopyLocal():Void {
+        #if rust_output
+        Test.equals(true, M2OptionVecOps.guardedCopyWidth(new GuardedRect(1.5, 2.5)) == 4.0);
+        Test.equals(true, M2OptionVecOps.guardedCopyWidth(null) == 0.0);
+        final box = new GuardedBox();
+        Test.equals(true, M2OptionVecOps.guardedCopyFieldWidth(box) == 0.0);
+        box.rect = new GuardedRect(3.0, 4.0);
+        Test.equals(true, M2OptionVecOps.guardedCopyFieldWidth(box) == 7.0);
+        #end
+    }
+
+    @:test("guarded and-chain reads fields of the proven inner value")
+    public static function guardedAndChain():Void {
+        #if rust_output
+        Test.equals(true, M2OptionVecOps.guardedAndSpan(new GuardedRect(1.5, 2.5), 2.0) == 2.5);
+        Test.equals(true, M2OptionVecOps.guardedAndSpan(new GuardedRect(5.0, 2.5), 2.0) == 0.0);
+        Test.equals(true, M2OptionVecOps.guardedAndSpan(null, 2.0) == 0.0);
+        #end
+    }
+
+    @:test("guarded holder field copies the proven inner value")
+    public static function guardedHolderField():Void {
+        #if rust_output
+        final box = new GuardedBox();
+        Test.equals(true, M2OptionVecOps.guardedHolderSpan(box) == 0.0);
+        box.rect = new GuardedRect(3.0, 4.0);
+        Test.equals(true, M2OptionVecOps.guardedHolderSpan(box) == 7.0);
         #end
     }
 }
