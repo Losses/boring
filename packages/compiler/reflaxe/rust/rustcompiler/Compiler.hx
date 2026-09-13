@@ -1137,9 +1137,7 @@ class Compiler extends PluginCompiler<Compiler> {
             switch (mt) {
                 case TClassDecl(c):
                     final cls = c.get();
-                    if (cls.isExtern
-                        || (isSyntheticImpl(cls.name) && ValueTypeSupport.markedAbstractOfClass(cls) == null)
-                        || !inSourceScope(cls.pos)) {
+                    if (cls.isExtern || !inSourceScope(cls.pos)) {
                         continue;
                     }
                     function scanField(field:haxe.macro.Type.ClassField, isStatic:Bool) {
