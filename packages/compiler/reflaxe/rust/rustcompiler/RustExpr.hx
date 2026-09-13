@@ -1230,7 +1230,7 @@ class RustExpr {
             // the trail surrogate the contract would pair; the trail-start
             // clause of stdlib/08 folds away.
             out.push(indent(depth + 1) + "if unit >= 55296 && unit <= 56319 && !" + part + ".is_empty() {");
-            out.push(indent(depth + 2) + "return Err(" + fault + "::UnpairedSurrogate { unit: u32::from(unit) });");
+            out.push(indent(depth + 2) + "return Err(" + wrappedBufferFault(fault, fault + "::UnpairedSurrogate { unit: u32::from(unit) }") + ");");
             out.push(indent(depth + 1) + "}");
             out.push(indent(depth) + "}");
             out.push(indent(depth) + buf + ".extend(" + part + ".encode_utf16());");
@@ -1239,16 +1239,25 @@ class RustExpr {
             out.push(indent(depth) + "if " + u + " >= 56320 && " + u + " <= 57343 {");
             out.push(indent(depth + 1) + "match " + buf + ".last() {");
             out.push(indent(depth + 2) + "Some(&last) if last >= 55296 && last <= 56319 => {}");
-            out.push(indent(depth + 2) + "_ => return Err(" + fault + "::UnpairedSurrogate { unit: " + u + " }),");
+            out.push(indent(depth + 2) + "_ => return Err(" + wrappedBufferFault(fault, fault + "::UnpairedSurrogate { unit: " + u + " }") + "),");
             out.push(indent(depth + 1) + "}");
             out.push(indent(depth) + "} else if let Some(&last) = " + buf + ".last() {");
             out.push(indent(depth + 1) + "if last >= 55296 && last <= 56319 {");
-            out.push(indent(depth + 2) + "return Err(" + fault + "::UnpairedSurrogate { unit: u32::from(last) });");
+            out.push(indent(depth + 2) + "return Err(" + wrappedBufferFault(fault, fault + "::UnpairedSurrogate { unit: u32::from(last) }") + ");");
             out.push(indent(depth + 1) + "}");
             out.push(indent(depth) + "}");
             out.push(indent(depth) + buf + ".push(" + RustConversions.truncate(u, "u16") + ");");
         }
         return out;
+    }
+
+    function wrappedBufferFault(fault:String, raw:String):String {
+        if (errorTypeName != null
+            && StringTools.endsWith(errorTypeName, "Fault")
+            && errorTypeName != fault) {
+            return errorTypeName + "::" + fault + "Fault(" + raw + ")";
+        }
+        return raw;
     }
 
     function exceptionVariant(cls:ClassType, payloadArg:TypedExpr):String {
@@ -1369,6 +1378,48 @@ class RustExpr {
     }
 
     /**
+        When a mutable local is declared with a function reference initializer
+        and the very next statement reassigns the same local from the same
+        function reference, the initializer value is dead on arrival.  Strip
+        the initializer so the declaration emits an uninit
+        `let mut name: Type;` and avoids the unused-assignment lint.
+    **/
+    function stripDeadInits(stmts:Array<TypedExpr>):Array<TypedExpr> {
+        final out:Array<TypedExpr> = [];
+        var i = 0;
+        while (i < stmts.length) {
+            var stripped = false;
+            switch (stmts[i].expr) {
+                case TVar(v, init) if (init != null):
+                    switch (stripCast(init).expr) {
+                        case TField(_, FStatic(_, _) | FInstance(_, _, _)):
+                            if (i + 1 < stmts.length) {
+                                switch (stripWrap(stmts[i + 1]).expr) {
+                                    case TBinop(OpAssign, lhs, rhs):
+                                        switch [stripWrap(lhs).expr, stripCast(rhs).expr] {
+                                            case [TLocal(assigned), TField(_, FStatic(_, _) | FInstance(_, _, _))]:
+                                                if (assigned.id == v.id) {
+                                                    out.push({expr: TVar(v, null), pos: stmts[i].pos, t: stmts[i].t});
+                                                    stripped = true;
+                                                    mutated.set(v.id, true);
+                                                }
+                                            case _:
+                                        }
+                                    case _:
+                                }
+                            }
+                        case _:
+                    }
+                case _:
+            }
+            if (!stripped)
+                out.push(stmts[i]);
+            i += 1;
+        }
+        return out;
+    }
+
+    /**
         Locals that an early-exit null guard proves present for the rest of
         a statement list: an `if (x == null) return;` without an else arm
         ends the block whenever x is absent, so every later statement sees
@@ -1463,6 +1514,7 @@ class RustExpr {
 
     function blockLines(stmts:Array<TypedExpr>, depth:Int, tailScope:Bool = false):Array<String> {
         stmts = fuseUninitializedVars(stmts);
+        stmts = stripDeadInits(stmts);
         stmts = regroupLoops(stmts);
         stmts = transformCountdownLoops(stmts);
         final out:Array<String> = [];
@@ -4597,7 +4649,7 @@ class RustExpr {
         final staticField = findStaticField(cls, name);
         final staticName = cls.name == "VectorCodec"
             || cls.name == "VectorSort" ? RustImports.toSnakeCase(name) : staticField != null
-                && staticField.isFinal ? RustImports.toScreamingSnakeCase(cls.name + "_" + name) : RustImports.toSnakeCase(cls.name + "_" + name);
+                && staticField.isFinal ? RustImports.toScreamingSnakeCase(RustImports.emittedTypeName(cls.name) + "_" + name) : RustImports.toSnakeCase(RustImports.emittedTypeName(cls.name) + "_" + name);
         final valueType = ValueTypeSupport.markedAbstractOfClass(cls);
         if (valueType != null) {
             imports.requireType(valueType.module, valueType.name);
@@ -4855,7 +4907,6 @@ class RustExpr {
             case IsNull:
                 "match " + value + " { Some(v) => v.to_string(), None => \"null\".to_string() }";
             case IsFloat:
-                imports.requireType("haxe.io.FPHelper", "FPHelper");
                 inConcat ? value : "crate::runtime::fp_helper::FPHelper::format_float" + (FloatPrecision.isF32() ? "_f32" : "") + "(" + value + ")";
             case IsInt | IsBool: inConcat ? value : "(" + value + ").to_string()";
             case IsReadOnlyArray(underlying):
@@ -5127,8 +5178,8 @@ class RustExpr {
                         // that lead and the map_err names it. The `?` or
                         // `.unwrap()` rides the ordinary fallibility rules.
                         final q = isFallible ? "?" : ".unwrap()";
-                        return "String::from_utf16(" + expr(subj) + ".as_slice()).map_err(|_| " + fault + "::UnpairedSurrogate { unit: u32::from("
-                            + expr(subj) + "[" + expr(subj) + ".len() - 1]) })" + q;
+                        return "String::from_utf16(" + expr(subj) + ".as_slice()).map_err(|_| " + wrappedBufferFault(fault, fault + "::UnpairedSurrogate { unit: u32::from("
+                            + expr(subj) + "[" + expr(subj) + ".len() - 1]) }") + ")" + q;
                     }
                     if (name == "get_length" || name == "length") {
                         return RustConversions.truncate(expr(subj) + ".len()", "u32");
@@ -7700,6 +7751,11 @@ class RustExpr {
         // Literal call arguments are already parenthesized by expression
         // lowering; normalize the cast itself so `(8 as f64)` is avoided.
         if (~/^-?[0-9]+$/.match(text))
+            return text + " as " + precision;
+        // Function calls, method calls, and parenthesized expressions are
+        // already atomic; the `as` cast binds tighter than any surrounding
+        // binary operator so wrapping them in extra parentheses is redundant.
+        if (~/\)$/.match(text))
             return text + " as " + precision;
         return "(" + text + " as " + precision + ")";
     }
