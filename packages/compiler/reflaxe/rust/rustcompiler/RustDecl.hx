@@ -2103,14 +2103,18 @@ class RustDecl {
     }
 
     /**
-        Whether the method body writes through the receiver: a field of
+        Whether the field body writes through the receiver: a field of
         `this` assigned, an element of an own-field array assigned, or a
         mutating array method called on an own-field array. The
         name list above stays for the extern reader and writer faces;
         this walk covers declared classes, whose storage the resident
         runtime tables own.
     **/
-    function bodyMutatesSelf(body:Null<TypedExpr>):Bool {
+    public static function fieldWritesReceiver(cf:ClassField):Bool {
+        return bodyMutatesSelf(cf.expr());
+    }
+
+    static function bodyMutatesSelf(body:Null<TypedExpr>):Bool {
         if (body == null) {
             return false;
         }
@@ -2144,7 +2148,7 @@ class RustDecl {
     // Whether an expression reads storage rooted at `this`: the
     // receiver itself, or a field or array read whose subject recurses
     // back to it.
-    function ownFieldRoot(e:TypedExpr):Bool {
+    static function ownFieldRoot(e:TypedExpr):Bool {
         return switch (e.expr) {
             case TConst(TThis): true;
             case TField(subj, _): ownFieldRoot(subj);
