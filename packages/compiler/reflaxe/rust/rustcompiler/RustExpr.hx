@@ -6466,6 +6466,20 @@ class RustExpr {
     // Local analysis
     // ------------------------------------------------------------------
 
+    /**
+        Whether an interface method writes through its receiver. The
+        interface field has no body, so the aggregated implementation
+        shape decides; a call on an interface-typed local or field then
+        needs the mutable binding marker.
+    **/
+    function interfaceMethodWritesReceiver(iface:Ref<ClassType>, cf:ClassField):Bool {
+        final ifaceType = iface.get();
+        if (!ifaceType.isInterface)
+            return false;
+        final shape = state.interfaceMethodShapes.get(RustEmissionState.interfaceMethodKey(ifaceType.module, ifaceType.name, cf.name));
+        return shape != null && shape.isMutating;
+    }
+
     function scanLocals(e:TypedExpr):Void {
         switch (e.expr) {
             case TVar(v, init):
@@ -6627,7 +6641,7 @@ class RustExpr {
                 }
             case TCall(fn, args):
                 switch (fn.expr) {
-                    case TField(subj, FInstance(_, _, cf)):
+                    case TField(subj, FInstance(iface, _, cf)):
                         final n = cf.get().name;
                         if (n == "readU16" || n == "readU32" || n == "readF64" || n == "readAscii" || n == "writeU16" || n == "writeU32" || n == "writeF64"
                             || n == "writeAscii" || n == "addByte" || n == "push" || n == "insert" || n == "unshift" || n == "finish" || n == "put" || n == "set" || n == "update"
@@ -6650,7 +6664,7 @@ class RustExpr {
                             // Covers the receiver-writing call family.
                             switch (stripWrap(subj).expr) {
                                 case TLocal(v):
-                                    if (RustDecl.fieldWritesReceiver(cf.get()))
+                                    if (RustDecl.fieldWritesReceiver(cf.get()) || interfaceMethodWritesReceiver(iface, cf.get()))
                                         mutated.set(v.id, true);
                                 case _:
                             }
