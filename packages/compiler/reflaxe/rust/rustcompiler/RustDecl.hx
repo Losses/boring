@@ -1442,7 +1442,12 @@ class RustDecl {
             };
         function walk(e:TypedExpr) {
             switch (e.expr) {
-                case TBinop(OpAssign, l, _):
+                case TBinop(OpAssign, l, _) | TBinop(OpAssignOp(_), l, _) | TUnop(OpIncrement | OpDecrement, _, l):
+                    // A compound or increment assignment through a field or
+                    // element of the argument mutates the binding itself: the
+                    // emitter renders the update on the owned binding, so the
+                    // parameter needs the mutable marker exactly like a plain
+                    // assignment does. Covers the parameter field-update family.
                     if (root(l))
                         found = true;
                 case TCall(fn, args):
