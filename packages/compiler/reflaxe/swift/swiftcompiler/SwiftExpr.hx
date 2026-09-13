@@ -2305,6 +2305,11 @@ class SwiftExpr {
                 return enumDef.name + "." + SwiftDecl.lowerFirst(ef.name);
             case FInstance(owner, _, cf):
                 final name = cf.get().name;
+                if (name == "previous" || name == "get_previous") {
+                    final previous = foldedExceptionPrevious(stripCast(subj));
+                    if (previous != null)
+                        return previous;
+                }
                 final getterProperty = getterOnlyPropertyName(owner.get(), name);
                 if (getterProperty != null)
                     return receiverText(subj) + "." + SwiftNameEscape.escape(getterProperty);
