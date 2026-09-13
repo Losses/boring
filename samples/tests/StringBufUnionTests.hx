@@ -18,17 +18,6 @@ class StringBufUnionTests {
 
     @:test("the vector throw still arrives through the union")
     public static function testVectorFault():Void {
-        final got = try {
-            StringBufUnionOps.buildChecked(0);
-            0;
-        } catch (e:VectorException) {
-            switch (e.error) {
-                case BadMagic: 0;
-                case CountOverflow: 0;
-                case UnexpectedEof: 1;
-                case TrailingBytes(_): 0;
-            }
-        };
-        Test.equals(1, got);
+        Test.equals(1, StringBufUnionOps.vectorFaultCode());
     }
 }

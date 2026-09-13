@@ -27,4 +27,14 @@ class StringBufUnionOps {
         buf.add("item");
         return buf.toString();
     }
+
+    public static function vectorFaultCode():Int {
+        var result = 0;
+        try {
+            buildChecked(0);
+        } catch (e:VectorException) {
+            result = e.error == VectorError.UnexpectedEof ? 1 : 0;
+        }
+        return result;
+    }
 }
