@@ -1223,7 +1223,7 @@ class KotlinDecl {
 
         final boundary = StaticFieldHelper.isReadOnlyArrayType(f.ret);
         expr.setDecodeBoundary(boundary);
-        final body = expr.functionBody(cls, f);
+        final body = expr.functionBody(cls, f, mayWidenSafeCallReturn);
         expr.setDecodeBoundary(false);
 
         return [head].concat(body.map(l -> "    " + l)).concat(["    }"]);
