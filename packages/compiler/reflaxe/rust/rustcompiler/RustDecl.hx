@@ -1688,15 +1688,9 @@ class RustDecl {
             return {name: "SemverFault", module: cls.module, hasOverflow: false};
         }
         if (unique != null) {
-            // A message-only exception is defined in its own module, so the
-            // emitted error type takes that module path.
-            final messageOnly = state.messageOnlyExceptions.exists(unique.module)
-                && state.messageOnlyExceptions.get(unique.module) == unique.name;
-            final emittedIn = state.payloadEnumModules.exists(unique.module) ? state.payloadEnumModules.get(unique.module)
-                : (messageOnly ? unique.module : cls.module);
             return {
                 name: unique.name,
-                module: emittedIn,
+                module: emittedErrorModule(unique, cls),
                 hasOverflow: state.countOverflowEnums.exists(unique.module)
             };
         }
@@ -1705,6 +1699,23 @@ class RustDecl {
             module: state.errorModule != null ? state.errorModule : cls.module,
             hasOverflow: true
         };
+    }
+
+    /**
+        The module the emitted error type is declared in. The registered
+        payload enum module wins; a message-only exception is emitted beside
+        its own declaration; otherwise the error enum uses the declaring
+        class module.
+    **/
+    function emittedErrorModule(unique:{name:String, module:String}, cls:ClassType):String {
+        if (state.payloadEnumModules.exists(unique.module)) {
+            return state.payloadEnumModules.get(unique.module);
+        }
+        if (state.messageOnlyExceptions.exists(unique.module)
+            && state.messageOnlyExceptions.get(unique.module) == unique.name) {
+            return unique.module;
+        }
+        return cls.module;
     }
 
     function collectThrownPayloadEnums(e:TypedExpr):Array<{name:String, module:String}> {
