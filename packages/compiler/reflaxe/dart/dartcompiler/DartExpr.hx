@@ -593,14 +593,28 @@ class DartExpr {
                             final param = paramLocalOf(value, f);
                             final valueText = expr(value);
                             if (param != null && parameterFields.exists(param) && parameterFields.get(param).length == 1) {
-                                formalFields.set(param, field);
-                                // The initializing formal `this.field` makes
-                                // the field name the body's binding for the
-                                // parameter, so body references render the
-                                // field name (feature spec 27 privacy).
-                                final tvar = paramTvarOf(param, f);
-                                if (tvar != null)
-                                    bindLocalName(tvar, field);
+                                // An optional parameter initializing a
+                                // non-nullable field must not use the
+                                // initializing formal: Dart's `[this.field]`
+                                // gives the field an implicit null default,
+                                // which a non-nullable field rejects. Keep
+                                // the field non-nullable and initialize it in
+                                // the body with the type's empty default.
+                                final fieldType = cf.get().type;
+                                final paramOptional = DefaultArgExpander.isOptionalDefaultAt(cls, f.field.name, paramIndex(f, param));
+                                if (paramOptional && !PolicyQueries.isNullableType(fieldType)) {
+                                    final defaultText = isArrayType(fieldType) ? emptyArrayText(fieldType) : "null";
+                                    fieldInits.push(field + " = (" + valueText + " ?? " + defaultText + ")!");
+                                } else {
+                                    formalFields.set(param, field);
+                                    // The initializing formal `this.field` makes
+                                    // the field name the body's binding for the
+                                    // parameter, so body references render the
+                                    // field name (feature spec 27 privacy).
+                                    final tvar = paramTvarOf(param, f);
+                                    if (tvar != null)
+                                        bindLocalName(tvar, field);
+                                }
                             } else if (param != null && parameterFields.exists(param) && parameterFields.get(param).length > 1) {
                                 fieldInits.push(field + " = " + valueText);
                             } else if (mentionsConstructorLocalExpr(value, constructorLocals)) {
@@ -742,6 +756,16 @@ class DartExpr {
             }
         }
         return null;
+    }
+
+    /** The argument index of the parameter named `name`, or -1 when absent. */
+    function paramIndex(f:ClassFuncData, name:String):Int {
+        for (a in f.args) {
+            if (a.name == name) {
+                return a.index;
+            }
+        }
+        return -1;
     }
 
     // ------------------------------------------------------------------
