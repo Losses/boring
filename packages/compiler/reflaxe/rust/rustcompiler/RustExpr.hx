@@ -6481,11 +6481,28 @@ class RustExpr {
                     case TField(subj, FInstance(_, _, cf)):
                         final n = cf.get().name;
                         if (n == "readU16" || n == "readU32" || n == "readF64" || n == "readAscii" || n == "writeU16" || n == "writeU32" || n == "writeF64"
-                            || n == "writeAscii" || n == "addByte" || n == "push" || n == "finish" || n == "put" || n == "set" || n == "update"
+                            || n == "writeAscii" || n == "addByte" || n == "push" || n == "insert" || n == "unshift" || n == "finish" || n == "put" || n == "set" || n == "update"
                             || n == "add" || n == "addChar") {
+                            // The receiver-mutation name list covers the
+                            // mutating sequence operations the emitter renders
+                            // as owned updates; `insert` and `unshift` belong
+                            // with `push` because each extends the receiver
+                            // in place. Covers the receiver sequence-update family.
                             switch (stripWrap(subj).expr) {
                                 case TLocal(v):
                                     mutated.set(v.id, true);
+                                case _:
+                            }
+                        } else {
+                            // A call through a receiver-writing method mutates
+                            // the receiver binding itself: the declaration
+                            // renders that method with a mutable receiver, so
+                            // a local receiver needs the mutable marker.
+                            // Covers the receiver-writing call family.
+                            switch (stripWrap(subj).expr) {
+                                case TLocal(v):
+                                    if (RustDecl.fieldWritesReceiver(cf.get()))
+                                        mutated.set(v.id, true);
                                 case _:
                             }
                         }
