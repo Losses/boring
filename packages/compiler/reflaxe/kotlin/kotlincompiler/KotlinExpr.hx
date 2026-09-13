@@ -3912,8 +3912,8 @@ class KotlinExpr {
         Haxe AST does not retain the nullable receiver edge.
     **/
     function requiresNonNullCallArgument(e:TypedExpr, rendered:String):Bool {
-        return !isNullLiteral(e) && ((isNullType(e.t) && !provenNonNull(e) && !guardProofBefore(e))
-            || (PolicyQueries.isNullableType(e.t) && !provenNonNull(e) && !guardProofBefore(e))
+        return !isNullLiteral(e) && ((isNullType(e.t) && !valueProvenNonNull(e))
+            || (PolicyQueries.isNullableType(e.t) && !valueProvenNonNull(e))
             || isNullableRenderedField(e)
             || isNullInitialized(e)
             || nullableChainHop(e)
@@ -3925,6 +3925,23 @@ class KotlinExpr {
         return switch (stripWrap(e).expr) {
             case TConst(TNull): true;
             case _: false;
+        };
+    }
+
+    /**
+        Whether a nullable-typed expression's value is proven present. A
+        dominating guard on the root local proves the receiver is present, so
+        a field read is safe to perform, but it does not prove the field value
+        itself. Only a proof that names the field exempts a field read here; the
+        caller still extracts the value when the argument boundary needs
+        non-null (FieldValueProof).
+    **/
+    function valueProvenNonNull(e:TypedExpr):Bool {
+        if (provenNonNull(e))
+            return true;
+        return switch (stripWrap(e).expr) {
+            case TField(_, _): false;
+            case _: guardProofBefore(e);
         };
     }
 
