@@ -6438,14 +6438,12 @@ class RustExpr {
     }
 
     function containsNullDefault(value:DefaultArgExpander.CoalescingDefaultValue):Bool {
-        return switch (value) {
-            case CNull: true;
-            case CConditional(_, _, f): switch (f) {
-                    case CNull: true;
-                    case _: false;
-                };
-            case _: false;
-        };
+        // A default that can evaluate to null must not be fed to
+        // unwrap_or_else (which would produce unwrap_or_else(|| None)); the
+        // parameter stays Option and the null default is preserved. This is
+        // the same null-capability test the struct initializer uses, so a
+        // bare null default and either branch of a conditional count.
+        return DefaultArgExpander.coalescingCanBeNull(value);
     }
 
     // Unsigned wrapping keeps the historical form: the left operand carries
