@@ -177,6 +177,8 @@ tests.SealedVariantTests
 boring.RecordInterfaceOps
 tests.RecordInterfaceOpsTests
 tests.NullArgsTests
+boring.DartCoalesceSiblingOps
+tests.DartCoalesceSiblingTests
 boring.ConstructedStateOps
 tests.ConstructedStateTests
 boring.ArrayRootStateOps
