@@ -6224,8 +6224,8 @@ class RustExpr {
         };
     }
 
-    function ownedConstructorArg(expected:Null<Type>, arg:TypedExpr, constructed:Null<EnumType> = null):String {
-        var text = expr(arg);
+    function ownedConstructorArg(expected:Null<Type>, arg:TypedExpr, constructed:Null<EnumType> = null, rendered:Null<String> = null):String {
+        var text = rendered != null ? rendered : expr(arg);
         if (constructed != null && isSelfEnumField(expected, constructed))
             return "Box::new(" + text + ")";
         if (expected == null)
@@ -6415,7 +6415,7 @@ class RustExpr {
             // type explicitly lowers to a borrow.  Keep this final boundary
             // adaptation here so record/Vec reads do not leak `&T` into a T.
             if (i < paramTypes.length)
-                out.push(numericAssignmentValue(paramTypes[i], arg, ownedConstructorArg(paramTypes[i], arg)));
+                out.push(numericAssignmentValue(paramTypes[i], arg, ownedConstructorArg(paramTypes[i], arg, null, argStr)));
             else
                 out.push(argStr);
         }
