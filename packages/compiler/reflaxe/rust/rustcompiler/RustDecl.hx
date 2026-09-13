@@ -100,11 +100,13 @@ class RustDecl {
                 final isMutating = shape != null ? shape.isMutating : (!f.isStatic && isMethodMutating(f));
                 final selfPrefix = f.isStatic ? "" : (isMutating ? "&mut self" : "&self") + (f.args.length > 0 ? ", " : "");
                 final isFallible = shape != null ? shape.isFallible : funcIsFallible(f);
-                final errOwner = isFallible ? resolveErrorOwner(f, cls) : null;
+                final errOwner = isFallible && shape != null && shape.errorName != null
+                    ? {name: shape.errorName, module: shape.errorModule, hasOverflow: false}
+                    : (isFallible ? resolveErrorOwner(f, cls) : null);
                 if (errOwner != null)
                     imports.requireType(errOwner.module, errOwner.name);
                 final rawRetType = methodReturnType(f.ret, f.field.name);
-                final errorName = shape != null && shape.errorName != null ? shape.errorName : (errOwner != null ? errOwner.name : null);
+                final errorName = errOwner != null ? errOwner.name : null;
                 final retType = isFallible ? 'Result<$rawRetType, $errorName>' : rawRetType;
                 final ret = retType == "()" ? "" : " -> " + retType;
                 final methodParams = collectMethodTypeParams(f, [for (p in cls.params) p.name]);
@@ -2015,7 +2017,9 @@ class RustDecl {
         final allArgs = selfParam.length == 0 ? otherArgs : (otherArgs.length > 0 ? selfParam + ", " + otherArgs : selfParam);
 
         final isFallible = interfaceShape != null ? interfaceShape.isFallible : funcIsFallible(f);
-        final errOwner = isFallible ? resolveErrorOwner(f, cls) : null;
+        final errOwner = isFallible && interfaceShape != null && interfaceShape.errorName != null
+            ? {name: interfaceShape.errorName, module: interfaceShape.errorModule, hasOverflow: false}
+            : (isFallible ? resolveErrorOwner(f, cls) : null);
         if (isFallible && errOwner != null) {
             imports.requireType(errOwner.module, errOwner.name);
         }
