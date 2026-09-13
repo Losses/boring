@@ -443,7 +443,7 @@ class KotlinExpr {
     // Function bodies
     // ------------------------------------------------------------------
 
-    public function functionBody(cls:ClassType, f:ClassFuncData):Array<String> {
+    public function functionBody(cls:ClassType, f:ClassFuncData, allowNullableReturn:Bool = true):Array<String> {
         if (f.expr == null) {
             Context.error("function field has no body to lower", f.field.pos);
         }
@@ -457,11 +457,11 @@ class KotlinExpr {
             case TFun(_, ret): ret;
             case _: null;
         };
-        // Keep the expression nullable when the declaration was widened for a
-        // safe-call return.  The old independent `rendersNullable` assertion
-        // pass appended `!!` here, defeating `?.` and turning a valid null
-        // result into an exception.
-        currentReturnAllowsNullable = bodyUsesSafeCallReturns(f);
+        // Keep the expression nullable only when the declaration widened its
+        // Kotlin return type for a safe-call result. An interface override
+        // keeps the fixed non-null contract, so the return still extracts
+        // (FixedContractSafeCallReturn).
+        currentReturnAllowsNullable = allowNullableReturn && bodyUsesSafeCallReturns(f);
         nonNullLocals.clear();
         nullInitializedLocals.clear();
         nullableRenderedLocals.clear();
