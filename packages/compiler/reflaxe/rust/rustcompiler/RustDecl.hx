@@ -684,8 +684,15 @@ class RustDecl {
                 Context.error("value type static field must have an initializer", v.field.pos);
             final initText = constValFloatInit(initializer, v.field.type);
             final val = ValueTypeSupport.isBareRepresentationLiteral(initializer, info.representation) ? info.name + "(" + initText + ")" : initText;
+            final staticName = RustImports.toScreamingSnakeCase(v.field.name);
             lines.push("");
-            lines.push("    pub const " + RustImports.toScreamingSnakeCase(v.field.name) + ": " + info.name + " = " + val + ";");
+            if (StaticFieldHelper.isConstValue(v.field)) {
+                lines.push("    pub const " + staticName + ": " + info.name + " = " + val + ";");
+            } else {
+                // Non-constant value-type members use a function because Rust
+                // does not permit associated statics in an impl block.
+                lines.push("    pub fn " + staticName + "() -> " + info.name + " { " + val + " }");
+            }
         }
         lines.push("}");
 
