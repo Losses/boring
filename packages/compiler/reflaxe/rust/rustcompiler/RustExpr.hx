@@ -5012,9 +5012,15 @@ class RustExpr {
                 // directly, skipping the Option match form.
                 if (narrowedSubject(origin) != null || isNullableCollapsedLocal(origin))
                     return stdStringType(inner, value, inConcat, origin, depth + 1);
+                // A Copy inner binds by value so float/int formatting
+                // receives the owned scalar; owned inners bind by
+                // reference.
+                final binding = isTypeCopy(inner) ? "v" : "ref v";
                 return "match "
                     + value
-                    + " { Some(ref v) => "
+                    + " { Some("
+                    + binding
+                    + ") => "
                     + stdStringType(inner, "v", false, origin, depth + 1)
                     + ", None => \"null\".to_string() }";
             case _:
