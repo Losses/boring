@@ -254,6 +254,11 @@ class RustExpr {
                     // A prior string-literal argument substitutes as a &str;
                     // an owned String payload (the Some of a nullable
                     // parameter) converts it once at the substitution site.
+                    // The substitution is the inner value of a nullable
+                    // parameter, so an Option slot re-wraps it in Some(...)
+                    // unless it already renders an Option form.
+                    if (asOption && !StringTools.startsWith(sub, "Some(") && sub != "None")
+                        return isStringType(targetType) && isStringLiteralText(sub) ? "Some(" + sub + ".to_string())" : "Some(" + sub + ")";
                     return asOption && isStringType(targetType) && isStringLiteralText(sub) ? sub + ".to_string()" : sub;
                 } else if (name.indexOf(".") >= 0) coalescingStaticFieldText(name, targetType)
                 else RustImports.toSnakeCase(name);
