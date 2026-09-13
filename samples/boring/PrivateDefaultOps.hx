@@ -1,6 +1,6 @@
 package boring;
 
-#if swift_output
+#if (swift_output || dart_output)
 /**
     A coalescing default that calls a private static helper of the same
     class. Swift rejects a public default argument value that references a

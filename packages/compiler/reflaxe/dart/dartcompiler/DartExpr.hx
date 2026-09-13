@@ -3126,7 +3126,16 @@ class DartExpr {
         }
         final resolved = tryResolveTypePath(modulePath + "." + className);
         final target = switch (resolved) {
-            case TInst(clsRef, _): staticRef(clsRef.get(), methodName);
+            case TInst(clsRef, _):
+                // DartPrivateStaticDefault: a static call rendered inside a
+                // constructor default resolves the callee through staticRef,
+                // the same path the expression renderer uses, so a private
+                // callee renders under its `_`-prefixed Dart name wherever
+                // the default applies. No configuration switch; the report
+                // maps this rule to its test.
+                final field = findStaticField(clsRef.get(), methodName);
+                final dartName = (field != null && !field.isPublic && !field.meta.has(":allow")) ? "_" + methodName : methodName;
+                staticRef(clsRef.get(), dartName);
             case _: null;
         };
         if (target != null)
