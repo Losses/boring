@@ -389,11 +389,14 @@ class RustExpr {
         try {
             switch (Context.getType(typePath)) {
                 case TInst(clsRef, _):
-                    final cls = clsRef.get();
-                    final rendered = if (isLazyStaticField(cls, fieldName) && !StaticFieldHelper.isSelfConstruction(findStaticField(cls, fieldName), cls))
-                        "(*" + staticItemPath(cls, fieldName) + ").clone()"
-                    else
-                        staticRef(cls, fieldName);
+                    // A construction or lazy-array static is emitted as a
+                    // LazyLock; the coalescing default must deref and clone
+                    // the referent the same way field() renders a static
+                    // read, never reference the LazyLock itself.
+                    final lazyRead = lazyStaticRead(clsRef.get(), fieldName);
+                    if (lazyRead != null)
+                        return lazyRead;
+                    final rendered = staticRef(clsRef.get(), fieldName);
                     return isStringType(targetType)
                         && !StringTools.endsWith(rendered, ".to_string()") ? rendered + ".to_string()" : rendered;
                 case TAbstract(absRef, _) if (ValueTypeSupport.isMarkedAbstract(absRef.get())):
@@ -4510,6 +4513,22 @@ class RustExpr {
     function isLazyStaticField(cls:ClassType, name:String):Bool {
         final field = staticFieldOf(cls, name);
         return field != null && (StaticFieldHelper.isConstruction(field.expr()) || isLazyArrayStaticField(field));
+    }
+
+    /**
+        The deref-and-clone read of a LazyLock static, or null when the
+        field is not emitted as a LazyLock. Mirrors the field() static-read
+        branch so coalescing defaults (unwrap_or_else closures) reference
+        the referent, never the LazyLock itself.
+    **/
+    function lazyStaticRead(cls:ClassType, name:String):Null<String> {
+        final field = staticFieldOf(cls, name);
+        if (field == null)
+            return null;
+        final isLazy = StaticFieldHelper.isConstruction(field.expr()) || isLazyArrayStaticField(field);
+        if (!isLazy || StaticFieldHelper.isSelfConstruction(field, cls))
+            return null;
+        return "(*" + staticItemPath(cls, name) + ").clone()";
     }
 
     function isLazyArrayStaticField(field:ClassField):Bool {
