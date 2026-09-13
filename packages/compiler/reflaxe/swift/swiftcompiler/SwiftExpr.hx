@@ -2061,15 +2061,6 @@ class SwiftExpr {
                         case _: "(" + text + ")!";
                     }
                 };
-            case _: {
-                final text = expr(a);
-                if (!optionalValued(a) || StringTools.endsWith(text, "!"))
-                    text;
-                else switch (stripWrap(a).expr) {
-                    case TLocal(_): text + "!";
-                    case _: "(" + text + ")!";
-                }
-            };
         };
     }
 
