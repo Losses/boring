@@ -3328,8 +3328,18 @@ class RustExpr {
             final armTarget = matchNumericTarget(parts.cases, sw.t);
             final arm = armBlock(c.expr, armTarget);
             for (i in 0...arm.length) {
+                var armText = arm[i];
+                // A match whose result type is nullable (Null<T>) must wrap
+                // a non-null arm value in Some; the payload read arms return
+                // the bare inner value while the null arms already render
+                // None. Only adapt when the arm value is not already an
+                // Option/None literal.
+                if (isNullType(sw.t) && !isNullType(c.expr.t)
+                    && armText != "None" && !StringTools.startsWith(armText, "Some(")) {
+                    armText = "Some(" + armText + ")";
+                }
                 final suffix = i == arm.length - 1 ? "," : "";
-                out.push("    " + pattern + " => " + arm[i] + suffix);
+                out.push("    " + pattern + " => " + armText + suffix);
             }
         }
         out.push("}");
@@ -6250,6 +6260,7 @@ class RustExpr {
 
     function containsNullDefault(value:DefaultArgExpander.CoalescingDefaultValue):Bool {
         return switch (value) {
+            case CNull: true;
             case CConditional(_, _, f): switch (f) {
                     case CNull: true;
                     case _: false;
