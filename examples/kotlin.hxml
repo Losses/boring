@@ -287,6 +287,8 @@ tests.HaxeExceptionTests
 tests.LoopWriteTests
 boring.HaxeExceptionOps
 tests.HaxeExceptionTests
+boring.ExceptionChainProbe
+tests.ExceptionChainProbeTests
 boring.SealedChildCause
 boring.SealedChildParent
 boring.SealedChildException
