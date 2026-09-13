@@ -6253,15 +6253,12 @@ class RustExpr {
         // local or field, making a later argument (or a later loop iteration)
         // use the moved value. Clone only direct reusable reads; temporary
         // producers already have fresh ownership and must remain untouched.
-        if (!isTypeCopy(expected) && !isTemporaryOwnedExpr(arg)
+        if (!isTypeCopy(expected) && isReusableOwnedRead(arg)
             && !StringTools.startsWith(text, "&")
             && !StringTools.endsWith(text, ".clone()")
             && !StringTools.endsWith(text, ".to_vec()")
             && !StringTools.endsWith(text, ".to_string()")) {
-            switch (stripWrap(arg).expr) {
-                case TLocal(_) | TField(_, _): text = "(" + text + ").clone()";
-                case _:
-            }
+            text = "(" + text + ").clone()";
         }
         return text;
     }
@@ -7688,7 +7685,7 @@ class RustExpr {
                     argStr = StringTools.startsWith(argStr, "&") ? "(*" + argStr + ").clone()" : "(" + argStr + ").clone()";
                     } else if (!isPassByRef(pt)
                     && !isTypeCopy(arg.t)
-                    && !isTemporaryOwnedExpr(arg)
+                    && isReusableOwnedRead(arg)
                     && !StringTools.startsWith(argStr, "&")
                     && !StringTools.endsWith(argStr, ".clone()")
                     && !StringTools.endsWith(argStr, ".to_vec()")
@@ -7725,6 +7722,20 @@ class RustExpr {
             rendered.push(argStr);
         }
         return rendered.join(", ");
+    }
+
+    /**
+        reusableOwnedRead: value arguments are evaluated as Haxe reads and may
+        be used again. Clone only locals and direct field reads at an owned
+        value boundary; constructors, calls, and object literals already
+        produce fresh ownership. This covers fields of local records and
+        objects without cloning arbitrary expressions.
+    **/
+    function isReusableOwnedRead(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TLocal(_) | TField(_, _): true;
+            case _: false;
+        };
     }
 
     function isTemporaryOwnedExpr(e:TypedExpr):Bool {
