@@ -3079,7 +3079,12 @@ class KotlinExpr {
             Context.error("Std.isOfType requires a class type expression", args[1].pos);
             return "false";
         }
-        final known = TypeCheckHelper.knownIsOfType(args[0], target);
+        // A nullable-typed value can be null, and null fails the check. The
+        // helper follows Null away and would fold the condition to true, so a
+        // null cache miss would enter the present-value branch. Keep the
+        // runtime check whenever the value type is nullable
+        // (NullableRuntimeIsOfType).
+        final known = isNullType(args[0].t) ? null : TypeCheckHelper.knownIsOfType(args[0], target);
         return known != null ? (known ? "true" : "false") : expr(args[0]) + " is " + expr(args[1]);
     }
 
