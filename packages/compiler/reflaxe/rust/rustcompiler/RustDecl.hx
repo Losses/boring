@@ -242,7 +242,15 @@ class RustDecl {
             && cls.module.indexOf("registry.") != 0
             && isAllClone(varFields, cls)
             && classParams.length == 0) {
-            lines.push("#[derive(Clone)]");
+            lines.push(RustType.isPartialEqTypeFields(varFields) ? "#[derive(Clone, PartialEq)]" : "#[derive(Clone)]");
+        } else if (classParams.length == 0
+            && !StaticFieldHelper.hasSelfConstructionStatic(cls)
+            && !cls.meta.has(":dataClass")
+            && cls.module.indexOf("registry.") != 0
+            && RustType.isPartialEqTypeFields(varFields)) {
+            // A struct that is not Clone-capable can still compare: PartialEq
+            // derives independently of Clone (StructEqDerive).
+            lines.push("#[derive(PartialEq)]");
         }
         // Call sites clone every non-Copy data-class value. Keep the derive
         // gate aligned with that ownership rule so data classes can satisfy
@@ -256,7 +264,7 @@ class RustDecl {
             && (cls.name == "SortedMapTable" || cls.name == "SortedSetTable");
         if ((StaticFieldHelper.hasSelfConstructionStatic(cls) || cls.meta.has(":dataClass") || classParams.length > 0 || isSortedTableResident)
             && (isAllClone(varFields, cls) || isSortedTableResident)) {
-            lines.push(isAllPartialEq(varFields) ? "#[derive(Clone, PartialEq)]" : "#[derive(Clone)]");
+            lines.push(RustType.isPartialEqTypeFields(varFields) ? "#[derive(Clone, PartialEq)]" : "#[derive(Clone)]");
         }
         if (cls.module.indexOf("registry.") == 0) {
             lines.push("#[derive(Debug, Clone, PartialEq)]");
@@ -2462,7 +2470,9 @@ class RustDecl {
                     for (field in fields)
                         '    pub ${RustImports.toSnakeCase(field.name)}: ${types.of(field.type)},'
                 ];
-                final deriveAttr = isAllCopy(fields) ? "#[derive(Debug, Clone, Copy, PartialEq)]" : "#[derive(Debug, Clone, PartialEq)]";
+                final deriveAttr = RustType.fieldsAllPartialEq(fields) && isAllCopy(fields) ? "#[derive(Debug, Clone, Copy, PartialEq)]"
+                    : RustType.fieldsAllPartialEq(fields) ? "#[derive(Debug, Clone, PartialEq)]"
+                    : isAllCopy(fields) ? "#[derive(Debug, Clone, Copy)]" : "#[derive(Debug, Clone)]";
                 final structStr = [deriveAttr, 'pub struct ${def.name} {', fieldLines.join("\n"), "}"].join("\n");
 
                 if (isStructKeyCandidate(fields)) {
@@ -2611,6 +2621,20 @@ class RustDecl {
     }
 
     /**
+        Whether a class module holds a lowered record whose instance fields
+        StructEqDerive may inspect. The runtime, std, and compiled business
+        namespaces qualify; foreign modules and the Haxe standard library do
+        not, so a foreign class with no inspectable fields never counts as
+        PartialEq.
+    **/
+    public static function isRecordModule(module:String):Bool {
+        return module.indexOf("org.tiqian.") == 0
+            || module.indexOf("boring.") == 0
+            || module.indexOf("runtime.") == 0
+            || module.indexOf("std.") == 0;
+    }
+
+    /**
         A plain class lowers to a struct that derives Clone when its instance
         fields are Clone-capable and it carries no class params and no
         self-construction static. Mirror that gate here so a @:dataClass or
@@ -2633,56 +2657,6 @@ class RustDecl {
                 case _:
             }
             if (!isCloneTypeDepth(f.type, depth + 1, root, sealedCloneInterfaces, selfIfaceKey))
-                return false;
-        }
-        return true;
-    }
-
-    /**
-        Whether a lowered type implements PartialEq. The key difference from
-        isCloneType is that Float (f64) does not implement PartialEq, and
-        the sorted containers only derive Clone.
-    **/
-    function isPartialEqType(t:Type):Bool {
-        return switch (Context.follow(t)) {
-            case TAbstract(a, params):
-                (["Int", "Bool"].indexOf(a.get().name) >= 0
-                    && params.length == 0) || (a.get().name == "ReadOnlyArray" && params.length == 1 && isPartialEqType(params[0]));
-            case TEnum(_):
-                true;
-            case TInst(c, params):
-                final cls = c.get();
-                final n = cls.name;
-                if (cls.kind.match(KTypeParameter(_))) true else if (n == "String") true else if (n == "Array") params.length == 1 && isPartialEqType(params[0]) else if (cls.meta.has(":dataClass"))
-                    dataClassFieldsAllPartialEq(cls, 0) else false;
-            case TType(d, params): isPartialEqType(haxe.macro.TypeTools.applyTypeParameters(d.get().type, d.get().params, params));
-            case TAnonymous(anon):
-                var all = true;
-                for (f in anon.get().fields)
-                    if (!isPartialEqType(f.type))
-                        all = false;
-                all;
-            case _: false;
-        };
-    }
-
-    function isAllPartialEq(fields:Array<ClassVarData>):Bool {
-        for (f in fields)
-            if (!f.isStatic && !isPartialEqType(f.field.type))
-                return false;
-        return true;
-    }
-
-    function dataClassFieldsAllPartialEq(cls:ClassType, depth:Int):Bool {
-        if (depth > 8)
-            return false;
-        for (f in cls.fields.get()) {
-            switch (f.kind) {
-                case FMethod(_):
-                    continue;
-                case _:
-            }
-            if (!isPartialEqType(f.type))
                 return false;
         }
         return true;
