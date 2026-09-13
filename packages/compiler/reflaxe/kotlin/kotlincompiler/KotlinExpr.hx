@@ -2190,7 +2190,7 @@ class KotlinExpr {
         while (true) {
             switch (current.expr) {
                 case TField(subject, _):
-                    if (isNullType(subject.t) || isNullableRenderedField(subject)) {
+                    if ((isNullType(subject.t) || isNullableRenderedField(subject)) && nullableAccess(subject) == "?.") {
                         // A dominating condition can prove the chain root even
                         // when the intermediate field remains nullable in the
                         // typed AST.  Do not replace that proof with ?. on a
@@ -2237,9 +2237,15 @@ class KotlinExpr {
             return true;
         switch (inner.expr) {
             case TIf(_, t, f):
+                if (guardedNonNullTernary(e))
+                    return false;
                 return rendersNullable(t) || (f != null && rendersNullable(f));
             case TField(subj, _):
-                return rendersNullable(subj);
+                // A nullable receiver is extracted with `!!.` when the Haxe
+                // expression already proves it present.  Looking only at the
+                // receiver would incorrectly widen a non-null field read back
+                // to nullable (for example `value!!.items.size`).
+                return nullableAccess(subj) == "?.";
             case TArray(receiver, _):
                 return rendersNullable(receiver);
             case TCall(fn, args):
@@ -3733,7 +3739,7 @@ class KotlinExpr {
                         final expectedArg = args[0];
                         final actualArg = args[1];
                         final msgArg = args.length > 2 ? expr(args[2]) : null;
-                        final renderedTestArgs = renderCallArgs(args, paramsForCall(fn), cls, name);
+                        final renderedTestArgs = renderCallArgs(args, paramsForCall(fn), cls, name, true);
                         if (isScalarType(expectedArg.t)) {
                             final runtimePackage = RuntimeConfig.requireImportName("module test extern");
                             state.shimsUsed.set(RuntimeResidents.externsOf("runtime.TestCore")[0], true);
@@ -3812,11 +3818,11 @@ class KotlinExpr {
         }
     }
 
-    function renderCallArgs(args:Array<TypedExpr>, params:Array<Type>, owner:Null<ClassType> = null, fieldName:Null<String> = null):Array<String> {
-        return [for (i in 0...args.length) renderCallArg(args[i], i, params, owner, fieldName)];
+    function renderCallArgs(args:Array<TypedExpr>, params:Array<Type>, owner:Null<ClassType> = null, fieldName:Null<String> = null, allowNullable:Bool = false):Array<String> {
+        return [for (i in 0...args.length) renderCallArg(args[i], i, params, owner, fieldName, allowNullable)];
     }
 
-    function renderCallArg(a:TypedExpr, i:Int, params:Array<Type>, owner:Null<ClassType>, fieldName:Null<String>):String {
+    function renderCallArg(a:TypedExpr, i:Int, params:Array<Type>, owner:Null<ClassType>, fieldName:Null<String>, allowNullable:Bool = false):String {
         final expected = i < params.length ? params[i] : null;
         final registered = owner != null && fieldName != null ? DefaultArgExpander.defaultAt(owner, fieldName, i) : null;
         final wasFunctionTypeExpected = functionTypeExpected;
@@ -3825,9 +3831,13 @@ class KotlinExpr {
         functionTypeExpected = wasFunctionTypeExpected;
         if (registered != null && expected != null && isNullLiteral(a)) {
             return defaultArgText(registered, expected);
-        } else if (registered != null && expected != null && requiresNonNullCallArgument(a, text)) {
+        } else if (isNullLiteral(a)) {
+            // Null is a value at nullable assertion and sentinel boundaries;
+            // do not turn it into a non-null argument failure expression.
+            return text;
+        } else if (!allowNullable && registered != null && expected != null && requiresNonNullCallArgument(a, text)) {
             return "(" + text + " ?: " + defaultArgText(registered, expected) + ")";
-        } else if (expected != null && !isNullType(expected) && requiresNonNullCallArgument(a, text)) {
+        } else if (!allowNullable && expected != null && !isNullType(expected) && requiresNonNullCallArgument(a, text)) {
             if (!isNullInitialized(a))
                 addProofExpr(a);
             if (provenNonNull(a) || guardProofBefore(a))
@@ -3857,6 +3867,10 @@ class KotlinExpr {
                 functionTypeExpected = wasFunctionTypeExpected;
                 if (registered != null && expected != null && isNullLiteral(a)) {
                     constructorDefaultText(registered, expected, cls, args);
+                } else if (isNullLiteral(a)) {
+                    // Preserve literal null for nullable contracts and
+                    // equality/assertion expected values.
+                    text;
                 } else if (registered != null && expected != null && requiresNonNullCallArgument(a, text)) {
                     "(" + text + " ?: " + constructorDefaultText(registered, expected, cls, args) + ")";
                 } else if (expected != null && !isNullType(expected) && requiresNonNullCallArgument(a, text)) {
@@ -3879,16 +3893,13 @@ class KotlinExpr {
         Haxe AST does not retain the nullable receiver edge.
     **/
     function requiresNonNullCallArgument(e:TypedExpr, rendered:String):Bool {
-<<<<<<< HEAD
-        return (isNullType(e.t) && !provenNonNull(e) && !guardProofBefore(e))
+        return !isNullLiteral(e) && ((isNullType(e.t) && !provenNonNull(e) && !guardProofBefore(e))
             || (PolicyQueries.isNullableType(e.t) && !provenNonNull(e) && !guardProofBefore(e))
-=======
-        return (PolicyQueries.isNullableType(e.t) && !provenNonNull(e) && !guardProofBefore(e))
->>>>>>> 8ede2a84 (fix(kotlin): normalize nullable call arguments)
+            || isNullableRenderedField(e)
             || isNullInitialized(e)
             || nullableChainHop(e)
             || rendersNullable(e)
-            || rendered.indexOf("?.") >= 0;
+            || rendered.indexOf("?.") >= 0);
     }
 
     function isNullLiteral(e:TypedExpr):Bool {
