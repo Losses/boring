@@ -66,6 +66,24 @@ describe("first-class function value generated trees", () => {
     expect(rust).toContain("pub static FN_VALUES_OPS_DEFAULT_TAG: fn(i32) -> String =");
     expect(rust).toContain("u32::wrapping_sub(u32::try_from((values.len()) & 0xFFFF_FFFF).unwrap_or(0), 1)");
   });
+
+  test("Rust bounds every function-value position with Send and Sync", () => {
+    const rust = read("reference/rust-gen/src/boring/static_ref_ops.rs");
+    expect(rust).toContain("pub fn static_ref_ops_take_fn(callback: Arc<dyn Fn(u32) -> String + Send + Sync>)");
+    expect(rust).toContain("let r#fn: Arc<dyn Fn(u32) -> String + Send + Sync> = Arc::new(StaticRefOps::static_ref_ops_render);");
+    expect(rust).toContain("pub fn static_ref_ops_return_fn() -> Arc<dyn Fn(u32) -> String + Send + Sync + 'static>");
+    expect(rust).toContain("let cmp: Arc<dyn Fn(&str, &str) -> u32 + Send + Sync> = Arc::new(StaticRefStatics::static_ref_statics_compare_strings);");
+
+    const sortedTable = read("reference/rust-gen/src/runtime/sorted_table.rs");
+    expect(sortedTable).toContain("pub fn sorted_table_map_builder<K: Clone, V: Clone>(compare: Arc<dyn Fn(&K, &K) -> i32 + Send + Sync>)");
+    expect(sortedTable).toContain("pub(crate) compare: Arc<dyn Fn(&K, &K) -> i32 + Send + Sync>");
+  });
+
+  test("Rust's f32 tree bounds the resident comparator", () => {
+    const sortedTable = read("reference/rust-f32-gen/src/runtime/sorted_table.rs");
+    expect(sortedTable).toContain("pub fn sorted_table_set_builder<K: Clone>(compare: Arc<dyn Fn(&K, &K) -> i32 + Send + Sync>)");
+    expect(sortedTable).toContain("pub(crate) compare: Arc<dyn Fn(&K, &K) -> i32 + Send + Sync>");
+  });
 });
 
 describe("static function field capture validation", () => {
