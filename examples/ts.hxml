@@ -118,6 +118,8 @@ tests.Ts2448Tests
 boring.PrintedCustom
 boring.StringBufOps
 tests.StringBufTests
+boring.StringBufUnionOps
+tests.StringBufUnionTests
 boring.TryOps
 tests.TryTests
 tests.SwitchOpsTests

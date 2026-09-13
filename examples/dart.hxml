@@ -106,6 +106,8 @@ tests.ComparatorGateTests
 boring.PrintedCustom
 boring.StringBufOps
 tests.StringBufTests
+boring.StringBufUnionOps
+tests.StringBufUnionTests
 boring.TryOps
 tests.TryTests
 boring.ArithmeticOps
