@@ -4237,7 +4237,9 @@ class SwiftExpr {
     function foldedExceptionPrevious(subj:TypedExpr):Null<String> {
         switch (Context.follow(subj.t)) {
             case TInst(c, _):
-                if (SwiftDecl.isException(c.get())) {
+                final cls = c.get();
+                if (SwiftDecl.isException(cls)
+                    || (cls.pack.join(".") == "haxe" && cls.name == "Exception")) {
                     return expr(stripCast(subj)) + ".cause";
                 }
                 return null;
