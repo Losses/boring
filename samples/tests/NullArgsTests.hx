@@ -14,4 +14,10 @@ class NullArgsTests {
         Test.equals("none", NullArgsOps.nullableVariable(null));
         Test.equals("x", NullArgsOps.nullableVariable("x"));
     }
+
+    @:test("null-guard conditional argument wraps in the Option slot")
+    public static function testConditionalArg():Void {
+        Test.equals("none", NullArgsOps.conditionalArg(null));
+        Test.equals("x", NullArgsOps.conditionalArg("x"));
+    }
 }
