@@ -1254,11 +1254,14 @@ class KotlinExpr {
                 // from the rendered nullability so safe-navigation is emitted
                 // when the value is nullable.
                 final suffix = isString(subj) ? "length" : "size";
+                // A range bound is an Int position, so a nullable receiver
+                // still extracts; the safe-call form yields Int? and Kotlin
+                // rejects it as a range endpoint (NonNullRangeBound).
                 if (isNullType(subj.t) && !provenNonNull(subj) && !guardProofBefore(subj)) {
-                    return expr(subj) + "?." + suffix;
+                    return expr(subj) + "?." + suffix + "!!";
                 }
                 if (nullableChainHop(subj) && !guardProofBefore(subj)) {
-                    return expr(subj) + "?." + suffix;
+                    return expr(subj) + "?." + suffix + "!!";
                 }
                 return expr(subj) + "." + suffix;
             case _:
