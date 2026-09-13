@@ -1053,6 +1053,8 @@ class RustExpr {
                 switch (stripWrap(ret).expr) {
                     case TConst(TThis) if (!isTypeCopy(ret.t)):
                         retStr = "(" + retStr + ").clone()";
+                    case TField(_, _) if (!isTypeCopy(ret.t)):
+                        retStr = "(" + retStr + ").clone()";
                     case _:
                 }
                 if (RustType.isTypeParam(ret.t)) {
