@@ -1534,11 +1534,15 @@ class KotlinExpr {
         original argument before the check.
     */
     function valueTypeCtorArg(value:TypedExpr, locals:Map<Int, TypedExpr>, abs:AbstractType):String {
+        // An inline wrapper constructor binds its argument to a local named
+        // after the parameter. That binding is a synthetic local of the
+        // wrapper block, so the representation value resolves through it
+        // and renders the original argument, never the parameter name.
         final resolved = switch (stripWrap(value).expr) {
             case TLocal(v) if (locals.exists(v.id)): locals.get(v.id);
             case _: value;
         };
-        final text = expr(value);
+        final text = expr(resolved);
         if (ValueTypeSupport.isFloatRepresentation(abs)
             && (isIntOrLongType(resolved.t) || isIntOrLongType(emittedType(resolved))))
             return intToFloatText(text);

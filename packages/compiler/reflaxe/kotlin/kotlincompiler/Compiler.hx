@@ -689,6 +689,7 @@ class Compiler extends PluginCompiler<Compiler> {
         whatever order the typer hands declarations over in.
     **/
     function preScan(mtypes:Array<haxe.macro.Type.ModuleType>):Void {
+        KotlinAccessGrants.collect(mtypes);
         for (mt in mtypes) {
             switch (mt) {
                 case TClassDecl(c):
