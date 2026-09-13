@@ -260,8 +260,7 @@ class RustDecl {
         // the derive is emitted only when the lowered fields are cloneable.
         // When every field also implements PartialEq, add that derive so
         // containing structs can derive PartialEq over the data class.
-        final isSortedTableResident = cls.module == "runtime.SortedTable"
-            && (cls.name == "SortedMapTable" || cls.name == "SortedSetTable");
+        final isSortedTableResident = RustType.isContentEqSortedTable(cls);
         if ((StaticFieldHelper.hasSelfConstructionStatic(cls) || cls.meta.has(":dataClass") || classParams.length > 0 || isSortedTableResident)
             && (isAllClone(varFields, cls) || isSortedTableResident)) {
             lines.push(RustType.isPartialEqTypeFields(varFields) ? "#[derive(Clone, PartialEq)]" : "#[derive(Clone)]");
@@ -277,6 +276,26 @@ class RustDecl {
                 lines.push(l);
         }
         lines.push("}\n");
+
+        if (isSortedTableResident) {
+            // The comparator closure keeps the declaration on the Clone-only
+            // derive, so content equality is written here (SortedTableContentEq).
+            // Comparing the key and value arrays treats two tables with the
+            // same entries as equal, the value semantics of spec 07. The
+            // comparator is a strategy value and stays out of the
+            // comparison.
+            final eqBoundList = [for (g in genericList) g == "'a" ? g : g + ": PartialEq"];
+            final eqGenericStr = eqBoundList.length > 0 ? "<" + eqBoundList.join(", ") + ">" : "";
+            final eqConditions = [
+                for (v in varFields)
+                    if (!v.isStatic && RustType.isPartialEqType(v.field.type)) "self." + RustImports.toSnakeCase(v.field.name) + " == other." + RustImports.toSnakeCase(v.field.name)
+            ];
+            lines.push("impl" + eqGenericStr + " PartialEq for " + emittedName + genericStr + " {");
+            lines.push("    fn eq(&self, other: &Self) -> bool {");
+            lines.push("        " + (eqConditions.length > 0 ? eqConditions.join(" && ") : "true"));
+            lines.push("    }");
+            lines.push("}");
+        }
 
         lines.push("impl" + implGenerics + " " + emittedName + genericStr + " {");
         var sep = false;

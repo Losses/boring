@@ -295,9 +295,11 @@ class RustType {
         on the current path counts as satisfied: the cycle always crosses an
         Option, Vec, or Box indirection in the lowering, and the derived impl
         resolves through that indirection. Interfaces, function values,
-        foreign modules, and the resident sorted tables never satisfy the
-        query; the sorted tables carry a comparator closure field, so they
-        derive Clone alone (SortedTableCloneOnly).
+        foreign modules, and the resident sorted table builders never satisfy
+        the query. The immutable resident tables carry a comparator closure, so
+        they satisfy the query through a manual content-equality impl
+        (SortedTableContentEq); the builders derive Clone alone
+        (SortedTableCloneOnly).
     **/
     public static function isPartialEqType(t:Type):Bool {
         return isPartialEqTypeDepth(t, []);
@@ -315,7 +317,13 @@ class RustType {
             case TInst(c, params):
                 final cls = c.get();
                 final n = cls.name;
-                if (isCloneOnlySortedTable(cls)) false else if (cls.kind.match(KTypeParameter(_))) true else if (n == "String") true else if (n == "Array") params.length == 1
+                if (isSortedTableBuilder(cls)) false else if (isContentEqSortedTable(cls)) {
+                    var all = true;
+                    for (p in params)
+                        if (!isPartialEqTypeDepth(p, visiting))
+                            all = false;
+                    all;
+                } else if (cls.kind.match(KTypeParameter(_))) true else if (n == "String") true else if (n == "Array") params.length == 1
                     && isPartialEqTypeDepth(params[0], visiting) else if (RustDecl.isExceptionSubclass(cls)) true else if (cls.isInterface
                     || cls.params.length != params.length) false else if (!RustDecl.isRecordModule(cls.module)) false else recordFieldsAllPartialEq(cls, visiting);
             case TFun(_):
@@ -342,21 +350,39 @@ class RustType {
     }
 
     /**
-        Whether a class lowers to a resident sorted table or one of its
-        builders (SortedTableCloneOnly). The lowered structs hold a
-        comparator closure, so they derive Clone alone; StructEqDerive
-        must not claim PartialEq for them or for records that embed them.
-        References reach the resident structs both as the runtime classes
-        and as the std extern classes.
+        Whether a class lowers to an immutable resident sorted table
+        (SortedTableContentEq). The generated struct holds a comparator
+        closure, so its declaration replaces the PartialEq derive with a
+        manual impl that compares the key and value arrays and ignores the
+        comparator. References reach the resident struct both as the runtime
+        class and as the std extern class.
     **/
-    static function isCloneOnlySortedTable(cls:ClassType):Bool {
+    public static function isContentEqSortedTable(cls:ClassType):Bool {
         final n = cls.name;
         if (cls.module == "runtime.SortedTable")
-            return n == "SortedMapTable" || n == "SortedSetTable" || n == "SortedMapTableBuilder" || n == "SortedSetTableBuilder";
+            return n == "SortedMapTable" || n == "SortedSetTable";
         if (cls.module == "std.SortedSet")
-            return n == "SortedSet" || n == "SortedSetBuilder";
+            return n == "SortedSet";
         if (cls.module == "std.SortedMap")
-            return n == "SortedMap" || n == "SortedMapBuilder";
+            return n == "SortedMap";
+        return false;
+    }
+
+    /**
+        Whether a class lowers to a sorted table builder (SortedTableCloneOnly).
+        The lowered structs hold a comparator closure, so they derive Clone
+        alone; StructEqDerive must not claim PartialEq for them or for records
+        that embed them. References reach the resident structs both as the
+        runtime classes and as the std extern classes.
+    **/
+    static function isSortedTableBuilder(cls:ClassType):Bool {
+        final n = cls.name;
+        if (cls.module == "runtime.SortedTable")
+            return n == "SortedMapTableBuilder" || n == "SortedSetTableBuilder";
+        if (cls.module == "std.SortedSet")
+            return n == "SortedSetBuilder";
+        if (cls.module == "std.SortedMap")
+            return n == "SortedMapBuilder";
         return false;
     }
 
