@@ -94,8 +94,12 @@ public final class BytesBuffer {
 public class BoringException: Error {
     public let message: String
 
-    public init(message: String) {
+    /// The chained previous exception (features/06 previous chaining).
+    public let previous: BoringException?
+
+    public init(message: String, previous: BoringException? = nil) {
         self.message = message
+        self.previous = previous
     }
 }
 
