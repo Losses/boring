@@ -1688,7 +1688,12 @@ class RustDecl {
             return {name: "SemverFault", module: cls.module, hasOverflow: false};
         }
         if (unique != null) {
-            final emittedIn = state.payloadEnumModules.exists(unique.module) ? state.payloadEnumModules.get(unique.module) : cls.module;
+            // A message-only exception is defined in its own module, so the
+            // emitted error type takes that module path.
+            final messageOnly = state.messageOnlyExceptions.exists(unique.module)
+                && state.messageOnlyExceptions.get(unique.module) == unique.name;
+            final emittedIn = state.payloadEnumModules.exists(unique.module) ? state.payloadEnumModules.get(unique.module)
+                : (messageOnly ? unique.module : cls.module);
             return {
                 name: unique.name,
                 module: emittedIn,
