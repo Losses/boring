@@ -134,6 +134,7 @@ class SwiftDecl {
         }
 
         final module = cls.module;
+        deferredConstructorFields = constructorSelfCallFields(funcFields);
         final extractedFuncs = [for (f in funcFields) if (StaticFunctionMarkers.isMarked(f.field)) f];
         final ordinaryFuncs = [for (f in funcFields) if (!StaticFunctionMarkers.isMarked(f.field)) f];
         final extractedParts:Array<String> = [];
@@ -575,6 +576,9 @@ class SwiftDecl {
     **/
     public static final structTypedefs:Map<String, Ref<DefType>> = [];
 
+    /** Fields assigned after a constructor invokes an instance method. */
+    var deferredConstructorFields:Map<String, Bool> = [];
+
     /**
         Signature identifying an anonymous structure: its field names and
         types, sorted. Nominal lowering matches object literals against
@@ -673,9 +677,61 @@ class SwiftDecl {
         // between the generated-code module and its consumers.
         // @:allow members use Swift internal visibility so allowed cross-class calls compile.
         final vis = grantedVis(field.isPublic, field.meta, cls, field.type);
+        final deferred = deferredConstructorFields.exists(field.name);
         return [
-            "    " + vis + kw + " " + SwiftNameEscape.escape(field.name) + ": " + types.of(field.type)
+            "    " + vis + (deferred ? "var " : kw + " ") + SwiftNameEscape.escape(field.name) + ": "
+                + types.of(field.type) + (deferred ? "! = nil" : "")
         ];
+    }
+
+    /**
+        Named heuristic: constructor self-call deferral. Swift requires every
+        stored property to be initialized before an instance method call. A
+        field assigned later in the same constructor receives an IUO default,
+        preserving the source order and its eventual value.
+    **/
+    static function constructorSelfCallFields(funcFields:Array<ClassFuncData>):Map<String, Bool> {
+        final result:Map<String, Bool> = [];
+        for (f in funcFields) {
+            if (f.field.name != "new" || f.expr == null)
+                continue;
+            var selfCallSeen = false;
+            for (stmt in PolicyQueries.statementsOf(f.expr)) {
+                if (containsConstructorSelfMethodCall(stmt))
+                    selfCallSeen = true;
+                if (selfCallSeen)
+                    collectAssignedInstanceFields(stmt, result);
+            }
+        }
+        return result;
+    }
+
+    static function containsConstructorSelfMethodCall(e:TypedExpr):Bool {
+        var found = false;
+        function inspect(child:TypedExpr):Void {
+            switch (child.expr) {
+                case TCall({expr: TField({expr: TConst(TThis)}, FInstance(_, _, _))}, _):
+                    found = true;
+                case _:
+            }
+            if (!found)
+                haxe.macro.TypedExprTools.iter(child, inspect);
+        }
+        inspect(e);
+        return found;
+    }
+
+    static function collectAssignedInstanceFields(e:TypedExpr, result:Map<String, Bool>):Void {
+        haxe.macro.TypedExprTools.iter(e, function(child:TypedExpr):Void {
+            switch (child.expr) {
+                case TBinop(OpAssign, {expr: TField({expr: TConst(TThis)}, access)}, _):
+                    switch (access) {
+                        case FInstance(_, _, field): result.set(field.get().name, true);
+                        case _:
+                    }
+                case _:
+            }
+        });
     }
 
     static function isFunctionType(t:Null<Type>):Bool {
@@ -770,7 +826,7 @@ class SwiftDecl {
         // factory functions) render as method generics; the class's own
         // parameters stay in the class header only.
         final methodParams = collectMethodTypeParams(cls, f);
-        final genericStr = methodParams.length > 0 ? "<" + methodParams.join(", ") + ">" : "";
+        final genericStr = methodGenericSignature(cls, f, methodParams);
         final body = decodeBoundaryBody(cls, f);
         final normLines = coalescingBodyNormalizationLines(cls, f);
         // Private functions render with Swift's private marker (feature
@@ -806,7 +862,7 @@ class SwiftDecl {
         final ret = types.of(f.ret);
         final throws = SwiftFallibility.isThrowing(module, cls.name, f.field.name, true) ? " throws" : "";
         final methodParams = collectMethodTypeParams(cls, f);
-        final genericStr = methodParams.length > 0 ? "<" + methodParams.join(", ") + ">" : "";
+        final genericStr = methodGenericSignature(cls, f, methodParams);
         // @:allow members use Swift internal visibility so allowed cross-class calls compile.
         final vis = grantedVis(f.field.isPublic, f.field.meta, cls, f.field.type);
         final receiverType = isExtension ? types.of(f.args[0].type) : "";
@@ -897,6 +953,56 @@ class SwiftDecl {
 
     function collectTypeParamsInto(t:Null<Type>, skip:Array<String>, found:Array<String>):Void {
         return PolicyQueries.collectTypeParamsInto(t, skip, found);
+    }
+
+    /**
+        Generic equality constraint: a method type parameter compared with
+        `==` or `!=` in the body has no Swift operator without a protocol
+        conformance, so the signature constrains exactly the compared
+        parameters to Equatable. Haxe unifies the comparison against the
+        bare type parameter and needs no such bound.
+    **/
+    function methodGenericSignature(cls:ClassType, f:ClassFuncData, methodParams:Array<String>):String {
+        if (methodParams.length == 0)
+            return "";
+        final compared:Map<String, Bool> = [];
+        final body = f.field.expr();
+        if (body != null)
+            scanGenericEquality(body, methodParams, compared);
+        return "<" + [for (p in methodParams) compared.exists(p) ? p + ": Equatable" : p].join(", ") + ">";
+    }
+
+    static function scanGenericEquality(e:TypedExpr, methodParams:Array<String>, compared:Map<String, Bool>):Void {
+        switch (e.expr) {
+            case TBinop(OpEq, l, r) | TBinop(OpNotEq, l, r):
+                for (operand in [l, r]) {
+                    final name = strippedTypeParamName(operand);
+                    if (name != null && methodParams.indexOf(name) >= 0)
+                        compared.set(name, true);
+                }
+            case _:
+        }
+        haxe.macro.TypedExprTools.iter(e, (child:TypedExpr) -> scanGenericEquality(child, methodParams, compared));
+    }
+
+    static function strippedTypeParamName(e:TypedExpr):Null<String> {
+        var current = e;
+        while (true) {
+            switch (current.expr) {
+                case TParenthesis(inner) | TCast(inner, _) | TMeta(_, inner):
+                    current = inner;
+                case _:
+                    break;
+            }
+        }
+        return switch (Context.follow(current.t)) {
+            case TInst(c, _):
+                switch (c.get().kind) {
+                    case KTypeParameter(_): c.get().name;
+                    case _: null;
+                }
+            case _: null;
+        };
     }
 
     /**
