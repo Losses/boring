@@ -517,3 +517,6 @@ boring.RangeParameterOps
 tests.RangeParameterTests
 boring.TypeParameterCompareOps
 tests.TypeParameterCompareTests
+
+boring.StringBufUnionOps
+tests.StringBufUnionTests

@@ -397,8 +397,55 @@ class RustDecl {
 
         final classPart = prefixLines.length > 0 ? prefixLines.join("\n\n") + "\n\n" + lines.join("\n") : lines.join("\n");
         final result = extractedParts.length > 0 ? extractedParts.join("\n\n") + "\n\n" + classPart : classPart;
+        final tableEq = sortedTableEquality(cls, classParams);
+        final withTableEq = tableEq == null ? result : result + "\n\n" + tableEq;
         return cls.meta.has(":dataClass")
-            && RustType.canEmitDataClassComparator(cls) ? result + "\n\n" + dataClassComparator(cls) : result;
+            && RustType.canEmitDataClassComparator(cls) ? withTableEq + "\n\n" + dataClassComparator(cls) : withTableEq;
+    }
+
+    /**
+        Entry-wise PartialEq for the resident sorted tables
+        (SortedTableEntryEquality): two tables compare equal when their
+        entry vectors compare equal. The comparator function is excluded:
+        Arc<dyn Fn> never implements PartialEq, and entry identity already
+        determines table identity because builders sort by that comparator.
+        The impl carries K: PartialEq (plus V: PartialEq for maps) so a
+        table only compares when its entries can.
+    **/
+    function sortedTableEquality(cls:ClassType, classParams:Array<String>):Null<String> {
+        if (cls.module != "runtime.SortedTable")
+            return null;
+        final boundList = [for (n in classParams) n + ": PartialEq"];
+        final bounds = boundList.length > 0 ? "<" + boundList.join(", ") + ">" : "";
+        final generics = classParams.length > 0 ? "<" + classParams.join(", ") + ">" : "";
+        return switch (cls.name) {
+            case "SortedMapTable":
+                "impl" + bounds + " PartialEq for SortedMapTable" + generics + " {\n"
+                    + "    fn eq(&self, other: &Self) -> bool {\n"
+                    + "        self.keys == other.keys && self.values == other.values\n"
+                    + "    }\n"
+                    + "}";
+            case "SortedSetTable":
+                "impl" + bounds + " PartialEq for SortedSetTable" + generics + " {\n"
+                    + "    fn eq(&self, other: &Self) -> bool {\n"
+                    + "        self.keys == other.keys\n"
+                    + "    }\n"
+                    + "}";
+            case "SortedMapTableBuilder":
+                "impl" + bounds + " PartialEq for SortedMapTableBuilder" + generics + " {\n"
+                    + "    fn eq(&self, other: &Self) -> bool {\n"
+                    + "        self.keys == other.keys && self.values == other.values\n"
+                    + "    }\n"
+                    + "}";
+            case "SortedSetTableBuilder":
+                "impl" + bounds + " PartialEq for SortedSetTableBuilder" + generics + " {\n"
+                    + "    fn eq(&self, other: &Self) -> bool {\n"
+                    + "        self.keys == other.keys\n"
+                    + "    }\n"
+                    + "}";
+            case _:
+                null;
+        };
     }
 
     function dataClassComparator(cls:ClassType):String {
@@ -1382,7 +1429,7 @@ class RustDecl {
         final snakeName = receiverMethod
             || freeForm
             || cls.name == "VectorCodec"
-            || cls.name == "VectorSort" ? RustImports.toSnakeCase(f.field.name) : RustImports.toSnakeCase(cls.name + "_" + f.field.name);
+            || cls.name == "VectorSort" ? RustImports.toSnakeCase(f.field.name) : RustImports.toSnakeCase(RustImports.emittedTypeName(cls.name) + "_" + f.field.name);
         final args = [
             for (i in firstArg...f.args.length) {
                 final a = f.args[i];
