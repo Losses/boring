@@ -402,8 +402,10 @@ class RustExpr {
                     if (member == null)
                         return fieldName;
                     imports.requireType(abs.module, abs.name);
-                    final rendered = abs.name + "::" + RustImports.toScreamingSnakeCase(fieldName);
-                    return isStringType(targetType) ? rendered + ".to_string()" : rendered;
+                    final isConst = StaticFieldHelper.isConstValue(member);
+                    final rendered = abs.name + "::" + (isConst ? RustImports.toScreamingSnakeCase(fieldName) : RustImports.toSnakeCase(fieldName));
+                    final memberValue = isConst ? rendered : rendered + "()";
+                    return isStringType(targetType) ? memberValue + ".to_string()" : memberValue;
                 case TAbstract(absRef, _):
                     final abs = absRef.get();
                     imports.requireType(abs.module, abs.name);
@@ -4338,8 +4340,9 @@ class RustExpr {
                 if (valueType != null) {
                     imports.requireType(valueType.module, valueType.name);
                     final field = cf.get();
-                    final item = valueType.name + "::" + RustImports.toScreamingSnakeCase(name);
-                    return !StaticFieldHelper.isConstValue(field) ? item + "()" : item;
+                    final isConst = StaticFieldHelper.isConstValue(field);
+                    final item = valueType.name + "::" + (isConst ? RustImports.toScreamingSnakeCase(name) : RustImports.toSnakeCase(name));
+                    return isConst ? item : item + "()";
                 }
                 if (StaticFieldHelper.isConstruction(cf.get().expr()) && !StaticFieldHelper.isSelfConstruction(cf.get(), cls)) {
                     return "(*" + staticItemPath(cls, name) + ").clone()";
@@ -4656,10 +4659,9 @@ class RustExpr {
         if (valueType != null) {
             imports.requireType(valueType.module, valueType.name);
             final field = findStaticField(cls, name);
-            final item = valueType.name + "::" + RustImports.toScreamingSnakeCase(name);
-            if (field != null && !StaticFieldHelper.isConstValue(field))
-                return item + "()";
-            return item;
+            final isConst = field != null && StaticFieldHelper.isConstValue(field);
+            final item = valueType.name + "::" + (isConst ? RustImports.toScreamingSnakeCase(name) : RustImports.toSnakeCase(name));
+            return isConst ? item : item + "()";
         }
         final markedField = findStaticField(cls, name);
         if (markedField != null && StaticFunctionMarkers.isMarked(markedField)) {
