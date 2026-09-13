@@ -483,11 +483,15 @@ boring.InterfaceArrayLiteralOps
 tests.InterfaceArrayLiteralTests
 boring.DartCoalesceStaticOps
 tests.DartCoalesceStaticTests
+boring.DartCoalesceSiblingOps
+tests.DartCoalesceSiblingTests
 boring.DartCoalesceReceiver
 boring.DartCoalesceKind
 boring.DartCoalesceStaticOps
 boring.DartCoalesceReceiver
 boring.DartCoalesceKind
+boring.DartCoalesceSiblingOps
+tests.DartCoalesceSiblingTests
 tests.DartCoalesceStaticTests
 boring.NullableToStringOps
 tests.NullableToStringTests
