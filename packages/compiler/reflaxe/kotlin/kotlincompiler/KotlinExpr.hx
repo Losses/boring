@@ -3223,8 +3223,15 @@ class KotlinExpr {
                         case _: null;
                     };
                     if (returnAbs != null && args.length > 0 && ValueTypeSupport.isFloatRepresentation(returnAbs)) {
+                        final params = paramsForCall(fn);
+                        // Widen an Int argument only when the helper parameter
+                        // expects a float. The Int-taking spelling of the same
+                        // value helper (IntIc.ic) keeps its Int argument, or
+                        // the call passes a Double to an Int parameter
+                        // (FloatParamIntWidening).
+                        final firstIsFloat = params.length > 0 && isFloatExpectedType(params[0]);
                         var helperArg = expr(args[0]);
-                        if (isIntOrLongType(args[0].t) || isIntOrLongType(emittedType(args[0])))
+                        if (firstIsFloat && (isIntOrLongType(args[0].t) || isIntOrLongType(emittedType(args[0]))))
                             helperArg = intToFloatText(helperArg);
                         return staticRef(c.get(), cf.get().name) + "(" + helperArg
                             + (args.length > 1 ? ", " + renderCallArgs(args.slice(1), paramsForCall(fn)).join(", ") : "") + ")";
