@@ -6316,6 +6316,12 @@ class RustExpr {
     function numericAssignmentValue(expected:Type, actual:TypedExpr, rendered:String, targetOverride:Null<String> = null):String {
         if (isFloatType(expected) && isIntType(emittedType(actual)))
             return intToFloatText(rendered);
+        // A nullable target holds an Option; the rendered value is already
+        // in the Option domain (a null literal renders None, a nullable
+        // expression keeps its Option shape), so no null-to-zero bridge or
+        // bit reinterpretation applies at this boundary.
+        if (isNullType(expected))
+            return rendered;
         if (!isIntType(expected))
             return rendered;
         final target = targetOverride != null ? targetOverride : types.of(expected, false);
