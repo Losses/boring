@@ -4974,6 +4974,11 @@ class RustExpr {
         // before the follow.
         switch (t) {
             case TAbstract(a, [inner]) if (a.get().name == "Null"):
+                // A narrowed subject is already the scalar binding (the
+                // option-narrowing match dereferences it); render the inner
+                // string directly, skipping the Option match form.
+                if (narrowedSubject(origin) != null)
+                    return stdStringType(inner, value, inConcat, origin, depth + 1);
                 return "match "
                     + value
                     + " { Some(ref v) => "
