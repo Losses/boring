@@ -3,8 +3,10 @@ package rustcompiler;
 #if (macro || reflaxe_runtime)
 import haxe.macro.Context;
 import haxe.macro.Type;
+import reflaxe.data.ClassVarData;
 import StructuralKeyValidator;
 import PolicyQueries;
+import PolicyQueries.KeyDomain;
 
 /**
     Type mapping from the translatable Haxe subset to Rust.
@@ -282,6 +284,130 @@ class RustType {
 
     static function validateStructDef(def:DefType, pos:haxe.macro.Expr.Position, visited:Array<String>):Array<ClassField> {
         return StructuralKeyValidator.validateStructDef(def, pos, visited);
+    }
+
+    /**
+        Whether a lowered type implements PartialEq (StructEqDerive): every
+        scalar, string, enum, marked value type, and nullable or array layer
+        over such types, plus records whose instance fields all satisfy this
+        query. Float counts: f64 and f32 both implement PartialEq (only Eq
+        and Hash exclude them). A class reference that cycles back to a record
+        on the current path counts as satisfied: the cycle always crosses an
+        Option, Vec, or Box indirection in the lowering, and the derived impl
+        resolves through that indirection. Interfaces, function values,
+        foreign modules, and the resident sorted tables never satisfy the
+        query; the sorted tables carry a comparator closure field, so they
+        derive Clone alone (SortedTableCloneOnly).
+    **/
+    public static function isPartialEqType(t:Type):Bool {
+        return isPartialEqTypeDepth(t, []);
+    }
+
+    static function isPartialEqTypeDepth(t:Type, visiting:Array<String>):Bool {
+        return switch (t) {
+            case TAbstract(a, params):
+                final abs = a.get();
+                if (ValueTypeSupport.isMarkedAbstract(abs)) true else if ((abs.name == "Int" || abs.name == "Bool" || abs.name == "Float")
+                    && params.length == 0) true else if ((abs.name == "Null" || (abs.pack.join(".") == "std" && abs.name == "ReadOnlyArray"))
+                    && params.length == 1) isPartialEqTypeDepth(params[0], visiting) else false;
+            case TEnum(_):
+                true;
+            case TInst(c, params):
+                final cls = c.get();
+                final n = cls.name;
+                if (isCloneOnlySortedTable(cls)) false else if (cls.kind.match(KTypeParameter(_))) true else if (n == "String") true else if (n == "Array") params.length == 1
+                    && isPartialEqTypeDepth(params[0], visiting) else if (RustDecl.isExceptionSubclass(cls)) true else if (cls.isInterface
+                    || cls.params.length != params.length) false else if (!RustDecl.isRecordModule(cls.module)) false else recordFieldsAllPartialEq(cls, visiting);
+            case TFun(_):
+                false;
+            case TType(d, params):
+                isPartialEqTypeDepth(haxe.macro.TypeTools.applyTypeParameters(d.get().type, d.get().params, params), visiting);
+            case TAnonymous(anon):
+                var all = true;
+                for (f in anon.get().fields)
+                    if (!isPartialEqTypeDepth(f.type, visiting))
+                        all = false;
+                all;
+            case TLazy(f):
+                isPartialEqTypeDepth(f(), visiting);
+            case _:
+                switch (Context.follow(t)) {
+                    case TAbstract(a, params):
+                        final abs = a.get();
+                        if (ValueTypeSupport.isMarkedAbstract(abs)) true else (abs.name == "Int" || abs.name == "Bool" || abs.name == "Float")
+                            && params.length == 0;
+                    case _: false;
+                }
+        };
+    }
+
+    /**
+        Whether a class lowers to a resident sorted table or one of its
+        builders (SortedTableCloneOnly). The lowered structs hold a
+        comparator closure, so they derive Clone alone; StructEqDerive
+        must not claim PartialEq for them or for records that embed them.
+        References reach the resident structs both as the runtime classes
+        and as the std extern classes.
+    **/
+    static function isCloneOnlySortedTable(cls:ClassType):Bool {
+        final n = cls.name;
+        if (cls.module == "runtime.SortedTable")
+            return n == "SortedMapTable" || n == "SortedSetTable" || n == "SortedMapTableBuilder" || n == "SortedSetTableBuilder";
+        if (cls.module == "std.SortedSet")
+            return n == "SortedSet" || n == "SortedSetBuilder";
+        if (cls.module == "std.SortedMap")
+            return n == "SortedMap" || n == "SortedMapBuilder";
+        return false;
+    }
+
+    /**
+        Whether every instance field of a record class satisfies the
+        PartialEq query. A class already on the visit path counts as
+        satisfied for the reason documented on isPartialEqType; the depth
+        cap keeps a non-indirect cycle from recursing forever.
+    **/
+    static function recordFieldsAllPartialEq(cls:ClassType, visiting:Array<String>):Bool {
+        final key = cls.module + "::" + cls.name;
+        if (visiting.indexOf(key) >= 0)
+            return true;
+        if (visiting.length > 8)
+            return false;
+        visiting.push(key);
+        final all = (function() {
+            for (f in cls.fields.get()) {
+                switch (f.kind) {
+                    case FMethod(_):
+                        continue;
+                    case _:
+                }
+                if (!isPartialEqTypeDepth(f.type, visiting))
+                    return false;
+            }
+            return true;
+        })();
+        visiting.pop();
+        return all;
+    }
+
+    /** Whether every non-static member of the field list satisfies the PartialEq query (StructEqDerive). **/
+    public static function fieldsAllPartialEq(fields:Array<ClassField>):Bool {
+        for (f in fields) {
+            switch (f.kind) {
+                case FVar(_, _):
+                    if (!isPartialEqType(f.type))
+                        return false;
+                case _:
+            }
+        }
+        return true;
+    }
+
+    /** Whether every non-static variable field satisfies the PartialEq query (StructEqDerive). **/
+    public static function isPartialEqTypeFields(fields:Array<ClassVarData>):Bool {
+        for (f in fields)
+            if (!f.isStatic && !isPartialEqType(f.field.type))
+                return false;
+        return true;
     }
 
     static function validateFieldType(t:Type, pos:haxe.macro.Expr.Position, visited:Array<String>):Void {
