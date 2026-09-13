@@ -246,6 +246,10 @@ boring.JvmFieldPrivateOps
 tests.JvmFieldPrivateTests
 boring.HaxeExceptionOps
 tests.HaxeExceptionTests
+boring.MutatingCounterOps
+tests.MutatingCounterTests
+boring.NullableBufFieldOps
+tests.NullableBufFieldTests
 boring.SealedChildCause
 boring.SealedChildParent
 boring.SealedChildException
