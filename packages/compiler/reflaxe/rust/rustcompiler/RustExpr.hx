@@ -9051,6 +9051,12 @@ class RustExpr {
         u_string count reinterpret, applied unchanged for both result
         shapes. **/
     function coerceBranchText(branch:TypedExpr, text:String, resultType:Null<Type>, sibling:TypedExpr):String {
+        // A concrete arm of a nullable interface result boxes before the
+        // Some wrapper. The cast pins the arm to the trait object, so a
+        // local initialized from the conditional infers the boxed shape.
+        if (resultType != null && isNullType(resultType) && isInterfaceType(getNullInnerType(resultType))
+            && !isInterfaceType(branch.t))
+            return "Box::new(" + text + ") as " + types.of(getNullInnerType(resultType), false);
         if (resultType != null && isStringType(resultType)) {
             if (StringTools.endsWith(text, ".to_string()") || StringTools.endsWith(text, ".clone()"))
                 return text;

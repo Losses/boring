@@ -591,3 +591,6 @@ tests.InterfaceFallibleOpsTests
 
 boring.InterfaceFieldLiteralOps
 tests.InterfaceFieldLiteralOpsTests
+
+boring.NullableInterfaceBranchOps
+tests.NullableInterfaceBranchOpsTests
