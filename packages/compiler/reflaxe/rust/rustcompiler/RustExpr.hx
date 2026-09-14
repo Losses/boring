@@ -4550,6 +4550,7 @@ class RustExpr {
         return switch (stripWrap(e).expr) {
             case TCall(fn, _) if (isStringIndexOf(fn)): true;
             case TCall(fn, _) if (isVecIndexOf(fn)): true;
+            case TCall(fn, _) if (isFpHelperI32Call(fn)): true;
             case _: false;
         };
     }
@@ -4998,6 +4999,15 @@ class RustExpr {
 
     function isFpHelperInt64Call(fn:TypedExpr):Bool {
         return PolicyQueries.isFpHelperInt64Call(fn);
+    }
+
+    /** Whether the call is an FPHelper bit edge whose result is i32. */
+    function isFpHelperI32Call(fn:TypedExpr):Bool {
+        return switch (stripWrap(fn).expr) {
+            case TField(_, FStatic(c, cf)) if (c.get().module == "haxe.io.FPHelper"):
+                cf.get().name == "floatToI32" || cf.get().name == "f32ToI32";
+            case _: false;
+        };
     }
 
     function isRecursiveField(subj:TypedExpr, name:String):Bool {
@@ -7321,7 +7331,7 @@ class RustExpr {
             // (`for m in 0..bound`); the underflow-prone bound comparison
             // that marked it i32 must not leak into its arithmetic.
             case TLocal(v): i32Locals.exists(v.id) && !paramVarIds.exists(v.id) && !rangeLoopVars.exists(v.id);
-            case TBinop(OpAdd | OpSub | OpMult | OpMod, left, right): i32LocalDomain(left) || i32LocalDomain(right);
+            case TBinop(OpAdd | OpSub | OpMult | OpMod | OpAnd | OpOr | OpXor | OpUShr | OpShr | OpShl, left, right): i32LocalDomain(left) || i32LocalDomain(right);
             case _: false;
         };
     }
@@ -7397,6 +7407,11 @@ class RustExpr {
                     if (!isInterfaceType(fieldType))
                         val = ownedObjectFieldText(fieldType, f.expr, val);
                     val = renderValueForType(fieldType, f.expr, val);
+                    // A business u32 Int field reinterprets a signed rendering
+                    // so the struct literal field carries the declared domain.
+                    if (isIntType(fieldType) && types.of(fieldType, false) == "u32"
+                        && !StringTools.startsWith(val, "u32::") && rendersSignedIntArg(f.expr, val))
+                        val = RustConversions.reinterpret(val, "u32");
                 }
                 RustImports.toSnakeCase(f.name) + ": " + val;
             }
@@ -7498,6 +7513,8 @@ class RustExpr {
                         case TCall(fn, _):
                             if (isFpHelperInt64Call(fn))
                                 fpInt64Halves.set(v.id, true);
+                            if (isFpHelperI32Call(fn))
+                                i32Locals.set(v.id, true);
                             if (isStdParseIntCall(init))
                                 parseIntLocals.set(v.id, true);
                             switch (fn.expr) {
@@ -7520,6 +7537,11 @@ class RustExpr {
                     if (isIntType(v.t) && !isNullType(v.t) && !declarationRendersI32(init)) {
                         declaredUnsignedIntLocals.set(v.id, true);
                     }
+                    // A local derived from an i32-domain operand keeps the
+                    // signed rendering, matching the Rust type inference of
+                    // its declaration.
+                    if (isIntType(v.t) && !isNullType(v.t) && i32LocalDomain(init))
+                        i32Locals.set(v.id, true);
                 }
             case TTry(body, _):
                 collectTryAssignments(body);
