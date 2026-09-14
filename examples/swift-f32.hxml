@@ -552,3 +552,6 @@ tests.NullableInterfaceBranchOpsTests
 
 boring.NodeFsBorrowOps
 tests.NodeFsBorrowOpsTests
+
+boring.NegativeSentinelOps
+tests.NegativeSentinelOpsTests
