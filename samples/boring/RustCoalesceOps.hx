@@ -50,6 +50,12 @@ class RustCoalesceOps {
         return new RustCoalesceTextRecord(text).display;
     }
 
+    public static function assignedLabel(value:String):Bool {
+        final holder = new RustCoalesceStringHolder();
+        holder.setLabel(value);
+        return holder.hasLabel();
+    }
+
     #if rust_output
     public static function rustOutputStringDefault():String {
         return new RustCoalesceRecord(null, null, null, null, null).locale;
@@ -66,6 +72,22 @@ class RustCoalesceTextRecord {
 
     public function new(text:String, ?display:Null<String>) {
         this.display = display == null ? text : display;
+    }
+}
+
+class RustCoalesceStringHolder {
+    public var label:Null<String>;
+
+    public function new() {
+        this.label = null;
+    }
+
+    public function setLabel(value:String):Void {
+        this.label = value;
+    }
+
+    public function hasLabel():Bool {
+        return this.label != null;
     }
 }
 
