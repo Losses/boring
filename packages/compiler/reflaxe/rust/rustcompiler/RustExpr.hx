@@ -716,20 +716,26 @@ class RustExpr {
         for (stmt in stmts)
             collectNestedFieldAssignments(stmt);
 
-        function defaultConstructorFieldValue(t:Type):String {
+        function defaultConstructorFieldValue(t:Type):Null<String> {
             return switch (Context.follow(t)) {
                 case TAbstract(a, _) if (a.get().name == "Bool"): "false";
                 case TAbstract(a, _) if (a.get().name == "Int"): "0";
                 case TAbstract(a, _) if (a.get().name == "Float"): "0.0";
                 case TInst(c, _) if (c.get().name == "String"): "String::new()";
                 case TAbstract(a, _) if (a.get().name == "Null"): "None";
-                case TType(_, _): "None";
-                case _: "None";
+                case TType(_, _): null;
+                case _: null;
             };
         }
         // A branch-assigned field keeps a local slot for the tail struct
         // literal. The slot must not reuse a parameter name, so a null check
-        // on that parameter still reads the optional parameter.
+        // on that parameter still reads the optional parameter. A field with
+        // no literal default declares its Rust type and lets the branch
+        // assignments initialize it.
+        function fallbackBindingDecl(bindingName:String, t:Type):String {
+            final value = defaultConstructorFieldValue(t);
+            return value != null ? "let mut " + bindingName + " = " + value + ";" : "let mut " + bindingName + ": " + types.of(t, false) + ";";
+        }
         function fallbackBindingName(fieldName:String):String {
             final snake = RustImports.toSnakeCase(fieldName);
             for (a in f.args)
@@ -747,7 +753,7 @@ class RustExpr {
             if (field == null)
                 continue;
             final bindingName = fallbackBindingName(fieldName);
-            fallbackBindings.push("let mut " + bindingName + " = " + defaultConstructorFieldValue(field.type) + ";");
+            fallbackBindings.push(fallbackBindingDecl(bindingName, field.type));
             fallbackBoundFields.set(fieldName, true);
             fieldInits.set(fieldName, bindingName);
             fallbackVars.set(fieldName, {
@@ -782,7 +788,10 @@ class RustExpr {
                             final initialValue = branchAssignedFields.exists(cf.get().name)
                                 ? defaultConstructorFieldValue(cf.get().type)
                                 : fieldInits.get(cf.get().name);
-                            fallbackBindings.push("let mut " + bindingName + " = " + initialValue + ";");
+                            if (initialValue != null)
+                                fallbackBindings.push("let mut " + bindingName + " = " + initialValue + ";");
+                            else
+                                fallbackBindings.push(fallbackBindingDecl(bindingName, cf.get().type));
                             fallbackBoundFields.set(cf.get().name, true);
                             fieldInits.set(cf.get().name, bindingName);
                         }
