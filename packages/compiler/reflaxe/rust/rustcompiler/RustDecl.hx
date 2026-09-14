@@ -1271,6 +1271,17 @@ class RustDecl {
         return [];
     }
 
+    /**
+        LazyLockStaticEmission identifies module statics whose initializer
+        cannot be emitted as a direct Rust static. Reads use this same policy
+        so every value boundary dereferences the LazyLock referent.
+    **/
+    public static function usesLazyLockStatic(cls:ClassType, field:ClassField):Bool {
+        final init = StaticFieldHelper.initializer(field);
+        return (field.isFinal && StaticFieldHelper.isNonEmptyArrayLiteral(init) && !StaticFieldHelper.isIntLiteralArray(init))
+            || (StaticFieldHelper.isConstruction(init) && !StaticFieldHelper.isSelfConstruction(field, cls, init));
+    }
+
     function isNonSendStaticType(typeStr:String):Bool {
         // Trait objects and Rc-backed function values are not Sync-safe in a
         // process-wide Rust static. Keep this conservative until a stronger
@@ -1300,23 +1311,17 @@ class RustDecl {
         final vis = field.isPublic ? "pub " : (field.meta.has(":allow") ? "pub(crate) " : "");
         final typeStr = types.of(field.type);
         final name = RustImports.toScreamingSnakeCase(cls.name + "_" + field.name);
-        if (field.isFinal && StaticFieldHelper.isNonEmptyArrayLiteral(init)) {
-            if (StaticFieldHelper.isIntLiteralArray(init)) {
-                final elementType = types.of(StaticFieldHelper.arrayElementType(field.type));
-                final elements = switch (StaticFieldHelper.stripDecorations(init).expr) {
-                    case TArrayDecl(values): values.length;
-                    case _: 0;
-                };
-                return [
-                    '${vis}static ${name}: [${elementType}; ${elements}] = ${expr.rawArrayLiteral(init)};'
-                ];
-            }
-            imports.require("std::sync::LazyLock");
+        if (field.isFinal && StaticFieldHelper.isNonEmptyArrayLiteral(init) && StaticFieldHelper.isIntLiteralArray(init)) {
+            final elementType = types.of(StaticFieldHelper.arrayElementType(field.type));
+            final elements = switch (StaticFieldHelper.stripDecorations(init).expr) {
+                case TArrayDecl(values): values.length;
+                case _: 0;
+            };
             return [
-                '${vis}static ${name}: LazyLock<${typeStr}> = LazyLock::new(|| ${expr.rawExpression(init)});'
+                '${vis}static ${name}: [${elementType}; ${elements}] = ${expr.rawArrayLiteral(init)};'
             ];
         }
-        if (StaticFieldHelper.isConstruction(init) && !StaticFieldHelper.isSelfConstruction(field, cls, init)) {
+        if (usesLazyLockStatic(cls, field)) {
             imports.require("std::sync::LazyLock");
             return [
                 '${vis}static ${name}: LazyLock<${typeStr}> = LazyLock::new(|| ${expr.rawExpression(init)});'
