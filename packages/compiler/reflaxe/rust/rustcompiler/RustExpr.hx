@@ -8811,9 +8811,17 @@ class RustExpr {
                 switch (op) {
                     case OpAdd | OpSub | OpMult | OpDiv | OpMod:
                         final lt = emittedType(l);
+                        final rt = emittedType(r);
+                        // Haxe widens an arithmetic result to Float when
+                        // either operand is Float, so the emitted type follows
+                        // the Float operand before the Int one.
+                        if (lt != null && isFloatType(lt))
+                            return lt;
+                        if (rt != null && isFloatType(rt))
+                            return rt;
                         if (lt != null && isIntType(lt))
                             return lt;
-                        return emittedType(r);
+                        return rt;
                     case OpEq | OpNotEq | OpGt | OpGte | OpLt | OpLte:
                         final lt = emittedType(l);
                         if (lt != null)
