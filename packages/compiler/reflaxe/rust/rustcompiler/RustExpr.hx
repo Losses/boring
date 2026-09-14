@@ -7789,7 +7789,9 @@ class RustExpr {
 
     function isStringIndexOf(fn:TypedExpr):Bool {
         return switch (fn.expr) {
-            case TField(subj, FInstance(_, _, cf)) if (cf.get().name == "indexOf" && isString(stripCast(subj))): true;
+            case TField(subj, FInstance(_, _, cf))
+                if ((cf.get().name == "indexOf" || cf.get().name == "lastIndexOf" || cf.get().name == "last_index_of")
+                    && isString(stripCast(subj))): true;
             case _: false;
         };
     }

@@ -28,4 +28,12 @@ class SignedComparisonTests {
         Test.equals(true, SignedComparisonOps.indexEqualsLimit("abxc", 2));
         #end
     }
+
+    @:test("an equality comparison with a signed last index compares the sentinel")
+    public static function lastIndexEqualsLimit():Void {
+        #if rust_output
+        Test.equals(false, SignedComparisonOps.lastIndexEqualsLimit("abc", 1));
+        Test.equals(true, SignedComparisonOps.lastIndexEqualsLimit("abxc", 2));
+        #end
+    }
 }
