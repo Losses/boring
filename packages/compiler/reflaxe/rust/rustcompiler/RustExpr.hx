@@ -2360,6 +2360,21 @@ class RustExpr {
         return narrowedText(subjectTextOf(subject));
     }
 
+    /**
+        Field reads in a null-guarded boolean chain use the match binding of
+        their receiver. This covers `value != null && value.field` after the
+        receiver narrowing has been registered, while complete guarded paths
+        continue to use narrowedSubject directly.
+    **/
+    function narrowedReceiverSubject(subject:TypedExpr):Null<String> {
+        return switch (stripWrap(subject).expr) {
+            case TField(receiver, FInstance(_, _, _)) | TField(receiver, FAnon(_)):
+                narrowedSubject(receiver);
+            case _:
+                null;
+        };
+    }
+
     function narrowedText(text:String):Null<String> {
         for (i in 0...optionNarrowings.length) {
             final narrowing = optionNarrowings[optionNarrowings.length - 1 - i];
@@ -2435,8 +2450,19 @@ class RustExpr {
         return null;
     }
 
+    function nullGuardPrefix(e:TypedExpr):Null<{info:{subject:TypedExpr, noneWhenTrue:Bool}, tail:TypedExpr}> {
+        return switch (stripWrap(e).expr) {
+            case TBinop(OpBoolAnd, left, right):
+                final info = nullGuardOf(left);
+                info == null || info.noneWhenTrue ? null : {info: info, tail: right};
+            case _:
+                null;
+        };
+    }
+
     function guardedMatchExpression(guard:TypedExpr, ifTrue:TypedExpr, ifFalse:TypedExpr, resultType:Type):Null<String> {
-        final info = nullGuardOf(guard);
+        final prefix = nullGuardPrefix(guard);
+        final info = prefix == null ? nullGuardOf(guard) : prefix.info;
         if (info == null)
             return null;
         final name = freshRegionName("__option");
@@ -2458,6 +2484,7 @@ class RustExpr {
             && (isTNull(narrowedBranch) || isTNull(noneBranch));
         var narrowedText = nullableResult ? wrapBranchForNullableResult(narrowedBranch, resultType, noneBranch)
             : conditionalBranchText(narrowedBranch, noneBranch, resultType);
+        final tailText = prefix == null ? null : expr(prefix.tail);
         final hit = optionNarrowingHit;
         optionNarrowings.pop();
         optionNarrowingHit = previousHit;
@@ -2472,6 +2499,8 @@ class RustExpr {
         }
         var noneText = nullableResult ? wrapBranchForNullableResult(noneBranch, resultType, narrowedBranch)
             : conditionalBranchText(noneBranch, narrowedBranch, resultType);
+        if (tailText != null)
+            narrowedText = "if " + tailText + " { " + narrowedText + " } else { " + noneText + " }";
         final branchTarget = conditionalNumericTarget(narrowedBranch, noneBranch, resultType);
         if (branchTarget != null) {
             narrowedText = normalizeNumericBranch(narrowedBranch, branchTarget, narrowedText);
@@ -2506,7 +2535,8 @@ class RustExpr {
     }
 
     function guardedMatchStatements(guard:TypedExpr, ifTrue:TypedExpr, ifFalse:Null<TypedExpr>, depth:Int):Null<Array<String>> {
-        final info = nullGuardOf(guard);
+        final prefix = nullGuardPrefix(guard);
+        final info = prefix == null ? nullGuardOf(guard) : prefix.info;
         if (info == null)
             return null;
         // A guard without an else arm narrows only the arm that exists;
@@ -2519,7 +2549,12 @@ class RustExpr {
         final previousHit = optionNarrowingHit;
         optionNarrowingHit = false;
         optionNarrowings.push({subjectText: subjectTextOf(info.subject), name: name});
-        final narrowed = blockLines(statementsOf(narrowedBranch), depth + 2);
+        var narrowed = blockLines(statementsOf(narrowedBranch), depth + 2);
+        if (prefix != null) {
+            narrowed = [indent(depth + 2) + "if " + expr(prefix.tail) + " {"]
+                .concat(narrowed)
+                .concat([indent(depth + 2) + "}"]);
+        }
         final hit = optionNarrowingHit;
         optionNarrowings.pop();
         optionNarrowingHit = previousHit;
@@ -3728,7 +3763,7 @@ class RustExpr {
                 final guard = nullGuardOf(l);
                 if (guard != null && !guard.noneWhenTrue) {
                     final name = freshRegionName("__option");
-                    optionNarrowings.push({subjectText: expr(guard.subject), name: name});
+                    optionNarrowings.push({subjectText: subjectTextOf(guard.subject), name: name});
                     final right = expr(r);
                     final hit = narrowedSubject(guard.subject) != null;
                     optionNarrowings.pop();
@@ -3759,7 +3794,7 @@ class RustExpr {
                 final guard = nullGuardOf(l);
                 if (guard != null && guard.noneWhenTrue) {
                     final name = freshRegionName("__option");
-                    optionNarrowings.push({subjectText: expr(guard.subject), name: name});
+                    optionNarrowings.push({subjectText: subjectTextOf(guard.subject), name: name});
                     final right = expr(r);
                     final hit = narrowedSubject(guard.subject) != null;
                     optionNarrowings.pop();
@@ -4544,7 +4579,8 @@ class RustExpr {
                 // is the match binding. The binding is a reference, so clone
                 // the non-Copy referent.
                 final narrowed = narrowedSubject(subj);
-                if (narrowed != null)
+                final narrowedReceiver = narrowed == null ? narrowedReceiverSubject(subj) : null;
+                if (narrowed != null || narrowedReceiver != null)
                     optionNarrowingHit = true;
                 // A proven guard subject is Some at this read: the forcing
                 // read opens the guarded local directly through the borrow,
@@ -4556,7 +4592,7 @@ class RustExpr {
                 // closure body. The closure runs only when the guard did not
                 // fill, which never happens after the guard.
                 final filled = narrowed == null && proven == null && isNullType(subj.t) ? filledSubjectOf(subj) : null;
-                final subjStr = if (narrowed != null) narrowed else if (proven != null) proven else if (filled != null) subjText
+                final subjStr = if (narrowed != null) narrowed else if (narrowedReceiver != null) narrowedReceiver else if (proven != null) proven else if (filled != null) subjText
                     + ".get_or_insert_with(|| " + filled + ")" else if (receiverCarriesFallibleWrapper(subj)) subjText
                     + ".as_ref().unwrap()" else subjText;
                 final access = subjStr + "." + snake;
