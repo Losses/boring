@@ -5,6 +5,10 @@ class HaxeExceptionOps {
     public static function throwFault(message:String):Void {
         throw new HaxeExceptionFault(message);
     }
+
+    public static function throwJoined(lead:String, tail:String):Void {
+        throw new HaxeExceptionFault(lead + tail);
+    }
 }
 
 class HaxeExceptionFault extends haxe.Exception {
