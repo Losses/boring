@@ -1435,6 +1435,15 @@ class RustExpr {
         borrows through as_str.
     **/
     function exceptionMessageArg(arg:TypedExpr):String {
+        return stringViewArg(arg);
+    }
+
+    /**
+        stringViewArg: a Rust &str slot takes a Haxe String. A string literal
+        keeps its static borrowing, a borrowed parameter is already a view,
+        and every other String expression borrows through as_str.
+    **/
+    function stringViewArg(arg:TypedExpr):String {
         final rendered = expr(arg);
         if (!isStringType(arg.t))
             return rendered;
@@ -5903,19 +5912,21 @@ class RustExpr {
             case TField(_, FStatic(c, cf)) if (c.get().module == "haxe.io.Bytes" && cf.get().name == "concat" && args.length == 2):
                 return "{ let mut v = " + expr(args[0]) + ".to_vec(); v.extend_from_slice(&" + expr(args[1]) + "); v }";
             case TField(_, FStatic(c, cf))
-                if (c.get().name == "NodeFileSystem" && isNodeFileSystemOperation(cf.get().name)):
+                if ((c.get().name == "NodeFileSystem" && isNodeFileSystemOperation(cf.get().name))
+                    || (c.get().meta.has(":jsRequire") && isNodeFileSystemOperation(cf.get().name))):
                 // The trace writer's file extern binds node:fs, which has
                 // no rust face; both members lower to the resident file
                 // edge, which carries the same create-parents and
-                // utf-8 write behavior with the host failure mapping.
+                // utf-8 write behavior with the host failure mapping. The
+                // resident edge reads &str, so each String argument borrows.
                 state.shimsUsed.set("std.Fs", true);
                 imports.requireType("std.Fs", "Fs");
                 final fsName = cf.get().name;
                 if (fsName == "mkdirSync" && args.length >= 1) {
-                    return "Fs::make_dirs(" + expr(args[0]) + ")";
+                    return "Fs::make_dirs(" + stringViewArg(args[0]) + ")";
                 }
                 if (fsName == "writeFileSync" && args.length >= 2) {
-                    return "Fs::write_text(" + expr(args[0]) + ", " + expr(args[1]) + ")";
+                    return "Fs::write_text(" + stringViewArg(args[0]) + ", " + stringViewArg(args[1]) + ")";
                 }
                 Context.error("file extern has no lowering for member " + fsName, fn.pos);
                 return "null";
