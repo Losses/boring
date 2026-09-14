@@ -542,3 +542,6 @@ tests.UsizeComparisonTests
 
 boring.SignedIntArgumentOps
 tests.SignedIntArgumentTests
+
+boring.InterfaceConditionalOps
+tests.InterfaceConditionalTests
