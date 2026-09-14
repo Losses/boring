@@ -8952,7 +8952,7 @@ class RustExpr {
             if (isNullType(branch.t) || StaticFieldHelper.isNullableType(branch.t))
                 return text;
             final inner = getNullInnerType(resultType);
-            final coerced = coerceBranchText(text, inner, sibling);
+            final coerced = coerceBranchText(branch, text, inner, sibling);
             // A concrete implementor branch of a Null<Interface> result
             // boxes inside the Some; an already-interface-typed branch is
             // already boxed by its declaration site. Haxe unifies a
@@ -8963,17 +8963,23 @@ class RustExpr {
             }
             return "Some(" + coerced + ")";
         }
-        return coerceBranchText(text, resultType, sibling);
+        return coerceBranchText(branch, text, resultType, sibling);
     }
 
     /** The non-nullable arm coercions: owned-string conversion and the
         u_string count reinterpret, applied unchanged for both result
         shapes. **/
-    function coerceBranchText(text:String, resultType:Null<Type>, sibling:TypedExpr):String {
+    function coerceBranchText(branch:TypedExpr, text:String, resultType:Null<Type>, sibling:TypedExpr):String {
         if (resultType != null && isStringType(resultType)) {
             if (StringTools.endsWith(text, ".to_string()") || StringTools.endsWith(text, ".clone()"))
                 return text;
             return text + ".to_string()";
+        }
+        // An owned Vec result slot that receives a borrowed array parameter
+        // clones the referent, so both arms of the conditional carry one
+        // Rust type.
+        if (resultType != null && isOwnedVecType(resultType) && borrowedArrayRead(branch)) {
+            return "(*" + text + ").clone()";
         }
         if (text.indexOf("u_string::count") >= 0 && resolveExprType(sibling) == "i32") {
             return RustConversions.reinterpret(text, "i32");
