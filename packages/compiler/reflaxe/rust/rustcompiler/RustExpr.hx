@@ -3966,8 +3966,17 @@ class RustExpr {
     // as_ref/unwrap forcing read only applies to wrapper-backed types.
     // Covers the plain-struct nullable receiver family.
     function rendersRustFallibleWrapper(t:Type):Bool {
-        if (isAnonymousStructType(t))
+        // Anonymous structure types cannot be translated by the Rust type
+        // renderer, and they never render as an Option/Result wrapper, so
+        // exclude them before the translation call. The receiver guard
+        // reaches this helper for every indexed subject, including inline
+        // anonymous structures that carry no Null<T> wrapper.
+        if (t == null || isAnonymousStructType(t))
             return false;
+        switch (Context.follow(t)) {
+            case TAnonymous(_): return false;
+            case _:
+        }
         final rustType = types.of(t, false);
         return StringTools.startsWith(rustType, "Option<") || StringTools.startsWith(rustType, "Result<");
     }
