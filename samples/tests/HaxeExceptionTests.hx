@@ -38,4 +38,19 @@ class HaxeExceptionTests {
         Test.equals(true, true);
         #end
     }
+
+    @:test("a direct message-only throw joins the callee fault union")
+    public static function mixedMessage():Void {
+        #if rust_output
+        var caught = "";
+        try {
+            HaxeExceptionOps.throwMixed("");
+        } catch (error:HaxeExceptionFault) {
+            caught = error.message;
+        }
+        Test.equals("direct", caught);
+        #else
+        Test.equals(true, true);
+        #end
+    }
 }

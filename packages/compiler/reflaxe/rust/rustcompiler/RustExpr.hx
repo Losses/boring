@@ -1261,17 +1261,24 @@ class RustExpr {
             case TNew(c, _, args) if (args.length == 1): exceptionVariant(c.get(), args[0]);
             case _: expr(x);
         };
-        final payload = switch (inner.expr) {
-            case TNew(_, _, args) if (args.length == 1): payloadEnumRef(args[0]);
+        if (errorTypeName == null || !StringTools.endsWith(errorTypeName, "Fault"))
+            return raw;
+        // A function whose Result error is a synthetic union still throws
+        // concrete exception types: wrap the payload in the matching union
+        // variant. A message-only exception has no payload enum, so the
+        // member is the class itself.
+        final member:Null<{module:String, name:String}> = switch (inner.expr) {
+            case TNew(c, _, args) if (args.length == 1):
+                final payload = payloadEnumRef(args[0]);
+                payload != null
+                    ? {module: payload.get().module, name: payload.get().name}
+                    : {module: c.get().module, name: c.get().name};
             case _: null;
         };
-        if (payload != null
-            && errorTypeName != null
-            && StringTools.endsWith(errorTypeName, "Fault")
-            && errorTypeName != payload.get().name) {
-            return errorTypeName + "::" + payload.get().name + "Fault(" + raw + ")";
-        }
-        return raw;
+        if (member == null || errorTypeName == member.name)
+            return raw;
+        final variant = state.syntheticErrorVariant(errorTypeName, member);
+        return errorTypeName + "::" + (variant != null ? variant : member.name + "Fault") + "(" + raw + ")";
     }
 
     /**
