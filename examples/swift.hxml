@@ -576,3 +576,6 @@ tests.SignedLoopBoundOpsTests
 
 boring.BranchedOptionalFieldOps
 tests.BranchedOptionalFieldOpsTests
+
+boring.FloatModCompareOps
+tests.FloatModCompareOpsTests
