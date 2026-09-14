@@ -1640,6 +1640,7 @@ class RustDecl {
         if (methodParams.length == 0)
             return methodParams;
         final reached:Array<String> = [];
+        final debugNeeded:Array<String> = [];
         if (f.ret != null) {
             switch (Context.follow(f.ret)) {
                 case TInst(c, ps) if (c.get().params.length > 0 && c.get().name != "Array"):
@@ -1675,13 +1676,25 @@ class RustDecl {
                         final pn = typeParamName(e.t);
                         if (pn != null && methodParams.indexOf(pn) >= 0 && reached.indexOf(pn) < 0)
                             reached.push(pn);
+                    case TCall({expr: TField(_, FStatic(c, cf))}, args) if (c.get().module == "Std" && cf.get().name == "string"):
+                        // Std.string(x) lowers to format!("{:?}", x) which
+                        // requires Debug on the argument type.
+                        for (a in args) {
+                            final pn = typeParamName(a.t);
+                            if (pn != null && methodParams.indexOf(pn) >= 0 && debugNeeded.indexOf(pn) < 0)
+                                debugNeeded.push(pn);
+                        }
                     case _:
                 }
                 haxe.macro.TypedExprTools.iter(e, walk);
             }
             walk(f.expr);
         }
-        return [for (n in methodParams) reached.indexOf(n) >= 0 ? n + ": Clone" : n];
+        return [for (n in methodParams) {
+            if (reached.indexOf(n) >= 0 && debugNeeded.indexOf(n) >= 0) n + ": Clone + std::fmt::Debug"
+            else if (reached.indexOf(n) >= 0) n + ": Clone"
+            else n;
+        }];
     }
 
     function returnsArgArray(f:ClassFuncData):Bool {
