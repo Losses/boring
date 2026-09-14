@@ -9184,7 +9184,14 @@ class RustExpr {
             // concrete constructor's branch type to the interface, so the
             // concrete class is recovered from the expression node.
             if (isInterfaceType(inner) && (!isInterfaceType(branch.t) || isConcreteConstructor(branch))) {
-                return "Some(Box::new(" + normalizeConstructorResult(branch, coerced) + "))";
+                // Rust does not auto-coerce Box<Concrete> to Box<dyn Trait>
+                // inside Some(...), so the explicit `as` cast is required.
+                final ifaceName = switch (inner) {
+                    case TInst(c, _): c.get().name;
+                    case _: null;
+                };
+                final castSuffix = ifaceName != null ? " as Box<dyn " + ifaceName + ">" : "";
+                return "Some(Box::new(" + normalizeConstructorResult(branch, coerced) + ")" + castSuffix + ")";
             }
             return "Some(" + coerced + ")";
         }
