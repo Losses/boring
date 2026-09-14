@@ -548,3 +548,6 @@ tests.NullableArrayArgumentTests
 
 boring.SignedIntConstructorOps
 tests.SignedIntConstructorTests
+
+boring.FPHelperRustOps
+tests.FPHelperRustTests
