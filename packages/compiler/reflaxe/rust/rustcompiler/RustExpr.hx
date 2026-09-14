@@ -2711,9 +2711,14 @@ class RustExpr {
         // A nullable result wraps the whole match in Some(...) when both
         // arms are non-null values (the same rule
         // wrapBranchForNullableResult applies to plain ternaries); an arm
-        // that already yields None/Some keeps the Option shape.
+        // that already yields None/Some keeps the Option shape. A
+        // concrete-constructor arm of a Null<Interface> result already
+        // wraps in Some(Box::new(...)) inside the match, so the outer
+        // wrap must not re-apply.
         if (isNullType(resultType) && !isNullType(narrowedBranch.t) && !StaticFieldHelper.isNullableType(narrowedBranch.t)
-            && !isNullType(noneBranch.t) && !StaticFieldHelper.isNullableType(noneBranch.t))
+            && !isNullType(noneBranch.t) && !StaticFieldHelper.isNullableType(noneBranch.t)
+            && !(isInterfaceType(getNullInnerType(resultType))
+                && (isConcreteConstructor(narrowedBranch) || isConcreteConstructor(noneBranch))))
             return "Some(" + matchText + ")";
         return matchText;
     }
@@ -8806,13 +8811,6 @@ class RustExpr {
                 return "Some(Box::new(" + normalizeConstructorResult(branch, coerced) + "))";
             }
             return "Some(" + coerced + ")";
-        }
-        if (resultType != null && isInterfaceType(resultType) && (!isInterfaceType(branch.t) || isConcreteConstructor(branch))) {
-            // A concrete implementor branch of an interface result boxes
-            // through the sanctioned construction; the interface-typed
-            // sibling is already boxed by its declaration site.
-            final coerced = coerceBranchText(text, resultType, sibling);
-            return "Box::new(" + normalizeConstructorResult(branch, coerced) + ")";
         }
         return coerceBranchText(text, resultType, sibling);
     }
