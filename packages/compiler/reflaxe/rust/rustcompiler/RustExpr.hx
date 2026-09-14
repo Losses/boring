@@ -4160,6 +4160,26 @@ class RustExpr {
                     leftText = intToFloatText(leftText);
                 if (isIntType(emittedType(r)) && isFloatType(emittedType(l)))
                     rightText = intToFloatText(rightText);
+                // An ordered comparison keeps both sides in one Rust integer
+                // type. When one operand renders in the signed i32 domain and
+                // the other in the business u32 domain, reinterpret the u32
+                // side. An integer literal keeps its inferred type.
+                if (!isFloatType(emittedType(l)) && !isFloatType(emittedType(r))) {
+                    final leftI32 = rendersI32ComparisonOperand(l, leftText);
+                    final rightI32 = rendersI32ComparisonOperand(r, rightText);
+                    final leftLiteral = switch (stripWrap(l).expr) {
+                        case TConst(TInt(_)): true;
+                        case _: false;
+                    };
+                    final rightLiteral = switch (stripWrap(r).expr) {
+                        case TConst(TInt(_)): true;
+                        case _: false;
+                    };
+                    if (leftI32 && !rightI32 && !rightLiteral)
+                        rightText = RustConversions.reinterpret(rightText, "i32");
+                    else if (rightI32 && !leftI32 && !leftLiteral)
+                        leftText = RustConversions.reinterpret(leftText, "i32");
+                }
                 if (signedComparison)
                     i32ComparisonTarget = false;
                 return "(" + leftText + ") " + symbolOf(op) + " (" + rightText + ")";
@@ -4268,6 +4288,22 @@ class RustExpr {
             case TCall(fn, _) if (isVecIndexOf(fn)): true;
             case _: false;
         };
+    }
+
+    /**
+        rendersI32ComparisonOperand: an ordered comparison operand that already
+        lowers in the signed i32 domain. The rendered text carries the wrapping
+        and reinterpretation forms; a plain i32 local or an indexOf result is
+        signed by construction.
+    **/
+    function rendersI32ComparisonOperand(e:TypedExpr, text:String):Bool {
+        // A resident module renders every Int in the signed i32 domain.
+        if (RuntimeResidents.isResident(imports.selfModule))
+            return true;
+        if (StringTools.startsWith(text, "i32::") || StringTools.startsWith(text, "(i32::")
+            || StringTools.startsWith(text, "match ") || StringTools.startsWith(text, "(match "))
+            return true;
+        return i32LocalDomain(e) || rendersSignedIntExpr(e);
     }
 
     /**
