@@ -117,6 +117,9 @@ class RustExpr {
     final countdownShiftedVars:Map<Int, Bool> = [];
     // Keep Option when Haxe code observes null separately from code point zero.
     final nullableSensitiveLocals:Map<Int, Bool> = [];
+    // Locals initialized from Std.parseInt hold the i32 parse domain. The
+    // push renderer reinterprets them at the business u32 element boundary.
+    final parseIntLocals:Map<Int, Bool> = [];
     final fpInt64Halves:Map<Int, Bool> = [];
     var hiddenCounter:Int = 0;
 
@@ -511,6 +514,7 @@ class RustExpr {
         unsignedLocals.clear();
         nullableCollapsedLocals.clear();
         nullableSensitiveLocals.clear();
+        parseIntLocals.clear();
         i32Locals.clear();
         i32BindingLocals.clear();
         declaredUnsignedIntLocals.clear();
@@ -2406,6 +2410,13 @@ class RustExpr {
                     && !StringTools.endsWith(argStr, ".to_string()")) {
                     argStr = argStr + ".clone()";
                 }
+            } else if (isIntType(getNullInnerType(arg.t)) && (parseIntLocals.exists(switch (stripWrap(arg).expr) {
+                case TLocal(v): v.id;
+                case _: -1;
+            }) || isStdParseIntCall(arg))) {
+                // A nullable parseInt or i32-domain Int unwraps to i32 while
+                // the array element slot is the business u32 domain.
+                argStr = RustConversions.reinterpret(argStr, "u32");
             }
             return argStr;
         }
@@ -7186,6 +7197,8 @@ class RustExpr {
                         case TCall(fn, _):
                             if (isFpHelperInt64Call(fn))
                                 fpInt64Halves.set(v.id, true);
+                            if (isStdParseIntCall(init))
+                                parseIntLocals.set(v.id, true);
                             switch (fn.expr) {
                                 case TField(_, FInstance(_, _, cf)) | TField(_, FStatic(_, cf)):
                                     final n = cf.get().name;
@@ -7804,6 +7817,17 @@ class RustExpr {
             case TField(subj, FInstance(_, _, cf))
                 if ((cf.get().name == "indexOf" || cf.get().name == "lastIndexOf" || cf.get().name == "last_index_of")
                     && isString(stripCast(subj))): true;
+            case _: false;
+        };
+    }
+
+    /** Whether the expression is a Std.parseInt call, whose result is i32. */
+    function isStdParseIntCall(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TCall(fn, _): switch (stripWrap(fn).expr) {
+                    case TField(_, FStatic(c, cf)): c.get().module == "Std" && cf.get().name == "parseInt";
+                    case _: false;
+                };
             case _: false;
         };
     }

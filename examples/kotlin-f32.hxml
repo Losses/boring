@@ -515,3 +515,6 @@ tests.FPHelperRustTests
 
 boring.VecInsertOps
 tests.VecInsertTests
+
+boring.ParseIntPushOps
+tests.ParseIntPushTests
