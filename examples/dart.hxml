@@ -554,3 +554,7 @@ tests.SignedIntConstructorTests
 
 boring.FPHelperRustOps
 tests.FPHelperRustTests
+
+
+boring.VecInsertOps
+tests.VecInsertTests

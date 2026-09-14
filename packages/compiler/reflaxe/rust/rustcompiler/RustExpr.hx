@@ -5918,6 +5918,9 @@ class RustExpr {
                 if (name == "unshift" && isVecType(subj) && args.length == 1) {
                     return expr(subj) + ".insert(0, " + renderPushArg(args[0]) + ")";
                 }
+                if (name == "insert" && isVecType(subj) && args.length == 2) {
+                    return expr(subj) + ".insert(" + castArg(args[0], "usize") + ", " + renderPushArg(args[1]) + ")";
+                }
                 if (name == "indexOf" && isVecType(subj) && args.length >= 1) {
                     final needle = expr(args[0]);
                     return "match "
