@@ -8540,7 +8540,7 @@ class RustExpr {
                 case _: false;
             };
             if (borrowedParam)
-                return "match " + rendered + " { Some(v) => Some(v.to_string()), None => None }";
+                return "match &(" + rendered + ") { Some(v) => Some(v.to_string()), None => None }";
         }
         // charCodeAt is represented as Option<u32>; crossing into a plain
         // value parameter applies Haxe's null-to-zero bridge exactly once.
