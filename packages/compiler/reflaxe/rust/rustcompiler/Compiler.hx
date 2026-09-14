@@ -1107,6 +1107,7 @@ class Compiler extends PluginCompiler<Compiler> {
         // region for: a fully handled domain does not infect the enclosing
         // function (features/06 catch-site lowering).
         final entries:Array<{key:String, edges:Array<{callee:String, absorbed:Array<String>}>}> = [];
+        final interfaceGather:Map<String, Array<{module:String, name:String}>> = [];
         function mergeEnum(key:String, pair:{module:String, name:String}):Bool {
             final existing = enumOf.get(key);
             if (existing == null) {
@@ -1129,6 +1130,31 @@ class Compiler extends PluginCompiler<Compiler> {
                     current.push(pair);
             }
             return false;
+        }
+        function declareUnion(key:String, set:Array<{module:String, name:String}>):{module:String, name:String} {
+            final sep = key.indexOf("::");
+            final module = key.substr(0, sep);
+            final tail = key.substr(sep + 2);
+            final dot = tail.indexOf(".");
+            final fieldName = tail.substr(dot + 1);
+            final className = module.substr(module.lastIndexOf(".") + 1);
+            final unionName = className + RustImports.toUpperCamelCase(fieldName) + "Fault";
+            if (state.isSyntheticErrorType(unionName))
+                return {module: module, name: unionName};
+            final variants:Map<String, String> = [];
+            for (item in set) {
+                final variant = StringTools.startsWith(item.name, className)
+                    && StringTools.endsWith(item.name, "Fault") ? item.name.substr(className.length) : item.name + "Fault";
+                variants.set(item.module + "::" + item.name, variant);
+            }
+            var decls = state.syntheticErrorEnums.get(module);
+            if (decls == null) {
+                decls = [];
+                state.syntheticErrorEnums.set(module, decls);
+            }
+            decls.push({name: unionName, members: set});
+            state.syntheticErrorVariants.set(unionName, variants);
+            return {module: module, name: unionName};
         }
         // A u32 length write lowers through u32::try_from(...)?, so its
         // overflow belongs to the same error enum the runtime shims use.
@@ -1307,6 +1333,96 @@ class Compiler extends PluginCompiler<Compiler> {
                         continue;
                     if (edge.absorbed.indexOf(edgeEnum.module) >= 0)
                         continue;
+                    if (mergeEnum(entry.key, edgeEnum))
+                        changed = true;
+                    if (!fallible.exists(entry.key)) {
+                        fallible.set(entry.key, true);
+                        changed = true;
+                    }
+                }
+            }
+        }
+        // An interface method has no body to scan, so its trait signature
+        // must cover every implementation. Collect the implementing bodies'
+        // error sets after propagation; a method whose implementations
+        // disagree forms one union so the trait, every impl, and every call
+        // site share a single Result error type.
+        for (mt in mtypes) switch (mt) {
+            case TClassDecl(c):
+                final cls = c.get();
+                if (cls.isInterface || cls.isExtern || !inSourceScope(cls.pos))
+                    continue;
+                for (ifaceRef in cls.interfaces) {
+                    final iface = ifaceRef.t.get();
+                    for (ifField in iface.fields.get()) {
+                        var impl:haxe.macro.Type.ClassField = null;
+                        for (field in cls.fields.get()) if (field.name == ifField.name) impl = field;
+                        if (impl == null) continue;
+                        final implKey = RustEmissionState.funcKey(cls.module, impl.name, false);
+                        final set = members.get(implKey);
+                        final pairs = set != null ? set : (enumOf.get(implKey) != null ? [enumOf.get(implKey)] : []);
+                        if (pairs.length == 0) continue;
+                        final ifaceKey = RustEmissionState.funcKey(iface.module, ifField.name, false);
+                        var gather = interfaceGather.get(ifaceKey);
+                        if (gather == null) {
+                            gather = [];
+                            interfaceGather.set(ifaceKey, gather);
+                        }
+                        for (pair in pairs) {
+                            var seen = false;
+                            for (item in gather)
+                                if (item.module == pair.module && item.name == pair.name)
+                                    seen = true;
+                            if (!seen)
+                                gather.push(pair);
+                        }
+                    }
+                }
+            case _:
+        }
+        for (ifaceKey in interfaceGather.keys()) {
+            final gather = interfaceGather.get(ifaceKey);
+            if (gather.length < 2)
+                continue;
+            final unionPair = declareUnion(ifaceKey, gather);
+            enumOf.set(ifaceKey, unionPair);
+            members.set(ifaceKey, [unionPair]);
+            fallible.set(ifaceKey, true);
+            conflicts.remove(ifaceKey);
+        }
+        // Callers of a newly unioned interface method absorb the union in a
+        // second propagation pass, before any caller union is declared, so
+        // the interface union becomes a member of each caller's own union.
+        changed = true;
+        while (changed) {
+            changed = false;
+            for (entry in entries) {
+                for (edge in entry.edges) {
+                    final edgeEnum = enumOf.get(edge.callee);
+                    if (edgeEnum == null)
+                        continue;
+                    if (edge.absorbed.indexOf(edgeEnum.module) >= 0)
+                        continue;
+                    // A callee union that already covers every error the
+                    // caller carries becomes the caller's Result directly;
+                    // nesting it as a member would need a leaf conversion
+                    // the catch lowering cannot build.
+                    if (state.isSyntheticErrorType(edgeEnum.name)) {
+                        final nested = state.syntheticErrorMembers(edgeEnum.name);
+                        final current = members.get(entry.key);
+                        var covered = current != null && nested != null && current.length > 0;
+                        if (covered) {
+                            for (item in current)
+                                if (nested.indexOf(item) < 0)
+                                    covered = false;
+                        }
+                        if (covered) {
+                            members.set(entry.key, [edgeEnum]);
+                            enumOf.set(entry.key, edgeEnum);
+                            fallible.set(entry.key, true);
+                            continue;
+                        }
+                    }
                     if (mergeEnum(entry.key, edgeEnum))
                         changed = true;
                     if (!fallible.exists(entry.key)) {
