@@ -2728,6 +2728,10 @@ class RustExpr {
                         // casts to i32 bit-preserving. Resident modules keep
                         // the signed i32 rendering.
                         if (v < 0 && !RuntimeResidents.isResident(imports.selfModule)) {
+                            // A comparison against an i32-domain operand keeps
+                            // the signed literal so both sides share one type.
+                            if (i32ComparisonTarget)
+                                return Std.string(v) + "i32";
                             return Std.string(v + 4294967296) + "u32";
                         }
                         return Std.string(v);
@@ -4123,7 +4127,7 @@ class RustExpr {
                 // `<` as generic arguments (`x as u32 < y`).  Comparisons are
                 // a precedence boundary, so group both operands unconditionally.
                 // Signed-domain locals make arithmetic on the other side signed.
-                final signedComparison = i32LocalDomain(l) || i32LocalDomain(r);
+                final signedComparison = i32LocalDomain(l) || i32LocalDomain(r) || rendersSignedIntExpr(l) || rendersSignedIntExpr(r);
                 if (signedComparison)
                     i32ComparisonTarget = true;
                 var leftText = operand(l, op, false);
@@ -4150,9 +4154,11 @@ class RustExpr {
                 // An i32-domain operand compared with a business u32 operand
                 // reinterprets its bits so both sides share the u32 domain.
                 if (isIntType(emittedType(l)) && isIntType(emittedType(r)) && !isFloatType(e.t)) {
-                    if (i32LocalDomain(l) && !i32LocalDomain(r))
+                    final leftSigned = i32LocalDomain(l) || rendersSignedIntExpr(l);
+                    final rightSigned = i32LocalDomain(r) || rendersSignedIntExpr(r);
+                    if (leftSigned && !rightSigned)
                         left = RustConversions.reinterpret(left, "u32");
-                    else if (i32LocalDomain(r) && !i32LocalDomain(l))
+                    else if (rightSigned && !leftSigned)
                         right = RustConversions.reinterpret(right, "u32");
                 }
                 return left + " " + symbolOf(op) + " " + right;
@@ -4226,6 +4232,30 @@ class RustExpr {
                     case _: [];
                 };
             case _: [];
+        };
+    }
+
+    /**
+        rendersSignedIntExpr: an expression that lowers in the i32 domain
+        without a local binding, so a comparison against it keeps the signed
+        literal and the wrapping arithmetic.
+    **/
+    function rendersSignedIntExpr(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TCall(fn, _) if (isStringIndexOf(fn)): true;
+            case TCall(fn, _) if (isVecIndexOf(fn)): true;
+            case _: false;
+        };
+    }
+
+    /**
+        isVecIndexOf: an Array<T> indexOf call, whose lowering yields the same
+        signed match as the String form.
+    **/
+    function isVecIndexOf(fn:TypedExpr):Bool {
+        return switch (stripWrap(fn).expr) {
+            case TField(subj, FInstance(_, _, cf)) if (cf.get().name == "indexOf" && isVecType(subj)): true;
+            case _: false;
         };
     }
 
