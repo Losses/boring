@@ -496,3 +496,6 @@ tests.SignedComparisonTests
 
 boring.UsizeComparisonOps
 tests.UsizeComparisonTests
+
+boring.SignedIntArgumentOps
+tests.SignedIntArgumentTests
