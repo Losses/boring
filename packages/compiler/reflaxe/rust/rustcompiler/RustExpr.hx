@@ -935,6 +935,10 @@ class RustExpr {
                     localError != null
                         ? ": " + types.functionReturnOfFallible(v.t, localError)
                         : ": " + (isStaticRef ? types.of(v.t, false) : types.functionReturnOf(v.t));
+                } else if (isNullType(v.t) && isInterfaceType(getNullInnerType(v.t))) {
+                    // A nullable interface local needs its Option trait
+                    // object type before conditional inference runs.
+                    ": " + types.of(v.t, false);
                 } else switch (v.t) {
                     case TInst(c, _) if (c.get().isInterface):
                         // An interface local carries its boxed trait object
