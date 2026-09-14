@@ -2513,6 +2513,11 @@ class RustExpr {
             // A literal is a &str while the Null target owns
             // Option<String>; clone does not exist on str.
             case TConst(TString(_)): expr(r) + ".to_string()";
+            // A borrowed String parameter is a &str view; the owned
+            // Option<String> slot converts its text once.
+            case TLocal(v) if (isBorrowedLocal(v) && isStringType(r.t)):
+                final borrowed = expr(r);
+                StringTools.endsWith(borrowed, ".to_string()") ? borrowed : borrowed + ".to_string()";
             case _:
                 final s = expr(r);
                 if (!StringTools.endsWith(s, ".clone()")

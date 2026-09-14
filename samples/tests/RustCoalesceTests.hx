@@ -9,6 +9,11 @@ class RustCoalesceTests {
         Test.equals(3, RustCoalesceOps.resolvedInts());
     }
 
+    @:test("a nullable String field assignment owns a borrowed view")
+    public static function assignedStringField():Void {
+        Test.equals(true, RustCoalesceOps.assignedLabel("tone"));
+    }
+
     @:test("an omitted nullable String parameter owns the substituted view")
     public static function substitutedStringDefault():Void {
         Test.equals("tone", RustCoalesceOps.displayDefault("tone"));
