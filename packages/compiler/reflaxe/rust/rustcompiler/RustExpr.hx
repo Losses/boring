@@ -4167,6 +4167,8 @@ class RustExpr {
                 if (!isFloatType(emittedType(l)) && !isFloatType(emittedType(r))) {
                     final leftI32 = rendersI32ComparisonOperand(l, leftText);
                     final rightI32 = rendersI32ComparisonOperand(r, rightText);
+                    final leftUsize = rendersUsizeComparisonOperand(l, leftText);
+                    final rightUsize = rendersUsizeComparisonOperand(r, rightText);
                     final leftLiteral = switch (stripWrap(l).expr) {
                         case TConst(TInt(_)): true;
                         case _: false;
@@ -4175,10 +4177,14 @@ class RustExpr {
                         case TConst(TInt(_)): true;
                         case _: false;
                     };
-                    if (leftI32 && !rightI32 && !rightLiteral)
+                    if (leftI32 && !rightI32 && !rightUsize && !rightLiteral)
                         rightText = RustConversions.reinterpret(rightText, "i32");
-                    else if (rightI32 && !leftI32 && !leftLiteral)
+                    else if (rightI32 && !leftI32 && !leftUsize && !leftLiteral)
                         leftText = RustConversions.reinterpret(leftText, "i32");
+                    else if (leftUsize && !rightUsize && !leftI32 && !rightI32)
+                        leftText = RustConversions.truncate(leftText, "u32");
+                    else if (rightUsize && !leftUsize && !leftI32 && !rightI32)
+                        rightText = RustConversions.truncate(rightText, "u32");
                 }
                 if (signedComparison)
                     i32ComparisonTarget = false;
@@ -4304,6 +4310,18 @@ class RustExpr {
             || StringTools.startsWith(text, "match ") || StringTools.startsWith(text, "(match "))
             return true;
         return i32LocalDomain(e) || rendersSignedIntExpr(e);
+    }
+
+    /**
+        rendersUsizeComparisonOperand: an ordered comparison operand that
+        lowers as a Rust usize. A length read and a nullable length read (the
+        as_ref/map_or form) are the two shapes; the business Int side narrows
+        the usize operand to the comparison's u32 domain.
+    **/
+    function rendersUsizeComparisonOperand(e:TypedExpr, text:String):Bool {
+        if (StringTools.startsWith(text, "usize::") || StringTools.endsWith(text, ".len()"))
+            return true;
+        return text.indexOf(".as_ref().map_or(0, |v| v.len())") >= 0;
     }
 
     /**

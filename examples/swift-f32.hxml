@@ -494,3 +494,6 @@ tests.BorrowedStringReturnTests
 
 boring.SignedComparisonOps
 tests.SignedComparisonTests
+
+boring.UsizeComparisonOps
+tests.UsizeComparisonTests
