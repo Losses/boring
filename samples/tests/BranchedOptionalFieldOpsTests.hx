@@ -18,4 +18,11 @@ class BranchedOptionalFieldOpsTests {
         Test.equals(0.5, BranchedOptionalFieldOps.rate());
         #end
     }
+
+    @:test("a branch-assigned interface field declares its owned Rust type")
+    public static function ruleTag():Void {
+        #if rust_output
+        Test.equals("concrete", BranchedOptionalFieldOps.ruleTag());
+        #end
+    }
 }
