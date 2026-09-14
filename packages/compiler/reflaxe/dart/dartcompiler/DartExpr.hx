@@ -604,7 +604,10 @@ class DartExpr {
                                 final paramOptional = DefaultArgExpander.isOptionalDefaultAt(cls, f.field.name, paramIndex(f, param));
                                 if (paramOptional && !PolicyQueries.isNullableType(fieldType)) {
                                     final defaultText = isArrayType(fieldType) ? emptyArrayText(fieldType) : "null";
-                                    fieldInits.push(field + " = (" + valueText + " ?? " + defaultText + ")!");
+                                    // The coalescing expression has the field's
+                                    // non-nullable type after `??`; avoid a
+                                    // redundant null assertion in generated Dart.
+                                    fieldInits.push(field + " = " + valueText + " ?? " + defaultText + ";");
                                 } else {
                                     formalFields.set(param, field);
                                     // The initializing formal `this.field` makes

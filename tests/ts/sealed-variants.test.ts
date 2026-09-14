@@ -205,7 +205,7 @@ test("the sanctioned self-construction static uses each target lane", async () =
     expect(trees.swift).toContain("static let instance: NoneDrawKind = NoneDrawKind()");
     expect(trees.dart).toContain("static final instance = NoneDrawKind();");
     expect(trees.rust).not.toContain("#[allow(non_upper_case_globals)]");
-    expect(trees.rust).toContain("pub static INSTANCE: Mutex<NoneDrawKind> = Mutex::new(NoneDrawKind::new());");;
+    expect(trees.rust).toContain("pub static NONE_DRAW_KIND_INSTANCE: Mutex<NoneDrawKind> = Mutex::new(NoneDrawKind::new());");
   } finally {
     fs.rmSync(mutationRoot, { recursive: true, force: true });
   }
