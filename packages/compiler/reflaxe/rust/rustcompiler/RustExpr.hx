@@ -4509,6 +4509,12 @@ class RustExpr {
             case OpNegBits:
                 return "!" + inner;
             case OpNeg:
+                // Haxe Int values are unsigned in resident modules, while
+                // unary negation requires the signed i32 domain. Preserve the
+                // signed result at this operator boundary so Rust does not
+                // apply unary `-` to u32 (E0600).
+                if (isIntType(subj.t) && !RuntimeResidents.isResident(imports.selfModule))
+                    return "-(" + inner + " as i32)";
                 return "-" + inner;
             case OpIncrement:
                 return post ? "({ let t = " + inner + "; " + inner + " += 1; t })" : "({ " + inner + " += 1; " + inner + " })";
