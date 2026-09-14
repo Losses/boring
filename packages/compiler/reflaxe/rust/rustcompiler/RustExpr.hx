@@ -5140,10 +5140,7 @@ class RustExpr {
                     final item = valueType.name + "::" + (isConst ? RustImports.toScreamingSnakeCase(name) : RustImports.toSnakeCase(name));
                     return isConst ? item : item + "()";
                 }
-                if (StaticFieldHelper.isConstruction(cf.get().expr()) && !StaticFieldHelper.isSelfConstruction(cf.get(), cls)) {
-                    return "(*" + staticItemPath(cls, name) + ").clone()";
-                }
-                if (isLazyStaticField(cls, name) && !StaticFieldHelper.isSelfConstruction(cf.get(), cls)) {
+                if (RustDecl.usesLazyLockStatic(cls, cf.get())) {
                     // LazyLock owns its value. Static reads cross Haxe value
                     // boundaries, so clone the referent before passing it
                     // to constructors.
@@ -5300,7 +5297,7 @@ class RustExpr {
 
     function isLazyStaticField(cls:ClassType, name:String):Bool {
         final field = staticFieldOf(cls, name);
-        return field != null && (StaticFieldHelper.isConstruction(field.expr()) || isLazyArrayStaticField(field));
+        return field != null && RustDecl.usesLazyLockStatic(cls, field);
     }
 
     /**
@@ -5313,8 +5310,7 @@ class RustExpr {
         final field = staticFieldOf(cls, name);
         if (field == null)
             return null;
-        final isLazy = StaticFieldHelper.isConstruction(field.expr()) || isLazyArrayStaticField(field);
-        if (!isLazy || StaticFieldHelper.isSelfConstruction(field, cls))
+        if (!RustDecl.usesLazyLockStatic(cls, field))
             return null;
         return "(*" + staticItemPath(cls, name) + ").clone()";
     }
@@ -5618,8 +5614,7 @@ class RustExpr {
                         }
                     }
                 }
-                if (markedField != null && (isDirectArrayStaticField(markedField) || isLazyArrayStaticField(markedField)
-                    || (StaticFieldHelper.isConstruction(markedField.expr()) && !StaticFieldHelper.isSelfConstruction(markedField, cls)))) {
+                if (markedField != null && isDirectArrayStaticField(markedField)) {
                     return staticItemPath(cls, name);
                 }
                 // The typer renders an @:native extern class under its
