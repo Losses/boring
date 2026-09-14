@@ -80,6 +80,12 @@ class RustExpr {
     final defaultParameterSubstitutions:Map<String, String> = [];
     final genericParamIds:Map<Int, Bool> = [];
     final closureParamIds:Map<Int, Bool> = [];
+    // Local function values whose body throws: the closure signature carries
+    // the enclosing Result error so call sites can propagate it.
+    final fallibleLocalFunctionErrors:Map<Int, String> = [];
+    // Error type of the local function literal currently being lowered; null
+    // for argument closures that do not own a Result boundary.
+    var localFunctionErrorName:Null<String> = null;
     var inGenericFunction:Bool = false;
     final borrowedLoopVarIds:Map<Int, Bool> = [];
     final provenNonNullVarIds:Map<Int, Bool> = [];
@@ -183,6 +189,7 @@ class RustExpr {
 
     public function topLevelStatements(e:TypedExpr):String {
         scanLocals(e);
+        scanLocalFunctionFallibility(e);
         return blockLines(statementsOf(e), 0).join("\n");
     }
 
@@ -552,6 +559,7 @@ class RustExpr {
         final fusedRoot = fuseWithin(f.expr);
         f.expr.expr = fusedRoot.expr;
         scanLocals(f.expr);
+        scanLocalFunctionFallibility(f.expr);
         scanReadsAfter(f.expr);
         final previousReceiverContext = renderingMethodReceiver;
         renderingMethodReceiver = RustDecl.methodWritesReceiver(f.field);
@@ -603,6 +611,7 @@ class RustExpr {
             if (a.tvar != null)
                 paramVarIds.set(a.tvar.id, true);
         scanLocals(f.expr);
+        scanLocalFunctionFallibility(f.expr);
         final out:Array<String> = [];
         for (stmt in statementsOf(f.expr)) {
             if (ValueTypeSupport.isThisDeclaration(stmt) || ValueTypeSupport.isThisAssignment(stmt) || ValueTypeSupport.isThisReturn(stmt))
@@ -643,6 +652,7 @@ class RustExpr {
         final fusedRoot = fuseWithin(f.expr);
         f.expr.expr = fusedRoot.expr;
         scanLocals(f.expr);
+        scanLocalFunctionFallibility(f.expr);
         final argNames = [for (a in f.args) a.name];
         final fieldInits = new Map<String, String>();
         final fallbackBindings:Array<String> = [];
@@ -910,10 +920,13 @@ class RustExpr {
                         case TField(_, FStatic(_, _)): true;
                         case _: false;
                     };
+                    final localError = fallibleLocalFunctionErrors.get(v.id);
                     // Static method pointers are 'static; the trait-object
                     // lifetime does not need the elided '_ that only binds
                     // to an enclosing reference parameter.
-                    ": " + (isStaticRef ? types.of(v.t, false) : types.functionReturnOf(v.t));
+                    localError != null
+                        ? ": " + types.functionReturnOfFallible(v.t, localError)
+                        : ": " + (isStaticRef ? types.of(v.t, false) : types.functionReturnOf(v.t));
                 } else switch (v.t) {
                     case TInst(c, _) if (c.get().isInterface):
                         // An interface local carries its boxed trait object
@@ -946,7 +959,11 @@ class RustExpr {
                     return [indent(depth) + kw + " " + name + explicitType + " = " + owned + ";"];
                 }
                 var initStr = switch (init.expr) {
-                    case TFunction(fn): functionValueLiteralNamed(v.name, fn, init.t);
+                    case TFunction(fn):
+                        localFunctionErrorName = fallibleLocalFunctionErrors.get(v.id);
+                        final text = functionValueLiteralNamed(v.name, fn, init.t);
+                        localFunctionErrorName = null;
+                        text;
                     case TConst(TInt(value)) if (isIntType(v.t)):
                         // An i32-domain literal binding keeps the signed
                         // domain at later assignments, so the assignment
@@ -6656,8 +6673,11 @@ class RustExpr {
                 return en.name + "::" + RustImports.toUpperCamelCase(ef.name) + " { " + parts.join(", ") + " }";
             case TConst(TSuper):
                 return "super(" + renderedArgs + ")";
-            case TLocal(_):
-                return expr(fn) + "(" + renderCallArgs(fn.t, args) + ")";
+            case TLocal(v):
+                // A fallible local function returns Result; propagate the
+                // throw to the enclosing error domain at the call.
+                final localQ = fallibleLocalFunctionErrors.exists(v.id) ? (isFallible ? "?" : ".unwrap()") : "";
+                return expr(fn) + "(" + renderCallArgs(fn.t, args) + ")" + localQ;
             case _:
                 return expr(fn) + "(" + renderedArgs + ")";
         }
@@ -6698,11 +6718,13 @@ class RustExpr {
         final previousGeneric = inGenericFunction;
         final previousFallible = isFallible;
         final previousErrorTypeName = errorTypeName;
-        // A local function has its own return boundary. Do not inherit the
-        // enclosing function's Result wrapper because the closure is
-        // emitted while lowering a fallible method.
-        isFallible = false;
-        errorTypeName = null;
+        // A local function has its own return boundary. A body that throws
+        // keeps the enclosing error type so each call propagates the throw;
+        // an infallible local does not inherit the enclosing Result wrapper.
+        final closureError = localFunctionErrorName;
+        localFunctionErrorName = null;
+        isFallible = closureError != null;
+        errorTypeName = closureError;
         inGenericFunction = true;
         genericParamIds.clear();
         closureParamIds.clear();
@@ -6717,6 +6739,7 @@ class RustExpr {
         currentReturnType = previousReturnType;
         isFallible = previousFallible;
         errorTypeName = previousErrorTypeName;
+        localFunctionErrorName = closureError;
         inGenericFunction = previousGeneric;
         return 'move |$params| {\n' + body.join("\n") + '\n}';
     }
@@ -7786,6 +7809,82 @@ class RustExpr {
             case _:
         }
         TypedExprTools.iter(e, scanLocals);
+    }
+
+    /**
+        Marks local function values whose body can throw. Their closure
+        signatures carry `Result<_, E>` so the throw propagates at each call
+        and the unit closure no longer carries it. The error
+        type is the enclosing function's already-computed union. Detection
+        walks direct throws and calls to other fallible locals to a fixed
+        point so mutually recursive locals agree.
+    **/
+    function scanLocalFunctionFallibility(e:TypedExpr):Void {
+        fallibleLocalFunctionErrors.clear();
+        final functions:Array<{id:Int, body:TypedExpr}> = [];
+        function collect(x:TypedExpr):Void {
+            switch (stripWrap(x).expr) {
+                case TVar(v, init) if (init != null):
+                    switch (stripWrap(init).expr) {
+                        case TFunction(f):
+                            functions.push({id: v.id, body: f.expr});
+                            collect(f.expr);
+                        case _:
+                            TypedExprTools.iter(init, collect);
+                    }
+                case _:
+                    TypedExprTools.iter(x, collect);
+            }
+        }
+        collect(e);
+        if (functions.length == 0)
+            return;
+        final fallible:Map<Int, Bool> = [];
+        var changed = true;
+        while (changed) {
+            changed = false;
+            for (fn in functions) {
+                if (fallible.exists(fn.id))
+                    continue;
+                if (localFunctionBodyThrows(fn.body) || localFunctionBodyCallsFallible(fn.body, fallible)) {
+                    fallible.set(fn.id, true);
+                    changed = true;
+                }
+            }
+        }
+        if (errorTypeName == null)
+            return;
+        for (fn in functions)
+            if (fallible.exists(fn.id))
+                fallibleLocalFunctionErrors.set(fn.id, errorTypeName);
+    }
+
+    function localFunctionBodyThrows(e:TypedExpr):Bool {
+        var found = false;
+        function walk(x:TypedExpr):Void {
+            if (found)
+                return;
+            switch (stripWrap(x).expr) {
+                case TThrow(_): found = true;
+                case _: TypedExprTools.iter(x, walk);
+            }
+        }
+        walk(e);
+        return found;
+    }
+
+    function localFunctionBodyCallsFallible(e:TypedExpr, fallible:Map<Int, Bool>):Bool {
+        var found = false;
+        function walk(x:TypedExpr):Void {
+            if (found)
+                return;
+            switch (stripWrap(x).expr) {
+                case TCall({expr: TLocal(v)}, _) if (fallible.exists(v.id)): found = true;
+                case _: TypedExprTools.iter(x, walk);
+            }
+        }
+        walk(e);
+        return found;
     }
 
     function scanReadsAfter(e:TypedExpr):Void {
