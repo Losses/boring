@@ -64,6 +64,16 @@ class M2OptionVecTests {
         #end
     }
 
+    @:test("Vec and String indexOf compared against -1 share the signed domain")
+    public static function indexOfCompared():Void {
+        #if rust_output
+        Test.equals(true, M2OptionVecOps.hasIndex(["a", "b"], "b"));
+        Test.equals(false, M2OptionVecOps.hasIndex(["a", "b"], "z"));
+        Test.equals(true, M2OptionVecOps.hasTextIndex("abc", "b"));
+        Test.equals(false, M2OptionVecOps.hasTextIndex("abc", "z"));
+        #end
+    }
+
     @:test("guarded-copy local reads fields of the proven inner value")
     public static function guardedCopyLocal():Void {
         #if rust_output
