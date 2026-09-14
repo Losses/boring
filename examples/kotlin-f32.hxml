@@ -548,3 +548,6 @@ tests.InterfaceFieldLiteralOpsTests
 
 boring.NullableInterfaceBranchOps
 tests.NullableInterfaceBranchOpsTests
+
+boring.NodeFsBorrowOps
+tests.NodeFsBorrowOpsTests
