@@ -418,19 +418,29 @@ class RustExpr {
         try {
             switch (Context.getType(typePath)) {
                 case TInst(clsRef, _):
+                    final cls = clsRef.get();
+                    // A self-construction singleton static emits as a
+                    // module-scope Mutex guard, so a coalescing default
+                    // referencing it must open the guard exactly like an
+                    // ordinary field read. The staticRef path would
+                    // otherwise name it as an associated item
+                    // (`Fill::FILL_INSTANCE`) that the emitted module-scope
+                    // static does not provide.
+                    if (isGuardStaticField(cls, fieldName))
+                        return staticGuard(cls, fieldName) + ".clone()";
                     // A construction or lazy-array static is emitted as a
                     // LazyLock; the coalescing default must deref and clone
                     // the referent the same way field() renders a static
                     // read, never reference the LazyLock itself.
-                    final lazyRead = lazyStaticRead(clsRef.get(), fieldName);
+                    final lazyRead = lazyStaticRead(cls, fieldName);
                     if (lazyRead != null)
                         return lazyRead;
-                    final rendered = staticRef(clsRef.get(), fieldName);
+                    final rendered = staticRef(cls, fieldName);
                     // A direct array static lowers to a Rust array, while an
                     // owned Vec slot needs the slice copied into a Vec. The
                     // nullable coalescing boundary owns its storage.
                     if (isOwnedVecType(getNullInnerType(targetType)) || isOwnedVecType(targetType)) {
-                        final field = staticFieldOf(clsRef.get(), fieldName);
+                        final field = staticFieldOf(cls, fieldName);
                         if (field != null && isDirectArrayStaticField(field))
                             return rendered + ".to_vec()";
                     }
