@@ -2574,6 +2574,12 @@ class RustExpr {
         };
     }
 
+    /** The owned inner value a `Null<Interface>` assignment receives from a concrete `T` right side. */
+    function ownedNullInterfaceAssignValue(r:TypedExpr):String {
+        final s = expr(r);
+        return "Box::new(" + normalizeConstructorResult(r, s) + ")";
+    }
+
     /**
         A `if (x == null) x = fill;` statement with no else arm registers the
         fill for the rest of its block: after the statement the local holds
@@ -2651,7 +2657,9 @@ class RustExpr {
         // arms. Wrapping runs inside the narrowing scope so a narrowed read
         // still binds the match name.
         final nullableResult = resultType != null && isNullType(resultType)
-            && (isTNull(narrowedBranch) || isTNull(noneBranch));
+            && (isTNull(narrowedBranch) || isTNull(noneBranch)
+                || (isInterfaceType(getNullInnerType(resultType))
+                    && (isConcreteConstructor(narrowedBranch) || isConcreteConstructor(noneBranch))));
         var narrowedText = nullableResult ? wrapBranchForNullableResult(narrowedBranch, resultType, noneBranch)
             : conditionalBranchText(narrowedBranch, noneBranch, resultType);
         final tailText = prefix == null ? null : expr(prefix.tail);
@@ -2662,10 +2670,14 @@ class RustExpr {
             return null;
         // An arm that reads only the binding is a reference to the inner
         // value while the sibling arm yields the value itself: the arm
-        // dereferences for Copy inners and clones for the owned kinds.
+        // dereferences for Copy inners and clones for the owned kinds. A
+        // nullable interface result keeps the Option shape, so the binding
+        // read wraps in Some.
         if (narrowedText == name) {
             final innerType = getNullInnerType(info.subject.t);
             narrowedText = isTypeCopy(innerType) ? "*" + name : "(*" + name + ").clone()";
+            if (nullableResult && isInterfaceType(innerType))
+                narrowedText = "Some(" + narrowedText + ")";
         }
         var noneText = nullableResult ? wrapBranchForNullableResult(noneBranch, resultType, narrowedBranch)
             : conditionalBranchText(noneBranch, narrowedBranch, resultType);
@@ -4074,7 +4086,14 @@ class RustExpr {
                     return staticTarget + " = " + staticValue;
                 }
                 final rhs = if (isNullType(l.t) && !isNullType(r.t) && !isTNull(r) && !isNullableCollapsedLocal(l)) {
-                    "Some(" + ownedNullAssignValue(r) + ")";
+                    // Haxe unifies a concrete constructor's type to the
+                    // interface even in a Null<Interface> assignment slot;
+                    // recover the concrete class so the implementor still
+                    // boxes into the Option<Box<dyn Trait>>.
+                    if (isInterfaceType(getNullInnerType(l.t)) && (isConcreteConstructor(r) || !isInterfaceType(r.t)))
+                        "Some(" + ownedNullInterfaceAssignValue(r) + ")";
+                    else
+                        "Some(" + ownedNullAssignValue(r) + ")";
                 } else if (isNullableCollapsedLocal(l)) {
                     // A charCodeAt-collapsed local binds a scalar (u32);
                     // its assignments stay in that domain and must not
@@ -6533,6 +6552,14 @@ class RustExpr {
         };
     }
 
+    /** A `new ConcreteClass(...)` expression whose class is not itself an interface. */
+    function isConcreteConstructor(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TNew(c, _, _): !c.get().isInterface;
+            case _: false;
+        };
+    }
+
     function normalizeConstructorResult(e:TypedExpr, rendered:String):String {
         if (!isFallibleConstructor(e) || StringTools.endsWith(rendered, "?") || StringTools.endsWith(rendered, ".unwrap()"))
             return rendered;
@@ -7164,13 +7191,7 @@ class RustExpr {
 
     function objectLiteral(e:TypedExpr, fields:Array<{name:String, expr:TypedExpr}>):String {
         final typeName = resolveTypeName(e.t);
-        final fieldTypes = new Map<String, Type>();
-        switch (Context.follow(e.t)) {
-            case TAnonymous(anon):
-                for (field in anon.get().fields)
-                    fieldTypes.set(field.name, field.type);
-            case _:
-        }
+        final fieldTypes = objectFieldTypes(e.t);
         final parts = [
             for (f in fields) {
                 var val = if (isStringType(f.expr.t)) {
@@ -7182,9 +7203,17 @@ class RustExpr {
                 } else {
                     expr(f.expr);
                 };
-                final declared = fieldTypes.get(f.name);
-                if (declared != null && !isStringType(declared) && !isInterfaceType(declared))
-                    val = ownedObjectFieldText(declared, f.expr, val);
+                // A concrete implementor entering an interface-typed field
+                // boxes through the same sanctioned construction the call
+                // boundaries use; the field slot is Box<dyn Trait>. Haxe
+                // unifies the field value's type to the interface, so the
+                // concrete constructor is recovered from the expression node.
+                final fieldType = fieldTypes.get(f.name);
+                if (fieldType != null && !isStringType(fieldType)) {
+                    if (!isInterfaceType(fieldType))
+                        val = ownedObjectFieldText(fieldType, f.expr, val);
+                    val = renderValueForType(fieldType, f.expr, val);
+                }
                 RustImports.toSnakeCase(f.name) + ": " + val;
             }
         ];
@@ -7208,6 +7237,25 @@ class RustExpr {
         if (StringTools.startsWith(text, "&") && !StringTools.endsWith(text, ".clone()"))
             return isCloneableValue(expected) ? "(*" + text + ").clone()" : text;
         return text;
+    }
+
+    /** The declared field types of a named or anonymous structure type. */
+    function objectFieldTypes(t:Type):Map<String, Type> {
+        final out = new Map<String, Type>();
+        switch (Context.follow(t)) {
+            case TType(def, _):
+                switch (def.get().type) {
+                    case TAnonymous(anon):
+                        for (f in anon.get().fields)
+                            out.set(f.name, f.type);
+                    case _:
+                }
+            case TAnonymous(anon):
+                for (f in anon.get().fields)
+                    out.set(f.name, f.type);
+            case _:
+        }
+        return out;
     }
 
     function resolveTypeName(t:Type):String {
@@ -8056,9 +8104,22 @@ class RustExpr {
         if (isInterfaceType(expected) && !isInterfaceType(actual.t)) {
             return "Box::new(" + normalizeConstructorResult(actual, rendered) + ")";
         }
+        // Haxe unifies an object-literal field value's type to the interface
+        // even when the value is a concrete constructor. Recover the concrete
+        // class from the expression node so the implementor still boxes into
+        // the Box<dyn Trait> slot.
+        if (isInterfaceType(expected) && isConcreteConstructor(actual)) {
+            return "Box::new(" + normalizeConstructorResult(actual, rendered) + ")";
+        }
         if (isNullType(expected) && isInterfaceType(getNullInnerType(expected)) && !isNullType(actual.t)) {
             if (rendered == "None" || StringTools.startsWith(rendered, "Some("))
                 return rendered;
+            return "Some(Box::new(" + normalizeConstructorResult(actual, rendered) + "))";
+        }
+        // Haxe unifies a nullable interface slot's value type to the
+        // interface even for a concrete constructor; recover the concrete
+        // class so the implementor still boxes into the Option<Box<dyn Trait>>.
+        if (isNullType(expected) && isInterfaceType(getNullInnerType(expected)) && isConcreteConstructor(actual)) {
             return "Some(Box::new(" + normalizeConstructorResult(actual, rendered) + "))";
         }
         if (!isInterfaceType(expected) && !isNullType(expected) && isFallibleConstructor(actual)) {
@@ -8734,8 +8795,24 @@ class RustExpr {
                 return "None";
             if (isNullType(branch.t) || StaticFieldHelper.isNullableType(branch.t))
                 return text;
-            final coerced = coerceBranchText(text, resultType, sibling);
+            final inner = getNullInnerType(resultType);
+            final coerced = coerceBranchText(text, inner, sibling);
+            // A concrete implementor branch of a Null<Interface> result
+            // boxes inside the Some; an already-interface-typed branch is
+            // already boxed by its declaration site. Haxe unifies a
+            // concrete constructor's branch type to the interface, so the
+            // concrete class is recovered from the expression node.
+            if (isInterfaceType(inner) && (!isInterfaceType(branch.t) || isConcreteConstructor(branch))) {
+                return "Some(Box::new(" + normalizeConstructorResult(branch, coerced) + "))";
+            }
             return "Some(" + coerced + ")";
+        }
+        if (resultType != null && isInterfaceType(resultType) && (!isInterfaceType(branch.t) || isConcreteConstructor(branch))) {
+            // A concrete implementor branch of an interface result boxes
+            // through the sanctioned construction; the interface-typed
+            // sibling is already boxed by its declaration site.
+            final coerced = coerceBranchText(text, resultType, sibling);
+            return "Box::new(" + normalizeConstructorResult(branch, coerced) + ")";
         }
         return coerceBranchText(text, resultType, sibling);
     }
