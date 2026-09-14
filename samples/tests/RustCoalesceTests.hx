@@ -9,6 +9,11 @@ class RustCoalesceTests {
         Test.equals(3, RustCoalesceOps.resolvedInts());
     }
 
+    @:test("a String-backed abstract parameter accepts an owned String")
+    public static function stringTagFrom():Void {
+        Test.equals(true, RustCoalesceOps.tagFrom("tone"));
+    }
+
     @:test("a nullable String field assignment owns a borrowed view")
     public static function assignedStringField():Void {
         Test.equals(true, RustCoalesceOps.assignedLabel("tone"));
