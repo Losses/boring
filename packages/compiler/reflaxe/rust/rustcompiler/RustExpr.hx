@@ -6805,7 +6805,7 @@ class RustExpr {
             // type explicitly lowers to a borrow.  Keep this final boundary
             // adaptation here so record/Vec reads do not leak `&T` into a T.
             if (i < paramTypes.length)
-                out.push(numericAssignmentValue(paramTypes[i], arg, ownedConstructorArg(paramTypes[i], arg, null, argStr)));
+                out.push(numericAssignmentValue(paramTypes[i], arg, ownedConstructorArg(paramTypes[i], arg, null, argStr), null, true));
             else
                 out.push(argStr);
         }
@@ -6849,7 +6849,7 @@ class RustExpr {
             case VCoalescing(_): "None";
         };
 
-    function numericAssignmentValue(expected:Type, actual:TypedExpr, rendered:String, targetOverride:Null<String> = null):String {
+    function numericAssignmentValue(expected:Type, actual:TypedExpr, rendered:String, targetOverride:Null<String> = null, signedBoundary:Bool = false):String {
         if (isFloatType(expected) && isIntType(emittedType(actual)))
             return intToFloatText(rendered);
         // A nullable target holds an Option; the rendered value is already
@@ -6908,7 +6908,11 @@ class RustExpr {
             // A wrapping binop of i32-domain locals renders in i32 even
             // though its Haxe type is the module Int (business u32).
             final i32Source = target == "i32" && i32LocalDomain(actual);
-            if (source == target || i32Source) {
+            // A signed rendering reaching a u32 constructor slot reinterprets
+            // its bits; an assignment target owns its declared domain and
+            // keeps the source rendering.
+            final signedRender = signedBoundary && target == "u32" && rendersSignedIntArg(actual, rendered);
+            if ((source == target || i32Source) && !signedRender) {
                 if (rendered.indexOf(".to_be_bytes()[") >= 0)
                     return target + "::from(" + rendered + ")";
                 // Fold an integer constant to a typed literal: the fold
