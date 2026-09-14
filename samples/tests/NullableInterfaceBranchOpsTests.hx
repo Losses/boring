@@ -9,6 +9,8 @@ class NullableInterfaceBranchOpsTests {
         #if rust_output
         Test.equals("alpha", NullableInterfaceBranchOps.label(true));
         Test.equals("none", NullableInterfaceBranchOps.label(false));
+        Test.equals("alpha", NullableInterfaceBranchOps.assign(true));
+        Test.equals("none", NullableInterfaceBranchOps.assign(false));
         #end
     }
 }
