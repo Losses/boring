@@ -6723,6 +6723,13 @@ class RustExpr {
             return true;
         if (name == "require" && c.get().module == "registry.Semver")
             return true;
+        // An interface method is fallible when any implementation throws; the
+        // trait signature carries the Result, so the call site propagates.
+        if (!isStatic && c.get().isInterface) {
+            final shape = state.interfaceMethodShapes.get(RustEmissionState.interfaceMethodKey(c.get().module, c.get().name, name));
+            if (shape != null && shape.isFallible)
+                return true;
+        }
         return state.funcErrorEnums.exists(RustEmissionState.funcKey(c.get().module, name, isStatic));
     }
 

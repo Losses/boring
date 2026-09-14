@@ -549,3 +549,6 @@ tests.BranchedOptionalFieldOpsTests
 
 boring.FloatModCompareOps
 tests.FloatModCompareOpsTests
+
+boring.InterfaceFallibleOps
+tests.InterfaceFallibleOpsTests
