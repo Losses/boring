@@ -3700,6 +3700,27 @@ class RustExpr {
         };
     }
 
+    /**
+        stringLikeType: a plain String or an abstract whose underlying type is
+        String. Both lower to an owned String in value position and a &str
+        view in parameter position, so call boundaries adapt them the same
+        way.
+    **/
+    function stringLikeType(t:Null<Type>):Bool {
+        if (t == null)
+            return false;
+        if (isStringType(t))
+            return true;
+        return switch (Context.follow(t)) {
+            case TAbstract(a, _) if (!ValueTypeSupport.isMarkedAbstract(a.get())):
+                switch (Context.follow(a.get().type)) {
+                    case TInst(c, _): c.get().name == "String";
+                    case _: false;
+                };
+            case _: false;
+        };
+    }
+
     function borrowedStringLoopItem(e:TypedExpr):Null<TVar> {
         return switch (stripWrap(e).expr) {
             case TLocal(v): borrowedLoopVarIds.exists(v.id) && isStringType(v.t) ? v : null;
@@ -6564,7 +6585,7 @@ class RustExpr {
                     out.push(renderValueForType(pt, arg, argStr));
                     continue;
                 }
-                if (isStringType(pt) && isStringType(arg.t)) {
+                if (stringLikeType(pt) && stringLikeType(arg.t)) {
                     out.push(switch (stripWrap(arg).expr) {
                         case TConst(TString(_)): argStr;
                         case TLocal(v) if (paramVarIds.get(v.id) == true): argStr;
@@ -7868,7 +7889,7 @@ class RustExpr {
                             argStr = prefix + argStr;
                         }
                     }
-                    if (isStringType(pt) && isStringType(arg.t)) {
+                    if (stringLikeType(pt) && stringLikeType(arg.t)) {
                         argStr = switch (stripWrap(arg).expr) {
                             case TConst(TString(_)): argStr;
                             case TLocal(v) if (paramVarIds.get(v.id) == true): expr(arg);

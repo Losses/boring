@@ -50,6 +50,11 @@ class RustCoalesceOps {
         return new RustCoalesceTextRecord(text).display;
     }
 
+    public static function tagFrom(value:String):Bool {
+        final name = value.toUpperCase();
+        return new RustCoalesceStringTagHolder(name).hasTag();
+    }
+
     public static function assignedLabel(value:String):Bool {
         final holder = new RustCoalesceStringHolder();
         holder.setLabel(value);
@@ -72,6 +77,20 @@ class RustCoalesceTextRecord {
 
     public function new(text:String, ?display:Null<String>) {
         this.display = display == null ? text : display;
+    }
+}
+
+abstract RustCoalesceStringTag(String) from String to String {}
+
+class RustCoalesceStringTagHolder {
+    public final tag:RustCoalesceStringTag;
+
+    public function new(tag:RustCoalesceStringTag) {
+        this.tag = tag;
+    }
+
+    public function hasTag():Bool {
+        return true;
     }
 }
 
