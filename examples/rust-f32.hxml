@@ -540,3 +540,6 @@ tests.SignedIntAssignOpsTests
 
 boring.NarrowedOptionReturnOps
 tests.NarrowedOptionReturnTests
+
+boring.SignedLoopBoundOps
+tests.SignedLoopBoundOpsTests
