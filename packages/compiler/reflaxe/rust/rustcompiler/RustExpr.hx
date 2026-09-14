@@ -441,8 +441,16 @@ class RustExpr {
                     // otherwise name it as an associated item
                     // (`Fill::FILL_INSTANCE`) that the emitted module-scope
                     // static does not provide.
-                    if (isGuardStaticField(cls, fieldName))
-                        return staticGuard(cls, fieldName) + ".clone()";
+                    if (isGuardStaticField(cls, fieldName)) {
+                        final value = staticGuard(cls, fieldName) + ".clone()";
+                        // A concrete singleton entering an interface slot boxes
+                        // through the sanctioned construction, so the
+                        // unwrap_or_else closure returns the boxed trait object
+                        // its Option payload declares.
+                        final field = staticFieldOf(cls, fieldName);
+                        return isInterfaceSlotType(targetType) && (field == null || !isInterfaceType(field.type))
+                            ? "Box::new(" + value + ")" : value;
+                    }
                     // A construction or lazy-array static is emitted as a
                     // LazyLock; the coalescing default must deref and clone
                     // the referent the same way field() renders a static
