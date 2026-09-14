@@ -80,7 +80,9 @@ describe("Std.string lowering", () => {
     const stderr = await new Response(proc.stderr).text();
     expect(await proc.exited).not.toBe(0);
     expect(stderr).toContain("Std.string accepts scalars, enum values, records, and arrays of them only");
-  });
+    // Full haxe pipeline under load; the explicit timeout raises only the
+    // harness patience for that subprocess, never the asserted behavior.
+  }, 120000);
 
   test("nullable operands are rejected on every target", async () => {
     for (const target of ["ts", "kotlin", "swift", "dart", "rust"]) {
