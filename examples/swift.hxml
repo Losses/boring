@@ -561,3 +561,6 @@ tests.ParseIntPushTests
 
 boring.NullableFloatCompareOps
 tests.NullableFloatCompareTests
+
+boring.FloatFieldLiteralOps
+tests.FloatFieldLiteralOpsTests
