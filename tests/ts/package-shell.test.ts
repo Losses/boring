@@ -111,6 +111,9 @@ const IDENTITY_PACKAGE_JSON = [
 ].join("\n");
 
 describe("package shell emission", () => {
+  // Every test here drives full haxe subprocess pipelines whose wall time
+  // scales with machine load; the explicit timeouts raise only the harness
+  // patience for those subprocesses, never the asserted behavior.
   test("default emission writes package.json and the tree runs standalone", async () => {
     const tree = tempTree("default");
     try {
@@ -171,7 +174,7 @@ describe("package shell emission", () => {
       fs.rmSync(tree, { recursive: true, force: true });
       fs.rmSync(path.join(tree, "../boring-shell-default-tests"), { recursive: true, force: true });
     }
-  });
+  }, 120000);
 
   test("identity defines flow into the manifest", async () => {
     const tree = tempTree("identity");
@@ -193,7 +196,7 @@ describe("package shell emission", () => {
       fs.rmSync(tree, { recursive: true, force: true });
       fs.rmSync(path.join(tree, "../boring-shell-identity-tests"), { recursive: true, force: true });
     }
-  });
+  }, 120000);
 
   test("package-shell=none writes source only", async () => {
     const tree = tempTree("off");
@@ -213,7 +216,7 @@ describe("package shell emission", () => {
       fs.rmSync(tree, { recursive: true, force: true });
       fs.rmSync(path.join(tree, "../boring-shell-off-tests"), { recursive: true, force: true });
     }
-  });
+  }, 120000);
 
   test("an invalid package-shell value aborts the compile", async () => {
     const tree = tempTree("invalid");
@@ -231,7 +234,7 @@ describe("package shell emission", () => {
       fs.rmSync(tree, { recursive: true, force: true });
       fs.rmSync(path.join(tree, "../boring-shell-invalid-tests"), { recursive: true, force: true });
     }
-  });
+  }, 120000);
 
   test("a by-name runtime import with an emitted manifest aborts the compile", async () => {
     const tree = tempTree("byname");
@@ -249,7 +252,7 @@ describe("package shell emission", () => {
       fs.rmSync(tree, { recursive: true, force: true });
       fs.rmSync(path.join(tree, "../boring-shell-byname-tests"), { recursive: true, force: true });
     }
-  });
+  }, 120000);
 
   test("the Swift, Kotlin, and Rust manifests of the reference trees are pinned", () => {
     // The Swift target opts out of the emitted manifest
