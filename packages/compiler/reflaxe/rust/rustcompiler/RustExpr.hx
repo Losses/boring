@@ -1121,6 +1121,10 @@ class RustExpr {
                             // text; the view unwrap yields the value the
                             // guard proved present.
                             retStr = "(" + retStr + ").as_deref().unwrap_or(\"\").to_string()";
+                        case TLocal(v) if (isBorrowedLocal(v) && !StringTools.endsWith(retStr, ".to_string()")):
+                            // A borrowed String parameter renders as &str; the
+                            // owned String return slot converts it once.
+                            retStr = "(" + retStr + ").to_string()";
                         case _:
                     }
                 } else if (StringTools.startsWith(returnTypeName, "Option<") && !isNullType(ret.t) && !isTNull(ret)) {
