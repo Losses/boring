@@ -567,3 +567,6 @@ tests.NullableFloatCompareTests
 
 boring.FloatFieldLiteralOps
 tests.FloatFieldLiteralOpsTests
+
+boring.SignedIntAssignOps
+tests.SignedIntAssignOpsTests
