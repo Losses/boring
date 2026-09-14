@@ -3944,8 +3944,26 @@ class RustExpr {
     // as_ref/unwrap forcing read only applies to wrapper-backed types.
     // Covers the plain-struct nullable receiver family.
     function rendersRustFallibleWrapper(t:Type):Bool {
+        if (isAnonymousStructType(t))
+            return false;
         final rustType = types.of(t, false);
         return StringTools.startsWith(rustType, "Option<") || StringTools.startsWith(rustType, "Result<");
+    }
+
+    /**
+        A structural type renders through its named typedef as a plain Rust
+        struct, never as a fallible wrapper. The wrapper probe reads the
+        emitted type text, so it must not force a name for an anonymous
+        structure that a pipeline expansion has not yet typed through its
+        typedef.
+    **/
+    function isAnonymousStructType(t:Type):Bool {
+        if (t == null)
+            return false;
+        return switch (Context.follow(t)) {
+            case TAnonymous(_): true;
+            case _: false;
+        };
     }
 
     // Whether a receiver still renders as a Rust fallible wrapper at the
@@ -3969,6 +3987,8 @@ class RustExpr {
         covers the Option-backed field receiver family.
     **/
     function fieldReceiverCarriesFallibleWrapper(subj:TypedExpr):Bool {
+        if (isAnonymousStructType(subj.t))
+            return false;
         final rustType = types.of(subj.t, false);
         return StringTools.startsWith(rustType, "Option<") && !isNullableCollapsedLocal(subj);
     }
