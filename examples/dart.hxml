@@ -521,3 +521,6 @@ boring.RangeParameterOps
 tests.RangeParameterTests
 boring.TypeParameterCompareOps
 tests.TypeParameterCompareTests
+
+boring.BorrowedArrayBoundaryOps
+tests.BorrowedArrayBoundaryTests
