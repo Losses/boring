@@ -639,7 +639,7 @@ class RustDecl {
                 Context.error("value type static field must have an initializer", v.field.pos);
             final initText = constValFloatInit(initializer, v.field.type);
             final val = ValueTypeSupport.isBareRepresentationLiteral(initializer, info.representation) ? info.name + "(" + initText + ")" : initText;
-            final isConst = StaticFieldHelper.isConstValue(v.field);
+            final isConst = valueTypeStaticIsConst(v.field);
             final staticName = isConst ? RustImports.toScreamingSnakeCase(v.field.name) : RustImports.toSnakeCase(v.field.name);
             lines.push("");
             if (isConst) {
@@ -683,6 +683,12 @@ class RustDecl {
         lines.push("    }");
         lines.push("}");
         return lines.join("\n");
+    }
+
+    /** Value-type constructed statics are accessors, even when final. This keeps
+        associated-member calls aligned with the emitted declaration. */
+    function valueTypeStaticIsConst(field:ClassField):Bool {
+        return StaticFieldHelper.isConstValue(field) && !StaticFieldHelper.isConstruction(field.expr());
     }
 
     function findFunc(funcFields:Array<ClassFuncData>, name:String):ClassFuncData {
@@ -969,6 +975,14 @@ class RustDecl {
     }
 
     function rustDisplayFormat(e:TypedExpr):String {
+        // Null<T> remains an Option in Rust even when Context.follow exposes
+        // the marked value type. Option implements Debug; use its debug form
+        // at the nullable boundary in generated record formatting.
+        switch (e.t) {
+            case TAbstract(a, [_]) if (a.get().name == "Null"):
+                return "{:?}";
+            case _:
+        }
         return switch (Context.follow(e.t)) {
             case TAbstract(a, _) if (ValueTypeSupport.isMarkedAbstract(a.get())):
                 ValueTypeSupport.memberField(a.get(), "toString") != null ? "{}" : "{:?}";
