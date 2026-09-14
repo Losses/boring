@@ -4074,16 +4074,15 @@ class RustExpr {
     }
 
     /**
-        The data-class struct type when `t` is a @:dataClass class whose
-        fields are not all PartialEq (DataClassFieldEq). Such a struct
-        derives Clone alone, so a bare `==` on it would not compile; the
-        comparison lowers field-wise. A struct whose fields are all
-        PartialEq derives PartialEq and compares with the native `==`,
-        so it returns null here.
+        The emitted struct type when `t` is a non-interface business class
+        whose fields cannot all derive PartialEq (StructFieldEq). A bare
+        `==` on that struct would not compile, so the comparison lowers
+        field-wise. Structs whose fields all implement PartialEq retain the
+        native operator and return null here.
     **/
-    function dataClassFieldEq(t:Type):Null<ClassType> {
+    function structFieldEq(t:Type):Null<ClassType> {
         return switch (Context.follow(t)) {
-            case TInst(c, _) if (c.get().meta.has(":dataClass")
+            case TInst(c, _) if (!c.get().isInterface
                 && RustDecl.isRecordModule(c.get().module)
                 && !RustType.isPartialEqType(t)): c.get();
             case _: null;
@@ -4091,15 +4090,14 @@ class RustExpr {
     }
 
     /**
-        The data-class struct type when `t` is a Null-wrapped @:dataClass
-        class whose fields are not all PartialEq (DataClassFieldEq). The
-        Option<T> comparison matches both options and compares the inner
-        values field-wise.
+        The emitted struct type when `t` is a Null-wrapped non-PartialEq
+        business class (StructFieldEq). The Option<T> comparison matches
+        both options and compares present values field-wise.
     **/
-    function nullableDataClassFieldEq(t:Type):Null<ClassType> {
+    function nullableStructFieldEq(t:Type):Null<ClassType> {
         if (!isNullType(t))
             return null;
-        return dataClassFieldEq(getNullInnerType(t));
+        return structFieldEq(getNullInnerType(t));
     }
 
     /**
@@ -4121,15 +4119,15 @@ class RustExpr {
     }
 
     /**
-        Field-wise equality text for a data-class struct with non-PartialEq
-        fields (DataClassFieldEq). Each instance field compares with `==`
-        when its type is PartialEq; an interface field compares by its haxe
-        type name (the Box<dyn Trait> carries __haxe_type_name, matching
-        the sameRole dispatch of the source); a nested data-class field
-        recurses. The pieces join with `&&` in field declaration order.
+        Field-wise equality text for an emitted struct with non-PartialEq
+        fields (StructFieldEq). Each instance field compares with `==` when
+        its type is PartialEq; an interface field compares by its haxe type
+        name (the Box<dyn Trait> carries __haxe_type_name, matching the
+        sameRole dispatch of the source); a nested struct recurses. The
+        pieces join with `&&` in field declaration order.
     **/
-    function dataClassEqText(t:Type, left:String, right:String):String {
-        final cls = dataClassFieldEq(t);
+    function structEqText(t:Type, left:String, right:String):String {
+        final cls = structFieldEq(t);
         if (cls == null)
             return left + " == " + right;
         final parts = [];
@@ -4143,8 +4141,8 @@ class RustExpr {
                         parts.push(l + " == " + r);
                     } else if (isInterfaceType(f.type)) {
                         parts.push(l + ".__haxe_type_name() == " + r + ".__haxe_type_name()");
-                    } else if (dataClassFieldEq(f.type) != null) {
-                        parts.push(dataClassEqText(f.type, l, r));
+                    } else if (structFieldEq(f.type) != null) {
+                        parts.push(structEqText(f.type, l, r));
                     }
                     // A field of any other non-PartialEq shape (function
                     // value, foreign class) is skipped: it cannot compare
@@ -4249,23 +4247,22 @@ class RustExpr {
                 final left = borrowedStringLoopItem(l) != null ? "*" + expr(l) : expr(l);
                 final right = borrowedStringLoopItem(r) != null ? "*" + expr(r) : expr(r);
                 return left + " " + symbolOf(op) + " " + right;
-            // A data-class struct whose fields are not all PartialEq
-            // (an interface field lowers to Box<dyn Trait>, which cannot
-            // derive PartialEq) compares field-wise: comparable fields
-            // compare with ==, interface fields compare by their haxe
-            // type name, and nested data-class fields recurse. The
-            // conjunction is the == result; != negates it (DataClassFieldEq).
-            // A Null-wrapped data-class value (Option<T>) compares by
-            // matching both options: Some pairs compare field-wise, both
-            // None are equal, and mixed presence differs.
-            case OpEq | OpNotEq if (dataClassFieldEq(l.t) != null && dataClassFieldEq(r.t) != null):
-                final eq = dataClassEqText(l.t, expr(l), expr(r));
+            // A struct whose fields cannot all derive PartialEq (for
+            // example, an interface field lowers to Box<dyn Trait>) compares
+            // field-wise: comparable fields use ==, interface fields compare
+            // by their haxe type name, and nested structs recurse. The
+            // conjunction is the == result; != negates it (StructFieldEq).
+            // A Null-wrapped struct (Option<T>) matches both options: Some
+            // pairs compare field-wise, both None are equal, and mixed
+            // presence differs.
+            case OpEq | OpNotEq if (structFieldEq(l.t) != null && structFieldEq(r.t) != null):
+                final eq = structEqText(l.t, expr(l), expr(r));
                 return op == OpEq ? eq : "!(" + eq + ")";
-            case OpEq | OpNotEq if (nullableDataClassFieldEq(l.t) != null && nullableDataClassFieldEq(r.t) != null):
+            case OpEq | OpNotEq if (nullableStructFieldEq(l.t) != null && nullableStructFieldEq(r.t) != null):
                 final innerType = getNullInnerType(l.t);
                 final leftName = freshRegionName("__left");
                 final rightName = freshRegionName("__right");
-                final eq = dataClassEqText(innerType, leftName, rightName);
+                final eq = structEqText(innerType, leftName, rightName);
                 final match = "match (&" + expr(l) + ", &" + expr(r) + ") { (Some(" + leftName + "), Some(" + rightName + ")) => " + eq
                     + ", (None, None) => true, _ => false }";
                 return op == OpEq ? match : "!(" + match + ")";
