@@ -315,7 +315,18 @@ class RustExpr {
                 else
                     constructed;
         };
-        return asOption ? "Some(" + rendered + ")" : rendered;
+        if (!asOption)
+            return rendered;
+        // A nullable slot owns its payload. A plain read (a local or field,
+        // borrowed or owned) clones once at the boundary; a fresh literal or
+        // call already owns and passes through. The emitter clones reusable
+        // reads so a loop reuses each read.
+        final inner = getNullInnerType(targetType);
+        if (!isTypeCopy(inner) && !isStringType(inner) && reusableReadText(rendered)
+            && !StringTools.endsWith(rendered, ".clone()")
+            && !StringTools.endsWith(rendered, ".to_vec()"))
+            return "Some(" + ownedNullableReadText(rendered) + ")";
+        return "Some(" + rendered + ")";
     }
 
     /** Explicit arguments plus the callee's omitted-parameter defaults; a rust signature carries no defaults. */
@@ -1068,6 +1079,12 @@ class RustExpr {
                         retStr = "(" + retStr + ").clone()";
                     case TField(_, _) if (!isTypeCopy(ret.t)):
                         retStr = "(" + retStr + ").clone()";
+                    case TLocal(v) if (isBorrowedLocal(v) && !isTypeCopy(ret.t) && isOwnedVecType(ret.t)
+                        && (returnTypeName == null || !StringTools.startsWith(returnTypeName, "&"))):
+                        // An owned Vec return slot receiving a borrowed array
+                        // parameter clones the referent at the boundary. A
+                        // borrowing return slot keeps the caller's view.
+                        retStr = "(*" + retStr + ").clone()";
                     case _:
                 }
                 if (RustType.isTypeParam(ret.t)) {
@@ -2248,6 +2265,80 @@ class RustExpr {
             return false;
         final stored = argTypes.get(v.name);
         return stored != null && StringTools.startsWith(stored, "&");
+    }
+
+    /**
+        borrowedArrayRead: an ordinary Array<T> parameter lowers to a &Vec<T>
+        view whose storage stays with the caller. An owned Vec slot that
+        receives the read (a return value, an assignment target, or an
+        Option<Vec<T>> payload) must clone the referent once at that boundary.
+        The named rule covers the census E0308 family that reported expected
+        Vec<T> against found &Vec<T>; the borrowed-array boundary suite covers
+        the call, return, and assignment positions.
+    **/
+    function borrowedArrayRead(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TLocal(v): isBorrowedLocal(v);
+            case _: false;
+        };
+    }
+
+    /**
+        isOwnedVecType: both Array<T> and ReadOnlyArray<T> lower to an owned
+        Vec<T> outside parameter position. The nullable and return boundaries
+        that own their storage share this test.
+    **/
+    function isOwnedVecType(t:Null<Type>):Bool {
+        return StaticFieldHelper.isArrayType(t) || StaticFieldHelper.isReadOnlyArrayType(t);
+    }
+
+    /**
+        nullableArrayPayload: an Option<Vec<T>> slot owns its storage. A
+        direct array static converts with to_vec; a reusable read (a borrowed
+        parameter view or an owned local or field) clones so the slot owns the
+        storage and the read stays usable; a fresh temporary already owns and
+        passes through.
+    **/
+    function nullableArrayPayload(arg:TypedExpr, argStr:String):String {
+        if (isDirectArrayStaticRead(arg))
+            return argStr + ".to_vec()";
+        if ((isReusableOwnedRead(arg) || borrowedArrayRead(arg))
+            && !StringTools.endsWith(argStr, ".clone()") && !StringTools.endsWith(argStr, ".to_vec()"))
+            return ownedNullableReadText(argStr);
+        return argStr;
+    }
+
+    /**
+        isReusableNullableRead: an Option slot owns a non-Copy payload. A
+        reusable read (a local or field, borrowed or owned) clones once at the
+        boundary so the Option owns the value and the read stays usable; a
+        freshly constructed value passes through. This covers arrays and
+        resident containers that enter nullable parameters.
+    **/
+    function isReusableNullableRead(pt:Type, arg:TypedExpr, argStr:String):Bool {
+        final inner = getNullInnerType(pt);
+        return !isTypeCopy(inner) && !isStringType(inner)
+            && (isReusableOwnedRead(arg) || borrowedArrayRead(arg))
+            && !StringTools.endsWith(argStr, ".clone()")
+            && !StringTools.endsWith(argStr, ".to_vec()");
+    }
+
+    function ownedNullableReadText(argStr:String):String {
+        return StringTools.startsWith(argStr, "&") ? "(*" + argStr + ").clone()" : "(" + argStr + ").clone()";
+    }
+
+    /**
+        reusableReadText: a rendered expression that names a reusable value
+        (an identifier or a field path). Fresh temporaries end in a call,
+        index, block, or literal delimiter and keep their ownership.
+    **/
+    function reusableReadText(text:String):Bool {
+        if (text == "None" || text == "true" || text == "false" || text.length == 0)
+            return false;
+        return switch (text.charAt(text.length - 1)) {
+            case ")" | "]" | "}" | "\"": false;
+            case _: true;
+        };
     }
 
     function renderPushArg(arg:TypedExpr):String {
@@ -3843,6 +3934,11 @@ class RustExpr {
                         case TLocal(v) if (isBorrowedLocal(v)): expr(r) + ".to_string()";
                         default: expr(r);
                     }
+                } else if (isOwnedVecType(l.t) && !isNullType(l.t) && borrowedArrayRead(r)) {
+                    // An owned array local assigned a borrowed array
+                    // parameter clones the referent; the local owns its
+                    // storage, the parameter is a &Vec view.
+                    "(*" + expr(r) + ").clone()";
                 } else {
                     numericAssignmentValue(l.t, r, renderValueForType(l.t, r, expr(r)), i32BindingLocals.exists(stripAssignTargetLocal(l)) ? "i32" : null);
                 };
@@ -6412,12 +6508,19 @@ class RustExpr {
                             StringTools.endsWith(argStr, ".to_string()") ? argStr : "(" + argStr + ").to_string()";
                         case _ if (isFloatType(getNullInnerType(pt)) && isIntType(emittedType(arg))):
                             intToFloatText(argStr);
-                        case _ if (StaticFieldHelper.isArrayType(getNullInnerType(pt)) && isDirectArrayStaticRead(arg)):
-                            // A direct array static is a Rust array; the
+                        case _ if (isOwnedVecType(getNullInnerType(pt))):
+                            // A direct array static is a Rust array and a
+                            // borrowed array parameter is a &Vec view; the
                             // nullable Vec slot owns its elements, so the
                             // Some payload converts once at the boundary.
-                            argStr + ".to_vec()";
-                        case _: isInterfaceType(getNullInnerType(pt)) && !isInterfaceType(arg.t) ? renderValueForType(getNullInnerType(pt), arg, argStr) : argStr;
+                            nullableArrayPayload(arg, argStr);
+                        case _:
+                            if (isInterfaceType(getNullInnerType(pt)) && !isInterfaceType(arg.t))
+                                renderValueForType(getNullInnerType(pt), arg, argStr);
+                            else if (isReusableNullableRead(pt, arg, argStr))
+                                ownedNullableReadText(argStr);
+                            else
+                                argStr;
                     };
                     out.push("Some(" + inner + ")");
                     continue;
@@ -7655,9 +7758,15 @@ class RustExpr {
                                 StringTools.endsWith(argStr, ".to_string()") ? argStr : "(" + argStr + ").to_string()";
                             case _ if (isFloatType(getNullInnerType(pt)) && isIntType(emittedType(arg))):
                                 intToFloatText(argStr);
-                            case _ if (StaticFieldHelper.isArrayType(getNullInnerType(pt)) && isDirectArrayStaticRead(arg)):
-                                argStr + ".to_vec()";
-                            case _: isInterfaceType(getNullInnerType(pt)) && !isInterfaceType(arg.t) ? renderValueForType(getNullInnerType(pt), arg, argStr) : argStr;
+                            case _ if (isOwnedVecType(getNullInnerType(pt))):
+                                nullableArrayPayload(arg, argStr);
+                            case _:
+                                if (isInterfaceType(getNullInnerType(pt)) && !isInterfaceType(arg.t))
+                                    renderValueForType(getNullInnerType(pt), arg, argStr);
+                                else if (isReusableNullableRead(pt, arg, argStr))
+                                    ownedNullableReadText(argStr);
+                                else
+                                    argStr;
                         };
                         argStr = "Some(" + inner + ")";
                     }
