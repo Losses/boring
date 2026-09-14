@@ -254,6 +254,14 @@ class KotlinDecl {
 
         // Stored properties without a constructor parameter; getter-only
         // properties keep no storage (feature spec 27).
+        // An explicit setX/getX method in the same class collides with the
+        // property's synthesized JVM accessor (same erased signature), so
+        // such backing fields go out private and the explicit method owns
+        // the public access path.
+        final explicitAccessorNames:Array<String> = [
+            for (f in funcFields)
+                if (!f.isStatic && !StaticFunctionMarkers.isMarked(f.field)) f.field.name
+        ];
         for (v in varFields) {
             if (v.isStatic) {
                 continue;
@@ -266,10 +274,12 @@ class KotlinDecl {
             if ((constructorArgNames.exists(v.field.name) && !boundary) || isGetterOnlyProperty(v.field)) {
                 continue;
             }
+            final backedByExplicitAccessor = hasExplicitAccessorFor(explicitAccessorNames, v.field.name);
             if (ctorInit.assigned.indexOf(v.field.name) >= 0) {
-                lines.push('    ${(v.field.isFinal ? "val" : "var")} ${KotlinNameEscape.escape(v.field.name)}: ${types.of(v.field.type)}');
+                final vis = backedByExplicitAccessor ? "private " : "";
+                lines.push('    ${vis}${(v.field.isFinal ? "val" : "var")} ${KotlinNameEscape.escape(v.field.name)}: ${types.of(v.field.type)}');
             } else {
-                for (l in classVarDecl(v))
+                for (l in classVarDecl(v, backedByExplicitAccessor))
                     lines.push(l);
             }
         }
@@ -1122,11 +1132,21 @@ class KotlinDecl {
         return PolicyQueries.isFunctionType(t);
     }
 
-    function classVarDecl(v:ClassVarData):Array<String> {
+    /** Whether the class declares an explicit setX/getX method for the field. */
+    function hasExplicitAccessorFor(methodNames:Array<String>, fieldName:String):Bool {
+        final cap = fieldName.charAt(0).toUpperCase() + fieldName.substr(1);
+        return methodNames.indexOf("set" + cap) >= 0 || methodNames.indexOf("get" + cap) >= 0;
+    }
+
+    function classVarDecl(v:ClassVarData, backedByExplicitAccessor:Bool = false):Array<String> {
         final field = v.field;
         final kw = field.isFinal ? "val" : "var";
         // @:allow members use Kotlin module visibility so allowed cross-class calls compile.
         final vis = field.isPublic ? "" : (field.meta.has(":allow") ? "internal " : "private ");
+        // A public backing field next to an explicit setX/getX method emits
+        // two same-erased-signature accessors; the explicit method wins and
+        // the storage goes private.
+        final effVis = backedByExplicitAccessor ? "private " : vis;
         var initStr = "";
         switch (field.kind) {
             case FVar(_, _):
@@ -1143,7 +1163,7 @@ class KotlinDecl {
             case _:
         }
         return [
-            '    ${vis}${kw} ${KotlinNameEscape.escape(field.name)}: ${types.of(field.type)}$initStr'
+            '    ${effVis}${kw} ${KotlinNameEscape.escape(field.name)}: ${types.of(field.type)}$initStr'
         ];
     }
 
