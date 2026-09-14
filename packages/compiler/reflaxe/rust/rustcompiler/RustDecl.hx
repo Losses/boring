@@ -249,9 +249,12 @@ class RustDecl {
             && !StaticFieldHelper.hasSelfConstructionStatic(cls)
             && !cls.meta.has(":dataClass")
             && cls.module.indexOf("registry.") != 0
+            && RustDecl.isRecordModule(cls.module)
             && RustType.isPartialEqTypeFields(varFields)) {
-            // A struct that is not Clone-capable can still compare: PartialEq
-            // derives independently of Clone (StructEqDerive).
+            // Plain record classes with comparable fields need the native
+            // struct equality used by generated value comparisons
+            // (PlainClassStructEq). This is separate from Clone because
+            // equality does not require an ownership derive.
             lines.push("#[derive(PartialEq)]");
         }
         // Call sites clone every non-Copy data-class value. Keep the derive
