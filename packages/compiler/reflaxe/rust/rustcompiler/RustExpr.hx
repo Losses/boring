@@ -1528,9 +1528,30 @@ class RustExpr {
         if (callee == null || errorTypeName == null || callee.name == errorTypeName)
             return "?";
         final variant = state.syntheticErrorVariant(errorTypeName, callee);
-        if (variant == null)
-            return "?";
-        return ".map_err(|e| " + errorTypeName + "::" + variant + "(e))?";
+        if (variant != null)
+            return ".map_err(|e| " + errorTypeName + "::" + variant + "(e))?";
+        // The callee error type is not a direct member of the caller fault.
+        // When both are synthetic unions that share the same payload members,
+        // generate a map_err that re-wraps through matching variants.
+        final callerMembers = state.syntheticErrorMembers(errorTypeName);
+        final calleeMembers = state.syntheticErrorMembers(callee.name);
+        if (callerMembers != null && calleeMembers != null) {
+            final callerVariants = state.syntheticErrorVariants.get(errorTypeName);
+            final calleeVariants = state.syntheticErrorVariants.get(callee.name);
+            if (callerVariants != null && calleeVariants != null) {
+                final arms = [for (cm in callerMembers) {
+                    final cmKey = cm.module + "::" + cm.name;
+                    final calleeVariant = calleeVariants.get(cmKey);
+                    final callerVariant = callerVariants.get(cmKey);
+                    if (calleeVariant != null && callerVariant != null)
+                        callee.name + "::" + calleeVariant + "(v) => " + errorTypeName + "::" + callerVariant + "(v)";
+                    else
+                        callee.name + "::" + cm.name + "Fault(_) => panic!(\"unmapped fault variant\")";
+                }];
+                return ".map_err(|e| match e { " + arms.join(", ") + " })?";
+            }
+        }
+        return "?";
     }
 
     function payloadEnumRef(e:TypedExpr):Null<Ref<haxe.macro.Type.EnumType>> {
@@ -2170,7 +2191,9 @@ class RustExpr {
                 final nonScalarOwnedLocal = !isScalar && argType == null && !paramVarIds.exists(subjectLocalId);
                 if (argType != null || nonScalarOwnedLocal)
                     borrowedLoopVarIds.set(itemVar.id, true);
-                final iterated = (ownedLocal || nonScalarOwnedLocal) ? "&" + expr(sliceSubj) : expr(sliceSubj);
+                final iterated = (ownedLocal || nonScalarOwnedLocal)
+                    ? (StringTools.startsWith(expr(sliceSubj), "&") ? expr(sliceSubj) : "&" + expr(sliceSubj))
+                    : expr(sliceSubj);
                 switch (Context.follow(itemVar.t)) {
                     case TAbstract(a, _) if (a.get().name == "Int"):
                         // Array elements reach Rust as u32; remember the loop binding
@@ -4799,6 +4822,9 @@ class RustExpr {
             switch (stripWrap(e).expr) {
                 case TCall(fn, _) if (isStringCharCodeAt(fn)):
                     rendered += ".unwrap_or(0)";
+                case _ if (isFloatType(getNullInnerType(e.t))
+                    && StringTools.startsWith(rendered, "Some(")):
+                    rendered += ".unwrap_or(0.0)";
                 case _:
             }
         }
@@ -7217,7 +7243,8 @@ class RustExpr {
                             // Some payload converts once at the boundary.
                             nullableArrayPayload(arg, argStr);
                         case _:
-                            if (isInterfaceType(getNullInnerType(pt)) && !isInterfaceType(arg.t))
+                            if (isInterfaceType(getNullInnerType(pt)) && !isInterfaceType(arg.t)
+                                && !StringTools.startsWith(argStr, "Box::new("))
                                 renderValueForType(getNullInnerType(pt), arg, argStr);
                             else if (isReusableNullableRead(pt, arg, argStr))
                                 ownedNullableReadText(argStr);
@@ -8653,7 +8680,8 @@ class RustExpr {
                             case _ if (isOwnedVecType(getNullInnerType(pt))):
                                 nullableArrayPayload(arg, argStr);
                             case _:
-                                if (isInterfaceType(getNullInnerType(pt)) && !isInterfaceType(arg.t))
+                                if (isInterfaceType(getNullInnerType(pt)) && !isInterfaceType(arg.t)
+                                    && !StringTools.startsWith(argStr, "Box::new("))
                                     renderValueForType(getNullInnerType(pt), arg, argStr);
                                 else if (isReusableNullableRead(pt, arg, argStr))
                                     ownedNullableReadText(argStr);
