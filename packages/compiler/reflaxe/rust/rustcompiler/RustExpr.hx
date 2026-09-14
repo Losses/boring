@@ -686,7 +686,16 @@ class RustExpr {
                             final fieldName = cf.get().name;
                             final coalescing = coalescingSiteFor(value);
                             if (coalescing != null) {
-                                fieldInits.set(fieldName, renderValueForType(cf.get().type, value, expr(value)));
+                                // A non-null default narrows the stored field
+                                // through coalescingParameterType. Render the
+                                // initializer at that same storage boundary so
+                                // a String default does not retain Option
+                                // wrapping after the declaration narrows it.
+                                final registered = DefaultArgExpander.coalescingDefaultForParam(cls, f.field.name, coalescing.parameter);
+                                final fieldStorageType = registered != null
+                                    ? DefaultArgExpander.coalescingParameterType(registered, cf.get().type)
+                                    : cf.get().type;
+                                fieldInits.set(fieldName, renderValueForType(fieldStorageType, value, expr(value)));
                                 continue;
                             }
                             final paramLocal = switch (stripWrap(value).expr) {
