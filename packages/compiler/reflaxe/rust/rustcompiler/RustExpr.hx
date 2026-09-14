@@ -4827,6 +4827,12 @@ class RustExpr {
                 // apply unary `-` to u32 (E0600).
                 if (isIntType(subj.t) && !RuntimeResidents.isResident(imports.selfModule))
                     return "-(" + inner + " as i32)";
+                // Null<Float> lowers to Option<Float>. Haxe arithmetic uses
+                // the absent value's numeric zero, so extract that value
+                // before applying unary negation. This is the nullable-float
+                // unary boundary rule and covers both precision targets.
+                if (isNullType(subj.t) && isFloatType(getNullInnerType(subj.t)))
+                    return "-(" + inner + ".unwrap_or(0.0))";
                 return "-" + inner;
             case OpIncrement:
                 return post ? "({ let t = " + inner + "; " + inner + " += 1; t })" : "({ " + inner + " += 1; " + inner + " })";
