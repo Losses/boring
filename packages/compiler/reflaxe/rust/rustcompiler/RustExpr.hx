@@ -2206,7 +2206,13 @@ class RustExpr {
                     return Std.string(EnumQueryExpander.constructorCount(enumCollection));
                 return rustU32Length(expr(subj) + ".len()");
             case _:
-                return expr(bound);
+                final text = expr(bound);
+                // A signed i32 range endpoint crosses into the u32 range
+                // domain with a clamp: a negative bound yields an empty
+                // range, the Haxe loop behavior for a negative bound.
+                if (isIntType(bound.t) && !isNullType(bound.t) && i32LocalDomain(bound))
+                    return "u32::try_from(" + text + ").unwrap_or(0)";
+                return text;
         }
     }
 
