@@ -23,4 +23,19 @@ class HaxeExceptionTests {
         Test.equals(true, true);
         #end
     }
+
+    @:test("a concatenated exception message crosses the constructor as a str view")
+    public static function joinedMessage():Void {
+        #if (rust_output || swift_output || dart_output || kotlin_output)
+        var caught = "";
+        try {
+            HaxeExceptionOps.throwJoined("ab", "cd");
+        } catch (error:HaxeExceptionFault) {
+            caught = error.message;
+        }
+        Test.equals("abcd", caught);
+        #else
+        Test.equals(true, true);
+        #end
+    }
 }
