@@ -1190,7 +1190,7 @@ class RustExpr {
         final raw = switch (inner.expr) {
             case TNew(c, _, args) if (args.length == 1 && state.messageOnlyExceptions.exists(c.get().module)):
                 imports.requireType(c.get().module, c.get().name);
-                c.get().name + "::new(" + expr(args[0]) + ")";
+                c.get().name + "::new(" + exceptionMessageArg(args[0]) + ")";
             case TNew(c, _, args) if (args.length == 1): exceptionVariant(c.get(), args[0]);
             case _: expr(x);
         };
@@ -1354,7 +1354,24 @@ class RustExpr {
             case _:
         }
         return payloadEnum == null
-            && state.errorName == null ? errType + "::new(" + expr(payloadArg) + ")" : errType + "::" + expr(payloadArg);
+            && state.errorName == null ? errType + "::new(" + exceptionMessageArg(payloadArg) + ")" : errType + "::" + expr(payloadArg);
+    }
+
+    /**
+        exceptionMessageArg: a message-only exception constructor takes a
+        &str. A string literal keeps its static borrowing, a borrowed
+        parameter is already a view, and every other String expression
+        borrows through as_str.
+    **/
+    function exceptionMessageArg(arg:TypedExpr):String {
+        final rendered = expr(arg);
+        if (!isStringType(arg.t))
+            return rendered;
+        return switch (stripWrap(arg).expr) {
+            case TConst(TString(_)): rendered;
+            case TLocal(v) if (paramVarIds.get(v.id) == true): rendered;
+            case _: rendered + ".as_str()";
+        };
     }
 
     function stringConcatOperand(value:TypedExpr):String {
@@ -6281,7 +6298,7 @@ class RustExpr {
             case _:
                 if (args.length == 1 && state.messageOnlyExceptions.exists(cls.module)) {
                     imports.requireType(cls.module, cls.name);
-                    return cls.name + "::new(" + expr(args[0]) + ")";
+                    return cls.name + "::new(" + exceptionMessageArg(args[0]) + ")";
                 }
                 if (args.length == 1 && state.exceptionPayloads.exists(cls.module)) {
                     return exceptionVariant(cls, args[0]);
