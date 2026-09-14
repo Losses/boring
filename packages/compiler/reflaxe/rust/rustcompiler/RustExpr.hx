@@ -3840,7 +3840,12 @@ class RustExpr {
     // holds the inner value, so the as_ref forcing read must not re-apply.
     // Covers the collapsed-parameter receiver family.
     function receiverCarriesFallibleWrapper(subj:TypedExpr):Bool {
-        return isNullType(subj.t) && rendersRustFallibleWrapper(subj.t) && !isNullableCollapsedLocal(subj);
+        // Nullable container indexing can arrive through a typed field or an
+        // abstracted receiver whose macro type is no longer Null<T>, while
+        // its emitted Rust type remains Option<Vec<_>>. Use the emitted type
+        // as the boundary contract so every index path extracts the container
+        // before applying Vec indexing.
+        return rendersRustFallibleWrapper(subj.t) && !isNullableCollapsedLocal(subj);
     }
 
     /**
