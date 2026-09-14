@@ -5087,6 +5087,10 @@ class RustExpr {
         return rendered;
     }
 
+    static function isNodeFileSystemOperation(name:String):Bool {
+        return name == "mkdirSync" || name == "writeFileSync";
+    }
+
     function isFunctionType(t:Null<Type>):Bool {
         return PolicyQueries.isFunctionType(t);
     }
@@ -5099,8 +5103,6 @@ class RustExpr {
         final runtimeClassName = cls.name == "UStringRT" ? "UString" : cls.name;
         final qualifiedRuntimeClass = runtimeClassName == "TestCore" || runtimeClassName == "SortedTable" || runtimeClassName == "Graphemes"
             || runtimeClassName == "StringTools" || runtimeClassName == "UString";
-        if (cls.name == "VectorCodec" || cls.name == "VectorSort")
-            return RustImports.toSnakeCase(name);
         return qualifiedRuntimeClass ? RustImports.toSnakeCase(runtimeClassName + "_" + name) : RustImports.toSnakeCase(name);
     }
 
@@ -5124,9 +5126,8 @@ class RustExpr {
 
     function staticRef(cls:ClassType, name:String):String {
         final staticField = findStaticField(cls, name);
-        final staticName = cls.name == "VectorCodec"
-            || cls.name == "VectorSort" ? RustImports.toSnakeCase(name) : staticField != null
-                && staticField.isFinal ? RustImports.toScreamingSnakeCase(RustImports.emittedTypeName(cls.name) + "_" + name) : RustImports.toSnakeCase(RustImports.emittedTypeName(cls.name) + "_" + name);
+        final staticName = RustDecl.usesUnqualifiedCodecStaticName(cls) ? RustImports.toSnakeCase(name) : staticField != null
+            && staticField.isFinal ? RustImports.toScreamingSnakeCase(RustImports.emittedTypeName(cls.name) + "_" + name) : RustImports.toSnakeCase(RustImports.emittedTypeName(cls.name) + "_" + name);
         final valueType = ValueTypeSupport.markedAbstractOfClass(cls);
         if (valueType != null) {
             imports.requireType(valueType.module, valueType.name);
@@ -5624,7 +5625,7 @@ class RustExpr {
             case TField(_, FStatic(c, cf)) if (c.get().module == "haxe.io.Bytes" && cf.get().name == "concat" && args.length == 2):
                 return "{ let mut v = " + expr(args[0]) + ".to_vec(); v.extend_from_slice(&" + expr(args[1]) + "); v }";
             case TField(_, FStatic(c, cf))
-                if (c.get().module == "org.tiqian.test.trace.TestTracePlatform" && c.get().name == "NodeFileSystem"):
+                if (c.get().name == "NodeFileSystem" && isNodeFileSystemOperation(cf.get().name)):
                 // The trace writer's file extern binds node:fs, which has
                 // no rust face; both members lower to the resident file
                 // edge, which carries the same create-parents and

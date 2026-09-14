@@ -1405,8 +1405,8 @@ class RustDecl {
             : StaticFunctionMarkers.isTopLevel(f.field);
         final snakeName = receiverMethod
             || freeForm
-            || cls.name == "VectorCodec"
-            || cls.name == "VectorSort" ? RustImports.toSnakeCase(f.field.name) : RustImports.toSnakeCase(RustImports.emittedTypeName(cls.name) + "_" + f.field.name);
+            || RustDecl.usesUnqualifiedCodecStaticName(cls)
+            ? RustImports.toSnakeCase(f.field.name) : RustImports.toSnakeCase(RustImports.emittedTypeName(cls.name) + "_" + f.field.name);
         final args = [
             for (i in firstArg...f.args.length) {
                 final a = f.args[i];
@@ -2672,11 +2672,13 @@ class RustDecl {
         not, so a foreign class with no inspectable fields never counts as
         PartialEq.
     **/
+    public static function usesUnqualifiedCodecStaticName(cls:ClassType):Bool {
+        return StringTools.endsWith(cls.name, "Codec") || StringTools.endsWith(cls.name, "Sort");
+    }
+
     public static function isRecordModule(module:String):Bool {
-        return module.indexOf("org.tiqian.") == 0
-            || module.indexOf("boring.") == 0
-            || module.indexOf("runtime.") == 0
-            || module.indexOf("std.") == 0;
+        return module.indexOf("haxe.") != 0
+            && module.indexOf("std.") != 0;
     }
 
     /**
@@ -2691,7 +2693,7 @@ class RustDecl {
             return false;
         // Only business classes join the plain-class descent; std/haxe
         // wrappers keep their explicit Clone list above.
-        if (cls.module.indexOf("org.tiqian.") != 0 && cls.module.indexOf("boring.") != 0)
+        if (!isRecordModule(cls.module))
             return false;
         if (cls.params.length > 0 || StaticFieldHelper.hasSelfConstructionStatic(cls))
             return false;
