@@ -573,3 +573,6 @@ tests.FallibleLocalFunctionTests
 
 boring.NegIntSlotOps
 tests.NegIntSlotOpsTests
+
+boring.BoxedInterfaceDefaultOps
+tests.BoxedInterfaceDefaultOpsTests
