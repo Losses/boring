@@ -948,6 +948,11 @@ class RustExpr {
                 var initStr = switch (init.expr) {
                     case TFunction(fn): functionValueLiteralNamed(v.name, fn, init.t);
                     case TConst(TInt(value)) if (isIntType(v.t)):
+                        // An i32-domain literal binding keeps the signed
+                        // domain at later assignments, so the assignment
+                        // boundary reinterprets an unsigned source.
+                        if (i32Locals.exists(v.id))
+                            i32BindingLocals.set(v.id, true);
                         integerBindingLiteral(value, v.id);
                     case TConst(TNull) if (isNullType(v.t)):
                         explicitNullableNone = true;
@@ -4383,7 +4388,7 @@ class RustExpr {
                 // bare (`as u32 << u32::wrapping_add(...)`), so group both
                 // operands unconditionally.
                 return "(" + operand(l, op, false) + ") << (" + operand(r, op, true) + ")";
-            case OpLt if (isZero(r) && (isUnsignedOperand(l) || businessIntExpr(l))):
+            case OpLt if (isZero(r) && !i32LocalDomain(l) && (isUnsignedOperand(l) || businessIntExpr(l))):
                 return "(" + operand(l, op, false) + ") > 2147483647";
             case OpSub:
                 return operand(l, op, false) + " - " + operand(r, op, true);
@@ -4800,14 +4805,16 @@ class RustExpr {
     **/
     /** Types an integer literal used to initialize an Int local before method use. */
     function integerBindingLiteral(value:Int, localId:Int = -1):String {
-        // An i32-domain local keeps the bare literal rendering: a negative
-        // value carries the wrapped u32 decimal and a positive value stays
-        // bare so its uses (wrapping arithmetic, comparisons) infer the
-        // signed domain. The suffix would pin the wrong width and break
-        // those uses.
+        // An i32-domain local declares a negative value as the signed
+        // literal so the binding carries the signed domain; a positive value
+        // stays bare because its uses (wrapping arithmetic, comparisons)
+        // infer i32. A local outside that domain keeps the wrapped u32
+        // decimal the business domain expects.
         if (i32Locals.exists(localId)) {
-            if (value < 0 && !RuntimeResidents.isResident(imports.selfModule))
-                return Std.string(value + 4294967296) + "u32";
+            if (value < 0 && RuntimeResidents.isResident(imports.selfModule))
+                return Std.string(value);
+            if (value < 0)
+                return Std.string(value) + "i32";
             return Std.string(value);
         }
         if (value < 0 && !RuntimeResidents.isResident(imports.selfModule))
