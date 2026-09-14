@@ -3798,6 +3798,11 @@ class RustExpr {
     // through a Null wrapper so a nullable Vec field dispatches correctly.
     function isVecType(subj:TypedExpr):Bool {
         final t = methodSubjectType(subj);
+        return isArrayType(t);
+    }
+
+    /** Whether the type lowers to a Haxe Array. */
+    function isArrayType(t:Type):Bool {
         return switch (Context.follow(t)) {
             case TInst(c, _): c.get().name == "Array";
             case _: false;
@@ -8050,8 +8055,21 @@ class RustExpr {
                         case TLocal(v) if (provenNonNullVarIds.exists(v.id) && isNullType(arg.t) && isStringType(pt)): true;
                         case _: false;
                     };
+                    // A null-checked nullable array passed to a borrowed Array
+                    // parameter unwraps the Option to its Vec view. A local
+                    // whose null-coalescing initializer materialized the inner
+                    // value already renders non-null and keeps its borrow.
+                    final argRendersNullable = isNullType(arg.t) && !(switch (stripWrap(arg).expr) {
+                        case TLocal(v): nullableCollapsedLocals.exists(v.id);
+                        case _: false;
+                    });
+                    final nullableArrayParam = argRendersNullable
+                        && isArrayType(getNullInnerType(arg.t))
+                        && isArrayType(pt);
                     if (provenString) {
                         argStr = expr(arg) + ".as_deref().unwrap_or(\"\")";
+                    } else if (nullableArrayParam) {
+                        argStr = "(" + expr(arg) + ").as_ref().unwrap()";
                     } else {
                         // The mutating faces are arrays and the writer and reader
                         // fronts; every other borrowed parameter reads only.
