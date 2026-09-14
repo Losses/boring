@@ -28,6 +28,14 @@ class NullableInterfaceBranchOps {
         final selected = choose(flag);
         return selected == null ? "none" : selected.label();
     }
+
+    public static function assign(flag:Bool):String {
+        var selected:Null<NullableBranchChoice> = null;
+        if (flag) {
+            selected = new NullableBranchAlpha();
+        }
+        return selected == null ? "none" : selected.label();
+    }
 }
 #else
 class NullableInterfaceBranchOps {}
