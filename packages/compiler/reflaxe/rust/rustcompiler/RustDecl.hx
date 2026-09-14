@@ -2188,6 +2188,21 @@ class RustDecl {
         return bodyMutatesSelf(cf.expr());
     }
 
+    /**
+        Names of resident mutators whose extern declarations have no Haxe
+        body. This keeps shared-field receiver lowering borrowed only when the
+        call actually writes through the receiver.
+    **/
+    public static function methodWritesReceiver(cf:ClassField):Bool {
+        if (fieldWritesReceiver(cf))
+            return true;
+        return switch (cf.name) {
+            case "addByte" | "add" | "writeU16" | "writeU32" | "writeF64" | "writeF32" | "writeF16" | "writeAscii": true;
+            case "push" | "insert" | "pop" | "shift" | "unshift" | "remove" | "removeAt" | "splice" | "reverse" | "sort" | "finish" | "getBytes": true;
+            case _: false;
+        };
+    }
+
     static function bodyMutatesSelf(body:Null<TypedExpr>):Bool {
         if (body == null) {
             return false;

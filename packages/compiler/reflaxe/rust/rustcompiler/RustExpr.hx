@@ -52,7 +52,8 @@ class RustExpr {
     var returnUnsigned:Bool = false;
     var returnTypeName:Null<String> = null;
     var currentReturnType:Null<Type> = null;
-    // Method receivers borrow their storage; value reads clone non-Copy fields.
+    // A field used as a method receiver remains borrowed; value reads clone
+    // non-Copy fields unless this narrow receiver context applies.
     var renderingMethodReceiver:Bool = false;
     var inTryClosure:Bool = false;
 
@@ -4989,7 +4990,11 @@ class RustExpr {
                 if (name != "length" && (isStringType(cf.get().type) || isRecordValueType(cf.get().type))) {
                     return isStringType(cf.get().type) ? "(" + access + ").to_string()" : "(" + access + ").clone()";
                 }
-                if (name != "length" && !renderingMethodReceiver && !isTypeCopy(cf.get().type)) {
+                if (name != "length" && !renderingMethodReceiver && !isTypeCopy(cf.get().type)
+                    && switch (subj.expr) {
+                        case TConst(TThis): true;
+                        case _: false;
+                    }) {
                     return "(" + access + ").clone()";
                 }
                 return access;
@@ -5001,6 +5006,14 @@ class RustExpr {
             case FClosure(_):
                 return fail(subj, "closure has no lowering");
         }
+    }
+
+    function receiverText(subj:TypedExpr, cf:Null<Ref<ClassField>>):String {
+        final previous = renderingMethodReceiver;
+        renderingMethodReceiver = cf != null && RustDecl.methodWritesReceiver(cf.get());
+        final text = expr(subj);
+        renderingMethodReceiver = previous;
+        return text;
     }
 
     function staticFieldOf(cls:ClassType, name:String):Null<ClassField> {
@@ -6039,24 +6052,24 @@ class RustExpr {
                         + ") { Some(v) => i32::from_ne_bytes(u32::try_from(v).unwrap_or(0).to_ne_bytes()), None => -1 }";
                 }
                 if (name == "addByte") {
-                    return expr(subj) + ".add_byte(" + RustConversions.truncate(expr(args[0]), "u8") + ")";
+                    return receiverText(subj, cf) + ".add_byte(" + RustConversions.truncate(expr(args[0]), "u8") + ")";
                 }
                 if (name == "add") {
-                    return expr(subj) + ".add(&" + expr(args[0]) + ")";
+                    return receiverText(subj, cf) + ".add(&" + expr(args[0]) + ")";
                 }
                 if (name == "readU16") {
                     // The wire read answers u16 while the Int domain is
                     // u32; the widening is total, so from covers every
                     // value the field can hold. The read is fallible, so
                     // the call propagates before the widening.
-                    return "u32::from(" + expr(subj) + ".read_u16()?)";
+                    return "u32::from(" + receiverText(subj, cf) + ".read_u16()?)";
                 }
                 if (name == "writeU16") {
                     // The Int domain is u32 while the wire field is u16;
                     // the Haxe writer masks to the low half, and the Rust
                     // cast truncates identically, so the narrowing matches
                     // source semantics for every value.
-                    return expr(subj) + ".write_u16(" + RustConversions.truncate(expr(args[0]), "u16") + ")";
+                    return receiverText(subj, cf) + ".write_u16(" + RustConversions.truncate(expr(args[0]), "u16") + ")";
                 }
                 if (name == "writeU32") {
                     final innerArg = stripWrap(args[0]);
@@ -6070,9 +6083,9 @@ class RustExpr {
                             return "";
                         }
                         final errVariant = errorTypeName + "::" + countOverflowVariant;
-                        return expr(subj) + ".write_u32(u32::try_from(" + expr(args[0]) + ").map_err(|_| " + errVariant + ")?)";
+                        return receiverText(subj, cf) + ".write_u32(u32::try_from(" + expr(args[0]) + ").map_err(|_| " + errVariant + ")?)";
                     }
-                    return expr(subj) + ".write_u32(" + expr(args[0]) + ")";
+                    return receiverText(subj, cf) + ".write_u32(" + expr(args[0]) + ")";
                 }
                 if (name == "writeAscii") {
                     // A heap String argument borrows as &str; string
@@ -6087,7 +6100,7 @@ class RustExpr {
                     } else {
                         expr(args[0]);
                     };
-                    return expr(subj) + ".write_ascii(" + argStr + ")";
+                    return receiverText(subj, cf) + ".write_ascii(" + argStr + ")";
                 }
                 if (cf != null && cf.get().kind.match(FVar(_, _)) && Context.follow(cf.get().type).match(TFun(_, _))) {
                     // A function-typed field calls through a parenthesized
@@ -6103,7 +6116,7 @@ class RustExpr {
                 final isMethodFallible = isFallibleCallee(c, cf, false);
                 final q = isFallible ? (isMethodFallible ? errorPropagationSuffix(c, cf, false) : "") : (isMethodFallible ? ".unwrap()" : "");
                 final previousReceiverContext = renderingMethodReceiver;
-                renderingMethodReceiver = true;
+                renderingMethodReceiver = RustDecl.methodWritesReceiver(cf.get());
                 final subjText = expr(subj);
                 renderingMethodReceiver = previousReceiverContext;
                 final narrowed = narrowedSubject(subj);
