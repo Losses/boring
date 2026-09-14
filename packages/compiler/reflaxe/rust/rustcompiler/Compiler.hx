@@ -1006,14 +1006,19 @@ class Compiler extends PluginCompiler<Compiler> {
                         for (field in cls.fields.get()) if (field.name == ifField.name) impl = field;
                         if (impl == null) continue;
                         final key = RustEmissionState.funcKey(cls.module, impl.name, false);
-                        final error = state.funcErrorTypes.get(key);
+                        final interfaceKey = RustEmissionState.funcKey(iface.module, ifField.name, false);
+                        final implementationError = state.funcErrorTypes.get(key);
+                        final implementationErrorPair = implementationError != null ? implementationError : state.funcErrorEnums.get(key);
+                        final declaredError = state.funcErrorTypes.get(interfaceKey);
+                        final declaredErrorPair = declaredError != null ? declaredError : state.funcErrorEnums.get(interfaceKey);
+                        final errorPair = declaredErrorPair != null ? declaredErrorPair : implementationErrorPair;
                         final shapeKey = RustEmissionState.interfaceMethodKey(iface.module, iface.name, ifField.name);
                         final previous = state.interfaceMethodShapes.get(shapeKey);
                         state.interfaceMethodShapes.set(shapeKey, {
-                            isFallible: error != null || state.funcErrorEnums.exists(key),
+                            isFallible: errorPair != null || state.funcErrorEnums.exists(key) || (previous != null && previous.isFallible),
                             isMutating: RustDecl.fieldWritesReceiver(impl) || (previous != null && previous.isMutating),
-                            errorModule: error != null ? error.module : null,
-                            errorName: error != null ? error.name : null
+                            errorModule: errorPair != null ? errorPair.module : (previous != null ? previous.errorModule : null),
+                            errorName: errorPair != null ? errorPair.name : (previous != null ? previous.errorName : null)
                         });
                     }
                     for (ifField in iface.statics.get()) {
