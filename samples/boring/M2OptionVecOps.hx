@@ -64,6 +64,14 @@ class M2OptionVecOps {
         return Std.string(src.indexOf(needle));
     }
 
+    public static function hasIndex(src:Array<String>, needle:String):Bool {
+        return src.indexOf(needle) != -1;
+    }
+
+    public static function hasTextIndex(text:String, needle:String):Bool {
+        return text.indexOf(needle) != -1;
+    }
+
     public static function guardedCopyWidth(rect:Null<GuardedRect>):Float {
         if (rect != null) {
             final r:GuardedRect = rect;
