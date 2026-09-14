@@ -4302,6 +4302,22 @@ class RustExpr {
         and reinterpretation forms; a plain i32 local or an indexOf result is
         signed by construction.
     **/
+    /**
+        rendersSignedIntArg: an Int argument that lowers in the signed i32
+        domain. A wrapping binop, reinterpretation, indexOf result, or an
+        i32-domain local or its negation is signed; the caller reinterprets
+        the rendered text when the target slot is the business u32 domain.
+    **/
+    function rendersSignedIntArg(arg:TypedExpr, text:String):Bool {
+        if (StringTools.startsWith(text, "i32::") || StringTools.startsWith(text, "(i32::")
+            || StringTools.startsWith(text, "match ") || StringTools.startsWith(text, "(match "))
+            return true;
+        return switch (stripWrap(arg).expr) {
+            case TUnop(_, _, subj): i32LocalDomain(subj) || rendersSignedIntExpr(subj);
+            case _: i32LocalDomain(arg) || rendersSignedIntExpr(arg);
+        };
+    }
+
     function rendersI32ComparisonOperand(e:TypedExpr, text:String):Bool {
         // A resident module renders every Int in the signed i32 domain.
         if (RuntimeResidents.isResident(imports.selfModule))
@@ -7957,7 +7973,7 @@ class RustExpr {
             if (pt != null && isIntType(pt)) {
                 final targetType = types.of(pt, false);
                 final sourceType = resolveExprType(arg);
-                final signedSource = sourceType == "i32" || i32LocalDomain(arg);
+                final signedSource = sourceType == "i32" || rendersSignedIntArg(arg, argStr);
                 if (signedSource && targetType == "u32") {
                     argStr = RustConversions.reinterpret(argStr, "u32");
                 } else if (sourceType == "u32" && targetType == "i32") {
