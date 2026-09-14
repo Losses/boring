@@ -3553,6 +3553,15 @@ class RustExpr {
             return null;
         if (isFloatType(firstInner) || isFloatType(secondInner))
             return FloatPrecision.isF32() ? "f32" : "f64";
+        // Both arms are business Int. An arm that renders in the signed i32
+        // domain (a negation, an index result) beside an unsigned arm must
+        // agree on the conditional's Rust type, so the conditional targets
+        // the business u32 slot and the signed arm reinterprets at the
+        // branch. Two signed arms already share the i32 type and keep it.
+        if (!RuntimeResidents.isResident(imports.selfModule)
+            && (rendersSignedIntExpr(first) || rendersSignedIntExpr(second))
+            && !(rendersSignedIntExpr(first) && rendersSignedIntExpr(second)))
+            return "u32";
         return null;
     }
 
@@ -3604,6 +3613,11 @@ class RustExpr {
         }
         if (isIntType(inner) && (target == "f32" || target == "f64"))
             return intToFloatText(text);
+        // A signed i32 arm entering the business u32 conditional slot
+        // reinterprets its bits so both Rust arms carry one type.
+        if (target == "u32" && isIntType(inner) && !nullable
+            && (i32LocalDomain(branch) || rendersSignedIntExpr(branch)))
+            return RustConversions.reinterpret(text, "u32");
         return text;
     }
 
@@ -4609,6 +4623,9 @@ class RustExpr {
             case TCall(fn, _) if (isStringIndexOf(fn)): true;
             case TCall(fn, _) if (isVecIndexOf(fn)): true;
             case TCall(fn, _) if (isFpHelperI32Call(fn)): true;
+            // Unary negation lowers in the signed i32 domain in a business
+            // module, so the operator never applies `-` to a u32 operand.
+            case TUnop(OpNeg, _, subj): isIntType(subj.t) && !RuntimeResidents.isResident(imports.selfModule);
             case _: false;
         };
     }
@@ -4629,9 +4646,11 @@ class RustExpr {
         if (StringTools.startsWith(text, "i32::") || StringTools.startsWith(text, "(i32::")
             || StringTools.startsWith(text, "match ") || StringTools.startsWith(text, "(match "))
             return true;
+        if (rendersSignedIntExpr(arg))
+            return true;
         return switch (stripWrap(arg).expr) {
             case TUnop(_, _, subj): i32LocalDomain(subj) || rendersSignedIntExpr(subj);
-            case _: i32LocalDomain(arg) || rendersSignedIntExpr(arg);
+            case _: i32LocalDomain(arg);
         };
     }
 
@@ -7407,6 +7426,10 @@ class RustExpr {
             // that marked it i32 must not leak into its arithmetic.
             case TLocal(v): i32Locals.exists(v.id) && !paramVarIds.exists(v.id) && !rangeLoopVars.exists(v.id);
             case TBinop(OpAdd | OpSub | OpMult | OpMod | OpAnd | OpOr | OpXor | OpUShr | OpShr | OpShl, left, right): i32LocalDomain(left) || i32LocalDomain(right);
+            // Unary negation lowers in the signed i32 domain in a business
+            // module, so a direct return or assignment reinterprets it at the
+            // u32 boundary and the i32 rendering does not leak.
+            case TUnop(OpNeg, _, subj): isIntType(subj.t) && !RuntimeResidents.isResident(imports.selfModule);
             case _: false;
         };
     }
