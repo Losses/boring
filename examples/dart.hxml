@@ -603,3 +603,6 @@ tests.NegativeSentinelOpsTests
 
 boring.FallibleLocalFunctionOps
 tests.FallibleLocalFunctionTests
+
+boring.NegIntSlotOps
+tests.NegIntSlotOpsTests
