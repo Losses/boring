@@ -2197,7 +2197,7 @@ class RustDecl {
         if (fieldWritesReceiver(cf))
             return true;
         return switch (cf.name) {
-            case "addByte" | "add" | "writeU16" | "writeU32" | "writeF64" | "writeF32" | "writeF16" | "writeAscii": true;
+            case "addByte" | "add" | "addChar" | "set" | "blit" | "fill" | "put" | "update" | "writeU16" | "writeU32" | "writeF64" | "writeF32" | "writeF16" | "writeAscii": true;
             case "push" | "insert" | "pop" | "shift" | "unshift" | "remove" | "removeAt" | "splice" | "reverse" | "sort" | "finish" | "getBytes": true;
             case _: false;
         };
@@ -2218,8 +2218,10 @@ class RustDecl {
                     switch (fn.expr) {
                         case TField(subj, FInstance(_, _, cf) | FAnon(cf)):
                             final n = cf.get().name;
-                            if (n == "push" || n == "insert" || n == "pop" || n == "shift" || n == "unshift" || n == "remove" || n == "removeAt"
-                                || n == "splice" || n == "reverse" || n == "sort") {
+                            if (n == "addByte" || n == "add" || n == "addChar" || n == "set" || n == "blit" || n == "fill" || n == "put" || n == "update"
+                                || n == "writeU16" || n == "writeU32" || n == "writeF64" || n == "writeF32" || n == "writeF16" || n == "writeAscii"
+                                || n == "push" || n == "insert" || n == "pop" || n == "shift" || n == "unshift" || n == "remove" || n == "removeAt"
+                                || n == "splice" || n == "reverse" || n == "sort" || n == "finish" || n == "getBytes") {
                                 if (ownFieldRoot(subj)) {
                                     mutates = true;
                                 }
