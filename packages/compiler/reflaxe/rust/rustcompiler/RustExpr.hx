@@ -4018,8 +4018,16 @@ class RustExpr {
         covers the Option-backed field receiver family.
     **/
     function fieldReceiverCarriesFallibleWrapper(subj:TypedExpr):Bool {
-        if (isAnonymousStructType(subj.t))
+        // Anonymous structure types cannot be translated by the Rust type
+        // renderer, and they never render as an Option wrapper, so exclude
+        // them before the translation call. A field receiver can be an
+        // inline anonymous structure whose macro type carries no Null<T>.
+        if (subj.t == null || isAnonymousStructType(subj.t))
             return false;
+        switch (Context.follow(subj.t)) {
+            case TAnonymous(_): return false;
+            case _:
+        }
         final rustType = types.of(subj.t, false);
         return StringTools.startsWith(rustType, "Option<") && !isNullableCollapsedLocal(subj);
     }
