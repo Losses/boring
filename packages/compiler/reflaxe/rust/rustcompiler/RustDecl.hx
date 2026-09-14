@@ -2640,7 +2640,12 @@ class RustDecl {
                         for (p in params) if (!isCloneTypeDepth(p, depth, root, sealedCloneInterfaces, selfIfaceKey)) return false;
                         return true;
                     })()) true
-                else false;
+                else
+                    // A plain abstract lowers to its underlying type
+                    // through RustType.of, so it is Clone-capable exactly
+                    // when that underlying type is. Business string
+                    // abstracts (FontFaceId and peers) reach this arm.
+                    isCloneTypeDepth(haxe.macro.TypeTools.applyTypeParameters(a.get().type, a.get().params, params), depth + 1, root, sealedCloneInterfaces, selfIfaceKey);
             case TEnum(_):
                 // Every generated enum derives Clone at its declaration
                 // site, so an enum-typed field keeps its owner's derive.

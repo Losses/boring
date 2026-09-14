@@ -33,6 +33,27 @@ class CloneDeriveResult {
     }
 }
 
+// A plain string abstract erases to String in the Rust lowering, so a class
+// that holds one is Clone-capable exactly when String is. isCloneTypeDepth
+// rejected every abstract outside its short allowlist, which denied the
+// derive to a class like org.tiqian.shaping.ReplayableFontFaceDescriptor
+// whose id field is an abstract over String.
+abstract CloneDeriveLabel(String) from String to String {}
+
+// A plain class whose only non-atomic field is a string abstract, mirroring
+// ReplayableFontFaceDescriptor. Before the underlying-type descent,
+// isAllClone rejected the abstract field and no #[derive(Clone)] was emitted
+// while the read sites below append `.clone()`.
+class CloneDeriveAbstractResult {
+    public final label:CloneDeriveLabel;
+    public final size:Int;
+
+    public function new(label:CloneDeriveLabel, size:Int) {
+        this.label = label;
+        this.size = size;
+    }
+}
+
 class CloneDeriveGapOps {
     // Indexing a Haxe Array reads its element with Haxe value semantics; the
     // generator clones a non-Copy element out of the Vec. Passing the array in
@@ -42,5 +63,14 @@ class CloneDeriveGapOps {
     public static function resolve(results:Array<CloneDeriveResult>):String {
         final r = results[0];
         return r.range.toString() + ":" + r.label;
+    }
+
+    // The same read over a class whose field is a plain abstract. The
+    // element clone needs the abstract to count as a Clone field so the
+    // struct keeps #[derive(Clone)].
+    public static function resolveAbstract(results:Array<CloneDeriveAbstractResult>):String {
+        final r = results[0];
+        final label:String = r.label;
+        return label + ":" + r.size;
     }
 }
