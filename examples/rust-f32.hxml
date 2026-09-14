@@ -543,3 +543,6 @@ tests.NarrowedOptionReturnTests
 
 boring.SignedLoopBoundOps
 tests.SignedLoopBoundOpsTests
+
+boring.BranchedOptionalFieldOps
+tests.BranchedOptionalFieldOpsTests
