@@ -19,6 +19,10 @@ class SignedComparisonOps {
     public static function indexEqualsLimit(text:String, limit:Int):Bool {
         return text.indexOf("x") == limit;
     }
+
+    public static function lastIndexEqualsLimit(text:String, limit:Int):Bool {
+        return text.lastIndexOf("x") == limit;
+    }
 }
 #else
 class SignedComparisonOps {}
