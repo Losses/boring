@@ -553,8 +553,12 @@ class RustExpr {
         f.expr.expr = fusedRoot.expr;
         scanLocals(f.expr);
         scanReadsAfter(f.expr);
+        final previousReceiverContext = renderingMethodReceiver;
+        renderingMethodReceiver = RustDecl.methodWritesReceiver(f.field);
         final lines = blockLines(statementsOf(f.expr), 1, true);
-        return coalescingNormalizationLines(f.expr, 1, [for (a in f.args) a.name]).concat(lines);
+        final normalized = coalescingNormalizationLines(f.expr, 1, [for (a in f.args) a.name]);
+        renderingMethodReceiver = previousReceiverContext;
+        return normalized.concat(lines);
     }
 
     /** Body lowering for a member declared on a value wrapper. */
