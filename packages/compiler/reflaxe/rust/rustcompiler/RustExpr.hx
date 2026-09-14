@@ -5545,8 +5545,20 @@ class RustExpr {
                     }
                     return abs.name + "(" + rendered + ")";
                 }
-                if (field.name == "toString" && args.length > 0)
-                    return expr(args[0]) + ".to_string()";
+                if (field.name == "toString" && args.length > 0) {
+                    // A null guard narrows the complete field path (for
+                    // example `self.first_line_indent`), so the toString
+                    // receiver reads the match binding, never the Option.
+                    // The general member-call path applies this narrowing;
+                    // the value-type toString intercepts before it, so the
+                    // same substitution is required here.
+                    final receiver = args[0];
+                    final narrowed = narrowedSubject(receiver);
+                    if (narrowed != null)
+                        optionNarrowingHit = true;
+                    final receiverText = narrowed != null ? narrowed : expr(receiver);
+                    return receiverText + ".to_string()";
+                }
                 final op = ValueTypeSupport.operatorOf(abs, field);
                 if (op != null) {
                     return switch (op) {
@@ -5567,7 +5579,17 @@ class RustExpr {
                 if (abs == null)
                     return null;
                 final name = cf.get().name;
-                return name == "toString" ? expr(subj) + ".to_string()" : expr(subj)
+                // A null guard narrows the complete field path (for example
+                // `self.first_line_indent`), so a value-type member call on
+                // that path must read the match binding, never the Option.
+                // The general member-call path already applies this
+                // narrowing; valueTypeCall intercepts toString before it, so
+                // the same substitution is required here.
+                final narrowed = narrowedSubject(subj);
+                if (narrowed != null)
+                    optionNarrowingHit = true;
+                final receiver = narrowed != null ? narrowed : expr(subj);
+                return name == "toString" ? receiver + ".to_string()" : receiver
                     + "."
                     + RustImports.toSnakeCase(name)
                     + "("
