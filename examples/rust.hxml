@@ -571,3 +571,6 @@ tests.FloatFieldLiteralOpsTests
 
 boring.SignedIntAssignOps
 tests.SignedIntAssignOpsTests
+
+boring.NarrowedOptionReturnOps
+tests.NarrowedOptionReturnTests
