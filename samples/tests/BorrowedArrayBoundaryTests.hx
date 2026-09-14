@@ -34,4 +34,12 @@ class BorrowedArrayBoundaryTests {
         Test.equals(2, BorrowedArrayBoundaryOps.rebind([7, 8]));
         #end
     }
+
+    @:test("a conditional array result clones the borrowed arm")
+    public static function choose():Void {
+        #if rust_output
+        Test.equals(2, BorrowedArrayBoundaryOps.choose([7, 8], true).length);
+        Test.equals(0, BorrowedArrayBoundaryOps.choose([7, 8], false).length);
+        #end
+    }
 }
