@@ -585,6 +585,9 @@ tests.FloatModCompareOpsTests
 
 boring.InterfaceFallibleOps
 tests.InterfaceFallibleOpsTests
+boring.InterfaceUnionBeta
+boring.InterfaceUnionOps
+tests.InterfaceUnionTests
 
 boring.InterfaceFieldLiteralOps
 tests.InterfaceFieldLiteralOpsTests
