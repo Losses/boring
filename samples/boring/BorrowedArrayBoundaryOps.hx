@@ -52,6 +52,11 @@ class BorrowedArrayBoundaryOps {
         current = values;
         return current.length;
     }
+
+    public static function choose(values:Array<Int>, flag:Bool):Array<Int> {
+        final chosen = flag ? values : [];
+        return chosen;
+    }
 }
 #else
 class BorrowedArrayBoundaryOps {}
