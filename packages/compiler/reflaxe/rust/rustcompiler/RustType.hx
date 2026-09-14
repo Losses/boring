@@ -226,6 +226,26 @@ class RustType {
         }
     }
 
+    /**
+        A local function value that can throw carries `Result<ret, error>` so
+        every call site can propagate the throw into the enclosing error
+        domain. The argument and lifetime rules match `functionReturnOf`.
+    **/
+    public function functionReturnOfFallible(t:Null<Type>, errorName:String):String {
+        return switch (Context.follow(t)) {
+            case TFun(args, ret):
+                imports.require("std::sync::Arc");
+                final argStrs = [for (arg in args) of(arg.t, true)];
+                var hasRef = false;
+                for (s in argStrs)
+                    if (s.indexOf("&") >= 0)
+                        hasRef = true;
+                "Arc<dyn Fn(" + argStrs.join(", ") + ") -> Result<" + of(ret, false) + ", " + errorName + ">" + FUNCTION_VALUE_BOUNDS + (hasRef ? " + '_>" : " + 'static>");
+            case _:
+                of(t, false);
+        };
+    }
+
     /** Rust static function fields use capture-free function pointers. */
     public function staticFunctionOf(t:Null<Type>):String {
         return switch (Context.follow(t)) {
