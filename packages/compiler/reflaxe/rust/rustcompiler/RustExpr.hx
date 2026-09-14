@@ -415,7 +415,7 @@ class RustExpr {
                     if (member == null)
                         return fieldName;
                     imports.requireType(abs.module, abs.name);
-                    final isConst = StaticFieldHelper.isConstValue(member);
+                    final isConst = valueTypeStaticIsConst(member);
                     final rendered = abs.name + "::" + (isConst ? RustImports.toScreamingSnakeCase(fieldName) : RustImports.toSnakeCase(fieldName));
                     final memberValue = isConst ? rendered : rendered + "()";
                     return isStringType(targetType) ? memberValue + ".to_string()" : memberValue;
@@ -4448,7 +4448,7 @@ class RustExpr {
                 if (valueType != null) {
                     imports.requireType(valueType.module, valueType.name);
                     final field = cf.get();
-                    final isConst = StaticFieldHelper.isConstValue(field);
+                    final isConst = valueTypeStaticIsConst(field);
                     final item = valueType.name + "::" + (isConst ? RustImports.toScreamingSnakeCase(name) : RustImports.toSnakeCase(name));
                     return isConst ? item : item + "()";
                 }
@@ -4774,6 +4774,11 @@ class RustExpr {
         return StaticFunctionMarkers.isTopLevel(field);
     }
 
+    /** Constructed value-type statics are emitted as associated accessors. */
+    function valueTypeStaticIsConst(field:ClassField):Bool {
+        return StaticFieldHelper.isConstValue(field) && !StaticFieldHelper.isConstruction(field.expr());
+    }
+
     function staticRef(cls:ClassType, name:String):String {
         final staticField = findStaticField(cls, name);
         final staticName = cls.name == "VectorCodec"
@@ -4783,7 +4788,7 @@ class RustExpr {
         if (valueType != null) {
             imports.requireType(valueType.module, valueType.name);
             final field = findStaticField(cls, name);
-            final isConst = field != null && StaticFieldHelper.isConstValue(field);
+            final isConst = field != null && valueTypeStaticIsConst(field);
             final item = valueType.name + "::" + (isConst ? RustImports.toScreamingSnakeCase(name) : RustImports.toSnakeCase(name));
             return isConst ? item : item + "()";
         }
@@ -7893,16 +7898,15 @@ class RustExpr {
     }
 
     /**
-     * Resolve an Option-wrapped array before applying Rust's index operator.
-     * layout_queries contains nullable index containers whose Rust lowering is
-     * Option<Vec<_>>/Option<Rect>. Keep this exception local to that generated
-     * module: the general index path is shared by all target-boundary suites.
+     * Nullable container indexing policy: Haxe permits indexing a nullable
+     * container after its runtime null contract has been established. Rust
+     * still sees Option<T>, so extract T only when the typed receiver remains
+     * a Rust fallible wrapper. Non-nullable containers retain direct indexing.
      * The mutable form is used only for indexed assignment.
      */
     function optionContainerIndexAccess(arr:TypedExpr, idx:TypedExpr, mutable:Bool):String {
         final receiver = expr(arr);
-        final unwrapOption = StringTools.endsWith(imports.selfModule, ".layout_queries")
-            && receiverCarriesFallibleWrapper(arr);
+        final unwrapOption = receiverCarriesFallibleWrapper(arr);
         if (unwrapOption) {
             final coerce = mutable ? ".as_mut().unwrap()" : ".as_ref().unwrap()";
             return "(" + receiver + ")" + coerce + "[" + castArg(idx, "usize") + "]";
