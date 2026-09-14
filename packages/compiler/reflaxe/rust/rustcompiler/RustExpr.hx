@@ -4229,7 +4229,9 @@ class RustExpr {
                     // A charCodeAt-collapsed local binds a scalar (u32);
                     // its assignments stay in that domain and must not
                     // re-wrap in Some(...).
-                    numericAssignmentValue(l.t, r, renderValueForType(l.t, r, expr(r)), i32BindingLocals.exists(stripAssignTargetLocal(l)) ? "i32" : null);
+                    final collapsedTarget = stripAssignTargetLocal(l);
+                    numericAssignmentValue(l.t, r, renderValueForType(l.t, r, expr(r)), i32BindingLocals.exists(collapsedTarget) ? "i32" : null,
+                        collapsedTarget >= 0 && !i32Locals.exists(collapsedTarget));
                 } else if (isStringType(l.t) && !isNullType(l.t)) {
                     switch (stripWrap(r).expr) {
                         case TConst(TString(_)): expr(r) + ".to_string()";
@@ -4245,7 +4247,12 @@ class RustExpr {
                     // storage, the parameter is a &Vec view.
                     "(*" + expr(r) + ").clone()";
                 } else {
-                    numericAssignmentValue(l.t, r, renderValueForType(l.t, r, expr(r)), i32BindingLocals.exists(stripAssignTargetLocal(l)) ? "i32" : null);
+                    // A u32 local assigned a signed rendering reinterprets
+                    // the bits at the assignment boundary; a local that
+                    // already carries the signed domain keeps its rendering.
+                    final assignTarget = stripAssignTargetLocal(l);
+                    numericAssignmentValue(l.t, r, renderValueForType(l.t, r, expr(r)), i32BindingLocals.exists(assignTarget) ? "i32" : null,
+                        assignTarget >= 0 && !i32Locals.exists(assignTarget));
                 };
                 return assignTarget(l) + " = " + rhs;
             case OpAssignOp(inner):
