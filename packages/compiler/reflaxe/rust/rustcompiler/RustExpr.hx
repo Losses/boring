@@ -3842,6 +3842,17 @@ class RustExpr {
     function receiverCarriesFallibleWrapper(subj:TypedExpr):Bool {
         return isNullType(subj.t) && rendersRustFallibleWrapper(subj.t) && !isNullableCollapsedLocal(subj);
     }
+
+    /**
+        A field receiver may retain its emitted Option wrapper after macro type
+        following has hidden the Null abstract. Force that wrapper before the
+        member read; plain struct receivers remain unchanged. This named rule
+        covers the Option-backed field receiver family.
+    **/
+    function fieldReceiverCarriesFallibleWrapper(subj:TypedExpr):Bool {
+        final rustType = types.of(subj.t, false);
+        return StringTools.startsWith(rustType, "Option<") && !isNullableCollapsedLocal(subj);
+    }
     function nullableMethodReceiver(subj:TypedExpr, mutable:Bool):String {
         if (!isNullType(subj.t))
             return expr(subj);
@@ -4900,7 +4911,7 @@ class RustExpr {
                 // fill, which never happens after the guard.
                 final filled = narrowed == null && proven == null && isNullType(subj.t) ? filledSubjectOf(subj) : null;
                 final subjStr = if (narrowed != null) narrowed else if (narrowedReceiver != null) narrowedReceiver else if (proven != null) proven else if (filled != null) subjText
-                    + ".get_or_insert_with(|| " + filled + ")" else if (receiverCarriesFallibleWrapper(subj)) subjText
+                    + ".get_or_insert_with(|| " + filled + ")" else if (fieldReceiverCarriesFallibleWrapper(subj)) subjText
                     + ".as_ref().unwrap()" else subjText;
                 final access = subjStr + "." + snake;
                 if (name != "length" && isRecursiveField(subj, name))
