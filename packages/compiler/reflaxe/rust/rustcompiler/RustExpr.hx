@@ -1238,23 +1238,6 @@ class RustExpr {
         }
     }
 
-    /**
-        Wraps a rendered std.UStringFault value in the current function's
-        error variant when that error is a synthetic union. The buffer-mutation
-        Err arms report through std.UStringFault; a function whose Result error
-        is a union must wrap the payload in the union's variant, exactly like
-        the explicit-throw path (features/06). A plain error enum returns the
-        value unchanged.
-    **/
-    function wrapBufferFault(raw:String, payloadName:String):String {
-        if (errorTypeName != null
-            && StringTools.endsWith(errorTypeName, "Fault")
-            && errorTypeName != payloadName) {
-            return errorTypeName + "::" + payloadName + "Fault(" + raw + ")";
-        }
-        return raw;
-    }
-
     /** Statement lowering of the two buffer mutations (stdlib/08). */
     function stringBufMutationLines(fn:TypedExpr, args:Array<TypedExpr>, depth:Int):Array<String> {
         final parts = stringBufMutationParts(fn);
@@ -1282,11 +1265,7 @@ class RustExpr {
             // the trail surrogate the contract would pair; the trail-start
             // clause of stdlib/08 folds away.
             out.push(indent(depth + 1) + "if unit >= 55296 && unit <= 56319 && !" + part + ".is_empty() {");
-<<<<<<< HEAD
             out.push(indent(depth + 2) + "return Err(" + wrappedBufferFault(fault, fault + "::UnpairedSurrogate { unit: u32::from(unit) }") + ");");
-=======
-            out.push(indent(depth + 2) + "return Err(" + wrapBufferFault(fault + "::UnpairedSurrogate { unit: u32::from(unit) }", fault) + ");");
->>>>>>> 8cf12fb4 (fix(rust): unwrap union results before byte round-trips)
             out.push(indent(depth + 1) + "}");
             out.push(indent(depth) + "}");
             out.push(indent(depth) + buf + ".extend(" + part + ".encode_utf16());");
@@ -1295,19 +1274,11 @@ class RustExpr {
             out.push(indent(depth) + "if " + u + " >= 56320 && " + u + " <= 57343 {");
             out.push(indent(depth + 1) + "match " + buf + ".last() {");
             out.push(indent(depth + 2) + "Some(&last) if last >= 55296 && last <= 56319 => {}");
-<<<<<<< HEAD
             out.push(indent(depth + 2) + "_ => return Err(" + wrappedBufferFault(fault, fault + "::UnpairedSurrogate { unit: " + u + " }") + "),");
             out.push(indent(depth + 1) + "}");
             out.push(indent(depth) + "} else if let Some(&last) = " + buf + ".last() {");
             out.push(indent(depth + 1) + "if last >= 55296 && last <= 56319 {");
             out.push(indent(depth + 2) + "return Err(" + wrappedBufferFault(fault, fault + "::UnpairedSurrogate { unit: u32::from(last) }") + ");");
-=======
-            out.push(indent(depth + 2) + "_ => return Err(" + wrapBufferFault(fault + "::UnpairedSurrogate { unit: " + u + " }", fault) + "),");
-            out.push(indent(depth + 1) + "}");
-            out.push(indent(depth) + "} else if let Some(&last) = " + buf + ".last() {");
-            out.push(indent(depth + 1) + "if last >= 55296 && last <= 56319 {");
-            out.push(indent(depth + 2) + "return Err(" + wrapBufferFault(fault + "::UnpairedSurrogate { unit: u32::from(last) }", fault) + ");");
->>>>>>> 8cf12fb4 (fix(rust): unwrap union results before byte round-trips)
             out.push(indent(depth + 1) + "}");
             out.push(indent(depth) + "}");
             out.push(indent(depth) + buf + ".push(" + RustConversions.truncate(u, "u16") + ");");
