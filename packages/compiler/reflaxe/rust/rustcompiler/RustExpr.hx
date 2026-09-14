@@ -52,6 +52,8 @@ class RustExpr {
     var returnUnsigned:Bool = false;
     var returnTypeName:Null<String> = null;
     var currentReturnType:Null<Type> = null;
+    // Method receivers borrow their storage; value reads clone non-Copy fields.
+    var renderingMethodReceiver:Bool = false;
     var inTryClosure:Bool = false;
 
     final subst:Map<Int, String> = [];
@@ -4987,6 +4989,9 @@ class RustExpr {
                 if (name != "length" && (isStringType(cf.get().type) || isRecordValueType(cf.get().type))) {
                     return isStringType(cf.get().type) ? "(" + access + ").to_string()" : "(" + access + ").clone()";
                 }
+                if (name != "length" && !renderingMethodReceiver && !isTypeCopy(cf.get().type)) {
+                    return "(" + access + ").clone()";
+                }
                 return access;
             case FDynamic(name):
                 if ((name == "length" || name == "get_length") && isStringBuf(subj)) {
@@ -6097,7 +6102,10 @@ class RustExpr {
                 }
                 final isMethodFallible = isFallibleCallee(c, cf, false);
                 final q = isFallible ? (isMethodFallible ? errorPropagationSuffix(c, cf, false) : "") : (isMethodFallible ? ".unwrap()" : "");
+                final previousReceiverContext = renderingMethodReceiver;
+                renderingMethodReceiver = true;
                 final subjText = expr(subj);
+                renderingMethodReceiver = previousReceiverContext;
                 final narrowed = narrowedSubject(subj);
                 if (narrowed != null)
                     optionNarrowingHit = true;
