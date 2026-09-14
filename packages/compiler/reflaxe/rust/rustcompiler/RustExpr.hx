@@ -45,6 +45,10 @@ class RustExpr {
     var isFallible:Bool = false;
     var countOverflowVariant:Null<String> = null;
     var errorTypeName:Null<String> = null;
+    // StringBuf lowering can run while a nested renderer temporarily clears
+    // the active error context. Keep the enclosing function's declared enum
+    // so its UStringFault payload still reaches the correct synthetic variant.
+    var declaredErrorTypeName:Null<String> = null;
     var returnUnsigned:Bool = false;
     var returnTypeName:Null<String> = null;
     var currentReturnType:Null<Type> = null;
@@ -160,6 +164,7 @@ class RustExpr {
     public function setFallible(value:Bool, errorType:Null<String> = null, overflowVariant:Null<String> = null):Void {
         this.isFallible = value;
         this.errorTypeName = errorType != null ? errorType : state.errorName;
+        this.declaredErrorTypeName = this.errorTypeName;
         // The overflow variant belongs to the resolved error enum; a function
         // owned by an enum without it reports the gap at the first capacity
         // expression that copies the foreign variant here.
@@ -1340,12 +1345,21 @@ class RustExpr {
     }
 
     function wrappedBufferFault(fault:String, raw:String):String {
-        if (errorTypeName != null
-            && StringTools.endsWith(errorTypeName, "Fault")
-            && errorTypeName != fault) {
-            return errorTypeName + "::" + fault + "Fault(" + raw + ")";
+        // A try-region temporarily selects its payload enum as the active
+        // error type. Preserve the enclosing Result error when the buffer
+        // payload is emitted inside that region; a direct UStringFault
+        // function keeps the payload unchanged.
+        final active = errorTypeName;
+        final target = active == fault && declaredErrorTypeName != null
+            ? declaredErrorTypeName
+            : (active != null ? active : declaredErrorTypeName);
+        if (target == null || !StringTools.endsWith(target, "Fault") || target == fault) {
+            return raw;
         }
-        return raw;
+        final enumModule = state.exceptionPayloads.get("std.UStringException");
+        final memberModule = enumModule != null ? enumModule : "std.UStringFault";
+        final variant = state.syntheticErrorVariant(target, {module: memberModule, name: fault});
+        return target + "::" + (variant != null ? variant : fault + "Fault") + "(" + raw + ")";
     }
 
     function exceptionVariant(cls:ClassType, payloadArg:TypedExpr):String {
