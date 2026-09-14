@@ -9,6 +9,16 @@ class RustCoalesceTests {
         Test.equals(3, RustCoalesceOps.resolvedInts());
     }
 
+    @:test("an omitted nullable String parameter owns the substituted view")
+    public static function substitutedStringDefault():Void {
+        Test.equals("tone", RustCoalesceOps.displayDefault("tone"));
+    }
+
+    @:test("a coalescing nullable String parameter owns a borrowed view")
+    public static function borrowedStringDefault():Void {
+        Test.equals("fr-FR", RustCoalesceOps.localeFrom("fr-FR"));
+    }
+
     @:test("nullable class coalescing materializes optional constructor arguments")
     public static function defaultRecord():Void {
         Test.equals("zh-Hans:16:400:false:0", RustCoalesceOps.resolve());
