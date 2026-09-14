@@ -564,3 +564,6 @@ tests.NodeFsBorrowOpsTests
 
 boring.NegativeSentinelOps
 tests.NegativeSentinelOpsTests
+
+boring.FallibleLocalFunctionOps
+tests.FallibleLocalFunctionTests
