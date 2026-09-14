@@ -10,4 +10,11 @@ class CloneDeriveGapTests {
             new boring.CloneDeriveResult(new boring.CloneDeriveRange(1, 3), "x")
         ]));
     }
+
+    @:test("class holding a string abstract field derives Clone and reads owned values")
+    public static function resolveAbstract():Void {
+        Test.equals("x:2", CloneDeriveGapOps.resolveAbstract([
+            new boring.CloneDeriveAbstractResult("x", 2)
+        ]));
+    }
 }
