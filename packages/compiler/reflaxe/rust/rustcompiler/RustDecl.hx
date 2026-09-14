@@ -121,6 +121,16 @@ class RustDecl {
                 lines.push("        self.clone_box()");
                 lines.push("    }");
                 lines.push("}");
+                // A trait object has no field layout to format; the type
+                // name carries the only stable debug identity, so a record
+                // that derives Debug over a Box<dyn Trait> field stays
+                // printable.
+                lines.push("");
+                lines.push("impl std::fmt::Debug for dyn " + emittedName + " {");
+                lines.push("    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {");
+                lines.push('        write!(f, "{}", self.__haxe_type_name())');
+                lines.push("    }");
+                lines.push("}");
             }
             return lines.join("\n");
         }

@@ -7404,15 +7404,16 @@ class RustExpr {
                 } else {
                     expr(f.expr);
                 };
-                // A concrete implementor entering an interface-typed field
-                // boxes through the same sanctioned construction the call
-                // boundaries use; the field slot is Box<dyn Trait>. Haxe
-                // unifies the field value's type to the interface, so the
-                // concrete constructor is recovered from the expression node.
                 final fieldType = fieldTypes.get(f.name);
-                if (fieldType != null && !isStringType(fieldType)) {
-                    if (!isInterfaceType(fieldType))
-                        val = ownedObjectFieldText(fieldType, f.expr, val);
+                // An interface-typed field is a Box slot; a concrete
+                // initializer boxes at the literal, matching the interface
+                // result and argument rules. The field type widens a cast
+                // constructor to the interface, so the boxing decision reads
+                // the cast target.
+                if (fieldType != null && isInterfaceSlotType(fieldType))
+                    val = renderValueForType(fieldType, stripWrap(f.expr), val);
+                else if (fieldType != null && !isStringType(fieldType)) {
+                    val = ownedObjectFieldText(fieldType, f.expr, val);
                     val = renderValueForType(fieldType, f.expr, val);
                     // A business u32 Int field reinterprets a signed rendering
                     // so the struct literal field carries the declared domain.
@@ -8264,6 +8265,13 @@ class RustExpr {
             case TInst(c, _): c.get().isInterface;
             case _: false;
         };
+    }
+
+    /** Whether a slot declares an interface, directly or through Null. */
+    function isInterfaceSlotType(t:Null<Type>):Bool {
+        if (t == null)
+            return false;
+        return isInterfaceType(t) || (isNullType(t) && isInterfaceType(getNullInnerType(t)));
     }
 
     function renderValueForType(expected:Null<Type>, actual:TypedExpr, rendered:String):String {
