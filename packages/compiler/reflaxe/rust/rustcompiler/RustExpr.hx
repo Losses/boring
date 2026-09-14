@@ -719,12 +719,23 @@ class RustExpr {
         function defaultConstructorFieldValue(t:Type):String {
             return switch (Context.follow(t)) {
                 case TAbstract(a, _) if (a.get().name == "Bool"): "false";
-                case TAbstract(a, _) if (a.get().name == "Int" || a.get().name == "Float"): "0";
+                case TAbstract(a, _) if (a.get().name == "Int"): "0";
+                case TAbstract(a, _) if (a.get().name == "Float"): "0.0";
                 case TInst(c, _) if (c.get().name == "String"): "String::new()";
                 case TAbstract(a, _) if (a.get().name == "Null"): "None";
                 case TType(_, _): "None";
                 case _: "None";
             };
+        }
+        // A branch-assigned field keeps a local slot for the tail struct
+        // literal. The slot must not reuse a parameter name, so a null check
+        // on that parameter still reads the optional parameter.
+        function fallbackBindingName(fieldName:String):String {
+            final snake = RustImports.toSnakeCase(fieldName);
+            for (a in f.args)
+                if (RustImports.toSnakeCase(a.name) == snake)
+                    return "__field_" + snake;
+            return snake;
         }
         for (fieldName in branchAssignedFields.keys()) {
             var field:Null<ClassField> = null;
@@ -735,7 +746,7 @@ class RustExpr {
                 }
             if (field == null)
                 continue;
-            final bindingName = RustImports.toSnakeCase(fieldName);
+            final bindingName = fallbackBindingName(fieldName);
             fallbackBindings.push("let mut " + bindingName + " = " + defaultConstructorFieldValue(field.type) + ";");
             fallbackBoundFields.set(fieldName, true);
             fieldInits.set(fieldName, bindingName);
@@ -756,7 +767,9 @@ class RustExpr {
             switch (node.expr) {
                 case TField({expr: TConst(TThis)}, FInstance(_, _, cf)) if ((!assignmentTarget || branchAssignedFields.exists(cf.get().name)) && cf.get().kind.match(FieldKind.FVar(_))):
                     final fieldName = RustImports.toSnakeCase(cf.get().name);
-                    final local = thisFieldArgs.get(fieldName);
+                    // A branch-assigned field takes its value from the fallback
+                    // slot; a like-named parameter must not capture the read.
+                    final local = branchAssignedFields.exists(cf.get().name) ? null : thisFieldArgs.get(fieldName);
                     if (local == null) {
                         // A non-parameter field assignment is emitted in the tail
                         // Self literal. Bind that same initializer before the
@@ -764,7 +777,7 @@ class RustExpr {
                         // in the associated constructor function.
                         if (!fieldInits.exists(cf.get().name) && !branchAssignedFields.exists(cf.get().name))
                             Context.error("unsupported this-field read in data-class constructor: field has no initializer [" + cf.get().name + "]", node.pos);
-                        final bindingName = fieldName;
+                        final bindingName = fallbackBindingName(cf.get().name);
                         if (!fallbackBoundFields.exists(cf.get().name)) {
                             final initialValue = branchAssignedFields.exists(cf.get().name)
                                 ? defaultConstructorFieldValue(cf.get().type)
