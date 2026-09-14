@@ -576,3 +576,5 @@ tests.NegIntSlotOpsTests
 
 boring.BoxedInterfaceDefaultOps
 tests.BoxedInterfaceDefaultOpsTests
+boring.UnionChainOps
+tests.UnionChainTests
