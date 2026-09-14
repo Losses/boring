@@ -4800,6 +4800,15 @@ class RustExpr {
             }
             return nativeName;
         }
+        // Lazy static value reference policy: static fields emitted as
+        // LazyLock must expose their owned referent at every value-expression
+        // boundary, including paths that bypass field() (for example static
+        // arguments and return values). The helper names this policy and
+        // excludes self-construction reads, which must retain the initializer
+        // cycle-safe path.
+        final lazyRead = lazyStaticRead(cls, name);
+        if (lazyRead != null)
+            return lazyRead;
         final path = cls.pack.length == 0 ? cls.name : cls.pack.join(".") + "." + cls.name;
         switch (path) {
             case "String":
