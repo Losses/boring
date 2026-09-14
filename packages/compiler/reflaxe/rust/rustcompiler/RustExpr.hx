@@ -4083,7 +4083,16 @@ class RustExpr {
         }
         switch (op) {
             case OpEq | OpNotEq if (isNullableCollapsedLocal(l) || isNullableCollapsedLocal(r)):
-                return expr(l) + " " + symbolOf(op) + " " + expr(r);
+                // A collapsed Float local is a scalar; the other side's
+                // integer literal widens into the Float domain so the two
+                // Rust operands share one type.
+                var collapsedLeft = expr(l);
+                var collapsedRight = expr(r);
+                if (isIntType(emittedType(l)) && isFloatType(emittedType(r)))
+                    collapsedLeft = intToFloatText(collapsedLeft);
+                else if (isIntType(emittedType(r)) && isFloatType(emittedType(l)))
+                    collapsedRight = intToFloatText(collapsedRight);
+                return collapsedLeft + " " + symbolOf(op) + " " + collapsedRight;
             case OpEq | OpNotEq if (nullableEnumComparedWithEnum(l.t, r.t) || nullableEnumComparedWithEnum(r.t, l.t)):
                 final left = isNullType(l.t) ? expr(l) : "Some(" + expr(l) + ")";
                 final right = isNullType(r.t) ? expr(r) : "Some(" + expr(r) + ")";
