@@ -42,6 +42,14 @@ class RustCoalesceOps {
         return new RustCoalesceIntRecord(INT_DEFAULTS).count();
     }
 
+    public static function localeFrom(value:String):String {
+        return new RustCoalesceRecord(null, null, value).locale;
+    }
+
+    public static function displayDefault(text:String):String {
+        return new RustCoalesceTextRecord(text).display;
+    }
+
     #if rust_output
     public static function rustOutputStringDefault():String {
         return new RustCoalesceRecord(null, null, null, null, null).locale;
@@ -50,6 +58,14 @@ class RustCoalesceOps {
 
     public static function resolve(?value:RustCoalesceRecord):String {
         return new RustCoalesceHolder(value).describe();
+    }
+}
+
+class RustCoalesceTextRecord {
+    public final display:String;
+
+    public function new(text:String, ?display:Null<String>) {
+        this.display = display == null ? text : display;
     }
 }
 

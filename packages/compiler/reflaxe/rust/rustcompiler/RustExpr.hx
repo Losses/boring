@@ -251,14 +251,15 @@ class RustExpr {
             case CParameterRead(name):
                 if (defaultParameterSubstitutions.exists(name)) {
                     final sub = defaultParameterSubstitutions.get(name);
-                    // A prior string-literal argument substitutes as a &str;
-                    // an owned String payload (the Some of a nullable
-                    // parameter) converts it once at the substitution site.
-                    // The substitution is the inner value of a nullable
-                    // parameter, so an Option slot re-wraps it in Some(...)
-                    // unless it already renders an Option form.
-                    if (asOption && !StringTools.startsWith(sub, "Some(") && sub != "None")
-                        return isStringType(targetType) && isStringLiteralText(sub) ? "Some(" + sub + ".to_string())" : "Some(" + sub + ")";
+                    if (asOption && !StringTools.startsWith(sub, "Some(") && sub != "None") {
+                        // An owned String slot receiving the substituted value
+                        // owns its text; a literal or a reusable view converts
+                        // once at the boundary.
+                        if (isStringType(targetType) && !StringTools.endsWith(sub, ".to_string()")
+                            && (isStringLiteralText(sub) || reusableReadText(sub)))
+                            return "Some(" + sub + ".to_string())";
+                        return "Some(" + sub + ")";
+                    }
                     return asOption && isStringType(targetType) && isStringLiteralText(sub) ? sub + ".to_string()" : sub;
                 } else if (name.indexOf(".") >= 0) coalescingStaticFieldText(name, targetType)
                 else RustImports.toSnakeCase(name);
@@ -322,6 +323,10 @@ class RustExpr {
         // call already owns and passes through. The emitter clones reusable
         // reads so a loop reuses each read.
         final inner = getNullInnerType(targetType);
+        // An owned String slot receiving a reusable string view converts once
+        // at the boundary so the Option owns its text.
+        if (isStringType(inner) && reusableReadText(rendered) && !StringTools.endsWith(rendered, ".to_string()"))
+            return "Some(" + rendered + ".to_string())";
         if (!isTypeCopy(inner) && !isStringType(inner) && reusableReadText(rendered)
             && !StringTools.endsWith(rendered, ".clone()")
             && !StringTools.endsWith(rendered, ".to_vec()"))
