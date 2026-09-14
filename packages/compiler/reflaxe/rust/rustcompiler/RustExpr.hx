@@ -6884,6 +6884,33 @@ class RustExpr {
         return isFallible ? rendered + "?" : "(" + rendered + ").unwrap()";
     }
 
+    /**
+        normalizeFallibleCallArgument: a factory call can be typed by Haxe as
+        its successful payload while Rust still sees the emitted Result. The
+        argument boundary must resolve that Result before a constructor or
+        other value slot receives it. This keeps the decision tied to the
+        callee's fallibility registry and its typed call shape.
+    **/
+    function normalizeFallibleCallArgument(e:TypedExpr, rendered:String):String {
+        final suffix = switch (stripWrap(e).expr) {
+            case TCall(fn, _):
+                switch (stripWrap(fn).expr) {
+                    case TField(_, FInstance(c, _, cf)):
+                        isFallibleCallee(c, cf, false) ? errorPropagationSuffix(c, cf, false) : "";
+                    case TField(_, FStatic(c, cf)):
+                        isFallibleCallee(c, cf, true) ? errorPropagationSuffix(c, cf, true) : "";
+                    case TLocal(v):
+                        fallibleLocalFunctionErrors.exists(v.id) ? (isFallible ? "?" : ".unwrap()") : "";
+                    case _: "";
+                }
+            case _: "";
+        };
+        if (suffix == "" || rendered.indexOf("?") >= 0 || StringTools.endsWith(rendered, suffix)
+            || StringTools.endsWith(rendered, ".unwrap()"))
+            return rendered;
+        return rendered + suffix;
+    }
+
     function newExpr(c:Ref<ClassType>, params:Array<Type>, args:Array<TypedExpr>):String {
         final cls = c.get();
         final valueType = ValueTypeSupport.markedAbstractOfClass(cls);
@@ -7137,6 +7164,7 @@ class RustExpr {
                 // Result before the value reaches the parameter. Interface
                 // parameters then box the successful concrete value below.
                 argStr = normalizeConstructorResult(arg, argStr);
+                argStr = normalizeFallibleCallArgument(arg, argStr);
                 final parameterName = i < paramNames.length ? paramNames[i] : null;
                 final coalescing = parameterName == null ? null : DefaultArgExpander.coalescingDefaultForParam(cls, "new", parameterName);
                 if (coalescing != null && isNullLiteral(arg)) {
