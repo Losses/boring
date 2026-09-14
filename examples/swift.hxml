@@ -558,3 +558,6 @@ tests.VecInsertTests
 
 boring.ParseIntPushOps
 tests.ParseIntPushTests
+
+boring.NullableFloatCompareOps
+tests.NullableFloatCompareTests
