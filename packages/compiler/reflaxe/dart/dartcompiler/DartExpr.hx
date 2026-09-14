@@ -3624,6 +3624,10 @@ class DartExpr {
             + "))";
     }
 
+    function needsStringBufPartParens(part:String):Bool {
+        return part.indexOf(" + ") >= 0 || part.indexOf(" ? ") >= 0 || part.indexOf(" ?? ") >= 0;
+    }
+
     function stringBufMutationLines(fn:TypedExpr, args:Array<TypedExpr>, depth:Int):Array<String> {
         final parts = stringBufMutationParts(fn);
         if (parts == null) {
@@ -3642,7 +3646,7 @@ class DartExpr {
             // The added part may be a string concatenation; parenthesize
             // before appending the unit-view reads so `.length` binds to
             // the whole part.
-            final partParen = "(" + part + ")";
+            final partParen = needsStringBufPartParens(part) ? "(" + part + ")" : part;
             lines.push(indent(depth) + "if (" + tail + " >= 55296 && " + tail + " <= 56319 && !(" + partParen + ".length > 0 && " + partParen
                 + ".codeUnitAt(0) >= 56320 && " + partParen + ".codeUnitAt(0) <= 57343)) {");
             lines.push(stringBufFaultThrow(depth + 1, tail));
