@@ -8267,6 +8267,14 @@ class RustExpr {
         if (isInterfaceType(expected) && isConcreteConstructor(actual)) {
             return "Box::new(" + normalizeConstructorResult(actual, rendered) + ")";
         }
+        // A non-Copy narrowed Option binding names a reference to the inner
+        // value; an owned value slot clones the referent so the slot carries
+        // the owned type its signature declares.
+        if (!isNullType(expected) && isNullType(actual.t)) {
+            final narrowed = narrowedSubject(actual);
+            if (narrowed != null && !isTypeCopy(getNullInnerType(actual.t)))
+                return "(*" + narrowed + ").clone()";
+        }
         if (isNullType(expected) && isInterfaceType(getNullInnerType(expected)) && !isNullType(actual.t)) {
             if (rendered == "None" || StringTools.startsWith(rendered, "Some("))
                 return rendered;
