@@ -306,6 +306,8 @@ tests.M2OptionVecTests
 
 boring.StringBufThrowOps
 tests.StringBufThrowTests
+boring.StringBufUnionOps
+tests.StringBufUnionTests
 
 boring.ExceptionTypeOps
 tests.ExceptionTypeOpsTests
