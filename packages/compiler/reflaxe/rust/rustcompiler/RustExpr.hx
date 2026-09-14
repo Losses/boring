@@ -1125,7 +1125,8 @@ class RustExpr {
                     }
                 } else if (StringTools.startsWith(returnTypeName, "Option<") && !isNullType(ret.t) && !isTNull(ret)) {
                     var payload = switch (stripWrap(ret).expr) {
-                        case TLocal(v) if (borrowedLoopVarIds.exists(v.id)): "(" + retStr + ").clone()";
+                        case TLocal(v) if (borrowedLoopVarIds.exists(v.id)):
+                            isTypeCopy(ret.t) ? "*" + retStr : ownedLoopItemCloneText(ret.t, retStr);
                         case TConst(TString(_)): retStr + ".to_string()";
                         case _: retStr;
                     };
@@ -6510,9 +6511,46 @@ class RustExpr {
             && !StringTools.endsWith(text, ".clone()")
             && !StringTools.endsWith(text, ".to_vec()")
             && !StringTools.endsWith(text, ".to_string()")) {
-            text = "(" + text + ").clone()";
+            text = ownedReadCloneText(arg, text);
         }
         return text;
+    }
+
+    /**
+        ownedReadCloneText: clone a reusable read into an owned value slot. A
+        borrowed loop item names a Rust reference, so its referent dereferences
+        before the clone; a rendered reference dereferences the same way.
+    **/
+    function ownedReadCloneText(arg:TypedExpr, text:String):String {
+        switch (stripWrap(arg).expr) {
+            case TLocal(v) if (borrowedLoopVarIds.exists(v.id)):
+                return ownedLoopItemCloneText(arg.t, text);
+            case _:
+        }
+        return StringTools.startsWith(text, "&") ? "(*" + text + ").clone()" : "(" + text + ").clone()";
+    }
+
+    /**
+        ownedLoopItemCloneText: a borrowed loop item names a Rust reference.
+        Its referent dereferences before the clone only when the element type
+        derives Clone; otherwise the reference-clone form stays, matching the
+        element type's own derive decision.
+    **/
+    function ownedLoopItemCloneText(t:Type, text:String):String {
+        return isCloneableValue(t) ? "(*" + text + ").clone()" : "(" + text + ").clone()";
+    }
+
+    /**
+        isCloneableValue: whether the lowered value type derives Clone, the
+        same gate the declaration emitter uses. Only class instances need the
+        query; every other value shape is clone-capable on its own.
+    **/
+    function isCloneableValue(t:Type):Bool {
+        final inner = isNullType(t) ? getNullInnerType(t) : t;
+        return switch (Context.follow(inner)) {
+            case TInst(c, _): RustDecl.isCloneableClass(c.get(), state.sealedCloneInterfaces);
+            case _: true;
+        };
     }
 
     /**
@@ -6934,9 +6972,16 @@ class RustExpr {
 
     function objectLiteral(e:TypedExpr, fields:Array<{name:String, expr:TypedExpr}>):String {
         final typeName = resolveTypeName(e.t);
+        final fieldTypes = new Map<String, Type>();
+        switch (Context.follow(e.t)) {
+            case TAnonymous(anon):
+                for (field in anon.get().fields)
+                    fieldTypes.set(field.name, field.type);
+            case _:
+        }
         final parts = [
             for (f in fields) {
-                final val = if (isStringType(f.expr.t)) {
+                var val = if (isStringType(f.expr.t)) {
                     switch (stripWrap(f.expr).expr) {
                         case TConst(TString(_)): expr(f.expr) + ".to_string()";
                         case TLocal(v) if (paramVarIds.exists(v.id)): expr(f.expr) + ".to_string()";
@@ -6945,10 +6990,32 @@ class RustExpr {
                 } else {
                     expr(f.expr);
                 };
+                final declared = fieldTypes.get(f.name);
+                if (declared != null && !isStringType(declared) && !isInterfaceType(declared))
+                    val = ownedObjectFieldText(declared, f.expr, val);
                 RustImports.toSnakeCase(f.name) + ": " + val;
             }
         ];
         return typeName + " { " + parts.join(", ") + " }";
+    }
+
+    /**
+        ownedObjectFieldText: an object literal field is an owned value slot.
+        A borrowed loop item names a Rust reference, so its referent clones at
+        the field boundary; a rendered reference dereferences the same way.
+        Interface and String slots keep their dedicated lowering.
+    **/
+    function ownedObjectFieldText(expected:Type, fieldExpr:TypedExpr, text:String):String {
+        if (isTypeCopy(expected))
+            return text;
+        switch (stripWrap(fieldExpr).expr) {
+            case TLocal(v) if (borrowedLoopVarIds.exists(v.id)):
+                return isCloneableValue(expected) ? "(*" + text + ").clone()" : "(" + text + ").clone()";
+            case _:
+        }
+        if (StringTools.startsWith(text, "&") && !StringTools.endsWith(text, ".clone()"))
+            return isCloneableValue(expected) ? "(*" + text + ").clone()" : text;
+        return text;
     }
 
     function resolveTypeName(t:Type):String {
@@ -7962,7 +8029,7 @@ class RustExpr {
                     if (provenEnum)
                         argStr = expr(arg) + ".unwrap()";
                     else
-                        argStr = StringTools.startsWith(argStr, "&") ? "(*" + argStr + ").clone()" : "(" + argStr + ").clone()";
+                        argStr = ownedReadCloneText(arg, argStr);
                 }
                 // A collection length is usize in Rust while a Haxe Int
                 // function parameter is u32 in business modules. The
