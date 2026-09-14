@@ -481,3 +481,6 @@ tests.TypeParameterCompareTests
 
 boring.BorrowedArrayBoundaryOps
 tests.BorrowedArrayBoundaryTests
+
+boring.BorrowedReceiverBoundaryOps
+tests.BorrowedReceiverBoundaryTests
