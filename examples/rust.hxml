@@ -534,3 +534,6 @@ tests.BorrowedLoopItemBoundaryTests
 
 boring.BorrowedStringReturnOps
 tests.BorrowedStringReturnTests
+
+boring.SignedComparisonOps
+tests.SignedComparisonTests
