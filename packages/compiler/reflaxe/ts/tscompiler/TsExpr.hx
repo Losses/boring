@@ -105,6 +105,14 @@ class TsExpr {
     /** Parse helpers discovered while lowering the current loop body. */
     var activeLoopParseHoists:Null<Array<{name:String, declaration:String}>> = null;
 
+    /**
+        Ordinal of Std.parseInt loop helpers emitted within the current field.
+        Sibling loop scopes each own a fresh `activeLoopParseHoists` list, so
+        the per-scope dedupe cannot see helpers hoisted by an earlier sibling;
+        distinct names keep their declarations out of a TS2451 redeclare.
+    **/
+    var parseHelperOrdinal:Int = 0;
+
     /** Fresh names for the trailing-unit reads of stdlib/08 checks. */
     var stringBufTailCounter:Int = 0;
 
@@ -365,6 +373,7 @@ class TsExpr {
             case _: false;
         };
         activeLoopParseHoists = null;
+        parseHelperOrdinal = 0;
 
         prepareLocals(f.expr);
         return blockLines(statementsOf(f.expr), 2);
@@ -1860,7 +1869,13 @@ class TsExpr {
                             if (h.declaration.indexOf("const ") == 0)
                                 helperName = h.name;
                         if (helperName == null) {
-                            helperName = "parseHexCode";
+                            // Sibling loops each start a fresh hoist list, so
+                            // name the helper uniquely per field render; the
+                            // first keeps the historical `parseHexCode` shape.
+                            parseHelperOrdinal++;
+                            helperName = parseHelperOrdinal == 1
+                                ? "parseHexCode"
+                                : "parseHexCode" + parseHelperOrdinal;
                             activeLoopParseHoists.push({
                                 name: helperName,
                                 declaration: "const " + helperName + " = (s: string): number | null => { " + body + " };"
