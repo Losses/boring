@@ -1420,6 +1420,7 @@ class Compiler extends PluginCompiler<Compiler> {
                             members.set(entry.key, [edgeEnum]);
                             enumOf.set(entry.key, edgeEnum);
                             fallible.set(entry.key, true);
+                            conflicts.remove(entry.key);
                             continue;
                         }
                     }
@@ -1471,13 +1472,19 @@ class Compiler extends PluginCompiler<Compiler> {
         }
 
         // Re-run propagation once synthetic types exist so callers of a union
-        // can form the next union level (union nesting is intentional).
-        for (entry in entries) {
-            for (edge in entry.edges) {
-                final syntheticCallee = state.funcErrorTypes.get(edge.callee);
-                if (syntheticCallee != null
-                    && state.isSyntheticErrorType(syntheticCallee.name)
-                    && edge.absorbed.indexOf(syntheticCallee.module) < 0) {
+        // can form the next union level (union nesting is intentional). The
+        // loop repeats because adopting a callee union exposes that union to
+        // the callers of the adopting function in turn.
+        changed = true;
+        while (changed) {
+            changed = false;
+            for (entry in entries) {
+                for (edge in entry.edges) {
+                    final syntheticCallee = state.funcErrorTypes.get(edge.callee);
+                    if (syntheticCallee == null
+                        || !state.isSyntheticErrorType(syntheticCallee.name)
+                        || edge.absorbed.indexOf(syntheticCallee.module) >= 0)
+                        continue;
                     final nested = state.syntheticErrorMembers(syntheticCallee.name);
                     final current = members.get(entry.key);
                     var covered = current != null && nested != null && current.length > 0;
@@ -1487,10 +1494,19 @@ class Compiler extends PluginCompiler<Compiler> {
                                 covered = false;
                     }
                     if (covered) {
-                        members.set(entry.key, [syntheticCallee]);
-                        enumOf.set(entry.key, syntheticCallee);
-                    } else if (mergeEnum(entry.key, syntheticCallee) && !fallible.exists(entry.key)) {
+                        final resolved = state.funcErrorTypes.get(entry.key);
+                        if (resolved == null || resolved.module != syntheticCallee.module || resolved.name != syntheticCallee.name) {
+                            members.set(entry.key, [syntheticCallee]);
+                            enumOf.set(entry.key, syntheticCallee);
+                            state.funcErrorTypes.set(entry.key, syntheticCallee);
+                            state.funcErrorEnums.set(entry.key, syntheticCallee);
+                            conflicts.remove(entry.key);
+                            changed = true;
+                        }
                         fallible.set(entry.key, true);
+                    } else if (mergeEnum(entry.key, syntheticCallee)) {
+                        fallible.set(entry.key, true);
+                        changed = true;
                     }
                 }
             }
