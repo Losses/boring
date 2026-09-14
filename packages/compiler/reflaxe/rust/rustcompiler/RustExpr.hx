@@ -1362,7 +1362,7 @@ class RustExpr {
     }
 
     function payloadEnumRef(e:TypedExpr):Null<Ref<haxe.macro.Type.EnumType>> {
-        return switch (e.expr) {
+        return switch (stripWrap(e).expr) {
             case TField(_, FEnum(en, _)): en;
             case TCall(fn, _):
                 switch (stripWrap(fn).expr) {
