@@ -867,6 +867,10 @@ class RustExpr {
                     // to an enclosing reference parameter.
                     ": " + (isStaticRef ? types.of(v.t, false) : types.functionReturnOf(v.t));
                 } else switch (v.t) {
+                    case TInst(c, _) if (c.get().isInterface):
+                        // An interface local carries its boxed trait object
+                        // type so every conditional arm coerces into it.
+                        ": " + types.of(v.t, false);
                     case TInst(c, _)
                         if (c.get().name == "SortedMapBuilder" || c.get().name == "SortedMap" || c.get().name == "SortedSetBuilder"
                             || c.get().name == "SortedSet"):
@@ -2637,6 +2641,8 @@ class RustExpr {
             narrowedText = normalizeNumericBranch(narrowedBranch, branchTarget, narrowedText);
             noneText = normalizeNumericBranch(noneBranch, branchTarget, noneText);
         }
+        narrowedText = interfaceConditionalBranch(resultType, narrowedBranch, narrowedText);
+        noneText = interfaceConditionalBranch(resultType, noneBranch, noneText);
         final subjectText = subjectTextOf(info.subject);
         final matchText = info.noneWhenTrue ? "match &("
             + subjectText
@@ -2898,9 +2904,9 @@ class RustExpr {
                 return "if "
                     + condStr
                     + " { "
-                    + conditionalNumericBranch(t, f, e.t, branchTarget, wrapBranchForNullableResult(t, e.t, f))
+                    + interfaceConditionalBranch(e.t, t, conditionalNumericBranch(t, f, e.t, branchTarget, wrapBranchForNullableResult(t, e.t, f)))
                     + " } else { "
-                    + conditionalNumericBranch(f, t, e.t, branchTarget, wrapBranchForNullableResult(f, e.t, t))
+                    + interfaceConditionalBranch(e.t, f, conditionalNumericBranch(f, t, e.t, branchTarget, wrapBranchForNullableResult(f, e.t, t)))
                     + " }";
             case TSwitch(_, _, _):
                 return matchExpression(e);
@@ -3495,6 +3501,17 @@ class RustExpr {
                 StringTools.endsWith(text, ".clone()") ? text : "(" + text + ").clone()";
             case _: text;
         };
+    }
+
+    /**
+        interfaceConditionalBranch: a conditional arm entering an interface
+        result slot boxes its concrete value; an arm already typed as the
+        interface keeps its box. A null arm keeps the null literal.
+    **/
+    function interfaceConditionalBranch(expected:Null<Type>, branch:TypedExpr, text:String):String {
+        if (expected == null || isNullType(expected) || !isInterfaceType(expected) || isTNull(branch) || text == "None")
+            return text;
+        return renderValueForType(expected, branch, text);
     }
 
     /**
