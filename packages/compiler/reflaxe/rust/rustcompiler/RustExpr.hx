@@ -6128,7 +6128,16 @@ class RustExpr {
                     } else {
                         name;
                     }
-                    return "FPHelper::" + RustImports.toSnakeCase(targetName) + "(" + renderedArgs + ")";
+                    // The signed bit edge takes the i32 domain while the Haxe
+                    // parameter is the business u32 Int, so the argument
+                    // reinterprets unless it already lowers signed.
+                    final fpArgs = if (name == "i32ToFloat" && args.length == 1 && isIntType(args[0].t)) {
+                        final argStr = expr(args[0]);
+                        rendersSignedIntArg(args[0], argStr) ? argStr : RustConversions.reinterpret(argStr, "i32");
+                    } else {
+                        renderCallArgs(cf.get().type, args, null, 0, mutableParamPositions(cf.get()));
+                    };
+                    return "FPHelper::" + RustImports.toSnakeCase(targetName) + "(" + fpArgs + ")";
                 }
                 if (cls.module == "Math" && name == "isNaN")
                     return "(" + mathFloatBindingArg(args[0]) + ").is_nan()";
