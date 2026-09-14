@@ -1,5 +1,7 @@
 package boring;
 
+import std.ReadOnlyArray;
+
 class RustCoalesceRecord {
     public final fontFamilies:Array<String>;
     public final fontSize:Float;
@@ -34,6 +36,12 @@ class RustCoalesceHolder {
 }
 
 class RustCoalesceOps {
+    public static final INT_DEFAULTS:ReadOnlyArray<Int> = [7, 8, 9];
+
+    public static function resolvedInts():Int {
+        return new RustCoalesceIntRecord(INT_DEFAULTS).count();
+    }
+
     #if rust_output
     public static function rustOutputStringDefault():String {
         return new RustCoalesceRecord(null, null, null, null, null).locale;
@@ -42,5 +50,17 @@ class RustCoalesceOps {
 
     public static function resolve(?value:RustCoalesceRecord):String {
         return new RustCoalesceHolder(value).describe();
+    }
+}
+
+class RustCoalesceIntRecord {
+    public final values:ReadOnlyArray<Int>;
+
+    public function new(?values:ReadOnlyArray<Int>) {
+        this.values = values == null ? [] : values;
+    }
+
+    public function count():Int {
+        return this.values.length;
     }
 }

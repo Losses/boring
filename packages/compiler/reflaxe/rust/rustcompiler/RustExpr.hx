@@ -418,6 +418,14 @@ class RustExpr {
                     if (lazyRead != null)
                         return lazyRead;
                     final rendered = staticRef(clsRef.get(), fieldName);
+                    // A direct array static lowers to a Rust array, while an
+                    // owned Vec slot needs the slice copied into a Vec. The
+                    // nullable coalescing boundary owns its storage.
+                    if (isOwnedVecType(getNullInnerType(targetType)) || isOwnedVecType(targetType)) {
+                        final field = staticFieldOf(clsRef.get(), fieldName);
+                        if (field != null && isDirectArrayStaticField(field))
+                            return rendered + ".to_vec()";
+                    }
                     return isStringType(targetType)
                         && !StringTools.endsWith(rendered, ".to_string()") ? rendered + ".to_string()" : rendered;
                 case TAbstract(absRef, _) if (ValueTypeSupport.isMarkedAbstract(absRef.get())):
