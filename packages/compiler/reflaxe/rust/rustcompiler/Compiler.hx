@@ -1379,6 +1379,14 @@ class Compiler extends PluginCompiler<Compiler> {
             final current = state.funcErrorTypes.get(key);
             if (pair != null && (current == null || !state.isSyntheticErrorType(current.name)))
                 state.funcErrorTypes.set(key, pair);
+            // A caller that becomes fallible only through a synthetic-union
+            // callee (the re-run propagation loop) has its error type resolved
+            // but not its enum registry entry; the call-site unwrap decision
+            // reads the enum registry, so keep the two in step.
+            final resolved = state.funcErrorTypes.get(key);
+            if (resolved != null && !state.funcErrorEnums.exists(key)) {
+                state.funcErrorEnums.set(key, resolved);
+            }
         }
 
         for (key in conflicts.keys()) {
