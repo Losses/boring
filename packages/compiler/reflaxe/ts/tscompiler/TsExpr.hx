@@ -534,7 +534,7 @@ class TsExpr {
                 out.push(indent(depth) + "}");
                 return out;
             case TWhile(c, b, true):
-                final out = [indent(depth) + "while (" + expr(c) + ") {"];
+                final out:Array<String> = [];
                 final outerParseHoists = activeLoopParseHoists;
                 activeLoopParseHoists = [];
                 final bodyLines = blockLines(statementsOf(b), depth + 1);
@@ -542,8 +542,9 @@ class TsExpr {
                 activeLoopParseHoists = outerParseHoists;
                 if (parseHoists != null) {
                     for (h in parseHoists)
-                        out.push(indent(depth + 1) + h.declaration);
+                        out.push(indent(depth) + h.declaration);
                 }
+                out.push(indent(depth) + "while (" + expr(c) + ") {");
                 for (l in bodyLines)
                     out.push(l);
                 out.push(indent(depth) + "}");
@@ -931,9 +932,7 @@ class TsExpr {
             + (fold != null ? ", " + fold : "")
             + (boundNeedsHoist ? ", count = " + boundText : "");
         final conditionBound = boundNeedsHoist ? "count" : boundText;
-        final out = [
-            indent(depth) + "for (" + init + "; " + name + " < " + conditionBound + "; " + name + " += 1) {"
-        ];
+        final out:Array<String> = [];
         final outerParseHoists = activeLoopParseHoists;
         activeLoopParseHoists = [];
         final bodyLines = blockLines(loop.body, depth + 1);
@@ -941,8 +940,9 @@ class TsExpr {
         activeLoopParseHoists = outerParseHoists;
         if (parseHoists != null) {
             for (h in parseHoists)
-                out.push(indent(depth + 1) + h.declaration);
+                out.push(indent(depth) + h.declaration);
         }
+        out.push(indent(depth) + "for (" + init + "; " + name + " < " + conditionBound + "; " + name + " += 1) {");
         for (l in bodyLines)
             out.push(l);
         out.push(indent(depth) + "}");
