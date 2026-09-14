@@ -3472,7 +3472,24 @@ class RustExpr {
     }
 
     function conditionalNumericBranch(branch:TypedExpr, sibling:TypedExpr, resultType:Null<Type>, target:Null<String>, text:String):String {
-        return target == null ? text : normalizeNumericBranch(branch, target, text);
+        final normalized = target == null ? text : normalizeNumericBranch(branch, target, text);
+        return cloneBorrowedReceiverBranch(branch, resultType, normalized);
+    }
+
+    /**
+        A method receiver is emitted as `&self`; the value it names stays owned
+        by the caller. An owned result slot therefore clones the referent when
+        a conditional arm reads the receiver. Nullable result slots keep their
+        Option wrapper, so a branch already wrapped in Some stays unchanged.
+    **/
+    function cloneBorrowedReceiverBranch(branch:TypedExpr, resultType:Null<Type>, text:String):String {
+        if (resultType == null || isTypeCopy(resultType) || StringTools.startsWith(text, "Some("))
+            return text;
+        return switch (stripWrap(branch).expr) {
+            case TConst(TThis):
+                StringTools.endsWith(text, ".clone()") ? text : "(" + text + ").clone()";
+            case _: text;
+        };
     }
 
     /**
@@ -7974,13 +7991,14 @@ class RustExpr {
 
     /**
         reusableOwnedRead: value arguments are evaluated as Haxe reads and may
-        be used again. Clone only locals and direct field reads at an owned
-        value boundary; constructors, calls, and object literals already
-        produce fresh ownership. This covers fields of local records and
-        objects without cloning arbitrary expressions.
+        be used again. Clone locals, direct field reads, and the borrowed `self`
+        receiver at an owned value boundary; constructors, calls, and object
+        literals already produce fresh ownership. This covers fields of local
+        records and objects without cloning arbitrary expressions.
     **/
     function isReusableOwnedRead(e:TypedExpr):Bool {
         return switch (stripWrap(e).expr) {
+            case TConst(TThis): true;
             case TLocal(_) | TField(_, _): true;
             case _: false;
         };
