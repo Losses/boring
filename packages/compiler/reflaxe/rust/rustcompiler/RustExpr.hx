@@ -461,7 +461,7 @@ class RustExpr {
                     // (`Fill::FILL_INSTANCE`) that the emitted module-scope
                     // static does not provide.
                     if (isGuardStaticField(cls, fieldName)) {
-                        final value = staticGuard(cls, fieldName) + ".clone()";
+                        final value = staticGuardRead(cls, fieldName, ".clone()");
                         // A concrete singleton entering an interface slot boxes
                         // through the sanctioned construction, so the
                         // unwrap_or_else closure returns the boxed trait object
@@ -1282,6 +1282,13 @@ class RustExpr {
                     final guard = staticGuardOf(ret);
                     if (guard != null)
                         retStr = "(" + guard + ").clone()";
+                    // (ThreadLocalStaticAccess) thread_local statics need
+                    // the clone inside .with(). Re-render when the guard
+                    // is a thread_local static.
+                    if (isThreadLocalGuardStatic(ret)) {
+                        final path = staticGuardPathOf(ret);
+                        retStr = path + ".with(|x| x.borrow().clone())";
+                    }
                     return [indent(depth) + "return Ok(" + retStr + ");"];
                 }
                 return [indent(depth) + "return " + retStr + ";"];
@@ -5605,8 +5612,35 @@ class RustExpr {
         };
     }
 
+    function isThreadLocalGuardStatic(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TField(_, FStatic(c, cf)): isThreadLocalStatic(c.get(), cf.get().name);
+            case _: false;
+        };
+    }
+
+    function staticGuardPathOf(e:TypedExpr):Null<String> {
+        return switch (stripWrap(e).expr) {
+            case TField(_, FStatic(c, cf)): staticItemPath(c.get(), cf.get().name);
+            case _: null;
+        };
+    }
+
     function staticGuard(cls:ClassType, name:String):String {
+        if (isThreadLocalStatic(cls, name)) {
+            return staticItemPath(cls, name) + ".with(|x| x.borrow())";
+        }
         return staticItemPath(cls, name) + ".lock().unwrap_or_else(|e| e.into_inner())";
+    }
+
+    // (ThreadLocalStaticAccess) Read a guard static with a post-borrow
+    // operation. For Mutex statics, postOp is appended after the lock();
+    // for thread_local statics, postOp is appended inside .with(|x| x.borrow()...).
+    function staticGuardRead(cls:ClassType, name:String, postOp:String):String {
+        if (isThreadLocalStatic(cls, name)) {
+            return staticItemPath(cls, name) + ".with(|x| x.borrow()" + postOp + ")";
+        }
+        return staticItemPath(cls, name) + ".lock().unwrap_or_else(|e| e.into_inner())" + postOp;
     }
 
     function staticGuardOf(e:TypedExpr):Null<String> {
