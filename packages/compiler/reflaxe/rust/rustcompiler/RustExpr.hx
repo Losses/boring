@@ -93,6 +93,13 @@ class RustExpr {
     // rendered text is the key because guarded subjects may be fields.
     final optionNarrowings:Array<{subjectText:String, name:String}> = [];
     var optionNarrowingHit:Bool = false;
+    // A Std.isOfType(x, Variant) guard narrows x to the concrete variant
+    // inside its then-arm. The binding is the downcast reference; reads of
+    // x substitute it so field access targets the concrete type
+    // (InterfaceDowncast). Keyed by rendered subject text like the null
+    // guard narrowing.
+    final downcastNarrowings:Array<{subjectText:String, name:String}> = [];
+    var downcastNarrowingHit:Bool = false;
     final fillNarrowings:Array<{subjectText:String, fillBody:String}> = [];
     final readsAfterDeclaration:Map<Int, Bool> = [];
     final unsignedLocals:Map<Int, Bool> = [];
@@ -1125,6 +1132,9 @@ class RustExpr {
                 final guarded = guardedMatchStatements(c, t, f, depth);
                 if (guarded != null)
                     return guarded;
+                final downcast = downcastIfStatement(c, t, f, depth);
+                if (downcast != null)
+                    return downcast;
                 var condStr = expr(c);
                 while (StringTools.startsWith(condStr, "(") && StringTools.endsWith(condStr, ")") && matchingParens(condStr)) {
                     condStr = condStr.substr(1, condStr.length - 2);
@@ -2685,6 +2695,62 @@ class RustExpr {
     }
 
     /**
+        A Std.isOfType(x, Variant) call whose subject is an interface value
+        and whose target is a concrete sealed variant. Returns the subject
+        and target when the downcast lowering applies (InterfaceDowncast).
+    **/
+    function isOfTypeGuard(e:TypedExpr):Null<{subject:TypedExpr, target:ClassType}> {
+        switch (stripWrap(e).expr) {
+            case TCall(fn, args) if (args.length == 2):
+                switch (stripWrap(fn).expr) {
+                    case TField(_, FStatic(c, cf)) if (c.get().module == "Std" && cf.get().name == "isOfType"):
+                        final target = TypeCheckHelper.classOfTypeExpr(args[1]);
+                        if (target == null || !InterfaceDowncast.enabled())
+                            return null;
+                        if (!isInterfaceType(args[0].t) || target.isInterface)
+                            return null;
+                        return {subject: args[0], target: target};
+                    case _:
+                }
+            case _:
+        }
+        return null;
+    }
+
+    /**
+        The downcast bindings registered by an immediately enclosing
+        `Std.isOfType` if-guard, in the order the guards appear in a
+        boolean-and chain. Each entry narrows one subject to its concrete
+        variant (InterfaceDowncast).
+    **/
+    function downcastGuardsOf(e:TypedExpr):Array<{subject:TypedExpr, target:ClassType}> {
+        final out:Array<{subject:TypedExpr, target:ClassType}> = [];
+        function walk(node:TypedExpr):Void {
+            switch (stripWrap(node).expr) {
+                case TBinop(OpBoolAnd, left, right):
+                    walk(left);
+                    walk(right);
+                case _:
+                    final guard = isOfTypeGuard(node);
+                    if (guard != null)
+                        out.push(guard);
+            }
+        }
+        walk(e);
+        return out;
+    }
+
+    function downcastNarrowedSubject(subject:TypedExpr):Null<String> {
+        final text = subjectTextOf(subject);
+        for (i in 0...downcastNarrowings.length) {
+            final narrowing = downcastNarrowings[downcastNarrowings.length - 1 - i];
+            if (narrowing.subjectText == text)
+                return narrowing.name;
+        }
+        return null;
+    }
+
+    /**
         Field reads in a null-guarded boolean chain use the match binding of
         their receiver. This covers `value != null && value.field` after the
         receiver narrowing has been registered, while complete guarded paths
@@ -2888,7 +2954,58 @@ class RustExpr {
         return matchText;
     }
 
-    function guardedMatchStatements(guard:TypedExpr, ifTrue:TypedExpr, ifFalse:Null<TypedExpr>, depth:Int):Null<Array<String>> {
+    /**
+    Lowers an `if (Std.isOfType(x, Variant)) { ... }` statement to an
+    `if let Some(binding) = x.as_any().downcast_ref::<Variant>()` guard,
+    substituting reads of x with the binding inside the then-arm so field
+    access targets the concrete variant (InterfaceDowncast). Returns null
+    when the condition is not a downcast guard or the switch is off.
+**/
+function downcastIfStatement(guard:TypedExpr, ifTrue:TypedExpr, ifFalse:Null<TypedExpr>, depth:Int):Null<Array<String>> {
+    if (!InterfaceDowncast.enabled())
+        return null;
+    final guards = downcastGuardsOf(guard);
+    if (guards.length == 0)
+        return null;
+    final previousHit = downcastNarrowingHit;
+    downcastNarrowingHit = false;
+    final bindingNames:Array<String> = [];
+    for (g in guards) {
+        final name = freshRegionName("__downcast");
+        bindingNames.push(name);
+        downcastNarrowings.push({subjectText: subjectTextOf(g.subject), name: name});
+    }
+    var narrowed = blockLines(statementsOf(ifTrue), depth + 2);
+    final hit = downcastNarrowingHit;
+    for (g in guards)
+        downcastNarrowings.pop();
+    downcastNarrowingHit = previousHit;
+    if (!hit)
+        return null;
+    // Build the `if let Some(b) = x.as_any().downcast_ref::<T>()` chain.
+    // Each guard binds one subject; the last guard's binding is the
+    // innermost, so the chain nests left-to-right.
+    var inner = narrowed;
+    for (i in 0...guards.length) {
+        final idx = guards.length - 1 - i;
+        final g = guards[idx];
+        final name = bindingNames[idx];
+        final subjectText = expr(g.subject);
+        final targetName = RustImports.emittedTypeName(g.target.name);
+        imports.requireType(g.target.module, g.target.name);
+        final header = indent(depth) + "if let Some(" + name + ") = " + subjectText + ".as_any().downcast_ref::<" + targetName + ">() {";
+        final body = [for (l in inner) l];
+        body.push(indent(depth) + "}");
+        inner = [header].concat(body);
+    }
+    if (ifFalse != null) {
+        final elseLines = blockLines(statementsOf(ifFalse), depth + 1);
+        inner = inner.concat([indent(depth) + "} else {"].concat(elseLines).concat([indent(depth) + "}"]));
+    }
+    return inner;
+}
+
+function guardedMatchStatements(guard:TypedExpr, ifTrue:TypedExpr, ifFalse:Null<TypedExpr>, depth:Int):Null<Array<String>> {
         final prefix = nullGuardPrefix(guard);
         final info = prefix == null ? nullGuardOf(guard) : prefix.info;
         if (info == null)
@@ -2987,6 +3104,18 @@ class RustExpr {
                     case _: return fail(e, "constant has no Rust lowering");
                 }
             case TLocal(v):
+                if (downcastNarrowings.length > 0) {
+                    final downcast = downcastNarrowedSubject(e);
+                    if (downcast != null) {
+                        downcastNarrowingHit = true;
+                        // The downcast binding is a &Variant reference; a
+                        // read keeps the reference so field access and
+                        // method calls auto-deref to the concrete type
+                        // (InterfaceDowncast). An owned value is produced
+                        // only where a value is demanded (cast boundary).
+                        return downcast;
+                    }
+                }
                 if (optionNarrowings.length > 0) {
                     final narrowed = narrowedSubject(e);
                     if (narrowed != null) {
@@ -3075,6 +3204,17 @@ class RustExpr {
             case TMeta(_, inner):
                 return expr(inner);
             case TCast(inner, _):
+                // A cast on a Std.isOfType-narrowed interface value lowers
+                // to the concrete variant. The downcast binding is a
+                // &Variant reference; an owned value clones the referent
+                // so a typed local or field read owns it (InterfaceDowncast).
+                if (downcastNarrowings.length > 0) {
+                    final downcast = downcastNarrowedSubject(inner);
+                    if (downcast != null) {
+                        downcastNarrowingHit = true;
+                        return "(*" + downcast + ").clone()";
+                    }
+                }
                 return expr(inner);
             case TEnumParameter(se, ef, index):
                 // A collapsed single-case switch reads the payload outside

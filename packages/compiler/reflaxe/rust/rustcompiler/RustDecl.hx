@@ -91,6 +91,12 @@ class RustDecl {
             lines.push("    fn __haxe_type_name(&self) -> &'static str;");
             if (isCloneIface)
                 lines.push("    fn clone_box(&self) -> Box<dyn " + emittedName + ">;");
+            // A sealed interface whose implementors are all in the program
+            // can downcast a trait object to a concrete variant through
+            // Any (InterfaceDowncast). The method lets a Std.isOfType guard
+            // lower to `if let Some(v) = x.as_any().downcast_ref::<T>()`.
+            if (InterfaceDowncast.enabled() && SealedVariantHelper.isSealedInterface(cls))
+                lines.push("    fn as_any(&self) -> &dyn std::any::Any;");
             for (f in funcFields) {
                 final paramList = [
                     for (a in f.args)
@@ -376,6 +382,15 @@ class RustDecl {
             if (ifaceCloneable) {
                 lines.push('    fn clone_box(&self) -> Box<dyn ${ifaceCls.name}> {');
                 lines.push('        Box::new(self.clone())');
+                lines.push("    }");
+                ifaceSep = true;
+            }
+            // The downcast hook mirrors the trait's as_any: the concrete
+            // implementor's &self is already the concrete type, so it
+            // coerces to &dyn Any directly (InterfaceDowncast).
+            if (InterfaceDowncast.enabled() && SealedVariantHelper.isSealedInterface(ifaceCls)) {
+                lines.push("    fn as_any(&self) -> &dyn std::any::Any {");
+                lines.push("        self");
                 lines.push("    }");
                 ifaceSep = true;
             }
