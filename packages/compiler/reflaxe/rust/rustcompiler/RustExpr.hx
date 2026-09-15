@@ -9104,6 +9104,12 @@ class RustExpr {
                                 narrowedSubject(arg) + ".as_str()";
                             case _ if (nullableStringViewArg(arg)): "(" + expr(arg) + ").as_deref().unwrap_or(\"\")";
                             case TLocal(v) if (isBorrowedParamLocal(v)): expr(arg);
+                            case _ if (fieldReceiverCarriesFallibleWrapper(arg)):
+                                // (LocalOptionStringView) A local whose Haxe
+                                // type unified to String but whose Rust
+                                // rendering still produces Option<String>
+                                // (e.g. a coalescing ternary).
+                                "(" + expr(arg) + ").as_deref().unwrap_or(\"\")";
                             case _: expr(arg) + ".as_str()";
                         };
                     }
