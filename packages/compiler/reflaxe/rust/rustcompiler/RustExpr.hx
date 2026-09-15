@@ -9012,7 +9012,13 @@ class RustExpr {
      */
     function optionContainerIndexAccess(arr:TypedExpr, idx:TypedExpr, mutable:Bool):String {
         final receiver = expr(arr);
-        final unwrapOption = isNullType(arr.t) || receiverCarriesFallibleWrapper(arr);
+        // Nullable container indexing can lose the Null abstract in macro
+        // type following while the emitted receiver remains Option<Vec<T>>.
+        // Use the emitted Rust boundary contract so indexing never targets
+        // the Option itself (NullableContainerIndexing).
+        final emittedReceiverType = arr.t == null ? "" : types.of(arr.t, false);
+        final emittedOptionContainer = StringTools.startsWith(emittedReceiverType, "Option<");
+        final unwrapOption = isNullType(arr.t) || receiverCarriesFallibleWrapper(arr) || emittedOptionContainer;
         if (unwrapOption) {
             final coerce = mutable ? ".as_mut().unwrap()" : ".as_ref().unwrap()";
             return "(" + receiver + ")" + coerce + "[" + castArg(idx, "usize") + "]";
