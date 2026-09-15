@@ -1078,10 +1078,17 @@ class RustExpr {
                 // element reads and writes of an array local infer through
                 // later uses, but an index read before any write leaves the
                 // element type unknown (E0282). The declared Haxe Array
-                // element type anchors the binding.
+                // element type anchors the binding. `new Array<T>()` renders
+                // the same bare `Vec::new()` and needs the same anchor.
                 if (explicitType == "") {
                     switch (stripWrap(init).expr) {
                         case TArrayDecl(elems) if (elems.length == 0):
+                            switch (Context.follow(v.t)) {
+                                case TInst(c, _) if (c.get().name == "Array"):
+                                    nullableType = ": " + types.of(v.t, false);
+                                case _:
+                            }
+                        case TNew(c, _, args) if (args.length == 0 && isArrayClass(c.get())):
                             switch (Context.follow(v.t)) {
                                 case TInst(c, _) if (c.get().name == "Array"):
                                     nullableType = ": " + types.of(v.t, false);
@@ -2343,6 +2350,7 @@ class RustExpr {
         }
 
         final arrName = RustImports.toSnakeCase(localName(plan.arr));
+        final arrElementType = arrayElementType(plan.arr.t);
         final capStr = capacityExpr(plan.loop.bound);
         final boundStr = loopBound(plan.loop.bound);
         final loopIndexName = RustImports.toSnakeCase(plan.loop.index.name);
@@ -2358,9 +2366,9 @@ class RustExpr {
                     for (l in blockLines(batch, depth + 1))
                         out.push(l);
                 case StoreValue(value):
-                    out.push(indent(depth + 1) + arrName + ".push(" + renderPushArg(value) + ");");
+                    out.push(indent(depth + 1) + arrName + ".push(" + renderPushArg(value, arrElementType) + ");");
                 case PushValue(arg):
-                    out.push(indent(depth + 1) + arrName + ".push(" + renderPushArg(arg) + ");");
+                    out.push(indent(depth + 1) + arrName + ".push(" + renderPushArg(arg, arrElementType) + ");");
             }
         }
         out.push(indent(depth) + "}");
@@ -2547,8 +2555,14 @@ class RustExpr {
         };
     }
 
-    function renderPushArg(arg:TypedExpr):String {
+    function renderPushArg(arg:TypedExpr, elementType:Null<Type> = null):String {
         var argStr = expr(arg);
+        // A non-null value pushed into a nullable-element array (Array<Null<T>>
+        // lowers to Vec<Option<T>>) wraps in Some so the element slot matches.
+        // The null literal already renders None and stays bare.
+        if (elementType != null && isNullType(elementType) && !isNullType(arg.t) && !isTNull(arg)) {
+            return "Some(" + argStr + ")";
+        }
         // An i32-domain value pushed into a business u32 array reinterprets
         // its bits; the element slot is the u32 domain.
         if (!isNullType(arg.t) && !RuntimeResidents.isResident(imports.selfModule) && i32LocalDomain(arg))
@@ -2566,6 +2580,12 @@ class RustExpr {
             case TLocal(v): nullableCollapsedLocals.exists(v.id);
             case _: false;
         })) {
+            // A null literal already renders `None`; unwrapping it would
+            // produce the invalid `None.unwrap()`. Only a non-null nullable
+            // value (a Some-carrying Option) unwraps into the element slot.
+            if (isTNull(arg)) {
+                return argStr;
+            }
             argStr = argStr + ".unwrap()";
             if (!isTypeCopy(getNullInnerType(arg.t))) {
                 if (!StringTools.endsWith(argStr, ".clone()")
@@ -4048,6 +4068,23 @@ class RustExpr {
         };
     }
 
+    /** Whether a class is the Haxe Array type. */
+    function isArrayClass(c:ClassType):Bool {
+        return c.name == "Array";
+    }
+
+    /** The element type of an Array<T> type, when known. */
+    function arrayElementType(t:Null<Type>):Null<Type> {
+        if (t == null)
+            return null;
+        return switch (Context.follow(t)) {
+            case TInst(c, params) if (c.get().name == "Array" && params.length > 0): params[0];
+            case TAbstract(a, params) if (a.get().name == "ReadOnlyArray" && params.length > 0): params[0];
+            case TType(d, params) if (d.get().name == "ReadOnlyArray" && params.length > 0): params[0];
+            case _: null;
+        };
+    }
+
     // A nullable receiver calls its method on the inner value. Mutable
     // collection mutations (push, put, shift, ...) borrow the inner storage
     // mutably; reads borrow it immutably. Some Haxe Null<T> types are emitted
@@ -5319,6 +5356,16 @@ class RustExpr {
                 }
                 if (name == "length") {
                     if (isNullType(subj.t)) {
+                        // A null-coalescing initializer materialized the
+                        // inner value into the local: the local is a plain
+                        // collection, so its length is a direct len() read.
+                        final collapsed = switch (stripWrap(subj).expr) {
+                            case TLocal(v): nullableCollapsedLocals.exists(v.id);
+                            case _: false;
+                        };
+                        if (collapsed) {
+                            return RustConversions.truncate(expr(subj) + ".len()", "u32");
+                        }
                         // An enclosing null guard already collapsed the
                         // Option: the binding references the collection
                         // itself, so the length is a plain len() read.
@@ -6407,7 +6454,7 @@ class RustExpr {
                     return nullableMethodReceiver(subj, false) + "." + name + "(" + kExpr + ")";
                 }
                 if (name == "push") {
-                    return nullableMethodReceiver(subj, true) + ".push(" + renderPushArg(args[0]) + ")";
+                    return nullableMethodReceiver(subj, true) + ".push(" + renderPushArg(args[0], arrayElementType(subj.t)) + ")";
                 }
                 if (name == "join") {
                     if (isVecType(subj)) {
@@ -6436,10 +6483,10 @@ class RustExpr {
                     return "{ if " + expr(subj) + ".is_empty() { None } else { Some(" + expr(subj) + ".remove(0)) } }";
                 }
                 if (name == "unshift" && isVecType(subj) && args.length == 1) {
-                    return expr(subj) + ".insert(0, " + renderPushArg(args[0]) + ")";
+                    return expr(subj) + ".insert(0, " + renderPushArg(args[0], arrayElementType(subj.t)) + ")";
                 }
                 if (name == "insert" && isVecType(subj) && args.length == 2) {
-                    return expr(subj) + ".insert(" + castArg(args[0], "usize") + ", " + renderPushArg(args[1]) + ")";
+                    return expr(subj) + ".insert(" + castArg(args[0], "usize") + ", " + renderPushArg(args[1], arrayElementType(subj.t)) + ")";
                 }
                 // vecSpliceDrain: Haxe Array.splice(pos, len) removes len
                 // elements at pos and returns the removed sub-array. Rust's
@@ -8859,7 +8906,11 @@ class RustExpr {
                     if (provenString) {
                         argStr = expr(arg) + ".as_deref().unwrap_or(\"\")";
                     } else if (nullableArrayParam) {
-                        argStr = "(" + expr(arg) + ").as_ref().unwrap()";
+                        // A narrowed arg already renders as the match binding,
+                        // a reference to the inner Vec; unwrapping it again
+                        // would ask Vec for an as_ref that does not exist.
+                        final narrowed = narrowedSubject(arg);
+                        argStr = narrowed != null ? expr(arg) : "(" + expr(arg) + ").as_ref().unwrap()";
                     } else {
                         // The mutating faces are arrays and the writer and reader
                         // fronts; every other borrowed parameter reads only.
@@ -9131,6 +9182,15 @@ class RustExpr {
      */
     function optionContainerIndexAccess(arr:TypedExpr, idx:TypedExpr, mutable:Bool):String {
         final receiver = expr(arr);
+        // A narrowed receiver already renders as the match binding, a
+        // reference to the inner Vec (match &(opt) { Some(name) => ... }).
+        // Applying `.as_ref().unwrap()` to that reference would ask Vec for
+        // an as_ref that does not exist (E0282 on the element type); the
+        // binding is already the unwrapped container.
+        final narrowed = narrowedSubject(arr);
+        if (narrowed != null) {
+            return "(" + receiver + ")" + "[" + castArg(idx, "usize") + "]";
+        }
         // Nullable container indexing can lose the Null abstract in macro
         // type following while the emitted receiver remains Option<Vec<T>>.
         // Use the emitted Rust boundary contract so indexing never targets
