@@ -1100,6 +1100,52 @@ class Compiler extends PluginCompiler<Compiler> {
                 }
             }
         }
+        // A call with omitted arguments inlines the callee's registered
+        // coalescing defaults at the call site, so any fallible call inside
+        // such a default is a real error source of the caller even though it
+        // never appears in the typed Haxe argument list. Record those inner
+        // calls as propagation edges so the caller's Result error type covers
+        // them the same way an explicit call would.
+        function recordDefaultCallEdges(modulePath:String, fieldName:String, ?className:String, providedCount:Int,
+                entry:{key:String, edges:Array<{callee:String, absorbed:Array<String>}>}, absorbed:Array<String>):Void {
+            final omitted = DefaultArgExpander.omittedCallDefaults(modulePath, fieldName, providedCount, className);
+            if (omitted == null)
+                return;
+            function visitDefault(value:DefaultArgExpander.CoalescingDefaultValue):Void {
+                switch (value) {
+                    case CStaticCall(calleeModule, _, methodName, args):
+                        entry.edges.push({
+                            callee: RustEmissionState.funcKey(calleeModule, methodName, true),
+                            absorbed: absorbed.slice(0, absorbed.length)
+                        });
+                        for (arg in args)
+                            visitDefault(arg);
+                    case CConstructorCall(calleeModule, _, args):
+                        entry.edges.push({
+                            callee: RustEmissionState.funcKey(calleeModule, "new", false),
+                            absorbed: absorbed.slice(0, absorbed.length)
+                        });
+                        for (arg in args)
+                            visitDefault(arg);
+                    case CMethodCall(receiver, _, args):
+                        visitDefault(receiver);
+                        for (arg in args)
+                            visitDefault(arg);
+                    case CFieldAccess(receiver, _):
+                        visitDefault(receiver);
+                    case CConditional(condition, ifTrue, ifFalse):
+                        visitDefault(condition);
+                        visitDefault(ifTrue);
+                        visitDefault(ifFalse);
+                    case CBinaryOp(_, left, right):
+                        visitDefault(left);
+                        visitDefault(right);
+                    case _:
+                }
+            }
+            for (item in omitted)
+                visitDefault(item.value);
+        }
         final fallible = new Map<String, Bool>();
         final enumOf = new Map<String, {module:String, name:String}>();
         final conflicts = new Map<String, Bool>();
@@ -1256,6 +1302,7 @@ class Compiler extends PluginCompiler<Compiler> {
                                                             callee: RustEmissionState.funcKey(cc.get().module, calleeName, false),
                                                             absorbed: absorbed.slice(0, absorbed.length)
                                                         });
+                                                        recordDefaultCallEdges(cc.get().module, calleeName, cc.get().name, callArgs.length, entry, absorbed);
                                                     }
                                                 case TField(_, FStatic(cc, cf)):
                                                     final calleeName = cf.get().name;
@@ -1275,6 +1322,7 @@ class Compiler extends PluginCompiler<Compiler> {
                                                             callee: RustEmissionState.funcKey(cc.get().module, calleeName, true),
                                                             absorbed: absorbed.slice(0, absorbed.length)
                                                         });
+                                                        recordDefaultCallEdges(cc.get().module, calleeName, cc.get().name, callArgs.length, entry, absorbed);
                                                     }
                                                 case _:
                                             }
@@ -1289,15 +1337,19 @@ class Compiler extends PluginCompiler<Compiler> {
                                             for (c in regionCatches) {
                                                 walk(c.expr, absorbed);
                                             }
-                                        case TNew(c, _, _):
+                                        case TNew(c, _, callArgs):
                                             // A construction is a call edge into the
                                             // class constructor: a throwing
                                             // constructor infects its construction
-                                            // sites (feature spec 27).
+                                            // sites (feature spec 27). Omitted
+                                            // constructor defaults are inlined at the
+                                            // construction site, so their inner
+                                            // calls propagate here too.
                                             entry.edges.push({
                                                 callee: RustEmissionState.funcKey(c.get().module, "new", false),
                                                 absorbed: absorbed.slice(0, absorbed.length)
                                             });
+                                            recordDefaultCallEdges(c.get().module, "new", c.get().name, callArgs.length, entry, absorbed);
                                             descend();
                                         case _:
                                             descend();
