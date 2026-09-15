@@ -1550,7 +1550,7 @@ class RustExpr {
         stays a str view.
     **/
     function nullableStringViewArg(arg:TypedExpr):Bool {
-        return isNullType(arg.t) && narrowedSubject(arg) == null && !isNullableCollapsedLocal(arg);
+        return isNullType(arg.t) && !isNullableCollapsedLocal(arg);
     }
 
     function stringConcatOperand(value:TypedExpr):String {
