@@ -22,6 +22,10 @@ class RustDecl {
     final expr:RustExpr;
     final state:RustEmissionState;
 
+    // Method names visited by the current bodyMutatesSelf recursion; breaks
+    // self-call cycles when a mutating method transitively calls itself.
+    static var mutationVisited:Map<String, Bool> = [];
+
     public function new(selfModule:String, state:RustEmissionState) {
         this.imports = new RustImports(selfModule, state);
         this.state = state;
@@ -2249,6 +2253,20 @@ class RustDecl {
                                 || n == "splice" || n == "reverse" || n == "sort" || n == "finish" || n == "getBytes") {
                                 if (ownFieldRoot(subj)) {
                                     mutates = true;
+                                }
+                            }
+                            // A call to a method on self delegates the
+                            // mutation check to the callee: if the
+                            // called method mutates self, the caller
+                            // does too. The visited set breaks cycles.
+                            if (!mutates && subj != null && ownFieldRoot(subj)) {
+                                final key = cf.get().name;
+                                final visiting = mutationVisited;
+                                if (!visiting.exists(key)) {
+                                    visiting.set(key, true);
+                                    final body = cf.get().expr();
+                                    if (body != null && bodyMutatesSelf(body))
+                                        mutates = true;
                                 }
                             }
                         case _:
