@@ -1583,7 +1583,7 @@ class Compiler extends PluginCompiler<Compiler> {
         // Growth registration sweep: every declared-enum caller whose merged
         // member set extends beyond the declared variants gains wrapping
         // variants (emitted by enumDecl) so `?` conversions name real
-        // constructors instead of missing From impls.
+        // constructors replacing missing From impls.
         for (key in members.keys()) {
             final pair = state.funcErrorTypes.get(key);
             if (pair == null || state.isSyntheticErrorType(pair.name))
