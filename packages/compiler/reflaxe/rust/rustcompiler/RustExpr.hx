@@ -4092,6 +4092,15 @@ class RustExpr {
         if (!isNullType(subj.t))
             return expr(subj);
         final base = expr(subj);
+        // A null guard or a null-coalescing match already bound the inner
+        // value; the binding holds the inner reference itself, so the
+        // forcing read would ask Rust to find AsRef on the table type.
+        // Covers the narrowed sorted-table receiver family.
+        final narrowed = narrowedSubject(subj);
+        if (narrowed != null) {
+            optionNarrowingHit = true;
+            return narrowed;
+        }
         if (!receiverCarriesFallibleWrapper(subj))
             return base;
         // A borrowed static/container expression is already the inner table
