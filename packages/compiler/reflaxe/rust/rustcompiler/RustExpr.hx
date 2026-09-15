@@ -7566,12 +7566,12 @@ class RustExpr {
                 if (stringLikeType(pt) && stringLikeType(arg.t)) {
                     out.push(switch (stripWrap(arg).expr) {
                         case TConst(TString(_)): argStr;
-                        case _ if (nullableStringViewArg(arg)): "(" + expr(arg) + ").as_deref().unwrap_or(\"\")";
                         case _ if (narrowedSubject(arg) != null):
                             // (NarrowedStringViewArg) The null guard already
                             // bound the inner String; the binding is a &String
                             // view, so .as_str() reaches the &str slot.
                             narrowedSubject(arg) + ".as_str()";
+                        case _ if (nullableStringViewArg(arg)): "(" + expr(arg) + ").as_deref().unwrap_or(\"\")";
                         case TLocal(v) if (isBorrowedParamLocal(v)): argStr;
                         case _: argStr + ".as_str()";
                     });
@@ -9097,12 +9097,12 @@ class RustExpr {
                     if (stringLikeType(pt) && stringLikeType(arg.t)) {
                         argStr = switch (stripWrap(arg).expr) {
                             case TConst(TString(_)): argStr;
-                            case _ if (nullableStringViewArg(arg)): "(" + expr(arg) + ").as_deref().unwrap_or(\"\")";
                             case _ if (narrowedSubject(arg) != null):
                                 // (NarrowedStringViewArg) The null guard
                                 // already bound the inner String; the
                                 // binding is a &String view.
                                 narrowedSubject(arg) + ".as_str()";
+                            case _ if (nullableStringViewArg(arg)): "(" + expr(arg) + ").as_deref().unwrap_or(\"\")";
                             case TLocal(v) if (isBorrowedParamLocal(v)): expr(arg);
                             case _: expr(arg) + ".as_str()";
                         };
