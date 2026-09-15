@@ -556,19 +556,11 @@ class TsDecl {
         return '${a.name}: ${types.of(a.type)}';
     }
 
-    /**
-        TypeScript only needs an optional marker for defaults that are
-        implemented by the native signature. Plain `?param` defaults are
-        completed at call sites and remain required in the emitted method;
-        this also keeps a required parameter after a nullable value legal.
-    */
+    /** Whether every parameter from `fromIndex` to the end is optional. */
     function isTrailingOptional(cls:ClassType, f:ClassFuncData, fromIndex:Int):Bool {
         for (i in fromIndex...f.args.length) {
-            switch (DefaultArgExpander.defaultAt(cls, f.field.name, f.args[i].index)) {
-                case DefaultArgExpander.DefaultArgValue.VCoalescing(DefaultArgExpander.CoalescingDefaultValue.CNull):
-                    return false;
-                case DefaultArgExpander.DefaultArgValue.VCoalescing(_):
-                default: return false;
+            if (!DefaultArgExpander.isOptionalDefaultAt(cls, f.field.name, f.args[i].index)) {
+                return false;
             }
         }
         return true;
