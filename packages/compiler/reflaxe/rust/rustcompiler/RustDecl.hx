@@ -1276,10 +1276,20 @@ class RustDecl {
         cannot be emitted as a direct Rust static. Reads use this same policy
         so every value boundary dereferences the LazyLock referent.
     **/
-    public static function usesLazyLockStatic(cls:ClassType, field:ClassField):Bool {
+    public static function usesLazyLockStatic(cls:ClassType, field:ClassField, state:RustEmissionState):Bool {
         final init = StaticFieldHelper.initializer(field);
-        return (field.isFinal && StaticFieldHelper.isNonEmptyArrayLiteral(init) && !StaticFieldHelper.isIntLiteralArray(init))
-            || (StaticFieldHelper.isConstruction(init) && !StaticFieldHelper.isSelfConstruction(field, cls, init));
+        if (field.isFinal && StaticFieldHelper.isNonEmptyArrayLiteral(init) && !StaticFieldHelper.isIntLiteralArray(init))
+            return true;
+        if (StaticFieldHelper.isConstruction(init) && !StaticFieldHelper.isSelfConstruction(field, cls, init))
+            return true;
+        // A self-construction singleton whose constructor is fallible emits
+        // a non-const `new().unwrap()` that a Mutex static cannot hold
+        // (E0015). LazyLock's closure body may call non-const functions, so
+        // such a singleton lowers as a LazyLock instead of a Mutex guard.
+        if (StaticFieldHelper.isSelfConstruction(field, cls, init)
+            && state.funcErrorEnums.exists(RustEmissionState.funcKey(cls.module, "new", false)))
+            return true;
+        return false;
     }
 
     function isNonSendStaticType(typeStr:String):Bool {
@@ -1321,7 +1331,7 @@ class RustDecl {
                 '${vis}static ${name}: [${elementType}; ${elements}] = ${expr.rawArrayLiteral(init)};'
             ];
         }
-        if (usesLazyLockStatic(cls, field)) {
+        if (usesLazyLockStatic(cls, field, state)) {
             imports.require("std::sync::LazyLock");
             return [
                 '${vis}static ${name}: LazyLock<${typeStr}> = LazyLock::new(|| ${expr.rawExpression(init)});'
