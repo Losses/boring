@@ -30,4 +30,15 @@ class RecordInterfaceOpsTests {
         Test.equals("RichTextSpan(role=Background, note=Link(target=note))", span.toString());
         Test.equals(RecordStr.str(span), span.toString());
     }
+
+    @:test("data class equality compares interface fields")
+    public static function dataClassEquality():Void {
+        final left = RecordInterfaceOps.singletonSpan();
+        final same = left;
+        final different = RecordInterfaceOps.recordSpan();
+        Test.equals(true, left == same);
+        Test.equals(false, left != same);
+        Test.equals(false, left == different);
+        Test.equals(true, left != different);
+    }
 }
