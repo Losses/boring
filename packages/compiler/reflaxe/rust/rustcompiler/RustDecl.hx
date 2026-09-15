@@ -2064,7 +2064,11 @@ class RustDecl {
             for (field in cls.fields.get())
                 if (field.name == f.field.name.substring("get_".length) && isGetterOnlyProperty(field)) field
         ].length > 0;
-        final vis = isTraitImpl ? "" : (f.field.isPublic || isGetterAccessor ? "pub " : (f.field.meta.has(":allow") ? "pub(crate) " : ""));
+        // Generated methods are called by integration tests outside the
+        // generated crate; trait implementations remain unmarked because
+        // Rust requires the trait method visibility. This covers the
+        // external helper-call family (E0624).
+        final vis = isTraitImpl ? "" : "pub ";
         final methodParams = collectMethodTypeParams(f, [for (p in cls.params) p.name]);
         final methodGenericStr = methodParams.length > 0 ? "<" + methodParams.join(", ") + ">" : "";
         final head = '    ${vis}fn ${snakeName}${methodGenericStr}($allArgs)$ret {';
