@@ -1531,7 +1531,7 @@ class RustExpr {
         if (variant == null) {
             // The declared caller enum may carry growth variants registered
             // for callee faults merged beyond its declared set; `?` then maps
-            // into a real constructor instead of a missing From impl.
+            // into a real constructor replacing a missing From impl.
             final growth = state.enumGrowthFor(errorTypeName);
             if (growth != null) {
                 for (item in growth)
