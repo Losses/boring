@@ -546,6 +546,9 @@ tests.SignedIntArgumentTests
 boring.InterfaceConditionalOps
 tests.InterfaceConditionalTests
 
+boring.OptionalInterfaceArgumentOps
+tests.OptionalInterfaceArgumentOpsTests
+
 boring.NullableArrayArgumentOps
 tests.NullableArrayArgumentTests
 
