@@ -637,3 +637,7 @@ tests.NumericCoalesceLocalOpsTests
 
 boring.ResidentBuilderInferOps
 tests.ResidentBuilderInferOpsTests
+
+
+boring.NullableStringViewOps
+tests.NullableStringViewOpsTests
