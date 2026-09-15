@@ -3757,11 +3757,17 @@ class RustExpr {
         }
         final out = ["match " + subjStr + " {"];
         for (c in parts.cases) {
-            final index = switch (c.values[0].expr) {
-                case TConst(TInt(v)): v;
+            // A Haxe case may group several constructors with `|` (for
+            // example `case CjkText | CjkPunctuation:`). Every value is a
+            // constant enum index; each becomes its own Rust pattern arm,
+            // joined by `|` so the grouped case stays exhaustive (E0004).
+            // The payload shape is identical across a grouped case, so the
+            // first value's construct drives the capture bindings.
+            final indices = [for (v in c.values) switch (v.expr) {
+                case TConst(TInt(i)): i;
                 case _: return fail(sw, "variant switch case is not a constant index");
-            }
-            final ef = table.get(index);
+            }];
+            final ef = table.get(indices[0]);
             if (ef == null) {
                 return fail(sw, "variant switch case index has no construct");
             }
@@ -3832,7 +3838,7 @@ class RustExpr {
                     lastUsed = idx;
                 }
             }
-            var pattern = en.name + "::" + RustImports.toUpperCamelCase(ef.name);
+            var pattern = [for (idx in indices) en.name + "::" + RustImports.toUpperCamelCase(table.get(idx).name)].join(" | ");
             if (argCount > 0) {
                 final bindings:Array<String> = [];
                 for (idx in 0...argCount) {
@@ -3850,7 +3856,7 @@ class RustExpr {
                         break;
                     }
                 }
-                pattern += " { " + bindings.join(", ") + " }";
+                pattern = [for (idx in indices) en.name + "::" + RustImports.toUpperCamelCase(table.get(idx).name) + " { " + bindings.join(", ") + " }"].join(" | ");
             }
             final armTarget = matchNumericTarget(parts.cases, sw.t);
             final arm = armBlock(c.expr, armTarget, sw.t);
