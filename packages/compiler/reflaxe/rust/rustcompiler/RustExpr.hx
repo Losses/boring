@@ -7564,6 +7564,7 @@ class RustExpr {
                     continue;
                 }
                 if (stringLikeType(pt) && stringLikeType(arg.t)) {
+                    trace("ctorCallArgs stringLikeType: arg=" + expr(arg) + " pt=" + haxe.macro.TypeTools.toString(pt) + " arg.t=" + haxe.macro.TypeTools.toString(arg.t) + " isNull=" + isNullType(arg.t) + " nullableSV=" + nullableStringViewArg(arg));
                     out.push(switch (stripWrap(arg).expr) {
                         case TConst(TString(_)): argStr;
                         case _ if (narrowedSubject(arg) != null):
