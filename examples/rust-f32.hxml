@@ -584,3 +584,7 @@ boring.BoxedInterfaceDefaultOps
 tests.BoxedInterfaceDefaultOpsTests
 boring.UnionChainOps
 tests.UnionChainTests
+
+
+boring.NullGuardNestedFieldOps
+tests.NullGuardNestedFieldOpsTests
