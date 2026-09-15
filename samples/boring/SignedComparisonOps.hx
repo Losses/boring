@@ -23,6 +23,14 @@ class SignedComparisonOps {
     public static function lastIndexEqualsLimit(text:String, limit:Int):Bool {
         return text.lastIndexOf("x") == limit;
     }
+
+    public static function indexBelowZero(text:String):Bool {
+        return text.indexOf("x") < 0;
+    }
+
+    public static function elementBelowZero(values:Array<Int>, needle:Int):Bool {
+        return values.indexOf(needle) < 0;
+    }
 }
 #else
 class SignedComparisonOps {}
