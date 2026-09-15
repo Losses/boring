@@ -6731,13 +6731,6 @@ class RustExpr {
                     && cls.name == "StringTools"
                     && (name == "startsWith" || name == "endsWith")
                     && args.length == 2) {
-                    // (NullableStringToolStartsWith) A nullable String
-                    // receiver maps to false when None. The closure
-                    // receives a &String view; the pattern is already
-                    // &str from the literal argument.
-                    if (isNullType(args[0].t)) {
-                        return "(" + expr(args[0]) + ").as_ref().map_or(false, |v| v." + RustImports.toSnakeCase(name) + "(" + expr(args[1]) + "))";
-                    }
                     return "(" + expr(args[0]) + ")." + RustImports.toSnakeCase(name) + "(&" + expr(args[1]) + ")";
                 }
                 if (cls.pack.length == 0 && cls.name == "Lambda" && name == "has" && args.length == 2) {
