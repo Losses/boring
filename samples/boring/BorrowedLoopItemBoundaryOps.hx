@@ -12,6 +12,12 @@ enum BorrowedLoopItemEntry {
     Entry(label:String);
 }
 
+/** A no-argument enum whose loop items stay references in Rust. **/
+enum BorrowedLoopMarker {
+    MarkerAlpha;
+    MarkerBeta;
+}
+
 class BorrowedLoopItemHolder {
     public final entry:BorrowedLoopItemEntry;
 
@@ -62,6 +68,22 @@ class BorrowedLoopItemBoundaryOps {
             out.push(record);
         }
         return out;
+    }
+
+    public static function hasMarker(markers:Array<BorrowedLoopMarker>, target:BorrowedLoopMarker):Bool {
+        for (marker in markers) {
+            if (marker == target)
+                return true;
+        }
+        return false;
+    }
+
+    public static function indexOfNullableInts(values:Null<Array<Int>>, target:Int):Int {
+        return values == null ? -1 : values.indexOf(target);
+    }
+
+    public static function indexOfNullableStrings(values:Null<Array<String>>, needle:String):Int {
+        return values == null ? -1 : values.indexOf(needle);
     }
 }
 #else
