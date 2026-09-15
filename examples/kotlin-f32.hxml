@@ -578,3 +578,7 @@ tests.UnionChainTests
 
 boring.NullGuardNestedFieldOps
 tests.NullGuardNestedFieldOpsTests
+
+
+boring.FloatCompoundAssignOps
+tests.FloatCompoundAssignOpsTests
