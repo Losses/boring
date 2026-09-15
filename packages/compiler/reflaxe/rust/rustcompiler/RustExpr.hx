@@ -9012,7 +9012,7 @@ class RustExpr {
      */
     function optionContainerIndexAccess(arr:TypedExpr, idx:TypedExpr, mutable:Bool):String {
         final receiver = expr(arr);
-        final unwrapOption = receiverCarriesFallibleWrapper(arr);
+        final unwrapOption = isNullType(arr.t) || receiverCarriesFallibleWrapper(arr);
         if (unwrapOption) {
             final coerce = mutable ? ".as_mut().unwrap()" : ".as_ref().unwrap()";
             return "(" + receiver + ")" + coerce + "[" + castArg(idx, "usize") + "]";
