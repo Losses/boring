@@ -1499,7 +1499,7 @@ class RustExpr {
             return rendered;
         return switch (stripWrap(arg).expr) {
             case TConst(TString(_)): rendered;
-            case TLocal(v) if (paramVarIds.get(v.id) == true): rendered;
+            case TLocal(v) if (isBorrowedParamLocal(v)): rendered;
             case _: rendered + ".as_str()";
         };
     }
@@ -2446,6 +2446,11 @@ class RustExpr {
     }
 
     function isBorrowedLocal(v:haxe.macro.Type.TVar):Bool {
+        // A closure parameter is rendered with the parameter mapping, so a
+        // String, Array, or Bytes parameter is a reference view even though
+        // it never enters the enclosing function's argument table.
+        if (closureParamIds.exists(v.id))
+            return StringTools.startsWith(types.of(v.t, true), "&");
         // argTypes accumulates across functions, so a name match alone can
         // read a previous function's parameter; only a current-function
         // parameter is borrowed.
@@ -2453,6 +2458,19 @@ class RustExpr {
             return false;
         final stored = argTypes.get(v.name);
         return stored != null && StringTools.startsWith(stored, "&");
+    }
+
+    /**
+        isBorrowedParamLocal: a current-function parameter keeps the borrow
+        its declaration already decided, and a closure parameter borrows
+        when its rendered parameter type is a reference view. The String
+        conversion sites use this test so a borrowed parameter reaches an
+        owned String slot through to_string.
+    **/
+    function isBorrowedParamLocal(v:haxe.macro.Type.TVar):Bool {
+        if (closureParamIds.exists(v.id))
+            return StringTools.startsWith(types.of(v.t, true), "&");
+        return paramVarIds.get(v.id) == true;
     }
 
     /**
@@ -3009,7 +3027,7 @@ class RustExpr {
                             switch (stripWrap(x).expr) {
                                 case TConst(TString(_)):
                                     expr(x) + ".to_string()";
-                                case TLocal(v) if (paramVarIds.exists(v.id)):
+                                case TLocal(v) if (isBorrowedParamLocal(v)):
                                     expr(x) + ".to_string()";
                                 case _:
                                     expr(x) + ".clone()";
@@ -6468,7 +6486,7 @@ class RustExpr {
                     final argStr = if (isStringType(args[0].t)) {
                         switch (stripWrap(args[0]).expr) {
                             case TConst(TString(_)): expr(args[0]);
-                            case TLocal(v) if (paramVarIds.get(v.id) == true): expr(args[0]);
+                            case TLocal(v) if (isBorrowedParamLocal(v)): expr(args[0]);
                             case _: expr(args[0]) + ".as_str()";
                         }
                     } else {
@@ -6903,6 +6921,7 @@ class RustExpr {
         errorTypeName = closureError;
         inGenericFunction = true;
         genericParamIds.clear();
+        final previousClosureParams = closureParamIds.copy();
         closureParamIds.clear();
         for (a in f.args) {
             closureParamIds.set(a.v.id, true);
@@ -6917,6 +6936,9 @@ class RustExpr {
         errorTypeName = previousErrorTypeName;
         localFunctionErrorName = closureError;
         inGenericFunction = previousGeneric;
+        closureParamIds.clear();
+        for (id in previousClosureParams.keys())
+            closureParamIds.set(id, true);
         return 'move |$params| {\n' + body.join("\n") + '\n}';
     }
 
@@ -7342,7 +7364,7 @@ class RustExpr {
                     out.push(switch (stripWrap(arg).expr) {
                         case TConst(TString(_)): argStr;
                         case _ if (nullableStringViewArg(arg)): "(" + expr(arg) + ").as_deref().unwrap_or(\"\")";
-                        case TLocal(v) if (paramVarIds.get(v.id) == true): argStr;
+                        case TLocal(v) if (isBorrowedParamLocal(v)): argStr;
                         case _: argStr + ".as_str()";
                     });
                     continue;
@@ -7665,7 +7687,7 @@ class RustExpr {
                 var val = if (isStringType(f.expr.t)) {
                     switch (stripWrap(f.expr).expr) {
                         case TConst(TString(_)): expr(f.expr) + ".to_string()";
-                        case TLocal(v) if (paramVarIds.exists(v.id)): expr(f.expr) + ".to_string()";
+                        case TLocal(v) if (isBorrowedParamLocal(v)): expr(f.expr) + ".to_string()";
                         case _: expr(f.expr) + ".clone()";
                     }
                 } else {
@@ -8643,7 +8665,7 @@ class RustExpr {
         // typed as the interface is already boxed by its declaration site.
         if (!isNullType(expected) && !isNullType(actual.t) && isStringType(expected) && isStringType(actual.t)) {
             final borrowedParam = switch (stripWrap(actual).expr) {
-                case TLocal(v): paramVarIds.get(v.id) == true;
+                case TLocal(v): isBorrowedParamLocal(v);
                 case _: false;
             };
             if (borrowedParam)
@@ -8654,7 +8676,7 @@ class RustExpr {
             return "Some(" + intToFloatText(rendered) + ")";
         if (isNullType(expected) && isNullType(actual.t) && isStringType(getNullInnerType(expected))) {
             final borrowedParam = switch (stripWrap(actual).expr) {
-                case TLocal(v): paramVarIds.get(v.id) == true;
+                case TLocal(v): isBorrowedParamLocal(v);
                 case _: false;
             };
             if (borrowedParam)
@@ -8864,7 +8886,7 @@ class RustExpr {
                         argStr = switch (stripWrap(arg).expr) {
                             case TConst(TString(_)): argStr;
                             case _ if (nullableStringViewArg(arg)): "(" + expr(arg) + ").as_deref().unwrap_or(\"\")";
-                            case TLocal(v) if (paramVarIds.get(v.id) == true): expr(arg);
+                            case TLocal(v) if (isBorrowedParamLocal(v)): expr(arg);
                             case _: expr(arg) + ".as_str()";
                         };
                     }
