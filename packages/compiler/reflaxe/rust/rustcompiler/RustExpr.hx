@@ -284,24 +284,7 @@ class RustExpr {
             case CInstanceFieldRead(name):
                 final fieldText = "self." + RustImports.toSnakeCase(name);
                 isTypeCopy(targetType) ? fieldText : "(" + fieldText + ").clone()";
-            case CLocalRead(name):
-                // Haxe typer locals are the common representation of a
-                // constructor parameter read in a coalescing default. During
-                // call-site materialization the substitution table contains
-                // the already-rendered argument; using it prevents the callee
-                // parameter name from leaking into a static initializer.
-                if (defaultParameterSubstitutions.exists(name)) {
-                    final sub = defaultParameterSubstitutions.get(name);
-                    if (asOption && !StringTools.startsWith(sub, "Some(") && sub != "None") {
-                        if (isStringType(targetType) && !StringTools.endsWith(sub, ".to_string()")
-                            && (isStringLiteralText(sub) || reusableReadText(sub)))
-                            "Some(" + sub + ".to_string())";
-                        else
-                            "Some(" + sub + ")";
-                    } else
-                        asOption && isStringType(targetType) && isStringLiteralText(sub) ? sub + ".to_string()" : sub;
-                } else
-                    RustImports.toSnakeCase(name);
+            case CLocalRead(name): RustImports.toSnakeCase(name);
             case CFieldAccess(CParameterRead(staticPath), ""): coalescingStaticFieldText(staticPath, targetType);
             case CFieldAccess(receiver, fieldName):
                 fieldName == "length" ? rustU32Length("(" + coalescingDefaultText(receiver,
@@ -3951,31 +3934,9 @@ class RustExpr {
         };
     }
 
-    /**
-        A loop over an Array binds a scalar item through the pattern
-        (`for &x in ..`), so the binding is a value; every other item is bound
-        as a Rust reference. This reads the same split the loop pattern uses.
-    **/
-    function isBorrowedLoopReference(v:TVar):Bool {
-        if (!borrowedLoopVarIds.exists(v.id))
-            return false;
-        return switch (Context.follow(v.t)) {
-            case TAbstract(a, _): final n = a.get().name; n != "Int" && n != "Bool" && n != "Float";
-            default: true;
-        };
-    }
-
-    /**
-        borrowedComparableLoopItem: a loop over an Array parameter binds its
-        item as a Rust reference, and an enum or String element (unlike a
-        scalar, which the pattern destructures) is not unwrapped by the
-        pattern. Comparing that reference with an owned value needs the
-        referent, so the equality lowering dereferences the Copy/String loop
-        binding. Non-Copy record items keep their field-wise equality path.
-    **/
-    function borrowedComparableLoopItem(e:TypedExpr):Null<TVar> {
+    function borrowedStringLoopItem(e:TypedExpr):Null<TVar> {
         return switch (stripWrap(e).expr) {
-            case TLocal(v): isBorrowedLoopReference(v) && (isTypeCopy(v.t) || isStringType(v.t)) ? v : null;
+            case TLocal(v): borrowedLoopVarIds.exists(v.id) && isStringType(v.t) ? v : null;
             default: null;
         };
     }
@@ -4315,9 +4276,9 @@ class RustExpr {
                 final nullable = isNullType(l.t) ? l : r;
                 return expr(nullable) + (op == OpEq ? ".is_none()" : ".is_some()");
             // Borrowed loop items render as references in Rust.
-            case OpEq | OpNotEq if (borrowedComparableLoopItem(l) != null || borrowedComparableLoopItem(r) != null):
-                final left = borrowedComparableLoopItem(l) != null ? "*" + expr(l) : expr(l);
-                final right = borrowedComparableLoopItem(r) != null ? "*" + expr(r) : expr(r);
+            case OpEq | OpNotEq if (borrowedStringLoopItem(l) != null || borrowedStringLoopItem(r) != null):
+                final left = borrowedStringLoopItem(l) != null ? "*" + expr(l) : expr(l);
+                final right = borrowedStringLoopItem(r) != null ? "*" + expr(r) : expr(r);
                 return left + " " + symbolOf(op) + " " + right;
             // A struct whose fields cannot all derive PartialEq (for
             // example, an interface field lowers to Box<dyn Trait>) compares
@@ -6393,27 +6354,10 @@ class RustExpr {
                 }
                 if (name == "indexOf" && isVecType(subj) && args.length >= 1) {
                     final needle = expr(args[0]);
-                    // The position closure binds each element by reference. An
-                    // owned needle (including a borrowed String view, which
-                    // String compares against directly) dereferences the
-                    // referent; a borrowed non-String needle already carries
-                    // the element's reference shape and compares as-is. A
-                    // nullable needle belongs to the Option comparison family
-                    // and keeps its existing shape.
-                    final borrowedNeedle = switch (stripWrap(args[0]).expr) {
-                        case TLocal(v):
-                            // A borrowed String parameter arrives as &str and
-                            // needs the dereference; every other borrowed local
-                            // (non-String parameter or non-scalar loop item)
-                            // already names the element reference type.
-                            isBorrowedLocal(v) ? !isStringType(args[0].t) : isBorrowedLoopReference(v);
-                        case _: false;
-                    };
-                    final comparison = (borrowedNeedle || isNullType(args[0].t)) ? "e == " + needle : "*e == " + needle;
                     return "match "
                         + expr(subj)
-                        + ".iter().position(|e| "
-                        + comparison
+                        + ".iter().position(|e| e == "
+                        + needle
                         + ") { Some(v) => i32::from_ne_bytes(u32::try_from(v).unwrap_or(0).to_ne_bytes()), None => -1 }";
                 }
                 if (name == "addByte") {
