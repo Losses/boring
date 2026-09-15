@@ -9098,6 +9098,11 @@ class RustExpr {
                         argStr = switch (stripWrap(arg).expr) {
                             case TConst(TString(_)): argStr;
                             case _ if (nullableStringViewArg(arg)): "(" + expr(arg) + ").as_deref().unwrap_or(\"\")";
+                            case _ if (narrowedSubject(arg) != null):
+                                // (NarrowedStringViewArg) The null guard
+                                // already bound the inner String; the
+                                // binding is a &String view.
+                                narrowedSubject(arg) + ".as_str()";
                             case TLocal(v) if (isBorrowedParamLocal(v)): expr(arg);
                             case _: expr(arg) + ".as_str()";
                         };
