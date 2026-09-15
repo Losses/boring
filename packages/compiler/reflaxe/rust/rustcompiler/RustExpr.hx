@@ -6699,6 +6699,18 @@ class RustExpr {
                     imports.requireType("runtime.SortedTable", "SortedTable");
                     return "SortedTable::sorted_table_set_builder::<" + types.of(kType) + ">(" + sortedComparator(kType, fn.pos) + ")";
                 }
+                if ((path == "runtime.SortedTable" || cls.module == "runtime.SortedTable") && (name == "mapBuilder" || name == "setBuilder")) {
+                    // The resident builder binds its key (and value) type at
+                    // the comparator, so a call through the runtime class
+                    // carries the same explicit parameters and comparator
+                    // closure the std builder front carries (stdlib/07).
+                    final kType = sortedKeyType(fn);
+                    final vType = sortedValueType(fn);
+                    imports.requireType("runtime.SortedTable", "SortedTable");
+                    if (name == "mapBuilder")
+                        return "SortedTable::sorted_table_map_builder::<" + types.of(kType) + ", " + types.of(vType) + ">(" + sortedComparator(kType, fn.pos) + ")";
+                    return "SortedTable::sorted_table_set_builder::<" + types.of(kType) + ">(" + sortedComparator(kType, fn.pos) + ")";
+                }
 
                 if (RustTestBinding.isTestExtern(cls)) {
                     // The assertion checks and message formatting live in the

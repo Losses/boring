@@ -630,3 +630,7 @@ tests.NarrowedSortedReceiverOpsTests
 
 boring.NumericCoalesceLocalOps
 tests.NumericCoalesceLocalOpsTests
+
+
+boring.ResidentBuilderInferOps
+tests.ResidentBuilderInferOpsTests
