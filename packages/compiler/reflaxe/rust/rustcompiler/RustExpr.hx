@@ -98,6 +98,12 @@ class RustExpr {
     final unsignedLocals:Map<Int, Bool> = [];
     // Locals initialized from charCodeAt are collapsed from Option<u32> to a scalar.
     final nullableCollapsedLocals:Map<Int, Bool> = [];
+    // Subset of nullableCollapsedLocals whose null-coalescing initializer
+    // actually renders a non-null value (both guarded-match arms are
+    // non-null), so an Option parameter must re-wrap the read in Some. A
+    // collapsed local whose null arm stays null renders as Option and must
+    // not be re-wrapped.
+    final nonNullRenderedLocals:Map<Int, Bool> = [];
     // String.indexOf lowers to an expression that always yields i32; a local
     // initialized from it keeps that domain even where Int maps to u32.
     final i32Locals:Map<Int, Bool> = [];
@@ -546,6 +552,7 @@ class RustExpr {
         borrowedLoopVarIds.clear();
         unsignedLocals.clear();
         nullableCollapsedLocals.clear();
+        nonNullRenderedLocals.clear();
         nullableSensitiveLocals.clear();
         parseIntLocals.clear();
         i32Locals.clear();
@@ -1023,6 +1030,16 @@ class RustExpr {
                         // the local must not re-apply the as_ref forcing read.
                         // Covers the null-coalescing ternary initializer family.
                         nullableCollapsedLocals.set(v.id, true);
+                        // A local collapses to a plain value only when its
+                        // rendered initializer is a guarded match whose None
+                        // arm is a non-null value (guardedMatchExpression
+                        // wraps the whole match in Some when both arms render
+                        // non-null). A null arm keeps the local an Option, so
+                        // an Option parameter must not re-wrap it. The rendered
+                        // initStr is the ground truth for the collapse.
+                        if (StringTools.startsWith(initStr, "Some(")
+                            || (initStr.indexOf("match") >= 0 && initStr.indexOf("None => None") < 0))
+                            nonNullRenderedLocals.set(v.id, true);
                     case TField(subj, FInstance(_, _, cf)) | TField(subj, FAnon(cf)):
                         switch (stripWrap(subj).expr) {
                             case TLocal(item) if ((borrowedLoopVarIds.exists(item.id) || readsAfterDeclaration.exists(item.id))
@@ -2449,6 +2466,13 @@ class RustExpr {
     function isNullableCollapsedLocal(e:TypedExpr):Bool {
         return switch (stripWrap(e).expr) {
             case TLocal(v): nullableCollapsedLocals.exists(v.id);
+            case _: false;
+        };
+    }
+
+    function isNonNullRenderedLocal(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TLocal(v): nonNullRenderedLocals.exists(v.id);
             case _: false;
         };
     }
@@ -8852,7 +8876,23 @@ class RustExpr {
                 }
             }
             if (paramIndex < paramTypes.length) {
-                if (isNullType(pt) && isStringType(getNullInnerType(pt)) && isNullType(arg.t)) {
+                if (isNullType(pt) && isNullType(arg.t)
+                    && (isNonNullRenderedLocal(arg) || isNonNullRenderedConditional(arg))
+                    && !StringTools.startsWith(argStr, "Some(") && argStr != "None") {
+                    // A null-coalesced local or inline ternary usually renders
+                    // its inner value (the declaration collapsed the Option);
+                    // an Option parameter re-wraps it so the slot's declared
+                    // type matches. A local whose null branch stays null
+                    // renders as Option already, so it passes through. A
+                    // non-Copy payload clones so the source stays usable.
+                    final inner = getNullInnerType(pt);
+                    if (isStringType(inner) && !StringTools.endsWith(argStr, ".to_string()"))
+                        argStr = "Some(" + argStr + ".to_string())";
+                    else if (isTypeCopy(inner))
+                        argStr = "Some(" + argStr + ")";
+                    else
+                        argStr = "Some(" + ownedNullableReadText(argStr) + ")";
+                } else if (isNullType(pt) && isStringType(getNullInnerType(pt)) && isNullType(arg.t)) {
                     // A nullable-typed conditional whose arms are both
                     // non-null renders a plain String (guardedMatchExpression
                     // leaves both arms unwrapped when neither is a null
