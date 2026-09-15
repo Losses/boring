@@ -8841,6 +8841,18 @@ class RustExpr {
             final narrowed = narrowedSubject(actual);
             if (narrowed != null && !isTypeCopy(getNullInnerType(actual.t)))
                 return "(*" + narrowed + ").clone()";
+            // A proven-non-null local (early-exit guard or && chain) holds
+            // the inner value; the null bridge unwraps it into the target slot.
+            final proven = provenNonNullVarIds.exists(switch (stripWrap(actual).expr) {
+                case TLocal(v): v.id;
+                case _: -1;
+            });
+            if (proven) {
+                final inner = getNullInnerType(actual.t);
+                if (isTypeCopy(inner))
+                    return "*(" + rendered + ").as_ref().unwrap()";
+                return "(" + rendered + ").as_ref().unwrap().clone()";
+            }
         }
         if (isNullType(expected) && isInterfaceType(getNullInnerType(expected)) && !isNullType(actual.t)) {
             if (rendered == "None" || StringTools.startsWith(rendered, "Some("))
