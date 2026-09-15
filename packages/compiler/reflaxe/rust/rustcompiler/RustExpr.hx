@@ -1530,6 +1530,11 @@ class RustExpr {
         final rendered = expr(arg);
         if (!isStringType(arg.t))
             return rendered;
+        // (NullableStringView) A nullable String passed to a &str slot
+        // must unwrap the Option before borrowing as &str.
+        if (isNullType(arg.t)) {
+            return "(" + rendered + ").as_ref().map_or(\"\", |v| v.as_str())";
+        }
         return switch (stripWrap(arg).expr) {
             case TConst(TString(_)): rendered;
             case TLocal(v) if (isBorrowedParamLocal(v)): rendered;
@@ -5469,15 +5474,7 @@ class RustExpr {
                 // When the complete access is the narrowed value, this read
                 // is the match binding. The binding is a reference, so clone
                 // the non-Copy referent.
-                var narrowed = narrowedSubject(subj);
-                // (FullPathNarrowing) The narrowing may be keyed on the
-                // full access path (receiver.field), not just the receiver.
-                // Check the full path text when the receiver-only check
-                // misses.
-                if (narrowed == null) {
-                    final fullPathText = subjText + "." + snake;
-                    narrowed = narrowedText(fullPathText);
-                }
+                final narrowed = narrowedSubject(subj);
                 final narrowedReceiver = narrowed == null ? narrowedReceiverSubject(subj) : null;
                 if (narrowed != null || narrowedReceiver != null)
                     optionNarrowingHit = true;
@@ -5494,10 +5491,7 @@ class RustExpr {
                 final subjStr = if (narrowed != null) narrowed else if (narrowedReceiver != null) narrowedReceiver else if (proven != null) proven else if (filled != null) subjText
                     + ".get_or_insert_with(|| " + filled + ")" else if (fieldReceiverCarriesFallibleWrapper(subj)) subjText
                     + ".as_ref().unwrap()" else subjText;
-                // (FullPathNarrowing) When the full path narrowing matched,
-                // the result IS the binding value (not binding.field).
-                // Skip the field suffix for this access.
-                final access = if (narrowed != null && narrowedSubject(subj) == null) narrowed else subjStr + "." + snake;
+                final access = subjStr + "." + snake;
                 if (name != "length" && isRecursiveField(subj, name))
                     return "(" + access + ").as_ref()";
                 if (name != "length" && isConstructedStaticRead(subj) && StaticFieldHelper.isStringType(cf.get().type))
@@ -6448,19 +6442,24 @@ class RustExpr {
                         + RustConversions.narrowI32("v")
                         + ", None => -1 }";
                 }
-                if ((name == "charCodeAt" || name == "char_code_at") && isString(stripCast(subj))) {
+                if ((name == "charCodeAt" || name == "char_code_at") && (isString(stripCast(subj)) || (isNullType(subj.t) && isStringType(subj.t)))) {
                     state.shimsUsed.set("std.UStringRT", true);
                     imports.require("crate::runtime::u_string");
-                    // The call site's own expression decides: a Null<Int>
-                    // context keeps the Option and an Int context unwraps it.
+                    // (NullableCharCodeAt) A nullable String receiver needs
+                    // the Option unwrapped before indexing the code unit.
+                    final subjExpr = if (isNullType(subj.t)) {
+                        "(" + expr(subj) + ").as_ref().map_or(\"\", |v| v.as_str())";
+                    } else {
+                        "&" + expr(subj);
+                    };
                     var callRet:Null<Type> = null;
                     switch (Context.follow(fn.t)) {
                         case TFun(_, r): callRet = r;
                         case _:
                     }
                     final nullableResult = callRet != null && isNullType(callRet);
-                    return nullableResult ? "u_string::at(&" + expr(subj) + ", " + castShiftU32(args[0]) + ")" : "u_string::at(&"
-                        + expr(subj)
+                    return nullableResult ? "u_string::at(" + subjExpr + ", " + castShiftU32(args[0]) + ")" : "u_string::at("
+                        + subjExpr
                         + ", "
                         + castShiftU32(args[0])
                         + ").unwrap_or(0)";
