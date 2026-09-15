@@ -6445,6 +6445,17 @@ class RustExpr {
                     final putArgs = [for (a in args) sortedRefArg(a)];
                     return nullableMethodReceiver(subj, true) + ".put(" + putArgs.join(", ") + ")";
                 }
+                if (name == "build" && isSortedBuilder(subj)) {
+                    // build() consumes the builder; a nullable receiver
+                    // must yield the owned inner value so the consuming
+                    // call can move it. Covers the builder-build family (E0507).
+                    final receiver = nullableMethodReceiver(subj, false);
+                    // nullableMethodReceiver for a non-mutable nullable receiver
+                    // produces .as_ref().unwrap(). Strip .as_ref() so the
+                    // owned builder reaches the consuming build().
+                    final ownedReceiver = StringTools.replace(receiver, ".as_ref().unwrap()", ".unwrap()");
+                    return ownedReceiver + ".build()";
+                }
                 if ((name == "get" || name == "has") && (isSortedTable(subj) || isSortedBuilder(subj))) {
                     return nullableMethodReceiver(subj, false) + "." + name + "(" + sortedRefArg(args[0]) + ")";
                 }
