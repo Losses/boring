@@ -8955,6 +8955,20 @@ class RustExpr {
         return isInterfaceType(t) || (isNullType(t) && isInterfaceType(getNullInnerType(t)));
     }
 
+    /**
+        The payload of a Box<dyn Trait> construction. Non-Copy concrete
+        locals clone before boxing so the source stays alive for later
+        reads; Haxe object references are shared, while Rust Box takes
+        ownership. Covers the boxed-interface-local family (E0382).
+    **/
+    function boxedInterfacePayload(actual:TypedExpr, rendered:String):String {
+        final inner = normalizeConstructorResult(actual, rendered);
+        return switch (stripWrap(actual).expr) {
+            case TLocal(_): "(" + inner + ").clone()";
+            case _: inner;
+        };
+    }
+
     function renderValueForType(expected:Null<Type>, actual:TypedExpr, rendered:String):String {
         if (expected == null || actual == null)
             return rendered;
@@ -9004,14 +9018,14 @@ class RustExpr {
             return rendered + ".unwrap_or(0)";
         }
         if (!isNullType(expected) && isInterfaceType(expected) && !isInterfaceType(actual.t)) {
-            return "Box::new(" + normalizeConstructorResult(actual, rendered) + ")";
+            return "Box::new(" + boxedInterfacePayload(actual, rendered) + ")";
         }
         // Haxe unifies an object-literal field value's type to the interface
         // even when the value is a concrete constructor. Recover the concrete
         // class from the expression node so the implementor still boxes into
         // the Box<dyn Trait> slot.
         if (!isNullType(expected) && isInterfaceType(expected) && isConcreteConstructor(actual)) {
-            return "Box::new(" + normalizeConstructorResult(actual, rendered) + ")";
+            return "Box::new(" + boxedInterfacePayload(actual, rendered) + ")";
         }
         // A non-Copy narrowed Option binding names a reference to the inner
         // value; an owned value slot clones the referent so the slot carries
