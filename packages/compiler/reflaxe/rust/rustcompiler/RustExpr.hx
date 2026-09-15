@@ -4175,6 +4175,10 @@ class RustExpr {
                     final r = "(" + right + ")." + snake;
                     if (RustType.isPartialEqType(f.type)) {
                         parts.push(l + " == " + r);
+                    } else if (isNullableInterfaceType(f.type)) {
+                        // NullableInterfaceFieldEq compares the trait objects
+                        // inside Option without requiring PartialEq on them.
+                        parts.push(nullableInterfaceFieldEqText(l, r));
                     } else if (isInterfaceType(f.type)) {
                         parts.push(l + ".__haxe_type_name() == " + r + ".__haxe_type_name()");
                     } else if (structFieldEq(f.type) != null) {
@@ -4187,6 +4191,16 @@ class RustExpr {
             }
         }
         return parts.length > 0 ? parts.join(" && ") : "true";
+    }
+
+    /** Whether a Null<T> field lowers to Option<Box<dyn Trait>> (NullableInterfaceFieldEq). */
+    function isNullableInterfaceType(t:Type):Bool {
+        return isNullType(t) && isInterfaceType(getNullInnerType(t));
+    }
+
+    /** Compare nullable interface fields by presence and dynamic Haxe type name. */
+    function nullableInterfaceFieldEqText(left:String, right:String):String {
+        return "match (&" + left + ", &" + right + ") { (Some(__left), Some(__right)) => __left.__haxe_type_name() == __right.__haxe_type_name(), (None, None) => true, _ => false }";
     }
 
     function isTypeCopy(t:Type):Bool {
