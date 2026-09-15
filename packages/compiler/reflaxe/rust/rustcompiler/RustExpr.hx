@@ -3185,6 +3185,11 @@ class RustExpr {
                 final isStringElem = elemType != null && isStringType(elemType);
                 final isNullableElem = elemType != null && StaticFieldHelper.isNullableType(elemType);
                 final elemFloat = isFloatType(elemType);
+                // A non-Copy struct/enum element owns its storage; a Vec<T>
+                // literal must clone each value so later uses of the source
+                // binding stay alive (Haxe array literals are value-semantic).
+                final elemNeedsClone = elemType != null && !isTypeCopy(elemType)
+                    && !isStringType(elemType) && !isNullableElem;
                 final rendered = [
                     for (x in elems) {
                         var inner = if (isStringElem) {
@@ -3197,7 +3202,7 @@ class RustExpr {
                                     expr(x) + ".clone()";
                             }
                         } else {
-                            expr(x);
+                            elemNeedsClone && !StringTools.endsWith(expr(x), ".clone()") ? "(" + expr(x) + ").clone()" : expr(x);
                         };
                         if (elemFloat && isIntType(emittedType(x))) inner = intToFloatText(inner);
                         // An i32-domain element in a business u32 array
