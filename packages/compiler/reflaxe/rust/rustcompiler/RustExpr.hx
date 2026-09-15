@@ -6368,7 +6368,7 @@ class RustExpr {
                     final needle = expr(args[0]);
                     return "match "
                         + expr(subj)
-                        + ".iter().position(|e| e == "
+                        + ".iter().position(|e| *e == "
                         + needle
                         + ") { Some(v) => i32::from_ne_bytes(u32::try_from(v).unwrap_or(0).to_ne_bytes()), None => -1 }";
                 }
