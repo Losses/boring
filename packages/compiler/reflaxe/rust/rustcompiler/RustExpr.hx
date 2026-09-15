@@ -291,6 +291,25 @@ class RustExpr {
                     targetType, false, nested, inClosure) + ").len()") : coalescingDefaultText(receiver, targetType, false, nested, inClosure) + "."
                     + RustImports.toSnakeCase(fieldName);
             case CMethodCall(receiver, methodName, args):
+                // (CoalescingStringMethods) String methods appearing in
+                // default parameter expressions must use the same runtime
+                // shims as the main call path.
+                if (methodName == "substring" || methodName == "sub_string") {
+                    state.shimsUsed.set("std.UStringRT", true);
+                    imports.require("crate::runtime::u_string");
+                    final subj = coalescingDefaultText(receiver, targetType, false, nested, inClosure);
+                    final from = "i32::try_from(" + coalescingDefaultText(args[0], targetType, false, nested, inClosure) + ").unwrap_or(0)";
+                    if (args.length < 2) {
+                        return "u_string::substring_from(&" + subj + ", " + from + ")";
+                    }
+                    return "u_string::substring(&" + subj + ", " + from + ", i32::try_from(" + coalescingDefaultText(args[1], targetType, false, nested, inClosure) + ").unwrap_or(0))";
+                }
+                if (methodName == "charCodeAt" || methodName == "char_code_at") {
+                    state.shimsUsed.set("std.UStringRT", true);
+                    imports.require("crate::runtime::u_string");
+                    final subj = coalescingDefaultText(receiver, targetType, false, nested, inClosure);
+                    return "u_string::at(&" + subj + ", " + coalescingDefaultText(args[0], targetType, false, nested, inClosure) + ").unwrap_or(0)";
+                }
                 coalescingDefaultText(receiver, targetType, false, nested, inClosure)
                 + "."
                 + rustMethodName(methodName)
@@ -2319,6 +2338,19 @@ class RustExpr {
                 final enumCollection = EnumQueryExpander.collectionEnum(subj);
                 if (enumCollection != null)
                     return Std.string(EnumQueryExpander.constructorCount(enumCollection));
+                // (NullableLoopBoundLength) A nullable collection length in
+                // a loop bound must unwrap the Option before len(). Check
+                // the null-guard narrowing first; fall back to map_or when
+                // no narrowing is active (the common for-loop-by-index
+                // pattern inside an Option-guarded branch).
+                if (isNullType(subj.t)) {
+                    final narrowed = narrowedSubject(subj);
+                    if (narrowed != null) {
+                        optionNarrowingHit = true;
+                        return rustU32Length(narrowed + ".len()");
+                    }
+                    return rustU32Length("(" + expr(subj) + ").as_ref().map_or(0, |v| v.len())");
+                }
                 return rustU32Length(expr(subj) + ".len()");
             case _:
                 final text = expr(bound);
@@ -4490,6 +4522,17 @@ class RustExpr {
                     } else {
                         expr(r);
                     };
+                    // (ThreadLocalStaticAccess) thread_local statics open a
+                    // borrow inside .with(); a right side that reads any
+                    // guard static is evaluated first so the borrow does not
+                    // nest inside itself.
+                    if (isThreadLocalStaticAssignTarget(l)) {
+                        if (rhsMentionsGuardStatic(r)) {
+                            final temp = freshRegionName("__rhs_value");
+                            return "{ let " + temp + " = " + staticValue + "; " + staticTarget + ".with(|x| *x.borrow_mut() = " + temp + "); }";
+                        }
+                        return staticTarget + ".with(|x| *x.borrow_mut() = " + staticValue + ")";
+                    }
                     // The assignment target locks the guard mutex; a right
                     // side that reads any guard static holds its own guard
                     // until the end of the statement, so the target's lock
@@ -5326,6 +5369,11 @@ class RustExpr {
                     if (StaticFieldHelper.isConstruction(cf.get().expr()) && !StaticFieldHelper.isSelfConstruction(cf.get(), cls)) {
                         return "&*" + staticItemPath(cls, name);
                     }
+                    // (ThreadLocalStaticAccess) thread_local statics use .with()
+                    if (isThreadLocalStatic(cls, name)) {
+                        final clone = StaticFieldHelper.isArrayType(cf.get().type) ? "" : ".clone()";
+                        return staticItemPath(cls, name) + ".with(|x| x.borrow()" + clone + ")";
+                    }
                     final guard = staticGuard(cls, name);
                     return StaticFieldHelper.isArrayType(cf.get().type) ? guard : guard + ".clone()";
                 }
@@ -5544,6 +5592,19 @@ class RustExpr {
         return cls.module == imports.selfModule ? itemName : "crate::" + RustImports.moduleToRustPath(cls.module) + "::" + itemName;
     }
 
+    // (ThreadLocalStaticAccess) Statics stored as thread_local! { RefCell<T> }
+    // need .with(|x| ...) instead of Mutex's .lock().unwrap_or_else(...).
+    function isThreadLocalStatic(cls:ClassType, name:String):Bool {
+        return state.threadLocalStatics.exists(cls.module + "::" + cls.name + "::" + name);
+    }
+
+    function isThreadLocalStaticAssignTarget(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TField(_, FStatic(c, cf)): isThreadLocalStatic(c.get(), cf.get().name);
+            case _: false;
+        };
+    }
+
     function staticGuard(cls:ClassType, name:String):String {
         return staticItemPath(cls, name) + ".lock().unwrap_or_else(|e| e.into_inner())";
     }
@@ -5571,6 +5632,12 @@ class RustExpr {
     function staticAssignmentTarget(e:TypedExpr):Null<String> {
         return switch (stripWrap(e).expr) {
             case TField(_, FStatic(c, cf)) if (isGuardStaticField(c.get(), cf.get().name)):
+                if (isThreadLocalStatic(c.get(), cf.get().name)) {
+                    // (ThreadLocalStaticAccess) Returns the path so the
+                    // caller composes a .with(|x| *x.borrow_mut() = ...)
+                    // statement instead of a deref-target assignment.
+                    return staticItemPath(c.get(), cf.get().name);
+                }
                 "*" + staticGuard(c.get(), cf.get().name);
             case _: null;
         };
@@ -6749,16 +6816,23 @@ class RustExpr {
                     // unlike the Haxe/JavaScript oracle. Bind first so the
                     // explicit semantic check preserves left-to-right,
                     // single evaluation of both arguments.
+                    // (MinMaxUniqueTemps) Unique names avoid shadowing
+                    // an outer loop variable named a or b (e.g. in a
+                    // `for (a in adjustments)` loop whose body calls
+                    // Math.min(a.reduction, ...)).
                     final real = FloatPrecision.isF32() ? "f32" : "f64";
-                    final a = mathFloatBindingArg(args[0]);
-                    final b = mathFloatBindingArg(args[1]);
-                    final zeroResult = name == "min" ? "if a.is_sign_negative() { a } else { b }" : "if a.is_sign_negative() { b } else { a }";
-                    final ordered = name == "min" ? "if a < b { a } else if b < a { b } else if a == 0.0 && b == 0.0 { "
-                        + zeroResult
-                        + " } else { a }" : "if a > b { a } else if b > a { b } else if a == 0.0 && b == 0.0 { "
-                        + zeroResult
-                        + " } else { a }";
-                    return "({ let a = (" + a + ") as " + real + "; let b = (" + b + ") as " + real + "; if a.is_nan() || b.is_nan() { " + real + "::NAN } else { " + ordered + " } })";
+                    final argA = mathFloatBindingArg(args[0]);
+                    final argB = mathFloatBindingArg(args[1]);
+                    final ta = freshRegionName("__ma");
+                    final tb = freshRegionName("__mb");
+                    final zeroResult = name == "min" ? "if " + ta + ".is_sign_negative() { " + ta + " } else { " + tb + " }" : "if " + ta
+                        + ".is_sign_negative() { " + tb + " } else { " + ta + " }";
+                    final ordered = name == "min" ? "if " + ta + " < " + tb + " { " + ta + " } else if " + tb + " < " + ta + " { " + tb
+                        + " } else if " + ta + " == 0.0 && " + tb + " == 0.0 { " + zeroResult + " } else { " + ta + " }" : "if " + ta + " > " + tb + " { "
+                        + ta + " } else if " + tb + " > " + ta + " { " + tb + " } else if " + ta + " == 0.0 && " + tb + " == 0.0 { " + zeroResult
+                        + " } else { " + ta + " }";
+                    return "({ let " + ta + " = (" + argA + ") as " + real + "; let " + tb + " = (" + argB + ") as " + real + "; if " + ta + ".is_nan() || "
+                        + tb + ".is_nan() { " + real + "::NAN } else { " + ordered + " } })";
                 }
                 if (cls.module == "Math" && name == "pow" && args.length == 2) {
                     // Rust names the power function powf; the f32

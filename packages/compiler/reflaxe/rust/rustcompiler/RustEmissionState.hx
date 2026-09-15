@@ -169,6 +169,14 @@ class RustEmissionState {
     /** Modules containing @:test methods. */
     public final testModules:Map<String, Bool> = [];
 
+    /**
+        (ThreadLocalStaticAccess) Statics whose Rust lowering uses
+        `thread_local! { RefCell<T> }` (non-Send trait objects / Rc-closures).
+        The expression pass reads this to emit `.with(|x| ...)` instead of
+        `.lock().unwrap_or_else(...)`.
+    **/
+    public final threadLocalStatics:Map<String, Bool> = [];
+
     public function new() {}
 }
 #end

@@ -1339,6 +1339,7 @@ class RustDecl {
         }
         if (isNonSendStaticType(typeStr)) {
             imports.require("std::cell::RefCell");
+            state.threadLocalStatics.set(cls.module + "::" + cls.name + "::" + field.name, true);
             return [
                 'thread_local! {',
                 '    ${vis}static ${name}: RefCell<${typeStr}> = RefCell::new(${expr.rawExpression(init)});',
@@ -1467,8 +1468,10 @@ class RustDecl {
         }
         final retType = isFallible ? 'Result<$rawRetType, ${errOwner.name}>' : rawRetType;
         final ret = retType == "()" ? "" : " -> " + retType;
-        // @:allow members use crate visibility so allowed cross-module references compile.
-        final vis = f.field.isPublic ? "pub " : (f.field.meta.has(":allow") ? "pub(crate) " : "");
+        // (CrateVisibleStatics) Non-public static functions are visible
+        // throughout the crate so that constructor default-parameter
+        // inlining can place call sites in other modules.
+        final vis = f.field.isPublic ? "pub " : (f.field.meta.has(":allow") ? "pub(crate) " : "pub(crate) ");
         final head = '    ${vis}fn ${snakeName}${methodGenericStr}($allArgs)$ret {';
         if (receiverMethod && f.args[0].tvar != null) {
             expr.bindLocalName(f.args[0].tvar, receiverBodyName(f.args[0].type));
