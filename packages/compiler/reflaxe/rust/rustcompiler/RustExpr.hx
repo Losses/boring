@@ -8577,14 +8577,14 @@ class RustExpr {
         if (!isNullType(expected) && isStringCharCodeAtCall(actual) && isNullType(actual.t)) {
             return rendered + ".unwrap_or(0)";
         }
-        if (isInterfaceType(expected) && !isInterfaceType(actual.t)) {
+        if (!isNullType(expected) && isInterfaceType(expected) && !isInterfaceType(actual.t)) {
             return "Box::new(" + normalizeConstructorResult(actual, rendered) + ")";
         }
         // Haxe unifies an object-literal field value's type to the interface
         // even when the value is a concrete constructor. Recover the concrete
         // class from the expression node so the implementor still boxes into
         // the Box<dyn Trait> slot.
-        if (isInterfaceType(expected) && isConcreteConstructor(actual)) {
+        if (!isNullType(expected) && isInterfaceType(expected) && isConcreteConstructor(actual)) {
             return "Box::new(" + normalizeConstructorResult(actual, rendered) + ")";
         }
         // A non-Copy narrowed Option binding names a reference to the inner
@@ -8598,7 +8598,11 @@ class RustExpr {
         if (isNullType(expected) && isInterfaceType(getNullInnerType(expected)) && !isNullType(actual.t)) {
             if (rendered == "None" || StringTools.startsWith(rendered, "Some("))
                 return rendered;
-            return "Some(Box::new(" + normalizeConstructorResult(actual, rendered) + "))";
+            // An actual already typed as the interface carries its own
+            // Box<dyn Trait>; only a concrete value boxes here. The Option
+            // wrapper is the sole addition the nullable slot needs.
+            final payload = isInterfaceType(actual.t) ? rendered : "Box::new(" + normalizeConstructorResult(actual, rendered) + ")";
+            return "Some(" + payload + ")";
         }
         // Haxe unifies a nullable interface slot's value type to the
         // interface even for a concrete constructor; recover the concrete
