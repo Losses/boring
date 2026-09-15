@@ -1030,6 +1030,12 @@ class RustExpr {
                                 initStr += ".clone()";
                             case _:
                         }
+                        // A non-Copy field of an owned vec type moved into a
+                        // local consumes the field's storage and leaves later
+                        // uses (such as .len() calls) dangling. Clone protects
+                        // the source. Covers the for-loop field-move family (E0382).
+                        if (isOwnedVecType(v.t) && !isTypeCopy(v.t) && !StringTools.endsWith(initStr, ".clone()"))
+                            initStr = "(" + initStr + ").clone()";
                     case TLocal(source) if (!isTypeCopy(v.t) && readsAfterDeclaration.exists(source.id)):
                         initStr = "(" + initStr + ").clone()";
                     case _:
@@ -2493,6 +2499,23 @@ class RustExpr {
     function borrowedArrayRead(e:TypedExpr):Bool {
         return switch (stripWrap(e).expr) {
             case TLocal(v): isBorrowedLocal(v);
+            case _: false;
+        };
+    }
+
+    /**
+        isBorrowedExpression: true when the Rust rendering of this expression
+        produces a reference rather than an owned value. Covers borrowed
+        parameters, loop variables, and reference-bearing fields. The caller
+        clones a non-Copy field read when the access goes through a borrow,
+        preventing E0507 move-out-of-reference errors.
+    **/
+    function isBorrowedExpression(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TLocal(v): isBorrowedLocal(v) || borrowedLoopVarIds.exists(v.id);
+            case TField(inner, _): isBorrowedExpression(inner);
+            case TArray(inner, _): isBorrowedExpression(inner);
+            case TCast(inner, _) | TMeta(_, inner) | TParenthesis(inner): isBorrowedExpression(inner);
             case _: false;
         };
     }
@@ -5451,6 +5474,15 @@ class RustExpr {
                         case TConst(TThis): true;
                         case _: false;
                     }) {
+                    return "(" + access + ").clone()";
+                }
+                // A field read through a borrowed subject (parameter, loop
+                // variable, or chained reference) yields a reference to the
+                // field. Non-Copy fields must clone at the read site so the
+                // value slots that consume them receive an owned copy.
+                // Covers the borrowed-field-read family (E0507).
+                if (name != "length" && !renderingMethodReceiver && !isTypeCopy(cf.get().type)
+                    && isBorrowedExpression(subj)) {
                     return "(" + access + ").clone()";
                 }
                 return access;
