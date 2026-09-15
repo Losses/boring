@@ -7426,6 +7426,16 @@ class RustExpr {
             }
             final castAt = rendered.indexOf(" as ");
             final base = castAt >= 0 ? rendered.substr(0, castAt) : rendered;
+            // A null-coalescing local materialized the inner value into a
+            // scalar, so a read is already the inner domain and the
+            // null-to-zero bridge would call unwrap_or on a non-Option.
+            // Covers the coalesced-local argument family.
+            if (isNullableCollapsedLocal(actual)) {
+                final collapsedDomain = RuntimeResidents.isResident(imports.selfModule) ? "i32" : "u32";
+                if ((target == "u32" || target == "i32") && collapsedDomain == target)
+                    return base;
+                return RustConversions.reinterpret("(" + base + ")", target);
+            }
             // A collapsed Null<Int> renders its inner scalar; when that
             // scalar's domain is already the assignment target the
             // unwrap alone suffices.
