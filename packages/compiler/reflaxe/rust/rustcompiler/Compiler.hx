@@ -1517,16 +1517,7 @@ class Compiler extends PluginCompiler<Compiler> {
             final current = state.funcErrorTypes.get(key);
             if (pair != null && (current == null || !state.isSyntheticErrorType(current.name)))
                 state.funcErrorTypes.set(key, pair);
-            // Fault sets merged beyond a declared caller enum grow that enum
-            // with wrapping variants so `?` conversions name real constructors.
-            final extras = members.get(key);
-            if (pair != null && extras != null) {
-                for (item in extras) {
-                    if (item.module == pair.module && item.name == pair.name)
-                        continue;
-                    state.registerFaultConversion(pair.name, "crate::" + RustImports.moduleToRustPath(item.module), item.name);
-                }
-            }
+
             // A caller that becomes fallible only through a synthetic-union
             // callee (the re-run propagation loop) has its error type resolved
             // but not its enum registry entry; the call-site unwrap decision
@@ -1534,6 +1525,24 @@ class Compiler extends PluginCompiler<Compiler> {
             final resolved = state.funcErrorTypes.get(key);
             if (resolved != null && !state.funcErrorEnums.exists(key)) {
                 state.funcErrorEnums.set(key, resolved);
+            }
+        }
+
+        // Growth registration sweep: every declared-enum caller whose merged
+        // member set extends beyond the declared variants gains wrapping
+        // variants (emitted by enumDecl) so `?` conversions name real
+        // constructors instead of missing From impls.
+        for (key in members.keys()) {
+            final pair = state.funcErrorTypes.get(key);
+            if (pair == null || state.isSyntheticErrorType(pair.name))
+                continue;
+            final set = members.get(key);
+            if (set == null)
+                continue;
+            for (item in set) {
+                if (item.module == pair.module && item.name == pair.name)
+                    continue;
+                state.registerFaultConversion(pair.name, "crate::" + RustImports.moduleToRustPath(item.module), item.name);
             }
         }
 
