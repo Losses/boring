@@ -5654,7 +5654,7 @@ class RustExpr {
                     // a move out of a reference.
                     if (!isTypeCopy(getNullInnerType(cf.get().type)) && switch (subj.expr) {
                         case TConst(TThis): true;
-                        case _: isBorrowedExpression(subj);
+                        case _: isBorrowedExpression(subj) || StringTools.contains(subjStr, ".as_ref().unwrap()");
                     }) {
                         return "(" + access + ").clone()";
                     }
@@ -5676,7 +5676,7 @@ class RustExpr {
                 // value slots that consume them receive an owned copy.
                 // Covers the borrowed-field-read family (E0507).
                 if (name != "length" && !renderingMethodReceiver && !isTypeCopy(cf.get().type)
-                    && isBorrowedExpression(subj)) {
+                    && (isBorrowedExpression(subj) || StringTools.contains(subjStr, ".as_ref().unwrap()"))) {
                     return "(" + access + ").clone()";
                 }
                 return access;
