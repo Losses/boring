@@ -2639,12 +2639,18 @@ class RustExpr {
         Field reads in a null-guarded boolean chain use the match binding of
         their receiver. This covers `value != null && value.field` after the
         receiver narrowing has been registered, while complete guarded paths
-        continue to use narrowedSubject directly.
+        continue to use narrowedSubject directly. A read below a non-null
+        member keeps that member on the path, so the binding replaces only
+        the narrowed base of the chain.
     **/
     function narrowedReceiverSubject(subject:TypedExpr):Null<String> {
         return switch (stripWrap(subject).expr) {
-            case TField(receiver, FInstance(_, _, _)) | TField(receiver, FAnon(_)):
-                narrowedSubject(receiver);
+            case TField(receiver, FInstance(_, _, cf)) | TField(receiver, FAnon(cf)):
+                final base = switch (narrowedSubject(receiver)) {
+                    case null: narrowedReceiverSubject(receiver);
+                    case text: text;
+                };
+                base == null ? null : base + "." + RustImports.toSnakeCase(cf.get().name);
             case _:
                 null;
         };
