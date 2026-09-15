@@ -8841,18 +8841,6 @@ class RustExpr {
             final narrowed = narrowedSubject(actual);
             if (narrowed != null && !isTypeCopy(getNullInnerType(actual.t)))
                 return "(*" + narrowed + ").clone()";
-            // A proven-non-null local (early-exit guard or && chain) holds
-            // the inner value; the null bridge unwraps it into the target slot.
-            final proven = provenNonNullVarIds.exists(switch (stripWrap(actual).expr) {
-                case TLocal(v): v.id;
-                case _: -1;
-            });
-            if (proven) {
-                final inner = getNullInnerType(actual.t);
-                if (isTypeCopy(inner))
-                    return "*(" + rendered + ").as_ref().unwrap()";
-                return "(" + rendered + ").as_ref().unwrap().clone()";
-            }
         }
         if (isNullType(expected) && isInterfaceType(getNullInnerType(expected)) && !isNullType(actual.t)) {
             if (rendered == "None" || StringTools.startsWith(rendered, "Some("))
@@ -8908,6 +8896,21 @@ class RustExpr {
             final paramIndex = i + paramOffset;
             final pt = paramIndex < paramTypes.length ? paramTypes[paramIndex] : null;
             var argStr = renderValueForType(pt, arg, expr(arg));
+            // A proven-non-null nullable local feeding a non-null parameter
+            // unwraps the Option at the call boundary so the parameter slot
+            // receives the inner value. The guard (early exit or && chain)
+            // proved the source is Some; the bridge extracts the payload.
+            if (pt != null && !isNullType(pt) && isNullType(arg.t)) {
+                final proven = switch (stripWrap(arg).expr) {
+                    case TLocal(v): provenNonNullVarIds.exists(v.id);
+                    case _: false;
+                };
+                if (proven) {
+                    final inner = getNullInnerType(arg.t);
+                    final ref = "(" + argStr + ").as_ref().unwrap()";
+                    argStr = isTypeCopy(inner) ? "*" + ref : ref + ".clone()";
+                }
+            }
             // An i32-domain argument crossing into a u32 business parameter
             // reinterprets bits (T5); a same-domain pass (a resident runtime
             // calling another resident runtime) needs no cast.
