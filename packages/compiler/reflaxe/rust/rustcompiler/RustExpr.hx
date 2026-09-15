@@ -4477,6 +4477,11 @@ class RustExpr {
                         return assignTarget(l) + " += &(" + expr(r) + ")";
                     case _:
                 }
+                // Haxe widens an Int operand in a Float compound assignment;
+                // Rust has no `f64 op= {integer}`, so the right side takes the
+                // same explicit Float cast ordinary Float operands use.
+                if (isFloatType(l.t) && isIntType(emittedType(r)))
+                    return assignTarget(l) + " " + symbolOf(inner) + "= " + intToFloatText(expr(r));
                 return assignTarget(l) + " " + symbolOf(inner) + "= " + expr(r);
             case OpAdd if (isStringType(l.t) || isStringType(r.t)):
                 final parts:Array<TypedExpr> = [];
