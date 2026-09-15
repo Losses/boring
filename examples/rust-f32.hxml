@@ -529,6 +529,9 @@ boring.FPHelperRustOps
 tests.FPHelperRustTests
 
 
+boring.VecSpliceOps
+tests.VecSpliceTests
+
 boring.VecInsertOps
 tests.VecInsertTests
 
