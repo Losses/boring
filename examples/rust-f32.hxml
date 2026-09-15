@@ -592,3 +592,7 @@ tests.NullGuardNestedFieldOpsTests
 
 boring.FloatCompoundAssignOps
 tests.FloatCompoundAssignOpsTests
+
+
+boring.NarrowedSortedReceiverOps
+tests.NarrowedSortedReceiverOpsTests
