@@ -642,3 +642,7 @@ tests.ResidentBuilderInferOpsTests
 
 boring.NullableStringViewOps
 tests.NullableStringViewOpsTests
+
+
+boring.ClosureStringViewOps
+tests.ClosureStringViewOpsTests
