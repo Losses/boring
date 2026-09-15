@@ -6435,6 +6435,20 @@ class RustExpr {
                 if (name == "insert" && isVecType(subj) && args.length == 2) {
                     return expr(subj) + ".insert(" + castArg(args[0], "usize") + ", " + renderPushArg(args[1]) + ")";
                 }
+                // vecSpliceDrain: Haxe Array.splice(pos, len) removes len
+                // elements at pos and returns the removed sub-array. Rust's
+                // Vec::splice has different semantics (range + replacement
+                // iterator), so the lowering uses Vec::drain on a usize range
+                // built from the cast index and count. The drain moves the
+                // elements out of the Vec and the block collects them into a
+                // new Vec matching the Haxe return type.
+                if (name == "splice" && isVecType(subj) && args.length == 2) {
+                    final idxVar = freshRegionName("splice_index");
+                    final countVar = freshRegionName("splice_count");
+                    final removedVar = freshRegionName("splice_removed");
+                    return "{ let " + idxVar + " = " + castArg(args[0], "usize") + "; let " + countVar + " = " + castArg(args[1], "usize") + "; let " + removedVar + ": Vec<_> = "
+                        + expr(subj) + ".drain(" + idxVar + ".." + idxVar + " + " + countVar + ").collect(); " + removedVar + " }";
+                }
                 if (name == "indexOf" && isVecType(subj) && args.length >= 1) {
                     final needle = expr(args[0]);
                     return "match "
@@ -7966,7 +7980,7 @@ class RustExpr {
                     case TField(subj, FInstance(iface, _, cf)):
                         final n = cf.get().name;
                         if (n == "readU16" || n == "readU32" || n == "readF64" || n == "readAscii" || n == "writeU16" || n == "writeU32" || n == "writeF64"
-                            || n == "writeAscii" || n == "addByte" || n == "push" || n == "insert" || n == "unshift" || n == "finish" || n == "put" || n == "set" || n == "update"
+                            || n == "writeAscii" || n == "addByte" || n == "push" || n == "insert" || n == "unshift" || n == "splice" || n == "finish" || n == "put" || n == "set" || n == "update"
                             || n == "add" || n == "addChar") {
                             // The receiver-mutation name list covers the
                             // mutating sequence operations the emitter renders
