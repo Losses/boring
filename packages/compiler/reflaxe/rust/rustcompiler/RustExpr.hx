@@ -4395,6 +4395,17 @@ class RustExpr {
                 final left = borrowedComparableLoopItem(l) != null ? "*" + expr(l) : expr(l);
                 final right = borrowedComparableLoopItem(r) != null ? "*" + expr(r) : expr(r);
                 return left + " " + symbolOf(op) + " " + right;
+            // A trait-object operand (interface type) compares by its haxe
+            // type name: the Box<dyn Trait> carries __haxe_type_name, and a
+            // concrete singleton read (Solid.instance, Fill.instance) lowers
+            // to its concrete value, so a direct `==` would compare
+            // incompatible types. Both operands name the same trait object
+            // when either is interface-typed (InterfaceEq).
+            case OpEq | OpNotEq if (isInterfaceType(l.t) || isInterfaceType(r.t)):
+                final left = expr(l);
+                final right = expr(r);
+                final eq = left + ".__haxe_type_name() == " + right + ".__haxe_type_name()";
+                return op == OpEq ? eq : "!(" + eq + ")";
             // A struct whose fields cannot all derive PartialEq (for
             // example, an interface field lowers to Box<dyn Trait>) compares
             // field-wise: comparable fields use ==, interface fields compare
@@ -5305,7 +5316,7 @@ class RustExpr {
                     final item = valueType.name + "::" + (isConst ? RustImports.toScreamingSnakeCase(name) : RustImports.toSnakeCase(name));
                     return isConst ? item : item + "()";
                 }
-                if (RustDecl.usesLazyLockStatic(cls, cf.get())) {
+                if (RustDecl.usesLazyLockStatic(cls, cf.get(), state)) {
                     // LazyLock owns its value. Static reads cross Haxe value
                     // boundaries, so clone the referent before passing it
                     // to constructors.
@@ -5472,7 +5483,7 @@ class RustExpr {
 
     function isLazyStaticField(cls:ClassType, name:String):Bool {
         final field = staticFieldOf(cls, name);
-        return field != null && RustDecl.usesLazyLockStatic(cls, field);
+        return field != null && RustDecl.usesLazyLockStatic(cls, field, state);
     }
 
     /**
@@ -5485,7 +5496,7 @@ class RustExpr {
         final field = staticFieldOf(cls, name);
         if (field == null)
             return null;
-        if (!RustDecl.usesLazyLockStatic(cls, field))
+        if (!RustDecl.usesLazyLockStatic(cls, field, state))
             return null;
         return "(*" + staticItemPath(cls, name) + ").clone()";
     }
@@ -5524,6 +5535,7 @@ class RustExpr {
             && !DataTableHelper.isDataTableField(field)
             && !isDirectArrayStaticField(field)
             && !isLazyArrayStaticField(field)
+            && !RustDecl.usesLazyLockStatic(cls, field, state)
             && (!StaticFieldHelper.isConstruction(field.expr()) || StaticFieldHelper.isSelfConstruction(field, cls));
     }
 
