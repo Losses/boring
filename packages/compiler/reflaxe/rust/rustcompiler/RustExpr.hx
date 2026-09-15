@@ -1661,6 +1661,119 @@ class RustExpr {
     }
 
     /**
+        Fuses Haxe-decomposed array compound assignments back into a single
+        Rust compound-assignment.  The Haxe typed AST decomposes
+        `arr[idx] += rhs` into `var base = arr; var index = idx;
+        base[index] += rhs`.  This pass inlines `base` and `index` back
+        into the compound assignment so Rust receives a direct
+        `arr[idx] += rhs` without moving the array or conflicting on
+        mutable/immutable borrows of the same array.
+    **/
+    function fuseArrayCompoundAssign(stmts:Array<TypedExpr>):Array<TypedExpr> {
+        final out:Array<TypedExpr> = [];
+        var i = 0;
+        while (i < stmts.length) {
+            var fused = false;
+            if (i + 2 < stmts.length) {
+                switch (stmts[i].expr) {
+                    case TVar(base, baseInit) if (baseInit != null):
+                        switch (stripWrap(baseInit).expr) {
+                            case TLocal(_) | TField(_, _):
+                                if (isOwnedVecType(base.t)) {
+                                    // Optional index temp
+                                    switch (stmts[i + 1].expr) {
+                                        case TVar(index, indexInit):
+                                            if (indexInit != null
+                                                && isCompoundAssignTarget(stmts[i + 2], base)
+                                                && !restMentionsLocal(base.id, stmts, i + 3)) {
+                                                    final subst = new Map<Int, TypedExpr>();
+                                                    subst.set(base.id, baseInit);
+                                                    subst.set(index.id, indexInit);
+                                                    out.push(substituteLocals(stmts[i + 2], subst));
+                                                    i += 3;
+                                                    fused = true;
+                                                }
+                                        case _:
+                                    }
+                                    if (!fused
+                                        && isCompoundAssignTarget(stmts[i + 1], base)
+                                        && !restMentionsLocal(base.id, stmts, i + 2)) {
+                                            final subst = new Map<Int, TypedExpr>();
+                                            subst.set(base.id, baseInit);
+                                            out.push(substituteLocals(stmts[i + 1], subst));
+                                            i += 2;
+                                            fused = true;
+                                        }
+                                }
+                            case _:
+                        }
+                    case _:
+                }
+            }
+            if (!fused) {
+                out.push(stmts[i]);
+                i++;
+            }
+        }
+        return out;
+    }
+
+    function isCompoundAssignTarget(e:TypedExpr, base:TVar):Bool {
+        final inner = stripWrap(e);
+        return switch (inner.expr) {
+            case TBinop(OpAssignOp(_), lhs, _):
+                switch (stripWrap(lhs).expr) {
+                    case TArray(_, _):
+                        isAliasOfLoc(lhs, base.id);
+                    case _: false;
+                }
+            case _: false;
+        };
+    }
+
+    function isAliasOfLoc(expr:TypedExpr, id:Int):Bool {
+        final arg = switch (stripWrap(expr).expr) {
+            case TArray(arr, _): arr;
+            case _: expr;
+        };
+        return switch (stripWrap(arg).expr) {
+            case TLocal(v): v.id == id;
+            case _: false;
+        };
+    }
+
+    function restMentionsLocal(varId:Int, stmts:Array<TypedExpr>, start:Int):Bool {
+        for (j in start...stmts.length) {
+            if (mentionsLocalId(stmts[j], varId))
+                return true;
+        }
+        return false;
+    }
+
+    function mentionsLocalId(e:TypedExpr, id:Int):Bool {
+        var found = false;
+        function scan(node:TypedExpr) {
+            switch (node.expr) {
+                case TLocal(v): if (v.id == id) found = true;
+                case _:
+            }
+            if (!found) haxe.macro.TypedExprTools.iter(node, scan);
+        }
+        scan(e);
+        return found;
+    }
+
+    function substituteLocals(e:TypedExpr, subst:Map<Int, TypedExpr>):TypedExpr {
+        function replace(node:TypedExpr):TypedExpr {
+            return switch (node.expr) {
+                case TLocal(v) if (subst.exists(v.id)): subst.get(v.id);
+                case _: haxe.macro.TypedExprTools.map(node, replace);
+            };
+        };
+        return replace(e);
+    }
+
+    /**
         Locals that an early-exit null guard proves present for the rest of
         a statement list: an `if (x == null) return;` without an else arm
         ends the block whenever x is absent, so every later statement sees
@@ -1756,6 +1869,7 @@ class RustExpr {
     function blockLines(stmts:Array<TypedExpr>, depth:Int, tailScope:Bool = false):Array<String> {
         stmts = fuseUninitializedVars(stmts);
         stmts = stripDeadInits(stmts);
+        stmts = fuseArrayCompoundAssign(stmts);
         stmts = regroupLoops(stmts);
         stmts = transformCountdownLoops(stmts);
         final out:Array<String> = [];
@@ -2186,8 +2300,11 @@ class RustExpr {
                 // extra borrow: a current-function or local-function
                 // parameter arrives as a &Vec view, and a null-guard match
                 // binding binds the borrowed Option payload. Only an owned
-                // subject borrows for the loop.
-                final referenceSubject = argType != null || isClosureParam(sliceSubj) || narrowedSubject(sliceSubj) != null;
+                // subject borrows for the loop. An owned parameter
+                // (argType without &) is not already a reference and must
+                // borrow the vec so the source stays alive for later uses.
+                final referenceSubject = (argType != null && StringTools.startsWith(argType, "&"))
+                    || isClosureParam(sliceSubj) || narrowedSubject(sliceSubj) != null;
                 // A scalar loop over an owned local array borrows the array: the
                 // pattern takes a reference and the array stays usable after the
                 // loop. Parameters already arrive as rendered references.
@@ -2207,7 +2324,11 @@ class RustExpr {
                     case TLocal(v): v.id;
                     case _: -1;
                 };
-                final nonScalarOwnedLocal = !isScalar && !referenceSubject && !paramVarIds.exists(subjectLocalId);
+                // An owned parameter (argType without a & prefix) is an owned
+                // Vec value, so iterating it must borrow the subject just like
+                // an owned local. Borrowed parameters are already &Vec views.
+                final ownedParameter = paramVarIds.exists(subjectLocalId) && argType != null && !StringTools.startsWith(argType, "&");
+                final nonScalarOwnedLocal = !isScalar && !referenceSubject && (!paramVarIds.exists(subjectLocalId) || ownedParameter);
                 if (nonScalarOwnedLocal)
                     borrowedLoopVarIds.set(itemVar.id, true);
                 final iterated = (ownedLocal || nonScalarOwnedLocal) ? "&" + expr(sliceSubj) : expr(sliceSubj);
