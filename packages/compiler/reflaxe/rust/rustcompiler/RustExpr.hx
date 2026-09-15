@@ -4312,7 +4312,10 @@ class RustExpr {
     function nullableMethodReceiver(subj:TypedExpr, mutable:Bool):String {
         if (!isNullType(subj.t))
             return expr(subj);
+        final previousReceiverContext = renderingMethodReceiver;
+        if (mutable) renderingMethodReceiver = true;
         final base = expr(subj);
+        renderingMethodReceiver = previousReceiverContext;
         // A null guard or a null-coalescing match already bound the inner
         // value; the binding holds the inner reference itself, so the
         // forcing read would ask Rust to find AsRef on the table type.
@@ -5593,8 +5596,9 @@ class RustExpr {
                     // preserve Option. Do not treat it as Display. A non-Copy
                     // inner value behind self or a borrowed subject still
                     // clones so the read produces an owned Option instead of
-                    // a move out of a reference.
-                    if (!isTypeCopy(getNullInnerType(cf.get().type)) && switch (subj.expr) {
+                    // a move out of a reference. A method receiver keeps its
+                    // borrow so mutations reach the original storage.
+                    if (!isTypeCopy(getNullInnerType(cf.get().type)) && !renderingMethodReceiver && switch (subj.expr) {
                         case TConst(TThis): true;
                         case _: isBorrowedExpression(subj) || StringTools.contains(subjStr, ".as_ref().unwrap()");
                     }) {
@@ -6655,7 +6659,21 @@ class RustExpr {
                         imports.require("std::fmt::Write");
                         final joined = freshRegionName("joined");
                         final index = freshRegionName("index");
-                        return "{ let " + joined + " = " + nullableMethodReceiver(subj, false) + "; let mut out = String::new(); let n = "
+                        final receiver = nullableMethodReceiver(subj, false);
+                        // A nullable receiver rendered as (X.clone()).as_ref().unwrap()
+                        // creates a clone temporary whose lifetime ends at the
+                        // semicolon; split into separate bindings so the clone
+                        // outlives the join body (E0716).
+                        final needsSplit = StringTools.contains(receiver, ".clone()).as_ref().unwrap()");
+                        if (needsSplit) {
+                            final tmp = freshRegionName("_jtmp");
+                            final cloneExpr = StringTools.replace(receiver, ".as_ref().unwrap()", "");
+                            return "{ let " + tmp + " = " + cloneExpr + "; let " + joined + " = " + tmp + ".as_ref().unwrap(); let mut out = String::new(); let n = "
+                                + joined + ".len(); let mut " + index + " = 0usize; while " + index + " < n { if " + index
+                                + " > 0 { out.push_str(&(" + renderedArgs + ")); } let _ = write!(out, \"{}\", " + joined + "[" + index + "]); "
+                                + index + " += 1; } out }";
+                        }
+                        return "{ let " + joined + " = " + receiver + "; let mut out = String::new(); let n = "
                             + joined + ".len(); let mut " + index + " = 0usize; while " + index + " < n { if " + index
                             + " > 0 { out.push_str(&(" + renderedArgs + ")); } let _ = write!(out, \"{}\", " + joined + "[" + index + "]); "
                             + index + " += 1; } out }";
