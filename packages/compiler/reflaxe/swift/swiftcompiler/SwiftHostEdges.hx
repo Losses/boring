@@ -38,17 +38,17 @@ class SwiftHostEdges {
     /** The Swift file-scope helper behind each key. */
     public static function helperName(key:String):String {
         return switch (key) {
-            case "Env.get": "boringEnvGet";
-            case "Env.set": "boringEnvSet";
-            case "Env.remove": "boringEnvRemove";
-            case "Fs.exists": "boringFsExists";
-            case "Fs.isDirectory": "boringFsIsDirectory";
-            case "Fs.readText": "boringFsReadText";
-            case "Fs.writeText": "boringFsWriteText";
-            case "Fs.appendText": "boringFsAppendText";
-            case "Fs.makeDirs": "boringFsMakeDirs";
-            case "Fs.readDir": "boringFsReadDir";
-            default: "boringUnknownEdge";
+            case "Env.get": "hostEdgeEnvGet";
+            case "Env.set": "hostEdgeEnvSet";
+            case "Env.remove": "hostEdgeEnvRemove";
+            case "Fs.exists": "hostEdgeFsExists";
+            case "Fs.isDirectory": "hostEdgeFsIsDirectory";
+            case "Fs.readText": "hostEdgeFsReadText";
+            case "Fs.writeText": "hostEdgeFsWriteText";
+            case "Fs.appendText": "hostEdgeFsAppendText";
+            case "Fs.makeDirs": "hostEdgeFsMakeDirs";
+            case "Fs.readDir": "hostEdgeFsReadDir";
+            default: "hostEdgeUnknown";
         };
     }
 
@@ -90,7 +90,7 @@ class SwiftHostEdges {
     }
 
     static final ENV_GET = '
-private func boringEnvGet(_ key: String) -> String? {
+private func hostEdgeEnvGet(_ key: String) -> String? {
     #if canImport(Glibc) || canImport(Darwin)
     return key.withCString { k in
         guard let value = getenv(k) else { return nil }
@@ -113,7 +113,7 @@ private func boringEnvGet(_ key: String) -> String? {
 ';
 
     static final ENV_SET = '
-private func boringEnvSet(_ key: String, _ value: String) {
+private func hostEdgeEnvSet(_ key: String, _ value: String) {
     #if canImport(Glibc) || canImport(Darwin)
     _ = key.withCString { k in
         value.withCString { v in setenv(k, v, 1) }
@@ -131,7 +131,7 @@ private func boringEnvSet(_ key: String, _ value: String) {
 ';
 
     static final ENV_REMOVE = '
-private func boringEnvRemove(_ key: String) {
+private func hostEdgeEnvRemove(_ key: String) {
     #if canImport(Glibc) || canImport(Darwin)
     _ = key.withCString { k in unsetenv(k) }
     #elseif canImport(CRT)
@@ -146,7 +146,7 @@ private func boringEnvRemove(_ key: String) {
 ';
 
     static final FS_EXISTS = '
-private func boringFsExists(_ path: String) -> Bool {
+private func hostEdgeFsExists(_ path: String) -> Bool {
     #if canImport(FoundationEssentials) || canImport(Darwin)
     return FileManager.default.fileExists(atPath: path)
     #else
@@ -156,7 +156,7 @@ private func boringFsExists(_ path: String) -> Bool {
 ';
 
     static final FS_IS_DIRECTORY = '
-private func boringFsIsDirectory(_ path: String) -> Bool {
+private func hostEdgeFsIsDirectory(_ path: String) -> Bool {
     #if canImport(FoundationEssentials) || canImport(Darwin)
     #if canImport(FoundationEssentials)
     var isDirectory = false
@@ -172,7 +172,7 @@ private func boringFsIsDirectory(_ path: String) -> Bool {
 ';
 
     static final FS_READ_TEXT = '
-private func boringFsReadText(_ path: String) throws -> String {
+private func hostEdgeFsReadText(_ path: String) throws -> String {
     #if canImport(FoundationEssentials) || canImport(Darwin)
     guard let data = FileManager.default.contents(atPath: path) else {
         throw BoringException(message: path + ": read failed")
@@ -185,7 +185,7 @@ private func boringFsReadText(_ path: String) throws -> String {
 ';
 
     static final FS_WRITE_TEXT = '
-private func boringFsWriteText(_ path: String, _ data: String) throws {
+private func hostEdgeFsWriteText(_ path: String, _ data: String) throws {
     #if canImport(FoundationEssentials) || canImport(Darwin)
     let bytes = Data(Array(data.utf8))
     guard FileManager.default.createFile(atPath: path, contents: bytes) else {
@@ -198,7 +198,7 @@ private func boringFsWriteText(_ path: String, _ data: String) throws {
 ';
 
     static final FS_APPEND_TEXT = '
-private func boringFsAppendText(_ path: String, _ data: String) throws {
+private func hostEdgeFsAppendText(_ path: String, _ data: String) throws {
     #if canImport(SystemPackage)
     do {
         let handle = try FileDescriptor.open(FilePath(path), .writeOnly,
@@ -216,7 +216,7 @@ private func boringFsAppendText(_ path: String, _ data: String) throws {
 ';
 
     static final FS_MAKE_DIRS = '
-private func boringFsMakeDirs(_ path: String) throws {
+private func hostEdgeFsMakeDirs(_ path: String) throws {
     #if canImport(FoundationEssentials) || canImport(Darwin)
     do {
         try FileManager.default.createDirectory(atPath: path, withIntermediateDirectories: true)
@@ -230,7 +230,7 @@ private func boringFsMakeDirs(_ path: String) throws {
 ';
 
     static final FS_READ_DIR = '
-private func boringFsReadDir(_ path: String) throws -> [String] {
+private func hostEdgeFsReadDir(_ path: String) throws -> [String] {
     #if canImport(FoundationEssentials) || canImport(Darwin)
     do {
         return try FileManager.default.contentsOfDirectory(atPath: path)
