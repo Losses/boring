@@ -1041,7 +1041,17 @@ class RustExpr {
                         // the inner value into the local, so later reads of
                         // the local must not re-apply the as_ref forcing read.
                         // Covers the null-coalescing ternary initializer family.
-                        nullableCollapsedLocals.set(v.id, true);
+                        // (FieldSubjectTernary) Only a local-typed subject
+                        // materializes the inner value; a field-access subject
+                        // falls through to the plain ternary fallback which
+                        // keeps the Option wrapper, so the local stays Option.
+                        final guardInfo = nullGuardOf(cond);
+                        final isLocalSubject = switch (stripWrap(guardInfo.subject).expr) {
+                            case TLocal(_): true;
+                            case _: false;
+                        };
+                        if (isLocalSubject)
+                            nullableCollapsedLocals.set(v.id, true);
                     case TField(subj, FInstance(_, _, cf)) | TField(subj, FAnon(cf)):
                         switch (stripWrap(subj).expr) {
                             case TLocal(item) if ((borrowedLoopVarIds.exists(item.id) || readsAfterDeclaration.exists(item.id))
@@ -7564,7 +7574,6 @@ class RustExpr {
                     continue;
                 }
                 if (stringLikeType(pt) && stringLikeType(arg.t)) {
-                    trace("ctorCallArgs stringLikeType: arg=" + expr(arg) + " pt=" + haxe.macro.TypeTools.toString(pt) + " arg.t=" + haxe.macro.TypeTools.toString(arg.t) + " isNull=" + isNullType(arg.t) + " nullableSV=" + nullableStringViewArg(arg));
                     out.push(switch (stripWrap(arg).expr) {
                         case TConst(TString(_)): argStr;
                         case _ if (narrowedSubject(arg) != null):
