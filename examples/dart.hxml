@@ -629,3 +629,7 @@ tests.FloatCompoundAssignOpsTests
 
 boring.NarrowedSortedReceiverOps
 tests.NarrowedSortedReceiverOpsTests
+
+
+boring.NumericCoalesceLocalOps
+tests.NumericCoalesceLocalOpsTests
