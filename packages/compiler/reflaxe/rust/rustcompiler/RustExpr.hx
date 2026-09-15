@@ -284,7 +284,24 @@ class RustExpr {
             case CInstanceFieldRead(name):
                 final fieldText = "self." + RustImports.toSnakeCase(name);
                 isTypeCopy(targetType) ? fieldText : "(" + fieldText + ").clone()";
-            case CLocalRead(name): RustImports.toSnakeCase(name);
+            case CLocalRead(name):
+                // Haxe typer locals are the common representation of a
+                // constructor parameter read in a coalescing default. During
+                // call-site materialization the substitution table contains
+                // the already-rendered argument; using it prevents the callee
+                // parameter name from leaking into a static initializer.
+                if (defaultParameterSubstitutions.exists(name)) {
+                    final sub = defaultParameterSubstitutions.get(name);
+                    if (asOption && !StringTools.startsWith(sub, "Some(") && sub != "None") {
+                        if (isStringType(targetType) && !StringTools.endsWith(sub, ".to_string()")
+                            && (isStringLiteralText(sub) || reusableReadText(sub)))
+                            "Some(" + sub + ".to_string())";
+                        else
+                            "Some(" + sub + ")";
+                    } else
+                        asOption && isStringType(targetType) && isStringLiteralText(sub) ? sub + ".to_string()" : sub;
+                } else
+                    RustImports.toSnakeCase(name);
             case CFieldAccess(CParameterRead(staticPath), ""): coalescingStaticFieldText(staticPath, targetType);
             case CFieldAccess(receiver, fieldName):
                 fieldName == "length" ? rustU32Length("(" + coalescingDefaultText(receiver,
