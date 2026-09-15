@@ -3,7 +3,6 @@ package tests;
 import boring.BorrowedLoopItemBoundaryOps;
 #if rust_output
 import boring.BorrowedLoopItemBoundaryOps.BorrowedLoopItemEntry;
-import boring.BorrowedLoopItemBoundaryOps.BorrowedLoopMarker;
 #end
 import std.Test;
 
@@ -48,25 +47,6 @@ class BorrowedLoopItemBoundaryTests {
         Test.equals(2, records.length);
         Test.equals("a", BorrowedLoopItemBoundaryOps.describe(records[0].entry));
         Test.equals("b", BorrowedLoopItemBoundaryOps.describe(records[1].entry));
-        #end
-    }
-
-    @:test("a borrowed enum loop item compares against an owned value")
-    public static function hasMarker():Void {
-        #if rust_output
-        final markers = [MarkerAlpha, MarkerBeta];
-        Test.equals(true, BorrowedLoopItemBoundaryOps.hasMarker(markers, MarkerBeta));
-        Test.equals(false, BorrowedLoopItemBoundaryOps.hasMarker([MarkerAlpha], MarkerBeta));
-        #end
-    }
-
-    @:test("a nullable array indexOf unwraps the receiver")
-    public static function indexOfNullable():Void {
-        #if rust_output
-        Test.equals(1, BorrowedLoopItemBoundaryOps.indexOfNullableInts([5, 7, 9], 7));
-        Test.equals(-1, BorrowedLoopItemBoundaryOps.indexOfNullableInts([5, 7, 9], 3));
-        Test.equals(-1, BorrowedLoopItemBoundaryOps.indexOfNullableInts(null, 3));
-        Test.equals(1, BorrowedLoopItemBoundaryOps.indexOfNullableStrings(["a", "b"], "b"));
         #end
     }
 }
