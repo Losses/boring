@@ -1550,7 +1550,6 @@ class RustExpr {
         stays a str view.
     **/
     function nullableStringViewArg(arg:TypedExpr):Bool {
-        trace("nullableStringViewArg: " + expr(arg) + " isNull=" + isNullType(arg.t) + " collapsed=" + isNullableCollapsedLocal(arg));
         return isNullType(arg.t) && !isNullableCollapsedLocal(arg);
     }
 
