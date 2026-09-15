@@ -3940,9 +3940,31 @@ class RustExpr {
         };
     }
 
-    function borrowedStringLoopItem(e:TypedExpr):Null<TVar> {
+    /**
+        A loop over an Array binds a scalar item through the pattern
+        (`for &x in ..`), so the binding is a value; every other item is bound
+        as a Rust reference. This reads the same split the loop pattern uses.
+    **/
+    function isBorrowedLoopReference(v:TVar):Bool {
+        if (!borrowedLoopVarIds.exists(v.id))
+            return false;
+        return switch (Context.follow(v.t)) {
+            case TAbstract(a, _): final n = a.get().name; n != "Int" && n != "Bool" && n != "Float";
+            default: true;
+        };
+    }
+
+    /**
+        borrowedComparableLoopItem: a loop over an Array parameter binds its
+        item as a Rust reference, and an enum or String element (unlike a
+        scalar, which the pattern destructures) is not unwrapped by the
+        pattern. Comparing that reference with an owned value needs the
+        referent, so the equality lowering dereferences the Copy/String loop
+        binding. Non-Copy record items keep their field-wise equality path.
+    **/
+    function borrowedComparableLoopItem(e:TypedExpr):Null<TVar> {
         return switch (stripWrap(e).expr) {
-            case TLocal(v): borrowedLoopVarIds.exists(v.id) && isStringType(v.t) ? v : null;
+            case TLocal(v): isBorrowedLoopReference(v) && (isTypeCopy(v.t) || isStringType(v.t)) ? v : null;
             default: null;
         };
     }
@@ -4282,9 +4304,9 @@ class RustExpr {
                 final nullable = isNullType(l.t) ? l : r;
                 return expr(nullable) + (op == OpEq ? ".is_none()" : ".is_some()");
             // Borrowed loop items render as references in Rust.
-            case OpEq | OpNotEq if (borrowedStringLoopItem(l) != null || borrowedStringLoopItem(r) != null):
-                final left = borrowedStringLoopItem(l) != null ? "*" + expr(l) : expr(l);
-                final right = borrowedStringLoopItem(r) != null ? "*" + expr(r) : expr(r);
+            case OpEq | OpNotEq if (borrowedComparableLoopItem(l) != null || borrowedComparableLoopItem(r) != null):
+                final left = borrowedComparableLoopItem(l) != null ? "*" + expr(l) : expr(l);
+                final right = borrowedComparableLoopItem(r) != null ? "*" + expr(r) : expr(r);
                 return left + " " + symbolOf(op) + " " + right;
             // A struct whose fields cannot all derive PartialEq (for
             // example, an interface field lowers to Box<dyn Trait>) compares
