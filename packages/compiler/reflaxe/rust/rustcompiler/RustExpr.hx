@@ -4400,6 +4400,7 @@ class RustExpr {
         return switch (stripWrap(e).expr) {
             case TConst(TString(_)): expr(e) + ".to_string()";
             case TLocal(v) if (isBorrowedLocal(v)): expr(e) + ".to_string()";
+            case TLocal(_): expr(e) + ".clone()";
             case _: expr(e);
         };
     }
