@@ -92,7 +92,7 @@ class RustExpr {
     // Option subjects narrowed by an immediately enclosing null guard. The
     // rendered text is the key because guarded subjects may be fields.
     final optionNarrowings:Array<{subjectText:String, name:String}> = [];
-    var optionNarrowingHit:Bool = false;
+    var optionNarrowingHitCount:Int = 0;
     final fillNarrowings:Array<{subjectText:String, fillBody:String}> = [];
     final readsAfterDeclaration:Map<Int, Bool> = [];
     final unsignedLocals:Map<Int, Bool> = [];
@@ -974,7 +974,7 @@ class RustExpr {
                     case _: null;
                 };
                 if (narrowedCopy != null) {
-                    optionNarrowingHit = true;
+                    optionNarrowingHitCount++;
                     final inner = getNullInnerType(init.t);
                     final owned = isTypeCopy(inner) ? "*" + narrowedCopy : "(*" + narrowedCopy + ").clone()";
                     return [indent(depth) + kw + " " + name + explicitType + " = " + owned + ";"];
@@ -2807,8 +2807,7 @@ class RustExpr {
         if (info == null)
             return null;
         final name = freshRegionName("__option");
-        final previousHit = optionNarrowingHit;
-        optionNarrowingHit = false;
+        final countBefore = optionNarrowingHitCount;
         optionNarrowings.push({subjectText: subjectTextOf(info.subject), name: name});
         // The narrowed arm renders inside the narrowing scope so its
         // subject reads substitute the match binding; the None arm
@@ -2828,9 +2827,8 @@ class RustExpr {
         var narrowedText = nullableResult ? wrapBranchForNullableResult(narrowedBranch, resultType, noneBranch)
             : conditionalBranchText(narrowedBranch, noneBranch, resultType);
         final tailText = prefix == null ? null : expr(prefix.tail);
-        final hit = optionNarrowingHit;
+        final hit = optionNarrowingHitCount > countBefore;
         optionNarrowings.pop();
-        optionNarrowingHit = previousHit;
         if (!hit)
             return null;
         // An arm that reads only the binding is a reference to the inner
@@ -2900,8 +2898,7 @@ class RustExpr {
         if (narrowedBranch == null)
             return null;
         final name = freshRegionName("__option");
-        final previousHit = optionNarrowingHit;
-        optionNarrowingHit = false;
+        final countBefore = optionNarrowingHitCount;
         optionNarrowings.push({subjectText: subjectTextOf(info.subject), name: name});
         var narrowed = blockLines(statementsOf(narrowedBranch), depth + 2);
         if (prefix != null) {
@@ -2909,9 +2906,8 @@ class RustExpr {
                 .concat(narrowed)
                 .concat([indent(depth + 2) + "}"]);
         }
-        final hit = optionNarrowingHit;
+        final hit = optionNarrowingHitCount > countBefore;
         optionNarrowings.pop();
-        optionNarrowingHit = previousHit;
         if (!hit)
             return null;
         final otherBranch = info.noneWhenTrue ? ifTrue : ifFalse;
@@ -2990,7 +2986,7 @@ class RustExpr {
                 if (optionNarrowings.length > 0) {
                     final narrowed = narrowedSubject(e);
                     if (narrowed != null) {
-                        optionNarrowingHit = true;
+                        optionNarrowingHitCount++;
                         // match &(opt) { Some(name) => ... } binds name as
                         // &T; dereference Copy inners so index and arithmetic
                         // expressions receive the owned scalar.
@@ -3269,7 +3265,7 @@ class RustExpr {
         final binding = narrowedText(subjectTextOf(resolved));
         if (binding == null)
             return null;
-        optionNarrowingHit = true;
+        optionNarrowingHitCount++;
         final inner = getNullInnerType(resolved.t);
         return isTypeCopy(inner) ? "*" + binding : "(*" + binding + ").clone()";
     }
@@ -4170,7 +4166,7 @@ class RustExpr {
         // Covers the narrowed sorted-table receiver family.
         final narrowed = narrowedSubject(subj);
         if (narrowed != null) {
-            optionNarrowingHit = true;
+            optionNarrowingHitCount++;
             return narrowed;
         }
         if (!receiverCarriesFallibleWrapper(subj))
@@ -5382,7 +5378,7 @@ class RustExpr {
                         // itself, so the length is a plain len() read.
                         final narrowed = narrowedSubject(subj);
                         if (narrowed != null) {
-                            optionNarrowingHit = true;
+                            optionNarrowingHitCount++;
                             return RustConversions.truncate(narrowed + ".len()", "u32");
                         }
                         return "(" + expr(subj) + ").as_ref().map_or(0, |v| v.len())";
@@ -5410,6 +5406,18 @@ class RustExpr {
                 final snake = RustImports.toSnakeCase(name);
                 final subjText = expr(subj);
                 // A null guard narrows the complete field path. For example,
+                // `glyph.bounds != null` registers the whole `glyph.bounds`
+                // path as the guarded subject. When that same field is read
+                // inside the guard, the read resolves to the match binding
+                // of the inner value directly.
+                // Covers the full-path nullable field read family.
+                final narrowedFull = narrowedText(subjText + "." + snake);
+                if (narrowedFull != null) {
+                    optionNarrowingHitCount++;
+                    final inner = getNullInnerType(cf.get().type);
+                    return isTypeCopy(inner) ? "*" + narrowedFull : "(*" + narrowedFull + ").clone()";
+                }
+                // A null guard narrows the complete field path. For example,
                 // `glyph.bounds` is narrowed as one access path.
                 // When the complete access is the narrowed value, this read
                 // is the match binding. The binding is a reference, so clone
@@ -5417,7 +5425,7 @@ class RustExpr {
                 final narrowed = narrowedSubject(subj);
                 final narrowedReceiver = narrowed == null ? narrowedReceiverSubject(subj) : null;
                 if (narrowed != null || narrowedReceiver != null)
-                    optionNarrowingHit = true;
+                    optionNarrowingHitCount++;
                 // A proven guard subject is Some at this read: the forcing
                 // read opens the guarded local directly through the borrow,
                 // with no match binding in the path.
@@ -6072,7 +6080,7 @@ class RustExpr {
                     final receiver = args[0];
                     final narrowed = narrowedSubject(receiver);
                     if (narrowed != null)
-                        optionNarrowingHit = true;
+                        optionNarrowingHitCount++;
                     final receiverText = narrowed != null ? narrowed : expr(receiver);
                     return receiverText + ".to_string()";
                 }
@@ -6104,7 +6112,7 @@ class RustExpr {
                 // the same substitution is required here.
                 final narrowed = narrowedSubject(subj);
                 if (narrowed != null)
-                    optionNarrowingHit = true;
+                    optionNarrowingHitCount++;
                 final receiver = narrowed != null ? narrowed : expr(subj);
                 return name == "toString" ? receiver + ".to_string()" : receiver
                     + "."
@@ -6592,7 +6600,7 @@ class RustExpr {
                 renderingMethodReceiver = previousReceiverContext;
                 final narrowed = narrowedSubject(subj);
                 if (narrowed != null)
-                    optionNarrowingHit = true;
+                    optionNarrowingHitCount++;
                 final subjStr = narrowed != null ? narrowed
                     : (receiverCarriesFallibleWrapper(subj) ? subjText + ".as_ref().unwrap()" : subjText);
                 return subjStr + "." + snake + "(" + renderCallArgs(cf.get().type, args, null, 0, mutableParamPositions(cf.get())) + ")" + q;
@@ -7542,7 +7550,7 @@ class RustExpr {
             // match binding.
             final narrowed = narrowedSubject(actual);
             if (narrowed != null) {
-                optionNarrowingHit = true;
+                optionNarrowingHitCount++;
                 final deref = "*" + narrowed;
                 if ((target == "u32" || target == "i32") && (RuntimeResidents.isResident(imports.selfModule) ? "i32" : "u32") == target) {
                     return deref;
