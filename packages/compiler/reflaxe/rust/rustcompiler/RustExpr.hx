@@ -4512,7 +4512,13 @@ class RustExpr {
                 // operands unconditionally.
                 return "(" + operand(l, op, false) + ") << (" + operand(r, op, true) + ")";
             case OpLt if (isZero(r) && !i32LocalDomain(l) && (isUnsignedOperand(l) || businessIntExpr(l))):
-                return "(" + operand(l, op, false) + ") > 2147483647";
+                // A signed rendering such as an indexOf match compares its
+                // absent case (-1) in the business u32 domain, so the upper
+                // bound test needs the same-width reinterpretation first.
+                final zeroLeft = operand(l, op, false);
+                final zeroLeftText = rendersI32ComparisonOperand(l, zeroLeft)
+                    ? RustConversions.reinterpret(zeroLeft, "u32") : zeroLeft;
+                return "(" + zeroLeftText + ") > 2147483647";
             case OpSub:
                 return operand(l, op, false) + " - " + operand(r, op, true);
             case OpLt | OpLte | OpGt | OpGte:

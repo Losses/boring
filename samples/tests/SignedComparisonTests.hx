@@ -36,4 +36,14 @@ class SignedComparisonTests {
         Test.equals(true, SignedComparisonOps.lastIndexEqualsLimit("abxc", 2));
         #end
     }
+
+    @:test("an ordered comparison with literal zero reinterprets the signed index sentinel")
+    public static function indexBelowZero():Void {
+        #if rust_output
+        Test.equals(false, SignedComparisonOps.indexBelowZero("xbc"));
+        Test.equals(true, SignedComparisonOps.indexBelowZero("abc"));
+        Test.equals(false, SignedComparisonOps.elementBelowZero([1, 2, 3], 2));
+        Test.equals(true, SignedComparisonOps.elementBelowZero([1, 2, 3], 9));
+        #end
+    }
 }
