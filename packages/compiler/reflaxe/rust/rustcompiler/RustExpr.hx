@@ -2158,27 +2158,33 @@ class RustExpr {
                     case TLocal(v): paramVarIds.exists(v.id) ? argTypes.get(v.name) : null;
                     default: null;
                 };
+                // A subject already rendered as a Rust reference needs no
+                // extra borrow: a current-function or local-function
+                // parameter arrives as a &Vec view, and a null-guard match
+                // binding binds the borrowed Option payload. Only an owned
+                // subject borrows for the loop.
+                final referenceSubject = argType != null || isClosureParam(sliceSubj) || narrowedSubject(sliceSubj) != null;
                 // A scalar loop over an owned local array borrows the array: the
                 // pattern takes a reference and the array stays usable after the
                 // loop. Parameters already arrive as rendered references.
-                final ownedLocal = isScalar && argType == null;
+                final ownedLocal = isScalar && !referenceSubject;
                 final pattern = if (isScalar) {
-                    if (argType != null) {
-                        StringTools.startsWith(argType, "&mut") ? "&mut " + itemName : "&" + itemName;
+                    if (argType != null && StringTools.startsWith(argType, "&mut")) {
+                        "&mut " + itemName;
                     } else {
                         "&" + itemName;
                     }
                 } else {
                     itemName;
                 };
-                if (argType != null)
+                if (referenceSubject)
                     borrowedLoopVarIds.set(itemVar.id, true);
                 final subjectLocalId = switch (stripWrap(sliceSubj).expr) {
                     case TLocal(v): v.id;
                     case _: -1;
                 };
-                final nonScalarOwnedLocal = !isScalar && argType == null && !paramVarIds.exists(subjectLocalId);
-                if (argType != null || nonScalarOwnedLocal)
+                final nonScalarOwnedLocal = !isScalar && !referenceSubject && !paramVarIds.exists(subjectLocalId);
+                if (nonScalarOwnedLocal)
                     borrowedLoopVarIds.set(itemVar.id, true);
                 final iterated = (ownedLocal || nonScalarOwnedLocal) ? "&" + expr(sliceSubj) : expr(sliceSubj);
                 switch (Context.follow(itemVar.t)) {

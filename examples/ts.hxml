@@ -534,6 +534,9 @@ tests.BorrowedReceiverBoundaryTests
 boring.BorrowedLoopItemBoundaryOps
 tests.BorrowedLoopItemBoundaryTests
 
+boring.BorrowedIterationSubjectOps
+tests.BorrowedIterationSubjectOpsTests
+
 boring.BorrowedStringReturnOps
 tests.BorrowedStringReturnTests
 
