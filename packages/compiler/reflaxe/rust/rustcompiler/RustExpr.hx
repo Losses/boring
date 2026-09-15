@@ -1504,6 +1504,17 @@ class RustExpr {
         };
     }
 
+    /**
+        nullableStringViewArg: a nullable String read reaching a plain &str
+        slot unwraps its Option view to the empty string, the same mapping
+        the null-to-zero bridge gives a nullable scalar. A null guard or
+        null-coalescing local already bound the inner value, so its read
+        stays a str view.
+    **/
+    function nullableStringViewArg(arg:TypedExpr):Bool {
+        return isNullType(arg.t) && narrowedSubject(arg) == null && !isNullableCollapsedLocal(arg);
+    }
+
     function stringConcatOperand(value:TypedExpr):String {
         final std = stdStringArg(value);
         return std != null ? stdString(std, true) : stdStringType(value.t, expr(value), true, value);
@@ -7330,6 +7341,7 @@ class RustExpr {
                 if (stringLikeType(pt) && stringLikeType(arg.t)) {
                     out.push(switch (stripWrap(arg).expr) {
                         case TConst(TString(_)): argStr;
+                        case _ if (nullableStringViewArg(arg)): "(" + expr(arg) + ").as_deref().unwrap_or(\"\")";
                         case TLocal(v) if (paramVarIds.get(v.id) == true): argStr;
                         case _: argStr + ".as_str()";
                     });
@@ -8851,6 +8863,7 @@ class RustExpr {
                     if (stringLikeType(pt) && stringLikeType(arg.t)) {
                         argStr = switch (stripWrap(arg).expr) {
                             case TConst(TString(_)): argStr;
+                            case _ if (nullableStringViewArg(arg)): "(" + expr(arg) + ").as_deref().unwrap_or(\"\")";
                             case TLocal(v) if (paramVarIds.get(v.id) == true): expr(arg);
                             case _: expr(arg) + ".as_str()";
                         };
