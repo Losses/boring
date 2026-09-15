@@ -5,7 +5,7 @@ package boring;
     Haxe Array.splice(pos, len) removes len elements at pos and returns the
     removed sub-array. The vecSpliceDrain heuristic lowers it through
     Vec::drain on a usize range so the range bound types match the Vec
-    index domain instead of the Haxe u32 Int domain.
+    index domain; the raw Haxe u32 Int domain does not match directly.
 */
 class VecSpliceOps {
     /** Remove one element from the middle and discard the return value. */
