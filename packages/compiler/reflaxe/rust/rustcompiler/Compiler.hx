@@ -153,63 +153,7 @@ class Compiler extends PluginCompiler<Compiler> {
         }
 
         final decl = contextFor(classType.module);
-        var result = decl.classDecl(classType, varFields, funcFields);
-        final synthetic = state.syntheticErrorEnums.get(classType.module);
-        if (synthetic != null && synthetic.length > 0 && !state.emittedSyntheticErrorModules.exists(classType.module)) {
-            state.emittedSyntheticErrorModules.set(classType.module, true);
-            final unionLines = [
-                for (u in synthetic) {
-                    final lines = ["#[derive(Debug, Clone, PartialEq)]", "pub enum " + u.name + " {"];
-                    final variants = state.syntheticErrorVariants.get(u.name);
-                    for (item in u.members) {
-                        final emitted = state.payloadEnumModules.exists(item.module) ? state.payloadEnumModules.get(item.module) : item.module;
-                        final variant = variants != null
-                            && variants.exists(item.module + "::" + item.name) ? variants.get(item.module + "::" + item.name) : item.name + "Fault";
-                        lines.push("    " + variant + "(crate::" + RustImports.moduleToRustPath(emitted) + "::" + item.name + "),");
-                    }
-                    lines.push("}");
-                    // A typed catch may surround a body whose fallibility
-                    // analysis synthesized a wider union. The closure's `?`
-                    // then converts that union back to the caught payload.
-                    // Keep the matching payload intact; a sibling cannot be
-                    // caught by this Haxe clause and remains a failed boundary.
-                    for (target in u.members) {
-                        final targetEmitted = state.payloadEnumModules.exists(target.module) ? state.payloadEnumModules.get(target.module) : target.module;
-                        final targetPath = "crate::" + RustImports.moduleToRustPath(targetEmitted) + "::" + target.name;
-                        final targetVariant = variants != null
-                            && variants.exists(target.module + "::" + target.name) ? variants.get(target.module + "::" + target.name) : target.name + "Fault";
-                        lines.push("");
-                        lines.push("impl From<" + u.name + "> for " + targetPath + " {");
-                        lines.push("    fn from(value: " + u.name + ") -> Self {");
-                        lines.push("        match value {");
-                        lines.push("            " + u.name + "::" + targetVariant + "(value) => value,");
-                        lines.push("            _ => panic!(\"fault union converted to an unrelated fault\"),");
-                        lines.push("        }");
-                        lines.push("    }");
-                        lines.push("}");
-                    }
-                    // `?` in generated closures uses Rust's standard error
-                    // conversion hook.  Synthetic fault unions are the
-                    // lowering's conversion boundary, so make every direct
-                    // and nested member constructible with `From` rather
-                    // than relying on callers to recognize the union.
-                    for (item in u.members) {
-                        final emitted = state.payloadEnumModules.exists(item.module) ? state.payloadEnumModules.get(item.module) : item.module;
-                        final variant = variants != null
-                            && variants.exists(item.module + "::" + item.name) ? variants.get(item.module + "::" + item.name) : item.name + "Fault";
-                        final memberPath = "crate::" + RustImports.moduleToRustPath(emitted) + "::" + item.name;
-                        lines.push("");
-                        lines.push("impl From<" + memberPath + "> for " + u.name + " {");
-                        lines.push("    fn from(value: " + memberPath + ") -> Self {");
-                        lines.push("        " + u.name + "::" + variant + "(value)");
-                        lines.push("    }");
-                        lines.push("}");
-                    }
-                    lines.join("\n");
-                }
-            ];
-            result = unionLines.join("\n\n") + (result.length > 0 ? "\n\n" + result : "");
-        }
+        final result = decl.classDecl(classType, varFields, funcFields);
         if (result != null && result.length > 0) {
             parts.get(classType.module).push(result);
         }
@@ -295,7 +239,10 @@ class Compiler extends PluginCompiler<Compiler> {
                 continue;
             }
             final decl = contexts.get(module);
-            final body = parts.get(module).join("\n\n");
+            var body = parts.get(module).join("\n\n");
+            final synthetic = syntheticErrorDecls(module);
+            if (synthetic.length > 0)
+                body = synthetic + (body.length > 0 ? "\n\n" + body : "");
             final imports = decl.renderImportsFiltered(body);
             final isTest = state.testModules.exists(module);
             final content = (isTest ? "#![cfg(test)]\n\n" : "") + imports + (imports.length > 0 ? "\n" : "") + body + "\n";
@@ -856,6 +803,60 @@ class Compiler extends PluginCompiler<Compiler> {
     // ------------------------------------------------------------------
     // Internals
     // ------------------------------------------------------------------
+
+    /**
+        Renders the complete synthetic fault declaration set for a module.
+        This is deliberately a pure output pass: expression lowering may
+        discover references in any arrival order, so no class callback may
+        consume the module's declaration list before typing has finished.
+    **/
+    function syntheticErrorDecls(module:String):String {
+        final synthetic = state.syntheticErrorEnums.get(module);
+        if (synthetic == null || synthetic.length == 0)
+            return "";
+        final unionLines = [
+            for (u in synthetic) {
+                final lines = ["#[derive(Debug, Clone, PartialEq)]", "pub enum " + u.name + " {"];
+                final variants = state.syntheticErrorVariants.get(u.name);
+                for (item in u.members) {
+                    final emitted = state.payloadEnumModules.exists(item.module) ? state.payloadEnumModules.get(item.module) : item.module;
+                    final variant = variants != null && variants.exists(item.module + "::" + item.name)
+                        ? variants.get(item.module + "::" + item.name) : item.name + "Fault";
+                    lines.push("    " + variant + "(crate::" + RustImports.moduleToRustPath(emitted) + "::" + item.name + "),");
+                }
+                lines.push("}");
+                for (target in u.members) {
+                    final targetEmitted = state.payloadEnumModules.exists(target.module) ? state.payloadEnumModules.get(target.module) : target.module;
+                    final targetPath = "crate::" + RustImports.moduleToRustPath(targetEmitted) + "::" + target.name;
+                    final targetVariant = variants != null && variants.exists(target.module + "::" + target.name)
+                        ? variants.get(target.module + "::" + target.name) : target.name + "Fault";
+                    lines.push("");
+                    lines.push("impl From<" + u.name + "> for " + targetPath + " {");
+                    lines.push("    fn from(value: " + u.name + ") -> Self {");
+                    lines.push("        match value {");
+                    lines.push("            " + u.name + "::" + targetVariant + "(value) => value,");
+                    lines.push("            _ => panic!(\"fault union converted to an unrelated fault\"),");
+                    lines.push("        }");
+                    lines.push("    }");
+                    lines.push("}");
+                }
+                for (item in u.members) {
+                    final emitted = state.payloadEnumModules.exists(item.module) ? state.payloadEnumModules.get(item.module) : item.module;
+                    final variant = variants != null && variants.exists(item.module + "::" + item.name)
+                        ? variants.get(item.module + "::" + item.name) : item.name + "Fault";
+                    final memberPath = "crate::" + RustImports.moduleToRustPath(emitted) + "::" + item.name;
+                    lines.push("");
+                    lines.push("impl From<" + memberPath + "> for " + u.name + " {");
+                    lines.push("    fn from(value: " + memberPath + ") -> Self {");
+                    lines.push("        " + u.name + "::" + variant + "(value)");
+                    lines.push("    }");
+                    lines.push("}");
+                }
+                lines.join("\n");
+            }
+        ];
+        return unionLines.join("\n\n");
+    }
 
     function preScan(mtypes:Array<haxe.macro.Type.ModuleType>):Void {
         // An interface whose implementors all derive Clone gets a clone_box
