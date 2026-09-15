@@ -1528,8 +1528,18 @@ class RustExpr {
         if (callee == null || errorTypeName == null || callee.name == errorTypeName)
             return "?";
         final variant = state.syntheticErrorVariant(errorTypeName, callee);
-        if (variant == null)
+        if (variant == null) {
+            // The declared caller enum may have grown wrapping variants for
+            // callee faults the preScan merge registered; `?` then maps into
+            // a real constructor instead of a missing From impl.
+            final growth = state.enumGrowthFor(errorTypeName);
+            if (growth != null) {
+                for (item in growth)
+                    if (item.calleeName == callee.name)
+                        return ".map_err(|e| " + errorTypeName + "::" + item.variant + "(e))?";
+            }
             return "?";
+        }
         return ".map_err(|e| " + errorTypeName + "::" + variant + "(e))?";
     }
 

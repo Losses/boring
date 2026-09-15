@@ -112,6 +112,33 @@ class RustEmissionState {
         return variants == null ? null : variants.get(member.module + "::" + member.name);
     }
 
+    /**
+        Growth variants registered against declared (non-synthetic) fault
+        enums. When a fallible callee contributes a fault the declared enum
+        does not carry, the enum grows a wrapping variant and a From impl so
+        the `?` conversion compiles; declared variants stay untouched.
+        Keyed by the declared enum's emitted name.
+    **/
+    public final enumGrowth:Map<String, Array<{calleePath:String, calleeName:String, variant:String}>> = [];
+
+    public function registerFaultConversion(callerEnum:String, calleePath:String, calleeName:String):String {
+        final variant = calleeName;
+        var growth = enumGrowth.get(callerEnum);
+        if (growth == null) {
+            growth = [];
+            enumGrowth.set(callerEnum, growth);
+        }
+        for (item in growth)
+            if (item.calleeName == calleeName)
+                return variant;
+        growth.push({calleePath: calleePath, calleeName: calleeName, variant: variant});
+        return variant;
+    }
+
+    public function enumGrowthFor(enumName:String):Null<Array<{calleePath:String, calleeName:String, variant:String}>> {
+        return enumGrowth.get(enumName);
+    }
+
     public final recordCloneTypes:Map<String, Bool> = [];
 
     /**
