@@ -6851,8 +6851,14 @@ class RustExpr {
                 }
                 if (cls.module == "Math" && name == "isNaN")
                     return "(" + mathFloatBindingArg(args[0]) + ").is_nan()";
-                if (cls.module == "Math" && name == "isFinite")
+                if (cls.module == "Math" && name == "isFinite") {
+                    // (NullableMathIsFinite) A nullable Float receiver
+                    // maps to map_or(false, |v| v.is_finite()) to match
+                    // Haxe's null→false behavior.
+                    if (isNullType(args[0].t))
+                        return "(" + expr(args[0]) + ").map_or(false, |v| v.is_finite())";
                     return "(" + mathFloatBindingArg(args[0]) + ").is_finite()";
+                }
                 if (cls.module == "Math" && name == "abs")
                     return "(" + mathFloatBindingArg(args[0]) + ").abs()";
                 if (cls.module == "Math" && (name == "min" || name == "max") && args.length == 2) {
@@ -7561,6 +7567,11 @@ class RustExpr {
                     out.push(switch (stripWrap(arg).expr) {
                         case TConst(TString(_)): argStr;
                         case _ if (nullableStringViewArg(arg)): "(" + expr(arg) + ").as_deref().unwrap_or(\"\")";
+                        case _ if (narrowedSubject(arg) != null):
+                            // (NarrowedStringViewArg) The null guard already
+                            // bound the inner String; the binding is a &String
+                            // view, so .as_str() reaches the &str slot.
+                            narrowedSubject(arg) + ".as_str()";
                         case TLocal(v) if (isBorrowedParamLocal(v)): argStr;
                         case _: argStr + ".as_str()";
                     });
