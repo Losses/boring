@@ -128,6 +128,12 @@ class RustExpr {
     // Downward loops the renderer shifts to an unsigned guard
     // (transformCountdownLoops): their variable keeps the u32 domain.
     final countdownShiftedVars:Map<Int, Bool> = [];
+    /** Locals whose declared Haxe type is non-null but whose initializer
+        is nullable. A collection `.get()` or similar call returns Null<T>,
+        and the local is typed as T; its Rust storage is still Option<T> and
+        its null guard must be detected by nullGuardOf. Covers the
+        implicit-nullable-local family. **/
+    final implicitNullableLocals:Map<Int, Bool> = [];
     // Keep Option when Haxe code observes null separately from code point zero.
     final nullableSensitiveLocals:Map<Int, Bool> = [];
     // Locals initialized from Std.parseInt hold the i32 parse domain. The
@@ -546,6 +552,7 @@ class RustExpr {
         borrowedLoopVarIds.clear();
         unsignedLocals.clear();
         nullableCollapsedLocals.clear();
+        implicitNullableLocals.clear();
         nullableSensitiveLocals.clear();
         parseIntLocals.clear();
         i32Locals.clear();
@@ -979,6 +986,11 @@ class RustExpr {
                     final owned = isTypeCopy(inner) ? "*" + narrowedCopy : "(*" + narrowedCopy + ").clone()";
                     return [indent(depth) + kw + " " + name + explicitType + " = " + owned + ";"];
                 }
+                // A non-null declared type initialized from a nullable
+                // expression keeps Option storage at runtime; its later null
+                // guard must be recognized. Covers the implicit-nullable-local family.
+                if (isNullType(init.t) && !isNullType(v.t))
+                    implicitNullableLocals.set(v.id, true);
                 var initStr = switch (init.expr) {
                     case TFunction(fn):
                         localFunctionErrorName = fallibleLocalFunctionErrors.get(v.id);
@@ -2658,17 +2670,29 @@ class RustExpr {
 
     function nullGuardOf(e:TypedExpr):Null<{subject:TypedExpr, noneWhenTrue:Bool}> {
         switch (stripWrap(e).expr) {
-            case TBinop(OpEq, left, right) if (isNullType(left.t) && isTNull(right)):
+            case TBinop(OpEq, left, right) if (nullableGuardSubject(left) && isTNull(right)):
                 return {subject: left, noneWhenTrue: true};
-            case TBinop(OpEq, left, right) if (isNullType(right.t) && isTNull(left)):
+            case TBinop(OpEq, left, right) if (nullableGuardSubject(right) && isTNull(left)):
                 return {subject: right, noneWhenTrue: true};
-            case TBinop(OpNotEq, left, right) if (isNullType(left.t) && isTNull(right)):
+            case TBinop(OpNotEq, left, right) if (nullableGuardSubject(left) && isTNull(right)):
                 return {subject: left, noneWhenTrue: false};
-            case TBinop(OpNotEq, left, right) if (isNullType(right.t) && isTNull(left)):
+            case TBinop(OpNotEq, left, right) if (nullableGuardSubject(right) && isTNull(left)):
                 return {subject: right, noneWhenTrue: false};
             case _:
         }
         return null;
+    }
+
+    /** A guard subject is nullable when its type is Null<T>, or when a
+        non-null local is backed by a nullable initializer (its Rust storage
+        is Option<T>). **/
+    function nullableGuardSubject(subject:TypedExpr):Bool {
+        if (isNullType(subject.t))
+            return true;
+        return switch (stripWrap(subject).expr) {
+            case TLocal(v): implicitNullableLocals.exists(v.id);
+            case _: false;
+        };
     }
 
     function subjectTextOf(subject:TypedExpr):String {
