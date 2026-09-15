@@ -3064,7 +3064,7 @@ class RustExpr {
                 final staticGuard = staticGuardOf(arr);
                 if (staticGuard != null) {
                     final base = staticGuard + "[" + staticIndex(idx) + "]";
-                    return scalarTypeKind(e.t) == "String" ? "(" + base + ").clone()" : base;
+                    return !isTypeCopy(e.t) ? "(" + base + ").clone()" : base;
                 }
                 final base = optionContainerIndexAccess(arr, idx, false);
                 // Reading a String element moves it out of the Vec, so a
@@ -5521,7 +5521,16 @@ class RustExpr {
                     return "(" + access + ").clone()";
                 if (name != "length" && isNullType(cf.get().type)) {
                     // `Std.string` and string comparisons observe nullable values;
-                    // preserve Option. Do not treat it as Display.
+                    // preserve Option. Do not treat it as Display. A non-Copy
+                    // inner value behind self or a borrowed subject still
+                    // clones so the read produces an owned Option instead of
+                    // a move out of a reference.
+                    if (!isTypeCopy(getNullInnerType(cf.get().type)) && switch (subj.expr) {
+                        case TConst(TThis): true;
+                        case _: isBorrowedExpression(subj);
+                    }) {
+                        return "(" + access + ").clone()";
+                    }
                     return access;
                 }
                 if (name != "length" && (isStringType(cf.get().type) || isRecordValueType(cf.get().type))) {
