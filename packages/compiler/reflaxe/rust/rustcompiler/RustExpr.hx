@@ -991,6 +991,16 @@ class RustExpr {
                 // guard must be recognized. Covers the implicit-nullable-local family.
                 if (isNullType(init.t) && !isNullType(v.t))
                     implicitNullableLocals.set(v.id, true);
+                // A proven-non-null local (early-exit guard) copied into a
+                // non-null declaration holds the inner value. The guard
+                // proved the source is Some; the declaration owns the unwrapped
+                // value directly so later reads do not address the Option.
+                // Covers the proven-non-null owned copy family.
+                if (!isNullType(v.t)) {
+                    final provenText = provenNonNullOwnedText(init);
+                    if (provenText != null)
+                        return [indent(depth) + kw + " " + name + explicitType + " = " + provenText + ";"];
+                }
                 var initStr = switch (init.expr) {
                     case TFunction(fn):
                         localFunctionErrorName = fallibleLocalFunctionErrors.get(v.id);
@@ -4811,6 +4821,22 @@ class RustExpr {
         if (local == null || !provenNonNullVarIds.exists(local.id) || !receiverCarriesFallibleWrapper(subj))
             return null;
         return "(" + expr(subj) + ").as_ref().unwrap()";
+    }
+
+    /** The owned inner value of a proven-non-null local. A non-null
+        declaration copying a verified-present nullable source clones
+        the inner value into the declaration's storage.
+        Covers the proven-non-null owned read family. **/
+    function provenNonNullOwnedText(subj:TypedExpr):Null<String> {
+        final local = switch (stripWrap(subj).expr) {
+            case TLocal(v): v;
+            case _: null;
+        };
+        if (local == null || !provenNonNullVarIds.exists(local.id) || !receiverCarriesFallibleWrapper(subj))
+            return null;
+        final inner = getNullInnerType(subj.t);
+        final ref = "(" + expr(subj) + ").as_ref().unwrap()";
+        return isTypeCopy(inner) ? "*" + ref : ref + ".clone()";
     }
 
     /** Every local a `&&` chain of `!= null` checks proves non-null. */
