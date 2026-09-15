@@ -2462,6 +2462,15 @@ class RustDecl {
                 lines.push("    " + RustImports.toUpperCamelCase(o.name) + " { " + params + " },");
             }
         }
+        // Fault conversions registered while lowering fallible callees: each
+        // grows a wrapping variant so `?` names a real constructor. The Debug
+        // derive covers the Display arm because the payload fault derives it.
+        final growth = state.enumGrowthFor(en.name);
+        final maxIndex = sorted.length > 0 ? sorted[sorted.length - 1].field.index + 1 : 0;
+        if (growth != null) {
+            for (item in growth)
+                lines.push("    " + item.variant + "(" + item.calleePath + "),");
+        }
         lines.push("}");
         if (allPlain) {
             lines.push("");
@@ -2472,6 +2481,9 @@ class RustDecl {
             for (o in sorted)
                 lines.push("            " + en.name + "::" + RustImports.toUpperCamelCase(o.name) + " => " + o.field.index + ",");
             lines.push("        }");
+            if (growth != null)
+                for (item in growth)
+                    lines.push('            ${en.name}::${item.variant}(_) => ${maxIndex},');
             lines.push("    }");
             lines.push("    rank(a) - rank(b)");
             lines.push("}");
@@ -2491,7 +2503,15 @@ class RustDecl {
                     lines.push('            ${en.name}::${RustImports.toUpperCamelCase(o.name)} { ${params.join(", ")} } => format!("${o.name}(${[for(a in params) a + "={}"].join(", ")})", ${values.join(", ")}),');
                 }
             }
-            lines.push("        }");
+            
+            if (growth != null)
+                for (item in growth)
+                    lines.push('            ${en.name}::${item.variant}(inner) => format!("{:?}", inner),');
+
+            if (growth != null)
+                for (item in growth)
+                    lines.push('            ${en.name}::${item.variant}(inner) => format!("{:?}", inner),');
+lines.push("        }");
             lines.push("    }");
             lines.push("}");
         }
@@ -2518,7 +2538,11 @@ class RustDecl {
                 lines.push("        match self {");
                 for (o in sorted)
                     lines.push('            ${en.name}::${RustImports.toUpperCamelCase(o.name)} => "${o.name}",');
-                lines.push("        }");
+                
+                if (growth != null)
+                    for (item in growth)
+                        lines.push('            ${en.name}::${item.variant}(inner) => "${item.calleeName}",');
+lines.push("        }");
                 lines.push("    }");
             }
             if (use.lookup) {
