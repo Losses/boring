@@ -1457,8 +1457,7 @@ class RustDecl {
         } else {
             args;
         };
-        final methodParams = staticParamBounds(f, collectMethodTypeParams(f, [for (p in cls.params) p.name]));
-        final methodGenericStr = methodParams.length > 0 ? "<" + methodParams.join(", ") + ">" : "";
+        final rawMethodParams = collectMethodTypeParams(f, [for (p in cls.params) p.name]);
 
         final isFallible = funcIsFallible(f);
         final errOwner = isFallible ? resolveErrorOwner(f, cls) : null;
@@ -1479,7 +1478,11 @@ class RustDecl {
         final ret = retType == "()" ? "" : " -> " + retType;
         // @:allow members use crate visibility so allowed cross-module references compile.
         final vis = f.field.isPublic ? "pub " : (f.field.meta.has(":allow") ? "pub(crate) " : "");
-        final head = '    ${vis}fn ${snakeName}${methodGenericStr}($allArgs)$ret {';
+
+        // The body may format a type parameter with `{:?}` (IsTypeParameter).
+        // That path sets `memberPrintsTypeParam`; capture it so the header
+        // can carry the Debug bound.
+        state.memberPrintsTypeParam = false;
         if (receiverMethod && f.args[0].tvar != null) {
             expr.bindLocalName(f.args[0].tvar, receiverBodyName(f.args[0].type));
         }
@@ -1488,6 +1491,28 @@ class RustDecl {
         expr.setReturnTypeName(rawRetType);
         expr.setReturnType(f.ret);
         final body = expr.functionBody(cls, f);
+        final prints = state.memberPrintsTypeParam;
+        state.memberPrintsTypeParam = false;
+        final methodParamsBase = staticParamBounds(f, rawMethodParams);
+        final methodParams = prints ? [for (b in methodParamsBase) {
+            if (b.indexOf(": Clone") >= 0) StringTools.replace(b, ": Clone", ": Clone + std::fmt::Debug")
+            else if (rawMethodParams.indexOf(b) >= 0) b + ": std::fmt::Debug"
+            else b;
+        }] : methodParamsBase;
+        // Upgrade any remaining non-Clone params when printing was detected
+        // but the Clone walk missed the param (defensive).
+        final finalMethodParams = prints ? [for (b in methodParams) {
+            var out = b;
+            // If the param prints but only had Debug, also add Clone because the
+            // generated body clones before formatting (`(...).clone()`).
+            if (b.indexOf("std::fmt::Debug") >= 0 && b.indexOf("Clone") < 0) {
+                out = StringTools.replace(b, ": std::fmt::Debug", ": Clone + std::fmt::Debug");
+                if (out == b) out = b + ": Clone";
+            }
+            out;
+        }] : methodParams;
+        final methodGenericStr = finalMethodParams.length > 0 ? "<" + finalMethodParams.join(", ") + ">" : "";
+        final head = '    ${vis}fn ${snakeName}${methodGenericStr}($allArgs)$ret {';
         return [head].concat(body.map(l -> "    " + l)).concat(["    }"]);
     }
 
