@@ -6504,8 +6504,12 @@ class RustExpr {
         final lazyRead = lazyStaticRead(cls, name);
         if (lazyRead != null)
             return lazyRead;
-        final path = cls.pack.length == 0 ? cls.name : cls.pack.join(".") + "." + cls.name;
-        switch (path) {
+        // Key the shim/standard routing on the module, not the name-derived
+        // path: an @:native extern (std.Functional -> "__functional_shim")
+        // overrides cls.name while cls.module keeps the declared module, so
+        // a name-derived path would miss the std.Functional arm and fall to
+        // the generic shim import under the native name.
+        switch (cls.module) {
             case "String":
                 return "String::" + RustImports.toSnakeCase(name);
             case "Math":
