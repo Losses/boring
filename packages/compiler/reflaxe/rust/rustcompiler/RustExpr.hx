@@ -4570,6 +4570,17 @@ class RustExpr {
                 return expr(l) + " " + symbolOf(op) + " Some(" + optionSomeInner(r) + ")";
             case OpEq | OpNotEq if (isNullType(r.t) && !isNullType(l.t) && !isTNull(l)):
                 return expr(r) + " " + symbolOf(op) + " Some(" + optionSomeInner(l) + ")";
+            // A non-nullable operand compared against null is a tautology:
+            // the value can never be None, so the comparison emits a literal
+            // consistent with the parameter declaration (== null is false,
+            // != null is true). The predicate checks the emitted Rust type,
+            // not the Haxe type, so implicit-nullable locals (Option in Rust)
+            // keep their real comparison.
+            // Covers the non-null-null-compare family.
+            case OpEq | OpNotEq if (isTNull(r) && nonNullableInRust(l)):
+                return op == OpEq ? "false" : "true";
+            case OpEq | OpNotEq if (isTNull(l) && nonNullableInRust(r)):
+                return op == OpEq ? "false" : "true";
             case OpEq | OpNotEq if ((isNullType(l.t) && isTNull(r)) || (isNullType(r.t) && isTNull(l))):
                 final nullable = isNullType(l.t) ? l : r;
                 return expr(nullable) + (op == OpEq ? ".is_none()" : ".is_some()");
@@ -4945,6 +4956,25 @@ class RustExpr {
                     case _: false;
                 };
             case _: false;
+        };
+    }
+
+    /** Whether the operand renders as a non-Option Rust value. A non-null
+        Haxe type that does not lower to Option (including implicit-nullable
+        locals that do lower to Option) determines whether a null comparison
+        is a tautology.
+        Covers the non-null-null-compare family. **/
+    function nonNullableInRust(e:TypedExpr):Bool {
+        // The emitted Rust type text decides the null comparison: a value
+        // whose rendering is not Option/Result can never be None. Reading
+        // the type text directly (rather than the wrapper probe) keeps
+        // Null<T> typedefs that emit Option<T> as real predicates.
+        final rustType = types.of(e.t, false);
+        if (StringTools.startsWith(rustType, "Option<") || StringTools.startsWith(rustType, "Result<"))
+            return false;
+        return switch (stripWrap(e).expr) {
+            case TLocal(v): !implicitNullableLocals.exists(v.id);
+            case _: true;
         };
     }
 
