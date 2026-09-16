@@ -1062,13 +1062,13 @@ class RustExpr {
                         // the local must not re-apply the as_ref forcing read.
                         // Covers the null-coalescing ternary initializer family.
                         nullableCollapsedLocals.set(v.id, true);
-                        // A local collapses to a plain value only when its
+                        // A local narrows to a plain value only when its
                         // rendered initializer is a guarded match whose None
                         // arm is a non-null value (guardedMatchExpression
                         // wraps the whole match in Some when both arms render
                         // non-null). A null arm keeps the local an Option, so
                         // an Option parameter must not re-wrap it. The rendered
-                        // initStr is the ground truth for the collapse.
+                        // initStr decides whether the narrowing applies.
                         if (StringTools.startsWith(initStr, "Some(")
                             || (initStr.indexOf("match") >= 0 && initStr.indexOf("None => None") < 0))
                             nonNullRenderedLocals.set(v.id, true);
@@ -9898,7 +9898,7 @@ class RustExpr {
         plain value: guardedMatchExpression narrows the subject to its
         match binding and leaves both arms unwrapped when neither is a null
         literal, so the match yields the inner type while the result type
-        stays nullable. A local subject collapses to the inner value; a
+        stays nullable. A local subject narrows to the inner value; a
         field subject keeps the match binding but still renders the bare
         inner value (the null-guard only fires on a nullable subject, so
         the narrowed arm's type is always nullable and the outer Some wrap
