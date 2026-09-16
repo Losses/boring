@@ -7339,17 +7339,21 @@ class RustExpr {
                     // Rust's intrinsic min/max return the non-NaN operand,
                     // unlike the Haxe/JavaScript oracle. Bind first so the
                     // explicit semantic check preserves left-to-right,
-                    // single evaluation of both arguments.
+                    // single evaluation of both arguments. The bind names
+                    // are fresh so an argument that references a local
+                    // named `a`/`b` is not shadowed by the block bindings.
                     final real = FloatPrecision.isF32() ? "f32" : "f64";
+                    final aName = freshRegionName("__min_a");
+                    final bName = freshRegionName("__min_b");
                     final a = mathFloatBindingArg(args[0]);
                     final b = mathFloatBindingArg(args[1]);
-                    final zeroResult = name == "min" ? "if a.is_sign_negative() { a } else { b }" : "if a.is_sign_negative() { b } else { a }";
-                    final ordered = name == "min" ? "if a < b { a } else if b < a { b } else if a == 0.0 && b == 0.0 { "
+                    final zeroResult = name == "min" ? "if " + aName + ".is_sign_negative() { " + aName + " } else { " + bName + " }" : "if " + aName + ".is_sign_negative() { " + bName + " } else { " + aName + " }";
+                    final ordered = name == "min" ? "if " + aName + " < " + bName + " { " + aName + " } else if " + bName + " < " + aName + " { " + bName + " } else if " + aName + " == 0.0 && " + bName + " == 0.0 { "
                         + zeroResult
-                        + " } else { a }" : "if a > b { a } else if b > a { b } else if a == 0.0 && b == 0.0 { "
+                        + " } else { " + aName + " }" : "if " + aName + " > " + bName + " { " + aName + " } else if " + bName + " > " + aName + " { " + bName + " } else if " + aName + " == 0.0 && " + bName + " == 0.0 { "
                         + zeroResult
-                        + " } else { a }";
-                    return "({ let a = (" + a + ") as " + real + "; let b = (" + b + ") as " + real + "; if a.is_nan() || b.is_nan() { " + real + "::NAN } else { " + ordered + " } })";
+                        + " } else { " + aName + " }";
+                    return "({ let " + aName + " = (" + a + ") as " + real + "; let " + bName + " = (" + b + ") as " + real + "; if " + aName + ".is_nan() || " + bName + ".is_nan() { " + real + "::NAN } else { " + ordered + " } })";
                 }
                 if (cls.module == "Math" && name == "pow" && args.length == 2) {
                     // Rust names the power function powf; the f32
