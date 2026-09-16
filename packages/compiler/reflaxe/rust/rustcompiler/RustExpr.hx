@@ -477,8 +477,15 @@ class RustExpr {
                     // the referent the same way field() renders a static
                     // read, never reference the LazyLock itself.
                     final lazyRead = lazyStaticRead(cls, fieldName);
-                    if (lazyRead != null)
-                        return lazyRead;
+                    if (lazyRead != null) {
+                        // A concrete singleton entering an interface slot boxes
+                        // through the sanctioned construction, so the
+                        // unwrap_or_else closure returns the boxed trait object
+                        // its Option payload declares.
+                        final field = staticFieldOf(cls, fieldName);
+                        return isInterfaceSlotType(targetType) && (field == null || !isInterfaceType(field.type))
+                            ? "Box::new(" + lazyRead + ")" : lazyRead;
+                    }
                     final rendered = staticRef(cls, fieldName);
                     // A direct array static lowers to a Rust array, while an
                     // owned Vec slot needs the slice copied into a Vec. The
@@ -6108,6 +6115,14 @@ class RustExpr {
         if (StaticFieldHelper.isStringType(e.t) && !StringTools.endsWith(rendered, ".clone()")) {
             return rendered + ".to_string()";
         }
+        // A nullable value pushed into a non-null static container unwraps
+        // the Option; the null literal stays bare.
+        if (isNullType(e.t) && !isTNull(e)) {
+            final narrowed = narrowedSubject(e);
+            if (narrowed != null)
+                return isTypeCopy(getNullInnerType(e.t)) ? "*" + narrowed : "(" + narrowed + ").clone()";
+            return rendered + ".unwrap()";
+        }
         return rendered;
     }
 
@@ -9479,6 +9494,12 @@ class RustExpr {
                         argStr = "Some(" + argStr + ")";
                     else
                         argStr = argStr + ".clone()";
+                } else if (isNullType(pt) && isNullType(arg.t) && isNonNullRenderedConditional(arg)) {
+                    // A nullable-typed conditional whose arms are both
+                    // non-null renders a plain scalar (a null-guard match
+                    // leaves both arms unwrapped); the Option parameter
+                    // boundary wraps it in Some.
+                    argStr = "Some(" + argStr + ")";
                 } else if (isNullType(pt) && (!isNullType(arg.t) || isNullableCollapsedLocal(arg))) {
                     if (argStr == "None" || StringTools.startsWith(argStr, "Some(")) {
                         // already None or Some(...)
