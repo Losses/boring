@@ -1257,7 +1257,7 @@ class RustExpr {
                             retStr = "(" + retStr + ").to_string()";
                         case _:
                     }
-                } else if (StringTools.startsWith(returnTypeName, "Option<") && !isNullType(ret.t) && !isTNull(ret)) {
+                } else if (StringTools.startsWith(returnTypeName, "Option<") && !isTNull(ret) && (!isNullType(ret.t) || isNullableCollapsedLocal(ret))) {
                     var payload = switch (stripWrap(ret).expr) {
                         case TLocal(v) if (borrowedLoopVarIds.exists(v.id)):
                             isTypeCopy(ret.t) ? "*" + retStr : ownedLoopItemCloneText(ret.t, retStr);
