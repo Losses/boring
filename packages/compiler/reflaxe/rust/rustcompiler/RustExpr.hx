@@ -1010,6 +1010,26 @@ class RustExpr {
                     final owned = isTypeCopy(inner) ? "*" + narrowedCopy : "(*" + narrowedCopy + ").clone()";
                     return [indent(depth) + kw + " " + name + explicitType + " = " + owned + ";"];
                 }
+                // A nullable-typed local copied from a nullable field/local
+                // that an enclosing guard narrowed holds the inner value
+                // (the match binding), not the Option. The local keeps its
+                // Null<T> Haxe type but its Rust value is the plain struct;
+                // mark it collapsed so later field reads do not apply the
+                // as_ref forcing read (E0599 on a plain struct).
+                // Covers the narrowed nullable-copy local family.
+                if (isNullType(init.t) && isNullType(v.t)) {
+                    final narrowedCopy2 = switch (stripWrap(init).expr) {
+                        case TLocal(_) | TField(_, _): narrowedSubject(init);
+                        case _: null;
+                    };
+                    if (narrowedCopy2 != null) {
+                        optionNarrowingHitCount++;
+                        final inner = getNullInnerType(init.t);
+                        final owned = isTypeCopy(inner) ? "*" + narrowedCopy2 : "(*" + narrowedCopy2 + ").clone()";
+                        nullableCollapsedLocals.set(v.id, true);
+                        return [indent(depth) + kw + " " + name + explicitType + " = " + owned + ";"];
+                    }
+                }
                 // A non-null declared type initialized from a nullable
                 // expression keeps Option storage at runtime; its later null
                 // guard must be recognized. Covers the implicit-nullable-local family.
