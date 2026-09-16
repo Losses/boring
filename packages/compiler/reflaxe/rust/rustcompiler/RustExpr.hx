@@ -6321,8 +6321,12 @@ class RustExpr {
             case TAbstract(a, [inner]) if (a.get().name == "Null"):
                 // A narrowed subject or a null-coalescing-collapsed local is
                 // already the scalar binding; render the inner string
-                // directly, skipping the Option match form.
-                if (narrowedSubject(origin) != null || isNullableCollapsedLocal(origin))
+                // directly, skipping the Option match form. A null-guarded
+                // ternary whose arms are both non-null also renders a plain
+                // String (guardedMatchExpression collapses it), so the
+                // Option match must not re-apply.
+                if (narrowedSubject(origin) != null || isNullableCollapsedLocal(origin)
+                    || isNonNullRenderedConditional(origin) || isNullGuardedTernary(origin))
                     return stdStringType(inner, value, inConcat, origin, depth + 1);
                 // A Copy inner binds by value so float/int formatting
                 // receives the owned scalar; owned inners bind by
@@ -9972,6 +9976,18 @@ class RustExpr {
         must wrap in Some at an Option parameter boundary.
     **/
     function isNonNullRenderedConditional(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TIf(cond, ifTrue, ifFalse) if (ifFalse != null):
+                final guard = nullGuardOf(cond);
+                guard != null && !isTNull(ifTrue) && !isTNull(ifFalse);
+            case _: false;
+        };
+    }
+
+    /** A null-guarded ternary whose arms are both non-null renders a plain
+        value (guardedMatchExpression collapses it to a String match), even
+        when the guard subject is a field rather than a local. **/
+    function isNullGuardedTernary(e:TypedExpr):Bool {
         return switch (stripWrap(e).expr) {
             case TIf(cond, ifTrue, ifFalse) if (ifFalse != null):
                 final guard = nullGuardOf(cond);
