@@ -4939,14 +4939,16 @@ class RustExpr {
                 // E0502: an array assignment whose index reads the array
                 // itself (`bottoms[bottoms.len() - 1] = ...`) borrows the
                 // array immutably in the index while the assignment mutates
-                // it. Hoist the index into a fresh local so the immutable
-                // read completes before the mutable write.
+                // it. Hoist the index into a fresh local and index the
+                // target with that local so the immutable read completes
+                // before the mutable write.
                 final hoisted = switch (stripWrap(l).expr) {
                     case TArray(arr, idx):
                         switch (stripWrap(arr).expr) {
                             case TLocal(v) if (mentionsLocal(idx, v)):
                                 final temp = freshRegionName("__idx");
-                                "{ let " + temp + " = " + castArg(idx, "usize") + "; " + assignTargetText + " = " + rhs + " }";
+                                final targetWithTemp = "(" + expr(arr) + ")" + "[" + temp + "]";
+                                "{ let " + temp + " = " + castArg(idx, "usize") + "; " + targetWithTemp + " = " + rhs + " }";
                             case _: null;
                         };
                     case _: null;
