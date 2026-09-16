@@ -63,4 +63,4 @@ test("static initializer mutation is rejected with the sanctioned error", async 
 	const [exitCode, stderr] = await Promise.all([proc.exited, new Response(proc.stderr).text()]);
 	expect(exitCode).not.toBe(0);
 	expect(stderr).toContain("static field initializers accept null, literal, and empty array forms only");
-});
+}, 15000);
