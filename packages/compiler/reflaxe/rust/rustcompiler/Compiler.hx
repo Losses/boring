@@ -1159,10 +1159,8 @@ class Compiler extends PluginCompiler<Compiler> {
         // calls as propagation edges so the caller's Result error type covers
         // them the same way an explicit call would.
         function recordDefaultCallEdges(modulePath:String, fieldName:String, ?className:String, providedCount:Int,
+                callExprs:Array<TypedExpr>,
                 entry:{key:String, edges:Array<{callee:String, absorbed:Array<String>}>}, absorbed:Array<String>):Void {
-            final omitted = DefaultArgExpander.omittedCallDefaults(modulePath, fieldName, providedCount, className);
-            if (omitted == null)
-                return;
             function visitDefault(value:DefaultArgExpander.CoalescingDefaultValue):Void {
                 switch (value) {
                     case CStaticCall(calleeModule, _, methodName, args):
@@ -1195,8 +1193,26 @@ class Compiler extends PluginCompiler<Compiler> {
                     case _:
                 }
             }
-            for (item in omitted)
-                visitDefault(item.value);
+            // Omitted arguments: fewer expressions than the parameter list.
+            final omitted = DefaultArgExpander.omittedCallDefaults(modulePath, fieldName, providedCount, className);
+            if (omitted != null) {
+                for (item in omitted)
+                    visitDefault(item.value);
+            }
+            // Null-provided arguments: explicit null that the Rust emission
+            // replaces with the parameter's coalescing default. Process those
+            // defaults the same way so fallible calls inside them become edges.
+            if (callExprs != null && callExprs.length > 0) {
+                final allDefaults = DefaultArgExpander.omittedCallDefaults(modulePath, fieldName, 0, className);
+                if (allDefaults != null) {
+                    for (i in 0...callExprs.length) {
+                        if (i >= allDefaults.length) break;
+                        if (stripDecorations(callExprs[i]).expr.match(TConst(TNull))) {
+                            visitDefault(allDefaults[i].value);
+                        }
+                    }
+                }
+            }
         }
         final fallible = new Map<String, Bool>();
         final enumOf = new Map<String, {module:String, name:String}>();
@@ -1354,7 +1370,7 @@ class Compiler extends PluginCompiler<Compiler> {
                                                             callee: RustEmissionState.funcKey(cc.get().module, calleeName, false),
                                                             absorbed: absorbed.slice(0, absorbed.length)
                                                         });
-                                                        recordDefaultCallEdges(cc.get().module, calleeName, cc.get().name, callArgs.length, entry, absorbed);
+                                                        recordDefaultCallEdges(cc.get().module, calleeName, cc.get().name, callArgs.length, callArgs, entry, absorbed);
                                                     }
                                                 case TField(_, FStatic(cc, cf)):
                                                     final calleeName = cf.get().name;
@@ -1374,7 +1390,7 @@ class Compiler extends PluginCompiler<Compiler> {
                                                             callee: RustEmissionState.funcKey(cc.get().module, calleeName, true),
                                                             absorbed: absorbed.slice(0, absorbed.length)
                                                         });
-                                                        recordDefaultCallEdges(cc.get().module, calleeName, cc.get().name, callArgs.length, entry, absorbed);
+                                                        recordDefaultCallEdges(cc.get().module, calleeName, cc.get().name, callArgs.length, callArgs, entry, absorbed);
                                                     }
                                                 case _:
                                             }
@@ -1401,7 +1417,7 @@ class Compiler extends PluginCompiler<Compiler> {
                                                 callee: RustEmissionState.funcKey(c.get().module, "new", false),
                                                 absorbed: absorbed.slice(0, absorbed.length)
                                             });
-                                            recordDefaultCallEdges(c.get().module, "new", c.get().name, callArgs.length, entry, absorbed);
+                                            recordDefaultCallEdges(c.get().module, "new", c.get().name, callArgs.length, callArgs, entry, absorbed);
                                             descend();
                                         case _:
                                             descend();
