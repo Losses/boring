@@ -2520,7 +2520,7 @@ class RustExpr {
                 final enumCollection = EnumQueryExpander.collectionEnum(subj);
                 if (enumCollection != null)
                     return Std.string(EnumQueryExpander.constructorCount(enumCollection));
-                if (isNullType(subj.t) || isImplicitNullableLocal(subj)) {
+                if (isNullType(subj.t) || isImplicitNullableLocal(subj) || isNoneInitializedLocal(subj)) {
                     final collapsed = switch (stripWrap(subj).expr) {
                         case TLocal(v): nullableCollapsedLocals.exists(v.id);
                         case _: false;
@@ -2931,7 +2931,7 @@ class RustExpr {
             case TConst(TInt(n)) if (n >= 0):
                 return Std.string(n);
             case TField(subj, fa) if (fieldName(fa) == "length"):
-                if (isNullType(subj.t) || isImplicitNullableLocal(subj)) {
+                if (isNullType(subj.t) || isImplicitNullableLocal(subj) || isNoneInitializedLocal(subj)) {
                     final collapsed = switch (stripWrap(subj).expr) {
                         case TLocal(v): nullableCollapsedLocals.exists(v.id);
                         case _: false;
@@ -5868,7 +5868,7 @@ class RustExpr {
                     return staticGuard + "." + RustImports.toSnakeCase(name);
                 }
                 if (name == "length") {
-                    if (isNullType(subj.t) || isImplicitNullableLocal(subj)) {
+                    if (isNullType(subj.t) || isImplicitNullableLocal(subj) || isNoneInitializedLocal(subj)) {
                         // A null-coalescing initializer materialized the
                         // inner value into the local: the local is a plain
                         // collection, so its length is a direct len() read.
