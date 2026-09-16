@@ -9188,12 +9188,13 @@ class RustExpr {
                     // leaves both arms unwrapped when neither is a null
                     // literal); such a value must wrap in Some at the Option
                     // parameter boundary. A nullable local or field renders
-                    // as an Option and keeps the clone.
-                    if (isNonNullRenderedConditional(arg))
+                    // as an Option and keeps the clone. A nullable-collapsed
+                    // local already holds the inner String and wraps in Some.
+                    if (isNonNullRenderedConditional(arg) || isNullableCollapsedLocal(arg))
                         argStr = "Some(" + argStr + ")";
                     else
                         argStr = argStr + ".clone()";
-                } else if (isNullType(pt) && !isNullType(arg.t)) {
+                } else if (isNullType(pt) && (!isNullType(arg.t) || isNullableCollapsedLocal(arg))) {
                     if (argStr == "None" || StringTools.startsWith(argStr, "Some(")) {
                         // already None or Some(...)
                     } else {
