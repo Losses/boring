@@ -3050,8 +3050,17 @@ class RustExpr {
         unwraps with .unwrap_or(false) because null is falsy in Haxe.
     **/
     function nullableBoolOperand(e:TypedExpr, text:String):String {
-        if (isNullType(e.t) && isBoolType(getNullInnerType(e.t)))
+        if (isNullType(e.t) && isBoolType(getNullInnerType(e.t))) {
+            // A nullable-collapsed local holds the inner bool (its
+            // null-coalescing initializer materialized the value), so the
+            // unwrap_or(false) forcing read must not re-apply.
+            if (switch (stripWrap(e).expr) {
+                case TLocal(v): nullableCollapsedLocals.exists(v.id);
+                case _: false;
+            })
+                return text;
             return text + ".unwrap_or(false)";
+        }
         return text;
     }
 
@@ -4870,6 +4879,15 @@ class RustExpr {
                 return op == OpEq ? "false" : "true";
             case OpEq | OpNotEq if (isTNull(l) && nonNullableInRust(r)):
                 return op == OpEq ? "false" : "true";
+            // A nullable local proven non-null by an enclosing guard compared
+            // against null is a tautology: the guard proved Some, so `!= null`
+            // is true and `== null` is false. The proven local renders as its
+            // inner value (unwrapped), so the Option predicate would not type.
+            // Covers the proven-non-null null-compare family.
+            case OpEq | OpNotEq if (isTNull(r) && provenNonNullLocalExpr(l)):
+                return op == OpEq ? "false" : "true";
+            case OpEq | OpNotEq if (isTNull(l) && provenNonNullLocalExpr(r)):
+                return op == OpEq ? "false" : "true";
             case OpEq | OpNotEq if ((isNullType(l.t) && isTNull(r)) || (isNullType(r.t) && isTNull(l))):
                 final nullable = isNullType(l.t) ? l : r;
                 return expr(nullable) + (op == OpEq ? ".is_none()" : ".is_some()");
@@ -5333,27 +5351,13 @@ class RustExpr {
                         mapGetKeyText(subj, args[0]);
                     case _: null;
                 };
-            case _: null;
+    /** Whether the expression names a local proven non-null by a guard. */
+    function provenNonNullLocalExpr(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TLocal(v): provenNonNullVarIds.exists(v.id);
+            case _: false;
         };
     }
-
-    /** The rendered receiver+key text of a sorted-map get() call. **/
-    function mapGetKeyText(subj:TypedExpr, key:TypedExpr):String {
-        return expr(subj) + "|" + expr(key);
-    }
-
-    /** Whether a sorted-map get() call is proven present by an enclosing
-        has() guard on the same receiver+key. **/
-    function provenMapGet(e:TypedExpr):Bool {
-        final inner = stripWrap(e);
-        return switch (inner.expr) {
-            case TCall(fn, args) if (args.length == 1):
-                switch (stripWrap(fn).expr) {
-                    case TField(subj, fa) if (fieldName(fa) == "get" && (isSortedTable(subj) || isSortedBuilder(subj))):
-                        final key = mapGetKeyText(subj, args[0]);
-                        provenMapGets.indexOf(key) >= 0;
-                    case _: false;
-                };
             case _: false;
         };
     }
