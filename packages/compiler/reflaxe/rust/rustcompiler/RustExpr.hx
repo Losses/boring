@@ -1153,7 +1153,7 @@ class RustExpr {
                 final guarded = guardedMatchStatements(c, t, f, depth);
                 if (guarded != null)
                     return guarded;
-                var condStr = expr(c);
+                var condStr = nullableBoolOperand(c, expr(c));
                 while (StringTools.startsWith(condStr, "(") && StringTools.endsWith(condStr, ")") && matchingParens(condStr)) {
                     condStr = condStr.substr(1, condStr.length - 2);
                 }
@@ -1173,7 +1173,7 @@ class RustExpr {
                 out.push(indent(depth) + "}");
                 return out;
             case TWhile(c, b, true):
-                var condStr = expr(c);
+                var condStr = nullableBoolOperand(c, expr(c));
                 while (StringTools.startsWith(condStr, "(") && StringTools.endsWith(condStr, ")") && matchingParens(condStr)) {
                     condStr = condStr.substr(1, condStr.length - 2);
                 }
@@ -2869,6 +2869,16 @@ class RustExpr {
         };
     }
 
+    /**
+        Renders a boolean operand. When the Haxe type is Null<Bool>,
+        unwraps with .unwrap_or(false) because null is falsy in Haxe.
+    **/
+    function nullableBoolOperand(e:TypedExpr, text:String):String {
+        if (isNullType(e.t) && isBoolType(getNullInnerType(e.t)))
+            return text + ".unwrap_or(false)";
+        return text;
+    }
+
     function narrowedSubject(subject:TypedExpr):Null<String> {
         return narrowedText(subjectTextOf(subject));
     }
@@ -3305,7 +3315,7 @@ class RustExpr {
                 if (optional != null)
                     return optional;
                 final condStr = switch (stripWrap(c).expr) {
-                    case _: expr(stripWrap(c));
+                    case _: nullableBoolOperand(stripWrap(c), expr(stripWrap(c)));
                 };
                 final branchTarget = conditionalNumericTarget(t, f, e.t);
                 return "if "
@@ -4668,7 +4678,7 @@ class RustExpr {
                         provenNonNullVarIds.remove(v.id);
                     return expr(l) + " && " + right;
                 }
-                return expr(l) + " && " + expr(r);
+                return nullableBoolOperand(l, expr(l)) + " && " + nullableBoolOperand(r, expr(r));
             case OpBoolOr:
                 final guard = nullGuardOf(l);
                 if (guard != null && guard.noneWhenTrue) {
@@ -4680,7 +4690,7 @@ class RustExpr {
                     if (hit)
                         return "(match &(" + expr(guard.subject) + ") { None => true, Some(" + name + ") => " + right + " })";
                 }
-                return expr(l) + " || " + expr(r);
+                return nullableBoolOperand(l, expr(l)) + " || " + nullableBoolOperand(r, expr(r));
             case OpAssign:
                 final map = mapAssignment(l);
                 if (map != null) {
@@ -9563,6 +9573,15 @@ class RustExpr {
             return false;
         return switch (t) {
             case TAbstract(a, _): a.get().name == "Null";
+            case _: false;
+        };
+    }
+
+    function isBoolType(t:Type):Bool {
+        if (t == null)
+            return false;
+        return switch (Context.follow(t)) {
+            case TAbstract(a, _): a.get().name == "Bool";
             case _: false;
         };
     }
