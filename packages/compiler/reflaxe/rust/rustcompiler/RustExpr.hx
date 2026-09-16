@@ -4599,7 +4599,12 @@ class RustExpr {
         // its emitted Rust type remains Option<Vec<_>>. Use the emitted type
         // as the boundary contract so every index path extracts the container
         // before applying Vec indexing.
-        return rendersRustFallibleWrapper(subj.t) && !isNullableCollapsedLocal(subj);
+        if (rendersRustFallibleWrapper(subj.t) && !isNullableCollapsedLocal(subj))
+            return true;
+        // A non-null declared type initialized to null or from a nullable
+        // expression keeps Option storage at runtime even though its macro
+        // type is not Null<T>; its method receivers must unwrap the wrapper.
+        return isImplicitNullableLocal(subj) && !isNullableCollapsedLocal(subj);
     }
 
     /**
@@ -4633,7 +4638,7 @@ class RustExpr {
         return isImplicitNullableLocal(subj) && !isNullableCollapsedLocal(subj);
     }
     function nullableMethodReceiver(subj:TypedExpr, mutable:Bool):String {
-        if (!isNullType(subj.t))
+        if (!isNullType(subj.t) && !isImplicitNullableLocal(subj))
             return expr(subj);
         final previousReceiverContext = renderingMethodReceiver;
         if (mutable) renderingMethodReceiver = true;
