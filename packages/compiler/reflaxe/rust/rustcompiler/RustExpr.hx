@@ -4967,7 +4967,7 @@ class RustExpr {
     function nonNullableInRust(e:TypedExpr):Bool {
         // The emitted Rust type text decides the null comparison: a value
         // whose rendering is not Option/Result can never be None. Reading
-        // the type text directly (rather than the wrapper probe) keeps
+        // the type text directly, not the wrapper probe, which keeps
         // Null<T> typedefs that emit Option<T> as real predicates.
         final rustType = types.of(e.t, false);
         if (StringTools.startsWith(rustType, "Option<") || StringTools.startsWith(rustType, "Result<"))
