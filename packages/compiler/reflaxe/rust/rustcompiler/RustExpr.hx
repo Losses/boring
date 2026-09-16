@@ -9650,6 +9650,17 @@ class RustExpr {
                     final inner = getNullInnerType(arg.t);
                     final ref = "(" + argStr + ").as_ref().unwrap()";
                     argStr = isTypeCopy(inner) ? "*" + ref : ref + ".clone()";
+                } else {
+                    // A preceding fill guard (`if (x == null) x = fill;`)
+                    // guarantees the local holds Some; the call reads the
+                    // inner value through get_or_insert_with so the fill
+                    // materializes on the absent path.
+                    final filled = filledSubjectOf(arg);
+                    if (filled != null) {
+                        final inner = getNullInnerType(arg.t);
+                        final ref = argStr + ".get_or_insert_with(|| " + filled + ")";
+                        argStr = isTypeCopy(inner) ? "*" + ref : ref + ".clone()";
+                    }
                 }
             }
             // An i32-domain argument crossing into a u32 business parameter
