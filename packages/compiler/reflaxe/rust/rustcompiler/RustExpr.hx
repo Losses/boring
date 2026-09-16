@@ -8805,38 +8805,49 @@ class RustExpr {
     }
 
     function scanReadsAfter(e:TypedExpr):Void {
-        switch (e.expr) {
-            case TBlock(stmts):
-                for (i in 0...stmts.length) {
-                    switch (stmts[i].expr) {
-                        case TVar(_, init) if (init != null):
-                            switch (stripWrap(init).expr) {
-                                case TLocal(source):
-                                    for (j in (i + 1)...stmts.length)
-                                        if (mentionsLocal(stmts[j], source)) {
-                                            readsAfterDeclaration.set(source.id, true);
-                                            break;
-                                        }
-                                case TField(subj, _):
-                                    switch (stripWrap(subj).expr) {
-                                        case TLocal(source):
-                                            for (j in (i + 1)...stmts.length)
-                                                if (mentionsLocal(stmts[j], source)) {
-                                                    readsAfterDeclaration.set(source.id, true);
-                                                    break;
-                                                }
-                                        case _:
-                                    }
+        // A local copied into another local must clone when the source is
+        // read anywhere later in the function, not just in the same block:
+        // a branch body may copy a local that a sibling statement after the
+        // branch still reads (E0382 borrow-after-move). Collect every
+        // `x = source` declaration, then check the whole function body for
+        // a later mention of the source.
+        final copies:Array<{source:TVar, decl:TypedExpr}> = [];
+        function collect(node:TypedExpr):Void {
+            switch (node.expr) {
+                case TVar(_, init) if (init != null):
+                    switch (stripWrap(init).expr) {
+                        case TLocal(source): copies.push({source: source, decl: node});
+                        case TField(subj, _):
+                            switch (stripWrap(subj).expr) {
+                                case TLocal(source): copies.push({source: source, decl: node});
                                 case _:
                             }
                         case _:
                     }
-                    scanReadsAfter(stmts[i]);
-                }
-            case _:
+                case _:
+            }
+            TypedExprTools.iter(node, collect);
         }
-        // Loop and branch bodies are blocks too; the sibling scan must reach them.
-        TypedExprTools.iter(e, scanReadsAfter);
+        collect(e);
+        for (c in copies) {
+            // The declaration itself mentions the source; a later read
+            // anywhere in the function (excluding this decl) forces a clone.
+            var found = false;
+            function walk(node:TypedExpr):Void {
+                if (found)
+                    return;
+                if (node == c.decl)
+                    return;
+                if (mentionsLocal(node, c.source)) {
+                    found = true;
+                    return;
+                }
+                TypedExprTools.iter(node, walk);
+            }
+            walk(e);
+            if (found)
+                readsAfterDeclaration.set(c.source.id, true);
+        }
     }
 
     function collectTryAssignments(e:TypedExpr):Void {
