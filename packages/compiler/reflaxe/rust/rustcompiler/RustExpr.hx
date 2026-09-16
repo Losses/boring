@@ -134,6 +134,11 @@ class RustExpr {
         its null guard must be detected by nullGuardOf. Covers the
         implicit-nullable-local family. **/
     final implicitNullableLocals:Map<Int, Bool> = [];
+    // Locals initialized to a null literal (TConst(TNull)) whose declared
+    // Haxe type is non-null. Their Rust storage is Option<T> but the
+    // assignment path must wrap non-null RHS values in Some(...). Covers
+    // the null-initialized local assignment wrapping family.
+    final noneInitializedLocals:Map<Int, Bool> = [];
     // Keep Option when Haxe code observes null separately from code point zero.
     final nullableSensitiveLocals:Map<Int, Bool> = [];
     // Locals initialized from Std.parseInt hold the i32 parse domain. The
@@ -553,6 +558,7 @@ class RustExpr {
         unsignedLocals.clear();
         nullableCollapsedLocals.clear();
         implicitNullableLocals.clear();
+        noneInitializedLocals.clear();
         nullableSensitiveLocals.clear();
         parseIntLocals.clear();
         i32Locals.clear();
@@ -991,6 +997,10 @@ class RustExpr {
                 // guard must be recognized. Covers the implicit-nullable-local family.
                 if (isNullType(init.t) && !isNullType(v.t))
                     implicitNullableLocals.set(v.id, true);
+                // A non-null local initialized to null literal (TNull) keeps
+                // Option<T> storage; later non-null assignments must wrap.
+                if (isTNull(init) && !isNullType(v.t))
+                    noneInitializedLocals.set(v.id, true);
                 // A proven-non-null local (early-exit guard) copied into a
                 // non-null declaration holds the inner value. The guard
                 // proved the source is Some; the declaration owns the unwrapped
@@ -2609,6 +2619,13 @@ class RustExpr {
     function isImplicitNullableLocal(e:TypedExpr):Bool {
         return switch (stripWrap(e).expr) {
             case TLocal(v): implicitNullableLocals.exists(v.id);
+            case _: false;
+        };
+    }
+
+    function isNoneInitializedLocal(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TLocal(v): noneInitializedLocals.exists(v.id);
             case _: false;
         };
     }
@@ -4743,6 +4760,11 @@ class RustExpr {
                     // A non-null Haxe local backed by Option<T> storage
                     // (e.g. initializer from .get()) assigns a concrete
                     // value; wrap in Some to keep the Option shape.
+                    "Some(" + ownedNullAssignValue(r) + ")";
+                } else if (isNoneInitializedLocal(l) && !isNullType(r.t) && !isTNull(r)) {
+                    // A local declared T but initialized to null literal
+                    // keeps Option<T> storage; a non-null RHS wraps once at
+                    // the assignment boundary.
                     "Some(" + ownedNullAssignValue(r) + ")";
                 } else if (isNullableCollapsedLocal(l)) {
                     // A charCodeAt-collapsed local binds a scalar (u32);
