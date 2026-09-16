@@ -2917,6 +2917,20 @@ class RustExpr {
             case TConst(TInt(n)) if (n >= 0):
                 return Std.string(n);
             case TField(subj, fa) if (fieldName(fa) == "length"):
+                if (isNullType(subj.t)) {
+                    final collapsed = switch (stripWrap(subj).expr) {
+                        case TLocal(v): nullableCollapsedLocals.exists(v.id);
+                        case _: false;
+                    };
+                    final narrowed = narrowedSubject(subj);
+                    if (collapsed)
+                        return expr(subj) + ".len()";
+                    if (narrowed != null) {
+                        optionNarrowingHitCount++;
+                        return narrowed + ".len()";
+                    }
+                    return "(" + expr(subj) + ").as_ref().map_or(0, |v| v.len())";
+                }
                 return expr(subj) + ".len()";
             case _:
                 if (errorTypeName == null || countOverflowVariant == null) {
