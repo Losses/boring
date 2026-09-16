@@ -7782,6 +7782,18 @@ class RustExpr {
                         out.push("Some(" + ownedNullableReadText(argStr) + ")");
                     continue;
                 }
+                if (isNullType(pt) && isNullType(arg.t) && narrowedSubject(arg) != null) {
+                    // A narrowed Option binding renders as a reference to the
+                    // inner value (the match binding); an Option parameter
+                    // re-wraps it so the slot's declared type matches. Copy
+                    // inners dereference, owned inners clone the referent.
+                    final inner = getNullInnerType(pt);
+                    if (isTypeCopy(inner))
+                        out.push("Some(*" + narrowedSubject(arg) + ")");
+                    else
+                        out.push("Some((*" + narrowedSubject(arg) + ").clone())");
+                    continue;
+                }
                 if (isNullType(pt) && isStringType(getNullInnerType(pt)) && isNullType(arg.t)) {
                     // A nullable-typed conditional whose arms are both
                     // non-null renders a plain String; wrap in Some at the
