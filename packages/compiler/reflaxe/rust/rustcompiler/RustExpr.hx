@@ -4916,6 +4916,12 @@ class RustExpr {
                 // same explicit Float cast ordinary Float operands use.
                 if (isFloatType(l.t) && isIntType(emittedType(r)))
                     return assignTarget(l) + " " + symbolOf(inner) + "= " + intToFloatText(expr(r));
+                // A Null<Float> right operand lowers to Option<Float>; Haxe
+                // compound arithmetic uses the absent value's numeric zero,
+                // so extract it before the op-assign reaches the target.
+                if (isFloatType(l.t) && isNullType(r.t) && isFloatType(getNullInnerType(r.t))
+                    && narrowedSubject(r) == null && !isNullableCollapsedLocal(r))
+                    return assignTarget(l) + " " + symbolOf(inner) + "= " + expr(r) + ".unwrap_or(0.0)";
                 return assignTarget(l) + " " + symbolOf(inner) + "= " + expr(r);
             case OpAdd if (isStringType(l.t) || isStringType(r.t)):
                 final parts:Array<TypedExpr> = [];
@@ -5339,6 +5345,15 @@ class RustExpr {
                     rendered += ".unwrap_or(0)";
                 case _:
             }
+        }
+        // Null<Float> lowers to Option<Float>. Haxe arithmetic uses the
+        // absent value's numeric zero, so extract that value before the
+        // operand reaches the operator. A narrowed operand already renders
+        // its scalar match binding and a collapsed local already materialized
+        // the inner scalar, so neither must unwrap again.
+        if (isNullType(e.t) && isFloatType(getNullInnerType(e.t))
+            && narrowedSubject(e) == null && !isNullableCollapsedLocal(e)) {
+            rendered += ".unwrap_or(0.0)";
         }
         switch (e.expr) {
             case TBinop(op, _, _):
