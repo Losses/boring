@@ -2592,12 +2592,23 @@ class RustExpr {
                     return "&" + expr(arg);
             }
         }
+        // An implicit-nullable local holds Option<T>; the map put
+        // expects &T, so unwrap the Option once the guard proves it.
+        if (isImplicitNullableLocal(arg))
+            return "(" + expr(arg) + ").as_ref().unwrap()";
         return "&(" + expr(arg) + ")";
     }
 
     function isNullableCollapsedLocal(e:TypedExpr):Bool {
         return switch (stripWrap(e).expr) {
             case TLocal(v): nullableCollapsedLocals.exists(v.id);
+            case _: false;
+        };
+    }
+
+    function isImplicitNullableLocal(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TLocal(v): implicitNullableLocals.exists(v.id);
             case _: false;
         };
     }
@@ -4704,6 +4715,11 @@ class RustExpr {
                         "Some(" + ownedNullInterfaceAssignValue(r) + ")";
                     else
                         "Some(" + ownedNullAssignValue(r) + ")";
+                } else if (isImplicitNullableLocal(l) && !isNullType(r.t) && !isTNull(r)) {
+                    // A non-null Haxe local backed by Option<T> storage
+                    // (e.g. initializer from .get()) assigns a concrete
+                    // value; wrap in Some to keep the Option shape.
+                    "Some(" + ownedNullAssignValue(r) + ")";
                 } else if (isNullableCollapsedLocal(l)) {
                     // A charCodeAt-collapsed local binds a scalar (u32);
                     // its assignments stay in that domain and must not
