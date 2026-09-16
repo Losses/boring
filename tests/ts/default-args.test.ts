@@ -18,11 +18,11 @@ describe("default argument expansion generated tree", () => {
     expect(content).toContain("public static greet(name: string, prefix: string): string");
     expect(content).toContain("public static configure(base: number, offset: number, scale: number, flag: boolean): number");
     expect(content).toContain("public formatLabel(label: string | null, sep: string): string");
-    expect(content).toContain("public static describeTag(tag: string, detail: string | null): string");
+    expect(content).toContain("public static describeTag(tag: string, detail?: string | null): string");
     expect(content).toContain("public static openMode(id: number, mode: Mode): string");
     expect(content).toContain("public static adjust(value: number, step: number): number");
     expect(content).toContain("public static greetWithPrefix(name: string, prefix: string = name): string");
-    expect(content).toContain("public static sizeLabel(items: string[] | null): string");
+    expect(content).toContain("public static sizeLabel(items?: string[] | null): string");
     expect(content).toContain("public static fieldAccessSample(items: string[], count: number = items.length): number");
     expect(content).toContain("public static localeSample(lang: string, fallback: string = (lang === \"en\" ? \"English\" : \"Other\")): string");
     expect(content).toContain("public static methodCallSample(text: string, normalized: string = text.toUpperCase()): string");
@@ -175,7 +175,7 @@ describe("default argument expansion generated tree", () => {
     expect(content).toContain("pub fn default_args_ops_map_default(value: Option<HashMap<String, u32>>) -> HashMap<String, u32>");
     expect(content).toContain("let value = value.unwrap_or_else(|| HashMap::new());");
     expect(content).toContain("return DefaultArgsOps::default_args_ops_infinity_default(None);");
-    expect(content).toContain("return DefaultArgsOps::default_args_ops_map_default((None).clone());");
+    expect(content).toContain("return DefaultArgsOps::default_args_ops_map_default(None);");
 
     // Call sites are fully expanded to full arity
     expect(content).toContain('return DefaultArgsOps::default_args_ops_greet(&"Ada", &"Hello");');
@@ -226,8 +226,8 @@ describe("default argument expansion generated tree", () => {
     expect(content).toContain("fallback ?? SortedTable.setBuilder(SortedTable.compareInts).build()");
     expect(content).toContain("static func staticFieldSample(_ value: Int32, _ bound: Int32 = StaticStateOps.limit) -> Int32");
     expect(content).toContain("let offset = offset ?? value &+ 1;");
-    expect(content).toContain("func instanceFieldNormalization(_ p: String?) -> String");
-    expect(content).toContain("func earlierLocalNormalization(_ seed: String, _ q: String?) -> String");
+    expect(content).toContain("func instanceFieldNormalization(_ p: String? = Optional<String>.none) -> String");
+    expect(content).toContain("func earlierLocalNormalization(_ seed: String, _ q: String? = Optional<String>.none) -> String");
     expect(content).toContain("let v: Int32? = p ?? self.fallbackCount");
     expect(content).toContain("let w: Int32? = q ?? self.fallbackCount");
 
@@ -249,7 +249,7 @@ describe("default argument expansion generated tree", () => {
     const content = fs.readFileSync(dartFile, "utf8");
 
     expect(content).toContain("DefaultArgsOps([List<String>? familyNames])");
-    expect(content).toContain("this.familyNames = familyNames ?? <String>[];");
+    expect(content).toContain("this.familyNames = (familyNames ?? <String>[])!;");
     expect(content).toContain("static double infinityDefault([double? value])");
     expect(content).toContain("final double normalized = value ?? double.infinity;");
     expect(content).toContain("static Map<String, int> mapDefault([Map<String, int>? value])");
@@ -268,17 +268,17 @@ describe("default argument expansion generated tree", () => {
     expect(content).toContain("static int staticFieldSample(int value, [int? bound])");
     expect(content).toContain("final int normalized = bound ?? static_state_ops.limit;");
     expect(content).toContain("final int result = offset ?? value + 1;");
-    expect(content).toContain("final String? v = p ?? this.normalizationField;");
-    expect(content).toContain("final String? w = q ?? loc;");
-    expect(content).toContain("final int? v = p ?? this._fallbackCount;");
-    expect(content).toContain("final int? w = q ?? this._fallbackCount;");
+    expect(content).toContain("final String v = p ?? this.normalizationField;");
+    expect(content).toContain("final String w = q ?? loc;");
+    expect(content).toContain("final int v = p ?? this._fallbackCount;");
+    expect(content).toContain("final int w = q ?? this._fallbackCount;");
 
     expect(content).toContain("final double resolvedValue = value ?? (fallback ?? 2.5);");
-    expect(content).toContain("this.followRadius = followRadius ?? (radius ?? 0.0);");
+    expect(content).toContain("this.followRadius = (followRadius ?? (radius ?? 0.0))!;");
 
     // The field-carrying preset constructs with omitted nullable
     // parameters and prints the labeled record text, never the bare name.
-    expect(content).toContain("static final CoalescingPreset Default = CoalescingPreset();");
+    expect(content).toContain("static final CoalescingPreset Default = CoalescingPreset(0.125, 0.5);");
     expect(content).toContain("CoalescingPreset([double? base, double? ceiling])");
     expect(content).not.toContain('return "CoalescingPreset"');
   });
