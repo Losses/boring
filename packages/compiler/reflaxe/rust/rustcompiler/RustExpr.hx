@@ -1058,6 +1058,19 @@ class RustExpr {
                     if (provenText != null)
                         return [indent(depth) + kw + " " + name + explicitType + " = " + provenText + ";"];
                 }
+                // A nullable-typed local copied from a proven-non-null local
+                // holds the inner value (the early-exit guard proved the
+                // source is Some). The local keeps its Null<T> Haxe type but
+                // its Rust value is the plain scalar/struct; mark it
+                // collapsed so later reads do not re-apply the as_ref forcing
+                // read. Covers the proven-non-null nullable-copy family.
+                if (isNullType(v.t)) {
+                    final provenText = provenNonNullOwnedText(init);
+                    if (provenText != null) {
+                        nullableCollapsedLocals.set(v.id, true);
+                        return [indent(depth) + kw + " " + name + explicitType + " = " + provenText + ";"];
+                    }
+                }
                 var initStr = switch (init.expr) {
                     case TFunction(fn):
                         localFunctionErrorName = fallibleLocalFunctionErrors.get(v.id);
