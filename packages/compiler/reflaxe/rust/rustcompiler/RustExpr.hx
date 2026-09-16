@@ -5139,8 +5139,13 @@ class RustExpr {
                 return "(" + leftText + ") " + symbolOf(op) + " (" + rightText + ")";
 
             case _:
-                var left = isInt64Type(l.t) ? "(" + expr(l) + ")" : operand(l, op, false);
-                var right = isInt64Type(r.t) ? "(" + expr(r) + ")" : operand(r, op, true);
+                // A comparison between two nullable values keeps both sides
+                // as Option: unwrapping either would make the operands
+                // disagree on nullability (E0308). Only a nullable value
+                // compared with a non-nullable one unwraps the nullable side.
+                final bothNullable = isNullType(l.t) && isNullType(r.t);
+                var left = isInt64Type(l.t) ? "(" + expr(l) + ")" : (bothNullable ? expr(l) : operand(l, op, false));
+                var right = isInt64Type(r.t) ? "(" + expr(r) + ")" : (bothNullable ? expr(r) : operand(r, op, true));
                 // Haxe unifies Int and Float; widen Int comparison operands to
                 // Float when the other side is Float.
                 if (isIntType(emittedType(l)) && isFloatType(emittedType(r)))
