@@ -7324,9 +7324,14 @@ class RustExpr {
                 }
                 if (name == "indexOf" && isVecType(subj) && args.length >= 1) {
                     final needle = expr(args[0]);
+                    // The iterator yields &T; compare by reference so the
+                    // element is not moved out of the Vec (E0507/E0277 on a
+                    // non-Copy element like String). A nullable receiver
+                    // unwraps to its inner Vec first.
                     return "match "
                         + nullableMethodReceiver(subj, false)
-                        + ".iter().position(|e| *e == "
+<<<<<<< HEAD
+                        + ".iter().position(|e| e == &"
                         + needle
                         + ") { Some(v) => i32::from_ne_bytes(u32::try_from(v).unwrap_or(0).to_ne_bytes()), None => -1 }";
                 }
