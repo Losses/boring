@@ -1481,7 +1481,10 @@ class RustDecl {
         final retType = isFallible ? 'Result<$rawRetType, ${errOwner.name}>' : rawRetType;
         final ret = retType == "()" ? "" : " -> " + retType;
         // @:allow members use crate visibility so allowed cross-module references compile.
-        final vis = f.field.isPublic ? "pub " : (f.field.meta.has(":allow") ? "pub(crate) " : "");
+        // Non-public static functions are visible throughout the crate so that
+        // constructor default-parameter inlining can place call sites in other
+        // modules (E0624 private associated function).
+        final vis = f.field.isPublic ? "pub " : (f.field.meta.has(":allow") ? "pub(crate) " : "pub(crate) ");
 
         // The body may format a type parameter with `{:?}` (IsTypeParameter).
         // That path sets `memberPrintsTypeParam`; capture it so the header
