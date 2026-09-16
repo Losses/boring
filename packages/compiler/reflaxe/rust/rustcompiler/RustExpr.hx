@@ -2740,6 +2740,20 @@ class RustExpr {
         if (elementType != null && isNullType(elementType) && !isNullType(arg.t) && !isTNull(arg)) {
             return "Some(" + argStr + ")";
         }
+        // A nullable value pushed into a nullable-element array already
+        // carries the Option the slot expects; pass it through unchanged.
+        // Unwrapping it here would strip the Option a Vec<Option<T>> slot
+        // requires (E0308). Owned inners clone so the array owns its element.
+        if (elementType != null && isNullType(elementType) && isNullType(arg.t) && !isTNull(arg)) {
+            if (!isTypeCopy(getNullInnerType(arg.t))) {
+                if (!StringTools.endsWith(argStr, ".clone()")
+                    && !StringTools.endsWith(argStr, ".to_vec()")
+                    && !StringTools.endsWith(argStr, ".to_string()")) {
+                    argStr = argStr + ".clone()";
+                }
+            }
+            return argStr;
+        }
         // An i32-domain value pushed into a business u32 array reinterprets
         // its bits; the element slot is the u32 domain.
         if (!isNullType(arg.t) && !RuntimeResidents.isResident(imports.selfModule) && i32LocalDomain(arg))
