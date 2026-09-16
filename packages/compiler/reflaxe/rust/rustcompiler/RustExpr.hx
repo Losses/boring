@@ -2637,10 +2637,13 @@ class RustExpr {
                     return "&" + expr(arg);
             }
         }
-        // An implicit-nullable local holds Option<T>; the map put
-        // expects &T, so unwrap the Option once the guard proves it.
-        if (isImplicitNullableLocal(arg))
-            return "(" + expr(arg) + ").as_ref().unwrap()";
+        // An implicit-nullable local (declared non-null but initialized from
+        // a nullable expression) keeps Option storage; a table put borrows
+        // the inner value, so the read unwraps the Option once. A
+        // nullable-collapsed local holds the scalar domain and must not
+        // unwrap here.
+        if (isImplicitNullableLocal(arg) && !isNullableCollapsedLocal(arg))
+            return "&(" + expr(arg) + ").as_ref().unwrap()";
         return "&(" + expr(arg) + ")";
     }
 
@@ -2651,6 +2654,8 @@ class RustExpr {
         };
     }
 
+    /** A local declared with a non-null type but initialized from a nullable
+        expression keeps Option storage at runtime. **/
     function isImplicitNullableLocal(e:TypedExpr):Bool {
         return switch (stripWrap(e).expr) {
             case TLocal(v): implicitNullableLocals.exists(v.id);
@@ -4425,7 +4430,7 @@ class RustExpr {
 
     // Whether a receiver still renders as a Rust fallible wrapper at the
     // method and field boundaries: a wrapper-backed Null<T> that the body
-    // pre-pass has not collapsed to a plain local. A collapsed local already
+    // pre-pass has not narrowed it to a plain local. A collapsed local already
     // holds the inner value, so the as_ref forcing read must not re-apply.
     // Covers the collapsed-parameter receiver family.
     function receiverCarriesFallibleWrapper(subj:TypedExpr):Bool {
@@ -6323,7 +6328,7 @@ class RustExpr {
                 // already the scalar binding; render the inner string
                 // directly, skipping the Option match form. A null-guarded
                 // ternary whose arms are both non-null also renders a plain
-                // String (guardedMatchExpression collapses it), so the
+                // String (guardedMatchExpression renders it as a plain value), so the
                 // Option match must not re-apply.
                 if (narrowedSubject(origin) != null || isNullableCollapsedLocal(origin)
                     || isNonNullRenderedConditional(origin) || isNullGuardedTernary(origin))
@@ -9985,8 +9990,8 @@ class RustExpr {
     }
 
     /** A null-guarded ternary whose arms are both non-null renders a plain
-        value (guardedMatchExpression collapses it to a String match), even
-        when the guard subject is a field rather than a local. **/
+        value (guardedMatchExpression renders it as a plain String match),
+        including the case where the guard subject is a field. **/
     function isNullGuardedTernary(e:TypedExpr):Bool {
         return switch (stripWrap(e).expr) {
             case TIf(cond, ifTrue, ifFalse) if (ifFalse != null):
