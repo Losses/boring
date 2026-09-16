@@ -71,6 +71,25 @@ class RustType {
         };
     }
 
+    /** The stored value type of a sorted map. Haxe erases Null for value
+        types (Int, Float, Bool), so SortedMap<K, Null<Float>> stores plain
+        Float and its get() returns Option<Float>. The map's value slot and
+        the builder's value slot must carry the erased scalar so the value
+        type and the get() Option agree with the arithmetic consumers. **/
+    static function sortedMapValueType(t:Type):Type {
+        return switch (t) {
+            case TAbstract(a, params) if (a.get().name == "Null" && params.length == 1):
+                final inner = params[0];
+                switch (Context.follow(inner)) {
+                    case TAbstract(ia, _):
+                        final n = ia.get().name;
+                        n == "Int" || n == "Bool" || n == "Float" || n == "Int64" ? inner : t;
+                    case _: t;
+                };
+            case _: t;
+        };
+    }
+
     public function of(t:Null<Type>, isParam:Bool = false):String {
         if (t == null) {
             return "()";
@@ -151,10 +170,10 @@ class RustType {
                     // carries the domain (docs/specs/stdlib/07).
                     case "std.SortedMap":
                         imports.requireType("std.SortedMap", "SortedMapTable");
-                        "SortedMapTable<" + of(params[0]) + ", " + of(params[1]) + ">";
+                        "SortedMapTable<" + of(params[0]) + ", " + of(sortedMapValueType(params[1])) + ">";
                     case "std.SortedMapBuilder":
                         imports.requireType("std.SortedMapBuilder", "SortedMapTableBuilder");
-                        "SortedMapTableBuilder<" + of(params[0]) + ", " + of(params[1]) + ">";
+                        "SortedMapTableBuilder<" + of(params[0]) + ", " + of(sortedMapValueType(params[1])) + ">";
                     case "std.SortedSet":
                         imports.requireType("std.SortedSet", "SortedSetTable");
                         "SortedSetTable<" + of(params[0]) + ">";

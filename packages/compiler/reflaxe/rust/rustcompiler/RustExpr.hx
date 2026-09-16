@@ -89,6 +89,10 @@ class RustExpr {
     var inGenericFunction:Bool = false;
     final borrowedLoopVarIds:Map<Int, Bool> = [];
     final provenNonNullVarIds:Map<Int, Bool> = [];
+    // Sorted map get() calls proven present by an enclosing has() guard.
+    // Keyed by the rendered receiver+key text so a get() inside the guard
+    // unwraps its Option into the value slot.
+    final provenMapGets:Array<String> = [];
     // Option subjects narrowed by an immediately enclosing null guard. The
     // rendered text is the key because guarded subjects may be fields.
     final optionNarrowings:Array<{subjectText:String, name:String}> = [];
@@ -1196,11 +1200,16 @@ class RustExpr {
                 final proven = provenNonNullLocal(c);
                 if (proven != null)
                     provenNonNullVarIds.set(proven.id, true);
+                final mapHas = mapHasGuard(c);
+                if (mapHas != null)
+                    provenMapGets.push(mapHas);
                 final out = [indent(depth) + "if " + condStr + " {"];
                 for (l in blockLines(statementsOf(t), depth + 1))
                     out.push(l);
                 if (proven != null)
                     provenNonNullVarIds.remove(proven.id);
+                if (mapHas != null)
+                    provenMapGets.pop();
                 if (f != null) {
                     out.push(indent(depth) + "} else {");
                     for (l in blockLines(statementsOf(f), depth + 1))
@@ -2568,10 +2577,20 @@ class RustExpr {
     }
 
     function sortedValueType(fn:TypedExpr):Null<haxe.macro.Type.Type> {
-        return switch (fn.t) {
+        final v = switch (fn.t) {
             case TFun(_, TInst(_, params)) if (params.length > 1): params[1];
             case _: null;
         };
+        if (v == null)
+            return null;
+        // Haxe erases Null for value types (Int, Float, Bool): a
+        // SortedMap<K, Null<Float>> stores plain Float and its get()
+        // returns Option<Float>. The builder's value slot must carry the
+        // erased scalar so the map's value type and the get() Option
+        // agree with the arithmetic consumers.
+        if (isNullType(v) && isTypeCopy(getNullInnerType(v)))
+            return getNullInnerType(v);
+        return v;
     }
 
     /** Whether a SortedMap/SortedMapBuilder receiver's value type is Null-wrapped. */
@@ -5145,6 +5164,43 @@ class RustExpr {
         };
     }
 
+    /** The rendered receiver+key text of a sorted-map has() guard, or null.
+        An `if (map.has(key))` block proves `map.get(key)` is Some, so the
+        get() inside unwraps into its value slot. **/
+    function mapHasGuard(e:TypedExpr):Null<String> {
+        final inner = stripWrap(e);
+        return switch (inner.expr) {
+            case TCall(fn, args) if (args.length == 1):
+                switch (stripWrap(fn).expr) {
+                    case TField(subj, fa) if (fieldName(fa) == "has" && (isSortedTable(subj) || isSortedBuilder(subj))):
+                        mapGetKeyText(subj, args[0]);
+                    case _: null;
+                };
+            case _: null;
+        };
+    }
+
+    /** The rendered receiver+key text of a sorted-map get() call. **/
+    function mapGetKeyText(subj:TypedExpr, key:TypedExpr):String {
+        return expr(subj) + "|" + expr(key);
+    }
+
+    /** Whether a sorted-map get() call is proven present by an enclosing
+        has() guard on the same receiver+key. **/
+    function provenMapGet(e:TypedExpr):Bool {
+        final inner = stripWrap(e);
+        return switch (inner.expr) {
+            case TCall(fn, args) if (args.length == 1):
+                switch (stripWrap(fn).expr) {
+                    case TField(subj, fa) if (fieldName(fa) == "get" && (isSortedTable(subj) || isSortedBuilder(subj))):
+                        final key = mapGetKeyText(subj, args[0]);
+                        provenMapGets.indexOf(key) >= 0;
+                    case _: false;
+                };
+            case _: false;
+        };
+    }
+
     /**
         The forcing read of a proven non-null local subject: the guard proved
         the local is Some, so the read opens the local directly through a
@@ -5352,7 +5408,8 @@ class RustExpr {
         // its scalar match binding and a collapsed local already materialized
         // the inner scalar, so neither must unwrap again.
         if (isNullType(e.t) && isFloatType(getNullInnerType(e.t))
-            && narrowedSubject(e) == null && !isNullableCollapsedLocal(e)) {
+            && narrowedSubject(e) == null && !isNullableCollapsedLocal(e)
+            && !isNonNullRenderedConditional(e)) {
             rendered += ".unwrap_or(0.0)";
         }
         switch (e.expr) {
@@ -6978,7 +7035,7 @@ class RustExpr {
                 if (name == "indexOf" && isVecType(subj) && args.length >= 1) {
                     final needle = expr(args[0]);
                     return "match "
-                        + expr(subj)
+                        + nullableMethodReceiver(subj, false)
                         + ".iter().position(|e| *e == "
                         + needle
                         + ") { Some(v) => i32::from_ne_bytes(u32::try_from(v).unwrap_or(0).to_ne_bytes()), None => -1 }";
@@ -9350,7 +9407,7 @@ class RustExpr {
             if (pt != null && !isNullType(pt) && isNullType(arg.t)) {
                 final proven = switch (stripWrap(arg).expr) {
                     case TLocal(v): provenNonNullVarIds.exists(v.id);
-                    case _: false;
+                    case _: provenMapGet(arg);
                 };
                 if (proven) {
                     final inner = getNullInnerType(arg.t);
