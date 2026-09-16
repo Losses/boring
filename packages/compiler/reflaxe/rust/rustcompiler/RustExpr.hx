@@ -9868,27 +9868,22 @@ class RustExpr {
 
     /**
         A nullable-typed null-guard conditional (`x == null ? A : B` or
-        `x != null ? A : B`) over a local subject whose arms are both
-        non-null renders as a plain value: guardedMatchExpression narrows
-        the local to its match binding and leaves both arms unwrapped when
-        neither is a null literal, so the match yields the inner type
-        while the result type stays nullable. Such an argument must wrap in
-        Some at an Option parameter boundary. A field subject keeps its
-        Option shape and a nullable local or field keeps its Option shape.
+        `x != null ? A : B`) whose arms are both non-null renders as a
+        plain value: guardedMatchExpression narrows the subject to its
+        match binding and leaves both arms unwrapped when neither is a null
+        literal, so the match yields the inner type while the result type
+        stays nullable. A local subject collapses to the inner value; a
+        field subject keeps the match binding but still renders the bare
+        inner value (the null-guard only fires on a nullable subject, so
+        the narrowed arm's type is always nullable and the outer Some wrap
+        in guardedMatchExpression never applies). Either way the argument
+        must wrap in Some at an Option parameter boundary.
     **/
     function isNonNullRenderedConditional(e:TypedExpr):Bool {
         return switch (stripWrap(e).expr) {
             case TIf(cond, ifTrue, ifFalse) if (ifFalse != null):
                 final guard = nullGuardOf(cond);
-                guard != null && isLocalSubject(guard.subject)
-                    && !isTNull(ifTrue) && !isTNull(ifFalse);
-            case _: false;
-        };
-    }
-
-    function isLocalSubject(subject:TypedExpr):Bool {
-        return switch (stripWrap(subject).expr) {
-            case TLocal(_): true;
+                guard != null && !isTNull(ifTrue) && !isTNull(ifFalse);
             case _: false;
         };
     }
