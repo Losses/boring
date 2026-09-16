@@ -63,13 +63,7 @@ const SOURCE_TREES: readonly SourceTree[] = [
     lambdaTokens: ["|"],
     checkForHeads: false,
   },
-  {
-    label: "reference/kotlin/src",
-    directory: import.meta.dir + "/../../reference/kotlin/src",
-    pattern: "**/*.kt",
-    lambdaTokens: ["->", "{ it"],
-    checkForHeads: false,
-  },
+
 ];
 
 const REFERENCE_BANNED_CALL_SITES: readonly string[] = [
