@@ -4473,6 +4473,11 @@ class RustExpr {
         native operator and return null here.
     **/
     function structFieldEq(t:Type):Null<ClassType> {
+        // A Null-wrapped struct is Option<T> in Rust; field access on it
+        // would be E0609, so the nullable path (nullableStructFieldEq) owns
+        // the comparison and this gate must not follow through the wrapper.
+        if (isNullType(t))
+            return null;
         return switch (Context.follow(t)) {
             case TInst(c, _) if (!c.get().isInterface
                 && RustDecl.isRecordModule(c.get().module)
