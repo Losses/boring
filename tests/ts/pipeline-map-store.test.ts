@@ -15,6 +15,6 @@ describe("Dart pipeline map store lowering", () => {
       path.resolve(__dirname, "../../reference/dart/gen/lib/boring/pipeline_ops.dart"),
       "utf8",
     );
-    expect(pipeline).toContain("pipeline_result1.add(v * 10);");
+    expect(pipeline).toContain("pipeline_result1.add(v2 * 10);");
   });
 });
