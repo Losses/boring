@@ -5831,6 +5831,14 @@ class RustExpr {
             // never truncates, so it is allowed wherever the old `as usize`
             // index stood. usize::try_from(u32) always succeeds, making the
             // unwrap_or(0) arm unreachable.
+            // A nullable Int proven non-null by a guard holds the inner u32;
+            // unwrap it before the try_from so the index is not Option<u32>.
+            if (isNullType(e.t) && provenNonNullLocalExpr(e)) {
+                final inner = getNullInnerType(e.t);
+                final rendered = expr(e);
+                final unwrapped = isTypeCopy(inner) ? "*((" + rendered + ").as_ref().unwrap())" : "(" + rendered + ").as_ref().unwrap()";
+                return usizeIndex(unwrapped);
+            }
             return usizeIndex(expr(e));
         }
         if (ty == "u8") {
