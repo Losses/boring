@@ -24,6 +24,15 @@ class RustEmissionState {
     /** Maps exception class module path to its payload enum module path. */
     public final exceptionPayloads:Map<String, String> = [];
 
+    /**
+        Maps payload enum module path to the enum's declared name. The name
+        cannot be derived from the module path: an enum declared in the same
+        file as its exception class (for example NoSuchElementError inside
+        TiqianNoSuchElementException.hx) has a module whose last segment is
+        the class name, not the enum name.
+    **/
+    public final payloadEnumNames:Map<String, String> = [];
+
     /** Message-only exception classes are represented by their own Rust error enum. */
     public final messageOnlyExceptions:Map<String, String> = [];
 
