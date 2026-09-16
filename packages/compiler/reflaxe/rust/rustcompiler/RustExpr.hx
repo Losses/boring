@@ -5406,6 +5406,24 @@ class RustExpr {
             switch (stripWrap(e).expr) {
                 case TCall(fn, _) if (isStringCharCodeAt(fn)):
                     rendered += ".unwrap_or(0)";
+                case TLocal(v) if (provenNonNullVarIds.exists(v.id)
+                    && isIntType(getNullInnerType(e.t))
+                    && narrowedSubject(e) == null && !isNullableCollapsedLocal(e)
+                    && !StringTools.startsWith(rendered, "&")):
+                    // A proven-non-null nullable Int local (an early-exit or
+                    // && guard proved the Option holds Some) unwraps to its
+                    // inner scalar before arithmetic/comparison. A narrowed
+                    // operand already renders its scalar match binding and a
+                    // collapsed local already materialized the inner scalar,
+                    // so neither must unwrap again.
+                    rendered = "*(" + rendered + ").as_ref().unwrap()";
+                case TLocal(v) if (isIntType(getNullInnerType(e.t))
+                    && narrowedSubject(e) == null && !isNullableCollapsedLocal(e)
+                    && !StringTools.startsWith(rendered, "&")):
+                    // A nullable Int local that no guard proved present
+                    // enters arithmetic/comparison through Haxe's null-to-zero
+                    // bridge: the absent value is numeric zero.
+                    rendered += ".unwrap_or(0)";
                 case _:
             }
         }
@@ -8220,7 +8238,11 @@ class RustExpr {
         // in the module domain (unwrap_or was already applied), so the
         // Option wrapper in the static type is not the rendering domain.
         if (isNullType(e.t) && isIntType(getNullInnerType(e.t))) {
-            final innerDomain = RuntimeResidents.isResident(imports.selfModule) ? "i32" : "u32";
+            final isParseIntLocal = switch (stripWrap(e).expr) {
+                case TLocal(v): parseIntLocals.exists(v.id);
+                case _: false;
+            };
+            final innerDomain = (isParseIntLocal || RuntimeResidents.isResident(imports.selfModule)) ? "i32" : "u32";
             if (innerDomain == wrapDomain)
                 return text;
         }
