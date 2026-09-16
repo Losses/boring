@@ -2347,7 +2347,7 @@ class RustExpr {
                     case _: -1;
                 };
                 // An owned parameter (argType without a & prefix) is an owned
-                // Vec value, so iterating it must borrow the subject just like
+                // Vec value, so iterating it must borrow the subject the same way as
                 // an owned local. Borrowed parameters are already &Vec views.
                 final ownedParameter = paramVarIds.exists(subjectLocalId) && argType != null && !StringTools.startsWith(argType, "&");
                 final nonScalarOwnedLocal = !isScalar && !referenceSubject && (!paramVarIds.exists(subjectLocalId) || ownedParameter);
@@ -2648,7 +2648,7 @@ class RustExpr {
 
     /**
         isBorrowedExpression: true when the Rust rendering of this expression
-        produces a reference rather than an owned value. Covers borrowed
+        produces a reference; an owned value is not produced. Covers borrowed
         parameters, loop variables, and reference-bearing fields. The caller
         clones a non-Copy field read when the access goes through a borrow,
         preventing E0507 move-out-of-reference errors.
@@ -5653,8 +5653,8 @@ class RustExpr {
                     // `Std.string` and string comparisons observe nullable values;
                     // preserve Option. Do not treat it as Display. A non-Copy
                     // inner value behind self or a borrowed subject still
-                    // clones so the read produces an owned Option instead of
-                    // a move out of a reference. A method receiver keeps its
+                    // clones so the read produces an owned Option; the non-cloned form does not
+                    // perform a move out of a reference. A method receiver keeps its
                     // borrow so mutations reach the original storage.
                     if (!isTypeCopy(getNullInnerType(cf.get().type)) && !renderingMethodReceiver && switch (subj.expr) {
                         case TConst(TThis): true;
