@@ -6539,7 +6539,12 @@ class RustExpr {
                 stdStringType(underlying, value, inConcat, origin, depth);
             case IsParameterlessEnum(en):
                 EnumQueryExpander.requireNameRead(en);
-                value + ".name()" + (inConcat ? "" : ".to_string()");
+                // A narrowed enum read renders as a deref of the match
+                // binding (*__option); appending .name() binds the method
+                // to the reference and the deref lands on the returned
+                // &str. Parenthesize the deref so .name() reaches the
+                // enum value (E0308 expected String, found str).
+                (StringTools.startsWith(value, "*") ? "(" + value + ")" : value) + ".name()" + (inConcat ? "" : ".to_string()");
             case IsCyclicEnum(en): cyclicEnumString(en, value, inConcat, origin);
             case IsPayloadEnum(_): value + ".to_string()";
             case IsUnsupported:
