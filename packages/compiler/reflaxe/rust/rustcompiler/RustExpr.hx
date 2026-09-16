@@ -3252,6 +3252,29 @@ class RustExpr {
         return false;
     }
 
+    /** Whether an expression is `map.get(key)` under a matching `map.has(key)`
+        guard, so it holds the inner value. **/
+    function hasGuardedGetExpr(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TCall(fn, args) if (args.length == 1):
+                switch (stripWrap(fn).expr) {
+                    case TField(subj, FInstance(_, _, cf)) if (cf.get().name == "get" && (isSortedTable(subj) || isSortedBuilder(subj))):
+                        final getInfo = {subj: subjectTextOf(subj), key: subjectTextOf(args[0])};
+                        var found = false;
+                        for (i in 0...hasGuardedGets.length) {
+                            final guard = hasGuardedGets[hasGuardedGets.length - 1 - i];
+                            if (guard.subj == getInfo.subj && guard.key == getInfo.key) {
+                                found = true;
+                                break;
+                            }
+                        }
+                        found;
+                    case _: false;
+                };
+            case _: false;
+        };
+    }
+
     function hasGuardedGetTernary(cond:TypedExpr, ifTrue:TypedExpr, ifFalse:TypedExpr, resultType:Type):Null<String> {
         // The condition must be `map.has(key)`.
         final hasInfo = switch (stripWrap(cond).expr) {
@@ -9726,7 +9749,7 @@ class RustExpr {
             // unwraps the Option at the call boundary so the parameter slot
             // receives the inner value. The guard (early exit or && chain)
             // proved the source is Some; the bridge extracts the payload.
-            if (pt != null && !isNullType(pt) && isNullType(arg.t)) {
+            if (pt != null && !isNullType(pt) && (isNullType(arg.t) || isImplicitNullableLocal(arg))) {
                 final proven = switch (stripWrap(arg).expr) {
                     case TLocal(v): provenNonNullVarIds.exists(v.id);
                     case _: provenMapGet(arg);
@@ -9735,6 +9758,11 @@ class RustExpr {
                     final inner = getNullInnerType(arg.t);
                     final ref = "(" + argStr + ").as_ref().unwrap()";
                     argStr = isTypeCopy(inner) ? "*" + ref : ref + ".clone()";
+                } else if (hasGuardedGetExpr(arg)) {
+                    // A `map.get(key)` under a matching `map.has(key)` guard
+                    // holds the inner value; unwrap the Option.
+                    final inner = getNullInnerType(arg.t);
+                    argStr = isTypeCopy(inner) ? "*((" + argStr + ").as_ref().unwrap())" : "(" + argStr + ").as_ref().unwrap()";
                 } else {
                     // A preceding fill guard (`if (x == null) x = fill;`)
                     // guarantees the local holds Some; the call reads the
