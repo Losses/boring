@@ -1038,6 +1038,58 @@ class Compiler extends PluginCompiler<Compiler> {
                 }
             case _:
         }
+        // Reconcile interface union member lists after implementations'
+        // error sets have been fully resolved by scanFallibility. An
+        // implementation whose resolved union carries members the interface
+        // union does not passes them through so the trait signature covers
+        // every implementation's reachable error set. Skip the interface
+        // union itself, which wrapped implementations contribute back as a
+        // member.
+        for (mt in mtypes) switch (mt) {
+            case TClassDecl(c):
+                final cls = c.get();
+                if (cls.isInterface) continue;
+                for (ifaceRef in cls.interfaces) {
+                    final iface = ifaceRef.t.get();
+                    for (ifField in iface.fields.get()) {
+                        var impl:haxe.macro.Type.ClassField = null;
+                        for (field in cls.fields.get()) if (field.name == ifField.name) impl = field;
+                        if (impl == null) continue;
+                        final declaredError = state.funcErrorTypes.get(RustEmissionState.funcKey(iface.module, ifField.name, false));
+                        if (declaredError == null || !state.isSyntheticErrorType(declaredError.name)) continue;
+                        final implementationError = state.funcErrorTypes.get(RustEmissionState.funcKey(cls.module, impl.name, false));
+                        if (implementationError == null || !state.isSyntheticErrorType(implementationError.name)) continue;
+                        if (implementationError.name == declaredError.name) continue;
+                        final implementationMembers = state.syntheticErrorMembers(implementationError.name);
+                        if (implementationMembers == null) continue;
+                        final declaredMembers = state.syntheticErrorMembers(declaredError.name);
+                        if (declaredMembers == null) continue;
+                        for (item in implementationMembers) {
+                            if (item.name == declaredError.name) continue;
+                            var seen = false;
+                            for (m in declaredMembers)
+                                if (m.module == item.module && m.name == item.name)
+                                    seen = true;
+                            if (!seen)
+                                declaredMembers.push(item);
+                        }
+                    }
+                }
+            case _:
+        }
+        // Refresh variant tables after the reconciliation above.
+        for (module in state.syntheticErrorEnums.keys()) {
+            final kcname = module.substr(module.lastIndexOf(".") + 1);
+            for (decl in state.syntheticErrorEnums.get(module)) {
+                final variants:Map<String, String> = [];
+                for (item in decl.members) {
+                    final variant = StringTools.startsWith(item.name, kcname)
+                        && StringTools.endsWith(item.name, "Fault") ? item.name.substr(kcname.length) : item.name + "Fault";
+                    variants.set(item.module + "::" + item.name, variant);
+                }
+                state.syntheticErrorVariants.set(decl.name, variants);
+            }
+        }
     }
 
     /**
