@@ -149,6 +149,10 @@ class RustExpr {
     // assignment path must wrap non-null RHS values in Some(...). Covers
     // the null-initialized local assignment wrapping family.
     final noneInitializedLocals:Map<Int, Bool> = [];
+    // Active `map.has(key)` statement guards; a local initialized from
+    // `map.get(key)` under the guard holds the inner value (the has guard
+    // proved presence). Covers the has-guarded get local family.
+    final hasGuardedGets:Array<{subj:String, key:String}> = [];
     // Keep Option when Haxe code observes null separately from code point zero.
     final nullableSensitiveLocals:Map<Int, Bool> = [];
     // Locals initialized from Std.parseInt hold the i32 parse domain. The
@@ -576,6 +580,7 @@ class RustExpr {
         nullableCollapsedLocals.clear();
         nonNullRenderedLocals.clear();
         implicitNullableLocals.clear();
+        hasGuardedGets.resize(0);
         noneInitializedLocals.clear();
         nullableSensitiveLocals.clear();
         parseIntLocals.clear();
@@ -1071,6 +1076,16 @@ class RustExpr {
                         return [indent(depth) + kw + " " + name + explicitType + " = " + provenText + ";"];
                     }
                 }
+                // A local initialized from `map.get(key)` under a matching
+                // `map.has(key)` guard holds the inner value (the has guard
+                // proved presence). The get renders as Option<T>; unwrap it
+                // so the local owns the plain value, and mark it collapsed so
+                // later reads do not re-apply the as_ref forcing read.
+                // Covers the has-guarded get local family.
+                if (isNullType(init.t) && hasGuardedGetLocal(init)) {
+                    nullableCollapsedLocals.set(v.id, true);
+                    return [indent(depth) + kw + " " + name + explicitType + " = " + "(" + expr(init) + ").unwrap()" + ";"];
+                }
                 var initStr = switch (init.expr) {
                     case TFunction(fn):
                         localFunctionErrorName = fallibleLocalFunctionErrors.get(v.id);
@@ -1243,9 +1258,14 @@ class RustExpr {
                 final mapHas = mapHasGuard(c);
                 if (mapHas != null)
                     provenMapGets.push(mapHas);
+                final hasGuard = hasGuardGetInfo(c);
+                if (hasGuard != null)
+                    hasGuardedGets.push(hasGuard);
                 final out = [indent(depth) + "if " + condStr + " {"];
                 for (l in blockLines(statementsOf(t), depth + 1))
                     out.push(l);
+                if (hasGuard != null)
+                    hasGuardedGets.pop();
                 if (proven != null)
                     provenNonNullVarIds.remove(proven.id);
                 if (mapHas != null)
@@ -3193,6 +3213,40 @@ class RustExpr {
         Option<T> that later arithmetic/argument slots reject (E0277/E0308).
         Covers the has-guarded get value-flow family.
     **/
+    function hasGuardGetInfo(cond:TypedExpr):Null<{subj:String, key:String}> {
+        return switch (stripWrap(cond).expr) {
+            case TCall(fn, args) if (args.length == 1):
+                switch (stripWrap(fn).expr) {
+                    case TField(subj, FInstance(_, _, cf)) if (cf.get().name == "has" && (isSortedTable(subj) || isSortedBuilder(subj))):
+                        {subj: subjectTextOf(subj), key: subjectTextOf(args[0])};
+                    case _: null;
+                };
+            case _: null;
+        };
+    }
+
+    /** Whether a local initialized from `map.get(key)` is under a matching
+        `map.has(key)` guard, so it holds the inner value. **/
+    function hasGuardedGetLocal(init:TypedExpr):Bool {
+        final getInfo = switch (stripWrap(init).expr) {
+            case TCall(fn, args) if (args.length == 1):
+                switch (stripWrap(fn).expr) {
+                    case TField(subj, FInstance(_, _, cf)) if (cf.get().name == "get" && (isSortedTable(subj) || isSortedBuilder(subj))):
+                        {subj: subjectTextOf(subj), key: subjectTextOf(args[0])};
+                    case _: null;
+                };
+            case _: null;
+        };
+        if (getInfo == null)
+            return false;
+        for (i in 0...hasGuardedGets.length) {
+            final guard = hasGuardedGets[hasGuardedGets.length - 1 - i];
+            if (guard.subj == getInfo.subj && guard.key == getInfo.key)
+                return true;
+        }
+        return false;
+    }
+
     function hasGuardedGetTernary(cond:TypedExpr, ifTrue:TypedExpr, ifFalse:TypedExpr, resultType:Type):Null<String> {
         // The condition must be `map.has(key)`.
         final hasInfo = switch (stripWrap(cond).expr) {
