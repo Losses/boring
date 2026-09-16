@@ -7152,8 +7152,14 @@ class RustExpr {
                         case _:
                     }
                     final nullableResult = callRet != null && isNullType(callRet);
-                    return nullableResult ? "u_string::at(&" + expr(subj) + ", " + castShiftU32(args[0]) + ")" : "u_string::at(&"
-                        + expr(subj)
+                    // A proven-non-null nullable String receiver holds the
+                    // inner value; unwrap it before the at() borrow.
+                    final receiver = if (isNullType(subj.t) && switch (stripWrap(subj).expr) {
+                        case TLocal(v): provenNonNullVarIds.exists(v.id);
+                        case _: false;
+                    }) "(" + expr(subj) + ").as_ref().unwrap()" else expr(subj);
+                    return nullableResult ? "u_string::at(&" + receiver + ", " + castShiftU32(args[0]) + ")" : "u_string::at(&"
+                        + receiver
                         + ", "
                         + castShiftU32(args[0])
                         + ").unwrap_or(0)";
@@ -9279,6 +9285,13 @@ class RustExpr {
     function isString(e:TypedExpr):Bool {
         return switch (e.t) {
             case TInst(c, _): c.get().name == "String";
+            // A Null<String> receiver is still a String method receiver; the
+            // method lowering unwraps the Option at the call boundary.
+            case TAbstract(a, params) if (a.get().name == "Null" && params.length == 1):
+                switch (Context.follow(params[0])) {
+                    case TInst(c, _): c.get().name == "String";
+                    case _: false;
+                };
             case _: false;
         }
     }
