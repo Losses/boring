@@ -3139,6 +3139,63 @@ class RustExpr {
         };
     }
 
+    /**
+        A ternary `map.has(k) ? map.get(k) : value` narrows the get: the
+        has guard proves the key is present, so the get's Option unwraps to
+        the inner value and the fallback stays plain. Without this, the get
+        renders as Option<T> and the fallback wraps in Some, leaving an
+        Option<T> that later arithmetic/argument slots reject (E0277/E0308).
+        Covers the has-guarded get value-flow family.
+    **/
+    function hasGuardedGetTernary(cond:TypedExpr, ifTrue:TypedExpr, ifFalse:TypedExpr, resultType:Type):Null<String> {
+        // The condition must be `map.has(key)`.
+        final hasInfo = switch (stripWrap(cond).expr) {
+            case TCall(fn, args) if (args.length == 1):
+                switch (stripWrap(fn).expr) {
+                    case TField(subj, FInstance(_, _, cf)) if (cf.get().name == "has" && (isSortedTable(subj) || isSortedBuilder(subj))):
+                        {subj: subj, key: args[0]};
+                    case _: null;
+                };
+            case _: null;
+        };
+        if (hasInfo == null)
+            return null;
+        // The true branch must be `map.get(key)` on the same receiver/key.
+        final getInfo = switch (stripWrap(ifTrue).expr) {
+            case TCall(fn, args) if (args.length == 1):
+                switch (stripWrap(fn).expr) {
+                    case TField(subj, FInstance(_, _, cf)) if (cf.get().name == "get" && (isSortedTable(subj) || isSortedBuilder(subj))):
+                        {subj: subj, key: args[0]};
+                    case _: null;
+                };
+            case _: null;
+        };
+        if (getInfo == null)
+            return null;
+        if (subjectTextOf(hasInfo.subj) != subjectTextOf(getInfo.subj))
+            return null;
+        if (subjectTextOf(hasInfo.key) != subjectTextOf(getInfo.key))
+            return null;
+        // The fallback must be a concrete non-null value so both arms of the
+        // unwrapped ternary share the inner value type. A null or nullable
+        // fallback keeps the Option shape and must not be unwrapped here.
+        if (isTNull(ifFalse) || isNullType(ifFalse.t))
+            return null;
+        // The get renders as Option<T>; unwrap it since has proved presence.
+        // The fallback value stays plain (not Some-wrapped).
+        final getText = expr(ifTrue);
+        final fallback = expr(ifFalse);
+        return "if "
+            + expr(cond)
+            + " { "
+            + "("
+            + getText
+            + ").unwrap()"
+            + " } else { "
+            + fallback
+            + " }";
+    }
+
     function guardedMatchExpression(guard:TypedExpr, ifTrue:TypedExpr, ifFalse:TypedExpr, resultType:Type):Null<String> {
         final prefix = nullGuardPrefix(guard);
         final info = prefix == null ? nullGuardOf(guard) : prefix.info;
@@ -3467,6 +3524,9 @@ class RustExpr {
                 final guarded = guardedMatchExpression(c, t, f, e.t);
                 if (guarded != null)
                     return guarded;
+                final hasGet = hasGuardedGetTernary(c, t, f, e.t);
+                if (hasGet != null)
+                    return hasGet;
                 final optional = optionalIf(c, t, f, e.t);
                 if (optional != null)
                     return optional;
