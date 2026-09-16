@@ -1258,6 +1258,9 @@ class RustExpr {
                 final mapHas = mapHasGuard(c);
                 if (mapHas != null)
                     provenMapGets.push(mapHas);
+                final provenChain = provenNonNullLocals(c);
+                for (v in provenChain)
+                    provenNonNullVarIds.set(v.id, true);
                 final hasGuard = hasGuardGetInfo(c);
                 if (hasGuard != null)
                     hasGuardedGets.push(hasGuard);
@@ -1266,6 +1269,8 @@ class RustExpr {
                     out.push(l);
                 if (hasGuard != null)
                     hasGuardedGets.pop();
+                for (v in provenChain)
+                    provenNonNullVarIds.remove(v.id);
                 if (proven != null)
                     provenNonNullVarIds.remove(proven.id);
                 if (mapHas != null)
