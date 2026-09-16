@@ -3018,9 +3018,13 @@ class RustExpr {
             case TField(receiver, FInstance(_, _, cf)) | TField(receiver, FAnon(cf)):
                 // A nullable receiver holds Option<T>; the field path must
                 // open it before the member read, or the path addresses the
-                // Option itself (E0609). A proven-non-null or wrapper-backed
-                // receiver unwraps through the same forcing read field() uses.
-                final recv = if (provenNonNullLocalSubject(receiver) != null) provenNonNullLocalSubject(receiver)
+                // Option itself (E0609). A narrowed receiver already binds
+                // the inner value (the match binding), so the path uses the
+                // binding directly — matching the field() read path. A
+                // proven-non-null or wrapper-backed receiver unwraps through
+                // the same forcing read field() uses.
+                final recv = if (narrowedSubject(receiver) != null) narrowedSubject(receiver)
+                    else if (provenNonNullLocalSubject(receiver) != null) provenNonNullLocalSubject(receiver)
                     else if (fieldReceiverCarriesFallibleWrapper(receiver)) expr(receiver) + ".as_ref().unwrap()"
                     else expr(receiver);
                 recv + "." + RustImports.toSnakeCase(cf.get().name);
