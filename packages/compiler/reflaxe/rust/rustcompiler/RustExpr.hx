@@ -4935,7 +4935,25 @@ class RustExpr {
                     numericAssignmentValue(l.t, r, renderValueForType(l.t, r, expr(r)), i32BindingLocals.exists(assignTarget) ? "i32" : null,
                         assignTarget >= 0 && !i32Locals.exists(assignTarget));
                 };
-                return assignTarget(l) + " = " + rhs;
+                final assignTargetText = assignTarget(l);
+                // E0502: an array assignment whose index reads the array
+                // itself (`bottoms[bottoms.len() - 1] = ...`) borrows the
+                // array immutably in the index while the assignment mutates
+                // it. Hoist the index into a fresh local so the immutable
+                // read completes before the mutable write.
+                final hoisted = switch (stripWrap(l).expr) {
+                    case TArray(arr, idx):
+                        switch (stripWrap(arr).expr) {
+                            case TLocal(v) if (mentionsLocal(idx, v)):
+                                final temp = freshRegionName("__idx");
+                                "{ let " + temp + " = " + castArg(idx, "usize") + "; " + assignTargetText + " = " + rhs + " }";
+                            case _: null;
+                        };
+                    case _: null;
+                };
+                if (hoisted != null)
+                    return hoisted;
+                return assignTargetText + " = " + rhs;
             case OpAssignOp(inner):
                 // Int compound assignments must preserve Haxe's 32-bit wrapping.
                 final intCompound = switch (inner) {
