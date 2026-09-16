@@ -5791,7 +5791,20 @@ class RustExpr {
                 // method calls from leaving its numeric type ambiguous.
                 Std.string(v) + ".0" + (FloatPrecision.isF32() ? "f32" : "f64");
             case _ if (isIntType(emittedType(a))): intToFloatText(expr(a));
-            case _: expr(a);
+            case _:
+                // A nullable local proven non-null by a guard holds the inner
+                // float; the Math call must unwrap the Option (the guard
+                // proved Some). Covers the proven-non-null Math operand family.
+                if (isNullType(a.t) && switch (stripWrap(a).expr) {
+                    case TLocal(v): provenNonNullVarIds.exists(v.id);
+                    case _: false;
+                }) {
+                    final inner = getNullInnerType(a.t);
+                    final rendered = expr(a);
+                    isTypeCopy(inner) ? "*((" + rendered + ").as_ref().unwrap())" : "(" + rendered + ").as_ref().unwrap()";
+                } else {
+                    expr(a);
+                }
         };
     }
 
