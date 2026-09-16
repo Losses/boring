@@ -2520,6 +2520,20 @@ class RustExpr {
                 final enumCollection = EnumQueryExpander.collectionEnum(subj);
                 if (enumCollection != null)
                     return Std.string(EnumQueryExpander.constructorCount(enumCollection));
+                if (isNullType(subj.t)) {
+                    final collapsed = switch (stripWrap(subj).expr) {
+                        case TLocal(v): nullableCollapsedLocals.exists(v.id);
+                        case _: false;
+                    };
+                    final narrowed = narrowedSubject(subj);
+                    if (collapsed)
+                        return rustU32Length(expr(subj) + ".len()");
+                    if (narrowed != null) {
+                        optionNarrowingHitCount++;
+                        return rustU32Length(narrowed + ".len()");
+                    }
+                    return "(" + expr(subj) + ").as_ref().map_or(0, |v| v.len())";
+                }
                 return rustU32Length(expr(subj) + ".len()");
             case _:
                 final text = expr(bound);
