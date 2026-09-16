@@ -97,7 +97,7 @@ class DeadInitializerMatchFusion {
                 return null;
             final replacement = if (payload.length == 0) value else {
                 final replacementBody = payload.concat([{expr: value.expr, pos: value.pos, t: value.t}]);
-                {expr: TBlock(replacementBody), pos: c.expr.pos, t: c.expr.t};
+                {expr: TBlock(replacementBody), pos: c.expr.pos, t: value.t};
             };
             result.push({values: c.values, expr: replacement});
         }
