@@ -1634,19 +1634,8 @@ class Compiler extends PluginCompiler<Compiler> {
         // Fourth propagation: unions created in the conflict pass above were
         // invisible to the earlier re-run, so existing synthetic unions that
         // edge to them still carry the callee's pre-union leaves. Adopt those
-        // unions into their already-synthetic callers, guarding against cycles
-        // with transitive reachability over the registered union member graph.
-        function keyUnionName(key:String):Null<String> {
-            final ksep = key.indexOf("::");
-            if (ksep < 0) return null;
-            final kmod = key.substr(0, ksep);
-            final ktail = key.substr(ksep + 2);
-            final kdot = ktail.indexOf(".");
-            if (kdot < 0) return null;
-            final kfield = ktail.substr(kdot + 1);
-            final kcname = kmod.substr(kmod.lastIndexOf(".") + 1);
-            return kcname + RustImports.toUpperCamelCase(kfield) + "Fault";
-        }
+        // unions and leaf errors into their already-synthetic callers,
+        // guarding against cycles with transitive reachability.
         function unionReaches(from:String, target:String, visited:Array<String>):Bool {
             if (visited.indexOf(from) >= 0) return false;
             visited.push(from);
@@ -1663,32 +1652,54 @@ class Compiler extends PluginCompiler<Compiler> {
             final callerType = state.funcErrorTypes.get(entry.key);
             if (callerType == null || !state.isSyntheticErrorType(callerType.name)) continue;
             for (edge in entry.edges) {
-                final syntheticCallee = state.funcErrorTypes.get(edge.callee);
-                if (syntheticCallee == null
-                    || !state.isSyntheticErrorType(syntheticCallee.name)
-                    || edge.absorbed.indexOf(syntheticCallee.module) >= 0)
+                final calleeType = state.funcErrorTypes.get(edge.callee);
+                if (calleeType == null
+                    || edge.absorbed.indexOf(calleeType.module) >= 0)
                     continue;
-                if (syntheticCallee.name == callerType.name) continue;
-                if (unionReaches(syntheticCallee.name, callerType.name, [])) continue;
-                mergeEnum(entry.key, syntheticCallee);
+                if (calleeType.name == callerType.name) continue;
+                if (state.isSyntheticErrorType(calleeType.name)
+                    && unionReaches(calleeType.name, callerType.name, [])) continue;
+                mergeEnum(entry.key, calleeType);
                 fallible.set(entry.key, true);
             }
         }
-        // Refresh variant tables for unions whose member set grew above.
-        for (key in conflicts.keys()) {
-            final euname = keyUnionName(key);
-            if (euname == null || !state.isSyntheticErrorType(euname)) continue;
-            final set = members.get(key);
+        // Reconcile synthetic union member lists after the fourth
+        // propagation: edges resolved above may have grown a union past the
+        // member set it was declared with, and a union shared across several
+        // callers (same resolved name, different owning classes) must carry
+        // every caller's contribution. Push newly-seen members into the
+        // union's permanent member list, skipping the union itself.
+        for (entry in entries) {
+            final resolved = state.funcErrorTypes.get(entry.key);
+            if (resolved == null || !state.isSyntheticErrorType(resolved.name)) continue;
+            final set = members.get(entry.key);
             if (set == null) continue;
-            final kmod = key.substr(0, key.indexOf("::"));
-            final kcname = kmod.substr(kmod.lastIndexOf(".") + 1);
-            final variants:Map<String, String> = [];
+            final nested = state.syntheticErrorMembers(resolved.name);
+            if (nested == null) continue;
             for (item in set) {
-                final variant = StringTools.startsWith(item.name, kcname)
-                    && StringTools.endsWith(item.name, "Fault") ? item.name.substr(kcname.length) : item.name + "Fault";
-                variants.set(item.module + "::" + item.name, variant);
+                if (item.name == resolved.name) continue;
+                var seen = false;
+                for (m in nested)
+                    if (m.module == item.module && m.name == item.name)
+                        seen = true;
+                if (!seen)
+                    nested.push(item);
             }
-            state.syntheticErrorVariants.set(euname, variants);
+        }
+        // Refresh variant tables for every synthetic union whose member set
+        // grew above, naming variants by the union's owning class so the
+        // prefix-stripping convention stays consistent with declareUnion.
+        for (module in state.syntheticErrorEnums.keys()) {
+            final kcname = module.substr(module.lastIndexOf(".") + 1);
+            for (decl in state.syntheticErrorEnums.get(module)) {
+                final variants:Map<String, String> = [];
+                for (item in decl.members) {
+                    final variant = StringTools.startsWith(item.name, kcname)
+                        && StringTools.endsWith(item.name, "Fault") ? item.name.substr(kcname.length) : item.name + "Fault";
+                    variants.set(item.module + "::" + item.name, variant);
+                }
+                state.syntheticErrorVariants.set(decl.name, variants);
+            }
         }
     }
 
