@@ -9282,7 +9282,33 @@ class RustExpr {
                 }
             }
             if (paramIndex < paramTypes.length) {
-                if (isNullType(pt) && isStringType(getNullInnerType(pt)) && isNullType(arg.t)) {
+                if (isNullType(pt) && isNullType(arg.t)
+                    && (isNonNullRenderedLocal(arg) || isNonNullRenderedConditional(arg))
+                    && !StringTools.startsWith(argStr, "Some(") && argStr != "None") {
+                    // A null-coalesced local or inline ternary usually renders
+                    // its inner value (the declaration collapsed the Option);
+                    // an Option parameter re-wraps it so the slot's declared
+                    // type matches. A local whose null branch stays null
+                    // renders as Option already, so it passes through. A
+                    // non-Copy payload clones so the source stays usable.
+                    final inner = getNullInnerType(pt);
+                    if (isStringType(inner) && !StringTools.endsWith(argStr, ".to_string()"))
+                        argStr = "Some(" + argStr + ".to_string())";
+                    else if (isTypeCopy(inner))
+                        argStr = "Some(" + argStr + ")";
+                    else
+                        argStr = "Some(" + ownedNullableReadText(argStr) + ")";
+                } else if (isNullType(pt) && isNullType(arg.t) && narrowedSubject(arg) != null) {
+                    // A narrowed Option binding renders as a reference to the
+                    // inner value (the match binding); an Option parameter
+                    // re-wraps it so the slot's declared type matches. Copy
+                    // inners dereference, owned inners clone the referent.
+                    final inner = getNullInnerType(pt);
+                    if (isTypeCopy(inner))
+                        argStr = "Some(*" + narrowedSubject(arg) + ")";
+                    else
+                        argStr = "Some((*" + narrowedSubject(arg) + ").clone())";
+                } else if (isNullType(pt) && isStringType(getNullInnerType(pt)) && isNullType(arg.t)) {
                     // A nullable-typed conditional whose arms are both
                     // non-null renders a plain String (guardedMatchExpression
                     // leaves both arms unwrapped when neither is a null
