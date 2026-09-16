@@ -279,7 +279,13 @@ class RustDecl {
         final isSortedTableResident = RustType.isContentEqSortedTable(cls);
         if ((StaticFieldHelper.hasSelfConstructionStatic(cls) || cls.meta.has(":dataClass") || classParams.length > 0 || isSortedTableResident)
             && (isAllClone(varFields, cls) || isSortedTableResident)) {
-            lines.push(RustType.isPartialEqTypeFields(varFields) ? "#[derive(Clone, PartialEq)]" : "#[derive(Clone)]");
+            final isDebug = cls.meta.has(":dataClass") && isAllDebug(varFields, cls);
+            final isPartialEq = RustType.isPartialEqTypeFields(varFields);
+            if (isDebug) {
+                lines.push(isPartialEq ? "#[derive(Debug, Clone, PartialEq)]" : "#[derive(Debug, Clone)]");
+            } else {
+                lines.push(isPartialEq ? "#[derive(Clone, PartialEq)]" : "#[derive(Clone)]");
+            }
         }
         if (cls.module.indexOf("registry.") == 0) {
             lines.push("#[derive(Debug, Clone, PartialEq)]");
@@ -2650,6 +2656,68 @@ lines.push("        }");
         for (f in fields)
             if (!f.isStatic && !isCloneTypeDepth(f.field.type, 0, root, state.sealedCloneInterfaces, null))
                 return false;
+        return true;
+    }
+
+    function isAllDebug(fields:Array<ClassVarData>, root:Null<ClassType> = null):Bool {
+        for (f in fields)
+            if (!f.isStatic && !isDebugTypeDepth(f.field.type, 0, root, state.sealedCloneInterfaces, null))
+                return false;
+        return true;
+    }
+
+    static function isDebugTypeDepth(t:Type, depth:Int, root:Null<ClassType>, sealedCloneInterfaces:Map<String, Bool>, selfIfaceKey:Null<String>):Bool {
+        return switch (Context.follow(t)) {
+            case TAbstract(a, params):
+                final abs = a.get();
+                if (ValueTypeSupport.isMarkedAbstract(abs)) true
+                else if ((abs.name == "Int" || abs.name == "Bool" || abs.name == "Float") && params.length == 0) true
+                else if (abs.name == "ReadOnlyArray" && params.length == 1) isDebugTypeDepth(params[0], depth, root, sealedCloneInterfaces, selfIfaceKey)
+                else if (abs.name == "Null" && params.length == 1) isDebugTypeDepth(params[0], depth, root, sealedCloneInterfaces, selfIfaceKey)
+                else if ((abs.pack.join(".") == "std" && abs.name == "ReadOnlyArray") && params.length == 1) isDebugTypeDepth(params[0], depth, root, sealedCloneInterfaces, selfIfaceKey)
+                else if ((abs.name == "Map" || abs.name == "haxe.ds.Map") && params.length == 2) {
+                    var all = true;
+                    for (p in params) if (!isDebugTypeDepth(p, depth, root, sealedCloneInterfaces, selfIfaceKey)) all = false;
+                    all;
+                } else if ((abs.name == "SortedMap" || abs.name == "SortedSet") && params.length >= 1) false
+                else isDebugTypeDepth(haxe.macro.TypeTools.applyTypeParameters(abs.type, abs.params, params), depth + 1, root, sealedCloneInterfaces, selfIfaceKey);
+            case TEnum(_): true;
+            case TInst(c, params):
+                final cls = c.get();
+                final n = cls.name;
+                if (root != null && cls.module == root.module && cls.name == root.name) true
+                else if (cls.kind.match(KTypeParameter(_))) true
+                else if (n == "String" || n == "StringBuf") true
+                else if (n == "Array" && params.length == 1) isDebugTypeDepth(params[0], depth, root, sealedCloneInterfaces, selfIfaceKey)
+                else if (n == "HashMap" && params.length == 2) {
+                    var all = true;
+                    for (p in params) if (!isDebugTypeDepth(p, depth, root, sealedCloneInterfaces, selfIfaceKey)) all = false;
+                    all;
+                } else if (n == "SortedMapTable" || n == "SortedSetTable" || n == "SortedMapTableBuilder" || n == "SortedSetTableBuilder" || n == "SortedMap" || n == "SortedSet" || n == "SortedMapBuilder" || n == "SortedSetBuilder") false
+                else if (cls.isInterface) sealedCloneInterfaces.exists(cls.module + "::" + cls.name) || (selfIfaceKey != null && selfIfaceKey == cls.module + "::" + cls.name)
+                else if (cls.meta.has(":dataClass")) dataClassFieldsAllDebug(cls, depth, root, sealedCloneInterfaces, selfIfaceKey)
+                else if (cls.module == "std" || cls.module.indexOf("haxe.") == 0) false
+                else false;
+            case TFun(_): false;
+            case TType(d, params): isDebugTypeDepth(haxe.macro.TypeTools.applyTypeParameters(d.get().type, d.get().params, params), depth, root, sealedCloneInterfaces, selfIfaceKey);
+            case TAnonymous(anon):
+                var all = true;
+                for (f in anon.get().fields) if (!isDebugTypeDepth(f.type, depth + 1, root, sealedCloneInterfaces, selfIfaceKey)) all = false;
+                all;
+            case TLazy(f): isDebugTypeDepth(f(), depth, root, sealedCloneInterfaces, selfIfaceKey);
+            case _: false;
+        };
+    }
+
+    static function dataClassFieldsAllDebug(cls:ClassType, depth:Int, root:Null<ClassType>, sealedCloneInterfaces:Map<String, Bool>, selfIfaceKey:Null<String>):Bool {
+        if (depth > 8) return false;
+        for (f in cls.fields.get()) {
+            switch (f.kind) {
+                case FMethod(_): continue;
+                case _:
+            }
+            if (!isDebugTypeDepth(f.type, depth + 1, root, sealedCloneInterfaces, selfIfaceKey)) return false;
+        }
         return true;
     }
 
