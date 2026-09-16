@@ -2607,7 +2607,7 @@ class RustExpr {
         adapted to the unsigned business domain, the resident string
         walk, or the per-structure generated comparator.
     **/
-    function sortedComparator(kType:Null<haxe.macro.Type.Type>, pos:haxe.macro.Expr.Position):String {
+    public function sortedComparator(kType:Null<haxe.macro.Type.Type>, pos:haxe.macro.Expr.Position):String {
         if (kType == null) {
             Context.error("sorted builder requires an explicit key type", pos);
         }
@@ -6812,10 +6812,22 @@ class RustExpr {
                         + ")";
                 }
                 if ((name == "indexOf" || name == "index_of") && isString(stripCast(subj)) && args.length >= 1) {
+                    // The find() needle must implement Pattern: a literal or
+                    // a borrowed &str parameter already renders as a str view,
+                    // while an owned String local borrows through as_str.
+                    final needle = if (isStringType(args[0].t)) {
+                        switch (stripWrap(args[0]).expr) {
+                            case TConst(TString(_)): expr(args[0]);
+                            case TLocal(v) if (isBorrowedParamLocal(v)): expr(args[0]);
+                            case _: "(" + expr(args[0]) + ").as_str()";
+                        };
+                    } else {
+                        expr(args[0]);
+                    };
                     return "match ("
                         + expr(subj)
                         + ").find(&"
-                        + expr(args[0])
+                        + needle
                         + ") { Some(v) => "
                         + RustConversions.narrowI32("v")
                         + ", None => -1 }";
