@@ -1928,6 +1928,25 @@ class RustDecl {
         return null;
     }
 
+    /** An empty sorted-map construction for a non-Option map field, or null
+        when the field is not a sorted map. A nullable sorted-map parameter
+        feeding a non-Option map field has no Default impl, so the absent
+        value is an empty map built with the field's key comparator. **/
+    function emptySortedMapFor(fieldType:Null<Type>):Null<String> {
+        if (fieldType == null)
+            return null;
+        final params = switch (Context.follow(fieldType)) {
+            case TInst(c, ps) if (c.get().name == "SortedMapTable" && ps.length == 2): ps;
+            case TInst(c, ps) if (c.get().name == "SortedMap" && ps.length == 2): ps;
+            case _: null;
+        };
+        if (params == null)
+            return null;
+        imports.requireType("runtime.SortedTable", "SortedTable");
+        return "SortedTable::sorted_table_map_builder::<" + types.of(params[0]) + ", " + types.of(params[1]) + ">("
+            + expr.sortedComparator(params[0], Context.currentPos()) + ").build()";
+    }
+
     function instanceFuncDecl(cls:ClassType, f:ClassFuncData, hasLifetime:Bool, isTraitImpl:Bool = false, interfaceModule:Null<String> = null, interfaceName:Null<String> = null):Array<String> {
         final isConstructor = f.field.name == "new";
         final snakeName = isConstructor ? "new" : RustImports.toSnakeCase(f.field.name);
@@ -2036,7 +2055,15 @@ class RustDecl {
                     final argTypeStr = types.of(a.type, false);
                     final fieldTypeStr = types.of(getFieldType(cls, a.name));
                     if (StringTools.startsWith(argTypeStr, "Option<") && !StringTools.startsWith(fieldTypeStr, "Option<")) {
-                        lines.push('            $sname: $sname.unwrap_or_default(),');
+                        // A nullable sorted-map parameter feeding a
+                        // non-Option map field has no Default impl; the
+                        // absent value is an empty map built with the
+                        // field's key comparator.
+                        final emptyMap = emptySortedMapFor(getFieldType(cls, a.name));
+                        if (emptyMap != null)
+                            lines.push('            $sname: $emptyMap,');
+                        else
+                            lines.push('            $sname: $sname.unwrap_or_default(),');
                     } else {
                         lines.push('            $sname,');
                     }
