@@ -8863,7 +8863,7 @@ class RustExpr {
 
     function scanReadsAfter(e:TypedExpr):Void {
         // A local copied into another local must clone when the source is
-        // read anywhere later in the function, not just in the same block:
+        // read anywhere later in the function and also inside other blocks:
         // a branch body may copy a local that a sibling statement after the
         // branch still reads (E0382 borrow-after-move). Collect every
         // `x = source` declaration, then check the whole function body for
