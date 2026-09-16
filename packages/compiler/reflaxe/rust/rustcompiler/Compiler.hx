@@ -935,6 +935,7 @@ class Compiler extends PluginCompiler<Compiler> {
                                             final payload = e.get();
                                             state.payloadEnumModules.set(payload.module, cls.module);
                                             state.payloadEnumOwners.set(payload.module, cls.name);
+                                            state.payloadEnumNames.set(payload.module, payload.name);
                                             state.exceptionPayloads.set(cls.module, payload.module);
                                         case _:
                                     }

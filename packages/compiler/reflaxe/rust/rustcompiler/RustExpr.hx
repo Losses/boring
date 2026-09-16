@@ -1475,7 +1475,7 @@ class RustExpr {
         if (enumModule == null) {
             return null;
         }
-        final name = enumModule.split(".").pop();
+        final name = state.payloadEnumNames.exists(enumModule) ? state.payloadEnumNames.get(enumModule) : enumModule.split(".").pop();
         final emitted = state.payloadEnumModules.get(enumModule);
         final emittedIn = emitted != null ? emitted : "std.UStringException";
         imports.requireType(emittedIn, name);
@@ -3963,7 +3963,7 @@ class RustExpr {
                 if (enumModule == null) {
                     return null;
                 }
-                final name = enumModule.substr(enumModule.lastIndexOf(".") + 1);
+                final name = state.payloadEnumNames.exists(enumModule) ? state.payloadEnumNames.get(enumModule) : enumModule.substr(enumModule.lastIndexOf(".") + 1);
                 return {name: name, module: enumModule};
             case _:
                 return null;

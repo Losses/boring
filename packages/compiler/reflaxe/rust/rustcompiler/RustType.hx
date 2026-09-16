@@ -144,7 +144,7 @@ class RustType {
                     cls.name;
                 } else if (RustDecl.isExceptionSubclass(cls) && state.exceptionPayloads.exists(cls.module)) {
                     final payloadModule = state.exceptionPayloads.get(cls.module);
-                    final payloadName = payloadModule.split(".").pop();
+                    final payloadName = state.payloadEnumNames.exists(payloadModule) ? state.payloadEnumNames.get(payloadModule) : payloadModule.split(".").pop();
                     final emittedIn = state.payloadEnumModules.exists(payloadModule) ? state.payloadEnumModules.get(payloadModule) : cls.module;
                     imports.requireType(emittedIn, payloadName);
                     payloadName;
