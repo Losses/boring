@@ -5577,14 +5577,23 @@ class RustExpr {
                 case _:
             }
         }
-        // Null<Float> lowers to Option<Float>. Haxe arithmetic uses the
-        // absent value's numeric zero, so extract that value before the
-        // operand reaches the operator. A narrowed operand already renders
-        // its scalar match binding and a collapsed local already materialized
-        // the inner scalar, so neither must unwrap again.
-        if (isNullType(e.t) && isFloatType(getNullInnerType(e.t))
+        // A nullable local proven non-null by an early-exit guard holds the
+        // inner value; arithmetic on it must unwrap the Option (the guard
+        // proved Some). Covers the proven-non-null arithmetic operand family.
+        if (isNullType(e.t) && switch (stripWrap(e).expr) {
+            case TLocal(v): provenNonNullVarIds.exists(v.id);
+            case _: false;
+        }) {
+            final inner = getNullInnerType(e.t);
+            rendered = isTypeCopy(inner) ? "*((" + rendered + ").as_ref().unwrap())" : "(" + rendered + ").as_ref().unwrap()";
+        } else if (isNullType(e.t) && isFloatType(getNullInnerType(e.t))
             && narrowedSubject(e) == null && !isNullableCollapsedLocal(e)
             && !isNonNullRenderedConditional(e)) {
+            // Null<Float> lowers to Option<Float>. Haxe arithmetic uses the
+            // absent value's numeric zero, so extract that value before the
+            // operand reaches the operator. A narrowed operand already renders
+            // its scalar match binding and a collapsed local already materialized
+            // the inner scalar, so neither must unwrap again.
             rendered += ".unwrap_or(0.0)";
         }
         switch (e.expr) {
