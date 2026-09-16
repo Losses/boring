@@ -279,8 +279,7 @@ class RustDecl {
         final isSortedTableResident = RustType.isContentEqSortedTable(cls);
         if ((StaticFieldHelper.hasSelfConstructionStatic(cls) || cls.meta.has(":dataClass") || classParams.length > 0 || isSortedTableResident)
             && (isAllClone(varFields, cls) || isSortedTableResident)) {
-            final dataClassDebug = cls.meta.has(":dataClass") ? "Debug, " : "";
-            lines.push(RustType.isPartialEqTypeFields(varFields) ? "#[derive(" + dataClassDebug + "Clone, PartialEq)]" : "#[derive(" + dataClassDebug + "Clone)]");
+            lines.push(RustType.isPartialEqTypeFields(varFields) ? "#[derive(Clone, PartialEq)]" : "#[derive(Clone)]");
         }
         if (cls.module.indexOf("registry.") == 0) {
             lines.push("#[derive(Debug, Clone, PartialEq)]");
