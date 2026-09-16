@@ -1008,6 +1008,15 @@ class RustExpr {
                 // Option<T> storage; later non-null assignments must wrap.
                 if (isTNull(init) && !isNullType(v.t))
                     noneInitializedLocals.set(v.id, true);
+                // A non-null declared type initialized to the null literal
+                // also keeps Option storage (var x:T = null lowers to
+                // Option<T>); its null comparisons and field reads must treat
+                // it as nullable. Covers the null-initialized-local family.
+                if (!isNullType(v.t) && switch (stripWrap(init).expr) {
+                    case TConst(TNull): true;
+                    case _: false;
+                })
+                    implicitNullableLocals.set(v.id, true);
                 // A proven-non-null local (early-exit guard) copied into a
                 // non-null declaration holds the inner value. The guard
                 // proved the source is Some; the declaration owns the unwrapped
@@ -2565,6 +2574,15 @@ class RustExpr {
         };
     }
 
+    /** Whether a SortedMap/SortedMapBuilder receiver's value type is Null-wrapped. */
+    function sortedMapValueTypeIsNullable(subj:TypedExpr):Bool {
+        final t = methodSubjectType(subj);
+        return switch (Context.follow(t)) {
+            case TInst(c, params) if (params.length > 1 && (c.get().name == "SortedMap" || c.get().name == "SortedMapBuilder")): isNullType(params[1]);
+            case _: false;
+        };
+    }
+
     /**
         Comparator a builder site binds: the resident integer walk
         adapted to the unsigned business domain, the resident string
@@ -2919,7 +2937,14 @@ class RustExpr {
         return switch (stripWrap(subject).expr) {
             case TLocal(v): subst.exists(v.id) ? subst.get(v.id) : RustImports.toSnakeCase(localName(v));
             case TField(receiver, FInstance(_, _, cf)) | TField(receiver, FAnon(cf)):
-                expr(receiver) + "." + RustImports.toSnakeCase(cf.get().name);
+                // A nullable receiver holds Option<T>; the field path must
+                // open it before the member read, or the path addresses the
+                // Option itself (E0609). A proven-non-null or wrapper-backed
+                // receiver unwraps through the same forcing read field() uses.
+                final recv = if (provenNonNullLocalSubject(receiver) != null) provenNonNullLocalSubject(receiver)
+                    else if (fieldReceiverCarriesFallibleWrapper(receiver)) expr(receiver) + ".as_ref().unwrap()"
+                    else expr(receiver);
+                recv + "." + RustImports.toSnakeCase(cf.get().name);
             case _: expr(subject);
         };
     }
@@ -4406,14 +4431,24 @@ class RustExpr {
         // renderer, and they never render as an Option wrapper, so exclude
         // them before the translation call. A field receiver can be an
         // inline anonymous structure whose macro type carries no Null<T>.
-        if (subj.t == null || isAnonymousStructType(subj.t))
+        // A Null-wrapped anonymous structure (Option<AnonStruct>) still
+        // needs the unwrap, so only the non-null form is excluded. An
+        // implicit-nullable local (declared non-null but initialized to
+        // null or from a nullable call) also keeps Option storage even
+        // though its macro type follows to an anonymous structure.
+        if (subj.t == null || (!isNullType(subj.t) && isAnonymousStructType(subj.t) && !isImplicitNullableLocal(subj)))
             return false;
         switch (Context.follow(subj.t)) {
             case TAnonymous(_): return false;
             case _:
         }
         final rustType = types.of(subj.t, false);
-        return StringTools.startsWith(rustType, "Option<") && !isNullableCollapsedLocal(subj);
+        if (StringTools.startsWith(rustType, "Option<") && !isNullableCollapsedLocal(subj))
+            return true;
+        // A non-null declared type initialized to null or from a nullable
+        // expression keeps Option storage at runtime even though its macro
+        // type is not Null<T>; its field reads must unwrap the wrapper.
+        return isImplicitNullableLocal(subj) && !isNullableCollapsedLocal(subj);
     }
     function nullableMethodReceiver(subj:TypedExpr, mutable:Bool):String {
         if (!isNullType(subj.t))
@@ -6776,7 +6811,16 @@ class RustExpr {
                     return ownedReceiver + ".build()";
                 }
                 if ((name == "get" || name == "has") && (isSortedTable(subj) || isSortedBuilder(subj))) {
-                    return nullableMethodReceiver(subj, false) + "." + name + "(" + sortedRefArg(args[0]) + ")";
+                    final receiver = nullableMethodReceiver(subj, false);
+                    final call = receiver + "." + name + "(" + sortedRefArg(args[0]) + ")";
+                    // SortedMap<K, Null<V>>.get returns Option<Option<V>> in
+                    // Rust (the resident get wraps the stored Option<V>),
+                    // but Haxe normalizes Null<Null<V>> to Null<V>, so the
+                    // double Option must flatten to one. Only a nullable
+                    // value type triggers the extra layer.
+                    if (name == "get" && sortedMapValueTypeIsNullable(subj))
+                        return call + ".flatten()";
+                    return call;
                 }
                 if (name == "size" && isSortedTable(subj)) {
                     // The resident counts in its signed Int domain; the business
