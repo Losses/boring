@@ -3354,7 +3354,24 @@ class RustExpr {
                 return newExpr(c, params, args);
             case TMeta(_, inner):
                 return expr(inner);
-            case TCast(inner, _):
+            case TCast(inner, target):
+                // A cast from a Box<dyn Trait> to a concrete implementor
+                // needs a downcast; the trait carries as_any for it. The
+                // cast is guarded by an isOfType check in the source, so the
+                // unwrap is safe.
+                final targetCls = switch (target) {
+                    case TClassDecl(ref): ref.get();
+                    case _: null;
+                };
+                if (targetCls != null && !targetCls.isInterface) {
+                    final innerType = Context.follow(inner.t);
+                    final fromIface = switch (innerType) {
+                        case TInst(ic, _): ic.get().isInterface;
+                        case _: false;
+                    };
+                    if (fromIface)
+                        return "(" + expr(inner) + ").as_any().downcast_ref::<" + targetCls.name + ">().unwrap()";
+                }
                 return expr(inner);
             case TEnumParameter(se, ef, index):
                 // A collapsed single-case switch reads the payload outside
@@ -4439,7 +4456,7 @@ class RustExpr {
         if (subj.t == null || (!isNullType(subj.t) && isAnonymousStructType(subj.t) && !isImplicitNullableLocal(subj)))
             return false;
         switch (Context.follow(subj.t)) {
-            case TAnonymous(_): return false;
+            case TAnonymous(_) if (!isNullType(subj.t)): return false;
             case _:
         }
         final rustType = types.of(subj.t, false);

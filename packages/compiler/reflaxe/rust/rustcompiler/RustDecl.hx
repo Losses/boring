@@ -93,6 +93,7 @@ class RustDecl {
             final isCloneIface = state.sealedCloneInterfaces.exists(cls.module + "::" + cls.name);
             lines.push("pub trait " + emittedName + " {");
             lines.push("    fn __haxe_type_name(&self) -> &'static str;");
+            lines.push("    fn as_any(&self) -> &dyn std::any::Any;");
             if (isCloneIface)
                 lines.push("    fn clone_box(&self) -> Box<dyn " + emittedName + ">;");
             for (f in funcFields) {
@@ -381,6 +382,9 @@ class RustDecl {
             lines.push("\nimpl" + implGenerics + " " + ifaceCls.name + " for " + cls.name + genericStr + " {");
             lines.push('    fn __haxe_type_name(&self) -> &\'static str {');
             lines.push('        "${cls.module}.${cls.name}"');
+            lines.push("    }");
+            lines.push('    fn as_any(&self) -> &dyn std::any::Any {');
+            lines.push("        self");
             lines.push("    }");
             var ifaceSep = false;
             if (ifaceCloneable) {
