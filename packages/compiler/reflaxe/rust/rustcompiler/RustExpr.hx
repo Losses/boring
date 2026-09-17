@@ -6321,7 +6321,14 @@ class RustExpr {
     }
 
     function staticGuard(cls:ClassType, name:String):String {
-        return staticItemPath(cls, name) + ".lock().unwrap_or_else(|e| e.into_inner())";
+        final path = staticItemPath(cls, name);
+        // A non-Send static (trait object, Rc-backed function value) is
+        // emitted as a thread-local RefCell, which borrows instead of
+        // locking. Covers the RefCell static guard family.
+        final field = staticFieldOf(cls, name);
+        if (field != null && RustDecl.isNonSendStaticType(types.of(field.type)))
+            return path + ".with(|c| c.borrow())";
+        return path + ".lock().unwrap_or_else(|e| e.into_inner())";
     }
 
     function staticGuardOf(e:TypedExpr):Null<String> {
@@ -6347,9 +6354,19 @@ class RustExpr {
     function staticAssignmentTarget(e:TypedExpr):Null<String> {
         return switch (stripWrap(e).expr) {
             case TField(_, FStatic(c, cf)) if (isGuardStaticField(c.get(), cf.get().name)):
-                "*" + staticGuard(c.get(), cf.get().name);
+                "*" + staticGuardMutable(c.get(), cf.get().name);
             case _: null;
         };
+    }
+
+    /** The mutable guard access for a static: borrow_mut for a RefCell
+        (non-Send) static, lock for a Mutex static. */
+    function staticGuardMutable(cls:ClassType, name:String):String {
+        final path = staticItemPath(cls, name);
+        final field = staticFieldOf(cls, name);
+        if (field != null && RustDecl.isNonSendStaticType(types.of(field.type)))
+            return path + ".with(|c| c.borrow_mut())";
+        return path + ".lock().unwrap_or_else(|e| e.into_inner())";
     }
 
     /** True when the expression reads any guard-static field anywhere. */
