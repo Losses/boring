@@ -2724,7 +2724,22 @@ class RustExpr {
     function sortedMapValueTypeIsNullable(subj:TypedExpr):Bool {
         final t = methodSubjectType(subj);
         return switch (Context.follow(t)) {
-            case TInst(c, params) if (params.length > 1 && (c.get().name == "SortedMap" || c.get().name == "SortedMapBuilder")): isNullType(params[1]);
+            case TInst(c, params) if (params.length > 1 && (c.get().name == "SortedMap" || c.get().name == "SortedMapBuilder")):
+                // Haxe erases Null for value types (Int, Float, Bool): a
+                // SortedMap<K, Null<Float>> stores plain Float and its get()
+                // returns Option<Float>, not Option<Option<Float>>, so the
+                // double-Option flatten must not apply. Only a Null-wrapped
+                // non-value type keeps the extra Option layer.
+                if (isNullType(params[1])) {
+                    switch (Context.follow(getNullInnerType(params[1]))) {
+                        case TAbstract(a, _):
+                            final n = a.get().name;
+                            n == "Int" || n == "Bool" || n == "Float" || n == "Int64" ? false : true;
+                        case _: true;
+                    };
+                } else {
+                    false;
+                };
             case _: false;
         };
     }
