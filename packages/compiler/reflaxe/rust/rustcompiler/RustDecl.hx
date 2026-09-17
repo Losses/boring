@@ -2084,6 +2084,11 @@ class RustDecl {
                             lines.push('            $sname: $emptyMap,');
                         else
                             lines.push('            $sname: $sname.unwrap_or_default(),');
+                    } else if (thisAsValue && !isTypeCopy(a.type)) {
+                        // The body runs after the struct literal, so a
+                        // non-Copy parameter the body still reads must not be
+                        // moved into the literal; clone it there instead.
+                        lines.push('            $sname: $sname.clone(),');
                     } else {
                         lines.push('            $sname,');
                     }
