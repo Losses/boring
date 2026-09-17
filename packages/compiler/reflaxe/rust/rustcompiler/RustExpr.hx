@@ -153,6 +153,10 @@ class RustExpr {
     // `map.get(key)` under the guard holds the inner value (the has guard
     // proved presence). Covers the has-guarded get local family.
     final hasGuardedGets:Array<{subj:String, key:String}> = [];
+    // Locals initialized from a has-guarded get ternary (`map.has(k) ?
+    // map.get(k) : value`); the initializer renders the inner value, so
+    // arithmetic operands must not re-apply the unwrap_or forcing read.
+    final hasGuardedTernaryLocals:Map<Int, Bool> = [];
     // Keep Option when Haxe code observes null separately from code point zero.
     final nullableSensitiveLocals:Map<Int, Bool> = [];
     // Locals initialized from Std.parseInt hold the i32 parse domain. The
@@ -588,6 +592,7 @@ class RustExpr {
         nonNullRenderedLocals.clear();
         implicitNullableLocals.clear();
         hasGuardedGets.resize(0);
+        hasGuardedTernaryLocals.clear();
         noneInitializedLocals.clear();
         nullableSensitiveLocals.clear();
         parseIntLocals.clear();
@@ -1176,6 +1181,13 @@ class RustExpr {
                         if (StringTools.startsWith(initStr, "Some(")
                             || (initStr.indexOf("match") >= 0 && initStr.indexOf("None => None") < 0))
                             nonNullRenderedLocals.set(v.id, true);
+                    case TIf(cond, _, _) if (hasGuardGetInfo(cond) != null):
+                        // A has-guarded get ternary initializer (`map.has(k) ?
+                        // map.get(k) : value`) renders the inner value (the
+                        // has guard proved presence), so the local holds the
+                        // plain value; arithmetic operands must not re-apply
+                        // the unwrap_or forcing read.
+                        hasGuardedTernaryLocals.set(v.id, true);
                     case TField(subj, FInstance(_, _, cf)) | TField(subj, FAnon(cf)):
                         switch (stripWrap(subj).expr) {
                             case TLocal(item) if ((borrowedLoopVarIds.exists(item.id) || readsAfterDeclaration.exists(item.id))
@@ -5730,7 +5742,11 @@ class RustExpr {
             rendered = isTypeCopy(inner) ? "*((" + rendered + ").as_ref().unwrap())" : "(" + rendered + ").as_ref().unwrap()";
         } else if (isNullType(e.t) && isFloatType(getNullInnerType(e.t))
             && narrowedSubject(e) == null && !isNullableCollapsedLocal(e)
-            && !isNonNullRenderedConditional(e)) {
+            && !isNonNullRenderedConditional(e)
+            && !(switch (stripWrap(e).expr) {
+                case TLocal(v): hasGuardedTernaryLocals.exists(v.id);
+                case _: false;
+            })) {
             // Null<Float> lowers to Option<Float>. Haxe arithmetic uses the
             // absent value's numeric zero, so extract that value before the
             // operand reaches the operator. A narrowed operand already renders
