@@ -62,7 +62,7 @@ class RustDecl {
             case TInst(c, [element]) if (c.get().name == "Array"):
                 imports.require("std::fmt::Write");
                 final index = "j" + depth;
-                '{ let mut out = String::new(); out.push(\'[\'); let mut ${index} = 0usize; while ${index} < ${value}.len() { if ${index} > 0 { out.push_str(", "); } let _ = write!(out, "{}", ${enumOperand(element, value + "[" + index + "]", depth + 1)}); ${index} += 1; } out.push(\']\'); out }';
+                '{\n            let mut out = String::new();\n            out.push(\'[\');\n            let mut ${index} = 0usize;\n            while ${index} < ${value}.len() {\n                if ${index} > 0 { out.push_str(", "); }\n                let _ = write!(out, "{}", ${enumOperand(element, value + "[" + index + "]", depth + 1)});\n                ${index} += 1;\n            }\n            out.push(\']\');\n            out\n        }';
             case TAbstract(a, params) if (a.get().module == "std.ReadOnlyArray"):
                 enumOperand(haxe.macro.TypeTools.applyTypeParameters(a.get().type, a.get().params, params), value, depth);
             case TAnonymous(anon):
@@ -72,7 +72,7 @@ class RustDecl {
                     for (f in fields)
                         enumOperand(f.type, value + "." + RustImports.toSnakeCase(f.name), depth)
                 ];
-                'format!("${formatString}", ${values.join(", ")})';
+                'format!("${formatString}",\n            ${values.join(",\n            ")}\n        )';
             case TAbstract(a, _) if (a.get().name == "Int" || a.get().name == "Float" || a.get().name == "Bool"):
                 "(" + value + ").to_string()";
             case TInst(c, _) if (c.get().name == "String"):

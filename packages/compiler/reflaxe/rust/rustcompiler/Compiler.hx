@@ -25,11 +25,47 @@ class Compiler extends PluginCompiler<Compiler> {
     final parts:Map<String, Array<String>> = [];
 
     /** Module path to emission context. */
+    /** Module path to emission context. */
     final contexts:Map<String, RustDecl> = [];
 
     final state:RustEmissionState;
 
     var current:Null<RustDecl> = null;
+
+    function saveTreeFile(path:String, content:String):Void {
+        PackageArtifacts.saveTreeFile(output, path, wrapGeneratedSource(content));
+    }
+
+    function wrapGeneratedSource(content:String):String {
+        final wrapped:Array<String> = [];
+        for (line in content.split("\n")) {
+            var rest = line;
+            while (rest.length > 280) {
+                var quote = false;
+                var escaped = false;
+                var cut = -1;
+                for (i in 0...rest.length) {
+                    final c = rest.charAt(i);
+                    if (quote) {
+                        if (escaped) escaped = false;
+                        else if (c == "\\") escaped = true;
+                        else if (c == '"') quote = false;
+                    } else if (c == '"') {
+                        quote = true;
+                    } else if (c == ',' || c == ' ') {
+                        if (i <= 280) cut = i;
+                    }
+                }
+                if (cut < 1)
+                    break;
+                wrapped.push(rest.substr(0, cut + (rest.charAt(cut) == ',' ? 1 : 0)));
+                rest = StringTools.ltrim(rest.substr(cut + 1));
+            }
+            wrapped.push(rest);
+        }
+        return wrapped.join("\n");
+    }
+
 
     public static function use() {
         final compiler = new Compiler();
@@ -246,7 +282,7 @@ class Compiler extends PluginCompiler<Compiler> {
             final imports = decl.renderImportsFiltered(body);
             final isTest = state.testModules.exists(module);
             final content = (isTest ? "#![cfg(test)]\n\n" : "") + imports + (imports.length > 0 ? "\n" : "") + body + "\n";
-            PackageArtifacts.saveTreeFile(output, modulePath(module), content);
+            saveTreeFile(modulePath(module), content);
 
             final pack = packageOf(module);
             if (!packages.exists(pack)) {
@@ -290,7 +326,7 @@ class Compiler extends PluginCompiler<Compiler> {
                 lines.push("pub use " + m + "::*;");
             }
             final modPath = pack.split(".").map(RustImports.toSnakeCase).join("/") + "/mod.rs";
-            PackageArtifacts.saveTreeFile(output, modPath, lines.join("\n") + "\n");
+            saveTreeFile(modPath, lines.join("\n") + "\n");
         }
 
         if (packages.exists("tests")) {
@@ -308,7 +344,7 @@ class Compiler extends PluginCompiler<Compiler> {
             for (m in modNames) {
                 lines.push("pub use " + m + "::*;");
             }
-            PackageArtifacts.saveTreeFile(output, "tests/mod.rs", lines.join("\n") + "\n");
+            saveTreeFile("tests/mod.rs", lines.join("\n") + "\n");
         }
 
         // Emit runtime shims
@@ -367,7 +403,7 @@ class Compiler extends PluginCompiler<Compiler> {
             // declaration by its qualified path, and re-exporting two
             // modules that share a function name (ustring and graphemes
             // both define count, at, slice) is an ambiguous re-export.
-            PackageArtifacts.saveTreeFile(output, RuntimeConfig.emitPath(emitDir, "mod.rs"), rtLines.join("\n") + "\n");
+            saveTreeFile(RuntimeConfig.emitPath(emitDir, "mod.rs"), rtLines.join("\n") + "\n");
         }
 
         // Generate root lib.rs
@@ -388,10 +424,10 @@ class Compiler extends PluginCompiler<Compiler> {
         for (p in rootPackages)
             if (p != "tests")
                 libLines.push("pub use " + p + "::*;");
-        PackageArtifacts.saveTreeFile(output, "lib.rs", libLines.join("\n") + "\n");
+        saveTreeFile("lib.rs", libLines.join("\n") + "\n");
 
         if (PackageShell.enabled()) {
-            PackageArtifacts.saveTreeFile(output, "Cargo.toml", packageManifest());
+            saveTreeFile("Cargo.toml", packageManifest());
         }
         if (PackageArtifacts.enabled()) {
             PackageArtifacts.requireShell();
@@ -675,7 +711,7 @@ class Compiler extends PluginCompiler<Compiler> {
                 case _:
             }
         }
-        PackageArtifacts.saveTreeFile(output, "tests/test_helper.rs", lines.join("\n") + "\n");
+        saveTreeFile("tests/test_helper.rs", lines.join("\n") + "\n");
     }
 
     function rustType(t:Type):String {
@@ -754,7 +790,7 @@ class Compiler extends PluginCompiler<Compiler> {
             return;
         }
         final path = RuntimeConfig.emitPath(dir, fileName);
-        PackageArtifacts.saveTreeFile(output, path, StringTools.trim(source) + "\n");
+        saveTreeFile(path, StringTools.trim(source) + "\n");
     }
 
     /**
@@ -797,7 +833,7 @@ class Compiler extends PluginCompiler<Compiler> {
             + StringTools.trim(RustRuntime.GRAPHEMES_ABI_SOURCE)
             + "\n" : "";
         final content = imports + (imports.length > 0 ? "\n" : "") + body + abiSource + "\n";
-        PackageArtifacts.saveTreeFile(output, RuntimeConfig.emitPath(dir, fileName), content);
+        saveTreeFile(RuntimeConfig.emitPath(dir, fileName), content);
     }
 
     // ------------------------------------------------------------------
