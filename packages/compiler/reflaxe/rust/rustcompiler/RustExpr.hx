@@ -1052,7 +1052,7 @@ class RustExpr {
                 }
                 // A nullable-typed local copied from a nullable field/local
                 // that an enclosing guard narrowed holds the inner value
-                // (the match binding), not the Option. The local keeps its
+                // (the match binding), with the Option wrapper removed. The local keeps its
                 // Null<T> Haxe type but its Rust value is the plain struct;
                 // mark it collapsed so later field reads do not apply the
                 // as_ref forcing read (E0599 on a plain struct).
@@ -3106,7 +3106,7 @@ class RustExpr {
                 // open it before the member read, or the path addresses the
                 // Option itself (E0609). A narrowed receiver already binds
                 // the inner value (the match binding), so the path uses the
-                // binding directly — matching the field() read path. A
+                // binding directly, matching the field() read path. A
                 // proven-non-null or wrapper-backed receiver unwraps through
                 // the same forcing read field() uses.
                 final recv = if (narrowedSubject(receiver) != null) narrowedSubject(receiver)
@@ -6390,8 +6390,8 @@ class RustExpr {
     function staticGuard(cls:ClassType, name:String):String {
         final path = staticItemPath(cls, name);
         // A non-Send static (trait object, Rc-backed function value) is
-        // emitted as a thread-local RefCell, which borrows instead of
-        // locking. Covers the RefCell static guard family.
+        // emitted as a thread-local RefCell, which borrows the inner value
+        // without acquiring a lock. Covers the RefCell static guard family.
         final field = staticFieldOf(cls, name);
         if (field != null && RustDecl.isNonSendStaticType(types.of(field.type)))
             return path + ".with(|c| c.borrow())";
@@ -6565,8 +6565,8 @@ class RustExpr {
         final lazyRead = lazyStaticRead(cls, name);
         if (lazyRead != null)
             return lazyRead;
-        // Key the shim/standard routing on the module, not the name-derived
-        // path: an @:native extern (std.Functional -> "__functional_shim")
+        // Key the shim/standard routing on the module; the name-derived
+        // path is not used: an @:native extern (std.Functional -> "__functional_shim")
         // overrides cls.name while cls.module keeps the declared module, so
         // a name-derived path would miss the std.Functional arm and fall to
         // the generic shim import under the native name.
@@ -6847,7 +6847,7 @@ class RustExpr {
                 EnumQueryExpander.requireNameRead(en);
                 // A narrowed enum read renders as a deref of the match
                 // binding (*__option); appending .name() binds the method
-                // to the reference and the deref lands on the returned
+                // to the reference and the deref applies to the returned
                 // &str. Parenthesize the deref so .name() reaches the
                 // enum value (E0308 expected String, found str).
                 (StringTools.startsWith(value, "*") ? "(" + value + ")" : value) + ".name()" + (inConcat ? "" : ".to_string()");
