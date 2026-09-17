@@ -5072,7 +5072,9 @@ class RustExpr {
                 final staticTarget = staticAssignmentTarget(l);
                 if (staticTarget != null) {
                     final staticValue = if (StaticFieldHelper.isNullableType(l.t)) {
-                        isTNull(r) ? "None" : "Some(" + staticOwnedValue(r) + ")";
+                        isTNull(r) ? "None" : (isInterfaceType(getNullInnerType(l.t)) && (isConcreteConstructor(r) || !isInterfaceType(r.t))
+                            ? "Some(" + ownedNullInterfaceAssignValue(r) + ")"
+                            : "Some(" + staticOwnedValue(r) + ")");
                     } else if (StaticFieldHelper.isStringType(l.t)) {
                         staticOwnedValue(r);
                     } else {
