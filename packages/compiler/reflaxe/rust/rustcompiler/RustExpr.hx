@@ -5343,7 +5343,7 @@ class RustExpr {
                 final parts:Array<TypedExpr> = [];
                 collectStringConcatOperands(e, parts);
                 final slots = [for (_ in parts) "{}"];
-                return "format!(\"" + slots.join("") + "\", " + [for (part in parts) stringConcatOperand(part)].join(", ") + ")";
+                return "format!(\"" + slots.join("") + "\",\n            " + [for (part in parts) stringConcatOperand(part)].join(",\n            ") + "\n        )";
             case OpDiv if (StringTools.endsWith(operand(l, op, false), ".len()")):
                 // A length divided by a Haxe-Int divisor: the divisor widens to
                 // usize (T3, never truncates), the quotient is the target u32,
@@ -6918,18 +6918,18 @@ class RustExpr {
                 imports.require("std::fmt::Write");
                 final index = depth == 0 ? "i" : "i" + depth;
                 final item = stdStringType(element, value + "[" + index + "]", true, origin, depth + 1);
-                '{ let mut out = String::new(); out.push(\'[\'); let n = ${value}.len(); let mut ${index} = 0usize; while ${index} < n { if ${index} > 0 { out.push_str(", "); } let _ = write!(out, "{}", ${item}); ${index} += 1; } out.push(\']\'); out }';
+                '{\n        let mut out = String::new();\n        out.push(\'[\');\n        let n = ${value}.len();\n        let mut ${index} = 0usize;\n        while ${index} < n {\n            if ${index} > 0 { out.push_str(", "); }\n            let _ = write!(out, "{}", ${item});\n            ${index} += 1;\n        }\n        out.push(\']\');\n        out\n    }';
             case IsSortedSet(element):
                 imports.require("std::fmt::Write");
                 final index = depth == 0 ? "i" : "i" + depth;
                 final item = stdStringType(element, value + ".at(" + index + ")", true, origin, depth + 1);
-                '{ let mut out = String::new(); out.push(\'[\'); let n = ${value}.size(); let mut ${index} = 0; while ${index} < n { if ${index} > 0 { out.push_str(", "); } let _ = write!(out, "{}", ${item}); ${index} += 1; } out.push(\']\'); out }';
+                '{\n        let mut out = String::new();\n        out.push(\'[\');\n        let n = ${value}.size();\n        let mut ${index} = 0;\n        while ${index} < n {\n            if ${index} > 0 { out.push_str(", "); }\n            let _ = write!(out, "{}", ${item});\n            ${index} += 1;\n        }\n        out.push(\']\');\n        out\n    }';
             case IsSortedMap(key, val):
                 imports.require("std::fmt::Write");
                 final index = depth == 0 ? "i" : "i" + depth;
                 final itemKey = stdStringType(key, value + ".key_at(" + index + ")", true, origin, depth + 1);
                 final itemVal = stdStringType(val, value + ".value_at(" + index + ")", true, origin, depth + 1);
-                '{ let mut out = String::new(); out.push(\'{\'); let n = ${value}.size(); let mut ${index} = 0; while ${index} < n { if ${index} > 0 { out.push_str(", "); } let _ = write!(out, "{}={}", ${itemKey}, ${itemVal}); ${index} += 1; } out.push(\'}\'); out }';
+                '{\n        let mut out = String::new();\n        out.push(\'{\');\n        let n = ${value}.size();\n        let mut ${index} = 0;\n        while ${index} < n {\n            if ${index} > 0 { out.push_str(", "); }\n            let _ = write!(out, "{}={}", ${itemKey}, ${itemVal});\n            ${index} += 1;\n        }\n        out.push(\'}\');\n        out\n    }';
             case IsTypeParameter:
                 state.memberPrintsTypeParam = true;
                 "format!(\"{:?}\", " + value + ")";
@@ -9597,12 +9597,11 @@ class RustExpr {
     function renderArrayLiteral(elements:Array<String>, vec:Bool):String {
         final prefix = vec ? "vec![" : "[";
         final suffix = "]";
-        // Data tables are deliberately large (DataTableHelper's threshold is
-        // shared with their recognition), so emit one deterministic element
-        // per line instead of constructing another giant source line.
-        if (elements.length > DataTableHelper.THRESHOLD)
-            return prefix + "\n    " + elements.join(",\n    ") + ",\n" + suffix;
-        return prefix + elements.join(", ") + suffix;
+        if (elements.length == 0 || (elements.length == 1 && elements[0] == ""))
+            return prefix + suffix;
+        // Emit one deterministic element per line. Besides keeping large data
+        // tables readable, this bounds every generated array literal line.
+        return prefix + "\n    " + elements.join(",\n    ") + ",\n" + suffix;
     }
 
     function renderArrayLiteralExpr(elements:Array<TypedExpr>, vec:Bool):String {
@@ -9789,7 +9788,7 @@ class RustExpr {
             final elem = byteSource ? "(" + bufStr + "[" + idx + "])" : RustConversions.truncate(bufStr + "[" + idx + "]", "u8");
             elems.push("(" + elem + ")");
         }
-        return typeName + "::from_be_bytes([" + elems.join(", ") + "])";
+        return typeName + "::from_be_bytes([\n    " + elems.join(",\n    ") + "\n])";
     }
 
     function isStringIndexOf(fn:TypedExpr):Bool {
