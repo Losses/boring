@@ -4739,6 +4739,12 @@ class RustExpr {
     // holds the inner value, so the as_ref forcing read must not re-apply.
     // Covers the collapsed-parameter receiver family.
     function receiverCarriesFallibleWrapper(subj:TypedExpr):Bool {
+        // A null-guarded ternary whose arms are both non-null renders a
+        // plain value (guardedMatchExpression materializes the inner
+        // struct), never an Option; the as_ref forcing read would ask the
+        // plain struct for AsRef (E0599).
+        if (isNonNullRenderedConditional(subj))
+            return false;
         // Nullable container indexing can arrive through a typed field or an
         // abstracted receiver whose macro type is no longer Null<T>, while
         // its emitted Rust type remains Option<Vec<_>>. Use the emitted type
