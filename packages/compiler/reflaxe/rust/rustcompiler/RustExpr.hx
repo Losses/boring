@@ -1152,6 +1152,12 @@ class RustExpr {
                 var nullableType = explicitType;
                 if (explicitNullableNone && explicitType == "")
                     nullableType = ": " + types.of(v.t, false);
+                // A non-null Haxe local initialized to the null literal
+                // keeps Option<T> storage (noneInitializedLocals); the
+                // declaration must name that storage or later Some(...)
+                // assignments leave the inner type unconstrained (E0282).
+                if (nullableType == "" && isTNull(init) && !isNullType(v.t))
+                    nullableType = ": Option<" + types.of(v.t, false) + ">";
                 initStr = renderValueForType(v.t, init, initStr);
                 switch (stripWrap(init).expr) {
                     case TIf(cond, _, _) if (nullGuardOf(cond) != null):
