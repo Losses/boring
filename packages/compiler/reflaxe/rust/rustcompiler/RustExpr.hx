@@ -3111,8 +3111,17 @@ class RustExpr {
         unwraps with .unwrap_or(false) because null is falsy in Haxe.
     **/
     function nullableBoolOperand(e:TypedExpr, text:String):String {
-        if (isNullType(e.t) && isBoolType(getNullInnerType(e.t)))
+        if (isNullType(e.t) && isBoolType(getNullInnerType(e.t))) {
+            // A nullable-collapsed local holds the inner bool (its
+            // null-coalescing initializer materialized the value), so the
+            // unwrap_or(false) forcing read must not re-apply.
+            if (switch (stripWrap(e).expr) {
+                case TLocal(v): nullableCollapsedLocals.exists(v.id);
+                case _: false;
+            })
+                return text;
             return text + ".unwrap_or(false)";
+        }
         return text;
     }
 
