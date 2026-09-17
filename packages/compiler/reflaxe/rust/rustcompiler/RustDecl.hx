@@ -2270,7 +2270,7 @@ class RustDecl {
     function hasInstanceField(cls:ClassType, name:String):Bool {
         for (field in cls.fields.get()) {
             switch (field.kind) {
-                case FVar(_, _) if (field.name == name):
+                case FVar(_, _) if (field.name == name && !isGetterOnlyProperty(field)):
                     return true;
                 case _:
             }
