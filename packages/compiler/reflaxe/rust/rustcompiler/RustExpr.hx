@@ -8020,7 +8020,37 @@ class RustExpr {
 
     function functionValueLiteral(f:TFunc, functionType:Null<Type>):String {
         imports.require("std::sync::Arc");
-        return "Arc::new(" + functionLiteral(f, functionType) + ")";
+        final captures = closureOwnedCaptures(f);
+        if (captures.length == 0)
+            return "Arc::new(" + functionLiteral(f, functionType) + ")";
+        final copies = [for (v in captures) "let " + RustImports.toSnakeCase(localName(v)) + " = (" + RustImports.toSnakeCase(localName(v)) + ").clone();"];
+        return "{ " + copies.join(" ") + " Arc::new(" + functionLiteral(f, functionType) + ") }";
+    }
+
+    /** Clone reusable non-Copy locals at a closure boundary before move capture. */
+    function closureOwnedCaptures(f:TFunc):Array<TVar> {
+        final bound:Map<Int, Bool> = [];
+        final captures:Array<TVar> = [];
+        for (arg in f.args)
+            bound.set(arg.v.id, true);
+        function walk(e:TypedExpr):Void {
+            switch (e.expr) {
+                case TVar(v, init):
+                    if (init != null)
+                        walk(init);
+                    bound.set(v.id, true);
+                    return;
+                case TLocal(v):
+                    if (!bound.exists(v.id) && !isTypeCopy(v.t) && !Lambda.exists(captures, c -> c.id == v.id))
+                        captures.push(v);
+                case TFunction(_):
+                    return;
+                case _:
+            }
+            haxe.macro.TypedExprTools.iter(e, walk);
+        }
+        walk(f.expr);
+        return captures;
     }
 
     function functionLiteralNamed(name:String, f:TFunc, functionType:Null<Type>):String {
