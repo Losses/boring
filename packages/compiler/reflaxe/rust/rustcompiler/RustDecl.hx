@@ -1525,7 +1525,7 @@ class RustDecl {
             out;
         }] : methodParams;
         final methodGenericStr = finalMethodParams.length > 0 ? "<" + finalMethodParams.join(", ") + ">" : "";
-        final head = '    ${vis}fn ${snakeName}${methodGenericStr}($allArgs)$ret {';
+        final head = '    ${effectiveVis}fn ${snakeName}${methodGenericStr}($allArgs)$ret {';
         return [head].concat(body.map(l -> "    " + l)).concat(["    }"]);
     }
 
