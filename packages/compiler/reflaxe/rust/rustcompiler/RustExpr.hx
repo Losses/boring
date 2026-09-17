@@ -1044,8 +1044,8 @@ class RustExpr {
                 final name = RustImports.toSnakeCase(localName(v));
                 // A Null<T> declared local keeps Option storage at runtime
                 // even when a guard narrows a later read's Haxe type to T;
-                // record it so &str/&T slots unwrap the wrapper instead of
-                // calling the method on Option (E0599).
+                // record it so &str/&T slots unwrap the wrapper before the
+                // method call; calling on Option would fail (E0599).
                 if (isNullType(v.t))
                     declaredNullableLocals.set(v.id, true);
                 final explicitType = if (isFunctionType(v.t)) {
@@ -1217,7 +1217,8 @@ class RustExpr {
                         // Covers the null-coalescing ternary initializer family.
                         // A null-arm ternary (`x == null ? null : value`)
                         // keeps the Option shape (the None arm stays None),
-                        // so only the non-null-arm form collapses.
+                        // so only the non-null-arm form narrows to the inner
+                        // value.
                         if (StringTools.startsWith(initStr, "Some(")
                             || (initStr.indexOf("match") >= 0 && initStr.indexOf("None => None") < 0)) {
                             nullableCollapsedLocals.set(v.id, true);
