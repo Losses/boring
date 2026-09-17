@@ -157,6 +157,7 @@ class RustExpr {
     // map.get(k) : value`); the initializer renders the inner value, so
     // arithmetic operands must not re-apply the unwrap_or forcing read.
     final hasGuardedTernaryLocals:Map<Int, Bool> = [];
+    final declaredNullableLocals:Map<Int, Bool> = [];
     // Keep Option when Haxe code observes null separately from code point zero.
     final nullableSensitiveLocals:Map<Int, Bool> = [];
     // Locals initialized from Std.parseInt hold the i32 parse domain. The
@@ -625,6 +626,7 @@ class RustExpr {
         implicitNullableLocals.clear();
         hasGuardedGets.resize(0);
         hasGuardedTernaryLocals.clear();
+        declaredNullableLocals.clear();
         noneInitializedLocals.clear();
         nullableSensitiveLocals.clear();
         parseIntLocals.clear();
@@ -1035,6 +1037,12 @@ class RustExpr {
             case TVar(v, init) if (init != null):
                 final kw = mutated.exists(v.id) || tryCapturedAssignments.exists(v.id) ? "let mut" : "let";
                 final name = RustImports.toSnakeCase(localName(v));
+                // A Null<T> declared local keeps Option storage at runtime
+                // even when a guard narrows a later read's Haxe type to T;
+                // record it so &str/&T slots unwrap the wrapper instead of
+                // calling the method on Option (E0599).
+                if (isNullType(v.t))
+                    declaredNullableLocals.set(v.id, true);
                 final explicitType = if (isFunctionType(v.t)) {
                     final isStaticRef = switch (stripWrap(init).expr) {
                         case TField(_, FStatic(_, _)): true;
@@ -1202,17 +1210,14 @@ class RustExpr {
                         // the inner value into the local, so later reads of
                         // the local must not re-apply the as_ref forcing read.
                         // Covers the null-coalescing ternary initializer family.
-                        nullableCollapsedLocals.set(v.id, true);
-                        // A local narrows to a plain value only when its
-                        // rendered initializer is a guarded match whose None
-                        // arm is a non-null value (guardedMatchExpression
-                        // wraps the whole match in Some when both arms render
-                        // non-null). A null arm keeps the local an Option, so
-                        // an Option parameter must not re-wrap it. The rendered
-                        // initStr decides whether the narrowing applies.
+                        // A null-arm ternary (`x == null ? null : value`)
+                        // keeps the Option shape (the None arm stays None),
+                        // so only the non-null-arm form collapses.
                         if (StringTools.startsWith(initStr, "Some(")
-                            || (initStr.indexOf("match") >= 0 && initStr.indexOf("None => None") < 0))
+                            || (initStr.indexOf("match") >= 0 && initStr.indexOf("None => None") < 0)) {
+                            nullableCollapsedLocals.set(v.id, true);
                             nonNullRenderedLocals.set(v.id, true);
+                        }
                     case TIf(cond, _, _) if (hasGuardGetInfo(cond) != null):
                         // A has-guarded get ternary initializer (`map.has(k) ?
                         // map.get(k) : value`) renders the inner value (the
@@ -1734,10 +1739,21 @@ class RustExpr {
         slot unwraps its Option view to the empty string, the same mapping
         the null-to-zero bridge gives a nullable scalar. A null guard or
         null-coalescing local already bound the inner value, so its read
-        stays a str view.
+        stays a str view. A guard-narrowed declared-nullable local keeps
+        Option storage (the guard only narrowed the Haxe type), so it still
+        unwraps at the &str boundary.
     **/
     function nullableStringViewArg(arg:TypedExpr):Bool {
-        return isNullType(arg.t) && narrowedSubject(arg) == null && !isNullableCollapsedLocal(arg);
+        if (isNullType(arg.t) && narrowedSubject(arg) == null && !isNullableCollapsedLocal(arg))
+            return true;
+        // A `x != null && f(x)` guard narrows the call-site type of a
+        // Null<String> local to String, but the local's Rust storage is
+        // still Option<String>; the &str slot must unwrap the wrapper
+        // (E0599 as_str on Option).
+        return switch (stripWrap(arg).expr) {
+            case TLocal(v): declaredNullableLocals.exists(v.id) && narrowedSubject(arg) == null && !isNullableCollapsedLocal(arg);
+            case _: false;
+        };
     }
 
     function stringConcatOperand(value:TypedExpr):String {
