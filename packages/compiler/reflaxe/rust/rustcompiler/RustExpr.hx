@@ -5235,9 +5235,16 @@ class RustExpr {
                     return assignTarget(l) + " " + symbolOf(inner) + "= " + intToFloatText(expr(r));
                 // A Null<Float> right operand lowers to Option<Float>; Haxe
                 // compound arithmetic uses the absent value's numeric zero,
-                // so extract it before the op-assign reaches the target.
+                // so extract it before the op-assign reaches the target. A
+                // has-guarded get ternary local already materialized the
+                // inner value at its declaration, so the forcing read must
+                // not re-apply (E0599 unwrap_or on the plain f64).
                 if (isFloatType(l.t) && isNullType(r.t) && isFloatType(getNullInnerType(r.t))
-                    && narrowedSubject(r) == null && !isNullableCollapsedLocal(r))
+                    && narrowedSubject(r) == null && !isNullableCollapsedLocal(r)
+                    && !(switch (stripWrap(r).expr) {
+                        case TLocal(v): hasGuardedTernaryLocals.exists(v.id);
+                        case _: false;
+                    }))
                     return assignTarget(l) + " " + symbolOf(inner) + "= " + expr(r) + ".unwrap_or(0.0)";
                 return assignTarget(l) + " " + symbolOf(inner) + "= " + expr(r);
             case OpAdd if (isStringType(l.t) || isStringType(r.t)):
