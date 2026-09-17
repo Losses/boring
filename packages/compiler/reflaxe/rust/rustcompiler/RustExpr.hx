@@ -243,6 +243,13 @@ class RustExpr {
     var currentMethodName:Null<String> = null;
     var currentClass:Null<ClassType> = null;
     var currentLocalName:Null<String> = null;
+    /**
+        The Rust binding that `this` lowers to in the current function body.
+        Ordinary methods use `self`; a constructor that uses `this` as a value
+        binds a mutable local (a fresh name, since `self` is a keyword and
+        cannot be shadowed) and returns it.
+    **/
+    var thisBindingName:String = "self";
 
     function coalescingSiteFor(e:TypedExpr):Null<{parameter:String, defaultExpr:TypedExpr, valueExpr:TypedExpr}> {
         if (currentClass == null || currentMethodName == null)
@@ -675,7 +682,7 @@ class RustExpr {
         renders before the literal, so constructor validation survives on
         this target.
     **/
-    public function constructorBody(cls:ClassType, f:ClassFuncData):{statementLines:Array<String>, fieldInits:Map<String, String>} {
+    public function constructorBody(cls:ClassType, f:ClassFuncData):{statementLines:Array<String>, fieldInits:Map<String, String>, thisAsValue:Bool, thisBindingName:String} {
         if (f.expr == null) {
             Context.error("constructor has no body to lower", f.field.pos);
         }
@@ -883,12 +890,35 @@ class RustExpr {
         }
         for (stmt in stmts)
             bindThisFieldReads(stmt);
+        // A constructor body that uses `this` as a value (an instance-method
+        // receiver or a bare assignment target) has no `self` in the static
+        // `new()` function. The caller then emits a mutable local (a fresh
+        // name, since `self` is a keyword and cannot be shadowed), runs the
+        // body against it, and returns it.
+        var thisAsValue = false;
+        function scanThisValue(node:TypedExpr):Void {
+            if (node == null || thisAsValue)
+                return;
+            // bindThisFieldReads already rewrote every `this.field` FVar
+            // read to a local or parameter. Any `TThis` that survives is a
+            // method receiver or a bare value, both of which need the local.
+            if (node.expr.match(TConst(TThis)))
+                thisAsValue = true;
+            else
+                TypedExprTools.iter(node, child -> scanThisValue(child));
+        }
+        for (stmt in stmts)
+            scanThisValue(stmt);
+        final bindingName = thisAsValue ? freshRegionName("__self") : "self";
+        final previousThisBinding = thisBindingName;
+        thisBindingName = bindingName;
         // tailScope stays off: the constructor's tail is the Ok(Self { ... })
         // literal assembled by the caller, so blockLines must not append the
         // fallible void closer `Ok(())` after the validation statements.
         final lines = stmts.length > 0 ? blockLines(stmts, 1, false) : [];
         final normalized = coalescingNormalizationLines(f.expr, 1, [for (a in f.args) a.name]);
-        return {statementLines: normalized.concat(fallbackBindings).concat(lines), fieldInits: fieldInits};
+        thisBindingName = previousThisBinding;
+        return {statementLines: normalized.concat(fallbackBindings).concat(lines), fieldInits: fieldInits, thisAsValue: thisAsValue, thisBindingName: bindingName};
     }
 
     function coalescingNormalizationLines(root:TypedExpr, depth:Int, parameterOrder:Null<Array<String>> = null):Array<String> {
@@ -3492,7 +3522,7 @@ class RustExpr {
                     case TString(s): return quoteString(s);
                     case TBool(b): return b ? "true" : "false";
                     case TNull: return "None";
-                    case TThis: return "self";
+                    case TThis: return thisBindingName;
                     case TSuper: return "super";
                     case _: return fail(e, "constant has no Rust lowering");
                 }

@@ -2003,15 +2003,26 @@ class RustDecl {
             final head = '    pub ${constCtor ? "const " : ""}fn new($args)$ret {';
             final parts = expr.constructorBody(cls, f);
             final lines = [head];
-            for (l in parts.statementLines) {
-                lines.push("    " + l);
+            // A constructor that uses `this` as a value (instance-method
+            // receiver or bare assignment target) has no `self` in the
+            // static `new()`. Build the struct into a mutable local (a fresh
+            // name, since `self` is a keyword and cannot be shadowed), run
+            // the body against it, and return it.
+            final thisAsValue = parts.thisAsValue && !ctorFallible;
+            final selfName = thisAsValue ? parts.thisBindingName : "self";
+            if (thisAsValue) {
+                lines.push("        let mut " + selfName + " = Self {");
+            } else {
+                for (l in parts.statementLines) {
+                    lines.push("    " + l);
+                }
+                lines.push("        " + (ctorFallible ? "Ok(Self {" : "Self {"));
             }
-            lines.push("        " + (ctorFallible ? "Ok(Self {" : "Self {"));
             for (a in f.args) {
                 if (!hasInstanceField(cls, a.name))
                     continue;
                 final sname = RustImports.toSnakeCase(a.name);
-                if (parts.fieldInits.exists(a.name)) {
+                if (parts.fieldInits.exists(a.name) && !thisAsValue) {
                     final fieldType = getFieldOptType(cls, a.name);
                     final value = parts.fieldInits.get(a.name);
                     if (fieldType != null && StringTools.startsWith(fieldType, "Option<")
@@ -2087,6 +2098,15 @@ class RustDecl {
                     case FVar(_, _):
                         if (field.name != "new" && !hasArg(f.args, field.name) && !isGetterOnlyProperty(field)) {
                             final sname = RustImports.toSnakeCase(field.name);
+                            if (thisAsValue) {
+                                // The body-computed field initializer runs
+                                // after the body, against the self local; the
+                                // literal slot starts from Default (or an
+                                // empty sorted map, which has no Default).
+                                final emptyMap = emptySortedMapFor(field.type);
+                                lines.push('            $sname: ' + (emptyMap != null ? emptyMap : "Default::default()") + ',');
+                                continue;
+                            }
                             final init = parts.fieldInits.exists(field.name) ? parts.fieldInits.get(field.name) : switch (field.type) {
                                 case TAbstract(a, _) if (a.get().name == "Int"): "0";
                                 case TInst(c, _) if (c.get().name == "BytesBuffer"): "BytesBuffer::new()";
@@ -2105,7 +2125,27 @@ class RustDecl {
                     case _:
                 }
             }
-            lines.push("        " + (ctorFallible ? "})" : "}"));
+            if (thisAsValue) {
+                lines.push("        };");
+                for (l in parts.statementLines) {
+                    lines.push("    " + l);
+                }
+                // Body-computed field initializers run after the body,
+                // against the self local (both param-named and non-param).
+                for (field in cls.fields.get()) {
+                    switch (field.kind) {
+                        case FVar(_, _):
+                            if (parts.fieldInits.exists(field.name)) {
+                                final sname = RustImports.toSnakeCase(field.name);
+                                lines.push('            ' + selfName + '.$sname = ' + parts.fieldInits.get(field.name) + ';');
+                            }
+                        case _:
+                    }
+                }
+                lines.push("        return " + selfName + ";");
+            } else {
+                lines.push("        " + (ctorFallible ? "})" : "}"));
+            }
             lines.push("    }");
             return lines;
         }
