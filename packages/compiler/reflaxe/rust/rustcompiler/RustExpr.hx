@@ -229,7 +229,7 @@ class RustExpr {
 
     public function rawArrayLiteral(e:TypedExpr):String {
         return switch (stripWrap(e).expr) {
-            case TArrayDecl(elements): "[" + [for (x in elements) expr(x)].join(", ") + "]";
+            case TArrayDecl(elements): renderArrayLiteralExpr(elements, false);
             case _: rawExpression(e);
         };
     }
@@ -3725,7 +3725,7 @@ class RustExpr {
                         }
                     }
                 ];
-                return "vec![" + rendered.join(", ") + "]";
+                return renderArrayLiteral(rendered, true);
             case TCall(fn, args):
                 return call(fn, args);
             case TNew(c, params, args):
@@ -9602,17 +9602,45 @@ class RustExpr {
     }
 
     function quoteString(s:String):String {
-        final esc = s.split("\\")
+        // Keep each source newline escape at the end of its own literal.
+        // Rust accepts adjacent string literals, so this bounds generated JSON
+        // evidence lines without changing the resulting string bytes.
+        final parts = s.split("\n");
+        if (parts.length == 1)
+            return '"' + escapedPart(parts[0]) + '"';
+        final literals = [for (i in 0...parts.length) {
+            final suffix = i < parts.length - 1 ? "\\n" : "";
+            '"' + escapedPart(parts[i]) + suffix + '"';
+        }];
+        // Rust does not implicitly concatenate adjacent literals. concat! keeps
+        // the generated source split while remaining a single &'static str.
+        return "concat!(" + literals.join(",\n") + ")";
+    }
+
+    function escapedPart(s:String):String {
+        return s.split("\\")
             .join("\\\\")
             .split("\"")
             .join("\\\"")
-            .split("\n")
-            .join("\\n")
             .split("\r")
             .join("\\r")
             .split("\t")
             .join("\\t");
-        return '"' + esc + '"';
+    }
+
+    function renderArrayLiteral(elements:Array<String>, vec:Bool):String {
+        final prefix = vec ? "vec![" : "[";
+        final suffix = "]";
+        // Data tables are deliberately large (DataTableHelper's threshold is
+        // shared with their recognition), so emit one deterministic element
+        // per line instead of constructing another giant source line.
+        if (elements.length > DataTableHelper.THRESHOLD)
+            return prefix + "\n    " + elements.join(",\n    ") + ",\n" + suffix;
+        return prefix + elements.join(", ") + suffix;
+    }
+
+    function renderArrayLiteralExpr(elements:Array<TypedExpr>, vec:Bool):String {
+        return renderArrayLiteral([for (x in elements) expr(x)], vec);
     }
 
     function indent(depth:Int):String {
