@@ -1306,7 +1306,7 @@ class RustDecl {
         return false;
     }
 
-    function isNonSendStaticType(typeStr:String):Bool {
+    public static function isNonSendStaticType(typeStr:String):Bool {
         // Trait objects and Rc-backed function values are not Sync-safe in a
         // process-wide Rust static. Keep this conservative until a stronger
         // ownership proof is available.
