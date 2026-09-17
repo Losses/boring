@@ -327,6 +327,23 @@ class RustExpr {
                     targetType, false, nested, inClosure) + ").len()") : coalescingDefaultText(receiver, targetType, false, nested, inClosure) + "."
                     + RustImports.toSnakeCase(fieldName);
             case CMethodCall(receiver, methodName, args):
+                // A String substring in a default-argument closure lowers
+                // into the u_string runtime like the ordinary member-call
+                // path: the bounds are UTF-16 units converted to byte
+                // boundaries, and a borrowed &str receiver passes through
+                // directly (E0599 substring on &str).
+                if (methodName == "substring" || methodName == "sub_string") {
+                    state.shimsUsed.set("std.UStringRT", true);
+                    imports.require("crate::runtime::u_string");
+                    final recv = coalescingDefaultText(receiver, targetType, false, nested, inClosure);
+                    // The u_string runtime keeps i32 bounds (SIGNED_SHIM_PARAMS);
+                    // a business u32 bound reinterprets its bits once at the
+                    // boundary, matching the ordinary member-call lowering.
+                    final from = coalescingSignedBound(args[0], targetType, nested, inClosure);
+                    if (args.length < 2)
+                        return "u_string::substring_from(" + recv + ", " + from + ")";
+                    return "u_string::substring(" + recv + ", " + from + ", " + coalescingSignedBound(args[1], targetType, nested, inClosure) + ")";
+                }
                 coalescingDefaultText(receiver, targetType, false, nested, inClosure)
                 + "."
                 + rustMethodName(methodName)
@@ -386,6 +403,21 @@ class RustExpr {
             && !StringTools.endsWith(rendered, ".to_vec()"))
             return "Some(" + ownedNullableReadText(rendered) + ")";
         return "Some(" + rendered + ")";
+    }
+
+    /**
+        A substring bound in a default-argument closure: the u_string runtime
+        takes i32 bounds, so a business u32 field read reinterprets its bits
+        once at the boundary (T5), matching the ordinary member-call
+        lowering's castSignedI32. A literal folds to its signed value.
+    **/
+    function coalescingSignedBound(value:DefaultArgExpander.CoalescingDefaultValue, targetType:Type, nested:Bool, inClosure:Bool):String {
+        final text = coalescingDefaultText(value, targetType, false, nested, inClosure);
+        return switch (value) {
+            case CInt(v): RustConversions.reinterpret(Std.string(v) + "u32", "i32");
+            case CFieldAccess(_, _) | CParameterRead(_) | CLocalRead(_) | CInstanceFieldRead(_): RustConversions.reinterpret(text, "i32");
+            case _: text;
+        };
     }
 
     /** Explicit arguments plus the callee's omitted-parameter defaults; a rust signature carries no defaults. */
