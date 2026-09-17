@@ -9633,7 +9633,7 @@ class RustExpr {
         final suffix = "]";
         // Data tables are deliberately large (DataTableHelper's threshold is
         // shared with their recognition), so emit one deterministic element
-        // per line instead of constructing another giant source line.
+        // per line; this keeps each source line within normal width.
         if (elements.length > DataTableHelper.THRESHOLD)
             return prefix + "\n    " + elements.join(",\n    ") + ",\n" + suffix;
         return prefix + elements.join(", ") + suffix;
