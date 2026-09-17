@@ -1486,6 +1486,12 @@ class RustDecl {
         // modules (E0624 private associated function).
         final vis = f.field.isPublic ? "pub " : (f.field.meta.has(":allow") ? "pub(crate) " : "pub(crate) ");
 
+        // A private static function called from another module in the same
+        // crate needs crate visibility; Haxe package-private statics are
+        // shared across the package's generated modules.
+        final isStatic = !receiverMethod;
+        final effectiveVis = if (isStatic && !f.field.isPublic) "pub(crate) " else vis;
+
         // The body may format a type parameter with `{:?}` (IsTypeParameter).
         // That path sets `memberPrintsTypeParam`; capture it so the header
         // can carry the Debug bound.
