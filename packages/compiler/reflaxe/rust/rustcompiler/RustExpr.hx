@@ -2727,9 +2727,9 @@ class RustExpr {
             case TInst(c, params) if (params.length > 1 && (c.get().name == "SortedMap" || c.get().name == "SortedMapBuilder")):
                 // Haxe erases Null for value types (Int, Float, Bool): a
                 // SortedMap<K, Null<Float>> stores plain Float and its get()
-                // returns Option<Float>, not Option<Option<Float>>, so the
-                // double-Option flatten must not apply. Only a Null-wrapped
-                // non-value type keeps the extra Option layer.
+                // returns a single Option<Float>. The double-Option flatten
+                // applies only to a Null-wrapped non-value type, which keeps
+                // the extra Option layer.
                 if (isNullType(params[1])) {
                     switch (Context.follow(getNullInnerType(params[1]))) {
                         case TAbstract(a, _):
