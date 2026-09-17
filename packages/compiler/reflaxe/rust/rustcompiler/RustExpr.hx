@@ -5149,7 +5149,7 @@ class RustExpr {
                 final hoisted = switch (stripWrap(l).expr) {
                     case TArray(arr, idx):
                         switch (stripWrap(arr).expr) {
-                            case TLocal(v) if (mentionsLocal(idx, v)):
+                            case TLocal(v) if (mentionsLocalName(idx, v.name)):
                                 final temp = freshRegionName("__idx");
                                 final targetWithTemp = "(" + expr(arr) + ")" + "[" + temp + "]";
                                 "{ let " + temp + " = " + castArg(idx, "usize") + "; " + targetWithTemp + " = " + rhs + " }";
@@ -5441,6 +5441,27 @@ class RustExpr {
                     case _: null;
                 };
             case _: null;
+        };
+    }
+
+    /** The rendered receiver+key text of a sorted-map get() call. **/
+    function mapGetKeyText(subj:TypedExpr, key:TypedExpr):String {
+        return expr(subj) + "|" + expr(key);
+    }
+
+    /** Whether a sorted-map get() call is proven present by an enclosing
+        has() guard on the same receiver+key. **/
+    function provenMapGet(e:TypedExpr):Bool {
+        final inner = stripWrap(e);
+        return switch (inner.expr) {
+            case TCall(fn, args) if (args.length == 1):
+                switch (stripWrap(fn).expr) {
+                    case TField(subj, fa) if (fieldName(fa) == "get" && (isSortedTable(subj) || isSortedBuilder(subj))):
+                        final key = mapGetKeyText(subj, args[0]);
+                        provenMapGets.indexOf(key) >= 0;
+                    case _: false;
+                };
+            case _: false;
         };
     }
 
@@ -9177,6 +9198,25 @@ class RustExpr {
 
     function mentionsLocal(e:TypedExpr, v:TVar):Bool {
         return PolicyQueries.mentionsLocal(e, v);
+    }
+
+    /** Whether the expression mentions a local with the given name. Haxe
+        creates fresh TVar instances per reference, so id comparison misses
+        the same source local in a different node; name comparison is stable
+        within one function. **/
+    function mentionsLocalName(e:TypedExpr, name:String):Bool {
+        var found = false;
+        function walk(x:TypedExpr) {
+            if (found)
+                return;
+            switch (x.expr) {
+                case TLocal(l) if (l.name == name): found = true;
+                case _:
+            }
+            haxe.macro.TypedExprTools.iter(x, walk);
+        }
+        walk(e);
+        return found;
     }
 
     function localName(v:TVar):String {
