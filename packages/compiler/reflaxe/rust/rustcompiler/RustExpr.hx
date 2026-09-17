@@ -5440,13 +5440,14 @@ class RustExpr {
                         mapGetKeyText(subj, args[0]);
                     case _: null;
                 };
+            case _: null;
+        };
+    }
+
     /** Whether the expression names a local proven non-null by a guard. */
     function provenNonNullLocalExpr(e:TypedExpr):Bool {
         return switch (stripWrap(e).expr) {
             case TLocal(v): provenNonNullVarIds.exists(v.id);
-            case _: false;
-        };
-    }
             case _: false;
         };
     }
@@ -7386,7 +7387,6 @@ class RustExpr {
                     // unwraps to its inner Vec first.
                     return "match "
                         + nullableMethodReceiver(subj, false)
-<<<<<<< HEAD
                         + ".iter().position(|e| e == &"
                         + needle
                         + ") { Some(v) => i32::from_ne_bytes(u32::try_from(v).unwrap_or(0).to_ne_bytes()), None => -1 }";
