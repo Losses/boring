@@ -7031,6 +7031,29 @@ class RustExpr {
                             + ");\n    _sorted\n}";
                     }
                 }
+                // The Functional shims (sum_of_float, for_each, ...) are
+                // generic over their callback; the Arc::new(move |o| ...)
+                // closure cannot infer the parameter type through the generic
+                // bound, so the lambda parameter is annotated from the
+                // receiver's element type.
+                if ((cls.name == "Functional" || cls.name == "__functional_shim" || path == "std.Functional" || cls.module == "std.Functional")
+                    && args.length == 2) {
+                    final receiver = args[0];
+                    final lambda = args[1];
+                    final func = unwrapLambda(lambda);
+                    if (func != null && func.args.length == 1) {
+                        final elemType = switch (Context.follow(receiver.t)) {
+                            case TInst(c, [element]) if (c.get().name == "Array"): types.of(element, false);
+                            case _: null;
+                        };
+                        if (elemType != null) {
+                            final paramName = RustImports.toSnakeCase(func.args[0].v.name);
+                            final bodyText = functionLiteral(func, lambda.t);
+                            final typed = StringTools.replace(bodyText, "|" + paramName + "|", "|" + paramName + ": &" + elemType + "|");
+                            return staticRef(cls, name) + "(&" + expr(receiver) + ", " + typed + ")";
+                        }
+                    }
+                }
             case _:
         }
         final inlineMapCall = mapHasOwnPropertyCall(fn, args);
