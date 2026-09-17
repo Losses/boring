@@ -260,14 +260,19 @@ class RustExpr {
         if (currentClass == null || currentMethodName == null)
             return null;
         final site = DefaultArgExpander.coalescingSite(e);
-        final value = currentLocalName != null ? DefaultArgExpander.coalescingDefaultForLocalParam(currentClass, currentMethodName, currentLocalName,
-            site == null ? "" : site.parameter) : DefaultArgExpander.coalescingDefaultForParam(currentClass, currentMethodName,
-                site == null ? "" : site.parameter);
         if (site == null)
             return null;
-        if (value == null)
+        if (coalescingSiteValue(site) == null)
             return null;
         return site;
+    }
+
+    /** The registered coalescing default value for a site, or null when unregistered. */
+    function coalescingSiteValue(site:Null<{parameter:String, defaultExpr:TypedExpr, valueExpr:TypedExpr}>):Null<DefaultArgExpander.CoalescingDefaultValue> {
+        if (site == null || currentClass == null || currentMethodName == null)
+            return null;
+        return currentLocalName != null ? DefaultArgExpander.coalescingDefaultForLocalParam(currentClass, currentMethodName, currentLocalName,
+            site.parameter) : DefaultArgExpander.coalescingDefaultForParam(currentClass, currentMethodName, site.parameter);
     }
 
     /** Renders the sanctioned expression in Rust's normalization closure. */
@@ -1215,6 +1220,21 @@ class RustExpr {
                         // so only the non-null-arm form collapses.
                         if (StringTools.startsWith(initStr, "Some(")
                             || (initStr.indexOf("match") >= 0 && initStr.indexOf("None => None") < 0)) {
+                            nullableCollapsedLocals.set(v.id, true);
+                            nonNullRenderedLocals.set(v.id, true);
+                        }
+                        // A coalescing-shadow alias (`var x = p == null ? d : p`
+                        // on a registered default parameter) renders as the
+                        // normalized parameter read: the unwrap_or_else
+                        // normalization line already materialized the plain
+                        // value into the parameter's own binding, so the
+                        // alias holds the inner value and later arithmetic
+                        // operands must not re-apply the unwrap_or forcing
+                        // read (E0599 on the bare scalar). A null default
+                        // keeps the Option shape and stays uncollapsed.
+                        // Covers the coalescing-shadow alias family.
+                        final coalescingValue = coalescingSiteValue(coalescingSiteFor(init));
+                        if (coalescingValue != null && !containsNullDefault(coalescingValue)) {
                             nullableCollapsedLocals.set(v.id, true);
                             nonNullRenderedLocals.set(v.id, true);
                         }
