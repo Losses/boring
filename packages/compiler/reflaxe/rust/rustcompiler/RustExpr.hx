@@ -5194,6 +5194,21 @@ class RustExpr {
                     if (hit)
                         return "(match &(" + expr(guard.subject) + ") { None => true, Some(" + name + ") => " + right + " })";
                 }
+                // A `||` chain of `== null` checks proves every checked
+                // local for the right operand: the chain is true when any
+                // checked local is null, so reaching the right operand means
+                // all checked locals hold Some. Covers the null-or-chain
+                // guard family (an early-exit `if (a == null || b == null ||
+                // ...) return;` proves a and b for the rest of the block).
+                final orChain = provenNonNullOrChain(l);
+                if (orChain.length > 0) {
+                    for (v in orChain)
+                        provenNonNullVarIds.set(v.id, true);
+                    final right = expr(r);
+                    for (v in orChain)
+                        provenNonNullVarIds.remove(v.id);
+                    return nullableBoolOperand(l, expr(l)) + " || " + right;
+                }
                 return nullableBoolOperand(l, expr(l)) + " || " + nullableBoolOperand(r, expr(r));
             case OpAssign:
                 final map = mapAssignment(l);
@@ -5652,6 +5667,25 @@ class RustExpr {
                 switch [stripWrap(left).expr, stripWrap(right).expr] {
                     case [TLocal(v), _] if (isTNull(right)): [v];
                     case [_, TLocal(v)] if (isTNull(left)): [v];
+                    case _: [];
+                };
+            case _: [];
+        };
+    }
+
+    /** Every local a `||` chain of `== null` checks proves non-null for the
+        right operand: the chain is true when any checked local is null, so
+        evaluating the right operand means every checked local holds Some.
+        Covers the null-or-chain guard family. **/
+    function provenNonNullOrChain(e:TypedExpr):Array<TVar> {
+        final inner = stripWrap(e);
+        return switch (inner.expr) {
+            case TBinop(OpBoolOr, l, r):
+                provenNonNullOrChain(l).concat(provenNonNullOrChain(r));
+            case TBinop(OpEq, left, right):
+                switch [stripWrap(left).expr, stripWrap(right).expr] {
+                    case [TLocal(v), TConst(TNull)]: [v];
+                    case [TConst(TNull), TLocal(v)]: [v];
                     case _: [];
                 };
             case _: [];
