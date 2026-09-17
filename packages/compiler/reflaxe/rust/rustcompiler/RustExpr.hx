@@ -5762,8 +5762,10 @@ class RustExpr {
         // A nullable local proven non-null by an early-exit guard holds the
         // inner value; arithmetic on it must unwrap the Option (the guard
         // proved Some). Covers the proven-non-null arithmetic operand family.
+        // An Int local was already unwrapped by the Int branch above, so it
+        // must not re-apply (E0599 as_ref on the scalar u32).
         if (isNullType(e.t) && switch (stripWrap(e).expr) {
-            case TLocal(v): provenNonNullVarIds.exists(v.id);
+            case TLocal(v): provenNonNullVarIds.exists(v.id) && !isIntType(getNullInnerType(e.t));
             case _: false;
         }) {
             final inner = getNullInnerType(e.t);
