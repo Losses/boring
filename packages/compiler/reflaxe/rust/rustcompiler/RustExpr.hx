@@ -7577,7 +7577,18 @@ class RustExpr {
                     && cls.name == "StringTools"
                     && (name == "startsWith" || name == "endsWith")
                     && args.length == 2) {
-                    return "(" + expr(args[0]) + ")." + RustImports.toSnakeCase(name) + "(&" + expr(args[1]) + ")";
+                    // A Null<String> first argument lowers to Option<String>;
+                    // Haxe calls the method on the inner value (null throws),
+                    // so unwrap the wrapper before the member call. A
+                    // narrowed subject already binds the inner value and must
+                    // not re-apply the forcing read (E0599 on &String).
+                    final narrowed = narrowedSubject(args[0]);
+                    if (narrowed != null)
+                        optionNarrowingHitCount++;
+                    final sText = expr(args[0]);
+                    final sStr = narrowed != null ? narrowed
+                        : (receiverCarriesFallibleWrapper(args[0]) ? "(" + sText + ").as_ref().unwrap()" : sText);
+                    return "(" + sStr + ")." + RustImports.toSnakeCase(name) + "(&" + expr(args[1]) + ")";
                 }
                 if (cls.pack.length == 0 && cls.name == "Lambda" && name == "has" && args.length == 2) {
                     return "(" + expr(args[0]) + ").contains(&" + expr(args[1]) + ")";
