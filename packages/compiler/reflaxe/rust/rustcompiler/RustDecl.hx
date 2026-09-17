@@ -1698,6 +1698,7 @@ class RustDecl {
         if (methodParams.length == 0)
             return methodParams;
         final reached:Array<String> = [];
+        final compared:Array<String> = [];
         if (f.ret != null) {
             switch (Context.follow(f.ret)) {
                 case TInst(c, ps) if (c.get().params.length > 0 && c.get().name != "Array"):
@@ -1733,13 +1734,24 @@ class RustDecl {
                         final pn = typeParamName(e.t);
                         if (pn != null && methodParams.indexOf(pn) >= 0 && reached.indexOf(pn) < 0)
                             reached.push(pn);
+                    case TBinop(OpEq | OpNotEq, l, r):
+                        // A type-parameter value compared with ==/!= renders
+                        // as &T (borrowed parameter), and &T == &T requires
+                        // T: PartialEq.
+                        for (operand in [l, r]) {
+                            final pn = typeParamName(operand.t);
+                            if (pn != null && methodParams.indexOf(pn) >= 0 && compared.indexOf(pn) < 0)
+                                compared.push(pn);
+                        }
                     case _:
                 }
                 haxe.macro.TypedExprTools.iter(e, walk);
             }
             walk(f.expr);
         }
-        return [for (n in methodParams) reached.indexOf(n) >= 0 ? n + ": Clone" : n];
+        return [for (n in methodParams) compared.indexOf(n) >= 0
+            ? (reached.indexOf(n) >= 0 ? n + ": Clone + PartialEq" : n + ": PartialEq")
+            : (reached.indexOf(n) >= 0 ? n + ": Clone" : n)];
     }
 
     function returnsArgArray(f:ClassFuncData):Bool {
