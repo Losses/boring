@@ -29,7 +29,7 @@ class RustEmissionState {
         cannot be derived from the module path: an enum declared in the same
         file as its exception class (for example NoSuchElementError inside
         TiqianNoSuchElementException.hx) has a module whose last segment is
-        the class name, not the enum name.
+        the class name; the enum name is a separate identifier.
     **/
     public final payloadEnumNames:Map<String, String> = [];
 
