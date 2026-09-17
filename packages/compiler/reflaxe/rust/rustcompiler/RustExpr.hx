@@ -3075,17 +3075,8 @@ class RustExpr {
         unwraps with .unwrap_or(false) because null is falsy in Haxe.
     **/
     function nullableBoolOperand(e:TypedExpr, text:String):String {
-        if (isNullType(e.t) && isBoolType(getNullInnerType(e.t))) {
-            // A nullable-collapsed local holds the inner bool (its
-            // null-coalescing initializer materialized the value), so the
-            // unwrap_or(false) forcing read must not re-apply.
-            if (switch (stripWrap(e).expr) {
-                case TLocal(v): nullableCollapsedLocals.exists(v.id);
-                case _: false;
-            })
-                return text;
+        if (isNullType(e.t) && isBoolType(getNullInnerType(e.t)))
             return text + ".unwrap_or(false)";
-        }
         return text;
     }
 
@@ -4965,15 +4956,6 @@ class RustExpr {
             case OpEq | OpNotEq if (isTNull(r) && nonNullableInRust(l)):
                 return op == OpEq ? "false" : "true";
             case OpEq | OpNotEq if (isTNull(l) && nonNullableInRust(r)):
-                return op == OpEq ? "false" : "true";
-            // A nullable local proven non-null by an enclosing guard compared
-            // against null is a tautology: the guard proved Some, so `!= null`
-            // is true and `== null` is false. The proven local renders as its
-            // inner value (unwrapped), so the Option predicate would not type.
-            // Covers the proven-non-null null-compare family.
-            case OpEq | OpNotEq if (isTNull(r) && provenNonNullLocalExpr(l)):
-                return op == OpEq ? "false" : "true";
-            case OpEq | OpNotEq if (isTNull(l) && provenNonNullLocalExpr(r)):
                 return op == OpEq ? "false" : "true";
             case OpEq | OpNotEq if ((isNullType(l.t) && isTNull(r)) || (isNullType(r.t) && isTNull(l))):
                 final nullable = isNullType(l.t) ? l : r;
