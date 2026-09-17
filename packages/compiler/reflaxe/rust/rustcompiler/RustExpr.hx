@@ -3407,7 +3407,9 @@ class RustExpr {
         // The get renders as Option<T>; unwrap it since has proved presence.
         // The fallback value stays plain (not Some-wrapped).
         final getText = expr(ifTrue);
-        final fallback = expr(ifFalse);
+        final fallback = isFloatType(emittedType(ifTrue)) && isIntType(emittedType(ifFalse))
+            ? intToFloatText(expr(ifFalse))
+            : expr(ifFalse);
         return "if "
             + expr(cond)
             + " { "
