@@ -1452,6 +1452,11 @@ class RustExpr {
                         // numeric form itself. (NonNullSlotUnwrap)
                         && (!isScalarType(getNullInnerType(init.t)) || initStr.indexOf("Some(") >= 0)))
                     optionRenderedLocals.set(v.id, true);
+                // A declaration whose initializer already unwrapped the
+                // Option stores the inner value; later reads must not
+                // force-read the wrapper again. (DeclaredNullableLocals)
+                if (initStr.indexOf(".unwrap(") >= 0 || initStr.indexOf(".unwrap_or(") >= 0)
+                    declaredNullableLocals.remove(v.id);
                 return [indent(depth) + declText];
             case TVar(v, init) if (init == null):
                 final name = RustImports.toSnakeCase(localName(v));
@@ -7911,11 +7916,14 @@ class RustExpr {
                         // pass through untouched.
                         final binding = (~/^&\((__option\d+)\)$/);
                         final clonedBinding = (~/^&\(\*(__option\d+)\)\.clone\(\)$/);
+                        final parenClonedBinding = (~/^&\(\(\*(__option\d+)\)\.clone\(\)\)$/);
                         if (i == 1 && appliedSlot != null && isNullType(appliedSlot)) {
                             if (binding.match(r))
                                 r = "&(Some((*" + binding.matched(1) + ").clone()))";
                             else if (clonedBinding.match(r))
                                 r = "&(Some((*" + clonedBinding.matched(1) + ").clone()))";
+                            else if (parenClonedBinding.match(r))
+                                r = "&(Some((*" + parenClonedBinding.matched(1) + ").clone()))";
                             else if (!isNullType(args[i].t)
                                 && switch (stripWrap(args[i]).expr) {
                                     case TLocal(v): optionRenderedLocals.exists(v.id);
