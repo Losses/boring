@@ -9983,6 +9983,13 @@ class RustExpr {
     function renderValueForType(expected:Null<Type>, actual:TypedExpr, rendered:String):String {
         if (expected == null || actual == null)
             return rendered;
+        // A non-null Haxe local initialized to null stores Option<T> until
+        // assigned. At a non-null value boundary Haxe's declaration contract
+        // requires its payload; Copy values may consume the Option, while
+        // owned values clone the proven payload so later Haxe reads remain
+        // available.
+        if (!isNullType(expected) && isNoneInitializedLocal(actual))
+            return isTypeCopy(actual.t) ? rendered + ".unwrap()" : rendered + ".as_ref().unwrap().clone()";
         // Haxe unifies Int and Float; widen Int values to Float when the
         // target slot expects Float.
         if (isFloatType(expected) && isIntType(emittedType(actual)))
