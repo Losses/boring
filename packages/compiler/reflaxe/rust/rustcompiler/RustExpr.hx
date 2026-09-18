@@ -7819,14 +7819,11 @@ class RustExpr {
                                 case _: expr(args[1]) + ".clone()";
                             }
                         } else {
-                            var v = expr(args[1]);
-                            // A borrowed match binding feeding the nullable
-                            // value slot wraps its cloned inner value in
-                            // Some. (BorrowedBindingSomeWrap)
-                            final idx = v.indexOf("__option");
-                            if (idx >= 0 && StringTools.endsWith(v, ")"))
-                                v = v.substring(0, idx) + "Some((*" + v.substring(idx, v.length - 1) + ").clone())";
-                            v;
+                            // The value renders through the full call-argument
+                            // chain (paramOffset 1 reads the declared V slot)
+                            // so the borrowed-binding and proven adaptations
+                            // apply. (SortedPutValueAdaptation)
+                            renderCallArgs(cf.get().type, [args[1]], null, 1, null);
                         };
                         return nullableMethodReceiver(subj, true) + ".put(" + kExpr + ", " + vExpr + ")";
                     } else {
