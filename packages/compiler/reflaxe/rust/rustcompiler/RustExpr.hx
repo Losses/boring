@@ -1450,7 +1450,15 @@ class RustExpr {
                         // initializer visibly constructs one; scalar
                         // sentinel renders carry the null inside the
                         // numeric form itself. (NonNullSlotUnwrap)
-                        && (!isScalarType(getNullInnerType(init.t)) || initStr.indexOf("Some(") >= 0)))
+                        && (!isScalarType(getNullInnerType(init.t)) || initStr.indexOf("Some(") >= 0))
+                    // A conditional whose arms both visibly construct Some
+                    // stores an Option even when the typer unified the
+                    // ternary to the non-null sibling type.
+                    // (NonNullSlotUnwrap)
+                    || (nullableType == ""
+                        && StringTools.startsWith(initStr, "if ")
+                        && initStr.indexOf("{ Some(") >= 0
+                        && initStr.indexOf("} else { Some(") >= 0))
                     optionRenderedLocals.set(v.id, true);
                 // A declaration whose initializer already unwrapped the
                 // Option stores the inner value; later reads must not
@@ -9435,8 +9443,7 @@ class RustExpr {
             // (both ternary arms wrapped) enters a non-null scalar
             // constructor slot; the boundary unwraps it.
             // (ScalarSlotUnwrap)
-            if (!isNullType(arg.t)
-                && i < paramTypes.length
+            if (i < paramTypes.length
                 && isNumericScalarType(paramTypes[i])
                 && isOptionRenderedLocalArg(arg))
                 argStr = argStr + ".unwrap()";
@@ -10807,8 +10814,7 @@ class RustExpr {
         // ternary whose arms both wrapped) enters a non-null scalar slot;
         // the boundary unwraps it — the None path has no corpus-defined
         // value. (ScalarSlotUnwrap)
-        if (!isNullType(expected) && isNullType(actual.t)
-            && isNumericScalarType(expected)
+        if (!isNullType(expected) && isNumericScalarType(expected)
             && isOptionRenderedLocalArg(actual))
             return rendered + ".unwrap()";
         // Haxe unifies Int and Float; widen Int values to Float when the
