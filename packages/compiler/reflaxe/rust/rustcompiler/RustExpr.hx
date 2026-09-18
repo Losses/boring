@@ -3530,17 +3530,9 @@ class RustExpr {
         final gSubj = subjectTextOf(getInfo.subj);
         final hKey = subjectTextOf(hasInfo.key);
         final gKey = subjectTextOf(getInfo.key);
-        if (hSubj == "inline_advance")
-            Context.error("PROBE3 hSubj=" + hSubj + " gSubj=" + gSubj + " hKey=" + hKey + " gKey=" + gKey
-                + " ifFalseNull=" + (isTNull(ifFalse) || isNullType(ifFalse.t)), cond.pos);
         if (hSubj != gSubj)
             return null;
         if (hKey != gKey)
-            return null;
-        // The fallback must be a concrete non-null value so both arms of the
-        // unwrapped ternary share the inner value type. A null or nullable
-        // fallback keeps the Option shape and must not be unwrapped here.
-        if (isTNull(ifFalse) || isNullType(ifFalse.t))
             return null;
         // The get renders as Option<T>; unwrap it since has proved presence.
         // The fallback value stays plain (not Some-wrapped).
@@ -3548,6 +3540,17 @@ class RustExpr {
         final fallback = isFloatType(emittedType(ifTrue)) && isIntType(emittedType(ifFalse))
             ? intToFloatText(expr(ifFalse))
             : expr(ifFalse);
+        // The fallback must be a concrete non-null value so both arms of the
+        // unwrapped ternary share the inner value type. A null literal keeps
+        // the Option shape and must not be unwrapped here. A nullable macro
+        // type is not disqualifying by itself: a nested guarded ternary
+        // already unwrapped its own get(), so its rendered text carries the
+        // inner value even though the macro type still reads Null.
+        if (isTNull(ifFalse))
+            return null;
+        if (isNullType(ifFalse.t) && !StringTools.endsWith(fallback, ").unwrap()")
+            && !StringTools.startsWith(fallback, "*"))
+            return null;
         return "if "
             + expr(cond)
             + " { "
