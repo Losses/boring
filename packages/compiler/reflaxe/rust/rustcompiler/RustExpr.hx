@@ -7779,7 +7779,14 @@ class RustExpr {
                                 case _: expr(args[1]) + ".clone()";
                             }
                         } else {
-                            expr(args[1]);
+                            var v = expr(args[1]);
+                            // A borrowed match binding feeding the nullable
+                            // value slot wraps its cloned inner value in
+                            // Some. (BorrowedBindingSomeWrap)
+                            final idx = v.indexOf("__option");
+                            if (idx >= 0 && StringTools.endsWith(v, ")"))
+                                v = v.substring(0, idx) + "Some((*" + v.substring(idx, v.length - 1) + ").clone())" + "}";
+                            v;
                         };
                         return nullableMethodReceiver(subj, true) + ".put(" + kExpr + ", " + vExpr + ")";
                     } else {
