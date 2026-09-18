@@ -11602,7 +11602,16 @@ class RustExpr {
         // the Option itself (NullableContainerIndexing).
         final emittedReceiverType = arr.t == null ? "" : types.of(arr.t, false);
         final emittedOptionContainer = StringTools.startsWith(emittedReceiverType, "Option<");
-        final unwrapOption = isNullType(arr.t) || receiverCarriesFallibleWrapper(arr) || emittedOptionContainer;
+        // A has-guarded ternary local holds the bare inner container (its
+        // declaration unwrapped the Option); indexing targets the Vec
+        // directly. (HasGuardedTernaryLocals)
+        final guardedCollapse = switch (stripWrap(arr).expr) {
+            case TLocal(v): nullableCollapsedLocals.exists(v.id)
+                || hasGuardedTernaryLocals.exists(v.id);
+            case _: false;
+        };
+        final unwrapOption = !guardedCollapse
+            && (isNullType(arr.t) || receiverCarriesFallibleWrapper(arr) || emittedOptionContainer);
         if (unwrapOption) {
             final coerce = mutable ? ".as_mut().unwrap()" : ".as_ref().unwrap()";
             return "(" + receiver + ")" + coerce + "[" + castArg(idx, "usize") + "]";
