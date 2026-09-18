@@ -11861,6 +11861,11 @@ class RustExpr {
         conditionalBranchText applies. **/
     function wrapBranchForNullableResult(branch:TypedExpr, resultType:Null<Type>, sibling:TypedExpr):String {
         final text = expr(branch);
+#if boring_fold_debug
+        if (StringTools.startsWith(text, "Some(") || StringTools.startsWith(text, "if "))
+            Context.warning("WRAPDBG text=" + text.substr(0, 40) + " rt=" + Std.string(resultType).substr(0, 40)
+                + " bt=" + Std.string(branch.t).substr(0, 40), branch.pos);
+#end
         if (resultType != null && isNullType(resultType)) {
             // A null-literal arm of a nullable result renders as None; an
             // already-nullable arm keeps its Option shape; any other arm
