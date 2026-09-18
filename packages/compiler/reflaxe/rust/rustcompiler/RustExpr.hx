@@ -1441,6 +1441,7 @@ class RustExpr {
                     || (StringTools.startsWith(initStr, "match ") && initStr.indexOf("=> Some(") >= 0)
                     || (nullableType == ""
                         && isNullType(init.t)
+                        && !isScalarType(getNullInnerType(init.t))
                         && !nullableCollapsedLocals.exists(v.id)
                         && !hasGuardedTernaryLocals.exists(v.id)
                         && initStr.indexOf(".unwrap(") < 0
@@ -11034,10 +11035,11 @@ class RustExpr {
                         // locals, non-null-rendered locals, and every
                         // non-local form already render the inner value, so
                         // no unwrap applies. (NonNullSlotUnwrap)
-                        final optionRenderedLocal = switch (stripWrap(arg).expr) {
-                            case TLocal(v): optionRenderedLocals.exists(v.id);
-                            case _: false;
-                        };
+                        final optionRenderedLocal = narrowedSubject(arg) == null
+                            && switch (stripWrap(arg).expr) {
+                                case TLocal(v): optionRenderedLocals.exists(v.id);
+                                case _: false;
+                            };
                         if (optionRenderedLocal) {
                             final inner = getNullInnerType(arg.t);
                             var bare = stripRenderedParens(expr(stripWrap(arg)));
