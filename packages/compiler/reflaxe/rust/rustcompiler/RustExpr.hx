@@ -111,6 +111,10 @@ class RustExpr {
     // inherits the proof, so it passes call slots as the inner value.
     // (ContinueNullGuards)
     final provenContinueSubjects:Map<String, Bool> = [];
+    // Locals initialized from a ternary whose else arm is the null
+    // literal: the binding renders as an Option, and a non-null value
+    // slot unwraps it at the boundary. (NullElseTernaryLocals)
+    final nullElseTernaryLocals:Map<Int, Bool> = [];
     // Locals whose initializer already rendered through the forcing read
     // (an unwrap_or): the binding holds the inner value, so a return of
     // that local must not unwrap again. (ForcingReadLocals)
@@ -1337,6 +1341,14 @@ class RustExpr {
                 // of other nullable locals) stay as they are, and a
                 // name-keyed enum lookup already emits from_name's Option.
                 final lookupInit = EnumQueryExpander.markerKind(init) == QLookup;
+                switch (stripWrap(init).expr) {
+                    case TIf(_, _, elseArm) if (elseArm != null && isTNull(elseArm)):
+                        // The ternary renders as an Option shape (a null
+                        // else arm); remember the local so non-null call
+                        // slots unwrap it once. (NullElseTernaryLocals)
+                        nullElseTernaryLocals.set(v.id, true);
+                    case _:
+                }
                 // A copy of a continue-guarded subject (`let n = X;` after
                 // `if (X == null) { continue; }`) inherits the non-null
                 // proof: call slots expecting the inner value unwrap the
@@ -10675,6 +10687,8 @@ class RustExpr {
                     final inner = getNullInnerType(arg.t);
                     argStr = isTypeCopy(inner) ? "*((" + argStr + ").as_ref().unwrap())" : "(" + argStr + ").as_ref().unwrap()";
                 } else if (switch (stripWrap(arg).expr) {
+                    case TLocal(v):
+                        nullElseTernaryLocals.exists(v.id) && !isNullType(pt);
                     case TField(_, _):
                         isNullType(arg.t) && StringTools.contains(argStr, ".as_ref().unwrap()");
                     case _: false;
