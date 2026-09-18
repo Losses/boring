@@ -3738,11 +3738,12 @@ class RustExpr {
                 if (sharedClosureArrays.exists(v.id))
                     return RustImports.toSnakeCase(localName(v)) + ".lock().unwrap()";
                 // A shared closure scalar read dereferences through the
-                // guard the same way; assignment targets place the
-                // dereference at the statement site below
-                // (SharedClosureScalars).
+                // guard explicitly: binary operators do not auto-deref the
+                // MutexGuard, so every value read needs the leading star.
+                // Assignment targets place the same dereference through
+                // assignTarget (SharedClosureScalars).
                 if (sharedClosureScalars.exists(v.id))
-                    return RustImports.toSnakeCase(localName(v)) + ".lock().unwrap()";
+                    return "*" + RustImports.toSnakeCase(localName(v)) + ".lock().unwrap()";
                 if (subst.exists(v.id)) {
                     return subst.get(v.id);
                 }
