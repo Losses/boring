@@ -2794,7 +2794,21 @@ class RustExpr {
                     final builderStr = expr(gb.builderSubj);
                     final kGetExpr = sortedRefArg(gb.keyArg);
                     final kPutExpr = sortedRefArg(gb.keyArg);
-                    final valStr = renderPushArg(gb.valArg);
+                    // The fused put's value slot is the builder's applied V:
+                    // a non-null value into a nullable-V slot wraps in Some;
+                    // scalar-valued maps strip the Null at storage, so their
+                    // slot is the plain scalar and no wrap applies.
+                    // (SortedPutValueAdaptation)
+                    final appliedV = switch (Context.follow(gb.builderSubj.t)) {
+                        case TInst(_, params) if (params.length > 1): params[1];
+                        case _: null;
+                    };
+                    final valElementType = if (appliedV != null && isNullType(appliedV)
+                        && !isNumericScalarType(getNullInnerType(appliedV)))
+                        appliedV
+                    else
+                        null;
+                    final valStr = renderPushArg(gb.valArg, valElementType);
                     final out = [indent(depth) + "for " + pattern + " in " + iterated + " {"];
                     for (l in blockLines(gb.prefix, depth + 1))
                         out.push(l);
