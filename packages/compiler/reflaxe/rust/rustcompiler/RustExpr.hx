@@ -1652,7 +1652,7 @@ class RustExpr {
                                 || narrowedSubject(ret) != null;
                         case _:
                     }
-                    if (currentClass != null && currentClass.module.indexOf("InlineObject") >= 0)
+                    if (currentClass != null && currentClass.module.indexOf("InlineObjectLayoutTestSupport") >= 0)
                         Context.error("PROBE11 retT=" + Std.string(ret.t) + " curRet=" + Std.string(currentReturnType)
                             + " retStr=" + retStr + " skip=" + unwrapSkip, ret.pos);
                     if (isNullType(ret.t) && !isNullType(currentReturnType)
