@@ -1541,6 +1541,16 @@ class RustExpr {
                             retStr = "(" + retStr + ").unwrap()";
                         case _:
                     }
+                    // Any nullable expression returned through a
+                    // non-nullable slot unwraps at the boundary like the
+                    // proven-local form above: a conditional mixing a
+                    // nullable local with the null literal renders an
+                    // Option value the slot cannot take. The None case
+                    // panics exactly where the Haxe source would
+                    // null-deref. (NullableReturnUnwrap)
+                    if (isNullType(ret.t) && !isNullType(currentReturnType)
+                        && !StringTools.endsWith(retStr, ").unwrap()"))
+                        retStr = "(" + retStr + ").unwrap()";
                 }
                 if (isFallible) {
                     final guard = staticGuardOf(ret);
