@@ -8353,7 +8353,15 @@ class RustExpr {
                     bound.set(v.id, true);
                     return;
                 case TLocal(v):
-                    if (!bound.exists(v.id) && !isTypeCopy(v.t) && !Lambda.exists(captures, c -> c.id == v.id))
+                    // A shared closure array or scalar renders as
+                    // Arc<Mutex<_>>, which never copies — even when the
+                    // Haxe macro type (Null<Float>, Null<Int>) reads as a
+                    // Copy scalar. The capture line must clone the Arc or
+                    // the move closure takes the outer binding.
+                    // (SharedClosureArrays, SharedClosureScalars)
+                    if (!bound.exists(v.id) && !isTypeCopy(v.t)
+                        && !sharedClosureArrays.exists(v.id) && !sharedClosureScalars.exists(v.id)
+                        && !Lambda.exists(captures, c -> c.id == v.id))
                         captures.push(v);
                 case TFunction(_):
                     return;
