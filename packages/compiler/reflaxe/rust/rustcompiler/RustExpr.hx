@@ -136,6 +136,10 @@ class RustExpr {
     final unsignedLocals:Map<Int, Bool> = [];
     // Locals initialized from charCodeAt are collapsed from Option<u32> to a scalar.
     final nullableCollapsedLocals:Map<Int, Bool> = [];
+    // Locals whose emitted declaration text names or infers the Option
+    // shape: the exact ground truth for whether a read of the local
+    // renders an Option. (NonNullSlotUnwrap)
+    final optionRenderedLocals:Map<Int, Bool> = [];
     // Subset of nullableCollapsedLocals whose null-coalescing initializer
     // actually renders a non-null value (both guarded-match arms are
     // non-null), so an Option parameter must re-wrap the read in Some. A
@@ -661,6 +665,7 @@ class RustExpr {
         borrowedLoopVarIds.clear();
         unsignedLocals.clear();
         nullableCollapsedLocals.clear();
+        optionRenderedLocals.clear();
         nonNullRenderedLocals.clear();
         implicitNullableLocals.clear();
         hasGuardedGets.resize(0);
@@ -1428,7 +1433,14 @@ class RustExpr {
                 if (StringTools.startsWith(initStr, "(") && StringTools.endsWith(initStr, ")") && matchingParens(initStr)) {
                     initStr = initStr.substr(1, initStr.length - 2);
                 }
-                return [indent(depth) + '$kw $name$nullableType = $initStr;'];
+                final declText = '$kw $name$nullableType = $initStr;';
+                // (NonNullSlotUnwrap)
+                if (declText.indexOf(": Option<") >= 0
+                    || StringTools.startsWith(initStr, "Some(")
+                    || initStr == "None"
+                    || (StringTools.startsWith(initStr, "match ") && initStr.indexOf("=> Some(") >= 0))
+                    optionRenderedLocals.set(v.id, true);
+                return [indent(depth) + declText];
             case TVar(v, init) if (init == null):
                 final name = RustImports.toSnakeCase(localName(v));
                 if (tryCapturedAssignments.exists(v.id) && isNullType(v.t))
@@ -11016,15 +11028,15 @@ class RustExpr {
                         // non-local form already render the inner value, so
                         // no unwrap applies. (NonNullSlotUnwrap)
                         final optionRenderedLocal = switch (stripWrap(arg).expr) {
-                            case TLocal(v): isNullType(arg.t)
-                                && !nullableCollapsedLocals.exists(v.id)
-                                && !nonNullRenderedLocals.exists(v.id);
+                            case TLocal(v): optionRenderedLocals.exists(v.id);
                             case _: false;
                         };
                         if (optionRenderedLocal) {
                             final inner = getNullInnerType(arg.t);
-                            final bare = stripRenderedParens(expr(stripWrap(arg)));
-                            final ref = "(" + bare + ").as_ref().unwrap()";
+                            var bare = stripRenderedParens(expr(stripWrap(arg)));
+                            if (StringTools.startsWith(bare, "&"))
+                                bare = bare.substr(1);
+                            final ref = "(" + stripRenderedParens(bare) + ").as_ref().unwrap()";
                             argStr = isTypeCopy(inner) ? "*" + ref : (isPassByRef(pt) ? ref : ref + ".clone()");
                         }
                     }
