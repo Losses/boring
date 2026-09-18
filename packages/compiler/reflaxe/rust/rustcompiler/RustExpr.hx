@@ -10644,10 +10644,8 @@ class RustExpr {
                         provenNonNullVarIds.exists(v.id)
                             || (provenContinueSubjects.exists(subjectTextOf(arg))
                                 // An argument whose rendering already
-                                // extracted the inner value (a match binding
-                                // dereference, a proven unwrap, a zero
-                                // bridge) must not gain a second one.
-                                && !StringTools.startsWith(argStr, "*")
+                                // extracted the inner value must not gain a
+                                // second unwrapping.
                                 && !StringTools.contains(argStr, ".as_ref().unwrap()")
                                 && !StringTools.endsWith(argStr, ".unwrap_or(0)")
                                 && !StringTools.endsWith(argStr, ".unwrap_or(0.0)"));
