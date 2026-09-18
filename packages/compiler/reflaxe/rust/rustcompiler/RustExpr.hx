@@ -6231,9 +6231,17 @@ class RustExpr {
                 return usizeIndex(unwrapped);
             }
             // Nullable integer indices must be unwrapped before TryFrom;
-            // Haxe's null-to-zero numeric boundary supplies the default.
-            if (isNullType(e.t) && isIntType(getNullInnerType(e.t)))
-                return usizeIndex(expr(e) + ".unwrap_or(0)");
+            // Haxe's null-to-zero numeric boundary supplies the default. A
+            // narrowed or collapsed operand already renders the inner scalar
+            // match binding, so the unwrap_or would land on the reference
+            // binding and E0599s (GuardedChainNarrowing).
+            if (isNullType(e.t) && isIntType(getNullInnerType(e.t))
+                && narrowedSubject(e) == null && !isNullableCollapsedLocal(e)) {
+                final rendered = expr(e);
+                if (!StringTools.startsWith(rendered, "*"))
+                    return usizeIndex(rendered + ".unwrap_or(0)");
+                return usizeIndex(rendered);
+            }
             return usizeIndex(expr(e));
         }
         if (ty == "u8") {
