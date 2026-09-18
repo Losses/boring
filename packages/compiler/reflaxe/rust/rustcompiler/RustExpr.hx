@@ -4009,6 +4009,24 @@ class RustExpr {
             case TFunction(f):
                 return functionValueLiteral(f, e.t);
             case TIf(c, t, f) if (f != null):
+                // `if (S.is_none()) { zero } else { S }` folds to
+                // S.unwrap_or(zero): the None branch contributes the numeric
+                // zero of Haxe's null semantics. The zero-like arms are
+                // matched against a small closed set of renders.
+                // (NoneZeroFold)
+                {
+                    final condText = expr(c);
+                    if (StringTools.endsWith(condText, ".is_none()")) {
+                        final subjectText = condText.substr(0, condText.length - ".is_none()".length);
+                        final thenText = expr(t);
+                        final elseText = expr(f);
+                        final zeroLike = (thenText == "0" || thenText == "0.0f64"
+                            || thenText == "0.0" || thenText == "(0.0f64)"
+                            || thenText == "(0 as f64)" || thenText == "0 as f64");
+                        if (zeroLike && (elseText == subjectText || StringTools.startsWith(elseText, subjectText)))
+                            return "(" + subjectText + ").unwrap_or(" + thenText + ")";
+                    }
+                }
                 final coalescing = coalescingSiteFor(e);
                 if (coalescing != null)
                     return expr(coalescing.valueExpr);
