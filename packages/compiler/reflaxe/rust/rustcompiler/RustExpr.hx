@@ -7760,8 +7760,14 @@ class RustExpr {
                 final narrowed = narrowedSubject(subj);
                 if (narrowed != null)
                     optionNarrowingHitCount++;
+                // A mutating method borrows the unwrapped receiver mutably:
+                // the trait-mutation table drives the interface-method calls,
+                // the receiver-writer list the concrete ones (MutatingForcing).
+                final mutCall = RustDecl.mutatingTraitMethods.exists(cf.get().name)
+                    || RustDecl.methodWritesReceiver(cf.get());
+                final forcingRead = mutCall ? ".as_mut().unwrap()" : ".as_ref().unwrap()";
                 final subjStr = narrowed != null ? narrowed
-                    : (receiverCarriesFallibleWrapper(subj) ? subjText + ".as_ref().unwrap()" : subjText);
+                    : (receiverCarriesFallibleWrapper(subj) ? subjText + forcingRead : subjText);
                 return subjStr + "." + snake + "(" + renderCallArgs(cf.get().type, args, null, 0, mutableParamPositions(cf.get())) + ")" + q;
             case TField(_, FStatic(c, cf)):
                 final cls = c.get();
