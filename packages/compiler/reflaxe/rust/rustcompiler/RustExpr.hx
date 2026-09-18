@@ -8625,21 +8625,36 @@ class RustExpr {
     }
 
     function scanContinueNullGuards(root:TypedExpr):Void {
-        function containsContinue(e:TypedExpr):Bool {
-            if (e.expr.match(TContinue))
+        function containsEarlyExit(e:TypedExpr):Bool {
+            if (e.expr.match(TContinue) || e.expr.match(TReturn(_)) || e.expr.match(TBreak))
                 return true;
             var found = false;
             haxe.macro.TypedExprTools.iter(e, function(x) {
                 if (!found)
-                    found = containsContinue(x);
+                    found = containsEarlyExit(x);
             });
             return found;
         }
         function scan(e:TypedExpr):Void {
             switch (stripWrap(e).expr) {
                 case TIf(cond, then, null):
-                    switch (stripWrap(cond).expr) {
+                    // The guard may be a disjunction whose first term is the
+                    // null check (`X == null || ...`): the chain short-circuits
+                    // to the early exit when X is null, so the later terms see
+                    // the inner value. (ContinueNullGuards)
+                    var first = stripWrap(cond);
+                    while (true) {
+                        switch (stripWrap(first).expr) {
+                            case TBinop(OpBoolOr, ll, _): first = ll;
+                            case _: break;
+                        }
+                    }
+                    switch (stripWrap(first).expr) {
                         case TBinop(OpEq, l, r):
+                            final subject = isTNull(l) ? r : (isTNull(r) ? l : null);
+                            if (subject != null && containsEarlyExit(then))
+                                provenContinueSubjects.set(subjectTextOf(subject), true);
+                        case TBinop(OpNotEq, l, r):
                             final subject = isTNull(l) ? r : (isTNull(r) ? l : null);
                             if (subject != null && containsContinue(then))
                                 provenContinueSubjects.set(subjectTextOf(subject), true);
