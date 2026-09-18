@@ -9435,7 +9435,7 @@ class RustExpr {
             // (both ternary arms wrapped) enters a non-null scalar
             // constructor slot; the boundary unwraps it.
             // (ScalarSlotUnwrap)
-            if (pt != null && !isNullType(pt) && isNullType(arg.t)
+            if (!isNullType(arg.t)
                 && i < paramTypes.length
                 && isNumericScalarType(paramTypes[i])
                 && isOptionRenderedLocalArg(arg))
