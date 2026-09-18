@@ -8359,8 +8359,8 @@ class RustExpr {
                     // Copy scalar. The capture line must clone the Arc or
                     // the move closure takes the outer binding.
                     // (SharedClosureArrays, SharedClosureScalars)
-                    if (!bound.exists(v.id) && !isTypeCopy(v.t)
-                        && !sharedClosureArrays.exists(v.id) && !sharedClosureScalars.exists(v.id)
+                    if (!bound.exists(v.id)
+                        && (!isTypeCopy(v.t) || sharedClosureArrays.exists(v.id) || sharedClosureScalars.exists(v.id))
                         && !Lambda.exists(captures, c -> c.id == v.id))
                         captures.push(v);
                 case TFunction(_):
