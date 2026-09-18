@@ -9437,17 +9437,8 @@ class RustExpr {
                 // scalar constructor slot; the boundary unwraps it.
                 // (ScalarSlotUnwrap)
                 if (pt != null && !isNullType(pt) && isNullType(arg.t)
-                    && switch (Context.follow(paramTypes[i])) {
-                        case TAbstract(a, _): {
-                            final n = a.get().name;
-                            n == "Bool" || n == "Int" || n == "Float";
-                        };
-                        case _: false;
-                    }
-                    && switch (stripWrap(arg).expr) {
-                        case TLocal(v): optionRenderedLocals.exists(v.id);
-                        case _: false;
-                    })
+                    && isNumericScalarType(paramTypes[i])
+                    && isOptionRenderedLocalArg(arg))
                     argStr = argStr + ".unwrap()";
                 out.push(numericAssignmentValue(paramTypes[i], arg, ownedConstructorArg(paramTypes[i], arg, null, argStr), null, true));
             else
@@ -10780,6 +10771,27 @@ class RustExpr {
         };
     }
 
+    /** Numeric scalar slots (Bool, Int, Float) that cannot hold an Option
+        at runtime. (ScalarSlotUnwrap) */
+    function isNumericScalarType(t:Type):Bool {
+        return switch (Context.follow(t)) {
+            case TAbstract(a, _): {
+                final n = a.get().name;
+                n == "Bool" || n == "Int" || n == "Float";
+            };
+            case _: false;
+        };
+    }
+
+    /** An argument reading a local whose declaration still renders the
+        Option shape. (ScalarSlotUnwrap) */
+    function isOptionRenderedLocalArg(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TLocal(v): optionRenderedLocals.exists(v.id);
+            case _: false;
+        };
+    }
+
     function renderValueForType(expected:Null<Type>, actual:TypedExpr, rendered:String):String {
         if (expected == null || actual == null)
             return rendered;
@@ -10795,17 +10807,8 @@ class RustExpr {
         // the boundary unwraps it — the None path has no corpus-defined
         // value. (ScalarSlotUnwrap)
         if (!isNullType(expected) && isNullType(actual.t)
-            && switch (Context.follow(expected)) {
-                case TAbstract(a, _): {
-                    final n = a.get().name;
-                    n == "Bool" || n == "Int" || n == "Float";
-                };
-                case _: false;
-            }
-            && switch (stripWrap(actual).expr) {
-                case TLocal(v): optionRenderedLocals.exists(v.id);
-                case _: false;
-            })
+            && isNumericScalarType(expected)
+            && isOptionRenderedLocalArg(actual))
             return rendered + ".unwrap()";
         // Haxe unifies Int and Float; widen Int values to Float when the
         // target slot expects Float.
