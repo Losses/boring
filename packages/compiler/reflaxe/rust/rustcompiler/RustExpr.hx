@@ -7779,11 +7779,7 @@ class RustExpr {
                                 case _: expr(args[1]) + ".clone()";
                             }
                         } else {
-                            final v = expr(args[1]);
-                            // A borrowed match binding feeding the nullable
-                            // value slot wraps its cloned inner value.
-                            // (BorrowedBindingSomeWrap)
-                            StringTools.startsWith(v, "__option") ? "Some((*" + v + ").clone())" : v;
+                            expr(args[1]);
                         };
                         return nullableMethodReceiver(subj, true) + ".put(" + kExpr + ", " + vExpr + ")";
                     } else {
