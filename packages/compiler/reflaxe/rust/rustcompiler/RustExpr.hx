@@ -10640,7 +10640,15 @@ class RustExpr {
             // proved the source is Some; the bridge extracts the payload.
             if (pt != null && !isNullType(pt) && (isNullType(arg.t) || isImplicitNullableLocal(arg))) {
                 final proven = switch (stripWrap(arg).expr) {
-                    case TLocal(v): provenNonNullVarIds.exists(v.id);
+                    case TLocal(v):
+                        provenNonNullVarIds.exists(v.id)
+                            || (provenContinueSubjects.exists(subjectTextOf(arg))
+                                // An argument whose rendering already
+                                // extracted the inner value must not gain a
+                                // second unwrapping.
+                                && !StringTools.contains(argStr, ".as_ref().unwrap()")
+                                && !StringTools.endsWith(argStr, ".unwrap_or(0)")
+                                && !StringTools.endsWith(argStr, ".unwrap_or(0.0)"));
                     case _: provenMapGet(arg);
                 };
                 if (proven) {
