@@ -111,6 +111,10 @@ class RustExpr {
     // inherits the proof, so it passes call slots as the inner value.
     // (ContinueNullGuards)
     final provenContinueSubjects:Map<String, Bool> = [];
+    // Cursor locals: initialized from a nullable proven source and later
+    // re-assigned an Option-typed expression inside a loop. They keep the
+    // Option shape end to end. (CursorPattern)
+    final cursorLocals:Map<Int, Bool> = [];
     // Locals initialized from a ternary whose else arm is the null
     // literal: the binding renders as an Option, and a non-null value
     // slot unwraps it at the boundary. (NullElseTernaryLocals)
@@ -686,6 +690,7 @@ class RustExpr {
         scanLocals(f.expr);
         scanSharedClosureArrays(f.expr);
         scanContinueNullGuards(f.expr);
+        scanCursorLocals(f.expr);
         scanLocalFunctionFallibility(f.expr);
         scanReadsAfter(f.expr);
         final previousReceiverContext = renderingMethodReceiver;
@@ -1184,7 +1189,7 @@ class RustExpr {
                 // its Rust value is the plain scalar/struct; mark it
                 // collapsed so later reads do not re-apply the as_ref forcing
                 // read. Covers the proven-non-null nullable-copy family.
-                if (isNullType(v.t)) {
+                if (isNullType(v.t) && !cursorLocals.exists(v.id)) {
                     final provenText = provenNonNullOwnedText(init);
                     if (provenText != null) {
                         nullableCollapsedLocals.set(v.id, true);
@@ -1506,10 +1511,26 @@ class RustExpr {
                 }
                 // A literal true condition lowers to Rust's dedicated loop.
                 final header = condStr == "true" ? "loop" : "while " + condStr;
+                // A compared cursor local (`while cursor != None`) is proven
+                // non-null inside the loop body: its field reads unwrap
+                // through the guard. (CursorPattern)
+                final whileSubject:Null<TypedExpr> = switch (stripWrap(c).expr) {
+                    case TBinop(OpNotEq, l, r) if (isTNull(r)): l;
+                    case TBinop(OpNotEq, l, r) if (isTNull(l)): r;
+                    case _: null;
+                };
+                final provenId:Null<Int> = whileSubject == null ? null : switch (stripWrap(whileSubject).expr) {
+                    case TLocal(v): v.id;
+                    case _: null;
+                };
+                if (provenId != null)
+                    provenNonNullVarIds.set(provenId, true);
                 final out = [indent(depth) + header + " {"];
                 for (l in blockLines(statementsOf(b), depth + 1))
                     out.push(l);
                 out.push(indent(depth) + "}");
+                if (provenId != null)
+                    provenNonNullVarIds.remove(provenId);
                 return out;
             case TWhile(_, _, false):
                 return [fail(e, "do-while has no lowering in the subset")];
@@ -6651,8 +6672,19 @@ class RustExpr {
                     + ".get_or_insert_with(|| " + filled + ")" else if (fieldReceiverCarriesFallibleWrapper(subj)) subjText
                     + ".as_ref().unwrap()" else subjText;
                 final access = subjStr + "." + snake;
-                if (name != "length" && isRecursiveField(subj, name))
+                if (name != "length" && isRecursiveField(subj, name)) {
+                    // A cursor-local receiver re-binds the recursive field
+                    // value: the as_ref borrow maps to an owned clone so the
+                    // assignment target keeps its Option<EdgeState> shape.
+                    // (CursorPattern)
+                    final cursorReceiver = switch (stripWrap(subj).expr) {
+                        case TLocal(v): cursorLocals.exists(v.id);
+                        case _: false;
+                    };
+                    if (cursorReceiver)
+                        return "(" + access + ").as_ref().map(|b| (**b).clone())";
                     return "(" + access + ").as_ref()";
+                }
                 if (name != "length" && isConstructedStaticRead(subj) && StaticFieldHelper.isStringType(cf.get().type))
                     return "(" + access + ").to_string()";
                 if (name != "length" && isConstructedStaticRead(subj) && !isTypeCopy(cf.get().type))
@@ -8592,6 +8624,27 @@ class RustExpr {
         }
         walk(e);
         return hit;
+    }
+
+    /**
+        A cursor local starts from a nullable proven source and is later
+        re-assigned an Option-typed expression, so it must keep the Option
+        shape: the collapse branch is skipped for it. (CursorPattern)
+    **/
+    function scanCursorLocals(root:TypedExpr):Void {
+        function scan(e:TypedExpr):Void {
+            switch (stripWrap(e).expr) {
+                case TBinop(OpAssign, target, rhs):
+                    if (isNullType(rhs.t))
+                        switch (stripWrap(target).expr) {
+                            case TLocal(v): cursorLocals.set(v.id, true);
+                            case _:
+                        }
+                case _:
+            }
+            haxe.macro.TypedExprTools.iter(e, scan);
+        }
+        scan(root);
     }
 
     /** The local/field name chain of an access path, outermost first. */
