@@ -10550,18 +10550,6 @@ class RustExpr {
                         final ref = argStr + ".get_or_insert_with(|| " + filled + ")";
                         argStr = isTypeCopy(inner) ? "*" + ref : ref + ".clone()";
                     }
-                    // A nullable scalar argument with no proven guard crosses
-                    // into the non-null numeric slot through Haxe's
-                    // null-to-zero bridge: the absent value is numeric zero.
-                    // The bridge applies to a bare local binding only — an
-                    // already-borrowed, unwrapped, or call-rendered argument
-                    // carries its own extraction and must not gain a second
-                    // one. (NullableArgZeroBridge)
-                    else if ((isIntType(getNullInnerType(arg.t)) || isFloatType(getNullInnerType(arg.t)))
-                        && argStr.indexOf(".") < 0 && argStr.indexOf("(") < 0
-                        && !StringTools.startsWith(argStr, "&")) {
-                        argStr += isIntType(getNullInnerType(arg.t)) ? ".unwrap_or(0)" : ".unwrap_or(0.0)";
-                    }
                 }
             }
             // An i32-domain argument crossing into a u32 business parameter
