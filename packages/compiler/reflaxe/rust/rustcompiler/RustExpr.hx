@@ -7529,6 +7529,22 @@ class RustExpr {
                         return expr(subj) + ".to_uppercase()";
                 }
                 final snake = RustImports.toSnakeCase(name);
+                if (name == "put" && args.length == 2 && (isSortedTable(subj) || isSortedBuilder(subj))) {
+                    // Only the nullable-value direction is adapted here: when
+                    // the map's declared value type is Null<V>, a non-null
+                    // source value wraps in Some so the slot keeps its
+                    // Option shape. (SortedPutOptionValue)
+                    final slots = switch (Context.follow(methodSubjectType(subj))) {
+                        case TInst(_, [kk, vv]): {k: kk, v: vv};
+                        case _: null;
+                    };
+                    final keyArg = renderValueForType(slots != null ? slots.k : null, args[0], expr(args[0]));
+                    var valueArg = renderValueForType(slots != null ? slots.v : null, args[1], expr(args[1]));
+                    if (slots != null && isNullType(slots.v) && !isNullType(args[1].t) && !isTNull(args[1])
+                        && !StringTools.startsWith(valueArg, "Some(") && valueArg != "None")
+                        valueArg = "Some(" + valueArg + ")";
+                    return expr(subj) + ".put(&(" + keyArg + "), &(" + valueArg + "))";
+                }
                 if (isMapType(subj.t)) {
                     if (name == "exists" && args.length == 1)
                         return expr(subj) + ".contains_key(&" + rustMapKey(args[0]) + ")";
