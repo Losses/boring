@@ -7924,7 +7924,12 @@ class RustExpr {
                                 r = "&(Some((*" + clonedBinding.matched(1) + ").clone()))";
                             else if (parenClonedBinding.match(r))
                                 r = "&(Some((*" + parenClonedBinding.matched(1) + ").clone()))";
-                            else if (!isNullType(args[i].t)) {
+                            else if (!isNullType(args[i].t)
+                                // Scalar-valued maps strip the Null at the
+                                // runtime storage (sortedMapValueType), so
+                                // the slot is the plain scalar and the plain
+                                // value passes as-is. (SortedPutValueAdaptation)
+                                && !isNumericScalarType(getNullInnerType(appliedSlot))) {
                                 // A plain value enters a nullable slot: the
                                 // boundary wraps it in Some. A match binding
                                 // is a reference to the inner value, so it
@@ -10787,7 +10792,7 @@ class RustExpr {
         return switch (Context.follow(t)) {
             case TAbstract(a, _): {
                 final n = a.get().name;
-                n == "Bool" || n == "Int" || n == "Float";
+                n == "Bool" || n == "Int" || n == "Float" || n == "Int64";
             };
             case _: false;
         };
