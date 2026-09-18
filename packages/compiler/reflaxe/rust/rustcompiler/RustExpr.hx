@@ -7785,6 +7785,10 @@ class RustExpr {
                     // clones into storage, so the call-site expressions
                     // stay alive. A nullable receiver unwraps its inner
                     // builder mutably before the put.
+                    final slots = switch (Context.follow(methodSubjectType(subj))) {
+                        case TInst(_, [kk, vv]): {k: kk, v: vv};
+                        case _: null;
+                    };
                     final putArgs = [for (i in 0...args.length) {
                         final r = sortedRefArg(args[i]);
                         // A borrowed match binding as the value (index 1) of
@@ -7793,9 +7797,18 @@ class RustExpr {
                         // nested render that merely contains the name must
                         // pass through untouched. (SortedPutValueAdaptation)
                         final binding = (~/^&\((__option\d+)\)$/);
-                        (i == 1 && binding.match(r))
-                            ? "&(Some((*" + binding.matched(1) + ").clone()))"
-                            : r;
+                        final bindingWrapped = i == 1 && binding.match(r);
+                        // A non-null source value into a nullable-V slot
+                        // wraps in Some.
+                        final valueWrapped = i == 1 && slots != null && isNullType(slots.v)
+                            && !isNullType(args[i].t) && !bindingWrapped
+                            && StringTools.startsWith(r, "&(") && StringTools.endsWith(r, ")");
+                        if (bindingWrapped)
+                            "&(Some((*" + binding.matched(1) + ").clone()))"
+                        else if (valueWrapped)
+                            "&(Some(" + r.substring(2, r.length - 1) + ".clone()))"
+                        else
+                            r;
                     }];
                     return nullableMethodReceiver(subj, true) + ".put(" + putArgs.join(", ") + ")";
                 }
