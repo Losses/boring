@@ -4096,14 +4096,14 @@ class RustExpr {
                     // conditional arm renders its own Option/None shape and
                     // the fold's value text would bypass that handling.
                     // (NoneZeroFold)
-                    final nested = switch (stripWrap(t).expr) {
+                    final nested = (switch (stripWrap(t).expr) {
                         case TIf(_, _, _): true;
                         case _: false;
-                    }
-                    || switch (stripWrap(f).expr) {
+                    })
+                        || (switch (stripWrap(f).expr) {
                         case TIf(_, _, _): true;
                         case _: false;
-                    };
+                    });
                     if (cmp != null && !nested && isNullType(cmp.subject.t)) {
                         final subjectText = stripRenderedParens(expr(cmp.subject));
                         final thenText = stripRenderedParens(expr(stripWrap(t)));
