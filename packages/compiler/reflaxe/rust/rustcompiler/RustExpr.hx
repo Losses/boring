@@ -2909,7 +2909,8 @@ class RustExpr {
                     return Std.string(EnumQueryExpander.constructorCount(enumCollection));
                 if (isNullType(subj.t) || isImplicitNullableLocal(subj) || isNoneInitializedLocal(subj)) {
                     final collapsed = switch (stripWrap(subj).expr) {
-                        case TLocal(v): nullableCollapsedLocals.exists(v.id);
+                        case TLocal(v): nullableCollapsedLocals.exists(v.id)
+                            || hasGuardedTernaryLocals.exists(v.id);
                         case _: false;
                     };
                     final narrowed = narrowedSubject(subj);
@@ -3341,7 +3342,8 @@ class RustExpr {
             case TField(subj, fa) if (fieldName(fa) == "length"):
                 if (isNullType(subj.t) || isImplicitNullableLocal(subj) || isNoneInitializedLocal(subj)) {
                     final collapsed = switch (stripWrap(subj).expr) {
-                        case TLocal(v): nullableCollapsedLocals.exists(v.id);
+                        case TLocal(v): nullableCollapsedLocals.exists(v.id)
+                            || hasGuardedTernaryLocals.exists(v.id);
                         case _: false;
                     };
                     final narrowed = narrowedSubject(subj);
@@ -6759,7 +6761,8 @@ class RustExpr {
                         // inner value into the local: the local is a plain
                         // collection, so its length is a direct len() read.
                         final collapsed = switch (stripWrap(subj).expr) {
-                            case TLocal(v): nullableCollapsedLocals.exists(v.id);
+                            case TLocal(v): nullableCollapsedLocals.exists(v.id)
+                                || hasGuardedTernaryLocals.exists(v.id);
                             case _: false;
                         };
                         if (collapsed) {
