@@ -10663,6 +10663,17 @@ class RustExpr {
                     case _:
                 }
             }
+            // A borrowed match binding (`__option6`, bare or wrapped as
+            // `&(__option6)`) feeding a nullable slot wraps the cloned inner
+            // value in Some: the binding is a reference into the matched
+            // subject. (BorrowedBindingSomeWrap)
+            if (pt != null && isNullType(pt) && !isNullType(arg.t) && !isTNull(arg)
+                && StringTools.startsWith(argStr, "__option"))
+                argStr = "Some((*" + argStr + ").clone())";
+            if (pt != null && isNullType(pt) && !isNullType(arg.t) && !isTNull(arg)
+                && StringTools.startsWith(argStr, "&(") && StringTools.endsWith(argStr, ")")
+                && StringTools.contains(argStr, "__option"))
+                argStr = "Some((*" + argStr.substr(2, argStr.length - 3) + ").clone())";
             // A proven-non-null nullable local feeding a non-null parameter
             // unwraps the Option at the call boundary so the parameter slot
             // receives the inner value. The guard (early exit or && chain)
