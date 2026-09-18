@@ -3515,6 +3515,14 @@ class RustExpr {
             narrowedText = isTypeCopy(innerType) ? "*" + name : "(*" + name + ").clone()";
             if (nullableResult && isInterfaceType(innerType))
                 narrowedText = "Some(" + narrowedText + ")";
+        } else if (narrowedText == "(*" + name + ").clone()"
+            && nullableResult && isInterfaceType(getNullInnerType(info.subject.t))) {
+            // A narrowed field read renders the dereference and clone at the
+            // read site (the full-path substitution in field()), so the arm
+            // text never equals the bare binding name above. A nullable
+            // interface result still needs the Some wrapper on this arm to
+            // match the sibling constructor arm's Option shape.
+            narrowedText = "Some(" + narrowedText + ")";
         }
         var noneText = nullableResult ? wrapBranchForNullableResult(noneBranch, resultType, narrowedBranch)
             : conditionalBranchText(noneBranch, narrowedBranch, resultType);
