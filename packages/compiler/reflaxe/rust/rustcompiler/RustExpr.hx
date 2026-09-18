@@ -7771,9 +7771,12 @@ class RustExpr {
                         final r = sortedRefArg(args[i]);
                         // A borrowed match binding as the value (index 1) of
                         // a nullable-V map wraps its cloned inner value in
-                        // Some. (SortedPutValueAdaptation)
-                        (i == 1 && StringTools.contains(r, "__option") && StringTools.endsWith(r, ")"))
-                            ? "&(Some((*" + r.substring(r.indexOf("__option"), r.length - 1) + ").clone()))"
+                        // Some. The binding form is matched exactly — a
+                        // nested render that merely contains the name must
+                        // pass through untouched. (SortedPutValueAdaptation)
+                        final binding = (~/^&\((__option\d+)\)$/).exec(r);
+                        (i == 1 && binding != null)
+                            ? "&(Some((*" + binding.matched(1) + ").clone()))"
                             : r;
                     }];
                     return nullableMethodReceiver(subj, true) + ".put(" + putArgs.join(", ") + ")";
