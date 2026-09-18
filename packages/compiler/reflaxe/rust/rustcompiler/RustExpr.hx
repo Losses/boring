@@ -1374,7 +1374,7 @@ class RustExpr {
                 // (unwrap_or) stores the inner value in the binding, so
                 // returns of this local skip the nullable-unwrap rule
                 // (ForcingReadLocals).
-                if (initStr.indexOf(".unwrap_or(") >= 0)
+                if (initStr.indexOf(".unwrap_or(") >= 0 && !StringTools.startsWith(initStr, "if "))
                     forcingReadLocals.set(v.id, true);
                 if (isNullType(v.t) && !isTNull(init) && !StaticFieldHelper.isNullableType(init.t) && !lookupInit) {
                     initStr = "Some(" + initStr + ")";
