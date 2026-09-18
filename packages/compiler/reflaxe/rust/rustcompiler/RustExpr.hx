@@ -101,6 +101,11 @@ class RustExpr {
     // of one are visible to the readers of the others, matching the
     // reference semantics of Haxe Array captures. (SharedClosureArrays)
     final sharedClosureArrays:Map<Int, Bool> = [];
+    // Scalar locals (Int/Float/Bool) written inside a named local function
+    // lowered as Arc<dyn Fn>. The Fn contract forbids assigning a captured
+    // binding, so the scalar shares through Arc<Mutex> like the array family.
+    // (SharedClosureScalars)
+    final sharedClosureScalars:Map<Int, Bool> = [];
     // Sorted map get() calls proven present by an enclosing has() guard.
     // Keyed by the rendered receiver+key text so a get() inside the guard
     // unwraps its Option into the value slot.
@@ -1331,6 +1336,16 @@ class RustExpr {
                     imports.require("std::sync::Mutex");
                     final innerType = types.of(v.t, false);
                     return [indent(depth) + "let " + name + ": Arc<Mutex<" + innerType + ">> = Arc::new(Mutex::new(Vec::new()));"];
+                }
+                // A shared closure scalar lowers as Arc<Mutex<T>>: the named
+                // local function that assigns it is an Arc<dyn Fn>, whose
+                // captured bindings are immutable (SharedClosureScalars).
+                if (sharedClosureScalars.exists(v.id)) {
+                    imports.require("std::sync::Arc");
+                    imports.require("std::sync::Mutex");
+                    final innerType = types.of(v.t, false);
+                    final valueText = isTNull(init) ? "Default::default()" : expr(init);
+                    return [indent(depth) + "let " + name + ": Arc<Mutex<" + innerType + ">> = Arc::new(Mutex::new(" + valueText + "));"];
                 }
                 // An empty array literal is an untyped `vec![]` in Rust; the
                 // element reads and writes of an array local infer through
@@ -3721,6 +3736,12 @@ class RustExpr {
                 // mutex guard; index writes and pushes on the guard resolve
                 // through DerefMut (SharedClosureArrays).
                 if (sharedClosureArrays.exists(v.id))
+                    return RustImports.toSnakeCase(localName(v)) + ".lock().unwrap()";
+                // A shared closure scalar read dereferences through the
+                // guard the same way; assignment targets place the
+                // dereference at the statement site below
+                // (SharedClosureScalars).
+                if (sharedClosureScalars.exists(v.id))
                     return RustImports.toSnakeCase(localName(v)) + ".lock().unwrap()";
                 if (subst.exists(v.id)) {
                     return subst.get(v.id);
@@ -8241,7 +8262,20 @@ class RustExpr {
         closureParamIds.clear();
         for (id in previousClosureParams.keys())
             closureParamIds.set(id, true);
-        return 'move |$params| {\n' + body.join("\n") + '\n}';
+        final closureText = 'move |$params| {\n' + body.join("\n") + '\n}';
+        // A nested closure that captures a shared closure array or scalar
+        // clones the Arc instead of moving it out of the enclosing Fn
+        // closure, whose captured bindings are immutable
+        // (SharedClosureArrays, SharedClosureScalars).
+        final sharedCaptures = [for (v in closureOwnedCaptures(f))
+            if (sharedClosureArrays.exists(v.id) || sharedClosureScalars.exists(v.id))
+                "let " + RustImports.toSnakeCase(localName(v)) + " = Arc::clone(&" + RustImports.toSnakeCase(localName(v)) + ");"
+        ];
+        if (sharedCaptures.length > 0) {
+            imports.require("std::sync::Arc");
+            return "{ " + sharedCaptures.join(" ") + " " + closureText + " }";
+        }
+        return closureText;
     }
 
     function functionValueLiteral(f:TFunc, functionType:Null<Type>):String {
@@ -8340,6 +8374,49 @@ class RustExpr {
             if (isArray)
                 sharedClosureArrays.set(id, true);
         }
+        scanSharedClosureScalars(root);
+    }
+
+    /**
+        Scalar locals assigned inside a named local function lower as
+        Arc<dyn Fn>, and the Fn contract forbids assigning a captured
+        binding. Each such scalar shares through Arc<Mutex> so the writes
+        stay visible through the shared referent.
+        (SharedClosureScalars)
+    **/
+    function scanSharedClosureScalars(root:TypedExpr):Void {
+        function isScalar(t:Type):Bool {
+            return switch (Context.follow(t)) {
+                case TAbstract(a, _): ["Int", "Float", "Bool"].indexOf(a.get().name) >= 0;
+                case _: false;
+            };
+        }
+        function scan(e:TypedExpr):Void {
+            switch (e.expr) {
+                case TFunction(f):
+                    final bound:Map<Int, Bool> = [];
+                    for (arg in f.args)
+                        bound.set(arg.v.id, true);
+                    function walk(x:TypedExpr):Void {
+                        switch (x.expr) {
+                            case TVar(v, init):
+                                if (init != null)
+                                    walk(init);
+                                bound.set(v.id, true);
+                                return;
+                            case TLocal(v):
+                                if (!bound.exists(v.id) && mutated.exists(v.id) && isScalar(v.t))
+                                    sharedClosureScalars.set(v.id, true);
+                            case _:
+                        }
+                        haxe.macro.TypedExprTools.iter(x, walk);
+                    }
+                    walk(f.expr);
+                case _:
+            }
+            haxe.macro.TypedExprTools.iter(e, scan);
+        }
+        scan(root);
     }
 
     function functionLiteralNamed(name:String, f:TFunc, functionType:Null<Type>):String {
@@ -9105,7 +9182,13 @@ class RustExpr {
         }, (subj, kind, _) -> switch (kind) {
             case Instance(_, cf) | Anonymous(cf): expr(subj) + "." + RustImports.toSnakeCase(cf.get().name);
         },
-            v -> RustImports.toSnakeCase(localName(v)), (e, _) -> fail(e, "assignment target has no Rust lowering: " + Std.string(e.expr)));
+            v -> {
+            // A shared closure scalar writes through the dereferenced guard;
+            // the Mutex supplies the interior mutability the Fn contract
+            // forbids on captured bindings (SharedClosureScalars).
+            final name = RustImports.toSnakeCase(localName(v));
+            sharedClosureScalars.exists(v.id) ? "*" + name + ".lock().unwrap()" : name;
+        }, (e, _) -> fail(e, "assignment target has no Rust lowering: " + Std.string(e.expr)));
     }
 
     function objectLiteral(e:TypedExpr, fields:Array<{name:String, expr:TypedExpr}>):String {
