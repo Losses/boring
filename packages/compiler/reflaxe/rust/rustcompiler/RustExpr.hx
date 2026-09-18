@@ -10648,6 +10648,7 @@ class RustExpr {
                                 // dereference, a proven unwrap, a zero
                                 // bridge) must not gain a second one.
                                 && !StringTools.startsWith(argStr, "*")
+                                && !StringTools.startsWith(argStr, "(*")
                                 && !StringTools.contains(argStr, ".as_ref().unwrap()")
                                 && !StringTools.endsWith(argStr, ".unwrap_or(0)")
                                 && !StringTools.endsWith(argStr, ".unwrap_or(0.0)"));
