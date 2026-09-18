@@ -1652,9 +1652,6 @@ class RustExpr {
                                 || narrowedSubject(ret) != null;
                         case _:
                     }
-                    if (currentClass != null && currentClass.module.indexOf("InlineObjectLayoutTestSupport") >= 0)
-                        Context.error("PROBE11 retT=" + Std.string(ret.t) + " curRet=" + Std.string(currentReturnType)
-                            + " retStr=" + retStr + " skip=" + unwrapSkip, ret.pos);
                     // A ternary whose else arm is the null literal renders
                     // an Option shape even when the typer unified it to the
                     // non-null sibling type (null folds into that type).
