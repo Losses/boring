@@ -177,7 +177,6 @@ class RustExpr {
     // Locals initialized from a has-guarded get ternary (`map.has(k) ?
     // map.get(k) : value`); the initializer renders the inner value, so
     // arithmetic operands must not re-apply the unwrap_or forcing read.
-    final hasGuardedTernaryLocals:Map<Int, Bool> = [];
     final declaredNullableLocals:Map<Int, Bool> = [];
     // Keep Option when Haxe code observes null separately from code point zero.
     final nullableSensitiveLocals:Map<Int, Bool> = [];
@@ -651,7 +650,6 @@ class RustExpr {
         nonNullRenderedLocals.clear();
         implicitNullableLocals.clear();
         hasGuardedGets.resize(0);
-        hasGuardedTernaryLocals.clear();
         declaredNullableLocals.clear();
         noneInitializedLocals.clear();
         nullableSensitiveLocals.clear();
@@ -1268,12 +1266,9 @@ class RustExpr {
                             nonNullRenderedLocals.set(v.id, true);
                         }
                     case TIf(cond, _, _) if (hasGuardGetInfo(cond) != null):
-                        // A has-guarded get ternary initializer (`map.has(k) ?
-                        // map.get(k) : value`) renders the inner value (the
-                        // has guard proved presence), so the local holds the
-                        // plain value; arithmetic operands must not re-apply
-                        // the unwrap_or forcing read.
-                        hasGuardedTernaryLocals.set(v.id, true);
+                        // A has-guarded get ternary initializer keeps the
+                        // Option shape of its nullable join; no scalar
+                        // collapse is registered for it.
                     case TField(subj, FInstance(_, _, cf)) | TField(subj, FAnon(cf)):
                         switch (stripWrap(subj).expr) {
                             case TLocal(item) if ((borrowedLoopVarIds.exists(item.id) || readsAfterDeclaration.exists(item.id))
@@ -3501,6 +3496,17 @@ class RustExpr {
     }
 
     function hasGuardedGetTernary(cond:TypedExpr, ifTrue:TypedExpr, ifFalse:TypedExpr, resultType:Type):Null<String> {
+        // A nullable result keeps the Option shape: the guarded get renders
+        // as the Option it is, and the fallback wraps once so both arms
+        // share the Option type. (HasGuardedTernaryOptionResult)
+        if (resultType != null && isNullType(resultType)) {
+            final optionGet = expr(ifTrue);
+            final optionFallback = expr(ifFalse);
+            final fallbackText = isTNull(ifFalse) ? "None"
+                : isNullType(ifFalse.t) || StringTools.startsWith(optionFallback, "Some(") ? optionFallback
+                : "Some(" + optionFallback + ")";
+            return "if " + expr(cond) + " { " + optionGet + " } else { " + fallbackText + " }";
+        }
         // The condition must be `map.has(key)`.
         final hasInfo = switch (stripWrap(cond).expr) {
             case TCall(fn, args) if (args.length == 1):
@@ -5243,14 +5249,7 @@ class RustExpr {
             case OpEq | OpNotEq if (isNullType(l.t) && !isNullType(r.t) && !isTNull(r)):
                 final test = expr(l) + ".as_ref().map_or(false, |v| v == &(" + optionSomeInner(r) + "))";
                 return op == OpEq ? test : "!(" + test + ")";
-            case OpEq | OpNotEq if (isNullType(r.t) && !isNullType(l.t) && !isTNull(l)
-                && !(switch (stripWrap(r).expr) {
-                    // A has-guarded ternary initializer materialized the
-                    // inner scalar; the comparison is a plain scalar pair
-                    // (HasGuardedTernaryLocals).
-                    case TLocal(v): hasGuardedTernaryLocals.exists(v.id);
-                    case _: false;
-                })):
+            case OpEq | OpNotEq if (isNullType(r.t) && !isNullType(l.t) && !isTNull(l)):
                 final test = expr(r) + ".as_ref().map_or(false, |v| v == &(" + optionSomeInner(l) + "))";
                 return op == OpEq ? test : "!(" + test + ")";
             // A non-nullable operand compared against null is a tautology:
@@ -5549,10 +5548,7 @@ class RustExpr {
                 // not re-apply (E0599 unwrap_or on the plain f64).
                 if (isFloatType(l.t) && isNullType(r.t) && isFloatType(getNullInnerType(r.t))
                     && narrowedSubject(r) == null && !isNullableCollapsedLocal(r)
-                    && !(switch (stripWrap(r).expr) {
-                        case TLocal(v): hasGuardedTernaryLocals.exists(v.id);
-                        case _: false;
-                    }))
+                    && !isNullableCollapsedLocal(r))
                     return assignTarget(l) + " " + symbolOf(inner) + "= " + expr(r) + ".unwrap_or(0.0)";
                 return assignTarget(l) + " " + symbolOf(inner) + "= " + expr(r);
             case OpAdd if (isStringType(l.t) || isStringType(r.t)):
@@ -6079,10 +6075,7 @@ class RustExpr {
         } else if (isNullType(e.t) && isFloatType(getNullInnerType(e.t))
             && narrowedSubject(e) == null && !isNullableCollapsedLocal(e)
             && !isNonNullRenderedConditional(e)
-            && !(switch (stripWrap(e).expr) {
-                case TLocal(v): hasGuardedTernaryLocals.exists(v.id);
-                case _: false;
-            })) {
+            && !isNonNullRenderedConditional(e)) {
             // Null<Float> lowers to Option<Float>. Haxe arithmetic uses the
             // absent value's numeric zero, so extract that value before the
             // operand reaches the operator. A narrowed operand already renders
