@@ -3630,6 +3630,17 @@ class RustExpr {
             && !(StringTools.contains(fallback, ").unwrap()") && fallback.indexOf("None") < 0)
             && !StringTools.startsWith(fallback, "*"))
             return null;
+        // A nullable result keeps the Option shape: the guarded get stays
+        // the Option it renders and the zero fallback wraps in Some, so
+        // both arms share the slot's Option type. (HasGuardedZeroOption)
+        if (resultType != null && isNullType(resultType))
+            return "if "
+                + expr(cond)
+                + " { "
+                + getText
+                + " } else { Some("
+                + fallback
+                + ") }";
         return "if "
             + expr(cond)
             + " { "
