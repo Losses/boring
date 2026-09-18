@@ -3545,10 +3545,13 @@ class RustExpr {
         // the Option shape and must not be unwrapped here. A nullable macro
         // type is not disqualifying by itself: a nested guarded ternary
         // already unwrapped its own get(), so its rendered text carries the
-        // inner value even though the macro type still reads Null.
+        // inner value even though the macro type still reads Null. A block
+        // wrapped nested ternary never ends in .unwrap(), so the test is a
+        // containment check with a None-render guard.
         if (isTNull(ifFalse))
             return null;
-        if (isNullType(ifFalse.t) && !StringTools.endsWith(fallback, ").unwrap()")
+        if (isNullType(ifFalse.t)
+            && !(StringTools.contains(fallback, ").unwrap()") && fallback.indexOf("None") < 0)
             && !StringTools.startsWith(fallback, "*"))
             return null;
         return "if "
