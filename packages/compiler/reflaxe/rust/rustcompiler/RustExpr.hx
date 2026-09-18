@@ -106,6 +106,11 @@ class RustExpr {
     // binding, so the scalar shares through Arc<Mutex> like the array family.
     // (SharedClosureScalars)
     final sharedClosureScalars:Map<Int, Bool> = [];
+    // Subject texts proven non-null by an `if (X == null) { continue; }`
+    // guard inside a loop. A later `let v = X;` copy of the same subject
+    // inherits the proof, so it passes call slots as the inner value.
+    // (ContinueNullGuards)
+    final provenContinueSubjects:Map<String, Bool> = [];
     // Locals whose initializer already rendered through the forcing read
     // (an unwrap_or): the binding holds the inner value, so a return of
     // that local must not unwrap again. (ForcingReadLocals)
@@ -676,6 +681,7 @@ class RustExpr {
         f.expr.expr = fusedRoot.expr;
         scanLocals(f.expr);
         scanSharedClosureArrays(f.expr);
+        scanContinueNullGuards(f.expr);
         scanLocalFunctionFallibility(f.expr);
         scanReadsAfter(f.expr);
         final previousReceiverContext = renderingMethodReceiver;
@@ -1331,6 +1337,17 @@ class RustExpr {
                 // of other nullable locals) stay as they are, and a
                 // name-keyed enum lookup already emits from_name's Option.
                 final lookupInit = EnumQueryExpander.markerKind(init) == QLookup;
+                // A copy of a continue-guarded subject (`let n = X;` after
+                // `if (X == null) { continue; }`) inherits the non-null
+                // proof: call slots expecting the inner value unwrap the
+                // copy at the argument boundary. (ContinueNullGuards)
+                switch (stripWrap(init).expr) {
+                    case TLocal(_) | TField(_, _):
+                        final initSubject = subjectTextOf(init);
+                        if (provenContinueSubjects.exists(initSubject))
+                            provenNonNullVarIds.set(v.id, true);
+                    case _:
+                }
                 // An initializer that rendered through the forcing read
                 // (unwrap_or) stores the inner value in the binding, so
                 // returns of this local skip the nullable-unwrap rule
@@ -8508,6 +8525,41 @@ class RustExpr {
                         haxe.macro.TypedExprTools.iter(x, walk);
                     }
                     walk(f.expr);
+                case _:
+            }
+            haxe.macro.TypedExprTools.iter(e, scan);
+        }
+        scan(root);
+    }
+
+    /**
+        An `if (X == null) { continue; }` statement inside a loop proves X
+        holds Some for the rest of that iteration. A following
+        `let v = X;` copy stores the Option value, and a call slot that
+        expects the inner value unwraps the copy through the proven
+        mechanism. (ContinueNullGuards)
+    **/
+    function scanContinueNullGuards(root:TypedExpr):Void {
+        function containsContinue(e:TypedExpr):Bool {
+            if (e.expr.match(TContinue))
+                return true;
+            var found = false;
+            haxe.macro.TypedExprTools.iter(e, function(x) {
+                if (!found)
+                    found = containsContinue(x);
+            });
+            return found;
+        }
+        function scan(e:TypedExpr):Void {
+            switch (stripWrap(e).expr) {
+                case TIf(cond, then, null):
+                    switch (stripWrap(cond).expr) {
+                        case TBinop(OpEq, l, r):
+                            final subject = isTNull(l) ? r : (isTNull(r) ? l : null);
+                            if (subject != null && containsContinue(then))
+                                provenContinueSubjects.set(subjectTextOf(subject), true);
+                        case _:
+                    }
                 case _:
             }
             haxe.macro.TypedExprTools.iter(e, scan);
