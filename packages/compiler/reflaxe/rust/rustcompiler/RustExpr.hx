@@ -7944,6 +7944,14 @@ class RustExpr {
                     };
                     final putArgs = [for (i in 0...args.length) {
                         var r = sortedRefArg(args[i]);
+                        // A string literal key owns its storage: the borrow
+                        // of a bare literal is a &str while the table key is
+                        // a String. (SortedPutValueAdaptation)
+                        if (i == 0 && switch (stripWrap(args[i]).expr) {
+                            case TConst(TString(_)): true;
+                            case _: false;
+                        })
+                            r = r + ".to_string()";
                         // A borrowed match binding as the value (index 1) of
                         // a nullable-V map wraps its cloned inner value in
                         // Some. The binding forms are matched exactly — a
