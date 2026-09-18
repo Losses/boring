@@ -1082,10 +1082,13 @@ class RustExpr {
                     localError != null
                         ? ": " + types.functionReturnOfFallible(v.t, localError)
                         : ": " + (isStaticRef ? types.of(v.t, false) : types.functionReturnOf(v.t));
-                } else if (isNullType(v.t) && isInterfaceType(getNullInnerType(v.t))) {
+                } else if (isNullType(v.t) && isInterfaceType(flattenNullable(v.t))) {
                     // A nullable interface local needs its Option trait
-                    // object type before conditional inference runs.
-                    ": " + types.of(v.t, false);
+                    // object type before conditional inference runs. The
+                    // declared type renders from the flattened inner type so
+                    // a double-wrapped join carries exactly one Option
+                    // layer. (DoubleNullableFlatten)
+                    ": Option<" + types.of(flattenNullable(v.t), false) + ">";
                 } else switch (v.t) {
                     case TInst(c, _) if (c.get().isInterface):
                         // An interface local carries its boxed trait object
@@ -10937,6 +10940,19 @@ class RustExpr {
             case TAbstract(a, _): a.get().name == "Bool";
             case _: false;
         };
+    }
+
+    /** Strips every Null wrapper (the typer can double-wrap a ternary
+        joining null with an interface-valued call as Null<Null<T>>).
+        (DoubleNullableFlatten) */
+    function flattenNullable(t:Type):Type {
+        var cur = t;
+        var guard = 0;
+        while (isNullType(cur) && guard < 4) {
+            cur = getNullInnerType(cur);
+            guard++;
+        }
+        return cur;
     }
 
     function getNullInnerType(t:Type):Type {
