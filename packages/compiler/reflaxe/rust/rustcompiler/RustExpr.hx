@@ -7958,6 +7958,17 @@ class RustExpr {
                                         : "&(Some(" + inner + "))";
                                 }
                             }
+                        // A null-guarded get local collapses to the bare
+                        // inner value (its declaration unwrapped); a
+                        // nullable-V slot still needs the Option shape.
+                        // (SortedPutValueAdaptation)
+                        else if (i == 1 && appliedSlot != null && isNullType(appliedSlot) && isNullType(args[i].t)
+                            && switch (stripWrap(args[i]).expr) {
+                                case TLocal(v): nullableCollapsedLocals.exists(v.id)
+                                    || hasGuardedTernaryLocals.exists(v.id);
+                                case _: false;
+                            })
+                            r = "&(Some(" + stripRenderedParens(expr(stripWrap(args[i]))) + "))";
                         } else if (i == 1 && appliedSlot != null && !isNullType(appliedSlot) && isNullType(args[i].t)
                             && switch (stripWrap(args[i]).expr) {
                                 case TLocal(v): optionRenderedLocals.exists(v.id);
