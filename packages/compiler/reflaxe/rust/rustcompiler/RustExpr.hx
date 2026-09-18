@@ -11381,6 +11381,18 @@ class RustExpr {
                         // (AppliedReceiverParams)
                         argStr = "&(" + argStr + ").to_string()";
                     }
+                    if (stdTableReceiver && i < paramTypes.length
+                        && isNumericScalarType(paramTypes[i])
+                        && switch (stripWrap(arg).expr) {
+                            case TConst(TInt(_)): true;
+                            case _: false;
+                        }) {
+                        // A business Int literal entering a std table slot
+                        // names the u32 domain explicitly so the borrow
+                        // targets the slot's element type.
+                        // (AppliedReceiverParams)
+                        argStr = "&(" + argStr + "u32)";
+                    }
                     if (!stdTableReceiver && stringLikeType(pt) && stringLikeType(arg.t)) {
                         argStr = switch (stripWrap(arg).expr) {
                             case TConst(TString(_)): argStr;
