@@ -4088,23 +4088,7 @@ class RustExpr {
                 // (NoneZeroFold)
                 {
                     final cmp = nullComparisonParts(c);
-#if boring_fold_debug
-                    if (cmp == null && Context.getPosInfos(e.pos).file.indexOf("PunctuationGeometryLedger") >= 0)
-                        Context.warning("FOLDDBG2 cond=" + Std.string(stripWrap(c).expr).substr(0, 70), e.pos);
-#end
-                    // Nested ternaries keep the generic arm machinery: a
-                    // conditional arm renders its own Option/None shape and
-                    // the fold's value text would bypass that handling.
-                    // (NoneZeroFold)
-                    final nested = switch (stripWrap(t).expr) {
-                        case TIf(_, _, _): true;
-                        case _: false;
-                    }
-                    || switch (stripWrap(f).expr) {
-                        case TIf(_, _, _): true;
-                        case _: false;
-                    };
-                    if (cmp != null && !nested && isNullType(cmp.subject.t)) {
+                    if (cmp != null && isNullType(Context.follow(cmp.subject.t))) {
                         final subjectText = stripRenderedParens(expr(cmp.subject));
                         final thenText = stripRenderedParens(expr(stripWrap(t)));
                         final elseText = stripRenderedParens(expr(stripWrap(f)));
