@@ -8822,7 +8822,7 @@ class RustExpr {
                 // A narrowed operand renders the dereferenced match binding;
                 // a nullable constructor parameter still needs the Option
                 // shape. (NarrowedNullableParam)
-                if (cls.name == "Resolution" && i == 0)
+                if (cls.name == "Resolution" && i == 0 && cls.module.indexOf("DashEllipsis") >= 0)
                     Context.error("PROBE2 pt=" + Std.string(pt) + " argStr=" + argStr, arg.pos);
                 if (isNullType(pt) && StringTools.startsWith(argStr, "*")
                     && !StringTools.startsWith(argStr, "*("))
