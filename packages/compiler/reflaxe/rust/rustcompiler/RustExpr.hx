@@ -7924,12 +7924,21 @@ class RustExpr {
                                 r = "&(Some((*" + clonedBinding.matched(1) + ").clone()))";
                             else if (parenClonedBinding.match(r))
                                 r = "&(Some((*" + parenClonedBinding.matched(1) + ").clone()))";
-                            else if (!isNullType(args[i].t)
-                                && switch (stripWrap(args[i]).expr) {
-                                    case TLocal(v): optionRenderedLocals.exists(v.id);
-                                    case _: false;
-                                })
-                                r = "&(Some(" + stripRenderedParens(expr(stripWrap(args[i]))) + "))";
+                            else if (!isNullType(args[i].t)) {
+                                // A plain value enters a nullable slot: the
+                                // boundary wraps it in Some. A match binding
+                                // is a reference to the inner value, so it
+                                // dereferences and clones. (SortedPutValueAdaptation)
+                                final inner = StringTools.startsWith(r, "&")
+                                    ? stripRenderedParens(r.substr(1))
+                                    : stripRenderedParens(r);
+                                final bareBinding = (~/^(__option\d+)$/);
+                                if (!StringTools.startsWith(inner, "Some(")) {
+                                    r = bareBinding.match(inner)
+                                        ? "&(Some((*" + bareBinding.matched(1) + ").clone()))"
+                                        : "&(Some(" + inner + "))";
+                                }
+                            }
                         } else if (i == 1 && appliedSlot != null && !isNullType(appliedSlot) && isNullType(args[i].t)
                             && switch (stripWrap(args[i]).expr) {
                                 case TLocal(v): optionRenderedLocals.exists(v.id);
