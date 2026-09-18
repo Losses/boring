@@ -3701,6 +3701,16 @@ class RustExpr {
         }
         narrowedText = interfaceConditionalBranch(resultType, narrowedBranch, narrowedText);
         noneText = interfaceConditionalBranch(resultType, noneBranch, noneText);
+        // The mirrored form: a dereferenced binding arm (`*name`) against a
+        // sibling arm that renders an Option value (the null literal or a
+        // Some-wrapped value). The dereferenced arm wraps in Some so both
+        // arms carry Option<T>. A sibling rendering a bare inner value means
+        // the slot is non-null and must not wrap. (NarrowedNullableParam)
+        if (isNullType(resultType) && StringTools.startsWith(narrowedText, "*")
+            && !StringTools.startsWith(narrowedText, "*(")
+            && !StringTools.startsWith(narrowedText, "Some(")
+            && (noneText == "None" || StringTools.startsWith(noneText, "Some(")))
+            narrowedText = "Some(" + narrowedText + ")";
         final subjectText = subjectTextOf(info.subject);
         final matchText = info.noneWhenTrue ? "match &("
             + subjectText
