@@ -9159,6 +9159,22 @@ class RustExpr {
                 if (isNullType(pt) && StringTools.startsWith(argStr, "*")
                     && !StringTools.startsWith(argStr, "*("))
                     argStr = "Some(" + argStr + ")";
+                // A has-guarded zero ternary argument (both arms render the
+                // inner value) into a nullable constructor slot wraps in
+                // Some. (NarrowedNullableParam)
+                if (isNullType(pt) && !isNullType(args[i].t)) {
+                    switch (stripWrap(args[i]).expr) {
+                        case TIf(_, t2, f2):
+                            final tt = expr(t2);
+                            final et = expr(f2);
+                            final zeroElse = (et == "0" || et == "0.0f64" || et == "0.0"
+                                || et == "(0 as f64)" || et == "(0.0f64)");
+                            if (StringTools.contains(tt, ".unwrap()") && zeroElse
+                                && !StringTools.startsWith(argStr, "Some("))
+                                argStr = "Some(" + argStr + ")";
+                        case _:
+                    }
+                }
                 // A fallible constructor used as an argument must resolve its
                 // Result before the value reaches the parameter. Interface
                 // parameters then box the successful concrete value below.
