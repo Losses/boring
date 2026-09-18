@@ -7910,7 +7910,7 @@ class RustExpr {
                         // nested render that merely contains the name must
                         // pass through untouched.
                         final binding = (~/^&\((__option\d+)\)$/);
-                        final clonedBinding = (~/^&\(\(\*(__option\d+)\)\.clone\(\)\)$/);
+                        final clonedBinding = (~/^&\(\*(__option\d+)\)\.clone\(\)$/);
                         if (i == 1 && appliedSlot != null && isNullType(appliedSlot)) {
                             if (binding.match(r))
                                 r = "&(Some((*" + binding.matched(1) + ").clone()))";
