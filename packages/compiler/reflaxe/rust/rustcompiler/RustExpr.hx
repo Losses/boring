@@ -11370,6 +11370,17 @@ class RustExpr {
                             argStr = prefix + argStr;
                         }
                     }
+                    if (stdTableReceiver && stringLikeType(pt) && stringLikeType(arg.t)
+                        && switch (stripWrap(arg).expr) {
+                            case TConst(TString(_)): true;
+                            case _: false;
+                        }) {
+                        // A string literal key of a std table owns its
+                        // storage: the table key is a String, so the literal
+                        // converts once at the boundary.
+                        // (AppliedReceiverParams)
+                        argStr = "&(" + argStr + ").to_string()";
+                    }
                     if (!stdTableReceiver && stringLikeType(pt) && stringLikeType(arg.t)) {
                         argStr = switch (stripWrap(arg).expr) {
                             case TConst(TString(_)): argStr;
