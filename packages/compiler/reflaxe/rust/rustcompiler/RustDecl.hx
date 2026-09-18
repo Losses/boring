@@ -22,6 +22,15 @@ class RustDecl {
     final expr:RustExpr;
     final state:RustEmissionState;
 
+    /**
+        Trait methods emitted with a `&mut self` receiver, keyed by method
+        name. The static parameter-mutability scan (argIsMutated) consults
+        this table: a by-value parameter whose field carries a call to a
+        mutating trait method must itself be declared mutable, because the
+        receiver field is owned by the parameter binding.
+    **/
+    public static var mutatingTraitMethods:Map<String, Bool> = new Map();
+
     // Method names visited by the current bodyMutatesSelf recursion; breaks
     // self-call cycles when a mutating method transitively calls itself.
     static var mutationVisited:Map<String, Bool> = [];
@@ -103,6 +112,11 @@ class RustDecl {
                 ].join(", ");
                 final shape = state.interfaceMethodShapes.get(RustEmissionState.interfaceMethodKey(cls.module, cls.name, f.field.name));
                 final isMutating = shape != null ? shape.isMutating : (!f.isStatic && isMethodMutating(f));
+                // Register mutating trait methods so the parameter-mutability
+                // scan (argIsMutated) can mark a by-value parameter mutable
+                // when the body calls a &mut self method through its field.
+                if (isMutating && !f.isStatic)
+                    mutatingTraitMethods.set(f.field.name, true);
                 final selfPrefix = f.isStatic ? "" : (isMutating ? "&mut self" : "&self") + (f.args.length > 0 ? ", " : "");
                 final isFallible = shape != null ? shape.isFallible : funcIsFallible(f);
                 final errOwner = isFallible && shape != null && shape.errorName != null
@@ -1620,6 +1634,10 @@ class RustDecl {
                                 "add",
                                 "addChar"
                             ].indexOf(cf.get().name) >= 0) found = true;
+                            // A field call to a trait method emitted with a
+                            // `&mut self` receiver mutates the owned field, so
+                            // the parameter binding holding it needs mut.
+                            if (mutatingTraitMethods.exists(cf.get().name)) found = true;
                         case _:
                     }
                 case _:
