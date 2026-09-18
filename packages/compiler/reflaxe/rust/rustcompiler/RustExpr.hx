@@ -10418,6 +10418,13 @@ class RustExpr {
             final paramIndex = i + paramOffset;
             final pt = paramIndex < paramTypes.length ? paramTypes[paramIndex] : null;
             var argStr = renderValueForType(pt, arg, expr(arg));
+            // A narrowed operand renders the dereferenced match binding (a
+            // bare `*name`), which is the inner value; a nullable parameter
+            // slot still needs the Option shape, so the value wraps once in
+            // Some. (NarrowedNullableParam)
+            if (pt != null && isNullType(pt) && StringTools.startsWith(argStr, "*")
+                && !StringTools.startsWith(argStr, "*("))
+                argStr = "Some(" + argStr + ")";
             // A proven-non-null nullable local feeding a non-null parameter
             // unwraps the Option at the call boundary so the parameter slot
             // receives the inner value. The guard (early exit or && chain)
