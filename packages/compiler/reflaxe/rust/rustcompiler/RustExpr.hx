@@ -5092,9 +5092,11 @@ class RustExpr {
             case OpEq | OpNotEq if (isNullType(r.t) && !isNullType(l.t) && !isTNull(l) && narrowedSubject(r) != null):
                 return expr(r) + " " + symbolOf(op) + " " + expr(l);
             case OpEq | OpNotEq if (isNullType(l.t) && !isNullType(r.t) && !isTNull(r)):
-                return expr(l) + " " + symbolOf(op) + " Some(" + optionSomeInner(r) + ")";
+                final test = expr(l) + ".as_ref().map_or(false, |v| v == &(" + optionSomeInner(r) + "))";
+                return op == OpEq ? test : "!(" + test + ")";
             case OpEq | OpNotEq if (isNullType(r.t) && !isNullType(l.t) && !isTNull(l)):
-                return expr(r) + " " + symbolOf(op) + " Some(" + optionSomeInner(l) + ")";
+                final test = expr(r) + ".as_ref().map_or(false, |v| v == &(" + optionSomeInner(l) + "))";
+                return op == OpEq ? test : "!(" + test + ")";
             // A non-nullable operand compared against null is a tautology:
             // the value can never be None, so the comparison emits a literal
             // consistent with the parameter declaration (== null is false,
@@ -6064,6 +6066,10 @@ class RustExpr {
                 final unwrapped = isTypeCopy(inner) ? "*((" + rendered + ").as_ref().unwrap())" : "(" + rendered + ").as_ref().unwrap()";
                 return usizeIndex(unwrapped);
             }
+            // Nullable integer indices must be unwrapped before TryFrom;
+            // Haxe's null-to-zero numeric boundary supplies the default.
+            if (isNullType(e.t) && isIntType(getNullInnerType(e.t)))
+                return usizeIndex(expr(e) + ".unwrap_or(0)");
             return usizeIndex(expr(e));
         }
         if (ty == "u8") {
