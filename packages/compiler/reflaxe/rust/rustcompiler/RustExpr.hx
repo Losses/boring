@@ -1590,6 +1590,12 @@ class RustExpr {
                         && !unwrapSkip)
                         retStr = "(" + retStr + ").unwrap()";
                 }
+                // A narrowed operand returned through an Option slot wraps in
+                // Some: the match binding is the inner value while the slot
+                // keeps the Option shape. (NarrowedNullableParam)
+                if (StringTools.startsWith(returnTypeName, "Option<")
+                    && StringTools.startsWith(retStr, "*") && !StringTools.startsWith(retStr, "*("))
+                    retStr = "Some(" + retStr + ")";
                 if (isFallible) {
                     final guard = staticGuardOf(ret);
                     if (guard != null)
