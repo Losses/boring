@@ -3240,6 +3240,12 @@ class RustExpr {
 
     function renderPushArg(arg:TypedExpr, elementType:Null<Type> = null):String {
         var argStr = expr(arg);
+        // A narrowed binding deref carries the signed i32 inner domain; a
+        // business Int element slot holds u32, so the value reinterprets
+        // once at the push boundary. (SortedPutValueAdaptation)
+        if (elementType != null && isIntType(elementType)
+            && narrowedSubject(arg) != null && isIntType(getNullInnerType(arg.t)))
+            argStr = RustConversions.reinterpret(argStr, "u32");
         // A non-null value pushed into a nullable-element array (Array<Null<T>>
         // lowers to Vec<Option<T>>) wraps in Some so the element slot matches.
         // The null literal already renders None and stays bare.
@@ -8119,7 +8125,13 @@ class RustExpr {
                         + expr(subj) + ".drain(" + idxVar + ".." + idxVar + " + " + countVar + ").collect(); " + removedVar + " }";
                 }
                 if (name == "indexOf" && isVecType(subj) && args.length >= 1) {
-                    final needle = expr(args[0]);
+                    var needle = expr(args[0]);
+                    // A narrowed binding deref carries the signed i32 inner
+                    // domain; the business Int element compares in u32, so
+                    // the needle reinterprets before the comparison.
+                    if (isIntType(arrayElementType(subj.t)) && narrowedSubject(args[0]) != null
+                        && isIntType(getNullInnerType(args[0].t)))
+                        needle = RustConversions.reinterpret(needle, "u32");
                     // The iterator yields &T; compare by reference so the
                     // element is not moved out of the Vec (E0507/E0277 on a
                     // non-Copy element like String). A nullable receiver
