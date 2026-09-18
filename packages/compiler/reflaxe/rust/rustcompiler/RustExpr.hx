@@ -10640,7 +10640,9 @@ class RustExpr {
             // proved the source is Some; the bridge extracts the payload.
             if (pt != null && !isNullType(pt) && (isNullType(arg.t) || isImplicitNullableLocal(arg))) {
                 final proven = switch (stripWrap(arg).expr) {
-                    case TLocal(v): provenNonNullVarIds.exists(v.id);
+                    case TLocal(v):
+                        provenNonNullVarIds.exists(v.id)
+                            || provenContinueSubjects.exists(subjectTextOf(arg));
                     case _: provenMapGet(arg);
                 };
                 if (proven) {
