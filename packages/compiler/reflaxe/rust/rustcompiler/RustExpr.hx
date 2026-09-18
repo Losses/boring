@@ -3525,9 +3525,17 @@ class RustExpr {
         };
         if (getInfo == null)
             return null;
-        if (subjectTextOf(hasInfo.subj) != subjectTextOf(getInfo.subj))
+        if (Context.getPosInfos(cond.pos).min > 0 && StringTools.startsWith(Std.string(currentMethodName), "unknown") == false) {}
+        final hSubj = subjectTextOf(hasInfo.subj);
+        final gSubj = subjectTextOf(getInfo.subj);
+        final hKey = subjectTextOf(hasInfo.key);
+        final gKey = subjectTextOf(getInfo.key);
+        if (hSubj == "inline_advance")
+            Context.error("PROBE3 hSubj=" + hSubj + " gSubj=" + gSubj + " hKey=" + hKey + " gKey=" + gKey
+                + " ifFalseNull=" + (isTNull(ifFalse) || isNullType(ifFalse.t)), cond.pos);
+        if (hSubj != gSubj)
             return null;
-        if (subjectTextOf(hasInfo.key) != subjectTextOf(getInfo.key))
+        if (hKey != gKey)
             return null;
         // The fallback must be a concrete non-null value so both arms of the
         // unwrapped ternary share the inner value type. A null or nullable
