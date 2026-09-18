@@ -3693,6 +3693,14 @@ class RustExpr {
         }
         narrowedText = interfaceConditionalBranch(resultType, narrowedBranch, narrowedText);
         noneText = interfaceConditionalBranch(resultType, noneBranch, noneText);
+        // The mirrored form: a dereferenced binding arm (`*name`) against a
+        // sibling arm that renders an Option value (a nullable local passed
+        // through). The dereferenced arm wraps in Some so both arms carry
+        // Option<T>. (NarrowedNullableParam)
+        if (isNullType(resultType) && StringTools.startsWith(narrowedText, "*")
+            && !StringTools.startsWith(narrowedText, "*(")
+            && !StringTools.startsWith(narrowedText, "Some("))
+            narrowedText = "Some(" + narrowedText + ")";
         final subjectText = subjectTextOf(info.subject);
         final matchText = info.noneWhenTrue ? "match &("
             + subjectText
@@ -3722,14 +3730,6 @@ class RustExpr {
         if (isNullType(resultType) && !isNullType(narrowedBranch.t) && !StaticFieldHelper.isNullableType(narrowedBranch.t)
             && !StringTools.startsWith(narrowedText, "Some(")
             && StringTools.startsWith(noneText, "Some("))
-            narrowedText = "Some(" + narrowedText + ")";
-        // The mirrored form: a dereferenced binding arm (`*name`) against a
-        // sibling arm that renders an Option value (a nullable local passed
-        // through). The dereferenced arm wraps in Some so both arms carry
-        // Option<T>. (NarrowedNullableParam)
-        if (isNullType(resultType) && StringTools.startsWith(narrowedText, "*")
-            && !StringTools.startsWith(narrowedText, "*(")
-            && !StringTools.startsWith(narrowedText, "Some("))
             narrowedText = "Some(" + narrowedText + ")";
         // concrete-constructor arm of a Null<Interface> result already
         // wraps in Some(Box::new(...)) inside the match, so the outer
