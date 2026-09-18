@@ -1642,9 +1642,9 @@ class RustExpr {
                     case TBinop(OpEq, l, r) if (isTNull(l) || isTNull(r)):
                         final subject = isTNull(l) ? r : l;
                         switch (stripWrap(subject).expr) {
-                            case TLocal(v):
-                                final assigned = containsAssignTo(thenBranch, v.id);
-                                Context.error("PROBE8 v=" + v.name + " assigned=" + assigned + " elseNull=" + (elseBranch == null), subject.pos);
+                            case TLocal(v) if (elseBranch == null):
+                                if (containsAssignTo(thenBranch, v.id))
+                                    provenNonNullVarIds.set(v.id, true);
                             case _:
                         }
                     case _:
