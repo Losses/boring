@@ -5012,6 +5012,23 @@ class RustExpr {
         };
     }
 
+    /** The std generic tables are handwritten runtime residents whose
+        key/value parameters borrow as &K and &V (runtime/sorted_table.rs),
+        so a String slot there is &String — the &str convention of business
+        signatures does not apply. (AppliedReceiverParams) */
+    function isStdTableType(t:Null<Type>):Bool {
+        if (t == null)
+            return false;
+        return switch (Context.follow(t)) {
+            case TInst(c, _):
+                final cls = c.get();
+                StringTools.startsWith(cls.module, "std.")
+                    && (cls.name == "SortedMap" || cls.name == "SortedMapBuilder"
+                        || cls.name == "SortedSet" || cls.name == "SortedSetBuilder");
+            case _: false;
+        };
+    }
+
     // The type a method-call receiver dispatches on: a nullable subject
     // (Option<T>) calls methods on its inner value, so the collection and
     // string classifiers look through the Null wrapper.
@@ -10860,6 +10877,7 @@ class RustExpr {
                     case _: [];
                 };
         } else [];
+        final stdTableReceiver = receiverType != null && isStdTableType(receiverType);
         final rendered = [];
         for (i in 0...args.length) {
             final arg = args[i];
@@ -11135,7 +11153,7 @@ class RustExpr {
                             argStr = prefix + argStr;
                         }
                     }
-                    if (stringLikeType(pt) && stringLikeType(arg.t)) {
+                    if (!stdTableReceiver && stringLikeType(pt) && stringLikeType(arg.t)) {
                         argStr = switch (stripWrap(arg).expr) {
                             case TConst(TString(_)): argStr;
                             case _ if (nullableStringViewArg(arg)): "(" + expr(arg) + ").as_deref().unwrap_or(\"\")";
