@@ -3583,8 +3583,8 @@ class RustExpr {
         return switch (stripWrap(cond).expr) {
             case TBinop(OpEq, s, {expr: TConst(TNull)}): {subject: s, inverted: false};
             case TBinop(OpEq, {expr: TConst(TNull)}, s): {subject: s, inverted: false};
-            case TBinop(OpNe, s, {expr: TConst(TNull)}): {subject: s, inverted: true};
-            case TBinop(OpNe, {expr: TConst(TNull)}, s): {subject: s, inverted: true};
+            case TBinop(OpNotEq, s, {expr: TConst(TNull)}): {subject: s, inverted: true};
+            case TBinop(OpNotEq, {expr: TConst(TNull)}, s): {subject: s, inverted: true};
             case _: null;
         };
     }
