@@ -8570,7 +8570,7 @@ class RustExpr {
             var depth = 0;
             while (depth < chain.length) {
                 switch (stripWrap(cursor).expr) {
-                    case TField(sub, cf) if (cf.get().name == chain[chain.length - 1 - depth]):
+                    case TField(sub, fa) if (fieldName(fa) == chain[chain.length - 1 - depth]):
                         cursor = sub;
                         depth++;
                     case TLocal(v) if (v.name == chain[chain.length - 1 - depth] && depth == chain.length - 1):
