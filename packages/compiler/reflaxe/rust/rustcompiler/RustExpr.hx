@@ -10649,7 +10649,7 @@ class RustExpr {
             // A borrowed match binding (`__option6`) feeding a nullable slot
             // wraps the cloned inner value in Some: the binding itself is a
             // reference into the matched subject. (BorrowedBindingSomeWrap)
-            if (pt != null && isNullType(pt) && !isNullType(arg.t) && !isTNull(arg)
+            if (pt != null && isNullType(pt) && !isTNull(arg)
                 && StringTools.startsWith(argStr, "__option"))
                 argStr = "Some((*" + argStr + ").clone())";
             // A ternary whose else arm is the null literal renders as an
