@@ -5243,7 +5243,14 @@ class RustExpr {
             case OpEq | OpNotEq if (isNullType(l.t) && !isNullType(r.t) && !isTNull(r)):
                 final test = expr(l) + ".as_ref().map_or(false, |v| v == &(" + optionSomeInner(r) + "))";
                 return op == OpEq ? test : "!(" + test + ")";
-            case OpEq | OpNotEq if (isNullType(r.t) && !isNullType(l.t) && !isTNull(l)):
+            case OpEq | OpNotEq if (isNullType(r.t) && !isNullType(l.t) && !isTNull(l)
+                && !(switch (stripWrap(r).expr) {
+                    // A has-guarded ternary initializer materialized the
+                    // inner scalar; the comparison is a plain scalar pair
+                    // (HasGuardedTernaryLocals).
+                    case TLocal(v): hasGuardedTernaryLocals.exists(v.id);
+                    case _: false;
+                })):
                 final test = expr(r) + ".as_ref().map_or(false, |v| v == &(" + optionSomeInner(l) + "))";
                 return op == OpEq ? test : "!(" + test + ")";
             // A non-nullable operand compared against null is a tautology:
