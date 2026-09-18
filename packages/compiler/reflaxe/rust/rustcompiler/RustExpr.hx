@@ -10786,23 +10786,36 @@ class RustExpr {
     }
 
     function substituteClassParams(t:Type, names:Array<String>, applied:Array<Type>):Type {
-        return switch (Context.follow(t)) {
-            case TTypeParameter(tp):
-                var substituted = t;
-                for (i in 0...names.length) {
-                    if (names[i] == tp.name) {
-                        substituted = applied[i];
-                        break;
-                    }
+        final followed = Context.follow(t);
+        // In the macro API a type parameter manifests as a class reference
+        // whose kind is KTypeParameter; its name matches the receiver's
+        // declared parameter list positionally. (AppliedReceiverParams)
+        final pname = switch (followed) {
+            case TInst(c, _):
+                switch (c.get().kind) {
+                    case KTypeParameter(_): c.get().name;
+                    case _: null;
                 }
-                substituted;
+            case _: null;
+        };
+        if (pname != null) {
+            var substituted = t;
+            for (i in 0...names.length) {
+                if (names[i] == pname) {
+                    substituted = applied[i];
+                    break;
+                }
+            }
+            return substituted;
+        }
+        return switch (followed) {
+            case TInst(c, pl) if (pl.length > 0): TInst(c, [for (p in pl) substituteClassParams(p, names, applied)]);
             case TAbstract(a, pl) if (pl.length > 0): TAbstract(a, [for (p in pl) substituteClassParams(p, names, applied)]);
-            case TInst(c, pl): TInst(c, [for (p in pl) substituteClassParams(p, names, applied)]);
-            case TEnum(e, pl): TEnum(e, [for (p in pl) substituteClassParams(p, names, applied)]);
-            case TType(d, pl): TType(d, [for (p in pl) substituteClassParams(p, names, applied)]);
-            case TFun(fargs, ret): TFun([for (a in fargs) {
-                name: a.name, opt: a.opt, t: substituteClassParams(a.t, names, applied)
-            }], substituteClassParams(ret, names, applied));
+            case TEnum(e, pl) if (pl.length > 0): TEnum(e, [for (p in pl) substituteClassParams(p, names, applied)]);
+            case TType(d, pl) if (pl.length > 0): TType(d, [for (p in pl) substituteClassParams(p, names, applied)]);
+            case TFun(fargs, ret):
+                TFun([for (a in fargs) {name: a.name, opt: a.opt, t: substituteClassParams(a.t, names, applied)}],
+                    substituteClassParams(ret, names, applied));
             case _: t;
         };
     }
