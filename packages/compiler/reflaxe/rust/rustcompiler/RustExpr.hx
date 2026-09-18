@@ -1085,8 +1085,6 @@ class RustExpr {
                 } else if (isNullType(v.t) && isInterfaceType(getNullInnerType(v.t))) {
                     // A nullable interface local needs its Option trait
                     // object type before conditional inference runs.
-                    if (currentMethodName == "engine")
-                        Context.error("PROBE5 nullIface vt=" + Std.string(v.t) + " of=" + types.of(v.t, false), Context.currentPos());
                     if (v.name == "r")
                         Context.error("PROBE4 vt=" + Std.string(v.t), v.meta_pos != null ? v.meta_pos : Context.currentPos());
                     ": " + types.of(v.t, false);
@@ -1094,8 +1092,6 @@ class RustExpr {
                     case TInst(c, _) if (c.get().isInterface):
                         // An interface local carries its boxed trait object
                         // type so every conditional arm coerces into it.
-                        if (currentMethodName == "engine")
-                            Context.error("PROBE5 iface vt=" + Std.string(v.t) + " of=" + types.of(v.t, false), v.meta_pos != null ? v.meta_pos : Context.currentPos());
                         ": " + types.of(v.t, false);
                     case TInst(c, _)
                         if (c.get().name == "SortedMapBuilder" || c.get().name == "SortedMap" || c.get().name == "SortedSetBuilder"
