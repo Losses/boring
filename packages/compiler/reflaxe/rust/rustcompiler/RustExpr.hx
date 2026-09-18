@@ -106,10 +106,6 @@ class RustExpr {
     // binding, so the scalar shares through Arc<Mutex> like the array family.
     // (SharedClosureScalars)
     final sharedClosureScalars:Map<Int, Bool> = [];
-    // During the then-block of a re-binding null guard, the local being
-    // re-bound; its assignment proves non-null for the rest of the block.
-    // (GuardedRebindProven)
-    var pendingRebindVar:Int = -1;
     // Subject texts proven non-null by an `if (X == null) { continue; }`
     // guard inside a loop. A later `let v = X;` copy of the same subject
     // inherits the proof, so it passes call slots as the inner value.
@@ -1459,25 +1455,8 @@ class RustExpr {
                 if (hasGuard != null)
                     hasGuardedGets.push(hasGuard);
                 final out = [indent(depth) + "if " + condStr + " {"];
-                // The subject of a re-binding guard becomes proven as soon
-                // as its re-binding assignment renders inside the block.
-                // (GuardedRebindProven)
-                var rebindPending = -1;
-                if (f == null)
-                    switch (stripWrap(c).expr) {
-                        case TBinop(OpEq, l, r) if (isTNull(l) || isTNull(r)):
-                            final subject = isTNull(l) ? r : l;
-                            switch (stripWrap(subject).expr) {
-                                case TLocal(v) if (containsAssignTo(t, v.id)):
-                                    rebindPending = v.id;
-                                    pendingRebindVar = v.id;
-                                case _:
-                            }
-                        case _:
-                    }
                 for (l in blockLines(statementsOf(t), depth + 1))
                     out.push(l);
-                pendingRebindVar = -1;
                 if (hasGuard != null)
                     hasGuardedGets.pop();
                 for (v in provenChain)
@@ -1686,20 +1665,7 @@ class RustExpr {
             case TUnop(OpDecrement, _, subj):
                 return [indent(depth) + expr(subj) + " -= 1;"];
             case _:
-                final renderedLine = expr(e);
-                switch (e.expr) {
-                    case TBinop(OpAssign, target, _) if (pendingRebindVar >= 0):
-                        switch (stripWrap(target).expr) {
-                            case TLocal(v) if (v.id == pendingRebindVar):
-                                // The re-binding assignment just rendered: the
-                                // subject is proven for the rest of the block.
-                                // (GuardedRebindProven)
-                                provenNonNullVarIds.set(v.id, true);
-                            case _:
-                        }
-                    case _:
-                }
-                return [indent(depth) + renderedLine + ";"];
+                return [indent(depth) + expr(e) + ";"];
         }
     }
 
