@@ -9432,6 +9432,23 @@ class RustExpr {
             // type explicitly lowers to a borrow.  Keep this final boundary
             // adaptation here so record/Vec reads do not leak `&T` into a T.
             if (i < paramTypes.length)
+                // A nullable scalar local whose read renders the Option
+                // shape (both ternary arms wrapped) enters a non-null
+                // scalar constructor slot; the boundary unwraps it.
+                // (ScalarSlotUnwrap)
+                if (pt != null && !isNullType(pt) && isNullType(arg.t)
+                    && switch (Context.follow(paramTypes[i])) {
+                        case TAbstract(a, _): {
+                            final n = a.get().name;
+                            n == "Bool" || n == "Int" || n == "Float";
+                        };
+                        case _: false;
+                    }
+                    && switch (stripWrap(arg).expr) {
+                        case TLocal(v): optionRenderedLocals.exists(v.id);
+                        case _: false;
+                    })
+                    argStr = argStr + ".unwrap()";
                 out.push(numericAssignmentValue(paramTypes[i], arg, ownedConstructorArg(paramTypes[i], arg, null, argStr), null, true));
             else
                 out.push(argStr);
@@ -10773,6 +10790,23 @@ class RustExpr {
         // available.
         if (!isNullType(expected) && isNoneInitializedLocal(actual))
             return isTypeCopy(actual.t) ? rendered + ".unwrap()" : rendered + ".as_ref().unwrap().clone()";
+        // A nullable scalar whose read still renders the Option shape (a
+        // ternary whose arms both wrapped) enters a non-null scalar slot;
+        // the boundary unwraps it — the None path has no corpus-defined
+        // value. (ScalarSlotUnwrap)
+        if (!isNullType(expected) && isNullType(actual.t)
+            && switch (Context.follow(expected)) {
+                case TAbstract(a, _): {
+                    final n = a.get().name;
+                    n == "Bool" || n == "Int" || n == "Float";
+                };
+                case _: false;
+            }
+            && switch (stripWrap(actual).expr) {
+                case TLocal(v): optionRenderedLocals.exists(v.id);
+                case _: false;
+            })
+            return rendered + ".unwrap()";
         // Haxe unifies Int and Float; widen Int values to Float when the
         // target slot expects Float.
         if (isFloatType(expected) && isIntType(emittedType(actual)))
