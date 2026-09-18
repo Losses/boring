@@ -4088,11 +4088,7 @@ class RustExpr {
                 // (NoneZeroFold)
                 {
                     final cmp = nullComparisonParts(c);
-#if boring_fold_debug
-                    if (cmp == null && Context.getPosInfos(e.pos).file.indexOf("PunctuationGeometryLedger") >= 0)
-                        Context.warning("FOLDDBG2 cond=" + Std.string(stripWrap(c).expr).substr(0, 70), e.pos);
-#end
-                    if (cmp != null && isNullType(Context.follow(cmp.subject.t))) {
+                    if (cmp != null && isNullType(cmp.subject.t)) {
                         final subjectText = stripRenderedParens(expr(cmp.subject));
                         final thenText = stripRenderedParens(expr(stripWrap(t)));
                         final elseText = stripRenderedParens(expr(stripWrap(f)));
