@@ -8539,6 +8539,55 @@ class RustExpr {
         expects the inner value unwraps the copy through the proven
         mechanism. (ContinueNullGuards)
     **/
+    /** The local/field name chain of an access path, outermost first. */
+    function accessChainOf(x:TypedExpr):Null<Array<String>> {
+        final names:Array<String> = [];
+        var cur = x;
+        while (true) {
+            switch (stripWrap(cur).expr) {
+                case TField(sub, cf):
+                    names.unshift(cf.get().name);
+                    cur = sub;
+                case TLocal(v):
+                    names.unshift(v.name);
+                    return names;
+                case TConst(TThis):
+                    return names;
+                case _:
+                    return null;
+            }
+        }
+        return null;
+    }
+
+    /** Whether the tree references an access path ending in the chain. */
+    function containsAccess(e:TypedExpr, chain:Array<String>):Bool {
+        var hit = false;
+        function walk(x:TypedExpr):Void {
+            if (hit)
+                return;
+            var cursor = x;
+            var depth = 0;
+            while (depth < chain.length) {
+                switch (stripWrap(cursor).expr) {
+                    case TField(sub, cf) if (cf.get().name == chain[chain.length - 1 - depth]):
+                        cursor = sub;
+                        depth++;
+                    case TLocal(v) if (v.name == chain[chain.length - 1 - depth] && depth == chain.length - 1):
+                        hit = true;
+                        return;
+                    case _:
+                        return;
+                }
+            }
+            if (depth == chain.length)
+                hit = true;
+            haxe.macro.TypedExprTools.iter(x, walk);
+        }
+        walk(e);
+        return hit;
+    }
+
     function scanContinueNullGuards(root:TypedExpr):Void {
         function containsContinue(e:TypedExpr):Bool {
             if (e.expr.match(TContinue))
@@ -8558,6 +8607,19 @@ class RustExpr {
                             final subject = isTNull(l) ? r : (isTNull(r) ? l : null);
                             if (subject != null && containsContinue(then))
                                 provenContinueSubjects.set(subjectTextOf(subject), true);
+                        case TBinop(OpNotEq, l, r):
+                            // `if (X != null) { ...X... }` proves X for the
+                            // guarded block: register the subject so the
+                            // guarded references render the inner value. The
+                            // containment test walks the AST field chain —
+                            // rendering the block here would advance the
+                            // naming counters as a side effect.
+                            final subject = isTNull(l) ? r : (isTNull(r) ? l : null);
+                            if (subject != null) {
+                                final chain = accessChainOf(subject);
+                                if (chain != null && containsAccess(then, chain))
+                                    provenContinueSubjects.set(subjectTextOf(subject), true);
+                            }
                         case _:
                     }
                 case _:
@@ -10539,6 +10601,16 @@ class RustExpr {
                     // holds the inner value; unwrap the Option.
                     final inner = getNullInnerType(arg.t);
                     argStr = isTypeCopy(inner) ? "*((" + argStr + ").as_ref().unwrap())" : "(" + argStr + ").as_ref().unwrap()";
+                } else if (switch (stripWrap(arg).expr) {
+                    case TField(_, _):
+                        isNullType(arg.t) && StringTools.contains(argStr, ".as_ref().unwrap()");
+                    case _: false;
+                }) {
+                    // A nullable field read on an already-unwrapped chain:
+                    // the guard proved the receiver, the field itself stays
+                    // nullable and unwraps at the call boundary.
+                    // (GuardedChainFieldUnwrap)
+                    argStr = "(" + argStr + ").unwrap()";
                 } else {
                     // A preceding fill guard (`if (x == null) x = fill;`)
                     // guarantees the local holds Some; the call reads the
