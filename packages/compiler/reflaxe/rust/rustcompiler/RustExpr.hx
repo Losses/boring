@@ -7772,7 +7772,7 @@ class RustExpr {
                         // A borrowed match binding as the value (index 1) of
                         // a nullable-V map wraps its cloned inner value in
                         // Some. (SortedPutValueAdaptation)
-                        (i == 1 && StringTools.contains(r, "__option"))
+                        (i == 1 && StringTools.contains(r, "__option") && StringTools.endsWith(r, ")"))
                             ? "&(Some((*" + r.substring(r.indexOf("__option"), r.length - 1) + ").clone()))"
                             : r;
                     }];
