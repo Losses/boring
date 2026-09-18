@@ -7785,7 +7785,7 @@ class RustExpr {
                             // Some. (BorrowedBindingSomeWrap)
                             final idx = v.indexOf("__option");
                             if (idx >= 0 && StringTools.endsWith(v, ")"))
-                                v = v.substring(0, idx) + "Some((*" + v.substring(idx, v.length - 1) + ").clone())" + "}";
+                                v = v.substring(0, idx) + "Some((*" + v.substring(idx, v.length - 1) + ").clone())";
                             v;
                         };
                         return nullableMethodReceiver(subj, true) + ".put(" + kExpr + ", " + vExpr + ")";
