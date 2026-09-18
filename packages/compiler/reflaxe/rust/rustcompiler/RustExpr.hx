@@ -1441,12 +1441,16 @@ class RustExpr {
                     || (StringTools.startsWith(initStr, "match ") && initStr.indexOf("=> Some(") >= 0)
                     || (nullableType == ""
                         && isNullType(init.t)
-                        && !isScalarType(getNullInnerType(init.t))
                         && !nullableCollapsedLocals.exists(v.id)
                         && !hasGuardedTernaryLocals.exists(v.id)
                         && initStr.indexOf(".unwrap(") < 0
                         && initStr.indexOf(".unwrap_or(") < 0
-                        && initStr.indexOf("get_or_insert_with") < 0))
+                        && initStr.indexOf("get_or_insert_with") < 0
+                        // A scalar local only stores an Option when the
+                        // initializer visibly constructs one; scalar
+                        // sentinel renders carry the null inside the
+                        // numeric form itself. (NonNullSlotUnwrap)
+                        && (!isScalarType(getNullInnerType(init.t)) || initStr.indexOf("Some(") >= 0)))
                     optionRenderedLocals.set(v.id, true);
                 return [indent(depth) + declText];
             case TVar(v, init) if (init == null):
