@@ -8656,7 +8656,7 @@ class RustExpr {
                                 provenContinueSubjects.set(subjectTextOf(subject), true);
                         case TBinop(OpNotEq, l, r):
                             final subject = isTNull(l) ? r : (isTNull(r) ? l : null);
-                            if (subject != null && containsContinue(then))
+                            if (subject != null && containsEarlyExit(then))
                                 provenContinueSubjects.set(subjectTextOf(subject), true);
                         case TBinop(OpNotEq, l, r):
                             // `if (X != null) { ...X... }` proves X for the
