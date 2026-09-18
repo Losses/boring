@@ -7502,6 +7502,30 @@ class RustExpr {
                         return expr(subj) + ".to_uppercase()";
                 }
                 final snake = RustImports.toSnakeCase(name);
+                if (name == "put" && args.length == 2 && (isSortedTable(subj) || isSortedBuilder(subj))) {
+                    // The value slot carries the map's declared value type.
+                    // A nullable source value adapts once here, driven by the
+                    // receiver's own type parameters — no fallback heuristic.
+                    // (SortedPutValueAdaptation)
+                    final slots = switch (Context.follow(methodSubjectType(subj))) {
+                        case TInst(_, [kk, vv]): {k: kk, v: vv};
+                        case _: null;
+                    };
+                    final keyArg = renderValueForType(slots != null ? slots.k : null, args[0], expr(args[0]));
+                    var valueArg = renderValueForType(slots != null ? slots.v : null, args[1], expr(args[1]));
+                    if (slots != null) {
+                        if (!isNullType(slots.v) && isNullType(args[1].t)) {
+                            final inner = getNullInnerType(args[1].t);
+                            if (isOwnedVecType(inner) || isStringType(inner) || isTypeCopy(inner))
+                                valueArg = "(" + valueArg + ").unwrap_or_default()";
+                            else
+                                valueArg = "(" + valueArg + ").unwrap()";
+                        } else if (isNullType(slots.v) && !isNullType(args[1].t) && !isTNull(args[1])
+                            && !StringTools.startsWith(valueArg, "Some(") && valueArg != "None")
+                            valueArg = "Some(" + valueArg + ")";
+                    }
+                    return expr(subj) + ".put(&(" + keyArg + "), &(" + valueArg + "))";
+                }
                 if (isMapType(subj.t)) {
                     if (name == "exists" && args.length == 1)
                         return expr(subj) + ".contains_key(&" + rustMapKey(args[0]) + ")";
