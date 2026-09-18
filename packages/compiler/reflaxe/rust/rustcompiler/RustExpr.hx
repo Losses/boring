@@ -3576,6 +3576,19 @@ class RustExpr {
         };
     }
 
+    /** Extracts the compared subject and polarity from a `s == null` /
+        `s != null` condition. The null literal may stand on either side.
+        (NoneZeroFold) */
+    function nullComparisonParts(cond:TypedExpr):Null<{subject:TypedExpr, inverted:Bool}> {
+        return switch (stripWrap(cond).expr) {
+            case TBinop(OpEq, s, {expr: TConst(TNull)}): {subject: s, inverted: false};
+            case TBinop(OpEq, {expr: TConst(TNull)}, s): {subject: s, inverted: false};
+            case TBinop(OpNe, s, {expr: TConst(TNull)}): {subject: s, inverted: true};
+            case TBinop(OpNe, {expr: TConst(TNull)}, s): {subject: s, inverted: true};
+            case _: null;
+        };
+    }
+
     function hasGuardedGetTernary(cond:TypedExpr, ifTrue:TypedExpr, ifFalse:TypedExpr, resultType:Type):Null<String> {
         // The condition must be `map.has(key)`.
         final hasInfo = switch (stripWrap(cond).expr) {
@@ -4026,12 +4039,27 @@ class RustExpr {
                         final zeroLike = (thenText == "0" || thenText == "0.0f64"
                             || thenText == "0.0" || thenText == "(0.0f64)"
                             || thenText == "(0 as f64)" || thenText == "0 as f64");
-                        if (StringTools.contains(subjectText, "lead"))
-                            Context.error("PROBE12 zero=" + zeroLike + " eq=" + (elseText == subjectText)
-                                + " pre=" + StringTools.startsWith(elseText, subjectText)
-                                + " subj=" + subjectText + " else=" + elseText, t.pos);
                         if (zeroLike && (elseText == subjectText || StringTools.startsWith(elseText, subjectText)))
                             return "(" + subjectText + ").unwrap_or(" + thenText + ")";
+                    }
+                }
+                // The typed-AST form of the same fold: the Haxe condition is
+                // `s == null` / `s != null` (the textual `.is_none()` render
+                // only appears later, in boolean operand position).
+                // (NoneZeroFold)
+                {
+                    final cmp = nullComparisonParts(c);
+                    if (cmp != null && isNullType(Context.follow(cmp.subject.t))) {
+                        final subjectText = expr(cmp.subject);
+                        final thenText = expr(t);
+                        final elseText = expr(f);
+                        final zeroTexts = ["0", "0.0f64", "0.0", "(0.0f64)", "(0 as f64)", "0 as f64"];
+                        if (!cmp.inverted && Lambda.has(zeroTexts, thenText)
+                            && (elseText == subjectText || StringTools.startsWith(elseText, subjectText)))
+                            return "(" + subjectText + ").unwrap_or(" + thenText + ")";
+                        if (cmp.inverted && Lambda.has(zeroTexts, elseText)
+                            && (thenText == subjectText || StringTools.startsWith(thenText, subjectText)))
+                            return "(" + subjectText + ").unwrap_or(" + elseText + ")";
                     }
                 }
                 final coalescing = coalescingSiteFor(e);
