@@ -7774,8 +7774,8 @@ class RustExpr {
                         // Some. The binding form is matched exactly — a
                         // nested render that merely contains the name must
                         // pass through untouched. (SortedPutValueAdaptation)
-                        final binding = (~/^&\((__option\d+)\)$/).exec(r);
-                        (i == 1 && binding != null)
+                        final binding = (~/^&\((__option\d+)\)$/);
+                        (i == 1 && binding.match(r))
                             ? "&(Some((*" + binding.matched(1) + ").clone()))"
                             : r;
                     }];
