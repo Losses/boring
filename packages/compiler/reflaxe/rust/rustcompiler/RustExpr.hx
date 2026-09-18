@@ -11010,11 +11010,17 @@ class RustExpr {
                         // still enters the non-null slot, so the boundary
                         // unwraps it — the None path panics exactly where
                         // the Haxe source would have dereferenced an
-                        // undefined value. (NonNullSlotUnwrap)
+                        // undefined value. Scalar nullables are excluded:
+                        // the render layer bakes their null handling into
+                        // the numeric form itself (no Option exists at
+                        // runtime), so no unwrap applies.
+                        // (NonNullSlotUnwrap)
                         final inner = getNullInnerType(arg.t);
-                        final bare = stripRenderedParens(expr(stripWrap(arg)));
-                        final ref = "(" + bare + ").as_ref().unwrap()";
-                        argStr = isTypeCopy(inner) ? "*" + ref : (isPassByRef(pt) ? ref : ref + ".clone()");
+                        if (!isScalarType(inner)) {
+                            final bare = stripRenderedParens(expr(stripWrap(arg)));
+                            final ref = "(" + bare + ").as_ref().unwrap()";
+                            argStr = isTypeCopy(inner) ? "*" + ref : (isPassByRef(pt) ? ref : ref + ".clone()");
+                        }
                     }
                 }
             }
