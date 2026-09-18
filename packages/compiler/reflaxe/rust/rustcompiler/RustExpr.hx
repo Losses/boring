@@ -11278,7 +11278,8 @@ class RustExpr {
                     // whose null-coalescing initializer materialized the inner
                     // value already renders non-null and keeps its borrow.
                     final argRendersNullable = isNullType(arg.t) && !(switch (stripWrap(arg).expr) {
-                        case TLocal(v): nullableCollapsedLocals.exists(v.id);
+                        case TLocal(v): nullableCollapsedLocals.exists(v.id)
+                            || hasGuardedTernaryLocals.exists(v.id);
                         case _: false;
                     });
                     final nullableArrayParam = argRendersNullable
