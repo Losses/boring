@@ -7893,18 +7893,42 @@ class RustExpr {
                     // Builder puts borrow every argument; the resident
                     // clones into storage, so the call-site expressions
                     // stay alive. A nullable receiver unwraps its inner
-                    // builder mutably before the put.
+                    // builder mutably before the put. The value slot is
+                    // the applied V of the receiver: a nullable local
+                    // feeding a non-null V unwraps to the borrowed inner,
+                    // and a plain value feeding a nullable V wraps in
+                    // Some. (SortedPutValueAdaptation)
+                    final appliedSlot = {
+                        final applied = appliedReceiverParamTypes(cf.get().type, subj.t);
+                        applied != null && applied.length > 1 ? applied[1] : null;
+                    };
                     final putArgs = [for (i in 0...args.length) {
-                        final r = sortedRefArg(args[i]);
+                        var r = sortedRefArg(args[i]);
                         // A borrowed match binding as the value (index 1) of
                         // a nullable-V map wraps its cloned inner value in
-                        // Some. The binding form is matched exactly — a
+                        // Some. The binding forms are matched exactly — a
                         // nested render that merely contains the name must
-                        // pass through untouched. (SortedPutValueAdaptation)
+                        // pass through untouched.
                         final binding = (~/^&\((__option\d+)\)$/);
-                        (i == 1 && binding.match(r))
-                            ? "&(Some((*" + binding.matched(1) + ").clone()))"
-                            : r;
+                        final clonedBinding = (~/^&\(\(\*(__option\d+)\)\.clone\(\)\)$/);
+                        if (i == 1 && appliedSlot != null && isNullType(appliedSlot)) {
+                            if (binding.match(r))
+                                r = "&(Some((*" + binding.matched(1) + ").clone()))";
+                            else if (clonedBinding.match(r))
+                                r = "&(Some((*" + clonedBinding.matched(1) + ").clone()))";
+                            else if (!isNullType(args[i].t)
+                                && switch (stripWrap(args[i]).expr) {
+                                    case TLocal(v): optionRenderedLocals.exists(v.id);
+                                    case _: false;
+                                })
+                                r = "&(Some(" + stripRenderedParens(expr(stripWrap(args[i]))) + "))";
+                        } else if (i == 1 && appliedSlot != null && !isNullType(appliedSlot) && isNullType(args[i].t)
+                            && switch (stripWrap(args[i]).expr) {
+                                case TLocal(v): optionRenderedLocals.exists(v.id);
+                                case _: false;
+                            })
+                            r = "(" + stripRenderedParens(expr(stripWrap(args[i]))) + ").as_ref().unwrap()";
+                        r;
                     }];
                     return nullableMethodReceiver(subj, true) + ".put(" + putArgs.join(", ") + ")";
                 }
