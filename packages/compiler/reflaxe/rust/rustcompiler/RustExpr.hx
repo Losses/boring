@@ -1692,6 +1692,10 @@ class RustExpr {
                     if ((isNullType(ret.t) || nullElseTernary) && !isNullType(currentReturnType)
                         && !StringTools.endsWith(retStr, ").unwrap()")
                         && !StringTools.endsWith(retStr, ").clone()")
+                        // A charCodeAt render already null-coalesces through
+                        // unwrap_or; the returned value is the bare scalar
+                        // and a second unwrap would not compile (E0599).
+                        && !StringTools.contains(retStr, ".unwrap_or(")
                         && !unwrapSkip)
                         retStr = "(" + retStr + ").unwrap()";
                 }
