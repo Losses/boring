@@ -5221,6 +5221,31 @@ class RustExpr {
                 final match = "match (&" + expr(l) + ", &" + expr(r) + ") { (None, None) => true, _ => false }";
                 return op == OpEq ? match : "!(" + match + ")";
             case OpBoolAnd:
+                // The typer folds `a && b && c` left-associatively, so the
+                // single-term match below would narrow only the first
+                // following term. Flatten the chain once: a null guard at
+                // the left end proves its subject for every term after it,
+                // and the whole chain renders inside one narrowing match.
+                // (GuardedChainNarrowing)
+                final chain:Array<TypedExpr> = [];
+                function flattenChain(x:TypedExpr):Void {
+                    switch (stripWrap(x).expr) {
+                        case TBinop(OpBoolAnd, ll, rr): flattenChain(ll); flattenChain(rr);
+                        case _: chain.push(x);
+                    }
+                }
+                flattenChain(l);
+                flattenChain(r);
+                final chainGuard = nullGuardOf(chain[0]);
+                if (chain.length >= 2 && chainGuard != null && !chainGuard.noneWhenTrue) {
+                    final name = freshRegionName("__option");
+                    optionNarrowings.push({subjectText: subjectTextOf(chainGuard.subject), name: name});
+                    final terms = [for (i in 1...chain.length) expr(chain[i])];
+                    final hit = narrowedSubject(chainGuard.subject) != null;
+                    optionNarrowings.pop();
+                    if (hit)
+                        return "(match &(" + expr(chainGuard.subject) + ") { Some(" + name + ") => " + terms.join(" && ") + ", None => false })";
+                }
                 final guard = nullGuardOf(l);
                 if (guard != null && !guard.noneWhenTrue) {
                     final name = freshRegionName("__option");
