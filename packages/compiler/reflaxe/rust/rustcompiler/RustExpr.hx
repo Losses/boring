@@ -5198,8 +5198,16 @@ class RustExpr {
                     collapsedRight = intToFloatText(collapsedRight);
                 return collapsedLeft + " " + symbolOf(op) + " " + collapsedRight;
             case OpEq | OpNotEq if (nullableEnumComparedWithEnum(l.t, r.t) || nullableEnumComparedWithEnum(r.t, l.t)):
-                final left = isNullType(l.t) ? expr(l) : "Some(" + expr(l) + ")";
-                final right = isNullType(r.t) ? expr(r) : "Some(" + expr(r) + ")";
+                // A narrowed operand renders the dereferenced match binding
+                // even though its macro type is still Null<T>, so the
+                // isNullType test alone leaves it bare against the sibling's
+                // Option shape. A leading dereference marks the inner value
+                // and wraps in Some like a non-null sibling.
+                // (NarrowedNullableParam)
+                final leftText = expr(l);
+                final rightText = expr(r);
+                final left = isNullType(l.t) ? (StringTools.startsWith(leftText, "*") ? "Some(" + leftText + ")" : leftText) : "Some(" + leftText + ")";
+                final right = isNullType(r.t) ? (StringTools.startsWith(rightText, "*") ? "Some(" + rightText + ")" : rightText) : "Some(" + rightText + ")";
                 return left + " " + symbolOf(op) + " " + right;
             // A nullable operand compared against the null literal lowers
             // to a predicate call: Option equality against None would
@@ -8822,8 +8830,6 @@ class RustExpr {
                 // A narrowed operand renders the dereferenced match binding;
                 // a nullable constructor parameter still needs the Option
                 // shape. (NarrowedNullableParam)
-                if (cls.name == "Resolution" && i == 0 && cls.module.indexOf("DashEllipsis") >= 0)
-                    Context.error("PROBE2 pt=" + Std.string(pt) + " argStr=" + argStr, arg.pos);
                 if (isNullType(pt) && StringTools.startsWith(argStr, "*")
                     && !StringTools.startsWith(argStr, "*("))
                     argStr = "Some(" + argStr + ")";
