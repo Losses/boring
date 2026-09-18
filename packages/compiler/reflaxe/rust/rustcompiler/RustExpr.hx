@@ -11010,13 +11010,19 @@ class RustExpr {
                         // still enters the non-null slot, so the boundary
                         // unwraps it — the None path panics exactly where
                         // the Haxe source would have dereferenced an
-                        // undefined value. Scalar nullables are excluded:
-                        // the render layer bakes their null handling into
-                        // the numeric form itself (no Option exists at
-                        // runtime), so no unwrap applies.
-                        // (NonNullSlotUnwrap)
-                        final inner = getNullInnerType(arg.t);
-                        if (!isScalarType(inner)) {
+                        // undefined value. Only locals whose declaration
+                        // still renders the Option shape qualify: collapsed
+                        // locals, non-null-rendered locals, and every
+                        // non-local form already render the inner value, so
+                        // no unwrap applies. (NonNullSlotUnwrap)
+                        final optionRenderedLocal = switch (stripWrap(arg).expr) {
+                            case TLocal(v): isNullType(arg.t)
+                                && !nullableCollapsedLocals.exists(v.id)
+                                && !nonNullRenderedLocals.exists(v.id);
+                            case _: false;
+                        };
+                        if (optionRenderedLocal) {
+                            final inner = getNullInnerType(arg.t);
                             final bare = stripRenderedParens(expr(stripWrap(arg)));
                             final ref = "(" + bare + ").as_ref().unwrap()";
                             argStr = isTypeCopy(inner) ? "*" + ref : (isPassByRef(pt) ? ref : ref + ".clone()");
