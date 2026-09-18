@@ -10550,6 +10550,15 @@ class RustExpr {
                         final ref = argStr + ".get_or_insert_with(|| " + filled + ")";
                         argStr = isTypeCopy(inner) ? "*" + ref : ref + ".clone()";
                     }
+                    // A nullable scalar argument with no proven guard crosses
+                    // into the non-null numeric slot through Haxe's
+                    // null-to-zero bridge: the absent value is numeric zero.
+                    // (NullableArgZeroBridge)
+                    else if (isIntType(getNullInnerType(arg.t)) || isFloatType(getNullInnerType(arg.t))) {
+                        final inner = getNullInnerType(arg.t);
+                        if (isTypeCopy(inner) && !StringTools.endsWith(argStr, ".unwrap_or(0)") && !StringTools.endsWith(argStr, ".unwrap_or(0.0)"))
+                            argStr = isIntType(inner) ? argStr + ".unwrap_or(0)" : argStr + ".unwrap_or(0.0)";
+                    }
                 }
             }
             // An i32-domain argument crossing into a u32 business parameter
