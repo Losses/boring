@@ -4016,9 +4016,6 @@ class RustExpr {
                 // (NoneZeroFold)
                 {
                     final condText = expr(c);
-                    if (currentClass != null && currentClass.module.indexOf("PunctuationGeometryLedger") >= 0
-                        && StringTools.contains(condText, "ruby_spread"))
-                        Context.error("PROBE13 condText=" + condText, c.pos);
                     if (StringTools.endsWith(condText, ".is_none()")) {
                         var subjectText = condText.substr(0, condText.length - ".is_none()".length);
                         while (StringTools.startsWith(subjectText, "(") && StringTools.endsWith(subjectText, ")")
