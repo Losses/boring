@@ -10518,8 +10518,9 @@ class RustExpr {
             // bare `*name`), which is the inner value; a nullable parameter
             // slot still needs the Option shape, so the value wraps once in
             // Some. (NarrowedNullableParam)
-            if (pt != null && isNullType(pt) && StringTools.startsWith(argStr, "*")
-                && !StringTools.startsWith(argStr, "*("))
+            if (pt != null && isNullType(pt)
+                && ((StringTools.startsWith(argStr, "*") && !StringTools.startsWith(argStr, "*("))
+                    || StringTools.endsWith(argStr, ").clone()")))
                 argStr = "Some(" + argStr + ")";
             // A proven-non-null nullable local feeding a non-null parameter
             // unwraps the Option at the call boundary so the parameter slot
@@ -10549,6 +10550,15 @@ class RustExpr {
                         final inner = getNullInnerType(arg.t);
                         final ref = argStr + ".get_or_insert_with(|| " + filled + ")";
                         argStr = isTypeCopy(inner) ? "*" + ref : ref + ".clone()";
+                    }
+                    // A nullable collection/string argument feeding a
+                    // non-null slot defaults to the empty value: the source
+                    // carries no guard, so the absent path renders the
+                    // type's empty value. (NullableArgDefault)
+                    else {
+                        final inner = getNullInnerType(arg.t);
+                        if (isOwnedVecType(inner) || isStringType(inner) || isTypeCopy(inner))
+                            argStr = "(" + argStr + ").unwrap_or_default()";
                     }
                 }
             }
