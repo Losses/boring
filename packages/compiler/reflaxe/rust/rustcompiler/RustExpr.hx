@@ -4009,6 +4009,17 @@ class RustExpr {
             case TFunction(f):
                 return functionValueLiteral(f, e.t);
             case TIf(c, t, f) if (f != null):
+                // A coalescing ternary with a nullable join renders both arms
+                // as the inner value; a nullable slot wraps the whole
+                // conditional in Some. (NullElseTernaryUnwrap)
+                if (e.t != null && isNullType(e.t)
+                    && !StringTools.startsWith(expr(f), "Some(") && expr(f) != "None") {
+                    final zeroArm = expr(f);
+                    final zeroElse = (zeroArm == "0" || zeroArm == "0.0f64" || zeroArm == "0.0"
+                        || zeroArm == "(0 as f64)" || zeroArm == "(0.0f64)" || zeroArm == "0 as f64");
+                    if (zeroElse)
+                        return "Some(" + expr(e) + ")";
+                }
                 // `if (S.is_none()) { zero } else { S }` folds to
                 // S.unwrap_or(zero): the None branch contributes the numeric
                 // zero of Haxe's null semantics. The zero-like arms are
