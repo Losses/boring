@@ -106,6 +106,10 @@ class RustExpr {
     // binding, so the scalar shares through Arc<Mutex> like the array family.
     // (SharedClosureScalars)
     final sharedClosureScalars:Map<Int, Bool> = [];
+    // Locals whose initializer already rendered through the forcing read
+    // (an unwrap_or): the binding holds the inner value, so a return of
+    // that local must not unwrap again. (ForcingReadLocals)
+    final forcingReadLocals:Map<Int, Bool> = [];
     // Sorted map get() calls proven present by an enclosing has() guard.
     // Keyed by the rendered receiver+key text so a get() inside the guard
     // unwraps its Option into the value slot.
@@ -1324,6 +1328,12 @@ class RustExpr {
                 // of other nullable locals) stay as they are, and a
                 // name-keyed enum lookup already emits from_name's Option.
                 final lookupInit = EnumQueryExpander.markerKind(init) == QLookup;
+                // An initializer that rendered through the forcing read
+                // (unwrap_or) stores the inner value in the binding, so
+                // returns of this local skip the nullable-unwrap rule
+                // (ForcingReadLocals).
+                if (initStr.indexOf(".unwrap_or(") >= 0)
+                    forcingReadLocals.set(v.id, true);
                 if (isNullType(v.t) && !isTNull(init) && !StaticFieldHelper.isNullableType(init.t) && !lookupInit) {
                     initStr = "Some(" + initStr + ")";
                 }
@@ -1562,9 +1572,22 @@ class RustExpr {
                     // nullable local with the null literal renders an
                     // Option value the slot cannot take. The None case
                     // panics exactly where the Haxe source would
-                    // null-deref. (NullableReturnUnwrap)
+                    // null-deref. A forcing-read local or a narrowed copy
+                    // already holds the inner value, and a clone-rendered
+                    // read is a value, so those skip the unwrap.
+                    // (NullableReturnUnwrap)
+                    var unwrapSkip = false;
+                    switch (stripWrap(ret).expr) {
+                        case TLocal(v):
+                            unwrapSkip = forcingReadLocals.exists(v.id)
+                                || nullableCollapsedLocals.exists(v.id)
+                                || narrowedSubject(ret) != null;
+                        case _:
+                    }
                     if (isNullType(ret.t) && !isNullType(currentReturnType)
-                        && !StringTools.endsWith(retStr, ").unwrap()"))
+                        && !StringTools.endsWith(retStr, ").unwrap()")
+                        && !StringTools.endsWith(retStr, ").clone()")
+                        && !unwrapSkip)
                         retStr = "(" + retStr + ").unwrap()";
                 }
                 if (isFallible) {
@@ -5272,9 +5295,27 @@ class RustExpr {
                 if (chain.length >= 2 && chainGuard != null && !chainGuard.noneWhenTrue) {
                     final name = freshRegionName("__option");
                     optionNarrowings.push({subjectText: subjectTextOf(chainGuard.subject), name: name});
-                    final terms = [for (i in 1...chain.length) expr(chain[i])];
+                    // Terms render in chain order, and a null check proves its
+                    // subject only for the terms after it, exactly like the
+                    // unflattened proven-chain rule. Proven subjects release
+                    // once the match closes. (GuardedChainNarrowing)
+                    final terms:Array<String> = [];
+                    final provenNow:Array<TVar> = [];
+                    for (i in 1...chain.length) {
+                        terms.push(expr(chain[i]));
+                        final midGuard = nullGuardOf(chain[i]);
+                        if (midGuard != null)
+                            switch (stripWrap(midGuard.subject).expr) {
+                                case TLocal(v):
+                                    provenNonNullVarIds.set(v.id, true);
+                                    provenNow.push(v);
+                                case _:
+                            }
+                    }
                     final hit = narrowedSubject(chainGuard.subject) != null;
                     optionNarrowings.pop();
+                    for (v in provenNow)
+                        provenNonNullVarIds.remove(v.id);
                     if (hit)
                         return "(match &(" + expr(chainGuard.subject) + ") { Some(" + name + ") => " + terms.join(" && ") + ", None => false })";
                 }
