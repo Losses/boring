@@ -10553,11 +10553,14 @@ class RustExpr {
                     // A nullable scalar argument with no proven guard crosses
                     // into the non-null numeric slot through Haxe's
                     // null-to-zero bridge: the absent value is numeric zero.
-                    // (NullableArgZeroBridge)
-                    else if (isIntType(getNullInnerType(arg.t)) || isFloatType(getNullInnerType(arg.t))) {
-                        final inner = getNullInnerType(arg.t);
-                        if (isTypeCopy(inner) && !StringTools.endsWith(argStr, ".unwrap_or(0)") && !StringTools.endsWith(argStr, ".unwrap_or(0.0)"))
-                            argStr = isIntType(inner) ? argStr + ".unwrap_or(0)" : argStr + ".unwrap_or(0.0)";
+                    // The bridge applies to a bare local binding only — an
+                    // already-borrowed, unwrapped, or call-rendered argument
+                    // carries its own extraction and must not gain a second
+                    // one. (NullableArgZeroBridge)
+                    else if ((isIntType(getNullInnerType(arg.t)) || isFloatType(getNullInnerType(arg.t)))
+                        && argStr.indexOf(".") < 0 && argStr.indexOf("(") < 0
+                        && !StringTools.startsWith(argStr, "&")) {
+                        argStr += isIntType(getNullInnerType(arg.t)) ? ".unwrap_or(0)" : ".unwrap_or(0.0)";
                     }
                 }
             }
