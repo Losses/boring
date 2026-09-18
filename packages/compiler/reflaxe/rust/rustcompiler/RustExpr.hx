@@ -10634,6 +10634,17 @@ class RustExpr {
             if (pt != null && isNullType(pt) && StringTools.startsWith(argStr, "*")
                 && !StringTools.startsWith(argStr, "*("))
                 argStr = "Some(" + argStr + ")";
+            // A ternary whose else arm is the null literal renders as an
+            // Option shape; a non-null slot unwraps it — the null path
+            // panics exactly where the Haxe source would pass an undefined
+            // value. (NullElseTernaryUnwrap)
+            if (pt != null && !isNullType(pt) && !isNullType(arg.t)) {
+                switch (stripWrap(arg).expr) {
+                    case TIf(_, _, elseArm) if (elseArm != null && isTNull(elseArm)):
+                        argStr = "(" + argStr + ").unwrap()";
+                    case _:
+                }
+            }
             // A proven-non-null nullable local feeding a non-null parameter
             // unwraps the Option at the call boundary so the parameter slot
             // receives the inner value. The guard (early exit or && chain)
