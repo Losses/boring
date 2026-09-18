@@ -3576,6 +3576,16 @@ class RustExpr {
         };
     }
 
+    /** Strips balanced outer parentheses from a rendered expression so
+        arm-to-subject text comparisons see through wrapper renders.
+        (NoneZeroFold) */
+    function stripRenderedParens(text:String):String {
+        var cur = text;
+        while (StringTools.startsWith(cur, "(") && StringTools.endsWith(cur, ")") && matchingParens(cur))
+            cur = cur.substr(1, cur.length - 2);
+        return cur;
+    }
+
     /** Extracts the compared subject and polarity from a `s == null` /
         `s != null` condition. The null literal may stand on either side.
         (NoneZeroFold) */
@@ -4050,9 +4060,9 @@ class RustExpr {
                 {
                     final cmp = nullComparisonParts(c);
                     if (cmp != null && isNullType(Context.follow(cmp.subject.t))) {
-                        final subjectText = expr(cmp.subject);
-                        final thenText = expr(t);
-                        final elseText = expr(f);
+                        final subjectText = stripRenderedParens(expr(cmp.subject));
+                        final thenText = stripRenderedParens(expr(stripWrap(t)));
+                        final elseText = stripRenderedParens(expr(stripWrap(f)));
                         final zeroTexts = ["0", "0.0f64", "0.0", "(0.0f64)", "(0 as f64)", "0 as f64"];
                         if (!cmp.inverted && Lambda.has(zeroTexts, thenText)
                             && (elseText == subjectText || StringTools.startsWith(elseText, subjectText)))
@@ -4060,6 +4070,10 @@ class RustExpr {
                         if (cmp.inverted && Lambda.has(zeroTexts, elseText)
                             && (thenText == subjectText || StringTools.startsWith(thenText, subjectText)))
                             return "(" + subjectText + ").unwrap_or(" + elseText + ")";
+#if boring_fold_debug
+                        Context.warning("FOLDDBG nofold subj=" + subjectText + " then=" + thenText + " else=" + elseText
+                            + " inv=" + cmp.inverted, e.pos);
+#end
                     }
                 }
                 final coalescing = coalescingSiteFor(e);
@@ -10991,6 +11005,16 @@ class RustExpr {
                         final inner = getNullInnerType(arg.t);
                         final ref = argStr + ".get_or_insert_with(|| " + filled + ")";
                         argStr = isTypeCopy(inner) ? "*" + ref : ref + ".clone()";
+                    } else {
+                        // No proof, no guard, no fill: the nullable value
+                        // still enters the non-null slot, so the boundary
+                        // unwraps it — the None path panics exactly where
+                        // the Haxe source would have dereferenced an
+                        // undefined value. (NonNullSlotUnwrap)
+                        final inner = getNullInnerType(arg.t);
+                        final bare = stripRenderedParens(expr(stripWrap(arg)));
+                        final ref = "(" + bare + ").as_ref().unwrap()";
+                        argStr = isTypeCopy(inner) ? "*" + ref : (isPassByRef(pt) ? ref : ref + ".clone()");
                     }
                 }
             }
@@ -11008,6 +11032,11 @@ class RustExpr {
                 }
             }
             if (paramIndex < paramTypes.length) {
+#if boring_fold_debug
+                if (pt != null && isNullType(pt))
+                    Context.warning("SLOTDBG pt=" + Std.string(pt).substr(0, 50) + " argT=" + Std.string(arg.t).substr(0, 50)
+                        + " argStr=" + argStr.substr(0, 60), arg.pos);
+#end
                 if (isNullType(pt) && isNullType(arg.t)
                     && (isNonNullRenderedLocal(arg) || isNonNullRenderedConditional(arg))
                     && !StringTools.startsWith(argStr, "Some(") && argStr != "None") {
