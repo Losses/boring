@@ -10786,6 +10786,22 @@ class RustExpr {
                     case _:
                 }
             }
+            // The mirrored form: a has-guarded get ternary with a zero
+            // fallback renders both arms as the inner value; a nullable slot
+            // wraps the whole conditional in Some.
+            // (NullElseTernaryUnwrap)
+            if (pt != null && isNullType(pt) && !isNullType(arg.t)) {
+                switch (stripWrap(arg).expr) {
+                    case TIf(_, t2, f2):
+                        final tt = expr(t2);
+                        final et = expr(f2);
+                        final zeroElse = (et == "0" || et == "0.0f64" || et == "0.0"
+                            || et == "(0 as f64)" || et == "(0.0f64)");
+                        if (StringTools.contains(tt, ".unwrap()") && zeroElse)
+                            argStr = "Some(" + argStr + ")";
+                    case _:
+                }
+            }
             // A borrowed match binding (`__option6`, bare or wrapped as
             // `&(__option6)`) feeding a nullable slot wraps the cloned inner
             // value in Some: the binding is a reference into the matched
