@@ -4009,6 +4009,16 @@ class RustExpr {
             case TFunction(f):
                 return functionValueLiteral(f, e.t);
             case TIf(c, t, f) if (f != null):
+                // A coalescing ternary with a nullable join renders both arms
+                // as the inner value; a nullable slot wraps the whole
+                // conditional in Some. The sub-expression recursion is
+                // bounded (valueExpr is a child). (NullElseTernaryUnwrap)
+                final coalescingPre = coalescingSiteFor(e);
+                if (coalescingPre != null && e.t != null && isNullType(e.t)) {
+                    final v = expr(coalescingPre.valueExpr);
+                    if (!StringTools.startsWith(v, "Some(") && v != "None")
+                        return "Some(" + v + ")";
+                }
                 // `if (S.is_none()) { zero } else { S }` folds to
                 // S.unwrap_or(zero): the None branch contributes the numeric
                 // zero of Haxe's null semantics. The zero-like arms are
@@ -4016,9 +4026,6 @@ class RustExpr {
                 // (NoneZeroFold)
                 {
                     final condText = expr(c);
-                    if (currentClass != null && currentClass.module.indexOf("PunctuationGeometryLedger") >= 0
-                        && StringTools.contains(condText, "ruby_spread"))
-                        Context.error("PROBE13 condText=" + condText, c.pos);
                     if (StringTools.endsWith(condText, ".is_none()")) {
                         var subjectText = condText.substr(0, condText.length - ".is_none()".length);
                         while (StringTools.startsWith(subjectText, "(") && StringTools.endsWith(subjectText, ")")
