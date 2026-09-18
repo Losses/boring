@@ -10717,6 +10717,10 @@ class RustExpr {
             if (pt != null && isNullType(pt) && !isTNull(arg)
                 && StringTools.startsWith(argStr, "__option"))
                 argStr = "Some((*" + argStr + ").clone())";
+            if (pt != null && isNullType(pt) && !isTNull(arg)
+                && StringTools.startsWith(argStr, "&(") && StringTools.endsWith(argStr, ")")
+                && StringTools.contains(argStr, "__option"))
+                argStr = "Some((*" + argStr.substr(2, argStr.length - 3) + ").clone())";
             // A ternary whose else arm is the null literal renders as an
             // Option shape; a non-null slot unwraps it — the null path
             // panics exactly where the Haxe source would pass an undefined
