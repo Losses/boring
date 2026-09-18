@@ -3727,8 +3727,6 @@ class RustExpr {
         // sibling arm that renders an Option value (a nullable local passed
         // through). The dereferenced arm wraps in Some so both arms carry
         // Option<T>. (NarrowedNullableParam)
-        if (currentClass != null && currentClass.module.indexOf("LineOptimization") >= 0)
-            Context.error("PROBE10 rt=" + Std.string(resultType) + " nt=" + narrowedText + " ntStar=" + StringTools.startsWith(narrowedText, "*"), cond.pos);
         if (isNullType(resultType) && StringTools.startsWith(narrowedText, "*")
             && !StringTools.startsWith(narrowedText, "*(")
             && !StringTools.startsWith(narrowedText, "Some("))
