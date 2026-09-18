@@ -5015,16 +5015,17 @@ class RustExpr {
     /** The std generic tables are handwritten runtime residents whose
         key/value parameters borrow as &K and &V (runtime/sorted_table.rs),
         so a String slot there is &String — the &str convention of business
-        signatures does not apply. (AppliedReceiverParams) */
+        signatures does not apply. The corpus names them either through the
+        std.SortedMap aliases or directly as the runtime.SortedTable
+        residents (SortedMapTable and friends). (AppliedReceiverParams) */
     function isStdTableType(t:Null<Type>):Bool {
         if (t == null)
             return false;
         return switch (Context.follow(t)) {
             case TInst(c, _):
                 final cls = c.get();
-                StringTools.startsWith(cls.module, "std.")
-                    && (cls.name == "SortedMap" || cls.name == "SortedMapBuilder"
-                        || cls.name == "SortedSet" || cls.name == "SortedSetBuilder");
+                (StringTools.startsWith(cls.module, "std.") || StringTools.startsWith(cls.module, "runtime."))
+                    && (StringTools.startsWith(cls.name, "SortedMap") || StringTools.startsWith(cls.name, "SortedSet"));
             case _: false;
         };
     }
