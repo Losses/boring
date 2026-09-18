@@ -7801,7 +7801,7 @@ class RustExpr {
                         // A non-null source value into a nullable-V slot
                         // wraps in Some.
                         final valueWrapped = i == 1 && slots != null && isNullType(slots.v)
-                            && !isNullType(args[i].t) && !bindingWrapped
+                            && !bindingWrapped
                             && StringTools.startsWith(r, "&(") && StringTools.endsWith(r, ")");
                         if (bindingWrapped)
                             "&(Some((*" + binding.matched(1) + ").clone()))"
