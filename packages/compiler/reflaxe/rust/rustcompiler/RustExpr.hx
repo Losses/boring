@@ -1391,7 +1391,7 @@ class RustExpr {
                 if (StringTools.startsWith(initStr, "(") && StringTools.endsWith(initStr, ")") && matchingParens(initStr)) {
                     initStr = initStr.substr(1, initStr.length - 2);
                 }
-                if (currentMethodName == "engine" && (name == "r" || StringTools.startsWith(name, "r")))
+                if (currentMethodName == "engine" && currentClass != null && currentClass.module.indexOf("LineAdjustmentStageJf") >= 0 && name == "r")
                     Context.error("PROBE6 name=" + name + " vt=" + Std.string(v.t) + " initT=" + Std.string(init.t) + " line=" + '$kw $name$nullableType = $initStr;', init.pos);
                 return [indent(depth) + '$kw $name$nullableType = $initStr;'];
             case TVar(v, init) if (init == null):
