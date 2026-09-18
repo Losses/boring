@@ -9431,15 +9431,16 @@ class RustExpr {
             // Constructor parameters are value slots unless their declared
             // type explicitly lowers to a borrow.  Keep this final boundary
             // adaptation here so record/Vec reads do not leak `&T` into a T.
+            // A nullable scalar local whose read renders the Option shape
+            // (both ternary arms wrapped) enters a non-null scalar
+            // constructor slot; the boundary unwraps it.
+            // (ScalarSlotUnwrap)
+            if (pt != null && !isNullType(pt) && isNullType(arg.t)
+                && i < paramTypes.length
+                && isNumericScalarType(paramTypes[i])
+                && isOptionRenderedLocalArg(arg))
+                argStr = argStr + ".unwrap()";
             if (i < paramTypes.length)
-                // A nullable scalar local whose read renders the Option
-                // shape (both ternary arms wrapped) enters a non-null
-                // scalar constructor slot; the boundary unwraps it.
-                // (ScalarSlotUnwrap)
-                if (pt != null && !isNullType(pt) && isNullType(arg.t)
-                    && isNumericScalarType(paramTypes[i])
-                    && isOptionRenderedLocalArg(arg))
-                    argStr = argStr + ".unwrap()";
                 out.push(numericAssignmentValue(paramTypes[i], arg, ownedConstructorArg(paramTypes[i], arg, null, argStr), null, true));
             else
                 out.push(argStr);
