@@ -10824,7 +10824,17 @@ class RustExpr {
         return switch (stripWrap(e).expr) {
             case TIf(cond, ifTrue, ifFalse) if (ifFalse != null):
                 final guard = nullGuardOf(cond);
-                guard != null && !isTNull(ifTrue) && !isTNull(ifFalse);
+                if (guard == null || isTNull(ifTrue) || isTNull(ifFalse))
+                    return false;
+                // A nullable interface result wraps both arms in Some inside
+                // the match (the nullableResult rule in
+                // guardedMatchExpression), so the conditional renders an
+                // Option value and a method receiver on it still needs the
+                // as_ref forcing read.
+                if (isNullType(e.t) && isInterfaceType(getNullInnerType(e.t))
+                    && (isConcreteConstructor(ifTrue) || isConcreteConstructor(ifFalse)))
+                    return false;
+                true;
             case _: false;
         };
     }
