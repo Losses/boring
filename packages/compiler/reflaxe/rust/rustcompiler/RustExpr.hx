@@ -1438,7 +1438,14 @@ class RustExpr {
                 if (declText.indexOf(": Option<") >= 0
                     || StringTools.startsWith(initStr, "Some(")
                     || initStr == "None"
-                    || (StringTools.startsWith(initStr, "match ") && initStr.indexOf("=> Some(") >= 0))
+                    || (StringTools.startsWith(initStr, "match ") && initStr.indexOf("=> Some(") >= 0)
+                    || (nullableType == ""
+                        && isNullType(init.t)
+                        && !nullableCollapsedLocals.exists(v.id)
+                        && !hasGuardedTernaryLocals.exists(v.id)
+                        && initStr.indexOf(".unwrap(") < 0
+                        && initStr.indexOf(".unwrap_or(") < 0
+                        && initStr.indexOf("get_or_insert_with") < 0))
                     optionRenderedLocals.set(v.id, true);
                 return [indent(depth) + declText];
             case TVar(v, init) if (init == null):
