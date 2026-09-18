@@ -1347,10 +1347,12 @@ class RustExpr {
                 // name-keyed enum lookup already emits from_name's Option.
                 final lookupInit = EnumQueryExpander.markerKind(init) == QLookup;
                 switch (stripWrap(init).expr) {
+                    // Any ternary initializer with a nullable join renders as
+                    // an Option shape; remember the local so non-null call
+                    // slots unwrap it once. (NullElseTernaryLocals)
                     case TIf(_, _, elseArm) if (elseArm != null && isTNull(elseArm)):
-                        // The ternary renders as an Option shape (a null
-                        // else arm); remember the local so non-null call
-                        // slots unwrap it once. (NullElseTernaryLocals)
+                        nullElseTernaryLocals.set(v.id, true);
+                    case TIf(_) if (isNullType(init.t)):
                         nullElseTernaryLocals.set(v.id, true);
                     case _:
                 }
