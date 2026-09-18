@@ -70,7 +70,7 @@ class RustExpr {
         Set while emitting a switch whose value the statement position
         discards (`case X: null;` side-effect idiom). The arm renderer
         turns null-literal arms into empty blocks so every arm unifies on
-        the unit type instead of mixing None with ().
+        the unit type; mixing None with () would not compile.
     **/
     var discardingStatementSwitch:Bool = false;
     final deferredLocals:Map<Int, Bool> = [];
