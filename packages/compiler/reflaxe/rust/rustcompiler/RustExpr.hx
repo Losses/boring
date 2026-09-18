@@ -11558,11 +11558,16 @@ class RustExpr {
             // wraps in Some(...) with the string coercion applied inside.
             if (isTNull(branch))
                 return "None";
-            // A collapsed local renders the bare inner value: it must not
-            // return early — it falls through to the Some wrapper so both
-            // arms share the slot's Option shape. (NullableReturnUnwrap)
+            // A collapsed or forcing-read local renders the bare inner
+            // value: it must not return early — it falls through to the Some
+            // wrapper so both arms share the slot's Option shape.
+            // (NullableReturnUnwrap)
+            final branchLocalId = switch (stripWrap(branch).expr) {
+                case TLocal(v): v.id;
+                case _: -1;
+            };
             if ((isNullType(branch.t) || StaticFieldHelper.isNullableType(branch.t))
-                && !isNullableCollapsedLocal(branch))
+                && !isNullableCollapsedLocal(branch) && !forcingReadLocals.exists(branchLocalId))
                 return text;
             final inner = getNullInnerType(resultType);
             final coerced = coerceBranchText(branch, text, inner, sibling);
