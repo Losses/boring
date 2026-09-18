@@ -1085,6 +1085,8 @@ class RustExpr {
                 } else if (isNullType(v.t) && isInterfaceType(getNullInnerType(v.t))) {
                     // A nullable interface local needs its Option trait
                     // object type before conditional inference runs.
+                    if (v.name == "r")
+                        Context.error("PROBE4 vt=" + Std.string(v.t), v.meta_pos != null ? v.meta_pos : Context.currentPos());
                     ": " + types.of(v.t, false);
                 } else switch (v.t) {
                     case TInst(c, _) if (c.get().isInterface):
