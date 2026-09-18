@@ -11070,9 +11070,14 @@ class RustExpr {
             }
             if (paramIndex < paramTypes.length) {
 #if boring_fold_debug
-                if (pt != null && isNullType(pt))
+                if (pt != null && (isNullType(pt) || isNullType(arg.t)))
                     Context.warning("SLOTDBG pt=" + Std.string(pt).substr(0, 50) + " argT=" + Std.string(arg.t).substr(0, 50)
-                        + " argStr=" + argStr.substr(0, 60), arg.pos);
+                        + " argStr=" + argStr.substr(0, 60)
+                        + " reg=" + (switch (stripWrap(arg).expr) {
+                            case TLocal(v): Std.string(optionRenderedLocals.exists(v.id))
+                                + "/col=" + Std.string(nullableCollapsedLocals.exists(v.id));
+                            case x: Std.string(x).substr(0, 20);
+                        }), arg.pos);
 #end
                 if (isNullType(pt) && isNullType(arg.t)
                     && (isNonNullRenderedLocal(arg) || isNonNullRenderedConditional(arg))
