@@ -96,6 +96,11 @@ class RustExpr {
     var inGenericFunction:Bool = false;
     final borrowedLoopVarIds:Map<Int, Bool> = [];
     final provenNonNullVarIds:Map<Int, Bool> = [];
+    // Array locals captured by two or more nested functions whose scan
+    // proved a write. Each capturing closure clones the Arc, so the writes
+    // of one are visible to the readers of the others, matching the
+    // reference semantics of Haxe Array captures. (SharedClosureArrays)
+    final sharedClosureArrays:Map<Int, Bool> = [];
     // Sorted map get() calls proven present by an enclosing has() guard.
     // Keyed by the rendered receiver+key text so a get() inside the guard
     // unwraps its Option into the value slot.
@@ -661,6 +666,7 @@ class RustExpr {
         final fusedRoot = fuseWithin(f.expr);
         f.expr.expr = fusedRoot.expr;
         scanLocals(f.expr);
+        scanSharedClosureArrays(f.expr);
         scanLocalFunctionFallibility(f.expr);
         scanReadsAfter(f.expr);
         final previousReceiverContext = renderingMethodReceiver;
@@ -1226,8 +1232,14 @@ class RustExpr {
                         // keeps the Option shape (the None arm stays None),
                         // so only the non-null-arm form narrows to the inner
                         // value.
-                        if (StringTools.startsWith(initStr, "Some(")
-                            || (initStr.indexOf("match") >= 0 && initStr.indexOf("None => None") < 0)) {
+                        // A guarded match whose arms both render Some(...)
+                        // keeps the Option storage (the nullableResult rule
+                        // wrapped each arm), so the local is not collapsed
+                        // and a method receiver on it still unwraps the
+                        // wrapper.
+                        final optionShapedMatch = initStr.indexOf("match &(") == 0 && initStr.indexOf("=> Some(") >= 0;
+                        if (!optionShapedMatch && (StringTools.startsWith(initStr, "Some(")
+                            || (initStr.indexOf("match") >= 0 && initStr.indexOf("None => None") < 0))) {
                             nullableCollapsedLocals.set(v.id, true);
                             nonNullRenderedLocals.set(v.id, true);
                         }
@@ -1309,6 +1321,16 @@ class RustExpr {
                 final lookupInit = EnumQueryExpander.markerKind(init) == QLookup;
                 if (isNullType(v.t) && !isTNull(init) && !StaticFieldHelper.isNullableType(init.t) && !lookupInit) {
                     initStr = "Some(" + initStr + ")";
+                }
+                // A shared closure array lowers as Arc<Mutex<Vec>> so the
+                // capturing closures observe one another's updates
+                // (SharedClosureArrays). The outer binding stays immutable:
+                // the Mutex carries the interior mutability.
+                if (sharedClosureArrays.exists(v.id)) {
+                    imports.require("std::sync::Arc");
+                    imports.require("std::sync::Mutex");
+                    final innerType = types.of(v.t, false);
+                    return [indent(depth) + "let " + name + ": Arc<Mutex<" + innerType + ">> = Arc::new(Mutex::new(Vec::new()));"];
                 }
                 // An empty array literal is an untyped `vec![]` in Rust; the
                 // element reads and writes of an array local infer through
@@ -3685,6 +3707,11 @@ class RustExpr {
                         return narrowed;
                     }
                 }
+                // A shared closure array read dereferences through the
+                // mutex guard; index writes and pushes on the guard resolve
+                // through DerefMut (SharedClosureArrays).
+                if (sharedClosureArrays.exists(v.id))
+                    return RustImports.toSnakeCase(localName(v)) + ".lock().unwrap()";
                 if (subst.exists(v.id)) {
                     return subst.get(v.id);
                 }
@@ -8181,7 +8208,9 @@ class RustExpr {
         final captures = closureOwnedCaptures(f);
         if (captures.length == 0)
             return "Arc::new(" + functionLiteral(f, functionType) + ")";
-        final copies = [for (v in captures) "let " + RustImports.toSnakeCase(localName(v)) + " = (" + RustImports.toSnakeCase(localName(v)) + ").clone();"];
+        final copies = [for (v in captures) sharedClosureArrays.exists(v.id)
+            ? "let " + RustImports.toSnakeCase(localName(v)) + " = Arc::clone(&" + RustImports.toSnakeCase(localName(v)) + ");"
+            : "let " + RustImports.toSnakeCase(localName(v)) + " = (" + RustImports.toSnakeCase(localName(v)) + ").clone();"];
         return "{ " + copies.join(" ") + " Arc::new(" + functionLiteral(f, functionType) + ") }";
     }
 
@@ -8209,6 +8238,67 @@ class RustExpr {
         }
         walk(f.expr);
         return captures;
+    }
+
+    /**
+        Records every Array local that two or more nested functions capture
+        while the mutation scan proved a write on it. The declaration then
+        lowers as Arc<Mutex<Vec>> and each capturing closure clones the Arc,
+        so one closure's writes are visible to the others' reads. A single
+        capturing closure, or a read-only capture set, keeps the snapshot
+        clone because its observable behavior already matches.
+        (SharedClosureArrays)
+    **/
+    function scanSharedClosureArrays(root:TypedExpr):Void {
+        final fns:Array<TFunc> = [];
+        function collect(e:TypedExpr):Void {
+            switch (e.expr) {
+                case TFunction(f): fns.push(f);
+                case _:
+            }
+            haxe.macro.TypedExprTools.iter(e, collect);
+        }
+        collect(root);
+        if (fns.length < 2)
+            return;
+        final counts:Map<Int, Int> = [];
+        final vars:Map<Int, TVar> = [];
+        for (f in fns) {
+            final bound:Map<Int, Bool> = [];
+            final ids:Map<Int, TVar> = [];
+            for (arg in f.args)
+                bound.set(arg.v.id, true);
+            function walk(e:TypedExpr):Void {
+                switch (e.expr) {
+                    case TVar(v, init):
+                        if (init != null)
+                            walk(init);
+                        bound.set(v.id, true);
+                        return;
+                    case TLocal(v):
+                        if (!bound.exists(v.id))
+                            ids.set(v.id, v);
+                    case _:
+                }
+                haxe.macro.TypedExprTools.iter(e, walk);
+            }
+            walk(f.expr);
+            for (id in ids.keys()) {
+                counts.set(id, (counts.exists(id) ? counts.get(id) : 0) + 1);
+                vars.set(id, ids.get(id));
+            }
+        }
+        for (id in counts.keys()) {
+            if (counts.get(id) < 2 || !mutated.exists(id))
+                continue;
+            final v = vars.get(id);
+            final isArray = switch (Context.follow(v.t)) {
+                case TInst(c, _) if (c.get().name == "Array"): true;
+                case _: false;
+            };
+            if (isArray)
+                sharedClosureArrays.set(id, true);
+        }
     }
 
     function functionLiteralNamed(name:String, f:TFunc, functionType:Null<Type>):String {
