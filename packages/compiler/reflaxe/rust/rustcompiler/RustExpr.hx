@@ -8545,8 +8545,8 @@ class RustExpr {
         var cur = x;
         while (true) {
             switch (stripWrap(cur).expr) {
-                case TField(sub, cf):
-                    names.unshift(cf.get().name);
+                case TField(sub, fa):
+                    names.unshift(fieldName(fa));
                     cur = sub;
                 case TLocal(v):
                     names.unshift(v.name);
