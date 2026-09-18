@@ -1633,6 +1633,23 @@ class RustExpr {
                 return [indent(depth) + "break;"];
             case TContinue:
                 return [indent(depth) + "continue;"];
+            case TIf(cond, thenBranch, elseBranch):
+                final line = indent(depth) + expr(e) + ";";
+                // `if (X == null) { X = <construct>; }` with no else proves
+                // X non-null for the statements that follow: the rendered
+                // order is the execution order. (GuardedRebindProven)
+                switch (stripWrap(cond).expr) {
+                    case TBinop(OpEq, l, r) if (isTNull(l) || isTNull(r)):
+                        final subject = isTNull(l) ? r : l;
+                        switch (stripWrap(subject).expr) {
+                            case TLocal(v) if (elseBranch == null):
+                                if (containsAssignTo(thenBranch, v.id))
+                                    provenNonNullVarIds.set(v.id, true);
+                            case _:
+                        }
+                    case _:
+                }
+                return [line];
             case TCall(fn, args) if (stringBufMutationParts(fn) != null):
                 return stringBufMutationLines(fn, args, depth);
             case TCall(fn, args) if (isDiscardedUnitResultCall(e, fn)):
@@ -8539,6 +8556,27 @@ class RustExpr {
         expects the inner value unwraps the copy through the proven
         mechanism. (ContinueNullGuards)
     **/
+    /** Whether the tree assigns the local (a re-binding null guard body). */
+    function containsAssignTo(e:TypedExpr, id:Int):Bool {
+        var hit = false;
+        function walk(x:TypedExpr):Void {
+            if (hit)
+                return;
+            switch (stripWrap(x).expr) {
+                case TBinop(OpAssign, target, _) if (switch (stripWrap(target).expr) {
+                        case TLocal(v): v.id == id;
+                        case _: false;
+                    }):
+                    hit = true;
+                    return;
+                case _:
+            }
+            haxe.macro.TypedExprTools.iter(x, walk);
+        }
+        walk(e);
+        return hit;
+    }
+
     /** The local/field name chain of an access path, outermost first. */
     function accessChainOf(x:TypedExpr):Null<Array<String>> {
         final names:Array<String> = [];
