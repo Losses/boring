@@ -4026,6 +4026,10 @@ class RustExpr {
                         final zeroLike = (thenText == "0" || thenText == "0.0f64"
                             || thenText == "0.0" || thenText == "(0.0f64)"
                             || thenText == "(0 as f64)" || thenText == "0 as f64");
+                        if (currentClass != null && currentClass.module.indexOf("PunctuationGeometryLedger") >= 0)
+                            Context.error("PROBE12 zero=" + zeroLike + " eq=" + (elseText == subjectText)
+                                + " pre=" + StringTools.startsWith(elseText, subjectText)
+                                + " subj=" + subjectText + " else=" + elseText, t.pos);
                         if (zeroLike && (elseText == subjectText || StringTools.startsWith(elseText, subjectText)))
                             return "(" + subjectText + ").unwrap_or(" + thenText + ")";
                     }
