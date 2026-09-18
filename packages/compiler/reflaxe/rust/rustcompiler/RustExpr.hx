@@ -66,6 +66,13 @@ class RustExpr {
     // when the closure assigns them.
     final tryCapturedAssignments:Map<Int, Bool> = [];
     final mutated:Map<Int, Bool> = [];
+    /**
+        Set while emitting a switch whose value the statement position
+        discards (`case X: null;` side-effect idiom). The arm renderer
+        turns null-literal arms into empty blocks so every arm unifies on
+        the unit type instead of mixing None with ().
+    **/
+    var discardingStatementSwitch:Bool = false;
     final deferredLocals:Map<Int, Bool> = [];
     final usedNames:Map<String, Bool> = [];
 
@@ -1350,6 +1357,16 @@ class RustExpr {
                     out.push(l);
                 out.push(indent(depth) + "}");
                 return out;
+            case TSwitch(_, _, _):
+                // Statement position discards the switch value; the Haxe
+                // `case X: null;` idiom makes null-literal arms, which the
+                // arm renderer emits as empty blocks under the discard flag
+                // so all arms share the unit type.
+                final prev = discardingStatementSwitch;
+                discardingStatementSwitch = true;
+                final text = expr(e);
+                discardingStatementSwitch = prev;
+                return [indent(depth) + "let _ = " + text + ";"];
             case TIf(c, t, f):
                 final guarded = guardedMatchStatements(c, t, f, depth);
                 if (guarded != null)
@@ -3532,6 +3549,14 @@ class RustExpr {
         // arms are non-null values (the same rule
         // wrapBranchForNullableResult applies to plain ternaries); an arm
         // that already yields None/Some keeps the Option shape. A
+        // Arms must share the Option shape: a concrete-constructor arm
+        // renders Some(Box::new(...)) while the destructured arm renders
+        // the bare payload clone; align the bare arm so both sides carry
+        // Some and the match unifies on Option<T>.
+        if (isNullType(resultType) && !isNullType(narrowedBranch.t) && !StaticFieldHelper.isNullableType(narrowedBranch.t)
+            && !StringTools.startsWith(narrowedText, "Some(")
+            && StringTools.startsWith(noneText, "Some("))
+            narrowedText = "Some(" + narrowedText + ")";
         // concrete-constructor arm of a Null<Interface> result already
         // wraps in Some(Box::new(...)) inside the match, so the outer
         // wrap must not re-apply.
@@ -4560,6 +4585,12 @@ class RustExpr {
             final arm = armBlock(c.expr, armTarget, sw.t);
             for (i in 0...arm.length) {
                 var armText = arm[i];
+                // Under the statement-discard flag a null-literal arm (a
+                // whole-arm render of the single line "None") becomes an
+                // empty block, unifying with the side-effect block arms.
+                if (discardingStatementSwitch && arm.length == 1 && armText == "None") {
+                    armText = "{}";
+                }
                 // A match whose result type is nullable (Null<T>) must wrap
                 // a non-null arm value in Some; the payload read arms return
                 // the bare inner value while the null arms already render
