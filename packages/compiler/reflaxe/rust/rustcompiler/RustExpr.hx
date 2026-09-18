@@ -8819,6 +8819,12 @@ class RustExpr {
             var argStr = expr(arg);
             if (i < paramTypes.length) {
                 final pt = paramTypes[i];
+                // A narrowed operand renders the dereferenced match binding;
+                // a nullable constructor parameter still needs the Option
+                // shape. (NarrowedNullableParam)
+                if (isNullType(pt) && StringTools.startsWith(argStr, "*")
+                    && !StringTools.startsWith(argStr, "*("))
+                    argStr = "Some(" + argStr + ")";
                 // A fallible constructor used as an argument must resolve its
                 // Result before the value reaches the parameter. Interface
                 // parameters then box the successful concrete value below.
