@@ -7767,7 +7767,15 @@ class RustExpr {
                     // clones into storage, so the call-site expressions
                     // stay alive. A nullable receiver unwraps its inner
                     // builder mutably before the put.
-                    final putArgs = [for (a in args) sortedRefArg(a)];
+                    final putArgs = [for (i in 0...args.length) {
+                        final r = sortedRefArg(args[i]);
+                        // A borrowed match binding as the value (index 1) of
+                        // a nullable-V map wraps its cloned inner value in
+                        // Some. (SortedPutValueAdaptation)
+                        (i == 1 && StringTools.contains(r, "__option"))
+                            ? "&(Some((*" + r.substring(r.indexOf("__option"), r.length - 1) + ").clone()))"
+                            : r;
+                    }];
                     return nullableMethodReceiver(subj, true) + ".put(" + putArgs.join(", ") + ")";
                 }
                 if (name == "build" && isSortedBuilder(subj)) {
