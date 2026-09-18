@@ -5231,7 +5231,15 @@ class RustExpr {
         return isImplicitNullableLocal(subj) && !isNullableCollapsedLocal(subj);
     }
     function nullableMethodReceiver(subj:TypedExpr, mutable:Bool):String {
-        if (!isNullType(subj.t) && !isImplicitNullableLocal(subj))
+        // A has-guarded ternary local holds the bare inner value (its
+        // declaration unwrapped the Option); reads must not force-read
+        // again. (HasGuardedTernaryLocals)
+        final guardedCollapse = switch (stripWrap(subj).expr) {
+            case TLocal(v): nullableCollapsedLocals.exists(v.id)
+                || hasGuardedTernaryLocals.exists(v.id);
+            case _: false;
+        };
+        if ((!isNullType(subj.t) && !isImplicitNullableLocal(subj)) || guardedCollapse)
             return expr(subj);
         final previousReceiverContext = renderingMethodReceiver;
         if (mutable) renderingMethodReceiver = true;
