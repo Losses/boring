@@ -10646,7 +10646,8 @@ class RustExpr {
             final paramIndex = i + paramOffset;
             final pt = paramIndex < paramTypes.length ? paramTypes[paramIndex] : null;
             var argStr = renderValueForType(pt, arg, expr(arg));
-            if (StringTools.contains(argStr, "__option6") || i == 1 && argStr == "__option6")
+            if (currentClass != null && currentClass.module.indexOf("LineBreakPlanningStage") >= 0
+                && StringTools.contains(argStr, "__option6"))
                 Context.error("PROBE9 pt=" + Std.string(pt) + " argStr=" + argStr, arg.pos);
             // A narrowed operand renders the dereferenced match binding (a
             // bare `*name`), which is the inner value; a nullable parameter
