@@ -10646,6 +10646,12 @@ class RustExpr {
             if (pt != null && isNullType(pt) && StringTools.startsWith(argStr, "*")
                 && !StringTools.startsWith(argStr, "*("))
                 argStr = "Some(" + argStr + ")";
+            // A borrowed match binding (`__option6`) feeding a nullable slot
+            // wraps the cloned inner value in Some: the binding itself is a
+            // reference into the matched subject. (BorrowedBindingSomeWrap)
+            if (pt != null && isNullType(pt) && !isNullType(arg.t) && !isTNull(arg)
+                && StringTools.startsWith(argStr, "__option"))
+                argStr = "Some((*" + argStr + ").clone())";
             // A ternary whose else arm is the null literal renders as an
             // Option shape; a non-null slot unwraps it — the null path
             // panics exactly where the Haxe source would pass an undefined
