@@ -1655,7 +1655,15 @@ class RustExpr {
                     if (currentClass != null && currentClass.module.indexOf("InlineObjectLayoutTestSupport") >= 0)
                         Context.error("PROBE11 retT=" + Std.string(ret.t) + " curRet=" + Std.string(currentReturnType)
                             + " retStr=" + retStr + " skip=" + unwrapSkip, ret.pos);
-                    if (isNullType(ret.t) && !isNullType(currentReturnType)
+                    // A ternary whose else arm is the null literal renders
+                    // an Option shape even when the typer unified it to the
+                    // non-null sibling type (null folds into that type).
+                    // (NullableReturnUnwrap)
+                    final nullElseTernary = switch (stripWrap(ret).expr) {
+                        case TIf(_, _, elseArm) if (elseArm != null && isTNull(elseArm)): true;
+                        case _: false;
+                    };
+                    if ((isNullType(ret.t) || nullElseTernary) && !isNullType(currentReturnType)
                         && !StringTools.endsWith(retStr, ").unwrap()")
                         && !StringTools.endsWith(retStr, ").clone()")
                         && !unwrapSkip)
