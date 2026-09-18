@@ -7516,7 +7516,7 @@ class RustExpr {
                             + "."
                             + RustImports.toSnakeCase(name)
                             + "("
-                            + renderCallArgs(cf.get().type, args.slice(1), null, 1, mutableParamPositions(cf.get()))
+                            + renderCallArgs(cf.get().type, args.slice(1), null, 1, mutableParamPositions(cf.get()), args[0].t)
                             + ")"
                             + q;
                     }
@@ -7877,7 +7877,7 @@ class RustExpr {
                             // chain (paramOffset 1 reads the declared V slot)
                             // so the borrowed-binding and proven adaptations
                             // apply. (SortedPutValueAdaptation)
-                            renderCallArgs(cf.get().type, [args[1]], null, 1, null);
+                            renderCallArgs(cf.get().type, [args[1]], null, 1, null, subj.t);
                         };
                         return nullableMethodReceiver(subj, true) + ".put(" + kExpr + ", " + vExpr + ")";
                     } else {
@@ -8035,7 +8035,7 @@ class RustExpr {
                     // Parameter-typed arguments borrow unless the local
                     // already holds a reference (a borrowed parameter of
                     // the enclosing function).
-                    return "(" + expr(subj) + "." + snake + ")(" + renderCallArgs(cf.get().type, args) + ")";
+                    return "(" + expr(subj) + "." + snake + ")(" + renderCallArgs(cf.get().type, args, null, 0, null, subj.t) + ")";
                 }
                 final isMethodFallible = isFallibleCallee(c, cf, false);
                 final q = isFallible ? (isMethodFallible ? errorPropagationSuffix(c, cf, false) : "") : (isMethodFallible ? ".unwrap()" : "");
@@ -8054,7 +8054,7 @@ class RustExpr {
                 final forcingRead = mutCall ? ".as_mut().unwrap()" : ".as_ref().unwrap()";
                 final subjStr = narrowed != null ? narrowed
                     : (receiverCarriesFallibleWrapper(subj) ? subjText + forcingRead : subjText);
-                return subjStr + "." + snake + "(" + renderCallArgs(cf.get().type, args, null, 0, mutableParamPositions(cf.get())) + ")" + q;
+                return subjStr + "." + snake + "(" + renderCallArgs(cf.get().type, args, null, 0, mutableParamPositions(cf.get()), subj.t) + ")" + q;
             case TField(_, FStatic(c, cf)):
                 final cls = c.get();
                 final name = cf.get().name;
@@ -10760,13 +10760,64 @@ class RustExpr {
         };
     }
 
+    /** A generic receiver's method field reports its declared parameter
+        types with the class type parameters unresolved (TTypeParameter);
+        the receiver's applied parameters substitute them so the nullable
+        slot adaptations below see the concrete slot types. Monomorphic
+        receivers leave the declared types untouched. (AppliedReceiverParams) */
+    function appliedReceiverParamTypes(fnType:Type, receiverType:Null<Type>):Null<Array<Type>> {
+        if (receiverType == null)
+            return null;
+        final receiver = Context.follow(receiverType);
+        final applied = switch (receiver) {
+            case TInst(_, params): params;
+            case _: return null;
+        };
+        if (applied.length == 0)
+            return null;
+        final names = switch (receiver) {
+            case TInst(c, _): [for (p in c.get().params) p.name];
+            case _: return null;
+        };
+        return switch (Context.follow(fnType)) {
+            case TFun(pargs, _): [for (p in pargs) substituteClassParams(p.t, names, applied)];
+            case _: null;
+        };
+    }
+
+    function substituteClassParams(t:Type, names:Array<String>, applied:Array<Type>):Type {
+        return switch (Context.follow(t)) {
+            case TTypeParameter(tp):
+                var substituted = t;
+                for (i in 0...names.length) {
+                    if (names[i] == tp.name) {
+                        substituted = applied[i];
+                        break;
+                    }
+                }
+                substituted;
+            case TAbstract(a, pl) if (pl.length > 0): TAbstract(a, [for (p in pl) substituteClassParams(p, names, applied)]);
+            case TInst(c, pl): TInst(c, [for (p in pl) substituteClassParams(p, names, applied)]);
+            case TEnum(e, pl): TEnum(e, [for (p in pl) substituteClassParams(p, names, applied)]);
+            case TType(d, pl): TType(d, [for (p in pl) substituteClassParams(p, names, applied)]);
+            case TFun(fargs, ret): TFun([for (a in fargs) {
+                name: a.name, opt: a.opt, t: substituteClassParams(a.t, names, applied)
+            }], substituteClassParams(ret, names, applied));
+            case _: t;
+        };
+    }
+
     function renderCallArgs(fnType:Null<Type>, args:Array<TypedExpr>, signedPositions:Null<Array<Int>> = null, paramOffset:Int = 0,
-            mutablePositions:Null<Array<Int>> = null):String {
+            mutablePositions:Null<Array<Int>> = null, receiverType:Null<Type> = null):String {
         final paramTypes = if (fnType != null) {
-            switch (Context.follow(fnType)) {
-                case TFun(pargs, _): [for (p in pargs) p.t];
-                case _: [];
-            };
+            final applied = appliedReceiverParamTypes(fnType, receiverType);
+            if (applied != null)
+                applied;
+            else
+                switch (Context.follow(fnType)) {
+                    case TFun(pargs, _): [for (p in pargs) p.t];
+                    case _: [];
+                };
         } else [];
         final rendered = [];
         for (i in 0...args.length) {
