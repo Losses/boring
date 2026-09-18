@@ -4017,7 +4017,10 @@ class RustExpr {
                 {
                     final condText = expr(c);
                     if (StringTools.endsWith(condText, ".is_none()")) {
-                        final subjectText = condText.substr(0, condText.length - ".is_none()".length);
+                        var subjectText = condText.substr(0, condText.length - ".is_none()".length);
+                        while (StringTools.startsWith(subjectText, "(") && StringTools.endsWith(subjectText, ")")
+                            && matchingParens(subjectText))
+                            subjectText = subjectText.substr(1, subjectText.length - 2);
                         final thenText = expr(t);
                         final elseText = expr(f);
                         final zeroLike = (thenText == "0" || thenText == "0.0f64"
