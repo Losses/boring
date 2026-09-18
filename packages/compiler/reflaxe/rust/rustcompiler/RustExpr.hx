@@ -1471,6 +1471,21 @@ class RustExpr {
                         out.push(l);
                 }
                 out.push(indent(depth) + "}");
+                // `if (X == null) { X = <construct>; }` with no else proves
+                // X non-null for the statements that follow: the rendered
+                // order is the execution order, so the proof stays set.
+                // (GuardedRebindProven)
+                if (f == null)
+                    switch (stripWrap(c).expr) {
+                        case TBinop(OpEq, l, r) if (isTNull(l) || isTNull(r)):
+                            final subject = isTNull(l) ? r : l;
+                            switch (stripWrap(subject).expr) {
+                                case TLocal(v) if (containsAssignTo(t, v.id)):
+                                    provenNonNullVarIds.set(v.id, true);
+                                case _:
+                            }
+                        case _:
+                    }
                 return out;
             case TWhile(c, b, true):
                 var condStr = nullableBoolOperand(c, expr(c));
@@ -1633,23 +1648,6 @@ class RustExpr {
                 return [indent(depth) + "break;"];
             case TContinue:
                 return [indent(depth) + "continue;"];
-            case TIf(cond, thenBranch, elseBranch):
-                final line = indent(depth) + expr(e) + ";";
-                // `if (X == null) { X = <construct>; }` with no else proves
-                // X non-null for the statements that follow: the rendered
-                // order is the execution order. (GuardedRebindProven)
-                switch (stripWrap(cond).expr) {
-                    case TBinop(OpEq, l, r) if (isTNull(l) || isTNull(r)):
-                        final subject = isTNull(l) ? r : l;
-                        switch (stripWrap(subject).expr) {
-                            case TLocal(v) if (elseBranch == null):
-                                if (containsAssignTo(thenBranch, v.id))
-                                    provenNonNullVarIds.set(v.id, true);
-                            case _:
-                        }
-                    case _:
-                }
-                return [line];
             case TCall(fn, args) if (stringBufMutationParts(fn) != null):
                 return stringBufMutationLines(fn, args, depth);
             case TCall(fn, args) if (isDiscardedUnitResultCall(e, fn)):
