@@ -6409,7 +6409,14 @@ class RustExpr {
             && !(switch (stripWrap(e).expr) {
                 case TLocal(v): hasGuardedTernaryLocals.exists(v.id);
                 case _: false;
-            })) {
+            })
+            // A rendered text that already evaluates bare (a guarded-ternary
+            // whose arms unwrapped) must not unwrap again: the text pass is
+            // the authority. (ShapeParse)
+            && RustShapeParse.shapeOf(rendered) != RustShape.ShapeBare) {
+#if boring_fold_debug
+            Context.warning("ORPROBE shape=" + Std.string(RustShapeParse.shapeOf(rendered)) + " txt=[" + rendered.substr(0, rendered.length > 70 ? 70 : rendered.length) + "]", e.pos);
+#end
             // Null<Float> lowers to Option<Float>. Haxe arithmetic uses the
             // absent value's numeric zero, so extract that value before the
             // operand reaches the operator. A narrowed operand already renders
