@@ -10299,6 +10299,9 @@ class RustExpr {
                             // Covers the receiver-writing call family.
                             switch (stripWrap(subj).expr) {
                                 case TLocal(v):
+#if boring_fold_debug
+                                    Context.warning("MUTPROBE m=" + cf.get().name + " fw=" + RustDecl.fieldWritesReceiver(cf.get()) + " iw=" + interfaceMethodWritesReceiver(iface, cf.get()) + " vf=" + Std.string(cf.get().expr() != null), e.pos);
+#end
                                     if (RustDecl.fieldWritesReceiver(cf.get()) || interfaceMethodWritesReceiver(iface, cf.get()))
                                         mutated.set(v.id, true);
                                 case _:

@@ -1638,6 +1638,13 @@ class RustDecl {
                             // `&mut self` receiver mutates the owned field, so
                             // the parameter binding holding it needs mut.
                             if (mutatingTraitMethods.exists(cf.get().name)) found = true;
+                            // The declaration side decides `&mut self` from
+                            // bodyMutatesSelf on the callee body; the
+                            // parameter side must reach the same verdict for
+                            // any receiver rooted at this binding, not only
+                            // for the closed name list.
+                            if (!found && cf.get().expr() != null && fieldWritesReceiver(cf.get()))
+                                found = true;
                         case _:
                     }
                 case _:
