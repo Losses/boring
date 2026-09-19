@@ -137,6 +137,12 @@ class RustExpr {
     // function: their push argument must clone, since Haxe's push keeps
     // the source binding alive. (PushedThenRead)
     final pushedThenRead:Map<Int, Bool> = [];
+    // Sorted-table builders whose every put stores a has-guard-proven
+    // value: their value type lowers bare, and reads of the built table
+    // see non-null values. (BuilderValueNullability)
+    final bareValueBuilders:Map<Int, Bool> = [];
+    final bareValueBuilderPos:Map<String, Bool> = [];
+    final builtBareTables:Map<Int, Bool> = [];
     final unsignedLocals:Map<Int, Bool> = [];
     // Locals initialized from charCodeAt are collapsed from Option<u32> to a scalar.
     final nullableCollapsedLocals:Map<Int, Bool> = [];
@@ -707,6 +713,10 @@ class RustExpr {
         scanSharedClosureArrays(f.expr);
         scanSharedClosureScalars(f.expr);
         scanPushedThenRead(f.expr);
+        bareValueBuilders.clear();
+        bareValueBuilderPos.clear();
+        builtBareTables.clear();
+        scanBuilderValueNullability(f.expr);
         scanContinueNullGuards(f.expr);
         scanCursorLocals(f.expr);
         scanLocalFunctionFallibility(f.expr);
@@ -1130,8 +1140,13 @@ class RustExpr {
                     case TInst(c, _)
                         if (c.get().name == "SortedMapBuilder" || c.get().name == "SortedMap" || c.get().name == "SortedSetBuilder"
                             || c.get().name == "SortedSet"):
+                        // A bare-value builder (or the table it builds)
+                        // drops the Option layer from its value parameter.
+                        // (BuilderValueNullability)
                         ": "
-                        + types.of(v.t, false);
+                        + (bareValueBuilders.exists(v.id) || builtBareTables.exists(v.id)
+                            ? stripLastValueOption(types.of(v.t, false))
+                            : types.of(v.t, false));
                     case _: "";
                 };
                 var explicitNullableNone = false;
@@ -1453,6 +1468,22 @@ class RustExpr {
                 // trip rustc's unused_parens lint at this position.
                 if (StringTools.startsWith(initStr, "(") && StringTools.endsWith(initStr, ")") && matchingParens(initStr)) {
                     initStr = initStr.substr(1, initStr.length - 2);
+                }
+                // A bare-value builder construction binds the stripped
+                // value type: the builder's own declaration already lost
+                // the Option layer, so the constructor type arguments must
+                // match. (BuilderValueNullability)
+                if (bareValueBuilders.exists(v.id)) {
+                    final mbIdx = initStr.indexOf("map_builder::<");
+                    if (mbIdx >= 0) {
+                        final start = initStr.indexOf(", Option<", mbIdx);
+                        final paren = initStr.indexOf("(", start);
+                        if (start >= 0 && paren >= 0) {
+                            final inner = initStr.substring(start + ", Option<".length, paren);
+                            initStr = initStr.substr(0, start) + ", " + inner.substr(0, inner.length - 1)
+                                + initStr.substr(paren);
+                        }
+                    }
                 }
                 final declText = '$kw $name$nullableType = $initStr;';
                 // (NonNullSlotUnwrap)
@@ -8093,7 +8124,17 @@ class RustExpr {
                     // Some. (SortedPutValueAdaptation)
                     final appliedSlot = {
                         final applied = appliedReceiverParamTypes(cf.get().type, subj.t);
-                        applied != null && applied.length > 1 ? applied[1] : null;
+                        var v:Null<Type> = applied != null && applied.length > 1 ? applied[1] : null;
+                        // A bare-value builder's applied V is the inner
+                        // type: every stored value is has-guard-proven
+                        // non-null. (BuilderValueNullability)
+                        final subjBuilder = switch (stripWrap(subj).expr) {
+                            case TLocal(b): b;
+                            case _: null;
+                        };
+                        if (v != null && subjBuilder != null && bareValueBuilders.exists(subjBuilder.id) && isNullType(v))
+                            v = getNullInnerType(v);
+                        v;
                     };
                     final putArgs = [for (i in 0...args.length) {
                         var r = sortedRefArg(args[i]);
@@ -8121,11 +8162,14 @@ class RustExpr {
                             else if (parenClonedBinding.match(r))
                                 r = "&(Some((*" + parenClonedBinding.matched(1) + ").clone()))";
                             else if (!isNullType(args[i].t)
-                                // Scalar-valued maps strip the Null at the
-                                // runtime storage (sortedMapValueType), so
-                                // the slot is the plain scalar and the plain
-                                // value passes as-is. (SortedPutValueAdaptation)
-                                && !isNumericScalarType(getNullInnerType(appliedSlot))) {
+                                && !isNumericScalarType(getNullInnerType(appliedSlot))
+                                // A has-guard-proven value local holds the
+                                // bare inner value and stores as-is.
+                                // (BuilderValueNullability)
+                                && !(switch (stripWrap(args[i]).expr) {
+                                    case TLocal(v2): nullableCollapsedLocals.exists(v2.id);
+                                    case _: false;
+                                })) {
                                 // A plain value enters a nullable slot: the
                                 // boundary wraps it in Some. A match binding
                                 // is a reference to the inner value, so it
@@ -8640,7 +8684,9 @@ class RustExpr {
                     final vType = sortedValueType(fn);
                     state.shimsUsed.set("std.SortedMap", true);
                     imports.requireType("runtime.SortedTable", "SortedTable");
-                    return "SortedTable::sorted_table_map_builder::<" + types.of(kType) + ", " + types.of(vType) + ">(" + sortedComparator(kType, fn.pos) + ")";
+                    return "SortedTable::sorted_table_map_builder::<" + types.of(kType) + ", "
+                            + (bareValueBuilderPos.exists(Std.string(fn.pos)) ? stripLastValueOption(types.of(vType)) : types.of(vType))
+                            + ">(" + sortedComparator(kType, fn.pos) + ")";
                 }
                 if ((path == "std.SortedSet" || cls.module == "std.SortedSet") && name == "builder") {
                     final kType = sortedKeyType(fn);
@@ -8657,7 +8703,9 @@ class RustExpr {
                     final vType = sortedValueType(fn);
                     imports.requireType("runtime.SortedTable", "SortedTable");
                     if (name == "mapBuilder")
-                        return "SortedTable::sorted_table_map_builder::<" + types.of(kType) + ", " + types.of(vType) + ">(" + sortedComparator(kType, fn.pos) + ")";
+                        return "SortedTable::sorted_table_map_builder::<" + types.of(kType) + ", "
+                            + (bareValueBuilderPos.exists(Std.string(fn.pos)) ? stripLastValueOption(types.of(vType)) : types.of(vType))
+                            + ">(" + sortedComparator(kType, fn.pos) + ")";
                     return "SortedTable::sorted_table_set_builder::<" + types.of(kType) + ">(" + sortedComparator(kType, fn.pos) + ")";
                 }
 
@@ -8992,6 +9040,196 @@ class RustExpr {
             if (isArray)
                 sharedClosureArrays.set(id, true);
         }
+    }
+
+    function scanSortedGetInfo(call:TypedExpr, wantMethod:String):Null<{subj:String, key:String}> {
+        return switch (stripWrap(call).expr) {
+            case TCall(fn, args) if (args.length == 1):
+                switch (stripWrap(fn).expr) {
+                    case TField(subj, FInstance(_, _, cf)) if (cf.get().name == wantMethod):
+                        final t = methodSubjectType(subj);
+                        switch (Context.follow(t)) {
+                            case TInst(c, _):
+                                final n = c.get().name;
+                                if (n == "SortedMap" || n == "SortedMapTable" || n == "SortedSet" || n == "SortedSetTable" || n == "SortedMapBuilder" || n == "SortedSetTableBuilder")
+                                    {subj: subjectTextOf(subj), key: subjectTextOf(args[0])};
+                                else
+                                    null;
+                            case _: null;
+                        };
+                    case _: null;
+                };
+            case _: null;
+        };
+    }
+
+    function isSortedBuilderFactory(fn:TypedExpr):Bool {
+        return switch (stripWrap(fn).expr) {
+            case TField(_, FStatic(_, cf)): cf.get().name == "mapBuilder" || cf.get().name == "builder";
+            case _: false;
+        };
+    }
+
+    function builderValueIsNullableV(init:TypedExpr):Bool {
+        return switch (stripWrap(init).expr) {
+            case TCall(fn, _):
+                switch (Context.follow(fn.t)) {
+                    case TFun(_, ret):
+                        switch (Context.follow(ret)) {
+                            case TInst(_, params) if (params.length >= 2): isNullType(params[1]);
+                            case _: false;
+                        };
+                    case _: false;
+                };
+            case _: false;
+        };
+    }
+
+    function stripLastValueOption(text:String):String {
+        final re = ~/^(.*), Option<(.*)>$/;
+        return re.match(text) ? re.matched(1) + ", " + re.matched(2) : text;
+    }
+
+    function scanBuilderValueNullability(root:TypedExpr):Void {
+        final proven:Map<Int, Bool> = [];
+        final builderPosByKey:Map<String, Bool> = [];
+        function walk1(e:TypedExpr, guards:Map<String, Bool>):Void {
+            switch (e.expr) {
+                case TIf(cond, then, els):
+                    final info = scanSortedGetInfo(cond, "has");
+                    if (info != null) {
+                        final key = info.subj + "\u0000" + info.key;
+                        final next = [for (k => v in guards) k => v];
+                        next.set(key, true);
+                        walk1(cond, guards);
+                        walk1(then, next);
+                        if (els != null)
+                            walk1(els, guards);
+                        return;
+                    }
+                    walk1(cond, guards);
+                case TVar(v, init):
+                    if (init != null) {
+                        walk1(init, guards);
+                        final info = scanSortedGetInfo(init, "get");
+                        if (info != null && guards.exists(info.subj + "\u0000" + info.key))
+                            proven.set(v.id, true);
+                    }
+                    return;
+                case TCall(fn, cargs):
+                    if (isSortedBuilderFactory(fn)) {
+                        final posKey = Std.string(fn.pos);
+                        builderPosByKey.set(posKey, true);
+                    }
+                    walk1(fn, guards);
+                    for (a in cargs)
+                        walk1(a, guards);
+                    return;
+                case _:
+            }
+            haxe.macro.TypedExprTools.iter(e, walk1.bind(_, guards));
+        }
+        walk1(root, []);
+        final builderIds:Map<Int, String> = [];
+        final putValues:Map<Int, Array<TypedExpr>> = [];
+        function walk2(e:TypedExpr):Void {
+            switch (e.expr) {
+                case TVar(v, init):
+                    if (init != null) {
+                        switch (stripWrap(init).expr) {
+                            case TCall(fn, _):
+                                final posKey = Std.string(fn.pos);
+                                if (builderPosByKey.exists(posKey) && builderValueIsNullableV(init))
+                                    builderIds.set(v.id, posKey);
+                            case _:
+                        }
+                    }
+                case TCall(fn, cargs):
+                    if (cargs.length >= 2) {
+                        switch (stripWrap(fn).expr) {
+                            case TField(s, FInstance(_, _, cf)) if (cf.get().name == "put"):
+                                switch (stripWrap(s).expr) {
+                                    case TLocal(bid) if (builderIds.exists(bid.id)):
+                                        final arr = putValues.exists(bid.id) ? putValues.get(bid.id) : [];
+                                        arr.push(cargs[1]);
+                                        putValues.set(bid.id, arr);
+                                    case _:
+                                }
+                            case _:
+                        }
+                    }
+                case _:
+            }
+            haxe.macro.TypedExprTools.iter(e, walk2);
+        }
+        walk2(root);
+        for (id in builderIds.keys()) {
+            final values = putValues.exists(id) ? putValues.get(id) : [];
+            if (values.length == 0)
+                continue;
+            var allProven = true;
+            for (v in values) {
+                var ok = false;
+                switch (stripWrap(v).expr) {
+                    case TLocal(lid): ok = proven.exists(lid.id);
+                    case TConst(TInt(_)) | TConst(TFloat(_)) | TConst(TString(_)): ok = true;
+                    case _:
+                }
+                if (!ok) {
+                    allProven = false;
+                    break;
+                }
+            }
+            if (allProven) {
+                bareValueBuilders.set(id, true);
+                bareValueBuilderPos.set(builderIds.get(id), true);
+            }
+        }
+        function walk3(e:TypedExpr):Void {
+            switch (e.expr) {
+                case TVar(v, init):
+                    if (init != null) {
+                        final call = stripWrap(init);
+                        switch (call.expr) {
+                            case TCall(fn, cargs):
+                                final callee = switch (stripWrap(fn).expr) {
+                                    case TField(s, FInstance(_, _, cf)): {subject: s, name: cf.get().name};
+                                    case _: null;
+                                };
+                                if (callee != null) {
+                                    var recvExpr = callee.subject;
+                                    switch (stripWrap(recvExpr).expr) {
+                                        case TCall(cf2, cargs2) if (cargs2.length == 0):
+                                            switch (stripWrap(cf2).expr) {
+                                                case TField(s2, FInstance(_, _, cf3)) if (cf3.get().name == "clone"):
+                                                    recvExpr = s2;
+                                                case _:
+                                            }
+                                        case _:
+                                    }
+                                    final recvLocal = switch (stripWrap(recvExpr).expr) {
+                                        case TLocal(t): t;
+                                        case _: null;
+                                    };
+                                    if (recvLocal != null) {
+                                        if (cargs.length == 0 && callee.name == "build" && bareValueBuilders.exists(recvLocal.id))
+                                            builtBareTables.set(v.id, true);
+                                        if ((callee.name == "value_at" || callee.name == "get") && builtBareTables.exists(recvLocal.id))
+                                            nullableCollapsedLocals.set(v.id, true);
+                                    }
+                                }
+                                walk3(fn);
+                                for (a in cargs)
+                                    walk3(a);
+                            case _:
+                                walk3(init);
+                        }
+                    }
+                case _:
+                    haxe.macro.TypedExprTools.iter(e, walk3);
+            }
+        }
+        walk3(root);
     }
 
     /** A local whose occurrences exceed its push occurrences is read
