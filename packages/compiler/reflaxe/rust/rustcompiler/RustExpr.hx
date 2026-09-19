@@ -3814,6 +3814,21 @@ class RustExpr {
             && !StringTools.startsWith(narrowedText, "Some(")
             && (noneText == "None" || StringTools.startsWith(noneText, "Some(")))
             narrowedText = "Some(" + narrowedText + ")";
+        // A field-read arm moves the field out of its base struct, but the
+        // base stays owned by the caller and remains readable after the
+        // coalescing; Haxe assignment keeps both sides alive, so a
+        // non-Copy field-read arm clones. (OwnershipArmClone)
+        function armOwnershipClone(branch:TypedExpr, text:String):String {
+            if (isTypeCopy(branch.t))
+                return text;
+            final isFieldRead = switch (stripWrap(branch).expr) {
+                case TField(_, FInstance(_, _, _)) | TField(_, FAnon(_)): true;
+                case _: false;
+            };
+            return isFieldRead && !StringTools.endsWith(text, ".clone()") ? "(" + text + ").clone()" : text;
+        }
+        noneText = armOwnershipClone(noneBranch, noneText);
+        narrowedText = armOwnershipClone(narrowedBranch, narrowedText);
         final subjectText = subjectTextOf(info.subject);
         final matchText = info.noneWhenTrue ? "match &("
             + subjectText
