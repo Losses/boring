@@ -4023,6 +4023,11 @@ class KotlinExpr {
             // do not turn it into a non-null argument failure expression.
             return text;
         } else if (!allowNullable && registered != null && expected != null && requiresNonNullCallArgument(a, text)) {
+            // A rendered if-expression already branches on the null case:
+            // its arms smart-cast the subject, so the wrapping elvis would
+            // always read the left side. (IfExpressionCoversNull)
+            if (StringTools.startsWith(text, "if ("))
+                return text;
             return "(" + text + " ?: " + defaultArgText(registered, expected) + ")";
         } else if (!allowNullable && expected != null && !isNullType(expected) && requiresNonNullCallArgument(a, text)) {
             if (!isNullInitialized(a))
@@ -4067,7 +4072,10 @@ class KotlinExpr {
                     // equality/assertion expected values.
                     text;
                 } else if (registered != null && expected != null && requiresNonNullCallArgument(a, text)) {
-                    "(" + text + " ?: " + constructorDefaultText(registered, expected, cls, args) + ")";
+                    if (StringTools.startsWith(text, "if ("))
+                        text;
+                    else
+                        "(" + text + " ?: " + constructorDefaultText(registered, expected, cls, args) + ")";
                 } else if (expected != null && !isNullType(expected) && requiresNonNullCallArgument(a, text)) {
                     if (!isNullInitialized(a))
                         addProofExpr(a);
