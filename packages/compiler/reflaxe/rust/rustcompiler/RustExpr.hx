@@ -11757,6 +11757,18 @@ class RustExpr {
                     else
                         argStr = ownedReadCloneText(arg, argStr);
                 }
+                // A nullable Bool argument into a non-null Bool parameter:
+                // Haxe's null-to-Bool coercion is false, so the boundary
+                // supplies it. (NullableBoolCoercion)
+                if (i < paramTypes.length && pt != null && !isNullType(pt)
+                    && isBoolType(pt) && isNullType(arg.t) && !isTNull(arg)
+                    // Only the caller's own nullable parameter binding is
+                    // guaranteed to hold Option storage here.
+                    && switch (stripWrap(arg).expr) {
+                        case TLocal(v): paramVarIds.exists(v.id);
+                        case _: false;
+                    })
+                    argStr = argStr + ".unwrap_or(false)";
                 // A collection length is usize in Rust while a Haxe Int
                 // function parameter is u32 in business modules. The
                 // declared function type is the call boundary, so narrow
