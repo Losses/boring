@@ -701,6 +701,7 @@ class RustExpr {
         f.expr.expr = fusedRoot.expr;
         scanLocals(f.expr);
         scanSharedClosureArrays(f.expr);
+        scanSharedClosureScalars(f.expr);
         scanContinueNullGuards(f.expr);
         scanCursorLocals(f.expr);
         scanLocalFunctionFallibility(f.expr);
@@ -2800,7 +2801,13 @@ class RustExpr {
                 final nonScalarOwnedLocal = !isScalar && !referenceSubject && (!paramVarIds.exists(subjectLocalId) || ownedParameter);
                 if (nonScalarOwnedLocal)
                     borrowedLoopVarIds.set(itemVar.id, true);
-                final iterated = (ownedLocal || nonScalarOwnedLocal) ? "&" + expr(sliceSubj) : expr(sliceSubj);
+                // A shared closure array iterates through its lock guard:
+                // a leading & would borrow the MutexGuard itself, which is
+                // not an iterator. (SharedClosureArrays)
+                final sharedSubject = subjectLocalId >= 0
+                    && (sharedClosureArrays.exists(subjectLocalId) || sharedClosureScalars.exists(subjectLocalId));
+                final iterated = sharedSubject ? expr(sliceSubj) + ".iter()"
+                    : (ownedLocal || nonScalarOwnedLocal) ? "&" + expr(sliceSubj) : expr(sliceSubj);
                 switch (Context.follow(itemVar.t)) {
                     case TAbstract(a, _) if (a.get().name == "Int"):
                         // Array elements reach Rust as u32; remember the loop binding
@@ -3975,8 +3982,15 @@ class RustExpr {
                 // MutexGuard, so every value read needs the leading star.
                 // Assignment targets place the same dereference through
                 // assignTarget (SharedClosureScalars).
-                if (sharedClosureScalars.exists(v.id))
-                    return "*" + RustImports.toSnakeCase(localName(v)) + ".lock().unwrap()";
+                if (sharedClosureScalars.exists(v.id)) {
+                    // Copy scalars read through an explicit dereference
+                    // (binary operators do not auto-deref the MutexGuard);
+                    // non-Copy bindings read as method receivers on the
+                    // guard, since a dereferenced read would move out of
+                    // it. (SharedClosureScalars)
+                    final star = isTypeCopy(v.t) ? "*" : "";
+                    return star + RustImports.toSnakeCase(localName(v)) + ".lock().unwrap()";
+                }
                 if (subst.exists(v.id)) {
                     return subst.get(v.id);
                 }
@@ -8843,7 +8857,11 @@ class RustExpr {
             }
         }
         for (id in counts.keys()) {
-            if (counts.get(id) < 2 || !mutated.exists(id))
+            // One capturing closure with a proved write already breaks the
+            // snapshot-clone contract when the outer scope reads the
+            // binding after the closure runs; the shared form is required
+            // at any capture count. (SharedClosureArrays)
+            if (counts.get(id) < 1 || !mutated.exists(id))
                 continue;
             final v = vars.get(id);
             final isArray = switch (Context.follow(v.t)) {
@@ -8853,7 +8871,6 @@ class RustExpr {
             if (isArray)
                 sharedClosureArrays.set(id, true);
         }
-        scanSharedClosureScalars(root);
     }
 
     /**
@@ -8864,12 +8881,6 @@ class RustExpr {
         (SharedClosureScalars)
     **/
     function scanSharedClosureScalars(root:TypedExpr):Void {
-        function isScalar(t:Type):Bool {
-            return switch (Context.follow(t)) {
-                case TAbstract(a, _): ["Int", "Float", "Bool"].indexOf(a.get().name) >= 0;
-                case _: false;
-            };
-        }
         function scan(e:TypedExpr):Void {
             switch (e.expr) {
                 case TFunction(f):
@@ -8884,7 +8895,12 @@ class RustExpr {
                                 bound.set(v.id, true);
                                 return;
                             case TLocal(v):
-                                if (!bound.exists(v.id) && mutated.exists(v.id) && isScalar(v.t))
+                                // Any captured-and-reassigned binding needs
+                                // the shared referent: the Fn contract
+                                // forbids assigning a captured binding of
+                                // every type, not only scalars.
+                                // (SharedClosureScalars)
+                                if (!bound.exists(v.id) && mutated.exists(v.id))
                                     sharedClosureScalars.set(v.id, true);
                             case _:
                         }
