@@ -8097,15 +8097,14 @@ class RustExpr {
                     // produces .as_ref().unwrap(). Strip .as_ref() so the
                     // owned builder reaches the consuming build().
                     final ownedReceiver = StringTools.replace(receiver, ".as_ref().unwrap()", ".unwrap()");
-                    // A shared (Mutex-guarded) builder cannot move out of
-                    // its guard: clone through the guard and consume the
-                    // clone; the builder derives Clone.
-                    // (SharedClosureArrays)
-                    final sharedBuilder = switch (stripWrap(subj).expr) {
-                        case TLocal(v): sharedClosureArrays.exists(v.id) || sharedClosureScalars.exists(v.id);
-                        case _: false;
-                    };
-                    return (sharedBuilder ? ownedReceiver + ".clone()" : ownedReceiver) + ".build()";
+                    // A build consumes the builder in Rust, but Haxe
+                    // builders are reference objects: the same builder can
+                    // build again, and callers keep using it after a
+                    // build. Both builders derive Clone, so every build
+                    // clones its receiver and consumes the clone. Shared
+                    // (Mutex-guarded) receivers clone through the guard the
+                    // same way. (SharedClosureArrays, BuilderSnapshot)
+                    return ownedReceiver + ".clone().build()";
                 }
                 if ((name == "get" || name == "has") && (isSortedTable(subj) || isSortedBuilder(subj))) {
                     final receiver = nullableMethodReceiver(subj, false);
