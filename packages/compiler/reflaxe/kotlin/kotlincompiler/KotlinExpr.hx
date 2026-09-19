@@ -466,8 +466,12 @@ class KotlinExpr {
         nullInitializedLocals.clear();
         nullableRenderedLocals.clear();
         nonNullFields.clear();
+        extractedLocals.clear();
+        extractedFields.clear();
+        closureCapturedLocals.clear();
         enumVariants.clear();
         registerNonNullDefaultParams(cls, f);
+        scanClosureCaptures(f.expr);
         // Fuse declaration-plus-assignment pairs before the mutation scan.
         // The typer lowers abstract-inline receiver bindings as `TVar(v,
         // null)` followed by an assignment; the fused initializer is the
@@ -549,8 +553,12 @@ class KotlinExpr {
         nullInitializedLocals.clear();
         nullableRenderedLocals.clear();
         nonNullFields.clear();
+        extractedLocals.clear();
+        extractedFields.clear();
+        closureCapturedLocals.clear();
         enumVariants.clear();
         registerNonNullDefaultParams(cls, f);
+        scanClosureCaptures(f.expr);
         scanLocals(f.expr);
         final out:Array<String> = [];
         final assigned:Array<String> = [];
@@ -728,7 +736,14 @@ class KotlinExpr {
                 // initializer's nullable type, so the declaration extracts
                 // once. The null-literal case keeps its declared-nullable
                 // annotation above.
-                final extractsAtDecl = !isNullType(v.t) && isNullType(init.t) && !activeNullGuardLocals.exists(v.id) && switch (stripWrap(init).expr) {
+                // A local initializer proven present by a dominating guard
+                // smart-casts in Kotlin, so the declaration needs no
+                // assertion. (DeclaredLocalProof)
+                final initLocalProven = switch (stripWrap(init).expr) {
+                    case TLocal(_): provenNonNull(init) || guardProofBefore(init);
+                    case _: false;
+                };
+                final extractsAtDecl = !isNullType(v.t) && isNullType(init.t) && !initLocalProven && !activeNullGuardLocals.exists(v.id) && switch (stripWrap(init).expr) {
                     case TConst(TNull): false;
                     case _: true;
                 };
@@ -754,6 +769,10 @@ class KotlinExpr {
                     initText = extractAtDecl ? intToFloatText("(" + initText + ")!!") : intToFloatText(initText);
                     return [indent(depth) + '$kw ${localName(v)}$typeAnn = $initText'];
                 }
+#if boring_fold_debug
+                if (extractAtDecl)
+                    emissionTrace("DECL", initText, e.pos);
+#end
                 return [
                     indent(depth) + '$kw ${localName(v)}$typeAnn = $initText' + (extractAtDecl ? "!!" : "")
                 ];
@@ -823,8 +842,12 @@ class KotlinExpr {
                         functionTypeExpected = PolicyQueries.isFunctionType(currentReturnType);
                         var retText = expr(ret);
                         functionTypeExpected = wasFunctionTypeExpected;
-                        if (rendersNullable(ret) && !isNullType(currentReturnType) && !currentReturnAllowsNullable)
+                        if (rendersNullable(ret) && !isNullType(currentReturnType) && !currentReturnAllowsNullable) {
+#if boring_fold_debug
+                            emissionTrace("RETURN", retText, ret.pos);
+#end
                             retText += "!!";
+                        }
                         // Haxe unifies Int and Float; widen Int return values to
                         // Float when the function's return type is Float.
                         // Use emittedType because the typed AST type is Float
@@ -1258,6 +1281,9 @@ class KotlinExpr {
                 // still extracts; the safe-call form yields Int? and Kotlin
                 // rejects it as a range endpoint (NonNullRangeBound).
                 if (isNullType(subj.t) && !provenNonNull(subj) && !guardProofBefore(subj)) {
+#if boring_fold_debug
+                    emissionTrace("LOOP_BOUND", expr(subj), subj.pos);
+#end
                     return expr(subj) + "?." + suffix + "!!";
                 }
                 if (nullableChainHop(subj) && !guardProofBefore(subj)) {
@@ -1929,8 +1955,12 @@ class KotlinExpr {
                 // extracts: the safe call widens the result to a nullable
                 // type, and Kotlin rejects the nullable assignment.
                 // (NonNullAssignmentExtraction)
-                if (map == null && !isNullType(l.t) && rendersNullable(r) && !StringTools.endsWith(value, "!!"))
+                if (map == null && !isNullType(l.t) && rendersNullable(r) && !StringTools.endsWith(value, "!!")) {
+#if boring_fold_debug
+                    emissionTrace("ASSIGN", value, r.pos);
+#end
                     value += "!!";
+                }
                 if (map == null) {
                     final previous = mutableArrayAccess;
                     mutableArrayAccess = switch (stripWrap(l).expr) {
@@ -1960,14 +1990,49 @@ class KotlinExpr {
         }
     }
 
+    // Function-scope record of subjects an assertion already extracted.
+    // Kotlin's smart cast from `!!` survives every enclosing branch of the
+    // generated code, so the record must outlive the branch-scoped proof
+    // snapshots; only an unreassigned local smart-casts.
+    // (FunctionScopeExtraction)
+    final extractedLocals:Map<Int, Bool> = [];
+    final extractedFields:Map<String, Bool> = [];
+    // Locals any nested function body mentions: Kotlin refuses the `!!`
+    // smart cast for a closure-captured mutable binding, so the record
+    // must never exempt them. (FunctionScopeExtraction)
+    final closureCapturedLocals:Map<Int, Bool> = [];
+
+    function scanClosureCaptures(root:TypedExpr):Void {
+        function walk(node:TypedExpr, insideFunction:Bool):Void {
+            switch (node.expr) {
+                case TLocal(v):
+                    if (insideFunction)
+                        closureCapturedLocals.set(v.id, true);
+                case TFunction(nf):
+                    if (nf.expr != null)
+                        haxe.macro.TypedExprTools.iter(nf.expr, function(child:TypedExpr):Void {
+                            walk(child, true);
+                        });
+                    return;
+                case _:
+            }
+            haxe.macro.TypedExprTools.iter(node, walk.bind(_, insideFunction));
+        }
+        walk(root, false);
+    }
+
     function addProofExpr(e:TypedExpr):Void {
         switch (stripWrap(e).expr) {
             case TLocal(v):
                 nonNullLocals.set(v.id, true);
+                if (!mutated.exists(v.id) && !closureCapturedLocals.exists(v.id))
+                    extractedLocals.set(v.id, true);
             case TField(_, _):
                 final key = fieldAccessKey(e);
-                if (key != null)
+                if (key != null) {
                     nonNullFields.set(key, true);
+                    extractedFields.set(key, true);
+                }
             case _:
         }
     }
@@ -2012,6 +2077,13 @@ class KotlinExpr {
             nonNullLocals.set(k, true);
         for (k in s.fields.keys())
             nonNullFields.set(k, true);
+    }
+
+    /** Emission-path attribution: prints the extraction site tag and the
+        rendered text with the compiler call stack, so each Kotlin warning
+        instance maps to the emitting branch. (EmissionTrace) */
+    public static function emissionTrace(tag:String, text:String, pos:Dynamic):Void {
+        Sys.stderr().writeString("EMITSTACK " + tag + " [" + text + "]\n" + haxe.CallStack.toString(haxe.CallStack.callStack()) + "\n");
     }
 
     function addProofs(p:{locals:Array<Int>, fields:Array<String>}):Void {
@@ -2076,6 +2148,17 @@ class KotlinExpr {
                         }
                 };
                 return literalSubject == null ? {thenPath: empty(), elsePath: empty()} : {thenPath: proofFor(literalSubject), elsePath: empty()};
+            case TBinop(op, cl, cr) if (op == OpGt || op == OpGte || op == OpLt || op == OpLte):
+                // A comparison renders its nullable operand behind an
+                // extraction, so Kotlin's flow proves the operand present
+                // for everything after the comparison.
+                // (ComparisonOperandProof)
+                final lp = proofFor(cl);
+                final rp = proofFor(cr);
+#if boring_fold_debug
+                Sys.stderr().writeString("CONDPROOF-CMP locals=" + lp.locals.concat(rp.locals).join(",") + "\n");
+#end
+                return {thenPath: {locals: lp.locals.concat(rp.locals), fields: lp.fields.concat(rp.fields)}, elsePath: empty()};
             case _:
                 return {thenPath: empty(), elsePath: empty()};
         }
@@ -2169,8 +2252,13 @@ class KotlinExpr {
         };
         if (renderedNullableLocal && !provenNonNull(subj) && !guardProofBefore(subj))
             return "?.";
-        if (isNullInitialized(subj))
+        if (isNullInitialized(subj)) {
+#if boring_fold_debug
+            emissionTrace("ACCESS_NULLINIT", expr(subj), subj.pos);
+#end
+            addProofExpr(subj);
             return "!!.";
+        }
         // The typer wraps an implicit Null<T> unwrap in TCast; the cast's
         // own type is the non-null target, so look through it before
         // deciding.
@@ -2198,8 +2286,15 @@ class KotlinExpr {
         };
         if (safeCallResult)
             return "?.";
-        if (isNullType(subj.t))
+        // The nullable-type fallback extracts only when no dominating
+        // proof holds: a proven subject reads through a plain dot, and a
+        // needless assertion warns as redundant. (NullableAccessProof)
+        if (isNullType(subj.t) && !provenNonNull(subj) && !guardProofBefore(subj)) {
+#if boring_fold_debug
+            emissionTrace("ACCESS_FALLBACK", expr(subj), subj.pos);
+#end
             return "!!.";
+        }
         return ".";
     }
 
@@ -2264,7 +2359,10 @@ class KotlinExpr {
     function rendersNullable(e:TypedExpr):Bool {
         if (isNullType(e.t) && !provenNonNull(e) && !guardProofBefore(e))
             return true;
-        if (isNullInitialized(e))
+        // A null-initialized subject reads plain once the flow proves it
+        // present: the proof wins over the storage shape.
+        // (NullInitRespectsProof)
+        if (isNullInitialized(e) && !provenNonNull(e) && !guardProofBefore(e))
             return true;
         if (isNullableRenderedField(e) && !provenNonNull(e) && !guardProofBefore(e))
             return true;
@@ -2715,11 +2813,17 @@ class KotlinExpr {
         // nullable receiver on a Kotlin operator call (ConcreteOperatorOperand).
         final preservesSafeCall = keepSafeCall && rendered.indexOf("?.") >= 0;
         if (!isNullLiteral(e) && !preservesSafeCall
-            && ((isNullType(e.t) && !proven) || nullInit || rendersNullable(e))
+            && ((isNullType(e.t) && !proven) || (nullInit && !proven) || rendersNullable(e))
             && parent != OpEq && parent != OpNotEq) {
+#if boring_fold_debug
+            emissionTrace("OPERAND proven=" + (provenNonNull(e) || guardProofBefore(e)) + " id=" + (switch (stripWrap(e).expr) { case TLocal(v): Std.string(v.id); case _: "f"; }) + " nullInit=" + nullInit, rendered, e.pos);
+#end
             rendered += "!!";
-            if (!nullInit)
-                addProofExpr(e);
+            // Kotlin's flow proves the subject from the assertion itself,
+            // so every extraction registers: a null-initialized local read
+            // again later must not extract twice.
+            // (ExtractionRegistersProof)
+            addProofExpr(e);
         }
         switch (e.expr) {
             case TBinop(op, _, _):
@@ -3684,9 +3788,14 @@ class KotlinExpr {
                 if (name == "charCodeAt" && (isString(stripCast(subj)) || isNullStringReceiver(subj))) {
                     // stdlib/15: capture both operands once, then make the
                     // platform bounds check explicit so the result is Null<Int>.
-                    // A Null<String> receiver renders with a forced unwrap so
-                    // the captured `_s` is a plain String.
-                    final receiver = expr(subj) + (isNullStringReceiver(subj) ? "!!" : "");
+                    // A receiver whose rendered value is nullable unwraps so
+                    // the captured `_s` is a plain String; a non-null String
+                    // needs no assertion. (CharCodeAtReceiverExtraction)
+#if boring_fold_debug
+                    if (rendersNullable(subj))
+                        emissionTrace("CHARCODE", expr(subj), subj.pos);
+#end
+                    final receiver = expr(subj) + (rendersNullable(subj) ? "!!" : "");
                     return "run { val _s = "
                         + receiver
                         + "; val _i = "
@@ -3918,10 +4027,18 @@ class KotlinExpr {
         } else if (!allowNullable && expected != null && !isNullType(expected) && requiresNonNullCallArgument(a, text)) {
             if (!isNullInitialized(a))
                 addProofExpr(a);
-            if (provenNonNull(a) || guardProofBefore(a))
+            if (provenNonNull(a) || guardProofBefore(a)) {
+#if boring_fold_debug
+                emissionTrace("ARG_ASSERT", text, a.pos);
+#end
                 return text + "!!";
-            else
+            }
+            else {
+#if boring_fold_debug
+                emissionTrace("ARG_ELVIS", text, a.pos);
+#end
                 return text + " ?: throw IllegalArgumentException(\"argument is null\")";
+            }
         } else if (isIntOrLongType(emittedType(a)) && isFloatExpectedType(expected)) return intToFloatText(text); else return text;
     }
 
@@ -3954,10 +4071,18 @@ class KotlinExpr {
                 } else if (expected != null && !isNullType(expected) && requiresNonNullCallArgument(a, text)) {
                     if (!isNullInitialized(a))
                         addProofExpr(a);
-                    if (provenNonNull(a) || guardProofBefore(a))
+                    if (provenNonNull(a) || guardProofBefore(a)) {
+#if boring_fold_debug
+                        emissionTrace("CTOR_ASSERT", text, a.pos);
+#end
                         text + "!!";
-                    else
+                    }
+                    else {
+#if boring_fold_debug
+                        emissionTrace("CTOR_ELVIS", text, a.pos);
+#end
                         text + " ?: throw IllegalArgumentException(\"argument is null\")";
+                    }
                 } else if (isIntOrLongType(emittedType(a)) && isFloatExpectedType(expected)) intToFloatText(text) else text;
             }
         ];
@@ -3971,13 +4096,45 @@ class KotlinExpr {
         Haxe AST does not retain the nullable receiver edge.
     **/
     function requiresNonNullCallArgument(e:TypedExpr, rendered:String):Bool {
-        return !isNullLiteral(e) && ((isNullType(e.t) && !valueProvenNonNull(e))
-            || (PolicyQueries.isNullableType(e.t) && !valueProvenNonNull(e))
+        // A proven value, a value the enclosing guards already proved, or a
+        // text that already carries its extraction needs no second one:
+        // Kotlin smart-casts those proofs, so the added assertion or elvis
+        // would warn as redundant. Only a val-like local smart-casts — a
+        // mutable property or a closure-shared binding keeps its
+        // extraction. (NonNullArgumentExtraction)
+        if (isNullLiteral(e))
+            return false;
+        // Only a val-like local smart-casts in Kotlin: a mutable property
+        // or a reassigned binding keeps its extraction even when the
+        // program's control flow proves the value present.
+        // (NonNullArgumentExtraction)
+        final smartCastable = switch (stripWrap(e).expr) {
+            case TLocal(v): !mutated.exists(v.id);
+            case _: false;
+        };
+        final proven = valueProvenNonNull(e) || provenNonNull(e) || guardProofBefore(e);
+        if (smartCastable && proven)
+            return false;
+        if (StringTools.endsWith(rendered, "!!") || rendered.indexOf("?: throw") >= 0)
+            return false;
+        final effectiveProven = smartCastable && proven;
+#if boring_fold_debug
+        Sys.stderr().writeString("REQNONNULL [" + rendered + "]"
+            + " isNullType=" + (isNullType(e.t) && !effectiveProven)
+            + " isNullableType=" + (PolicyQueries.isNullableType(e.t) && !effectiveProven)
+            + " renderedField=" + isNullableRenderedField(e)
+            + " nullInit=" + isNullInitialized(e)
+            + " chainHop=" + nullableChainHop(e)
+            + " rendersNullable=" + rendersNullable(e)
+            + " containsSafeCall=" + (rendered.indexOf("?.") >= 0) + "\n");
+#end
+        return (isNullType(e.t) && !effectiveProven)
+            || (PolicyQueries.isNullableType(e.t) && !effectiveProven)
             || isNullableRenderedField(e)
             || isNullInitialized(e)
             || nullableChainHop(e)
             || rendersNullable(e)
-            || rendered.indexOf("?.") >= 0);
+            || rendered.indexOf("?.") >= 0;
     }
 
     function isNullLiteral(e:TypedExpr):Bool {
