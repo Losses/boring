@@ -9128,6 +9128,22 @@ class RustExpr {
                             walk1(els, guards);
                         return;
                     }
+                    // The local null-guards: `if (d != null)` proves the
+                    // local non-null inside the branch, so puts of that
+                    // local store non-null values.
+                    // (BuilderValueNullability)
+                    final localGuard = switch (stripWrap(cond).expr) {
+                        case TBinop(OpNotEq, {expr: TLocal(lv)}, {expr: TConst(TNull)}): lv.id;
+                        case _: -1;
+                    };
+                    if (localGuard >= 0) {
+                        proven.set(localGuard, true);
+                        walk1(cond, guards);
+                        walk1(then, guards);
+                        if (els != null)
+                            walk1(els, guards);
+                        return;
+                    }
                     final info = scanSortedGetInfo(cond, "has");
                     if (info != null) {
                         final key = info.subj + "\u0000" + info.key;
