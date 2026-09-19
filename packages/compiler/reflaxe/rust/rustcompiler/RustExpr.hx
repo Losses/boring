@@ -151,6 +151,16 @@ class RustExpr {
     // the arm must clone or the later read trips E0382.
     // (BranchArmMoveClone)
     final branchArmMoveReadsAfter:Map<Int, Bool> = [];
+    // Capture-copy bindings the current function-value prologue emits:
+    // inside the closure body a captured name binds an owned clone of the
+    // outer value, so an element loop over it must borrow or the loop
+    // moves the capture out of the Fn closure. (ClosureCaptureBorrow)
+    var currentCaptureClones:Map<Int, Bool> = [];
+    // Captures whose closure body calls a mutating method through the
+    // capture's field chain: the prologue copy binding takes mut, and the
+    // mutation applies to the closure's own copy, which an Fn closure may
+    // not do to the captured binding itself. (ClosureCaptureMutation)
+    var currentCaptureMut:Map<Int, Bool> = [];
     final unsignedLocals:Map<Int, Bool> = [];
     // Locals initialized from charCodeAt are collapsed from Option<u32> to a scalar.
     final nullableCollapsedLocals:Map<Int, Bool> = [];
@@ -2824,8 +2834,17 @@ class RustExpr {
                 // subject borrows for the loop. An owned parameter
                 // (argType without &) is not already a reference and must
                 // borrow the vec so the source stays alive for later uses.
-                final referenceSubject = (argType != null && StringTools.startsWith(argType, "&"))
-                    || isClosureParam(sliceSubj) || narrowedSubject(sliceSubj) != null;
+                // A closure capture copy binds an owned clone even though
+                // the outer binding is a parameter, so it borrows too.
+                // (ClosureCaptureBorrow)
+                final subjectLocalId = switch (stripWrap(sliceSubj).expr) {
+                    case TLocal(v): v.id;
+                    case _: -1;
+                };
+                final captureCloneSubject = subjectLocalId >= 0 && currentCaptureClones.exists(subjectLocalId);
+                final referenceSubject = !captureCloneSubject
+                    && ((argType != null && StringTools.startsWith(argType, "&"))
+                    || isClosureParam(sliceSubj) || narrowedSubject(sliceSubj) != null);
                 // A scalar loop over an owned local array borrows the array: the
                 // pattern takes a reference and the array stays usable after the
                 // loop. Parameters already arrive as rendered references.
@@ -2841,15 +2860,12 @@ class RustExpr {
                 };
                 if (referenceSubject)
                     borrowedLoopVarIds.set(itemVar.id, true);
-                final subjectLocalId = switch (stripWrap(sliceSubj).expr) {
-                    case TLocal(v): v.id;
-                    case _: -1;
-                };
                 // An owned parameter (argType without a & prefix) is an owned
                 // Vec value, so iterating it must borrow the subject the same way as
                 // an owned local. Borrowed parameters are already &Vec views.
                 final ownedParameter = paramVarIds.exists(subjectLocalId) && argType != null && !StringTools.startsWith(argType, "&");
-                final nonScalarOwnedLocal = !isScalar && !referenceSubject && (!paramVarIds.exists(subjectLocalId) || ownedParameter);
+                final nonScalarOwnedLocal = captureCloneSubject
+                    || (!isScalar && !referenceSubject && (!paramVarIds.exists(subjectLocalId) || ownedParameter));
                 if (nonScalarOwnedLocal)
                     borrowedLoopVarIds.set(itemVar.id, true);
                 // A shared closure array iterates through its lock guard:
@@ -8923,7 +8939,18 @@ class RustExpr {
             if (RustType.isTypeParam(a.v.t))
                 genericParamIds.set(a.v.id, true);
         }
-        final body = coalescingNormalizationLines(f.expr, 2, [for (a in f.args) a.v.name]).concat(blockLines(statementsOf(f.expr), 2, true));
+        // A capture the body mutates through a method call shadows its
+        // capture copy with a mut body-local: an Fn closure cannot mutate
+        // a captured binding, but it may mutate its own per-call copy of
+        // the value. Only this closure's own captures are shadowed, so a
+        // nested body never sees the enclosing closure's marks.
+        // (ClosureCaptureMutation)
+        final mutShadows = [for (v in closureOwnedCaptures(f))
+            if (currentCaptureMut.exists(v.id) && !sharedClosureArrays.exists(v.id) && !sharedClosureScalars.exists(v.id))
+                indent(2) + "let mut " + RustImports.toSnakeCase(localName(v)) + " = ("
+                    + RustImports.toSnakeCase(localName(v)) + ").clone();"
+        ];
+        final body = mutShadows.concat(coalescingNormalizationLines(f.expr, 2, [for (a in f.args) a.v.name]).concat(blockLines(statementsOf(f.expr), 2, true)));
         returnUnsigned = previousReturnUnsigned;
         returnTypeName = previousReturnTypeName;
         currentReturnType = previousReturnType;
@@ -8953,12 +8980,73 @@ class RustExpr {
     function functionValueLiteral(f:TFunc, functionType:Null<Type>):String {
         imports.require("std::sync::Arc");
         final captures = closureOwnedCaptures(f);
-        if (captures.length == 0)
-            return "Arc::new(" + functionLiteral(f, functionType) + ")";
+        final previousClones = currentCaptureClones;
+        final previousMut = currentCaptureMut;
+        currentCaptureClones = [for (v in captures) if (!sharedClosureArrays.exists(v.id) && !sharedClosureScalars.exists(v.id)) v.id => true];
+        currentCaptureMut = captureMutatedCopies(f, captures);
         final copies = [for (v in captures) sharedClosureArrays.exists(v.id)
             ? "let " + RustImports.toSnakeCase(localName(v)) + " = Arc::clone(&" + RustImports.toSnakeCase(localName(v)) + ");"
-            : "let " + RustImports.toSnakeCase(localName(v)) + " = (" + RustImports.toSnakeCase(localName(v)) + ").clone();"];
-        return "{ " + copies.join(" ") + " Arc::new(" + functionLiteral(f, functionType) + ") }";
+            : "let " + (currentCaptureMut.exists(v.id) ? "mut " : "") + RustImports.toSnakeCase(localName(v)) + " = ("
+                + RustImports.toSnakeCase(localName(v)) + ").clone();"];
+        final text = "{ " + copies.join(" ") + " Arc::new(" + functionLiteral(f, functionType) + ") }";
+        currentCaptureClones = previousClones;
+        currentCaptureMut = previousMut;
+        return text;
+    }
+
+    /**
+        Captures whose closure body calls a mutating method through a field
+        chain rooted at the capture. The prologue clone is the closure's own
+        copy, so mutating it needs a mut binding; the captured outer binding
+        itself stays untouched, which keeps the closure Fn.
+        (ClosureCaptureMutation)
+    **/
+    function captureMutatedCopies(f:TFunc, captures:Array<TVar>):Map<Int, Bool> {
+        final out:Map<Int, Bool> = [];
+        if (captures.length == 0)
+            return out;
+        final captureIds:Map<Int, Bool> = [];
+        for (v in captures)
+            captureIds.set(v.id, true);
+        final bound:Map<Int, Bool> = [];
+        for (arg in f.args)
+            bound.set(arg.v.id, true);
+        function walk(e:TypedExpr):Void {
+            switch (e.expr) {
+                case TVar(v, init):
+                    if (init != null)
+                        walk(init);
+                    bound.set(v.id, true);
+                    return;
+                case TCall(fn, _):
+                    switch (stripWrap(fn).expr) {
+                        case TField(subj, FInstance(_, _, cf)):
+                            final mutating = switch (Context.follow(subj.t)) {
+                                case TInst(ic, _) if (ic.get().isInterface): interfaceMethodWritesReceiver(ic, cf.get());
+                                case _: RustDecl.methodWritesReceiver(cf.get());
+                            };
+                            if (mutating) {
+                                var inner = subj;
+                                while (true) {
+                                    switch (stripWrap(inner).expr) {
+                                        case TLocal(l):
+                                            if (captureIds.exists(l.id) && !bound.exists(l.id))
+                                                out.set(l.id, true);
+                                            break;
+                                        case TField(next, _): inner = next;
+                                        case _: break;
+                                    }
+                                }
+                            }
+                        case _:
+                    }
+                    haxe.macro.TypedExprTools.iter(e, walk);
+                case _:
+                    haxe.macro.TypedExprTools.iter(e, walk);
+            }
+        }
+        walk(f.expr);
+        return out;
     }
 
     /** Clone reusable non-Copy locals at a closure boundary before move capture. */
