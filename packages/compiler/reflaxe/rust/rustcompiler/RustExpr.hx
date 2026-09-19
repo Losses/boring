@@ -587,7 +587,7 @@ class RustExpr {
                     // (`Fill::FILL_INSTANCE`) that the emitted module-scope
                     // static does not provide.
                     if (isGuardStaticField(cls, fieldName)) {
-                        final value = staticGuard(cls, fieldName) + ".clone()";
+                        final value = staticGuardClone(cls, fieldName);
                         // A concrete singleton entering an interface slot boxes
                         // through the sanctioned construction, so the
                         // unwrap_or_else closure returns the boxed trait object
@@ -5862,6 +5862,26 @@ class RustExpr {
                 if (map != null) {
                     return expr(map.receiver) + ".insert(" + rustMapKey(map.key) + ", " + rustMapValue(r) + ")";
                 }
+                // A RefCell guard static assigns inside the with-closure:
+                // the borrow_mut guard must not outlive it.
+                // (RefCellStaticGuardScope)
+                final refCellPath = refCellGuardStaticPath(l);
+                if (refCellPath != null) {
+                    final staticValue = if (StaticFieldHelper.isNullableType(l.t)) {
+                        isTNull(r) ? "None" : (isInterfaceType(getNullInnerType(l.t)) && (isConcreteConstructor(r) || !isInterfaceType(r.t))
+                            ? "Some(" + ownedNullInterfaceAssignValue(r) + ")"
+                            : "Some(" + staticOwnedValue(r) + ")");
+                    } else if (StaticFieldHelper.isStringType(l.t)) {
+                        staticOwnedValue(r);
+                    } else {
+                        expr(r);
+                    };
+                    if (rhsMentionsGuardStatic(r)) {
+                        final temp = freshRegionName("__rhs_value");
+                        return "{ let " + temp + " = " + staticValue + "; " + refCellPath + ".with(|c| *c.borrow_mut() = " + temp + "); }";
+                    }
+                    return refCellPath + ".with(|c| *c.borrow_mut() = " + staticValue + ");";
+                }
                 final staticTarget = staticAssignmentTarget(l);
                 if (staticTarget != null) {
                     final staticValue = if (StaticFieldHelper.isNullableType(l.t)) {
@@ -6950,7 +6970,7 @@ class RustExpr {
                         return "&*" + staticItemPath(cls, name);
                     }
                     final guard = staticGuard(cls, name);
-                    return StaticFieldHelper.isArrayType(cf.get().type) ? guard : guard + ".clone()";
+                    return StaticFieldHelper.isArrayType(cf.get().type) ? guard : staticGuardClone(cls, name);
                 }
                 final rendered = staticRef(cls, name);
                 if (StaticFieldHelper.isArrayType(cf.get().type))
@@ -7230,6 +7250,33 @@ class RustExpr {
         if (field != null && RustDecl.isNonSendStaticType(types.of(field.type)))
             return path + ".with(|c| c.borrow())";
         return path + ".lock().unwrap_or_else(|e| e.into_inner())";
+    }
+
+    /** The guard read cloned to an owned value. The RefCell family clones
+        inside the with-closure: a clone applied outside would clone the
+        returned Ref guard and tie it to the thread-local's lifetime.
+        (RefCellStaticGuardScope) */
+    function staticGuardClone(cls:ClassType, name:String):String {
+        final path = staticItemPath(cls, name);
+        final field = staticFieldOf(cls, name);
+        if (field != null && RustDecl.isNonSendStaticType(types.of(field.type)))
+            return path + ".with(|c| c.borrow().clone())";
+        return staticGuard(cls, name) + ".clone()";
+    }
+
+    /** The item path of a guard static whose guard is a RefCell borrow, or
+        null when the expression is not one. The assignment through such a
+        guard must happen inside the with-closure.
+        (RefCellStaticGuardScope) */
+    function refCellGuardStaticPath(e:TypedExpr):Null<String> {
+        return switch (stripWrap(e).expr) {
+            case TField(_, FStatic(c, cf)):
+                final field = staticFieldOf(c.get(), cf.get().name);
+                field != null && isGuardStaticField(c.get(), cf.get().name)
+                    && RustDecl.isNonSendStaticType(types.of(field.type))
+                    ? staticItemPath(c.get(), cf.get().name) : null;
+            case _: null;
+        };
     }
 
     function staticGuardOf(e:TypedExpr):Null<String> {
