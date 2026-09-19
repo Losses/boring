@@ -9438,6 +9438,20 @@ class RustExpr {
                         out.push("Some((*" + narrowedSubject(arg) + ").clone())");
                     continue;
                 }
+                // A nullable argument whose read renders no Option
+                // construction (no Some/None, no composite of Option arms)
+                // re-wraps at the Option slot. The decision reads the
+                // rendered text, so it matches every other boundary on the
+                // same expression. (TypedSlotBoundary, ShapeParse)
+                if (isNullType(pt) && isNullType(arg.t)
+                    && !StringTools.startsWith(argStr, "Some(") && argStr != "None"
+                    && renderedArgShape(argStr, arg) == RustShape.ShapeBare) {
+                    if (isTypeCopy(getNullInnerType(pt)))
+                        out.push("Some(" + argStr + ")");
+                    else
+                        out.push("Some(" + ownedNullableReadText(argStr) + ")");
+                    continue;
+                }
                 if (isNullType(pt) && isStringType(getNullInnerType(pt)) && isNullType(arg.t)) {
                     // A nullable-typed conditional whose arms are both
                     // non-null renders a plain String; wrap in Some at the
