@@ -8082,7 +8082,15 @@ class RustExpr {
                     // produces .as_ref().unwrap(). Strip .as_ref() so the
                     // owned builder reaches the consuming build().
                     final ownedReceiver = StringTools.replace(receiver, ".as_ref().unwrap()", ".unwrap()");
-                    return ownedReceiver + ".build()";
+                    // A shared (Mutex-guarded) builder cannot move out of
+                    // its guard: clone through the guard and consume the
+                    // clone; the builder derives Clone.
+                    // (SharedClosureArrays)
+                    final sharedBuilder = switch (stripWrap(subj).expr) {
+                        case TLocal(v): sharedClosureArrays.exists(v.id) || sharedClosureScalars.exists(v.id);
+                        case _: false;
+                    };
+                    return (sharedBuilder ? ownedReceiver + ".clone()" : ownedReceiver) + ".build()";
                 }
                 if ((name == "get" || name == "has") && (isSortedTable(subj) || isSortedBuilder(subj))) {
                     final receiver = nullableMethodReceiver(subj, false);
@@ -8309,7 +8317,16 @@ class RustExpr {
                 final forcingRead = mutCall ? ".as_mut().unwrap()" : ".as_ref().unwrap()";
                 final subjStr = narrowed != null ? narrowed
                     : (receiverCarriesFallibleWrapper(subj) ? subjText + forcingRead : subjText);
-                return subjStr + "." + snake + "(" + renderCallArgs(cf.get().type, args, null, 0, mutableParamPositions(cf.get()), subj.t) + ")" + q;
+                // A by-value method on a shared (Mutex-guarded) receiver
+                // cannot move out of the guard: clone the referent through
+                // the guard and consume the clone. (SharedClosureArrays)
+                final receiverSharedLocal = switch (stripWrap(subj).expr) {
+                    case TLocal(v): sharedClosureArrays.exists(v.id) || sharedClosureScalars.exists(v.id);
+                    case _: false;
+                };
+                final throughGuardClone = receiverSharedLocal && RustDecl.methodConsumesSelf(cf.get());
+                final callReceiver = throughGuardClone ? subjText + ".clone()" : subjStr;
+                return callReceiver + "." + snake + "(" + renderCallArgs(cf.get().type, args, null, 0, mutableParamPositions(cf.get()), subj.t) + ")" + q;
             case TField(_, FStatic(c, cf)):
                 final cls = c.get();
                 final name = cf.get().name;
