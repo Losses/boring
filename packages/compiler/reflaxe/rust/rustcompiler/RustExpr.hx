@@ -4074,7 +4074,21 @@ class RustExpr {
                         // Mark both precision configurations so method calls on a
                         // literal (for example `is_nan`) never leave its
                         // type to Rust inference.
-                        return padded + (FloatPrecision.isF32() ? "f32" : "f64");
+                        if (FloatPrecision.isF32()) {
+                            // A literal outside the f32 domain renders as the
+                            // f32 value it rounds to: overflow renders as the
+                            // signed infinity, underflow to zero as zero. Rust
+                            // denies the out-of-range literal form itself.
+                            // (Float32LiteralRange)
+                            final v = Std.parseFloat(padded);
+                            final abs = Math.abs(v);
+                            if (abs > 3.4028234663852886e38)
+                                return v < 0 ? "-f32::INFINITY" : "f32::INFINITY";
+                            if (v != 0 && abs < 1.401298464324817e-45)
+                                return "0.0f32";
+                            return padded + "f32";
+                        }
+                        return padded + "f64";
                     case TString(s): return quoteString(s);
                     case TBool(b): return b ? "true" : "false";
                     case TNull: return "None";
