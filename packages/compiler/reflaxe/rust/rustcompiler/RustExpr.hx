@@ -11192,6 +11192,14 @@ class RustExpr {
         if (!isNullType(expected) && isInterfaceType(expected) && isConcreteConstructor(actual)) {
             return "Box::new(" + boxedInterfacePayload(actual, rendered) + ")";
         }
+        // An interface-typed reusable read (a field of an owned object)
+        // entering an owned interface slot clones: Haxe's read leaves the
+        // source object intact, and Rust's value slot would move the
+        // field out of it. (InterfaceSlotClone)
+        if (!isNullType(expected) && isInterfaceType(expected) && isInterfaceType(actual.t)
+            && !isTypeCopy(actual.t) && isReusableOwnedRead(actual)
+            && !StringTools.endsWith(rendered, ".clone()"))
+            return rendered + ".clone()";
         // A non-Copy narrowed Option binding names a reference to the inner
         // value; an owned value slot clones the referent so the slot carries
         // the owned type its signature declares.
