@@ -5,6 +5,9 @@ package rustcompiler;
  * the shape values. (ShapeParse)
  */
 class RustShapeParse {
+    /** Integer, float, and boolean literal forms (with numeric suffixes). */
+    static final simpleLiteral = ~/^(0x[0-9a-fA-F_]+|[0-9][0-9_]*(\.[0-9_]+)?(f32|f64|i32|i64|u32|u64|usize)?|true|false)$/;
+
     /** Method suffixes that preserve Option-ness of their receiver. */
     static final preservingSuffixes:Array<String> = [
         ".clone()", ".to_string()", ".to_owned()", ".as_str()", ".as_ref()",
@@ -105,6 +108,16 @@ class RustShapeParse {
             }
             if (changed)
                 continue;
+            // A numeric cast preserves the operand's shape.
+            for (castSuffix in [" as f64", " as f32", " as u32", " as i32", " as u64", " as i64", " as usize"]) {
+                if (StringTools.endsWith(s, castSuffix)) {
+                    s = StringTools.trim(s.substr(0, s.length - castSuffix.length));
+                    changed = true;
+                    break;
+                }
+            }
+            if (changed)
+                continue;
             // The try operator consumes the Option (or Result) wrapper.
             if (StringTools.endsWith(s, "?")) {
                 s = StringTools.trim(s.substr(0, s.length - 1));
@@ -117,6 +130,9 @@ class RustShapeParse {
         }
         // Owned vector literals are bare values.
         if (StringTools.startsWith(s, "vec!") || s == "Vec::new()" || s == "String::new()")
+            return ShapeBare;
+        // Numeric and boolean literals are bare values.
+        if (simpleLiteral.match(s))
             return ShapeBare;
         // Option constructors.
         if (s == "None" || StringTools.startsWith(s, "None\n") || s == "None;")
