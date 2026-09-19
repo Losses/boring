@@ -1075,6 +1075,37 @@ class KotlinDecl {
                 // tables stay primitive arrays because business code
                 // indexes them directly and never passes them along.
                 final wrapper = imports.selfResident ? "listOf" : "intArrayOf";
+                // JVM caps every method at 64KB of bytecode, and the
+                // object initializer is one method: a table whose element
+                // constants exceed the cap loads through part functions,
+                // each a separate method under the cap. The initializer
+                // then only joins the parts. (KotlinChunkedTableInit)
+                final chunkElements = 8192;
+                if (formatted.length > chunkElements) {
+                    final partType = imports.selfResident ? "List<Int>" : "IntArray";
+                    final lowered = field.name.charAt(0).toLowerCase() + field.name.substr(1);
+                    final outLines:Array<String> = [];
+                    final partCount = Math.ceil(formatted.length / chunkElements);
+                    var p = 0;
+                    while (p < partCount) {
+                        final start = p * chunkElements;
+                        final end = Std.int(Math.min(start + chunkElements, formatted.length));
+                        final partLines:Array<String> = [];
+                        var j = start;
+                        while (j < end) {
+                            final stop = Std.int(Math.min(j + 8, end));
+                            partLines.push("        " + formatted.slice(j, stop).join(", "));
+                            j = stop;
+                        }
+                        outLines.push('    private fun ${lowered}Part${p + 1}(): $partType = $wrapper(\n'
+                            + partLines.join(",\n") + '\n    )');
+                        outLines.push("");
+                        p++;
+                    }
+                    final joined = [for (q in 0...partCount) '${lowered}Part${q + 1}()'].join(" + ");
+                    outLines.push('    val ${field.name} = $joined');
+                    return outLines;
+                }
                 return ['    val ${field.name} = $wrapper(\n' + chunks.join(",\n") + '\n    )'];
             }
         }
