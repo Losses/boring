@@ -4112,6 +4112,9 @@ class RustExpr {
                 // (NoneZeroFold)
                 {
                     final condText = expr(c);
+#if boring_fold_debug
+                    Context.warning("CONDTXT [" + condText + "]", e.pos);
+#end
                     if (StringTools.endsWith(condText, ".is_none()")) {
                         var subjectText = condText.substr(0, condText.length - ".is_none()".length);
                         while (StringTools.startsWith(subjectText, "(") && StringTools.endsWith(subjectText, ")")
@@ -4132,6 +4135,9 @@ class RustExpr {
                 // (NoneZeroFold)
                 {
                     final cmp = nullComparisonParts(c);
+#if boring_fold_debug
+                    Context.warning("FOLD2 cmp=" + (cmp != null) + " nullty=" + (cmp != null && isNullType(Context.follow(cmp.subject.t))) + " subjty=" + Std.string(cmp != null ? cmp.subject.t : null), e.pos);
+#end
                     if (cmp != null && isNullType(Context.follow(cmp.subject.t))) {
                         final subjectText = stripRenderedParens(expr(cmp.subject));
                         final thenText = stripRenderedParens(expr(stripWrap(t)));
@@ -9547,7 +9553,7 @@ class RustExpr {
                 && !isNullType(paramTypes[i])
                 && isNumericScalarType(paramTypes[i])
                 && renderedArgShape(argStr, arg) == RustShape.ShapeOption)
-                argStr = argStr + ".unwrap()";
+                argStr = postfixAdapt(argStr, ".unwrap()");
             if (i < paramTypes.length)
                 out.push(numericAssignmentValue(paramTypes[i], arg, ownedConstructorArg(paramTypes[i], arg, null, argStr), null, true));
             else
@@ -10964,6 +10970,16 @@ class RustExpr {
         return RustShape.ShapeUnknown;
     }
 
+    /** Append a postfix method to an already-rendered text, parenthesizing
+        composite forms so the postfix binds to the whole value.
+        (ShapeParse) */
+    function postfixAdapt(text:String, postfix:String):String {
+        final t = StringTools.trim(text);
+        final composite = StringTools.startsWith(t, "if ") || StringTools.startsWith(t, "match")
+            || StringTools.startsWith(t, "{");
+        return composite ? "(" + text + ")" + postfix : text + postfix;
+    }
+
     function renderValueForType(expected:Null<Type>, actual:TypedExpr, rendered:String):String {
         if (expected == null || actual == null)
             return rendered;
@@ -10983,7 +10999,7 @@ class RustExpr {
         if (!isNullType(expected)
             && isNumericScalarType(expected)
             && renderedArgShape(rendered, actual) == RustShape.ShapeOption)
-            return rendered + ".unwrap()";
+            return postfixAdapt(rendered, ".unwrap()");
         // Haxe unifies Int and Float; widen Int values to Float when the
         // target slot expects Float.
         if (isFloatType(expected) && isIntType(emittedType(actual)))
