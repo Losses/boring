@@ -9119,6 +9119,7 @@ class RustExpr {
                         case _: null;
                     };
                     if (fieldGuard != null) {
+                        fieldNullGuards.set(fieldGuard, true);
                         final next = [for (k => v in guards) k => v];
                         next.set(fieldGuard, true);
                         walk1(cond, next);
