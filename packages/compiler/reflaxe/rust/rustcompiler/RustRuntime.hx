@@ -21,8 +21,8 @@ impl Exception {
 ';
 
     /** The Functional shim is precision-parameterized: sum_of_float
-        accumulates at the element Float's width, so the f32 lane binds
-        f32 and the f64 lane binds f64 (feature spec 23). */
+        accumulates at the element Float's width, so the f32 mode binds
+        f32 and the f64 mode binds f64 (feature spec 23). */
     public static function functionalSource():String {
         final f = FloatPrecision.isF32() ? "f32" : "f64";
         return '
