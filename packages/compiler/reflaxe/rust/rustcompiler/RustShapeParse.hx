@@ -149,6 +149,10 @@ class RustShapeParse {
         if (endsWithCall(s, ".unwrap_or(") || endsWithCall(s, ".unwrap_or_else(")
             || endsWithCall(s, ".unwrap_or_default("))
             return ShapeBare;
+        // Map and table lookups are the target's Option constructor family;
+        // a get tail that survived the consumer checks above is an Option.
+        if (endsWithCall(s, ".get(") || endsWithCall(s, ".get_mut("))
+            return ShapeOption;
         // A cast or deref of an Option stays an Option only in text forms
         // the generator does not produce; treat plain casts of unknown
         // receivers as unknown.
