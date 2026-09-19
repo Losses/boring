@@ -133,6 +133,10 @@ class RustExpr {
     var optionNarrowingHitCount:Int = 0;
     final fillNarrowings:Array<{subjectText:String, fillBody:String}> = [];
     final readsAfterDeclaration:Map<Int, Bool> = [];
+    // Locals pushed into a container and read somewhere else in the same
+    // function: their push argument must clone, since Haxe's push keeps
+    // the source binding alive. (PushedThenRead)
+    final pushedThenRead:Map<Int, Bool> = [];
     final unsignedLocals:Map<Int, Bool> = [];
     // Locals initialized from charCodeAt are collapsed from Option<u32> to a scalar.
     final nullableCollapsedLocals:Map<Int, Bool> = [];
@@ -702,6 +706,7 @@ class RustExpr {
         scanLocals(f.expr);
         scanSharedClosureArrays(f.expr);
         scanSharedClosureScalars(f.expr);
+        scanPushedThenRead(f.expr);
         scanContinueNullGuards(f.expr);
         scanCursorLocals(f.expr);
         scanLocalFunctionFallibility(f.expr);
@@ -7176,7 +7181,14 @@ class RustExpr {
             final narrowed = narrowedSubject(e);
             if (narrowed != null)
                 return isTypeCopy(getNullInnerType(e.t)) ? "*" + narrowed : "(" + narrowed + ").clone()";
-            return rendered + ".unwrap()";
+            // A pushed local that is read later keeps its value after the
+            // push in Haxe semantics: clone before the unwrapping move.
+            // (PushedThenRead)
+            final readAfterPush = switch (stripWrap(e).expr) {
+                case TLocal(v): !isTypeCopy(getNullInnerType(e.t)) && pushedThenRead.exists(v.id);
+                case _: false;
+            };
+            return readAfterPush ? rendered + ".clone().unwrap()" : rendered + ".unwrap()";
         }
         return rendered;
     }
@@ -8910,6 +8922,48 @@ class RustExpr {
             };
             if (isArray)
                 sharedClosureArrays.set(id, true);
+        }
+    }
+
+    /** A local whose occurrences exceed its push occurrences is read
+        somewhere outside its own push argument: that push must clone so
+        the binding stays usable. (PushedThenRead) */
+    function scanPushedThenRead(root:TypedExpr):Void {
+        final occurrences:Map<Int, Int> = [];
+        final pushOccurrences:Map<Int, Int> = [];
+        function walk(e:TypedExpr):Void {
+            switch (e.expr) {
+                case TLocal(v):
+                    occurrences.set(v.id, (occurrences.exists(v.id) ? occurrences.get(v.id) : 0) + 1);
+                case TCall(fn, args):
+                    final isPush = switch (stripWrap(fn).expr) {
+                        case TField(_, FInstance(_, _, cf)): cf.get().name == "push";
+                        case _: false;
+                    };
+                    if (isPush && args.length == 1) {
+                        switch (stripWrap(args[0]).expr) {
+                            case TLocal(v):
+                                occurrences.set(v.id, (occurrences.exists(v.id) ? occurrences.get(v.id) : 0) + 1);
+                                pushOccurrences.set(v.id, (pushOccurrences.exists(v.id) ? pushOccurrences.get(v.id) : 0) + 1);
+                            case _:
+                        }
+                    }
+                    haxe.macro.TypedExprTools.iter(fn, walk);
+                    for (i in 0...args.length) {
+                        if (isPush && i == 0)
+                            continue;
+                        walk(args[i]);
+                    }
+                    return;
+                case _:
+            }
+            haxe.macro.TypedExprTools.iter(e, walk);
+        }
+        walk(root);
+        for (id in occurrences.keys()) {
+            final pushCount = pushOccurrences.exists(id) ? pushOccurrences.get(id) : 0;
+            if (pushCount > 0 && occurrences.get(id) > pushCount)
+                pushedThenRead.set(id, true);
         }
     }
 
