@@ -11478,7 +11478,11 @@ class RustExpr {
                     final inner = getNullInnerType(arg.t);
                     final ref = "(" + argStr + ").as_ref().unwrap()";
                     argStr = isTypeCopy(inner) ? "*" + ref : ref + ".clone()";
-                } else if (hasGuardedGetExpr(arg)) {
+                } else if (hasGuardedGetExpr(arg)
+                    // A text that already consumed its Option (the fallible
+                    // unwrap suffix) must not gain an as_ref bridge on the
+                    // bare value. (BuilderValueNullability, ShapeParse)
+                    && RustShapeParse.shapeOf(argStr) != RustShape.ShapeBare) {
                     // A `map.get(key)` under a matching `map.has(key)` guard
                     // holds the inner value; unwrap the Option.
                     final inner = getNullInnerType(arg.t);
