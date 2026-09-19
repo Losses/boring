@@ -8815,7 +8815,16 @@ class RustExpr {
                         && (!isTypeCopy(v.t) || sharedClosureArrays.exists(v.id) || sharedClosureScalars.exists(v.id))
                         && !Lambda.exists(captures, c -> c.id == v.id))
                         captures.push(v);
-                case TFunction(_):
+                case TFunction(nf):
+                    // Descend into a nested function literal: a local used
+                    // only by the nested body is still moved out of this
+                    // scope by the enclosing move closure and needs its
+                    // capture clone line here too. The nested parameters
+                    // shadow their names for the nested body.
+                    // (SharedClosureArrays, SharedClosureScalars)
+                    for (a in nf.args)
+                        bound.set(a.v.id, true);
+                    haxe.macro.TypedExprTools.iter(e, walk);
                     return;
                 case _:
             }
