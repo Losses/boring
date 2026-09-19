@@ -3836,7 +3836,7 @@ class RustExpr {
         narrowedText = armOwnershipClone(narrowedBranch, narrowedText);
         // Arms of one match must agree in shape. The match's own type
         // names the target; the minority arm adapts on its already
-        // rendered text — no speculative re-rendering.
+        // rendered text; the pass performs no speculative re-rendering.
         // (TypedSlotBoundary, ShapeParse)
         // An arm text outside the parser's coverage falls back to the
         // arm's own expression: a bare match-binding dereference reads as
@@ -5205,8 +5205,8 @@ class RustExpr {
 
     /** The std generic tables are handwritten runtime residents whose
         key/value parameters borrow as &K and &V (runtime/sorted_table.rs),
-        so a String slot there is &String — the &str convention of business
-        signatures does not apply. The corpus names them either through the
+        so a String slot there is &String; the &str convention of business
+        signatures does not apply. The generated samples name them either through the
         std.SortedMap aliases or directly as the runtime.SortedTable
         residents (SortedMapTable and friends). (AppliedReceiverParams) */
     function isStdTableType(t:Null<Type>):Bool {
@@ -6639,7 +6639,7 @@ class RustExpr {
             // Nullable integer indices must be unwrapped before TryFrom;
             // Haxe's null-to-zero numeric boundary supplies the default. A
             // narrowed or collapsed operand already renders the inner scalar
-            // match binding, so the unwrap_or would land on the reference
+            // match binding, so the unwrap_or would apply to the reference
             // binding and E0599s (GuardedChainNarrowing).
             if (isNullType(e.t) && isIntType(getNullInnerType(e.t))
                 && narrowedSubject(e) == null && !isNullableCollapsedLocal(e)) {
@@ -8090,8 +8090,8 @@ class RustExpr {
                             r = r + ".to_string()";
                         // A borrowed match binding as the value (index 1) of
                         // a nullable-V map wraps its cloned inner value in
-                        // Some. The binding forms are matched exactly — a
-                        // nested render that merely contains the name must
+                        // Some. The binding forms are matched exactly, so a
+                        // nested render that contains the name anywhere must
                         // pass through untouched.
                         final binding = (~/^&\((__option\d+)\)$/);
                         final clonedBinding = (~/^&\(\*(__option\d+)\)\.clone\(\)$/);
@@ -8123,7 +8123,7 @@ class RustExpr {
                                         : "&(Some(" + inner + "))";
                                 }
                             }
-                        // A null-guarded get local collapses to the bare
+                        // A null-guarded get local lowers to the bare
                         // inner value (its declaration unwrapped); a
                         // nullable-V slot still needs the Option shape.
                         // (SortedPutValueAdaptation)
@@ -8844,7 +8844,7 @@ class RustExpr {
             closureParamIds.set(id, true);
         final closureText = 'move |$params| {\n' + body.join("\n") + '\n}';
         // A nested closure that captures a shared closure array or scalar
-        // clones the Arc instead of moving it out of the enclosing Fn
+        // clones the Arc and leaves the enclosing Fn binding in place
         // closure, whose captured bindings are immutable
         // (SharedClosureArrays, SharedClosureScalars).
         final sharedCaptures = [for (v in closureOwnedCaptures(f))
@@ -8884,7 +8884,7 @@ class RustExpr {
                     return;
                 case TLocal(v):
                     // A shared closure array or scalar renders as
-                    // Arc<Mutex<_>>, which never copies — even when the
+                    // Arc<Mutex<_>>, which never copies, even when the
                     // Haxe macro type (Null<Float>, Null<Int>) reads as a
                     // Copy scalar. The capture line must clone the Arc or
                     // the move closure takes the outer binding.
@@ -9044,7 +9044,7 @@ class RustExpr {
                                 // Any captured-and-reassigned binding needs
                                 // the shared referent: the Fn contract
                                 // forbids assigning a captured binding of
-                                // every type, not only scalars.
+                                // every type; the earlier rule covered scalars only.
                                 // (SharedClosureScalars)
                                 if (!bound.exists(v.id) && mutated.exists(v.id))
                                     sharedClosureScalars.set(v.id, true);
@@ -9091,7 +9091,7 @@ class RustExpr {
     /**
         A cursor local starts from a nullable proven source and is later
         re-assigned an Option-typed expression, so it must keep the Option
-        shape: the collapse branch is skipped for it. (CursorPattern)
+        shape: the branches that lower the value to its scalar skip it. (CursorPattern)
     **/
     function scanCursorLocals(root:TypedExpr):Void {
         function scan(e:TypedExpr):Void {
@@ -9196,7 +9196,7 @@ class RustExpr {
                             // `if (X != null) { ...X... }` proves X for the
                             // guarded block: register the subject so the
                             // guarded references render the inner value. The
-                            // containment test walks the AST field chain —
+                            // containment test walks the AST field chain, so
                             // rendering the block here would advance the
                             // naming counters as a side effect.
                             final subject = isTNull(l) ? r : (isTNull(r) ? l : null);
@@ -11094,7 +11094,7 @@ class RustExpr {
         Option shape. (ScalarSlotUnwrap) */
     /** The canonical answer to "does reading this local render the Option
         shape at this site?" Every gate must consult this single predicate:
-        the bare-render registries (collapse, guarded ternary, forcing
+        the bare-render registries (the guarded ternary and forcing
         read, non-null render) each disqualify, and otherwise the emitted
         declaration shape decides. (ScalarSlotUnwrap) */
     function localReadIsOption(v:TVar):Bool {
@@ -11190,8 +11190,8 @@ class RustExpr {
             return isTypeCopy(actual.t) ? rendered + ".unwrap()" : rendered + ".as_ref().unwrap().clone()";
         // A scalar whose read still renders the Option shape (a wrapped
         // ternary, an Option-returning read) enters a non-null scalar
-        // slot; the boundary unwraps it — the None path has no
-        // corpus-defined value. The decision reads the rendered text
+        // slot; the boundary unwraps it, and the None path has no
+        // sample-defined value. The decision reads the rendered text
         // itself, so it agrees with every other boundary on the same
         // expression. (ScalarSlotUnwrap, ShapeParse)
         if (!isNullType(expected)
@@ -11410,7 +11410,7 @@ class RustExpr {
                 && StringTools.contains(argStr, "__option"))
                 argStr = "Some((*" + argStr.substr(2, argStr.length - 3) + ").clone())";
             // A ternary whose else arm is the null literal renders as an
-            // Option shape; a non-null slot unwraps it — the null path
+            // Option shape; a non-null slot unwraps it, and the null path
             // panics exactly where the Haxe source would pass an undefined
             // value. (NullElseTernaryUnwrap)
             if (pt != null && !isNullType(pt) && !isNullType(arg.t)) {
@@ -11501,7 +11501,7 @@ class RustExpr {
                     } else {
                         // No proof, no guard, no fill: the nullable value
                         // still enters the non-null slot, so the boundary
-                        // unwraps it — the None path panics exactly where
+                        // unwraps it, and the None path panics exactly where
                         // the Haxe source would have dereferenced an
                         // undefined value. Only locals whose declaration
                         // still renders the Option shape qualify: collapsed
@@ -12322,7 +12322,7 @@ class RustExpr {
             if (isTNull(branch))
                 return "None";
             // A collapsed or forcing-read local renders the bare inner
-            // value: it must not return early — it falls through to the Some
+            // value: it must not return early, it falls through to the Some
             // wrapper so both arms share the slot's Option shape.
             // (NullableReturnUnwrap)
             final branchLocalId = switch (stripWrap(branch).expr) {
