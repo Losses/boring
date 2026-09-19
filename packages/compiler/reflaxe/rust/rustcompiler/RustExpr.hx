@@ -4133,7 +4133,7 @@ class RustExpr {
                 }
                 // A capture copy converted to its owned String form reads
                 // as a borrowed view: the body's &str consumers borrow the
-                // copy instead of the enclosing frame.
+                // closure's own copy.
                 // (ClosureCaptureOwnedCopy)
                 if (captureOwnedStringCopies.exists(v.id))
                     return RustImports.toSnakeCase(localName(v)) + ".as_str()";
@@ -4234,8 +4234,8 @@ class RustExpr {
                 }
                 // A cast out of a nullable value into a non-null class
                 // extracts the payload: the paired Std.isOfType fold proved
-                // the value present, and the deferred or typed slot wants
-                // the owned inner, not the Option storage.
+                // the value present, and the deferred or typed slot
+                // receives the owned inner value.
                 // (ProvenNonNullSlotUnwrap)
                 if (targetCls != null && isNullType(inner.t)) {
                     final innerText = expr(inner);
