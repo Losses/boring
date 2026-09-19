@@ -10860,9 +10860,23 @@ class RustExpr {
 
     /** An argument reading a local whose declaration still renders the
         Option shape. (ScalarSlotUnwrap) */
+    /** The canonical answer to "does reading this local render the Option
+        shape at this site?" Every gate must consult this single predicate:
+        the bare-render registries (collapse, guarded ternary, forcing
+        read, non-null render) each disqualify, and otherwise the emitted
+        declaration shape decides. (ScalarSlotUnwrap) */
+    function localReadIsOption(v:TVar):Bool {
+        if (nullableCollapsedLocals.exists(v.id)
+            || hasGuardedTernaryLocals.exists(v.id)
+            || forcingReadLocals.exists(v.id)
+            || nonNullRenderedLocals.exists(v.id))
+            return false;
+        return optionRenderedLocals.exists(v.id);
+    }
+
     function isOptionRenderedLocalArg(e:TypedExpr):Bool {
         return switch (stripWrap(e).expr) {
-            case TLocal(v): optionRenderedLocals.exists(v.id);
+            case TLocal(v): localReadIsOption(v) && narrowedSubject(e) == null;
             case _: false;
         };
     }
