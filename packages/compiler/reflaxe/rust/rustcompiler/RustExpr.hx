@@ -11388,6 +11388,10 @@ class RustExpr {
             final paramIndex = i + paramOffset;
             final pt = paramIndex < paramTypes.length ? paramTypes[paramIndex] : null;
             var argStr = renderValueForType(pt, arg, expr(arg));
+#if boring_fold_debug
+            if (Std.string(arg).indexOf("TInt") >= 0)
+                Context.warning("RC INTLIT pt=" + Std.string(pt).substr(0, 50) + " argStr=[" + argStr.substr(0, argStr.length > 20 ? 20 : argStr.length) + "]", arg.pos);
+#end
             // A narrowed operand renders the dereferenced match binding (a
             // bare `*name`), which is the inner value; a nullable parameter
             // slot still needs the Option shape, so the value wraps once in
@@ -11611,6 +11615,9 @@ class RustExpr {
                         argStr = "Some(" + inner + ")";
                     }
                 } else if (RustType.isTypeParam(pt)) {
+#if boring_fold_debug
+                    Context.warning("RC tp-branch pt=" + Std.string(pt).substr(0, 30), arg.pos);
+#end
                     final borrowed = switch (stripWrap(arg).expr) {
                         case TLocal(v): isBorrowedLocal(v);
                         case _: false;
@@ -11691,6 +11698,10 @@ class RustExpr {
                             argStr = prefix + argStr;
                         }
                     }
+#if boring_fold_debug
+                    if (Std.string(arg).indexOf("TInt") >= 0)
+                        Context.warning("RC4 std=" + stdTableReceiver + " lenOK=" + (i < paramTypes.length) + " num=" + (i < paramTypes.length && isNumericScalarType(paramTypes[i]) ? true : false) + " pt=" + Std.string(i < paramTypes.length ? paramTypes[i] : null).substr(0, 30), arg.pos);
+#end
                     if (stdTableReceiver && stringLikeType(pt) && stringLikeType(arg.t)
                         && switch (stripWrap(arg).expr) {
                             case TConst(TString(_)): true;
@@ -11712,6 +11723,9 @@ class RustExpr {
                         // names the u32 domain explicitly so the borrow
                         // targets the slot's element type.
                         // (AppliedReceiverParams)
+#if boring_fold_debug
+                        Context.warning("RC11711 fired", arg.pos);
+#end
                         argStr = "&(" + argStr + "u32)";
                     }
                     if (!stdTableReceiver && stringLikeType(pt) && stringLikeType(arg.t)) {
@@ -11763,6 +11777,18 @@ class RustExpr {
                 // a business u32 value (T5).
                 argStr = castSignedI32(arg);
             }
+            // A std-table put's value slot borrows (&V): an integer
+            // literal entering a std table names the u32 domain and takes
+            // the borrow. The pass-by-ref adaptations above skip plain
+            // numeric parameters, so this boundary owns the literal form.
+            // (AppliedReceiverParams)
+            if (stdTableReceiver && pt != null && !isPassByRef(pt)
+                && isNumericScalarType(pt)
+                && switch (stripWrap(arg).expr) {
+                    case TConst(TInt(_)): true;
+                    case _: false;
+                })
+                argStr = "&(" + argStr + "u32)";
             rendered.push(argStr);
         }
         return rendered.join(", ");
