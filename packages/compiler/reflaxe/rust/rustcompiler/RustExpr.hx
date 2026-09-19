@@ -9214,7 +9214,7 @@ class RustExpr {
                                     if (recvLocal != null) {
                                         if (cargs.length == 0 && callee.name == "build" && bareValueBuilders.exists(recvLocal.id))
                                             builtBareTables.set(v.id, true);
-                                        if ((callee.name == "value_at" || callee.name == "get") && builtBareTables.exists(recvLocal.id))
+                                        if ((callee.name == "value_at" || callee.name == "valueAt" || callee.name == "get" || callee.name == "keyAt") && builtBareTables.exists(recvLocal.id))
                                             nullableCollapsedLocals.set(v.id, true);
                                     }
                                 }
