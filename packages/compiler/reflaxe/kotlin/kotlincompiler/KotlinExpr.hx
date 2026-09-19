@@ -1925,6 +1925,12 @@ class KotlinExpr {
                 // Float when the target's type is Float.
                 if (map == null && isIntOrLongType(emittedType(r)) && isFloatType(l.t))
                     value = intToFloatText(value);
+                // A safe-call value assigned into a non-null target
+                // extracts: the safe call widens the result to a nullable
+                // type, and Kotlin rejects the nullable assignment.
+                // (NonNullAssignmentExtraction)
+                if (map == null && !isNullType(l.t) && rendersNullable(r) && !StringTools.endsWith(value, "!!"))
+                    value += "!!";
                 if (map == null) {
                     final previous = mutableArrayAccess;
                     mutableArrayAccess = switch (stripWrap(l).expr) {
