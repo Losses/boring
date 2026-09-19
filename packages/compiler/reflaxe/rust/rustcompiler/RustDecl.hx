@@ -2368,6 +2368,13 @@ class RustDecl {
         body. This keeps shared-field receiver lowering borrowed only when the
         call actually writes through the receiver.
     **/
+    /** True for the sorted-table builder terminators that consume the
+        builder by value: a shared (Mutex-guarded) receiver must clone
+        through the guard before such a call. (SharedClosureArrays) */
+    public static function methodConsumesSelf(cf:ClassField):Bool {
+        return cf.name == "build";
+    }
+
     public static function methodWritesReceiver(cf:ClassField):Bool {
         if (fieldWritesReceiver(cf))
             return true;
