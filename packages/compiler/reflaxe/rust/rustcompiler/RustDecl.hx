@@ -100,7 +100,14 @@ class RustDecl {
         if (cls.isInterface) {
             final lines:Array<String> = [];
             final isCloneIface = state.sealedCloneInterfaces.exists(cls.module + "::" + cls.name);
-            lines.push("pub trait " + emittedName + " {");
+            // Thread-safe interface rule: every trait carries Send and Sync
+            // supertraits. Interface values are Box<dyn ...> struct fields,
+            // and function values already require Send + Sync
+            // (FUNCTION_VALUE_BOUNDS); a closure capturing a struct that
+            // holds an interface is only Send when the trait object is.
+            // The generated implementors hold owned data and Arcs only, so
+            // the bounds hold for every implementor.
+            lines.push("pub trait " + emittedName + ": Send + Sync {");
             lines.push("    fn __haxe_type_name(&self) -> &'static str;");
             lines.push("    fn as_any(&self) -> &dyn std::any::Any;");
             if (isCloneIface)
