@@ -1641,7 +1641,7 @@ class RustDecl {
                             // The declaration side decides `&mut self` from
                             // bodyMutatesSelf on the callee body; the
                             // parameter side must reach the same verdict for
-                            // any receiver rooted at this binding, not only
+                            // any receiver rooted at this binding; the earlier rule covered
                             // for the closed name list.
                             if (!found && cf.get().expr() != null && fieldWritesReceiver(cf.get()))
                                 found = true;
