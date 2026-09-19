@@ -143,6 +143,9 @@ class RustExpr {
     final bareValueBuilders:Map<Int, Bool> = [];
     final bareValueBuilderPos:Map<String, Bool> = [];
     final builtBareTables:Map<Int, Bool> = [];
+    // Field paths proven non-null by enclosing `x.f != null` guards.
+    // (BuilderValueNullability)
+    final fieldNullGuards:Map<String, Bool> = [];
     final unsignedLocals:Map<Int, Bool> = [];
     // Locals initialized from charCodeAt are collapsed from Option<u32> to a scalar.
     final nullableCollapsedLocals:Map<Int, Bool> = [];
@@ -716,6 +719,7 @@ class RustExpr {
         bareValueBuilders.clear();
         bareValueBuilderPos.clear();
         builtBareTables.clear();
+        fieldNullGuards.clear();
         scanBuilderValueNullability(f.expr);
         scanContinueNullGuards(f.expr);
         scanCursorLocals(f.expr);
@@ -1485,6 +1489,10 @@ class RustExpr {
                         }
                     }
                 }
+#if boring_fold_debug
+                if (initStr.indexOf("preferred_inline_object_boundary") >= 0 || initStr.indexOf("metric_decision_by_range") >= 0 || v.name.indexOf("annotation") >= 0)
+                    emissionTrace("TVAR " + v.name + " init=[" + initStr.substr(0, initStr.length > 60 ? 60 : initStr.length) + "]", e.pos);
+#end
                 final declText = '$kw $name$nullableType = $initStr;';
                 // (NonNullSlotUnwrap)
                 if (declText.indexOf(": Option<") >= 0
@@ -5881,6 +5889,10 @@ class RustExpr {
                     numericAssignmentValue(l.t, r, renderValueForType(l.t, r, expr(r)), i32BindingLocals.exists(assignTarget) ? "i32" : null,
                         assignTarget >= 0 && !i32Locals.exists(assignTarget));
                 };
+#if boring_fold_debug
+                if (expr(r).indexOf("cached") >= 0 || expr(r).indexOf("decision") >= 0)
+                    emissionTrace("ASSIGN target=" + assignTarget(l) + " val=[" + expr(r).substr(0, expr(r).length > 50 ? 50 : expr(r).length) + "]", e.pos);
+#end
                 final assignTargetText = assignTarget(l);
                 // E0502: an array assignment whose index reads the array
                 // itself (`bottoms[bottoms.len() - 1] = ...`) borrows the
@@ -9042,6 +9054,10 @@ class RustExpr {
         }
     }
 
+    function emissionTrace(tag:String, pos:Dynamic):Void {
+        Sys.stderr().writeString("EMITSTACK " + tag + "\n" + haxe.CallStack.toString(haxe.CallStack.callStack()) + "\n");
+    }
+
     function scanSortedGetInfo(call:TypedExpr, wantMethod:String):Null<{subj:String, key:String}> {
         return switch (stripWrap(call).expr) {
             case TCall(fn, args) if (args.length == 1):
@@ -9096,6 +9112,21 @@ class RustExpr {
         function walk1(e:TypedExpr, guards:Map<String, Bool>):Void {
             switch (e.expr) {
                 case TIf(cond, then, els):
+                    // The field null-guards: `x.f != null` proves the field
+                    // non-null inside the branch. (BuilderValueNullability)
+                    final fieldGuard = switch (stripWrap(cond).expr) {
+                        case TBinop(OpNotEq, fe, {expr: TConst(TNull)}): subjectTextOf(fe);
+                        case _: null;
+                    };
+                    if (fieldGuard != null) {
+                        final next = [for (k => v in guards) k => v];
+                        next.set(fieldGuard, true);
+                        walk1(cond, next);
+                        walk1(then, next);
+                        if (els != null)
+                            walk1(els, guards);
+                        return;
+                    }
                     final info = scanSortedGetInfo(cond, "has");
                     if (info != null) {
                         final key = info.subj + "\u0000" + info.key;
@@ -9172,6 +9203,10 @@ class RustExpr {
                 var ok = false;
                 switch (stripWrap(v).expr) {
                     case TLocal(lid): ok = proven.exists(lid.id);
+                    // A field read proven non-null by an enclosing
+                    // `x.f != null` guard stores a non-null entry.
+                    // (BuilderValueNullability)
+                    case TField(_, _): ok = fieldNullGuards.exists(subjectTextOf(stripWrap(v)));
                     case TConst(TInt(_)) | TConst(TFloat(_)) | TConst(TString(_)): ok = true;
                     case _:
                 }
