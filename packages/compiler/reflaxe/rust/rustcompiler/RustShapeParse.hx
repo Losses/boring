@@ -115,6 +115,9 @@ class RustShapeParse {
                 return parse(s) == ShapeOption ? ShapeBare : parse(s);
             }
         }
+        // Owned vector literals are bare values.
+        if (StringTools.startsWith(s, "vec!") || s == "Vec::new()" || s == "String::new()")
+            return ShapeBare;
         // Option constructors.
         if (s == "None" || StringTools.startsWith(s, "None\n") || s == "None;")
             return ShapeOption;

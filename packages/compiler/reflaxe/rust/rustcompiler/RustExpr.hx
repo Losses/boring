@@ -11102,6 +11102,12 @@ class RustExpr {
                 final fromDecl = declInitShape(v);
                 if (fromDecl != RustShape.ShapeUnknown)
                     return fromDecl;
+            case TArray(_):
+                // An index read renders bare text and carries the element
+                // type at runtime: a nullable element read is an Option.
+                // (ShapeParse)
+                if (isNullType(e.t))
+                    return RustShape.ShapeOption;
             case _:
         }
         return RustShape.ShapeUnknown;
