@@ -4321,9 +4321,10 @@ class RustExpr {
                     final innerType = cmp != null ? getNullInnerType(cmp.subject.t) : null;
                     final zeroText:Null<String> = switch (zeroArm.expr) {
                         case TConst(TInt(v)) if (v == 0):
-                            innerType != null && isFloatType(innerType) ? "0.0f64" : "0";
+                            innerType != null && isFloatType(innerType)
+                                ? (FloatPrecision.isF32() ? "0.0f32" : "0.0f64") : "0";
                         case TConst(TFloat(v)) if (v == "0" || v == "0.0"):
-                            "0.0f64";
+                            FloatPrecision.isF32() ? "0.0f32" : "0.0f64";
                         case _:
                             null;
                     };
