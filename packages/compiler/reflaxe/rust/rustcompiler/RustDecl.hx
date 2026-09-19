@@ -2420,6 +2420,11 @@ class RustDecl {
                                     final body = cf.get().expr();
                                     if (body != null && bodyMutatesSelf(body))
                                         mutates = true;
+                                    // The break-recursion entry guards only
+                                    // the active recursion chain: leaving it
+                                    // set poisons every later independent
+                                    // query for the same method name.
+                                    visiting.remove(key);
                                 }
                             }
                         case _:
