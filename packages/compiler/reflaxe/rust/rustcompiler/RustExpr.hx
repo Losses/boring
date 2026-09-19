@@ -161,6 +161,10 @@ class RustExpr {
     // mutation applies to the closure's own copy, which an Fn closure may
     // not do to the captured binding itself. (ClosureCaptureMutation)
     var currentCaptureMut:Map<Int, Bool> = [];
+    // Capture copies a function-value prologue converted to owned String:
+    // reads inside the closure body borrow the copy as a &str view.
+    // (ClosureCaptureOwnedCopy)
+    var captureOwnedStringCopies:Map<Int, Bool> = [];
     final unsignedLocals:Map<Int, Bool> = [];
     // Locals initialized from charCodeAt are collapsed from Option<u32> to a scalar.
     final nullableCollapsedLocals:Map<Int, Bool> = [];
@@ -4113,6 +4117,12 @@ class RustExpr {
                 if (subst.exists(v.id)) {
                     return subst.get(v.id);
                 }
+                // A capture copy converted to its owned String form reads
+                // as a borrowed view: the body's &str consumers borrow the
+                // copy instead of the enclosing frame.
+                // (ClosureCaptureOwnedCopy)
+                if (captureOwnedStringCopies.exists(v.id))
+                    return RustImports.toSnakeCase(localName(v)) + ".as_str()";
                 return RustImports.toSnakeCase(localName(v));
             case TArray(arr, idx):
                 final mapReceiver = mapBackingReceiver(arr);
@@ -9041,15 +9051,18 @@ class RustExpr {
         final captures = closureOwnedCaptures(f);
         final previousClones = currentCaptureClones;
         final previousMut = currentCaptureMut;
+        final previousOwnedStrings = captureOwnedStringCopies;
         currentCaptureClones = [for (v in captures) if (!sharedClosureArrays.exists(v.id) && !sharedClosureScalars.exists(v.id)) v.id => true];
         currentCaptureMut = captureMutatedCopies(f, captures);
+        captureOwnedStringCopies = [for (v in captures) if (captureCopySuffix(v) == ".to_string()") v.id => true];
         final copies = [for (v in captures) sharedClosureArrays.exists(v.id)
             ? "let " + RustImports.toSnakeCase(localName(v)) + " = Arc::clone(&" + RustImports.toSnakeCase(localName(v)) + ");"
             : "let " + (currentCaptureMut.exists(v.id) ? "mut " : "") + RustImports.toSnakeCase(localName(v)) + " = ("
-                + RustImports.toSnakeCase(localName(v)) + ").clone();"];
+                + RustImports.toSnakeCase(localName(v)) + ")" + captureCopySuffix(v) + ";"];
         final text = "{ " + copies.join(" ") + " Arc::new(" + functionLiteral(f, functionType) + ") }";
         currentCaptureClones = previousClones;
         currentCaptureMut = previousMut;
+        captureOwnedStringCopies = previousOwnedStrings;
         return text;
     }
 
@@ -9106,6 +9119,16 @@ class RustExpr {
         }
         walk(f.expr);
         return out;
+    }
+
+    /** The capture-copy conversion suffix: a borrowed view (&str, &Vec)
+        must convert to its owned form or the move closure keeps borrowing
+        the enclosing frame, which the 'static function-value bound rejects.
+        (ClosureCaptureOwnedCopy) */
+    function captureCopySuffix(v:TVar):String {
+        if (!isBorrowedLocal(v))
+            return ".clone()";
+        return StringTools.startsWith(types.of(v.t, true), "&Vec") ? ".to_vec()" : ".to_string()";
     }
 
     /** Clone reusable non-Copy locals at a closure boundary before move capture. */
