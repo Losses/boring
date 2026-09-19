@@ -9112,6 +9112,24 @@ class RustExpr {
         function walk1(e:TypedExpr, guards:Map<String, Bool>):Void {
             switch (e.expr) {
                 case TIf(cond, then, els):
+                    // The local null-guards: `if (d != null)` proves the
+                    // local non-null inside the branch, so puts of that
+                    // local store non-null values. This arm must run before
+                    // the field-guard arm: the field pattern accepts any
+                    // subject, and a local subject is proven per id, not
+                    // per text. (BuilderValueNullability)
+                    final localGuard = switch (stripWrap(cond).expr) {
+                        case TBinop(OpNotEq, {expr: TLocal(lv)}, {expr: TConst(TNull)}): lv.id;
+                        case _: -1;
+                    };
+                    if (localGuard >= 0) {
+                        proven.set(localGuard, true);
+                        walk1(cond, guards);
+                        walk1(then, guards);
+                        if (els != null)
+                            walk1(els, guards);
+                        return;
+                    }
                     // The field null-guards: `x.f != null` proves the field
                     // non-null inside the branch. (BuilderValueNullability)
                     final fieldGuard = switch (stripWrap(cond).expr) {
@@ -9124,22 +9142,6 @@ class RustExpr {
                         next.set(fieldGuard, true);
                         walk1(cond, next);
                         walk1(then, next);
-                        if (els != null)
-                            walk1(els, guards);
-                        return;
-                    }
-                    // The local null-guards: `if (d != null)` proves the
-                    // local non-null inside the branch, so puts of that
-                    // local store non-null values.
-                    // (BuilderValueNullability)
-                    final localGuard = switch (stripWrap(cond).expr) {
-                        case TBinop(OpNotEq, {expr: TLocal(lv)}, {expr: TConst(TNull)}): lv.id;
-                        case _: -1;
-                    };
-                    if (localGuard >= 0) {
-                        proven.set(localGuard, true);
-                        walk1(cond, guards);
-                        walk1(then, guards);
                         if (els != null)
                             walk1(els, guards);
                         return;
