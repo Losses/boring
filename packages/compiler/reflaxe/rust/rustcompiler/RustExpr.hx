@@ -146,6 +146,11 @@ class RustExpr {
     // Field paths proven non-null by enclosing `x.f != null` guards.
     // (BuilderValueNullability)
     final fieldNullGuards:Map<String, Bool> = [];
+    // Locals a conditional arm names as a bare value of owned non-Copy
+    // type while a later mention of the local remains in statement order:
+    // the arm must clone or the later read trips E0382.
+    // (BranchArmMoveClone)
+    final branchArmMoveReadsAfter:Map<Int, Bool> = [];
     final unsignedLocals:Map<Int, Bool> = [];
     // Locals initialized from charCodeAt are collapsed from Option<u32> to a scalar.
     final nullableCollapsedLocals:Map<Int, Bool> = [];
@@ -720,7 +725,9 @@ class RustExpr {
         bareValueBuilderPos.clear();
         builtBareTables.clear();
         fieldNullGuards.clear();
+        branchArmMoveReadsAfter.clear();
         scanBuilderValueNullability(f.expr);
+        scanBranchArmMoves(f.expr);
         scanContinueNullGuards(f.expr);
         scanCursorLocals(f.expr);
         scanLocalFunctionFallibility(f.expr);
@@ -4905,7 +4912,15 @@ class RustExpr {
 
     function conditionalNumericBranch(branch:TypedExpr, sibling:TypedExpr, resultType:Null<Type>, target:Null<String>, text:String):String {
         final normalized = target == null ? text : normalizeNumericBranch(branch, target, text);
-        return cloneBorrowedReceiverBranch(branch, resultType, normalized);
+        final borrowed = cloneBorrowedReceiverBranch(branch, resultType, normalized);
+        // A bare local arm of owned non-Copy type moves the local; a later
+        // mention in statement order still reads it, so the arm clones.
+        // (BranchArmMoveClone)
+        return switch (stripWrap(branch).expr) {
+            case TLocal(l) if (branchArmMoveReadsAfter.exists(l.id)):
+                StringTools.endsWith(borrowed, ".clone()") ? borrowed : "(" + borrowed + ").clone()";
+            case _: borrowed;
+        };
     }
 
     /**
@@ -9284,6 +9299,67 @@ class RustExpr {
             }
         }
         walk3(root);
+    }
+
+    /**
+        A conditional arm that names a local as a bare value of owned
+        non-Copy type moves the local's storage; a later mention of the
+        local then trips E0382. Statement order follows preorder: a node's
+        subtree occupies a contiguous index range, so a mention whose index
+        exceeds the conditional's range is a later read. The conditional's
+        own condition sits inside the range (it evaluates before the arms).
+        (BranchArmMoveClone)
+    **/
+    function scanBranchArmMoves(root:TypedExpr):Void {
+        final starts = new haxe.ds.ObjectMap<TypedExpr, Int>();
+        final ends = new haxe.ds.ObjectMap<TypedExpr, Int>();
+        var counter = 0;
+        function number(node:TypedExpr):Int {
+            final start = counter++;
+            starts.set(node, start);
+            var end = start;
+            haxe.macro.TypedExprTools.iter(node, function(child:TypedExpr):Void {
+                final childEnd = number(child);
+                if (childEnd > end)
+                    end = childEnd;
+            });
+            ends.set(node, end);
+            return end;
+        }
+        number(root);
+        final sites:Array<{node:TypedExpr, id:Int}> = [];
+        function collect(node:TypedExpr):Void {
+            switch (node.expr) {
+                case TIf(_, t, f) if (f != null):
+                    for (arm in [t, f]) {
+                        switch (stripWrap(arm).expr) {
+                            case TLocal(l) if (!isTypeCopy(l.t)):
+                                sites.push({node: node, id: l.id});
+                            case _:
+                        }
+                    }
+                case _:
+            }
+            haxe.macro.TypedExprTools.iter(node, collect);
+        }
+        collect(root);
+        for (s in sites) {
+            final siteEnd = ends.get(s.node);
+            var found = false;
+            function walk(node:TypedExpr):Void {
+                if (found)
+                    return;
+                switch (node.expr) {
+                    case TLocal(v): if (v.id == s.id && starts.get(node) > siteEnd) found = true;
+                    case _:
+                }
+                if (!found)
+                    haxe.macro.TypedExprTools.iter(node, walk);
+            }
+            walk(root);
+            if (found)
+                branchArmMoveReadsAfter.set(s.id, true);
+        }
     }
 
     /** A local whose occurrences exceed its push occurrences is read
