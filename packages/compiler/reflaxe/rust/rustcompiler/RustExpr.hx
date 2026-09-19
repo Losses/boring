@@ -9939,6 +9939,36 @@ class RustExpr {
         for (i in 0...args.length) {
             final arg = args[i];
             var argStr = expr(arg);
+            // A proven-non-null nullable local feeding a non-null
+            // constructor parameter unwraps the Option at the boundary so
+            // the payload enters the slot; the payload clones because the
+            // local stays readable. Mirrors the call-argument bridge.
+            // (ProvenNonNullSlotUnwrap)
+            if (i < paramTypes.length && paramTypes[i] != null && !isNullType(paramTypes[i])
+                && (isNullType(arg.t) || isImplicitNullableLocal(arg))) {
+                final proven = switch (stripWrap(arg).expr) {
+                    case TLocal(v):
+                        provenNonNullVarIds.exists(v.id)
+                            || (provenContinueSubjects.exists(subjectTextOf(arg))
+                                && !StringTools.startsWith(argStr, "*")
+                                && !StringTools.startsWith(argStr, "(*")
+                                && !StringTools.contains(argStr, ".as_ref().unwrap()")
+                                && !StringTools.endsWith(argStr, ".unwrap_or(0)")
+                                && !StringTools.endsWith(argStr, ".unwrap_or(0.0)"));
+                    case _: provenMapGet(arg);
+                };
+                if (proven && RustShapeParse.shapeOf(argStr) != RustShape.ShapeBare) {
+                    final inner = getNullInnerType(arg.t);
+                    // A numeric scalar keeps the null-to-zero bridge: the
+                    // final numeric boundary appends unwrap_or(0) for the
+                    // nullable argument, and the two extractions would
+                    // stack. (ProvenNonNullSlotUnwrap)
+                    if (!isNumericScalarType(inner)) {
+                        final ref = "(" + argStr + ").as_ref().unwrap()";
+                        argStr = isTypeCopy(inner) ? "*" + ref : ref + ".clone()";
+                    }
+                }
+            }
             if (i < paramTypes.length) {
                 final pt = paramTypes[i];
                 // A narrowed operand renders the dereferenced match binding;
