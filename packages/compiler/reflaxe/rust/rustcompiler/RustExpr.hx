@@ -4208,6 +4208,18 @@ class RustExpr {
                     if (fromIface)
                         return "(" + expr(inner) + ").as_any().downcast_ref::<" + targetCls.name + ">().unwrap()";
                 }
+                // A cast out of a nullable value into a non-null class
+                // extracts the payload: the paired Std.isOfType fold proved
+                // the value present, and the deferred or typed slot wants
+                // the owned inner, not the Option storage.
+                // (ProvenNonNullSlotUnwrap)
+                if (targetCls != null && isNullType(inner.t)) {
+                    final innerText = expr(inner);
+                    if (RustShapeParse.shapeOf(innerText) != RustShape.ShapeBare) {
+                        final ref = "(" + innerText + ").as_ref().unwrap()";
+                        return isTypeCopy(getNullInnerType(inner.t)) ? "*" + ref : ref + ".clone()";
+                    }
+                }
                 return expr(inner);
             case TEnumParameter(se, ef, index):
                 // A collapsed single-case switch reads the payload outside
