@@ -20,7 +20,12 @@ impl Exception {
 }
 ';
 
-    public static final FUNCTIONAL_SOURCE = '
+    /** The Functional shim is precision-parameterized: sum_of_float
+        accumulates at the element Float's width, so the f32 lane binds
+        f32 and the f64 lane binds f64 (feature spec 23). */
+    public static function functionalSource():String {
+        final f = FloatPrecision.isF32() ? "f32" : "f64";
+        return '
 pub struct Functional;
 
 impl Functional {
@@ -33,9 +38,9 @@ impl Functional {
         }
     }
 
-    pub fn sum_of_float<T, F>(arr: &Vec<T>, mut f: F) -> f64
+    pub fn sum_of_float<T, F>(arr: &Vec<T>, mut f: F) -> $f
     where
-        F: FnMut(&T) -> f64,
+        F: FnMut(&T) -> $f,
     {
         let mut total = 0.0;
         for item in arr {
@@ -45,6 +50,7 @@ impl Functional {
     }
 }
 ';
+    }
 
 
     public static final BYTES_BUFFER_SOURCE = '
