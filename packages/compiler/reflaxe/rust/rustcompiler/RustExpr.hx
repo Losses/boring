@@ -6979,8 +6979,19 @@ class RustExpr {
                 // fill, which never happens after the guard.
                 final filled = narrowed == null && proven == null && isNullType(subj.t) ? filledSubjectOf(subj) : null;
                 final subjStr = if (narrowed != null) narrowed else if (narrowedReceiver != null) narrowedReceiver else if (proven != null) proven else if (filled != null) subjText
-                    + ".get_or_insert_with(|| " + filled + ")" else if (fieldReceiverCarriesFallibleWrapper(subj)) subjText
+                    + ".get_or_insert_with(|| " + filled + ")" else if (fieldReceiverCarriesFallibleWrapper(subj)
+                    // A bare-table reader holds the bare value: the
+                    // fallible-wrapper forcing must not fire on it.
+                    // (BuilderValueNullability)
+                    && !(switch (stripWrap(subj).expr) {
+                        case TLocal(v): nullableCollapsedLocals.exists(v.id);
+                        case _: false;
+                    })) subjText
                     + ".as_ref().unwrap()" else subjText;
+#if boring_fold_debug
+                if (subjStr.indexOf(".as_ref().unwrap()") >= 0 && subjStr.indexOf("inline_object") >= 0)
+                    Context.warning("FLD2 forced-as_ref src=" + (narrowed != null ? "narrowed" : proven != null ? "proven" : filled != null ? "filled" : fieldReceiverCarriesFallibleWrapper(subj) ? "fallible" : "plain") + " [" + subjStr.substr(0, subjStr.length > 70 ? 70 : subjStr.length) + "]", Context.currentPos());
+#end
                 final access = subjStr + "." + snake;
                 if (name != "length" && isRecursiveField(subj, name)) {
                     // A cursor-local receiver re-binds the recursive field
