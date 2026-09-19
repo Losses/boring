@@ -6418,7 +6418,8 @@ class RustExpr {
                     // operand already renders its scalar match binding and a
                     // collapsed local already materialized the inner scalar,
                     // so neither must unwrap again.
-                    rendered = "*(" + rendered + ").as_ref().unwrap()";
+                    if (RustShapeParse.shapeOf(rendered) != RustShape.ShapeBare)
+                        rendered = "*(" + rendered + ").as_ref().unwrap()";
                 case TLocal(v) if (isIntType(getNullInnerType(e.t))
                     && narrowedSubject(e) == null && !isNullableCollapsedLocal(e)
                     && !StringTools.startsWith(rendered, "&")):
@@ -6439,7 +6440,8 @@ class RustExpr {
             case _: false;
         }) {
             final inner = getNullInnerType(e.t);
-            rendered = isTypeCopy(inner) ? "*((" + rendered + ").as_ref().unwrap())" : "(" + rendered + ").as_ref().unwrap()";
+            if (RustShapeParse.shapeOf(rendered) != RustShape.ShapeBare)
+                rendered = isTypeCopy(inner) ? "*((" + rendered + ").as_ref().unwrap())" : "(" + rendered + ").as_ref().unwrap()";
         } else if (isNullType(e.t) && isFloatType(getNullInnerType(e.t))
             && narrowedSubject(e) == null && !isNullableCollapsedLocal(e)
             && !isNonNullRenderedConditional(e)
@@ -6603,7 +6605,9 @@ class RustExpr {
                 }) {
                     final inner = getNullInnerType(a.t);
                     final rendered = expr(a);
-                    isTypeCopy(inner) ? "*((" + rendered + ").as_ref().unwrap())" : "(" + rendered + ").as_ref().unwrap()";
+                    RustShapeParse.shapeOf(rendered) != RustShape.ShapeBare
+                        ? isTypeCopy(inner) ? "*((" + rendered + ").as_ref().unwrap())" : "(" + rendered + ").as_ref().unwrap()"
+                        : rendered;
                 } else {
                     expr(a);
                 }
@@ -6633,7 +6637,9 @@ class RustExpr {
             if (isNullType(e.t) && provenNonNullLocalExpr(e)) {
                 final inner = getNullInnerType(e.t);
                 final rendered = expr(e);
-                final unwrapped = isTypeCopy(inner) ? "*((" + rendered + ").as_ref().unwrap())" : "(" + rendered + ").as_ref().unwrap()";
+                final unwrapped = RustShapeParse.shapeOf(rendered) != RustShape.ShapeBare
+                    ? (isTypeCopy(inner) ? "*((" + rendered + ").as_ref().unwrap())" : "(" + rendered + ").as_ref().unwrap()")
+                    : rendered;
                 return usizeIndex(unwrapped);
             }
             // Nullable integer indices must be unwrapped before TryFrom;
@@ -11187,7 +11193,8 @@ class RustExpr {
         // owned values clone the proven payload so later Haxe reads remain
         // available.
         if (!isNullType(expected) && isNoneInitializedLocal(actual))
-            return isTypeCopy(actual.t) ? rendered + ".unwrap()" : rendered + ".as_ref().unwrap().clone()";
+            if (RustShapeParse.shapeOf(rendered) != RustShape.ShapeBare)
+                return isTypeCopy(actual.t) ? rendered + ".unwrap()" : rendered + ".as_ref().unwrap().clone()";
         // A scalar whose read still renders the Option shape (a wrapped
         // ternary, an Option-returning read) enters a non-null scalar
         // slot; the boundary unwraps it, and the None path has no
@@ -11467,7 +11474,7 @@ class RustExpr {
                                 && !StringTools.endsWith(argStr, ".unwrap_or(0.0)"));
                     case _: provenMapGet(arg);
                 };
-                if (proven) {
+                if (proven && RustShapeParse.shapeOf(argStr) != RustShape.ShapeBare) {
                     final inner = getNullInnerType(arg.t);
                     final ref = "(" + argStr + ").as_ref().unwrap()";
                     argStr = isTypeCopy(inner) ? "*" + ref : ref + ".clone()";
@@ -11513,7 +11520,7 @@ class RustExpr {
                                 case TLocal(v): optionRenderedLocals.exists(v.id);
                                 case _: false;
                             };
-                        if (optionRenderedLocal) {
+                        if (optionRenderedLocal && RustShapeParse.shapeOf(argStr) != RustShape.ShapeBare) {
                             final inner = getNullInnerType(arg.t);
                             var bare = stripRenderedParens(expr(stripWrap(arg)));
                             if (StringTools.startsWith(bare, "&"))
@@ -11655,7 +11662,8 @@ class RustExpr {
                         // a reference to the inner Vec; unwrapping it again
                         // would ask Vec for an as_ref that does not exist.
                         final narrowed = narrowedSubject(arg);
-                        argStr = narrowed != null ? expr(arg) : "(" + expr(arg) + ").as_ref().unwrap()";
+                        argStr = narrowed != null ? expr(arg)
+                            : (RustShapeParse.shapeOf(expr(arg)) != RustShape.ShapeBare ? "(" + expr(arg) + ").as_ref().unwrap()" : expr(arg));
                     } else {
                         // The mutating faces are arrays and the writer and reader
                         // fronts; every other borrowed parameter reads only.
