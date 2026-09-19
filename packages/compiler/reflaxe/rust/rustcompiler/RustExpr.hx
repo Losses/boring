@@ -4136,22 +4136,49 @@ class RustExpr {
                 {
                     final cmp = nullComparisonParts(c);
 #if boring_fold_debug
-                    Context.warning("FOLD2 cmp=" + (cmp != null) + " nullty=" + (cmp != null && isNullType(Context.follow(cmp.subject.t))) + " subjty=" + Std.string(cmp != null ? cmp.subject.t : null), e.pos);
+                    Context.warning("FOLD3 t=" + Std.string(stripWrap(t).expr).substr(0, 70) + " f=" + Std.string(stripWrap(f).expr).substr(0, 70) + " cmp=" + (cmp != null), e.pos);
 #end
-                    if (cmp != null && isNullType(Context.follow(cmp.subject.t))) {
+                    // The fold renders no arm until pure AST checks pass. A
+                    // speculative render of a composite arm routes the
+                    // nested expression through the block validator
+                    // (features/43) before any zero-text check can reject
+                    // it: stripWrap does not unwrap a TBlock, and
+                    // ExpressionBlockNorm fails a block whose tail is a
+                    // TIf. The zero arm must be a literal zero constant in
+                    // the AST, the subject a nullable numeric payload, and
+                    // the other arm's text must equal the subject text.
+                    // (NoneZeroFold, ShapeParse)
+                    // A local subject's Haxe type can lie: an optional
+                    // parameter declared Null<T> may hold a bare Rust value
+                    // once the boundary consumed its Option. A local read
+                    // folds only on positive declaration-shape evidence; a
+                    // call or field read falls back to the Haxe type.
+                    final subjectNullable = cmp != null && (switch (stripWrap(cmp.subject).expr) {
+                        case TLocal(v):
+                            declInitShape(v) == RustShape.ShapeOption
+                                && isNumericScalarType(getNullInnerType(v.t));
+                        case _:
+                            isNullType(cmp.subject.t)
+                                && isNumericScalarType(getNullInnerType(cmp.subject.t));
+                    });
+                    final inverted = cmp != null && cmp.inverted;
+                    final zeroArm = stripWrap(inverted ? f : t);
+                    final innerType = cmp != null ? getNullInnerType(cmp.subject.t) : null;
+                    final zeroText:Null<String> = switch (zeroArm.expr) {
+                        case TConst(TInt(v)) if (v == 0):
+                            innerType != null && isFloatType(innerType) ? "0.0f64" : "0";
+                        case TConst(TFloat(v)) if (v == "0" || v == "0.0"):
+                            "0.0f64";
+                        case _:
+                            null;
+                    };
+                    if (subjectNullable && zeroText != null) {
                         final subjectText = stripRenderedParens(expr(cmp.subject));
-                        final thenText = stripRenderedParens(expr(stripWrap(t)));
-                        final elseText = stripRenderedParens(expr(stripWrap(f)));
-                        final zeroTexts = ["0", "0.0f64", "0.0", "(0.0f64)", "(0 as f64)", "0 as f64"];
-                        if (!cmp.inverted && Lambda.has(zeroTexts, thenText)
-                            && (elseText == subjectText || StringTools.startsWith(elseText, subjectText)))
-                            return "(" + subjectText + ").unwrap_or(" + thenText + ")";
-                        if (cmp.inverted && Lambda.has(zeroTexts, elseText)
-                            && (thenText == subjectText || StringTools.startsWith(thenText, subjectText)))
-                            return "(" + subjectText + ").unwrap_or(" + elseText + ")";
+                        final subjectArmText = stripRenderedParens(expr(stripWrap(inverted ? t : f)));
+                        if (subjectArmText == subjectText)
+                            return "(" + subjectText + ").unwrap_or(" + zeroText + ")";
 #if boring_fold_debug
-                        Context.warning("FOLDDBG nofold subj=" + subjectText + " then=" + thenText + " else=" + elseText
-                            + " inv=" + cmp.inverted, e.pos);
+                        Context.warning("FOLDDBG nofold subj=[" + subjectArmText + "] vs [" + subjectText + "] inv=" + inverted, e.pos);
 #end
                     }
                 }
