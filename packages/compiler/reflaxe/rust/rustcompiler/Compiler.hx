@@ -355,7 +355,7 @@ class Compiler extends PluginCompiler<Compiler> {
         emitShim("std.Env", "env.rs", RustRuntime.ENV_SOURCE);
         emitShim("std.Fs", "fs.rs", RustRuntime.FS_SOURCE);
         emitShim("std.Process", "process.rs", RustRuntime.PROCESS_SOURCE);
-        emitShim("std.Functional", "functional.rs", RustRuntime.FUNCTIONAL_SOURCE);
+        emitShim("std.Functional", "functional.rs", RustRuntime.functionalSource());
         emitShim(RustTestBinding.externModule(), RustTestBinding.shimPath(), RustRuntime.TEST_SOURCE);
 
         final emitDir = RuntimeConfig.emitDir();
