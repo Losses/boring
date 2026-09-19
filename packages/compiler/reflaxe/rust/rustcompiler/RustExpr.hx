@@ -8298,6 +8298,14 @@ class RustExpr {
                     if (isIntType(arrayElementType(subj.t)) && narrowedSubject(args[0]) != null
                         && isIntType(getNullInnerType(args[0].t)))
                         needle = RustConversions.reinterpret(needle, "u32");
+                    // A nullable needle searches as its inner value: Haxe's
+                    // indexOf(null) never matches an Int element, so the
+                    // absent value falls to the -1 sentinel, which the u32
+                    // reinterpret maps past every real element.
+                    // (NullableNeedleDomain)
+                    else if (isIntType(arrayElementType(subj.t)) && isNullType(args[0].t)
+                        && !isTNull(args[0]) && narrowedSubject(args[0]) == null)
+                        needle = RustConversions.reinterpret(needle + ".unwrap_or(-1)", "u32");
                     // The iterator yields &T; compare by reference so the
                     // element is not moved out of the Vec (E0507/E0277 on a
                     // non-Copy element like String). A nullable receiver
