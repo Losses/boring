@@ -140,6 +140,11 @@ class RustExpr {
     // shape: the exact ground truth for whether a read of the local
     // renders an Option. (NonNullSlotUnwrap)
     final optionRenderedLocals:Map<Int, Bool> = [];
+    // The initializer text each local's declaration emitted, keyed by
+    // local id. The parsed shape of this text is the type account every
+    // slot boundary reads. (DeclShapeRecord)
+    final declInitTexts:Map<Int, String> = [];
+    final declShapeCache:Map<Int, RustShape> = [];
     // Subset of nullableCollapsedLocals whose null-coalescing initializer
     // actually renders a non-null value (both guarded-match arms are
     // non-null), so an Option parameter must re-wrap the read in Some. A
@@ -666,6 +671,8 @@ class RustExpr {
         unsignedLocals.clear();
         nullableCollapsedLocals.clear();
         optionRenderedLocals.clear();
+        declInitTexts.clear();
+        declShapeCache.clear();
         nonNullRenderedLocals.clear();
         implicitNullableLocals.clear();
         hasGuardedGets.resize(0);
@@ -1138,6 +1145,7 @@ class RustExpr {
                     optionNarrowingHitCount++;
                     final inner = getNullInnerType(init.t);
                     final owned = isTypeCopy(inner) ? "*" + narrowedCopy : "(*" + narrowedCopy + ").clone()";
+                    recordDeclInit(v, owned);
                     return [indent(depth) + kw + " " + name + explicitType + " = " + owned + ";"];
                 }
                 // A nullable-typed local copied from a nullable field/local
@@ -1156,6 +1164,7 @@ class RustExpr {
                         optionNarrowingHitCount++;
                         final inner = getNullInnerType(init.t);
                         final owned = isTypeCopy(inner) ? "*" + narrowedCopy2 : "(*" + narrowedCopy2 + ").clone()";
+                        recordDeclInit(v, owned);
                         nullableCollapsedLocals.set(v.id, true);
                         return [indent(depth) + kw + " " + name + explicitType + " = " + owned + ";"];
                     }
@@ -1185,8 +1194,10 @@ class RustExpr {
                 // Covers the proven-non-null owned copy family.
                 if (!isNullType(v.t)) {
                     final provenText = provenNonNullOwnedText(init);
-                    if (provenText != null)
+                    if (provenText != null) {
+                        recordDeclInit(v, provenText);
                         return [indent(depth) + kw + " " + name + explicitType + " = " + provenText + ";"];
+                    }
                 }
                 // A nullable-typed local copied from a proven-non-null local
                 // holds the inner value (the early-exit guard proved the
@@ -1197,6 +1208,7 @@ class RustExpr {
                 if (isNullType(v.t) && !cursorLocals.exists(v.id)) {
                     final provenText = provenNonNullOwnedText(init);
                     if (provenText != null) {
+                        recordDeclInit(v, provenText);
                         nullableCollapsedLocals.set(v.id, true);
                         return [indent(depth) + kw + " " + name + explicitType + " = " + provenText + ";"];
                     }
@@ -1209,6 +1221,7 @@ class RustExpr {
                 // Covers the has-guarded get local family.
                 if (isNullType(init.t) && hasGuardedGetLocal(init)) {
                     nullableCollapsedLocals.set(v.id, true);
+                    recordDeclInit(v, "(" + expr(init) + ").unwrap()");
                     return [indent(depth) + kw + " " + name + explicitType + " = " + "(" + expr(init) + ").unwrap()" + ";"];
                 }
                 var initStr = switch (init.expr) {
@@ -1387,6 +1400,7 @@ class RustExpr {
                     imports.require("std::sync::Arc");
                     imports.require("std::sync::Mutex");
                     final innerType = types.of(v.t, false);
+                    recordDeclInit(v, "Arc::new(Mutex::new(Vec::new()))");
                     return [indent(depth) + "let " + name + ": Arc<Mutex<" + innerType + ">> = Arc::new(Mutex::new(Vec::new()));"];
                 }
                 // A shared closure scalar lowers as Arc<Mutex<T>>: the named
@@ -1397,6 +1411,7 @@ class RustExpr {
                     imports.require("std::sync::Mutex");
                     final innerType = types.of(v.t, false);
                     final valueText = isTNull(init) ? "Default::default()" : expr(init);
+                    recordDeclInit(v, "Arc::new(Mutex::new(" + valueText + "))");
                     return [indent(depth) + "let " + name + ": Arc<Mutex<" + innerType + ">> = Arc::new(Mutex::new(" + valueText + "));"];
                 }
                 // An empty array literal is an untyped `vec![]` in Rust; the
@@ -1457,11 +1472,14 @@ class RustExpr {
                 // force-read the wrapper again. (DeclaredNullableLocals)
                 if (initStr.indexOf(".unwrap(") >= 0 || initStr.indexOf(".unwrap_or(") >= 0)
                     declaredNullableLocals.remove(v.id);
+                recordDeclInit(v, initStr);
                 return [indent(depth) + declText];
             case TVar(v, init) if (init == null):
                 final name = RustImports.toSnakeCase(localName(v));
-                if (tryCapturedAssignments.exists(v.id) && isNullType(v.t))
+                if (tryCapturedAssignments.exists(v.id) && isNullType(v.t)) {
+                    recordDeclInit(v, "None");
                     return [indent(depth) + "let mut " + name + ": " + types.of(v.t, false) + " = None;"];
+                }
                 final kw = "let ";
                 return [indent(depth) + kw + name + ": " + types.of(v.t, false) + ";"];
             case TBlock(stmts):
@@ -9505,14 +9523,16 @@ class RustExpr {
             // Constructor parameters are value slots unless their declared
             // type explicitly lowers to a borrow.  Keep this final boundary
             // adaptation here so record/Vec reads do not leak `&T` into a T.
-            // A nullable scalar local whose read renders the Option shape
-            // (both ternary arms wrapped) enters a non-null scalar
-            // constructor slot; the boundary unwraps it.
-            // (ScalarSlotUnwrap)
-            if (!isNullType(arg.t)
-                && i < paramTypes.length
+            // An argument whose rendered text evaluates to the Option shape
+            // (a wrapped ternary, an Option-returning read) enters a
+            // non-null scalar constructor slot; the boundary unwraps it.
+            // The decision reads the rendered text itself, so it agrees
+            // with every other boundary on the same expression.
+            // (ScalarSlotUnwrap, ShapeParse)
+            if (i < paramTypes.length
+                && !isNullType(paramTypes[i])
                 && isNumericScalarType(paramTypes[i])
-                && isOptionRenderedLocalArg(arg))
+                && renderedArgShape(argStr, arg) == RustShape.ShapeOption)
                 argStr = argStr + ".unwrap()";
             if (i < paramTypes.length)
                 out.push(numericAssignmentValue(paramTypes[i], arg, ownedConstructorArg(paramTypes[i], arg, null, argStr), null, true));
@@ -10874,11 +10894,60 @@ class RustExpr {
         return optionRenderedLocals.exists(v.id);
     }
 
+    /** Record the initializer text a declaration emitted so slot
+        boundaries parse the shape from the same text.
+        (DeclShapeRecord) */
+    function recordDeclInit(v:TVar, initText:String):Void {
+        declInitTexts.set(v.id, initText);
+    }
+
     function isOptionRenderedLocalArg(e:TypedExpr):Bool {
         return switch (stripWrap(e).expr) {
             case TLocal(v): localReadIsOption(v) && narrowedSubject(e) == null;
             case _: false;
         };
+    }
+
+    /** The Option-shape answer for an already-rendered expression. The
+        rendered text decides; forms whose text carries no shape (a local
+        name, an index or field read, a bare call) fall back to the typed
+        expression, with a guard-narrowed subject reading as the bare
+        payload its guard proved. (ShapeParse) */
+    /** The Option-shape answer parsed from a local's declaration
+        initializer text, cached per local. Uninitialized declarations
+        carry no shape. (DeclShapeRecord, ShapeParse) */
+    function declInitShape(v:TVar):RustShape {
+        if (declShapeCache.exists(v.id))
+            return declShapeCache.get(v.id);
+        final initText = declInitTexts.get(v.id);
+        final shape = initText == null ? RustShape.ShapeUnknown : RustShapeParse.shapeOf(initText);
+        declShapeCache.set(v.id, shape);
+        return shape;
+    }
+
+    /** The Option-shape answer for an already-rendered expression. The
+        rendered text is the first authority: constructions, forcing
+        reads, and composite arms are visible in the text, so the boundary
+        reads exactly what the value is. A bare local name falls back to
+        the shape parsed from its own declaration text; a guard-narrowed
+        subject reads as the bare payload its guard proved. Everything
+        else stays Unknown and no boundary adapts it.
+        (DeclShapeRecord, ShapeParse) */
+    function renderedArgShape(text:String, e:TypedExpr):RustShape {
+        final fromText = RustShapeParse.shapeOf(text);
+        if (fromText != RustShape.ShapeUnknown)
+            return fromText;
+        final inner = stripWrap(e);
+        switch (inner.expr) {
+            case TLocal(v):
+                if (narrowedSubject(e) != null)
+                    return RustShape.ShapeBare;
+                final fromDecl = declInitShape(v);
+                if (fromDecl != RustShape.ShapeUnknown)
+                    return fromDecl;
+            case _:
+        }
+        return RustShape.ShapeUnknown;
     }
 
     function renderValueForType(expected:Null<Type>, actual:TypedExpr, rendered:String):String {
@@ -10891,13 +10960,15 @@ class RustExpr {
         // available.
         if (!isNullType(expected) && isNoneInitializedLocal(actual))
             return isTypeCopy(actual.t) ? rendered + ".unwrap()" : rendered + ".as_ref().unwrap().clone()";
-        // A nullable scalar whose read still renders the Option shape (a
-        // ternary whose arms both wrapped) enters a non-null scalar slot;
-        // the boundary unwraps it — the None path has no corpus-defined
-        // value. (ScalarSlotUnwrap)
-        if (!isNullType(expected) && isNullType(actual.t)
+        // A scalar whose read still renders the Option shape (a wrapped
+        // ternary, an Option-returning read) enters a non-null scalar
+        // slot; the boundary unwraps it — the None path has no
+        // corpus-defined value. The decision reads the rendered text
+        // itself, so it agrees with every other boundary on the same
+        // expression. (ScalarSlotUnwrap, ShapeParse)
+        if (!isNullType(expected)
             && isNumericScalarType(expected)
-            && isOptionRenderedLocalArg(actual))
+            && renderedArgShape(rendered, actual) == RustShape.ShapeOption)
             return rendered + ".unwrap()";
         // Haxe unifies Int and Float; widen Int values to Float when the
         // target slot expects Float.
