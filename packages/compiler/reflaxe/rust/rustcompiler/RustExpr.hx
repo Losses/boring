@@ -3834,6 +3834,43 @@ class RustExpr {
         }
         noneText = armOwnershipClone(noneBranch, noneText);
         narrowedText = armOwnershipClone(narrowedBranch, narrowedText);
+        // Arms of one match must agree in shape. The match's own type
+        // names the target; the minority arm adapts on its already
+        // rendered text — no speculative re-rendering.
+        // (TypedSlotBoundary, ShapeParse)
+        // An arm text outside the parser's coverage falls back to the
+        // arm's own expression: a bare match-binding dereference reads as
+        // the payload, a local reads through its declaration shape.
+        // (ShapeParse)
+        function armShapeOf(branch:TypedExpr, text:String):RustShape {
+            final fromText = RustShapeParse.shapeOf(text);
+            if (fromText != RustShape.ShapeUnknown)
+                return fromText;
+            if (StringTools.startsWith(StringTools.trim(text), "*"))
+                return RustShape.ShapeBare;
+            return switch (stripWrap(branch).expr) {
+                case TLocal(v): declInitShape(v);
+                case _: RustShape.ShapeUnknown;
+            };
+        }
+        final armThen = armShapeOf(narrowedBranch, narrowedText);
+        final armElse = armShapeOf(noneBranch, noneText);
+        if ((armThen == RustShape.ShapeOption || armThen == RustShape.ShapeBare)
+            && (armElse == RustShape.ShapeOption || armElse == RustShape.ShapeBare)
+            && armThen != armElse) {
+            final optionIsNarrowed = armThen == RustShape.ShapeOption;
+            final optionText = optionIsNarrowed ? narrowedText : noneText;
+            final bareText = optionIsNarrowed ? noneText : narrowedText;
+            if (isNullType(resultType)) {
+                final wrapped = "Some(" + bareText + ")";
+                narrowedText = optionIsNarrowed ? narrowedText : wrapped;
+                noneText = optionIsNarrowed ? wrapped : noneText;
+            } else {
+                final unwrapped = postfixAdapt(optionText, ".unwrap()");
+                narrowedText = optionIsNarrowed ? unwrapped : narrowedText;
+                noneText = optionIsNarrowed ? noneText : unwrapped;
+            }
+        }
         final subjectText = subjectTextOf(info.subject);
         final matchText = info.noneWhenTrue ? "match &("
             + subjectText
