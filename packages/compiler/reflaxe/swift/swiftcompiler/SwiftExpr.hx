@@ -1565,6 +1565,17 @@ class SwiftExpr {
         };
     }
 
+    /** A text that already ends a nil-merge chain in a non-nil arm is
+        non-optional by construction: stacking a registered default would
+        warn as never used. (NilMergeChainNonOptional) */
+    static function nilMergeChainNonOptional(text:String):Bool {
+        final idx = text.lastIndexOf(" ?? ");
+        if (idx < 0)
+            return false;
+        final tail = StringTools.trim(text.substr(idx + 4));
+        return tail != "nil" && !StringTools.startsWith(tail, "Optional(");
+    }
+
     public static function emissionTrace(tag:String, text:String):Void {
 #if boring_fold_debug
         Sys.stderr().writeString("KTRACE " + tag + " [" + text + "]\n");
@@ -3678,7 +3689,7 @@ class SwiftExpr {
             final p = i < ps.length ? ps[i] : null;
             final d = target == null ? null : DefaultArgExpander.defaultAt(target.c, target.n, i);
             d != null
-            && p != null && isNullLiteral(args[i]) ? defaultArgText(d, p) : d != null && p != null && isNullLeafType(args[i].t) ? "(" + expr(args[i]) + " ?? " + defaultArgText(d,
+            && p != null && isNullLiteral(args[i]) ? defaultArgText(d, p) : d != null && p != null && isNullLeafType(args[i].t) && !nilMergeChainNonOptional(expr(args[i])) ? "(" + expr(args[i]) + " ?? " + defaultArgText(d,
                 p) + ")" : base[i];
         }
         ];
@@ -3701,7 +3712,7 @@ class SwiftExpr {
             final d = DefaultArgExpander.defaultAt(cls, "new", i);
             var text = d != null
                 && p != null
-                && isNullLiteral(args[i]) ? defaultArgText(d, p) : d != null && p != null && isNullLeafType(args[i].t) ? "(" + expr(args[i]) + " ?? " + defaultArgText(d,
+                && isNullLiteral(args[i]) ? defaultArgText(d, p) : d != null && p != null && isNullLeafType(args[i].t) && !nilMergeChainNonOptional(expr(args[i])) ? "(" + expr(args[i]) + " ?? " + defaultArgText(d,
                     p) + ")" : p != null && !isNullLeafType(p) && optionalValued(args[i]) ? expr(args[i]) + "!" : expr(args[i]);
             // Haxe promotes an Int argument into a Float field without an
             // explicit cast; Swift needs the widening conversion.
