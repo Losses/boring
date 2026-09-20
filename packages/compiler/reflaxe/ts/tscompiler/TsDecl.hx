@@ -605,7 +605,7 @@ class TsDecl {
         // A function whose StringBuf parameter is mutated in the body
         // threads the mutated buffer back through the return value (the
         // TypeScript target erases StringBuf to an immutable string). The
-        // signature returns the buffer instead of void and the body appends
+        // signature returns the buffer and the body appends
         // `return out;`; call sites reassign the argument.
         final mutatedBufParam = mutatedStringBufParam(cls, f);
         final retText = mutatedBufParam != null ? "string" : ret;
