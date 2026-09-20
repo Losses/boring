@@ -160,6 +160,11 @@ class RustExpr {
     // emitted `for` shadows the declaration and the line drops.
     // (ForSharedBindingDeclaration)
     final forSharedLocals:Map<Int, Bool> = [];
+    // Declared locals the interval machinery adopted as counted-loop
+    // counters: the emitted `for index in ..` rebinds and the loop's own
+    // increment disappears into the stride, so the declaration's `mut`
+    // would be unused. (IntervalCounterMut)
+    final intervalCounterLocals:Map<Int, Bool> = [];
     // Reassigned locals whose constant initializer is never read between
     // the declaration and the first reassignment: Haxe requires the
     // initializer, Rust reads nothing from it, so the declaration drops
@@ -1159,7 +1164,13 @@ class RustExpr {
                 // the loop declares its own binding. (ForSharedBindingDeclaration)
                 if (forSharedLocals.exists(v.id))
                     return [];
-                final kw = mutated.exists(v.id) || tryCapturedAssignments.exists(v.id) ? "let mut" : "let";
+                // A declaration adopted as a counted loop's counter renders
+                // bare: the emitted `for` rebinds and the loop's increment
+                // disappears into the stride, so no write reaches it.
+                // (IntervalCounterMut)
+                final isMut = (mutated.exists(v.id) || tryCapturedAssignments.exists(v.id))
+                    && !intervalCounterLocals.exists(v.id);
+                final kw = isMut ? "let mut" : "let";
                 final raw = RustImports.toSnakeCase(localName(v));
                 final name = unusedLocalIds.exists(v.id) ? "_" + raw : raw;
                 // A Null<T> declared local keeps Option storage at runtime
@@ -9601,6 +9612,7 @@ class RustExpr {
         for (id in counts.keys())
             if (counts.get(id) == 0)
                 unusedLocalIds.set(id, true);
+        scanIntervalCounters(root);
         // A declaration the typer shares with a `for` binding rebinds the
         // same var: every read sits inside the loop subtree, the loop
         // re-initializes the binding, and the emitted `for` declares its
@@ -9631,6 +9643,81 @@ class RustExpr {
         if (unusedLocalIds.keys().hasNext())
             Sys.stderr().writeString("RSCANDUMP n=" + Lambda.count(unusedLocalIds) + "\n");
 #end
+    }
+
+    /**
+        Counted loops arrive as hidden counter declarations plus a while;
+        when the typer adopts the user's own declaration as that counter,
+        the emitted `for index in ..` rebinds the name and the body's
+        increment disappears into the stride, so the declaration must not
+        carry `mut`. Records every interval counter id.
+        (IntervalCounterMut)
+    **/
+    function scanIntervalCounters(root:TypedExpr):Void {
+        final totalWrites:Map<Int, Int> = [];
+        final claimedWrites:Map<Int, Int> = [];
+        final claimed:Map<Int, Bool> = [];
+        function countWrites(node:TypedExpr, id:Null<Int>, into:Map<Int, Int>):Void {
+            switch (node.expr) {
+                case TBinop(op = OpAssign | OpAssignOp(_), t, _):
+                    switch (stripWrap(t).expr) {
+                        case TLocal(v) if (id == null || v.id == id):
+                            into.set(v.id, (into.exists(v.id) ? into.get(v.id) : 0) + 1);
+                        case _:
+                    }
+                case TUnop(OpIncrement | OpDecrement, _, t):
+                    switch (stripWrap(t).expr) {
+                        case TLocal(v) if (id == null || v.id == id):
+                            into.set(v.id, (into.exists(v.id) ? into.get(v.id) : 0) + 1);
+                        case _:
+                    }
+                case _:
+            }
+            haxe.macro.TypedExprTools.iter(node, child -> countWrites(child, id, into));
+        }
+        function walk(node:TypedExpr):Void {
+            final loop = matchInterval(node);
+            if (loop != null) {
+                claimed.set(loop.counter.id, true);
+                claimed.set(loop.index.id, true);
+                countWrites(node, loop.counter.id, claimedWrites);
+                for (b in loop.body)
+                    walk(b);
+                return;
+            }
+            switch (node.expr) {
+                case TBlock(stmts):
+                    for (s in regroupLoops(stmts))
+                        walk(s);
+                case TIf(_, t, f):
+                    if (t != null)
+                        walk(t);
+                    if (f != null)
+                        walk(f);
+                case TWhile(_, b, _):
+                    walk(b);
+                case TFor(_, _, b):
+                    walk(b);
+                case _:
+                    haxe.macro.TypedExprTools.iter(node, walk);
+            }
+        }
+        switch (root.expr) {
+            case TBlock(stmts):
+                for (s in regroupLoops(stmts))
+                    walk(s);
+            case _: walk(root);
+        }
+        // Mut is dropped only when EVERY write of the local is a claimed
+        // loop's own counter increment: those disappear into the emitted
+        // `for` stride. A write anywhere else needs the mutable binding.
+        countWrites(root, null, totalWrites);
+        for (id in claimed.keys()) {
+            final total = totalWrites.exists(id) ? totalWrites.get(id) : 0;
+            final inClaim = claimedWrites.exists(id) ? claimedWrites.get(id) : 0;
+            if (total > 0 && total == inClaim)
+                intervalCounterLocals.set(id, true);
+        }
     }
 
     /**
