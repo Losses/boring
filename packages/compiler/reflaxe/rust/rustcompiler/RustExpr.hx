@@ -175,6 +175,12 @@ class RustExpr {
     // (ClosureCaptureOwnedCopy)
     var captureOwnedStringCopies:Map<Int, Bool> = [];
     final unsignedLocals:Map<Int, Bool> = [];
+    // Locals whose declaration received a sunk initializer through
+    // DeadInitializerMatchFusion: the value crossed an assignment boundary,
+    // so the declaration renders through the same numeric adaptation an
+    // assignment applies. Haxe var ids are globally unique, so stale
+    // entries cannot collide across functions.
+    final sunkInitVarIds:Map<Int, Bool> = [];
     // Locals initialized from charCodeAt are collapsed from Option<u32> to a scalar.
     final nullableCollapsedLocals:Map<Int, Bool> = [];
     // Locals whose emitted declaration text names or infers the Option
@@ -1328,6 +1334,12 @@ class RustExpr {
                 if (nullableType == "" && isTNull(init) && !isNullType(v.t))
                     nullableType = ": Option<" + types.of(v.t, false) + ">";
                 initStr = renderValueForType(v.t, init, initStr);
+                // A sunk initializer crossed an assignment boundary, so it
+                // renders through the same numeric adaptation an assignment
+                // applies; without it a signed rendering would land in an
+                // unsigned declaration (E0308). (DeadConstantInitSink)
+                if (sunkInitVarIds.exists(v.id))
+                    initStr = numericAssignmentValue(v.t, init, initStr, i32BindingLocals.exists(v.id) ? "i32" : null, !i32Locals.exists(v.id));
                 switch (stripWrap(init).expr) {
                     case TIf(cond, _, _) if (nullGuardOf(cond) != null):
                         // A null-coalescing ternary initializer materializes
@@ -2142,7 +2154,7 @@ class RustExpr {
             case TBlock(stmts):
                 final nested = [for (s in stmts) fuseWithin(s)];
                 final fused = fuseUninitializedVars(nested);
-                final deadMatchFused = DeadInitializerMatchFusion.fuseDeadInitializerMatch(fused, stripCast);
+                final deadMatchFused = DeadInitializerMatchFusion.fuseDeadInitializerMatch(fused, stripCast, sunkInitVarIds);
                 {expr: TBlock(deadMatchFused), pos: e.pos, t: e.t};
             case _:
                 TypedExprTools.map(e, fuseWithin);
@@ -6156,6 +6168,16 @@ class RustExpr {
                 final zeroLeftText = rendersI32ComparisonOperand(l, zeroLeft)
                     ? RustConversions.reinterpret(zeroLeft, "u32") : zeroLeft;
                 return "(" + zeroLeftText + ") > 2147483647";
+            case OpGte if (isZero(r) && businessIntExpr(l)):
+                // Mirror of the `x < 0` mapping above: the signed predicate
+                // `x >= 0` excludes the wrapped-negative upper half, which
+                // the unsigned rendering spells as the i32-bound check. A
+                // plain comparison against zero would be a useless type-limit
+                // test on u32. (UnsignedZeroBoundTest)
+                final zeroLeft = operand(l, op, false);
+                final zeroLeftText = rendersI32ComparisonOperand(l, zeroLeft)
+                    ? RustConversions.reinterpret(zeroLeft, "u32") : zeroLeft;
+                return "(" + zeroLeftText + ") <= 2147483647";
             case OpSub:
                 return operand(l, op, false) + " - " + operand(r, op, true);
             case OpLt | OpLte | OpGt | OpGte:

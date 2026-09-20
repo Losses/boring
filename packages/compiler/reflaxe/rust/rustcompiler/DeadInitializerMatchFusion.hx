@@ -9,7 +9,8 @@ import PolicyQueries;
 
 /** Rust-only fusion for locals whose first use is a total match assignment. */
 class DeadInitializerMatchFusion {
-    public static function fuseDeadInitializerMatch(stmts:Array<TypedExpr>, unwrap:TypedExpr->TypedExpr):Array<TypedExpr> {
+    public static function fuseDeadInitializerMatch(stmts:Array<TypedExpr>, unwrap:TypedExpr->TypedExpr,
+            ?sunkVarIds:Map<Int, Bool>):Array<TypedExpr> {
         final out:Array<TypedExpr> = [];
         var i = 0;
         while (i < stmts.length) {
@@ -44,6 +45,17 @@ class DeadInitializerMatchFusion {
                             i += 2;
                             continue;
                         }
+                        final forward = forwardAssignment(stmts, i, v.id, unwrap);
+                        if (forward != null) {
+                            if (sunkVarIds != null)
+                                sunkVarIds.set(v.id, true);
+                            for (k in (i + 1)...stmts.length)
+                                out.push(k == forward.index
+                                    ? {expr: TVar(v, forward.rhs), pos: stmts[k].pos, t: stmts[k].t}
+                                    : stmts[k]);
+                            i = stmts.length;
+                            continue;
+                        }
                     case _:
                 }
             }
@@ -51,6 +63,32 @@ class DeadInitializerMatchFusion {
             i++;
         }
         return out;
+    }
+
+    /**
+        The first later top-level assignment to the local, with no read of
+        the local between the declaration and that assignment: the constant
+        initializer is then never observed. The declaration sinks to the
+        assignment position and takes the assigned value, so statement order
+        is unchanged and a right side may name locals declared in between.
+        Unlike the uninitialized fusion in VarFusionPlan, an intervening use
+        of a constant-initialized local is meaningful, so any read aborts
+        the sink; an assignment left side is a TLocal too, so the read scan
+        also refuses sinking past writes inside conditionals.
+        (DeadConstantInitSink)
+    **/
+    static function forwardAssignment(stmts:Array<TypedExpr>, from:Int, id:Int,
+            unwrap:TypedExpr->TypedExpr):Null<{index:Int, rhs:TypedExpr}> {
+        var j = from + 1;
+        while (j < stmts.length) {
+            final assigned = assignmentTo(stmts[j], id, unwrap);
+            if (assigned != null)
+                return readsLocal(assigned, id) ? null : {index: j, rhs: assigned};
+            if (readsLocal(stmts[j], id))
+                return null;
+            j++;
+        }
+        return null;
     }
 
     static function assignmentTo(e:TypedExpr, id:Int, unwrap:TypedExpr->TypedExpr):Null<TypedExpr> {
