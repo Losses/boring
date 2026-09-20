@@ -116,8 +116,16 @@ class RustImports {
                 lines.push("use " + imp + ";");
                 continue;
             }
-            final symbol = imp.substr(imp.lastIndexOf("::") + 2);
-            if (!bodyNamesSymbol(body, symbol))
+            // An aliased import grounds on its alias: the body names the
+            // alias, never the aliased path tail. A glob import names no
+            // single symbol and rustc never reports globs as unused, so it
+            // stays unfiltered. Dropping either desugars `testlib::run`
+            // and the assertion helpers into unresolved paths.
+            // (AliasedGlobImportGrounding)
+            final glob = StringTools.endsWith(imp, "::*");
+            final aliasIndex = imp.lastIndexOf(" as ");
+            final symbol = glob ? "" : aliasIndex >= 0 ? imp.substr(aliasIndex + 4) : imp.substr(imp.lastIndexOf("::") + 2);
+            if (!glob && !bodyNamesSymbol(body, symbol))
                 continue;
             lines.push("use " + imp + ";");
         }
@@ -162,7 +170,8 @@ class RustImports {
     }
 
     static function isIdentChar(c:String):Bool {
-        return c == "_" || (c.charCodeAt(0) >= "a".code && c.charCodeAt(0) <= "z".code)
+        return c == "_"
+            || (c.charCodeAt(0) >= "a".code && c.charCodeAt(0) <= "z".code)
             || (c.charCodeAt(0) >= "A".code && c.charCodeAt(0) <= "Z".code)
             || (c.charCodeAt(0) >= "0".code && c.charCodeAt(0) <= "9".code);
     }
