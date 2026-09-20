@@ -149,11 +149,22 @@ class RustImports {
                 i++;
                 continue;
             }
-            if (body.substr(i, symbol.length) == symbol)
-                return true;
+            if (body.substr(i, symbol.length) == symbol) {
+                final beforeAlnum = i > 0 && isIdentChar(body.charAt(i - 1));
+                final after = i + symbol.length;
+                final afterAlnum = after < body.length && isIdentChar(body.charAt(after));
+                if (!beforeAlnum && !afterAlnum)
+                    return true;
+            }
             i++;
         }
         return false;
+    }
+
+    static function isIdentChar(c:String):Bool {
+        return c == "_" || (c.charCodeAt(0) >= "a".code && c.charCodeAt(0) <= "z".code)
+            || (c.charCodeAt(0) >= "A".code && c.charCodeAt(0) <= "Z".code)
+            || (c.charCodeAt(0) >= "0".code && c.charCodeAt(0) <= "9".code);
     }
 
     public static function moduleToRustPath(module:String):String {
