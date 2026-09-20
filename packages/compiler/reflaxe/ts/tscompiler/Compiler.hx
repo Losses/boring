@@ -219,6 +219,7 @@ class Compiler extends PluginCompiler<Compiler> {
         }
         Context.onAfterTyping(ValueTypeSupport.validateModules);
         Context.onAfterTyping(scanCrossClassPrivateAccess);
+        Context.onAfterTyping(TsStringBufParams.collect);
         // The stdlib/08 string-buffer fault checks synthesize references to
         // std.UStringException even when the consumer source scope omits
         // samples/. Force the support module through typing so its

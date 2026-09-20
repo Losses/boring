@@ -592,6 +592,8 @@ class TsExpr {
                 return [indent(depth) + "continue;"];
             case TCall(fn, args) if (stringBufMutationParts(fn) != null):
                 return stringBufMutationLines(fn, args, depth);
+            case TCall(fn, args) if (stringBufThreadingCall(fn, args) != null):
+                return [indent(depth) + stringBufThreadingCall(fn, args) + ";"];
             case TMeta(_, inner):
                 return stmtLines(inner, depth);
             case _:
@@ -701,6 +703,21 @@ class TsExpr {
                     firstUse = j;
                     break;
                 }
+            }
+            // features/09 LengthHoist: a `.length` read is hoisted only when
+            // the subject is not mutated between the hoist point and the
+            // loop. A statement that mutates the array (a push, splice, set,
+            // indexed store, or a call to a helper that mutates it) makes the
+            // cached length stale, so the read must stay live at its use.
+            var mutatesBetween = false;
+            for (j in firstUse...i) {
+                if (mutatesArraySubject(stmts[j], subject)) {
+                    mutatesBetween = true;
+                    break;
+                }
+            }
+            if (mutatesBetween) {
+                continue;
             }
             hoists.push({
                 firstUse: firstUse,
@@ -995,6 +1012,62 @@ class TsExpr {
                 case _:
             }
             TypedExprTools.iter(x, walk);
+        }
+        walk(e);
+        return found;
+    }
+
+    /**
+        Reports whether a statement mutates the contents of the subject
+        array, so a hoisted `.length` read would go stale. Covers a direct
+        mutation (push, splice, set, insert, indexed store, or a reassigning
+        assignment to the binding) and a call to a helper that mutates the
+        array argument (features/09 LengthHoist safety).
+    **/
+    function mutatesArraySubject(e:TypedExpr, subject:TVar):Bool {
+        var found = false;
+        function root(x:TypedExpr):Bool {
+            return switch (stripWrap(x).expr) {
+                case TLocal(v): v.id == subject.id;
+                case TField(s, _): root(s);
+                case TArray(s, _): root(s);
+                case TParenthesis(s): root(s);
+                case TMeta(_, s): root(s);
+                case _: false;
+            };
+        }
+        function walk(x:TypedExpr) {
+            if (found)
+                return;
+            switch (x.expr) {
+                case TBinop(OpAssign, t, _) | TBinop(OpAssignOp(_), t, _):
+                    // A reassignment of the binding or an indexed store
+                    // through it mutates the array contents.
+                    if (root(t))
+                        found = true;
+                case TCall(fn, args):
+                    switch (stripWrap(fn).expr) {
+                        case TField(s, FInstance(_, _, cf) | FAnon(cf)) if (root(s)):
+                            if ([
+                                "push",
+                                "insert",
+                                "pop",
+                                "shift",
+                                "unshift",
+                                "remove",
+                                "removeAt",
+                                "splice",
+                                "reverse",
+                                "sort",
+                                "set"
+                            ].indexOf(cf.get().name) >= 0)
+                                found = true;
+                        case _:
+                    }
+                case _:
+            }
+            if (!found)
+                TypedExprTools.iter(x, walk);
         }
         walk(e);
         return found;
@@ -2810,6 +2883,67 @@ class TsExpr {
     **/
     function stringBufMutationParts(fn:TypedExpr):Null<{name:String, subj:TypedExpr}> {
         return PolicyQueries.stringBufMutationParts(fn);
+    }
+
+    /**
+        stdlib/08: a call to a function whose StringBuf parameter is mutated
+        in the body threads the mutated buffer back through the return value
+        (the TypeScript target erases StringBuf to an immutable string). At
+        a statement call site the argument is reassigned from the result:
+        `out = appendJsonString(out, value)`. Returns the rendered
+        reassignment statement text, or null when the call does not target a
+        mutated-StringBuf function.
+    **/
+    function stringBufThreadingCall(fn:TypedExpr, args:Array<TypedExpr>):Null<String> {
+        final target = switch (fn.expr) {
+            case TField(_, FStatic(c, cf)): {owner: c.get(), name: cf.get().name};
+            case TField(_, FInstance(c, _, cf)): {owner: c.get(), name: cf.get().name};
+            default: null;
+        };
+        if (target == null)
+            return null;
+        final sigArgs = switch (Context.follow(fn.t)) {
+            case TFun(ps, _): ps;
+            case _: null;
+        };
+        // Resolve the callee's parameter types from its function type.
+        final paramTypes = switch (Context.follow(fn.t)) {
+            case TFun(ps, _): [for (p in ps) p.t];
+            case _: null;
+        };
+        if (paramTypes == null)
+            return null;
+        for (i in 0...args.length) {
+            if (i >= paramTypes.length)
+                continue;
+            if (!isStringBufType(paramTypes[i]))
+                continue;
+            if (!TsStringBufParams.isMutatedStringBufParam(target.owner.module, target.owner.name, target.name,
+                sigArgs != null && i < sigArgs.length ? sigArgs[i].name : "", i)) {
+                continue;
+            }
+            // The mutated StringBuf argument must be a plain local so the
+            // reassignment writes back to the caller's binding.
+            switch (stripWrap(args[i]).expr) {
+                case TLocal(v):
+                    final callee = switch (fn.expr) {
+                        case TField(_, FStatic(c, _)): staticRef(c.get(), target.name);
+                        case TField(subj, FInstance(_, _, _)): expr(subj) + "." + target.name;
+                        default: expr(fn);
+                    };
+                    final rendered = callArgTexts(fn, args).join(", ");
+                    return localName(v) + " = " + callee + "(" + rendered + ")";
+                case _:
+            }
+        }
+        return null;
+    }
+
+    function isStringBufType(t:Type):Bool {
+        return switch (Context.follow(t)) {
+            case TInst(c, _): final cls = c.get(); (cls.pack.join(".") == "std" && cls.name == "StringBuf") || (cls.pack.length == 0 && cls.name == "StringBuf");
+            case _: false;
+        };
     }
 
     function isStringBufToStringCall(e:Null<TypedExpr>):Bool {
