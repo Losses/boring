@@ -1113,7 +1113,14 @@ class TsExpr {
         final out:Array<String> = [];
         if (sizeHoist)
             out.push(indent(depth) + "const count = " + expr(loop.bound) + ";");
-        out.push(indent(depth) + 'const $arrName: ${elem}[] = new Array<$elem>($allocBound);');
+        // A push fill appends in iteration order, which a skipped iteration
+        // (continue, break, or a guarded push) would desynchronize from an
+        // indexed store; keep the array unallocated and emit push so the
+        // result stays dense.
+        if (!plan.pushFill)
+            out.push(indent(depth) + 'const $arrName: ${elem}[] = new Array<$elem>($allocBound);');
+        else
+            out.push(indent(depth) + 'const $arrName: ${elem}[] = [];');
         out.push(indent(depth)
             + "for (let "
             + name
@@ -1134,7 +1141,7 @@ class TsExpr {
                 case StoreValue(value):
                     out.push(indent(depth + 1) + arrName + "[" + name + "] = " + fillValue(value) + ";");
                 case PushValue(arg):
-                    out.push(indent(depth + 1) + arrName + "[" + name + "] = " + fillValue(arg) + ";");
+                    out.push(indent(depth + 1) + arrName + ".push(" + fillValue(arg) + ");");
             }
         }
         out.push(indent(depth) + "}");
