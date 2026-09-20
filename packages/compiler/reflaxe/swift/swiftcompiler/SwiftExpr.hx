@@ -3232,9 +3232,11 @@ class SwiftExpr {
                     return "(" + s + ".isEmpty ? nil : " + s + ".removeFirst())";
                 }
                 if (name == "unshift" && isUnitArrayTyped(subj)) {
-                    // Haxe unshift returns the new length; Swift insert is Void.
+                    // Haxe Array.unshift returns Void, so the call only
+                    // appears in statement position and Swift insert is
+                    // Void as well.
                     final s = receiverText(subj);
-                    return "({ () -> Int32 in " + s + ".insert(" + expr(args[0]) + ", at: 0); return Int32(" + s + ".count) }())";
+                    return s + ".insert(" + expr(args[0]) + ", at: 0)";
                 }
                 if (name == "insert" && isUnitArrayTyped(subj) && args.length == 2) {
                     // Haxe Array.insert(pos, x): Swift names the position
