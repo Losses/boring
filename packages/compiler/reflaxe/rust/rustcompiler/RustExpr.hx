@@ -752,6 +752,7 @@ class RustExpr {
         unusedLocalIds.clear();
         scanBuilderValueNullability(f.expr);
         scanBranchArmMoves(f.expr);
+        scanUnusedLocals(f.expr);
         scanContinueNullGuards(f.expr);
         scanCursorLocals(f.expr);
         scanLocalFunctionFallibility(f.expr);
@@ -1528,7 +1529,12 @@ class RustExpr {
                 // A reassigned local whose constant initializer is never
                 // read before the first reassignment declares bare: the
                 // later assignments own the storage. (DeadConstantInitElision)
-                final declText = '$kw $name$nullableType = $initStr;';
+                // A never-read binding discards its value: `let _ = expr`
+                // names no variable, so neither the unused warning nor the
+                // mutability warning can fire. (UnusedLocalNaming)
+                final declText = unusedLocalIds.exists(v.id)
+                    ? "let _ = " + initStr + ";"
+                    : '$kw $name$nullableType = $initStr;';
                 // (NonNullSlotUnwrap)
                 if (declText.indexOf(": Option<") >= 0
                     || StringTools.startsWith(initStr, "Some(")
@@ -9522,7 +9528,8 @@ class RustExpr {
                     walk(value);
                     switch (stripWrap(target).expr) {
                         case TLocal(v):
-                            // A reassignment is a write, not a read.
+                            // A reassignment only writes; the read state stays
+                            // whatever the declaration recorded.
                             if (!counts.exists(v.id))
                                 counts.set(v.id, 0);
                         case _:
@@ -9544,11 +9551,13 @@ class RustExpr {
             haxe.macro.TypedExprTools.iter(node, walk);
         }
         walk(root);
-#if boring_fold_debug
-#end
         for (id in counts.keys())
             if (counts.get(id) == 0)
                 unusedLocalIds.set(id, true);
+#if boring_fold_debug
+        if (unusedLocalIds.keys().hasNext())
+            Sys.stderr().writeString("RSCANDUMP n=" + Lambda.count(unusedLocalIds) + "\n");
+#end
     }
 
     /**
