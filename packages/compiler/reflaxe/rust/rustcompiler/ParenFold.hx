@@ -108,10 +108,16 @@ class ParenFold {
                         var k = close + 1;
                         while (k < text.length && text.charAt(k) == " ")
                             k++;
+                        // An assignment right side or block tail with a
+                        // brace-block value reads bare (a match arm keeps
+                        // its brace rejection: the arm body braces are part
+                        // of the match syntax). (ParenFold)
+                        final braceBlockOk = (prev == "=" || prev == ";")
+                            && !hasTopLevelComma(text, i + 1, close);
                         if (!(k < text.length && text.charAt(k) == "(")
                             && !(k < text.length && text.charAt(k) == ".")
-                            && !hasTopLevelComma(text, i + 1, close)
-                            && !StringTools.startsWith(ltrimInner, "{")) {
+                            && (!StringTools.startsWith(ltrimInner, "{") || braceBlockOk)
+                            && !hasTopLevelComma(text, i + 1, close)) {
                             out.add(inner);
                             i = close + 1;
                             onChange();
@@ -205,7 +211,7 @@ class ParenFold {
 
     static function prevSignificant(text:String, at:Int):String {
         var j = at - 1;
-        while (j >= 0 && text.charAt(j) == " ")
+        while (j >= 0 && (text.charAt(j) == " " || text.charAt(j) == "\n" || text.charAt(j) == "\r" || text.charAt(j) == "\t"))
             j--;
         if (j < 0)
             return "";
