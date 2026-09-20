@@ -14,7 +14,7 @@ import RuntimeResidents;
     `string`, so a mutation inside a callee cannot write back through the
     caller's binding. For a function whose StringBuf parameter is mutated,
     the emitter threads the mutated buffer back through the return value:
-    the signature returns `string` (the buffer) instead of `void`, the body
+    the signature returns `string` (the buffer) and the body
     appends `return out;`, and every call site reassigns the argument
     (`out = appendJsonString(out, value)`). This mirrors the mutable
     reference semantics of Kotlin's StringBuilder and Rust's `&mut Vec<u16>`.
