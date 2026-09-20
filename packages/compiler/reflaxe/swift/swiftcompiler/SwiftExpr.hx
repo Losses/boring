@@ -4462,6 +4462,11 @@ class SwiftExpr {
                 case PlainDecl(v, init):
                     out.push(indent(depth) + "let " + localName(v) + " = " + expr(init));
                 case OtherStatement(s, returnValue, _):
+                    // Every side-effect statement renders: an earlier
+                    // assignment demotes to a plain statement so a multi-
+                    // write arm keeps all its writes. (MultiStatementArm)
+                    if (value != null)
+                        out.push(indent(depth) + value);
                     value = returnValue != null ? expr(returnValue) : expr(s);
                 case MissingInit(s):
                     Context.error("swift target: declaration without initializer has no lowering", s.pos);
