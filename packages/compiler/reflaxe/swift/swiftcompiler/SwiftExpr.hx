@@ -1502,6 +1502,7 @@ class SwiftExpr {
                             if (coalescingDefaultThrows(value)) {
                                 return throwingCoalescingText(value, expr(coalescing.valueExpr), coalescing.valueExpr.t);
                             }
+                            emissionTrace("COALESCE_DEFAULT", expr(coalescing.valueExpr));
                             return expr(coalescing.valueExpr) + " ?? " + coalescingDefaultText(value, coalescing.valueExpr.t);
                         }
                     }
@@ -1564,6 +1565,12 @@ class SwiftExpr {
         };
     }
 
+    public static function emissionTrace(tag:String, text:String):Void {
+#if boring_fold_debug
+        Sys.stderr().writeString("KTRACE " + tag + " [" + text + "]\n");
+#end
+    }
+
     function optionalIf(c:TypedExpr, ifTrue:TypedExpr, ifFalse:TypedExpr):Null<String> {
         var target:Null<TypedExpr> = null;
         switch (stripWrap(c).expr) {
@@ -1590,6 +1597,7 @@ class SwiftExpr {
             return null;
         }
         final fallback = trueMatches ? ifFalse : ifTrue;
+        emissionTrace("OPTIONAL_IF", expr(target));
         return expr(target) + " ?? " + expr(fallback);
     }
 
@@ -1680,6 +1688,7 @@ class SwiftExpr {
         if (isNullExpr(fallback)) {
             return expr(getCall);
         }
+        emissionTrace("GUARD_LOOKUP", expr(getCall));
         return expr(getCall) + " ?? " + expr(fallback);
     }
 
