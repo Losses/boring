@@ -275,7 +275,7 @@ class Compiler extends PluginCompiler<Compiler> {
                 continue;
             }
             final decl = contexts.get(module);
-            var body = parts.get(module).join("\n\n");
+            var body = ParenFold.strip(parts.get(module).join("\n\n"));
             final synthetic = syntheticErrorDecls(module);
             if (synthetic.length > 0)
                 body = synthetic + (body.length > 0 ? "\n\n" + body : "");
