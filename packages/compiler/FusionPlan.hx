@@ -103,7 +103,8 @@ class FusionPlan {
             arr: alloc.arr,
             loop: loop,
             steps: steps,
-            readsIndex: readsIndex
+            readsIndex: readsIndex,
+            pushFill: storeValue == null
         };
     }
 
@@ -133,6 +134,8 @@ typedef Plan = {
     arr:TVar,
     loop:LoopInterval,
     steps:Array<FusionStep>,
-    readsIndex:Bool
+    readsIndex:Bool,
+    /** True when the fill appends with push rather than indexed stores. */
+    pushFill:Bool
 };
 #end
