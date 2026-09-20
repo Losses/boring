@@ -1513,7 +1513,14 @@ class SwiftExpr {
                                 return throwingCoalescingText(value, expr(coalescing.valueExpr), coalescing.valueExpr.t);
                             }
                             emissionTrace("COALESCE_DEFAULT", expr(coalescing.valueExpr));
-                            return expr(coalescing.valueExpr) + " ?? " + coalescingDefaultText(value, coalescing.valueExpr.t);
+                            // If the value expression already handles the
+                            // nil case via a ternary, the extra coalescing
+                            // is redundant: the ternary result is always
+                            // non-optional. (RedundantCoalescingSkip)
+                            final valueText = expr(coalescing.valueExpr);
+                            if (StringTools.startsWith(StringTools.ltrim(valueText), "(if ("))
+                                return valueText;
+                            return valueText + " ?? " + coalescingDefaultText(value, coalescing.valueExpr.t);
                         }
                     }
                     return expr(coalescing.valueExpr);
