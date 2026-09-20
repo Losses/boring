@@ -1075,6 +1075,36 @@ class KotlinDecl {
             final elems = DataTableHelper.getDataTableElements(field.expr());
             if (elems != null) {
                 final formatted = [for (x in elems) (x >= 0 && x <= 9) ?Std.string(x):"0x" + StringTools.hex(x).toLowerCase()];
+                // JVM bytecode caps a single method at 64KB. A literal
+                // intArrayOf(...)/listOf(...) (and any single builder
+                // method) over ~9300 elements exceeds it, so an oversized
+                // table must be split. Kotlin merges every object field
+                // initializer into one <clinit>, so splitting into several
+                // fields would not help; instead emit a builder that fills
+                // one IntArray across several chunk methods, each safely
+                // under the limit.
+                final CHUNK = 8000;
+                if (elems.length > CHUNK) {
+                    final name = KotlinNameEscape.escape(field.name);
+                    final typeText = imports.selfResident ? "List<Int>" : "IntArray";
+                    final lines:Array<String> = ['    val $name: $typeText = build$name()'];
+                    lines.push('    private fun build$name(): $typeText {');
+                    lines.push('        val a = IntArray(${elems.length})');
+                    final nChunks = Std.int(Math.ceil(elems.length / CHUNK));
+                    for (c in 0...nChunks)
+                        lines.push('        fill${name}$c(a)');
+                    lines.push('        return ' + (imports.selfResident ? "a.toList()" : "a"));
+                    lines.push('    }');
+                    for (c in 0...nChunks) {
+                        lines.push('    private fun fill${name}$c(a: IntArray) {');
+                        final start = c * CHUNK;
+                        final end = Std.int(Math.min(start + CHUNK, elems.length));
+                        for (i in start...end)
+                            lines.push('        a[$i] = ${formatted[i]}');
+                        lines.push('    }');
+                    }
+                    return lines;
+                }
                 final chunks:Array<String> = [];
                 var i = 0;
                 while (i < formatted.length) {
