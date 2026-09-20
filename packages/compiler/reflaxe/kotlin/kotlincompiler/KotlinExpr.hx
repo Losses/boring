@@ -468,6 +468,7 @@ class KotlinExpr {
         nonNullFields.clear();
         extractedLocals.clear();
         extractedFields.clear();
+        declaredNullableInitLocals.clear();
         enumVariants.clear();
         registerNonNullDefaultParams(cls, f);
         // Fuse declaration-plus-assignment pairs before the mutation scan.
@@ -553,6 +554,7 @@ class KotlinExpr {
         nonNullFields.clear();
         extractedLocals.clear();
         extractedFields.clear();
+        declaredNullableInitLocals.clear();
         enumVariants.clear();
         registerNonNullDefaultParams(cls, f);
         scanLocals(f.expr);
@@ -749,6 +751,8 @@ class KotlinExpr {
                 // use a plain dot. Computed before initText so the proof
                 // state still reflects the scope preceding the binding.
                 final initRendersNullable = rendersNullable(init);
+                if (isNullType(init.t))
+                    declaredNullableInitLocals.set(v.id, true);
                 final extractRenderedNullable = !isNullType(v.t) && !isNullType(init.t) && initRendersNullable;
                 // A local the program treats as always-present (the null-
                 // initialized storage family) whose initializer still
@@ -2007,6 +2011,10 @@ class KotlinExpr {
     // (FunctionScopeExtraction)
     final extractedLocals:Map<Int, Bool> = [];
     final extractedFields:Map<String, Bool> = [];
+    // Locals whose Kotlin declaration infers an optional type: a non-null
+    // Haxe annotation wrapped around a nullable initializer still infers
+    // `T?`, so nil guards on them stay live. (NullableInferredLocal)
+    final declaredNullableInitLocals:Map<Int, Bool> = [];
     function addProofExpr(e:TypedExpr):Void {
         switch (stripWrap(e).expr) {
             case TLocal(v):
@@ -2759,6 +2767,26 @@ class KotlinExpr {
                 final rightFinal = isIntOrLongType(emittedType(r)) && isFloatType(emittedType(l)) ? intToFloatText(rightText) : rightText;
                 return leftFinal + " " + symbolOf(op) + " " + rightFinal;
             case OpAdd | OpSub | OpMult | OpDiv | OpMod | OpEq | OpNotEq:
+                // A null comparison on a subject whose Haxe type carries no
+                // Null wrapper is a constant: the Swift target applies the
+                // same rule. (NonOptionalNilComparison)
+                if (op == OpEq || op == OpNotEq) {
+                    if (isNullExpr(l) || isNullExpr(r)) {
+                        final subject = isNullExpr(l) ? r : l;
+                        // A subject whose Kotlin storage stays optional
+                        // (null-initialized or safe-call-initialized
+                        // locals) keeps a live guard: folding it would
+                        // break the flow narrowing around the read.
+                        // (NonOptionalNilComparison)
+                        final ktNonOptional = !isNullType(subject.t) && !isNullInitialized(subject)
+                            && !(switch (stripWrap(subject).expr) {
+                                case TLocal(v): declaredNullableInitLocals.exists(v.id);
+                                case _: false;
+                            });
+                        if (ktNonOptional)
+                            return op == OpNotEq ? "true" : "false";
+                    }
+                }
                 final leftText = operand(l, op, false);
                 final rightText = operand(r, op, true);
                 final leftFinal = isIntOrLongType(emittedType(l)) && isFloatType(emittedType(r)) ? intToFloatText(leftText) : leftText;
