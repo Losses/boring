@@ -1976,13 +1976,24 @@ class SwiftExpr {
                     return identityOperand(l, op, false) + " " + identity + " " + identityOperand(r, op, true);
                 }
                 final nullSide = isNullConstant(l) || isNullConstant(r);
-                // A subject whose Haxe type carries no Null wrapper never
-                // compares equal to the null literal: Haxe semantics make
-                // the comparison constant, so it lowers as that constant.
-                // (NonOptionalNilComparison)
+                // A subject declared as a plain value type (Int, Float,
+                // Bool) never compares equal to the null literal: the Swift
+                // binding is non-optional and rejects the nil comparison,
+                // so the test lowers as its constant. The declared type
+                // decides: Haxe's typer narrows a nullable parameter or a
+                // null-literal-initialized local to the plain flow type at
+                // the comparison, while the runtime value stays nil and the
+                // Swift binding stays optional, so the narrowed expression
+                // type would fold a live test away. Class and enum subjects
+                // keep the comparison the same way. (NonOptionalNilComparison)
                 if (nullSide) {
                     final subject = isNullConstant(l) ? r : l;
-                    if (!isNullLeafType(subject.t))
+                    final declared = switch (stripWrap(subject).expr) {
+                        case TLocal(v): v.t;
+                        case TField(_, FInstance(_, _, cf)) | TField(_, FAnon(cf)): cf.get().type;
+                        case _: subject.t;
+                    };
+                    if (!isNullLeafType(declared) && isValueSubjectType(declared))
                         return op == OpNotEq ? "true" : "false";
                 }
                 final lOperand = nullSide ? expr(l) : operand(l, op, false, true);
@@ -2052,6 +2063,22 @@ class SwiftExpr {
             case TConst(TNull): true;
             case _: false;
         };
+    }
+
+    /**
+        Whether the subject is a value type in the emitted domain: an Int,
+        Float, or Bool. The Swift binding of these is non-optional and
+        Haxe's null-to-zero bridge keeps their runtime value non-null, so
+        a nil comparison is both rejected by Swift and constant in Haxe.
+        (NonOptionalNilComparison)
+    **/
+    function isValueSubjectType(t:Null<Type>):Bool {
+        if (t == null)
+            return false;
+        return switch (Context.follow(t)) {
+            case TAbstract(a, _): Lambda.exists(["Int", "Float", "Bool"], n -> a.get().name == n);
+            case _: false;
+        }
     }
 
     function realType():String {
