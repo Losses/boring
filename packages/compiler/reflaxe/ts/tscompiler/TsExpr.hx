@@ -1320,10 +1320,21 @@ class TsExpr {
                 final leftEnum = isEnumConstruct(l);
                 final rightEnum = isEnumConstruct(r);
                 if (leftEnum != null && rightEnum == null) {
-                    return expr(r) + ".kind " + sym + ' "${leftEnum.name}"';
+                    final value = expr(r);
+                    // Haxe: null == EnumValue is false; guard the nullable side.
+                    if (PolicyQueries.isNullableType(r.t))
+                        return op == OpEq
+                            ? "(" + value + " !== null && " + value + ".kind === \"" + leftEnum.name + "\")"
+                            : "(" + value + " === null || " + value + ".kind !== \"" + leftEnum.name + "\")";
+                    return value + ".kind " + sym + ' "${leftEnum.name}"';
                 }
                 if (rightEnum != null && leftEnum == null) {
-                    return expr(l) + ".kind " + sym + ' "${rightEnum.name}"';
+                    final value = expr(l);
+                    if (PolicyQueries.isNullableType(l.t))
+                        return op == OpEq
+                            ? "(" + value + " !== null && " + value + ".kind === \"" + rightEnum.name + "\")"
+                            : "(" + value + " === null || " + value + ".kind !== \"" + rightEnum.name + "\")";
+                    return value + ".kind " + sym + ' "${rightEnum.name}"';
                 }
                 return operand(l, op, false) + " " + symbolOf(op) + " " + operand(r, op, true);
             case _:
