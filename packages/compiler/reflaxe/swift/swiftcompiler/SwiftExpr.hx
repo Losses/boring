@@ -122,6 +122,14 @@ class SwiftExpr {
     // declarations take the underscore name Swift treats as intentionally
     // unused. (UnusedLocalNaming)
     final swiftUnusedLocals:Map<Int, Bool> = [];
+    // Declarations the typer shares with a later for binding: the loop
+    // re-initializes the var and every read sits inside the loop, so the
+    // declaration line drops. (ForSharedBindingDeclaration)
+    final swiftShadowedLocals:Map<Int, Bool> = [];
+    // Locals whose declaration renders an optional annotation (a Null
+    // wrapper or a null-literal initializer): their reads compare against
+    // nil live. (NonOptionalNilComparison)
+    final optionalBindingLocals:Map<Int, Bool> = [];
 
     /** Local function bodies by variable id, for call-site fallibility. */
     final localFunctions:Map<Int, TypedExpr> = [];
@@ -696,8 +704,10 @@ class SwiftExpr {
                 };
                 final optionalNullAnnotation = nullLiteralInit && coalescing == null && !isNullLeafType(localType);
                 final hasTypeAnnotation = localDeclarationNeedsTypeAnnotation(v.t, init, coalescing != null) || optionalNullAnnotation;
-                if (hasTypeAnnotation && (isNullLeafType(localType) || optionalNullAnnotation))
+                if (hasTypeAnnotation && (isNullLeafType(localType) || optionalNullAnnotation)) {
+                    optionalBindingLocals.set(v.id, true);
                     optionalAnnotated.set(v.id, true);
+                }
                 final annotation = hasTypeAnnotation ? ": " + (optionalNullAnnotation ? types.of(localType) + "?" : types.of(localType)) : "";
                 final unwrapNullableInitializer = isNullLeafType(init.t) && coalescing == null && !isNullLeafType(v.t) && hasTypeAnnotation
                     && !optionalNullAnnotation;
@@ -718,6 +728,8 @@ class SwiftExpr {
                     initText = intToFloatText(initText);
                 if (unwrapNullableInitializer && !StringTools.endsWith(initText, "!"))
                     initText += "!";
+                if (swiftShadowedLocals.exists(v.id))
+                    return [];
                 if (swiftUnusedLocals.exists(v.id))
                     return [indent(depth) + "_ = " + tryKw + initText];
                 return [indent(depth) + '$kw ${localName(v)}$annotation = $tryKw$initText'];
@@ -792,7 +804,17 @@ class SwiftExpr {
             case TUnop(OpDecrement, _, subj):
                 return [indent(depth) + expr(subj) + " -= 1"];
             case TBinop(OpAssign, l, r):
-                final tryKw = containsThrowingCall(r) ? "try " : "";
+                // A sanctioned coalescing conditional renders as its value
+                // read alone: the throwing default was hoisted into the
+                // normalization binding, so the AST-level throw never
+                // reaches the rendered statement and the marker must drop
+                // with it. Every other AST throw keeps its marker.
+                // (CoalescedThrowHoisted)
+                final hoisted = switch (stripWrap(r).expr) {
+                    case TIf(_, _, _): coalescingSiteFor(r) != null;
+                    case _: false;
+                };
+                final tryKw = !hoisted && containsThrowingCall(r) ? "try " : "";
                 final map = mapAssignment(l);
                 final target = map == null ? assignTarget(l) + " = " : expr(map.receiver) + "[" + expr(map.key) + "] = ";
                 return [indent(depth) + target + tryKw + assignmentValue(l, r)];
@@ -1976,16 +1998,13 @@ class SwiftExpr {
                     return identityOperand(l, op, false) + " " + identity + " " + identityOperand(r, op, true);
                 }
                 final nullSide = isNullConstant(l) || isNullConstant(r);
-                // A subject declared as a plain value type (Int, Float,
-                // Bool) never compares equal to the null literal: the Swift
-                // binding is non-optional and rejects the nil comparison,
-                // so the test lowers as its constant. The declared type
-                // decides: Haxe's typer narrows a nullable parameter or a
-                // null-literal-initialized local to the plain flow type at
-                // the comparison, while the runtime value stays nil and the
-                // Swift binding stays optional, so the narrowed expression
-                // type would fold a live test away. Class and enum subjects
-                // keep the comparison the same way. (NonOptionalNilComparison)
+                // A subject whose emitted binding is non-optional never
+                // compares equal to the null literal: Swift rejects the
+                // comparison outright, so the test lowers as its constant.
+                // A Null wrapper or a null-literal-initialized binding keeps
+                // the optional form and the comparison stays live: Haxe's
+                // typer narrows the flow type at the comparison, but the
+                // runtime value stays nil. (NonOptionalNilComparison)
                 if (nullSide) {
                     final subject = isNullConstant(l) ? r : l;
                     final declared = switch (stripWrap(subject).expr) {
@@ -1993,7 +2012,11 @@ class SwiftExpr {
                         case TField(_, FInstance(_, _, cf)) | TField(_, FAnon(cf)): cf.get().type;
                         case _: subject.t;
                     };
-                    if (!isNullLeafType(declared) && isValueSubjectType(declared))
+                    final optionalBinding = switch (stripWrap(subject).expr) {
+                        case TLocal(v): optionalBindingLocals.exists(v.id);
+                        case _: false;
+                    };
+                    if (!isNullLeafType(declared) && !optionalBinding)
                         return op == OpNotEq ? "true" : "false";
                 }
                 final lOperand = nullSide ? expr(l) : operand(l, op, false, true);
@@ -2063,22 +2086,6 @@ class SwiftExpr {
             case TConst(TNull): true;
             case _: false;
         };
-    }
-
-    /**
-        Whether the subject is a value type in the emitted domain: an Int,
-        Float, or Bool. The Swift binding of these is non-optional and
-        Haxe's null-to-zero bridge keeps their runtime value non-null, so
-        a nil comparison is both rejected by Swift and constant in Haxe.
-        (NonOptionalNilComparison)
-    **/
-    function isValueSubjectType(t:Null<Type>):Bool {
-        if (t == null)
-            return false;
-        return switch (Context.follow(t)) {
-            case TAbstract(a, _): Lambda.exists(["Int", "Float", "Bool"], n -> a.get().name == n);
-            case _: false;
-        }
     }
 
     function realType():String {
@@ -4911,6 +4918,7 @@ class SwiftExpr {
         (UnusedLocalNaming) */
     public function scanUnusedLocals(e:TypedExpr, ?debugOwner:String):Void {
         swiftUnusedLocals.clear();
+        swiftShadowedLocals.clear();
         final declNames:Map<Int, String> = [];
         final readCounts:Map<Int, Int> = [];
         function countReads(node:TypedExpr):Void {
@@ -4930,10 +4938,59 @@ class SwiftExpr {
         for (id in readCounts.keys())
             if (readCounts.get(id) == 0)
                 swiftUnusedLocals.set(id, true);
+        // A declaration the typer shares with a counted loop's index rebinds
+        // the same var: the interval machinery re-emits the loop as
+        // `for index in stride(...)`, which declares its own binding, so
+        // every read of the index or counter var inside the claimed loop is
+        // a read of the rebound binding, never of the declaration. When a
+        // var's every read sits in such loops, Swift reads the declaration
+        // as shadowed dead code and the line drops.
+        // (ForSharedBindingDeclaration)
+        final boundIds:Map<Int, Int> = [];
+        final readsInBound:Map<Int, Int> = [];
+        function countId(node:TypedExpr, a:Int, b:Int):Void {
+            switch (node.expr) {
+                case TLocal(v) if (v.id == a || v.id == b):
+                    readsInBound.set(v.id, (readsInBound.exists(v.id) ? readsInBound.get(v.id) : 0) + 1);
+                case _:
+                    haxe.macro.TypedExprTools.iter(node, child -> countId(child, a, b));
+            }
+        }
+        function scanBound(node:TypedExpr):Void {
+            final loop = matchInterval(node);
+            if (loop != null) {
+                boundIds.set(loop.index.id, (boundIds.exists(loop.index.id) ? boundIds.get(loop.index.id) : 0) + 1);
+                countId(node, loop.index.id, loop.counter.id);
+                for (b in loop.body)
+                    scanBound(b);
+                return;
+            }
+            switch (node.expr) {
+                case TBlock(stmts):
+                    // The counted-loop pattern reaches recognition only after
+                    // regroupLoops reassembles it, so blocks scan in the same
+                    // regrouped form blockLines renders. regroupLoops wraps a
+                    // matched group in a synthetic block; matchInterval claims
+                    // that block here so it never regroups again.
+                    for (s in regroupLoops(stmts))
+                        scanBound(s);
+                case _:
+                    haxe.macro.TypedExprTools.iter(node, scanBound);
+            }
+        }
+        scanBound(e);
+        for (id in boundIds.keys()) {
+            final total = readCounts.exists(id) ? readCounts.get(id) : 0;
+            final inside = readsInBound.exists(id) ? readsInBound.get(id) : 0;
+            if (total > 0 && total == inside)
+                swiftShadowedLocals.set(id, true);
+        }
 #if boring_fold_debug
         if (debugOwner != null)
-            for (id in readCounts.keys())
-                Sys.stderr().writeString("SCANDUMP " + debugOwner + " id=" + id + " name=" + declNames.get(id) + " reads=" + readCounts.get(id) + "\n");
+            for (id in boundIds.keys())
+                Sys.stderr().writeString("SHAREDUMP " + debugOwner + " id=" + id + " forcount=" + boundIds.get(id)
+                    + " total=" + (readCounts.exists(id) ? readCounts.get(id) : 0)
+                    + " inside=" + (readsInBound.exists(id) ? readsInBound.get(id) : 0) + "\n");
 #end
     }
 
@@ -5119,6 +5176,8 @@ class SwiftExpr {
     function beginLocalScope():Void {
         localDeclIds.clear();
         swiftUnusedLocals.clear();
+        swiftShadowedLocals.clear();
+        optionalBindingLocals.clear();
         assignedLocalNames.clear();
         localFunctions.clear();
         localFunctionThrows.clear();
