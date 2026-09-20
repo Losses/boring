@@ -4864,9 +4864,9 @@ class SwiftExpr {
     // Local analysis
     // ------------------------------------------------------------------
 
-    /** Entry-level pass: a local whose id the full method body never
-        reads takes the underscore name Swift treats as intentionally
-        unused. Runs once per method, outside scanLocals' recursion.
+    /** A pass over the full method body: a local whose id it never reads
+        takes the underscore name Swift treats as intentionally unused.
+        Runs once per method, outside scanLocals' recursion.
         (UnusedLocalNaming) */
     function scanUnusedLocals(e:TypedExpr):Void {
         swiftUnusedLocals.clear();
