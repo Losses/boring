@@ -1814,7 +1814,10 @@ class DartExpr {
                 PolicyQueries.isNullableType(ownerField.get().type);
             case _: false;
         };
-        if (nullableSubject && !PolicyQueries.isNullableType(fieldType)) {
+        if (nullableSubject && !PolicyQueries.isNullableType(fieldType) && !provenNonNull(subj)) {
+            // A null guard on the subject promotes it for the whole guarded
+            // block; Dart reads the promoted local bare and reports a `!` on
+            // it as having no effect. (GuardPromotedReceiverUnwrap)
             final base = expr(subj);
             return switch (stripWrap(subj).expr) {
                 case TLocal(_): base + "!";
@@ -1959,13 +1962,26 @@ class DartExpr {
         argument as rendered.
     **/
     function requiredValueText(e:TypedExpr):String {
-        if (!nullableValue(e) || provenNonNull(e))
+        if (!nullableValue(e) || provenNonNull(e) || coalescingYieldsNonNull(e))
             return expr(e);
         final text = expr(e);
         return switch (stripWrap(e).expr) {
             case TLocal(_): text + "!";
             case _: "(" + text + ")!";
         };
+    }
+
+    /**
+        A registered coalescing value whose fallback side is non-null
+        yields a non-null value: the rendered `param ?? default` reads as
+        non-null in Dart's own flow whenever `default` is, so an unwrap
+        after the coalescing reports no effect. Unregistered ternaries
+        keep their unwrap: a has-guarded branch is provable only in Haxe,
+        not in Dart flow. (CoalescingNonNullFlow)
+    **/
+    function coalescingYieldsNonNull(e:TypedExpr):Bool {
+        final coalescing = coalescingSiteFor(e);
+        return coalescing != null && !PolicyQueries.isNullableType(coalescing.defaultExpr.t);
     }
 
     /** Whether an emitted expression can still contain a nullable value even
