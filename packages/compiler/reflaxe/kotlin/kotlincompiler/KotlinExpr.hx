@@ -1325,25 +1325,48 @@ class KotlinExpr {
         }
 
         final arrName = localName(plan.arr);
-        final boundStr = loopBound(plan.loop.bound);
         final out:Array<String> = [];
-        out.push(indent(depth) + "val " + arrName + " = Array(" + boundStr + ") { " + localName(plan.loop.index) + " ->");
-        for (step in plan.steps) {
-            switch (step) {
-                case NonStoreBatch(batch):
-                    for (l in blockLines(batch, depth + 1))
-                        out.push(l);
-                case StoreValue(value):
-                    out.push(indent(depth + 1) + expr(value));
-                case PushValue(arg):
-                    out.push(indent(depth + 1) + expr(arg));
+        if (plan.pushFill) {
+            // A push fill appends in iteration order, which a skipped
+            // iteration (continue, break, or a guarded push) would
+            // desynchronize from an indexed store; keep the list
+            // unallocated and emit add so the result stays dense.
+            out.push(indent(depth) + "val " + arrName + " = mutableListOf<" + types.of(alloc.elem) + ">()");
+            out.push(indent(depth) + "for (" + localName(plan.loop.index) + " in " + expr(plan.loop.start) + " until " + loopBound(plan.loop.bound) + ") {");
+            for (step in plan.steps) {
+                switch (step) {
+                    case NonStoreBatch(batch):
+                        for (l in blockLines(batch, depth + 1))
+                            out.push(l);
+                    case StoreValue(value):
+                        out.push(indent(depth + 1) + arrName + ".add(" + expr(value) + ")");
+                    case PushValue(arg):
+                        out.push(indent(depth + 1) + arrName + ".add(" + expr(arg) + ")");
+                }
             }
-        }
-        if (decodeBoundary) {
             out.push(indent(depth) + "}");
-            asListReturn.set(plan.arr.id, "asList()");
+            if (decodeBoundary)
+                asListReturn.set(plan.arr.id, "asList()");
         } else {
-            out.push(indent(depth) + "}.toMutableList()");
+            final boundStr = loopBound(plan.loop.bound);
+            out.push(indent(depth) + "val " + arrName + " = Array(" + boundStr + ") { " + localName(plan.loop.index) + " ->");
+            for (step in plan.steps) {
+                switch (step) {
+                    case NonStoreBatch(batch):
+                        for (l in blockLines(batch, depth + 1))
+                            out.push(l);
+                    case StoreValue(value):
+                        out.push(indent(depth + 1) + expr(value));
+                    case PushValue(arg):
+                        out.push(indent(depth + 1) + expr(arg));
+                }
+            }
+            if (decodeBoundary) {
+                out.push(indent(depth) + "}");
+                asListReturn.set(plan.arr.id, "asList()");
+            } else {
+                out.push(indent(depth) + "}.toMutableList()");
+            }
         }
         return out;
     }
