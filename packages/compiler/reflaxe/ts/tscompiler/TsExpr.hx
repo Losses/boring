@@ -1428,7 +1428,7 @@ class TsExpr {
             case TBinop(op, _, _):
                 final cp = precedenceOf(op);
                 final pp = precedenceOf(parent);
-                var parens = cp < pp || (cp == pp && isRight && !associative(op));
+                var parens = cp < pp || (cp == pp && isRight && !(op == parent && associative(op)));
                 if (!parens && isShift(op) && isBitwiseLogical(parent)) {
                     // Style: keep shift operands parenthesized under
                     // bitwise-logical operators, matching the hand-written tree.
