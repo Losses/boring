@@ -1481,11 +1481,18 @@ class KotlinExpr {
             case TIf(c, t, f) if (f != null):
                 final coalescing = coalescingSiteFor(e);
                 if (coalescing != null) {
-                    if (currentLocalName != null && currentClass != null && currentField != null) {
+                    // `x ?: null` equals x for every value: a null default
+                    // adds no branch, so the fold is the plain value.
+                    // (NullDefaultIdentityFold)
+                    final identityNull = isNullLiteral(coalescing.defaultExpr)
+                        || (StringTools.trim(expr(coalescing.defaultExpr)) == "null");
+                    if (currentLocalName != null && currentClass != null && currentField != null && !identityNull) {
                         final value = DefaultArgExpander.coalescingDefaultForLocalParam(currentClass, currentField, currentLocalName, coalescing.parameter);
                         if (value != null)
                             return expr(coalescing.valueExpr) + " ?: " + coalescingDefaultText(value, coalescing.valueExpr.t);
                     }
+                    if (identityNull)
+                        return expr(coalescing.valueExpr);
                     if (DefaultArgExpander.isNormalizationSource(coalescing.defaultExpr.pos))
                         return expr(coalescing.valueExpr) + " ?: " + expr(coalescing.defaultExpr);
                     return expr(coalescing.valueExpr);
@@ -4035,6 +4042,10 @@ class KotlinExpr {
             // always read the left side. (IfExpressionCoversNull)
             if (StringTools.startsWith(text, "if ("))
                 return text;
+            // A null default is an identity: `x ?: null` equals x for
+            // every value, so the wrap only warns. (NullDefaultIdentityFold)
+            if (StringTools.trim(defaultArgText(registered, expected)) == "null")
+                return text;
             return "(" + text + " ?: " + defaultArgText(registered, expected) + ")";
         } else if (!allowNullable && expected != null && !isNullType(expected) && requiresNonNullCallArgument(a, text)) {
             if (!isNullInitialized(a))
@@ -4081,6 +4092,9 @@ class KotlinExpr {
                 } else if (registered != null && expected != null && requiresNonNullCallArgument(a, text)) {
                     if (StringTools.startsWith(text, "if ("))
                         text;
+                    else if (StringTools.trim(constructorDefaultText(registered, expected, cls, args)) == "null")
+                        // A null default is an identity. (NullDefaultIdentityFold)
+                        text;
                     else
                         "(" + text + " ?: " + constructorDefaultText(registered, expected, cls, args) + ")";
                 } else if (expected != null && !isNullType(expected) && requiresNonNullCallArgument(a, text)) {
@@ -4119,6 +4133,10 @@ class KotlinExpr {
         // extraction. (NonNullArgumentExtraction)
         if (isNullLiteral(e))
             return false;
+        // The rendered Kotlin type is the authority on optionality: an
+        // argument whose type renders without `?` is already non-nullable
+        // at this boundary. (NonNullArgumentExtraction)
+
         // Only a val-like local smart-casts in Kotlin: a mutable property
         // or a reassigned binding keeps its extraction even when the
         // program's control flow proves the value present.
