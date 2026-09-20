@@ -758,7 +758,7 @@ class KotlinExpr {
                 // initialized storage family) whose initializer still
                 // renders through a safe call extracts once at the
                 // declaration: later accesses then read through a plain
-                // dot instead of repeating the assertion.
+                // dot, and the assertion stops repeating.
                 // (NullInitDeclaredExtraction)
                 final nullInitExtract = initRendersNullable && !isNullLiteral(init) && !mutated.exists(v.id);
                 if (initRendersNullable && !extractsAtDecl && !extractRenderedNullable && !nullInitExtract)
