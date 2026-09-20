@@ -24,6 +24,13 @@ class TypeCheckHelper {
 
     /** A non-null result means the value's static type decides the check. */
     public static function knownIsOfType(value:TypedExpr, target:ClassType):Null<Bool> {
+        // Haxe semantics: Std.isOfType(null, T) is false. A nullable static type
+        // (or a literal null) can hold null at runtime, so the static type cannot
+        // decide the check; return null to force a runtime instanceof check
+        // (null instanceof T is false in the emitted target).
+        if (ExpressionPredicates.isNullExpr(value) || PolicyQueries.isNullableType(value.t)) {
+            return null;
+        }
         final actual = classOfType(value.t);
         if (actual == null || (actual.isInterface && !target.isInterface)) {
             return null;
