@@ -202,7 +202,7 @@ class RustImports {
 
     /**
         Merges consecutive underscores into one. Synthetic bindings that
-        prefix a snake-cased name reach this collapse at construction so
+        prefix a snake-cased name apply the merge at construction so
         every render path emits the identical identifier.
     **/
     public static function collapseUnderscores(name:String):String {
