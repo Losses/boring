@@ -279,7 +279,7 @@ class ParenFold {
 
     /** Highest precedence among top-level operators in `text`. A cast
         target follows the last top-level ` as `; its angle brackets are
-        type syntax, not comparisons. (OperatorPrecedenceGuard) */
+        type syntax and carry no comparison. (OperatorPrecedenceGuard) */
     static function tightestTopLevelPrecedence(text:String):Int {
         var depth = 0;
         var inString = false;
