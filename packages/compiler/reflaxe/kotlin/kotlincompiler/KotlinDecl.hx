@@ -1242,6 +1242,32 @@ class KotlinDecl {
 
     function funcDecl(cls:ClassType, f:ClassFuncData, isObject:Bool):Array<String> {
         expr.resetLocalNames();
+        // An override adopts the interface's parameter names: Kotlin's
+        // supertype-name warning fires when the two differ.
+        // (OverrideAdoptsInterfaceNames)
+        if (isInterfaceMethod(cls, f)) {
+            for (ifaceRef in cls.interfaces) {
+                final iface = ifaceRef.t.get();
+                var ifaceMethod:haxe.macro.Type.ClassField = null;
+                for (field in iface.fields.get())
+                    if (field.name == f.field.name)
+                        ifaceMethod = field;
+                if (ifaceMethod == null)
+                    continue;
+                final ifaceArgs = switch (Context.follow(ifaceMethod.type)) {
+                    case TFun(iargs, _): iargs;
+                    case _: [];
+                };
+                for (i in 0...f.args.length) {
+                    if (i < ifaceArgs.length) {
+                        final a = f.args[i];
+                        if (a.tvar != null && ifaceArgs[i].name != a.name)
+                            expr.adoptParamName(a.tvar, ifaceArgs[i].name);
+                    }
+                }
+                break;
+            }
+        }
         for (a in f.args) {
             expr.reserveName(a.name);
         }
