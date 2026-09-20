@@ -3164,16 +3164,23 @@ class TsExpr {
         final table = enumTable(se);
         final out = [indent(depth) + "switch (" + subjRendered + ".kind) {"];
         for (c in switchParts.cases) {
-            final index = switch (c.values[0].expr) {
-                case TConst(TInt(v)): v;
-                case _: return fail(sw, "variant switch case is not a constant index");
-            }
-            final info = table.get(index);
-            if (info == null) {
-                return fail(sw, "variant switch case index has no construct");
-            }
-            out.push(indent(depth) + '  case "${info.name}":');
-            pushNarrowedVariant(se, info.name);
+            // A Haxe switch arm may list several patterns with `|`; the typed
+            // AST keeps them in one case entry. Emit one `case` label per
+            // pattern, sharing the single arm body across them.
+            final names = [for (v in c.values) {
+                final index = switch (v.expr) {
+                    case TConst(TInt(v)): v;
+                    case _: return fail(sw, "variant switch case is not a constant index");
+                }
+                final info = table.get(index);
+                if (info == null) {
+                    return fail(sw, "variant switch case index has no construct");
+                }
+                info.name;
+            }];
+            for (name in names)
+                out.push(indent(depth) + '  case "${name}":');
+            pushNarrowedVariant(se, names[0]);
             if (armHasDeclarations(c.expr)) {
                 out.push(indent(depth + 1) + "{");
                 for (l in armLines(c.expr, depth + 2))
