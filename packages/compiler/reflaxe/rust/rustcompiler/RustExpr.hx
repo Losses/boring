@@ -955,7 +955,10 @@ class RustExpr {
             final snake = RustImports.toSnakeCase(fieldName);
             for (a in f.args)
                 if (RustImports.toSnakeCase(a.name) == snake)
-                    return "__field_" + snake;
+                    // Declarations, branch writes, and the tail Self literal
+                    // render this slot through different paths; collapsing
+                    // here keeps all three on one identifier.
+                    return RustImports.collapseUnderscores("__field_" + snake);
             return snake;
         }
         for (fieldName in branchAssignedFields.keys()) {
