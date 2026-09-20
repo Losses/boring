@@ -191,6 +191,19 @@ class RustImports {
         ].join("");
     }
 
+    /**
+        Merges consecutive underscores into one. Synthetic bindings that
+        prefix a snake-cased name reach this collapse at construction so
+        every render path emits the identical identifier.
+    **/
+    public static function collapseUnderscores(name:String):String {
+        var out = name;
+        while (out.indexOf("__") >= 0) {
+            out = StringTools.replace(out, "__", "_");
+        }
+        return out;
+    }
+
     public static function toSnakeCase(s:String):String {
         var name = rawSnakeCase(s);
         // A Haxe field can have a punctuation-only name. Never pass an empty
@@ -204,9 +217,7 @@ class RustImports {
         }
         // Merge consecutive underscores: they trigger the non-snake-case
         // lint on the generated method and function names.
-        while (name.indexOf("__") >= 0) {
-            name = StringTools.replace(name, "__", "_");
-        }
+        name = collapseUnderscores(name);
         return RUST_KEYWORDS.exists(name) ? "r#" + name : name;
     }
 
