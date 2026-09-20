@@ -101,7 +101,7 @@ class ParenFold {
                     // Assignment right side, match arm body, and block tail
                     // read bare the same way. (ParenFold)
                     final isMatchArm = prev == "=>";
-                    final positional = prev == "=" || prev == ";" || isMatchArm;
+                    final positional = prev == "=" || prev == ";" || prev == "{" || isMatchArm;
                     if (positional) {
                         final inner = text.substr(i + 1, close - i - 1);
                         final ltrimInner = StringTools.ltrim(inner);
@@ -112,7 +112,7 @@ class ParenFold {
                         // brace-block value reads bare (a match arm keeps
                         // its brace rejection: the arm body braces are part
                         // of the match syntax). (ParenFold)
-                        final braceBlockOk = (prev == "=" || prev == ";")
+                        final braceBlockOk = (prev == "=" || prev == ";" || prev == "{")
                             && !hasTopLevelComma(text, i + 1, close);
                         if (!(k < text.length && text.charAt(k) == "(")
                             && !(k < text.length && text.charAt(k) == ".")
