@@ -468,10 +468,8 @@ class KotlinExpr {
         nonNullFields.clear();
         extractedLocals.clear();
         extractedFields.clear();
-        closureCapturedLocals.clear();
         enumVariants.clear();
         registerNonNullDefaultParams(cls, f);
-        scanClosureCaptures(f.expr);
         // Fuse declaration-plus-assignment pairs before the mutation scan.
         // The typer lowers abstract-inline receiver bindings as `TVar(v,
         // null)` followed by an assignment; the fused initializer is the
@@ -555,10 +553,8 @@ class KotlinExpr {
         nonNullFields.clear();
         extractedLocals.clear();
         extractedFields.clear();
-        closureCapturedLocals.clear();
         enumVariants.clear();
         registerNonNullDefaultParams(cls, f);
-        scanClosureCaptures(f.expr);
         scanLocals(f.expr);
         final out:Array<String> = [];
         final assigned:Array<String> = [];
@@ -2011,35 +2007,11 @@ class KotlinExpr {
     // (FunctionScopeExtraction)
     final extractedLocals:Map<Int, Bool> = [];
     final extractedFields:Map<String, Bool> = [];
-    // Locals any nested function body mentions: Kotlin refuses the `!!`
-    // smart cast for a closure-captured mutable binding, so the record
-    // must never exempt them. (FunctionScopeExtraction)
-    final closureCapturedLocals:Map<Int, Bool> = [];
-
-    function scanClosureCaptures(root:TypedExpr):Void {
-        function walk(node:TypedExpr, insideFunction:Bool):Void {
-            switch (node.expr) {
-                case TLocal(v):
-                    if (insideFunction)
-                        closureCapturedLocals.set(v.id, true);
-                case TFunction(nf):
-                    if (nf.expr != null)
-                        haxe.macro.TypedExprTools.iter(nf.expr, function(child:TypedExpr):Void {
-                            walk(child, true);
-                        });
-                    return;
-                case _:
-            }
-            haxe.macro.TypedExprTools.iter(node, walk.bind(_, insideFunction));
-        }
-        walk(root, false);
-    }
-
     function addProofExpr(e:TypedExpr):Void {
         switch (stripWrap(e).expr) {
             case TLocal(v):
                 nonNullLocals.set(v.id, true);
-                if (!mutated.exists(v.id) && !closureCapturedLocals.exists(v.id))
+                if (!mutated.exists(v.id))
                     extractedLocals.set(v.id, true);
             case TField(_, _):
                 final key = fieldAccessKey(e);
@@ -2266,7 +2238,17 @@ class KotlinExpr {
         };
         if (renderedNullableLocal && !provenNonNull(subj) && !guardProofBefore(subj))
             return "?.";
-        if (isNullInitialized(subj)) {
+        // The flow proof wins over the storage shape: a subject the
+        // guards already proved present reads through a plain dot even
+        // when its declaration is null-initialized.
+        // (NullInitRespectsProof)
+        // A closure-mutated local never smart-casts: its extraction stays
+        // even when the guards prove it present. (NullInitRespectsProof)
+        final stableSubject = switch (stripWrap(subj).expr) {
+            case TLocal(v): !mutated.exists(v.id);
+            case _: false;
+        };
+        if (isNullInitialized(subj) && !(stableSubject && (provenNonNull(subj) || guardProofBefore(subj)))) {
 #if boring_fold_debug
             emissionTrace("ACCESS_NULLINIT", expr(subj), subj.pos);
 #end
