@@ -63,7 +63,7 @@ class Compiler extends PluginCompiler<Compiler> {
             }
             wrapped.push(rest);
         }
-        return wrapped.join("\n");
+        return ParenFold.strip(wrapped.join("\n"));
     }
 
 
@@ -821,8 +821,8 @@ class Compiler extends PluginCompiler<Compiler> {
         if (moduleParts == null || moduleParts.length == 0) {
             return;
         }
-        final imports = decl.renderImports();
         final body = moduleParts.join("\n\n");
+        final imports = decl.renderImportsFiltered(body);
         final fileName = RustImports.toSnakeCase(moduleLeafName(module)) + ".rs";
         // runtime.UString carries the business ABI adapters beside the
         // compiled class: business callers reach the u32 free functions,

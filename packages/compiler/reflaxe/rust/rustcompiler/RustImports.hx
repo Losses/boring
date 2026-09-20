@@ -107,17 +107,53 @@ class RustImports {
         items.sort(Reflect.compare);
         final lines = [];
         for (imp in items) {
-            if (StringTools.startsWith(imp, "crate::runtime::sorted_table::")) {
-                final symbol = imp.substr(imp.lastIndexOf("::") + 2);
-                if (body.indexOf(symbol) < 0)
-                    continue;
+            // An import stays only when the body names its symbol: a
+            // required type whose mentions all lowered away would emit an
+            // unused use line. Macro-borne trait imports stay
+            // unfiltered: write! resolves fmt::Write without naming it.
+            // (BodyGroundedImports)
+            if (imp == "std::fmt::Write" || imp == "std::io::Write") {
+                lines.push("use " + imp + ";");
+                continue;
             }
+            final symbol = imp.substr(imp.lastIndexOf("::") + 2);
+            if (!bodyNamesSymbol(body, symbol))
+                continue;
             lines.push("use " + imp + ";");
         }
         if (lines.length == 0) {
             return "";
         }
         return lines.join("\n") + "\n\n";
+    }
+
+    /** Whether the body names the symbol outside string literals: a
+        mention inside generated text alone does not ground an import.
+        (BodyGroundedImports) */
+    static function bodyNamesSymbol(body:String, symbol:String):Bool {
+        var inString = false;
+        var i = 0;
+        while (i <= body.length - symbol.length) {
+            final c = body.charAt(i);
+            if (inString) {
+                if (c == "\\") {
+                    i++;
+                } else if (c == "\"") {
+                    inString = false;
+                }
+                i++;
+                continue;
+            }
+            if (c == "\"") {
+                inString = true;
+                i++;
+                continue;
+            }
+            if (body.substr(i, symbol.length) == symbol)
+                return true;
+            i++;
+        }
+        return false;
     }
 
     public static function moduleToRustPath(module:String):String {
