@@ -1939,6 +1939,15 @@ class SwiftExpr {
                     return identityOperand(l, op, false) + " " + identity + " " + identityOperand(r, op, true);
                 }
                 final nullSide = isNullConstant(l) || isNullConstant(r);
+                // A subject whose Haxe type carries no Null wrapper never
+                // compares equal to the null literal: Haxe semantics make
+                // the comparison constant, so it lowers as that constant.
+                // (NonOptionalNilComparison)
+                if (nullSide) {
+                    final subject = isNullConstant(l) ? r : l;
+                    if (!isNullLeafType(subject.t))
+                        return op == OpNotEq ? "true" : "false";
+                }
                 final lOperand = nullSide ? expr(l) : operand(l, op, false, true);
                 final rOperand = nullSide ? expr(r) : operand(r, op, true, true);
                 final lFinal = isIntType(emittedType(l)) && isFloatTyped(r) ? intToFloatText(lOperand) : lOperand;
