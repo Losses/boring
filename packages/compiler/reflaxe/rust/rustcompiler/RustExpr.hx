@@ -5193,6 +5193,7 @@ class RustExpr {
     **/
     function armBlock(e:TypedExpr, numericTarget:Null<String> = null, resultType:Null<Type> = null):Array<String> {
         final decls:Array<String> = [];
+        final sideStmts:Array<String> = [];
         var value:Null<String> = null;
         var sawReturn = false;
         function walk(stmts:Array<TypedExpr>) {
@@ -5220,6 +5221,15 @@ class RustExpr {
                     case TReturn(_):
                         sawReturn = true;
                     case _:
+                        // Every side-effect statement renders: an earlier
+                        // assignment demotes to a plain statement so a
+                        // multi-write arm keeps all its writes.
+                        // (MultiStatementArm)
+                        if (value != null) {
+                            // A non-final statement in a block needs its
+                            // terminator. (MultiStatementArm)
+                            sideStmts.push(StringTools.endsWith(value, ";") ? value : value + ";");
+                        }
                         value = expr(s);
                         if (isStringType(e.t) && isStringLiteral(s))
                             value = value + ".to_string()";
@@ -5244,12 +5254,15 @@ class RustExpr {
             if (!isTNull(e) && !isNullType(e.t) && !StaticFieldHelper.isNullableType(e.t))
                 valueText = "Some(" + valueText + ")";
         }
-        if (decls.length == 0) {
+        if (sideStmts.length == 0 && decls.length == 0) {
             return [valueText];
         }
         final out = ["{"];
         for (d in decls) {
             out.push("    " + d);
+        }
+        for (st in sideStmts) {
+            out.push("    " + st);
         }
         out.push("    " + valueText);
         out.push("}");

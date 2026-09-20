@@ -701,6 +701,10 @@ class KotlinExpr {
                 return stringBufToStringBindingLines(v, stripWrap(init), depth);
             case TVar(v, init) if (init != null):
                 final kw = mutated.exists(v.id) ? "var" : "val";
+#if boring_fold_debug
+                if (mutated.exists(v.id))
+                    emissionTrace("MUTDECL", localName(v), Context.currentPos());
+#end
                 switch (stripWrap(init).expr) {
                     case TLocal(origV) if (asListReturn.exists(origV.id)):
                         asListReturn.set(v.id, asListReturn.get(origV.id));
@@ -1753,6 +1757,7 @@ class KotlinExpr {
     **/
     function armLines(e:TypedExpr, switchType:Null<Type>):Array<String> {
         final decls:Array<String> = [];
+        final sideStmts:Array<String> = [];
         var value:Null<String> = null;
         var valueExpr:Null<TypedExpr> = null;
         for (step in PolicyQueries.variantArmPlan(e)) {
@@ -1768,6 +1773,11 @@ class KotlinExpr {
                 case PlainDecl(v, init):
                     decls.push("val " + localName(v) + " = " + expr(init));
                 case OtherStatement(s, _, _):
+                    // Every side-effect statement renders: an earlier
+                    // assignment demotes to a plain statement so a multi-
+                    // write arm keeps all its writes. (MultiStatementArm)
+                    if (valueExpr != null)
+                        sideStmts.push(value);
                     value = expr(s);
                     valueExpr = s;
                 case MissingInit(s):
@@ -1783,12 +1793,26 @@ class KotlinExpr {
         final effectiveType = isFloatType(switchType) ? switchType : currentReturnType;
         if (isFloatType(effectiveType) && valueExpr != null && isIntOrLongType(emittedType(valueExpr)))
             value = intToFloatText(value);
-        if (decls.length == 0) {
+        if (sideStmts.length == 0 && decls.length == 0) {
             return [value];
         }
+        if (sideStmts.length == 0) {
+            final out = ["{"];
+            for (d in decls) {
+                out.push("    " + d);
+            }
+            out.push("    " + value);
+            out.push("}");
+            return out;
+        }
+        // Multi-write arm: the writes render as bare statements and the
+        // trailing value closes the block. (MultiStatementArm)
         final out = ["{"];
         for (d in decls) {
             out.push("    " + d);
+        }
+        for (st in sideStmts) {
+            out.push("    " + st);
         }
         out.push("    " + value);
         out.push("}");
@@ -4469,6 +4493,10 @@ class KotlinExpr {
     }
 
     public function localName(v:TVar):String {
+#if boring_fold_debug
+        if (v.name == "faceTop")
+            Sys.stderr().writeString("FACELOCAL id=" + v.id + "\n");
+#end
         // Kotlin gates a `_` local behind the experimental
         // UnnamedLocalVariables flag. Haxe treats `_` as a readable
         // identifier, so it goes through the same generated-name path
