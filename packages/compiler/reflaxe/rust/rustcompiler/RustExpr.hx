@@ -745,7 +745,6 @@ class RustExpr {
         fieldNullGuards.clear();
         branchArmMoveReadsAfter.clear();
         unusedLocalIds.clear();
-        scanUnusedLocals(f.expr);
         scanBuilderValueNullability(f.expr);
         scanBranchArmMoves(f.expr);
         scanContinueNullGuards(f.expr);
