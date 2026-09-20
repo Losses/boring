@@ -14,46 +14,60 @@ describe("default argument expansion generated tree", () => {
     expect(fs.existsSync(tsFile)).toBe(true);
     const content = fs.readFileSync(tsFile, "utf8");
 
-    // Method signatures carry no default argument syntax or optional question mark
+    // Constant defaults are completed at the call site, so their parameters carry
+    // no default syntax. A coalescing default keeps a null initializer and the
+    // normalization stays in the body (spec 51 rules 4 and 5).
     expect(content).toContain("public static greet(name: string, prefix: string): string");
     expect(content).toContain("public static configure(base: number, offset: number, scale: number, flag: boolean): number");
     expect(content).toContain("public formatLabel(label: string | null, sep: string): string");
     expect(content).toContain("public static describeTag(tag: string, detail?: string | null): string");
     expect(content).toContain("public static openMode(id: number, mode: Mode): string");
     expect(content).toContain("public static adjust(value: number, step: number): number");
-    expect(content).toContain("public static greetWithPrefix(name: string, prefix: string = name): string");
+    expect(content).toContain("public static greetWithPrefix(name: string, prefix: string | null = null): string");
+    expect(content).toContain("const normalized = prefix ?? name;");
     expect(content).toContain("public static sizeLabel(items?: string[] | null): string");
-    expect(content).toContain("public static fieldAccessSample(items: string[], count: number = items.length): number");
-    expect(content).toContain("public static localeSample(lang: string, fallback: string = (lang === \"en\" ? \"English\" : \"Other\")): string");
-    expect(content).toContain("public static methodCallSample(text: string, normalized: string = text.toUpperCase()): string");
-    expect(content).toContain("public static staticCallSample(value: number, clamped: number = DefaultArgsOps.clampBase(value)): number");
+    expect(content).toContain("public static fieldAccessSample(items: string[], count: number | null = null): number");
+    expect(content).toContain("const normalized = count ?? items.length;");
+    expect(content).toContain("public static localeSample(lang: string, fallback: string | null = null): string");
+    expect(content).toContain("const normalized = fallback ?? (lang === \"en\" ? \"English\" : \"Other\");");
+    expect(content).toContain("public static methodCallSample(text: string, normalized: string | null = null): string");
+    expect(content).toContain("const value = normalized ?? text.toUpperCase();");
+    expect(content).toContain("public static staticCallSample(value: number, clamped: number | null = null): number");
+    expect(content).toContain("const result = clamped ?? DefaultArgsOps.clampBase(value);");
     expect(content).toContain("const normalized = fallback ?? SortedTable.setBuilder<number>(SortedTable.compareInts).build();");
-    expect(content).toContain("public static staticFieldSample(value: number, bound: number = StaticStateOps.limit): number");
+    expect(content).toContain("public static staticFieldSample(value: number, bound: number | null = null): number");
+    expect(content).toContain("const normalized = bound ?? StaticStateOps.limit;");
     expect(content).toContain("const v = p ?? this.normalizationField;");
     expect(content).toContain("const w = q ?? loc;");
     expect(content).toContain("const w = q ?? this.fallbackCount;");
     expect(content).toContain("const v = p ?? this.fallbackCount;");
 
 
-    // A coalescing default reading an earlier coalescing parameter keeps
-    // native defaults; omitting call sites stay omitted.
-    expect(content).toContain("public static chainedCoalescing(fallback: number = 2.5, value: number = fallback): number");
+    // A coalescing default reading an earlier coalescing parameter resolves
+    // through that parameter's own default in the body; omitting call sites
+    // stay omitted.
+    expect(content).toContain("public static chainedCoalescing(fallback: number | null = null, value: number | null = null): number");
+    expect(content).toContain("const resolvedValue = value ?? (fallback ?? 2.5);");
     expect(content).toContain("export class ChainedPaint");
-    expect(content).toContain("constructor(radius: number = 0.0, followRadius: number = radius)");
+    expect(content).toContain("constructor(radius: number | null = null, followRadius: number | null = null)");
+    expect(content).toContain("this.followRadius = followRadius ?? (radius ?? 0.0);");
     expect(content).toContain("return DefaultArgsOps.chainedCoalescing();");
 
     // A zero-argument self-construction on a field-carrying class is a
     // constructed static initializer (spec 35), never the spec 32
     // singleton: the printed form stays the labeled record text.
     expect(content).toContain("public static readonly Default: CoalescingPreset = new CoalescingPreset();");
-    expect(content).toContain("constructor(base: number = 0.125, ceiling: number = 0.5)");
+    expect(content).toContain("constructor(base: number | null = null, ceiling: number | null = null)");
+    expect(content).toContain("this.ceiling = ceiling ?? 0.5;");
     expect(content).toContain("CoalescingPreset(base=${this.base}, ceiling=${this.ceiling})");
 
-    // Coalescing defaults stay native on TypeScript and are omitted at their
-    // call sites; their empty containers remain expression-valued.
-    expect(content).toContain("constructor(familyNames: string[] = [])");
-    expect(content).toContain("public static infinityDefault(value: number = Infinity): number");
-    expect(content).toContain("public static mapDefault(value: Map<string, number> = new Map()): Map<string, number>");
+    // A coalescing default keeps its container expression in the body, so the
+    // empty container stays expression-valued and fresh per call.
+    expect(content).toContain("constructor(familyNames: string[] | null = null)");
+    expect(content).toContain("public static infinityDefault(value: number | null = null): number");
+    expect(content).toContain("const normalized = value ?? Infinity;");
+    expect(content).toContain("public static mapDefault(value: Map<string, number> | null = null): Map<string, number>");
+    expect(content).toContain("const normalized = value ?? new Map();");
     expect(content).toContain("return DefaultArgsOps.infinityDefault();");
     expect(content).toContain("return DefaultArgsOps.mapDefault();");
     expect(content).not.toContain("infinityDefault(null)");
