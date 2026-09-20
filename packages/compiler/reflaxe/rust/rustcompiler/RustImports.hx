@@ -192,7 +192,7 @@ class RustImports {
     }
 
     public static function toSnakeCase(s:String):String {
-        final name = rawSnakeCase(s);
+        var name = rawSnakeCase(s);
         // A Haxe field can have a punctuation-only name. Never pass an empty
         // result to Rust's declaration or import syntax.
         if (name == null || name.length == 0) {
@@ -201,6 +201,11 @@ class RustImports {
         // Rust reserves `self` even from raw identifier syntax.
         if (name == "self") {
             return "self_";
+        }
+        // Collapse consecutive underscores: they trigger the non-snake-case
+        // lint on the generated method and function names.
+        while (name.indexOf("__") >= 0) {
+            name = StringTools.replace(name, "__", "_");
         }
         return RUST_KEYWORDS.exists(name) ? "r#" + name : name;
     }
