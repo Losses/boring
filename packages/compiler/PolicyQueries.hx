@@ -908,6 +908,13 @@ class PolicyQueries {
                 final loopBody = bodyStmts.slice(0, increment);
                 if (PolicyQueries.writesLocal(loopBody, counter))
                     return null;
+                // A counting-for rewrite is only safe for a pure index
+                // traversal. Any read of the counter inside the loop body may
+                // observe the post-increment value (e.g. `ix = i - 1` after
+                // `i++`); keep the while loop in that case.
+                for (stmt in loopBody)
+                    if (PolicyQueries.mentionsLocal(stmt, counter))
+                        return null;
                 return {
                     index: counter,
                     start: start,
@@ -998,6 +1005,14 @@ class PolicyQueries {
                                 final remainingBody = [for (j in 0...bodyStmts.length) if (j != increment) bodyStmts[j]];
                                 if (PolicyQueries.writesLocal(remainingBody, counter))
                                     return null;
+                                // A counting-for rewrite is only safe for a
+                                // pure index traversal. Any read of the counter
+                                // inside the loop body may observe the
+                                // post-increment value (e.g. `ix = i - 1` after
+                                // `i++`); keep the while loop in that case.
+                                for (stmt in remainingBody)
+                                    if (PolicyQueries.mentionsLocal(stmt, counter))
+                                        return null;
                                 return {
                                     index: counter,
                                     start: start,
