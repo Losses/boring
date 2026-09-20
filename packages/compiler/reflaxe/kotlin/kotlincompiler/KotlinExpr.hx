@@ -2787,8 +2787,11 @@ class KotlinExpr {
                 // (ComparisonOperandProof)
                 final leftText = operand(l, op, false);
                 addProofExpr(l);
-                addProofExpr(r);
+                // Register r only after it renders: marking r here would
+                // suppress its extraction, leaving a nullable operand.
+                // (ComparisonOperandProofOrder)
                 final rightText = operand(r, op, true);
+                addProofExpr(r);
                 final leftFinal = isIntOrLongType(emittedType(l)) && isFloatType(emittedType(r)) ? intToFloatText(leftText) : leftText;
                 final rightFinal = isIntOrLongType(emittedType(r)) && isFloatType(emittedType(l)) ? intToFloatText(rightText) : rightText;
                 return leftFinal + " " + symbolOf(op) + " " + rightFinal;
