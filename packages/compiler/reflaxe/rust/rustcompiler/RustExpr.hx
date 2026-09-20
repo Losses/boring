@@ -5369,7 +5369,7 @@ class RustExpr {
     function isSortedBuilder(subj:TypedExpr):Bool {
         final t = methodSubjectType(subj);
         return switch (Context.follow(t)) {
-            case TInst(c, _): final n = c.get().name; n == "SortedMapBuilder" || n == "SortedSetBuilder";
+            case TInst(c, _): final n = c.get().name; n == "SortedMapBuilder" || n == "SortedSetBuilder" || n == "SortedTableBuilder" || n == "SortedMapTableBuilder" || n == "SortedSetTableBuilder";
             case _: false;
         };
     }
@@ -5377,7 +5377,7 @@ class RustExpr {
     function isSortedTable(subj:TypedExpr):Bool {
         final t = methodSubjectType(subj);
         return switch (Context.follow(t)) {
-            case TInst(c, _): final n = c.get().name; n == "SortedMap" || n == "SortedSet";
+            case TInst(c, _): final n = c.get().name; n == "SortedMap" || n == "SortedSet" || n == "SortedTable" || n == "SortedMapTable" || n == "SortedSetTable";
             case _: false;
         };
     }
@@ -6480,6 +6480,7 @@ class RustExpr {
             case TCall(fn, _) if (isStringIndexOf(fn)): true;
             case TCall(fn, _) if (isVecIndexOf(fn)): true;
             case TCall(fn, _) if (isFpHelperI32Call(fn)): true;
+            case TCall(fn, _) if (isResidentI32Call(fn)): true;
             // Unary negation lowers in the signed i32 domain in a business
             // module, so the operator never applies `-` to a u32 operand.
             case TUnop(OpNeg, _, subj): isIntType(subj.t) && !RuntimeResidents.isResident(imports.selfModule);
@@ -7039,6 +7040,20 @@ class RustExpr {
                 cf.get().name == "floatToI32" || cf.get().name == "f32ToI32";
             case _: false;
         };
+    }
+
+    /**
+        Resident-module methods whose emitted signature returns i32: the
+        sorted-table size query. A u32-domain operand compared against such
+        a call reconciles into the signed domain.
+        (ResidentI32Comparison)
+    **/
+    function isResidentI32Call(fn:TypedExpr):Bool {
+        return switch (stripWrap(fn).expr) {
+            case TField(_, FInstance(c, _, cf)) if (cf.get().name == "size"):
+                RuntimeResidents.isResident(c.get().module);
+            case _: false;
+        }
     }
 
     function isRecursiveField(subj:TypedExpr, name:String):Bool {
@@ -8447,7 +8462,13 @@ class RustExpr {
                 if (name == "size" && isSortedTable(subj)) {
                     // The resident counts in its signed Int domain; the business
                     // domain is unsigned, so the read reinterprets the raw i32.
-                    return RustConversions.reinterpret(nullableMethodReceiver(subj, false) + ".size()", "u32");
+                    // Under a signed comparison target the read narrows to i32
+                    // instead, matching the other operand's domain.
+                    // (ResidentI32Comparison)
+                    final sizeRead = nullableMethodReceiver(subj, false) + ".size()";
+                    return i32ComparisonTarget
+                        ? RustConversions.reinterpret(sizeRead, "i32")
+                        : RustConversions.reinterpret(sizeRead, "u32");
                 }
                 if ((name == "keyAt" || name == "valueAt" || name == "at") && isSortedTable(subj)) {
                     return nullableMethodReceiver(subj, false) + "." + RustImports.toSnakeCase(name) + "(" + castSignedI32(args[0]) + ")";
