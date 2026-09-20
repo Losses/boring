@@ -718,6 +718,8 @@ class SwiftExpr {
                     initText = intToFloatText(initText);
                 if (unwrapNullableInitializer && !StringTools.endsWith(initText, "!"))
                     initText += "!";
+                if (swiftUnusedLocals.exists(v.id))
+                    return [indent(depth) + "_ = " + tryKw + initText];
                 return [indent(depth) + '$kw ${localName(v)}$annotation = $tryKw$initText'];
             case TVar(v, _):
                 // A declaration without initializer: definite
@@ -5082,6 +5084,7 @@ class SwiftExpr {
 
     function beginLocalScope():Void {
         localDeclIds.clear();
+        swiftUnusedLocals.clear();
         assignedLocalNames.clear();
         localFunctions.clear();
         localFunctionThrows.clear();
