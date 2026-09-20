@@ -3182,6 +3182,25 @@ class SwiftExpr {
                     final s = receiverText(subj);
                     return "Int32(" + s + ".lastIndex(of: " + optionalExpr(args[0]) + ".first!).map { " + s + ".distance(from: " + s + ".startIndex, to: $0) } ?? -1)";
                 }
+                if (name == "indexOf" && isStringSubject(subj) && args.length >= 2) {
+                    // The two-argument form keeps the start offset: the
+                    // needle scans the subject's UTF-16 units from the
+                    // offset upward and reports the unit index of the first
+                    // whole match. The stdlib signature declares the offset
+                    // optional, so a call without one carries the null
+                    // literal and reads as offset 0.
+                    // (StringIndexOfFromOffset)
+                    final s = receiverText(subj);
+                    final tryKw = containsThrowingCall(subj) ? "try " : "";
+                    final startText = switch (stripWrap(args[1]).expr) {
+                        case TConst(TNull): "0";
+                        case _: "Int(" + expr(args[1]) + ")";
+                    };
+                    return "Int32({ () -> Int in let h = Array(" + tryKw + s
+                        + ".utf16); let n = Array(" + expr(args[0])
+                        + ".utf16); var i = " + startText
+                        + "; if i < 0 { i = 0 }; while i + n.count <= h.count { if Array(h[i..<(i + n.count)]) == n { return i }; i += 1 }; return -1 }())";
+                }
                 if (name == "indexOf" && isStringSubject(subj) && args.length >= 1) {
                     final s = receiverText(subj);
                     // The match index rides in a closure; a throwing receiver
@@ -3740,10 +3759,25 @@ class SwiftExpr {
             final p = i < ps.length ? ps[i] : null;
             final d = target == null ? null : DefaultArgExpander.defaultAt(target.c, target.n, i);
             d != null
-            && p != null && isNullLiteral(args[i]) ? defaultArgText(d, p) : d != null && p != null && isNullLeafType(args[i].t) && !nilMergeChainNonOptional(expr(args[i])) ? "(" + expr(args[i]) + " ?? " + defaultArgText(d,
+            && p != null && isNullLiteral(args[i]) ? defaultArgText(d, p) : d != null && p != null && isNullLeafType(args[i].t) && !ternaryNonNullBothArms(args[i])
+                && !nilMergeChainNonOptional(expr(args[i])) ? "(" + expr(args[i]) + " ?? " + defaultArgText(d,
                 p) + ")" : base[i];
         }
         ];
+    }
+
+    /**
+        A null-guard ternary whose both branches carry non-null types
+        renders as a non-optional in Swift: both arms are plain values, so
+        the call-site default merge after it would read as never used.
+        (NonOptionalTernaryArgument)
+    **/
+    function ternaryNonNullBothArms(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TIf(_, t, f) if (f != null):
+                !isNullLeafType(t.t) && !isNullLiteral(t) && !isNullLeafType(f.t) && !isNullLiteral(f);
+            case _: false;
+        }
     }
 
     function constructorArgTexts(cls:ClassType, args:Array<TypedExpr>):Array<String> {
@@ -3763,7 +3797,8 @@ class SwiftExpr {
             final d = DefaultArgExpander.defaultAt(cls, "new", i);
             var text = d != null
                 && p != null
-                && isNullLiteral(args[i]) ? defaultArgText(d, p) : d != null && p != null && isNullLeafType(args[i].t) && !nilMergeChainNonOptional(expr(args[i])) ? "(" + expr(args[i]) + " ?? " + defaultArgText(d,
+                && isNullLiteral(args[i]) ? defaultArgText(d, p) : d != null && p != null && isNullLeafType(args[i].t) && !ternaryNonNullBothArms(args[i])
+                && !nilMergeChainNonOptional(expr(args[i])) ? "(" + expr(args[i]) + " ?? " + defaultArgText(d,
                     p) + ")" : p != null && !isNullLeafType(p) && optionalValued(args[i]) ? expr(args[i]) + "!" : expr(args[i]);
             // Haxe promotes an Int argument into a Float field without an
             // explicit cast; Swift needs the widening conversion.

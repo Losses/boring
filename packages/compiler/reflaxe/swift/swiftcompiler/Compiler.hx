@@ -321,8 +321,15 @@ class Compiler extends PluginCompiler<Compiler> {
                     residentParts.push(moduleParts.join("\n\n"));
                 }
             }
+            // The UStringRT resident supplies the UString members itself;
+            // a compilation that never includes it receives the prelude instead.
+            final ustringResident = parts.get("runtime.UString");
+            final ustringPrelude = ustringResident == null || ustringResident.length == 0
+                ? "\n" + StringTools.trim(SwiftRuntime.USTRING_PRELUDE) + "\n"
+                : "";
             PackageArtifacts.saveTreeFile(output, RuntimeConfig.emitPath(emitDir, "Runtime.swift"),
                 StringTools.trim(SwiftRuntime.SOURCE)
+                + ustringPrelude
                 + "\n"
                 + residentParts.join("\n\n")
                 + "\n");
