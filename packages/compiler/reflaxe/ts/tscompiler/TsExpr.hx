@@ -182,6 +182,18 @@ class TsExpr {
         return site;
     }
 
+    /** Default side of a recognized site, in the target's sanctioned spelling. */
+    function coalescingDefaultTextFor(site:{parameter:String, defaultExpr:TypedExpr, valueExpr:TypedExpr}):String {
+        if (currentClass != null && currentField != null) {
+            final value = currentLocalName != null ? DefaultArgExpander.coalescingDefaultForLocalParam(currentClass, currentField, currentLocalName,
+                site.parameter) : DefaultArgExpander.coalescingDefaultForParam(currentClass, currentField, site.parameter);
+            if (value != null) {
+                return coalescingDefaultText(value, DefaultArgExpander.withoutNull(site.valueExpr.t));
+            }
+        }
+        return expr(site.defaultExpr);
+    }
+
     /** Renders a sanctioned default in the TypeScript parameter type context. */
     public function coalescingDefaultText(value:DefaultArgExpander.CoalescingDefaultValue, targetType:Type):String {
         return switch (value) {
@@ -204,7 +216,12 @@ class TsExpr {
                 // Widening the constant to the enum union keeps the
                 // comparison legal; the cast is erased at runtime.
                 "(" + en.name + "." + enumField.name + " as " + en.name + ")";
-            case CParameterRead(name): name;
+            case CParameterRead(name):
+                // Spec 22, Evaluation ordering: a read of an earlier coalescing
+                // parameter resolves through that parameter's own default.
+                final earlier = currentClass != null && currentField != null ? (currentLocalName != null ? DefaultArgExpander.coalescingDefaultForLocalParam(currentClass,
+                    currentField, currentLocalName, name) : DefaultArgExpander.coalescingDefaultForParam(currentClass, currentField, name)) : null;
+                earlier != null ? "(" + name + " ?? " + coalescingDefaultText(earlier, targetType) + ")" : name;
             case CInstanceFieldRead(name): "this." + name;
             case CLocalRead(name): name;
             case CFieldAccess(CParameterRead(staticPath), ""): coalescingStaticFieldText(staticPath);
@@ -1248,9 +1265,9 @@ class TsExpr {
             case TIf(c, t, f) if (f != null):
                 final coalescing = coalescingSiteFor(e);
                 if (coalescing != null) {
-                    return DefaultArgExpander.isNormalizationSource(coalescing.defaultExpr.pos) ? expr(coalescing.valueExpr)
-                        + " ?? "
-                        + expr(coalescing.defaultExpr) : expr(coalescing.valueExpr);
+                    // Spec 51 rule 5 keeps the coalescing operation in the body
+                    // for TypeScript, so every recognized site renders `p ?? E`.
+                    return expr(coalescing.valueExpr) + " ?? " + coalescingDefaultTextFor(coalescing);
                 }
                 return "(" + expr(c) + " ? " + expr(t) + " : " + expr(f) + ")";
             case TBlock(stmts):

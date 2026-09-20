@@ -121,12 +121,22 @@ The two sanctioned classes lower differently.
 - **Coalescing defaults** survive omission into the targets that can lower
   the expression as a native default, complete to `None` on Rust, and lower
   the site itself on Dart:
-  - Kotlin, TypeScript, Swift: the parameter lowers with the native default
-    `p: T = E` and the coalescing site is dropped. A constructor field
-    parameter stays the primary field of
+  - TypeScript: feature spec 51 rules 4 and 5 govern this shape, so the
+    parameter lowers as `p: T | null = null` and the coalescing site stays in
+    the body as `p ?? E`. A JavaScript default initializer runs only for an
+    omitted argument, so a native default would let an explicit `null` reach
+    the body unchanged and break the omission equivalence rule 1 requires. A
+    constructor field parameter stays the primary field of
     `docs/specs/features/27-class-members-and-records.md`, so record equality
-    and copy keep the field; the declaration is indistinguishable from a
-    hand-written defaulted field.
+    and copy keep the field.
+  - Kotlin, Swift: the parameter currently lowers with the native default
+    `p: T = E` and the coalescing site is dropped. Feature spec 51 rules 3
+    and 5 require the same omission equivalence these two targets still owe;
+    their body-side form is ruled by that specification and their current
+    product is recorded here as a deviation to close separately. A constructor
+    field parameter stays the primary field of
+    `docs/specs/features/27-class-members-and-records.md`, so record equality
+    and copy keep the field.
   - Dart: default parameters accept compile-time constants only, and a const
     collection is immutable and canonicalized, so a native container default
     cannot preserve the per-call freshness of rule 3. Every coalescing

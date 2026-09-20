@@ -562,9 +562,11 @@ class TsDecl {
     function paramText(cls:ClassType, f:ClassFuncData, a:ClassFuncArg):String {
         final coalescing = DefaultArgExpander.coalescingDefaultAt(cls, f.field.name, a.index);
         if (coalescing != null) {
-            // An initializer already makes the parameter optional; a `?`
-            // marker would be a TS1015 error.
-            return '${a.name}: ${types.of(DefaultArgExpander.coalescingParameterType(coalescing, a.type))} = ${expr.coalescingDefaultText(coalescing, a.type)}';
+            // Spec 51 rules 4 and 5: an omitted argument and an explicit null
+            // must reach the body the same way. A JavaScript default initializer
+            // runs only for an omitted argument, so the parameter keeps a null
+            // default and the coalescing site stays in the body as `p ?? E`.
+            return '${a.name}: ${types.of(a.type)} = null';
         }
         if (isTrailingOptional(cls, f, a.index)) {
             return '${a.name}?: ${types.of(a.type)}';
