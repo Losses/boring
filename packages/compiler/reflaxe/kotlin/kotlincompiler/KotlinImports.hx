@@ -134,6 +134,10 @@ class KotlinImports {
                 lines.push("");
             }
             for (imp in items) {
+                // haxe.ds types lower to Kotlin collections: an import of
+                // the Haxe package itself never resolves. (KotlinDsImport)
+                if (imp.indexOf("haxe.ds.") == 0)
+                    continue;
                 lines.push("import " + imp);
             }
         }
