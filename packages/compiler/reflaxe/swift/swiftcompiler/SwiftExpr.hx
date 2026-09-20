@@ -4643,7 +4643,12 @@ class SwiftExpr {
                     renderedLeaves.push(null);
                 case _:
                     final stdArg = stdStringArg(leaf);
-                    final rendered = stdArg == null ? interpolationLeaf(leaf) : stdString(stdArg, true);
+                    var rendered = stdArg == null ? interpolationLeaf(leaf) : stdString(stdArg, true);
+                    // An optional leaf interpolates through the explicit
+                    // describing form: the implicit debug description of an
+                    // optional warns. (ExplicitOptionalInterpolation)
+                    if (StringTools.endsWith(types.of(leaf.t), "?"))
+                        rendered = "String(describing: " + rendered + ")";
                     renderedLeaves.push(rendered);
                     if (rendered.indexOf("\n") >= 0)
                         needsHoist = true;
