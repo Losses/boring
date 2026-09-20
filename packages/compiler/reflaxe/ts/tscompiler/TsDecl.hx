@@ -536,6 +536,22 @@ class TsDecl {
     }
 
     /**
+        The name of the StringBuf parameter a function mutates in its body,
+        or null when none. The TypeScript target erases StringBuf to an
+        immutable string, so a mutated StringBuf parameter must thread its
+        value back through the function's return value (stdlib/08).
+    **/
+    static function mutatedStringBufParam(cls:ClassType, f:ClassFuncData):Null<String> {
+        for (a in f.args) {
+            if (isStringBufType(a.type)
+                && TsStringBufParams.isMutatedStringBufParam(cls.module, cls.name, f.field.name, a.name, a.index)) {
+                return a.name;
+            }
+        }
+        return null;
+    }
+
+    /**
         Renders one function parameter. A coalescing default carries `= default`
         (optional). A plain `?param:Null<T>` with no explicit default renders
         `?` when it forms a trailing optional group; a front-optional one stays
@@ -584,6 +600,14 @@ class TsDecl {
         }
         final ret = types.of(f.ret);
         final body = decodeBoundaryBody(cls, f);
+        // A function whose StringBuf parameter is mutated in the body
+        // threads the mutated buffer back through the return value (the
+        // TypeScript target erases StringBuf to an immutable string). The
+        // signature returns the buffer instead of void and the body appends
+        // `return out;`; call sites reassign the argument.
+        final mutatedBufParam = mutatedStringBufParam(cls, f);
+        final retText = mutatedBufParam != null ? "string" : ret;
+        final bodyText = mutatedBufParam != null ? body.concat(["    return " + mutatedBufParam + ";"]) : body;
         // @:allow members omit TypeScript visibility so they are public.
         // A private member another class in the same module accesses (Haxe
         // same-module private access) also emits public.
@@ -595,8 +619,8 @@ class TsDecl {
         // parameters stay in the class header only.
         final methodParams = collectMethodTypeParams(cls, f);
         final genericStr = methodParams.length > 0 ? "<" + methodParams.join(", ") + ">" : "";
-        final head = '  $vis ${stat}${f.field.name}$genericStr($args): $ret {';
-        return [head].concat(body).concat(["  }"]);
+        final head = '  $vis ${stat}${f.field.name}$genericStr($args): $retText {';
+        return [head].concat(bodyText).concat(["  }"]);
     }
 
     function extractedFuncDecl(cls:ClassType, f:ClassFuncData):Array<String> {
