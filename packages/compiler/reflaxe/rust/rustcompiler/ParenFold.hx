@@ -55,6 +55,17 @@ class ParenFold {
                     // must keep its parens. (ParenFold)
                     final prev = prevSignificant(text, i);
                     if ((prev == "if " || prev == "while ") && close < text.length) {
+                        // A callable in parens invoked right after the
+                        // close — `(f)(x)` — needs its parens.
+                        // (ParenFold)
+                        var k = close + 1;
+                        while (k < text.length && text.charAt(k) == " ")
+                            k++;
+                        if (k < text.length && text.charAt(k) == "(") {
+                            out.add(c);
+                            i++;
+                            continue;
+                        }
                         final inner = text.substr(i + 1, close - i - 1);
                         if (!hasTopLevelComma(text, i + 1, close)
                             && !StringTools.startsWith(StringTools.ltrim(inner), "{")
@@ -67,6 +78,27 @@ class ParenFold {
                     }
                     // Argument position: a cast needs no surrounding parens
                     // in a comma list. (ParenFold)
+                    // Assignment right side, match arm body, and block
+                    // tail read bare the same way. (ParenFold)
+                    final isMatchArm = prev == "=>";
+                    final positional = prev == "=" || prev == ";" || isMatchArm;
+                    if (positional) {
+                        var k = close + 1;
+                        while (k < text.length && text.charAt(k) == " ")
+                            k++;
+                        final inner = text.substr(i + 1, close - i - 1);
+                        final ltrimInner = StringTools.ltrim(inner);
+                        if (!(k < text.length && text.charAt(k) == "(")
+                            && !(k < text.length && text.charAt(k) == ".")
+                            && !StringTools.startsWith(ltrimInner, "*")
+                            && !hasTopLevelComma(text, i + 1, close)
+                            && !StringTools.startsWith(ltrimInner, "{")) {
+                            out.add(inner);
+                            i = close + 1;
+                            onChange();
+                            continue;
+                        }
+                    }
                     if (prev == "(" || prev == ",") {
                         final inner = text.substr(i + 1, close - i - 1);
                         final ltrim = StringTools.ltrim(inner);
@@ -159,7 +191,9 @@ class ParenFold {
         if (j < 0)
             return "";
         // The keyword form needs the characters before the token too.
-        if (j >= 2 && text.substr(j - 2, 3) == "if ")
+        if (j >= 1 && text.charAt(j) == ">" && j >= 1 && text.substr(j - 1, 2) == "=>")
+            return "=>";
+        if (j >= 1 && text.substr(j - 1, 3) == "if ")
             return "if ";
         if (j >= 5 && text.substr(j - 5, 6) == "while ")
             return "while ";
