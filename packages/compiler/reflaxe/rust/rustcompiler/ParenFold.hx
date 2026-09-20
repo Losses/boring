@@ -2,11 +2,10 @@ package rustcompiler;
 
 #if (macro || reflaxe_runtime)
 /**
-    Text-level fold of doubled parentheses in generated Rust: `((A))`
-    becomes `(A)` whenever the inner text carries no top-level comma, so a
-    tuple argument never collapses into a second argument. String literals
-    are skipped. The fold repeats until no doubled pair remains.
-    (ParenFold)
+    Folds doubled parentheses in generated Rust text: `((A))` becomes
+    `(A)` whenever the inner text carries no top-level comma, so a tuple
+    argument never turns into a second argument. String literals are
+    skipped. The fold repeats until no doubled pair remains. (ParenFold)
 **/
 class ParenFold {
     public static function strip(text:String):String {
@@ -56,8 +55,7 @@ class ParenFold {
                     final prev = prevSignificant(text, i);
                     if ((prev == "if " || prev == "while ") && close < text.length) {
                         // A callable in parens invoked right after the
-                        // close — `(f)(x)` — needs its parens.
-                        // (ParenFold)
+                        // close, `(f)(x)`, needs its parens. (ParenFold)
                         var k = close + 1;
                         while (k < text.length && text.charAt(k) == " ")
                             k++;

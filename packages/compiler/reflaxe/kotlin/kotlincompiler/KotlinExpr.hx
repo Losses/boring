@@ -4107,7 +4107,7 @@ class KotlinExpr {
         // A proven value, a value the enclosing guards already proved, or a
         // text that already carries its extraction needs no second one:
         // Kotlin smart-casts those proofs, so the added assertion or elvis
-        // would warn as redundant. Only a val-like local smart-casts — a
+        // would warn as redundant. Only a val-like local smart-casts: a
         // mutable property or a closure-shared binding keeps its
         // extraction. (NonNullArgumentExtraction)
         if (isNullLiteral(e))
