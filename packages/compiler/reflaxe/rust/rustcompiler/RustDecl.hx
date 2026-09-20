@@ -2209,12 +2209,17 @@ class RustDecl {
         // of moving that box out of a shared borrow.
         final consumesSelf = cls.module == "runtime.SortedTable" && f.field.name == "build";
         final selfParam = f.isStatic && isTraitImpl ? "" : (consumesSelf ? "self" : (isMutating ? "&mut self" : "&self"));
+        final coalescedParams:Map<String, Bool> = [];
+        for (site in DefaultArgExpander.coalescingSitesForFunction(f.expr)) {
+            coalescedParams.set(site.parameter, true);
+        }
         final otherArgs = [
             for (a in f.args) {
                 var pType = paramType(a.type, f.field.name, a.name);
                 if (argIsMutated(f.expr, a.name) && StringTools.startsWith(pType, "&Vec<")) pType = "&mut " + pType.substr(1);
                 expr.setArgType(a.name, pType);
-                RustImports.toSnakeCase(a.name) + ": " + pType;
+                final mentioned = argIsMentioned(f.expr, a.name) || coalescedParams.exists(a.name);
+                (mentioned ? "" : "_") + RustImports.toSnakeCase(a.name) + ": " + pType;
             }
         ].join(", ");
         final allArgs = selfParam.length == 0 ? otherArgs : (otherArgs.length > 0 ? selfParam + ", " + otherArgs : selfParam);

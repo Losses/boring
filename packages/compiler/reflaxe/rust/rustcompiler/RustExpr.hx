@@ -151,6 +151,10 @@ class RustExpr {
     // the arm must clone or the later read trips E0382.
     // (BranchArmMoveClone)
     final branchArmMoveReadsAfter:Map<Int, Bool> = [];
+    // Locals whose binding the body never reads: their declarations take
+    // the underscore name Rust uses for intentionally unused bindings.
+    // (UnusedLocalNaming)
+    final unusedLocalIds:Map<Int, Bool> = [];
     // Capture-copy bindings the current function-value prologue emits:
     // inside the closure body a captured name binds an owned clone of the
     // outer value, so an element loop over it must borrow or the loop
@@ -740,6 +744,8 @@ class RustExpr {
         builtBareTables.clear();
         fieldNullGuards.clear();
         branchArmMoveReadsAfter.clear();
+        unusedLocalIds.clear();
+        scanUnusedLocals(f.expr);
         scanBuilderValueNullability(f.expr);
         scanBranchArmMoves(f.expr);
         scanContinueNullGuards(f.expr);
@@ -1131,7 +1137,8 @@ class RustExpr {
                 return regionInitializerLines(v, stripWrap(init), depth);
             case TVar(v, init) if (init != null):
                 final kw = mutated.exists(v.id) || tryCapturedAssignments.exists(v.id) ? "let mut" : "let";
-                final name = RustImports.toSnakeCase(localName(v));
+                final raw = RustImports.toSnakeCase(localName(v));
+                final name = unusedLocalIds.exists(v.id) ? "_" + raw : raw;
                 // A Null<T> declared local keeps Option storage at runtime
                 // even when a guard narrows a later read's Haxe type to T;
                 // record it so &str/&T slots unwrap the wrapper before the
@@ -2816,7 +2823,8 @@ class RustExpr {
 
     function loopLines(loop, depth:Int):Array<String> {
         rangeLoopVars.set(loop.index.id, true);
-        final name = RustImports.toSnakeCase(loop.index.name);
+        final raw = RustImports.toSnakeCase(loop.index.name);
+        final name = unusedLocalIds.exists(loop.index.id) ? "_" + raw : raw;
         final sliceSubj = sliceIterationSubject(loop);
         if (sliceSubj != null) {
             final itemVar = sliceItemVar(loop.body, loop.index, sliceSubj);
@@ -9484,6 +9492,25 @@ class RustExpr {
             }
         }
         walk3(root);
+    }
+
+    /** Locals whose id the body never mentions in a TLocal read: the
+        declaration only stores a value no one observes.
+        (UnusedLocalNaming) */
+    function scanUnusedLocals(root:TypedExpr):Void {
+        final counts:Map<Int, Int> = [];
+        function walk(node:TypedExpr):Void {
+            switch (node.expr) {
+                case TLocal(v):
+                    counts.set(v.id, (counts.exists(v.id) ? counts.get(v.id) : 0) + 1);
+                case _:
+            }
+            haxe.macro.TypedExprTools.iter(node, walk);
+        }
+        walk(root);
+        for (id in counts.keys())
+            if (counts.get(id) == 0 && !paramVarIds.exists(id))
+                unusedLocalIds.set(id, true);
     }
 
     /**
