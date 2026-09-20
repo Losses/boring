@@ -118,6 +118,10 @@ class SwiftExpr {
 
     /** Local declarations that `localName` may rename; parameters stay raw. */
     final localDeclIds:Map<Int, Bool> = [];
+    // Locals whose binding the full method body never reads: their
+    // declarations take the underscore name Swift treats as intentionally
+    // unused. (UnusedLocalNaming)
+    final swiftUnusedLocals:Map<Int, Bool> = [];
 
     /** Local function bodies by variable id, for call-site fallibility. */
     final localFunctions:Map<Int, TypedExpr> = [];
@@ -180,6 +184,7 @@ class SwiftExpr {
     public function topLevelStatements(e:TypedExpr):String {
         beginLocalScope();
         scanLocals(e);
+        scanUnusedLocals(e);
         resolveLocalFunctionThrows();
         return blockLines(statementsOf(e), 0).join("\n");
     }
@@ -524,6 +529,7 @@ class SwiftExpr {
         beginLocalScope();
         markNonOptionalParams(cls, f);
         scanLocals(f.expr);
+        scanUnusedLocals(f.expr);
         resolveLocalFunctionThrows();
         final result = blockLines(statementsOf(f.expr), depth);
         currentReturnType = null;
@@ -572,6 +578,7 @@ class SwiftExpr {
         beginLocalScope();
         markNonOptionalParams(cls, f);
         scanLocals(f.expr);
+        scanUnusedLocals(f.expr);
         resolveLocalFunctionThrows();
         final out:Array<String> = [];
         for (stmt in statementsOf(f.expr)) {
@@ -606,6 +613,7 @@ class SwiftExpr {
         beginLocalScope();
         markNonOptionalParams(cls, f);
         scanLocals(f.expr);
+        scanUnusedLocals(f.expr);
         resolveLocalFunctionThrows();
         final stmts = statementsOf(f.expr);
         final out:Array<String> = [];
@@ -4856,6 +4864,30 @@ class SwiftExpr {
     // Local analysis
     // ------------------------------------------------------------------
 
+    /** Entry-level pass: a local whose id the full method body never
+        reads takes the underscore name Swift treats as intentionally
+        unused. Runs once per method, outside scanLocals' recursion.
+        (UnusedLocalNaming) */
+    function scanUnusedLocals(e:TypedExpr):Void {
+        swiftUnusedLocals.clear();
+        final readCounts:Map<Int, Int> = [];
+        function countReads(node:TypedExpr):Void {
+            switch (node.expr) {
+                case TVar(v, _):
+                    if (!readCounts.exists(v.id))
+                        readCounts.set(v.id, 0);
+                case TLocal(v):
+                    readCounts.set(v.id, (readCounts.exists(v.id) ? readCounts.get(v.id) : 0) + 1);
+                case _:
+            }
+            haxe.macro.TypedExprTools.iter(node, countReads);
+        }
+        countReads(e);
+        for (id in readCounts.keys())
+            if (readCounts.get(id) == 0)
+                swiftUnusedLocals.set(id, true);
+    }
+
     function scanLocals(e:TypedExpr):Void {
         switch (e.expr) {
             case TVar(v, init):
@@ -5124,7 +5156,7 @@ class SwiftExpr {
             if (assignedLocalNames.exists(v.id)) {
                 return assignedLocalNames.get(v.id);
             }
-            final base = SwiftNameEscape.escape(v.name);
+            final base = swiftUnusedLocals.exists(v.id) ? "_" + SwiftNameEscape.escape(v.name) : SwiftNameEscape.escape(v.name);
             if (!localNameAssigned(base)) {
                 assignedLocalNames.set(v.id, base);
                 return base;
