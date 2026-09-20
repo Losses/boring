@@ -285,6 +285,91 @@ public func unitCodePoint(_ s: [UInt16], _ index: Int32) -> Int32 {
 ';
 
     /**
+        Code-point-addressed helpers behind std.UStringRT (stdlib/10),
+        emitted only when the UStringRT resident is absent from the
+        compilation: a compilation that includes the resident provides
+        the same members, and a second declaration would collide.
+    **/
+    public static final USTRING_PRELUDE = '/// Code-point-addressed access behind std.UStringRT (stdlib/10). The
+/// generated call sites materialize the subject once into its UTF-16
+/// units; the helpers address characters, so a surrogate pair occupies
+/// one position and combines into one scalar value.
+public enum UString {
+    /// The number of characters: every unit except the low half of a
+    /// surrogate pair starts one character.
+    public static func count(_ units: [UInt16]) -> Int32 {
+        var total: Int32 = 0
+        var i = 0
+        while i < units.count {
+            total += 1
+            i += (units[i] >= 0xD800 && units[i] <= 0xDBFF) ? 2 : 1
+        }
+        return total
+    }
+
+    /// The character at `index`; nil when the position is negative or at
+    /// least the character count (the query-miss contract of stdlib/10).
+    public static func at(_ units: [UInt16], _ index: Int32) -> Int32? {
+        if index < 0 {
+            return nil
+        }
+        var remaining = index
+        var i = 0
+        while i < units.count {
+            let unit = units[i]
+            if unit >= 0xD800 && unit <= 0xDBFF {
+                if remaining == 0 {
+                    if i + 1 >= units.count {
+                        return nil
+                    }
+                    let low = units[i + 1]
+                    return Int32(0x10000 + (Int32(unit - 0xD800) << 10)) + Int32(low - 0xDC00)
+                }
+                remaining -= 1
+                i += 2
+            } else {
+                if remaining == 0 {
+                    return Int32(unit)
+                }
+                remaining -= 1
+                i += 1
+            }
+        }
+        return nil
+    }
+
+    /// The characters from `from` inclusive to `to` exclusive; `from`
+    /// clamps upward to 0, `to` clamps downward to the character count,
+    /// and an empty range yields the empty array.
+    public static func slice(_ units: [UInt16], _ from: Int32, _ to: Int32) -> [UInt16] {
+        let lo = from > 0 ? from : 0
+        let hi = to < count(units) ? to : count(units)
+        if lo >= hi {
+            return []
+        }
+        var out: [UInt16] = []
+        var position: Int32 = 0
+        var i = 0
+        while i < units.count {
+            let width = (units[i] >= 0xD800 && units[i] <= 0xDBFF) ? 2 : 1
+            if position >= hi {
+                break
+            }
+            if position >= lo {
+                out.append(units[i])
+                if width == 2 && i + 1 < units.count {
+                    out.append(units[i + 1])
+                }
+            }
+            position += 1
+            i += width
+        }
+        return out
+    }
+}
+';
+
+    /**
         Source of the test host emitted beside the runtime module. It
         holds the raise type of this language, the runner state, and the
         result-line edge to stdout; the consistency run redirects stdout
