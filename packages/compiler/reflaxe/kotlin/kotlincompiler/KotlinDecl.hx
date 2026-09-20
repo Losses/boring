@@ -415,10 +415,15 @@ class KotlinDecl {
                             imports.requireType(c.get().module, "compare" + c.get().name);
                             lines.push('    if (a.${f.name} != null && b.${f.name} != null) { cmp = compare${c.get().name}(a.${f.name}, b.${f.name}); if (cmp != 0) return cmp }');
                         // A smart-cast String compares directly: toString()
-                        // on the non-null String warns as redundant.
+                        // on the non-null String warns as redundant. A val
+                        // property smart-casts through the guard; a var
+                        // property keeps the assertion.
                         // (NullableScalarStringCompare)
                         case TInst(c, _) if (c.get().name == "String"):
-                            lines.push('    if (a.${f.name} != null && b.${f.name} != null) { cmp = a.${f.name}.compareTo(b.${f.name}); if (cmp != 0) return cmp }');
+                            if (f.isFinal)
+                                lines.push('    if (a.${f.name} != null && b.${f.name} != null) { cmp = a.${f.name}.compareTo(b.${f.name}); if (cmp != 0) return cmp }');
+                            else
+                                lines.push('    if (a.${f.name} != null && b.${f.name} != null) { cmp = a.${f.name}!!.compareTo(b.${f.name}!!); if (cmp != 0) return cmp }');
                         case TAbstract(_,
                             _) | TInst(_,
                                 _): lines.push('    if (a.${f.name} != null && b.${f.name} != null) { cmp = a.${f.name}.toString().compareTo(b.${f.name}.toString()); if (cmp != 0) return cmp }');
