@@ -2757,12 +2757,14 @@ class KotlinExpr {
                 restoreProofs(saved);
                 return leftText + " && " + rightText;
             case OpGt | OpGte | OpLt | OpLte:
+                // The operand proofs stay alive after the comparison: a
+                // guarded operand's extraction proves it for the rest of
+                // the statement, and branch merges restore the boundary.
+                // (ComparisonOperandProof)
                 final leftText = operand(l, op, false);
-                final saved = proofSnapshot();
                 addProofExpr(l);
                 addProofExpr(r);
                 final rightText = operand(r, op, true);
-                restoreProofs(saved);
                 final leftFinal = isIntOrLongType(emittedType(l)) && isFloatType(emittedType(r)) ? intToFloatText(leftText) : leftText;
                 final rightFinal = isIntOrLongType(emittedType(r)) && isFloatType(emittedType(l)) ? intToFloatText(rightText) : rightText;
                 return leftFinal + " " + symbolOf(op) + " " + rightFinal;
