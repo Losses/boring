@@ -155,6 +155,11 @@ class RustExpr {
     // the underscore name Rust uses for intentionally unused bindings.
     // (UnusedLocalNaming)
     final unusedLocalIds:Map<Int, Bool> = [];
+    // Reassigned locals whose constant initializer is never read between
+    // the declaration and the first reassignment: Haxe requires the
+    // initializer, Rust reads nothing from it, so the declaration drops
+    // it. Only literal initializers participate (no side effects to
+    // preserve). (DeadConstantInitElision)
     // Capture-copy bindings the current function-value prologue emits:
     // inside the closure body a captured name binds an owned clone of the
     // outer value, so an element loop over it must borrow or the loop
@@ -1520,6 +1525,9 @@ class RustExpr {
                 if (initStr.indexOf("preferred_inline_object_boundary") >= 0 || initStr.indexOf("metric_decision_by_range") >= 0 || v.name.indexOf("annotation") >= 0)
                     emissionTrace("TVAR " + v.name + " init=[" + initStr.substr(0, initStr.length > 60 ? 60 : initStr.length) + "]", e.pos);
 #end
+                // A reassigned local whose constant initializer is never
+                // read before the first reassignment declares bare: the
+                // later assignments own the storage. (DeadConstantInitElision)
                 final declText = '$kw $name$nullableType = $initStr;';
                 // (NonNullSlotUnwrap)
                 if (declText.indexOf(": Option<") >= 0
@@ -8994,7 +9002,8 @@ class RustExpr {
     }
 
     function functionLiteral(f:TFunc, functionType:Null<Type>):String {
-        final params = [for (a in f.args) RustImports.toSnakeCase(a.v.name)].join(", ");
+        final params = [for (a in f.args)
+            (unusedLocalIds.exists(a.v.id) ? "_" : "") + RustImports.toSnakeCase(a.v.name)].join(", ");
         final previousReturnUnsigned = returnUnsigned;
         final previousReturnTypeName = returnTypeName;
         final previousReturnType = currentReturnType;
@@ -9500,6 +9509,34 @@ class RustExpr {
         final counts:Map<Int, Int> = [];
         function walk(node:TypedExpr):Void {
             switch (node.expr) {
+                case TVar(v, _):
+                    if (!counts.exists(v.id))
+                        counts.set(v.id, 0);
+                case TFunction(nf):
+                    // Closure parameters have no TVar declaration node:
+                    // register them so a zero-read parameter still marks.
+                    for (a in nf.args)
+                        if (!counts.exists(a.v.id))
+                            counts.set(a.v.id, 0);
+                case TBinop(OpAssign, target, value):
+                    walk(value);
+                    switch (stripWrap(target).expr) {
+                        case TLocal(v):
+                            // A reassignment is a write, not a read.
+                            if (!counts.exists(v.id))
+                                counts.set(v.id, 0);
+                        case _:
+                            walk(target);
+                    }
+                case TBinop(op = OpAssignOp(_), target, value):
+                    walk(value);
+                    switch (stripWrap(target).expr) {
+                        case TLocal(v):
+                            // A compound assignment still reads the target.
+                            counts.set(v.id, (counts.exists(v.id) ? counts.get(v.id) : 0) + 1);
+                        case _:
+                            walk(target);
+                    }
                 case TLocal(v):
                     counts.set(v.id, (counts.exists(v.id) ? counts.get(v.id) : 0) + 1);
                 case _:
@@ -9507,8 +9544,10 @@ class RustExpr {
             haxe.macro.TypedExprTools.iter(node, walk);
         }
         walk(root);
+#if boring_fold_debug
+#end
         for (id in counts.keys())
-            if (counts.get(id) == 0 && !paramVarIds.exists(id))
+            if (counts.get(id) == 0)
                 unusedLocalIds.set(id, true);
     }
 
