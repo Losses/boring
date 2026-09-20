@@ -74,22 +74,40 @@ class ParenFold {
                             continue;
                         }
                     }
-                    // Argument position: a cast needs no surrounding parens
-                    // in a comma list. (ParenFold)
-                    // Assignment right side, match arm body, and block
-                    // tail read bare the same way. (ParenFold)
-                    final isMatchArm = prev == "=>";
-                    final positional = prev == "=" || prev == ";" || isMatchArm;
-                    if (positional) {
+                    // Argument position (`(` or `,` before the group): a
+                    // brace-block value and a cast read bare in a comma
+                    // list. (ParenFold)
+                    if (prev == "(" || prev == ",") {
+                        final inner = text.substr(i + 1, close - i - 1);
+                        final ltrimInner = StringTools.ltrim(inner);
                         var k = close + 1;
                         while (k < text.length && text.charAt(k) == " ")
                             k++;
+                        if (StringTools.startsWith(ltrimInner, "{") && !hasTopLevelComma(text, i + 1, close)) {
+                            out.add(ltrimInner);
+                            i = close + 1;
+                            onChange();
+                            continue;
+                        }
+                        if (!StringTools.startsWith(ltrimInner, "*")
+                            && castSuffixAt(ltrimInner)
+                            && !hasTopLevelComma(text, i + 1, close)) {
+                            out.add(ltrimInner);
+                            i = close + 1;
+                            onChange();
+                            continue;
+                        }
+                    }
+                    // Assignment right side, match arm body, and block tail
+                    // read bare the same way. (ParenFold)
+                    final isMatchArm = prev == "=>";
+                    final positional = prev == "=" || prev == ";" || isMatchArm;
+                    if (positional) {
                         final inner = text.substr(i + 1, close - i - 1);
                         final ltrimInner = StringTools.ltrim(inner);
-                        // The `.` and `(` successor checks already guard
-                        // the deref and callable bindings; a leading `*` in
-                        // a comparison arm is safe to unwrap.
-                        // (ParenFold)
+                        var k = close + 1;
+                        while (k < text.length && text.charAt(k) == " ")
+                            k++;
                         if (!(k < text.length && text.charAt(k) == "(")
                             && !(k < text.length && text.charAt(k) == ".")
                             && !hasTopLevelComma(text, i + 1, close)
