@@ -202,7 +202,7 @@ class RustImports {
         if (name == "self") {
             return "self_";
         }
-        // Collapse consecutive underscores: they trigger the non-snake-case
+        // Merge consecutive underscores: they trigger the non-snake-case
         // lint on the generated method and function names.
         while (name.indexOf("__") >= 0) {
             name = StringTools.replace(name, "__", "_");
