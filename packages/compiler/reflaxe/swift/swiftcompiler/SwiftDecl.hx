@@ -819,6 +819,10 @@ class SwiftDecl {
         for (a in f.args) {
             expr.reserveName(a.name);
         }
+        // The body-wide unused pass must run for every method entry, so
+        // test-support classes get the same underscore naming as business
+        // methods. (UnusedLocalNaming)
+        expr.scanUnusedLocals(f.expr, cls.name + "." + f.field.name);
         final ret = types.of(f.ret);
         final stat = f.isStatic ? "static " : "";
         final throws = SwiftFallibility.isThrowing(module, cls.name, f.field.name, f.isStatic) ? " throws" : "";
