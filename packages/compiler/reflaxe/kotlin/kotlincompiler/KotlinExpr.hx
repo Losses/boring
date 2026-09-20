@@ -754,7 +754,14 @@ class KotlinExpr {
                 // state still reflects the scope preceding the binding.
                 final initRendersNullable = rendersNullable(init);
                 final extractRenderedNullable = !isNullType(v.t) && !isNullType(init.t) && initRendersNullable;
-                if (initRendersNullable && !extractsAtDecl && !extractRenderedNullable)
+                // A local the program treats as always-present (the null-
+                // initialized storage family) whose initializer still
+                // renders through a safe call extracts once at the
+                // declaration: later accesses then read through a plain
+                // dot instead of repeating the assertion.
+                // (NullInitDeclaredExtraction)
+                final nullInitExtract = initRendersNullable && !isNullLiteral(init) && !mutated.exists(v.id);
+                if (initRendersNullable && !extractsAtDecl && !extractRenderedNullable && !nullInitExtract)
                     nullableRenderedLocals.set(v.id, true);
                 else
                     nullableRenderedLocals.remove(v.id);
