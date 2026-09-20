@@ -968,13 +968,14 @@ class TsExpr {
         // shadow the existing local with count = count and trip the temporal
         // dead zone at runtime.
         final boundNeedsHoist = fold == null && (boundText.indexOf(".") >= 0 || isSortedSetSizeBound(loop.bound));
+        final hoistName = boundNeedsHoist ? freshHoistName() : null;
         final init = "let "
             + name
             + " = "
             + expr(loop.start)
             + (fold != null ? ", " + fold : "")
-            + (boundNeedsHoist ? ", count = " + boundText : "");
-        final conditionBound = boundNeedsHoist ? "count" : boundText;
+            + (hoistName != null ? ", " + hoistName + " = " + boundText : "");
+        final conditionBound = hoistName != null ? hoistName : boundText;
         final out:Array<String> = [];
         final outerParseHoists = activeLoopParseHoists;
         activeLoopParseHoists = [];
@@ -1124,12 +1125,13 @@ class TsExpr {
         final subject = boundLengthSubject(loop.bound);
         final hoistName = subject != null ? hoistedFor(hoists, subject) : null;
         final sizeHoist = isSortedSetSizeBound(loop.bound);
-        final allocBound = hoistName != null ? hoistName : (sizeHoist ? "Math.max(count, 0)" : allocationBound(loop.bound));
-        final condBound = hoistName != null ? hoistName : (sizeHoist ? "count" : expr(loop.bound));
+        final sizeHoistName = sizeHoist ? freshHoistName() : null;
+        final allocBound = hoistName != null ? hoistName : (sizeHoistName != null ? "Math.max(" + sizeHoistName + ", 0)" : allocationBound(loop.bound));
+        final condBound = hoistName != null ? hoistName : (sizeHoistName != null ? sizeHoistName : expr(loop.bound));
         final name = localName(loop.index);
         final out:Array<String> = [];
-        if (sizeHoist)
-            out.push(indent(depth) + "const count = " + expr(loop.bound) + ";");
+        if (sizeHoistName != null)
+            out.push(indent(depth) + "const " + sizeHoistName + " = " + expr(loop.bound) + ";");
         // A push fill appends in iteration order, which a skipped iteration
         // (continue, break, or a guarded push) would desynchronize from an
         // indexed store; keep the array unallocated and emit push so the
