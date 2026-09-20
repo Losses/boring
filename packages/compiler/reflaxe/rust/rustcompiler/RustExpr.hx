@@ -1336,8 +1336,8 @@ class RustExpr {
                 initStr = renderValueForType(v.t, init, initStr);
                 // A sunk initializer crossed an assignment boundary, so it
                 // renders through the same numeric adaptation an assignment
-                // applies; without it a signed rendering would land in an
-                // unsigned declaration (E0308). (DeadConstantInitSink)
+                // applies; without it a signed rendering would reach the
+                // unsigned declaration unchanged (E0308). (DeadConstantInitSink)
                 if (sunkInitVarIds.exists(v.id))
                     initStr = numericAssignmentValue(v.t, init, initStr, i32BindingLocals.exists(v.id) ? "i32" : null, !i32Locals.exists(v.id));
                 switch (stripWrap(init).expr) {

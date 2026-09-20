@@ -806,10 +806,10 @@ class SwiftExpr {
             case TBinop(OpAssign, l, r):
                 // A sanctioned coalescing conditional renders as its value
                 // read alone: the throwing default was hoisted into the
-                // normalization binding, so the AST-level throw never
-                // reaches the rendered statement and the marker must drop
-                // with it. Every other AST throw keeps its marker.
-                // (CoalescedThrowHoisted)
+                // normalization binding, so the throw the syntax tree
+                // carries never reaches the rendered statement and the
+                // marker must drop with it. Every other throw in the tree
+                // keeps its marker. (CoalescedThrowHoisted)
                 final hoisted = switch (stripWrap(r).expr) {
                     case TIf(_, _, _): coalescingSiteFor(r) != null;
                     case _: false;
