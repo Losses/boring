@@ -4430,6 +4430,14 @@ class KotlinExpr {
         return PolicyQueries.mentionsLocal(e, v);
     }
 
+    /** Adopts an interface-declared parameter name for this variable: the
+        override signature and every body reference render with the
+        supertype name, so Kotlin's named-argument contract holds.
+        (OverrideAdoptsInterfaceNames) */
+    public function adoptParamName(v:TVar, name:String):Void {
+        localNames.set(v.id, KotlinNameEscape.escape(name));
+    }
+
     public function localName(v:TVar):String {
         // Kotlin gates a `_` local behind the experimental
         // UnnamedLocalVariables flag. Haxe treats `_` as a readable
