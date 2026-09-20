@@ -86,9 +86,12 @@ class ParenFold {
                             k++;
                         final inner = text.substr(i + 1, close - i - 1);
                         final ltrimInner = StringTools.ltrim(inner);
+                        // The `.` and `(` successor checks already guard
+                        // the deref and callable bindings; a leading `*` in
+                        // a comparison arm is safe to unwrap.
+                        // (ParenFold)
                         if (!(k < text.length && text.charAt(k) == "(")
                             && !(k < text.length && text.charAt(k) == ".")
-                            && !StringTools.startsWith(ltrimInner, "*")
                             && !hasTopLevelComma(text, i + 1, close)
                             && !StringTools.startsWith(ltrimInner, "{")) {
                             out.add(inner);
