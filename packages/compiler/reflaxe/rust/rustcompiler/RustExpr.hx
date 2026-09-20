@@ -155,6 +155,11 @@ class RustExpr {
     // the underscore name Rust uses for intentionally unused bindings.
     // (UnusedLocalNaming)
     final unusedLocalIds:Map<Int, Bool> = [];
+    // Declarations the typer shares with a `for` binding: the loop
+    // re-initializes the var and every read sits inside the loop, so the
+    // emitted `for` shadows the declaration and the line drops.
+    // (ForSharedBindingDeclaration)
+    final forSharedLocals:Map<Int, Bool> = [];
     // Reassigned locals whose constant initializer is never read between
     // the declaration and the first reassignment: Haxe requires the
     // initializer, Rust reads nothing from it, so the declaration drops
@@ -1150,6 +1155,10 @@ class RustExpr {
             case TVar(v, init) if (init != null && isTryRegion(init)):
                 return regionInitializerLines(v, stripWrap(init), depth);
             case TVar(v, init) if (init != null):
+                // A for-shared binding's declaration is shadowed dead code:
+                // the loop declares its own binding. (ForSharedBindingDeclaration)
+                if (forSharedLocals.exists(v.id))
+                    return [];
                 final kw = mutated.exists(v.id) || tryCapturedAssignments.exists(v.id) ? "let mut" : "let";
                 final raw = RustImports.toSnakeCase(localName(v));
                 final name = unusedLocalIds.exists(v.id) ? "_" + raw : raw;
@@ -9592,6 +9601,32 @@ class RustExpr {
         for (id in counts.keys())
             if (counts.get(id) == 0)
                 unusedLocalIds.set(id, true);
+        // A declaration the typer shares with a `for` binding rebinds the
+        // same var: every read sits inside the loop subtree, the loop
+        // re-initializes the binding, and the emitted `for` declares its
+        // own Rust binding that shadows the declaration. The declaration
+        // line drops. (ForSharedBindingDeclaration)
+        final forBoundIds:Map<Int, Int> = [];
+        final readsInFor:Map<Int, Int> = [];
+        function scanFor(node:TypedExpr, inFor:Bool):Void {
+            switch (node.expr) {
+                case TFor(v, it, body):
+                    forBoundIds.set(v.id, (forBoundIds.exists(v.id) ? forBoundIds.get(v.id) : 0) + 1);
+                    scanFor(it, inFor);
+                    scanFor(body, true);
+                case TLocal(v) if (inFor):
+                    readsInFor.set(v.id, (readsInFor.exists(v.id) ? readsInFor.get(v.id) : 0) + 1);
+                case _:
+                    haxe.macro.TypedExprTools.iter(node, child -> scanFor(child, inFor));
+            }
+        }
+        scanFor(root, false);
+        for (id in forBoundIds.keys()) {
+            final total = counts.exists(id) ? counts.get(id) : 0;
+            final inside = readsInFor.exists(id) ? readsInFor.get(id) : 0;
+            if (total > 0 && total == inside)
+                forSharedLocals.set(id, true);
+        }
 #if boring_fold_debug
         if (unusedLocalIds.keys().hasNext())
             Sys.stderr().writeString("RSCANDUMP n=" + Lambda.count(unusedLocalIds) + "\n");
