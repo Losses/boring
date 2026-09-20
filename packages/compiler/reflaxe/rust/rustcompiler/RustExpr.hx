@@ -2233,6 +2233,9 @@ class RustExpr {
                                                     out.push({expr: TVar(v, null), pos: stmts[i].pos, t: stmts[i].t});
                                                     stripped = true;
                                                     mutated.set(v.id, true);
+                                                    #if boring_fold_debug
+                                                    Sys.stderr().writeString("MSITE1 id=" + v.id + " name=" + v.name + "\n");
+                                                    #end
                                                 }
                                             case _:
                                         }
@@ -11116,11 +11119,17 @@ class RustExpr {
                 switch (stripWrap(t).expr) {
                     case TLocal(v):
                         mutated.set(v.id, true);
+                        #if boring_fold_debug
+                        Sys.stderr().writeString("MSITE2 id=" + v.id + " name=" + v.name + "\n");
+                        #end
                     case TArray(arr, _):
                         final receiver = mapBackingReceiver(arr);
                         switch (stripWrap(receiver == null ? arr : receiver).expr) {
                             case TLocal(v):
                                 mutated.set(v.id, true);
+                                #if boring_fold_debug
+                                Sys.stderr().writeString("MSITE3 id=" + v.id + " name=" + v.name + "\n");
+                                #end
                             case _:
                         }
                     case TField(subj, _):
@@ -11131,6 +11140,9 @@ class RustExpr {
                             switch (stripWrap(inner).expr) {
                                 case TLocal(v):
                                     mutated.set(v.id, true);
+                                    #if boring_fold_debug
+                                    Sys.stderr().writeString("MSITE4 id=" + v.id + " name=" + v.name + "\n");
+                                    #end
                                     break;
                                 case TField(next, _):
                                     inner = next;
@@ -11147,6 +11159,9 @@ class RustExpr {
                 switch (stripWrap(subj).expr) {
                     case TLocal(v):
                         mutated.set(v.id, true);
+                        #if boring_fold_debug
+                        Sys.stderr().writeString("MSITE5 id=" + v.id + " name=" + v.name + "\n");
+                        #end
                     case _:
                 }
             case TCall(fn, args):
@@ -11170,6 +11185,9 @@ class RustExpr {
                                 switch (stripWrap(receiver).expr) {
                                     case TLocal(v):
                                         mutated.set(v.id, true);
+                                        #if boring_fold_debug
+                                        Sys.stderr().writeString("MSITE6 id=" + v.id + " name=" + v.name + "\n");
+                                        #end
                                         break;
                                     case TField(inner, _):
                                         receiver = inner;
@@ -11190,6 +11208,9 @@ class RustExpr {
 #end
                                     if (RustDecl.fieldWritesReceiver(cf.get()) || interfaceMethodWritesReceiver(iface, cf.get()))
                                         mutated.set(v.id, true);
+                                        #if boring_fold_debug
+                                        Sys.stderr().writeString("MSITE7 id=" + v.id + " name=" + v.name + "\n");
+                                        #end
                                 case _:
                             }
                         }
@@ -11227,12 +11248,22 @@ class RustExpr {
                         if (i < paramTypes.length && isPassByRef(paramTypes[i]))
                             switch (Context.follow(paramTypes[i])) {
                                 case TInst(c, _) if (c.get().name == "Array"):
-                                    if (mutableAt == null || mutableAt.indexOf(i) >= 0) switch (stripWrap(args[i]).expr) {
+                                    // The mark must match the borrow: renderCallArgs emits
+                    // `&mut` only at positions mutableParamPositions reports,
+                    // and a callee without declared positions borrows shared.
+                    // (CallArgMarkBorrowAgreement)
+                    if (mutableAt != null && mutableAt.indexOf(i) >= 0) switch (stripWrap(args[i]).expr) {
                                         case TField(subj, _): switch (stripWrap(subj).expr) {
                                                 case TLocal(v): mutated.set(v.id, true);
+                                                #if boring_fold_debug
+                                                Sys.stderr().writeString("MSITE8 id=" + v.id + " name=" + v.name + "\n");
+                                                #end
                                                 case _:
                                             }
                                         case TLocal(v): mutated.set(v.id, true);
+                                        #if boring_fold_debug
+                                        Sys.stderr().writeString("MSITE9 id=" + v.id + " name=" + v.name + "\n");
+                                        #end
                                         default:
                                     }
                                 default:
