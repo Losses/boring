@@ -249,7 +249,7 @@ describe("default argument expansion generated tree", () => {
     const content = fs.readFileSync(dartFile, "utf8");
 
     expect(content).toContain("DefaultArgsOps([List<String>? familyNames])");
-    expect(content).toContain("this.familyNames = (familyNames ?? <String>[])!;");
+    expect(content).toContain("this.familyNames = familyNames ?? <String>[];");
     expect(content).toContain("static double infinityDefault([double? value])");
     expect(content).toContain("final double normalized = value ?? double.infinity;");
     expect(content).toContain("static Map<String, int> mapDefault([Map<String, int>? value])");
@@ -274,7 +274,7 @@ describe("default argument expansion generated tree", () => {
     expect(content).toContain("final int w = q ?? this._fallbackCount;");
 
     expect(content).toContain("final double resolvedValue = value ?? (fallback ?? 2.5);");
-    expect(content).toContain("this.followRadius = (followRadius ?? (radius ?? 0.0))!;");
+    expect(content).toContain("this.followRadius = followRadius ?? (radius ?? 0.0);");
 
     // The field-carrying preset constructs with omitted nullable
     // parameters and prints the labeled record text, never the bare name.
