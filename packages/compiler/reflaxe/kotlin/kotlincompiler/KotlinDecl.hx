@@ -725,7 +725,7 @@ class KotlinDecl {
         lines.push('    if (a.${field} != null && b.${field} != null) {');
         // The guard smart-casts both nullable val properties, so the
         // bindings read bare. (NullableScalarStringCompare)
-        lines.push('        val av${field} = a.${field}');
+        lines.push('        val av${field} = a.${field}!!');
         lines.push('        val bv${field} = b.${field}');
         lines.push('        var idx${field} = 0');
         lines.push('        while (idx${field} < av${field}.size && idx${field} < bv${field}.size) {');
