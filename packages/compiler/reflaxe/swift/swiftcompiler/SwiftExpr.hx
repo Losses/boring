@@ -4868,14 +4868,17 @@ class SwiftExpr {
         takes the underscore name Swift treats as intentionally unused.
         Runs once per method, outside scanLocals' recursion.
         (UnusedLocalNaming) */
-    function scanUnusedLocals(e:TypedExpr):Void {
+    public function scanUnusedLocals(e:TypedExpr, ?debugOwner:String):Void {
         swiftUnusedLocals.clear();
+        final declNames:Map<Int, String> = [];
         final readCounts:Map<Int, Int> = [];
         function countReads(node:TypedExpr):Void {
             switch (node.expr) {
                 case TVar(v, _):
-                    if (!readCounts.exists(v.id))
+                    if (!readCounts.exists(v.id)) {
                         readCounts.set(v.id, 0);
+                        declNames.set(v.id, v.name);
+                    }
                 case TLocal(v):
                     readCounts.set(v.id, (readCounts.exists(v.id) ? readCounts.get(v.id) : 0) + 1);
                 case _:
@@ -4886,6 +4889,11 @@ class SwiftExpr {
         for (id in readCounts.keys())
             if (readCounts.get(id) == 0)
                 swiftUnusedLocals.set(id, true);
+#if boring_fold_debug
+        if (debugOwner != null)
+            for (id in readCounts.keys())
+                Sys.stderr().writeString("SCANDUMP " + debugOwner + " id=" + id + " name=" + declNames.get(id) + " reads=" + readCounts.get(id) + "\n");
+#end
     }
 
     function scanLocals(e:TypedExpr):Void {
