@@ -18,6 +18,7 @@
 -D kotlin-test-output=reference/kotlin/gen-tests
 -D runtime-import=boring.runtime
 -D runtime-emit=runtime
+boring.ArraySliceOps
 boring.BinaryReader
 boring.BinaryWriter
 boring.Int64Ops
