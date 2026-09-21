@@ -122,8 +122,10 @@ class RustDecl {
                 // Register mutating trait methods so the parameter-mutability
                 // scan (argIsMutated) can mark a by-value parameter mutable
                 // when the body calls a &mut self method through its field.
+                // The key carries the interface: a bare name would taint
+                // every same-named method program-wide.
                 if (isMutating && !f.isStatic)
-                    mutatingTraitMethods.set(f.field.name, true);
+                    mutatingTraitMethods.set(RustEmissionState.interfaceMethodKey(cls.module, cls.name, f.field.name), true);
                 final selfPrefix = f.isStatic ? "" : (isMutating ? "&mut self" : "&self") + (f.args.length > 0 ? ", " : "");
                 final isFallible = shape != null ? shape.isFallible : funcIsFallible(f);
                 final errOwner = isFallible && shape != null && shape.errorName != null
@@ -255,6 +257,8 @@ class RustDecl {
         // Instance class
         final borrowedBytes = borrowedByteFields(funcFields);
         final hasLifetime = classHasLifetime(varFields, borrowedBytes);
+        if (hasLifetime)
+            borrowedByteFieldNames.set(cls.module, [for (name in borrowedBytes.keys()) name]);
         // Generic classes carry their type parameters on the struct and
         // the impl. Every parameter takes a Clone bound on the impl:
         // reads of stored elements clone out of the arrays, and the one
@@ -1182,6 +1186,24 @@ class RustDecl {
         return names;
     }
 
+    /**
+        Borrowed byte field names per module, recorded when the struct
+        declaration computes the lifetime set; the declaration pass runs
+        before the method bodies of the same module render, so the read
+        sites consult the completed set. (BorrowedByteFieldRecord)
+    **/
+    public static var borrowedByteFieldNames:Map<String, Array<String>> = new Map();
+
+    /**
+        Whether the named field lowers as a borrowed byte reference. The
+        field's Rust type is then a shared reference, which is Copy, so a
+        defensive clone at the read site is redundant.
+    **/
+    public static function isBorrowedByteField(module:String, fieldName:String):Bool {
+        final names = borrowedByteFieldNames.get(module);
+        return names != null && names.indexOf(fieldName) >= 0;
+    }
+
     function findConstructor(funcFields:Array<ClassFuncData>):Null<ClassFuncData> {
         return PolicyQueries.findConstructor(funcFields);
     }
@@ -1625,7 +1647,7 @@ class RustDecl {
                         case _:
                     }
                     switch (fn.expr) {
-                        case TField(s, FInstance(_, _, cf) | FAnon(cf)) if (root(s)):
+                        case TField(s, FInstance(c, _, cf)) if (root(s)):
                             if ([
                                 "push",
                                 "insert",
@@ -1643,13 +1665,38 @@ class RustDecl {
                             ].indexOf(cf.get().name) >= 0) found = true;
                             // A field call to a trait method emitted with a
                             // `&mut self` receiver mutates the owned field, so
-                            // the parameter binding holding it needs mut.
-                            if (mutatingTraitMethods.exists(cf.get().name)) found = true;
+                            // the parameter binding holding it needs mut. The
+                            // registry is keyed by interface and method: a
+                            // bare-name match would taint every same-named
+                            // method call program-wide (for example a
+                            // mutating `get` on one interface marking the
+                            // read-only SortedMapTable.get as mutating).
+                            // (InterfaceKeyedTraitMutation)
+                            if (mutatingTraitMethods.exists(RustEmissionState.interfaceMethodKey(c.get().module, c.get().name, cf.get().name)))
+                                found = true;
                             // The declaration side decides `&mut self` from
                             // bodyMutatesSelf on the callee body; the
                             // parameter side must reach the same verdict for
                             // any receiver rooted at this binding; the earlier rule covered
                             // for the closed name list.
+                            if (!found && cf.get().expr() != null && fieldWritesReceiver(cf.get()))
+                                found = true;
+                        case TField(s, FAnon(cf)) if (root(s)):
+                            if ([
+                                "push",
+                                "insert",
+                                "pop",
+                                "shift",
+                                "unshift",
+                                "remove",
+                                "removeAt",
+                                "splice",
+                                "reverse",
+                                "sort",
+                                "set",
+                                "add",
+                                "addChar"
+                            ].indexOf(cf.get().name) >= 0) found = true;
                             if (!found && cf.get().expr() != null && fieldWritesReceiver(cf.get()))
                                 found = true;
                         case _:
@@ -2122,10 +2169,11 @@ class RustDecl {
                         // A nullable sorted-map parameter feeding a
                         // non-Option map field has no Default impl; the
                         // absent value is an empty map built with the
-                        // field's key comparator.
+                        // field's key comparator, and a present argument
+                        // keeps its table. (NullableMapParamFieldInit)
                         final emptyMap = emptySortedMapFor(getFieldType(cls, a.name));
                         if (emptyMap != null)
-                            lines.push('            $sname: $emptyMap,');
+                            lines.push('            $sname: $sname.unwrap_or($emptyMap),');
                         else
                             lines.push('            $sname: $sname.unwrap_or_default(),');
                     } else if (thisAsValue && !isTypeCopy(a.type)) {
