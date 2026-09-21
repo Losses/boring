@@ -707,6 +707,12 @@ class SwiftExpr {
                 if (hasTypeAnnotation && (isNullLeafType(localType) || optionalNullAnnotation)) {
                     optionalBindingLocals.set(v.id, true);
                     optionalAnnotated.set(v.id, true);
+                } else if (isNullLeafType(v.t) && coalescingValue != null && !isNullLeafType(localType)) {
+                    // The sanctioned coalescing default supplies the value, so
+                    // the emitted annotation is plain while the Haxe type keeps
+                    // its Null wrapper; a value use must not unwrap it.
+                    // (CoalescingLocalPlainBinding)
+                    nonOptionalDeclared.set(v.id, true);
                 }
                 final annotation = hasTypeAnnotation ? ": " + (optionalNullAnnotation ? types.of(localType) + "?" : types.of(localType)) : "";
                 final unwrapNullableInitializer = isNullLeafType(init.t) && coalescing == null && !isNullLeafType(v.t) && hasTypeAnnotation
@@ -816,7 +822,7 @@ class SwiftExpr {
                 };
                 final tryKw = !hoisted && containsThrowingCall(r) ? "try " : "";
                 final map = mapAssignment(l);
-                final target = map == null ? assignTarget(l) + " = " : expr(map.receiver) + "[" + expr(map.key) + "] = ";
+                final target = map == null ? assignTarget(l) + " = " : expr(map.receiver) + "[" + mapKeyText(map.key) + "] = ";
                 return [indent(depth) + target + tryKw + assignmentValue(l, r)];
             case TBinop(OpAssignOp(inner), l, r):
                 final tryKw = containsThrowingCall(r) ? "try " : "";
@@ -1489,12 +1495,16 @@ class SwiftExpr {
                         var t = expr(x);
                         if (elemFloat && isIntType(emittedType(x))) t = intToFloatText(t);
                         // A non-optional element type rejects a nullable
-                        // element; the element unwraps at the literal.
-                        if (elemType != null && !isNullLeafType(elemType) && optionalValued(x) && !StringTools.endsWith(t, "!"))
+                        // element; the element unwraps at the literal. A
+                        // compound element carries the wrap in parentheses so
+                        // the bang binds to the whole value, and a null
+                        // literal has no value to unwrap.
+                        // (ArrayLiteralElementDemand)
+                        if (elemType != null && !isNullLeafType(elemType) && optionalValued(x) && !isNullLiteral(x)
+                            && !StringTools.endsWith(t, "!"))
                             t = switch (stripWrap(x).expr) {
                                 case TLocal(_): t + "!";
-                                case TField(_, _): "(" + t + ")!";
-                                case _: t;
+                                case _: "(" + t + ")!";
                             };
                         t;
                     }
@@ -1945,7 +1955,7 @@ class SwiftExpr {
             case OpAssign:
                 final map = mapAssignment(l);
                 final rhs = assignmentValue(l, r);
-                return map == null ? assignTarget(l) + " = " + rhs : expr(map.receiver) + "[" + expr(map.key) + "] = " + rhs;
+                return map == null ? assignTarget(l) + " = " + rhs : expr(map.receiver) + "[" + mapKeyText(map.key) + "] = " + rhs;
             case OpAssignOp(OpAdd) if (isStringTyped(l)):
                 // Haxe appends any value to a String with its string form;
                 // Swift's `+=` needs the converted right side.
@@ -2727,8 +2737,7 @@ class SwiftExpr {
                 final itemKey = stdStringType(key, value + ".keyAt(" + index + ")", true, origin, depth + 1);
                 final itemVal = stdStringType(val, value + ".valueAt(" + index + ")", true, origin, depth + 1);
                 '{ () -> String in var out = "{"; let n = ${value}.size(); var ${index}: Int32 = 0; while ${index} < n { if ${index} > 0 { out += ", "; }; out += ${itemKey}; out += "="; out += ${itemVal}; ${index} += 1; }; out += "}"; return out }()';
-            case IsRecordLike: value + ".toString()";
-            case IsInstanceToString: value + ".toString()";
+            case IsRecordLike | IsInstanceToString: recordToStringText(t, value);
             case IsMarkedAbstract(abs):
                 ValueTypeSupport.memberField(abs, "toString") != null ? value + ".description" : "String(describing: "
                     + value
@@ -2754,6 +2763,29 @@ class SwiftExpr {
 
     function hasInstanceToString(cls:ClassType):Bool {
         return PolicyQueries.hasInstanceToString(cls);
+    }
+
+    /**
+        Member toString rendering for Std.string. A toString built on the
+        checked string buffer throws (stdlib/08), and the contexts this
+        text enters (string interpolation segments and the array, set,
+        and map join closures) accept no throwing call, so a throwing
+        toString takes the forced try, matching the property accessor
+        rendering in SwiftDecl. The lookup walks to the declaring class
+        because the fallibility table keys functions on the declarer.
+    **/
+    function recordToStringText(t:Type, value:String):String {
+        var cls = switch (Context.follow(t)) {
+            case TInst(c, _): c.get();
+            case _: null;
+        };
+        while (cls != null) {
+            final declares = [for (field in cls.fields.get()) field.name].indexOf("toString") >= 0;
+            if (declares)
+                return (SwiftFallibility.isThrowing(cls.module, cls.name, "toString", false) ? "try! " : "") + value + ".toString()";
+            cls = cls.superClass == null ? null : cls.superClass.t.get();
+        }
+        return value + ".toString()";
     }
 
     function cyclicEnumString(en:EnumType, value:String, inConcat:Bool, origin:TypedExpr):String {
@@ -3123,11 +3155,11 @@ class SwiftExpr {
                 }
                 if (isMapType(subj.t)) {
                     if (name == "exists" && args.length == 1)
-                        return expr(subj) + "[" + expr(args[0]) + "] != nil";
+                        return expr(subj) + "[" + mapKeyText(args[0]) + "] != nil";
                     if (name == "get" && args.length == 1)
-                        return expr(subj) + "[" + expr(args[0]) + "]";
+                        return expr(subj) + "[" + mapKeyText(args[0]) + "]";
                     if (name == "set" && args.length == 2)
-                        return expr(subj) + "[" + expr(args[0]) + "] = " + expr(args[1]);
+                        return expr(subj) + "[" + mapKeyText(args[0]) + "] = " + expr(args[1]);
                 }
                 if (isStringBuf(subj)) {
                     // stdlib/08: the checks throw, and a throw is a
@@ -3945,6 +3977,16 @@ class SwiftExpr {
         return PolicyQueries.isMapType(t);
     }
 
+    /**
+        MapSubscriptKeyDemand: a Swift dictionary subscript demands a plain
+        key. Haxe flows a Null<Int> key into Map.get, Map.set, and Map.exists,
+        and the null key traps at the lookup, so the key takes the same force
+        unwrap a value position takes.
+    **/
+    function mapKeyText(key:TypedExpr):String {
+        return narrowedText(key);
+    }
+
     function isMapImplementation(cls:ClassType):Bool {
         return PolicyQueries.isMapImplementation(cls);
     }
@@ -4419,7 +4461,7 @@ class SwiftExpr {
                 if (!SwiftDecl.isException(c.get())) {
                     return null;
                 }
-                return expr(stripCast(subj)) + ".message";
+                return receiverText(stripCast(subj)) + ".message";
             case _:
                 return null;
         }
