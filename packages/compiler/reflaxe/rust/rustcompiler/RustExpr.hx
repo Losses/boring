@@ -4557,17 +4557,18 @@ class RustExpr {
                     && !isStringType(elemType) && !isNullableElem;
                 final rendered = [
                     for (x in elems) {
+                        var source = expr(x);
                         var inner = if (isStringElem) {
                             switch (stripWrap(x).expr) {
                                 case TConst(TString(_)):
-                                    expr(x) + ".to_string()";
+                                    source + ".to_string()";
                                 case TLocal(v) if (isBorrowedParamLocal(v)):
-                                    expr(x) + ".to_string()";
+                                    source + ".to_string()";
                                 case _:
-                                    expr(x) + ".clone()";
+                                    source + ".clone()";
                             }
                         } else {
-                            elemNeedsClone && !StringTools.endsWith(expr(x), ".clone()") ? "(" + expr(x) + ").clone()" : expr(x);
+                            elemNeedsClone && !StringTools.endsWith(source, ".clone()") ? "(" + source + ").clone()" : source;
                         };
                         if (elemFloat && isIntType(emittedType(x))) inner = intToFloatText(inner);
                         // An i32-domain element in a business u32 array
@@ -12522,6 +12523,45 @@ class RustExpr {
         return RustShape.ShapeUnknown;
     }
 
+    /** Whether reading this expression yields the Option shape in Rust. A
+        value whose Haxe type is Null<T> stores an Option<T> unless a guard, a
+        coalescing initializer, or a proved-non-null copy already replaced the
+        payload with the inner value, so those registries decide and every
+        other nullable read keeps its Option. A nullable local whose
+        initializer text ends in a call's own unwrap is still an Option: that
+        unwrap consumed the call's Result, not the Option. (NonNullSlotUnwrap) */
+    function nullableReadHoldsOption(e:TypedExpr):Bool {
+        if (!isNullType(e.t) || isTNull(e) || narrowedSubject(e) != null)
+            return false;
+        return switch (stripWrap(e).expr) {
+            case TLocal(v):
+                if (nullableCollapsedLocals.exists(v.id) || nonNullRenderedLocals.exists(v.id)
+                    || forcingReadLocals.exists(v.id) || hasGuardedTernaryLocals.exists(v.id)
+                    || isNoneInitializedLocal(e))
+                    false;
+                else
+                    true;
+            case TConst(TNull):
+                false;
+            case TIf(_, _, _):
+                !isNonNullRenderedConditional(e);
+            case _:
+                true;
+        };
+    }
+
+    /** Whether an already-rendered nullable read still carries its Option
+        into the boundary: a text that constructs, consumes, or visibly
+        settles the wrapper does not. (NonNullSlotUnwrap) */
+    function nullableReadRendersOptionText(rendered:String):Bool {
+        final text = StringTools.trim(rendered);
+        if (text == "None" || StringTools.startsWith(text, "Some("))
+            return false;
+        if (StringTools.endsWith(text, ".unwrap()") || StringTools.endsWith(text, ".unwrap_or_default()"))
+            return false;
+        return RustShapeParse.shapeOf(text) != RustShape.ShapeBare;
+    }
+
     /** Append a postfix method to an already-rendered text, parenthesizing
         composite forms so the postfix binds to the whole value.
         (ShapeParse) */
@@ -12887,17 +12927,18 @@ class RustExpr {
                         // still enters the non-null slot, so the boundary
                         // unwraps it, and the None path panics exactly where
                         // the Haxe source would have dereferenced an
-                        // undefined value. Only locals whose declaration
-                        // still renders the Option shape qualify: collapsed
-                        // locals, non-null-rendered locals, and every
-                        // non-local form already render the inner value, so
-                        // no unwrap applies. (NonNullSlotUnwrap)
-                        final optionRenderedLocal = narrowedSubject(arg) == null
-                            && switch (stripWrap(arg).expr) {
-                                case TLocal(v): optionRenderedLocals.exists(v.id);
-                                case _: false;
-                            };
-                        if (optionRenderedLocal && RustShapeParse.shapeOf(argStr) != RustShape.ShapeBare) {
+                        // undefined value. A collapsed local, a
+                        // non-null-rendered local, and a text that already
+                        // consumed or constructed the wrapper are the forms
+                        // that render the inner value and take no unwrap; a
+                        // field read, an index read, and a nullable-returning
+                        // call all keep the Option their declaration stored.
+                        // (NonNullSlotUnwrap)
+                        final optionRenderedRead = switch (stripWrap(arg).expr) {
+                            case TLocal(v): narrowedSubject(arg) == null && optionRenderedLocals.exists(v.id);
+                            case _: nullableReadHoldsOption(arg);
+                        };
+                        if (optionRenderedRead && nullableReadRendersOptionText(argStr)) {
                             final inner = getNullInnerType(arg.t);
                             var bare = stripRenderedParens(expr(stripWrap(arg)));
                             if (StringTools.startsWith(bare, "&"))
