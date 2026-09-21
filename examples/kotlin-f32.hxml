@@ -232,6 +232,7 @@ tests.RustCoalesceTests
 tests.CloneDeriveGapTests
 boring.ArrayAccessOps
 tests.ArrayAccessTests
+tests.ArraySliceTests
 boring.StaticRefOps
 tests.StaticRefTests
 boring.LocalShadowOps
