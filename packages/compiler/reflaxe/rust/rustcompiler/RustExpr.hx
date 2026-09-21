@@ -10754,9 +10754,11 @@ class RustExpr {
         };
     }
 
-    /** Whether rendered text is a bare Rust string literal. */
+    /** Whether rendered text is a bare Rust string literal, including the
+        concat! form a multi-line literal renders as. */
     function isStringLiteralText(text:String):Bool {
-        return StringTools.startsWith(text, "\"") && StringTools.endsWith(text, "\"");
+        return (StringTools.startsWith(text, "\"") && StringTools.endsWith(text, "\""))
+            || StringTools.startsWith(text, "concat!(");
     }
 
     function rustMapValue(e:TypedExpr):String {
