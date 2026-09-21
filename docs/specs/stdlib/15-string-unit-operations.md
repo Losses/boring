@@ -35,8 +35,8 @@ targets already lower.
 | Member | TypeScript | Kotlin | Swift | Dart | Rust |
 | --- | --- | --- | --- | --- | --- |
 | `length` | `.length` (code units) | `.length` (code units) | current lowering | current lowering | `u_string::unit_count(&s)`, one `encode_utf16` scan per call, in the `u32` domain of `Int` |
-| `charCodeAt` | `Number.isNaN(s.charCodeAt(i)) ? null : s.charCodeAt(i)` for pure operands; `readUnit(s, i)` when either operand may have effects | `run { val _s = s; val _i = i; if (_i >= 0 && _i < _s.length) _s[_i].code else null }` with single evaluation | current lowering | `(() { final _s = s; final _i = i; return _i >= 0 && _i < _s.length ? _s.codeUnitAt(_i) : null; })()` with single evaluation | `.as_bytes()[i]`, one byte, panics at the end of the string |
-| `split` | `.split(sep)` | current lowering | current lowering | current lowering | no lowering; the native `str::split` iterator passes through with no array type |
+| `charCodeAt` | `Number.isNaN(s.charCodeAt(i)) ? null : s.charCodeAt(i)` for pure operands; `readUnit(s, i)` when either operand may have effects | `run { val _s = s; val _i = i; if (_i >= 0 && _i < _s.length) _s[_i].code else null }` with single evaluation | current lowering | `(() { final _s = s; final _i = i; return _i >= 0 && _i < _s.length ? _s.codeUnitAt(_i) : null; })()` with single evaluation | `u_string::unit_at(&s, i)` walks `s.encode_utf16()`, so the index counts UTF-16 code units: each half of a surrogate pair carries its own address and the value is the unit, while an index past the last unit answers `None`. The code-point read `u_string::at` stays with `std.UString.at` (stdlib spec 10) |
+| `split` | `.split(sep)` | current lowering | current lowering | current lowering | `u_string::split(&s, &sep)` scans the two `encode_utf16` unit vectors for the literal separator and returns a `Vec<String>`, keeping empty parts and answering one part per unit for the empty separator |
 
 ## Judgment
 
