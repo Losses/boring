@@ -654,3 +654,7 @@ tests.ClosureStringViewOpsTests
 
 boring.StringSearchFromOps
 tests.StringSearchFromTests
+
+
+boring.ArrayIndexSearchOps
+tests.ArrayIndexSearchTests
