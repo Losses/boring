@@ -324,12 +324,25 @@ declaration contributes no storage.
    represents the property read as a zero-argument call to `get_x`.
 6. **No other construct moves.** Interfaces, companions, statics, enums,
    exception folding, anonymous records, and the test apparatus keep
-   their current lowering. A test class carries `@:test` functions and
-   nothing else; a field or function without `@:test` stops the
-   compilation with `test class T carries a non-test member F; shared
-   logic belongs in an ordinary class`, whose member lowering every
-   target already renders.
-7. **A zero-argument `toString` method overrides `Any` on Kotlin.** Haxe
+   their current lowering. A test class carries `@:test` functions, the
+   conventional per-class flush entry of ruling 7, and nothing else; a
+   field or function that is neither stops the compilation with
+   `test class T carries a non-test member F; shared logic belongs in an
+   ordinary class`, whose member lowering every target already renders.
+7. **A test class may carry one per-class flush entry.** The entry is a
+   public static function named `flushTestTrace` that takes no arguments
+   and returns Void and that carries no `@:test` marker
+   (`packages/compiler/TestClassFlush.hx`). It registers no test, so the
+   cross-target test id set is unchanged. The Kotlin runner calls it on
+   the class instance once the class's `@:test` functions returned, and a
+   throw from the entry fails the run like a throw from a test. Kotlin
+   renders the entry as an instance method beside the test functions; TS,
+   Rust, Swift, and Dart accept it and emit nothing for it, because their
+   runners call one entry per `@:test` function and hold no class
+   instance. A function carrying `@:test` stays an ordinary test even
+   when it shares the name, so a class that wrote the entry as a test
+   keeps its id and receives no second call.
+8. **A zero-argument `toString` method overrides `Any` on Kotlin.** Haxe
    models no root type, so nothing in the typed tree marks the method as
    an override; the Kotlin rendering of a zero-argument `toString`
    carries the `override` modifier. The other targets render the method
@@ -354,6 +367,14 @@ declaration contributes no storage.
   and that construction throws on each violated invariant. The existing
   `BinaryReader` and `BinaryWriter` constructors exercise the
   field-initialization arm of ruling 4 on every target.
+- `samples/tests/FlushHookProbeTests.hx`: one `@:test` function plus the
+  `flushTestTrace` entry of ruling 7, entered in the entry lists of all
+  eight generation hxml files. The entry writes
+  `<BORING_FLUSH_PROBE_DIR>/FlushHookProbeTests.txt` when that variable is
+  set and returns immediately otherwise, so a host observes the Kotlin
+  call by exporting the variable before the generated runner and the
+  production loops stay free of writes. No other sample carries a flush
+  entry, because the consumer that needs the trace writes its own.
 - Regeneration diffs show per target: the Kotlin `data class` prefix, the
   Kotlin `init` block and property facade, the Swift `private` stored
   property and computed property, the Dart `_`-prefixed private field and

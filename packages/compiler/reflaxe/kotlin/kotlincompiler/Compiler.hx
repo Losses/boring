@@ -4,6 +4,7 @@ package kotlincompiler;
 import haxe.macro.Context;
 import haxe.macro.Type;
 import PolicyQueries;
+import TestClassFlush;
 import reflaxe.BaseCompiler.BaseCompilerFileOutputType;
 import reflaxe.PluginCompiler;
 import reflaxe.ReflectCompiler;
@@ -144,7 +145,16 @@ class Compiler extends PluginCompiler<Compiler> {
             sortedFuncs.sort((a, b) -> Reflect.compare(Context.getPosInfos(a.field.pos).min, Context.getPosInfos(b.field.pos).min));
 
             final testFuncNames:Array<String> = [];
+            var flushEntry:Null<String> = null;
             for (f in sortedFuncs) {
+                if (TestClassFlush.isEntry(f)) {
+                    // The conventional flush entry is not a test: it takes
+                    // no id, and the generated runner calls it once the
+                    // class's tests returned (feature spec 27).
+                    TestClassFlush.validate(f, classType.name);
+                    flushEntry = f.field.name;
+                    continue;
+                }
                 if (!f.field.meta.has(":test")) {
                     continue;
                 }
@@ -170,7 +180,8 @@ class Compiler extends PluginCompiler<Compiler> {
 
             state.testClasses.set(classType.module, {
                 cls: classType,
-                funcs: testFuncNames
+                funcs: testFuncNames,
+                flush: flushEntry
             });
         }
 
@@ -566,6 +577,14 @@ class Compiler extends PluginCompiler<Compiler> {
             lines.push('    val $varName = ${className}()');
             for (func in data.funcs) {
                 lines.push('    try { $varName.$func() } catch (t: Throwable) { hasFailure = true }');
+            }
+            final flushEntry = data.flush;
+            if (flushEntry != null) {
+                // The class carries the conventional flush entry (feature
+                // spec 27). It runs on the instance the runner already
+                // holds, after every test of the class returned, and a
+                // throwing write fails the run like a throwing test.
+                lines.push('    try { $varName.$flushEntry() } catch (t: Throwable) { hasFailure = true }');
             }
             idx++;
         }
