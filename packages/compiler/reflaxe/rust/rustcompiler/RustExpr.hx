@@ -6492,6 +6492,22 @@ class RustExpr {
         signed by construction.
     **/
     /**
+        isI32DomainMatchText: a rendered match expression that lowers in the
+        signed i32 domain. The indexOf lowering (`match (s).find(...)`) arms
+        yield i32, so a bare `match ` prefix is signed. The usize and u32
+        narrowing forms (`match usize::try_from(...)`, `match
+        u32::try_from(...len())`) render the unsigned business domain and are
+        excluded; both spellings occur bare and parenthesized.
+    **/
+    function isI32DomainMatchText(text:String):Bool {
+        final bare = StringTools.startsWith(text, "(match ") ? text.substr(1) : text;
+        if (!StringTools.startsWith(bare, "match "))
+            return false;
+        return !StringTools.startsWith(bare, "match usize::try_from(")
+            && !StringTools.startsWith(bare, "match u32::try_from(");
+    }
+
+    /**
         rendersSignedIntArg: an Int argument that lowers in the signed i32
         domain. A wrapping binop, reinterpretation, indexOf result, or an
         i32-domain local or its negation is signed; the caller reinterprets
@@ -6499,7 +6515,7 @@ class RustExpr {
     **/
     function rendersSignedIntArg(arg:TypedExpr, text:String):Bool {
         if (StringTools.startsWith(text, "i32::") || StringTools.startsWith(text, "(i32::")
-            || StringTools.startsWith(text, "match ") || StringTools.startsWith(text, "(match "))
+            || isI32DomainMatchText(text))
             return true;
         if (rendersSignedIntExpr(arg))
             return true;
@@ -6514,7 +6530,7 @@ class RustExpr {
         if (RuntimeResidents.isResident(imports.selfModule))
             return true;
         if (StringTools.startsWith(text, "i32::") || StringTools.startsWith(text, "(i32::")
-            || StringTools.startsWith(text, "match ") || StringTools.startsWith(text, "(match "))
+            || isI32DomainMatchText(text))
             return true;
         return i32LocalDomain(e) || rendersSignedIntExpr(e);
     }
@@ -12392,7 +12408,11 @@ class RustExpr {
             // reinterprets bits (T5); a same-domain pass (a resident runtime
             // calling another resident runtime) needs no cast.
             if (pt != null && isIntType(pt)) {
-                final targetType = types.of(pt, false);
+                final receiverResident = receiverType != null && switch (Context.follow(receiverType)) {
+                    case TInst(c, _): RuntimeResidents.isResident(c.get().module);
+                    case _: false;
+                };
+                final targetType = receiverResident ? "i32" : types.of(pt, false);
                 final sourceType = resolveExprType(arg);
                 final signedSource = sourceType == "i32" || rendersSignedIntArg(arg, argStr);
                 if (signedSource && targetType == "u32") {
