@@ -649,3 +649,7 @@ tests.NullableStringViewOpsTests
 
 boring.ClosureStringViewOps
 tests.ClosureStringViewOpsTests
+
+
+boring.StringSearchFromOps
+tests.StringSearchFromTests
