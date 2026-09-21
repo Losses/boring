@@ -9010,11 +9010,14 @@ class RustExpr {
                         final joined = freshRegionName("joined");
                         final index = freshRegionName("index");
                         final receiver = nullableMethodReceiver(subj, false);
-                        // A nullable receiver rendered as (X.clone()).as_ref().unwrap()
-                        // creates a clone temporary whose lifetime ends at the
-                        // semicolon; split into separate bindings so the clone
-                        // outlives the join body (E0716).
-                        final needsSplit = StringTools.contains(receiver, ".clone()).as_ref().unwrap()");
+                        // A nullable receiver whose unwrap applies to a
+                        // temporary (a clone or a lookup result) ends that
+                        // temporary's lifetime at the semicolon; split into
+                        // separate bindings so the value outlives the join
+                        // body (E0716). A place expression keeps the direct
+                        // form: its unwrap borrows the place itself.
+                        final needsSplit = StringTools.contains(receiver, ".as_ref().unwrap()")
+                            && !reusableReadText(stripRenderedParens(StringTools.replace(receiver, ".as_ref().unwrap()", "")));
                         if (needsSplit) {
                             final tmp = freshRegionName("_jtmp");
                             final cloneExpr = StringTools.replace(receiver, ".as_ref().unwrap()", "");
