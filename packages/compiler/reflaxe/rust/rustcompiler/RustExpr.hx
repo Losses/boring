@@ -11116,6 +11116,26 @@ class RustExpr {
                 && isNumericScalarType(paramTypes[i])
                 && renderedArgShape(argStr, arg) == RustShape.ShapeOption)
                 argStr = postfixAdapt(argStr, ".unwrap()");
+            // A nullable scalar parameter entering a non-null constructor
+            // slot stores a genuine Option (no scalar sentinel form to
+            // carry the absence inside the value). Int slots force-read
+            // through numericAssignmentValue, so the unwrap applies only
+            // to Float and non-scalar slots where no forcing read follows.
+            // (NonNullSlotUnwrap)
+            final paramRead = switch (stripWrap(arg).expr) {
+                case TLocal(v): paramVarIds.exists(v.id);
+                case _: false;
+            };
+            if (i < paramTypes.length
+                && !isNullType(paramTypes[i])
+                && !isIntType(paramTypes[i])
+                && isNullType(arg.t)
+                && paramRead
+                && narrowedSubject(arg) == null
+                && nullableReadRendersOptionText(argStr)) {
+                final inner = getNullInnerType(arg.t);
+                argStr = isTypeCopy(inner) ? "(" + argStr + ").unwrap()" : "(" + argStr + ").as_ref().unwrap().clone()";
+            }
             if (i < paramTypes.length)
                 out.push(numericAssignmentValue(paramTypes[i], arg, ownedConstructorArg(paramTypes[i], arg, null, argStr), null, true));
             else
