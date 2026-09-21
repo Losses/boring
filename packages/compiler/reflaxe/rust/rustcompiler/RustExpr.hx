@@ -4955,10 +4955,10 @@ class RustExpr {
         return switch (PolicyQueries.enumQueryPlan(e)) {
             case null: null;
             case LengthCount(count): Std.string(count);
-            case AliasIndex(subj, index): expr(subj) + "[" + expr(index) + "]";
+            case AliasIndex(subj, index): expr(subj) + "[" + castArg(index, "usize") + "]";
             case EntryIndex(en, index):
                 requireEnum(en.module, en.name);
-                en.name + "::ALL[" + expr(index) + "]";
+                en.name + "::ALL[" + castArg(index, "usize") + "]";
             case EnumKindQuery(kind, en, args):
                 requireEnum(en.module, en.name);
                 switch (kind) {
@@ -8270,7 +8270,10 @@ class RustExpr {
                 state.memberPrintsTypeParam = true;
                 "format!(\"{:?}\", " + value + ")";
             case IsRecordLike: value + ".to_string()";
-            case IsInstanceToString: value + ".to_string()";
+            case IsInstanceToString:
+                // Display text has no propagation path, so a text read that
+                // emits a Result unwraps at the read site.
+                value + ".to_string()" + (instanceToStringFallible(t) ? ".unwrap()" : "");
             case IsMarkedAbstract(abs):
                 value + ".0.to_string()";
             case IsNull:
@@ -8294,6 +8297,36 @@ class RustExpr {
                 Context.error("Std.string accepts scalars, enum values, records, and arrays of them only", origin.pos);
                 null;
         };
+    }
+
+    /**
+        Whether a class-typed value reads its text through a method that
+        emits a Result. The walk follows the super chain so the declaring
+        class names the error type.
+    **/
+    function instanceToStringFallible(t:Type):Bool {
+        final module = instanceToStringModule(t);
+        return module != null
+            && (RustEmissionState.runtimeShimIsFallible("toString")
+                || state.funcErrorEnums.exists(RustEmissionState.funcKey(module, "toString", false)));
+    }
+
+    /** The module of the class that declares the text read of a class value. */
+    function instanceToStringModule(t:Type):Null<String> {
+        switch (Context.follow(t)) {
+            case TInst(c, _):
+                var current:Null<Ref<ClassType>> = c;
+                var guard = 0;
+                while (current != null && guard < 64) {
+                    for (field in current.get().fields.get())
+                        if (field.name == "toString")
+                            return current.get().module;
+                    current = current.get().superClass == null ? null : current.get().superClass.t;
+                    guard++;
+                }
+            case _:
+        }
+        return null;
     }
 
     function hasInstanceToString(cls:ClassType):Bool {
