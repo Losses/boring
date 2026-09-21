@@ -1955,6 +1955,25 @@ class DefaultArgExpander {
         };
     }
 
+    /** The registered default value at one parameter position, wrapped so a
+        target emitter can render it through its own DefaultArgValue path. */
+    public static function coalescingDefaultValueAt(classType:ClassType, fieldName:String, index:Int):Null<DefaultArgValue> {
+        final value = defaultAt(classType, fieldName, index);
+        return switch (value) {
+            case VCoalescing(_): value;
+            default: null;
+        };
+    }
+
+    /** True when the registered default at one parameter position reads a
+        parameter of its own function, so its text belongs to the callee scope. */
+    public static function coalescingDefaultReadsParameter(classType:ClassType, fieldName:String, index:Int):Bool {
+        return switch (defaultAt(classType, fieldName, index)) {
+            case VCoalescing(value): readsParameter(value);
+            default: false;
+        };
+    }
+
     /** Keeps a nullable target parameter when its sanctioned default is null. */
     public static function coalescingParameterType(value:CoalescingDefaultValue, t:Type):Type {
         return switch (value) {

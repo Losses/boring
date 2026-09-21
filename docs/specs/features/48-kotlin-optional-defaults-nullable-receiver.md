@@ -23,6 +23,25 @@ constructors, interfaces, and extracted functions emitted by the Kotlin target.
    defaults, so no new call-site naming scheme is required. Existing calls do
    not omit an intermediate argument in a way that requires Kotlin named
    arguments; the current positional call shape is therefore unchanged.
+   The expanded argument keeps the parameter's position: a call whose argument
+   list is shorter than the callee's parameter list renders only the arguments
+   it is given and leaves the tail to the Kotlin defaults, while a call that
+   Haxe completed with an explicit null for an omitted intermediate slot keeps
+   that slot at its position.
+3a. A registered coalescing default whose expression reads an earlier parameter
+   of its own function is written for the callee body, where that parameter is a
+   binding. Its text therefore cannot be materialized at a call site. Two shapes
+   are distinguished at the call site: the omitted trailing tail renders no
+   argument and the Kotlin default supplies the value in the callee scope, and
+   an explicit null at the slot renders each parameter read of the default
+   against the argument this call passes for that parameter, so
+   `pick(a, b = a)` called as `pick("alpha", null)` renders
+   `pick("alpha", "alpha")`. A read of a parameter the call itself omits
+   resolves to `null` where the rendered parameter keeps its nullable type and
+   otherwise renders that parameter's own default expression. Without this
+   resolution the call site emits the bare parameter name, which names no
+   binding outside the callee and breaks the argument-to-parameter
+   correspondence.
 4. For an instance member call, the Kotlin target inspects the compile-time type
    of the receiver. The `Null<T>` case emits `?.`; non-nullable receivers emit `.`.
    The decision uses only the compile-time type table.
