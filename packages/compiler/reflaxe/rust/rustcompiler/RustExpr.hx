@@ -8027,7 +8027,13 @@ class RustExpr {
                     return uStringRef(cls, name);
                 }
                 if (RustImports.isShimModule(cls.module)) {
-                    final structName = RustImports.emittedTypeName(cls.name);
+                    // An @:native extern reaches this arm under its native
+                    // name; std.Console and std.Process declare @:native
+                    // values that open lowercase, so the shim's declaration
+                    // name comes from the module. The shim module path stays
+                    // keyed on that declaration name, matching the emitted
+                    // file. (StdConsoleShimReference)
+                    final structName = RustImports.declarationName(cls.module, RustImports.emittedTypeName(cls.name));
                     imports.requireType(cls.module, structName);
                     return structName + "::" + RustImports.toSnakeCase(name);
                 }
@@ -8065,12 +8071,11 @@ class RustExpr {
                 // The typer renders an @:native extern class under its
                 // native name (console, process) even when its
                 // declaration name differs; the emitted shim keeps the
-                // declaration's module name (Console, Process). A
-                // Pascal-case name is already the declaration name and
-                // stays untouched.
-                final first = cls.name.length > 0 ? cls.name.charAt(0) : "?";
-                final nativeLower = first >= "a" && first <= "z";
-                final structName = nativeLower ? cls.module.substr(cls.module.lastIndexOf(".") + 1) : RustImports.emittedTypeName(cls.name);
+                // declaration's module name (Console, Process). Same
+                // recovery as the shim routing above, from one helper, so
+                // the two reference shapes cannot drift apart.
+                // (StdConsoleShimReference)
+                final structName = RustImports.declarationName(cls.module, RustImports.emittedTypeName(cls.name));
                 if (cls.module != "" && StringTools.endsWith(cls.name, "_Impl_")) {
                     // A sub-type abstract's non-inline static (for example
                     // `FontId::of`) lowers to the synthetic implementation's
