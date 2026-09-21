@@ -1411,7 +1411,7 @@ class KotlinDecl {
         expr.setTestRunnerLambda(false);
         final indented = body.map(l -> "            " + l);
         return [
-            "    @kotlin.test.Test",
+            "    @boring.test.Test",
             '    fun ${KotlinNameEscape.escape(f.field.name)}() {',
             '        Test.run("${escapeKotlinString(id)}", "${escapeKotlinString(runnerName)}") {',
         ].concat(indented).concat(["        }", "    }"]);
