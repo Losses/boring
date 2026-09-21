@@ -275,7 +275,7 @@ class KotlinExpr {
             return "SortedTable.mapBuilder<"
                 + types.of(key)
                 + ", "
-                + types.of(DefaultArgExpander.withoutNull(value))
+                + types.of(value)
                 + ">("
                 + sortedComparator("std.SortedMap", key, Context.currentPos())
                 + ")";
@@ -392,7 +392,7 @@ class KotlinExpr {
             return "SortedTable.mapBuilder<"
                 + types.of(key)
                 + ", "
-                + types.of(DefaultArgExpander.withoutNull(value))
+                + types.of(value)
                 + ">("
                 + sortedComparator("std.SortedMap", key, Context.currentPos())
                 + ")";
@@ -4060,7 +4060,7 @@ class KotlinExpr {
                         case TFun(_, TInst(_, params)) if (params.length > 1): params[1];
                         case _: null;
                     };
-                    return "SortedTable.mapBuilder<" + types.of(kType) + ", " + types.of(DefaultArgExpander.withoutNull(vType)) + ">(" + sortedComparator("std.SortedMap", kType, fn.pos) + ")";
+                    return "SortedTable.mapBuilder<" + types.of(kType) + ", " + types.of(vType) + ">(" + sortedComparator("std.SortedMap", kType, fn.pos) + ")";
                 }
                 if (cls.module == "runtime.SortedTable" && name == "mapBuilder") {
                     final kType = switch (fn.t) {
@@ -4071,7 +4071,7 @@ class KotlinExpr {
                         case TFun(_, TInst(_, params)) if (params.length > 1): params[1];
                         case _: null;
                     };
-                    return "SortedTable.mapBuilder<" + types.of(kType) + ", " + types.of(DefaultArgExpander.withoutNull(vType)) + ">(" + sortedComparator("std.SortedMap", kType, fn.pos) + ")";
+                    return "SortedTable.mapBuilder<" + types.of(kType) + ", " + types.of(vType) + ">(" + sortedComparator("std.SortedMap", kType, fn.pos) + ")";
                 }
                 if (cls.pack.join(".") == "std" && cls.name == "SortedSet" && name == "builder") {
                     final kType = switch (fn.t) {
@@ -4150,8 +4150,11 @@ class KotlinExpr {
         read against the argument actually passed for that parameter. The bare
         parameter name is out of scope at the call site.
      */
-    function renderConstructorArgs(cls:ClassType, args:Array<TypedExpr>):Array<String> {
-        final params = constructorParams(cls);
+    function renderConstructorArgs(cls:ClassType, applied:Array<Type>, args:Array<TypedExpr>):Array<String> {
+        // The constructor signature names the class type parameters; the
+        // constructed type's arguments say whether a parameter accepts null.
+        // (GenericReceiverParamNullability)
+        final params = classAppliedParams(constructorParams(cls), cls, applied);
         return [
             for (i in 0...args.length) {
                 final a = args[i];
@@ -4311,11 +4314,14 @@ class KotlinExpr {
 
     function paramsForCall(fn:TypedExpr):Array<Type> {
         final fieldParams = switch (fn.expr) {
-            case TField(_, FInstance(_, _, cf)) | TField(_, FStatic(_, cf)):
-                switch (Context.follow(cf.get().type)) {
-                    case TFun(values, _): [for (v in values) v.t];
-                    case _: [];
-                }
+            case TField(subj, FInstance(c, applied, cf)):
+                // A declared signature names the class type parameters, which
+                // are not Kotlin types: only the arguments the receiver
+                // applies decide whether the parameter accepts null.
+                // (GenericReceiverParamNullability)
+                classAppliedParams(fieldSignatureParams(cf.get().type), c.get(), receiverTypeArgs(subj, c.get(), applied));
+            case TField(_, FStatic(_, cf)):
+                fieldSignatureParams(cf.get().type);
             case _: [];
         };
         if (fieldParams.length > 0)
@@ -4324,6 +4330,45 @@ class KotlinExpr {
             case TFun(values, _): [for (v in values) v.t];
             case _: [];
         };
+    }
+
+    function fieldSignatureParams(t:Type):Array<Type> {
+        return switch (Context.follow(t)) {
+            case TFun(values, _): [for (v in values) v.t];
+            case _: [];
+        };
+    }
+
+    /**
+        The type arguments the call site applies to the receiver's class. A
+        receiver whose followed type is not that class (a subclass carrying
+        its own parameters, or an unresolved monomorph) leaves the
+        field-access parameters as the only source.
+    **/
+    function receiverTypeArgs(subj:TypedExpr, cls:ClassType, fallback:Array<Type>):Array<Type> {
+        return switch (Context.follow(subj.t)) {
+            case TInst(rc, params) if (params.length == cls.params.length && sameClass(rc.get(), cls)): params;
+            case _: fallback;
+        };
+    }
+
+    function sameClass(a:ClassType, b:ClassType):Bool {
+        return a == b || (a.module == b.module && a.name == b.name);
+    }
+
+    /**
+        Replaces the class type parameters a signature names with the
+        arguments the receiver applies, so a bare type parameter reads as the
+        Null-wrapped argument the receiver carries and a nullable argument is
+        not hardened into a runtime throw. Substitution only ever makes an
+        expected type more nullable, never less, so a genuinely non-null
+        parameter keeps its assertion.
+        (GenericReceiverParamNullability)
+    **/
+    function classAppliedParams(params:Array<Type>, cls:ClassType, applied:Array<Type>):Array<Type> {
+        if (applied == null || applied.length == 0 || applied.length != cls.params.length)
+            return params;
+        return [for (p in params) haxe.macro.TypeTools.applyTypeParameters(p, cls.params, applied)];
     }
 
     function constructorParams(cls:ClassType):Array<Type> {
@@ -4363,7 +4408,7 @@ class KotlinExpr {
                 argText = intToFloatText(argText);
             return valueType.name + "(" + argText + ")";
         }
-        final renderedArgsText = renderConstructorArgs(cls, args).join(", ");
+        final renderedArgsText = renderConstructorArgs(cls, params, args).join(", ");
         final path = cls.pack.length == 0 ? cls.name : cls.pack.join(".") + "." + cls.name;
         if (path == "haxe.Exception") {
             return "RuntimeException(" + renderedArgsText + ")";
