@@ -19,6 +19,7 @@
 -D dart-test-runner=native
 -D runtime-import=@boring/runtime
 -D runtime-emit=.
+boring.ArraySliceOps
 boring.BinaryReader
 boring.BinaryWriter
 boring.Int64Ops

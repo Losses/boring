@@ -23,6 +23,7 @@
 -D runtime-emit=.
 -D package-shell=none
 -D float-precision=f32
+boring.ArraySliceOps
 boring.BinaryReader
 boring.BinaryWriter
 boring.Int64Ops

@@ -4274,13 +4274,30 @@ class KotlinExpr {
                         case "shift": return "if (" + expr(subj) + ".isEmpty()) null else " + expr(subj) + ".removeAt(0)";
                         case "unshift": return expr(subj) + ".add(0, " + renderedArgs + ")";
                         case "insert": return expr(subj) + ".add(" + expr(args[0]) + ", " + expr(args[1]) + ")";
-                        case "splice": return "run { val _a = "
+                        case "splice":
+                            // Haxe bounds the call before it removes anything:
+                            // a negative length or a position past the length
+                            // removes nothing and leaves the array alone, a
+                            // negative position counts from the end and stops
+                            // at the first element, and a length that reaches
+                            // past the end removes only the tail. The platform
+                            // subList throws on a bound outside the list, so
+                            // the position is clamped into it, the count is
+                            // trimmed to the elements that remain, and the two
+                            // refused calls return an empty list of the same
+                            // element type through an empty subList, which
+                            // leaves the array unchanged. (ArraySpliceClamping)
+                            return "run { val _a = "
                                 + expr(subj)
-                                + "; val _i = "
+                                + "; val _p0 = "
                                 + expr(args[0])
-                                + "; val _n = "
+                                + "; val _l = "
                                 + expr(args[1])
-                                + "; val _r = _a.subList(_i, _i + _n).toMutableList(); _a.subList(_i, _i + _n).clear(); _r }";
+                                + "; val _sz = _a.size"
+                                + "; val _p = if (_p0 < 0) maxOf(_sz + _p0, 0) else _p0"
+                                + "; if (_l < 0 || _p0 > _sz) _a.subList(0, 0).toMutableList()"
+                                + " else { val _c = minOf(_l, _sz - _p)"
+                                + "; val _r = _a.subList(_p, _p + _c).toMutableList(); _a.subList(_p, _p + _c).clear(); _r } }";
                         case "get_length" | "length": return expr(subj) + ".size";
                         case _:
                     }
