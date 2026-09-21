@@ -1083,6 +1083,22 @@ class Compiler extends PluginCompiler<Compiler> {
                 }
             case _:
         }
+        // The trait-mutation registry must be complete before any class
+        // renders: a class body's mutability verdicts consult it, and an
+        // incrementally filled registry would make those verdicts depend
+        // on module order. (InterfaceKeyedTraitMutation)
+        for (mt in mtypes) switch (mt) {
+            case TClassDecl(c):
+                final cls = c.get();
+                if (!cls.isInterface)
+                    continue;
+                for (f in cls.fields.get()) {
+                    final shape = state.interfaceMethodShapes.get(RustEmissionState.interfaceMethodKey(cls.module, cls.name, f.name));
+                    if (shape != null && shape.isMutating)
+                        RustDecl.mutatingTraitMethods.set(RustEmissionState.interfaceMethodKey(cls.module, cls.name, f.name), true);
+                }
+            case _:
+        }
         // Reconcile interface union member lists after implementations'
         // error sets have been fully resolved by scanFallibility. An
         // implementation whose resolved union carries members the interface
