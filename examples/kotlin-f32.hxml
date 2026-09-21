@@ -629,3 +629,6 @@ tests.FlushHookProbeTests
 tests.KotlinEntryProbeTests
 
 tests.NullableFieldRecordTests
+
+boring.IntDivisionOps
+tests.IntDivisionTests
