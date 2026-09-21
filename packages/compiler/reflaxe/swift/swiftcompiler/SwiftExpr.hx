@@ -3068,9 +3068,16 @@ class SwiftExpr {
                     }
                 }
                 if (module == "String" && cls.pack.length == 0 && fName == "fromCharCode") {
-                    // The char domain of the subset stays inside valid
-                    // scalars; the force unwrap states that contract.
-                    return "String(UnicodeScalar(UInt32(bitPattern: " + (optionalValued(args[0]) ? "(" + expr(args[0]) + ")!" : expr(args[0])) + "))!)";
+                    // Haxe yields the string that holds one UTF-16 code
+                    // unit, and the corpus supplies lone surrogates. The
+                    // scalar conversion traps on a surrogate and a Swift
+                    // String carries no unpaired one, so the call decodes
+                    // the unit and keeps the valid scalar and surrogate
+                    // pair domains exact.
+                    // (FromCharCodeUnit)
+                    return "String(decoding: [UInt16(truncatingIfNeeded: "
+                        + (optionalValued(args[0]) ? "(" + expr(args[0]) + ")!" : expr(args[0]))
+                        + ")], as: UTF16.self)";
                 }
                 if (module == "Std") {
                     final s = expr(args[0]);
