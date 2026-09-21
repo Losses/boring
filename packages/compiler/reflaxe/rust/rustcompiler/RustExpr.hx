@@ -4569,7 +4569,8 @@ class RustExpr {
                         // carries the payload; the element boundary borrows and
                         // unwraps it, so the source binding stays alive for
                         // later reads. (NonNullSlotUnwrap)
-                        if (elemType != null && !isNullableElem && nullableReadHoldsOption(x)) {
+                        if (elemType != null && !isNullableElem
+                            && (nullableReadHoldsOption(x) || isImplicitNullableLocal(x))) {
                             final payload = getNullInnerType(x.t);
                             source = isTypeCopy(payload) ? "*((" + source + ").as_ref().unwrap())" : "(" + source + ").as_ref().unwrap()";
                         }
