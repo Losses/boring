@@ -8,4 +8,9 @@
 [workspace]
 members = ["reference/rust", "reference/rust-gen/src", "reference/rust-f32-gen/src"]
 default-members = ["reference/rust", "reference/rust-gen/src"]
+# Generated trees under out/ are build output, never members. The
+# runner-timeout probe (tests/timeout-probe/rust.hxml) emits one crate
+# there, and cargo refuses to build a package that sits under the
+# workspace root without being a member or an exclusion.
+exclude = ["out"]
 resolver = "3"

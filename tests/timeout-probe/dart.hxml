@@ -1,0 +1,25 @@
+# Runner-timeout probe entry for the Dart target (feature spec 19).
+# Run from the repository root: haxe tests/timeout-probe/dart.hxml
+# The probe is kept out of examples/dart.hxml on purpose: it overruns the
+# test budget, so an ordinary generation entry would carry a slow and red
+# test. This entry compiles the probe alone.
+#
+# The test output directory is named "gen-checks": the repository test
+# command searches with the pattern "tests/", which matches any path
+# segment pair of that spelling, so a tree called "gen-tests" under out/
+# would join every repository test run.
+-lib reflaxe
+-lib boring
+-cp packages/compiler/reflaxe/dart/std-shadow
+-cp packages/compiler/reflaxe/dart
+-cp samples
+-cp tests/timeout-probe
+--macro Intercept.run(['samples', 'tests/timeout-probe'])
+--macro haxe.macro.Compiler.addGlobalMetadata('boring', '@:build(std.RecordMember.build())')
+--macro dartcompiler.Compiler.use()
+-D dart-output=out/timeout-probe/dart/gen
+-D dart-test-output=out/timeout-probe/dart/gen-checks
+-D dart-test-runner=native
+-D runtime-import=@boring/runtime
+-D runtime-emit=.
+probe.TimeoutProbeTests

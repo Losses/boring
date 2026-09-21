@@ -1,0 +1,31 @@
+# Runner-timeout probe entry for the Rust target (feature spec 19).
+# Run from the repository root:
+#   haxe tests/timeout-probe/rust.hxml
+#   BORING_TEST_RESULTS=$(pwd)/out/timeout-probe/rust/results.jsonl \
+#     cargo test --manifest-path out/timeout-probe/rust/gen/Cargo.toml
+# The probe is kept out of examples/rust.hxml on purpose: it overruns the
+# test budget, so an ordinary generation entry would carry a slow and red
+# test. This entry compiles the probe alone.
+#
+# The emitted tree is a crate of its own under out/; the repository
+# workspace excludes out/ for it (the root Cargo.toml).
+-lib reflaxe
+-lib boring
+-cp packages/compiler/reflaxe/rust/std-shadow
+-cp packages/compiler/reflaxe/rust
+-cp samples
+-cp tests/timeout-probe
+--macro Intercept.run(['samples', 'tests/timeout-probe'])
+--macro haxe.macro.Compiler.addGlobalMetadata('boring', '@:build(std.RecordMember.build())')
+--macro rustcompiler.Compiler.use()
+-D rust-output=out/timeout-probe/rust/gen
+-D runtime-import=crate::runtime
+-D runtime-emit=runtime
+-D package-name=boring-timeout-probe
+-D package-license=MIT
+probe.TimeoutProbeTests
+# runtime.TestCore holds the assertion checks and the canonical result
+# line the generated test entry calls; the rust target compiles resident
+# modules only when the entry lists them (examples/rust.hxml does the
+# same).
+runtime.TestCore
