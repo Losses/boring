@@ -76,6 +76,39 @@ class ArrayAccessTests {
         #end
     }
 
+    /**
+        Haxe fills the skipped slots of a grown array with the element type's
+        default value, and the Kotlin target spells that fill with the
+        element type's own literal: a Double zero in a MutableList<Float> is
+        a compile error, which is what the f32 engine tree hit.
+        (ArrayGrowthOnIndexWrite)
+    **/
+    @:test("an index write past the end grows a float-element array")
+    public static function testGrowFloatSlots():Void {
+        #if (kotlin_output || ts_output)
+        final slots = ArrayAccessOps.growFloatSlots();
+        Test.equals(3, slots.length);
+        Test.equals(1.5, slots[2]);
+        #if kotlin_output
+        // The fill literal has to match the element type, so the skipped
+        // slots read back as the Float zero. JavaScript leaves holes, which
+        // is why the fill is asserted for the Kotlin target only.
+        Test.equals(true, slots[0] == 0.0);
+        Test.equals(true, slots[1] == 0.0);
+        #end
+        #end
+    }
+
+    @:test("an index loop over an empty float array field grows it")
+    public static function testGrowFloatFieldSlots():Void {
+        #if (kotlin_output || ts_output)
+        final slots = ArrayAccessOps.filledFloatHolder(2);
+        Test.equals(3, slots.length);
+        Test.equals(3.0, slots[2]);
+        Test.equals(0.0, slots[0]);
+        #end
+    }
+
     @:test("writes inside an array keep their slots")
     public static function testWriteInsideSlots():Void {
         #if (kotlin_output || ts_output)
