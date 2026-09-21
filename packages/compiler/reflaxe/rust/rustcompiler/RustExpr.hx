@@ -9514,8 +9514,10 @@ class RustExpr {
                 switch (stripWrap(fn).expr) {
                     case TField(_, FStatic(c, cf)) | TField(_, FInstance(c, _, cf)):
                         final positions = mutableParamPositions(cf.get());
-                        if (positions.length > 0)
+                        if (positions.length > 0) {
+                            Context.warning("CATCHROUTE " + Std.string(args[0].expr).substr(0, 40) + " at " + Std.string(fn.expr).substr(0, 60), args[0].pos);
                             return expr(fn) + "(" + renderCallArgs(cf.get().type, args, null, 0, positions) + ")";
+                        }
                     case _:
                 }
                 return expr(fn) + "(" + renderedArgs + ")";
@@ -9536,8 +9538,12 @@ class RustExpr {
                 switch (stripWrap(fn).expr) {
                     case TField(_, FInstance(_, _, cf)) | TField(_, FStatic(_, cf)) | TField(_, FAnon(cf)):
                         final positions = mutableParamPositions(cf.get());
+                        final ps = switch (Context.follow(cf.get().type)) {
+                            case TFun(ps, _): ps;
+                            case _: [];
+                        };
                         for (i in 0...args.length)
-                            if (positions.indexOf(i) >= 0)
+                            if (i < ps.length && positions.indexOf(i) >= 0 && RustDecl.isMutableRefParamType(ps[i].t))
                                 switch (stripWrap(args[i]).expr) {
                                     case TLocal(l): mutated.set(l.id, true);
                                     case _:
@@ -9553,8 +9559,8 @@ class RustExpr {
 
     function mutableParamPositions(cf:ClassField):Array<Int> {
         // The verdict depends only on the callee body, which is fixed for
-        // the whole generation: memoize per module and field. (PositionMemo)
-        final key = cf.module + "." + cf.name;
+        // the whole generation: memoize per field position. (PositionMemo)
+        final key = Std.string(cf.pos);
         if (mutableParamPositionsCache.exists(key))
             return mutableParamPositionsCache.get(key);
         final out:Array<Int> = [];
