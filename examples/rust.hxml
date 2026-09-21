@@ -289,6 +289,7 @@ boring.HaxeExceptionOps
 tests.HaxeExceptionTests
 boring.ArrayAccessOps
 tests.ArrayAccessTests
+boring.ArraySliceOps
 tests.ArraySliceTests
 boring.StaticRefOps
 tests.StaticRefTests
