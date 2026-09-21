@@ -1193,15 +1193,20 @@ class KotlinExpr {
     /** Records the source ranges of null comparisons for order-sensitive use-site proofs. */
     function nullGuardPositionsInBlock(stmts:Array<TypedExpr>):Map<Int, Array<{file:String, min:Int, max:Int}>> {
         final result:Map<Int, Array<{file:String, min:Int, max:Int}>> = [];
-        for (stmt in stmts) {
-            TypedExprTools.iter(stmt, function(node:TypedExpr):Void {
-                switch (stripWrap(node).expr) {
-                    case TBinop(OpEq, l, r) | TBinop(OpNotEq, l, r):
+        // A comparison fed to a call argument (the assertion idiom
+        // `assertNotNullRendered(d != null, ...)`) is a runtime proof, not a
+        // structural narrowing kotlin performs, so such comparisons must not
+        // register a guard: the accessor rendering hardens the subject
+        // instead. (CallArgComparisonNotStructural)
+        function record(e:TypedExpr, inCallArgs:Bool):Void {
+            switch (stripWrap(e).expr) {
+                case TBinop(OpEq, l, r) | TBinop(OpNotEq, l, r):
+                    if (!inCallArgs) {
                         final subject = isNullExpr(l) ? r : (isNullExpr(r) ? l : null);
                         if (subject != null)
                             switch (stripWrap(subject).expr) {
                                 case TLocal(v):
-                                    final p = Context.getPosInfos(node.pos);
+                                    final p = Context.getPosInfos(e.pos);
                                     var entries = result.get(v.id);
                                     if (entries == null) {
                                         entries = [];
@@ -1210,10 +1215,21 @@ class KotlinExpr {
                                     entries.push({file: p.file, min: p.min, max: p.max});
                                 case _:
                             }
-                    case _:
-                }
+                    }
+                    return;
+                case TCall(f, a):
+                    record(f, inCallArgs);
+                    for (x in a)
+                        record(x, true);
+                    return;
+                case _:
+            }
+            TypedExprTools.iter(e, function(child:TypedExpr):Void {
+                record(child, inCallArgs);
             });
         }
+        for (stmt in stmts)
+            record(stmt, false);
         return result;
     }
 
@@ -3337,6 +3353,14 @@ class KotlinExpr {
         };
         final access = if (isProperty && fieldType != null && !isNullType(fieldType)
             && isNullType(subj.t) && !provenNonNull(subj) && !guardProofBefore(subj)) {
+            "!!.";
+        } else if (!provenNonNull(subj) && !guardProofBefore(subj)
+            // A safe-call hop earlier in the receiver chain leaves the
+            // value nullable regardless of the Haxe type (the hop itself
+            // was an emitter safety choice); the Haxe member read would
+            // NPE there, so this hop hardens with !!.
+            // (SafeCallHopHardening)
+            && StringTools.contains(expr(subj), "?.")) {
             "!!.";
         } else {
             nullableAccess(subj);
