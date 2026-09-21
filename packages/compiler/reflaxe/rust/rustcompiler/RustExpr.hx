@@ -1416,7 +1416,12 @@ class RustExpr {
                         // the source. Covers the for-loop field-move family (E0382).
                         if (isOwnedVecType(v.t) && !isTypeCopy(v.t) && !StringTools.endsWith(initStr, ".clone()"))
                             initStr = "(" + initStr + ").clone()";
-                    case TLocal(source) if (!isTypeCopy(v.t) && readsAfterDeclaration.exists(source.id)):
+                    case TLocal(source) if (!isTypeCopy(v.t) && readsAfterDeclaration.exists(source.id)
+                        // A haxe.io.Bytes source lowers to the shared
+                        // byte-slice borrow, which is Copy: cloning the read
+                        // is redundant and rustc flags it.
+                        // (BorrowedBytesNoDeclClone)
+                        && !isBytes({expr: TLocal(source), pos: init.pos, t: source.t})):
                         initStr = "(" + initStr + ").clone()";
                     case _:
                 }
@@ -2456,12 +2461,102 @@ class RustExpr {
         return out.join("\n");
     }
 
+    /**
+        stripDeadStores: a plain-local assignment whose stored value is
+        overwritten by a later assignment of the same local in the same
+        block, with no read of the local in between, renders a store rustc
+        flags under -D warnings (unused_assignments). Drop the earlier
+        store when its right side is free of side effects. Runs after the
+        loop regroup passes so their counter adoption still sees the
+        original statement sequence. (DeadStoreStrip)
+    **/
+    function stripDeadStores(stmts:Array<TypedExpr>):Array<TypedExpr> {
+        final dropped:Array<Bool> = [for (i in 0...stmts.length) false];
+        for (i in 0...stmts.length) {
+            if (dropped[i])
+                continue;
+            final v = plainAssignTarget(stmts[i]);
+            if (v == null)
+                continue;
+            var dead = false;
+            var j = i + 1;
+            while (j < stmts.length) {
+                if (TerminationAnalysis.alwaysTerminates(stmts[j])) {
+                    // A terminator may skip the later store or hand the
+                    // value to a loop back-edge; keep the store.
+                    dead = false;
+                    break;
+                }
+                final nextTarget = plainAssignTarget(stmts[j]);
+                if (nextTarget != null && nextTarget.id == v.id) {
+                    // A self-referencing store (`h = h ^ x`) reads the
+                    // local, so the earlier value is observed and the
+                    // earlier store stays. (SelfReferencingStoreRead)
+                    if (switch (stripWrap(stmts[j]).expr) {
+                        case TBinop(OpAssign, _, rhs): !mentionsLocalId(rhs, v.id);
+                        case _: false;
+                    }) {
+                        dead = true;
+                    }
+                    break;
+                }
+                if (mentionsLocalId(stmts[j], v.id))
+                    break;
+                j++;
+            }
+            if (dead && pureAssignRhs(stmts[i]))
+                dropped[i] = true;
+        }
+        return [for (i in 0...stmts.length) if (!dropped[i]) stmts[i]];
+    }
+
+    /** The plain local an assignment statement stores to, or null. */
+    function plainAssignTarget(stmt:TypedExpr):Null<TVar> {
+        return switch (stripWrap(stmt).expr) {
+            case TBinop(OpAssign, target, _):
+                switch (stripWrap(target).expr) {
+                    case TLocal(v): v;
+                    case _: null;
+                }
+            case _: null;
+        }
+    }
+
+    /** Whether the statement's assignment right side is side-effect free. */
+    function pureAssignRhs(stmt:TypedExpr):Bool {
+        return switch (stripWrap(stmt).expr) {
+            case TBinop(OpAssign, _, rhs): isPureReadExpr(rhs);
+            case _: false;
+        }
+    }
+
+    /**
+        isPureReadExpr: an expression whose evaluation performs no writes,
+        calls, or control flow. A wrapping or floating binop renders as
+        arithmetic, so a binop of pure operands stays pure; anything else
+        (calls, constructions, casts of interfaces, arrays) stays
+        conservative.
+    **/
+    function isPureReadExpr(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TConst(_): true;
+            case TLocal(_): true;
+            case TBinop(_, l, r): isPureReadExpr(l) && isPureReadExpr(r);
+            case TUnop(_, _, subj): isPureReadExpr(subj);
+            case TField(subj, _): isPureReadExpr(subj);
+            case TEnumParameter(subj, _, _) | TEnumIndex(subj): isPureReadExpr(subj);
+            case _: false;
+        }
+    }
+
+    /** Whether any subexpression reads the local with the given id. */
     function blockLines(stmts:Array<TypedExpr>, depth:Int, tailScope:Bool = false):Array<String> {
         stmts = fuseUninitializedVars(stmts);
         stmts = stripDeadInits(stmts);
         stmts = fuseArrayCompoundAssign(stmts);
         stmts = regroupLoops(stmts);
         stmts = transformCountdownLoops(stmts);
+        stmts = stripDeadStores(stmts);
         final out:Array<String> = [];
         final provenByGuard = earlyExitGuardIds(stmts);
         for (id in provenByGuard)
@@ -3994,6 +4089,17 @@ class RustExpr {
             }
         }
         final subjectText = subjectTextOf(info.subject);
+        // A block-valued arm lowering (the Math.min/max binding block)
+        // renders wrapped in parentheses for operator positions; both arms
+        // of this match are match-arm positions where the bare block is a
+        // valid value and rustc flags the parentheses (unused_parens).
+        // (BlockArmParens)
+        if (StringTools.startsWith(narrowedText, "({") && StringTools.endsWith(narrowedText, "})")
+            && matchingParens(narrowedText))
+            narrowedText = narrowedText.substr(1, narrowedText.length - 2);
+        if (StringTools.startsWith(noneText, "({") && StringTools.endsWith(noneText, "})")
+            && matchingParens(noneText))
+            noneText = noneText.substr(1, noneText.length - 2);
         final matchText = info.noneWhenTrue ? "match &("
             + subjectText
             + ") { None => "
@@ -5974,7 +6080,7 @@ class RustExpr {
                         final temp = freshRegionName("__rhs_value");
                         return "{ let " + temp + " = " + staticValue + "; " + refCellPath + ".with(|c| *c.borrow_mut() = " + temp + "); }";
                     }
-                    return refCellPath + ".with(|c| *c.borrow_mut() = " + staticValue + ");";
+                    return refCellPath + ".with(|c| *c.borrow_mut() = " + staticValue + ")";
                 }
                 final staticTarget = staticAssignmentTarget(l);
                 if (staticTarget != null) {
@@ -7270,6 +7376,7 @@ class RustExpr {
                     return isStringType(cf.get().type) ? "(" + access + ").to_string()" : "(" + access + ").clone()";
                 }
                 if (name != "length" && !renderingMethodReceiver && !isTypeCopy(cf.get().type)
+                    && !RustDecl.isBorrowedByteField(imports.selfModule, name)
                     && switch (subj.expr) {
                         case TConst(TThis): true;
                         case _: false;
@@ -7790,7 +7897,26 @@ class RustExpr {
         if (known != null) {
             return known ? "true" : "false";
         }
-        return expr(args[0]) + ".__haxe_type_name() == \"" + target.module + "." + target.name + "\"";
+        final subject = expr(args[0]);
+        // A nullable subject whose Haxe type is exactly the target class
+        // needs no runtime name check: every non-null value is the target
+        // and Haxe answers false for null, so the check lowers to the null
+        // test. This also covers value-wrapper inners that carry no
+        // __haxe_type_name method at all. Context.follow does not unwrap
+        // the core-type Null abstract, so the inner type reads through
+        // getNullInnerType first. (ExactTypeIsOfNullTest)
+        final innerType = isNullType(args[0].t) ? getNullInnerType(args[0].t) : args[0].t;
+        final actual = TypeCheckHelper.classOfType(innerType);
+        if (actual != null && actual.module == target.module && actual.name == target.name)
+            return isNullType(args[0].t) ? "(" + subject + ").is_some()" : "true";
+        final nameTest = "\"" + target.module + "." + target.name + "\"";
+        // Haxe answers false for a null operand, so a nullable subject
+        // (Option storage) takes the match form instead of the direct
+        // method call the Option enum does not carry.
+        // (NullableIsOfTypeMatch)
+        if (isNullType(args[0].t))
+            return "match &(" + subject + ") { Some(v) => v.__haxe_type_name() == " + nameTest + ", None => false }";
+        return subject + ".__haxe_type_name() == " + nameTest;
     }
 
     function stdStringType(t:Type, value:String, inConcat:Bool, origin:TypedExpr, depth:Int = 0):String {
@@ -10304,6 +10430,10 @@ class RustExpr {
         // use the moved value. Clone only direct reusable reads; temporary
         // producers already have fresh ownership and must remain untouched.
         if (!isTypeCopy(expected) && isReusableOwnedRead(arg)
+            // A haxe.io.Bytes read lowers to the shared byte-slice borrow,
+            // which is Copy; cloning it at the argument boundary is
+            // redundant and rustc flags it. (BorrowedBytesNoArgClone)
+            && !isBytes(arg)
             && !StringTools.startsWith(text, "&")
             && !StringTools.endsWith(text, ".clone()")
             && !StringTools.endsWith(text, ".to_vec()")
@@ -12264,6 +12394,15 @@ class RustExpr {
             final paramIndex = i + paramOffset;
             final pt = paramIndex < paramTypes.length ? paramTypes[paramIndex] : null;
             var argStr = renderValueForType(pt, arg, expr(arg));
+            // The option-guard boolean lowering renders a parenthesized
+            // match (`(match &(s) { Some(v) => ..., None => false })`); in
+            // argument position those parentheses are redundant and rustc
+            // flags them (unused_parens), so a matched outer pair is
+            // stripped here while every other position keeps the guard
+            // parens. (GuardMatchArgParens)
+            if (StringTools.startsWith(argStr, "(match ") && StringTools.endsWith(argStr, ")")
+                && matchingParens(argStr))
+                argStr = argStr.substr(1, argStr.length - 2);
 #if boring_fold_debug
             if (Std.string(arg).indexOf("TInt") >= 0)
                 Context.warning("RC INTLIT pt=" + Std.string(pt).substr(0, 50) + " argStr=[" + argStr.substr(0, argStr.length > 20 ? 20 : argStr.length) + "]", arg.pos);
@@ -12629,6 +12768,18 @@ class RustExpr {
                     } else if (!isPassByRef(pt)
                     && !isTypeCopy(arg.t)
                     && isReusableOwnedRead(arg)
+                    // An argument whose parameter-position rendering is a
+                    // Rust reference (a borrowed &str/&[u8] parameter, or
+                    // any haxe.io.Bytes value, which lowers to the borrow
+                    // view) is Copy; cloning it at the argument boundary is
+                    // redundant. The param-id tables cannot decide this
+                    // (they register every parameter), so the rendered
+                    // type does. (BorrowedParamNoArgClone)
+                    && !(switch (stripWrap(arg).expr) {
+                        case TLocal(v): StringTools.startsWith(types.of(v.t, true), "&");
+                        case _: false;
+                    })
+                    && !isBytes(arg)
                     && !StringTools.startsWith(argStr, "&")
                     && !StringTools.endsWith(argStr, ".clone()")
                     && !StringTools.endsWith(argStr, ".to_vec()")
