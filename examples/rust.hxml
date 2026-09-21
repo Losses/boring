@@ -662,5 +662,8 @@ tests.ArrayIndexSearchTests
 # The per-class flush probe of feature spec 27: one @:test function plus
 # the conventional flushTestTrace entry, which registers no test id.
 tests.FlushHookProbeTests
+# The class test entry probe of feature spec 19: no @:test function,
+# one conventional runTestEntries entry, which registers no test id.
+tests.KotlinEntryProbeTests
 
 tests.NullableFieldRecordTests
