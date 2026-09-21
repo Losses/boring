@@ -3263,12 +3263,36 @@ class SwiftExpr {
                     return "Array(" + receiverText(subj) + ")";
                 }
                 if (name == "splice" && isUnitArrayTyped(subj) && args.length >= 2) {
-                    // Haxe splice mutates and returns the removed sub-array.
+                    // Haxe splice mutates and returns the removed sub-array,
+                    // and it bounds the call before it removes anything: a
+                    // negative length or a position past the length removes
+                    // nothing and leaves the array alone, a negative position
+                    // counts from the end and stops at the first element, and
+                    // a length that reaches past the end removes only the
+                    // tail. The Swift range subscript traps on any bound
+                    // outside the array, so the position is clamped into it
+                    // and the count is trimmed to the elements that remain.
+                    // (ArraySpliceClamping)
                     final s = receiverText(subj);
                     final start = "Int(" + expr(args[0]) + ")";
                     final len = "Int(" + expr(args[1]) + ")";
-                    return "({ () in let removed = Array(" + s + "[" + start + "..<(" + start + " + " + len + ")]); " + s + ".removeSubrange(" + start
-                        + "..<(" + start + " + " + len + ")); return removed }())";
+                    // removeSubrange mutates the receiver, so the clamp reads
+                    // the count of the receiver expression itself instead of a
+                    // let-bound copy, which Swift refuses to mutate.
+                    return "({ () in let _sz = "
+                        + s
+                        + ".count; let _p0 = "
+                        + start
+                        + "; let _l = "
+                        + len
+                        + "; let _p = _p0 < 0 ? max(_sz + _p0, 0) : (_p0 > _sz ? _sz : _p0)"
+                        + "; let _c = (_l < 0 || _p0 > _sz) ? 0 : min(_l, _sz - _p)"
+                        + "; let removed = Array("
+                        + s
+                        + "[_p..<(_p + _c)])"
+                        + "; "
+                        + s
+                        + ".removeSubrange(_p..<(_p + _c)); return removed }())";
                 }
                 if (name == "join") {
                     // The split/join pair in the resident StringTools
@@ -3287,8 +3311,36 @@ class SwiftExpr {
                         return receiverText(subj) + ".map { " + stdStringType(elemType, "$0", false, subj) + " }.joined(separator: " + rendered + ")";
                     return joined;
                 }
-                if (name == "slice") {
-                    return "Array(" + receiverText(subj) + "[Int(" + expr(args[0]) + ")..<Int(" + expr(args[1]) + ")])";
+                if (name == "slice" && (args.length == 1 || args.length == 2)) {
+                    // Haxe bounds an Array slice at both ends before it
+                    // copies: a negative bound counts from the end and stops
+                    // at the first element, a bound past the end clamps to the
+                    // length, and an end that reaches the start or passes it
+                    // yields the empty array. The typer also passes a
+                    // synthesized null for an omitted end, which Haxe reads as
+                    // the length. The Swift range subscript traps on a bound
+                    // outside the array, so both bounds are clamped and the
+                    // omitted end becomes the count. (ArraySliceClamping)
+                    final endOmitted = args.length < 2 || switch (stripWrap(args[1]).expr) {
+                        case TConst(TNull): true;
+                        case _: false;
+                    };
+                    final s = receiverText(subj);
+                    final from = "Int(" + expr(args[0]) + ")";
+                    var body = "({ () in let _a = "
+                        + s
+                        + "; let _n = _a.count; let _f = "
+                        + from
+                        + "; let _s = _f < 0 ? max(_n + _f, 0) : min(_f, _n);";
+                    if (endOmitted) {
+                        body += " return Array(_a[_s..<_n]) }())";
+                    } else {
+                        body += " let _t = Int("
+                            + expr(args[1])
+                            + "); let _e0 = _t < 0 ? max(_n + _t, 0) : min(_t, _n);"
+                            + " let _e = _e0 < _s ? _s : _e0; return Array(_a[_s..<_e]) }())";
+                    }
+                    return body;
                 }
                 if (name == "substring" && isStringSubject(subj)) {
                     // The haxe typer passes a synthesized null for an
