@@ -3434,8 +3434,17 @@ class SwiftExpr {
                     return "substrUnits(" + s + ", " + expr(args[0]) + ", " + lenText + ")";
                 }
                 if (name == "charAt" && isStringSubject(subj)) {
+                    // Haxe charAt reads one UTF-16 code unit and yields the
+                    // empty string outside the subject. The Character view
+                    // walk costs the index on every read and traps past the
+                    // end, so the unit slice carries the read instead and the
+                    // index binds once. (StringCharAtUnit)
                     final s = receiverText(subj);
-                    return "String(" + s + "[" + s + ".index(" + s + ".startIndex, offsetBy: Int(" + expr(args[0]) + "))])";
+                    if (types.resident) {
+                        // The resident subject is the unit array.
+                        return "({ () -> [UInt16] in let _i: Int32 = " + narrowedText(args[0]) + "; return substrUnitsArray(" + s + ", _i, 1) }())";
+                    }
+                    return "({ () -> String in let _i: Int32 = " + narrowedText(args[0]) + "; return substringUnits(" + s + ", _i, _i &+ 1) }())";
                 }
                 if (name == "charCodeAt" && isStringSubject(subj)) {
                     final code = types.resident ? "Int32(" + receiverText(subj) + "[Int(" + expr(args[0]) + ")])" : "unitAtOptional("
