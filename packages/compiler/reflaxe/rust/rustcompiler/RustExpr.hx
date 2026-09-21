@@ -4590,6 +4590,13 @@ class RustExpr {
                         // reinterprets its bits at the literal boundary.
                         if (!elemFloat && elemType != null && isIntType(elemType) && types.of(elemType, false) == "u32"
                             && i32LocalDomain(x) && !isNullType(x.t)) inner = RustConversions.reinterpret(inner, "u32");
+                        // An interface element slot boxes a concrete
+                        // implementor and pins the box to the trait object,
+                        // so the Vec carries one Box<dyn Trait> type. The
+                        // concrete value is already cloned above, so the box
+                        // takes an owned payload. (InterfaceElementBox)
+                        if (elemType != null && isInterfaceType(elemType) && !isInterfaceType(x.t))
+                            inner = "Box::new(" + inner + ") as " + types.of(elemType, false);
                         if (isNullableElem && !isTNull(x) && !StaticFieldHelper.isNullableType(x.t)) {
                             "Some(" + inner + ")";
                         } else {
@@ -12712,8 +12719,14 @@ class RustExpr {
         // field out of it. (InterfaceSlotClone)
         if (!isNullType(expected) && isInterfaceType(expected) && isInterfaceType(actual.t)
             && !isTypeCopy(actual.t) && isReusableOwnedRead(actual)
-            && !StringTools.endsWith(rendered, ".clone()"))
+            && !StringTools.endsWith(rendered, ".clone()")) {
+            // A borrowed loop item names a reference to the Box; deref
+            // before cloning so the slot receives the owned Box<dyn Trait>.
+            // (InterfaceLoopItemClone)
+            if (switch (stripWrap(actual).expr) { case TLocal(v): borrowedLoopVarIds.exists(v.id); case _: false; })
+                return "(*" + rendered + ").clone()";
             return rendered + ".clone()";
+        }
         // A non-Copy narrowed Option binding names a reference to the inner
         // value; an owned value slot clones the referent so the slot carries
         // the owned type its signature declares.
@@ -12725,11 +12738,22 @@ class RustExpr {
         if (isNullType(expected) && isInterfaceType(getNullInnerType(expected)) && !isNullType(actual.t)) {
             if (rendered == "None" || StringTools.startsWith(rendered, "Some("))
                 return rendered;
+            // A borrowed loop item names a reference to the Box; deref
+            // before cloning so the Option carries an owned Box<dyn Trait>.
+            if (switch (stripWrap(actual).expr) { case TLocal(v): borrowedLoopVarIds.exists(v.id); case _: false; })
+                return "Some((*" + rendered + ").clone())";
             // An actual already typed as the interface carries its own
-            // Box<dyn Trait>; only a concrete value boxes here. The Option
-            // wrapper is the sole addition the nullable slot needs.
-            final payload = isInterfaceType(actual.t) ? rendered : "Box::new(" + normalizeConstructorResult(actual, rendered) + ")";
-            return "Some(" + payload + ")";
+            // Box<dyn Trait>; only a concrete value boxes here. Haxe reads
+            // a value into an interface slot and leaves the source intact,
+            // so the box takes an owned clone of a reusable read. The
+            // Option wrapper is the sole addition the nullable slot needs.
+            if (isInterfaceType(actual.t))
+                return "Some(" + rendered + ")";
+            final boxed = normalizeConstructorResult(actual, rendered);
+            final owned = isReusableOwnedRead(actual) && !isTypeCopy(actual.t)
+                && !StringTools.startsWith(boxed, "&") && !StringTools.endsWith(boxed, ".clone()")
+                ? "(" + boxed + ").clone()" : boxed;
+            return "Some(Box::new(" + owned + "))";
         }
         // Haxe unifies a nullable interface slot's value type to the
         // interface even for a concrete constructor; recover the concrete
@@ -13093,6 +13117,8 @@ class RustExpr {
                                 intToFloatText(argStr);
                             case _ if (isOwnedVecType(getNullInnerType(pt))):
                                 nullableArrayPayload(arg, argStr);
+                            case TLocal(v) if (borrowedLoopVarIds.exists(v.id) && isInterfaceType(getNullInnerType(pt)) && isInterfaceType(arg.t)):
+                                "(*" + argStr + ").clone()";
                             case _:
                                 if (isInterfaceType(getNullInnerType(pt)) && !isInterfaceType(arg.t))
                                     renderValueForType(getNullInnerType(pt), arg, argStr);
