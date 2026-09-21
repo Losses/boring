@@ -106,6 +106,9 @@ class KotlinExpr {
     /** Fresh names for the trailing-unit reads of stdlib/08 checks. */
     var stringBufTailCounter:Int = 0;
 
+    /** Fresh names for the operands an Array growth guard binds. */
+    var arrayGrowthCounter:Int = 0;
+
     /** Constructor parameter name -> rendered argument, for coalescing defaults that read an earlier parameter. */
     var constructorParameterValues:Null<Map<String, String>> = null;
 
@@ -791,6 +794,12 @@ class KotlinExpr {
                 // Deferred local declarations are initialized by later assignments;
                 // Kotlin's definite-assignment analysis checks every read.
                 return [indent(depth) + "var " + localName(v) + ": " + types.of(v.t)];
+            case TBinop(OpAssign, l, r) if (arrayWriteTarget(l) != null):
+                // A Haxe Array index write grows the array when the index
+                // reaches past the end; Kotlin assignments are statements,
+                // so the guard is its own line here and the assignment
+                // follows it. (ArrayGrowthOnIndexWrite)
+                return arrayWriteLines(l, assignValueText(l, r, true), depth);
             case TBlock(stmts):
                 final out = [indent(depth) + "run {"];
                 for (l in blockLines(stmts, depth + 1))
@@ -2004,36 +2013,17 @@ class KotlinExpr {
         switch (op) {
             case OpAssign:
                 final map = mapAssignment(l);
-                final wasFunctionTypeExpected = functionTypeExpected;
-                functionTypeExpected = PolicyQueries.isFunctionType(l.t);
-                var value = expr(r);
-                functionTypeExpected = wasFunctionTypeExpected;
-                // Haxe unifies Int and Float; widen Int assignment values to
-                // Float when the target's type is Float.
-                if (map == null && isIntOrLongType(emittedType(r)) && isFloatType(l.t))
-                    value = intToFloatText(value);
-                // A safe-call value assigned into a non-null target
-                // extracts: the safe call widens the result to a nullable
-                // type, and Kotlin rejects the nullable assignment.
-                // (NonNullAssignmentExtraction)
-                if (map == null && !isNullType(l.t) && rendersNullable(r) && !StringTools.endsWith(value, "!!")) {
-#if boring_fold_debug
-                    emissionTrace("ASSIGN", value, r.pos);
-#end
-                    value += "!!";
-                }
+                final value = assignValueText(l, r, map == null);
                 if (map == null) {
-                    final previous = mutableArrayAccess;
-                    mutableArrayAccess = switch (stripWrap(l).expr) {
-                        case TArray(arr, _): switch (stripWrap(arr).expr) {
-                            case TLocal(v): mutableArrayLocals.exists(v.id);
-                            case _: false;
-                        }
-                        case _: false;
-                    };
-                    final target = assignTarget(l);
-                    mutableArrayAccess = previous;
-                    return target + " = " + value;
+                    // A Haxe Array index write grows the array when the index
+                    // reaches past the end, so it needs the growth guard.
+                    // Kotlin assignments are statements, so an index write
+                    // that lands in expression position wraps the guard and
+                    // the assignment in a run block.
+                    final growth = arrayWriteLines(l, value, 0);
+                    if (growth != null)
+                        return "run { " + growth.join("; ") + " }";
+                    return arrayIndexAssignText(l, value);
                 }
                 return expr(map.receiver) + ".put(" + expr(map.key) + ", " + value + ")";
             case OpAssignOp(inner):
@@ -2049,6 +2039,199 @@ class KotlinExpr {
             case _:
                 return binopCore(op, l, r);
         }
+    }
+
+    /**
+        The value side of one assignment: the target's expected-type
+        context, the Haxe Int-to-Float widening, and the non-null extraction
+        a safe-call value needs in a non-null target
+        (NonNullAssignmentExtraction). A Map index keeps its own lowering and
+        takes neither of the two target adjustments.
+    **/
+    function assignValueText(l:TypedExpr, r:TypedExpr, arrayOrLocalTarget:Bool):String {
+        final wasFunctionTypeExpected = functionTypeExpected;
+        functionTypeExpected = PolicyQueries.isFunctionType(l.t);
+        var value = expr(r);
+        functionTypeExpected = wasFunctionTypeExpected;
+        if (!arrayOrLocalTarget)
+            return value;
+        // Haxe unifies Int and Float; widen Int assignment values to Float
+        // when the target's type is Float.
+        if (isIntOrLongType(emittedType(r)) && isFloatType(l.t))
+            value = intToFloatText(value);
+        if (!isNullType(l.t) && rendersNullable(r) && !StringTools.endsWith(value, "!!")) {
+#if boring_fold_debug
+            emissionTrace("ASSIGN", value, r.pos);
+#end
+            value += "!!";
+        }
+        return value;
+    }
+
+    /** The plain `<target> = <value>` text of an assignment, rendered with
+        the array-access context the array lowering reads. */
+    function arrayIndexAssignText(l:TypedExpr, value:String):String {
+        final previous = mutableArrayAccess;
+        mutableArrayAccess = arrayAccessContext(l);
+        final target = assignTarget(l);
+        mutableArrayAccess = previous;
+        return target + " = " + value;
+    }
+
+    /** True while the assigned array is a local the compiler tracks as a
+        Haxe Array, the context in which a `split` result becomes a
+        writable list. */
+    function arrayAccessContext(l:TypedExpr):Bool {
+        return switch (stripWrap(l).expr) {
+            case TArray(arr, _): switch (stripWrap(arr).expr) {
+                case TLocal(v): mutableArrayLocals.exists(v.id);
+                case _: false;
+            }
+            case _: false;
+        };
+    }
+
+    /**
+        The parts of one Haxe Array index write, or null when the target is
+        not one. Haxe `a[i] = v` grows the Array when `i` reaches past the
+        end and fills every skipped slot with the element type's default
+        value (Array.set), so only the Array shape needs a growth guard: a
+        Map index routes through its backing map, haxe.io.Bytes writes its
+        own native array, and a ReadOnlyArray exposes no setter.
+    **/
+    function arrayWriteTarget(l:TypedExpr):Null<{arr:TypedExpr, index:TypedExpr, element:Type}> {
+        if (mapAssignment(l) != null)
+            return null;
+        return switch (stripWrap(l).expr) {
+            case TArray(arr, index):
+                switch (Context.follow(arr.t)) {
+                    case TInst(c, params) if (c.get().pack.length == 0 && c.get().name == "Array" && params.length == 1):
+                        // ReadOnlyArray is checked before Context.follow,
+                        // which erases the abstract to Array; a nullable
+                        // array renders as the nullable list type the plain
+                        // assignment already unwraps, so it keeps no guard.
+                        isReadOnlyArrayType(arr.t) || StringTools.endsWith(types.of(arr.t), "?") ? null : {
+                            arr: arr,
+                            index: index,
+                            element: params[0]
+                        };
+                    case _: null;
+                }
+            case _: null;
+        };
+    }
+
+    function isReadOnlyArrayType(t:Type):Bool {
+        return switch (t) {
+            case TAbstract(a, _): a.get().pack.join(".") == "std" && a.get().name == "ReadOnlyArray";
+            case _: false;
+        };
+    }
+
+    /** True when re-rendering the subject for the growth guard cannot run a
+        call twice: constants, locals, field reads, and the arithmetic over
+        them. Anything else binds to a local first (ArrayGrowthBindsOperands). */
+    function stableGrowthOperand(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TConst(_) | TLocal(_) | TTypeExpr(_): true;
+            case TField(subj, _): stableGrowthOperand(subj);
+            case TUnop(_, _, inner): stableGrowthOperand(inner);
+            case TArray(arr, idx): stableGrowthOperand(arr) && stableGrowthOperand(idx);
+            case TBinop(op, a, b):
+                switch (op) {
+                    case OpAssign | OpAssignOp(_): false;
+                    default: stableGrowthOperand(a) && stableGrowthOperand(b);
+                }
+            case _: false;
+        };
+    }
+
+    /** True when the index is a local or a constant: re-rendering it runs no
+        call, and it cannot read the length of the array the guard grows, so
+        a[a.length] = v cannot extend the bound it is compared against. */
+    function simpleGrowthIndex(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TConst(_) | TLocal(_): true;
+            case _: false;
+        };
+    }
+
+    /** The zero of a Kotlin value element type. A reference element type has
+        no zero and fills with null instead. */
+    function valueElementZero(elementText:String):Null<String> {
+        return switch (elementText) {
+            case "Int": "0";
+            case "Long": "0L";
+            case "Float" | "Double": "0.0";
+            case "Boolean": "false";
+            case _: null;
+        };
+    }
+
+    /**
+        The growth guard of one Array index write, as a single Kotlin
+        statement; the index arrives as an operand, already parenthesized
+        when it is rendered text. Haxe's Array.set grows past the end and fills the skipped
+        slots with the element type's default value, the way the JVM array it
+        grows stores one: a value element type fills with its zero, a
+        reference element type fills with null. A non-nullable reference
+        element type has no null literal of its own, and the JDK copies null
+        into a list of any element type, so one erased addAll carries the
+        same default.
+    **/
+    function arrayGrowthGuard(list:String, index:String, elementText:String):String {
+        if (StringTools.endsWith(elementText, "?"))
+            return "while (" + list + ".size <= " + index + ") { " + list + ".add(null) }";
+        final zero = valueElementZero(elementText);
+        if (zero != null)
+            return "while (" + list + ".size <= " + index + ") { " + list + ".add(" + zero + ") }";
+        return "if (" + list + ".size <= " + index + ") { " + list + ".addAll(java.util.Collections.nCopies<" + elementText + ">(" + index + " + 1 - "
+            + list + ".size, null)) }";
+    }
+
+    /**
+        The statement lines of one Haxe Array index write: the growth guard
+        Haxe applies, then the assignment. The guard re-renders the array and
+        the index, as the other statement lowerings of this backend do; an
+        operand that carries a call binds to a local first, so it still runs
+        once and keeps the Haxe order of array, index, value.
+        (ArrayGrowthOnIndexWrite) Returns null when the target is not an
+        Array index write, leaving every other assignment to its own
+        lowering.
+    **/
+    function arrayWriteLines(l:TypedExpr, valueText:String, depth:Int):Null<Array<String>> {
+        final target = arrayWriteTarget(l);
+        if (target == null)
+            return null;
+        final previous = mutableArrayAccess;
+        mutableArrayAccess = arrayAccessContext(l);
+        final out:Array<String> = [];
+        var list = expr(target.arr);
+        var index = expr(target.index);
+        // The guard re-renders both operands, so an operand the re-render
+        // could turn into a second call binds to a local, and the index
+        // binds whenever re-reading it could observe the growth itself. An
+        // index that keeps its rendered text is a local or a constant, so
+        // the guard reads it as an operand without parentheses.
+        var indexOperand = index;
+        if (!stableGrowthOperand(target.arr) || !simpleGrowthIndex(target.index)) {
+            arrayGrowthCounter += 1;
+            if (!stableGrowthOperand(target.arr)) {
+                final listName = "_growList" + arrayGrowthCounter;
+                out.push(indent(depth) + "val " + listName + " = " + list);
+                list = listName;
+            }
+            if (!simpleGrowthIndex(target.index)) {
+                final indexName = "_growIndex" + arrayGrowthCounter;
+                out.push(indent(depth) + "val " + indexName + " = " + index);
+                index = indexName;
+                indexOperand = indexName;
+            }
+        }
+        out.push(indent(depth) + arrayGrowthGuard(list, indexOperand, types.of(target.element)));
+        out.push(indent(depth) + list + "[" + index + "] = " + valueText);
+        mutableArrayAccess = previous;
+        return out;
     }
 
     // Function-scope record of subjects an assertion already extracted.
