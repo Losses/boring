@@ -156,6 +156,9 @@ class SwiftExpr {
     /** Fresh names for the trailing-unit reads of stdlib/08 checks. */
     var stringBufTailCounter:Int = 0;
 
+    /** Fresh names for the guarded put of a nullable SortedMap value. */
+    var nullablePutCounter:Int = 0;
+
     /** Function context used to distinguish a sanctioned coalescing site. */
     var currentClass:Null<ClassType> = null;
 
@@ -801,6 +804,8 @@ class SwiftExpr {
                 return [indent(depth) + "continue"];
             case TCall(fn, args) if (stringBufMutationParts(fn) != null):
                 return stringBufMutationLines(fn, args, depth);
+            case TCall(fn, args) if (nullableSortedPutLines(e, depth) != null):
+                return nullableSortedPutLines(e, depth);
             case TMeta(_, inner):
                 return stmtLines(inner, depth);
             // Increment/decrement statements retain their direct assignment form.
@@ -822,6 +827,9 @@ class SwiftExpr {
                 };
                 final tryKw = !hoisted && containsThrowingCall(r) ? "try " : "";
                 final map = mapAssignment(l);
+                final growing = map == null ? growingArrayStoreLines(l, r, depth, tryKw) : null;
+                if (growing != null)
+                    return growing;
                 final target = map == null ? assignTarget(l) + " = " : expr(map.receiver) + "[" + mapKeyText(map.key) + "] = ";
                 return [indent(depth) + target + tryKw + assignmentValue(l, r)];
             case TBinop(OpAssignOp(inner), l, r):
@@ -1372,6 +1380,46 @@ class SwiftExpr {
         return switch (Context.follow(subj.t)) {
             case TInst(c, _): final cls = c.get(); cls.pack.join(".") == "std" && StringTools.startsWith(cls.name, "Sorted");
             case _: false;
+        };
+    }
+
+    /**
+        A SortedMap whose value type is Null<V> can store nil, but the
+        Swift runtime keeps the value array non-optional (the type
+        renderer strips the inner Null so get returns one optional layer).
+        A put of a possibly-nil value therefore cannot force-unwrap; the
+        nil case must not reach the store. The read side treats an absent
+        key and a nil value the same (get returns nil for both), so
+        guarding the put preserves the observable reads. (NullableSortedPut)
+    **/
+    function nullableSortedPutLines(e:TypedExpr, depth:Int):Null<Array<String>> {
+        return switch (e.expr) {
+            case TCall({expr: TField(subj, FInstance(_, _, cf))}, args)
+                if (cf.get().name == "put" && args.length == 2 && isSortedBuilderSubject(subj) && optionalValued(args[1])):
+                nullablePutCounter += 1;
+                final name = "np" + nullablePutCounter;
+                [indent(depth) + "if let " + name + " = " + expr(args[1]) + " { " + expr(subj) + ".put(" + expr(args[0]) + ", " + name + ") }"];
+            case _: null;
+        };
+    }
+
+    /**
+        A Haxe array subscript store grows the array when the index equals
+        its length, while Swift's subscript requires a valid index. The
+        store binds the value once and appends when the index is at or past
+        the end, so a loop that fills a fresh array from index zero works.
+        (GrowingArrayStore)
+    **/
+    function growingArrayStoreLines(l:TypedExpr, r:TypedExpr, depth:Int, tryKw:String):Null<Array<String>> {
+        return switch (stripWrap(l).expr) {
+            case TArray(arr, idx):
+                final arrText = expr(arr);
+                final idxText = "Int(" + expr(idx) + ")";
+                final valText = assignmentValue(l, r);
+                // Only one branch runs, so the value is evaluated once
+                // whichever way the bounds check falls.
+                [indent(depth) + "if " + idxText + " < " + arrText + ".count { " + arrText + "[" + idxText + "] = " + tryKw + valText + " } else { " + arrText + ".append(" + tryKw + valText + ") }"];
+            case _: null;
         };
     }
 
@@ -5189,6 +5237,12 @@ class SwiftExpr {
                     nonOptionalInferred.set(v.id, true);
                 } else if (init != null && isNullLeafType(init.t) && coalescing == null && !unwrapNullableInitializer) {
                     optionalInferred.set(v.id, true);
+                    // A local without an explicit annotation bound to an
+                    // optional-valued initializer infers an optional Swift
+                    // binding. Register it as an optional binding so a nil
+                    // comparison stays live instead of folding to a constant
+                    // and deleting the initialization branch. (OptionalInitBinding)
+                    optionalBindingLocals.set(v.id, true);
                 }
                 PolicyQueries.noteFpInt64Init(v, init, fpInt64Halves);
             case TBinop(OpAssign, t, _) | TBinop(OpAssignOp(_), t, _):
