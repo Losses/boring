@@ -40,6 +40,28 @@ class KotlinImports {
         return GUARANTEED_STD_MODULES.exists(module);
     }
 
+    /**
+        Recovers the declaration name of an extern class whose `@:native`
+        value replaces the reflected class name. The typer presents such a
+        class under its native name with an empty package, so a reference
+        reads `console` while the emitted shim declares the name written
+        in the module: std.Console declares Console. A native name that
+        opens with a lowercase letter identifies the case; every other
+        name is already the declaration name. Class reference sites call
+        this helper and pass the recovered name on, so the import path
+        table stays free of it: a file-scope function reference carries a
+        lowercase name of its own.
+    **/
+    public static function declarationName(module:String, name:String):String {
+        if (name.length == 0)
+            return name;
+        final first = name.charAt(0);
+        if (first < "a" || first > "z")
+            return name;
+        final dot = module.lastIndexOf(".");
+        return dot >= 0 ? module.substr(dot + 1) : module;
+    }
+
     final selfPack:String;
 
     public final selfResident:Bool;
