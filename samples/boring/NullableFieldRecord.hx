@@ -21,4 +21,24 @@ class NullableFieldRecord {
         this.code = code;
         this.words = words;
     }
+
+    /**
+        The nullable label as the left operand of a concatenation with a
+        literal. Kotlin's String?.plus(Any?) renders a null receiver as
+        "null", the text Std.string(null) produces, so the expression must
+        not assert the field (docs/specs/features/31-record-tostring-member.md).
+    **/
+    public function labelPlusLiteral():String {
+        return this.label + "l";
+    }
+
+    /** The nullable label as the right operand of a concatenation with a literal. */
+    public function literalPlusLabel():String {
+        return "l" + this.label;
+    }
+
+    /** The nullable Int field as the left operand, which renders through its own conversion. */
+    public function codePlusLiteral():String {
+        return this.code + "c";
+    }
 }
