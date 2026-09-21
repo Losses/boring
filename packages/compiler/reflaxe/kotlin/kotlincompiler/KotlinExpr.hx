@@ -1573,11 +1573,14 @@ class KotlinExpr {
                         var t = expr(x);
                         if (elemFloat && isIntOrLongType(emittedType(x))) t = intToFloatText(t);
                         if (elemType != null && !isNullType(elemType) && requiresNonNullCallArgument(x, t)) {
-                            if (!isNullInitialized(x))
-                                addProofExpr(x);
-                            t = hardenAppend(t, (provenNonNull(x) || guardProofBefore(x))
-                                ? "!!"
-                                : " ?: throw IllegalArgumentException(\"argument is null\")");
+                            if (provenNonNull(x) || guardProofBefore(x)) {
+                                // Kotlin's own narrowing holds at this read.
+                                // (AssignmentTracksNullability)
+                            } else {
+                                if (!isNullInitialized(x))
+                                    addProofExpr(x);
+                                t = hardenAppend(t, " ?: throw IllegalArgumentException(\"argument is null\")");
+                            }
                         }
                         t;
                     }
@@ -2194,6 +2197,19 @@ class KotlinExpr {
             case OpAssign:
                 final map = mapAssignment(l);
                 final value = assignValueText(l, r, map == null);
+                // A synthesized initializer can carry a nullable type while
+                // its rendered text is a plain constructor call; the text is
+                // what Kotlin reads. Null literals and safe-call chains
+                // clear the proof; non-null types and assertions set it.
+                // (AssignmentTracksNullability)
+                switch (stripWrap(l).expr) {
+                    case TLocal(v) if (isNullType(l.t)):
+                        if (isNullLiteral(r) || StringTools.contains(value, "?."))
+                            nonNullLocals.remove(v.id);
+                        else if (!isNullType(r.t) || StringTools.contains(value, "!!"))
+                            nonNullLocals.set(v.id, true);
+                    case _:
+                }
                 if (map == null) {
                     // A Haxe Array index write grows the array when the index
                     // reaches past the end, so it needs the growth guard.
@@ -2227,6 +2243,13 @@ class KotlinExpr {
         no assertion supplies a non-null value, so a wrapping elvis would
         always read the left side and only warn. (IfExpressionCoversNull)
     **/
+    function keyOf(e:TypedExpr):Null<String> {
+        return switch (stripWrap(e).expr) {
+            case TLocal(v): "local:" + v.id;
+            case _: fieldAccessKey(e);
+        };
+    }
+
     function coversNullByForm(a:TypedExpr, text:String):Bool {
         // A property read of a non-null data-class field renders non-null
         // under every access form, so the wrapping elvis is dead.
@@ -2244,7 +2267,22 @@ class KotlinExpr {
         if (StringTools.contains(text, "?.") || StringTools.contains(text, "!!"))
             return false;
         return switch (stripWrap(a).expr) {
-            case TIf(c, t, f) if (f != null && !isNullType(f.t)):
+            case TIf(c, t, f) if (f != null):
+                // OpEq form: `x == null ? other : x` keeps the guarded value
+                // on the else arm, and the then arm must type non-null.
+                // (IfExpressionCoversNull)
+                final eqForm = switch (stripWrap(c).expr) {
+                    case TBinop(OpEq, l, r): if (isNullExpr(l)) r else if (isNullExpr(r)) l else null;
+                    case _: null;
+                };
+                if (eqForm != null && !isNullType(t.t)) {
+                    final sk2 = keyOf(eqForm);
+                    final ek = keyOf(f);
+                    if (sk2 != null && sk2 == ek)
+                        return true;
+                }
+                if (isNullType(f.t))
+                    return false;
                 final subject = switch (stripWrap(c).expr) {
                     case TBinop(OpNotEq, l, r): if (isNullExpr(l)) r else if (isNullExpr(r)) l else null;
                     case _: null;
@@ -3087,7 +3125,22 @@ class KotlinExpr {
             // disables its smart cast for the whole function, so every
             // extraction stays. (ClosureMutationBlocksSmartCast)
             case TLocal(v): nonNullLocals.exists(v.id) && !closureMutatedLocals.exists(v.id);
-            case TField(_, _): final key = fieldAccessKey(e); key != null && nonNullFields.exists(key);
+            case TField(_, _):
+                final key = fieldAccessKey(e);
+                if (key == null || !nonNullFields.exists(key))
+                    return false;
+                // A writable class property can be rewritten by any method,
+                // so Kotlin never smart-casts it; only a read-only property
+                // (write access never) carries the proof across reads.
+                // (MutablePropertyNoSmartCast)
+                switch (stripWrap(e).expr) {
+                    case TField(_, FInstance(_, _, cf)):
+                        switch (cf.get().kind) {
+                            case FVar(_, write): write.match(AccNever);
+                            case _: true;
+                        }
+                    case _: true;
+                }
             case _: false;
         };
     }
@@ -3384,6 +3437,11 @@ class KotlinExpr {
         final inner = expr(subj);
         switch (op) {
             case OpNot:
+                // Negating a safe-call chain reads a Boolean?, which Kotlin
+                // rejects; folding to the null-as-false comparison keeps the
+                // negation total. (SafeCallBooleanNegation)
+                if (inner.indexOf("?.") >= 0)
+                    return "!(" + inner + " == true)";
                 return "!" + inner;
             case OpNegBits:
                 return inner + ".inv()";
@@ -4847,24 +4905,37 @@ class KotlinExpr {
             // that could still supply null. (IfExpressionCoversNull)
             if (coversNullByForm(a, text))
                 return text;
+            // Kotlin's own narrowing holds for a proven read, so the
+            // wrapping elvis would only warn. (AssignmentTracksNullability)
+            if (provenNonNull(a) || guardProofBefore(a))
+                return text;
             // A null default is an identity: `x ?: null` equals x for
             // every value, so the wrap only warns. (NullDefaultIdentityFold)
             if (StringTools.trim(defaultArgText(registered, expected)) == "null")
                 return text;
             return "(" + text + " ?: " + defaultArgText(registered, expected) + ")";
         } else if (!allowNullable && expected != null && !isNullType(expected) && requiresNonNullCallArgument(a, text)) {
-            if (!isNullInitialized(a))
-                addProofExpr(a);
+            // An argument whose own text branches on the null case needs no
+            // wrap here either. (IfExpressionCoversNull)
+            if (coversNullByForm(a, text))
+                return text;
+            // The registration must follow the proof check: a registration
+            // that runs before it would prove its own traversal.
+            // (ProbeRenderKeepsFlowClean)
             if (provenNonNull(a) || guardProofBefore(a)) {
 #if boring_fold_debug
                 emissionTrace("ARG_ASSERT", text, a.pos);
 #end
-                return hardenAppend(text, "!!");
+                // Kotlin's own narrowing holds at this read.
+                // (AssignmentTracksNullability)
+                return text;
             }
             else {
 #if boring_fold_debug
                 emissionTrace("ARG_ELVIS", text, a.pos);
 #end
+                if (!isNullInitialized(a))
+                    addProofExpr(a);
                 return hardenAppend(text, " ?: throw IllegalArgumentException(\"argument is null\")");
             }
         } else if (isIntOrLongType(emittedType(a)) && isFloatExpectedType(expected)) return intToFloatText(text); else return text;
@@ -4906,18 +4977,22 @@ class KotlinExpr {
                     else
                         "(" + text + " ?: " + constructorDefaultText(registered, expected, cls, args) + ")";
                 } else if (expected != null && !isNullType(expected) && requiresNonNullCallArgument(a, text)) {
-                    if (!isNullInitialized(a))
-                        addProofExpr(a);
-                    if (provenNonNull(a) || guardProofBefore(a)) {
+                    if (coversNullByForm(a, text))
+                        text;
+                    else if (provenNonNull(a) || guardProofBefore(a)) {
 #if boring_fold_debug
                         emissionTrace("CTOR_ASSERT", text, a.pos);
 #end
-                        hardenAppend(text, "!!");
+                        // Kotlin's own narrowing holds at this read.
+                        // (AssignmentTracksNullability)
+                        text;
                     }
                     else {
 #if boring_fold_debug
                         emissionTrace("CTOR_ELVIS", text, a.pos);
 #end
+                        if (!isNullInitialized(a))
+                            addProofExpr(a);
                         hardenAppend(text, " ?: throw IllegalArgumentException(\"argument is null\")");
                     }
                 } else if (isIntOrLongType(emittedType(a)) && isFloatExpectedType(expected)) intToFloatText(text) else text;
