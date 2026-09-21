@@ -2132,6 +2132,25 @@ class TsExpr {
                         return "(" + expr(subj) + ".get(" + expr(args[0]) + ") ?? null)";
                     if (name == "set" && args.length == 2)
                         return expr(subj) + ".set(" + expr(args[0]) + ", " + expr(args[1]) + ")";
+                    // The native Map deletes a key through delete. The Haxe
+                    // member name remove carries the same contract (returns
+                    // whether the key was present).
+                    if (name == "remove" && args.length == 1)
+                        return expr(subj) + ".delete(" + expr(args[0]) + ")";
+                    // The native Map clears through clear, matching the Haxe
+                    // member.
+                    if (name == "clear" && args.length == 0)
+                        return expr(subj) + ".clear()";
+                    // The remaining members have no native Map equivalent or
+                    // are rejected by the subset: iteration over a Map is V01
+                    // IteratorLoop, and the native Map string form is not the
+                    // Haxe form.
+                    if (name == "keys" || name == "iterator" || name == "keyValueIterator")
+                        return fail(subj, "map " + name + " has no translation: iteration over haxe.ds.Map is rejected by V01 IteratorLoop");
+                    if (name == "copy")
+                        return fail(subj, "map copy has no translation: haxe.ds.Map.copy has no native Map equivalent");
+                    if (name == "toString")
+                        return fail(subj, "map toString has no translation: the native Map string form is not the Haxe form");
                 }
                 if (isStringBuf(subj)) {
                     // stdlib/08: the checks throw, and a throw is a
