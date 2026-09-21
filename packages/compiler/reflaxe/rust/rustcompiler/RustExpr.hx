@@ -763,6 +763,7 @@ class RustExpr {
         final fusedRoot = fuseWithin(f.expr);
         f.expr.expr = fusedRoot.expr;
         scanLocals(f.expr);
+        scanMutableRefLends(f.expr);
         scanSharedClosureArrays(f.expr);
         scanSharedClosureScalars(f.expr);
         scanPushedThenRead(f.expr);
@@ -830,6 +831,7 @@ class RustExpr {
             if (a.tvar != null)
                 paramVarIds.set(a.tvar.id, true);
         scanLocals(f.expr);
+        scanMutableRefLends(f.expr);
         scanLocalFunctionFallibility(f.expr);
         final out:Array<String> = [];
         for (stmt in statementsOf(f.expr)) {
@@ -872,6 +874,7 @@ class RustExpr {
         final fusedRoot = fuseWithin(f.expr);
         f.expr.expr = fusedRoot.expr;
         scanLocals(f.expr);
+        scanMutableRefLends(f.expr);
         scanLocalFunctionFallibility(f.expr);
         final argNames = [for (a in f.args) a.name];
         final fieldInits = new Map<String, String>();
@@ -9504,11 +9507,56 @@ class RustExpr {
                 final localQ = fallibleLocalFunctionErrors.exists(v.id) ? (isFallible ? "?" : ".unwrap()") : "";
                 return expr(fn) + "(" + renderCallArgs(fn.t, args) + ")" + localQ;
             case _:
+                // A class-static callee has typed parameters: when any of
+                // them is a mutable-reference position, the args must route
+                // through the standard pipeline so the position borrows
+                // instead of cloning. (MutableRefObjectParam)
+                switch (stripWrap(fn).expr) {
+                    case TField(_, FStatic(c, cf)) | TField(_, FInstance(c, _, cf)):
+                        final positions = mutableParamPositions(cf.get());
+                        if (positions.length > 0)
+                            return expr(fn) + "(" + renderCallArgs(cf.get().type, args, null, 0, positions) + ")";
+                    case _:
+                }
                 return expr(fn) + "(" + renderedArgs + ")";
         }
     }
 
+    /**
+        scanMutableRefLends: passing a local into a mutable reference
+        parameter position lends &mut of the binding, so the binding must be
+        declared mutable even when the caller never writes it itself.
+        (MutableRefObjectParam)
+    **/
+    function scanMutableRefLends(e:TypedExpr):Void {
+        if (e == null)
+            return;
+        switch (e.expr) {
+            case TCall(fn, args):
+                switch (stripWrap(fn).expr) {
+                    case TField(_, FInstance(_, _, cf)) | TField(_, FStatic(_, cf)) | TField(_, FAnon(cf)):
+                        final positions = mutableParamPositions(cf.get());
+                        for (i in 0...args.length)
+                            if (positions.indexOf(i) >= 0)
+                                switch (stripWrap(args[i]).expr) {
+                                    case TLocal(l): mutated.set(l.id, true);
+                                    case _:
+                                }
+                    case _:
+                }
+            case _:
+        }
+        haxe.macro.TypedExprTools.iter(e, scanMutableRefLends);
+    }
+
+    static var mutableParamPositionsCache:Map<String, Array<Int>> = new Map();
+
     function mutableParamPositions(cf:ClassField):Array<Int> {
+        // The verdict depends only on the callee body, which is fixed for
+        // the whole generation: memoize per module and field. (PositionMemo)
+        final key = cf.module + "." + cf.name;
+        if (mutableParamPositionsCache.exists(key))
+            return mutableParamPositionsCache.get(key);
         final out:Array<Int> = [];
         switch (Context.follow(cf.type)) {
             case TFun(ps, _):
@@ -9519,6 +9567,7 @@ class RustExpr {
                             out.push(i);
             case _:
         }
+        mutableParamPositionsCache.set(key, out);
         return out;
     }
 
@@ -12691,6 +12740,22 @@ class RustExpr {
             final paramIndex = i + paramOffset;
             final pt = paramIndex < paramTypes.length ? paramTypes[paramIndex] : null;
             var argStr = renderValueForType(pt, arg, expr(arg));
+            // A by-value class parameter the callee mutates renders as a
+            // mutable reference (Haxe class arguments are references: the
+            // caller must observe the callee's writes). An argument whose
+            // own binding is already a mutable reference parameter passes
+            // by implicit reborrow; every other argument takes an explicit
+            // borrow. (MutableRefObjectParam)
+            if (mutablePositions != null && mutablePositions.indexOf(paramIndex) >= 0
+                && pt != null && RustDecl.isMutableRefParamType(pt)) {
+                final reborrow = switch (stripWrap(arg).expr) {
+                    case TLocal(v): paramVarIds.exists(v.id) && mutated.exists(v.id);
+                    case _: false;
+                };
+                argStr = reborrow ? argStr : "&mut " + (StringTools.startsWith(argStr, "&mut ") ? argStr.substr(5) : argStr);
+                rendered.push(argStr);
+                continue;
+            }
             // The option-guard boolean lowering renders a parenthesized
             // match (`(match &(s) { Some(v) => ..., None => false })`); in
             // argument position those parentheses are redundant and rustc
