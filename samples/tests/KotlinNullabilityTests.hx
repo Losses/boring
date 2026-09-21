@@ -22,6 +22,32 @@ class KotlinNullabilityOps {
     #end
 }
 
+class KotlinNestedNullReturnOps {
+    public static function anonymousLookup(key:Int):String {
+        final lookup = function(k:Int):Null<String> {
+            if (k == 0)
+                return null;
+            return "hit";
+        };
+        final value = lookup(key);
+        if (value == null)
+            return "none";
+        return value;
+    }
+
+    public static function namedLookup(key:Int):String {
+        function lookup(k:Int):Null<String> {
+            if (k == 0)
+                return null;
+            return "hit";
+        }
+        final value = lookup(key);
+        if (value == null)
+            return "none";
+        return value;
+    }
+}
+
 class KotlinNullableReceiver {
     public function new() {}
 
@@ -45,5 +71,17 @@ class KotlinNullabilityTests {
         #if kotlin_output
         Test.equals(null, KotlinNullabilityOps.receiverLabel(null));
         #end
+    }
+
+    @:test("anonymous lambda keeps a Null return")
+    public static function testAnonymousNullableLambda():Void {
+        Test.equals("none", KotlinNestedNullReturnOps.anonymousLookup(0));
+        Test.equals("hit", KotlinNestedNullReturnOps.anonymousLookup(1));
+    }
+
+    @:test("named local function keeps a Null return")
+    public static function testNamedNullableLocalFunction():Void {
+        Test.equals("none", KotlinNestedNullReturnOps.namedLookup(0));
+        Test.equals("hit", KotlinNestedNullReturnOps.namedLookup(1));
     }
 }
