@@ -818,7 +818,18 @@ class KotlinExpr {
                 updateLocalProof(v, init);
                 // The guard proof satisfies the non-null demand without
                 // the assertion. (ValPropertySmartCastProof)
-                final extractAtDecl = (extractsAtDecl && !initGuardProven) || extractRenderedNullable;
+                // A ternary initializer whose rendered text carries no
+                // safe-call hop yields a non-null value: each arm rendered
+                // plain or hardened, so the declaration-time assertion is
+                // dead. (NonNullInitializerNoExtract)
+                final initCoveredTernary = switch (stripWrap(init).expr) {
+                    // The else arm must type non-null: an unstable read
+                    // (an array element) re-reads on the else arm, and
+                    // Kotlin's narrowing never covers it.
+                    case TIf(_, _, f): f != null && !isNullType(f.t) && !StringTools.contains(initText, "?.");
+                    case _: false;
+                };
+                final extractAtDecl = ((extractsAtDecl && !initGuardProven) || extractRenderedNullable) && !initCoveredTernary;
                 // Haxe unifies Int and Float; widen Int initializers to Float
                 // when the variable's declared type is Float. When the
                 // initializer is also extracted to non-null, the widening
