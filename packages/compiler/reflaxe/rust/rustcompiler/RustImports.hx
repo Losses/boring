@@ -189,6 +189,28 @@ class RustImports {
         return rawSnakeCase(s).toUpperCase();
     }
 
+    /**
+        Recovers the declaration name of an extern class whose `@:native`
+        value replaces the reflected class name. The typer presents such a
+        class under its native name with an empty package, so a reference
+        reads `console` or `process` while the emitted shim declares the
+        name written in the module: std.Console declares Console. A native
+        name that opens with a lowercase letter identifies the case, so the
+        module's last segment answers; every other name is already the
+        declaration name and stays as written. Both the shim routing and
+        the general static dispatch call this helper, so the reference and
+        the shim declaration carry one spelling. (StdConsoleShimReference)
+    **/
+    public static function declarationName(module:String, name:String):String {
+        if (name.length == 0)
+            return name;
+        final first = name.charAt(0);
+        if (first < "a" || first > "z")
+            return name;
+        final dot = module.lastIndexOf(".");
+        return module.substr(dot + 1);
+    }
+
     public static function emittedTypeName(s:String):String {
         // The Haxe typer wraps module-level functions into a synthetic
         // class named `<Module>_Fields_`; the trailing underscore keeps
