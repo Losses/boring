@@ -33,6 +33,34 @@ class ArraySliceOps {
         return values(count).slice(from).join(",");
     }
 
+    /**
+        `"<removed>|<array after>"` of `values(count).splice(pos, len)`, so
+        one call records both halves of the operation: the sub-array the call
+        returns and the array it leaves behind. Haxe bounds the call before it
+        removes anything: a negative length or a position past the length
+        removes nothing and leaves the array alone, a negative position counts
+        from the end and stops at the first element, and a length that reaches
+        past the end removes only the tail. (ArraySpliceClamping)
+    **/
+    public static function spliceText(count:Int, pos:Int, len:Int):String {
+        final values = ArraySliceOps.values(count);
+        final removed = values.splice(pos, len);
+        return removed.join(",") + "|" + values.join(",");
+    }
+
+    /**
+        The text of `values(count)` after `insert(pos, 99)`, which records
+        the offset the clamped position chose. Haxe bounds the position before
+        the array sees it: a negative position counts from the end and stops at
+        the first element, and a position past the length clamps to the length.
+        (ArrayInsertClamping)
+    **/
+    public static function insertText(count:Int, pos:Int):String {
+        final values = ArraySliceOps.values(count);
+        values.insert(pos, 99);
+        return values.join(",");
+    }
+
     /** A slice through a nullable receiver, which the backend lowers through
         the same clamping and keeps the null result of an absent array. */
     public static function nullableText(values:Null<Array<Int>>, from:Int, to:Int):String {

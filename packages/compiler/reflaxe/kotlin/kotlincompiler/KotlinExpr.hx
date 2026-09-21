@@ -4207,7 +4207,15 @@ class KotlinExpr {
                         case "pop": return "if (" + expr(subj) + ".isEmpty()) null else " + expr(subj) + ".removeAt(" + expr(subj) + ".lastIndex)";
                         case "shift": return "if (" + expr(subj) + ".isEmpty()) null else " + expr(subj) + ".removeAt(0)";
                         case "unshift": return expr(subj) + ".add(0, " + renderedArgs + ")";
-                        case "insert": return expr(subj) + ".add(" + expr(args[0]) + ", " + expr(args[1]) + ")";
+                        // Haxe bounds the position before the list sees it: a
+                        // negative position counts from the end of the list
+                        // and stops at the first element, and a position past
+                        // the end clamps to the length. MutableList.add throws
+                        // IndexOutOfBoundsException on an index outside the
+                        // list, so the position is clamped first.
+                        // (ArrayInsertClamping)
+                        case "insert": return "run { val _a = " + expr(subj) + "; val _n = _a.size; val _pos = " + expr(args[0])
+                                + "; val _at = if (_pos < 0) maxOf(0, _n + _pos) else minOf(_pos, _n); _a.add(_at, " + expr(args[1]) + ") }";
                         case "splice": return "run { val _a = "
                                 + expr(subj)
                                 + "; val _i = "
