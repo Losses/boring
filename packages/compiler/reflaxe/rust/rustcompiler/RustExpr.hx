@@ -6426,6 +6426,13 @@ class RustExpr {
                 switch (inner) {
                     case OpAdd if (isStringType(l.t) && !isNullType(l.t) && isStringType(r.t) && !isNullType(r.t)):
                         return assignTarget(l) + " += &(" + expr(r) + ")";
+                    // Haxe appends every value to a String through that
+                    // value's own text form. A scalar operand has no &str
+                    // view, so the boundary renders its text once and
+                    // appends that. (StringAppendStringify)
+                    case OpAdd if (isStringType(l.t) && !isNullType(l.t) && !isNullType(r.t)
+                        && (isIntType(r.t) || isFloatType(r.t) || isBoolType(r.t))):
+                        return assignTarget(l) + " += &(" + expr(r) + ").to_string()";
                     case _:
                 }
                 // Haxe widens an Int operand in a Float compound assignment;
