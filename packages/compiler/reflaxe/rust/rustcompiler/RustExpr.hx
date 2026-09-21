@@ -9317,7 +9317,10 @@ class RustExpr {
         captureOwnedStringCopies = [for (v in captures) if (captureCopySuffix(v) == ".to_string()") v.id => true];
         final copies = [for (v in captures) sharedClosureArrays.exists(v.id)
             ? "let " + RustImports.toSnakeCase(localName(v)) + " = Arc::clone(&" + RustImports.toSnakeCase(localName(v)) + ");"
-            : "let " + (currentCaptureMut.exists(v.id) ? "mut " : "") + RustImports.toSnakeCase(localName(v)) + " = ("
+            // The prologue copy feeds the move capture by value and is only
+            // read afterwards: the closure body mutates its own inner copy,
+            // so this binding never needs mut. (CapturePreludeImmutable)
+            : "let " + RustImports.toSnakeCase(localName(v)) + " = ("
                 + RustImports.toSnakeCase(localName(v)) + ")" + captureCopySuffix(v) + ";"];
         final text = "{ " + copies.join(" ") + " Arc::new(" + functionLiteral(f, functionType) + ") }";
         currentCaptureClones = previousClones;
