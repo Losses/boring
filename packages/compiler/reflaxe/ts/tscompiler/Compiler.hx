@@ -5,6 +5,7 @@ import haxe.macro.Context;
 import haxe.macro.Type;
 import haxe.macro.TypedExprTools;
 import PolicyQueries;
+import TestClassFlush;
 import reflaxe.BaseCompiler.BaseCompilerFileOutputType;
 import reflaxe.PluginCompiler;
 import reflaxe.ReflectCompiler;
@@ -341,6 +342,13 @@ class Compiler extends PluginCompiler<Compiler> {
             testModules.set(classType.module, true);
 
             for (f in sortedFuncs) {
+                if (TestClassFlush.isEntry(f)) {
+                    // The conventional per-class flush entry (feature spec
+                    // 27) emits nothing here: this runner registers one call
+                    // per @:test function and holds no class instance.
+                    TestClassFlush.validate(f, classType.name);
+                    continue;
+                }
                 if (!f.field.meta.has(":test")) {
                     // Test classes carry test functions and nothing else
                     // (feature spec 27); shared logic belongs in an
