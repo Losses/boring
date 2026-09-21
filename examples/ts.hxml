@@ -657,3 +657,7 @@ boring.StringSearchFromOps
 tests.StringSearchFromTests
 boring.NullableFieldRecord
 tests.NullableFieldRecordTests
+
+
+boring.ArrayIndexSearchOps
+tests.ArrayIndexSearchTests

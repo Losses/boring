@@ -3757,17 +3757,15 @@ class KotlinExpr {
     function selfRenderedCallText(fn:TypedExpr, args:Array<TypedExpr>):Null<String> {
         switch (fn.expr) {
             case TField(subj, FInstance(owner, _, cf))
-                if (cf.get().name == "indexOf" && args.length == 2 && isNullLiteral(args[1]) && owner.get().pack.length == 0 && owner.get().name == "Array"):
-                // The haxe typer passes a synthesized null for the
-                // omitted ?fromIndex; the platform indexOf takes only
-                // the element, and a null fromIndex searches from the
-                // start like the omitted call (features/08 ruling 8),
-                // so the null argument is dropped from the rendered
-                // call. Rendering the element argument here keeps
-                // localCallArgs from registering a proof for the
-                // discarded null rendering.
-                final elementArg = renderCallArgs([args[0]], paramsForCall(fn), owner.get(), cf.get().name)[0];
-                return expr(subj) + nullableAccess(subj) + "indexOf(" + elementArg + ")";
+                if (owner.get().pack.length == 0 && owner.get().name == "Array"
+                    && (cf.get().name == "indexOf" || cf.get().name == "lastIndexOf") && args.length >= 1):
+                // The platform list type carries the element-only indexOf and
+                // lastIndexOf, so both array searches render here, and the
+                // synthesized null the haxe typer passes for an omitted
+                // ?fromIndex never reaches the call. Rendering the element
+                // argument here keeps localCallArgs from registering a proof
+                // for a discarded rendering. (ArrayIndexSearch)
+                return arrayIndexSearchText(subj, cf.get().name, args, fn, owner.get());
             case TField(_, FStatic(c, cf)) if (c.get().module == "haxe.io.Bytes" && cf.get().name == "alloc" && args.length == 1):
                 return "ByteArray(" + expr(args[0]) + ")";
             case TField(_, FStatic(c, cf)) if (c.get().module == "haxe.io.Bytes" && cf.get().name == "ofString" && args.length == 1):
@@ -3783,6 +3781,49 @@ class KotlinExpr {
             case _:
                 return null;
         }
+    }
+
+    /**
+        A Haxe `Array` index search. The platform list type carries the
+        element-only `indexOf` and `lastIndexOf`, so the element-only shape
+        renders as a plain platform call. A start index has no platform
+        overload: an `indexOf` scan starts at `from` and runs towards the
+        end, and a `lastIndexOf` scan starts at `from` and runs towards
+        index 0, so each shape searches the sublist its start index bounds
+        and the `indexOf` result is offset back into the receiver's own
+        numbering.
+        The haxe contract clamps the start index before the sublist exists: a
+        negative `from` counts from the end, an index at or past the end
+        searches the whole array forwards (or reports a miss) and one before
+        the start reports a miss, which keeps the sublist bounds valid.
+        (ArrayIndexSearch)
+    **/
+    function arrayIndexSearchText(subj:TypedExpr, name:String, args:Array<TypedExpr>, fn:TypedExpr, owner:ClassType):String {
+        final subjText = expr(subj);
+        final access = nullableAccess(subj);
+        final elementText = renderCallArgs([args[0]], paramsForCall(fn), owner, name)[0];
+        final fromOmitted = args.length < 2 || switch (stripWrap(args[1]).expr) {
+            case TConst(TNull): true;
+            case _: false;
+        };
+        if (fromOmitted)
+            return subjText + access + name + "(" + elementText + ")";
+        final steps = "val _n = _a.size"
+            + "; val _x = "
+            + elementText
+            + "; val _from = "
+            + expr(args[1]);
+        final body = if (name == "indexOf")
+            steps
+            + "; val _start = if (_from < 0) maxOf(_n + _from, 0) else _from"
+            + "; if (_start >= _n) -1 else { val _i = _a.subList(_start, _n).indexOf(_x); if (_i < 0) -1 else _i + _start }"
+        else
+            steps
+            + "; val _start = if (_from < 0) _n + _from else if (_from >= _n) _n - 1 else _from"
+            + "; if (_start < 0) -1 else _a.subList(0, _start + 1).lastIndexOf(_x)";
+        if (access == ".")
+            return "run { val _a = " + subjText + "; " + body + " }";
+        return subjText + access + "let { _a -> " + body + " }";
     }
 
     /**
