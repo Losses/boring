@@ -1195,6 +1195,27 @@ class RustDecl {
     public static var borrowedByteFieldNames:Map<String, Array<String>> = new Map();
 
     /**
+        Whether the parameter type lowers as a mutable object reference when
+        the body mutates it: a plain owned class instance, not one of the
+        borrowed primitives (Array, String, StringBuf, Bytes), not an
+        interface (trait objects carry their own mutation machinery), and
+        not an optional (Option storage mutates differently).
+        (MutableRefObjectParam)
+    **/
+    public static function isMutableRefParamType(t:Null<Type>):Bool {
+        if (t == null)
+            return false;
+        return switch (Context.follow(t)) {
+            case TInst(c, _):
+                final cls = c.get();
+                !cls.isInterface
+                    && cls.name != "Array" && cls.name != "String" && cls.name != "StringBuf"
+                    && !(cls.pack.join(".") == "haxe.io" && cls.name == "Bytes");
+            case _: false;
+        }
+    }
+
+    /**
         Whether the named field lowers as a borrowed byte reference. The
         field's Rust type is then a shared reference, which is Copy, so a
         defensive clone at the read site is redundant.
@@ -1493,8 +1514,18 @@ class RustDecl {
             for (i in firstArg...f.args.length) {
                 final a = f.args[i];
                 var pType = types.of(a.type, true);
-                if (argIsMutated(f.expr, a.name) && StringTools.startsWith(pType, "&Vec<")) pType = "&mut " + pType.substr(1);
-                final mut = argIsMutated(f.expr, a.name) && !StringTools.startsWith(pType, "&mut") ? "mut " : "";
+                final mutatedArg = argIsMutated(f.expr, a.name);
+                if (mutatedArg) {
+                    // A mutated borrowed array borrows mutably; a mutated
+                    // owned class instance passes by mutable reference so
+                    // the caller observes the callee's writes.
+                    // (MutableRefObjectParam)
+                    if (StringTools.startsWith(pType, "&Vec<"))
+                        pType = "&mut " + pType.substr(1);
+                    else if (isMutableRefParamType(a.type))
+                        pType = "&mut " + pType;
+                }
+                final mut = mutatedArg && !StringTools.startsWith(pType, "&mut") ? "mut " : "";
                 final mentioned = argIsMentioned(f.expr, a.name) || coalescedParams.exists(a.name);
                 mut + (mentioned ? "" : "_") + RustImports.toSnakeCase(a.name) + ": " + pType;
             }
@@ -1636,7 +1667,13 @@ class RustDecl {
                                 if (i < calleeArgs.length && root(args[i])) {
                                     final p = calleeArgs[i];
                                     if (switch (Context.follow(p.t)) {
-                                            case TInst(c, _): c.get().name == "Array";
+                                            // The borrowed-array family and the
+                                            // mutable-reference class family
+                                            // both forward writes to the
+                                            // callee: a pass-through argument
+                                            // inherits the callee's mutation.
+                                            // (MutableRefObjectParam)
+                                            case TInst(c, _): c.get().name == "Array" || isMutableRefParamType(p.t);
                                             case _: false;
                                         }) {
                                         final calleeBody = cf.get().expr();
@@ -2265,6 +2302,7 @@ class RustDecl {
             for (a in f.args) {
                 var pType = paramType(a.type, f.field.name, a.name);
                 if (argIsMutated(f.expr, a.name) && StringTools.startsWith(pType, "&Vec<")) pType = "&mut " + pType.substr(1);
+                else if (argIsMutated(f.expr, a.name) && isMutableRefParamType(a.type)) pType = "&mut " + pType;
                 expr.setArgType(a.name, pType);
                 final mentioned = argIsMentioned(f.expr, a.name) || coalescedParams.exists(a.name);
                 (mentioned ? "" : "_") + RustImports.toSnakeCase(a.name) + ": " + pType;
