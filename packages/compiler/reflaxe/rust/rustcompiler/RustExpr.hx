@@ -9553,8 +9553,11 @@ class RustExpr {
 
     function mutableParamPositions(cf:ClassField):Array<Int> {
         // The verdict depends only on the callee body, which is fixed for
-        // the whole generation: memoize per module and field. (PositionMemo)
-        final key = cf.module + "." + cf.name;
+        // the whole generation: memoize per field declaration site, since
+        // ClassField carries no module accessor on the pinned Haxe.
+        // (PositionMemo)
+        final fieldPos = Context.getPosInfos(cf.pos);
+        final key = fieldPos.file + ":" + fieldPos.min + "." + cf.name;
         if (mutableParamPositionsCache.exists(key))
             return mutableParamPositionsCache.get(key);
         final out:Array<Int> = [];
