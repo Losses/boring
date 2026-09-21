@@ -255,6 +255,8 @@ class RustDecl {
         // Instance class
         final borrowedBytes = borrowedByteFields(funcFields);
         final hasLifetime = classHasLifetime(varFields, borrowedBytes);
+        if (hasLifetime)
+            borrowedByteFieldNames.set(cls.module, [for (name in borrowedBytes.keys()) name]);
         // Generic classes carry their type parameters on the struct and
         // the impl. Every parameter takes a Clone bound on the impl:
         // reads of stored elements clone out of the arrays, and the one
@@ -1180,6 +1182,24 @@ class RustDecl {
                         names.set(arg.name, true);
             }
         return names;
+    }
+
+    /**
+        Borrowed byte field names per module, recorded when the struct
+        declaration computes the lifetime set; the declaration pass runs
+        before the method bodies of the same module render, so the read
+        sites consult the completed set. (BorrowedByteFieldRecord)
+    **/
+    public static var borrowedByteFieldNames:Map<String, Array<String>> = new Map();
+
+    /**
+        Whether the named field lowers as a borrowed byte reference. The
+        field's Rust type is then a shared reference, which is Copy, so a
+        defensive clone at the read site is redundant.
+    **/
+    public static function isBorrowedByteField(module:String, fieldName:String):Bool {
+        final names = borrowedByteFieldNames.get(module);
+        return names != null && names.indexOf(fieldName) >= 0;
     }
 
     function findConstructor(funcFields:Array<ClassFuncData>):Null<ClassFuncData> {
@@ -2122,10 +2142,11 @@ class RustDecl {
                         // A nullable sorted-map parameter feeding a
                         // non-Option map field has no Default impl; the
                         // absent value is an empty map built with the
-                        // field's key comparator.
+                        // field's key comparator, and a present argument
+                        // keeps its table. (NullableMapParamFieldInit)
                         final emptyMap = emptySortedMapFor(getFieldType(cls, a.name));
                         if (emptyMap != null)
-                            lines.push('            $sname: $emptyMap,');
+                            lines.push('            $sname: $sname.unwrap_or($emptyMap),');
                         else
                             lines.push('            $sname: $sname.unwrap_or_default(),');
                     } else if (thisAsValue && !isTypeCopy(a.type)) {
