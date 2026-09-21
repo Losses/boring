@@ -8819,8 +8819,10 @@ class RustExpr {
                     optionNarrowingHitCount++;
                 // A mutating method borrows the unwrapped receiver mutably:
                 // the trait-mutation table drives the interface-method calls,
-                // the receiver-writer list the concrete ones (MutatingForcing).
-                final mutCall = RustDecl.mutatingTraitMethods.exists(cf.get().name)
+                // the receiver-writer list the concrete ones. The table is
+                // keyed by interface and method, matching the registration.
+                // (MutatingForcing, InterfaceKeyedTraitMutation)
+                final mutCall = RustDecl.mutatingTraitMethods.exists(RustEmissionState.interfaceMethodKey(c.get().module, c.get().name, cf.get().name))
                     || RustDecl.methodWritesReceiver(cf.get());
                 final forcingRead = mutCall ? ".as_mut().unwrap()" : ".as_ref().unwrap()";
                 final subjStr = narrowed != null ? narrowed
