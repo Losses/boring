@@ -4214,11 +4214,40 @@ class KotlinExpr {
                     // emit safe call when it is nullable.
                     return expr(subj) + (rendersNullable(subj) ? "?." : ".") + "joinToString(" + renderedArgs + ")";
                 }
-                if (name == "slice" && args.length == 2 && owner.get().pack.length == 0 && owner.get().name == "Array") {
+                if ((args.length == 1 || args.length == 2) && name == "slice" && owner.get().pack.length == 0
+                    && owner.get().name == "Array") {
                     // The haxe slice bounds are end-exclusive, so the
                     // platform range overload receives the half-open
-                    // interval, like the Swift and Dart lowerings.
-                    return expr(subj) + nullableAccess(subj) + name + "(" + expr(args[0]) + " until " + expr(args[1]) + ")";
+                    // interval, like the Swift and Dart lowerings. Haxe
+                    // bounds that interval at both ends before it copies: a
+                    // negative bound counts from the end of the array, a
+                    // bound past the end clamps to the length, and an end
+                    // that reaches the start or passes it yields the empty
+                    // array. The platform slice throws when the interval
+                    // reaches past the list, so both bounds are clamped here
+                    // and the interval stays inside it. (ArraySliceClamping)
+                    final subjText = expr(subj);
+                    final access = nullableAccess(subj);
+                    final omittedEnd = args.length < 2 || switch (stripWrap(args[1]).expr) {
+                        case TConst(TNull): true;
+                        case _: false;
+                    };
+                    var steps = "val _n = _a.size"
+                        + "; val _from = "
+                        + expr(args[0])
+                        + "; val _start = if (_from < 0) maxOf(0, _n + _from) else minOf(_from, _n)";
+                    if (omittedEnd) {
+                        steps += "; val _stop = _n";
+                    } else {
+                        steps += "; val _to = "
+                            + expr(args[1])
+                            + "; val _end = if (_to < 0) maxOf(0, _n + _to) else minOf(_to, _n)"
+                            + "; val _stop = if (_end < _start) _start else _end";
+                    }
+                    final body = steps + "; _a.slice(_start until _stop)";
+                    if (access == ".")
+                        return "run { val _a = " + subjText + "; " + body + " }";
+                    return subjText + access + "let { _a -> " + body + " }";
                 }
                 if (name == "split" && mutableArrayAccess && isString(stripCast(subj))) {
                     // The haxe std contract gives an empty delimiter one
