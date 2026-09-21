@@ -4949,7 +4949,13 @@ class KotlinExpr {
                     addProofExpr(a);
                 return hardenAppend(text, " ?: throw IllegalArgumentException(\"argument is null\")");
             }
-        } else if (isIntOrLongType(emittedType(a)) && isFloatExpectedType(expected)) return intToFloatText(text); else return text;
+        } else if (isIntOrLongType(emittedType(a)) && isFloatExpectedType(expected)) {
+            // A text whose operands already widened yields a Double
+            // product under Kotlin arithmetic. (IdempotentWidening)
+            if (StringTools.contains(text, "toDouble()") || StringTools.contains(text, "toFloat()"))
+                return text;
+            return intToFloatText(text);
+        } else return text;
     }
 
     /**
@@ -5006,7 +5012,15 @@ class KotlinExpr {
                             addProofExpr(a);
                         hardenAppend(text, " ?: throw IllegalArgumentException(\"argument is null\")");
                     }
-                } else if (isIntOrLongType(emittedType(a)) && isFloatExpectedType(expected)) intToFloatText(text) else text;
+                } else if (isIntOrLongType(emittedType(a)) && isFloatExpectedType(expected)) {
+                    // A text whose operands already widened yields a Double
+                    // product under Kotlin arithmetic; wrapping again only
+                    // warns. (IdempotentWidening)
+                    if (StringTools.contains(text, "toDouble()") || StringTools.contains(text, "toFloat()"))
+                        text;
+                    else
+                        intToFloatText(text);
+                } else text;
             }
         ];
     }
@@ -5760,6 +5774,14 @@ class KotlinExpr {
 
     /** Convert an integer expression text to Float/Double when the target expects Float. */
     function intToFloatText(text:String):String {
+        if (text.indexOf("source.length") >= 0) {
+            final stack = haxe.CallStack.callStack();
+            final frames = [for (i in 0...stack.length) if (i >= 1 && i < 9) switch (stack[i]) {
+                case FilePos(_, file, line, _): file.substr(file.length - 24) + ":" + line;
+                case _: "?";
+            }];
+            Sys.stderr().writeString("WIDEN [" + text.substr(0, text.length > 60 ? 60 : text.length) + "] via=" + frames.join(" <- ") + "\n");
+        }
         return "(" + text + ")." + (FloatPrecision.isF32() ? "toFloat()" : "toDouble()");
     }
 
