@@ -12537,8 +12537,9 @@ class RustExpr {
         coalescing initializer, or a proved-non-null copy already replaced the
         payload with the inner value, so those registries decide and every
         other nullable read keeps its Option. A nullable local whose
-        initializer text ends in a call's own unwrap is still an Option: that
-        unwrap consumed the call's Result, not the Option. (NonNullSlotUnwrap) */
+        initializer text ends in a call's own unwrap is still an Option: the
+        unwrap consumed that call's Result while the Option stayed in the
+        binding. (NonNullSlotUnwrap) */
     function nullableReadHoldsOption(e:TypedExpr):Bool {
         if (!isNullType(e.t) || isTNull(e) || narrowedSubject(e) != null)
             return false;
@@ -12548,8 +12549,17 @@ class RustExpr {
                     || forcingReadLocals.exists(v.id) || hasGuardedTernaryLocals.exists(v.id)
                     || isNoneInitializedLocal(e))
                     false;
-                else
+                else if (optionRenderedLocals.exists(v.id))
                     true;
+                else
+                    // A scalar slot renders the Option only when the
+                    // declaration visibly built one: the scalar sentinel forms
+                    // carry the absence inside the value itself and take a
+                    // forced read at their own boundary instead. A struct or
+                    // enum slot has no such form, so an unrecorded nullable
+                    // binding there still holds the Option.
+                    // (NonNullSlotUnwrap)
+                    !isScalarType(getNullInnerType(e.t));
             case TConst(TNull):
                 false;
             case TIf(_, _, _):
@@ -12943,11 +12953,13 @@ class RustExpr {
                         // field read, an index read, and a nullable-returning
                         // call all keep the Option their declaration stored.
                         // (NonNullSlotUnwrap)
-                        final optionRenderedRead = switch (stripWrap(arg).expr) {
-                            case TLocal(v): narrowedSubject(arg) == null && optionRenderedLocals.exists(v.id);
-                            case _: nullableReadHoldsOption(arg);
-                        };
-                        if (optionRenderedRead && nullableReadRendersOptionText(argStr)) {
+                        // A local answers through the same typed question as
+                        // every other form: the declaration record names the
+                        // Option only when its initializer text shows one, and
+                        // a local bound to a nullable-returning call keeps the
+                        // Option even though the recorded text carries that
+                        // call's own Result unwrap. (NonNullSlotUnwrap)
+                        if (nullableReadHoldsOption(arg) && nullableReadRendersOptionText(argStr)) {
                             final inner = getNullInnerType(arg.t);
                             var bare = stripRenderedParens(expr(stripWrap(arg)));
                             if (StringTools.startsWith(bare, "&"))
