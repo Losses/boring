@@ -125,9 +125,10 @@ class KotlinDecl {
         }
 
         if (hasTestMethods) {
-            // Test classes carry test functions and nothing else (feature
-            // spec 27); shared logic belongs in an ordinary class, whose
-            // member lowering every target already renders.
+            // Test classes carry their test functions and the conventional
+            // flush entry (feature spec 27); shared logic belongs in an
+            // ordinary class, whose member lowering every target already
+            // renders.
             for (v in varFields) {
                 Context.error("test class " + cls.name + " carries a non-test member " + v.field.name + "; shared logic belongs in an ordinary class",
                     v.field.pos);
@@ -138,6 +139,19 @@ class KotlinDecl {
             final sortedFuncs = funcFields.copy();
             sortedFuncs.sort((a, b) -> Reflect.compare(Context.getPosInfos(a.field.pos).min, Context.getPosInfos(b.field.pos).min));
             for (f in sortedFuncs) {
+                if (TestClassFlush.isEntry(f)) {
+                    // The flush entry renders as an instance method beside
+                    // the test functions: the generated runner holds one
+                    // instance per class and calls the entry on it once
+                    // the class's tests returned.
+                    TestClassFlush.validate(f, cls.name);
+                    if (sep)
+                        lines.push("");
+                    sep = true;
+                    for (l in flushEntryDecl(cls, f))
+                        lines.push(l);
+                    continue;
+                }
                 if (!f.field.meta.has(":test")) {
                     Context.error("test class " + cls.name + " carries a non-test member " + f.field.name + "; shared logic belongs in an ordinary class",
                         f.field.pos);
@@ -1384,6 +1398,20 @@ class KotlinDecl {
         final body = expr.functionBody(cls, f);
         expr.setDecodeBoundary(false);
         return [head].concat(body).concat(["}"]);
+    }
+
+    /**
+        The conventional per-class flush entry of a test class (feature
+        spec 27): a public static function taking no arguments and
+        returning Void. It renders as an instance method beside the test
+        functions and without the Test.run wrapper, because it reports no
+        result of its own; the generated runner calls it after the class's
+        tests returned.
+    **/
+    public function flushEntryDecl(cls:ClassType, f:ClassFuncData):Array<String> {
+        expr.resetLocalNames();
+        final body = expr.functionBody(cls, f);
+        return ['    fun ${KotlinNameEscape.escape(f.field.name)}() {'].concat(body.map(l -> "    " + l)).concat(["    }"]);
     }
 
     public function testFuncDecl(cls:ClassType, f:ClassFuncData):Array<String> {
