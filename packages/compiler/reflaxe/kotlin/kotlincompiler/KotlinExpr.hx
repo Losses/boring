@@ -283,11 +283,7 @@ class KotlinExpr {
                 case _: null;
             };
             final value = switch (Context.follow(DefaultArgExpander.withoutNull(targetType))) {
-                // The typer unifies the builder's value parameter through
-                // the get() boundary, which widens V to Null<V>: the stored
-                // values themselves are non-null, so the type argument
-                // strips that boundary widening. (SortedBuilderValueNonNull)
-                case TInst(_, params) if (params.length > 1): DefaultArgExpander.withoutNull(params[1]);
+                case TInst(_, params) if (params.length > 1): params[1];
                 case _: null;
             };
             imports.requireType("std.SortedMap", "SortedTable");
@@ -404,11 +400,7 @@ class KotlinExpr {
                 case _: null;
             };
             final value = switch (Context.follow(DefaultArgExpander.withoutNull(targetType))) {
-                // The typer unifies the builder's value parameter through
-                // the get() boundary, which widens V to Null<V>: the stored
-                // values themselves are non-null, so the type argument
-                // strips that boundary widening. (SortedBuilderValueNonNull)
-                case TInst(_, params) if (params.length > 1): DefaultArgExpander.withoutNull(params[1]);
+                case TInst(_, params) if (params.length > 1): params[1];
                 case _: null;
             };
             imports.requireType("std.SortedMap", "SortedTable");
@@ -4441,17 +4433,12 @@ class KotlinExpr {
                     return "(" + expr(args[0]) + ").toInt()";
                 }
                 if (cls.pack.join(".") == "std" && cls.name == "SortedMap" && name == "builder") {
-                    // The typer unifies the builder's parameters through the
-                    // get() boundary, which widens K and V to Null<K>/Null<V>:
-                    // the stored entries themselves are non-null, so the type
-                    // arguments strip that boundary widening.
-                    // (SortedBuilderValueNonNull)
                     final kType = switch (fn.t) {
-                        case TFun(_, TInst(_, params)) if (params.length > 0): DefaultArgExpander.withoutNull(params[0]);
+                        case TFun(_, TInst(_, params)) if (params.length > 0): params[0];
                         case _: null;
                     };
                     final vType = switch (fn.t) {
-                        case TFun(_, TInst(_, params)) if (params.length > 1): DefaultArgExpander.withoutNull(params[1]);
+                        case TFun(_, TInst(_, params)) if (params.length > 1): params[1];
                         case _: null;
                     };
                     return "SortedTable.mapBuilder<" + types.of(kType) + ", " + types.of(vType) + ">(" + sortedComparator("std.SortedMap", kType, fn.pos) + ")";
