@@ -54,6 +54,12 @@ class KotlinExpr {
     /** Locals reassigned after their declaration; emitted with var. */
     final mutated:Map<Int, Bool> = [];
 
+    /** Locals assigned inside a nested function literal. Kotlin refuses
+        smart casts for a closure-mutated binding for the whole function,
+        while a plain reassignment never blocks one between the guard and
+        the use. (ClosureMutationBlocksSmartCast) */
+    final closureMutatedLocals:Map<Int, Bool> = [];
+
     /** Fill arrays returning as asList() when decodeBoundary holds. */
     final asListReturn:Map<Int, String> = [];
 
@@ -780,7 +786,17 @@ class KotlinExpr {
                 // Kotlin; extract once at the declaration so later accesses
                 // use a plain dot. Computed before initText so the proof
                 // state still reflects the scope preceding the binding.
-                final initRendersNullable = rendersNullable(init);
+                // A data-class property read whose receiver hop hardens with
+                // `!!.` already yields a non-null value, so the type-based
+                // nullable estimate does not apply and the declaration must
+                // not extract a second time. (HardenedHopNotNullable)
+                final initHardenedHop = switch (stripWrap(init).expr) {
+                    case TField(subj, FInstance(owner, _, cf)):
+                        cf.get().kind.match(FVar(_, _)) && cf.get().type != null && !isNullType(cf.get().type)
+                            && isNullType(subj.t) && !provenNonNull(subj) && !guardProofBefore(subj);
+                    case _: false;
+                };
+                final initRendersNullable = rendersNullable(init) && !initHardenedHop;
                 if (isNullType(init.t))
                     declaredNullableInitLocals.set(v.id, true);
                 // A null guard in the flow smart-casts the initializer's
@@ -830,6 +846,13 @@ class KotlinExpr {
                 // follows it. (ArrayGrowthOnIndexWrite)
                 return arrayWriteLines(l, assignValueText(l, r, true), depth);
             case TBlock(stmts):
+                // The `run` wrapper is a Kotlin lambda: assigning an outer
+                // local inside it is a closure mutation, and Kotlin disables
+                // the local's smart cast for the whole function even at read
+                // sites inside the same lambda. The scope capture must be
+                // registered before the block renders so the read sites see
+                // it. (ClosureMutationBlocksSmartCast)
+                markClosureMutatedTargets(stmts);
                 final out = [indent(depth) + "run {"];
                 for (l in blockLines(stmts, depth + 1))
                     out.push(l);
@@ -1127,11 +1150,45 @@ class KotlinExpr {
     function blockExpression(stmts:Array<TypedExpr>):String {
         stmts = ExpressionBlockNorm.normalize(stmts, (e, message) -> fail(e, message), _ -> "expression block must end in a value statement (features/43)",
             "expression block allows only declarations before its value statement (features/43)");
+        markClosureMutatedTargets(stmts);
         final out = ["run {"];
         for (line in blockLines(stmts, 1))
             out.push(line);
         out.push("}");
         return out.join("\n");
+    }
+
+    /**
+        Inside a `run` lambda, an assignment to a local declared outside
+        the block is a closure mutation. Kotlin refuses the smart cast for
+        such a local from that point on, so every proof channel must drop
+        it and the extraction stays. Locals declared by the block itself
+        keep their proofs. (ClosureMutationBlocksSmartCast)
+    **/
+    function markClosureMutatedTargets(stmts:Array<TypedExpr>):Void {
+        final declared = new Map<Int, Bool>();
+        function walk(node:TypedExpr):Void {
+            switch (node.expr) {
+                case TVar(v, _):
+                    declared.set(v.id, true);
+                case TBinop(OpAssign, t, _) | TBinop(OpAssignOp(_), t, _):
+                    switch (stripWrap(t).expr) {
+                        case TLocal(v) if (!declared.exists(v.id)):
+                            closureMutatedLocals.set(v.id, true);
+                        case _:
+                    }
+                case TUnop(OpIncrement, _, t) | TUnop(OpDecrement, _, t):
+                    switch (stripWrap(t).expr) {
+                        case TLocal(v) if (!declared.exists(v.id)):
+                            closureMutatedLocals.set(v.id, true);
+                        case _:
+                    }
+                case _:
+            }
+            TypedExprTools.iter(node, walk);
+        }
+        for (s in stmts)
+            walk(s);
     }
 
     function blockLines(stmts:Array<TypedExpr>, depth:Int):Array<String> {
@@ -2548,10 +2605,13 @@ class KotlinExpr {
         // guards already proved present reads through a plain dot even
         // when its declaration is null-initialized.
         // (NullInitRespectsProof)
-        // A closure-mutated local never smart-casts: its extraction stays
-        // even when the guards prove it present. (NullInitRespectsProof)
+        // A local assigned inside a nested function literal never
+        // smart-casts (Kotlin disables the cast from the guard onward),
+        // while a plain reassignment between statements keeps it: the
+        // guard dominates the use and nothing rewrites the binding in
+        // between. (ClosureMutationBlocksSmartCast)
         final stableSubject = switch (stripWrap(subj).expr) {
-            case TLocal(v): !mutated.exists(v.id);
+            case TLocal(v): !closureMutatedLocals.exists(v.id);
             case _: false;
         };
         if (isNullInitialized(subj) && !(stableSubject && (provenNonNull(subj) || guardProofBefore(subj)))) {
@@ -2918,7 +2978,10 @@ class KotlinExpr {
 
     function provenNonNull(e:TypedExpr):Bool {
         return switch (stripWrap(e).expr) {
-            case TLocal(v): nonNullLocals.exists(v.id);
+            // A closure-mutated local never carries a proof: Kotlin
+            // disables its smart cast for the whole function, so every
+            // extraction stays. (ClosureMutationBlocksSmartCast)
+            case TLocal(v): nonNullLocals.exists(v.id) && !closureMutatedLocals.exists(v.id);
             case TField(_, _): final key = fieldAccessKey(e); key != null && nonNullFields.exists(key);
             case _: false;
         };
@@ -2940,6 +3003,12 @@ class KotlinExpr {
             break;
         }
         if (local == null)
+            return false;
+        // The position record cannot see a closure-mutated local's
+        // disabled smart cast: Kotlin refuses the narrowing for the
+        // whole function regardless of guard placement.
+        // (ClosureMutationBlocksSmartCast)
+        if (closureMutatedLocals.exists(local.id))
             return false;
         final entries = activeNullGuardPositions.get(local.id);
         if (entries == null)
@@ -4769,12 +4838,13 @@ class KotlinExpr {
         // argument whose type renders without `?` is already non-nullable
         // at this boundary. (NonNullArgumentExtraction)
 
-        // Only a val-like local smart-casts in Kotlin: a mutable property
-        // or a reassigned binding keeps its extraction even when the
-        // program's control flow proves the value present.
-        // (NonNullArgumentExtraction)
+        // Only a binding Kotlin can smart-cast drops the extraction: a
+        // closure-mutated local keeps it even when the program's control
+        // flow proves the value present, while a plain reassignment does
+        // not block the cast between the guard and this use.
+        // (ClosureMutationBlocksSmartCast)
         final smartCastable = switch (stripWrap(e).expr) {
-            case TLocal(v): !mutated.exists(v.id);
+            case TLocal(v): !closureMutatedLocals.exists(v.id);
             case _: false;
         };
         final proven = valueProvenNonNull(e) || provenNonNull(e) || guardProofBefore(e);
@@ -5176,18 +5246,21 @@ class KotlinExpr {
     // Local analysis
     // ------------------------------------------------------------------
 
-    function scanLocals(e:TypedExpr):Void {
+    function scanLocals(e:TypedExpr, insideFunction:Bool = false):Void {
         switch (e.expr) {
             case TVar(v, init):
                 PolicyQueries.noteDeclaredLocalName(v, usedNames, true);
                 PolicyQueries.noteFpInt64Init(v, init, fpInt64Halves);
             case TBinop(OpAssign, t, _) | TBinop(OpAssignOp(_), t, _):
                 switch (t.expr) {
-                    case TLocal(v): mutated.set(v.id, true);
+                    case TLocal(v):
+                        mutated.set(v.id, true);
+                        if (insideFunction)
+                            closureMutatedLocals.set(v.id, true);
                     case TArray(arr, _):
                         switch (stripWrap(arr).expr) {
                             case TLocal(v): mutableArrayLocals.set(v.id, true);
-                            case _: 
+                            case _:
                         }
                     case _:
                 }
@@ -5195,12 +5268,25 @@ class KotlinExpr {
             // declaration needs var even without a plain assignment.
             case TUnop(OpIncrement, _, t) | TUnop(OpDecrement, _, t):
                 switch (t.expr) {
-                    case TLocal(v): mutated.set(v.id, true);
+                    case TLocal(v):
+                        mutated.set(v.id, true);
+                        if (insideFunction)
+                            closureMutatedLocals.set(v.id, true);
                     case _:
                 }
+            // A nested function literal flips the closure boundary: its
+            // assignments record the target as closure-mutated, because
+            // Kotlin disables the smart cast for such a binding from the
+            // guard onward. (ClosureMutationBlocksSmartCast)
+            case TFunction(f):
+                if (f.expr != null)
+                    scanLocals(f.expr, true);
+                return;
             case _:
         }
-        TypedExprTools.iter(e, scanLocals);
+        TypedExprTools.iter(e, function(child:TypedExpr):Void {
+            scanLocals(child, insideFunction);
+        });
     }
 
     function mentionsLocal(e:TypedExpr, v:TVar):Bool {
