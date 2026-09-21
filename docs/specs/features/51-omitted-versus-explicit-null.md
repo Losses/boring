@@ -42,6 +42,20 @@ rows `[4,4,2,0,1]`, `[-4,-4,nan,0,1]`, and `[0,0,0,0,1]`.
    omission-specific observation: the call products remain explicit `null` in
    both cases.
 
+3a. The textual equality of rule 1 holds for a coalescing default whose
+   expression is closed over constants. A coalescing default that reads an
+   earlier parameter of its own function cannot be spelled at the call site at
+   all, because its text names a callee binding. Kotlin renders the omitted tail
+   as no argument and leaves the value to the declaration's native default, and
+   renders an explicit null at such a slot by resolving each parameter read
+   against the argument this call passes, so
+   `pick(a, b = a)` called as `pick("alpha", null)` renders
+   `pick("alpha", "alpha")`. Both spellings yield the same observable result,
+   which is the property rule 2 requires; their call text differs, and that
+   difference is recorded here as the deviation from the textual equality of
+   rule 1 for the parameter-reading shape. Feature spec 48 rule 3a holds the
+   Kotlin spelling.
+
 4. The coalescing default value is evaluated in the function body on every
    invocation, including invocations reached through an explicit-null argument
    and invocations with a non-null explicit argument. The implementation must
