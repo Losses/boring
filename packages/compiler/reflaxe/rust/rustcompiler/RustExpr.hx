@@ -12648,9 +12648,36 @@ class RustExpr {
         // Arc-held function slot receives it.
         if (isFunctionType(expected) && isFunctionType(actual.t) && !isBoxedFunctionExpr(actual)) {
             imports.require("std::sync::Arc");
+            final bridged = fallibleFunctionItemBridge(expected, actual, rendered);
+            if (bridged != null)
+                return bridged;
             return "Arc::new(" + rendered + ")";
         }
         return rendered;
+    }
+
+    /**
+        A fallible static function item returns Result while every Haxe
+        function type lowers to an infallible Fn slot, so the item cannot
+        coerce directly (E0271). Bridge it through a closure that forwards
+        the declared parameters and unwraps the Result, the same rule an
+        infallible context applies to a fallible call (feature spec 27): a
+        fault panics into the test harness catch_unwind as a recorded
+        failure. Returns null when the value is not a fallible static item.
+    **/
+    function fallibleFunctionItemBridge(expected:Type, actual:TypedExpr, rendered:String):Null<String> {
+        final fallible = switch (stripWrap(actual).expr) {
+            case TField(_, FStatic(c, cf)): isFallibleCallee(c, cf, true);
+            case _: false;
+        };
+        if (!fallible)
+            return null;
+        final argNames = switch (Context.follow(expected)) {
+            case TFun(args, _): [for (i in 0...args.length) "__arg" + i];
+            case _: [];
+        };
+        final forwarded = argNames.join(", ");
+        return "Arc::new(|" + forwarded + "| " + rendered + "(" + forwarded + ").unwrap())";
     }
 
     function isBoxedFunctionExpr(e:TypedExpr):Bool {
