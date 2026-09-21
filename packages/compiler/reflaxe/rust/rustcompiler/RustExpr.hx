@@ -2677,6 +2677,12 @@ class RustExpr {
         function armAssigns(stmts:Array<TypedExpr>):Bool {
             var assigned = false;
             for (s in stmts) {
+                // A terminating statement ends the path before the read:
+                // the tail is unreachable and imposes no constraint, so the
+                // accumulated verdict stands (a throw-only else arm counts
+                // as assigned). (TerminatingArmVacuous)
+                if (TerminationAnalysis.alwaysTerminates(s))
+                    return true;
                 final target = plainAssignTarget(s);
                 if (target != null && target.id == vid) {
                     final rhs = switch (stripWrap(s).expr) {
