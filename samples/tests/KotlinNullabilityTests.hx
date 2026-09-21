@@ -1,5 +1,6 @@
 package tests;
 
+import std.SortedMap;
 import std.Test;
 
 class KotlinNullabilityOps {
@@ -63,6 +64,14 @@ class KotlinNullableProbe {
     public static function absent():Null<KotlinNullableReceiver> {
         return null;
     }
+
+    public static function presentText():Null<String> {
+        return "x";
+    }
+
+    public static function absentText():Null<String> {
+        return null;
+    }
 }
 
 class KotlinNullabilityTests {
@@ -95,5 +104,19 @@ class KotlinNullabilityTests {
         Test.equals(2, slot.stored, "the absent value was accepted");
         final absent = slot.peek();
         Test.equals(true, absent == null, "the stored null round-trips");
+    }
+
+    @:test("a nullable value type argument keeps sorted map nulls storable")
+    public static function testSortedMapNullableValue():Void {
+        final builder:SortedMapBuilder<Int, Null<String>> = SortedMap.builder();
+        builder.put(1, KotlinNullableProbe.presentText());
+        builder.put(2, KotlinNullableProbe.absentText());
+        final map = builder.build();
+        Test.equals(2, map.size(), "both entries were stored");
+        Test.equals("x", map.get(1), "the present value round-trips");
+        final absent = map.get(2);
+        Test.equals(true, absent == null, "the null value round-trips");
+        final stored = map.valueAt(1);
+        Test.equals(true, stored == null, "the stored entry keeps its null value");
     }
 }
