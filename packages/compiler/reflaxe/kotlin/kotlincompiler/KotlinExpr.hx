@@ -783,20 +783,26 @@ class KotlinExpr {
                 final initRendersNullable = rendersNullable(init);
                 if (isNullType(init.t))
                     declaredNullableInitLocals.set(v.id, true);
-                final extractRenderedNullable = !isNullType(v.t) && !isNullType(init.t) && initRendersNullable;
+                // A null guard in the flow smart-casts the initializer's
+                // val property, so the declared non-null type is satisfied
+                // without the assertion. (ValPropertySmartCastProof)
+                final initGuardProven = provenNonNull(init) || guardProofBefore(init);
+                final extractRenderedNullable = !isNullType(v.t) && !isNullType(init.t) && initRendersNullable && !initGuardProven;
                 // A local the program treats as always-present (the null-
                 // initialized storage family) whose initializer still
                 // renders through a safe call extracts once at the
                 // declaration: later accesses then read through a plain
                 // dot, and the assertion stops repeating.
                 // (NullInitDeclaredExtraction)
-                final nullInitExtract = initRendersNullable && !isNullLiteral(init) && !mutated.exists(v.id);
+                final nullInitExtract = initRendersNullable && !isNullLiteral(init) && !mutated.exists(v.id) && !initGuardProven;
                 if (initRendersNullable && !extractsAtDecl && !extractRenderedNullable && !nullInitExtract)
                     nullableRenderedLocals.set(v.id, true);
                 else
                     nullableRenderedLocals.remove(v.id);
                 updateLocalProof(v, init);
-                final extractAtDecl = extractsAtDecl || extractRenderedNullable;
+                // The guard proof satisfies the non-null demand without
+                // the assertion. (ValPropertySmartCastProof)
+                final extractAtDecl = (extractsAtDecl && !initGuardProven) || extractRenderedNullable;
                 // Haxe unifies Int and Float; widen Int initializers to Float
                 // when the variable's declared type is Float. When the
                 // initializer is also extracted to non-null, the widening
