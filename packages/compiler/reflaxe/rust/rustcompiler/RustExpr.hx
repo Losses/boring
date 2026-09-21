@@ -1877,7 +1877,13 @@ class RustExpr {
                 }
                 return [indent(depth) + "return " + retStr + ";"];
             case TThrow(x):
-                return [indent(depth) + "return Err(" + throwVariant(x) + ");"];
+                if (isFallible) {
+                    return [indent(depth) + "return Err(" + throwVariant(x) + ");"];
+                }
+                // A non-fallible body cannot return Err. A throw still
+                // raises: panic with the exception's Display text, which the
+                // test runner catches and reports as the failure message.
+                return [indent(depth) + "panic!(\"{}\", " + throwVariant(x) + ");"];
             case TTry(body, catches) if (catches.length == 1):
                 return regionStatementLines(body, catches[0], depth);
             case TTry(_, _):
