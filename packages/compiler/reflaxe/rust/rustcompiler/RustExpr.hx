@@ -12743,6 +12743,8 @@ class RustExpr {
                 };
         } else [];
         final stdTableReceiver = receiverType != null && isStdTableType(receiverType);
+        if (Std.string(fnType).indexOf("LineBreakPlanningStageResult") >= 0)
+            Context.warning("PLANPOS mut=" + Std.string(mutablePositions) + " pt0=" + Std.string(paramTypes.length > 0 ? paramTypes[0] : null).substr(0, 60), args[0].pos);
         final rendered = [];
         for (i in 0...args.length) {
             final arg = args[i];
