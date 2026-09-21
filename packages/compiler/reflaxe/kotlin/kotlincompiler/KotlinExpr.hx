@@ -936,7 +936,7 @@ class KotlinExpr {
                         // Use emittedType because the typed AST type is Float
                         // (unified) while the generator emits Int text.
                         if (isIntOrLongType(emittedType(ret)) && isFloatType(currentReturnType))
-                            retText = (StringTools.contains(retText, "toDouble()") || StringTools.contains(retText, "toFloat()")) ? retText : intToFloatText(retText);
+                            retText = intToFloatText(retText);
                         return [indent(depth) + "return " + retText];
                 }
             case TThrow(x):
@@ -1582,7 +1582,7 @@ class KotlinExpr {
                 final renderedElems = [
                     for (x in elems) {
                         var t = expr(x);
-                        if (elemFloat && isIntOrLongType(emittedType(x)) && !StringTools.contains(t, "toDouble()") && !StringTools.contains(t, "toFloat()")) t = intToFloatText(t);
+                        if (elemFloat && isIntOrLongType(emittedType(x))) t = intToFloatText(t);
                         if (elemType != null && !isNullType(elemType) && requiresNonNullCallArgument(x, t)) {
                             if (provenNonNull(x) || guardProofBefore(x)) {
                                 // Kotlin's own narrowing holds at this read.
