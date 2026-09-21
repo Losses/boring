@@ -23,6 +23,31 @@ class StringUnitOps {
         return c == null ? -1 : c;
     }
 
+    /**
+     * The unit read at an index the caller supplies. Spec 15 addresses
+     * UTF-16 code units, so an index can address each unit of a
+     * surrogate pair and the two units read as separate values. The
+     * receiver arrives as a parameter, so the subject stays off the
+     * literal form the non-ASCII index rule reports.
+     */
+    public static function codeAt(text:String, index:Int):Null<Int> {
+        return text.charCodeAt(index);
+    }
+
+    /**
+     * The unit cut with an explicit length. Feature spec 08 ruling 9
+     * bounds substr in UTF-16 code units, so the position and the
+     * length count units and never bytes.
+     */
+    public static function unitCut(text:String, pos:Int, len:Int):String {
+        return text.substr(pos, len);
+    }
+
+    /** The one-argument unit cut, which runs to the end of the units. */
+    public static function unitCutFrom(text:String, pos:Int):String {
+        return text.substr(pos);
+    }
+
     public static function splitCount(text:String):Int {
         return text.split(".").length;
     }
