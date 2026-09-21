@@ -425,9 +425,9 @@ impl Fs {
         (docs/specs/stdlib/10-unicode-string-access.md). Business modules
         render haxe Int as u32 while the resident class renders i32, and
         Null and Array results have no call-site cast machinery, so the
-        adapters cast once here. substring and its unit-to-byte helpers
-        keep their P3 contract: the UTF-16 unit bounds of the haxe
-        substring member lower into them directly.
+        adapters cast once here. substring, substr, and the unit-to-byte
+        helper keep their P3 contract: the UTF-16 unit bounds of the
+        haxe substring and substr members lower into them directly.
     **/
     public static final USTRING_ABI_SOURCE = '
 // Business ABI adapters over the resident UString class: Int arguments
@@ -439,11 +439,29 @@ pub fn count(s: &str) -> u32 {
     u32::try_from(UString::u_string_count(s)).unwrap_or(0)
 }
 
+// The code-point read that std.UString.at lowers to: the index counts
+// characters and the value is one code point, so a surrogate pair
+// occupies one address and yields its combined code point.
 pub fn at(s: &str, index: u32) -> Option<u32> {
     let mut remaining = index;
     for c in s.chars() {
         if remaining == 0 {
             return Some(u32::from(c));
+        }
+        remaining -= 1;
+    }
+    None
+}
+
+// The unit read that String.charCodeAt lowers to (stdlib spec 15): the
+// index counts UTF-16 code units, so each half of a surrogate pair
+// carries its own address and the value is the unit, never the combined
+// code point. An index past the last unit answers None, never a panic.
+pub fn unit_at(s: &str, index: u32) -> Option<u32> {
+    let mut remaining = index;
+    for unit in s.encode_utf16() {
+        if remaining == 0 {
+            return Some(u32::from(unit));
         }
         remaining -= 1;
     }
@@ -520,11 +538,14 @@ pub fn substring_from(s: &str, from: i32) -> String {
     s[unit_index(s, start, true)..].to_string()
 }
 
-// substr keeps i32 bounds like substring. A negative pos counts from
-// the end of the unit sequence per the std contract. A negative len is
-// unspecified in the std (std/String.hx), so this runtime returns the
-// empty string, matching the JavaScript target, and features/08 rules
-// the shared domain to non-negative len values.
+// substr keeps i32 bounds like substring, and it addresses the same
+// UTF-16 unit sequence: the position and the length count units, and
+// the two unit bounds convert to byte boundaries through unit_index
+// before the slice. A negative pos counts from the end of the unit
+// sequence per the std contract. A negative len is unspecified in the
+// std (std/String.hx), so this runtime returns the empty string,
+// matching the JavaScript target, and features/08 rules the shared
+// domain to non-negative len values.
 pub fn substr(s: &str, pos: i32, len: Option<i32>) -> String {
     match len {
         Some(l) if l < 0 => return String::new(),
@@ -544,8 +565,8 @@ pub fn substr(s: &str, pos: i32, len: Option<i32>) -> String {
             if raw > units { units } else { raw }
         }
     };
-    let byte_start = usize::try_from(start).unwrap_or(0);
-    let byte_end = usize::try_from(end).unwrap_or(0);
+    let byte_start = unit_index(s, u32::try_from(start).unwrap_or(0), true);
+    let byte_end = unit_index(s, u32::try_from(end).unwrap_or(0), false);
     s[byte_start..byte_end].to_string()
 }
 
@@ -651,10 +672,11 @@ fn valid_decimal_token(b: &[u8]) -> bool {
 }
 
 // UTF-16 unit boundary to byte boundary, the index space of the haxe
-// substring contract. A bound that falls inside a surrogate pair moves
-// to the far side: `from` advances past the pair, `to` retreats before
-// it, so a Rust slice never splits a pair; the subset only produces
-// code-point-aligned bounds, where every target agrees.
+// substring and substr contracts. A bound that falls inside a
+// surrogate pair moves to the far side: `from` advances past the pair,
+// `to` retreats before it, so a Rust slice never splits a pair; the
+// subset only produces code-point-aligned bounds, where every target
+// agrees.
 fn unit_index(s: &str, unit: u32, round_up: bool) -> usize {
     let mut u: u32 = 0;
     for (b, c) in s.char_indices() {

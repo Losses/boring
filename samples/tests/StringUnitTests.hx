@@ -25,6 +25,39 @@ class StringUnitTests {
         Test.equals("cdef", "abcdef".substring(2));
     }
 
+    // Spec 15 contracts charCodeAt over UTF-16 code units, so the two
+    // units of a surrogate pair are separate addresses and neither one
+    // is the code point. A receiver that walks code points answers the
+    // code point at the pair's first index and misses the second unit.
+    @:test("charCodeAt addresses UTF-16 code units")
+    public static function charCodeAtUnitDomain():Void {
+        Test.equals(97, StringUnitOps.codeAt("ab", 0));
+        Test.equals(98, StringUnitOps.codeAt("ab", 1));
+        Test.equals(true, StringUnitOps.codeAt("ab", 2) == null);
+
+        final text = "a" + UString.fromCodePoint(0x1F600) + "b";
+        Test.equals(97, StringUnitOps.codeAt(text, 0));
+        Test.equals(0xD83D, StringUnitOps.codeAt(text, 1));
+        Test.equals(0xDE00, StringUnitOps.codeAt(text, 2));
+        Test.equals(98, StringUnitOps.codeAt(text, 3));
+        Test.equals(true, StringUnitOps.codeAt(text, 4) == null);
+    }
+
+    // The same unit domain bounds substr: a position and a length count
+    // UTF-16 units, so reading them as byte offsets cuts inside the
+    // astral character and answers neither part.
+    @:test("substr counts UTF-16 code units")
+    public static function substrUnitDomain():Void {
+        final astral = UString.fromCodePoint(0x1F600);
+        final text = "a" + astral + "b";
+        Test.equals("a", StringUnitOps.unitCut(text, 0, 1));
+        Test.equals(astral, StringUnitOps.unitCut(text, 1, 2));
+        Test.equals("b", StringUnitOps.unitCut(text, 3, 1));
+        Test.equals("", StringUnitOps.unitCut(text, 4, 1));
+        Test.equals(astral + "b", StringUnitOps.unitCutFrom(text, 1));
+        Test.equals("b", StringUnitOps.unitCut(text, -1, 1));
+    }
+
     // The empty delimiter is the one separator a platform split gets
     // wrong: Kotlin seeds a leading and a trailing empty part around the
     // units, so a guarded read downstream reaches an empty string.
