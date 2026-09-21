@@ -3210,6 +3210,19 @@ class SwiftExpr {
                         + ".startIndex, to: $0) } ?? -1)";
                 }
                 if (name == "split" && isStringSubject(subj)) {
+                    // stdlib spec 15 rules the empty delimiter over UTF-16
+                    // code units, so the call yields one single-unit string
+                    // per unit. The native separator forms cannot express
+                    // that: `first!` on an empty separator traps, and a
+                    // Character separator would cut at grapheme clusters
+                    // instead of units. The empty separator therefore walks
+                    // the UTF-16 view, matching the Kotlin chunked(1) and
+                    // the TypeScript native split("") shape.
+                    // (StringSplitEmptyDelimiter)
+                    if (isEmptyDelimiterSplit(name, args))
+                        return types.resident ? receiverText(subj) + ".map { [$0] }" : "Array("
+                            + receiverText(subj)
+                            + ".utf16).map { String(decoding: [$0], as: UTF16.self) }";
                     return types.resident ? receiverText(subj)
                         + ".split(separator: "
                         + expr(args[0])
@@ -5701,6 +5714,20 @@ class SwiftExpr {
 
     function isStringSubject(e:TypedExpr):Bool {
         return PolicyQueries.isStringSubject(e);
+    }
+
+    /**
+        True for the empty string literal, the `split` separator whose haxe
+        contract is one element per UTF-16 code unit rather than a platform
+        pattern match.
+    **/
+    function isEmptyDelimiterSplit(name:String, args:Array<TypedExpr>):Bool {
+        if (name != "split" || args.length != 1)
+            return false;
+        return switch (stripWrap(args[0]).expr) {
+            case TConst(TString(separator)): separator.length == 0;
+            case _: false;
+        };
     }
 
     /**
