@@ -311,6 +311,79 @@ Scalar assertions call the host `Test` object, whose members delegate to
 assertions call the emitted `TestHelper`, whose failures route through
 `Test.reportFailure`.
 
+#### The Kotlin class test entry
+
+A consumer tree sometimes drives its tests from its own Haxe runner and
+calls ordinary static test functions from a list in that runner. Those
+functions carry no `@:test` marker, so the `@:test` collection the Kotlin
+runner is generated from never reaches them, and the classes they belong
+to never run on Kotlin at all. Their work (a trace recorded for a
+comparison of values, a table built for a later assertion) is then
+absent from the Kotlin result file.
+
+The conventional class test entry closes that gap without the target
+naming any consumer package or class
+(`packages/compiler/TestClassEntries.hx`). The entry is a public static
+function named `runTestEntries` that takes no arguments and returns
+Void, and it carries no `@:test` marker. The class declares it beside
+the test functions and calls its own entry points in the body:
+
+```haxe
+class EnglishHyphenationTest {
+    public static function hyphenatesCommonWordsAtSyllablePoints():Void { ... }
+
+    /**
+     * The conventional class test entry. It registers no test id; the
+     * Kotlin runner calls it once on the class.
+     */
+    public static function runTestEntries():Void {
+        hyphenatesCommonWordsAtSyllablePoints();
+    }
+}
+```
+
+Rules of the entry:
+
+1. **The entry belongs to a class with no `@:test` function.** A class
+   that carries `@:test` functions reaches the runner through that
+   collection and holds a class instance there, so it uses the per-class
+   flush entry of `features/27` for the work that follows its tests. A
+   class that declares both stops the Kotlin compilation with `class test
+   entry C.runTestEntries belongs to a class with no @:test function`;
+   TS, Rust, Swift, and Dart stop the same declaration with the non-test
+   member error of `features/27` ruling 6.
+2. **The entry registers no test id.** The Kotlin runner emits one call
+   per entry and no `Test.run` registration, so the cross-target test id
+   set is unchanged. This is the property that lets a class run on Kotlin
+   while its entries stay outside the comparison by id.
+3. **The entry is a static member of its class.** The runner calls it as
+   `Package.Class.runTestEntries()`, which resolves for an all-static
+   class (a Kotlin `object`) and for a class with instance state (a
+   companion member). The runner takes no instance for an entry class.
+4. **The module of an entry class writes into the test root**, exactly
+   like the module of a `@:test` class, so entry code stays out of the
+   shipping tree.
+5. **A throw from the entry fails the run like a throw from a test.** The
+   runner catches it, continues with the remaining classes, and exits
+   nonzero at the end.
+6. **Only the Kotlin target validates the entry and calls it.** The
+   Kotlin compiler checks the shape of rule 3 and stops a declaration
+   that does not match (`class test entry C.runTestEntries must be
+   public`, `must be static`, and `must take no arguments and return
+   Void`). TS, Rust, Swift, and Dart type the declaration like any other
+   static function, call it from no runner, and register nothing, so a
+   malformed entry fails the Kotlin build only.
+
+The probe is `samples/tests/KotlinEntryProbeTests.hx`: no `@:test`
+function, one `runTestEntries` entry, entered in the entry lists of all
+eight generation hxml files. The entry writes
+`<BORING_KOTLIN_ENTRY_PROBE_DIR>/KotlinEntryProbeTests.txt` when that
+variable is set and returns immediately otherwise, so a host observes
+the Kotlin call by exporting the variable before the generated runner,
+and the production loops stay free of writes. The class contributes no
+test id on any target, so the probe also stands as the evidence that the
+entry leaves the cross-target id set unchanged.
+
 ### Rust
 
 Rust keeps unit tests inside the crate; no output-tree split exists:
