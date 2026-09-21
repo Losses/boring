@@ -2064,10 +2064,10 @@ class KotlinExpr {
                             appliedValue = intToFloatText(appliedValue);
                         return assignTarget(l) + " " + symbolOf(inner) + "= " + appliedValue;
                     case _:
-                        return assignTarget(l) + " = " + binopCore(inner, l, r);
+                        return assignTarget(l) + " = " + binopCore(e, inner, l, r);
                 }
             case _:
-                return binopCore(op, l, r);
+                return binopCore(e, op, l, r);
         }
     }
 
@@ -2990,7 +2990,7 @@ class KotlinExpr {
         };
     }
 
-    function binopCore(op:Binop, l:TypedExpr, r:TypedExpr):String {
+    function binopCore(e:TypedExpr, op:Binop, l:TypedExpr, r:TypedExpr):String {
         switch (op) {
             case OpAdd if (isStringType(l.t) || isStringType(r.t)):
                 final leftStd = stdStringArg(l);
@@ -3076,6 +3076,15 @@ class KotlinExpr {
                 }
                 final leftText = operand(l, op, false);
                 final rightText = operand(r, op, true);
+                // Haxe types an Int divided by an Int as Float, while Kotlin
+                // renders `/` on two Int operands as truncating Int
+                // division. Both operands widen to the module real so the
+                // quotient keeps the Float value the source names; the
+                // integral spelling (Std.int over the quotient) renders its
+                // own division instead. (IntDivisionFloatQuotient)
+                if (op == OpDiv && isIntDivision(e) && isFloatType(e.t)) {
+                    return intToFloatText(leftText) + " / " + intToFloatText(rightText);
+                }
                 final leftFinal = isIntOrLongType(emittedType(l)) && isFloatType(emittedType(r)) ? intToFloatText(leftText) : leftText;
                 final rightFinal = isIntOrLongType(emittedType(r)) && isFloatType(emittedType(l)) ? intToFloatText(rightText) : rightText;
                 return leftFinal + " " + symbolOf(op) + " " + rightFinal;
@@ -4402,14 +4411,17 @@ class KotlinExpr {
                 if (cls.pack.length == 0 && cls.name == "Std" && name == "int") {
                     // toInt on an Int expression is the identity; the
                     // Kotlin compiler reports the call as redundant.
-                    // Haxe types Int/Int division as Float, but Kotlin
-                    // renders it as Int division, which already
-                    // truncates.
                     if (isIntType(args[0].t)) {
                         return expr(args[0]);
                     }
-                    if (isIntDivision(args[0])) {
-                        return "(" + expr(args[0]) + ")";
+                    // Haxe types Int/Int division as Float and Kotlin
+                    // truncates the same operands, so this conversion emits
+                    // the division itself: the widening the quotient takes
+                    // elsewhere (IntDivisionFloatQuotient) would leave a
+                    // Float where the conversion promises Int.
+                    final intDivision = intDivisionText(args[0]);
+                    if (intDivision != null) {
+                        return intDivision;
                     }
                     return "(" + expr(args[0]) + ").toInt()";
                 }
@@ -5437,6 +5449,13 @@ class KotlinExpr {
             case TIf(_, t, f):
                 final tt = emittedType(t);
                 return tt != null ? tt : emittedType(f);
+            case TBinop(OpDiv, l, r) if (isIntDivision(e)):
+                // IntDivisionFloatQuotient: an Int divided by an Int emits
+                // the widened Float quotient, so the emitted type is Float
+                // even though both operands render as Int. A comparison
+                // against an Int operand widens that side, which keeps both
+                // sides on one numeric type.
+                return Context.getType("Float");
             case TBinop(op, l, r):
                 // EmittedNumericComparisonWidening: retain the operand's
                 // rendered numeric type so Int literals are widened for both
@@ -5466,11 +5485,26 @@ class KotlinExpr {
     }
 
     /** Whether both operands of a division carry Int, so Kotlin
-        renders it as truncating Int division. */
+        renders it as truncating Int division. Haxe types the quotient
+        Float, and the two renderings diverge unless the quotient stays
+        integral (Std.int over it). */
     function isIntDivision(e:TypedExpr):Bool {
-        return switch (e.expr) {
+        return switch (stripWrap(e).expr) {
             case TBinop(OpDiv, l, r): isIntType(l.t) && isIntType(r.t);
             case _: false;
+        };
+    }
+
+    /** The truncating Int division an Int/Int quotient renders as where
+        the quotient stays integral, or null for any other expression.
+        The conversion spelling Std.int asks for, and the one the widened
+        quotient must not replace. */
+    function intDivisionText(e:TypedExpr):Null<String> {
+        if (!isIntDivision(e))
+            return null;
+        return switch (stripWrap(e).expr) {
+            case TBinop(OpDiv, l, r): "(" + operand(l, OpDiv, false) + " / " + operand(r, OpDiv, true) + ")";
+            case _: null;
         };
     }
 
