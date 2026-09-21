@@ -43,6 +43,15 @@ class KotlinEmissionState {
     public final testClasses:Map<String, {cls:ClassType, funcs:Array<String>, flush:Null<String>}> = [];
 
     /**
+        Classes that declare the conventional class test entry
+        (feature spec 19) and carry no @:test function. Each record names
+        the class and its entry; the generated runner calls the entry once
+        and holds no test id for it, so the cross-target id set is
+        unchanged.
+    **/
+    public final testEntryClasses:Map<String, {cls:ClassType, entry:String}> = [];
+
+    /**
         Whether any compiled module referenced std.Process.args: the test
         entry then takes the program arguments and stores them for the
         lowered calls (stdlib/17). Entries that never reference args keep
