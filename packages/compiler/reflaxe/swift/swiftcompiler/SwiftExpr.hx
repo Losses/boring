@@ -3253,8 +3253,17 @@ class SwiftExpr {
                 }
                 if (name == "insert" && isUnitArrayTyped(subj) && args.length == 2) {
                     // Haxe Array.insert(pos, x): Swift names the position
-                    // with `at:` and the index is an Int.
-                    return receiverText(subj) + ".insert(" + expr(args[1]) + ", at: Int(" + expr(args[0]) + "))";
+                    // with `at:` and the index is an Int. Haxe also bounds
+                    // the position before the array sees it: a negative
+                    // position counts from the end of the array and stops at
+                    // the first element, and a position past the end clamps
+                    // to the count. Swift's insert traps on an index outside
+                    // the array, so the position is clamped first.
+                    // (ArrayInsertClamping)
+                    final s = receiverText(subj);
+                    final pos = "Int(" + expr(args[0]) + ")";
+                    return "({ () in let _sz = " + s + ".count; let _p0 = " + pos + "; let _p = _p0 < 0 ? max(_sz + _p0, 0) : min(_p0, _sz); " + s
+                        + ".insert(" + expr(args[1]) + ", at: _p) }())";
                 }
                 if (name == "concat" && isUnitArrayTyped(subj) && args.length == 1) {
                     return receiverText(subj) + " + " + expr(args[0]);

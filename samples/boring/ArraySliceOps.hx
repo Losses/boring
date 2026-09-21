@@ -7,14 +7,6 @@ package boring;
     yields the empty array. The Kotlin platform slice takes a half-open range
     and throws when the range end reaches past the list, so the backend clamps
     both bounds before it calls that overload. (ArraySliceClamping)
-
-    Haxe bounds Array.splice the same way before it removes anything: a
-    negative length or a position past the length removes nothing and leaves
-    the array alone, a negative position counts from the end and stops at the
-    first element, and a length that reaches past the end removes only the
-    tail. The Kotlin, Dart, and Swift platforms each throw on a bound outside
-    the array, so those backends clamp the position and trim the count before
-    they remove. (ArraySpliceClamping)
 **/
 class ArraySliceOps {
     /** An ascending array of `count` values, starting at 1. */
@@ -44,12 +36,29 @@ class ArraySliceOps {
     /**
         `"<removed>|<array after>"` of `values(count).splice(pos, len)`, so
         one call records both halves of the operation: the sub-array the call
-        returns and the array it leaves behind.
+        returns and the array it leaves behind. Haxe bounds the call before it
+        removes anything: a negative length or a position past the length
+        removes nothing and leaves the array alone, a negative position counts
+        from the end and stops at the first element, and a length that reaches
+        past the end removes only the tail. (ArraySpliceClamping)
     **/
     public static function spliceText(count:Int, pos:Int, len:Int):String {
         final values = ArraySliceOps.values(count);
         final removed = values.splice(pos, len);
         return removed.join(",") + "|" + values.join(",");
+    }
+
+    /**
+        The text of `values(count)` after `insert(pos, 99)`, which records
+        the offset the clamped position chose. Haxe bounds the position before
+        the array sees it: a negative position counts from the end and stops at
+        the first element, and a position past the length clamps to the length.
+        (ArrayInsertClamping)
+    **/
+    public static function insertText(count:Int, pos:Int):String {
+        final values = ArraySliceOps.values(count);
+        values.insert(pos, 99);
+        return values.join(",");
     }
 
     /** A slice through a nullable receiver, which the backend lowers through
@@ -85,15 +94,11 @@ class ArraySliceOps {
         return failures.slice(0, 20).length;
     }
 
-    /**
-        The engine shape of every splice bound at once, on an array local that
-        declares a null start: `pos` past the length and a negative length,
-        which Haxe answers with the empty sub-array and an unchanged array.
-    **/
     public static function nullInitSpliceText(count:Int, pos:Int, len:Int):String {
         var values:Array<Int> = null;
         values = ArraySliceOps.values(count);
         final removed = values.splice(pos, len);
         return removed.join(",") + "|" + values.join(",");
     }
+
 }
