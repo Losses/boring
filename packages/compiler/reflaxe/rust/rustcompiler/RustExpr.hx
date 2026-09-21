@@ -4357,6 +4357,19 @@ class RustExpr {
             narrowed = [indent(depth + 2) + "if " + expr(prefix.tail) + " {"]
                 .concat(narrowed)
                 .concat([indent(depth + 2) + "}"]);
+            // Inside this arm the guard's tail alone decides between the
+            // narrow branch and the original else branch: when the tail is
+            // false the else chain still runs (an else-if chain re-tests
+            // the subject, which this arm already knows). Omitting it made
+            // the chain's assignments unreachable on the tail-false path.
+            // (GuardTailElseChain)
+            final tailElseBranch = info.noneWhenTrue ? ifTrue : ifFalse;
+            if (tailElseBranch != null) {
+                narrowed = narrowed
+                    .concat([indent(depth + 2) + "else {"])
+                    .concat(blockLines(statementsOf(tailElseBranch), depth + 3))
+                    .concat([indent(depth + 2) + "}"]);
+            }
         }
         final hit = optionNarrowingHitCount > countBefore;
         optionNarrowings.pop();
