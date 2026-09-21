@@ -626,9 +626,9 @@ tests.StringSearchFromTests
 
 boring.ArrayIndexSearchOps
 tests.ArrayIndexSearchTests
-# The console shim of the Kotlin target and the host console binding of the
-# TypeScript target: one @:test function, which calls std.Console.log on both
-# and registers the same test id everywhere.
+# The console shim of the Kotlin and Rust targets and the host console
+# binding of the TypeScript target: one @:test function, which calls
+# std.Console.log on all three and registers the same test id everywhere.
 boring.ConsoleShimOps
 tests.ConsoleShimTests
 # The per-class flush probe of feature spec 27: one @:test function plus
