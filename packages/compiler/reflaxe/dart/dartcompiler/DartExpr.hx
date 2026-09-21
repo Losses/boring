@@ -2686,6 +2686,17 @@ class DartExpr {
                             return r + ".setAll(0, " + r + ".reversed.toList())";
                         case "unshift" if (args.length == 1):
                             return receiverText(subj) + ".insert(0, " + rendered + ")";
+                        case "insert" if (args.length == 2):
+                            // Haxe bounds the position before the list sees
+                            // it: a negative position counts from the end of
+                            // the list and stops at the first element, and a
+                            // position past the end clamps to the length.
+                            // List.insert throws RangeError on an index
+                            // outside the list, so the position is clamped
+                            // first. (ArrayInsertClamping)
+                            return "(() { final _a = " + receiverText(subj) + "; final _n = _a.length; final _p = " + expr(args[0])
+                                + "; final _at = _p < 0 ? (_n + _p < 0 ? 0 : _n + _p) : (_p > _n ? _n : _p); _a.insert(_at, " + expr(args[1])
+                                + "); })()";
                         case "pop" if (args.length == 0):
                             return "(() { final _a = " + receiverText(subj) + "; return _a.isEmpty ? null : _a.removeLast(); })()";
                         case "shift" if (args.length == 0):
