@@ -2237,16 +2237,21 @@ class TsExpr {
                     // equivalent; splice inserts in place.
                     return expr(subj) + ".splice(" + expr(args[0]) + ", 0, " + expr(args[1]) + ")";
                 }
-                if (name == "indexOf" && (isStringSubject(subj) || isArraySubject(subj)) && args.length == 2) {
+                if ((name == "indexOf" || name == "lastIndexOf") && (isStringSubject(subj) || isArraySubject(subj)) && args.length == 2) {
                     // The same synthesized null arrives for an omitted
                     // ?pos, on String and on Array; both prototype
-                    // methods type the position parameter as number,
-                    // and a null argument fails strict typechecking, so
-                    // the null is dropped and the one-argument overload
-                    // searches from the start (features/08 ruling 8).
+                    // methods type the position parameter as number, so
+                    // a null argument fails strict typechecking, and the
+                    // prototype coerces it to 0, which turns an omitted
+                    // lastIndexOf start index into a search that stops at
+                    // index 0. Dropping the null selects the
+                    // one-argument overload: indexOf searches from the
+                    // start and lastIndexOf from the last element index,
+                    // which is what the haxe contract does with the
+                    // omitted argument (features/08 ruling 8).
                     switch (stripWrap(args[1]).expr) {
                         case TConst(TNull):
-                            return expr(subj) + ".indexOf(" + expr(args[0]) + ")";
+                            return expr(subj) + "." + name + "(" + expr(args[0]) + ")";
                         case _:
                     }
                 }
