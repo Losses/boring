@@ -7216,6 +7216,20 @@ class RustExpr {
     }
 
     /**
+        The Rust form of the Haxe Array bound rule, as an expression over two
+        already-bound locals: a negative bound counts from the end of the array
+        and stops at the first element, and a bound past the end clamps to the
+        length. `lenVar` names the length binding and `boundVar` the bound,
+        both in the signed domain, because the u32 Haxe Int domain turns a
+        negative position into a huge index. The caller binds the source of the
+        bound first so a call inside it runs once. (ArrayBoundClamping)
+    **/
+    function clampedArrayBound(lenVar:String, boundVar:String):String {
+        return "if " + boundVar + " < 0 { let _tail = " + lenVar + " + " + boundVar + "; if _tail < 0 { 0 } else { _tail } } else if " + boundVar + " > "
+            + lenVar + " { " + lenVar + " } else { " + boundVar + " }";
+    }
+
+    /**
         Reinterpret a same-width u32-domain business value into the signed i32
         position a resident runtime parameter expects. Folds a literal to its
         signed value; otherwise goes through the native-endian byte round-trip
@@ -8906,8 +8920,18 @@ class RustExpr {
                 if (name == "unshift" && isVecType(subj) && args.length == 1) {
                     return expr(subj) + ".insert(0, " + renderPushArg(args[0], arrayElementType(subj.t)) + ")";
                 }
+                // Haxe bounds an Array position before the call sees it: a
+                // negative position counts from the end of the array and
+                // stops at the first element, and a position past the end
+                // clamps to the length. Vec::insert panics on a usize index
+                // past the length, and the u32-domain Haxe Int wraps a
+                // negative position into a huge index, so the position is
+                // clamped in the signed domain and then widened losslessly.
+                // (ArrayInsertClamping)
                 if (name == "insert" && isVecType(subj) && args.length == 2) {
-                    return expr(subj) + ".insert(" + castArg(args[0], "usize") + ", " + renderPushArg(args[1], arrayElementType(subj.t)) + ")";
+                    return "{ let _a = &mut (" + expr(subj) + "); let _n = i32::try_from(_a.len()).unwrap_or(0); let _pos = " + castSignedI32(args[0])
+                        + "; let _at = " + clampedArrayBound("_n", "_pos") + "; _a.insert(usize::try_from(_at).unwrap_or(0), "
+                        + renderPushArg(args[1], arrayElementType(subj.t)) + "); }";
                 }
                 // vecSpliceDrain: Haxe Array.splice(pos, len) removes len
                 // elements at pos and returns the removed sub-array. Rust's
@@ -8915,13 +8939,48 @@ class RustExpr {
                 // iterator), so the lowering uses Vec::drain on a usize range
                 // built from the cast index and count. The drain moves the
                 // elements out of the Vec and the block collects them into a
-                // new Vec matching the Haxe return type.
+                // new Vec matching the Haxe return type. Haxe also bounds the
+                // call before it removes anything: a negative length or a
+                // position past the length removes nothing and leaves the
+                // array alone, a negative position counts from the end and
+                // stops at the first element, and a length that reaches past
+                // the end removes only the tail. Drain panics on a range past
+                // the Vec, so the position is clamped into the vector and the
+                // count is trimmed to the elements that remain.
+                // (ArraySpliceClamping)
                 if (name == "splice" && isVecType(subj) && args.length == 2) {
                     final idxVar = freshRegionName("splice_index");
                     final countVar = freshRegionName("splice_count");
                     final removedVar = freshRegionName("splice_removed");
-                    return "{ let " + idxVar + " = " + castArg(args[0], "usize") + "; let " + countVar + " = " + castArg(args[1], "usize") + "; let " + removedVar + ": Vec<_> = "
-                        + expr(subj) + ".drain(" + idxVar + ".." + idxVar + " + " + countVar + ").collect(); " + removedVar + " }";
+                    return "{ let _a = &mut (" + expr(subj) + "); let _n = i32::try_from(_a.len()).unwrap_or(0); let _pos = "
+                        + castSignedI32(args[0]) + "; let " + idxVar + " = " + clampedArrayBound("_n", "_pos") + "; let _len = " + castSignedI32(args[1])
+                        + "; let " + countVar + " = if _len < 0 { 0 } else { let _rest = _n - " + idxVar + "; if _len < _rest { _len } else { _rest } }; let "
+                        + removedVar + ": Vec<_> = _a.drain(usize::try_from(" + idxVar + ").unwrap_or(0)..usize::try_from(" + idxVar + " + " + countVar
+                        + ").unwrap_or(0)).collect(); " + removedVar + " }";
+                }
+                // Haxe Array.slice(pos, end) copies the half-open interval and
+                // bounds both of its ends the same way: a negative bound counts
+                // from the end of the array and stops at the first element, a
+                // bound past the end clamps to the length, and an end that
+                // reaches the start or passes it yields the empty array. Rust
+                // has no Vec::slice at all, so the generic call path rendered
+                // `vec.slice(pos, Some(end))` and the crate did not compile;
+                // the lowering clamps both bounds and takes the interval
+                // between them. (ArraySliceClamping)
+                if (name == "slice" && isVecType(subj) && (args.length == 1 || args.length == 2)) {
+                    final endOmitted = args.length < 2 || switch (stripWrap(args[1]).expr) {
+                        case TConst(TNull): true;
+                        case _: false;
+                    };
+                    var steps = "let _a = &(" + expr(subj) + "); let _n = i32::try_from(_a.len()).unwrap_or(0); let _from = " + castSignedI32(args[0])
+                        + "; let _start = " + clampedArrayBound("_n", "_from") + ";";
+                    if (endOmitted) {
+                        steps += " let _stop = _n;";
+                    } else {
+                        steps += " let _to = " + castSignedI32(args[1]) + "; let _end = " + clampedArrayBound("_n", "_to")
+                            + "; let _stop = if _end < _start { _start } else { _end };";
+                    }
+                    return "{ " + steps + " _a[usize::try_from(_start).unwrap_or(0)..usize::try_from(_stop).unwrap_or(0)].to_vec() }";
                 }
                 if (name == "indexOf" && isVecType(subj) && args.length >= 1) {
                     var needle = expr(args[0]);
