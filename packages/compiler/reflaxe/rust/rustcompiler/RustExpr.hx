@@ -13880,6 +13880,12 @@ class RustExpr {
         if (resultType != null && isOwnedVecType(resultType) && borrowedArrayRead(branch)) {
             return "(*" + text + ").clone()";
         }
+        // A borrowed loop item arm produces the value type: a Copy item
+        // dereferences, an owned item clones the referent, so both arms
+        // of the conditional carry one Rust type.
+        if (resultType != null && !isNullType(resultType)
+            && switch (stripWrap(branch).expr) { case TLocal(v): borrowedLoopVarIds.exists(v.id); case _: false; })
+            return isTypeCopy(resultType) ? "*" + text : "(*" + text + ").clone()";
         if (isUStringCountText(text) && resolveExprType(sibling) == "i32") {
             return RustConversions.reinterpret(text, "i32");
         }
