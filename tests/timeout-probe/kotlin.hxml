@@ -1,0 +1,23 @@
+# Runner-timeout probe entry for the Kotlin target (feature spec 19).
+# Run from the repository root: haxe tests/timeout-probe/kotlin.hxml
+# The probe is kept out of examples/kotlin.hxml on purpose: it overruns the
+# test budget, so an ordinary generation entry would carry a slow and red
+# test. This entry compiles the probe alone.
+-lib reflaxe
+-lib boring
+-cp packages/compiler/reflaxe/kotlin/std-shadow
+-cp packages/compiler/reflaxe/kotlin
+-cp samples
+-cp tests/timeout-probe
+--macro Intercept.run(['samples', 'tests/timeout-probe'])
+--macro haxe.macro.Compiler.addGlobalMetadata('boring', '@:build(std.RecordMember.build())')
+--macro kotlincompiler.Compiler.use()
+-D kotlin-output=out/timeout-probe/kotlin/gen
+-D kotlin-test-output=out/timeout-probe/kotlin/gen-checks
+-D runtime-import=boring.runtime
+-D runtime-emit=runtime
+probe.TimeoutProbeTests
+# test/Test.kt formats floats through the FPHelper shim, and the shim is
+# emitted only when a compiled module calls FPHelper, so the entry carries
+# one module that does.
+boring.Fp32

@@ -120,10 +120,33 @@ export class Test {
     return Test.currentTestId ?? "";
   }
 
+  // The wall-clock budget of one test in milliseconds. The native bun
+  // timer runs above this value (runnerTimeoutBudgetMs), so a body that
+  // overruns raises inside the entry and reaches the results file with
+  // the verdict the runner shows.
+  private static timeoutBudgetMs(): number {
+    const raw = typeof process !== "undefined" && process.env ? process.env["BORING_TEST_TIMEOUT_MS"] : null;
+    const parsed = raw ? Number(raw) : Number.NaN;
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 5000;
+  }
+
+  // The budget the native runner receives. The margin keeps the entry
+  // strictest: a body that overruns the budget raises before the runner
+  // timer can fire, and a body inside the budget leaves the runner timer
+  // untouched.
+  static runnerTimeoutBudgetMs(): number {
+    return Test.timeoutBudgetMs() + 1000;
+  }
+
   static run(id: string, name: string, body: TestBody): void {
     Test.currentTestId = id;
+    const budgetMs = Test.timeoutBudgetMs();
+    const startedAt = Date.now();
     try {
       body();
+      if (Date.now() - startedAt >= budgetMs) {
+        throw new Error("this test timed out after " + budgetMs + "ms");
+      }
       Test.recordResult(id, name, "pass", null);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
