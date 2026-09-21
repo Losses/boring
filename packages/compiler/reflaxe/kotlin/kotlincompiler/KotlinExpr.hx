@@ -1689,7 +1689,23 @@ class KotlinExpr {
         final params = [for (a in f.args) '${localName(a.v)}: ${types.of(a.v.t)}'].join(", ");
         final ret = types.of(f.t);
         final retStr = ret == "Unit" ? "" : ": " + ret;
-        return 'fun($params)$retStr {\n' + blockLines(statementsOf(f.expr), 1).join("\n") + '\n}';
+        // A nested function or lambda declares its own return type in TFunc.t
+        // and emits that declaration as the literal result annotation, so the
+        // returns in its body are judged against the declaration instead of the
+        // enclosing member contract. Without the swap a `return null` inside a
+        // Null<T>-returning literal inherits the outer non-null return type and
+        // hardens to `return null!!`. (NestedFunctionNullableReturn)
+        final savedReturnType = currentReturnType;
+        final savedReturnAllowsNullable = currentReturnAllowsNullable;
+        currentReturnType = f.t;
+        // A literal never widens its annotation: it emits the declared type
+        // verbatim, so a non-null declaration keeps extracting its returns.
+        // (FixedContractSafeCallReturn)
+        currentReturnAllowsNullable = false;
+        final body = blockLines(statementsOf(f.expr), 1).join("\n");
+        currentReturnType = savedReturnType;
+        currentReturnAllowsNullable = savedReturnAllowsNullable;
+        return 'fun($params)$retStr {\n' + body + '\n}';
     }
 
     // ------------------------------------------------------------------
