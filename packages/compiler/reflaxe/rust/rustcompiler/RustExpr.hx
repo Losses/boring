@@ -11047,6 +11047,8 @@ class RustExpr {
                             StringTools.endsWith(argStr, ".to_string()") ? argStr : "(" + argStr + ").to_string()";
                         case _ if (isFloatType(getNullInnerType(pt)) && isIntType(emittedType(arg))):
                             intToFloatText(argStr);
+                        case TLocal(v) if (borrowedLoopVarIds.exists(v.id) && isTypeCopy(getNullInnerType(pt))):
+                            "*" + argStr;
                         case _ if (isOwnedVecType(getNullInnerType(pt))):
                             // A direct array static is a Rust array and a
                             // borrowed array parameter is a &Vec view; the
