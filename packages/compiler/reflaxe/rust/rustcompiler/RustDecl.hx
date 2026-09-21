@@ -119,13 +119,10 @@ class RustDecl {
                 ].join(", ");
                 final shape = state.interfaceMethodShapes.get(RustEmissionState.interfaceMethodKey(cls.module, cls.name, f.field.name));
                 final isMutating = shape != null ? shape.isMutating : (!f.isStatic && isMethodMutating(f));
-                // Register mutating trait methods so the parameter-mutability
-                // scan (argIsMutated) can mark a by-value parameter mutable
-                // when the body calls a &mut self method through its field.
-                // The key carries the interface: a bare name would taint
-                // every same-named method program-wide.
-                if (isMutating && !f.isStatic)
-                    mutatingTraitMethods.set(RustEmissionState.interfaceMethodKey(cls.module, cls.name, f.field.name), true);
+                // The registry itself is pre-populated before rendering
+                // (Compiler.hx walks the interfaces after the shapes
+                // precompute), so every consumer sees the same verdicts
+                // regardless of module order.
                 final selfPrefix = f.isStatic ? "" : (isMutating ? "&mut self" : "&self") + (f.args.length > 0 ? ", " : "");
                 final isFallible = shape != null ? shape.isFallible : funcIsFallible(f);
                 final errOwner = isFallible && shape != null && shape.errorName != null
