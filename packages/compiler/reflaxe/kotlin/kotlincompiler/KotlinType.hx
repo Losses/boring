@@ -76,11 +76,15 @@ class KotlinType {
                         imports.requireType(cls.module, "SortedSetTableBuilder");
                         "SortedSetTableBuilder<" + of(params[0]) + ">";
                     case _:
-                        imports.requireType(cls.module, cls.name);
+                        // The declaration name of an @:native extern, so a
+                        // type reference and its import agree with the
+                        // emitted shim.
+                        final declared = KotlinImports.declarationName(cls.module, cls.name);
+                        imports.requireType(cls.module, declared);
                         if (params.length > 0) {
-                            cls.name + "<" + [for (p in params) of(p)].join(", ") + ">";
+                            declared + "<" + [for (p in params) of(p)].join(", ") + ">";
                         } else {
-                            cls.name;
+                            declared;
                         }
                 }
             case TType(def, params):
