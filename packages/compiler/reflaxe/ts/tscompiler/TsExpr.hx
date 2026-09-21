@@ -2121,7 +2121,15 @@ class TsExpr {
                     if (name == "exists" && args.length == 1)
                         return expr(subj) + ".has(" + expr(args[0]) + ")";
                     if (name == "get" && args.length == 1)
-                        return expr(subj) + ".get(" + expr(args[0]) + ")";
+                        // haxe.ds.Map.get carries the Null<V> contract, so
+                        // an absent key reads as null. The native Map reads it
+                        // as undefined, and the target compares null with the
+                        // strict operators, so the lookup normalizes the
+                        // absent key here. A later null comparison then
+                        // matches, and a value that never passes a comparison
+                        // still carries null into string conversion, variant
+                        // switching, and table storage.
+                        return "(" + expr(subj) + ".get(" + expr(args[0]) + ") ?? null)";
                     if (name == "set" && args.length == 2)
                         return expr(subj) + ".set(" + expr(args[0]) + ", " + expr(args[1]) + ")";
                 }
