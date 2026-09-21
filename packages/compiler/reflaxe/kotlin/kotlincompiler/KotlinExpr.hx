@@ -3484,8 +3484,15 @@ class KotlinExpr {
                     // even though ordinary synthetic impls never emit.
                     state.referencedImpls.set(cls.module, true);
                 }
-                imports.requireType(cls.module, cls.name);
-                return cls.name + "." + name;
+                // An @:native extern reaches this arm under its native
+                // name and an empty package, so std.Console arrives as
+                // `console`; the emitted shim declares the module's
+                // declaration name (`object Console`). Import and
+                // reference both use that declaration name so the
+                // generated Kotlin resolves.
+                final declared = KotlinImports.declarationName(cls.module, cls.name);
+                imports.requireType(cls.module, declared);
+                return declared + "." + name;
         }
     }
 
