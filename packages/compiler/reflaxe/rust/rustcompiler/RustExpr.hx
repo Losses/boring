@@ -4558,6 +4558,15 @@ class RustExpr {
                 final rendered = [
                     for (x in elems) {
                         var source = expr(x);
+                        // An element whose Haxe type is Null<T> in a non-null
+                        // element slot reads an Option while the literal's Vec
+                        // carries the payload; the element boundary borrows and
+                        // unwraps it, so the source binding stays alive for
+                        // later reads. (NonNullSlotUnwrap)
+                        if (elemType != null && !isNullableElem && nullableReadHoldsOption(x)) {
+                            final payload = getNullInnerType(x.t);
+                            source = isTypeCopy(payload) ? "*((" + source + ").as_ref().unwrap())" : "(" + source + ").as_ref().unwrap()";
+                        }
                         var inner = if (isStringElem) {
                             switch (stripWrap(x).expr) {
                                 case TConst(TString(_)):
