@@ -9534,8 +9534,9 @@ class RustExpr {
                 switch (stripWrap(fn).expr) {
                     case TField(_, FStatic(c, cf)) | TField(_, FInstance(c, _, cf)):
                         final positions = mutableParamPositions(cf.get());
-                        if (positions.length > 0)
+                        if (positions.length > 0) {
                             return expr(fn) + "(" + renderCallArgs(cf.get().type, args, null, 0, positions) + ")";
+                        }
                     case _:
                 }
                 return expr(fn) + "(" + renderedArgs + ")";
@@ -9556,8 +9557,12 @@ class RustExpr {
                 switch (stripWrap(fn).expr) {
                     case TField(_, FInstance(_, _, cf)) | TField(_, FStatic(_, cf)) | TField(_, FAnon(cf)):
                         final positions = mutableParamPositions(cf.get());
+                        final ps = switch (Context.follow(cf.get().type)) {
+                            case TFun(ps, _): ps;
+                            case _: [];
+                        };
                         for (i in 0...args.length)
-                            if (positions.indexOf(i) >= 0)
+                            if (i < ps.length && positions.indexOf(i) >= 0 && RustDecl.isMutableRefParamType(ps[i].t))
                                 switch (stripWrap(args[i]).expr) {
                                     case TLocal(l): mutated.set(l.id, true);
                                     case _:
@@ -9573,24 +9578,25 @@ class RustExpr {
 
     function mutableParamPositions(cf:ClassField):Array<Int> {
         // The verdict depends only on the callee body, which is fixed for
-        // the whole generation: memoize per field declaration site, since
-        // ClassField carries no module accessor on the pinned Haxe.
-        // (PositionMemo)
-        final fieldPos = Context.getPosInfos(cf.pos);
-        final key = fieldPos.file + ":" + fieldPos.min + "." + cf.name;
+        // the whole generation: memoize per field position. (PositionMemo)
+        final key = Std.string(cf.pos);
         if (mutableParamPositionsCache.exists(key))
             return mutableParamPositionsCache.get(key);
         final out:Array<Int> = [];
         switch (Context.follow(cf.type)) {
             case TFun(ps, _):
                 final body = cf.expr();
-                if (body != null)
+                if (body != null) {
+                    // An unavailable body leaves the verdict unknown: the
+                    // result must not cache, or an early empty answer
+                    // poisons every later call. (PositionMemo)
                     for (i in 0...ps.length)
                         if (RustDecl.argIsMutated(body, ps[i].name))
                             out.push(i);
+                    mutableParamPositionsCache.set(key, out);
+                }
             case _:
         }
-        mutableParamPositionsCache.set(key, out);
         return out;
     }
 
@@ -12787,6 +12793,8 @@ class RustExpr {
                 };
         } else [];
         final stdTableReceiver = receiverType != null && isStdTableType(receiverType);
+        if (Std.string(fnType).indexOf("LineBreakPlanningStageResult") >= 0)
+            Context.warning("PLANPOS mut=" + Std.string(mutablePositions) + " pt0=" + Std.string(paramTypes.length > 0 ? paramTypes[0] : null).substr(0, 60), args[0].pos);
         final rendered = [];
         for (i in 0...args.length) {
             final arg = args[i];
