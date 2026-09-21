@@ -35,6 +35,21 @@ class KotlinNestedNullReturnOps {
         return value;
     }
 
+    static function applyLookup(fn:Int->Null<String>, key:Int):String {
+        final value = fn(key);
+        if (value == null)
+            return "none";
+        return value;
+    }
+
+    public static function appliedLookup(key:Int):String {
+        return applyLookup(function(k:Int):Null<String> {
+            if (k == 0)
+                return null;
+            return "hit";
+        }, key);
+    }
+
     public static function namedLookup(key:Int):String {
         function lookup(k:Int):Null<String> {
             if (k == 0)
@@ -77,6 +92,12 @@ class KotlinNullabilityTests {
     public static function testAnonymousNullableLambda():Void {
         Test.equals("none", KotlinNestedNullReturnOps.anonymousLookup(0));
         Test.equals("hit", KotlinNestedNullReturnOps.anonymousLookup(1));
+    }
+
+    @:test("lambda argument keeps a Null return")
+    public static function testNullableLambdaArgument():Void {
+        Test.equals("none", KotlinNestedNullReturnOps.appliedLookup(0));
+        Test.equals("hit", KotlinNestedNullReturnOps.appliedLookup(1));
     }
 
     @:test("named local function keeps a Null return")
