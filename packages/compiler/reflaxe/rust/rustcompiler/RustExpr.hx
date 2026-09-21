@@ -5286,13 +5286,15 @@ class RustExpr {
         if (isFloatType(firstInner) || isFloatType(secondInner))
             return FloatPrecision.isF32() ? "f32" : "f64";
         // Both arms are business Int. An arm that renders in the signed i32
-        // domain (a negation, an index result) beside an unsigned arm must
-        // agree on the conditional's Rust type, so the conditional targets
-        // the business u32 slot and the signed arm reinterprets at the
-        // branch. Two signed arms already share the i32 type and keep it.
+        // domain (a negation, an index result, an i32-domain wrapping binop)
+        // beside an unsigned arm must agree on the conditional's Rust type,
+        // so the conditional targets the business u32 slot and the signed
+        // arm reinterprets at the branch. Two signed arms already share the
+        // i32 type and keep it.
+        final firstSigned = rendersSignedIntExpr(first) || i32LocalDomain(first);
+        final secondSigned = rendersSignedIntExpr(second) || i32LocalDomain(second);
         if (!RuntimeResidents.isResident(imports.selfModule)
-            && (rendersSignedIntExpr(first) || rendersSignedIntExpr(second))
-            && !(rendersSignedIntExpr(first) && rendersSignedIntExpr(second)))
+            && (firstSigned || secondSigned) && !(firstSigned && secondSigned))
             return "u32";
         return null;
     }
