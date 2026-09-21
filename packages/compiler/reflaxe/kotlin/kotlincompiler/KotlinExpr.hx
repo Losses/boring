@@ -2172,13 +2172,18 @@ class KotlinExpr {
         };
     }
 
-    /** The zero of a Kotlin value element type. A reference element type has
-        no zero and fills with null instead. */
+    /** The zero of a Kotlin value element type, as the literal that element
+        type itself accepts: a Double zero does not go into a
+        MutableList<Float>. The element text and the width the float literal
+        carries both come from the one Float mapping, so the value below is
+        the element's own zero in either precision.
+        (ArrayGrowthOnIndexWrite) A reference element type has no zero and
+        fills with null instead. */
     function valueElementZero(elementText:String):Null<String> {
         return switch (elementText) {
             case "Int": "0";
             case "Long": "0L";
-            case "Float" | "Double": "0.0";
+            case "Float" | "Double": constValFloatLiteral("0");
             case "Boolean": "false";
             case _: null;
         };
