@@ -93,6 +93,11 @@ class DartExpr {
     var currentFunctionReturnsNullable:Bool = false;
 
     final nonNullLocals:Map<Int, Bool> = [];
+    // Locals promoted non-null in the current flow scope by an earlier `!`
+    // assertion: dart's own flow promotion makes later `!`s redundant, and
+    // the analyzer flags them. Function-scoped; cleared at each body.
+    // (FlowPromotedDedup)
+    final flowPromotedNonNull:Map<Int, Bool> = [];
 
     /** Optional parameters materialized by default expansion. */
     final nonNullOptionalParams:Map<Int, Bool> = [];
@@ -404,6 +409,7 @@ class DartExpr {
     // ------------------------------------------------------------------
 
     public function functionBody(cls:ClassType, f:ClassFuncData, depth:Int = 2):Array<String> {
+        flowPromotedNonNull.clear();
         if (f.expr == null) {
             Context.error("function field has no body to lower", f.field.pos);
         }
@@ -912,7 +918,7 @@ class DartExpr {
                         if (isIntOrLongType(emittedType(ret)) && isFloatType(currentReturnType))
                             rendered = intToFloatText(rendered);
                         final nonNullReturn = switch (inner.expr) {
-                            case TLocal(v): nonNullLocals.exists(v.id);
+                            case TLocal(v): nonNullLocals.exists(v.id) || flowPromotedNonNull.exists(v.id);
                             case _: false;
                         };
                         return [
@@ -1659,6 +1665,10 @@ class DartExpr {
         // non-null in the generated Dart flow.
         if ((isNullLeafType(e.t) || optionalValued(e)) && !provenNonNull(e) && parent != OpEq && parent != OpNotEq) {
             rendered += "!";
+            switch (stripWrap(e).expr) {
+                case TLocal(v): flowPromotedNonNull.set(v.id, true);
+                case _:
+            }
         }
         switch (stripWrap(e).expr) {
             case TBinop(op, _, _):
@@ -1966,7 +1976,9 @@ class DartExpr {
             return expr(e);
         final text = expr(e);
         return switch (stripWrap(e).expr) {
-            case TLocal(_): text + "!";
+            case TLocal(v):
+                flowPromotedNonNull.set(v.id, true);
+                text + "!";
             case _: "(" + text + ")!";
         };
     }
@@ -2049,8 +2061,20 @@ class DartExpr {
             return expr(subj);
         }
         final base = expr(subj);
+        // A subject already promoted in this flow scope (an earlier `!` on
+        // the same local) renders bare: dart's flow analysis holds the
+        // promotion, so a second `!` is redundant.
+        // (ReceiverTextFlowPromoted)
+        if (switch (stripWrap(subj).expr) {
+            case TLocal(v): flowPromotedNonNull.exists(v.id);
+            case _: false;
+        }) {
+            return base;
+        }
         return switch (stripWrap(subj).expr) {
-            case TLocal(_): base + "!";
+            case TLocal(v):
+                flowPromotedNonNull.set(v.id, true);
+                base + "!";
             case _: "(" + base + ")!";
         };
     }
