@@ -81,6 +81,15 @@ class KotlinExpr {
     /** Locals whose inferred Kotlin initializer remains nullable. */
     final nullableRenderedLocals:Map<Int, Bool> = [];
 
+    /**
+        Data-class val properties already extracted (or null-checked) in the
+        active body, keyed by receiver text and property name. Kotlin's own
+        flow smart-casts a val property chain after its first extraction or
+        check, so a later assertion on the same pair reports no effect.
+        Cleared with the other body sets. (ValPropertySmartCastProof)
+    **/
+    final valPropertyProofs:Map<String, Bool> = [];
+
     /** Locals compared with null somewhere in the currently emitted statement block. */
     var activeNullGuardLocals:Map<Int, Bool> = [];
 
@@ -480,6 +489,7 @@ class KotlinExpr {
         nonNullLocals.clear();
         nullInitializedLocals.clear();
         nullableRenderedLocals.clear();
+        valPropertyProofs.clear();
         nonNullFields.clear();
         extractedLocals.clear();
         extractedFields.clear();
@@ -566,6 +576,7 @@ class KotlinExpr {
         nonNullLocals.clear();
         nullInitializedLocals.clear();
         nullableRenderedLocals.clear();
+        valPropertyProofs.clear();
         nonNullFields.clear();
         extractedLocals.clear();
         extractedFields.clear();
@@ -3141,6 +3152,14 @@ class KotlinExpr {
         // set, because render-order proofs misjudge assignments inside
         // loops and branches.
         final proven = provenNonNull(e) || guardProofBefore(e);
+        // A val property chain kotlin already smart-cast: the later
+        // assertion reports no effect, so it drops. (ValPropertySmartCastProof)
+        final smartCastPair = switch (stripWrap(e).expr) {
+            case TField(_, FInstance(owner, _, cf)) if (owner.get().meta.has(":dataClass")):
+                rendered + "." + cf.get().name;
+            case _: null;
+        };
+        final valProven = smartCastPair != null && valPropertyProofs.exists(smartCastPair);
         final nullInit = isNullInitialized(e);
         // Preserving a safe-navigation chain keeps the null result for a
         // caller that propagates it (the string concatenation lowering).
@@ -3155,7 +3174,7 @@ class KotlinExpr {
         // of a non-null Haxe value keeps its extraction.
         // (ConcatenationNullableArgument)
         final keepsNull = nullableArgument && isNullType(e.t) && !proven;
-        if (!isNullLiteral(e) && !preservesSafeCall && !keepsNull
+        if (!isNullLiteral(e) && !preservesSafeCall && !keepsNull && !valProven
             && ((isNullType(e.t) && !proven) || (nullInit && !proven) || rendersNullable(e))
             && parent != OpEq && parent != OpNotEq) {
 #if boring_fold_debug
@@ -3167,6 +3186,8 @@ class KotlinExpr {
             // again later must not extract twice.
             // (ExtractionRegistersProof)
             addProofExpr(e);
+            if (smartCastPair != null)
+                valPropertyProofs.set(smartCastPair, true);
         }
         switch (e.expr) {
             case TBinop(op, _, _):
