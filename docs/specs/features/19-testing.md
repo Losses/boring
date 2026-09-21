@@ -205,6 +205,9 @@ only these files.
   targets; `Test.run` receives it beside the identifier.
 - The `message` value is the canonical failure message string,
   JSON-escaped, byte-equal across targets.
+- A test that outruns the timeout budget of the run is recorded as a
+  failure with the timeout message, on every target that carries the
+  budget (see "Stage 1, the timeout verdict" below).
 - The file opens in append mode; each line is written with a single
   append call, which keeps the file sound under the parallel test
   threads of `cargo test` and the runner pools of node and bun.
@@ -247,10 +250,11 @@ selected runner:
 
 ```ts
 // <ts-test-output>/tests/VectorCodecTests.test.ts   (ts-test-runner=bun)
-import { test } from "bun:test";
+import { test, setDefaultTimeout } from "bun:test";
 import { Test } from "@boring/runtime/test";
 import { VectorCodec } from "../../reference/ts/gen/boring/VectorCodec.ts";
 import { TestData } from "../../reference/ts/gen/tests/TestData.ts";
+setDefaultTimeout(Test.runnerTimeoutBudgetMs());
 
 test("tests.VectorCodecTests.roundtrip: encode then decode returns the input records", () =>
     Test.run("tests.VectorCodecTests.roundtrip", "tests.VectorCodecTests.roundtrip: encode then decode returns the input records", () => {
@@ -414,6 +418,57 @@ fn vector_codec_tests_roundtrip() {
 }
 ```
 
+## Stage 1, the timeout verdict
+
+A native runner may stop a test that outruns its own timeout, and that
+verdict has to reach the results file like every other failure.
+
+One value rules the budget: the environment variable
+`BORING_TEST_TIMEOUT_MS` in milliseconds, 5000 when unset or not a
+positive integer. `std.Test.run` measures the wall-clock time of the
+body, and a body that returns at or past the budget raises the timeout
+error `this test timed out after <budget>ms`. The raise travels the
+path of a failed assertion: the host records the failure line with that
+message and rethrows, so the native runner reports the test as failed
+too.
+
+Rulings:
+
+- The entry holds the verdict. A synchronous body cannot be preempted,
+  so a runner that keeps its own timer learns about an overrun only
+  after the body returned, which is after the entry has written its
+  line. The TypeScript `bun` entry raises the runner timer with
+  `setDefaultTimeout(Test.runnerTimeoutBudgetMs())`, which is the
+  budget plus one second: a body inside the budget leaves the runner
+  timer untouched, and a body past the budget raises before that timer
+  can fire. The two verdicts agree in both directions.
+- The Kotlin entry carries no runner timer, so the entry check is the
+  only timeout there. Before the check existed, a slow Kotlin test was
+  recorded as a pass.
+- The timeout message is target-neutral and byte-equal between the
+  TypeScript and Kotlin hosts, and its wording matches the phrase the
+  bun runner prints, so one text reads in both places.
+- The budget is read from the environment on every run, never at
+  generation time, so one generated tree serves every budget.
+- The probe entries `tests/timeout-probe/ts.hxml` and
+  `tests/timeout-probe/kotlin.hxml` compile `probe.TimeoutProbeTests`,
+  one test that outruns the budget on purpose, into
+  `out/timeout-probe/`:
+
+      haxe tests/timeout-probe/ts.hxml
+      bun test out/timeout-probe/ts/gen-checks/
+
+      haxe tests/timeout-probe/kotlin.hxml
+      kotlinc $(find out/timeout-probe/kotlin/gen out/timeout-probe/kotlin/gen-checks -name '*.kt') -include-runtime -d out/timeout-probe/probe.jar
+      java -cp out/timeout-probe/probe.jar TestMainKt
+
+  The probe stays out of the eight generation entries under `examples/`
+  and out of the repository test run: it is slow and red by construction,
+  and an ordinary run stays fast and green. Its TypeScript test tree is
+  named `gen-checks`, because the repository test command searches with
+  the pattern `tests/` and a tree named `gen-tests` under `out/` would
+  join every repository test run.
+
 ## The TypeScript test environment define
 
 The three native TypeScript runners have disjoint, unportable
@@ -422,7 +477,7 @@ registration APIs. The selection happens at compile time:
 | `ts-test-runner` | registration import in each generated file | file suffix | native runner |
 | --- | --- | --- | --- |
 | `node` | `import { test } from "node:test";` | `.test.ts` | `node --test` |
-| `bun` | `import { test } from "bun:test";` | `.test.ts` | `bun test` |
+| `bun` | `import { test, setDefaultTimeout } from "bun:test";` plus the `setDefaultTimeout(Test.runnerTimeoutBudgetMs())` call | `.test.ts` | `bun test` |
 | `deno` | none (global `Deno.test(name, fn)`) | `_test.ts` | `deno test` |
 
 Rulings:

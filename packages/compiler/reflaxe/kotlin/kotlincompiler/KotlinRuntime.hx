@@ -211,10 +211,26 @@ object Test {
     // the generated tests call.
     fun currentTestIdState(): String = currentTestId ?: ""
 
+    // The wall-clock budget of one test, in milliseconds. The generated
+    // entry has no runner timer of its own, so the entry decides: a body
+    // that overruns the budget raises through the same path as a failed
+    // assertion and reaches the results file as a failure.
+    private fun timeoutBudgetMs(): Long {
+        val raw = System.getenv("BORING_TEST_TIMEOUT_MS")
+        val parsed = raw?.toLongOrNull()
+        return if (parsed != null && parsed > 0) parsed else 5000L
+    }
+
     fun run(id: String, name: String, body: () -> Unit) {
         currentTestId = id
+        val budgetMs = timeoutBudgetMs()
+        val startedAt = System.nanoTime()
         try {
             body()
+            val elapsedMs = (System.nanoTime() - startedAt) / 1000000L
+            if (elapsedMs >= budgetMs) {
+                throw AssertionError("this test timed out after " + budgetMs + "ms")
+            }
             currentTestId = null
             recordResult(id, name, "pass", null)
         } catch (e: Throwable) {
