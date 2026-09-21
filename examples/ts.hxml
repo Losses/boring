@@ -653,6 +653,7 @@ tests.NullableStringViewOpsTests
 boring.ClosureStringViewOps
 tests.ClosureStringViewOpsTests
 
-
 boring.StringSearchFromOps
 tests.StringSearchFromTests
+boring.NullableFieldRecord
+tests.NullableFieldRecordTests
