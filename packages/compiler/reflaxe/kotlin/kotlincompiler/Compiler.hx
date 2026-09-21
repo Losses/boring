@@ -272,7 +272,9 @@ class Compiler extends PluginCompiler<Compiler> {
         if (hasAnyKey(state.testClasses) && kotlinTestOutput != null) {
             generateTestHelper(kotlinTestOutput, kotlinOutput);
             generateTestMain(kotlinTestOutput, kotlinOutput);
-            final annotContent = "package kotlin.test\n\n@Target(AnnotationTarget.FUNCTION)\nannotation class Test\n";
+            // Kotlin reserves the `kotlin` package for its own standard library, so
+            // the emitted test annotation lives in a boring-owned package instead.
+            final annotContent = "package boring.test\n\n@Target(AnnotationTarget.FUNCTION)\nannotation class Test\n";
             final annotRel = kotlinTestOutput + "/tests/TestAnnotations.kt";
             final annotSave = computeRelativePath(kotlinOutput, annotRel);
             PackageArtifacts.saveTreeFile(output, annotSave, annotContent);
