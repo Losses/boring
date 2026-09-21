@@ -11,6 +11,7 @@ import reflaxe.data.ClassFuncData;
 import reflaxe.data.ClassVarData;
 import reflaxe.data.EnumOptionData;
 import StaticReferenceScan;
+import TestClassFlush;
 
 /**
     reflaxe plugin producing the Dart target of the translatable subset
@@ -306,6 +307,13 @@ class Compiler extends PluginCompiler<Compiler> {
             final body:Array<String> = [];
 
             for (f in sortedFuncs) {
+                if (TestClassFlush.isEntry(f)) {
+                    // The conventional per-class flush entry (feature spec
+                    // 27) emits nothing here: this runner registers one call
+                    // per @:test function and holds no class instance.
+                    TestClassFlush.validate(f, classType.name);
+                    continue;
+                }
                 if (!f.field.meta.has(":test")) {
                     Context.error("test class " + classType.name + " carries a non-test member " + f.field.name + "; shared logic belongs in an ordinary class",
                         f.field.pos);
