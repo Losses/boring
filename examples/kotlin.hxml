@@ -379,6 +379,9 @@ tests.ArrayMethodSwiftTests
 boring.FunctionalLocalOps
 tests.FunctionalLocalTests
 
+boring.SumOfFloatLocalOps
+tests.SumOfFloatLocalTests
+
 boring.SwitchNullArmOps
 tests.SwitchNullArmTests
 
