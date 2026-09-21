@@ -280,6 +280,7 @@ boring.ExceptionChainProbe
 tests.ExceptionChainProbeTests
 boring.ArrayAccessOps
 tests.ArrayAccessTests
+tests.ArraySliceTests
 boring.StaticRefOps
 tests.StaticRefTests
 boring.LocalShadowOps
