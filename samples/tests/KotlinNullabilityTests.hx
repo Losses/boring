@@ -64,6 +64,7 @@ class KotlinNestedNullReturnOps {
     }
 }
 
+#if (kotlin_output || ts_output)
 class KotlinNullableSlot<T> {
     public var stored:Int;
 
@@ -101,6 +102,8 @@ class KotlinNullableProbe {
         return null;
     }
 }
+
+#end
 
 class KotlinNullableReceiver {
     public function new() {}
@@ -211,6 +214,7 @@ class KotlinNullabilityTests {
     }
     @:test("generic receiver type arguments decide parameter nullability")
     public static function testGenericReceiverNullableParam():Void {
+        #if (kotlin_output || ts_output)
         final slot:KotlinNullableSlot<Null<KotlinNullableReceiver>> = new KotlinNullableSlot(KotlinNullableProbe.present());
         slot.accept(KotlinNullableProbe.present());
         Test.equals(1, slot.stored, "the present value was accepted");
@@ -222,6 +226,7 @@ class KotlinNullabilityTests {
         Test.equals(2, slot.stored, "the absent value was accepted");
         final absent = slot.peek();
         Test.equals(true, absent == null, "the stored null round-trips");
+        #end
     }
 
     @:test("a nullable receiver comparison keeps its value at a Bool argument")
@@ -259,6 +264,7 @@ class KotlinNullabilityTests {
 
     @:test("a nullable value type argument keeps sorted map nulls storable")
     public static function testSortedMapNullableValue():Void {
+        #if (kotlin_output || ts_output)
         final builder:SortedMapBuilder<Int, Null<String>> = SortedMap.builder();
         builder.put(1, KotlinNullableProbe.presentText());
         builder.put(2, KotlinNullableProbe.absentText());
@@ -269,5 +275,6 @@ class KotlinNullabilityTests {
         Test.equals(true, absent == null, "the null value round-trips");
         final stored = map.valueAt(1);
         Test.equals(true, stored == null, "the stored entry keeps its null value");
+        #end
     }
 }
