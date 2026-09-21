@@ -274,11 +274,14 @@ source-set split of the Kotlin ecosystem:
 - Files are written in package `tests.*`, named `<Module>Tests.kt`; a
   Gradle consumer maps the main output to `commonMain` and this root
   to `commonTest`.
-- Registration uses `kotlin.test`: each test function becomes a
-  `@kotlin.test.Test fun` (fully qualified, because the assertion
-  facade occupies the simple name `Test` through the runtime import;
-  the generated file imports the runtime's `Test` unqualified and the
-  annotation qualified).
+- Registration uses an emitted annotation: each test function becomes a
+  `@boring.test.Test fun` (fully qualified, because the assertion facade
+  occupies the simple name `Test` through the runtime import; the
+  generated file imports the runtime's `Test` unqualified and the
+  annotation qualified). The annotation itself is emitted into the test
+  root as `tests/TestAnnotations.kt`; Kotlin reserves the `kotlin`
+  package for its own standard library, so the shim cannot declare
+  `kotlin.test.Test` even though the classpath entry would name it.
 - The per-repository runner compiles main output plus test root with
   `kotlinc`, adds `kotlin-test` to the compile classpath, and invokes
   a generated `TestMain` that runs the collection through
@@ -292,7 +295,7 @@ import boring.runtime.test.Test
 import tests.TestHelper
 
 class VectorCodecTests {
-    @kotlin.test.Test
+    @boring.test.Test
     fun roundtrip() {
         Test.run("tests.VectorCodecTests.roundtrip", "tests.VectorCodecTests.roundtrip: encode then decode returns the input records") {
             val records = TestData.glyphSamples()
