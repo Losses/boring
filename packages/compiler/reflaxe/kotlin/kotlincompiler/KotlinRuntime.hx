@@ -132,6 +132,14 @@ object FPHelper {
 ", "__REAL__", real), "__I32TOFLOAT__", i32ToFloatBody);
     }
 
+    /**
+        std.Console declares `@:native("console")`, so the typer presents
+        the extern under the native spelling while this object carries the
+        declaration name. Every reference and its import go through
+        KotlinImports.declarationName, which recovers the declaration name
+        from the module (std.Console declares Console); the two spellings
+        therefore agree, and the Kotlin resolves.
+    **/
     public static final CONSOLE_SOURCE = "object Console {
     fun log(message: String) {
         println(message)
