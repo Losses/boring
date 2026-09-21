@@ -2989,7 +2989,13 @@ class KotlinExpr {
                 // expression; a bare inConcat spelling would leave
                 // Enum + String or Int + String unresolved.
                 final leftText = leftStd == null ? operand(l, op, false, true) : stdString(leftStd, isStringType(leftStd.t));
-                final rightText = rightStd == null ? operand(r, op, true, true) : stdString(rightStd, true);
+                // The right operand is the argument of Kotlin's
+                // String.plus(Any?), which renders a null argument as
+                // "null", the text Std.string(null) produces. Extracting
+                // the operand with "!!" would raise instead, so a
+                // nullable right operand keeps its nullable rendering
+                // (ConcatenationNullableArgument).
+                final rightText = rightStd == null ? operand(r, op, true, true, true) : stdString(rightStd, true);
                 // A nullable safe-call left operand propagates null through
                 // the concatenation: plus on the nullable receiver yields
                 // null; a plain + would coerce to the "null" string.
@@ -3075,7 +3081,7 @@ class KotlinExpr {
         }
     }
 
-    function operand(e:TypedExpr, parent:Binop, isRight:Bool, keepSafeCall:Bool = false):String {
+    function operand(e:TypedExpr, parent:Binop, isRight:Bool, keepSafeCall:Bool = false, nullableArgument:Bool = false):String {
         var rendered = expr(e);
         // Nullable values still need extraction unless the Haxe expression
         // has already been normalized, or control flow proved the local is
@@ -3092,7 +3098,14 @@ class KotlinExpr {
         // chain still extracts; skipping the extraction there left the
         // nullable receiver on a Kotlin operator call (ConcreteOperatorOperand).
         final preservesSafeCall = keepSafeCall && rendered.indexOf("?.") >= 0;
-        if (!isNullLiteral(e) && !preservesSafeCall
+        // A nullable-typed value passed to a parameter declared Any? needs
+        // no extraction: the callee accepts the null the Haxe program
+        // carries, and the assertion would raise instead. This relaxation
+        // covers the nullable Haxe type only; the nullable Kotlin storage
+        // of a non-null Haxe value keeps its extraction.
+        // (ConcatenationNullableArgument)
+        final keepsNull = nullableArgument && isNullType(e.t) && !proven;
+        if (!isNullLiteral(e) && !preservesSafeCall && !keepsNull
             && ((isNullType(e.t) && !proven) || (nullInit && !proven) || rendersNullable(e))
             && parent != OpEq && parent != OpNotEq) {
 #if boring_fold_debug
