@@ -30,7 +30,7 @@ targets already lower.
 
 | Member | TypeScript | Kotlin | Swift | Dart | Rust |
 | --- | --- | --- | --- | --- | --- |
-| `length` | `.length` (code units) | `.length` (code units) | current lowering | current lowering | `.len()` over the byte storage, `usize` type, wrong count for non-ASCII input |
+| `length` | `.length` (code units) | `.length` (code units) | current lowering | current lowering | `u_string::unit_count(&s)`, one `encode_utf16` scan per call, in the `u32` domain of `Int` |
 | `charCodeAt` | `Number.isNaN(s.charCodeAt(i)) ? null : s.charCodeAt(i)` for pure operands; `readUnit(s, i)` when either operand may have effects | `run { val _s = s; val _i = i; if (_i >= 0 && _i < _s.length) _s[_i].code else null }` with single evaluation | current lowering | `(() { final _s = s; final _i = i; return _i >= 0 && _i < _s.length ? _s.codeUnitAt(_i) : null; })()` with single evaluation | `.as_bytes()[i]`, one byte, panics at the end of the string |
 | `split` | `.split(sep)` | current lowering | current lowering | current lowering | no lowering; the native `str::split` iterator passes through with no array type |
 
@@ -38,7 +38,7 @@ targets already lower.
 
 | Candidate | performance | ambiguity | redundancy | readability |
 | --- | --- | --- | --- | --- |
-| Route the three members through the code-unit domain on every target | One native read or one scan per call on four targets; Rust walks the UTF-16 units its runtime already stores behind `u_string` | One ruled domain shared with `substring`; the out-of-range result is the nullable form everywhere | The Rust runtime keeps one unit-domain helper set under `u_string` | Sites read as the native member call |
+| Route the three members through the code-unit domain on every target | One native read or one scan per call on four targets; Rust scans its UTF-8 storage into the UTF-16 unit count behind `u_string` | One ruled domain shared with `substring`; the out-of-range result is the nullable form everywhere | The Rust runtime keeps one unit-domain helper set under `u_string` | Sites read as the native member call |
 | Keep the Rust byte domain and document it | No runtime work | A byte count differs from a code-unit count on non-ASCII input and from `substring` positions in the same expression | Two index domains in one type | Wrong results on valid input |
 | Route callers through `std.UString` by hand | No compiler work | Every consumer re-spells the walk | The port repeats the loop at every caller | Port source stops using the native members |
 
@@ -69,5 +69,6 @@ targets already lower.
   separator, and repeated separators producing empty parts; one
   BMP-range row over a CJK string.
 - `samples/tests/StringUnitTests.hx`: the in-range code value, the
-  out-of-range null test, the split part counts, and the split contents.
+  out-of-range null test, the split part counts, the split contents, and
+  the `length` of a string holding one astral code point as four units.
 - Both modules are entered in all eight generation hxml files.
