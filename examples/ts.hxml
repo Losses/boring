@@ -300,6 +300,7 @@ boring.HaxeExceptionOps
 tests.HaxeExceptionTests
 boring.ArrayAccessOps
 tests.ArrayAccessTests
+tests.ArraySliceTests
 boring.StaticRefOps
 tests.StaticRefTests
 boring.LocalShadowOps
