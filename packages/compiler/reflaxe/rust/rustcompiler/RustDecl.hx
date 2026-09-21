@@ -122,8 +122,10 @@ class RustDecl {
                 // Register mutating trait methods so the parameter-mutability
                 // scan (argIsMutated) can mark a by-value parameter mutable
                 // when the body calls a &mut self method through its field.
+                // The key carries the interface: a bare name would taint
+                // every same-named method program-wide.
                 if (isMutating && !f.isStatic)
-                    mutatingTraitMethods.set(f.field.name, true);
+                    mutatingTraitMethods.set(RustEmissionState.interfaceMethodKey(cls.module, cls.name, f.field.name), true);
                 final selfPrefix = f.isStatic ? "" : (isMutating ? "&mut self" : "&self") + (f.args.length > 0 ? ", " : "");
                 final isFallible = shape != null ? shape.isFallible : funcIsFallible(f);
                 final errOwner = isFallible && shape != null && shape.errorName != null
@@ -1645,7 +1647,7 @@ class RustDecl {
                         case _:
                     }
                     switch (fn.expr) {
-                        case TField(s, FInstance(_, _, cf) | FAnon(cf)) if (root(s)):
+                        case TField(s, FInstance(c, _, cf)) if (root(s)):
                             if ([
                                 "push",
                                 "insert",
@@ -1663,13 +1665,38 @@ class RustDecl {
                             ].indexOf(cf.get().name) >= 0) found = true;
                             // A field call to a trait method emitted with a
                             // `&mut self` receiver mutates the owned field, so
-                            // the parameter binding holding it needs mut.
-                            if (mutatingTraitMethods.exists(cf.get().name)) found = true;
+                            // the parameter binding holding it needs mut. The
+                            // registry is keyed by interface and method: a
+                            // bare-name match would taint every same-named
+                            // method call program-wide (for example a
+                            // mutating `get` on one interface marking the
+                            // read-only SortedMapTable.get as mutating).
+                            // (InterfaceKeyedTraitMutation)
+                            if (mutatingTraitMethods.exists(RustEmissionState.interfaceMethodKey(c.get().module, c.get().name, cf.get().name)))
+                                found = true;
                             // The declaration side decides `&mut self` from
                             // bodyMutatesSelf on the callee body; the
                             // parameter side must reach the same verdict for
                             // any receiver rooted at this binding; the earlier rule covered
                             // for the closed name list.
+                            if (!found && cf.get().expr() != null && fieldWritesReceiver(cf.get()))
+                                found = true;
+                        case TField(s, FAnon(cf)) if (root(s)):
+                            if ([
+                                "push",
+                                "insert",
+                                "pop",
+                                "shift",
+                                "unshift",
+                                "remove",
+                                "removeAt",
+                                "splice",
+                                "reverse",
+                                "sort",
+                                "set",
+                                "add",
+                                "addChar"
+                            ].indexOf(cf.get().name) >= 0) found = true;
                             if (!found && cf.get().expr() != null && fieldWritesReceiver(cf.get()))
                                 found = true;
                         case _:
