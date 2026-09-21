@@ -1672,11 +1672,25 @@ class KotlinExpr {
                         if (guardTernary && !StringTools.contains(probeText, "?.") && !StringTools.contains(probeText, "!!"))
                             return probeText;
                     }
-                    if (currentLocalName != null && currentClass != null && currentField != null && !identityNull) {
+                    // A property read of a non-null data-class field renders
+                    // non-null under every access form (a plain dot when
+                    // proven, an asserted dot otherwise), so its elvis
+                    // default would be dead. A local read has no such
+                    // guarantee: the rendered text of a proven local keeps
+                    // the local's declared nullable type. (NonNullCoalesceDrop)
+                    final nonNullPropertyRead = switch (stripWrap(coalescing.valueExpr).expr) {
+                        case TField(_, FInstance(_, _, cf)):
+                            cf.get().type != null && !isNullType(cf.get().type);
+                        case _: false;
+                    };
+                    final droppedCoalesce = !identityNull && nonNullPropertyRead;
+                    if (currentLocalName != null && currentClass != null && currentField != null && !identityNull && !droppedCoalesce) {
                         final value = DefaultArgExpander.coalescingDefaultForLocalParam(currentClass, currentField, currentLocalName, coalescing.parameter);
                         if (value != null)
                             return hardenAppend(expr(coalescing.valueExpr), " ?: " + coalescingDefaultText(value, coalescing.valueExpr.t));
                     }
+                    if (droppedCoalesce)
+                        return expr(coalescing.valueExpr);
                     if (identityNull)
                         return expr(coalescing.valueExpr);
                     if (DefaultArgExpander.isNormalizationSource(coalescing.defaultExpr.pos))
@@ -2214,6 +2228,17 @@ class KotlinExpr {
         always read the left side and only warn. (IfExpressionCoversNull)
     **/
     function coversNullByForm(a:TypedExpr, text:String):Bool {
+        // A property read of a non-null data-class field renders non-null
+        // under every access form, so the wrapping elvis is dead.
+        // (IfExpressionCoversNull)
+        switch (stripWrap(a).expr) {
+            case TField(_, FInstance(owner, _, cf)):
+                // The field's Kotlin optionality follows the constructor
+                // registration; the Haxe type alone is not enough.
+                if (!isNullType(cf.get().type) && !nullableRenderedField(owner.get(), cf.get()))
+                    return true;
+            case _:
+        }
         if (!StringTools.contains(text, "if ("))
             return false;
         if (StringTools.contains(text, "?.") || StringTools.contains(text, "!!"))
