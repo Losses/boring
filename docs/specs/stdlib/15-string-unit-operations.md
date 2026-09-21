@@ -21,6 +21,10 @@ width.
   `sep`, keeps empty parts, and returns `Array<String>`. A call with an
   empty separator returns one single-code-unit string per code unit of
   `s`. The separator matches literally; no pattern form is accepted.
+- Haxe exposes no indexed read form on a `String`: `s[i]` is rejected at
+  compile time with `Array access is not allowed on String`, so
+  `charCodeAt` is the only member that reads one UTF-16 code unit at an
+  index. The rows below name members, and no row names an index syntax.
 
 A comparison of a `charCodeAt` result against an `Int` literal and a
 null test on the result follow the nullable `Null<Int>` forms the
@@ -31,8 +35,8 @@ targets already lower.
 | Member | TypeScript | Kotlin | Swift | Dart | Rust |
 | --- | --- | --- | --- | --- | --- |
 | `length` | `.length` (code units) | `.length` (code units) | current lowering | current lowering | `.len()` over the byte storage, `usize` type, wrong count for non-ASCII input |
-| `charCodeAt` | `Number.isNaN(s.charCodeAt(i)) ? null : s.charCodeAt(i)` for pure operands; `readUnit(s, i)` when either operand may have effects | `run { val _s = s; val _i = i; if (_i >= 0 && _i < _s.length) _s[_i].code else null }` with single evaluation | current lowering | `(() { final _s = s; final _i = i; return _i >= 0 && _i < _s.length ? _s.codeUnitAt(_i) : null; })()` with single evaluation | `.as_bytes()[i]`, one byte, panics at the end of the string |
-| `split` | `.split(sep)` | current lowering | current lowering | current lowering | no lowering; the native `str::split` iterator passes through with no array type |
+| `charCodeAt` | `Number.isNaN(s.charCodeAt(i)) ? null : s.charCodeAt(i)` for pure operands; `readUnit(s, i)` when either operand may have effects | `run { val _s = s; val _i = i; if (_i >= 0 && _i < _s.length) _s[_i].code else null }` with single evaluation | current lowering | `(() { final _s = s; final _i = i; return _i >= 0 && _i < _s.length ? _s.codeUnitAt(_i) : null; })()` with single evaluation | `u_string::unit_at(&s, i)` walks `s.encode_utf16()`, so the index counts UTF-16 code units: each half of a surrogate pair carries its own address and the value is the unit, while an index past the last unit answers `None`. The code-point read `u_string::at` stays with `std.UString.at` (stdlib spec 10) |
+| `split` | `.split(sep)` | current lowering | current lowering | current lowering | `u_string::split(&s, &sep)` scans the two `encode_utf16` unit vectors for the literal separator and returns a `Vec<String>`, keeping empty parts and answering one part per unit for the empty separator |
 
 ## Judgment
 
@@ -65,9 +69,14 @@ targets already lower.
 ## Samples and tests
 
 - `samples/boring/StringUnitOps.hx`: `charCodeAt` in range, at the last
-  index, and out of range; `split` on a present separator, an absent
-  separator, and repeated separators producing empty parts; one
-  BMP-range row over a CJK string.
+  index, and out of range; `charCodeAt` at a caller-supplied unit index,
+  which addresses each half of a surrogate pair separately; `split` on
+  a present separator, an absent separator, and repeated separators
+  producing empty parts; one BMP-range row over a CJK string. The same
+  module carries the `substr` unit cut that feature spec 08 ruling 9
+  rules, with and without a length over an astral string.
 - `samples/tests/StringUnitTests.hx`: the in-range code value, the
-  out-of-range null test, the split part counts, and the split contents.
+  out-of-range null test, the split part counts, the split contents, the
+  four unit values of an astral string, the two units of its surrogate
+  pair, and the unit cuts that fall between them.
 - Both modules are entered in all eight generation hxml files.
