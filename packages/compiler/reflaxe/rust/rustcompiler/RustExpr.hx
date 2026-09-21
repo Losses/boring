@@ -2619,8 +2619,8 @@ class RustExpr {
     /**
         dropFlagBreakPairs: within a `while (flag)` body whose flag only
         the loop condition observes, a store `flag = <pure const>`
-        immediately followed by `break` is dead — after the break the
-        condition never re-reads the flag — and is removed. Blocks and
+        immediately followed by `break` is dead: after the break the
+        condition never re-reads the flag, so the store is removed. Blocks and
         conditionals rebuild; every other shape keeps its statements.
         (LoopFlagBreakPairDrop)
     **/
@@ -7230,7 +7230,7 @@ class RustExpr {
         and stops at the first element, and a bound past the end clamps to the
         length. `lenVar` names the length binding and `boundVar` the bound,
         both in the signed domain, because the u32 Haxe Int domain turns a
-        negative position into a huge index. The caller binds the source of the
+        negative position into an out-of-range unsigned index. The caller binds the source of the
         bound first so a call inside it runs once. (ArrayBoundClamping)
     **/
     function clampedArrayBound(lenVar:String, boundVar:String):String {
@@ -8158,8 +8158,8 @@ class RustExpr {
             return isNullType(args[0].t) ? "(" + subject + ").is_some()" : "true";
         final nameTest = "\"" + target.module + "." + target.name + "\"";
         // Haxe answers false for a null operand, so a nullable subject
-        // (Option storage) takes the match form instead of the direct
-        // method call the Option enum does not carry.
+        // (Option storage) takes the match form; the Option enum carries
+        // no direct method call for this test.
         // (NullableIsOfTypeMatch)
         if (isNullType(args[0].t))
             return "match &(" + subject + ") { Some(v) => v.__haxe_type_name() == " + nameTest + ", None => false }";
@@ -8958,7 +8958,8 @@ class RustExpr {
                 // stops at the first element, and a position past the end
                 // clamps to the length. Vec::insert panics on a usize index
                 // past the length, and the u32-domain Haxe Int wraps a
-                // negative position into a huge index, so the position is
+                // negative position into an out-of-range unsigned index, so
+                // the position is
                 // clamped in the signed domain and then widened losslessly.
                 // (ArrayInsertClamping)
                 if (name == "insert" && isVecType(subj) && args.length == 2) {
@@ -9509,8 +9510,8 @@ class RustExpr {
             case _:
                 // A class-static callee has typed parameters: when any of
                 // them is a mutable-reference position, the args must route
-                // through the standard pipeline so the position borrows
-                // instead of cloning. (MutableRefObjectParam)
+                // through the standard pipeline so the position borrows and
+                // no clone is made. (MutableRefObjectParam)
                 switch (stripWrap(fn).expr) {
                     case TField(_, FStatic(c, cf)) | TField(_, FInstance(c, _, cf)):
                         final positions = mutableParamPositions(cf.get());

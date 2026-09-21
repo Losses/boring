@@ -1193,10 +1193,11 @@ class RustDecl {
 
     /**
         Whether the parameter type lowers as a mutable object reference when
-        the body mutates it: a plain owned class instance, not one of the
-        borrowed primitives (Array, String, StringBuf, Bytes), not an
-        interface (trait objects carry their own mutation machinery), and
-        not an optional (Option storage mutates differently).
+        the body mutates it. The type must be a plain owned class instance;
+        the borrowed primitives (Array, String, StringBuf, Bytes), the
+        interfaces (trait objects carry their own mutation machinery), and
+        the optionals (Option storage mutates differently) take their own
+        paths.
         (MutableRefObjectParam)
     **/
     public static function isMutableRefParamType(t:Null<Type>):Bool {

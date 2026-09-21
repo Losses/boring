@@ -133,7 +133,7 @@ class KotlinNullGuardBool {
 
 /**
     A comparison over a nullable receiver renders with a safe call
-    (`holder?.flag`). That text lands at a non-null `Bool` boundary, where the
+    (`holder?.flag`). That text reaches a non-null `Bool` boundary, where the
     hardened argument used to append an elvis with no parentheses:
     `holder?.flag != null ?: throw ...` parses as
     `holder?.flag != (null ?: throw ...)` and throws unconditionally.

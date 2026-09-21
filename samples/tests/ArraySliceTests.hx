@@ -164,7 +164,7 @@ class ArraySliceTests {
         Array.insert bounds the position the same way the slice bounds run: a
         negative position counts from the end and stops at the first element,
         and a position past the length clamps to the length, so the element
-        lands at the end. Kotlin List.add, Dart List.insert, and Swift
+        takes the end position. Kotlin List.add, Dart List.insert, and Swift
         Array.insert each throw on an index outside the array. The TypeScript
         prototype splice carries these results.
     **/

@@ -3215,7 +3215,7 @@ class SwiftExpr {
                     // per unit. The native separator forms cannot express
                     // that: `first!` on an empty separator traps, and a
                     // Character separator would cut at grapheme clusters
-                    // instead of units. The empty separator therefore walks
+                    // while the contract counts units. The empty separator therefore walks
                     // the UTF-16 view, matching the Kotlin chunked(1) and
                     // the TypeScript native split("") shape.
                     // (StringSplitEmptyDelimiter)
@@ -3286,8 +3286,8 @@ class SwiftExpr {
                     final start = "Int(" + expr(args[0]) + ")";
                     final len = "Int(" + expr(args[1]) + ")";
                     // removeSubrange mutates the receiver, so the clamp reads
-                    // the count of the receiver expression itself instead of a
-                    // let-bound copy, which Swift refuses to mutate.
+                    // the count of the receiver expression itself; a
+                    // let-bound copy is a value Swift refuses to mutate.
                     return "({ () in let _sz = "
                         + s
                         + ".count; let _p0 = "
@@ -5779,8 +5779,8 @@ class SwiftExpr {
 
     /**
         True for the empty string literal, the `split` separator whose haxe
-        contract is one element per UTF-16 code unit rather than a platform
-        pattern match.
+        contract is one element per UTF-16 code unit; no platform pattern
+        matching is involved.
     **/
     function isEmptyDelimiterSplit(name:String, args:Array<TypedExpr>):Bool {
         if (name != "split" || args.length != 1)

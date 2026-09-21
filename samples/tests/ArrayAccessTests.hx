@@ -28,8 +28,9 @@ class ArrayAccessTests {
 
     /**
         Haxe grows an Array when an index write reaches past the end, so the
-        Kotlin backend must grow its MutableList instead of throwing
-        IndexOutOfBoundsException. (ArrayGrowthOnIndexWrite)
+        Kotlin backend must grow its MutableList there, and
+        IndexOutOfBoundsException must stay unthrown.
+        (ArrayGrowthOnIndexWrite)
     **/
     @:test("an index write past the end grows a nullable-element array")
     public static function testGrowNullableSlots():Void {

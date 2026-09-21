@@ -35,7 +35,7 @@ class ArraySliceOps {
 
     /**
         `"<removed>|<array after>"` of `values(count).splice(pos, len)`, so
-        one call records both halves of the operation: the sub-array the call
+        one call records the two results of the operation: the sub-array the call
         returns and the array it leaves behind. Haxe bounds the call before it
         removes anything: a negative length or a position past the length
         removes nothing and leaves the array alone, a negative position counts

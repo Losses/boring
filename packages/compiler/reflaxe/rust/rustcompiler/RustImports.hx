@@ -190,7 +190,7 @@ class RustImports {
     }
 
     public static function emittedTypeName(s:String):String {
-        // The Haxe typer wraps module-level functions into a synthetic
+        // The Haxe typer wraps the functions of a module into a synthetic
         // class named `<Module>_Fields_`; the trailing underscore keeps
         // rustc's non_camel_case_types lint from passing, so that suffix
         // takes the same camel mapping as the `_Impl_` wrapper names. The
