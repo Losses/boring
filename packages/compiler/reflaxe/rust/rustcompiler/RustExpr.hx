@@ -8662,7 +8662,10 @@ class RustExpr {
                         case TLocal(v): provenNonNullVarIds.exists(v.id);
                         case _: false;
                     }) "(" + expr(subj) + ").as_ref().unwrap()" else expr(subj);
-                    return nullableResult ? "u_string::at(&" + receiver + ", " + castShiftU32(args[0]) + ")" : "u_string::at(&"
+                    // charCodeAt reads one UTF-16 code unit, so the call
+                    // goes to the unit read; the code-point read under
+                    // u_string::at serves std.UString.at and stays there.
+                    return nullableResult ? "u_string::unit_at(&" + receiver + ", " + castShiftU32(args[0]) + ")" : "u_string::unit_at(&"
                         + receiver
                         + ", "
                         + castShiftU32(args[0])
