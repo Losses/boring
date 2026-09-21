@@ -34,8 +34,13 @@ class KotlinEmissionState {
     /** Types reachable at test assertion call sites for type-guided helpers. */
     public final testReachableTypes:Map<String, Type> = [];
 
-    /** Test classes compiled with their @:test methods. */
-    public final testClasses:Map<String, {cls:ClassType, funcs:Array<String>}> = [];
+    /**
+        Test classes compiled with their @:test methods. `flush` names the
+        conventional per-class flush entry (feature spec 27) when the class
+        carries one; the generated runner calls it on the class instance
+        after the class's tests returned.
+    **/
+    public final testClasses:Map<String, {cls:ClassType, funcs:Array<String>, flush:Null<String>}> = [];
 
     /**
         Whether any compiled module referenced std.Process.args: the test
