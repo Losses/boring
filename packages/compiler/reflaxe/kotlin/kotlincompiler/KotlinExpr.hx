@@ -866,7 +866,7 @@ class KotlinExpr {
 #if boring_fold_debug
                             emissionTrace("RETURN", retText, ret.pos);
 #end
-                            retText += "!!";
+                            retText = hardenAppend(retText, "!!");
                         }
                         // Haxe unifies Int and Float; widen Int return values to
                         // Float when the function's return type is Float.
@@ -1473,7 +1473,9 @@ class KotlinExpr {
                         if (elemType != null && !isNullType(elemType) && requiresNonNullCallArgument(x, t)) {
                             if (!isNullInitialized(x))
                                 addProofExpr(x);
-                            t = (provenNonNull(x) || guardProofBefore(x)) ? t + "!!" : t + " ?: throw IllegalArgumentException(\"argument is null\")";
+                            t = hardenAppend(t, (provenNonNull(x) || guardProofBefore(x))
+                                ? "!!"
+                                : " ?: throw IllegalArgumentException(\"argument is null\")");
                         }
                         t;
                     }
@@ -1525,12 +1527,12 @@ class KotlinExpr {
                     if (currentLocalName != null && currentClass != null && currentField != null && !identityNull) {
                         final value = DefaultArgExpander.coalescingDefaultForLocalParam(currentClass, currentField, currentLocalName, coalescing.parameter);
                         if (value != null)
-                            return expr(coalescing.valueExpr) + " ?: " + coalescingDefaultText(value, coalescing.valueExpr.t);
+                            return hardenAppend(expr(coalescing.valueExpr), " ?: " + coalescingDefaultText(value, coalescing.valueExpr.t));
                     }
                     if (identityNull)
                         return expr(coalescing.valueExpr);
                     if (DefaultArgExpander.isNormalizationSource(coalescing.defaultExpr.pos))
-                        return expr(coalescing.valueExpr) + " ?: " + expr(coalescing.defaultExpr);
+                        return hardenAppend(expr(coalescing.valueExpr), " ?: " + expr(coalescing.defaultExpr));
                     return expr(coalescing.valueExpr);
                 }
                 final condition = expr(c);
@@ -2079,7 +2081,7 @@ class KotlinExpr {
 #if boring_fold_debug
             emissionTrace("ASSIGN", value, r.pos);
 #end
-            value += "!!";
+            value = hardenAppend(value, "!!");
         }
         return value;
     }
@@ -3111,7 +3113,7 @@ class KotlinExpr {
 #if boring_fold_debug
             emissionTrace("OPERAND proven=" + (provenNonNull(e) || guardProofBefore(e)) + " id=" + (switch (stripWrap(e).expr) { case TLocal(v): Std.string(v.id); case _: "f"; }) + " nullInit=" + nullInit, rendered, e.pos);
 #end
-            rendered += "!!";
+            rendered = hardenAppend(rendered, "!!");
             // Kotlin's flow proves the subject from the assertion itself,
             // so every extraction registers: a null-initialized local read
             // again later must not extract twice.
@@ -3795,7 +3797,7 @@ class KotlinExpr {
         final rendered = expr(a);
         if (isNullType(a.t) && !provenNonNull(a) && !guardProofBefore(a)) {
             addProofExpr(a);
-            return rendered + "!!";
+            return hardenAppend(rendered, "!!");
         }
         return rendered;
     }
@@ -4105,7 +4107,7 @@ class KotlinExpr {
                     if (rendersNullable(subj))
                         emissionTrace("CHARCODE", expr(subj), subj.pos);
 #end
-                    final receiver = expr(subj) + (rendersNullable(subj) ? "!!" : "");
+                    final receiver = rendersNullable(subj) ? hardenAppend(expr(subj), "!!") : expr(subj);
                     return "run { val _s = "
                         + receiver
                         + "; val _i = "
@@ -4115,7 +4117,7 @@ class KotlinExpr {
                 if (name == "charCodeAt") {
                     // Fallback: treat charCodeAt on any receiver the same way
                     // when the type-checking didn't recognise a String type.
-                    final receiver = expr(subj) + (rendersNullable(subj) ? "!!" : "");
+                    final receiver = rendersNullable(subj) ? hardenAppend(expr(subj), "!!") : expr(subj);
                     return "run { val _s = "
                         + receiver
                         + "; val _i = "
@@ -4403,13 +4405,13 @@ class KotlinExpr {
 #if boring_fold_debug
                 emissionTrace("ARG_ASSERT", text, a.pos);
 #end
-                return text + "!!";
+                return hardenAppend(text, "!!");
             }
             else {
 #if boring_fold_debug
                 emissionTrace("ARG_ELVIS", text, a.pos);
 #end
-                return text + " ?: throw IllegalArgumentException(\"argument is null\")";
+                return hardenAppend(text, " ?: throw IllegalArgumentException(\"argument is null\")");
             }
         } else if (isIntOrLongType(emittedType(a)) && isFloatExpectedType(expected)) return intToFloatText(text); else return text;
     }
@@ -4456,13 +4458,13 @@ class KotlinExpr {
 #if boring_fold_debug
                         emissionTrace("CTOR_ASSERT", text, a.pos);
 #end
-                        text + "!!";
+                        hardenAppend(text, "!!");
                     }
                     else {
 #if boring_fold_debug
                         emissionTrace("CTOR_ELVIS", text, a.pos);
 #end
-                        text + " ?: throw IllegalArgumentException(\"argument is null\")";
+                        hardenAppend(text, " ?: throw IllegalArgumentException(\"argument is null\")");
                     }
                 } else if (isIntOrLongType(emittedType(a)) && isFloatExpectedType(expected)) intToFloatText(text) else text;
             }
@@ -4520,6 +4522,90 @@ class KotlinExpr {
             || nullableChainHop(e)
             || rendersNullable(e)
             || rendered.indexOf("?.") >= 0;
+    }
+
+    /**
+        Whether a rendered expression can take a postfix `!!`, an infix elvis,
+        or an access operator appended without parentheses. Kotlin binds `?:`
+        tighter than any comparison, so appending an elvis to
+        `holder?.flag != null` parses as `holder?.flag != (null ?: ...)` and
+        evaluates the right side unconditionally. Only a single
+        primary/postfix expression (identifier, literal, call chain, index,
+        parenthesized group) appends safely; a text whose top level holds a
+        binary operator, a keyword form (`is`, `as`, an if/ternary), a lambda
+        body or whitespace must be parenthesized first.
+        (HardenAppendAtomicity)
+    **/
+    function isAtomicAppendTarget(text:String):Bool {
+        var depth = 0;
+        var i = 0;
+        final n = text.length;
+        while (i < n) {
+            final c = text.charAt(i);
+            switch (c) {
+                case "(" | "[":
+                    depth++;
+                case ")" | "]":
+                    depth--;
+                    if (depth < 0)
+                        return false;
+                case "{" | "}":
+                    // A lambda or block body is never a bare postfix operand.
+                    return false;
+                case "\"" | "'":
+                    i = skipQuotedText(text, i);
+                case "!":
+                    // `!!` is a postfix operator; a lone `!` is a prefix one
+                    // that would take the appended suffix as its own operand.
+                    if (depth == 0) {
+                        if (i + 1 < n && text.charAt(i + 1) == "!")
+                            i++;
+                        else
+                            return false;
+                    }
+                case "?":
+                    if (depth == 0 && !(i + 1 < n && text.charAt(i + 1) == "."))
+                        return false;
+                case ":":
+                    if (depth == 0 && !(i + 1 < n && text.charAt(i + 1) == ":") && !(i > 0 && text.charAt(i - 1) == ":"))
+                        return false;
+                case ".":
+                    if (depth == 0 && i + 1 < n && text.charAt(i + 1) == ".")
+                        return false;
+                case "+" | "-" | "*" | "/" | "%" | "=" | "<" | ">" | "&" | "|" | "^" | "," | ";" | " " | "\t" | "\n" | "\r":
+                    if (depth == 0)
+                        return false;
+                case _:
+            }
+            i++;
+        }
+        return depth == 0 && StringTools.trim(text).length > 0;
+    }
+
+    /** Index of the closing quote of the string or char literal that starts at
+        `start` (`text.length` when it never closes), so a literal's own
+        operators stay out of the atomicity scan. */
+    function skipQuotedText(text:String, start:Int):Int {
+        final quote = text.charAt(start);
+        var i = start + 1;
+        while (i < text.length) {
+            final c = text.charAt(i);
+            if (c == "\\")
+                i++;
+            else if (c == quote)
+                return i;
+            i++;
+        }
+        return text.length;
+    }
+
+    /**
+        Appends `suffix` to a rendered expression, parenthesizing a text whose
+        top level is not a single expression so the appended operator binds to
+        the whole value instead of to its last operand. (HardenAppendAtomicity)
+    **/
+    function hardenAppend(text:String, suffix:String):String {
+        return isAtomicAppendTarget(text) ? text + suffix : "(" + text + ")" + suffix;
     }
 
     function isNullLiteral(e:TypedExpr):Bool {

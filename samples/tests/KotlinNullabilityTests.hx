@@ -110,6 +110,71 @@ class KotlinNullableReceiver {
     }
 }
 
+class KotlinNullGuardHolder {
+    public var flag:Null<String>;
+    public var count:Null<Int>;
+
+    public function new(flag:Null<String>, count:Null<Int>) {
+        this.flag = flag;
+        this.count = count;
+    }
+}
+
+class KotlinNullGuardBool {
+    public final value:Bool;
+
+    public function new(value:Bool) {
+        this.value = value;
+    }
+}
+
+/**
+    A comparison over a nullable receiver renders with a safe call
+    (`holder?.flag`). That text lands at a non-null `Bool` boundary, where the
+    hardened argument used to append an elvis with no parentheses:
+    `holder?.flag != null ?: throw ...` parses as
+    `holder?.flag != (null ?: throw ...)` and throws unconditionally.
+    (HardenAppendAtomicity)
+**/
+class KotlinNullGuardArgOps {
+    public static function present():Null<KotlinNullGuardHolder> {
+        return new KotlinNullGuardHolder("flag", 3);
+    }
+
+    public static function absent():Null<KotlinNullGuardHolder> {
+        return null;
+    }
+
+    /** A present receiver whose nullable properties are themselves null: the
+        comparison stays valid in every target, so both the Kotlin and the TS
+        loop can assert the same verdict. */
+    public static function nullFlag():Null<KotlinNullGuardHolder> {
+        return new KotlinNullGuardHolder(null, null);
+    }
+
+    public static function acceptsFlag(flag:Bool):Bool {
+        return flag;
+    }
+
+    public static function flagPresent(holder:Null<KotlinNullGuardHolder>):Bool {
+        return acceptsFlag(holder.flag != null);
+    }
+
+    public static function countIsThree(holder:Null<KotlinNullGuardHolder>):Bool {
+        return acceptsFlag(holder.count == 3);
+    }
+
+    public static function flagPresentCtor(holder:Null<KotlinNullGuardHolder>):Bool {
+        final wrapped = new KotlinNullGuardBool(holder.flag != null);
+        return wrapped.value;
+    }
+
+    public static function flagPresenceList(holder:Null<KotlinNullGuardHolder>):Array<Bool> {
+        final flags:Array<Bool> = [holder.flag != null];
+        return flags;
+    }
+}
+
 class KotlinNullabilityTests {
     @:test("optional parameters emit a native default")
     public static function testOptionalDefault():Void {
@@ -157,6 +222,39 @@ class KotlinNullabilityTests {
         Test.equals(2, slot.stored, "the absent value was accepted");
         final absent = slot.peek();
         Test.equals(true, absent == null, "the stored null round-trips");
+    }
+
+    @:test("a nullable receiver comparison keeps its value at a Bool argument")
+    public static function testNullableComparisonArgument():Void {
+        Test.equals(true, KotlinNullGuardArgOps.flagPresent(KotlinNullGuardArgOps.present()),
+            "the guarded property reads present");
+        Test.equals(false, KotlinNullGuardArgOps.flagPresent(KotlinNullGuardArgOps.nullFlag()),
+            "a null property keeps the guard false");
+        Test.equals(true, KotlinNullGuardArgOps.countIsThree(KotlinNullGuardArgOps.present()),
+            "the property equals the constant");
+        Test.equals(false, KotlinNullGuardArgOps.countIsThree(KotlinNullGuardArgOps.nullFlag()),
+            "a null property never equals the constant");
+        #if kotlin_output
+        // Only Kotlin models a Null<T> receiver (every other target reads the
+        // receiver through a plain dot), so the null-receiver verdict is
+        // asserted here alone.
+        Test.equals(false, KotlinNullGuardArgOps.flagPresent(KotlinNullGuardArgOps.absent()),
+            "a null receiver keeps the guard false");
+        Test.equals(false, KotlinNullGuardArgOps.countIsThree(KotlinNullGuardArgOps.absent()),
+            "a null receiver never equals the constant");
+        #end
+    }
+
+    @:test("a nullable receiver comparison survives ctor and array element boundaries")
+    public static function testNullableComparisonHardening():Void {
+        Test.equals(true, KotlinNullGuardArgOps.flagPresentCtor(KotlinNullGuardArgOps.present()));
+        Test.equals(false, KotlinNullGuardArgOps.flagPresentCtor(KotlinNullGuardArgOps.nullFlag()));
+        final presentFlags = KotlinNullGuardArgOps.flagPresenceList(KotlinNullGuardArgOps.present());
+        final absentFlags = KotlinNullGuardArgOps.flagPresenceList(KotlinNullGuardArgOps.nullFlag());
+        Test.equals(1, presentFlags.length);
+        Test.equals(1, absentFlags.length);
+        Test.equals(true, presentFlags[0]);
+        Test.equals(false, absentFlags[0]);
     }
 
     @:test("a nullable value type argument keeps sorted map nulls storable")
