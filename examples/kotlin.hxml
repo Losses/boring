@@ -663,3 +663,6 @@ tests.FlushHookProbeTests
 # The class test entry probe of feature spec 19: no @:test function,
 # one conventional runTestEntries entry, which registers no test id.
 tests.KotlinEntryProbeTests
+
+boring.IntDivisionOps
+tests.IntDivisionTests
