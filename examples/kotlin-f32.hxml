@@ -110,7 +110,9 @@ tests.TryTests
 boring.ArithmeticOps
 tests.ArithmeticTests
 boring.DefaultArgsOps
+boring.DefaultArgShiftOps
 tests.DefaultArgsTests
+tests.DefaultArgShiftTests
 boring.ProbeUnit
 boring.InlineDefaultOps
 tests.InlineDefaultTests

@@ -973,6 +973,43 @@ class KotlinDecl {
         return renderedName + ": " + types.of(parameterType) + defaultText;
     }
 
+    /**
+        The emitted type list of a called field, with the same nullability
+        decision `parameterText` applies: a registered default keeps the
+        Kotlin nullable type when it can be null and drops the wrapper
+        otherwise. A call site reads this list to decide whether an omitted
+        slot accepts the null literal.
+    **/
+    public static function emittedParameterTypes(cls:ClassType, fieldName:String):Array<Type> {
+        final field = fieldName == "new" ? (cls.constructor == null ? null : cls.constructor.get()) : lookupDeclaredField(cls, fieldName);
+        if (field == null)
+            return [];
+        return switch (Context.follow(field.type)) {
+            case TFun(values, _):
+                [for (i in 0...values.length) emittedParameterType(cls, fieldName, i, values[i].t)];
+            case _: [];
+        };
+    }
+
+    static function emittedParameterType(cls:ClassType, fieldName:String, index:Int, t:Type):Type {
+        final registered = DefaultArgExpander.defaultAt(cls, fieldName, index);
+        if (registered == null)
+            return t;
+        return DefaultArgExpander.defaultParameterType(registered, t);
+    }
+
+    static function lookupDeclaredField(cls:ClassType, name:String):Null<ClassField> {
+        for (f in cls.fields.get())
+            if (f.name == name)
+                return f;
+        for (f in cls.statics.get())
+            if (f.name == name)
+                return f;
+        if (cls.superClass != null)
+            return lookupDeclaredField(cls.superClass.t.get(), name);
+        return null;
+    }
+
     function buildPrimaryConstructor(cls:ClassType, ctor:ClassFuncData, varFields:Array<ClassVarData>):String {
         if (ctor.args.length == 0)
             return "";

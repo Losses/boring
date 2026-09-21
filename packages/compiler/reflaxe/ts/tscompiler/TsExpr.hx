@@ -2483,9 +2483,9 @@ class TsExpr {
             for (i in 0...args.length) {
                 final expected = i < typesOf.length ? typesOf[i] : null;
                 final d = target != null ? DefaultArgExpander.defaultAt(target.owner, target.name, i) : null;
-                if (d != null && expected != null && isNullLiteral(args[i])) defaultArgText(d,
+                if (d != null && expected != null && isNullLiteral(args[i]) && !escapesToCalleeScope(d)) defaultArgText(d,
                     expected) else if (d != null && expected != null && isNullType(args[i].t)
-                    && !isNullDefault(d) && !provablyNonNull(args[i])) "("
+                    && !isNullDefault(d) && !escapesToCalleeScope(d) && !provablyNonNull(args[i])) "("
                     + expr(args[i])
                     + " ?? "
                     + defaultArgText(d, expected)
@@ -2503,8 +2503,13 @@ class TsExpr {
             final d = DefaultArgExpander.defaultAt(cls, "new", i);
             final p = i < ps.length ? ps[i] : null;
             d != null
-            && p != null && isNullLiteral(args[i]) ? constructorDefaultText(d, p, cls, args) : d != null && p != null && isNullType(args[i].t)
-            && !isNullDefault(d) && !provablyNonNull(args[i]) ? "(" + expr(args[i]) + " ?? " + constructorDefaultText(d, p, cls, args) + ")" : expr(args[i]);
+            && p != null && isNullLiteral(args[i]) && !escapesToCalleeScope(d) ? constructorDefaultText(d, p, cls,
+                args) : d != null && p != null && isNullType(args[i].t)
+            && !isNullDefault(d) && !escapesToCalleeScope(d) && !provablyNonNull(args[i]) ? "("
+            + expr(args[i])
+            + " ?? "
+            + constructorDefaultText(d, p, cls, args)
+            + ")" : expr(args[i]);
         }
         ];
         // A call may omit parameters that the emitted signature renders as
@@ -2616,6 +2621,20 @@ class TsExpr {
         return switch (stripWrap(e).expr) {
             case TConst(TNull): true;
             case _: false;
+        };
+
+    /**
+        True when the registered default's text belongs to the callee scope, so
+        the call site must not materialize it. A coalescing default that reads a
+        parameter of its own function names a binding that does not exist at the
+        call site; the declaration already carries the null default and the
+        callee body coalesces it, so the call passes the null literal and keeps
+        the parameter position. (OmittedDefaultReads)
+     **/
+    function escapesToCalleeScope(d:DefaultArgExpander.DefaultArgValue):Bool
+        return switch (d) {
+            case VCoalescing(value): DefaultArgExpander.readsParameter(value);
+            default: false;
         };
 
     /** True when the registered default renders as the null literal, making a `?? null` wrap a semantic no-op. */
