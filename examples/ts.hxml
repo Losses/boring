@@ -22,6 +22,7 @@
 # The repository resolves the runtime by name through tsconfig.json
 # paths, so the package shell stays off (feature spec 24).
 -D package-shell=none
+boring.ArraySliceOps
 boring.BinaryReader
 boring.BinaryWriter
 boring.Int64Ops
