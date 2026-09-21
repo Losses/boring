@@ -3933,6 +3933,17 @@ class RustExpr {
         return null;
     }
 
+    /** The narrowing binding a member read is rooted at, when the read is a
+        member of an active narrowing binding. */
+    function narrowedBindingMemberText(text:String):Null<String> {
+        for (i in 0...optionNarrowings.length) {
+            final narrowing = optionNarrowings[i];
+            if (StringTools.startsWith(text, narrowing.name + "."))
+                return narrowing.name;
+        }
+        return null;
+    }
+
     function narrowedText(text:String):Null<String> {
         for (i in 0...optionNarrowings.length) {
             final narrowing = optionNarrowings[optionNarrowings.length - 1 - i];
@@ -12877,14 +12888,15 @@ class RustExpr {
                 argStr = "Some(" + argStr + ")";
             // A narrowed binding read feeding a nullable slot wraps the
             // cloned inner value in Some: the binding itself is a reference
-            // into the matched subject. (BorrowedBindingSomeWrap)
+            // into the matched subject. A member read below the binding names
+            // the member value, so the slot wraps that owned value instead.
+            // (BorrowedBindingSomeWrap)
             final bindingRead = narrowedBindingText(argStr);
             if (pt != null && isNullType(pt) && !isTNull(arg) && bindingRead != null)
                 argStr = "Some((*" + bindingRead + ").clone())";
-            if (pt != null && isNullType(pt) && !isTNull(arg)
-                && StringTools.startsWith(argStr, "&(") && StringTools.endsWith(argStr, ")")
-                && StringTools.contains(argStr, "__option"))
-                argStr = "Some((*" + argStr.substr(2, argStr.length - 3) + ").clone())";
+            else if (pt != null && isNullType(pt) && !isTNull(arg) && narrowedBindingMemberText(argStr) != null
+                && !StringTools.startsWith(argStr, "Some(") && argStr != "None")
+                argStr = "Some(" + argStr + ".clone())";
             // A ternary whose else arm is the null literal renders as an
             // Option shape; a non-null slot unwraps it, and the null path
             // panics exactly where the Haxe source would pass an undefined
@@ -12913,15 +12925,16 @@ class RustExpr {
                 }
             }
             // The mirrored form for an argument whose Haxe type stays
-            // non-null: a binding read clones the referent.
+            // non-null: a binding read clones the referent, a member read
+            // below the binding wraps the owned member value.
             // (BorrowedBindingSomeWrap)
             final bindingReadNonNull = narrowedBindingText(argStr);
             if (pt != null && isNullType(pt) && !isNullType(arg.t) && !isTNull(arg) && bindingReadNonNull != null)
                 argStr = "Some((*" + bindingReadNonNull + ").clone())";
-            if (pt != null && isNullType(pt) && !isNullType(arg.t) && !isTNull(arg)
-                && StringTools.startsWith(argStr, "&(") && StringTools.endsWith(argStr, ")")
-                && StringTools.contains(argStr, "__option"))
-                argStr = "Some((*" + argStr.substr(2, argStr.length - 3) + ").clone())";
+            else if (pt != null && isNullType(pt) && !isNullType(arg.t) && !isTNull(arg)
+                && narrowedBindingMemberText(argStr) != null
+                && !StringTools.startsWith(argStr, "Some(") && argStr != "None")
+                argStr = "Some(" + argStr + ".clone())";
             // A proven-non-null nullable local feeding a non-null parameter
             // unwraps the Option at the call boundary so the parameter slot
             // receives the inner value. The guard (early exit or && chain)
