@@ -12737,8 +12737,16 @@ class RustExpr {
             // An actual already typed as the interface carries its own
             // Box<dyn Trait>; only a concrete value boxes here. The Option
             // wrapper is the sole addition the nullable slot needs.
-            final payload = isInterfaceType(actual.t) ? rendered : "Box::new(" + normalizeConstructorResult(actual, rendered) + ")";
-            return "Some(" + payload + ")";
+            if (isInterfaceType(actual.t))
+                return "Some(" + rendered + ")";
+            // Haxe reads a value into an interface slot and leaves the source
+            // intact, so the box takes an owned clone of a reusable read. A
+            // direct move would leave a later read of the same local empty.
+            final boxed = normalizeConstructorResult(actual, rendered);
+            final owned = isReusableOwnedRead(actual) && !isTypeCopy(actual.t)
+                && !StringTools.startsWith(boxed, "&") && !StringTools.endsWith(boxed, ".clone()")
+                ? "(" + boxed + ").clone()" : boxed;
+            return "Some(Box::new(" + owned + "))";
         }
         // Haxe unifies a nullable interface slot's value type to the
         // interface even for a concrete constructor; recover the concrete
