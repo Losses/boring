@@ -8430,15 +8430,10 @@ class RustExpr {
                     if (isOwnedExtension) {
                         final receiver = expr(args[0]);
                         final receiverText = StringTools.startsWith(receiver, "*") ? "(" + receiver + ")" : receiver;
-                        return receiverText
-                            + "."
-                            + RustImports.toSnakeCase(name)
-                            + "("
-                            + renderCallArgs(cf.get().type, args.slice(1), null, 1, mutableParamPositions(cf.get()), args[0].t)
-                            + ")"
-                            + q;
+                        return callWithSiblingReadHoist(receiverText + "." + RustImports.toSnakeCase(name), isOrderNeutralArg(args[0]),
+                            cf.get().type, args.slice(1), null, 1, mutableParamPositions(cf.get()), args[0].t, q);
                     }
-                    return staticRef(cls, name) + "(" + renderCallArgs(cf.get().type, args, null, 0, mutableParamPositions(cf.get())) + ")" + q;
+                    return callWithSiblingReadHoist(staticRef(cls, name), true, cf.get().type, args, null, 0, mutableParamPositions(cf.get()), null, q);
                 }
                 if ((cls.name == "Functional" || cls.name == "__functional_shim" || path == "std.Functional" || cls.module == "std.Functional")
                     && name == "sortedBy") {
@@ -9131,7 +9126,10 @@ class RustExpr {
                 };
                 final throughGuardClone = receiverSharedLocal && RustDecl.methodConsumesSelf(cf.get());
                 final callReceiver = throughGuardClone ? subjText + ".clone()" : subjStr;
-                return callReceiver + "." + snake + "(" + renderCallArgs(cf.get().type, args, null, 0, mutableParamPositions(cf.get()), subj.t) + ")" + q;
+                final receiverOrderNeutral = narrowed == null && !throughGuardClone
+                    && !receiverCarriesFallibleWrapper(subj) && isOrderNeutralArg(subj);
+                return callWithSiblingReadHoist(callReceiver + "." + snake, receiverOrderNeutral, cf.get().type, args, null, 0,
+                    mutableParamPositions(cf.get()), subj.t, q);
             case TField(_, FStatic(c, cf)):
                 final cls = c.get();
                 final name = cf.get().name;
@@ -9468,11 +9466,8 @@ class RustExpr {
                     // parameter casts once at the call boundary.
                     signedPositions = intParamPositions(cf.get().type);
                 }
-                final callStr = staticRef(cls, name)
-                    + "("
-                    + renderCallArgs(cf.get().type, args, signedPositions, 0, mutableParamPositions(cf.get()))
-                    + ")"
-                    + q;
+                final callStr = callWithSiblingReadHoist(staticRef(cls, name), true, cf.get().type, args, signedPositions, 0,
+                    mutableParamPositions(cf.get()), null, q);
                 if (calleeResident != callerResident && returnsInt(cf.get().type)) {
                     // An Int result crosses between the two conventions;
                     // containers never cross whole, only their elements
@@ -9515,7 +9510,7 @@ class RustExpr {
                     case TField(_, FStatic(c, cf)) | TField(_, FInstance(c, _, cf)):
                         final positions = mutableParamPositions(cf.get());
                         if (positions.length > 0)
-                            return expr(fn) + "(" + renderCallArgs(cf.get().type, args, null, 0, positions) + ")";
+                            return callWithSiblingReadHoist(expr(fn), isOrderNeutralArg(fn), cf.get().type, args, null, 0, positions, null, "");
                     case _:
                 }
                 return expr(fn) + "(" + renderedArgs + ")";
@@ -12725,7 +12720,8 @@ class RustExpr {
     }
 
     function renderCallArgs(fnType:Null<Type>, args:Array<TypedExpr>, signedPositions:Null<Array<Int>> = null, paramOffset:Int = 0,
-            mutablePositions:Null<Array<Int>> = null, receiverType:Null<Type> = null):String {
+            mutablePositions:Null<Array<Int>> = null, receiverType:Null<Type> = null,
+            hoistOut:Null<Array<{name:String, bind:String}>> = null):String {
         final paramTypes = if (fnType != null) {
             final applied = appliedReceiverParamTypes(fnType, receiverType);
             if (applied != null)
@@ -12737,6 +12733,31 @@ class RustExpr {
                 };
         } else [];
         final stdTableReceiver = receiverType != null && isStdTableType(receiverType);
+        // A `&mut <place>` argument borrows its root local for the whole
+        // call, so a sibling argument that reads the same root (directly or
+        // through a field or Deref chain) violates the borrow rules (E0502).
+        // Each conflicting read-only argument hoists into a `let` binding
+        // that the caller emits ahead of the call: the read completes
+        // before the mutable borrow starts. A hoisted argument moves ahead
+        // of every earlier argument, so the crossing keeps the Haxe
+        // left-to-right order only under the conditions that
+        // hoistCrossingIsOrderSafe checks. (MutRefSiblingBorrow)
+        final hoistNames:Map<Int, String> = new Map();
+        if (hoistOut != null && mutablePositions != null) {
+            for (i in 0...args.length) {
+                final root = mutRefPlaceRootLocal(args[i], i + paramOffset, paramTypes, mutablePositions);
+                if (root == null)
+                    continue;
+                for (j in 0...args.length) {
+                    if (j == i || hoistNames.exists(j) || mutablePositions.indexOf(j + paramOffset) >= 0)
+                        continue;
+                    if (!mentionsLocalId(args[j], root.id))
+                        continue;
+                    if (hoistCrossingIsOrderSafe(args, j, paramOffset, paramTypes, mutablePositions))
+                        hoistNames.set(j, freshRegionName("__mutref_read"));
+                }
+            }
+        }
         final rendered = [];
         for (i in 0...args.length) {
             final arg = args[i];
@@ -13202,9 +13223,185 @@ class RustExpr {
                     case _: false;
                 })
                 argStr = "&(" + argStr + "u32)";
+            if (hoistOut != null && hoistNames.exists(i) && pt != null) {
+                final hoisted = hoistedSiblingReadArg(arg, pt, argStr, hoistNames.get(i));
+                if (hoisted != null) {
+                    hoistOut.push({name: hoistNames.get(i), bind: hoisted.bind});
+                    argStr = hoisted.usage;
+                }
+            }
             rendered.push(argStr);
         }
         return rendered.join(", ");
+    }
+
+    /**
+        mutRefPlaceRootLocal: the local a mutable-reference argument borrows
+        when renderCallArgs emits `&mut <place>` at this position. Covers the
+        mutated object parameter branch and the mutable Array and StringBuf
+        borrow branch; every other position renders no mutable borrow, and a
+        place that does not bottom out in a local borrows no caller binding.
+        (MutRefSiblingBorrow)
+    **/
+    function mutRefPlaceRootLocal(arg:TypedExpr, paramIndex:Int, paramTypes:Array<Type>, mutablePositions:Array<Int>):Null<TVar> {
+        if (paramIndex >= paramTypes.length)
+            return null;
+        final pt = paramTypes[paramIndex];
+        if (pt == null)
+            return null;
+        var borrowsMut = mutablePositions.indexOf(paramIndex) >= 0 && RustDecl.isMutableRefParamType(pt);
+        if (!borrowsMut && isPassByRef(pt)) {
+            final isTableArg = switch (stripWrap(arg).expr) {
+                case TField(_, FStatic(_, tableField)): DataTableHelper.isDataTableField(tableField.get());
+                case _: false;
+            };
+            borrowsMut = switch (Context.follow(pt)) {
+                case TInst(c, _): c.get().name == "StringBuf"
+                    || (c.get().name == "Array" && !isTableArg && mutablePositions.indexOf(paramIndex) >= 0);
+                case _: false;
+            };
+        }
+        if (!borrowsMut)
+            return null;
+        var place = stripWrap(arg);
+        while (true)
+            switch (place.expr) {
+                case TLocal(v): return v;
+                case TField(subj, _): place = stripWrap(subj);
+                case _: return null;
+            }
+        return null;
+    }
+
+    /**
+        hoistCrossingIsOrderSafe: a hoisted argument evaluates before every
+        earlier argument, so each earlier argument must keep its Haxe
+        left-to-right result. An earlier argument at a mutable-borrow
+        position computes the address of a place and reads no value, so
+        crossing it changes nothing. Every other earlier argument must
+        evaluate without a side effect, and a hoisted argument that itself
+        evaluates a call may write, so an earlier read may observe that
+        write when both arguments name the same local; that pair keeps the
+        call-site order and stays unhoisted. (MutRefSiblingBorrow)
+    **/
+    function hoistCrossingIsOrderSafe(args:Array<TypedExpr>, j:Int, paramOffset:Int, paramTypes:Array<Type>,
+            mutablePositions:Array<Int>):Bool {
+        final movedMayWrite = !isOrderNeutralArg(args[j]);
+        for (k in 0...j) {
+            if (mutRefPlaceRootLocal(args[k], k + paramOffset, paramTypes, mutablePositions) != null)
+                continue;
+            if (!isOrderNeutralArg(args[k]))
+                return false;
+            if (movedMayWrite && mentionsAnyLocalOf(args[k], args[j]))
+                return false;
+        }
+        return true;
+    }
+
+    /**
+        mentionsAnyLocalOf: whether `probe` reads a local that `other`
+        names, the may-alias test between a hoisted argument and an argument
+        it crosses. (MutRefSiblingBorrow)
+    **/
+    function mentionsAnyLocalOf(probe:TypedExpr, other:TypedExpr):Bool {
+        final ids:Map<Int, Bool> = new Map();
+        haxe.macro.TypedExprTools.iter(other, function(node:TypedExpr) {
+            switch (node.expr) {
+                case TLocal(v): ids.set(v.id, true);
+                case _:
+            }
+        });
+        var found = false;
+        haxe.macro.TypedExprTools.iter(probe, function(node:TypedExpr) {
+            if (found)
+                return;
+            switch (node.expr) {
+                case TLocal(v): if (ids.exists(v.id)) found = true;
+                case _:
+            }
+        });
+        return found;
+    }
+
+    /**
+        isOrderNeutralArg: evaluating this argument has no side effect, so a
+        later argument may bind ahead of it without changing the
+        left-to-right evaluation order Haxe specifies. (MutRefSiblingBorrow)
+    **/
+    function isOrderNeutralArg(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TConst(_) | TLocal(_) | TTypeExpr(_): true;
+            case TField(subj, _): isOrderNeutralArg(subj);
+            case _: false;
+        };
+    }
+
+    /**
+        hoistedSiblingReadArg: the binding text and the call-site text for a
+        read-only argument that hoists ahead of the call. The binding owns
+        its value, so the read of the mutable-borrow root completes at the
+        `let`; the call site then borrows or moves the binding. Returns null
+        when the rendered argument stays a borrow of the root, which a
+        binding would carry into the call unchanged. (MutRefSiblingBorrow)
+    **/
+    function hoistedSiblingReadArg(arg:TypedExpr, pt:Type, argStr:String, name:String):Null<{bind:String, usage:String}> {
+        if (StringTools.startsWith(argStr, "&") || StringTools.startsWith(argStr, "*"))
+            return null;
+        if (isPassByRef(pt) && stringLikeType(pt) && stringLikeType(arg.t)) {
+            if (nullableStringViewArg(arg))
+                return {bind: hoistedOwnedText(arg, expr(arg)), usage: name + ".as_deref().unwrap_or(\"\")"};
+            switch (stripWrap(arg).expr) {
+                case TConst(_):
+                    return null;
+                case TLocal(v) if (isBorrowedParamLocal(v)):
+                    // A borrowed string binding passes a shared `&str`
+                    // through; the binding copies that shared borrow.
+                    return {bind: argStr, usage: name};
+                case _:
+                    // renderCallArgs appended the `.as_str()` borrow to the
+                    // owned String value; the binding owns that value and
+                    // the call site borrows the binding.
+                    final base = StringTools.endsWith(argStr, ".as_str()") ? argStr.substr(0, argStr.length - ".as_str()".length) : expr(arg);
+                    return {bind: hoistedOwnedText(arg, base), usage: name + ".as_str()"};
+            }
+        }
+        // A bare local that lowers to a reference copies the borrow into the
+        // binding, and the conflict would survive the hoist.
+        switch (stripWrap(arg).expr) {
+            case TLocal(v) if (StringTools.startsWith(types.of(v.t, true), "&")):
+                return null;
+            case _:
+        }
+        return {bind: argStr, usage: name};
+    }
+
+    /**
+        hoistedOwnedText: the owned value text for a hoisted binding. A
+        reusable read (a local or a field) clones so the source stays
+        readable after the call; every other expression already produces
+        fresh ownership. (MutRefSiblingBorrow)
+    **/
+    function hoistedOwnedText(arg:TypedExpr, base:String):String {
+        return isReusableOwnedRead(arg) ? ownedReadCloneText(arg, base) : base;
+    }
+
+    /**
+        callWithSiblingReadHoist: renders a call whose mutable-reference
+        argument may share a root local with a read-only argument. The
+        conflicting reads bind ahead of the call inside a block, which keeps
+        the generated borrow pattern legal (E0502). The bindings run before
+        the callee text, so a callee that needs evaluation (a receiver
+        expression) must be order-neutral. (MutRefSiblingBorrow)
+    **/
+    function callWithSiblingReadHoist(callee:String, calleeOrderNeutral:Bool, fnType:Null<Type>, args:Array<TypedExpr>,
+            signedPositions:Null<Array<Int>>, paramOffset:Int, mutablePositions:Array<Int>, receiverType:Null<Type>, suffix:String):String {
+        if (!calleeOrderNeutral || mutablePositions.length == 0)
+            return callee + "(" + renderCallArgs(fnType, args, signedPositions, paramOffset, mutablePositions, receiverType) + ")" + suffix;
+        final hoist:Array<{name:String, bind:String}> = [];
+        final text = callee + "(" + renderCallArgs(fnType, args, signedPositions, paramOffset, mutablePositions, receiverType, hoist) + ")" + suffix;
+        if (hoist.length == 0)
+            return text;
+        return "{ " + [for (h in hoist) "let " + h.name + " = " + h.bind + ";"].join(" ") + " " + text + " }";
     }
 
     /**
