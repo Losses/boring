@@ -5348,9 +5348,11 @@ class RustExpr {
         if (isIntType(inner) && (target == "f32" || target == "f64"))
             return intToFloatText(text);
         // A signed i32 arm entering the business u32 conditional slot
-        // reinterprets its bits so both Rust arms carry one type.
+        // reinterprets its bits so both Rust arms carry one type. The
+        // rendered-text check catches an i32-returning call (unit_count,
+        // an indexOf result) that the local-domain predicates miss.
         if (target == "u32" && isIntType(inner) && !nullable
-            && (i32LocalDomain(branch) || rendersSignedIntExpr(branch)))
+            && (i32LocalDomain(branch) || rendersSignedIntExpr(branch) || rendersSignedIntArg(branch, text)))
             return RustConversions.reinterpret(text, "u32");
         return text;
     }
