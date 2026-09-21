@@ -3759,6 +3759,23 @@ class KotlinExpr {
         }
     }
 
+    /**
+        The trailing `, from` of a Haxe `String.indexOf` / `lastIndexOf` call,
+        or the empty text when the caller supplied no start index. The haxe
+        typer passes a synthesized null for an omitted `?startIndex`, which
+        must not reach the platform call: the one-argument overload is the
+        search from the start, and rendering the null would not type-check.
+        (StringSearchFromIndex)
+    **/
+    function optionalStartIndexArg(args:Array<TypedExpr>):String {
+        if (args.length < 2)
+            return "";
+        return switch (stripWrap(args[1]).expr) {
+            case TConst(TNull): "";
+            case _: ", " + expr(args[1]);
+        }
+    }
+
     /** A StringTools receiver argument renders with a null extraction when
         its Haxe type is nullable, mirroring renderCallArgs. */
     function nullableFirstArg(a:TypedExpr):String {
@@ -4093,10 +4110,21 @@ class KotlinExpr {
                         + "; if (_i >= 0 && _i < _s.length) _s[_i].code else null }";
                 }
                 if (name == "indexOf" && isString(stripCast(subj)) && args.length >= 1) {
-                    return expr(subj) + ".indexOf(" + expr(args[0]) + ")";
+                    // Haxe's String.indexOf carries an optional start index
+                    // and the platform overload has the same (sub, from)
+                    // shape, so an explicit from belongs in the rendered
+                    // call. Dropping it restarts the search at index 0,
+                    // which matches an occurrence before from: a scan that
+                    // resumes past an earlier block then reads that block's
+                    // own delimiter.
+                    // (StringSearchFromIndex)
+                    return expr(subj) + ".indexOf(" + expr(args[0]) + optionalStartIndexArg(args) + ")";
                 }
                 if (name == "lastIndexOf" && isString(stripCast(subj)) && args.length >= 1) {
-                    return expr(subj) + ".lastIndexOf(" + expr(args[0]) + ")";
+                    // Same (sub, from) shape as indexOf: the search runs
+                    // backwards from from, so the argument is part of the
+                    // call. (StringSearchFromIndex)
+                    return expr(subj) + ".lastIndexOf(" + expr(args[0]) + optionalStartIndexArg(args) + ")";
                 }
                 if (name == "substring" && isString(stripCast(subj))) {
                     // The haxe typer passes a synthesized null for an
