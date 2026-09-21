@@ -2989,8 +2989,15 @@ class KotlinExpr {
                 // therefore renders through its standalone conversion
                 // spelling (inConcat false), which is itself a String
                 // expression; a bare inConcat spelling would leave
-                // Enum + String or Int + String unresolved.
-                final leftText = leftStd == null ? operand(l, op, false, true) : stdString(leftStd, isStringType(leftStd.t));
+                // Enum + String or Int + String unresolved. The left
+                // operand is the receiver of that same call, and Kotlin
+                // declares the operator on String?, so a null receiver
+                // renders "null" too instead of raising. A nullable Haxe
+                // type therefore keeps its nullable rendering on either
+                // side; the nullable Kotlin storage of a non-null Haxe
+                // value still extracts, because keepsNull reads the Haxe
+                // type. (ConcatenationNullableReceiver)
+                final leftText = leftStd == null ? operand(l, op, false, true, true) : stdString(leftStd, isStringType(leftStd.t));
                 // The right operand is the argument of Kotlin's
                 // String.plus(Any?), which renders a null argument as
                 // "null", the text Std.string(null) produces. Extracting
@@ -3000,8 +3007,12 @@ class KotlinExpr {
                 final rightText = rightStd == null ? operand(r, op, true, true, true) : stdString(rightStd, true);
                 // A nullable safe-call left operand propagates null through
                 // the concatenation: plus on the nullable receiver yields
-                // null; a plain + would coerce to the "null" string.
-                if ((isStringType(l.t) || isStringType(r.t)) && isNullType(receiverBase(l).t) && !provenNonNull(receiverBase(l))) {
+                // null; a plain + would coerce to the "null" string. Only a
+                // chain that actually rendered a safe call takes this route:
+                // a plain nullable value becomes the receiver of
+                // String?.plus, whose null renders as the text "null".
+                if ((isStringType(l.t) || isStringType(r.t)) && isNullType(receiverBase(l).t) && !provenNonNull(receiverBase(l))
+                    && leftText.indexOf("?.") >= 0) {
                     return leftText + "?.plus(" + rightText + ")";
                 }
                 if (!isStringType(l.t)) {
