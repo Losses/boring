@@ -1626,6 +1626,52 @@ class KotlinExpr {
                     // (NullDefaultIdentityFold)
                     final identityNull = isNullLiteral(coalescing.defaultExpr)
                         || (StringTools.trim(expr(coalescing.defaultExpr)) == "null");
+                    // A value expression the Haxe types non-null and whose
+                    // rendered text carries no safe-call hop always supplies
+                    // the result, so the elvis operator would be dead and
+                    // the default branch never renders. The text probe runs
+                    // under its own proof snapshot: this inspection is not
+                    // an emission site. (NonNullCoalesceDrop)
+                    if (!identityNull) {
+                        final probeBase = proofSnapshot();
+                        final probeText = expr(coalescing.valueExpr);
+                        restoreProofs(probeBase);
+                        // The guard-ternary form `x != null ? x : other`
+                        // renders both arms non-null: the guard narrows the
+                        // then arm to a plain read and the text carries no
+                        // hop or assertion, so the left side is always
+                        // present. (NonNullCoalesceDrop)
+                        final guardTernary = switch (stripWrap(coalescing.valueExpr).expr) {
+                            case TIf(c, t, _) if (!isNullExpr(c)):
+                                final subject = switch (stripWrap(c).expr) {
+                                    case TBinop(OpNotEq, l, r): if (isNullExpr(l)) r else if (isNullExpr(r)) l else null;
+                                    case _: null;
+                                };
+                                if (subject == null)
+                                    false;
+                                else {
+                                    // The kept side must be the guarded value
+                                    // itself: the same local, or the same
+                                    // field chain off the same root.
+                                    // (NonNullCoalesceDrop)
+                                    final sameRoot = switch (stripWrap(subject).expr) {
+                                        case TLocal(sv): switch (stripWrap(t).expr) {
+                                            case TLocal(tv): sv.id == tv.id;
+                                            case _: false;
+                                        };
+                                        case _: {
+                                            final sk = fieldAccessKey(subject);
+                                            final tk = fieldAccessKey(t);
+                                            sk != null && sk == tk;
+                                        };
+                                    };
+                                    sameRoot;
+                                }
+                            case _: false;
+                        };
+                        if (guardTernary && !StringTools.contains(probeText, "?.") && !StringTools.contains(probeText, "!!"))
+                            return probeText;
+                    }
                     if (currentLocalName != null && currentClass != null && currentField != null && !identityNull) {
                         final value = DefaultArgExpander.coalescingDefaultForLocalParam(currentClass, currentField, currentLocalName, coalescing.parameter);
                         if (value != null)
@@ -2159,6 +2205,40 @@ class KotlinExpr {
             case _:
                 return binopCore(e, op, l, r);
         }
+    }
+
+    /**
+        Whether the rendered argument text branches on the null case
+        itself: an if-expression whose chain carries no safe-call hop and
+        no assertion supplies a non-null value, so a wrapping elvis would
+        always read the left side and only warn. (IfExpressionCoversNull)
+    **/
+    function coversNullByForm(a:TypedExpr, text:String):Bool {
+        if (!StringTools.contains(text, "if ("))
+            return false;
+        if (StringTools.contains(text, "?.") || StringTools.contains(text, "!!"))
+            return false;
+        return switch (stripWrap(a).expr) {
+            case TIf(c, t, f) if (f != null && !isNullType(f.t)):
+                final subject = switch (stripWrap(c).expr) {
+                    case TBinop(OpNotEq, l, r): if (isNullExpr(l)) r else if (isNullExpr(r)) l else null;
+                    case _: null;
+                };
+                if (subject == null)
+                    false;
+                else switch (stripWrap(t).expr) {
+                    case TLocal(tv): switch (stripWrap(subject).expr) {
+                        case TLocal(sv): sv.id == tv.id;
+                        case _: false;
+                    };
+                    case _: {
+                        final sk = fieldAccessKey(subject);
+                        final tk = fieldAccessKey(t);
+                        sk != null && sk == tk;
+                    };
+                }
+            case _: false;
+        };
     }
 
     /**
@@ -4737,8 +4817,10 @@ class KotlinExpr {
         } else if (!allowNullable && registered != null && expected != null && requiresNonNullCallArgument(a, text)) {
             // A rendered if-expression already branches on the null case:
             // its arms smart-cast the subject, so the wrapping elvis would
-            // always read the left side. (IfExpressionCoversNull)
-            if (StringTools.startsWith(text, "if ("))
+            // always read the left side. Parenthesized and nested if text
+            // counts too, as long as the chain carries no hop or assertion
+            // that could still supply null. (IfExpressionCoversNull)
+            if (coversNullByForm(a, text))
                 return text;
             // A null default is an identity: `x ?: null` equals x for
             // every value, so the wrap only warns. (NullDefaultIdentityFold)
@@ -4791,7 +4873,7 @@ class KotlinExpr {
                     // equality/assertion expected values.
                     text;
                 } else if (registered != null && expected != null && requiresNonNullCallArgument(a, text)) {
-                    if (StringTools.startsWith(text, "if ("))
+                    if (coversNullByForm(a, text))
                         text;
                     else if (StringTools.trim(constructorDefaultText(registered, expected, cls, args)) == "null")
                         // A null default is an identity. (NullDefaultIdentityFold)
