@@ -2232,6 +2232,27 @@ class TsExpr {
                     // slice preserves a shallow copy and its mutable array type.
                     return expr(subj) + ".slice()";
                 }
+                if (name == "slice" && isArraySubject(subj) && (args.length == 1 || args.length == 2)) {
+                    // The haxe typer passes a synthesized null for an omitted
+                    // ?end. Array.prototype.slice coerces that null to 0, so
+                    // the two-argument form returns the empty array where Haxe
+                    // reads the omitted end as the length. The null is dropped
+                    // and the one-argument prototype overload carries the
+                    // suffix call, exactly as the substring and substr
+                    // lowerings drop their own omitted bound. Every other
+                    // Haxe bound already agrees with the prototype slice: a
+                    // negative bound counts from the end, a bound past the
+                    // length clamps to it, and an end that reaches the start
+                    // or passes it yields the empty array.
+                    // (ArraySliceClamping)
+                    final endOmitted = args.length < 2 || switch (stripWrap(args[1]).expr) {
+                        case TConst(TNull): true;
+                        case _: false;
+                    };
+                    if (endOmitted) {
+                        return expr(subj) + ".slice(" + expr(args[0]) + ")";
+                    }
+                }
                 if (name == "insert" && isArraySubject(subj) && args.length == 2) {
                     // Haxe Array.insert(pos, x) has no JS prototype
                     // equivalent; splice inserts in place.
