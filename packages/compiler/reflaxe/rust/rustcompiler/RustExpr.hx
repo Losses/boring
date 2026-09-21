@@ -9515,7 +9515,6 @@ class RustExpr {
                     case TField(_, FStatic(c, cf)) | TField(_, FInstance(c, _, cf)):
                         final positions = mutableParamPositions(cf.get());
                         if (positions.length > 0) {
-                            Context.warning("CATCHROUTE " + Std.string(args[0].expr).substr(0, 40) + " at " + Std.string(fn.expr).substr(0, 60), args[0].pos);
                             return expr(fn) + "(" + renderCallArgs(cf.get().type, args, null, 0, positions) + ")";
                         }
                     case _:
@@ -9567,13 +9566,17 @@ class RustExpr {
         switch (Context.follow(cf.type)) {
             case TFun(ps, _):
                 final body = cf.expr();
-                if (body != null)
+                if (body != null) {
+                    // An unavailable body leaves the verdict unknown: the
+                    // result must not cache, or an early empty answer
+                    // poisons every later call. (PositionMemo)
                     for (i in 0...ps.length)
                         if (RustDecl.argIsMutated(body, ps[i].name))
                             out.push(i);
+                    mutableParamPositionsCache.set(key, out);
+                }
             case _:
         }
-        mutableParamPositionsCache.set(key, out);
         return out;
     }
 
