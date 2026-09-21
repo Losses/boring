@@ -3121,11 +3121,19 @@ class SwiftExpr {
                     // scalar conversion traps on a surrogate and a Swift
                     // String carries no unpaired one, so the call decodes
                     // the unit and keeps the valid scalar and surrogate
-                    // pair domains exact.
+                    // pair domains exact. A scalar above the BMP decodes
+                    // as its surrogate pair so the pair stays intact.
                     // (FromCharCodeUnit)
-                    return "String(decoding: [UInt16(truncatingIfNeeded: "
-                        + (optionalValued(args[0]) ? "(" + expr(args[0]) + ")!" : expr(args[0]))
-                        + ")], as: UTF16.self)";
+                    final cp = optionalValued(args[0]) ? "(" + expr(args[0]) + ")!" : expr(args[0]);
+                    return "(("
+                        + cp
+                        + " > 0xFFFF ? String(decoding: [UInt16(truncatingIfNeeded: 0xD800 + (("
+                        + cp
+                        + " - 0x10000) >> 10)), UInt16(truncatingIfNeeded: 0xDC00 + (("
+                        + cp
+                        + " - 0x10000) & 0x3FF))], as: UTF16.self) : String(decoding: [UInt16(truncatingIfNeeded: "
+                        + cp
+                        + ")], as: UTF16.self)))";
                 }
                 if (module == "Std") {
                     final s = expr(args[0]);
