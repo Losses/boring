@@ -6464,8 +6464,11 @@ class RustExpr {
                 final real = FloatPrecision.isF32() ? "f32" : "f64";
                 // An integer operand crosses through its exact decimal
                 // (T7), which rounds identically to `as` without a cast.
-                final lStr = if (isIntType(l.t)) RustConversions.intToFloat(operand(l, op, false), real) else operand(l, op, false);
-                final rStr = if (isIntType(r.t)) RustConversions.intToFloat(operand(r, op, true), real) else operand(r, op, true);
+                // Haxe Int is signed, so a u32-domain operand reinterprets to
+                // i32 before the Float conversion; the unsigned decimal parse
+                // would read a wrapped negative as a huge positive.
+                final lStr = if (isIntType(l.t)) RustConversions.intToFloat(castSignedI32(l), real) else operand(l, op, false);
+                final rStr = if (isIntType(r.t)) RustConversions.intToFloat(castSignedI32(r), real) else operand(r, op, true);
                 return lStr + " " + symbolOf(op) + " " + rStr;
             case OpAnd:
                 final rightInner = stripWrap(r);
@@ -6518,6 +6521,12 @@ class RustExpr {
                 return "(" + zeroLeftText + ") <= 2147483647";
             case OpSub:
                 return operand(l, op, false) + " - " + operand(r, op, true);
+            case OpMod if (isIntType(e.t)):
+                // Haxe Int remainder keeps the dividend sign; the u32 domain
+                // wraps negatives, so both operands reinterpret to i32 before
+                // `%` and the result reinterprets back to the business u32
+                // domain. (SignedIntRemainder)
+                return RustConversions.reinterpret("(" + castSignedI32(l) + " % " + castSignedI32(r) + ")", "u32");
             case OpLt | OpLte | OpGt | OpGte:
                 // Haxe permits chained comparisons. Evaluate each operand once
                 // before combining the adjacent predicates; this also avoids
@@ -9183,10 +9192,13 @@ class RustExpr {
                     }
                     // A genuine Float argument truncates with Rust `as`
                     // saturation, reproduced bit-exactly without a cast.
+                    // Haxe Int is signed, so the business u32 domain keeps
+                    // the signed truncation and reinterprets its bits; the
+                    // unsigned saturation would read a negative as 0.
                     if (RuntimeResidents.isResident(imports.selfModule)) {
                         return RustConversions.floatToI32(expr(args[0]));
                     }
-                    return RustConversions.floatToU32(expr(args[0]));
+                    return RustConversions.reinterpret(RustConversions.floatToI32(expr(args[0])), "u32");
                 }
                 if (cls.pack.length == 0 && cls.name == "String" && name == "fromCharCode") {
                     final value = expr(args[0]);
@@ -9325,7 +9337,10 @@ class RustExpr {
                     // truncates through the same conversion Std.int uses.
                     final real = FloatPrecision.isF32() ? "f32" : "f64";
                     final rounded = real + "::" + name + "(" + mathFloatBindingArg(args[0]) + ")";
-                    return RuntimeResidents.isResident(imports.selfModule) ? rounded + " as i32" : RustConversions.floatToU32(rounded);
+                    // Haxe Int is signed, so the business u32 domain keeps
+                    // the signed floor and reinterprets its bits; the
+                    // unsigned saturation would read a negative as 0.
+                    return RuntimeResidents.isResident(imports.selfModule) ? rounded + " as i32" : RustConversions.reinterpret(RustConversions.floatToI32(rounded), "u32");
                 }
                 if (cls.module == "Std" && name == "parseFloat") {
                     final real = FloatPrecision.isF32() ? "f32" : "f64";
@@ -11140,7 +11155,7 @@ class RustExpr {
 
     function numericAssignmentValue(expected:Type, actual:TypedExpr, rendered:String, targetOverride:Null<String> = null, signedBoundary:Bool = false):String {
         if (isFloatType(expected) && isIntType(emittedType(actual)))
-            return intToFloatText(rendered);
+            return intToFloatSignedText(rendered);
         // A nullable target holds an Option; the rendered value is already
         // in the Option domain (a null literal renders None, a nullable
         // expression keeps its Option shape), so no null-to-zero bridge or
@@ -12554,9 +12569,12 @@ class RustExpr {
             && renderedArgShape(rendered, actual) == RustShape.ShapeOption)
             return postfixAdapt(rendered, ".unwrap()");
         // Haxe unifies Int and Float; widen Int values to Float when the
-        // target slot expects Float.
+        // target slot expects Float. A u32-domain value reinterprets to i32
+        // so a wrapped negative reads as its signed Float; a genuine Float
+        // expression (an Int/Int division Haxe types as Float) is already
+        // widened and keeps the plain cast.
         if (isFloatType(expected) && isIntType(emittedType(actual)))
-            return intToFloatText(rendered);
+            return intToFloatSignedText(rendered);
         // Methods returning an owned class value cannot leak the borrowed
         // `self` receiver into the return slot.
         if (!isTypeCopy(expected) && switch (stripWrap(actual).expr) {
@@ -13521,6 +13539,31 @@ class RustExpr {
         if (~/\)$/.match(text))
             return text + " as " + precision;
         return "(" + text + " as " + precision + ")";
+    }
+
+    /** Convert an integer expression text to Float, reading a u32-domain
+        value as its signed i32 bits first. Haxe Int is signed, so a
+        wrapped negative (e.g. -7 as 4294967289u32) must widen to -7.0,
+        not 4294967289.0. A bare literal or an already-Float expression
+        (a widened division, a Float cast) keeps the plain cast. */
+    public function intToFloatSignedText(text:String):String {
+        if (~/^-?[0-9]+$/.match(text) || ~/^\(-?[0-9]+\)$/.match(text))
+            return intToFloatText(text);
+        // A u32-domain expression reinterprets to i32 so a wrapped
+        // negative reads as its signed Float.
+        if (StringTools.startsWith(text, "u32::") || StringTools.startsWith(text, "(u32::"))
+            return intToFloatText(RustConversions.reinterpret(text, "i32"));
+        // A genuine Float expression (a widened division, a Float cast, a
+        // Float function call, a Float literal) is already widened and
+        // keeps the plain cast.
+        if (text.indexOf(".parse::<f64>") >= 0 || text.indexOf(".parse::<f32>") >= 0
+            || text.indexOf(" as f64") >= 0 || text.indexOf(" as f32") >= 0
+            || StringTools.startsWith(text, "f64::") || StringTools.startsWith(text, "f32::")
+            || ~/^-?[0-9]+\.[0-9]+/.match(text) || text.indexOf(".0f64") >= 0 || text.indexOf(".0f32") >= 0)
+            return intToFloatText(text);
+        // Any other Int expression (a u32 variable, a wrapping result) is
+        // in the u32 domain and reinterprets to i32.
+        return intToFloatText(RustConversions.reinterpret(text, "i32"));
     }
 
     /**
