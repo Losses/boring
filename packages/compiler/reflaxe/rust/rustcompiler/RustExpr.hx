@@ -193,6 +193,11 @@ class RustExpr {
     final sunkInitVarIds:Map<Int, Bool> = [];
     // Locals initialized from charCodeAt are collapsed from Option<u32> to a scalar.
     final nullableCollapsedLocals:Map<Int, Bool> = [];
+    // Locals whose declaration initializer is provably dead (overwritten
+    // by a later store before any read): the declaration demotes to a
+    // typed binding and the later store initializes it.
+    // (DeadInitDemote)
+    final deadInitLocals:Map<Int, Bool> = [];
     // Locals whose emitted declaration text names or infers the Option
     // shape: the exact ground truth for whether a read of the local
     // renders an Option. (NonNullSlotUnwrap)
@@ -744,6 +749,7 @@ class RustExpr {
         signedCountdownVars.clear();
         countdownShiftedVars.clear();
         mutated.clear();
+        deadInitLocals.clear();
         deferredLocals.clear();
         for (a in f.args) {
             if (a.tvar != null)
@@ -819,6 +825,7 @@ class RustExpr {
         paramVarIds.clear();
         unsignedLocals.clear();
         mutated.clear();
+        deadInitLocals.clear();
         for (a in f.args)
             if (a.tvar != null)
                 paramVarIds.set(a.tvar.id, true);
@@ -857,6 +864,7 @@ class RustExpr {
         paramVarIds.clear();
         unsignedLocals.clear();
         mutated.clear();
+        deadInitLocals.clear();
         for (a in f.args) {
             if (a.tvar != null)
                 paramVarIds.set(a.tvar.id, true);
@@ -1173,6 +1181,15 @@ class RustExpr {
                 final kw = isMut ? "let mut" : "let";
                 final raw = RustImports.toSnakeCase(localName(v));
                 final name = unusedLocalIds.exists(v.id) ? "_" + raw : raw;
+                // A declaration whose initializer is provably dead renders
+                // as a typed binding; the later store initializes it, and
+                // rustc's definite-assignment dataflow backs the proof
+                // (a wrong demote fails loudly as E0381). The keyword
+                // counts only the stores that re-assign after the
+                // initializing one.
+                // (DeadInitDemote)
+                if (deadInitLocals.exists(v.id))
+                    return [indent(depth) + (deadInitLocals.get(v.id) ? "let mut" : "let") + " " + name + ": " + types.of(v.t, false) + ";"];
                 // A Null<T> declared local keeps Option storage at runtime
                 // even when a guard narrows a later read's Haxe type to T;
                 // record it so &str/&T slots unwrap the wrapper before the
@@ -2471,13 +2488,47 @@ class RustExpr {
         original statement sequence. (DeadStoreStrip)
     **/
     function stripDeadStores(stmts:Array<TypedExpr>):Array<TypedExpr> {
+        for (i in 0...stmts.length) {
+            switch (stripWrap(stmts[i]).expr) {
+                case TWhile(cond, body, terminator):
+                    final condTarget = switch (stripWrap(cond).expr) {
+                        case TLocal(cv): cv;
+                        case _: null;
+                    };
+                    if (condTarget == null)
+                        continue;
+                    var postRead = false;
+                    var j2 = i + 1;
+                    while (j2 < stmts.length) {
+                        if (mentionsLocalId(stmts[j2], condTarget.id))
+                            postRead = true;
+                        j2++;
+                    }
+                    // The flag is only observed by the loop condition, so a
+                    // `flag = const` store that a `break` immediately
+                    // follows is dead: after the break the condition never
+                    // re-reads the flag. (LoopFlagBreakPairDrop)
+                    if (!postRead) {
+                        final newCond = dropFlagBreakPairs(cond, condTarget);
+                        final newBody = dropFlagBreakPairs(body, condTarget);
+                        stmts[i] = {expr: TWhile(newCond, newBody, terminator), pos: stmts[i].pos, t: stmts[i].t};
+                    }
+                case _:
+            }
+        }
         final dropped:Array<Bool> = [for (i in 0...stmts.length) false];
         for (i in 0...stmts.length) {
             if (dropped[i])
                 continue;
-            final v = plainAssignTarget(stmts[i]);
+            final storeTarget = plainAssignTarget(stmts[i]);
+            final declTarget = storeTarget == null ? (switch (stripWrap(stmts[i]).expr) {
+                case TVar(dv, di) if (di != null): dv;
+                case _: null;
+            }) : null;
+            final v = storeTarget != null ? storeTarget : declTarget;
             if (v == null)
                 continue;
+            final isDecl = storeTarget == null;
             var dead = false;
             var j = i + 1;
             while (j < stmts.length) {
@@ -2500,12 +2551,44 @@ class RustExpr {
                     }
                     break;
                 }
-                if (mentionsLocalId(stmts[j], v.id))
+                if (mentionsLocalId(stmts[j], v.id)) {
+                    // A statement-position switch with exhaustive arms (or
+                    // an if-else) that stores the local on every path
+                    // definitely assigns it: the declaration initializer is
+                    // observed by no read and may demote.
+                    // (DefiniteAssigningStatement)
+                    if (isDecl && definitelyAssigns(stmts[j], v)) {
+                        dead = true;
+                    }
                     break;
+                }
                 j++;
             }
-            if (dead && pureAssignRhs(stmts[i]))
-                dropped[i] = true;
+            if (dead) {
+                final rhsPure = isDecl ? (switch (stripWrap(stmts[i]).expr) {
+                    case TVar(_, di): isPureReadExpr(di);
+                    case _: false;
+                }) : pureAssignRhs(stmts[i]);
+                if (rhsPure) {
+                    if (isDecl) {
+                        // The demoted binding needs mut only when further
+                        // assignments re-assign it anywhere in the block
+                        // (a nested conditional assignment already demands
+                        // mut); a single remaining assignment is the
+                        // initialization itself. An undercount fails loudly
+                        // as E0384. (DeadInitDemote)
+                        var otherAssigns = false;
+                        var m = j + 1;
+                        while (m < stmts.length) {
+                            if (mentionsAssignmentDeep(stmts[m], v.id))
+                                otherAssigns = true;
+                            m++;
+                        }
+                        deadInitLocals.set(v.id, otherAssigns);
+                    } else
+                        dropped[i] = true;
+                }
+            }
         }
         return [for (i in 0...stmts.length) if (!dropped[i]) stmts[i]];
     }
@@ -2531,6 +2614,39 @@ class RustExpr {
     }
 
     /**
+        dropFlagBreakPairs: within a `while (flag)` body whose flag only
+        the loop condition observes, a store `flag = <pure const>`
+        immediately followed by `break` is dead — after the break the
+        condition never re-reads the flag — and is removed. Blocks and
+        conditionals rebuild; every other shape keeps its statements.
+        (LoopFlagBreakPairDrop)
+    **/
+    function dropFlagBreakPairs(e:TypedExpr, v:TVar):TypedExpr {
+        final inner = stripWrap(e);
+        final rebuilt:Null<TypedExpr> = switch (inner.expr) {
+            case TBlock(stmts):
+                final out:Array<TypedExpr> = [];
+                var k = 0;
+                while (k < stmts.length) {
+                    final target = plainAssignTarget(stmts[k]);
+                    final nextBreak = k + 1 < stmts.length && stripWrap(stmts[k + 1]).expr.match(TBreak);
+                    if (target != null && target.id == v.id && nextBreak && pureAssignRhs(stmts[k])) {
+                        k += 2;
+                        continue;
+                    }
+                    out.push(dropFlagBreakPairs(stmts[k], v));
+                    k++;
+                }
+                {expr: TBlock(out), pos: inner.pos, t: inner.t};
+            case TIf(c, t, f):
+                {expr: TIf(dropFlagBreakPairs(c, v), dropFlagBreakPairs(t, v), f == null ? null : dropFlagBreakPairs(f, v)), pos: inner.pos, t: inner.t};
+            case _:
+                null;
+        }
+        return rebuilt != null ? rebuilt : e;
+    }
+
+    /**
         isPureReadExpr: an expression whose evaluation performs no writes,
         calls, or control flow. A wrapping or floating binop renders as
         arithmetic, so a binop of pure operands stays pure; anything else
@@ -2549,7 +2665,74 @@ class RustExpr {
         }
     }
 
-    /** Whether any subexpression reads the local with the given id. */
+    /**
+        definitelyAssigns: whether the control statement initializes the
+        local on every path. Covers a statement-position switch whose
+        exhaustive arms all store the local before reading it, and an
+        if-else whose branches both do. A wrong verdict fails loudly as
+        rustc E0381. (DefiniteAssigningStatement)
+    **/
+    function definitelyAssigns(e:TypedExpr, v:TVar):Bool {
+        final vid = v.id;
+        function armAssigns(stmts:Array<TypedExpr>):Bool {
+            var assigned = false;
+            for (s in stmts) {
+                final target = plainAssignTarget(s);
+                if (target != null && target.id == vid) {
+                    final rhs = switch (stripWrap(s).expr) {
+                        case TBinop(OpAssign, _, r): r;
+                        case _: null;
+                    };
+                    if (rhs != null && mentionsLocalId(rhs, vid))
+                        return false;
+                    assigned = true;
+                    continue;
+                }
+                if (mentionsLocalId(s, vid))
+                    return false;
+            }
+            return assigned;
+        }
+        return switch (stripWrap(e).expr) {
+            case TSwitch(_, cases, def):
+                var all = true;
+                for (c in cases)
+                    if (!armAssigns(statementsOf(c.expr)))
+                        all = false;
+                if (all && def != null)
+                    all = armAssigns(statementsOf(def));
+                all;
+            case TIf(_, t, f):
+                f != null && armAssigns(statementsOf(t)) && armAssigns(statementsOf(f));
+            case _: false;
+        }
+    }
+
+    /** Whether any assignment or update at any depth targets the local. */
+    function mentionsAssignmentDeep(e:TypedExpr, id:Int):Bool {
+        var found = false;
+        function walk(x:TypedExpr):Void {
+            if (found)
+                return;
+            switch (x.expr) {
+                case TBinop(OpAssign, target, _) | TBinop(OpAssignOp(_), target, _):
+                    switch (target.expr) {
+                        case TLocal(t) if (t.id == id): found = true;
+                        case _:
+                    }
+                case TUnop(OpIncrement | OpDecrement, _, target):
+                    switch (target.expr) {
+                        case TLocal(t) if (t.id == id): found = true;
+                        case _:
+                    }
+                case _:
+            }
+            haxe.macro.TypedExprTools.iter(x, walk);
+        }
+        walk(e);
+        return found;
+    }
+
     function blockLines(stmts:Array<TypedExpr>, depth:Int, tailScope:Bool = false):Array<String> {
         stmts = fuseUninitializedVars(stmts);
         stmts = stripDeadInits(stmts);
