@@ -3916,6 +3916,23 @@ class RustExpr {
         };
     }
 
+    /**
+        The narrowed match binding a rendered text names. The text is the
+        binding itself, or a borrow of it, when the read already resolved the
+        Option. A member read below the binding names the member value, so it
+        is not a binding read.
+    **/
+    function narrowedBindingText(text:String):Null<String> {
+        final candidate = StringTools.startsWith(text, "&(") && StringTools.endsWith(text, ")")
+            ? text.substr(2, text.length - 3) : text;
+        for (i in 0...optionNarrowings.length) {
+            final narrowing = optionNarrowings[i];
+            if (narrowing.name == candidate)
+                return candidate;
+        }
+        return null;
+    }
+
     function narrowedText(text:String):Null<String> {
         for (i in 0...optionNarrowings.length) {
             final narrowing = optionNarrowings[optionNarrowings.length - 1 - i];
@@ -4946,10 +4963,23 @@ class RustExpr {
                 requireEnum(en.module, en.name);
                 switch (kind) {
                     case QCollection: en.name + "::ALL";
-                    case QName: expr(args[0]) + ".name().to_string()";
+                    case QName: enumNameRead(args[0]);
                     case QLookup: en.name + "::from_name(&(" + expr(args[1]) + "))";
                 }
         }
+    }
+
+    /**
+        A name read on an enum value. A value produced by the name lookup
+        renders as a nullable lookup result, so the read unwraps it before
+        the name call.
+    **/
+    function enumNameRead(subject:TypedExpr):String {
+        final rendered = expr(subject);
+        return switch (PolicyQueries.enumQueryPlan(subject)) {
+            case EnumKindQuery(QLookup, _, _): rendered + ".unwrap().name().to_string()";
+            case _: rendered + ".name().to_string()";
+        };
     }
 
     // ------------------------------------------------------------------
@@ -8166,7 +8196,7 @@ class RustExpr {
         return subject + ".__haxe_type_name() == " + nameTest;
     }
 
-    function stdStringType(t:Type, value:String, inConcat:Bool, origin:TypedExpr, depth:Int = 0):String {
+    function stdStringType(t:Type, value:String, inConcat:Bool, origin:TypedExpr, depth:Int = 0, optionLocal:Bool = false):String {
         // Context.follow may expose the wrapped value type of Null<T> before
         // the category classifier runs. Preserve the Option match whenever
         // the wrapped type is a marked value wrapper.
@@ -8192,7 +8222,7 @@ class RustExpr {
                 // Option match must not re-apply.
                 if (narrowedSubject(origin) != null || isNullableCollapsedLocal(origin)
                     || isNonNullRenderedConditional(origin) || isNullGuardedTernary(origin))
-                    return stdStringType(inner, value, inConcat, origin, depth + 1);
+                    return stdStringType(inner, value, inConcat, origin, depth + 1, true);
                 // A Copy inner binds by value so float/int formatting
                 // receives the owned scalar; owned inners bind by
                 // reference.
@@ -8202,8 +8232,19 @@ class RustExpr {
                     + " { Some("
                     + binding
                     + ") => "
-                    + stdStringType(inner, "v", false, origin, depth + 1)
+                    + stdStringType(inner, "v", false, origin, depth + 1, true)
                     + ", None => \"null\".to_string() }";
+            case _:
+        }
+        // A local whose Rust storage renders as Option<T> (a null-initialized
+        // or null-assigned local) takes the match form: the rendered text
+        // names the Option, so a direct text read would target the Option.
+        switch (stripWrap(origin).expr) {
+            case TLocal(v) if (!optionLocal && narrowedSubject(origin) == null && localReadIsOption(v)):
+                final optionInner = getNullInnerType(origin.t);
+                final optionBinding = isTypeCopy(optionInner) ? "v" : "ref v";
+                return "match " + value + " { Some(" + optionBinding + ") => "
+                    + stdStringType(optionInner, "v", false, origin, depth + 1, true) + ", None => \"null\".to_string() }";
             case _:
         }
         return switch (PolicyQueries.stdStringCategory(t)) {
@@ -8812,8 +8853,14 @@ class RustExpr {
                             && switch (stripWrap(args[i]).expr) {
                                 case TLocal(v): optionRenderedLocals.exists(v.id);
                                 case _: false;
-                            })
-                            r = "(" + stripRenderedParens(expr(stripWrap(args[i]))) + ").as_ref().unwrap()";
+                            }) {
+                            // A narrowed local read already resolves the Option to the
+                            // match binding, which is a reference to the inner value the
+                            // slot takes; the forced unwrap would target that reference.
+                            final read = expr(stripWrap(args[i]));
+                            r = narrowedBindingText(read) != null ? read
+                                : "(" + stripRenderedParens(read) + ").as_ref().unwrap()";
+                        }
                         r;
                     }];
                     return nullableMethodReceiver(subj, true) + ".put(" + putArgs.join(", ") + ")";
@@ -9762,6 +9809,11 @@ class RustExpr {
                         && (!isTypeCopy(v.t) || sharedClosureArrays.exists(v.id) || sharedClosureScalars.exists(v.id))
                         && !Lambda.exists(captures, c -> c.id == v.id))
                         captures.push(v);
+                case TField(_, FStatic(_, _)):
+                    // A static member read renders as the type path itself; the
+                    // class-reference local it was written through is never a
+                    // runtime value, so the closure moves nothing for it.
+                    return;
                 case TFunction(nf):
                     // Descend into a nested function literal: a local used
                     // only by the nested body is still moved out of this
@@ -10116,6 +10168,11 @@ class RustExpr {
                     }
                 case TLocal(v):
                     counts.set(v.id, (counts.exists(v.id) ? counts.get(v.id) : 0) + 1);
+                case TField(_, FStatic(_, _)):
+                    // A static member read renders as the type path itself;
+                    // the class-reference local it was written through is
+                    // never read at run time, so it must not count as one.
+                    return;
                 case _:
             }
             haxe.macro.TypedExprTools.iter(node, walk);
@@ -10892,7 +10949,7 @@ class RustExpr {
                                 && !StringTools.endsWith(argStr, ".unwrap_or(0.0)"));
                     case _: provenMapGet(arg);
                 };
-                if (proven && RustShapeParse.shapeOf(argStr) != RustShape.ShapeBare) {
+                if (proven && narrowedBindingText(argStr) == null && RustShapeParse.shapeOf(argStr) != RustShape.ShapeBare) {
                     final inner = getNullInnerType(arg.t);
                     // A numeric scalar keeps the null-to-zero bridge: the
                     // final numeric boundary appends unwrap_or(0) for the
@@ -12541,8 +12598,14 @@ class RustExpr {
         // owned values clone the proven payload so later Haxe reads remain
         // available.
         if (!isNullType(expected) && isNoneInitializedLocal(actual))
-            if (RustShapeParse.shapeOf(rendered) != RustShape.ShapeBare)
-                return isTypeCopy(actual.t) ? rendered + ".unwrap()" : rendered + ".as_ref().unwrap().clone()";
+            if (RustShapeParse.shapeOf(rendered) != RustShape.ShapeBare) {
+                // A narrowed read already names the binding, which is the
+                // payload reference the non-null boundary consumes.
+                final payload = narrowedBindingText(rendered);
+                return payload != null
+                    ? (isTypeCopy(actual.t) ? "*" + payload : "(" + payload + ").clone()")
+                    : (isTypeCopy(actual.t) ? rendered + ".unwrap()" : rendered + ".as_ref().unwrap().clone()");
+            }
         // A scalar whose read still renders the Option shape (a wrapped
         // ternary, an Option-returning read) enters a non-null scalar
         // slot; the boundary unwraps it, and the None path has no
@@ -12779,12 +12842,12 @@ class RustExpr {
             if (pt != null && isNullType(pt) && StringTools.startsWith(argStr, "*")
                 && !StringTools.startsWith(argStr, "*("))
                 argStr = "Some(" + argStr + ")";
-            // A borrowed match binding (`__option6`) feeding a nullable slot
-            // wraps the cloned inner value in Some: the binding itself is a
-            // reference into the matched subject. (BorrowedBindingSomeWrap)
-            if (pt != null && isNullType(pt) && !isTNull(arg)
-                && StringTools.startsWith(argStr, "__option"))
-                argStr = "Some((*" + argStr + ").clone())";
+            // A narrowed binding read feeding a nullable slot wraps the
+            // cloned inner value in Some: the binding itself is a reference
+            // into the matched subject. (BorrowedBindingSomeWrap)
+            final bindingRead = narrowedBindingText(argStr);
+            if (pt != null && isNullType(pt) && !isTNull(arg) && bindingRead != null)
+                argStr = "Some((*" + bindingRead + ").clone())";
             if (pt != null && isNullType(pt) && !isTNull(arg)
                 && StringTools.startsWith(argStr, "&(") && StringTools.endsWith(argStr, ")")
                 && StringTools.contains(argStr, "__option"))
@@ -12816,13 +12879,12 @@ class RustExpr {
                     case _:
                 }
             }
-            // A borrowed match binding (`__option6`, bare or wrapped as
-            // `&(__option6)`) feeding a nullable slot wraps the cloned inner
-            // value in Some: the binding is a reference into the matched
-            // subject. (BorrowedBindingSomeWrap)
-            if (pt != null && isNullType(pt) && !isNullType(arg.t) && !isTNull(arg)
-                && StringTools.startsWith(argStr, "__option"))
-                argStr = "Some((*" + argStr + ").clone())";
+            // The mirrored form for an argument whose Haxe type stays
+            // non-null: a binding read clones the referent.
+            // (BorrowedBindingSomeWrap)
+            final bindingReadNonNull = narrowedBindingText(argStr);
+            if (pt != null && isNullType(pt) && !isNullType(arg.t) && !isTNull(arg) && bindingReadNonNull != null)
+                argStr = "Some((*" + bindingReadNonNull + ").clone())";
             if (pt != null && isNullType(pt) && !isNullType(arg.t) && !isTNull(arg)
                 && StringTools.startsWith(argStr, "&(") && StringTools.endsWith(argStr, ")")
                 && StringTools.contains(argStr, "__option"))
@@ -12847,14 +12909,17 @@ class RustExpr {
                                 && !StringTools.endsWith(argStr, ".unwrap_or(0.0)"));
                     case _: provenMapGet(arg);
                 };
-                if (proven && RustShapeParse.shapeOf(argStr) != RustShape.ShapeBare) {
+                if (proven && narrowedBindingText(argStr) == null && RustShapeParse.shapeOf(argStr) != RustShape.ShapeBare) {
                     final inner = getNullInnerType(arg.t);
                     final ref = "(" + argStr + ").as_ref().unwrap()";
                     argStr = isTypeCopy(inner) ? "*" + ref : ref + ".clone()";
                 } else if (hasGuardedGetExpr(arg)
                     // A text that already consumed its Option (the fallible
                     // unwrap suffix) must not gain an as_ref bridge on the
-                    // bare value. (BuilderValueNullability, ShapeParse)
+                    // bare value; a narrowed binding read already extracted
+                    // the inner value the same way. (BuilderValueNullability,
+                    // ShapeParse)
+                    && narrowedBindingText(argStr) == null
                     && RustShapeParse.shapeOf(argStr) != RustShape.ShapeBare) {
                     // A `map.get(key)` under a matching `map.has(key)` guard
                     // holds the inner value; unwrap the Option.
@@ -12893,6 +12958,7 @@ class RustExpr {
                         // non-local form already render the inner value, so
                         // no unwrap applies. (NonNullSlotUnwrap)
                         final optionRenderedLocal = narrowedSubject(arg) == null
+                            && narrowedBindingText(argStr) == null
                             && switch (stripWrap(arg).expr) {
                                 case TLocal(v): optionRenderedLocals.exists(v.id);
                                 case _: false;
