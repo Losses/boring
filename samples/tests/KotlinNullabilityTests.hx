@@ -30,6 +30,41 @@ class KotlinNullableReceiver {
     }
 }
 
+/**
+ * A slot whose element parameter is the bare class type parameter. Its element
+ * nullability is visible only through the type arguments the receiver applies,
+ * never in the declared signature.
+ */
+class KotlinNullableSlot<T> {
+    public var stored:Int;
+
+    var value:T;
+
+    public function new(initial:T) {
+        stored = 0;
+        value = initial;
+    }
+
+    public function accept(next:T):Void {
+        stored++;
+        value = next;
+    }
+
+    public function peek():T {
+        return value;
+    }
+}
+
+class KotlinNullableProbe {
+    public static function present():Null<KotlinNullableReceiver> {
+        return new KotlinNullableReceiver();
+    }
+
+    public static function absent():Null<KotlinNullableReceiver> {
+        return null;
+    }
+}
+
 class KotlinNullabilityTests {
     @:test("optional parameters emit a native default")
     public static function testOptionalDefault():Void {
@@ -45,5 +80,20 @@ class KotlinNullabilityTests {
         #if kotlin_output
         Test.equals(null, KotlinNullabilityOps.receiverLabel(null));
         #end
+    }
+
+    @:test("generic receiver type arguments decide parameter nullability")
+    public static function testGenericReceiverNullableParam():Void {
+        final slot:KotlinNullableSlot<Null<KotlinNullableReceiver>> = new KotlinNullableSlot(KotlinNullableProbe.present());
+        slot.accept(KotlinNullableProbe.present());
+        Test.equals(1, slot.stored, "the present value was accepted");
+        final present = slot.peek();
+        Test.equals(false, present == null, "the present value round-trips");
+        Test.equals("present", present == null ? "missing" : present.label());
+
+        slot.accept(KotlinNullableProbe.absent());
+        Test.equals(2, slot.stored, "the absent value was accepted");
+        final absent = slot.peek();
+        Test.equals(true, absent == null, "the stored null round-trips");
     }
 }
