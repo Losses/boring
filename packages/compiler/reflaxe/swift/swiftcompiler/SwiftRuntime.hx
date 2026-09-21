@@ -379,6 +379,62 @@ public enum UString {
     **/
     public static final TEST_SOURCE = '
 
+// The C library of the host, for the environment read below. This file is
+// written on its own, without the header the generated modules carry, so
+// the conditional imports live here.
+#if canImport(Glibc)
+import Glibc
+#endif
+#if canImport(Darwin)
+import Darwin
+#endif
+#if canImport(CRT)
+import CRT
+#endif
+
+/// The text of an environment variable, or nil when it is unset. The
+/// platform calls match the ones the std.Env host edge uses.
+func boringTestEnvText(_ key: String) -> String? {
+    #if canImport(Glibc) || canImport(Darwin)
+    return key.withCString { k in
+        guard let value = getenv(k) else { return nil }
+        return String(cString: value)
+    }
+    #elseif canImport(CRT)
+    return key.withCString { k in
+        var buffer: UnsafeMutablePointer<CChar>? = nil
+        var count: Int = 0
+        if _dupenv_s(&buffer, &count, k) == 0, let buffer {
+            defer { free(buffer) }
+            return String(cString: buffer)
+        }
+        return nil
+    }
+    #else
+    return nil
+    #endif
+}
+
+/// The wall-clock budget of one test in milliseconds, read from the
+/// environment on every run and never at generation time, so one generated
+/// tree serves every budget. A value that is absent, unparsable, or not
+/// positive falls back to 5000. The generated entry carries no runner timer
+/// of its own, so this check is the only timeout a body that returned late
+/// is caught by.
+func boringTestTimeoutBudgetMs() -> Int {
+    if let raw = boringTestEnvText("BORING_TEST_TIMEOUT_MS"), let parsed = Int(raw), parsed > 0 {
+        return parsed
+    }
+    return 5000
+}
+
+/// The wall-clock milliseconds since the given instant. The standard
+/// library clock is monotonic, so no platform timer API enters the runtime.
+func boringTestElapsedMs(since start: ContinuousClock.Instant) -> Int {
+    let elapsed = start.duration(to: ContinuousClock().now)
+    return Int(elapsed.components.seconds) * 1000 + Int(elapsed.components.attoseconds / 1_000_000_000_000_000)
+}
+
 /// The assertion failure of features/19: the canonical message in the
 /// resident unit-array ABI, converted to text only at the print edge.
 public struct TestFailure: Error {
@@ -408,10 +464,20 @@ public enum Test {
         let idUnits = Array(id.utf16)
         let nameUnits = Array(name.utf16)
         Test.currentTestId = idUnits
+        let budgetMs = boringTestTimeoutBudgetMs()
+        let startedAt = ContinuousClock().now
         // The result line carries its own newline; an empty terminator
         // keeps one record per line in the redirected results file.
         do {
             try body()
+            if boringTestElapsedMs(since: startedAt) >= budgetMs {
+                // A body that returned at or past the budget raises the
+                // failure type of an assertion, so the clause below records
+                // the fail line with the timeout message and the runner
+                // reports the test as failed too.
+                let text = "this test timed out after " + String(budgetMs) + "ms"
+                throw TestFailure(message: Array(text.utf16))
+            }
             print(decodeUnits(TestCore.resultLine(idUnits, nameUnits, false, [])), terminator: "")
             Test.currentTestId = []
             return false
