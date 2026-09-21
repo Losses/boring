@@ -439,6 +439,14 @@ pub fn count(s: &str) -> u32 {
     u32::try_from(UString::u_string_count(s)).unwrap_or(0)
 }
 
+// The String.length member counts UTF-16 code units on every target
+// (stdlib/15). The storage here is UTF-8, so a walk over chars() counts
+// scalar values and gives one count for a surrogate pair; encode_utf16
+// yields the units the member reports.
+pub fn unit_count(s: &str) -> u32 {
+    u32::try_from(s.encode_utf16().count()).unwrap_or(0)
+}
+
 pub fn at(s: &str, index: u32) -> Option<u32> {
     let mut remaining = index;
     for c in s.chars() {
