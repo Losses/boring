@@ -3988,8 +3988,21 @@ class KotlinExpr {
                     // interval, like the Swift and Dart lowerings.
                     return expr(subj) + nullableAccess(subj) + name + "(" + expr(args[0]) + " until " + expr(args[1]) + ")";
                 }
-                if (name == "split" && mutableArrayAccess && isString(stripCast(subj)))
+                if (name == "split" && mutableArrayAccess && isString(stripCast(subj))) {
+                    // The haxe std contract gives an empty delimiter one
+                    // element per UTF-16 code unit, which is what the
+                    // JavaScript target produces; the platform split seeds a
+                    // leading and a trailing empty string around the units
+                    // instead, so that separator lowers to the unit slice.
+                    if (isEmptyDelimiterSplit(name, args))
+                        return expr(subj) + ".chunked(1).toMutableList()";
                     return expr(subj) + ".split(" + renderedArgs + ").toMutableList()";
+                }
+                // A string receiver outside a mutable array binding takes the
+                // general path below, which keeps the same unit contract for
+                // the empty delimiter.
+                if (name == "split" && isString(stripCast(subj)) && isEmptyDelimiterSplit(name, args))
+                    return expr(subj) + nullableAccess(subj) + "chunked(1).toMutableList()";
                 return expr(subj) + nullableAccess(subj) + name + "(" + renderedArgs + ")";
             case TField(_, FStatic(c, cf)):
                 final cls = c.get();
@@ -4635,6 +4648,20 @@ class KotlinExpr {
             case TInst(c, _): final cls = c.get(); cls.pack.join(".") == "haxe.io" && cls.name == "Bytes";
             case _: false;
         }
+    }
+
+    /**
+     * True for the empty string literal, the `split` separator whose haxe
+     * contract is one element per UTF-16 code unit rather than a platform
+     * pattern match.
+     */
+    function isEmptyDelimiterSplit(name:String, args:Array<TypedExpr>):Bool {
+        if (name != "split" || args.length != 1)
+            return false;
+        return switch (stripWrap(args[0]).expr) {
+            case TConst(TString(separator)): separator.length == 0;
+            case _: false;
+        };
     }
 
     function isString(e:TypedExpr):Bool {
