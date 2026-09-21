@@ -234,6 +234,10 @@ class RustDecl {
         final lines:Array<String> = [];
 
         if (isStaticClass) {
+            // A class with only statics lowers to a unit struct. Every value
+            // of it is a zero-sized constant, so the capture and clone rules
+            // that treat a class value as an owned read still apply.
+            lines.push("#[derive(Clone, Copy)]");
             lines.push("pub struct " + emittedName + ";\n");
             lines.push("impl " + emittedName + " {");
             for (v in varFields) {
