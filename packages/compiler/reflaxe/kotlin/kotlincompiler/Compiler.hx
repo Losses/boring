@@ -4,6 +4,7 @@ package kotlincompiler;
 import haxe.macro.Context;
 import haxe.macro.Type;
 import PolicyQueries;
+import TestClassEntries;
 import TestClassFlush;
 import reflaxe.BaseCompiler.BaseCompilerFileOutputType;
 import reflaxe.PluginCompiler;
@@ -185,6 +186,23 @@ class Compiler extends PluginCompiler<Compiler> {
             });
         }
 
+        // The conventional class test entry of feature spec 19 belongs to a
+        // class the @:test collection leaves out. A class that also carries
+        // @:test functions reaches the runner through that collection, so
+        // the entry there is a member the test-class lowering rejects; the
+        // error names the two conventions in place of the member.
+        for (f in funcFields) {
+            if (!TestClassEntries.isEntry(f)) {
+                continue;
+            }
+            if (hasTestMethods) {
+                Context.error("class test entry " + classType.name + "." + TestClassEntries.ENTRY_NAME
+                    + " belongs to a class with no @:test function", f.field.pos);
+            }
+            TestClassEntries.validate(f, classType.name);
+            state.testEntryClasses.set(classType.module + "." + classType.name, {cls: classType, entry: f.field.name});
+        }
+
         final decl = contextFor(classType.module);
         final result = decl.classDecl(classType, varFields, funcFields);
         if (result != null && result.length > 0) {
@@ -260,7 +278,7 @@ class Compiler extends PluginCompiler<Compiler> {
             final body = assembleModuleBody(module, parts.get(module));
             final content = imports + (imports.length > 0 ? "\n" : "") + body + "\n";
 
-            if (state.testClasses.exists(module)) {
+            if (isTestModule(module)) {
                 final testFileRel = kotlinTestOutput + "/" + modulePath(module);
                 final savePath = computeRelativePath(kotlinOutput, testFileRel);
                 PackageArtifacts.saveTreeFile(output, savePath, content);
@@ -280,7 +298,7 @@ class Compiler extends PluginCompiler<Compiler> {
         // sorted tables compile from the runtime.SortedTable resident,
         // gated through the extern usage flags these modules still set.
 
-        if (hasAnyKey(state.testClasses) && kotlinTestOutput != null) {
+        if ((hasAnyKey(state.testClasses) || hasAnyKey(state.testEntryClasses)) && kotlinTestOutput != null) {
             generateTestHelper(kotlinTestOutput, kotlinOutput);
             generateTestMain(kotlinTestOutput, kotlinOutput);
             // Kotlin reserves the `kotlin` package for its own standard library, so
@@ -553,6 +571,24 @@ class Compiler extends PluginCompiler<Compiler> {
         };
     }
 
+    /**
+        Whether a module belongs to the test source root: it holds a class the
+        @:test collection reached, or a class that declares the conventional
+        class test entry (feature spec 19). Both are test code, so both write
+        into the test root and stay out of the shipping tree.
+    **/
+    function isTestModule(module:String):Bool {
+        if (state.testClasses.exists(module)) {
+            return true;
+        }
+        for (key in state.testEntryClasses.keys()) {
+            if (state.testEntryClasses.get(key).cls.module == module) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     function generateTestMain(kotlinTestOutput:String, kotlinOutput:String):Void {
         final lines:Array<String> = [];
         final withArgs = state.processArgsReferenced;
@@ -587,6 +623,15 @@ class Compiler extends PluginCompiler<Compiler> {
                 lines.push('    try { $varName.$flushEntry() } catch (t: Throwable) { hasFailure = true }');
             }
             idx++;
+        }
+        // The conventional class test entry (feature spec 19): the class
+        // runs from the consumer's own runner, and this collection holds no
+        // id for it. The call takes no instance, because the entry is a
+        // static member of a class the @:test collection leaves out.
+        for (key in state.testEntryClasses.keys()) {
+            final record = state.testEntryClasses.get(key);
+            final entryClass = record.cls.pack.concat([record.cls.name]).join(".");
+            lines.push('    try { ' + entryClass + '.' + record.entry + '() } catch (t: Throwable) { hasFailure = true }');
         }
         lines.push('    if (hasFailure) {');
         lines.push('        kotlin.system.exitProcess(1)');
