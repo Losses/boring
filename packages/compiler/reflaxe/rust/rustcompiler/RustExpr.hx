@@ -7492,16 +7492,20 @@ class RustExpr {
                     if (isStringBuf(subj)) {
                         return RustConversions.truncate(expr(subj) + ".len()", "u32");
                     }
+                    // A String receiver counts UTF-16 code units on every
+                    // target (stdlib/15), so it reads the u_string unit
+                    // count ahead of the container paths below.
+                    if (isString(subj)) {
+                        final units = stringUnitCount(expr(subj));
+                        // Resident modules keep the signed Int domain: their
+                        // lengths join index arithmetic.
+                        return RuntimeResidents.isResident(imports.selfModule) ? RustConversions.reinterpret(units, "i32") : units;
+                    }
                     // Resident modules keep the signed Int domain: their
-                    // lengths join index arithmetic, so the read narrows
-                    // here the way UStringPlatform end inlines.
+                    // container lengths join index arithmetic, so the read
+                    // narrows here the way UStringPlatform end inlines.
                     if (RuntimeResidents.isResident(imports.selfModule)) {
                         return RustConversions.narrowI32("(" + expr(subj) + ").len()");
-                    }
-                    if (isString(subj)) {
-                        state.shimsUsed.set("std.UStringRT", true);
-                        imports.require("crate::runtime::u_string");
-                        return "u_string::count(&(" + expr(subj) + "))";
                     }
                     if (i32ComparisonTarget)
                         return "(" + RustConversions.narrowI32("(" + expr(subj) + ").len()") + ")";
@@ -7756,6 +7760,23 @@ class RustExpr {
 
     function rustU32Length(length:String):String {
         return "match u32::try_from(" + length + ") { Ok(value) => value, Err(_) => u32::MAX }";
+    }
+
+    /**
+        The UTF-16 code unit count of spec 15: the u_string ABI adapter
+        counts the units a String.length read reports, in place of the
+        code point count of std.UString.
+    **/
+    function stringUnitCount(receiver:String):String {
+        state.shimsUsed.set("std.UStringRT", true);
+        imports.require("crate::runtime::u_string");
+        return "u_string::unit_count(&(" + receiver + "))";
+    }
+
+    /** Whether a rendered arm is one of the u_string count adapters, whose
+        u32 result reinterprets into a signed sibling slot. **/
+    function isUStringCountText(text:String):Bool {
+        return text.indexOf("u_string::unit_count") >= 0 || text.indexOf("u_string::count") >= 0;
     }
 
     function staticAssignmentTarget(e:TypedExpr):Null<String> {
@@ -13606,7 +13627,7 @@ class RustExpr {
                 return text;
             return text + ".to_string()";
         }
-        if (text.indexOf("u_string::count") >= 0 && resolveExprType(sibling) == "i32") {
+        if (isUStringCountText(text) && resolveExprType(sibling) == "i32") {
             return RustConversions.reinterpret(text, "i32");
         }
         if (!isStringType(branch.t) || !isStringType(sibling.t)) {
@@ -13683,7 +13704,7 @@ class RustExpr {
         if (resultType != null && isOwnedVecType(resultType) && borrowedArrayRead(branch)) {
             return "(*" + text + ").clone()";
         }
-        if (text.indexOf("u_string::count") >= 0 && resolveExprType(sibling) == "i32") {
+        if (isUStringCountText(text) && resolveExprType(sibling) == "i32") {
             return RustConversions.reinterpret(text, "i32");
         }
         return text;

@@ -50,13 +50,9 @@ class StringUnitTests {
     public static function splitEmptyDelimiterSurrogates():Void {
         final astral = UString.fromCodePoint(0x1F600);
         final text = "a" + astral + "b";
-        // Spec 15 contracts s.length as the UTF-16 code unit count; the Rust
-        // lowering still counts the storage units differently, so the code
-        // unit assertions below stay on the targets that implement the
-        // contract today.
-        #if (kotlin_output || ts_output)
+        // Spec 15 contracts s.length as the UTF-16 code unit count on every
+        // target, so the astral pair counts as two units here too.
         Test.equals(4, text.length);
-        #end
 
         final units = StringUnitOps.splitUnits(text);
         Test.equals(4, units.length);
