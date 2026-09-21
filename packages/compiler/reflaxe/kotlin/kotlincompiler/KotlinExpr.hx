@@ -112,6 +112,15 @@ class KotlinExpr {
     /** Constructor parameter name -> rendered argument, for coalescing defaults that read an earlier parameter. */
     var constructorParameterValues:Null<Map<String, String>> = null;
 
+    /**
+        Rendered call-site argument text per callee parameter name, for the
+        duration of one call-site argument list. A coalescing default that
+        reads an earlier parameter cannot be materialized as a bare parameter
+        name, because that name is not in scope outside the callee body; the
+        call site substitutes the argument actually passed for the parameter.
+     **/
+    var callParameterValues:Null<Map<String, String>> = null;
+
     /** Function context used to distinguish a sanctioned coalescing site. */
     var currentClass:Null<ClassType> = null;
 
@@ -228,7 +237,10 @@ class KotlinExpr {
             case CPositiveInfinity: FloatPrecision.isF32() ? "Float.POSITIVE_INFINITY" : "Double.POSITIVE_INFINITY";
             case CNegativeInfinity: FloatPrecision.isF32() ? "Float.NEGATIVE_INFINITY" : "Double.NEGATIVE_INFINITY";
             case CEnum(enumRef, enumField): types.of(Type.TEnum(enumRef, [])) + "." + enumField.name;
-            case CParameterRead(name): constructorParameterValues != null && constructorParameterValues.exists(name) ? constructorParameterValues.get(name) : KotlinNameEscape.escape(name);
+            case CParameterRead(name):
+                final bound = callParameterValues != null && callParameterValues.exists(name) ? callParameterValues.get(name) : (constructorParameterValues != null
+                    && constructorParameterValues.exists(name) ? constructorParameterValues.get(name) : null);
+                bound != null ? bound : KotlinNameEscape.escape(name);
             case CInstanceFieldRead(name): "this." + KotlinNameEscape.escape(name);
             case CLocalRead(name): KotlinNameEscape.escape(name);
             case CFieldAccess(CParameterRead(staticPath), ""): constructorParameterValues != null && constructorParameterValues.exists(staticPath) ? constructorParameterValues.get(staticPath) : coalescingStaticFieldText(staticPath);
@@ -4423,7 +4435,126 @@ class KotlinExpr {
     }
 
     function renderCallArgs(args:Array<TypedExpr>, params:Array<Type>, owner:Null<ClassType> = null, fieldName:Null<String> = null, allowNullable:Bool = false):Array<String> {
-        return [for (i in 0...args.length) renderCallArg(args[i], i, params, owner, fieldName, allowNullable)];
+        if (owner == null || fieldName == null)
+            return [for (i in 0...args.length) renderCallArg(args[i], i, params, owner, fieldName, allowNullable)];
+        final rendered = [for (i in 0...args.length) renderCallArg(args[i], i, params, owner, fieldName, allowNullable)];
+        final substitutions = callParameterSubstitutions(args, rendered, params, owner, fieldName);
+        if (substitutions == null)
+            return rendered;
+        final savedCallParameters = callParameterValues;
+        callParameterValues = substitutions;
+        final withDefaults = [for (i in 0...args.length) renderCallArg(args[i], i, params, owner, fieldName, allowNullable)];
+        callParameterValues = savedCallParameters;
+        return withDefaults;
+    }
+
+    /**
+        Rendered call-site text per callee parameter name, or null when the call
+        needs no substitution. A registered coalescing default that reads an
+        earlier parameter is written for the callee body, where that parameter
+        is a local binding; the call site has no such binding, so the default
+        text resolves each read against the parameter's declared default or
+        against the argument this call passes for it. Without the map the
+        call-site materialization of such a default would emit a bare parameter
+        name, an unresolved reference at the call site. (OmittedDefaultReads)
+     **/
+    function callParameterSubstitutions(args:Array<TypedExpr>, rendered:Array<String>, params:Array<Type>, owner:ClassType, fieldName:String):Null<Map<String, String>> {
+        var readsParameter = false;
+        for (i in 0...args.length)
+            if (registeredDefaultReadsParameter(owner, fieldName, i)) {
+                readsParameter = true;
+                break;
+            }
+        if (!readsParameter)
+            return null;
+        final formalNames = declaredCallParameterNames(owner, fieldName);
+        final map:Map<String, String> = [];
+        for (i in 0...rendered.length) {
+            final name = i < formalNames.length ? formalNames[i] : null;
+            if (name != null && !map.exists(name))
+                map.set(name, rendered[i]);
+        }
+        for (i in 0...formalNames.length) {
+            final name = formalNames[i];
+            if (map.exists(name))
+                continue;
+            final resolved = resolvedOmittedParameterText(owner, fieldName, i, map, i < params.length ? params[i] : null);
+            if (resolved == null)
+                return null;
+            map.set(name, resolved);
+        }
+        return map;
+    }
+
+    /** The declared parameter names a call into one field binds, in order. */
+    function declaredCallParameterNames(owner:ClassType, fieldName:String):Array<String> {
+        if (fieldName == "new") {
+            if (owner.constructor == null)
+                return [];
+            return switch (Context.follow(owner.constructor.get().type)) {
+                case TFun(values, _): [for (v in values) v.name];
+                case _: [];
+            };
+        }
+        for (f in owner.fields.get())
+            if (f.name == fieldName)
+                return switch (Context.follow(f.type)) {
+                    case TFun(values, _): [for (v in values) v.name];
+                    case _: [];
+                };
+        for (f in owner.statics.get())
+            if (f.name == fieldName)
+                return switch (Context.follow(f.type)) {
+                    case TFun(values, _): [for (v in values) v.name];
+                    case _: [];
+                };
+        if (owner.superClass != null) {
+            final inherited = declaredCallParameterNames(owner.superClass.t.get(), fieldName);
+            if (inherited.length > 0)
+                return inherited;
+        }
+        for (iface in owner.interfaces) {
+            final declared = declaredCallParameterNames(iface.t.get(), fieldName);
+            if (declared.length > 0)
+                return declared;
+        }
+        return [];
+    }
+
+    /** True when the registered default at one argument position reads a parameter of its own function. */
+    function registeredDefaultReadsParameter(owner:ClassType, fieldName:String, i:Int):Bool {
+        return DefaultArgExpander.coalescingDefaultReadsParameter(owner, fieldName, i);
+    }
+
+    /**
+        The call-site text for a parameter this call does not pass. A nullable
+        rendered parameter accepts the null literal; a parameter whose
+        registered default is itself renderable at the call site contributes
+        that default, which preserves the callee's own resolution order when a
+        later default reads it.
+     **/
+    function resolvedOmittedParameterText(owner:ClassType, fieldName:String, i:Int, substitutions:Map<String, String>,
+            paramType:Null<Type>):Null<String> {
+        if (paramType == null)
+            return null;
+        // The declaration is the authority on the rendered parameter type: a
+        // registered default drops the Null wrapper unless the default value
+        // itself can be null. The call resolves against that same type, so the
+        // null literal is passed only where the parameter accepts it.
+        final declaredTypes = KotlinDecl.emittedParameterTypes(owner, fieldName);
+        final declaredType = i < declaredTypes.length ? declaredTypes[i] : paramType;
+        if (isNullType(declaredType))
+            return "null";
+        final coalescing = DefaultArgExpander.coalescingDefaultValueAt(owner, fieldName, i);
+        if (coalescing == null)
+            return null;
+        if (DefaultArgExpander.coalescingDefaultReadsParameter(owner, fieldName, i))
+            return null;
+        final saved = callParameterValues;
+        callParameterValues = substitutions;
+        final text = defaultArgText(coalescing, paramType);
+        callParameterValues = saved;
+        return text;
     }
 
     function renderCallArg(a:TypedExpr, i:Int, params:Array<Type>, owner:Null<ClassType>, fieldName:Null<String>, allowNullable:Bool = false):String {
