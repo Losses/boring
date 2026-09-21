@@ -69,6 +69,47 @@ class ArrayAccessOps {
         final holder = new ArrayGrowthHolder(count);
         return holder.readAll();
     }
+
+    /**
+        A Float element array grows with its element type's own zero, so the
+        fill literal carries the Kotlin width of that element type: a Double
+        zero does not go into a MutableList<Float>, which is the width the
+        f32 switch selects. (ArrayGrowthOnIndexWrite)
+    **/
+    public static function growFloatSlots():Array<Float> {
+        final slots:Array<Float> = [];
+        slots[2] = 1.5;
+        return slots;
+    }
+
+    /** The field shape the f32 Kotlin target met in the field: an empty
+        Float array field that an index loop fills from slot zero, so every
+        write past the first grows the backing list. */
+    public static function filledFloatHolder(count:Int):Array<Float> {
+        final holder = new FloatGrowthHolder(count);
+        return holder.readAll();
+    }
+}
+
+/**
+    An empty Float array field an index loop fills, the shape the f32
+    engine tree carried. (ArrayGrowthOnIndexWrite)
+**/
+class FloatGrowthHolder {
+    public var slots:Array<Float>;
+
+    public function new(count:Int) {
+        slots = [];
+        var i = 0;
+        while (i <= count) {
+            slots[i] = i * 1.5;
+            i++;
+        }
+    }
+
+    public function readAll():Array<Float> {
+        return slots;
+    }
 }
 
 /**
