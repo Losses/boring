@@ -660,3 +660,5 @@ tests.ArrayIndexSearchTests
 # The per-class flush probe of feature spec 27: one @:test function plus
 # the conventional flushTestTrace entry, which registers no test id.
 tests.FlushHookProbeTests
+
+tests.NullableFieldRecordTests
