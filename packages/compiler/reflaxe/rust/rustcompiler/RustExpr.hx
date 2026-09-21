@@ -2688,12 +2688,19 @@ class RustExpr {
                     assigned = true;
                     continue;
                 }
-                if (mentionsLocalId(s, vid))
-                    return false;
+                if (mentionsLocalId(s, vid)) {
+                    if (definitelyAssigns(s, v))
+                        assigned = true;
+                    else
+                        return false;
+                    continue;
+                }
             }
             return assigned;
         }
         return switch (stripWrap(e).expr) {
+            case TBlock(bs):
+                armAssigns(bs);
             case TSwitch(_, cases, def):
                 var all = true;
                 for (c in cases)
