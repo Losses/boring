@@ -190,7 +190,16 @@ class RustImports {
     }
 
     public static function emittedTypeName(s:String):String {
-        return StringTools.endsWith(s, "_Impl_") ? toUpperCamelCase(s) : s;
+        // The Haxe typer wraps module-level functions into a synthetic
+        // class named `<Module>_Fields_`; the trailing underscore keeps
+        // rustc's non_camel_case_types lint from passing, so that suffix
+        // takes the same camel mapping as the `_Impl_` wrapper names. The
+        // snake-cased member names (toSnakeCase over the mapped prefix)
+        // stay byte-identical, so declarations and call sites rename
+        // together.
+        if (StringTools.endsWith(s, "_Impl_") || StringTools.endsWith(s, "_Fields_"))
+            return toUpperCamelCase(s);
+        return s;
     }
 
     public static function toUpperCamelCase(s:String):String {
