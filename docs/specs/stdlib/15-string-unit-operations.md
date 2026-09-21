@@ -21,6 +21,10 @@ width.
   `sep`, keeps empty parts, and returns `Array<String>`. A call with an
   empty separator returns one single-code-unit string per code unit of
   `s`. The separator matches literally; no pattern form is accepted.
+- Haxe exposes no indexed read form on a `String`: `s[i]` is rejected at
+  compile time with `Array access is not allowed on String`, so
+  `charCodeAt` is the only member that reads one UTF-16 code unit at an
+  index. The rows below name members, and no row names an index syntax.
 
 A comparison of a `charCodeAt` result against an `Int` literal and a
 null test on the result follow the nullable `Null<Int>` forms the
@@ -65,10 +69,16 @@ targets already lower.
 ## Samples and tests
 
 - `samples/boring/StringUnitOps.hx`: `charCodeAt` in range, at the last
-  index, and out of range; `split` on a present separator, an absent
-  separator, and repeated separators producing empty parts; one
-  BMP-range row over a CJK string.
+  index, and out of range; `charCodeAt` at a caller-supplied unit index,
+  which addresses each half of a surrogate pair separately; `split` on
+  a present separator, an absent separator, and repeated separators
+  producing empty parts; one BMP-range row over a CJK string. The same
+  module carries the `substr` unit cut that feature spec 08 ruling 9
+  rules, with and without a length over an astral string.
 - `samples/tests/StringUnitTests.hx`: the in-range code value, the
   out-of-range null test, the split part counts, the split contents, and
   the `length` of a string holding one astral code point as four units.
+  out-of-range null test, the split part counts, the split contents, the
+  four unit values of an astral string, the two units of its surrogate
+  pair, and the unit cuts that fall between them.
 - Both modules are entered in all eight generation hxml files.
