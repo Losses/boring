@@ -237,7 +237,13 @@ class TsImports {
         final testSuffix = testRunner == "deno" ? "_test.ts" : ".test.ts";
         final lines = [];
         if (testRunner == "bun") {
-            lines.push('import { test } from "bun:test";');
+            // The native timer is a second verdict on the same test, and a
+            // synchronous body cannot be preempted: bun fails the test
+            // after the body returned, past the point where the entry
+            // could still see it. The entry raises its own timeout at
+            // Test.runnerTimeoutBudgetMs, and the runner timer runs above
+            // that value so the two never disagree.
+            lines.push('import { test, setDefaultTimeout } from "bun:test";');
         } else if (testRunner == "node") {
             lines.push('import { test } from "node:test";');
         }
@@ -292,6 +298,11 @@ class TsImports {
             };
             final relPath = computeRelativePath(fromDir, toFile);
             lines.push('import { ${names.join(", ")} } from "' + relPath + '";');
+        }
+        if (testRunner == "bun" && hasAnyKey(runtimeTestNames)) {
+            // The margin between the entry budget and the runner timer
+            // lives in Test.runnerTimeoutBudgetMs, so one value rules both.
+            lines.push("setDefaultTimeout(Test.runnerTimeoutBudgetMs());");
         }
         return lines.length == 0 ? "" : lines.join("\n") + "\n";
     }
