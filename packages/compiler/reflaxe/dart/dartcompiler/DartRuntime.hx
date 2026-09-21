@@ -196,6 +196,19 @@ String currentTestId() {
   return _currentTestId;
 }
 
+/// The wall-clock budget of one test in milliseconds, read from the
+/// environment on every run and never at generation time, so one
+/// generated tree serves every budget. A value that is absent,
+/// unparsable, or not positive falls back to 5000. The generated entry
+/// carries no runner timer of its own: it reports the test the VM
+/// stopped, so this check is the only timeout a body that returned late
+/// is caught by.
+int timeoutBudgetMs() {
+  final raw = Platform.environment['BORING_TEST_TIMEOUT_MS'];
+  final parsed = raw == null ? null : int.tryParse(raw);
+  return parsed != null && parsed > 0 ? parsed : 5000;
+}
+
 /// Host edge of the test entry (features/19): the runner state, the
 /// raise of this language, and the stdout result edge. The result line
 /// carries its own newline; a write with no terminator keeps one record
@@ -205,8 +218,18 @@ String currentTestId() {
 bool run(String id, String name, void Function() body) {
   _currentTestId = id;
   var failed = false;
+  final budgetMs = timeoutBudgetMs();
+  final startedAt = Stopwatch()..start();
   try {
     body();
+    if (startedAt.elapsedMilliseconds >= budgetMs) {
+      // A body that returned at or past the budget raises the failure
+      // object of an assertion, so the clause below records the fail
+      // line with the timeout message and the runner reports the test
+      // as failed too.
+      throw TestFailure(
+          'this test timed out after ' + budgetMs.toString() + 'ms');
+    }
     stdout.write(TestCore.resultLine(id, name, false, ''));
   } on TestFailure catch (e) {
     failed = true;

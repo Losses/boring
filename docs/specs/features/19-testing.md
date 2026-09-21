@@ -432,6 +432,10 @@ path of a failed assertion: the host records the failure line with that
 message and rethrows, so the native runner reports the test as failed
 too.
 
+Every target that runs `std.Test.run` carries the check: TypeScript and
+Kotlin first, then Rust, Dart, and Swift with the same name, the same
+default, and the same message.
+
 Rulings:
 
 - The entry holds the verdict. A synchronous body cannot be preempted,
@@ -442,18 +446,37 @@ Rulings:
   budget plus one second: a body inside the budget leaves the runner
   timer untouched, and a body past the budget raises before that timer
   can fire. The two verdicts agree in both directions.
-- The Kotlin entry carries no runner timer, so the entry check is the
-  only timeout there. Before the check existed, a slow Kotlin test was
-  recorded as a pass.
-- The timeout message is target-neutral and byte-equal between the
-  TypeScript and Kotlin hosts, and its wording matches the phrase the
-  bun runner prints, so one text reads in both places.
+- Rust, Dart, Swift, and Kotlin carry no runner timer, so the entry
+  check is the only timeout there. Before the check existed, a body
+  that overran the budget was recorded as a pass on every one of them:
+  the record line was written from the return of the body alone.
+- The timeout message is target-neutral and byte-equal between all five
+  hosts, and its wording matches the phrase the bun runner prints, so
+  one text reads in both places.
 - The budget is read from the environment on every run, never at
   generation time, so one generated tree serves every budget.
-- The probe entries `tests/timeout-probe/ts.hxml` and
-  `tests/timeout-probe/kotlin.hxml` compile `probe.TimeoutProbeTests`,
-  one test that outruns the budget on purpose, into
-  `out/timeout-probe/`:
+- The raise wears the failure type of its target, so it enters the same
+  catch clause as a failed assertion and no second result path exists:
+  `Error` (TypeScript), `AssertionError` (Kotlin), `panic!` with a
+  `String` payload (Rust), `TestFailure` (Dart), `TestFailure` (Swift).
+  The record is written before the raise travels on, so the results file
+  and the runner report the same verdict.
+- The environment read and the clock use the facility each target
+  already carries, and none of them adds a dependency: `process.env`
+  and `Date.now` (TypeScript), `System.getenv` and `System.nanoTime`
+  (Kotlin), `std::env::var` and `std::time::Instant` (Rust),
+  `Platform.environment` and `Stopwatch` (Dart), and `getenv` through
+  the conditional `Glibc`/`Darwin`/`CRT` import plus the standard
+  library's monotonic `ContinuousClock` (Swift).
+- The Swift test host is written without the header the generated
+  modules carry, so `Test.swift` opens with its own conditional C
+  imports; that is the one host whose imports are part of the emitted
+  test source.
+- The probe entries `tests/timeout-probe/ts.hxml`,
+  `tests/timeout-probe/kotlin.hxml`, `tests/timeout-probe/rust.hxml`,
+  `tests/timeout-probe/dart.hxml`, and `tests/timeout-probe/swift.hxml`
+  compile `probe.TimeoutProbeTests`, one test that outruns the budget
+  on purpose, into `out/timeout-probe/`:
 
       haxe tests/timeout-probe/ts.hxml
       bun test out/timeout-probe/ts/gen-checks/
@@ -462,12 +485,27 @@ Rulings:
       kotlinc $(find out/timeout-probe/kotlin/gen out/timeout-probe/kotlin/gen-checks -name '*.kt') -include-runtime -d out/timeout-probe/probe.jar
       java -cp out/timeout-probe/probe.jar TestMainKt
 
+      haxe tests/timeout-probe/rust.hxml
+      BORING_TEST_RESULTS=$(pwd)/out/timeout-probe/rust/results.jsonl \
+        cargo test --manifest-path out/timeout-probe/rust/gen/Cargo.toml
+
+      haxe tests/timeout-probe/dart.hxml
+      dart run out/timeout-probe/dart/gen-checks/main.dart
+
+      haxe tests/timeout-probe/swift.hxml
+
   The probe stays out of the eight generation entries under `examples/`
   and out of the repository test run: it is slow and red by construction,
-  and an ordinary run stays fast and green. Its TypeScript test tree is
-  named `gen-checks`, because the repository test command searches with
-  the pattern `tests/` and a tree named `gen-tests` under `out/` would
-  join every repository test run.
+  and an ordinary run stays fast and green. Its test tree is named
+  `gen-checks`, because the repository test command searches with the
+  pattern `tests/` and a tree named `gen-tests` under `out/` would join
+  every repository test run.
+- The Rust probe entry lists `runtime.TestCore`, exactly as
+  `examples/rust.hxml` does: the Rust target compiles a resident module
+  only when the entry names it, and the generated entry calls
+  `crate::runtime::test_core`. The root `Cargo.toml` excludes `out`,
+  which lets the probe crate stand as a crate of its own: a package under
+  the workspace root that the member list does not name stops the build.
 
 ## The TypeScript test environment define
 
