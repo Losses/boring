@@ -2620,8 +2620,32 @@ class DartExpr {
                 if (name == "join") {
                     return receiverText(subj) + ".join(" + rendered + ")";
                 }
-                if (name == "slice") {
-                    return receiverText(subj) + ".sublist(" + expr(args[0]) + ", " + expr(args[1]) + ")";
+                if (name == "slice" && (args.length == 1 || args.length == 2)) {
+                    // Haxe bounds an Array slice at both ends before it
+                    // copies: a negative bound counts from the end and stops
+                    // at the first element, a bound past the end clamps to
+                    // the length, and an end that reaches the start or passes
+                    // it yields the empty list. The typer also passes a
+                    // synthesized null for an omitted end, which Haxe reads
+                    // as the length. Dart's sublist throws on a bound outside
+                    // the list, so both bounds are clamped and the omitted end
+                    // becomes the length. (ArraySliceClamping)
+                    final endOmitted = args.length < 2 || isNullLiteral(args[1]);
+                    var body = "(() { final _a = "
+                        + receiverText(subj)
+                        + "; final _n = _a.length"
+                        + "; final _f = "
+                        + expr(args[0])
+                        + "; final _s = _f < 0 ? (_n + _f < 0 ? 0 : _n + _f) : (_f > _n ? _n : _f);";
+                    if (endOmitted) {
+                        body += " return _a.sublist(_s); })()";
+                    } else {
+                        body += " final _t = "
+                            + expr(args[1])
+                            + "; final _e = _t < 0 ? (_n + _t < 0 ? 0 : _n + _t) : (_t > _n ? _n : _t);"
+                            + " return _a.sublist(_s, _e < _s ? _s : _e); })()";
+                    }
+                    return body;
                 }
                 if (name == "indexOf" && args.length >= 1) {
                     if (isStringSubject(subj))
@@ -2637,8 +2661,26 @@ class DartExpr {
                         case "concat" if (args.length == 1):
                             return "(" + receiverText(subj) + " + " + expr(args[0]) + ")";
                         case "splice" if (args.length == 2):
-                            return "(() { final _a = " + receiverText(subj) + "; final _i = " + expr(args[0]) + "; final _n = " + expr(args[1])
-                                + "; final _r = _a.sublist(_i, _i + _n); _a.removeRange(_i, _i + _n); return _r; })()";
+                            // Haxe bounds the call before it removes anything:
+                            // a negative length or a position past the length
+                            // removes nothing and leaves the list alone, a
+                            // negative position counts from the end and stops
+                            // at the first element, and a length that reaches
+                            // past the end removes only the tail. Dart's
+                            // sublist and removeRange throw on a bound outside
+                            // the list, so the position is clamped into it and
+                            // the count is trimmed to the elements that
+                            // remain. (ArraySpliceClamping)
+                            return "(() { final _a = "
+                                + receiverText(subj)
+                                + "; final _sz = _a.length"
+                                + "; final _p0 = "
+                                + expr(args[0])
+                                + "; final _l = "
+                                + expr(args[1])
+                                + "; final _p = _p0 < 0 ? (_sz + _p0 < 0 ? 0 : _sz + _p0) : (_p0 > _sz ? _sz : _p0);"
+                                + " final _c = (_l < 0 || _p0 > _sz) ? 0 : (_l < _sz - _p ? _l : _sz - _p);"
+                                + " final _r = _a.sublist(_p, _p + _c); _a.removeRange(_p, _p + _c); return _r; })()";
                         case "reverse" if (args.length == 0):
                             final r = receiverText(subj);
                             return r + ".setAll(0, " + r + ".reversed.toList())";
