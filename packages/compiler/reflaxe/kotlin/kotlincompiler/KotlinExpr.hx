@@ -4066,7 +4066,13 @@ class KotlinExpr {
                         if (func != null && func.args.length == 1) {
                             final paramName = KotlinNameEscape.escape(func.args[0].v.name);
                             final valueExpr = expr(lambdaBody(func.expr));
-                            return expr(receiver) + ".sumOf { " + paramName + " -> (" + valueExpr + ").toDouble() }.toFloat()";
+                            // The selector widens to Double, so the accumulator
+                            // is binary64 on both configurations; the closing
+                            // narrowing is the binary32 module real only
+                            // (feature spec 23 ruling 2, the dispatch
+                            // intToFloatText uses).
+                            final narrow = FloatPrecision.isF32() ? ".toFloat()" : "";
+                            return expr(receiver) + ".sumOf { " + paramName + " -> (" + valueExpr + ").toDouble() }" + narrow;
                         }
                         return fail(fn, "sumOfFloat requires a one-argument lambda");
                     }
