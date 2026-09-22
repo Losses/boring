@@ -1414,7 +1414,9 @@ class DartExpr {
                     // every value, and dart flags the dead null arm as dead
                     // code. (NullDefaultIdentityFold)
                     final defaultText = coalescingDefaultTextFor(coalescing);
-                    if (StringTools.trim(defaultText) == "null")
+                    // A value that cannot be null never sees the default.
+                    // (ProvenNonNullCoalescingFold)
+                    if (StringTools.trim(defaultText) == "null" || coalescingLeftCannotBeNull(coalescing.valueExpr))
                         return expr(coalescing.valueExpr);
                     return expr(coalescing.valueExpr) + " ?? " + defaultText;
                 }
@@ -2247,6 +2249,40 @@ class DartExpr {
         assertedSequence.clear();
         for (id => _ in saved)
             assertedSequence.set(id, true);
+    }
+
+    /** Whether a `??` on this value is dead because the value cannot be
+        null: a value free of nullable sources (every branch and operand
+        non-null), or a null-guard ternary whose guarded branch renders
+        with `!` and whose other branch is non-null.
+        (ProvenNonNullCoalescingFold) */
+    function coalescingLeftCannotBeNull(e:TypedExpr):Bool {
+        if (isNullLiteral(e))
+            return false;
+        // The structure check precedes the type check: the typer unifies a
+        // null-guard ternary with its nullable operand, but the guarded
+        // branch renders with `!`, so the render can still be non-null.
+        final inner = stripWrap(e);
+        switch (inner.expr) {
+            case TIf(c, t, f) if (f != null):
+                final guarded = nullGuardExpr(c);
+                if (guarded != null) {
+                    if (isNotNullGuard(c))
+                        return (structurallySame(t, guarded) || branchNonNull(t)) && branchNonNull(f);
+                    return (structurallySame(f, guarded) || branchNonNull(f)) && branchNonNull(t);
+                }
+            case _:
+        }
+        if (isNullLeafType(e.t) || optionalValued(e))
+            return false;
+        return !nullableValue(e);
+    }
+
+    /** One branch of a null-guard ternary: non-null by its own type. */
+    function branchNonNull(e:TypedExpr):Bool {
+        if (isNullLiteral(e) || isNullLeafType(e.t) || optionalValued(e))
+            return false;
+        return !nullableValue(e);
     }
 
     /** A method receiver unwraps when the receiver expression is optional. */
@@ -3344,7 +3380,9 @@ class DartExpr {
                     // every value, and dart flags the dead null arm as dead
                     // code. (NullDefaultIdentityFold)
                     final defaultText = defaultArgText(d, p);
-                    if (StringTools.trim(defaultText) == "null")
+                    // A value that cannot be null never sees the default.
+                    // (ProvenNonNullCoalescingFold)
+                    if (StringTools.trim(defaultText) == "null" || coalescingLeftCannotBeNull(args[i]))
                         expr(args[i]);
                     else
                         "(" + expr(args[i]) + " ?? " + defaultText + ")";
@@ -3430,7 +3468,9 @@ class DartExpr {
                         // switch; the report maps this rule to its test.
                         final ctorDefaultText = constructorDefaultText(d, p, cls, args, padded);
                         // A null default is an identity. (NullDefaultIdentityFold)
-                        if (StringTools.trim(ctorDefaultText) == "null")
+                        // A value that cannot be null never sees the default.
+                        // (ProvenNonNullCoalescingFold)
+                        if (StringTools.trim(ctorDefaultText) == "null" || coalescingLeftCannotBeNull(args[i]))
                             out.push(expr(args[i]));
                         else
                             out.push("(" + expr(args[i]) + " ?? " + ctorDefaultText + ")");
