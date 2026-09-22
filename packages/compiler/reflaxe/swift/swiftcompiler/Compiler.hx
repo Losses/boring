@@ -4,6 +4,7 @@ package swiftcompiler;
 import haxe.macro.Context;
 import haxe.macro.Type;
 import PolicyQueries;
+import TestApplicability;
 import TestClassFlush;
 import reflaxe.BaseCompiler.BaseCompilerFileOutputType;
 import reflaxe.PluginCompiler;
@@ -35,7 +36,7 @@ class Compiler extends PluginCompiler<Compiler> {
     final testModules:Map<String, Bool> = [];
 
     /** One entry per @:test function, in emission order. */
-    final testEntries:Array<{id:String, runnerName:String, call:String}> = [];
+    final testEntries:Array<{id:String, runnerName:String, call:String, notApplicable:Bool}> = [];
 
     var current:Null<SwiftDecl> = null;
 
@@ -215,13 +216,19 @@ class Compiler extends PluginCompiler<Compiler> {
                     Context.error("Test function " + id + " must take no arguments and return Void", f.field.pos);
                 }
 
-                if (body.length > 0) {
-                    body.push("");
+                TestApplicability.validate(f.field);
+                final notApplicable = TestApplicability.isExcluded(f.field, "swift");
+                if (!notApplicable) {
+                    if (body.length > 0) {
+                        body.push("");
+                    }
+                    for (l in decl.testFuncDecl(classType, f)) {
+                        body.push(l);
+                    }
                 }
-                for (l in decl.testFuncDecl(classType, f)) {
-                    body.push(l);
-                }
-                testEntries.push({id: id, runnerName: runnerNameOf(id, f), call: classType.name + "." + f.field.name});
+                // An excluded test emits no body; the runner writes its
+                // not-applicable record directly (feature spec 19).
+                testEntries.push({id: id, runnerName: runnerNameOf(id, f), call: classType.name + "." + f.field.name, notApplicable: notApplicable});
             }
             // The test namespace mirrors the statics-only business
             // lowering: a case-less enum carrying the throwing functions.
