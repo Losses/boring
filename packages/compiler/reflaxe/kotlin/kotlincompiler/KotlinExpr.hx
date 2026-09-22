@@ -2840,19 +2840,28 @@ class KotlinExpr {
         var current = stripWrap(e);
         while (true) {
             switch (current.expr) {
-                case TField(subject, _):
-                    if ((isNullType(subject.t) || isNullableRenderedField(subject)) && nullableAccess(subject) == "?.") {
-                        // A dominating condition can prove the chain root even
-                        // when the intermediate field remains nullable in the
-                        // typed AST.  Do not replace that proof with ?. on a
-                        // later hop.
-                        return !provenNonNull(subject) && !guardProofBefore(subject);
-                    }
+                case TField(subject, fa):
+                    // The hop's access must come from the same decision the
+                    // renderer uses, so the chain analysis and the emitted
+                    // text can never disagree. (UnifiedFieldAccessDecision)
+                    final hopAccess = switch (fa) {
+                        case FInstance(owner, _, cf):
+                            decidedFieldAccess(subject, cf.get().type, true);
+                        case _: nullableAccess(subject);
+                    };
+                    if (hopSafe(hopAccess, subject))
+                        return true;
                     current = stripWrap(subject);
                 case _:
                     return false;
             }
         }
+    }
+
+    function hopSafe(hopAccess:String, subject:TypedExpr):Bool {
+        if (hopAccess != "?.")
+            return false;
+        return !provenNonNull(subject) && !guardProofBefore(subject);
     }
 
     function isNullableReferenceType(t:Null<Type>):Bool {
@@ -3621,21 +3630,25 @@ class KotlinExpr {
             case FVar(_, _): true;
             case _: false;
         };
-        final access = if (isProperty && fieldType != null && !isNullType(fieldType)
-            && isNullType(subj.t) && !provenNonNull(subj) && !guardProofBefore(subj)) {
-            "!!.";
-        } else if (!provenNonNull(subj) && !guardProofBefore(subj)
-            // A safe-call hop earlier in the receiver chain leaves the
-            // value nullable regardless of the Haxe type (the hop itself
-            // was an emitter safety choice); the Haxe member read would
-            // NPE there, so this hop hardens with !!.
-            // (SafeCallHopHardening)
-            && StringTools.contains(expr(subj), "?.")) {
-            "!!.";
-        } else {
-            nullableAccess(subj);
-        };
+        final access = decidedFieldAccess(subj, fieldType, isProperty);
         return expr(subj) + access + KotlinNameEscape.escape(name);
+    }
+
+    /**
+        The single authority for a non-null property read's access form:
+        an asserted dot when the subject is a nullable-typed subject of a
+        non-null property, otherwise the flow-based form. Every hop and
+        the chain analysis must read the same decision, or the two views
+        disagree on whether the chain yields null.
+        (UnifiedFieldAccessDecision)
+    **/
+    function decidedFieldAccess(subj:TypedExpr, fieldType:Null<Type>, isProperty:Bool):String {
+        if (isProperty && fieldType != null && !isNullType(fieldType)
+            && isNullType(subj.t) && !provenNonNull(subj) && !guardProofBefore(subj))
+            return "!!.";
+        if (!provenNonNull(subj) && !guardProofBefore(subj) && StringTools.contains(expr(subj), "?."))
+            return "!!.";
+        return nullableAccess(subj);
     }
 
     function getterOnlyProperty(owner:ClassType, accessorName:String):Null<ClassField> {
