@@ -4367,6 +4367,17 @@ class RustExpr {
         final name = freshRegionName("__option");
         final countBefore = optionNarrowingHitCount;
         optionNarrowings.push({subjectText: subjectTextOf(info.subject), name: name});
+        // A boolean-chain guard (`a != null && b != null`) proves every
+        // subject non-null when the body runs; register the siblings so
+        // value slots unwrap them. The first subject is already narrowed
+        // by the match binding, so it is excluded. (GuardedChainSiblingProof)
+        final firstSubjectId = switch (stripWrap(info.subject).expr) {
+            case TLocal(v): v.id;
+            case _: -1;
+        };
+        final chainSiblings = [for (v in provenNonNullLocals(guard)) if (v.id != firstSubjectId) v];
+        for (v in chainSiblings)
+            provenNonNullVarIds.set(v.id, true);
         var narrowed = blockLines(statementsOf(narrowedBranch), depth + 2);
         if (prefix != null) {
             narrowed = [indent(depth + 2) + "if " + expr(prefix.tail) + " {"]
@@ -4388,6 +4399,8 @@ class RustExpr {
         }
         final hit = optionNarrowingHitCount > countBefore;
         optionNarrowings.pop();
+        for (v in chainSiblings)
+            provenNonNullVarIds.remove(v.id);
         if (!hit)
             return null;
         final otherBranch = info.noneWhenTrue ? ifTrue : ifFalse;
@@ -10782,7 +10795,16 @@ class RustExpr {
     }
 
     function rustMapValue(e:TypedExpr):String {
-        final rendered = expr(e);
+        var rendered = expr(e);
+        // A proven-non-null nullable local (a null guard proved the Option
+        // holds Some) unwraps to its inner value before the map owns it.
+        if (isNullType(e.t) && switch (stripWrap(e).expr) {
+            case TLocal(v): provenNonNullVarIds.exists(v.id);
+            case _: false;
+        }) {
+            final inner = getNullInnerType(e.t);
+            rendered = isTypeCopy(inner) ? "*((" + rendered + ").as_ref().unwrap())" : "(" + rendered + ").as_ref().unwrap().clone()";
+        }
         return isStringType(e.t) ? switch (stripWrap(e).expr) {
             case TConst(TString(_)): rendered + ".to_string()";
             case _: rendered;
