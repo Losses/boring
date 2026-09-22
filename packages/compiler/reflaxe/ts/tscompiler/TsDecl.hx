@@ -584,7 +584,11 @@ class TsDecl {
         initializer keeps its side effects and the variable disappears.
         (UnusedLocalStatementForm) */
     function markUnusedLocals(bodyText:Array<String>):Array<String> {
-        final full = bodyText.join("\n");
+        // String literal contents never reference a variable: escape
+        // sequences like `\t` would otherwise count as word-boundary
+        // matches and keep a dead declaration alive.
+        final strLit = ~/"(?:[^"\\]|\\.)*"/g;
+        final full = strLit.split(bodyText.join("\n")).join(" ");
         final decl = ~/^(\s*)(const|let) ([A-Za-z_][A-Za-z0-9_]*) =/;
         return [
             for (line in bodyText) {
