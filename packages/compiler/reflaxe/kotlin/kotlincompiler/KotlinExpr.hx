@@ -967,7 +967,22 @@ class KotlinExpr {
             case TMeta(_, inner):
                 return stmtLines(inner, depth);
             case _:
-                return [indent(depth) + expr(e)];
+                final text = expr(e);
+                // A statement-position conditional with an unused null arm
+                // comes from the value forms of Array shift and pop: the
+                // null arm contributes nothing at statement position, so
+                // the statement renders as the inverted conditional over
+                // the live arm. (ShiftStatementForm)
+                final marker = ") null else ";
+                if (StringTools.startsWith(text, "if (")) {
+                    final idx = text.indexOf(marker);
+                    if (idx > 4) {
+                        final cond = text.substring(4, idx);
+                        if (StringTools.endsWith(cond, ".isEmpty()"))
+                            return [indent(depth) + "if (!(" + cond + ")) " + text.substring(idx + marker.length)];
+                    }
+                }
+                return [indent(depth) + text];
         }
     }
 
