@@ -1999,6 +1999,13 @@ class TsExpr {
                     return "Number.isNaN(" + expr(args[0]) + ")";
                 if (cls.module == "Math" && fName == "isFinite" && args.length == 1)
                     return "Number.isFinite(" + expr(args[0]) + ")";
+                if (cls.module == "String" && fName == "fromCharCode" && args.length == 1)
+                    // Haxe's fromCharCode takes a scalar (haxe/std/String.hx:168-174),
+                    // so a supplementary scalar encodes as its surrogate pair. The
+                    // JavaScript builtin of that name keeps sixteen bits, which
+                    // drops the high surrogate; fromCodePoint carries the same
+                    // values for the BMP and encodes the pair above it. (FromCharCodeScalar)
+                    return "String.fromCodePoint(" + expr(args[0]) + ")";
                 if (cls.module == "std.UStringPlatform") {
                     // Cursor primitives of the resident UString walk, inlined
                     // per call: a cursor is a UTF-16 unit index here, so end
