@@ -14104,6 +14104,11 @@ class RustExpr {
             || StringTools.startsWith(text, "f64::") || StringTools.startsWith(text, "f32::")
             || ~/^-?[0-9]+\.[0-9]+/.match(text) || text.indexOf(".0f64") >= 0 || text.indexOf(".0f32") >= 0)
             return intToFloatText(text);
+        // A conditional whose arms are integer literals leaves its type
+        // to inference under .to_ne_bytes() (E0689); the annotated
+        // binding pins the u32 domain before the byte round-trip.
+        if (StringTools.startsWith(text, "if ") || text.indexOf(" if ") >= 0)
+            return intToFloatText("{ let v: u32 = " + text + "; i32::from_ne_bytes(v.to_ne_bytes()) }");
         // Any other Int expression (a u32 variable, a wrapping result) is
         // in the u32 domain and reinterprets to i32.
         return intToFloatText(RustConversions.reinterpret(text, "i32"));
