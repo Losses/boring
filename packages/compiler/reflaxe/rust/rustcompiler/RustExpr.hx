@@ -7391,7 +7391,10 @@ class RustExpr {
         // A generic static call's return type is inferred from its context;
         // `.to_ne_bytes()` alone leaves it ambiguous (E0689), so an
         // annotated binding pins the u32 domain before the byte round-trip.
-        if (genericStaticCallArg(e)) {
+        // The same ambiguity hits a range loop variable, an integer
+        // conditional, and an array element read, so all of them take the
+        // annotated binding. (AmbiguousIntReceiver)
+        if (ambiguousIntReceiver(e)) {
             return "{ let v: u32 = " + expr(e) + "; i32::from_ne_bytes(v.to_ne_bytes()) }";
         }
         final literal = switch (stripWrap(e).expr) {
@@ -14240,6 +14243,27 @@ class RustExpr {
                     case TField(_, FStatic(_, cf)): typeHasParam(cf.get().type);
                     case _: false;
                 };
+            case _: false;
+        };
+    }
+
+    /**
+        ambiguousIntReceiver: an integer expression whose Rust rendering
+        leaves its type to inference, so `.to_ne_bytes()` on it is
+        ambiguous (E0689). A generic static call's return type, a range
+        loop variable, an integer conditional, and an array element read
+        all render without a concrete type; the caller pins the u32 domain
+        with an annotated binding before the byte round-trip.
+    **/
+    function ambiguousIntReceiver(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TCall(fn, _): switch (stripWrap(fn).expr) {
+                    case TField(_, FStatic(_, cf)): typeHasParam(cf.get().type);
+                    case _: false;
+                };
+            case TLocal(v): rangeLoopVars.exists(v.id);
+            case TIf(_, _, f) if (f != null): true;
+            case TArray(_, _): true;
             case _: false;
         };
     }
