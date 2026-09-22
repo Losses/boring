@@ -1876,9 +1876,16 @@ class RustExpr {
                     && StringTools.startsWith(retStr, "*") && !StringTools.startsWith(retStr, "*("))
                     retStr = "Some(" + retStr + ")";
                 if (isFallible) {
-                    final guard = staticGuardOf(ret);
+                    // The guard read is cloned to an owned value before it
+                    // leaves the return slot. A RefCell static clones inside
+                    // the with-closure: a clone applied to the rendered guard
+                    // text clones the returned Ref and ties the closure's
+                    // result to the closure parameter's lifetime, which
+                    // borrowck rejects with "lifetime may not live long
+                    // enough" (english_hyphenation.rs). (RefCellStaticGuardScope)
+                    final guard = staticGuardCloneOf(ret);
                     if (guard != null)
-                        retStr = "(" + guard + ").clone()";
+                        retStr = guard;
                     // A nullable read through a fallible non-null return
                     // slot unwraps at the boundary. The guard-clone above
                     // clones the Option itself when the read is a static
@@ -7900,6 +7907,19 @@ class RustExpr {
         return switch (stripWrap(e).expr) {
             case TField(_, FStatic(c, cf)) if (isGuardStaticField(c.get(), cf.get().name)):
                 staticGuard(c.get(), cf.get().name);
+            case _: null;
+        };
+    }
+
+    /** The guard read of a static field cloned to an owned value, or null
+        when the expression is not a guard static read. Callers that need an
+        owned value must use this rather than appending ".clone()" to
+        staticGuardOf: for the RefCell family the clone has to sit inside the
+        with-closure. (RefCellStaticGuardScope) */
+    function staticGuardCloneOf(e:TypedExpr):Null<String> {
+        return switch (stripWrap(e).expr) {
+            case TField(_, FStatic(c, cf)) if (isGuardStaticField(c.get(), cf.get().name)):
+                staticGuardClone(c.get(), cf.get().name);
             case _: null;
         };
     }
