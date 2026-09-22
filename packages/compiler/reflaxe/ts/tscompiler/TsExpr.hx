@@ -1371,6 +1371,7 @@ class TsExpr {
     }
 
     function functionLiteral(f:TFunc):String {
+        final body = blockLines(statementsOf(f.expr), 2).join("\n");
         final params = [
             for (a in f.args) {
                 final value = currentLocalName != null
@@ -1378,11 +1379,18 @@ class TsExpr {
                     && currentField != null ? DefaultArgExpander.coalescingDefaultForLocalParam(currentClass, currentField, currentLocalName, a.v.name) : null;
                 final parameterType = value != null ? DefaultArgExpander.coalescingParameterType(value, a.v.t) : a.v.t;
                 final defaultText = value != null ? " = " + coalescingDefaultText(value, a.v.t) : "";
-                '${a.v.name}: ${types.of(parameterType)}$defaultText';
+                // A lambda parameter the body never reads gains the `_`
+                // prefix TypeScript's noUnusedParameters grants; a property
+                // access `.name` is not a reference to the parameter.
+                // (UnusedParameterUnderscore)
+                final bodyWoProps = new EReg("\\." + a.v.name + "\\b", "g").replace(body, "");
+                final used = new EReg("\\b" + a.v.name + "\\b", "").match(bodyWoProps);
+                final name = used ? a.v.name : "_" + a.v.name;
+                '${name}: ${types.of(parameterType)}$defaultText';
             }
         ].join(", ");
         final ret = types.of(f.t);
-        return '($params): $ret => {\n' + blockLines(statementsOf(f.expr), 2).join("\n") + '\n}';
+        return '($params): $ret => {\n' + body + '\n}';
     }
 
     function functionLiteralNamed(name:String, f:TFunc):String {
