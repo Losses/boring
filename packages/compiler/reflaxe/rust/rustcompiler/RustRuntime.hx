@@ -391,7 +391,14 @@ impl Fs {
         '    }',
         '}',
         '',
-        'pub fn run<F: FnOnce()>(id: &str, name: &str, body: F) {',
+        '// A test this target excludes (feature spec 19): the entry does not
+// run the body and writes the not-applicable record instead, so the
+// id stays in the cross-target set.
+pub fn record_not_applicable(id: &str, name: &str) {
+    record_result(id, name, "not_applicable", None);
+}
+
+pub fn run<F: FnOnce()>(id: &str, name: &str, body: F) {',
         '    CURRENT_TEST.with(|cur| {',
         '        *cur.borrow_mut() = Some(id.to_string());',
         '    });',
@@ -430,12 +437,16 @@ impl Fs {
         '',
         'fn record_result(id: &str, name: &str, verdict: &str, message: Option<&str>) {',
         '    // The resident builds the record line; this module only writes it.',
-        '    let json_line = crate::runtime::test_core::TestCore::test_core_result_line(',
-        '        id,',
-        '        name,',
-        '        verdict == "fail",',
-        '        message.unwrap_or(""),',
-        '    );',
+        '    let json_line = if verdict == "not_applicable" {',
+        '        crate::runtime::test_core::TestCore::test_core_not_applicable_line(id, name)',
+        '    } else {',
+        '        crate::runtime::test_core::TestCore::test_core_result_line(',
+        '            id,',
+        '            name,',
+        '            verdict == "fail",',
+        '            message.unwrap_or(""),',
+        '        )',
+        '    };',
         '    let file_path = std::env::var("BORING_TEST_RESULTS").unwrap_or_else(|_| "out/test-results/rust.jsonl".to_string());',
         '    if let Some(parent) = std::path::Path::new(&file_path).parent() {',
         '        let _ = std::fs::create_dir_all(parent);',
