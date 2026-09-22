@@ -5304,6 +5304,13 @@ class RustExpr {
         if (!RuntimeResidents.isResident(imports.selfModule)
             && (firstSigned || secondSigned) && !(firstSigned && secondSigned))
             return "u32";
+        // Both arms render in the signed i32 domain, but a business u32
+        // result slot still needs the u32 type: the conditional targets
+        // u32 and both arms reinterpret at the branch. (BothSignedU32Result)
+        if (!RuntimeResidents.isResident(imports.selfModule) && firstSigned && secondSigned
+            && resultType != null && isIntType(resultType) && !isNullType(resultType)
+            && types.of(resultType, false) == "u32")
+            return "u32";
         return null;
     }
 
@@ -6520,6 +6527,19 @@ class RustExpr {
                     || isInt64Type(r.t) ? "(" + expr(l) + ") & (" + expr(r) + ")" : operand(l, op, false) + " & " + operand(r, op, true));
             case OpOr | OpXor if (isInt64Type(l.t) || isInt64Type(r.t)):
                 return expr(l) + " " + symbolOf(op) + " " + expr(r);
+            case OpOr | OpXor if (isIntType(e.t)):
+                // A bitwise op with one i32-domain operand and one business
+                // u32 operand reinterprets the signed side to u32 so both
+                // operands share the business u32 type. (BitwiseU32Domain)
+                var left = operand(l, op, false);
+                var right = operand(r, op, true);
+                final leftSigned = i32OperandDomain(l) || i32LocalDomain(l);
+                final rightSigned = i32OperandDomain(r) || i32LocalDomain(r);
+                if (leftSigned && !rightSigned)
+                    left = reinterpretBitwiseOperand(l, left, "u32");
+                else if (rightSigned && !leftSigned)
+                    right = reinterpretBitwiseOperand(r, right, "u32");
+                return left + " " + symbolOf(op) + " " + right;
             case OpUShr:
                 // The u32 domain makes Rust >> the logical shift; operand()
                 // re-adds grouping parens by precedence, so a bare shift
@@ -11306,6 +11326,15 @@ class RustExpr {
         reinterprets its bits (T5); the right operand of unsigned wrapping
         keeps its historical bare form.
     **/
+    /** Reinterpret a bitwise operand to a target domain, rendering an
+        integer literal as a typed literal so it is not ambiguous. */
+    function reinterpretBitwiseOperand(e:TypedExpr, text:String, target:String):String {
+        return switch (stripWrap(e).expr) {
+            case TConst(TInt(v)): Std.string(v) + target;
+            case _: RustConversions.reinterpret(text, target);
+        };
+    }
+
     function wrappingOperand(e:TypedExpr, op:Binop, wrapDomain:String, isLeft:Bool):String {
         final text = wrappingArg(e, op, isLeft);
         // An operand already rendered in the wrap domain needs no cast: an Int
