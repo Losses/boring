@@ -3934,12 +3934,14 @@ class DartExpr {
     **/
     function switchStatement(sw:TypedExpr, depth:Int):Array<String> {
         final lines = switchReturn(sw, depth, true);
+        final returnPrefix = indent(depth + 2) + "return ";
         final out:Array<String> = [];
         for (line in lines) {
-            final marker = "return ";
-            final p = line.indexOf(marker);
-            if (p >= 0) {
-                out.push(line.substr(0, p) + line.substr(p + marker.length));
+            // Only an arm's value line starts with the return prefix; an
+            // intermediate statement carrying a nested closure with its own
+            // return must pass through untouched.
+            if (StringTools.startsWith(line, returnPrefix)) {
+                out.push(indent(depth + 2) + line.substr(returnPrefix.length));
                 // Statement-position switch arms must not fall through to the
                 // next variant. Return-position arms retain their returns.
                 out.push(indent(depth + 2) + "break;");
@@ -3955,6 +3957,9 @@ class DartExpr {
         final prefix = indent(depth + 2) + "return ";
         final out:Array<String> = [];
         for (line in lines) {
+            // Only an arm's value line starts with the return prefix; an
+            // intermediate statement carrying a nested closure with its own
+            // return must pass through untouched.
             if (StringTools.startsWith(line, prefix)) {
                 out.push(indent(depth + 2) + assignTarget(target) + " = " + line.substr(prefix.length));
                 // Statement-position switch arms must not fall through to the
@@ -4057,13 +4062,20 @@ class DartExpr {
                     }
                 case PlainDecl(v, init):
                     out.push(indent(depth) + "final " + localName(v) + " = " + expr(init));
-                case OtherStatement(s, returnValue, _):
+                case OtherStatement(s, returnValue, isLast):
                     // A Float-typed switch with an int literal arm types as
                     // num in Dart; Haxe's Float unification promises double,
                     // so widen the int arm.
                     final armValue = returnValue != null ? returnValue : s;
-                    value = if (switchType != null && isFloatType(switchType) && isIntOrLongType(emittedType(armValue)))
+                    final text = if (switchType != null && isFloatType(switchType) && isIntOrLongType(emittedType(armValue)))
                         intToFloatText(expr(armValue)) else (returnValue != null ? expr(returnValue) : expr(s));
+                    // Every statement before the arm value renders as its own
+                    // line; only the trailing statement supplies the value.
+                    if (isLast) {
+                        value = text;
+                    } else {
+                        out.push(indent(depth) + text + ";");
+                    }
                 case MissingInit(s):
                     Context.error("dart target: declaration without initializer has no lowering", s.pos);
             }
