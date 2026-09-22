@@ -921,10 +921,13 @@ class DartExpr {
                             case TLocal(v): nonNullLocals.exists(v.id) || flowPromotedNonNull.exists(v.id);
                             case _: false;
                         };
+                        // A null literal never asserts: `null!` throws at
+                        // runtime even when the function return is nullable.
+                        // (ReturnNullLiteralNoAssert)
                         return [
                             indent(depth) + "return " + ((optionalValued(ret)
                                 || (!currentFunctionReturnsNullable && isNullLeafType(ret.t) && !isLocalExpr(ret)))
-                                && !nonNullReturn ? rendered
+                                && !isNullLiteral(ret) && !nonNullReturn ? rendered
                                 + "!" : rendered)
                         ];
                 }
@@ -1645,6 +1648,14 @@ class DartExpr {
                     case _: "<";
                 };
                 return cmp + " " + cmpOp + " 0";
+            case OpMod:
+                // Haxe `%` keeps the dividend's sign; Dart `%` returns a
+                // non-negative value, so the truncating `remainder` carries
+                // the Haxe contract for both Int and Float operands.
+                // (DartRemainderSignSemantics)
+                final modL = operand(l, op, false);
+                final modR = operand(r, op, true);
+                return "(" + modL + ").remainder(" + modR + ")";
             case _:
                 final lStr = operand(l, op, false);
                 final rStr = operand(r, op, true);
@@ -1823,11 +1834,38 @@ class DartExpr {
         // so the cast-stripped subject carries the declared optionality.
         // (ImplicitUnwrapReceiverNullability)
         final strippedSubject = stripCast(subj);
+        {
+            final pi = Context.getPosInfos(subj.pos);
+            final st = stripCast(subj);
+            var vname:Null<String> = null;
+            var vid = -1;
+            switch (stripWrap(subj).expr) {
+                case TLocal(v):
+                    vname = v.name;
+                    vid = v.id;
+                case _:
+            }
+            if (pi.file.indexOf("KotlinNullability") >= 0 && vname == "holder") {
+                final inNN = nonNullLocals.exists(vid);
+                final inNNOP = nonNullOptionalParams.exists(vid);
+                Sys.println("TRACE_FLAG min" + pi.min + " stNull=" + PolicyQueries.isNullableType(st.t) + " inNN=" + inNN + " inNNOP=" + inNNOP + " fieldNon=" + !PolicyQueries.isNullableType(fieldType) + " prov=" + provenNonNull(subj));
+            }
+        }
         final nullableSubject = PolicyQueries.isNullableType(strippedSubject.t) || switch (stripWrap(subj).expr) {
             case TField(_, FInstance(_, _, ownerField)) | TField(_, FAnon(ownerField)):
                 PolicyQueries.isNullableType(ownerField.get().type);
             case _: false;
         };
+        // A nullable field behind a nullable receiver reads `?.`: the Haxe
+        // null propagation stays intact and the null comparison observes
+        // it. (ImplicitUnwrapReceiverNullability)
+        if (nullableSubject && !provenNonNull(subj) && PolicyQueries.isNullableType(fieldType)) {
+            final nullableBase = expr(subj);
+            return switch (stripWrap(subj).expr) {
+                case TLocal(_): nullableBase + "?";
+                case _: nullableBase + "?";
+            };
+        }
         if (nullableSubject && !PolicyQueries.isNullableType(fieldType) && !provenNonNull(subj)) {
             // A null guard on the subject promotes it for the whole guarded
             // block; Dart reads the promoted local bare and reports a `!` on
