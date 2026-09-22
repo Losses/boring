@@ -1029,8 +1029,18 @@ class DartExpr {
     }
 
     function conditionText(c:TypedExpr):String {
-        if (isNullLeafType(c.t))
+        if (isNullLeafType(c.t)) {
+            // A local the flow already promotes renders bare: its
+            // `?? false` would be dead code.
+            // (PromotedConditionNoCoalesce)
+            switch (stripWrap(c).expr) {
+                case TLocal(v):
+                    if (nonNullLocals.exists(v.id) || flowPromotedNonNull.exists(v.id) || assertedSequence.exists(v.id))
+                        return expr(c);
+                case _:
+            }
             return "(" + expr(c) + ") ?? false";
+        }
         return expr(c);
     }
 
@@ -1040,6 +1050,17 @@ class DartExpr {
         // (SequenceScopedAssertionDedup)
         final entrySeq = sequenceSave();
         final condText = conditionText(c);
+        // A condition rendering as a literal leaves one branch.
+        // (NonNullTypeNullCompareFold)
+        if (condText == "true" || condText == "false") {
+            final survivor = condText == "true" ? t : f;
+            if (survivor == null) {
+                sequenceLoad(entrySeq);
+                return [];
+            }
+            sequenceLoad(entrySeq);
+            return blockLines(statementsOf(survivor), depth);
+        }
         final postCond = sequenceSave();
         sequenceLoad(postCond);
         final out = [indent(depth) + "if (" + condText + ") {"];
@@ -1460,6 +1481,14 @@ class DartExpr {
                 // (SequenceScopedAssertionDedup)
                 final entrySeq = sequenceSave();
                 final condText = conditionText(c);
+                // A condition rendering as a literal leaves one branch.
+                // (NonNullTypeNullCompareFold)
+                if (condText == "true" || condText == "false") {
+                    final survivor = condText == "true" ? t : f;
+                    sequenceLoad(entrySeq);
+                    final survivorText = isFloatType(e.t) && isIntOrLongType(emittedType(survivor)) ? intToFloatText(expr(survivor)) : expr(survivor);
+                    return "(" + survivorText + ")";
+                }
                 final postCond = sequenceSave();
                 sequenceLoad(postCond);
                 // A Float-typed ternary with an int literal branch types
@@ -2314,6 +2343,14 @@ class DartExpr {
         }
         if (isNullLeafType(e.t) || optionalValued(e))
             return false;
+        // A local the flow promotes cannot be null either.
+        // (ProvenNonNullCoalescingFold)
+        switch (stripWrap(e).expr) {
+            case TLocal(v):
+                if (nonNullLocals.exists(v.id) || flowPromotedNonNull.exists(v.id) || assertedSequence.exists(v.id))
+                    return true;
+            case _:
+        }
         return !nullableValue(e);
     }
 
