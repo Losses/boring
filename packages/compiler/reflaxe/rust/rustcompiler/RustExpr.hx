@@ -1873,6 +1873,22 @@ class RustExpr {
                     final guard = staticGuardOf(ret);
                     if (guard != null)
                         retStr = "(" + guard + ").clone()";
+                    // A nullable read through a fallible non-null return
+                    // slot unwraps at the boundary. The guard-clone above
+                    // clones the Option itself when the read is a static
+                    // field, so the return slot reaches through to the
+                    // payload: non-Copy payloads are borrowed and cloned,
+                    // Copy payloads copy out through unwrap. Skips when the
+                    // String or Option return handling already settled the
+                    // wrapper. (ReturnSiteUnwrap)
+                    if (nullableReadHoldsOption(ret) && nullableReadRendersOptionText(retStr)
+                        && !isNullType(currentReturnType)
+                        && returnTypeName != "String"
+                        && !StringTools.startsWith(returnTypeName, "Option<")) {
+                        retStr = isTypeCopy(ret.t)
+                            ? "(" + retStr + ").unwrap()"
+                            : "(" + retStr + ").as_ref().unwrap().clone()";
+                    }
                     return [indent(depth) + "return Ok(" + retStr + ");"];
                 }
                 return [indent(depth) + "return " + retStr + ";"];
@@ -7375,7 +7391,10 @@ class RustExpr {
         // A generic static call's return type is inferred from its context;
         // `.to_ne_bytes()` alone leaves it ambiguous (E0689), so an
         // annotated binding pins the u32 domain before the byte round-trip.
-        if (genericStaticCallArg(e)) {
+        // The same ambiguity hits a range loop variable, an integer
+        // conditional, and an array element read, so all of them take the
+        // annotated binding. (AmbiguousIntReceiver)
+        if (ambiguousIntReceiver(e)) {
             return "{ let v: u32 = " + expr(e) + "; i32::from_ne_bytes(v.to_ne_bytes()) }";
         }
         final literal = switch (stripWrap(e).expr) {
@@ -14085,6 +14104,11 @@ class RustExpr {
             || StringTools.startsWith(text, "f64::") || StringTools.startsWith(text, "f32::")
             || ~/^-?[0-9]+\.[0-9]+/.match(text) || text.indexOf(".0f64") >= 0 || text.indexOf(".0f32") >= 0)
             return intToFloatText(text);
+        // A conditional whose arms are integer literals leaves its type
+        // to inference under .to_ne_bytes() (E0689); the annotated
+        // binding pins the u32 domain before the byte round-trip.
+        if (StringTools.startsWith(text, "if ") || text.indexOf(" if ") >= 0)
+            return intToFloatText("{ let v: u32 = " + text + "; i32::from_ne_bytes(v.to_ne_bytes()) }");
         // Any other Int expression (a u32 variable, a wrapping result) is
         // in the u32 domain and reinterprets to i32.
         return intToFloatText(RustConversions.reinterpret(text, "i32"));
@@ -14224,6 +14248,27 @@ class RustExpr {
                     case TField(_, FStatic(_, cf)): typeHasParam(cf.get().type);
                     case _: false;
                 };
+            case _: false;
+        };
+    }
+
+    /**
+        ambiguousIntReceiver: an integer expression whose Rust rendering
+        leaves its type to inference, so `.to_ne_bytes()` on it is
+        ambiguous (E0689). A generic static call's return type, a range
+        loop variable, an integer conditional, and an array element read
+        all render without a concrete type; the caller pins the u32 domain
+        with an annotated binding before the byte round-trip.
+    **/
+    function ambiguousIntReceiver(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TCall(fn, _): switch (stripWrap(fn).expr) {
+                    case TField(_, FStatic(_, cf)): typeHasParam(cf.get().type);
+                    case _: false;
+                };
+            case TLocal(v): rangeLoopVars.exists(v.id);
+            case TIf(_, _, f) if (f != null): true;
+            case TArray(_, _): true;
             case _: false;
         };
     }
