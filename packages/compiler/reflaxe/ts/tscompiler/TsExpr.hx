@@ -1570,10 +1570,10 @@ class TsExpr {
                 final getterProperty = getterOnlyPropertyName(owner.get(), name);
                 if (getterProperty != null)
                     return expr(subj) + "." + getterProperty;
-                return instanceFieldRead(subj, name);
+                return instanceFieldRead(subj, name, cf.get().type);
             case FAnon(cf):
                 final name = cf.get().name;
-                return instanceFieldRead(subj, name);
+                return instanceFieldRead(subj, name, cf.get().type);
             case FDynamic(name):
                 if ((name == "length" || name == "get_length") && isStringBuf(subj)) {
                     return expr(subj) + ".length";
@@ -1584,7 +1584,7 @@ class TsExpr {
         }
     }
 
-    function instanceFieldRead(subj:TypedExpr, name:String):String {
+    function instanceFieldRead(subj:TypedExpr, name:String, fieldType:Null<Type> = null):String {
         final target = stripCast(subj);
         if ((name == "high" || name == "low") && isFpHelperInt64Halves(target))
             return expr(target) + "." + name;
@@ -1596,6 +1596,11 @@ class TsExpr {
         final folded = foldedExceptionMessage(target, name);
         if (folded != null)
             return folded;
+        // A nullable-typed subject reading a non-null-typed field asserts:
+        // Haxe types the field read non-null through the Null wrapper, and
+        // TypeScript must not widen or reject it. (NonNullFieldReadAssert)
+        if (fieldType != null && !isNullType(fieldType) && isNullType(subj.t))
+            return expr(subj) + "!." + name;
         return expr(subj) + "." + name;
     }
 
