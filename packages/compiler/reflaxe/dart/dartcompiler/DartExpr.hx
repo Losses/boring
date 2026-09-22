@@ -1674,11 +1674,7 @@ class DartExpr {
         var rendered = expr(e);
         // A normalized local, or one cleared by a null guard, is already
         // non-null in the generated Dart flow.
-        final flowPromoted = switch (stripWrap(e).expr) {
-            case TLocal(v): flowPromotedNonNull.exists(v.id);
-            case _: false;
-        };
-        if ((isNullLeafType(e.t) || optionalValued(e)) && !provenNonNull(e) && !flowPromoted && parent != OpEq && parent != OpNotEq) {
+        if ((isNullLeafType(e.t) || optionalValued(e)) && !provenNonNull(e) && parent != OpEq && parent != OpNotEq) {
             rendered += "!";
             switch (stripWrap(e).expr) {
                 case TLocal(v): flowPromotedNonNull.set(v.id, true);
