@@ -1589,7 +1589,7 @@ class TsExpr {
                 notePrivateAccess(owner.get(), cf.get());
                 final getterProperty = getterOnlyPropertyName(owner.get(), name);
                 if (getterProperty != null)
-                    return expr(subj) + "." + getterProperty;
+                    return instanceFieldRead(subj, getterProperty, cf.get().type);
                 return instanceFieldRead(subj, name, cf.get().type);
             case FAnon(cf):
                 final name = cf.get().name;
@@ -1616,7 +1616,10 @@ class TsExpr {
         final folded = foldedExceptionMessage(target, name);
         if (folded != null)
             return folded;
-        final subjNull = isNullType(subj.t);
+        // The typer wraps a Null<T> local read in an implicit unwrap cast;
+        // the cast-stripped subject carries the declared optionality.
+        // (NonNullFieldReadAssert)
+        final subjNull = isNullType(target.t);
         // A nullable-typed subject reading a field asserts the receiver:
         // Haxe types the read through the Null wrapper, and the `!` marker
         // carries no runtime check, so the field's own optionality stays.
@@ -2150,7 +2153,7 @@ class TsExpr {
                 final name = cf.get().name;
                 final getterProperty = getterOnlyPropertyName(owner.get(), name);
                 if (getterProperty != null && args.length == 0)
-                    return expr(subj) + "." + getterProperty;
+                    return instanceFieldRead(subj, getterProperty, cf.get().type);
                 if (isStringSubject(subj)) {
                     if (name == "toLowerCase")
                         return expr(subj) + ".toLowerCase()";
