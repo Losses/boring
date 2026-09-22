@@ -579,8 +579,13 @@ class TsDecl {
         `_` prefix TypeScript's noUnusedParameters grants, checked against
         the finished body text. (UnusedParameterUnderscore) */
     function paramDisplayName(cls:ClassType, f:ClassFuncData, a:ClassFuncArg, bodyText:Array<String>):String {
+        // A property access `.name` is not a reference to the parameter:
+        // strip those occurrences before the word-boundary check, or a
+        // body that only reads `p.id` would keep the parameter flagged.
+        // (UnusedParameterUnderscore)
+        final body = new EReg("\\." + a.name + "\\b", "g").replace(bodyText.join("\n"), "");
         final used = new EReg("\\b" + a.name + "\\b", "");
-        return used.match(bodyText.join("\n")) ? a.name : "_" + a.name;
+        return used.match(body) ? a.name : "_" + a.name;
     }
 
     /** Whether every parameter from `fromIndex` to the end is optional. */
