@@ -1062,11 +1062,22 @@ class DartExpr {
             return blockLines(statementsOf(survivor), depth);
         }
         final postCond = sequenceSave();
+        // The condition itself promotes the guard target in the branch it
+        // guards. (NullGuardBranchPromoted)
+        final guarded = nullGuardExpr(c);
+        final guardLocal = switch (guarded == null ? null : stripWrap(guarded).expr) {
+            case TLocal(v): v;
+            case _: null;
+        };
         sequenceLoad(postCond);
+        if (guardLocal != null && isNotNullGuard(c))
+            assertedSequence.set(guardLocal.id, true);
         final out = [indent(depth) + "if (" + condText + ") {"];
         for (l in blockLines(statementsOf(t), depth + 1))
             out.push(l);
         sequenceLoad(postCond);
+        if (guardLocal != null && !isNotNullGuard(c))
+            assertedSequence.set(guardLocal.id, true);
         if (f != null) {
             final elseStmts = statementsOf(f);
             if (elseStmts.length == 1) {
@@ -1490,30 +1501,28 @@ class DartExpr {
                     return "(" + survivorText + ")";
                 }
                 final postCond = sequenceSave();
-                sequenceLoad(postCond);
-                // A Float-typed ternary with an int literal branch types
-                // as num in Dart; Haxe's Float unification promises
-                // double, so widen the int branch.
-                final tText = isFloatType(e.t) && isIntOrLongType(emittedType(t)) ? intToFloatText(expr(t)) : expr(t);
                 // A null-guard ternary (`A == null ? default : A`) proves
-                // the guarded branch non-null; Dart still sees the nullable
-                // type, so unwrap the branch the guard protects.
-                final guarded = nullGuardExpr(c);
-                // The condition itself promotes the guarded branch in dart
-                // when the guard target is a local: the branch reads bare.
-                // A non-local target (a call result) promotes nothing, so
-                // it keeps its unwrap.
+                // the guarded branch non-null; the condition itself
+                // promotes the guard target in the branch it guards when
+                // the target is a local, so every read of it renders bare.
+                // A non-local target (a call result) promotes nothing and
+                // keeps its unwrap.
                 // (NullGuardBranchPromoted)
-                final guardIsLocal = guarded != null && switch (stripWrap(guarded).expr) {
-                    case TLocal(_): true;
-                    case _: false;
+                final guarded = nullGuardExpr(c);
+                final guardLocal = switch (guarded == null ? null : stripWrap(guarded).expr) {
+                    case TLocal(v): v;
+                    case _: null;
                 };
-                final tFinal = guarded != null && isNotNullGuard(c) && structurallySame(t, guarded)
-                    ? (guardIsLocal ? expr(t) : requiredValueText(t)) : tText;
                 sequenceLoad(postCond);
+                if (guardLocal != null && isNotNullGuard(c))
+                    assertedSequence.set(guardLocal.id, true);
+                final tText = isFloatType(e.t) && isIntOrLongType(emittedType(t)) ? intToFloatText(expr(t)) : expr(t);
+                final tFinal = guarded != null && isNotNullGuard(c) && structurallySame(t, guarded) && guardLocal == null ? requiredValueText(t) : tText;
+                sequenceLoad(postCond);
+                if (guardLocal != null && !isNotNullGuard(c))
+                    assertedSequence.set(guardLocal.id, true);
                 final fText = isFloatType(e.t) && isIntOrLongType(emittedType(f)) ? intToFloatText(expr(f)) : expr(f);
-                final fFinal = guarded != null && !isNotNullGuard(c) && structurallySame(f, guarded)
-                    ? (guardIsLocal ? expr(f) : requiredValueText(f)) : fText;
+                final fFinal = guarded != null && !isNotNullGuard(c) && structurallySame(f, guarded) && guardLocal == null ? requiredValueText(f) : fText;
                 sequenceLoad(entrySeq);
                 return "(" + condText + " ? " + tFinal + " : " + fFinal + ")";
             case TBlock(stmts):
