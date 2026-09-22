@@ -1425,6 +1425,17 @@ class TsExpr {
                 final map = mapAssignment(l);
                 return map == null ? assignTarget(l) + " = " + expr(r) : expr(map.receiver) + ".set(" + expr(map.key) + ", " + expr(r) + ")";
             case OpAssignOp(inner):
+                // A compound assignment on an indexed target expands: the
+                // reading operand asserts, so noUncheckedIndexedAccess never
+                // sees `number | undefined` on the right of the operator.
+                // (IndexedCompoundAssignExpand)
+                switch (stripWrap(l).expr) {
+                    case TArray(arr, idx):
+                        final arrText = isNullType(arr.t) ? expr(arr) + "!" : expr(arr);
+                        final target = arrText + "[" + expr(idx) + "]";
+                        return target + " = " + target + "! " + symbolOf(inner) + "= " + expr(r);
+                    case _:
+                }
                 return assignTarget(l) + " " + symbolOf(inner) + "= " + expr(r);
             case OpAdd:
                 if (isStringLeaf(l)) {
