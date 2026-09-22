@@ -3327,7 +3327,12 @@ class SwiftExpr {
                         + ", omittingEmptySubsequences: false).map { String($0) }";
                 }
                 if (name == "push") {
-                    return receiverText(subj) + ".append(" + optionalExpr(args[0]) + ")";
+                    final elemType = switch (subj.t) {
+                        case TInst(_, params) if (params.length > 0): params[0];
+                        case _: null;
+                    };
+                    final unwrap = elemType != null && !isNullLeafType(elemType);
+                    return receiverText(subj) + ".append(" + (unwrap ? optionalExpr(args[0]) : expr(args[0])) + ")";
                 }
                 if (name == "pop" && isUnitArrayTyped(subj)) {
                     return receiverText(subj) + ".popLast()";
