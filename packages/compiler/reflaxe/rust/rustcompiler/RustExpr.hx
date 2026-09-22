@@ -1873,6 +1873,22 @@ class RustExpr {
                     final guard = staticGuardOf(ret);
                     if (guard != null)
                         retStr = "(" + guard + ").clone()";
+                    // A nullable read through a fallible non-null return
+                    // slot unwraps at the boundary. The guard-clone above
+                    // clones the Option itself when the read is a static
+                    // field, so the return slot reaches through to the
+                    // payload: non-Copy payloads are borrowed and cloned,
+                    // Copy payloads copy out through unwrap. Skips when the
+                    // String or Option return handling already settled the
+                    // wrapper. (ReturnSiteUnwrap)
+                    if (nullableReadHoldsOption(ret) && nullableReadRendersOptionText(retStr)
+                        && !isNullType(currentReturnType)
+                        && returnTypeName != "String"
+                        && !StringTools.startsWith(returnTypeName, "Option<")) {
+                        retStr = isTypeCopy(ret.t)
+                            ? "(" + retStr + ").unwrap()"
+                            : "(" + retStr + ").as_ref().unwrap().clone()";
+                    }
                     return [indent(depth) + "return Ok(" + retStr + ");"];
                 }
                 return [indent(depth) + "return " + retStr + ";"];
