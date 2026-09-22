@@ -559,19 +559,28 @@ class TsDecl {
         optional one, and callers always pass it. Constant defaults
         (VEnum/VInt/VFloat) materialize at every call site and stay required.
     **/
-    function paramText(cls:ClassType, f:ClassFuncData, a:ClassFuncArg):String {
+    function paramText(cls:ClassType, f:ClassFuncData, a:ClassFuncArg, ?displayName:String):String {
+        final name = displayName != null ? displayName : a.name;
         final coalescing = DefaultArgExpander.coalescingDefaultAt(cls, f.field.name, a.index);
         if (coalescing != null) {
             // Spec 51 rules 4 and 5: an omitted argument and an explicit null
             // must reach the body the same way. A JavaScript default initializer
             // runs only for an omitted argument, so the parameter keeps a null
             // default and the coalescing site stays in the body as `p ?? E`.
-            return '${a.name}: ${types.of(a.type)} = null';
+            return '${name}: ${types.of(a.type)} = null';
         }
         if (isTrailingOptional(cls, f, a.index)) {
-            return '${a.name}?: ${types.of(a.type)}';
+            return '${name}?: ${types.of(a.type)}';
         }
-        return '${a.name}: ${types.of(a.type)}';
+        return '${name}: ${types.of(a.type)}';
+    }
+
+    /** The rendered parameter name for `a`: an unused parameter gains the
+        `_` prefix TypeScript's noUnusedParameters grants, checked against
+        the finished body text. (UnusedParameterUnderscore) */
+    function paramDisplayName(cls:ClassType, f:ClassFuncData, a:ClassFuncArg, bodyText:Array<String>):String {
+        final used = new EReg("\\b" + a.name + "\\b", "");
+        return used.match(bodyText.join("\n")) ? a.name : "_" + a.name;
     }
 
     /** Whether every parameter from `fromIndex` to the end is optional. */
@@ -585,20 +594,17 @@ class TsDecl {
     }
 
     function funcDecl(cls:ClassType, f:ClassFuncData):Array<String> {
-        final args = [
-            for (a in f.args) paramText(cls, f, a)
-        ].join(", ");
+        for (a in f.args) {
+            expr.reserveName(a.name);
+        }
         // Haxe types constructors as FMethod(MethNormal) with field name
         // "new"; the name is the constructor marker.
         if (f.field.name == "new") {
-            for (a in f.args) {
-                expr.reserveName(a.name);
-            }
-            final body = expr.constructorBody(cls, cls.name, f, isException(cls));
-            return ['  constructor($args) {'].concat(body).concat(["  }"]);
-        }
-        for (a in f.args) {
-            expr.reserveName(a.name);
+            final ctorBody = expr.constructorBody(cls, cls.name, f, isException(cls));
+            final ctorArgs = [
+                for (a in f.args) paramText(cls, f, a, paramDisplayName(cls, f, a, ctorBody))
+            ].join(", ");
+            return ['  constructor($ctorArgs) {'].concat(ctorBody).concat(["  }"]);
         }
         final ret = types.of(f.ret);
         final body = decodeBoundaryBody(cls, f);
@@ -610,6 +616,9 @@ class TsDecl {
         final mutatedBufParam = mutatedStringBufParam(cls, f);
         final retText = mutatedBufParam != null ? "string" : ret;
         final bodyText = mutatedBufParam != null ? body.concat(["    return " + mutatedBufParam + ";"]) : body;
+        final args = [
+            for (a in f.args) paramText(cls, f, a, paramDisplayName(cls, f, a, bodyText))
+        ].join(", ");
         // @:allow members omit TypeScript visibility so they are public.
         // A private member another class in the same module accesses (Haxe
         // same-module private access) also emits public.
@@ -629,15 +638,15 @@ class TsDecl {
         for (a in f.args) {
             expr.reserveName(a.name);
         }
-        final args = [
-            for (a in f.args) paramText(cls, f, a)
-        ].join(", ");
         final ret = types.of(f.ret);
+        final body = decodeBoundaryBody(cls, f);
+        final args = [
+            for (a in f.args) paramText(cls, f, a, paramDisplayName(cls, f, a, body))
+        ].join(", ");
         final methodParams = collectMethodTypeParams(cls, f);
         final genericStr = methodParams.length > 0 ? "<" + methodParams.join(", ") + ">" : "";
         final vis = f.field.isPublic ? "export " : "";
         final head = '${vis}function ${f.field.name}$genericStr($args): $ret {';
-        final body = decodeBoundaryBody(cls, f);
         return [head].concat(body).concat(["}"]);
     }
 
