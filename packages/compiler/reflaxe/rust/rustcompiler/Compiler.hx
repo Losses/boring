@@ -4,6 +4,7 @@ package rustcompiler;
 import haxe.macro.Context;
 import haxe.macro.Type;
 import PolicyQueries;
+import TestApplicability;
 import reflaxe.BaseCompiler.BaseCompilerFileOutputType;
 import reflaxe.PluginCompiler;
 import reflaxe.ReflectCompiler;
@@ -175,6 +176,7 @@ class Compiler extends PluginCompiler<Compiler> {
                     Context.error("test class " + classType.name + " carries a non-test member " + f.field.name + "; shared logic belongs in an ordinary class",
                         f.field.pos);
                 }
+                TestApplicability.validate(f.field);
                 final id = classType.module + "." + f.field.name;
                 if (!f.field.isPublic) {
                     Context.error("Test function " + id + " must be public", f.field.pos);
