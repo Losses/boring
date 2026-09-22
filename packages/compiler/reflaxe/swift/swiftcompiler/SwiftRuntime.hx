@@ -460,6 +460,13 @@ public enum Test {
         return Test.currentTestId
     }
 
+    // A test this target excludes (features/19): the entry does not run
+    // the body and writes the not-applicable record instead, so the id
+    // stays in the cross-target set.
+    public static func recordNotApplicable(_ id: String, _ name: String) {
+        print(decodeUnits(TestCore.notApplicableLine(Array(id.utf16), Array(name.utf16))), terminator: "")
+    }
+
     public static func run(_ id: String, _ name: String, _ body: () throws -> Void) -> Bool {
         let idUnits = Array(id.utf16)
         let nameUnits = Array(name.utf16)

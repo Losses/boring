@@ -58,7 +58,8 @@ class TestCollector {
                 name:String,
                 moduleName:String,
                 className:String,
-                fieldName:String
+                fieldName:String,
+                excluded:Bool
             }> = [];
 
             for (testDir in testDirs) {
@@ -131,13 +132,16 @@ class TestCollector {
                                             }
                                         }
 
+                                        TestApplicability.validate(field);
+
                                         final runnerName = desc != null ? id + ": " + desc : id;
                                         tests.push({
                                             id: id,
                                             name: runnerName,
                                             moduleName: cls.module,
                                             className: cls.name,
-                                            fieldName: field.name
+                                            fieldName: field.name,
+                                            excluded: TestApplicability.isExcluded(field, "haxe")
                                         });
                                     }
                                 case _:
@@ -152,6 +156,14 @@ class TestCollector {
 
             final testCallLines:Array<String> = [];
             for (t in tests) {
+                if (t.excluded) {
+                    // The test declares this target in its except argument:
+                    // the runner does not execute the body and writes the
+                    // not-applicable record instead, so the id stays in the
+                    // cross-target set (feature spec 19).
+                    testCallLines.push('        recordResult("' + t.id + '", "' + escapeName(t.name) + '", "not_applicable", null);');
+                    continue;
+                }
                 // The call target is the module path: a module name resolves
                 // only its main class, so a test on a secondary class of the
                 // module needs the module-qualified form module.ClassName.
@@ -186,7 +198,9 @@ class $mainName {
     static function recordResult(id:String, name:String, verdict:String, message:Null<String>):Void {
         var envPath = Env.get("BORING_TEST_RESULTS");
         var filePath = envPath != null && envPath.length > 0 ? envPath : "out/test-results/haxe.jsonl";
-        var jsonLine = TestCore.resultLine(id, name, verdict == "fail", message != null ? message : "");
+        var jsonLine = verdict == "not_applicable"
+            ? TestCore.notApplicableLine(id, name)
+            : TestCore.resultLine(id, name, verdict == "fail", message != null ? message : "");
         var dir = Path.dirname(filePath);
         if (dir != null && dir != "" && dir != ".") {
             try {
