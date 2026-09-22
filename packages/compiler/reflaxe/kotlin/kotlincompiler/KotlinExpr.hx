@@ -3264,12 +3264,26 @@ class KotlinExpr {
         if (closureMutatedLocals.exists(local.id))
             return false;
         final entries = activeNullGuardPositions.get(local.id);
-        if (entries == null)
-            return false;
-        final use = Context.getPosInfos(e.pos);
-        for (entry in entries)
-            if (entry.file == use.file && entry.max <= use.min)
-                return true;
+        if (entries != null) {
+            final use = Context.getPosInfos(e.pos);
+            for (entry in entries)
+                if (entry.file == use.file && entry.max <= use.min)
+                    return true;
+        }
+        // The local table above only sees guards on the chain root itself.
+        // A guard on the leaf field (`x.f != null`) is recorded in the field
+        // table and proves later reads of that same chain the same way a
+        // this-rooted chain is proven. (FieldGuardPositions)
+        final fk = fieldAccessKey(e);
+        if (fk != null) {
+            final fentries = activeNullGuardFieldPositions.get(fk);
+            if (fentries != null) {
+                final fuse = Context.getPosInfos(e.pos);
+                for (fentry in fentries)
+                    if (fentry.file == fuse.file && fentry.max <= fuse.min)
+                        return true;
+            }
+        }
         return false;
     }
 
