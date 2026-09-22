@@ -1499,10 +1499,21 @@ class DartExpr {
                 // the guarded branch non-null; Dart still sees the nullable
                 // type, so unwrap the branch the guard protects.
                 final guarded = nullGuardExpr(c);
-                final tFinal = guarded != null && isNotNullGuard(c) && structurallySame(t, guarded) ? requiredValueText(t) : tText;
+                // The condition itself promotes the guarded branch in dart
+                // when the guard target is a local: the branch reads bare.
+                // A non-local target (a call result) promotes nothing, so
+                // it keeps its unwrap.
+                // (NullGuardBranchPromoted)
+                final guardIsLocal = guarded != null && switch (stripWrap(guarded).expr) {
+                    case TLocal(_): true;
+                    case _: false;
+                };
+                final tFinal = guarded != null && isNotNullGuard(c) && structurallySame(t, guarded)
+                    ? (guardIsLocal ? expr(t) : requiredValueText(t)) : tText;
                 sequenceLoad(postCond);
                 final fText = isFloatType(e.t) && isIntOrLongType(emittedType(f)) ? intToFloatText(expr(f)) : expr(f);
-                final fFinal = guarded != null && !isNotNullGuard(c) && structurallySame(f, guarded) ? requiredValueText(f) : fText;
+                final fFinal = guarded != null && !isNotNullGuard(c) && structurallySame(f, guarded)
+                    ? (guardIsLocal ? expr(f) : requiredValueText(f)) : fText;
                 sequenceLoad(entrySeq);
                 return "(" + condText + " ? " + tFinal + " : " + fFinal + ")";
             case TBlock(stmts):
@@ -1741,9 +1752,13 @@ class DartExpr {
                     sequenceLoad(preSeq);
                     return operand(l, op, false) + " && " + right;
                 }
+                // The right side runs only after the whole left side
+                // evaluated true, so it inherits the left's assertions.
+                // Its own registrations end with the operator: the fall
+                // through path may not have run them.
+                // (SequenceScopedAssertionDedup)
                 final leftText = operand(l, op, false);
                 final afterLeft = sequenceSave();
-                sequenceLoad(preSeq);
                 final rightText = operand(r, op, true);
                 sequenceLoad(afterLeft);
                 return leftText + " && " + rightText;
