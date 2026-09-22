@@ -1989,17 +1989,6 @@ class DartExpr {
                 case FAnon(cf): cf.get().name;
                 case _: null;
             };
-            final pi0 = Context.getPosInfos(subj.pos);
-            if (fn0 != null && fn0.indexOf("lead") >= 0 && pi0.file.indexOf("PunctuationGeometryLedger") >= 0) {
-                final st0 = stripCast(subj);
-                var k0 = "?";
-                switch (stripWrap(subj).expr) {
-                    case TLocal(v): k0 = "local:" + v.name;
-                    case TCall(_, _): k0 = "call";
-                    case _: k0 = Std.string(stripWrap(subj).expr).substr(0, 30);
-                }
-                Sys.println("TRACE_FIELD name=" + fn0 + " kind=" + k0 + " min" + pi0.min + " subjNull=" + PolicyQueries.isNullableType(st0.t));
-            }
         }
         switch (fa) {
             case FStatic(c, cf):
@@ -2097,11 +2086,6 @@ class DartExpr {
                     vname = v.name;
                     vid = v.id;
                 case _:
-            }
-            if (pi.file.indexOf("KotlinNullability") >= 0 && vname == "holder") {
-                final inNN = nonNullLocals.exists(vid);
-                final inNNOP = nonNullOptionalParams.exists(vid);
-                Sys.println("TRACE_FLAG min" + pi.min + " stNull=" + PolicyQueries.isNullableType(st.t) + " inNN=" + inNN + " inNNOP=" + inNNOP + " fieldNon=" + !PolicyQueries.isNullableType(fieldType) + " prov=" + provenNonNull(subj));
             }
         }
         final nullableSubject = PolicyQueries.isNullableType(strippedSubject.t) || switch (stripWrap(subj).expr) {
