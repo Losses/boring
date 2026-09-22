@@ -3066,6 +3066,16 @@ class KotlinExpr {
                 if (guardedNonNullTernary(e))
                     return false;
                 return rendersNullable(t) || (f != null && rendersNullable(f));
+            case TField(subj, FInstance(owner, _, cf)):
+                // Data-class properties render their access through
+                // decidedFieldAccess; consulting nullableAccess here
+                // diverged from it and hardened a value the assertion
+                // already made non-null. Other field shapes (array length
+               // reads and friends) render through nullableAccess.
+                // (UnifiedFieldAccessDecision)
+                if (owner.get().meta.has(":dataClass"))
+                    return decidedFieldAccess(subj, cf.get().type, true) == "?.";
+                return nullableAccess(subj) == "?.";
             case TField(subj, _):
                 // A nullable receiver is extracted with `!!.` when the Haxe
                 // expression already proves it present.  Looking only at the
