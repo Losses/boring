@@ -14148,7 +14148,16 @@ class RustExpr {
         switch (stripWrap(e).expr) {
             case TConst(TInt(_)):
                 return Context.getType("Int");
-            case TIf(_, t, f):
+            case TIf(cond, t, f):
+                // A null-coalescing ternary (`x == null ? A : B`) lowers to an
+                // unwrap_or_else that yields the inner value, so the emitted
+                // type is the conditional's own type (the LUB of its arms).
+                // Reading an arm type would misclassify `x == null ? 0 : x` on
+                // a Float x as Int (the literal arm) and route it through the
+                // u32/i32 byte reinterpretation. A plain ternary keeps the
+                // arm-based reading, which matches the Rust `if` it emits.
+                if (nullGuardOf(cond) != null)
+                    return e.t;
                 final tt = emittedType(t);
                 return tt != null ? tt : emittedType(f);
             case TBinop(op, l, r):
