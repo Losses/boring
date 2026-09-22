@@ -81,6 +81,12 @@ class RustExpr {
 
     final hiddenNames:Map<Int, String> = [];
     final rangeLoopVars:Map<Int, Bool> = [];
+    // Int locals initialized from an ambiguous integer receiver (an array
+    // element read, a conditional, a generic static call, a range loop
+    // variable). Their binding renders without a concrete type, so a later
+    // .to_ne_bytes() on the local is ambiguous (E0689); the receiver
+    // predicate consults this set to pin the u32 domain. (AmbiguousIntReceiver)
+    final ambiguousIntReceiverLocals:Map<Int, Bool> = [];
     final argTypes:Map<String, String> = [];
     final paramVarIds:Map<Int, Bool> = [];
     // Actual constructor-call arguments used while materializing coalescing defaults.
@@ -11502,7 +11508,7 @@ class RustExpr {
 
     function numericAssignmentValue(expected:Type, actual:TypedExpr, rendered:String, targetOverride:Null<String> = null, signedBoundary:Bool = false):String {
         if (isFloatType(expected) && isIntType(emittedType(actual)))
-            return intToFloatSignedText(rendered);
+            return intToFloatSignedText(rendered, actual);
         // A nullable target holds an Option; the rendered value is already
         // in the Option domain (a null literal renders None, a nullable
         // expression keeps its Option shape), so no null-to-zero bridge or
@@ -11909,12 +11915,30 @@ class RustExpr {
                     if (isIntType(v.t) && !isNullType(v.t) && !declarationRendersI32(init)) {
                         declaredUnsignedIntLocals.set(v.id, true);
                     }
+                    // An Int local initialized from an ambiguous integer
+                    // receiver keeps that ambiguity in its binding, so a
+                    // later .to_ne_bytes() on the local stays ambiguous
+                    // (E0689). (AmbiguousIntReceiver)
+                    if (isIntType(v.t) && !isNullType(v.t) && ambiguousIntReceiver(init))
+                        ambiguousIntReceiverLocals.set(v.id, true);
                     // A local derived from an i32-domain operand keeps the
                     // signed rendering, matching the Rust type inference of
                     // its declaration.
                     if (isIntType(v.t) && !isNullType(v.t) && i32LocalDomain(init))
                         i32Locals.set(v.id, true);
                 }
+            case TFor(v, it, body):
+                // A `for (x in arr)` loop variable binds an array element
+                // whose Rust type stays {integer} when the array literal
+                // holds bare integer literals; a later .to_ne_bytes() on
+                // the element is ambiguous (E0689). The range-loop
+                // variable is already registered through loopLines; this
+                // shape registers the array-iteration variable in the
+                // same ambiguous-receiver set. The iterator shape decides
+                // (an integer-literal array), never the variable name.
+                // (AmbiguousIntReceiver)
+                if (isIntType(v.t) && !isNullType(v.t) && isIntegerLiteralArray(it))
+                    ambiguousIntReceiverLocals.set(v.id, true);
             case TTry(body, _):
                 collectTryAssignments(body);
             case TBlock(stmts):
@@ -12985,7 +13009,7 @@ class RustExpr {
         // expression (an Int/Int division Haxe types as Float) is already
         // widened and keeps the plain cast.
         if (isFloatType(expected) && isIntType(emittedType(actual)))
-            return intToFloatSignedText(rendered);
+            return intToFloatSignedText(rendered, actual);
         // Methods returning an owned class value cannot leak the borrowed
         // `self` receiver into the return slot.
         if (!isTypeCopy(expected) && switch (stripWrap(actual).expr) {
@@ -14210,7 +14234,7 @@ class RustExpr {
         wrapped negative (e.g. -7 as 4294967289u32) must widen to -7.0,
         not 4294967289.0. A bare literal or an already-Float expression
         (a widened division, a Float cast) keeps the plain cast. */
-    public function intToFloatSignedText(text:String):String {
+    public function intToFloatSignedText(text:String, e:Null<TypedExpr> = null):String {
         if (~/^-?[0-9]+$/.match(text) || ~/^\(-?[0-9]+\)$/.match(text))
             return intToFloatText(text);
         // A u32-domain expression reinterprets to i32 so a wrapped
@@ -14227,8 +14251,31 @@ class RustExpr {
             return intToFloatText(text);
         // A conditional whose arms are integer literals leaves its type
         // to inference under .to_ne_bytes() (E0689); the annotated
-        // binding pins the u32 domain before the byte round-trip.
+        // binding pins the u32 domain before the byte round-trip. The
+        // decision reads the rendered text because the text and the typed
+        // AST do not line up here: a slot may render a local binding name
+        // (e.g. extra_leading) whose AST node is a conditional, so an AST
+        // predicate over-matches and wraps a concrete local, breaking the
+        // surrounding type. The text shape is the ground truth for whether
+        // .to_ne_bytes() stays ambiguous, so the check matches a rendered
+        // if conditional and leaves every other Int expression to the
+        // reinterpret below. (IntToFloatConditionalReceiver)
         if (StringTools.startsWith(text, "if ") || text.indexOf(" if ") >= 0)
+            return intToFloatText("{ let v: u32 = " + text + "; i32::from_ne_bytes(v.to_ne_bytes()) }");
+        // An array-iteration loop variable (for x in arr) binds an array
+        // literal of bare integer literals, whose element type Rust leaves
+        // as {integer}; a later .to_ne_bytes() on the element is ambiguous
+        // (E0689). The annotated binding pins the u32 domain before the
+        // byte round-trip, matching the range-loop-variable path. The
+        // check names the loop variable directly (a TLocal in the
+        // ambiguous-receiver set) rather than the whole predicate, because
+        // a conditional that renders a concrete local name (e.g. a
+        // null-coalesced Float) would over-match and wrap a concrete
+        // value. (AmbiguousIntReceiver)
+        if (e != null && switch (stripWrap(e).expr) {
+                case TLocal(v): rangeLoopVars.exists(v.id) || ambiguousIntReceiverLocals.exists(v.id);
+                case _: false;
+            })
             return intToFloatText("{ let v: u32 = " + text + "; i32::from_ne_bytes(v.to_ne_bytes()) }");
         // Any other Int expression (a u32 variable, a wrapping result) is
         // in the u32 domain and reinterprets to i32.
@@ -14396,9 +14443,24 @@ class RustExpr {
                     case TField(_, FStatic(_, cf)): typeHasParam(cf.get().type);
                     case _: false;
                 };
-            case TLocal(v): rangeLoopVars.exists(v.id);
+            case TLocal(v): rangeLoopVars.exists(v.id) || ambiguousIntReceiverLocals.exists(v.id);
             case TIf(_, _, f) if (f != null): true;
             case TArray(_, _): true;
+            case _: false;
+        };
+    }
+
+    /** Whether an expression is an array literal of bare integer literals,
+        whose element type Rust leaves as {integer}. Iterating such an array
+        binds each element ambiguously, so a later .to_ne_bytes() on the
+        element stays ambiguous (E0689). (AmbiguousIntReceiver) */
+    function isIntegerLiteralArray(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TArrayDecl(elements):
+                elements.length > 0 && [for (el in elements) switch (stripWrap(el).expr) {
+                    case TConst(TInt(_)): true;
+                    case _: false;
+                }].indexOf(false) < 0;
             case _: false;
         };
     }
