@@ -7981,13 +7981,18 @@ class RustExpr {
     /** The guard read cloned to an owned value. The RefCell family clones
         inside the with-closure: a clone applied outside would clone the
         returned Ref guard and tie it to the thread-local's lifetime.
-        (RefCellStaticGuardScope) */
+        The Mutex family binds the guard to a named local inside a block and
+        clones there, so the guard drops at the end of the block instead of
+        living until the end of the enclosing statement. A statement that
+        reads the same Mutex static twice (for example two elements of a
+        vec![]) otherwise holds the first guard while the second lock() runs,
+        which deadlocks the same thread. (MutexGuardStatementScope) */
     function staticGuardClone(cls:ClassType, name:String):String {
         final path = staticItemPath(cls, name);
         final field = staticFieldOf(cls, name);
         if (field != null && RustDecl.isNonSendStaticType(types.of(field.type)))
             return path + ".with(|c| c.borrow().clone())";
-        return staticGuard(cls, name) + ".clone()";
+        return "{ let __guard = " + staticGuard(cls, name) + "; __guard.clone() }";
     }
 
     /** The item path of a guard static whose guard is a RefCell borrow, or
