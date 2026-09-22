@@ -2391,6 +2391,20 @@ class DartExpr {
         if (inlineMapCall != null) {
             return inlineMapCall;
         }
+        // A statically-decided Std.isOfType renders a literal answer and
+        // never mentions the target type. Pre-rendering the arguments here
+        // would register the target type's import with no use point, and
+        // would mark flow promotions for operands that are not emitted.
+        switch (fn.expr) {
+            case TField(_, FStatic(c, cf)) if (c.get().module == "Std" && cf.get().name == "isOfType" && args.length == 2):
+                final early = TypeCheckHelper.classOfTypeExpr(args[1]);
+                if (early != null) {
+                    final known = TypeCheckHelper.knownIsOfType(args[0], early);
+                    if (known != null)
+                        return known ? "true" : "false";
+                }
+            default:
+        }
         // callArgTexts pre-renders every argument to resolve defaults,
         // which marks nullable locals non-null in the flow. Members that
         // re-render their operands (Math) must see the pre-call flow so
