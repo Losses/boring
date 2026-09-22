@@ -110,6 +110,12 @@ class DartExpr {
     // (SequenceScopedAssertionDedup)
     final assertedSequence:Map<Int, Bool> = [];
 
+    // Locals that bind a null literal somewhere (a declaration initializer
+    // or an assignment). A declared-non-null local holding null makes its
+    // null comparisons real null checks.
+    // (NonNullTypeNullCompareFold)
+    final nullAssignedLocals:Map<Int, Bool> = [];
+
     /** Optional parameters materialized by default expansion. */
     final nonNullOptionalParams:Map<Int, Bool> = [];
 
@@ -422,6 +428,7 @@ class DartExpr {
     public function functionBody(cls:ClassType, f:ClassFuncData, depth:Int = 2):Array<String> {
         flowPromotedNonNull.clear();
         assertedSequence.clear();
+        nullAssignedLocals.clear();
         if (f.expr == null) {
             Context.error("function field has no body to lower", f.field.pos);
         }
@@ -897,6 +904,16 @@ class DartExpr {
                 out.push(indent(depth) + "}");
                 return out;
             case TIf(c, t, f):
+                // A condition that folds to a constant leaves one branch:
+                // the dead branch never renders.
+                // (NonNullTypeNullCompareFold)
+                final condConst = conditionConstant(c);
+                if (condConst != null) {
+                    final survivor = condConst ? t : f;
+                    if (survivor == null)
+                        return [];
+                    return blockLines(statementsOf(survivor), depth);
+                }
                 final guarded = nullGuardLocal(c);
                 if (guarded != null && f == null && isNotNullGuard(c)) {
                     final wasProven = nonNullLocals.exists(guarded.id);
@@ -1408,6 +1425,15 @@ class DartExpr {
             case TFunction(f):
                 return functionLiteral(f);
             case TIf(c, t, f) if (f != null):
+                // A condition that folds to a constant leaves one branch:
+                // the dead branch never renders.
+                // (NonNullTypeNullCompareFold)
+                final condConst = conditionConstant(c);
+                if (condConst != null) {
+                    final survivor = condConst ? t : f;
+                    final survivorText = isFloatType(e.t) && isIntOrLongType(emittedType(survivor)) ? intToFloatText(expr(survivor)) : expr(survivor);
+                    return "(" + survivorText + ")";
+                }
                 final coalescing = coalescingSiteFor(e);
                 if (coalescing != null) {
                     // A null default is an identity: `x ?? null` equals x for
@@ -1740,6 +1766,11 @@ class DartExpr {
                 final modR = operand(r, op, true);
                 return "(" + modL + ").remainder(" + modR + ")";
             case _:
+                // A null comparison on a value that renders non-null is a
+                // constant. (NonNullTypeNullCompareFold)
+                final nullConstant = nullCompareConstant(e);
+                if (nullConstant != null)
+                    return nullConstant ? "true" : "false";
                 final lStr = operand(l, op, false);
                 final rStr = operand(r, op, true);
                 final lFinal = isIntOrLongType(emittedType(l)) && isFloatType(emittedType(r)) ? intToFloatText(lStr) : lStr;
@@ -2283,6 +2314,72 @@ class DartExpr {
         if (isNullLiteral(e) || isNullLeafType(e.t) || optionalValued(e))
             return false;
         return !nullableValue(e);
+    }
+
+    /** A null comparison (`x == null` / `x != null`) whose operand renders
+        non-null is a constant: dart flags the operand as never null. Returns
+        the comparison's constant value, or null when it must render.
+        (NonNullTypeNullCompareFold) */
+    function nullCompareConstant(e:TypedExpr):Null<Bool> {
+        final inner = stripWrap(e);
+        return switch (inner.expr) {
+            case TBinop(op, l, r) if (op == OpEq || op == OpNotEq):
+                final operand = switch (stripWrap(r).expr) {
+                    case TConst(TNull): l;
+                    case _: switch (stripWrap(l).expr) {
+                            case TConst(TNull): r;
+                            case _: null;
+                        }
+                };
+                if (operand == null)
+                    return null;
+                if (isNullLiteral(operand) || isNullLeafType(operand.t) || optionalValued(operand) || nullableValue(operand))
+                    return null;
+                // A declared-non-null local that binds a null literal
+                // somewhere holds null at runtime: the comparison is real.
+                // Haxe permits this; the type alone cannot decide.
+                // (NonNullTypeNullCompareFold)
+                switch (stripWrap(operand).expr) {
+                    case TLocal(v):
+                        if (nullAssignedLocals.exists(v.id))
+                            return null;
+                    case _:
+                }
+                return op == OpNotEq;
+            case _:
+                return null;
+        };
+    }
+
+    /** The constant value a condition renders to after null-compare
+        folding, composed through `&&`, `||`, and parentheses. The right
+        operand of a short-circuit operator only folds when the left side
+        already decided, since the left decides whether the right runs.
+        (NonNullTypeNullCompareFold) */
+    function conditionConstant(e:TypedExpr):Null<Bool> {
+        final direct = nullCompareConstant(e);
+        if (direct != null)
+            return direct;
+        return switch (stripWrap(e).expr) {
+            case TBinop(OpBoolAnd, l, r):
+                switch (conditionConstant(l)) {
+                    case true: conditionConstant(r);
+                    case false: false;
+                    case null: null;
+                }
+            case TBinop(OpBoolOr, l, r):
+                switch (conditionConstant(l)) {
+                    case true: true;
+                    case false: conditionConstant(r);
+                    case null: null;
+                }
+            case TParenthesis(inner) | TMeta(_, inner):
+                conditionConstant(inner);
+            case TConst(TBool(b)):
+                b;
+            case _:
+                null;
+        };
     }
 
     /** A method receiver unwraps when the receiver expression is optional. */
@@ -4552,9 +4649,23 @@ class DartExpr {
                 if (init != null && isNullLeafType(init.t)) {
                     optionalInferred.set(v.id, true);
                 }
+                // A null literal initializer holds null at runtime even on
+                // a declared-non-null type.
+                // (NonNullTypeNullCompareFold)
+                if (init != null && isNullLiteral(init)) {
+                    nullAssignedLocals.set(v.id, true);
+                }
                 PolicyQueries.noteFpInt64Init(v, init, fpInt64Halves);
                 if (init != null && isStaticsOnlyClassValue(init)) {
                     classValueAliasLocals.set(v.id, true);
+                }
+            case TBinop(OpAssign, t, r) if (isNullLiteral(r)):
+                switch (t.expr) {
+                    case TLocal(v):
+                        markMutated(v);
+                        // (NonNullTypeNullCompareFold)
+                        nullAssignedLocals.set(v.id, true);
+                    case _:
                 }
             case TBinop(OpAssign, t, _) | TBinop(OpAssignOp(_), t, _):
                 switch (t.expr) {
