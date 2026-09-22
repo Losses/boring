@@ -1501,8 +1501,10 @@ class SwiftExpr {
                     case TString(s):
                         // The resident ABI carries strings as unit arrays
                         // (docs/specs/features/08-strings-and-unicode.md); business modules keep the
-                        // native literal.
-                        return types.resident ? "Array(" + quoteString(s) + ".utf16)" : quoteString(s);
+                        // native literal. The resident branch already materializes the unit array
+                        // (O(n) once), so it uses the raw literal; the native branch wraps large
+                        // non-ASCII literals so the parse loop is not O(n^2) on a non-native String.
+                        return types.resident ? "Array(" + quoteStringRaw(s) + ".utf16)" : quoteString(s);
                     case TBool(b): return b ? "true" : "false";
                     case TNull: return "nil";
                     case TThis: return "self";
@@ -5928,7 +5930,41 @@ class SwiftExpr {
         }
     }
 
+    /**
+        Threshold (UTF-16 code units) above which a non-ASCII string literal
+        is emitted through a native-converting expression. Below the threshold
+        it stays a bare Swift literal. Swift stores a large literal containing non-ASCII
+        scalars in a non-native representation where UTF16View.count and
+        index(_:offsetBy:) are O(n) per call; the generated parse loops read
+        one unit at a time and degrade to O(n^2) (see engine-haxe/out/
+        swift-repro/FINDINGS.md: a 1.28M-char non-ASCII literal scanned
+        200k positions in ~600s, while the same parse on a native String took
+        291ms). Materializing the literal into a native String once keeps
+        those operations O(1). The threshold is set so ordinary literals never
+        pay the Array materialization, while any literal large enough to take
+        the non-native representation is caught.
+    **/
+    static final NATIVE_STRING_LITERAL_THRESHOLD = 1024;
+
+    /** Emits a Swift String literal, wrapping large non-ASCII literals in a
+        native-converting expression (see NATIVE_STRING_LITERAL_THRESHOLD). */
     function quoteString(s:String):String {
+        final quoted = quoteStringRaw(s);
+        if (s.length >= NATIVE_STRING_LITERAL_THRESHOLD && containsNonAscii(s))
+            return "String(decoding: Array(" + quoted + ".utf16), as: UTF16.self)";
+        return quoted;
+    }
+
+    /** True when the string holds any scalar above 0x7F. */
+    static function containsNonAscii(s:String):Bool {
+        for (i in 0...s.length)
+            if (s.charCodeAt(i) > 0x7F)
+                return true;
+        return false;
+    }
+
+    /** Emits the bare escaped Swift string literal for s. */
+    function quoteStringRaw(s:String):String {
         final b = new StringBuf();
         b.addChar('"'.code);
         for (i in 0...s.length) {
