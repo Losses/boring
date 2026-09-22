@@ -1763,6 +1763,24 @@ class DartExpr {
     }
 
     function field(subj:TypedExpr, fa:FieldAccess):String {
+        {
+            final fn0 = switch (fa) {
+                case FInstance(_, _, cf): cf.get().name;
+                case FAnon(cf): cf.get().name;
+                case _: null;
+            };
+            final pi0 = Context.getPosInfos(subj.pos);
+            if (fn0 != null && fn0.indexOf("lead") >= 0 && pi0.file.indexOf("PunctuationGeometryLedger") >= 0) {
+                final st0 = stripCast(subj);
+                var k0 = "?";
+                switch (stripWrap(subj).expr) {
+                    case TLocal(v): k0 = "local:" + v.name;
+                    case TCall(_, _): k0 = "call";
+                    case _: k0 = Std.string(stripWrap(subj).expr).substr(0, 30);
+                }
+                Sys.println("TRACE_FIELD name=" + fn0 + " kind=" + k0 + " min" + pi0.min + " subjNull=" + PolicyQueries.isNullableType(st0.t));
+            }
+        }
         switch (fa) {
             case FStatic(c, cf):
                 final cls = c.get();
@@ -1825,6 +1843,21 @@ class DartExpr {
         type stays non-null. Haxe's typed AST types the field read as non-null
         even when the receiver is Null<T>. **/
     function instanceFieldReceiver(subj:TypedExpr, cf:Ref<ClassField>):String {
+        {
+            final pi = Context.getPosInfos(subj.pos);
+            final fn = cf.get().name;
+            if (pi.file.indexOf("PunctuationGeometryLedger") >= 0 && (fn == "leadingRemaining" || fn == "bodyWidth" || fn == "get_leadingRemaining")) {
+                final st = stripCast(subj);
+                var kind = "?";
+                switch (stripWrap(subj).expr) {
+                    case TLocal(v): kind = "local:" + v.name;
+                    case TCall(_, _): kind = "call";
+                    case TField(_, _): kind = "field";
+                    case _: kind = "other";
+                }
+                Sys.println("TRACE_IFR name=" + fn + " kind=" + kind + " min" + pi.min + " subjNull=" + PolicyQueries.isNullableType(st.t) + " prov=" + provenNonNull(subj));
+            }
+        }
         final fieldType = cf.get().type;
         // A nullable Haxe field is emitted as a nullable Dart field even when
         // the typed AST has already unwrapped it for indexing/member access.
@@ -2838,7 +2871,11 @@ class DartExpr {
                 // across the library privacy boundary.
                 final property = getterOnlyPropertyName(owner.get(), name);
                 if (property != null && args.length == 0) {
-                    return receiverText(subj) + "." + property;
+                    // The getter read shares the field-read receiver form:
+                    // a nullable receiver asserts or reads safely by the
+                    // field's own optionality, matching instanceFieldRead.
+                    // (ImplicitUnwrapReceiverNullability)
+                    return instanceFieldReceiver(subj, cf) + "." + property;
                 }
                 // A private method renders under its `_`-prefixed Dart
                 // name (feature spec 27); the special cases above are
