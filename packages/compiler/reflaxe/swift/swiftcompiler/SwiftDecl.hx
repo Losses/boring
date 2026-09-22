@@ -721,17 +721,19 @@ class SwiftDecl {
         return found;
     }
 
+    // The scan must descend: a top-level assignment is the statement root
+    // itself, and a loop or branch nests its assignments further down.
     static function collectAssignedInstanceFields(e:TypedExpr, result:Map<String, Bool>):Void {
-        haxe.macro.TypedExprTools.iter(e, function(child:TypedExpr):Void {
-            switch (child.expr) {
-                case TBinop(OpAssign, {expr: TField({expr: TConst(TThis)}, access)}, _):
-                    switch (access) {
-                        case FInstance(_, _, field): result.set(field.get().name, true);
-                        case _:
-                    }
-                case _:
-            }
-        });
+        switch (e.expr) {
+            case TBinop(OpAssign, {expr: TField({expr: TConst(TThis)}, access)}, _)
+                | TBinop(OpAssignOp(_), {expr: TField({expr: TConst(TThis)}, access)}, _):
+                switch (access) {
+                    case FInstance(_, _, field): result.set(field.get().name, true);
+                    case _:
+                }
+            case _:
+        }
+        haxe.macro.TypedExprTools.iter(e, function(child:TypedExpr):Void collectAssignedInstanceFields(child, result));
     }
 
     static function isFunctionType(t:Null<Type>):Bool {
