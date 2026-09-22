@@ -1421,6 +1421,13 @@ class TsExpr {
 
     function binop(e:TypedExpr, op:Binop, l:TypedExpr, r:TypedExpr):String {
         switch (op) {
+            case OpBoolAnd:
+                // A nullable-typed left operand makes `&&` yield `null` when
+                // it is falsy: Haxe reads null as false, so the operand
+                // coalesces before the chain. (BoolOperandNullCoalesce)
+                final lText = operand(l, op, false);
+                final lFinal = isNullType(l.t) ? "(" + lText + " ?? false)" : lText;
+                return lFinal + " && " + operand(r, op, true);
             case OpAssign:
                 final map = mapAssignment(l);
                 return map == null ? assignTarget(l) + " = " + expr(r) : expr(map.receiver) + ".set(" + expr(map.key) + ", " + expr(r) + ")";
