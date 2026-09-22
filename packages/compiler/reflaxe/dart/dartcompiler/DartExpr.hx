@@ -1800,6 +1800,13 @@ class DartExpr {
                 orSpineChecks(l, leftChecks);
                 for (id in leftChecks)
                     assertedSequence.set(id, true);
+                // The left side evaluated to false for the right side to
+                // run: its unconditional assertions executed too.
+                // (SequenceScopedAssertionDedup)
+                final alwaysRun:Array<Int> = [];
+                alwaysRunUnwraps(l, alwaysRun);
+                for (id in alwaysRun)
+                    assertedSequence.set(id, true);
                 final rightText = operand(r, op, true);
                 sequenceLoad(afterLeft);
                 // The right spine's checks hold on the fall through path.
@@ -2513,6 +2520,32 @@ class DartExpr {
                         case _:
                     }
                 }
+        }
+    }
+
+    /** The locals whose `!` assertion unconditionally runs when this
+        expression evaluates: the left spines of short-circuit operators
+        and everything under non-short-circuit nodes. A `||` right operand
+        runs after the left side evaluated false, so the left's
+        unconditional assertions hold there.
+        (SequenceScopedAssertionDedup) */
+    function alwaysRunUnwraps(e:TypedExpr, acc:Array<Int>):Void {
+        final inner = stripWrap(e);
+        switch (inner.expr) {
+            case TBinop(OpBoolAnd, l, _) | TBinop(OpBoolOr, l, _):
+                alwaysRunUnwraps(l, acc);
+            case TIf(c, _, _):
+                alwaysRunUnwraps(c, acc);
+            case TWhile(c, _, _):
+                alwaysRunUnwraps(c, acc);
+            case TSwitch(subj, _, _):
+                alwaysRunUnwraps(subj, acc);
+            case TLocal(v):
+                if (nullableValue(inner) && acc.indexOf(v.id) < 0)
+                    acc.push(v.id);
+            case TTry(_, _):
+            case _:
+                TypedExprTools.iter(inner, function(x) alwaysRunUnwraps(x, acc));
         }
     }
 
