@@ -1596,10 +1596,11 @@ class TsExpr {
         final folded = foldedExceptionMessage(target, name);
         if (folded != null)
             return folded;
-        // A nullable-typed subject reading a non-null-typed field asserts:
-        // Haxe types the field read non-null through the Null wrapper, and
-        // TypeScript must not widen or reject it. (NonNullFieldReadAssert)
-        if (fieldType != null && !isNullType(fieldType) && isNullType(subj.t))
+        // A nullable-typed subject reading a field asserts the receiver:
+        // Haxe types the read through the Null wrapper, and the `!` marker
+        // carries no runtime check, so the field's own optionality stays.
+        // (NonNullFieldReadAssert)
+        if (isNullType(subj.t))
             return expr(subj) + "!." + name;
         return expr(subj) + "." + name;
     }
@@ -2290,11 +2291,11 @@ class TsExpr {
                     // omitted argument (features/08 ruling 8).
                     switch (stripWrap(args[1]).expr) {
                         case TConst(TNull):
-                            return expr(subj) + "." + name + "(" + expr(args[0]) + ")";
+                            return receiverText(subj) + "." + name + "(" + expr(args[0]) + ")";
                         case _:
                     }
                 }
-                return expr(subj) + "." + name + "(" + rendered + ")";
+                return receiverText(subj) + "." + name + "(" + rendered + ")";
             case TField(subj, FStatic(c, cf)):
                 final cls = c.get();
                 final fName = cf.get().name;
@@ -2506,6 +2507,14 @@ class TsExpr {
         // type to preserve `kind` as its literal.
         imports.value(en.module, en.name);
         return "({ " + parts.join(", ") + " } as " + en.name + ")";
+    }
+
+    /** The call receiver text: a nullable-typed receiver asserts, since
+        Haxe types the call through the Null wrapper of the holder.
+        (NonNullFieldReadAssert) */
+    function receiverText(subj:TypedExpr):String {
+        final t = expr(subj);
+        return isNullType(subj.t) ? t + "!" : t;
     }
 
     function callArgTexts(fn:TypedExpr, args:Array<TypedExpr>):Array<String> {
