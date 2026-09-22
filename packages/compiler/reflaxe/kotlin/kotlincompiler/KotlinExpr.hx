@@ -2337,6 +2337,12 @@ class KotlinExpr {
                 // registration; the Haxe type alone is not enough.
                 if (!isNullType(cf.get().type) && !nullableRenderedField(owner.get(), cf.get()))
                     return true;
+            case TField(_, FAnon(cf)):
+                // An anonymous-structure field takes its Kotlin optionality
+                // directly from the field type; no constructor registration
+                // intervenes. (IfExpressionCoversNull)
+                if (!isNullType(cf.get().type))
+                    return true;
             case _:
         }
         if (!StringTools.contains(text, "if ("))
@@ -5146,6 +5152,7 @@ class KotlinExpr {
                     // equality/assertion expected values.
                     text;
                 } else if (registered != null && expected != null && requiresNonNullCallArgument(a, text)) {
+                    Sys.println("PROBE_CTOR text=" + text + " covers=" + coversNullByForm(a, text) + " prov=" + provenNonNull(a) + " guard=" + guardProofBefore(a));
                     if (coversNullByForm(a, text))
                         text;
                     else if (StringTools.trim(constructorDefaultText(registered, expected, cls, args)) == "null")
