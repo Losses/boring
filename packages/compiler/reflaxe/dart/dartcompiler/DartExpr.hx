@@ -98,6 +98,17 @@ class DartExpr {
     // the analyzer flags them. Function-scoped; cleared at each body.
     // (FlowPromotedDedup)
     final flowPromotedNonNull:Map<Int, Bool> = [];
+    // Locals whose `!` assertion already rendered earlier in the current
+    // linear evaluation sequence. Dart promotes a local from a successful
+    // `!` through the rest of the sequence (statements, operand chains,
+    // condition into arms, `&&` and `||` right operands), so a later `!` on
+    // the same local has no effect. Exclusive segments evaluate without
+    // their siblings' assertions: each ternary arm, switch arm, and catch
+    // body restarts from the snapshot taken at the branch, and a closure
+    // body renders without the ambient registrations. An assignment to a
+    // local drops its registration.
+    // (SequenceScopedAssertionDedup)
+    final assertedSequence:Map<Int, Bool> = [];
 
     /** Optional parameters materialized by default expansion. */
     final nonNullOptionalParams:Map<Int, Bool> = [];
@@ -410,6 +421,7 @@ class DartExpr {
 
     public function functionBody(cls:ClassType, f:ClassFuncData, depth:Int = 2):Array<String> {
         flowPromotedNonNull.clear();
+        assertedSequence.clear();
         if (f.expr == null) {
             Context.error("function field has no body to lower", f.field.pos);
         }
@@ -900,10 +912,18 @@ class DartExpr {
                     nonNullLocals.set(guarded.id, true);
                 return lines;
             case TWhile(c, b, true):
-                final out = [indent(depth) + "while (" + conditionText(c) + ") {"];
+                // The body may run zero times: its registrations end with
+                // the loop, and the state after the loop is the entry state.
+                // (SequenceScopedAssertionDedup)
+                final entrySeq = sequenceSave();
+                final condText = conditionText(c);
+                final postCond = sequenceSave();
+                sequenceLoad(postCond);
+                final out = [indent(depth) + "while (" + condText + ") {"];
                 for (l in blockLines(statementsOf(b), depth + 1))
                     out.push(l);
                 out.push(indent(depth) + "}");
+                sequenceLoad(entrySeq);
                 return out;
             case TWhile(_, _, false):
                 return fail(e, "do-while has no lowering in the subset");
@@ -953,8 +973,10 @@ class DartExpr {
             case TSwitch(_, _, _):
                 return switchStatement(e, depth);
             case TBinop(OpAssign, target, value) if (isSwitch(value)):
+                sequenceDropLocal(target);
                 return switchAssign(target, value, depth);
             case TBinop(OpAssign, l, r):
+                sequenceDropLocal(l);
                 final map = mapAssignment(l);
                 var rText = expr(r);
                 if (map == null && isIntOrLongType(emittedType(r)) && isFloatType(l.t))
@@ -974,6 +996,7 @@ class DartExpr {
                 // `s = s + ...` so the accumulator's type is preserved.
                 return [indent(depth) + assignTarget(l) + " = " + templateLiteral(l, r)];
             case TBinop(OpAssignOp(inner), l, r):
+                sequenceDropLocal(l);
                 return [indent(depth) + assignTarget(l) + " " + symbolOf(inner) + "= " + expr(r)];
             case _:
                 return [indent(depth) + expr(e)];
@@ -987,9 +1010,17 @@ class DartExpr {
     }
 
     function ifLines(c:TypedExpr, t:TypedExpr, f:Null<TypedExpr>, depth:Int):Array<String> {
-        final out = [indent(depth) + "if (" + conditionText(c) + ") {"];
+        // The arms are exclusive: each restarts from the state after the
+        // condition, and the state after the whole if stays at the entry.
+        // (SequenceScopedAssertionDedup)
+        final entrySeq = sequenceSave();
+        final condText = conditionText(c);
+        final postCond = sequenceSave();
+        sequenceLoad(postCond);
+        final out = [indent(depth) + "if (" + condText + ") {"];
         for (l in blockLines(statementsOf(t), depth + 1))
             out.push(l);
+        sequenceLoad(postCond);
         if (f != null) {
             final elseStmts = statementsOf(f);
             if (elseStmts.length == 1) {
@@ -1000,6 +1031,7 @@ class DartExpr {
                         out.push(indent(depth) + "} else " + StringTools.ltrim(inner[0]));
                         for (i in 1...inner.length)
                             out.push(inner[i]);
+                        sequenceLoad(entrySeq);
                         return out;
                     case _:
                 }
@@ -1008,6 +1040,7 @@ class DartExpr {
             for (l in blockLines(elseStmts, depth + 1))
                 out.push(l);
         }
+        sequenceLoad(entrySeq);
         out.push(indent(depth) + "}");
         return out;
     }
@@ -1385,18 +1418,28 @@ class DartExpr {
                         return expr(coalescing.valueExpr);
                     return expr(coalescing.valueExpr) + " ?? " + defaultText;
                 }
+                // The arms are exclusive: each restarts from the state
+                // after the condition, since only the condition's
+                // assertions have run for both.
+                // (SequenceScopedAssertionDedup)
+                final entrySeq = sequenceSave();
+                final condText = conditionText(c);
+                final postCond = sequenceSave();
+                sequenceLoad(postCond);
                 // A Float-typed ternary with an int literal branch types
                 // as num in Dart; Haxe's Float unification promises
                 // double, so widen the int branch.
                 final tText = isFloatType(e.t) && isIntOrLongType(emittedType(t)) ? intToFloatText(expr(t)) : expr(t);
-                final fText = isFloatType(e.t) && isIntOrLongType(emittedType(f)) ? intToFloatText(expr(f)) : expr(f);
                 // A null-guard ternary (`A == null ? default : A`) proves
                 // the guarded branch non-null; Dart still sees the nullable
                 // type, so unwrap the branch the guard protects.
                 final guarded = nullGuardExpr(c);
                 final tFinal = guarded != null && isNotNullGuard(c) && structurallySame(t, guarded) ? requiredValueText(t) : tText;
+                sequenceLoad(postCond);
+                final fText = isFloatType(e.t) && isIntOrLongType(emittedType(f)) ? intToFloatText(expr(f)) : expr(f);
                 final fFinal = guarded != null && !isNotNullGuard(c) && structurallySame(f, guarded) ? requiredValueText(f) : fText;
-                return "(" + conditionText(c) + " ? " + tFinal + " : " + fFinal + ")";
+                sequenceLoad(entrySeq);
+                return "(" + condText + " ? " + tFinal + " : " + fFinal + ")";
             case TBlock(stmts):
                 return blockExpression(stmts);
             case _:
@@ -1601,6 +1644,7 @@ class DartExpr {
     function binop(e:TypedExpr, op:Binop, l:TypedExpr, r:TypedExpr):String {
         switch (op) {
             case OpAssign:
+                sequenceDropLocal(l);
                 final map = mapAssignment(l);
                 var rText = expr(r);
                 if (map == null && isIntOrLongType(emittedType(r)) && isFloatType(l.t))
@@ -1613,8 +1657,15 @@ class DartExpr {
                 // `s = s + ...` so the accumulator's type is preserved.
                 return assignTarget(l) + " = " + templateLiteral(l, r);
             case OpAssignOp(inner):
+                sequenceDropLocal(l);
                 return assignTarget(l) + " " + symbolOf(inner) + "= " + expr(r);
             case OpBoolAnd:
+                // The right side evaluates only when the left side is true:
+                // assertions inside it promote only on that path, so their
+                // registrations stay local to the right side. The left side
+                // always evaluates and keeps its registrations.
+                // (SequenceScopedAssertionDedup)
+                final preSeq = sequenceSave();
                 final guarded = nullGuardLocal(l);
                 if (guarded != null && isNotNullGuard(l)) {
                     final wasProven = nonNullLocals.exists(guarded.id);
@@ -1622,9 +1673,27 @@ class DartExpr {
                     final right = operand(r, op, true);
                     if (!wasProven)
                         nonNullLocals.remove(guarded.id);
+                    sequenceLoad(preSeq);
                     return operand(l, op, false) + " && " + right;
                 }
-                return operand(l, op, false) + " && " + operand(r, op, true);
+                final leftText = operand(l, op, false);
+                final afterLeft = sequenceSave();
+                sequenceLoad(preSeq);
+                final rightText = operand(r, op, true);
+                sequenceLoad(afterLeft);
+                return leftText + " && " + rightText;
+            case OpBoolOr:
+                // The right side evaluates only when the left side is false:
+                // it renders from the pre-operator state and its assertions
+                // stay local. The left side always evaluates.
+                // (SequenceScopedAssertionDedup)
+                final preSeq = sequenceSave();
+                final leftText = operand(l, op, false);
+                final afterLeft = sequenceSave();
+                sequenceLoad(preSeq);
+                final rightText = operand(r, op, true);
+                sequenceLoad(afterLeft);
+                return leftText + " || " + rightText;
             case OpAdd:
                 if (isStringTyped(e)) {
                     return templateLiteral(l, r);
@@ -1687,7 +1756,10 @@ class DartExpr {
         // A normalized local, or one cleared by a null guard, is already
         // non-null in the generated Dart flow.
         if ((isNullLeafType(e.t) || optionalValued(e)) && !provenNonNull(e) && parent != OpEq && parent != OpNotEq) {
-            rendered += "!";
+            // An assertion earlier in this sequence promotes the local; a
+            // second `!` has no effect. (SequenceScopedAssertionDedup)
+            if (!sequenceAssertionDone(e))
+                rendered += "!";
             switch (stripWrap(e).expr) {
                 case TLocal(v): flowPromotedNonNull.set(v.id, true);
                 case _:
@@ -1912,7 +1984,9 @@ class DartExpr {
             // it as having no effect. (GuardPromotedReceiverUnwrap)
             final base = expr(subj);
             return switch (stripWrap(subj).expr) {
-                case TLocal(_): base + "!";
+                // An assertion earlier in this sequence promotes the local;
+                // a second `!` has no effect. (SequenceScopedAssertionDedup)
+                case TLocal(_): sequenceAssertionDone(subj) ? base : base + "!";
                 case _: "(" + base + ")!";
             };
         }
@@ -2059,8 +2133,14 @@ class DartExpr {
         final text = expr(e);
         return switch (stripWrap(e).expr) {
             case TLocal(v):
-                flowPromotedNonNull.set(v.id, true);
-                text + "!";
+                // An assertion earlier in this sequence promotes the local;
+                // a second `!` has no effect. (SequenceScopedAssertionDedup)
+                if (sequenceAssertionDone(e))
+                    text;
+                else {
+                    flowPromotedNonNull.set(v.id, true);
+                    text + "!";
+                }
             case _: "(" + text + ")!";
         };
     }
@@ -2130,6 +2210,45 @@ class DartExpr {
         };
     }
 
+    /** Whether the `!` on a nullable local is dead because an earlier `!`
+        in the same sequence already asserted it. Registers the local
+        otherwise. Non-local subjects always report "not asserted".
+        (SequenceScopedAssertionDedup) */
+    function sequenceAssertionDone(e:TypedExpr):Bool {
+        final v = switch (stripWrap(e).expr) {
+            case TLocal(v): v;
+            case _: null;
+        };
+        if (v == null)
+            return false;
+        if (assertedSequence.exists(v.id))
+            return true;
+        assertedSequence.set(v.id, true);
+        return false;
+    }
+
+    /** Drops a local's sequence registration: an assignment reopens the
+        null possibility and the next read asserts again.
+        (SequenceScopedAssertionDedup) */
+    function sequenceDropLocal(e:TypedExpr):Void {
+        switch (stripWrap(e).expr) {
+            case TLocal(v): assertedSequence.remove(v.id);
+            case _:
+        }
+    }
+
+    function sequenceSave():Map<Int, Bool> {
+        return assertedSequence.copy();
+    }
+
+    /** Restores a snapshot: exclusive siblings lose each other's
+        registrations. (SequenceScopedAssertionDedup) */
+    function sequenceLoad(saved:Map<Int, Bool>):Void {
+        assertedSequence.clear();
+        for (id => _ in saved)
+            assertedSequence.set(id, true);
+    }
+
     /** A method receiver unwraps when the receiver expression is optional. */
     function receiverText(subj:TypedExpr):String {
         final nullableField = switch (stripWrap(subj).expr) {
@@ -2143,6 +2262,11 @@ class DartExpr {
             return expr(subj);
         }
         final base = expr(subj);
+        // An earlier `!` in this sequence already asserted the local: dart
+        // holds the promotion, so a second `!` has no effect.
+        // (SequenceScopedAssertionDedup)
+        if (sequenceAssertionDone(subj))
+            return base;
         // A subject already promoted in this flow scope (an earlier `!` on
         // the same local) renders bare: dart's flow analysis holds the
         // promotion, so a second `!` is redundant.
@@ -2410,7 +2534,13 @@ class DartExpr {
         // re-render their operands (Math) must see the pre-call flow so
         // the `!` a fresh render needs is not suppressed.
         final savedNonNull = nonNullLocals.copy();
+        // The pre-render's text is discarded: members that re-render their
+        // operands from the typed arguments must not inherit the sequence
+        // assertions it registered, or a fresh render drops the `!` it
+        // needs. (SequenceScopedAssertionDedup)
+        final savedSeq = sequenceSave();
         final renderedArgs = callArgTexts(fn, args);
+        sequenceLoad(savedSeq);
         final rendered = renderedArgs.join(", ");
         switch (fn.expr) {
             case TField(subj, FInstance(_, _, cf)) if (cf.get().name == "copy" && isArrayType(subj.t)):
@@ -3239,6 +3369,11 @@ class DartExpr {
         // resolution so a later default reading an earlier omitted slot
         // resolves to that slot's padded value.
         final padded:Array<String> = [];
+        // The padded pass exists to thread sibling defaults; its text is
+        // discarded, so the sequence assertions it registers must not
+        // suppress the `!` the kept render emits.
+        // (SequenceScopedAssertionDedup)
+        final paddedSeq = sequenceSave();
         for (i in 0...ps.length) {
             if (i >= args.length) {
                 final d = DefaultArgExpander.defaultAt(cls, "new", i);
@@ -3254,6 +3389,7 @@ class DartExpr {
                 padded.push(expr(args[i]));
             }
         }
+        sequenceLoad(paddedSeq);
         final out:Array<String> = [];
         for (i in 0...ps.length) {
             final p = ps[i];
@@ -3682,14 +3818,20 @@ class DartExpr {
             return fail(c.expr, "try region catch type is not an exception class");
         }
         final out = [indent(depth) + "try {"];
+        // The catch body runs without the try body having completed: it
+        // restarts from the entry state, and the state after the region is
+        // the entry state. (SequenceScopedAssertionDedup)
+        final entrySeq = sequenceSave();
         for (l in blockLines(statementsOf(body), depth + 1))
             out.push(l);
+        sequenceLoad(entrySeq);
         out.push(catchHeaderLine(c, clsName, depth));
         catchVars.set(c.v.id, true);
         final handler = blockLines(statementsOf(c.expr), depth + 1);
         catchVars.remove(c.v.id);
         for (l in handler)
             out.push(l);
+        sequenceLoad(entrySeq);
         out.push(indent(depth) + "}");
         return out;
     }
@@ -4003,10 +4145,16 @@ class DartExpr {
             case TEnumIndex(inner): inner;
             case _: subj;
         }
+        // The arms are exclusive: each restarts from the state after the
+        // subject, whose assertions have run for every arm.
+        // (SequenceScopedAssertionDedup)
+        final entrySeq = sequenceSave();
         final subjRendered = expr(se);
+        final postSubj = sequenceSave();
         final table = enumTable(se);
         final out = [indent(depth) + "switch (" + subjRendered + ") {"];
         for (c in switchParts.cases) {
+            sequenceLoad(postSubj);
             // A Haxe case may list several constructors sharing one arm
             // (`case CjkText | CjkPunctuation:`). Dart spells each as its
             // own consecutive case label over the same body.
@@ -4040,6 +4188,7 @@ class DartExpr {
         if (switchParts.def != null) {
             return fail(sw, "variant switch carries a default arm (V15)");
         }
+        sequenceLoad(entrySeq);
         out.push(indent(depth) + "}");
         return out;
     }
