@@ -28,7 +28,8 @@ class DartTestHelper {
         id:String,
         runnerName:String,
         module:String,
-        fn:String
+        fn:String,
+        notApplicable:Bool
     }>, dartOutput:String, testOutput:String, withArgs:Bool):String {
         final sorted = entries.copy();
         sorted.sort((a, b) -> Reflect.compare(a.id, b.id));
@@ -63,6 +64,10 @@ class DartTestHelper {
         }
         lines.push("  var failures = 0;");
         for (e in sorted) {
+            if (e.notApplicable) {
+                lines.push("  test_host.recordNotApplicable('" + escapeDartString(e.id) + "', '" + escapeDartString(e.runnerName) + "');");
+                continue;
+            }
             lines.push("  if (test_host.run('" + escapeDartString(e.id) + "', '" + escapeDartString(e.runnerName) + "', () => "
                 + DartImports.importPrefixOf(e.module) + "." + e.fn + "())) {");
             lines.push("    failures++;");
