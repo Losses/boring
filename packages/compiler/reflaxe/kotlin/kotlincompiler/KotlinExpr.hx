@@ -2888,15 +2888,20 @@ class KotlinExpr {
     }
 
     /**
-        The member-access separator rendered after a subject. A subject
-        whose Haxe type is nullable takes `?.` until a dominating proof
-        narrows it. A null-initialized subject declares a non-null Haxe
+        The member-access separator the program renders after a subject. A
+        subject whose Haxe type is nullable takes `?.` until a dominating
+        proof narrows it. A null-initialized subject declares a non-null Haxe
         type, so the program keeps the value present at every use and the
         extraction uses `!!`; its result stays non-null for the enclosing
         expression, which `?.` would widen into a type error inside
         arithmetic and assignment contexts. A proven subject takes `.`.
+
+        The kernel decides without rendering the subject and without
+        registering any proof, so flow predicates and the real renderer
+        consult one decision and cannot disagree.
+        (UnifiedFieldAccessDecision)
     **/
-    function nullableAccess(subj:TypedExpr):String {
+    function accessSeparatorKernel(subj:TypedExpr):String {
         final renderedNullableLocal = switch (stripWrap(subj).expr) {
             case TLocal(v): nullableRenderedLocals.exists(v.id);
             case _: false;
@@ -2916,13 +2921,8 @@ class KotlinExpr {
             case TLocal(v): !closureMutatedLocals.exists(v.id);
             case _: false;
         };
-        if (isNullInitialized(subj) && !(stableSubject && (provenNonNull(subj) || guardProofBefore(subj)))) {
-#if boring_fold_debug
-            emissionTrace("ACCESS_NULLINIT", expr(subj), subj.pos);
-#end
-            addProofExpr(subj);
+        if (isNullInitialized(subj) && !(stableSubject && (provenNonNull(subj) || guardProofBefore(subj))))
             return "!!.";
-        }
         // The typer wraps an implicit Null<T> unwrap in TCast; the cast's
         // own type is the non-null target, so look through it before
         // deciding.
@@ -2962,6 +2962,33 @@ class KotlinExpr {
         return ".";
     }
 
+    /** The kernel decision as a predicate: the separator widens the read. */
+    function nullableAccessWidens(subj:TypedExpr):Bool {
+        return accessSeparatorKernel(subj) == "?.";
+    }
+
+    /**
+        The separator the renderer emits, plus the one registration the real
+        render performs: a null-initialized subject extracted with `!!`
+        records its proof so later reads in the same statement stay plain.
+        (PureNullabilityKernel)
+    **/
+    function nullableAccess(subj:TypedExpr):String {
+        final sep = accessSeparatorKernel(subj);
+        final stableSubject = switch (stripWrap(subj).expr) {
+            case TLocal(v): !closureMutatedLocals.exists(v.id);
+            case _: false;
+        };
+        if (sep == "!!." && isNullInitialized(subj)
+            && !(stableSubject && (provenNonNull(subj) || guardProofBefore(subj)))) {
+#if boring_fold_debug
+            emissionTrace("ACCESS_NULLINIT", expr(subj), subj.pos);
+#end
+            addProofExpr(subj);
+        }
+        return sep;
+    }
+
     /**
         True when a ternary renders non-null because both arms render non-null
         under the arm's own condition proof. Haxe joins a guarded nullable read
@@ -2991,25 +3018,21 @@ class KotlinExpr {
                 case TField(subject, fa):
                     // The hop's access must come from the same decision the
                     // renderer uses, so the chain analysis and the emitted
-                    // text can never disagree. (UnifiedFieldAccessDecision)
-                    final hopAccess = switch (fa) {
+                    // text can never disagree. The kernels keep this analysis
+                    // free of sub-rendering and proof registration.
+                    // (UnifiedFieldAccessDecision)
+                    final hopWidens = switch (fa) {
                         case FInstance(owner, _, cf):
-                            decidedFieldAccess(subject, cf.get().type, true);
-                        case _: nullableAccess(subject);
+                            decidedFieldAccessWidens(subject, cf.get().type, true);
+                        case _: nullableAccessWidens(subject);
                     };
-                    if (hopSafe(hopAccess, subject))
+                    if (hopWidens && !provenNonNull(subject) && !guardProofBefore(subject))
                         return true;
                     current = stripWrap(subject);
                 case _:
                     return false;
             }
         }
-    }
-
-    function hopSafe(hopAccess:String, subject:TypedExpr):Bool {
-        if (hopAccess != "?.")
-            return false;
-        return !provenNonNull(subject) && !guardProofBefore(subject);
     }
 
     function isNullableReferenceType(t:Null<Type>):Bool {
@@ -3067,21 +3090,23 @@ class KotlinExpr {
                     return false;
                 return rendersNullable(t) || (f != null && rendersNullable(f));
             case TField(subj, FInstance(owner, _, cf)):
-                // Data-class properties render their access through
-                // decidedFieldAccess; consulting nullableAccess here
-                // diverged from it and hardened a value the assertion
-                // already made non-null. Other field shapes (array length
-               // reads and friends) render through nullableAccess.
+                // Data-class properties decide through decidedFieldAccess;
+                // consulting nullableAccess here diverged from it and
+                // hardened a value the assertion already made non-null.
+                // Other field shapes (array length reads and friends) go
+                // through nullableAccess. Both decisions come from the
+                // shared kernels, so this predicate neither registers a
+                // proof nor renders a sub-expression.
                 // (UnifiedFieldAccessDecision)
                 if (owner.get().meta.has(":dataClass"))
-                    return decidedFieldAccess(subj, cf.get().type, true) == "?.";
-                return nullableAccess(subj) == "?.";
+                    return decidedFieldAccessWidens(subj, cf.get().type, true);
+                return nullableAccessWidens(subj);
             case TField(subj, _):
                 // A nullable receiver is extracted with `!!.` when the Haxe
                 // expression already proves it present.  Looking only at the
                 // receiver would incorrectly widen a non-null field read back
                 // to nullable (for example `value!!.items.size`).
-                return nullableAccess(subj) == "?.";
+                return nullableAccessWidens(subj);
             case TArray(receiver, _):
                 return rendersNullable(receiver);
             case TCall(fn, args):
@@ -3851,9 +3876,28 @@ class KotlinExpr {
         if (isProperty && fieldType != null && !isNullType(fieldType)
             && isNullType(subj.t) && !provenNonNull(subj) && !guardProofBefore(subj))
             return "!!.";
-        if (!provenNonNull(subj) && !guardProofBefore(subj) && StringTools.contains(expr(subj), "?."))
+        // The subject value stays nullable whenever its own rendering is
+        // nullable; the property read then extracts to keep the declared
+        // type. Consulting rendersNullable keeps the emission on the same
+        // decision the flow predicates use. (UnifiedFieldAccessDecision)
+        if (!provenNonNull(subj) && !guardProofBefore(subj) && rendersNullable(subj))
             return "!!.";
         return nullableAccess(subj);
+    }
+
+    /**
+        The `decidedFieldAccess` decision as a pure predicate: true when the
+        separator widens the read into a nullable value. It consults the
+        same kernels the renderer uses, without rendering the subject.
+        (UnifiedFieldAccessDecision)
+    **/
+    function decidedFieldAccessWidens(subj:TypedExpr, fieldType:Null<Type>, isProperty:Bool):Bool {
+        if (isProperty && fieldType != null && !isNullType(fieldType)
+            && isNullType(subj.t) && !provenNonNull(subj) && !guardProofBefore(subj))
+            return false;
+        if (!provenNonNull(subj) && !guardProofBefore(subj) && rendersNullable(subj))
+            return false;
+        return nullableAccessWidens(subj);
     }
 
     function getterOnlyProperty(owner:ClassType, accessorName:String):Null<ClassField> {
