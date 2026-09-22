@@ -54,6 +54,18 @@ class VectorCodecTests {
 }
 ```
 
+A test may declare the targets it does not apply to through the
+`except` named argument of the metadata. The argument lists target
+names; the excluded target does not run the test body and writes a
+`not_applicable` record to its results file instead (below):
+
+```haxe
+@:test("a test that excludes swift", except = ["swift"])
+public static function swiftOnly():Void {
+	// runs on every target except swift
+}
+```
+
 Rulings:
 
 - Test modules live in the `tests.*` package under `samples/tests/`;
@@ -73,6 +85,18 @@ Rulings:
   carries the name beside the identifier, and every results file
   records it; runners that display titles (the TypeScript runners)
   show it as the test title.
+- The `except` argument is structural metadata, never a name
+  convention. The valid target names are the six results-file targets:
+  `haxe`, `ts`, `kotlin`, `swift`, `dart`, `rust`. A test that names an
+  unknown target or repeats a target stops the compilation with the
+  function's identity and the offending name in the message. A test
+  with no `except` argument applies to every target.
+- An excluded target does not run the test body. It writes one
+  `not_applicable` record to its results file in place of a verdict, so
+  the id stays in the cross-target set and the consistency manager
+  counts it as a declared exclusion (below). A target must not both run
+  a test and declare it not applicable; a results file that carries a
+  verdict and a `not_applicable` record for the same id is a divergence.
 - A `@:test` function returns `Void` and takes no arguments; targets
   reject anything else at compile time with the function's identity
   in the message.
@@ -200,11 +224,16 @@ only these files.
   in fixed order:
   - pass: `{"id":"tests.VectorCodecTests.roundtrip","name":"tests.VectorCodecTests.roundtrip: encode then decode returns the input records","verdict":"pass"}`
   - fail: `{"id":"…","name":"…","verdict":"fail","message":"<canonical message>"}`
+  - not_applicable: `{"id":"…","name":"…","verdict":"not_applicable"}`
 - The `name` value is the runner-visible name of the test
   (identifier plus description), JSON-escaped, byte-equal across
   targets; `Test.run` receives it beside the identifier.
 - The `message` value is the canonical failure message string,
   JSON-escaped, byte-equal across targets.
+- A target that excludes a test writes one `not_applicable` record in
+  place of running the body. The record carries no `message`; the
+  verdict names the declaration. A target that writes both a verdict
+  and a `not_applicable` record for the same id is a divergence.
 - A test that outruns the timeout budget of the run is recorded as a
   failure with the timeout message, on every target that carries the
   budget (see "Stage 1, the timeout verdict" below).
@@ -549,16 +578,26 @@ Cross-language consistency is managed from the Haxe side.
   the target list; the baseline target is `kotlin`.
 - Comparison rules, per target against the baseline:
   1. The id set equals the baseline's set; a missing id or an extra
-     id is a divergence.
+     id is a divergence. An undeclared absence stays a divergence: a
+     target that drops a test without declaring it not applicable
+     fails the check.
   2. For every shared id, the verdict equals the baseline's verdict.
   3. For every shared id, the `name` string equals the baseline's
      byte for byte.
   4. For every shared failing id, the `message` string equals the
      baseline's byte for byte.
+  5. A target that declares a shared id not applicable (its record
+     carries `verdict: "not_applicable"`) is counted as a declared
+     exclusion and never a divergence. The baseline's own
+     `not_applicable` record accepts a target that runs the test with
+     a real verdict.
+  6. A target that writes both a verdict and a `not_applicable`
+     record for the same id is a divergence; a declared exclusion
+     must not run the test.
 - Output: a matrix (rows are test ids, columns are targets, cells show
-  pass, fail, or the divergence kind), followed by the divergence
-  list. Exit status is nonzero when any divergence exists; the
-  manager's success is the stage-2 acceptance.
+  pass, fail, not_applicable, or the divergence kind), followed by the
+  divergence list. Exit status is nonzero when any divergence exists;
+  the manager's success is the stage-2 acceptance.
 - The verify chain runs the manager after every target's test script;
   a target whose results file is absent fails the chain.
 
@@ -568,10 +607,12 @@ Cross-language consistency is managed from the Haxe side.
   identifiers, identical verdicts, byte-identical failure messages;
   the manager exits zero.
 - Mutation sensitivity applies to tests as source: renaming a test,
-  changing a description, or changing an assertion literal changes
-  the emitted test files of every target; a name-keyed emission
-  table is a fabrication defect under the same rule as any other
-  output.
+  changing a description, changing an assertion literal, or changing
+  the `except` argument changes the emitted test files of every
+  target; a name-keyed emission table is a fabrication defect under
+  the same rule as any other output. A target that reads the
+  declaration by test name, bypassing the structural metadata, is a
+  fabrication defect.
 - Test modules are part of the structure test scanner and the
   generation coverage checks; a test module absent from any target's
   output fails the build.

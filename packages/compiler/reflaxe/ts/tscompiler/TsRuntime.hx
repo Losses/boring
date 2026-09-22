@@ -138,6 +138,13 @@ export class Test {
     return Test.timeoutBudgetMs() + 1000;
   }
 
+  // A test this target excludes (feature spec 19): the entry does not
+  // run the body and writes the not-applicable record instead, so the
+  // id stays in the cross-target set.
+  static recordNotApplicable(id: string, name: string): void {
+    Test.recordResult(id, name, "not_applicable", null);
+  }
+
   static run(id: string, name: string, body: TestBody): void {
     Test.currentTestId = id;
     const budgetMs = Test.timeoutBudgetMs();
@@ -272,10 +279,12 @@ export class Test {
     return false;
   }
 
-  private static recordResult(id: string, name: string, verdict: "pass" | "fail", message: string | null): void {
+  private static recordResult(id: string, name: string, verdict: "pass" | "fail" | "not_applicable", message: string | null): void {
     const envPath = typeof process !== "undefined" && process.env ? process.env["BORING_TEST_RESULTS"] : null;
     const filePath = envPath && envPath.length > 0 ? envPath : "out/test-results/ts.jsonl";
-    const jsonLine = TestCore.resultLine(id, name, verdict === "fail", message ?? "");
+    const jsonLine = verdict === "not_applicable"
+      ? TestCore.notApplicableLine(id, name)
+      : TestCore.resultLine(id, name, verdict === "fail", message ?? "");
     try {
       const dir = path.dirname(filePath);
       if (!fs.existsSync(dir)) {

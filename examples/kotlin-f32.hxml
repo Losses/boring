@@ -635,3 +635,4 @@ tests.NullableFieldRecordTests
 
 boring.IntDivisionOps
 tests.IntDivisionTests
+tests.TestApplicabilityProbeTests
