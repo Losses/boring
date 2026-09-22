@@ -102,6 +102,11 @@ class KotlinExpr {
     /** Null comparisons in the current statement block, keyed by local id and source position. */
     var activeNullGuardPositions:Map<Int, Array<{file:String, min:Int, max:Int}>> = [];
 
+    /** Same record for field-chain subjects (`x.y != null`): the key is
+        the field chain's access key, and a later read of the same chain
+        after the guard is proven present. (FieldGuardPositions) */
+    var activeNullGuardFieldPositions:Map<String, Array<{file:String, min:Int, max:Int}>> = [];
+
     static final nullInitializedFields:Map<String, Bool> = [];
 
     public static function registerNullInitializedField(key:String):Void {
@@ -1227,6 +1232,21 @@ class KotlinExpr {
             for (entry in localNullGuardPositions.get(k))
                 entries.push(entry);
         }
+        // Field-chain guards join the same flow: the previous field table
+        // carries in, local field guards add on.
+        // (FieldGuardPositions)
+        final previousFieldGuardPositions = activeNullGuardFieldPositions;
+        activeNullGuardFieldPositions = previousFieldGuardPositions.copy();
+        final localFieldGuardPositions = nullGuardFieldPositionsInBlock(stmts);
+        for (k in localFieldGuardPositions.keys()) {
+            var entries = activeNullGuardFieldPositions.get(k);
+            if (entries == null) {
+                entries = [];
+                activeNullGuardFieldPositions.set(k, entries);
+            }
+            for (entry in localFieldGuardPositions.get(k))
+                entries.push(entry);
+        }
 
         var i = 0;
         while (i < stmts.length) {
@@ -1300,6 +1320,46 @@ class KotlinExpr {
                                     entries.push({file: p.file, min: p.min, max: p.max});
                                 case _:
                             }
+                    }
+                    return;
+                case TCall(f, a):
+                    record(f, inCallArgs);
+                    for (x in a)
+                        record(x, true);
+                    return;
+                case _:
+            }
+            TypedExprTools.iter(e, function(child:TypedExpr):Void {
+                record(child, inCallArgs);
+            });
+        }
+        for (stmt in stmts)
+            record(stmt, false);
+        return result;
+    }
+
+    /** Same scan as nullGuardPositionsInBlock but keyed by field-chain
+        access keys: a guard `x.y != null` proves later reads of x.y.
+        (FieldGuardPositions) */
+    function nullGuardFieldPositionsInBlock(stmts:Array<TypedExpr>):Map<String, Array<{file:String, min:Int, max:Int}>> {
+        final result:Map<String, Array<{file:String, min:Int, max:Int}>> = [];
+        function record(e:TypedExpr, inCallArgs:Bool):Void {
+            switch (stripWrap(e).expr) {
+                case TBinop(OpEq, l, r) | TBinop(OpNotEq, l, r):
+                    if (!inCallArgs) {
+                        final subject = isNullExpr(l) ? r : (isNullExpr(r) ? l : null);
+                        if (subject != null) {
+                            final fk = fieldAccessKey(subject);
+                            if (fk != null) {
+                                final p = Context.getPosInfos(e.pos);
+                                var entries = result.get(fk);
+                                if (entries == null) {
+                                    entries = [];
+                                    result.set(fk, entries);
+                                }
+                                entries.push({file: p.file, min: p.min, max: p.max});
+                            }
+                        }
                     }
                     return;
                 case TCall(f, a):
@@ -3181,8 +3241,22 @@ class KotlinExpr {
             }
             break;
         }
-        if (local == null)
+        if (local == null) {
+            // A field-chain read is proven by a field-chain guard: the
+            // same access key earlier in the block proves this read.
+            // (FieldGuardPositions)
+            final fk = fieldAccessKey(e);
+            if (fk == null)
+                return false;
+            final fentries = activeNullGuardFieldPositions.get(fk);
+            if (fentries == null)
+                return false;
+            final fuse = Context.getPosInfos(e.pos);
+            for (fentry in fentries)
+                if (fentry.file == fuse.file && fentry.max <= fuse.min)
+                    return true;
             return false;
+        }
         // The position record cannot see a closure-mutated local's
         // disabled smart cast: Kotlin refuses the narrowing for the
         // whole function regardless of guard placement.
