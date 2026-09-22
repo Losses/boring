@@ -3805,7 +3805,13 @@ class KotlinExpr {
                 final assertNeeded = isNullType(args[0].t) && !provenNonNull(args[0]) && !guardProofBefore(args[0]);
                 if (assertNeeded)
                     addProofExpr(args[0]);
-                return "((" + code + (assertNeeded ? ")!!" : ")") + ".toChar()).toString()";
+                final unwrapped = "(" + code + (assertNeeded ? ")!!" : ")");
+                // Haxe's fromCharCode takes a scalar; a supplementary scalar
+                // encodes as its surrogate pair. Kotlin's Char is one UTF-16
+                // unit, so the pair goes through Character.toChars. A BMP
+                // value (surrogate range included) keeps the single-char
+                // form the existing callers rely on. (FromCharCodeScalar)
+                return "(if (" + unwrapped + " > 0xFFFF) String(Character.toChars(" + unwrapped + ")).toString() else ((" + unwrapped + ").toChar()).toString())";
             case _:
                 return null;
         }
