@@ -882,7 +882,11 @@ class DartDecl {
         (UnusedLocalStatementForm) */
     public static function foldUnusedLocals(bodyText:Array<String>):Array<String> {
         final decl = ~/^(\s*)final ([A-Za-z_][A-Za-z0-9_]*) =/;
-        final full = bodyText.join("\n");
+        // String literal contents never reference a variable: escape
+        // sequences like `\t` would otherwise count as word-boundary
+        // matches and keep a dead declaration alive. Interpolation
+        // interiors stay, since `${x}` is a real reference.
+        final full = stripStringLiteralContents(bodyText.join("\n"));
         return [
             for (line in bodyText) {
                 if (decl.match(line)) {
@@ -900,6 +904,57 @@ class DartDecl {
                 } else line;
             }
         ];
+    }
+
+    /** The source with the contents of double-quoted string literals
+        replaced by spaces. `${...}` interpolation interiors are kept with
+        their nested braces, so a name referenced only inside an
+        interpolation still counts as used. */
+    static function stripStringLiteralContents(source:String):String {
+        final out = new StringBuf();
+        var i = 0;
+        var inString = false;
+        // Brace depth inside the current `${...}`; zero while the scan is
+        // outside any interpolation.
+        var codeDepth = 0;
+        while (i < source.length) {
+            final ch = source.charAt(i);
+            if (inString) {
+                if (ch == "\\") {
+                    i += 2;
+                    continue;
+                }
+                if (ch == "$" && i + 1 < source.length && source.charAt(i + 1) == "{") {
+                    inString = false;
+                    codeDepth = 1;
+                    out.add("${");
+                    i += 2;
+                    continue;
+                }
+                if (ch == "\"")
+                    inString = false;
+                i += 1;
+                continue;
+            }
+            if (codeDepth > 0) {
+                if (ch == "{") {
+                    codeDepth += 1;
+                } else if (ch == "}") {
+                    codeDepth -= 1;
+                    if (codeDepth == 0)
+                        inString = true;
+                }
+                out.add(ch);
+                i += 1;
+                continue;
+            }
+            if (ch == "\"")
+                inString = true;
+            else
+                out.add(ch);
+            i += 1;
+        }
+        return out.toString();
     }
 
     function funcDecl(module:String, cls:ClassType, f:ClassFuncData, topLevel:Bool):Array<String> {
