@@ -12948,6 +12948,22 @@ class RustExpr {
             if (Std.string(arg).indexOf("TInt") >= 0)
                 Context.warning("RC INTLIT pt=" + Std.string(pt).substr(0, 50) + " argStr=[" + argStr.substr(0, argStr.length > 20 ? 20 : argStr.length) + "]", arg.pos);
 #end
+            // A nullable scalar parameter entering a non-null scalar slot
+            // stores a genuine Option (no scalar sentinel form to carry the
+            // absence inside the value). Int slots force-read through
+            // numericAssignmentValue, so the unwrap applies only to Float
+            // and non-scalar slots where no forcing read follows.
+            // (NonNullSlotUnwrap)
+            final paramRead = switch (stripWrap(arg).expr) {
+                case TLocal(v): paramVarIds.exists(v.id);
+                case _: false;
+            };
+            if (pt != null && !isNullType(pt) && !isIntType(pt) && !isBoolType(pt)
+                && isNullType(arg.t) && paramRead && narrowedSubject(arg) == null
+                && nullableReadRendersOptionText(argStr)) {
+                final inner = getNullInnerType(arg.t);
+                argStr = isTypeCopy(inner) ? "(" + argStr + ").unwrap()" : "(" + argStr + ").as_ref().unwrap().clone()";
+            }
             // A narrowed operand renders the dereferenced match binding (a
             // bare `*name`), which is the inner value; a nullable parameter
             // slot still needs the Option shape, so the value wraps once in
