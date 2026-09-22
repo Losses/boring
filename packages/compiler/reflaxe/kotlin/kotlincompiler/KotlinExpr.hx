@@ -2340,6 +2340,24 @@ class KotlinExpr {
             return false;
         return switch (stripWrap(a).expr) {
             case TIf(c, t, f) if (f != null):
+                // A ternary whose both branches render non-null yields a
+                // value under every condition, so the wrapping elvis is
+                // dead. The probe runs under its own proof snapshot: this
+                // inspection is not an emission site.
+                // (IfExpressionCoversNull)
+                // The arms render under their own branch proofs: the
+                // else arm of `x == null` reads x narrowed, so the arm
+                // probes must observe the same proof state the real
+                // rendering observes. (IfExpressionCoversNull)
+                final probeBase = proofSnapshot();
+                addProofs(conditionProofs(c).thenPath);
+                final rnT = rendersNullable(t);
+                restoreProofs(probeBase);
+                addProofs(conditionProofs(c).elsePath);
+                final rnF = rendersNullable(f);
+                restoreProofs(probeBase);
+                if (!rnT && !rnF)
+                    return true;
                 // OpEq form: `x == null ? other : x` keeps the guarded value
                 // on the else arm, and the then arm must type non-null.
                 // (IfExpressionCoversNull)
@@ -2959,6 +2977,21 @@ class KotlinExpr {
         context does not widen it back to non-null.
     **/
     function rendersNullable(e:TypedExpr):Bool {
+        // Arithmetic on nullable-typed operands still yields a Kotlin
+        // non-null value whenever both operand texts render non-null:
+        // the result type follows the operator, and the Haxe Null
+        // wrapper of an operand stays behind at the operator boundary.
+        // (BinopOperandNullability)
+        switch (stripWrap(e).expr) {
+            case TBinop(op, l, r) if (switch (op) {
+                    case OpAdd | OpSub | OpMult | OpDiv | OpMod: true;
+                    case _: false;
+                }):
+                if (!isNullType(e.t))
+                    return false;
+                return rendersNullable(l) || rendersNullable(r);
+            case _:
+        }
         if (isNullType(e.t) && !provenNonNull(e) && !guardProofBefore(e))
             return true;
         // A null-initialized subject reads plain once the flow proves it
