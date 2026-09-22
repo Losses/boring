@@ -1889,17 +1889,12 @@ class DartExpr {
                 PolicyQueries.isNullableType(ownerField.get().type);
             case _: false;
         };
-        // A nullable field behind a nullable receiver reads `?.`: the Haxe
-        // null propagation stays intact and the null comparison observes
-        // it. (ImplicitUnwrapReceiverNullability)
-        if (nullableSubject && !provenNonNull(subj) && PolicyQueries.isNullableType(fieldType)) {
-            final nullableBase = expr(subj);
-            return switch (stripWrap(subj).expr) {
-                case TLocal(_): nullableBase + "?";
-                case _: nullableBase + "?";
-            };
-        }
-        if (nullableSubject && !PolicyQueries.isNullableType(fieldType) && !provenNonNull(subj)) {
+        // The receiver asserts whichever the field's own optionality is:
+        // Dart's `!` throws exactly where the bare read of a nullable
+        // receiver throws, so the Haxe contract carries unchanged, while
+        // the conditional access `?.` would leak a widened type into
+        // arithmetic and comparisons. (ImplicitUnwrapReceiverNullability)
+        if (nullableSubject && !provenNonNull(subj)) {
             // A null guard on the subject promotes it for the whole guarded
             // block; Dart reads the promoted local bare and reports a `!` on
             // it as having no effect. (GuardPromotedReceiverUnwrap)
