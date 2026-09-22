@@ -107,6 +107,20 @@ class SwiftInoutParams {
 		};
 	}
 
+	static function isStringBufType(t: Type): Bool {
+		return switch(Context.follow(t)) {
+			case TInst(c, _):
+				final cls = c.get();
+				final p = cls.pack.length == 0 ? cls.name : cls.pack.join(".") + "." + cls.name;
+				p == "StringBuf" || p == "std.StringBuf";
+			case _: false;
+		};
+	}
+
+	static function isMutatableValueType(t: Type): Bool {
+		return isArrayType(t) || isStringBufType(t);
+	}
+
 	public static function stripWrap(e: TypedExpr): TypedExpr {
 		return switch(e.expr) {
 			case TParenthesis(inner) | TCast(inner, _) | TMeta(_, inner): stripWrap(inner);
@@ -124,7 +138,7 @@ class SwiftInoutParams {
 						final arrayParams: Map<Int, {name: String, index: Int}> = [];
 						for(i in 0...tfunc.args.length) {
 							final arg = tfunc.args[i];
-							if(isArrayType(arg.v.t)) {
+							if(isMutatableValueType(arg.v.t)) {
 								arrayParams.set(arg.v.id, {name: arg.v.name, index: i});
 							}
 						}
@@ -178,7 +192,15 @@ class SwiftInoutParams {
 				switch(stripWrap(fn).expr) {
 					case TField(subj, FInstance(_, _, cf)):
 						final n = cf.get().name;
-						if(n == "push" || n == "set") {
+						// StringBuf mutates through add/addChar; Array through the
+						// element mutators. A mutatable value-type parameter that is
+						// the receiver of one of these must lower to inout so the
+						// mutation reaches the caller (StringBuf is a class in Haxe
+						// but a value type in Swift).
+						final mutates = n == "push" || n == "pop" || n == "shift" || n == "unshift"
+							|| n == "splice" || n == "set" || n == "insert"
+							|| n == "add" || n == "addChar";
+						if(mutates) {
 							switch(stripWrap(subj).expr) {
 								case TLocal(v) if(arrayParams.exists(v.id)):
 									final info = arrayParams.get(v.id);
