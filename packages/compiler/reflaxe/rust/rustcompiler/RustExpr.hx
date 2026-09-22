@@ -5168,6 +5168,65 @@ class RustExpr {
         }
     }
 
+
+    /**
+        When a catch variable's declared exception type is a message-only
+        exception whose superclass chain reaches an exception that maps to a
+        fault enum, the catch variable is used as that base fault enum (Haxe
+        subclass assignment). Returns the base fault enum name and the Message
+        variant field name so the catch binding can convert the thrown
+        message-only struct into the base fault enum's Message variant.
+        Returns null when no such base fault enum exists.
+    **/
+    function catchBaseFaultConversion(c:{v:TVar, expr:TypedExpr}):Null<{fault:String, field:String}> {
+        switch (Context.follow(c.v.t)) {
+            case TInst(cls, _):
+                if (!state.messageOnlyExceptions.exists(cls.get().module)) {
+                    return null;
+                }
+                var current:Null<Ref<ClassType>> = cls.get().superClass == null ? null : cls.get().superClass.t;
+                var guard = 0;
+                while (current != null && guard < 64) {
+                    final base = current.get();
+                    final enumModule = state.exceptionPayloads.get(base.module);
+                    if (enumModule != null) {
+                        final faultName = state.payloadEnumNames.exists(enumModule) ? state.payloadEnumNames.get(enumModule) : enumModule.split(".").pop();
+                        final field = messageVariantField(enumModule, faultName);
+                        if (field == null) {
+                            return null;
+                        }
+                        return {fault: faultName, field: field};
+                    }
+                    current = base.superClass == null ? null : base.superClass.t;
+                    guard++;
+                }
+            case _:
+        }
+        return null;
+    }
+
+    /** The field name of the Message variant of a fault enum, or null. */
+    function messageVariantField(enumModule:String, faultName:String):Null<String> {
+        for (mt in Context.getModule(enumModule)) {
+            switch (mt) {
+                case TEnum(en, _):
+                    final en2 = en.get();
+                    for (name => ef in en2.constructs) {
+                        if (name != "Message") {
+                            continue;
+                        }
+                        switch (ef.type) {
+                            case TFun(args, _) if (args.length == 1):
+                                return RustImports.toSnakeCase(args[0].name);
+                            case _:
+                        }
+                    }
+                case _:
+            }
+        }
+        return null;
+    }
+
     function requireEnum(enumModule:String, enumName:String):Void {
         final emittedIn = state.payloadEnumModules.exists(enumModule) ? state.payloadEnumModules.get(enumModule) : enumModule;
         imports.requireType(emittedIn, enumName);
@@ -5315,14 +5374,32 @@ class RustExpr {
         out.push(indent(depth) + 'match $outcome {');
         out.push(indent(depth) + "    Ok(_) => {}");
         // A handler that never reads the caught value binds the wildcard.
-        final catchBinding = mentionsLocal(c.expr, c.v) ? RustImports.toSnakeCase(localName(c.v)) : "_";
-        out.push(indent(depth) + "    Err(" + catchBinding + ") => {");
-        catchVars.set(c.v.id, true);
-        final handler = blockLines(statementsOf(c.expr), depth + 2);
-        catchVars.remove(c.v.id);
-        for (l in handler)
-            out.push(l);
-        out.push(indent(depth) + "    }");
+        final catchName = RustImports.toSnakeCase(localName(c.v));
+        final conversion = catchBaseFaultConversion(c);
+        final catchBinding = mentionsLocal(c.expr, c.v) ? catchName : "_";
+        if (conversion != null && mentionsLocal(c.expr, c.v)) {
+            // The declared catch type is a message-only exception whose base
+            // maps to a fault enum; the handler uses it as that base fault
+            // enum, so bind the catch variable to the base fault enum's
+            // Message variant (Haxe subclass assignment).
+            final inner = freshRegionName("__caught");
+            out.push(indent(depth) + "    Err(" + inner + ") => {");
+            out.push(indent(depth) + "            let " + catchName + " = " + conversion.fault + "::Message { " + conversion.field + ": " + inner + ".message.clone() };");
+            catchVars.set(c.v.id, true);
+            final handler = blockLines(statementsOf(c.expr), depth + 3);
+            catchVars.remove(c.v.id);
+            for (l in handler)
+                out.push(l);
+            out.push(indent(depth) + "    }");
+        } else {
+            out.push(indent(depth) + "    Err(" + catchBinding + ") => {");
+            catchVars.set(c.v.id, true);
+            final handler = blockLines(statementsOf(c.expr), depth + 2);
+            catchVars.remove(c.v.id);
+            for (l in handler)
+                out.push(l);
+            out.push(indent(depth) + "    }");
+        }
         out.push(indent(depth) + "}");
         return out;
     }
