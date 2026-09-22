@@ -3673,7 +3673,14 @@ class TsExpr {
     **/
     function localTypeAnnotation(v:TVar, init:TypedExpr):String {
         return switch (stripWrap(init).expr) {
-            case TConst(TNull) | TField(_, FEnum(_, _)): ": " + types.of(v.t);
+            // A bare null initializer on a non-null declared local names the
+            // declared type plus `| null`: the Haxe binding starts null and
+            // the annotation alone would reject the null initializer.
+            // (NullInitNullableAnnotation)
+            case TConst(TNull):
+                final t = types.of(v.t);
+                ": " + t + (StringTools.endsWith(t, " | null") ? "" : " | null");
+            case TField(_, FEnum(_, _)): ": " + types.of(v.t);
             case TArrayDecl(elements) if (elements.length == 0): ": " + types.of(v.t);
             case _: "";
         };

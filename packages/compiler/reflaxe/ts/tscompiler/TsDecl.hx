@@ -590,6 +590,24 @@ class TsDecl {
         locals. The declaration lowers to an expression statement: the
         initializer keeps its side effects and the variable disappears.
         (UnusedLocalStatementForm) */
+    /** `return hit;` for a null-initialized annotated local asserts: the
+        local's declaration gained `| null`, while the function's declared
+        return stays non-null. (NullInitNullableAnnotation) */
+    function markNullInitReturns(bodyText:Array<String>):Array<String> {
+        final decl = ~/^(\s*)(const|let) ([A-Za-z_][A-Za-z0-9_]*): .+ \| null = null;$/;
+        final names = [for (line in bodyText) if (decl.match(line)) decl.matched(3)];
+        if (names.length == 0)
+            return bodyText;
+        return [
+            for (line in bodyText) {
+                final ret = ~/^(\s*)return ([A-Za-z_][A-Za-z0-9_]*);$/;
+                if (ret.match(line) && names.indexOf(ret.matched(2)) >= 0)
+                    ret.matched(1) + "return " + ret.matched(2) + "!;";
+                else line;
+            }
+        ];
+    }
+
     function markUnusedLocals(bodyText:Array<String>):Array<String> {
         // String literal contents never reference a variable: escape
         // sequences like `\t` would otherwise count as word-boundary
@@ -674,7 +692,7 @@ class TsDecl {
         final methodParams = collectMethodTypeParams(cls, f);
         final genericStr = methodParams.length > 0 ? "<" + methodParams.join(", ") + ">" : "";
         final head = '  $vis ${stat}${f.field.name}$genericStr($args): $retText {';
-        return [head].concat(markUnusedLocals(bodyText)).concat(["  }"]);
+        return [head].concat(markNullInitReturns(markUnusedLocals(bodyText))).concat(["  }"]);
     }
 
     function extractedFuncDecl(cls:ClassType, f:ClassFuncData):Array<String> {
@@ -690,7 +708,7 @@ class TsDecl {
         final genericStr = methodParams.length > 0 ? "<" + methodParams.join(", ") + ">" : "";
         final vis = f.field.isPublic ? "export " : "";
         final head = '${vis}function ${f.field.name}$genericStr($args): $ret {';
-        return [head].concat(markUnusedLocals(body)).concat(["}"]);
+        return [head].concat(markNullInitReturns(markUnusedLocals(body))).concat(["}"]);
     }
 
     /**
