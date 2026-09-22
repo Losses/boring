@@ -79,7 +79,7 @@ class TsDecl {
                 final capName = f.field.name.charAt(0).toUpperCase() + f.field.name.substr(1);
                 final aliasName = '${cls.name}${capName}Fn';
                 final args = [
-                    for (a in f.args) paramText(cls, f, a)
+                    for (a in f.args) paramText(cls, f, a, null, false)
                 ].join(", ");
                 final ret = types.of(f.ret);
                 typeAliases.push('export type $aliasName = ($args) => $ret;');
@@ -559,7 +559,7 @@ class TsDecl {
         optional one, and callers always pass it. Constant defaults
         (VEnum/VInt/VFloat) materialize at every call site and stay required.
     **/
-    function paramText(cls:ClassType, f:ClassFuncData, a:ClassFuncArg, ?displayName:String):String {
+    function paramText(cls:ClassType, f:ClassFuncData, a:ClassFuncArg, ?displayName:String, ?withInitializer:Bool = true):String {
         final name = displayName != null ? displayName : a.name;
         final coalescing = DefaultArgExpander.coalescingDefaultAt(cls, f.field.name, a.index);
         if (coalescing != null) {
@@ -570,6 +570,13 @@ class TsDecl {
             return '${name}: ${types.of(a.type)} = null';
         }
         if (isTrailingOptional(cls, f, a.index)) {
+            // A nullable trailing optional renders an explicit null default:
+            // the `?` marker would add `| undefined`, which the body's
+            // `=== null` coalescing never filters.
+            // (OptionalParameterNullDefault)
+            final renderedType = types.of(a.type);
+            if (withInitializer && StringTools.endsWith(renderedType, " | null"))
+                return '${name}: ${renderedType} = null';
             return '${name}?: ${types.of(a.type)}';
         }
         return '${name}: ${types.of(a.type)}';
