@@ -2274,8 +2274,13 @@ class KotlinExpr {
                 // what Kotlin reads. Null literals and safe-call chains
                 // clear the proof; non-null types and assertions set it.
                 // (AssignmentTracksNullability)
+                // Kotlin narrows a var by assignment whatever the target's
+                // declared optionality: a synthesized local can type non-null
+                // in Haxe while its Kotlin storage stays nullable until the
+                // assignment proves it present.
+                // (AssignmentTracksNullability)
                 switch (stripWrap(l).expr) {
-                    case TLocal(v) if (isNullType(l.t)):
+                    case TLocal(v):
                         if (isNullLiteral(r) || StringTools.contains(value, "?."))
                             nonNullLocals.remove(v.id);
                         else if (!isNullType(r.t) || StringTools.contains(value, "!!"))
