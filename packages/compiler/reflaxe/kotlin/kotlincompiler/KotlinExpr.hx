@@ -936,7 +936,7 @@ class KotlinExpr {
                         // Use emittedType because the typed AST type is Float
                         // (unified) while the generator emits Int text.
                         if (isIntOrLongType(emittedType(ret)) && isFloatType(currentReturnType))
-                            retText = intToFloatText(retText);
+                            retText = (StringTools.endsWith(retText, "toDouble()") || StringTools.endsWith(retText, "toFloat()")) ? retText : intToFloatText(retText);
                         return [indent(depth) + "return " + retText];
                 }
             case TThrow(x):
