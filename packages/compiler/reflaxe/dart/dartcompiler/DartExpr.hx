@@ -1819,7 +1819,11 @@ class DartExpr {
         // the typed AST has already unwrapped it for indexing/member access.
         // Dart does not promote repeated field reads, so assert at the
         // receiver boundary; a preceding field guard is insufficient.
-        final nullableSubject = PolicyQueries.isNullableType(subj.t) || switch (stripWrap(subj).expr) {
+        // The typer wraps a Null<T> local read in an implicit unwrap cast,
+        // so the cast-stripped subject carries the declared optionality.
+        // (ImplicitUnwrapReceiverNullability)
+        final strippedSubject = stripCast(subj);
+        final nullableSubject = PolicyQueries.isNullableType(strippedSubject.t) || switch (stripWrap(subj).expr) {
             case TField(_, FInstance(_, _, ownerField)) | TField(_, FAnon(ownerField)):
                 PolicyQueries.isNullableType(ownerField.get().type);
             case _: false;
@@ -3079,6 +3083,15 @@ class DartExpr {
         return PolicyQueries.isValueEnum(en);
     }
 
+    /** True when the registered default renders a callee body name: such a
+        default cannot materialize at the call site, so the plain argument
+        renders instead. (CalleeScopeDefaultGuard) */
+    function escapesToCalleeScope(d:DefaultArgExpander.DefaultArgValue):Bool
+        return switch (d) {
+            case VCoalescing(value): DefaultArgExpander.readsParameter(value);
+            default: false;
+        };
+
     function callArgTexts(fn:TypedExpr, args:Array<TypedExpr>):Array<String> {
         final base = argTexts(fn, args);
         final target = switch (fn.expr) {
@@ -3092,9 +3105,11 @@ class DartExpr {
         return [for (i in 0...args.length) {
             final p = i < ps.length ? ps[i] : null;
             final d = target == null ? null : DefaultArgExpander.defaultAt(target.c, target.n, i);
-            if (d != null && p != null && isNullLiteral(args[i]))
+            if (d != null && p != null && isNullLiteral(args[i]) && !escapesToCalleeScope(d))
                 defaultArgText(d, p);
-            else if (d != null && p != null && isNullLeafType(args[i].t)) {
+            else if (d != null && p != null && isNullLiteral(args[i]))
+                base[i];
+            else if (d != null && p != null && isNullLeafType(args[i].t) && !escapesToCalleeScope(d)) {
                 final isVNull = switch (d) { case VNull: true; default: false; };
                 if (isVNull && !isNullLeafType(p))
                     requiredValueText(args[i]);
