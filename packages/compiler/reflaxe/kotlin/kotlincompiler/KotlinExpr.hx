@@ -2730,6 +2730,24 @@ class KotlinExpr {
             nonNullFields.set(k, true);
     }
 
+    function extractionSnapshot():{locals:Map<Int, Bool>, fields:Map<String, Bool>} {
+        final l:Map<Int, Bool> = [], f:Map<String, Bool> = [];
+        for (k in extractedLocals.keys())
+            l.set(k, true);
+        for (k in extractedFields.keys())
+            f.set(k, true);
+        return {locals: l, fields: f};
+    }
+
+    function restoreExtraction(s:{locals:Map<Int, Bool>, fields:Map<String, Bool>}):Void {
+        extractedLocals.clear();
+        extractedFields.clear();
+        for (k in s.locals.keys())
+            extractedLocals.set(k, true);
+        for (k in s.fields.keys())
+            extractedFields.set(k, true);
+    }
+
     /** Emission-path attribution: prints the extraction site tag and the
         rendered text with the compiler call stack, so each Kotlin warning
         instance maps to the emitting branch. (EmissionTrace) */
@@ -3480,7 +3498,18 @@ class KotlinExpr {
         return switch (stripWrap(e).expr) {
             case TField(receiver, FInstance(_, _, _)) | TField(receiver, FAnon(_)):
                 switch (stripWrap(receiver).expr) {
-                    case TLocal(_) | TConst(TThis): "field:" + expr(e);
+                    case TLocal(_) | TConst(TThis):
+                        // The key borrows the rendered access text, and that
+                        // render must register nothing: the key computes
+                        // during flow probes, and a leaked proof would let
+                        // the real render drop an assertion the emitted text
+                        // never carried. (KeyRenderRegistersNothing)
+                        final proofs = proofSnapshot();
+                        final extractions = extractionSnapshot();
+                        final key = "field:" + expr(e);
+                        restoreExtraction(extractions);
+                        restoreProofs(proofs);
+                        key;
                     case _: null;
                 }
             case _: null;
@@ -3874,14 +3903,22 @@ class KotlinExpr {
     **/
     function decidedFieldAccess(subj:TypedExpr, fieldType:Null<Type>, isProperty:Bool):String {
         if (isProperty && fieldType != null && !isNullType(fieldType)
-            && isNullType(subj.t) && !provenNonNull(subj) && !guardProofBefore(subj))
+            && isNullType(subj.t) && !provenNonNull(subj) && !guardProofBefore(subj)) {
+            // Every extraction registers: the subject reads plain after the
+            // assertion, so a second read of the same subject in the
+            // following statements must not extract twice.
+            // (ExtractionRegistersProof)
+            addProofExpr(subj);
             return "!!.";
+        }
         // The subject value stays nullable whenever its own rendering is
         // nullable; the property read then extracts to keep the declared
         // type. Consulting rendersNullable keeps the emission on the same
         // decision the flow predicates use. (UnifiedFieldAccessDecision)
-        if (!provenNonNull(subj) && !guardProofBefore(subj) && rendersNullable(subj))
+        if (!provenNonNull(subj) && !guardProofBefore(subj) && rendersNullable(subj)) {
+            addProofExpr(subj);
             return "!!.";
+        }
         return nullableAccess(subj);
     }
 
