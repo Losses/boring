@@ -3036,9 +3036,21 @@ class SwiftExpr {
                     }
                 }
                 if (module == "String" && cls.pack.length == 0 && fName == "fromCharCode") {
-                    // The char domain of the subset stays inside valid
-                    // scalars; the force unwrap states that contract.
-                    return "String(UnicodeScalar(UInt32(bitPattern: " + (optionalValued(args[0]) ? "(" + expr(args[0]) + ")!" : expr(args[0])) + "))!)";
+                    // Haxe's fromCharCode takes a scalar; a supplementary scalar
+                    // encodes as its surrogate pair. Swift's UnicodeScalar
+                    // rejects a surrogate, so the pair is built explicitly
+                    // above the BMP while a BMP value keeps the single-unit
+                    // form. (FromCharCodeScalar)
+                    final cp = optionalValued(args[0]) ? "(" + expr(args[0]) + ")!" : expr(args[0]);
+                    return "(("
+                        + cp
+                        + " > 0xFFFF ? String(decoding: [UInt16(truncatingIfNeeded: 0xD800 + (("
+                        + cp
+                        + " - 0x10000) >> 10)), UInt16(truncatingIfNeeded: 0xDC00 + (("
+                        + cp
+                        + " - 0x10000) & 0x3FF))], as: UTF16.self) : String(decoding: [UInt16(truncatingIfNeeded: "
+                        + cp
+                        + ")], as: UTF16.self)))";
                 }
                 if (module == "Std") {
                     final s = expr(args[0]);
