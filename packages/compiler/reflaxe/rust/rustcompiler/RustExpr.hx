@@ -9217,7 +9217,12 @@ class RustExpr {
                         "(") ? value : "("
                         + value + ")");
                     final unwrapped = argument;
-                    return "String::from_utf16(&[u16::try_from" + unwrapped + ".unwrap_or_default()]).unwrap_or_default()";
+                    // Haxe's fromCharCode takes a scalar; a supplementary scalar
+                    // encodes as its surrogate pair. Rust's String is UTF-8 and
+                    // from_utf16 rejects an unpaired surrogate, so the pair is
+                    // built explicitly above the BMP while a BMP value keeps
+                    // the single-unit form. (FromCharCodeScalar)
+                    return "(if " + unwrapped + " > 0xFFFF { String::from_utf16(&[0xD800 + ((" + unwrapped + " - 0x10000) >> 10) as u16, 0xDC00 + ((" + unwrapped + " - 0x10000) & 0x3FF) as u16]).unwrap() } else { String::from_utf16(&[" + unwrapped + " as u16]).unwrap_or_default() })";
                 }
                 if (path == "std.UStringPlatform") {
                     // Cursor primitives of the resident UString walk, inlined
