@@ -215,6 +215,13 @@ int timeoutBudgetMs() {
 /// per line in the redirected results file. The return tells the runner
 /// whether the test failed, so the process exits nonzero on any
 /// failure.
+/// A test this target excludes (features/19): the entry does not run
+/// the body and writes the not-applicable record instead, so the id
+/// stays in the cross-target set.
+void recordNotApplicable(String id, String name) {
+  stdout.write(TestCore.notApplicableLine(id, name));
+}
+
 bool run(String id, String name, void Function() body) {
   _currentTestId = id;
   var failed = false;

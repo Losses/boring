@@ -9,6 +9,7 @@ import reflaxe.data.ClassVarData;
 import reflaxe.data.EnumOptionData;
 import ValueTypeSupport;
 import PolicyQueries;
+import TestApplicability;
 import ComparatorPlan;
 import ComparatorPlan.ComparatorFieldKind;
 import ValueTypeSupport.ValueTypeOperator;
@@ -1471,6 +1472,18 @@ class KotlinDecl {
         // names std.Test, so the reference itself marks the test host
         // entry and the runtime.TestCore resident as used.
         state.shimsUsed.set(RuntimeResidents.externsOf("runtime.TestCore")[0], true);
+        if (TestApplicability.isExcluded(f.field, "kotlin")) {
+            // The test declares this target in its except argument: the
+            // entry does not run the body and writes the not-applicable
+            // record instead, so the id stays in the cross-target set
+            // (feature spec 19).
+            return [
+                "    @boring.test.Test",
+                '    fun ${KotlinNameEscape.escape(f.field.name)}() {',
+                '        Test.recordNotApplicable("${escapeKotlinString(id)}", "${escapeKotlinString(runnerName)}")',
+                "    }"
+            ];
+        }
         expr.setTestRunnerLambda(true);
         final body = expr.functionBody(cls, f);
         expr.setTestRunnerLambda(false);
