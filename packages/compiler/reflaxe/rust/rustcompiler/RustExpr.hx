@@ -87,6 +87,12 @@ class RustExpr {
     final defaultParameterSubstitutions:Map<String, String> = [];
     final genericParamIds:Map<Int, Bool> = [];
     final closureParamIds:Map<Int, Bool> = [];
+    // Closure parameters whose generated Rust binding is a reference even
+    // though their Haxe type is a value. The Functional shim annotates the
+    // lambda parameter with the receiver element type's borrow, so a Float
+    // parameter renders &f32 while its Haxe type stays f32; value reads of
+    // such a parameter must dereference the binding. (ClosureParamBorrow)
+    final closureBorrowedParamIds:Map<Int, Bool> = [];
     // Local function values whose body throws: the closure signature carries
     // the enclosing Result error so call sites can propagate it.
     final fallibleLocalFunctionErrors:Map<Int, String> = [];
@@ -3594,13 +3600,15 @@ class RustExpr {
     /**
         isBorrowedParamLocal: a current-function parameter keeps the borrow
         its declaration already decided, and a closure parameter borrows
-        when its rendered parameter type is a reference view. The String
-        conversion sites use this test so a borrowed parameter reaches an
-        owned String slot through to_string.
+        when its rendered parameter type is a reference view. A closure
+        parameter the Functional shim annotated with a reference (its Haxe
+        type is a value but its Rust binding is &T) also counts as borrowed.
+        The String conversion sites use this test so a borrowed parameter
+        reaches an owned String slot through to_string.
     **/
     function isBorrowedParamLocal(v:haxe.macro.Type.TVar):Bool {
         if (closureParamIds.exists(v.id))
-            return StringTools.startsWith(types.of(v.t, true), "&");
+            return closureBorrowedParamIds.exists(v.id) || StringTools.startsWith(types.of(v.t, true), "&");
         return paramVarIds.get(v.id) == true;
     }
 
@@ -8631,7 +8639,15 @@ class RustExpr {
                         };
                         if (elemType != null) {
                             final paramName = RustImports.toSnakeCase(func.args[0].v.name);
+                            // The lambda parameter renders as a reference to
+                            // the element type, so the body must treat the
+                            // binding as borrowed even when its Haxe type is
+                            // a value. Register the borrow for the body
+                            // render, then clear it. (ClosureParamBorrow)
+                            final paramId = func.args[0].v.id;
+                            closureBorrowedParamIds.set(paramId, true);
                             final bodyText = functionLiteral(func, lambda.t);
+                            closureBorrowedParamIds.remove(paramId);
                             final typed = StringTools.replace(bodyText, "|" + paramName + "|", "|" + paramName + ": &" + elemType + "|");
                             return staticRef(cls, name) + "(&" + expr(receiver) + ", " + typed + ")";
                         }
@@ -12862,10 +12878,18 @@ class RustExpr {
         })
             return "(" + rendered + ").clone()";
         // A borrowed Copy value becomes a scalar at a value slot.
-        // Dereference the generated reference before the Rust call.
-        if (!isNullType(expected) && !isNullType(actual.t)
-            && isTypeCopy(actual.t) && StringTools.startsWith(rendered, "&")) {
-            return rendered.substr(0, 5) == "&mut " ? "*" + rendered.substr(5) : "*" + rendered.substr(1);
+        // Dereference the generated reference before the Rust call. A
+        // closure parameter the Functional shim annotated with a reference
+        // renders as a bare binding that holds &T, so it dereferences to
+        // the owned Copy value too. (ClosureParamBorrow)
+        if (!isNullType(expected) && !isNullType(actual.t) && isTypeCopy(actual.t)) {
+            if (StringTools.startsWith(rendered, "&"))
+                return rendered.substr(0, 5) == "&mut " ? "*" + rendered.substr(5) : "*" + rendered.substr(1);
+            if (switch (stripWrap(actual).expr) {
+                case TLocal(v): closureBorrowedParamIds.exists(v.id);
+                case _: false;
+            })
+                return "*" + rendered;
         }
         // Rust represents
         // concrete implementor therefore enters an interface slot through
