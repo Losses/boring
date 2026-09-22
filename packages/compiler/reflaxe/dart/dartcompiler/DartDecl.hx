@@ -876,6 +876,32 @@ class DartDecl {
         the @:test functions); a class member renders indented with
         `static` on statics.
     **/
+    /** A `final X = expr;` declaration whose name appears once in the body
+        is never read: the declaration lowers to an expression statement,
+        the initializer keeps its side effects and the variable disappears.
+        (UnusedLocalStatementForm) */
+    public static function foldUnusedLocals(bodyText:Array<String>):Array<String> {
+        final decl = ~/^(\s*)final ([A-Za-z_][A-Za-z0-9_]*) =/;
+        final full = bodyText.join("\n");
+        return [
+            for (line in bodyText) {
+                if (decl.match(line)) {
+                    final name = decl.matched(2);
+                    final counter = new EReg("\\b" + name + "\\b", "g");
+                    var hits = 0;
+                    counter.map(full, function(_) {
+                        hits++;
+                        return "";
+                    });
+                    if (hits <= 1)
+                        decl.matched(1) + line.substr(decl.matched(0).length);
+                    else
+                        line;
+                } else line;
+            }
+        ];
+    }
+
     function funcDecl(module:String, cls:ClassType, f:ClassFuncData, topLevel:Bool):Array<String> {
         // Assign the scoped parameter/local names before the signature
         // renders so the parameter list and the body agree on every name
@@ -897,7 +923,7 @@ class DartDecl {
                 initializers.push(parts.superCall);
             }
             final head = "  " + cls.name + "(" + params + ")" + (initializers.length > 0 ? " : " + initializers.join(", ") : "") + " {";
-            return [head].concat(parts.body).concat(["  }"]);
+            return [head].concat(foldUnusedLocals(parts.body)).concat(["  }"]);
         }
         for (a in f.args) {
             expr.reserveName(a.name);
@@ -915,11 +941,11 @@ class DartDecl {
         if (topLevel) {
             claimTopLevel(name, f.field.pos);
             final head = '${types.of(f.ret)} $name$genericStr${paramList(cls, f)} {';
-            return [head].concat(expr.functionBody(cls, f, 1)).concat(["}"]);
+            return [head].concat(foldUnusedLocals(expr.functionBody(cls, f, 1))).concat(["}"]);
         }
         final stat = f.isStatic ? "static " : "";
         final head = '  ${stat}${types.of(f.ret)} $name$genericStr${paramList(cls, f)} {';
-        return [head].concat(expr.functionBody(cls, f, 2)).concat(["  }"]);
+        return [head].concat(foldUnusedLocals(expr.functionBody(cls, f, 2))).concat(["  }"]);
     }
 
     function topLevelFuncDecl(module:String, cls:ClassType, f:ClassFuncData):Array<String> {
