@@ -2528,7 +2528,15 @@ class TsExpr {
                     + expr(args[i])
                     + " ?? "
                     + defaultArgText(d, expected)
-                    + ")" else expr(args[i]);
+                    + ")" else {
+                    // A nullable-typed argument at a non-null-typed parameter
+                    // asserts: Haxe types the argument value non-null through
+                    // the Null wrapper of its producer.
+                    // (NonNullArgumentAssert)
+                    final argText = expr(args[i]);
+                    expected != null && !isNullType(expected) && isNullType(args[i].t)
+                        && !provablyNonNull(args[i]) ? argText + "!" : argText;
+                }
             }
         ];
     }
@@ -2548,7 +2556,9 @@ class TsExpr {
             + expr(args[i])
             + " ?? "
             + constructorDefaultText(d, p, cls, args)
-            + ")" : expr(args[i]);
+            + ")" : (p != null && !isNullType(p) && isNullType(args[i].t) && !provablyNonNull(args[i])
+                ? expr(args[i]) + "!"
+                : expr(args[i]));
         }
         ];
         // A call may omit parameters that the emitted signature renders as
