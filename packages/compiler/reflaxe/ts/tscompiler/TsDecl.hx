@@ -578,6 +578,33 @@ class TsDecl {
     /** The rendered parameter name for `a`: an unused parameter gains the
         `_` prefix TypeScript's noUnusedParameters grants, checked against
         the finished body text. (UnusedParameterUnderscore) */
+    /** A `const`/`let` declaration whose name appears once in the body is
+        never read, and noUnusedLocals grants no underscore exemption to
+        locals. The declaration lowers to an expression statement: the
+        initializer keeps its side effects and the variable disappears.
+        (UnusedLocalStatementForm) */
+    function markUnusedLocals(bodyText:Array<String>):Array<String> {
+        final full = bodyText.join("\n");
+        final decl = ~/^(\s*)(const|let) ([A-Za-z_][A-Za-z0-9_]*) =/;
+        return [
+            for (line in bodyText) {
+                if (decl.match(line)) {
+                    final name = decl.matched(3);
+                    final counter = new EReg("\\b" + name + "\\b", "g");
+                    final hits = [0];
+                    counter.map(full, function(_) {
+                        hits[0]++;
+                        return "";
+                    });
+                    if (hits[0] <= 1)
+                        decl.matched(1) + line.substr(decl.matched(0).length);
+                    else
+                        line;
+                } else line;
+            }
+        ];
+    }
+
     function paramDisplayName(cls:ClassType, f:ClassFuncData, a:ClassFuncArg, bodyText:Array<String>):String {
         // A property access `.name` is not a reference to the parameter:
         // strip those occurrences before the word-boundary check, or a
@@ -636,7 +663,7 @@ class TsDecl {
         final methodParams = collectMethodTypeParams(cls, f);
         final genericStr = methodParams.length > 0 ? "<" + methodParams.join(", ") + ">" : "";
         final head = '  $vis ${stat}${f.field.name}$genericStr($args): $retText {';
-        return [head].concat(bodyText).concat(["  }"]);
+        return [head].concat(markUnusedLocals(bodyText)).concat(["  }"]);
     }
 
     function extractedFuncDecl(cls:ClassType, f:ClassFuncData):Array<String> {
@@ -652,7 +679,7 @@ class TsDecl {
         final genericStr = methodParams.length > 0 ? "<" + methodParams.join(", ") + ">" : "";
         final vis = f.field.isPublic ? "export " : "";
         final head = '${vis}function ${f.field.name}$genericStr($args): $ret {';
-        return [head].concat(body).concat(["}"]);
+        return [head].concat(markUnusedLocals(body)).concat(["}"]);
     }
 
     /**
