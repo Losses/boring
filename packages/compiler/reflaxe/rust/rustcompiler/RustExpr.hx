@@ -1877,7 +1877,13 @@ class RustExpr {
                 }
                 return [indent(depth) + "return " + retStr + ";"];
             case TThrow(x):
-                return [indent(depth) + "return Err(" + throwVariant(x) + ");"];
+                if (isFallible) {
+                    return [indent(depth) + "return Err(" + throwVariant(x) + ");"];
+                }
+                // A non-fallible body cannot return Err. A throw still
+                // raises: panic with the exception's Display text, which the
+                // test runner catches and reports as the failure message.
+                return [indent(depth) + "panic!(\"{}\", " + throwVariant(x) + ");"];
             case TTry(body, catches) if (catches.length == 1):
                 return regionStatementLines(body, catches[0], depth);
             case TTry(_, _):
@@ -4389,6 +4395,17 @@ class RustExpr {
         final name = freshRegionName("__option");
         final countBefore = optionNarrowingHitCount;
         optionNarrowings.push({subjectText: subjectTextOf(info.subject), name: name});
+        // A boolean-chain guard (`a != null && b != null`) proves every
+        // subject non-null when the body runs; register the siblings so
+        // value slots unwrap them. The first subject is already narrowed
+        // by the match binding, so it is excluded. (GuardedChainSiblingProof)
+        final firstSubjectId = switch (stripWrap(info.subject).expr) {
+            case TLocal(v): v.id;
+            case _: -1;
+        };
+        final chainSiblings = [for (v in provenNonNullLocals(guard)) if (v.id != firstSubjectId) v];
+        for (v in chainSiblings)
+            provenNonNullVarIds.set(v.id, true);
         var narrowed = blockLines(statementsOf(narrowedBranch), depth + 2);
         if (prefix != null) {
             narrowed = [indent(depth + 2) + "if " + expr(prefix.tail) + " {"]
@@ -4410,6 +4427,8 @@ class RustExpr {
         }
         final hit = optionNarrowingHitCount > countBefore;
         optionNarrowings.pop();
+        for (v in chainSiblings)
+            provenNonNullVarIds.remove(v.id);
         if (!hit)
             return null;
         final otherBranch = info.noneWhenTrue ? ifTrue : ifFalse;
@@ -4585,23 +4604,41 @@ class RustExpr {
                     && !isStringType(elemType) && !isNullableElem;
                 final rendered = [
                     for (x in elems) {
+                        var source = expr(x);
+                        // An element whose Haxe type is Null<T> in a non-null
+                        // element slot reads an Option while the literal's Vec
+                        // carries the payload; the element boundary borrows and
+                        // unwraps it, so the source binding stays alive for
+                        // later reads. (NonNullSlotUnwrap)
+                        if (elemType != null && !isNullableElem
+                            && (nullableReadHoldsOption(x) || isImplicitNullableLocal(x))) {
+                            final payload = getNullInnerType(x.t);
+                            source = isTypeCopy(payload) ? "*((" + source + ").as_ref().unwrap())" : "(" + source + ").as_ref().unwrap()";
+                        }
                         var inner = if (isStringElem) {
                             switch (stripWrap(x).expr) {
                                 case TConst(TString(_)):
-                                    expr(x) + ".to_string()";
+                                    source + ".to_string()";
                                 case TLocal(v) if (isBorrowedParamLocal(v)):
-                                    expr(x) + ".to_string()";
+                                    source + ".to_string()";
                                 case _:
-                                    expr(x) + ".clone()";
+                                    source + ".clone()";
                             }
                         } else {
-                            elemNeedsClone && !StringTools.endsWith(expr(x), ".clone()") ? "(" + expr(x) + ").clone()" : expr(x);
+                            elemNeedsClone && !StringTools.endsWith(source, ".clone()") ? "(" + source + ").clone()" : source;
                         };
                         if (elemFloat && isIntType(emittedType(x))) inner = intToFloatText(inner);
                         // An i32-domain element in a business u32 array
                         // reinterprets its bits at the literal boundary.
                         if (!elemFloat && elemType != null && isIntType(elemType) && types.of(elemType, false) == "u32"
                             && i32LocalDomain(x) && !isNullType(x.t)) inner = RustConversions.reinterpret(inner, "u32");
+                        // An interface element slot boxes a concrete
+                        // implementor and pins the box to the trait object,
+                        // so the Vec carries one Box<dyn Trait> type. The
+                        // concrete value is already cloned above, so the box
+                        // takes an owned payload. (InterfaceElementBox)
+                        if (elemType != null && isInterfaceType(elemType) && !isInterfaceType(x.t))
+                            inner = "Box::new(" + inner + ") as " + types.of(elemType, false);
                         if (isNullableElem && !isTNull(x) && !StaticFieldHelper.isNullableType(x.t)) {
                             "Some(" + inner + ")";
                         } else {
@@ -5311,13 +5348,22 @@ class RustExpr {
         if (isFloatType(firstInner) || isFloatType(secondInner))
             return FloatPrecision.isF32() ? "f32" : "f64";
         // Both arms are business Int. An arm that renders in the signed i32
-        // domain (a negation, an index result) beside an unsigned arm must
-        // agree on the conditional's Rust type, so the conditional targets
-        // the business u32 slot and the signed arm reinterprets at the
-        // branch. Two signed arms already share the i32 type and keep it.
+        // domain (a negation, an index result, an i32-domain wrapping binop)
+        // beside an unsigned arm must agree on the conditional's Rust type,
+        // so the conditional targets the business u32 slot and the signed
+        // arm reinterprets at the branch. Two signed arms already share the
+        // i32 type and keep it.
+        final firstSigned = rendersSignedIntExpr(first) || i32LocalDomain(first);
+        final secondSigned = rendersSignedIntExpr(second) || i32LocalDomain(second);
         if (!RuntimeResidents.isResident(imports.selfModule)
-            && (rendersSignedIntExpr(first) || rendersSignedIntExpr(second))
-            && !(rendersSignedIntExpr(first) && rendersSignedIntExpr(second)))
+            && (firstSigned || secondSigned) && !(firstSigned && secondSigned))
+            return "u32";
+        // Both arms render in the signed i32 domain, but a business u32
+        // result slot still needs the u32 type: the conditional targets
+        // u32 and both arms reinterpret at the branch. (BothSignedU32Result)
+        if (!RuntimeResidents.isResident(imports.selfModule) && firstSigned && secondSigned
+            && resultType != null && isIntType(resultType) && !isNullType(resultType)
+            && types.of(resultType, false) == "u32")
             return "u32";
         return null;
     }
@@ -5371,9 +5417,11 @@ class RustExpr {
         if (isIntType(inner) && (target == "f32" || target == "f64"))
             return intToFloatText(text);
         // A signed i32 arm entering the business u32 conditional slot
-        // reinterprets its bits so both Rust arms carry one type.
+        // reinterprets its bits so both Rust arms carry one type. The
+        // rendered-text check catches an i32-returning call (unit_count,
+        // an indexOf result) that the local-domain predicates miss.
         if (target == "u32" && isIntType(inner) && !nullable
-            && (i32LocalDomain(branch) || rendersSignedIntExpr(branch)))
+            && (i32LocalDomain(branch) || rendersSignedIntExpr(branch) || rendersSignedIntArg(branch, text)))
             return RustConversions.reinterpret(text, "u32");
         return text;
     }
@@ -6457,6 +6505,13 @@ class RustExpr {
                 switch (inner) {
                     case OpAdd if (isStringType(l.t) && !isNullType(l.t) && isStringType(r.t) && !isNullType(r.t)):
                         return assignTarget(l) + " += &(" + expr(r) + ")";
+                    // Haxe appends every value to a String through that
+                    // value's own text form. A scalar operand has no &str
+                    // view, so the boundary renders its text once and
+                    // appends that. (StringAppendStringify)
+                    case OpAdd if (isStringType(l.t) && !isNullType(l.t) && !isNullType(r.t)
+                        && (isIntType(r.t) || isFloatType(r.t) || isBoolType(r.t))):
+                        return assignTarget(l) + " += &(" + expr(r) + ").to_string()";
                     case _:
                 }
                 // Haxe widens an Int operand in a Float compound assignment;
@@ -6529,6 +6584,19 @@ class RustExpr {
                     || isInt64Type(r.t) ? "(" + expr(l) + ") & (" + expr(r) + ")" : operand(l, op, false) + " & " + operand(r, op, true));
             case OpOr | OpXor if (isInt64Type(l.t) || isInt64Type(r.t)):
                 return expr(l) + " " + symbolOf(op) + " " + expr(r);
+            case OpOr | OpXor if (isIntType(e.t)):
+                // A bitwise op with one i32-domain operand and one business
+                // u32 operand reinterprets the signed side to u32 so both
+                // operands share the business u32 type. (BitwiseU32Domain)
+                var left = operand(l, op, false);
+                var right = operand(r, op, true);
+                final leftSigned = i32OperandDomain(l) || i32LocalDomain(l);
+                final rightSigned = i32OperandDomain(r) || i32LocalDomain(r);
+                if (leftSigned && !rightSigned)
+                    left = reinterpretBitwiseOperand(l, left, "u32");
+                else if (rightSigned && !leftSigned)
+                    right = reinterpretBitwiseOperand(r, right, "u32");
+                return left + " " + symbolOf(op) + " " + right;
             case OpUShr:
                 // The u32 domain makes Rust >> the logical shift; operand()
                 // re-adds grouping parens by precedence, so a bare shift
@@ -10848,13 +10916,24 @@ class RustExpr {
         };
     }
 
-    /** Whether rendered text is a bare Rust string literal. */
+    /** Whether rendered text is a bare Rust string literal, including the
+        concat! form a multi-line literal renders as. */
     function isStringLiteralText(text:String):Bool {
-        return StringTools.startsWith(text, "\"") && StringTools.endsWith(text, "\"");
+        return (StringTools.startsWith(text, "\"") && StringTools.endsWith(text, "\""))
+            || StringTools.startsWith(text, "concat!(");
     }
 
     function rustMapValue(e:TypedExpr):String {
-        final rendered = expr(e);
+        var rendered = expr(e);
+        // A proven-non-null nullable local (a null guard proved the Option
+        // holds Some) unwraps to its inner value before the map owns it.
+        if (isNullType(e.t) && switch (stripWrap(e).expr) {
+            case TLocal(v): provenNonNullVarIds.exists(v.id);
+            case _: false;
+        }) {
+            final inner = getNullInnerType(e.t);
+            rendered = isTypeCopy(inner) ? "*((" + rendered + ").as_ref().unwrap())" : "(" + rendered + ").as_ref().unwrap().clone()";
+        }
         return isStringType(e.t) ? switch (stripWrap(e).expr) {
             case TConst(TString(_)): rendered + ".to_string()";
             case _: rendered;
@@ -11151,6 +11230,8 @@ class RustExpr {
                             StringTools.endsWith(argStr, ".to_string()") ? argStr : "(" + argStr + ").to_string()";
                         case _ if (isFloatType(getNullInnerType(pt)) && isIntType(emittedType(arg))):
                             intToFloatText(argStr);
+                        case TLocal(v) if (borrowedLoopVarIds.exists(v.id) && isTypeCopy(getNullInnerType(pt))):
+                            "*" + argStr;
                         case _ if (isOwnedVecType(getNullInnerType(pt))):
                             // A direct array static is a Rust array and a
                             // borrowed array parameter is a &Vec view; the
@@ -11222,6 +11303,26 @@ class RustExpr {
                 && isNumericScalarType(paramTypes[i])
                 && renderedArgShape(argStr, arg) == RustShape.ShapeOption)
                 argStr = postfixAdapt(argStr, ".unwrap()");
+            // A nullable scalar parameter entering a non-null constructor
+            // slot stores a genuine Option (no scalar sentinel form to
+            // carry the absence inside the value). Int slots force-read
+            // through numericAssignmentValue, so the unwrap applies only
+            // to Float and non-scalar slots where no forcing read follows.
+            // (NonNullSlotUnwrap)
+            final paramRead = switch (stripWrap(arg).expr) {
+                case TLocal(v): paramVarIds.exists(v.id);
+                case _: false;
+            };
+            if (i < paramTypes.length
+                && !isNullType(paramTypes[i])
+                && !isIntType(paramTypes[i])
+                && isNullType(arg.t)
+                && paramRead
+                && narrowedSubject(arg) == null
+                && nullableReadRendersOptionText(argStr)) {
+                final inner = getNullInnerType(arg.t);
+                argStr = isTypeCopy(inner) ? "(" + argStr + ").unwrap()" : "(" + argStr + ").as_ref().unwrap().clone()";
+            }
             if (i < paramTypes.length)
                 out.push(numericAssignmentValue(paramTypes[i], arg, ownedConstructorArg(paramTypes[i], arg, null, argStr), null, true));
             else
@@ -11376,6 +11477,15 @@ class RustExpr {
         reinterprets its bits (T5); the right operand of unsigned wrapping
         keeps its historical bare form.
     **/
+    /** Reinterpret a bitwise operand to a target domain, rendering an
+        integer literal as a typed literal so it is not ambiguous. */
+    function reinterpretBitwiseOperand(e:TypedExpr, text:String, target:String):String {
+        return switch (stripWrap(e).expr) {
+            case TConst(TInt(v)): Std.string(v) + target;
+            case _: RustConversions.reinterpret(text, target);
+        };
+    }
+
     function wrappingOperand(e:TypedExpr, op:Binop, wrapDomain:String, isLeft:Bool):String {
         final text = wrappingArg(e, op, isLeft);
         // An operand already rendered in the wrap domain needs no cast: an Int
@@ -12651,6 +12761,55 @@ class RustExpr {
         return RustShape.ShapeUnknown;
     }
 
+    /** Whether reading this expression yields the Option shape in Rust. A
+        value whose Haxe type is Null<T> stores an Option<T> unless a guard, a
+        coalescing initializer, or a proved-non-null copy already replaced the
+        payload with the inner value, so those registries decide and every
+        other nullable read keeps its Option. A nullable local whose
+        initializer text ends in a call's own unwrap is still an Option: the
+        unwrap consumed that call's Result while the Option stayed in the
+        binding. (NonNullSlotUnwrap) */
+    function nullableReadHoldsOption(e:TypedExpr):Bool {
+        if (!isNullType(e.t) || isTNull(e) || narrowedSubject(e) != null)
+            return false;
+        return switch (stripWrap(e).expr) {
+            case TLocal(v):
+                if (nullableCollapsedLocals.exists(v.id) || nonNullRenderedLocals.exists(v.id)
+                    || forcingReadLocals.exists(v.id) || hasGuardedTernaryLocals.exists(v.id)
+                    || isNoneInitializedLocal(e))
+                    false;
+                else if (optionRenderedLocals.exists(v.id))
+                    true;
+                else
+                    // A scalar slot renders the Option only when the
+                    // declaration visibly built one: the scalar sentinel forms
+                    // carry the absence inside the value itself and take a
+                    // forced read at their own boundary instead. A struct or
+                    // enum slot has no such form, so an unrecorded nullable
+                    // binding there still holds the Option.
+                    // (NonNullSlotUnwrap)
+                    !isScalarType(getNullInnerType(e.t));
+            case TConst(TNull):
+                false;
+            case TIf(_, _, _):
+                !isNonNullRenderedConditional(e);
+            case _:
+                true;
+        };
+    }
+
+    /** Whether an already-rendered nullable read still carries its Option
+        into the boundary: a text that constructs, consumes, or visibly
+        settles the wrapper does not. (NonNullSlotUnwrap) */
+    function nullableReadRendersOptionText(rendered:String):Bool {
+        final text = StringTools.trim(rendered);
+        if (text == "None" || StringTools.startsWith(text, "Some("))
+            return false;
+        if (StringTools.endsWith(text, ".unwrap()") || StringTools.endsWith(text, ".unwrap_or_default()"))
+            return false;
+        return RustShapeParse.shapeOf(text) != RustShape.ShapeBare;
+    }
+
     /** Append a postfix method to an already-rendered text, parenthesizing
         composite forms so the postfix binds to the whole value.
         (ShapeParse) */
@@ -12752,8 +12911,14 @@ class RustExpr {
         // field out of it. (InterfaceSlotClone)
         if (!isNullType(expected) && isInterfaceType(expected) && isInterfaceType(actual.t)
             && !isTypeCopy(actual.t) && isReusableOwnedRead(actual)
-            && !StringTools.endsWith(rendered, ".clone()"))
+            && !StringTools.endsWith(rendered, ".clone()")) {
+            // A borrowed loop item names a reference to the Box; deref
+            // before cloning so the slot receives the owned Box<dyn Trait>.
+            // (InterfaceLoopItemClone)
+            if (switch (stripWrap(actual).expr) { case TLocal(v): borrowedLoopVarIds.exists(v.id); case _: false; })
+                return "(*" + rendered + ").clone()";
             return rendered + ".clone()";
+        }
         // A non-Copy narrowed Option binding names a reference to the inner
         // value; an owned value slot clones the referent so the slot carries
         // the owned type its signature declares.
@@ -12765,6 +12930,10 @@ class RustExpr {
         if (isNullType(expected) && isInterfaceType(getNullInnerType(expected)) && !isNullType(actual.t)) {
             if (rendered == "None" || StringTools.startsWith(rendered, "Some("))
                 return rendered;
+            // A borrowed loop item names a reference to the Box; deref
+            // before cloning so the Option carries an owned Box<dyn Trait>.
+            if (switch (stripWrap(actual).expr) { case TLocal(v): borrowedLoopVarIds.exists(v.id); case _: false; })
+                return "Some((*" + rendered + ").clone())";
             // An actual already typed as the interface carries its own
             // Box<dyn Trait>; only a concrete value boxes here. The Option
             // wrapper is the sole addition the nullable slot needs.
@@ -12971,6 +13140,22 @@ class RustExpr {
             if (Std.string(arg).indexOf("TInt") >= 0)
                 Context.warning("RC INTLIT pt=" + Std.string(pt).substr(0, 50) + " argStr=[" + argStr.substr(0, argStr.length > 20 ? 20 : argStr.length) + "]", arg.pos);
 #end
+            // A nullable scalar parameter entering a non-null scalar slot
+            // stores a genuine Option (no scalar sentinel form to carry the
+            // absence inside the value). Int slots force-read through
+            // numericAssignmentValue, so the unwrap applies only to Float
+            // and non-scalar slots where no forcing read follows.
+            // (NonNullSlotUnwrap)
+            final paramRead = switch (stripWrap(arg).expr) {
+                case TLocal(v): paramVarIds.exists(v.id);
+                case _: false;
+            };
+            if (pt != null && !isNullType(pt) && !isIntType(pt) && !isBoolType(pt)
+                && isNullType(arg.t) && paramRead && narrowedSubject(arg) == null
+                && nullableReadRendersOptionText(argStr)) {
+                final inner = getNullInnerType(arg.t);
+                argStr = isTypeCopy(inner) ? "(" + argStr + ").unwrap()" : "(" + argStr + ").as_ref().unwrap().clone()";
+            }
             // A narrowed operand renders the dereferenced match binding (a
             // bare `*name`), which is the inner value; a nullable parameter
             // slot still needs the Option shape, so the value wraps once in
@@ -13090,18 +13275,20 @@ class RustExpr {
                         // still enters the non-null slot, so the boundary
                         // unwraps it, and the None path panics exactly where
                         // the Haxe source would have dereferenced an
-                        // undefined value. Only locals whose declaration
-                        // still renders the Option shape qualify: collapsed
-                        // locals, non-null-rendered locals, and every
-                        // non-local form already render the inner value, so
-                        // no unwrap applies. (NonNullSlotUnwrap)
-                        final optionRenderedLocal = narrowedSubject(arg) == null
-                            && narrowedBindingText(argStr) == null
-                            && switch (stripWrap(arg).expr) {
-                                case TLocal(v): optionRenderedLocals.exists(v.id);
-                                case _: false;
-                            };
-                        if (optionRenderedLocal && RustShapeParse.shapeOf(argStr) != RustShape.ShapeBare) {
+                        // undefined value. A collapsed local, a
+                        // non-null-rendered local, and a text that already
+                        // consumed or constructed the wrapper are the forms
+                        // that render the inner value and take no unwrap; a
+                        // field read, an index read, and a nullable-returning
+                        // call all keep the Option their declaration stored.
+                        // (NonNullSlotUnwrap)
+                        // A local answers through the same typed question as
+                        // every other form: the declaration record names the
+                        // Option only when its initializer text shows one, and
+                        // a local bound to a nullable-returning call keeps the
+                        // Option even though the recorded text carries that
+                        // call's own Result unwrap. (NonNullSlotUnwrap)
+                        if (nullableReadHoldsOption(arg) && nullableReadRendersOptionText(argStr)) {
                             final inner = getNullInnerType(arg.t);
                             var bare = stripRenderedParens(expr(stripWrap(arg)));
                             if (StringTools.startsWith(bare, "&"))
@@ -13196,6 +13383,8 @@ class RustExpr {
                                 intToFloatText(argStr);
                             case _ if (isOwnedVecType(getNullInnerType(pt))):
                                 nullableArrayPayload(arg, argStr);
+                            case TLocal(v) if (borrowedLoopVarIds.exists(v.id) && isInterfaceType(getNullInnerType(pt)) && isInterfaceType(arg.t)):
+                                "(*" + argStr + ").clone()";
                             case _:
                                 if (isInterfaceType(getNullInnerType(pt)) && !isInterfaceType(arg.t))
                                     renderValueForType(getNullInnerType(pt), arg, argStr);
@@ -14186,6 +14375,12 @@ class RustExpr {
         if (resultType != null && isOwnedVecType(resultType) && borrowedArrayRead(branch)) {
             return "(*" + text + ").clone()";
         }
+        // A borrowed loop item arm produces the value type: a Copy item
+        // dereferences, an owned item clones the referent, so both arms
+        // of the conditional carry one Rust type.
+        if (resultType != null && !isNullType(resultType)
+            && switch (stripWrap(branch).expr) { case TLocal(v): borrowedLoopVarIds.exists(v.id); case _: false; })
+            return isTypeCopy(resultType) ? "*" + text : "(*" + text + ").clone()";
         if (isUStringCountText(text) && resolveExprType(sibling) == "i32") {
             return RustConversions.reinterpret(text, "i32");
         }
