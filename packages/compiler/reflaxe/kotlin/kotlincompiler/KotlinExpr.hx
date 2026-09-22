@@ -5248,7 +5248,6 @@ class KotlinExpr {
                     // equality/assertion expected values.
                     text;
                 } else if (registered != null && expected != null && requiresNonNullCallArgument(a, text)) {
-                    Sys.println("PROBE_CTOR text=" + text + " covers=" + coversNullByForm(a, text) + " prov=" + provenNonNull(a) + " guard=" + guardProofBefore(a));
                     if (coversNullByForm(a, text))
                         text;
                     else if (StringTools.trim(constructorDefaultText(registered, expected, cls, args)) == "null")
@@ -6037,14 +6036,6 @@ class KotlinExpr {
 
     /** Convert an integer expression text to Float/Double when the target expects Float. */
     function intToFloatText(text:String):String {
-        if (text.indexOf("source.length") >= 0) {
-            final stack = haxe.CallStack.callStack();
-            final frames = [for (i in 0...stack.length) if (i >= 1 && i < 9) switch (stack[i]) {
-                case FilePos(_, file, line, _): file.substr(file.length - 24) + ":" + line;
-                case _: "?";
-            }];
-            Sys.stderr().writeString("WIDEN [" + text.substr(0, text.length > 60 ? 60 : text.length) + "] via=" + frames.join(" <- ") + "\n");
-        }
         return "(" + text + ")." + (FloatPrecision.isF32() ? "toFloat()" : "toDouble()");
     }
 
