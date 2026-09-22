@@ -3331,8 +3331,10 @@ class KotlinExpr {
                 // (ComparisonOperandProofOrder)
                 final rightText = operand(r, op, true);
                 addProofExpr(r);
-                final leftFinal = isIntOrLongType(emittedType(l)) && isFloatType(emittedType(r)) ? intToFloatText(leftText) : leftText;
-                final rightFinal = isIntOrLongType(emittedType(r)) && isFloatType(emittedType(l)) ? intToFloatText(rightText) : rightText;
+                final leftFinal = isIntOrLongType(emittedType(l)) && isFloatType(emittedType(r))  && !StringTools.contains(leftText, "toDouble()") && !StringTools.contains(leftText, "toFloat()")
+                    ? intToFloatText(leftText) : leftText;
+                final rightFinal = isIntOrLongType(emittedType(r)) && isFloatType(emittedType(l))  && !StringTools.contains(rightText, "toDouble()") && !StringTools.contains(rightText, "toFloat()")
+                    ? intToFloatText(rightText) : rightText;
                 return leftFinal + " " + symbolOf(op) + " " + rightFinal;
             case OpAdd | OpSub | OpMult | OpDiv | OpMod | OpEq | OpNotEq:
                 // A null comparison on a subject whose Haxe type carries no
@@ -3366,8 +3368,10 @@ class KotlinExpr {
                 if (op == OpDiv && isIntDivision(e) && isFloatType(e.t)) {
                     return intToFloatText(leftText) + " / " + intToFloatText(rightText);
                 }
-                final leftFinal = isIntOrLongType(emittedType(l)) && isFloatType(emittedType(r)) ? intToFloatText(leftText) : leftText;
-                final rightFinal = isIntOrLongType(emittedType(r)) && isFloatType(emittedType(l)) ? intToFloatText(rightText) : rightText;
+                final leftFinal = isIntOrLongType(emittedType(l)) && isFloatType(emittedType(r))  && !StringTools.contains(leftText, "toDouble()") && !StringTools.contains(leftText, "toFloat()")
+                    ? intToFloatText(leftText) : leftText;
+                final rightFinal = isIntOrLongType(emittedType(r)) && isFloatType(emittedType(l))  && !StringTools.contains(rightText, "toDouble()") && !StringTools.contains(rightText, "toFloat()")
+                    ? intToFloatText(rightText) : rightText;
                 return leftFinal + " " + symbolOf(op) + " " + rightFinal;
             case OpBoolOr:
                 // Kotlin's flow analysis treats a evaluated-false left
