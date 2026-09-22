@@ -2369,7 +2369,23 @@ class KotlinExpr {
                     case _: {
                         final sk = fieldAccessKey(subject);
                         final tk = fieldAccessKey(t);
-                        sk != null && sk == tk;
+                        if (sk != null && sk == tk)
+                            return true;
+                        // A guard on the chain root local (`x != null`)
+                        // narrows a field read rooted at that same local
+                        // inside the then arm; when the leaf field renders
+                        // non-null the ternary never yields null.
+                        // (IfExpressionCoversNull)
+                        switch [stripWrap(subject).expr, stripWrap(t).expr] {
+                            case [TLocal(sv), TField(root, FInstance(owner, _, cf))]:
+                                switch (stripWrap(root).expr) {
+                                    case TLocal(rv) if (rv.id == sv.id):
+                                        !isNullType(cf.get().type)
+                                            && !nullableRenderedField(owner.get(), cf.get());
+                                    case _: false;
+                                }
+                            case _: false;
+                        }
                     };
                 }
             case _: false;
