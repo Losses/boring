@@ -610,7 +610,12 @@ class DartExpr {
                                 final paramOptional = DefaultArgExpander.isOptionalDefaultAt(cls, f.field.name, paramIndex(f, param));
                                 if (paramOptional && !PolicyQueries.isNullableType(fieldType)) {
                                     final defaultText = isArrayType(fieldType) ? emptyArrayText(fieldType) : "null";
-                                    fieldInits.push(field + " = (" + valueText + " ?? " + defaultText + ")!");
+                                    // A null default is an identity: the
+                                    // assertion alone carries the non-null
+                                    // contract. (NullDefaultIdentityFold)
+                                    fieldInits.push(defaultText == "null"
+                                        ? field + " = " + valueText + "!"
+                                        : field + " = (" + valueText + " ?? " + defaultText + ")!");
                                 } else {
                                     formalFields.set(param, field);
                                     // The initializing formal `this.field` makes
@@ -3273,7 +3278,12 @@ class DartExpr {
                         // caller with differently named locals never emits the
                         // callee parameter name unbound. No configuration
                         // switch; the report maps this rule to its test.
-                        out.push("(" + expr(args[i]) + " ?? " + constructorDefaultText(d, p, cls, args, padded) + ")");
+                        final ctorDefaultText = constructorDefaultText(d, p, cls, args, padded);
+                        // A null default is an identity. (NullDefaultIdentityFold)
+                        if (StringTools.trim(ctorDefaultText) == "null")
+                            out.push(expr(args[i]));
+                        else
+                            out.push("(" + expr(args[i]) + " ?? " + ctorDefaultText + ")");
                     }
                 }
             } else {
