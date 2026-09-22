@@ -1798,8 +1798,13 @@ class TsExpr {
     }
 
     function runtimeFloatString(value:String, inConcat:Bool):String {
+        // The runtime name is registered only when the concatenated form is
+        // not returned: an unused import warns under noUnusedLocals.
+        // (ImportRegistrationFollowsEmission)
+        if (inConcat)
+            return value;
         imports.runtime("formatFloatRuntime");
-        return inConcat ? value : "formatFloatRuntime(" + value + ")";
+        return "formatFloatRuntime(" + value + ")";
     }
 
     function hasInstanceToString(cls:ClassType):Bool {
