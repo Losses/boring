@@ -593,6 +593,23 @@ class TsDecl {
     /** `return hit;` for a null-initialized annotated local asserts: the
         local's declaration gained `| null`, while the function's declared
         return stays non-null. (NullInitNullableAnnotation) */
+    /** Every valued return in a function whose declared return is non-null
+        asserts: ternary null arms and null-initialized locals make the
+        returned expression nullable while the signature stays non-null.
+        (ReturnNonNullAssert) */
+    function markReturnAsserts(bodyText:Array<String>, retNonNull:Bool):Array<String> {
+        if (!retNonNull)
+            return bodyText;
+        final ret = ~/^(\s*)return (.+);$/;
+        return [
+            for (line in bodyText) {
+                if (ret.match(line) && !StringTools.endsWith(line, "!;"))
+                    ret.matched(1) + "return " + ret.matched(2) + "!;";
+                else line;
+            }
+        ];
+    }
+
     function markNullInitReturns(bodyText:Array<String>):Array<String> {
         final decl = ~/^(\s*)(const|let) ([A-Za-z_][A-Za-z0-9_]*): .+ \| null = null;$/;
         final names = [for (line in bodyText) if (decl.match(line)) decl.matched(3)];
@@ -692,7 +709,8 @@ class TsDecl {
         final methodParams = collectMethodTypeParams(cls, f);
         final genericStr = methodParams.length > 0 ? "<" + methodParams.join(", ") + ">" : "";
         final head = '  $vis ${stat}${f.field.name}$genericStr($args): $retText {';
-        return [head].concat(markNullInitReturns(markUnusedLocals(bodyText))).concat(["  }"]);
+        final declaredRetNonNull = !StringTools.endsWith(types.of(f.ret), " | null");
+        return [head].concat(markReturnAsserts(markNullInitReturns(markUnusedLocals(bodyText)), declaredRetNonNull && mutatedStringBufParam(cls, f) == null)).concat(["  }"]);
     }
 
     function extractedFuncDecl(cls:ClassType, f:ClassFuncData):Array<String> {
@@ -708,7 +726,7 @@ class TsDecl {
         final genericStr = methodParams.length > 0 ? "<" + methodParams.join(", ") + ">" : "";
         final vis = f.field.isPublic ? "export " : "";
         final head = '${vis}function ${f.field.name}$genericStr($args): $ret {';
-        return [head].concat(markNullInitReturns(markUnusedLocals(body))).concat(["}"]);
+        return [head].concat(markReturnAsserts(markNullInitReturns(markUnusedLocals(body)), !StringTools.endsWith(types.of(f.ret), " | null"))).concat(["}"]);
     }
 
     /**
