@@ -2255,7 +2255,10 @@ class DartExpr {
         argument as rendered.
     **/
     function requiredValueText(e:TypedExpr):String {
-        if (!nullableValue(e) || provenNonNull(e) || coalescingYieldsNonNull(e))
+        // A value that cannot be null never asserts, including a null-guard
+        // ternary whose guarded branch the condition promotes.
+        // (ProvenNonNullCoalescingFold)
+        if (!nullableValue(e) || provenNonNull(e) || coalescingYieldsNonNull(e) || coalescingLeftCannotBeNull(e))
             return expr(e);
         final text = expr(e);
         return switch (stripWrap(e).expr) {
