@@ -1272,7 +1272,15 @@ class TsExpr {
                     // for TypeScript, so every recognized site renders `p ?? E`.
                     return expr(coalescing.valueExpr) + " ?? " + coalescingDefaultTextFor(coalescing);
                 }
-                return "(" + expr(c) + " ? " + expr(t) + " : " + expr(f) + ")";
+                // Haxe unifies a nullable arm with a non-null arm to the
+                // non-null type, while TypeScript keeps `| null` in the
+                // ternary result: an arm typed nullable on the Haxe side
+                // asserts. (TernaryArmLubAssert)
+                final thenText = expr(t);
+                final elseText = expr(f);
+                final thenAssert = isNullType(t.t) ? thenText + "!" : thenText;
+                final elseAssert = isNullType(f.t) ? elseText + "!" : elseText;
+                return "(" + expr(c) + " ? " + thenAssert + " : " + elseAssert + ")";
             case TBlock(stmts):
                 return blockExpression(stmts);
             case _:
