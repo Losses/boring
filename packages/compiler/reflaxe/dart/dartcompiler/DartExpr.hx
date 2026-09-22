@@ -1885,7 +1885,9 @@ class DartExpr {
         if ((isNullLeafType(e.t) || optionalValued(e)) && !provenNonNull(e) && parent != OpEq && parent != OpNotEq) {
             // An assertion earlier in this sequence promotes the local; a
             // second `!` has no effect. (SequenceScopedAssertionDedup)
-            if (!sequenceAssertionDone(e))
+            // A null-guard ternary already yields a non-null value; its
+            // `!` has no effect either. (ProvenNonNullCoalescingFold)
+            if (!coalescingLeftCannotBeNull(e) && !sequenceAssertionDone(e))
                 rendered += "!";
             switch (stripWrap(e).expr) {
                 case TLocal(v): flowPromotedNonNull.set(v.id, true);
