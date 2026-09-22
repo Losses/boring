@@ -816,11 +816,19 @@ class KotlinExpr {
                 // dot, and the assertion stops repeating.
                 // (NullInitDeclaredExtraction)
                 final nullInitExtract = initRendersNullable && !isNullLiteral(init) && !mutated.exists(v.id) && !initGuardProven;
-                if (initRendersNullable && !extractsAtDecl && !extractRenderedNullable && !nullInitExtract)
+                // Kotlin minimizes the ternary type: when both arms
+                // render non-null under their own branch proofs, the val
+                // declares non-null, so the local reads non-null at every
+                // later use.
+                // (IfExpressionCoversNull)
+                final ternaryArmsNonNull = ternaryInitCoversNull(init);
+                if (initRendersNullable && !extractsAtDecl && !extractRenderedNullable && !nullInitExtract && !ternaryArmsNonNull)
                     nullableRenderedLocals.set(v.id, true);
                 else
                     nullableRenderedLocals.remove(v.id);
                 updateLocalProof(v, init);
+                if (ternaryArmsNonNull)
+                    nonNullLocals.set(v.id, true);
                 // The guard proof satisfies the non-null demand without
                 // the assertion. (ValPropertySmartCastProof)
                 // A ternary initializer whose rendered text carries no
@@ -2646,14 +2654,33 @@ class KotlinExpr {
         }
     }
 
+    /** Kotlin minimizes a ternary initializer type: when both arms render
+        non-null under their own branch proofs, the declared val types
+        non-null. (IfExpressionCoversNull) */
+    function ternaryInitCoversNull(init:TypedExpr):Bool {
+        return switch (stripWrap(init).expr) {
+            case TIf(c, t, f) if (f != null):
+                final armBase = proofSnapshot();
+                addProofs(conditionProofs(c).thenPath);
+                final armT = rendersNullable(t);
+                restoreProofs(armBase);
+                addProofs(conditionProofs(c).elsePath);
+                final armF = rendersNullable(f);
+                restoreProofs(armBase);
+                !armT && !armF;
+            case _: false;
+        };
+    }
+
     function updateLocalProof(v:TVar, init:TypedExpr):Void {
         if (!isNullType(v.t))
             return;
         // The initializer proves the local when its own type is non-null,
         // when it reads an already-proven local or field, or when it is a
         // null-guard coalescing whose default branch is non-null (the
-        // rendered elvis then has a non-null right side).
-        if (!isNullType(init.t) || provenNonNull(init) || isNonNullNormalization(init))
+        // rendered elvis then has a non-null right side), or when it is a
+        // ternary whose arms render non-null.
+        if (!isNullType(init.t) || provenNonNull(init) || isNonNullNormalization(init) || ternaryInitCoversNull(init))
             nonNullLocals.set(v.id, true);
         else
             nonNullLocals.remove(v.id);
