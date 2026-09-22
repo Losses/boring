@@ -1326,10 +1326,14 @@ class KotlinExpr {
         // performs no structural narrowing here, so such comparisons must not
         // register a guard: the accessor rendering hardens the subject
         // instead. (CallArgComparisonNotStructural)
-        function record(e:TypedExpr, inCallArgs:Bool):Void {
+        // Only a control-flow condition registers a guard: conjunction
+        // leaves of an if or while condition govern the body that follows,
+        // while comparisons in plain boolean expressions prove nothing.
+        // (ConditionPositionGuardsOnly)
+        function record(e:TypedExpr, inCallArgs:Bool, inCondition:Bool):Void {
             switch (stripWrap(e).expr) {
                 case TBinop(OpEq, l, r) | TBinop(OpNotEq, l, r):
-                    if (!inCallArgs) {
+                    if (inCondition && !inCallArgs) {
                         final subject = isNullExpr(l) ? r : (isNullExpr(r) ? l : null);
                         if (subject != null)
                             switch (stripWrap(subject).expr) {
@@ -1346,18 +1350,28 @@ class KotlinExpr {
                     }
                     return;
                 case TCall(f, a):
-                    record(f, inCallArgs);
+                    record(f, inCallArgs, inCondition);
                     for (x in a)
-                        record(x, true);
+                        record(x, true, inCondition);
+                    return;
+                case TIf(c, t, f):
+                    conjunctionLeaves(c, function(leaf) record(leaf, inCallArgs, true));
+                    record(t, false, false);
+                    if (f != null)
+                        record(f, false, false);
+                    return;
+                case TWhile(c, body, _):
+                    conjunctionLeaves(c, function(leaf) record(leaf, inCallArgs, true));
+                    record(body, false, false);
                     return;
                 case _:
             }
             TypedExprTools.iter(e, function(child:TypedExpr):Void {
-                record(child, inCallArgs);
+                record(child, inCallArgs, inCondition);
             });
         }
         for (stmt in stmts)
-            record(stmt, false);
+            record(stmt, false, false);
         return result;
     }
 
@@ -1366,10 +1380,13 @@ class KotlinExpr {
         (FieldGuardPositions) */
     function nullGuardFieldPositionsInBlock(stmts:Array<TypedExpr>):Map<String, Array<{file:String, min:Int, max:Int}>> {
         final result:Map<String, Array<{file:String, min:Int, max:Int}>> = [];
-        function record(e:TypedExpr, inCallArgs:Bool):Void {
+        // The same condition-position rule as the local-keyed scan: a
+        // comparison registers only from an if or while condition, and only
+        // outside call arguments. (ConditionPositionGuardsOnly)
+        function record(e:TypedExpr, inCallArgs:Bool, inCondition:Bool):Void {
             switch (stripWrap(e).expr) {
                 case TBinop(OpEq, l, r) | TBinop(OpNotEq, l, r):
-                    if (!inCallArgs) {
+                    if (inCondition && !inCallArgs) {
                         final subject = isNullExpr(l) ? r : (isNullExpr(r) ? l : null);
                         if (subject != null) {
                             final fk = fieldAccessKey(subject);
@@ -1386,19 +1403,41 @@ class KotlinExpr {
                     }
                     return;
                 case TCall(f, a):
-                    record(f, inCallArgs);
+                    record(f, inCallArgs, inCondition);
                     for (x in a)
-                        record(x, true);
+                        record(x, true, inCondition);
+                    return;
+                case TIf(c, t, f):
+                    conjunctionLeaves(c, function(leaf) record(leaf, inCallArgs, true));
+                    record(t, false, false);
+                    if (f != null)
+                        record(f, false, false);
+                    return;
+                case TWhile(c, body, _):
+                    conjunctionLeaves(c, function(leaf) record(leaf, inCallArgs, true));
+                    record(body, false, false);
                     return;
                 case _:
             }
             TypedExprTools.iter(e, function(child:TypedExpr):Void {
-                record(child, inCallArgs);
+                record(child, inCallArgs, inCondition);
             });
         }
         for (stmt in stmts)
-            record(stmt, false);
+            record(stmt, false, false);
         return result;
+    }
+
+    /** Splits a condition into its conjunction leaves; disjunction branches
+        prove nothing about the body that follows. (ConditionPositionGuardsOnly) */
+    function conjunctionLeaves(c:TypedExpr, visit:TypedExpr->Void):Void {
+        switch (stripWrap(c).expr) {
+            case TBinop(OpBoolAnd, l, r):
+                conjunctionLeaves(l, visit);
+                conjunctionLeaves(r, visit);
+            case _:
+                visit(c);
+        }
     }
 
     // ------------------------------------------------------------------
@@ -2691,11 +2730,14 @@ class KotlinExpr {
         if (!isNullType(v.t))
             return;
         // The initializer proves the local when its own type is non-null,
-        // when it reads an already-proven local or field, or when it is a
-        // null-guard coalescing whose default branch is non-null (the
-        // rendered elvis then has a non-null right side), or when it is a
-        // ternary whose arms render non-null.
-        if (!isNullType(init.t) || provenNonNull(init) || isNonNullNormalization(init) || ternaryInitCoversNull(init))
+        // when it reads an already-proven local or field, when a dominating
+        // null guard already proved the initializer's chain present (the
+        // declared val then infers non-null and its reads need no
+        // extraction), or when it is a null-guard coalescing whose default
+        // branch is non-null (the rendered elvis then has a non-null right
+        // side), or when it is a ternary whose arms render non-null.
+        // (GuardProvesDeclaration)
+        if (!isNullType(init.t) || provenNonNull(init) || guardProofBefore(init) || isNonNullNormalization(init) || ternaryInitCoversNull(init))
             nonNullLocals.set(v.id, true);
         else
             nonNullLocals.remove(v.id);
@@ -3235,10 +3277,13 @@ class KotlinExpr {
         literal belongs to that literal, matching the scan boundary below.
     **/
     function scanNullGuards(root:TypedExpr):Void {
-        function walk(e:TypedExpr):Void {
+        // A comparison proves presence only from a control-flow condition:
+        // the same comparison inside a plain boolean expression (a flag
+        // initializer, a call argument) governs nothing that follows it.
+        // Conjunction leaves of a condition carry into the body; disjunction
+        // branches prove nothing there. (ConditionPositionGuardsOnly)
+        function recordComparison(e:TypedExpr):Void {
             switch (stripWrap(e).expr) {
-                case TFunction(_):
-                    return;
                 case TBinop(OpEq, l, r) | TBinop(OpNotEq, l, r):
                     final subject = isNullExpr(l) ? r : (isNullExpr(r) ? l : null);
                     if (subject != null)
@@ -3253,6 +3298,32 @@ class KotlinExpr {
                                 entries.push({file: p.file, min: p.min, max: p.max});
                             case _:
                         }
+                case _:
+            }
+        }
+        function conjunctionLeaves(c:TypedExpr):Void {
+            switch (stripWrap(c).expr) {
+                case TBinop(OpBoolAnd, l, r):
+                    conjunctionLeaves(l);
+                    conjunctionLeaves(r);
+                case _:
+                    recordComparison(c);
+            }
+        }
+        function walk(e:TypedExpr):Void {
+            switch (stripWrap(e).expr) {
+                case TFunction(_):
+                    return;
+                case TIf(c, t, f):
+                    conjunctionLeaves(c);
+                    walk(t);
+                    if (f != null)
+                        walk(f);
+                    return;
+                case TWhile(c, body, _):
+                    conjunctionLeaves(c);
+                    walk(body);
+                    return;
                 case _:
             }
             TypedExprTools.iter(e, walk);
