@@ -1768,27 +1768,21 @@ class DartExpr {
                 // (SequenceScopedAssertionDedup)
                 final leftText = operand(l, op, false);
                 final afterLeft = sequenceSave();
-                // `x != null && y` promotes x for y: the check is y's own
-                // guard. (NullCheckOrRightPromotion)
-                final andGuarded = nullGuardExpr(l);
-                if (andGuarded != null && isNotNullGuard(l)) {
-                    switch (stripWrap(andGuarded).expr) {
-                        case TLocal(v): assertedSequence.set(v.id, true);
-                        case _:
-                    }
-                }
+                // The right side runs only when every earlier operand of
+                // the chain evaluated true: their null checks promote for
+                // it. (NullCheckOrRightPromotion)
+                final leftChecks:Array<Int> = [];
+                andSpineChecks(l, leftChecks);
+                for (id in leftChecks)
+                    assertedSequence.set(id, true);
                 final rightText = operand(r, op, true);
                 sequenceLoad(afterLeft);
-                // A chain's middle check (`a && x != null && y`) promotes x
-                // for the rest of the enclosing chain.
-                // (NullCheckOrRightPromotion)
-                final andGuarded2 = nullGuardExpr(r);
-                if (andGuarded2 != null && isNotNullGuard(r)) {
-                    switch (stripWrap(andGuarded2).expr) {
-                        case TLocal(v): assertedSequence.set(v.id, true);
-                        case _:
-                    }
-                }
+                // The right spine's checks hold for the rest of the
+                // enclosing chain. (NullCheckOrRightPromotion)
+                final rightChecks:Array<Int> = [];
+                andSpineChecks(r, rightChecks);
+                for (id in rightChecks)
+                    assertedSequence.set(id, true);
                 return leftText + " && " + rightText;
             case OpBoolOr:
                 // The right side evaluates only when the left side is false:
@@ -1799,18 +1793,21 @@ class DartExpr {
                 final leftText = operand(l, op, false);
                 final afterLeft = sequenceSave();
                 sequenceLoad(preSeq);
-                // `x == null || y` runs y only when the check failed, so x
-                // is non-null there: the check itself promotes x for the
-                // right side. (NullCheckOrRightPromotion)
-                final orGuarded = nullGuardExpr(l);
-                if (orGuarded != null && !isNotNullGuard(l)) {
-                    switch (stripWrap(orGuarded).expr) {
-                        case TLocal(v): assertedSequence.set(v.id, true);
-                        case _:
-                    }
-                }
+                // `x == null || y` runs y only when every earlier check of
+                // the chain failed, so their targets are non-null there.
+                // (NullCheckOrRightPromotion)
+                final leftChecks:Array<Int> = [];
+                orSpineChecks(l, leftChecks);
+                for (id in leftChecks)
+                    assertedSequence.set(id, true);
                 final rightText = operand(r, op, true);
                 sequenceLoad(afterLeft);
+                // The right spine's checks hold on the fall through path.
+                // (NullCheckOrRightPromotion)
+                final rightChecks:Array<Int> = [];
+                orSpineChecks(r, rightChecks);
+                for (id in rightChecks)
+                    assertedSequence.set(id, true);
                 return leftText + " || " + rightText;
             case OpAdd:
                 if (isStringTyped(e)) {
@@ -2478,6 +2475,45 @@ class DartExpr {
             case _:
                 null;
         };
+    }
+
+    /** The local targets of null checks along a boolean chain's spine.
+        Every operand of a `&&` chain that evaluated true ran every earlier
+        check, so they promote across the whole chain.
+        (NullCheckOrRightPromotion) */
+    function andSpineChecks(e:TypedExpr, acc:Array<Int>):Void {
+        switch (stripWrap(e).expr) {
+            case TBinop(OpBoolAnd, l, r):
+                andSpineChecks(l, acc);
+                andSpineChecks(r, acc);
+            case _:
+                final g = nullGuardExpr(e);
+                if (g != null && isNotNullGuard(e)) {
+                    switch (stripWrap(g).expr) {
+                        case TLocal(v): if (acc.indexOf(v.id) < 0) acc.push(v.id);
+                        case _:
+                    }
+                }
+        }
+    }
+
+    /** The local targets of null checks along an `||` chain's spine: a
+        later operand runs only when every earlier check failed, so the
+        checked locals are non-null there. (NullCheckOrRightPromotion) */
+    function orSpineChecks(e:TypedExpr, acc:Array<Int>):Void {
+        switch (stripWrap(e).expr) {
+            case TBinop(OpBoolOr, l, r):
+                orSpineChecks(l, acc);
+                orSpineChecks(r, acc);
+            case _:
+                final g = nullGuardExpr(e);
+                if (g != null && !isNotNullGuard(e)) {
+                    switch (stripWrap(g).expr) {
+                        case TLocal(v): if (acc.indexOf(v.id) < 0) acc.push(v.id);
+                        case _:
+                    }
+                }
+        }
     }
 
     /** A method receiver unwraps when the receiver expression is optional. */
