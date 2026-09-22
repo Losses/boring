@@ -1768,8 +1768,27 @@ class DartExpr {
                 // (SequenceScopedAssertionDedup)
                 final leftText = operand(l, op, false);
                 final afterLeft = sequenceSave();
+                // `x != null && y` promotes x for y: the check is y's own
+                // guard. (NullCheckOrRightPromotion)
+                final andGuarded = nullGuardExpr(l);
+                if (andGuarded != null && isNotNullGuard(l)) {
+                    switch (stripWrap(andGuarded).expr) {
+                        case TLocal(v): assertedSequence.set(v.id, true);
+                        case _:
+                    }
+                }
                 final rightText = operand(r, op, true);
                 sequenceLoad(afterLeft);
+                // A chain's middle check (`a && x != null && y`) promotes x
+                // for the rest of the enclosing chain.
+                // (NullCheckOrRightPromotion)
+                final andGuarded2 = nullGuardExpr(r);
+                if (andGuarded2 != null && isNotNullGuard(r)) {
+                    switch (stripWrap(andGuarded2).expr) {
+                        case TLocal(v): assertedSequence.set(v.id, true);
+                        case _:
+                    }
+                }
                 return leftText + " && " + rightText;
             case OpBoolOr:
                 // The right side evaluates only when the left side is false:
