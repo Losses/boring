@@ -6815,6 +6815,25 @@ class RustExpr {
                         leftText = RustConversions.truncate(leftText, "u32");
                     else if (rightUsize && !leftUsize && !leftI32 && !rightI32)
                         rightText = RustConversions.truncate(rightText, "u32");
+                    // A comparison between two business u32 Int values is signed
+                    // in Haxe (haxe Int is signed). When neither operand is in an
+                    // i32/usize domain, reinterpret the non-literal operands to
+                    // i32 so the predicate matches signed semantics (an empty
+                    // IntRange 0..-1 compares 0 > -1 as true). A bare literal
+                    // infers i32 from the reinterpreted side; a negative literal
+                    // carries a u32 suffix and must reinterpret to keep both
+                    // sides one type. (SignedBusinessComparison)
+                    else if (isIntType(emittedType(l)) && isIntType(emittedType(r))
+                        && !leftI32 && !rightI32 && !leftUsize && !rightUsize) {
+                        if (!leftLiteral && !~/^\d+$/.match(leftText))
+                            leftText = RustConversions.reinterpret(leftText, "i32");
+                        else if (StringTools.endsWith(leftText, "u32"))
+                            leftText = RustConversions.reinterpret(leftText, "i32");
+                        if (!rightLiteral && !~/^\d+$/.match(rightText))
+                            rightText = RustConversions.reinterpret(rightText, "i32");
+                        else if (StringTools.endsWith(rightText, "u32"))
+                            rightText = RustConversions.reinterpret(rightText, "i32");
+                    }
                 }
                 if (signedComparison)
                     i32ComparisonTarget = false;
