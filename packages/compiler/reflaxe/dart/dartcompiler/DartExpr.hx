@@ -1780,6 +1780,16 @@ class DartExpr {
                 final leftText = operand(l, op, false);
                 final afterLeft = sequenceSave();
                 sequenceLoad(preSeq);
+                // `x == null || y` runs y only when the check failed, so x
+                // is non-null there: the check itself promotes x for the
+                // right side. (NullCheckOrRightPromotion)
+                final orGuarded = nullGuardExpr(l);
+                if (orGuarded != null && !isNotNullGuard(l)) {
+                    switch (stripWrap(orGuarded).expr) {
+                        case TLocal(v): assertedSequence.set(v.id, true);
+                        case _:
+                    }
+                }
                 final rightText = operand(r, op, true);
                 sequenceLoad(afterLeft);
                 return leftText + " || " + rightText;
