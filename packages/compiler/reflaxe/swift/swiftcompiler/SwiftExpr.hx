@@ -4952,11 +4952,16 @@ class SwiftExpr {
                 case _:
                     final stdArg = stdStringArg(leaf);
                     var rendered = stdArg == null ? interpolationLeaf(leaf) : stdString(stdArg, true);
-                    // An optional leaf interpolates through the explicit
-                    // describing form: the implicit debug description of an
-                    // optional warns. (ExplicitOptionalInterpolation)
-                    if (StringTools.endsWith(types.of(leaf.t), "?"))
-                        rendered = "String(describing: " + rendered + ")";
+                    // A present non-String optional interpolates its value, not
+                    // "Optional(x)"; an absent one prints "null", matching Haxe
+                    // Std.string on Null<T>. The ternary carries a string
+                    // literal, which Swift forbids inside an interpolation, so
+                    // the leaf is hoisted into a let statement. Optional String
+                    // leaves keep the describing form from interpolationLeaf.
+                    if (StringTools.endsWith(types.of(leaf.t), "?") && !isOptionalStringLeafType(leaf.t)) {
+                        rendered = "(" + rendered + " == nil ? \"null\" : String(describing: " + rendered + "!))";
+                        needsHoist = true;
+                    }
                     renderedLeaves.push(rendered);
                     if (rendered.indexOf("\n") >= 0)
                         needsHoist = true;
