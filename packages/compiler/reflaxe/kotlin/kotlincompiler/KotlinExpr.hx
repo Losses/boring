@@ -1582,7 +1582,7 @@ class KotlinExpr {
                 final renderedElems = [
                     for (x in elems) {
                         var t = expr(x);
-                        if (elemFloat && isIntOrLongType(emittedType(x))) t = intToFloatText(t);
+                        if (elemFloat && isIntOrLongType(emittedType(x)) && !StringTools.contains(t, "toDouble()") && !StringTools.contains(t, "toFloat()")) t = intToFloatText(t);
                         if (elemType != null && !isNullType(elemType) && requiresNonNullCallArgument(x, t)) {
                             if (provenNonNull(x) || guardProofBefore(x)) {
                                 // Kotlin's own narrowing holds at this read.
@@ -1724,8 +1724,8 @@ class KotlinExpr {
                 // Haxe promotes nullable Float branches with integer literals
                 // to Float. Kotlin otherwise infers their common type as
                 // Number & Comparable<*>, which cannot satisfy a Float result.
-                final branchThen = isFloatType(e.t) && isIntOrLongType(emittedType(t)) ? intToFloatText(thenText) : thenText;
-                final branchElse = isFloatType(e.t) && isIntOrLongType(emittedType(f)) ? intToFloatText(elseText) : elseText;
+                final branchThen = isFloatType(e.t) && isIntOrLongType(emittedType(t)) && !StringTools.contains(thenText, "toDouble()") && !StringTools.contains(thenText, "toFloat()") ? intToFloatText(thenText) : thenText;
+                final branchElse = isFloatType(e.t) && isIntOrLongType(emittedType(f)) && !StringTools.contains(elseText, "toDouble()") && !StringTools.contains(elseText, "toFloat()") ? intToFloatText(elseText) : elseText;
                 return "(if (" + condition + ") " + branchThen + " else " + branchElse + ")";
             case TSwitch(_, _, _):
                 return switchExpression(e);
@@ -2017,7 +2017,8 @@ class KotlinExpr {
         // switch's unified type is Float, or when the enclosing function
         // expects a Float return.
         final effectiveType = isFloatType(switchType) ? switchType : currentReturnType;
-        if (isFloatType(effectiveType) && valueExpr != null && isIntOrLongType(emittedType(valueExpr)))
+        if (isFloatType(effectiveType) && valueExpr != null && isIntOrLongType(emittedType(valueExpr))
+            && !StringTools.contains(value, "toDouble()") && !StringTools.contains(value, "toFloat()"))
             value = intToFloatText(value);
         if (sideStmts.length == 0 && decls.length == 0) {
             return [value];
