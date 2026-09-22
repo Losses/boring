@@ -14,7 +14,7 @@ import haxe.macro.Type;
     variants under their original construct names.
 **/
 class SwiftTestHelper {
-    public static function testMainSource(entries:Array<{id:String, runnerName:String, call:String}>):String {
+    public static function testMainSource(entries:Array<{id:String, runnerName:String, call:String, notApplicable:Bool}>):String {
         final sorted = entries.copy();
         sorted.sort((a, b) -> Reflect.compare(a.id, b.id));
         final lines:Array<String> = [
@@ -36,6 +36,10 @@ class SwiftTestHelper {
         ];
         lines.push("        var failures = 0");
         for (e in sorted) {
+            if (e.notApplicable) {
+                lines.push('        Test.recordNotApplicable("${escapeSwiftString(e.id)}", "${escapeSwiftString(e.runnerName)}")');
+                continue;
+            }
             lines.push('        if Test.run("${escapeSwiftString(e.id)}", "${escapeSwiftString(e.runnerName)}", ${e.call}) {');
             lines.push("            failures += 1");
             lines.push("        }");

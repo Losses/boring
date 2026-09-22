@@ -239,6 +239,17 @@ class TestCore {
         return '{"id":"' + escapeJson(id) + '","name":"' + escapeJson(name) + '","verdict":"pass"}\n';
     }
 
+    /**
+        One JSON line of the not-applicable record, newline included. A
+        target that a test excludes writes this line in place of running
+        the body, so the id stays in the cross-target set and the
+        consistency manager counts it as a declared exclusion, never a
+        divergence (feature spec 19).
+    **/
+    public static function notApplicableLine(id:String, name:String):String {
+        return '{"id":"' + escapeJson(id) + '","name":"' + escapeJson(name) + '","verdict":"not_applicable"}\n';
+    }
+
     /** The lowercase hex digit of a value below sixteen. */
     static function hexDigit(nibble:Int):String {
         if (nibble < 10) {

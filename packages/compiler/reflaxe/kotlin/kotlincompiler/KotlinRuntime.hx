@@ -229,6 +229,13 @@ object Test {
         return if (parsed != null && parsed > 0) parsed else 5000L
     }
 
+    // A test this target excludes (feature spec 19): the entry does not
+    // run the body and writes the not-applicable record instead, so the
+    // id stays in the cross-target set.
+    fun recordNotApplicable(id: String, name: String) {
+        recordResult(id, name, "not_applicable", null)
+    }
+
     fun run(id: String, name: String, body: () -> Unit) {
         currentTestId = id
         val budgetMs = timeoutBudgetMs()
@@ -314,7 +321,11 @@ object Test {
     fun escapeJson(s: String): String = TestCore.escapeJson(s)
 
     private fun recordResult(id: String, name: String, verdict: String, message: String?) {
-        val jsonLine = TestCore.resultLine(id, name, verdict == "fail", message ?: "")
+        val jsonLine = if (verdict == "not_applicable") {
+            TestCore.notApplicableLine(id, name)
+        } else {
+            TestCore.resultLine(id, name, verdict == "fail", message ?: "")
+        }
         val envPath = System.getenv("BORING_TEST_RESULTS")
         val filePath = if (envPath != null && envPath.isNotEmpty()) envPath else "out/test-results/kotlin.jsonl"
         val file = File(filePath)
