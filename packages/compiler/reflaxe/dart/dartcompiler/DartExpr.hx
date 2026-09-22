@@ -116,6 +116,12 @@ class DartExpr {
     // (NonNullTypeNullCompareFold)
     final nullAssignedLocals:Map<Int, Bool> = [];
 
+    // Locals initialized from a sorted-table builder factory. The factory
+    // ruling renders the builder's value type non-null even when the
+    // inferred argument wraps Null, so pushes into it keep their unwrap.
+    // (GenericTypeParameterNoDemand)
+    final nonNullValueBuilderLocals:Map<Int, Bool> = [];
+
     // The variant the subject of the active switch arm is narrowed to,
     // keyed by the subject's enum type. A variant switch arm binds the
     // subject to one constructor, so a nested switch over the same enum
@@ -437,6 +443,7 @@ class DartExpr {
         flowPromotedNonNull.clear();
         assertedSequence.clear();
         nullAssignedLocals.clear();
+        nonNullValueBuilderLocals.clear();
         if (f.expr == null) {
             Context.error("function field has no body to lower", f.field.pos);
         }
@@ -2303,6 +2310,26 @@ class DartExpr {
         };
     }
 
+    /** Whether the expression calls a sorted-table builder factory whose
+        value parameter the factory ruling renders non-null.
+        (GenericTypeParameterNoDemand) */
+    function isSortedBuilderFactory(e:TypedExpr):Bool {
+        final inner = stripWrap(e);
+        return switch (inner.expr) {
+            case TCall(fn, _):
+                switch (fn.expr) {
+                    case TField(_, FStatic(cls, cf)):
+                        final c = cls.get();
+                        final n = cf.get().name;
+                        (c.module == "std.SortedMap" || c.module == "runtime.SortedTable") && (n == "builder" || n == "mapBuilder");
+                    case _:
+                        false;
+                }
+            case _:
+                false;
+        }
+    }
+
     function argTexts(fn:TypedExpr, args:Array<TypedExpr>):Array<String> {
         final paramTypes:Array<Null<Type>> = switch (fn.expr) {
             case TField(_, FInstance(_, _, cf)) | TField(_, FStatic(_, cf)):
@@ -2317,7 +2344,32 @@ class DartExpr {
             for (i in 0...args.length) {
                 final a = args[i];
                 final pt = i < paramTypes.length ? paramTypes[i] : null;
-                final demandsValue = pt != null && !isNullLeafType(pt);
+                // A bare type parameter carries no demand of its own: the
+                // concrete container decides. A sorted-table builder rules
+                // its value non-null; other containers take the element
+                // type as rendered, nullability included.
+                // (GenericTypeParameterNoDemand)
+                final ptGeneric = switch (pt == null ? null : Context.follow(pt)) {
+                    case TInst(c, _): c.get().kind.match(KTypeParameter(_));
+                    case _: false;
+                };
+                final demandsValue = if (ptGeneric) {
+                    switch (fn.expr) {
+                        case TField(subj, _):
+                            switch (Context.follow(subj.t)) {
+                                case TInst(_, params) if (i < params.length):
+                                    final isBuilder = switch (stripWrap(subj).expr) {
+                                        case TLocal(v): nonNullValueBuilderLocals.exists(v.id);
+                                        case _: true;
+                                    };
+                                    isBuilder || !isNullLeafType(params[i]);
+                                case _: true;
+                            }
+                        case _: true;
+                    }
+                } else {
+                    pt != null && !isNullLeafType(pt);
+                };
                 var t = (demandsValue && nullableValue(a)) ? requiredValueText(a) : expr(a);
                 if (pt != null && isIntOrLongType(emittedType(a)) && isFloatType(pt)) t = intToFloatText(t);
                 t;
@@ -4865,6 +4917,10 @@ class DartExpr {
                 // (NonNullTypeNullCompareFold)
                 if (init != null && isNullLiteral(init)) {
                     nullAssignedLocals.set(v.id, true);
+                }
+                // (GenericTypeParameterNoDemand)
+                if (init != null && isSortedBuilderFactory(init)) {
+                    nonNullValueBuilderLocals.set(v.id, true);
                 }
                 PolicyQueries.noteFpInt64Init(v, init, fpInt64Halves);
                 if (init != null && isStaticsOnlyClassValue(init)) {
