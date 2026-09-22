@@ -4,6 +4,7 @@ package dartcompiler;
 import haxe.macro.Context;
 import haxe.macro.Type;
 import PolicyQueries;
+import TestApplicability;
 import reflaxe.BaseCompiler.BaseCompilerFileOutputType;
 import reflaxe.PluginCompiler;
 import reflaxe.ReflectCompiler;
@@ -48,7 +49,8 @@ class Compiler extends PluginCompiler<Compiler> {
         id:String,
         runnerName:String,
         module:String,
-        fn:String
+        fn:String,
+        notApplicable:Bool
     }> = [];
 
     var current:Null<DartDecl> = null;
@@ -336,20 +338,27 @@ class Compiler extends PluginCompiler<Compiler> {
                     Context.error("Test function " + id + " must take no arguments and return Void", f.field.pos);
                 }
 
-                if (body.length > 0) {
-                    body.push("");
-                }
-                for (l in decl.testFuncDecl(classType, f)) {
-                    body.push(l);
+                TestApplicability.validate(f.field);
+                final notApplicable = TestApplicability.isExcluded(f.field, "dart");
+                if (!notApplicable) {
+                    if (body.length > 0) {
+                        body.push("");
+                    }
+                    for (l in decl.testFuncDecl(classType, f)) {
+                        body.push(l);
+                    }
                 }
                 // The test module lowers to top-level functions of its own
                 // library; the runner reaches them through the import
-                // prefix of the module's file stem.
+                // prefix of the module's file stem. An excluded test emits
+                // no body; the runner writes its not-applicable record
+                // directly (feature spec 19).
                 testEntries.push({
                     id: id,
                     runnerName: runnerNameOf(id, f),
                     module: classType.module,
-                    fn: f.field.name
+                    fn: f.field.name,
+                    notApplicable: notApplicable
                 });
             }
             final result = body.join("\n");

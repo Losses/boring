@@ -23,6 +23,7 @@
     {"mechanism": "StaticReferenceScan", "probes": ["StaticStateTests"]},
     {"mechanism": "StructuralKeyValidator", "probes": ["SortedKeyDomainTests", "RecordTests"]},
     {"mechanism": "TerminationAnalysis", "probes": ["TryTests", "BlockScopeUnrollTests"]},
+    {"mechanism": "TestApplicability", "probes": ["TestApplicabilityProbeTests"]},
     {"mechanism": "TestCollector", "probes": ["ArithmeticTests", "DefaultArgsTests"]},
     {"mechanism": "TypeCheckHelper", "probes": ["AllowAccessTests", "SealedVariantTests"]},
     {"mechanism": "ValueTypeSupport", "probes": ["ValueTypeTests"]}
