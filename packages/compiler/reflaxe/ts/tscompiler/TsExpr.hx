@@ -1235,7 +1235,8 @@ class TsExpr {
                 return localName(v);
             case TArray(arr, idx):
                 final mapReceiver = mapBackingReceiver(arr);
-                return mapReceiver == null ? expr(arr) + "[" + expr(idx) + "]!" : expr(mapReceiver) + ".get(" + expr(idx) + ")!";
+                final arrText = isNullType(arr.t) ? expr(arr) + "!" : expr(arr);
+                return mapReceiver == null ? arrText + "[" + expr(idx) + "]!" : expr(mapReceiver) + ".get(" + expr(idx) + ")!";
             case TBinop(op, l, r):
                 return binop(e, op, l, r);
             case TUnop(op, post, subj):
@@ -1596,11 +1597,12 @@ class TsExpr {
         final folded = foldedExceptionMessage(target, name);
         if (folded != null)
             return folded;
+        final subjNull = isNullType(subj.t);
         // A nullable-typed subject reading a field asserts the receiver:
         // Haxe types the read through the Null wrapper, and the `!` marker
         // carries no runtime check, so the field's own optionality stays.
         // (NonNullFieldReadAssert)
-        if (isNullType(subj.t))
+        if (subjNull)
             return expr(subj) + "!." + name;
         return expr(subj) + "." + name;
     }
