@@ -677,3 +677,4 @@ tests.KotlinEntryProbeTests
 
 boring.IntDivisionOps
 tests.IntDivisionTests
+tests.TestApplicabilityProbeTests

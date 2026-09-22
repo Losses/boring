@@ -8,6 +8,7 @@ import reflaxe.data.ClassVarData;
 import reflaxe.data.EnumOptionData;
 import ValueTypeSupport;
 import PolicyQueries;
+import TestApplicability;
 import ComparatorPlan;
 import ComparatorPlan.ComparatorFieldKind;
 import ValueTypeSupport.ValueTypeInfo;
@@ -2684,6 +2685,19 @@ class RustDecl {
         }
         final runnerName = desc != null ? id + ": " + desc : id;
         final snake = RustImports.toSnakeCase(f.field.name);
+        imports.require("crate::runtime::test as testlib");
+        if (TestApplicability.isExcluded(f.field, "rust")) {
+            // The test declares this target in its except argument: the
+            // entry does not run the body and writes the not-applicable
+            // record instead, so the id stays in the cross-target set
+            // (feature spec 19).
+            return [
+                "#[test]",
+                'fn $snake() {',
+                '    testlib::record_not_applicable("${escapeRustString(id)}", "${escapeRustString(runnerName)}");',
+                "}"
+            ];
+        }
         // Tests are the error boundary: a fault inside one is a recorded
         // failure, so the body lowers as infallible and fallible callees
         // unwrap through the catch_unwind harness.
@@ -2693,7 +2707,6 @@ class RustDecl {
         final indented = body.map(l -> "    " + l);
         // The wrapper below names testlib directly, so this decl owns the
         // import; assertion lowering inside the body only adds test_core.
-        imports.require("crate::runtime::test as testlib");
         return [
             "#[test]",
             'fn $snake() {',

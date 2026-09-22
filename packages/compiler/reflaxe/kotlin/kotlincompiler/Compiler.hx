@@ -4,6 +4,7 @@ package kotlincompiler;
 import haxe.macro.Context;
 import haxe.macro.Type;
 import PolicyQueries;
+import TestApplicability;
 import TestClassEntries;
 import TestClassFlush;
 import reflaxe.BaseCompiler.BaseCompilerFileOutputType;
@@ -159,6 +160,7 @@ class Compiler extends PluginCompiler<Compiler> {
                 if (!f.field.meta.has(":test")) {
                     continue;
                 }
+                TestApplicability.validate(f.field);
                 final id = classType.module + "." + f.field.name;
                 if (!f.field.isPublic) {
                     Context.error("Test function " + id + " must be public", f.field.pos);
