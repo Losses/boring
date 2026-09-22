@@ -1371,8 +1371,15 @@ class DartExpr {
                 return functionLiteral(f);
             case TIf(c, t, f) if (f != null):
                 final coalescing = coalescingSiteFor(e);
-                if (coalescing != null)
-                    return expr(coalescing.valueExpr) + " ?? " + coalescingDefaultTextFor(coalescing);
+                if (coalescing != null) {
+                    // A null default is an identity: `x ?? null` equals x for
+                    // every value, and dart flags the dead null arm as dead
+                    // code. (NullDefaultIdentityFold)
+                    final defaultText = coalescingDefaultTextFor(coalescing);
+                    if (StringTools.trim(defaultText) == "null")
+                        return expr(coalescing.valueExpr);
+                    return expr(coalescing.valueExpr) + " ?? " + defaultText;
+                }
                 // A Float-typed ternary with an int literal branch types
                 // as num in Dart; Haxe's Float unification promises
                 // double, so widen the int branch.
@@ -3183,8 +3190,16 @@ class DartExpr {
                 final isVNull = switch (d) { case VNull: true; default: false; };
                 if (isVNull && !isNullLeafType(p))
                     requiredValueText(args[i]);
-                else
-                    "(" + expr(args[i]) + " ?? " + defaultArgText(d, p) + ")";
+                else {
+                    // A null default is an identity: `x ?? null` equals x for
+                    // every value, and dart flags the dead null arm as dead
+                    // code. (NullDefaultIdentityFold)
+                    final defaultText = defaultArgText(d, p);
+                    if (StringTools.trim(defaultText) == "null")
+                        expr(args[i]);
+                    else
+                        "(" + expr(args[i]) + " ?? " + defaultText + ")";
+                }
             } else
                 base[i];
         }
