@@ -116,6 +116,14 @@ class DartExpr {
     // (NonNullTypeNullCompareFold)
     final nullAssignedLocals:Map<Int, Bool> = [];
 
+    // The variant the subject of the active switch arm is narrowed to,
+    // keyed by the subject's enum type. A variant switch arm binds the
+    // subject to one constructor, so a nested switch over the same enum
+    // inside the arm can drop the sibling labels dart reports as dead.
+    // The map spans only the arm render (set before, removed after).
+    // (NarrowedVariantSwitchFilter)
+    final narrowedVariant:Map<String, Int> = [];
+
     /** Optional parameters materialized by default expansion. */
     final nonNullOptionalParams:Map<Int, Bool> = [];
 
@@ -2517,8 +2525,19 @@ class DartExpr {
         operand form; a parameterless arm returns the constructor name.
     **/
     function enumLabeledText(en:EnumType, value:String, origin:TypedExpr, subjectNullable:Bool):String {
-        final constructs = [for (ef in en.constructs) ef];
+        var constructs = [for (ef in en.constructs) ef];
         constructs.sort((a, b) -> Reflect.compare(a.index, b.index));
+        // A subject narrowed by an enclosing case label matches one
+        // constructor only; the sibling arms are the dead code dart
+        // reports. Keyed by the enum type like the writer in switchReturn.
+        // (NarrowedVariantSwitchFilter)
+        final narrowedKey = en.module + "." + en.name;
+        final narrowedIdx = narrowedVariant.get(narrowedKey);
+        if (narrowedIdx != null) {
+            final kept = constructs.filter(ef -> ef.index == narrowedIdx);
+            if (kept.length > 0)
+                constructs = kept;
+        }
         final arms:Array<String> = [];
         if (subjectNullable)
             arms.push("case null: return \"null\";");
@@ -4289,9 +4308,35 @@ class DartExpr {
         final subjRendered = expr(se);
         final postSubj = sequenceSave();
         final table = enumTable(se);
+        // A subject already narrowed by an enclosing case label: the
+        // sibling labels are dead and drop. Keyed by the enum type, since
+        // the nested switch may run inside a synthesized stringifier whose
+        // subject is its own parameter.
+        // (NarrowedVariantSwitchFilter)
+        final subjEnum = switch (se.t) {
+            case TEnum(en, _): en.get().module + "." + en.get().name;
+            case _: null;
+        };
+        final preNarrowed = subjEnum != null ? narrowedVariant.get(subjEnum) : null;
+        final cases = preNarrowed == null ? switchParts.cases : Lambda.filter(switchParts.cases, function(c) {
+            return Lambda.exists(c.values, function(v) {
+                return switch (stripWrap(v).expr) {
+                    case TConst(TInt(i2)): i2 == preNarrowed;
+                    case _: false;
+                };
+            });
+        });
         final out = [indent(depth) + "switch (" + subjRendered + ") {"];
-        for (c in switchParts.cases) {
+        for (c in cases) {
             sequenceLoad(postSubj);
+            if (subjEnum != null) {
+                for (v in c.values) {
+                    switch (stripWrap(v).expr) {
+                        case TConst(TInt(i2)): narrowedVariant.set(subjEnum, i2);
+                        case _:
+                    }
+                }
+            }
             // A Haxe case may list several constructors sharing one arm
             // (`case CjkText | CjkPunctuation:`). Dart spells each as its
             // own consecutive case label over the same body.
@@ -4321,6 +4366,8 @@ class DartExpr {
                 out.push(indent(depth + 1) + "case " + p + ":");
             for (l in armLines(c.expr, depth + 2, reservedPayloadNames, sw.t))
                 out.push(l);
+            if (subjEnum != null)
+                narrowedVariant.remove(subjEnum);
         }
         if (switchParts.def != null) {
             return fail(sw, "variant switch carries a default arm (V15)");
