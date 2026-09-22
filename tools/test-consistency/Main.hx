@@ -79,6 +79,7 @@ class Main {
             "StaticReferenceScan",
             "StructuralKeyValidator",
             "TerminationAnalysis",
+            "TestApplicability",
             "TestCollector",
             "TypeCheckHelper",
             "ValueTypeSupport"
@@ -173,11 +174,15 @@ class Main {
 
         // 2. Parse JSONL files
         final targetRecords = new Map<String, Map<String, TestRecord>>();
+        final notApplicableIds = new Map<String, Map<String, Bool>>();
+        final verdictIds = new Map<String, Map<String, Bool>>();
         final allIdsMap = new Map<String, Bool>();
 
         for (target in targets) {
             final filePath = targetFiles.get(target);
             final records = new Map<String, TestRecord>();
+            final notApplicable = new Map<String, Bool>();
+            final verdict = new Map<String, Bool>();
             final content = readFile(filePath);
             final lines = content.split("\n");
             for (line in lines) {
@@ -188,6 +193,11 @@ class Main {
                     final parsed:TestRecord = Json.parse(trimmed);
                     if (parsed.id != null && parsed.verdict != null) {
                         records.set(parsed.id, parsed);
+                        if (parsed.verdict == "not_applicable") {
+                            notApplicable.set(parsed.id, true);
+                        } else {
+                            verdict.set(parsed.id, true);
+                        }
                         allIdsMap.set(parsed.id, true);
                     }
                 } catch (e:Dynamic) {
@@ -197,6 +207,23 @@ class Main {
                 }
             }
             targetRecords.set(target, records);
+            notApplicableIds.set(target, notApplicable);
+            verdictIds.set(target, verdict);
+        }
+
+        // A target must not both run a test and declare it not applicable:
+        // the not-applicable record exists in place of a verdict, so a
+        // target that writes both masks a real run behind the declaration
+        // (feature spec 19).
+        final bothDivergences:Array<String> = [];
+        for (target in targets) {
+            final notApplicable = notApplicableIds.get(target);
+            final verdict = verdictIds.get(target);
+            for (id in notApplicable.keys()) {
+                if (verdict.exists(id)) {
+                    bothDivergences.push('[$target] Test $id has both a not_applicable record and a verdict; a declared exclusion must not run the test');
+                }
+            }
         }
 
         final allIds = [for (id in allIdsMap.keys()) id];
@@ -261,20 +288,36 @@ class Main {
                     } else if (baseRec != null && rec == null) {
                         divergences.push('[$target] Missing test ID present in baseline: $id');
                     } else if (baseRec != null && rec != null) {
-                        if (baseRec.verdict != rec.verdict) {
-                            divergences.push('[$target] Verdict mismatch on $id: baseline=${baseRec.verdict}, actual=${rec.verdict}');
-                        } else {
+                        if (rec.verdict == "not_applicable") {
+                            // The target declares the test not applicable and
+                            // the baseline carries the id: a declared
+                            // exclusion, counted in the matrix and not a
+                            // divergence (feature spec 19).
+                        } else if (baseRec.verdict == "not_applicable") {
+                            // The baseline declares the test not applicable;
+                            // a target that runs it keeps its own verdict.
+                            // The runner name must still match.
                             final baseName = baseRec.name != null ? baseRec.name : "";
                             final recName = rec.name != null ? rec.name : "";
                             if (baseName != recName) {
                                 divergences.push('[$target] Runner name mismatch on $id:\n  baseline: $baseName\n  actual:   $recName');
                             }
-                        }
-                        if (baseRec.verdict == rec.verdict && baseRec.verdict == "fail") {
-                            final baseMsg = baseRec.message != null ? baseRec.message : "";
-                            final recMsg = rec.message != null ? rec.message : "";
-                            if (baseMsg != recMsg) {
-                                divergences.push('[$target] Failure message mismatch on $id:\n  baseline: $baseMsg\n  actual:   $recMsg');
+                        } else {
+                            if (baseRec.verdict != rec.verdict) {
+                                divergences.push('[$target] Verdict mismatch on $id: baseline=${baseRec.verdict}, actual=${rec.verdict}');
+                            } else {
+                                final baseName = baseRec.name != null ? baseRec.name : "";
+                                final recName = rec.name != null ? rec.name : "";
+                                if (baseName != recName) {
+                                    divergences.push('[$target] Runner name mismatch on $id:\n  baseline: $baseName\n  actual:   $recName');
+                                }
+                            }
+                            if (baseRec.verdict == rec.verdict && baseRec.verdict == "fail") {
+                                final baseMsg = baseRec.message != null ? baseRec.message : "";
+                                final recMsg = rec.message != null ? rec.message : "";
+                                if (baseMsg != recMsg) {
+                                    divergences.push('[$target] Failure message mismatch on $id:\n  baseline: $baseMsg\n  actual:   $recMsg');
+                                }
                             }
                         }
                     }
@@ -286,12 +329,13 @@ class Main {
 
         print("");
         final coverageOk = checkMechanismCoverage(allIds);
-        if (divergences.length == 0 && coverageOk) {
+        final allDivergences = divergences.concat(bothDivergences);
+        if (allDivergences.length == 0 && coverageOk) {
             print('All ${targets.length} targets (${targets.join(", ")}) are 100% consistent across ${allIds.length} tests.');
             exit(0);
         } else {
-            printErr('Cross-target consistency check failed with ${divergences.length} divergence(s):\n');
-            for (d in divergences) {
+            printErr('Cross-target consistency check failed with ${allDivergences.length} divergence(s):\n');
+            for (d in allDivergences) {
                 printErr('  * $d\n');
             }
             exit(1);
