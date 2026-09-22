@@ -1962,6 +1962,13 @@ class TsExpr {
                     imports.runtime("StringTools");
                     return "StringTools." + fName + "(" + [for (a in args) expr(a)].join(", ") + ")";
                 }
+                if (cls.pack.length == 0 && cls.name == "String" && fName == "fromCharCode" && args.length == 1) {
+                    // Haxe's fromCharCode takes a scalar; a supplementary scalar
+                    // encodes as its surrogate pair. JS String.fromCharCode
+                    // truncates to the low 16 bits, so the pair goes through
+                    // String.fromCodePoint. (FromCharCodeScalar)
+                    return "String.fromCodePoint(" + expr(args[0]) + ")";
+                }
                 if (cls.pack.length == 0 && cls.name == "Lambda" && fName == "has" && args.length == 2) {
                     return expr(args[0]) + ".includes(" + expr(args[1]) + ")";
                 }
