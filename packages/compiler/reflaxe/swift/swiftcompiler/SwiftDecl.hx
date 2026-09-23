@@ -608,7 +608,7 @@ class SwiftDecl {
             final elems = DataTableHelper.getDataTableElements(field.expr());
             if (elems != null) {
                 return [
-                    "    public static let " + SwiftNameEscape.escape(field.name) + ": [Int32] = [" + renderDataTableElements(elems) + "]"
+                    "    public static let " + SwiftNameEscape.escape(field.name) + ": TiqianArray<Int32> = TiqianArray([" + renderDataTableElements(elems) + "])"
                 ];
             }
         }
