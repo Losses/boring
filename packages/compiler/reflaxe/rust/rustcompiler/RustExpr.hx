@@ -3431,6 +3431,11 @@ class RustExpr {
                     }
                     return "(" + expr(subj) + ").as_ref().map_or(0, |v| v.len())";
                 }
+                // A String subject counts UTF-16 code units (spec 15), not
+                // UTF-8 bytes: indexing a String walks units, so a byte
+                // count runs the bound past the end. (StringLengthLoopBound)
+                if (isString(subj))
+                    return rustU32Length(stringUnitCount(expr(subj)));
                 return rustU32Length(expr(subj) + ".len()");
             case _:
                 final text = expr(bound);
