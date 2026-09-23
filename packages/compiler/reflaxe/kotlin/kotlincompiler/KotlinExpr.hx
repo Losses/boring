@@ -3050,8 +3050,9 @@ class KotlinExpr {
             case _: false;
         };
         if (isNullInitialized(subj) && !(stableSubject
-            && (provenNonNull(subj) || guardProofBefore(subj) || statementExtractedLocal(subj))))
+            && (provenNonNull(subj) || guardProofBefore(subj) || statementExtractedLocal(subj)))) {
             return "!!.";
+        }
         // The typer wraps an implicit Null<T> unwrap in TCast; the cast's
         // own type is the non-null target, so look through it before
         // deciding.
@@ -4125,13 +4126,21 @@ class KotlinExpr {
         declared Kotlin type, matching instanceField. The `?.` form would
         widen every read into a nullable value and break arithmetic and
         argument boundaries that Haxe types as non-null
-        (NonNullGetterPropertyRead).
+        (NonNullGetterPropertyRead). The extraction registers like
+        decidedFieldAccess: a read later in the same statement domain renders
+        plain, because the emitted assertion already narrowed the subject.
+        (ExtractionRegistersProof)
     **/
     function getterPropertyAccess(subj:TypedExpr, property:ClassField):String {
         final fieldType = property.type;
-        final access = (fieldType != null && !isNullType(fieldType)
-            && isNullType(subj.t) && !provenNonNull(subj) && !guardProofBefore(subj)) ? "!!." : nullableAccess(subj);
-        return expr(subj) + access + KotlinNameEscape.escape(property.name);
+        if (fieldType != null && !isNullType(fieldType)
+            && isNullType(subj.t) && !provenNonNull(subj) && !guardProofBefore(subj)
+            && !statementExtractedLocal(subj)) {
+            addProofExpr(subj);
+            statementExtractedRecord(subj);
+            return expr(subj) + "!!." + KotlinNameEscape.escape(property.name);
+        }
+        return expr(subj) + nullableAccess(subj) + KotlinNameEscape.escape(property.name);
     }
 
     function staticRef(cls:ClassType, name:String):String {
