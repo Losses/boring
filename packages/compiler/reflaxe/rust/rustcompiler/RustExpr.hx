@@ -14170,6 +14170,19 @@ class RustExpr {
             if (directPath != null)
                 return directPath + "[" + castArg(idx, "usize") + "]";
         }
+        // An owned non-Copy Vec field read renders with a whole-container
+        // clone (`(self.keys).clone()`) so a value slot can own the Vec.
+        // Indexing does not need that ownership: it reads one element and
+        // the caller clones just the element, so cloning the whole Vec
+        // before indexing copies N elements per lookup. Index the field in
+        // place instead and let the element-read clone apply alone. This is
+        // the general form of a value read, not a per-table special case.
+        // (OwnedVecFieldIndexInPlace)
+        if (!mutable) {
+            final fieldPath = ownedVecFieldIndexPath(arr);
+            if (fieldPath != null)
+                return fieldPath + "[" + castArg(idx, "usize") + "]";
+        }
         final receiver = expr(arr);
         // A narrowed receiver already renders as the match binding, a
         // reference to the inner Vec (match &(opt) { Some(name) => ... }).
@@ -14202,6 +14215,41 @@ class RustExpr {
         }
         final receiverText = StringTools.startsWith(receiver, "&*") ? "(" + receiver + ")" : receiver;
         return receiverText + "[" + castArg(idx, "usize") + "]";
+    }
+
+    /**
+        ownedVecFieldIndexPath: the bare field path of an owned non-Copy
+        Vec field read (e.g. `self.keys`), or null. The value read of such a
+        field clones the whole container at the read site; indexing wants
+        the field in place so the element-read clone alone covers the read.
+    **/
+    function ownedVecFieldIndexPath(arr:TypedExpr):Null<String> {
+        if (isNullType(arr.t))
+            return null;
+        if (!isOwnedVecType(arr.t))
+            return null;
+        // Rebuild the same field path field() renders, without the
+        // whole-container clone. Covers this/borrowed-subject field reads.
+        return switch (stripWrap(arr).expr) {
+            case TField(subj, FInstance(_, _, cf)):
+                final name = cf.get().name;
+                if (name == "length")
+                    return null;
+                if (isTypeCopy(cf.get().type))
+                    return null;
+                // The field() value read clones the whole Vec when the
+                // receiver is `this` or a borrowed subject (E0507); both
+                // cases index the field in place here.
+                final thisField = switch (stripWrap(subj).expr) {
+                    case TConst(TThis): true;
+                    case _: false;
+                };
+                if (thisField || isBorrowedExpression(subj))
+                    return expr(subj) + "." + RustImports.toSnakeCase(name);
+                return null;
+            case _:
+                return null;
+        };
     }
 
     function arrayArgBorrow(e:TypedExpr):String {
