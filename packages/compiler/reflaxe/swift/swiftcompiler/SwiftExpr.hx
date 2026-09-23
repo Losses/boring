@@ -77,6 +77,10 @@ class SwiftExpr {
         binding itself can stay let, unlike rebindings.
         (ReferenceMethodKeepsLet) */
     final refMutated:Map<Int, Bool> = [];
+    /** Locals passed as inout call arguments: inout takes the binding
+        slot itself, so such a local must keep var even when the fusion
+        proves no rebind remains. (InoutArgKeepsVar) */
+    final inoutArgIds:Map<Int, Bool> = [];
 
     /** Names written in the scanned body; parameter names are recorded directly. */
     final mutatedNames:Map<String, Bool> = [];
@@ -1124,7 +1128,10 @@ class SwiftExpr {
                             break;
                         }
                     }
-                    if (!otherAssign) {
+                    // An inout argument takes the binding slot itself, so
+                    // the var marking survives the fusion even without a
+                    // rebind. (InoutArgKeepsVar)
+                    if (!otherAssign && !inoutArgIds.exists(v.id)) {
                         mutated.remove(v.id);
                     }
                 case _:
@@ -1394,7 +1401,10 @@ class SwiftExpr {
                                     for (l in blockLines(gb.prefix, depth + 1))
                                         out.push(l);
                                     out.push(indent(depth + 1) + "let " + localName(gb.entryVar) + " = " + expr(gb.entryInit));
-                                    out.push(indent(depth + 1) + "var " + localName(gb.bucketVar) + " = " + expr(gb.getCall) + " ?? "
+                                    // The bucket is a TiqianArray: append and
+                                    // the put-back mutate the instance, so the
+                                    // binding stays let. (ReferenceMethodKeepsLet)
+                                    out.push(indent(depth + 1) + "let " + localName(gb.bucketVar) + " = " + expr(gb.getCall) + " ?? "
                                         + types.of(gb.bucketVar.t) + "()");
                                     out.push(indent(depth + 1) + localName(gb.bucketVar) + ".append(" + expr(gb.valArg) + ")");
                                     out.push(indent(depth + 1) + expr(gb.builderSubj) + ".put(" + expr(gb.keyArg) + ", " + localName(gb.bucketVar) + ")");
@@ -1681,9 +1691,10 @@ class SwiftExpr {
         final arrName = localName(alloc.arr);
         final out:Array<String> = [];
         // TiqianArray is a class: the fill loop's appends mutate the
-        // instance, so the hoisted accumulator can stay let.
-        // (ReferenceMethodKeepsLet)
-        out.push(indent(depth) + "let " + arrName + " = TiqianArray<" + types.of(alloc.elem) + ">()");
+        // instance, so the hoisted accumulator can stay let — unless the
+        // binding rebinds or feeds an inout argument, which take the
+        // binding slot itself. (ReferenceMethodKeepsLet)
+        out.push(indent(depth) + bindingKw(alloc.arr) + " " + arrName + " = TiqianArray<" + types.of(alloc.elem) + ">()");
         out.push(indent(depth) + arrName + ".reserveCapacity(Int(max(" + expr(loop.bound) + ", 0)))");
         out.push(indent(depth) + "for " + (plan.readsIndex ? localName(loop.index) : "_") + " in stride(from: " + strideValue(loop.start) + ", to: "
             + strideValue(loop.bound) + ", by: 1) {");
@@ -5546,6 +5557,7 @@ class SwiftExpr {
                         switch (stripWrap(args[i]).expr) {
                             case TLocal(v):
                                 markMutated(v);
+                                inoutArgIds.set(v.id, true);
                             case _:
                         }
                     }
@@ -5607,7 +5619,7 @@ class SwiftExpr {
         reference mutation needs var; reference mutations alone keep let.
         (ReferenceMethodKeepsLet) */
     function bindingKw(v:TVar):String {
-        if (mutated.exists(v.id))
+        if (mutated.exists(v.id) || inoutArgIds.exists(v.id))
             return "var";
         if (refMutated.exists(v.id) && !isSwiftReferenceType(v.t))
             return "var";
