@@ -70,7 +70,7 @@ class SwiftType {
                     case "Void": "Void";
                     case "Null": nullOptional(params[0], of);
                     case "haxe.ds.Map" if (params.length == 2): "[" + of(params[0]) + ": " + of(params[1]) + "]";
-                    case "std.ReadOnlyArray": "[" + of(params[0]) + "]";
+                    case "std.ReadOnlyArray": "TiqianArray<" + of(params[0]) + ">";
                     case "haxe.Int64": "Int64";
                     case _: of(abs.type);
                 }
@@ -84,7 +84,7 @@ class SwiftType {
                         "BoringException";
                     case "String": resident ? "[UInt16]" : "String";
                     case "std.StringBuf" | "StringBuf": "[UInt16]";
-                    case "Array": "[" + of(params[0]) + "]";
+                    case "Array": "TiqianArray<" + of(params[0]) + ">";
                     case "haxe.io.Bytes": "[UInt8]";
                     case "haxe.io.BytesBuffer":
                         imports.runtime("BytesBuffer");
@@ -166,7 +166,7 @@ class SwiftType {
                     case "Bool": "Bool";
                     case "Void": "Void";
                     case "Null": nullOptional(params2[0], t -> ofSubstituted(t, params, args));
-                    case "std.ReadOnlyArray": "[" + ofSubstituted(params2[0], params, args) + "]";
+                    case "std.ReadOnlyArray": "TiqianArray<" + ofSubstituted(params2[0], params, args) + ">";
                     case _: ofSubstituted(abs.type, params, args);
                 }
             case TInst(c, params2):
@@ -174,7 +174,7 @@ class SwiftType {
                 switch (pathOf(cls.pack, cls.name)) {
                     case "String": resident ? "[UInt16]" : "String";
                     case "std.StringBuf" | "StringBuf": "[UInt16]";
-                    case "Array": "[" + ofSubstituted(params2[0], params, args) + "]";
+                    case "Array": "TiqianArray<" + ofSubstituted(params2[0], params, args) + ">";
                     case "haxe.io.Bytes": "[UInt8]";
                     case _:
                         for (i in 0...params.length) {
