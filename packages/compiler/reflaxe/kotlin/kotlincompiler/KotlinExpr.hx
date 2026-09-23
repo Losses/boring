@@ -129,6 +129,11 @@ class KotlinExpr {
 
     /** Field reads proven non-null by a dominating null check. */
     final nonNullFields:Map<String, Bool> = [];
+    /** Field-chain proofs established only by a dominating condition's
+        branch paths. Unlike the extraction-derived field proofs these die
+        with the branch render, so a null-check ternary can trust them as
+        dominance-precise. (FieldGuardProofs) */
+    final fieldGuardProofs:Map<String, Bool> = [];
 
     /** Enum locals narrowed to a constructor by the active switch arm. */
     final enumVariants:Map<Int, String> = [];
@@ -914,19 +919,29 @@ class KotlinExpr {
                 // (ConditionRecordsFlow)
                 final condition = expr(c) + (rendersNullable(c) ? " == true" : "");
                 final base = proofSnapshot();
+                final thenGuardFields = conditionProofs(c).thenPath.fields;
+                final elseGuardFields = conditionProofs(c).elsePath.fields;
+                for (fk in thenGuardFields)
+                    fieldGuardProofs.set(fk, true);
                 addProofs(conditionProofs(c).thenPath);
                 final out = [indent(depth) + "if (" + condition + ") {"];
                 for (l in blockLines(statementsOf(t), depth + 1))
                     out.push(l);
                 final afterThen = proofSnapshot();
                 restoreProofs(base);
+                for (fk in thenGuardFields)
+                    fieldGuardProofs.remove(fk);
                 final afterElse = if (f != null) {
+                    for (fk in elseGuardFields)
+                        fieldGuardProofs.set(fk, true);
                     addProofs(conditionProofs(c).elsePath);
                     out.push(indent(depth) + "} else {");
                     for (l in blockLines(statementsOf(f), depth + 1))
                         out.push(l);
                     proofSnapshot();
                 } else {
+                    for (fk in elseGuardFields)
+                        fieldGuardProofs.set(fk, true);
                     addProofs(conditionProofs(c).elsePath);
                     proofSnapshot();
                 };
@@ -935,6 +950,8 @@ class KotlinExpr {
                 final thenTerminates = blockTerminates(t);
                 final elseTerminates = f != null && blockTerminates(f);
                 restoreProofs(if (thenTerminates != elseTerminates) (thenTerminates ? afterElse : afterThen) else intersectProofs(base, afterThen, afterElse));
+                for (fk in elseGuardFields)
+                    fieldGuardProofs.remove(fk);
                 out.push(indent(depth) + "}");
                 return out;
             case TWhile(c, b, true):
@@ -1844,6 +1861,26 @@ class KotlinExpr {
             case TFunction(f):
                 return functionLiteral(f);
             case TIf(c, t, f) if (f != null):
+                // A null-check ternary whose subject a dominating condition
+                // proved present takes the non-null arm; only the branch
+                // guard table decides, so stale extraction proofs cannot
+                // force the collapse. Coalescing sites keep their defaults.
+                // (FieldGuardTernaryArm)
+                if (coalescingSiteFor(e) == null) {
+                    switch (stripWrap(c).expr) {
+                        case TBinop(OpEq, cl, cr) | TBinop(OpNotEq, cl, cr):
+                            final subj = isNullExpr(cl) ? cr : (isNullExpr(cr) ? cl : null);
+                            final subjKey = subj == null ? null : fieldAccessKey(subj);
+                            if (subjKey != null && fieldGuardProofs.exists(subjKey)) {
+                                final takeThen = switch (stripWrap(c).expr) {
+                                    case TBinop(OpNotEq, _, _): true;
+                                    case _: false;
+                                };
+                                return expr(takeThen ? t : f);
+                            }
+                        case _:
+                    }
+                }
                 final coalescing = coalescingSiteFor(e);
                 if (coalescing != null) {
                     // `x ?: null` equals x for every value: a null default

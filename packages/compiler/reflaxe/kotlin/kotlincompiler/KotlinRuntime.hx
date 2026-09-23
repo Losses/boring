@@ -67,7 +67,10 @@ class BytesBuffer {
         // implementation which rounds to binary32 before reading the bits.
         final real = FloatPrecision.isF32() ? "Float" : "Double";
         final i32ToFloatBody = FloatPrecision.isF32() ? "Float.fromBits(value)" : "Float.fromBits(value).toDouble()";
-        return StringTools.replace(StringTools.replace("class Int64Halves(val high: Int, val low: Int)
+        // In the binary32 module the parameter is already Float; its own
+        // toFloat would warn as a redundant conversion.
+        final floatToI32Body = FloatPrecision.isF32() ? "value.toRawBits()" : "value.toFloat().toRawBits()";
+        return StringTools.replace(StringTools.replace(StringTools.replace("class Int64Halves(val high: Int, val low: Int)
 
 object FPHelper {
     fun doubleToI64(value: Double): Int64Halves {
@@ -91,7 +94,7 @@ object FPHelper {
         return i64ToDouble(low, high).toFloat()
     }
 
-    fun floatToI32(value: __REAL__): Int = value.toFloat().toRawBits()
+    fun floatToI32(value: __REAL__): Int = __FLOATTOI32__
     fun i32ToFloat(value: Int): __REAL__ = __I32TOFLOAT__
 
     fun f32ToI64(value: Float): Int64Halves {
@@ -129,7 +132,7 @@ object FPHelper {
     }
 }
 
-", "__REAL__", real), "__I32TOFLOAT__", i32ToFloatBody);
+", "__REAL__", real), "__I32TOFLOAT__", i32ToFloatBody), "__FLOATTOI32__", floatToI32Body);
     }
 
     /**
