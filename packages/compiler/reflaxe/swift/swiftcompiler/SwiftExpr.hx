@@ -101,6 +101,10 @@ class SwiftExpr {
 
     /** Locals whose emitted declaration annotation is optional. */
     final optionalAnnotated:Map<Int, Bool> = [];
+    /** Locals whose Swift declaration rendered a plain (non-optional) type
+        annotation: a narrowing unwrap on such a binding is dead text.
+        (PlainAnnotationNonOptional) */
+    final plainAnnotatedDecl:Map<Int, Bool> = [];
 
     /**
         Parameters whose Swift signature is plain despite a Null-typed Haxe
@@ -167,7 +171,7 @@ class SwiftExpr {
     /** Inout arguments that are not lvalues (array literals) hoist into an
         immediately-invoked closure around the call; Swift's `&` needs a
         local. (InoutLiteralHoist) */
-    var pendingInoutHoists:Array<{name:String, init:String}> = [];
+    var pendingInoutHoists:Array<{name:String, init:String, kw:String}> = [];
     var inoutHoistCounter = 0;
 
     /** Fresh names for the guarded put of a nullable SortedMap value. */
@@ -736,6 +740,8 @@ class SwiftExpr {
                 if (hasTypeAnnotation && (isNullLeafType(localType) || optionalNullAnnotation)) {
                     optionalBindingLocals.set(v.id, true);
                     optionalAnnotated.set(v.id, true);
+                } else if (hasTypeAnnotation) {
+                    plainAnnotatedDecl.set(v.id, true);
                 } else if (isNullLeafType(v.t) && coalescingValue != null && !isNullLeafType(localType)) {
                     // The sanctioned coalescing default supplies the value, so
                     // the emitted annotation is plain while the Haxe type keeps
@@ -2923,7 +2929,12 @@ class SwiftExpr {
                             // (InoutLiteralHoist)
                             inoutHoistCounter += 1;
                             final name = "_inout" + inoutHoistCounter;
-                            pendingInoutHoists.push({name: name, init: expr(a)});
+                            // The temp takes the declared parameter type: the
+                            // array literal adapts its element literals to the
+                            // Int32 element, and inout requires a var.
+                            // (InoutLiteralHoist)
+                            final tempInit = pt != null ? types.of(pt) + "(" + expr(a) + ")" : expr(a);
+                            pendingInoutHoists.push({name: name, init: tempInit, kw: "var"});
                             "&" + name;
                     }
                 } else {
@@ -2958,6 +2969,14 @@ class SwiftExpr {
             return expr(subj);
         }
         final base = expr(subj);
+        // A plain-annotated binding never renders optional, so its narrowing
+        // unwrap is dead text Swift rejects.
+        // (PlainAnnotationNonOptional)
+        switch (inner.expr) {
+            case TLocal(v) if (plainAnnotatedDecl.exists(v.id)):
+                return base;
+            case _:
+        }
         return switch (inner.expr) {
             case TLocal(_): base + "!";
             case _: "(" + base + ")!";
@@ -2967,7 +2986,8 @@ class SwiftExpr {
     /** Whether a value-position expression carries an optional at runtime. */
     function optionalValued(e:TypedExpr):Bool {
         if (isNullLeafType(e.t) && !switch (stripWrap(e).expr) {
-                case TLocal(v): coalescingLocals.exists(v.id) || nonOptionalDeclared.exists(v.id);
+                case TLocal(v): coalescingLocals.exists(v.id) || nonOptionalDeclared.exists(v.id)
+                    || plainAnnotatedDecl.exists(v.id);
                 case _: false;
             })
             return true;
@@ -3672,18 +3692,22 @@ class SwiftExpr {
                     };
                     final s = receiverText(subj);
                     final from = "Int(" + expr(args[0]) + ")";
+                    // The slice over the class-backed array wraps its native
+                    // copy in TiqianArray: the Haxe slice type is Array and
+                    // callers bind it to the class type.
+                    // (SliceIifeReturnsWrappedArray)
                     var body = "({ () in let _a = "
                         + s
                         + "; let _n = _a.count; let _f = "
                         + from
                         + "; let _s = _f < 0 ? max(_n + _f, 0) : min(_f, _n);";
                     if (endOmitted) {
-                        body += " return Array(_a[_s..<_n]) }())";
+                        body += " return TiqianArray(Array(_a[_s..<_n])) }())";
                     } else {
                         body += " let _t = Int("
                             + expr(args[1])
                             + "); let _e0 = _t < 0 ? max(_n + _t, 0) : min(_t, _n);"
-                            + " let _e = _e0 < _s ? _s : _e0; return Array(_a[_s..<_e]) }())";
+                            + " let _e = _e0 < _s ? _s : _e0; return TiqianArray(Array(_a[_s..<_e])) }())";
                     }
                     return body;
                 }
@@ -4172,7 +4196,7 @@ class SwiftExpr {
     function wrapInoutHoists(callText:String):String {
         if (pendingInoutHoists.length == 0)
             return callText;
-        final parts = [for (h in pendingInoutHoists) "let " + h.name + " = " + h.init];
+        final parts = [for (h in pendingInoutHoists) h.kw + " " + h.name + " = " + h.init];
         parts.push("return " + callText);
         pendingInoutHoists = [];
         return "({ () in " + parts.join("; ") + " }())";
@@ -5216,7 +5240,14 @@ class SwiftExpr {
                     // literal, which Swift forbids inside an interpolation, so
                     // the leaf is hoisted into a let statement. Optional String
                     // leaves keep the describing form from interpolationLeaf.
-                    if (StringTools.endsWith(types.of(leaf.t), "?") && !isOptionalStringLeafType(leaf.t)) {
+                    // A plain-annotated local renders non-optional in Swift:
+                    // its nil-ternary and unwrap are dead text.
+                    // (PlainAnnotationNonOptional)
+                    final plainLocal = switch (stripWrap(leaf).expr) {
+                        case TLocal(v): plainAnnotatedDecl.exists(v.id);
+                        case _: false;
+                    };
+                    if (StringTools.endsWith(types.of(leaf.t), "?") && !isOptionalStringLeafType(leaf.t) && !plainLocal) {
                         rendered = "(" + rendered + " == nil ? \"null\" : String(describing: " + rendered + "!))";
                         needsHoist = true;
                     }
