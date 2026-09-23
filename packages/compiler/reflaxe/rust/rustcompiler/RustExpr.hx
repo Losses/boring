@@ -3286,7 +3286,15 @@ class RustExpr {
                 // not an iterator. (SharedClosureArrays)
                 final sharedSubject = subjectLocalId >= 0
                     && (sharedClosureArrays.exists(subjectLocalId) || sharedClosureScalars.exists(subjectLocalId));
-                final iterated = sharedSubject ? expr(sliceSubj) + ".iter()"
+                // A shared closure array iterates through a clone of its
+                // contents: iterating the guard directly (`arr.lock().unwrap()
+                // .iter()`) holds the MutexGuard for the whole loop, and the
+                // iterator borrows the Vec through that guard, so the guard
+                // cannot be dropped before the loop. Cloning the Vec into a
+                // local releases the guard immediately and iterates the
+                // owned snapshot. (LoopGuardScope)
+                final loopVecName = sharedSubject ? freshRegionName("__loop_vec") : null;
+                final iterated = sharedSubject ? loopVecName + ".iter()"
                     : (ownedLocal || nonScalarOwnedLocal) ? "&" + expr(sliceSubj) : expr(sliceSubj);
                 switch (Context.follow(itemVar.t)) {
                     case TAbstract(a, _) if (a.get().name == "Int"):
@@ -3318,7 +3326,10 @@ class RustExpr {
                     else
                         null;
                     final valStr = renderPushArg(gb.valArg, valElementType);
-                    final out = [indent(depth) + "for " + pattern + " in " + iterated + " {"];
+                    final out:Array<String> = [];
+                    if (loopVecName != null)
+                        out.push(indent(depth) + "let " + loopVecName + " = " + expr(sliceSubj) + ".clone();");
+                    out.push(indent(depth) + "for " + pattern + " in " + iterated + " {");
                     for (l in blockLines(gb.prefix, depth + 1))
                         out.push(l);
                     out.push(indent(depth + 1) + "let " + entryName + " = " + entryExprStr + ";");
@@ -3332,7 +3343,10 @@ class RustExpr {
                     return out;
                 }
 
-                final out = [indent(depth) + "for " + pattern + " in " + iterated + " {"];
+                final out:Array<String> = [];
+                if (loopVecName != null)
+                    out.push(indent(depth) + "let " + loopVecName + " = " + expr(sliceSubj) + ".clone();");
+                out.push(indent(depth) + "for " + pattern + " in " + iterated + " {");
                 for (l in blockLines(remainingBody, depth + 1))
                     out.push(l);
                 out.push(indent(depth) + "}");
@@ -3349,7 +3363,23 @@ class RustExpr {
                 break;
             }
         final loopName = readsIndex ? name : "_";
-        final out = [indent(depth) + "for " + loopName + " in " + startStr + ".." + boundStr + " {"];
+        // A bound that reads a shared closure array or scalar renders a
+        // MutexGuard through `.lock().unwrap()`. In a `for i in 0..bound`
+        // the iterator expression's temporaries live for the whole loop, so
+        // the guard would be held across every body iteration; a body that
+        // locks the same mutex again would self-deadlock. Hoist the bound to
+        // a let binding so the guard drops before the loop starts. Haxe
+        // evaluates `for (i in 0...x.length)` once at loop start, so reading
+        // the length into a binding matches the source semantics.
+        // (LoopGuardScope)
+        final out:Array<String> = [];
+        if (mentionsSharedGuard(loop.bound)) {
+            final boundName = freshRegionName("__loop_bound");
+            out.push(indent(depth) + "let " + boundName + " = " + boundStr + ";");
+            out.push(indent(depth) + "for " + loopName + " in " + startStr + ".." + boundName + " {");
+        } else {
+            out.push(indent(depth) + "for " + loopName + " in " + startStr + ".." + boundStr + " {");
+        }
         for (l in blockLines(loop.body, depth + 1))
             out.push(l);
         out.push(indent(depth) + "}");
@@ -3407,6 +3437,25 @@ class RustExpr {
                 }
             case _: null;
         };
+    }
+
+    /** Whether an expression reads a shared closure array or scalar local,
+        which renders to a MutexGuard through `.lock().unwrap()`. A loop whose
+        bound or iterator expression reads such a local holds that guard for
+        the whole loop; the guard must be released before the loop starts so a
+        body that locks the same mutex again does not self-deadlock.
+        (LoopGuardScope) */
+    function mentionsSharedGuard(e:TypedExpr):Bool {
+        var found = false;
+        function scan(node:TypedExpr) {
+            switch (node.expr) {
+                case TLocal(v) if (sharedClosureArrays.exists(v.id) || sharedClosureScalars.exists(v.id)): found = true;
+                case _:
+            }
+            if (!found) haxe.macro.TypedExprTools.iter(node, scan);
+        }
+        scan(e);
+        return found;
     }
 
     function loopBound(bound:TypedExpr):String {
@@ -3471,7 +3520,18 @@ class RustExpr {
         final out:Array<String> = [];
         out.push(indent(depth) + "let capacity = " + capStr + ";");
         out.push(indent(depth) + "let mut " + arrName + " = Vec::with_capacity(capacity);");
-        out.push(indent(depth) + "for " + loopVar + " in 0.." + boundStr + " {");
+        // A fused-fill bound that reads a shared closure array or scalar
+        // renders a MutexGuard through `.lock().unwrap()`; hoist it so the
+        // guard drops before the loop, matching the range-loop rule.
+        // (LoopGuardScope)
+        final loopBoundStr = if (mentionsSharedGuard(plan.loop.bound)) {
+            final boundName = freshRegionName("__loop_bound");
+            out.push(indent(depth) + "let " + boundName + " = " + boundStr + ";");
+            boundName;
+        } else {
+            boundStr;
+        };
+        out.push(indent(depth) + "for " + loopVar + " in 0.." + loopBoundStr + " {");
         for (step in plan.steps) {
             switch (step) {
                 case NonStoreBatch(batch):
