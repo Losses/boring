@@ -59,6 +59,11 @@ class KotlinExpr {
         while a plain reassignment never blocks one between the guard and
         the use. (ClosureMutationBlocksSmartCast) */
     final closureMutatedLocals:Map<Int, Bool> = [];
+    /** Function-literal nesting depth at each local's declaration; an
+        assignment inside a deeper literal mutates a captured binding only
+        when the declaration sits in an outer literal.
+        (ClosureMutationBlocksSmartCast) */
+    final localDeclDepth:Map<Int, Int> = [];
     /** Source spans of `run` blocks that assign each outer local. `run` is
         an inline Kotlin lambda: a read outside every mutating block keeps
         the smart cast, while a read inside one loses it.
@@ -504,6 +509,7 @@ class KotlinExpr {
         currentReturnAllowsNullable = allowNullableReturn && bodyUsesSafeCallReturns(f);
         nonNullLocals.clear();
         runMutatedLocalSpans.clear();
+        localDeclDepth.clear();
         nullInitializedLocals.clear();
         nullableRenderedLocals.clear();
         valPropertyProofs.clear();
@@ -593,6 +599,7 @@ class KotlinExpr {
         currentLocalName = null;
         nonNullLocals.clear();
         runMutatedLocalSpans.clear();
+        localDeclDepth.clear();
         nullInitializedLocals.clear();
         nullableRenderedLocals.clear();
         valPropertyProofs.clear();
@@ -6013,16 +6020,23 @@ class KotlinExpr {
     // Local analysis
     // ------------------------------------------------------------------
 
-    function scanLocals(e:TypedExpr, insideFunction:Bool = false):Void {
+    function scanLocals(e:TypedExpr, functionDepth:Int = 0):Void {
         switch (e.expr) {
             case TVar(v, init):
                 PolicyQueries.noteDeclaredLocalName(v, usedNames, true);
                 PolicyQueries.noteFpInt64Init(v, init, fpInt64Halves);
+                if (!localDeclDepth.exists(v.id))
+                    localDeclDepth.set(v.id, functionDepth);
             case TBinop(OpAssign, t, _) | TBinop(OpAssignOp(_), t, _):
                 switch (t.expr) {
                     case TLocal(v):
                         mutated.set(v.id, true);
-                        if (insideFunction)
+                        // Only an assignment to a binding declared in an
+                        // outer function is a capturing mutation; a local
+                        // declared inside the same function literal keeps
+                        // Kotlin's smart casts. (ClosureMutationBlocksSmartCast)
+                        final declDepth = localDeclDepth.get(v.id);
+                        if (functionDepth > 0 && (declDepth == null || declDepth < functionDepth))
                             closureMutatedLocals.set(v.id, true);
                     case TArray(arr, _):
                         switch (stripWrap(arr).expr) {
@@ -6037,22 +6051,21 @@ class KotlinExpr {
                 switch (t.expr) {
                     case TLocal(v):
                         mutated.set(v.id, true);
-                        if (insideFunction)
+                        final declDepth = localDeclDepth.get(v.id);
+                        if (functionDepth > 0 && (declDepth == null || declDepth < functionDepth))
                             closureMutatedLocals.set(v.id, true);
                     case _:
                 }
-            // A nested function literal flips the closure boundary: its
-            // assignments record the target as closure-mutated, because
-            // Kotlin disables the smart cast for such a binding from the
-            // guard onward. (ClosureMutationBlocksSmartCast)
+            // A nested function literal deepens the closure boundary for
+            // the bindings it assigns. (ClosureMutationBlocksSmartCast)
             case TFunction(f):
                 if (f.expr != null)
-                    scanLocals(f.expr, true);
+                    scanLocals(f.expr, functionDepth + 1);
                 return;
             case _:
         }
         TypedExprTools.iter(e, function(child:TypedExpr):Void {
-            scanLocals(child, insideFunction);
+            scanLocals(child, functionDepth);
         });
     }
 
