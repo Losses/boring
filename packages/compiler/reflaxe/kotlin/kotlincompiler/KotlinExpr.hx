@@ -3113,6 +3113,13 @@ class KotlinExpr {
         context does not widen it back to non-null.
     **/
     function rendersNullable(e:TypedExpr):Bool {
+        // A guarded ternary decides first: its declared join type may carry
+        // the Null wrapper while both arms render non-null, and Kotlin
+        // infers the if-expression from the arms alone. Checking after the
+        // type clause would never reach the arm analysis.
+        // (GuardedTernaryDecidesFirst)
+        if (guardedNonNullTernary(e))
+            return false;
         // Arithmetic on nullable-typed operands still yields a Kotlin
         // non-null value whenever both operand texts render non-null:
         // the result type follows the operator, and the Haxe Null
@@ -3730,11 +3737,13 @@ class KotlinExpr {
         // Nullable values still need extraction unless the Haxe expression
         // has already been normalized, or control flow proved the local is
         // non-null. Kotlin's smart casts then make `!!` redundant. A
-        // null-initialized local carries a non-null Haxe type as a program
-        // invariant: it extracts on every use and never joins the proof
-        // set, because render-order proofs misjudge assignments inside
-        // loops and branches.
-        final proven = provenNonNull(e) || guardProofBefore(e);
+        // guarded ternary whose arms both render non-null types non-null in
+        // Kotlin, so it counts as proven here too. A null-initialized local
+        // carries a non-null Haxe type as a program invariant: it extracts
+        // on every use and never joins the proof set, because render-order
+        // proofs misjudge assignments inside loops and branches.
+        // (GuardedTernaryOperandProof)
+        final proven = provenNonNull(e) || guardProofBefore(e) || guardedNonNullTernary(e);
         // A val property chain kotlin already smart-cast: the later
         // assertion reports no effect, so it drops. (ValPropertySmartCastProof)
         final smartCastPair = switch (stripWrap(e).expr) {
