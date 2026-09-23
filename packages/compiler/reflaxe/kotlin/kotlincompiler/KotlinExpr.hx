@@ -64,6 +64,10 @@ class KotlinExpr {
         when the declaration sits in an outer literal.
         (ClosureMutationBlocksSmartCast) */
     final localDeclDepth:Map<Int, Int> = [];
+    /** Locals whose declaration text the emitter itself hardened with
+        `!!`: every later comparison against null is dead text, because the
+        emitted assertion already narrows the binding. (DeclHardenedFold) */
+    final declHardenedLocals:Map<Int, Bool> = [];
     /** Source spans of `run` blocks that assign each outer local. `run` is
         an inline Kotlin lambda: a read outside every mutating block keeps
         the smart cast, while a read inside one loses it.
@@ -510,6 +514,7 @@ class KotlinExpr {
         nonNullLocals.clear();
         runMutatedLocalSpans.clear();
         localDeclDepth.clear();
+        declHardenedLocals.clear();
         nullInitializedLocals.clear();
         nullableRenderedLocals.clear();
         valPropertyProofs.clear();
@@ -600,6 +605,7 @@ class KotlinExpr {
         nonNullLocals.clear();
         runMutatedLocalSpans.clear();
         localDeclDepth.clear();
+        declHardenedLocals.clear();
         nullInitializedLocals.clear();
         nullableRenderedLocals.clear();
         valPropertyProofs.clear();
@@ -873,6 +879,8 @@ class KotlinExpr {
                 if (extractAtDecl)
                     emissionTrace("DECL", initText, e.pos);
 #end
+                if (extractAtDecl && !mutated.exists(v.id))
+                    declHardenedLocals.set(v.id, true);
                 return [
                     indent(depth) + '$kw ${localName(v)}$typeAnn = $initText' + (extractAtDecl ? "!!" : "")
                 ];
@@ -3868,6 +3876,14 @@ class KotlinExpr {
                             });
                         if (ktNonOptional)
                             return op == OpNotEq ? "true" : "false";
+                        // The declaration itself carries the assertion, so
+                        // the narrowing stays emitted and the comparison is
+                        // dead text. (DeclHardenedFold)
+                        switch (stripWrap(subject).expr) {
+                            case TLocal(v) if (declHardenedLocals.exists(v.id)):
+                                return op == OpNotEq ? "true" : "false";
+                            case _:
+                        }
                     }
                 }
                 final leftText = operand(l, op, false);
