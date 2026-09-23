@@ -359,6 +359,14 @@ class Compiler extends PluginCompiler<Compiler> {
                         testResidentParts.push(moduleParts.join("\n\n"));
                     }
                 }
+                // A build whose business code never names runtime.TestCore
+                // (an engine test harness using its own assertion helpers)
+                // still emits the runner, whose text references TestCore;
+                // the canonical compiled text fills that gap.
+                // (TestCoreFallbackSource)
+                if (testResidentParts.length == 0) {
+                    testResidentParts.push(StringTools.trim(SwiftRuntime.TEST_CORE_FALLBACK));
+                }
                 PackageArtifacts.saveTreeFile(output, RuntimeConfig.emitPath(emitDir, "Test.swift"),
                     StringTools.trim(SwiftRuntime.TEST_SOURCE)
                     + "\n"
