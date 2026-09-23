@@ -3192,8 +3192,15 @@ class KotlinExpr {
     **/
     function callRendersNullable(fn:TypedExpr, args:Array<TypedExpr>):Bool {
         return switch (stripWrap(fn).expr) {
+            // The call result follows the receiver's rendered access: a safe
+            // call widens, an extracted or plain read keeps the return type.
+            // The access predicates share the kernels with the renderer, so
+            // this decision matches the emitted separator.
+            // (CallResultFollowsReceiverAccess)
+            case TField(receiver, FInstance(owner, _, cf)) if (owner.get().meta.has(":dataClass")):
+                decidedFieldAccessWidens(receiver, cf.get().type, true);
             case TField(receiver, FInstance(_, _, _)) | TField(receiver, FAnon(_)):
-                rendersNullable(receiver);
+                nullableAccessWidens(receiver);
             case TField(_, FStatic(cls, field))
                 if (cls.get().pack.length == 0 && cls.get().name == "StringTools"
                     && (field.get().name == "startsWith" || field.get().name == "endsWith") && args.length > 0):
