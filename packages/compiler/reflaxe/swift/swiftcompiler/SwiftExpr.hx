@@ -3375,7 +3375,10 @@ class SwiftExpr {
                         switch (arg.expr) {
                             case TBinop(OpDiv, l, r) if (isIntTyped(l) && isIntTyped(r)):
                                 // Truncating division of two Ints: the operands are already integral.
-                                return expr(l) + " / " + expr(r);
+                                // The operands go through operand() so a compound
+                                // sub-expression (e.g. Std.int((a + b) / 2)) keeps
+                                // its parentheses under Swift's precedence table.
+                                return operand(l, OpDiv, false) + " / " + operand(r, OpDiv, true);
                             case _:
                         }
                         return "Int32(" + expr(args[0]) + ")";
