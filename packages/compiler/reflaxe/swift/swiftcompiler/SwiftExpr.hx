@@ -159,6 +159,15 @@ class SwiftExpr {
     /** Fresh names for the guarded put of a nullable SortedMap value. */
     var nullablePutCounter:Int = 0;
 
+    /**
+        Locals initialized from a SortedMap/SortedSet builder's `get`:
+        Haxe treats the retrieved value as a reference into the builder, so a
+        later mutation of the local must be written back to the builder.
+        Swift arrays are value types, so the generator emits the write-back
+        itself. Maps local id to the builder expression and key expression.
+    **/
+    final builderBacked:Map<Int, {builder:TypedExpr, key:TypedExpr}> = [];
+
     /** Function context used to distinguish a sanctioned coalescing site. */
     var currentClass:Null<ClassType> = null;
 
@@ -678,6 +687,9 @@ class SwiftExpr {
                 // to a local typealias that keeps `S.staticMember` resolving.
                 return [indent(depth) + "typealias " + localName(v) + " = " + expr(init)];
             case TVar(v, init) if (init != null):
+                final builderSource = sortedBuilderGetSource(init);
+                if (builderSource != null)
+                    builderBacked.set(v.id, builderSource);
                 final coalescing = coalescingSiteFor(init);
                 if (coalescing != null)
                     coalescingLocals.set(v.id, true);
@@ -849,6 +861,9 @@ class SwiftExpr {
                     indent(depth) + assignTarget(l) + " " + symbolOf(inner, l, r) + "= " + tryKw + rhs
                 ];
             case _:
+                final builderMutation = builderBackedMutationLines(e, depth);
+                if (builderMutation != null)
+                    return builderMutation;
                 final tryKw = containsThrowingCall(e) ? "try " : "";
                 // A call whose result the source discards reads as an
                 // explicit discard; Swift warns on a bare non-Void call
@@ -1516,6 +1531,38 @@ class SwiftExpr {
     }
 
     /**
+        A `builder.get(key)` call on a SortedMap/SortedSet builder subject.
+        The retrieved value is a reference into the builder in Haxe
+        semantics; the generator tracks such locals so a later mutation can
+        be written back. (BuilderBackedReference)
+    **/
+    function sortedBuilderGetSource(e:TypedExpr):Null<{builder:TypedExpr, key:TypedExpr}> {
+        return switch (stripWrap(e).expr) {
+            case TCall(fn, [key]):
+                switch (stripWrap(fn).expr) {
+                    case TField(subject, fa) if (fieldName(fa) == "get" && isSortedBuilderSubject(subject)
+                            && isSortedBuilderClass(subject.t)):
+                        {builder: subject, key: key};
+                    case _: null;
+                }
+            case _: null;
+        };
+    }
+
+    /**
+        True when the subject's Haxe type is a SortedMapBuilder or
+        SortedSetBuilder (the mutable builder), not the immutable built
+        table. Only the builder carries `put`, so only a builder-backed
+        local can be written back.
+    **/
+    function isSortedBuilderClass(t:Null<Type>):Bool {
+        return switch (Context.follow(t)) {
+            case TInst(c, _): StringTools.endsWith(c.get().name, "Builder");
+            case _: false;
+        };
+    }
+
+    /**
         A SortedMap whose value type is Null<V> can store nil, but the
         Swift runtime keeps the value array non-optional (the type
         renderer strips the inner Null so get returns one optional layer).
@@ -1533,6 +1580,42 @@ class SwiftExpr {
                 [indent(depth) + "if let " + name + " = " + expr(args[1]) + " { " + expr(subj) + ".put(" + expr(args[0]) + ", " + name + ") }"];
             case _: null;
         };
+    }
+
+    /**
+        A mutating method call on a local that was initialized from a
+        builder's `get` writes the mutated value back to the builder. Haxe
+        treats the retrieved value as a reference into the builder, so the
+        mutation must persist; Swift arrays are value types and the local is
+        a copy, so the generator emits the write-back itself.
+        (BuilderBackedReference)
+    **/
+    function builderBackedMutationLines(e:TypedExpr, depth:Int):Null<Array<String>> {
+        return switch (e.expr) {
+            case TCall(fn, _):
+                switch (stripWrap(fn).expr) {
+                    case TField(subj, FInstance(_, _, cf)) if (isMutatingMethodName(cf.get().name)):
+                        switch (stripWrap(subj).expr) {
+                            case TLocal(v) if (builderBacked.exists(v.id)):
+                                final src = builderBacked.get(v.id);
+                                final tryKw = containsThrowingCall(e) ? "try " : "";
+                                final discard = isDiscardedCall(e) ? "_ = " : "";
+                                nullablePutCounter += 1;
+                                final name = "np" + nullablePutCounter;
+                                [
+                                    indent(depth) + discard + tryKw + expr(e),
+                                    indent(depth) + "if let " + name + " = " + localName(v) + " { " + expr(src.builder) + ".put(" + expr(src.key) + ", " + name + ") }"
+                                ];
+                            case _: null;
+                        }
+                    case _: null;
+                }
+            case _: null;
+        };
+    }
+
+    function isMutatingMethodName(name:String):Bool {
+        return name == "push" || name == "pop" || name == "shift" || name == "unshift" || name == "splice" || name == "set" || name == "insert";
     }
 
     /**
