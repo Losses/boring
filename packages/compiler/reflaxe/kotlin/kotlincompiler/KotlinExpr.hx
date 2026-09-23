@@ -892,14 +892,11 @@ class KotlinExpr {
                 out.push(indent(depth) + "}");
                 return out;
             case TIf(c, t, f):
-                // The condition renders in its own domain: a pre-render of
-                // the same condition must not hand its extraction records
-                // to this render, and this render's records must not spill
-                // into the enclosing sequence twice.
-                // (StatementScopeExtraction)
-                final conditionScope = extractionScopeSnapshot();
+                // The condition evaluates before either branch, so its
+                // extraction records flow into the branches: the emitted
+                // assertion proves the subject for every dominated read.
+                // (ConditionRecordsFlow)
                 final condition = expr(c) + (rendersNullable(c) ? " == true" : "");
-                restoreExtractionScope(conditionScope);
                 final base = proofSnapshot();
                 addProofs(conditionProofs(c).thenPath);
                 final out = [indent(depth) + "if (" + condition + ") {"];
@@ -925,9 +922,10 @@ class KotlinExpr {
                 out.push(indent(depth) + "}");
                 return out;
             case TWhile(c, b, true):
-                final whileScope = extractionScopeSnapshot();
+                // The condition evaluates before every iteration, so its
+                // extraction records flow into the body.
+                // (ConditionRecordsFlow)
                 final out = [indent(depth) + "while (" + expr(c) + ") {"];
-                restoreExtractionScope(whileScope);
                 for (l in blockLines(statementsOf(b), depth + 1))
                     out.push(l);
                 out.push(indent(depth) + "}");
@@ -3929,6 +3927,26 @@ class KotlinExpr {
             // (ExtractionRegistersProof)
             addProofExpr(e);
             statementExtractedRecord(e);
+            // A hardened safe-call chain (`x?.f!!`) throws when x holds
+            // null, so the flow past this operand proves the chain root
+            // present; later reads of the root render plain.
+            // (HardenedChainProvesRoot)
+            if (StringTools.contains(rendered, "?.")) {
+                var root = stripWrap(e);
+                var walking = true;
+                while (walking) {
+                    switch (root.expr) {
+                        case TField(inner, _): root = stripWrap(inner);
+                        case _: walking = false;
+                    }
+                }
+                switch (root.expr) {
+                    case TLocal(_):
+                        addProofExpr(root);
+                        statementExtractedRecord(root);
+                    case _:
+                }
+            }
             if (smartCastPair != null)
                 valPropertyProofs.set(smartCastPair, true);
         }
