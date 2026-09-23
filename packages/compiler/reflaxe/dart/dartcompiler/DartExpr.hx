@@ -2052,21 +2052,6 @@ class DartExpr {
         type stays non-null. Haxe's typed AST types the field read as non-null
         even when the receiver is Null<T>. **/
     function instanceFieldReceiver(subj:TypedExpr, cf:Ref<ClassField>):String {
-        {
-            final pi = Context.getPosInfos(subj.pos);
-            final fn = cf.get().name;
-            if (pi.file.indexOf("PunctuationGeometryLedger") >= 0 && (fn == "leadingRemaining" || fn == "bodyWidth" || fn == "get_leadingRemaining")) {
-                final st = stripCast(subj);
-                var kind = "?";
-                switch (stripWrap(subj).expr) {
-                    case TLocal(v): kind = "local:" + v.name;
-                    case TCall(_, _): kind = "call";
-                    case TField(_, _): kind = "field";
-                    case _: kind = "other";
-                }
-                Sys.println("TRACE_IFR name=" + fn + " kind=" + kind + " min" + pi.min + " subjNull=" + PolicyQueries.isNullableType(st.t) + " prov=" + provenNonNull(subj));
-            }
-        }
         final fieldType = cf.get().type;
         // A nullable Haxe field is emitted as a nullable Dart field even when
         // the typed AST has already unwrapped it for indexing/member access.
