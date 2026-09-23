@@ -1605,9 +1605,17 @@ class KotlinExpr {
 #if boring_fold_debug
                     emissionTrace("LOOP_BOUND", expr(subj), subj.pos);
 #end
+                    // The trailing assertion throws on a null subject, so the
+                    // flow past this bound proves the subject present; later
+                    // reads in the same domain render plain.
+                    // (BoundAssertionRegistersProof)
+                    addProofExpr(subj);
+                    statementExtractedRecord(subj);
                     return expr(subj) + "?." + suffix + "!!";
                 }
                 if (nullableChainHop(subj) && !guardProofBefore(subj)) {
+                    addProofExpr(subj);
+                    statementExtractedRecord(subj);
                     return expr(subj) + "?." + suffix + "!!";
                 }
                 return expr(subj) + "." + suffix;
@@ -1735,10 +1743,12 @@ class KotlinExpr {
                 // from a nullable expression); emit safe array access when it
                 // is, and plain element access otherwise.
                 final receiver = mapReceiver == null ? arr : mapReceiver;
-                if (isNullType(receiver.t) && !provenNonNull(receiver) && !guardProofBefore(receiver)) {
+                if (isNullType(receiver.t) && !provenNonNull(receiver) && !guardProofBefore(receiver)
+                    && !statementExtractedLocal(receiver)) {
                     return expr(receiver) + "?.get(" + expr(idx) + ")";
                 }
-                if (nullableChainHop(receiver) && !guardProofBefore(receiver)) {
+                if (nullableChainHop(receiver) && !guardProofBefore(receiver)
+                    && !statementExtractedLocal(receiver)) {
                     return expr(receiver) + "?.get(" + expr(idx) + ")";
                 }
                 return expr(receiver) + "[" + expr(idx) + "]";
@@ -3105,7 +3115,12 @@ class KotlinExpr {
         // own type is the non-null target, so look through it before
         // deciding.
         switch (subj.expr) {
-            case TCast(inner, _) if (isNullType(inner.t) && !provenNonNull(inner)):
+            // The cast wraps an implicit Null<T> unwrap; the flow proofs of
+            // the inner subject still decide the access form, so a guard or
+            // a same-statement extraction reads through a plain dot.
+            // (CastKeepsFlowProofs)
+            case TCast(inner, _) if (isNullType(inner.t) && !provenNonNull(inner)
+                && !guardProofBefore(inner) && !statementExtractedLocal(inner)):
                 return "?.";
             case _:
         }
