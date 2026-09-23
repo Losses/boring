@@ -1624,13 +1624,11 @@ class KotlinExpr {
                     // flow past this bound proves the subject present; later
                     // reads in the same domain render plain.
                     // (BoundAssertionRegistersProof)
-                    addProofExpr(subj);
-                    statementExtractedRecord(subj);
+                    registerExtraction(subj);
                     return expr(subj) + "?." + suffix + "!!";
                 }
                 if (nullableChainHop(subj) && !guardProofBefore(subj)) {
-                    addProofExpr(subj);
-                    statementExtractedRecord(subj);
+                    registerExtraction(subj);
                     return expr(subj) + "?." + suffix + "!!";
                 }
                 return expr(subj) + "." + suffix;
@@ -2827,6 +2825,25 @@ class KotlinExpr {
         };
     }
 
+    /** Records an extraction at its emission site. The statement-domain
+        record is the only proof the extraction itself contributes: Kotlin's
+        smart cast from `!!` dies at the enclosing block's exit, so a
+        function-scope proof would leak into later blocks where the cast no
+        longer holds. A field-chain subject keeps its field proof, which the
+        same-block reads consult through the field table.
+        (ExtractionRegistersBlockScoped) */
+    function registerExtraction(e:TypedExpr):Void {
+        switch (stripWrap(e).expr) {
+            case TLocal(_):
+                statementExtractedRecord(e);
+            case TField(_, _):
+                addProofExpr(e);
+                statementExtractedRecord(e);
+            case _:
+                statementExtractedRecord(e);
+        }
+    }
+
     /** Records an emitted extraction in the statement domain; only call
         sites whose emitted text carries `!!` may register.
         (StatementScopeExtraction) */
@@ -3220,8 +3237,7 @@ class KotlinExpr {
 #if boring_fold_debug
             emissionTrace("ACCESS_NULLINIT", expr(subj), subj.pos);
 #end
-            addProofExpr(subj);
-            statementExtractedRecord(subj);
+            registerExtraction(subj);
         }
         return sep;
     }
@@ -3975,8 +3991,7 @@ class KotlinExpr {
             // so every extraction registers: a null-initialized local read
             // again later must not extract twice.
             // (ExtractionRegistersProof)
-            addProofExpr(e);
-            statementExtractedRecord(e);
+            registerExtraction(e);
             // A hardened safe-call chain (`x?.f!!`) throws when x holds
             // null, so the flow past this operand proves the chain root
             // present; later reads of the root render plain.
@@ -3992,8 +4007,7 @@ class KotlinExpr {
                 }
                 switch (root.expr) {
                     case TLocal(_):
-                        addProofExpr(root);
-                        statementExtractedRecord(root);
+                        registerExtraction(root);
                     case _:
                 }
             }
@@ -4208,8 +4222,7 @@ class KotlinExpr {
             // assertion, so a second read of the same subject in the
             // following statements must not extract twice.
             // (ExtractionRegistersProof)
-            addProofExpr(subj);
-            statementExtractedRecord(subj);
+            registerExtraction(subj);
             return "!!.";
         }
         // The subject value stays nullable whenever its own rendering is
@@ -4218,8 +4231,7 @@ class KotlinExpr {
         // decision the flow predicates use. (UnifiedFieldAccessDecision)
         if (!provenNonNull(subj) && !guardProofBefore(subj) && !statementExtractedLocal(subj)
             && rendersNullable(subj)) {
-            addProofExpr(subj);
-            statementExtractedRecord(subj);
+            registerExtraction(subj);
             return "!!.";
         }
         return nullableAccess(subj);
@@ -4267,8 +4279,7 @@ class KotlinExpr {
         if (fieldType != null && !isNullType(fieldType)
             && isNullType(subj.t) && !provenNonNull(subj) && !guardProofBefore(subj)
             && !statementExtractedLocal(subj)) {
-            addProofExpr(subj);
-            statementExtractedRecord(subj);
+            registerExtraction(subj);
             return expr(subj) + "!!." + KotlinNameEscape.escape(property.name);
         }
         return expr(subj) + nullableAccess(subj) + KotlinNameEscape.escape(property.name);
@@ -5533,9 +5544,12 @@ class KotlinExpr {
             // that could still supply null. (IfExpressionCoversNull)
             if (coversNullByForm(a, text))
                 return text;
-            // Kotlin's own narrowing holds for a proven read, so the
-            // wrapping elvis would only warn. (AssignmentTracksNullability)
-            if (provenNonNull(a) || guardProofBefore(a))
+            // Kotlin's own narrowing holds for a proven read of a
+            // non-null-typed argument, so the wrapping elvis would only
+            // warn. A nullable-typed field read keeps the wrap: the guard
+            // proves the receiver chain, never the field's own value.
+            // (AssignmentTracksNullability)
+            if (!isNullType(a.t) && (provenNonNull(a) || guardProofBefore(a)))
                 return text;
             // A null default is an identity: `x ?: null` equals x for
             // every value, so the wrap only warns. (NullDefaultIdentityFold)
@@ -5550,12 +5564,13 @@ class KotlinExpr {
             // The registration must follow the proof check: a registration
             // that runs before it would prove its own traversal.
             // (ProbeRenderKeepsFlowClean)
-            if (provenNonNull(a) || guardProofBefore(a)) {
+            if (!isNullType(a.t) && (provenNonNull(a) || guardProofBefore(a))) {
 #if boring_fold_debug
                 emissionTrace("ARG_ASSERT", text, a.pos);
 #end
-                // Kotlin's own narrowing holds at this read.
-                // (AssignmentTracksNullability)
+                // Kotlin's own narrowing holds at this read of a
+                // non-null-typed argument; a nullable field value keeps
+                // the wrap. (AssignmentTracksNullability)
                 return text;
             }
             else {
