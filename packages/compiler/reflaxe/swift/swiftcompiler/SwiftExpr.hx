@@ -3011,7 +3011,23 @@ class SwiftExpr {
             return "false";
         }
         final known = TypeCheckHelper.knownIsOfType(args[0], target);
-        return known != null ? (known ? "true" : "false") : expr(args[0]) + " is " + expr(args[1]);
+        if (known != null)
+            return known ? "true" : "false";
+        // A subject whose optional wraps exactly the checked class: the
+        // check succeeds whenever the value is non-nil, and Swift warns on
+        // the optional-vs-plain form. (OptionalSameTypeIsCheck)
+        final subj = stripWrap(args[0]);
+        final subjectType = switch (subj.expr) {
+            case TLocal(v): v.t;
+            case _: subj.t;
+        };
+        // The rendered Swift type is the authority: types.of renders the
+        // Null wrapper as a trailing question mark.
+        // (OptionalSameTypeIsCheck)
+        final subjNullable = StringTools.endsWith(types.of(subjectType), "?");
+        if (subjNullable)
+            return expr(args[0]) + " != nil";
+        return expr(args[0]) + " is " + expr(args[1]);
     }
 
     function stdStringType(t:Type, value:String, inConcat:Bool, origin:TypedExpr, depth:Int = 0):String {
