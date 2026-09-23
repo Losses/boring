@@ -1119,8 +1119,132 @@ class SwiftExpr {
         return out.join("\n");
     }
 
+    /**
+        Fuses Haxe-decomposed array compound assignments back into a single
+        Swift compound-assignment. The Haxe typed AST decomposes
+        `arr[idx] += rhs` into `var base = arr; var index = idx;
+        base[index] += rhs`. Swift arrays are value types, so a faithful
+        rendering of the decomposition copies the array into `base` and the
+        mutation is lost. This pass inlines `base` and `index` back into the
+        compound assignment so Swift receives a direct `arr[idx] += rhs` that
+        mutates the original array. (ArrayCompoundAssignFusion)
+    **/
+    function fuseArrayCompoundAssign(stmts:Array<TypedExpr>):Array<TypedExpr> {
+        final out:Array<TypedExpr> = [];
+        var i = 0;
+        while (i < stmts.length) {
+            var fused = false;
+            if (i + 2 < stmts.length) {
+                switch (stmts[i].expr) {
+                    case TVar(base, baseInit) if (baseInit != null):
+                        switch (stripWrap(baseInit).expr) {
+                            case TLocal(_) | TField(_, _):
+                                if (isSwiftArrayType(base.t)) {
+                                    switch (stmts[i + 1].expr) {
+                                        case TVar(index, indexInit):
+                                            if (indexInit != null
+                                                && isCompoundAssignTarget(stmts[i + 2], base)
+                                                && !restMentionsLocal(base.id, stmts, i + 3)
+                                                && !restMentionsLocal(index.id, stmts, i + 3)) {
+                                                    final subst = new Map<Int, TypedExpr>();
+                                                    subst.set(base.id, baseInit);
+                                                    subst.set(index.id, indexInit);
+                                                    out.push(substituteLocals(stmts[i + 2], subst));
+                                                    i += 3;
+                                                    fused = true;
+                                                }
+                                        case _:
+                                    }
+                                    if (!fused
+                                        && isCompoundAssignTarget(stmts[i + 1], base)
+                                        && !restMentionsLocal(base.id, stmts, i + 2)) {
+                                            final subst = new Map<Int, TypedExpr>();
+                                            subst.set(base.id, baseInit);
+                                            out.push(substituteLocals(stmts[i + 1], subst));
+                                            i += 2;
+                                            fused = true;
+                                        }
+                                }
+                            case _:
+                        }
+                    case _:
+                }
+            }
+            if (!fused) {
+                out.push(stmts[i]);
+                i++;
+            }
+        }
+        return out;
+    }
+
+    function isCompoundAssignTarget(e:TypedExpr, base:TVar):Bool {
+        final inner = stripWrap(e);
+        return switch (inner.expr) {
+            case TBinop(OpAssignOp(_), lhs, _):
+                switch (stripWrap(lhs).expr) {
+                    case TArray(_, _): isAliasOfLoc(lhs, base.id);
+                    case _: false;
+                }
+            case _: false;
+        };
+    }
+
+    function isAliasOfLoc(expr:TypedExpr, id:Int):Bool {
+        final arg = switch (stripWrap(expr).expr) {
+            case TArray(arr, _): arr;
+            case _: expr;
+        };
+        return switch (stripWrap(arg).expr) {
+            case TLocal(v): v.id == id;
+            case _: false;
+        };
+    }
+
+    function restMentionsLocal(varId:Int, stmts:Array<TypedExpr>, start:Int):Bool {
+        for (j in start...stmts.length) {
+            if (mentionsLocalId(stmts[j], varId))
+                return true;
+        }
+        return false;
+    }
+
+    function mentionsLocalId(e:TypedExpr, id:Int):Bool {
+        var found = false;
+        function scan(node:TypedExpr) {
+            switch (node.expr) {
+                case TLocal(v): if (v.id == id) found = true;
+                case _:
+            }
+            if (!found) TypedExprTools.iter(node, scan);
+        }
+        scan(e);
+        return found;
+    }
+
+    function substituteLocals(e:TypedExpr, subst:Map<Int, TypedExpr>):TypedExpr {
+        function replace(node:TypedExpr):TypedExpr {
+            return switch (node.expr) {
+                case TLocal(v) if (subst.exists(v.id)): subst.get(v.id);
+                case _: TypedExprTools.map(node, replace);
+            };
+        };
+        return replace(e);
+    }
+
+    function isSwiftArrayType(t:Null<Type>):Bool {
+        if (t == null)
+            return false;
+        return switch (Context.follow(t)) {
+            case TAbstract(a, _) if (a.get().module == "std.ReadOnlyArray"): true;
+            case TInst(c, [_]) if (c.get().name == "Array"): true;
+            case _: false;
+        };
+    }
+
     function blockLines(stmts:Array<TypedExpr>, depth:Int):Array<String> {
         stmts = fuseUninitializedVars(stmts);
+        stmts = fuseArrayCompoundAssign(stmts);
         stmts = regroupLoops(stmts);
         final snapshot = saveNarrowed();
         final out:Array<String> = [];
