@@ -437,7 +437,7 @@ class KotlinDecl {
                             if (f.isFinal)
                                 lines.push('    if (a.${f.name} != null && b.${f.name} != null) { cmp = a.${f.name}.compareTo(b.${f.name}); if (cmp != 0) return cmp }');
                             else
-                                lines.push('    if (a.${f.name} != null && b.${f.name} != null) { cmp = a.${f.name}!!.compareTo(b.${f.name}!!); if (cmp != 0) return cmp }');
+                                lines.push('    if (a.${f.name} != null && b.${f.name} != null) { cmp = a.${f.name}.compareTo(b.${f.name}); if (cmp != 0) return cmp }');
                         case TAbstract(_,
                             _) | TInst(_,
                                 _): lines.push('    if (a.${f.name} != null && b.${f.name} != null) { cmp = a.${f.name}.toString().compareTo(b.${f.name}.toString()); if (cmp != 0) return cmp }');
@@ -739,8 +739,8 @@ class KotlinDecl {
         lines.push('    if (a.${field} != null && b.${field} != null) {');
         // The guard smart-casts both nullable val properties, so the
         // bindings read bare. (NullableScalarStringCompare)
-        lines.push('        val av${field} = a.${field}!!');
-        lines.push('        val bv${field} = b.${field}!!');
+        lines.push('        val av${field} = a.${field}');
+        lines.push('        val bv${field} = b.${field}');
         lines.push('        var idx${field} = 0');
         lines.push('        while (idx${field} < av${field}.size && idx${field} < bv${field}.size) {');
         switch (Context.follow(element)) {
