@@ -4954,7 +4954,14 @@ class KotlinExpr {
                         if (func != null && func.args.length == 1) {
                             final paramName = KotlinNameEscape.escape(func.args[0].v.name);
                             final valueExpr = expr(lambdaBody(func.expr));
-                            return expr(receiver) + ".sumOf { " + paramName + " -> (" + valueExpr + ").toDouble() }.toFloat()";
+                            // A selector that already renders as Double needs
+                            // no inner conversion: the sum runs on Double and
+                            // only the Float result takes the trailing call.
+                            // (SumOfFloatSelectorWidening)
+                            final widened = isIntOrLongType(emittedType(lambdaBody(func.expr)))
+                                && !StringTools.contains(valueExpr, "toDouble()") && !StringTools.contains(valueExpr, "toFloat()");
+                            return expr(receiver) + ".sumOf { " + paramName + " -> "
+                                + (widened ? "(" + valueExpr + ").toDouble()" : valueExpr) + " }.toFloat()";
                         }
                         return fail(fn, "sumOfFloat requires a one-argument lambda");
                     }
