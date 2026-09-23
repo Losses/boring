@@ -972,8 +972,9 @@ class KotlinExpr {
                         // Float when the function's return type is Float.
                         // Use emittedType because the typed AST type is Float
                         // (unified) while the generator emits Int text.
-                        if (isIntOrLongType(emittedType(ret)) && isFloatType(currentReturnType))
-                            retText = (StringTools.endsWith(retText, "toDouble()") || StringTools.endsWith(retText, "toFloat()")) ? retText : intToFloatText(retText);
+                        if (isIntOrLongType(emittedType(ret)) && isFloatType(currentReturnType)
+                            && !StringTools.contains(retText, "toDouble()") && !StringTools.contains(retText, "toFloat()"))
+                            retText = intToFloatText(retText);
                         return [indent(depth) + "return " + retText];
                 }
             case TThrow(x):
@@ -2588,8 +2589,10 @@ class KotlinExpr {
         if (!arrayOrLocalTarget)
             return value;
         // Haxe unifies Int and Float; widen Int assignment values to Float
-        // when the target's type is Float.
-        if (isIntOrLongType(emittedType(r)) && isFloatType(l.t))
+        // when the target's type is Float. A value whose text already
+        // carries a conversion stays: the second call would be redundant.
+        if (isIntOrLongType(emittedType(r)) && isFloatType(l.t)
+            && !StringTools.contains(value, "toDouble()") && !StringTools.contains(value, "toFloat()"))
             value = intToFloatText(value);
         if (!isNullType(l.t) && rendersNullable(r) && !StringTools.endsWith(value, "!!")) {
 #if boring_fold_debug
