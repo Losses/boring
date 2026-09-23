@@ -504,6 +504,7 @@ class KotlinExpr {
         nonNullFields.clear();
         extractedLocals.clear();
         extractedFields.clear();
+        extractedInStatement.clear();
         declaredNullableInitLocals.clear();
         enumVariants.clear();
         registerNonNullDefaultParams(cls, f);
@@ -591,6 +592,7 @@ class KotlinExpr {
         nonNullFields.clear();
         extractedLocals.clear();
         extractedFields.clear();
+        extractedInStatement.clear();
         declaredNullableInitLocals.clear();
         enumVariants.clear();
         registerNonNullDefaultParams(cls, f);
@@ -883,7 +885,14 @@ class KotlinExpr {
                 out.push(indent(depth) + "}");
                 return out;
             case TIf(c, t, f):
+                // The condition renders in its own domain: a pre-render of
+                // the same condition must not hand its extraction records
+                // to this render, and this render's records must not spill
+                // into the enclosing sequence twice.
+                // (StatementScopeExtraction)
+                final conditionScope = extractionScopeSnapshot();
                 final condition = expr(c) + (rendersNullable(c) ? " == true" : "");
+                restoreExtractionScope(conditionScope);
                 final base = proofSnapshot();
                 addProofs(conditionProofs(c).thenPath);
                 final out = [indent(depth) + "if (" + condition + ") {"];
@@ -909,7 +918,9 @@ class KotlinExpr {
                 out.push(indent(depth) + "}");
                 return out;
             case TWhile(c, b, true):
+                final whileScope = extractionScopeSnapshot();
                 final out = [indent(depth) + "while (" + expr(c) + ") {"];
+                restoreExtractionScope(whileScope);
                 for (l in blockLines(statementsOf(b), depth + 1))
                     out.push(l);
                 out.push(indent(depth) + "}");
@@ -1236,6 +1247,12 @@ class KotlinExpr {
         final out:Array<String> = [];
         final previousNullGuards = activeNullGuardLocals;
         final previousNullGuardPositions = activeNullGuardPositions;
+        // Extractions made inside this body stay inside it: a `!!` in a
+        // branch or loop body carries no smart cast past the body exit.
+        // Records inherited from the enclosing sequence survive, since the
+        // dominating assertion covers this body too.
+        // (StatementScopeExtraction)
+        final previousExtractionScope = extractionScopeSnapshot();
         final localNullGuards = nullGuardLocalsInBlock(stmts);
         activeNullGuardLocals = [];
         for (k in previousNullGuards.keys())
@@ -1293,6 +1310,7 @@ class KotlinExpr {
         }
         activeNullGuardLocals = previousNullGuards;
         activeNullGuardPositions = previousNullGuardPositions;
+        restoreExtractionScope(previousExtractionScope);
         return out;
     }
 
@@ -1835,12 +1853,20 @@ class KotlinExpr {
                 }
                 final condition = expr(c);
                 final base = proofSnapshot();
+                // Each arm renders in its own statement domain: a `!!` made
+                // while rendering the then arm must not plain-render the
+                // else arm's reads of the same subject.
+                // (StatementScopeExtraction)
+                final thenScope = extractionScopeSnapshot();
                 addProofs(conditionProofs(c).thenPath);
                 final thenText = expr(t);
+                restoreExtractionScope(thenScope);
                 final afterThen = proofSnapshot();
                 restoreProofs(base);
+                final elseScope = extractionScopeSnapshot();
                 addProofs(conditionProofs(c).elsePath);
                 final elseText = expr(f);
+                restoreExtractionScope(elseScope);
                 final afterElse = proofSnapshot();
                 restoreProofs(intersectProofs(base, afterThen, afterElse));
                 // Haxe promotes nullable Float branches with integer literals
@@ -2688,6 +2714,13 @@ class KotlinExpr {
     // (FunctionScopeExtraction)
     final extractedLocals:Map<Int, Bool> = [];
     final extractedFields:Map<String, Bool> = [];
+    // Locals extracted within the current straight-line statement domain:
+    // a `!!` from a dominating statement of the same sequence keeps
+    // Kotlin's smart cast, while a `!!` made inside a branch dies at the
+    // branch exit. blockLines saves and restores this record around each
+    // body, so registrations made inside a branch never escape it.
+    // (StatementScopeExtraction)
+    final extractedInStatement:Map<Int, Bool> = [];
     // Locals whose Kotlin declaration infers an optional type: a non-null
     // Haxe annotation wrapped around a nullable initializer still infers
     // `T?`, so nil guards on them stay live. (NullableInferredLocal)
@@ -2706,6 +2739,40 @@ class KotlinExpr {
                 }
             case _:
         }
+    }
+
+    /** True when a local was extracted in the current straight-line
+        statement domain: the assertion dominates this read and Kotlin's
+        smart cast holds, while the record dies at the enclosing branch
+        exit. (StatementScopeExtraction) */
+    function statementExtractedLocal(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TLocal(v): extractedInStatement.exists(v.id);
+            case _: false;
+        };
+    }
+
+    /** Records an emitted extraction in the statement domain; only call
+        sites whose emitted text carries `!!` may register.
+        (StatementScopeExtraction) */
+    function statementExtractedRecord(e:TypedExpr):Void {
+        switch (stripWrap(e).expr) {
+            case TLocal(v): extractedInStatement.set(v.id, true);
+            case _:
+        }
+    }
+
+    function extractionScopeSnapshot():Map<Int, Bool> {
+        final m:Map<Int, Bool> = [];
+        for (k in extractedInStatement.keys())
+            m.set(k, true);
+        return m;
+    }
+
+    function restoreExtractionScope(s:Map<Int, Bool>):Void {
+        extractedInStatement.clear();
+        for (k in s.keys())
+            extractedInStatement.set(k, true);
     }
 
     /** Kotlin minimizes a ternary initializer type: when both arms render
@@ -2966,7 +3033,8 @@ class KotlinExpr {
             case TLocal(v): nullableRenderedLocals.exists(v.id);
             case _: false;
         };
-        if (renderedNullableLocal && !provenNonNull(subj) && !guardProofBefore(subj))
+        if (renderedNullableLocal && !provenNonNull(subj) && !guardProofBefore(subj)
+            && !statementExtractedLocal(subj))
             return "?.";
         // The flow proof wins over the storage shape: a subject the
         // guards already proved present reads through a plain dot even
@@ -2981,7 +3049,8 @@ class KotlinExpr {
             case TLocal(v): !closureMutatedLocals.exists(v.id);
             case _: false;
         };
-        if (isNullInitialized(subj) && !(stableSubject && (provenNonNull(subj) || guardProofBefore(subj))))
+        if (isNullInitialized(subj) && !(stableSubject
+            && (provenNonNull(subj) || guardProofBefore(subj) || statementExtractedLocal(subj))))
             return "!!.";
         // The typer wraps an implicit Null<T> unwrap in TCast; the cast's
         // own type is the non-null target, so look through it before
@@ -2992,6 +3061,7 @@ class KotlinExpr {
             case _:
         }
         if (!provenNonNull(subj) && !guardProofBefore(subj) && !guardedNonNullTernary(subj)
+            && !statementExtractedLocal(subj)
             && (isNullType(subj.t) || isNullableRenderedField(subj)))
             return "?.";
         // A safe-navigation hop widens the value produced by the whole
@@ -3013,7 +3083,8 @@ class KotlinExpr {
         // The nullable-type fallback extracts only when no dominating
         // proof holds: a proven subject reads through a plain dot, and a
         // needless assertion warns as redundant. (NullableAccessProof)
-        if (isNullType(subj.t) && !provenNonNull(subj) && !guardProofBefore(subj)) {
+        if (isNullType(subj.t) && !provenNonNull(subj) && !guardProofBefore(subj)
+            && !statementExtractedLocal(subj)) {
 #if boring_fold_debug
             emissionTrace("ACCESS_FALLBACK", expr(subj), subj.pos);
 #end
@@ -3040,11 +3111,13 @@ class KotlinExpr {
             case _: false;
         };
         if (sep == "!!." && isNullInitialized(subj)
-            && !(stableSubject && (provenNonNull(subj) || guardProofBefore(subj)))) {
+            && !(stableSubject
+                && (provenNonNull(subj) || guardProofBefore(subj) || statementExtractedLocal(subj)))) {
 #if boring_fold_debug
             emissionTrace("ACCESS_NULLINIT", expr(subj), subj.pos);
 #end
             addProofExpr(subj);
+            statementExtractedRecord(subj);
         }
         return sep;
     }
@@ -3588,10 +3661,15 @@ class KotlinExpr {
                         // render must register nothing: the key computes
                         // during flow probes, and a leaked proof would let
                         // the real render drop an assertion the emitted text
-                        // never carried. (KeyRenderRegistersNothing)
+                        // never carried. The statement-domain record joins
+                        // the rollback: a key render's assertion lives in
+                        // discarded text, so its extraction record must die
+                        // with it. (KeyRenderRegistersNothing)
                         final proofs = proofSnapshot();
                         final extractions = extractionSnapshot();
+                        final statementExtractions = extractionScopeSnapshot();
                         final key = "field:" + expr(e);
+                        restoreExtractionScope(statementExtractions);
                         restoreExtraction(extractions);
                         restoreProofs(proofs);
                         key;
@@ -3750,7 +3828,8 @@ class KotlinExpr {
         // on every use and never joins the proof set, because render-order
         // proofs misjudge assignments inside loops and branches.
         // (GuardedTernaryOperandProof)
-        final proven = provenNonNull(e) || guardProofBefore(e) || guardedNonNullTernary(e);
+        final proven = provenNonNull(e) || guardProofBefore(e) || guardedNonNullTernary(e)
+            || statementExtractedLocal(e);
         // A val property chain kotlin already smart-cast: the later
         // assertion reports no effect, so it drops. (ValPropertySmartCastProof)
         final smartCastPair = switch (stripWrap(e).expr) {
@@ -3785,6 +3864,7 @@ class KotlinExpr {
             // again later must not extract twice.
             // (ExtractionRegistersProof)
             addProofExpr(e);
+            statementExtractedRecord(e);
             if (smartCastPair != null)
                 valPropertyProofs.set(smartCastPair, true);
         }
@@ -3990,20 +4070,24 @@ class KotlinExpr {
     **/
     function decidedFieldAccess(subj:TypedExpr, fieldType:Null<Type>, isProperty:Bool):String {
         if (isProperty && fieldType != null && !isNullType(fieldType)
-            && isNullType(subj.t) && !provenNonNull(subj) && !guardProofBefore(subj)) {
+            && isNullType(subj.t) && !provenNonNull(subj) && !guardProofBefore(subj)
+            && !statementExtractedLocal(subj)) {
             // Every extraction registers: the subject reads plain after the
             // assertion, so a second read of the same subject in the
             // following statements must not extract twice.
             // (ExtractionRegistersProof)
             addProofExpr(subj);
+            statementExtractedRecord(subj);
             return "!!.";
         }
         // The subject value stays nullable whenever its own rendering is
         // nullable; the property read then extracts to keep the declared
         // type. Consulting rendersNullable keeps the emission on the same
         // decision the flow predicates use. (UnifiedFieldAccessDecision)
-        if (!provenNonNull(subj) && !guardProofBefore(subj) && rendersNullable(subj)) {
+        if (!provenNonNull(subj) && !guardProofBefore(subj) && !statementExtractedLocal(subj)
+            && rendersNullable(subj)) {
             addProofExpr(subj);
+            statementExtractedRecord(subj);
             return "!!.";
         }
         return nullableAccess(subj);
