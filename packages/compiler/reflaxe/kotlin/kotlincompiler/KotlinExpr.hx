@@ -2989,6 +2989,17 @@ class KotlinExpr {
                         }
                 };
                 return literalSubject == null ? {thenPath: empty(), elsePath: empty()} : {thenPath: proofFor(literalSubject), elsePath: empty()};
+            case TCall(f, args) if (args.length == 2 && isTypeCheckCall(f)):
+                // An is-check against a type literal narrows its first
+                // argument: the then branch reads the subject present.
+                // (IsCheckProvesSubject)
+                final checked = switch (args[1].expr) {
+                    case TTypeExpr(_): true;
+                    case _: false;
+                };
+                return checked
+                    ? {thenPath: proofFor(args[0]), elsePath: empty()}
+                    : {thenPath: empty(), elsePath: empty()};
             case TBinop(op, cl, cr) if (op == OpGt || op == OpGte || op == OpLt || op == OpLte):
                 // A comparison renders its nullable operand behind an
                 // extraction, so Kotlin's flow proves the operand present
@@ -3008,6 +3019,18 @@ class KotlinExpr {
     function intersectProofArrays(a:{locals:Array<Int>, fields:Array<String>},
             b:{locals:Array<Int>, fields:Array<String>}):{locals:Array<Int>, fields:Array<String>} {
         return {locals: [for (x in a.locals) if (b.locals.indexOf(x) >= 0) x], fields: [for (x in a.fields) if (b.fields.indexOf(x) >= 0) x]};
+    }
+
+    /** True for the runtime type-check entry points (`Std.is`,
+        `Std.isOfType`): the call narrows its first argument.
+        (IsCheckProvesSubject) */
+    function isTypeCheckCall(f:TypedExpr):Bool {
+        return switch (stripWrap(f).expr) {
+            case TField(_, fa):
+                final n = fieldName(fa);
+                n == "isOfType" || n == "is";
+            case _: false;
+        };
     }
 
     function proofFor(e:TypedExpr):{locals:Array<Int>, fields:Array<String>} {
@@ -3153,7 +3176,7 @@ class KotlinExpr {
         // proof holds: a proven subject reads through a plain dot, and a
         // needless assertion warns as redundant. (NullableAccessProof)
         if (isNullType(subj.t) && !provenNonNull(subj) && !guardProofBefore(subj)
-            && !statementExtractedLocal(subj)) {
+            && !statementExtractedLocal(subj) && !guardedNonNullTernary(subj)) {
 #if boring_fold_debug
             emissionTrace("ACCESS_FALLBACK", expr(subj), subj.pos);
 #end
