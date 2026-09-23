@@ -3902,6 +3902,21 @@ class KotlinExpr {
                         }
                     }
                 }
+                // A zero-over-zero float literal is the NaN idiom; Kotlin's
+                // constant division warns, so the fold names the constant.
+                // (ZeroDivZeroNaN)
+                if (op == OpDiv && isFloatType(e.t)) {
+                    final lz = switch (stripWrap(l).expr) {
+                        case TConst(TFloat(v)): v == "0" || v == "0.0";
+                        case _: false;
+                    };
+                    final rz = switch (stripWrap(r).expr) {
+                        case TConst(TFloat(v)): v == "0" || v == "0.0";
+                        case _: false;
+                    };
+                    if (lz && rz)
+                        return FloatPrecision.isF32() ? "Float.NaN" : "Double.NaN";
+                }
                 final leftText = operand(l, op, false);
                 final rightText = operand(r, op, true);
                 // Haxe types an Int divided by an Int as Float, while Kotlin
