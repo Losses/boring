@@ -205,6 +205,12 @@ class RustExpr {
     final sunkInitVarIds:Map<Int, Bool> = [];
     // Locals initialized from charCodeAt are collapsed from Option<u32> to a scalar.
     final nullableCollapsedLocals:Map<Int, Bool> = [];
+    // Active per-character string loops. Each entry names the receiver
+    // local whose UTF-16 units were hoisted into a Vec before the loop and
+    // the index local that walks it; per-char reads of that receiver at
+    // that index lower against the vector instead of rescanning the UTF-8
+    // string. (PerCharLoopUnits)
+    final perCharLoopUnits:Array<{ indexLocalId:Int, receiverLocalId:Int, unitsTemp:String }> = [];
     // Locals whose declaration initializer is provably dead (overwritten
     // by a later store before any read): the declaration demotes to a
     // typed binding and the later store initializes it.
@@ -1710,10 +1716,13 @@ class RustExpr {
                     }
                 return out;
             case TWhile(c, b, true):
+                final perChar = perCharLoopInfo(c, b);
                 var condStr = nullableBoolOperand(c, expr(c));
                 while (StringTools.startsWith(condStr, "(") && StringTools.endsWith(condStr, ")") && matchingParens(condStr)) {
                     condStr = condStr.substr(1, condStr.length - 2);
                 }
+                if (perChar != null)
+                    condStr = StringTools.replace(condStr, perChar.countCall, perChar.countTemp);
                 // A literal true condition lowers to Rust's dedicated loop.
                 final header = condStr == "true" ? "loop" : "while " + condStr;
                 // A compared cursor local (`while cursor != None`) is proven
@@ -1730,9 +1739,18 @@ class RustExpr {
                 };
                 if (provenId != null)
                     provenNonNullVarIds.set(provenId, true);
-                final out = [indent(depth) + header + " {"];
+                final out = [];
+                if (perChar != null) {
+                    out.push(indent(depth) + "let " + perChar.unitsTemp + " = u_string::units(&" + perChar.receiverText + ");");
+                    out.push(indent(depth) + "let " + perChar.countTemp + " = u_string::unit_count(&" + perChar.receiverText + ");");
+                }
+                out.push(indent(depth) + header + " {");
+                if (perChar != null)
+                    perCharLoopUnits.push(perChar);
                 for (l in blockLines(statementsOf(b), depth + 1))
                     out.push(l);
+                if (perChar != null)
+                    perCharLoopUnits.pop();
                 out.push(indent(depth) + "}");
                 if (provenId != null)
                     provenNonNullVarIds.remove(provenId);
@@ -8080,6 +8098,159 @@ class RustExpr {
         return text.indexOf("u_string::unit_count") >= 0 || text.indexOf("u_string::count") >= 0;
     }
 
+    /**
+        perCharLoopInfo: recognize a per-character walk over one String local
+        and return the hoisting plan, or null to leave the loop untouched.
+        The shape is `while (i < receiver.length)` where the body reads the
+        receiver at the walking index (`charAt(i)` / `charCodeAt(i)`) and the
+        receiver is never written inside the loop. When recognized, the UTF-16
+        units and the unit count are computed once before the loop and the
+        per-char reads lower against that vector. (PerCharLoopUnits)
+    **/
+    function perCharLoopInfo(c:TypedExpr, b:TypedExpr):Null<{indexLocalId:Int, receiverLocalId:Int, unitsTemp:String, countTemp:String, countCall:String, receiverText:String}> {
+        final pair = perCharLoopCondition(c);
+        if (pair == null || pair.receiver == null || pair.indexId == null)
+            return null;
+        final recv = pair.receiver;
+        final indexId = pair.indexId;
+        // Hoisting a snapshot of the receiver is only sound when the loop
+        // never reassigns it: a write would change the units mid-walk.
+        if (writesLocal(b, recv.id))
+            return null;
+        // The index must advance so the walk terminates and stays in range.
+        if (!incrementsLocal(b, indexId))
+            return null;
+        // Only hoist when the body genuinely reads the receiver at the index.
+        if (!bodyReadsReceiverAtIndex(b, recv.id, indexId))
+            return null;
+        final receiverText = RustImports.toSnakeCase(localName(recv));
+        state.shimsUsed.set("std.UStringRT", true);
+        imports.require("crate::runtime::u_string");
+        final unitsTemp = freshRegionName("__units");
+        final countTemp = freshRegionName("__count");
+        return {
+            indexLocalId: indexId,
+            receiverLocalId: recv.id,
+            unitsTemp: unitsTemp,
+            countTemp: countTemp,
+            countCall: "u_string::unit_count(&(" + receiverText + "))",
+            receiverText: receiverText,
+        };
+    }
+
+    /**
+        perCharLoopCondition: pull the walking index local and the String
+        receiver local out of a `i < receiver.length` (or mirrored) condition.
+        Returns null when the condition is not that shape.
+    **/
+    function perCharLoopCondition(c:TypedExpr):Null<{indexId:Null<Int>, receiver:Null<TVar>}> {
+        return switch (stripWrap(c).expr) {
+            case TBinop(OpLt | OpLte, l, r): perCharPair(l, r);
+            case TBinop(OpGt | OpGte, l, r): perCharPair(r, l);
+            case _: null;
+        };
+    }
+
+    /** The index local on the left and the String length read on the right. */
+    function perCharPair(indexExpr:TypedExpr, lenExpr:TypedExpr):Null<{indexId:Null<Int>, receiver:Null<TVar>}> {
+        final indexId = switch (stripWrap(indexExpr).expr) {
+            case TLocal(v): v.id;
+            case _: return null;
+        };
+        final receiver = switch (stripWrap(lenExpr).expr) {
+            case TField(subj, FInstance(_, _, cf)) if (cf.get().name == "length" && isString(subj)):
+                switch (stripWrap(subj).expr) {
+                    case TLocal(v): v;
+                    case _: return null;
+                };
+            case _: return null;
+        };
+        return {indexId: indexId, receiver: receiver};
+    }
+
+    /** The active per-char loop whose receiver and index match the read, or null. */
+    function perCharLoopMatch(subj:TypedExpr, indexArg:TypedExpr):Null<{unitsTemp:String}> {
+        if (perCharLoopUnits.length == 0)
+            return null;
+        final subjId = switch (stripWrap(subj).expr) {
+            case TLocal(v): v.id;
+            case _: return null;
+        };
+        final indexId = switch (stripWrap(indexArg).expr) {
+            case TLocal(v): v.id;
+            case _: return null;
+        };
+        for (entry in perCharLoopUnits) {
+            if (entry.receiverLocalId == subjId && entry.indexLocalId == indexId)
+                return {unitsTemp: entry.unitsTemp};
+        }
+        return null;
+    }
+
+    /** Whether the loop body increments the walking index. */
+    function incrementsLocal(e:TypedExpr, localId:Int):Bool {
+        return switch (stripWrap(e).expr) {
+            case TBlock(stmts): anyIncrements(stmts, localId);
+            case TUnop(OpIncrement, _, subj): targetMentions(subj, localId);
+            case TBinop(OpAssignOp(OpAdd), t, _): targetMentions(t, localId);
+            case TIf(_, t, f): incrementsLocal(t, localId) || (f != null && incrementsLocal(f, localId));
+            case _: false;
+        };
+    }
+
+    function anyIncrements(stmts:Array<TypedExpr>, localId:Int):Bool {
+        for (s in stmts) {
+            if (incrementsLocal(s, localId))
+                return true;
+        }
+        return false;
+    }
+
+    /** Whether the loop body reads the receiver at the index via charAt or charCodeAt. */
+    function bodyReadsReceiverAtIndex(e:TypedExpr, receiverId:Int, indexId:Int):Bool {
+        return switch (stripWrap(e).expr) {
+            case TBlock(stmts): anyBodyRead(stmts, receiverId, indexId);
+            case TCall({expr: TField(subj, fa)}, args): perCharCallRead(subj, fa, args, receiverId, indexId);
+            case TIf(_, t, f): bodyReadsReceiverAtIndex(t, receiverId, indexId)
+                || (f != null && bodyReadsReceiverAtIndex(f, receiverId, indexId));
+            case TVar(_, init): init != null && bodyReadsReceiverAtIndex(init, receiverId, indexId);
+            case TBinop(_, l, r): bodyReadsReceiverAtIndex(l, receiverId, indexId)
+                || bodyReadsReceiverAtIndex(r, receiverId, indexId);
+            case TUnop(_, _, subj): bodyReadsReceiverAtIndex(subj, receiverId, indexId);
+            case TArray(arr, idx): bodyReadsReceiverAtIndex(arr, receiverId, indexId)
+                || bodyReadsReceiverAtIndex(idx, receiverId, indexId);
+            case TField(subj, _): bodyReadsReceiverAtIndex(subj, receiverId, indexId);
+            case _: false;
+        };
+    }
+
+    function anyBodyRead(stmts:Array<TypedExpr>, receiverId:Int, indexId:Int):Bool {
+        for (s in stmts) {
+            if (bodyReadsReceiverAtIndex(s, receiverId, indexId))
+                return true;
+        }
+        return false;
+    }
+
+    function perCharCallRead(subj:TypedExpr, fa:FieldAccess, args:Array<TypedExpr>, receiverId:Int, indexId:Int):Bool {
+        if (args.length < 1)
+            return false;
+        final name = fieldName(fa);
+        if (name != "charAt" && name != "charCodeAt" && name != "char_code_at")
+            return false;
+        final subjId = switch (stripWrap(subj).expr) {
+            case TLocal(v): v.id;
+            case _: return false;
+        };
+        if (subjId != receiverId)
+            return false;
+        final argId = switch (stripWrap(args[0]).expr) {
+            case TLocal(v): v.id;
+            case _: return false;
+        };
+        return argId == indexId;
+    }
+
     function staticAssignmentTarget(e:TypedExpr):Null<String> {
         return switch (stripWrap(e).expr) {
             case TField(_, FStatic(c, cf)) if (isGuardStaticField(c.get(), cf.get().name)):
@@ -8963,6 +9134,13 @@ class RustExpr {
                 if (name == "charAt" && isString(stripCast(subj))) {
                     state.shimsUsed.set("std.UStringRT", true);
                     imports.require("crate::runtime::u_string");
+                    // Inside a hoisted per-character loop, the receiver's
+                    // UTF-16 units already sit in a Vec; read the one-unit
+                    // slice from there instead of rescanning the UTF-8 source
+                    // (O(1) vs O(n) per character). (PerCharLoopUnits)
+                    final perChar = perCharLoopMatch(subj, args[0]);
+                    if (perChar != null)
+                        return "u_string::char_at_from(&" + perChar.unitsTemp + ", " + castShiftU32(args[0]) + ")";
                     // The exclusive end is the index plus one in the same
                     // integer domain as the start. A bare `(index) + 1`
                     // rendered source is an untyped {integer} literal when
@@ -8995,6 +9173,12 @@ class RustExpr {
                 if ((name == "charCodeAt" || name == "char_code_at") && isString(stripCast(subj))) {
                     state.shimsUsed.set("std.UStringRT", true);
                     imports.require("crate::runtime::u_string");
+                    // Inside a hoisted per-character loop the receiver's units
+                    // already sit in a Vec; read the unit from there instead of
+                    // rescanning the UTF-8 source (O(1) vs O(n)). (PerCharLoopUnits)
+                    final perChar = perCharLoopMatch(subj, args[0]);
+                    if (perChar != null)
+                        return "u_string::unit_at_from(&" + perChar.unitsTemp + ", " + castShiftU32(args[0]) + ")";
                     // The call site's own expression decides: a Null<Int>
                     // context keeps the Option and an Int context unwraps it.
                     var callRet:Null<Type> = null;
@@ -14170,6 +14354,19 @@ class RustExpr {
             if (directPath != null)
                 return directPath + "[" + castArg(idx, "usize") + "]";
         }
+        // An owned non-Copy Vec field read renders with a whole-container
+        // clone (`(self.keys).clone()`) so a value slot can own the Vec.
+        // Indexing does not need that ownership: it reads one element and
+        // the caller clones just the element, so cloning the whole Vec
+        // before indexing copies N elements per lookup. Index the field in
+        // place instead and let the element-read clone apply alone. This is
+        // the general form of a value read, not a per-table special case.
+        // (OwnedVecFieldIndexInPlace)
+        if (!mutable) {
+            final fieldPath = ownedVecFieldIndexPath(arr);
+            if (fieldPath != null)
+                return fieldPath + "[" + castArg(idx, "usize") + "]";
+        }
         final receiver = expr(arr);
         // A narrowed receiver already renders as the match binding, a
         // reference to the inner Vec (match &(opt) { Some(name) => ... }).
@@ -14202,6 +14399,41 @@ class RustExpr {
         }
         final receiverText = StringTools.startsWith(receiver, "&*") ? "(" + receiver + ")" : receiver;
         return receiverText + "[" + castArg(idx, "usize") + "]";
+    }
+
+    /**
+        ownedVecFieldIndexPath: the bare field path of an owned non-Copy
+        Vec field read (e.g. `self.keys`), or null. The value read of such a
+        field clones the whole container at the read site; indexing wants
+        the field in place so the element-read clone alone covers the read.
+    **/
+    function ownedVecFieldIndexPath(arr:TypedExpr):Null<String> {
+        if (isNullType(arr.t))
+            return null;
+        if (!isOwnedVecType(arr.t))
+            return null;
+        // Rebuild the same field path field() renders, without the
+        // whole-container clone. Covers this/borrowed-subject field reads.
+        return switch (stripWrap(arr).expr) {
+            case TField(subj, FInstance(_, _, cf)):
+                final name = cf.get().name;
+                if (name == "length")
+                    return null;
+                if (isTypeCopy(cf.get().type))
+                    return null;
+                // The field() value read clones the whole Vec when the
+                // receiver is `this` or a borrowed subject (E0507); both
+                // cases index the field in place here.
+                final thisField = switch (stripWrap(subj).expr) {
+                    case TConst(TThis): true;
+                    case _: false;
+                };
+                if (thisField || isBorrowedExpression(subj))
+                    return expr(subj) + "." + RustImports.toSnakeCase(name);
+                return null;
+            case _:
+                return null;
+        };
     }
 
     function arrayArgBorrow(e:TypedExpr):String {

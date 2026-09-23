@@ -485,6 +485,34 @@ pub fn unit_count(s: &str) -> u32 {
     u32::try_from(s.encode_utf16().count()).unwrap_or(0)
 }
 
+// The UTF-16 code-unit vector of a string, built once. Per-character
+// loops that read length and per-index units lower against this vector
+// instead of rescanning the UTF-8 source on every access, which turns a
+// per-character scan into a quadratic blow-up on large blocks.
+pub fn units(s: &str) -> Vec<u16> {
+    s.encode_utf16().collect()
+}
+
+// The single UTF-16 unit at `index` read from a precomputed unit vector,
+// the O(1) form of String.charCodeAt. It answers None past the last unit,
+// matching the unit_at read it replaces, so the call-site unwrap (or the
+// nullable Option context) rides the same machinery unchanged.
+pub fn unit_at_from(units: &[u16], index: u32) -> Option<u32> {
+    units.get(usize::try_from(index).unwrap_or(0)).map(|u| u32::from(*u))
+}
+
+// The single UTF-16 unit at `index` as an owned one-unit String, the
+// O(1) form of String.charAt; an out-of-range index yields the empty
+// string, matching charAt past the end.
+pub fn char_at_from(units: &[u16], index: u32) -> String {
+    let i = usize::try_from(index).unwrap_or(0);
+    if i < units.len() {
+        String::from_utf16_lossy(&units[i..i + 1])
+    } else {
+        String::new()
+    }
+}
+
 // The code-point read that std.UString.at lowers to: the index counts
 // characters and the value is one code point, so a surrogate pair
 // occupies one address and yields its combined code point.
