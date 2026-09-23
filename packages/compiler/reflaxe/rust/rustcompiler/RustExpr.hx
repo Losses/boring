@@ -8812,8 +8812,17 @@ class RustExpr {
                             && switch (stripWrap(args[i]).expr) {
                                 case TLocal(v): optionRenderedLocals.exists(v.id);
                                 case _: false;
-                            })
-                            r = "(" + stripRenderedParens(expr(stripWrap(args[i]))) + ").as_ref().unwrap()";
+                            }) {
+                            final renderedValue = stripRenderedParens(expr(stripWrap(args[i])));
+                            // A guarded lowering renders the local as the
+                            // match arm's inner binding, which already borrows
+                            // the inner value; a second unwrap would ask Rust
+                            // for as_ref on a reference. (ArmBindingSlotValue)
+                            final armBinding = (~/^(__option\d+)$/);
+                            r = armBinding.match(renderedValue)
+                                ? renderedValue
+                                : "(" + renderedValue + ").as_ref().unwrap()";
+                        }
                         r;
                     }];
                     return nullableMethodReceiver(subj, true) + ".put(" + putArgs.join(", ") + ")";
