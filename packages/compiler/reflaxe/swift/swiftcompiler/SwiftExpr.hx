@@ -1196,7 +1196,15 @@ class SwiftExpr {
     function strideValue(e:TypedExpr):String {
         return switch (stripWrap(e).expr) {
             case TConst(TInt(_)): "Int32(" + expr(e) + ")";
-            case TField(subj, fa) if (fieldName(fa) == "length"): "Int32(" + receiverText(subj) + ".count)";
+            case TField(subj, fa) if (fieldName(fa) == "length"):
+    // A String length is the UTF-16 code-unit count (the Haxe
+    // String.length contract), not Swift's grapheme-cluster count.
+    // Resident modules render String as [UInt16], where .count already
+    // counts units; business modules need .utf16.count to keep index
+    // loops aligned with the UTF-16 indexing ABI.
+    if (isStringSubject(subj) && !types.resident)
+        return "Int32(" + receiverText(subj) + ".utf16.count)";
+    return "Int32(" + receiverText(subj) + ".count)";
             case _: expr(e);
         };
     }
