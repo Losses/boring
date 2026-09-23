@@ -2929,11 +2929,30 @@ class SwiftExpr {
                             // (InoutLiteralHoist)
                             inoutHoistCounter += 1;
                             final name = "_inout" + inoutHoistCounter;
-                            // The temp takes the declared parameter type: the
-                            // array literal adapts its element literals to the
-                            // Int32 element, and inout requires a var.
+                            // The temp takes the declared parameter type. An
+                            // array-literal argument converts each element to
+                            // the declared element type (the bare literal infers
+                            // the default Int), and inout requires a var.
                             // (InoutLiteralHoist)
-                            final tempInit = pt != null ? types.of(pt) + "(" + expr(a) + ")" : expr(a);
+                            var tempInit = expr(a);
+                            if (pt != null) {
+                                switch (Context.follow(pt)) {
+                                    case TInst(c, [elem]) if (c.get().name == "Array" && c.get().pack.length == 0):
+                                        switch (stripWrap(a).expr) {
+                                            case TArrayDecl(elems):
+                                                final elemName = types.of(elem);
+                                                final converted = [for (x in elems) {
+                                                    final xt = expr(x);
+                                                    isIntType(elem) || isFloatLeafType(elem) ? elemName + "(" + xt + ")" : xt;
+                                                }];
+                                                tempInit = types.of(pt) + "([" + converted.join(", ") + "])";
+                                            case _:
+                                                tempInit = types.of(pt) + "(" + expr(a) + ")";
+                                        }
+                                    case _:
+                                        tempInit = types.of(pt) + "(" + expr(a) + ")";
+                                }
+                            }
                             pendingInoutHoists.push({name: name, init: tempInit, kw: "var"});
                             "&" + name;
                     }
