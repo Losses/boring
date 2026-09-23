@@ -367,7 +367,7 @@ class SwiftExpr {
             case CString(s): quoteString(s);
             case CBool(b): b ? "true" : "false";
             case CNull: types.optionalNone(targetType);
-            case CEmptyArray: "[]";
+            case CEmptyArray: "TiqianArray()";
             case CEmptyMap: "[:]";
             case CPositiveInfinity: FloatPrecision.isF32() ? "Float.infinity" : "Double.infinity";
             case CNegativeInfinity: FloatPrecision.isF32() ? "-Float.infinity" : "-Double.infinity";
@@ -1664,7 +1664,7 @@ class SwiftExpr {
 
         final arrName = localName(alloc.arr);
         final out:Array<String> = [];
-        out.push(indent(depth) + "var " + arrName + " = [" + types.of(alloc.elem) + "]()");
+        out.push(indent(depth) + "var " + arrName + " = TiqianArray<" + types.of(alloc.elem) + ">()");
         out.push(indent(depth) + arrName + ".reserveCapacity(Int(max(" + expr(loop.bound) + ", 0)))");
         out.push(indent(depth) + "for " + (plan.readsIndex ? localName(loop.index) : "_") + " in stride(from: " + strideValue(loop.start) + ", to: "
             + strideValue(loop.bound) + ", by: 1) {");
@@ -1774,12 +1774,13 @@ class SwiftExpr {
                         t;
                     }
                 ];
-                final body = "[" + renderedElems.join(", ") + "]";
+                final inner = "[" + renderedElems.join(", ") + "]";
                 // A Swift array literal of concrete implementations infers
                 // `[Any]` when the Haxe element type is an interface, losing
                 // the protocol members; the interface element type is carried
                 // explicitly so the existential stays in the array.
-                return isInterfaceType(elemType) ? "(" + body + " as [" + types.of(elemType) + "])" : body;
+                final body = isInterfaceType(elemType) ? "(" + inner + " as [" + types.of(elemType) + "])" : inner;
+                return "TiqianArray(" + body + ")";
             case TCall(fn, args):
                 return call(fn, args);
             case TNew(c, params, args):
@@ -3484,11 +3485,9 @@ class SwiftExpr {
                 }
                 if (name == "indexOf" && isUnitArrayTyped(subj) && !isStringSubject(subj) && args.length >= 1
                     && (args.length == 1 || isNullLiteral(args[1]))) {
-                    // Haxe Array.indexOf has no Swift member; lower onto
-                    // firstIndex(of:) and report the -1 miss the subset uses.
-                    final s = receiverText(subj);
-                    return "Int32({ () -> Int in if let i = " + s + ".firstIndex(of: " + optionalExpr(args[0]) + ") { return " + s + ".distance(from: " + s
-                        + ".startIndex, to: i) }; return -1 }())";
+                    // Haxe Array.indexOf lowers onto the TiqianArray member,
+                    // which reports the -1 miss the subset uses.
+                    return receiverText(subj) + ".indexOf(" + optionalExpr(args[0]) + ")";
                 }
                 if (name == "lastIndexOf" && isStringSubject(subj) && args.length >= 1) {
                     final s = receiverText(subj);
@@ -3552,73 +3551,33 @@ class SwiftExpr {
                     return receiverText(subj) + ".append(" + (unwrap ? optionalExpr(args[0]) : expr(args[0])) + ")";
                 }
                 if (name == "pop" && isUnitArrayTyped(subj)) {
-                    return receiverText(subj) + ".popLast()";
+                    return receiverText(subj) + ".pop()";
                 }
                 if (name == "shift" && isUnitArrayTyped(subj)) {
-                    // Haxe shift returns null on an empty array while Swift's
-                    // removeFirst traps, so the emptiness guard names the
-                    // optional result.
-                    final s = receiverText(subj);
-                    return "(" + s + ".isEmpty ? nil : " + s + ".removeFirst())";
+                    return receiverText(subj) + ".shift()";
                 }
                 if (name == "unshift" && isUnitArrayTyped(subj)) {
-                    // Haxe Array.unshift returns Void, so the call only
-                    // appears in statement position and Swift insert is
-                    // Void as well.
-                    final s = receiverText(subj);
-                    return s + ".insert(" + expr(args[0]) + ", at: 0)";
+                    return receiverText(subj) + ".unshift(" + expr(args[0]) + ")";
                 }
                 if (name == "insert" && isUnitArrayTyped(subj) && args.length == 2) {
-                    // Haxe Array.insert(pos, x): Swift names the position
-                    // with `at:` and the index is an Int. Haxe also bounds
-                    // the position before the array sees it: a negative
-                    // position counts from the end of the array and stops at
-                    // the first element, and a position past the end clamps
-                    // to the count. Swift's insert traps on an index outside
-                    // the array, so the position is clamped first.
-                    // (ArrayInsertClamping)
+                    // Haxe Array.insert(pos, x) bounds the position before
+                    // the array sees it (ArrayInsertClamping); TiqianArray
+                    // clamps the same way.
                     final s = receiverText(subj);
-                    final pos = "Int(" + expr(args[0]) + ")";
-                    return "({ () in let _sz = " + s + ".count; let _p0 = " + pos + "; let _p = _p0 < 0 ? max(_sz + _p0, 0) : min(_p0, _sz); " + s
-                        + ".insert(" + expr(args[1]) + ", at: _p) }())";
+                    return s + ".insert(" + expr(args[1]) + ", at: Int(" + expr(args[0]) + "))";
                 }
                 if (name == "concat" && isUnitArrayTyped(subj) && args.length == 1) {
-                    return receiverText(subj) + " + " + expr(args[0]);
+                    return receiverText(subj) + ".concat(" + expr(args[0]) + ")";
                 }
                 if (name == "copy" && isUnitArrayTyped(subj) && args.length == 0) {
-                    return "Array(" + receiverText(subj) + ")";
+                    return receiverText(subj) + ".copy()";
                 }
                 if (name == "splice" && isUnitArrayTyped(subj) && args.length >= 2) {
                     // Haxe splice mutates and returns the removed sub-array,
-                    // and it bounds the call before it removes anything: a
-                    // negative length or a position past the length removes
-                    // nothing and leaves the array alone, a negative position
-                    // counts from the end and stops at the first element, and
-                    // a length that reaches past the end removes only the
-                    // tail. The Swift range subscript traps on any bound
-                    // outside the array, so the position is clamped into it
-                    // and the count is trimmed to the elements that remain.
-                    // (ArraySpliceClamping)
+                    // bounding the call before removing (ArraySpliceClamping);
+                    // TiqianArray clamps the same way.
                     final s = receiverText(subj);
-                    final start = "Int(" + expr(args[0]) + ")";
-                    final len = "Int(" + expr(args[1]) + ")";
-                    // removeSubrange mutates the receiver, so the clamp reads
-                    // the count of the receiver expression itself instead of a
-                    // let-bound copy, which Swift refuses to mutate.
-                    return "({ () in let _sz = "
-                        + s
-                        + ".count; let _p0 = "
-                        + start
-                        + "; let _l = "
-                        + len
-                        + "; let _p = _p0 < 0 ? max(_sz + _p0, 0) : (_p0 > _sz ? _sz : _p0)"
-                        + "; let _c = (_l < 0 || _p0 > _sz) ? 0 : min(_l, _sz - _p)"
-                        + "; let removed = Array("
-                        + s
-                        + "[_p..<(_p + _c)])"
-                        + "; "
-                        + s
-                        + ".removeSubrange(_p..<(_p + _c)); return removed }())";
+                    return s + ".splice(Int(" + expr(args[0]) + "), Int(" + expr(args[1]) + "))";
                 }
                 if (name == "join") {
                     // The split/join pair in the resident StringTools
@@ -4260,7 +4219,7 @@ class SwiftExpr {
                 imports.runtime("BytesBuffer");
                 return "BytesBuffer()";
             case "Array":
-                return "[" + types.of(params[0]) + "]()";
+                return "TiqianArray<" + types.of(params[0]) + ">()";
             case _:
                 imports.value(cls.module, cls.name);
                 return cls.name + "(" + rendered + ")";
