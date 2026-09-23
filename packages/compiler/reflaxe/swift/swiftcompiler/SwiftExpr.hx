@@ -72,6 +72,11 @@ class SwiftExpr {
 
     /** Locals reassigned after their declaration; emitted with var. */
     final mutated:Map<Int, Bool> = [];
+    /** Mutations that go through a reference (method calls and subscript
+        writes on the class-backed array and generated classes): the
+        binding itself can stay let, unlike rebindings.
+        (ReferenceMethodKeepsLet) */
+    final refMutated:Map<Int, Bool> = [];
 
     /** Names written in the scanned body; parameter names are recorded directly. */
     final mutatedNames:Map<String, Bool> = [];
@@ -155,6 +160,11 @@ class SwiftExpr {
 
     /** Fresh names for the trailing-unit reads of stdlib/08 checks. */
     var stringBufTailCounter:Int = 0;
+    /** Inout arguments that are not lvalues (array literals) hoist into an
+        immediately-invoked closure around the call; Swift's `&` needs a
+        local. (InoutLiteralHoist) */
+    var pendingInoutHoists:Array<{name:String, init:String}> = [];
+    var inoutHoistCounter = 0;
 
     /** Fresh names for the guarded put of a nullable SortedMap value. */
     var nullablePutCounter:Int = 0;
@@ -693,7 +703,7 @@ class SwiftExpr {
                 final coalescing = coalescingSiteFor(init);
                 if (coalescing != null)
                     coalescingLocals.set(v.id, true);
-                final kw = mutated.exists(v.id) ? "var" : "let";
+                var kw = bindingKw(v);
                 final tryKw = containsThrowingCall(init) ? "try " : "";
                 // Five initializers cannot carry their type to Swift's
                 // inference: an empty array literal, an integer
@@ -749,6 +759,12 @@ class SwiftExpr {
                     initText = intToFloatText(initText);
                 if (unwrapNullableInitializer && !StringTools.endsWith(initText, "!"))
                     initText += "!";
+                // A reference-typed binding whose initializer renders the
+                // native value array (the UString unit conversions) is a
+                // value: its reference-style mutations still need var.
+                // (ReferenceMethodKeepsLet)
+                if (kw == "let" && refMutated.exists(v.id) && StringTools.startsWith(initText, "Array("))
+                    kw = "var";
                 if (swiftShadowedLocals.exists(v.id))
                     return [];
                 if (swiftUnusedLocals.exists(v.id))
@@ -1664,7 +1680,10 @@ class SwiftExpr {
 
         final arrName = localName(alloc.arr);
         final out:Array<String> = [];
-        out.push(indent(depth) + "var " + arrName + " = TiqianArray<" + types.of(alloc.elem) + ">()");
+        // TiqianArray is a class: the fill loop's appends mutate the
+        // instance, so the hoisted accumulator can stay let.
+        // (ReferenceMethodKeepsLet)
+        out.push(indent(depth) + "let " + arrName + " = TiqianArray<" + types.of(alloc.elem) + ">()");
         out.push(indent(depth) + arrName + ".reserveCapacity(Int(max(" + expr(loop.bound) + ", 0)))");
         out.push(indent(depth) + "for " + (plan.readsIndex ? localName(loop.index) : "_") + " in stride(from: " + strideValue(loop.start) + ", to: "
             + strideValue(loop.bound) + ", by: 1) {");
@@ -2861,6 +2880,7 @@ class SwiftExpr {
         rendered.
     **/
     function argTexts(fn:TypedExpr, args:Array<TypedExpr>):Array<String> {
+        pendingInoutHoists = [];
         final paramTypes:Array<Null<Type>> = switch (fn.expr) {
             case TField(_, FInstance(_, _, cf)) | TField(_, FStatic(_, cf)):
                 switch (cf.get().type) {
@@ -2885,8 +2905,15 @@ class SwiftExpr {
                         case TLocal(_) | TField(_):
                             "&" + expr(a);
                         case _:
-                            Context.error("inout argument must be a local variable or field: " + Std.string(a.expr), a.pos);
-                            "&" + expr(a);
+                            // A literal argument hoists into a local inside an
+                            // immediately-invoked closure around the whole
+                            // call; the callee's mutation observes a private
+                            // copy exactly like a literal would.
+                            // (InoutLiteralHoist)
+                            inoutHoistCounter += 1;
+                            final name = "_inout" + inoutHoistCounter;
+                            pendingInoutHoists.push({name: name, init: expr(a)});
+                            "&" + name;
                     }
                 } else {
                     (optionalValued(a) || (isNullLeafType(a.t) && !isNonOptionalDeclared(a))) && demandsValue ? expr(a) + "!" : expr(a);
@@ -3533,17 +3560,20 @@ class SwiftExpr {
                     // the UTF-16 view, matching the Kotlin chunked(1) and
                     // the TypeScript native split("") shape.
                     // (StringSplitEmptyDelimiter)
+                    // Every form yields a native Swift array while the Haxe
+                    // type is Array<String> (TiqianArray); the class wrapper
+                    // constructor converts so callers expecting the class
+                    // type compile. (SplitReturnsWrappedArray)
                     if (isEmptyDelimiterSplit(name, args))
-                        return types.resident ? receiverText(subj) + ".map { [$0] }" : "Array("
-                            + receiverText(subj)
-                            + ".utf16).map { String(decoding: [$0], as: UTF16.self) }";
-                    return types.resident ? receiverText(subj)
+                        return types.resident ? "TiqianArray(" + receiverText(subj) + ".map { [$0] })"
+                            : "TiqianArray(Array(" + receiverText(subj) + ".utf16).map { String(decoding: [$0], as: UTF16.self) })";
+                    return types.resident ? "TiqianArray(" + receiverText(subj)
                         + ".split(separator: "
                         + expr(args[0])
-                        + ".first!, omittingEmptySubsequences: false).map { Array($0) }" : receiverText(subj)
+                        + ".first!, omittingEmptySubsequences: false).map { Array($0) })" : "TiqianArray(" + receiverText(subj)
                         + ".split(separator: "
                         + expr(args[0])
-                        + ", omittingEmptySubsequences: false).map { String($0) }";
+                        + ", omittingEmptySubsequences: false).map { String($0) })";
                 }
                 if (name == "push") {
                     final elemType = switch (subj.t) {
@@ -3698,7 +3728,7 @@ class SwiftExpr {
                     };
                     return types.resident ? code : (optional ? code : code + "!");
                 }
-                return receiverText(subj) + "." + SwiftNameEscape.escape(name) + "(" + rendered + ")";
+                return wrapInoutHoists(receiverText(subj) + "." + SwiftNameEscape.escape(name) + "(" + rendered + ")");
             case TField(_, FEnum(en, ef)):
                 return enumConstruct(en.get().name, ef, args);
             case TConst(TSuper):
@@ -3719,7 +3749,7 @@ class SwiftExpr {
                 }
                 return "super.init(message: " + expr(args[0]) + ", cause: " + expr(args[1]) + ")";
             case _:
-                return expr(fn) + "(" + rendered + ")";
+                return wrapInoutHoists(expr(fn) + "(" + rendered + ")");
         }
     }
 
@@ -4109,6 +4139,18 @@ class SwiftExpr {
             + ")";
     }
 
+    /** Wraps a call whose arguments hoisted inout literals into an
+        immediately-invoked closure declaring those locals.
+        (InoutLiteralHoist) */
+    function wrapInoutHoists(callText:String):String {
+        if (pendingInoutHoists.length == 0)
+            return callText;
+        final parts = [for (h in pendingInoutHoists) "let " + h.name + " = " + h.init];
+        parts.push("return " + callText);
+        pendingInoutHoists = [];
+        return "({ () in " + parts.join("; ") + " }())";
+    }
+
     function callArgTexts(fn:TypedExpr, args:Array<TypedExpr>):Array<String> {
         final base = argTexts(fn, args);
         final target = switch (fn.expr) {
@@ -4122,10 +4164,22 @@ class SwiftExpr {
         return [for (i in 0...args.length) {
             final p = i < ps.length ? ps[i] : null;
             final d = target == null ? null : DefaultArgExpander.defaultAt(target.c, target.n, i);
-            d != null
-            && p != null && isNullLiteral(args[i]) ? defaultArgText(d, p) : d != null && p != null && isNullLeafType(args[i].t) && !ternaryNonNullBothArms(args[i])
-                && !nilMergeChainNonOptional(expr(args[i])) ? "(" + expr(args[i]) + " ?? " + defaultArgText(d,
-                p) + ")" : base[i];
+            // A coalescing default whose text reads earlier callee params is
+            // only valid inside the callee body: at the call site such a
+            // null argument passes nil and an optional argument passes
+            // bare, because the callee body applies the same coalescing.
+            // (CallSiteCoalescingDefault)
+            final formalNames = switch (target == null ? null : Context.follow(target.t)) {
+                case TFun(v, _): [for (x in v) x.name];
+                case _: [];
+            };
+            final defaultText = d == null ? null : defaultArgText(d, p);
+            final readsCalleeParam = defaultText == null ? false : Lambda.exists(formalNames, function(n2)
+                return i > formalNames.indexOf(n2) && new EReg("\\b" + n2 + "\\b", "").match(defaultText));
+            final nullArg = d != null && p != null && isNullLiteral(args[i]) && !readsCalleeParam;
+            final optionalArg = d != null && p != null && isNullLeafType(args[i].t) && !ternaryNonNullBothArms(args[i])
+                && !nilMergeChainNonOptional(expr(args[i])) && !readsCalleeParam;
+            nullArg ? defaultText : optionalArg ? "(" + expr(args[i]) + " ?? " + defaultText + ")" : base[i];
         }
         ];
     }
@@ -4499,7 +4553,7 @@ class SwiftExpr {
             return fail(parts.c.expr, "try region catch type is not an exception class");
         }
         final name = localName(v);
-        final kw = mutated.exists(v.id) ? "var" : "let";
+        final kw = bindingKw(v);
         final out = [indent(depth) + kw + " " + name + ": " + types.of(v.t), indent(depth) + "do {"];
         final body = blockValueLines(parts.body, depth + 1);
         if (body.value == null) {
@@ -4689,7 +4743,7 @@ class SwiftExpr {
     function stringBufToStringBindingLines(v:TVar, call:TypedExpr, depth:Int):Array<String> {
         final subj = stringBufToStringSubject(call);
         final lines = stringBufToStringCheckLines(subj, depth);
-        final kw = mutated.exists(v.id) ? "var" : "let";
+        final kw = bindingKw(v);
         lines.push(indent(depth) + kw + " " + localName(v) + " = String(decoding: " + expr(subj) + ", as: UTF16.self)");
         return lines;
     }
@@ -4768,7 +4822,7 @@ class SwiftExpr {
 
     function switchBindingLines(v:TVar, sw:TypedExpr, depth:Int):Array<String> {
         return [
-            indent(depth) + (mutated.exists(v.id) ? "var " : "let ") + localName(v) + " = " + switchExpression(sw)
+            indent(depth) + bindingKw(v) + " " + localName(v) + " = " + switchExpression(sw)
         ];
     }
 
@@ -5443,7 +5497,10 @@ class SwiftExpr {
                 }
                 PolicyQueries.noteFpInt64Init(v, init, fpInt64Halves);
             case TBinop(OpAssign, t, _) | TBinop(OpAssignOp(_), t, _):
-                switch (t.expr) {
+                // The UString lowering wraps assignment targets in casts;
+                // unwrap before matching so a rebound local is never
+                // declared let. (UnwrapAssignTargetScan)
+                switch (stripWrap(t).expr) {
                     case TLocal(v): markMutated(v);
                     case TField(subj, FInstance(_, _, _)) | TField(subj, FAnon(_)):
                         switch (stripWrap(subj).expr) {
@@ -5463,7 +5520,14 @@ class SwiftExpr {
                     case TArray(arr, _):
                         final receiver = mapBackingReceiver(arr);
                         switch (stripWrap(receiver == null ? arr : receiver).expr) {
-                            case TLocal(v): markMutated(v);
+                            case TLocal(v):
+                                // A subscript write on the class-backed array
+                                // mutates the instance, not the binding.
+                                // (ReferenceMethodKeepsLet)
+                                if (isSwiftReferenceType(v.t))
+                                    refMutated.set(v.id, true);
+                                else
+                                    markMutated(v);
                             case _:
                         }
                     case _:
@@ -5471,7 +5535,7 @@ class SwiftExpr {
             // An increment or decrement reassigns the local, so the
             // declaration needs var even without a plain assignment.
             case TUnop(OpIncrement, _, t) | TUnop(OpDecrement, _, t):
-                switch (t.expr) {
+                switch (stripWrap(t).expr) {
                     case TLocal(v):
                         markMutated(v);
                     case _:
@@ -5489,11 +5553,26 @@ class SwiftExpr {
                 switch (fn.expr) {
                     case TField(subj, FInstance(_, _, cf)):
                         final n = cf.get().name;
+                        {
+                            final pi9 = Context.getPosInfos(e.pos);
+                            if (StringTools.contains(pi9.file, "TestTraceStore"))
+                                Sys.stderr().writeString("SCALL n=" + n + " isBuf=" + isStringBuf(subj)
+                                    + " subjDef=" + Std.string(stripWrap(subj).expr) + "\n");
+                        }
                         final mutates = (isStringBuf(subj) && (n == "add" || n == "addChar"))
                             || n == "push" || n == "pop" || n == "shift" || n == "unshift" || n == "splice" || n == "set" || n == "insert";
                         if (mutates) {
                             switch (stripWrap(subj).expr) {
-                                case TLocal(v): markMutated(v);
+                                case TLocal(v):
+                                    // A reference receiver mutates the
+                                    // instance, so the binding can stay let;
+                                    // a value receiver (StringBuf renders as
+                                    // [UInt16]) still needs var.
+                                    // (ReferenceMethodKeepsLet)
+                                    if (isSwiftReferenceType(v.t))
+                                        refMutated.set(v.id, true);
+                                    else
+                                        markMutated(v);
                                 case _:
                             }
                         }
@@ -5502,6 +5581,37 @@ class SwiftExpr {
             case _:
         }
         TypedExprTools.iter(e, scanLocals);
+    }
+
+    /** True for bindings whose Swift rendering is a reference type: the
+        class-backed array and every generated class mutate through the
+        reference. String renders as the native value String and StringBuf
+        as the native [UInt16]; both are values and stay in the var set.
+        (ReferenceMethodKeepsLet) */
+    function isSwiftReferenceType(t:Null<Type>):Bool {
+        if (t == null)
+            return false;
+        return switch (Context.follow(t)) {
+            case TInst(c, _):
+                final cls = c.get();
+                final path = cls.pack.join(".");
+                final valueNative = (path == "" && (cls.name == "String" || cls.name == "StringBuf" || cls.name == "BytesData"))
+                    || (path == "std" && cls.name == "StringBuf")
+                    || (path == "haxe.io" && (cls.name == "Bytes" || cls.name == "BytesData"));
+                cls.kind == KNormal && !valueNative;
+            case _: false;
+        };
+    }
+
+    /** The declaration keyword for a local: a rebinding or a value-typed
+        reference mutation needs var; reference mutations alone keep let.
+        (ReferenceMethodKeepsLet) */
+    function bindingKw(v:TVar):String {
+        if (mutated.exists(v.id))
+            return "var";
+        if (refMutated.exists(v.id) && !isSwiftReferenceType(v.t))
+            return "var";
+        return "let";
     }
 
     function isClassInstanceType(t:Null<Type>):Bool {
