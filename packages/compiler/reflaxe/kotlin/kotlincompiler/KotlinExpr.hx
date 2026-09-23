@@ -3650,7 +3650,11 @@ class KotlinExpr {
                 switch (stripWrap(e).expr) {
                     case TField(_, FInstance(_, _, cf)):
                         switch (cf.get().kind) {
-                            case FVar(_, write): write.match(AccNever);
+                            // AccNever and AccCtor both mean no write outside
+                            // the declaration; the property renders as a
+                            // Kotlin val and smart-casts.
+                            // (MutablePropertyNoSmartCast)
+                            case FVar(_, write): write.match(AccNever) || write.match(AccCtor);
                             case _: true;
                         }
                     case _: true;
@@ -5699,9 +5703,10 @@ class KotlinExpr {
         // (ClosureMutationBlocksSmartCast)
         final smartCastable = switch (stripWrap(e).expr) {
             case TLocal(v): !closureMutatedLocals.exists(v.id) && !runMutationEncloses(e);
+            case TField(_, _): true;
             case _: false;
         };
-        final proven = valueProvenNonNull(e) || provenNonNull(e) || guardProofBefore(e);
+        final proven = valueProvenNonNull(e) || provenNonNull(e) || (!isNullType(e.t) && guardProofBefore(e));
         if (smartCastable && proven)
             return false;
         if (StringTools.endsWith(rendered, "!!") || rendered.indexOf("?: throw") >= 0)
