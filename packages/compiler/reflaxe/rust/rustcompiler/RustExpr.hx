@@ -7730,6 +7730,13 @@ class RustExpr {
                     return staticGuard + "." + RustImports.toSnakeCase(name);
                 }
                 if (name == "length") {
+                    // A direct array static read lowers to a Rust array
+                    // `[T; N]`. Its length is a constant; reading it must not
+                    // copy the whole table (RANGES.to_vec().len() copies N
+                    // elements just to count them). (StaticArrayIndexBorrow)
+                    final directPath = directArrayStaticReadPath(subj);
+                    if (directPath != null)
+                        return RustConversions.truncate(directPath + ".len()", "u32");
                     if (isNullType(subj.t) || isImplicitNullableLocal(subj) || isNoneInitializedLocal(subj)) {
                         // A null-coalescing initializer materialized the
                         // inner value into the local: the local is a plain
@@ -7945,6 +7952,19 @@ class RustExpr {
         return switch (stripWrap(e).expr) {
             case TField(_, FStatic(_, cf)): isDirectArrayStaticField(cf.get());
             case _: false;
+        };
+    }
+
+    /** The bare Rust path of a direct array static read (a final static
+        field initialized to an int-literal array, emitted as `[T; N]`), or
+        null when the expression is not one. The path indexes in place; the
+        caller must not copy the whole table to read one element.
+        (StaticArrayIndexBorrow) */
+    function directArrayStaticReadPath(e:TypedExpr):Null<String> {
+        return switch (stripWrap(e).expr) {
+            case TField(_, FStatic(c, cf)) if (isDirectArrayStaticField(cf.get())):
+                staticRef(c.get(), cf.get().name);
+            case _: null;
         };
     }
 
@@ -14138,6 +14158,18 @@ class RustExpr {
      * The mutable form is used only for indexed assignment.
      */
     function optionContainerIndexAccess(arr:TypedExpr, idx:TypedExpr, mutable:Bool):String {
+        // A direct array static read lowers to a Rust array `[T; N]`. Indexing
+        // it must not copy the whole table: RANGES.to_vec()[i] allocates and
+        // copies N elements per read, which turns a per-element lookup into a
+        // quadratic blow-up on large tables. Index the array in place instead;
+        // the element read is identical (Haxe Array element reads are value
+        // reads, and the static is immutable, so no copy is needed).
+        // (StaticArrayIndexBorrow)
+        if (!mutable) {
+            final directPath = directArrayStaticReadPath(arr);
+            if (directPath != null)
+                return directPath + "[" + castArg(idx, "usize") + "]";
+        }
         final receiver = expr(arr);
         // A narrowed receiver already renders as the match binding, a
         // reference to the inner Vec (match &(opt) { Some(name) => ... }).
