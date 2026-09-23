@@ -3368,6 +3368,12 @@ class KotlinExpr {
                 // to nullable (for example `value!!.items.size`).
                 return nullableAccessWidens(subj);
             case TArray(receiver, _):
+                // An extraction of the receiver inside the current statement
+                // domain (a loop bound's `?.size!!`) proves it for the reads
+                // that follow, so the element read renders non-null.
+                // (BoundExtractionProvesElements)
+                if (statementExtractedLocal(receiver))
+                    return false;
                 return rendersNullable(receiver);
             case TCall(fn, args):
                 return callRendersNullable(fn, args);
