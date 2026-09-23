@@ -3432,6 +3432,26 @@ class RustExpr {
                     return "(" + expr(subj) + ").as_ref().map_or(0, |v| v.len())";
                 }
                 return rustU32Length(expr(subj) + ".len()");
+            case TBinop(OpSub, value, amount):
+                // A length-minus-constant loop bound underflows when the
+                // collection is shorter than the constant: Haxe's signed
+                // 0...(len - k) then yields an empty range. Saturating
+                // subtraction clamps the bound at zero, matching that
+                // empty-range semantics without changing the iteration
+                // count when len >= k. (UnderflowProneLoopBound)
+                switch ([stripWrap(value).expr, stripWrap(amount).expr]) {
+                    case [TField(_, FInstance(_, _, field)), TConst(TInt(k))] if (field.get().name == "length" && k > 0):
+                        return expr(value) + ".saturating_sub(" + k + ")";
+                    case _:
+                        final text = expr(bound);
+                        // A signed i32 range endpoint crosses into the u32
+                        // range domain with a clamp: a negative bound yields
+                        // an empty range, the Haxe loop behavior for a
+                        // negative bound.
+                        if (isIntType(bound.t) && !isNullType(bound.t) && i32LocalDomain(bound))
+                            return "u32::try_from(" + text + ").unwrap_or(0)";
+                        return text;
+                }
             case _:
                 final text = expr(bound);
                 // A signed i32 range endpoint crosses into the u32 range
