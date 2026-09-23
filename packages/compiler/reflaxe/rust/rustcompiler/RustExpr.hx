@@ -6590,6 +6590,15 @@ class RustExpr {
                     emissionTrace("ASSIGN target=" + assignTarget(l) + " val=[" + expr(r).substr(0, expr(r).length > 50 ? 50 : expr(r).length) + "]", e.pos);
 #end
                 final assignTargetText = assignTarget(l);
+                // Haxe grows an Array when an index write reaches past the
+                // end and fills the skipped slots with the element default;
+                // Rust's Vec does not, so the write needs the growth loop
+                // first. The guard also binds an index that reads the array
+                // itself, so its length check cannot observe the growth.
+                // (ArrayGrowthOnIndexWrite)
+                final growth = arrayGrowthGuard(l, rhs);
+                if (growth != null)
+                    return growth;
                 // E0502: an array assignment whose index reads the array
                 // itself (`bottoms[bottoms.len() - 1] = ...`) borrows the
                 // array immutably in the index while the assignment mutates
@@ -14399,6 +14408,123 @@ class RustExpr {
         }
         final receiverText = StringTools.startsWith(receiver, "&*") ? "(" + receiver + ")" : receiver;
         return receiverText + "[" + castArg(idx, "usize") + "]";
+    }
+
+    /**
+        arrayWriteTarget: the array, index, and element type of one Haxe
+        Array index write `arr[i] = v`, or null when the target is not a
+        Haxe Array index write. Haxe grows an Array when an index write
+        reaches past the end and fills every skipped slot with the element
+        type's default value; Rust's Vec does not, so the write needs a
+        growth guard. A Map index routes through its backing map and a
+        ReadOnlyArray exposes no setter, so neither takes the guard.
+        (ArrayGrowthOnIndexWrite)
+    **/
+    function arrayWriteTarget(l:TypedExpr):Null<{arr:TypedExpr, index:TypedExpr, element:Type}> {
+        return switch (stripWrap(l).expr) {
+            case TArray(arr, index):
+                if (StaticFieldHelper.isReadOnlyArrayType(arr.t))
+                    return null;
+                if (!isArrayType(arr.t))
+                    return null;
+                final elem = arrayElementType(arr.t);
+                if (elem == null)
+                    return null;
+                return {arr: arr, index: index, element: elem};
+            case _: null;
+        };
+    }
+
+    /**
+        arrayGrowthDefault: the Rust default a Haxe Array index write fills a
+        grown slot with, or null when the element type has no renderable
+        default. A value element type fills its zero, a nullable element type
+        fills None, a String fills the empty String. A non-nullable reference
+        element type has no null literal in Rust, so it takes no guard and
+        keeps the plain write (which cannot grow in practice).
+        (ArrayGrowthOnIndexWrite)
+    **/
+    function arrayGrowthDefault(element:Type):Null<String> {
+        if (isNullType(element))
+            return "None";
+        if (isIntType(element))
+            return "0";
+        if (isFloatType(element))
+            return FloatPrecision.isF32() ? "0.0f32" : "0.0";
+        if (isBoolType(element))
+            return "false";
+        if (isStringType(element))
+            return "String::new()";
+        return null;
+    }
+
+    /**
+        arrayGrowthGuard: the block expression of one Haxe Array index write
+        `arr[i] = v`, or null when the target is not an Array index write or
+        its element type has no renderable default. Haxe grows the Array to
+        i+1 and fills the skipped slots with the element default before the
+        write; Rust needs the explicit growth loop. The receiver renders
+        inline (an array receiver is a local, field, or unwrapped Option, all
+        stable), and the index binds to a fresh local when it is not a pure
+        read or when it reads the array itself, so the guard's length check
+        cannot observe the growth it performs. (ArrayGrowthOnIndexWrite)
+    **/
+    function arrayGrowthGuard(l:TypedExpr, rhs:String):Null<String> {
+        final target = arrayWriteTarget(l);
+        if (target == null)
+            return null;
+        final defaultValue = arrayGrowthDefault(target.element);
+        if (defaultValue == null)
+            return null;
+        final receiver = mutableArrayReceiver(target.arr);
+        final indexText = castArg(target.index, "usize");
+        final indexMentionsArray = switch (stripWrap(target.arr).expr) {
+            case TLocal(v): mentionsLocalName(target.index, v.name);
+            case _: false;
+        };
+        final bindIndex = !isPureReadExpr(target.index) || indexMentionsArray;
+        final idx = freshRegionName("__grow_idx");
+        // The receiver renders inline so the growth loop's mutable borrow
+        // ends before the assignment, letting the write's own RHS read the
+        // same array (E0502) and a mutable Vec parameter index without a
+        // mut binding (E0596). The receiver already carries the parentheses
+        // it needs from mutableArrayReceiver; the index binds to a fresh
+        // local when it is not a pure read or when it reads the array
+        // itself, so the guard's length check cannot observe the growth it
+        // performs. (ArrayGrowthOnIndexWrite)
+        if (bindIndex) {
+            return "{ let " + idx + " = " + indexText + "; while " + receiver + ".len() <= " + idx + " { "
+                + receiver + ".push(" + defaultValue + "); } " + receiver + "[" + idx + "] = " + rhs + "; }";
+        }
+        return "{ while " + receiver + ".len() <= " + indexText + " { " + receiver + ".push(" + defaultValue
+            + "); } " + receiver + "[" + indexText + "] = " + rhs + "; }";
+    }
+
+    /**
+        mutableArrayReceiver: the mutable container reference of one Haxe
+        Array index write, the receiver the growth guard pushes to and the
+        assignment indexes, without the `[idx]` suffix. Mirrors the receiver
+        half of optionContainerIndexAccess so the guard and the write target
+        the same container.
+    **/
+    function mutableArrayReceiver(arr:TypedExpr):String {
+        final receiver = expr(arr);
+        final narrowed = narrowedSubject(arr);
+        if (narrowed != null)
+            return "(" + receiver + ")";
+        final emittedReceiverType = arr.t == null ? "" : types.of(arr.t, false);
+        final emittedOptionContainer = StringTools.startsWith(emittedReceiverType, "Option<");
+        final guardedCollapse = switch (stripWrap(arr).expr) {
+            case TLocal(v): nullableCollapsedLocals.exists(v.id)
+                || hasGuardedTernaryLocals.exists(v.id);
+            case _: false;
+        };
+        final unwrapOption = !guardedCollapse
+            && (isNullType(arr.t) || receiverCarriesFallibleWrapper(arr) || emittedOptionContainer);
+        if (unwrapOption)
+            return "(" + receiver + ").as_mut().unwrap()";
+        final receiverText = StringTools.startsWith(receiver, "&*") ? "(" + receiver + ")" : receiver;
+        return receiverText;
     }
 
     /**
