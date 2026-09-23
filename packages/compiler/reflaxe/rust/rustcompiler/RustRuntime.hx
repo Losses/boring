@@ -494,10 +494,11 @@ pub fn units(s: &str) -> Vec<u16> {
 }
 
 // The single UTF-16 unit at `index` read from a precomputed unit vector,
-// the O(1) form of a per-character String read. An out-of-range index
-// answers 0 (a NUL), matching a charAt past the end.
-pub fn unit_at_from(units: &[u16], index: u32) -> u32 {
-    u32::from(*units.get(usize::try_from(index).unwrap_or(0)).unwrap_or(&0))
+// the O(1) form of String.charCodeAt. It answers None past the last unit,
+// matching the unit_at read it replaces, so the call-site unwrap (or the
+// nullable Option context) rides the same machinery unchanged.
+pub fn unit_at_from(units: &[u16], index: u32) -> Option<u32> {
+    units.get(usize::try_from(index).unwrap_or(0)).map(|u| u32::from(*u))
 }
 
 // The single UTF-16 unit at `index` as an owned one-unit String, the
