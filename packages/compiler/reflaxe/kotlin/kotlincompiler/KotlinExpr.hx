@@ -864,7 +864,8 @@ class KotlinExpr {
                 // initializer is also extracted to non-null, the widening
                 // must follow the extraction; a widening call placed first
                 // would apply to the nullable initializer receiver.
-                if (isIntOrLongType(emittedType(init)) && isFloatType(v.t)) {
+                if (isIntOrLongType(emittedType(init)) && isFloatType(v.t)
+                    && !StringTools.contains(initText, "toDouble()") && !StringTools.contains(initText, "toFloat()")) {
                     initText = extractAtDecl ? intToFloatText("(" + initText + ")!!") : intToFloatText(initText);
                     return [indent(depth) + '$kw ${localName(v)}$typeAnn = $initText'];
                 }
