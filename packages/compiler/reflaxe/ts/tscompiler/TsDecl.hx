@@ -9,6 +9,7 @@ import reflaxe.data.ClassVarData;
 import reflaxe.data.EnumOptionData;
 import ValueTypeSupport;
 import PolicyQueries;
+import TestApplicability;
 import ComparatorPlan;
 import ComparatorPlan.ComparatorFieldKind;
 import ValueTypeSupport.ValueTypeInfo;
@@ -395,6 +396,16 @@ class TsDecl {
         }
         final runnerName = desc != null ? id + ": " + desc : id;
         imports.runtimeTest("Test");
+        if (TestApplicability.isExcluded(f.field, "ts")) {
+            // The test declares this target in its except argument: the
+            // entry does not run the body and writes the not-applicable
+            // record instead, so the id stays in the cross-target set
+            // (feature spec 19).
+            if (testRunner == "deno") {
+                return 'Deno.test("${escapeString(runnerName)}", () =>\n  Test.recordNotApplicable("${id}", "${escapeString(runnerName)}"));';
+            }
+            return 'test("${escapeString(runnerName)}", () =>\n  Test.recordNotApplicable("${id}", "${escapeString(runnerName)}"));';
+        }
         final body = expr.functionBody(cls, f);
         final indented = [for (b in body) "    " + b].join("\n");
         if (testRunner == "deno") {

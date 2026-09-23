@@ -460,6 +460,13 @@ public enum Test {
         return Test.currentTestId
     }
 
+    // A test this target excludes (features/19): the entry does not run
+    // the body and writes the not-applicable record instead, so the id
+    // stays in the cross-target set.
+    public static func recordNotApplicable(_ id: String, _ name: String) {
+        print(decodeUnits(TestCore.notApplicableLine(Array(id.utf16), Array(name.utf16))), terminator: "")
+    }
+
     public static func run(_ id: String, _ name: String, _ body: () throws -> Void) -> Bool {
         let idUnits = Array(id.utf16)
         let nameUnits = Array(name.utf16)
@@ -498,6 +505,111 @@ public enum Test {
     }
 }
 
+/// Reference-semantics array: Haxe Array is a reference type, but Swift
+/// [T] is a value type. Every Haxe Array lowers to this class so a value
+/// stored in a field and a caller local share one underlying buffer.
+/// The class mirrors the [T] API (subscript, count, push, indexOf, ...)
+/// so generated code reads naturally instead of spelling out .items.
+public final class TiqianArray<Element>: Sequence, Collection {
+    public var items: [Element]
+    public init() { self.items = [] }
+    public init(_ items: [Element]) { self.items = items }
+
+    // Sequence / Collection conformance (for for x in arr).
+    public typealias Index = Int
+    public var startIndex: Int { return items.startIndex }
+    public var endIndex: Int { return items.endIndex }
+    public func index(after i: Int) -> Int { return items.index(after: i) }
+
+    // Read/write subscript (arr[i] = v and arr[i]). Both the Collection
+    // conformance above and the Haxe indexed read/write both lower to this
+    // declaration; a second read-only subscript would be a redeclaration.
+    public subscript(index: Int) -> Element {
+        get { return items[index] }
+        set { items[index] = newValue }
+    }
+
+    public var count: Int { return items.count }
+    public var isEmpty: Bool { return items.isEmpty }
+    public var first: Element? { return items.first }
+    public var last: Element? { return items.last }
+
+    // Element mutators.
+    public func push(_ element: Element) { items.append(element) }
+    public func append(_ element: Element) { items.append(element) }
+    public func pop() -> Element? { return items.popLast() }
+    public func shift() -> Element? { return items.isEmpty ? nil : items.removeFirst() }
+    public func unshift(_ element: Element) { items.insert(element, at: 0) }
+    public func insert(_ element: Element, at index: Int) {
+        // Haxe bounds the position: negative counts from the end and stops
+        // at the first element, past-the-end clamps to the count.
+        let sz = items.count
+        let p = index < 0 ? Swift.max(sz + index, 0) : Swift.min(index, sz)
+        items.insert(element, at: p)
+    }
+    public func remove(at index: Int) -> Element { return items.remove(at: index) }
+    public func splice(_ start: Int, _ len: Int) -> TiqianArray<Element> {
+        // Haxe splice mutates and returns the removed sub-array, bounding
+        // the call before removing: negative length or past-the-end start
+        // removes nothing, negative start counts from the end, a length past
+        // the end removes only the tail.
+        let sz = items.count
+        let p0 = start
+        let p = p0 < 0 ? Swift.max(sz + p0, 0) : (p0 > sz ? sz : p0)
+        let c = (len < 0 || p0 > sz) ? 0 : Swift.min(len, sz - p)
+        let removed = Array(items[p..<(p + c)])
+        if c > 0 { items.removeSubrange(p..<(p + c)) }
+        return TiqianArray(removed)
+    }
+    public func removeLast() -> Element { return items.removeLast() }
+    public func removeFirst() -> Element { return items.removeFirst() }
+    public func reverse() { items.reverse() }
+    public func reserveCapacity(_ n: Int) { items.reserveCapacity(n) }
+    public func sort(by areInIncreasingOrder: (Element, Element) -> Bool) { items.sort(by: areInIncreasingOrder) }
+
+    // Array-producing operations return a fresh TiqianArray.
+    public func copy() -> TiqianArray<Element> { return TiqianArray(items) }
+    public func concat(_ other: TiqianArray<Element>) -> TiqianArray<Element> { return TiqianArray(items + other.items) }
+    public func slice(_ range: Range<Int>) -> TiqianArray<Element> { return TiqianArray(Array(items[range])) }
+    public func map<U>(_ transform: (Element) -> U) -> TiqianArray<U> { return TiqianArray<U>(items.map(transform)) }
+    public func filter(_ isIncluded: (Element) -> Bool) -> TiqianArray<Element> { return TiqianArray<Element>(items.filter(isIncluded)) }
+    public func join(separator: String = "") -> String { return items.map { String(describing: $0) }.joined(separator: separator) }
+    // Sequence supplies these too, but its forms return a Swift Array, which
+    // no longer matches a Haxe Array slot. Declaring them on the class keeps
+    // the container type through the call, as map and filter above already do.
+    public func sorted(by areInIncreasingOrder: (Element, Element) -> Bool) -> TiqianArray<Element> {
+        return TiqianArray(items.sorted(by: areInIncreasingOrder))
+    }
+    public func reversed() -> TiqianArray<Element> { return TiqianArray(Array(items.reversed())) }
+    public func compactMap<U>(_ transform: (Element) -> U?) -> TiqianArray<U> { return TiqianArray<U>(items.compactMap(transform)) }
+}
+
+extension TiqianArray where Element: Comparable {
+    public func sorted() -> TiqianArray<Element> { return TiqianArray<Element>(items.sorted()) }
+}
+
+// Element equality operations live here so the class body stays free of the
+// constraint; Swift only exposes firstIndex(of:)/lastIndex(of:)/contains(_:)
+// when the element is Equatable. (TiqianArray)
+extension TiqianArray where Element: Equatable {
+    public func indexOf(_ element: Element) -> Int32 {
+        if let i = items.firstIndex(of: element) { return Int32(items.distance(from: items.startIndex, to: i)) }
+        return -1
+    }
+    public func lastIndexOf(_ element: Element) -> Int32 {
+        if let i = items.lastIndex(of: element) { return Int32(items.distance(from: items.startIndex, to: i)) }
+        return -1
+    }
+    public func contains(_ element: Element) -> Bool { return items.contains(element) }
+}
+
+// A struct or enum that stores a Haxe Array needs the container to be
+// Equatable so Swift can synthesize its own ==. The comparison stays
+// element-wise, which is what the [T] representation this class replaced
+// already gave, so no equality behaviour changes. (TiqianArray)
+extension TiqianArray: Equatable where Element: Equatable {
+    public static func == (lhs: TiqianArray<Element>, rhs: TiqianArray<Element>) -> Bool { return lhs.items == rhs.items }
+}
 ';
 }
 #end

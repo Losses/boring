@@ -4745,7 +4745,13 @@ class KotlinExpr {
                 final assertNeeded = isNullType(args[0].t) && !provenNonNull(args[0]) && !guardProofBefore(args[0]);
                 if (assertNeeded)
                     addProofExpr(args[0]);
-                return "((" + code + (assertNeeded ? ")!!" : ")") + ".toChar()).toString()";
+                final unwrapped = "(" + code + (assertNeeded ? ")!!" : ")");
+                // Haxe's fromCharCode takes a scalar; a supplementary scalar
+                // encodes as its surrogate pair. Kotlin's Char is one UTF-16
+                // unit, so the pair goes through Character.toChars. A BMP
+                // value (surrogate range included) keeps the single-char
+                // form the existing callers rely on. (FromCharCodeScalar)
+                return "(if (" + unwrapped + " > 0xFFFF) String(Character.toChars(" + unwrapped + ")).toString() else ((" + unwrapped + ").toChar()).toString())";
             case _:
                 return null;
         }
@@ -5006,14 +5012,18 @@ class KotlinExpr {
                         if (func != null && func.args.length == 1) {
                             final paramName = KotlinNameEscape.escape(func.args[0].v.name);
                             final valueExpr = expr(lambdaBody(func.expr));
-                            // A selector that already renders as Double needs
-                            // no inner conversion: the sum runs on Double and
-                            // only the Float result takes the trailing call.
+                            // The selector widens to Double unless its text
+                            // already carries a conversion, so the accumulator
+                            // is binary64 on both configurations and no
+                            // conversion repeats; the closing narrowing is the
+                            // binary32 module real only (feature spec 23
+                            // ruling 2, the dispatch intToFloatText uses).
                             // (SumOfFloatSelectorWidening)
-                            final widened = isIntOrLongType(emittedType(lambdaBody(func.expr)))
-                                && !StringTools.contains(valueExpr, "toDouble()") && !StringTools.contains(valueExpr, "toFloat()");
-                            return expr(receiver) + ".sumOf { " + paramName + " -> "
-                                + (widened ? "(" + valueExpr + ").toDouble()" : valueExpr) + " }.toFloat()";
+                            final alreadyConverted = StringTools.contains(valueExpr, "toDouble()")
+                                || StringTools.contains(valueExpr, "toFloat()");
+                            final selector = alreadyConverted ? valueExpr : "(" + valueExpr + ").toDouble()";
+                            final narrow = FloatPrecision.isF32() ? ".toFloat()" : "";
+                            return expr(receiver) + ".sumOf { " + paramName + " -> " + selector + " }" + narrow;
                         }
                         return fail(fn, "sumOfFloat requires a one-argument lambda");
                     }

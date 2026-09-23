@@ -2012,6 +2012,13 @@ class TsExpr {
                     imports.runtime("StringTools");
                     return "StringTools." + fName + "(" + [for (a in args) expr(a)].join(", ") + ")";
                 }
+                if (cls.pack.length == 0 && cls.name == "String" && fName == "fromCharCode" && args.length == 1) {
+                    // Haxe's fromCharCode takes a scalar; a supplementary scalar
+                    // encodes as its surrogate pair. JS String.fromCharCode
+                    // truncates to the low 16 bits, so the pair goes through
+                    // String.fromCodePoint. (FromCharCodeScalar)
+                    return "String.fromCodePoint(" + expr(args[0]) + ")";
+                }
                 if (cls.pack.length == 0 && cls.name == "Lambda" && fName == "has" && args.length == 2) {
                     return expr(args[0]) + ".includes(" + expr(args[1]) + ")";
                 }
@@ -2049,6 +2056,13 @@ class TsExpr {
                     return "Number.isNaN(" + expr(args[0]) + ")";
                 if (cls.module == "Math" && fName == "isFinite" && args.length == 1)
                     return "Number.isFinite(" + expr(args[0]) + ")";
+                if (cls.module == "String" && fName == "fromCharCode" && args.length == 1)
+                    // Haxe's fromCharCode takes a scalar (haxe/std/String.hx:168-174),
+                    // so a supplementary scalar encodes as its surrogate pair. The
+                    // JavaScript builtin of that name keeps sixteen bits, which
+                    // drops the high surrogate; fromCodePoint carries the same
+                    // values for the BMP and encodes the pair above it. (FromCharCodeScalar)
+                    return "String.fromCodePoint(" + expr(args[0]) + ")";
                 if (cls.module == "std.UStringPlatform") {
                     // Cursor primitives of the resident UString walk, inlined
                     // per call: a cursor is a UTF-16 unit index here, so end
@@ -2171,9 +2185,36 @@ class TsExpr {
                     if (name == "exists" && args.length == 1)
                         return expr(subj) + ".has(" + expr(args[0]) + ")";
                     if (name == "get" && args.length == 1)
-                        return expr(subj) + ".get(" + expr(args[0]) + ")";
+                        // haxe.ds.Map.get carries the Null<V> contract, so
+                        // an absent key reads as null. The native Map reads it
+                        // as undefined, and the target compares null with the
+                        // strict operators, so the lookup normalizes the
+                        // absent key here. A later null comparison then
+                        // matches, and a value that never passes a comparison
+                        // still carries null into string conversion, variant
+                        // switching, and table storage.
+                        return "(" + expr(subj) + ".get(" + expr(args[0]) + ") ?? null)";
                     if (name == "set" && args.length == 2)
                         return expr(subj) + ".set(" + expr(args[0]) + ", " + expr(args[1]) + ")";
+                    // The native Map deletes a key through delete. The Haxe
+                    // member name remove carries the same contract (returns
+                    // whether the key was present).
+                    if (name == "remove" && args.length == 1)
+                        return expr(subj) + ".delete(" + expr(args[0]) + ")";
+                    // The native Map clears through clear, matching the Haxe
+                    // member.
+                    if (name == "clear" && args.length == 0)
+                        return expr(subj) + ".clear()";
+                    // The remaining members have no native Map equivalent or
+                    // are rejected by the subset: iteration over a Map is V01
+                    // IteratorLoop, and the native Map string form is not the
+                    // Haxe form.
+                    if (name == "keys" || name == "iterator" || name == "keyValueIterator")
+                        return fail(subj, "map " + name + " has no translation: iteration over haxe.ds.Map is rejected by V01 IteratorLoop");
+                    if (name == "copy")
+                        return fail(subj, "map copy has no translation: haxe.ds.Map.copy has no native Map equivalent");
+                    if (name == "toString")
+                        return fail(subj, "map toString has no translation: the native Map string form is not the Haxe form");
                 }
                 if (isStringBuf(subj)) {
                     // stdlib/08: the checks throw, and a throw is a

@@ -156,6 +156,18 @@ class SwiftExpr {
     /** Fresh names for the trailing-unit reads of stdlib/08 checks. */
     var stringBufTailCounter:Int = 0;
 
+    /** Fresh names for the guarded put of a nullable SortedMap value. */
+    var nullablePutCounter:Int = 0;
+
+    /**
+        Locals initialized from a SortedMap/SortedSet builder's `get`:
+        Haxe treats the retrieved value as a reference into the builder, so a
+        later mutation of the local must be written back to the builder.
+        Swift arrays are value types, so the generator emits the write-back
+        itself. Maps local id to the builder expression and key expression.
+    **/
+    final builderBacked:Map<Int, {builder:TypedExpr, key:TypedExpr}> = [];
+
     /** Function context used to distinguish a sanctioned coalescing site. */
     var currentClass:Null<ClassType> = null;
 
@@ -355,7 +367,7 @@ class SwiftExpr {
             case CString(s): quoteString(s);
             case CBool(b): b ? "true" : "false";
             case CNull: types.optionalNone(targetType);
-            case CEmptyArray: "[]";
+            case CEmptyArray: "TiqianArray()";
             case CEmptyMap: "[:]";
             case CPositiveInfinity: FloatPrecision.isF32() ? "Float.infinity" : "Double.infinity";
             case CNegativeInfinity: FloatPrecision.isF32() ? "-Float.infinity" : "-Double.infinity";
@@ -675,6 +687,9 @@ class SwiftExpr {
                 // to a local typealias that keeps `S.staticMember` resolving.
                 return [indent(depth) + "typealias " + localName(v) + " = " + expr(init)];
             case TVar(v, init) if (init != null):
+                final builderSource = sortedBuilderGetSource(init);
+                if (builderSource != null)
+                    builderBacked.set(v.id, builderSource);
                 final coalescing = coalescingSiteFor(init);
                 if (coalescing != null)
                     coalescingLocals.set(v.id, true);
@@ -707,6 +722,12 @@ class SwiftExpr {
                 if (hasTypeAnnotation && (isNullLeafType(localType) || optionalNullAnnotation)) {
                     optionalBindingLocals.set(v.id, true);
                     optionalAnnotated.set(v.id, true);
+                } else if (isNullLeafType(v.t) && coalescingValue != null && !isNullLeafType(localType)) {
+                    // The sanctioned coalescing default supplies the value, so
+                    // the emitted annotation is plain while the Haxe type keeps
+                    // its Null wrapper; a value use must not unwrap it.
+                    // (CoalescingLocalPlainBinding)
+                    nonOptionalDeclared.set(v.id, true);
                 }
                 final annotation = hasTypeAnnotation ? ": " + (optionalNullAnnotation ? types.of(localType) + "?" : types.of(localType)) : "";
                 final unwrapNullableInitializer = isNullLeafType(init.t) && coalescing == null && !isNullLeafType(v.t) && hasTypeAnnotation
@@ -795,6 +816,8 @@ class SwiftExpr {
                 return [indent(depth) + "continue"];
             case TCall(fn, args) if (stringBufMutationParts(fn) != null):
                 return stringBufMutationLines(fn, args, depth);
+            case TCall(fn, args) if (nullableSortedPutLines(e, depth) != null):
+                return nullableSortedPutLines(e, depth);
             case TMeta(_, inner):
                 return stmtLines(inner, depth);
             // Increment/decrement statements retain their direct assignment form.
@@ -816,7 +839,10 @@ class SwiftExpr {
                 };
                 final tryKw = !hoisted && containsThrowingCall(r) ? "try " : "";
                 final map = mapAssignment(l);
-                final target = map == null ? assignTarget(l) + " = " : expr(map.receiver) + "[" + expr(map.key) + "] = ";
+                final growing = map == null ? growingArrayStoreLines(l, r, depth, tryKw) : null;
+                if (growing != null)
+                    return growing;
+                final target = map == null ? assignTarget(l) + " = " : expr(map.receiver) + "[" + mapKeyText(map.key) + "] = ";
                 return [indent(depth) + target + tryKw + assignmentValue(l, r)];
             case TBinop(OpAssignOp(inner), l, r):
                 final tryKw = containsThrowingCall(r) ? "try " : "";
@@ -835,6 +861,9 @@ class SwiftExpr {
                     indent(depth) + assignTarget(l) + " " + symbolOf(inner, l, r) + "= " + tryKw + rhs
                 ];
             case _:
+                final builderMutation = builderBackedMutationLines(e, depth);
+                if (builderMutation != null)
+                    return builderMutation;
                 final tryKw = containsThrowingCall(e) ? "try " : "";
                 // A call whose result the source discards reads as an
                 // explicit discard; Swift warns on a bare non-Void call
@@ -1105,8 +1134,132 @@ class SwiftExpr {
         return out.join("\n");
     }
 
+    /**
+        Fuses Haxe-decomposed array compound assignments back into a single
+        Swift compound-assignment. The Haxe typed AST decomposes
+        `arr[idx] += rhs` into `var base = arr; var index = idx;
+        base[index] += rhs`. Swift arrays are value types, so a faithful
+        rendering of the decomposition copies the array into `base` and the
+        mutation is lost. This pass inlines `base` and `index` back into the
+        compound assignment so Swift receives a direct `arr[idx] += rhs` that
+        mutates the original array. (ArrayCompoundAssignFusion)
+    **/
+    function fuseArrayCompoundAssign(stmts:Array<TypedExpr>):Array<TypedExpr> {
+        final out:Array<TypedExpr> = [];
+        var i = 0;
+        while (i < stmts.length) {
+            var fused = false;
+            if (i + 2 < stmts.length) {
+                switch (stmts[i].expr) {
+                    case TVar(base, baseInit) if (baseInit != null):
+                        switch (stripWrap(baseInit).expr) {
+                            case TLocal(_) | TField(_, _):
+                                if (isSwiftArrayType(base.t)) {
+                                    switch (stmts[i + 1].expr) {
+                                        case TVar(index, indexInit):
+                                            if (indexInit != null
+                                                && isCompoundAssignTarget(stmts[i + 2], base)
+                                                && !restMentionsLocal(base.id, stmts, i + 3)
+                                                && !restMentionsLocal(index.id, stmts, i + 3)) {
+                                                    final subst = new Map<Int, TypedExpr>();
+                                                    subst.set(base.id, baseInit);
+                                                    subst.set(index.id, indexInit);
+                                                    out.push(substituteLocals(stmts[i + 2], subst));
+                                                    i += 3;
+                                                    fused = true;
+                                                }
+                                        case _:
+                                    }
+                                    if (!fused
+                                        && isCompoundAssignTarget(stmts[i + 1], base)
+                                        && !restMentionsLocal(base.id, stmts, i + 2)) {
+                                            final subst = new Map<Int, TypedExpr>();
+                                            subst.set(base.id, baseInit);
+                                            out.push(substituteLocals(stmts[i + 1], subst));
+                                            i += 2;
+                                            fused = true;
+                                        }
+                                }
+                            case _:
+                        }
+                    case _:
+                }
+            }
+            if (!fused) {
+                out.push(stmts[i]);
+                i++;
+            }
+        }
+        return out;
+    }
+
+    function isCompoundAssignTarget(e:TypedExpr, base:TVar):Bool {
+        final inner = stripWrap(e);
+        return switch (inner.expr) {
+            case TBinop(OpAssignOp(_), lhs, _):
+                switch (stripWrap(lhs).expr) {
+                    case TArray(_, _): isAliasOfLoc(lhs, base.id);
+                    case _: false;
+                }
+            case _: false;
+        };
+    }
+
+    function isAliasOfLoc(expr:TypedExpr, id:Int):Bool {
+        final arg = switch (stripWrap(expr).expr) {
+            case TArray(arr, _): arr;
+            case _: expr;
+        };
+        return switch (stripWrap(arg).expr) {
+            case TLocal(v): v.id == id;
+            case _: false;
+        };
+    }
+
+    function restMentionsLocal(varId:Int, stmts:Array<TypedExpr>, start:Int):Bool {
+        for (j in start...stmts.length) {
+            if (mentionsLocalId(stmts[j], varId))
+                return true;
+        }
+        return false;
+    }
+
+    function mentionsLocalId(e:TypedExpr, id:Int):Bool {
+        var found = false;
+        function scan(node:TypedExpr) {
+            switch (node.expr) {
+                case TLocal(v): if (v.id == id) found = true;
+                case _:
+            }
+            if (!found) TypedExprTools.iter(node, scan);
+        }
+        scan(e);
+        return found;
+    }
+
+    function substituteLocals(e:TypedExpr, subst:Map<Int, TypedExpr>):TypedExpr {
+        function replace(node:TypedExpr):TypedExpr {
+            return switch (node.expr) {
+                case TLocal(v) if (subst.exists(v.id)): subst.get(v.id);
+                case _: TypedExprTools.map(node, replace);
+            };
+        };
+        return replace(e);
+    }
+
+    function isSwiftArrayType(t:Null<Type>):Bool {
+        if (t == null)
+            return false;
+        return switch (Context.follow(t)) {
+            case TAbstract(a, _) if (a.get().module == "std.ReadOnlyArray"): true;
+            case TInst(c, [_]) if (c.get().name == "Array"): true;
+            case _: false;
+        };
+    }
+
     function blockLines(stmts:Array<TypedExpr>, depth:Int):Array<String> {
         stmts = fuseUninitializedVars(stmts);
+        stmts = fuseArrayCompoundAssign(stmts);
         stmts = regroupLoops(stmts);
         final snapshot = saveNarrowed();
         final out:Array<String> = [];
@@ -1182,7 +1335,15 @@ class SwiftExpr {
     function strideValue(e:TypedExpr):String {
         return switch (stripWrap(e).expr) {
             case TConst(TInt(_)): "Int32(" + expr(e) + ")";
-            case TField(subj, fa) if (fieldName(fa) == "length"): "Int32(" + receiverText(subj) + ".count)";
+            case TField(subj, fa) if (fieldName(fa) == "length"):
+    // A String length is the UTF-16 code-unit count (the Haxe
+    // String.length contract), not Swift's grapheme-cluster count.
+    // Resident modules render String as [UInt16], where .count already
+    // counts units; business modules need .utf16.count to keep index
+    // loops aligned with the UTF-16 indexing ABI.
+    if (isStringSubject(subj) && !types.resident)
+        return "Int32(" + receiverText(subj) + ".utf16.count)";
+    return "Int32(" + receiverText(subj) + ".count)";
             case _: expr(e);
         };
     }
@@ -1369,6 +1530,114 @@ class SwiftExpr {
         };
     }
 
+    /**
+        A `builder.get(key)` call on a SortedMap/SortedSet builder subject.
+        The retrieved value is a reference into the builder in Haxe
+        semantics; the generator tracks such locals so a later mutation can
+        be written back. (BuilderBackedReference)
+    **/
+    function sortedBuilderGetSource(e:TypedExpr):Null<{builder:TypedExpr, key:TypedExpr}> {
+        return switch (stripWrap(e).expr) {
+            case TCall(fn, [key]):
+                switch (stripWrap(fn).expr) {
+                    case TField(subject, fa) if (fieldName(fa) == "get" && isSortedBuilderSubject(subject)
+                            && isSortedBuilderClass(subject.t)):
+                        {builder: subject, key: key};
+                    case _: null;
+                }
+            case _: null;
+        };
+    }
+
+    /**
+        True when the subject's Haxe type is a SortedMapBuilder or
+        SortedSetBuilder (the mutable builder), not the immutable built
+        table. Only the builder carries `put`, so only a builder-backed
+        local can be written back.
+    **/
+    function isSortedBuilderClass(t:Null<Type>):Bool {
+        return switch (Context.follow(t)) {
+            case TInst(c, _): StringTools.endsWith(c.get().name, "Builder");
+            case _: false;
+        };
+    }
+
+    /**
+        A SortedMap whose value type is Null<V> can store nil, but the
+        Swift runtime keeps the value array non-optional (the type
+        renderer strips the inner Null so get returns one optional layer).
+        A put of a possibly-nil value therefore cannot force-unwrap; the
+        nil case must not reach the store. The read side treats an absent
+        key and a nil value the same (get returns nil for both), so
+        guarding the put preserves the observable reads. (NullableSortedPut)
+    **/
+    function nullableSortedPutLines(e:TypedExpr, depth:Int):Null<Array<String>> {
+        return switch (e.expr) {
+            case TCall({expr: TField(subj, FInstance(_, _, cf))}, args)
+                if (cf.get().name == "put" && args.length == 2 && isSortedBuilderSubject(subj) && optionalValued(args[1])):
+                nullablePutCounter += 1;
+                final name = "np" + nullablePutCounter;
+                [indent(depth) + "if let " + name + " = " + expr(args[1]) + " { " + expr(subj) + ".put(" + expr(args[0]) + ", " + name + ") }"];
+            case _: null;
+        };
+    }
+
+    /**
+        A mutating method call on a local that was initialized from a
+        builder's `get` writes the mutated value back to the builder. Haxe
+        treats the retrieved value as a reference into the builder, so the
+        mutation must persist; Swift arrays are value types and the local is
+        a copy, so the generator emits the write-back itself.
+        (BuilderBackedReference)
+    **/
+    function builderBackedMutationLines(e:TypedExpr, depth:Int):Null<Array<String>> {
+        return switch (e.expr) {
+            case TCall(fn, _):
+                switch (stripWrap(fn).expr) {
+                    case TField(subj, FInstance(_, _, cf)) if (isMutatingMethodName(cf.get().name)):
+                        switch (stripWrap(subj).expr) {
+                            case TLocal(v) if (builderBacked.exists(v.id)):
+                                final src = builderBacked.get(v.id);
+                                final tryKw = containsThrowingCall(e) ? "try " : "";
+                                final discard = isDiscardedCall(e) ? "_ = " : "";
+                                nullablePutCounter += 1;
+                                final name = "np" + nullablePutCounter;
+                                [
+                                    indent(depth) + discard + tryKw + expr(e),
+                                    indent(depth) + "if let " + name + " = " + localName(v) + " { " + expr(src.builder) + ".put(" + expr(src.key) + ", " + name + ") }"
+                                ];
+                            case _: null;
+                        }
+                    case _: null;
+                }
+            case _: null;
+        };
+    }
+
+    function isMutatingMethodName(name:String):Bool {
+        return name == "push" || name == "pop" || name == "shift" || name == "unshift" || name == "splice" || name == "set" || name == "insert";
+    }
+
+    /**
+        A Haxe array subscript store grows the array when the index equals
+        its length, while Swift's subscript requires a valid index. The
+        store binds the value once and appends when the index is at or past
+        the end, so a loop that fills a fresh array from index zero works.
+        (GrowingArrayStore)
+    **/
+    function growingArrayStoreLines(l:TypedExpr, r:TypedExpr, depth:Int, tryKw:String):Null<Array<String>> {
+        return switch (stripWrap(l).expr) {
+            case TArray(arr, idx):
+                final arrText = expr(arr);
+                final idxText = "Int(" + expr(idx) + ")";
+                final valText = assignmentValue(l, r);
+                // Only one branch runs, so the value is evaluated once
+                // whichever way the bounds check falls.
+                [indent(depth) + "if " + idxText + " < " + arrText + ".count { " + arrText + "[" + idxText + "] = " + tryKw + valText + " } else { " + arrText + ".append(" + tryKw + valText + ") }"];
+            case _: null;
+        };
+    }
+
     // ------------------------------------------------------------------
     // Counted fill (features/09)
     // ------------------------------------------------------------------
@@ -1395,7 +1664,7 @@ class SwiftExpr {
 
         final arrName = localName(alloc.arr);
         final out:Array<String> = [];
-        out.push(indent(depth) + "var " + arrName + " = [" + types.of(alloc.elem) + "]()");
+        out.push(indent(depth) + "var " + arrName + " = TiqianArray<" + types.of(alloc.elem) + ">()");
         out.push(indent(depth) + arrName + ".reserveCapacity(Int(max(" + expr(loop.bound) + ", 0)))");
         out.push(indent(depth) + "for " + (plan.readsIndex ? localName(loop.index) : "_") + " in stride(from: " + strideValue(loop.start) + ", to: "
             + strideValue(loop.bound) + ", by: 1) {");
@@ -1447,8 +1716,10 @@ class SwiftExpr {
                     case TString(s):
                         // The resident ABI carries strings as unit arrays
                         // (docs/specs/features/08-strings-and-unicode.md); business modules keep the
-                        // native literal.
-                        return types.resident ? "Array(" + quoteString(s) + ".utf16)" : quoteString(s);
+                        // native literal. The resident branch already materializes the unit array
+                        // (O(n) once), so it uses the raw literal; the native branch wraps large
+                        // non-ASCII literals so the parse loop is not O(n^2) on a non-native String.
+                        return types.resident ? "Array(" + quoteStringRaw(s) + ".utf16)" : quoteString(s);
                     case TBool(b): return b ? "true" : "false";
                     case TNull: return "nil";
                     case TThis: return "self";
@@ -1489,22 +1760,27 @@ class SwiftExpr {
                         var t = expr(x);
                         if (elemFloat && isIntType(emittedType(x))) t = intToFloatText(t);
                         // A non-optional element type rejects a nullable
-                        // element; the element unwraps at the literal.
-                        if (elemType != null && !isNullLeafType(elemType) && optionalValued(x) && !StringTools.endsWith(t, "!"))
+                        // element; the element unwraps at the literal. A
+                        // compound element carries the wrap in parentheses so
+                        // the bang binds to the whole value, and a null
+                        // literal has no value to unwrap.
+                        // (ArrayLiteralElementDemand)
+                        if (elemType != null && !isNullLeafType(elemType) && optionalValued(x) && !isNullLiteral(x)
+                            && !StringTools.endsWith(t, "!"))
                             t = switch (stripWrap(x).expr) {
                                 case TLocal(_): t + "!";
-                                case TField(_, _): "(" + t + ")!";
-                                case _: t;
+                                case _: "(" + t + ")!";
                             };
                         t;
                     }
                 ];
-                final body = "[" + renderedElems.join(", ") + "]";
+                final inner = "[" + renderedElems.join(", ") + "]";
                 // A Swift array literal of concrete implementations infers
                 // `[Any]` when the Haxe element type is an interface, losing
                 // the protocol members; the interface element type is carried
                 // explicitly so the existential stays in the array.
-                return isInterfaceType(elemType) ? "(" + body + " as [" + types.of(elemType) + "])" : body;
+                final body = isInterfaceType(elemType) ? "(" + inner + " as [" + types.of(elemType) + "])" : inner;
+                return "TiqianArray(" + body + ")";
             case TCall(fn, args):
                 return call(fn, args);
             case TNew(c, params, args):
@@ -1945,7 +2221,7 @@ class SwiftExpr {
             case OpAssign:
                 final map = mapAssignment(l);
                 final rhs = assignmentValue(l, r);
-                return map == null ? assignTarget(l) + " = " + rhs : expr(map.receiver) + "[" + expr(map.key) + "] = " + rhs;
+                return map == null ? assignTarget(l) + " = " + rhs : expr(map.receiver) + "[" + mapKeyText(map.key) + "] = " + rhs;
             case OpAssignOp(OpAdd) if (isStringTyped(l)):
                 // Haxe appends any value to a String with its string form;
                 // Swift's `+=` needs the converted right side.
@@ -2727,8 +3003,7 @@ class SwiftExpr {
                 final itemKey = stdStringType(key, value + ".keyAt(" + index + ")", true, origin, depth + 1);
                 final itemVal = stdStringType(val, value + ".valueAt(" + index + ")", true, origin, depth + 1);
                 '{ () -> String in var out = "{"; let n = ${value}.size(); var ${index}: Int32 = 0; while ${index} < n { if ${index} > 0 { out += ", "; }; out += ${itemKey}; out += "="; out += ${itemVal}; ${index} += 1; }; out += "}"; return out }()';
-            case IsRecordLike: value + ".toString()";
-            case IsInstanceToString: value + ".toString()";
+            case IsRecordLike | IsInstanceToString: recordToStringText(t, value);
             case IsMarkedAbstract(abs):
                 ValueTypeSupport.memberField(abs, "toString") != null ? value + ".description" : "String(describing: "
                     + value
@@ -2754,6 +3029,29 @@ class SwiftExpr {
 
     function hasInstanceToString(cls:ClassType):Bool {
         return PolicyQueries.hasInstanceToString(cls);
+    }
+
+    /**
+        Member toString rendering for Std.string. A toString built on the
+        checked string buffer throws (stdlib/08), and the contexts this
+        text enters (string interpolation segments and the array, set,
+        and map join closures) accept no throwing call, so a throwing
+        toString takes the forced try, matching the property accessor
+        rendering in SwiftDecl. The lookup walks to the declaring class
+        because the fallibility table keys functions on the declarer.
+    **/
+    function recordToStringText(t:Type, value:String):String {
+        var cls = switch (Context.follow(t)) {
+            case TInst(c, _): c.get();
+            case _: null;
+        };
+        while (cls != null) {
+            final declares = [for (field in cls.fields.get()) field.name].indexOf("toString") >= 0;
+            if (declares)
+                return (SwiftFallibility.isThrowing(cls.module, cls.name, "toString", false) ? "try! " : "") + value + ".toString()";
+            cls = cls.superClass == null ? null : cls.superClass.t.get();
+        }
+        return value + ".toString()";
     }
 
     function cyclicEnumString(en:EnumType, value:String, inConcat:Bool, origin:TypedExpr):String {
@@ -3036,9 +3334,24 @@ class SwiftExpr {
                     }
                 }
                 if (module == "String" && cls.pack.length == 0 && fName == "fromCharCode") {
-                    // The char domain of the subset stays inside valid
-                    // scalars; the force unwrap states that contract.
-                    return "String(UnicodeScalar(UInt32(bitPattern: " + (optionalValued(args[0]) ? "(" + expr(args[0]) + ")!" : expr(args[0])) + "))!)";
+                    // Haxe yields the string that holds one UTF-16 code
+                    // unit, and the corpus supplies lone surrogates. The
+                    // scalar conversion traps on a surrogate and a Swift
+                    // String carries no unpaired one, so the call decodes
+                    // the unit and keeps the valid scalar and surrogate
+                    // pair domains exact. A scalar above the BMP decodes
+                    // as its surrogate pair so the pair stays intact.
+                    // (FromCharCodeUnit)
+                    final cp = optionalValued(args[0]) ? "(" + expr(args[0]) + ")!" : expr(args[0]);
+                    return "(("
+                        + cp
+                        + " > 0xFFFF ? String(decoding: [UInt16(truncatingIfNeeded: 0xD800 + (("
+                        + cp
+                        + " - 0x10000) >> 10)), UInt16(truncatingIfNeeded: 0xDC00 + (("
+                        + cp
+                        + " - 0x10000) & 0x3FF))], as: UTF16.self) : String(decoding: [UInt16(truncatingIfNeeded: "
+                        + cp
+                        + ")], as: UTF16.self)))";
                 }
                 if (module == "Std") {
                     final s = expr(args[0]);
@@ -3123,11 +3436,11 @@ class SwiftExpr {
                 }
                 if (isMapType(subj.t)) {
                     if (name == "exists" && args.length == 1)
-                        return expr(subj) + "[" + expr(args[0]) + "] != nil";
+                        return expr(subj) + "[" + mapKeyText(args[0]) + "] != nil";
                     if (name == "get" && args.length == 1)
-                        return expr(subj) + "[" + expr(args[0]) + "]";
+                        return expr(subj) + "[" + mapKeyText(args[0]) + "]";
                     if (name == "set" && args.length == 2)
-                        return expr(subj) + "[" + expr(args[0]) + "] = " + expr(args[1]);
+                        return expr(subj) + "[" + mapKeyText(args[0]) + "] = " + expr(args[1]);
                 }
                 if (isStringBuf(subj)) {
                     // stdlib/08: the checks throw, and a throw is a
@@ -3172,11 +3485,9 @@ class SwiftExpr {
                 }
                 if (name == "indexOf" && isUnitArrayTyped(subj) && !isStringSubject(subj) && args.length >= 1
                     && (args.length == 1 || isNullLiteral(args[1]))) {
-                    // Haxe Array.indexOf has no Swift member; lower onto
-                    // firstIndex(of:) and report the -1 miss the subset uses.
-                    final s = receiverText(subj);
-                    return "Int32({ () -> Int in if let i = " + s + ".firstIndex(of: " + optionalExpr(args[0]) + ") { return " + s + ".distance(from: " + s
-                        + ".startIndex, to: i) }; return -1 }())";
+                    // Haxe Array.indexOf lowers onto the TiqianArray member,
+                    // which reports the -1 miss the subset uses.
+                    return receiverText(subj) + ".indexOf(" + optionalExpr(args[0]) + ")";
                 }
                 if (name == "lastIndexOf" && isStringSubject(subj) && args.length >= 1) {
                     final s = receiverText(subj);
@@ -3215,7 +3526,7 @@ class SwiftExpr {
                     // per unit. The native separator forms cannot express
                     // that: `first!` on an empty separator traps, and a
                     // Character separator would cut at grapheme clusters
-                    // while the contract counts units. The empty separator therefore walks
+                    // instead of units. The empty separator therefore walks
                     // the UTF-16 view, matching the Kotlin chunked(1) and
                     // the TypeScript native split("") shape.
                     // (StringSplitEmptyDelimiter)
@@ -3232,76 +3543,41 @@ class SwiftExpr {
                         + ", omittingEmptySubsequences: false).map { String($0) }";
                 }
                 if (name == "push") {
-                    return receiverText(subj) + ".append(" + optionalExpr(args[0]) + ")";
+                    final elemType = switch (subj.t) {
+                        case TInst(_, params) if (params.length > 0): params[0];
+                        case _: null;
+                    };
+                    final unwrap = elemType != null && !isNullLeafType(elemType);
+                    return receiverText(subj) + ".append(" + (unwrap ? optionalExpr(args[0]) : expr(args[0])) + ")";
                 }
                 if (name == "pop" && isUnitArrayTyped(subj)) {
-                    return receiverText(subj) + ".popLast()";
+                    return receiverText(subj) + ".pop()";
                 }
                 if (name == "shift" && isUnitArrayTyped(subj)) {
-                    // Haxe shift returns null on an empty array while Swift's
-                    // removeFirst traps, so the emptiness guard names the
-                    // optional result.
-                    final s = receiverText(subj);
-                    return "(" + s + ".isEmpty ? nil : " + s + ".removeFirst())";
+                    return receiverText(subj) + ".shift()";
                 }
                 if (name == "unshift" && isUnitArrayTyped(subj)) {
-                    // Haxe Array.unshift returns Void, so the call only
-                    // appears in statement position and Swift insert is
-                    // Void as well.
-                    final s = receiverText(subj);
-                    return s + ".insert(" + expr(args[0]) + ", at: 0)";
+                    return receiverText(subj) + ".unshift(" + expr(args[0]) + ")";
                 }
                 if (name == "insert" && isUnitArrayTyped(subj) && args.length == 2) {
-                    // Haxe Array.insert(pos, x): Swift names the position
-                    // with `at:` and the index is an Int. Haxe also bounds
-                    // the position before the array sees it: a negative
-                    // position counts from the end of the array and stops at
-                    // the first element, and a position past the end clamps
-                    // to the count. Swift's insert traps on an index outside
-                    // the array, so the position is clamped first.
-                    // (ArrayInsertClamping)
+                    // Haxe Array.insert(pos, x) bounds the position before
+                    // the array sees it (ArrayInsertClamping); TiqianArray
+                    // clamps the same way.
                     final s = receiverText(subj);
-                    final pos = "Int(" + expr(args[0]) + ")";
-                    return "({ () in let _sz = " + s + ".count; let _p0 = " + pos + "; let _p = _p0 < 0 ? max(_sz + _p0, 0) : min(_p0, _sz); " + s
-                        + ".insert(" + expr(args[1]) + ", at: _p) }())";
+                    return s + ".insert(" + expr(args[1]) + ", at: Int(" + expr(args[0]) + "))";
                 }
                 if (name == "concat" && isUnitArrayTyped(subj) && args.length == 1) {
-                    return receiverText(subj) + " + " + expr(args[0]);
+                    return receiverText(subj) + ".concat(" + expr(args[0]) + ")";
                 }
                 if (name == "copy" && isUnitArrayTyped(subj) && args.length == 0) {
-                    return "Array(" + receiverText(subj) + ")";
+                    return receiverText(subj) + ".copy()";
                 }
                 if (name == "splice" && isUnitArrayTyped(subj) && args.length >= 2) {
                     // Haxe splice mutates and returns the removed sub-array,
-                    // and it bounds the call before it removes anything: a
-                    // negative length or a position past the length removes
-                    // nothing and leaves the array alone, a negative position
-                    // counts from the end and stops at the first element, and
-                    // a length that reaches past the end removes only the
-                    // tail. The Swift range subscript traps on any bound
-                    // outside the array, so the position is clamped into it
-                    // and the count is trimmed to the elements that remain.
-                    // (ArraySpliceClamping)
+                    // bounding the call before removing (ArraySpliceClamping);
+                    // TiqianArray clamps the same way.
                     final s = receiverText(subj);
-                    final start = "Int(" + expr(args[0]) + ")";
-                    final len = "Int(" + expr(args[1]) + ")";
-                    // removeSubrange mutates the receiver, so the clamp reads
-                    // the count of the receiver expression itself; a
-                    // let-bound copy is a value Swift refuses to mutate.
-                    return "({ () in let _sz = "
-                        + s
-                        + ".count; let _p0 = "
-                        + start
-                        + "; let _l = "
-                        + len
-                        + "; let _p = _p0 < 0 ? max(_sz + _p0, 0) : (_p0 > _sz ? _sz : _p0)"
-                        + "; let _c = (_l < 0 || _p0 > _sz) ? 0 : min(_l, _sz - _p)"
-                        + "; let removed = Array("
-                        + s
-                        + "[_p..<(_p + _c)])"
-                        + "; "
-                        + s
-                        + ".removeSubrange(_p..<(_p + _c)); return removed }())";
+                    return s + ".splice(Int(" + expr(args[0]) + "), Int(" + expr(args[1]) + "))";
                 }
                 if (name == "join") {
                     // The split/join pair in the resident StringTools
@@ -3395,8 +3671,17 @@ class SwiftExpr {
                     return "substrUnits(" + s + ", " + expr(args[0]) + ", " + lenText + ")";
                 }
                 if (name == "charAt" && isStringSubject(subj)) {
+                    // Haxe charAt reads one UTF-16 code unit and yields the
+                    // empty string outside the subject. The Character view
+                    // walk costs the index on every read and traps past the
+                    // end, so the unit slice carries the read instead and the
+                    // index binds once. (StringCharAtUnit)
                     final s = receiverText(subj);
-                    return "String(" + s + "[" + s + ".index(" + s + ".startIndex, offsetBy: Int(" + expr(args[0]) + "))])";
+                    if (types.resident) {
+                        // The resident subject is the unit array.
+                        return "({ () -> [UInt16] in let _i: Int32 = " + narrowedText(args[0]) + "; return substrUnitsArray(" + s + ", _i, 1) }())";
+                    }
+                    return "({ () -> String in let _i: Int32 = " + narrowedText(args[0]) + "; return substringUnits(" + s + ", _i, _i &+ 1) }())";
                 }
                 if (name == "charCodeAt" && isStringSubject(subj)) {
                     final code = types.resident ? "Int32(" + receiverText(subj) + "[Int(" + expr(args[0]) + ")])" : "unitAtOptional("
@@ -3934,7 +4219,7 @@ class SwiftExpr {
                 imports.runtime("BytesBuffer");
                 return "BytesBuffer()";
             case "Array":
-                return "[" + types.of(params[0]) + "]()";
+                return "TiqianArray<" + types.of(params[0]) + ">()";
             case _:
                 imports.value(cls.module, cls.name);
                 return cls.name + "(" + rendered + ")";
@@ -3943,6 +4228,16 @@ class SwiftExpr {
 
     function isMapType(t:Type):Bool {
         return PolicyQueries.isMapType(t);
+    }
+
+    /**
+        MapSubscriptKeyDemand: a Swift dictionary subscript demands a plain
+        key. Haxe flows a Null<Int> key into Map.get, Map.set, and Map.exists,
+        and the null key traps at the lookup, so the key takes the same force
+        unwrap a value position takes.
+    **/
+    function mapKeyText(key:TypedExpr):String {
+        return narrowedText(key);
     }
 
     function isMapImplementation(cls:ClassType):Bool {
@@ -4419,7 +4714,7 @@ class SwiftExpr {
                 if (!SwiftDecl.isException(c.get())) {
                     return null;
                 }
-                return expr(stripCast(subj)) + ".message";
+                return receiverText(stripCast(subj)) + ".message";
             case _:
                 return null;
         }
@@ -4831,11 +5126,16 @@ class SwiftExpr {
                 case _:
                     final stdArg = stdStringArg(leaf);
                     var rendered = stdArg == null ? interpolationLeaf(leaf) : stdString(stdArg, true);
-                    // An optional leaf interpolates through the explicit
-                    // describing form: the implicit debug description of an
-                    // optional warns. (ExplicitOptionalInterpolation)
-                    if (StringTools.endsWith(types.of(leaf.t), "?"))
-                        rendered = "String(describing: " + rendered + ")";
+                    // A present non-String optional interpolates its value, not
+                    // "Optional(x)"; an absent one prints "null", matching Haxe
+                    // Std.string on Null<T>. The ternary carries a string
+                    // literal, which Swift forbids inside an interpolation, so
+                    // the leaf is hoisted into a let statement. Optional String
+                    // leaves keep the describing form from interpolationLeaf.
+                    if (StringTools.endsWith(types.of(leaf.t), "?") && !isOptionalStringLeafType(leaf.t)) {
+                        rendered = "(" + rendered + " == nil ? \"null\" : String(describing: " + rendered + "!))";
+                        needsHoist = true;
+                    }
                     renderedLeaves.push(rendered);
                     if (rendered.indexOf("\n") >= 0)
                         needsHoist = true;
@@ -5131,6 +5431,12 @@ class SwiftExpr {
                     nonOptionalInferred.set(v.id, true);
                 } else if (init != null && isNullLeafType(init.t) && coalescing == null && !unwrapNullableInitializer) {
                     optionalInferred.set(v.id, true);
+                    // A local without an explicit annotation bound to an
+                    // optional-valued initializer infers an optional Swift
+                    // binding. Register it as an optional binding so a nil
+                    // comparison stays live instead of folding to a constant
+                    // and deleting the initialization branch. (OptionalInitBinding)
+                    optionalBindingLocals.set(v.id, true);
                 }
                 PolicyQueries.noteFpInt64Init(v, init, fpInt64Halves);
             case TBinop(OpAssign, t, _) | TBinop(OpAssignOp(_), t, _):
@@ -5779,8 +6085,8 @@ class SwiftExpr {
 
     /**
         True for the empty string literal, the `split` separator whose haxe
-        contract is one element per UTF-16 code unit; no platform pattern
-        matching is involved.
+        contract is one element per UTF-16 code unit rather than a platform
+        pattern match.
     **/
     function isEmptyDelimiterSplit(name:String, args:Array<TypedExpr>):Bool {
         if (name != "split" || args.length != 1)
@@ -5803,7 +6109,41 @@ class SwiftExpr {
         }
     }
 
+    /**
+        Threshold (UTF-16 code units) above which a non-ASCII string literal
+        is emitted through a native-converting expression. Below the threshold
+        it stays a bare Swift literal. Swift stores a large literal containing non-ASCII
+        scalars in a non-native representation where UTF16View.count and
+        index(_:offsetBy:) are O(n) per call; the generated parse loops read
+        one unit at a time and degrade to O(n^2) (see engine-haxe/out/
+        swift-repro/FINDINGS.md: a 1.28M-char non-ASCII literal scanned
+        200k positions in ~600s, while the same parse on a native String took
+        291ms). Materializing the literal into a native String once keeps
+        those operations O(1). The threshold is set so ordinary literals never
+        pay the Array materialization, while any literal large enough to take
+        the non-native representation is caught.
+    **/
+    static final NATIVE_STRING_LITERAL_THRESHOLD = 1024;
+
+    /** Emits a Swift String literal, wrapping large non-ASCII literals in a
+        native-converting expression (see NATIVE_STRING_LITERAL_THRESHOLD). */
     function quoteString(s:String):String {
+        final quoted = quoteStringRaw(s);
+        if (s.length >= NATIVE_STRING_LITERAL_THRESHOLD && containsNonAscii(s))
+            return "String(decoding: Array(" + quoted + ".utf16), as: UTF16.self)";
+        return quoted;
+    }
+
+    /** True when the string holds any scalar above 0x7F. */
+    static function containsNonAscii(s:String):Bool {
+        for (i in 0...s.length)
+            if (s.charCodeAt(i) > 0x7F)
+                return true;
+        return false;
+    }
+
+    /** Emits the bare escaped Swift string literal for s. */
+    function quoteStringRaw(s:String):String {
         final b = new StringBuf();
         b.addChar('"'.code);
         for (i in 0...s.length) {

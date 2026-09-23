@@ -81,12 +81,24 @@ class RustExpr {
 
     final hiddenNames:Map<Int, String> = [];
     final rangeLoopVars:Map<Int, Bool> = [];
+    // Int locals initialized from an ambiguous integer receiver (an array
+    // element read, a conditional, a generic static call, a range loop
+    // variable). Their binding renders without a concrete type, so a later
+    // .to_ne_bytes() on the local is ambiguous (E0689); the receiver
+    // predicate consults this set to pin the u32 domain. (AmbiguousIntReceiver)
+    final ambiguousIntReceiverLocals:Map<Int, Bool> = [];
     final argTypes:Map<String, String> = [];
     final paramVarIds:Map<Int, Bool> = [];
     // Actual constructor-call arguments used while materializing coalescing defaults.
     final defaultParameterSubstitutions:Map<String, String> = [];
     final genericParamIds:Map<Int, Bool> = [];
     final closureParamIds:Map<Int, Bool> = [];
+    // Closure parameters whose generated Rust binding is a reference even
+    // though their Haxe type is a value. The Functional shim annotates the
+    // lambda parameter with the receiver element type's borrow, so a Float
+    // parameter renders &f32 while its Haxe type stays f32; value reads of
+    // such a parameter must dereference the binding. (ClosureParamBorrow)
+    final closureBorrowedParamIds:Map<Int, Bool> = [];
     // Local function values whose body throws: the closure signature carries
     // the enclosing Result error so call sites can propagate it.
     final fallibleLocalFunctionErrors:Map<Int, String> = [];
@@ -1870,14 +1882,43 @@ class RustExpr {
                     && StringTools.startsWith(retStr, "*") && !StringTools.startsWith(retStr, "*("))
                     retStr = "Some(" + retStr + ")";
                 if (isFallible) {
-                    final guard = staticGuardOf(ret);
+                    // The guard read is cloned to an owned value before it
+                    // leaves the return slot. A RefCell static clones inside
+                    // the with-closure: a clone applied to the rendered guard
+                    // text clones the returned Ref and ties the closure's
+                    // result to the closure parameter's lifetime, which
+                    // borrowck rejects with "lifetime may not live long
+                    // enough" (english_hyphenation.rs). (RefCellStaticGuardScope)
+                    final guard = staticGuardCloneOf(ret);
                     if (guard != null)
-                        retStr = "(" + guard + ").clone()";
+                        retStr = guard;
+                    // A nullable read through a fallible non-null return
+                    // slot unwraps at the boundary. The guard-clone above
+                    // clones the Option itself when the read is a static
+                    // field, so the return slot reaches through to the
+                    // payload: non-Copy payloads are borrowed and cloned,
+                    // Copy payloads copy out through unwrap. Skips when the
+                    // String or Option return handling already settled the
+                    // wrapper. (ReturnSiteUnwrap)
+                    if (nullableReadHoldsOption(ret) && nullableReadRendersOptionText(retStr)
+                        && !isNullType(currentReturnType)
+                        && returnTypeName != "String"
+                        && !StringTools.startsWith(returnTypeName, "Option<")) {
+                        retStr = isTypeCopy(ret.t)
+                            ? "(" + retStr + ").unwrap()"
+                            : "(" + retStr + ").as_ref().unwrap().clone()";
+                    }
                     return [indent(depth) + "return Ok(" + retStr + ");"];
                 }
                 return [indent(depth) + "return " + retStr + ";"];
             case TThrow(x):
-                return [indent(depth) + "return Err(" + throwVariant(x) + ");"];
+                if (isFallible) {
+                    return [indent(depth) + "return Err(" + throwVariant(x) + ");"];
+                }
+                // A non-fallible body cannot return Err. A throw still
+                // raises: panic with the exception's Display text, which the
+                // test runner catches and reports as the failure message.
+                return [indent(depth) + "panic!(\"{}\", " + throwVariant(x) + ");"];
             case TTry(body, catches) if (catches.length == 1):
                 return regionStatementLines(body, catches[0], depth);
             case TTry(_, _):
@@ -2619,8 +2660,8 @@ class RustExpr {
     /**
         dropFlagBreakPairs: within a `while (flag)` body whose flag only
         the loop condition observes, a store `flag = <pure const>`
-        immediately followed by `break` is dead: after the break the
-        condition never re-reads the flag, so the store is removed. Blocks and
+        immediately followed by `break` is dead — after the break the
+        condition never re-reads the flag — and is removed. Blocks and
         conditionals rebuild; every other shape keeps its statements.
         (LoopFlagBreakPairDrop)
     **/
@@ -3588,13 +3629,15 @@ class RustExpr {
     /**
         isBorrowedParamLocal: a current-function parameter keeps the borrow
         its declaration already decided, and a closure parameter borrows
-        when its rendered parameter type is a reference view. The String
-        conversion sites use this test so a borrowed parameter reaches an
-        owned String slot through to_string.
+        when its rendered parameter type is a reference view. A closure
+        parameter the Functional shim annotated with a reference (its Haxe
+        type is a value but its Rust binding is &T) also counts as borrowed.
+        The String conversion sites use this test so a borrowed parameter
+        reaches an owned String slot through to_string.
     **/
     function isBorrowedParamLocal(v:haxe.macro.Type.TVar):Bool {
         if (closureParamIds.exists(v.id))
-            return StringTools.startsWith(types.of(v.t, true), "&");
+            return closureBorrowedParamIds.exists(v.id) || StringTools.startsWith(types.of(v.t, true), "&");
         return paramVarIds.get(v.id) == true;
     }
 
@@ -3914,6 +3957,34 @@ class RustExpr {
             case _:
                 null;
         };
+    }
+
+    /**
+        The narrowed match binding a rendered text names. The text is the
+        binding itself, or a borrow of it, when the read already resolved the
+        Option. A member read below the binding names the member value, so it
+        is not a binding read.
+    **/
+    function narrowedBindingText(text:String):Null<String> {
+        final candidate = StringTools.startsWith(text, "&(") && StringTools.endsWith(text, ")")
+            ? text.substr(2, text.length - 3) : text;
+        for (i in 0...optionNarrowings.length) {
+            final narrowing = optionNarrowings[i];
+            if (narrowing.name == candidate)
+                return candidate;
+        }
+        return null;
+    }
+
+    /** The narrowing binding a member read is rooted at, when the read is a
+        member of an active narrowing binding. */
+    function narrowedBindingMemberText(text:String):Null<String> {
+        for (i in 0...optionNarrowings.length) {
+            final narrowing = optionNarrowings[i];
+            if (StringTools.startsWith(text, narrowing.name + "."))
+                return narrowing.name;
+        }
+        return null;
     }
 
     function narrowedText(text:String):Null<String> {
@@ -4361,6 +4432,17 @@ class RustExpr {
         final name = freshRegionName("__option");
         final countBefore = optionNarrowingHitCount;
         optionNarrowings.push({subjectText: subjectTextOf(info.subject), name: name});
+        // A boolean-chain guard (`a != null && b != null`) proves every
+        // subject non-null when the body runs; register the siblings so
+        // value slots unwrap them. The first subject is already narrowed
+        // by the match binding, so it is excluded. (GuardedChainSiblingProof)
+        final firstSubjectId = switch (stripWrap(info.subject).expr) {
+            case TLocal(v): v.id;
+            case _: -1;
+        };
+        final chainSiblings = [for (v in provenNonNullLocals(guard)) if (v.id != firstSubjectId) v];
+        for (v in chainSiblings)
+            provenNonNullVarIds.set(v.id, true);
         var narrowed = blockLines(statementsOf(narrowedBranch), depth + 2);
         if (prefix != null) {
             narrowed = [indent(depth + 2) + "if " + expr(prefix.tail) + " {"]
@@ -4382,6 +4464,8 @@ class RustExpr {
         }
         final hit = optionNarrowingHitCount > countBefore;
         optionNarrowings.pop();
+        for (v in chainSiblings)
+            provenNonNullVarIds.remove(v.id);
         if (!hit)
             return null;
         final otherBranch = info.noneWhenTrue ? ifTrue : ifFalse;
@@ -4557,23 +4641,41 @@ class RustExpr {
                     && !isStringType(elemType) && !isNullableElem;
                 final rendered = [
                     for (x in elems) {
+                        var source = expr(x);
+                        // An element whose Haxe type is Null<T> in a non-null
+                        // element slot reads an Option while the literal's Vec
+                        // carries the payload; the element boundary borrows and
+                        // unwraps it, so the source binding stays alive for
+                        // later reads. (NonNullSlotUnwrap)
+                        if (elemType != null && !isNullableElem
+                            && (nullableReadHoldsOption(x) || isImplicitNullableLocal(x))) {
+                            final payload = getNullInnerType(x.t);
+                            source = isTypeCopy(payload) ? "*((" + source + ").as_ref().unwrap())" : "(" + source + ").as_ref().unwrap()";
+                        }
                         var inner = if (isStringElem) {
                             switch (stripWrap(x).expr) {
                                 case TConst(TString(_)):
-                                    expr(x) + ".to_string()";
+                                    source + ".to_string()";
                                 case TLocal(v) if (isBorrowedParamLocal(v)):
-                                    expr(x) + ".to_string()";
+                                    source + ".to_string()";
                                 case _:
-                                    expr(x) + ".clone()";
+                                    source + ".clone()";
                             }
                         } else {
-                            elemNeedsClone && !StringTools.endsWith(expr(x), ".clone()") ? "(" + expr(x) + ").clone()" : expr(x);
+                            elemNeedsClone && !StringTools.endsWith(source, ".clone()") ? "(" + source + ").clone()" : source;
                         };
                         if (elemFloat && isIntType(emittedType(x))) inner = intToFloatText(inner);
                         // An i32-domain element in a business u32 array
                         // reinterprets its bits at the literal boundary.
                         if (!elemFloat && elemType != null && isIntType(elemType) && types.of(elemType, false) == "u32"
                             && i32LocalDomain(x) && !isNullType(x.t)) inner = RustConversions.reinterpret(inner, "u32");
+                        // An interface element slot boxes a concrete
+                        // implementor and pins the box to the trait object,
+                        // so the Vec carries one Box<dyn Trait> type. The
+                        // concrete value is already cloned above, so the box
+                        // takes an owned payload. (InterfaceElementBox)
+                        if (elemType != null && isInterfaceType(elemType) && !isInterfaceType(x.t))
+                            inner = "Box::new(" + inner + ") as " + types.of(elemType, false);
                         if (isNullableElem && !isTNull(x) && !StaticFieldHelper.isNullableType(x.t)) {
                             "Some(" + inner + ")";
                         } else {
@@ -4938,18 +5040,31 @@ class RustExpr {
         return switch (PolicyQueries.enumQueryPlan(e)) {
             case null: null;
             case LengthCount(count): Std.string(count);
-            case AliasIndex(subj, index): expr(subj) + "[" + expr(index) + "]";
+            case AliasIndex(subj, index): expr(subj) + "[" + castArg(index, "usize") + "]";
             case EntryIndex(en, index):
                 requireEnum(en.module, en.name);
-                en.name + "::ALL[" + expr(index) + "]";
+                en.name + "::ALL[" + castArg(index, "usize") + "]";
             case EnumKindQuery(kind, en, args):
                 requireEnum(en.module, en.name);
                 switch (kind) {
                     case QCollection: en.name + "::ALL";
-                    case QName: expr(args[0]) + ".name().to_string()";
+                    case QName: enumNameRead(args[0]);
                     case QLookup: en.name + "::from_name(&(" + expr(args[1]) + "))";
                 }
         }
+    }
+
+    /**
+        A name read on an enum value. A value produced by the name lookup
+        renders as a nullable lookup result, so the read unwraps it before
+        the name call.
+    **/
+    function enumNameRead(subject:TypedExpr):String {
+        final rendered = expr(subject);
+        return switch (PolicyQueries.enumQueryPlan(subject)) {
+            case EnumKindQuery(QLookup, _, _): rendered + ".unwrap().name().to_string()";
+            case _: rendered + ".name().to_string()";
+        };
     }
 
     // ------------------------------------------------------------------
@@ -5057,6 +5172,65 @@ class RustExpr {
             case _:
                 return null;
         }
+    }
+
+
+    /**
+        When a catch variable's declared exception type is a message-only
+        exception whose superclass chain reaches an exception that maps to a
+        fault enum, the catch variable is used as that base fault enum (Haxe
+        subclass assignment). Returns the base fault enum name and the Message
+        variant field name so the catch binding can convert the thrown
+        message-only struct into the base fault enum's Message variant.
+        Returns null when no such base fault enum exists.
+    **/
+    function catchBaseFaultConversion(c:{v:TVar, expr:TypedExpr}):Null<{fault:String, field:String}> {
+        switch (Context.follow(c.v.t)) {
+            case TInst(cls, _):
+                if (!state.messageOnlyExceptions.exists(cls.get().module)) {
+                    return null;
+                }
+                var current:Null<Ref<ClassType>> = cls.get().superClass == null ? null : cls.get().superClass.t;
+                var guard = 0;
+                while (current != null && guard < 64) {
+                    final base = current.get();
+                    final enumModule = state.exceptionPayloads.get(base.module);
+                    if (enumModule != null) {
+                        final faultName = state.payloadEnumNames.exists(enumModule) ? state.payloadEnumNames.get(enumModule) : enumModule.split(".").pop();
+                        final field = messageVariantField(enumModule, faultName);
+                        if (field == null) {
+                            return null;
+                        }
+                        return {fault: faultName, field: field};
+                    }
+                    current = base.superClass == null ? null : base.superClass.t;
+                    guard++;
+                }
+            case _:
+        }
+        return null;
+    }
+
+    /** The field name of the Message variant of a fault enum, or null. */
+    function messageVariantField(enumModule:String, faultName:String):Null<String> {
+        for (mt in Context.getModule(enumModule)) {
+            switch (mt) {
+                case TEnum(en, _):
+                    final en2 = en.get();
+                    for (name => ef in en2.constructs) {
+                        if (name != "Message") {
+                            continue;
+                        }
+                        switch (ef.type) {
+                            case TFun(args, _) if (args.length == 1):
+                                return RustImports.toSnakeCase(args[0].name);
+                            case _:
+                        }
+                    }
+                case _:
+            }
+        }
+        return null;
     }
 
     function requireEnum(enumModule:String, enumName:String):Void {
@@ -5206,14 +5380,32 @@ class RustExpr {
         out.push(indent(depth) + 'match $outcome {');
         out.push(indent(depth) + "    Ok(_) => {}");
         // A handler that never reads the caught value binds the wildcard.
-        final catchBinding = mentionsLocal(c.expr, c.v) ? RustImports.toSnakeCase(localName(c.v)) : "_";
-        out.push(indent(depth) + "    Err(" + catchBinding + ") => {");
-        catchVars.set(c.v.id, true);
-        final handler = blockLines(statementsOf(c.expr), depth + 2);
-        catchVars.remove(c.v.id);
-        for (l in handler)
-            out.push(l);
-        out.push(indent(depth) + "    }");
+        final catchName = RustImports.toSnakeCase(localName(c.v));
+        final conversion = catchBaseFaultConversion(c);
+        final catchBinding = mentionsLocal(c.expr, c.v) ? catchName : "_";
+        if (conversion != null && mentionsLocal(c.expr, c.v)) {
+            // The declared catch type is a message-only exception whose base
+            // maps to a fault enum; the handler uses it as that base fault
+            // enum, so bind the catch variable to the base fault enum's
+            // Message variant (Haxe subclass assignment).
+            final inner = freshRegionName("__caught");
+            out.push(indent(depth) + "    Err(" + inner + ") => {");
+            out.push(indent(depth) + "            let " + catchName + " = " + conversion.fault + "::Message { " + conversion.field + ": " + inner + ".message.clone() };");
+            catchVars.set(c.v.id, true);
+            final handler = blockLines(statementsOf(c.expr), depth + 3);
+            catchVars.remove(c.v.id);
+            for (l in handler)
+                out.push(l);
+            out.push(indent(depth) + "    }");
+        } else {
+            out.push(indent(depth) + "    Err(" + catchBinding + ") => {");
+            catchVars.set(c.v.id, true);
+            final handler = blockLines(statementsOf(c.expr), depth + 2);
+            catchVars.remove(c.v.id);
+            for (l in handler)
+                out.push(l);
+            out.push(indent(depth) + "    }");
+        }
         out.push(indent(depth) + "}");
         return out;
     }
@@ -5270,13 +5462,22 @@ class RustExpr {
         if (isFloatType(firstInner) || isFloatType(secondInner))
             return FloatPrecision.isF32() ? "f32" : "f64";
         // Both arms are business Int. An arm that renders in the signed i32
-        // domain (a negation, an index result) beside an unsigned arm must
-        // agree on the conditional's Rust type, so the conditional targets
-        // the business u32 slot and the signed arm reinterprets at the
-        // branch. Two signed arms already share the i32 type and keep it.
+        // domain (a negation, an index result, an i32-domain wrapping binop)
+        // beside an unsigned arm must agree on the conditional's Rust type,
+        // so the conditional targets the business u32 slot and the signed
+        // arm reinterprets at the branch. Two signed arms already share the
+        // i32 type and keep it.
+        final firstSigned = rendersSignedIntExpr(first) || i32LocalDomain(first);
+        final secondSigned = rendersSignedIntExpr(second) || i32LocalDomain(second);
         if (!RuntimeResidents.isResident(imports.selfModule)
-            && (rendersSignedIntExpr(first) || rendersSignedIntExpr(second))
-            && !(rendersSignedIntExpr(first) && rendersSignedIntExpr(second)))
+            && (firstSigned || secondSigned) && !(firstSigned && secondSigned))
+            return "u32";
+        // Both arms render in the signed i32 domain, but a business u32
+        // result slot still needs the u32 type: the conditional targets
+        // u32 and both arms reinterpret at the branch. (BothSignedU32Result)
+        if (!RuntimeResidents.isResident(imports.selfModule) && firstSigned && secondSigned
+            && resultType != null && isIntType(resultType) && !isNullType(resultType)
+            && types.of(resultType, false) == "u32")
             return "u32";
         return null;
     }
@@ -5330,9 +5531,11 @@ class RustExpr {
         if (isIntType(inner) && (target == "f32" || target == "f64"))
             return intToFloatText(text);
         // A signed i32 arm entering the business u32 conditional slot
-        // reinterprets its bits so both Rust arms carry one type.
+        // reinterprets its bits so both Rust arms carry one type. The
+        // rendered-text check catches an i32-returning call (unit_count,
+        // an indexOf result) that the local-domain predicates miss.
         if (target == "u32" && isIntType(inner) && !nullable
-            && (i32LocalDomain(branch) || rendersSignedIntExpr(branch)))
+            && (i32LocalDomain(branch) || rendersSignedIntExpr(branch) || rendersSignedIntArg(branch, text)))
             return RustConversions.reinterpret(text, "u32");
         return text;
     }
@@ -6416,6 +6619,13 @@ class RustExpr {
                 switch (inner) {
                     case OpAdd if (isStringType(l.t) && !isNullType(l.t) && isStringType(r.t) && !isNullType(r.t)):
                         return assignTarget(l) + " += &(" + expr(r) + ")";
+                    // Haxe appends every value to a String through that
+                    // value's own text form. A scalar operand has no &str
+                    // view, so the boundary renders its text once and
+                    // appends that. (StringAppendStringify)
+                    case OpAdd if (isStringType(l.t) && !isNullType(l.t) && !isNullType(r.t)
+                        && (isIntType(r.t) || isFloatType(r.t) || isBoolType(r.t))):
+                        return assignTarget(l) + " += &(" + expr(r) + ").to_string()";
                     case _:
                 }
                 // Haxe widens an Int operand in a Float compound assignment;
@@ -6464,8 +6674,11 @@ class RustExpr {
                 final real = FloatPrecision.isF32() ? "f32" : "f64";
                 // An integer operand crosses through its exact decimal
                 // (T7), which rounds identically to `as` without a cast.
-                final lStr = if (isIntType(l.t)) RustConversions.intToFloat(operand(l, op, false), real) else operand(l, op, false);
-                final rStr = if (isIntType(r.t)) RustConversions.intToFloat(operand(r, op, true), real) else operand(r, op, true);
+                // Haxe Int is signed, so a u32-domain operand reinterprets to
+                // i32 before the Float conversion; the unsigned decimal parse
+                // would read a wrapped negative as a huge positive.
+                final lStr = if (isIntType(l.t)) RustConversions.intToFloat(castSignedI32(l), real) else operand(l, op, false);
+                final rStr = if (isIntType(r.t)) RustConversions.intToFloat(castSignedI32(r), real) else operand(r, op, true);
                 return lStr + " " + symbolOf(op) + " " + rStr;
             case OpAnd:
                 final rightInner = stripWrap(r);
@@ -6485,6 +6698,19 @@ class RustExpr {
                     || isInt64Type(r.t) ? "(" + expr(l) + ") & (" + expr(r) + ")" : operand(l, op, false) + " & " + operand(r, op, true));
             case OpOr | OpXor if (isInt64Type(l.t) || isInt64Type(r.t)):
                 return expr(l) + " " + symbolOf(op) + " " + expr(r);
+            case OpOr | OpXor if (isIntType(e.t)):
+                // A bitwise op with one i32-domain operand and one business
+                // u32 operand reinterprets the signed side to u32 so both
+                // operands share the business u32 type. (BitwiseU32Domain)
+                var left = operand(l, op, false);
+                var right = operand(r, op, true);
+                final leftSigned = i32OperandDomain(l) || i32LocalDomain(l);
+                final rightSigned = i32OperandDomain(r) || i32LocalDomain(r);
+                if (leftSigned && !rightSigned)
+                    left = reinterpretBitwiseOperand(l, left, "u32");
+                else if (rightSigned && !leftSigned)
+                    right = reinterpretBitwiseOperand(r, right, "u32");
+                return left + " " + symbolOf(op) + " " + right;
             case OpUShr:
                 // The u32 domain makes Rust >> the logical shift; operand()
                 // re-adds grouping parens by precedence, so a bare shift
@@ -6518,6 +6744,12 @@ class RustExpr {
                 return "(" + zeroLeftText + ") <= 2147483647";
             case OpSub:
                 return operand(l, op, false) + " - " + operand(r, op, true);
+            case OpMod if (isIntType(e.t)):
+                // Haxe Int remainder keeps the dividend sign; the u32 domain
+                // wraps negatives, so both operands reinterpret to i32 before
+                // `%` and the result reinterprets back to the business u32
+                // domain. (SignedIntRemainder)
+                return RustConversions.reinterpret("(" + castSignedI32(l) + " % " + castSignedI32(r) + ")", "u32");
             case OpLt | OpLte | OpGt | OpGte:
                 // Haxe permits chained comparisons. Evaluate each operand once
                 // before combining the adjacent predicates; this also avoids
@@ -6583,6 +6815,25 @@ class RustExpr {
                         leftText = RustConversions.truncate(leftText, "u32");
                     else if (rightUsize && !leftUsize && !leftI32 && !rightI32)
                         rightText = RustConversions.truncate(rightText, "u32");
+                    // A comparison between two business u32 Int values is signed
+                    // in Haxe (haxe Int is signed). When neither operand is in an
+                    // i32/usize domain, reinterpret the non-literal operands to
+                    // i32 so the predicate matches signed semantics (an empty
+                    // IntRange 0..-1 compares 0 > -1 as true). A bare literal
+                    // infers i32 from the reinterpreted side; a negative literal
+                    // carries a u32 suffix and must reinterpret to keep both
+                    // sides one type. (SignedBusinessComparison)
+                    else if (isIntType(emittedType(l)) && isIntType(emittedType(r))
+                        && !leftI32 && !rightI32 && !leftUsize && !rightUsize) {
+                        if (!leftLiteral && !~/^\d+$/.match(leftText))
+                            leftText = RustConversions.reinterpret(leftText, "i32");
+                        else if (StringTools.endsWith(leftText, "u32"))
+                            leftText = RustConversions.reinterpret(leftText, "i32");
+                        if (!rightLiteral && !~/^\d+$/.match(rightText))
+                            rightText = RustConversions.reinterpret(rightText, "i32");
+                        else if (StringTools.endsWith(rightText, "u32"))
+                            rightText = RustConversions.reinterpret(rightText, "i32");
+                    }
                 }
                 if (signedComparison)
                     i32ComparisonTarget = false;
@@ -7230,7 +7481,7 @@ class RustExpr {
         and stops at the first element, and a bound past the end clamps to the
         length. `lenVar` names the length binding and `boundVar` the bound,
         both in the signed domain, because the u32 Haxe Int domain turns a
-        negative position into an out-of-range unsigned index. The caller binds the source of the
+        negative position into a huge index. The caller binds the source of the
         bound first so a call inside it runs once. (ArrayBoundClamping)
     **/
     function clampedArrayBound(lenVar:String, boundVar:String):String {
@@ -7257,7 +7508,10 @@ class RustExpr {
         // A generic static call's return type is inferred from its context;
         // `.to_ne_bytes()` alone leaves it ambiguous (E0689), so an
         // annotated binding pins the u32 domain before the byte round-trip.
-        if (genericStaticCallArg(e)) {
+        // The same ambiguity hits a range loop variable, an integer
+        // conditional, and an array element read, so all of them take the
+        // annotated binding. (AmbiguousIntReceiver)
+        if (ambiguousIntReceiver(e)) {
             return "{ let v: u32 = " + expr(e) + "; i32::from_ne_bytes(v.to_ne_bytes()) }";
         }
         final literal = switch (stripWrap(e).expr) {
@@ -7476,6 +7730,13 @@ class RustExpr {
                     return staticGuard + "." + RustImports.toSnakeCase(name);
                 }
                 if (name == "length") {
+                    // A direct array static read lowers to a Rust array
+                    // `[T; N]`. Its length is a constant; reading it must not
+                    // copy the whole table (RANGES.to_vec().len() copies N
+                    // elements just to count them). (StaticArrayIndexBorrow)
+                    final directPath = directArrayStaticReadPath(subj);
+                    if (directPath != null)
+                        return RustConversions.truncate(directPath + ".len()", "u32");
                     if (isNullType(subj.t) || isImplicitNullableLocal(subj) || isNoneInitializedLocal(subj)) {
                         // A null-coalescing initializer materialized the
                         // inner value into the local: the local is a plain
@@ -7694,6 +7955,19 @@ class RustExpr {
         };
     }
 
+    /** The bare Rust path of a direct array static read (a final static
+        field initialized to an int-literal array, emitted as `[T; N]`), or
+        null when the expression is not one. The path indexes in place; the
+        caller must not copy the whole table to read one element.
+        (StaticArrayIndexBorrow) */
+    function directArrayStaticReadPath(e:TypedExpr):Null<String> {
+        return switch (stripWrap(e).expr) {
+            case TField(_, FStatic(c, cf)) if (isDirectArrayStaticField(cf.get())):
+                staticRef(c.get(), cf.get().name);
+            case _: null;
+        };
+    }
+
     function isGuardStaticField(cls:ClassType, name:String):Bool {
         final field = staticFieldOf(cls, name);
         return field != null
@@ -7727,13 +8001,18 @@ class RustExpr {
     /** The guard read cloned to an owned value. The RefCell family clones
         inside the with-closure: a clone applied outside would clone the
         returned Ref guard and tie it to the thread-local's lifetime.
-        (RefCellStaticGuardScope) */
+        The Mutex family binds the guard to a named local inside a block and
+        clones there, so the guard drops at the end of the block instead of
+        living until the end of the enclosing statement. A statement that
+        reads the same Mutex static twice (for example two elements of a
+        vec![]) otherwise holds the first guard while the second lock() runs,
+        which deadlocks the same thread. (MutexGuardStatementScope) */
     function staticGuardClone(cls:ClassType, name:String):String {
         final path = staticItemPath(cls, name);
         final field = staticFieldOf(cls, name);
         if (field != null && RustDecl.isNonSendStaticType(types.of(field.type)))
             return path + ".with(|c| c.borrow().clone())";
-        return staticGuard(cls, name) + ".clone()";
+        return "{ let __guard = " + staticGuard(cls, name) + "; __guard.clone() }";
     }
 
     /** The item path of a guard static whose guard is a RefCell borrow, or
@@ -7755,6 +8034,19 @@ class RustExpr {
         return switch (stripWrap(e).expr) {
             case TField(_, FStatic(c, cf)) if (isGuardStaticField(c.get(), cf.get().name)):
                 staticGuard(c.get(), cf.get().name);
+            case _: null;
+        };
+    }
+
+    /** The guard read of a static field cloned to an owned value, or null
+        when the expression is not a guard static read. Callers that need an
+        owned value must use this rather than appending ".clone()" to
+        staticGuardOf: for the RefCell family the clone has to sit inside the
+        with-closure. (RefCellStaticGuardScope) */
+    function staticGuardCloneOf(e:TypedExpr):Null<String> {
+        return switch (stripWrap(e).expr) {
+            case TField(_, FStatic(c, cf)) if (isGuardStaticField(c.get(), cf.get().name)):
+                staticGuardClone(c.get(), cf.get().name);
             case _: null;
         };
     }
@@ -8018,7 +8310,13 @@ class RustExpr {
                     return uStringRef(cls, name);
                 }
                 if (RustImports.isShimModule(cls.module)) {
-                    final structName = RustImports.emittedTypeName(cls.name);
+                    // An @:native extern reaches this arm under its native
+                    // name; std.Console and std.Process declare @:native
+                    // values that open lowercase, so the shim's declaration
+                    // name comes from the module. The shim module path stays
+                    // keyed on that declaration name, matching the emitted
+                    // file. (StdConsoleShimReference)
+                    final structName = RustImports.declarationName(cls.module, RustImports.emittedTypeName(cls.name));
                     imports.requireType(cls.module, structName);
                     return structName + "::" + RustImports.toSnakeCase(name);
                 }
@@ -8056,12 +8354,11 @@ class RustExpr {
                 // The typer renders an @:native extern class under its
                 // native name (console, process) even when its
                 // declaration name differs; the emitted shim keeps the
-                // declaration's module name (Console, Process). A
-                // Pascal-case name is already the declaration name and
-                // stays untouched.
-                final first = cls.name.length > 0 ? cls.name.charAt(0) : "?";
-                final nativeLower = first >= "a" && first <= "z";
-                final structName = nativeLower ? cls.module.substr(cls.module.lastIndexOf(".") + 1) : RustImports.emittedTypeName(cls.name);
+                // declaration's module name (Console, Process). Same
+                // recovery as the shim routing above, from one helper, so
+                // the two reference shapes cannot drift apart.
+                // (StdConsoleShimReference)
+                final structName = RustImports.declarationName(cls.module, RustImports.emittedTypeName(cls.name));
                 if (cls.module != "" && StringTools.endsWith(cls.name, "_Impl_")) {
                     // A sub-type abstract's non-inline static (for example
                     // `FontId::of`) lowers to the synthetic implementation's
@@ -8158,15 +8455,15 @@ class RustExpr {
             return isNullType(args[0].t) ? "(" + subject + ").is_some()" : "true";
         final nameTest = "\"" + target.module + "." + target.name + "\"";
         // Haxe answers false for a null operand, so a nullable subject
-        // (Option storage) takes the match form; the Option enum carries
-        // no direct method call for this test.
+        // (Option storage) takes the match form instead of the direct
+        // method call the Option enum does not carry.
         // (NullableIsOfTypeMatch)
         if (isNullType(args[0].t))
             return "match &(" + subject + ") { Some(v) => v.__haxe_type_name() == " + nameTest + ", None => false }";
         return subject + ".__haxe_type_name() == " + nameTest;
     }
 
-    function stdStringType(t:Type, value:String, inConcat:Bool, origin:TypedExpr, depth:Int = 0):String {
+    function stdStringType(t:Type, value:String, inConcat:Bool, origin:TypedExpr, depth:Int = 0, optionLocal:Bool = false):String {
         // Context.follow may expose the wrapped value type of Null<T> before
         // the category classifier runs. Preserve the Option match whenever
         // the wrapped type is a marked value wrapper.
@@ -8192,7 +8489,7 @@ class RustExpr {
                 // Option match must not re-apply.
                 if (narrowedSubject(origin) != null || isNullableCollapsedLocal(origin)
                     || isNonNullRenderedConditional(origin) || isNullGuardedTernary(origin))
-                    return stdStringType(inner, value, inConcat, origin, depth + 1);
+                    return stdStringType(inner, value, inConcat, origin, depth + 1, true);
                 // A Copy inner binds by value so float/int formatting
                 // receives the owned scalar; owned inners bind by
                 // reference.
@@ -8202,8 +8499,19 @@ class RustExpr {
                     + " { Some("
                     + binding
                     + ") => "
-                    + stdStringType(inner, "v", false, origin, depth + 1)
+                    + stdStringType(inner, "v", false, origin, depth + 1, true)
                     + ", None => \"null\".to_string() }";
+            case _:
+        }
+        // A local whose Rust storage renders as Option<T> (a null-initialized
+        // or null-assigned local) takes the match form: the rendered text
+        // names the Option, so a direct text read would target the Option.
+        switch (stripWrap(origin).expr) {
+            case TLocal(v) if (!optionLocal && narrowedSubject(origin) == null && localReadIsOption(v)):
+                final optionInner = getNullInnerType(origin.t);
+                final optionBinding = isTypeCopy(optionInner) ? "v" : "ref v";
+                return "match " + value + " { Some(" + optionBinding + ") => "
+                    + stdStringType(optionInner, "v", false, origin, depth + 1, true) + ", None => \"null\".to_string() }";
             case _:
         }
         return switch (PolicyQueries.stdStringCategory(t)) {
@@ -8229,7 +8537,10 @@ class RustExpr {
                 state.memberPrintsTypeParam = true;
                 "format!(\"{:?}\", " + value + ")";
             case IsRecordLike: value + ".to_string()";
-            case IsInstanceToString: value + ".to_string()";
+            case IsInstanceToString:
+                // Display text has no propagation path, so a text read that
+                // emits a Result unwraps at the read site.
+                value + ".to_string()" + (instanceToStringFallible(t) ? ".unwrap()" : "");
             case IsMarkedAbstract(abs):
                 value + ".0.to_string()";
             case IsNull:
@@ -8253,6 +8564,36 @@ class RustExpr {
                 Context.error("Std.string accepts scalars, enum values, records, and arrays of them only", origin.pos);
                 null;
         };
+    }
+
+    /**
+        Whether a class-typed value reads its text through a method that
+        emits a Result. The walk follows the super chain so the declaring
+        class names the error type.
+    **/
+    function instanceToStringFallible(t:Type):Bool {
+        final module = instanceToStringModule(t);
+        return module != null
+            && (RustEmissionState.runtimeShimIsFallible("toString")
+                || state.funcErrorEnums.exists(RustEmissionState.funcKey(module, "toString", false)));
+    }
+
+    /** The module of the class that declares the text read of a class value. */
+    function instanceToStringModule(t:Type):Null<String> {
+        switch (Context.follow(t)) {
+            case TInst(c, _):
+                var current:Null<Ref<ClassType>> = c;
+                var guard = 0;
+                while (current != null && guard < 64) {
+                    for (field in current.get().fields.get())
+                        if (field.name == "toString")
+                            return current.get().module;
+                    current = current.get().superClass == null ? null : current.get().superClass.t;
+                    guard++;
+                }
+            case _:
+        }
+        return null;
     }
 
     function hasInstanceToString(cls:ClassType):Bool {
@@ -8430,15 +8771,10 @@ class RustExpr {
                     if (isOwnedExtension) {
                         final receiver = expr(args[0]);
                         final receiverText = StringTools.startsWith(receiver, "*") ? "(" + receiver + ")" : receiver;
-                        return receiverText
-                            + "."
-                            + RustImports.toSnakeCase(name)
-                            + "("
-                            + renderCallArgs(cf.get().type, args.slice(1), null, 1, mutableParamPositions(cf.get()), args[0].t)
-                            + ")"
-                            + q;
+                        return callWithSiblingReadHoist(receiverText + "." + RustImports.toSnakeCase(name), isOrderNeutralArg(args[0]),
+                            cf.get().type, args.slice(1), null, 1, mutableParamPositions(cf.get()), args[0].t, q);
                     }
-                    return staticRef(cls, name) + "(" + renderCallArgs(cf.get().type, args, null, 0, mutableParamPositions(cf.get())) + ")" + q;
+                    return callWithSiblingReadHoist(staticRef(cls, name), true, cf.get().type, args, null, 0, mutableParamPositions(cf.get()), null, q);
                 }
                 if ((cls.name == "Functional" || cls.name == "__functional_shim" || path == "std.Functional" || cls.module == "std.Functional")
                     && name == "sortedBy") {
@@ -8469,7 +8805,15 @@ class RustExpr {
                         };
                         if (elemType != null) {
                             final paramName = RustImports.toSnakeCase(func.args[0].v.name);
+                            // The lambda parameter renders as a reference to
+                            // the element type, so the body must treat the
+                            // binding as borrowed even when its Haxe type is
+                            // a value. Register the borrow for the body
+                            // render, then clear it. (ClosureParamBorrow)
+                            final paramId = func.args[0].v.id;
+                            closureBorrowedParamIds.set(paramId, true);
                             final bodyText = functionLiteral(func, lambda.t);
+                            closureBorrowedParamIds.remove(paramId);
                             final typed = StringTools.replace(bodyText, "|" + paramName + "|", "|" + paramName + ": &" + elemType + "|");
                             return staticRef(cls, name) + "(&" + expr(receiver) + ", " + typed + ")";
                         }
@@ -8813,15 +9157,12 @@ class RustExpr {
                                 case TLocal(v): optionRenderedLocals.exists(v.id);
                                 case _: false;
                             }) {
-                            final renderedValue = stripRenderedParens(expr(stripWrap(args[i])));
-                            // A guarded lowering renders the local as the
-                            // match arm's inner binding, which already borrows
-                            // the inner value; a second unwrap would ask Rust
-                            // for as_ref on a reference. (ArmBindingSlotValue)
-                            final armBinding = (~/^(__option\d+)$/);
-                            r = armBinding.match(renderedValue)
-                                ? renderedValue
-                                : "(" + renderedValue + ").as_ref().unwrap()";
+                            // A narrowed local read already resolves the Option to the
+                            // match binding, which is a reference to the inner value the
+                            // slot takes; the forced unwrap would target that reference.
+                            final read = expr(stripWrap(args[i]));
+                            r = narrowedBindingText(read) != null ? read
+                                : "(" + stripRenderedParens(read) + ").as_ref().unwrap()";
                         }
                         r;
                     }];
@@ -8928,11 +9269,14 @@ class RustExpr {
                         final joined = freshRegionName("joined");
                         final index = freshRegionName("index");
                         final receiver = nullableMethodReceiver(subj, false);
-                        // A nullable receiver rendered as (X.clone()).as_ref().unwrap()
-                        // creates a clone temporary whose lifetime ends at the
-                        // semicolon; split into separate bindings so the clone
-                        // outlives the join body (E0716).
-                        final needsSplit = StringTools.contains(receiver, ".clone()).as_ref().unwrap()");
+                        // A nullable receiver whose unwrap applies to a
+                        // temporary (a clone or a lookup result) ends that
+                        // temporary's lifetime at the semicolon; split into
+                        // separate bindings so the value outlives the join
+                        // body (E0716). A place expression keeps the direct
+                        // form: its unwrap borrows the place itself.
+                        final needsSplit = StringTools.contains(receiver, ".as_ref().unwrap()")
+                            && !reusableReadText(stripRenderedParens(StringTools.replace(receiver, ".as_ref().unwrap()", "")));
                         if (needsSplit) {
                             final tmp = freshRegionName("_jtmp");
                             final cloneExpr = StringTools.replace(receiver, ".as_ref().unwrap()", "");
@@ -8967,8 +9311,7 @@ class RustExpr {
                 // stops at the first element, and a position past the end
                 // clamps to the length. Vec::insert panics on a usize index
                 // past the length, and the u32-domain Haxe Int wraps a
-                // negative position into an out-of-range unsigned index, so
-                // the position is
+                // negative position into a huge index, so the position is
                 // clamped in the signed domain and then widened losslessly.
                 // (ArrayInsertClamping)
                 if (name == "insert" && isVecType(subj) && args.length == 2) {
@@ -9141,7 +9484,10 @@ class RustExpr {
                 };
                 final throughGuardClone = receiverSharedLocal && RustDecl.methodConsumesSelf(cf.get());
                 final callReceiver = throughGuardClone ? subjText + ".clone()" : subjStr;
-                return callReceiver + "." + snake + "(" + renderCallArgs(cf.get().type, args, null, 0, mutableParamPositions(cf.get()), subj.t) + ")" + q;
+                final receiverOrderNeutral = narrowed == null && !throughGuardClone
+                    && !receiverCarriesFallibleWrapper(subj) && isOrderNeutralArg(subj);
+                return callWithSiblingReadHoist(callReceiver + "." + snake, receiverOrderNeutral, cf.get().type, args, null, 0,
+                    mutableParamPositions(cf.get()), subj.t, q);
             case TField(_, FStatic(c, cf)):
                 final cls = c.get();
                 final name = cf.get().name;
@@ -9193,10 +9539,13 @@ class RustExpr {
                     }
                     // A genuine Float argument truncates with Rust `as`
                     // saturation, reproduced bit-exactly without a cast.
+                    // Haxe Int is signed, so the business u32 domain keeps
+                    // the signed truncation and reinterprets its bits; the
+                    // unsigned saturation would read a negative as 0.
                     if (RuntimeResidents.isResident(imports.selfModule)) {
                         return RustConversions.floatToI32(expr(args[0]));
                     }
-                    return RustConversions.floatToU32(expr(args[0]));
+                    return RustConversions.reinterpret(RustConversions.floatToI32(expr(args[0])), "u32");
                 }
                 if (cls.pack.length == 0 && cls.name == "String" && name == "fromCharCode") {
                     final value = expr(args[0]);
@@ -9210,7 +9559,12 @@ class RustExpr {
                         "(") ? value : "("
                         + value + ")");
                     final unwrapped = argument;
-                    return "String::from_utf16(&[u16::try_from" + unwrapped + ".unwrap_or_default()]).unwrap_or_default()";
+                    // Haxe's fromCharCode takes a scalar; a supplementary scalar
+                    // encodes as its surrogate pair. Rust's String is UTF-8 and
+                    // from_utf16 rejects an unpaired surrogate, so the pair is
+                    // built explicitly above the BMP while a BMP value keeps
+                    // the single-unit form. (FromCharCodeScalar)
+                    return "(if " + unwrapped + " > 0xFFFF { String::from_utf16(&[0xD800 + ((" + unwrapped + " - 0x10000) >> 10) as u16, 0xDC00 + ((" + unwrapped + " - 0x10000) & 0x3FF) as u16]).unwrap() } else { String::from_utf16(&[" + unwrapped + " as u16]).unwrap_or_default() })";
                 }
                 if (path == "std.UStringPlatform") {
                     // Cursor primitives of the resident UString walk, inlined
@@ -9335,7 +9689,10 @@ class RustExpr {
                     // truncates through the same conversion Std.int uses.
                     final real = FloatPrecision.isF32() ? "f32" : "f64";
                     final rounded = real + "::" + name + "(" + mathFloatBindingArg(args[0]) + ")";
-                    return RuntimeResidents.isResident(imports.selfModule) ? rounded + " as i32" : RustConversions.floatToU32(rounded);
+                    // Haxe Int is signed, so the business u32 domain keeps
+                    // the signed floor and reinterprets its bits; the
+                    // unsigned saturation would read a negative as 0.
+                    return RuntimeResidents.isResident(imports.selfModule) ? rounded + " as i32" : RustConversions.reinterpret(RustConversions.floatToI32(rounded), "u32");
                 }
                 if (cls.module == "Std" && name == "parseFloat") {
                     final real = FloatPrecision.isF32() ? "f32" : "f64";
@@ -9478,11 +9835,8 @@ class RustExpr {
                     // parameter casts once at the call boundary.
                     signedPositions = intParamPositions(cf.get().type);
                 }
-                final callStr = staticRef(cls, name)
-                    + "("
-                    + renderCallArgs(cf.get().type, args, signedPositions, 0, mutableParamPositions(cf.get()))
-                    + ")"
-                    + q;
+                final callStr = callWithSiblingReadHoist(staticRef(cls, name), true, cf.get().type, args, signedPositions, 0,
+                    mutableParamPositions(cf.get()), null, q);
                 if (calleeResident != callerResident && returnsInt(cf.get().type)) {
                     // An Int result crosses between the two conventions;
                     // containers never cross whole, only their elements
@@ -9519,14 +9873,13 @@ class RustExpr {
             case _:
                 // A class-static callee has typed parameters: when any of
                 // them is a mutable-reference position, the args must route
-                // through the standard pipeline so the position borrows and
-                // no clone is made. (MutableRefObjectParam)
+                // through the standard pipeline so the position borrows
+                // instead of cloning. (MutableRefObjectParam)
                 switch (stripWrap(fn).expr) {
                     case TField(_, FStatic(c, cf)) | TField(_, FInstance(c, _, cf)):
                         final positions = mutableParamPositions(cf.get());
-                        if (positions.length > 0) {
-                            return expr(fn) + "(" + renderCallArgs(cf.get().type, args, null, 0, positions) + ")";
-                        }
+                        if (positions.length > 0)
+                            return callWithSiblingReadHoist(expr(fn), isOrderNeutralArg(fn), cf.get().type, args, null, 0, positions, null, "");
                     case _:
                 }
                 return expr(fn) + "(" + renderedArgs + ")";
@@ -9778,6 +10131,11 @@ class RustExpr {
                         && (!isTypeCopy(v.t) || sharedClosureArrays.exists(v.id) || sharedClosureScalars.exists(v.id))
                         && !Lambda.exists(captures, c -> c.id == v.id))
                         captures.push(v);
+                case TField(_, FStatic(_, _)):
+                    // A static member read renders as the type path itself; the
+                    // class-reference local it was written through is never a
+                    // runtime value, so the closure moves nothing for it.
+                    return;
                 case TFunction(nf):
                     // Descend into a nested function literal: a local used
                     // only by the nested body is still moved out of this
@@ -10132,6 +10490,11 @@ class RustExpr {
                     }
                 case TLocal(v):
                     counts.set(v.id, (counts.exists(v.id) ? counts.get(v.id) : 0) + 1);
+                case TField(_, FStatic(_, _)):
+                    // A static member read renders as the type path itself;
+                    // the class-reference local it was written through is
+                    // never read at run time, so it must not count as one.
+                    return;
                 case _:
             }
             haxe.macro.TypedExprTools.iter(node, walk);
@@ -10735,13 +11098,24 @@ class RustExpr {
         };
     }
 
-    /** Whether rendered text is a bare Rust string literal. */
+    /** Whether rendered text is a bare Rust string literal, including the
+        concat! form a multi-line literal renders as. */
     function isStringLiteralText(text:String):Bool {
-        return StringTools.startsWith(text, "\"") && StringTools.endsWith(text, "\"");
+        return (StringTools.startsWith(text, "\"") && StringTools.endsWith(text, "\""))
+            || StringTools.startsWith(text, "concat!(");
     }
 
     function rustMapValue(e:TypedExpr):String {
-        final rendered = expr(e);
+        var rendered = expr(e);
+        // A proven-non-null nullable local (a null guard proved the Option
+        // holds Some) unwraps to its inner value before the map owns it.
+        if (isNullType(e.t) && switch (stripWrap(e).expr) {
+            case TLocal(v): provenNonNullVarIds.exists(v.id);
+            case _: false;
+        }) {
+            final inner = getNullInnerType(e.t);
+            rendered = isTypeCopy(inner) ? "*((" + rendered + ").as_ref().unwrap())" : "(" + rendered + ").as_ref().unwrap().clone()";
+        }
         return isStringType(e.t) ? switch (stripWrap(e).expr) {
             case TConst(TString(_)): rendered + ".to_string()";
             case _: rendered;
@@ -10908,7 +11282,7 @@ class RustExpr {
                                 && !StringTools.endsWith(argStr, ".unwrap_or(0.0)"));
                     case _: provenMapGet(arg);
                 };
-                if (proven && RustShapeParse.shapeOf(argStr) != RustShape.ShapeBare) {
+                if (proven && narrowedBindingText(argStr) == null && RustShapeParse.shapeOf(argStr) != RustShape.ShapeBare) {
                     final inner = getNullInnerType(arg.t);
                     // A numeric scalar keeps the null-to-zero bridge: the
                     // final numeric boundary appends unwrap_or(0) for the
@@ -11038,6 +11412,8 @@ class RustExpr {
                             StringTools.endsWith(argStr, ".to_string()") ? argStr : "(" + argStr + ").to_string()";
                         case _ if (isFloatType(getNullInnerType(pt)) && isIntType(emittedType(arg))):
                             intToFloatText(argStr);
+                        case TLocal(v) if (borrowedLoopVarIds.exists(v.id) && isTypeCopy(getNullInnerType(pt))):
+                            "*" + argStr;
                         case _ if (isOwnedVecType(getNullInnerType(pt))):
                             // A direct array static is a Rust array and a
                             // borrowed array parameter is a &Vec view; the
@@ -11109,6 +11485,26 @@ class RustExpr {
                 && isNumericScalarType(paramTypes[i])
                 && renderedArgShape(argStr, arg) == RustShape.ShapeOption)
                 argStr = postfixAdapt(argStr, ".unwrap()");
+            // A nullable scalar parameter entering a non-null constructor
+            // slot stores a genuine Option (no scalar sentinel form to
+            // carry the absence inside the value). Int slots force-read
+            // through numericAssignmentValue, so the unwrap applies only
+            // to Float and non-scalar slots where no forcing read follows.
+            // (NonNullSlotUnwrap)
+            final paramRead = switch (stripWrap(arg).expr) {
+                case TLocal(v): paramVarIds.exists(v.id);
+                case _: false;
+            };
+            if (i < paramTypes.length
+                && !isNullType(paramTypes[i])
+                && !isIntType(paramTypes[i])
+                && isNullType(arg.t)
+                && paramRead
+                && narrowedSubject(arg) == null
+                && nullableReadRendersOptionText(argStr)) {
+                final inner = getNullInnerType(arg.t);
+                argStr = isTypeCopy(inner) ? "(" + argStr + ").unwrap()" : "(" + argStr + ").as_ref().unwrap().clone()";
+            }
             if (i < paramTypes.length)
                 out.push(numericAssignmentValue(paramTypes[i], arg, ownedConstructorArg(paramTypes[i], arg, null, argStr), null, true));
             else
@@ -11156,7 +11552,7 @@ class RustExpr {
 
     function numericAssignmentValue(expected:Type, actual:TypedExpr, rendered:String, targetOverride:Null<String> = null, signedBoundary:Bool = false):String {
         if (isFloatType(expected) && isIntType(emittedType(actual)))
-            return intToFloatText(rendered);
+            return intToFloatSignedText(rendered, actual);
         // A nullable target holds an Option; the rendered value is already
         // in the Option domain (a null literal renders None, a nullable
         // expression keeps its Option shape), so no null-to-zero bridge or
@@ -11263,6 +11659,15 @@ class RustExpr {
         reinterprets its bits (T5); the right operand of unsigned wrapping
         keeps its historical bare form.
     **/
+    /** Reinterpret a bitwise operand to a target domain, rendering an
+        integer literal as a typed literal so it is not ambiguous. */
+    function reinterpretBitwiseOperand(e:TypedExpr, text:String, target:String):String {
+        return switch (stripWrap(e).expr) {
+            case TConst(TInt(v)): Std.string(v) + target;
+            case _: RustConversions.reinterpret(text, target);
+        };
+    }
+
     function wrappingOperand(e:TypedExpr, op:Binop, wrapDomain:String, isLeft:Bool):String {
         final text = wrappingArg(e, op, isLeft);
         // An operand already rendered in the wrap domain needs no cast: an Int
@@ -11554,12 +11959,30 @@ class RustExpr {
                     if (isIntType(v.t) && !isNullType(v.t) && !declarationRendersI32(init)) {
                         declaredUnsignedIntLocals.set(v.id, true);
                     }
+                    // An Int local initialized from an ambiguous integer
+                    // receiver keeps that ambiguity in its binding, so a
+                    // later .to_ne_bytes() on the local stays ambiguous
+                    // (E0689). (AmbiguousIntReceiver)
+                    if (isIntType(v.t) && !isNullType(v.t) && ambiguousIntReceiver(init))
+                        ambiguousIntReceiverLocals.set(v.id, true);
                     // A local derived from an i32-domain operand keeps the
                     // signed rendering, matching the Rust type inference of
                     // its declaration.
                     if (isIntType(v.t) && !isNullType(v.t) && i32LocalDomain(init))
                         i32Locals.set(v.id, true);
                 }
+            case TFor(v, it, body):
+                // A `for (x in arr)` loop variable binds an array element
+                // whose Rust type stays {integer} when the array literal
+                // holds bare integer literals; a later .to_ne_bytes() on
+                // the element is ambiguous (E0689). The range-loop
+                // variable is already registered through loopLines; this
+                // shape registers the array-iteration variable in the
+                // same ambiguous-receiver set. The iterator shape decides
+                // (an integer-literal array), never the variable name.
+                // (AmbiguousIntReceiver)
+                if (isIntType(v.t) && !isNullType(v.t) && isIntegerLiteralArray(it))
+                    ambiguousIntReceiverLocals.set(v.id, true);
             case TTry(body, _):
                 collectTryAssignments(body);
             case TBlock(stmts):
@@ -12538,6 +12961,55 @@ class RustExpr {
         return RustShape.ShapeUnknown;
     }
 
+    /** Whether reading this expression yields the Option shape in Rust. A
+        value whose Haxe type is Null<T> stores an Option<T> unless a guard, a
+        coalescing initializer, or a proved-non-null copy already replaced the
+        payload with the inner value, so those registries decide and every
+        other nullable read keeps its Option. A nullable local whose
+        initializer text ends in a call's own unwrap is still an Option: the
+        unwrap consumed that call's Result while the Option stayed in the
+        binding. (NonNullSlotUnwrap) */
+    function nullableReadHoldsOption(e:TypedExpr):Bool {
+        if (!isNullType(e.t) || isTNull(e) || narrowedSubject(e) != null)
+            return false;
+        return switch (stripWrap(e).expr) {
+            case TLocal(v):
+                if (nullableCollapsedLocals.exists(v.id) || nonNullRenderedLocals.exists(v.id)
+                    || forcingReadLocals.exists(v.id) || hasGuardedTernaryLocals.exists(v.id)
+                    || isNoneInitializedLocal(e))
+                    false;
+                else if (optionRenderedLocals.exists(v.id))
+                    true;
+                else
+                    // A scalar slot renders the Option only when the
+                    // declaration visibly built one: the scalar sentinel forms
+                    // carry the absence inside the value itself and take a
+                    // forced read at their own boundary instead. A struct or
+                    // enum slot has no such form, so an unrecorded nullable
+                    // binding there still holds the Option.
+                    // (NonNullSlotUnwrap)
+                    !isScalarType(getNullInnerType(e.t));
+            case TConst(TNull):
+                false;
+            case TIf(_, _, _):
+                !isNonNullRenderedConditional(e);
+            case _:
+                true;
+        };
+    }
+
+    /** Whether an already-rendered nullable read still carries its Option
+        into the boundary: a text that constructs, consumes, or visibly
+        settles the wrapper does not. (NonNullSlotUnwrap) */
+    function nullableReadRendersOptionText(rendered:String):Bool {
+        final text = StringTools.trim(rendered);
+        if (text == "None" || StringTools.startsWith(text, "Some("))
+            return false;
+        if (StringTools.endsWith(text, ".unwrap()") || StringTools.endsWith(text, ".unwrap_or_default()"))
+            return false;
+        return RustShapeParse.shapeOf(text) != RustShape.ShapeBare;
+    }
+
     /** Append a postfix method to an already-rendered text, parenthesizing
         composite forms so the postfix binds to the whole value.
         (ShapeParse) */
@@ -12557,8 +13029,14 @@ class RustExpr {
         // owned values clone the proven payload so later Haxe reads remain
         // available.
         if (!isNullType(expected) && isNoneInitializedLocal(actual))
-            if (RustShapeParse.shapeOf(rendered) != RustShape.ShapeBare)
-                return isTypeCopy(actual.t) ? rendered + ".unwrap()" : rendered + ".as_ref().unwrap().clone()";
+            if (RustShapeParse.shapeOf(rendered) != RustShape.ShapeBare) {
+                // A narrowed read already names the binding, which is the
+                // payload reference the non-null boundary consumes.
+                final payload = narrowedBindingText(rendered);
+                return payload != null
+                    ? (isTypeCopy(actual.t) ? "*" + payload : "(" + payload + ").clone()")
+                    : (isTypeCopy(actual.t) ? rendered + ".unwrap()" : rendered + ".as_ref().unwrap().clone()");
+            }
         // A scalar whose read still renders the Option shape (a wrapped
         // ternary, an Option-returning read) enters a non-null scalar
         // slot; the boundary unwraps it, and the None path has no
@@ -12570,9 +13048,12 @@ class RustExpr {
             && renderedArgShape(rendered, actual) == RustShape.ShapeOption)
             return postfixAdapt(rendered, ".unwrap()");
         // Haxe unifies Int and Float; widen Int values to Float when the
-        // target slot expects Float.
+        // target slot expects Float. A u32-domain value reinterprets to i32
+        // so a wrapped negative reads as its signed Float; a genuine Float
+        // expression (an Int/Int division Haxe types as Float) is already
+        // widened and keeps the plain cast.
         if (isFloatType(expected) && isIntType(emittedType(actual)))
-            return intToFloatText(rendered);
+            return intToFloatSignedText(rendered, actual);
         // Methods returning an owned class value cannot leak the borrowed
         // `self` receiver into the return slot.
         if (!isTypeCopy(expected) && switch (stripWrap(actual).expr) {
@@ -12581,10 +13062,18 @@ class RustExpr {
         })
             return "(" + rendered + ").clone()";
         // A borrowed Copy value becomes a scalar at a value slot.
-        // Dereference the generated reference before the Rust call.
-        if (!isNullType(expected) && !isNullType(actual.t)
-            && isTypeCopy(actual.t) && StringTools.startsWith(rendered, "&")) {
-            return rendered.substr(0, 5) == "&mut " ? "*" + rendered.substr(5) : "*" + rendered.substr(1);
+        // Dereference the generated reference before the Rust call. A
+        // closure parameter the Functional shim annotated with a reference
+        // renders as a bare binding that holds &T, so it dereferences to
+        // the owned Copy value too. (ClosureParamBorrow)
+        if (!isNullType(expected) && !isNullType(actual.t) && isTypeCopy(actual.t)) {
+            if (StringTools.startsWith(rendered, "&"))
+                return rendered.substr(0, 5) == "&mut " ? "*" + rendered.substr(5) : "*" + rendered.substr(1);
+            if (switch (stripWrap(actual).expr) {
+                case TLocal(v): closureBorrowedParamIds.exists(v.id);
+                case _: false;
+            })
+                return "*" + rendered;
         }
         // Rust represents
         // concrete implementor therefore enters an interface slot through
@@ -12630,8 +13119,14 @@ class RustExpr {
         // field out of it. (InterfaceSlotClone)
         if (!isNullType(expected) && isInterfaceType(expected) && isInterfaceType(actual.t)
             && !isTypeCopy(actual.t) && isReusableOwnedRead(actual)
-            && !StringTools.endsWith(rendered, ".clone()"))
+            && !StringTools.endsWith(rendered, ".clone()")) {
+            // A borrowed loop item names a reference to the Box; deref
+            // before cloning so the slot receives the owned Box<dyn Trait>.
+            // (InterfaceLoopItemClone)
+            if (switch (stripWrap(actual).expr) { case TLocal(v): borrowedLoopVarIds.exists(v.id); case _: false; })
+                return "(*" + rendered + ").clone()";
             return rendered + ".clone()";
+        }
         // A non-Copy narrowed Option binding names a reference to the inner
         // value; an owned value slot clones the referent so the slot carries
         // the owned type its signature declares.
@@ -12643,11 +13138,23 @@ class RustExpr {
         if (isNullType(expected) && isInterfaceType(getNullInnerType(expected)) && !isNullType(actual.t)) {
             if (rendered == "None" || StringTools.startsWith(rendered, "Some("))
                 return rendered;
+            // A borrowed loop item names a reference to the Box; deref
+            // before cloning so the Option carries an owned Box<dyn Trait>.
+            if (switch (stripWrap(actual).expr) { case TLocal(v): borrowedLoopVarIds.exists(v.id); case _: false; })
+                return "Some((*" + rendered + ").clone())";
             // An actual already typed as the interface carries its own
             // Box<dyn Trait>; only a concrete value boxes here. The Option
             // wrapper is the sole addition the nullable slot needs.
-            final payload = isInterfaceType(actual.t) ? rendered : "Box::new(" + normalizeConstructorResult(actual, rendered) + ")";
-            return "Some(" + payload + ")";
+            if (isInterfaceType(actual.t))
+                return "Some(" + rendered + ")";
+            // Haxe reads a value into an interface slot and leaves the source
+            // intact, so the box takes an owned clone of a reusable read. A
+            // direct move would leave a later read of the same local empty.
+            final boxed = normalizeConstructorResult(actual, rendered);
+            final owned = isReusableOwnedRead(actual) && !isTypeCopy(actual.t)
+                && !StringTools.startsWith(boxed, "&") && !StringTools.endsWith(boxed, ".clone()")
+                ? "(" + boxed + ").clone()" : boxed;
+            return "Some(Box::new(" + owned + "))";
         }
         // Haxe unifies a nullable interface slot's value type to the
         // interface even for a concrete constructor; recover the concrete
@@ -12664,9 +13171,36 @@ class RustExpr {
         // Arc-held function slot receives it.
         if (isFunctionType(expected) && isFunctionType(actual.t) && !isBoxedFunctionExpr(actual)) {
             imports.require("std::sync::Arc");
+            final bridged = fallibleFunctionItemBridge(expected, actual, rendered);
+            if (bridged != null)
+                return bridged;
             return "Arc::new(" + rendered + ")";
         }
         return rendered;
+    }
+
+    /**
+        A fallible static function item returns Result while every Haxe
+        function type lowers to an infallible Fn slot, so the item cannot
+        coerce directly (E0271). Bridge it through a closure that forwards
+        the declared parameters and unwraps the Result, the same rule an
+        infallible context applies to a fallible call (feature spec 27): a
+        fault panics into the test harness catch_unwind as a recorded
+        failure. Returns null when the value is not a fallible static item.
+    **/
+    function fallibleFunctionItemBridge(expected:Type, actual:TypedExpr, rendered:String):Null<String> {
+        final fallible = switch (stripWrap(actual).expr) {
+            case TField(_, FStatic(c, cf)): isFallibleCallee(c, cf, true);
+            case _: false;
+        };
+        if (!fallible)
+            return null;
+        final argNames = switch (Context.follow(expected)) {
+            case TFun(args, _): [for (i in 0...args.length) "__arg" + i];
+            case _: [];
+        };
+        final forwarded = argNames.join(", ");
+        return "Arc::new(|" + forwarded + "| " + rendered + "(" + forwarded + ").unwrap())";
     }
 
     function isBoxedFunctionExpr(e:TypedExpr):Bool {
@@ -12741,7 +13275,8 @@ class RustExpr {
     }
 
     function renderCallArgs(fnType:Null<Type>, args:Array<TypedExpr>, signedPositions:Null<Array<Int>> = null, paramOffset:Int = 0,
-            mutablePositions:Null<Array<Int>> = null, receiverType:Null<Type> = null):String {
+            mutablePositions:Null<Array<Int>> = null, receiverType:Null<Type> = null,
+            hoistOut:Null<Array<{name:String, bind:String}>> = null):String {
         final paramTypes = if (fnType != null) {
             final applied = appliedReceiverParamTypes(fnType, receiverType);
             if (applied != null)
@@ -12753,8 +13288,31 @@ class RustExpr {
                 };
         } else [];
         final stdTableReceiver = receiverType != null && isStdTableType(receiverType);
-        if (Std.string(fnType).indexOf("LineBreakPlanningStageResult") >= 0)
-            Context.warning("PLANPOS mut=" + Std.string(mutablePositions) + " pt0=" + Std.string(paramTypes.length > 0 ? paramTypes[0] : null).substr(0, 60), args[0].pos);
+        // A `&mut <place>` argument borrows its root local for the whole
+        // call, so a sibling argument that reads the same root (directly or
+        // through a field or Deref chain) violates the borrow rules (E0502).
+        // Each conflicting read-only argument hoists into a `let` binding
+        // that the caller emits ahead of the call: the read completes
+        // before the mutable borrow starts. A hoisted argument moves ahead
+        // of every earlier argument, so the crossing keeps the Haxe
+        // left-to-right order only under the conditions that
+        // hoistCrossingIsOrderSafe checks. (MutRefSiblingBorrow)
+        final hoistNames:Map<Int, String> = new Map();
+        if (hoistOut != null && mutablePositions != null) {
+            for (i in 0...args.length) {
+                final root = mutRefPlaceRootLocal(args[i], i + paramOffset, paramTypes, mutablePositions);
+                if (root == null)
+                    continue;
+                for (j in 0...args.length) {
+                    if (j == i || hoistNames.exists(j) || mutablePositions.indexOf(j + paramOffset) >= 0)
+                        continue;
+                    if (!mentionsLocalId(args[j], root.id))
+                        continue;
+                    if (hoistCrossingIsOrderSafe(args, j, paramOffset, paramTypes, mutablePositions))
+                        hoistNames.set(j, freshRegionName("__mutref_read"));
+                }
+            }
+        }
         final rendered = [];
         for (i in 0...args.length) {
             final arg = args[i];
@@ -12790,6 +13348,22 @@ class RustExpr {
             if (Std.string(arg).indexOf("TInt") >= 0)
                 Context.warning("RC INTLIT pt=" + Std.string(pt).substr(0, 50) + " argStr=[" + argStr.substr(0, argStr.length > 20 ? 20 : argStr.length) + "]", arg.pos);
 #end
+            // A nullable scalar parameter entering a non-null scalar slot
+            // stores a genuine Option (no scalar sentinel form to carry the
+            // absence inside the value). Int slots force-read through
+            // numericAssignmentValue, so the unwrap applies only to Float
+            // and non-scalar slots where no forcing read follows.
+            // (NonNullSlotUnwrap)
+            final paramRead = switch (stripWrap(arg).expr) {
+                case TLocal(v): paramVarIds.exists(v.id);
+                case _: false;
+            };
+            if (pt != null && !isNullType(pt) && !isIntType(pt) && !isBoolType(pt)
+                && isNullType(arg.t) && paramRead && narrowedSubject(arg) == null
+                && nullableReadRendersOptionText(argStr)) {
+                final inner = getNullInnerType(arg.t);
+                argStr = isTypeCopy(inner) ? "(" + argStr + ").unwrap()" : "(" + argStr + ").as_ref().unwrap().clone()";
+            }
             // A narrowed operand renders the dereferenced match binding (a
             // bare `*name`), which is the inner value; a nullable parameter
             // slot still needs the Option shape, so the value wraps once in
@@ -12797,16 +13371,17 @@ class RustExpr {
             if (pt != null && isNullType(pt) && StringTools.startsWith(argStr, "*")
                 && !StringTools.startsWith(argStr, "*("))
                 argStr = "Some(" + argStr + ")";
-            // A borrowed match binding (`__option6`) feeding a nullable slot
-            // wraps the cloned inner value in Some: the binding itself is a
-            // reference into the matched subject. (BorrowedBindingSomeWrap)
-            if (pt != null && isNullType(pt) && !isTNull(arg)
-                && StringTools.startsWith(argStr, "__option"))
-                argStr = "Some((*" + argStr + ").clone())";
-            if (pt != null && isNullType(pt) && !isTNull(arg)
-                && StringTools.startsWith(argStr, "&(") && StringTools.endsWith(argStr, ")")
-                && StringTools.contains(argStr, "__option"))
-                argStr = "Some((*" + argStr.substr(2, argStr.length - 3) + ").clone())";
+            // A narrowed binding read feeding a nullable slot wraps the
+            // cloned inner value in Some: the binding itself is a reference
+            // into the matched subject. A member read below the binding names
+            // the member value, so the slot wraps that owned value instead.
+            // (BorrowedBindingSomeWrap)
+            final bindingRead = narrowedBindingText(argStr);
+            if (pt != null && isNullType(pt) && !isTNull(arg) && bindingRead != null)
+                argStr = "Some((*" + bindingRead + ").clone())";
+            else if (pt != null && isNullType(pt) && !isTNull(arg) && narrowedBindingMemberText(argStr) != null
+                && !StringTools.startsWith(argStr, "Some(") && argStr != "None")
+                argStr = "Some(" + argStr + ".clone())";
             // A ternary whose else arm is the null literal renders as an
             // Option shape; a non-null slot unwraps it, and the null path
             // panics exactly where the Haxe source would pass an undefined
@@ -12834,17 +13409,17 @@ class RustExpr {
                     case _:
                 }
             }
-            // A borrowed match binding (`__option6`, bare or wrapped as
-            // `&(__option6)`) feeding a nullable slot wraps the cloned inner
-            // value in Some: the binding is a reference into the matched
-            // subject. (BorrowedBindingSomeWrap)
-            if (pt != null && isNullType(pt) && !isNullType(arg.t) && !isTNull(arg)
-                && StringTools.startsWith(argStr, "__option"))
-                argStr = "Some((*" + argStr + ").clone())";
-            if (pt != null && isNullType(pt) && !isNullType(arg.t) && !isTNull(arg)
-                && StringTools.startsWith(argStr, "&(") && StringTools.endsWith(argStr, ")")
-                && StringTools.contains(argStr, "__option"))
-                argStr = "Some((*" + argStr.substr(2, argStr.length - 3) + ").clone())";
+            // The mirrored form for an argument whose Haxe type stays
+            // non-null: a binding read clones the referent, a member read
+            // below the binding wraps the owned member value.
+            // (BorrowedBindingSomeWrap)
+            final bindingReadNonNull = narrowedBindingText(argStr);
+            if (pt != null && isNullType(pt) && !isNullType(arg.t) && !isTNull(arg) && bindingReadNonNull != null)
+                argStr = "Some((*" + bindingReadNonNull + ").clone())";
+            else if (pt != null && isNullType(pt) && !isNullType(arg.t) && !isTNull(arg)
+                && narrowedBindingMemberText(argStr) != null
+                && !StringTools.startsWith(argStr, "Some(") && argStr != "None")
+                argStr = "Some(" + argStr + ".clone())";
             // A proven-non-null nullable local feeding a non-null parameter
             // unwraps the Option at the call boundary so the parameter slot
             // receives the inner value. The guard (early exit or && chain)
@@ -12865,14 +13440,17 @@ class RustExpr {
                                 && !StringTools.endsWith(argStr, ".unwrap_or(0.0)"));
                     case _: provenMapGet(arg);
                 };
-                if (proven && RustShapeParse.shapeOf(argStr) != RustShape.ShapeBare) {
+                if (proven && narrowedBindingText(argStr) == null && RustShapeParse.shapeOf(argStr) != RustShape.ShapeBare) {
                     final inner = getNullInnerType(arg.t);
                     final ref = "(" + argStr + ").as_ref().unwrap()";
                     argStr = isTypeCopy(inner) ? "*" + ref : ref + ".clone()";
                 } else if (hasGuardedGetExpr(arg)
                     // A text that already consumed its Option (the fallible
                     // unwrap suffix) must not gain an as_ref bridge on the
-                    // bare value. (BuilderValueNullability, ShapeParse)
+                    // bare value; a narrowed binding read already extracted
+                    // the inner value the same way. (BuilderValueNullability,
+                    // ShapeParse)
+                    && narrowedBindingText(argStr) == null
                     && RustShapeParse.shapeOf(argStr) != RustShape.ShapeBare) {
                     // A `map.get(key)` under a matching `map.has(key)` guard
                     // holds the inner value; unwrap the Option.
@@ -12905,17 +13483,20 @@ class RustExpr {
                         // still enters the non-null slot, so the boundary
                         // unwraps it, and the None path panics exactly where
                         // the Haxe source would have dereferenced an
-                        // undefined value. Only locals whose declaration
-                        // still renders the Option shape qualify: collapsed
-                        // locals, non-null-rendered locals, and every
-                        // non-local form already render the inner value, so
-                        // no unwrap applies. (NonNullSlotUnwrap)
-                        final optionRenderedLocal = narrowedSubject(arg) == null
-                            && switch (stripWrap(arg).expr) {
-                                case TLocal(v): optionRenderedLocals.exists(v.id);
-                                case _: false;
-                            };
-                        if (optionRenderedLocal && RustShapeParse.shapeOf(argStr) != RustShape.ShapeBare) {
+                        // undefined value. A collapsed local, a
+                        // non-null-rendered local, and a text that already
+                        // consumed or constructed the wrapper are the forms
+                        // that render the inner value and take no unwrap; a
+                        // field read, an index read, and a nullable-returning
+                        // call all keep the Option their declaration stored.
+                        // (NonNullSlotUnwrap)
+                        // A local answers through the same typed question as
+                        // every other form: the declaration record names the
+                        // Option only when its initializer text shows one, and
+                        // a local bound to a nullable-returning call keeps the
+                        // Option even though the recorded text carries that
+                        // call's own Result unwrap. (NonNullSlotUnwrap)
+                        if (nullableReadHoldsOption(arg) && nullableReadRendersOptionText(argStr)) {
                             final inner = getNullInnerType(arg.t);
                             var bare = stripRenderedParens(expr(stripWrap(arg)));
                             if (StringTools.startsWith(bare, "&"))
@@ -13010,6 +13591,8 @@ class RustExpr {
                                 intToFloatText(argStr);
                             case _ if (isOwnedVecType(getNullInnerType(pt))):
                                 nullableArrayPayload(arg, argStr);
+                            case TLocal(v) if (borrowedLoopVarIds.exists(v.id) && isInterfaceType(getNullInnerType(pt)) && isInterfaceType(arg.t)):
+                                "(*" + argStr + ").clone()";
                             case _:
                                 if (isInterfaceType(getNullInnerType(pt)) && !isInterfaceType(arg.t))
                                     renderValueForType(getNullInnerType(pt), arg, argStr);
@@ -13220,9 +13803,185 @@ class RustExpr {
                     case _: false;
                 })
                 argStr = "&(" + argStr + "u32)";
+            if (hoistOut != null && hoistNames.exists(i) && pt != null) {
+                final hoisted = hoistedSiblingReadArg(arg, pt, argStr, hoistNames.get(i));
+                if (hoisted != null) {
+                    hoistOut.push({name: hoistNames.get(i), bind: hoisted.bind});
+                    argStr = hoisted.usage;
+                }
+            }
             rendered.push(argStr);
         }
         return rendered.join(", ");
+    }
+
+    /**
+        mutRefPlaceRootLocal: the local a mutable-reference argument borrows
+        when renderCallArgs emits `&mut <place>` at this position. Covers the
+        mutated object parameter branch and the mutable Array and StringBuf
+        borrow branch; every other position renders no mutable borrow, and a
+        place that does not bottom out in a local borrows no caller binding.
+        (MutRefSiblingBorrow)
+    **/
+    function mutRefPlaceRootLocal(arg:TypedExpr, paramIndex:Int, paramTypes:Array<Type>, mutablePositions:Array<Int>):Null<TVar> {
+        if (paramIndex >= paramTypes.length)
+            return null;
+        final pt = paramTypes[paramIndex];
+        if (pt == null)
+            return null;
+        var borrowsMut = mutablePositions.indexOf(paramIndex) >= 0 && RustDecl.isMutableRefParamType(pt);
+        if (!borrowsMut && isPassByRef(pt)) {
+            final isTableArg = switch (stripWrap(arg).expr) {
+                case TField(_, FStatic(_, tableField)): DataTableHelper.isDataTableField(tableField.get());
+                case _: false;
+            };
+            borrowsMut = switch (Context.follow(pt)) {
+                case TInst(c, _): c.get().name == "StringBuf"
+                    || (c.get().name == "Array" && !isTableArg && mutablePositions.indexOf(paramIndex) >= 0);
+                case _: false;
+            };
+        }
+        if (!borrowsMut)
+            return null;
+        var place = stripWrap(arg);
+        while (true)
+            switch (place.expr) {
+                case TLocal(v): return v;
+                case TField(subj, _): place = stripWrap(subj);
+                case _: return null;
+            }
+        return null;
+    }
+
+    /**
+        hoistCrossingIsOrderSafe: a hoisted argument evaluates before every
+        earlier argument, so each earlier argument must keep its Haxe
+        left-to-right result. An earlier argument at a mutable-borrow
+        position computes the address of a place and reads no value, so
+        crossing it changes nothing. Every other earlier argument must
+        evaluate without a side effect, and a hoisted argument that itself
+        evaluates a call may write, so an earlier read may observe that
+        write when both arguments name the same local; that pair keeps the
+        call-site order and stays unhoisted. (MutRefSiblingBorrow)
+    **/
+    function hoistCrossingIsOrderSafe(args:Array<TypedExpr>, j:Int, paramOffset:Int, paramTypes:Array<Type>,
+            mutablePositions:Array<Int>):Bool {
+        final movedMayWrite = !isOrderNeutralArg(args[j]);
+        for (k in 0...j) {
+            if (mutRefPlaceRootLocal(args[k], k + paramOffset, paramTypes, mutablePositions) != null)
+                continue;
+            if (!isOrderNeutralArg(args[k]))
+                return false;
+            if (movedMayWrite && mentionsAnyLocalOf(args[k], args[j]))
+                return false;
+        }
+        return true;
+    }
+
+    /**
+        mentionsAnyLocalOf: whether `probe` reads a local that `other`
+        names, the may-alias test between a hoisted argument and an argument
+        it crosses. (MutRefSiblingBorrow)
+    **/
+    function mentionsAnyLocalOf(probe:TypedExpr, other:TypedExpr):Bool {
+        final ids:Map<Int, Bool> = new Map();
+        haxe.macro.TypedExprTools.iter(other, function(node:TypedExpr) {
+            switch (node.expr) {
+                case TLocal(v): ids.set(v.id, true);
+                case _:
+            }
+        });
+        var found = false;
+        haxe.macro.TypedExprTools.iter(probe, function(node:TypedExpr) {
+            if (found)
+                return;
+            switch (node.expr) {
+                case TLocal(v): if (ids.exists(v.id)) found = true;
+                case _:
+            }
+        });
+        return found;
+    }
+
+    /**
+        isOrderNeutralArg: evaluating this argument has no side effect, so a
+        later argument may bind ahead of it without changing the
+        left-to-right evaluation order Haxe specifies. (MutRefSiblingBorrow)
+    **/
+    function isOrderNeutralArg(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TConst(_) | TLocal(_) | TTypeExpr(_): true;
+            case TField(subj, _): isOrderNeutralArg(subj);
+            case _: false;
+        };
+    }
+
+    /**
+        hoistedSiblingReadArg: the binding text and the call-site text for a
+        read-only argument that hoists ahead of the call. The binding owns
+        its value, so the read of the mutable-borrow root completes at the
+        `let`; the call site then borrows or moves the binding. Returns null
+        when the rendered argument stays a borrow of the root, which a
+        binding would carry into the call unchanged. (MutRefSiblingBorrow)
+    **/
+    function hoistedSiblingReadArg(arg:TypedExpr, pt:Type, argStr:String, name:String):Null<{bind:String, usage:String}> {
+        if (StringTools.startsWith(argStr, "&") || StringTools.startsWith(argStr, "*"))
+            return null;
+        if (isPassByRef(pt) && stringLikeType(pt) && stringLikeType(arg.t)) {
+            if (nullableStringViewArg(arg))
+                return {bind: hoistedOwnedText(arg, expr(arg)), usage: name + ".as_deref().unwrap_or(\"\")"};
+            switch (stripWrap(arg).expr) {
+                case TConst(_):
+                    return null;
+                case TLocal(v) if (isBorrowedParamLocal(v)):
+                    // A borrowed string binding passes a shared `&str`
+                    // through; the binding copies that shared borrow.
+                    return {bind: argStr, usage: name};
+                case _:
+                    // renderCallArgs appended the `.as_str()` borrow to the
+                    // owned String value; the binding owns that value and
+                    // the call site borrows the binding.
+                    final base = StringTools.endsWith(argStr, ".as_str()") ? argStr.substr(0, argStr.length - ".as_str()".length) : expr(arg);
+                    return {bind: hoistedOwnedText(arg, base), usage: name + ".as_str()"};
+            }
+        }
+        // A bare local that lowers to a reference copies the borrow into the
+        // binding, and the conflict would survive the hoist.
+        switch (stripWrap(arg).expr) {
+            case TLocal(v) if (StringTools.startsWith(types.of(v.t, true), "&")):
+                return null;
+            case _:
+        }
+        return {bind: argStr, usage: name};
+    }
+
+    /**
+        hoistedOwnedText: the owned value text for a hoisted binding. A
+        reusable read (a local or a field) clones so the source stays
+        readable after the call; every other expression already produces
+        fresh ownership. (MutRefSiblingBorrow)
+    **/
+    function hoistedOwnedText(arg:TypedExpr, base:String):String {
+        return isReusableOwnedRead(arg) ? ownedReadCloneText(arg, base) : base;
+    }
+
+    /**
+        callWithSiblingReadHoist: renders a call whose mutable-reference
+        argument may share a root local with a read-only argument. The
+        conflicting reads bind ahead of the call inside a block, which keeps
+        the generated borrow pattern legal (E0502). The bindings run before
+        the callee text, so a callee that needs evaluation (a receiver
+        expression) must be order-neutral. (MutRefSiblingBorrow)
+    **/
+    function callWithSiblingReadHoist(callee:String, calleeOrderNeutral:Bool, fnType:Null<Type>, args:Array<TypedExpr>,
+            signedPositions:Null<Array<Int>>, paramOffset:Int, mutablePositions:Array<Int>, receiverType:Null<Type>, suffix:String):String {
+        if (!calleeOrderNeutral || mutablePositions.length == 0)
+            return callee + "(" + renderCallArgs(fnType, args, signedPositions, paramOffset, mutablePositions, receiverType) + ")" + suffix;
+        final hoist:Array<{name:String, bind:String}> = [];
+        final text = callee + "(" + renderCallArgs(fnType, args, signedPositions, paramOffset, mutablePositions, receiverType, hoist) + ")" + suffix;
+        if (hoist.length == 0)
+            return text;
+        return "{ " + [for (h in hoist) "let " + h.name + " = " + h.bind + ";"].join(" ") + " " + text + " }";
     }
 
     /**
@@ -13399,6 +14158,18 @@ class RustExpr {
      * The mutable form is used only for indexed assignment.
      */
     function optionContainerIndexAccess(arr:TypedExpr, idx:TypedExpr, mutable:Bool):String {
+        // A direct array static read lowers to a Rust array `[T; N]`. Indexing
+        // it must not copy the whole table: RANGES.to_vec()[i] allocates and
+        // copies N elements per read, which turns a per-element lookup into a
+        // quadratic blow-up on large tables. Index the array in place instead;
+        // the element read is identical (Haxe Array element reads are value
+        // reads, and the static is immutable, so no copy is needed).
+        // (StaticArrayIndexBorrow)
+        if (!mutable) {
+            final directPath = directArrayStaticReadPath(arr);
+            if (directPath != null)
+                return directPath + "[" + castArg(idx, "usize") + "]";
+        }
         final receiver = expr(arr);
         // A narrowed receiver already renders as the match binding, a
         // reference to the inner Vec (match &(opt) { Some(name) => ... }).
@@ -13514,6 +14285,59 @@ class RustExpr {
         return "(" + text + " as " + precision + ")";
     }
 
+    /** Convert an integer expression text to Float, reading a u32-domain
+        value as its signed i32 bits first. Haxe Int is signed, so a
+        wrapped negative (e.g. -7 as 4294967289u32) must widen to -7.0,
+        not 4294967289.0. A bare literal or an already-Float expression
+        (a widened division, a Float cast) keeps the plain cast. */
+    public function intToFloatSignedText(text:String, e:Null<TypedExpr> = null):String {
+        if (~/^-?[0-9]+$/.match(text) || ~/^\(-?[0-9]+\)$/.match(text))
+            return intToFloatText(text);
+        // A u32-domain expression reinterprets to i32 so a wrapped
+        // negative reads as its signed Float.
+        if (StringTools.startsWith(text, "u32::") || StringTools.startsWith(text, "(u32::"))
+            return intToFloatText(RustConversions.reinterpret(text, "i32"));
+        // A genuine Float expression (a widened division, a Float cast, a
+        // Float function call, a Float literal) is already widened and
+        // keeps the plain cast.
+        if (text.indexOf(".parse::<f64>") >= 0 || text.indexOf(".parse::<f32>") >= 0
+            || text.indexOf(" as f64") >= 0 || text.indexOf(" as f32") >= 0
+            || StringTools.startsWith(text, "f64::") || StringTools.startsWith(text, "f32::")
+            || ~/^-?[0-9]+\.[0-9]+/.match(text) || text.indexOf(".0f64") >= 0 || text.indexOf(".0f32") >= 0)
+            return intToFloatText(text);
+        // A conditional whose arms are integer literals leaves its type
+        // to inference under .to_ne_bytes() (E0689); the annotated
+        // binding pins the u32 domain before the byte round-trip. The
+        // decision reads the rendered text because the text and the typed
+        // AST do not line up here: a slot may render a local binding name
+        // (e.g. extra_leading) whose AST node is a conditional, so an AST
+        // predicate over-matches and wraps a concrete local, breaking the
+        // surrounding type. The text shape is the ground truth for whether
+        // .to_ne_bytes() stays ambiguous, so the check matches a rendered
+        // if conditional and leaves every other Int expression to the
+        // reinterpret below. (IntToFloatConditionalReceiver)
+        if (StringTools.startsWith(text, "if ") || text.indexOf(" if ") >= 0)
+            return intToFloatText("{ let v: u32 = " + text + "; i32::from_ne_bytes(v.to_ne_bytes()) }");
+        // An array-iteration loop variable (for x in arr) binds an array
+        // literal of bare integer literals, whose element type Rust leaves
+        // as {integer}; a later .to_ne_bytes() on the element is ambiguous
+        // (E0689). The annotated binding pins the u32 domain before the
+        // byte round-trip, matching the range-loop-variable path. The
+        // check names the loop variable directly (a TLocal in the
+        // ambiguous-receiver set) rather than the whole predicate, because
+        // a conditional that renders a concrete local name (e.g. a
+        // null-coalesced Float) would over-match and wrap a concrete
+        // value. (AmbiguousIntReceiver)
+        if (e != null && switch (stripWrap(e).expr) {
+                case TLocal(v): rangeLoopVars.exists(v.id) || ambiguousIntReceiverLocals.exists(v.id);
+                case _: false;
+            })
+            return intToFloatText("{ let v: u32 = " + text + "; i32::from_ne_bytes(v.to_ne_bytes()) }");
+        // Any other Int expression (a u32 variable, a wrapping result) is
+        // in the u32 domain and reinterprets to i32.
+        return intToFloatText(RustConversions.reinterpret(text, "i32"));
+    }
+
     /**
         The "emitted" type of an expression: the type of the value the
         generator will actually emit as text. Haxe unification types
@@ -13524,7 +14348,16 @@ class RustExpr {
         switch (stripWrap(e).expr) {
             case TConst(TInt(_)):
                 return Context.getType("Int");
-            case TIf(_, t, f):
+            case TIf(cond, t, f):
+                // A null-coalescing ternary (`x == null ? A : B`) lowers to an
+                // unwrap_or_else that yields the inner value, so the emitted
+                // type is the conditional's own type (the LUB of its arms).
+                // Reading an arm type would misclassify `x == null ? 0 : x` on
+                // a Float x as Int (the literal arm) and route it through the
+                // u32/i32 byte reinterpretation. A plain ternary keeps the
+                // arm-based reading, which matches the Rust `if` it emits.
+                if (nullGuardOf(cond) != null)
+                    return e.t;
                 final tt = emittedType(t);
                 return tt != null ? tt : emittedType(f);
             case TBinop(op, l, r):
@@ -13648,6 +14481,42 @@ class RustExpr {
                     case TField(_, FStatic(_, cf)): typeHasParam(cf.get().type);
                     case _: false;
                 };
+            case _: false;
+        };
+    }
+
+    /**
+        ambiguousIntReceiver: an integer expression whose Rust rendering
+        leaves its type to inference, so `.to_ne_bytes()` on it is
+        ambiguous (E0689). A generic static call's return type, a range
+        loop variable, an integer conditional, and an array element read
+        all render without a concrete type; the caller pins the u32 domain
+        with an annotated binding before the byte round-trip.
+    **/
+    function ambiguousIntReceiver(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TCall(fn, _): switch (stripWrap(fn).expr) {
+                    case TField(_, FStatic(_, cf)): typeHasParam(cf.get().type);
+                    case _: false;
+                };
+            case TLocal(v): rangeLoopVars.exists(v.id) || ambiguousIntReceiverLocals.exists(v.id);
+            case TIf(_, _, f) if (f != null): true;
+            case TArray(_, _): true;
+            case _: false;
+        };
+    }
+
+    /** Whether an expression is an array literal of bare integer literals,
+        whose element type Rust leaves as {integer}. Iterating such an array
+        binds each element ambiguously, so a later .to_ne_bytes() on the
+        element stays ambiguous (E0689). (AmbiguousIntReceiver) */
+    function isIntegerLiteralArray(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TArrayDecl(elements):
+                elements.length > 0 && [for (el in elements) switch (stripWrap(el).expr) {
+                    case TConst(TInt(_)): true;
+                    case _: false;
+                }].indexOf(false) < 0;
             case _: false;
         };
     }
@@ -13799,6 +14668,12 @@ class RustExpr {
         if (resultType != null && isOwnedVecType(resultType) && borrowedArrayRead(branch)) {
             return "(*" + text + ").clone()";
         }
+        // A borrowed loop item arm produces the value type: a Copy item
+        // dereferences, an owned item clones the referent, so both arms
+        // of the conditional carry one Rust type.
+        if (resultType != null && !isNullType(resultType)
+            && switch (stripWrap(branch).expr) { case TLocal(v): borrowedLoopVarIds.exists(v.id); case _: false; })
+            return isTypeCopy(resultType) ? "*" + text : "(*" + text + ").clone()";
         if (isUStringCountText(text) && resolveExprType(sibling) == "i32") {
             return RustConversions.reinterpret(text, "i32");
         }

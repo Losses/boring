@@ -2,7 +2,7 @@ package tests;
 
 import std.Test;
 
-#if (kotlin_output || ts_output)
+#if (kotlin_output || ts_output || rust_output)
 import boring.ConsoleShimOps;
 #end
 
@@ -18,7 +18,7 @@ import boring.ConsoleShimOps;
 class ConsoleShimTests {
     @:test("std.Console.log returns to its caller")
     public static function logReturns():Void {
-        #if (kotlin_output || ts_output)
+        #if (kotlin_output || ts_output || rust_output)
         Test.equals("logged:console-shim-probe", ConsoleShimOps.logLine("console-shim-probe"));
         #else
         Test.equals(true, true);
