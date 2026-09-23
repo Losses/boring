@@ -59,6 +59,11 @@ class KotlinExpr {
         while a plain reassignment never blocks one between the guard and
         the use. (ClosureMutationBlocksSmartCast) */
     final closureMutatedLocals:Map<Int, Bool> = [];
+    /** Source spans of `run` blocks that assign each outer local. `run` is
+        an inline Kotlin lambda: a read outside every mutating block keeps
+        the smart cast, while a read inside one loses it.
+        (RunBlockMutationSpans) */
+    final runMutatedLocalSpans:Map<Int, Array<{file:String, min:Int, max:Int}>> = [];
 
     /** Fill arrays returning as asList() when decodeBoundary holds. */
     final asListReturn:Map<Int, String> = [];
@@ -498,6 +503,7 @@ class KotlinExpr {
         // (FixedContractSafeCallReturn).
         currentReturnAllowsNullable = allowNullableReturn && bodyUsesSafeCallReturns(f);
         nonNullLocals.clear();
+        runMutatedLocalSpans.clear();
         nullInitializedLocals.clear();
         nullableRenderedLocals.clear();
         valPropertyProofs.clear();
@@ -586,6 +592,7 @@ class KotlinExpr {
         currentField = f.field.name;
         currentLocalName = null;
         nonNullLocals.clear();
+        runMutatedLocalSpans.clear();
         nullInitializedLocals.clear();
         nullableRenderedLocals.clear();
         valPropertyProofs.clear();
@@ -872,13 +879,13 @@ class KotlinExpr {
                 // follows it. (ArrayGrowthOnIndexWrite)
                 return arrayWriteLines(l, assignValueText(l, r, true), depth);
             case TBlock(stmts):
-                // The `run` wrapper is a Kotlin lambda: assigning an outer
-                // local inside it is a closure mutation, and Kotlin disables
-                // the local's smart cast for the whole function even at read
-                // sites inside the same lambda. The scope capture must be
-                // registered before the block renders so the read sites see
-                // it. (ClosureMutationBlocksSmartCast)
-                markClosureMutatedTargets(stmts);
+                // The `run` wrapper is an inline Kotlin lambda: a read after
+                // the block closed keeps the smart cast, while a read inside
+                // the block loses it to the assignment it observes. The span
+                // record feeds that position rule.
+                // (RunBlockMutationSpans)
+                final span = Context.getPosInfos(e.pos);
+                markRunMutatedLocals(stmts, span.file, span.min, span.max);
                 final out = [indent(depth) + "run {"];
                 for (l in blockLines(stmts, depth + 1))
                     out.push(l);
@@ -1200,7 +1207,20 @@ class KotlinExpr {
     function blockExpression(stmts:Array<TypedExpr>):String {
         stmts = ExpressionBlockNorm.normalize(stmts, (e, message) -> fail(e, message), _ -> "expression block must end in a value statement (features/43)",
             "expression block allows only declarations before its value statement (features/43)");
-        markClosureMutatedTargets(stmts);
+        var blockFile:String = null;
+        var blockMin = 0;
+        var blockMax = 0;
+        for (st in stmts) {
+            final pi = Context.getPosInfos(st.pos);
+            if (blockFile == null || pi.min < blockMin) {
+                blockFile = pi.file;
+                blockMin = pi.min;
+            }
+            if (pi.max > blockMax)
+                blockMax = pi.max;
+        }
+        if (blockFile != null)
+            markRunMutatedLocals(stmts, blockFile, blockMin, blockMax);
         final out = ["run {"];
         for (line in blockLines(stmts, 1))
             out.push(line);
@@ -1208,14 +1228,9 @@ class KotlinExpr {
         return out.join("\n");
     }
 
-    /**
-        Inside a `run` lambda, an assignment to a local declared outside
-        the block is a closure mutation. Kotlin refuses the smart cast for
-        such a local from that point on, so every proof channel must drop
-        it and the extraction stays. Locals declared by the block itself
-        keep their proofs. (ClosureMutationBlocksSmartCast)
-    **/
-    function markClosureMutatedTargets(stmts:Array<TypedExpr>):Void {
+    /** Records the outer locals a rendered `run` block assigns, keyed by the
+        block's source span. (RunBlockMutationSpans) */
+    function markRunMutatedLocals(stmts:Array<TypedExpr>, file:String, min:Int, max:Int):Void {
         final declared = new Map<Int, Bool>();
         function walk(node:TypedExpr):Void {
             switch (node.expr) {
@@ -1224,21 +1239,54 @@ class KotlinExpr {
                 case TBinop(OpAssign, t, _) | TBinop(OpAssignOp(_), t, _):
                     switch (stripWrap(t).expr) {
                         case TLocal(v) if (!declared.exists(v.id)):
-                            closureMutatedLocals.set(v.id, true);
+                            var spans = runMutatedLocalSpans.get(v.id);
+                            if (spans == null) {
+                                spans = [];
+                                runMutatedLocalSpans.set(v.id, spans);
+                            }
+                            spans.push({file: file, min: min, max: max});
                         case _:
                     }
                 case TUnop(OpIncrement, _, t) | TUnop(OpDecrement, _, t):
                     switch (stripWrap(t).expr) {
                         case TLocal(v) if (!declared.exists(v.id)):
-                            closureMutatedLocals.set(v.id, true);
+                            var spans = runMutatedLocalSpans.get(v.id);
+                            if (spans == null) {
+                                spans = [];
+                                runMutatedLocalSpans.set(v.id, spans);
+                            }
+                            spans.push({file: file, min: min, max: max});
                         case _:
                     }
                 case _:
             }
             TypedExprTools.iter(node, walk);
         }
-        for (s in stmts)
-            walk(s);
+        for (st in stmts)
+            walk(st);
+    }
+
+    /** True when the subject's read position falls inside a `run` block
+        that assigns the local: Kotlin refuses the smart cast there, while a
+        read after the block closed keeps it. (RunBlockMutationSpans) */
+    function runMutationEncloses(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TLocal(v):
+                final spans = runMutatedLocalSpans.get(v.id);
+                if (spans == null)
+                    false
+                else {
+                    final use = Context.getPosInfos(e.pos);
+                    var inside = false;
+                    for (sp in spans)
+                        if (sp.file == use.file && sp.min <= use.min && use.max <= sp.max) {
+                            inside = true;
+                            break;
+                        }
+                    inside;
+                }
+            case _: false;
+        };
     }
 
     function blockLines(stmts:Array<TypedExpr>, depth:Int):Array<String> {
@@ -3046,7 +3094,7 @@ class KotlinExpr {
         // guard dominates the use and nothing rewrites the binding in
         // between. (ClosureMutationBlocksSmartCast)
         final stableSubject = switch (stripWrap(subj).expr) {
-            case TLocal(v): !closureMutatedLocals.exists(v.id);
+            case TLocal(v): !closureMutatedLocals.exists(v.id) && !runMutationEncloses(subj);
             case _: false;
         };
         if (isNullInitialized(subj) && !(stableSubject
@@ -3108,7 +3156,7 @@ class KotlinExpr {
     function nullableAccess(subj:TypedExpr):String {
         final sep = accessSeparatorKernel(subj);
         final stableSubject = switch (stripWrap(subj).expr) {
-            case TLocal(v): !closureMutatedLocals.exists(v.id);
+            case TLocal(v): !closureMutatedLocals.exists(v.id) && !runMutationEncloses(subj);
             case _: false;
         };
         if (sep == "!!." && isNullInitialized(subj)
@@ -3519,7 +3567,7 @@ class KotlinExpr {
             // A closure-mutated local never carries a proof: Kotlin
             // disables its smart cast for the whole function, so every
             // extraction stays. (ClosureMutationBlocksSmartCast)
-            case TLocal(v): nonNullLocals.exists(v.id) && !closureMutatedLocals.exists(v.id);
+            case TLocal(v): nonNullLocals.exists(v.id) && !closureMutatedLocals.exists(v.id) && !runMutationEncloses(e);
             case TField(_, _):
                 final key = fieldAccessKey(e);
                 if (key == null || !nonNullFields.exists(key))
@@ -3575,7 +3623,7 @@ class KotlinExpr {
         // disabled smart cast: Kotlin refuses the narrowing for the
         // whole function regardless of guard placement.
         // (ClosureMutationBlocksSmartCast)
-        if (closureMutatedLocals.exists(local.id))
+        if (closureMutatedLocals.exists(local.id) || runMutationEncloses(e))
             return false;
         final entries = activeNullGuardPositions.get(local.id);
         if (entries != null) {
@@ -5530,7 +5578,7 @@ class KotlinExpr {
         // not block the cast between the guard and this use.
         // (ClosureMutationBlocksSmartCast)
         final smartCastable = switch (stripWrap(e).expr) {
-            case TLocal(v): !closureMutatedLocals.exists(v.id);
+            case TLocal(v): !closureMutatedLocals.exists(v.id) && !runMutationEncloses(e);
             case _: false;
         };
         final proven = valueProvenNonNull(e) || provenNonNull(e) || guardProofBefore(e);
