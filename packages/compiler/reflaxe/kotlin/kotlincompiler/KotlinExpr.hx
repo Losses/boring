@@ -4751,7 +4751,11 @@ class KotlinExpr {
                 // unit, so the pair goes through Character.toChars. A BMP
                 // value (surrogate range included) keeps the single-char
                 // form the existing callers rely on. (FromCharCodeScalar)
-                return "(if (" + unwrapped + " > 0xFFFF) String(Character.toChars(" + unwrapped + ")).toString() else ((" + unwrapped + ").toChar()).toString())";
+                // The String(...) factory already yields String; its
+                // trailing toString would warn as a redundant conversion,
+                // while the Char branch keeps its own conversion so both
+                // arms join to String. (FromCharCodeScalar)
+                return "(if (" + unwrapped + " > 0xFFFF) String(Character.toChars(" + unwrapped + ")) else ((" + unwrapped + ").toChar()).toString())";
             case _:
                 return null;
         }
@@ -5021,7 +5025,13 @@ class KotlinExpr {
                             // (SumOfFloatSelectorWidening)
                             final alreadyConverted = StringTools.contains(valueExpr, "toDouble()")
                                 || StringTools.contains(valueExpr, "toFloat()");
-                            final selector = alreadyConverted ? valueExpr : "(" + valueExpr + ").toDouble()";
+                            // f64 Float fields render as Double already; only
+                            // integral selectors and the f32 module's Float
+                            // fields need the widening.
+                            final widened = !alreadyConverted
+                                && (isIntOrLongType(emittedType(lambdaBody(func.expr)))
+                                    || (FloatPrecision.isF32() && isFloatType(emittedType(lambdaBody(func.expr)))));
+                            final selector = widened ? "(" + valueExpr + ").toDouble()" : valueExpr;
                             final narrow = FloatPrecision.isF32() ? ".toFloat()" : "";
                             return expr(receiver) + ".sumOf { " + paramName + " -> " + selector + " }" + narrow;
                         }
