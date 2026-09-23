@@ -765,6 +765,36 @@ fn unit_index(s: &str, unit: u32, round_up: bool) -> usize {
     }
     s.len()
 }
+
+// String.indexOf with a start position (stdlib spec 15): the start and
+// the returned index both count UTF-16 code units, matching the tiqian
+// ABI. A negative start is treated as 0 (Haxe/JS semantics); a start
+// past the last unit, or one that lands mid-surrogate (rounded up to
+// the next char), yields -1. The match index converts back to units so
+// the caller sees the same index space as the no-start find() form.
+pub fn find_from(s: &str, needle: &str, start: i32) -> i32 {
+    let start_unit = if start < 0 { 0u32 } else { u32::try_from(start).unwrap_or(u32::MAX) };
+    let byte_start = unit_index(s, start_unit, true);
+    let rest = &s[byte_start..];
+    match rest.find(needle) {
+        Some(byte_rel) => {
+            let unit = byte_to_unit(s, byte_start + byte_rel);
+            i32::try_from(unit).unwrap_or(-1)
+        }
+        None => -1,
+    }
+}
+
+fn byte_to_unit(s: &str, byte: usize) -> u32 {
+    let mut units = 0u32;
+    for (b, c) in s.char_indices() {
+        if b >= byte {
+            break;
+        }
+        units += u32::try_from(c.len_utf16()).unwrap_or(0);
+    }
+    units
+}
 ';
 
     /**
