@@ -9162,6 +9162,29 @@ class RustExpr {
                     } else {
                         expr(args[0]);
                     };
+                    // A start position (the second argument) searches from
+                    // that UTF-16 code-unit offset and returns a UTF-16
+                    // code-unit index, matching the tiqian ABI. The runtime
+                    // helper converts the start to a byte offset and the
+                    // match back to units; a negative start is treated as 0
+                    // and a start past the last unit yields -1. An omitted
+                    // ?startIndex reaches this arm as a null argument and
+                    // keeps the plain find() form.
+                    final startOmitted = args.length < 2 || switch (stripWrap(args[1]).expr) {
+                        case TConst(TNull): true;
+                        case _: false;
+                    };
+                    if (!startOmitted) {
+                        state.shimsUsed.set("std.UStringRT", true);
+                        imports.require("crate::runtime::u_string");
+                        return "u_string::find_from(&"
+                            + expr(subj)
+                            + ", "
+                            + needle
+                            + ", "
+                            + castSignedI32(args[1])
+                            + ")";
+                    }
                     return "match ("
                         + expr(subj)
                         + ").find(&"
