@@ -629,6 +629,10 @@ class DartExpr {
             // promotes on the true arm only.
             // (BodyUnwrapPlan)
             final trueArmBangs:Array<String> = [];
+            // Unwraps already seen inside this string's interpolations; the
+            // registration dies with the string.
+            // (BodyUnwrapPlan)
+            final interpBangs:Map<String, Bool> = new Map<String, Bool>();
             final n = line.length;
             var out = new StringBuf();
             var col = 0;
@@ -639,17 +643,114 @@ class DartExpr {
                     out.add(c);
                     col += 1;
                     while (col < n) {
-                        out.add(line.charAt(col));
-                        if (line.charAt(col) == "\\") {
+                        final ch = line.charAt(col);
+                        if (ch == "\\") {
+                            out.add(ch);
                             if (col + 1 < n) {
                                 out.add(line.charAt(col + 1));
                                 col += 2;
                                 continue;
                             }
-                        } else if (line.charAt(col) == quote) {
+                            col += 1;
+                            continue;
+                        }
+                        if (ch == quote) {
+                            out.add(ch);
                             col += 1;
                             break;
                         }
+                        // `${...}` interpolation carries real code: a
+                        // redundant `!` inside it strips against the same
+                        // tables, and a first unwrap registers only for the
+                        // rest of this string (its promotion does not leave
+                        // the interpolation). (BodyUnwrapPlan)
+                        if (ch == "$" && col + 1 < n && line.charAt(col + 1) == "{") {
+                            out.add("$");
+                            out.add("{");
+                            col += 2;
+                            var idepth = 1;
+                            while (col < n && idepth > 0) {
+                                final ic = line.charAt(col);
+                                if (ic == "\\") {
+                                    out.add(ic);
+                                    if (col + 1 < n)
+                                        out.add(line.charAt(col + 1));
+                                    col += 2;
+                                    continue;
+                                }
+                                if (ic == "\"" || ic == "'") {
+                                    final iq = ic;
+                                    out.add(ic);
+                                    col += 1;
+                                    while (col < n) {
+                                        if (line.charAt(col) == "\\") {
+                                            out.add(line.charAt(col));
+                                            if (col + 1 < n)
+                                                out.add(line.charAt(col + 1));
+                                            col += 2;
+                                            continue;
+                                        }
+                                        out.add(line.charAt(col));
+                                        if (line.charAt(col) == iq) {
+                                            col += 1;
+                                            break;
+                                        }
+                                        col += 1;
+                                    }
+                                    continue;
+                                }
+                                if (ic == "{" || ic == "(" || ic == "[") {
+                                    if (ic == "{")
+                                        idepth += 1;
+                                    out.add(ic);
+                                    col += 1;
+                                    continue;
+                                }
+                                if (ic == "}" || ic == ")" || ic == "]") {
+                                    if (ic == "}") {
+                                        idepth -= 1;
+                                        if (idepth == 0) {
+                                            out.add(ic);
+                                            col += 1;
+                                            break;
+                                        }
+                                    }
+                                    if (ic == "(" || ic == "[") {
+                                        out.add(ic);
+                                        col += 1;
+                                        continue;
+                                    }
+                                    out.add(ic);
+                                    col += 1;
+                                    continue;
+                                }
+                                if (isIdentChar(ic) && (col < 2 || !isIdentChar(line.charAt(col - 1)))) {
+                                    var iend = col;
+                                    while (iend < n && isIdentChar(line.charAt(iend)))
+                                        iend += 1;
+                                    final iname = line.substr(col, iend - col);
+                                    if (iend < n && line.charAt(iend) == "!" && (col < 2 || line.charAt(col - 1) != ".")) {
+                                        if (interpBangs.exists(iname)) {
+                                            out.add(iname);
+                                            col = iend + 1;
+                                            continue;
+                                        }
+                                        interpBangs.set(iname, true);
+                                        out.add(iname);
+                                        out.add("!");
+                                        col = iend + 1;
+                                        continue;
+                                    }
+                                    out.add(iname);
+                                    col = iend;
+                                    continue;
+                                }
+                                out.add(ic);
+                                col += 1;
+                            }
+                            continue;
+                        }
+                        out.add(ch);
                         col += 1;
                     }
                 } else if (c == "{") {
