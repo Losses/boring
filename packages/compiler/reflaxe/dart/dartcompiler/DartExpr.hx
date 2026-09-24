@@ -480,8 +480,86 @@ class DartExpr {
         scanLocals(f.expr);
         scanClassValueAliasReads(f.expr);
         final result = blockLines(statementsOf(f.expr), depth);
+        // A binding whose name never occurs again as a standalone identifier
+        // is dead: the initializer keeps its side effects as a bare
+        // expression statement and the name disappears. An occurrence only
+        // counts when it stands alone: `prep` inside `prepareWidthIndependentAnnotation`
+        // is a different identifier, not a read of the binding.
+        // (DeadBindingElimination)
+        var i2 = result.length - 1;
+        while (i2 >= 0) {
+            final line = result[i2];
+            final trimmed = StringTools.ltrim(line);
+            final kw = if (StringTools.startsWith(trimmed, "final ")) "final "; else if (StringTools.startsWith(trimmed, "var ")) "var "; else null;
+            if (kw != null) {
+                final rest = trimmed.substr(kw.length);
+                final assignAt = rest.indexOf(" = ");
+                if (assignAt > 0) {
+                    var declared = StringTools.trim(rest.substr(0, assignAt));
+                    // `final Type? name` carries the declared type before the name.
+                    final spaceAt = declared.lastIndexOf(" ");
+                    if (spaceAt >= 0)
+                        declared = declared.substr(spaceAt + 1);
+                    final validIdent = declared.length > 0 && declared != "_" && !Std.isOfType(declared.charAt(0), Int);
+                    var used = !validIdent;
+                    var j = i2 + 1;
+                    while (!used && j < result.length) {
+                        if (lineStandaloneUses(result[j], declared)) {
+                            // A later line that merely declares another binding
+                            // of the same name is not a use; any other
+                            // standalone occurrence is.
+                            final candidate = StringTools.ltrim(result[j]);
+                            var redecl = false;
+                            var nameAt = -1;
+                            if (StringTools.startsWith(candidate, "final " + declared)) {
+                                redecl = true;
+                                nameAt = 6 + declared.length;
+                            } else if (StringTools.startsWith(candidate, "var " + declared)) {
+                                redecl = true;
+                                nameAt = 4 + declared.length;
+                            }
+                            if (redecl && nameAt < candidate.length && isIdentChar(candidate.charAt(nameAt)))
+                                redecl = false;
+                            if (!redecl)
+                                used = true;
+                        }
+                        j += 1;
+                    }
+                    if (!used) {
+                        final indentLen = line.length - trimmed.length;
+                        result[i2] = line.substr(0, indentLen) + StringTools.trim(rest.substr(assignAt + 3)) + ";";
+                    }
+                }
+            }
+            i2 -= 1;
+        }
         currentReturnType = null;
         return result;
+    }
+
+    static function isIdentChar(c:String):Bool {
+        final code = c.charCodeAt(0);
+        return (code >= 97 && code <= 122) || (code >= 65 && code <= 90) || (code >= 48 && code <= 57) || code == 95;
+    }
+
+    /** True when `name` occurs in `line` as a standalone identifier. */
+    static function lineStandaloneUses(line:String, name:String):Bool {
+        final n = line.length;
+        final m = name.length;
+        if (m == 0 || m > n)
+            return false;
+        var i = 0;
+        while (i + m <= n) {
+            if (line.substr(i, m) == name) {
+                final beforeFree = i == 0 || !isIdentChar(line.charAt(i - 1));
+                final afterAt = i + m;
+                final afterFree = afterAt >= n || !isIdentChar(line.charAt(afterAt));
+                if (beforeFree && afterFree)
+                    return true;
+            }
+            i += 1;
+        }
+        return false;
     }
 
     /** Body lowering for a member declared on a value wrapper. */
