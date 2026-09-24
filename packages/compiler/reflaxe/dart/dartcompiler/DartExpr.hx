@@ -604,9 +604,10 @@ class DartExpr {
         final promoted:Array<Map<String, Bool>> = [new Map<String, Bool>()];
         for (i in 0...result.length) {
             final line = result[i];
-            final exclusive = lineContainsOutsideStrings(line, "||") || lineContainsOutsideStrings(line, "?");
-            final conjunct = lineContainsOutsideStrings(line, "&&");
-            final scratch = conjunct ? promoted[promoted.length - 1].copy() : null;
+            final branchAt = firstBranchAt(line);
+            final hasOrQ = lineContainsOutsideStrings(line, "||") || lineContainsOutsideStrings(line, "?");
+            final hasAnd = lineContainsOutsideStrings(line, "&&");
+            var scratch:Null<Map<String, Bool>> = null;
             final n = line.length;
             var out = new StringBuf();
             var col = 0;
@@ -644,24 +645,43 @@ class DartExpr {
                     while (end < n && isIdentChar(line.charAt(end)))
                         end += 1;
                     final name = line.substr(col, end - col);
-                    if (end < n && line.charAt(end) == "!" && !exclusive && (col == 0 || line.charAt(col - 1) != ".")) {
+                    if (end < n && line.charAt(end) == "!" && (col == 0 || line.charAt(col - 1) != ".")) {
                         // The scope table is resolved per occurrence: a `}`
                         // earlier in the line has already popped the block a
-                        // leading `}` belongs to. (BodyUnwrapPlan)
-                        final table:Map<String, Bool> = scratch != null ? scratch : promoted[promoted.length - 1];
-                        if (!table.exists(name)) {
-                            // First unwrap at this depth: keep it, it is the
-                            // one that promotes the binding.
-                            table.set(name, true);
+                        // leading `}` belongs to. An unwrap before the first
+                        // branch operator runs unconditionally, so its
+                        // promotion leaves the statement; an unwrap inside a
+                        // conjunct chain only holds to the end of the line,
+                        // and inside a `||`/ternary line the siblings are
+                        // incomparable, so those keep their `!`.
+                        // (BodyUnwrapPlan)
+                        final inHead = branchAt < 0 || end <= branchAt;
+                        if (inHead) {
+                            final table = promoted[promoted.length - 1];
+                            if (!table.exists(name)) {
+                                table.set(name, true);
+                                out.add(name);
+                                out.add("!");
+                                col = end + 1;
+                                continue;
+                            }
                             out.add(name);
-                            out.add("!");
+                            col = end + 1;
+                            continue;
+                        } else if (!hasOrQ) {
+                            if (scratch == null)
+                                scratch = promoted[promoted.length - 1].copy();
+                            if (!scratch.exists(name)) {
+                                scratch.set(name, true);
+                                out.add(name);
+                                out.add("!");
+                                col = end + 1;
+                                continue;
+                            }
+                            out.add(name);
                             col = end + 1;
                             continue;
                         }
-                        // A later same-scope `!` is redundant: drop it.
-                        out.add(name);
-                        col = end + 1;
-                        continue;
                     }
                     out.add(name);
                     col = end;
@@ -672,6 +692,35 @@ class DartExpr {
             }
             result[i] = out.toString();
         }
+    }
+
+    /** Column of the earliest `&&`, `||`, or `?` outside string literals,
+        or -1 when the line branches nowhere. (BodyUnwrapPlan) */
+    static function firstBranchAt(line:String):Int {
+        final n = line.length;
+        var col = 0;
+        while (col < n) {
+            final c = line.charAt(col);
+            if (c == "\"" || c == "'") {
+                col += 1;
+                while (col < n) {
+                    if (line.charAt(col) == "\\") {
+                        col += 2;
+                        continue;
+                    }
+                    if (line.charAt(col) == c) {
+                        col += 1;
+                        break;
+                    }
+                    col += 1;
+                }
+            } else if (c == "?" || (c == "&" && col + 1 < n && line.charAt(col + 1) == "&") || (c == "|" && col + 1 < n && line.charAt(col + 1) == "|")) {
+                return col;
+            } else {
+                col += 1;
+            }
+        }
+        return -1;
     }
 
     /** Whether `needle` occurs in the line outside string literals.
