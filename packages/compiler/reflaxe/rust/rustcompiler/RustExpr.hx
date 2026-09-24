@@ -205,14 +205,17 @@ class RustExpr {
     final sunkInitVarIds:Map<Int, Bool> = [];
     // Locals initialized from charCodeAt are collapsed from Option<u32> to a scalar.
     final nullableCollapsedLocals:Map<Int, Bool> = [];
-    // Active per-character string loops. Each entry names the receiver
-    // local whose UTF-16 units were hoisted into a Vec before the loop and
-    // the index local that walks it; per-char reads of that receiver at
-    // that index lower against the vector instead of rescanning the UTF-8
-    // string. indexOffset is the constant added to the walking index to get
-    // the read index (0 for a forward walk, -1 for a reverse walk that reads
-    // at i-1). (PerCharLoopUnits)
-    final perCharLoopUnits:Array<{ indexLocalId:Int, receiverLocalId:Int, unitsTemp:String, indexOffset:Int }> = [];
+    // Active per-character string loops. Each entry names the index local
+    // that walks the loop and every receiver local whose UTF-16 units were
+    // hoisted into a Vec before the loop; per-char reads of any of those
+    // receivers at the walking index (plus indexOffset) lower against the
+    // vector instead of rescanning the UTF-8 string. indexOffset is the
+    // constant added to the walking index to get the read index (0 for a
+    // forward walk, -1 for a reverse walk that reads at i-1). receivers[0]
+    // is the primary receiver (named by the loop condition); the rest are
+    // secondary receivers read at the same index in the body.
+    // (PerCharLoopUnits)
+    final perCharLoopUnits:Array<{ indexLocalId:Int, indexOffset:Int, receivers:Array<{receiverLocalId:Int, unitsTemp:String, receiverText:String}>, countTemp:String, countCall:String }> = [];
     // Locals whose declaration initializer is provably dead (overwritten
     // by a later store before any read): the declaration demotes to a
     // typed binding and the later store initializes it.
@@ -1743,8 +1746,14 @@ class RustExpr {
                     provenNonNullVarIds.set(provenId, true);
                 final out = [];
                 if (perChar != null) {
-                    out.push(indent(depth) + "let " + perChar.unitsTemp + " = u_string::units(&" + perChar.receiverText + ");");
-                    out.push(indent(depth) + "let " + perChar.countTemp + " = u_string::unit_count(&" + perChar.receiverText + ");");
+                    // Hoist the UTF-16 units for every receiver read at the
+                    // walking index (the primary receiver plus any secondary
+                    // receivers in a two-receiver compare loop), and the unit
+                    // count for the primary receiver that bounds the loop.
+                    // (PerCharLoopUnits)
+                    for (r in perChar.receivers)
+                        out.push(indent(depth) + "let " + r.unitsTemp + " = u_string::units(&" + r.receiverText + ");");
+                    out.push(indent(depth) + "let " + perChar.countTemp + " = u_string::unit_count(&" + perChar.receivers[0].receiverText + ");");
                 }
                 out.push(indent(depth) + header + " {");
                 if (perChar != null)
@@ -8273,7 +8282,7 @@ class RustExpr {
         units and the unit count are computed once before the loop and the
         per-char reads lower against that vector. (PerCharLoopUnits)
     **/
-    function perCharLoopInfo(c:TypedExpr, b:TypedExpr):Null<{indexLocalId:Int, receiverLocalId:Int, unitsTemp:String, countTemp:String, countCall:String, receiverText:String, indexOffset:Int}> {
+    function perCharLoopInfo(c:TypedExpr, b:TypedExpr):Null<{indexLocalId:Int, indexOffset:Int, receivers:Array<{receiverLocalId:Int, unitsTemp:String, receiverText:String}>, countTemp:String, countCall:String}> {
         // Forward walk: `i < receiver.length` (or mirrored), the index
         // increments, and the body reads the receiver at the walking index
         // itself (offset 0). The receiver is named by the condition.
@@ -8291,7 +8300,7 @@ class RustExpr {
             // Only hoist when the body genuinely reads the receiver at the index.
             if (!bodyReadsReceiverAtIndex(b, recv.id, indexId))
                 return null;
-            return buildPerCharInfo(indexId, recv, 0);
+            return buildPerCharInfo(indexId, recv, 0, stableSecondaryReceivers(b, indexId, 0));
         }
         // Reverse walk: `i > 0` (or `>= 0`), the index decrements, and the
         // body reads the receiver one unit below the walking index (`i - 1`,
@@ -8307,25 +8316,108 @@ class RustExpr {
             return null;
         if (writesLocal(b, found.receiver.id))
             return null;
-        return buildPerCharInfo(revIndex, found.receiver, found.offset);
+        return buildPerCharInfo(revIndex, found.receiver, found.offset, stableSecondaryReceivers(b, revIndex, found.offset));
     }
 
-    /** Build the hoisting plan shared by the forward and reverse walks. */
-    function buildPerCharInfo(indexId:Int, recv:TVar, offset:Int):Null<{indexLocalId:Int, receiverLocalId:Int, unitsTemp:String, countTemp:String, countCall:String, receiverText:String, indexOffset:Int}> {
-        final receiverText = RustImports.toSnakeCase(localName(recv));
+    /**
+        Build the hoisting plan shared by the forward and reverse walks.
+        `extraReceivers` are the additional receivers read at the same index
+        in the body (beyond the primary `recv`); each gets its own hoisted
+        unit vector so a two-receiver compare loop (e.g. compareDigitStrings
+        reading both a and b at i) lowers both sides to O(1). (PerCharLoopUnits)
+    **/
+    function buildPerCharInfo(indexId:Int, recv:TVar, offset:Int, extraReceivers:Array<TVar>):Null<{indexLocalId:Int, indexOffset:Int, receivers:Array<{receiverLocalId:Int, unitsTemp:String, receiverText:String}>, countTemp:String, countCall:String}> {
         state.shimsUsed.set("std.UStringRT", true);
         imports.require("crate::runtime::u_string");
-        final unitsTemp = freshRegionName("__units");
+        final receivers:Array<{receiverLocalId:Int, unitsTemp:String, receiverText:String}> = [];
+        final seen:Map<Int, Bool> = [];
+        function addReceiver(r:TVar):Void {
+            if (seen.exists(r.id))
+                return;
+            seen.set(r.id, true);
+            receivers.push({
+                receiverLocalId: r.id,
+                unitsTemp: freshRegionName("__units"),
+                receiverText: RustImports.toSnakeCase(localName(r)),
+            });
+        }
+        addReceiver(recv);
+        for (r in extraReceivers)
+            addReceiver(r);
+        final primaryText = receivers[0].receiverText;
         final countTemp = freshRegionName("__count");
         return {
             indexLocalId: indexId,
-            receiverLocalId: recv.id,
-            unitsTemp: unitsTemp,
-            countTemp: countTemp,
-            countCall: "u_string::unit_count(&(" + receiverText + "))",
-            receiverText: receiverText,
             indexOffset: offset,
+            receivers: receivers,
+            countTemp: countTemp,
+            countCall: "u_string::unit_count(&(" + primaryText + "))",
         };
+    }
+
+    /**
+        findPerCharReceivers: collect every local receiver read at
+        `indexId + offset` in the body (charAt / charCodeAt / one-unit
+        substring). Used to hoist units for secondary receivers in a
+        two-receiver per-char loop. (PerCharLoopUnits)
+    **/
+    function findPerCharReceivers(e:TypedExpr, indexId:Int, offset:Int):Array<TVar> {
+        final out:Array<TVar> = [];
+        collectPerCharReceivers(e, indexId, offset, out);
+        return out;
+    }
+
+    /**
+        stableSecondaryReceivers: the receivers read at `indexId + offset` in
+        the body that are never written inside the loop. Hoisting a snapshot
+        of a receiver that the loop reassigns would leave the units stale, so
+        a written secondary receiver keeps its O(n) reads. (PerCharLoopUnits)
+    **/
+    function stableSecondaryReceivers(b:TypedExpr, indexId:Int, offset:Int):Array<TVar> {
+        final all = findPerCharReceivers(b, indexId, offset);
+        final out:Array<TVar> = [];
+        for (r in all) {
+            if (!writesLocal(b, r.id))
+                out.push(r);
+        }
+        return out;
+    }
+
+    function collectPerCharReceivers(e:TypedExpr, indexId:Int, offset:Int, out:Array<TVar>):Void {
+        switch (stripWrap(e).expr) {
+            case TBlock(stmts):
+                for (s in stmts)
+                    collectPerCharReceivers(s, indexId, offset, out);
+            case TCall({expr: TField(subj, fa)}, args):
+                final r = perCharReceiverCall(subj, fa, args, indexId);
+                if (r != null && r.offset == offset)
+                    out.push(r.receiver);
+            case TIf(c, t, f):
+                collectPerCharReceivers(c, indexId, offset, out);
+                collectPerCharReceivers(t, indexId, offset, out);
+                if (f != null)
+                    collectPerCharReceivers(f, indexId, offset, out);
+            case TWhile(cc, bb, _):
+                collectPerCharReceivers(cc, indexId, offset, out);
+                collectPerCharReceivers(bb, indexId, offset, out);
+            case TFor(_, it, bb):
+                collectPerCharReceivers(it, indexId, offset, out);
+                collectPerCharReceivers(bb, indexId, offset, out);
+            case TVar(_, init):
+                if (init != null)
+                    collectPerCharReceivers(init, indexId, offset, out);
+            case TBinop(_, l, r):
+                collectPerCharReceivers(l, indexId, offset, out);
+                collectPerCharReceivers(r, indexId, offset, out);
+            case TUnop(_, _, subj):
+                collectPerCharReceivers(subj, indexId, offset, out);
+            case TArray(arr, idx):
+                collectPerCharReceivers(arr, indexId, offset, out);
+                collectPerCharReceivers(idx, indexId, offset, out);
+            case TField(subj, _):
+                collectPerCharReceivers(subj, indexId, offset, out);
+            case _:
+        }
     }
 
     /**
@@ -8530,15 +8622,19 @@ class RustExpr {
         };
         // The read index is a linear form of the walking index: `i` (offset
         // 0) for a forward walk or `i - 1` (offset -1) for a reverse walk.
-        // Match the entry whose receiver and walking index line up with the
-        // same offset, so a read at `i` never binds to a reverse-walk entry
-        // (which reads at `i - 1`) and vice versa. (PerCharLoopUnits)
+        // Match the entry whose walking index and one of its receivers line
+        // up with the same offset, so a read at `i` never binds to a
+        // reverse-walk entry (which reads at `i - 1`) and vice versa. A
+        // two-receiver loop (compareDigitStrings reading both a and b at i)
+        // matches either receiver. (PerCharLoopUnits)
         for (entry in perCharLoopUnits) {
-            if (entry.receiverLocalId != subjId)
-                continue;
             final offset = perCharReadOffset(indexArg, entry.indexLocalId);
-            if (offset != null && offset == entry.indexOffset)
-                return {unitsTemp: entry.unitsTemp};
+            if (offset == null || offset != entry.indexOffset)
+                continue;
+            for (r in entry.receivers) {
+                if (r.receiverLocalId == subjId)
+                    return {unitsTemp: r.unitsTemp};
+            }
         }
         return null;
     }
