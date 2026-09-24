@@ -7,96 +7,120 @@ import haxe.macro.Expr;
 import haxe.macro.Context;
 import PolicyQueries;
 
-using Lambda;
-
 /**
-    Statement-level promotion plan for a Dart method body. For every
-    statement of the body — nested blocks included, in evaluation order —
-    the plan records which nullable locals Dart promotes while that
-    statement renders. Built from the typed AST before any rendering, so
-    the answer never depends on how many times nested lowering re-renders
-    a statement. (BodyUnwrapPlan)
+    Statement-level promotion plan for a Dart method body. The builder walks
+    the typed AST in evaluation order and records, for every subexpression
+    node, which nullable locals Dart promotes while that node renders.
+    Guards (`!= null`, `is`), a negative `== null` guard whose block always
+    exits, and a non-null literal assignment all add promotions; exclusive
+    branches keep them local to their arm. The answer never depends on how
+    many times nested lowering re-renders a node. (BodyUnwrapPlan)
 **/
 class DartFlowPlan {
-    /** Statement pos.min -> promoted var ids. */
+    /** Node pos.min -> promoted var ids while that node renders. */
     public final promotedAt:Map<Int, Map<Int, Bool>> = new Map();
 
     public function new() {}
 
     public static function build(root:TypedExpr):DartFlowPlan {
         final plan = new DartFlowPlan();
-        plan.walk(PolicyQueries.statementsOf(root), new Map());
+        plan.visitSeq(PolicyQueries.statementsOf(root), new Map());
         return plan;
     }
 
-    /** Whether the statement keyed by `stmtKey` renders with `varId`
-        promoted. (BodyUnwrapPlan) */
-    public function promotesAt(stmtKey:Int, varId:Int):Bool {
-        final set = promotedAt.get(stmtKey);
+    /** Whether the node keyed by `key` renders with `varId` promoted.
+        (BodyUnwrapPlan) */
+    public function promotesAt(key:Int, varId:Int):Bool {
+        final set = promotedAt.get(key);
         return set != null && set.exists(varId);
     }
 
-    function walk(stmts:Array<TypedExpr>, promoted:Map<Int, Bool>):Void {
-        for (s in stmts) {
-            if (s.pos != null)
-                promotedAt.set(Context.getPosInfos(s.pos).min, promoted.copy());
-            switch (s.expr) {
-                case TIf(c, then, els):
-                    final adds = headPromotions(c);
-                    final negs = headNegations(c);
-                    if (adds.length > 0) {
-                        // `if (x != null) ...`: x promotes inside the block.
-                        // With an else arm both paths reconverge and a path
-                        // exists where the head never held, so the promotion
-                        // stays inside the branches. Without an else it
-                        // persists after the block. (BodyUnwrapPlan)
-                        final inner = promoted.copy();
-                        for (v in adds)
-                            inner.set(v.id, true);
-                        walk(PolicyQueries.statementsOf(then), inner);
-                        if (els != null) {
-                            walk(PolicyQueries.statementsOf(els), promoted.copy());
-                            for (v in adds)
-                                promoted.set(v.id, true);
-                        } else {
-                            for (v in adds)
-                                promoted.set(v.id, true);
-                        }
-                    } else if (negs.length > 0) {
-                        // `if (x == null) ...`: x promotes from the closing
-                        // brace onward only when the block always exits.
-                        // (BodyUnwrapPlan)
-                        walk(PolicyQueries.statementsOf(then), promoted.copy());
-                        if (els != null)
-                            walk(PolicyQueries.statementsOf(els), promoted.copy());
-                        if (blockAlwaysExits(then))
-                            for (v in negs)
-                                promoted.set(v.id, true);
-                    } else {
-                        walk(PolicyQueries.statementsOf(then), promoted.copy());
-                        if (els != null)
-                            walk(PolicyQueries.statementsOf(els), promoted.copy());
-                    }
-                case TWhile(c, body, _):
-                    final adds = headPromotions(c);
-                    final inner = promoted.copy();
-                    for (v in adds)
-                        inner.set(v.id, true);
-                    walk(PolicyQueries.statementsOf(body), inner);
-                case TBlock(_):
-                    walk(PolicyQueries.statementsOf(s), promoted);
-                case TBinop(OpAssign, {expr: TLocal(v)}, rhs):
-                    if (nonNullLiteral(rhs))
-                        promoted.set(v.id, true);
-                case _:
-            }
+    function visitSeq(stmts:Array<TypedExpr>, promoted:Map<Int, Bool>):Void {
+        for (s in stmts)
+            visit(s, promoted);
+    }
+
+    function visit(e:TypedExpr, promoted:Map<Int, Bool>):Void {
+        if (e == null)
+            return;
+        final key = posKey(e);
+        if (key >= 0)
+            promotedAt.set(key, promoted.copy());
+        switch (e.expr) {
+            case TBinop(OpBoolAnd, l, r):
+                final adds = headPromotions(l);
+                final inner = promoted.copy();
+                for (v in adds)
+                    inner.set(v.id, true);
+                visit(l, promoted);
+                visit(r, inner);
+            case TBinop(OpBoolOr, l, r):
+                final negs = headNegations(l);
+                visit(l, promoted);
+                final inner = promoted.copy();
+                for (v in negs)
+                    inner.set(v.id, true);
+                visit(r, inner);
+            case TBinop(OpAssign, {expr: TLocal(v)}, rhs):
+                visit(rhs, promoted);
+                if (nonNullLiteral(rhs))
+                    promoted.set(v.id, true);
+            case TBinop(_, l, r):
+                visit(l, promoted);
+                visit(r, promoted);
+            case TIf(c, t, f):
+                final adds = headPromotions(c);
+                final negs = headNegations(c);
+                final inner = promoted.copy();
+                for (v in adds)
+                    inner.set(v.id, true);
+                visit(c, promoted);
+                visit(t, inner);
+                if (f != null) {
+                    // An else arm exists: both paths reconverge, so a
+                    // promotion earned only on the true path does not
+                    // survive past the branches. A negative head works the
+                    // other way: its names promote only past the else.
+                    visit(f, promoted);
+                } else {
+                    for (v in negs)
+                        if (blockAlwaysExits(t))
+                            promoted.set(v.id, true);
+                }
+            case TWhile(c, body, _):
+                final adds = headPromotions(c);
+                final inner = promoted.copy();
+                for (v in adds)
+                    inner.set(v.id, true);
+                visit(c, promoted);
+                visit(body, inner);
+            case TBlock(_):
+                visitSeq(PolicyQueries.statementsOf(e), promoted);
+            case TCall(fn, args):
+                visit(fn, promoted);
+                for (a in args)
+                    visit(a, promoted);
+            case TArray(e1, e2):
+                visit(e1, promoted);
+                visit(e2, promoted);
+            case TNew(_, _, args):
+                for (a in args)
+                    visit(a, promoted);
+            case TField(o, _):
+                visit(o, promoted);
+            case TParenthesis(p) | TMeta(_, p):
+                visit(p, promoted);
+            case TVar(v, init) if (init != null):
+                visit(init, promoted);
+                if (nonNullLiteral(init))
+                    promoted.set(v.id, true);
+            case _:
         }
     }
 
     /** Bare locals the head promotes: `x != null`, `x is T`, and any
-        comparison or arithmetic that unwraps a nullable operand runs
-        unconditionally in the head. Iterative: guard heads nest deep and
-        the interpreter's stack is shallow. (BodyUnwrapPlan) */
+        comparison or arithmetic that unwraps a nullable operand.
+        (BodyUnwrapPlan) */
     function headPromotions(c:TypedExpr):Array<TVar> {
         final out:Array<TVar> = [];
         final stack:Array<TypedExpr> = [c];
@@ -105,23 +129,15 @@ class DartFlowPlan {
             switch (e.expr) {
                 case TBinop(OpNotEq, {expr: TLocal(v)}, {expr: TConst(TNull)}) | TBinop(OpNotEq, {expr: TConst(TNull)}, {expr: TLocal(v)}):
                     out.push(v);
-                case TBinop(op, {expr: TLocal(v)}, r) if (unwrappingOp(op) && PolicyQueries.isNullableType(v.t)):
+                case TBinop(op, {expr: TLocal(v)}, _) if (unwrappingOp(op) && PolicyQueries.isNullableType(v.t)):
                     out.push(v);
-                    stack.push(r);
-                case TBinop(op, l, {expr: TLocal(v)}) if (unwrappingOp(op) && PolicyQueries.isNullableType(v.t)):
+                case TBinop(op, _, {expr: TLocal(v)}) if (unwrappingOp(op) && PolicyQueries.isNullableType(v.t)):
                     out.push(v);
-                    stack.push(l);
                 case TBinop(_, l, r):
                     stack.push(l);
                     stack.push(r);
                 case TParenthesis(p) | TMeta(_, p):
                     stack.push(p);
-                case TIf(c2, t, f):
-                    stack.push(c2);
-                    if (t != null)
-                        stack.push(t);
-                    if (f != null)
-                        stack.push(f);
                 case _:
             }
         }
@@ -179,6 +195,10 @@ class DartFlowPlan {
             case TArrayDecl(_) | TObjectDecl(_): true;
             case _: false;
         };
+    }
+
+    static function posKey(e:TypedExpr):Int {
+        return e.pos == null ? -1 : Context.getPosInfos(e.pos).min;
     }
 
     static function strip(e:TypedExpr):TypedExpr {

@@ -111,21 +111,23 @@ class DartExpr {
     final assertedSequence:Map<Int, Bool> = [];
 
     // Statement-level promotion plan of the body being rendered: which
-    // nullable locals Dart promotes at each statement, derived from the
+    // nullable locals Dart promotes at each node, derived from the
     // typed AST before rendering. (BodyUnwrapPlan)
     var flowPlan:Null<DartFlowPlan> = null;
-    var currentStmtKey:Int = -1;
 
-    /** Whether the flow plan vouches this local non-null at the statement
-        currently rendering. (BodyUnwrapPlan) */
+    /** Whether the flow plan vouches this local non-null at this node: the
+        plan records, per typed-AST node, Dart's promotions while it
+        renders. (BodyUnwrapPlan) */
     function planVouches(e:TypedExpr):Bool {
-        if (flowPlan == null || currentStmtKey < 0)
+        if (flowPlan == null)
             return false;
         final v = switch (stripWrap(e).expr) {
             case TLocal(v): v;
             case _: null;
         };
-        return v != null && flowPlan.promotesAt(currentStmtKey, v.id);
+        if (v == null || e.pos == null)
+            return false;
+        return flowPlan.promotesAt(Context.getPosInfos(e.pos).min, v.id);
     }
 
     // Locals that bind a null literal somewhere (a declaration initializer
@@ -2146,9 +2148,6 @@ class DartExpr {
         final out:Array<String> = [];
         var i = 0;
         while (i < stmts.length) {
-            // The plan query reads the statement about to render.
-            // (BodyUnwrapPlan)
-            setStmtKey(stmts[i]);
             // Statements after one that ends control are unreachable text
             // the analyzer rejects, so emission stops at the terminator.
             if (TerminationAnalysis.alwaysTerminates(stmts[i])) {
@@ -2177,11 +2176,6 @@ class DartExpr {
         return out;
     }
 
-    /** The statement whose promotion plan the rendering reads.
-        (BodyUnwrapPlan) */
-    inline function setStmtKey(s:TypedExpr):Void {
-        currentStmtKey = s.pos != null ? Context.getPosInfos(s.pos).min : currentStmtKey;
-    }
 
     // ------------------------------------------------------------------
     // Counted loops (features/09)
@@ -3436,7 +3430,7 @@ class DartExpr {
             case TLocal(v):
                 if (nonNullLocals.exists(v.id) || flowPromotedNonNull.exists(v.id) || assertedSequence.exists(v.id))
                     return true;
-                if (flowPlan != null && currentStmtKey >= 0 && flowPlan.promotesAt(currentStmtKey, v.id))
+                if (flowPlan != null && planVouches(e))
                     return true;
             case _:
         }
