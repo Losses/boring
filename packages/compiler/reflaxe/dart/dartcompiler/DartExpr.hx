@@ -1048,6 +1048,85 @@ class DartExpr {
                     }
                     out.add(name);
                     col = end;
+                } else if (c == "?" && col + 1 < n && line.charAt(col + 1) == "?" && col > 0) {
+                    // `(group) ?? default` whose group is a ternary over pure
+                    // non-null literals can never be null: the whole default
+                    // is dead. (BodyUnwrapPlan)
+                    var p2 = col - 1;
+                    while (p2 >= 0 && line.charAt(p2) == " ")
+                        p2 -= 1;
+                    if (p2 >= 0 && line.charAt(p2) == ")") {
+                        var d2 = 1;
+                        var j2 = p2 - 1;
+                        var openCol = -1;
+                        while (j2 >= 0 && openCol < 0) {
+                            final bc = line.charAt(j2);
+                            if (bc == "\"" || bc == "'") {
+                                j2 -= 1;
+                                while (j2 >= 0) {
+                                    if (line.charAt(j2) == "\\") {
+                                        j2 -= 2;
+                                        continue;
+                                    }
+                                    if (line.charAt(j2) == bc) {
+                                        j2 -= 1;
+                                        break;
+                                    }
+                                    j2 -= 1;
+                                }
+                            } else if (bc == ")") {
+                                d2 += 1;
+                                j2 -= 1;
+                            } else if (bc == "(") {
+                                d2 -= 1;
+                                if (d2 == 0)
+                                    openCol = j2;
+                                j2 -= 1;
+                            } else {
+                                j2 -= 1;
+                            }
+                        }
+                        if (openCol >= 0 && ternaryPureNonNullLiterals(line.substr(openCol + 1, p2 - openCol - 1))) {
+                            col = col + 2;
+                            var kd = 0;
+                            var stop = n;
+                            while (col < n) {
+                                final kc = line.charAt(col);
+                                if (kc == "\"" || kc == "'") {
+                                    col += 1;
+                                    while (col < n) {
+                                        if (line.charAt(col) == "\\") {
+                                            col += 2;
+                                            continue;
+                                        }
+                                        if (line.charAt(col) == kc) {
+                                            col += 1;
+                                            break;
+                                        }
+                                        col += 1;
+                                    }
+                                    continue;
+                                }
+                                if (kc == "(" || kc == "[" || kc == "{") {
+                                    kd += 1;
+                                } else if (kc == ")" || kc == "]" || kc == "}") {
+                                    if (kd == 0) {
+                                        stop = col;
+                                        break;
+                                    }
+                                    kd -= 1;
+                                } else if (kc == "," && kd == 0) {
+                                    stop = col;
+                                    break;
+                                }
+                                col += 1;
+                            }
+                            col = stop;
+                            continue;
+                        }
+                    }
+                    out.add(c);
+                    col += 1;
                 } else {
                     out.add(c);
                     col += 1;
@@ -1449,6 +1528,75 @@ class DartExpr {
             }
         }
         return false;
+    }
+
+    /** Whether the text is a ternary whose two arms are pure non-null
+        literals — no identifiers, no `null`, no nested coalescing — so its
+        value can never be null. (BodyUnwrapPlan) */
+    static function ternaryPureNonNullLiterals(group:String):Bool {
+        final n = group.length;
+        var questions = 0;
+        var colons = 0;
+        var qAt = -1;
+        var cAt = -1;
+        var col = 0;
+        while (col < n) {
+            final c = group.charAt(col);
+            if (c == "\"" || c == "'") {
+                col += 1;
+                while (col < n) {
+                    if (group.charAt(col) == "\\") {
+                        col += 2;
+                        continue;
+                    }
+                    if (group.charAt(col) == c) {
+                        col += 1;
+                        break;
+                    }
+                    col += 1;
+                }
+            } else if (c == "?") {
+                questions += 1;
+                if (questions == 1)
+                    qAt = col;
+            } else if (c == ":") {
+                colons += 1;
+                if (colons == 1)
+                    cAt = col;
+            }
+            col += 1;
+        }
+        if (questions != 1 || colons != 1 || qAt < 0 || cAt < qAt)
+            return false;
+        // Only the two arms decide the result type: they must be pure
+        // literals (no identifiers at all), while the condition may be
+        // arbitrary code. (BodyUnwrapPlan)
+        final t = group.substring(qAt + 1, cAt);
+        final f = group.substring(cAt + 1);
+        var hasIdent = false;
+        for (s in [t, f]) {
+            var k = 0;
+            var inStr = false;
+            var sq = " ";
+            while (k < s.length) {
+                final sc = s.charAt(k);
+                if (inStr) {
+                    if (sc == "\\") {
+                        k += 2;
+                        continue;
+                    }
+                    if (sc == sq)
+                        inStr = false;
+                } else if (sc == "\"" || sc == "'") {
+                    inStr = true;
+                    sq = sc;
+                } else if (isIdentChar(sc)) {
+                    hasIdent = true;
+                }
+                k += 1;
+            }
+        }
+        return !hasIdent;
     }
 
     /** Whether `needle` occurs in the line outside string literals.
