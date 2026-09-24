@@ -590,12 +590,13 @@ class DartExpr {
         redundant. Dart promotes a binding from its first successful `!`
         through the rest of the block at the same brace depth, so later
         same-depth `!`s on a binding that is never assigned have no effect.
-        Three restrictions keep the pass on the safe side of Dart's own
-        promotion rules: a line carrying `||` or a ternary `?` is passed
-        through verbatim (exclusive branches do not inherit each other's
-        promotions), a `!` on a `.`-chained field is kept (field promotion
-        is not reliable), and an assigned binding keeps every `!`.
-        (BodyUnwrapPlan) */
+        The restrictions mirror Dart's own promotion scopes: a line carrying
+        `||` or a ternary `?` is passed through verbatim (exclusive branches
+        do not inherit each other's promotions), an `&&` line strips and
+        registers against a scratch table because a promotion earned inside
+        a conjunct does not survive the statement, a `!` on a `.`-chained
+        field is kept (field promotion is not reliable), and an assigned
+        binding keeps every `!`. (BodyUnwrapPlan) */
     function cleanRedundantBangs(result:Array<String>):Void {
         final assignedNames:Map<String, Bool> = [];
         for (line in result)
@@ -603,7 +604,9 @@ class DartExpr {
         final promoted:Array<Map<String, Bool>> = [new Map<String, Bool>()];
         for (i in 0...result.length) {
             final line = result[i];
-            final branchy = lineHasBranchOperator(line);
+            final exclusive = lineContainsOutsideStrings(line, "||") || lineContainsOutsideStrings(line, "?");
+            final conjunct = lineContainsOutsideStrings(line, "&&");
+            final scratch = conjunct ? promoted[promoted.length - 1].copy() : null;
             final n = line.length;
             var out = new StringBuf();
             var col = 0;
@@ -641,17 +644,21 @@ class DartExpr {
                     while (end < n && isIdentChar(line.charAt(end)))
                         end += 1;
                     final name = line.substr(col, end - col);
-                    if (end < n && line.charAt(end) == "!" && !branchy && (col == 0 || line.charAt(col - 1) != ".")) {
-                        if (!promoted[promoted.length - 1].exists(name)) {
+                    if (end < n && line.charAt(end) == "!" && !exclusive && (col == 0 || line.charAt(col - 1) != ".")) {
+                        // The scope table is resolved per occurrence: a `}`
+                        // earlier in the line has already popped the block a
+                        // leading `}` belongs to. (BodyUnwrapPlan)
+                        final table:Map<String, Bool> = scratch != null ? scratch : promoted[promoted.length - 1];
+                        if (!table.exists(name)) {
                             // First unwrap at this depth: keep it, it is the
                             // one that promotes the binding.
-                            promoted[promoted.length - 1].set(name, true);
+                            table.set(name, true);
                             out.add(name);
                             out.add("!");
                             col = end + 1;
                             continue;
                         }
-                        // A later same-depth `!` is redundant: drop it.
+                        // A later same-scope `!` is redundant: drop it.
                         out.add(name);
                         col = end + 1;
                         continue;
@@ -667,11 +674,9 @@ class DartExpr {
         }
     }
 
-    /** Whether the line, string literals excluded, carries a short-circuit
-        or branch operator: promotions earned inside a `&&`/`||` arm or a
-        ternary branch do not reach the following statements, so such a line
-        neither strips nor registers. (BodyUnwrapPlan) */
-    static function lineHasBranchOperator(line:String):Bool {
+    /** Whether `needle` occurs in the line outside string literals.
+        (BodyUnwrapPlan) */
+    static function lineContainsOutsideStrings(line:String, needle:String):Bool {
         final n = line.length;
         var col = 0;
         while (col < n) {
@@ -689,7 +694,7 @@ class DartExpr {
                     }
                     col += 1;
                 }
-            } else if (c == "?" || c == "&" || c == "|") {
+            } else if (StringTools.startsWith(line.substr(col), needle)) {
                 return true;
             } else {
                 col += 1;
