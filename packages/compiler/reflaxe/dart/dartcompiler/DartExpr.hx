@@ -608,6 +608,12 @@ class DartExpr {
             final hasOrQ = lineContainsOutsideStrings(line, "||") || lineContainsOutsideStrings(line, "?");
             final hasAnd = lineContainsOutsideStrings(line, "&&");
             var scratch:Null<Map<String, Bool>> = null;
+            // `if (a != null && b != null) {` promotes the named bindings
+            // for the whole block; the names collect while the head renders
+            // and join the block table at the `{`.
+            // (BodyUnwrapPlan)
+            final guardHead = isNullGuardHead(line);
+            final guardAdds:Array<String> = [];
             final n = line.length;
             var out = new StringBuf();
             var col = 0;
@@ -633,6 +639,8 @@ class DartExpr {
                     }
                 } else if (c == "{") {
                     promoted.push(promoted[promoted.length - 1].copy());
+                    for (g in guardAdds)
+                        promoted[promoted.length - 1].set(g, true);
                     out.add(c);
                     col += 1;
                 } else if (c == "}") {
@@ -645,6 +653,12 @@ class DartExpr {
                     while (end < n && isIdentChar(line.charAt(end)))
                         end += 1;
                     final name = line.substr(col, end - col);
+                    if (guardHead && end + 8 <= n && line.substr(end, 8) == " != null" && (col == 0 || line.charAt(col - 1) != ".")) {
+                        // A `a.b != null` head guards the field expression,
+                        // not a same-named local, so only bare identifiers
+                        // register.
+                        guardAdds.push(name);
+                    }
                     if (end < n && line.charAt(end) == "!" && (col == 0 || line.charAt(col - 1) != ".")) {
                         // The scope table is resolved per occurrence: a `}`
                         // earlier in the line has already popped the block a
@@ -741,6 +755,20 @@ class DartExpr {
             }
             result[i] = out.toString();
         }
+    }
+
+    /** Whether the line is a null-guard head: `if (x != null && ...) {` —
+        a pure conjunct chain over `!= null` tests. Such a head promotes its
+        named bindings for the whole block, so their later `!`s and `??`
+        defaults fold. Exclusive branches (`||`, ternary `?`) disqualify the
+        line. (BodyUnwrapPlan) */
+    static function isNullGuardHead(line:String):Bool {
+        final t = StringTools.ltrim(line);
+        if (!StringTools.startsWith(t, "if (") && !StringTools.startsWith(t, "} else if ("))
+            return false;
+        if (lineContainsOutsideStrings(line, "||") || lineContainsOutsideStrings(line, "?"))
+            return false;
+        return lineContainsOutsideStrings(line, " != null");
     }
 
     /** Column of the earliest `&&`, `||`, or `?` outside string literals,
