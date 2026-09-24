@@ -2502,6 +2502,20 @@ class DartExpr {
                 }
             case _:
         }
+        // A binding whose declaration narrowed the emitted type
+        // (`final List<T> ss = spans ?? []`) cannot be null afterwards, even
+        // though the Haxe local keeps its Null wrapper: a later
+        // `ss ?? default` is a dead arm in Dart's own reading. The proof
+        // holds only for bindings that never reassign. A coalescing-default
+        // parameter slot keeps its nullable type in the signature — its
+        // `??` materializes the default and must stay.
+        // (ProvenNonNullCoalescingFold)
+        switch (stripWrap(e).expr) {
+            case TLocal(v):
+                if (!mutated.exists(v.id) && !nonNullOptionalParams.exists(v.id) && nonNullLocals.exists(v.id))
+                    return true;
+            case _:
+        }
         if (isNullLeafType(e.t) || optionalValued(e))
             return false;
         // A local the flow promotes cannot be null either.
