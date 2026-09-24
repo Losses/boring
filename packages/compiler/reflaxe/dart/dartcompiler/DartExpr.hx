@@ -620,6 +620,7 @@ class DartExpr {
             final elseColonAt = elseName != null ? colonAtOutsideStrings(line) : -1;
             final tq = singleTernaryQuestionAt(line);
             final tc = colonAtOutsideStrings(line);
+            final armRange = trueArmRange(line);
             // Names unwrapped in the unconditional head segment: their
             // promotion reaches every branch of the line.
             // (BodyUnwrapPlan)
@@ -676,7 +677,7 @@ class DartExpr {
                     if (negGuard && end + 8 <= n && line.substr(end, 8) == " == null" && (col == 0 || line.charAt(col - 1) != ".")) {
                         negAdds.push(name);
                     }
-                    if (tq >= 0 && col < tq && end + 8 <= n && line.substr(end, 8) == " != null" && (col == 0 || line.charAt(col - 1) != ".")) {
+                    if (armRange != null && col < armRange.q && end + 8 <= n && line.substr(end, 8) == " != null" && (col == 0 || line.charAt(col - 1) != ".")) {
                         // `metric != null ? metric!.x : y`: the head test
                         // promotes the binding on the true arm.
                         // (BodyUnwrapPlan)
@@ -714,7 +715,7 @@ class DartExpr {
                             out.add(name);
                             col = end + 1;
                             continue;
-                        } else if (Lambda.has(trueArmBangs, name) && col > tq && col < tc) {
+                        } else if (Lambda.has(trueArmBangs, name) && armRange != null && col > armRange.q && col < armRange.c) {
                             // The head `!= null` test promotes through the
                             // true arm only. (BodyUnwrapPlan)
                             out.add(name);
@@ -742,7 +743,8 @@ class DartExpr {
                         final head = promoted[promoted.length - 1];
                         final inHead2 = branchAt < 0 || end <= branchAt;
                         final inElse2 = elseName != null && name == elseName && col > elseColonAt;
-                        if ((inHead2 && head.exists(name)) || (inElse2 && head.exists(name)) || (!hasOrQ && scratch != null && scratch.exists(name))) {
+                        final inTrue2 = Lambda.has(headBangs, name) || (Lambda.has(trueArmBangs, name) && armRange != null && col > armRange.q && col < armRange.c);
+                        if ((inHead2 && head.exists(name)) || (inElse2 && head.exists(name)) || inTrue2 || (!hasOrQ && scratch != null && scratch.exists(name))) {
                             var k = 0;
                             var j = end + 3;
                             var stop = -1;
@@ -839,6 +841,58 @@ class DartExpr {
         if (lineContainsOutsideStrings(line, "&&") || lineContainsOutsideStrings(line, "?"))
             return false;
         return lineContainsOutsideStrings(line, " == null");
+    }
+
+    /** The true-arm span of the outermost ternary whose condition is the
+        line head: `{q, c}` where `q` is the first `?` and `c` its paired
+        `:`, parentheses and nested ternaries excluded, strings skipped.
+        Null when the line opens no ternary. (BodyUnwrapPlan) */
+    static function trueArmRange(line:String):Null<{q:Int, c:Int}> {
+        final n = line.length;
+        var q = -1;
+        var qParen = -1;
+        var col = 0;
+        var paren = 0;
+        var depth = 0;
+        while (col < n) {
+            final c = line.charAt(col);
+            if (c == "\"" || c == "'") {
+                col += 1;
+                while (col < n) {
+                    if (line.charAt(col) == "\\") {
+                        col += 2;
+                        continue;
+                    }
+                    if (line.charAt(col) == c) {
+                        col += 1;
+                        break;
+                    }
+                    col += 1;
+                }
+            } else if (c == "(" || c == "[" || c == "{") {
+                paren += 1;
+                col += 1;
+            } else if (c == ")" || c == "]" || c == "}") {
+                paren -= 1;
+                col += 1;
+            } else if (c == "?") {
+                if (q < 0) {
+                    q = col;
+                    qParen = paren;
+                } else if (paren == qParen) {
+                    depth += 1;
+                }
+                col += 1;
+            } else if (c == ":" && q >= 0 && paren == qParen) {
+                if (depth == 0)
+                    return {q: q, c: col};
+                depth -= 1;
+                col += 1;
+            } else {
+                col += 1;
+            }
+        }
+        return null;
     }
 
     /** Column of the `?` when the line holds exactly one ternary question
