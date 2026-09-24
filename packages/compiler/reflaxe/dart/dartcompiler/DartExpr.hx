@@ -834,6 +834,12 @@ class DartExpr {
                         // register.
                         guardAdds.push(name);
                     }
+                    if (guardHead && end + 5 <= n && line.substr(end, 4) == " is " && (col == 0 || line.charAt(col - 1) != ".")) {
+                        // `x is T` promotes x through the guarded block when
+                        // T is a non-nullable type; the line-level `?` ban
+                        // keeps nullable type arguments out.
+                        guardAdds.push(name);
+                    }
                     if (negGuard && end + 8 <= n && line.substr(end, 8) == " == null" && (col == 0 || line.charAt(col - 1) != ".")) {
                         negAdds.push(name);
                     }
@@ -1045,7 +1051,7 @@ class DartExpr {
             return false;
         if (lineContainsOutsideStrings(line, "||") || lineContainsOutsideStrings(line, "?"))
             return false;
-        return lineContainsOutsideStrings(line, " != null");
+        return lineContainsOutsideStrings(line, " != null") || lineContainsOutsideStrings(line, " is ");
     }
 
     /** Whether the line is a negative null guard: `if (a == null || b == null) {`
