@@ -1890,16 +1890,14 @@ class DartExpr {
         // A normalized local, or one cleared by a null guard, is already
         // non-null in the generated Dart flow.
         if ((isNullLeafType(e.t) || optionalValued(e)) && !provenNonNull(e) && parent != OpEq && parent != OpNotEq) {
-            // An assertion earlier in this sequence promotes the local; a
-            // second `!` has no effect. (SequenceScopedAssertionDedup)
             // A null-guard ternary already yields a non-null value; its
             // `!` has no effect either. (ProvenNonNullCoalescingFold)
-            if (!coalescingLeftCannotBeNull(e) && !sequenceAssertionDone(e))
+            // An earlier `!` is NOT consulted and no promotion is recorded:
+            // speculative re-renders of this statement would let a discarded
+            // render's state suppress the `!` the committed render carries.
+            // (CrossRenderAssertionLeak)
+            if (!coalescingLeftCannotBeNull(e))
                 rendered += "!";
-            switch (stripWrap(e).expr) {
-                case TLocal(v): flowPromotedNonNull.set(v.id, true);
-                case _:
-            }
         }
         switch (stripWrap(e).expr) {
             case TBinop(op, _, _):
@@ -2087,11 +2085,14 @@ class DartExpr {
             // A null guard on the subject promotes it for the whole guarded
             // block; Dart reads the promoted local bare and reports a `!` on
             // it as having no effect. (GuardPromotedReceiverUnwrap)
+            // Whether an earlier `!` already asserted this local is NOT
+            // consulted: the statement re-renders speculatively in nested
+            // lowering, and a registration surviving from a discarded render
+            // would suppress the `!` the committed render must carry.
+            // (CrossRenderAssertionLeak)
             final base = expr(subj);
             return switch (stripWrap(subj).expr) {
-                // An assertion earlier in this sequence promotes the local;
-                // a second `!` has no effect. (SequenceScopedAssertionDedup)
-                case TLocal(_): sequenceAssertionDone(subj) ? base : base + "!";
+                case TLocal(_): base + "!";
                 case _: "(" + base + ")!";
             };
         }
@@ -2239,16 +2240,11 @@ class DartExpr {
         if (!nullableValue(e) || provenNonNull(e) || coalescingYieldsNonNull(e) || coalescingLeftCannotBeNull(e))
             return expr(e);
         final text = expr(e);
+        // An earlier `!` is NOT consulted: speculative re-renders of this
+        // statement register assertions whose suppression the committed
+        // render must not inherit. (CrossRenderAssertionLeak)
         return switch (stripWrap(e).expr) {
-            case TLocal(v):
-                // An assertion earlier in this sequence promotes the local;
-                // a second `!` has no effect. (SequenceScopedAssertionDedup)
-                if (sequenceAssertionDone(e))
-                    text;
-                else {
-                    flowPromotedNonNull.set(v.id, true);
-                    text + "!";
-                }
+            case TLocal(_): text + "!";
             case _: "(" + text + ")!";
         };
     }
