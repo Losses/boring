@@ -3405,11 +3405,14 @@ class DartExpr {
         }
         if (isNullLeafType(e.t) || optionalValued(e))
             return false;
-        // A local the flow promotes cannot be null either.
-        // (ProvenNonNullCoalescingFold)
+        // A local the flow promotes cannot be null either; the statement
+        // plan vouches from the typed AST's own flow.
+        // (ProvenNonNullCoalescingFold) (BodyUnwrapPlan)
         switch (stripWrap(e).expr) {
             case TLocal(v):
                 if (nonNullLocals.exists(v.id) || flowPromotedNonNull.exists(v.id) || assertedSequence.exists(v.id))
+                    return true;
+                if (flowPlan != null && currentStmtKey >= 0 && flowPlan.promotesAt(currentStmtKey, v.id))
                     return true;
             case _:
         }
