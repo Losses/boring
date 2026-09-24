@@ -121,13 +121,17 @@ class DartExpr {
     function planVouches(e:TypedExpr):Bool {
         if (flowPlan == null)
             return false;
-        final v = switch (stripWrap(e).expr) {
+
+        final stripped = stripWrap(e);
+        final v = switch (stripped.expr) {
             case TLocal(v): v;
             case _: null;
         };
-        if (v == null || e.pos == null)
+        if (v == null || stripped.pos == null)
             return false;
-        return flowPlan.promotesAt(Context.getPosInfos(e.pos).min, v.id);
+        // Key on the stripped local's own position: a wrapping cast carries
+        // a different pos than the node the plan walked. (BodyUnwrapPlan)
+        return flowPlan.promotesAt(Context.getPosInfos(stripped.pos).min, v.id);
     }
 
     // Locals that bind a null literal somewhere (a declaration initializer
@@ -6113,7 +6117,9 @@ class DartExpr {
             case TBinop(OpAdd, _, _): expr(leaf);
             case TBinop(_, _, _): "(" + expr(leaf) + ")";
             case TLocal(_) if (optionalValued(leaf)): expr(leaf);
-            case _: nullableStringLeaf(leaf) ? expr(leaf) + "!" : expr(leaf);
+            // A flow-plan vouch replaces the unwrap: the leaf is promoted
+            // at this point by Dart's own flow. (BodyUnwrapPlan)
+            case _: nullableStringLeaf(leaf) && !planVouches(leaf) ? expr(leaf) + "!" : expr(leaf);
         };
     }
 
