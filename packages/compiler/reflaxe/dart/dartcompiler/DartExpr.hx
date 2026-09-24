@@ -913,19 +913,56 @@ class DartExpr {
             // A negative guard `if (a == null || b == null) { return ...; }`
             // promotes a and b from the closing brace onward — provided the
             // guarded body never mentions them. (BodyUnwrapPlan)
-            if (negGuard && negAdds.length > 0 && i + 2 < result.length) {
-                final body = result[i + 1];
+            if (negGuard && negAdds.length > 0) {
+                // Find the guard block's closing line by brace depth and
+                // register the names in the parent scope — provided no
+                // block line between touches them.
+                var d = 1;
+                var close = -1;
                 var touches = false;
-                for (g in negAdds) {
-                    if (lineStandaloneUses(body, g))
-                        touches = true;
+                var j = i + 1;
+                while (j < result.length && close < 0) {
+                    final bl = result[j];
+                    var k = 0;
+                    var inStr = false;
+                    var sq = " ";
+                    while (k < bl.length) {
+                        final bc = bl.charAt(k);
+                        if (inStr) {
+                            if (bc == "\\") {
+                                k += 2;
+                                continue;
+                            }
+                            if (bc == sq)
+                                inStr = false;
+                        } else if (bc == "\"" || bc == "'") {
+                            inStr = true;
+                            sq = bc;
+                        } else if (bc == "{") {
+                            d += 1;
+                        } else if (bc == "}") {
+                            d -= 1;
+                            if (d == 0) {
+                                close = j;
+                                break;
+                            }
+                        }
+                        k += 1;
+                    }
+                    j += 1;
                 }
-                if (!touches && StringTools.startsWith(StringTools.ltrim(result[i + 2]), "}")) {
-                    // The guard line opened its own block: the names live in
-                    // the parent scope from the closing brace onward.
-                    final parent = promoted.length >= 2 ? promoted[promoted.length - 2] : promoted[promoted.length - 1];
-                    for (g in negAdds)
-                        parent.set(g, true);
+                if (close > i) {
+                    for (m in i + 1...close) {
+                        for (g in negAdds) {
+                            if (lineStandaloneUses(result[m], g))
+                                touches = true;
+                        }
+                    }
+                    if (!touches) {
+                        final parent = promoted.length >= 2 ? promoted[promoted.length - 2] : promoted[promoted.length - 1];
+                        for (g in negAdds)
+                            parent.set(g, true);
+                    }
                 }
             }
         }
@@ -938,7 +975,7 @@ class DartExpr {
         line. (BodyUnwrapPlan) */
     static function isNullGuardHead(line:String):Bool {
         final t = StringTools.ltrim(line);
-        if (!StringTools.startsWith(t, "if (") && !StringTools.startsWith(t, "} else if ("))
+        if (!StringTools.startsWith(t, "if (") && !StringTools.startsWith(t, "} else if (") && !StringTools.startsWith(t, "while ("))
             return false;
         if (lineContainsOutsideStrings(line, "||") || lineContainsOutsideStrings(line, "?"))
             return false;
