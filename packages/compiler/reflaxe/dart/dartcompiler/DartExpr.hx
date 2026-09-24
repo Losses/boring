@@ -683,6 +683,55 @@ class DartExpr {
                             continue;
                         }
                     }
+                    // A coalescing on a promoted binding cannot take its
+                    // default: `x ?? d` folds to `x` inside the promotion
+                    // scope the table already vouches for. (BodyUnwrapPlan)
+                    if (end + 2 < n && line.charAt(end) == " " && line.charAt(end + 1) == "?" && line.charAt(end + 2) == "?") {
+                        final head = promoted[promoted.length - 1];
+                        final inHead = branchAt < 0 || end <= branchAt;
+                        if ((inHead && head.exists(name)) || (!hasOrQ && scratch != null && scratch.exists(name))) {
+                            var k = 0;
+                            var j = end + 3;
+                            var stop = -1;
+                            while (j < n) {
+                                final cj = line.charAt(j);
+                                if (cj == "\"" || cj == "'") {
+                                    final q2 = cj;
+                                    j += 1;
+                                    while (j < n) {
+                                        if (line.charAt(j) == "\\") {
+                                            j += 2;
+                                            continue;
+                                        }
+                                        if (line.charAt(j) == q2) {
+                                            j += 1;
+                                            break;
+                                        }
+                                        j += 1;
+                                    }
+                                    continue;
+                                }
+                                if (cj == "(" || cj == "[" || cj == "{") {
+                                    k += 1;
+                                } else if (cj == ")" || cj == "]" || cj == "}") {
+                                    if (k == 0) {
+                                        stop = j;
+                                        break;
+                                    }
+                                    k -= 1;
+                                } else if (cj == "," && k == 0) {
+                                    stop = j;
+                                    break;
+                                }
+                                j += 1;
+                            }
+                            if (stop > 0) {
+                                out.add(name);
+                                col = stop;
+                                continue;
+                            }
+                        }
+                    }
                     out.add(name);
                     col = end;
                 } else {
