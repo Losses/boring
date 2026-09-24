@@ -614,6 +614,10 @@ class DartExpr {
             // (BodyUnwrapPlan)
             final guardHead = isNullGuardHead(line);
             final guardAdds:Array<String> = [];
+            final negGuard = isNullNegativeGuardHead(line);
+            final negAdds:Array<String> = [];
+            final elseName = ternaryElseName(line);
+            final elseColonAt = elseName != null ? colonAtOutsideStrings(line) : -1;
             final n = line.length;
             var out = new StringBuf();
             var col = 0;
@@ -659,6 +663,9 @@ class DartExpr {
                         // register.
                         guardAdds.push(name);
                     }
+                    if (negGuard && end + 8 <= n && line.substr(end, 8) == " == null" && (col == 0 || line.charAt(col - 1) != ".")) {
+                        negAdds.push(name);
+                    }
                     if (end < n && line.charAt(end) == "!" && (col == 0 || line.charAt(col - 1) != ".")) {
                         // The scope table is resolved per occurrence: a `}`
                         // earlier in the line has already popped the block a
@@ -670,6 +677,7 @@ class DartExpr {
                         // incomparable, so those keep their `!`.
                         // (BodyUnwrapPlan)
                         final inHead = branchAt < 0 || end <= branchAt;
+                        final inElseArm = elseName != null && name == elseName && col > elseColonAt;
                         if (inHead) {
                             final table = promoted[promoted.length - 1];
                             if (!table.exists(name)) {
@@ -702,8 +710,9 @@ class DartExpr {
                     // scope the table already vouches for. (BodyUnwrapPlan)
                     if (end + 2 < n && line.charAt(end) == " " && line.charAt(end + 1) == "?" && line.charAt(end + 2) == "?") {
                         final head = promoted[promoted.length - 1];
-                        final inHead = branchAt < 0 || end <= branchAt;
-                        if ((inHead && head.exists(name)) || (!hasOrQ && scratch != null && scratch.exists(name))) {
+                        final inHead2 = branchAt < 0 || end <= branchAt;
+                        final inElse2 = elseName != null && name == elseName && col > elseColonAt;
+                        if ((inHead2 && head.exists(name)) || (inElse2 && head.exists(name)) || (!hasOrQ && scratch != null && scratch.exists(name))) {
                             var k = 0;
                             var j = end + 3;
                             var stop = -1;
@@ -754,6 +763,24 @@ class DartExpr {
                 }
             }
             result[i] = out.toString();
+            // A negative guard `if (a == null || b == null) { return ...; }`
+            // promotes a and b from the closing brace onward — provided the
+            // guarded body never mentions them. (BodyUnwrapPlan)
+            if (negGuard && negAdds.length > 0 && i + 2 < result.length) {
+                final body = result[i + 1];
+                var touches = false;
+                for (g in negAdds) {
+                    if (lineStandaloneUses(body, g))
+                        touches = true;
+                }
+                if (!touches && StringTools.startsWith(StringTools.ltrim(result[i + 2]), "}")) {
+                    // The guard line opened its own block: the names live in
+                    // the parent scope from the closing brace onward.
+                    final parent = promoted.length >= 2 ? promoted[promoted.length - 2] : promoted[promoted.length - 1];
+                    for (g in negAdds)
+                        parent.set(g, true);
+                }
+            }
         }
     }
 
@@ -769,6 +796,48 @@ class DartExpr {
         if (lineContainsOutsideStrings(line, "||") || lineContainsOutsideStrings(line, "?"))
             return false;
         return lineContainsOutsideStrings(line, " != null");
+    }
+
+    /** Whether the line is a negative null guard: `if (a == null || b == null) {`
+        — bare identifiers compared to null over `||`, no conjuncts, no
+        ternary. The names promote from the closing brace onward.
+        (BodyUnwrapPlan) */
+    static function isNullNegativeGuardHead(line:String):Bool {
+        final t = StringTools.ltrim(line);
+        if (!StringTools.startsWith(t, "if ("))
+            return false;
+        if (lineContainsOutsideStrings(line, "&&") || lineContainsOutsideStrings(line, "?"))
+            return false;
+        return lineContainsOutsideStrings(line, " == null");
+    }
+
+    /** Column of the first `:` outside string literals, or -1.
+        (BodyUnwrapPlan) */
+    static function colonAtOutsideStrings(line:String):Int {
+        final n = line.length;
+        var col = 0;
+        while (col < n) {
+            final c = line.charAt(col);
+            if (c == "\"" || c == "'") {
+                col += 1;
+                while (col < n) {
+                    if (line.charAt(col) == "\\") {
+                        col += 2;
+                        continue;
+                    }
+                    if (line.charAt(col) == c) {
+                        col += 1;
+                        break;
+                    }
+                    col += 1;
+                }
+            } else if (c == ":") {
+                return col;
+            } else {
+                col += 1;
+            }
+        }
+        return -1;
     }
 
     /** Column of the earliest `&&`, `||`, or `?` outside string literals,
@@ -827,6 +896,61 @@ class DartExpr {
             }
         }
         return false;
+    }
+
+    /** The else-arm binding of a single-level null-head ternary:
+        `x == null ? a : b` promotes `x` through `b`. Returns the name when
+        the line is exactly that shape — one `?`, one `:`, a head of a bare
+        identifier compared to null — or null otherwise. (BodyUnwrapPlan) */
+    static function ternaryElseName(line:String):Null<String> {
+        final n = line.length;
+        var questionAt = -1;
+        var colonAt = -1;
+        var col = 0;
+        var questions = 0;
+        var colons = 0;
+        while (col < n) {
+            final c = line.charAt(col);
+            if (c == "\"" || c == "'") {
+                col += 1;
+                while (col < n) {
+                    if (line.charAt(col) == "\\") {
+                        col += 2;
+                        continue;
+                    }
+                    if (line.charAt(col) == c) {
+                        col += 1;
+                        break;
+                    }
+                    col += 1;
+                }
+            } else if (c == "?") {
+                questions += 1;
+                if (questions == 1)
+                    questionAt = col;
+            } else if (c == ":") {
+                colons += 1;
+                if (colons == 1)
+                    colonAt = col;
+            }
+            col += 1;
+        }
+        if (questions != 1 || colons != 1 || questionAt < 0 || colonAt < questionAt)
+            return null;
+        final head = StringTools.trim(line.substr(0, questionAt));
+        final m = head.length;
+        if (m < 11 || head.substr(m - 11) != " == null")
+            return null;
+        final name = StringTools.trim(head.substr(0, m - 11));
+        if (name.length == 0 || !isIdentChar(name.charAt(0)) || Std.isOfType(name.charAt(0), Int))
+            return null;
+        for (k in 0...name.length) {
+            if (!isIdentChar(name.charAt(k)))
+                return null;
+        }
+        if (name.length > 0 && (name.charCodeAt(0) == 46))
+            return null;
+        return name;
     }
 
     /** Body lowering for a member declared on a value wrapper. */
