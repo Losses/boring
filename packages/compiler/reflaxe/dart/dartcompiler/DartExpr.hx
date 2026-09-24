@@ -618,6 +618,7 @@ class DartExpr {
             final negAdds:Array<String> = [];
             final elseName = ternaryElseName(line);
             final elseColonAt = elseName != null ? colonAtOutsideStrings(line) : -1;
+            final negTern = negativeTernaryElse(line);
             final tq = singleTernaryQuestionAt(line);
             final tc = colonAtOutsideStrings(line);
             final armRange = trueArmRange(line);
@@ -796,6 +797,7 @@ class DartExpr {
                         // (BodyUnwrapPlan)
                         final inHead = branchAt < 0 || end <= branchAt;
                         final inElseArm = elseName != null && name == elseName && col > elseColonAt;
+                        final inNegElse = negTern != null && Lambda.has(negTern.names, name) && col > negTern.colonAt;
                         if (inHead) {
                             final table = promoted[promoted.length - 1];
                             if (!table.exists(name)) {
@@ -809,10 +811,12 @@ class DartExpr {
                             out.add(name);
                             col = end + 1;
                             continue;
-                        } else if (Lambda.has(headBangs, name)) {
+                        } else if (Lambda.has(headBangs, name) || inNegElse) {
                             // The head segment ran unconditionally, so its
                             // unwrap promotes the binding through every
-                            // branch. (BodyUnwrapPlan)
+                            // branch; a negative null chain promotes its
+                            // names through the else arm.
+                            // (BodyUnwrapPlan)
                             out.add(name);
                             col = end + 1;
                             continue;
@@ -994,6 +998,87 @@ class DartExpr {
             }
         }
         return null;
+    }
+
+    /** The else-arm bindings of a ternary whose head is a pure negative
+        null chain — `a == null || b == null ? ... : ...` — every
+        `||`-separated clause being a bare identifier compared to null.
+        Returns the names and the paired `:` column of the outer head;
+        nested ternaries inside the head disqualify it. (BodyUnwrapPlan) */
+    static function negativeTernaryElse(line:String):Null<{names:Array<String>, colonAt:Int}> {
+        final n = line.length;
+        var q = -1;
+        var qParen = -1;
+        var col = 0;
+        var paren = 0;
+        var depth = 0;
+        var colonAt = -1;
+        while (col < n) {
+            final c = line.charAt(col);
+            if (c == "\"" || c == "'") {
+                col += 1;
+                while (col < n) {
+                    if (line.charAt(col) == "\\") {
+                        col += 2;
+                        continue;
+                    }
+                    if (line.charAt(col) == c) {
+                        col += 1;
+                        break;
+                    }
+                    col += 1;
+                }
+            } else if (c == "(" || c == "[" || c == "{") {
+                paren += 1;
+                col += 1;
+            } else if (c == ")" || c == "]" || c == "}") {
+                paren -= 1;
+                col += 1;
+            } else if (c == "?") {
+                if (q < 0) {
+                    q = col;
+                    qParen = paren;
+                } else if (paren == qParen) {
+                    depth += 1; // a nested ternary inside an arm
+                }
+                col += 1;
+            } else if (c == ":" && q >= 0 && paren == qParen) {
+                if (depth == 0) {
+                    colonAt = col;
+                    break;
+                }
+                depth -= 1;
+                col += 1;
+            } else {
+                col += 1;
+            }
+        }
+        if (q < 0 || colonAt < 0)
+            return null;
+        final head = StringTools.ltrim(line.substr(0, q));
+        final names:Array<String> = [];
+        // Split on `||` — the head holds no strings by construction.
+        final segs = head.split("||");
+        for (seg in segs) {
+            var s = StringTools.trim(seg);
+            if (StringTools.startsWith(s, "return "))
+                s = StringTools.trim(s.substr(7));
+            if (StringTools.startsWith(s, "("))
+                s = StringTools.trim(s.substr(1));
+            if (s.length < 8 || s.substr(s.length - 7) != "== null")
+                return null;
+            final nm = StringTools.trim(s.substr(0, s.length - 7));
+            if (nm.length == 0 || !isIdentChar(nm.charAt(0)) || Std.isOfType(nm.charAt(0), Int))
+                return null;
+            for (k in 0...nm.length) {
+                if (!isIdentChar(nm.charAt(k)))
+                    return null;
+            }
+            if (nm.indexOf(".") >= 0)
+                return null;
+            names.push(nm);
+        }
+        return {names: names, colonAt: colonAt};
     }
 
     /** Column of the `?` when the line holds exactly one ternary question
