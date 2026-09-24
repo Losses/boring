@@ -586,6 +586,41 @@ class DartExpr {
         }
     }
 
+    /** Whether the line assigns a non-null literal to `name`: the value
+        after `=` starts with a list, map, string, number, or boolean
+        literal — never null, never a possibly-null expression.
+        (BodyUnwrapPlan) */
+    static function assignsNonNullLiteral(line:String, name:String):Bool {
+        final n = line.length;
+        var i = 0;
+        while (i < n) {
+            if (isIdentChar(line.charAt(i)) && (i == 0 || !isIdentChar(line.charAt(i - 1)))) {
+                var end = i;
+                while (end < n && isIdentChar(line.charAt(end)))
+                    end += 1;
+                if (line.substr(i, end - i) == name) {
+                    var probe = end;
+                    while (probe < n && line.charAt(probe) == " ")
+                        probe += 1;
+                    if (probe < n && line.charAt(probe) == "=" && (probe + 1 >= n || (line.charAt(probe + 1) != "=" && line.charAt(probe + 1) != ">"))) {
+                        probe += 1;
+                        while (probe < n && line.charAt(probe) == " ")
+                            probe += 1;
+                        final rest = line.substr(probe);
+                        if (rest.length == 0 || StringTools.startsWith(rest, "null"))
+                            return false;
+                        final f = rest.charAt(0);
+                        return f == "<" || f == "[" || f == "{" || f == "\"" || f == "'" || (f >= "0" && f <= "9");
+                    }
+                }
+                i = end;
+            } else {
+                i += 1;
+            }
+        }
+        return false;
+    }
+
     /** Drops a `!` that an earlier `!` on the same binding already made
         redundant. Dart promotes a binding from its first successful `!`
         through the rest of the block at the same brace depth, so later
@@ -601,6 +636,29 @@ class DartExpr {
         final assignedNames:Map<String, Bool> = [];
         for (line in result)
             collectAssignedNames(line, assignedNames);
+        // A binding whose last assignment stores a non-null literal
+        // (`list = <T>[];`) is non-null from that line to the end of the
+        // body: its later `!`s are redundant. (BodyUnwrapPlan)
+        final postPromotion:Map<String, Int> = new Map<String, Int>();
+        {
+            final lastAssign = new Map<String, Int>();
+            final lastNonNull = new Map<String, Int>();
+            for (i in 0...result.length) {
+                final line = result[i];
+                final names = new Map<String, Bool>();
+                collectAssignedNames(line, names);
+                for (nm in names.keys()) {
+                    lastAssign.set(nm, i);
+                    if (assignsNonNullLiteral(line, nm))
+                        lastNonNull.set(nm, i);
+                }
+            }
+            for (nm => la in lastAssign) {
+                final ln = lastNonNull.exists(nm) ? lastNonNull.get(nm) : -1;
+                if (ln == la)
+                    postPromotion.set(nm, ln);
+            }
+        }
         final promoted:Array<Map<String, Bool>> = [new Map<String, Bool>()];
         for (i in 0...result.length) {
             final line = result[i];
@@ -804,6 +862,14 @@ class DartExpr {
                         // redundant everywhere — branch arms included.
                         // (BodyUnwrapPlan)
                         if (promoted[promoted.length - 1].exists(name)) {
+                            out.add(name);
+                            col = end + 1;
+                            continue;
+                        }
+                        // A non-null literal stored by the last assignment
+                        // promotes the binding for the rest of the body.
+                        // (BodyUnwrapPlan)
+                        if (postPromotion.exists(name) && postPromotion.get(name) < i) {
                             out.add(name);
                             col = end + 1;
                             continue;
