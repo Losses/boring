@@ -618,10 +618,16 @@ class DartExpr {
             final negAdds:Array<String> = [];
             final elseName = ternaryElseName(line);
             final elseColonAt = elseName != null ? colonAtOutsideStrings(line) : -1;
+            final tq = singleTernaryQuestionAt(line);
+            final tc = colonAtOutsideStrings(line);
             // Names unwrapped in the unconditional head segment: their
             // promotion reaches every branch of the line.
             // (BodyUnwrapPlan)
             final headBangs:Array<String> = [];
+            // `metric != null ? metric!.x : y`: a head `!= null` test
+            // promotes on the true arm only.
+            // (BodyUnwrapPlan)
+            final trueArmBangs:Array<String> = [];
             final n = line.length;
             var out = new StringBuf();
             var col = 0;
@@ -670,6 +676,12 @@ class DartExpr {
                     if (negGuard && end + 8 <= n && line.substr(end, 8) == " == null" && (col == 0 || line.charAt(col - 1) != ".")) {
                         negAdds.push(name);
                     }
+                    if (tq >= 0 && col < tq && end + 8 <= n && line.substr(end, 8) == " != null" && (col == 0 || line.charAt(col - 1) != ".")) {
+                        // `metric != null ? metric!.x : y`: the head test
+                        // promotes the binding on the true arm.
+                        // (BodyUnwrapPlan)
+                        trueArmBangs.push(name);
+                    }
                     if (end < n && line.charAt(end) == "!" && (col == 0 || line.charAt(col - 1) != ".")) {
                         // The scope table is resolved per occurrence: a `}`
                         // earlier in the line has already popped the block a
@@ -699,6 +711,12 @@ class DartExpr {
                             // The head segment ran unconditionally, so its
                             // unwrap promotes the binding through every
                             // branch. (BodyUnwrapPlan)
+                            out.add(name);
+                            col = end + 1;
+                            continue;
+                        } else if (Lambda.has(trueArmBangs, name) && col > tq && col < tc) {
+                            // The head `!= null` test promotes through the
+                            // true arm only. (BodyUnwrapPlan)
                             out.add(name);
                             col = end + 1;
                             continue;
@@ -821,6 +839,38 @@ class DartExpr {
         if (lineContainsOutsideStrings(line, "&&") || lineContainsOutsideStrings(line, "?"))
             return false;
         return lineContainsOutsideStrings(line, " == null");
+    }
+
+    /** Column of the `?` when the line holds exactly one ternary question
+        outside string literals, or -1. (BodyUnwrapPlan) */
+    static function singleTernaryQuestionAt(line:String):Int {
+        final n = line.length;
+        var col = 0;
+        var questions = 0;
+        var at = -1;
+        while (col < n) {
+            final c = line.charAt(col);
+            if (c == "\"" || c == "'") {
+                col += 1;
+                while (col < n) {
+                    if (line.charAt(col) == "\\") {
+                        col += 2;
+                        continue;
+                    }
+                    if (line.charAt(col) == c) {
+                        col += 1;
+                        break;
+                    }
+                    col += 1;
+                }
+            } else if (c == "?") {
+                questions += 1;
+                if (questions == 1)
+                    at = col;
+            }
+            col += 1;
+        }
+        return questions == 1 ? at : -1;
     }
 
     /** Column of the first `:` outside string literals, or -1.
