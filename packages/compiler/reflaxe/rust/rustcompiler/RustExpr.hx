@@ -6694,6 +6694,22 @@ class RustExpr {
                 };
                 if (hoisted != null)
                     return hoisted;
+                // A shared closure scalar assignment locks the guard mutex
+                // on the left side (`*x.lock().unwrap() = ...`); the guard
+                // lives until the end of the statement. A right side that
+                // locks the same mutex again (`(x.lock().unwrap()).clone()`)
+                // would self-deadlock, so evaluate the right side into a
+                // fresh local first and let its guard drop before the
+                // assignment takes the lock. The receiver text is compared,
+                // not the variable name, so any guard-returning receiver
+                // with the same text is caught. (MutexGuardAssignmentScope)
+                if (assignTargetText.indexOf(".lock().unwrap()") >= 0 && rhs.indexOf(".lock().unwrap()") >= 0) {
+                    final targetReceiver = lockReceiverAt(assignTargetText, assignTargetText.indexOf(".lock()"));
+                    if (targetReceiver != null && lockReceiverIs(rhs, targetReceiver)) {
+                        final temp = freshRegionName("__rhs_value");
+                        return "{ let " + temp + " = " + rhs + "; " + assignTargetText + " = " + temp + " }";
+                    }
+                }
                 return assignTargetText + " = " + rhs;
             case OpAssignOp(inner):
                 // Int compound assignments must preserve Haxe's 32-bit wrapping.
@@ -12633,6 +12649,47 @@ class RustExpr {
 
     function mentionsLocal(e:TypedExpr, v:TVar):Bool {
         return PolicyQueries.mentionsLocal(e, v);
+    }
+
+    /** Whether a rendered string contains a `.lock()` call whose receiver
+        is the given identifier. A shared closure scalar or array renders
+        its guard through `name.lock().unwrap()`; the receiver is the local
+        name immediately before `.lock()`. (MutexGuardAssignmentScope) */
+    function lockReceiverIs(rendered:String, receiver:String):Bool {
+        var idx = rendered.indexOf(".lock()");
+        while (idx >= 0) {
+            if (lockReceiverAt(rendered, idx) == receiver)
+                return true;
+            idx = rendered.indexOf(".lock()", idx + 1);
+        }
+        return false;
+    }
+
+    /** The receiver identifier of the `.lock()` call ending at the given
+        offset, or null when it is not a plain identifier (for example a
+        parenthesized or chained receiver). (MutexGuardAssignmentScope) */
+    function lockReceiverAt(rendered:String, lockPos:Int):Null<String> {
+        var i = lockPos - 1;
+        while (i >= 0 && (rendered.charAt(i) == ' ' || rendered.charAt(i) == '\t'))
+            i--;
+        // A receiver wrapped in parentheses (for example `(x.lock().unwrap())
+        // .lock()`) is not a plain identifier; only a bare local name is a
+        // stable receiver text, so bail when the receiver is parenthesized.
+        if (i >= 0 && rendered.charAt(i) == ')')
+            return null;
+        var end = i + 1;
+        while (i >= 0 && isRustIdentChar(rendered.charAt(i)))
+            i--;
+        var start = i + 1;
+        if (start >= end)
+            return null;
+        return rendered.substr(start, end - start);
+    }
+
+    function isRustIdentChar(c:String):Bool {
+        final code = c.charCodeAt(0);
+        return (code >= 48 && code <= 57) || (code >= 65 && code <= 90)
+            || (code >= 97 && code <= 122) || c == "_";
     }
 
     /** Whether the expression mentions a local with the given name. Haxe
