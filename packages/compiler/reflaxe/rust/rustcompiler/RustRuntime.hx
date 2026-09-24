@@ -136,11 +136,11 @@ impl FPHelper {
     }
 
     pub fn f32_to_i32(v: f32) -> i32 {
-        v as i32
+        i32::from_ne_bytes(v.to_bits().to_ne_bytes())
     }
 
     pub fn i32_to_f32(v: i32) -> f32 {
-        v as f32
+        f32::from_bits(v as u32)
     }
 
     pub fn i64_to_double(low: u32, high: u32) -> f64 {
