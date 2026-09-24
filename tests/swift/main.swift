@@ -54,17 +54,17 @@ for (width, path) in widths {
     let committed = readBytes(path)
     check(committed.count > 0, "\(path) loads")
 
-    var decoded: TiqianArray<GlyphMetrics>? = nil
+    var decoded: [GlyphMetrics]? = nil
     var decodeFailure: String? = nil
     do {
         decoded = try VectorCodec.decode(committed)
     } catch {
         decodeFailure = "\(error)"
     }
-    check(decodeFailure == nil && decoded?.items == records, "\(path) decodes to the shared records")
+    check(decodeFailure == nil && decoded == records, "\(path) decodes to the shared records")
 
     if decoded != nil {
-        let reencoded = VectorCodec.encode(TiqianArray(records), width)
+        let reencoded = VectorCodec.encode(records, width)
         check(reencoded == committed, "re-encoding \(path) reproduces the committed bytes")
     }
 }
