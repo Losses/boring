@@ -3640,6 +3640,18 @@ class DartExpr {
                 }
             case _:
         }
+        // A ternary whose both arms are non-null yields a non-null value
+        // even though the typer unified the result with a Null target.
+        // (BodyUnwrapPlan)
+        {
+            final inner2 = stripWrap(e);
+            switch (inner2.expr) {
+                case TIf(c2, t, f) if (f != null):
+                    if (!nullableValue(t) && !nullableValue(f))
+                        return true;
+                case _:
+            }
+        }
         // A binding whose declaration narrowed the emitted type
         // (`final List<T> ss = spans ?? []`) cannot be null afterwards, even
         // though the Haxe local keeps its Null wrapper: a later
@@ -5008,6 +5020,7 @@ class DartExpr {
                         // A null default is an identity. (NullDefaultIdentityFold)
                         // A value that cannot be null never sees the default.
                         // (ProvenNonNullCoalescingFold)
+
                         if (StringTools.trim(ctorDefaultText) == "null" || coalescingLeftCannotBeNull(args[i]))
                             out.push(expr(args[i]));
                         else
