@@ -570,6 +570,45 @@ class SwiftExpr {
         scanUnusedLocals(f.expr);
         resolveLocalFunctionThrows();
         final result = blockLines(statementsOf(f.expr), depth);
+        var i2 = result.length - 1;
+        var converted = 0;
+        while (i2 >= 0) {
+            final line = result[i2];
+            final trimmed = StringTools.ltrim(line);
+            if (StringTools.startsWith(trimmed, "let ")) {
+                final rest = trimmed.substr(4);
+                final assignAt = rest.indexOf(" = ");
+                if (assignAt > 0) {
+                    var name = StringTools.trim(rest.substr(0, assignAt));
+                    final colon = name.indexOf(":");
+                    if (colon >= 0)
+                        name = StringTools.trim(name.substr(0, colon));
+                    final validIdent = name.length > 0 && name != "_" && !Std.isOfType(name.charAt(0), Int);
+                    var used = !validIdent;
+                    var j = i2 + 1;
+                    while (!used && j < result.length) {
+                        if (result[j].indexOf(name) >= 0) {
+                            // A later line that merely declares another binding
+                            // of the same name (a sibling coverage block) is not
+                            // a use; any other occurrence is.
+                            // (DeadBindingElimination)
+                            final candidate = StringTools.ltrim(result[j]);
+                            if (!StringTools.startsWith(candidate, "let " + name))
+                                used = true;
+                        }
+                        j += 1;
+                    }
+                    if (!used) {
+                        final indentLen = line.length - trimmed.length;
+                        result[i2] = line.substr(0, indentLen) + "_ = " + StringTools.trim(rest.substr(assignAt + 2));
+                        converted += 1;
+                    }
+                }
+            }
+            i2 -= 1;
+        }
+        if (converted > 0)
+            Sys.stderr().writeString("DBE converted=" + converted + " total=" + result.length + "\n");
         currentReturnType = null;
         return result;
     }
