@@ -1958,9 +1958,11 @@ class RustExpr {
             case TMeta(_, inner):
                 return stmtLines(inner, depth);
             case TUnop(OpIncrement, _, subj):
-                return [indent(depth) + expr(subj) + " += 1;"];
+                final wrapped = intStepWrapping(subj, true);
+                return [indent(depth) + (wrapped != null ? wrapped : expr(subj) + " += 1") + ";"];
             case TUnop(OpDecrement, _, subj):
-                return [indent(depth) + expr(subj) + " -= 1;"];
+                final wrapped = intStepWrapping(subj, false);
+                return [indent(depth) + (wrapped != null ? wrapped : expr(subj) + " -= 1") + ";"];
             case _:
                 return [indent(depth) + expr(e) + ";"];
         }
@@ -3271,22 +3273,35 @@ class RustExpr {
                 } else {
                     itemName;
                 };
-                if (referenceSubject)
-                    borrowedLoopVarIds.set(itemVar.id, true);
+                // A shared closure array iterates through its lock guard:
+                // a leading & would borrow the MutexGuard itself, which is
+                // not an iterator. (SharedClosureArrays)
+                final sharedSubject = subjectLocalId >= 0
+                    && (sharedClosureArrays.exists(subjectLocalId) || sharedClosureScalars.exists(subjectLocalId));
+                // A shared closure array is iterated by index, re-reading the
+                // length every step, so elements appended inside the loop body
+                // are seen by later steps (matching Haxe's `for (x in arr)`,
+                // which re-checks arr.length each step). Each guard is dropped
+                // at the end of its own statement, so a body that locks the
+                // same mutex again does not self-deadlock. The item is bound as
+                // an owned value, so it is never a borrowed loop reference.
+                // (LoopGuardScope)
+                if (sharedSubject) {
+                    // item is owned; do not mark it borrowed
+                } else {
+                    if (referenceSubject)
+                        borrowedLoopVarIds.set(itemVar.id, true);
+                }
                 // An owned parameter (argType without a & prefix) is an owned
                 // Vec value, so iterating it must borrow the subject the same way as
                 // an owned local. Borrowed parameters are already &Vec views.
                 final ownedParameter = paramVarIds.exists(subjectLocalId) && argType != null && !StringTools.startsWith(argType, "&");
                 final nonScalarOwnedLocal = captureCloneSubject
                     || (!isScalar && !referenceSubject && (!paramVarIds.exists(subjectLocalId) || ownedParameter));
-                if (nonScalarOwnedLocal)
+                if (nonScalarOwnedLocal && !sharedSubject)
                     borrowedLoopVarIds.set(itemVar.id, true);
-                // A shared closure array iterates through its lock guard:
-                // a leading & would borrow the MutexGuard itself, which is
-                // not an iterator. (SharedClosureArrays)
-                final sharedSubject = subjectLocalId >= 0
-                    && (sharedClosureArrays.exists(subjectLocalId) || sharedClosureScalars.exists(subjectLocalId));
-                final iterated = sharedSubject ? expr(sliceSubj) + ".iter()"
+                final loopVecName = sharedSubject ? freshRegionName("__loop_vec") : null;
+                final iterated = sharedSubject ? loopVecName + ".iter()"
                     : (ownedLocal || nonScalarOwnedLocal) ? "&" + expr(sliceSubj) : expr(sliceSubj);
                 switch (Context.follow(itemVar.t)) {
                     case TAbstract(a, _) if (a.get().name == "Int"):
@@ -3297,6 +3312,36 @@ class RustExpr {
                 }
                 final remainingBody = loop.body.slice(1);
                 final gb = matchGroupByBody(remainingBody);
+                // The loop opening and closing lines. A shared closure array
+                // iterates by index, re-reading the length each step so a body
+                // that appends to the array is seen by later steps, while each
+                // guard is dropped at the end of its own statement. Every other
+                // subject keeps the plain for-in form. (LoopGuardScope)
+                final loopOpen:Array<String> = [];
+                final loopClose:Array<String> = [];
+                if (sharedSubject) {
+                    final iName = freshRegionName("__loop_i");
+                    final lenName = freshRegionName("__loop_len");
+                    final subjText = expr(sliceSubj);
+                    // expr(sliceSubj) already renders the guard through
+                    // .lock().unwrap() for a shared closure array, so the index
+                    // and length reads build on that text directly; each guard
+                    // drops at the end of its own statement.
+                    final idxAccess = subjText + "[" + "usize::try_from(" + iName + ").unwrap_or(0)" + "]";
+                    final itemBind = isScalar ? ("let " + itemName + " = " + idxAccess + ";") : ("let " + itemName + " = (" + idxAccess + ").clone();");
+                    loopOpen.push(indent(depth) + "let mut " + iName + " = 0u32;");
+                    loopOpen.push(indent(depth) + "loop {");
+                    loopOpen.push(indent(depth + 1) + "let " + lenName + " = match u32::try_from(" + subjText + ".len()) { Ok(value) => value, Err(_) => u32::MAX };");
+                    loopOpen.push(indent(depth + 1) + "if " + iName + " >= " + lenName + " { break; }");
+                    loopOpen.push(indent(depth + 1) + itemBind);
+                    loopClose.push(indent(depth + 1) + iName + " += 1;");
+                    loopClose.push(indent(depth) + "}");
+                } else {
+                    if (loopVecName != null)
+                        loopOpen.push(indent(depth) + "let " + loopVecName + " = " + expr(sliceSubj) + ".clone();");
+                    loopOpen.push(indent(depth) + "for " + pattern + " in " + iterated + " {");
+                    loopClose.push(indent(depth) + "}");
+                }
                 if (gb != null) {
                     final entryName = RustImports.toSnakeCase(gb.entryVar.name);
                     final entryExprStr = expr(gb.entryInit);
@@ -3318,7 +3363,9 @@ class RustExpr {
                     else
                         null;
                     final valStr = renderPushArg(gb.valArg, valElementType);
-                    final out = [indent(depth) + "for " + pattern + " in " + iterated + " {"];
+                    final out:Array<String> = [];
+                    for (l in loopOpen)
+                        out.push(l);
                     for (l in blockLines(gb.prefix, depth + 1))
                         out.push(l);
                     out.push(indent(depth + 1) + "let " + entryName + " = " + entryExprStr + ";");
@@ -3328,14 +3375,18 @@ class RustExpr {
                     out.push(indent(depth + 1) + "};");
                     out.push(indent(depth + 1) + "pipeline_bucket.push(" + valStr + ");");
                     out.push(indent(depth + 1) + builderStr + ".put(" + kPutExpr + ", &pipeline_bucket);");
-                    out.push(indent(depth) + "}");
+                    for (l in loopClose)
+                        out.push(l);
                     return out;
                 }
 
-                final out = [indent(depth) + "for " + pattern + " in " + iterated + " {"];
+                final out:Array<String> = [];
+                for (l in loopOpen)
+                    out.push(l);
                 for (l in blockLines(remainingBody, depth + 1))
                     out.push(l);
-                out.push(indent(depth) + "}");
+                for (l in loopClose)
+                    out.push(l);
                 return out;
             }
         }
@@ -3349,7 +3400,23 @@ class RustExpr {
                 break;
             }
         final loopName = readsIndex ? name : "_";
-        final out = [indent(depth) + "for " + loopName + " in " + startStr + ".." + boundStr + " {"];
+        // A bound that reads a shared closure array or scalar renders a
+        // MutexGuard through `.lock().unwrap()`. In a `for i in 0..bound`
+        // the iterator expression's temporaries live for the whole loop, so
+        // the guard would be held across every body iteration; a body that
+        // locks the same mutex again would self-deadlock. Hoist the bound to
+        // a let binding so the guard drops before the loop starts. Haxe
+        // evaluates `for (i in 0...x.length)` once at loop start, so reading
+        // the length into a binding matches the source semantics.
+        // (LoopGuardScope)
+        final out:Array<String> = [];
+        if (mentionsSharedGuard(loop.bound)) {
+            final boundName = freshRegionName("__loop_bound");
+            out.push(indent(depth) + "let " + boundName + " = " + boundStr + ";");
+            out.push(indent(depth) + "for " + loopName + " in " + startStr + ".." + boundName + " {");
+        } else {
+            out.push(indent(depth) + "for " + loopName + " in " + startStr + ".." + boundStr + " {");
+        }
         for (l in blockLines(loop.body, depth + 1))
             out.push(l);
         out.push(indent(depth) + "}");
@@ -3409,6 +3476,25 @@ class RustExpr {
         };
     }
 
+    /** Whether an expression reads a shared closure array or scalar local,
+        which renders to a MutexGuard through `.lock().unwrap()`. A loop whose
+        bound or iterator expression reads such a local holds that guard for
+        the whole loop; the guard must be released before the loop starts so a
+        body that locks the same mutex again does not self-deadlock.
+        (LoopGuardScope) */
+    function mentionsSharedGuard(e:TypedExpr):Bool {
+        var found = false;
+        function scan(node:TypedExpr) {
+            switch (node.expr) {
+                case TLocal(v) if (sharedClosureArrays.exists(v.id) || sharedClosureScalars.exists(v.id)): found = true;
+                case _:
+            }
+            if (!found) haxe.macro.TypedExprTools.iter(node, scan);
+        }
+        scan(e);
+        return found;
+    }
+
     function loopBound(bound:TypedExpr):String {
         final inner = stripWrap(bound);
         switch (inner.expr) {
@@ -3431,7 +3517,32 @@ class RustExpr {
                     }
                     return "(" + expr(subj) + ").as_ref().map_or(0, |v| v.len())";
                 }
+                // A String subject counts UTF-16 code units (spec 15), not
+                // UTF-8 bytes: indexing a String walks units, so a byte
+                // count runs the bound past the end. (StringLengthLoopBound)
+                if (isString(subj))
+                    return rustU32Length(stringUnitCount(expr(subj)));
                 return rustU32Length(expr(subj) + ".len()");
+            case TBinop(OpSub, value, amount):
+                // A length-minus-constant loop bound underflows when the
+                // collection is shorter than the constant: Haxe's signed
+                // 0...(len - k) then yields an empty range. Saturating
+                // subtraction clamps the bound at zero, matching that
+                // empty-range semantics without changing the iteration
+                // count when len >= k. (UnderflowProneLoopBound)
+                switch ([stripWrap(value).expr, stripWrap(amount).expr]) {
+                    case [TField(_, FInstance(_, _, field)), TConst(TInt(k))] if (field.get().name == "length" && k > 0):
+                        return expr(value) + ".saturating_sub(" + k + ")";
+                    case _:
+                        final text = expr(bound);
+                        // A signed i32 range endpoint crosses into the u32
+                        // range domain with a clamp: a negative bound yields
+                        // an empty range, the Haxe loop behavior for a
+                        // negative bound.
+                        if (isIntType(bound.t) && !isNullType(bound.t) && i32LocalDomain(bound))
+                            return "u32::try_from(" + text + ").unwrap_or(0)";
+                        return text;
+                }
             case _:
                 final text = expr(bound);
                 // A signed i32 range endpoint crosses into the u32 range
@@ -3471,7 +3582,18 @@ class RustExpr {
         final out:Array<String> = [];
         out.push(indent(depth) + "let capacity = " + capStr + ";");
         out.push(indent(depth) + "let mut " + arrName + " = Vec::with_capacity(capacity);");
-        out.push(indent(depth) + "for " + loopVar + " in 0.." + boundStr + " {");
+        // A fused-fill bound that reads a shared closure array or scalar
+        // renders a MutexGuard through `.lock().unwrap()`; hoist it so the
+        // guard drops before the loop, matching the range-loop rule.
+        // (LoopGuardScope)
+        final loopBoundStr = if (mentionsSharedGuard(plan.loop.bound)) {
+            final boundName = freshRegionName("__loop_bound");
+            out.push(indent(depth) + "let " + boundName + " = " + boundStr + ";");
+            boundName;
+        } else {
+            boundStr;
+        };
+        out.push(indent(depth) + "for " + loopVar + " in 0.." + loopBoundStr + " {");
         for (step in plan.steps) {
             switch (step) {
                 case NonStoreBatch(batch):
@@ -6590,6 +6712,15 @@ class RustExpr {
                     emissionTrace("ASSIGN target=" + assignTarget(l) + " val=[" + expr(r).substr(0, expr(r).length > 50 ? 50 : expr(r).length) + "]", e.pos);
 #end
                 final assignTargetText = assignTarget(l);
+                // Haxe grows an Array when an index write reaches past the
+                // end and fills the skipped slots with the element default;
+                // Rust's Vec does not, so the write needs the growth loop
+                // first. The guard also binds an index that reads the array
+                // itself, so its length check cannot observe the growth.
+                // (ArrayGrowthOnIndexWrite)
+                final growth = arrayGrowthGuard(l, rhs);
+                if (growth != null)
+                    return growth;
                 // E0502: an array assignment whose index reads the array
                 // itself (`bottoms[bottoms.len() - 1] = ...`) borrows the
                 // array immutably in the index while the assignment mutates
@@ -6609,6 +6740,22 @@ class RustExpr {
                 };
                 if (hoisted != null)
                     return hoisted;
+                // A shared closure scalar assignment locks the guard mutex
+                // on the left side (`*x.lock().unwrap() = ...`); the guard
+                // lives until the end of the statement. A right side that
+                // locks the same mutex again (`(x.lock().unwrap()).clone()`)
+                // would self-deadlock, so evaluate the right side into a
+                // fresh local first and let its guard drop before the
+                // assignment takes the lock. The receiver text is compared,
+                // not the variable name, so any guard-returning receiver
+                // with the same text is caught. (MutexGuardAssignmentScope)
+                if (assignTargetText.indexOf(".lock().unwrap()") >= 0 && rhs.indexOf(".lock().unwrap()") >= 0) {
+                    final targetReceiver = lockReceiverAt(assignTargetText, assignTargetText.indexOf(".lock()"));
+                    if (targetReceiver != null && lockReceiverIs(rhs, targetReceiver)) {
+                        final temp = freshRegionName("__rhs_value");
+                        return "{ let " + temp + " = " + rhs + "; " + assignTargetText + " = " + temp + " }";
+                    }
+                }
                 return assignTargetText + " = " + rhs;
             case OpAssignOp(inner):
                 // Int compound assignments must preserve Haxe's 32-bit wrapping.
@@ -7288,6 +7435,23 @@ class RustExpr {
         }
     }
 
+    /**
+        The wrapping form of an Int step (x++ / x += 1), or null when the
+        target keeps the checked form. Haxe Int arithmetic wraps on overflow
+        (two's complement) while a checked Rust step panics in a debug build
+        once the value reaches the top of its slot; a local whose signed
+        reading is negative is stored as u32 (4294967295 for -1), so stepping
+        it must wrap. Both the expression spelling (unop) and the statement
+        spelling (stmtLines) call this so they agree. (IntWrappingStep)
+    **/
+    function intStepWrapping(subj:TypedExpr, add:Bool, ?renderedTarget:String):Null<String> {
+        if (!isIntType(subj.t) || !isLocalOrFieldTarget(subj) || isGenericLocal(subj) || RustType.isTypeParam(subj.t))
+            return null;
+        final target = renderedTarget != null ? renderedTarget : expr(subj);
+        final domain = i32LocalDomain(subj) ? "i32" : types.of(subj.t);
+        return target + " = " + domain + "::" + (add ? "wrapping_add" : "wrapping_sub") + "(" + target + ", 1)";
+    }
+
     function unop(e:TypedExpr, op:Unop, post:Bool, subj:TypedExpr):String {
         final inner = expr(subj);
         switch (op) {
@@ -7309,10 +7473,10 @@ class RustExpr {
                 if (isNullType(subj.t) && isFloatType(getNullInnerType(subj.t)))
                     return "-(" + inner + ".unwrap_or(0.0))";
                 return "-" + inner;
-            case OpIncrement:
-                return post ? "({ let t = " + inner + "; " + inner + " += 1; t })" : "({ " + inner + " += 1; " + inner + " })";
-            case OpDecrement:
-                return post ? "({ let t = " + inner + "; " + inner + " -= 1; t })" : "({ " + inner + " -= 1; " + inner + " })";
+            case OpIncrement | OpDecrement:
+                final wrapping = intStepWrapping(subj, op == OpIncrement, inner);
+                final assign = wrapping != null ? wrapping : inner + (op == OpIncrement ? " += 1" : " -= 1");
+                return post ? "({ let t = " + inner + "; " + assign + "; t })" : "({ " + assign + "; " + inner + " })";
             case _:
                 return fail(e, "unary operator has no lowering: " + Std.string(op));
         }
@@ -8206,13 +8370,21 @@ class RustExpr {
         return false;
     }
 
-    /** Whether the loop body reads the receiver at the index via charAt or charCodeAt. */
+    /** Whether the loop body reads the receiver at the index via charAt,
+        charCodeAt, or a one-unit substring. The walk also descends into
+        if conditions and nested loops, because a per-character read can
+        sit in a guard or a nested scan of the same receiver. */
     function bodyReadsReceiverAtIndex(e:TypedExpr, receiverId:Int, indexId:Int):Bool {
         return switch (stripWrap(e).expr) {
             case TBlock(stmts): anyBodyRead(stmts, receiverId, indexId);
             case TCall({expr: TField(subj, fa)}, args): perCharCallRead(subj, fa, args, receiverId, indexId);
-            case TIf(_, t, f): bodyReadsReceiverAtIndex(t, receiverId, indexId)
+            case TIf(c, t, f): bodyReadsReceiverAtIndex(c, receiverId, indexId)
+                || bodyReadsReceiverAtIndex(t, receiverId, indexId)
                 || (f != null && bodyReadsReceiverAtIndex(f, receiverId, indexId));
+            case TWhile(c, b, _): bodyReadsReceiverAtIndex(c, receiverId, indexId)
+                || bodyReadsReceiverAtIndex(b, receiverId, indexId);
+            case TFor(_, it, b): bodyReadsReceiverAtIndex(it, receiverId, indexId)
+                || bodyReadsReceiverAtIndex(b, receiverId, indexId);
             case TVar(_, init): init != null && bodyReadsReceiverAtIndex(init, receiverId, indexId);
             case TBinop(_, l, r): bodyReadsReceiverAtIndex(l, receiverId, indexId)
                 || bodyReadsReceiverAtIndex(r, receiverId, indexId);
@@ -8236,7 +8408,8 @@ class RustExpr {
         if (args.length < 1)
             return false;
         final name = fieldName(fa);
-        if (name != "charAt" && name != "charCodeAt" && name != "char_code_at")
+        if (name != "charAt" && name != "charCodeAt" && name != "char_code_at"
+            && name != "substring" && name != "sub_string")
             return false;
         final subjId = switch (stripWrap(subj).expr) {
             case TLocal(v): v.id;
@@ -8248,7 +8421,46 @@ class RustExpr {
             case TLocal(v): v.id;
             case _: return false;
         };
-        return argId == indexId;
+        if (argId != indexId)
+            return false;
+        // A substring(receiver, i, i + 1) is the same one-unit read as
+        // charAt(i) spelled as a slice; recognize it so the loop hoists and
+        // the read lowers to the O(1) unit read. (PerCharLoopUnits)
+        if ((name == "substring" || name == "sub_string") && args.length >= 2) {
+            return switch (stripWrap(args[1]).expr) {
+                case TBinop(OpAdd, l, r): (isLocalId(l, indexId) && isIntLiteralOne(r))
+                    || (isLocalId(r, indexId) && isIntLiteralOne(l));
+                case _: false;
+            };
+        }
+        return true;
+    }
+
+    function isLocalId(e:TypedExpr, id:Int):Bool {
+        return switch (stripWrap(e).expr) {
+            case TLocal(v): v.id == id;
+            case _: false;
+        };
+    }
+
+    function isIntLiteralOne(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TConst(TInt(value)): value == 1;
+            case _: false;
+        };
+    }
+
+    /** Whether the expression is index + 1, the exclusive end of a one-unit substring. */
+    function perCharOnePast(e:TypedExpr, indexId:Int):Bool {
+        return switch (stripWrap(e).expr) {
+            case TBinop(OpAdd, l, r): isOnePastPair(l, r, indexId);
+            case _: false;
+        };
+    }
+
+    function isOnePastPair(l:TypedExpr, r:TypedExpr, indexId:Int):Bool {
+        return (isLocalId(l, indexId) && isIntLiteralOne(r))
+            || (isLocalId(r, indexId) && isIntLiteralOne(l));
     }
 
     function staticAssignmentTarget(e:TypedExpr):Null<String> {
@@ -9256,6 +9468,18 @@ class RustExpr {
                         case _: false;
                     };
                     if (!endOmitted) {
+                        // Inside a hoisted per-character loop, a one-unit
+                        // substring(receiver, i, i + 1) reads the single unit
+                        // at the walking index; lower it to the O(1) read from
+                        // the hoisted unit vector instead of rescanning the
+                        // UTF-8 source twice. (PerCharLoopUnits)
+                        final perChar = perCharLoopMatch(subj, args[0]);
+                        final startId = switch (stripWrap(args[0]).expr) {
+                            case TLocal(v): v.id;
+                            case _: -1;
+                        };
+                        if (perChar != null && perCharOnePast(args[1], startId))
+                            return "u_string::char_at_from(&" + perChar.unitsTemp + ", " + castShiftU32(args[0]) + ")";
                         return "u_string::substring(&" + expr(subj) + ", " + castSignedI32(args[0]) + ", " + castSignedI32(args[1]) + ")";
                     }
                     return "u_string::substring_from(&" + expr(subj) + ", " + castSignedI32(args[0]) + ")";
@@ -12550,6 +12774,47 @@ class RustExpr {
         return PolicyQueries.mentionsLocal(e, v);
     }
 
+    /** Whether a rendered string contains a `.lock()` call whose receiver
+        is the given identifier. A shared closure scalar or array renders
+        its guard through `name.lock().unwrap()`; the receiver is the local
+        name immediately before `.lock()`. (MutexGuardAssignmentScope) */
+    function lockReceiverIs(rendered:String, receiver:String):Bool {
+        var idx = rendered.indexOf(".lock()");
+        while (idx >= 0) {
+            if (lockReceiverAt(rendered, idx) == receiver)
+                return true;
+            idx = rendered.indexOf(".lock()", idx + 1);
+        }
+        return false;
+    }
+
+    /** The receiver identifier of the `.lock()` call ending at the given
+        offset, or null when it is not a plain identifier (for example a
+        parenthesized or chained receiver). (MutexGuardAssignmentScope) */
+    function lockReceiverAt(rendered:String, lockPos:Int):Null<String> {
+        var i = lockPos - 1;
+        while (i >= 0 && (rendered.charAt(i) == ' ' || rendered.charAt(i) == '\t'))
+            i--;
+        // A receiver wrapped in parentheses (for example `(x.lock().unwrap())
+        // .lock()`) is not a plain identifier; only a bare local name is a
+        // stable receiver text, so bail when the receiver is parenthesized.
+        if (i >= 0 && rendered.charAt(i) == ')')
+            return null;
+        var end = i + 1;
+        while (i >= 0 && isRustIdentChar(rendered.charAt(i)))
+            i--;
+        var start = i + 1;
+        if (start >= end)
+            return null;
+        return rendered.substr(start, end - start);
+    }
+
+    function isRustIdentChar(c:String):Bool {
+        final code = c.charCodeAt(0);
+        return (code >= 48 && code <= 57) || (code >= 65 && code <= 90)
+            || (code >= 97 && code <= 122) || c == "_";
+    }
+
     /** Whether the expression mentions a local with the given name. Haxe
         creates fresh TVar instances per reference, so id comparison misses
         the same source local in a different node; name comparison is stable
@@ -14422,6 +14687,123 @@ class RustExpr {
         }
         final receiverText = StringTools.startsWith(receiver, "&*") ? "(" + receiver + ")" : receiver;
         return receiverText + "[" + castArg(idx, "usize") + "]";
+    }
+
+    /**
+        arrayWriteTarget: the array, index, and element type of one Haxe
+        Array index write `arr[i] = v`, or null when the target is not a
+        Haxe Array index write. Haxe grows an Array when an index write
+        reaches past the end and fills every skipped slot with the element
+        type's default value; Rust's Vec does not, so the write needs a
+        growth guard. A Map index routes through its backing map and a
+        ReadOnlyArray exposes no setter, so neither takes the guard.
+        (ArrayGrowthOnIndexWrite)
+    **/
+    function arrayWriteTarget(l:TypedExpr):Null<{arr:TypedExpr, index:TypedExpr, element:Type}> {
+        return switch (stripWrap(l).expr) {
+            case TArray(arr, index):
+                if (StaticFieldHelper.isReadOnlyArrayType(arr.t))
+                    return null;
+                if (!isArrayType(arr.t))
+                    return null;
+                final elem = arrayElementType(arr.t);
+                if (elem == null)
+                    return null;
+                return {arr: arr, index: index, element: elem};
+            case _: null;
+        };
+    }
+
+    /**
+        arrayGrowthDefault: the Rust default a Haxe Array index write fills a
+        grown slot with, or null when the element type has no renderable
+        default. A value element type fills its zero, a nullable element type
+        fills None, a String fills the empty String. A non-nullable reference
+        element type has no null literal in Rust, so it takes no guard and
+        keeps the plain write (which cannot grow in practice).
+        (ArrayGrowthOnIndexWrite)
+    **/
+    function arrayGrowthDefault(element:Type):Null<String> {
+        if (isNullType(element))
+            return "None";
+        if (isIntType(element))
+            return "0";
+        if (isFloatType(element))
+            return FloatPrecision.isF32() ? "0.0f32" : "0.0";
+        if (isBoolType(element))
+            return "false";
+        if (isStringType(element))
+            return "String::new()";
+        return null;
+    }
+
+    /**
+        arrayGrowthGuard: the block expression of one Haxe Array index write
+        `arr[i] = v`, or null when the target is not an Array index write or
+        its element type has no renderable default. Haxe grows the Array to
+        i+1 and fills the skipped slots with the element default before the
+        write; Rust needs the explicit growth loop. The receiver renders
+        inline (an array receiver is a local, field, or unwrapped Option, all
+        stable), and the index binds to a fresh local when it is not a pure
+        read or when it reads the array itself, so the guard's length check
+        cannot observe the growth it performs. (ArrayGrowthOnIndexWrite)
+    **/
+    function arrayGrowthGuard(l:TypedExpr, rhs:String):Null<String> {
+        final target = arrayWriteTarget(l);
+        if (target == null)
+            return null;
+        final defaultValue = arrayGrowthDefault(target.element);
+        if (defaultValue == null)
+            return null;
+        final receiver = mutableArrayReceiver(target.arr);
+        final indexText = castArg(target.index, "usize");
+        final indexMentionsArray = switch (stripWrap(target.arr).expr) {
+            case TLocal(v): mentionsLocalName(target.index, v.name);
+            case _: false;
+        };
+        final bindIndex = !isPureReadExpr(target.index) || indexMentionsArray;
+        final idx = freshRegionName("__grow_idx");
+        // The receiver renders inline so the growth loop's mutable borrow
+        // ends before the assignment, letting the write's own RHS read the
+        // same array (E0502) and a mutable Vec parameter index without a
+        // mut binding (E0596). The receiver already carries the parentheses
+        // it needs from mutableArrayReceiver; the index binds to a fresh
+        // local when it is not a pure read or when it reads the array
+        // itself, so the guard's length check cannot observe the growth it
+        // performs. (ArrayGrowthOnIndexWrite)
+        if (bindIndex) {
+            return "{ let " + idx + " = " + indexText + "; while " + receiver + ".len() <= " + idx + " { "
+                + receiver + ".push(" + defaultValue + "); } " + receiver + "[" + idx + "] = " + rhs + "; }";
+        }
+        return "{ while " + receiver + ".len() <= " + indexText + " { " + receiver + ".push(" + defaultValue
+            + "); } " + receiver + "[" + indexText + "] = " + rhs + "; }";
+    }
+
+    /**
+        mutableArrayReceiver: the mutable container reference of one Haxe
+        Array index write, the receiver the growth guard pushes to and the
+        assignment indexes, without the `[idx]` suffix. Mirrors the receiver
+        half of optionContainerIndexAccess so the guard and the write target
+        the same container.
+    **/
+    function mutableArrayReceiver(arr:TypedExpr):String {
+        final receiver = expr(arr);
+        final narrowed = narrowedSubject(arr);
+        if (narrowed != null)
+            return "(" + receiver + ")";
+        final emittedReceiverType = arr.t == null ? "" : types.of(arr.t, false);
+        final emittedOptionContainer = StringTools.startsWith(emittedReceiverType, "Option<");
+        final guardedCollapse = switch (stripWrap(arr).expr) {
+            case TLocal(v): nullableCollapsedLocals.exists(v.id)
+                || hasGuardedTernaryLocals.exists(v.id);
+            case _: false;
+        };
+        final unwrapOption = !guardedCollapse
+            && (isNullType(arr.t) || receiverCarriesFallibleWrapper(arr) || emittedOptionContainer);
+        if (unwrapOption)
+            return "(" + receiver + ").as_mut().unwrap()";
+        final receiverText = StringTools.startsWith(receiver, "&*") ? "(" + receiver + ")" : receiver;
+        return receiverText;
     }
 
     /**
