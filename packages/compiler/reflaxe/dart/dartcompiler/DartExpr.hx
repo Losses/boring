@@ -1441,15 +1441,21 @@ class DartExpr {
         final m = head.length;
         if (m < 8 || head.substr(m - 8) != " == null")
             return null;
-        final name = StringTools.trim(head.substr(0, m - 8));
+        // The tested binding is the last identifier before `== null`; the
+        // head may carry a declaration or return prefix (`final c = (...)`).
+        // (BodyUnwrapPlan)
+        var nameEnd = m - 8;
+        while (nameEnd > 0 && isIdentChar(head.charAt(nameEnd - 1)))
+            nameEnd -= 1;
+        if (nameEnd >= m - 8)
+            return null;
+        final name = head.substr(nameEnd, m - 8 - nameEnd);
         if (name.length == 0 || !isIdentChar(name.charAt(0)) || Std.isOfType(name.charAt(0), Int))
             return null;
         for (k in 0...name.length) {
             if (!isIdentChar(name.charAt(k)))
                 return null;
         }
-        if (name.length > 0 && (name.charCodeAt(0) == 46))
-            return null;
         return name;
     }
 
