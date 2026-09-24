@@ -1968,14 +1968,16 @@ class DartExpr {
         // A normalized local, or one cleared by a null guard, is already
         // non-null in the generated Dart flow.
         if ((isNullLeafType(e.t) || optionalValued(e)) && !provenNonNull(e) && parent != OpEq && parent != OpNotEq) {
+            // An assertion earlier in this sequence promotes the local; a
+            // second `!` has no effect. (SequenceScopedAssertionDedup)
             // A null-guard ternary already yields a non-null value; its
             // `!` has no effect either. (ProvenNonNullCoalescingFold)
-            // An earlier `!` is NOT consulted and no promotion is recorded:
-            // speculative re-renders of this statement would let a discarded
-            // render's state suppress the `!` the committed render carries.
-            // (CrossRenderAssertionLeak)
-            if (!coalescingLeftCannotBeNull(e))
+            if (!coalescingLeftCannotBeNull(e) && !sequenceAssertionDone(e))
                 rendered += "!";
+            switch (stripWrap(e).expr) {
+                case TLocal(v): flowPromotedNonNull.set(v.id, true);
+                case _:
+            }
         }
         switch (stripWrap(e).expr) {
             case TBinop(op, _, _):
@@ -2163,14 +2165,11 @@ class DartExpr {
             // A null guard on the subject promotes it for the whole guarded
             // block; Dart reads the promoted local bare and reports a `!` on
             // it as having no effect. (GuardPromotedReceiverUnwrap)
-            // Whether an earlier `!` already asserted this local is NOT
-            // consulted: the statement re-renders speculatively in nested
-            // lowering, and a registration surviving from a discarded render
-            // would suppress the `!` the committed render must carry.
-            // (CrossRenderAssertionLeak)
             final base = expr(subj);
             return switch (stripWrap(subj).expr) {
-                case TLocal(_): base + "!";
+                // An assertion earlier in this sequence promotes the local;
+                // a second `!` has no effect. (SequenceScopedAssertionDedup)
+                case TLocal(_): sequenceAssertionDone(subj) ? base : base + "!";
                 case _: "(" + base + ")!";
             };
         }
@@ -2318,11 +2317,16 @@ class DartExpr {
         if (!nullableValue(e) || provenNonNull(e) || coalescingYieldsNonNull(e) || coalescingLeftCannotBeNull(e))
             return expr(e);
         final text = expr(e);
-        // An earlier `!` is NOT consulted: speculative re-renders of this
-        // statement register assertions whose suppression the committed
-        // render must not inherit. (CrossRenderAssertionLeak)
         return switch (stripWrap(e).expr) {
-            case TLocal(_): text + "!";
+            case TLocal(v):
+                // An assertion earlier in this sequence promotes the local;
+                // a second `!` has no effect. (SequenceScopedAssertionDedup)
+                if (sequenceAssertionDone(e))
+                    text;
+                else {
+                    flowPromotedNonNull.set(v.id, true);
+                    text + "!";
+                }
             case _: "(" + text + ")!";
         };
     }
@@ -3084,15 +3088,19 @@ class DartExpr {
                     return "String.fromCharCode(" + requiredValueText(args[0]) + ")";
                 }
                 if (module == "Std") {
-                    final s = expr(args[0]);
+                    // Only the two parse conversions reuse the operand text:
+                    // rendering it for every Std member registers flow state
+                    // for a text this call discards, and the member that
+                    // follows (Std.string) renders the operand again from the
+                    // stale state. (DiscardedRenderAssertionLeak)
                     if (fName == "parseFloat")
                         return "(() { final s = "
-                            + s
+                            + expr(args[0])
                             +
                             "; var a = 0, b = s.length; bool sp(String c) => c == ' ' || c == '\\t' || c == '\\n' || c == '\\v' || c == '\\f' || c == '\\r'; while (a < b && sp(s[a])) a++; while (b > a && sp(s[b - 1])) b--; final t = s.substring(a, b); var i = 0; if (i < t.length && (t[i] == '+' || t[i] == '-')) i++; var before = 0; while (i < t.length && t.codeUnitAt(i) >= 48 && t.codeUnitAt(i) <= 57) { i++; before++; }; var after = 0; if (i < t.length && t[i] == '.') { i++; while (i < t.length && t.codeUnitAt(i) >= 48 && t.codeUnitAt(i) <= 57) { i++; after++; } }; if (before == 0 && after == 0) return double.nan; if (i < t.length && (t[i] == 'e' || t[i] == 'E')) { i++; if (i < t.length && (t[i] == '+' || t[i] == '-')) i++; final start = i; while (i < t.length && t.codeUnitAt(i) >= 48 && t.codeUnitAt(i) <= 57) i++; if (i == start) return double.nan; }; return i == t.length ? (double.tryParse(t) ?? double.nan) : double.nan; })()";
                     if (fName == "parseInt")
                         return "(() { final s = "
-                            + s
+                            + expr(args[0])
                             +
                             "; var a = 0, b = s.length; bool sp(String c) => c == ' ' || c == '\\t' || c == '\\n' || c == '\\v' || c == '\\f' || c == '\\r'; while (a < b && sp(s[a])) a++; while (b > a && sp(s[b - 1])) b--; final t = s.substring(a, b); final neg = t.startsWith('-'); final p = (neg || t.startsWith('+')) ? 1 : 0; final d = t.substring(p); final isHex = d.startsWith('0x') || d.startsWith('0X'); final q = isHex ? d.substring(2) : d; if (q.isEmpty) return null; var i = 0; while (i < q.length && ((q.codeUnitAt(i) >= 48 && q.codeUnitAt(i) <= 57) || (isHex && ((q.codeUnitAt(i) >= 65 && q.codeUnitAt(i) <= 70) || (q.codeUnitAt(i) >= 97 && q.codeUnitAt(i) <= 102))))) i++; if (i != q.length) return null; final n = int.tryParse(isHex ? q : d, radix: isHex ? 16 : 10); if (n == null) return null; final v = neg ? -n : n; return v >= -2147483648 && v <= 2147483647 ? v : null; })()";
                     if (fName == "int") {
