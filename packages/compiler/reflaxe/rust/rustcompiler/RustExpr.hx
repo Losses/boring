@@ -1958,9 +1958,11 @@ class RustExpr {
             case TMeta(_, inner):
                 return stmtLines(inner, depth);
             case TUnop(OpIncrement, _, subj):
-                return [indent(depth) + expr(subj) + " += 1;"];
+                final wrapped = intStepWrapping(subj, true);
+                return [indent(depth) + (wrapped != null ? wrapped : expr(subj) + " += 1") + ";"];
             case TUnop(OpDecrement, _, subj):
-                return [indent(depth) + expr(subj) + " -= 1;"];
+                final wrapped = intStepWrapping(subj, false);
+                return [indent(depth) + (wrapped != null ? wrapped : expr(subj) + " -= 1") + ";"];
             case _:
                 return [indent(depth) + expr(e) + ";"];
         }
@@ -7382,6 +7384,23 @@ class RustExpr {
         }
     }
 
+    /**
+        The wrapping form of an Int step (x++ / x += 1), or null when the
+        target keeps the checked form. Haxe Int arithmetic wraps on overflow
+        (two's complement) while a checked Rust step panics in a debug build
+        once the value reaches the top of its slot; a local whose signed
+        reading is negative is stored as u32 (4294967295 for -1), so stepping
+        it must wrap. Both the expression spelling (unop) and the statement
+        spelling (stmtLines) call this so they agree. (IntWrappingStep)
+    **/
+    function intStepWrapping(subj:TypedExpr, add:Bool, ?renderedTarget:String):Null<String> {
+        if (!isIntType(subj.t) || !isLocalOrFieldTarget(subj) || isGenericLocal(subj) || RustType.isTypeParam(subj.t))
+            return null;
+        final target = renderedTarget != null ? renderedTarget : expr(subj);
+        final domain = i32LocalDomain(subj) ? "i32" : types.of(subj.t);
+        return target + " = " + domain + "::" + (add ? "wrapping_add" : "wrapping_sub") + "(" + target + ", 1)";
+    }
+
     function unop(e:TypedExpr, op:Unop, post:Bool, subj:TypedExpr):String {
         final inner = expr(subj);
         switch (op) {
@@ -7403,10 +7422,10 @@ class RustExpr {
                 if (isNullType(subj.t) && isFloatType(getNullInnerType(subj.t)))
                     return "-(" + inner + ".unwrap_or(0.0))";
                 return "-" + inner;
-            case OpIncrement:
-                return post ? "({ let t = " + inner + "; " + inner + " += 1; t })" : "({ " + inner + " += 1; " + inner + " })";
-            case OpDecrement:
-                return post ? "({ let t = " + inner + "; " + inner + " -= 1; t })" : "({ " + inner + " -= 1; " + inner + " })";
+            case OpIncrement | OpDecrement:
+                final wrapping = intStepWrapping(subj, op == OpIncrement, inner);
+                final assign = wrapping != null ? wrapping : inner + (op == OpIncrement ? " += 1" : " -= 1");
+                return post ? "({ let t = " + inner + "; " + assign + "; t })" : "({ " + assign + "; " + inner + " })";
             case _:
                 return fail(e, "unary operator has no lowering: " + Std.string(op));
         }
