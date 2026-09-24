@@ -480,6 +480,7 @@ class DartExpr {
         scanLocals(f.expr);
         scanClassValueAliasReads(f.expr);
         final result = blockLines(statementsOf(f.expr), depth);
+        cleanRedundantBangs(result);
         // A binding whose name never occurs again as a standalone identifier
         // is dead: the initializer keeps its side effects as a bare
         // expression statement and the name disappears. An occurrence only
@@ -558,6 +559,141 @@ class DartExpr {
                     return true;
             }
             i += 1;
+        }
+        return false;
+    }
+
+    /** Collects the bindings this body assigns anywhere: an assigned binding
+        loses Dart's promotion on re-assignment, so its `!`s all stay.
+        (BodyUnwrapPlan) */
+    static function collectAssignedNames(line:String, into:Map<String, Bool>):Void {
+        final n = line.length;
+        var i = 0;
+        while (i < n) {
+            if (isIdentChar(line.charAt(i)) && (i == 0 || !isIdentChar(line.charAt(i - 1)))) {
+                var end = i;
+                while (end < n && isIdentChar(line.charAt(end)))
+                    end += 1;
+                var probe = end;
+                while (probe < n && line.charAt(probe) == " ")
+                    probe += 1;
+                if (probe < n && line.charAt(probe) == "=" && (probe + 1 >= n || (line.charAt(probe + 1) != "=" && line.charAt(probe + 1) != ">")))
+                    into.set(line.substr(i, end - i), true);
+                i = end;
+            } else {
+                i += 1;
+            }
+        }
+    }
+
+    /** Drops a `!` that an earlier `!` on the same binding already made
+        redundant. Dart promotes a binding from its first successful `!`
+        through the rest of the block at the same brace depth, so later
+        same-depth `!`s on a binding that is never assigned have no effect.
+        Three restrictions keep the pass on the safe side of Dart's own
+        promotion rules: a line carrying `||` or a ternary `?` is passed
+        through verbatim (exclusive branches do not inherit each other's
+        promotions), a `!` on a `.`-chained field is kept (field promotion
+        is not reliable), and an assigned binding keeps every `!`.
+        (BodyUnwrapPlan) */
+    function cleanRedundantBangs(result:Array<String>):Void {
+        final assignedNames:Map<String, Bool> = [];
+        for (line in result)
+            collectAssignedNames(line, assignedNames);
+        final promoted:Array<Map<String, Bool>> = [new Map<String, Bool>()];
+        for (i in 0...result.length) {
+            final line = result[i];
+            final branchy = lineHasBranchOperator(line);
+            final n = line.length;
+            var out = new StringBuf();
+            var col = 0;
+            while (col < n) {
+                final c = line.charAt(col);
+                if (c == "\"" || c == "'") {
+                    final quote = c;
+                    out.add(c);
+                    col += 1;
+                    while (col < n) {
+                        out.add(line.charAt(col));
+                        if (line.charAt(col) == "\\") {
+                            if (col + 1 < n) {
+                                out.add(line.charAt(col + 1));
+                                col += 2;
+                                continue;
+                            }
+                        } else if (line.charAt(col) == quote) {
+                            col += 1;
+                            break;
+                        }
+                        col += 1;
+                    }
+                } else if (c == "{") {
+                    promoted.push(promoted[promoted.length - 1].copy());
+                    out.add(c);
+                    col += 1;
+                } else if (c == "}") {
+                    if (promoted.length > 1)
+                        promoted.pop();
+                    out.add(c);
+                    col += 1;
+                } else if (isIdentChar(c) && (col == 0 || !isIdentChar(line.charAt(col - 1)))) {
+                    var end = col;
+                    while (end < n && isIdentChar(line.charAt(end)))
+                        end += 1;
+                    final name = line.substr(col, end - col);
+                    if (end < n && line.charAt(end) == "!" && !branchy && (col == 0 || line.charAt(col - 1) != ".")) {
+                        if (!promoted[promoted.length - 1].exists(name)) {
+                            // First unwrap at this depth: keep it, it is the
+                            // one that promotes the binding.
+                            promoted[promoted.length - 1].set(name, true);
+                            out.add(name);
+                            out.add("!");
+                            col = end + 1;
+                            continue;
+                        }
+                        // A later same-depth `!` is redundant: drop it.
+                        out.add(name);
+                        col = end + 1;
+                        continue;
+                    }
+                    out.add(name);
+                    col = end;
+                } else {
+                    out.add(c);
+                    col += 1;
+                }
+            }
+            result[i] = out.toString();
+        }
+    }
+
+    /** Whether the line, string literals excluded, carries a short-circuit
+        or branch operator: promotions earned inside a `&&`/`||` arm or a
+        ternary branch do not reach the following statements, so such a line
+        neither strips nor registers. (BodyUnwrapPlan) */
+    static function lineHasBranchOperator(line:String):Bool {
+        final n = line.length;
+        var col = 0;
+        while (col < n) {
+            final c = line.charAt(col);
+            if (c == "\"" || c == "'") {
+                col += 1;
+                while (col < n) {
+                    if (line.charAt(col) == "\\") {
+                        col += 2;
+                        continue;
+                    }
+                    if (line.charAt(col) == c) {
+                        col += 1;
+                        break;
+                    }
+                    col += 1;
+                }
+            } else if (c == "?" || c == "&" || c == "|") {
+                return true;
+            } else {
+                col += 1;
+            }
         }
         return false;
     }
