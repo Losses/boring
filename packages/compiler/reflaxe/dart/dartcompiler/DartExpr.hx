@@ -717,6 +717,7 @@ class DartExpr {
             // registration dies with the string.
             // (BodyUnwrapPlan)
             final interpBangs:Map<String, Bool> = new Map<String, Bool>();
+            final negChain = negativeFieldChainHead(line);
             final n = line.length;
             var out = new StringBuf();
             var col = 0;
@@ -872,7 +873,15 @@ class DartExpr {
                         }
                     }
                     final grp2 = openCol >= 0 ? line.substr(openCol + 1, col - openCol - 1) : "";
-                    if (openCol >= 0 && (groupHasNonNullDefault(grp2) || groupIsNegativeNonNullTernary(grp2))) {
+                    // The else arm of a `<chain> == null ?` head runs with
+                    // the chain non-null: `(chain)!` on that path is dead.
+                    // (BodyUnwrapPlan)
+                    // Dart's field promotion covers private final fields:
+                    // generated privates carry the `_` prefix, so a bare
+                    // loop-variable field like `o.reason` does not qualify.
+                    // (BodyUnwrapPlan)
+                    final chainElse = negChain != null && StringTools.trim(grp2) == negChain.chain && col > negChain.colonAt && negChain.chain.lastIndexOf("_") >= 0;
+                    if (openCol >= 0 && (groupHasNonNullDefault(grp2) || groupIsNegativeNonNullTernary(grp2) || chainElse)) {
                         out.add(")");
                         col += 2;
                         continue;
@@ -1682,6 +1691,88 @@ class DartExpr {
             return false;
         final arm = StringTools.trim(group.substring(q + 1, colon));
         return arm != "null" && arm.length > 0;
+    }
+
+    /** The field-chain negative head of the line: `<chain> == null ?` —
+        the chain promotes through the arm after its else colon. Returns the
+        chain text and the else-colon column. (BodyUnwrapPlan) */
+    static function negativeFieldChainHead(line:String):Null<{chain:String, colonAt:Int}> {
+        final n = line.length;
+        var i = 0;
+        while (i < n) {
+            final c = line.charAt(i);
+            if (c == "\"" || c == "'") {
+                i += 1;
+                while (i < n) {
+                    if (line.charAt(i) == "\\") {
+                        i += 2;
+                        continue;
+                    }
+                    if (line.charAt(i) == c) {
+                        i += 1;
+                        break;
+                    }
+                    i += 1;
+                }
+            } else if (StringTools.startsWith(line.substr(i), " == null")) {
+                // The tested chain ends right before the head's leading
+                // space: walk back its ident and `.`-separated segments.
+                final chainEnd = i;
+                var s2 = chainEnd;
+                while (s2 > 0 && isIdentChar(line.charAt(s2 - 1)))
+                    s2 -= 1;
+                while (s2 > 0 && line.charAt(s2 - 1) == ".") {
+                    s2 -= 1;
+                    while (s2 > 0 && isIdentChar(line.charAt(s2 - 1)))
+                        s2 -= 1;
+                }
+                final chain = line.substr(s2, chainEnd - s2);
+                if (chain.length == 0 || !isIdentChar(chain.charAt(0)) || Std.isOfType(chain.charAt(0), Int))
+                    return null;
+                var q = i + 8;
+                while (q < n && line.charAt(q) == " ")
+                    q += 1;
+                if (q >= n || line.charAt(q) != "?")
+                    return null;
+                var d = 0;
+                var k = q + 1;
+                var colonAt = -1;
+                while (k < n) {
+                    final kc = line.charAt(k);
+                    if (kc == "\"" || kc == "'") {
+                        k += 1;
+                        while (k < n) {
+                            if (line.charAt(k) == "\\") {
+                                k += 2;
+                                continue;
+                            }
+                            if (line.charAt(k) == kc) {
+                                k += 1;
+                                break;
+                            }
+                            k += 1;
+                        }
+                    } else if (kc == "(" || kc == "[") {
+                        d += 1;
+                        k += 1;
+                    } else if (kc == ")" || kc == "]") {
+                        d -= 1;
+                        k += 1;
+                    } else if (kc == ":" && d == 0) {
+                        colonAt = k;
+                        break;
+                    } else {
+                        k += 1;
+                    }
+                }
+                if (colonAt >= 0)
+                    return {chain: chain, colonAt: colonAt};
+                return null;
+            } else {
+                i += 1;
+            }
+        }
+        return null;
     }
 
     /** Whether `needle` occurs in the line outside string literals.
