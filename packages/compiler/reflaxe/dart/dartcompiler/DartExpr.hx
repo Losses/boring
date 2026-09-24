@@ -867,7 +867,8 @@ class DartExpr {
                             j -= 1;
                         }
                     }
-                    if (openCol >= 0 && groupHasNonNullDefault(line.substr(openCol + 1, col - openCol - 1))) {
+                    final grp2 = openCol >= 0 ? line.substr(openCol + 1, col - openCol - 1) : "";
+                    if (openCol >= 0 && (groupHasNonNullDefault(grp2) || groupIsNegativeNonNullTernary(grp2))) {
                         out.add(")");
                         col += 2;
                         continue;
@@ -1597,6 +1598,86 @@ class DartExpr {
             }
         }
         return !hasIdent;
+    }
+
+    /** Whether the group is a ternary headed by a bare `x == null` test
+        whose true arm is not the null literal: both arms then yield
+        non-null values, so an outer `!` on the group asserts nothing.
+        (BodyUnwrapPlan) */
+    static function groupIsNegativeNonNullTernary(group:String):Bool {
+        final n = group.length;
+        var q = -1;
+        var col = 0;
+        while (col < n) {
+            final c = group.charAt(col);
+            if (c == "\"" || c == "'") {
+                col += 1;
+                while (col < n) {
+                    if (group.charAt(col) == "\\") {
+                        col += 2;
+                        continue;
+                    }
+                    if (group.charAt(col) == c) {
+                        col += 1;
+                        break;
+                    }
+                    col += 1;
+                }
+            } else if (c == "?") {
+                q = col;
+                break;
+            } else {
+                col += 1;
+            }
+        }
+        if (q < 0)
+            return false;
+        var head = StringTools.trim(group.substr(0, q));
+        if (StringTools.startsWith(head, "return "))
+            head = StringTools.trim(head.substr(7));
+        while (StringTools.startsWith(head, "("))
+            head = StringTools.trim(head.substr(1));
+        if (head.length < 8 || head.substr(head.length - 8) != " == null")
+            return false;
+        final nm = StringTools.trim(head.substr(0, head.length - 8));
+        if (nm.length == 0 || nm.indexOf(".") >= 0 || nm.indexOf(" ") >= 0)
+            return false;
+        // true arm must not be the null literal
+        var colon = -1;
+        var k = q + 1;
+        var pd = 0;
+        while (k < n) {
+            final kc = group.charAt(k);
+            if (kc == "\"" || kc == "'") {
+                k += 1;
+                while (k < n) {
+                    if (group.charAt(k) == "\\") {
+                        k += 2;
+                        continue;
+                    }
+                    if (group.charAt(k) == kc) {
+                        k += 1;
+                        break;
+                    }
+                    k += 1;
+                }
+            } else if (kc == "(" || kc == "[") {
+                pd += 1;
+                k += 1;
+            } else if (kc == ")" || kc == "]") {
+                pd -= 1;
+                k += 1;
+            } else if (kc == ":" && pd == 0) {
+                colon = k;
+                break;
+            } else {
+                k += 1;
+            }
+        }
+        if (colon < 0)
+            return false;
+        final arm = StringTools.trim(group.substring(q + 1, colon));
+        return arm != "null" && arm.length > 0;
     }
 
     /** Whether `needle` occurs in the line outside string literals.
