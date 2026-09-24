@@ -571,7 +571,6 @@ class SwiftExpr {
         resolveLocalFunctionThrows();
         final result = blockLines(statementsOf(f.expr), depth);
         var i2 = result.length - 1;
-        var converted = 0;
         while (i2 >= 0) {
             final line = result[i2];
             final trimmed = StringTools.ltrim(line);
@@ -587,13 +586,22 @@ class SwiftExpr {
                     var used = !validIdent;
                     var j = i2 + 1;
                     while (!used && j < result.length) {
-                        if (result[j].indexOf(name) >= 0) {
+                        // A use must stand alone: `prep` inside
+                        // `prepareWidthIndependentAnnotation` is a different
+                        // identifier, not a read of the binding.
+                        // (DeadBindingElimination)
+                        if (lineStandaloneUses(result[j], name)) {
                             // A later line that merely declares another binding
                             // of the same name (a sibling coverage block) is not
-                            // a use; any other occurrence is.
-                            // (DeadBindingElimination)
+                            // a use; any other standalone occurrence is.
                             final candidate = StringTools.ltrim(result[j]);
-                            if (!StringTools.startsWith(candidate, "let " + name))
+                            var redecl = StringTools.startsWith(candidate, "let " + name);
+                            if (redecl) {
+                                final followAt = 4 + name.length;
+                                if (followAt < candidate.length && isIdentChar(candidate.charAt(followAt)))
+                                    redecl = false;
+                            }
+                            if (!redecl)
                                 used = true;
                         }
                         j += 1;
@@ -601,16 +609,38 @@ class SwiftExpr {
                     if (!used) {
                         final indentLen = line.length - trimmed.length;
                         result[i2] = line.substr(0, indentLen) + "_ = " + StringTools.trim(rest.substr(assignAt + 2));
-                        converted += 1;
                     }
                 }
             }
             i2 -= 1;
         }
-        if (converted > 0)
-            Sys.stderr().writeString("DBE converted=" + converted + " total=" + result.length + "\n");
         currentReturnType = null;
         return result;
+    }
+
+    static function isIdentChar(c:String):Bool {
+        final code = c.charCodeAt(0);
+        return (code >= 97 && code <= 122) || (code >= 65 && code <= 90) || (code >= 48 && code <= 57) || code == 95;
+    }
+
+    /** True when `name` occurs in `line` as a standalone identifier. */
+    static function lineStandaloneUses(line:String, name:String):Bool {
+        final n = line.length;
+        final m = name.length;
+        if (m == 0 || m > n)
+            return false;
+        var i = 0;
+        while (i + m <= n) {
+            if (line.substr(i, m) == name) {
+                final beforeFree = i == 0 || !isIdentChar(line.charAt(i - 1));
+                final afterAt = i + m;
+                final afterFree = afterAt >= n || !isIdentChar(line.charAt(afterAt));
+                if (beforeFree && afterFree)
+                    return true;
+            }
+            i += 1;
+        }
+        return false;
     }
 
     /** Body lowering for a member declared on a value wrapper. */
