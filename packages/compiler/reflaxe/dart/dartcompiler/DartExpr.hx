@@ -653,7 +653,7 @@ class DartExpr {
         a conjunct does not survive the statement, a `!` on a `.`-chained
         field is kept (field promotion is not reliable), and an assigned
         binding keeps every `!`. (BodyUnwrapPlan) */
-    function cleanRedundantBangs(result:Array<String>):Void {
+    public function cleanRedundantBangs(result:Array<String>):Void {
         final assignedNames:Map<String, Bool> = [];
         for (line in result)
             collectAssignedNames(line, assignedNames);
@@ -833,6 +833,47 @@ class DartExpr {
                         out.add(ch);
                         col += 1;
                     }
+                } else if (c == ")" && col + 1 < n && line.charAt(col + 1) == "!") {
+                    // `(x ?? literal)!`: coalescing with a non-null literal
+                    // never yields null, so the outer `!` asserts nothing.
+                    // (BodyUnwrapPlan)
+                    var d = 1;
+                    var j = col - 1;
+                    var openCol = -1;
+                    while (j >= 0 && openCol < 0) {
+                        final bc = line.charAt(j);
+                        if (bc == "\"" || bc == "'") {
+                            j -= 1;
+                            while (j >= 0) {
+                                if (line.charAt(j) == "\\") {
+                                    j -= 2;
+                                    continue;
+                                }
+                                if (line.charAt(j) == bc) {
+                                    j -= 1;
+                                    break;
+                                }
+                                j -= 1;
+                            }
+                        } else if (bc == ")") {
+                            d += 1;
+                            j -= 1;
+                        } else if (bc == "(") {
+                            d -= 1;
+                            if (d == 0)
+                                openCol = j;
+                            j -= 1;
+                        } else {
+                            j -= 1;
+                        }
+                    }
+                    if (openCol >= 0 && groupHasNonNullDefault(line.substr(openCol + 1, col - openCol - 1))) {
+                        out.add(")");
+                        col += 2;
+                        continue;
+                    }
+                    out.add(c);
+                    col += 1;
                 } else if (c == "{") {
                     promoted.push(promoted[promoted.length - 1].copy());
                     for (g in guardAdds)
@@ -1364,6 +1405,50 @@ class DartExpr {
             }
         }
         return -1;
+    }
+
+    /** Whether a parenthesized group contains a top-level `??` whose right
+        side starts with a non-null literal (`<int>[]`, `""`, `0`, `true`):
+        such a group never evaluates to null. (BodyUnwrapPlan) */
+    static function groupHasNonNullDefault(group:String):Bool {
+        final n = group.length;
+        var col = 0;
+        var depth = 0;
+        while (col < n) {
+            final c = group.charAt(col);
+            if (c == "\"" || c == "'") {
+                col += 1;
+                while (col < n) {
+                    if (group.charAt(col) == "\\") {
+                        col += 2;
+                        continue;
+                    }
+                    if (group.charAt(col) == c) {
+                        col += 1;
+                        break;
+                    }
+                    col += 1;
+                }
+            } else if (c == "(" || c == "[" || c == "{") {
+                depth += 1;
+                col += 1;
+            } else if (c == ")" || c == "]" || c == "}") {
+                depth -= 1;
+                col += 1;
+            } else if (c == "?" && col + 1 < n && group.charAt(col + 1) == "?" && depth == 0) {
+                var p = col + 2;
+                while (p < n && group.charAt(p) == " ")
+                    p += 1;
+                if (p < n) {
+                    final f = group.charAt(p);
+                    return f == "<" || f == "[" || f == "{" || f == "\"" || f == "'" || (f >= "0" && f <= "9") || StringTools.startsWith(group.substr(p), "true") || StringTools.startsWith(group.substr(p), "false");
+                }
+                return false;
+            } else {
+                col += 1;
+            }
+        }
+        return false;
     }
 
     /** Whether `needle` occurs in the line outside string literals.

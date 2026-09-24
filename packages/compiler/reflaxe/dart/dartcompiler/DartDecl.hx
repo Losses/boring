@@ -974,6 +974,14 @@ class DartDecl {
             final parts = expr.constructorParts(cls, f);
             final params = constructorParamList(cls, f, parts.formalFields);
             final initializers:Array<String> = parts.fieldInits.copy();
+            // The initializer list sits on the signature line, outside the
+            // body sweep: strip its redundant unwraps the same way.
+            // (BodyUnwrapPlan)
+            for (i in 0...initializers.length) {
+                final one = [initializers[i]];
+                expr.cleanRedundantBangs(one);
+                initializers[i] = one[0];
+            }
             if (parts.superCall != null) {
                 initializers.push(parts.superCall);
             }
