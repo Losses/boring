@@ -957,7 +957,10 @@ class DartExpr {
                         final inHead2 = branchAt < 0 || end <= branchAt;
                         final inElse2 = elseName != null && name == elseName && col > elseColonAt;
                         final inTrue2 = Lambda.has(headBangs, name) || (Lambda.has(trueArmBangs, name) && armRange != null && col > armRange.q && col < armRange.c);
-                        if ((inHead2 && head.exists(name)) || (inElse2 && head.exists(name)) || inTrue2 || (!hasOrQ && scratch != null && scratch.exists(name))) {
+                        // The else arm of a negative head always runs with
+                        // the binding non-null: no block-table vouch needed.
+                        // (BodyUnwrapPlan)
+                        if ((inHead2 && head.exists(name)) || inElse2 || inTrue2 || (!hasOrQ && scratch != null && scratch.exists(name))) {
                             var k = 0;
                             var j = end + 3;
                             var stop = -1;
@@ -1289,6 +1292,11 @@ class DartExpr {
                     col += 1;
                 }
             } else if (c == "?") {
+                // `??` is a coalescing pair, not a ternary question.
+                if (col + 1 < n && line.charAt(col + 1) == "?") {
+                    col += 2;
+                    continue;
+                }
                 questions += 1;
                 if (questions == 1)
                     at = col;
@@ -1412,6 +1420,11 @@ class DartExpr {
                     col += 1;
                 }
             } else if (c == "?") {
+                // `??` is a coalescing pair, not a ternary question.
+                if (col + 1 < n && line.charAt(col + 1) == "?") {
+                    col += 2;
+                    continue;
+                }
                 questions += 1;
                 if (questions == 1)
                     questionAt = col;
@@ -1426,9 +1439,9 @@ class DartExpr {
             return null;
         final head = StringTools.trim(line.substr(0, questionAt));
         final m = head.length;
-        if (m < 11 || head.substr(m - 11) != " == null")
+        if (m < 8 || head.substr(m - 8) != " == null")
             return null;
-        final name = StringTools.trim(head.substr(0, m - 11));
+        final name = StringTools.trim(head.substr(0, m - 8));
         if (name.length == 0 || !isIdentChar(name.charAt(0)) || Std.isOfType(name.charAt(0), Int))
             return null;
         for (k in 0...name.length) {
