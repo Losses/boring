@@ -2687,7 +2687,12 @@ class DartExpr {
                 case _:
             }
         }
-        return "(" + params + ") {\n" + blockLines(bodyStmts, 1).join("\n") + "\n}";
+        // A closure body is a top-level scope of its own: its redundant
+        // unwraps and dead bindings get the same sweep a method body gets.
+        // (BodyUnwrapPlan)
+        final closureBody = blockLines(bodyStmts, 1);
+        cleanRedundantBangs(closureBody);
+        return "(" + params + ") {\n" + closureBody.join("\n") + "\n}";
     }
 
     function functionLiteralNamed(name:String, f:TFunc):String {
