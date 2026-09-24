@@ -843,6 +843,13 @@ class DartExpr {
                     if (negGuard && end + 8 <= n && line.substr(end, 8) == " == null" && (col == 0 || line.charAt(col - 1) != ".")) {
                         negAdds.push(name);
                     }
+                    if (guardHead && end + 8 <= n && line.substr(end, 8) == " == null" && (col == 0 || line.charAt(col - 1) != ".")) {
+                        // A parenthesized negative clause inside the guard
+                        // head (`a != null && (b == null || ...)`) still
+                        // proves b non-null on the block path.
+                        // (BodyUnwrapPlan)
+                        guardAdds.push(name);
+                    }
                     if (armRange != null && col < armRange.q && end + 8 <= n && line.substr(end, 8) == " != null" && (col == 0 || line.charAt(col - 1) != ".")) {
                         // `metric != null ? metric!.x : y`: the head test
                         // promotes the binding on the true arm.
@@ -1049,9 +1056,49 @@ class DartExpr {
         final t = StringTools.ltrim(line);
         if (!StringTools.startsWith(t, "if (") && !StringTools.startsWith(t, "} else if (") && !StringTools.startsWith(t, "while ("))
             return false;
-        if (lineContainsOutsideStrings(line, "||") || lineContainsOutsideStrings(line, "?"))
+        if (lineContainsOutsideStrings(line, "?"))
             return false;
-        return lineContainsOutsideStrings(line, " != null") || lineContainsOutsideStrings(line, " is ");
+        // A `||` is only tolerated inside parentheses, where its clauses
+        // form a subexpression independent of the conjunct structure.
+        if (hasTopLevelOr(line))
+            return false;
+        return lineContainsOutsideStrings(line, " != null") || lineContainsOutsideStrings(line, " is ") || lineContainsOutsideStrings(line, " == null");
+    }
+
+    /** Whether `||` appears at paren depth 1 — a genuine cross-branch
+        disjunction in the guard head. (BodyUnwrapPlan) */
+    static function hasTopLevelOr(line:String):Bool {
+        final n = line.length;
+        var col = 0;
+        var paren = 0;
+        while (col < n) {
+            final c = line.charAt(col);
+            if (c == "\"" || c == "'") {
+                col += 1;
+                while (col < n) {
+                    if (line.charAt(col) == "\\") {
+                        col += 2;
+                        continue;
+                    }
+                    if (line.charAt(col) == c) {
+                        col += 1;
+                        break;
+                    }
+                    col += 1;
+                }
+            } else if (c == "(" || c == "[") {
+                paren += 1;
+                col += 1;
+            } else if (c == ")" || c == "]") {
+                paren -= 1;
+                col += 1;
+            } else if (c == "|" && paren == 1 && col + 1 < n && line.charAt(col + 1) == "|") {
+                return true;
+            } else {
+                col += 1;
+            }
+        }
+        return false;
     }
 
     /** Whether the line is a negative null guard: `if (a == null || b == null) {`
