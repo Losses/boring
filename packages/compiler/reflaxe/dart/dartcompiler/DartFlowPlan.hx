@@ -79,9 +79,23 @@ class DartFlowPlan {
                 if (f != null) {
                     // An else arm exists: both paths reconverge, so a
                     // promotion earned only on the true path does not
-                    // survive past the branches. A negative head works the
-                    // other way: its names promote only past the else.
-                    visit(f, promoted);
+                    // survive past the branches. The negative head's names
+                    // promote inside the else arm — and if the true arm is
+                    // itself non-null, the ternary's own value is non-null
+                    // too, which strips an outer `!` on the whole group.
+                    // (BodyUnwrapPlan)
+                    final elseP = promoted.copy();
+                    for (v in negs)
+                        elseP.set(v.id, true);
+                    visit(f, elseP);
+                    if (negs.length > 0 && !nullableValue(t)) {
+                        final key = posKey(e);
+                        if (key >= 0) {
+                            final own = promotedAt.exists(key) ? promotedAt.get(key) : promoted;
+                            for (v in negs)
+                                own.set(v.id, true);
+                        }
+                    }
                 } else {
                     for (v in negs)
                         if (blockAlwaysExits(t))
@@ -209,6 +223,22 @@ class DartFlowPlan {
 
     static function posKey(e:TypedExpr):Int {
         return e.pos == null ? -1 : Context.getPosInfos(e.pos).min;
+    }
+
+    /** Local conservative nullability: a null literal, a nullable local, or
+        a nullable field access. An opaque non-null-typed expression (a
+        constructor call) counts as non-null, which is type-faithful: a
+        non-null Haxe type lowers to a non-null Dart return type.
+        (BodyUnwrapPlan) */
+    static function nullableValue(t:TypedExpr):Bool {
+        return switch (strip(t).expr) {
+            case TConst(TNull): true;
+            case TLocal(v): PolicyQueries.isNullableType(v.t);
+            case TField(_, FInstance(_, _, cf)): PolicyQueries.isNullableType(cf.get().type);
+            case TField(_, FAnon(cf)): PolicyQueries.isNullableType(cf.get().type);
+            case _:
+                false;
+        };
     }
 
     static function strip(e:TypedExpr):TypedExpr {
