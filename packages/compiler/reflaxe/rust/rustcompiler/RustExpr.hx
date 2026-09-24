@@ -8370,13 +8370,21 @@ class RustExpr {
         return false;
     }
 
-    /** Whether the loop body reads the receiver at the index via charAt or charCodeAt. */
+    /** Whether the loop body reads the receiver at the index via charAt,
+        charCodeAt, or a one-unit substring. The walk also descends into
+        if conditions and nested loops, because a per-character read can
+        sit in a guard or a nested scan of the same receiver. */
     function bodyReadsReceiverAtIndex(e:TypedExpr, receiverId:Int, indexId:Int):Bool {
         return switch (stripWrap(e).expr) {
             case TBlock(stmts): anyBodyRead(stmts, receiverId, indexId);
             case TCall({expr: TField(subj, fa)}, args): perCharCallRead(subj, fa, args, receiverId, indexId);
-            case TIf(_, t, f): bodyReadsReceiverAtIndex(t, receiverId, indexId)
+            case TIf(c, t, f): bodyReadsReceiverAtIndex(c, receiverId, indexId)
+                || bodyReadsReceiverAtIndex(t, receiverId, indexId)
                 || (f != null && bodyReadsReceiverAtIndex(f, receiverId, indexId));
+            case TWhile(c, b, _): bodyReadsReceiverAtIndex(c, receiverId, indexId)
+                || bodyReadsReceiverAtIndex(b, receiverId, indexId);
+            case TFor(_, it, b): bodyReadsReceiverAtIndex(it, receiverId, indexId)
+                || bodyReadsReceiverAtIndex(b, receiverId, indexId);
             case TVar(_, init): init != null && bodyReadsReceiverAtIndex(init, receiverId, indexId);
             case TBinop(_, l, r): bodyReadsReceiverAtIndex(l, receiverId, indexId)
                 || bodyReadsReceiverAtIndex(r, receiverId, indexId);
@@ -8400,7 +8408,8 @@ class RustExpr {
         if (args.length < 1)
             return false;
         final name = fieldName(fa);
-        if (name != "charAt" && name != "charCodeAt" && name != "char_code_at")
+        if (name != "charAt" && name != "charCodeAt" && name != "char_code_at"
+            && name != "substring" && name != "sub_string")
             return false;
         final subjId = switch (stripWrap(subj).expr) {
             case TLocal(v): v.id;
@@ -8412,7 +8421,46 @@ class RustExpr {
             case TLocal(v): v.id;
             case _: return false;
         };
-        return argId == indexId;
+        if (argId != indexId)
+            return false;
+        // A substring(receiver, i, i + 1) is the same one-unit read as
+        // charAt(i) spelled as a slice; recognize it so the loop hoists and
+        // the read lowers to the O(1) unit read. (PerCharLoopUnits)
+        if ((name == "substring" || name == "sub_string") && args.length >= 2) {
+            return switch (stripWrap(args[1]).expr) {
+                case TBinop(OpAdd, l, r): (isLocalId(l, indexId) && isIntLiteralOne(r))
+                    || (isLocalId(r, indexId) && isIntLiteralOne(l));
+                case _: false;
+            };
+        }
+        return true;
+    }
+
+    function isLocalId(e:TypedExpr, id:Int):Bool {
+        return switch (stripWrap(e).expr) {
+            case TLocal(v): v.id == id;
+            case _: false;
+        };
+    }
+
+    function isIntLiteralOne(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TConst(TInt(value)): value == 1;
+            case _: false;
+        };
+    }
+
+    /** Whether the expression is index + 1, the exclusive end of a one-unit substring. */
+    function perCharOnePast(e:TypedExpr, indexId:Int):Bool {
+        return switch (stripWrap(e).expr) {
+            case TBinop(OpAdd, l, r): isOnePastPair(l, r, indexId);
+            case _: false;
+        };
+    }
+
+    function isOnePastPair(l:TypedExpr, r:TypedExpr, indexId:Int):Bool {
+        return (isLocalId(l, indexId) && isIntLiteralOne(r))
+            || (isLocalId(r, indexId) && isIntLiteralOne(l));
     }
 
     function staticAssignmentTarget(e:TypedExpr):Null<String> {
@@ -9420,6 +9468,18 @@ class RustExpr {
                         case _: false;
                     };
                     if (!endOmitted) {
+                        // Inside a hoisted per-character loop, a one-unit
+                        // substring(receiver, i, i + 1) reads the single unit
+                        // at the walking index; lower it to the O(1) read from
+                        // the hoisted unit vector instead of rescanning the
+                        // UTF-8 source twice. (PerCharLoopUnits)
+                        final perChar = perCharLoopMatch(subj, args[0]);
+                        final startId = switch (stripWrap(args[0]).expr) {
+                            case TLocal(v): v.id;
+                            case _: -1;
+                        };
+                        if (perChar != null && perCharOnePast(args[1], startId))
+                            return "u_string::char_at_from(&" + perChar.unitsTemp + ", " + castShiftU32(args[0]) + ")";
                         return "u_string::substring(&" + expr(subj) + ", " + castSignedI32(args[0]) + ", " + castSignedI32(args[1]) + ")";
                     }
                     return "u_string::substring_from(&" + expr(subj) + ", " + castSignedI32(args[0]) + ")";
