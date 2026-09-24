@@ -209,8 +209,10 @@ class RustExpr {
     // local whose UTF-16 units were hoisted into a Vec before the loop and
     // the index local that walks it; per-char reads of that receiver at
     // that index lower against the vector instead of rescanning the UTF-8
-    // string. (PerCharLoopUnits)
-    final perCharLoopUnits:Array<{ indexLocalId:Int, receiverLocalId:Int, unitsTemp:String }> = [];
+    // string. indexOffset is the constant added to the walking index to get
+    // the read index (0 for a forward walk, -1 for a reverse walk that reads
+    // at i-1). (PerCharLoopUnits)
+    final perCharLoopUnits:Array<{ indexLocalId:Int, receiverLocalId:Int, unitsTemp:String, indexOffset:Int }> = [];
     // Locals whose declaration initializer is provably dead (overwritten
     // by a later store before any read): the declaration demotes to a
     // typed binding and the later store initializes it.
@@ -8271,22 +8273,45 @@ class RustExpr {
         units and the unit count are computed once before the loop and the
         per-char reads lower against that vector. (PerCharLoopUnits)
     **/
-    function perCharLoopInfo(c:TypedExpr, b:TypedExpr):Null<{indexLocalId:Int, receiverLocalId:Int, unitsTemp:String, countTemp:String, countCall:String, receiverText:String}> {
+    function perCharLoopInfo(c:TypedExpr, b:TypedExpr):Null<{indexLocalId:Int, receiverLocalId:Int, unitsTemp:String, countTemp:String, countCall:String, receiverText:String, indexOffset:Int}> {
+        // Forward walk: `i < receiver.length` (or mirrored), the index
+        // increments, and the body reads the receiver at the walking index
+        // itself (offset 0). The receiver is named by the condition.
         final pair = perCharLoopCondition(c);
-        if (pair == null || pair.receiver == null || pair.indexId == null)
+        if (pair != null && pair.receiver != null && pair.indexId != null) {
+            final recv = pair.receiver;
+            final indexId = pair.indexId;
+            // Hoisting a snapshot of the receiver is only sound when the loop
+            // never reassigns it: a write would change the units mid-walk.
+            if (writesLocal(b, recv.id))
+                return null;
+            // The index must advance so the walk terminates and stays in range.
+            if (!incrementsLocal(b, indexId))
+                return null;
+            // Only hoist when the body genuinely reads the receiver at the index.
+            if (!bodyReadsReceiverAtIndex(b, recv.id, indexId))
+                return null;
+            return buildPerCharInfo(indexId, recv, 0);
+        }
+        // Reverse walk: `i > 0` (or `>= 0`), the index decrements, and the
+        // body reads the receiver one unit below the walking index (`i - 1`,
+        // a negative offset). The receiver is not named by the condition, so
+        // it is recovered from the body read. (PerCharLoopUnits)
+        final revIndex = perCharReverseCondition(c);
+        if (revIndex == null)
             return null;
-        final recv = pair.receiver;
-        final indexId = pair.indexId;
-        // Hoisting a snapshot of the receiver is only sound when the loop
-        // never reassigns it: a write would change the units mid-walk.
-        if (writesLocal(b, recv.id))
+        if (!decrementsLocal(b, revIndex))
             return null;
-        // The index must advance so the walk terminates and stays in range.
-        if (!incrementsLocal(b, indexId))
+        final found = findPerCharReceiver(b, revIndex);
+        if (found == null || found.offset >= 0)
             return null;
-        // Only hoist when the body genuinely reads the receiver at the index.
-        if (!bodyReadsReceiverAtIndex(b, recv.id, indexId))
+        if (writesLocal(b, found.receiver.id))
             return null;
+        return buildPerCharInfo(revIndex, found.receiver, found.offset);
+    }
+
+    /** Build the hoisting plan shared by the forward and reverse walks. */
+    function buildPerCharInfo(indexId:Int, recv:TVar, offset:Int):Null<{indexLocalId:Int, receiverLocalId:Int, unitsTemp:String, countTemp:String, countCall:String, receiverText:String, indexOffset:Int}> {
         final receiverText = RustImports.toSnakeCase(localName(recv));
         state.shimsUsed.set("std.UStringRT", true);
         imports.require("crate::runtime::u_string");
@@ -8299,6 +8324,169 @@ class RustExpr {
             countTemp: countTemp,
             countCall: "u_string::unit_count(&(" + receiverText + "))",
             receiverText: receiverText,
+            indexOffset: offset,
+        };
+    }
+
+    /**
+        perCharReverseCondition: pull the walking index local out of a
+        `i > 0` / `i >= 0` (or mirrored) condition that bounds the index
+        below by a literal zero. Returns the index local id, or null.
+        (PerCharLoopUnits)
+    **/
+    function perCharReverseCondition(c:TypedExpr):Null<Int> {
+        return switch (stripWrap(c).expr) {
+            case TBinop(OpGt, l, r): reverseBoundLocal(l, r);
+            case TBinop(OpGte, l, r): reverseBoundLocal(l, r);
+            case TBinop(OpLt, l, r): reverseBoundLocal(r, l);
+            case TBinop(OpLte, l, r): reverseBoundLocal(r, l);
+            case _: null;
+        };
+    }
+
+    /** The local on the index side when the other side is a literal zero. */
+    function reverseBoundLocal(indexSide:TypedExpr, boundSide:TypedExpr):Null<Int> {
+        if (!isZeroLiteral(boundSide))
+            return null;
+        return switch (stripWrap(indexSide).expr) {
+            case TLocal(v): v.id;
+            case _: null;
+        };
+    }
+
+    function isZeroLiteral(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TConst(TInt(value)): value == 0;
+            case _: false;
+        };
+    }
+
+    /** Whether the loop body decrements the walking index (`i -= 1` / `i--`). */
+    function decrementsLocal(e:TypedExpr, localId:Int):Bool {
+        return switch (stripWrap(e).expr) {
+            case TBlock(stmts): anyDecrements(stmts, localId);
+            case TUnop(OpDecrement, _, subj): targetMentions(subj, localId);
+            case TBinop(OpAssignOp(OpSub), t, _): targetMentions(t, localId);
+            case TIf(_, t, f): decrementsLocal(t, localId) || (f != null && decrementsLocal(f, localId));
+            case _: false;
+        };
+    }
+
+    function anyDecrements(stmts:Array<TypedExpr>, localId:Int):Bool {
+        for (s in stmts) {
+            if (decrementsLocal(s, localId))
+                return true;
+        }
+        return false;
+    }
+
+    /**
+        findPerCharReceiver: scan the loop body for a per-char read of a
+        local receiver at `indexId + offset` (charAt / charCodeAt, or a
+        one-unit substring). Returns the receiver local and the offset, or
+        null when no such read exists. (PerCharLoopUnits)
+    **/
+    function findPerCharReceiver(e:TypedExpr, indexId:Int):Null<{receiver:TVar, offset:Int}> {
+        return switch (stripWrap(e).expr) {
+            case TBlock(stmts): findPerCharReceiverStmts(stmts, indexId);
+            case TCall({expr: TField(subj, fa)}, args): perCharReceiverCall(subj, fa, args, indexId);
+            case TIf(c, t, f):
+                final inCond = findPerCharReceiver(c, indexId);
+                if (inCond != null) return inCond;
+                final inTrue = findPerCharReceiver(t, indexId);
+                if (inTrue != null) return inTrue;
+                return f != null ? findPerCharReceiver(f, indexId) : null;
+            case TWhile(cc, bb, _):
+                final inC = findPerCharReceiver(cc, indexId);
+                return inC != null ? inC : findPerCharReceiver(bb, indexId);
+            case TFor(_, it, bb):
+                final inIt = findPerCharReceiver(it, indexId);
+                return inIt != null ? inIt : findPerCharReceiver(bb, indexId);
+            case TVar(_, init): init != null ? findPerCharReceiver(init, indexId) : null;
+            case TBinop(_, l, r):
+                final inL = findPerCharReceiver(l, indexId);
+                return inL != null ? inL : findPerCharReceiver(r, indexId);
+            case TUnop(_, _, subj): findPerCharReceiver(subj, indexId);
+            case TArray(arr, idx):
+                final inArr = findPerCharReceiver(arr, indexId);
+                return inArr != null ? inArr : findPerCharReceiver(idx, indexId);
+            case TField(subj, _): findPerCharReceiver(subj, indexId);
+            case _: null;
+        };
+    }
+
+    function findPerCharReceiverStmts(stmts:Array<TypedExpr>, indexId:Int):Null<{receiver:TVar, offset:Int}> {
+        for (s in stmts) {
+            final found = findPerCharReceiver(s, indexId);
+            if (found != null)
+                return found;
+        }
+        return null;
+    }
+
+    /** A per-char read of a local receiver at `indexId + offset`. */
+    function perCharReceiverCall(subj:TypedExpr, fa:FieldAccess, args:Array<TypedExpr>, indexId:Int):Null<{receiver:TVar, offset:Int}> {
+        if (args.length < 1)
+            return null;
+        final name = fieldName(fa);
+        if (name != "charAt" && name != "charCodeAt" && name != "char_code_at"
+            && name != "substring" && name != "sub_string")
+            return null;
+        final receiver = switch (stripWrap(subj).expr) {
+            case TLocal(v): v;
+            case _: return null;
+        };
+        final offset = perCharReadOffset(args[0], indexId);
+        if (offset == null)
+            return null;
+        // A one-unit substring(receiver, k, k + 1) reads the single unit at
+        // k; the exclusive end must be one past the start. The end is built
+        // from the same start expression, so reference equality on the
+        // operand identifies the one-past shape.
+        if ((name == "substring" || name == "sub_string") && args.length >= 2) {
+            if (!isOnePastOf(args[1], args[0]))
+                return null;
+        }
+        return {receiver: receiver, offset: offset};
+    }
+
+    /** Whether `endExpr` is `startExpr + 1` (the exclusive end of a one-unit read). */
+    function isOnePastOf(endExpr:TypedExpr, startExpr:TypedExpr):Bool {
+        return switch (stripWrap(endExpr).expr) {
+            case TBinop(OpAdd, l, r):
+                (isIntLiteralOne(r) && (l == startExpr || stripWrap(l) == stripWrap(startExpr)))
+                    || (isIntLiteralOne(l) && (r == startExpr || stripWrap(r) == stripWrap(startExpr)));
+            case _: false;
+        };
+    }
+
+    /**
+        perCharReadOffset: the constant offset such that the read index
+        expression equals `indexId + offset`, or null when the expression is
+        not a simple linear form of the index local. (PerCharLoopUnits)
+    **/
+    function perCharReadOffset(e:TypedExpr, indexId:Int):Null<Int> {
+        return switch (stripWrap(e).expr) {
+            case TLocal(v) if (v.id == indexId): 0;
+            case TBinop(OpAdd, l, r):
+                if (isLocalId(l, indexId)) return intConstantValue(r);
+                if (isLocalId(r, indexId)) return intConstantValue(l);
+                null;
+            case TBinop(OpSub, l, r):
+                if (isLocalId(l, indexId)) {
+                    final c = intConstantValue(r);
+                    return c == null ? null : -c;
+                }
+                null;
+            case _: null;
+        };
+    }
+
+    /** The literal Int value of an expression, or null when not a constant. */
+    function intConstantValue(e:TypedExpr):Null<Int> {
+        return switch (stripWrap(e).expr) {
+            case TConst(TInt(value)): value;
+            case _: null;
         };
     }
 
@@ -8340,12 +8528,16 @@ class RustExpr {
             case TLocal(v): v.id;
             case _: return null;
         };
-        final indexId = switch (stripWrap(indexArg).expr) {
-            case TLocal(v): v.id;
-            case _: return null;
-        };
+        // The read index is a linear form of the walking index: `i` (offset
+        // 0) for a forward walk or `i - 1` (offset -1) for a reverse walk.
+        // Match the entry whose receiver and walking index line up with the
+        // same offset, so a read at `i` never binds to a reverse-walk entry
+        // (which reads at `i - 1`) and vice versa. (PerCharLoopUnits)
         for (entry in perCharLoopUnits) {
-            if (entry.receiverLocalId == subjId && entry.indexLocalId == indexId)
+            if (entry.receiverLocalId != subjId)
+                continue;
+            final offset = perCharReadOffset(indexArg, entry.indexLocalId);
+            if (offset != null && offset == entry.indexOffset)
                 return {unitsTemp: entry.unitsTemp};
         }
         return null;
