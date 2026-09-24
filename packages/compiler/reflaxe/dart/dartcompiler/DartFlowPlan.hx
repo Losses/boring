@@ -71,6 +71,7 @@ class DartFlowPlan {
             case TIf(c, t, f):
                 final adds = headPromotions(c);
                 final negs = headNegations(c);
+
                 final inner = promoted.copy();
                 for (v in adds)
                     inner.set(v.id, true);
@@ -134,6 +135,9 @@ class DartFlowPlan {
                 visit(body, promoted);
                 for (ct in catches)
                     visit(ct.expr, promoted);
+            case TReturn(e2):
+                if (e2 != null)
+                    visit(e2, promoted);
             case TVar(v, init) if (init != null):
                 visit(init, promoted);
                 if (nonNullLiteral(init))
@@ -149,7 +153,7 @@ class DartFlowPlan {
         final out:Array<TVar> = [];
         final stack:Array<TypedExpr> = [c];
         while (stack.length > 0) {
-            final e = strip(stack.pop());
+            final e = strip(castStrip(stack.pop()));
             switch (e.expr) {
                 case TBinop(OpNotEq, {expr: TLocal(v)}, {expr: TConst(TNull)}) | TBinop(OpNotEq, {expr: TConst(TNull)}, {expr: TLocal(v)}):
                     out.push(v);
@@ -174,7 +178,7 @@ class DartFlowPlan {
         final out:Array<TVar> = [];
         final stack:Array<TypedExpr> = [c];
         while (stack.length > 0) {
-            final e = strip(stack.pop());
+            final e = strip(castStrip(stack.pop()));
             switch (e.expr) {
                 case TBinop(OpEq, {expr: TLocal(v)}, {expr: TConst(TNull)}) | TBinop(OpEq, {expr: TConst(TNull)}, {expr: TLocal(v)}):
                     out.push(v);
@@ -218,6 +222,15 @@ class DartFlowPlan {
             case TConst(_): true;
             case TArrayDecl(_) | TObjectDecl(_): true;
             case _: false;
+        };
+    }
+
+    /** Removes an implicit unification cast (`TCast(e, null)`) so null
+        tests on cast-wrapped locals still match. (BodyUnwrapPlan) */
+    static function castStrip(e:TypedExpr):TypedExpr {
+        return switch (e.expr) {
+            case TCast(inner, null): castStrip(inner);
+            case _: e;
         };
     }
 
