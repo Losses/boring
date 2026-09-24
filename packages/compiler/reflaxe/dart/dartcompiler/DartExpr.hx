@@ -618,6 +618,10 @@ class DartExpr {
             final negAdds:Array<String> = [];
             final elseName = ternaryElseName(line);
             final elseColonAt = elseName != null ? colonAtOutsideStrings(line) : -1;
+            // Names unwrapped in the unconditional head segment: their
+            // promotion reaches every branch of the line.
+            // (BodyUnwrapPlan)
+            final headBangs:Array<String> = [];
             final n = line.length;
             var out = new StringBuf();
             var col = 0;
@@ -682,11 +686,19 @@ class DartExpr {
                             final table = promoted[promoted.length - 1];
                             if (!table.exists(name)) {
                                 table.set(name, true);
+                                headBangs.push(name);
                                 out.add(name);
                                 out.add("!");
                                 col = end + 1;
                                 continue;
                             }
+                            out.add(name);
+                            col = end + 1;
+                            continue;
+                        } else if (Lambda.has(headBangs, name)) {
+                            // The head segment ran unconditionally, so its
+                            // unwrap promotes the binding through every
+                            // branch. (BodyUnwrapPlan)
                             out.add(name);
                             col = end + 1;
                             continue;
