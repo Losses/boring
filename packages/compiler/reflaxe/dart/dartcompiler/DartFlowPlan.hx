@@ -110,6 +110,16 @@ class DartFlowPlan {
                 visit(o, promoted);
             case TParenthesis(p) | TMeta(_, p):
                 visit(p, promoted);
+            case TSwitch(subj, cases, def):
+                visit(subj, promoted);
+                for (cs in cases)
+                    visit(cs.expr, promoted);
+                if (def != null)
+                    visit(def, promoted);
+            case TTry(body, catches):
+                visit(body, promoted);
+                for (ct in catches)
+                    visit(ct.expr, promoted);
             case TVar(v, init) if (init != null):
                 visit(init, promoted);
                 if (nonNullLiteral(init))
