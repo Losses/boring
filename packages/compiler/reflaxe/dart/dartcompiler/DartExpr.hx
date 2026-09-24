@@ -110,6 +110,24 @@ class DartExpr {
     // (SequenceScopedAssertionDedup)
     final assertedSequence:Map<Int, Bool> = [];
 
+    // Statement-level promotion plan of the body being rendered: which
+    // nullable locals Dart promotes at each statement, derived from the
+    // typed AST before rendering. (BodyUnwrapPlan)
+    var flowPlan:Null<DartFlowPlan> = null;
+    var currentStmtKey:Int = -1;
+
+    /** Whether the flow plan vouches this local non-null at the statement
+        currently rendering. (BodyUnwrapPlan) */
+    function planVouches(e:TypedExpr):Bool {
+        if (flowPlan == null || currentStmtKey < 0)
+            return false;
+        final v = switch (stripWrap(e).expr) {
+            case TLocal(v): v;
+            case _: null;
+        };
+        return v != null && flowPlan.promotesAt(currentStmtKey, v.id);
+    }
+
     // Locals that bind a null literal somewhere (a declaration initializer
     // or an assignment). A declared-non-null local holding null makes its
     // null comparisons real null checks.
@@ -479,6 +497,7 @@ class DartExpr {
 
         scanLocals(f.expr);
         scanClassValueAliasReads(f.expr);
+        flowPlan = DartFlowPlan.build(f.expr);
         final result = blockLines(statementsOf(f.expr), depth);
         cleanRedundantBangs(result);
         // A binding whose name never occurs again as a standalone identifier
@@ -2108,6 +2127,9 @@ class DartExpr {
         final out:Array<String> = [];
         var i = 0;
         while (i < stmts.length) {
+            // The plan query reads the statement about to render.
+            // (BodyUnwrapPlan)
+            setStmtKey(stmts[i]);
             // Statements after one that ends control are unreachable text
             // the analyzer rejects, so emission stops at the terminator.
             if (TerminationAnalysis.alwaysTerminates(stmts[i])) {
@@ -2134,6 +2156,12 @@ class DartExpr {
             i += 1;
         }
         return out;
+    }
+
+    /** The statement whose promotion plan the rendering reads.
+        (BodyUnwrapPlan) */
+    inline function setStmtKey(s:TypedExpr):Void {
+        currentStmtKey = s.pos != null ? Context.getPosInfos(s.pos).min : currentStmtKey;
     }
 
     // ------------------------------------------------------------------
@@ -5757,6 +5785,11 @@ class DartExpr {
     }
 
     function provenNonNull(e:TypedExpr):Bool {
+        // A statement-plan vouch counts as proven: it derives from the
+        // typed AST's own flow, independent of render passes.
+        // (BodyUnwrapPlan)
+        if (planVouches(e))
+            return true;
         return switch (stripWrap(e).expr) {
             case TLocal(v): nonNullLocals.exists(v.id);
             case _: false;
