@@ -3271,28 +3271,33 @@ class RustExpr {
                 } else {
                     itemName;
                 };
-                if (referenceSubject)
-                    borrowedLoopVarIds.set(itemVar.id, true);
+                // A shared closure array iterates through its lock guard:
+                // a leading & would borrow the MutexGuard itself, which is
+                // not an iterator. (SharedClosureArrays)
+                final sharedSubject = subjectLocalId >= 0
+                    && (sharedClosureArrays.exists(subjectLocalId) || sharedClosureScalars.exists(subjectLocalId));
+                // A shared closure array is iterated by index, re-reading the
+                // length every step, so elements appended inside the loop body
+                // are seen by later steps (matching Haxe's `for (x in arr)`,
+                // which re-checks arr.length each step). Each guard is dropped
+                // at the end of its own statement, so a body that locks the
+                // same mutex again does not self-deadlock. The item is bound as
+                // an owned value, so it is never a borrowed loop reference.
+                // (LoopGuardScope)
+                if (sharedSubject) {
+                    // item is owned; do not mark it borrowed
+                } else {
+                    if (referenceSubject)
+                        borrowedLoopVarIds.set(itemVar.id, true);
+                }
                 // An owned parameter (argType without a & prefix) is an owned
                 // Vec value, so iterating it must borrow the subject the same way as
                 // an owned local. Borrowed parameters are already &Vec views.
                 final ownedParameter = paramVarIds.exists(subjectLocalId) && argType != null && !StringTools.startsWith(argType, "&");
                 final nonScalarOwnedLocal = captureCloneSubject
                     || (!isScalar && !referenceSubject && (!paramVarIds.exists(subjectLocalId) || ownedParameter));
-                if (nonScalarOwnedLocal)
+                if (nonScalarOwnedLocal && !sharedSubject)
                     borrowedLoopVarIds.set(itemVar.id, true);
-                // A shared closure array iterates through its lock guard:
-                // a leading & would borrow the MutexGuard itself, which is
-                // not an iterator. (SharedClosureArrays)
-                final sharedSubject = subjectLocalId >= 0
-                    && (sharedClosureArrays.exists(subjectLocalId) || sharedClosureScalars.exists(subjectLocalId));
-                // A shared closure array iterates through a clone of its
-                // contents: iterating the guard directly (`arr.lock().unwrap()
-                // .iter()`) holds the MutexGuard for the whole loop, and the
-                // iterator borrows the Vec through that guard, so the guard
-                // cannot be dropped before the loop. Cloning the Vec into a
-                // local releases the guard immediately and iterates the
-                // owned snapshot. (LoopGuardScope)
                 final loopVecName = sharedSubject ? freshRegionName("__loop_vec") : null;
                 final iterated = sharedSubject ? loopVecName + ".iter()"
                     : (ownedLocal || nonScalarOwnedLocal) ? "&" + expr(sliceSubj) : expr(sliceSubj);
@@ -3305,6 +3310,36 @@ class RustExpr {
                 }
                 final remainingBody = loop.body.slice(1);
                 final gb = matchGroupByBody(remainingBody);
+                // The loop opening and closing lines. A shared closure array
+                // iterates by index, re-reading the length each step so a body
+                // that appends to the array is seen by later steps, while each
+                // guard is dropped at the end of its own statement. Every other
+                // subject keeps the plain for-in form. (LoopGuardScope)
+                final loopOpen:Array<String> = [];
+                final loopClose:Array<String> = [];
+                if (sharedSubject) {
+                    final iName = freshRegionName("__loop_i");
+                    final lenName = freshRegionName("__loop_len");
+                    final subjText = expr(sliceSubj);
+                    // expr(sliceSubj) already renders the guard through
+                    // .lock().unwrap() for a shared closure array, so the index
+                    // and length reads build on that text directly; each guard
+                    // drops at the end of its own statement.
+                    final idxAccess = subjText + "[" + "usize::try_from(" + iName + ").unwrap_or(0)" + "]";
+                    final itemBind = isScalar ? ("let " + itemName + " = " + idxAccess + ";") : ("let " + itemName + " = (" + idxAccess + ").clone();");
+                    loopOpen.push(indent(depth) + "let mut " + iName + " = 0u32;");
+                    loopOpen.push(indent(depth) + "loop {");
+                    loopOpen.push(indent(depth + 1) + "let " + lenName + " = match u32::try_from(" + subjText + ".len()) { Ok(value) => value, Err(_) => u32::MAX };");
+                    loopOpen.push(indent(depth + 1) + "if " + iName + " >= " + lenName + " { break; }");
+                    loopOpen.push(indent(depth + 1) + itemBind);
+                    loopClose.push(indent(depth + 1) + iName + " += 1;");
+                    loopClose.push(indent(depth) + "}");
+                } else {
+                    if (loopVecName != null)
+                        loopOpen.push(indent(depth) + "let " + loopVecName + " = " + expr(sliceSubj) + ".clone();");
+                    loopOpen.push(indent(depth) + "for " + pattern + " in " + iterated + " {");
+                    loopClose.push(indent(depth) + "}");
+                }
                 if (gb != null) {
                     final entryName = RustImports.toSnakeCase(gb.entryVar.name);
                     final entryExprStr = expr(gb.entryInit);
@@ -3327,9 +3362,8 @@ class RustExpr {
                         null;
                     final valStr = renderPushArg(gb.valArg, valElementType);
                     final out:Array<String> = [];
-                    if (loopVecName != null)
-                        out.push(indent(depth) + "let " + loopVecName + " = " + expr(sliceSubj) + ".clone();");
-                    out.push(indent(depth) + "for " + pattern + " in " + iterated + " {");
+                    for (l in loopOpen)
+                        out.push(l);
                     for (l in blockLines(gb.prefix, depth + 1))
                         out.push(l);
                     out.push(indent(depth + 1) + "let " + entryName + " = " + entryExprStr + ";");
@@ -3339,17 +3373,18 @@ class RustExpr {
                     out.push(indent(depth + 1) + "};");
                     out.push(indent(depth + 1) + "pipeline_bucket.push(" + valStr + ");");
                     out.push(indent(depth + 1) + builderStr + ".put(" + kPutExpr + ", &pipeline_bucket);");
-                    out.push(indent(depth) + "}");
+                    for (l in loopClose)
+                        out.push(l);
                     return out;
                 }
 
                 final out:Array<String> = [];
-                if (loopVecName != null)
-                    out.push(indent(depth) + "let " + loopVecName + " = " + expr(sliceSubj) + ".clone();");
-                out.push(indent(depth) + "for " + pattern + " in " + iterated + " {");
+                for (l in loopOpen)
+                    out.push(l);
                 for (l in blockLines(remainingBody, depth + 1))
                     out.push(l);
-                out.push(indent(depth) + "}");
+                for (l in loopClose)
+                    out.push(l);
                 return out;
             }
         }
