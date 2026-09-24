@@ -798,6 +798,16 @@ class DartExpr {
                         final inHead = branchAt < 0 || end <= branchAt;
                         final inElseArm = elseName != null && name == elseName && col > elseColonAt;
                         final inNegElse = negTern != null && Lambda.has(negTern.names, name) && col > negTern.colonAt;
+                        // A block-table registration always comes from an
+                        // out-of-statement promotion source (a guard head or
+                        // an unconditional first segment), so its `!` is
+                        // redundant everywhere — branch arms included.
+                        // (BodyUnwrapPlan)
+                        if (promoted[promoted.length - 1].exists(name)) {
+                            out.add(name);
+                            col = end + 1;
+                            continue;
+                        }
                         if (inHead) {
                             final table = promoted[promoted.length - 1];
                             if (!table.exists(name)) {
