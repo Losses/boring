@@ -6276,8 +6276,20 @@ class RustExpr {
                 || hasGuardedTernaryLocals.exists(v.id);
             case _: false;
         };
-        if ((!isNullType(subj.t) && !isImplicitNullableLocal(subj)) || guardedCollapse)
+        if ((!isNullType(subj.t) && !isImplicitNullableLocal(subj)) || guardedCollapse) {
+            // (ElementWriteCloneLoss) A mutating method (push, insert)
+            // whose receiver is an array element must reach the element
+            // in place; a value-read clone would discard the mutation.
+            // Only TArray elements are eligible: a borrowed field
+            // behind &self would not compile without the clone.
+            if (mutable) {
+                switch (stripWrap(subj).expr) {
+                    case TArray(arr, idx): return optionContainerIndexAccess(arr, idx, false);
+                    case _:
+                }
+            }
             return expr(subj);
+        }
         final previousReceiverContext = renderingMethodReceiver;
         if (mutable) renderingMethodReceiver = true;
         final base = expr(subj);
@@ -8045,7 +8057,16 @@ class RustExpr {
                     return RustConversions.truncate(receiverText + ".len()", "u32");
                 }
                 final snake = RustImports.toSnakeCase(name);
-                final subjText = expr(subj);
+                // (ElementCloneFieldCopyRead) An array element whose
+                // field is Copy skips the element clone: the Index borrow
+                // suffices for a Copy field read, and cloning a non-Copy
+                // element for every loop iteration is O(n^2) waste.
+                final subjText = switch (stripWrap(subj).expr) {
+                    case TArray(arr, idx) if (!isTypeCopy(subj.t) && isTypeCopy(cf.get().type)):
+                        optionContainerIndexAccess(arr, idx, false);
+                    case _:
+                        expr(subj);
+                };
                 // A null guard narrows the complete field path. For example,
                 // `glyph.bounds != null` registers the whole `glyph.bounds`
                 // path as the guarded subject. When that same field is read
