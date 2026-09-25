@@ -1512,10 +1512,30 @@ class RustDecl {
             || freeForm
             || RustDecl.usesUnqualifiedCodecStaticName(cls)
             ? RustImports.toSnakeCase(f.field.name) : RustImports.toSnakeCase(RustImports.emittedTypeName(cls.name) + "_" + f.field.name);
+        final funcKey = RustEmissionState.funcKey(f.classType.module, f.field.name, f.isStatic);
+        final fallibleBlockIdx = state.fallibleBlockParams.get(funcKey);
+        final isFallible = funcIsFallible(f);
+        final errOwner = isFallible ? resolveErrorOwner(f, cls) : null;
         final args = [
             for (i in firstArg...f.args.length) {
                 final a = f.args[i];
-                var pType = types.of(a.type, true);
+                // A fallible block propagates into the try region that encloses
+                // the callee's call, so the slot names that region's error type
+                // and not the callee's own error enum. Without a known region
+                // there is no type to name, so the slot stays a plain closure.
+                final blockRegion = state.fallibleBlockRegions.get(funcKey + "#" + i);
+                if (blockRegion != null) {
+                    // The slot names an error type the file may not otherwise
+                    // mention, so the declaration imports it the way a use would.
+                    final regionModule = state.messageOnlyModuleFor(blockRegion);
+                    if (regionModule != null)
+                        imports.requireType(regionModule, blockRegion);
+                }
+                var pType = if (fallibleBlockIdx != null && fallibleBlockIdx.indexOf(i) >= 0 && isFunctionType(a.type) && blockRegion != null) {
+                    types.functionReturnOfFallible(a.type, blockRegion);
+                } else {
+                    types.of(a.type, true);
+                };
                 final mutatedArg = argIsMutated(f.expr, a.name);
                 if (mutatedArg) {
                     // A mutated borrowed array borrows mutably; a mutated
@@ -1539,8 +1559,6 @@ class RustDecl {
         };
         final rawMethodParams = collectMethodTypeParams(f, [for (p in cls.params) p.name]);
 
-        final isFallible = funcIsFallible(f);
-        final errOwner = isFallible ? resolveErrorOwner(f, cls) : null;
         if (isFallible && errOwner != null) {
             imports.requireType(errOwner.module, errOwner.name);
         }

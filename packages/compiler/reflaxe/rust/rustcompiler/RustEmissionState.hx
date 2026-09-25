@@ -100,6 +100,51 @@ class RustEmissionState {
 
     public final emittedSyntheticErrorModules:Map<String, Bool> = [];
 
+    /**
+        Fallible-block parameters: for each fallible function (keyed by
+        funcKey), the parameter indices whose `() -> Void` slot receives a
+        function literal whose body contains a discarded fallible call. Such
+        parameters render as `Arc<dyn Fn() -> Result<(), E>>` and their call
+        sites propagate with `?`. Computed in preScan as a fixpoint so a
+        fallible block passed through a wrapper reaches the leaf callee.
+    **/
+    public final fallibleBlockParams:Map<String, Array<Int>> = [];
+
+    /**
+        Fallible-block region error names, keyed by `funcKey#paramIndex`: the
+        error type of the try region that encloses the parameter's call in the
+        callee body. A block propagates into *that* region, not into the
+        callee's own error enum, so the parameter type, the callee's call to
+        it, and the caller's literal must all name the caught type.
+    **/
+    public final fallibleBlockRegions:Map<String, String> = [];
+
+    /**
+        Local variables bound to a function literal that is later handed to a
+        fallible-block slot, keyed by the local's id: the slot it reaches.
+        Both the literal and the local's declared type must carry the slot's
+        Result, so the value is recorded where its slot is known and resolved
+        to an error type once the region scan has run.
+    **/
+    public final fallibleBlockLocalSlots:Map<Int, String> = [];
+
+    /**
+        A message-only exception carries text and declares no variants, so a
+        `?` cannot map into it the way an enum fault can; the caller formats
+        the source error into the text instead.
+    **/
+    public function isMessageOnlyErrorName(name:String):Bool {
+        return messageOnlyModuleFor(name) != null;
+    }
+
+    /** The module a message-only exception type was declared in, by type name. **/
+    public function messageOnlyModuleFor(name:String):Null<String> {
+        for (module in messageOnlyExceptions.keys())
+            if (messageOnlyExceptions.get(module) == name)
+                return module;
+        return null;
+    }
+
     public function isSyntheticErrorType(name:String):Bool {
         for (decls in syntheticErrorEnums)
             for (decl in decls)
