@@ -15808,7 +15808,7 @@ class RustExpr {
         if (resultType != null && isStringType(resultType)) {
             if (StringTools.endsWith(text, ".to_ustring()") || StringTools.endsWith(text, ".clone()"))
                 return text;
-            return text + ".to_string()";
+            return text + ".to_ustring()";
         }
         // An owned Vec result slot that receives a borrowed array parameter
         // clones the referent, so both arms of the conditional carry one
