@@ -12288,7 +12288,7 @@ class RustExpr {
                 }
                 if (stringLikeType(pt) && stringLikeType(arg.t)) {
                     out.push(switch (stripWrap(arg).expr) {
-                        case TConst(TString(_)): argStr;
+                        case TConst(TString(_)): "&(" + argStr + ")";
                         case _ if (nullableStringViewArg(arg)): "(" + expr(arg) + ").as_deref().unwrap_or(\"\")";
                         case TLocal(v) if (isBorrowedParamLocal(v)): argStr;
                         case _: argStr + ".as_ustr()";
