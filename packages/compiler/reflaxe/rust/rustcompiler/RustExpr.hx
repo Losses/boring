@@ -4756,8 +4756,9 @@ class RustExpr {
                             return padded + "f32";
                         }
                         return padded + "f64";
-                    imports.requireType("runtime.UString", "UString");
-                    case TString(s): return "UString::from(" + quoteString(s) + ")";
+                    case TString(s):
+                        imports.requireType("runtime.UString", "UString");
+                        return "UString::from(" + quoteString(s) + ")";
                     case TBool(b): return b ? "true" : "false";
                     case TNull: return "None";
                     case TThis: return thisBindingName;
