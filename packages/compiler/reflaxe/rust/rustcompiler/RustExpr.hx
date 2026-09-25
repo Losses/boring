@@ -2201,7 +2201,7 @@ class RustExpr {
             case TConst(TString(_)): "&(" + rendered + ")";
             case TLocal(v) if (isBorrowedParamLocal(v)): rendered;
             case _:
-                if (!StringTools.startsWith(rendered, "UString::from(") && (StringTools.contains(rendered, ".to_string()") || StringTools.contains(rendered, "String::new()")
+                if (StringTools.contains(rendered, ".to_string()") || StringTools.contains(rendered, "String::new()")
                     || StringTools.startsWith(rendered, "format!") || StringTools.endsWith(rendered, ".name())"))
                     "&UString::from((" + rendered + ").as_str())";
                 else
@@ -12308,7 +12308,7 @@ class RustExpr {
                         case TConst(TString(_)): "&(" + argStr + ")";
                         case _ if (nullableStringViewArg(arg)): "(" + expr(arg) + ").as_deref().unwrap_or(\"\")";
                         case TLocal(v) if (isBorrowedParamLocal(v)): argStr;
-                        case _: if (!StringTools.startsWith(argStr, "UString::from(") && (StringTools.contains(argStr, ".to_string()") || StringTools.contains(argStr, "String::new()") || StringTools.startsWith(argStr, "format!") || StringTools.endsWith(argStr, ".name())")) "&UString::from((" + argStr + ").as_str())" else argStr + ".as_ustr()";
+                        case _: if (StringTools.contains(argStr, ".to_string()") || StringTools.contains(argStr, "String::new()") || StringTools.startsWith(argStr, "format!") || StringTools.endsWith(argStr, ".name())")) "&UString::from((" + argStr + ").as_str())" else argStr + ".as_ustr()";
                     });
                     continue;
                 }
