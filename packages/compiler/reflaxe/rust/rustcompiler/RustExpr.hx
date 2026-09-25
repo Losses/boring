@@ -2322,7 +2322,14 @@ class RustExpr {
                 // The conversion names the exception type, so the call site
                 // must import it the same way a declared use would.
                 imports.requireType(messageOnlyModule, targetName);
-                return ".map_err(|e| " + targetName + "::new(&format!(\"{:?}\", e)))?";
+                // When the source error is also message-only its Display is
+                // the bare text; format with {} to keep the text through
+                // instead of wrapping it in a Debug struct name.
+                // (ExceptionFormatSpec)
+                final sourceModule = state.messageOnlyModuleFor(callee.name);
+                final sourceIsFaultUnion = StringTools.endsWith(callee.name, "Fault");
+                final formatSpec = (sourceModule != null || !sourceIsFaultUnion) ? "{}" : "{:?}";
+                return ".map_err(|e| " + targetName + "::new(&format!(\"" + formatSpec + "\", e)))?";
             }
             return "?";
         }
@@ -2345,7 +2352,10 @@ class RustExpr {
         final module = state.messageOnlyModuleFor(target);
         if (module != null) {
             imports.requireType(module, target);
-            return ".map_err(|e| " + target + "::new(&format!(\"{:?}\", e)))?";
+            final sourceModule = declaredName != null ? state.messageOnlyModuleFor(declaredName) : null;
+            final sourceIsFaultUnion = declaredName != null && StringTools.endsWith(declaredName, "Fault");
+            final formatSpec = (sourceModule != null || !sourceIsFaultUnion) ? "{}" : "{:?}";
+            return ".map_err(|e| " + target + "::new(&format!(\"" + formatSpec + "\", e)))?";
         }
         return "?";
     }
@@ -9564,7 +9574,25 @@ class RustExpr {
                 "match " + value + " { Some(v) => v.to_string(), None => \"null\".to_string() }";
             case IsFloat:
                 inConcat ? value : "crate::runtime::fp_helper::FPHelper::format_float" + (FloatPrecision.isF32() ? "_f32" : "") + "(" + value + ")";
-            case IsInt | IsBool: inConcat ? value : "(" + value + ").to_string()";
+            case IsBool:
+                inConcat ? value : "(" + value + ").to_string()";
+            case IsInt:
+                // A business-module Haxe Int is u32, so a negative Int stored
+                // as its two's-complement bits prints unsigned under a bare
+                // Display/to_string read. Reinterpret through the runtime
+                // helper; resident modules already render i32 and keep the
+                // direct read. A length read (usize) is already non-negative
+                // and stays plain. (RustIntStringSign)
+                if (RuntimeResidents.isResident(imports.selfModule)) {
+                    inConcat ? value : "(" + value + ").to_string()";
+                } else if (StringTools.startsWith(value, "usize::")
+                    || StringTools.endsWith(value, ".len()")
+                    || value.indexOf(".as_ref().map_or(0, |v| v.len())") >= 0) {
+                    inConcat ? value : "(" + value + ").to_string()";
+                } else {
+                    state.shimsUsed.set("std.IntText", true);
+                    "crate::runtime::int_text::IntText::int_text(" + value + ")";
+                }
             case IsReadOnlyArray(underlying):
                 stdStringType(underlying, value, inConcat, origin, depth);
             case IsParameterlessEnum(en):
@@ -12061,7 +12089,11 @@ class RustExpr {
         final module = target != null ? state.messageOnlyModuleFor(target) : null;
         if (module != null && constructorErrorName(e) != target) {
             imports.requireType(module, target);
-            return rendered + ".map_err(|e| " + target + "::new(&format!(\"{:?}\", e)))?";
+            final sourceName = constructorErrorName(e);
+            final sourceModule = sourceName != null ? state.messageOnlyModuleFor(sourceName) : null;
+            final sourceIsFaultUnion = sourceName != null && StringTools.endsWith(sourceName, "Fault");
+            final formatSpec = (sourceModule != null || !sourceIsFaultUnion) ? "{}" : "{:?}";
+            return rendered + ".map_err(|e| " + target + "::new(&format!(\"" + formatSpec + "\", e)))?";
         }
         return rendered + "?";
     }
@@ -12098,7 +12130,10 @@ class RustExpr {
         final module = state.messageOnlyModuleFor(target);
         if (module != null) {
             imports.requireType(module, target);
-            return ".map_err(|e| " + target + "::new(&format!(\"{:?}\", e)))?";
+            final sourceModule = state.messageOnlyModuleFor(declared.name);
+            final sourceIsFaultUnion = StringTools.endsWith(declared.name, "Fault");
+            final formatSpec = (sourceModule != null || !sourceIsFaultUnion) ? "{}" : "{:?}";
+            return ".map_err(|e| " + target + "::new(&format!(\"" + formatSpec + "\", e)))?";
         }
         return "?";
     }
