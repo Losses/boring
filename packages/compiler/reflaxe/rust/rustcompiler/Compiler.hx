@@ -366,6 +366,7 @@ class Compiler extends PluginCompiler<Compiler> {
         emitShim("std.Fs", "fs.rs", RustRuntime.FS_SOURCE);
         emitShim("std.Process", "process.rs", RustRuntime.PROCESS_SOURCE);
         emitShim("std.Functional", "functional.rs", RustRuntime.functionalSource());
+        emitShim("std.IntText", "int_text.rs", RustRuntime.INT_TEXT_SOURCE);
         emitShim(RustTestBinding.externModule(), RustTestBinding.shimPath(), RustRuntime.TEST_SOURCE);
 
         final emitDir = RuntimeConfig.emitDir();
@@ -387,6 +388,8 @@ class Compiler extends PluginCompiler<Compiler> {
                 runtimeMods.push("process");
             if (state.shimsUsed.exists("std.Functional"))
                 runtimeMods.push("functional");
+            if (state.shimsUsed.exists("std.IntText"))
+                runtimeMods.push("int_text");
             final testUsed = RuntimeResidents.externsOf("runtime.TestCore").filter(m -> state.shimsUsed.exists(m));
             if (testUsed.length > 0) {
                 runtimeMods.push("test");
