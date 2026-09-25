@@ -7651,7 +7651,7 @@ class RustExpr {
                 // original Int constant. Suffixing this literal prevents Rust
                 // method calls from leaving its numeric type ambiguous.
                 Std.string(v) + ".0" + (FloatPrecision.isF32() ? "f32" : "f64");
-            case _ if (isIntType(emittedType(a))): intToFloatText(expr(a));
+            case _ if (isIntType(emittedType(a))): intToFloatSignedText(expr(a), a);
             case _:
                 // A nullable local proven non-null by a guard holds the inner
                 // float; the Math call must unwrap the Option (the guard
