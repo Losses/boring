@@ -1832,6 +1832,360 @@ class Compiler extends PluginCompiler<Compiler> {
                 state.syntheticErrorVariants.set(decl.name, variants);
             }
         }
+        scanFallibleBlockParams(mtypes);
+    }
+
+    /**
+        Detects fallible-block parameters: a `() -> Void` slot of a fallible
+        function that receives a function literal whose body contains a
+        discarded fallible call. Such parameters render as
+        `Arc<dyn Fn() -> Result<(), E>>` and their call sites propagate with
+        `?`. The scan runs after the funcErrorEnums fixpoint so callee
+        fallibility is settled. A fixpoint propagates a fallible block passed
+        through a wrapper: when a marked parameter is forwarded to another
+        fallible function's function-typed slot, the leaf callee's slot is
+        marked too.
+    **/
+    function scanFallibleBlockParams(mtypes:Array<haxe.macro.Type.ModuleType>):Void {
+        final funcs:Array<{key:String, body:TypedExpr, paramIds:Array<Int>, localInits:Map<Int, TypedExpr>}> = [];
+        for (mt in mtypes) {
+            switch (mt) {
+                case TClassDecl(c):
+                    final cls = c.get();
+                    if (cls.isExtern || !inSourceScope(cls.pos))
+                        continue;
+                    function collectField(field:haxe.macro.Type.ClassField, isStatic:Bool):Void {
+                        final isMethod = switch (field.kind) { case FMethod(_): true; case _: false; };
+                        if (!isMethod)
+                            return;
+                        final body = field.expr();
+                        if (body == null)
+                            return;
+                        final key = RustEmissionState.funcKey(cls.module, field.name, isStatic);
+                        // The parameter ids let a wrapper that forwards one of
+                        // its own function-typed parameters into a fallible slot
+                        // be recognised as taking a fallible block itself.
+                        final ids = switch (body.expr) {
+                            case TFunction(fn): [for (a in fn.args) a.v.id];
+                            case _: [];
+                        };
+                        // Locals bound to a function literal are themselves
+                        // fallible blocks when that literal discards a fallible
+                        // call, so their initializers are kept for the check.
+                        // The body is a TFunction wrapping the block; iterating
+                        // the TFunction only visits the block node, never the
+                        // TVar statements inside it, so the walk descends into
+                        // the block's statements directly.
+                        final inits:Map<Int, TypedExpr> = [];
+                        function collectLocalInits(e:TypedExpr):Void {
+                            switch (stripDecorations(e).expr) {
+                                case TFunction(fn):
+                                    collectLocalInits(fn.expr);
+                                case TBlock(es):
+                                    for (x in es)
+                                        collectLocalInits(x);
+                                case TVar(v, init) if (init != null):
+                                    inits.set(v.id, init);
+                                case _:
+                                    haxe.macro.TypedExprTools.iter(e, collectLocalInits);
+                            }
+                        }
+                        collectLocalInits(body);
+                        funcs.push({key: key, body: body, paramIds: ids, localInits: inits});
+                    }
+                    for (field in cls.statics.get())
+                        collectField(field, true);
+                    for (field in cls.fields.get())
+                        collectField(field, false);
+                case _:
+            }
+        }
+        var changed = true;
+        while (changed) {
+            changed = false;
+            for (f in funcs) {
+                final before = state.fallibleBlockParams.get(f.key);
+                final beforeLen = before == null ? 0 : before.length;
+                walkFallibleBlockCallSites(f);
+                final after = state.fallibleBlockParams.get(f.key);
+                final afterLen = after == null ? 0 : after.length;
+                if (afterLen != beforeLen)
+                    changed = true;
+            }
+        }
+        // A wrapper's region is the region of the slot it forwards into, so
+        // the pass repeats until no new region is learned.
+        var grew = true;
+        while (grew) {
+            grew = false;
+            final before = Lambda.count(state.fallibleBlockRegions);
+            for (f in funcs)
+                recordFallibleBlockRegions(f);
+            grew = Lambda.count(state.fallibleBlockRegions) != before;
+        }
+    }
+
+    /**
+        Records, for every marked fallible-block parameter, the error type of
+        the try region that encloses the parameter's call in the callee body.
+        The marker says *that* a slot is a fallible block; this says which
+        error type the block must produce, which is the caught type of that
+        region and not the callee's own error enum.
+    **/
+    function recordFallibleBlockRegions(f:{key:String, body:TypedExpr, paramIds:Array<Int>, localInits:Map<Int, TypedExpr>}):Void {
+        final idx = state.fallibleBlockParams.get(f.key);
+        if (idx == null)
+            return;
+        final fargs = switch (stripDecorations(f.body).expr) {
+            case TFunction(fn): fn.args;
+            case _: return;
+        };
+        for (i in idx) {
+            if (i < 0 || i >= fargs.length)
+                continue;
+            final region = blockRegionErrorName(f.body, fargs[i].v.id);
+            if (region != null)
+                state.fallibleBlockRegions.set(f.key + "#" + i, region);
+        }
+    }
+
+    /**
+        Walks `body` for a call to the local `paramId` and returns the error
+        type of the innermost try region around it, or null when the call sits
+        outside every region.
+    **/
+    function blockRegionErrorName(body:TypedExpr, paramId:Int):Null<String> {
+        var found:Null<String> = null;
+        function walk(e:TypedExpr, region:Null<String>, forwarded:Null<String>):Void {
+            if (found != null || e == null)
+                return;
+            switch (stripDecorations(e).expr) {
+                case TCall(fn, args):
+                    switch (stripDecorations(fn).expr) {
+                        case TLocal(v) if (v.id == paramId):
+                            // No region here means the parameter is forwarded to
+                            // another slot; the block inherits that slot's region.
+                            found = region != null ? region : (forwarded != null ? state.fallibleBlockRegions.get(forwarded) : null);
+                        case _:
+                    }
+                    final callee = calleeFuncKey(fn);
+                    walk(fn, region, null);
+                    for (i in 0...args.length) {
+                        final slot = callee != null && state.funcErrorEnums.exists(callee) ? callee + "#" + i : null;
+                        // A parameter passed as an argument is the forwarding
+                        // shape: the wrapper hands its block straight to another
+                        // fallible slot, so the region is that slot's region.
+                        switch (stripDecorations(args[i]).expr) {
+                            case TLocal(v) if (v.id == paramId):
+                                found = region != null ? region : (slot != null ? state.fallibleBlockRegions.get(slot) : null);
+                            case _:
+                        }
+                        walk(args[i], region, slot);
+                    }
+                case TFunction(fn):
+                    for (a in fn.args)
+                        if (a.value != null)
+                            walk(a.value, region, null);
+                    walk(fn.expr, region, null);
+                case TBlock(es):
+                    for (x in es)
+                        walk(x, region, null);
+                case TIf(c, a, b):
+                    walk(c, region, null);
+                    walk(a, region, null);
+                    if (b != null)
+                        walk(b, region, null);
+                case TWhile(c, b, _):
+                    walk(c, region, null);
+                    walk(b, region, null);
+                case TFor(_, it, b):
+                    walk(it, region, null);
+                    walk(b, region, null);
+                case TTry(b, catches):
+                    final inner = catches.length > 0 ? regionErrorNameOf(catches[0]) : null;
+                    walk(b, inner != null ? inner : region, null);
+                    for (c in catches)
+                        walk(c.expr, inner, null);
+                case TReturn(x):
+                    if (x != null)
+                        walk(x, region, null);
+                case TThrow(x):
+                    walk(x, region, null);
+                case TSwitch(s, cases, def):
+                    walk(s, region, null);
+                    for (c in cases) {
+                        for (v in c.values)
+                            walk(v, region, null);
+                        walk(c.expr, region, null);
+                    }
+                    if (def != null)
+                        walk(def, region, null);
+                case TVar(_, x):
+                    if (x != null)
+                        walk(x, region, null);
+                case TBinop(_, l, r):
+                    walk(l, region, null);
+                    walk(r, region, null);
+                case TParenthesis(x):
+                    walk(x, region, null);
+                case TMeta(_, x):
+                    walk(x, region, null);
+                case _:
+            }
+        }
+        walk(body, null, null);
+        return found;
+    }
+
+    /** The type a catch clause catches; mirrors RustExpr.caughtPayloadEnum. **/
+    function regionErrorNameOf(c:{v:TVar, expr:TypedExpr}):Null<String> {
+        switch (Context.follow(c.v.t)) {
+            case TInst(cls, _):
+                final messageOnly = state.messageOnlyExceptions.get(cls.get().module);
+                if (messageOnly != null)
+                    return messageOnly;
+                final enumModule = state.exceptionPayloads.get(cls.get().module);
+                if (enumModule == null)
+                    return null;
+                return state.payloadEnumNames.exists(enumModule) ? state.payloadEnumNames.get(enumModule) : enumModule.substr(enumModule.lastIndexOf(".") + 1);
+            case _:
+                return null;
+        }
+    }
+
+    /**
+        Walks one function body for calls to fallible functions whose
+        function-typed argument is a fallible block (a function literal with a
+        discarded fallible call, or a parameter already marked fallible).
+    **/
+    function walkFallibleBlockCallSites(f:{key:String, body:TypedExpr, paramIds:Array<Int>, localInits:Map<Int, TypedExpr>}):Void {
+        function walk(e:TypedExpr):Void {
+            switch (stripDecorations(e).expr) {
+                case TCall(fn, args):
+                    final callee = calleeFuncKey(fn);
+                    if (callee != null && state.funcErrorEnums.exists(callee)) {
+                        final paramTypes = calleeParamTypes(fn);
+                        for (i in 0...args.length) {
+                            if (i >= paramTypes.length)
+                                continue;
+                            if (!isFunType(paramTypes[i]))
+                                continue;
+                            final isBlk = argIsFallibleBlock(args[i], f);
+                            if (isBlk) {
+                                // A local bound to such a literal is passed on by
+                                // name later; record it so its own declaration is
+                                // rendered with the slot's Result too.
+                                switch (stripDecorations(args[i]).expr) {
+                                    case TLocal(v) if (f.paramIds.indexOf(v.id) < 0):
+                                        state.fallibleBlockLocalSlots.set(v.id, callee + "#" + i);
+                                    case _:
+                                }
+                                final list = state.fallibleBlockParams.get(callee);
+                                if (list == null) {
+                                    state.fallibleBlockParams.set(callee, [i]);
+                                } else if (list.indexOf(i) < 0) {
+                                    list.push(i);
+                                }
+                            }
+                        }
+                    }
+                    haxe.macro.TypedExprTools.iter(e, walk);
+                case _:
+                    haxe.macro.TypedExprTools.iter(e, walk);
+            }
+        }
+        walk(f.body);
+    }
+
+    /**
+        The funcKey of a class-static or instance-method callee, or null when
+        the callee is not a class method.
+    **/
+    function calleeFuncKey(fn:TypedExpr):Null<String> {
+        return switch (stripDecorations(fn).expr) {
+            case TField(_, FStatic(c, cf)): RustEmissionState.funcKey(c.get().module, cf.get().name, true);
+            case TField(_, FInstance(c, _, cf)): RustEmissionState.funcKey(c.get().module, cf.get().name, false);
+            case _: null;
+        };
+    }
+
+    /** The parameter types of a class-method callee, or empty. */
+    function calleeParamTypes(fn:TypedExpr):Array<Type> {
+        return switch (stripDecorations(fn).expr) {
+            case TField(_, FStatic(c, cf)) | TField(_, FInstance(c, _, cf)):
+                switch (Context.follow(cf.get().type)) {
+                    case TFun(args, _): [for (a in args) a.t];
+                    case _: [];
+                }
+            case _: [];
+        };
+    }
+
+    /**
+        True when an argument is a fallible block: a function literal whose
+        body contains a discarded fallible call, or a parameter of the
+        enclosing function already marked fallible.
+    **/
+    function argIsFallibleBlock(arg:TypedExpr, f:{key:String, body:TypedExpr, paramIds:Array<Int>, localInits:Map<Int, TypedExpr>}):Bool {
+        switch (stripDecorations(arg).expr) {
+            case TFunction(fn):
+                return literalBodyHasFallibleCall(fn.expr);
+            case TLocal(v):
+                // A parameter already marked fallible for this function is
+                // forwarded verbatim; the slot it reaches is a fallible block.
+                final marked = state.fallibleBlockParams.get(f.key);
+                final at = f.paramIds.indexOf(v.id);
+                if (marked != null && at >= 0 && marked.indexOf(at) >= 0)
+                    return true;
+                // A local bound to a literal that discards a fallible call is
+                // the same block, passed on by name.
+                final bound = f.localInits.get(v.id);
+                if (bound == null)
+                    return false;
+                return switch (stripDecorations(bound).expr) {
+                    case TFunction(fn): literalBodyHasFallibleCall(fn.expr);
+                    case _: false;
+                };
+            case _:
+                return false;
+        }
+    }
+
+    function literalBodyHasFallibleCall(body:TypedExpr):Bool {
+        var found = false;
+        function walk(e:TypedExpr):Void {
+            if (found)
+                return;
+            switch (stripDecorations(e).expr) {
+                case TCall(fn, _):
+                    final callee = calleeFuncKey(fn);
+                    if (callee != null && state.funcErrorEnums.exists(callee)) {
+                        found = true;
+                        return;
+                    }
+                    haxe.macro.TypedExprTools.iter(e, walk);
+                case TNew(c, _, _):
+                    // `() -> new Foo(..)` discards a fallible constructor: the
+                    // typed form is TNew, which the TCall arm never sees.
+                    final ctor = RustEmissionState.funcKey(c.get().module, "new", false);
+                    if (state.funcErrorEnums.exists(ctor)) {
+                        found = true;
+                        return;
+                    }
+                    haxe.macro.TypedExprTools.iter(e, walk);
+                case _:
+                    haxe.macro.TypedExprTools.iter(e, walk);
+            }
+        }
+        walk(body);
+        return found;
+    }
+
+    function isFunType(t:Type):Bool {
+        return switch (Context.follow(t)) {
+            case TFun(_, _): true;
+            case _: false;
+        };
     }
 
     /**
