@@ -9010,6 +9010,20 @@ class RustExpr {
         };
     }
 
+    /** Whether the expression tree contains any function literal. */
+    function hasMoveClosures(e:TypedExpr):Bool {
+        var found = false;
+        function scan(node:TypedExpr):Void {
+            switch (stripWrap(node).expr) {
+                case TFunction(_): found = true;
+                case _:
+            }
+            if (!found) haxe.macro.TypedExprTools.iter(node, scan);
+        }
+        scan(e);
+        return found;
+    }
+
     /**
         Scan the function body for String parameters that are read by
         charCodeAt/charAt/substring/length in multiple places and never
@@ -9019,6 +9033,12 @@ class RustExpr {
     **/
     function scanStrParamHoists(f:ClassFuncData):Void {
         hoistedStrParams.clear();
+        // A function that contains move closures or shared-state captures
+        // may move the hoisted units vector into a closure, breaking later
+        // borrows. Only hoist when the body has no closures at all, which
+        // is the common case for small helper functions that do repeated
+        // charCodeAt reads. (StrParamHoist)
+        if (hasMoveClosures(f.expr)) return;
         for (a in f.args) {
             final v = a.tvar;
             if (v == null) continue;
