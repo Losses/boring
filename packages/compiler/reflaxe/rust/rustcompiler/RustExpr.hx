@@ -6899,7 +6899,12 @@ class RustExpr {
                 return RustConversions.truncate(lenDiv, "u32");
             case OpMult | OpAdd | OpSub
                 if (isIntType(e.t)
-                    && !inGenericFunction
+                    // A closure body sets inGenericFunction, so gating the
+                    // wrapping form on it removed wrapping from every closure
+                    // that computes with concrete Ints, and u32 subtraction
+                    // underflowed into a panic. The isTypeParam checks below
+                    // already cover the unresolved-type case this guard aimed
+                    // at. (IntWrapInClosure)
                     && !isGenericLocal(l)
                     && !isClosureParam(l)
                     && !RustType.isTypeParam(currentReturnType)
