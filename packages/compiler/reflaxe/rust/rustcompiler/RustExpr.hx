@@ -429,7 +429,7 @@ class RustExpr {
             case CFloat(s):
                 final padded = s.indexOf(".") >= 0 || s.indexOf("e") >= 0 || s.indexOf("E") >= 0 ? s : s + ".0";
                 FloatPrecision.isF32() ? padded + "f32" : padded;
-            case CString(s): quoteString(s) + (asOption || !nested ? ".to_string()" : "");
+            case CString(s): "UString::from(" + quoteString(s) + ")";
             case CBool(b): b ? "true" : "false";
             case CNull: "None";
             case CEmptyArray: "vec![]";
@@ -8980,7 +8980,7 @@ class RustExpr {
         // the generic shim import under the native name.
         switch (cls.module) {
             case "String":
-                return "String::" + RustImports.toSnakeCase(name);
+                return "UString::" + RustImports.toSnakeCase(name);
             case "Math":
                 // The f32 configuration renders the whole Math family from f32, the
                 // binary32 equivalent of every static (feature spec 23).
@@ -15084,12 +15084,12 @@ class RustExpr {
                     case "Int": "u32";
                     case "Float": FloatPrecision.isF32() ? "f32" : "f64";
                     case "Bool": "bool";
-                    case "String": "string";
+                    case "String": "ustring";
                     case _: RustImports.toSnakeCase(a.get().name);
                 }
             case TInst(c, _):
                 switch (c.get().name) {
-                    case "String": "string";
+                    case "String": "ustring";
                     case "Bytes": "bytes";
                     case _: RustImports.toSnakeCase(c.get().name);
                 }
