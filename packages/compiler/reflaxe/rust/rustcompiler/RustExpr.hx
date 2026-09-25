@@ -10367,7 +10367,7 @@ class RustExpr {
                     // from_utf16 rejects an unpaired surrogate, so the pair is
                     // built explicitly above the BMP while a BMP value keeps
                     // the single-unit form. (FromCharCodeScalar)
-                    return "(if " + unwrapped + " > 0xFFFF { String::from_utf16(&[0xD800 + ((" + unwrapped + " - 0x10000) >> 10) as u16, 0xDC00 + ((" + unwrapped + " - 0x10000) & 0x3FF) as u16]).unwrap() } else { String::from_utf16(&[" + unwrapped + " as u16]).unwrap_or_default() })";
+                    return "(if " + unwrapped + " > 0xFFFF { String::from_utf16(&[0xD800 + ((" + unwrapped + " - 0x10000) >> 10) as u16, 0xDC00 + ((" + unwrapped + " - 0x10000) & 0x3FF) as u16]).unwrap() } else { String::from_utf16_lossy(&[" + unwrapped + " as u16]) })";
                 }
                 if (path == "std.UStringPlatform") {
                     // Cursor primitives of the resident UString walk, inlined
