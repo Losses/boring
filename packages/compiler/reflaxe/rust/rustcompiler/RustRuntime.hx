@@ -965,6 +965,11 @@ impl std::ops::AddAssign<&str> for UString {
         self.0.extend(rhs.encode_utf16());
     }
 }
+impl std::ops::AddAssign<&UString> for UString {
+    fn add_assign(&mut self, rhs: &UString) {
+        self.0.extend_from_slice(rhs.as_slice());
+    }
+}
 impl std::ops::AddAssign<&String> for UString {
     fn add_assign(&mut self, rhs: &String) {
         self += rhs.as_str();
