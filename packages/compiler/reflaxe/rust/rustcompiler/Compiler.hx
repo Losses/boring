@@ -1779,19 +1779,70 @@ class Compiler extends PluginCompiler<Compiler> {
             }
             return false;
         }
-        for (entry in entries) {
-            final callerType = state.funcErrorTypes.get(entry.key);
-            if (callerType == null || !state.isSyntheticErrorType(callerType.name)) continue;
-            for (edge in entry.edges) {
-                final calleeType = state.funcErrorTypes.get(edge.callee);
-                if (calleeType == null
-                    || edge.absorbed.indexOf(calleeType.module) >= 0)
+        var changed = true;
+        while (changed) {
+            changed = false;
+            for (entry in entries) {
+                final callerType = state.funcErrorTypes.get(entry.key);
+                if (callerType == null) continue;
+                if (!state.isSyntheticErrorType(callerType.name)) {
+                    // A non-synthetic caller whose callee just became a union:
+                    // when the callee union already covers every error the caller
+                    // carries, adopt the union directly instead of leaving the
+                    // caller on its pre-union leaf. Nesting the union as a member
+                    // would need a leaf conversion the catch lowering cannot build.
+                    for (edge in entry.edges) {
+                        final calleeType = state.funcErrorTypes.get(edge.callee);
+                        if (calleeType == null
+                            || !state.isSyntheticErrorType(calleeType.name)
+                            || edge.absorbed.indexOf(calleeType.module) >= 0)
+                            continue;
+                        if (calleeType.name == callerType.name) continue;
+                        final nested = state.syntheticErrorMembers(calleeType.name);
+                        final current = members.get(entry.key);
+                        var covered = current != null && nested != null && current.length > 0;
+                        if (covered) {
+                            for (item in current) {
+                                var seen = false;
+                                for (m in nested)
+                                    if (m.module == item.module && m.name == item.name) {
+                                        seen = true;
+                                        break;
+                                    }
+                                if (!seen) {
+                                    covered = false;
+                                    break;
+                                }
+                            }
+                        }
+                        if (covered) {
+                            members.set(entry.key, [calleeType]);
+                            enumOf.set(entry.key, calleeType);
+                            state.funcErrorTypes.set(entry.key, calleeType);
+                            state.funcErrorEnums.set(entry.key, calleeType);
+                            conflicts.remove(entry.key);
+                            fallible.set(entry.key, true);
+                            changed = true;
+                            continue;
+                        }
+                        if (mergeEnum(entry.key, calleeType))
+                            changed = true;
+                        fallible.set(entry.key, true);
+                    }
                     continue;
-                if (calleeType.name == callerType.name) continue;
-                if (state.isSyntheticErrorType(calleeType.name)
-                    && unionReaches(calleeType.name, callerType.name, [])) continue;
-                mergeEnum(entry.key, calleeType);
-                fallible.set(entry.key, true);
+                }
+                for (edge in entry.edges) {
+                    final calleeType = state.funcErrorTypes.get(edge.callee);
+                    if (calleeType == null
+                        || edge.absorbed.indexOf(calleeType.module) >= 0)
+                        continue;
+                    if (calleeType.name == callerType.name) continue;
+                    if (state.isSyntheticErrorType(calleeType.name)
+                        && unionReaches(calleeType.name, callerType.name, [])) continue;
+                    if (mergeEnum(entry.key, calleeType))
+                        changed = true;
+                    fallible.set(entry.key, true);
+                }
             }
         }
         // Reconcile synthetic union member lists after the fourth
