@@ -6895,8 +6895,16 @@ class RustExpr {
             case OpAdd if (isStringType(l.t) || isStringType(r.t)):
                 final parts:Array<TypedExpr> = [];
                 collectStringConcatOperands(e, parts);
-                final slots = [for (_ in parts) "{}"];
-                return "format!(\"" + slots.join("") + "\",\n            " + [for (part in parts) stringConcatOperand(part)].join(",\n            ") + "\n        )";
+                if (parts.length == 0)
+                    return "UString::new()";
+                final pushes = [];
+                for (part in parts) {
+                    if (isStringType(part.t))
+                        pushes.push("__s += " + stringViewArg(part) + ";");
+                    else
+                        pushes.push("__s += &(" + stringConcatOperand(part) + ");");
+                }
+                return "{ let mut __s = UString::new(); " + pushes.join(" ") + " __s }";
             case OpDiv if (StringTools.endsWith(operand(l, op, false), ".len()")):
                 // A length divided by a Haxe-Int divisor: the divisor widens to
                 // usize (T3, never truncates), the quotient is the target u32,
